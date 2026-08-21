@@ -38,6 +38,7 @@ function renderAlphaBugButton(
 describe('AlphaBugButton', () => {
   afterEach(() => {
     registerBugButtonSlot(null);
+    Object.defineProperty(navigator, 'userAgentData', { configurable: true, value: undefined });
   });
 
   beforeEach(() => {
@@ -78,15 +79,16 @@ describe('AlphaBugButton', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'Send bug report' }));
 
-    await waitFor(() => expect(createSupportRequest).toHaveBeenCalledWith({
+    await waitFor(() => expect(createSupportRequest).toHaveBeenCalledWith(expect.objectContaining({
       category: 'bug',
       subject: 'Alpha bug: /map?layer=nearby',
       message: 'Map pins disappeared after I changed filters.',
       source: 'unknown',
       pageUrl: '/map?layer=nearby',
-    }));
+    })));
     expect(await screen.findByText('Bug report sent')).toBeInTheDocument();
-    expect(screen.getByText('This report includes the current page and attaches a screenshot when your browser allows it.')).toBeInTheDocument();
+    expect(screen.getByText('Describe what broke and how support can reproduce it.')).toBeInTheDocument();
+    expect(screen.queryByText(/attaches a screenshot/i)).not.toBeInTheDocument();
   });
 
   it('includes a required reply email in signed-out bug reports', async () => {
@@ -103,15 +105,48 @@ describe('AlphaBugButton', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'Send bug report' }));
 
-    await waitFor(() => expect(createSupportRequest).toHaveBeenCalledWith({
+    await waitFor(() => expect(createSupportRequest).toHaveBeenCalledWith(expect.objectContaining({
       category: 'bug',
       subject: 'Alpha bug: /support?appeal=1',
       message: 'The appeal upload opens the camera instead of my photo picker.',
       contactEmail: 'person@example.com',
       source: 'unknown',
       pageUrl: '/support?appeal=1',
-    }));
+    })));
     expect(await screen.findByText('Bug report sent')).toBeInTheDocument();
+  });
+
+  it('records browser-provided device context with the page when no screenshot is available', async () => {
+    Object.defineProperty(navigator, 'userAgentData', {
+      configurable: true,
+      value: {
+        mobile: true,
+        platform: 'Android',
+        getHighEntropyValues: vi.fn().mockResolvedValue({
+          model: 'Pixel 9',
+          platform: 'Android',
+          platformVersion: '16',
+          mobile: true,
+        }),
+      },
+    });
+    renderAlphaBugButton(true, '/map?layer=nearby');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Report alpha bug' }));
+    fireEvent.change(screen.getByLabelText('What broke?'), {
+      target: { value: 'The profile preview is too narrow at this window size.' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Send bug report' }));
+
+    await waitFor(() => expect(createSupportRequest).toHaveBeenCalledWith(expect.objectContaining({
+      pageUrl: '/map?layer=nearby',
+      device: {
+        model: 'Pixel 9',
+        platform: 'Android',
+        platformVersion: '16',
+        mobile: true,
+      },
+    })));
   });
 
   it('keeps the same upper-right corner on chat routes', () => {
@@ -159,19 +194,12 @@ describe('AlphaBugButton', () => {
     expect(reportButton.querySelector('svg')).toHaveClass('h-5', 'w-5', 'lg:h-7', 'lg:w-7');
   });
 
-  it('moves out of the interactive area while the signed-out auth shell is scrolled', () => {
-    render(
-      <MemoryRouter>
-        <AlphaBugButton authShellScrolled enabled requireContactEmail />
-      </MemoryRouter>
-    );
+  it('remains available on the signed-out support flow', () => {
+    renderAlphaBugButton(true, '/support', true);
 
-    expect(screen.getByTestId('alpha-bug-button')).toHaveClass(
-      'pointer-events-none',
-      '-translate-y-24',
-      'opacity-0',
-    );
-    expect(screen.getByTestId('alpha-bug-button')).toHaveAttribute('tabindex', '-1');
+    expect(screen.getByTestId('alpha-bug-button')).toBeVisible();
+    expect(screen.getByTestId('alpha-bug-button')).not.toHaveAttribute('aria-hidden');
+    expect(screen.getByTestId('alpha-bug-button')).not.toHaveAttribute('tabindex', '-1');
   });
 
   it('keeps the first-run map tip below the map controls', async () => {

@@ -3,10 +3,11 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import FeelingLucky from './FeelingLucky';
 
-const { getMyBillingStatus, getNearbyUsers, getMyProfile, decryptDisplayLocationToken } = vi.hoisted(() => ({
+const { getMyBillingStatus, getNearbyUsers, getMyProfile, getProfileById, decryptDisplayLocationToken } = vi.hoisted(() => ({
   getMyBillingStatus: vi.fn(),
   getNearbyUsers: vi.fn(),
   getMyProfile: vi.fn(),
+  getProfileById: vi.fn(),
   decryptDisplayLocationToken: vi.fn(),
 }));
 
@@ -24,6 +25,7 @@ vi.mock('../lib/profileApi', async () => {
   return {
     ...actual,
     getMyProfile,
+    getProfileById,
   };
 });
 
@@ -53,6 +55,7 @@ describe('FeelingLucky', () => {
     getMyBillingStatus.mockReset();
     getNearbyUsers.mockReset();
     getMyProfile.mockReset();
+    getProfileById.mockReset();
     decryptDisplayLocationToken.mockReset();
     vi.spyOn(Math, 'random').mockReturnValue(0);
     Object.defineProperty(window, 'matchMedia', {
@@ -121,6 +124,15 @@ describe('FeelingLucky', () => {
       hostingTravel: ['Can Host'],
       photo: null,
     }]);
+    getProfileById.mockResolvedValue({
+      photos: ['/jordan.jpg', '/jordan-2.jpg', '/jordan-3.jpg', '/jordan-4.jpg'],
+      photo_metadata: [
+        { url: '/jordan.jpg', explicit: false },
+        { url: '/jordan-2.jpg', explicit: false },
+        { url: '/jordan-3.jpg', explicit: false },
+        { url: '/jordan-4.jpg', explicit: false },
+      ],
+    });
 
     const { container } = renderLucky();
 
@@ -133,13 +145,17 @@ describe('FeelingLucky', () => {
     const browseAgainButton = screen.getByRole('button', { name: 'Browse again' });
     const profileCard = screen.getByTestId('profile-card');
     expect(profileCard).toContainElement(browseAgainButton);
-    expect(profileCard).toHaveClass('aspect-[4/5]');
+    expect(profileCard).toHaveClass('h-full', 'min-h-0', 'max-w-2xl');
+    expect(profileCard).not.toHaveClass('aspect-[4/5]');
     expect(container.firstElementChild).toHaveClass('pb-[calc(7rem+env(safe-area-inset-bottom))]');
     expect(screen.getByTestId('lucky-profile-result')).toHaveClass('flex', 'min-h-0', 'flex-1', 'flex-col', 'gap-3');
     expect(screen.getByTestId('profile-card')).not.toHaveClass('overflow-y-auto');
     expect(screen.getByTestId('profile-card-media')).toHaveClass('absolute', 'inset-0');
-    expect(screen.getByTestId('carousel-profile-glass')).toHaveClass('bg-black/60', 'backdrop-blur-xl');
+    expect(screen.getByTestId('carousel-profile-glass')).not.toHaveClass('bg-black/60', 'backdrop-blur-xl');
     expect(screen.getByTestId('carousel-profile-actions')).toContainElement(screen.getByRole('button', { name: 'send cruush' }));
+    const secondPhotoHeart = await screen.findByRole('button', { name: 'Show profile photo 2' });
+    fireEvent.click(secondPhotoHeart);
+    expect(screen.getByTestId('carousel-profile-photo')).toHaveAttribute('src', '/jordan-2.jpg');
   });
 
   it('treats billing failures as locked and does not reveal profile data', async () => {

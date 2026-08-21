@@ -35,7 +35,7 @@ function ProfileNavIcon({ active }: { active: boolean }) {
 export default function BottomNav() {
   const navigate = useNavigate();
   const location = useLocation();
-  const isMobile = useIsMobile();
+  const usesFullPageProfile = useIsMobile(1120, 720);
   const isOwnProfilePanelOpen = Boolean(
     (location.state as { openOwnProfilePanel?: boolean } | null)?.openOwnProfilePanel
   );
@@ -53,7 +53,7 @@ export default function BottomNav() {
   };
   const isMapRoute = location.pathname === '/map' || location.pathname.startsWith('/map/');
   const handleNavClick = (path: string) => {
-    if (path === '/profile' && !isMobile) {
+    if (path === '/profile' && !usesFullPageProfile) {
       navigate('/map', {
         state: {
           openOwnProfilePanel: true,
@@ -75,7 +75,7 @@ export default function BottomNav() {
       ) : null}
       <div
         data-testid="bottom-nav-pill"
-        className="pointer-events-auto relative z-10 mx-auto flex w-full max-w-[23rem] items-center justify-between rounded-full border border-white/10 bg-background/68 px-1.5 pb-1.5 pt-2 shadow-[0_20px_60px_rgba(0,0,0,0.42)] backdrop-blur-md"
+        className="cruush-bottom-nav-pill pointer-events-auto relative z-10 mx-auto flex w-full max-w-[23rem] items-center justify-between rounded-full border border-white/10 bg-background/68 px-1.5 pb-1.5 pt-2 shadow-[0_20px_60px_rgba(0,0,0,0.42)] backdrop-blur-md transition-transform"
       >
         {navItems.map((item) => {
           const active = isActive(item.path);

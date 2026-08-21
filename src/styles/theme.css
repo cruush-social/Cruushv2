@@ -178,6 +178,20 @@ html[data-cruush-alpha-bug-corner='top-right'] header.sticky.top-0[data-testid='
   padding-right: 0 !important;
 }
 
+@media (min-width: 1120px) and (min-height: 720px) {
+  html[data-cruush-map-profile-panel='open'] .cruush-map-top-actions {
+    width: min(52rem, calc(100vw - 34rem));
+    max-width: none;
+    flex: none;
+    margin-left: auto;
+    margin-right: 4.75rem;
+  }
+
+  html[data-cruush-map-profile-panel='open'] .cruush-bottom-nav-pill {
+    transform: translateX(8rem);
+  }
+}
+
 html[data-cruush-alpha-bug-corner='top-right'] [data-testid='accessibility-quick-access'] {
   right: calc(4.25rem + env(safe-area-inset-right));
 }
@@ -449,6 +463,34 @@ html[data-cruush-alpha-bug-corner='top-right'] [data-testid='accessibility-quick
 
   .scrollbar-subtle::-webkit-scrollbar-thumb:hover {
     background: rgba(255, 255, 255, 0.34);
+  }
+
+  .profile-card-scroll {
+    overflow-y: auto;
+    scrollbar-color: rgba(156, 163, 175, 0.58) transparent;
+    scrollbar-gutter: auto;
+    scrollbar-width: thin;
+  }
+
+  .profile-card-scroll::-webkit-scrollbar {
+    width: 0.1875rem;
+  }
+
+  .profile-card-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .profile-card-scroll::-webkit-scrollbar-thumb {
+    background: rgba(156, 163, 175, 0.58);
+    border-radius: 999px;
+  }
+
+  .profile-card-scroll::-webkit-scrollbar-thumb:hover {
+    background: rgba(209, 213, 219, 0.72);
+  }
+
+  .cruush-map-surface-open .maplibregl-marker {
+    z-index: 0 !important;
   }
 
   .cruush-map .maplibregl-canvas {

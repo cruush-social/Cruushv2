@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   isNotificationTypeEnabled,
+  notificationPopupIconName,
   notificationPopupTheme,
   shouldPlayInAppNotificationSound,
 } from './ForegroundNotifications';
@@ -52,5 +53,10 @@ describe('ForegroundNotifications behavior', () => {
     expect(notificationPopupTheme()).toEqual(expect.objectContaining({
       popup: 'border-[#C8FF31]',
     }));
+  });
+
+  it('uses the mutual cruush icon for mutual notifications', () => {
+    expect(notificationPopupIconName('mutual_cruush')).toBe('safety');
+    expect(notificationPopupIconName('direct_message')).toBe('bell');
   });
 });

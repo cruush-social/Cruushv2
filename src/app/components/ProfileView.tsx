@@ -74,6 +74,7 @@ export type ProfileViewModel = {
   covidStatus: string | null;
   mpoxStatus: string | null;
   healthPreferences: string[];
+  birthControl: string[];
   substanceBoundaries: string | null;
   relationship: ProfileRecord['viewer_relationship'] | null;
 };
@@ -90,12 +91,8 @@ function formatSingle(values: string[]) {
   return values.find((value) => value.trim()) ?? null;
 }
 
-function profileIdentityItems(profileView: Pick<ProfileViewModel, 'identities' | 'isTrans'>) {
-  const nonTransIdentities = profileView.identities.filter((item) => item.trim().toLowerCase() !== 'trans');
-
-  return profileView.isTrans === true
-    ? [...nonTransIdentities, 'trans']
-    : nonTransIdentities;
+function profileIdentityItems(profileView: Pick<ProfileViewModel, 'identities'>) {
+  return profileView.identities;
 }
 
 function removeViewerCruush(profile: ProfileRecord, mutualRevoked: boolean): ProfileRecord {
@@ -153,6 +150,7 @@ export function profileRecordToProfileView(
     covidStatus: formatSingle(profile.covid_vaccine),
     mpoxStatus: formatSingle(profile.mpox_vaccine),
     healthPreferences: profile.health_preferences ?? [],
+    birthControl: profile.birth_control ?? [],
     substanceBoundaries: formatJoined(profile.substance_boundaries),
     relationship: profile.viewer_relationship ?? null,
   };
@@ -618,30 +616,28 @@ export function ProfileDetailsTabs({
       </TabsContent>
 
       <TabsContent value="intimacy" className={`${compact ? 'mt-4 space-y-4' : 'mt-5 space-y-5'}`}>
-        <Section title="Looking For" compact={compact}>
-          <BadgeList items={profileView.lookingFor} compact={compact} />
-          {profileView.timing ? (
-            <div className="mt-2 text-sm text-muted-foreground">
-              Timing: <span className="text-foreground">{profileView.timing}</span>
-            </div>
-          ) : null}
-        </Section>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Section title="Looking For" compact={compact}>
+            <BadgeList items={profileView.lookingFor} compact={compact} />
+            {profileView.timing ? (
+              <div className="mt-2 text-sm text-muted-foreground">
+                Availability: <span className="text-foreground">{profileView.timing}</span>
+              </div>
+            ) : null}
+          </Section>
 
-        <Section title="Availability" compact={compact}>
-          <BadgeList items={profileView.availability} compact={compact} />
-        </Section>
+          <Section title="Hosting/Travel" compact={compact}>
+            <BadgeList items={profileView.hosting} compact={compact} />
+          </Section>
 
-        <Section title="Hosting/Travel" compact={compact}>
-          <BadgeList items={profileView.hosting} compact={compact} />
-        </Section>
+          <Section title="Position" compact={compact}>
+            <BadgeList items={profileView.position} compact={compact} />
+          </Section>
 
-        <Section title="Position" compact={compact}>
-          <BadgeList items={profileView.position} compact={compact} />
-        </Section>
-
-        <Section title="Role" compact={compact}>
-          <BadgeList items={profileView.role} compact={compact} />
-        </Section>
+          <Section title="Role" compact={compact}>
+            <BadgeList items={profileView.role} compact={compact} />
+          </Section>
+        </div>
 
         <Section title="Kinks & Fetishes" compact={compact}>
           <BadgeList items={profileView.kinks} compact={compact} />
@@ -665,6 +661,10 @@ export function ProfileDetailsTabs({
               <BadgeList items={profileView.healthPreferences} compact={compact} />
             </div>
           ) : null}
+        </Section>
+
+        <Section title="Birth control" compact={compact}>
+          <BadgeList items={profileView.birthControl} compact={compact} />
         </Section>
 
         <Section title="Lifestyle" compact={compact}>

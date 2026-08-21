@@ -75,7 +75,9 @@ describe('SupportPage', () => {
     expect(screen.getByText(/Hold a card showing your account email and today.s date\./)).toBeInTheDocument();
   });
 
-  it('switches the support route into suspension appeal mode from the router query', async () => {
+  it('switches the in-app support route into suspension appeal mode from the router query', async () => {
+    window.history.pushState({}, '', '/support');
+
     render(
       <MemoryRouter initialEntries={['/support?appeal=1']}>
         <SupportPage />

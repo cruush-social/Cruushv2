@@ -134,7 +134,7 @@ export default function MapProfilePopup({
   const canMessage = profileView?.relationship ? profileView.relationship.can_message : user.relationship?.canMessage;
   const cruushDisabled = isDemo || sendingCruush || revokingCruush;
 
-  const popupClassName = `${fixed ? 'fixed' : 'absolute'} bottom-[calc(0.75rem+env(safe-area-inset-bottom))] left-6 top-[8.75rem] z-50 hidden w-72 max-w-[calc(100vw-3rem)] overflow-hidden rounded-[28px] border border-white/10 bg-black/80 shadow-[0_24px_80px_rgba(0,0,0,0.48)] backdrop-blur-xl lg:block xl:w-[23rem]`;
+  const popupClassName = `${fixed ? 'fixed' : 'absolute'} bottom-[calc(0.75rem+env(safe-area-inset-bottom))] left-6 top-[calc(0.75rem+env(safe-area-inset-top))] z-50 block w-[26rem] max-w-[calc(100vw-3rem)] overflow-hidden rounded-[28px] border border-white/10 bg-black/80 shadow-[0_24px_80px_rgba(0,0,0,0.48)] backdrop-blur-xl`;
 
   const handleCruush = async () => {
     if (isDemo || isOwnProfile || sendingCruush || revokingCruush || hasSentCruush || isAlreadyMutual) {
@@ -211,7 +211,7 @@ export default function MapProfilePopup({
   if (isOwnProfile && ownProfileMode === 'edit') {
     return (
       <aside className={popupClassName} aria-label="Edit profile preview">
-        <div className="scrollbar-subtle h-full overflow-y-auto">
+        <div className="profile-card-scroll h-full">
           <ProfileEdit
             embedded
             onCancel={() => setOwnProfileMode('view')}
@@ -233,7 +233,7 @@ export default function MapProfilePopup({
 
   return (
     <aside className={popupClassName}>
-      <div className="scrollbar-subtle h-full overflow-y-auto">
+      <div className="profile-card-scroll h-full">
         <div className="relative overflow-hidden">
           <ProfilePhotoGallery
             name={displayName}

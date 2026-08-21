@@ -122,9 +122,9 @@ function CruushActionButton({
       onClick={onClick}
     >
       <CruushIcon
-        name="cruush"
+        name={state === 'mutual' ? 'safety' : 'cruush'}
         className={`h-6 w-6 ${state === 'sending' || state === 'sent' ? 'opacity-45 grayscale' : ''}`}
-        variant="colored"
+        variant={state === 'mutual' ? 'white' : 'colored'}
       />
     </Button>
   );
@@ -371,21 +371,23 @@ function MutualRow({
           size="icon"
           variant="secondary"
           disabled={!item.canMessage}
-          className="h-11 w-11 rounded-full bg-primary/18 text-primary hover:bg-primary/24 disabled:opacity-45"
+          className="h-11 w-11 rounded-full border-0 text-white hover:brightness-110 disabled:opacity-45"
+          style={{ background: 'var(--cruush-gradient)' }}
           aria-label={`Message ${item.user.name}`}
           onClick={() => onMessage(item.user.id)}
         >
-          <CruushIcon name="messages" className="h-5 w-5" variant="colored" />
+          <CruushIcon name="messages" className="h-5 w-5" variant="white" />
         </Button>
         <Button
           type="button"
           size="icon"
           variant="secondary"
-          className="h-11 w-11 rounded-full bg-primary/18 text-primary hover:bg-primary/24"
+          className="h-11 w-11 rounded-full border-0 text-white hover:brightness-110"
+          style={{ background: 'var(--cruush-gradient)' }}
           aria-label={`Open ${item.user.name} on map`}
           onClick={() => onOpenMap(item.user.id)}
         >
-          <CruushIcon name="map" className="h-5 w-5" variant="colored" />
+          <CruushIcon name="map" className="h-5 w-5" variant="white" />
         </Button>
       </div>
     </div>

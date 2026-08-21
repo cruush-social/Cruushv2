@@ -128,6 +128,10 @@ function createTestApp() {
       return { rows: [{ photos: [params[2]] }] };
     }
 
+    if (sql.includes("set moderation_status = 'rejected'") && sql.includes("content_review_id = $3")) {
+      return { rows: [{ id: params[0] }] };
+    }
+
     return { rows: [] };
   });
   const end = vi.fn(async () => undefined);
@@ -299,6 +303,12 @@ describe("shared Stream profile-photo automod route", () => {
       payload: multipart.payload
     });
     const sql = query.mock.calls.map(([text]) => String(text));
+    const mediaCall = query.mock.calls.find(([text]) => String(text).includes("insert into media_objects"));
+    const objectKeys = [
+      mediaCall?.[1]?.[3],
+      mediaCall?.[1]?.[14],
+      mediaCall?.[1]?.[25]
+    ] as string[];
 
     expect(response.statusCode, response.body).toBe(403);
     expect(response.json()).toMatchObject({
@@ -308,12 +318,21 @@ describe("shared Stream profile-photo automod route", () => {
       }
     });
     expect(JSON.stringify(query.mock.calls)).toContain("minor_face_detected");
+    const contentReviewCall = query.mock.calls.find(([text]) => String(text).includes("insert into content_reviews"));
+    expect(contentReviewCall?.[1]?.[11]).toBe("pending_review");
     expect(sql.some((text) => text.includes("insert into suspensions"))).toBe(true);
     expect(sql.some((text) => text.includes("user_trust_profiles"))).toBe(true);
     expect(sql.filter((text) => text.includes("insert into severe_access_bans"))).toHaveLength(0);
     expect(sql.some((text) => text.includes("insert into profiles"))).toBe(false);
+    expect(sql.some((text) => text.includes("set moderation_status = 'rejected'") && text.includes("content_review_id = $3"))).toBe(true);
+    expect(sql.some((text) => text.includes("delete from media_objects"))).toBe(false);
+    for (const objectKey of objectKeys) {
+      const ciphertext = await readEncryptedMediaObject(app.config, objectKey);
+      expect(ciphertext.equals(validPng())).toBe(false);
+    }
 
     await app.close();
+    await Promise.all(objectKeys.map((objectKey) => deleteEncryptedMediaObject(app.config, objectKey)));
   });
 
   it("allows adult nudity on profile photos and classifies it explicit for DL Mode", async () => {

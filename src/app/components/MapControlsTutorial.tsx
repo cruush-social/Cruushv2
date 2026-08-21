@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Bell, Download, Eye, EyeOff, Ghost, MapPin, Radio, Rss, SlidersHorizontal, Users, ZoomIn } from 'lucide-react';
+import { Bell, Download, Eye, EyeOff, Ghost, MapPin, Radio, RefreshCw, Rss, SlidersHorizontal, Users, ZoomIn } from 'lucide-react';
 import { Button } from './ui/button';
 
 export const MAP_CONTROLS_TUTORIAL_STORAGE_KEY = 'cruush:tutorial-v4-seen';
@@ -13,7 +13,7 @@ export function notifyMapControlsTutorialCompleted() {
   }
 }
 
-export type MapControlsTutorialStepId = 'install' | 'notifications' | 'seeking' | 'visibility' | 'crowds' | 'ghost' | 'dl-mode' | 'ping' | 'profile-pin' | 'zoom' | 'feed';
+export type MapControlsTutorialStepId = 'install' | 'notifications' | 'seeking' | 'visibility' | 'crowds' | 'ghost' | 'dl-mode' | 'ping' | 'profile-pin' | 'zoom' | 'carousel' | 'feed';
 
 type TutorialStep = {
   id: MapControlsTutorialStepId;
@@ -86,6 +86,12 @@ const TUTORIAL_STEPS: TutorialStep[] = [
     actionLabel: 'Zoom in',
   },
   {
+    id: 'carousel',
+    title: 'Cruise Carousel',
+    description: 'Spin the Cruise Carousel to discover someone nearby. Without cruush+, the spin previews the feature and then opens the upgrade option.',
+    actionLabel: 'Open Cruise Carousel',
+  },
+  {
     id: 'feed',
     title: 'Feed',
     description: 'With cruush+, use Feed to share a post with people nearby. Start with a short signal, question, or invitation.',
@@ -115,6 +121,8 @@ function StepIcon({ id }: { id: MapControlsTutorialStepId }) {
       return <MapPin className="h-5 w-5 text-primary" />;
     case 'zoom':
       return <ZoomIn className="h-5 w-5 text-primary" />;
+    case 'carousel':
+      return <RefreshCw className="h-5 w-5 text-primary" />;
     case 'feed':
       return <Rss className="h-5 w-5 text-primary" />;
     default:

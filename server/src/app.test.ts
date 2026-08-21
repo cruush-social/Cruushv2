@@ -7206,6 +7206,63 @@ describe("server", () => {
     ]);
   });
 
+  it("exposes retained encrypted age-review photos through moderator queue detail", async () => {
+    const reviewId = "c6c09b96-80ea-4272-a6f5-91727250c4ce";
+    const targetUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+    const mediaObjectId = "0759d8df-8ba5-4b12-a8fb-c46d4ea63df7";
+    query
+      .mockResolvedValueOnce({ rows: [{ role: "moderator" }] })
+      .mockResolvedValueOnce({ rows: [{
+        id: reviewId,
+        user_id: targetUserId,
+        display_name: "Jordan",
+        account_status: "suspended",
+        surface: "profile_photo",
+        content_type: "image",
+        status: "rejected",
+        content_id: mediaObjectId,
+        content_ref: {},
+        provider: "stream",
+        provider_request_id: "provider-age-1",
+        normalized_labels: [{ normalized_label: "minor_face_detected" }],
+        policy_decision: {
+          category: "minor_face_detected",
+          user_message_code: "minor_face_review_suspension"
+        },
+        moderation_status: "pending_review",
+        flagged_reason: "minor_face_detected",
+        moderation_provider: "stream",
+        created_at: "2026-04-29T12:00:00.000Z",
+        completed_at: "2026-04-29T12:00:00.000Z"
+      }] })
+      .mockResolvedValueOnce({ rows: [{ id: mediaObjectId }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/api/admin/moderation/queue/review/${reviewId}`,
+      headers: { "x-user-id": userId }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data.context).toEqual({
+      kind: "media",
+      mediaObjectId,
+      previewUrl: `/api/admin/moderation/media/${mediaObjectId}/preview`,
+      message: null
+    });
+    expect(response.json().data.availableActions.canDecideReview).toBe(true);
+    expect(query.mock.calls[4]?.[0]).toContain("insert into moderation_access_events");
+    expect(query.mock.calls[4]?.[1]?.slice(0, 5)).toEqual([
+      userId,
+      null,
+      reviewId,
+      mediaObjectId,
+      "queue_detail"
+    ]);
+  });
+
   it("lets moderators decide an automated review and records a linked action", async () => {
     const reviewId = "c6c09b96-80ea-4272-a6f5-91727250c4ce";
     const targetUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";

@@ -1240,6 +1240,24 @@ describe('MapHome', () => {
     });
   });
 
+  it('uses the full profile page when the viewport cannot fit an accessible desktop panel', async () => {
+    useIsMobile.mockImplementation((breakpoint?: number) => breakpoint === 1120);
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<><MapHome /><LocationProbe /></>} />
+          <Route path="/profile/:userId" element={<LocationProbe />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Pin Jordan' }));
+
+    expect(screen.getByTestId('location-probe')).toHaveTextContent('/profile/user-1');
+    expect(screen.queryByRole('complementary')).not.toBeInTheDocument();
+  });
+
   it('keeps an applied Seeking filter after opening a mobile profile and returning to the map', async () => {
     useIsMobile.mockReturnValue(true);
 
@@ -2021,11 +2039,12 @@ describe('MapHome', () => {
     expect(screen.getByRole('button', { name: /send cruush/i })).toBeInTheDocument();
     expect(screen.getByRole('complementary')).toHaveClass('z-50');
     expect(screen.getByRole('complementary')).toHaveClass('bottom-[calc(0.75rem+env(safe-area-inset-bottom))]');
-    expect(screen.getByRole('complementary')).toHaveClass('top-[8.75rem]');
-    expect(screen.getByRole('complementary')).toHaveClass('w-72', 'xl:w-[23rem]');
-    expect(screen.getByRole('complementary').querySelector('.scrollbar-subtle')).toBeInTheDocument();
+    expect(screen.getByRole('complementary')).toHaveClass('top-[calc(0.75rem+env(safe-area-inset-top))]');
+    expect(screen.getByRole('complementary')).toHaveClass('w-[26rem]', 'block');
+    expect(screen.getByRole('complementary')).not.toHaveClass('w-72', 'lg:block', '2xl:block');
+    expect(screen.getByRole('complementary').querySelector('.profile-card-scroll')).toBeInTheDocument();
     expect(screen.getByRole('complementary').querySelector('.scrollbar-hide')).not.toBeInTheDocument();
-    expect(screen.getByTestId('recently-active-panel').parentElement).toHaveClass('left-[calc(23rem+1.5rem)]', 'right-4', 'pl-2', 'pr-0');
+    expect(screen.getByTestId('recently-active-panel').parentElement).toHaveClass('left-[calc(26rem+1.5rem)]', 'right-4', 'pl-2', 'pr-0');
     expect(screen.getByTestId('recently-active-panel')).toHaveClass('w-fit', 'max-w-[30rem]', 'lg:ml-auto', 'lg:mr-0');
     expect(await screen.findByRole('tab', { name: 'Basics' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('tab', { name: 'Intimacy' })).toBeInTheDocument();
@@ -2113,6 +2132,7 @@ describe('MapHome', () => {
       name: 'Jordan',
     })));
     await waitFor(() => expect(getNearbyUsers).toHaveBeenCalledTimes(3));
+    expect(screen.getByRole('complementary')).toBeInTheDocument();
     expect(alertSpy).not.toHaveBeenCalled();
 
     alertSpy.mockRestore();

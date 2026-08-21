@@ -24,6 +24,8 @@ function buildReport(overrides: Partial<BugReportTriageView> = {}): BugReportTri
     triagePrUrl: null,
     triageAttempts: 1,
     userAgent: "Mozilla/5.0",
+    deviceModel: "Pixel 9",
+    devicePlatform: "Android 16",
     screenshotAttached: true,
     hasContactEmail: true,
     createdAt: "2026-08-04T12:00:00.000Z",
@@ -108,6 +110,13 @@ describe("buildBugReportIssueBody", () => {
     expect(body).not.toContain("[https://evil.test/hook]");
     expect(body).toContain("```text\nhttps://evil.test/hook\n```");
   });
+
+  it("records browser-provided device context as untrusted report data", () => {
+    const body = buildBugReportIssueBody(buildReport());
+
+    expect(body).toContain("device model:\n```text\nPixel 9\n```");
+    expect(body).toContain("device platform:\n```text\nAndroid 16\n```");
+  });
 });
 
 describe("toBugReportTriageView", () => {
@@ -126,7 +135,11 @@ describe("toBugReportTriageView", () => {
       triage_pr_url: null,
       triage_attempts: 0,
       has_contact_email: true,
-      metadata: { userAgent: "curl/8", screenshotAttached: false },
+      metadata: {
+        userAgent: "curl/8",
+        screenshotAttached: false,
+        device: { model: "Pixel 9", platform: "Android", platformVersion: "16" }
+      },
       created_at: "2026-08-04T12:00:00.000Z"
     };
 
@@ -134,6 +147,8 @@ describe("toBugReportTriageView", () => {
 
     expect(view.hasContactEmail).toBe(true);
     expect(view.userAgent).toBe("curl/8");
+    expect(view.deviceModel).toBe("Pixel 9");
+    expect(view.devicePlatform).toBe("Android 16");
     expect(view.screenshotAttached).toBe(false);
     expect(view.createdAt).toBe("2026-08-04T12:00:00.000Z");
   });

@@ -548,6 +548,7 @@ function mapProfileRow(
     mpox_vaccine: row.mpox_vaccine ?? [],
     custom_mpox_vaccine: row.custom_mpox_vaccine ?? "",
     health_preferences: sensitiveProfile?.health_preferences ?? [],
+    birth_control: sensitiveProfile?.birth_control ?? [],
     substance_boundaries: row.substance_boundaries ?? [],
     ...((row.badges?.length ?? 0) > 0 ? { badges: row.badges } : {}),
     visibility_rules: includePrivateSensitive ? visibilityRules ?? emptyProfile.visibility_rules : emptyProfile.visibility_rules,
@@ -588,7 +589,8 @@ function fallbackSensitiveProfile(): SensitiveProfileData {
     kink_interests: [],
     hiv_status: [],
     custom_hiv_status: "",
-    health_preferences: []
+    health_preferences: [],
+    birth_control: []
   };
 }
 
@@ -644,6 +646,7 @@ function profilePayloadFromRow(
     mpox_vaccine: row.mpox_vaccine ?? [],
     custom_mpox_vaccine: row.custom_mpox_vaccine ?? "",
     health_preferences: sensitiveProfile.health_preferences ?? [],
+    birth_control: sensitiveProfile.birth_control ?? [],
     substance_boundaries: row.substance_boundaries ?? [],
     visibility_rules: visibilityRules
   };
@@ -1059,7 +1062,8 @@ function buildSensitiveProfile(payload: ProfilePayload, kinkInterests: ProfileKi
     kink_interests: kinkInterests,
     hiv_status: payload.hiv_status,
     custom_hiv_status: payload.custom_hiv_status,
-    health_preferences: payload.health_preferences
+    health_preferences: payload.health_preferences,
+    birth_control: payload.birth_control
   };
 }
 

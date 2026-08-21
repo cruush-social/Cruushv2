@@ -16,6 +16,8 @@ export type NormalizedModerationLabel =
   | "human_present"
   | "animal"
   | "screenshot_or_interface"
+  | "text_on_image"
+  | "url_on_image"
   | "profile_photo_not_adult_human"
   | "minor_present"
   | "minor_age_ambiguous"

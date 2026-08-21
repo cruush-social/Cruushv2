@@ -44,6 +44,8 @@ export type BugReportTriageView = {
   triagePrUrl: string | null;
   triageAttempts: number;
   userAgent: string;
+  deviceModel: string;
+  devicePlatform: string;
   screenshotAttached: boolean;
   hasContactEmail: boolean;
   createdAt: string;
@@ -129,6 +131,8 @@ export function buildBugReportIssueBody(report: BugReportTriageView) {
     `subject:\n${fenceUntrustedText(report.subject)}`,
     `message:\n${fenceUntrustedText(report.message)}`,
     `page url:\n${fenceUntrustedText(report.pageUrl || "(none)")}`,
+    `device model:\n${fenceUntrustedText(report.deviceModel || "(not provided)")}`,
+    `device platform:\n${fenceUntrustedText(report.devicePlatform || "(not provided)")}`,
     `user agent:\n${fenceUntrustedText(report.userAgent || "(none)")}`
   ].join("\n\n");
 
@@ -138,6 +142,11 @@ export function buildBugReportIssueBody(report: BugReportTriageView) {
 export function toBugReportTriageView(row: BugReportRow): BugReportTriageView {
   const metadata = (row.metadata ?? {}) as {
     userAgent?: unknown;
+    device?: {
+      model?: unknown;
+      platform?: unknown;
+      platformVersion?: unknown;
+    };
     screenshotAttached?: unknown;
   };
 
@@ -155,6 +164,10 @@ export function toBugReportTriageView(row: BugReportRow): BugReportTriageView {
     triagePrUrl: row.triage_pr_url,
     triageAttempts: row.triage_attempts,
     userAgent: typeof metadata.userAgent === "string" ? metadata.userAgent : "",
+    deviceModel: typeof metadata.device?.model === "string" ? metadata.device.model : "",
+    devicePlatform: [metadata.device?.platform, metadata.device?.platformVersion]
+      .filter((value): value is string => typeof value === "string" && value.length > 0)
+      .join(" "),
     screenshotAttached: metadata.screenshotAttached === true,
     hasContactEmail: row.has_contact_email === true,
     createdAt: new Date(row.created_at).toISOString()

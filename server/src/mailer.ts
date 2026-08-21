@@ -41,6 +41,12 @@ export type SupportRequestEmailInput = {
   id: string;
   message: string;
   pageUrl: string;
+  device?: {
+    model?: string;
+    platform?: string;
+    platformVersion?: string;
+    mobile?: boolean;
+  } | null;
   requesterUserId: string | null;
   screenshot?: EmailAttachment | null;
   source: string;
@@ -515,6 +521,8 @@ export async function sendSupportRequestInboxEmail(input: SupportRequestInboxEma
     ["Requester user ID", request.requesterUserId ?? "signed out"],
     ["Reply email", request.contactEmail ?? "none provided"],
     ["Page", request.pageUrl || "unknown"],
+    ["Device model", request.device?.model || "browser did not provide one"],
+    ["Platform", [request.device?.platform, request.device?.platformVersion].filter(Boolean).join(" ") || "unknown"],
     ["Screenshot", request.screenshot ? request.screenshot.filename : "none"],
     ["Created at", request.createdAt]
   ];

@@ -573,7 +573,7 @@ describe('ProfileEdit', () => {
     fireEvent.click(await screen.findByRole('tab', { name: 'Photos' }));
 
     expect(screen.queryByText('Upload photo')).not.toBeInTheDocument();
-    expect(screen.getByText('Add up to 4 photos of yourself. Your first photo will be your profile picture. SFW photos are suggested, not required.')).toBeInTheDocument();
+    expect(screen.queryByText('Add up to 4 photos of yourself. Your first photo will be your profile picture. SFW photos are suggested, not required.')).not.toBeInTheDocument();
   });
 
   it('disables profile photo upload when the API marks uploads unavailable', async () => {
@@ -616,7 +616,7 @@ describe('ProfileEdit', () => {
 
     fireEvent.click(await screen.findByRole('tab', { name: 'Photos' }));
 
-    expect(screen.getByText('profile photos may be SFW or NSFW, but they must only be of you. add at least one SFW photo if you want people browsing in DL Mode to still see you.')).toBeInTheDocument();
+    expect(screen.getByText("profile photos may be SFW or NSFW, but they must only be of you. add at least one SFW photo if you want people browsing in DL Mode to still see you. you don't have to show your face.")).toBeInTheDocument();
     expect(screen.queryByText(/you must be 18 or older/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/face is optional/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/naked or clothed/i)).not.toBeInTheDocument();

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, type MutableRefObject } from 'react';
 import { Bell } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router';
 import { toast } from 'sonner';
+import { CruushIcon } from './CruushIconImage';
 import {
   emitNotificationsChanged,
   getNotificationPreferences,
@@ -73,6 +74,10 @@ export function notificationPopupTheme() {
   return {
     popup: 'border-[#C8FF31]',
   };
+}
+
+export function notificationPopupIconName(type: NotificationRecord['type']) {
+  return type === 'mutual_cruush' ? 'safety' : 'bell';
 }
 
 function getAudioContextConstructor() {
@@ -220,8 +225,16 @@ export default function ForegroundNotifications() {
         onClick={() => void openNotification(notification, toastId)}
         aria-label={`Open notification: ${notification.title}`}
       >
-        <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/16 text-primary">
-          <Bell className="h-4 w-4" />
+        <span
+          className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white shadow-[0_8px_22px_rgba(0,0,0,0.3)]"
+          data-notification-icon={notificationPopupIconName(notification.type)}
+          style={{ background: 'var(--cruush-gradient)' }}
+        >
+          {notification.type === 'mutual_cruush' ? (
+            <CruushIcon name="safety" variant="white" className="h-5 w-5" />
+          ) : (
+            <Bell className="h-4 w-4" />
+          )}
         </span>
         <span className="min-w-0 flex-1">
           <span className="block break-words text-sm font-medium leading-snug">

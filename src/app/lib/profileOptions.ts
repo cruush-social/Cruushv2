@@ -1,47 +1,51 @@
-export const IDENTITIES = [
+function alphabetize(options: string[]) {
+  return [...options].sort((left, right) => left.localeCompare(right, undefined, { sensitivity: 'base' }));
+}
+
+export const IDENTITIES = alphabetize([
   'agender', 'androgynous', 'bakla', 'bigender', 'cis man', 'cis woman', 'crossdresser', 'demiboy', 'demigirl',
   'demi-nonbinary', 'dyke', 'fag', "fa'afafine", 'femme', 'gender nonconforming', 'genderfluid',
   'genderpunk', 'genderqueer', 'hijra', 'intersex', 'kathoey', 'man', 'māhū', 'maverique', 'muxé',
   'neutrois', 'nonbinary', 'pangender', 'polygender', 'questioning', 'queer', 'third gender', 'trans man', 'trans woman', 'travesti',
-  'transfemme', 'transmasc', 'two-spirit', 'woman', 'x-gender'
-];
+  'trans', 'transfemme', 'transmasc', 'two-spirit', 'woman', 'x-gender'
+]);
 
-export const PRESENTATIONS = [
+export const PRESENTATIONS = alphabetize([
   'androgynous', 'boi', 'butch', 'drag king', 'drag queen', 'drag thing', 'femboy', 'femme', 'femme queen', 'fluid', 'genderpunk', 'hard butch', 'hard femme',
   'high femme', 'masc', 'nonconforming', 'soft butch', 'soft femme', 'stone butch', 'stone femme', 'sissy', 'stud', 'tomboy'
-];
+]);
 
-export const PRONOUNS = ['ask me', 'fae/faer', 'he/him', 'she/her', 'they/them', 'xe/xem', 'ze/zir'];
+export const PRONOUNS = alphabetize(['ask me', 'fae/faer', 'he/him', 'she/her', 'they/them', 'xe/xem', 'ze/zir']);
 
-export const SEXUALITY = ['asexual', 'bisexual', 'straight', 'gay', 'queer', 'questioning', 'other', 'pansexual', 'curious', 'demisexual', 'aromantic', 'lesbian', 'dyke', 'fag'];
+export const SEXUALITY = alphabetize(['asexual', 'bisexual', 'straight', 'gay', 'queer', 'questioning', 'other', 'pansexual', 'curious', 'demisexual', 'aromantic', 'lesbian', 'dyke', 'fag']);
 
 export const MAX_PROFILE_SEXUALITIES = 3;
 
-export const ETHNICITIES = ['Black', 'East Asian', 'Indigenous', 'Latino/Latina', 'Middle Eastern', 'Mixed', 'Other', 'Pacific Islander', 'South Asian', 'Southeast Asian', 'White'];
+export const ETHNICITIES = alphabetize(['Black', 'East Asian', 'Indigenous', 'Latino/Latina', 'Middle Eastern', 'Mixed', 'Other', 'Pacific Islander', 'South Asian', 'Southeast Asian', 'White']);
 
-export const BODY_TYPES = [
+export const BODY_TYPES = alphabetize([
   'BBW', 'BBM', 'athletic', 'average', 'bear', 'chubby', 'chub', 'cub', 'curvy', 'full-figured', 'muscular', 'otter', 'petite', 'plus-size', 'slim', 'stocky', 'toned', 'twink'
-].sort();
+]);
 
-export const POSITIONS = [
+export const POSITIONS = alphabetize([
   'bottom', 'pillow princess', 'side', 'stone top', 'top', 'vers bottom', 'vers top', 'versatile'
-].sort();
+]);
 
-export const ROLES = [
+export const ROLES = alphabetize([
   'dominant', 'service', 'submissive', 'switch'
-].sort();
+]);
 
-export const LOOKING_FOR = [
+export const LOOKING_FOR = alphabetize([
   'chat', 'cruise', 'dating', 'friends', 'group', 'hookup', 'networking', 'right now', 'threesome'
-].sort();
+]);
 
-export const AVAILABILITY = [
+export const AVAILABILITY = alphabetize([
   'later', 'now', 'online', 'open'
-].sort();
+]);
 
-export const HOSTING = [
-  'ask me', 'can host', 'can travel', "can't host", "can't travel", 'car', 'hotel', 'outdoors'
-].sort();
+export const HOSTING = alphabetize([
+  'ask me', 'bathroom', 'can host', 'can travel', "can't host", "can't travel", 'car', 'hotel', 'locker room', 'outdoors', 'sauna'
+]);
 
 export const VIBE_GROUPS = [
   {
@@ -49,25 +53,25 @@ export const VIBE_GROUPS = [
     options: [
       'Alt', 'Artsy', 'Chill', 'Clean-cut', 'Corporate', 'Cottagecore', 'Disabled', 'E-Girl/E-Boy', 'Geek', 'Goth', 'Granola',
       'Hacker', 'Homebody', 'Hippie', 'Neurodivergent', 'Punk', 'Rugged', 'Spiritual', 'Sporty', 'Techie'
-    ].sort(),
+    ].sort((left, right) => left.localeCompare(right, undefined, { sensitivity: 'base' })),
   },
   {
     label: 'Scenes',
     options: [
       'Ballroom', 'Burner', 'Camping', 'Circuit', 'Club Kid', 'Cosplay', 'Country', 'Drag', 'Festival', 'Furry', 'Jock', 'Leather', 'Rave', 'Rubber', 'Sober', 'Stoner', 'Thespian'
-    ].sort(),
+    ].sort((left, right) => left.localeCompare(right, undefined, { sensitivity: 'base' })),
   },
   {
     label: 'Archetypes',
     options: [
       'Angel', 'Baddie', 'Bimbo', 'Brat', 'Cuck', 'Cuckquean', 'Cyborg', 'Daddy', 'Doll', 'Goddess', 'Handler', 'Himbo', 'Hothusband', 'Hotwife', 'Incubus', 'Jester', 'King', 'Kitten', 'Masochist', 'Mommy', 'Pixie', 'Pony', 'Prince', 'Princess', 'Pup', 'Queen', 'Rigger', 'Rope Bunny', 'Sadist', 'Service', 'Succubus', 'Trainer', 'Unicorn', 'Vampire', 'Wolf'
-    ].sort(),
+    ].sort((left, right) => left.localeCompare(right, undefined, { sensitivity: 'base' })),
   },
 ];
 
-export const VIBES = VIBE_GROUPS.flatMap((group) => group.options).sort();
+export const VIBES = alphabetize(VIBE_GROUPS.flatMap((group) => group.options));
 
-export const CROWDS = ['Dyke', 'Gay', 'T4T'].sort();
+export const CROWDS = alphabetize(['Dyke', 'Gay', 'T4T']);
 
 export function normalizeCrowdOption(value: string) {
   const trimmedValue = value.trim();
@@ -79,15 +83,24 @@ export function normalizeCrowdValues(values: string[] = []) {
   return [...new Set(values.map(normalizeCrowdOption).filter(Boolean))];
 }
 
-export const HIV_STATUS = ['negative', 'positive', 'prefer not to say', 'undetectable', 'unknown'];
-export const CONDOMS = ['always', 'discuss', 'never', 'prefer not to say', 'sometimes'];
-export const PREP = ['no', 'prefer not to say', 'yes'];
-export const DOXYPEP = ['no', 'prefer not to say', 'yes'];
-export const COVID_VACCINE = ['no', 'partial', 'prefer not to say', 'yes'];
-export const MPOX_VACCINE = ['no', 'partial', 'prefer not to say', 'yes'];
-export const HEALTH_PREFERENCES = ['COVID tested', 'Masks'];
-export const BIRTH_CONTROL = ['hormonal', 'non-hormonal', 'IUD', 'implant', 'pill', 'patch', 'ring', 'shot', 'none', 'prefer not to say'];
-export const SUBSTANCE_BOUNDARIES = [
+export const HIV_STATUS = alphabetize(['negative', 'positive', 'prefer not to say', 'undetectable', 'unknown']);
+export const CONDOMS = alphabetize(['always', 'discuss', 'never', 'prefer not to say', 'sometimes']);
+export const PREP = alphabetize(['no', 'prefer not to say', 'yes']);
+export const DOXYPEP = alphabetize(['no', 'prefer not to say', 'yes']);
+export const COVID_VACCINE = alphabetize(['no', 'partial', 'prefer not to say', 'yes']);
+export const MPOX_VACCINE = alphabetize(['no', 'partial', 'prefer not to say', 'yes']);
+export const HEALTH_PREFERENCES = alphabetize(['COVID tested', 'Masks']);
+export const BIRTH_CONTROL = alphabetize([
+  'Arm implant',
+  'Ask me',
+  'Condoms',
+  'Hormonal',
+  'IUD',
+  'Prefer not to say',
+  'Rhythm method',
+  'Spermicide',
+]);
+export const SUBSTANCE_BOUNDARIES = alphabetize([
   'No alcohol involved',
   'No cannabis involved',
   'No tobacco or vaping involved',
@@ -95,7 +108,7 @@ export const SUBSTANCE_BOUNDARIES = [
   'No PnP',
   'No other drugs involved',
   "Let's discuss",
-];
+]);
 
 export const PROFILE_VISIBILITY_OPTIONS = [
   { value: 'public', label: 'Public' },
@@ -163,10 +176,39 @@ export const KINK_GROUPS = [
     .sort((a, b) => a.localeCompare(b)),
 })).filter((group) => group.options.length > 0);
 
-export const HOBBIES = [
-  'activism', 'anime/manga', 'art', 'astrology', 'baking', 'board games', 'camping', 'comedy', 'cooking',
-  'cosplay', 'crafts', 'cycling', 'dancing', 'diy', 'djing', 'film/tv', 'fitness', 'gardening', 'gaming',
-  'hiking', 'journaling', 'karaoke', 'makeup', 'martial arts', 'meditation', 'music', 'painting', 'photography',
-  'poetry', 'pottery', 'reading', 'roller skating', 'running', 'skateboarding', 'singing', 'streaming', 'swimming',
-  'theater', 'thrifting', 'vintage collecting', 'volunteering', 'writing', 'yoga'
-].sort();
+export const HOBBY_GROUPS = [
+  {
+    label: 'Arts & Culture',
+    options: alphabetize([
+      'art', 'comedy', 'comics', 'crafts', 'film/tv', 'makeup', 'painting', 'photography', 'poetry', 'pottery', 'reading', 'theater', 'vintage collecting', 'writing',
+    ]),
+  },
+  {
+    label: 'Food & Home',
+    options: alphabetize(['baking', 'cooking', 'diy', 'gardening', 'thrifting']),
+  },
+  {
+    label: 'Games & Fandom',
+    options: alphabetize(['anime/manga', 'board games', 'cosplay', 'gaming', 'streaming']),
+  },
+  {
+    label: 'Music & Nightlife',
+    options: alphabetize(['dancing', 'djing', 'karaoke', 'music', 'singing']),
+  },
+  {
+    label: 'Outdoors & Nature',
+    options: alphabetize(['camping', 'hiking']),
+  },
+  {
+    label: 'Sports & Fitness',
+    options: alphabetize([
+      'baseball', 'basketball', 'bowling', 'boxing', 'climbing', 'cycling', 'fitness', 'martial arts', 'pickleball', 'roller skating', 'running', 'skateboarding', 'soccer', 'softball', 'swimming', 'tennis', 'volleyball', 'weightlifting', 'yoga',
+    ]),
+  },
+  {
+    label: 'Community & Mind',
+    options: alphabetize(['activism', 'astrology', 'journaling', 'meditation', 'volunteering']),
+  },
+].sort((left, right) => left.label.localeCompare(right.label, undefined, { sensitivity: 'base' }));
+
+export const HOBBIES = alphabetize(HOBBY_GROUPS.flatMap((group) => group.options));

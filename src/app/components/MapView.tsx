@@ -1127,7 +1127,7 @@ function MapMarkerPin({ marker, previewed = false }: { marker: MapMarker; previe
       data-active-ping={pingActive ? 'true' : 'false'}
     >
       <span
-        className={`relative flex h-20 w-[103px] origin-bottom items-center justify-center transition-transform duration-150 group-hover:scale-120 group-focus-within:scale-120 ${previewed ? 'scale-120' : ''} ${pingActive ? 'cruush-map-ping-heart' : ''}`}
+        className={`relative flex h-20 w-[103px] origin-bottom items-center justify-center transition-transform duration-150 group-hover:scale-[1.38] group-focus-within:scale-[1.38] ${previewed ? 'scale-[1.38]' : ''} ${pingActive ? 'cruush-map-ping-heart' : ''}`}
         data-testid={`marker-heart-layer-${marker.id}`}
       >
             <MarkerHeart marker={marker} isCurrentUser={isCurrentUser} />

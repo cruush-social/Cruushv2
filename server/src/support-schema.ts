@@ -34,6 +34,13 @@ const supportScreenshotSchema = z.object({
     .regex(/^[A-Za-z0-9+/]+={0,2}$/)
 }).strict();
 
+const supportDeviceSchema = z.object({
+  model: singleLineTextSchema({ min: 1, max: 120 }).optional(),
+  platform: singleLineTextSchema({ min: 1, max: 80 }).optional(),
+  platformVersion: singleLineTextSchema({ min: 1, max: 80 }).optional(),
+  mobile: z.boolean().optional()
+}).strict();
+
 export const createSupportRequestPayloadSchema = z.object({
   category: supportRequestCategorySchema,
   subject: singleLineTextSchema({ min: 3, max: 140 }),
@@ -41,6 +48,7 @@ export const createSupportRequestPayloadSchema = z.object({
   contactEmail: optionalEmailSchema,
   source: supportRequestSourceSchema.optional().default("unknown"),
   pageUrl: singleLineTextSchema({ max: 1000 }).optional().default(""),
+  device: supportDeviceSchema.optional(),
   screenshot: supportScreenshotSchema.optional()
 }).strict();
 

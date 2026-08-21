@@ -474,6 +474,7 @@ export async function registerSupportRoutes(app: FastifyInstance) {
 
     const metadata = {
       userAgent: getUserAgent(request.headers["user-agent"]),
+      device: payload.device ?? null,
       screenshotAttached: Boolean(payload.screenshot),
       isAgeSuspensionAppeal: isAgeAppeal,
       aiSupport: {
@@ -527,6 +528,7 @@ export async function registerSupportRoutes(app: FastifyInstance) {
           createdAt: new Date(row.created_at).toISOString(),
           message: payload.message,
           pageUrl: payload.pageUrl,
+          device: payload.device ?? null,
           requesterUserId,
           screenshot: payload.screenshot
             ? {

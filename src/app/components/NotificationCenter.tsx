@@ -207,14 +207,22 @@ export default function NotificationCenter() {
                   aria-label={notification.title}
                   className={`flex w-full items-start gap-3 rounded-lg border p-4 text-left transition-colors ${
                     unread
-                      ? 'border-primary/30 bg-primary/10 hover:bg-primary/14'
+                      ? 'border-[#C8FF31]/55 bg-[#C8FF31]/5 hover:bg-[#C8FF31]/8'
                       : 'border-border bg-card hover:bg-muted/45'
                   }`}
                 >
                   <span
                     aria-hidden="true"
-                    className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${unread ? 'bg-primary' : 'bg-transparent'}`}
-                  />
+                    className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white shadow-[0_8px_22px_rgba(0,0,0,0.3)]"
+                    data-notification-icon={notification.type === 'mutual_cruush' ? 'safety' : 'bell'}
+                    style={{ background: 'var(--cruush-gradient)' }}
+                  >
+                    {notification.type === 'mutual_cruush' ? (
+                      <CruushIcon name="safety" variant="white" className="h-5 w-5" />
+                    ) : (
+                      <Bell className="h-4 w-4" />
+                    )}
+                  </span>
                   <span className="min-w-0 flex-1">
                     <span className="flex items-start justify-between gap-3">
                       <span className="min-w-0 break-words text-base text-white">{notification.title}</span>

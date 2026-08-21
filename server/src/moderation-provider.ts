@@ -548,6 +548,14 @@ export function normalizeStreamLabel(
     return "animal";
   }
 
+  if (/\b(?:url on image|website on image|link on image|qr code)\b/i.test(normalized)) {
+    return "url_on_image";
+  }
+
+  if (/\b(?:text on image|text overlay|caption on image|watermark)\b/i.test(normalized)) {
+    return "text_on_image";
+  }
+
   if (/\b(?:screenshot|screen capture|screen recording|interface|ui capture|text only|logo)\b/i.test(normalized)) {
     return "screenshot_or_interface";
   }

@@ -168,11 +168,12 @@ function isEnabled(value) {
 const rootDir = process.cwd();
 const serverDir = path.join(rootDir, 'server');
 const shouldSeedDevProfiles = process.argv.includes('--seed-dev-profiles');
+const frontendPort = process.env.VITE_DEV_PORT ?? '5173';
 const localFrontendOrigins = [
-  'http://localhost:5173',
-  'https://localhost:5173',
-  'http://127.0.0.1:5173',
-  'https://127.0.0.1:5173',
+  `http://localhost:${frontendPort}`,
+  `https://localhost:${frontendPort}`,
+  `http://127.0.0.1:${frontendPort}`,
+  `https://127.0.0.1:${frontendPort}`,
 ].join(',');
 
 const rootEnv = {
@@ -193,8 +194,8 @@ const frontendEnv = {
 };
 
 const localFrontendUrl = isDisabled(frontendEnv.VITE_DEV_HTTPS)
-  ? 'http://localhost:5173'
-  : 'https://localhost:5173';
+  ? `http://localhost:${frontendPort}`
+  : `https://localhost:${frontendPort}`;
 
 const serverEnv = {
   ...process.env,

@@ -358,7 +358,7 @@ describe('App', () => {
     expect(recordDailyRewardCheckIn).not.toHaveBeenCalled();
   });
 
-  it('moves global controls away when the signed-out auth shell scrolls', async () => {
+  it('keeps the bug button present while the signed-out accessibility control clears the scrolled form', async () => {
     loadCurrentSession.mockResolvedValue(null);
 
     const { container } = render(<App />);
@@ -371,13 +371,13 @@ describe('App', () => {
     shell.scrollTop = 24;
     fireEvent.scroll(shell);
 
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Mock Alpha Bug' })).toHaveAttribute('data-auth-shell-scrolled', 'true'));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Mock Alpha Bug' })).toHaveAttribute('data-auth-shell-scrolled', 'false'));
     expect(screen.getByTestId('accessibility-quick-access')).toHaveClass('-translate-y-24', 'opacity-0');
 
     shell.scrollTop = 0;
     fireEvent.scroll(shell);
 
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Mock Alpha Bug' })).toHaveAttribute('data-auth-shell-scrolled', 'false'));
+    expect(screen.getByRole('button', { name: 'Mock Alpha Bug' })).toBeInTheDocument();
   });
 
   it('renders public info pages before authentication', async () => {

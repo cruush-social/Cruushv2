@@ -82,6 +82,7 @@ export type ProfilePayload = {
   mpox_vaccine: string[];
   custom_mpox_vaccine: string;
   health_preferences: string[];
+  birth_control: string[];
   substance_boundaries: string[];
   visibility_rules: ProfileVisibilityRules;
 };
@@ -174,6 +175,7 @@ export const emptyProfilePayload: ProfilePayload = {
   mpox_vaccine: [],
   custom_mpox_vaccine: '',
   health_preferences: [],
+  birth_control: [],
   substance_boundaries: [],
   visibility_rules: {
     active_crowd_modes: [],

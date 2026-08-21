@@ -33,6 +33,7 @@ import { saveDistancePreferences, useDistancePreferences } from '../lib/distance
 import {
   AVAILABILITY,
   BODY_TYPES,
+  BIRTH_CONTROL,
   CONDOMS,
   COVID_VACCINE,
   CROWDS,
@@ -40,7 +41,7 @@ import {
   ETHNICITIES,
   HEALTH_PREFERENCES,
   HIV_STATUS,
-  HOBBIES,
+  HOBBY_GROUPS,
   HOSTING,
   IDENTITIES,
   KINK_GROUPS,
@@ -62,8 +63,8 @@ import {
 const MAX_PROFILE_PHOTOS = 4;
 const MAX_PROFILE_GROUP_SELECTIONS = 3;
 const MAX_PROFILE_VIBES = 3;
-const MAX_PROFILE_HOBBIES = 5;
-const MAX_PROFILE_KINKS = 5;
+const MAX_PROFILE_HOBBIES = 3;
+const MAX_PROFILE_KINKS = 3;
 const MAX_GENDER_IDENTITIES = MAX_PROFILE_GROUP_SELECTIONS;
 const PROFILE_PHOTO_LOAD_ERROR = 'This image could not be loaded. Try a JPG, PNG, or WebP file.';
 const PROFILE_PHOTO_SAVE_PATH_PATTERN = /^\/api\/media\/(?:profile-photos\/[0-9a-f-]{36}-[0-9a-f-]{8}-[0-9a-f-]{4}-[0-9a-f-]{4}-[0-9a-f-]{4}-[0-9a-f-]{12}\.(?:jpg|png|webp)|assets\/[0-9a-f-]{36}\/display)$/i;
@@ -502,12 +503,12 @@ function toProfileSavePayload(profile: ProfilePayload): ProfilePayload {
     body_type: limitToThree(profile.body_type ?? []),
     height: profile.height ?? '',
     weight: profile.weight ?? '',
-    position: singleValue(profile.position ?? []),
-    role: singleValue(profile.role ?? []),
+    position: limitToThree(profile.position ?? []),
+    role: limitToThree(profile.role ?? []),
     is_trans: profile.is_trans ?? null,
     trans_status_visibility: FIXED_PRIVATE_PROFILE_VISIBILITY,
     crowds: sanitizeCrowds(profile),
-    availability: singleValue(profile.availability ?? []),
+    availability: limitToThree(profile.availability ?? []),
     hosting_travel: limitToThree(profile.hosting_travel ?? []),
     kinks: limitToFiveKinks(profile.kinks ?? []),
     kink_interests: sanitizeKinkInterests(profile).slice(-MAX_PROFILE_KINKS),
@@ -515,7 +516,7 @@ function toProfileSavePayload(profile: ProfilePayload): ProfilePayload {
     vibes: limitToThree(mergeCategorizedVibes(profile)),
     scenes: [],
     archetypes: [],
-    hobbies: limitToFive(profile.hobbies ?? []),
+    hobbies: limitToThree(profile.hobbies ?? []),
     custom_hobby: (profile.custom_hobby ?? '').trim(),
     looking_for: limitToThree(profile.looking_for ?? []),
     hiv_status: singleValue(profile.hiv_status ?? []),
@@ -532,6 +533,7 @@ function toProfileSavePayload(profile: ProfilePayload): ProfilePayload {
     mpox_vaccine: singleValue(profile.mpox_vaccine ?? []),
     custom_mpox_vaccine: (profile.custom_mpox_vaccine ?? '').trim(),
     health_preferences: profile.health_preferences ?? [],
+    birth_control: profile.birth_control ?? [],
     substance_boundaries: profile.substance_boundaries ?? [],
     visibility_rules: sanitizeVisibilityRules(profile),
   };
@@ -900,12 +902,12 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
     presentation: limitToThree(profile.presentation || []),
     sexuality: singleValue(profile.sexuality || []),
     body_type: limitToThree(profile.body_type || []),
-    position: singleValue(profile.position || []),
-    role: singleValue(profile.role || []),
+    position: limitToThree(profile.position || []),
+    role: limitToThree(profile.role || []),
     is_trans: profile.is_trans ?? null,
     trans_status_visibility: profile.trans_status_visibility ?? FIXED_PRIVATE_PROFILE_VISIBILITY,
     crowds: sanitizeCrowds(profile),
-    availability: singleValue(profile.availability || []),
+    availability: limitToThree(profile.availability || []),
     hosting_travel: limitToThree(profile.hosting_travel || []),
     kinks: profile.kinks || [],
     kink_interests: profile.kink_interests || [],
@@ -913,7 +915,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
     vibes: limitToThree(mergeCategorizedVibes(profile)),
     scenes: [],
     archetypes: [],
-    hobbies: limitToFive(profile.hobbies || []),
+    hobbies: limitToThree(profile.hobbies || []),
     looking_for: limitToThree(profile.looking_for || []),
     hiv_status: singleValue(profile.hiv_status || []),
     hiv_status_visibility: FIXED_PRIVATE_PROFILE_VISIBILITY,
@@ -923,6 +925,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
     covid_vaccine: singleValue(profile.covid_vaccine || []),
     mpox_vaccine: singleValue(profile.mpox_vaccine || []),
     health_preferences: profile.health_preferences || [],
+    birth_control: profile.birth_control || [],
     substance_boundaries: profile.substance_boundaries || [],
     visibility_rules: sanitizeVisibilityRules(profile),
     year_of_birth: profile.year_of_birth,
@@ -964,16 +967,16 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
           </div>
         ) : null}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="w-full grid grid-cols-4">
-            <TabsTrigger value="photos" onClick={() => setActiveTab('photos')}>Photos</TabsTrigger>
-            <TabsTrigger value="basics" onClick={() => setActiveTab('basics')}>Basics</TabsTrigger>
-            <TabsTrigger value="intimacy" onClick={() => setActiveTab('intimacy')}>Intimacy</TabsTrigger>
-            <TabsTrigger value="health" onClick={() => setActiveTab('health')}>Health</TabsTrigger>
+          <TabsList className="grid h-auto w-full grid-cols-4 rounded-full border border-white/10 bg-background/25 p-1">
+            <TabsTrigger value="photos" className="min-h-11" onClick={() => setActiveTab('photos')}>Photos</TabsTrigger>
+            <TabsTrigger value="basics" className="min-h-11" onClick={() => setActiveTab('basics')}>Basics</TabsTrigger>
+            <TabsTrigger value="intimacy" className="min-h-11" onClick={() => setActiveTab('intimacy')}>Intimacy</TabsTrigger>
+            <TabsTrigger value="health" className="min-h-11" onClick={() => setActiveTab('health')}>Health</TabsTrigger>
           </TabsList>
 
           <TabsContent value="photos" className="space-y-4 mt-6">
             <div className="rounded-md border border-border bg-card/70 p-3 text-sm text-muted-foreground">
-              profile photos may be SFW or NSFW, but they must only be of you. add at least one SFW photo if you want people browsing in DL Mode to still see you.
+              profile photos may be SFW or NSFW, but they must only be of you. add at least one SFW photo if you want people browsing in DL Mode to still see you. you don't have to show your face.
             </div>
             {photoUploadNotice ? (
               <div className="rounded-md border border-primary/30 bg-primary/10 p-3 text-sm text-foreground">
@@ -1058,7 +1061,6 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
                 </label>
               ) : null}
             </div>
-            <p className="text-sm text-muted-foreground">Add up to {MAX_PROFILE_PHOTOS} photos of yourself. Your first photo will be your profile picture. SFW photos are suggested, not required.</p>
           </TabsContent>
 
           <TabsContent value="basics" className="space-y-6 mt-6">
@@ -1102,7 +1104,9 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
                 <div className="space-y-0.5">
                   <Label htmlFor="profile-edit-approx-distance">Approximate distance labels</Label>
                   <p className="text-xs text-muted-foreground">
-                    {distancePreferences.mode === 'approximate' ? 'Distances across the app display as approximate (~0.5 mi)' : 'Distances across the app display as exact (0.4 mi)'}
+                    {distancePreferences.mode === 'approximate'
+                      ? 'You see approximate labels for others, and they see an approximate label for you.'
+                      : 'You see exact labels when the other person also shares exact distance. Others can see your exact label only when they share exact distance too.'}
                   </p>
                 </div>
                 <Switch
@@ -1220,7 +1224,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
 
             <div className="space-y-2">
               <Label>Hobbies</Label>
-              <MultiSelect {...profileMenuProps} maxSelections={MAX_PROFILE_HOBBIES} options={HOBBIES} value={normalizedProfile.hobbies} onChange={(vals) => handleChange('hobbies', limitToFive(vals))} />
+              <MultiSelect {...profileMenuProps} ariaLabel="Hobbies" maxSelections={MAX_PROFILE_HOBBIES} optionGroups={HOBBY_GROUPS} value={normalizedProfile.hobbies} onChange={(vals) => handleChange('hobbies', limitToThree(vals))} />
             </div>
           </TabsContent>
 
@@ -1236,10 +1240,10 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
                 <MultiSelect
                   {...profileMenuProps}
                   ariaLabel="Position"
+                  maxSelections={MAX_PROFILE_GROUP_SELECTIONS}
                   options={POSITIONS}
                   value={normalizedProfile.position}
-                  onChange={(vals) => handleChange('position', singleValue(vals))}
-                  selectionMode="single"
+                  onChange={(vals) => handleChange('position', limitToThree(vals))}
                 />
               </div>
               <div className="space-y-2">
@@ -1247,16 +1251,16 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
                 <MultiSelect
                   {...profileMenuProps}
                   ariaLabel="Role"
+                  maxSelections={MAX_PROFILE_GROUP_SELECTIONS}
                   options={ROLES}
                   value={normalizedProfile.role}
-                  onChange={(vals) => handleChange('role', singleValue(vals))}
-                  selectionMode="single"
+                  onChange={(vals) => handleChange('role', limitToThree(vals))}
                 />
               </div>
             </div>
             <div className="space-y-2">
               <Label>Availability</Label>
-              <MultiSelect {...profileMenuProps} options={AVAILABILITY} value={normalizedProfile.availability} onChange={vals => handleChange('availability', singleValue(vals))} selectionMode="single" />
+              <MultiSelect {...profileMenuProps} maxSelections={MAX_PROFILE_GROUP_SELECTIONS} options={AVAILABILITY} value={normalizedProfile.availability} onChange={vals => handleChange('availability', limitToThree(vals))} />
             </div>
             <div className="space-y-2">
               <Label>Hosting/Travel</Label>
@@ -1342,6 +1346,17 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
                 value={normalizedProfile.health_preferences}
                 onChange={vals => handleChange('health_preferences', vals)}
               />
+            </div>
+            <div className="space-y-2">
+              <Label>Birth control</Label>
+              <MultiSelect
+                {...profileMenuProps}
+                ariaLabel="Birth control"
+                options={BIRTH_CONTROL}
+                value={normalizedProfile.birth_control}
+                onChange={vals => handleChange('birth_control', vals)}
+              />
+              <p className="text-sm text-muted-foreground">Select any that apply.</p>
             </div>
             <div className="space-y-2">
               <Label>Substance Boundaries</Label>

@@ -255,4 +255,19 @@ describe('BottomNav', () => {
 
     expect(screen.getByTestId('location-probe')).toHaveTextContent('/profile:null');
   });
+
+  it('navigates to the full profile page at constrained desktop widths', () => {
+    useIsMobile.mockImplementation((breakpoint?: number) => breakpoint === 1120);
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <BottomNav />
+        <LocationProbe />
+      </MemoryRouter>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /profile/i }));
+
+    expect(screen.getByTestId('location-probe')).toHaveTextContent('/profile:null');
+  });
 });

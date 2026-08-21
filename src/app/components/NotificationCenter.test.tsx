@@ -106,6 +106,8 @@ describe('NotificationCenter', () => {
     );
 
     expect(await screen.findByText("It's mutual")).toBeInTheDocument();
+    expect(document.querySelector('[data-notification-icon="safety"]')).toBeInTheDocument();
+    expect(document.querySelector('[data-notification-icon="bell"]')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Mark all as read' }));
 
     await waitFor(() => expect(markAllNotificationsRead).toHaveBeenCalled());

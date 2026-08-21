@@ -38,10 +38,7 @@ export default function SupportPage({ appealOnly = false, publicAccess = false }
           />
           {!appealMode ? (
             <p className="text-sm text-muted-foreground">
-              Need to appeal an age-related suspension?{' '}
-              <Link className="inline-flex min-h-11 items-center underline" to="/support?appeal=1">
-                Submit an appeal
-              </Link>.
+              Need to appeal an age-related suspension? <Link className="underline" to="/support?appeal=1">Submit an appeal</Link>.
             </p>
           ) : null}
         </div>

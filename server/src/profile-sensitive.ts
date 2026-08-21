@@ -18,6 +18,7 @@ export type SensitiveProfileData = Pick<
   | "custom_hiv_status"
 > & {
   health_preferences?: ProfilePayload["health_preferences"];
+  birth_control?: ProfilePayload["birth_control"];
 };
 
 export type EncryptedSensitiveProfile = {
@@ -162,6 +163,18 @@ export function decryptSensitiveProfile(
       custom_hiv_status: typeof parsed.custom_hiv_status === "string" ? parsed.custom_hiv_status : "",
       health_preferences: Array.isArray(parsed.health_preferences)
         ? parsed.health_preferences.filter((value): value is "COVID tested" | "Masks" => value === "COVID tested" || value === "Masks")
+        : [],
+      birth_control: Array.isArray(parsed.birth_control)
+        ? parsed.birth_control.filter((value): value is ProfilePayload["birth_control"][number] => [
+            "Arm implant",
+            "Ask me",
+            "Condoms",
+            "Hormonal",
+            "IUD",
+            "Prefer not to say",
+            "Rhythm method",
+            "Spermicide"
+          ].includes(value as ProfilePayload["birth_control"][number]))
         : []
     };
   } catch (error) {

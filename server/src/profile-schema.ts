@@ -103,13 +103,21 @@ const cappedArrayField = (max: number) =>
       return nextValues.slice(-max);
     });
 const upToThreeArrayField = cappedArrayField(3);
-const upToFiveArrayField = cappedArrayField(5);
-const upToFiveKinkArrayField = cappedArrayField(5);
 const singleArrayField = cappedArrayField(1);
-const kinkArrayField = upToFiveKinkArrayField;
+const kinkArrayField = upToThreeArrayField;
 
 const profileVisibilitySchema = z.enum(["public", "mutual_cruushes", "mutual_crowds"]);
 const healthPreferenceSchema = z.enum(["COVID tested", "Masks"]);
+const birthControlSchema = z.enum([
+  "Arm implant",
+  "Ask me",
+  "Condoms",
+  "Hormonal",
+  "IUD",
+  "Prefer not to say",
+  "Rhythm method",
+  "Spermicide"
+]);
 const transStatusSchema = z.boolean().nullable().optional().default(null);
 const crowdSchema = z.preprocess((value) => {
   if (typeof value !== "string") {
@@ -177,25 +185,25 @@ export const profilePayloadSchema = z.object({
   date_of_birth: adultDateOfBirthSchema.optional(),
   ethnicity: optionalSingleLineTextSchema(120),
   identities: upToThreeArrayField,
-  presentation: singleArrayField,
+  presentation: upToThreeArrayField,
   sexuality: upToThreeArrayField,
   body_type: upToThreeArrayField,
   height: shortStringField,
   weight: shortStringField,
-  position: singleArrayField,
-  role: singleArrayField,
+  position: upToThreeArrayField,
+  role: upToThreeArrayField,
   is_trans: transStatusSchema,
   trans_status_visibility: profileVisibilitySchema.optional().default("mutual_cruushes"),
   crowds: z.array(crowdSchema).max(3).optional().default([]),
-  availability: singleArrayField,
+  availability: upToThreeArrayField,
   hosting_travel: upToThreeArrayField,
   kinks: kinkArrayField,
-  kink_interests: z.array(profileKinkInterestSchema).max(5).optional().default([]),
+  kink_interests: z.array(profileKinkInterestSchema).max(3).optional().default([]),
   kinks_visibility: profileVisibilitySchema.optional().default("public"),
   vibes: upToThreeArrayField,
   scenes: arrayField,
   archetypes: arrayField,
-  hobbies: upToFiveArrayField,
+  hobbies: upToThreeArrayField,
   custom_hobby: shortStringField,
   looking_for: upToThreeArrayField,
   hiv_status: singleArrayField,
@@ -212,6 +220,7 @@ export const profilePayloadSchema = z.object({
   mpox_vaccine: singleArrayField,
   custom_mpox_vaccine: shortStringField,
   health_preferences: z.array(healthPreferenceSchema).max(2).optional().default([]),
+  birth_control: z.array(birthControlSchema).max(8).optional().default([]),
   substance_boundaries: arrayField,
   visibility_rules: profileVisibilityRulesSchema.optional().default({
     active_crowd_modes: [],
@@ -317,6 +326,7 @@ export const emptyProfile = {
   mpox_vaccine: [],
   custom_mpox_vaccine: "",
   health_preferences: [],
+  birth_control: [],
   substance_boundaries: [],
   visibility_rules: {
     active_crowd_modes: [],

@@ -33,6 +33,13 @@ function selectVisibilityOption(label: string, option: string) {
 }
 
 describe('MapVisibilitySurface', () => {
+  it('keeps the close control on the left away from the fixed bug button', () => {
+    render(<VisibilityHarness />);
+
+    expect(screen.getByRole('button', { name: 'Close' })).toHaveClass('left-4');
+    expect(screen.getByRole('dialog', { name: 'Visibility' }).querySelector('[data-slot="sheet-header"]')).toHaveClass('pl-14');
+  });
+
   it('limits non-cruush+ users to three hidden audiences and links to cruush+', () => {
     const onUpgrade = vi.fn();
     render(<VisibilityHarness onUpgrade={onUpgrade} />);

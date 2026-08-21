@@ -1001,6 +1001,7 @@ describe('PrivateGroupChat', () => {
     expect(await screen.findByText('No messages yet.')).toBeInTheDocument();
 
     const favoriteGalleryButtons = screen.getAllByRole('button', { name: 'Quick access gallery' });
+    expect(favoriteGalleryButtons).toHaveLength(1);
     fireEvent.click(favoriteGalleryButtons[favoriteGalleryButtons.length - 1]);
 
     await waitFor(() => expect(getFavoriteMessageImages).toHaveBeenCalledTimes(1));
@@ -1320,9 +1321,12 @@ describe('PrivateGroupChat', () => {
     );
 
     fireEvent.click(await screen.findByRole('button', { name: 'More conversation options' }));
-    fireEvent.change(await screen.findByLabelText('Disappearing timer'), {
-      target: { value: '1h' },
-    });
+    const settingsTimer = await screen.findByLabelText('Disappearing timer');
+    expect(settingsTimer).toHaveAttribute('data-slot', 'select-trigger');
+    expect(screen.queryByRole('combobox', { name: 'Disappearing timer', hidden: true })).toBe(settingsTimer);
+
+    fireEvent.click(settingsTimer);
+    fireEvent.click(await screen.findByRole('option', { name: '1 hour' }));
 
     await waitFor(() => {
       expect(setConversationDisappearingTimer).toHaveBeenCalledWith(conversationId, '1h');
@@ -1437,6 +1441,8 @@ describe('PrivateGroupChat', () => {
     );
 
     expect(await screen.findByText('No messages yet.')).toBeInTheDocument();
+    expect(screen.getByLabelText('Message disappearing timer')).toBeInTheDocument();
+    expect(screen.queryByText('Applies to new messages.')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByLabelText('Message disappearing timer'));
     fireEvent.click(await screen.findByRole('option', { name: '1 hour' }));

@@ -4,13 +4,13 @@ import * as React from "react";
 // 768px and 1023px the shell must use the same mobile layout as its CSS.
 export const MOBILE_BREAKPOINT = 1024;
 
-export function useIsMobile() {
+export function useIsMobile(breakpoint = MOBILE_BREAKPOINT, minimumHeight = 0) {
   const [isMobile, setIsMobile] = React.useState<boolean>(() => {
     if (typeof window === 'undefined') {
       return false;
     }
 
-    return window.innerWidth < MOBILE_BREAKPOINT;
+    return window.innerWidth < breakpoint || (minimumHeight > 0 && window.innerHeight < minimumHeight);
   });
 
   React.useEffect(() => {
@@ -19,9 +19,13 @@ export function useIsMobile() {
       return;
     }
 
-    const mql = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`);
+    const mql = window.matchMedia(
+      minimumHeight > 0
+        ? `(max-width: ${breakpoint - 1}px), (max-height: ${minimumHeight - 1}px)`
+        : `(max-width: ${breakpoint - 1}px)`,
+    );
     const onChange = () => {
-      setIsMobile(window.innerWidth < MOBILE_BREAKPOINT);
+      setIsMobile(window.innerWidth < breakpoint || (minimumHeight > 0 && window.innerHeight < minimumHeight));
     };
 
     if (typeof mql.addEventListener === 'function') {
@@ -30,7 +34,7 @@ export function useIsMobile() {
       mql.addListener(onChange);
     }
 
-    setIsMobile(window.innerWidth < MOBILE_BREAKPOINT);
+    setIsMobile(window.innerWidth < breakpoint || (minimumHeight > 0 && window.innerHeight < minimumHeight));
 
     return () => {
       if (typeof mql.removeEventListener === 'function') {
@@ -39,7 +43,7 @@ export function useIsMobile() {
         mql.removeListener(onChange);
       }
     };
-  }, []);
+  }, [breakpoint, minimumHeight]);
 
   return isMobile;
 }

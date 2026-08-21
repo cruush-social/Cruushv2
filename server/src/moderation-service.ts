@@ -71,6 +71,30 @@ export function providerResultFromModerationUnavailableError(error: unknown) {
   return error instanceof ModerationUnavailableError ? error.providerResult : undefined;
 }
 
+class ModerationRejectedError extends ApiError {
+  readonly contentReviewId: string;
+  readonly decision: PolicyDecision;
+  readonly providerResult: ProviderModerationResult;
+
+  constructor(input: {
+    contentReviewId: string;
+    decision: PolicyDecision;
+    message: string;
+    providerResult: ProviderModerationResult;
+    statusCode: number;
+  }) {
+    super(input.statusCode, "CONTENT_REJECTED", input.message);
+    this.name = "ModerationRejectedError";
+    this.contentReviewId = input.contentReviewId;
+    this.decision = input.decision;
+    this.providerResult = input.providerResult;
+  }
+}
+
+export function moderationRejectionFromError(error: unknown) {
+  return error instanceof ModerationRejectedError ? error : null;
+}
+
 type ModerateProfileInput = {
   userId: string;
   fields: Record<string, string | string[] | null | undefined>;
@@ -723,7 +747,10 @@ async function handlePolicyDecision(
     contentId: options.contentId,
     contentRef: options.contentRef,
     providerResult,
-    decision
+    decision,
+    ...(decision.user_message_code === "minor_face_review_suspension"
+      ? { moderationStatus: "pending_review" as const }
+      : {})
   });
 
   await applyPolicyDecision(app.db, userId, decision, {
@@ -737,11 +764,13 @@ async function handlePolicyDecision(
     }
   });
 
-  throw new ApiError(
-    decision.enforcement_action?.type === "suspend" ? 403 : 400,
-    "CONTENT_REJECTED",
-    userMessageForDecision(decision, contentType)
-  );
+  throw new ModerationRejectedError({
+    contentReviewId,
+    decision,
+    message: userMessageForDecision(decision, contentType),
+    providerResult,
+    statusCode: decision.enforcement_action?.type === "suspend" ? 403 : 400
+  });
 }
 
 export async function moderateTextWithLocalFallback(

@@ -193,6 +193,25 @@ describe("image child-face and profile-photo human detection", () => {
     });
   });
 
+  it("rejects profile photos containing more than one adult person", () => {
+    expect(classifyProfilePhotoSafety({
+      Labels: [{ Name: "Person", Confidence: 99 }],
+      $metadata: { requestId: "rekognition-labels-multiple-people" }
+    }, {
+      FaceDetails: [
+        { Confidence: 99, AgeRange: { Low: 25, High: 35 } },
+        { Confidence: 98, AgeRange: { Low: 28, High: 38 } }
+      ],
+      $metadata: { requestId: "rekognition-faces-multiple-people" }
+    }, null, config)).toMatchObject({
+      recommended_action: "remove",
+      labels: expect.arrayContaining([
+        expect.objectContaining({ normalized_label: "profile_photo_not_adult_human" })
+      ]),
+      raw_result: { outcome: "multiple_people_detected" }
+    });
+  });
+
   it("maps public-image safety labels without rejecting ordinary non-explicit nudity", () => {
     expect(classifyPublicImageSafety({
       ModerationLabels: [{ Name: "Explicit Nudity", Confidence: 96 }],
@@ -214,6 +233,33 @@ describe("image child-face and profile-photo human detection", () => {
     }, config)).toMatchObject({
       recommended_action: "keep",
       labels: []
+    });
+  });
+
+  it("rejects visible text and URLs in private-message image safety checks", () => {
+    const moderation = {
+      ModerationLabels: [],
+      $metadata: { requestId: "rekognition-public-moderation" }
+    };
+    const faces = {
+      FaceDetails: [{ Confidence: 99, AgeRange: { Low: 25, High: 35 } }],
+      $metadata: { requestId: "rekognition-public-faces" }
+    };
+
+    expect(classifyPublicImageSafety(moderation, faces, config, {
+      TextDetections: [{ Type: "LINE", DetectedText: "hello there", Confidence: 97 }],
+      $metadata: { requestId: "rekognition-public-text" }
+    })).toMatchObject({
+      recommended_action: "remove",
+      labels: [expect.objectContaining({ normalized_label: "text_on_image" })]
+    });
+
+    expect(classifyPublicImageSafety(moderation, faces, config, {
+      TextDetections: [{ Type: "LINE", DetectedText: "visit example.com", Confidence: 98 }],
+      $metadata: { requestId: "rekognition-public-url" }
+    })).toMatchObject({
+      recommended_action: "remove",
+      labels: [expect.objectContaining({ normalized_label: "url_on_image" })]
     });
   });
 

@@ -151,6 +151,7 @@ type OnboardingProfileState = {
   doxypep: string[];
   covid_vaccine: string[];
   mpox_vaccine: string[];
+  birth_control: string[];
   substance_boundaries: string[];
   custom_pronouns: string;
   custom_hobby: string;
@@ -208,6 +209,7 @@ export default function ProfileOnboarding({
     doxypep: [],
     covid_vaccine: [],
     mpox_vaccine: [],
+    birth_control: [],
     substance_boundaries: [],
     custom_pronouns: '',
     custom_hobby: '',
@@ -471,6 +473,8 @@ export default function ProfileOnboarding({
         doxypep: profile.doxypep,
         covid_vaccine: profile.covid_vaccine,
         mpox_vaccine: profile.mpox_vaccine,
+        health_preferences: [],
+        birth_control: profile.birth_control,
         substance_boundaries: profile.substance_boundaries,
         custom_pronouns: customPronouns,
         custom_hobby: customHobby,
@@ -619,7 +623,12 @@ export default function ProfileOnboarding({
                       onChange={(event) => setTransStatus(event.target.checked)}
                       className="h-4 w-4 rounded border-white/25 bg-input-background accent-primary"
                     />
-                    <span>I am trans</span>
+                    <span>
+                      <span className="block">I am trans</span>
+                      <span className="mt-1 block text-xs leading-5 text-white/58">
+                        We ask this to offer you the optional T4T crowd. It does not add a trans label to your profile.
+                      </span>
+                    </span>
                   </label>
                   <div>
                     <label className="text-sm mb-2 block text-white/82">Sexuality</label>

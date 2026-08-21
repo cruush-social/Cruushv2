@@ -157,6 +157,10 @@ function mapTutorialRoute(step: MapControlsTutorialStepId) {
     return '/feed';
   }
 
+  if (step === 'carousel') {
+    return '/lucky';
+  }
+
   return '/map';
 }
 
@@ -381,7 +385,6 @@ export default function App({
   const tokenLinkType = getTokenLinkType();
   const alphaBugControl = (
     <AlphaBugButton
-      authShellScrolled={authShellControlsScrolled}
       enabled
       requireContactEmail={authStatus === 'signed_out'}
     />

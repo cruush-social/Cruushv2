@@ -76,6 +76,8 @@ const CROWD_NOTICE_LABELS: Record<string, string> = {
 const MAP_VIEWPORT_RESTORE_STORAGE_KEY = 'cruush:map-viewport-restore';
 const MAP_PING_STATUS_REFRESH_INTERVAL_MS = 20_000;
 const MAP_PING_IDEMPOTENCY_RETRY_WINDOW_MS = 10 * 60 * 1000;
+const MAP_PROFILE_PANEL_BREAKPOINT = 1120;
+const MAP_PROFILE_PANEL_MIN_HEIGHT = 720;
 
 type MobileVisualViewportBounds = {
   height: number;
@@ -597,6 +599,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
   const [searchParams] = useSearchParams();
   const routeState = location.state as MapRouteState;
   const isMobile = useIsMobile();
+  const usesFullPageProfile = useIsMobile(MAP_PROFILE_PANEL_BREAKPOINT, MAP_PROFILE_PANEL_MIN_HEIGHT);
   const mobileVisualViewportBounds = useMobileVisualViewportBounds(isMobile);
   const [users, setUsers] = useState<DiscoveryUser[]>([]);
   const [userApproximateLocation, setUserApproximateLocation] = useState<ApproximateCoordinates | null>(null);
@@ -662,8 +665,26 @@ export default function MapHome(_props: MapHomeProps = {}) {
   const lastMutualMapModeRef = useRef(isMutualMapMode);
   const shouldReplayTutorial = searchParams.get('replayTutorial') === '1';
   const focusUserId = searchParams.get('focusUserId') ?? routeState?.focusUserId ?? null;
-  const shouldOpenOwnProfilePanel = !isMobile && routeState?.openOwnProfilePanel === true;
+  const shouldOpenOwnProfilePanel = !usesFullPageProfile && routeState?.openOwnProfilePanel === true;
   const hasCruushPlus = billingStatus?.cruushPlus === true;
+
+  useEffect(() => {
+    if (typeof document === 'undefined') {
+      return;
+    }
+
+    const profilePanelOpen = !usesFullPageProfile && Boolean(selectedUser && !luckySlot);
+
+    if (profilePanelOpen) {
+      document.documentElement.setAttribute('data-cruush-map-profile-panel', 'open');
+    } else {
+      document.documentElement.removeAttribute('data-cruush-map-profile-panel');
+    }
+
+    return () => {
+      document.documentElement.removeAttribute('data-cruush-map-profile-panel');
+    };
+  }, [luckySlot, selectedUser, usesFullPageProfile]);
 
 
   const syncApproximateMapLocation = (
@@ -782,6 +803,11 @@ export default function MapHome(_props: MapHomeProps = {}) {
       return;
     }
 
+    if (step === 'carousel') {
+      handleFeelingLucky();
+      return;
+    }
+
     if (step === 'zoom') {
       mapInstance?.zoomIn();
     }
@@ -795,6 +821,11 @@ export default function MapHome(_props: MapHomeProps = {}) {
 
     if (step === 'feed') {
       navigate('/feed');
+      return;
+    }
+
+    if (step === 'carousel') {
+      navigate('/lucky');
     }
   };
 
@@ -954,7 +985,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
       return;
     }
 
-    if (isMobile) {
+    if (usesFullPageProfile) {
       openProfile(user);
       return;
     }
@@ -968,13 +999,13 @@ export default function MapHome(_props: MapHomeProps = {}) {
   };
 
   useEffect(() => {
-    if (isMobile && selectedUser) {
+    if (usesFullPageProfile && selectedUser) {
       setSelectedUser(null);
     }
     if (isMobile && luckySlot) {
       setLuckySlot(null);
     }
-  }, [isMobile, luckySlot, selectedUser]);
+  }, [isMobile, luckySlot, selectedUser, usesFullPageProfile]);
 
   useEffect(() => {
     let isMounted = true;
@@ -1200,7 +1231,6 @@ export default function MapHome(_props: MapHomeProps = {}) {
             }
           : user));
       }
-      setSelectedUser((currentUser) => currentUser?.id === payload.targetUserId ? null : currentUser);
       void fetchUsers(getCurrentFetchCoordinates(), filters);
     });
   }, [filters, isMutualMapMode, userApproximateLocation]);
@@ -2033,7 +2063,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
 
   return (
     <div
-      className={`cruush-map-shell ${isMobile ? `fixed${mobileVisualViewportBounds ? '' : ' inset-0'}` : 'relative'} overflow-hidden overscroll-none bg-background select-none`}
+      className={`cruush-map-shell ${isFiltersOpen || isVisibilityOpen ? 'cruush-map-surface-open' : ''} ${isMobile ? `fixed${mobileVisualViewportBounds ? '' : ' inset-0'}` : 'relative'} overflow-hidden overscroll-none bg-background select-none`}
       data-testid="map-home-shell"
       style={mobileVisualViewportBounds ? {
         height: `${mobileVisualViewportBounds.height}px`,
@@ -2061,7 +2091,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
           ) : null}
 
           <div
-            className="pointer-events-auto mt-0 flex w-full min-w-0 flex-1 items-center justify-between gap-0 rounded-full border border-white/10 bg-background/25 p-1 backdrop-blur-md sm:gap-1 sm:p-1.5 lg:mx-auto lg:max-w-[52rem] lg:flex-none"
+          className="cruush-map-top-actions pointer-events-auto mt-0 flex w-full min-w-0 flex-1 items-center justify-between gap-0 rounded-full border border-white/10 bg-background/25 p-1 backdrop-blur-md transition-[width,margin,transform] sm:gap-1 sm:p-1.5 lg:mx-auto lg:max-w-[52rem] lg:flex-none"
             data-testid="map-top-actions"
           >
             <div className="relative shrink-0" data-testid="map-plus-stack">
@@ -2080,6 +2110,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
               variant="ghost"
               size="icon"
               onClick={handleFeelingLucky}
+              data-tutorial-target="carousel"
               aria-label="Cruise Carousel"
               title="Cruise Carousel"
               className="size-9 rounded-full text-white/90 hover:bg-white/10 sm:size-10 lg:size-11"
@@ -2236,7 +2267,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
           />
         ) : null}
 
-        {!isMobile && selectedUser && !luckySlot ? (
+        {!usesFullPageProfile && selectedUser && !luckySlot ? (
           <MapProfilePopup
             user={selectedUser}
             onClose={() => setSelectedUser(null)}
@@ -2551,7 +2582,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
               isMobile
                 ? 'bottom-[calc(5.75rem+env(safe-area-inset-bottom))] left-3 right-3 z-40 px-0'
                 : shouldAlignRecentlyActiveWithPreview
-                ? 'bottom-[calc(6.25rem+env(safe-area-inset-bottom))] left-[calc(23rem+1.5rem)] right-4 z-30 pl-2 pr-0'
+                ? 'bottom-[calc(6.25rem+env(safe-area-inset-bottom))] left-[calc(26rem+1.5rem)] right-4 z-30 pl-2 pr-0'
                 : 'bottom-[calc(6.25rem+env(safe-area-inset-bottom))] left-0 right-4 z-30 pl-4 pr-0'
             }`}
           >

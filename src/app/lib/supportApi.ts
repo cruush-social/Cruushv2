@@ -11,6 +11,12 @@ export type CreateSupportRequestPayload = {
   contactEmail?: string;
   source: SupportRequestSource;
   pageUrl?: string;
+  device?: {
+    model?: string;
+    platform?: string;
+    platformVersion?: string;
+    mobile?: boolean;
+  };
   screenshot?: {
     filename: string;
     contentType: 'image/jpeg' | 'image/png' | 'image/webp';

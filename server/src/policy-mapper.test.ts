@@ -89,9 +89,29 @@ describe("policy mapper", () => {
     }
   );
 
+  it("allows an animal image in private messages", () => {
+    const decision = mapProviderResultToPolicy({
+      surface: "direct_message",
+      contentType: "image",
+      providerResult: {
+        ...providerResult("animal", 0.98),
+        provider: "stream",
+        recommended_action: "remove",
+        status: "complete"
+      }
+    });
+
+    expect(decision).toMatchObject({
+      decision: "allow",
+      reason_code: "animal_message_photo_allowed",
+      trust_impact: 0
+    });
+  });
+
   it.each([
-    ["animal", "animal_image_content"],
-    ["screenshot_or_interface", "screenshot_image_content"]
+    ["screenshot_or_interface", "screenshot_image_content"],
+    ["text_on_image", "text_image_content"],
+    ["url_on_image", "url_image_content"]
   ] as const)(
     "rejects a %s image in private messages",
     (label, reasonCode) => {

@@ -238,8 +238,8 @@ describe('MapView', () => {
     expect(screen.getByTestId('marker-heart-layer-me')).toHaveClass('w-[103px]');
     expect(screen.getByTestId('marker-heart-layer-user-1')).toHaveClass(
       'origin-bottom',
-      'group-hover:scale-120',
-      'group-focus-within:scale-120',
+      'group-hover:scale-[1.38]',
+      'group-focus-within:scale-[1.38]',
     );
     expect(screen.getByTestId('marker-pin-unit-user-1')).toHaveClass('origin-bottom', 'scale-100');
     expect(MAP_PIN_UNIT_SCALE).toBe(1);
@@ -919,7 +919,7 @@ describe('MapView', () => {
 
     expect(markerButton).toHaveAttribute('aria-pressed', 'true');
     expect(markerInstances[0].element.style.zIndex).toBe('110');
-    expect(screen.getByTestId('marker-heart-layer-user-hover')).toHaveClass('scale-120');
+    expect(screen.getByTestId('marker-heart-layer-user-hover')).toHaveClass('scale-[1.38]');
     expect(screen.getByTestId('marker-signal-stack-user-hover')).toHaveClass('opacity-100');
 
     const pointerLeave = new Event('pointerleave', { bubbles: true });
@@ -928,7 +928,7 @@ describe('MapView', () => {
 
     expect(markerButton).toHaveAttribute('aria-pressed', 'false');
     expect(markerInstances[0].element.style.zIndex).toBe('37');
-    expect(screen.getByTestId('marker-heart-layer-user-hover')).not.toHaveClass('scale-120');
+    expect(screen.getByTestId('marker-heart-layer-user-hover')).not.toHaveClass('scale-[1.38]');
     expect(screen.getByTestId('marker-signal-stack-user-hover')).toHaveClass('opacity-0');
   });
 
@@ -960,7 +960,7 @@ describe('MapView', () => {
     expect(onPinClick).toHaveBeenCalledOnce();
     expect(onPinClick).toHaveBeenCalledWith(expect.objectContaining({ id: 'user-touch-preview' }));
     expect(markerButton).toHaveAttribute('aria-pressed', 'false');
-    expect(screen.getByTestId('marker-heart-layer-user-touch-preview')).not.toHaveClass('scale-[1.16]');
+    expect(screen.getByTestId('marker-heart-layer-user-touch-preview')).not.toHaveClass('scale-[1.38]');
     expect(screen.getByTestId('marker-signal-stack-user-touch-preview')).toHaveClass('opacity-0');
   });
 
@@ -996,7 +996,7 @@ describe('MapView', () => {
     act(() => vi.advanceTimersByTime(1));
 
     expect(markerButton).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByTestId('marker-heart-layer-user-touch-hold')).toHaveClass('scale-120');
+    expect(screen.getByTestId('marker-heart-layer-user-touch-hold')).toHaveClass('scale-[1.38]');
     expect(screen.getByTestId('marker-signal-stack-user-touch-hold')).toHaveClass('opacity-100');
     const contextMenu = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
     fireEvent(markerButton, contextMenu);
@@ -1009,7 +1009,7 @@ describe('MapView', () => {
     act(() => vi.advanceTimersByTime(351));
     mapInstances[0].trigger('click');
     expect(markerButton).toHaveAttribute('aria-pressed', 'false');
-    expect(screen.getByTestId('marker-heart-layer-user-touch-hold')).not.toHaveClass('scale-120');
+    expect(screen.getByTestId('marker-heart-layer-user-touch-hold')).not.toHaveClass('scale-[1.38]');
     expect(screen.getByTestId('marker-signal-stack-user-touch-hold')).toHaveClass('opacity-0');
   });
 
@@ -1036,7 +1036,7 @@ describe('MapView', () => {
     const currentButton = screen.getByRole('button', { name: 'Open Ari on map' });
     expect(currentButton).toBe(originalButton);
     expect(currentButton).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByTestId('marker-heart-layer-user-touch-rerender')).toHaveClass('scale-120');
+    expect(screen.getByTestId('marker-heart-layer-user-touch-rerender')).toHaveClass('scale-[1.38]');
     expect(screen.getByTestId('marker-signal-stack-user-touch-rerender')).toHaveClass('opacity-100');
     expect(onPinClick).not.toHaveBeenCalled();
   });
@@ -1077,7 +1077,7 @@ describe('MapView', () => {
     act(() => vi.advanceTimersByTime(300));
 
     expect(markerButton).toHaveAttribute('aria-pressed', 'false');
-    expect(screen.getByTestId('marker-heart-layer-user-touch-pan')).not.toHaveClass('scale-[1.16]');
+    expect(screen.getByTestId('marker-heart-layer-user-touch-pan')).not.toHaveClass('scale-[1.38]');
     expect(screen.getByTestId('marker-signal-stack-user-touch-pan')).toHaveClass('opacity-0');
   });
 
@@ -1151,7 +1151,7 @@ describe('MapView', () => {
     expect(heart).toHaveClass('z-10');
     expect(heart).not.toHaveClass('cruush-map-ping-heart');
     expect(heartLayer).toHaveClass('cruush-map-ping-heart');
-    expect(heartLayer).toHaveClass('group-hover:scale-120', 'group-focus-within:scale-120');
+    expect(heartLayer).toHaveClass('group-hover:scale-[1.38]', 'group-focus-within:scale-[1.38]');
     expect(pinUnit).toHaveClass('scale-100');
     expect(heart.querySelector('path[stroke="#C8FF31"]')).not.toBeNull();
     expect(signalBadge).toHaveClass('border-[#C8FF31]');

@@ -18,7 +18,6 @@ import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 
 type AlphaBugButtonProps = {
-  authShellScrolled?: boolean;
   enabled?: boolean;
   requireContactEmail?: boolean;
 };
@@ -30,6 +29,47 @@ type ScreenshotAttachment = {
   contentType: 'image/jpeg';
   contentBase64: string;
 };
+
+type NavigatorUserAgentData = {
+  mobile?: boolean;
+  platform?: string;
+  getHighEntropyValues?: (hints: string[]) => Promise<{
+    model?: string;
+    platform?: string;
+    platformVersion?: string;
+    mobile?: boolean;
+  }>;
+};
+
+async function getBugDeviceContext() {
+  if (typeof navigator === 'undefined') {
+    return undefined;
+  }
+
+  const userAgentData = (navigator as Navigator & { userAgentData?: NavigatorUserAgentData }).userAgentData;
+  let highEntropy: Awaited<ReturnType<NonNullable<NavigatorUserAgentData['getHighEntropyValues']>>> = {};
+
+  if (typeof userAgentData?.getHighEntropyValues === 'function') {
+    highEntropy = await userAgentData
+      .getHighEntropyValues(['model', 'platform', 'platformVersion'])
+      .catch(() => ({}));
+  }
+
+  const androidModel = /;\s*([^;()]+?)\s+Build\//i.exec(navigator.userAgent)?.[1]?.trim();
+  const model = highEntropy.model?.trim() || androidModel || undefined;
+  const platform = highEntropy.platform?.trim()
+    || userAgentData?.platform?.trim()
+    || navigator.platform?.trim()
+    || undefined;
+  const platformVersion = highEntropy.platformVersion?.trim() || undefined;
+  const mobile = highEntropy.mobile ?? userAgentData?.mobile;
+
+  if (!model && !platform && !platformVersion && mobile === undefined) {
+    return undefined;
+  }
+
+  return { model, platform, platformVersion, mobile };
+}
 
 function getCurrentPageUrl() {
   if (typeof window === 'undefined') {
@@ -161,7 +201,6 @@ async function captureBugScreenshot(): Promise<ScreenshotAttachment | undefined>
 }
 
 export default function AlphaBugButton({
-  authShellScrolled = false,
   enabled = false,
   requireContactEmail = false,
 }: AlphaBugButtonProps) {
@@ -260,7 +299,10 @@ export default function AlphaBugButton({
     setErrorCode('');
 
     try {
-      const screenshot = await captureBugScreenshot();
+      const [screenshot, device] = await Promise.all([
+        captureBugScreenshot(),
+        getBugDeviceContext(),
+      ]);
       await createSupportRequest({
         category: 'bug',
         subject: `Alpha bug: ${pageUrl}`,
@@ -268,6 +310,7 @@ export default function AlphaBugButton({
         ...(trimmedContactEmail ? { contactEmail: trimmedContactEmail } : {}),
         source: 'unknown',
         pageUrl,
+        ...(device ? { device } : {}),
         ...(screenshot ? { screenshot } : {}),
       });
       setStatus('success');
@@ -284,10 +327,8 @@ export default function AlphaBugButton({
     <DialogTrigger asChild>
       <button
         aria-label="Report alpha bug"
-        aria-hidden={authShellScrolled || undefined}
         data-testid="alpha-bug-button"
-        className={`fixed z-50 inline-flex h-9 w-9 sm:h-10 sm:w-10 lg:h-11 lg:w-11 items-center justify-center rounded-full border border-destructive/45 bg-destructive text-white shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-md transition-[background-color,opacity,transform] duration-150 hover:bg-destructive/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-destructive right-[calc(0.75rem+env(safe-area-inset-right))] top-[calc(0.75rem+env(safe-area-inset-top))] ${authShellScrolled ? 'pointer-events-none -translate-y-24 opacity-0' : 'translate-y-0 opacity-100'}`}
-        tabIndex={authShellScrolled ? -1 : undefined}
+        className="fixed right-[calc(0.75rem+env(safe-area-inset-right))] top-[calc(0.75rem+env(safe-area-inset-top))] z-[70] inline-flex h-9 w-9 items-center justify-center rounded-full border border-destructive/45 bg-destructive text-white shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-md transition-[background-color,opacity] duration-150 hover:bg-destructive/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-destructive sm:h-10 sm:w-10 lg:h-11 lg:w-11"
         title="Report a bug"
         type="button"
       >
@@ -328,7 +369,7 @@ export default function AlphaBugButton({
         <DialogHeader>
           <DialogTitle>Report alpha bug</DialogTitle>
           <DialogDescription>
-            This report includes the current page and attaches a screenshot when your browser allows it.
+            Describe what broke and how support can reproduce it.
           </DialogDescription>
         </DialogHeader>
         <div className="rounded-md border border-white/10 bg-white/[0.035] px-3 py-2 text-xs text-muted-foreground">
@@ -378,7 +419,7 @@ export default function AlphaBugButton({
                 maxLength={4000}
                 minLength={10}
                 onChange={(event) => setMessage(event.target.value)}
-                placeholder="What happened, what you expected, and anything visible in your screenshot."
+                placeholder="What happened, what you expected, and how to reproduce it."
                 required
                 value={message}
               />

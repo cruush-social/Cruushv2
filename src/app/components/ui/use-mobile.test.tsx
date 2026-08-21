@@ -6,8 +6,13 @@ function Probe() {
   return <output data-testid="is-mobile">{String(useIsMobile())}</output>;
 }
 
+function CustomBreakpointProbe() {
+  return <output data-testid="is-constrained">{String(useIsMobile(1536, 800))}</output>;
+}
+
 describe('useIsMobile', () => {
   beforeEach(() => {
+    Object.defineProperty(window, 'innerHeight', { configurable: true, value: 900 });
     vi.stubGlobal('matchMedia', (query: string) => ({
       matches: query === `(max-width: ${MOBILE_BREAKPOINT - 1}px)`,
       addEventListener: vi.fn(),
@@ -31,5 +36,22 @@ describe('useIsMobile', () => {
     render(<Probe />);
 
     expect(screen.getByTestId('is-mobile')).toHaveTextContent('false');
+  });
+
+  it('supports a route-specific accessibility breakpoint without changing the global breakpoint', () => {
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1100 });
+
+    render(<CustomBreakpointProbe />);
+
+    expect(screen.getByTestId('is-constrained')).toHaveTextContent('true');
+  });
+
+  it('uses full-page treatment when the viewport is too short for a side panel', () => {
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1800 });
+    Object.defineProperty(window, 'innerHeight', { configurable: true, value: 700 });
+
+    render(<CustomBreakpointProbe />);
+
+    expect(screen.getByTestId('is-constrained')).toHaveTextContent('true');
   });
 });

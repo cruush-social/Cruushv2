@@ -66,7 +66,7 @@ end $$;
 
 alter table conversations
   add constraint conversations_disappearing_timer_check
-  check (disappearing_timer in ('off', '24h', '7d', '30d'));
+  check (disappearing_timer in ('off', '1h', '24h', '7d', '30d'));
 
 alter table conversation_members
   add constraint conversation_members_role_check

@@ -131,8 +131,8 @@ export default function MapFiltersSurface({
 }: MapFiltersSurfaceProps) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full flex h-full max-h-[100dvh] flex-col gap-0 overflow-hidden border-white/10 bg-background/95 p-0 sm:max-w-xl">
-        <SheetHeader className="shrink-0 border-b border-white/10 px-5 py-4">
+      <SheetContent closeSide="left" side="right" className="w-full flex h-full max-h-[100dvh] flex-col gap-0 overflow-hidden border-white/10 bg-background/95 p-0 sm:max-w-xl">
+        <SheetHeader className="shrink-0 border-b border-white/10 py-4 pl-14 pr-5">
           <SheetTitle>{title}</SheetTitle>
           <SheetDescription>{description}</SheetDescription>
         </SheetHeader>
@@ -170,11 +170,11 @@ export default function MapFiltersSurface({
           ) : null}
 
           <Tabs defaultValue="basics" className="w-full">
-            <TabsList className="grid h-auto w-full grid-cols-4">
-              <TabsTrigger value="basics">Basics</TabsTrigger>
-              <TabsTrigger value="looking">Looking</TabsTrigger>
-              <TabsTrigger value="intimacy">Intimacy</TabsTrigger>
-              <TabsTrigger value="lifestyle">Lifestyle</TabsTrigger>
+            <TabsList className="grid h-auto w-full grid-cols-4 rounded-full border border-white/10 bg-background/25 p-1">
+              <TabsTrigger value="basics" className="min-h-11">Basics</TabsTrigger>
+              <TabsTrigger value="looking" className="min-h-11">Looking</TabsTrigger>
+              <TabsTrigger value="intimacy" className="min-h-11">Intimacy</TabsTrigger>
+              <TabsTrigger value="lifestyle" className="min-h-11">Lifestyle</TabsTrigger>
             </TabsList>
 
             <TabsContent value="basics" className="mt-6 space-y-6">

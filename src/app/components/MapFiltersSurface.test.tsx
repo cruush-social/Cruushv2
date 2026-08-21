@@ -24,6 +24,13 @@ function SeekingHarness({ hasCruushPlus = false, onUpgrade = vi.fn() }: { hasCru
 }
 
 describe('MapFiltersSurface', () => {
+  it('keeps the close control on the left away from the fixed bug button', () => {
+    render(<SeekingHarness />);
+
+    expect(screen.getByRole('button', { name: 'Close' })).toHaveClass('left-4');
+    expect(screen.getByRole('dialog', { name: 'Seeking' }).querySelector('[data-slot="sheet-header"]')).toHaveClass('pl-14');
+  });
+
   it('links basic members to cruush+ for more than three seeking filter categories', () => {
     const onUpgrade = vi.fn();
     render(<SeekingHarness onUpgrade={onUpgrade} />);

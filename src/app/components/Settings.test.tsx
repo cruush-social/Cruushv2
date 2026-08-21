@@ -174,7 +174,21 @@ describe('Settings', () => {
     );
   });
 
-  it('renders Edit Profile with the canonical cruush gradient icon treatment', async () => {
+  it('returns directly to the main map from the Settings header', async () => {
+    render(
+      <MemoryRouter initialEntries={['/map', '/settings']} initialIndex={1}>
+        <Routes>
+          <Route path="/settings" element={<Settings />} />
+          <Route path="/map" element={<div>Main map</div>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Back to map' }));
+    expect(await screen.findByText('Main map')).toBeInTheDocument();
+  });
+
+  it('renders Edit Profile with the same winged-heart icon as the bottom navigation', async () => {
     render(
       <MemoryRouter>
         <Settings />
@@ -182,11 +196,14 @@ describe('Settings', () => {
     );
 
     const editProfile = await screen.findByRole('button', { name: 'Edit Profile' });
-    const icon = editProfile.querySelector('[data-tone="gradient"]');
+    const icon = editProfile.querySelector('[data-testid="edit-profile-bottom-nav-icon"]');
 
     expect(icon).toHaveClass('h-5', 'w-5');
-    expect(icon).not.toHaveClass('opacity-65');
     expect(icon).toHaveStyle({ background: 'var(--cruush-gradient)' });
+    expect(icon?.getAttribute('style')).toContain('humanity-profile-selected-winged-heart-symmetric');
+    expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument();
+    expect(screen.getByText('Email verified')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Jordan profile photo')).not.toBeInTheDocument();
   });
 
   it('keeps accessibility controls synchronized with the global preferences', async () => {

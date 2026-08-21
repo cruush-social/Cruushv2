@@ -2,10 +2,12 @@ import {
   DetectFacesCommand,
   DetectLabelsCommand,
   DetectModerationLabelsCommand,
+  DetectTextCommand,
   RekognitionClient,
   type DetectFacesCommandOutput,
   type DetectLabelsCommandOutput,
   type DetectModerationLabelsCommandOutput,
+  type DetectTextCommandOutput,
   type FaceDetail,
   type Label,
   type ModerationLabel
@@ -23,6 +25,7 @@ type RekognitionImageClient = {
   send(command: DetectFacesCommand, options?: RekognitionSendOptions): Promise<DetectFacesCommandOutput>;
   send(command: DetectLabelsCommand, options?: RekognitionSendOptions): Promise<DetectLabelsCommandOutput>;
   send(command: DetectModerationLabelsCommand, options?: RekognitionSendOptions): Promise<DetectModerationLabelsCommandOutput>;
+  send(command: DetectTextCommand, options?: RekognitionSendOptions): Promise<DetectTextCommandOutput>;
 };
 type RekognitionSafetyConfig = Pick<
   AppConfig,
@@ -38,6 +41,8 @@ const MINOR_LABEL_PATTERN = /\b(?:baby|babies|boy|boys|child|children|girl|girls
 const NUDITY_MODERATION_LABEL_PATTERN = /\b(?:explicit nudity|nudity|non-explicit nudity|partial nudity|graphic (?:male|female) nudity|illustrated explicit nudity|sexual activity|sexual situations|sex toy|sex toys)\b/i;
 const REKOGNITION_REQUEST_MIN_CONFIDENCE = 70;
 const REKOGNITION_MODERATION_MIN_CONFIDENCE = 50;
+const REKOGNITION_TEXT_MIN_CONFIDENCE = 80;
+const URL_TEXT_PATTERN = /(?:https?:\/\/|www\.|\b[a-z0-9][a-z0-9-]{1,62}\.(?:com|net|org|app|io|co|me|tv|xyz)\b)/i;
 // Account-level child enforcement must be reserved for faces that cannot
 // plausibly be read as adult. Teen/young-adult age ranges stay ambiguous.
 const UNAMBIGUOUS_CHILD_MAX_AGE = 13;
@@ -231,6 +236,7 @@ export function classifyProfilePhotoSafety(
   const hasHuman = (humanConfidence >= requiredHumanConfidence || consideredFaces.length > 0) &&
     !(hierarchyOnlyHuman && minorLabelConfidence >= 90);
   const hasAnimal = animalConfidence >= rejectedAnimalConfidence;
+  const hasMultiplePeople = consideredFaces.length > 1;
   const childGate = childFaceLabels(faces, config, minorLabelConfidence);
   const normalizedLabels: ProviderLabel[] = [...childGate.labels, ...moderationLabels];
 
@@ -243,18 +249,20 @@ export function classifyProfilePhotoSafety(
     });
   }
 
-  if (hasAnimal || !hasHuman) {
+  if (hasAnimal || !hasHuman || hasMultiplePeople) {
     normalizedLabels.push({
-      provider_label: hasAnimal
-        ? "Amazon Rekognition: Animal"
-        : "Amazon Rekognition: Person not detected",
+      provider_label: hasMultiplePeople
+        ? "Amazon Rekognition: Multiple people"
+        : hasAnimal
+          ? "Amazon Rekognition: Animal"
+          : "Amazon Rekognition: Person not detected",
       normalized_label: "profile_photo_not_adult_human",
-      confidence: hasAnimal ? animalConfidence / 100 : 1,
+      confidence: hasMultiplePeople ? 0.99 : hasAnimal ? animalConfidence / 100 : 1,
       severity: "high"
     });
   }
 
-  const recommendedAction = childGate.outcome === "minor" || hasAnimal || !hasHuman
+  const recommendedAction = childGate.outcome === "minor" || hasAnimal || !hasHuman || hasMultiplePeople
     ? "remove"
     : "keep";
 
@@ -286,6 +294,8 @@ export function classifyProfilePhotoSafety(
             ? "nudity_detected"
           : hasAnimal
             ? "animal_detected"
+            : hasMultiplePeople
+              ? "multiple_people_detected"
             : hasHuman ? "human_detected" : "human_not_detected"
     }
   };
@@ -450,25 +460,56 @@ function publicImageModerationLabels(labels: ModerationLabel[]): ProviderLabel[]
   });
 }
 
+function publicImageTextLabels(
+  output: Pick<DetectTextCommandOutput, "TextDetections"> | null
+): ProviderLabel[] {
+  const lines = (output?.TextDetections ?? []).filter((detection) => (
+    detection.Type === "LINE" &&
+    typeof detection.DetectedText === "string" &&
+    detection.DetectedText.trim().length > 0 &&
+    (detection.Confidence ?? 0) >= REKOGNITION_TEXT_MIN_CONFIDENCE
+  ));
+
+  if (lines.length === 0) {
+    return [];
+  }
+
+  const hasUrl = lines.some((line) => URL_TEXT_PATTERN.test(line.DetectedText ?? ""));
+  const strongestConfidence = Math.max(...lines.map((line) => line.Confidence ?? 0)) / 100;
+
+  return [{
+    provider_label: hasUrl
+      ? "Amazon Rekognition: URL on image"
+      : "Amazon Rekognition: Text on image",
+    normalized_label: hasUrl ? "url_on_image" : "text_on_image",
+    confidence: Math.min(strongestConfidence, 0.99),
+    severity: "high"
+  }];
+}
+
 export function classifyPublicImageSafety(
   moderationOutput: Pick<DetectModerationLabelsCommandOutput, "ModerationLabels" | "$metadata"> | null,
   facesOutput: Pick<DetectFacesCommandOutput, "FaceDetails" | "$metadata">,
-  config: RekognitionSafetyConfig
+  config: RekognitionSafetyConfig,
+  textOutput: Pick<DetectTextCommandOutput, "TextDetections" | "$metadata"> | null = null
 ): ProviderModerationResult {
   const faces = facesOutput.FaceDetails ?? [];
   const detectedModerationLabels = moderationOutput?.ModerationLabels ?? [];
   const rejectLabels = publicImageModerationLabels(detectedModerationLabels);
+  const textLabels = publicImageTextLabels(textOutput);
   const childGate = childFaceLabels(faces, config);
 
   return {
     provider: "aws_rekognition",
-    provider_request_id: [moderationOutput?.$metadata?.requestId, facesOutput.$metadata?.requestId]
+    provider_request_id: [moderationOutput?.$metadata?.requestId, facesOutput.$metadata?.requestId, textOutput?.$metadata?.requestId]
       .filter(Boolean)
       .join(":") || `rekognition-public-image-${Date.now().toString(36)}`,
-    labels: [...childGate.labels, ...rejectLabels],
+    labels: [...childGate.labels, ...rejectLabels, ...textLabels],
     latency_ms: 0,
     status: "complete",
-    recommended_action: childGate.outcome === "minor" || rejectLabels.length > 0 ? "remove" : "keep",
+    recommended_action: childGate.outcome === "minor" || rejectLabels.length > 0 || textLabels.length > 0
+      ? "remove"
+      : "keep",
     raw_result: {
       child_face_outcome: childGate.outcome,
       face_count: faces.length,
@@ -483,7 +524,8 @@ export function classifyPublicImageSafety(
         parent: label.ParentName ?? null,
         confidence: label.Confidence ?? null
       })),
-      rejected_label_count: rejectLabels.length
+      detected_text_line_count: textOutput?.TextDetections?.filter((detection) => detection.Type === "LINE").length ?? 0,
+      rejected_label_count: rejectLabels.length + textLabels.length
     }
   };
 }
@@ -515,7 +557,7 @@ export async function detectPublicImageSafety(
       config.PROFILE_PHOTO_REKOGNITION_REGION ?? "us-east-1"
     );
     const compatibleImageBytes = await rekognitionJpeg(imageBytes);
-    const [moderationOutput, facesOutput] = await Promise.all([
+    const [moderationOutput, facesOutput, textOutput] = await Promise.all([
       rekognition.send(new DetectModerationLabelsCommand({
         Image: { Bytes: compatibleImageBytes },
         MinConfidence: REKOGNITION_MODERATION_MIN_CONFIDENCE
@@ -523,9 +565,12 @@ export async function detectPublicImageSafety(
       rekognition.send(new DetectFacesCommand({
         Image: { Bytes: compatibleImageBytes },
         Attributes: ["ALL"]
-      }), { abortSignal: controller.signal }) as Promise<DetectFacesCommandOutput>
+      }), { abortSignal: controller.signal }) as Promise<DetectFacesCommandOutput>,
+      rekognition.send(new DetectTextCommand({
+        Image: { Bytes: compatibleImageBytes }
+      }), { abortSignal: controller.signal }) as Promise<DetectTextCommandOutput>
     ]);
-    const result = classifyPublicImageSafety(moderationOutput, facesOutput, config);
+    const result = classifyPublicImageSafety(moderationOutput, facesOutput, config, textOutput);
 
     return { ...result, latency_ms: Date.now() - startedAt };
   } catch (error) {

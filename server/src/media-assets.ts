@@ -19,6 +19,7 @@ import {
 } from "./media-storage.js";
 import { createModerationProvider } from "./moderation-provider.js";
 import {
+  moderationRejectionFromError,
   moderateImageOrReject,
   providerResultFromModerationUnavailableError
 } from "./moderation-service.js";
@@ -52,6 +53,56 @@ export type PendingMediaAsset = {
 
 export function isPhotoModerationUnavailable(error: unknown) {
   return error instanceof ApiError && error.code === "MODERATION_UNAVAILABLE";
+}
+
+const retainedModerationEvidenceErrors = new WeakSet<object>();
+
+export function isModerationEvidenceRetained(error: unknown) {
+  return typeof error === "object" && error !== null && retainedModerationEvidenceErrors.has(error);
+}
+
+async function retainRejectedProfilePhotoEvidence(
+  app: FastifyInstance,
+  request: FastifyRequest,
+  asset: PendingMediaAsset,
+  rejection: NonNullable<ReturnType<typeof moderationRejectionFromError>>
+) {
+  const retained = await app.db.query<{ id: string }>(
+    `update media_objects
+     set moderation_status = 'rejected',
+         moderation_provider = $4,
+         moderation_scores = $5::jsonb,
+         moderation_decided_at = now(),
+         moderation_failure_reason = null,
+         moderation_hold = null,
+         content_review_id = $3,
+         public_url = null
+     where id = $1
+       and owner_user_id = $2
+       and surface = 'profile_photo'
+       and moderation_status = 'pending'
+       and deleted_at is null
+     returning id::text as id`,
+    [
+      asset.id,
+      asset.ownerUserId,
+      rejection.contentReviewId,
+      rejection.providerResult.provider,
+      JSON.stringify(rejection.providerResult.labels)
+    ]
+  );
+
+  if (!retained.rows[0]?.id) {
+    throw new Error("Rejected profile photo evidence could not be linked to its moderation review.");
+  }
+
+  if (asset.grant) {
+    try {
+      await deleteModerationMediaGrant(app.db, asset.grant.id);
+    } catch (error) {
+      request.log.warn({ err: error, assetId: asset.id, stage: "moderation_evidence_grant_cleanup" }, "moderation evidence grant cleanup failed");
+    }
+  }
 }
 
 export async function retainPendingMediaAssetForRetry(
@@ -528,6 +579,20 @@ export async function moderatePendingMediaAsset(
         request.log.error({ err: retentionError, assetId: asset.id, stage: "moderation_retry_hold" }, "photo retry hold update failed");
       }
     } else {
+      const rejection = moderationRejectionFromError(error);
+      if (asset.surface === "profile_photo" && rejection?.decision.reason_code === "minor_face_detected") {
+        let evidenceRetained = false;
+        try {
+          await retainRejectedProfilePhotoEvidence(app, request, asset, rejection);
+          evidenceRetained = true;
+        } catch (retentionError) {
+          request.log.error({ err: retentionError, assetId: asset.id, stage: "moderation_evidence_retention" }, "moderation evidence retention failed");
+        }
+        if (evidenceRetained) {
+          retainedModerationEvidenceErrors.add(rejection);
+          throw rejection;
+        }
+      }
       await deletePendingMediaAsset(app, request, asset);
     }
     throw error;

@@ -41,12 +41,8 @@ const CRUUSH_PLUS_FEATURES = [
     description: 'Spin through nearby profiles and browse again.',
   },
   {
-    title: 'All seeking filters',
-    description: 'Use more than 3 seeking filter categories at once.',
-  },
-  {
-    title: 'More visibility controls',
-    description: 'Use more than 3 hidden filters at once.',
+    title: 'All seeking and visibility controls',
+    description: 'Use every seeking filter and visibility control together.',
   },
   {
     title: 'Stealth Mode',
@@ -58,13 +54,14 @@ const BENEFITS_OPEN_STORAGE_KEY = 'cruush:rewards:benefits-open';
 
 function readBenefitsOpenPreference() {
   if (typeof window === 'undefined') {
-    return false;
+    return true;
   }
 
   try {
-    return window.localStorage.getItem(BENEFITS_OPEN_STORAGE_KEY) === 'true';
+    const storedPreference = window.localStorage.getItem(BENEFITS_OPEN_STORAGE_KEY);
+    return storedPreference === null ? true : storedPreference === 'true';
   } catch {
-    return false;
+    return true;
   }
 }
 
@@ -192,8 +189,17 @@ export default function Rewards() {
               </AccordionTrigger>
               <AccordionContent className="px-6 pb-6">
                 <ul aria-label="cruush+ features" className="grid gap-3 sm:grid-cols-2">
-                  {CRUUSH_PLUS_FEATURES.map((feature) => (
-                    <li className="rounded-xl border border-border bg-muted/30 p-3" key={feature.title}>
+                  {CRUUSH_PLUS_FEATURES.map((feature, index) => (
+                    <li
+                      className={`rounded-xl border border-white/12 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] ${
+                        index % 3 === 0
+                          ? 'bg-gradient-to-br from-fuchsia-500/20 via-violet-500/12 to-blue-500/18'
+                          : index % 3 === 1
+                            ? 'bg-gradient-to-br from-violet-500/20 via-indigo-500/12 to-cyan-500/16'
+                            : 'bg-gradient-to-br from-pink-500/18 via-purple-500/12 to-blue-600/18'
+                      }`}
+                      key={feature.title}
+                    >
                       <p className="font-medium">{feature.title}</p>
                       <p className="mt-1 text-sm leading-5 text-muted-foreground">{feature.description}</p>
                     </li>

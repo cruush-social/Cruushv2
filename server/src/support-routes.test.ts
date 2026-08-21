@@ -101,8 +101,16 @@ describe("support routes", () => {
       MEDIA_STORAGE_DIR: mediaDir,
       MEDIA_OBJECT_STORAGE_DRIVER: "local",
       MEDIA_ENCRYPTION_KEY: "0123456789abcdef0123456789abcdef",
-      MEDIA_ENCRYPTION_KEY_VERSION: "v1"
+      MEDIA_ENCRYPTION_KEY_VERSION: "v1",
+      RESEND_API_KEY: "re_test",
+      MAIL_FROM: "cruush <hello@cruush.test>"
     });
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: async () => ""
+    });
+    vi.stubGlobal("fetch", fetchMock);
     query
       .mockResolvedValueOnce({
         rows: [{
@@ -146,6 +154,12 @@ describe("support routes", () => {
         })
       ]);
       expect(query.mock.calls.slice(1, 3).every((call) => String(call[0]).includes("insert into suspension_appeal_evidence"))).toBe(true);
+      expect(fetchMock).toHaveBeenCalledWith("https://api.resend.com/emails", expect.any(Object));
+      const emailBody = JSON.parse(fetchMock.mock.calls[0]?.[1]?.body);
+      expect(emailBody.to).toEqual(["reports@cruush.app"]);
+      expect(emailBody.reply_to).toBe("appeal@example.com");
+      expect(emailBody.subject).toBe("[support] suspension_appeal: Suspension appeal");
+      expect(emailBody.attachments).toBeUndefined();
 
       const evidenceDir = join(mediaDir, "objects", "suspension-appeals", appealId);
       const evidenceFiles = await readdir(evidenceDir);
@@ -299,7 +313,14 @@ describe("support routes", () => {
         category: "bug",
         subject: "Settings bug",
         message: "The settings screen got stuck after opening support.",
-        source: "settings"
+        source: "settings",
+        pageUrl: "/settings",
+        device: {
+          model: "Pixel 9",
+          platform: "Android",
+          platformVersion: "16",
+          mobile: true
+        }
       }
     });
     await app.close();
@@ -312,9 +333,15 @@ describe("support routes", () => {
       "Settings bug",
       "The settings screen got stuck after opening support.",
       "settings",
-      "",
+      "/settings",
       expect.objectContaining({
         userAgent: expect.any(String),
+        device: {
+          model: "Pixel 9",
+          platform: "Android",
+          platformVersion: "16",
+          mobile: true
+        },
         aiSupport: expect.objectContaining({ status: "pending" })
       })
     ]);

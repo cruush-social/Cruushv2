@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import type { CSSProperties, ChangeEvent, RefObject } from 'react';
 import { useParams, useNavigate } from 'react-router';
-import { ArrowLeft, Clock3, Eye, Image as ImageIcon, ImagePlus, MoreHorizontal, Timer, Star, Trash2, X } from 'lucide-react';
+import { ArrowLeft, Eye, Image as ImageIcon, ImagePlus, MoreHorizontal, Timer, Star, Trash2, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Checkbox } from './ui/checkbox';
@@ -963,16 +963,6 @@ export default function PrivateGroupChat() {
           </div>
 
           <div className="flex shrink-0 items-center gap-1 sm:gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              title="Quick access gallery"
-              aria-label="Quick access gallery"
-              disabled={!conversation}
-              onClick={toggleFavoriteGallery}
-            >
-              <Star className="w-5 h-5" fill={favoriteGalleryOpen ? 'currentColor' : 'none'} />
-            </Button>
             {conversation ? (
               <ReportAction
                 targetType="conversation"
@@ -1032,20 +1022,35 @@ export default function PrivateGroupChat() {
               ) : null}
             </div>
 
-            <label className="block space-y-2">
-              <span className="text-sm text-muted-foreground">Disappearing timer</span>
-              <select
-                aria-label="Disappearing timer"
+            <div className="space-y-2">
+              <span className="block text-sm text-muted-foreground">Disappearing timer</span>
+              <Select
                 value={conversation.disappearingTimer ?? 'off'}
                 disabled={!canManageConversation || settingsSaving}
-                onChange={(event) => void handleTimerChange(event.target.value as ConversationTimer)}
-                className="h-11 w-full rounded-md border border-border bg-input-background px-3 text-sm disabled:opacity-60"
+                onValueChange={(value) => void handleTimerChange(value as ConversationTimer)}
               >
-                {timerOptions.map((option) => (
-                  <option key={option.value} value={option.value}>{option.label}</option>
-                ))}
-              </select>
-            </label>
+                <SelectTrigger
+                  aria-label="Disappearing timer"
+                  className="h-11 w-full rounded-2xl border-white/12 bg-card/82 px-4 text-sm text-foreground shadow-[0_10px_24px_rgba(0,0,0,0.24)] hover:border-primary/30 hover:bg-card disabled:opacity-60"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent
+                  align="start"
+                  className="rounded-2xl border-white/12 bg-card/95 p-1 text-foreground shadow-[0_18px_52px_rgba(0,0,0,0.46)] backdrop-blur-xl"
+                >
+                  {timerOptions.map((option) => (
+                    <SelectItem
+                      key={option.value}
+                      value={option.value}
+                      className="rounded-xl px-3 py-2 text-sm text-foreground focus:bg-primary/14 focus:text-foreground data-[state=checked]:bg-primary/16"
+                    >
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
             <Button
               type="button"
@@ -1461,7 +1466,6 @@ export default function PrivateGroupChat() {
               ) : null}
 
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                <Clock3 className="size-4 shrink-0 text-muted-foreground" />
                 <Select
                   value={conversation.disappearingTimer ?? 'off'}
                   disabled={!canManageConversation || settingsSaving || composerDisabled}
@@ -1535,7 +1539,6 @@ export default function PrivateGroupChat() {
                 >
                   <Star className="size-4" fill={favoriteGalleryOpen ? 'currentColor' : 'none'} />
                 </Button>
-                <span className="basis-full text-xs text-muted-foreground sm:basis-auto">Applies to new messages.</span>
               </div>
 
               <div className="max-w-full rounded-[28px] border border-border bg-card/85 p-3 shadow-lg shadow-black/20">

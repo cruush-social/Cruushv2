@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router';
-import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react';
 import { Accessibility, ArrowLeft, BookOpen, ChevronRight, Contrast, ExternalLink, Eye, Gift, History, KeyRound, LifeBuoy, LogOut, MapPin, MessageCircle, MessageSquareReply, ShieldAlert, ShieldCheck, Trash2, Type, UserX, type LucideIcon } from 'lucide-react';
 import { Button } from './ui/button';
 import CruushPlusWord from './CruushPlusWord';
@@ -24,11 +24,8 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Switch } from './ui/switch';
 import { CruushIcon, type CruushIconName, type CruushIconVariant } from './CruushIconImage';
-import HeartPhoto from './HeartPhoto';
 import PublicPolicyLinks from './PublicPolicyLinks';
 import { changePassword, deleteAccount, sendVerificationEmail, signOut } from '../lib/authApi';
-import { addDlModeChangedListener, isDlModeEnabled, shouldMaskPhoto } from '../lib/dlMode';
-import { addProfileChangedListener, getMyProfile, type ProfileRecord } from '../lib/profileApi';
 import SupportRequestForm from './SupportRequestForm';
 import {
   clearCurrentUser,
@@ -37,6 +34,7 @@ import {
   setVerificationPreviewUrl,
 } from '../lib/sessionUser';
 import cruushLogo from '../assets/brand/cruush-logo.svg';
+import humanityProfileIcon from '../assets/ui-icons/humanity-profile-selected-winged-heart-symmetric.png';
 import {
   addAccessibilityPreferencesChangedListener,
   getAccessibilityPreferences,
@@ -64,6 +62,18 @@ type SettingsToggleItem = {
 
 type SettingsItem = SettingsActionItem | SettingsToggleItem;
 
+const editProfileIconStyle: CSSProperties = {
+  background: 'var(--cruush-gradient)',
+  maskImage: `url(${humanityProfileIcon})`,
+  maskPosition: 'center',
+  maskRepeat: 'no-repeat',
+  maskSize: 'contain',
+  WebkitMaskImage: `url(${humanityProfileIcon})`,
+  WebkitMaskPosition: 'center',
+  WebkitMaskRepeat: 'no-repeat',
+  WebkitMaskSize: 'contain',
+};
+
 export default function Settings() {
   const navigate = useNavigate();
   const distancePreferences = useDistancePreferences();
@@ -84,36 +94,11 @@ export default function Settings() {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const storedUser = useMemo(() => getStoredCurrentUser(), []);
-  const [profile, setProfile] = useState<ProfileRecord | null>(null);
-  const [dlModeActive, setDlModeActive] = useState(() => isDlModeEnabled());
   const [accessibilityPreferences, setAccessibilityPreferences] = useState(getAccessibilityPreferences);
   const [previewUrl, setPreviewUrlState] = useState(() => getVerificationPreviewUrl());
   const isEmailVerified = Boolean(storedUser?.email_verified_at);
-  const displayName = profile?.display_name?.trim() || storedUser?.display_name || storedUser?.name || 'cruush user';
-  const age = storedUser?.age ?? null;
   const moderatorRole = storedUser?.moderator_role ?? null;
 
-  useEffect(() => {
-    let active = true;
-
-    getMyProfile()
-      .then((loadedProfile) => {
-        if (active) {
-          setProfile(loadedProfile);
-        }
-      })
-      .catch(() => {
-        if (active) {
-          setProfile(null);
-        }
-      });
-
-    return () => {
-      active = false;
-    };
-  }, []);
-  useEffect(() => addProfileChangedListener(setProfile), []);
-  useEffect(() => addDlModeChangedListener(setDlModeActive), []);
   useEffect(() => addAccessibilityPreferencesChangedListener(setAccessibilityPreferences), []);
 
   const updateAccessibilityPreference = (
@@ -317,31 +302,13 @@ export default function Settings() {
   return (
     <div className="min-h-screen bg-background pb-20">
       <header className="sticky top-0 bg-card/80 backdrop-blur-sm border-b border-border p-4 flex items-center gap-4 z-10">
-        <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+        <Button variant="ghost" size="icon" onClick={() => navigate('/map')} aria-label="Back to map">
           <ArrowLeft className="w-5 h-5" />
         </Button>
         <h2 className="text-xl">Settings</h2>
       </header>
 
       <div className="max-w-2xl mx-auto p-6 space-y-8">
-        <div className="flex items-center gap-4 p-6 bg-card rounded-2xl border border-border">
-          <HeartPhoto
-            className="w-16 shrink-0"
-            label={`${displayName} profile photo`}
-            masked={shouldMaskPhoto(dlModeActive, profile?.photo_metadata?.[0]?.explicit)}
-            photo={profile?.photos?.[0] ?? null}
-            theme="current"
-            userId={profile?.id ?? storedUser?.id ?? null}
-          />
-          <div className="flex-1">
-            <h3 className="text-xl">{displayName}</h3>
-            <p className="text-sm text-muted-foreground">{age ? `${age}` : 'Profile in progress'}</p>
-          </div>
-          <Button variant="outline" onClick={() => navigate('/profile/edit')}>
-            Edit
-          </Button>
-        </div>
-
         <div className="space-y-2">
           <h3 className="text-sm text-muted-foreground px-2">Email</h3>
           <div className="bg-card rounded-2xl border border-border p-4 space-y-4">
@@ -457,7 +424,15 @@ export default function Settings() {
                       item.destructive ? 'text-destructive' : ''
                     } ${dividerClass}`}
                   >
-                    {'iconName' in item ? (
+                    {item.iconName === 'profile' && item.iconVariant === 'gradient' ? (
+                      <span
+                        aria-hidden="true"
+                        className="h-5 w-5"
+                        data-testid="edit-profile-bottom-nav-icon"
+                        data-tone="gradient"
+                        style={editProfileIconStyle}
+                      />
+                    ) : 'iconName' in item ? (
                       <CruushIcon
                         name={item.iconName as CruushIconName}
                         className={item.iconVariant === 'gradient' ? 'h-5 w-5' : 'h-5 w-5 opacity-65'}
