@@ -341,37 +341,20 @@ export default function GhostModeSettings() {
             <p className="text-sm text-muted-foreground">Larger radius gives you more cover; smaller radius keeps your public pin closer to where you are.</p>
           </div>
 
-          <div className="space-y-3 rounded-lg border border-white/10 bg-white/[0.025] p-4" data-testid="map-presence-duration">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <p>Map presence</p>
-                <p className="text-sm text-muted-foreground">
-                  {mapPresence.days === 1 ? '1 day' : `${mapPresence.days} days`} after your last check-in
-                </p>
-              </div>
-              <span className="text-xs uppercase tracking-[0.16em] text-white/48">
-                {mapPresenceSaving ? 'Saving' : 'Saved'}
-              </span>
+          <button
+            type="button"
+            className="flex w-full items-center justify-between gap-4 rounded-lg border border-white/10 bg-white/[0.025] p-4 text-left transition hover:bg-white/[0.05]"
+            data-testid="map-presence-link"
+            onClick={() => navigate('/privacy/map-presence')}
+          >
+            <div>
+              <p>Map presence</p>
+              <p className="text-sm text-muted-foreground">
+                How long your heart pin keeps showing after your last check-in. Set it on the map presence page.
+              </p>
             </div>
-            <Slider
-              aria-label="Map presence duration"
-              min={0}
-              max={MAP_PRESENCE_OPTIONS.length - 1}
-              step={1}
-              value={[Math.max(0, MAP_PRESENCE_OPTIONS.findIndex((option) => option.days === mapPresence.days))]}
-              disabled={privacyStatus === 'loading' || mapPresenceSaving}
-              onValueChange={([index]) => {
-                const option = MAP_PRESENCE_OPTIONS[index] ?? MAP_PRESENCE_OPTIONS[2];
-                void persistMapPresenceDays(option.days);
-              }}
-            />
-            <div className="flex justify-between text-[11px] text-muted-foreground">
-              {MAP_PRESENCE_OPTIONS.map((option) => (
-                <span key={option.label}>{option.label}</span>
-              ))}
-            </div>
-            <p className="text-sm text-muted-foreground">How long your heart pin keeps showing on the map after you stop opening cruush. Seven days by default.</p>
-          </div>
+            <ChevronRight className="h-5 w-5 shrink-0 text-white/60" />
+          </button>
 
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-start gap-3">

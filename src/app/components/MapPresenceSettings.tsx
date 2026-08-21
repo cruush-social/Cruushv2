@@ -76,6 +76,11 @@ export default function MapPresenceSettings() {
           you are not in the app. Shorten it to disappear sooner, or lengthen it to stay discoverable.
         </p>
 
+        <p className="rounded-lg border border-white/10 bg-white/[0.035] p-3 text-sm text-muted-foreground">
+          Your privacy settings keep applying while you are away. Ghost Mode still fuzzes your pin, stealth still
+          hides you completely, and any audiences you hid yourself from stay hidden until you change them.
+        </p>
+
         {error ? (
           <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
             {error}

@@ -127,7 +127,9 @@
     "src/app/components/MapPingSheet.tsx",
     "src/app/components/MapPingSheet.test.tsx",
     "src/app/components/NotificationSettings.tsx",
-    "src/app/components/NotificationSettings.test.tsx"
+    "src/app/components/NotificationSettings.test.tsx",
+    "src/app/components/MapPresenceSettings.tsx",
+    "src/app/components/MapPresenceSettings.test.tsx"
   ],
   "preserved": [
     "Keep private trans status as the eligibility gate for the optional T4T crowd; do not infer it from a selected gender identity.",

@@ -73,27 +73,22 @@ describe('GhostModeSettings', () => {
     }));
   });
 
-  it('defaults map presence to seven days and saves a new duration', async () => {
+  it('sends map presence to its own page instead of repeating the control', async () => {
     render(
       <MemoryRouter initialEntries={['/privacy/ghost-mode']}>
         <Routes>
           <Route path="/privacy/ghost-mode" element={<GhostModeSettings />} />
+          <Route path="/privacy/map-presence" element={<p>Map presence page</p>} />
         </Routes>
       </MemoryRouter>
     );
 
     expect(await screen.findByText('Map presence')).toBeInTheDocument();
-    expect(await screen.findByText('7 days after your last check-in')).toBeInTheDocument();
-    expect(screen.getByText('How long your heart pin keeps showing on the map after you stop opening cruush. Seven days by default.')).toBeInTheDocument();
+    expect(screen.queryByTestId('map-presence-duration')).not.toBeInTheDocument();
 
-    const presenceControl = screen.getByTestId('map-presence-duration');
-    const presenceSlider = within(presenceControl).getByRole('slider');
+    fireEvent.click(screen.getByTestId('map-presence-link'));
 
-    await waitFor(() => expect(presenceSlider).not.toHaveAttribute('data-disabled'));
-    fireEvent.keyDown(presenceSlider, { key: 'ArrowRight' });
-
-    await waitFor(() => expect(saveMyMapPresenceSettings).toHaveBeenCalledWith(14));
-    expect(await screen.findByText('14 days after your last check-in')).toBeInTheDocument();
+    expect(await screen.findByText('Map presence page')).toBeInTheDocument();
   });
 
   it('persists Ghost Mode and precise mutual location settings from the dedicated page', async () => {
