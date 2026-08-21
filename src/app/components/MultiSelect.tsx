@@ -320,7 +320,7 @@ export default function MultiSelect({
 
           {/* Options List for Active Category */}
           <div role="listbox" aria-label={ariaLabel} className="scrollbar-subtle min-h-0 min-w-0 flex-1 self-stretch overflow-y-auto py-1" style={TOUCH_SCROLL_STYLE}>
-            <div role="group" aria-label={activeGroup.label || undefined}>
+            <div role="group" aria-label={activeGroup.label || undefined} className="sm:grid sm:grid-cols-2">
               {activeGroup.options.map((option) => {
                 const isSelected = selected.includes(option);
                 return (
@@ -330,7 +330,7 @@ export default function MultiSelect({
                     role="option"
                     aria-selected={isSelected}
                     onClick={() => toggleOption(option)}
-                    className={`flex w-full items-center justify-between px-4 py-2.5 text-left text-sm transition-colors hover:bg-accent ${
+                    className={`flex w-full items-center justify-between px-4 py-2 text-left text-sm transition-colors hover:bg-accent ${
                       isSelected ? 'bg-accent/80 font-medium text-accent-foreground' : ''
                     }`}
                   >
