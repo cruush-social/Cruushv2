@@ -22,6 +22,7 @@ import { getMyBillingStatus } from '../lib/billingApi';
 import { getMyProfile } from '../lib/profileApi';
 import { openConversationOrInbox } from '../lib/openConversation';
 import { resolveVibeTone, vibeCapsuleStyle } from '../lib/vibeTone';
+import ProfileActionTrio from './ProfileActionTrio';
 import { shouldMaskPhoto, useDlMode } from '../lib/dlMode';
 import { registerBugButtonSlot } from '../lib/bugButtonSlot';
 
@@ -1132,52 +1133,17 @@ function DirectUserOverlay({
                     </span>
                   </span>
                 </button>
-                <div className="flex shrink-0 flex-col items-end gap-1.5">
-                  {canMessageNow ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="rounded-full border-transparent bg-[rgba(111,0,255,0.22)] text-white/88 hover:bg-[#FF0072]/18"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        onMessage(user.id);
-                      }}
-                    >
-                      Message
-                    </Button>
-                  ) : (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="rounded-full border-[#8B5CF6]/45 bg-[#8B5CF6]/12 text-[#DCC7FF] hover:bg-[#8B5CF6]/18"
-                      disabled={requested || requestingUserId === user.id}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        void requestMutual(user);
-                      }}
-                    >
-                      {requested ? 'Sent' : 'cruush'}
-                    </Button>
-                  )}
-                  {hasPreciseLocation ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      className="size-9 rounded-full border-white/16 bg-background/72 text-white/78 hover:bg-white/10"
-                      aria-label={`View ${user.name}'s precise location on the map`}
-                      title="Precise location"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        onOpenMap(user.id, false);
-                      }}
-                    >
-                      <MapPin className="size-4" />
-                    </Button>
-                  ) : null}
-                </div>
+                <ProfileActionTrio
+                  size="sm"
+                  userName={user.name}
+                  cruushState={requestingUserId === user.id ? 'sending' : requested ? 'sent' : 'available'}
+                  cruushDisabled={requested || requestingUserId === user.id}
+                  onCruush={() => { void requestMutual(user); }}
+                  canMessage={canMessageNow}
+                  onMessage={() => onMessage(user.id)}
+                  canCenterPin={hasPreciseLocation}
+                  onCenterPin={() => onOpenMap(user.id, false)}
+                />
               </div>
             );
           }) : mutuals.map((item) => (
@@ -1218,19 +1184,17 @@ function DirectUserOverlay({
                   </span>
                 </span>
               </button>
-              {item.coordinates?.precision === 'precise' ? (
-                <Button
-                  type="button"
-                  size="icon"
-                  className="size-9 shrink-0 rounded-full border-0 text-white transition hover:brightness-110"
-                  style={{ background: 'var(--cruush-gradient)' }}
-                  aria-label={`Center the map on ${item.user.name}`}
-                  title="Center the map on them"
-                  onClick={() => onOpenMap(item.user.id, true)}
-                >
-                  <CruushIconImage src={mapIconWhite} className="size-4" />
-                </Button>
-              ) : null}
+              <ProfileActionTrio
+                size="sm"
+                userName={item.user.name}
+                cruushState="mutual"
+                cruushDisabled
+                onCruush={() => onOpenProfile(item.user.id)}
+                canMessage={item.canMessage !== false}
+                onMessage={() => onMessage(item.user.id)}
+                canCenterPin={item.coordinates?.precision === 'precise'}
+                onCenterPin={() => onOpenMap(item.user.id, true)}
+              />
             </div>
           ))}
         </div>

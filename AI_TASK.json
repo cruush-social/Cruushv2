@@ -122,7 +122,8 @@
     "src/app/lib/cruushNotifications.ts",
     "src/app/lib/openConversation.test.ts",
     "src/app/lib/publicLegalContent.tsx",
-    "src/app/lib/vibeTone.ts"
+    "src/app/lib/vibeTone.ts",
+    "src/app/components/ProfileActionTrio.tsx"
   ],
   "preserved": [
     "Keep private trans status as the eligibility gate for the optional T4T crowd; do not infer it from a selected gender identity.",

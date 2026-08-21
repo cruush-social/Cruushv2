@@ -8,7 +8,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import BlockUserAction from './BlockUserAction';
 import ReportAction from './ReportAction';
 import CruushBadge from './CruushBadge';
-import { CruushIcon } from './CruushIconImage';
+import CruushIconImage, { CruushIcon } from './CruushIconImage';
+import mapIconWhite from '../assets/ui-icons/map-white.png';
 import ProfilePhotoGallery from './ProfilePhotoGallery';
 import { revokeMutualCruush, revokeSentCruush, sendCruush } from '../lib/cruushApi';
 import { addCruushChangedListener } from '../lib/cruushEvents';
@@ -166,6 +167,7 @@ export function profileRecordToProfileView(
 export default function ProfileView() {
   const { userId } = useParams();
   const navigate = useNavigate();
+
   const location = useLocation();
   const distancePreferences = useDistancePreferences();
   const isOwnProfile = !userId;
@@ -293,6 +295,7 @@ export default function ProfileView() {
   const hasSentCruush = !isAlreadyMutual && (cruushed || profileView?.relationship?.outgoing_cruush === true);
   const canMessage = profileView?.relationship?.can_message !== false;
   const hasRevocableCruush = isAlreadyMutual || hasSentCruush;
+  const canCenterPin = profileView?.relationship?.can_reveal_precise_location === true;
   const cruushDisabled = sendingCruush || revokingCruush;
   const heartTheme = isOwnProfile ? 'current' : isAlreadyMutual ? 'mutual' : 'nearby';
 
@@ -541,6 +544,19 @@ export default function ProfileView() {
                   <CruushIcon name="send" className="mr-2 h-4 w-4" variant="white" />
                   {!canMessage ? 'Mutuals only' : openingMessage ? 'Opening...' : 'Message'}
                 </Button>
+                {canCenterPin ? (
+                  <Button
+                    type="button"
+                    size="icon"
+                    className="size-11 shrink-0 rounded-xl border-0 text-white transition hover:brightness-110"
+                    style={{ background: 'var(--cruush-gradient)' }}
+                    aria-label={`Center the map on ${profileView.name}`}
+                    title={`Center the map on ${profileView.name}`}
+                    onClick={() => navigate('/map', { state: { focusUserId: profileView.id } })}
+                  >
+                    <CruushIconImage src={mapIconWhite} className="h-5 w-5" />
+                  </Button>
+                ) : null}
               </div>
             ) : null}
           </div>

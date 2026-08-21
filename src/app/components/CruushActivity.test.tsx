@@ -236,7 +236,7 @@ describe('CruushActivity', () => {
     expect(within(incomingVibes).getAllByText(/Artsy|Chill|Goth/)).toHaveLength(3);
     expect(within(incomingVibes).queryByText('Extra')).not.toBeInTheDocument();
     const incomingCruushButton = screen.getByRole('button', { name: 'Send cruush to luna' });
-    expect(incomingCruushButton.querySelector('img')?.getAttribute('src')).toContain('cruush-colored');
+    expect(incomingCruushButton.querySelector('img')?.getAttribute('src')).toContain('cruush-white');
     fireEvent.click(incomingCruushButton);
     await waitFor(() => expect(sendCruush).toHaveBeenCalledWith('user-luna', expect.objectContaining({
       name: 'luna',
@@ -261,7 +261,7 @@ describe('CruushActivity', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Message river' }));
     expect(openConversationOrInbox).toHaveBeenCalledWith(expect.any(Function), 'user-river');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Open river on map' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Center the map on river' }));
     expect(screen.getByTestId('location-probe')).toHaveTextContent('/map?mode=mutuals&focusUserId=user-river');
 
     expect(screen.queryByRole('button', { name: /^Map$/i })).not.toBeInTheDocument();
@@ -333,7 +333,7 @@ describe('CruushActivity', () => {
     expect(screen.getByTestId('activity-vibes')).toHaveTextContent('SoftChillArtsy');
 
     const cruushButton = screen.getByRole('button', { name: 'Send cruush to indigo' });
-    expect(cruushButton.querySelector('img')?.getAttribute('src')).toContain('cruush-colored');
+    expect(cruushButton.querySelector('img')?.getAttribute('src')).toContain('cruush-white');
     fireEvent.click(cruushButton);
     await waitFor(() => expect(sendCruush).toHaveBeenCalledWith('user-indigo', expect.objectContaining({
       name: 'indigo',

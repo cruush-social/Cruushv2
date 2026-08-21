@@ -27,6 +27,7 @@ import {
 import { openConversationOrInbox } from '../lib/openConversation';
 import { shouldMaskPhoto, useDlMode } from '../lib/dlMode';
 import { resolveVibeTone, vibeCapsuleStyle } from '../lib/vibeTone';
+import ProfileActionTrio from './ProfileActionTrio';
 import { registerBugButtonSlot } from '../lib/bugButtonSlot';
 
 type ActivityTab = 'incoming' | 'sent' | 'mutual' | 'views';
@@ -227,11 +228,15 @@ function IncomingRow({
   onCruushBack,
   pendingCruush = false,
   onOpenProfile,
+  onMessage,
+  onOpenMap,
 }: {
   item: CruushLockableActivityItem;
   onCruushBack: (item: CruushLockableActivityItem) => void;
   pendingCruush?: boolean;
   onOpenProfile: (userId: string) => void;
+  onMessage: (userId: string) => void;
+  onOpenMap: (userId: string) => void;
 }) {
   const unlocked = !item.locked && item.user;
   const actionState: CruushActionState = item.mutual
@@ -263,10 +268,15 @@ function IncomingRow({
         ) : null}
       </button>
       {unlocked ? (
-        <CruushActionButton
-          state={actionState}
+        <ProfileActionTrio
           userName={item.user.name}
-          onClick={() => onCruushBack(item)}
+          cruushState={actionState}
+          cruushDisabled={actionState === 'mutual'}
+          onCruush={() => onCruushBack(item)}
+          canMessage={item.permissions?.canMessage === true}
+          onMessage={() => onMessage(item.user!.id)}
+          canCenterPin={item.permissions?.canRevealPreciseLocation === true}
+          onCenterPin={() => onOpenMap(item.user!.id)}
         />
       ) : null}
     </div>
@@ -278,11 +288,15 @@ function SentRow({
   pendingRevoke,
   onOpenProfile,
   onRevoke,
+  onMessage,
+  onOpenMap,
 }: {
   item: CruushLockableActivityItem;
   pendingRevoke: boolean;
   onOpenProfile: (userId: string) => void;
   onRevoke: (item: CruushLockableActivityItem) => void;
+  onMessage: (userId: string) => void;
+  onOpenMap: (userId: string) => void;
 }) {
   const dlModeActive = useDlMode();
   if (!item.user) {
@@ -315,11 +329,14 @@ function SentRow({
           <ActivityVibes vibes={item.user.vibes} mutual={item.mutual} />
         </div>
       </button>
-      <CruushActionButton
-        revocable
-        state={pendingRevoke ? 'sending' : item.mutual ? 'mutual' : 'sent'}
+      <ProfileActionTrio
         userName={item.user.name}
-        onClick={() => onRevoke(item)}
+        cruushState={pendingRevoke ? 'sending' : item.mutual ? 'mutual' : 'sent'}
+        onCruush={() => onRevoke(item)}
+        canMessage={item.permissions?.canMessage === true}
+        onMessage={() => onMessage(item.user!.id)}
+        canCenterPin={item.permissions?.canRevealPreciseLocation === true}
+        onCenterPin={() => onOpenMap(item.user!.id)}
       />
     </div>
   );
@@ -365,31 +382,16 @@ function MutualRow({
         </div>
         <ActivityVibes vibes={item.vibes} mutual />
       </button>
-      <div className="flex gap-2">
-        <Button
-          type="button"
-          size="icon"
-          variant="secondary"
-          disabled={!item.canMessage}
-          className="h-11 w-11 rounded-full border-0 text-white hover:brightness-110 disabled:opacity-45"
-          style={{ background: 'var(--cruush-gradient)' }}
-          aria-label={`Message ${item.user.name}`}
-          onClick={() => onMessage(item.user.id)}
-        >
-          <CruushIcon name="messages" className="h-5 w-5" variant="white" />
-        </Button>
-        <Button
-          type="button"
-          size="icon"
-          variant="secondary"
-          className="h-11 w-11 rounded-full border-0 text-white hover:brightness-110"
-          style={{ background: 'var(--cruush-gradient)' }}
-          aria-label={`Open ${item.user.name} on map`}
-          onClick={() => onOpenMap(item.user.id)}
-        >
-          <CruushIcon name="map" className="h-5 w-5" variant="white" />
-        </Button>
-      </div>
+      <ProfileActionTrio
+        userName={item.user.name}
+        cruushState="mutual"
+        cruushDisabled
+        onCruush={() => onOpenProfile(item.user.id)}
+        canMessage={item.canMessage !== false}
+        onMessage={() => onMessage(item.user.id)}
+        canCenterPin={item.canRevealPreciseLocation === true}
+        onCenterPin={() => onOpenMap(item.user.id)}
+      />
     </div>
   );
 }
@@ -399,11 +401,15 @@ function ViewRow({
   actionState,
   onCruush,
   onOpenProfile,
+  onMessage,
+  onOpenMap,
 }: {
   item: ProfileViewActivityItem;
   actionState: CruushActionState;
   onCruush: (item: ProfileViewActivityItem) => void;
   onOpenProfile: (userId: string) => void;
+  onMessage: (userId: string) => void;
+  onOpenMap: (userId: string) => void;
 }) {
   const unlocked = !item.locked && item.user;
 
@@ -425,10 +431,15 @@ function ViewRow({
         {item.locked ? <p className="mt-1 text-xs text-primary">Upgrade to view</p> : null}
       </button>
       {unlocked ? (
-        <CruushActionButton
-          state={actionState}
+        <ProfileActionTrio
           userName={item.user.name}
-          onClick={() => onCruush(item)}
+          cruushState={actionState}
+          cruushDisabled={actionState === 'mutual'}
+          onCruush={() => onCruush(item)}
+          canMessage={item.permissions?.canMessage === true}
+          onMessage={() => onMessage(item.user!.id)}
+          canCenterPin={item.permissions?.canRevealPreciseLocation === true}
+          onCenterPin={() => onOpenMap(item.user!.id)}
         />
       ) : null}
     </div>
@@ -685,6 +696,8 @@ export default function CruushActivity({ embedded = false }: { embedded?: boolea
                           pendingCruush={Boolean(item.user && pendingCruushUserIds.has(item.user.id))}
                           onCruushBack={handleCruushBack}
                           onOpenProfile={openProfile}
+                          onMessage={openMessage}
+                          onOpenMap={openMutualOnMap}
                         />
                       ))}
                     </ActivitySurface>
@@ -699,6 +712,8 @@ export default function CruushActivity({ embedded = false }: { embedded?: boolea
                           pendingRevoke={Boolean(item.user && pendingRevokeUserIds.has(item.user.id))}
                           onOpenProfile={openProfile}
                           onRevoke={handleRevokeSent}
+                          onMessage={openMessage}
+                          onOpenMap={openMutualOnMap}
                         />
                       ))}
                     </ActivitySurface>
@@ -722,6 +737,8 @@ export default function CruushActivity({ embedded = false }: { embedded?: boolea
                           actionState={viewActionState(item)}
                           onCruush={handleCruushBack}
                           onOpenProfile={openProfile}
+                          onMessage={openMessage}
+                          onOpenMap={openMutualOnMap}
                         />
                       ))}
                     </ActivitySurface>

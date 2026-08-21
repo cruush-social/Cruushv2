@@ -2092,7 +2092,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
     >
       <div className="pointer-events-none absolute inset-x-0 top-0 z-20 h-44 bg-gradient-to-b from-background/90 via-background/45 to-transparent" />
       <div
-        className="pointer-events-none absolute inset-x-0 top-0 z-40 px-2 pb-10 pt-2 sm:px-3 sm:pt-3"
+        className="pointer-events-none absolute inset-x-0 top-0 z-40 px-2 pb-10 pr-[3.75rem] pt-2 sm:px-3 sm:pr-[4.25rem] sm:pt-3 lg:pr-[4.75rem]"
         data-testid="map-top-chrome"
       >
         <div className="relative flex w-full items-start">
