@@ -227,6 +227,18 @@ const surveyRequest = {
   triageBranch: null,
 };
 
+const suspensionAppealRequest = {
+  ...supportRequest,
+  id: 'appeal-1',
+  category: 'suspension_appeal',
+  subject: 'Suspension appeal',
+  message: 'Please review my suspension appeal.',
+  source: 'auth',
+  pageUrl: '/support?appeal=1',
+  githubIssueNumber: null,
+  triageBranch: null,
+};
+
 function queue(items = [reportItem], page = { limit: 25, offset: 0, total: items.length, hasMore: false }) {
   return { items, page };
 }
@@ -487,6 +499,29 @@ describe('ModeratorReview', () => {
     fireEvent.change(screen.getByLabelText('Status for Messages are missing'), { target: { value: 'closed' } });
     await waitFor(() => expect(updateSupportRequestStatus).toHaveBeenCalledWith('support-1', 'closed'));
     expect(toastSuccess).toHaveBeenCalledWith('Request marked closed.');
+  });
+
+  it('filters the support inbox to age suspension appeals', async () => {
+    getSupportRequests.mockImplementation(({ category }: { category?: string }) => Promise.resolve({
+      requests: category === 'suspension_appeal' ? [suspensionAppealRequest] : [supportRequest],
+      surveySummary: { responseCount: 0, ratings: [] },
+      page: { limit: 25, offset: 0, total: 1, hasMore: false },
+    }));
+    renderReview();
+
+    fireEvent.click(await screen.findByRole('tab', { name: 'Surveys & support' }));
+    expect(await screen.findByText('Messages are missing')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('Request type filter'), { target: { value: 'suspension_appeal' } });
+
+    await waitFor(() => expect(getSupportRequests).toHaveBeenLastCalledWith({
+      status: 'open',
+      category: 'suspension_appeal',
+      limit: 25,
+      offset: 0,
+    }));
+    expect(await screen.findByText('Suspension appeal')).toBeInTheDocument();
+    expect(screen.queryByText('Messages are missing')).not.toBeInTheDocument();
   });
 
   it('marks survey responses and visualizes star-rating averages and distributions', async () => {

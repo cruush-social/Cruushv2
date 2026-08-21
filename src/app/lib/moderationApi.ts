@@ -78,6 +78,7 @@ export type ModerationQueueState = 'open' | 'closed' | 'all';
 export type AdminNotificationFilter = 'all' | 'unread';
 export type SupportRequestStatus = 'open' | 'in_progress' | 'closed' | 'dismissed';
 export type SupportRequestStatusFilter = SupportRequestStatus | 'all';
+export type SupportRequestCategoryFilter = 'all' | 'suspension_appeal';
 
 export type ModerationQueueItem = {
   key: string;
@@ -451,6 +452,7 @@ export function getModerationSystemErrors(options: {
 
 export function getSupportRequests(options: {
   status?: SupportRequestStatusFilter;
+  category?: SupportRequestCategoryFilter;
   limit?: number;
   offset?: number;
 } = {}) {
@@ -459,6 +461,9 @@ export function getSupportRequests(options: {
     limit: String(options.limit ?? 25),
     offset: String(options.offset ?? 0),
   });
+  if (options.category && options.category !== 'all') {
+    searchParams.set('category', options.category);
+  }
   return requestApi<SupportRequestListResponse>(`/api/admin/moderation/support-requests?${searchParams.toString()}`);
 }
 

@@ -72,6 +72,7 @@ const supportRequestStatuses = ["open", "in_progress", "closed", "dismissed"] as
 
 const supportRequestListQuerySchema = z.object({
   status: z.enum(["all", ...supportRequestStatuses]).optional().default("open"),
+  category: z.enum(["all", "suspension_appeal"]).optional().default("all"),
   limit: z.coerce.number().int().min(1).max(100).optional().default(25),
   offset: z.coerce.number().int().min(0).optional().default(0)
 }).strict();
@@ -1181,6 +1182,7 @@ export async function registerAdminModerationRoutes(app: FastifyInstance) {
     await purgeExpiredSuspensionAppeals(app);
     const query = supportRequestListQuerySchema.parse(request.query);
     const status = query.status === "all" ? null : query.status;
+    const category = query.category === "all" ? null : query.category;
     const result = await app.db.query<SupportRequestRow>(
       `select
          support.id::text as id,
@@ -1216,9 +1218,10 @@ export async function registerAdminModerationRoutes(app: FastifyInstance) {
            and evidence.expires_at > now()
        ) appeal_evidence on true
        where ($1::text is null or support.status = $1)
+         and ($2::text is null or support.category = $2)
        order by support.created_at desc, support.id desc
-       limit $2 offset $3`,
-      [status, query.limit, query.offset]
+       limit $3 offset $4`,
+      [status, category, query.limit, query.offset]
     );
     const surveyResult = await app.db.query<SurveyMessageRow>(
       `select message

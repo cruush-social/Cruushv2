@@ -43,6 +43,7 @@ import {
   type ModerationQueueState,
   type ModerationSystemError,
   type SupportRequest,
+  type SupportRequestCategoryFilter,
   type SupportRequestStatus,
   type SupportRequestStatusFilter,
   type SurveyRatingKey,
@@ -349,6 +350,7 @@ export default function ModeratorReview() {
   const [supportStatusFilter, setSupportStatusFilter] = useState<SupportRequestStatusFilter>('open');
   const [supportRequests, setSupportRequests] = useState<SupportRequest[]>([]);
   const [surveySummary, setSurveySummary] = useState<SurveyRatingSummary>(emptySurveySummary);
+  const [supportCategoryFilter, setSupportCategoryFilter] = useState<SupportRequestCategoryFilter>('all');
   const [supportOffset, setSupportOffset] = useState(0);
   const [supportPage, setSupportPage] = useState({ limit: PAGE_SIZE, offset: 0, total: 0, hasMore: false });
   const [supportLoading, setSupportLoading] = useState(false);
@@ -503,6 +505,7 @@ export default function ModeratorReview() {
     try {
       const data = await getSupportRequests({
         status: supportStatusFilter,
+        category: supportCategoryFilter,
         limit: PAGE_SIZE,
         offset: supportOffset,
       });
@@ -520,7 +523,7 @@ export default function ModeratorReview() {
     } finally {
       setSupportLoading(false);
     }
-  }, [supportOffset, supportStatusFilter]);
+  }, [supportCategoryFilter, supportOffset, supportStatusFilter]);
 
   useEffect(() => {
     if (view !== 'email' || accessState !== 'ready') return;
@@ -954,18 +957,29 @@ export default function ModeratorReview() {
                   </Button>
                 </div>
               </div>
-              <select
-                aria-label="Email status filter"
-                value={supportStatusFilter}
-                onChange={(event) => { setSupportOffset(0); setSupportStatusFilter(event.target.value as SupportRequestStatusFilter); }}
-                className="h-9 rounded-md border border-border bg-input-background px-3 text-sm"
-              >
-                <option value="open">Open</option>
-                <option value="in_progress">In progress</option>
-                <option value="closed">Closed</option>
-                <option value="dismissed">Dismissed</option>
-                <option value="all">All statuses</option>
-              </select>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <select
+                  aria-label="Email status filter"
+                  value={supportStatusFilter}
+                  onChange={(event) => { setSupportOffset(0); setSupportStatusFilter(event.target.value as SupportRequestStatusFilter); }}
+                  className="h-9 rounded-md border border-border bg-input-background px-3 text-sm"
+                >
+                  <option value="open">Open</option>
+                  <option value="in_progress">In progress</option>
+                  <option value="closed">Closed</option>
+                  <option value="dismissed">Dismissed</option>
+                  <option value="all">All statuses</option>
+                </select>
+                <select
+                  aria-label="Request type filter"
+                  value={supportCategoryFilter}
+                  onChange={(event) => { setSupportOffset(0); setSupportCategoryFilter(event.target.value as SupportRequestCategoryFilter); }}
+                  className="h-9 rounded-md border border-border bg-input-background px-3 text-sm"
+                >
+                  <option value="all">All requests</option>
+                  <option value="suspension_appeal">Age suspension appeals</option>
+                </select>
+              </div>
             </div>
 
             <div className="mt-5 rounded-lg border border-border bg-card p-4" aria-labelledby="survey-ratings-heading">

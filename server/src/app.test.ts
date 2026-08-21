@@ -7053,7 +7053,9 @@ describe("server", () => {
     });
 
     expect(listResponse.statusCode).toBe(200);
-    expect(query.mock.calls.find(([sql]) => String(sql).includes("from support_requests"))?.[0]).toContain("from support_requests");
+    expect(query.mock.calls[2]?.[0]).toContain("from support_requests");
+    expect(query.mock.calls[2]?.[0]).toContain("support.category = $2");
+    expect(query.mock.calls[2]?.[1]).toEqual(["open", null, 25, 0]);
     expect(listResponse.json().data.requests[0]).toMatchObject({
       subject: "Messages are missing",
       contactEmail: "c******@example.com",
@@ -7072,6 +7074,21 @@ describe("server", () => {
         { key: "privacy", responseCount: 2, average: 2, distribution: [0, 2, 0, 0, 0] }
       ]
     });
+
+    query
+      .mockResolvedValueOnce({ rows: [{ role: "moderator" }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const appealListResponse = await app.inject({
+      method: "GET",
+      url: "/api/admin/moderation/support-requests?status=open&category=suspension_appeal&limit=25",
+      headers: { "x-user-id": userId }
+    });
+
+    expect(appealListResponse.statusCode).toBe(200);
+    expect(query.mock.calls[6]?.[1]).toEqual(["open", "suspension_appeal", 25, 0]);
 
     query.mockReset();
     query

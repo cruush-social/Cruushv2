@@ -138,8 +138,15 @@ describe('moderationApi', () => {
       expect.objectContaining({ credentials: 'include' }),
     );
 
+    await getSupportRequests({ status: 'open', category: 'suspension_appeal', limit: 25, offset: 0 });
+    expect(fetch).toHaveBeenNthCalledWith(
+      2,
+      '/api/admin/moderation/support-requests?status=open&limit=25&offset=0&category=suspension_appeal',
+      expect.objectContaining({ credentials: 'include' }),
+    );
+
     await updateSupportRequestStatus('support/1', 'closed');
-    expect(fetch).toHaveBeenNthCalledWith(2, '/api/admin/moderation/support-requests/support%2F1', expect.objectContaining({
+    expect(fetch).toHaveBeenNthCalledWith(3, '/api/admin/moderation/support-requests/support%2F1', expect.objectContaining({
       method: 'PATCH',
       credentials: 'include',
       body: JSON.stringify({ status: 'closed' }),
