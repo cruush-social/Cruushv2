@@ -1102,23 +1102,6 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
               <p className="text-xs text-muted-foreground">This appears when someone hovers over your heart pin on the map.</p>
             </div>
 
-            <div className="space-y-4 rounded-xl border border-border bg-card/60 p-4">
-              <div className="flex items-center justify-between gap-4">
-                <div className="space-y-0.5">
-                  <Label htmlFor="profile-edit-approx-distance">Approximate distance labels</Label>
-                  <p className="text-xs text-muted-foreground">
-                    {distancePreferences.mode === 'approximate'
-                      ? 'You see approximate labels for others, and they see an approximate label for you.'
-                      : 'You see exact labels when the other person also shares exact distance. Others can see your exact label only when they share exact distance too.'}
-                  </p>
-                </div>
-                <Switch
-                  id="profile-edit-approx-distance"
-                  checked={distancePreferences.mode === 'approximate'}
-                  onCheckedChange={(checked) => saveDistancePreferences({ mode: checked ? 'approximate' : 'exact' })}
-                />
-              </div>
-            </div>
 
             <div className="space-y-2">
               <Label>Pronouns</Label>

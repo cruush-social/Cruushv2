@@ -814,11 +814,6 @@ export default function DirectMessages({ embedded = false }: { embedded?: boolea
                         <p className={`min-w-0 max-w-full truncate text-base text-white ${conversation.unreadCount > 0 ? 'font-medium' : ''}`}>
                           {conversation.user.name}
                         </p>
-                        {conversation.mutual ? (
-                          <Badge variant="outline" className={mutualBadgeClassName}>
-                            Mutual
-                          </Badge>
-                        ) : null}
                         {conversation.kind === 'group' ? (
                           <Badge variant="outline" className={quietBadgeClassName}>
                             Group

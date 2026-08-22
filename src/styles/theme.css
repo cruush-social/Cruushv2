@@ -476,6 +476,21 @@ html[data-cruush-alpha-bug-corner='top-right'] [data-testid='accessibility-quick
     background: rgba(255, 255, 255, 0.34);
   }
 
+  /* No vertical scrollbar anywhere in the product. People know to scroll, and
+     the bar only crowds the page. */
+  html,
+  body {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  html::-webkit-scrollbar,
+  body::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
+  }
+
   .profile-card-scroll {
     overflow-y: auto;
     overscroll-behavior: contain;
@@ -744,12 +759,29 @@ html[data-cruush-alpha-bug-corner='top-right'] [data-testid='accessibility-quick
     }
   }
 
+  /* A heartbeat, not a breath: a quick double thump up to the size hovering the
+     unit reaches, then rest. The peak matches group-hover:scale-[1.38] so a
+     pulsing pin reads as large as a hovered one. */
   @keyframes cruush-map-ping-heart-pulse {
-    0%, 100% {
+    0% {
       scale: 1;
     }
-    50% {
-      scale: 1.12;
+
+    12% {
+      scale: 1.38;
+    }
+
+    24% {
+      scale: 1.1;
+    }
+
+    34% {
+      scale: 1.3;
+    }
+
+    48%,
+    100% {
+      scale: 1;
     }
   }
 

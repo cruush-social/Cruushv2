@@ -125,7 +125,7 @@ export default function BadgePickerPreview() {
         <h1 className="min-w-0 flex-1 truncate text-lg">Your side badges</h1>
       </header>
 
-      <main className="mx-auto w-full max-w-2xl space-y-6 px-4 py-6">
+      <main className="mx-auto w-full max-w-2xl space-y-4 px-4 py-4">
         <p className="text-sm text-white/62">
           Two badges ride on your heart. Left is what you give, right is what you take, the
           way a hanky has always been read. Put the same badge on both sides and it reads as
@@ -134,7 +134,7 @@ export default function BadgePickerPreview() {
 
         {/* The map's own unit, drawn by the map's own component. The badges
             are its real badge slots, not chips drawn on top of it. */}
-        <section className="flex items-center justify-center rounded-2xl border border-white/10 bg-black/45 py-16">
+        <section className="flex items-center justify-center rounded-2xl border border-white/10 bg-black/45 py-8">
           <MapMarkerPin
             marker={{
               id: 'badge-preview',
@@ -173,9 +173,9 @@ export default function BadgePickerPreview() {
         </div>
 
         {groups.map((group) => (
-          <section className="space-y-2" key={group}>
+          <section className="space-y-1.5" key={group}>
             <h2 className="text-xs uppercase tracking-[0.14em] text-white/48">{group}</h2>
-            <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+            <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-5">
               {BADGE_OPTIONS.filter((option) => option.group === group).map((option) => {
                 const selected = chosen[activeSide] === option.id;
                 const Icon = option.icon;
