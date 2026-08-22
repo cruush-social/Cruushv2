@@ -594,6 +594,22 @@ export async function registerAuthRoutes(app: FastifyInstance) {
       );
 
       createdUser = result.rows[0];
+
+      // Outside production, an @cruush.local signup is a throwaway test account,
+      // so mark it verified and let onboarding be exercised end to end.
+      if (app.config.NODE_ENV !== "production" && payload.email.toLowerCase().endsWith("@cruush.local")) {
+        const verified = await app.db.query<{ email_verified_at: string | Date | null }>(
+          `update app_users
+           set email_verified_at = coalesce(email_verified_at, now())
+           where id = $1
+           returning email_verified_at`,
+          [createdUser.id]
+        );
+        createdUser = {
+          ...createdUser,
+          email_verified_at: verified.rows[0]?.email_verified_at ?? createdUser.email_verified_at
+        };
+      }
     } catch (error) {
       const code = typeof error === "object" && error !== null && "code" in error
         ? String((error as { code?: string }).code)

@@ -144,7 +144,8 @@
     "e2e/map-tutorial.spec.ts",
     "e2e/regression/session-interactions.spec.ts",
     "server/src/beta-access.ts",
-    "server/src/beta-access.test.ts"
+    "server/src/beta-access.test.ts",
+    "server/src/routes/auth.ts"
   ],
   "preserved": [
     "Keep private trans status as the eligibility gate for the optional T4T crowd; do not infer it from a selected gender identity.",
