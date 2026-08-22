@@ -292,7 +292,7 @@ export default function MapVisibilitySurface({
                   <Switch
                     id="visibility-approx-distance"
                     checked={distancePreferences.mode === 'approximate'}
-                    onCheckedChange={(checked) => saveDistancePreferences({ mode: checked ? 'approximate' : 'exact' })}
+                    onCheckedChange={(checked) => saveDistancePreferences({ mode: checked ? 'approximate' : 'precise' })}
                   />
                 </div>
               </div>

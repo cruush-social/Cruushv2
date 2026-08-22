@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router';
+import profileNavIcon from '../assets/nav-icons/profile-white.png';
 import { useEffect, useMemo, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react';
 import { Accessibility, ArrowLeft, BookOpen, ChevronRight, Contrast, ExternalLink, Eye, Gift, History, KeyRound, LifeBuoy, LogOut, MapPin, MessageCircle, MessageSquareReply, ShieldAlert, ShieldCheck, Trash2, Type, UserX, type LucideIcon, Download } from 'lucide-react';
 import { Button } from './ui/button';
@@ -263,17 +264,8 @@ export default function Settings() {
         {
           icon: MapPin,
           label: 'Map presence',
-          description: 'How many days you stay on the map after you were last active.',
+          description: 'How long you stay on the map, and how distance reads on your profile.',
           action: () => navigate('/privacy/map-presence'),
-        },
-        {
-          icon: MapPin,
-          label: 'Distance labels',
-          description: distancePreferences.mode === 'approximate'
-            ? 'Approximate both ways: you see approximate distances, and others see an approximate distance for you.'
-            : 'Exact both ways: you see an exact distance only from people who also share exact, and they see yours the same way.',
-          checked: distancePreferences.mode === 'approximate',
-          onCheckedChange: (checked: boolean) => saveDistancePreferences({ mode: checked ? 'approximate' : 'exact' }),
         },
         {
           icon: UserX,
@@ -468,12 +460,13 @@ export default function Settings() {
                     } ${dividerClass}`}
                   >
                     {item.iconName === 'profile' && item.iconVariant === 'gradient' ? (
-                      <span
+                      <img
                         aria-hidden="true"
-                        className="h-5 w-5"
+                        alt=""
+                        className="h-5 w-5 brightness-0 invert"
                         data-testid="edit-profile-bottom-nav-icon"
-                        data-tone="gradient"
-                        style={editProfileIconStyle}
+                        data-tone="nav"
+                        src={profileNavIcon}
                       />
                     ) : 'iconName' in item ? (
                       <CruushIcon
