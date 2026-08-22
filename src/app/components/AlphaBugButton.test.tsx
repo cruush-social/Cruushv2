@@ -69,7 +69,7 @@ describe('AlphaBugButton', () => {
     expect(reportButton).toHaveClass(
       'right-[calc(0.75rem+env(safe-area-inset-right))]',
       'top-[calc(0.75rem+env(safe-area-inset-top))]',
-      'z-50',
+      'z-[70]',
     );
 
     fireEvent.click(reportButton);
@@ -156,7 +156,7 @@ describe('AlphaBugButton', () => {
     expect(screen.getByRole('button', { name: 'Report alpha bug' })).toHaveClass(
       'right-[calc(0.75rem+env(safe-area-inset-right))]',
       'top-[calc(0.75rem+env(safe-area-inset-top))]',
-      'z-50',
+      'z-[70]',
     );
   });
 
@@ -166,7 +166,7 @@ describe('AlphaBugButton', () => {
     expect(screen.getByRole('button', { name: 'Report alpha bug' })).toHaveClass(
       'right-[calc(0.75rem+env(safe-area-inset-right))]',
       'top-[calc(0.75rem+env(safe-area-inset-top))]',
-      'z-50',
+      'z-[70]',
     );
   });
 

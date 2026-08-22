@@ -211,6 +211,7 @@ export default function AlphaBugButton({
   const [status, setStatus] = useState<'idle' | 'submitting' | 'success'>('idle');
   const [error, setError] = useState('');
   const [errorCode, setErrorCode] = useState('');
+  const [deviceSummary, setDeviceSummary] = useState('');
   const [showTip, setShowTip] = useState(false);
   const pageUrl = useMemo(() => getCurrentPageUrl(), [open]);
 
@@ -344,6 +345,16 @@ export default function AlphaBugButton({
         setOpen(nextOpen);
         if (nextOpen) {
           dismissTip();
+          void getBugDeviceContext().then((device) => {
+            if (!device) {
+              setDeviceSummary('');
+              return;
+            }
+
+            setDeviceSummary([device.model, device.platform, device.platformVersion]
+              .filter(Boolean)
+              .join(' '));
+          });
         }
         if (!nextOpen) {
           setError('');
@@ -374,6 +385,9 @@ export default function AlphaBugButton({
         </DialogHeader>
         <div className="rounded-md border border-white/10 bg-white/[0.035] px-3 py-2 text-xs text-muted-foreground">
           Reporting from <span className="font-semibold text-foreground">{pageUrl}</span>
+          {deviceSummary ? (
+            <> on <span className="font-semibold text-foreground">{deviceSummary}</span></>
+          ) : null}
         </div>
 
         {status === 'success' ? (
