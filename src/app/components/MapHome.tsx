@@ -2611,7 +2611,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
             data-tutorial-target="ping"
             aria-label="Send a Pulse"
             title="Send a Pulse"
-            className={`size-12 shrink-0 border-0 bg-transparent p-0 hover:bg-transparent hover:brightness-125 sm:size-[3.25rem] lg:size-14 ${mapPingStatus?.activePing ? 'text-[#c8ff31]' : 'text-white'}`}
+            className={`size-12 shrink-0 rounded-full border border-white/10 bg-background/55 p-0 backdrop-blur-md hover:brightness-125 sm:size-[3.25rem] lg:size-14 ${mapPingStatus?.activePing ? 'text-[#c8ff31]' : 'text-white'}`}
           >
             <PulseLedIcon className="size-full" />
           </Button>
