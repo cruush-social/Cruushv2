@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { FastifyInstance } from "fastify";
+import { sendAgeSuspensionAppealEmail, sendAgeSuspensionInboxEmail } from "./mailer.js";
 import type { DbClient } from "./db.js";
 import { ApiError } from "./errors.js";
 import {
@@ -677,6 +678,51 @@ export function resolveProfilePhotoAdultHumanGate(
   };
 }
 
+
+const AGE_SUSPENSION_REASON_CODES = new Set(["minor_face_detected"]);
+
+/**
+ * An age-related suspension always offers a human review, so tell the person it
+ * happened and where to send their details. Delivery never blocks enforcement.
+ */
+async function notifyAgeSuspensionAppeal(
+  app: FastifyInstance,
+  userId: string,
+  decision: PolicyDecision
+) {
+  const enforcement = decision.enforcement_action;
+
+  if (enforcement?.type !== "suspend" || !AGE_SUSPENSION_REASON_CODES.has(enforcement.reasonCode)) {
+    return;
+  }
+
+  try {
+    const result = await app.db.query<{ email: string | null }>(
+      "select email from app_users where id = $1 limit 1",
+      [userId]
+    );
+    const email = result.rows[0]?.email ?? null;
+
+    if (email) {
+      await sendAgeSuspensionAppealEmail({
+        appealUrl: `${app.config.APP_URL.replace(/\/$/, "")}/support?appeal=1`,
+        config: app.config,
+        email,
+        logger: app.log
+      });
+    }
+
+    await sendAgeSuspensionInboxEmail({
+      config: app.config,
+      logger: app.log,
+      userEmail: email,
+      userId
+    });
+  } catch (error) {
+    app.log.error({ err: error, userId }, "age suspension appeal email failed");
+  }
+}
+
 function moderationStatusForReview(status: ContentReviewInput["status"], decision: PolicyDecision) {
   if (status === "allowed") {
     return "allowed";
@@ -778,6 +824,8 @@ async function handlePolicyDecision(
       providerRequestId: providerResult.provider_request_id
     }
   });
+
+  await notifyAgeSuspensionAppeal(app, userId, decision);
 
   throw new ModerationRejectedError({
     contentReviewId,

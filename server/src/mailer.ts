@@ -507,6 +507,85 @@ export async function sendTrustSafetyAlertEmail(input: TrustSafetyAlertEmailInpu
   });
 }
 
+type AgeSuspensionAppealEmailInput = {
+  appealUrl: string;
+  config: AppConfig;
+  email: string;
+  logger: FastifyBaseLogger;
+};
+
+export async function sendAgeSuspensionAppealEmail(input: AgeSuspensionAppealEmailInput) {
+  const { appealUrl, config, email, logger } = input;
+
+  if (!config.RESEND_API_KEY || !config.MAIL_FROM) {
+    logger.info({ email }, "age suspension appeal email skipped, mail is not configured");
+    return;
+  }
+
+  const escapedAppealUrl = escapeHtml(appealUrl);
+  const html = `
+    <p>Your cruush profile photo was suspended because our automated check could not confirm an adult.</p>
+    <p>A person reviews these. Send your details and we will look at it again:</p>
+    <p><a href="${escapedAppealUrl}">${escapedAppealUrl}</a></p>
+    <p>You will be asked for a photo of your ID with everything except your date of birth and photo covered, plus a selfie holding a handwritten card with your account email and today's date. Both stay encrypted, expire after 24 hours, and are deleted once the review is done.</p>
+    <p>You do not need to be signed in to use that page.</p>
+  `;
+  const text = [
+    "Your cruush profile photo was suspended because our automated check could not confirm an adult.",
+    "",
+    "A person reviews these. Send your details and we will look at it again:",
+    appealUrl,
+    "",
+    "You will be asked for a photo of your ID with everything except your date of birth and photo covered, plus a selfie holding a handwritten card with your account email and today's date. Both stay encrypted, expire after 24 hours, and are deleted once the review is done.",
+    "",
+    "You do not need to be signed in to use that page."
+  ].join("\n");
+
+  await sendResendEmail({
+    config,
+    email,
+    logger,
+    replyTo: REPORTS_INBOX_EMAIL,
+    subject: "Appeal your cruush age-related suspension",
+    html,
+    text,
+    failureMessage: "age suspension appeal email delivery failed"
+  });
+}
+
+type AgeSuspensionInboxEmailInput = {
+  config: AppConfig;
+  logger: FastifyBaseLogger;
+  userEmail: string | null;
+  userId: string;
+};
+
+export async function sendAgeSuspensionInboxEmail(input: AgeSuspensionInboxEmailInput) {
+  const { config, logger, userEmail, userId } = input;
+
+  if (!config.RESEND_API_KEY || !config.MAIL_FROM) {
+    return;
+  }
+
+  const fields = [
+    ["User ID", userId],
+    ["User email", userEmail ?? "unknown"]
+  ];
+  const htmlRows = fields
+    .map(([label, value]) => `<tr><th align="left">${escapeHtml(label)}</th><td>${escapeHtml(value)}</td></tr>`)
+    .join("");
+
+  await sendResendEmail({
+    config,
+    email: REPORTS_INBOX_EMAIL,
+    logger,
+    subject: "age-related suspension applied",
+    html: `<p>An age-related profile photo suspension was applied. The person was emailed the appeal form.</p><table>${htmlRows}</table>`,
+    text: `An age-related profile photo suspension was applied. The person was emailed the appeal form.\n\n${fields.map(([label, value]) => `${label}: ${value}`).join("\n")}`,
+    failureMessage: "age suspension inbox email delivery failed"
+  });
+}
+
 export async function sendSupportRequestInboxEmail(input: SupportRequestInboxEmailInput) {
   const { config, logger, request } = input;
 
