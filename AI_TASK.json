@@ -195,7 +195,7 @@
     "The share of accounts holding cruush+ is unknown. No database count was run.",
     "No environment variables were added, removed, or changed by this task."
   ],
-  "task": "Photo viewer controls, popup overlay parity, mutual messaging in the dock",
+  "task": "No green on notifications, matching dark gradients, profile chrome on the photo, fifty mile feed",
   "publicationTarget": "origin/main and production",
   "environmentChanges": "none"
 }

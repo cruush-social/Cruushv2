@@ -451,47 +451,60 @@ export default function ProfileView() {
 
   return (
     <div className="min-h-screen bg-background pb-20" style={PROFILE_VIEW_STYLE}>
-      <header className="sticky top-0 z-10 border-b border-border bg-card/90 p-4 backdrop-blur-sm">
-        <div className="mx-auto flex max-w-2xl items-center justify-between">
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-          <div className="flex items-center gap-2">
+      <div
+        data-testid="profile-gallery-frame"
+        className="relative mx-auto max-w-2xl"
+        style={PROFILE_VIEW_GALLERY_FRAME_STYLE}
+      >
+        {/* The page chrome rides on the photo instead of a bar above it, each
+            control in its own circle so it stays legible over any picture. */}
+        <div className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-start justify-between p-3">
+          <button
+            aria-label="Back"
+            className="pointer-events-auto flex h-10 w-10 items-center justify-center rounded-full border border-white/12 bg-black/55 text-white backdrop-blur-sm"
+            data-testid="profile-back"
+            onClick={() => navigate(-1)}
+            type="button"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+
+          <div className="pointer-events-auto flex items-center gap-2">
             {isOwnProfile ? (
-              <Button variant="outline" onClick={() => navigate('/profile/edit')}>
+              <Button
+                className="h-10 rounded-full border border-white/12 bg-black/55 px-4 text-white backdrop-blur-sm"
+                onClick={() => navigate('/profile/edit')}
+                variant="ghost"
+              >
                 Edit Profile
               </Button>
             ) : (
               <>
                 {userId ? (
                   <BlockUserAction
-                    userId={userId}
+                    className="h-10 w-10 rounded-full border border-white/12 bg-black/55 text-white backdrop-blur-sm"
                     displayName={profileView.name}
                     onBlocked={() => {
                       setProfile(null);
                       setError('That profile is unavailable.');
                     }}
+                    userId={userId}
                   />
                 ) : null}
                 {userId ? (
                   <ReportAction
-                    targetType="profile"
+                    className="h-10 w-10 rounded-full border border-white/12 bg-black/55 text-white backdrop-blur-sm"
+                    label="Report profile"
                     targetId={userId}
                     targetLabel={profileView.name}
-                    label="Report profile"
+                    targetType="profile"
                   />
                 ) : null}
               </>
             )}
           </div>
         </div>
-      </header>
 
-      <div
-        data-testid="profile-gallery-frame"
-        className="relative mx-auto max-w-2xl"
-        style={PROFILE_VIEW_GALLERY_FRAME_STYLE}
-      >
         <ProfilePhotoGallery
           fitViewport
           name={profileView.name}

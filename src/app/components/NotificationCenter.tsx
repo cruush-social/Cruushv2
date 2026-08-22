@@ -207,7 +207,7 @@ export default function NotificationCenter() {
                   aria-label={notification.title}
                   className={`flex w-full items-start gap-3 rounded-lg border p-4 text-left transition-colors ${
                     unread
-                      ? 'border-[#C8FF31]/55 bg-[#C8FF31]/5 hover:bg-[#C8FF31]/8'
+                      ? 'border-primary/30 bg-primary/10 hover:bg-primary/14'
                       : 'border-border bg-card hover:bg-muted/45'
                   }`}
                 >

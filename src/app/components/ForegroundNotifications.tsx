@@ -72,7 +72,7 @@ export function shouldPlayInAppNotificationSound(pathname: string, notification:
 
 export function notificationPopupTheme() {
   return {
-    popup: 'border-[#C8FF31]',
+    popup: 'border-primary/45',
   };
 }
 

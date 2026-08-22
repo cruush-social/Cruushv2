@@ -85,7 +85,8 @@ const FEED_EXPIRY_OPTIONS: Array<{ value: FeedPostExpiry; label: string }> = [
   { value: 'never', label: 'Never' },
 ];
 const FEED_PAGE_SIZE = 30;
-const DEFAULT_FEED_RADIUS_MILES = 15;
+// The open beta covers fifty miles around NYC, so the feed reaches that far.
+const DEFAULT_FEED_RADIUS_MILES = 50;
 const LAUNCH_PARTY_EVENT_SLUG = 'the-chocolate-factory-launch';
 const DEFAULT_FEED_SETTINGS: FeedSettings = {
   locationPinVisibility: 'mutuals',
@@ -562,7 +563,7 @@ export default function LocalFeed({ embedded = false }: { embedded?: boolean } =
                 <input
                   aria-label="Feed distance radius"
                   className="cruush-range"
-                  max={15}
+                  max={50}
                   min={1}
                   step={1}
                   type="range"

@@ -269,7 +269,8 @@ const postParamsSchema = z.object({
 
 const feedPostQuerySchema = z.object({
   within: z.enum(["1h", "3h", "6h", "24h", "7d"]).default("7d"),
-  distanceMiles: z.coerce.number().min(1).max(15).default(15),
+  // The open beta covers fifty miles around NYC, so the feed reaches that far too.
+  distanceMiles: z.coerce.number().min(1).max(50).default(50),
   limit: z.coerce.number().int().min(1).max(50).default(30),
   before: z.string().datetime().optional(),
   lat: z.coerce.number().min(-90).max(90).optional(),
