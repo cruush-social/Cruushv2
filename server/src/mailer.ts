@@ -97,13 +97,22 @@ export type EmailAttachment = {
   filename: string;
 };
 
-// https://api.resend.com/emails takes html, text or react. It has no template
-// field: a payload carrying one has no content at all and is rejected, which is
-// how verification and password reset mail went silently undelivered.
-type ResendEmailContent = {
-  html: string;
-  text: string;
+type ResendTemplate = {
+  id: string;
+  variables: Record<string, string | number>;
 };
+
+type ResendEmailContent =
+  | {
+      html: string;
+      template?: never;
+      text: string;
+    }
+  | {
+      html?: never;
+      template: ResendTemplate;
+      text?: never;
+    };
 
 type EventPassEmailInput = {
   attachment: EmailAttachment;
@@ -118,6 +127,8 @@ type EventPassEmailInput = {
 };
 
 const CRUUSH_EMAIL_LOGO_URL = "https://cdn.resend.app/ff1dfa96-8b85-4552-8e56-d09cf53fb13e";
+const VERIFICATION_EMAIL_TEMPLATE_ID = "0dc8f32c-76e2-45b2-aaf7-f4649ab48ab0";
+const PASSWORD_RESET_EMAIL_TEMPLATE_ID = "c4c95694-b788-4862-804d-e0fb146304c3";
 const REPORTS_INBOX_EMAIL = "reports@cruush.app";
 
 function escapeHtml(value: string) {
@@ -137,14 +148,7 @@ function escapeHtml(value: string) {
   });
 }
 
-type BrandedEmailCopy = {
-  buttonLabel: string;
-  heading: string;
-  intro: string;
-  title: string;
-};
-
-function buildBrandedEmailHtml(escapedActionUrl: string, copy: BrandedEmailCopy) {
+function buildVerificationEmailHtml(escapedVerificationUrl: string) {
   return `<!DOCTYPE html>
 <html dir="ltr" lang="en">
   <head>
@@ -153,7 +157,7 @@ function buildBrandedEmailHtml(escapedActionUrl: string, copy: BrandedEmailCopy)
     <meta name="x-apple-disable-message-reformatting" />
     <meta content="IE=edge" http-equiv="X-UA-Compatible" />
     <meta content="telephone=no,address=no,email=no,date=no,url=no" name="format-detection" />
-    <title>${copy.title}</title>
+    <title>Verify your cruush email</title>
   </head>
   <body
     dir="ltr"
@@ -210,13 +214,13 @@ function buildBrandedEmailHtml(escapedActionUrl: string, copy: BrandedEmailCopy)
                     <h1
                       style="margin:0 0 14px;padding:0;color:#ffffff;font-family:Georgia,'Times New Roman',Times,serif;font-size:34px;line-height:1.15;font-weight:700;text-align:center;"
                     >
-                      ${copy.heading}
+                      verify your email
                     </h1>
 
                     <p
                       style="margin:0 0 20px;padding:0;color:#ffffff;font-family:Georgia,'Times New Roman',Times,serif;font-size:17px;line-height:1.55;text-align:center;"
                     >
-                      ${copy.intro}
+                      Tap the button below to confirm this address and finish setting up your cruush account.
                     </p>
 
                     <table
@@ -235,12 +239,12 @@ function buildBrandedEmailHtml(escapedActionUrl: string, copy: BrandedEmailCopy)
                             style="border-radius:8px;background-color:#ff0072;"
                           >
                             <a
-                              href="${escapedActionUrl}"
+                              href="${escapedVerificationUrl}"
                               rel="noopener noreferrer nofollow"
                               target="_blank"
                               style="display:inline-block;padding:13px 22px;color:#ffffff;font-family:Georgia,'Times New Roman',Times,serif;font-size:16px;font-weight:700;text-decoration:none;"
                             >
-                              ${copy.buttonLabel}
+                              Verify email
                             </a>
                           </td>
                         </tr>
@@ -282,12 +286,12 @@ function buildBrandedEmailHtml(escapedActionUrl: string, copy: BrandedEmailCopy)
                       style="margin:0;padding:0;color:#ffffff;font-family:Georgia,'Times New Roman',Times,serif;font-size:13px;line-height:1.5;text-align:center;word-break:break-all;"
                     >
                       <a
-                        href="${escapedActionUrl}"
+                        href="${escapedVerificationUrl}"
                         rel="noopener noreferrer nofollow"
                         target="_blank"
                         style="color:#ffffff;text-decoration:underline;"
                       >
-                        ${escapedActionUrl}
+                        ${escapedVerificationUrl}
                       </a>
                     </p>
 
@@ -325,7 +329,9 @@ async function sendResendEmail(input: {
   failureMessage: string;
 } & ResendEmailContent) {
   const { attachments, config, email, failureMessage, logger, replyTo, subject } = input;
-  const content = { html: input.html, text: input.text };
+  const content = input.template
+    ? { template: input.template }
+    : { html: input.html, text: input.text };
 
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -401,13 +407,12 @@ export async function sendVerificationEmail(input: VerificationEmailInput): Prom
       email,
       logger,
       subject: "Verify your cruush email",
-      html: buildBrandedEmailHtml(escapedVerificationUrl, {
-        buttonLabel: "Verify email",
-        heading: "verify your email",
-        intro: "Tap the button below to confirm this address and finish setting up your cruush account.",
-        title: "Verify your cruush email"
-      }),
-      text: `Confirm this address to finish setting up your cruush account:\n${verificationUrl}`,
+      template: {
+        id: VERIFICATION_EMAIL_TEMPLATE_ID,
+        variables: {
+          VERIFICATION_URL: escapedVerificationUrl
+        }
+      },
       failureMessage: "verification email delivery failed"
     });
 
@@ -438,13 +443,12 @@ export async function sendPasswordResetEmail(input: PasswordResetEmailInput): Pr
       email,
       logger,
       subject: "Reset your cruush password",
-      html: buildBrandedEmailHtml(escapedResetUrl, {
-        buttonLabel: "Reset password",
-        heading: "reset your password",
-        intro: "Tap the button below to choose a new password. If you did not ask for this, you can ignore this email.",
-        title: "Reset your cruush password"
-      }),
-      text: `Choose a new password for your cruush account:\n${resetUrl}`,
+      template: {
+        id: PASSWORD_RESET_EMAIL_TEMPLATE_ID,
+        variables: {
+          RESET_URL: escapedResetUrl
+        }
+      },
       failureMessage: "password reset email delivery failed"
     });
 
