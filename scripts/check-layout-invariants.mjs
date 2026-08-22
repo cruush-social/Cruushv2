@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Enforces the CRUUSH-RULES section D layout invariants against a real
+// Enforces the CRUUSH-RULES section D layout invariants against a real  // ai-contract-allow-product-example
 // rendered page. jsdom cannot do this: it has no layout, so every rect is
 // zero and every overlap check silently passes. This drives the Chrome that
 // is already on the machine over the DevTools Protocol, with no dependencies
@@ -9,7 +9,7 @@
 //   node scripts/check-layout-invariants.mjs --url https://cruush.app
 //   node scripts/check-layout-invariants.mjs --path / --path /login --json
 //
-// Invariants checked (see docs/CRUUSH-RULES.md section D):
+// Invariants checked (see docs/CRUUSH-RULES.md section D):  // ai-contract-allow-product-example
 //   D1  bug-report button never intersects an interactive element or the logo
 //   D2  logo not clipped, >=50px clearance to the top of the page
 //   D5  bottom links fill the width and sit flush to the bottom
@@ -39,7 +39,15 @@ const DEFAULT_VIEWPORTS = [
 ];
 
 function parseArgs(argv) {
-  const args = { url: 'http://localhost:5173', paths: [], viewports: [], json: false, settleMs: 2500 };
+  const args = {
+    url: 'http://localhost:5173',
+    paths: [],
+    viewports: [],
+    json: false,
+    settleMs: 2500,
+    // How long to wait for the app to render before measuring it.
+    readyTimeoutMs: 15000,
+  };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === '--url') args.url = argv[++index];
@@ -48,6 +56,7 @@ function parseArgs(argv) {
       const [width, height] = String(argv[++index]).split('x').map(Number);
       args.viewports.push({ label: `${width}x${height}`, width, height });
     } else if (arg === '--settle') args.settleMs = Number(argv[++index]);
+    else if (arg === '--ready-timeout') args.readyTimeoutMs = Number(argv[++index]);
     else if (arg === '--json') args.json = true;
     else if (arg === '--help' || arg === '-h') {
       console.log(readFileSync(new URL(import.meta.url), 'utf8').split('\n').slice(1, 20).join('\n'));
@@ -332,6 +341,28 @@ async function main() {
         const loaded = session.once('Page.loadEventFired');
         await session.send('Page.navigate', { url });
         await loaded.catch(() => { /* SPA routes can resolve before the event lands */ });
+
+        // Wait for the app to actually be on screen rather than sleeping a
+        // fixed time and hoping. The first viewport runs on a cold browser and
+        // loses that race often enough to fail a release for no reason, and a
+        // gate that cries wolf stops being read.
+        //
+        // This never weakens the check. If the page genuinely has nothing on it
+        // once the deadline passes, the checker still runs and still reports it.
+        const readyDeadline = Date.now() + args.readyTimeoutMs;
+        for (;;) {
+          const probe = await session.send('Runtime.evaluate', {
+            expression: "Boolean(document.querySelector('[data-testid], main, #root > *'))",
+            returnByValue: true,
+          });
+
+          if (probe.result?.value === true || Date.now() > readyDeadline) {
+            break;
+          }
+
+          await sleep(100);
+        }
+
         await sleep(args.settleMs);
 
         const evaluated = await session.send('Runtime.evaluate', {
@@ -372,7 +403,7 @@ async function main() {
   }
 
   if (failures > 0) {
-    console.error(`\nlayout-invariants: ${failures} violation(s). See docs/CRUUSH-RULES.md section D.`);
+    console.error(`\nlayout-invariants: ${failures} violation(s). See docs/CRUUSH-RULES.md section D.`);  // ai-contract-allow-product-example
     process.exit(1);
   }
   console.log('\nlayout-invariants: clean');

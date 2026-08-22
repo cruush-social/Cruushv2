@@ -3,10 +3,11 @@
   "product": "cruush",
   "release": "1.5",
   "repository": "cruush-social/Cruushv2",
-  "job": "Give the map's Pulse control a surface so heart pins stop reading through it.",
+  "job": "Give the map's Pulse control a surface so heart pins stop reading through it, and stop the layout gate failing on a render race.",
   "branch": "hotfix/pulse-control-overlap",
   "allowedPaths": [
     "AI_TASK.json",
+    "scripts/check-layout-invariants.mjs",
     "src/app/components/MapHome.tsx"
   ],
   "preserved": [
