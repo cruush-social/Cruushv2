@@ -539,9 +539,10 @@ export default function LocalFeed({ embedded = false }: { embedded?: boolean } =
                           className={[
                             'h-10 rounded-full border px-4 text-sm font-semibold transition',
                             selected
-                              ? 'border-[#03ecfc]/55 bg-[#03ecfc]/14 text-[#c9fbff] hover:bg-[#03ecfc]/20'
+                              ? 'border-primary/45 text-white'
                               : 'border-white/10 bg-black/40 text-white/72 hover:bg-white/8',
                           ].join(' ')}
+                          style={selected ? { background: 'var(--cruush-gradient-soft-18)' } : undefined}
                           aria-pressed={selected}
                           onClick={() => toggleCrowdTarget(crowd)}
                         >
@@ -595,9 +596,10 @@ export default function LocalFeed({ embedded = false }: { embedded?: boolean } =
                       className={[
                         'w-full rounded-lg border p-3 text-left transition',
                         active
-                          ? 'border-primary/70 bg-primary/12 text-white'
+                          ? 'border-primary/45 text-white'
                           : 'border-white/10 bg-black/40 text-white/72 hover:bg-white/8',
                       ].join(' ')}
+                      style={active ? { background: 'var(--cruush-gradient-soft-18)' } : undefined}
                       aria-pressed={active}
                       disabled={settingsSaving || !feedSettingsLoaded}
                       onClick={() => void handleFeedPinVisibilityChange(option.value)}

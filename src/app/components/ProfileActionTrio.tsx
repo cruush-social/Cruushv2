@@ -101,8 +101,8 @@ export default function ProfileActionTrio({
           type="button"
           size="icon"
           variant="secondary"
-          className={`cruush-action-sheen ${sizeClass} shrink-0 rounded-full border-0 disabled:opacity-100 ${canCenterPin ? 'text-white' : 'text-white/55'}`}
-          style={{ background: canCenterPin ? 'var(--cruush-gradient)' : '#151021' }}
+          className={`cruush-action-sheen ${sizeClass} shrink-0 rounded-full border-0 text-white disabled:opacity-100 ${canCenterPin ? '' : 'grayscale-[0.35] brightness-75'}`}
+          style={{ background: 'var(--cruush-gradient)' }}
           aria-label={canCenterPin
             ? `Center the map on ${userName}`
             : `${userName} does not share their precise location`}

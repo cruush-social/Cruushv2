@@ -214,12 +214,13 @@ export default function MapProfilePopup({
 
     setOpeningMessage(true);
     try {
-      if (onOpenMessages) {
-        onOpenMessages(user.id);
-        return;
-      }
+      // Opening the thread has to work from every surface, so it always goes
+      // through the same path the messages page uses.
+      const conversationId = await openConversationOrInbox(navigate, user.id);
 
-      await openConversationOrInbox(navigate, user.id);
+      if (conversationId) {
+        onOpenMessages?.(user.id);
+      }
     } finally {
       setOpeningMessage(false);
     }
