@@ -188,7 +188,7 @@ describe('ProfileCard', () => {
     expect(card).toHaveClass('h-full', 'min-h-0', 'max-w-2xl', 'overflow-hidden');
     expect(card).not.toHaveClass('aspect-[4/5]');
     expect(screen.getByTestId('profile-card-media')).toHaveClass('absolute', 'inset-0', 'items-center', 'justify-center');
-    expect(screen.getByRole('img', { name: 'Jordan with a deliberately long display name' })).toHaveClass('h-full', 'w-full', 'object-contain');
+    expect(screen.getByRole('img', { name: 'Jordan with a deliberately long display name' })).toHaveClass('h-full', 'w-full', 'object-cover');
     expect(screen.getByTestId('carousel-profile-glass')).not.toHaveClass('bg-black/60', 'backdrop-blur-xl');
     expect(card).toContainElement(browseAgainButton);
     expect(browseAgainButton).toHaveClass('bg-black/55', 'backdrop-blur-xl');
