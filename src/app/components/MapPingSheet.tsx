@@ -35,6 +35,8 @@ type MapPingSheetProps = {
   onUpgrade?: () => void;
   /** Your own photo, so the demonstration is your pin and not a placeholder. */
   photo?: string | null;
+  /** Lurker Mode keeps you off the map, so a Pulse cannot go out. */
+  lurkerActive?: boolean;
 };
 
 function formatTime(value: string) {
@@ -85,6 +87,7 @@ export default function MapPingSheet({
   onSend,
   onSaveSignal,
   hasCruushPlus = false,
+  lurkerActive = false,
   onUpgrade,
 }: MapPingSheetProps) {
   const [radiusMiles, setRadiusMiles] = useState<MapPingRadiusMiles>(3);
@@ -128,8 +131,10 @@ export default function MapPingSheet({
     activePingTimestamp > now,
   );
   const normalizedSignal = signal?.trim() ?? '';
+  // A Pulse asks people to look at you, which is the opposite of being off the
+  // map, so it stays shut while Lurker Mode is on.
   const sendDisabled = loading || sending || !status || !hasMapLocation || activePing ||
-    !normalizedSignal || status.allowance.remaining < 1 || cooldownActive;
+    !normalizedSignal || status.allowance.remaining < 1 || cooldownActive || lurkerActive;
   const statusText = useMemo(() => {
     if (activePing && status?.activePing) {
       return `Your Ping is active until ${formatTime(status.activePing.expiresAt)}.`;
@@ -257,7 +262,7 @@ export default function MapPingSheet({
         </SheetHeader>
 
         <div className="space-y-4 px-4">
-          <div className="flex items-center gap-4 rounded-xl border border-[#c8ff31]/45 bg-black/45 p-3">
+          <div className="flex items-center gap-5 rounded-xl border border-[#c8ff31]/45 bg-black/45 p-3">
             {/* The real marker, running the real Pulse state, so this is what
                 people actually see rather than an approximation of it. */}
             <span className="flex h-[10.5rem] w-[7.5rem] shrink-0 items-end justify-center overflow-visible">
@@ -279,9 +284,9 @@ export default function MapPingSheet({
                 />
               </span>
             </span>
-            <div className="min-w-0 space-y-1">
+            <div className="min-w-0 space-y-0.5 pl-1">
               <p className="text-sm font-medium text-white">Your heart beats for 30 minutes</p>
-              <p className="text-xs leading-relaxed text-white/62">
+              <p className="text-xs leading-snug text-white/62">
                 Everyone inside your radius sees it beat, your pin rises above the others,
                 you come up more in the carousel, and your signal posts to the feed. Your pin
                 does not move.
@@ -376,7 +381,9 @@ export default function MapPingSheet({
           {/* How many are left and when the next one lands, on one line. */}
           <div className="flex items-center justify-between gap-3 text-sm">
             <p aria-live="polite" className="min-w-0 text-white/65">
-              {!normalizedSignal
+              {lurkerActive
+                ? 'Turn off Lurker Mode to send a Pulse.'
+                : !normalizedSignal
                 ? 'Your Pulse uses the signal saved on your profile.'
                 : hasMapLocation
                   ? statusText
@@ -418,11 +425,13 @@ export default function MapPingSheet({
             <PulseLedIcon className="mr-2 h-7 w-7 text-[#0B1200]" fill="none" />
             {sending
               ? 'Sending Pulse...'
-              : activePing
-                ? 'Pulse active'
-                : cooldownCountdown
-                  ? `Next Pulse in ${cooldownCountdown}`
-                  : 'Send Pulse'}
+              : lurkerActive
+                ? 'Lurker Mode is on'
+                : activePing
+                  ? 'Pulse active'
+                  : cooldownCountdown
+                    ? `Next Pulse in ${cooldownCountdown}`
+                    : 'Send Pulse'}
           </Button>
         </SheetFooter>
       </SheetContent>

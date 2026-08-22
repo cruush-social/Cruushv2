@@ -2797,6 +2797,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
           loading={mapPingStatusLoading}
           hasMapLocation={Boolean(currentUserMapLocation)}
           signal={currentProfile?.signal}
+          lurkerActive={privacySettings.baseMode === 'STEALTH'}
           photo={currentProfile?.photos?.[0] ?? null}
           onSaveSignal={async (signal) => {
             const savedProfile = await saveMyProfile({
