@@ -30,6 +30,12 @@ import { loadBlockedRelationshipUserIds } from "../user-blocks.js";
 import { DEFAULT_MAP_PRESENCE_DAYS } from "../map-presence.js";
 import { DEVELOPMENT_ADMIN_EMAIL } from "../development-admin.js";
 import { distanceMiles, isWithinBetaLaunchArea } from "../beta-access.js";
+
+/**
+ * How far from your own location you may look. Travel Mode moves that location,
+ * so a member visiting another place browses from their pin instead.
+ */
+const DISCOVERY_BROWSE_RADIUS_MILES = 50;
 import { type TravelPin, loadTravelPins } from "../travel-pins.js";
 import { primaryPhotoExplicitSelect } from "../profile-photo-explicit.js";
 import {
@@ -1220,6 +1226,23 @@ export async function registerUserRoutes(app: FastifyInstance) {
 
     const visibleProfiles = realUsers.slice(0, parsedQuery.limit);
     const viewerCoordinates = viewerLocation ? locationPayloadToCoordinates(viewerLocation) : null;
+
+    // You browse the fifty miles around wherever you are. Looking further than
+    // that is what Travel Mode is for, and Travel Mode works by moving where
+    // you are, so this one rule covers both.
+    if (
+      viewerCoordinates &&
+      distanceMiles(viewerCoordinates, { lat: centerLat, lng: centerLng }) > DISCOVERY_BROWSE_RADIUS_MILES
+    ) {
+      return reply.send({
+        data: {
+          mapEpochMs: Date.now(),
+          profiles: [],
+          browseRadiusMiles: DISCOVERY_BROWSE_RADIUS_MILES,
+          outsideBrowseRadius: true
+        }
+      });
+    }
     const activePings = await loadActiveDiscoveryMapPings(
       app,
       visibleProfiles.map((profile) => profile.profileToken)
