@@ -10,6 +10,12 @@ import type { FastifyInstance } from "fastify";
  */
 
 export const TRAVEL_PIN_MOVE_COOLDOWN_MS = 3 * 60 * 60 * 1000;
+/**
+ * A trip, not a residence. The pin lapses on its own after a day so nobody has
+ * to remember to turn it off, and somebody who left a city three weeks ago is
+ * not still standing in it.
+ */
+export const TRAVEL_PIN_LIFETIME_MS = 24 * 60 * 60 * 1000;
 export const TRAVEL_LABEL_MAX_LENGTH = 60;
 
 export type TravelPin = {
@@ -20,6 +26,8 @@ export type TravelPin = {
   setAtMs: number;
   /** When this pin may next be moved. */
   movableAtMs: number;
+  /** When it lapses on its own. */
+  expiresAtMs: number;
 };
 
 type TravelPinRow = {
@@ -39,7 +47,8 @@ function mapTravelPin(row: TravelPinRow): TravelPin {
     longitude: Number(row.longitude),
     label: row.label ?? "",
     setAtMs,
-    movableAtMs: setAtMs + TRAVEL_PIN_MOVE_COOLDOWN_MS
+    movableAtMs: setAtMs + TRAVEL_PIN_MOVE_COOLDOWN_MS,
+    expiresAtMs: setAtMs + TRAVEL_PIN_LIFETIME_MS
   };
 }
 
@@ -48,6 +57,7 @@ export async function getTravelPin(app: FastifyInstance, userId: string): Promis
     `select user_id::text as user_id, latitude, longitude, label, set_at
      from user_travel_pins
      where user_id = $1
+       and set_at > now() - interval '24 hours'
      limit 1`,
     [userId]
   );
@@ -65,7 +75,8 @@ export async function loadTravelPins(app: FastifyInstance, userIds: string[]) {
   const result = await app.db.query<TravelPinRow>(
     `select user_id::text as user_id, latitude, longitude, label, set_at
      from user_travel_pins
-     where user_id = any($1::uuid[])`,
+     where user_id = any($1::uuid[])
+       and set_at > now() - interval '24 hours'`,
     [userIds]
   );
 
