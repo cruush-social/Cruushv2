@@ -183,7 +183,7 @@ describe('GhostModeSettings', () => {
     );
 
     expect(await screen.findByRole('heading', { name: 'Ghost Mode' })).toBeInTheDocument();
-    expect(screen.getByText('Countdown before you move')).toBeInTheDocument();
+    expect(screen.getByText('Countdown animation')).toBeInTheDocument();
 
     const countdownToggle = await screen.findByRole('switch', {
       name: 'Show a countdown before your pin moves',

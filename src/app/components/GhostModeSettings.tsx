@@ -377,7 +377,7 @@ export default function GhostModeSettings() {
           <div className="space-y-3 rounded-lg border border-white/10 bg-white/[0.025] p-4" data-testid="ghost-pulse-setting">
             <div className="flex items-center justify-between gap-4">
               <div>
-                <p>Countdown before you move</p>
+                <p>Countdown animation</p>
                 <p className="text-sm text-muted-foreground">
                   {ghostPulseEnabled ? 'Others can see your last minute' : 'Your pin moves without warning'}
                 </p>
@@ -392,10 +392,7 @@ export default function GhostModeSettings() {
               />
             </div>
             <p className="text-sm text-muted-foreground">
-              Ghost Mode moves your pin to a new spot inside your radius every 15 minutes, counting from when you turned
-              Ghost Mode on. For the last minute before it moves, your pin beats like a heartbeat that speeds up as the
-              time runs out, so anyone looking knows to say something before you go. Turn this off and your pin simply
-              moves, with nothing announcing it first.
+              Your pin beats like a heartbeat through its last minute before moving, so people know to say something before you go.
             </p>
           </div>
 
