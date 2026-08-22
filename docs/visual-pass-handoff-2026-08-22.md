@@ -140,6 +140,39 @@ preferences; breaking them is what gets reverted.
 - Do not add anything nobody asked for. No speculative copy, captions, decoration, or fake
   data.
 
+## The Cruushes page is wrong, and it is the most important note here
+
+Screenshots on 2026-08-22 show the **incoming**, **sent**, and **mutual** tabs all drawing
+the same purple heart border. Purple means mutual. It is the colour that tells someone
+their interest was returned.
+
+An incoming cruush you have not answered is **not** mutual. A sent cruush they have not
+answered is **not** mutual either. Both currently read as though they are, which tells
+people they have a match when they do not. That is a lie about the one thing this page
+exists to report, and it is worse than a layout bug.
+
+The three tabs should also be near-identical to each other in layout and are not. The
+`incoming` rows and the `mutual` rows differ in what they show under the name: mutual
+shows a "Mutual" label and a distance line, incoming shows pronouns and a timestamp. Pick
+one row and use it in all three.
+
+What the colours mean, from the map:
+
+```
+self     #004BFF
+mutual   #6f00ff
+nearby   #FF0072
+```
+
+There is no colour for a one-way cruush yet, and there probably should be. Julien's read:
+"maybe we'll have a new state at some point, a new colour for between states when it's one
+way." Until that exists, a one-way cruush must not use the mutual purple. Use the nearby
+colour, or leave the heart unthemed, but do not claim a match that has not happened.
+
+Files: `src/app/components/CruushActivity.tsx` for the page, `HeartPhoto.tsx` for the
+`theme` prop that picks the border, and `server/src/routes/cruush.ts` if the records do not
+carry enough to tell the states apart.
+
 ## Work worth taking, roughly in order
 
 **1. Frames and zodiac have never been looked at.** Twenty-one frames and twelve glyphs
