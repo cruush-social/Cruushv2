@@ -661,8 +661,9 @@ export default function ProfileView() {
         </div>
       ) : null}
 
-      <div className="mx-auto max-w-2xl px-4 py-5 sm:px-6 sm:py-6">
+      <div className="mx-auto max-w-2xl px-4 pb-5 pt-3 sm:px-6 sm:pb-6 sm:pt-3">
         <div className="space-y-5">
+          {profileView.attendingLaunchParty || (profileView.badges?.length ?? 0) > 0 ? (
           <div className="space-y-3">
             <div>
               <div className="mb-2 text-4xl">
@@ -686,6 +687,7 @@ export default function ProfileView() {
             </div>
 
           </div>
+          ) : null}
 
           <ProfileDetailsTabs
             activeTab={activeTab}
