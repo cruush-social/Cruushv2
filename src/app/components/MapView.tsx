@@ -1472,7 +1472,7 @@ export function MapMarkerPin({ marker, previewed = false }: { marker: MapMarker;
                 data-testid={`marker-signal-stack-${marker.id}`}
               >
                 <span
-                  className="rounded-full border border-[3.2px] bg-black/86 px-3 py-1 text-center text-[0.7rem] font-semibold leading-tight text-white backdrop-blur-md"
+                  className={`rounded-full border border-[3.2px] bg-black/86 px-3 py-1 text-center text-[0.7rem] font-semibold leading-tight text-white backdrop-blur-md ${pingActive ? 'cruush-ping-signal-trace' : ''}`}
                   data-testid={`marker-signal-badge-${marker.id}`}
                   style={{
                     backgroundColor: 'rgba(0, 0, 0, var(--cruush-ghost-surface-alpha, 0.86))',

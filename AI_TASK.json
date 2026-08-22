@@ -163,7 +163,8 @@
     "src/app/components/PulseLedIcon.tsx",
     "server/src/map-pings.ts",
     "src/app/lib/profileLimits.ts",
-    "src/app/components/BadgePickerPreview.tsx"
+    "src/app/components/BadgePickerPreview.tsx",
+    "src/app/components/PulseEffectPreview.tsx"
   ],
   "preserved": [
     "Preserve the trust gate on feed posting: trust_score above 20, no active suspension, no feature_restrictions row for feed_posting.",
@@ -201,7 +202,7 @@
     "The share of accounts holding cruush+ is unknown. No database count was run.",
     "No environment variables were added, removed, or changed by this task."
   ],
-  "task": "Side badge picker mockup",
+  "task": "Pulse ekg effects preview",
   "publicationTarget": "origin/main and production",
   "environmentChanges": "none"
 }
