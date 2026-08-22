@@ -9,7 +9,7 @@ import {
   type MapPingStatus,
 } from '../lib/mapPingsApi';
 import { Button } from './ui/button';
-import { Textarea } from './ui/textarea';
+import { Input } from './ui/input';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 import CruushPlusGateNotice from './CruushPlusGateNotice';
 import {
@@ -260,8 +260,8 @@ export default function MapPingSheet({
           <div className="flex items-center gap-4 rounded-xl border border-[#c8ff31]/45 bg-black/45 p-3">
             {/* The real marker, running the real Pulse state, so this is what
                 people actually see rather than an approximation of it. */}
-            <span className="flex h-[9.5rem] w-36 shrink-0 items-center justify-center overflow-hidden">
-              <span className="block origin-center scale-[0.72]" data-testid="map-ping-preview-heart">
+            <span className="flex h-[9.5rem] w-36 shrink-0 items-end justify-center overflow-hidden pb-0">
+              <span className="block origin-bottom scale-[0.72]" data-testid="map-ping-preview-heart">
                 <MapMarkerPin
                   marker={{
                     id: 'pulse-preview',
@@ -310,11 +310,13 @@ export default function MapPingSheet({
 
             {editingSignal && onSaveSignal ? (
               <div className="mt-2 space-y-2">
-                <Textarea
+                {/* One line only. A signal never wraps, so the field never
+                    accepts a second line. */}
+                <Input
                   aria-label="Your signal"
-                  className="min-h-[64px] bg-input-background"
+                  className="bg-input-background"
                   maxLength={SIGNAL_MAX_LENGTH}
-                  onChange={(event) => setSignalDraft(event.target.value)}
+                  onChange={(event) => setSignalDraft(event.target.value.replace(/\s+/g, ' '))}
                   value={signalDraft}
                 />
                 <div className="flex justify-end gap-2">
