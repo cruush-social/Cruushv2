@@ -97,7 +97,9 @@ const DEFAULT_FEED_SETTINGS: FeedSettings = {
   feedWindow: '7d',
 };
 const CRUUSH_PLUS_FEED_NOTICE_KEY = 'cruush:feed-cruush-plus-notice-dismissed';
-const feedVibeTagBaseClassName = 'w-full min-w-0 max-w-full shrink truncate rounded-full border px-1 py-0.5 text-center text-[11px] uppercase leading-tight tracking-[0.06em]';
+// The vibe tags sit in a horizontal wrap under the post, not in a fixed-width
+// rail beside it, so they size to their own text instead of truncating.
+const feedVibeTagBaseClassName = 'min-w-0 max-w-full rounded-full border px-2 py-0.5 text-[11px] uppercase leading-tight tracking-[0.06em]';
 const mutualFeedVibeTagClassName = `${feedVibeTagBaseClassName} border-[#6F00FF]/55 bg-[#6F00FF]/12 text-[#DCC7FF]`;
 const ownFeedVibeTagClassName = `${feedVibeTagBaseClassName} border-[#3826FF]/62 bg-[#3826FF]/20 text-[#C3D0FF]`;
 const nearbyFeedVibeTagClassName = `${feedVibeTagBaseClassName} border-[#FF0072]/55 bg-[#FF0072]/16 text-[#FFB3D2]`;
@@ -121,6 +123,9 @@ export default function LocalFeed({ embedded = false }: { embedded?: boolean } =
   const navigate = useNavigate();
   const location = useLocation();
   const [newPost, setNewPost] = useState('');
+  // The composer stays a single row until it is opened. Expanded it takes a
+  // third of a phone screen, which pushed the first post below the fold.
+  const [composerOpen, setComposerOpen] = useState(false);
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [expiresIn, setExpiresIn] = useState<FeedPostExpiry>('never');
   const [loading, setLoading] = useState(true);
@@ -183,8 +188,13 @@ export default function LocalFeed({ embedded = false }: { embedded?: boolean } =
       return;
     }
 
-    composerInputRef.current?.scrollIntoView?.({ block: 'center' });
-    composerInputRef.current?.focus();
+    setComposerOpen(true);
+    // The textarea only exists once the composer is open, so focus it after
+    // this open has painted rather than in the same frame.
+    requestAnimationFrame(() => {
+      composerInputRef.current?.scrollIntoView?.({ block: 'center' });
+      composerInputRef.current?.focus();
+    });
   }, [canPost, location.search]);
 
   const fetchPosts = useCallback(async (options: {
@@ -526,6 +536,59 @@ export default function LocalFeed({ embedded = false }: { embedded?: boolean } =
               </section>
 
               <section className="rounded-lg border border-white/10 bg-black/42 p-3">
+                <p className="mb-2 text-sm font-semibold text-white">Your posts expire</p>
+                <div className="grid grid-cols-5 gap-2">
+                  {FEED_EXPIRY_OPTIONS.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      className={[
+                        'h-10 rounded-full border text-sm font-semibold transition',
+                        expiresIn === option.value
+                          ? 'border-white/15 text-white'
+                          : 'border-white/10 bg-black/40 text-white/72 hover:bg-white/8',
+                      ].join(' ')}
+                      style={expiresIn === option.value ? { background: 'var(--cruush-gradient)' } : undefined}
+                      aria-pressed={expiresIn === option.value}
+                      disabled={!feedSettingsLoaded}
+                      onClick={() => void handleFeedExpiryChange(option.value)}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </section>
+
+              {availableCrowdTargets.length > 0 ? (
+                <section className="rounded-lg border border-white/10 bg-black/42 p-3">
+                  <p className="text-sm font-semibold text-white">Post to crowds</p>
+                  <p className="mt-1 mb-2 text-xs text-white/58">Leave all off to post to everyone nearby.</p>
+                  <div className="flex flex-wrap gap-2">
+                    {availableCrowdTargets.map((crowd) => {
+                      const selected = selectedCrowdTargets.includes(crowd);
+                      return (
+                        <button
+                          key={crowd}
+                          type="button"
+                          className={[
+                            'h-10 rounded-full border px-4 text-sm font-semibold transition',
+                            selected
+                              ? 'border-[#03ecfc]/55 bg-[#03ecfc]/14 text-[#c9fbff] hover:bg-[#03ecfc]/20'
+                              : 'border-white/10 bg-black/40 text-white/72 hover:bg-white/8',
+                          ].join(' ')}
+                          aria-pressed={selected}
+                          disabled={!canPost}
+                          onClick={() => toggleCrowdTarget(crowd)}
+                        >
+                          {crowd}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
+              ) : null}
+
+              <section className="rounded-lg border border-white/10 bg-black/42 p-3">
                 <div className="mb-2 flex items-center justify-between gap-3">
                   <p className="text-sm font-semibold text-white">Distance</p>
                   <span className="rounded-full border border-white/10 bg-black/55 px-2.5 py-1 text-xs text-white/70">
@@ -534,7 +597,7 @@ export default function LocalFeed({ embedded = false }: { embedded?: boolean } =
                 </div>
                 <input
                   aria-label="Feed distance radius"
-                  className="w-full accent-primary"
+                  className="cruush-range"
                   max={15}
                   min={1}
                   step={1}
@@ -546,8 +609,8 @@ export default function LocalFeed({ embedded = false }: { embedded?: boolean } =
 
               <section className="flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-black/42 p-3">
                 <div>
-                  <p className="text-sm font-semibold text-white">Distance labels</p>
-                  <p className="mt-1 text-xs text-white/58">Show broad ranges like 1-3 mi.</p>
+                  <p className="text-sm font-semibold text-white">Distances on posts</p>
+                  <p className="mt-1 text-xs text-white/58">Show how far away each post is when you read your feed. Ghost Mode posts always read Nearby.</p>
                 </div>
                 <Switch
                   checked={feedSettings.showDistanceLabels !== false}
@@ -595,6 +658,27 @@ export default function LocalFeed({ embedded = false }: { embedded?: boolean } =
               {error}
             </div>
           ) : null}
+          {!composerOpen ? (
+            <button
+              type="button"
+              className="bg-input-background flex w-full items-center gap-3 rounded-md border border-white/10 px-3 py-2 text-left text-sm text-muted-foreground transition-colors hover:bg-white/5"
+              data-testid="local-feed-composer-open"
+              onClick={() => {
+                setComposerOpen(true);
+                requestAnimationFrame(() => composerInputRef.current?.focus());
+              }}
+            >
+              <CruushIcon name="send" className="h-4 w-4 shrink-0 opacity-70" />
+              <span className="min-w-0 flex-1 truncate">
+                {billingStatus === null
+                  ? 'Checking cruush+ access...'
+                  : canPost
+                    ? 'Share something with nearby people...'
+                    : 'Unlock feed posting with cruush+.'}
+              </span>
+            </button>
+          ) : null}
+          <div className={composerOpen ? undefined : 'hidden'}>
           <Textarea
             ref={composerInputRef}
             value={newPost}
@@ -628,40 +712,9 @@ export default function LocalFeed({ embedded = false }: { embedded?: boolean } =
               </div>
             </div>
           ) : null}
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex flex-wrap items-center gap-2">
-              {FEED_EXPIRY_OPTIONS.map((option) => (
-                <Button
-                  key={option.value}
-                  variant={expiresIn === option.value ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => void handleFeedExpiryChange(option.value)}
-                  disabled={!feedSettingsLoaded}
-                >
-                  {option.label}
-                </Button>
-              ))}
-              {availableCrowdTargets.length > 0 ? (
-                <div className="ml-0 flex flex-wrap items-center gap-2 sm:ml-2">
-                  {availableCrowdTargets.map((crowd) => {
-                    const selected = selectedCrowdTargets.includes(crowd);
-                    return (
-                      <Button
-                        key={crowd}
-                        type="button"
-                        variant={selected ? 'default' : 'outline'}
-                        size="sm"
-                        className={selected ? 'border-[#03ecfc]/55 bg-[#03ecfc]/14 text-[#c9fbff] hover:bg-[#03ecfc]/20' : undefined}
-                        onClick={() => toggleCrowdTarget(crowd)}
-                        disabled={!canPost}
-                      >
-                        {crowd}
-                      </Button>
-                    );
-                  })}
-                </div>
-              ) : null}
-            </div>
+          {/* Expiry and crowd targeting live in the feed settings menu now, so
+              the composer is the textarea and the Post button. */}
+          <div className="flex items-center justify-end gap-3">
             <Button
               onClick={handlePost}
               disabled={!canPost || !newPost.trim() || posting}
@@ -674,6 +727,7 @@ export default function LocalFeed({ embedded = false }: { embedded?: boolean } =
               <CruushIcon name="send" className="mr-2 h-4 w-4" />
               {posting ? 'Posting...' : 'Post'}
             </Button>
+          </div>
           </div>
         </div>
 
@@ -696,7 +750,7 @@ export default function LocalFeed({ embedded = false }: { embedded?: boolean } =
                 <div key={post.id} className="rounded-2xl border border-white/10 bg-black/72 p-4 transition-colors hover:bg-black/86">
                   <div className="flex items-start gap-3">
                     <div
-                      className="-mt-2 flex w-20 flex-shrink-0 flex-col items-center gap-1"
+                      className="-mt-2 flex w-14 flex-shrink-0 flex-col items-center"
                       data-testid={`feed-post-profile-stack-${post.id}`}
                     >
                       <HeartPhoto
@@ -709,22 +763,6 @@ export default function LocalFeed({ embedded = false }: { embedded?: boolean } =
                         onClick={() => navigate(`/profile/${post.user.id}`)}
                         fallback={<CruushIcon name="cruush" className="h-5 w-5 opacity-20" />}
                       />
-                      {post.user.vibes?.length ? (
-                        <div
-                          className="flex w-full flex-col items-center gap-1"
-                          data-testid={`feed-post-vibes-${post.id}`}
-                        >
-                          {post.user.vibes.slice(0, 3).map((vibe) => (
-                            <span
-                              key={vibe}
-                              className={currentUserId && post.user.id === currentUserId ? ownFeedVibeTagClassName : mutualAuthor ? mutualFeedVibeTagClassName : nearbyFeedVibeTagClassName}
-                              title={vibe}
-                            >
-                              {vibe}
-                            </span>
-                          ))}
-                        </div>
-                      ) : null}
                     </div>
 
                     <div className="min-w-0 flex-1 space-y-2">
@@ -751,20 +789,24 @@ export default function LocalFeed({ embedded = false }: { embedded?: boolean } =
                               <img alt="" aria-hidden="true" className="h-5 w-5 drop-shadow-[0_4px_10px_rgba(0,0,0,0.45)]" src={partyHatIcon} />
                             </button>
                           ) : null}
-                        </div>
-                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-white/52" data-testid={`feed-post-meta-${post.id}`}>
-                          {feedSettings.showDistanceLabels !== false ? (
+                          {/* Distance, age and expiry ride the name line rather
+                              than claiming a second row of their own. */}
+                          <div className="flex shrink-0 items-center gap-x-2 text-xs text-white/52" data-testid={`feed-post-meta-${post.id}`}>
+                            {feedSettings.showDistanceLabels !== false ? (
+                              <span className="flex items-center gap-1">
+                                <CruushIcon name="map" className="h-3 w-3 opacity-70" />
+                                {post.distance}
+                              </span>
+                            ) : null}
+                            <span>{formatRelativeTime(post.createdAt)}</span>
                             <span className="flex items-center gap-1">
-                              <CruushIcon name="map" className="h-3 w-3 opacity-70" />
-                              {post.distance}
+                              <Clock className="w-3 h-3" />
+                              {formatFeedExpiry(post.expiresIn)}
                             </span>
-                          ) : null}
-                          <span>{formatRelativeTime(post.createdAt)}</span>
-                          <span className="flex items-center gap-1">
-                            <Clock className="w-3 h-3" />
-                            {formatFeedExpiry(post.expiresIn)}
-                          </span>
-                          <div className="ml-auto flex items-center gap-2">
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-end">
+                          <div className="flex items-center gap-2">
                             {post.locationPin ? (
                               <Button
                                 type="button"
@@ -816,6 +858,23 @@ export default function LocalFeed({ embedded = false }: { embedded?: boolean } =
                       </div>
 
                       <p className="text-sm">{post.content}</p>
+
+                      {post.user.vibes?.length ? (
+                        <div
+                          className="flex flex-wrap items-center gap-1"
+                          data-testid={`feed-post-vibes-${post.id}`}
+                        >
+                          {post.user.vibes.slice(0, 3).map((vibe) => (
+                            <span
+                              key={vibe}
+                              className={currentUserId && post.user.id === currentUserId ? ownFeedVibeTagClassName : mutualAuthor ? mutualFeedVibeTagClassName : nearbyFeedVibeTagClassName}
+                              title={vibe}
+                            >
+                              {vibe}
+                            </span>
+                          ))}
+                        </div>
+                      ) : null}
                     </div>
                   </div>
                 </div>

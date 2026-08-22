@@ -385,7 +385,7 @@ function ProfilePhotoCropper({
             <Label htmlFor="profile-photo-zoom">Zoom</Label>
             <input
               aria-label="Zoom profile photo"
-              className="w-full accent-primary"
+              className="cruush-range"
               id="profile-photo-zoom"
               max="2.5"
               min="1"

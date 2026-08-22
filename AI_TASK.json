@@ -1,16 +1,23 @@
 {
   "status": "active",
-  "job": "Fix the release script's false-positive Coolify config drift check. Coolify's REST API does not return the include-source-commit and inject-build-args toggles, so the script read them as absent, treated absent as disabled, and aborted the production release even though both toggles were enabled in the dashboard.",
+  "job": "Hand off the unfinished feed layout and settings pass. Commit the in-progress work so it is not lost, and document what is done, what is red, what was never rendered, and the questions that need Julien before anyone continues.",
   "allowedPaths": [
     "AI_TASK.json",
-    "scripts/release-main-coolify.mjs"
+    "docs/plans/2026-08-22-feed-layout-handoff.md",
+    "src/app/components/AlphaBugButton.tsx",
+    "src/app/components/LocalFeed.tsx",
+    "src/app/components/LocalFeed.test.tsx",
+    "src/app/components/ProfileEdit.tsx",
+    "src/styles/theme.css"
   ],
-  "forbiddenPaths": [],
+  "forbiddenPaths": [
+    "HANDOFF.md"
+  ],
   "publicationTarget": "branch feat/ghost-pin-flash-animation on origin",
   "requiredEvidence": [
-    "Read both toggles live in the Coolify dashboard for cruush-api: injectBuildArgsToDockerfile=true and includeSourceCommitInBuild=true, so the reported drift was not real.",
-    "Queried the Coolify REST application object: neither field is present under any of the four name variants the script probes, so findValueByNames returns undefined.",
-    "Replayed the script's own assertion logic against the live API response: old logic reports drift, new logic reports none.",
-    "Production is healthy on the deployed commit: api.cruush.app/api/build returns sha 58e7616 stage production, health ok."
+    "vite build passes and tsc -p server/tsconfig.json passes on this tree.",
+    "Five LocalFeed tests are red and are named in the handoff document, with the reason and the fix approach. They are not deleted.",
+    "No change in this commit has been rendered in a browser; the feed needs the local API on port 5173, which another chat held all session.",
+    "Baseline measurements that motivated the layout work were taken on production at 390x844 via getBoundingClientRect, not estimated."
   ]
 }

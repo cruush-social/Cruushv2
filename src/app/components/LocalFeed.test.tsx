@@ -417,7 +417,8 @@ describe('LocalFeed', () => {
 
     const preview = await screen.findByRole('img', { name: 'River preview' });
     expect(preview.parentElement).toHaveClass('w-full');
-    expect(screen.getByTestId('feed-post-profile-stack-post-other')).toHaveClass('-mt-2', 'w-20', 'flex-col');
+    // The rail holds only the avatar now; vibes moved into the post column.
+    expect(screen.getByTestId('feed-post-profile-stack-post-other')).toHaveClass('-mt-2', 'w-14', 'flex-col');
     expect(screen.getByTestId('feed-post-author-post-other')).toHaveClass('min-w-0', 'flex-1', 'truncate');
     expect(screen.getByTestId('feed-post-author-post-other')).not.toHaveClass('max-w-[32%]');
     expect(within(screen.getByTestId('feed-post-vibes-post-other')).getAllByTitle(/Chill|Geek|Service/).map((tag) => tag.textContent))
