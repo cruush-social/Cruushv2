@@ -1510,7 +1510,7 @@ describe('MapHome', () => {
       'gap-0',
       'px-1',
       'py-1',
-      'bg-background/68',
+      'bg-background/25',
       'sm:gap-0.5',
       'sm:px-1.5',
     );
