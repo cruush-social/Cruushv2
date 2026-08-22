@@ -602,3 +602,16 @@ These are not preferences. Breaking one is a bug.
 ### Notifications
 - One action only: mark all as read. There is no separate clear or delete
   control; the two read as the same thing.
+
+### Page headers
+- A page header is **one line**: back control, title, and icon controls all sit
+  on the same row, at every width, in a full page or in a dock panel. Sizes may
+  shrink; the row never wraps and the title never moves to its own line.
+- The title truncates before the row wraps.
+
+### Ping and Pulse
+- Ping green (`#C8FF31`) is a **border and an icon colour**, never a fill. The
+  surface stays grey or black.
+- The one exception is the send control itself, which is filled green and picks
+  up the hover sheen.
+- The sheet floats above the bottom nav. Nothing opens behind it.

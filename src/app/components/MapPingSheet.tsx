@@ -178,12 +178,12 @@ export default function MapPingSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="bottom"
-        className="max-h-[calc(100dvh-1rem)] overflow-y-auto rounded-t-2xl border-white/10 bg-background/96 pb-[calc(1rem+env(safe-area-inset-bottom))] backdrop-blur-xl sm:left-1/2 sm:bottom-4 sm:max-w-lg sm:-translate-x-1/2 sm:rounded-2xl sm:border"
+        className="z-[80] max-h-[calc(100dvh-1rem)] overflow-y-auto rounded-t-2xl border-white/10 bg-background/96 pb-[calc(7rem+env(safe-area-inset-bottom))] backdrop-blur-xl sm:left-1/2 sm:bottom-4 sm:max-w-lg sm:-translate-x-1/2 sm:rounded-2xl sm:border sm:pb-[calc(1.5rem+env(safe-area-inset-bottom))]"
         data-testid="map-ping-sheet"
       >
         <SheetHeader className="pr-10">
           <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#c8ff31]/45 bg-[#c8ff31]/12 text-[#c8ff31]">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#c8ff31]/70 bg-transparent text-[#c8ff31]">
               <Radio aria-hidden="true" className="h-5 w-5" />
             </span>
             <div>
@@ -232,8 +232,7 @@ export default function MapPingSheet({
                   </Button>
                   <Button
                     type="button"
-                    className="h-9 rounded-full font-semibold text-[#0B1200]"
-                    style={{ background: '#c8ff31' }}
+                    className="h-9 rounded-full border border-[#c8ff31]/70 bg-black/45 font-semibold text-white"
                     disabled={savingSignal}
                     onClick={() => {
                       setSavingSignal(true);
@@ -265,7 +264,7 @@ export default function MapPingSheet({
             >
               {MAP_PING_RADII_MILES.map((radius) => (
                 <label
-                  className="flex min-h-12 cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-white/10 bg-white/[0.035] px-1 py-2 text-center text-xs text-white/72 has-[[data-state=checked]]:border-[#c8ff31]/70 has-[[data-state=checked]]:bg-[#c8ff31]/14 has-[[data-state=checked]]:text-white"
+                  className="flex min-h-12 cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-white/10 bg-white/[0.035] px-1 py-2 text-center text-xs text-white/72 has-[[data-state=checked]]:border-[#c8ff31] has-[[data-state=checked]]:text-white"
                   key={radius}
                 >
                   <RadioGroupItem className="border-[#c8ff31]/55 text-[#c8ff31] focus-visible:ring-[#c8ff31]/40" value={String(radius)} aria-label={`${radius} ${radius === 1 ? 'mile' : 'miles'}`} />
@@ -283,7 +282,7 @@ export default function MapPingSheet({
                 : 'Share your map location before sending a Ping.'}
           </p>
           {cooldownCountdown && status?.allowance.nextEligibleAt ? (
-            <div className="flex items-center justify-between gap-3 rounded-xl border border-[#c8ff31]/25 bg-[#c8ff31]/[0.08] px-3 py-2.5 text-sm">
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-[#c8ff31]/60 bg-black/45 px-3 py-2.5 text-sm">
               <span className="text-white/65">Next Ping in</span>
               <time
                 aria-label="Ping cooldown"
@@ -312,7 +311,7 @@ export default function MapPingSheet({
         <SheetFooter>
           <Button
             type="button"
-            className="h-11 rounded-full font-semibold text-[#0B1200] disabled:text-white/45"
+            className="cruush-action-sheen h-11 rounded-full font-semibold text-[#0B1200] disabled:text-white/45"
             disabled={sendDisabled}
             onClick={() => void handleSend()}
             style={{ background: sendDisabled ? undefined : '#c8ff31' }}
