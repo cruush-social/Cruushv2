@@ -154,7 +154,10 @@
     "src/app/components/ProfilePhotoGallery.tsx",
     "server/src/routes/posts.ts",
     "HANDOFF.md",
-    "docs/plans/2026-08-22-free-feed-handoff.md"
+    "docs/plans/2026-08-22-free-feed-handoff.md",
+    "server/src/dev-seed-profiles.ts",
+    "server/src/dev-seed-profiles.test.ts",
+    "src/app/components/FeedPhotoPreview.tsx"
   ],
   "preserved": [
     "Preserve the trust gate on feed posting: trust_score above 20, no active suspension, no feature_restrictions row for feed_posting.",
@@ -192,7 +195,7 @@
     "The share of accounts holding cruush+ is unknown. No database count was run.",
     "No environment variables were added, removed, or changed by this task."
   ],
-  "task": "Spinning model logo, strobe login background, incoming double heart, always visible pin control",
+  "task": "Ghost rotation moves visibly, seeded galleries, feed photo preview page",
   "publicationTarget": "origin/main and production",
   "environmentChanges": "none"
 }
