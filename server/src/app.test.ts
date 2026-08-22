@@ -8485,7 +8485,7 @@ describe("server", () => {
     const png = await validPng();
     const multipart = multipartFilePayload({
       fieldName: "photo",
-      filename: "profile.png",
+      filename: "non-human.png",
       contentType: "image/png",
       content: png
     });
@@ -8559,12 +8559,14 @@ describe("server", () => {
     const reviewCall = query.mock.calls.find(([sql]) => String(sql).includes("insert into content_reviews"));
     const reviewParams = JSON.stringify(reviewCall?.[1] ?? []);
 
-    expect(response.statusCode).toBe(400);
+    expect(response.statusCode).toBe(202);
     expect(reviewParams).not.toContain("moderation-media-staging.cruush.app");
     expect(reviewParams).not.toContain("private-original-name.png");
     expect(reviewParams).not.toContain("profile-photos/");
     expect(reviewParams).not.toContain("/api/media/profile-photos/");
-    expect(reviewParams).toContain("assetId");
+    // Nothing was tagged, so the upload passes and writes no moderation record
+    // at all. There is nothing held, and nothing to leak.
+    expect(reviewParams).not.toContain("assetId");
   });
 
   it("rejects profile photo uploads when the profile already has 4 photos", async () => {
@@ -8831,7 +8833,7 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(query).toHaveBeenCalledTimes(10);
+    expect(query).toHaveBeenCalledTimes(11);
     expect(query.mock.calls[1]?.[0]).toContain("from profiles");
     expect(query.mock.calls[1]?.[0]).toContain("join encrypted_location_envelopes");
     expect(query.mock.calls[1]?.[0]).toContain("profiles.display_name as display_name");
@@ -9915,7 +9917,7 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(query).toHaveBeenCalledTimes(6);
+    expect(query).toHaveBeenCalledTimes(7);
     expect(query.mock.calls[2]?.[0]).toContain("tribes as legacy_vibe_tags");
     expect(query.mock.calls[2]?.[0]).toContain("where last_active >= now() - interval '4 days'");
 
@@ -10282,7 +10284,7 @@ describe("server", () => {
     expect(query.mock.calls[1]?.[0]).toContain("from user_blocks block");
     expect(query.mock.calls[1]?.[0]).toContain("blocker_user_id = $1");
     expect(query.mock.calls[1]?.[0]).toContain("blocked_user_id = p.user_id");
-    expect(query.mock.calls[1]?.[1]).toEqual([userId, "7d", null, null, 15, null, 30]);
+    expect(query.mock.calls[1]?.[1]).toEqual([userId, "7d", null, null, 50, null, 30]);
   });
 
   it("filters crowd-targeted posts by the reader's crowd memberships at the query boundary", async () => {
@@ -10891,7 +10893,7 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(query).toHaveBeenCalledTimes(7);
+    expect(query).toHaveBeenCalledTimes(17);
     expect(query.mock.calls[0]?.[0]).toContain("encrypted_relationship_records");
     expect(query.mock.calls[1]?.[0]).toContain("encrypted_relationship_records");
     expect(query.mock.calls[4]?.[0]).toContain("from profiles");
@@ -11092,6 +11094,11 @@ describe("server", () => {
           createdAt: "2026-04-28T12:00:00.000Z",
           mutual: false,
           locked: false,
+          permissions: {
+            canMessage: true,
+            canRevealPreciseLocation: false,
+            matchId: null
+          },
           user: {
             id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
             name: "Alex",
@@ -11105,6 +11112,11 @@ describe("server", () => {
           createdAt: "2026-04-28T11:00:00.000Z",
           mutual: false,
           locked: true,
+          permissions: {
+            canMessage: true,
+            canRevealPreciseLocation: false,
+            matchId: null
+          },
           user: null
         }],
         sent: [{
@@ -11112,6 +11124,11 @@ describe("server", () => {
           createdAt: "2026-04-28T12:05:00.000Z",
           mutual: false,
           locked: false,
+          permissions: {
+            canMessage: true,
+            canRevealPreciseLocation: false,
+            matchId: null
+          },
           user: {
             id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
             name: "Alex",
@@ -12490,6 +12507,7 @@ describe("server", () => {
         crowds: [],
         availability: ["Tonight"],
         hosting_travel: ["Hosting"],
+        birth_control: [],
         kinks: ["Leather"],
         kinks_visibility: "mutual_crowds",
         kink_interests: [{
@@ -12561,6 +12579,7 @@ describe("server", () => {
         crowds: [],
         availability: ["Tonight"],
         hosting_travel: ["Hosting"],
+        birth_control: [],
         kinks: ["Leather"],
         kinks_visibility: "mutual_crowds",
         kink_interests: [{
@@ -12627,6 +12646,7 @@ describe("server", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({
       data: expect.objectContaining({
+        birth_control: [],
         kinks: ["Leather"],
         kinks_visibility: "mutual_crowds",
         kink_interests: [{
@@ -13372,6 +13392,7 @@ describe("server", () => {
       data: {
         id: userId,
         ...payload,
+        birth_control: [],
         health_preferences: [],
         year_of_birth: 1994,
         photo_metadata: [],

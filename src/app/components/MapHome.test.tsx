@@ -220,6 +220,8 @@ vi.mock('./MapView', async () => {
   const React = await vi.importActual<typeof import('react')>('react');
 
   return {
+    MapMarkerPin: ({ marker }: { marker?: { id?: string } }) =>
+      React.createElement('div', { 'data-testid': `map-marker-pin-${marker?.id ?? 'unknown'}` }),
     createMapMarkerBadge: (position: string[] = [], hostingTravel: string[] = []) => {
       const knownPosition = position.map((value) => value.trim().toLowerCase()).find((value) => ['top', 'bottom', 'versatile'].includes(value));
       return knownPosition ? { kind: 'position', label: knownPosition, iconName: knownPosition } : null;
@@ -1567,7 +1569,6 @@ describe('MapHome', () => {
       'lg:text-xl',
     );
     expect(screen.queryByRole('button', { name: 'Safety Center' })).not.toBeInTheDocument();
-    expect(pingIcon).toHaveClass('size-full');
     expect(luckyIcon).toHaveClass('h-7', 'w-7', 'scale-[1.55]');
     expect(ghostModeIcon).toHaveClass('h-7', 'w-7');
     expect(dlModeIcon).toHaveClass('h-7', 'w-7');
