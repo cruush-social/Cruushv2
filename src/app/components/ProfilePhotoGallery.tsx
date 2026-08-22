@@ -9,7 +9,6 @@ import { getProfileGradientCss } from '../lib/profileGradient';
 import type { ProfilePhotoMetadata } from '../lib/profileApi';
 import type { HeartPinTheme } from '../lib/heartPin';
 import cruushIconWhite from '../assets/ui-icons/cruush-white.png';
-import ReportAction from './ReportAction';
 
 interface ProfilePhotoGalleryProps {
   fitViewport?: boolean;
@@ -105,18 +104,6 @@ export default function ProfilePhotoGallery({
           <CruushIconImage src={cruushIconWhite} className="h-24 w-24 opacity-15" />
         </div>
       )}
-
-      {activePhoto && reportTargetUserId ? (
-        <div className="absolute bottom-3 left-3 rounded-full bg-black/55 backdrop-blur-sm">
-          <ReportAction
-            targetType="profile_photo"
-            targetId={activePhoto}
-            targetUserId={reportTargetUserId}
-            targetLabel={`photo ${activeIndex + 1} from ${name}`}
-            label="Report this profile photo"
-          />
-        </div>
-      ) : null}
 
       {previewPhotos.length > 0 ? (
         <div

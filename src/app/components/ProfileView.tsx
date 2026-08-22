@@ -575,7 +575,8 @@ export default function ProfileView() {
                 {revokingCruush ? (isAlreadyMutual ? 'removing...' : 'unsending...') : isAlreadyMutual ? 'remove mutual' : hasSentCruush ? 'unsend' : sendingCruush ? 'sending...' : 'cruush'}
               </Button>
               <Button
-                className="cruush-action-sheen flex-1 rounded-xl border border-[#6F00FF]/55 bg-[var(--cruush-gradient-soft-18)] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
+                className="cruush-action-sheen flex-1 rounded-xl border border-[#6F00FF]/55 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
+                style={{ background: 'var(--cruush-gradient-soft-28), #0A0A12' }}
                 onClick={() => {
                   void handleMessage();
                 }}
