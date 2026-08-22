@@ -2611,11 +2611,12 @@ export default function MapHome(_props: MapHomeProps = {}) {
             data-tutorial-target="ping"
             aria-label="Send a Pulse"
             title="Send a Pulse"
-            className={`size-12 shrink-0 rounded-full border border-[#c8ff31]/45 text-[#c8ff31] backdrop-blur-md hover:bg-[#c8ff31]/15 sm:size-[3.25rem] lg:size-14 [&_svg]:!h-[64%] [&_svg]:!w-[64%] ${
-              mapPingStatus?.activePing ? 'bg-[#c8ff31]/18' : 'bg-background/45'
+            className={`size-11 shrink-0 rounded-full border-0 text-[#c8ff31] backdrop-blur-md hover:brightness-125 sm:size-12 lg:size-[3.25rem] [&_svg]:!h-full [&_svg]:!w-full ${
+              mapPingStatus?.activePing ? 'bg-[#c8ff31]/16' : 'bg-black/35'
             }`}
           >
-            <PulseLedIcon ring={false} />
+            {/* The mark draws its own ring, the way it does on the Send control. */}
+            <PulseLedIcon />
           </Button>
 
           <div

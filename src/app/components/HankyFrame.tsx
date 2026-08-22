@@ -44,20 +44,44 @@ export const HANKY_COLORS: HankyColor[] = [
 ];
 
 /**
- * The bandana laid out as a diamond, the way it looks flat: the field in its
- * colour, a paisley band inset from the edges, and a few loose paisley drops in
- * the middle. At badge size the detail reads as texture rather than as pattern,
- * which is the point. Anyone who knows the code reads the colour.
+ * A bandana, on the diagonal the way it hangs, reduced to what still reads at
+ * the size of a badge chip: the colour, a paisley band inset from the edges,
+ * and a couple of loose drops in the field.
+ *
+ * The band is drawn as actual paisley commas rather than beads. A dashed line
+ * reads as a dashed line, and the whole point of a hanky is that it looks like
+ * a hanky.
  */
 
-/** One paisley drop, drawn at the origin and placed by transform. */
-const PAISLEY = 'M0 0c3 0 5 2.1 5 4.9 0 3-2.4 5.1-5.5 5.1-1.6 0-2.7-.9-2.7-2.1 0-1 .6-1.6 1.5-1.6';
+/** The paisley comma: a teardrop that curls back on itself. */
+const PAISLEY_COMMA = 'M0 0c2.7-.2 4.6 1.5 4.9 3.9.3 2.7-1.6 4.8-4.4 5-1.6.1-2.8-.7-2.9-1.9-.1-1 .5-1.7 1.4-1.8';
 
-function Paisley({ x, y, rotate, scale = 1 }: { x: number; y: number; rotate: number; scale?: number }) {
+function Paisley({ x, y, rotate, scale = 1, opacity = 0.95, seed = false }: {
+  x: number;
+  y: number;
+  rotate: number;
+  scale?: number;
+  opacity?: number;
+  /** The dot inside the curl, which is what makes it read as paisley. */
+  seed?: boolean;
+}) {
   return (
-    <g transform={`translate(${x} ${y}) rotate(${rotate}) scale(${scale})`}>
-      <path d={PAISLEY} fill="none" stroke="rgba(255,255,255,0.9)" strokeWidth="1.6" />
-      <circle cx="0.4" cy="4.6" fill="rgba(255,255,255,0.9)" r="1.1" />
+    <g opacity={opacity} transform={`translate(${x} ${y}) rotate(${rotate}) scale(${scale})`}>
+      <path d={PAISLEY_COMMA} fill="none" stroke="#fff" strokeLinecap="round" strokeWidth="1.7" />
+      {seed ? <circle cx="0.9" cy="4.4" fill="#fff" r="1.3" /> : null}
+    </g>
+  );
+}
+
+/** A row of commas along one edge of the inset square, before rotation. */
+function PaisleyBand({ side }: { side: number }) {
+  const commas = [-13.5, -4.5, 4.5, 13.5];
+
+  return (
+    <g transform={`rotate(${side} 32 32)`}>
+      {commas.map((offset) => (
+        <Paisley key={offset} rotate={90} scale={0.62} x={32 + offset} y={13.5} />
+      ))}
     </g>
   );
 }
@@ -70,37 +94,51 @@ export function HankyFrame({ className, color = '#D62828' }: { className?: strin
       viewBox="0 0 64 64"
       xmlns="http://www.w3.org/2000/svg"
     >
-      {/* The cloth, on the diagonal. */}
-      <path d="M32 2 62 32 32 62 2 32z" fill={color} />
+      <g transform="rotate(45 32 32)">
+        {/* The cloth. */}
+        <rect fill={color} height="45" rx="2.5" width="45" x="9.5" y="9.5" />
 
-      {/* The band, inset the way a bandana's border sits. */}
-      <path
-        d="M32 11 53 32 32 53 11 32z"
-        fill="none"
-        stroke="rgba(255,255,255,0.92)"
-        strokeWidth="2.6"
-      />
-      <path
-        d="M32 15.6 48.4 32 32 48.4 15.6 32z"
-        fill="none"
-        stroke="rgba(255,255,255,0.55)"
-        strokeWidth="1.4"
-      />
-      <path
-        d="M32 6.6 57.4 32 32 57.4 6.6 32z"
-        fill="none"
-        stroke="rgba(0,0,0,0.34)"
-        strokeWidth="1.4"
-      />
+        {/* Two rules with the comma band running between them. */}
+        <rect
+          fill="none"
+          height="37"
+          stroke="#fff"
+          strokeOpacity="0.92"
+          strokeWidth="1.5"
+          width="37"
+          x="13.5"
+          y="13.5"
+        />
+        <rect
+          fill="none"
+          height="27"
+          stroke="#fff"
+          strokeOpacity="0.6"
+          strokeWidth="1.1"
+          width="27"
+          x="18.5"
+          y="18.5"
+        />
+        {[0, 90, 180, 270].map((side) => (
+          <PaisleyBand key={side} side={side} />
+        ))}
 
-      {/* Loose drops in the middle field. */}
-      <Paisley rotate={-24} scale={0.78} x={27} y={26} />
-      <Paisley rotate={152} scale={0.78} x={38} y={36} />
-      <Paisley rotate={64} scale={0.6} x={32.5} y={20} />
+        {/* Two big drops in the middle field, facing each other. */}
+        <Paisley rotate={-30} scale={1.15} seed x={27} y={27} />
+        <Paisley rotate={150} scale={1.15} seed x={38} y={38} />
 
-      {/* Corners, where a bandana carries its heaviest print. */}
-      <Paisley rotate={-45} scale={0.52} x={32} y={5.4} />
-      <Paisley rotate={135} scale={0.52} x={32} y={54} />
+        {/* A hemmed edge, so a pale colour still has a boundary. */}
+        <rect
+          fill="none"
+          height="45"
+          rx="2.5"
+          stroke="rgba(0,0,0,0.36)"
+          strokeWidth="1.5"
+          width="45"
+          x="9.5"
+          y="9.5"
+        />
+      </g>
     </svg>
   );
 }

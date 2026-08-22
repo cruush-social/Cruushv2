@@ -15,17 +15,19 @@ export default function PulseLedIcon({ className = '', fill = 'none', ring = tru
   ring?: boolean;
 }) {
   if (!ring) {
-    // Cropped to the line itself so it fills whatever circle it is placed in.
+    // The same beat with the flat leads cut short. At control size the long
+    // baselines are most of the width, and a line with a tick in it does not
+    // read as an ekg. Shortening the leads lets the spike carry the mark.
     return (
       <svg
         aria-hidden="true"
         className={className}
         fill="none"
-        viewBox="1.4 9.6 28.2 23"
+        viewBox="0 0 22 22"
         xmlns="http://www.w3.org/2000/svg"
       >
         <path
-          d={PULSE_EKG_PATH}
+          d="M1 11.6h3.2l1.4 2.8L8 5.2l2.2 11.6 1.6-6 1.3 2.4H21"
           stroke="currentColor"
           strokeLinecap="round"
           strokeLinejoin="round"

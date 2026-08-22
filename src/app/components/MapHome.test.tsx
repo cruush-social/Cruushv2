@@ -1543,11 +1543,11 @@ describe('MapHome', () => {
     expect(rightActions).toContainElement(pingButton);
     expect(screen.getByTestId('map-visibility-button').nextElementSibling).toBe(pingButton);
     expect(pingButton.nextElementSibling).toBe(mapControls);
-    // The Pulse control reads larger than the other map controls.
+    // The Pulse control carries its own ring, so it sizes with the stack.
     expect(pingButton).toHaveClass(
-      'size-12',
+      'size-11',
       'shrink-0',
-      'lg:size-14',
+      'lg:size-[3.25rem]',
     );
     expect(pingButton).not.toHaveClass('absolute', 'mt-2');
     // The offsets keep an 8px gap under the top-actions bar at every breakpoint,
