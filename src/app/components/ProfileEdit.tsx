@@ -1,4 +1,5 @@
 import type { ChangeEvent, PointerEvent } from 'react';
+import { SIGNAL_MAX_LENGTH } from '../lib/profileLimits';
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router';
 import { ArrowLeft, Eye, RotateCcw, RotateCw, Star, Trash2, Upload } from 'lucide-react';
@@ -1090,7 +1091,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
               <Label htmlFor="signal">Signal</Label>
               <Input
                 id="signal"
-                maxLength={35}
+                maxLength={SIGNAL_MAX_LENGTH}
                 placeholder="A short hover note for your map pin"
                 value={normalizedProfile.signal}
                 onChange={(e) => handleChange('signal', e.target.value)}

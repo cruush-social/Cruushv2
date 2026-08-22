@@ -48,7 +48,7 @@ describe('MapPingSheet', () => {
     );
 
     expect(screen.getByRole('timer', { name: 'Ping cooldown' })).toHaveTextContent('04:00:00');
-    expect(screen.getByRole('button', { name: 'Send Ping' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Send Pulse' })).toBeDisabled();
 
     act(() => {
       vi.advanceTimersByTime(1000);
@@ -164,7 +164,7 @@ describe('MapPingSheet', () => {
     );
 
     fireEvent.click(screen.getByRole('radio', { name: '10 miles' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Send Ping' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Send Pulse' }));
 
     await waitFor(() => expect(onSend).toHaveBeenCalledWith(10));
   });
@@ -184,7 +184,7 @@ describe('MapPingSheet', () => {
     );
 
     expect(screen.getByText('Add a signal to your profile before sending a Pulse.')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Send Ping' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Send Pulse' })).toBeDisabled();
   });
 
   it('prevents another Ping while one is active', () => {
@@ -211,7 +211,7 @@ describe('MapPingSheet', () => {
       />,
     );
 
-    expect(screen.getByRole('button', { name: 'Ping active' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Pulse active' })).toBeDisabled();
     expect(screen.getByRole('timer', { name: 'Ping cooldown' })).toBeInTheDocument();
   });
 });

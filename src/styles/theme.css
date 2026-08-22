@@ -169,6 +169,14 @@ html[data-cruush-reduce-motion] *::after {
   transition-duration: 0.01ms !important;
 }
 
+/* The Pulse demonstration exists to show the animation, so it keeps running
+   even when motion is reduced. It is small, contained, and opt-in: it only
+   appears while the Pulse sheet is open. */
+html[data-cruush-reduce-motion] [data-testid='map-ping-preview-heart'] {
+  animation-duration: 1.35s !important;
+  animation-iteration-count: infinite !important;
+}
+
 html[data-cruush-alpha-bug-corner='top-right'] header.sticky.top-0 {
   padding-right: calc(4.5rem + env(safe-area-inset-right)) !important;
 }

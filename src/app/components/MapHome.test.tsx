@@ -819,7 +819,7 @@ describe('MapHome', () => {
 
     await waitFor(() => expect(getCurrentPosition).toHaveBeenCalledTimes(1));
     fireEvent.click(await screen.findByRole('button', { name: 'Send a Pulse' }));
-    const sendButton = await screen.findByRole('button', { name: 'Send Ping' });
+    const sendButton = await screen.findByRole('button', { name: 'Send Pulse' });
     await waitFor(() => expect(sendButton).toBeEnabled());
     fireEvent.click(sendButton);
 
@@ -1003,7 +1003,7 @@ describe('MapHome', () => {
     expect(navigator.geolocation.getCurrentPosition).toHaveBeenCalledTimes(1);
     fireEvent.click(screen.getByRole('button', { name: 'Send a Pulse' }));
     fireEvent.click(await screen.findByRole('radio', { name: '10 miles' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Send Ping' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Send Pulse' }));
 
     await waitFor(() => {
       expect(navigator.geolocation.getCurrentPosition).toHaveBeenCalledTimes(2);
@@ -1023,7 +1023,7 @@ describe('MapHome', () => {
     });
 
     await waitFor(() => expect(sendMapPing).toHaveBeenCalledWith(10, expect.any(String)));
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Ping active' })).toBeDisabled());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Pulse active' })).toBeDisabled());
   });
 
   it('does not send a Ping when the fresh map-location update fails', async () => {
@@ -1045,7 +1045,7 @@ describe('MapHome', () => {
 
     await waitFor(() => expect(syncMyLocation).toHaveBeenCalledTimes(1));
     fireEvent.click(screen.getByRole('button', { name: 'Send a Pulse' }));
-    const sendButton = screen.getByRole('button', { name: 'Send Ping' });
+    const sendButton = screen.getByRole('button', { name: 'Send Pulse' });
     await waitFor(() => expect(sendButton).toBeEnabled());
     fireEvent.click(sendButton);
 
@@ -1081,20 +1081,20 @@ describe('MapHome', () => {
     );
 
     fireEvent.click(await screen.findByRole('button', { name: 'Send a Pulse' }));
-    const sendButton = screen.getByRole('button', { name: 'Send Ping' });
+    const sendButton = screen.getByRole('button', { name: 'Send Pulse' });
     await waitFor(() => expect(sendButton).toBeEnabled());
     fireEvent.click(sendButton);
     await waitFor(() => expect(sendMapPing).toHaveBeenCalledTimes(1));
     expect(await screen.findByRole('alert')).toHaveTextContent('Ping delivery is incomplete. Try again.');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Send Ping' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Send Pulse' }));
     await waitFor(() => expect(sendMapPing).toHaveBeenCalledTimes(2));
 
     const firstIdempotencyKey = sendMapPing.mock.calls[0]?.[1];
     const retryIdempotencyKey = sendMapPing.mock.calls[1]?.[1];
     expect(firstIdempotencyKey).toEqual(expect.any(String));
     expect(retryIdempotencyKey).toBe(firstIdempotencyKey);
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Ping active' })).toBeDisabled());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Pulse active' })).toBeDisabled());
   });
 
   it('does not let a stale status refresh erase a newly sent Ping', async () => {
@@ -1113,7 +1113,7 @@ describe('MapHome', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Send a Pulse' }));
     await waitFor(() => expect(getMapPingStatus).toHaveBeenCalledTimes(2));
-    fireEvent.click(screen.getByRole('button', { name: 'Send Ping' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Send Pulse' }));
     await waitFor(() => expect(sendMapPing).toHaveBeenCalled());
 
     getMapPingStatus.mockImplementationOnce(() => staleRefresh.promise);
@@ -1140,7 +1140,7 @@ describe('MapHome', () => {
       sentStatus.resolve(activeStatus);
       await sentStatus.promise;
     });
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Ping active' })).toBeDisabled());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Pulse active' })).toBeDisabled());
 
     await act(async () => {
       staleRefresh.resolve({
@@ -1156,7 +1156,7 @@ describe('MapHome', () => {
       await staleRefresh.promise;
     });
 
-    expect(screen.getByRole('button', { name: 'Ping active' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Pulse active' })).toBeDisabled();
   });
 
   it('wires the visible zoom controls to the live map instance', async () => {

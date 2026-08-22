@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { SIGNAL_MAX_LENGTH } from '../lib/profileLimits';
 import PulseLedIcon from './PulseLedIcon';
 import HeartPhoto from './HeartPhoto';
 import { ApiClientError } from '../lib/apiClient';
@@ -304,7 +305,7 @@ export default function MapPingSheet({
                 <Textarea
                   aria-label="Your signal"
                   className="min-h-[64px] bg-input-background"
-                  maxLength={140}
+                  maxLength={SIGNAL_MAX_LENGTH}
                   onChange={(event) => setSignalDraft(event.target.value)}
                   value={signalDraft}
                 />
@@ -405,7 +406,7 @@ export default function MapPingSheet({
             style={{ background: sendDisabled ? undefined : '#c8ff31' }}
           >
             <PulseLedIcon className="mr-2 h-7 w-7 text-[#0B1200]" fill="none" />
-            {sending ? 'Sending Ping...' : activePing ? 'Ping active' : 'Send Ping'}
+            {sending ? 'Sending Pulse...' : activePing ? 'Pulse active' : 'Send Pulse'}
           </Button>
         </SheetFooter>
       </SheetContent>
