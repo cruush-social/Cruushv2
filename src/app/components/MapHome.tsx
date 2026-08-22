@@ -2249,7 +2249,9 @@ export default function MapHome(_props: MapHomeProps = {}) {
           </div>
         </div>
 
-      <div className="absolute inset-0">
+      {/* The map owns its own stacking context, so a hovered pin can never
+          paint over the top chrome or the bottom nav. */}
+      <div className="absolute inset-0 isolate z-0">
         <Suspense
           fallback={(
             <div className="relative h-full min-h-[400px] w-full overflow-hidden bg-background">

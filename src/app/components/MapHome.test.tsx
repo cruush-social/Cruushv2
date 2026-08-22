@@ -2044,9 +2044,11 @@ describe('MapHome', () => {
     expect(screen.getByRole('button', { name: /message now/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /send cruush/i })).toBeInTheDocument();
     expect(screen.getByRole('complementary')).toHaveClass('fixed');
-    // Stacking is per panel now so a click always raises the pressed panel above
-    // the other one instead of both sitting on a shared z-50.
-    expect(Number(screen.getByRole('complementary').style.zIndex)).toBeGreaterThanOrEqual(50);
+    // Stacking is per panel so a click raises the pressed panel above the other,
+    // and every panel stays under the chrome, the nav, and any dialog.
+    const panelZIndex = Number(screen.getByRole('complementary').style.zIndex);
+    expect(panelZIndex).toBeGreaterThanOrEqual(30);
+    expect(panelZIndex).toBeLessThan(60);
     expect(screen.getByRole('complementary')).toHaveAttribute('data-dock-slot', 'left');
     expect(screen.getByTestId('desktop-dock-left-handle')).toBeInTheDocument();
     expect(screen.getByTestId('desktop-dock-left-resize')).toBeInTheDocument();

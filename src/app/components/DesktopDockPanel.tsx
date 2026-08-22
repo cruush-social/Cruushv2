@@ -24,7 +24,9 @@ type DesktopDockPanelProps = {
 const EDGE_GAP = 10;
 // Panels share one stacking counter. Pressing anywhere on a panel raises it, so
 // an overlapped panel is never left unclickable behind another one.
-const BASE_Z = 50;
+// Panels stack among themselves but always sit under the top chrome, the
+// bottom nav, and any dialog.
+const BASE_Z = 30;
 let topZ = BASE_Z;
 const DEFAULT_WIDTH = 416;
 const MIN_WIDTH = 360;

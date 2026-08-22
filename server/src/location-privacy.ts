@@ -980,10 +980,26 @@ export function currentRotationEpoch(nowMs = Date.now(), activationAnchorMs = 0)
   return Math.max(0, Math.floor((nowMs - activationAnchorMs) / ROTATION_INTERVAL_MS));
 }
 
-function ghostActivationAnchorMs(policy: VisibilityPolicyPayload) {
-  const anchor = policy.ghostActivatedAtMs ?? policy.updatedAtMs;
+// Rotations are staggered per subject. Without this, everyone whose policy row
+// was written in the same batch shared an anchor and their pins all poofed at
+// the same moment, which is both wrong to look at and a correlation signal.
+function ghostRotationPhaseMs(subjectUserId: string) {
+  const digest = createHash("sha256").update(`ghost-rotation-phase:${subjectUserId}`).digest();
 
-  return Number.isFinite(anchor) ? Math.trunc(anchor) : policy.updatedAtMs;
+  return digest.readUInt32BE(0) % ROTATION_INTERVAL_MS;
+}
+
+function ghostActivationAnchorMs(policy: VisibilityPolicyPayload) {
+  if (typeof policy.ghostActivatedAtMs === "number" && Number.isFinite(policy.ghostActivatedAtMs)) {
+    return Math.trunc(policy.ghostActivatedAtMs);
+  }
+
+  // No activation time means the anchor falls back to whenever the policy row
+  // was last written, and rows written in the same batch would otherwise rotate
+  // in lockstep. The phase spreads them across the interval.
+  const base = Number.isFinite(policy.updatedAtMs) ? Math.trunc(policy.updatedAtMs) : 0;
+
+  return base - ghostRotationPhaseMs(policy.subjectUserId);
 }
 
 function ghostRotationPolicyVersion(policy: VisibilityPolicyPayload) {
