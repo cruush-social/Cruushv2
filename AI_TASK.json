@@ -83,6 +83,7 @@
     "src/app/components/BottomNav.test.tsx",
     "src/app/components/BottomNav.tsx",
     "src/app/components/Changelog.tsx",
+    "src/app/components/CommunityGlyphs.tsx",
     "src/app/components/CruiseCarouselSlot.test.tsx",
     "src/app/components/CruiseCarouselSlot.tsx",
     "src/app/components/CruushActivity.test.tsx",

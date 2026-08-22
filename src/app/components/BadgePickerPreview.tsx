@@ -1,9 +1,51 @@
 import { useEffect, useState } from 'react';
 import { KeyholeEyeGlyph, LipsGlyph, PartyHatGlyph, StraightEdgeGlyph, TongueGlyph } from './BadgeGlyphs';
 import {
+  LabrysGlyph,
+  NonbinaryGlyph,
+  PlayingCard,
+  PolyGlyph,
+  T4TGlyph,
+  TransGlyph,
+} from './CommunityGlyphs';
+import {
+  DominantGlyph,
+  ServiceGlyph,
+  SubmissiveGlyph,
+  SwitchGlyph,
+} from './PositionRoleGlyphs';
+import {
   ArrowDown,
   ArrowLeft,
+  Baby,
+  BadgeCheck,
   Bed,
+  Bookmark,
+  Cable,
+  Camera,
+  Dot,
+  Droplets,
+  Dumbbell,
+  Footprints,
+  HandMetal,
+  Medal,
+  MessageCircleQuestion,
+  Minus,
+  Moon,
+  Mountain,
+  PenTool,
+  Pin,
+  Recycle,
+  Scissors,
+  Shirt,
+  ShieldCheck,
+  Sparkles,
+  Target,
+  ThumbsDown,
+  Flower2,
+  HeartHandshake,
+  Pill,
+  Zap,
   Bone,
   CircleDot,
   Crown,
@@ -56,55 +98,127 @@ type BadgeOption = {
 };
 
 const BADGE_OPTIONS: BadgeOption[] = [
+  // Acts: what happens, in the plainest terms.
   { id: 'oral', label: 'Oral', icon: LipsGlyph, group: 'Acts' },
-  { id: 'penetration', label: 'Penetration', icon: ArrowDown, group: 'Acts' },
-  { id: 'fisting', label: 'Fisting', icon: Grab, group: 'Acts' },
   { id: 'rimming', label: 'Rimming', icon: CircleDot, group: 'Acts' },
+  { id: 'penetration', label: 'Penetration', icon: ArrowDown, group: 'Acts' },
+  { id: 'anal', label: 'Anal', icon: Target, group: 'Acts' },
+  { id: 'fisting', label: 'Fisting', icon: Grab, group: 'Acts' },
+  { id: 'large-insertion', label: 'Large insertion', icon: Maximize2, group: 'Acts' },
   { id: 'hands', label: 'Hands', icon: Handshake, group: 'Acts' },
   { id: 'frottage', label: 'Frottage', icon: Repeat2, group: 'Acts' },
-  { id: 'toys', label: 'Toys', icon: Wand2, group: 'Acts' },
   { id: 'mutual', label: 'Mutual', icon: Users, group: 'Acts' },
-  { id: 'bondage', label: 'Bondage', icon: Link2, group: 'Kink' },
-  { id: 'impact', label: 'Impact', icon: Hammer, group: 'Kink' },
-  { id: 'service', label: 'Service', icon: Bed, group: 'Kink' },
-  { id: 'control', label: 'Control', icon: Crown, group: 'Kink' },
-  { id: 'watersports', label: 'Watersports', icon: Droplet, group: 'Kink' },
-  { id: 'edging', label: 'Edging', icon: Hourglass, group: 'Kink' },
-  { id: 'gooning', label: 'Gooning', icon: TongueGlyph, group: 'Kink' },
-  { id: 'chastity', label: 'Chastity', icon: Lock, group: 'Kink' },
-  { id: 'leather', label: 'Leather', icon: Shield, group: 'Kink' },
-  { id: 'rubber', label: 'Rubber', icon: Layers, group: 'Kink' },
-  { id: 'pup', label: 'Pup play', icon: Bone, group: 'Kink' },
-  { id: 'rope', label: 'Rope', icon: Spline, group: 'Kink' },
-  { id: 'sensation', label: 'Sensation', icon: Feather, group: 'Kink' },
-  { id: 'breath', label: 'Breath', icon: Wind, group: 'Kink' },
-  { id: 'roleplay', label: 'Roleplay', icon: Drama, group: 'Kink' },
-  { id: 'large-insertion', label: 'Large insertion', icon: Maximize2, group: 'Kink' },
-  { id: 'exhibition', label: 'Exhibition', icon: Eye, group: 'Scene' },
-  { id: 'voyeur', label: 'Voyeur', icon: KeyholeEyeGlyph, group: 'Scene' },
+  { id: 'sixty-nine', label: 'Sixty-nine', icon: Recycle, group: 'Acts' },
+  { id: 'docking', label: 'Docking', icon: Link2, group: 'Acts' },
+  { id: 'nipple-play', label: 'Nipple play', icon: Dot, group: 'Acts' },
+  { id: 'toys', label: 'Toys', icon: Wand2, group: 'Acts' },
+  { id: 'edging', label: 'Edging', icon: Hourglass, group: 'Acts' },
+  { id: 'gooning', label: 'Gooning', icon: TongueGlyph, group: 'Acts' },
+  { id: 'cum-play', label: 'Cum play', icon: Droplets, group: 'Acts' },
+
+  // Power: who is leading, and how hard.
+  { id: 'dominant', label: 'Dominant', icon: DominantGlyph, group: 'Power' },
+  { id: 'submissive', label: 'Submissive', icon: SubmissiveGlyph, group: 'Power' },
+  { id: 'switch', label: 'Switch', icon: SwitchGlyph, group: 'Power' },
+  { id: 'service', label: 'Service', icon: ServiceGlyph, group: 'Power' },
+  { id: 'bondage', label: 'Bondage', icon: Link2, group: 'Power' },
+  { id: 'rope', label: 'Rope', icon: Spline, group: 'Power' },
+  { id: 'impact', label: 'Impact', icon: Hammer, group: 'Power' },
+  { id: 'spanking', label: 'Spanking', icon: HandMetal, group: 'Power' },
+  { id: 'control', label: 'Control', icon: Crown, group: 'Power' },
+  { id: 'chastity', label: 'Chastity', icon: Lock, group: 'Power' },
+  { id: 'humiliation', label: 'Humiliation', icon: ThumbsDown, group: 'Power' },
+  { id: 'praise', label: 'Praise', icon: Sparkles, group: 'Power' },
+  { id: 'cbt', label: 'CBT', icon: Scissors, group: 'Power' },
+  { id: 'electro', label: 'Electro', icon: Zap, group: 'Power' },
+  { id: 'breath', label: 'Breath', icon: Wind, group: 'Power' },
+  { id: 'watersports', label: 'Watersports', icon: Droplet, group: 'Power' },
+  { id: 'age-play', label: 'Age play', icon: Baby, group: 'Power' },
+
+  // Gear: what you wear, and what you want worn.
+  { id: 'leather', label: 'Leather', icon: Shield, group: 'Gear' },
+  { id: 'rubber', label: 'Rubber', icon: Layers, group: 'Gear' },
+  { id: 'latex', label: 'Latex', icon: Droplet, group: 'Gear' },
+  { id: 'denim', label: 'Denim', icon: Shirt, group: 'Gear' },
+  { id: 'uniform', label: 'Uniform', icon: BadgeCheck, group: 'Gear' },
+  { id: 'jock', label: 'Jock', icon: Medal, group: 'Gear' },
+  { id: 'underwear', label: 'Underwear', icon: Bookmark, group: 'Gear' },
+  { id: 'socks', label: 'Socks', icon: Footprints, group: 'Gear' },
+  { id: 'sneakers', label: 'Sneakers', icon: Footprints, group: 'Gear' },
+  { id: 'harness', label: 'Harness', icon: Cable, group: 'Gear' },
+  { id: 'hood', label: 'Hood', icon: VenetianMask, group: 'Gear' },
+  { id: 'pup-play', label: 'Pup play', icon: Bone, group: 'Gear' },
+  { id: 'drag', label: 'Drag', icon: Drama, group: 'Gear' },
+  { id: 'roleplay', label: 'Roleplay', icon: Wand2, group: 'Gear' },
+
+  // Body: what you are drawn to.
+  { id: 'feet', label: 'Feet', icon: Footprints, group: 'Body' },
+  { id: 'armpit', label: 'Armpit', icon: Wind, group: 'Body' },
+  { id: 'muscle', label: 'Muscle', icon: Dumbbell, group: 'Body' },
+  { id: 'bear', label: 'Bear', icon: Mountain, group: 'Body' },
+  { id: 'chub', label: 'Chub', icon: CircleDot, group: 'Body' },
+  { id: 'daddy', label: 'Daddy', icon: Crown, group: 'Body' },
+  { id: 'boy', label: 'Boy', icon: Feather, group: 'Body' },
+  { id: 'hairy', label: 'Hairy', icon: Waves, group: 'Body' },
+  { id: 'smooth', label: 'Smooth', icon: Minus, group: 'Body' },
+  { id: 'tattoos', label: 'Tattoos', icon: PenTool, group: 'Body' },
+  { id: 'piercings', label: 'Piercings', icon: Pin, group: 'Body' },
+  { id: 'sensation', label: 'Sensation', icon: Feather, group: 'Body' },
+
+  // Scene: where and with how many.
   { id: 'group', label: 'Group', icon: UsersRound, group: 'Scene' },
-  { id: 'public', label: 'Public', icon: TreePine, group: 'Scene' },
-  { id: 'chems', label: 'Party', icon: PartyHatGlyph, group: 'Scene' },
-  { id: 'sober', label: 'Straight edge', icon: StraightEdgeGlyph, group: 'Scene' },
-  { id: 'cuckold', label: 'Cuckolding', icon: VenetianMask, group: 'Scene' },
   { id: 'threesome', label: 'Threesome', icon: Users, group: 'Scene' },
-  { id: 'orgy', label: 'Orgy', icon: Flame, group: 'Scene' },
-  { id: 'gloryhole', label: 'Glory hole', icon: DoorOpen, group: 'Scene' },
-  { id: 'bathhouse', label: 'Bathhouse', icon: Waves, group: 'Scene' },
+  { id: 'orgy', label: 'Orgy', icon: UsersRound, group: 'Scene' },
+  { id: 'cuckolding', label: 'Cuckolding', icon: KeyholeEyeGlyph, group: 'Scene' },
+  { id: 'voyeur', label: 'Voyeur', icon: Eye, group: 'Scene' },
+  { id: 'exhibition', label: 'Exhibition', icon: Flame, group: 'Scene' },
+  { id: 'public', label: 'Public', icon: Building2, group: 'Scene' },
   { id: 'cruising', label: 'Cruising', icon: Route, group: 'Scene' },
-  { id: 'hotel', label: 'Hotel', icon: Building2, group: 'Scene' },
-  { id: 'car', label: 'Car', icon: Car, group: 'Scene' },
+  { id: 'glory-hole', label: 'Glory hole', icon: DoorOpen, group: 'Scene' },
+  { id: 'bathhouse', label: 'Bathhouse', icon: Waves, group: 'Scene' },
+  { id: 'backroom', label: 'Backroom', icon: DoorOpen, group: 'Scene' },
+  { id: 'sling', label: 'Sling', icon: Cable, group: 'Scene' },
   { id: 'outdoors', label: 'Outdoors', icon: TreePine, group: 'Scene' },
+  { id: 'hotel', label: 'Hotel', icon: Bed, group: 'Scene' },
+  { id: 'car', label: 'Car', icon: Car, group: 'Scene' },
+  { id: 'overnight', label: 'Overnight', icon: Moon, group: 'Scene' },
+  { id: 'camera', label: 'On camera', icon: Camera, group: 'Scene' },
   { id: 'discreet', label: 'Discreet', icon: EyeOff, group: 'Scene' },
-  { id: 'none', label: 'No badge', icon: MinusCircle, group: 'Scene' },
+
+  // Community: who you are and who you are looking for. People flag these as
+  // loudly as anything else on this list.
+  { id: 'trans', label: 'Trans', icon: TransGlyph, group: 'Community' },
+  { id: 't4t', label: 'T4T', icon: T4TGlyph, group: 'Community' },
+  { id: 'nonbinary', label: 'Nonbinary', icon: NonbinaryGlyph, group: 'Community' },
+  { id: 'dyke', label: 'Dyke', icon: LabrysGlyph, group: 'Community' },
+  { id: 'butch', label: 'Butch', icon: HandMetal, group: 'Community' },
+  { id: 'femme', label: 'Femme', icon: Flower2, group: 'Community' },
+  { id: 'stud', label: 'Stud', icon: Medal, group: 'Community' },
+  { id: 'twink', label: 'Twink', icon: Feather, group: 'Community' },
+  { id: 'otter', label: 'Otter', icon: Waves, group: 'Community' },
+  { id: 'leather-family', label: 'Leather family', icon: Shield, group: 'Community' },
+  { id: 'poly', label: 'Poly', icon: PolyGlyph, group: 'Community' },
+  { id: 'queer', label: 'Queer', icon: Sparkles, group: 'Community' },
+  { id: 'ace-spec', label: 'Ace spectrum', icon: PlayingCard, group: 'Community' },
+  { id: 'newly-out', label: 'Newly out', icon: DoorOpen, group: 'Community' },
+  { id: 'poz-friendly', label: 'Poz friendly', icon: HeartHandshake, group: 'Community' },
+  { id: 'on-prep', label: 'On PrEP', icon: Pill, group: 'Community' },
+
+  // Boundaries: worth flagging as loudly as anything else.
+  { id: 'party', label: 'Party', icon: PartyHatGlyph, group: 'Boundaries' },
+  { id: 'sober', label: 'Sober', icon: MinusCircle, group: 'Boundaries' },
+  { id: 'straight-edge', label: 'Straight edge', icon: StraightEdgeGlyph, group: 'Boundaries' },
+  { id: 'safe-only', label: 'Safe only', icon: ShieldCheck, group: 'Boundaries' },
+  { id: 'ask-me', label: 'Ask me', icon: MessageCircleQuestion, group: 'Boundaries' },
+  { id: 'none', label: 'No badge', icon: MinusCircle, group: 'Boundaries' },
 ];
 
 // Hanky code: the side says your role, the badge says the act. Left is what you
 // give, right is what you take. The same badge on both sides reads as versatile,
 // exactly the way wearing it on both sides always has.
 const SIDES = [
-  { id: 'left' as const, label: 'Left', hint: 'What you give' },
-  { id: 'right' as const, label: 'Right', hint: 'What you take' },
+  { id: 'left' as const, label: 'Left', hint: 'Usually what you give' },
+  { id: 'right' as const, label: 'Right', hint: 'Usually what you take' },
 ];
 
 // Copied from the map's own badge chip: same size, same 3.2px border, same
@@ -134,8 +248,8 @@ function BadgeChip({ icon: Icon, side }: { icon: LucideIcon; side: 'left' | 'rig
 
 export default function BadgePickerPreview() {
   const navigate = useNavigate();
-  const [leftBadge, setLeftBadge] = useState('oral');
-  const [rightBadge, setRightBadge] = useState('penetration');
+  const [leftBadge, setLeftBadge] = useState('none');
+  const [rightBadge, setRightBadge] = useState('none');
   const [activeSide, setActiveSide] = useState<'left' | 'right'>('left');
   const [profile, setProfile] = useState<Awaited<ReturnType<typeof getMyProfile>> | null>(null);
   const groups = [...new Set(BADGE_OPTIONS.map((option) => option.group))];
@@ -196,30 +310,6 @@ export default function BadgePickerPreview() {
         </div>
       </div>
 
-      <section className="mx-auto w-full max-w-2xl px-4 pt-4">
-        <h2 className="text-xs uppercase tracking-[0.14em] text-white/48">Selkie Mode marks</h2>
-        <div className="mt-2 grid grid-cols-2 gap-2">
-          {[
-            { label: 'At the waterline', Glyph: SelkieGlyph },
-            { label: 'Skin hung up', Glyph: SelkiePeltGlyph },
-          ].map(({ label, Glyph }) => (
-            <div className="rounded-xl border border-white/10 bg-black/40 p-3" key={label}>
-              <div className="flex items-end justify-center gap-4">
-                <Glyph className="h-10 w-10 text-white" />
-                <Glyph className="h-6 w-6 text-white" />
-                <span
-                  className="flex h-[1.5625rem] w-[1.5625rem] items-center justify-center rounded-full bg-black/85"
-                  style={{ borderColor: '#004BFF', borderWidth: '3.2px' }}
-                >
-                  <Glyph className="h-[0.8125rem] w-[0.8125rem] text-white" strokeWidth={2.6} />
-                </span>
-              </div>
-              <p className="mt-2 text-center text-xs text-white/58">{label}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
       <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-4">
         <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
           {BADGE_OPTIONS.filter((option) => option.group === activeGroup).map((option) => {
@@ -262,6 +352,12 @@ export default function BadgePickerPreview() {
               <BadgeChip icon={rightOption.icon} side="right" />
             </span>
           </span>
+
+          <p className="w-full text-center text-xs text-white/52">
+            Left usually means what you like to give and right what you like to take. Plenty of
+            people ignore that, and either side can carry anything. Leave a side on No badge to
+            keep it empty.
+          </p>
 
           <div className="grid w-full grid-cols-2 gap-2">
             {SIDES.map((side) => {
