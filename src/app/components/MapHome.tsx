@@ -2213,7 +2213,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
               data-tutorial-target="dl-mode"
               aria-label={dlModeActive ? 'Turn DL Mode off' : 'Turn DL Mode on'}
               title={dlModeActive ? 'Turn DL Mode off' : 'Turn DL Mode on'}
-              className={`size-11 rounded-full text-white/90 hover:bg-white/10 sm:size-12 lg:size-[3.25rem] ${
+              className={`size-11 overflow-visible rounded-full text-white/90 hover:bg-white/10 sm:size-12 lg:size-[3.25rem] [&_img]:!overflow-visible ${
                 dlModeActive ? 'bg-white/[0.07]' : ''
               }`}
             >
@@ -2222,9 +2222,9 @@ export default function MapHome(_props: MapHomeProps = {}) {
                   the only way a bitmap icon can carry a lit state. */}
               <CruushIconImage
                 src={dlModeActive ? dlModeColored : dlModeWhite}
-                className="h-7 w-7 lg:h-8 lg:w-8"
+                className="h-6 w-6 overflow-visible lg:h-7 lg:w-7"
                 style={dlModeActive ? {
-                  filter: 'drop-shadow(0 0 0.45rem rgba(255, 0, 114, 0.55)) drop-shadow(0 0 0.9rem rgba(111, 0, 255, 0.4))',
+                  filter: 'drop-shadow(0 0 0.4rem rgba(255, 0, 114, 0.55)) drop-shadow(0 0 0.8rem rgba(111, 0, 255, 0.4))',
                 } : undefined}
               />
             </Button>
