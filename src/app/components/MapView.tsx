@@ -1492,7 +1492,7 @@ function MapMarkerPin({ marker, previewed = false }: { marker: MapMarker; previe
           className={`absolute left-1/2 top-0 z-20 w-max max-w-[16rem] -translate-x-1/2 transition-opacity duration-150 ${previewed ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'} ${signalPreview ? '-translate-y-[calc(200%+0.25rem)]' : '-translate-y-full'}`}
           data-testid={`marker-post-preview-${marker.id}`}
         >
-          <span className="rounded-full border border-primary/20 bg-black/86 px-3 py-1 text-center text-[0.7rem] font-semibold leading-tight text-primary shadow-[0_12px_30px_rgba(0,0,0,0.45)] backdrop-blur-md">
+          <span className="rounded-full border border-primary/20 bg-black/86 px-3 py-1 text-center text-[0.7rem] font-semibold leading-tight text-primary backdrop-blur-md">
             {postPreview}
           </span>
         </span>

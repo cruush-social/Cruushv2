@@ -200,7 +200,7 @@
     "The share of accounts holding cruush+ is unknown. No database count was run.",
     "No environment variables were added, removed, or changed by this task."
   ],
-  "task": "Pulse demonstration animation, shared signal limit",
+  "task": "Pulse preview matches a live pulse, larger chat heart",
   "publicationTarget": "origin/main and production",
   "environmentChanges": "none"
 }

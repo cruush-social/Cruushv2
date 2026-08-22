@@ -257,14 +257,22 @@ export default function MapPingSheet({
           {/* What a Pulse does, shown rather than described: the same heart the
               map draws, running the same animation it runs when a Pulse is on. */}
           <div className="flex items-center gap-4 rounded-xl border border-[#c8ff31]/45 bg-black/45 p-3">
-            <span className="flex h-20 w-20 shrink-0 items-center justify-center overflow-visible">
+            <span className="flex w-24 shrink-0 flex-col items-center gap-1 overflow-visible">
+              {/* What the map actually shows: the green border a Pulse puts on
+                  your heart, your signal held open, and the same beat. */}
+              {signal ? (
+                <span className="max-w-full truncate rounded-full border border-[#c8ff31] bg-black/86 px-2 py-0.5 text-[0.6rem] font-semibold leading-tight text-white">
+                  {signal}
+                </span>
+              ) : null}
               <span
                 className="cruush-map-ping-heart block origin-center"
                 data-testid="map-ping-preview-heart"
                 style={{ animation: 'cruush-map-ping-heart-pulse 1.35s ease-in-out infinite' }}
               >
                 <HeartPhoto
-                  className="w-16"
+                  borderColor="#C8FF31"
+                  className="w-20"
                   label="Your heart while a Pulse is running"
                   masked={false}
                   photo={null}

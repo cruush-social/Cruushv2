@@ -913,7 +913,7 @@ export default function PrivateGroupChat({ conversationId }: { conversationId?: 
 
             {conversation ? (
               <HeartPhoto
-                className="w-12 shrink-0"
+                className="w-16 shrink-0 sm:w-20"
                 label={`${conversation.user.name} avatar`}
                 masked={shouldMaskPhoto(dlModeActive, conversation.user.photoExplicit)}
                 photo={conversation.user.photo}
