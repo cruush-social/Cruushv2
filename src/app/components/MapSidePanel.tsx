@@ -16,32 +16,14 @@ export const MAP_SIDE_PANEL_VIEWS: { id: MapSidePanelView; label: string }[] = [
 
 type MapSidePanelProps = {
   view: MapSidePanelView;
-  onViewChange: (view: MapSidePanelView) => void;
   onClose: () => void;
 };
 
-export default function MapSidePanel({ view, onViewChange, onClose }: MapSidePanelProps) {
+export default function MapSidePanel({ view, onClose }: MapSidePanelProps) {
   return (
     <DesktopDockPanel slot="right" ariaLabel="Side panel">
       <div className="flex h-full flex-col">
-        <div className="flex shrink-0 items-center gap-2 px-4 pb-3 pt-9">
-          <div className="flex min-w-0 flex-1 items-center gap-1 rounded-full border border-white/10 bg-background/40 p-1">
-            {MAP_SIDE_PANEL_VIEWS.map((option) => (
-              <button
-                key={option.id}
-                type="button"
-                aria-pressed={view === option.id}
-                data-testid={`map-side-panel-tab-${option.id}`}
-                onClick={() => onViewChange(option.id)}
-                className={`min-h-9 flex-1 rounded-full px-3 text-xs uppercase tracking-[0.14em] transition ${
-                  view === option.id ? 'text-white' : 'text-white/58 hover:text-white/80'
-                }`}
-                style={view === option.id ? { background: 'var(--cruush-gradient)' } : undefined}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
+        <div className="flex shrink-0 items-center justify-end px-4 pb-2 pt-9">
           <button
             type="button"
             aria-label="Close side panel"

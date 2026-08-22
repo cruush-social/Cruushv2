@@ -20,7 +20,7 @@ The website should feel premium, dark, romantic, erotic, intimate, polished, cin
 - The logo text must always be exactly `cruush`.
 - `cruush` is both the product name and the core interaction language.
 - User-facing language should use `Vibes`, never `Tribes`.
-- User-facing language should not call the primary interaction a like, tap, wink, or crush. It is a `cruush`.
+- User-facing language should not call the primary interaction a like, tap, wink, or the misspelling of our name. It is a `cruush`.
 - Map-first cruising behavior must remain central.
 - The unified local feed must remain proximity-first and map-adjacent.
 
@@ -522,3 +522,37 @@ Tradeoff:
 - Include Location Fuzziness in settings.
 - Show last-active context prominently on map surfaces.
 - Do not put profile encryption keys or other backend secrets in frontend code.
+
+## Component Language (2026-08-21)
+
+These are the decisions taken while shipping the 1.5 fixes. Follow them instead of inventing a new treatment per surface.
+
+### Gradients
+- `--cruush-gradient` is the only bright gradient. Pink sits at the very edge and purple holds the middle, so no control reads as red.
+- `--cruush-gradient-soft-28` is the quiet state of that same gradient. Use it for anything already done: a cruush you sent, a mutual you already have, a secondary card.
+- `--cruush-gradient-soft-18` is the quietest tint. Use it for large surfaces that must stay readable behind text.
+- Never introduce a one-off gradient (no `from-fuchsia-500 via-violet-500` style stacks). If a surface needs emphasis, use the tokens plus a border or brighter text.
+
+### Colour meanings
+- Pink `#FF0072`: someone you have no mutual with.
+- Purple `#6F00FF`: mutuals. The `Mutual` tag is always purple, never a gradient.
+- Indigo `#3826FF`: you.
+- Green `#c8ff31`: pings, everywhere. Ping controls never use the cruush gradient.
+- Red is reserved for the bug report button. No other control, icon, chip or hover state is red.
+
+### Profile controls
+- Every surface that shows a profile offers the same three controls through `ProfileActionTrio`: cruush, message, centre their pin. Each one appears only when that person's privacy allows it.
+- The cruush control uses the double-heart `safety` icon once a cruush exists (sent or mutual) and the `cruush` icon when none does.
+- A cruush you already sent uses the quiet gradient. Only an available cruush uses the bright one.
+- Vibe capsules take the colour of the relationship: pink, purple, or indigo for your own.
+- Crowds never appear in a vibe capsule row.
+
+### Page chrome
+- Feed, Activity and Messages share one header: back control on the left, centred title, page controls on the right next to the fixed bug button.
+- Page settings open as a popup on the page. They do not navigate to another route.
+- The bug report button is fixed at the top right on every page at `z-[70]`, outside every header. Page chrome reserves room for it instead of overlapping it.
+- On the desktop map, the profile docks on the left and feed, activity or messages dock on the right. Both are draggable and resizable and remember their position.
+
+### Photos and text over photos
+- People and media blocks are 4:5. The carousel never shows a square tile.
+- Text over a photo uses a hard one pixel outline in all eight directions plus one tight drop shadow. No blur haloes and no text stroke on the glyphs.

@@ -2288,7 +2288,6 @@ export default function MapHome(_props: MapHomeProps = {}) {
         {!usesFullPageProfile && sidePanelView ? (
           <MapSidePanel
             view={sidePanelView}
-            onViewChange={setSidePanelView}
             onClose={() => setSidePanelView(null)}
           />
         ) : null}
