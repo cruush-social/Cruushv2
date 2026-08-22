@@ -446,6 +446,14 @@ export function buildDevelopmentTestProfiles(now = new Date()): DevelopmentTestP
   });
 }
 
+/** The seeded visitor: dropped in the West Village, in from out of town. */
+const DEVELOPMENT_TRAVEL_PROFILE_INDEX = 2;
+const DEVELOPMENT_TRAVEL_PIN = {
+  lat: 40.733572,
+  lng: -74.002742,
+  label: "In from Chicago"
+};
+
 export function assertDevelopmentSeedConfig(config: Pick<AppConfig, "NODE_ENV" | "DEVELOPMENT_ADMIN_ENABLED" | "DEVELOPMENT_ADMIN_PASSWORD">) {
   if (config.NODE_ENV === "production") {
     throw new Error("Refusing to seed development profiles in production.");
@@ -736,8 +744,25 @@ export async function seedDevelopmentProfilesWithDb(context: DevelopmentSeedCont
     );
     await upsertSensitiveTokens(context, adminUserId, adminSensitiveProfile);
 
-    for (const profile of profiles) {
+    for (const [profileIndex, profile] of profiles.entries()) {
       const profileUserId = await upsertDevelopmentProfile(context, profile);
+
+      // One seeded member is visiting, so Travel Mode can be seen on the map
+      // and on a profile without turning it on for the signed-in account.
+      if (profileIndex === DEVELOPMENT_TRAVEL_PROFILE_INDEX) {
+        await context.db.query(
+          `insert into user_travel_pins (user_id, latitude, longitude, label, set_at, updated_at)
+           values ($1, $2, $3, $4, now(), now())
+           on conflict (user_id) do update
+             set latitude = excluded.latitude,
+                 longitude = excluded.longitude,
+                 label = excluded.label,
+                 updated_at = now()`,
+          [profileUserId, DEVELOPMENT_TRAVEL_PIN.lat, DEVELOPMENT_TRAVEL_PIN.lng, DEVELOPMENT_TRAVEL_PIN.label]
+        );
+      } else {
+        await context.db.query(`delete from user_travel_pins where user_id = $1`, [profileUserId]);
+      }
 
       await upsertEncryptedRelationshipRecord(context, buildEncryptedRelationshipPayload({
         type: "cruush",

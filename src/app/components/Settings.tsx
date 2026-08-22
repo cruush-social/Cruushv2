@@ -1,7 +1,8 @@
 import { useNavigate } from 'react-router';
 import profileNavIcon from '../assets/nav-icons/profile-white.png';
 import { useEffect, useMemo, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react';
-import { Accessibility, ArrowLeft, BookOpen, ChevronRight, Contrast, ExternalLink, Eye, Gift, History, KeyRound, LifeBuoy, LogOut, MapPin, MessageCircle, MessageSquareReply, ShieldAlert, ShieldCheck, Trash2, Type, UserX, type LucideIcon, Download } from 'lucide-react';
+import { Accessibility, ArrowLeft, BookOpen, ChevronRight, Contrast, ExternalLink, Eye, Gift, History, KeyRound, LifeBuoy, LogOut, MapPin, MessageCircle, MessageSquareReply, ShieldAlert, ShieldCheck, Trash2, Type, UserX, type LucideIcon, Download, Plane,
+} from 'lucide-react';
 import { Button } from './ui/button';
 import CruushPlusWord from './CruushPlusWord';
 import {
@@ -266,6 +267,12 @@ export default function Settings() {
           label: 'Map presence',
           description: 'How long you stay on the map, and how distance reads on your profile.',
           action: () => navigate('/privacy/map-presence'),
+        },
+        {
+          icon: Plane,
+          label: 'Travel Mode',
+          description: 'Drop a pin where you are visiting and browse from there.',
+          action: () => navigate('/settings/travel'),
         },
         {
           icon: UserX,

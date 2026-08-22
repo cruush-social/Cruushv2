@@ -33,6 +33,13 @@ import {
 import { getActiveAccountUserId, getAuthenticatedUserId } from "../request-auth.js";
 import { CROWD_OPTIONS, normalizeCrowdOption } from "../profile-sensitive.js";
 import {
+  TRAVEL_LABEL_MAX_LENGTH,
+  TravelPinCooldownError,
+  clearTravelPin,
+  getTravelPin,
+  setTravelPin
+} from "../travel-pins.js";
+import {
   DEFAULT_MAP_PRESENCE_DAYS,
   MAX_MAP_PRESENCE_DAYS,
   MIN_MAP_PRESENCE_DAYS,
@@ -89,6 +96,12 @@ const ghostModePayloadSchema = z.object({
     });
   }
 });
+
+const travelPinPayloadSchema = z.object({
+  latitude: z.number().min(-90).max(90),
+  longitude: z.number().min(-180).max(180),
+  label: z.string().trim().max(TRAVEL_LABEL_MAX_LENGTH).optional()
+}).strict();
 
 const revokePayloadSchema = z.object({
   revoke_action_token: z.string().min(1)
@@ -357,6 +370,43 @@ export async function registerPrivacyRoutes(app: FastifyInstance) {
         enabled: result.rows[0]?.ghost_pulse_enabled !== false
       }
     });
+  });
+
+  app.get("/api/privacy/travel", async (request, reply) => {
+    const userId = await getAuthenticatedUserId(request);
+    const pin = await getTravelPin(app, userId);
+
+    return reply.send({ data: { pin } });
+  });
+
+  app.put("/api/privacy/travel", async (request, reply) => {
+    const userId = await getActiveAccountUserId(request);
+    const payload = travelPinPayloadSchema.parse(request.body);
+
+    try {
+      const pin = await setTravelPin(app, userId, payload);
+
+      return reply.send({ data: { pin } });
+    } catch (error) {
+      if (error instanceof TravelPinCooldownError) {
+        return reply.code(409).send({
+          error: {
+            code: "TRAVEL_PIN_COOLDOWN",
+            message: "Your travel pin can be moved again later.",
+            movableAtMs: error.movableAtMs
+          }
+        });
+      }
+
+      throw error;
+    }
+  });
+
+  app.delete("/api/privacy/travel", async (request, reply) => {
+    const userId = await getActiveAccountUserId(request);
+    await clearTravelPin(app, userId);
+
+    return reply.send({ data: { pin: null } });
   });
 
   app.get("/api/privacy/audit", async (request, reply) => {
