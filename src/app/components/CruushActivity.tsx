@@ -42,7 +42,7 @@ import { registerBugButtonSlot } from '../lib/bugButtonSlot';
 type ActivityTab = 'incoming' | 'sent' | 'mutual' | 'views';
 type CruushActionState = 'available' | 'sending' | 'sent' | 'mutual';
 
-const activityHeartClassName = 'w-20 shrink-0';
+const activityHeartClassName = 'w-24 shrink-0';
 const activityRowClassName = 'flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-card/70 p-3 text-left shadow-[0_12px_32px_rgba(0,0,0,0.24)] transition-colors hover:bg-white/[0.06]';
 
 function formatRelativeTime(isoTimestamp: string) {
@@ -263,7 +263,6 @@ function IncomingRow({
         <div className="flex flex-wrap items-center gap-2">
           <p className="truncate text-base text-white">{unlocked ? item.user.name : 'Someone new'}</p>
           {unlocked ? <CruushBadge badges={item.user.badges} compact /> : null}
-          {item.mutual ? <ActivityBadge>Mutual</ActivityBadge> : null}
         </div>
         <p className="mt-1 text-sm text-white/64">
           {unlocked ? `${item.user.pronouns || 'Ask me'} - ${formatRelativeTime(item.createdAt)}` : `Has a cruush on you - ${formatRelativeTime(item.createdAt)}`}
@@ -330,7 +329,7 @@ function SentRow({
           <div className="flex min-w-0 items-center gap-2 overflow-hidden">
             <p className="min-w-0 truncate text-base text-white">{item.user.name}</p>
             <CruushBadge badges={item.user.badges} compact />
-            <ActivityBadge>{item.mutual ? 'Mutual' : 'Pending'}</ActivityBadge>
+            {item.mutual ? null : <ActivityBadge>Pending</ActivityBadge>}
           </div>
           <p className="mt-1 truncate text-sm text-white/62">{item.user.pronouns || 'Ask me'} - {formatRelativeTime(item.createdAt)}</p>
           <ActivityVibes vibes={item.user.vibes} mutual={item.mutual} />

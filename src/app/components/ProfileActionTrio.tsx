@@ -25,8 +25,8 @@ export type ProfileActionTrioProps = {
 };
 
 const SIZE_CLASSES: Record<'sm' | 'md', string> = {
-  sm: 'size-9',
-  md: 'h-11 w-11',
+  sm: 'size-10',
+  md: 'h-12 w-12',
 };
 
 /**
@@ -76,7 +76,7 @@ export default function ProfileActionTrio({
       >
         <CruushIcon
           name={cruushReceived || cruushState === 'mutual' || cruushState === 'sent' ? 'safety' : 'cruush'}
-          className="h-5 w-5"
+          className="h-6 w-6"
           variant="white"
         />
       </Button>
@@ -92,7 +92,7 @@ export default function ProfileActionTrio({
           title={`Message ${userName}`}
           onClick={onMessage}
         >
-          <CruushIcon name="send" className="h-5 w-5" variant="white" />
+          <CruushIcon name="send" className="h-6 w-6" variant="white" />
         </Button>
       ) : null}
 
@@ -112,7 +112,7 @@ export default function ProfileActionTrio({
           disabled={!canCenterPin}
           onClick={onCenterPin}
         >
-          <CruushIconImage src={mapIconWhite} className="h-5 w-5" />
+          <CruushIconImage src={mapIconWhite} className="h-6 w-6" />
         </Button>
       ) : null}
     </div>

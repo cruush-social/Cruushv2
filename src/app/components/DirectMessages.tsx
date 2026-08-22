@@ -1233,7 +1233,6 @@ function DirectUserOverlay({
                   <span className="block truncate text-base">{item.user.name}</span>
                   <span className="mt-0.5 block truncate text-xs text-muted-foreground">{[item.user.pronouns, item.distance].filter(Boolean).join(' · ')}</span>
                   <span className="mt-2 flex flex-wrap items-center gap-1.5">
-                    <Badge variant="outline" className={mutualBadgeClassName}>Mutual</Badge>
                     {topVibeTags(item.vibes).map((vibe) => (
                       <Badge
                         key={vibe}
