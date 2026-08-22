@@ -151,8 +151,7 @@ describe('Auth', () => {
     expect(screen.getByTestId('launch-login-auth-panel')).toHaveClass('launch-login-auth-card');
     expect(screen.queryByTestId('launch-login-auth-captcha')).not.toBeInTheDocument();
     expect(screen.queryByTestId('launch-login-foreground-rain-pane')).not.toBeInTheDocument();
-    // The spinning model is the logo now, so it plays above the tagline.
-    expect(screen.getByTestId('launch-login-auth-logo').tagName).toBe('VIDEO');
+    expect(screen.getByTestId('launch-login-auth-logo').tagName).toBe('IMG');
     expect(screen.queryByTestId('launch-login-map-scene')).not.toBeInTheDocument();
     const humanCheckInput = screen.getByTestId('launch-login-auth-human-check-input');
     expect(humanCheckInput).toHaveAttribute('tabindex', '-1');

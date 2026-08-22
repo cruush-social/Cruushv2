@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
-import { Radio } from 'lucide-react';
+import PulseLedIcon from './PulseLedIcon';
 import { ApiClientError } from '../lib/apiClient';
 import {
   MAP_PING_RADII_MILES,
@@ -244,7 +244,7 @@ export default function MapPingSheet({
         >
           <div className="flex items-center gap-3">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#c8ff31]/70 bg-transparent text-[#c8ff31]">
-              <Radio aria-hidden="true" className="h-5 w-5" />
+              <PulseLedIcon className="h-5 w-5" />
             </span>
             <div>
               <SheetTitle>Send a Ping</SheetTitle>
@@ -376,7 +376,7 @@ export default function MapPingSheet({
             onClick={() => void handleSend()}
             style={{ background: sendDisabled ? undefined : '#c8ff31' }}
           >
-            <Radio aria-hidden="true" className="mr-2 h-4 w-4" />
+            <PulseLedIcon className="mr-2 h-4 w-4" />
             {sending ? 'Sending Ping...' : activePing ? 'Ping active' : 'Send Ping'}
           </Button>
         </SheetFooter>

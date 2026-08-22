@@ -3,7 +3,7 @@
 import type { MouseEvent, PointerEvent, WheelEvent } from 'react';
 import { lazy, Suspense, useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router';
-import { ExternalLink, Filter, Mail, MapPin, MessageCircle, Radio, X, ZoomIn, ZoomOut } from 'lucide-react';
+import { ExternalLink, Filter, Mail, MapPin, MessageCircle, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { Button } from './ui/button';
 import { useIsMobile } from './ui/use-mobile';
 import CruushIconImage, { CruushIcon } from './CruushIconImage';
@@ -14,6 +14,7 @@ import MapSidePanel, { type MapSidePanelView } from './MapSidePanel';
 import MapFiltersSurface, { DEFAULT_FILTER_STATE, type FilterState } from './MapFiltersSurface';
 import MapVisibilitySurface, { DEFAULT_VISIBILITY_STATE, type VisibilityControlState } from './MapVisibilitySurface';
 import MapPingSheet from './MapPingSheet';
+import PulseLedIcon from './PulseLedIcon';
 import MapControlsTutorial, {
   getStoredMapControlsTutorialStep,
   MAP_CONTROLS_TUTORIAL_LEGACY_STORAGE_KEYS,
@@ -2612,7 +2613,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
             title="Send a Ping"
             className="size-8 shrink-0 rounded-full border border-[#c8ff31]/45 bg-background/45 text-[#c8ff31] backdrop-blur-md hover:bg-[#c8ff31]/15 sm:size-9 lg:size-11"
           >
-            <Radio aria-hidden="true" className="h-5 w-5 lg:h-7 lg:w-7" />
+            <PulseLedIcon className="h-5 w-5 lg:h-7 lg:w-7" />
           </Button>
 
           <div

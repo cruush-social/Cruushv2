@@ -159,7 +159,8 @@
     "server/src/dev-seed-profiles.test.ts",
     "src/app/components/FeedPhotoPreview.tsx",
     "src/app/components/ui/dialog.tsx",
-    "src/app/components/AppErrorBoundary.tsx"
+    "src/app/components/AppErrorBoundary.tsx",
+    "src/app/components/PulseLedIcon.tsx"
   ],
   "preserved": [
     "Preserve the trust gate on feed posting: trust_score above 20, no active suspension, no feature_restrictions row for feed_posting.",
@@ -197,7 +198,7 @@
     "The share of accounts holding cruush+ is unknown. No database count was run.",
     "No environment variables were added, removed, or changed by this task."
   ],
-  "task": "Pulse sheet above the nav in grey black and green borders, one line headers",
+  "task": "Pulse mark, logo gradient on auth buttons, flat sign in logo",
   "publicationTarget": "origin/main and production",
   "environmentChanges": "none"
 }
