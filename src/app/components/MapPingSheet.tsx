@@ -260,15 +260,15 @@ export default function MapPingSheet({
           <div className="flex items-center gap-4 rounded-xl border border-[#c8ff31]/45 bg-black/45 p-3">
             {/* The real marker, running the real Pulse state, so this is what
                 people actually see rather than an approximation of it. */}
-            <span className="flex h-[8.5rem] w-32 shrink-0 items-center justify-center overflow-visible">
-              <span className="block origin-center scale-[0.78]" data-testid="map-ping-preview-heart">
+            <span className="flex h-[9.5rem] w-36 shrink-0 items-center justify-center overflow-hidden">
+              <span className="block origin-center scale-[0.72]" data-testid="map-ping-preview-heart">
                 <MapMarkerPin
                   marker={{
                     id: 'pulse-preview',
                     kind: 'person',
                     displayName: 'You',
                     userId: 'pulse-preview',
-                    signal,
+                    signal: 'Pulse sample',
                     approximateLatitude: 0,
                     approximateLongitude: 0,
                     photo: photo ?? null,
@@ -371,27 +371,27 @@ export default function MapPingSheet({
             </RadioGroup>
           </fieldset>
 
-          <p aria-live="polite" className="text-sm text-white/65">
-            {!normalizedSignal
-              ? 'Your Ping uses the signal saved on your profile.'
-              : hasMapLocation
-                ? statusText
-                : 'Share your map location before sending a Pulse.'}
-          </p>
-          {cooldownCountdown && status?.allowance.nextEligibleAt ? (
-            <div className="flex items-center justify-between gap-3 rounded-xl border border-[#c8ff31]/60 bg-black/45 px-3 py-2.5 text-sm">
-              <span className="text-white/65">Next Pulse in</span>
+          {/* How many are left and when the next one lands, on one line. */}
+          <div className="flex items-center justify-between gap-3 text-sm">
+            <p aria-live="polite" className="min-w-0 text-white/65">
+              {!normalizedSignal
+                ? 'Your Pulse uses the signal saved on your profile.'
+                : hasMapLocation
+                  ? statusText
+                  : 'Share your map location before sending a Pulse.'}
+            </p>
+            {cooldownCountdown && status?.allowance.nextEligibleAt ? (
               <time
-                aria-label="Ping cooldown"
+                aria-label="Pulse cooldown"
                 aria-live="off"
-                className="font-mono font-semibold tabular-nums text-white"
+                className="shrink-0 rounded-full border border-[#c8ff31]/60 px-2.5 py-1 font-mono font-semibold tabular-nums text-white"
                 dateTime={status.allowance.nextEligibleAt}
                 role="timer"
               >
                 {cooldownCountdown}
               </time>
-            </div>
-          ) : null}
+            ) : null}
+          </div>
           {!hasCruushPlus && status?.allowance.remaining === 0 && onUpgrade ? (
             <CruushPlusGateNotice
               description="Basic includes 1 Ping every 24 hours."
@@ -411,10 +411,16 @@ export default function MapPingSheet({
             className="cruush-action-sheen h-11 rounded-full font-semibold text-[#0B1200] disabled:text-white/45"
             disabled={sendDisabled}
             onClick={() => void handleSend()}
-            style={{ background: sendDisabled ? undefined : '#c8ff31' }}
+            style={{ background: sendDisabled ? '#151a0b' : '#c8ff31' }}
           >
             <PulseLedIcon className="mr-2 h-7 w-7 text-[#0B1200]" fill="none" />
-            {sending ? 'Sending Pulse...' : activePing ? 'Pulse active' : 'Send Pulse'}
+            {sending
+              ? 'Sending Pulse...'
+              : activePing
+                ? 'Pulse active'
+                : cooldownCountdown
+                  ? `Next Pulse in ${cooldownCountdown}`
+                  : 'Send Pulse'}
           </Button>
         </SheetFooter>
       </SheetContent>
