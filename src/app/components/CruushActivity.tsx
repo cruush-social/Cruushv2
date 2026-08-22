@@ -145,7 +145,7 @@ function LockedHeart({ label = 'Locked profile preview' }: { label?: string }) {
   return (
     <div className={`relative ${activityHeartClassName}`}>
       <HeartPhoto
-        className="w-20 blur-[2px]"
+        className="w-24 blur-[2px]"
         label={label}
         masked
         theme="mutual"
