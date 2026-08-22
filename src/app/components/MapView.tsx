@@ -1602,19 +1602,11 @@ function createMarkerElement(
       onMarkerInteraction();
     };
 
-    // A real mouse previews on hover even when the page is running under a
-    // coarse pointer, which is what mobile emulation reports. Relying on the
-    // hover media query alone left the preview dead in that mode.
-    button.addEventListener('pointerenter', (event) => {
-      if ((event as PointerEvent).pointerType === 'mouse') {
-        onPinPreview(marker);
-      }
-    });
-    button.addEventListener('pointerleave', (event) => {
-      if ((event as PointerEvent).pointerType === 'mouse') {
-        setPreviewed(false);
-      }
-    });
+    // Preview on pointer enter for every pointer type. The hover media query is
+    // false under a coarse pointer, and device emulation reports a mouse as a
+    // touch pointer, so gating on either left the preview dead on mobile.
+    button.addEventListener('pointerenter', () => onPinPreview(marker));
+    button.addEventListener('pointerleave', () => setPreviewed(false));
 
     button.addEventListener('pointerdown', (event) => {
       const pointerEvent = event as PointerEvent;
