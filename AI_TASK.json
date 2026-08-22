@@ -146,7 +146,9 @@
     "server/src/beta-access.ts",
     "server/src/beta-access.test.ts",
     "server/src/routes/auth.ts",
-    "docs/design-master.md"
+    "docs/design-master.md",
+    "scripts/release-main-coolify.mjs",
+    "docs/plans/2026-08-22-feed-layout-handoff.md"
   ],
   "preserved": [
     "Keep private trans status as the eligibility gate for the optional T4T crowd; do not infer it from a selected gender identity.",

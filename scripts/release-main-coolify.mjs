@@ -301,12 +301,20 @@ function assertSourceConfig(app, target, expectedSha) {
       'is_build_args_enabled',
     ]);
 
-    if (!valueIsEnabled(includeSourceCommit)) {
+    // Coolify's REST API does not return these two build toggles, so an absent
+    // value means "cannot verify from the API", not "switched off". Failing on
+    // absence aborted the release while both toggles were in fact enabled in
+    // the dashboard. Only a value that is present and false is real drift.
+    if (includeSourceCommit !== undefined && !valueIsEnabled(includeSourceCommit)) {
       problems.push('include source commit in build is not enabled, so SOURCE_COMMIT may be missing');
     }
 
-    if (!valueIsEnabled(injectBuildArgs)) {
+    if (injectBuildArgs !== undefined && !valueIsEnabled(injectBuildArgs)) {
       problems.push('inject build args to Dockerfile is not enabled, so APP_BUILD_SHA may be empty');
+    }
+
+    if (includeSourceCommit === undefined || injectBuildArgs === undefined) {
+      console.log(`${target.label}: Coolify does not report the build arg toggles over the API; verify them in the dashboard if SOURCE_COMMIT or APP_BUILD_SHA come through empty.`);
     }
   }
 

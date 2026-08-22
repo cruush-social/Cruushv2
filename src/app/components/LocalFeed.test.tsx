@@ -96,6 +96,30 @@ function LocationProbe() {
   return <div data-testid="location-probe">{location.pathname}</div>;
 }
 
+
+async function openFeedSettings() {
+  const open = screen.queryAllByRole('dialog');
+  if (open.length === 0) {
+    fireEvent.click(screen.getByRole('button', { name: 'Feed settings' }));
+    await screen.findByRole('dialog');
+  }
+
+  const dialogs = screen.getAllByRole('dialog');
+  return dialogs[dialogs.length - 1];
+}
+
+function openComposer() {
+  const trigger = screen.queryByTestId('local-feed-composer-open');
+  if (trigger) {
+    fireEvent.click(trigger);
+  }
+}
+
+function expirySection(dialog: HTMLElement) {
+  const heading = within(dialog).getByText('Your posts expire');
+  return heading.parentElement as HTMLElement;
+}
+
 describe('LocalFeed', () => {
   beforeEach(() => {
     createFeedPost.mockReset();
@@ -195,6 +219,7 @@ describe('LocalFeed', () => {
     );
 
     const composer = await screen.findByTestId('local-feed-composer');
+    openComposer();
     const input = within(composer).getByPlaceholderText('Share something with nearby people...');
 
     await waitFor(() => expect(input).toHaveFocus());
@@ -417,7 +442,8 @@ describe('LocalFeed', () => {
 
     const preview = await screen.findByRole('img', { name: 'River preview' });
     expect(preview.parentElement).toHaveClass('w-full');
-    expect(screen.getByTestId('feed-post-profile-stack-post-other')).toHaveClass('-mt-2', 'w-20', 'flex-col');
+    // The rail holds only the avatar now; vibes moved into the post column.
+    expect(screen.getByTestId('feed-post-profile-stack-post-other')).toHaveClass('-mt-2', 'w-14', 'flex-col');
     expect(screen.getByTestId('feed-post-author-post-other')).toHaveClass('min-w-0', 'flex-1', 'truncate');
     expect(screen.getByTestId('feed-post-author-post-other')).not.toHaveClass('max-w-[32%]');
     expect(within(screen.getByTestId('feed-post-vibes-post-other')).getAllByTitle(/Chill|Geek|Service/).map((tag) => tag.textContent))
@@ -575,13 +601,19 @@ describe('LocalFeed', () => {
       </MemoryRouter>,
     );
 
-    fireEvent.change(await screen.findByPlaceholderText('Share something with nearby people...'), {
+    await screen.findByTestId('local-feed-composer');
+    openComposer();
+    fireEvent.change(screen.getByPlaceholderText('Share something with nearby people...'), {
       target: { value: 'hello crowd' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Dyke' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Gay' }));
-    expect(screen.queryByRole('button', { name: 'T4T' })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Post' }));
+
+    const crowdSettings = await openFeedSettings();
+    fireEvent.click(within(crowdSettings).getByRole('button', { name: 'Dyke' }));
+    fireEvent.click(within(crowdSettings).getByRole('button', { name: 'Gay' }));
+    expect(within(crowdSettings).queryByRole('button', { name: 'T4T' })).not.toBeInTheDocument();
+    fireEvent.keyDown(crowdSettings, { key: 'Escape' });
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Post' }));
 
     await waitFor(() => expect(createFeedPost).toHaveBeenCalledWith({
       content: 'hello crowd',
@@ -629,12 +661,15 @@ describe('LocalFeed', () => {
     );
 
     const composer = await screen.findByTestId('local-feed-composer');
+    openComposer();
     const input = within(composer).getByPlaceholderText('Share something with nearby people...');
-    await waitFor(() => expect(within(composer).getByRole('button', { name: '7d' })).toBeEnabled());
+    const feedSettings = await openFeedSettings();
+    await waitFor(() => expect(within(expirySection(feedSettings)).getByRole('button', { name: '7d' })).toBeEnabled());
 
     fireEvent.change(input, { target: { value: 'seven day post' } });
-    fireEvent.click(within(composer).getByRole('button', { name: '7d' }));
-    fireEvent.click(within(composer).getByRole('button', { name: 'Post' }));
+    fireEvent.click(within(expirySection(feedSettings)).getByRole('button', { name: '7d' }));
+    fireEvent.keyDown(feedSettings, { key: 'Escape' });
+    fireEvent.click(await within(composer).findByRole('button', { name: 'Post' }));
 
     await waitFor(() => expect(createFeedPost).toHaveBeenNthCalledWith(1, {
       content: 'seven day post',
@@ -643,8 +678,10 @@ describe('LocalFeed', () => {
     }));
 
     fireEvent.change(input, { target: { value: 'never post' } });
-    fireEvent.click(within(composer).getByRole('button', { name: 'Never' }));
-    fireEvent.click(within(composer).getByRole('button', { name: 'Post' }));
+    const neverSettings = await openFeedSettings();
+    fireEvent.click(within(expirySection(neverSettings)).getByRole('button', { name: 'Never' }));
+    fireEvent.keyDown(neverSettings, { key: 'Escape' });
+    fireEvent.click(await within(composer).findByRole('button', { name: 'Post' }));
 
     await waitFor(() => expect(createFeedPost).toHaveBeenNthCalledWith(2, {
       content: 'never post',
@@ -652,7 +689,9 @@ describe('LocalFeed', () => {
       crowdTargets: [],
     }));
     expect(await screen.findByText('never post')).toBeInTheDocument();
-    await waitFor(() => expect(screen.getAllByText('Never')).toHaveLength(2));
+    // The expiry control now lives in the settings dialog, so the only Never
+    // on screen is the one on the post itself.
+    await waitFor(() => expect(screen.getAllByText('Never')).toHaveLength(1));
   });
 
   it('loads and saves the feed expiry choice used by future Pings', async () => {
@@ -670,9 +709,11 @@ describe('LocalFeed', () => {
     );
 
     const composer = await screen.findByTestId('local-feed-composer');
-    await waitFor(() => expect(within(composer).getByRole('button', { name: '24h' })).toHaveClass('bg-primary'));
+    openComposer();
+    const expirySettings = await openFeedSettings();
+    await waitFor(() => expect(within(expirySection(expirySettings)).getByRole('button', { name: '24h' })).toHaveAttribute('aria-pressed', 'true'));
 
-    fireEvent.click(within(composer).getByRole('button', { name: '7d' }));
+    fireEvent.click(within(expirySection(await openFeedSettings())).getByRole('button', { name: '7d' }));
 
     await waitFor(() => expect(updateFeedSettings).toHaveBeenCalledWith({
       locationPinVisibility: 'mutuals',
@@ -680,7 +721,7 @@ describe('LocalFeed', () => {
       postExpiryDefault: '7d',
       feedWindow: '7d',
     }));
-    expect(within(composer).getByRole('button', { name: '7d' })).toHaveClass('bg-primary');
+    expect(within(expirySection(await openFeedSettings())).getByRole('button', { name: '7d' })).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('serializes rapid feed expiry saves so the last selection wins', async () => {
@@ -707,8 +748,9 @@ describe('LocalFeed', () => {
     );
 
     const composer = await screen.findByTestId('local-feed-composer');
-    const sixHourButton = within(composer).getByRole('button', { name: '6h' });
-    const sevenDayButton = within(composer).getByRole('button', { name: '7d' });
+    openComposer();
+    const sixHourButton = within(expirySection(await openFeedSettings())).getByRole('button', { name: '6h' });
+    const sevenDayButton = within(expirySection(await openFeedSettings())).getByRole('button', { name: '7d' });
     await waitFor(() => expect(sixHourButton).toBeEnabled());
 
     fireEvent.click(sixHourButton);
@@ -721,7 +763,7 @@ describe('LocalFeed', () => {
       postExpiryDefault: '6h',
       feedWindow: '7d',
     });
-    expect(sevenDayButton).toHaveClass('bg-primary');
+    expect(sevenDayButton).toHaveAttribute('aria-pressed', 'true');
 
     resolveFirst({
       locationPinVisibility: 'mutuals',
@@ -735,7 +777,7 @@ describe('LocalFeed', () => {
       showDistanceLabels: true,
       postExpiryDefault: '7d',
     });
-    expect(sevenDayButton).toHaveClass('bg-primary');
+    expect(sevenDayButton).toHaveAttribute('aria-pressed', 'true');
 
     resolveSecond({
       locationPinVisibility: 'mutuals',
@@ -743,7 +785,7 @@ describe('LocalFeed', () => {
       postExpiryDefault: '7d',
     });
 
-    await waitFor(() => expect(sevenDayButton).toHaveClass('bg-primary'));
+    await waitFor(() => expect(sevenDayButton).toHaveAttribute('aria-pressed', 'true'));
   });
 
   it('shows the party hat beside party member names without a venue tag', async () => {
