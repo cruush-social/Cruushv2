@@ -278,7 +278,7 @@ test.describe('authenticated map tutorial', () => {
     const firstPostPrompt = page.getByTestId('first-feed-post-prompt');
     await expect(firstPostPrompt).toBeVisible();
     await firstPostPrompt.getByRole('button', { name: 'Write a post' }).click();
-    await expect(page.getByRole('heading', { name: 'Local Feed' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Feed', exact: true })).toBeVisible();
 
     await page.getByRole('button', { name: 'Map', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Settings', exact: true })).toBeVisible();

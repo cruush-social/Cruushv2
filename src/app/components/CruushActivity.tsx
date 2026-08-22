@@ -65,10 +65,7 @@ function pluralize(count: number, singular: string, plural = `${singular}s`) {
 
 function ActivityBadge({ children }: { children: string }) {
   return (
-    <span
-      className="rounded-md border border-transparent px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-white/88"
-      style={{ background: 'var(--cruush-gradient-soft-28)' }}
-    >
+    <span className="rounded-md border border-[#6F00FF]/55 bg-[#6F00FF]/18 px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-[#DCC7FF]">
       {children}
     </span>
   );
@@ -339,6 +336,7 @@ function SentRow({
         </div>
       </button>
       <ProfileActionTrio
+        cruushTone="dark"
         userName={item.user.name}
         cruushState={pendingRevoke ? 'sending' : item.mutual ? 'mutual' : 'sent'}
         onCruush={() => onRevoke(item)}
@@ -392,6 +390,7 @@ function MutualRow({
         <ActivityVibes vibes={item.vibes} mutual />
       </button>
       <ProfileActionTrio
+        cruushTone="dark"
         userName={item.user.name}
         cruushState="mutual"
         cruushDisabled

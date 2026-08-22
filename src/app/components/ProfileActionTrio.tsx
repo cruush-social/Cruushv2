@@ -16,6 +16,8 @@ export type ProfileActionTrioProps = {
   /** Their privacy settings decide whether their pin can be centred on the map. */
   canCenterPin?: boolean;
   onCenterPin?: () => void;
+  /** Force the quiet gradient, for example on cruushes you sent. */
+  cruushTone?: 'bright' | 'dark';
   size?: 'sm' | 'md';
   className?: string;
 };
@@ -38,6 +40,7 @@ export default function ProfileActionTrio({
   onMessage,
   canCenterPin = false,
   onCenterPin,
+  cruushTone,
   size = 'md',
   className,
 }: ProfileActionTrioProps) {
@@ -58,7 +61,7 @@ export default function ProfileActionTrio({
         variant="secondary"
         className={`${sizeClass} shrink-0 rounded-full border-0 text-white transition hover:brightness-110 disabled:opacity-100`}
         style={{
-          background: cruushState === 'sent' || cruushState === 'sending'
+          background: cruushTone === 'dark' || cruushState === 'sent' || cruushState === 'sending'
             ? 'var(--cruush-gradient-soft-28)'
             : 'var(--cruush-gradient)',
         }}

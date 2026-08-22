@@ -616,7 +616,9 @@ test('uses a pink-forward cruush gradient only while the profile nav icon is act
     return backgroundImage;
   });
   expect(sharedCruushGradient).toContain('rgb(255, 0, 114)');
-  await expect(activeIcon).toHaveCSS('background-image', sharedCruushGradient);
+  // The active icon ships as the gradient artwork itself, so assert the asset
+  // rather than a CSS background on the image element.
+  await expect(activeIcon).toHaveAttribute('src', /gradient/);
   await expect(activeIcon).toHaveCSS('width', '44px');
   await expect(activeIcon).toHaveCSS('height', '44px');
 
@@ -714,7 +716,7 @@ test('selects Seeking and Visibility menu options with real mobile taps', async 
   await page.goto('/map');
   await expect(page.getByRole('button', { name: 'Feed' })).toBeVisible();
   await page.getByRole('button', { name: 'Feed' }).tap();
-  await expect(page.getByRole('heading', { name: 'Local Feed' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Feed', exact: true })).toBeVisible();
 });
 
 test('short tap opens the profile and press-and-hold reveals the signal', async ({ page, context }) => {
@@ -808,7 +810,7 @@ test('resumes the map tutorial after Ghost and Feed route actions', async ({ pag
   await expect(tutorial.getByRole('heading', { name: 'Feed' })).toBeVisible();
 
   await page.getByTestId('tutorial-try-step').tap();
-  await expect(page.getByRole('heading', { name: 'Local Feed' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Feed', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Map', exact: true }).tap();
   await expect(tutorial.getByRole('heading', { name: 'Feed' })).toBeVisible();
 });

@@ -2095,7 +2095,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
     >
       <div className="pointer-events-none absolute inset-x-0 top-0 z-20 h-44 bg-gradient-to-b from-background/90 via-background/45 to-transparent" />
       <div
-        className="pointer-events-none absolute inset-x-0 top-0 z-40 px-2 pb-10 pr-[3.75rem] pt-2 sm:px-3 sm:pr-[4.25rem] sm:pt-3 lg:pr-[4.75rem]"
+        className="pointer-events-none absolute inset-x-0 top-0 z-40 px-2 pb-10 pt-2 sm:px-3 sm:pt-3"
         data-testid="map-top-chrome"
       >
         <div className="relative flex w-full items-start">
@@ -2110,7 +2110,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
           ) : null}
 
           <div
-          className="cruush-map-top-actions pointer-events-auto mt-0 flex w-full min-w-0 flex-1 items-center justify-between gap-1 rounded-full border border-white/10 bg-background/25 px-2 py-1 backdrop-blur-md transition-[width,margin,transform] sm:gap-1.5 sm:px-3 sm:py-1.5 lg:mx-auto lg:max-w-[52rem] lg:flex-none"
+          className="cruush-map-top-actions pointer-events-auto mt-0 flex w-full min-w-0 flex-1 items-center justify-between gap-1 rounded-full border border-white/10 bg-background/25 py-1 pl-2 pr-[3.25rem] backdrop-blur-md transition-[width,margin,transform] sm:gap-1.5 sm:py-1.5 sm:pl-3 sm:pr-[3.75rem] lg:mx-auto lg:max-w-[52rem] lg:flex-none lg:pr-4"
             data-testid="map-top-actions"
           >
             <div className="relative shrink-0" data-testid="map-plus-stack">

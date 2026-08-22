@@ -506,11 +506,7 @@ export default function ProfileView() {
         <div className="space-y-5">
           <div className="space-y-3">
             <div>
-              <h1 className="mb-2 text-4xl">
-                <span className="sr-only">
-                  {profileView.name}
-                  {profileView.age ? `, ${profileView.age}` : ''}
-                </span>
+              <div className="mb-2 text-4xl">
                 {profileView.attendingLaunchParty ? (
                   <button
                     type="button"
@@ -526,7 +522,7 @@ export default function ProfileView() {
                     <img alt="" aria-hidden="true" className="h-5 w-5 drop-shadow-[0_4px_10px_rgba(0,0,0,0.45)]" src={partyHatIcon} />
                   </button>
                 ) : null}
-              </h1>
+              </div>
               <CruushBadge badges={profileView.badges} />
               {profileView.signal ? (
                 <p className="mt-3 rounded-2xl border border-white/10 bg-card/70 px-4 py-3 text-sm leading-6 text-foreground shadow-[0_12px_32px_rgba(0,0,0,0.24)]">

@@ -210,7 +210,7 @@ describe('CruushActivity', () => {
     expect(container.firstElementChild).not.toHaveClass('overflow-y-scroll');
     expect(container.firstElementChild).not.toHaveClass('[scrollbar-gutter:stable]');
     expect(screen.getByTestId('cruush-activity-header')).toHaveClass('sticky', 'top-0');
-    expect(screen.getByTestId('cruush-activity-header').firstElementChild).toHaveClass('mx-auto', 'max-w-2xl');
+    expect(screen.getByTestId('cruush-count-grid')).toHaveClass('mx-auto', 'max-w-2xl');
     expect(container.querySelector('main')).toHaveClass('mx-auto', 'max-w-2xl');
     expect(screen.getByRole('heading', { name: 'Activity' })).toBeInTheDocument();
     expect(container.querySelector('img[src*="cruush-logo.svg"]')).not.toBeInTheDocument();
