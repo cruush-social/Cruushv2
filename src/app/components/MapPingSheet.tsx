@@ -260,8 +260,8 @@ export default function MapPingSheet({
           <div className="flex items-center gap-4 rounded-xl border border-[#c8ff31]/45 bg-black/45 p-3">
             {/* The real marker, running the real Pulse state, so this is what
                 people actually see rather than an approximation of it. */}
-            <span className="flex h-[9.5rem] w-36 shrink-0 items-end justify-center overflow-hidden pb-0">
-              <span className="block origin-bottom scale-[0.72]" data-testid="map-ping-preview-heart">
+            <span className="flex h-[10.5rem] w-[7.5rem] shrink-0 items-end justify-center overflow-visible">
+              <span className="block origin-bottom" data-testid="map-ping-preview-heart">
                 <MapMarkerPin
                   marker={{
                     id: 'pulse-preview',
