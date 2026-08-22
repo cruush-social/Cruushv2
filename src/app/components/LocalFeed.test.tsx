@@ -188,7 +188,7 @@ describe('LocalFeed', () => {
       'top-0',
       'z-40',
       'shrink-0',
-      'pt-[calc(1rem+env(safe-area-inset-top))]',
+      'pt-[calc(0.75rem+env(safe-area-inset-top))]',
     );
     expect(screen.getByTestId('local-feed-content')).toHaveClass(
       'min-h-0',
