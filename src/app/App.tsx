@@ -49,6 +49,7 @@ const BlockedUsersPage = lazy(() => import('./components/BlockedUsersPage'));
 const DlModeSettings = lazy(() => import('./components/DlModeSettings'));
 const HankyPreview = lazy(() => import('./components/HankyPreview'));
 const KelpieMarkPreview = lazy(() => import('./components/KelpieMarkPreview'));
+const MileHighMarkPreview = lazy(() => import('./components/MileHighMarkPreview'));
 const TravelModeSettings = lazy(() => import('./components/TravelModeSettings'));
 const MapPresenceSettings = lazy(() => import('./components/MapPresenceSettings'));
 const DlModeDefaultNotice = lazy(() => import('./components/DlModeDefaultNotice'));
@@ -590,6 +591,7 @@ export default function App({
               <Route path="/privacy/map-presence" element={<MapPresenceSettings />} />
               <Route path="/settings/travel" element={<TravelModeSettings />} />
               <Route path="/settings/kelpie-marks" element={<KelpieMarkPreview />} />
+              <Route path="/settings/mile-high-marks" element={<MileHighMarkPreview />} />
               <Route path="/settings/hankies" element={<HankyPreview />} />
               <Route path="/privacy/audit" element={<PrivacyAudit />} />
               {import.meta.env.DEV ? (

@@ -1482,9 +1482,83 @@ describe("server", () => {
         email: "river@example.com",
         expiresAt: "2026-04-30T12:00:00.000Z",
         previewUrl: expect.stringContaining("https://cruush.test/?verifyEmailToken="),
-        verificationEmailSent: true
+        verificationEmailSent: false
       }
     });
+  });
+
+  it("reports the verification email as sent only when the mailer really delivered it", async () => {
+    // The mailer does not throw when Resend is unconfigured: it logs a preview URL
+    // and returns normally. Signup used to read that as a successful send, so a
+    // member could be told to check an inbox that never received anything, and the
+    // client's resend control stayed hidden because it keys off this flag.
+    const fetchMock = vi.fn(async (input: string | URL | Request) => {
+      const url = input.toString();
+
+      if (url === "https://api.resend.com/emails") {
+        return {
+          ok: true,
+          status: 200,
+          text: async () => ""
+        };
+      }
+
+      throw new Error(`Unexpected fetch URL: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const deliveringApp = buildServer({
+      ...app.config,
+      RESEND_API_KEY: "re_test",
+      MAIL_FROM: "cruush <hello@cruush.test>"
+    }, {
+      db: {
+        query,
+        end
+      },
+      rateLimiter: createMemoryRateLimiter()
+    });
+
+    try {
+      query
+        .mockResolvedValueOnce({
+          rows: [{
+            id: userId,
+            email: "river@example.com",
+            display_name: null,
+            email_verified_at: null,
+            created_at: "2026-04-28T12:00:00.000Z"
+          }]
+        })
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({
+          rows: [{ expires_at: "2026-04-30T12:00:00.000Z" }]
+        });
+
+      const response = await deliveringApp.inject({
+        method: "POST",
+        url: "/api/auth/signup",
+        payload: {
+          email: "river@example.com",
+          password: "password-123",
+          dateOfBirth: "1994-06-15",
+          termsAccepted: true,
+          privacyAccepted: true,
+          productUpdatesOptIn: false
+        }
+      });
+
+      expect(response.statusCode).toBe(201);
+      expect(fetchMock).toHaveBeenCalledWith(
+        "https://api.resend.com/emails",
+        expect.anything()
+      );
+      expect(response.json().data.verificationEmailSent).toBe(true);
+      expect(response.json().data.previewUrl).toBeNull();
+    } finally {
+      vi.unstubAllGlobals();
+      await deliveringApp.close();
+    }
   });
 
   it.each([
@@ -1658,7 +1732,7 @@ describe("server", () => {
         email: "river@example.com",
         expiresAt: "2026-04-30T12:00:00.000Z",
         previewUrl: expect.stringContaining("https://cruush.app/?verifyEmailToken="),
-        verificationEmailSent: true
+        verificationEmailSent: false
       }
     });
   });
@@ -1707,7 +1781,7 @@ describe("server", () => {
         email: "river@example.com",
         expiresAt: "2026-04-30T12:00:00.000Z",
         previewUrl: expect.stringContaining("https://cruush.app/?verifyEmailToken="),
-        verificationEmailSent: true
+        verificationEmailSent: false
       }
     });
   });

@@ -2217,15 +2217,10 @@ export default function MapHome(_props: MapHomeProps = {}) {
                 dlModeActive ? 'bg-white/[0.07]' : ''
               }`}
             >
-              {/* DL is a mode you turned on deliberately, so it says so. The
-                  halo sits on the mark rather than as a box around it, which is
-                  the only way a bitmap icon can carry a lit state. */}
+              {/* The gradient mark is the active state. Nothing is drawn around it. */}
               <CruushIconImage
                 src={dlModeActive ? dlModeColored : dlModeWhite}
                 className="h-6 w-6 overflow-visible lg:h-7 lg:w-7"
-                style={dlModeActive ? {
-                  filter: 'drop-shadow(0 0 0.4rem rgba(255, 0, 114, 0.55)) drop-shadow(0 0 0.8rem rgba(111, 0, 255, 0.4))',
-                } : undefined}
               />
             </Button>
             <Button

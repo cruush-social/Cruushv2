@@ -638,7 +638,11 @@ export async function registerAuthRoutes(app: FastifyInstance) {
     // The account row is already committed. If delivery fails we must not fail the whole
     // signup: that leaves the user with an account they cannot verify and cannot re-create.
     let previewUrl: string | null = null;
-    let verificationEmailSent = true;
+    // Not sent until a real delivery says so. The mailer only throws when the
+    // provider rejects the send; when it is unconfigured it falls back to its
+    // preview branch and returns normally, so a caught error is not the only
+    // way this can fail to reach a mailbox.
+    let verificationEmailSent = false;
 
     try {
       const preview = await sendVerificationEmail({
@@ -648,6 +652,9 @@ export async function registerAuthRoutes(app: FastifyInstance) {
         verificationUrl: buildVerificationUrl(request, verification.token)
       });
       previewUrl = preview.previewUrl;
+      // A preview URL means the mail was logged locally and nothing left the
+      // building. Only a real delivery returns a null preview.
+      verificationEmailSent = preview.previewUrl === null;
     } catch (error) {
       verificationEmailSent = false;
       request.log.error(
