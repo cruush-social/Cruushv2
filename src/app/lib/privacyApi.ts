@@ -174,3 +174,30 @@ export function saveMapPresence(days: number) {
     body: JSON.stringify({ days }),
   });
 }
+
+export type TravelPin = {
+  userId: string;
+  latitude: number;
+  longitude: number;
+  label: string;
+  setAtMs: number;
+  /** When this pin may next be moved. */
+  movableAtMs: number;
+};
+
+export const TRAVEL_PIN_MOVE_COOLDOWN_MS = 3 * 60 * 60 * 1000;
+
+export function getMyTravelPin() {
+  return requestApi<{ pin: TravelPin | null }>('/api/privacy/travel');
+}
+
+export function saveMyTravelPin(input: { latitude: number; longitude: number; label?: string }) {
+  return requestApi<{ pin: TravelPin }>('/api/privacy/travel', {
+    method: 'PUT',
+    body: JSON.stringify(input),
+  });
+}
+
+export function clearMyTravelPin() {
+  return requestApi<{ pin: null }>('/api/privacy/travel', { method: 'DELETE' });
+}

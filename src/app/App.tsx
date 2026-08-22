@@ -47,6 +47,7 @@ const CruushMatchSettings = lazy(() => import('./components/CruushMatchSettings'
 const Settings = lazy(() => import('./components/Settings'));
 const BlockedUsersPage = lazy(() => import('./components/BlockedUsersPage'));
 const DlModeSettings = lazy(() => import('./components/DlModeSettings'));
+const TravelModeSettings = lazy(() => import('./components/TravelModeSettings'));
 const MapPresenceSettings = lazy(() => import('./components/MapPresenceSettings'));
 const DlModeDefaultNotice = lazy(() => import('./components/DlModeDefaultNotice'));
 const FirstFeedPostPrompt = lazy(() => import('./components/FirstFeedPostPrompt'));
@@ -585,6 +586,7 @@ export default function App({
               <Route path="/privacy/ghost-mode" element={<GhostModeSettings />} />
               <Route path="/privacy/dl-mode" element={<DlModeSettings />} />
               <Route path="/privacy/map-presence" element={<MapPresenceSettings />} />
+              <Route path="/settings/travel" element={<TravelModeSettings />} />
               <Route path="/privacy/audit" element={<PrivacyAudit />} />
               {import.meta.env.DEV ? (
                 <Route path="/dev/onboarding-preview" element={<OnboardingPreview />} />

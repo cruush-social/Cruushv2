@@ -28,6 +28,7 @@ import { addProfileChangedListener, emptyProfilePayload, getMyProfile, getProfil
 import { openConversationOrInbox } from '../lib/openConversation';
 import { formatDistanceLabel, useDistancePreferences } from '../lib/distancePreferences';
 import partyHatIcon from '../assets/ui-icons/party-hat.svg';
+import { TravelPinGlyph } from './BadgeGlyphs';
 
 type ProfileLocationState = {
   distance?: string;
@@ -67,6 +68,9 @@ export type ProfileViewModel = {
   photoMetadata: NonNullable<ProfileRecord['photo_metadata']>;
   badges: ProfileRecord['badges'];
   attendingLaunchParty: boolean;
+  /** Reading from a travel pin rather than a live location. */
+  travelling: boolean;
+  travelLabel: string;
   bio: string;
   signal: string;
   identities: string[];
@@ -149,6 +153,8 @@ export function profileRecordToProfileView(
     photoMetadata: profile.photo_metadata ?? profile.photos.map((photo) => ({ url: photo, explicit: false })),
     badges: profile.badges ?? [],
     attendingLaunchParty: profile.attendingLaunchParty === true,
+    travelling: profile.travelling === true,
+    travelLabel: typeof profile.travelLabel === 'string' ? profile.travelLabel : '',
     bio: profile.bio,
     signal: profile.signal ?? '',
     identities: profile.identities,
@@ -520,9 +526,19 @@ export default function ProfileView() {
           data-testid="profile-photo-overlay"
           className="pointer-events-none absolute inset-x-0 bottom-0 z-20 bg-gradient-to-t from-black/70 via-black/25 to-transparent px-4 pb-4 pt-10 text-white"
         >
-          <h1 className="truncate text-3xl sm:text-4xl" style={PROFILE_OVERLAY_TEXT_STYLE}>
-            {profileView.name}
-            {profileView.age ? <span>, {profileView.age}</span> : null}
+          <h1 className="flex min-w-0 items-center text-3xl sm:text-4xl" style={PROFILE_OVERLAY_TEXT_STYLE}>
+            <span className="truncate">
+              {profileView.name}
+              {profileView.age ? <span>, {profileView.age}</span> : null}
+            </span>
+            {profileView.travelling ? (
+              <TravelPinGlyph
+                className="ml-2 h-5 w-5 shrink-0 sm:h-6 sm:w-6"
+                title={profileView.travelLabel
+                  ? `Travelling, ${profileView.travelLabel}`
+                  : 'Travelling'}
+              />
+            ) : null}
           </h1>
           <p className="mt-1 text-sm text-white" style={PROFILE_OVERLAY_TEXT_STYLE}>{profileView.pronouns}</p>
           {profileView.distance ? (

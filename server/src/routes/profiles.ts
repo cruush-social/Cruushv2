@@ -53,6 +53,7 @@ import {
 } from "../profile-sensitive.js";
 import { getActiveAccountUserId, getAuthenticatedUserId } from "../request-auth.js";
 import { assertUsersNotBlocked } from "../user-blocks.js";
+import { getTravelPin } from "../travel-pins.js";
 import {
   DEFAULT_GHOST_RADIUS_METERS,
   GHOST_RADIUS_OPTIONS,
@@ -1357,18 +1358,25 @@ async function loadProfileData(
     canMessage
   });
 
+  // Travel mode is worth reading before you cross a city for someone, so it is
+  // stated on the profile itself.
+  const travelPin = await getTravelPin(app, userId).catch(() => null);
+  const withTravel = travelPin
+    ? { ...mappedProfile, travelling: true, travelLabel: travelPin.label }
+    : mappedProfile;
+
   if (options.includePrivateSensitive && options.request) {
     const location = await buildOwnerLocationDisplay(app, options.request, userId);
 
     if (location) {
       return {
-        ...mappedProfile,
+        ...withTravel,
         location
       };
     }
   }
 
-  return mappedProfile;
+  return withTravel;
 }
 
 async function assertProfileRowVisibleToViewer(

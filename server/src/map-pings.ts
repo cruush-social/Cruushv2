@@ -31,6 +31,7 @@ import {
   type VisibilitySubjectProfile
 } from "./profile-visibility.js";
 import { postExpirySchema, type PostExpiry } from "./post-schema.js";
+import { getTravelPin } from "./travel-pins.js";
 
 export const MAP_PING_RADIUS_MILES = [1, 3, 5, 10, 15] as const;
 export type MapPingRadiusMiles = typeof MAP_PING_RADIUS_MILES[number];
@@ -326,6 +327,14 @@ async function loadSenderDispatchContext(
 
   if (visibilityPolicy.baseMode === "STEALTH") {
     throw new ApiError(403, "FEATURE_RESTRICTED", "Ping is unavailable in Stealth Mode.");
+  }
+
+  if (await getTravelPin(app, userId)) {
+    throw new ApiError(
+      403,
+      "FEATURE_RESTRICTED",
+      "Pulse is unavailable in Travel Mode. Turn off Travel Mode to send one."
+    );
   }
 
   let sourceLocation: LocationPayload | null = null;

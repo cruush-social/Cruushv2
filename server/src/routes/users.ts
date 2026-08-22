@@ -30,6 +30,7 @@ import { loadBlockedRelationshipUserIds } from "../user-blocks.js";
 import { DEFAULT_MAP_PRESENCE_DAYS } from "../map-presence.js";
 import { DEVELOPMENT_ADMIN_EMAIL } from "../development-admin.js";
 import { distanceMiles, isWithinBetaLaunchArea } from "../beta-access.js";
+import { type TravelPin, loadTravelPins } from "../travel-pins.js";
 import { primaryPhotoExplicitSelect } from "../profile-photo-explicit.js";
 import {
   DEFAULT_GHOST_RADIUS_METERS,
@@ -1074,6 +1075,27 @@ export async function registerUserRoutes(app: FastifyInstance) {
           throw error;
         })
       : new Map<string, LocationPayload>();
+    // Travel mode replaces the device location with the pin the member dropped,
+    // for the viewer's own position as well as everyone they are shown.
+    const travelPins = await loadTravelPins(app, [
+      currentUserId,
+      ...(discoveryRows.mode === "modern" ? discoveryRows.rows.map((row) => row.id) : [])
+    ]).catch((error) => {
+      if (isSchemaCompatibilityError(error)) {
+        return new Map<string, TravelPin>();
+      }
+
+      throw error;
+    });
+
+    travelPins.forEach((pin, userId) => {
+      encryptedLocations.set(userId, {
+        ...(encryptedLocations.get(userId) ?? {}),
+        latE7: Math.round(pin.latitude * 10_000_000),
+        lonE7: Math.round(pin.longitude * 10_000_000)
+      } as LocationPayload);
+    });
+
     const viewerLocation = encryptedLocations.get(currentUserId);
     if (viewerLocation && discoveryViewer.subject) {
       discoveryViewer.subject.coordinates = locationPayloadToCoordinates(viewerLocation);
