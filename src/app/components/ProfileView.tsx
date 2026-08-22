@@ -537,7 +537,7 @@ export default function ProfileView() {
               width on the photo rather than in a card under it. */}
           {profileView.signal ? (
             <p
-              className="mt-2 line-clamp-2 text-base leading-snug text-white sm:text-lg"
+              className="mt-2 truncate text-base leading-snug text-white sm:text-lg"
               data-testid="profile-overlay-signal"
               style={PROFILE_OVERLAY_TEXT_STYLE}
             >

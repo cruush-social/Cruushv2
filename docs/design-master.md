@@ -556,3 +556,39 @@ These are the decisions taken while shipping the 1.5 fixes. Follow them instead 
 ### Photos and text over photos
 - People and media blocks are 4:5. The carousel never shows a square tile.
 - Text over a photo uses a hard one pixel outline in all eight directions plus one tight drop shadow. No blur haloes and no text stroke on the glyphs.
+
+## Hard rules (2026-08-22)
+
+These are not preferences. Breaking one is a bug.
+
+### Signal
+- A signal is at most **30 characters**. The editor input, the server payload
+  schema, and the map preview all hold that number, and it lives in one place:
+  `SIGNAL_MAX_LENGTH` in `server/src/profile-schema.ts`.
+- A signal renders on **one line**, everywhere. It truncates; it never wraps to
+  a second line and never grows the block it sits in.
+
+### Colour
+- Never change a colour, a surface opacity, or a shadow that the request did not
+  name. A complaint about one element is not permission to restyle its
+  neighbours.
+- Green (`#C8FF31`) belongs to Ping and to nothing else. Notifications, unread
+  states, and accents use the brand accent or the gradient.
+- The quiet gradient variants are the bright gradient dimmed, never a rebuilt
+  stop list: `--cruush-gradient-soft-18` and `--cruush-gradient-soft-28` layer a
+  flat black over `--cruush-gradient` so both read as the same colour.
+- Red belongs to the bug report control alone. That control is fixed to the top
+  right and never moves.
+
+### Layering
+- Nothing covers the top chrome, the bottom nav, or an open dialog. The order is
+  map (own stacking context) < dock panels (base 30) < top chrome and bottom nav
+  (60) < dialogs (80) < the bug report control (70 within its own corner).
+- A hovered or previewed map pin stays inside the map's stacking context.
+
+### Capsules
+- Profile previews show **vibe capsules only**. Crowds are never rendered as
+  vibe capsules anywhere.
+- A capsule is filled with its own border colour, which is the colour that
+  person's heart pin is drawn with: pink for no mutual, purple for a mutual,
+  indigo for you.

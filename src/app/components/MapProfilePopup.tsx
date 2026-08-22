@@ -332,7 +332,7 @@ export default function MapProfilePopup({
                 does on the profile page. */}
             {profileView?.signal ? (
               <p
-                className="mt-2 line-clamp-2 text-base leading-snug text-white"
+                className="mt-2 truncate text-base leading-snug text-white"
                 data-testid="popup-overlay-signal"
                 style={PROFILE_OVERLAY_TEXT_STYLE}
               >

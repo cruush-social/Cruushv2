@@ -197,7 +197,7 @@
     "The share of accounts holding cruush+ is unknown. No database count was run.",
     "No environment variables were added, removed, or changed by this task."
   ],
-  "task": "Report what crashes the app shell",
+  "task": "Thirty character signal rule and the design hard rules",
   "publicationTarget": "origin/main and production",
   "environmentChanges": "none"
 }
