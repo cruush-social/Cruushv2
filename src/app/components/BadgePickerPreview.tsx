@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
+import { KeyholeEyeGlyph, LipsGlyph, PartyHatColorGlyph, StraightEdgeGlyph, TongueGlyph } from './BadgeGlyphs';
 import {
   ArrowDown,
   ArrowLeft,
   Bed,
-  Binoculars,
   Bone,
   CircleDot,
   Crown,
@@ -12,29 +12,25 @@ import {
   Eye,
   Feather,
   Hammer,
-  Hand,
+  Grab,
   Handshake,
   Hourglass,
   Layers,
-  Leaf,
   Link2,
   Lock,
   MinusCircle,
   Repeat2,
   Shield,
-  Smile,
-  Sparkles,
   Spline,
   TreePine,
   Users,
   UsersRound,
   Wand2,
   Wind,
-  Zap,
   type LucideIcon,
 } from 'lucide-react';
 import { useNavigate } from 'react-router';
-import { MapMarkerPin } from './MapView';
+import HeartPhoto from './HeartPhoto';
 import { getMyProfile } from '../lib/profileApi';
 
 /**
@@ -46,14 +42,14 @@ import { getMyProfile } from '../lib/profileApi';
 type BadgeOption = {
   id: string;
   label: string;
-  icon: LucideIcon;
+  icon: (props: { className?: string; strokeWidth?: number }) => JSX.Element;
   group: string;
 };
 
 const BADGE_OPTIONS: BadgeOption[] = [
-  { id: 'oral', label: 'Oral', icon: Smile, group: 'Acts' },
+  { id: 'oral', label: 'Oral', icon: LipsGlyph, group: 'Acts' },
   { id: 'penetration', label: 'Penetration', icon: ArrowDown, group: 'Acts' },
-  { id: 'fisting', label: 'Fisting', icon: Hand, group: 'Acts' },
+  { id: 'fisting', label: 'Fisting', icon: Grab, group: 'Acts' },
   { id: 'rimming', label: 'Rimming', icon: CircleDot, group: 'Acts' },
   { id: 'hands', label: 'Hands', icon: Handshake, group: 'Acts' },
   { id: 'frottage', label: 'Frottage', icon: Repeat2, group: 'Acts' },
@@ -65,7 +61,7 @@ const BADGE_OPTIONS: BadgeOption[] = [
   { id: 'control', label: 'Control', icon: Crown, group: 'Kink' },
   { id: 'watersports', label: 'Watersports', icon: Droplet, group: 'Kink' },
   { id: 'edging', label: 'Edging', icon: Hourglass, group: 'Kink' },
-  { id: 'gooning', label: 'Gooning', icon: Zap, group: 'Kink' },
+  { id: 'gooning', label: 'Gooning', icon: TongueGlyph, group: 'Kink' },
   { id: 'chastity', label: 'Chastity', icon: Lock, group: 'Kink' },
   { id: 'leather', label: 'Leather', icon: Shield, group: 'Kink' },
   { id: 'rubber', label: 'Rubber', icon: Layers, group: 'Kink' },
@@ -75,12 +71,12 @@ const BADGE_OPTIONS: BadgeOption[] = [
   { id: 'breath', label: 'Breath', icon: Wind, group: 'Kink' },
   { id: 'roleplay', label: 'Roleplay', icon: Drama, group: 'Kink' },
   { id: 'exhibition', label: 'Exhibition', icon: Eye, group: 'Scene' },
-  { id: 'voyeur', label: 'Voyeur', icon: Binoculars, group: 'Scene' },
+  { id: 'voyeur', label: 'Voyeur', icon: KeyholeEyeGlyph, group: 'Scene' },
   { id: 'group', label: 'Group', icon: UsersRound, group: 'Scene' },
   { id: 'public', label: 'Public', icon: TreePine, group: 'Scene' },
-  { id: 'chems', label: 'Party', icon: Sparkles, group: 'Scene' },
-  { id: 'sober', label: 'Sober', icon: Leaf, group: 'Scene' },
-  { id: 'none', label: 'Nothing here', icon: MinusCircle, group: 'Scene' },
+  { id: 'chems', label: 'Party', icon: PartyHatColorGlyph, group: 'Scene' },
+  { id: 'sober', label: 'Straight edge', icon: StraightEdgeGlyph, group: 'Scene' },
+  { id: 'none', label: 'No badge', icon: MinusCircle, group: 'Scene' },
 ];
 
 // Hanky code: the side says your role, the badge says the act. Left is what you
@@ -93,7 +89,7 @@ const SIDES = [
 
 // Copied from the map's own badge chip: same size, same 3.2px border, same
 // placement, same surface. Your pin's border colour is the indigo the map uses.
-const CURRENT_USER_BORDER = 'rgba(0, 75, 255, 0.8)';
+const CURRENT_USER_BORDER = '#004BFF';
 
 function BadgeChip({ icon: Icon, side }: { icon: LucideIcon; side: 'left' | 'right' }) {
   return (
@@ -111,7 +107,7 @@ function BadgeChip({ icon: Icon, side }: { icon: LucideIcon; side: 'left' | 'rig
         borderWidth: '3.2px',
       }}
     >
-      <Icon aria-hidden="true" className="h-[0.9375rem] w-[0.9375rem]" strokeWidth={2.6} />
+      <Icon aria-hidden="true" className="h-[0.8125rem] w-[0.8125rem]" strokeWidth={2.6} />
     </span>
   );
 }
@@ -122,6 +118,8 @@ export default function BadgePickerPreview() {
   const [rightBadge, setRightBadge] = useState('penetration');
   const [activeSide, setActiveSide] = useState<'left' | 'right'>('left');
   const [profile, setProfile] = useState<Awaited<ReturnType<typeof getMyProfile>> | null>(null);
+  const groups = [...new Set(BADGE_OPTIONS.map((option) => option.group))];
+  const [activeGroup, setActiveGroup] = useState(groups[0]);
 
   useEffect(() => {
     let isMounted = true;
@@ -143,11 +141,10 @@ export default function BadgePickerPreview() {
   const setChosen = activeSide === 'left' ? setLeftBadge : setRightBadge;
   const leftOption = BADGE_OPTIONS.find((option) => option.id === leftBadge) ?? BADGE_OPTIONS[0];
   const rightOption = BADGE_OPTIONS.find((option) => option.id === rightBadge) ?? BADGE_OPTIONS[0];
-  const groups = [...new Set(BADGE_OPTIONS.map((option) => option.group))];
 
   return (
-    <div className="min-h-screen bg-background pb-24 text-white">
-      <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-white/10 bg-background/95 px-4 py-3 backdrop-blur-md">
+    <div className="flex min-h-screen flex-col bg-background text-white">
+      <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-white/10 bg-background/95 px-4 py-3 backdrop-blur-md">
         <button
           aria-label="Back"
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/12 bg-black/55"
@@ -159,87 +156,95 @@ export default function BadgePickerPreview() {
         <h1 className="min-w-0 flex-1 truncate text-lg">Your side badges</h1>
       </header>
 
-      <main className="mx-auto w-full max-w-2xl space-y-4 px-4 py-4">
-        <p className="text-sm text-white/62">
-          Two badges ride on your heart. Left is what you give, right is what you take, the
-          way a hanky has always been read. Put the same badge on both sides and it reads as
-          versatile.
-        </p>
-
-        {/* The map's own unit, drawn by the map's own component. The badges
-            are its real badge slots, not chips drawn on top of it. */}
-        <section className="flex items-center justify-center rounded-2xl border border-white/10 bg-black/45 py-8">
-          <MapMarkerPin
-            marker={{
-              id: 'badge-preview',
-              kind: 'person',
-              displayName: profile?.display_name ?? 'You',
-              userId: 'badge-preview',
-              signal: null,
-              approximateLatitude: 0,
-              approximateLongitude: 0,
-              photo: profile?.photos?.[0] ?? null,
-              isCurrentUser: true,
-              badge: { key: rightOption.id, label: rightOption.label },
-              relationship: { kind: 'mutual_cruush', precision: 'precise' },
-            }}
-            previewed
-          />
-        </section>
-
-        <div className="grid grid-cols-2 gap-2">
-          {SIDES.map((side) => (
+      {/* Browse by category, try one on, watch it land on the heart below. */}
+      <div className="sticky top-[3.75rem] z-10 border-b border-white/10 bg-background/95 px-4 py-2 backdrop-blur-md">
+        <div className="flex gap-2 overflow-x-auto">
+          {groups.map((group) => (
             <button
-              className={`rounded-xl border p-3 text-left transition ${
-                activeSide === side.id
-                  ? 'border-primary/45 text-white'
-                  : 'border-white/10 bg-black/40 text-white/72 hover:bg-white/[0.06]'
+              className={`shrink-0 rounded-full border px-4 py-1.5 text-sm transition ${
+                activeGroup === group
+                  ? 'border-[#004BFF] bg-black/60 text-white'
+                  : 'border-white/10 bg-black/40 text-white/64 hover:bg-white/[0.06]'
               }`}
-              key={side.id}
-              onClick={() => setActiveSide(side.id)}
-              style={activeSide === side.id ? { background: 'var(--cruush-gradient-soft-18)' } : undefined}
+              key={group}
+              onClick={() => setActiveGroup(group)}
               type="button"
             >
-              <span className="block text-sm">{side.label}</span>
-              <span className="mt-0.5 block text-xs text-white/55">{side.hint}</span>
+              {group}
             </button>
           ))}
         </div>
+      </div>
 
-        {groups.map((group) => (
-          <section className="space-y-1.5" key={group}>
-            <h2 className="text-xs uppercase tracking-[0.14em] text-white/48">{group}</h2>
-            <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-5">
-              {BADGE_OPTIONS.filter((option) => option.group === group).map((option) => {
-                const selected = chosen[activeSide] === option.id;
-                const Icon = option.icon;
+      <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-4">
+        <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+          {BADGE_OPTIONS.filter((option) => option.group === activeGroup).map((option) => {
+            const selected = chosen[activeSide] === option.id;
+            const Icon = option.icon;
 
-                return (
-                  <button
-                    className={`flex min-h-20 flex-col items-center justify-center gap-2 rounded-xl border p-2 text-center text-xs transition ${
-                      selected
-                        ? 'border-primary/45 text-white'
-                        : 'border-white/10 bg-black/40 text-white/72 hover:bg-white/[0.06]'
-                    }`}
-                    key={option.id}
-                    onClick={() => setChosen(option.id)}
-                    style={selected ? { background: 'var(--cruush-gradient-soft-18)' } : undefined}
-                    type="button"
-                  >
-                    <span
-                      className="flex h-9 w-9 items-center justify-center rounded-full bg-black/85"
-                      style={{ borderColor: 'rgba(0, 75, 255, 0.8)', borderWidth: '3.2px' }}
-                    >
-                      <Icon aria-hidden="true" className="h-4 w-4" strokeWidth={2.6} />
-                    </span>
-                    <span className="leading-tight">{option.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-        ))}
+            return (
+              <button
+                className={`flex min-h-24 flex-col items-center justify-center gap-2 rounded-xl border px-2 py-3 text-center text-sm leading-tight transition ${
+                  selected
+                    ? 'border-[#004BFF] bg-black/60 text-white'
+                    : 'border-white/10 bg-black/40 text-white/70 hover:bg-white/[0.06]'
+                }`}
+                key={option.id}
+                onClick={() => setChosen(option.id)}
+                type="button"
+              >
+                <Icon aria-hidden="true" className="h-6 w-6 text-white" strokeWidth={2.2} />
+                <span>{option.label}</span>
+              </button>
+            );
+          })}
+        </div>
       </main>
+
+      {/* The fitting mirror: the unit at the size it reads on the map, big. */}
+      <div className="sticky bottom-0 z-20 border-t border-white/10 bg-background/96 px-4 pb-[calc(7.5rem+env(safe-area-inset-bottom))] pt-5 backdrop-blur-xl">
+        <div className="mx-auto flex w-full max-w-2xl flex-col items-center gap-4">
+          <span className="relative flex h-[6.5rem] w-[8rem] scale-[1.38] items-center justify-center">
+            <span className="relative flex h-20 w-[103px] items-center justify-center">
+              <HeartPhoto
+                className="w-20"
+                label="Your heart with its side badges"
+                masked={false}
+                photo={profile?.photos?.[0] ?? null}
+                theme="current"
+                userId="badge-preview"
+              />
+              <BadgeChip icon={leftOption.icon} side="left" />
+              <BadgeChip icon={rightOption.icon} side="right" />
+            </span>
+          </span>
+
+          <div className="grid w-full grid-cols-2 gap-2">
+            {SIDES.map((side) => {
+              const option = side.id === 'left' ? leftOption : rightOption;
+              const active = activeSide === side.id;
+
+              return (
+                <button
+                  className={`rounded-xl border px-3 py-2 text-left transition ${
+                    active
+                      ? 'border-[#004BFF] bg-black/60 text-white'
+                      : 'border-white/10 bg-black/40 text-white/64 hover:bg-white/[0.06]'
+                  }`}
+                  key={side.id}
+                  onClick={() => setActiveSide(side.id)}
+                  type="button"
+                >
+                  <span className="block text-[0.7rem] uppercase tracking-[0.12em] text-white/48">
+                    {side.hint}
+                  </span>
+                  <span className="mt-0.5 block truncate text-sm">{option.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

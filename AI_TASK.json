@@ -164,7 +164,8 @@
     "server/src/map-pings.ts",
     "src/app/lib/profileLimits.ts",
     "src/app/components/BadgePickerPreview.tsx",
-    "src/app/components/PulseEffectPreview.tsx"
+    "src/app/components/PulseEffectPreview.tsx",
+    "src/app/components/BadgeGlyphs.tsx"
   ],
   "preserved": [
     "Preserve the trust gate on feed posting: trust_score above 20, no active suspension, no feature_restrictions row for feed_posting.",
