@@ -53,7 +53,7 @@ function selectTab(name: RegExp) {
 }
 
 function expectHeartPreviewSize(label: string) {
-  expect(screen.getByRole('img', { name: label }).parentElement).toHaveClass('w-24');
+  expect(screen.getByRole('img', { name: label }).parentElement).toHaveClass('w-20');
 }
 
 const activityFixture = {

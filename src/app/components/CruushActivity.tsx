@@ -42,7 +42,7 @@ import { registerBugButtonSlot } from '../lib/bugButtonSlot';
 type ActivityTab = 'incoming' | 'sent' | 'mutual' | 'views';
 type CruushActionState = 'available' | 'sending' | 'sent' | 'mutual';
 
-const activityHeartClassName = 'w-24 shrink-0';
+const activityHeartClassName = 'w-20 shrink-0';
 const activityRowClassName = 'flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-card/70 p-3 text-left shadow-[0_12px_32px_rgba(0,0,0,0.24)] transition-colors hover:bg-white/[0.06]';
 
 function formatRelativeTime(isoTimestamp: string) {
@@ -145,7 +145,7 @@ function LockedHeart({ label = 'Locked profile preview' }: { label?: string }) {
   return (
     <div className={`relative ${activityHeartClassName}`}>
       <HeartPhoto
-        className="w-24 blur-[2px]"
+        className="w-20 blur-[2px]"
         label={label}
         masked
         theme="mutual"
@@ -662,7 +662,7 @@ export default function CruushActivity({ embedded = false }: { embedded?: boolea
 
             <TabsList
               data-testid="cruush-tab-grid"
-              className="mx-auto grid h-auto w-full max-w-2xl grid-cols-[repeat(4,minmax(0,1fr))] rounded-lg border border-white/10 bg-background/25 p-1 shadow-[0_20px_55px_rgba(0,0,0,0.32)] backdrop-blur-xl"
+              className="mx-auto grid h-auto w-full max-w-2xl grid-cols-[repeat(4,minmax(0,1fr))] gap-2 rounded-lg border-0 bg-transparent p-0 shadow-none"
             >
               <ActivityTabButton value="incoming" label="incoming" />
               <ActivityTabButton value="sent" label="sent" />
@@ -780,7 +780,7 @@ function ActivityTabButton({
   return (
     <TabsTrigger
       value={value}
-      className="relative min-w-0 h-10 rounded-md border border-transparent bg-transparent px-2 text-sm text-white/72"
+      className="relative h-10 min-w-0 rounded-lg border border-white/10 bg-white/[0.04] px-2 text-sm text-white/72"
     >
       <span className="block min-w-0 truncate">{label}</span>
     </TabsTrigger>
