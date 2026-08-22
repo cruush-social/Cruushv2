@@ -327,7 +327,7 @@ async function loadSenderDispatchContext(
   }
 
   if (visibilityPolicy.baseMode === "STEALTH") {
-    throw new ApiError(403, "FEATURE_RESTRICTED", "Ping is unavailable in Stealth Mode.");
+    throw new ApiError(403, "FEATURE_RESTRICTED", "Ping is unavailable in Voyeur.");
   }
 
   if (await getTravelPin(app, userId)) {

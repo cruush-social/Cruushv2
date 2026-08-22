@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10 30 276 190">
+  <title>cruush icon - Mile High Club Colored</title>
+  <defs>
+    <linearGradient id="mile-high-club-gradient" x1="-10" y1="125" x2="266" y2="125" gradientUnits="userSpaceOnUse">
+      <stop offset="0.06" stop-color="#ff0072"/>
+      <stop offset="0.53" stop-color="#6f00ff"/>
+      <stop offset="0.81" stop-color="#3826ff"/>
+      <stop offset="1" stop-color="#1181ff"/>
+    </linearGradient>
+  </defs>
+  <path fill="url(#mile-high-club-gradient)" d="M188,96 C204,74 228,56 256,48 Q239,72 249,96 Q224,100 230,128 Q205,126 209,152 Q194,138 188,116 Z"/>
+  <path fill="url(#mile-high-club-gradient)" d="M68,96 C52,74 28,56 0,48 Q17,72 7,96 Q32,100 26,128 Q51,126 47,152 Q62,138 68,116 Z"/>
+  <path fill="url(#mile-high-club-gradient)" d="M128,206 C128,206 62,162 62,118 C62,96 79,79 101,79 C114,79 124,86 128,96 C132,86 142,79 155,79 C177,79 194,96 194,118 C194,162 128,206 128,206 Z"/>
+</svg>

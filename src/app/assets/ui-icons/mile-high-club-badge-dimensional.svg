@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <title>cruush icon - Mile High Club Badge Dimensional</title>
+  <defs>
+    <linearGradient id="mhc-dim-ramp" x1="0" y1="32" x2="64" y2="32" gradientUnits="userSpaceOnUse">
+      <stop offset="0.06" stop-color="#ff0072"/>
+      <stop offset="0.53" stop-color="#6f00ff"/>
+      <stop offset="0.81" stop-color="#3826ff"/>
+      <stop offset="1" stop-color="#1181ff"/>
+    </linearGradient>
+
+    <!-- Form built out of the brand ramp rather than black and white overlays.
+         The wingtips fall into deepened ends of the ramp and the fuselage
+         catches a lit tint of it, so the plane reads as an object without
+         losing its colour. Object bounding box, so it follows the glyph. -->
+    <linearGradient id="mhc-dim-plane" x1="0" y1="0.5" x2="1" y2="0.5">
+      <stop offset="0"    stop-color="#7a0038"/>
+      <stop offset="0.14" stop-color="#e1005f"/>
+      <stop offset="0.34" stop-color="#ff4d97"/>
+      <stop offset="0.47" stop-color="#ffc2de"/>
+      <stop offset="0.58" stop-color="#a86bff"/>
+      <stop offset="0.78" stop-color="#5a00e0"/>
+      <stop offset="0.92" stop-color="#2a1ad6"/>
+      <stop offset="1"    stop-color="#12266e"/>
+    </linearGradient>
+
+    <!-- Nose lit, tail deepened, again in colour rather than in grey. -->
+    <linearGradient id="mhc-dim-len" x1="0.5" y1="0" x2="0.5" y2="1">
+      <stop offset="0"   stop-color="#ffffff" stop-opacity="0.26"/>
+      <stop offset="0.38" stop-color="#ffffff" stop-opacity="0"/>
+      <stop offset="1"   stop-color="#12266e" stop-opacity="0.34"/>
+    </linearGradient>
+  </defs>
+
+  <circle cx="32" cy="32" r="27.4" fill="none" stroke="url(#mhc-dim-ramp)" stroke-width="4.2"/>
+  <g transform="translate(32,32) scale(1.32)">
+    <path fill="url(#mhc-dim-plane)" d="M0,-13 C2,-13 3.4,-10 3.4,-6.6 L3.4,-3.4 L13,2.6 L13,6 L3.4,3.8 L3.4,9 L6.6,11.6 L6.6,13.6 L0,11.8 L-6.6,13.6 L-6.6,11.6 L-3.4,9 L-3.4,3.8 L-13,6 L-13,2.6 L-3.4,-3.4 L-3.4,-6.6 C-3.4,-10 -2,-13 0,-13 Z"/>
+    <path fill="url(#mhc-dim-len)" d="M0,-13 C2,-13 3.4,-10 3.4,-6.6 L3.4,-3.4 L13,2.6 L13,6 L3.4,3.8 L3.4,9 L6.6,11.6 L6.6,13.6 L0,11.8 L-6.6,13.6 L-6.6,11.6 L-3.4,9 L-3.4,3.8 L-13,6 L-13,2.6 L-3.4,-3.4 L-3.4,-6.6 C-3.4,-10 -2,-13 0,-13 Z"/>
+  </g>
+</svg>

@@ -194,3 +194,53 @@ describe("mailer", () => {
     expect(body.text).not.toContain("reported plaintext");
   });
 });
+
+// A Resend send must carry something to render: a template, or html and text.
+// It is carrying NEITHER that fails silently, because the route logs the error
+// and still returns 202, so nothing surfaces to the user or to us.
+describe("every Resend send carries something to render", () => {
+  const senders: Array<[string, () => Promise<unknown>]> = [
+    ["verification", () => sendVerificationEmail({
+      config,
+      email: "user@example.com",
+      logger,
+      verificationUrl: "https://cruush.test/?verifyEmailToken=abc"
+    })],
+    ["password reset", () => sendPasswordResetEmail({
+      config,
+      email: "user@example.com",
+      logger,
+      resetUrl: "https://cruush.test/?resetPasswordToken=abc"
+    })]
+  ];
+
+  for (const [name, send] of senders) {
+    it(`${name} posts a template or a body, never neither`, async () => {
+      const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+      vi.stubGlobal("fetch", fetchMock);
+
+      await send();
+
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      const [url, init] = fetchMock.mock.calls[0] as [string, { body: string }];
+      expect(url).toBe("https://api.resend.com/emails");
+
+      const body = JSON.parse(init.body);
+      const hasTemplate = Boolean(body.template?.id);
+      const hasBody = Boolean(body.html) && Boolean(body.text);
+      expect(hasTemplate || hasBody, `${name} email would render nothing`).toBe(true);
+
+      // a template has to carry its variables, or it renders with empty slots
+      if (hasTemplate) {
+        expect(Object.keys(body.template.variables ?? {}).length).toBeGreaterThan(0);
+        for (const value of Object.values(body.template.variables)) {
+          expect(String(value).length).toBeGreaterThan(0);
+        }
+      }
+
+      expect(body.to).toEqual(["user@example.com"]);
+      expect(body.subject).toBeTruthy();
+      expect(body.from).toBeTruthy();
+    });
+  }
+});

@@ -309,13 +309,13 @@ export default function GhostModeSettings() {
               <div className="flex items-start gap-3">
                 <CruushIcon name="ghost" variant={privacySettings.baseMode === 'STEALTH' ? 'stealth' : 'white'} className="mt-1 h-5 w-5 opacity-80" />
                 <div>
-                  <p>Stealth Mode</p>
+                  <p>Voyeur</p>
                   <p className="text-sm text-muted-foreground">Browse the map without appearing on it.</p>
                 </div>
               </div>
               {hasCruushPlus ? (
                 <Switch
-                  aria-label="Toggle Stealth Mode"
+                  aria-label="Toggle Voyeur"
                   checked={privacySettings.baseMode === 'STEALTH'}
                   disabled={privacyStatus === 'loading' || privacyStatus === 'saving'}
                   onCheckedChange={(enabled) => {
@@ -331,7 +331,7 @@ export default function GhostModeSettings() {
                   type="button"
                   variant="outline"
                   className="shrink-0"
-                  aria-label="Unlock Stealth Mode with cruush+"
+                  aria-label="Unlock Voyeur with cruush+"
                   onClick={() => navigate('/rewards')}
                 >
                   <CruushPlusWord />

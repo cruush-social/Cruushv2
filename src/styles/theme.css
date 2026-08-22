@@ -841,6 +841,18 @@ html[data-cruush-alpha-bug-corner='top-right'] [data-testid='accessibility-quick
     opacity: 1;
   }
 
+  /* Mile High Club wings join the ghost flash cycle. The membrane inside the
+     outline takes the same Pepper's ghost treatment as the photo and the badge
+     symbols, so a travelling ghost fades through the wings as well as the heart. */
+  .cruush-ghost-rotation-wing-membrane {
+    filter: var(--cruush-ghost-pepper-filter, none);
+    opacity: var(--cruush-ghost-pepper-opacity, 1);
+  }
+
+  .cruush-ghost-rotation-wing-outline {
+    opacity: var(--cruush-ghost-unit-opacity, 1);
+  }
+
   .cruush-ghost-rotation-heart-photo {
     filter: var(--cruush-ghost-photo-filter, none);
     opacity: var(--cruush-ghost-photo-opacity, 1);
