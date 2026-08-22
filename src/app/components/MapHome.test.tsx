@@ -1574,7 +1574,7 @@ describe('MapHome', () => {
     expect(screen.queryByRole('button', { name: 'Safety Center' })).not.toBeInTheDocument();
     expect(luckyIcon).toHaveClass('h-7', 'w-7', 'scale-[1.55]');
     expect(ghostModeIcon).toHaveClass('h-7', 'w-7');
-    expect(dlModeIcon).toHaveClass('h-7', 'w-7');
+    expect(dlModeIcon).toHaveClass('h-6', 'w-6');
     expect(notificationIcon).toHaveClass('h-7', 'w-7', 'scale-[1.4]');
     expect(settingsIcon).toHaveClass('h-7', 'w-7', 'scale-[1.18]');
     expect(dlModeIcon?.getAttribute('src')).toContain('dl-mode-colored');
