@@ -1380,12 +1380,16 @@ export default function PrivateGroupChat() {
                   })}
                   {msg.content ? (
                     <div
-                      className={`rounded-[22px] px-4 py-3 text-sm leading-relaxed ${
-                        isOwn
-                          ? 'text-white'
-                          : 'border border-border bg-card text-foreground'
-                      }`}
-                      style={isOwn ? { background: 'var(--cruush-gradient)' } : undefined}
+                      className="rounded-[22px] px-4 py-3 text-sm leading-relaxed text-white"
+                      style={{
+                        // Bubbles carry the relationship colours the pins use:
+                        // indigo for you, purple for a mutual, pink otherwise.
+                        background: isOwn
+                          ? '#3826FF'
+                          : conversation?.kind === 'group' || conversation?.mutual
+                            ? '#6F00FF'
+                            : '#FF0072',
+                      }}
                     >
                       {msg.content}
                     </div>

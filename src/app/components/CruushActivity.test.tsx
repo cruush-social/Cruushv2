@@ -212,7 +212,7 @@ describe('CruushActivity', () => {
     expect(screen.getByTestId('cruush-activity-header')).toHaveClass('sticky', 'top-0');
     expect(screen.getByTestId('cruush-count-grid')).toHaveClass('mx-auto', 'max-w-2xl');
     expect(container.querySelector('main')).toHaveClass('mx-auto', 'max-w-2xl');
-    expect(screen.getByRole('heading', { name: 'Activity' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Cruushes' })).toBeInTheDocument();
     expect(container.querySelector('img[src*="cruush-logo.svg"]')).not.toBeInTheDocument();
     expect(screen.getByTestId('cruush-count-grid')).toHaveClass('grid-cols-[repeat(4,minmax(0,1fr))]');
     expect(screen.getByTestId('cruush-count-grid').children[0]).toHaveClass('min-w-0');

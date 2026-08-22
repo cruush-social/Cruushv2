@@ -89,7 +89,7 @@ export default function ProfileActionTrio({
           title={`Message ${userName}`}
           onClick={onMessage}
         >
-          <CruushIcon name="messages" className="h-5 w-5" variant="white" />
+          <CruushIcon name="send" className="h-5 w-5" variant="white" />
         </Button>
       ) : null}
 

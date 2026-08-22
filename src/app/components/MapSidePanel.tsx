@@ -10,7 +10,7 @@ export type MapSidePanelView = 'feed' | 'activity' | 'messages';
 
 export const MAP_SIDE_PANEL_VIEWS: { id: MapSidePanelView; label: string }[] = [
   { id: 'feed', label: 'Feed' },
-  { id: 'activity', label: 'Activity' },
+  { id: 'activity', label: 'Cruushes' },
   { id: 'messages', label: 'Messages' },
 ];
 

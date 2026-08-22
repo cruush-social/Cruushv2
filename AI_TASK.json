@@ -208,5 +208,5 @@
   ],
   "publicationTarget": "origin/main and production",
   "environmentChanges": [],
-  "task": "Profile controls on the photo, full screen photo view, activity permissions, no glow shadows"
+  "task": "Opaque profile controls, Cruushes rename, relationship chat bubbles, dismissible notification popups"
 }

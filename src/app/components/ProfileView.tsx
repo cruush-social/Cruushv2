@@ -553,11 +553,11 @@ export default function ProfileView() {
             <div className="pointer-events-auto mt-3">
             <div className="flex gap-2">
               <Button
-                className={`cruush-action-sheen flex-1 rounded-xl border ${hasRevocableCruush
+                className={`cruush-action-sheen flex-1 rounded-xl border disabled:opacity-100 ${hasRevocableCruush
                   ? 'border-transparent text-white'
                   : cruushDisabled
-                    ? 'border-white/10 bg-white/[0.06] text-white/45'
-                    : 'border-transparent text-white hover:brightness-110'}`}
+                    ? 'border-white/25 text-white/55'
+                    : 'border-transparent text-white'}`}
                 onClick={() => {
                   void (hasRevocableCruush ? handleRevokeCruush() : handleCruush());
                 }}
@@ -565,9 +565,9 @@ export default function ProfileView() {
                 aria-label={revokingCruush ? (isAlreadyMutual ? 'removing mutual' : 'unsending cruush') : isAlreadyMutual ? 'remove mutual' : hasSentCruush ? 'unsend cruush' : sendingCruush ? 'sending cruush' : 'send cruush'}
                 style={{
                   background: cruushDisabled
-                    ? undefined
+                    ? '#151021'
                     : hasRevocableCruush
-                      ? 'var(--cruush-gradient-soft-28)'
+                      ? 'var(--cruush-gradient-soft-28), #0A0A12'
                       : 'var(--cruush-gradient)',
                 }}
               >
@@ -575,8 +575,8 @@ export default function ProfileView() {
                 {revokingCruush ? (isAlreadyMutual ? 'removing...' : 'unsending...') : isAlreadyMutual ? 'remove mutual' : hasSentCruush ? 'unsend' : sendingCruush ? 'sending...' : 'cruush'}
               </Button>
               <Button
-                className="cruush-action-sheen flex-1 rounded-xl border border-[#6F00FF]/55 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
-                style={{ background: 'var(--cruush-gradient-soft-28), #0A0A12' }}
+                className={`cruush-action-sheen flex-1 rounded-xl border border-[#6F00FF] disabled:opacity-100 ${canMessage ? 'text-white' : 'text-white/55'}`}
+                style={{ background: canMessage ? 'var(--cruush-gradient)' : '#151021' }}
                 onClick={() => {
                   void handleMessage();
                 }}

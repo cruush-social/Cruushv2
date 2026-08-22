@@ -624,7 +624,7 @@ export default function CruushActivity({ embedded = false }: { embedded?: boolea
                 </Button>
               </div>
               <div className="flex justify-center">
-                <h1 className="text-2xl text-white sm:text-3xl">Activity</h1>
+                <h1 className="text-2xl text-white sm:text-3xl">Cruushes</h1>
               </div>
               <div className="flex items-center justify-end gap-2">
                 <div data-testid="cruush-activity-bug-button-slot" ref={registerBugButtonSlot} />

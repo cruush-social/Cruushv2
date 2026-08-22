@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, type MutableRefObject } from 'react';
-import { Bell } from 'lucide-react';
+import { Bell, X } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router';
 import { toast } from 'sonner';
 import { CruushIcon } from './CruushIconImage';
@@ -219,9 +219,10 @@ export default function ForegroundNotifications() {
     const theme = notificationPopupTheme();
 
     toast.custom((toastId) => (
+      <div className={`relative flex w-full max-w-[22rem] rounded-lg border bg-background/95 text-white shadow-[0_18px_48px_rgba(0,0,0,0.46)] backdrop-blur-md ${theme.popup}`}>
       <button
         type="button"
-        className={`flex w-full max-w-[22rem] items-start gap-3 rounded-lg border bg-background/95 p-4 text-left text-white shadow-[0_18px_48px_rgba(0,0,0,0.46)] backdrop-blur-md transition-colors hover:bg-muted/80 ${theme.popup}`}
+        className="flex w-full items-start gap-3 rounded-lg border-0 bg-transparent p-4 pr-10 text-left text-white transition-colors hover:bg-muted/80"
         onClick={() => void openNotification(notification, toastId)}
         aria-label={`Open notification: ${notification.title}`}
       >
@@ -247,6 +248,17 @@ export default function ForegroundNotifications() {
           ) : null}
         </span>
       </button>
+
+      {/* Dismissing a popup should not mean opening what it points at. */}
+      <button
+        aria-label={`Dismiss notification: ${notification.title}`}
+        className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full border border-white/12 bg-black/45 text-white/75 transition-colors hover:text-white"
+        onClick={() => toast.dismiss(toastId)}
+        type="button"
+      >
+        <X className="h-3.5 w-3.5" />
+      </button>
+      </div>
     ), {
       id: `notification-${notification.id}`,
       duration: 9000,
