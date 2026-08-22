@@ -396,6 +396,11 @@ export async function registerPrivacyRoutes(app: FastifyInstance) {
     const userId = await getActiveAccountUserId(request);
     const payload = travelPinPayloadSchema.parse(request.body);
 
+    // Travel Mode is a cruush+ feature. Everybody gets a day of cruush+ when
+    // they join, and there are other ways to earn it, so this is a wall with a
+    // door in it rather than a wall.
+    await requireCruushPlus(app, userId, "Travel Mode is part of cruush+.");
+
     // The same rule from the other side. Somebody already unseen cannot pick up
     // a borrowed location either, or the pairing is reachable by doing the two
     // steps in the opposite order.
