@@ -163,6 +163,7 @@
     "src/app/components/ui/sheet.tsx",
     "src/app/components/ui/use-mobile.test.tsx",
     "src/app/components/ui/use-mobile.ts",
+    "src/app/lib/badgeIntent.ts",
     "src/app/lib/cruushApi.ts",
     "src/app/lib/cruushNotifications.ts",
     "src/app/lib/distancePreferences.test.ts",

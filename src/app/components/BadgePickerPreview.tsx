@@ -83,6 +83,7 @@ import {
 import { useNavigate } from 'react-router';
 import HeartPhoto from './HeartPhoto';
 import { getMyProfile } from '../lib/profileApi';
+import { BADGE_INTENTS, formatBadgeLabel, type BadgeIntent } from '../lib/badgeIntent';
 
 /**
  * A place to decide what the two side badges on a heart should say. Built from
@@ -217,20 +218,24 @@ const BADGE_OPTIONS: BadgeOption[] = [
 // give, right is what you take. The same badge on both sides reads as versatile,
 // exactly the way wearing it on both sides always has.
 const SIDES = [
-  { id: 'left' as const, label: 'Left', hint: 'Usually what you give' },
-  { id: 'right' as const, label: 'Right', hint: 'Usually what you take' },
+  { id: 'left' as const, label: 'Left', hint: 'Left' },
+  { id: 'right' as const, label: 'Right', hint: 'Right' },
 ];
 
 // Copied from the map's own badge chip: same size, same 3.2px border, same
 // placement, same surface. Your pin's border colour is the indigo the map uses.
 const CURRENT_USER_BORDER = '#004BFF';
 
-function BadgeChip({ icon: Icon, side }: { icon: LucideIcon; side: 'left' | 'right' }) {
+function BadgeChip({ icon: Icon, side, meaning }: {
+  icon: LucideIcon;
+  side: 'left' | 'right';
+  /** What the badge says, shown above it on hover. */
+  meaning?: string;
+}) {
   return (
     <span
-      aria-hidden="true"
       className={[
-        'absolute flex h-[1.5625rem] w-[1.5625rem] items-center justify-center rounded-full border bg-black/85 text-white backdrop-blur-sm',
+        'group/badge absolute flex h-[1.5625rem] w-[1.5625rem] items-center justify-center rounded-full border bg-black/85 text-white backdrop-blur-sm',
         side === 'left' ? 'left-[-0.25rem]' : 'right-[-0.25rem]',
         'top-[62%] z-20 -translate-y-1/2',
       ].join(' ')}
@@ -242,6 +247,14 @@ function BadgeChip({ icon: Icon, side }: { icon: LucideIcon; side: 'left' | 'rig
       }}
     >
       <Icon aria-hidden="true" className="h-[0.8125rem] w-[0.8125rem]" strokeWidth={2.6} />
+      {meaning ? (
+        <span
+          className="pointer-events-none absolute bottom-full left-1/2 mb-1 -translate-x-1/2 whitespace-nowrap text-[0.7rem] leading-none text-white opacity-0 transition-opacity group-hover/badge:opacity-100"
+          style={{ textShadow: '0 1px 3px rgba(0,0,0,0.95), 0 0 6px rgba(0,0,0,0.85)' }}
+        >
+          {meaning}
+        </span>
+      ) : null}
     </span>
   );
 }
@@ -250,6 +263,9 @@ export default function BadgePickerPreview() {
   const navigate = useNavigate();
   const [leftBadge, setLeftBadge] = useState('none');
   const [rightBadge, setRightBadge] = useState('none');
+  const [startedFromProfile, setStartedFromProfile] = useState(false);
+  const [leftIntent, setLeftIntent] = useState<BadgeIntent>('none');
+  const [rightIntent, setRightIntent] = useState<BadgeIntent>('none');
   const [activeSide, setActiveSide] = useState<'left' | 'right'>('left');
   const [profile, setProfile] = useState<Awaited<ReturnType<typeof getMyProfile>> | null>(null);
   const groups = [...new Set(BADGE_OPTIONS.map((option) => option.group))];
@@ -260,9 +276,32 @@ export default function BadgePickerPreview() {
 
     void getMyProfile()
       .then((loaded) => {
-        if (isMounted) {
-          setProfile(loaded);
+        if (!isMounted) {
+          return;
         }
+
+        setProfile(loaded);
+
+        // Left carries your role and right your position until you say
+        // otherwise, which is what a basic account already shows.
+        setStartedFromProfile((already) => {
+          if (already) {
+            return already;
+          }
+
+          const role = (loaded?.role ?? [])[0];
+          const position = (loaded?.position ?? [])[0];
+
+          if (role && BADGE_OPTIONS.some((option) => option.id === role)) {
+            setLeftBadge(role);
+          }
+
+          if (position && BADGE_OPTIONS.some((option) => option.id === position)) {
+            setRightBadge(position);
+          }
+
+          return true;
+        });
       })
       .catch(() => undefined);
 
@@ -290,9 +329,94 @@ export default function BadgePickerPreview() {
         <h1 className="min-w-0 flex-1 truncate text-lg">Your side badges</h1>
       </header>
 
-      {/* Browse by category, try one on, watch it land on the heart below. */}
-      <div className="sticky top-[3.75rem] z-10 border-b border-white/10 bg-background/95 px-4 py-2 backdrop-blur-md">
-        <div className="flex gap-2 overflow-x-auto">
+      <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col px-4 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-6">
+        {/* You are the thing being dressed, so you sit in the middle. Tap a side
+            to work on it; everything under here changes that side only. */}
+        <div className="flex flex-col items-center gap-5">
+          <span className="relative flex h-[7rem] w-[9rem] scale-[1.38] items-center justify-center">
+            <span className="relative flex h-20 w-[103px] items-center justify-center">
+              <HeartPhoto
+                className="w-20"
+                label="Your heart with its side badges"
+                masked={false}
+                photo={profile?.photos?.[0] ?? null}
+                theme="current"
+                userId="badge-preview"
+              />
+              <BadgeChip
+                icon={leftOption.icon}
+                meaning={leftOption.id === 'none' ? undefined : formatBadgeLabel(leftOption.label, leftIntent)}
+                side="left"
+              />
+              <BadgeChip
+                icon={rightOption.icon}
+                meaning={rightOption.id === 'none' ? undefined : formatBadgeLabel(rightOption.label, rightIntent)}
+                side="right"
+              />
+            </span>
+          </span>
+
+          <div className="grid w-full grid-cols-2 gap-2">
+            {SIDES.map((side) => {
+              const option = side.id === 'left' ? leftOption : rightOption;
+              const intent = side.id === 'left' ? leftIntent : rightIntent;
+              const active = activeSide === side.id;
+
+              return (
+                <button
+                  className={`rounded-xl border px-3 py-2 text-left transition ${
+                    active
+                      ? 'border-[#004BFF] bg-black/60 text-white'
+                      : 'border-white/10 bg-black/40 text-white/64 hover:bg-white/[0.06]'
+                  }`}
+                  key={side.id}
+                  onClick={() => setActiveSide(side.id)}
+                  type="button"
+                >
+                  <span className="block text-[0.7rem] uppercase tracking-[0.12em] text-white/48">
+                    {side.hint}
+                  </span>
+                  <span className="mt-0.5 block truncate text-sm">
+                    {option.id === 'none' ? 'Empty' : formatBadgeLabel(option.label, intent)}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* What this badge says about you, for the side you are working on. */}
+        <div className="mt-6 space-y-2">
+          <h2 className="text-xs uppercase tracking-[0.14em] text-white/48">
+            What this side says
+          </h2>
+          <div className="flex flex-wrap gap-2">
+            {BADGE_INTENTS.map((intent) => {
+              const current = activeSide === 'left' ? leftIntent : rightIntent;
+              const selected = current === intent.id;
+
+              return (
+                <button
+                  className={`rounded-full border px-3 py-1.5 text-xs transition ${
+                    selected
+                      ? 'border-[#004BFF] bg-black/60 text-white'
+                      : 'border-white/10 bg-black/40 text-white/64 hover:bg-white/[0.06]'
+                  }`}
+                  key={intent.id}
+                  onClick={() => (activeSide === 'left' ? setLeftIntent : setRightIntent)(intent.id)}
+                  type="button"
+                >
+                  {intent.label}
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-xs text-white/52">
+            Left starts as your role and right as your position. Either side can carry anything.
+          </p>
+        </div>
+
+        <div className="mt-6 flex gap-2 overflow-x-auto pb-1">
           {groups.map((group) => (
             <button
               className={`shrink-0 rounded-full border px-4 py-1.5 text-sm transition ${
@@ -308,10 +432,8 @@ export default function BadgePickerPreview() {
             </button>
           ))}
         </div>
-      </div>
 
-      <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-4">
-        <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+        <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-4">
           {BADGE_OPTIONS.filter((option) => option.group === activeGroup).map((option) => {
             const selected = chosen[activeSide] === option.id;
             const Icon = option.icon;
@@ -334,57 +456,6 @@ export default function BadgePickerPreview() {
           })}
         </div>
       </main>
-
-      {/* The fitting mirror: the unit at the size it reads on the map, big. */}
-      <div className="sticky bottom-0 z-20 border-t border-white/10 bg-background/96 px-4 pb-[calc(7.5rem+env(safe-area-inset-bottom))] pt-5 backdrop-blur-xl">
-        <div className="mx-auto flex w-full max-w-2xl flex-col items-center gap-4">
-          <span className="relative flex h-[6.5rem] w-[8rem] scale-[1.38] items-center justify-center">
-            <span className="relative flex h-20 w-[103px] items-center justify-center">
-              <HeartPhoto
-                className="w-20"
-                label="Your heart with its side badges"
-                masked={false}
-                photo={profile?.photos?.[0] ?? null}
-                theme="current"
-                userId="badge-preview"
-              />
-              <BadgeChip icon={leftOption.icon} side="left" />
-              <BadgeChip icon={rightOption.icon} side="right" />
-            </span>
-          </span>
-
-          <p className="w-full text-center text-xs text-white/52">
-            Left usually means what you like to give and right what you like to take. Plenty of
-            people ignore that, and either side can carry anything. Leave a side on No badge to
-            keep it empty.
-          </p>
-
-          <div className="grid w-full grid-cols-2 gap-2">
-            {SIDES.map((side) => {
-              const option = side.id === 'left' ? leftOption : rightOption;
-              const active = activeSide === side.id;
-
-              return (
-                <button
-                  className={`rounded-xl border px-3 py-2 text-left transition ${
-                    active
-                      ? 'border-[#004BFF] bg-black/60 text-white'
-                      : 'border-white/10 bg-black/40 text-white/64 hover:bg-white/[0.06]'
-                  }`}
-                  key={side.id}
-                  onClick={() => setActiveSide(side.id)}
-                  type="button"
-                >
-                  <span className="block text-[0.7rem] uppercase tracking-[0.12em] text-white/48">
-                    {side.hint}
-                  </span>
-                  <span className="mt-0.5 block truncate text-sm">{option.label}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
