@@ -1507,12 +1507,12 @@ describe('MapHome', () => {
       'mt-0',
       'min-w-0',
       'justify-center',
-      'gap-0',
-      'px-1',
-      'py-1',
+      'gap-0.5',
+      'px-2',
+      'py-1.5',
       'bg-background/25',
-      'sm:gap-0.5',
-      'sm:px-1.5',
+      'sm:gap-1',
+      'sm:px-2.5',
     );
     expect(topActions).not.toContainElement(screen.getByTestId('map-plus-stack'));
     expect(topActions).not.toContainElement(screen.getByTestId('map-bug-button-slot'));
@@ -1523,7 +1523,7 @@ describe('MapHome', () => {
       notificationButton,
       settingsButton,
     ]) {
-      expect(button).toHaveClass('size-9', 'sm:size-9', 'lg:size-10');
+      expect(button).toHaveClass('size-11', 'sm:size-12');
     }
     expect(topActions).not.toHaveClass('sm:max-w-[34rem]');
     // The pill sits in a centring wrapper inside the full-width chrome row.
@@ -1568,11 +1568,11 @@ describe('MapHome', () => {
     );
     expect(screen.queryByRole('button', { name: 'Safety Center' })).not.toBeInTheDocument();
     expect(pingIcon).toHaveClass('size-full');
-    expect(luckyIcon).toHaveClass('h-[1.375rem]', 'w-[1.375rem]', 'scale-[1.55]', 'lg:h-6', 'lg:w-6');
-    expect(ghostModeIcon).toHaveClass('h-[1.375rem]', 'w-[1.375rem]', 'lg:h-6', 'lg:w-6');
-    expect(dlModeIcon).toHaveClass('h-[1.375rem]', 'w-[1.375rem]', 'lg:h-6', 'lg:w-6');
-    expect(notificationIcon).toHaveClass('h-[1.375rem]', 'w-[1.375rem]', 'scale-[1.4]', 'lg:h-6', 'lg:w-6');
-    expect(settingsIcon).toHaveClass('h-[1.375rem]', 'w-[1.375rem]', 'scale-[1.18]', 'lg:h-6', 'lg:w-6');
+    expect(luckyIcon).toHaveClass('h-7', 'w-7', 'scale-[1.55]');
+    expect(ghostModeIcon).toHaveClass('h-7', 'w-7');
+    expect(dlModeIcon).toHaveClass('h-7', 'w-7');
+    expect(notificationIcon).toHaveClass('h-7', 'w-7', 'scale-[1.4]');
+    expect(settingsIcon).toHaveClass('h-7', 'w-7', 'scale-[1.18]');
     expect(dlModeIcon?.getAttribute('src')).toContain('dl-mode-colored');
     expect(decodeURIComponent(ghostModeIcon?.getAttribute('src') ?? '')).toContain("fill='#ffffff'");
     expect(visibilityIcon).toHaveClass('h-4', 'w-4');

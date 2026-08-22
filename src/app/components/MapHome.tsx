@@ -2167,7 +2167,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
 
           <div className="flex min-w-0 flex-1 justify-center">
             <div
-              className="cruush-map-top-actions pointer-events-auto mt-0 flex min-w-0 max-w-full items-center justify-center gap-0 rounded-full border border-white/10 bg-background/25 px-1 py-1 backdrop-blur-md transition-[width,margin,transform] sm:gap-0.5 sm:px-1.5"
+              className="cruush-map-top-actions pointer-events-auto mt-0 flex min-w-0 max-w-full items-center justify-center gap-0.5 rounded-full border border-white/10 bg-background/25 px-2 py-1.5 backdrop-blur-md transition-[width,margin,transform] sm:gap-1 sm:px-2.5 sm:py-2"
               data-testid="map-top-actions"
             >
             <Button
@@ -2177,9 +2177,9 @@ export default function MapHome(_props: MapHomeProps = {}) {
               data-tutorial-target="carousel"
               aria-label="Cruise Carousel"
               title="Cruise Carousel"
-              className="size-9 rounded-full text-white/90 hover:bg-white/10 sm:size-9 lg:size-10"
+              className="size-11 rounded-full text-white/90 hover:bg-white/10 sm:size-12 lg:size-[3.25rem]"
             >
-              <CruushIconImage src={luckyIconWhite} className="h-[1.375rem] w-[1.375rem] scale-[1.55] sm:h-[1.375rem] sm:w-[1.375rem] lg:h-6 lg:w-6" />
+              <CruushIconImage src={luckyIconWhite} className="h-7 w-7 scale-[1.55] lg:h-8 lg:w-8" />
             </Button>
             <Button
               variant="ghost"
@@ -2188,12 +2188,12 @@ export default function MapHome(_props: MapHomeProps = {}) {
               data-tutorial-target="ghost"
               aria-label="Ghost Mode Settings"
               title="Ghost Mode Settings"
-              className="size-9 rounded-full text-white/90 hover:bg-white/10 sm:size-9 lg:size-10"
+              className="size-11 rounded-full text-white/90 hover:bg-white/10 sm:size-12 lg:size-[3.25rem]"
             >
               <CruushIcon
                 name="ghost"
                 variant={privacySettings.baseMode === 'STEALTH' ? 'stealth' : privacySettings.ghostModeEnabled ? 'colored' : 'white'}
-                className="h-[1.375rem] w-[1.375rem] sm:h-[1.375rem] sm:w-[1.375rem] lg:h-6 lg:w-6"
+                className="h-7 w-7 lg:h-8 lg:w-8"
               />
             </Button>
             <Button
@@ -2203,11 +2203,11 @@ export default function MapHome(_props: MapHomeProps = {}) {
               data-tutorial-target="dl-mode"
               aria-label={dlModeActive ? 'Turn DL Mode off' : 'Turn DL Mode on'}
               title={dlModeActive ? 'Turn DL Mode off' : 'Turn DL Mode on'}
-              className="size-9 rounded-full text-white/90 hover:bg-white/10 sm:size-9 lg:size-10"
+              className="size-11 rounded-full text-white/90 hover:bg-white/10 sm:size-12 lg:size-[3.25rem]"
             >
               <CruushIconImage
                 src={dlModeActive ? dlModeColored : dlModeWhite}
-                className="h-[1.375rem] w-[1.375rem] sm:h-[1.375rem] sm:w-[1.375rem] lg:h-6 lg:w-6"
+                className="h-7 w-7 lg:h-8 lg:w-8"
               />
             </Button>
             <Button
@@ -2217,9 +2217,9 @@ export default function MapHome(_props: MapHomeProps = {}) {
               data-tutorial-target="notifications"
               aria-label="Notifications"
               title="Notifications"
-              className="relative size-9 rounded-full text-white/90 hover:bg-white/10 sm:size-9 lg:size-10"
+              className="relative size-11 rounded-full text-white/90 hover:bg-white/10 sm:size-12 lg:size-[3.25rem]"
             >
-              <CruushIconImage src={notificationsIconWhite} className="h-[1.375rem] w-[1.375rem] scale-[1.4] sm:h-[1.375rem] sm:w-[1.375rem] lg:h-6 lg:w-6" />
+              <CruushIconImage src={notificationsIconWhite} className="h-7 w-7 scale-[1.4] lg:h-8 lg:w-8" />
               {notificationUnreadCount > 0 ? (
                 <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[0.62rem] font-semibold leading-none text-primary-foreground">
                   {notificationUnreadCount > 9 ? '9+' : notificationUnreadCount}
@@ -2232,9 +2232,9 @@ export default function MapHome(_props: MapHomeProps = {}) {
                 onClick={() => navigate('/settings')}
                 aria-label="Settings"
                 title="Settings"
-                className="size-9 rounded-full text-white/90 hover:bg-white/10 sm:size-9 lg:size-10"
+                className="size-11 rounded-full text-white/90 hover:bg-white/10 sm:size-12 lg:size-[3.25rem]"
               >
-                <CruushIconImage src={settingsIconWhite} className="h-[1.375rem] w-[1.375rem] scale-[1.18] sm:h-[1.375rem] sm:w-[1.375rem] lg:h-6 lg:w-6" />
+                <CruushIconImage src={settingsIconWhite} className="h-7 w-7 scale-[1.18] lg:h-8 lg:w-8" />
               </Button>
             </div>
           </div>
@@ -2611,7 +2611,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
             data-tutorial-target="ping"
             aria-label="Send a Pulse"
             title="Send a Pulse"
-            className="size-12 shrink-0 border-0 bg-transparent p-0 text-[#c8ff31] hover:bg-transparent hover:brightness-125 sm:size-[3.25rem] lg:size-14"
+            className={`size-12 shrink-0 border-0 bg-transparent p-0 hover:bg-transparent hover:brightness-125 sm:size-[3.25rem] lg:size-14 ${mapPingStatus?.activePing ? 'text-[#c8ff31]' : 'text-white'}`}
           >
             <PulseLedIcon className="size-full" />
           </Button>
