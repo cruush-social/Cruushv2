@@ -484,7 +484,7 @@ export default function Auth({ onAuth }: AuthProps) {
                 <div className="flex items-start gap-2">
                   <MapPin className="mt-0.5 h-4 w-4 text-[#ff0072]" />
                   <p>
-                    cruush is open in NYC and 50 miles around it.
+                    cruush is open in NYC and 100 miles around it.
                   </p>
                 </div>
                 <p className="text-white/50">Join the newsletter and request your city.</p>
@@ -495,7 +495,7 @@ export default function Auth({ onAuth }: AuthProps) {
                 <div className="flex items-start gap-2">
                   <MapPin className="mt-0.5 h-4 w-4 text-[#0ba8ff]" />
                   <p>
-                    cruush is open in NYC and 50 miles around it. Check your location before you sign up.
+                    cruush is open in NYC and 100 miles around it. Check your location before you sign up.
                   </p>
                 </div>
                 <button

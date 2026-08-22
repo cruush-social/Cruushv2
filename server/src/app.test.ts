@@ -8984,8 +8984,8 @@ describe("server", () => {
     const targetUserId = "4d9ae00c-d3e1-4adf-b2b1-e7ddc2f78b82";
     const targetLocation = await encryptedLocationEnvelopeRow({
       subjectUserId: targetUserId,
-      lat: 40.3,
-      lng: -73.0,
+      lat: 42.3601,
+      lng: -71.0589,
       accuracyM: 50
     });
 
@@ -8997,10 +8997,10 @@ describe("server", () => {
           rows: [{
             id: targetUserId,
             display_name: "Outside",
-            lat: 40.3,
-            lng: -73.0,
-            fuzzy_lat: 40.3,
-            fuzzy_lng: -73.0,
+            lat: 42.3601,
+            lng: -71.0589,
+            fuzzy_lat: 42.3601,
+            fuzzy_lng: -71.0589,
             updated_at: "2026-04-28T12:00:00.000Z"
           }]
         });
