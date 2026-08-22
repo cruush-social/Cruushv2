@@ -32,6 +32,8 @@ import visibilityWhite from '../assets/ui-icons/visibility-white.png';
 interface CruushIconImageProps {
   className?: string;
   src: string;
+  /** For a lit state, which a bitmap icon can only carry as a filter. */
+  style?: CSSProperties;
 }
 
 export type CruushIconName =
@@ -113,7 +115,11 @@ const CRUUSH_ICON_SOURCES: Record<CruushIconName, Record<CruushIconAssetVariant,
   },
 };
 
-export default function CruushIconImage({ className = 'h-[1.5625rem] w-[1.5625rem]', src }: CruushIconImageProps) {
+export default function CruushIconImage({
+  className = 'h-[1.5625rem] w-[1.5625rem]',
+  src,
+  style,
+}: CruushIconImageProps) {
   return (
     <img
       alt=""
@@ -121,6 +127,7 @@ export default function CruushIconImage({ className = 'h-[1.5625rem] w-[1.5625re
       className={`shrink-0 object-contain ${className}`}
       draggable={false}
       src={src}
+      style={style}
     />
   );
 }

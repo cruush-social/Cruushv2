@@ -93,6 +93,7 @@
     "src/app/components/CruiseCarouselSlot.tsx",
     "src/app/components/CruushActivity.test.tsx",
     "src/app/components/CruushActivity.tsx",
+    "src/app/components/CruushIconImage.tsx",
     "src/app/components/CruushMatchSettings.test.tsx",
     "src/app/components/CruushMatchSettings.tsx",
     "src/app/components/DebugCruushPlusToggle.tsx",
