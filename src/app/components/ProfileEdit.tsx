@@ -1146,6 +1146,18 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
             </div>
 
             <div className="space-y-2">
+              <Label>Vibes</Label>
+              <MultiSelect
+                {...profileMenuProps}
+                ariaLabel="Vibes"
+                maxSelections={MAX_PROFILE_VIBES}
+                optionGroups={VIBE_GROUPS}
+                value={normalizedProfile.vibes}
+                onChange={(vals) => handleChange('vibes', limitToThree(vals))}
+              />
+            </div>
+
+            <div className="space-y-2">
               <Label>Gender Identities</Label>
               <MultiSelect
                 {...profileMenuProps}
@@ -1208,18 +1220,6 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
                 <Label htmlFor="weight">Weight</Label>
                 <Input id="weight" placeholder="155 lbs" value={normalizedProfile.weight} onChange={(e: ChangeEvent<HTMLInputElement>) => handleChange('weight', e.target.value)} className="bg-input-background" />
               </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Vibes</Label>
-              <MultiSelect
-                {...profileMenuProps}
-                ariaLabel="Vibes"
-                maxSelections={MAX_PROFILE_VIBES}
-                optionGroups={VIBE_GROUPS}
-                value={normalizedProfile.vibes}
-                onChange={(vals) => handleChange('vibes', limitToThree(vals))}
-              />
             </div>
 
             <div className="space-y-2">

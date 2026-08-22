@@ -10,6 +10,7 @@ import ReportAction from './ReportAction';
 import CruushBadge from './CruushBadge';
 import CruushIconImage, { CruushIcon } from './CruushIconImage';
 import mapIconWhite from '../assets/ui-icons/map-white.png';
+import { resolveVibeTone, vibeCapsuleStyle } from '../lib/vibeTone';
 import ProfilePhotoGallery from './ProfilePhotoGallery';
 import { revokeMutualCruush, revokeSentCruush, sendCruush } from '../lib/cruushApi';
 import { addCruushChangedListener } from '../lib/cruushEvents';
@@ -497,6 +498,23 @@ export default function ProfileView() {
               <CruushIcon name="map" className="h-4 w-4" />
               <span>{formatDistanceLabel(profileView.distance, distancePreferences.mode)} away</span>
               {profileView.lastActive ? <span>• {profileView.lastActive}</span> : null}
+            </div>
+          ) : null}
+
+          {profileView.vibes.length > 0 ? (
+            <div className="mt-2 flex flex-wrap gap-1.5" data-testid="profile-overlay-vibes">
+              {profileView.vibes.slice(0, 3).map((vibe) => (
+                <span
+                  className="rounded-full border px-2 py-0.5 text-[11px] uppercase leading-tight tracking-[0.08em]"
+                  key={vibe}
+                  style={vibeCapsuleStyle(resolveVibeTone({
+                    mutual: profileView.relationship?.mutual_cruush,
+                    isCurrentUser: isOwnProfile,
+                  }))}
+                >
+                  {vibe}
+                </span>
+              ))}
             </div>
           ) : null}
         </div>
