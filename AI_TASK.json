@@ -151,7 +151,8 @@
     "docs/plans/2026-08-22-feed-layout-handoff.md",
     "src/app/components/FirstFeedPostPrompt.tsx",
     "src/app/components/FirstFeedPostPrompt.test.tsx",
-    "src/app/lib/userNoticesApi.ts"
+    "src/app/lib/userNoticesApi.ts",
+    "src/app/components/ProfilePhotoGallery.tsx"
   ],
   "preserved": [
     "Keep private trans status as the eligibility gate for the optional T4T crowd; do not infer it from a selected gender identity.",
@@ -207,5 +208,5 @@
   ],
   "publicationTarget": "origin/main and production",
   "environmentChanges": [],
-  "task": "Top bar corner controls, tutorial replay fix, ghost exit resume, map camera persistence, profile signal on the photo"
+  "task": "Profile controls on the photo, full screen photo view, activity permissions, no glow shadows"
 }

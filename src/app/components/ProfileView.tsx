@@ -1,6 +1,7 @@
 import { IDENTITIES } from '../lib/profileOptions';
 import type { CSSProperties, ReactNode } from 'react';
 import { useEffect, useMemo, useState } from 'react';
+import { resolveMediaUrl } from '../lib/apiClient';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from './ui/button';
@@ -196,6 +197,23 @@ export default function ProfileView() {
   const [revokingCruush, setRevokingCruush] = useState(false);
   const [openingMessage, setOpeningMessage] = useState(false);
   const [activeTab, setActiveTab] = useState('basics');
+  const [expandedPhoto, setExpandedPhoto] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!expandedPhoto) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setExpandedPhoto(null);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [expandedPhoto]);
 
   useEffect(() => {
     let active = true;
@@ -477,6 +495,7 @@ export default function ProfileView() {
         <ProfilePhotoGallery
           fitViewport
           name={profileView.name}
+          onExpandPhoto={setExpandedPhoto}
           photoMetadata={profileView.photoMetadata}
           photos={profileView.photos}
           reportTargetUserId={isOwnProfile ? undefined : userId}
@@ -529,8 +548,77 @@ export default function ProfileView() {
               ))}
             </div>
           ) : null}
+          {/* The controls ride on the photo itself rather than under it. */}
+          {!isOwnProfile ? (
+            <div className="pointer-events-auto mt-3">
+            <div className="flex gap-2">
+              <Button
+                className={`cruush-action-sheen flex-1 rounded-xl border ${hasRevocableCruush
+                  ? 'border-transparent text-white'
+                  : cruushDisabled
+                    ? 'border-white/10 bg-white/[0.06] text-white/45'
+                    : 'border-transparent text-white hover:brightness-110'}`}
+                onClick={() => {
+                  void (hasRevocableCruush ? handleRevokeCruush() : handleCruush());
+                }}
+                disabled={cruushDisabled}
+                aria-label={revokingCruush ? (isAlreadyMutual ? 'removing mutual' : 'unsending cruush') : isAlreadyMutual ? 'remove mutual' : hasSentCruush ? 'unsend cruush' : sendingCruush ? 'sending cruush' : 'send cruush'}
+                style={{
+                  background: cruushDisabled
+                    ? undefined
+                    : hasRevocableCruush
+                      ? 'var(--cruush-gradient-soft-28)'
+                      : 'var(--cruush-gradient)',
+                }}
+              >
+                <CruushIcon name="safety" className={`mr-2 h-4 w-4 ${cruushDisabled ? 'opacity-45 grayscale' : ''}`} variant="white" />
+                {revokingCruush ? (isAlreadyMutual ? 'removing...' : 'unsending...') : isAlreadyMutual ? 'remove mutual' : hasSentCruush ? 'unsend' : sendingCruush ? 'sending...' : 'cruush'}
+              </Button>
+              <Button
+                className="cruush-action-sheen flex-1 rounded-xl border border-[#6F00FF]/55 bg-[var(--cruush-gradient-soft-18)] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
+                onClick={() => {
+                  void handleMessage();
+                }}
+                disabled={openingMessage || !canMessage}
+                aria-label={canMessage ? 'Message' : 'Mutuals only'}
+              >
+                <CruushIcon name="send" className="mr-2 h-4 w-4" variant="white" />
+                {!canMessage ? 'Mutuals only' : openingMessage ? 'Opening...' : 'Message'}
+              </Button>
+              {canCenterPin ? (
+                <Button
+                  type="button"
+                  size="icon"
+                  className="size-11 shrink-0 rounded-xl border-0 text-white transition hover:brightness-110"
+                  style={{ background: 'var(--cruush-gradient)' }}
+                  aria-label={`Center the map on ${profileView.name}`}
+                  title={`Center the map on ${profileView.name}`}
+                  onClick={() => navigate('/map', { state: { focusUserId: profileView.id } })}
+                >
+                  <CruushIconImage src={mapIconWhite} className="h-5 w-5" />
+                </Button>
+              ) : null}
+            </div>
+            </div>
+          ) : null}
         </div>
       </div>
+
+      {expandedPhoto ? (
+        <div
+          aria-label="Profile photo"
+          className="fixed inset-0 z-[80] flex items-center justify-center bg-black"
+          data-testid="profile-photo-viewer"
+          onClick={() => setExpandedPhoto(null)}
+          role="dialog"
+        >
+          <img
+            alt={profileView.name}
+            className="max-h-full max-w-full object-contain"
+            src={resolveMediaUrl(expandedPhoto)}
+          />
+        </div>
+      ) : null}
 
       <div className="mx-auto max-w-2xl px-4 py-5 sm:px-6 sm:py-6">
         <div className="space-y-5">
@@ -556,56 +644,6 @@ export default function ProfileView() {
               <CruushBadge badges={profileView.badges} />
             </div>
 
-            {!isOwnProfile ? (
-              <div className="flex gap-2">
-                <Button
-                  className={`cruush-action-sheen flex-1 rounded-xl border ${hasRevocableCruush
-                    ? 'border-transparent text-white'
-                    : cruushDisabled
-                      ? 'border-white/10 bg-white/[0.06] text-white/45'
-                      : 'border-transparent text-white hover:brightness-110'}`}
-                  onClick={() => {
-                    void (hasRevocableCruush ? handleRevokeCruush() : handleCruush());
-                  }}
-                  disabled={cruushDisabled}
-                  aria-label={revokingCruush ? (isAlreadyMutual ? 'removing mutual' : 'unsending cruush') : isAlreadyMutual ? 'remove mutual' : hasSentCruush ? 'unsend cruush' : sendingCruush ? 'sending cruush' : 'send cruush'}
-                  style={{
-                    background: cruushDisabled
-                      ? undefined
-                      : hasRevocableCruush
-                        ? 'var(--cruush-gradient-soft-28)'
-                        : 'var(--cruush-gradient)',
-                  }}
-                >
-                  <CruushIcon name="safety" className={`mr-2 h-4 w-4 ${cruushDisabled ? 'opacity-45 grayscale' : ''}`} variant="white" />
-                  {revokingCruush ? (isAlreadyMutual ? 'removing...' : 'unsending...') : isAlreadyMutual ? 'remove mutual' : hasSentCruush ? 'unsend' : sendingCruush ? 'sending...' : 'cruush'}
-                </Button>
-                <Button
-                  className="cruush-action-sheen flex-1 rounded-xl border border-[#6F00FF]/55 bg-[var(--cruush-gradient-soft-18)] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
-                  onClick={() => {
-                    void handleMessage();
-                  }}
-                  disabled={openingMessage || !canMessage}
-                  aria-label={canMessage ? 'Message' : 'Mutuals only'}
-                >
-                  <CruushIcon name="send" className="mr-2 h-4 w-4" variant="white" />
-                  {!canMessage ? 'Mutuals only' : openingMessage ? 'Opening...' : 'Message'}
-                </Button>
-                {canCenterPin ? (
-                  <Button
-                    type="button"
-                    size="icon"
-                    className="size-11 shrink-0 rounded-xl border-0 text-white transition hover:brightness-110"
-                    style={{ background: 'var(--cruush-gradient)' }}
-                    aria-label={`Center the map on ${profileView.name}`}
-                    title={`Center the map on ${profileView.name}`}
-                    onClick={() => navigate('/map', { state: { focusUserId: profileView.id } })}
-                  >
-                    <CruushIconImage src={mapIconWhite} className="h-5 w-5" />
-                  </Button>
-                ) : null}
-              </div>
-            ) : null}
           </div>
 
           <ProfileDetailsTabs

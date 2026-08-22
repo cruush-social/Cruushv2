@@ -1001,11 +1001,18 @@ async function mapIncomingCruushRecords(
       return null;
     }
 
+    const relationship = await getRelationshipPermissions(app, userId, senderUserId);
+
     return {
       id: record.id,
       createdAt: new Date(record.payload.createdAt).toISOString(),
       mutual: await hasActiveMutualCruush(app, userId, senderUserId),
       locked: false,
+      permissions: {
+        matchId: relationship.matchId,
+        canMessage: relationship.canMessage,
+        canRevealPreciseLocation: relationship.canRevealPreciseLocation
+      },
       user: mapActivityPerson({
         userId: senderUserId,
         displayName: senderProfile?.display_name ?? null,
@@ -1032,11 +1039,18 @@ async function mapSentCruushRecords(
     const targetProfile = profilesById.get(targetUserId);
     const snapshot = record.payload.targetSnapshot;
 
+    const relationship = await getRelationshipPermissions(app, userId, targetUserId);
+
     return {
       id: record.id,
       createdAt: new Date(record.payload.createdAt).toISOString(),
       mutual: await hasActiveMutualCruush(app, userId, targetUserId),
       locked: false,
+      permissions: {
+        matchId: relationship.matchId,
+        canMessage: relationship.canMessage,
+        canRevealPreciseLocation: relationship.canRevealPreciseLocation
+      },
       user: mapActivityPerson({
         userId: targetUserId,
         displayName: targetProfile?.display_name ?? null,
