@@ -458,7 +458,7 @@ export default function ProfileView() {
       >
         {/* The page chrome rides on the photo instead of a bar above it, each
             control in its own circle so it stays legible over any picture. */}
-        <div className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-start justify-between p-3">
+        <div className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-start justify-between p-3 pr-[calc(3.75rem+env(safe-area-inset-right))] lg:pr-[calc(4.25rem+env(safe-area-inset-right))]">
           <button
             aria-label="Back"
             className="pointer-events-auto flex h-10 w-10 items-center justify-center rounded-full border border-white/12 bg-black/55 text-white backdrop-blur-sm"
