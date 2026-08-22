@@ -709,7 +709,12 @@ export function separateOverlappingMarkers(markers: MapMarker[], zoom: number) {
 
     // Cluster coordinates are their groups' centroid. Keep them fixed across
     // zoom changes; only individual hearts may move to clear the footprint.
-    if (marker.kind === 'cluster') {
+    //
+    // Your own pin and your Ghost decoy are fixed for a different reason: a
+    // decoy sits exactly where the server placed it until its rotation moves
+    // it, and nudging either one would break the leash between them and put the
+    // decoy somewhere nobody chose. Everything else moves around them.
+    if (marker.kind === 'cluster' || marker.isCurrentUser === true) {
       placed.push(origin);
       return;
     }
@@ -2333,7 +2338,28 @@ function MapView({
       return;
     }
 
-    const data = createGhostLeashFeature(ghostLeash);
+    // The leash has to land on the pins, not on the coordinates the pins were
+    // built from. Collision separation nudges a pin whenever it would touch its
+    // neighbour, and collision is measured in pixels, so which pins move
+    // changes with the zoom. Reading the drawn positions keeps the line
+    // attached at every zoom instead of only at the ones where nothing moved.
+    const drawn = renderedMarkersRef.current.filter(isMapMarker);
+    const decoyMarker = drawn.find((marker) => marker.id === 'me-ghost-decoy');
+    const ownMarker = drawn.find((marker) => marker.isCurrentUser === true && marker.id !== 'me-ghost-decoy');
+    const data = createGhostLeashFeature({
+      from: ownMarker
+        ? {
+            approximateLatitude: ownMarker.approximateLatitude,
+            approximateLongitude: ownMarker.approximateLongitude,
+          }
+        : ghostLeash.from,
+      to: decoyMarker
+        ? {
+            approximateLatitude: decoyMarker.approximateLatitude,
+            approximateLongitude: decoyMarker.approximateLongitude,
+          }
+        : ghostLeash.to,
+    });
     const existingSource = getSource(sourceId) as GeoJSONSource | undefined;
 
     if (existingSource) {
@@ -2362,7 +2388,7 @@ function MapView({
       },
     });
     moveMapServiceOutsideMaskToTop(map);
-  }, [ghostLeash, mapInstance, mapLoadStatus]);
+  }, [ghostLeash, mapInstance, mapLoadStatus, renderedMarkerSignature]);
 
   useEffect(() => {
     const map = mapInstance ?? mapRef.current;
