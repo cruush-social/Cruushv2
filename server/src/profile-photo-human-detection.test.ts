@@ -206,7 +206,7 @@ describe("image child-face and profile-photo human detection", () => {
     }, null, config)).toMatchObject({
       recommended_action: "remove",
       labels: expect.arrayContaining([
-        expect.objectContaining({ normalized_label: "profile_photo_not_adult_human" })
+        expect.objectContaining({ normalized_label: "multiple_people" })
       ]),
       raw_result: { outcome: "multiple_people_detected" }
     });

@@ -39,6 +39,7 @@
     "server/src/migrate.ts",
     "server/src/moderation-provider.test.ts",
     "server/src/moderation-provider.ts",
+    "server/src/moderation-quiet.test.ts",
     "server/src/moderation-service.test.ts",
     "server/src/moderation-service.ts",
     "server/src/moderation-types.ts",

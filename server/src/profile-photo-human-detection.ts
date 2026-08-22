@@ -268,15 +268,24 @@ export function classifyProfilePhotoSafety(
     });
   }
 
-  if (hasAnimal || !hasHuman || hasMultiplePeople) {
+  // A group is its own finding. It is fine in a private message and only barred
+  // where faces go public, so it must not be reported as "not a person".
+  if (hasMultiplePeople) {
     normalizedLabels.push({
-      provider_label: hasMultiplePeople
-        ? "Amazon Rekognition: Multiple people"
-        : hasAnimal
-          ? "Amazon Rekognition: Animal"
-          : "Amazon Rekognition: Person not detected",
+      provider_label: "Amazon Rekognition: Multiple people",
+      normalized_label: "multiple_people",
+      confidence: 0.99,
+      severity: "medium"
+    });
+  }
+
+  if (hasAnimal || !hasHuman) {
+    normalizedLabels.push({
+      provider_label: hasAnimal
+        ? "Amazon Rekognition: Animal"
+        : "Amazon Rekognition: Person not detected",
       normalized_label: "profile_photo_not_adult_human",
-      confidence: hasMultiplePeople ? 0.99 : hasAnimal ? animalConfidence / 100 : 1,
+      confidence: hasAnimal ? animalConfidence / 100 : 1,
       severity: "high"
     });
   }
