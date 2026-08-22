@@ -265,6 +265,7 @@ export const profilePayloadSchema = z.object({
   health_preferences: z.array(healthPreferenceSchema).max(2).optional().default([]),
   birth_control: z.array(birthControlSchema).max(8).optional().default([]),
   relationship_status: z.array(relationshipStatusSchema).max(3).optional().default([]),
+  zodiac: arrayField,
   substance_boundaries: arrayField,
   visibility_rules: profileVisibilityRulesSchema.optional().default({
     active_crowd_modes: [],
@@ -372,6 +373,7 @@ export const emptyProfile = {
   health_preferences: [],
   birth_control: [],
   relationship_status: [],
+  zodiac: [],
   substance_boundaries: [],
   visibility_rules: {
     active_crowd_modes: [],

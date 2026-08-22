@@ -292,6 +292,11 @@ export const RELATIONSHIP_STATUS = [
   'Prefer not to say',
 ];
 
+export const ZODIAC = [
+  'Aries', 'Taurus', 'Gemini', 'Cancer', 'Leo', 'Virgo',
+  'Libra', 'Scorpio', 'Sagittarius', 'Capricorn', 'Aquarius', 'Pisces',
+];
+
 export const KINKS = KINK_CATALOG.map((kink) => kink.label);
 
 export const KINK_GROUPS = [

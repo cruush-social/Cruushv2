@@ -84,6 +84,7 @@ export type ProfilePayload = {
   health_preferences: string[];
   birth_control: string[];
   relationship_status: string[];
+  zodiac: string[];
   substance_boundaries: string[];
   visibility_rules: ProfileVisibilityRules;
 };
@@ -178,6 +179,7 @@ export const emptyProfilePayload: ProfilePayload = {
   health_preferences: [],
   birth_control: [],
   relationship_status: [],
+  zodiac: [],
   substance_boundaries: [],
   visibility_rules: {
     active_crowd_modes: [],

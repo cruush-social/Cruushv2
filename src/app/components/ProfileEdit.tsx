@@ -50,6 +50,7 @@ import {
   KINK_GROUPS,
   LOOKING_FOR,
   RELATIONSHIP_STATUS,
+  ZODIAC,
   MAX_PROFILE_SEXUALITIES,
   MPOX_VACCINE,
   normalizeCrowdValues,
@@ -519,6 +520,7 @@ function toProfileSavePayload(profile: ProfilePayload, kinkLimit: number = MAX_P
     availability: limitToThree(profile.availability ?? []),
     hosting_travel: limitToThree(profile.hosting_travel ?? []),
     relationship_status: limitToThree(profile.relationship_status ?? []),
+    zodiac: (profile.zodiac ?? []).slice(-1),
     kinks: limitKinks(profile.kinks ?? [], kinkLimit),
     kink_interests: Number.isFinite(kinkLimit)
       ? sanitizeKinkInterests(profile).slice(-kinkLimit)
@@ -1175,6 +1177,18 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
                   ))}
                 </select>
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Zodiac</Label>
+              <MultiSelect
+                {...profileMenuProps}
+                ariaLabel="Zodiac"
+                maxSelections={1}
+                options={ZODIAC}
+                value={normalizedProfile.zodiac}
+                onChange={(vals) => handleChange('zodiac', vals.slice(-1))}
+              />
             </div>
 
             <div className="space-y-2">

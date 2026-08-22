@@ -148,6 +148,7 @@ type ProfileRow = {
   kinks: string[] | null;
   kinks_visibility: ProfileVisibility | null;
   vibes: string[] | null;
+  zodiac: string[] | null;
   scenes: string[] | null;
   archetypes: string[] | null;
   hobbies: string[] | null;
@@ -208,6 +209,7 @@ type VisibilitySubjectRow = {
   availability: string[] | null;
   hosting_travel: string[] | null;
   vibes: string[] | null;
+  zodiac: string[] | null;
   scenes: string[] | null;
   archetypes: string[] | null;
   hobbies: string[] | null;
@@ -313,6 +315,7 @@ const PROFILE_COLUMNS = [
   "kinks",
   "kinks_visibility",
   "vibes",
+  "zodiac",
   "scenes",
   "archetypes",
   "hobbies",
@@ -530,6 +533,7 @@ function mapProfileRow(
     kink_interests: resolvedKinkInterests,
     kinks_visibility: row.kinks_visibility ?? "public",
     vibes: row.vibes ?? [],
+    zodiac: row.zodiac ?? [],
     scenes: row.scenes ?? [],
     archetypes: row.archetypes ?? [],
     hobbies: row.hobbies ?? [],
