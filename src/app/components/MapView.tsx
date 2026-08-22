@@ -121,6 +121,11 @@ export const MAP_SERVICE_MASK_LAYER_ID = 'cruush-map-service-mask';
 // The complete heart-pin unit renders at 125% of its original footprint.
 // Keep neighboring units visibly separate instead of letting badges overlap.
 export const MARKER_CLEARANCE_PX = Math.round(112 * MAP_PIN_UNIT_SCALE);
+// A signal capsule is far wider than the pin under it and it sits above the
+// heart, so two pins can clear each other while their signals still collide.
+// A pin whose signal is always on screen, which is what a Pulse does, needs the
+// caption's own width to itself.
+export const SIGNAL_CLEARANCE_PX = Math.round(268 * MAP_PIN_UNIT_SCALE);
 // Markers sharing a spot to this many decimal places are treated as one place
 // and collapsed into a cluster that fans out on tap rather than stacking.
 const SAME_LOCATION_CLUSTER_PRECISION = 6;
@@ -687,41 +692,56 @@ export function separateOverlappingMarkers(markers: MapMarker[], zoom: number) {
   }
 
   const ordered = [...markers].sort((a, b) => {
+    // Your own pin and your decoy claim their ground first, because they are
+    // the two that never move. A cluster is a centroid, an approximation of a
+    // group, so it is the one that yields.
+    if ((a.isCurrentUser === true) !== (b.isCurrentUser === true)) {
+      return a.isCurrentUser === true ? -1 : 1;
+    }
     const aIsCluster = a.kind === 'cluster';
     const bIsCluster = b.kind === 'cluster';
     if (aIsCluster !== bIsCluster) return aIsCluster ? -1 : 1;
-    if (a.isCurrentUser === true) return -1;
-    if (b.isCurrentUser === true) return 1;
     const aHasActivePing = Boolean(a.activePing);
     const bHasActivePing = Boolean(b.activePing);
     if (aHasActivePing !== bHasActivePing) return aHasActivePing ? -1 : 1;
     return a.id.localeCompare(b.id);
   });
 
-  const placed: Array<{ x: number; y: number }> = [];
+  const placed: Array<{ x: number; y: number; clearance: number }> = [];
   const moved = new Map<string, MapMarker>();
 
-  const isFree = (x: number, y: number) =>
-    !placed.some((other) => Math.hypot(other.x - x, other.y - y) < MARKER_CLEARANCE_PX);
+  // A Pulse shows its signal without anyone hovering, so its caption is on the
+  // map permanently and has to be given room. Everything else only shows a
+  // signal one at a time, on hover.
+  const clearanceFor = (marker: MapMarker) =>
+    marker.activePing && truncateMarkerPreview(marker.signal)
+      ? SIGNAL_CLEARANCE_PX
+      : MARKER_CLEARANCE_PX;
+
+  const isFree = (x: number, y: number, clearance: number) =>
+    !placed.some((other) =>
+      Math.hypot(other.x - x, other.y - y) < Math.max(clearance, other.clearance));
 
   ordered.forEach((marker) => {
     const origin = mercatorPixelPoint(marker, zoom);
 
-    // Cluster coordinates are their groups' centroid. Keep them fixed across
-    // zoom changes; only individual hearts may move to clear the footprint.
+    // Your own pin and your Ghost decoy are the only fixed points. A decoy sits
+    // exactly where the server placed it until its rotation moves it, and
+    // nudging either one would break the leash between them and put the decoy
+    // somewhere nobody chose.
     //
-    // Your own pin and your Ghost decoy are fixed for a different reason: a
-    // decoy sits exactly where the server placed it until its rotation moves
-    // it, and nudging either one would break the leash between them and put the
-    // decoy somewhere nobody chose. Everything else moves around them.
-    if (marker.kind === 'cluster' || marker.isCurrentUser === true) {
-      placed.push(origin);
+    // A cluster is only the centroid of a group, so it may move, and it must:
+    // when a cluster lands on your own pin, the cluster is the one that yields.
+    const clearance = clearanceFor(marker);
+
+    if (marker.isCurrentUser === true) {
+      placed.push({ ...origin, clearance });
       return;
     }
 
     let spot = { x: origin.x, y: origin.y };
 
-    if (!isFree(spot.x, spot.y)) {
+    if (!isFree(spot.x, spot.y, clearance)) {
       // Walk outward through evenly spaced slots on widening rings and take the
       // first free one. Even spacing keeps a co-located crowd from collapsing
       // back onto itself the way per-marker angles could.
@@ -730,10 +750,10 @@ export function separateOverlappingMarkers(markers: MapMarker[], zoom: number) {
 
         for (let slot = 0; slot < slots; slot += 1) {
           const angle = (2 * Math.PI * slot) / slots + ring * 0.4 + markerAngleSeed(marker.id) * 0.05;
-          const candidateX = origin.x + Math.cos(angle) * MARKER_CLEARANCE_PX * ring;
-          const candidateY = origin.y + Math.sin(angle) * MARKER_CLEARANCE_PX * ring;
+          const candidateX = origin.x + Math.cos(angle) * clearance * ring;
+          const candidateY = origin.y + Math.sin(angle) * clearance * ring;
 
-          if (isFree(candidateX, candidateY)) {
+          if (isFree(candidateX, candidateY, clearance)) {
             spot = { x: candidateX, y: candidateY };
             break outer;
           }
@@ -741,7 +761,7 @@ export function separateOverlappingMarkers(markers: MapMarker[], zoom: number) {
       }
     }
 
-    placed.push(spot);
+    placed.push({ ...spot, clearance });
 
     if (spot.x !== origin.x || spot.y !== origin.y) {
       moved.set(marker.id, { ...marker, ...mercatorPixelToCoordinates(spot, zoom) });

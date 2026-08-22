@@ -80,6 +80,7 @@
     "server/src/routes/users.ts",
     "server/src/support-routes.test.ts",
     "server/src/support-schema.ts",
+    "server/src/travel-mode-exclusion.test.ts",
     "server/src/travel-pins.ts",
     "src/app/App.test.tsx",
     "src/app/App.tsx",

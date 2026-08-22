@@ -34,6 +34,7 @@ import { getActiveAccountUserId, getAuthenticatedUserId } from "../request-auth.
 import { CROWD_OPTIONS, normalizeCrowdOption } from "../profile-sensitive.js";
 import {
   TRAVEL_LABEL_MAX_LENGTH,
+  getTravelPin as loadTravelPinForMode,
   TravelPinCooldownError,
   clearTravelPin,
   getTravelPin,
@@ -269,6 +270,18 @@ export async function registerPrivacyRoutes(app: FastifyInstance) {
     if (hasPremiumPrivacySettings({ baseMode, preciseToMutualCruushes, preciseToMutualCrowds })) {
       await requireCruushPlus(app, userId, premiumPrivacyMessage({ baseMode }));
     }
+
+    // A borrowed location and an unseen viewer is the one pair we do not allow.
+    // Travel Mode already lets somebody stand where they are not; letting them
+    // do it unseen as well is the exact shape a creep needs. Enforced here
+    // rather than only in the interface, because the interface is not a lock.
+    if (baseMode === "STEALTH" && await loadTravelPinForMode(app, userId)) {
+      throw new ApiError(
+        403,
+        "FEATURE_RESTRICTED",
+        "Dark Room is unavailable in Travel Mode. Turn off Travel Mode to use it."
+      );
+    }
     const visibilityInput = {
       baseMode,
       ghostModeEnabled: baseMode === "GHOST",
@@ -382,6 +395,21 @@ export async function registerPrivacyRoutes(app: FastifyInstance) {
   app.put("/api/privacy/travel", async (request, reply) => {
     const userId = await getActiveAccountUserId(request);
     const payload = travelPinPayloadSchema.parse(request.body);
+
+    // The same rule from the other side. Somebody already unseen cannot pick up
+    // a borrowed location either, or the pairing is reachable by doing the two
+    // steps in the opposite order.
+    const currentPolicy = await loadVisibilityPolicy(
+      { config: app.config, db: app.db },
+      userId
+    ).catch(() => null);
+    if (currentPolicy?.baseMode === "STEALTH") {
+      throw new ApiError(
+        403,
+        "FEATURE_RESTRICTED",
+        "Travel Mode is unavailable in Dark Room. Turn off Dark Room to travel."
+      );
+    }
 
     try {
       const pin = await setTravelPin(app, userId, payload);

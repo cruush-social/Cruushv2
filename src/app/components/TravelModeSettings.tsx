@@ -16,9 +16,9 @@ const TRAVEL_MODE_TERMS = [
   'Your pin sits where you drop it, and the map shows you there instead of your device location.',
   'The pin can be moved once every 3 hours, so it cannot be swept across a city.',
   'You can browse, cruush, and message the same as anywhere else.',
-  'Pulse is off while you are travelling. A Pulse calls people to a place you are not standing in.',
-  'Kelpie Mode is off while you are travelling. A borrowed location and an unseen viewer is not a pair we allow.',
+  'Pulse works from your travel pin, the same as it works from home.',
   'Ghost Mode still works, and it fuzzes the travel pin the same way it fuzzes home.',
+  'Dark Room is off while you are travelling. A borrowed location and an unseen viewer is the one pair we do not allow.',
 ];
 
 function formatCountdown(untilMs: number, nowMs: number) {
