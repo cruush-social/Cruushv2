@@ -58,10 +58,6 @@ function isPrivateMessageSurface(surface: ModerationSurface) {
   return surface === "direct_message" || surface === "group_message";
 }
 
-function adultExplicitProfilePhotosAllowed(surface: ModerationSurface) {
-  return surface === "profile_photo" || isPrivateMessageSurface(surface);
-}
-
 function isPhotoSurface(surface: ModerationSurface, contentType: ModerationContentType) {
   return contentType === "image" || surface === "profile_photo" || surface === "private_photo";
 }
@@ -199,6 +195,17 @@ function mapLabel(label: ProviderLabel, surface: ModerationSurface, contentType:
   }
 
   if (normalizedLabel === "profile_photo_not_adult_human") {
+    // The feed carries object photos, gear, and anything else that is not a
+    // person. Animals, gore, and hate still reject through their own labels.
+    if (surface === "feed") {
+      return baseDecision({
+        category: normalizedLabel,
+        severity: label.severity ?? "low",
+        confidence: label.confidence,
+        reason_code: "non_human_feed_photo_allowed"
+      });
+    }
+
     if (isPrivateMessageSurface(surface)) {
       return baseDecision({
         category: normalizedLabel,
@@ -268,23 +275,10 @@ function mapLabel(label: ProviderLabel, surface: ModerationSurface, contentType:
     });
   }
 
+  // Adult nudity is allowed on every surface. Age checks are handled by the
+  // minor_present, minor_age_ambiguous, and underage_sexual branches below and
+  // are unaffected by this.
   if (normalizedLabel === "adult_nudity" || normalizedLabel === "adult_explicit") {
-    if (!adultExplicitProfilePhotosAllowed(surface) && label.confidence >= 0.85) {
-      return baseDecision({
-        decision: "reject",
-        category: normalizedLabel,
-        severity: "low",
-        confidence: label.confidence,
-        create_evidence_event: false,
-        evidence_value: 0,
-        trust_impact: 0,
-        penalty_decays: true,
-        moderation_history_required: true,
-        reason_code: "nudity_outside_private_messages",
-        user_message_code: "nudity_private_messages_only"
-      });
-    }
-
     return baseDecision({
       category: normalizedLabel,
       severity: label.severity ?? "low",
@@ -293,7 +287,7 @@ function mapLabel(label: ProviderLabel, surface: ModerationSurface, contentType:
         ? "profile_photo_nudity_allowed"
         : isPrivateMessageSurface(surface)
         ? "private_message_nudity_allowed"
-        : "adult_content_below_rejection_threshold"
+        : "adult_nudity_allowed"
     });
   }
 

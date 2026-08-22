@@ -1,5 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Radio } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { SIGNAL_MAX_LENGTH } from '../lib/profileLimits';
+import PulseLedIcon from './PulseLedIcon';
+import { MapMarkerPin } from './MapView';
 import { ApiClientError } from '../lib/apiClient';
 import {
   MAP_PING_RADII_MILES,
@@ -7,7 +9,7 @@ import {
   type MapPingStatus,
 } from '../lib/mapPingsApi';
 import { Button } from './ui/button';
-import { Textarea } from './ui/textarea';
+import { Input } from './ui/input';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 import CruushPlusGateNotice from './CruushPlusGateNotice';
 import {
@@ -31,6 +33,10 @@ type MapPingSheetProps = {
   onSaveSignal?: (signal: string) => Promise<void>;
   hasCruushPlus?: boolean;
   onUpgrade?: () => void;
+  /** Your own photo, so the demonstration is your pin and not a placeholder. */
+  photo?: string | null;
+  /** Lurker Mode keeps you off the map, so a Pulse cannot go out. */
+  lurkerActive?: boolean;
 };
 
 function formatTime(value: string) {
@@ -76,10 +82,12 @@ export default function MapPingSheet({
   loading,
   hasMapLocation,
   signal,
+  photo,
   onRefresh,
   onSend,
   onSaveSignal,
   hasCruushPlus = false,
+  lurkerActive = false,
   onUpgrade,
 }: MapPingSheetProps) {
   const [radiusMiles, setRadiusMiles] = useState<MapPingRadiusMiles>(3);
@@ -123,8 +131,10 @@ export default function MapPingSheet({
     activePingTimestamp > now,
   );
   const normalizedSignal = signal?.trim() ?? '';
+  // A Pulse asks people to look at you, which is the opposite of being off the
+  // map, so it stays shut while Lurker Mode is on.
   const sendDisabled = loading || sending || !status || !hasMapLocation || activePing ||
-    !normalizedSignal || status.allowance.remaining < 1 || cooldownActive;
+    !normalizedSignal || status.allowance.remaining < 1 || cooldownActive || lurkerActive;
   const statusText = useMemo(() => {
     if (activePing && status?.activePing) {
       return `Your Ping is active until ${formatTime(status.activePing.expiresAt)}.`;
@@ -135,7 +145,7 @@ export default function MapPingSheet({
     }
 
     if (status) {
-      return `${status.allowance.remaining} of ${status.allowance.limit} Pings available right now.`;
+      return `${status.allowance.remaining} of ${status.allowance.limit} Pulses available right now.`;
     }
 
     return 'Checking your Ping allowance...';
@@ -161,6 +171,50 @@ export default function MapPingSheet({
     return () => window.clearTimeout(timeoutId);
   }, [nextEligibleTimestamp, onRefresh, open]);
 
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const dragStateRef = useRef<{ pointerId: number; originX: number; originY: number; start: { x: number; y: number } } | null>(null);
+
+  const beginDrag = (event: ReactPointerEvent<HTMLElement>) => {
+    if (event.button !== 0) {
+      return;
+    }
+
+    event.currentTarget.setPointerCapture(event.pointerId);
+    dragStateRef.current = {
+      pointerId: event.pointerId,
+      originX: event.clientX,
+      originY: event.clientY,
+      start: dragOffset,
+    };
+  };
+
+  const continueDrag = (event: ReactPointerEvent<HTMLElement>) => {
+    const dragState = dragStateRef.current;
+
+    if (!dragState || dragState.pointerId !== event.pointerId) {
+      return;
+    }
+
+    setDragOffset({
+      x: dragState.start.x + (event.clientX - dragState.originX),
+      y: dragState.start.y + (event.clientY - dragState.originY),
+    });
+  };
+
+  const endDrag = (event: ReactPointerEvent<HTMLElement>) => {
+    const dragState = dragStateRef.current;
+
+    if (!dragState || dragState.pointerId !== event.pointerId) {
+      return;
+    }
+
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+
+    dragStateRef.current = null;
+  };
+
   const handleSend = async () => {
     setSending(true);
     setError(null);
@@ -178,25 +232,73 @@ export default function MapPingSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="bottom"
-        className="max-h-[calc(100dvh-1rem)] overflow-y-auto rounded-t-2xl border-white/10 bg-background/96 pb-[calc(1rem+env(safe-area-inset-bottom))] backdrop-blur-xl sm:left-1/2 sm:bottom-4 sm:max-w-lg sm:-translate-x-1/2 sm:rounded-2xl sm:border"
+        className="z-[80] max-h-[calc(100dvh-10rem)] overflow-y-auto rounded-2xl border border-white/10 bg-background/96 pb-4 backdrop-blur-xl sm:left-1/2 sm:max-w-lg"
         data-testid="map-ping-sheet"
+        style={{
+          // The sheet always opens just above the bottom nav, and stays where it
+          // is dragged.
+          bottom: `calc(6.25rem + env(safe-area-inset-bottom))`,
+          top: 'auto',
+          transform: `translate(calc(-50% + ${dragOffset.x}px), ${dragOffset.y}px)`,
+          left: '50%',
+          width: 'min(28rem, calc(100vw - 1.5rem))',
+        }}
       >
-        <SheetHeader className="pr-10">
+        <SheetHeader
+          className="cursor-grab pr-10 active:cursor-grabbing"
+          data-testid="map-ping-sheet-handle"
+          onPointerDown={beginDrag}
+          onPointerMove={continueDrag}
+          onPointerUp={endDrag}
+          onPointerCancel={endDrag}
+        >
           <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#c8ff31]/45 bg-[#c8ff31]/12 text-[#c8ff31]">
-              <Radio aria-hidden="true" className="h-5 w-5" />
-            </span>
+            <PulseLedIcon className="h-10 w-10 shrink-0 text-[#c8ff31]" />
             <div>
-              <SheetTitle>Send a Ping</SheetTitle>
+              <SheetTitle>Send a Pulse</SheetTitle>
               <SheetDescription>Light up your heart for people nearby.</SheetDescription>
             </div>
           </div>
         </SheetHeader>
 
         <div className="space-y-4 px-4">
+          <div className="flex items-center gap-5 rounded-xl border border-[#c8ff31]/45 bg-black/45 p-3">
+            {/* The real marker, running the real Pulse state, so this is what
+                people actually see rather than an approximation of it. */}
+            <span className="flex h-[10.5rem] w-[7.5rem] shrink-0 items-end justify-center overflow-visible">
+              <span className="block origin-bottom" data-testid="map-ping-preview-heart">
+                <MapMarkerPin
+                  marker={{
+                    id: 'pulse-preview',
+                    kind: 'person',
+                    displayName: 'You',
+                    userId: 'pulse-preview',
+                    signal: 'Pulse sample',
+                    approximateLatitude: 0,
+                    approximateLongitude: 0,
+                    photo: photo ?? null,
+                    isCurrentUser: true,
+                    activePing: { id: 'pulse-preview', expiresAt: '' },
+                  }}
+                  previewed
+                />
+              </span>
+            </span>
+            <div className="min-w-0 space-y-0.5 pl-1">
+              <p className="text-sm font-medium text-white">Your heart beats for 30 minutes</p>
+              <p className="text-xs leading-snug text-white/62">
+                Everyone inside your radius sees it beat, your pin rises above the others,
+                you come up more in the carousel, and your signal posts to the feed. Your pin
+                does not move.
+              </p>
+            </div>
+          </div>
+
           <div className="rounded-xl border border-white/10 bg-white/[0.045] p-3">
             <div className="flex items-center justify-between gap-3">
-              <p className="text-xs uppercase tracking-[0.14em] text-white/48">Your signal</p>
+              <p className="text-xs uppercase tracking-[0.14em] text-white/48">
+                Your signal <span className="text-white/32">{SIGNAL_MAX_LENGTH} characters max</span>
+              </p>
               {onSaveSignal && !editingSignal ? (
                 <button
                   type="button"
@@ -213,18 +315,20 @@ export default function MapPingSheet({
 
             {editingSignal && onSaveSignal ? (
               <div className="mt-2 space-y-2">
-                <Textarea
+                {/* One line only. A signal never wraps, so the field never
+                    accepts a second line. */}
+                <Input
                   aria-label="Your signal"
-                  className="min-h-[64px] bg-input-background"
-                  maxLength={140}
-                  onChange={(event) => setSignalDraft(event.target.value)}
+                  className="bg-input-background"
+                  maxLength={SIGNAL_MAX_LENGTH}
+                  onChange={(event) => setSignalDraft(event.target.value.replace(/\s+/g, ' '))}
                   value={signalDraft}
                 />
                 <div className="flex justify-end gap-2">
                   <Button
                     type="button"
                     variant="outline"
-                    className="h-9 rounded-full border-white/15 text-white"
+                    className="h-9 rounded-full border-white/15 bg-black/45 text-white hover:border-white/30 hover:bg-white/[0.08] hover:text-white"
                     disabled={savingSignal}
                     onClick={() => setEditingSignal(false)}
                   >
@@ -232,8 +336,7 @@ export default function MapPingSheet({
                   </Button>
                   <Button
                     type="button"
-                    className="h-9 rounded-full font-semibold text-[#0B1200]"
-                    style={{ background: '#c8ff31' }}
+                    className="h-9 rounded-full border border-[#c8ff31]/70 bg-black/45 font-semibold text-white hover:border-[#c8ff31] hover:bg-[#c8ff31]/10 hover:text-white"
                     disabled={savingSignal}
                     onClick={() => {
                       setSavingSignal(true);
@@ -250,52 +353,54 @@ export default function MapPingSheet({
               </div>
             ) : (
               <p className="mt-1 text-sm text-white">
-                {normalizedSignal || 'Add a signal to your profile before sending a Ping.'}
+                {normalizedSignal || 'Add a signal to your profile before sending a Pulse.'}
               </p>
             )}
           </div>
 
           <fieldset>
-            <legend className="text-sm font-medium text-white">Ping radius</legend>
+            <legend className="text-sm font-medium text-white">Pulse radius</legend>
             <RadioGroup
-              aria-label="Ping radius"
+              aria-label="Pulse radius"
               className="mt-2 grid grid-cols-5 gap-2"
               onValueChange={(value) => setRadiusMiles(Number(value) as MapPingRadiusMiles)}
               value={String(radiusMiles)}
             >
               {MAP_PING_RADII_MILES.map((radius) => (
                 <label
-                  className="flex min-h-12 cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-white/10 bg-white/[0.035] px-1 py-2 text-center text-xs text-white/72 has-[[data-state=checked]]:border-[#c8ff31]/70 has-[[data-state=checked]]:bg-[#c8ff31]/14 has-[[data-state=checked]]:text-white"
+                  className="flex min-h-12 cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-white/10 bg-white/[0.035] px-1 py-2 text-center text-xs text-white/72 has-[[data-state=checked]]:border-[#c8ff31] has-[[data-state=checked]]:text-white"
                   key={radius}
                 >
-                  <RadioGroupItem className="border-[#c8ff31]/55 text-[#c8ff31] focus-visible:ring-[#c8ff31]/40" value={String(radius)} aria-label={`${radius} ${radius === 1 ? 'mile' : 'miles'}`} />
+                  <RadioGroupItem className="border-[#c8ff31]/55 text-[#c8ff31] focus-visible:ring-[#c8ff31]/40 [&_svg]:fill-[#c8ff31]" value={String(radius)} aria-label={`${radius} ${radius === 1 ? 'mile' : 'miles'}`} />
                   <span>{radius} mi</span>
                 </label>
               ))}
             </RadioGroup>
           </fieldset>
 
-          <p aria-live="polite" className="text-sm text-white/65">
-            {!normalizedSignal
-              ? 'Your Ping uses the signal saved on your profile.'
-              : hasMapLocation
-                ? statusText
-                : 'Share your map location before sending a Ping.'}
-          </p>
-          {cooldownCountdown && status?.allowance.nextEligibleAt ? (
-            <div className="flex items-center justify-between gap-3 rounded-xl border border-[#c8ff31]/25 bg-[#c8ff31]/[0.08] px-3 py-2.5 text-sm">
-              <span className="text-white/65">Next Ping in</span>
+          {/* How many are left and when the next one lands, on one line. */}
+          <div className="flex items-center justify-between gap-3 text-sm">
+            <p aria-live="polite" className="min-w-0 text-white/65">
+              {lurkerActive
+                ? 'Turn off Lurker Mode to send a Pulse.'
+                : !normalizedSignal
+                ? 'Your Pulse uses the signal saved on your profile.'
+                : hasMapLocation
+                  ? statusText
+                  : 'Share your map location before sending a Pulse.'}
+            </p>
+            {cooldownCountdown && status?.allowance.nextEligibleAt ? (
               <time
-                aria-label="Ping cooldown"
+                aria-label="Pulse cooldown"
                 aria-live="off"
-                className="font-mono font-semibold tabular-nums text-white"
+                className="shrink-0 rounded-full border border-[#c8ff31]/60 px-2.5 py-1 font-mono font-semibold tabular-nums text-white"
                 dateTime={status.allowance.nextEligibleAt}
                 role="timer"
               >
                 {cooldownCountdown}
               </time>
-            </div>
-          ) : null}
+            ) : null}
+          </div>
           {!hasCruushPlus && status?.allowance.remaining === 0 && onUpgrade ? (
             <CruushPlusGateNotice
               description="Basic includes 1 Ping every 24 hours."
@@ -312,13 +417,21 @@ export default function MapPingSheet({
         <SheetFooter>
           <Button
             type="button"
-            className="h-11 rounded-full font-semibold text-[#0B1200] disabled:text-white/45"
+            className="cruush-action-sheen h-11 rounded-full font-semibold text-[#0B1200] disabled:text-white/45"
             disabled={sendDisabled}
             onClick={() => void handleSend()}
-            style={{ background: sendDisabled ? undefined : '#c8ff31' }}
+            style={{ background: sendDisabled ? '#151a0b' : '#c8ff31' }}
           >
-            <Radio aria-hidden="true" className="mr-2 h-4 w-4" />
-            {sending ? 'Sending Ping...' : activePing ? 'Ping active' : 'Send Ping'}
+            <PulseLedIcon className="mr-2 h-7 w-7 text-[#0B1200]" fill="none" />
+            {sending
+              ? 'Sending Pulse...'
+              : lurkerActive
+                ? 'Lurker Mode is on'
+                : activePing
+                  ? 'Pulse active'
+                  : cooldownCountdown
+                    ? `Next Pulse in ${cooldownCountdown}`
+                    : 'Send Pulse'}
           </Button>
         </SheetFooter>
       </SheetContent>

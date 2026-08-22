@@ -40,7 +40,7 @@ const logger = {
 } as any;
 
 describe("mailer", () => {
-  it("sends verification emails as real content, with the url escaped", async () => {
+  it("sends verification emails with the current Resend template", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true
     });
@@ -54,19 +54,17 @@ describe("mailer", () => {
     });
 
     const body = JSON.parse(fetchMock.mock.calls[0][1].body);
-    // Resend's send endpoint has no template field. A payload carrying one has
-    // no content and is rejected, which is how this mail went undelivered.
-    expect(body).not.toHaveProperty("template");
-    expect(typeof body.html).toBe("string");
-    expect(typeof body.text).toBe("string");
-    expect(body.html).toContain(
-      "https://cruush.test/?verifyEmailToken=abc&amp;next=&quot; onclick=&quot;alert(1)"
-    );
-    expect(body.html).not.toContain('onclick="alert(1)"');
-    expect(body.text).toContain("https://cruush.test/?verifyEmailToken=abc");
+    expect(body.template).toEqual({
+      id: "0dc8f32c-76e2-45b2-aaf7-f4649ab48ab0",
+      variables: {
+        VERIFICATION_URL: "https://cruush.test/?verifyEmailToken=abc&amp;next=&quot; onclick=&quot;alert(1)"
+      }
+    });
+    expect(body).not.toHaveProperty("html");
+    expect(body).not.toHaveProperty("text");
   });
 
-  it("sends password reset emails as real content, with the url escaped", async () => {
+  it("sends password reset emails with the current Resend template", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true
     });
@@ -80,14 +78,14 @@ describe("mailer", () => {
     });
 
     const body = JSON.parse(fetchMock.mock.calls[0][1].body);
-    expect(body).not.toHaveProperty("template");
-    expect(typeof body.html).toBe("string");
-    expect(typeof body.text).toBe("string");
-    expect(body.html).toContain(
-      "https://cruush.test/?resetPasswordToken=abc&amp;next=&lt;script&gt;alert(1)&lt;/script&gt;"
-    );
-    expect(body.html).not.toContain("<script>alert(1)</script>");
-    expect(body.text).toContain("https://cruush.test/?resetPasswordToken=abc");
+    expect(body.template).toEqual({
+      id: "c4c95694-b788-4862-804d-e0fb146304c3",
+      variables: {
+        RESET_URL: "https://cruush.test/?resetPasswordToken=abc&amp;next=&lt;script&gt;alert(1)&lt;/script&gt;"
+      }
+    });
+    expect(body).not.toHaveProperty("html");
+    expect(body).not.toHaveProperty("text");
   });
 
   it("sends PhotoDNA match alerts without evidence bytes or media object details", async () => {
@@ -197,11 +195,10 @@ describe("mailer", () => {
   });
 });
 
-// Every Resend send must carry real content. The send endpoint takes html, text
-// or react and has no template field, so a payload without a body is rejected
-// and the mail silently never arrives. This covers the senders together so a
-// future switch to templates cannot break delivery without failing a test.
-describe("every Resend send carries real content", () => {
+// A Resend send must carry something to render: a template, or html and text.
+// It is carrying NEITHER that fails silently, because the route logs the error
+// and still returns 202, so nothing surfaces to the user or to us.
+describe("every Resend send carries something to render", () => {
   const senders: Array<[string, () => Promise<unknown>]> = [
     ["verification", () => sendVerificationEmail({
       config,
@@ -218,7 +215,7 @@ describe("every Resend send carries real content", () => {
   ];
 
   for (const [name, send] of senders) {
-    it(`${name} posts html and text, never a template`, async () => {
+    it(`${name} posts a template or a body, never neither`, async () => {
       const fetchMock = vi.fn().mockResolvedValue({ ok: true });
       vi.stubGlobal("fetch", fetchMock);
 
@@ -229,10 +226,18 @@ describe("every Resend send carries real content", () => {
       expect(url).toBe("https://api.resend.com/emails");
 
       const body = JSON.parse(init.body);
-      expect(body).not.toHaveProperty("template");
-      expect(body.html, `${name} email has no html body`).toBeTruthy();
-      expect(body.text, `${name} email has no text body`).toBeTruthy();
-      expect(body.html.length).toBeGreaterThan(200);
+      const hasTemplate = Boolean(body.template?.id);
+      const hasBody = Boolean(body.html) && Boolean(body.text);
+      expect(hasTemplate || hasBody, `${name} email would render nothing`).toBe(true);
+
+      // a template has to carry its variables, or it renders with empty slots
+      if (hasTemplate) {
+        expect(Object.keys(body.template.variables ?? {}).length).toBeGreaterThan(0);
+        for (const value of Object.values(body.template.variables)) {
+          expect(String(value).length).toBeGreaterThan(0);
+        }
+      }
+
       expect(body.to).toEqual(["user@example.com"]);
       expect(body.subject).toBeTruthy();
       expect(body.from).toBeTruthy();

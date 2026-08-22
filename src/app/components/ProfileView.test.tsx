@@ -206,7 +206,8 @@ describe('ProfileView', () => {
       </MemoryRouter>
     );
 
-    expect(await screen.findByText('Looking for late-night art kids near the venue.')).toBeInTheDocument();
+    // The signal reads on the photo itself rather than in a card under it.
+    expect(await screen.findByTestId('profile-overlay-signal')).toHaveTextContent('Looking for late-night art kids near the venue.');
   });
 
   it('shows the launch party hat without a circle treatment', async () => {

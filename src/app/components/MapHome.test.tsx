@@ -208,6 +208,8 @@ vi.mock('../lib/userNoticesApi', () => ({
   getUserNoticeDismissal,
   markNoticeDismissed,
   resolveNoticeDismissal,
+  // Every earlier tutorial key resolves through the same stub.
+  resolveAnyNoticeDismissal: (noticeKeys: string[]) => resolveNoticeDismissal(noticeKeys[0]),
 }));
 
 vi.mock('./ui/use-mobile', () => ({
@@ -816,8 +818,8 @@ describe('MapHome', () => {
     );
 
     await waitFor(() => expect(getCurrentPosition).toHaveBeenCalledTimes(1));
-    fireEvent.click(await screen.findByRole('button', { name: 'Send a Ping' }));
-    const sendButton = await screen.findByRole('button', { name: 'Send Ping' });
+    fireEvent.click(await screen.findByRole('button', { name: 'Send a Pulse' }));
+    const sendButton = await screen.findByRole('button', { name: 'Send Pulse' });
     await waitFor(() => expect(sendButton).toBeEnabled());
     fireEvent.click(sendButton);
 
@@ -928,7 +930,7 @@ describe('MapHome', () => {
       </MemoryRouter>,
     );
 
-    const pingControl = await screen.findByRole('button', { name: 'Send a Ping' });
+    const pingControl = await screen.findByRole('button', { name: 'Send a Pulse' });
     const rightActions = screen.getByTestId('map-right-actions');
     const mapControls = screen.getByTestId('map-zoom-controls');
     const visibilityControl = screen.getByTestId('map-visibility-button');
@@ -942,7 +944,7 @@ describe('MapHome', () => {
     fireEvent.click(pingControl);
 
     expect(await screen.findByRole('dialog')).toHaveAttribute('data-testid', 'map-ping-sheet');
-    expect(screen.getByText('3 of 3 Pings available right now.')).toBeInTheDocument();
+    expect(screen.getByText('3 of 3 Pulses available right now.')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Close' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
@@ -999,9 +1001,9 @@ describe('MapHome', () => {
 
     await waitFor(() => expect(syncMyLocation).toHaveBeenCalled());
     expect(navigator.geolocation.getCurrentPosition).toHaveBeenCalledTimes(1);
-    fireEvent.click(screen.getByRole('button', { name: 'Send a Ping' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Send a Pulse' }));
     fireEvent.click(await screen.findByRole('radio', { name: '10 miles' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Send Ping' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Send Pulse' }));
 
     await waitFor(() => {
       expect(navigator.geolocation.getCurrentPosition).toHaveBeenCalledTimes(2);
@@ -1021,7 +1023,7 @@ describe('MapHome', () => {
     });
 
     await waitFor(() => expect(sendMapPing).toHaveBeenCalledWith(10, expect.any(String)));
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Ping active' })).toBeDisabled());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Pulse active' })).toBeDisabled());
   });
 
   it('does not send a Ping when the fresh map-location update fails', async () => {
@@ -1042,8 +1044,8 @@ describe('MapHome', () => {
     );
 
     await waitFor(() => expect(syncMyLocation).toHaveBeenCalledTimes(1));
-    fireEvent.click(screen.getByRole('button', { name: 'Send a Ping' }));
-    const sendButton = screen.getByRole('button', { name: 'Send Ping' });
+    fireEvent.click(screen.getByRole('button', { name: 'Send a Pulse' }));
+    const sendButton = screen.getByRole('button', { name: 'Send Pulse' });
     await waitFor(() => expect(sendButton).toBeEnabled());
     fireEvent.click(sendButton);
 
@@ -1078,21 +1080,21 @@ describe('MapHome', () => {
       </MemoryRouter>,
     );
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Send a Ping' }));
-    const sendButton = screen.getByRole('button', { name: 'Send Ping' });
+    fireEvent.click(await screen.findByRole('button', { name: 'Send a Pulse' }));
+    const sendButton = screen.getByRole('button', { name: 'Send Pulse' });
     await waitFor(() => expect(sendButton).toBeEnabled());
     fireEvent.click(sendButton);
     await waitFor(() => expect(sendMapPing).toHaveBeenCalledTimes(1));
     expect(await screen.findByRole('alert')).toHaveTextContent('Ping delivery is incomplete. Try again.');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Send Ping' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Send Pulse' }));
     await waitFor(() => expect(sendMapPing).toHaveBeenCalledTimes(2));
 
     const firstIdempotencyKey = sendMapPing.mock.calls[0]?.[1];
     const retryIdempotencyKey = sendMapPing.mock.calls[1]?.[1];
     expect(firstIdempotencyKey).toEqual(expect.any(String));
     expect(retryIdempotencyKey).toBe(firstIdempotencyKey);
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Ping active' })).toBeDisabled());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Pulse active' })).toBeDisabled());
   });
 
   it('does not let a stale status refresh erase a newly sent Ping', async () => {
@@ -1109,15 +1111,15 @@ describe('MapHome', () => {
       </MemoryRouter>,
     );
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Send a Ping' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Send a Pulse' }));
     await waitFor(() => expect(getMapPingStatus).toHaveBeenCalledTimes(2));
-    fireEvent.click(screen.getByRole('button', { name: 'Send Ping' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Send Pulse' }));
     await waitFor(() => expect(sendMapPing).toHaveBeenCalled());
 
     getMapPingStatus.mockImplementationOnce(() => staleRefresh.promise);
     fireEvent.click(screen.getByRole('button', { name: 'Close' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-    fireEvent.click(screen.getByRole('button', { name: 'Send a Ping' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Send a Pulse' }));
     await waitFor(() => expect(getMapPingStatus).toHaveBeenCalledTimes(3));
 
     const activeStatus = {
@@ -1138,7 +1140,7 @@ describe('MapHome', () => {
       sentStatus.resolve(activeStatus);
       await sentStatus.promise;
     });
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Ping active' })).toBeDisabled());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Pulse active' })).toBeDisabled());
 
     await act(async () => {
       staleRefresh.resolve({
@@ -1154,7 +1156,7 @@ describe('MapHome', () => {
       await staleRefresh.promise;
     });
 
-    expect(screen.getByRole('button', { name: 'Ping active' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Pulse active' })).toBeDisabled();
   });
 
   it('wires the visible zoom controls to the live map instance', async () => {
@@ -1492,31 +1494,28 @@ describe('MapHome', () => {
     const rightActions = screen.getByTestId('map-right-actions');
     const mapControls = screen.getByTestId('map-zoom-controls');
     const cruushPlusButton = await screen.findByRole('button', { name: 'cruush+ rewards' });
-    const pingButton = screen.getByRole('button', { name: 'Send a Ping' });
+    const pingButton = screen.getByRole('button', { name: 'Send a Pulse' });
     const pingIcon = pingButton.querySelector('svg');
 
     expect(screen.getByTestId('map-home-shell')).toHaveClass('relative');
     expect(screen.getByTestId('map-home-shell')).not.toHaveClass('fixed', 'inset-0');
     expect(screen.getByTestId('map-top-chrome')).toHaveClass('pointer-events-none');
+    // The bar carries icons only. cruush+ and the bug control are their own
+    // corner controls beside it rather than members of it.
     expect(topActions).toHaveClass(
       'pointer-events-auto',
       'mt-0',
       'min-w-0',
-      'w-full',
-      'flex-1',
-      'justify-between',
-      'gap-1',
-      'pl-2',
-      'pr-[3.25rem]',
-      'py-1',
-      'sm:gap-1.5',
-      'sm:pl-3',
-      'sm:pr-[3.75rem]',
-      'sm:py-1.5',
-      'lg:mx-auto',
-      'lg:max-w-[52rem]',
-      'lg:flex-none',
+      'justify-center',
+      'gap-0.5',
+      'px-2',
+      'py-1.5',
+      'bg-background/25',
+      'sm:gap-1',
+      'sm:px-2.5',
     );
+    expect(topActions).not.toContainElement(screen.getByTestId('map-plus-stack'));
+    expect(topActions).not.toContainElement(screen.getByTestId('map-bug-button-slot'));
     for (const button of [
       screen.getByRole('button', { name: 'Cruise Carousel' }),
       ghostModeButton,
@@ -1524,26 +1523,29 @@ describe('MapHome', () => {
       notificationButton,
       settingsButton,
     ]) {
-      expect(button).toHaveClass('size-9', 'sm:size-10', 'lg:size-11');
+      expect(button).toHaveClass('size-11', 'sm:size-12');
     }
     expect(topActions).not.toHaveClass('sm:max-w-[34rem]');
-    expect(topActions.parentElement).toHaveClass('w-full');
+    // The pill sits in a centring wrapper inside the full-width chrome row.
+    expect(topActions.parentElement).toHaveClass('flex-1', 'justify-center');
+    expect(topActions.parentElement?.parentElement).toHaveClass('w-full');
     expect(topActions).not.toHaveClass('mt-11');
     expect(plusStack).toHaveClass('relative', 'shrink-0');
-    expect(bugButtonSlot).toHaveClass('h-0', 'w-0');
-    expect(bugButtonSlot).not.toHaveClass('size-11');
+    // The slot now holds the corner open at the button's own size at every
+    // width, so the bar never runs underneath the bug control.
+    expect(bugButtonSlot).toHaveClass('h-9', 'w-9', 'sm:h-10', 'sm:w-10', 'lg:h-11', 'lg:w-11');
     expect(plusStack).toContainElement(cruushPlusButton);
     expect(plusStack).not.toContainElement(pingButton);
-    expect(topActions).toContainElement(cruushPlusButton);
+    expect(topActions).not.toContainElement(cruushPlusButton);
     expect(topActions).not.toContainElement(pingButton);
     expect(rightActions).toContainElement(pingButton);
     expect(screen.getByTestId('map-visibility-button').nextElementSibling).toBe(pingButton);
     expect(pingButton.nextElementSibling).toBe(mapControls);
+    // The Pulse control reads larger than the other map controls.
     expect(pingButton).toHaveClass(
-      'size-8',
+      'size-12',
       'shrink-0',
-      'sm:size-9',
-      'lg:size-11',
+      'lg:size-14',
     );
     expect(pingButton).not.toHaveClass('absolute', 'mt-2');
     // The offsets keep an 8px gap under the top-actions bar at every breakpoint,
@@ -1565,12 +1567,12 @@ describe('MapHome', () => {
       'lg:text-xl',
     );
     expect(screen.queryByRole('button', { name: 'Safety Center' })).not.toBeInTheDocument();
-    expect(pingIcon).toHaveClass('h-5', 'w-5', 'lg:h-7', 'lg:w-7');
-    expect(luckyIcon).toHaveClass('h-[1.375rem]', 'w-[1.375rem]', 'scale-[1.55]', 'sm:h-6', 'sm:w-6', 'lg:h-7', 'lg:w-7');
-    expect(ghostModeIcon).toHaveClass('h-[1.375rem]', 'w-[1.375rem]', 'sm:h-6', 'sm:w-6', 'lg:h-7', 'lg:w-7');
-    expect(dlModeIcon).toHaveClass('h-[1.375rem]', 'w-[1.375rem]', 'sm:h-6', 'sm:w-6', 'lg:h-7', 'lg:w-7');
-    expect(notificationIcon).toHaveClass('h-[1.375rem]', 'w-[1.375rem]', 'scale-[1.4]', 'sm:h-6', 'sm:w-6', 'lg:h-7', 'lg:w-7');
-    expect(settingsIcon).toHaveClass('h-[1.375rem]', 'w-[1.375rem]', 'scale-[1.18]', 'sm:h-6', 'sm:w-6', 'lg:h-7', 'lg:w-7');
+    expect(pingIcon).toHaveClass('size-full');
+    expect(luckyIcon).toHaveClass('h-7', 'w-7', 'scale-[1.55]');
+    expect(ghostModeIcon).toHaveClass('h-7', 'w-7');
+    expect(dlModeIcon).toHaveClass('h-7', 'w-7');
+    expect(notificationIcon).toHaveClass('h-7', 'w-7', 'scale-[1.4]');
+    expect(settingsIcon).toHaveClass('h-7', 'w-7', 'scale-[1.18]');
     expect(dlModeIcon?.getAttribute('src')).toContain('dl-mode-colored');
     expect(decodeURIComponent(ghostModeIcon?.getAttribute('src') ?? '')).toContain("fill='#ffffff'");
     expect(visibilityIcon).toHaveClass('h-4', 'w-4');
@@ -2041,10 +2043,16 @@ describe('MapHome', () => {
     expect(screen.queryByText('nyc open beta')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /message now/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /send cruush/i })).toBeInTheDocument();
-    expect(screen.getByRole('complementary')).toHaveClass('z-50', 'fixed');
+    expect(screen.getByRole('complementary')).toHaveClass('fixed');
+    // Stacking is per panel so a click raises the pressed panel above the other,
+    // and every panel stays under the chrome, the nav, and any dialog.
+    const panelZIndex = Number(screen.getByRole('complementary').style.zIndex);
+    expect(panelZIndex).toBeGreaterThanOrEqual(30);
+    expect(panelZIndex).toBeLessThan(60);
     expect(screen.getByRole('complementary')).toHaveAttribute('data-dock-slot', 'left');
     expect(screen.getByTestId('desktop-dock-left-handle')).toBeInTheDocument();
     expect(screen.getByTestId('desktop-dock-left-resize')).toBeInTheDocument();
+    expect(screen.getByTestId('desktop-dock-left-resize-top')).toBeInTheDocument();
     expect(screen.getByRole('complementary').querySelector('.profile-card-scroll')).toBeInTheDocument();
     expect(screen.getByRole('complementary').querySelector('.scrollbar-hide')).not.toBeInTheDocument();
     expect(screen.getByTestId('recently-active-panel').parentElement).toHaveClass('left-[calc(26rem+3rem)]', 'right-0', 'px-4');

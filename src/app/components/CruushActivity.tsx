@@ -263,7 +263,6 @@ function IncomingRow({
         <div className="flex flex-wrap items-center gap-2">
           <p className="truncate text-base text-white">{unlocked ? item.user.name : 'Someone new'}</p>
           {unlocked ? <CruushBadge badges={item.user.badges} compact /> : null}
-          {item.mutual ? <ActivityBadge>Mutual</ActivityBadge> : null}
         </div>
         <p className="mt-1 text-sm text-white/64">
           {unlocked ? `${item.user.pronouns || 'Ask me'} - ${formatRelativeTime(item.createdAt)}` : `Has a cruush on you - ${formatRelativeTime(item.createdAt)}`}
@@ -278,6 +277,7 @@ function IncomingRow({
           userName={item.user.name}
           cruushState={actionState}
           cruushDisabled={actionState === 'mutual'}
+          cruushReceived
           onCruush={() => onCruushBack(item)}
           canMessage={item.permissions?.canMessage === true}
           onMessage={() => onMessage(item.user!.id)}
@@ -329,7 +329,7 @@ function SentRow({
           <div className="flex min-w-0 items-center gap-2 overflow-hidden">
             <p className="min-w-0 truncate text-base text-white">{item.user.name}</p>
             <CruushBadge badges={item.user.badges} compact />
-            <ActivityBadge>{item.mutual ? 'Mutual' : 'Pending'}</ActivityBadge>
+            {item.mutual ? null : <ActivityBadge>Pending</ActivityBadge>}
           </div>
           <p className="mt-1 truncate text-sm text-white/62">{item.user.pronouns || 'Ask me'} - {formatRelativeTime(item.createdAt)}</p>
           <ActivityVibes vibes={item.user.vibes} mutual={item.mutual} />
@@ -609,8 +609,8 @@ export default function CruushActivity({ embedded = false }: { embedded?: boolea
       <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as ActivityTab)}>
         <header data-testid="cruush-activity-header" className="sticky top-0 z-20 border-b border-white/10 bg-black/88 px-4 pb-4 pt-4 shadow-[0_20px_55px_rgba(0,0,0,0.34)] backdrop-blur-xl">
           <div className="w-full space-y-4">
-            <div className="grid grid-cols-[84px_minmax(0,1fr)_84px] items-center gap-2 pr-[3.5rem]">
-              <div className="flex items-center justify-start">
+            <div className="flex min-w-0 items-center gap-2 pr-[3.5rem]">
+              <div className="flex shrink-0 items-center justify-start">
                 <Button
                   type="button"
                   size="icon"
@@ -623,10 +623,10 @@ export default function CruushActivity({ embedded = false }: { embedded?: boolea
                   <ArrowLeft className="h-4 w-4" />
                 </Button>
               </div>
-              <div className="flex justify-center">
-                <h1 className="text-2xl text-white sm:text-3xl">Activity</h1>
+              <div className="flex min-w-0 flex-1 justify-center">
+                <h1 className="truncate text-2xl text-white sm:text-3xl">Cruushes</h1>
               </div>
-              <div className="flex items-center justify-end gap-2">
+              <div className="flex shrink-0 items-center justify-end gap-2">
                 <div data-testid="cruush-activity-bug-button-slot" ref={registerBugButtonSlot} />
                 <Dialog open={matchSettingsOpen} onOpenChange={setMatchSettingsOpen}>
                   <DialogTrigger asChild>
@@ -662,7 +662,7 @@ export default function CruushActivity({ embedded = false }: { embedded?: boolea
 
             <TabsList
               data-testid="cruush-tab-grid"
-              className="mx-auto grid h-auto w-full max-w-2xl grid-cols-[repeat(4,minmax(0,1fr))] rounded-lg border border-white/10 bg-background/25 p-1 shadow-[0_20px_55px_rgba(0,0,0,0.32)] backdrop-blur-xl"
+              className="mx-auto grid h-auto w-full max-w-2xl grid-cols-[repeat(4,minmax(0,1fr))] gap-2 rounded-lg border-0 bg-transparent p-0 shadow-none"
             >
               <ActivityTabButton value="incoming" label="incoming" />
               <ActivityTabButton value="sent" label="sent" />
@@ -780,7 +780,7 @@ function ActivityTabButton({
   return (
     <TabsTrigger
       value={value}
-      className="relative min-w-0 h-10 rounded-md border border-transparent bg-transparent px-2 text-sm text-white/72"
+      className="relative h-10 min-w-0 rounded-lg border border-white/10 bg-white/[0.04] px-2 text-sm text-white/72"
     >
       <span className="block min-w-0 truncate">{label}</span>
     </TabsTrigger>

@@ -317,4 +317,26 @@ describe("migration runner", () => {
     expect(betaCityRequestsSql).toContain("requested_city_ciphertext");
     expect(betaCityRequestsSql).toContain("beta_city_requests_unique_email_city");
   });
+
+  it("seeds the NSFW Club coupon as a replay-safe 30-day promo code", async () => {
+    const couponSql = await readFile(path.join(serverRoot, "sql", "094_nsfwclub30_promo_code.sql"), "utf8");
+
+    expect(couponSql).toContain("insert into cruush_plus_promo_codes");
+    expect(couponSql).toContain("'NSFWCLUB30'");
+    expect(couponSql).toMatch(/grant_days[\s\S]*\n\s{2}30,/);
+    expect(couponSql).toContain("on conflict (code) do update");
+    expect(couponSql).not.toContain("delete from");
+    expect(couponSql).not.toContain("reward_grants");
+  });
+
+  it("caps the NSFW Club coupon without overriding a later operator limit", async () => {
+    const capSql = await readFile(path.join(serverRoot, "sql", "095_nsfwclub30_promo_code_cap.sql"), "utf8");
+
+    expect(capSql).toContain("update cruush_plus_promo_codes");
+    expect(capSql).toContain("max_redemptions = 500");
+    expect(capSql).toContain("upper(code) = 'NSFWCLUB30'");
+    expect(capSql).toContain("max_redemptions is null");
+    expect(capSql).not.toContain("delete from");
+    expect(capSql).not.toContain("reward_grants");
+  });
 });

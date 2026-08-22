@@ -4,6 +4,14 @@ import { Bell, Download, Eye, EyeOff, Ghost, MapPin, Radio, RefreshCw, Rss, Slid
 import { Button } from './ui/button';
 
 export const MAP_CONTROLS_TUTORIAL_STORAGE_KEY = 'cruush:tutorial-v4-seen';
+// Finishing the tour is permanent. Versioning the key ships a repaired tour to
+// people who never took one, so every earlier version still counts as done and
+// nobody is asked to sit through the tutorial twice.
+export const MAP_CONTROLS_TUTORIAL_LEGACY_STORAGE_KEYS = [
+  'cruush:tutorial-v3-seen',
+  'cruush:tutorial-v2-seen',
+  'cruush:tutorial-v1-seen',
+];
 export const MAP_CONTROLS_TUTORIAL_PROGRESS_KEY = 'cruush:tutorial-v4-progress';
 export const MAP_CONTROLS_TUTORIAL_COMPLETED_EVENT = 'cruush:map-controls-tutorial-completed';
 
@@ -70,9 +78,9 @@ const TUTORIAL_STEPS: TutorialStep[] = [
   },
   {
     id: 'ping',
-    title: 'Ping',
-    description: 'Ping is directly below Visibility. It briefly marks your heart as active on the map and shares your signal as a normal feed post.',
-    actionLabel: 'Open Ping',
+    title: 'Pulse',
+    description: 'Pulse is directly below Visibility. It briefly marks your heart as active on the map and shares your signal as a normal feed post.',
+    actionLabel: 'Open Pulse',
   },
   {
     id: 'profile-pin',

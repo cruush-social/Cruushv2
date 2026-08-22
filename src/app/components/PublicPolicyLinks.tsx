@@ -15,6 +15,7 @@ export const PUBLIC_POLICY_LINKS = [
 ];
 
 const AUTH_HIDDEN_POLICY_PATHS = ['/terms', '/privacy'];
+const AUTH_CONSENT_POLICY_PATHS = ['/terms', '/privacy'];
 
 export const AUTH_POLICY_LINKS = [
   { label: 'Terms of Service', path: '/terms' },
@@ -32,26 +33,48 @@ export default function PublicPolicyLinks({ className, variant = 'card', exclude
   const visiblePolicyLinks = PUBLIC_POLICY_LINKS.filter((link) => !excludePaths.includes(link.path));
 
   if (variant === 'compact') {
+    const consentLinks = AUTH_POLICY_LINKS.filter((link) => AUTH_CONSENT_POLICY_PATHS.includes(link.path));
+    const secondaryLinks = AUTH_POLICY_LINKS.filter((link) => !AUTH_CONSENT_POLICY_PATHS.includes(link.path));
+
     return (
-      <p
-        aria-label="Legal and safety links"
-        className={cn('text-xs text-center text-white/30 leading-relaxed', className)}
-      >
-        By continuing, you agree to our{' '}
-        {AUTH_POLICY_LINKS.map((link, index) => (
-          <Fragment key={link.path}>
-            {index > 0 ? (index === AUTH_POLICY_LINKS.length - 1 ? ', and ' : ', ') : null}
-            <a
-              className="underline hover:text-white/50"
-              href={link.path}
-              rel="noreferrer"
-              target="_blank"
-            >
-              {link.label}
-            </a>
-          </Fragment>
-        ))}
-      </p>
+      <div aria-label="Legal and safety links" className={cn('text-center text-white/30', className)}>
+        <p className="text-[0.7rem] leading-relaxed">
+          By continuing, you agree to our{' '}
+          {consentLinks.map((link, index) => (
+            <Fragment key={link.path}>
+              {index > 0 ? (index === consentLinks.length - 1 ? ' and ' : ', ') : null}
+              <a
+                className="underline hover:text-white/50"
+                href={link.path}
+                rel="noreferrer"
+                target="_blank"
+              >
+                {link.label}
+              </a>
+            </Fragment>
+          ))}
+          .
+        </p>
+
+        <details className="group mt-1">
+          <summary className="cursor-pointer list-none text-[0.65rem] uppercase tracking-[0.14em] text-white/35 transition hover:text-white/60">
+            More policies
+          </summary>
+          <div className="mt-1 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[0.65rem]">
+            {secondaryLinks.map((link) => (
+              <a
+                className="underline hover:text-white/50"
+                href={link.path}
+                key={link.path}
+                rel="noreferrer"
+                target="_blank"
+              >
+                {link.label}
+              </a>
+            ))}
+          </div>
+        </details>
+      </div>
     );
   }
 

@@ -20,7 +20,7 @@ The website should feel premium, dark, romantic, erotic, intimate, polished, cin
 - The logo text must always be exactly `cruush`.
 - `cruush` is both the product name and the core interaction language.
 - User-facing language should use `Vibes`, never `Tribes`.
-- User-facing language should not call the primary interaction a like, tap, wink, or crush. It is a `cruush`.
+- User-facing language should not call the primary interaction a like, tap, wink, or the misspelling of our name. It is a `cruush`.
 - Map-first cruising behavior must remain central.
 - The unified local feed must remain proximity-first and map-adjacent.
 
@@ -522,3 +522,97 @@ Tradeoff:
 - Include Location Fuzziness in settings.
 - Show last-active context prominently on map surfaces.
 - Do not put profile encryption keys or other backend secrets in frontend code.
+
+## Component Language (2026-08-21)
+
+These are the decisions taken while shipping the 1.5 fixes. Follow them instead of inventing a new treatment per surface.
+
+### Gradients
+- `--cruush-gradient` is the only bright gradient, and its stops are fixed. Do not re-weight it; every button, pill and badge in the app inherits it.
+- `--cruush-gradient-soft-28` is the quiet state of that same gradient. Use it for anything already done: a cruush you sent, a mutual you already have, a secondary card.
+- `--cruush-gradient-soft-18` is the quietest tint. Use it for large surfaces that must stay readable behind text.
+- Never introduce a one-off gradient (no `from-fuchsia-500 via-violet-500` style stacks). If a surface needs emphasis, use the tokens plus a border or brighter text.
+
+### Colour meanings
+- Pink `#FF0072`: someone you have no mutual with.
+- Purple `#6F00FF`: mutuals. The `Mutual` tag is always purple, never a gradient.
+- Indigo `#3826FF`: you.
+- Green `#c8ff31`: pings, everywhere. Ping controls never use the cruush gradient.
+- Red is reserved for the bug report button. No other control, icon, chip or hover state is red.
+
+### Profile controls
+- Every surface that shows a profile offers the same three controls through `ProfileActionTrio`: cruush, message, centre their pin. Each one appears only when that person's privacy allows it.
+- The cruush control uses the double-heart `safety` icon once a cruush exists (sent or mutual) and the `cruush` icon when none does.
+- A cruush you already sent uses the quiet gradient. Only an available cruush uses the bright one.
+- Vibe capsules take the colour of the relationship: pink, purple, or indigo for your own.
+- Crowds never appear in a vibe capsule row.
+
+### Page chrome
+- Feed, Activity and Messages share one header: back control on the left, centred title, page controls on the right next to the fixed bug button.
+- Page settings open as a popup on the page. They do not navigate to another route.
+- The bug report button is fixed at the top right on every page at `z-[70]`, outside every header. Page chrome reserves room for it instead of overlapping it.
+- On the desktop map, the profile docks on the left and feed, activity or messages dock on the right. Both are draggable and resizable and remember their position.
+
+### Photos and text over photos
+- People and media blocks are 4:5. The carousel never shows a square tile.
+- Text over a photo uses a hard one pixel outline in all eight directions plus one tight drop shadow. No blur haloes and no text stroke on the glyphs.
+
+## Hard rules (2026-08-22)
+
+These are not preferences. Breaking one is a bug.
+
+### Signal
+- A signal is at most **35 characters**, which is what the field holds on a
+  phone without wrapping. The editor input, the server payload schema, and the
+  map preview all hold that number, and it lives in one place:
+  `SIGNAL_MAX_LENGTH` in `server/src/profile-schema.ts`.
+- A signal renders on **one line**, everywhere. It truncates; it never wraps to
+  a second line and never grows the block it sits in.
+
+### Colour
+- Never change a colour, a surface opacity, or a shadow that the request did not
+  name. A complaint about one element is not permission to restyle its
+  neighbours.
+- Green (`#C8FF31`) belongs to Ping and to nothing else. Notifications, unread
+  states, and accents use the brand accent or the gradient.
+- The quiet gradient variants are the bright gradient dimmed, never a rebuilt
+  stop list: `--cruush-gradient-soft-18` and `--cruush-gradient-soft-28` layer a
+  flat black over `--cruush-gradient` so both read as the same colour.
+- Red belongs to the bug report control alone. That control is fixed to the top
+  right and never moves.
+
+### Layering
+- Nothing covers the top chrome, the bottom nav, or an open dialog. The order is
+  map (own stacking context) < dock panels (base 30) < top chrome and bottom nav
+  (60) < dialogs (80) < the bug report control (70 within its own corner).
+- A hovered or previewed map pin stays inside the map's stacking context.
+
+### Capsules
+- Profile previews show **vibe capsules only**. Crowds are never rendered as
+  vibe capsules anywhere.
+- A capsule is filled with its own border colour, which is the colour that
+  person's heart pin is drawn with: pink for no mutual, purple for a mutual,
+  indigo for you.
+
+### Control shapes
+- Every icon control is a **circle**. Rounded squares are not part of the
+  language and do not appear on profile chrome, map chrome, or panels.
+- A control that carries a word rather than an icon is a **pill**, fully
+  rounded, never a rounded rectangle.
+
+### Notifications
+- One action only: mark all as read. There is no separate clear or delete
+  control; the two read as the same thing.
+
+### Page headers
+- A page header is **one line**: back control, title, and icon controls all sit
+  on the same row, at every width, in a full page or in a dock panel. Sizes may
+  shrink; the row never wraps and the title never moves to its own line.
+- The title truncates before the row wraps.
+
+### Ping and Pulse
+- Ping green (`#C8FF31`) is a **border and an icon colour**, never a fill. The
+  surface stays grey or black.
+- The one exception is the send control itself, which is filled green and picks
+  up the hover sheen.
+- The sheet floats above the bottom nav. Nothing opens behind it.

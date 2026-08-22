@@ -3,7 +3,13 @@ import { useEffect, useState } from 'react';
 export const DISTANCE_PREFERENCES_CHANGED_EVENT = 'cruush:distance-preferences-changed';
 export const DISTANCE_PREFERENCES_STORAGE_KEY = 'cruush:distance-preference';
 
-export type DistanceDisplayMode = 'exact' | 'approximate';
+/**
+ * How far away someone is, in three settings that always read both ways: turn
+ * labels off and nobody sees a distance in either direction, keep them
+ * approximate and both sides see a rough label, or go precise and both sides
+ * see the miles. The stricter of the two people's settings wins.
+ */
+export type DistanceDisplayMode = 'off' | 'approximate' | 'precise';
 
 export type DistancePreferences = {
   mode: DistanceDisplayMode;
@@ -11,8 +17,14 @@ export type DistancePreferences = {
 
 export type DistancePreferencesListener = (preferences: DistancePreferences) => void;
 
+const DISTANCE_DISPLAY_MODES: DistanceDisplayMode[] = ['off', 'approximate', 'precise'];
+
+function isDistanceDisplayMode(value: unknown): value is DistanceDisplayMode {
+  return typeof value === 'string' && (DISTANCE_DISPLAY_MODES as string[]).includes(value);
+}
+
 const DEFAULT_DISTANCE_PREFERENCES: DistancePreferences = {
-  mode: 'exact',
+  mode: 'approximate',
 };
 
 export function getDistancePreferences(): DistancePreferences {
@@ -22,13 +34,15 @@ export function getDistancePreferences(): DistancePreferences {
 
   try {
     const stored = window.localStorage.getItem(DISTANCE_PREFERENCES_STORAGE_KEY);
-    if (stored === 'approximate' || stored === 'exact') {
+    if (isDistanceDisplayMode(stored)) {
       return { mode: stored };
     }
     if (stored) {
       const parsed = JSON.parse(stored);
-      if (parsed.mode === 'approximate' || parsed.mode === 'exact') {
-        return { mode: parsed.mode as DistanceDisplayMode };
+      // 'exact' was the old name for precise labels.
+      const mode = parsed.mode === 'exact' ? 'precise' : parsed.mode;
+      if (isDistanceDisplayMode(mode)) {
+        return { mode };
       }
     }
     return DEFAULT_DISTANCE_PREFERENCES;
@@ -78,7 +92,8 @@ export function useDistancePreferences() {
 }
 
 /**
- * Formats a distance string respecting exact vs approximate display preference.
+ * Formats a distance string for the shared display mode: nothing when labels
+ * are off, the miles when precise, a rough band when approximate.
  */
 export function formatDistanceLabel(
   distance: string | null | undefined,
@@ -87,7 +102,11 @@ export function formatDistanceLabel(
   if (!distance) return null;
   if (distance === 'You' || distance === 'Own profile') return distance;
 
-  if (mode === 'exact') {
+  if (mode === 'off') {
+    return null;
+  }
+
+  if (mode === 'precise') {
     return distance;
   }
 
@@ -117,4 +136,47 @@ export function formatDistanceLabel(
   }
 
   return `${approxText}${suffix}`;
+}
+
+/**
+ * What a viewer sees when the other person only shares a precise distance with
+ * their mutuals or their crowds. The gate is named rather than hidden so the
+ * label never looks like a distance it is not.
+ */
+export function resolveDistanceGateLabel(input: {
+  preciseToMutualCruushes?: boolean | null;
+  preciseToMutualCrowds?: boolean | null;
+}) {
+  if (input.preciseToMutualCrowds && input.preciseToMutualCruushes) {
+    return 'crowds & cruushes only';
+  }
+
+  if (input.preciseToMutualCrowds) {
+    return 'crowds only';
+  }
+
+  if (input.preciseToMutualCruushes) {
+    return 'cruushes only';
+  }
+
+  return null;
+}
+
+/**
+ * The label two people share. Both sides get the same answer, and the stricter
+ * of the two settings decides it.
+ */
+export function resolveSharedDistanceMode(
+  viewer: DistanceDisplayMode,
+  subject: DistanceDisplayMode,
+): DistanceDisplayMode {
+  if (viewer === 'off' || subject === 'off') {
+    return 'off';
+  }
+
+  if (viewer === 'approximate' || subject === 'approximate') {
+    return 'approximate';
+  }
+
+  return 'precise';
 }

@@ -1,6 +1,5 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { requireCruushPlus } from "../billing.js";
 import { decryptTextContentOrFallback, encryptTextContent } from "../content-encryption.js";
 import { ApiError } from "../errors.js";
 import { approvedContentReviewCte, moderateTextOrReject } from "../moderation-service.js";
@@ -8,7 +7,7 @@ import { createPostPayloadSchema, updateFeedSettingsPayloadSchema, type FeedLoca
 import { createCrowdTokens } from "../profile-sensitive.js";
 import { getActiveAccountUserId, getAuthenticatedUserId } from "../request-auth.js";
 import { recordMeaningfulActivitySafely } from "../rewards-service.js";
-import { getRelationshipPermissions } from "../match-relationships.js";
+import { getCruushEntitlement, getRelationshipPermissions } from "../match-relationships.js";
 
 type PostRow = {
   id: string;
@@ -270,7 +269,8 @@ const postParamsSchema = z.object({
 
 const feedPostQuerySchema = z.object({
   within: z.enum(["1h", "3h", "6h", "24h", "7d"]).default("7d"),
-  distanceMiles: z.coerce.number().min(1).max(15).default(15),
+  // The open beta covers fifty miles around NYC, so the feed reaches that far too.
+  distanceMiles: z.coerce.number().min(1).max(50).default(50),
   limit: z.coerce.number().int().min(1).max(50).default(30),
   before: z.string().datetime().optional(),
   lat: z.coerce.number().min(-90).max(90).optional(),
@@ -421,7 +421,7 @@ export async function registerPostRoutes(app: FastifyInstance) {
   app.post("/api/posts", async (request, reply) => {
     const userId = await getActiveAccountUserId(request);
     const payload = createPostPayloadSchema.parse(request.body);
-    const entitlement = await requireCruushPlus(app, userId, "Upgrade to cruush+ to post on the local feed.");
+    const entitlement = await getCruushEntitlement(app, userId);
     const ownerFullAccess = entitlement.ownerFullAccess === true;
     const moderation = await moderateTextOrReject(app, {
       userId,

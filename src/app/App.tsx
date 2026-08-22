@@ -22,6 +22,9 @@ import AccessibilityQuickAccess from './components/AccessibilityQuickAccess';
 
 const MapHome = lazy(() => import('./components/MapHome'));
 const LocalFeed = lazy(() => import('./components/LocalFeed'));
+const FeedPhotoPreview = lazy(() => import('./components/FeedPhotoPreview'));
+const BadgePickerPreview = lazy(() => import('./components/BadgePickerPreview'));
+const PulseEffectPreview = lazy(() => import('./components/PulseEffectPreview'));
 const ProfileView = lazy(() => import('./components/ProfileView'));
 const ProfileEdit = lazy(() => import('./components/ProfileEdit'));
 const ProfileOnboarding = lazy(() => import('./components/ProfileOnboarding'));
@@ -548,6 +551,9 @@ export default function App({
               <Route path="/" element={<Navigate to="/map" replace />} />
               <Route path="/map" element={<MapHome developerToolsEnabled={canUseDeveloperMapToolsEmail(session?.user.email)} />} />
               <Route path="/feed" element={<LocalFeed />} />
+              <Route path="/feed/photo-preview" element={<FeedPhotoPreview />} />
+              <Route path="/settings/badges" element={<BadgePickerPreview />} />
+              <Route path="/settings/pulse-effects" element={<PulseEffectPreview />} />
               <Route path="/profile" element={<ProfileView />} />
               <Route path="/profile/:userId" element={<ProfileView />} />
               <Route path="/profile/edit" element={<ProfileEdit onSaved={handleProfileSaved} />} />

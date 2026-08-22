@@ -7,19 +7,37 @@ import { Button } from './ui/button';
 import { Label } from './ui/label';
 import { Slider } from './ui/slider';
 import { Switch } from './ui/switch';
-import { saveDistancePreferences, useDistancePreferences } from '../lib/distancePreferences';
+import { saveDistancePreferences, useDistancePreferences, type DistanceDisplayMode } from '../lib/distancePreferences';
 
 export const DEFAULT_MAP_PRESENCE_DAYS = 7;
 export const MIN_MAP_PRESENCE_DAYS = 1;
 export const MAX_MAP_PRESENCE_DAYS = 30;
 
 function describeDays(days: number) {
-  if (days === 1) {
-    return 'You stay on the map for 1 day after you were last active.';
-  }
+  const hours = days * 24;
+  const window = days === 1 ? '1 day' : `${days} days`;
 
-  return `You stay on the map for ${days} days after you were last active.`;
+  return `You stay on the map for ${window}, ${hours} hours, after you were last active. People can still find you while you are out of the app.`;
 }
+
+// Every setting reads both ways, and the stricter of two people's settings wins.
+const DISTANCE_LABEL_OPTIONS: { value: DistanceDisplayMode; label: string; description: string }[] = [
+  {
+    value: 'off',
+    label: 'No labels',
+    description: 'You see no distances and nobody sees one for you.',
+  },
+  {
+    value: 'approximate',
+    label: 'Approximate',
+    description: 'Both sides see a rough distance rather than a number.',
+  },
+  {
+    value: 'precise',
+    label: 'Precise',
+    description: 'Both sides see the miles, unless Ghost Mode is on and they are not allowed your precise location.',
+  },
+];
 
 export default function MapPresenceSettings() {
   const distancePreferences = useDistancePreferences();
@@ -67,33 +85,34 @@ export default function MapPresenceSettings() {
         <Button variant="ghost" size="icon" aria-label="Return to settings" onClick={() => navigate('/settings')}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
-        <div>
-          <h1 className="text-xl">Map presence</h1>
-          <p className="text-xs text-muted-foreground">How long you stay on the map after signing out</p>
-        </div>
+        <h1 className="text-xl">Map presence</h1>
       </header>
 
       <main className="mx-auto max-w-xl space-y-6 px-4 py-6">
-        <p className="text-sm text-muted-foreground">
-          You keep appearing on the map for a while after your last activity, so people can still find you when
-          you are not in the app. Shorten it to disappear sooner, or lengthen it to stay discoverable.
-        </p>
-
         <div className="space-y-2 rounded-lg border border-white/10 bg-white/[0.035] p-3">
-          <div className="flex items-start justify-between gap-4">
-            <div className="space-y-0.5">
-              <Label htmlFor="map-presence-approx-distance">Distance labels</Label>
-              <p className="text-xs text-muted-foreground">
-                {distancePreferences.mode === 'approximate'
-                  ? 'Approximate both ways: you see approximate distances, and others see an approximate distance for you.'
-                  : 'Exact both ways: you see an exact distance only from people who also share exact, and they see yours the same way.'}
-              </p>
-            </div>
-            <Switch
-              id="map-presence-approx-distance"
-              checked={distancePreferences.mode === 'approximate'}
-              onCheckedChange={(checked) => saveDistancePreferences({ mode: checked ? 'approximate' : 'exact' })}
-            />
+          <Label>Distance labels</Label>
+          <div className="grid gap-2">
+            {DISTANCE_LABEL_OPTIONS.map((option) => {
+              const selected = distancePreferences.mode === option.value;
+
+              return (
+                <button
+                  aria-pressed={selected}
+                  className={`rounded-lg border p-3 text-left transition ${
+                    selected
+                      ? 'border-primary/45 text-white'
+                      : 'border-white/10 bg-white/[0.035] text-white/72 hover:bg-white/[0.06]'
+                  }`}
+                  key={option.value}
+                  onClick={() => saveDistancePreferences({ mode: option.value })}
+                  style={selected ? { background: 'var(--cruush-gradient-soft-18)' } : undefined}
+                  type="button"
+                >
+                  <span className="block text-sm text-white">{option.label}</span>
+                  <span className="mt-1 block text-xs text-muted-foreground">{option.description}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -111,7 +130,7 @@ export default function MapPresenceSettings() {
         {loading ? (
           <p className="text-sm text-muted-foreground">Loading your setting...</p>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-4 rounded-lg border border-white/10 bg-white/[0.035] p-3">
             <Label htmlFor="map-presence-days">Stay on the map for</Label>
             <Slider
               id="map-presence-days"

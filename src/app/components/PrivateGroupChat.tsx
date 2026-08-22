@@ -237,8 +237,10 @@ function getMessageSender(
     : null;
 }
 
-export default function PrivateGroupChat() {
-  const { chatId } = useParams();
+export default function PrivateGroupChat({ conversationId }: { conversationId?: string } = {}) {
+  const params = useParams();
+  // The dock renders this thread without a route of its own.
+  const chatId = conversationId ?? params.chatId;
   const navigate = useNavigate();
   const messagePhotoInputId = useId();
   const favoriteImageInputId = useId();
@@ -911,7 +913,7 @@ export default function PrivateGroupChat() {
 
             {conversation ? (
               <HeartPhoto
-                className="w-12 shrink-0"
+                className="w-16 shrink-0 sm:w-20"
                 label={`${conversation.user.name} avatar`}
                 masked={shouldMaskPhoto(dlModeActive, conversation.user.photoExplicit)}
                 photo={conversation.user.photo}
@@ -1380,12 +1382,16 @@ export default function PrivateGroupChat() {
                   })}
                   {msg.content ? (
                     <div
-                      className={`rounded-[22px] px-4 py-3 text-sm leading-relaxed ${
-                        isOwn
-                          ? 'text-white'
-                          : 'border border-border bg-card text-foreground'
-                      }`}
-                      style={isOwn ? { background: 'var(--cruush-gradient)' } : undefined}
+                      className="rounded-[22px] px-4 py-3 text-sm leading-relaxed text-white"
+                      style={{
+                        // Bubbles carry the relationship colours the pins use:
+                        // indigo for you, purple for a mutual, pink otherwise.
+                        background: isOwn
+                          ? '#3826FF'
+                          : conversation?.kind === 'group' || conversation?.mutual
+                            ? '#6F00FF'
+                            : '#FF0072',
+                      }}
                     >
                       {msg.content}
                     </div>

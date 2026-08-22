@@ -18,13 +18,15 @@ export type ProfileActionTrioProps = {
   onCenterPin?: () => void;
   /** Force the quiet gradient, for example on cruushes you sent. */
   cruushTone?: 'bright' | 'dark';
+  /** A cruush already exists in one direction, so the double heart reads. */
+  cruushReceived?: boolean;
   size?: 'sm' | 'md';
   className?: string;
 };
 
 const SIZE_CLASSES: Record<'sm' | 'md', string> = {
-  sm: 'size-9',
-  md: 'h-11 w-11',
+  sm: 'size-10',
+  md: 'h-12 w-12',
 };
 
 /**
@@ -41,6 +43,7 @@ export default function ProfileActionTrio({
   canCenterPin = false,
   onCenterPin,
   cruushTone,
+  cruushReceived = false,
   size = 'md',
   className,
 }: ProfileActionTrioProps) {
@@ -59,7 +62,7 @@ export default function ProfileActionTrio({
         type="button"
         size="icon"
         variant="secondary"
-        className={`${sizeClass} shrink-0 rounded-full border-0 text-white transition hover:brightness-110 disabled:opacity-100`}
+        className={`cruush-action-sheen ${sizeClass} shrink-0 rounded-full border-0 text-white disabled:opacity-100`}
         style={{
           background: cruushTone === 'dark' || cruushState === 'sent' || cruushState === 'sending'
             ? 'var(--cruush-gradient-soft-28)'
@@ -72,8 +75,8 @@ export default function ProfileActionTrio({
         data-cruush-state={cruushState}
       >
         <CruushIcon
-          name={cruushState === 'mutual' || cruushState === 'sent' ? 'safety' : 'cruush'}
-          className="h-5 w-5"
+          name={cruushReceived || cruushState === 'mutual' || cruushState === 'sent' ? 'safety' : 'cruush'}
+          className="h-6 w-6"
           variant="white"
         />
       </Button>
@@ -83,28 +86,33 @@ export default function ProfileActionTrio({
           type="button"
           size="icon"
           variant="secondary"
-          className={`${sizeClass} shrink-0 rounded-full border-0 text-white transition hover:brightness-110`}
+          className={`cruush-action-sheen ${sizeClass} shrink-0 rounded-full border-0 text-white`}
           style={{ background: 'var(--cruush-gradient)' }}
           aria-label={`Message ${userName}`}
           title={`Message ${userName}`}
           onClick={onMessage}
         >
-          <CruushIcon name="messages" className="h-5 w-5" variant="white" />
+          <CruushIcon name="send" className="h-6 w-6" variant="white" />
         </Button>
       ) : null}
 
-      {canCenterPin && onCenterPin ? (
+      {onCenterPin ? (
         <Button
           type="button"
           size="icon"
           variant="secondary"
-          className={`${sizeClass} shrink-0 rounded-full border-0 text-white transition hover:brightness-110`}
+          className={`cruush-action-sheen ${sizeClass} shrink-0 rounded-full border-0 text-white disabled:opacity-100 ${canCenterPin ? '' : 'grayscale-[0.35] brightness-75'}`}
           style={{ background: 'var(--cruush-gradient)' }}
-          aria-label={`Center the map on ${userName}`}
-          title={`Center the map on ${userName}`}
+          aria-label={canCenterPin
+            ? `Center the map on ${userName}`
+            : `${userName} does not share their precise location`}
+          title={canCenterPin
+            ? `Center the map on ${userName}`
+            : `${userName} does not share their precise location`}
+          disabled={!canCenterPin}
           onClick={onCenterPin}
         >
-          <CruushIconImage src={mapIconWhite} className="h-5 w-5" />
+          <CruushIconImage src={mapIconWhite} className="h-6 w-6" />
         </Button>
       ) : null}
     </div>

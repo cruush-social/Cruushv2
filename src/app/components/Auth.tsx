@@ -12,10 +12,10 @@ import { checkBetaAccess, requestBetaCity } from '../lib/betaAccessApi';
 import { getAppMeta, type AppMetaPayload } from '../lib/metaApi';
 import { persistSessionUser, setVerificationPreviewUrl } from '../lib/sessionUser';
 import { CruushIcon } from './CruushIconImage';
-import LaunchLoginMapTeaser from './LaunchLoginMapTeaser';
 import PublicPolicyLinks from './PublicPolicyLinks';
 import Turnstile, { getTurnstileSiteKey } from './Turnstile';
 import cruushLogo from '../assets/brand/cruush-logo.svg';
+
 import './Auth.css';
 
 interface AuthProps {
@@ -447,7 +447,7 @@ export default function Auth({ onAuth }: AuthProps) {
 
   return (
     <div className="launch-login-auth-shell overflow-x-hidden">
-      <LaunchLoginMapTeaser />
+      <div aria-hidden="true" className="launch-login-strobe-pane" data-testid="launch-login-strobe-pane" />
       <div className="launch-login-auth-card w-full max-w-[20rem] relative z-10" data-testid="launch-login-auth-panel">
         {/* Logo */}
         <div className="launch-login-auth-brand text-center" data-testid="launch-login-auth-brand">
@@ -510,7 +510,7 @@ export default function Auth({ onAuth }: AuthProps) {
                   onClick={handleBetaAccessCheck}
                   disabled={betaAccessStatus === 'checking'}
                   className="h-11 w-full rounded-sm text-sm font-semibold text-white transition hover:brightness-110 disabled:opacity-50"
-                  style={{ background: 'var(--cruush-gradient)' }}
+                  style={{ background: 'var(--cruush-logo)' }}
                 >
                   {betaAccessStatus === 'checking' ? 'Checking location...' : 'Check my location'}
                 </button>
@@ -558,7 +558,7 @@ export default function Auth({ onAuth }: AuthProps) {
                   disabled={cityRequestLoading}
                   className="launch-login-auth-submit w-full h-12 rounded-sm text-white transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden"
                   style={{
-                    background: 'var(--cruush-gradient)',
+                    background: 'var(--cruush-logo)',
                   }}
                 >
                   <span className="relative z-10">{cityRequestLoading ? 'Saving...' : 'Join newsletter'}</span>
@@ -853,7 +853,7 @@ export default function Auth({ onAuth }: AuthProps) {
             disabled={isLoading}
             className="launch-login-auth-submit w-full h-12 rounded-sm text-white transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden"
             style={{
-              background: 'var(--cruush-gradient)',
+              background: 'var(--cruush-logo)',
             }}
           >
             {isLoading ? (
@@ -887,7 +887,7 @@ export default function Auth({ onAuth }: AuthProps) {
               onClick={isForgotPassword ? showSignIn : toggleMode}
               disabled={isLoading}
               className="launch-login-auth-submit relative h-12 w-full overflow-hidden rounded-sm text-white transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
-              style={{ background: 'var(--cruush-gradient)' }}
+              style={{ background: 'var(--cruush-logo)' }}
             >
               <span className="relative z-10">
                 {isForgotPassword

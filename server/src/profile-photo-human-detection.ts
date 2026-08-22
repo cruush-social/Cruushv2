@@ -35,7 +35,15 @@ type RekognitionSafetyConfig = Pick<
   | "PROFILE_PHOTO_REKOGNITION_MINIMUM_AGE"
 >;
 
-const HUMAN_LABELS = new Set(["human", "people", "person"]);
+// Nobody is required to show their face. A torso, a back, a hand, or any other
+// body part counts as a human photo, on every surface.
+const HUMAN_LABELS = new Set([
+  "human", "people", "person",
+  "body part", "abdomen", "arm", "back", "chest", "elbow", "finger", "foot",
+  "hand", "head", "hip", "knee", "leg", "mouth", "neck", "shoulder", "skin",
+  "stomach", "thigh", "torso", "wrist",
+  "barefoot", "muscle", "tattoo", "undressed", "nude", "nudity", "underwear", "lingerie"
+]);
 const ANIMAL_LABEL_PATTERN = /\b(?:animal|amphibian|bird|canine|cat|dog|feline|fish|horse|insect|livestock|mammal|pet|primate|reptile|rodent|wildlife)s?\b/i;
 const MINOR_LABEL_PATTERN = /\b(?:baby|babies|boy|boys|child|children|girl|girls|infant|infants|kid|kids|newborn|teen|teenager|toddler|youth)\b/i;
 const NUDITY_MODERATION_LABEL_PATTERN = /\b(?:explicit nudity|nudity|non-explicit nudity|partial nudity|graphic (?:male|female) nudity|illustrated explicit nudity|sexual activity|sexual situations|sex toy|sex toys)\b/i;
@@ -246,6 +254,17 @@ export function classifyProfilePhotoSafety(
       normalized_label: "human_present",
       confidence: Math.max(humanConfidence, ...consideredFaces.map((face) => face.Confidence ?? 0), 0) / 100,
       severity: "none"
+    });
+  }
+
+  // Emit the animal signal on its own so surfaces that allow non-human photos
+  // can still refuse animals.
+  if (hasAnimal) {
+    normalizedLabels.push({
+      provider_label: "Amazon Rekognition: Animal",
+      normalized_label: "animal",
+      confidence: animalConfidence / 100,
+      severity: "high"
     });
   }
 

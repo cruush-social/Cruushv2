@@ -814,11 +814,6 @@ export default function DirectMessages({ embedded = false }: { embedded?: boolea
                         <p className={`min-w-0 max-w-full truncate text-base text-white ${conversation.unreadCount > 0 ? 'font-medium' : ''}`}>
                           {conversation.user.name}
                         </p>
-                        {conversation.mutual ? (
-                          <Badge variant="outline" className={mutualBadgeClassName}>
-                            Mutual
-                          </Badge>
-                        ) : null}
                         {conversation.kind === 'group' ? (
                           <Badge variant="outline" className={quietBadgeClassName}>
                             Group
@@ -1233,7 +1228,6 @@ function DirectUserOverlay({
                   <span className="block truncate text-base">{item.user.name}</span>
                   <span className="mt-0.5 block truncate text-xs text-muted-foreground">{[item.user.pronouns, item.distance].filter(Boolean).join(' · ')}</span>
                   <span className="mt-2 flex flex-wrap items-center gap-1.5">
-                    <Badge variant="outline" className={mutualBadgeClassName}>Mutual</Badge>
                     {topVibeTags(item.vibes).map((vibe) => (
                       <Badge
                         key={vibe}

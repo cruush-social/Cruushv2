@@ -3,7 +3,7 @@
 import type { MouseEvent, PointerEvent, WheelEvent } from 'react';
 import { lazy, Suspense, useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router';
-import { ExternalLink, Filter, Mail, MapPin, MessageCircle, Radio, X, ZoomIn, ZoomOut } from 'lucide-react';
+import { ExternalLink, Filter, Mail, MapPin, MessageCircle, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { Button } from './ui/button';
 import { useIsMobile } from './ui/use-mobile';
 import CruushIconImage, { CruushIcon } from './CruushIconImage';
@@ -14,8 +14,10 @@ import MapSidePanel, { type MapSidePanelView } from './MapSidePanel';
 import MapFiltersSurface, { DEFAULT_FILTER_STATE, type FilterState } from './MapFiltersSurface';
 import MapVisibilitySurface, { DEFAULT_VISIBILITY_STATE, type VisibilityControlState } from './MapVisibilitySurface';
 import MapPingSheet from './MapPingSheet';
+import PulseLedIcon from './PulseLedIcon';
 import MapControlsTutorial, {
   getStoredMapControlsTutorialStep,
+  MAP_CONTROLS_TUTORIAL_LEGACY_STORAGE_KEYS,
   MAP_CONTROLS_TUTORIAL_STORAGE_KEY,
   notifyMapControlsTutorialCompleted,
   type MapControlsTutorialStepId,
@@ -32,7 +34,7 @@ import { emailEventPass, getActiveEvents, joinEventChat, revealEventPass, type E
 import type { DenseVenueConfig } from '../lib/denseVenueMarkers';
 import { getProfileGradientCss } from '../lib/profileGradient';
 import { addDlModeChangedListener, isDlModeEnabled, shouldMaskPhoto, setDlModeEnabled } from '../lib/dlMode';
-import { markNoticeDismissed, resolveNoticeDismissal } from '../lib/userNoticesApi';
+import { markNoticeDismissed, resolveAnyNoticeDismissal } from '../lib/userNoticesApi';
 import { syncMyLocation, type ProfileLocationPayload, type ProfileLocationRecord } from '../lib/locationApi';
 import {
   getMapPingStatus,
@@ -465,6 +467,10 @@ const EARTH_RADIUS_MILES = 3958.7613;
 // Version the tutorial so the repaired interactive tour is shown once to users
 // who completed an older, non-interactive version. Settings can explicitly replay it.
 export const MAP_CONTROLS_INTRO_STORAGE_KEY = MAP_CONTROLS_TUTORIAL_STORAGE_KEY;
+const MAP_CONTROLS_TUTORIAL_DISMISSAL_KEYS = [
+  MAP_CONTROLS_TUTORIAL_STORAGE_KEY,
+  ...MAP_CONTROLS_TUTORIAL_LEGACY_STORAGE_KEYS,
+];
 
 export function readStoredMapViewport() {
   if (typeof window === 'undefined') {
@@ -493,7 +499,9 @@ export function readStoredMapViewport() {
     // Ignore malformed restore payloads and keep the default map camera.
   }
 
-  window.sessionStorage.removeItem(MAP_VIEWPORT_RESTORE_STORAGE_KEY);
+  // The camera is kept rather than consumed, so a remount, a hot reload, or a
+  // trip through another tab comes back to where the map was left instead of
+  // snapping to the default view.
   return parsedViewport;
 }
 
@@ -620,6 +628,9 @@ export default function MapHome(_props: MapHomeProps = {}) {
   const [selectedUser, setSelectedUser] = useState<DiscoveryUser | null>(null);
   const [luckySlot, setLuckySlot] = useState<LuckySlotState | null>(null);
   const [sidePanelView, setSidePanelView] = useState<MapSidePanelView | null>(null);
+  // Opening a thread from a profile popup keeps the map up and puts the
+  // conversation in the other dock instead of leaving for the inbox.
+  const [pendingMessageUserId, setPendingMessageUserId] = useState<string | null>(null);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [isRecentlyActiveOpen, setIsRecentlyActiveOpen] = useState(false);
   const [filters, setFilters] = useState<FilterState>(() => routeState?.seekingFilters ?? DEFAULT_FILTER_STATE);
@@ -673,10 +684,20 @@ export default function MapHome(_props: MapHomeProps = {}) {
   const requestedSidePanelView = usesFullPageProfile ? null : routeState?.openSidePanel ?? null;
 
   useEffect(() => {
-    if (requestedSidePanelView) {
-      setSidePanelView(requestedSidePanelView);
+    if (!requestedSidePanelView) {
+      return;
     }
-  }, [requestedSidePanelView]);
+
+    setSidePanelView(requestedSidePanelView);
+    // Consume the request. Without this the same openSidePanel value stays in
+    // history state after the panel is closed, so navigating here again with
+    // the same intent changes nothing and the panel cannot be reopened until
+    // the user visits another page first.
+    navigate(`${location.pathname}${location.search}`, {
+      replace: true,
+      state: { ...routeState, openSidePanel: undefined },
+    });
+  }, [location.pathname, location.search, navigate, requestedSidePanelView, routeState]);
 
   useEffect(() => {
     if (usesFullPageProfile && sidePanelView) {
@@ -883,7 +904,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
 
     let isMounted = true;
 
-    void resolveNoticeDismissal(MAP_CONTROLS_INTRO_STORAGE_KEY).then((notice) => {
+    void resolveAnyNoticeDismissal(MAP_CONTROLS_TUTORIAL_DISMISSAL_KEYS).then((notice) => {
       if (!isMounted) {
         return;
       }
@@ -914,7 +935,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
         await refreshMapPingStatus();
       } catch (pingError) {
         if (isMounted) {
-          console.warn('Error loading map Ping status:', pingError);
+          console.warn('Error loading map Pulse status:', pingError);
         }
       }
     };
@@ -979,6 +1000,27 @@ export default function MapHome(_props: MapHomeProps = {}) {
       removeListener();
     };
   }, []);
+
+  // Record the camera whenever it settles so every later mount can restore it.
+  useEffect(() => {
+    const eventfulMap = mapInstance as (CruushMapInstance & {
+      on?: (event: string, handler: () => void) => void;
+      off?: (event: string, handler: () => void) => void;
+    }) | null;
+
+    if (!eventfulMap?.on || !eventfulMap.off) {
+      return;
+    }
+
+    const handleMoveEnd = () => storeMapViewportForRestore(mapInstance);
+    eventfulMap.on('moveend', handleMoveEnd);
+    eventfulMap.on('zoomend', handleMoveEnd);
+
+    return () => {
+      eventfulMap.off?.('moveend', handleMoveEnd);
+      eventfulMap.off?.('zoomend', handleMoveEnd);
+    };
+  }, [mapInstance]);
 
   const openProfile = (user: DiscoveryUser) => {
     if (user.isDemo) {
@@ -1550,7 +1592,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
   );
   const handleSendMapPing = async (radiusMiles: MapPingRadiusMiles) => {
     if (!currentUserMapLocation) {
-      throw new Error('Share your map location before sending a Ping.');
+      throw new Error('Share your map location before sending a Pulse.');
     }
 
     await requestFreshMapPingLocation();
@@ -2095,11 +2137,25 @@ export default function MapHome(_props: MapHomeProps = {}) {
     >
       <div className="pointer-events-none absolute inset-x-0 top-0 z-20 h-44 bg-gradient-to-b from-background/90 via-background/45 to-transparent" />
       <div
-        className="pointer-events-none absolute inset-x-0 top-0 z-40 px-2 pb-10 pt-2 sm:px-3 sm:pt-3"
+        className="pointer-events-none absolute inset-x-0 top-0 z-[60] px-2 pb-10 pt-2 sm:px-3 sm:pt-3"
         data-testid="map-top-chrome"
       >
-        <div className="relative flex w-full items-start">
+        <div className="relative flex w-full items-start gap-2 sm:gap-2.5">
           <h1 className="sr-only">cruush</h1>
+          {/* cruush+ is its own corner control, so the bar beside it carries
+              nothing but icons. */}
+          <div className="relative shrink-0" data-testid="map-plus-stack">
+            <Button
+              type="button"
+              onClick={() => navigate('/rewards')}
+              aria-label="cruush+ rewards"
+              title="cruush+ rewards"
+              className="cruush-plus-shimmer-button cruush-logo-font pointer-events-auto h-9 rounded-full px-3 text-base font-normal leading-none tracking-normal normal-case text-white max-[340px]:px-2 max-[340px]:text-sm sm:h-10 sm:px-3.5 sm:text-lg lg:h-11 lg:px-4 lg:text-xl"
+              style={{ background: 'var(--cruush-gradient)' }}
+            >
+              <CruushPlusWord />
+            </Button>
+          </div>
           {isMutualMapMode ? (
             <div
               className="pointer-events-auto absolute right-0 top-full mt-1 inline-flex max-w-[5.75rem] items-center rounded-full border border-white/10 bg-background/35 px-1.5 py-0.5 text-[8px] lowercase leading-none tracking-[0.08em] text-white/72 backdrop-blur-md sm:max-w-none sm:px-2 sm:text-[9px] sm:tracking-[0.1em]"
@@ -2109,22 +2165,11 @@ export default function MapHome(_props: MapHomeProps = {}) {
             </div>
           ) : null}
 
-          <div
-          className="cruush-map-top-actions pointer-events-auto mt-0 flex w-full min-w-0 flex-1 items-center justify-between gap-1 rounded-full border border-white/10 bg-background/25 py-1 pl-2 pr-[3.25rem] backdrop-blur-md transition-[width,margin,transform] sm:gap-1.5 sm:py-1.5 sm:pl-3 sm:pr-[3.75rem] lg:mx-auto lg:max-w-[52rem] lg:flex-none lg:pr-4"
-            data-testid="map-top-actions"
-          >
-            <div className="relative shrink-0" data-testid="map-plus-stack">
-              <Button
-                type="button"
-                onClick={() => navigate('/rewards')}
-                aria-label="cruush+ rewards"
-                title="cruush+ rewards"
-                className="cruush-plus-shimmer-button cruush-logo-font pointer-events-auto h-9 rounded-full px-3 text-base font-normal leading-none tracking-normal normal-case text-white max-[340px]:px-2 max-[340px]:text-sm sm:h-10 sm:px-3.5 sm:text-lg lg:h-11 lg:px-4 lg:text-xl"
-                style={{ background: 'var(--cruush-gradient)' }}
-              >
-                <CruushPlusWord />
-              </Button>
-            </div>
+          <div className="flex min-w-0 flex-1 justify-center">
+            <div
+              className="cruush-map-top-actions pointer-events-auto mt-0 flex min-w-0 max-w-full items-center justify-center gap-0.5 rounded-full border border-white/10 bg-background/25 px-2 py-1.5 backdrop-blur-md transition-[width,margin,transform] sm:gap-1 sm:px-2.5 sm:py-2"
+              data-testid="map-top-actions"
+            >
             <Button
               variant="ghost"
               size="icon"
@@ -2132,9 +2177,9 @@ export default function MapHome(_props: MapHomeProps = {}) {
               data-tutorial-target="carousel"
               aria-label="Cruise Carousel"
               title="Cruise Carousel"
-              className="size-9 rounded-full text-white/90 hover:bg-white/10 sm:size-10 lg:size-11"
+              className="size-11 rounded-full text-white/90 hover:bg-white/10 sm:size-12 lg:size-[3.25rem]"
             >
-              <CruushIconImage src={luckyIconWhite} className="h-[1.375rem] w-[1.375rem] scale-[1.55] sm:h-6 sm:w-6 lg:h-7 lg:w-7" />
+              <CruushIconImage src={luckyIconWhite} className="h-7 w-7 scale-[1.55] lg:h-8 lg:w-8" />
             </Button>
             <Button
               variant="ghost"
@@ -2143,12 +2188,12 @@ export default function MapHome(_props: MapHomeProps = {}) {
               data-tutorial-target="ghost"
               aria-label="Ghost Mode Settings"
               title="Ghost Mode Settings"
-              className="size-9 rounded-full text-white/90 hover:bg-white/10 sm:size-10 lg:size-11"
+              className="size-11 rounded-full text-white/90 hover:bg-white/10 sm:size-12 lg:size-[3.25rem]"
             >
               <CruushIcon
                 name="ghost"
                 variant={privacySettings.baseMode === 'STEALTH' ? 'stealth' : privacySettings.ghostModeEnabled ? 'colored' : 'white'}
-                className="h-[1.375rem] w-[1.375rem] sm:h-6 sm:w-6 lg:h-7 lg:w-7"
+                className="h-7 w-7 lg:h-8 lg:w-8"
               />
             </Button>
             <Button
@@ -2158,11 +2203,11 @@ export default function MapHome(_props: MapHomeProps = {}) {
               data-tutorial-target="dl-mode"
               aria-label={dlModeActive ? 'Turn DL Mode off' : 'Turn DL Mode on'}
               title={dlModeActive ? 'Turn DL Mode off' : 'Turn DL Mode on'}
-              className="size-9 rounded-full text-white/90 hover:bg-white/10 sm:size-10 lg:size-11"
+              className="size-11 rounded-full text-white/90 hover:bg-white/10 sm:size-12 lg:size-[3.25rem]"
             >
               <CruushIconImage
                 src={dlModeActive ? dlModeColored : dlModeWhite}
-                className="h-[1.375rem] w-[1.375rem] sm:h-6 sm:w-6 lg:h-7 lg:w-7"
+                className="h-7 w-7 lg:h-8 lg:w-8"
               />
             </Button>
             <Button
@@ -2172,9 +2217,9 @@ export default function MapHome(_props: MapHomeProps = {}) {
               data-tutorial-target="notifications"
               aria-label="Notifications"
               title="Notifications"
-              className="relative size-9 rounded-full text-white/90 hover:bg-white/10 sm:size-10 lg:size-11"
+              className="relative size-11 rounded-full text-white/90 hover:bg-white/10 sm:size-12 lg:size-[3.25rem]"
             >
-              <CruushIconImage src={notificationsIconWhite} className="h-[1.375rem] w-[1.375rem] scale-[1.4] sm:h-6 sm:w-6 lg:h-7 lg:w-7" />
+              <CruushIconImage src={notificationsIconWhite} className="h-7 w-7 scale-[1.4] lg:h-8 lg:w-8" />
               {notificationUnreadCount > 0 ? (
                 <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[0.62rem] font-semibold leading-none text-primary-foreground">
                   {notificationUnreadCount > 9 ? '9+' : notificationUnreadCount}
@@ -2187,21 +2232,27 @@ export default function MapHome(_props: MapHomeProps = {}) {
                 onClick={() => navigate('/settings')}
                 aria-label="Settings"
                 title="Settings"
-                className="size-9 rounded-full text-white/90 hover:bg-white/10 sm:size-10 lg:size-11"
+                className="size-11 rounded-full text-white/90 hover:bg-white/10 sm:size-12 lg:size-[3.25rem]"
               >
-                <CruushIconImage src={settingsIconWhite} className="h-[1.375rem] w-[1.375rem] scale-[1.18] sm:h-6 sm:w-6 lg:h-7 lg:w-7" />
+                <CruushIconImage src={settingsIconWhite} className="h-7 w-7 scale-[1.18] lg:h-8 lg:w-8" />
               </Button>
-              <div
-                className="h-0 w-0 shrink-0"
-                data-bug-button-size="large"
-                data-testid="map-bug-button-slot"
-                ref={registerBugButtonSlot}
-              />
             </div>
+          </div>
+
+          {/* The bug control is fixed to the corner like cruush+ is, so the bar
+              ends before it instead of running underneath it. */}
+            <div
+              className="h-9 w-9 shrink-0 sm:h-10 sm:w-10 lg:h-11 lg:w-11"
+              data-bug-button-size="large"
+              data-testid="map-bug-button-slot"
+              ref={registerBugButtonSlot}
+            />
           </div>
         </div>
 
-      <div className="absolute inset-0">
+      {/* The map owns its own stacking context, so a hovered pin can never
+          paint over the top chrome or the bottom nav. */}
+      <div className="absolute inset-0 isolate z-0">
         <Suspense
           fallback={(
             <div className="relative h-full min-h-[400px] w-full overflow-hidden bg-background">
@@ -2288,8 +2339,11 @@ export default function MapHome(_props: MapHomeProps = {}) {
         {!usesFullPageProfile && sidePanelView ? (
           <MapSidePanel
             view={sidePanelView}
-            onViewChange={setSidePanelView}
-            onClose={() => setSidePanelView(null)}
+            openConversationWithUserId={pendingMessageUserId}
+            onClose={() => {
+              setSidePanelView(null);
+              setPendingMessageUserId(null);
+            }}
           />
         ) : null}
 
@@ -2300,6 +2354,10 @@ export default function MapHome(_props: MapHomeProps = {}) {
             fixed={selectedUser.isCurrentUser === true}
             isOwnProfile={selectedUser.isCurrentUser === true}
             onBlockedUser={handleBlockedUser}
+            onOpenMessages={(userId) => {
+              setPendingMessageUserId(userId);
+              setSidePanelView('messages');
+            }}
             onProfileSaved={(savedProfile) => {
               const nextProfile = {
                 ...emptyProfilePayload,
@@ -2551,11 +2609,11 @@ export default function MapHome(_props: MapHomeProps = {}) {
             onClick={() => setMapPingSheetOpen(true)}
             data-testid="map-ping-button"
             data-tutorial-target="ping"
-            aria-label="Send a Ping"
-            title="Send a Ping"
-            className="size-8 shrink-0 rounded-full border border-[#c8ff31]/45 bg-background/45 text-[#c8ff31] backdrop-blur-md hover:bg-[#c8ff31]/15 sm:size-9 lg:size-11"
+            aria-label="Send a Pulse"
+            title="Send a Pulse"
+            className={`size-12 shrink-0 border-0 bg-transparent p-0 hover:bg-transparent hover:brightness-125 sm:size-[3.25rem] lg:size-14 ${mapPingStatus?.activePing ? 'text-[#c8ff31]' : 'text-white'}`}
           >
-            <Radio aria-hidden="true" className="h-5 w-5 lg:h-7 lg:w-7" />
+            <PulseLedIcon className="size-full" />
           </Button>
 
           <div
@@ -2739,6 +2797,8 @@ export default function MapHome(_props: MapHomeProps = {}) {
           loading={mapPingStatusLoading}
           hasMapLocation={Boolean(currentUserMapLocation)}
           signal={currentProfile?.signal}
+          lurkerActive={privacySettings.baseMode === 'STEALTH'}
+          photo={currentProfile?.photos?.[0] ?? null}
           onSaveSignal={async (signal) => {
             const savedProfile = await saveMyProfile({
               ...emptyProfilePayload,

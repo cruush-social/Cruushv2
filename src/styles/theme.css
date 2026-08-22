@@ -10,10 +10,13 @@
   --cruush-indigo: #004bff;
   --cruush-blue: #1181FF;
   --cruush-logo: linear-gradient(90deg, #FF0072 6.08%, #6F00FF 53.27%, #3826FF 80.58%, #1181FF 100%);
-  --cruush-gradient: linear-gradient(90deg, #FF0072 0%, #6F00FF 26%, #6F00FF 46%, #3826FF 64%, #004BFF 84%, #1181FF 100%);
+  --cruush-gradient: linear-gradient(90deg, #FF0072 6.08%, #6F00FF 43.11%, #3826FF 58.46%, #004BFF 73.81%, #1181FF 100%);
   --cruush-logo-gradient: var(--cruush-logo);
-  --cruush-gradient-soft-18: linear-gradient(90deg, rgba(255, 0, 114, 0.18) 6.08%, rgba(111, 0, 255, 0.18) 53.04%, rgba(0, 75, 255, 0.18) 100%);
-  --cruush-gradient-soft-28: linear-gradient(90deg, rgba(255, 0, 114, 0.28) 6.08%, rgba(111, 0, 255, 0.28) 53.04%, rgba(0, 75, 255, 0.28) 100%);
+  /* The quiet variants are the same gradient, dimmed. Rebuilding them from a
+     shorter stop list made them read as a different colour beside the bright
+     one, which is the whole point of a quiet state. */
+  --cruush-gradient-soft-18: linear-gradient(rgba(5, 5, 6, 0.82), rgba(5, 5, 6, 0.82)), var(--cruush-gradient);
+  --cruush-gradient-soft-28: linear-gradient(rgba(5, 5, 6, 0.72), rgba(5, 5, 6, 0.72)), var(--cruush-gradient);
   --cruush-heart-photo-gradient: linear-gradient(90deg, #FF0072 0%, #DA045D 48.5577%, #B40849 100%);
   --cruush-heart-pin-red-gradient: linear-gradient(90deg, #FF0072 0%, #DA045D 48.5577%, #B40849 100%);
   --cruush-heart-pin-blue-gradient: linear-gradient(90deg, #0099FF 0%, #1968EA 48.5577%, #3236D4 100%);
@@ -164,6 +167,14 @@ html[data-cruush-reduce-motion] *::after {
   scroll-behavior: auto !important;
   transition-delay: 0s !important;
   transition-duration: 0.01ms !important;
+}
+
+/* The Pulse demonstration exists to show the animation, so it keeps running
+   even when motion is reduced. It is small, contained, and opt-in: it only
+   appears while the Pulse sheet is open. */
+html[data-cruush-reduce-motion] [data-testid='map-ping-preview-heart'] {
+  animation-duration: 1.35s !important;
+  animation-iteration-count: infinite !important;
 }
 
 html[data-cruush-alpha-bug-corner='top-right'] header.sticky.top-0 {
@@ -465,33 +476,33 @@ html[data-cruush-alpha-bug-corner='top-right'] [data-testid='accessibility-quick
     background: rgba(255, 255, 255, 0.34);
   }
 
-  .profile-card-scroll {
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    scrollbar-color: rgba(156, 163, 175, 0.5) transparent;
-    scrollbar-gutter: auto;
-    scrollbar-width: thin;
+  /* No vertical scrollbar anywhere in the product. People know to scroll, and
+     the bar only crowds the page. */
+  html,
+  body {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
   }
 
-  .profile-card-scroll::-webkit-scrollbar {
-    width: 0.375rem;
-  }
-
-  .profile-card-scroll::-webkit-scrollbar-button {
+  html::-webkit-scrollbar,
+  body::-webkit-scrollbar {
+    width: 0;
+    height: 0;
     display: none;
   }
 
-  .profile-card-scroll::-webkit-scrollbar-track {
-    background: transparent;
+  .profile-card-scroll {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    /* People know to scroll; the bar only crowds the card. */
+    scrollbar-width: none;
+    -ms-overflow-style: none;
   }
 
-  .profile-card-scroll::-webkit-scrollbar-thumb {
-    background: rgba(156, 163, 175, 0.58);
-    border-radius: 999px;
-  }
-
-  .profile-card-scroll::-webkit-scrollbar-thumb:hover {
-    background: rgba(209, 213, 219, 0.72);
+  .profile-card-scroll::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
   }
 
   .cruush-map-surface-open .maplibregl-marker {
@@ -593,6 +604,82 @@ html[data-cruush-alpha-bug-corner='top-right'] [data-testid='accessibility-quick
     }
   }
 
+  /* The profile controls answer a pointer the way the sign in button does: the
+     gradient lifts and a sheen sweeps across it once. */
+  .cruush-action-sheen {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+    transition: transform 160ms ease, filter 160ms ease;
+  }
+
+  .cruush-action-sheen::after {
+    position: absolute;
+    inset: -1px;
+    z-index: 0;
+    content: '';
+    pointer-events: none;
+    opacity: 0;
+    background: linear-gradient(
+      105deg,
+      transparent 0%,
+      transparent 36%,
+      rgba(255, 255, 255, 0.3) 45%,
+      rgba(255, 255, 255, 0.85) 50%,
+      rgba(255, 255, 255, 0.28) 55%,
+      transparent 64%,
+      transparent 100%
+    );
+    background-position: 150% 0;
+    background-size: 240% 100%;
+    mix-blend-mode: screen;
+    transition: opacity 140ms ease;
+  }
+
+  .cruush-action-sheen > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  .cruush-action-sheen:hover,
+  .cruush-action-sheen:focus-visible {
+    transform: translateY(-1px);
+    filter: brightness(1.12);
+  }
+
+  .cruush-action-sheen:hover::after,
+  .cruush-action-sheen:focus-visible::after {
+    opacity: 1;
+    animation: cruush-action-sheen-sweep 620ms ease-out;
+  }
+
+  .cruush-action-sheen:active {
+    transform: scale(0.98);
+  }
+
+  @keyframes cruush-action-sheen-sweep {
+    from {
+      background-position: 150% 0;
+    }
+
+    to {
+      background-position: -70% 0;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .cruush-action-sheen,
+    .cruush-action-sheen:hover,
+    .cruush-action-sheen:focus-visible {
+      transform: none;
+    }
+
+    .cruush-action-sheen::after {
+      animation: none;
+      opacity: 0;
+    }
+  }
+
   /* Pulse animation for map pins */
   @keyframes pulse {
     0%, 100% {
@@ -672,12 +759,29 @@ html[data-cruush-alpha-bug-corner='top-right'] [data-testid='accessibility-quick
     }
   }
 
+  /* A heartbeat, not a breath: a quick double thump up to the size hovering the
+     unit reaches, then rest. The peak matches group-hover:scale-[1.38] so a
+     pulsing pin reads as large as a hovered one. */
   @keyframes cruush-map-ping-heart-pulse {
-    0%, 100% {
+    0% {
       scale: 1;
     }
-    50% {
-      scale: 1.12;
+
+    24% {
+      scale: 1.38;
+    }
+
+    34% {
+      scale: 1.08;
+    }
+
+    43% {
+      scale: 1.22;
+    }
+
+    48%,
+    100% {
+      scale: 1;
     }
   }
 
@@ -728,11 +832,12 @@ html[data-cruush-alpha-bug-corner='top-right'] [data-testid='accessibility-quick
     opacity: var(--cruush-ghost-unit-opacity, 1);
   }
 
-  /* The signal text and the badge marker stay fully opaque through every
-     ghost flash frame. They carry meaning, so they must never fade. */
+  /* The white parts of the apparition stay pure white at full opacity through
+     the whole countdown. Only the photograph and the surface react to it. */
   .cruush-ghost-rotation-badge-symbol,
   .cruush-ghost-rotation-signal-symbol {
     color: #FFFFFF;
+    filter: none;
     opacity: 1;
   }
 
@@ -772,6 +877,240 @@ html[data-cruush-alpha-bug-corner='top-right'] [data-testid='accessibility-quick
     color: #0BA8FF;
     opacity: 0;
     pointer-events: none;
+  }
+
+  /* The one range control. Gradient track, neutral thumb, so sliders match the
+     rest of the app instead of falling back to the browser accent colour. */
+  .cruush-range {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 0.5rem;
+    border-radius: 9999px;
+    background: var(--cruush-gradient);
+    outline: none;
+  }
+
+  .cruush-range::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 1.25rem;
+    width: 1.25rem;
+    border-radius: 9999px;
+    background: #FFFFFF;
+    border: 2px solid rgba(255, 255, 255, 0.9);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+    cursor: pointer;
+  }
+
+  .cruush-range::-moz-range-track {
+    height: 0.5rem;
+    border-radius: 9999px;
+    background: var(--cruush-gradient);
+  }
+
+  .cruush-range::-moz-range-thumb {
+    height: 1.25rem;
+    width: 1.25rem;
+    border-radius: 9999px;
+    background: #FFFFFF;
+    border: 2px solid rgba(255, 255, 255, 0.9);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+    cursor: pointer;
+  }
+
+  .cruush-range:focus-visible {
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.55);
+  }
+
+  /* D1: the bug report control never intersects another interactive element.
+     A dialog puts its own close button in the same top-right corner, so the
+     bug control stands down for as long as any dialog is open. */
+  body:has([role="dialog"][data-state="open"]) .cruush-alpha-bug-button {
+    display: none;
+  }
+
+  /* A trace running the signal capsule's border, once per beat, so the caption
+     reads as part of the same heartbeat. The border flash belongs to the ghost
+     countdown, so this stays a moving highlight rather than a flash. */
+  /* The trace runs with a lit head at its front, the way a monitor cursor does,
+     and the tail fades behind it. */
+  .cruush-pulse-ekg-head {
+    animation: cruush-pulse-ekg-head 1.35s ease-in-out infinite;
+  }
+
+  @keyframes cruush-pulse-ekg-head {
+    0% {
+      offset-distance: 0%;
+      opacity: 0;
+    }
+
+    10% {
+      opacity: 1;
+    }
+
+    55% {
+      offset-distance: 100%;
+      opacity: 1;
+    }
+
+    70%,
+    100% {
+      opacity: 0;
+    }
+  }
+
+  /* One circuit: the line crosses the pin, then the charge carries on around the
+     outline, so the two read as the same current. */
+  .cruush-pulse-circuit-line {
+    stroke-dasharray: 46;
+    stroke-dashoffset: 46;
+    animation: cruush-pulse-circuit-line 1.35s linear infinite;
+  }
+
+  .cruush-pulse-circuit-border {
+    stroke-dasharray: 16 150;
+    stroke-dashoffset: 166;
+    animation: cruush-pulse-circuit-border 1.35s linear infinite;
+  }
+
+  @keyframes cruush-pulse-circuit-line {
+    0% {
+      stroke-dashoffset: 46;
+      opacity: 1;
+    }
+
+    38% {
+      stroke-dashoffset: 0;
+      opacity: 1;
+    }
+
+    46%,
+    100% {
+      stroke-dashoffset: -46;
+      opacity: 0;
+    }
+  }
+
+  @keyframes cruush-pulse-circuit-border {
+    0%,
+    38% {
+      stroke-dashoffset: 166;
+      opacity: 0;
+    }
+
+    44% {
+      opacity: 1;
+    }
+
+    92% {
+      stroke-dashoffset: 16;
+      opacity: 1;
+    }
+
+    100% {
+      stroke-dashoffset: 0;
+      opacity: 0;
+    }
+  }
+
+  /* A charge running the heart's outline, the same way the ekg runs across it:
+     a short lit segment chasing the border once per beat. */
+  .cruush-pulse-border-charge {
+    stroke-dasharray: 14 150;
+    stroke-dashoffset: 164;
+    animation: cruush-pulse-border-charge 1.35s ease-in-out infinite;
+  }
+
+  @keyframes cruush-pulse-border-charge {
+    0% {
+      stroke-dashoffset: 164;
+      opacity: 0.2;
+    }
+
+    12% {
+      opacity: 1;
+    }
+
+    60% {
+      stroke-dashoffset: 14;
+      opacity: 1;
+    }
+
+    82%,
+    100% {
+      stroke-dashoffset: 0;
+      opacity: 0;
+    }
+  }
+
+  /* The ekg draws itself across the pin on each beat, then clears. */
+  .cruush-pulse-ekg-draw {
+    stroke-dasharray: 74;
+    stroke-dashoffset: 74;
+    animation: cruush-pulse-ekg-draw 1.35s ease-in-out infinite;
+  }
+
+  @keyframes cruush-pulse-ekg-draw {
+    0% {
+      stroke-dashoffset: 74;
+      opacity: 0;
+    }
+
+    10% {
+      opacity: 1;
+    }
+
+    55% {
+      stroke-dashoffset: 0;
+      opacity: 1;
+    }
+
+    75%,
+    100% {
+      stroke-dashoffset: -46;
+      opacity: 0;
+    }
+  }
+
+  .cruush-ping-signal-trace {
+    position: relative;
+    isolation: isolate;
+  }
+
+  .cruush-ping-signal-trace::after {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    content: '';
+    border-radius: inherit;
+    padding: 3.2px;
+    background: conic-gradient(
+      from 0deg,
+      transparent 0deg,
+      transparent 286deg,
+      rgba(200, 255, 49, 0.9) 330deg,
+      transparent 360deg
+    );
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    mask-composite: exclude;
+    animation: cruush-ping-signal-trace 1.35s linear infinite;
+  }
+
+  @keyframes cruush-ping-signal-trace {
+    from {
+      rotate: 0deg;
+    }
+
+    to {
+      rotate: 360deg;
+    }
   }
 
   .cruush-map-ping-heart {

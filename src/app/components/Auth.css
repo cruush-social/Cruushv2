@@ -78,6 +78,107 @@
   padding-top: clamp(0.45rem, 1.3dvh, 0.9rem);
 }
 
+/* Mostly dark, with the brand colours strobing out of it. */
+.launch-login-strobe-pane {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: #050506;
+}
+
+.launch-login-strobe-pane::before,
+.launch-login-strobe-pane::after {
+  position: absolute;
+  inset: -20%;
+  content: '';
+  mix-blend-mode: screen;
+  opacity: 0;
+}
+
+.launch-login-strobe-pane::before {
+  background:
+    radial-gradient(38rem 30rem at 18% 22%, rgba(255, 0, 114, 0.5), transparent 68%),
+    radial-gradient(34rem 28rem at 82% 30%, rgba(17, 129, 255, 0.44), transparent 66%);
+  animation: launch-login-strobe-a 6.4s ease-in-out infinite;
+}
+
+.launch-login-strobe-pane::after {
+  background:
+    radial-gradient(36rem 30rem at 72% 78%, rgba(111, 0, 255, 0.48), transparent 66%),
+    radial-gradient(30rem 26rem at 26% 84%, rgba(0, 75, 255, 0.4), transparent 64%);
+  animation: launch-login-strobe-b 6.4s ease-in-out infinite;
+  animation-delay: 3.2s;
+}
+
+@keyframes launch-login-strobe-a {
+  0%,
+  100% {
+    opacity: 0;
+  }
+
+  6% {
+    opacity: 0.92;
+  }
+
+  14% {
+    opacity: 0.12;
+  }
+
+  20% {
+    opacity: 0.66;
+  }
+
+  34%,
+  96% {
+    opacity: 0.04;
+  }
+}
+
+@keyframes launch-login-strobe-b {
+  0%,
+  100% {
+    opacity: 0;
+  }
+
+  8% {
+    opacity: 0.86;
+  }
+
+  16% {
+    opacity: 0.1;
+  }
+
+  24% {
+    opacity: 0.58;
+  }
+
+  38%,
+  96% {
+    opacity: 0.04;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .launch-login-strobe-pane::before,
+  .launch-login-strobe-pane::after {
+    animation: none;
+    opacity: 0.22;
+  }
+}
+
+.launch-login-auth-logo-video {
+  /* The recording is a spinning logo on black. Screen blending drops the black
+     and the square crop cuts the empty frame above and below it, so what reads
+     is the model alone. */
+  width: clamp(11rem, 26dvh, 16rem);
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  object-position: center;
+  background: transparent;
+  mix-blend-mode: screen;
+}
+
 .launch-login-auth-logo-image {
   display: block;
   width: clamp(10rem, 21dvh, 14.25rem);
@@ -113,6 +214,43 @@
     0 0.6rem 1.35rem rgba(0, 0, 0, 0.9),
     0 0 0.95rem rgba(255, 0, 114, 0.16),
     0 0 1.1rem rgba(17, 129, 255, 0.14);
+  animation: launch-login-auth-tagline-strobe 3.2s ease-in-out infinite;
+}
+
+@keyframes launch-login-auth-tagline-strobe {
+  0%,
+  100% {
+    color: rgba(255, 255, 255, 0.9);
+    text-shadow:
+      0 0.6rem 1.35rem rgba(0, 0, 0, 0.9),
+      0 0 0.95rem rgba(255, 0, 114, 0.16),
+      0 0 1.1rem rgba(17, 129, 255, 0.14);
+  }
+
+  6% {
+    color: #fff;
+    text-shadow:
+      0 0.6rem 1.35rem rgba(0, 0, 0, 0.9),
+      0 0 1.2rem rgba(255, 255, 255, 0.85),
+      0 0 2.4rem rgba(255, 255, 255, 0.5),
+      0 0 0.95rem rgba(255, 0, 114, 0.16),
+      0 0 1.1rem rgba(17, 129, 255, 0.14);
+  }
+
+  12%,
+  92% {
+    color: rgba(255, 255, 255, 0.9);
+    text-shadow:
+      0 0.6rem 1.35rem rgba(0, 0, 0, 0.9),
+      0 0 0.95rem rgba(255, 0, 114, 0.16),
+      0 0 1.1rem rgba(17, 129, 255, 0.14);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .launch-login-auth-tagline {
+    animation: none;
+  }
 }
 
 .launch-login-auth-tagline span {
@@ -245,6 +383,16 @@
 
 .launch-login-auth-password-toggle:disabled {
   opacity: 0.42;
+}
+
+.launch-login-auth-input::-webkit-calendar-picker-indicator {
+  filter: invert(1) brightness(1.4);
+  opacity: 0.85;
+  cursor: pointer;
+}
+
+.launch-login-auth-input[type="date"] {
+  color-scheme: dark;
 }
 
 .launch-login-auth-input::placeholder {
@@ -434,12 +582,12 @@
     width: auto;
     max-width: none;
     margin-inline: 0;
+    font-size: 0.82rem;
   }
 
   .launch-login-auth-footer [aria-label="Legal and safety links"] {
     flex-basis: 100%;
     text-align: center;
-    word-spacing: 0.5rem;
   }
 }
 

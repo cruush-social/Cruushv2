@@ -754,7 +754,8 @@ describe('MapView', () => {
     expect(screen.getByTestId('marker-photo-fill-ghost-photo')).toHaveAttribute('href', 'https://example.com/river.jpg');
     expect(heart.querySelector('path[stroke]')).toHaveAttribute('stroke', '#FF0072');
     expect(screen.getByTestId('marker-badge-ghost-photo')).toHaveClass('border-[#FF0072]/80');
-    expect(screen.getByTestId('marker-signal-badge-ghost-photo')).toHaveClass('border-white/12');
+    // The capsule border tracks the unit's own border colour.
+    expect(screen.getByTestId('marker-signal-badge-ghost-photo').getAttribute('style')).toContain('rgba(255, 0, 114, 0.8)');
   });
 
   it('keeps the signed-in Ghost marker electric blue without replacing its profile photo', async () => {
@@ -782,7 +783,7 @@ describe('MapView', () => {
     expect(screen.getByTestId('marker-photo-fill-me')).toHaveAttribute('href', 'https://example.com/me.jpg');
     expect(heart.querySelector('path[stroke]')).toHaveAttribute('stroke', '#0BA8FF');
     expect(screen.getByTestId('marker-badge-me')).toHaveClass('border-[#0BA8FF]');
-    expect(screen.getByTestId('marker-signal-badge-me')).toHaveClass('border-[#0BA8FF]');
+    expect(screen.getByTestId('marker-signal-badge-me').getAttribute('style')).toContain('#0BA8FF');
   });
 
   it('keeps an explicit Ghost Mode profile photo masked while DL Mode is on', async () => {
@@ -1156,8 +1157,8 @@ describe('MapView', () => {
     expect(heartLayer).toHaveClass('group-hover:scale-[1.38]', 'group-focus-within:scale-[1.38]');
     expect(pinUnit).toHaveClass('scale-100');
     expect(heart.querySelector('path[stroke="#C8FF31"]')).not.toBeNull();
-    expect(signalBadge).toHaveClass('border-[#C8FF31]');
-    expect(signalBadge).toHaveClass('shadow-[0_12px_30px_rgba(0,0,0,0.45)]');
+    expect(signalBadge.getAttribute('style')).toContain('#C8FF31');
+    expect(signalBadge).not.toHaveClass('shadow-[0_12px_30px_rgba(0,0,0,0.45)]');
     expect(positionBadge).toHaveClass('border-[#C8FF31]');
     expect(relationshipBadge).toHaveClass('border-[#C8FF31]');
     expect(heartLayer).toContainElement(positionBadge);
@@ -1436,7 +1437,7 @@ describe('MapView', () => {
     expect(onPinClick).not.toHaveBeenCalled();
     expect(mapInstances[0].fitBounds).toHaveBeenCalledWith(
       [[-73.9902, 40.7128], [-73.99, 40.713]],
-      expect.objectContaining({ maxZoom: 15.25 }),
+      expect.objectContaining({ maxZoom: 13.5 }),
     );
     expect(mapInstances[0].setCenter).not.toHaveBeenCalled();
     expect(screen.getByRole('button', { name: 'Zoom into 2 nearby people on map' })).toBeInTheDocument();

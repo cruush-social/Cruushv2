@@ -111,8 +111,10 @@ export const MAP_TILE_LABEL_SCALE = 1.25;
 const MAP_ACCESSIBILITY_TEXT_SCALE = 1.25;
 export const MAP_PIN_UNIT_SCALE = 1;
 const MARKER_INTERACTION_SUPPRESS_MS = 350;
-const PERSON_CLUSTER_MAX_ZOOM = 15.25;
-const PERSON_CLUSTER_RADIUS_PX = 84;
+// Clustering hides individual people, so it starts later and gives up sooner:
+// pins only merge when they are nearly on top of one another.
+const PERSON_CLUSTER_MAX_ZOOM = 13.5;
+const PERSON_CLUSTER_RADIUS_PX = 52;
 export const MAP_SERVICE_MASK_SOURCE_ID = 'cruush-map-service-mask';
 export const MAP_SERVICE_MASK_LAYER_ID = 'cruush-map-service-mask';
 // Rendered footprint of a heart pin, so no two pins may sit inside one another.
@@ -749,7 +751,7 @@ export function separateOverlappingMarkers(markers: MapMarker[], zoom: number) {
 }
 
 function canClusterMarker(marker: MapMarker, focusCoordinates: MapViewProps['focusCoordinates']) {
-  // An active Ping is a short-lived visibility signal. Keep its heart
+  // An active Pulse is a short-lived visibility signal. Keep its heart
   // independent from nearby clusters so it stays discoverable while zoomed out.
   if ((marker.kind ?? 'person') !== 'person' || marker.isCurrentUser === true || marker.activePing) {
     return false;
@@ -854,19 +856,16 @@ function applyPersonMarkerClusters(
   ];
 }
 
-function truncateMarkerPreview(value: string | null | undefined, maxCharacters = 30) {
+// The preview spends its whole character budget. Trimming back to the last whole
+// word used to cost up to a third of the characters a signal is allowed.
+function truncateMarkerPreview(value: string | null | undefined, maxCharacters = 35) {
   const normalizedValue = (value ?? '').trim().replace(/\s+/g, ' ');
 
   if (normalizedValue.length <= maxCharacters) {
     return normalizedValue;
   }
 
-  const clippedValue = normalizedValue
-    .slice(0, maxCharacters)
-    .replace(/\s+\S*$/, '')
-    .trim();
-
-  return `${clippedValue || normalizedValue.slice(0, maxCharacters).trim()}...`;
+  return `${normalizedValue.slice(0, maxCharacters).trimEnd()}...`;
 }
 
 function getBadgeIcon(badge: MapMarkerBadge | null | undefined) {
@@ -945,7 +944,7 @@ function MarkerBadge({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
     <span
       aria-label={isCurrentUser ? 'Your profile' : badge?.label}
       className={[
-        'absolute flex h-[1.5625rem] w-[1.5625rem] items-center justify-center rounded-full border bg-black/85 text-white shadow-[0_4px_14px_rgba(0,0,0,0.55)] backdrop-blur-sm',
+        'absolute flex h-[1.5625rem] w-[1.5625rem] items-center justify-center rounded-full border bg-black/85 text-white backdrop-blur-sm',
         getHeartSideBadgeClass('right'),
         borderClass,
       ].join(' ')}
@@ -987,7 +986,7 @@ function MarkerRelationshipBadge({ marker, isCurrentUser }: { marker: MapMarker;
     <span
       aria-label={precisionLabel}
       className={[
-        'absolute flex h-[1.5625rem] w-[1.5625rem] items-center justify-center rounded-full border bg-black/85 text-white/78 shadow-[0_4px_14px_rgba(0,0,0,0.55)] backdrop-blur-sm',
+        'absolute flex h-[1.5625rem] w-[1.5625rem] items-center justify-center rounded-full border bg-black/85 text-white/78 backdrop-blur-sm',
         getHeartSideBadgeClass('left'),
         getMarkerBorderClass(marker, isCurrentUser),
       ].join(' ')}
@@ -1167,10 +1166,17 @@ function GhostRotationPulse({ marker, children }: { marker: MapMarker; children:
     if (exitStartMs <= 0 && remainingMs > 0) {
       setExitElapsedMs(Math.min(GHOST_ROTATION_EXIT_MS, -exitStartMs));
     }
-    const exitTimer = window.setTimeout(() => setExitElapsedMs(0), Math.max(0, exitStartMs));
+    // A page load inside the exit window already resumed the animation part way
+    // through above. Scheduling this with a clamped delay fired it immediately
+    // and restarted the poof from zero, so the exit replayed on every load.
+    const exitTimer = exitStartMs > 0
+      ? window.setTimeout(() => setExitElapsedMs(0), exitStartMs)
+      : null;
     const endTimer = window.setTimeout(() => setExitElapsedMs(null), Math.max(0, remainingMs));
     return () => {
-      window.clearTimeout(exitTimer);
+      if (exitTimer !== null) {
+        window.clearTimeout(exitTimer);
+      }
       window.clearTimeout(endTimer);
     };
   }, [canAnimate, expiresAtMs]);
@@ -1221,7 +1227,7 @@ function GhostRotationPulse({ marker, children }: { marker: MapMarker; children:
         effectHost.style.setProperty('--cruush-ghost-photo-opacity', visibleFlash ? '0.62' : '1');
         effectHost.style.setProperty('--cruush-ghost-photo-echo-opacity', '0');
         effectHost.style.setProperty('--cruush-ghost-badge-opacity', '1');
-        effectHost.style.setProperty('--cruush-ghost-pepper-opacity', visibleFlash ? '0.72' : '1');
+        effectHost.style.setProperty('--cruush-ghost-pepper-opacity', '1');
         if (visibleFlash) {
           effectHost.style.setProperty('--cruush-ghost-surface-alpha', '0.34');
         } else {
@@ -1390,7 +1396,7 @@ function VenueClusterMarker({ marker }: { marker: MapMarker }) {
 
   return (
     <span
-      className="flex h-16 min-w-16 items-center justify-center rounded-full border border-[3.2px] border-white/20 bg-black/82 px-4 text-xl font-semibold text-white shadow-[0_0_28px_rgba(255,0,114,0.34)] backdrop-blur-md"
+      className="flex h-16 min-w-16 items-center justify-center rounded-full border border-[3.2px] border-[#FF0072]/45 bg-black/82 px-4 text-xl font-semibold text-white shadow-[0_0_38px_rgba(255,0,114,0.55)] backdrop-blur-md"
       data-testid={`venue-cluster-marker-${marker.cluster?.id ?? marker.id}`}
     >
       {count > 999 ? '999+' : count}
@@ -1403,7 +1409,7 @@ function PeopleClusterMarker({ marker }: { marker: MapMarker }) {
 
   return (
     <span
-      className="flex h-16 min-w-16 items-center justify-center rounded-full border border-[3.2px] border-primary/40 bg-black/86 px-4 text-xl font-semibold text-white shadow-[0_0_34px_rgba(255,0,114,0.44)] backdrop-blur-md"
+      className="flex h-16 min-w-16 items-center justify-center rounded-full border border-[3.2px] border-[#FF0072]/70 bg-black/86 px-4 text-xl font-semibold text-white shadow-[0_0_46px_rgba(255,0,114,0.72)] backdrop-blur-md"
       data-testid={`people-cluster-marker-${marker.cluster?.id ?? marker.id}`}
     >
       {count > 999 ? '999+' : count}
@@ -1416,7 +1422,7 @@ function LaunchPartyMarker({ marker }: { marker: MapMarker }) {
 
   return (
     <span
-      className="flex h-16 min-w-16 items-center justify-center rounded-full border border-[3.2px] border-white/20 bg-black/82 px-4 text-xl font-semibold text-white shadow-[0_0_28px_rgba(255,0,114,0.34)] backdrop-blur-md"
+      className="flex h-16 min-w-16 items-center justify-center rounded-full border border-[3.2px] border-[#FF0072]/45 bg-black/82 px-4 text-xl font-semibold text-white shadow-[0_0_38px_rgba(255,0,114,0.55)] backdrop-blur-md"
       data-testid={`launch-party-marker-${marker.id}`}
     >
       {attendeeCount > 999 ? '999+' : attendeeCount}
@@ -1424,22 +1430,60 @@ function LaunchPartyMarker({ marker }: { marker: MapMarker }) {
   );
 }
 
-function MapMarkerPin({ marker, previewed = false }: { marker: MapMarker; previewed?: boolean }) {
+export // A Pulse draws an ekg across the pin and through its caption on the same beat.
+// Both sit light so a face still reads through them.
+const PULSE_EKG_PIN_PATH = 'M2 26h6q1.2 -2 2.4 0h1.6l1 2.6 1.4 -17 1.4 20 1 -5.6q2.6 -5 5.2 0h7';
+const PULSE_EKG_SIGNAL_PATH = 'M0 6h7q1 -1.6 2 0h1.4l0.8 2 1.2 -5.4 1.2 6.6 0.8 -2q2 -1.8 4 0h23.6';
+
+function PulseEkgTrace({ variant }: { variant: 'pin' | 'signal' }) {
+  const isPin = variant === 'pin';
+
+  return (
+    <svg
+      aria-hidden="true"
+      className={isPin
+        ? 'pointer-events-none absolute left-1/2 top-[52%] z-20 h-12 w-[6.1rem] -translate-x-1/2 -translate-y-1/2'
+        : 'pointer-events-none absolute inset-0 h-full w-full'}
+      data-testid={`pulse-ekg-${variant}`}
+      fill="none"
+      preserveAspectRatio={isPin ? undefined : 'none'}
+      viewBox={isPin ? '0 0 42 42' : '0 0 42 12'}
+    >
+      {isPin ? (
+        <g style={{ filter: 'blur(1.6px)' }}>
+          <path
+            className="cruush-pulse-ekg-draw"
+            d={PULSE_EKG_PIN_PATH}
+            stroke="#C8FF31"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeOpacity="0.5"
+            strokeWidth="2.6"
+          />
+        </g>
+      ) : null}
+      <path
+        className="cruush-pulse-ekg-draw"
+        d={isPin ? PULSE_EKG_PIN_PATH : PULSE_EKG_SIGNAL_PATH}
+        stroke={isPin ? '#EDFFB4' : '#C8FF31'}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeOpacity={isPin ? 0.85 : 0.5}
+        strokeWidth={isPin ? 1 : 0.9}
+      />
+    </svg>
+  );
+}
+
+export function MapMarkerPin({ marker, previewed = false }: { marker: MapMarker; previewed?: boolean }) {
   const isCurrentUser = marker.isCurrentUser === true;
   const isPerson = marker.kind == null || marker.kind === 'person';
   const signalPreview = isPerson ? truncateMarkerPreview(marker.signal) : '';
   const postPreview = isPerson ? truncateMarkerPreview(marker.latestFeedPostPreview) : '';
   const pingActive = Boolean(marker.activePing);
-  const signalBorderClass = pingActive
-    ? 'border-[#C8FF31]'
-    : (isCurrentUser && (marker.ownerStealthActive || marker.displayMode === 'GHOST')) || marker.npcGhostDemo
-      ? 'border-[#0BA8FF]'
-      : 'border-white/12';
-  const signalBorderColor = pingActive
-    ? '#C8FF31'
-    : (isCurrentUser && (marker.ownerStealthActive || marker.displayMode === 'GHOST')) || marker.npcGhostDemo
-      ? '#0BA8FF'
-      : 'rgba(255, 255, 255, 0.12)';
+  // The signal capsule wears the same border as the unit it belongs to, so the
+  // pin and its caption read as one object.
+  const signalBorderColor = getMarkerBorderColor(marker, isCurrentUser);
 
   if (marker.kind === 'cluster') {
     return isPersonCluster(marker) ? <PeopleClusterMarker marker={marker} /> : <VenueClusterMarker marker={marker} />;
@@ -1465,6 +1509,7 @@ function MapMarkerPin({ marker, previewed = false }: { marker: MapMarker; previe
               <MarkerHeart marker={marker} isCurrentUser={isCurrentUser} />
               <MarkerBadge marker={marker} isCurrentUser={isCurrentUser} />
               <MarkerRelationshipBadge marker={marker} isCurrentUser={isCurrentUser} />
+              {pingActive ? <PulseEkgTrace variant="pin" /> : null}
             </span>
             {signalPreview && !exitActive ? (
               <span
@@ -1473,7 +1518,7 @@ function MapMarkerPin({ marker, previewed = false }: { marker: MapMarker; previe
                 data-testid={`marker-signal-stack-${marker.id}`}
               >
                 <span
-                  className={`rounded-full border bg-black/86 px-3 py-1 text-center text-[0.7rem] font-semibold leading-tight text-white shadow-[0_12px_30px_rgba(0,0,0,0.45)] backdrop-blur-md ${signalBorderClass}`}
+                  className="relative overflow-hidden rounded-full border border-[3.2px] bg-black/86 px-3 py-1 text-center text-[0.7rem] font-semibold leading-tight text-white backdrop-blur-md"
                   data-testid={`marker-signal-badge-${marker.id}`}
                   style={{
                     backgroundColor: 'rgba(0, 0, 0, var(--cruush-ghost-surface-alpha, 0.86))',
@@ -1481,7 +1526,8 @@ function MapMarkerPin({ marker, previewed = false }: { marker: MapMarker; previe
                     borderWidth: '3.2px',
                   } as CSSProperties}
                 >
-                  <span className="cruush-ghost-rotation-signal-symbol">{signalPreview}</span>
+                  {pingActive ? <PulseEkgTrace variant="signal" /> : null}
+                  <span className="cruush-ghost-rotation-signal-symbol relative">{signalPreview}</span>
                 </span>
               </span>
             ) : null}
@@ -1493,7 +1539,7 @@ function MapMarkerPin({ marker, previewed = false }: { marker: MapMarker; previe
           className={`absolute left-1/2 top-0 z-20 w-max max-w-[16rem] -translate-x-1/2 transition-opacity duration-150 ${previewed ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'} ${signalPreview ? '-translate-y-[calc(200%+0.25rem)]' : '-translate-y-full'}`}
           data-testid={`marker-post-preview-${marker.id}`}
         >
-          <span className="rounded-full border border-primary/20 bg-black/86 px-3 py-1 text-center text-[0.7rem] font-semibold leading-tight text-primary shadow-[0_12px_30px_rgba(0,0,0,0.45)] backdrop-blur-md">
+          <span className="rounded-full border border-primary/20 bg-black/86 px-3 py-1 text-center text-[0.7rem] font-semibold leading-tight text-primary backdrop-blur-md">
             {postPreview}
           </span>
         </span>
@@ -1602,6 +1648,12 @@ function createMarkerElement(
       event.stopPropagation();
       onMarkerInteraction();
     };
+
+    // Preview on pointer enter for every pointer type. The hover media query is
+    // false under a coarse pointer, and device emulation reports a mouse as a
+    // touch pointer, so gating on either left the preview dead on mobile.
+    button.addEventListener('pointerenter', () => onPinPreview(marker));
+    button.addEventListener('pointerleave', () => setPreviewed(false));
 
     button.addEventListener('pointerdown', (event) => {
       const pointerEvent = event as PointerEvent;

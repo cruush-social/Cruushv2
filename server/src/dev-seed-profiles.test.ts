@@ -195,19 +195,19 @@ describe("development profile seeding", () => {
     expect(seededProfileLocationCalls).toHaveLength(TEST_PROFILE_COUNT);
     expect(encryptedPolicyCalls).toHaveLength((TEST_PROFILE_COUNT + 1) * 2);
     expect(legacyPrivacyCalls).toHaveLength(TEST_PROFILE_COUNT);
-    expect(mediaObjectCalls).toHaveLength(TEST_PROFILE_COUNT + 1);
+    // Each seeded profile carries a small gallery, so the side previews on a
+    // profile have something to show locally.
+    expect(mediaObjectCalls).toHaveLength((TEST_PROFILE_COUNT + 1) * 3);
     expect(profileCalls).toHaveLength(TEST_PROFILE_COUNT);
     expect(adminPhotoCalls).toHaveLength(1);
     expect(((adminPhotoCalls[0]?.[1] ?? []) as unknown[]).slice(0, 2)).toEqual([
       seededUserId(1),
-      [expect.stringMatching(/^\/api\/media\/profile-photos\/[0-9a-f-]+\.png$/)]
+      Array.from({ length: 3 }, () => expect.stringMatching(/^\/api\/media\/profile-photos\/[0-9a-f-]+\.png$/))
     ]);
-    expect(deleteEncryptedMediaObject).toHaveBeenCalledTimes(TEST_PROFILE_COUNT + 1);
-    expect(writeEncryptedMediaObject).toHaveBeenCalledTimes(TEST_PROFILE_COUNT + 1);
+    expect(deleteEncryptedMediaObject).toHaveBeenCalledTimes((TEST_PROFILE_COUNT + 1) * 3);
+    expect(writeEncryptedMediaObject).toHaveBeenCalledTimes((TEST_PROFILE_COUNT + 1) * 3);
     for (const [, params] of profileCalls) {
-      expect(((params ?? []) as unknown[])[2]).toEqual([
-        expect.stringMatching(/^\/api\/media\/profile-photos\/[0-9a-f-]+\.png$/)
-      ]);
+      expect(((params ?? []) as unknown[])[2]).toEqual(Array.from({ length: 3 }, () => expect.stringMatching(/^\/api\/media\/profile-photos\/[0-9a-f-]+\.png$/)));
     }
     for (const [, params] of seededProfileLocationCalls) {
       const coarseIndexTokens = (((params ?? []) as unknown[])[9] ?? []) as string[];

@@ -4,7 +4,8 @@ import { Eye, RefreshCw, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import CruushBadge from './CruushBadge';
-import { CruushIcon } from './CruushIconImage';
+import CruushIconImage, { CruushIcon } from './CruushIconImage';
+import mapIconWhite from '../assets/ui-icons/map-white.png';
 import HeartPhoto from './HeartPhoto';
 import { revokeMutualCruush, revokeSentCruush, sendCruush } from '../lib/cruushApi';
 import { resolveMediaUrl } from '../lib/apiClient';
@@ -226,7 +227,7 @@ export default function ProfileCard({
   };
 
   if (carouselPresentation) {
-    const carouselActionClassName = 'h-10 min-w-0 rounded-xl border border-white/10 bg-black/55 px-3 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-xl hover:bg-black/70';
+    const carouselActionClassName = 'cruush-action-sheen h-10 min-w-0 rounded-xl border border-white/10 bg-black/55 px-3 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-xl';
     const carouselTextOutlineStyle = {
       textShadow: [
         '1px 0 0 #000',
@@ -240,6 +241,10 @@ export default function ProfileCard({
         '0 2px 3px rgba(0, 0, 0, 0.55)',
       ].join(', '),
     };
+    // Their privacy decides this: discovery only reports precise display when
+    // the viewer is allowed to see their real pin.
+    const canCenterCarouselPin = user.relationship?.precision === 'precise'
+      || user.displayMode === 'PRECISE';
     const activeCarouselPhoto = carouselPhotos[activeCarouselPhotoIndex] ?? user.photo ?? null;
     const activeCarouselPhotoMasked = Boolean(activeCarouselPhoto && shouldMaskPhoto(
       dlModeActive,
@@ -259,15 +264,9 @@ export default function ProfileCard({
           {activeCarouselPhoto && !activeCarouselPhotoMasked ? (
             <>
               <img
-                aria-hidden="true"
-                src={resolveMediaUrl(activeCarouselPhoto)}
-                alt=""
-                className="absolute inset-0 h-full w-full scale-110 object-cover opacity-55 blur-2xl"
-              />
-              <img
                 src={resolveMediaUrl(activeCarouselPhoto)}
                 alt={user.name}
-                className="relative z-10 h-full w-full object-contain"
+                className="relative z-10 h-full w-full object-cover"
                 data-testid="carousel-profile-photo"
               />
             </>
@@ -371,33 +370,50 @@ export default function ProfileCard({
             <div data-testid="carousel-profile-actions" className="mt-3 grid grid-cols-2 gap-2">
               <Button
                 type="button"
-                className={carouselActionClassName}
-                style={hasRevocableCruush ? { background: 'var(--cruush-gradient-soft-28)' } : undefined}
+                className={`${carouselActionClassName} border-0 text-white`}
+                style={{
+                  background: hasRevocableCruush
+                    ? 'var(--cruush-gradient-soft-28)'
+                    : 'var(--cruush-gradient)',
+                }}
                 onClick={() => {
                   void (hasRevocableCruush ? handleRevokeCruush() : handleCruush());
                 }}
                 disabled={cruushDisabled}
                 aria-label={revokingCruush ? (isAlreadyMutual ? 'Removing mutual' : 'Unsending cruush') : isAlreadyMutual ? 'Remove mutual' : hasSentCruush ? 'Unsend cruush' : sendingCruush ? 'sending cruush' : 'send cruush'}
               >
-                <CruushIcon name="safety" className={`mr-2 h-4 w-4 ${cruushDisabled ? 'opacity-45 grayscale' : ''}`} variant="white" />
-                {revokingCruush ? (isAlreadyMutual ? 'removing...' : 'unsending...') : isAlreadyMutual ? 'remove' : hasSentCruush ? 'unsend' : sendingCruush ? 'sending...' : 'cruush'}
+                <CruushIcon name={hasRevocableCruush ? 'safety' : 'cruush'} className="mr-2 h-4 w-4" variant="white" />
+                {revokingCruush ? (isAlreadyMutual ? 'removing...' : 'unsending...') : isAlreadyMutual ? 'mutual' : hasSentCruush ? 'sent' : sendingCruush ? 'sending...' : 'cruush'}
               </Button>
               <Button
                 type="button"
-                className={carouselActionClassName}
+                className={`${carouselActionClassName} border-0 text-white`}
+                style={{ background: 'var(--cruush-gradient)' }}
                 disabled={openingMessage || !canMessage}
                 onClick={() => {
                   void handleMessage();
                 }}
               >
-                <CruushIcon name="send" className="mr-2 h-4 w-4" variant="white" />
+                <CruushIcon name="messages" className="mr-2 h-4 w-4" variant="white" />
                 {!canMessage ? 'Mutuals only' : openingMessage ? 'Opening...' : 'Message'}
               </Button>
+              {canCenterCarouselPin ? (
+                <Button
+                  type="button"
+                  className={`${carouselActionClassName} border-0 text-white`}
+                  style={{ background: 'var(--cruush-gradient)' }}
+                  aria-label={`Center the map on ${user.name}`}
+                  onClick={() => navigate('/map', { state: { focusUserId: user.id } })}
+                >
+                  <CruushIconImage src={mapIconWhite} className="mr-2 h-4 w-4" />
+                  Their pin
+                </Button>
+              ) : null}
               <Button
                 type="button"
                 onClick={onViewProfile}
-                className={`${carouselActionClassName} col-span-2`}
-                variant="secondary"
+                className={`${carouselActionClassName} border-0 text-white ${canCenterCarouselPin ? '' : 'col-span-2'}`}
+                style={{ background: 'var(--cruush-gradient)' }}
               >
                 View Full Profile
               </Button>

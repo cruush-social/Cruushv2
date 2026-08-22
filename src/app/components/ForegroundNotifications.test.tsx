@@ -49,9 +49,9 @@ describe('ForegroundNotifications behavior', () => {
     expect(shouldPlayInAppNotificationSound('/settings', directMessage)).toBe(true);
   });
 
-  it('uses the Techno Sovereign chartreuse theme for every in-app popup', () => {
+  it('uses the brand accent for every in-app popup', () => {
     expect(notificationPopupTheme()).toEqual(expect.objectContaining({
-      popup: 'border-[#C8FF31]',
+      popup: 'border-primary/45',
     }));
   });
 

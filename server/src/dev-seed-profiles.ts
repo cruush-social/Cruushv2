@@ -271,12 +271,33 @@ function decodeSeedPhoto(photo: string) {
   return Buffer.from(decodeURIComponent(photo.slice(prefix.length)), "utf8");
 }
 
+const DEVELOPMENT_GALLERY_SIZE = 3;
+
+async function upsertDevelopmentProfileGallery(
+  context: DevelopmentSeedContext,
+  userId: string,
+  profile: Pick<DevelopmentTestProfile, "email" | "photo"> & { displayName: string }
+) {
+  const urls: string[] = [];
+
+  for (let slot = 0; slot < DEVELOPMENT_GALLERY_SIZE; slot += 1) {
+    urls.push(await upsertDevelopmentProfilePhoto(context, userId, {
+      email: profile.email,
+      photo: slot === 0 ? profile.photo : createSeedPhoto(profile.displayName, slot * 9),
+      slot
+    }));
+  }
+
+  return urls;
+}
+
 async function upsertDevelopmentProfilePhoto(
   context: DevelopmentSeedContext,
   userId: string,
-  profile: Pick<DevelopmentTestProfile, "email" | "photo">
+  profile: Pick<DevelopmentTestProfile, "email" | "photo"> & { slot?: number }
 ) {
-  const photoId = uuidFromSeed(`development-profile-photo:${profile.email}`);
+  const slotSuffix = profile.slot ? `:${profile.slot}` : "";
+  const photoId = uuidFromSeed(`development-profile-photo:${profile.email}${slotSuffix}`);
   const filename = `${photoId}.png`;
   const publicUrl = `${ENCRYPTED_PROFILE_PHOTO_MEDIA_PREFIX}/${filename}`;
   const objectKey = `profile-photos/${filename}.enc`;
@@ -496,7 +517,11 @@ async function upsertDevelopmentProfile(context: DevelopmentSeedContext, profile
     throw new Error(`Unable to create ${profile.email}.`);
   }
 
-  const profilePhotoUrl = await upsertDevelopmentProfilePhoto(context, userId, profile);
+  const profilePhotoUrls = await upsertDevelopmentProfileGallery(context, userId, {
+    email: profile.email,
+    photo: profile.photo,
+    displayName: profile.displayName
+  });
   const encryptedSensitiveProfile = encryptSensitiveProfile(context.config, profile.sensitiveProfile);
   const encryptedProfileVisibility = encryptProfileVisibility(context.config, emptyProfile.visibility_rules);
 
@@ -581,7 +606,7 @@ async function upsertDevelopmentProfile(context: DevelopmentSeedContext, profile
     [
       userId,
       profile.displayName,
-      [profilePhotoUrl],
+      profilePhotoUrls,
       profile.pronouns,
       profile.yearOfBirth,
       profile.identities,
@@ -663,7 +688,8 @@ export async function seedDevelopmentProfilesWithDb(context: DevelopmentSeedCont
 
   try {
     const adminUserId = await ensureDevelopmentAdminUser(context);
-    const adminPhotoUrl = await upsertDevelopmentProfilePhoto(context, adminUserId, {
+    const adminPhotoUrls = await upsertDevelopmentProfileGallery(context, adminUserId, {
+      displayName: DEVELOPMENT_ADMIN_DISPLAY_NAME,
       email: DEVELOPMENT_ADMIN_EMAIL,
       photo: createSeedPhoto(DEVELOPMENT_ADMIN_DISPLAY_NAME, TEST_PROFILE_COUNT)
     });
@@ -695,7 +721,7 @@ export async function seedDevelopmentProfilesWithDb(context: DevelopmentSeedCont
        where id = $1`,
       [
         adminUserId,
-        [adminPhotoUrl],
+        adminPhotoUrls,
         encryptedAdminSensitiveProfile.profile_sensitive_ciphertext,
         encryptedAdminSensitiveProfile.profile_sensitive_nonce,
         encryptedAdminSensitiveProfile.profile_sensitive_auth_tag,

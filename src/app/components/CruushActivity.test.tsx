@@ -212,7 +212,7 @@ describe('CruushActivity', () => {
     expect(screen.getByTestId('cruush-activity-header')).toHaveClass('sticky', 'top-0');
     expect(screen.getByTestId('cruush-count-grid')).toHaveClass('mx-auto', 'max-w-2xl');
     expect(container.querySelector('main')).toHaveClass('mx-auto', 'max-w-2xl');
-    expect(screen.getByRole('heading', { name: 'Activity' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Cruushes' })).toBeInTheDocument();
     expect(container.querySelector('img[src*="cruush-logo.svg"]')).not.toBeInTheDocument();
     expect(screen.getByTestId('cruush-count-grid')).toHaveClass('grid-cols-[repeat(4,minmax(0,1fr))]');
     expect(screen.getByTestId('cruush-count-grid').children[0]).toHaveClass('min-w-0');
@@ -236,7 +236,8 @@ describe('CruushActivity', () => {
     expect(within(incomingVibes).getAllByText(/Artsy|Chill|Goth/)).toHaveLength(3);
     expect(within(incomingVibes).queryByText('Extra')).not.toBeInTheDocument();
     const incomingCruushButton = screen.getByRole('button', { name: 'Send cruush to luna' });
-    expect(incomingCruushButton.querySelector('img')?.getAttribute('src')).toContain('cruush-white');
+    // They already cruushed you, so the control wears the double heart.
+    expect(incomingCruushButton.querySelector('img')?.getAttribute('src')).toContain('safety-white');
     fireEvent.click(incomingCruushButton);
     await waitFor(() => expect(sendCruush).toHaveBeenCalledWith('user-luna', expect.objectContaining({
       name: 'luna',

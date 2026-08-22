@@ -1,47 +1,60 @@
-import { Suspense, lazy } from 'react';
+import { Suspense, lazy, useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import DesktopDockPanel from './DesktopDockPanel';
 
 const LocalFeed = lazy(() => import('./LocalFeed'));
 const CruushActivity = lazy(() => import('./CruushActivity'));
 const DirectMessages = lazy(() => import('./DirectMessages'));
+const PrivateGroupChat = lazy(() => import('./PrivateGroupChat'));
 
 export type MapSidePanelView = 'feed' | 'activity' | 'messages';
 
 export const MAP_SIDE_PANEL_VIEWS: { id: MapSidePanelView; label: string }[] = [
   { id: 'feed', label: 'Feed' },
-  { id: 'activity', label: 'Activity' },
+  { id: 'activity', label: 'Cruushes' },
   { id: 'messages', label: 'Messages' },
 ];
 
 type MapSidePanelProps = {
   view: MapSidePanelView;
-  onViewChange: (view: MapSidePanelView) => void;
+  /** Opens straight into this person's thread instead of the inbox list. */
+  openConversationWithUserId?: string | null;
   onClose: () => void;
 };
 
-export default function MapSidePanel({ view, onViewChange, onClose }: MapSidePanelProps) {
+export default function MapSidePanel({ view, openConversationWithUserId, onClose }: MapSidePanelProps) {
+  const [conversationId, setConversationId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!openConversationWithUserId) {
+      setConversationId(null);
+      return;
+    }
+
+    let isMounted = true;
+
+    void import('../lib/messagesApi')
+      .then(({ openDirectConversation }) => openDirectConversation(openConversationWithUserId))
+      .then((conversation) => {
+        if (isMounted) {
+          setConversationId(conversation.id);
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setConversationId(null);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [openConversationWithUserId]);
+
   return (
     <DesktopDockPanel slot="right" ariaLabel="Side panel">
       <div className="flex h-full flex-col">
-        <div className="flex shrink-0 items-center gap-2 px-4 pb-3 pt-9">
-          <div className="flex min-w-0 flex-1 items-center gap-1 rounded-full border border-white/10 bg-background/40 p-1">
-            {MAP_SIDE_PANEL_VIEWS.map((option) => (
-              <button
-                key={option.id}
-                type="button"
-                aria-pressed={view === option.id}
-                data-testid={`map-side-panel-tab-${option.id}`}
-                onClick={() => onViewChange(option.id)}
-                className={`min-h-9 flex-1 rounded-full px-3 text-xs uppercase tracking-[0.14em] transition ${
-                  view === option.id ? 'text-white' : 'text-white/58 hover:text-white/80'
-                }`}
-                style={view === option.id ? { background: 'var(--cruush-gradient)' } : undefined}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
+        <div className="flex shrink-0 items-center justify-end px-4 pb-2 pt-2">
           <button
             type="button"
             aria-label="Close side panel"
@@ -56,7 +69,7 @@ export default function MapSidePanel({ view, onViewChange, onClose }: MapSidePan
           <Suspense fallback={<p className="px-4 py-6 text-sm text-white/62">Loading...</p>}>
             {view === 'feed' ? <LocalFeed embedded /> : null}
             {view === 'activity' ? <CruushActivity embedded /> : null}
-            {view === 'messages' ? <DirectMessages embedded /> : null}
+            {view === 'messages' ? (conversationId ? <PrivateGroupChat conversationId={conversationId} /> : <DirectMessages embedded />) : null}
           </Suspense>
         </div>
       </div>

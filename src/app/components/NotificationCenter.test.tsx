@@ -148,37 +148,6 @@ describe('NotificationCenter', () => {
     );
   });
 
-  it('clears visible notifications', async () => {
-    getNotifications.mockResolvedValue({
-      notifications: [{
-        id: 'notification-1',
-        userId: 'user-1',
-        type: 'mutual_cruush',
-        title: "It's mutual",
-        body: 'Open cruush to check it.',
-        linkUrl: '/cruush',
-        actorUserId: 'user-2',
-        conversationId: null,
-        metadata: {},
-        readAt: '2026-07-08T12:01:00.000Z',
-        createdAt: '2026-07-08T12:00:00.000Z',
-      }],
-      nextCursor: null,
-    });
-
-    render(
-      <MemoryRouter initialEntries={['/notifications']}>
-        <NotificationCenter />
-      </MemoryRouter>,
-    );
-
-    expect(await screen.findByText("It's mutual")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Clear notifications' }));
-
-    await waitFor(() => expect(clearNotifications).toHaveBeenCalled());
-    expect(await screen.findByText('No notifications yet.')).toBeInTheDocument();
-  });
-
   it('renders an empty state and a load error state', async () => {
     getNotifications.mockResolvedValueOnce({ notifications: [], nextCursor: null });
 

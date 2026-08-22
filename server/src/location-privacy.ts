@@ -200,6 +200,10 @@ export const GHOST_MIN_OFFSET_RATIO = 0.5;
 export const GHOST_ANCHOR_RATIO = 0.75;
 export const GHOST_DRIFT_RATIO = 0.1;
 export const GHOST_GEOMETRY_SLACK_RATIO = 0.02;
+// The drift never collapses to the anchor, and each epoch turns by the golden
+// angle, so a rotation is visible on the map rather than a step sideways.
+export const GHOST_DRIFT_INNER_RATIO = 0.7;
+export const GHOST_DRIFT_GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
 // halfCellDiagonal = cellMeters * sqrt(2) / 2, and we need
 // halfCellDiagonal + DRIFT + SLACK <= 0.25R.
 export const GHOST_CELL_RATIO =
@@ -976,10 +980,26 @@ export function currentRotationEpoch(nowMs = Date.now(), activationAnchorMs = 0)
   return Math.max(0, Math.floor((nowMs - activationAnchorMs) / ROTATION_INTERVAL_MS));
 }
 
-function ghostActivationAnchorMs(policy: VisibilityPolicyPayload) {
-  const anchor = policy.ghostActivatedAtMs ?? policy.updatedAtMs;
+// Rotations are staggered per subject. Without this, everyone whose policy row
+// was written in the same batch shared an anchor and their pins all poofed at
+// the same moment, which is both wrong to look at and a correlation signal.
+function ghostRotationPhaseMs(subjectUserId: string) {
+  const digest = createHash("sha256").update(`ghost-rotation-phase:${subjectUserId}`).digest();
 
-  return Number.isFinite(anchor) ? Math.trunc(anchor) : policy.updatedAtMs;
+  return digest.readUInt32BE(0) % ROTATION_INTERVAL_MS;
+}
+
+function ghostActivationAnchorMs(policy: VisibilityPolicyPayload) {
+  if (typeof policy.ghostActivatedAtMs === "number" && Number.isFinite(policy.ghostActivatedAtMs)) {
+    return Math.trunc(policy.ghostActivatedAtMs);
+  }
+
+  // No activation time means the anchor falls back to whenever the policy row
+  // was last written, and rows written in the same batch would otherwise rotate
+  // in lockstep. The phase spreads them across the interval.
+  const base = Number.isFinite(policy.updatedAtMs) ? Math.trunc(policy.updatedAtMs) : 0;
+
+  return base - ghostRotationPhaseMs(policy.subjectUserId);
 }
 
 function ghostRotationPolicyVersion(policy: VisibilityPolicyPayload) {
@@ -1288,8 +1308,20 @@ export function deriveGhostCoordinate(input: {
     input.policyVersion
   );
   const driftAmplitude = input.radiusMeters * GHOST_DRIFT_RATIO;
-  const radius = driftAmplitude * Math.sqrt(randomFloatFromSeed(driftSeed.subarray(0, 8)));
-  const theta = 2 * Math.PI * randomFloatFromSeed(driftSeed.subarray(8, 16));
+  // A uniform disc put consecutive decoys next to each other often enough that a
+  // rotation looked like the pin had barely moved. The radius now sits in an
+  // annulus and the angle advances by the golden angle each epoch, so every
+  // rotation lands on a visibly different side of the anchor. The maximum drift
+  // is unchanged, so the geometry budget above still holds and the drift still
+  // depends only on the subject and the epoch, never on the true position.
+  const radius = driftAmplitude * (
+    GHOST_DRIFT_INNER_RATIO +
+    (1 - GHOST_DRIFT_INNER_RATIO) * randomFloatFromSeed(driftSeed.subarray(0, 8))
+  );
+  const theta = (
+    2 * Math.PI * randomFloatFromSeed(driftSeed.subarray(8, 16)) +
+    input.rotationEpoch * GHOST_DRIFT_GOLDEN_ANGLE
+  ) % (2 * Math.PI);
 
   return offsetCoordinate(
     anchor.lat,

@@ -46,3 +46,30 @@ export function markNoticeDismissed(noticeKey: string, options: { offline?: bool
     void dismissUserNotice(noticeKey).catch(() => {});
   }
 }
+
+// A notice whose key carries a version needs every earlier key to count as
+// dismissed, otherwise shipping a new version replays it for everyone who
+// already dismissed the old one.
+export async function resolveAnyNoticeDismissal(
+  noticeKeys: string[],
+): Promise<ResolvedNoticeDismissal> {
+  const [primaryKey, ...legacyKeys] = noticeKeys;
+  const primary = await resolveNoticeDismissal(primaryKey);
+
+  if (primary.dismissed || legacyKeys.length === 0) {
+    return primary;
+  }
+
+  const legacy = await Promise.all(legacyKeys.map((key) => resolveNoticeDismissal(key)));
+  const dismissed = legacy.some((notice) => notice.dismissed);
+
+  if (dismissed) {
+    // Carry the old dismissal forward so later loads settle on the current key.
+    markNoticeDismissed(primaryKey, { offline: primary.offline });
+  }
+
+  return {
+    dismissed,
+    offline: primary.offline && legacy.every((notice) => notice.offline),
+  };
+}

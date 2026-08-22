@@ -1,4 +1,5 @@
 import type { ChangeEvent, PointerEvent } from 'react';
+import { SIGNAL_MAX_LENGTH } from '../lib/profileLimits';
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router';
 import { ArrowLeft, Eye, RotateCcw, RotateCw, Star, Trash2, Upload } from 'lucide-react';
@@ -385,7 +386,7 @@ function ProfilePhotoCropper({
             <Label htmlFor="profile-photo-zoom">Zoom</Label>
             <input
               aria-label="Zoom profile photo"
-              className="w-full accent-primary"
+              className="cruush-range"
               id="profile-photo-zoom"
               max="2.5"
               min="1"
@@ -1087,10 +1088,12 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="signal">Signal</Label>
+              <Label htmlFor="signal">
+                Signal <span className="text-muted-foreground">{SIGNAL_MAX_LENGTH} characters max</span>
+              </Label>
               <Input
                 id="signal"
-                maxLength={180}
+                maxLength={SIGNAL_MAX_LENGTH}
                 placeholder="A short hover note for your map pin"
                 value={normalizedProfile.signal}
                 onChange={(e) => handleChange('signal', e.target.value)}
@@ -1099,23 +1102,6 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
               <p className="text-xs text-muted-foreground">This appears when someone hovers over your heart pin on the map.</p>
             </div>
 
-            <div className="space-y-4 rounded-xl border border-border bg-card/60 p-4">
-              <div className="flex items-center justify-between gap-4">
-                <div className="space-y-0.5">
-                  <Label htmlFor="profile-edit-approx-distance">Approximate distance labels</Label>
-                  <p className="text-xs text-muted-foreground">
-                    {distancePreferences.mode === 'approximate'
-                      ? 'You see approximate labels for others, and they see an approximate label for you.'
-                      : 'You see exact labels when the other person also shares exact distance. Others can see your exact label only when they share exact distance too.'}
-                  </p>
-                </div>
-                <Switch
-                  id="profile-edit-approx-distance"
-                  checked={distancePreferences.mode === 'approximate'}
-                  onCheckedChange={(checked) => saveDistancePreferences({ mode: checked ? 'approximate' : 'exact' })}
-                />
-              </div>
-            </div>
 
             <div className="space-y-2">
               <Label>Pronouns</Label>
@@ -1143,6 +1129,18 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
                   ))}
                 </select>
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Vibes</Label>
+              <MultiSelect
+                {...profileMenuProps}
+                ariaLabel="Vibes"
+                maxSelections={MAX_PROFILE_VIBES}
+                optionGroups={VIBE_GROUPS}
+                value={normalizedProfile.vibes}
+                onChange={(vals) => handleChange('vibes', limitToThree(vals))}
+              />
             </div>
 
             <div className="space-y-2">
@@ -1208,18 +1206,6 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
                 <Label htmlFor="weight">Weight</Label>
                 <Input id="weight" placeholder="155 lbs" value={normalizedProfile.weight} onChange={(e: ChangeEvent<HTMLInputElement>) => handleChange('weight', e.target.value)} className="bg-input-background" />
               </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Vibes</Label>
-              <MultiSelect
-                {...profileMenuProps}
-                ariaLabel="Vibes"
-                maxSelections={MAX_PROFILE_VIBES}
-                optionGroups={VIBE_GROUPS}
-                value={normalizedProfile.vibes}
-                onChange={(vals) => handleChange('vibes', limitToThree(vals))}
-              />
             </div>
 
             <div className="space-y-2">

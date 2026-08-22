@@ -188,7 +188,7 @@ describe('Settings', () => {
     expect(await screen.findByText('Main map')).toBeInTheDocument();
   });
 
-  it('renders Edit Profile with the same winged-heart icon as the bottom navigation', async () => {
+  it('renders Edit Profile with the bottom nav profile mark', async () => {
     render(
       <MemoryRouter>
         <Settings />
@@ -198,9 +198,10 @@ describe('Settings', () => {
     const editProfile = await screen.findByRole('button', { name: 'Edit Profile' });
     const icon = editProfile.querySelector('[data-testid="edit-profile-bottom-nav-icon"]');
 
-    expect(icon).toHaveClass('h-5', 'w-5');
-    expect(icon).toHaveStyle({ background: 'var(--cruush-gradient)' });
-    expect(icon?.getAttribute('style')).toContain('humanity-profile-selected-winged-heart-symmetric');
+    // The row carries the bottom nav's profile mark in the same white every
+    // other settings icon uses.
+    expect(icon).toHaveClass('h-5', 'w-5', 'brightness-0', 'invert');
+    expect(icon?.getAttribute('src')).toContain('profile-white');
     expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument();
     expect(screen.getByText('Email verified')).toBeInTheDocument();
     expect(screen.queryByLabelText('Jordan profile photo')).not.toBeInTheDocument();

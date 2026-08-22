@@ -10426,43 +10426,11 @@ describe("server", () => {
     });
   });
 
-  it("requires cruush+ before posting to the local feed", async () => {
-    query.mockResolvedValueOnce({
-      rows: [{
-        cruush_plus_enabled: false,
-        cruush_plus_expires_at: null
-      }]
-    });
-
-    const response = await app.inject({
-      method: "POST",
-      url: "/api/posts",
-      headers: {
-        "x-user-id": userId
-      },
-      payload: {
-        content: "Hosting tonight",
-        expiresIn: "1h"
-      }
-    });
-
-    expect(response.statusCode).toBe(402);
-    expect(query).toHaveBeenCalledTimes(1);
-    expect(query.mock.calls[0]?.[0]).toContain("from user_entitlements");
-    expect(response.json()).toEqual({
-      error: {
-        code: "CRUUSH_PLUS_REQUIRED",
-        message: "Upgrade to cruush+ to post on the local feed.",
-        details: null
-      }
-    });
-  });
-
-  it("creates a post on POST /api/posts", async () => {
+  it("creates a post on POST /api/posts for a member without cruush+", async () => {
     query
       .mockResolvedValueOnce({
         rows: [{
-          cruush_plus_enabled: true,
+          cruush_plus_enabled: false,
           cruush_plus_expires_at: null
         }]
       })

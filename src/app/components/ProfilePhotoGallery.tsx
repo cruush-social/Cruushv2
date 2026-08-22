@@ -9,12 +9,12 @@ import { getProfileGradientCss } from '../lib/profileGradient';
 import type { ProfilePhotoMetadata } from '../lib/profileApi';
 import type { HeartPinTheme } from '../lib/heartPin';
 import cruushIconWhite from '../assets/ui-icons/cruush-white.png';
-import ReportAction from './ReportAction';
 
 interface ProfilePhotoGalleryProps {
   fitViewport?: boolean;
   fallbackLabel?: string;
   name: string;
+  onExpandPhoto?: (photo: string) => void;
   photos: string[];
   photoMetadata?: ProfilePhotoMetadata[];
   reportTargetUserId?: string;
@@ -26,6 +26,7 @@ export default function ProfilePhotoGallery({
   fitViewport = false,
   fallbackLabel = 'Profile photo',
   name,
+  onExpandPhoto,
   photoMetadata = [],
   photos,
   reportTargetUserId,
@@ -64,12 +65,31 @@ export default function ProfilePhotoGallery({
       style={{ ...mediaStyle, background: 'var(--cruush-gradient)' }}
     >
       {activePhoto && !activePhotoMasked ? (
-        <img
-          src={resolveMediaUrl(activePhoto)}
-          alt={name}
-          className="h-full w-full object-cover"
-          style={PROFILE_HERO_ASPECT_STYLE}
-        />
+        onExpandPhoto ? (
+          // Tapping the photo hands it to the full screen viewer, where it is
+          // shown on its own with nothing written over it.
+          <button
+            aria-label={`Show ${name}'s photo full screen`}
+            className="block h-full w-full border-0 bg-transparent p-0"
+            data-testid="profile-photo-expand"
+            onClick={() => onExpandPhoto(activePhoto)}
+            type="button"
+          >
+            <img
+              src={resolveMediaUrl(activePhoto)}
+              alt={name}
+              className="h-full w-full object-cover"
+              style={PROFILE_HERO_ASPECT_STYLE}
+            />
+          </button>
+        ) : (
+          <img
+            src={resolveMediaUrl(activePhoto)}
+            alt={name}
+            className="h-full w-full object-cover"
+            style={PROFILE_HERO_ASPECT_STYLE}
+          />
+        )
       ) : activePhotoMasked ? (
         <div
           aria-label={name}
@@ -84,18 +104,6 @@ export default function ProfilePhotoGallery({
           <CruushIconImage src={cruushIconWhite} className="h-24 w-24 opacity-15" />
         </div>
       )}
-
-      {activePhoto && reportTargetUserId ? (
-        <div className="absolute bottom-3 left-3 rounded-full bg-black/55 backdrop-blur-sm">
-          <ReportAction
-            targetType="profile_photo"
-            targetId={activePhoto}
-            targetUserId={reportTargetUserId}
-            targetLabel={`photo ${activeIndex + 1} from ${name}`}
-            label="Report this profile photo"
-          />
-        </div>
-      ) : null}
 
       {previewPhotos.length > 0 ? (
         <div
