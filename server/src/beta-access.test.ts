@@ -10,11 +10,11 @@ describe("beta access geofence", () => {
   it("allows locations inside the launch area and blocks outside locations", () => {
     expect(checkBetaAccess(config, { lat: 40.7128, lng: -74.0060 })).toMatchObject({
       allowed: true,
-      radiusMiles: 20
+      radiusMiles: 50
     });
     expect(checkBetaAccess(config, { lat: 40.0, lng: -73.0 })).toMatchObject({
       allowed: false,
-      radiusMiles: 20
+      radiusMiles: 50
     });
   });
 
@@ -22,6 +22,7 @@ describe("beta access geofence", () => {
     expect(isWithinBetaLaunchArea({ lat: 40.6828509, lng: -73.9521325 })).toBe(true);
     expect(isWithinBetaLaunchArea({ lat: 40.913, lng: -73.843 })).toBe(true);
     expect(isWithinBetaLaunchArea({ lat: 40.9312, lng: -73.8988 })).toBe(true);
-    expect(isWithinBetaLaunchArea({ lat: 41.12, lng: -73.8 })).toBe(false);
+    expect(isWithinBetaLaunchArea({ lat: 41.12, lng: -73.8 })).toBe(true);
+    expect(isWithinBetaLaunchArea({ lat: 42.6526, lng: -73.7562 })).toBe(false);
   });
 });
