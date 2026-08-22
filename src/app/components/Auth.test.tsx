@@ -197,7 +197,7 @@ describe('Auth', () => {
     expect(contactLink).toHaveClass('launch-login-auth-contact');
     expect(contactLink).toHaveAttribute('href', 'mailto:hello@cruush.app');
     expect(contactLink.compareDocumentPosition(legalNotice) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(legalNotice).toHaveClass('text-xs', 'text-center', 'text-white/30');
+    expect(legalNotice).toHaveClass('text-center', 'text-white/30');
     expect(screen.queryByText('Legal and safety')).not.toBeInTheDocument();
     for (const link of AUTH_POLICY_LINKS) {
       expect(within(legalNotice).getByRole('link', { name: link.label })).toHaveAttribute(

@@ -247,6 +247,16 @@
   opacity: 0.42;
 }
 
+.launch-login-auth-input::-webkit-calendar-picker-indicator {
+  filter: invert(1) brightness(1.4);
+  opacity: 0.85;
+  cursor: pointer;
+}
+
+.launch-login-auth-input[type="date"] {
+  color-scheme: dark;
+}
+
 .launch-login-auth-input::placeholder {
   color: rgba(255, 255, 255, 0.7);
 }
@@ -434,12 +444,12 @@
     width: auto;
     max-width: none;
     margin-inline: 0;
+    font-size: 0.82rem;
   }
 
   .launch-login-auth-footer [aria-label="Legal and safety links"] {
     flex-basis: 100%;
     text-align: center;
-    word-spacing: 0.5rem;
   }
 }
 
