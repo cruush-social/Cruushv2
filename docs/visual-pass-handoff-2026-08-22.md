@@ -1,100 +1,21 @@
 # Handoff: `feat/visual-pass`
 
-A branch for the visual work, cut from `codex/carousel-photo-gallery-20260820` at
-`efab940` so everything built today is already on it. `origin/main` is `b4621d5`
-and neither branch is on it.
+A branch for visual work, cut from `codex/carousel-photo-gallery-20260820` at `10f90ea`
+so everything built today is already on it. `origin/main` is `b4621d5`; neither branch is
+on it and nothing is deployed.
 
-Take a separate worktree so the two branches do not fight over one checkout:
+---
+
+## Setup
+
+Take a separate worktree. Two branches in one checkout will fight.
 
 ```bash
 git worktree add /Volumes/good/Cruushv2-visual feat/visual-pass
 cd /Volumes/good/Cruushv2-visual && npm install
 ```
 
-`AI_TASK.json` on this branch still describes the plumbing job. Rewrite it for the
-visual work before committing, or the publication hook will refuse the push.
-
----
-
-## What is already here to play with
-
-**The badge set**, 124 options across ten groups, at `/settings/badges`. The heart sits in
-the middle like an avatar screen; left starts as your role, right as your position; either
-side takes anything; a side can say give, receive, switch, or service, which reads as
-`give/fisting` on hover in white with a dark shadow, under the badge.
-
-- `BdsmEmblems.tsx` — the community set. Frame is role, arrow is position, nested outline
-  is depth, four corner dots mean taken. Chevron dominant, square submissive, hexagon switch.
-- `OwnershipGlyphs.tsx` — the collar emblems. Shield holds, ring wears, brackets wear none.
-- `CommunityGlyphs.tsx` — trans, T4T, nonbinary, labrys, poly, ace, and the interlocking
-  gender pairs.
-- `PositionRoleGlyphs.tsx` — positions as direction, the hanky way: up gives, down takes.
-- `ZodiacGlyphs.tsx` — twelve signs, drawn not set as text.
-- `BadgeFrames.tsx` — twenty-one frames. Sixteen gender frames plus heart, square, chevron,
-  brackets, hexagon. **The circle never changes size**; a frame only adds arms outside it.
-- `HankyFrame.tsx` — twenty-four colours, no icon, colour is the message. Preview at
-  `/settings/hankies`.
-
-**Preview routes** already wired: `/settings/badges`, `/settings/hankies`,
-`/settings/kelpie-marks`, `/settings/pulse-effects`, `/feed/photo-preview`.
-
-## Known visual problems worth taking
-
-- **Hanky at chip size.** The diamond's points clip inside the round chip. Square it, or
-  inset it so the points clear.
-- **No preview page for the frames or the zodiac glyphs.** Twenty-one frames and twelve
-  glyphs are drawn and have never been looked at. A page like `/settings/kelpie-marks`
-  would show them at mark size, control size, on the gradient, and small.
-- **The Kelpie marks page has five options and four of them are weak.** Only the water
-  horse reads. Pick one and delete the rest.
-- **Ghost exit animation.** The idea on the table: the last 40% of the tips fade to white
-  and then down to about 10% opacity, with the horns a darker blue falling into the
-  electric blue. Worth building against the map's darkest and lightest areas first, or the
-  white tips vanish into pale streets rather than fading.
-- **Top-bar Ghost icon should match the colours of the ghost in the exit animation.**
-- **Controls read small around 880px wide**, which falls between the mobile and desktop
-  sizing.
-- **Profile**: desktop overlay mode, less scrolling, bigger gallery hearts.
-- **Feed**: photos in posts, heart-shaped previews that expand on tap, hover reactions.
-- **Page headers on one line** for Messages, Notifications, Settings.
-- **Skeleton loading states.**
-
-## Rules the visual work has to hold
-
-From `docs/design-master.md` and the corrections that produced it:
-
-- Signal is **35 characters**, one line, never wraps, and the limit is stated wherever a
-  signal is editable.
-- Icons are **flat white or gradient**. Two finishes, no others. The hanky is the single
-  exception, because the hanky code is a colour code.
-- **Green belongs to Pulse.** Red belongs to the bug control and nothing else.
-- **Nothing covers the top chrome, the bottom nav, or a popup.** No pin overlaps another
-  pin, ever.
-- Icon controls are circles. Worded controls are pills.
-- Vibe capsules appear on **profile previews only**.
-- **No second taglines.** One line, or none.
-- Page headers keep the title and the icon buttons on one line at any width, popped out or
-  not.
-- Public copy never uses an em dash.
-- Hearts carry the relationship colour: self `#004BFF`, mutual `#6f00ff`, nearby `#FF0072`.
-  Fill and border alike.
-- Two fonts. Spectral for everything, UnifrakturMaguntia for the logo. Never a mono.
-
-## Do not touch from this branch
-
-The plumbing branch has these open and will conflict:
-
-`MapView.tsx`, `MapHome.tsx`, `server/src/routes/users.ts`, `server/src/travel-pins.ts`,
-`server/src/routes/privacy.ts`, `server/src/profile-schema.ts`,
-`server/src/profile-sensitive.ts`, `server/src/routes/profiles.ts`,
-`server/src/policy-mapper.ts`, `server/src/push-service.ts`,
-`server/src/notification-service.ts`, `ProfileEdit.tsx`.
-
-Everything else is fair game.
-
-## Before the server starts
-
-Three migrations are pending and must run, or profile reads fail with a 500:
+Three migrations are pending. Profile reads return 500 until they run.
 
 ```bash
 cd server && set -a && . ./.env.local && set +a && npx tsx src/migrate.ts
@@ -103,4 +24,186 @@ cd server && set -a && . ./.env.local && set +a && npx tsx src/migrate.ts
 `096_notification_quiet_hours`, `097_travel_pins`, `099_profile_zodiac`. No environment
 variables were added, removed, or changed.
 
-Dev server: **http://localhost:5190**, API on **3001**.
+Dev server **http://localhost:5190**, API **3001**. Never start a dev server with Bash;
+use the preview tooling.
+
+`AI_TASK.json` still describes the plumbing job. **Rewrite it before the first commit** or
+the publication hook refuses the push: it validates that every staged path appears in
+`allowedPaths` and that `publicationTarget` is set.
+
+## How to verify, which is not optional here
+
+The repo rules document that `CLAUDE.md` points at carries rule **B1**: never report a
+visual change as done from the diff. Render the route and look at it. For anything on the
+map that means the real map, not a mock, because half the geometry is computed from zoom.
+
+```bash
+npm run build                                              # must be clean
+npx vitest run --pool=forks --no-file-parallelism <file>   # threads pool times out
+```
+
+The `--pool=forks --no-file-parallelism` flags are not optional. `node_modules` lives on a
+slow volume and the default threads pool hangs.
+
+Green right now, so a red result is yours: client build, `MapHome.test.tsx` (70),
+`MapView.test.tsx` (49), `ProfileEdit.test.tsx` (25), `Auth.test.tsx` (17),
+`Settings.test.tsx`, `ProfileView.test.tsx`, `NotificationSettings.test.tsx`,
+`server/src/app.test.ts` (295).
+
+## Preview routes already wired
+
+| Route | What it shows |
+| --- | --- |
+| `/settings/badges` | The badge picker, all 124 options, avatar layout |
+| `/settings/hankies` | 24 hanky colours at three sizes |
+| `/settings/kelpie-marks` | Five Kelpie mode marks |
+| `/settings/pulse-effects` | Fourteen ekg treatments on a pin |
+| `/feed/photo-preview` | Three ways feed photos could read |
+
+These are the pattern to copy: a page that renders the thing at every size it will
+actually appear, including inside a real badge chip, so the decision is made against the
+real object rather than a swatch.
+
+## The badge system, since most of the visual work touches it
+
+`src/app/components/BadgePickerPreview.tsx` is the screen. It imports:
+
+| File | Carries |
+| --- | --- |
+| `BdsmEmblems.tsx` | The community emblem set |
+| `OwnershipGlyphs.tsx` | Collar emblems |
+| `CommunityGlyphs.tsx` | Trans, T4T, nonbinary, labrys, poly, ace, gender pairs |
+| `PositionRoleGlyphs.tsx` | Positions as direction |
+| `ZodiacGlyphs.tsx` | Twelve signs |
+| `BadgeGlyphs.tsx` | Lips, tongue, keyhole eye, straight edge, party hat, Kelpie |
+| `BadgeFrames.tsx` | Twenty-one frames |
+| `HankyFrame.tsx` | Twenty-four colours plus their meanings |
+| `src/app/lib/badgeIntent.ts` | give / receive / switch / service, and the label format |
+
+**How the emblem set reads.** Four channels at once, which is why one icon never covered
+it: the frame is the role (chevron dominant, square submissive, hexagon switch), an arrow
+inside is the position, a nested outline is how deep it goes, four corner dots mean taken.
+A top and a dominant are not the same thing and this set is what makes that legible.
+
+**How frames work.** Almost every gender symbol is a circle with something attached. So
+the chip stays the circle it already was, at the size it already was, and a frame only
+adds arms outside it. A framed badge sits further from the heart than a plain one and
+never overlaps it. Only the border and the attached arms change.
+
+**The hanky carries no icon.** The hanky code is a colour code. It is the single place in
+the app where a badge is not flat white.
+
+## Geometry you will need
+
+Copied from the map so anything you build matches what it draws.
+
+```
+heart pin unit        h-20 w-[103px]        (80px tall, 103px wide)
+hover scale           scale-[1.38]
+badge chip            h-[1.5625rem] w-[1.5625rem]   (25px)
+chip offset           left-[-0.25rem] / right-[-0.25rem], top-[62%]
+border width          3.2px, on the heart and the chip alike
+heart border, self    #004BFF
+heart border, mutual  #6f00ff
+heart border, nearby  #FF0072
+ping green            #C8FF31
+marker clearance      MARKER_CLEARANCE_PX in MapView, derived from the unit width
+```
+
+CSS tokens in `src/styles/theme.css`: `--cruush-gradient` (bright),
+`--cruush-gradient-soft-18` and `-28` (the bright gradient dimmed by a black layer),
+`--cruush-logo`.
+
+## Rules that have to hold
+
+From `docs/design-master.md` and the corrections that produced it. These are not
+preferences; breaking them is what gets reverted.
+
+- Signal is **35 characters**, one line, never wraps, and the limit is stated wherever a
+  signal can be edited.
+- Icons are **flat white or gradient**. Two finishes, nothing else. The hanky is the one
+  exception.
+- **Green belongs to Pulse. Red belongs to the bug control** and nothing else. The bug
+  control lives in the top-right corner at every size, may sit on top of other controls,
+  and must not be moved.
+- **Nothing covers the top chrome, the bottom nav, or a popup. No pin overlaps another
+  pin, ever.**
+- Your own pin and your Ghost decoy never move. The decoy sits exactly where the server
+  placed it until its rotation moves it.
+- Icon controls are circles. Worded controls are pills.
+- Vibe capsules appear on **profile previews only**.
+- **No second taglines.** One line or none.
+- Page headers keep the title and the icon buttons on one line at any width, popped out or
+  not.
+- Public copy never uses an em dash.
+- Two fonts: Spectral for everything, UnifrakturMaguntia for the logo. Never a mono.
+- Do not add anything nobody asked for. No speculative copy, captions, decoration, or fake
+  data.
+
+## Work worth taking, roughly in order
+
+**1. Frames and zodiac have never been looked at.** Twenty-one frames and twelve glyphs
+are drawn and unrendered. Build a page like `/settings/kelpie-marks` showing each at mark
+size, control size, on the gradient, and inside a real chip. Expect several to need
+redrawing; the gender frames especially, since the arms were placed by arithmetic rather
+than by eye.
+
+**2. The hanky clips at chip size.** The diamond's points are cut off by the round chip.
+Square it, or inset it so the points clear. `HankyFrame.tsx`, one component.
+
+**3. The Kelpie page has five marks and four are weak.** Only the water horse reads. Pick
+one, delete the rest, and wire it into Ghost Mode settings, which is where Julien said it
+belongs rather than on the badge picker.
+
+**4. Ghost exit animation.** The idea on the table: the last 40% of the tips fade to white
+then down to about 10% opacity, with the horns a darker blue falling into the electric
+blue. Build it against the map's darkest *and* lightest areas before committing to the
+curve, or the white tips vanish into pale streets instead of fading. `theme.css` carries
+the current animation; `MapView.tsx` triggers it.
+
+**5. Top-bar Ghost icon should match the colours of the ghost in the exit animation.**
+
+**6. Controls read small around 880px**, which falls between the mobile and desktop
+sizing. `MapHome.tsx` top bar.
+
+**7. Page headers on one line** for Messages, Notifications, Settings. Title and icon
+buttons, any width, popped out or not.
+
+**8. Skeleton loading states.** Julien described it as "a ghost of the thing loading
+appearing as it loads."
+
+**9. Profile**: desktop overlay mode with the details over the photos and the photos
+visible underneath; less scrolling; bigger gallery hearts.
+
+**10. Feed**: photos in posts, heart-shaped previews that expand on tap, hover reactions
+in white cruush icons, feed profile pins at 4:5.
+
+## Known asset problem
+
+`dl-mode-white.png` and `dl-mode-colored.png` are 512×512 with the ink running flush to
+the top and bottom rows and 87 and 88 pixels of padding on the sides. Beside icons that
+have breathing room it reads as cropped. CSS cannot fix it; the asset needs re-exporting
+with vertical padding.
+
+## Files the plumbing branch has open
+
+These will conflict. Everything not listed is fair game.
+
+```
+src/app/components/MapView.tsx
+src/app/components/MapHome.tsx
+src/app/components/ProfileEdit.tsx
+server/src/routes/users.ts
+server/src/routes/privacy.ts
+server/src/routes/profiles.ts
+server/src/travel-pins.ts
+server/src/profile-schema.ts
+server/src/profile-sensitive.ts
+server/src/policy-mapper.ts
+server/src/push-service.ts
+server/src/notification-service.ts
+```
+
+Map work is the awkward one: `MapView.tsx` and `MapHome.tsx` are both held, and items 4,
+5, and 6 above live in them. Either coordinate on those three, or take them after the
+plumbing branch lands.
