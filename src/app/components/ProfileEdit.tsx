@@ -49,6 +49,7 @@ import {
   IDENTITIES,
   KINK_GROUPS,
   LOOKING_FOR,
+  RELATIONSHIP_STATUS,
   MAX_PROFILE_SEXUALITIES,
   MPOX_VACCINE,
   normalizeCrowdValues,
@@ -517,6 +518,7 @@ function toProfileSavePayload(profile: ProfilePayload, kinkLimit: number = MAX_P
     crowds: sanitizeCrowds(profile),
     availability: limitToThree(profile.availability ?? []),
     hosting_travel: limitToThree(profile.hosting_travel ?? []),
+    relationship_status: limitToThree(profile.relationship_status ?? []),
     kinks: limitKinks(profile.kinks ?? [], kinkLimit),
     kink_interests: Number.isFinite(kinkLimit)
       ? sanitizeKinkInterests(profile).slice(-kinkLimit)
@@ -1259,6 +1261,18 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
           </TabsContent>
 
           <TabsContent value="intimacy" className="space-y-6 mt-6">
+            <div className="space-y-2">
+              <Label>Relationship status</Label>
+              <MultiSelect
+                {...profileMenuProps}
+                ariaLabel="Relationship status"
+                maxSelections={MAX_PROFILE_GROUP_SELECTIONS}
+                options={RELATIONSHIP_STATUS}
+                value={normalizedProfile.relationship_status}
+                onChange={(vals) => handleChange('relationship_status', limitToThree(vals))}
+              />
+            </div>
+
             <div className="space-y-2">
               <Label>Looking For</Label>
               <MultiSelect {...profileMenuProps} maxSelections={MAX_PROFILE_GROUP_SELECTIONS} options={LOOKING_FOR} value={normalizedProfile.looking_for} onChange={(vals) => handleChange('looking_for', limitToThree(vals))} />

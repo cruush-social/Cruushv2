@@ -31,10 +31,27 @@ import {
   TransGlyph,
 } from './CommunityGlyphs';
 import {
-  DominantGlyph,
+  BottomEmblem,
+  BondedEmblem,
+  CollaredEmblem,
+  DomEmblem,
+  DomSwitchEmblem,
+  DomTakenEmblem,
+  MasterEmblem,
+  SubEmblem,
+  SubSwitchEmblem,
+  SwitchEmblem,
+  SwitchTakenEmblem,
+  TopEmblem,
+  TopSwitchEmblem,
+  BottomSwitchEmblem,
+} from './BdsmEmblems';
+import {
+  PillowPrincessGlyph,
   ServiceGlyph,
-  SubmissiveGlyph,
-  SwitchGlyph,
+  SideGlyph,
+  StoneTopGlyph,
+  VersatileGlyph,
 } from './PositionRoleGlyphs';
 import {
   ArrowDown,
@@ -140,10 +157,17 @@ const BADGE_OPTIONS: BadgeOption[] = [
   { id: 'cum-play', label: 'Cum play', icon: Droplets, group: 'Acts' },
 
   // Power: who is leading, and how hard.
-  { id: 'dominant', label: 'Dominant', icon: DominantGlyph, group: 'Power' },
-  { id: 'submissive', label: 'Submissive', icon: SubmissiveGlyph, group: 'Power' },
-  { id: 'switch', label: 'Switch', icon: SwitchGlyph, group: 'Power' },
+  { id: 'dominant', label: 'Dominant', icon: DomEmblem, group: 'Power' },
+  { id: 'master', label: 'Master', icon: MasterEmblem, group: 'Power' },
+  { id: 'submissive', label: 'Submissive', icon: SubEmblem, group: 'Power' },
+  { id: 'bonded', label: 'Bonded', icon: BondedEmblem, group: 'Power' },
+  { id: 'switch', label: 'Switch', icon: SwitchEmblem, group: 'Power' },
+  { id: 'dom-switch', label: 'Dom switch', icon: DomSwitchEmblem, group: 'Power' },
+  { id: 'sub-switch', label: 'Sub switch', icon: SubSwitchEmblem, group: 'Power' },
   { id: 'service', label: 'Service', icon: ServiceGlyph, group: 'Power' },
+  { id: 'dom-taken', label: 'Dom, taken', icon: DomTakenEmblem, group: 'Power' },
+  { id: 'collared-sub', label: 'Collared sub', icon: CollaredEmblem, group: 'Power' },
+  { id: 'switch-taken', label: 'Switch, taken', icon: SwitchTakenEmblem, group: 'Power' },
   { id: 'bondage', label: 'Bondage', icon: Link2, group: 'Power' },
   { id: 'rope', label: 'Rope', icon: Spline, group: 'Power' },
   { id: 'impact', label: 'Impact', icon: Hammer, group: 'Power' },
@@ -157,6 +181,17 @@ const BADGE_OPTIONS: BadgeOption[] = [
   { id: 'breath', label: 'Breath', icon: Wind, group: 'Power' },
   { id: 'watersports', label: 'Watersports', icon: Droplet, group: 'Power' },
   { id: 'age-play', label: 'Age play', icon: Baby, group: 'Power' },
+
+  // Position: the other axis. The emblem set says this with an arrow, because a
+  // top and a dominant are not the same thing.
+  { id: 'top', label: 'Top', icon: TopEmblem, group: 'Position' },
+  { id: 'bottom', label: 'Bottom', icon: BottomEmblem, group: 'Position' },
+  { id: 'versatile', label: 'Versatile', icon: VersatileGlyph, group: 'Position' },
+  { id: 'vers top', label: 'Vers top', icon: TopSwitchEmblem, group: 'Position' },
+  { id: 'vers bottom', label: 'Vers bottom', icon: BottomSwitchEmblem, group: 'Position' },
+  { id: 'side', label: 'Side', icon: SideGlyph, group: 'Position' },
+  { id: 'stone top', label: 'Stone top', icon: StoneTopGlyph, group: 'Position' },
+  { id: 'pillow princess', label: 'Pillow princess', icon: PillowPrincessGlyph, group: 'Position' },
 
   // Collar: where you stand, in the emblems the community already uses. The
   // inner mark says whose gender is meant, not yours.

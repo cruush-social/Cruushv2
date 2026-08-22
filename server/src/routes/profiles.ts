@@ -550,6 +550,7 @@ function mapProfileRow(
     custom_mpox_vaccine: row.custom_mpox_vaccine ?? "",
     health_preferences: sensitiveProfile?.health_preferences ?? [],
     birth_control: sensitiveProfile?.birth_control ?? [],
+    relationship_status: sensitiveProfile?.relationship_status ?? [],
     substance_boundaries: row.substance_boundaries ?? [],
     ...((row.badges?.length ?? 0) > 0 ? { badges: row.badges } : {}),
     visibility_rules: includePrivateSensitive ? visibilityRules ?? emptyProfile.visibility_rules : emptyProfile.visibility_rules,
@@ -591,7 +592,8 @@ function fallbackSensitiveProfile(): SensitiveProfileData {
     hiv_status: [],
     custom_hiv_status: "",
     health_preferences: [],
-    birth_control: []
+    birth_control: [],
+    relationship_status: []
   };
 }
 

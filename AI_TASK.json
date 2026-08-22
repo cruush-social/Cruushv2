@@ -80,6 +80,7 @@
     "src/app/components/Auth.tsx",
     "src/app/components/BadgeGlyphs.tsx",
     "src/app/components/BadgePickerPreview.tsx",
+    "src/app/components/BdsmEmblems.tsx",
     "src/app/components/BottomNav.test.tsx",
     "src/app/components/BottomNav.tsx",
     "src/app/components/Changelog.tsx",

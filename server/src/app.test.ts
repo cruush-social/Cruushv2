@@ -12508,6 +12508,7 @@ describe("server", () => {
         availability: ["Tonight"],
         hosting_travel: ["Hosting"],
         birth_control: [],
+        relationship_status: [],
         kinks: ["Leather"],
         kinks_visibility: "mutual_crowds",
         kink_interests: [{
@@ -12580,6 +12581,7 @@ describe("server", () => {
         availability: ["Tonight"],
         hosting_travel: ["Hosting"],
         birth_control: [],
+        relationship_status: [],
         kinks: ["Leather"],
         kinks_visibility: "mutual_crowds",
         kink_interests: [{
@@ -12647,6 +12649,7 @@ describe("server", () => {
     expect(response.json()).toEqual({
       data: expect.objectContaining({
         birth_control: [],
+        relationship_status: [],
         kinks: ["Leather"],
         kinks_visibility: "mutual_crowds",
         kink_interests: [{
@@ -13393,6 +13396,7 @@ describe("server", () => {
         id: userId,
         ...payload,
         birth_control: [],
+        relationship_status: [],
         health_preferences: [],
         year_of_birth: 1994,
         photo_metadata: [],

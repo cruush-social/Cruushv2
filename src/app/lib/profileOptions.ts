@@ -249,6 +249,49 @@ export const KINK_CATALOG = [
   { id: 'spit', label: 'spit', category: 'Other / Discuss' },
 ].sort((a, b) => a.label.localeCompare(b.label));
 
+/**
+ * Where you stand with other people. Long on purpose: someone reading a profile
+ * before they cross a city deserves the real answer, and "it's complicated" is
+ * a real answer.
+ */
+export const RELATIONSHIP_STATUS = [
+  'Single',
+  'Single and looking',
+  'Single, not looking',
+  'Newly single',
+  'Talking to someone',
+  'Situationship',
+  'Casually dating',
+  'Dating around',
+  'Seeing someone',
+  'Exclusive',
+  'Partnered',
+  'Committed',
+  'Engaged',
+  'Married',
+  'Domestic partnership',
+  'Long distance',
+  'Monogamish',
+  'Open relationship',
+  'Ethically non-monogamous',
+  'Polyamorous',
+  'Solo poly',
+  'Relationship anarchy',
+  'Nesting partner',
+  'Comet',
+  'Swinging',
+  "Don't ask don't tell",
+  'Partner knows',
+  'Taking a break',
+  'Separated',
+  'Divorced',
+  'Widowed',
+  "It's complicated",
+  "Let's discuss",
+  'Ask me',
+  'Prefer not to say',
+];
+
 export const KINKS = KINK_CATALOG.map((kink) => kink.label);
 
 export const KINK_GROUPS = [
