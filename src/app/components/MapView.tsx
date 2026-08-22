@@ -1430,6 +1430,51 @@ function LaunchPartyMarker({ marker }: { marker: MapMarker }) {
   );
 }
 
+export // A Pulse draws an ekg across the pin and through its caption on the same beat.
+// Both sit light so a face still reads through them.
+const PULSE_EKG_PIN_PATH = 'M2 26h6q1.2 -2 2.4 0h1.6l1 2.6 1.4 -17 1.4 20 1 -5.6q2.6 -5 5.2 0h7';
+const PULSE_EKG_SIGNAL_PATH = 'M0 6h7q1 -1.6 2 0h1.4l0.8 2 1.2 -5.4 1.2 6.6 0.8 -2q2 -1.8 4 0h23.6';
+
+function PulseEkgTrace({ variant }: { variant: 'pin' | 'signal' }) {
+  const isPin = variant === 'pin';
+
+  return (
+    <svg
+      aria-hidden="true"
+      className={isPin
+        ? 'pointer-events-none absolute left-1/2 top-[52%] z-20 h-12 w-[6.1rem] -translate-x-1/2 -translate-y-1/2'
+        : 'pointer-events-none absolute inset-0 h-full w-full'}
+      data-testid={`pulse-ekg-${variant}`}
+      fill="none"
+      preserveAspectRatio={isPin ? undefined : 'none'}
+      viewBox={isPin ? '0 0 42 42' : '0 0 42 12'}
+    >
+      {isPin ? (
+        <g style={{ filter: 'blur(1.6px)' }}>
+          <path
+            className="cruush-pulse-ekg-draw"
+            d={PULSE_EKG_PIN_PATH}
+            stroke="#C8FF31"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeOpacity="0.5"
+            strokeWidth="2.6"
+          />
+        </g>
+      ) : null}
+      <path
+        className="cruush-pulse-ekg-draw"
+        d={isPin ? PULSE_EKG_PIN_PATH : PULSE_EKG_SIGNAL_PATH}
+        stroke={isPin ? '#EDFFB4' : '#C8FF31'}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeOpacity={isPin ? 0.85 : 0.5}
+        strokeWidth={isPin ? 1 : 0.9}
+      />
+    </svg>
+  );
+}
+
 export function MapMarkerPin({ marker, previewed = false }: { marker: MapMarker; previewed?: boolean }) {
   const isCurrentUser = marker.isCurrentUser === true;
   const isPerson = marker.kind == null || marker.kind === 'person';
@@ -1464,6 +1509,7 @@ export function MapMarkerPin({ marker, previewed = false }: { marker: MapMarker;
               <MarkerHeart marker={marker} isCurrentUser={isCurrentUser} />
               <MarkerBadge marker={marker} isCurrentUser={isCurrentUser} />
               <MarkerRelationshipBadge marker={marker} isCurrentUser={isCurrentUser} />
+              {pingActive ? <PulseEkgTrace variant="pin" /> : null}
             </span>
             {signalPreview && !exitActive ? (
               <span
@@ -1472,7 +1518,7 @@ export function MapMarkerPin({ marker, previewed = false }: { marker: MapMarker;
                 data-testid={`marker-signal-stack-${marker.id}`}
               >
                 <span
-                  className={`rounded-full border border-[3.2px] bg-black/86 px-3 py-1 text-center text-[0.7rem] font-semibold leading-tight text-white backdrop-blur-md ${pingActive ? 'cruush-ping-signal-trace' : ''}`}
+                  className="relative overflow-hidden rounded-full border border-[3.2px] bg-black/86 px-3 py-1 text-center text-[0.7rem] font-semibold leading-tight text-white backdrop-blur-md"
                   data-testid={`marker-signal-badge-${marker.id}`}
                   style={{
                     backgroundColor: 'rgba(0, 0, 0, var(--cruush-ghost-surface-alpha, 0.86))',
@@ -1480,7 +1526,8 @@ export function MapMarkerPin({ marker, previewed = false }: { marker: MapMarker;
                     borderWidth: '3.2px',
                   } as CSSProperties}
                 >
-                  <span className="cruush-ghost-rotation-signal-symbol">{signalPreview}</span>
+                  {pingActive ? <PulseEkgTrace variant="signal" /> : null}
+                  <span className="cruush-ghost-rotation-signal-symbol relative">{signalPreview}</span>
                 </span>
               </span>
             ) : null}

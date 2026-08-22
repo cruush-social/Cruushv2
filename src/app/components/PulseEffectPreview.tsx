@@ -11,25 +11,48 @@ import { HEART_PIN_PATH } from '../lib/heartPin';
 
 const SIGNAL = 'Gallery hop, then dancing';
 
-function Unit({ children, traceSignal = false, beating = false, signalTrace = false }: {
+function Unit({ children, traceSignal = false, beating = false, signalTrace = false, signalTopTrace = false }: {
   children?: React.ReactNode;
   traceSignal?: boolean;
   /** Runs the map's own heartbeat on the whole unit, caption included. */
   beating?: boolean;
   /** Runs the trace behind the caption text instead of over the photo. */
   signalTrace?: boolean;
+  /** Runs the trace along the caption's top edge, so the border is the line. */
+  signalTopTrace?: boolean;
 }) {
   return (
     <span
       className="relative flex h-20 w-[103px] origin-bottom items-end justify-center"
       style={beating ? { animation: 'cruush-map-ping-heart-pulse 1.35s ease-in-out infinite' } : undefined}
     >
-      <span
-        className={`absolute left-1/2 top-0 w-max max-w-[16rem] -translate-x-1/2 -translate-y-full overflow-hidden rounded-full border border-[3.2px] bg-black/86 px-3 py-1 text-center text-[0.7rem] font-semibold leading-tight text-white backdrop-blur-md ${
-          traceSignal ? 'cruush-ping-signal-trace' : ''
-        }`}
-        style={{ borderColor: '#C8FF31' }}
-      >
+      <span className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-full">
+        {signalTopTrace ? (
+          /* The caption's top edge is the trace: the flat baseline sits on the
+             border and only the spike breaks above it. */
+          <svg
+            aria-hidden="true"
+            className="pointer-events-none absolute -top-5 left-0 z-10 h-6 w-full overflow-visible"
+            fill="none"
+            preserveAspectRatio="none"
+            viewBox="0 0 42 12"
+          >
+            <path
+              className="cruush-pulse-ekg-draw"
+              d="M0 10h13.6q1 -1.4 2 0h1.4l0.8 1.5 1.2 -8 1.2 9 0.8 -2.5q2 -1.6 4 0h16"
+              stroke="#C8FF31"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="1.1"
+            />
+          </svg>
+        ) : null}
+        <span
+          className={`relative block w-max max-w-[16rem] overflow-hidden rounded-full border border-[3.2px] bg-black/86 px-3 py-1 text-center text-[0.7rem] font-semibold leading-tight text-white backdrop-blur-md ${
+            traceSignal ? 'cruush-ping-signal-trace' : ''
+          }`}
+          style={{ borderColor: '#C8FF31' }}
+        >
         {signalTrace ? (
           <svg
             aria-hidden="true"
@@ -50,6 +73,7 @@ function Unit({ children, traceSignal = false, beating = false, signalTrace = fa
           </svg>
         ) : null}
         <span className="relative">{SIGNAL}</span>
+        </span>
       </span>
       <span className="relative block w-20">
         {children}
@@ -263,6 +287,18 @@ const EXAMPLES = [
     title: 'Ekg in both, beating',
     note: 'Trace inside the caption and across the pin, on the same beat.',
     render: () => <Unit beating signalTrace><EkgTrace /></Unit>,
+  },
+  {
+    id: 'signal-top',
+    title: 'Ekg across the top of the signal',
+    note: 'The caption\u2019s top edge becomes the trace. The spike breaks above the border and nothing touches the photo.',
+    render: () => <Unit signalTopTrace />,
+  },
+  {
+    id: 'signal-top-beat',
+    title: 'Ekg across the top, beating',
+    note: 'The same top edge trace while the whole unit runs the heartbeat.',
+    render: () => <Unit beating signalTopTrace />,
   },
 ] as const;
 
