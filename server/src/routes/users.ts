@@ -29,7 +29,7 @@ import { canStartDirectMessage } from "../cruush-match-settings.js";
 import { loadBlockedRelationshipUserIds } from "../user-blocks.js";
 import { DEFAULT_MAP_PRESENCE_DAYS } from "../map-presence.js";
 import { DEVELOPMENT_ADMIN_EMAIL } from "../development-admin.js";
-import { isWithinBetaLaunchArea } from "../beta-access.js";
+import { distanceMiles, isWithinBetaLaunchArea } from "../beta-access.js";
 import { primaryPhotoExplicitSelect } from "../profile-photo-explicit.js";
 import {
   DEFAULT_GHOST_RADIUS_METERS,
@@ -41,6 +41,7 @@ import {
   locationPayloadToCoordinates,
   describeGhostRotation,
   makeDisplayLocationToken,
+  resolveViewerGhostCoordinate,
   type DisplayMode,
   type LocationPayload
 } from "../location-privacy.js";
@@ -124,6 +125,7 @@ type ActiveDiscoveryMapPingRow = {
   id: string;
   user_id: string;
   expires_at: string | Date;
+  radius_miles: number;
 };
 
 const queryArrayField = z.preprocess((value) => {
@@ -867,6 +869,16 @@ async function mapModernDiscoveryRow(
   const ghostRotation = displayMode === "GHOST"
     ? await describeGhostRotation(app, row.id, policy)
     : null;
+  // The coordinates this viewer is actually shown. A Ghost profile is measured
+  // from its decoy so the radius check can never read through it.
+  const shownCoordinates = displayMode === "GHOST"
+    ? (await resolveViewerGhostCoordinate(app, {
+        subjectUserId: row.id,
+        viewerUserId,
+        policy,
+        location
+      })).coordinate
+    : preciseCoordinates;
   const latestFeedPostPreview = canViewLatestFeedPreview(row, viewerUserId, relationship)
     ? decryptTextContentOrFallback(app.config, "feed", {
         ciphertext: row.latest_feed_post_content_ciphertext ?? undefined,
@@ -894,6 +906,8 @@ async function mapModernDiscoveryRow(
     }),
     displayLocationToken,
     displayExpiresAtMs: displayLocationToken.expiresAtMs,
+    __pulseLat: shownCoordinates.lat,
+    __pulseLng: shownCoordinates.lng,
     // The hint has to come from this profile's own rotation window. Reporting
     // FADE_LAST_MINUTE for every ghost profile left them all permanently faded
     // instead of only during the last minute before their pin moves.
@@ -998,14 +1012,15 @@ async function canUseNpcGhostDemo(app: FastifyInstance, currentUserId: string, r
 
 async function loadActiveDiscoveryMapPings(app: FastifyInstance, profileIds: string[]) {
   if (profileIds.length === 0) {
-    return new Map<string, { id: string; expiresAt: string }>();
+    return new Map<string, { id: string; expiresAt: string; radiusMiles: number }>();
   }
 
   const result = await app.db.query<ActiveDiscoveryMapPingRow>(
     `select distinct on (user_id)
        id::text as id,
        user_id::text as user_id,
-       expires_at
+       expires_at,
+       radius_miles
      from map_pings
      where user_id = any($1::uuid[])
        and expires_at > now()
@@ -1017,7 +1032,8 @@ async function loadActiveDiscoveryMapPings(app: FastifyInstance, profileIds: str
     ping.user_id,
     {
       id: ping.id,
-      expiresAt: new Date(ping.expires_at).toISOString()
+      expiresAt: new Date(ping.expires_at).toISOString(),
+      radiusMiles: Number(ping.radius_miles)
     }
   ]));
 }
@@ -1155,6 +1171,10 @@ export async function registerUserRoutes(app: FastifyInstance) {
         })).then((rows) => rows.filter((row): row is NonNullable<typeof row> => row !== null));
 
     const visibleProfiles = realUsers.slice(0, parsedQuery.limit);
+    // The radius is measured from where this viewer actually is, never from the
+    // map centre they asked for. Panning across the city must not put anyone
+    // inside someone else's Pulse.
+    const viewerCoordinates = viewerLocation ? locationPayloadToCoordinates(viewerLocation) : null;
     const activePings = await loadActiveDiscoveryMapPings(
       app,
       visibleProfiles.map((profile) => profile.profileToken)
@@ -1163,10 +1183,28 @@ export async function registerUserRoutes(app: FastifyInstance) {
     return reply.send({
       data: {
         mapEpochMs: Date.now(),
-        profiles: visibleProfiles.map((profile) => ({
-          ...profile,
-          activePing: activePings.get(profile.profileToken) ?? null
-        }))
+        profiles: visibleProfiles.map((profile) => {
+          const ping = activePings.get(profile.profileToken) ?? null;
+          // A Pulse only reaches the radius its sender chose. Panning the map
+          // into someone's area is not the same as being near them, so the
+          // check uses this viewer's own position, measured against the point
+          // the viewer is shown so a decoy is never seen through. A row with no
+          // shown point carries no Pulse.
+          const { __pulseLat: shownLat, __pulseLng: shownLng, ...visible } =
+            profile as typeof profile & { __pulseLat?: number; __pulseLng?: number };
+          const withinPulseRadius =
+            ping !== null &&
+            viewerCoordinates !== null &&
+            Number.isFinite(ping.radiusMiles) &&
+            Number.isFinite(shownLat) &&
+            Number.isFinite(shownLng) &&
+            distanceMiles(viewerCoordinates!, { lat: shownLat as number, lng: shownLng as number }) <= ping.radiusMiles;
+
+          return {
+            ...visible,
+            activePing: withinPulseRadius && ping ? { id: ping.id, expiresAt: ping.expiresAt } : null
+          };
+        })
       }
     });
   });
