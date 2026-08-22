@@ -2153,7 +2153,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
 
           <div className="flex min-w-0 flex-1 justify-center">
             <div
-              className="cruush-map-top-actions pointer-events-auto mt-0 flex min-w-0 max-w-full items-center justify-center gap-0 rounded-full border border-white/10 bg-background/68 px-1 py-1 shadow-[0_20px_60px_rgba(0,0,0,0.42)] backdrop-blur-md transition-[width,margin,transform] sm:gap-0.5 sm:px-1.5"
+              className="cruush-map-top-actions pointer-events-auto mt-0 flex min-w-0 max-w-full items-center justify-center gap-0 rounded-full border border-white/10 bg-background/68 px-1 py-1 backdrop-blur-md transition-[width,margin,transform] sm:gap-0.5 sm:px-1.5"
               data-testid="map-top-actions"
             >
             <Button

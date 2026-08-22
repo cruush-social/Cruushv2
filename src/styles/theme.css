@@ -584,7 +584,7 @@ html[data-cruush-alpha-bug-corner='top-right'] [data-testid='accessibility-quick
     position: relative;
     overflow: hidden;
     isolation: isolate;
-    transition: transform 160ms ease, filter 160ms ease, box-shadow 160ms ease;
+    transition: transform 160ms ease, filter 160ms ease;
   }
 
   .cruush-action-sheen::after {
@@ -619,7 +619,6 @@ html[data-cruush-alpha-bug-corner='top-right'] [data-testid='accessibility-quick
   .cruush-action-sheen:focus-visible {
     transform: translateY(-1px);
     filter: brightness(1.12);
-    box-shadow: 0 12px 30px rgba(111, 0, 255, 0.36);
   }
 
   .cruush-action-sheen:hover::after,
