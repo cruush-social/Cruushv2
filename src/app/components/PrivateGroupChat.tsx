@@ -237,8 +237,10 @@ function getMessageSender(
     : null;
 }
 
-export default function PrivateGroupChat() {
-  const { chatId } = useParams();
+export default function PrivateGroupChat({ conversationId }: { conversationId?: string } = {}) {
+  const params = useParams();
+  // The dock renders this thread without a route of its own.
+  const chatId = conversationId ?? params.chatId;
   const navigate = useNavigate();
   const messagePhotoInputId = useId();
   const favoriteImageInputId = useId();

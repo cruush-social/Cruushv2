@@ -9,7 +9,8 @@ import CruushIconImage, { CruushIcon } from './CruushIconImage';
 import ProfilePhotoGallery from './ProfilePhotoGallery';
 import DesktopDockPanel from './DesktopDockPanel';
 import ProfileEdit from './ProfileEdit';
-import { ProfileDetailsTabs, profileRecordToProfileView } from './ProfileView';
+import { PROFILE_OVERLAY_TEXT_STYLE, ProfileDetailsTabs, profileRecordToProfileView } from './ProfileView';
+import { resolveVibeTone, vibeCapsuleStyle } from '../lib/vibeTone';
 import { revokeMutualCruush, revokeSentCruush, sendCruush } from '../lib/cruushApi';
 import {
   handleCruushSendSuccess,
@@ -30,6 +31,8 @@ interface MapProfilePopupProps {
   fixed?: boolean;
   isOwnProfile?: boolean;
   onBlockedUser?: (userId: string) => void;
+  /** Desktop keeps the map up and opens the thread in the other dock. */
+  onOpenMessages?: (userId: string) => void;
   onProfileSaved?: (profile: ProfileRecord) => void;
 }
 
@@ -39,6 +42,7 @@ export default function MapProfilePopup({
   fixed = false,
   isOwnProfile = false,
   onBlockedUser,
+  onOpenMessages,
   onProfileSaved,
 }: MapProfilePopupProps) {
   const navigate = useNavigate();
@@ -135,7 +139,12 @@ export default function MapProfilePopup({
   const isAlreadyMutual = !isOwnProfile && !mutualRevoked && (cruushBecameMutual || profileView?.relationship?.mutual_cruush === true || user.relationship?.mutualCruush === true);
   const hasSentCruush = !isAlreadyMutual && !outgoingRevoked && (cruushed || profileView?.relationship?.outgoing_cruush === true);
   const hasRevocableCruush = isAlreadyMutual || hasSentCruush;
-  const canMessage = profileView?.relationship ? profileView.relationship.can_message : user.relationship?.canMessage;
+  // A mutual can always message, which is the rule the server applies too, so a
+  // stale or missing relationship payload never blocks a match.
+  const isMutualCruush = profileView?.relationship?.mutual_cruush === true
+    || user.relationship?.mutualCruush === true;
+  const canMessage = isMutualCruush
+    || (profileView?.relationship ? profileView.relationship.can_message : user.relationship?.canMessage);
   const cruushDisabled = isDemo || sendingCruush || revokingCruush;
 
 
@@ -205,6 +214,11 @@ export default function MapProfilePopup({
 
     setOpeningMessage(true);
     try {
+      if (onOpenMessages) {
+        onOpenMessages(user.id);
+        return;
+      }
+
       await openConversationOrInbox(navigate, user.id);
     } finally {
       setOpeningMessage(false);
@@ -312,6 +326,35 @@ export default function MapProfilePopup({
               <CruushIconImage src={mapIconWhite} className="h-4 w-4" />
               <span>{displayDistance || 'Nearby'}</span>
             </div>
+
+            {/* The photo carries the signal and the vibes here too, the way it
+                does on the profile page. */}
+            {profileView?.signal ? (
+              <p
+                className="mt-2 line-clamp-2 text-base leading-snug text-white"
+                data-testid="popup-overlay-signal"
+                style={PROFILE_OVERLAY_TEXT_STYLE}
+              >
+                {profileView.signal}
+              </p>
+            ) : null}
+
+            {profileView?.vibes.length ? (
+              <div className="mt-2 flex flex-wrap gap-1.5" data-testid="popup-overlay-vibes">
+                {profileView.vibes.slice(0, 3).map((vibe) => (
+                  <span
+                    className="rounded-full border px-2 py-0.5 text-[11px] uppercase leading-tight tracking-[0.08em]"
+                    key={vibe}
+                    style={vibeCapsuleStyle(resolveVibeTone({
+                      mutual: profileView.relationship?.mutual_cruush,
+                      isCurrentUser: isOwnProfile,
+                    }))}
+                  >
+                    {vibe}
+                  </span>
+                ))}
+              </div>
+            ) : null}
           </div>
         </div>
 

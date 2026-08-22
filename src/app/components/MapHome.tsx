@@ -627,6 +627,9 @@ export default function MapHome(_props: MapHomeProps = {}) {
   const [selectedUser, setSelectedUser] = useState<DiscoveryUser | null>(null);
   const [luckySlot, setLuckySlot] = useState<LuckySlotState | null>(null);
   const [sidePanelView, setSidePanelView] = useState<MapSidePanelView | null>(null);
+  // Opening a thread from a profile popup keeps the map up and puts the
+  // conversation in the other dock instead of leaving for the inbox.
+  const [pendingMessageUserId, setPendingMessageUserId] = useState<string | null>(null);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [isRecentlyActiveOpen, setIsRecentlyActiveOpen] = useState(false);
   const [filters, setFilters] = useState<FilterState>(() => routeState?.seekingFilters ?? DEFAULT_FILTER_STATE);
@@ -2333,7 +2336,11 @@ export default function MapHome(_props: MapHomeProps = {}) {
         {!usesFullPageProfile && sidePanelView ? (
           <MapSidePanel
             view={sidePanelView}
-            onClose={() => setSidePanelView(null)}
+            openConversationWithUserId={pendingMessageUserId}
+            onClose={() => {
+              setSidePanelView(null);
+              setPendingMessageUserId(null);
+            }}
           />
         ) : null}
 
@@ -2344,6 +2351,10 @@ export default function MapHome(_props: MapHomeProps = {}) {
             fixed={selectedUser.isCurrentUser === true}
             isOwnProfile={selectedUser.isCurrentUser === true}
             onBlockedUser={handleBlockedUser}
+            onOpenMessages={(userId) => {
+              setPendingMessageUserId(userId);
+              setSidePanelView('messages');
+            }}
             onProfileSaved={(savedProfile) => {
               const nextProfile = {
                 ...emptyProfilePayload,

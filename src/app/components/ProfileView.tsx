@@ -3,7 +3,7 @@ import type { CSSProperties, ReactNode } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { resolveMediaUrl } from '../lib/apiClient';
 import { useLocation, useNavigate, useParams } from 'react-router';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import BlockUserAction from './BlockUserAction';
@@ -38,7 +38,7 @@ const PROFILE_VIEW_HEADER_HEIGHT = '4.3125rem';
 const PROFILE_VIEW_STYLE = {
   '--profile-view-header-height': PROFILE_VIEW_HEADER_HEIGHT,
 } as CSSProperties;
-const PROFILE_OVERLAY_TEXT_STYLE = {
+export const PROFILE_OVERLAY_TEXT_STYLE = {
   textShadow: [
     '1px 0 0 #000',
     '-1px 0 0 #000',
@@ -618,6 +618,33 @@ export default function ProfileView() {
             className="max-h-full max-w-full object-contain"
             src={resolveMediaUrl(expandedPhoto)}
           />
+
+          {/* A way out, and a way to report what you are looking at. */}
+          <div
+            className="absolute right-3 top-[calc(0.75rem+env(safe-area-inset-top))] flex items-center gap-2"
+            onClick={(event) => event.stopPropagation()}
+          >
+            {isOwnProfile ? null : (
+              <div className="rounded-full border border-white/12 bg-black/55 backdrop-blur-sm">
+                <ReportAction
+                  label="Report this profile photo"
+                  targetId={expandedPhoto}
+                  targetLabel={`a photo from ${profileView.name}`}
+                  targetType="profile_photo"
+                  targetUserId={userId}
+                />
+              </div>
+            )}
+            <button
+              aria-label="Close photo"
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-white/12 bg-black/55 text-white backdrop-blur-sm"
+              data-testid="profile-photo-viewer-close"
+              onClick={() => setExpandedPhoto(null)}
+              type="button"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
         </div>
       ) : null}
 
