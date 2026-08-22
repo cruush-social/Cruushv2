@@ -59,7 +59,7 @@ export default function ProfileActionTrio({
         type="button"
         size="icon"
         variant="secondary"
-        className={`${sizeClass} shrink-0 rounded-full border-0 text-white transition hover:brightness-110 disabled:opacity-100`}
+        className={`cruush-action-sheen ${sizeClass} shrink-0 rounded-full border-0 text-white disabled:opacity-100`}
         style={{
           background: cruushTone === 'dark' || cruushState === 'sent' || cruushState === 'sending'
             ? 'var(--cruush-gradient-soft-28)'
@@ -83,7 +83,7 @@ export default function ProfileActionTrio({
           type="button"
           size="icon"
           variant="secondary"
-          className={`${sizeClass} shrink-0 rounded-full border-0 text-white transition hover:brightness-110`}
+          className={`cruush-action-sheen ${sizeClass} shrink-0 rounded-full border-0 text-white`}
           style={{ background: 'var(--cruush-gradient)' }}
           aria-label={`Message ${userName}`}
           title={`Message ${userName}`}
@@ -98,7 +98,7 @@ export default function ProfileActionTrio({
           type="button"
           size="icon"
           variant="secondary"
-          className={`${sizeClass} shrink-0 rounded-full border-0 text-white transition hover:brightness-110`}
+          className={`cruush-action-sheen ${sizeClass} shrink-0 rounded-full border-0 text-white`}
           style={{ background: 'var(--cruush-gradient)' }}
           aria-label={`Center the map on ${userName}`}
           title={`Center the map on ${userName}`}

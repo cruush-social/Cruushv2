@@ -945,7 +945,7 @@ function MarkerBadge({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
     <span
       aria-label={isCurrentUser ? 'Your profile' : badge?.label}
       className={[
-        'absolute flex h-[1.5625rem] w-[1.5625rem] items-center justify-center rounded-full border bg-black/85 text-white shadow-[0_4px_14px_rgba(0,0,0,0.55)] backdrop-blur-sm',
+        'absolute flex h-[1.5625rem] w-[1.5625rem] items-center justify-center rounded-full border bg-black/85 text-white backdrop-blur-sm',
         getHeartSideBadgeClass('right'),
         borderClass,
       ].join(' ')}
@@ -987,7 +987,7 @@ function MarkerRelationshipBadge({ marker, isCurrentUser }: { marker: MapMarker;
     <span
       aria-label={precisionLabel}
       className={[
-        'absolute flex h-[1.5625rem] w-[1.5625rem] items-center justify-center rounded-full border bg-black/85 text-white/78 shadow-[0_4px_14px_rgba(0,0,0,0.55)] backdrop-blur-sm',
+        'absolute flex h-[1.5625rem] w-[1.5625rem] items-center justify-center rounded-full border bg-black/85 text-white/78 backdrop-blur-sm',
         getHeartSideBadgeClass('left'),
         getMarkerBorderClass(marker, isCurrentUser),
       ].join(' ')}
@@ -1437,16 +1437,9 @@ function MapMarkerPin({ marker, previewed = false }: { marker: MapMarker; previe
   const signalPreview = isPerson ? truncateMarkerPreview(marker.signal) : '';
   const postPreview = isPerson ? truncateMarkerPreview(marker.latestFeedPostPreview) : '';
   const pingActive = Boolean(marker.activePing);
-  const signalBorderClass = pingActive
-    ? 'border-[#C8FF31]'
-    : (isCurrentUser && (marker.ownerStealthActive || marker.displayMode === 'GHOST')) || marker.npcGhostDemo
-      ? 'border-[#0BA8FF]'
-      : 'border-white/12';
-  const signalBorderColor = pingActive
-    ? '#C8FF31'
-    : (isCurrentUser && (marker.ownerStealthActive || marker.displayMode === 'GHOST')) || marker.npcGhostDemo
-      ? '#0BA8FF'
-      : 'rgba(255, 255, 255, 0.12)';
+  // The signal capsule wears the same border as the unit it belongs to, so the
+  // pin and its caption read as one object.
+  const signalBorderColor = getMarkerBorderColor(marker, isCurrentUser);
 
   if (marker.kind === 'cluster') {
     return isPersonCluster(marker) ? <PeopleClusterMarker marker={marker} /> : <VenueClusterMarker marker={marker} />;
@@ -1480,7 +1473,7 @@ function MapMarkerPin({ marker, previewed = false }: { marker: MapMarker; previe
                 data-testid={`marker-signal-stack-${marker.id}`}
               >
                 <span
-                  className={`rounded-full border bg-black/86 px-3 py-1 text-center text-[0.7rem] font-semibold leading-tight text-white shadow-[0_12px_30px_rgba(0,0,0,0.45)] backdrop-blur-md ${signalBorderClass}`}
+                  className="rounded-full border border-[3.2px] bg-black/86 px-3 py-1 text-center text-[0.7rem] font-semibold leading-tight text-white backdrop-blur-md"
                   data-testid={`marker-signal-badge-${marker.id}`}
                   style={{
                     backgroundColor: 'rgba(0, 0, 0, var(--cruush-ghost-surface-alpha, 0.86))',

@@ -501,37 +501,32 @@ export default function ProfileView() {
             </div>
           ) : null}
 
-          {profileView.vibes.length > 0 || profileView.signal ? (
-            <div className="mt-2 flex items-end justify-between gap-3">
-              {profileView.vibes.length > 0 ? (
-                <div className="flex min-w-0 flex-wrap gap-1.5" data-testid="profile-overlay-vibes">
-                  {profileView.vibes.slice(0, 3).map((vibe) => (
-                    <span
-                      className="rounded-full border px-2 py-0.5 text-[11px] uppercase leading-tight tracking-[0.08em]"
-                      key={vibe}
-                      style={vibeCapsuleStyle(resolveVibeTone({
-                        mutual: profileView.relationship?.mutual_cruush,
-                        isCurrentUser: isOwnProfile,
-                      }))}
-                    >
-                      {vibe}
-                    </span>
-                  ))}
-                </div>
-              ) : <span />}
+          {/* The signal is the line that sells the profile, so it reads at full
+              width on the photo rather than in a card under it. */}
+          {profileView.signal ? (
+            <p
+              className="mt-2 line-clamp-2 text-base leading-snug text-white sm:text-lg"
+              data-testid="profile-overlay-signal"
+              style={PROFILE_OVERLAY_TEXT_STYLE}
+            >
+              {profileView.signal}
+            </p>
+          ) : null}
 
-              {/* The signal balances the capsules on the other end of the same
-                  line, so the photo carries the two together. */}
-              {profileView.signal ? (
-                <p
-                  className="line-clamp-2 min-w-0 max-w-[52%] text-right text-[13px] leading-tight text-white"
-                  data-testid="profile-overlay-signal"
-                  style={PROFILE_OVERLAY_TEXT_STYLE}
-                  title={profileView.signal}
+          {profileView.vibes.length > 0 ? (
+            <div className="mt-2 flex flex-wrap gap-1.5" data-testid="profile-overlay-vibes">
+              {profileView.vibes.slice(0, 3).map((vibe) => (
+                <span
+                  className="rounded-full border px-2 py-0.5 text-[11px] uppercase leading-tight tracking-[0.08em]"
+                  key={vibe}
+                  style={vibeCapsuleStyle(resolveVibeTone({
+                    mutual: profileView.relationship?.mutual_cruush,
+                    isCurrentUser: isOwnProfile,
+                  }))}
                 >
-                  {profileView.signal}
-                </p>
-              ) : null}
+                  {vibe}
+                </span>
+              ))}
             </div>
           ) : null}
         </div>
@@ -559,18 +554,13 @@ export default function ProfileView() {
                 ) : null}
               </div>
               <CruushBadge badges={profileView.badges} />
-              {profileView.signal ? (
-                <p className="mt-3 rounded-2xl border border-white/10 bg-card/70 px-4 py-3 text-sm leading-6 text-foreground shadow-[0_12px_32px_rgba(0,0,0,0.24)]">
-                  {profileView.signal}
-                </p>
-              ) : null}
             </div>
 
             {!isOwnProfile ? (
               <div className="flex gap-2">
                 <Button
-                  className={`flex-1 rounded-xl border ${hasRevocableCruush
-                    ? 'border-transparent text-white hover:brightness-125'
+                  className={`cruush-action-sheen flex-1 rounded-xl border ${hasRevocableCruush
+                    ? 'border-transparent text-white'
                     : cruushDisabled
                       ? 'border-white/10 bg-white/[0.06] text-white/45'
                       : 'border-transparent text-white hover:brightness-110'}`}
@@ -591,7 +581,7 @@ export default function ProfileView() {
                   {revokingCruush ? (isAlreadyMutual ? 'removing...' : 'unsending...') : isAlreadyMutual ? 'remove mutual' : hasSentCruush ? 'unsend' : sendingCruush ? 'sending...' : 'cruush'}
                 </Button>
                 <Button
-                  className="flex-1 rounded-xl border border-[#6F00FF]/55 bg-[var(--cruush-gradient-soft-18)] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] hover:bg-[var(--cruush-gradient-soft-28)]"
+                  className="cruush-action-sheen flex-1 rounded-xl border border-[#6F00FF]/55 bg-[var(--cruush-gradient-soft-18)] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
                   onClick={() => {
                     void handleMessage();
                   }}

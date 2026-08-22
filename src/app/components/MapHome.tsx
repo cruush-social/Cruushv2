@@ -2151,10 +2151,11 @@ export default function MapHome(_props: MapHomeProps = {}) {
             </div>
           ) : null}
 
-          <div
-          className="cruush-map-top-actions pointer-events-auto mt-0 flex min-w-0 flex-1 items-center justify-between gap-0.5 rounded-full border border-white/10 bg-background/68 px-1.5 py-1 shadow-[0_20px_60px_rgba(0,0,0,0.42)] backdrop-blur-md transition-[width,margin,transform] max-[360px]:gap-0 sm:gap-1 sm:px-2 lg:mx-auto lg:max-w-[23rem] lg:flex-none"
-            data-testid="map-top-actions"
-          >
+          <div className="flex min-w-0 flex-1 justify-center">
+            <div
+              className="cruush-map-top-actions pointer-events-auto mt-0 flex min-w-0 max-w-full items-center justify-center gap-0 rounded-full border border-white/10 bg-background/68 px-1 py-1 shadow-[0_20px_60px_rgba(0,0,0,0.42)] backdrop-blur-md transition-[width,margin,transform] sm:gap-0.5 sm:px-1.5"
+              data-testid="map-top-actions"
+            >
             <Button
               variant="ghost"
               size="icon"
@@ -2222,9 +2223,10 @@ export default function MapHome(_props: MapHomeProps = {}) {
                 <CruushIconImage src={settingsIconWhite} className="h-[1.375rem] w-[1.375rem] scale-[1.18] sm:h-[1.375rem] sm:w-[1.375rem] lg:h-6 lg:w-6" />
               </Button>
             </div>
+          </div>
 
-            {/* The bug control is fixed to the corner like cruush+ is, so the bar
-                ends before it instead of running underneath it. */}
+          {/* The bug control is fixed to the corner like cruush+ is, so the bar
+              ends before it instead of running underneath it. */}
             <div
               className="h-9 w-9 shrink-0 sm:h-10 sm:w-10 lg:h-11 lg:w-11"
               data-bug-button-size="large"

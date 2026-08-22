@@ -1506,17 +1506,13 @@ describe('MapHome', () => {
       'pointer-events-auto',
       'mt-0',
       'min-w-0',
-      'flex-1',
-      'justify-between',
-      'gap-0.5',
-      'px-1.5',
+      'justify-center',
+      'gap-0',
+      'px-1',
       'py-1',
       'bg-background/68',
-      'sm:gap-1',
-      'sm:px-2',
-      'lg:mx-auto',
-      'lg:max-w-[23rem]',
-      'lg:flex-none',
+      'sm:gap-0.5',
+      'sm:px-1.5',
     );
     expect(topActions).not.toContainElement(screen.getByTestId('map-plus-stack'));
     expect(topActions).not.toContainElement(screen.getByTestId('map-bug-button-slot'));
@@ -1530,7 +1526,9 @@ describe('MapHome', () => {
       expect(button).toHaveClass('size-9', 'sm:size-9', 'lg:size-10');
     }
     expect(topActions).not.toHaveClass('sm:max-w-[34rem]');
-    expect(topActions.parentElement).toHaveClass('w-full');
+    // The pill sits in a centring wrapper inside the full-width chrome row.
+    expect(topActions.parentElement).toHaveClass('flex-1', 'justify-center');
+    expect(topActions.parentElement?.parentElement).toHaveClass('w-full');
     expect(topActions).not.toHaveClass('mt-11');
     expect(plusStack).toHaveClass('relative', 'shrink-0');
     // The slot now holds the corner open at the button's own size at every

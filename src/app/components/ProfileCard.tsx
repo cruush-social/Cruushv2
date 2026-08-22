@@ -227,7 +227,7 @@ export default function ProfileCard({
   };
 
   if (carouselPresentation) {
-    const carouselActionClassName = 'h-10 min-w-0 rounded-xl border border-white/10 bg-black/55 px-3 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-xl hover:bg-black/70';
+    const carouselActionClassName = 'cruush-action-sheen h-10 min-w-0 rounded-xl border border-white/10 bg-black/55 px-3 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-xl';
     const carouselTextOutlineStyle = {
       textShadow: [
         '1px 0 0 #000',
