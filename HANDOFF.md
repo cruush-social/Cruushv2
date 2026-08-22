@@ -1,39 +1,118 @@
-# cruush Codeveloper Handoff
+# Handoff: feat/free-feed-board
 
-**First read `docs/CRUUSH-RULES.md` in full — it is the standing rules for every agent and
-overrides your defaults.** Then continue here for this branch's context.
+Worktree: `/Volumes/good/Cruushv2-free-feed-20260822`
+Branch: `feat/free-feed-board`
+Commit: `2bff9f9`, one commit, branched from `origin/main` at `f00fb48`
+Task contract: `AI_TASK.json`, status `active`
 
-Start here when opening this branch in Codex.
+**Read this first: the branch is 14 commits behind `origin/main`, which is now `4fec73e`. It must be rebased before anything ships. Conflict points are listed at the bottom.**
 
-## Current Branch
+Nothing has been pushed. `feat/free-feed-board` does not exist on the remote. No deployment was run.
 
-`codex/beta-launch-codeveloper-handoff`
+---
 
-## Primary Plan
+## What changed
 
-Read this file completely before editing code:
+### 1. The local feed is free to post
 
-`docs/plans/2026-07-21-beta-launch-codeveloper-handoff.md`
+The cruush+ entitlement gate is gone from both sides.
 
-Treat that document as the implementation source of truth for the next beta-launch work. It covers DL Mode, NSFW blur, suggested nearby profiles, The Chocolate Factory party-code flow, party feed/chat access, dense venue map handling for 500-600 people, and the beta UI readiness pass.
+`server/src/routes/posts.ts` — `POST /api/posts` called `requireCruushPlus`, which threw a 402 entitlement error reading "Upgrade to cruush+ to post on the local feed." It now calls `getCruushEntitlement` instead. The entitlement record is still read, because `ownerFullAccess` comes from it and is passed to the insert as `$16`.
 
-## Codex Prompt
+`src/app/components/LocalFeed.tsx` — removed `canPost`, the `billingStatus` state, the billing loader, the plus-changed window event listener, and the upsell card, plus the imports that only served them. The composer, the crowd target chips, the Post button, and the `?compose=1` deep link are all unconditional now. 70 lines net removal.
 
-Use this prompt:
+Deliberately unchanged: the trust gate inside the insert CTE (`trust_score > 20`, no active suspension, no `feature_restrictions` row for `feed_posting`) and `moderateTextOrReject` on every post body.
 
-```text
-Read docs/plans/2026-07-21-beta-launch-codeveloper-handoff.md completely. Treat it as the implementation handoff. Start with Task 1 and follow the document in order. Preserve the non-negotiables. Do not ask Julien what is next unless the document explicitly says a production value like event time, coordinates, radius, or staff emails is missing.
-```
+### 2. Nude and faceless photos are allowed
 
-## Rules
+`server/src/policy-mapper.ts` — the `adult_nudity` / `adult_explicit` branch rejected at confidence >= 0.85 on any surface except profile photos and private messages, with reason `nudity_outside_private_messages`. That rejection and its helper `adultExplicitProfilePhotosAllowed` are deleted. The branch now always allows, with reason `adult_nudity_allowed` outside profile photos and private messages.
 
-- Keep `cruush` lowercase.
-- Do not add fake accounts, fake profiles, fake messages, fake DMs, fake groups, or fake bank/reviewer content.
-- Do not put secrets in frontend `VITE_*` variables.
-- Do not make private media buckets public.
-- Do not claim end-to-end encryption, real identity verification, or physical safety guarantees.
-- Use focused tests for touched code first, then full test/build before release readiness.
+`server/src/profile-photo-human-detection.ts` — `HUMAN_LABELS` was `human`, `people`, `person`. A close crop of a torso or a body part could miss all three, fail `hasHuman`, and get rejected as `profile_photo_not_adult_human`. It now includes body part labels: torso, back, chest, abdomen, thigh, hand, foot, skin, muscle, undressed, and the rest. Nobody has to show a face.
 
-## Developer Stop Point
+`server/src/policy-mapper.ts` — `profile_photo_not_adult_human` now allows on the `feed` surface with reason `non_human_feed_photo_allowed`, so object photos, gear, and toys post fine. It still rejects on `profile_photo`, so profile photos remain photos of the account holder.
 
-The work is not done until a user can open the map, see suggested nearby profiles, use DL Mode, keep NSFW photos blurred unless opted in, tap The Chocolate Factory warehouse pin, enter a staff-generated 6-digit code, access the party feed/chat after redemption, and use the map at party density without inaccessible overlapping heart pins.
+`server/src/profile-photo-human-detection.ts` — the detector previously folded animals into the `profile_photo_not_adult_human` label. It now emits a separate `animal` label as well, so allowing non-human photos on the feed does not accidentally allow animals. Animals keep rejecting through the existing `animal` branch.
+
+Untouched on purpose: `minor_present`, `minor_age_ambiguous`, `underage_sexual`, and the child face gate in `childFaceLabels`. None of them share a code path with the change above.
+
+### 3. Desktop dock panel fixes
+
+All in `src/app/components/DesktopDockPanel.tsx`.
+
+- **Second resize grip.** There is now a grip on the top right as well as the bottom right. The drag mode is a union: `'move' | 'resize-top-right' | 'resize-bottom-right'`. The top right grip grows the panel right and upward, holding the bottom edge, so `y` moves by the height delta. Test ids are `desktop-dock-{slot}-resize-top` and `desktop-dock-{slot}-resize`.
+- **Overlapping panels are clickable.** Both panels rendered with a hardcoded `z-50`, so whichever painted last always swallowed the clicks. Stacking is now per panel, from a module level counter, and `onPointerDownCapture` raises the pressed panel to the front.
+- **More transparent.** `bg-black/80` to `bg-black/45`, `backdrop-blur-xl` to `backdrop-blur-2xl`, so the map reads through.
+- **A panel can nearly fill the window.** `EDGE_GAP` 24px to 10px.
+
+`src/app/components/MapSidePanel.tsx` — the header row was `pt-9 px-4 pb-3`, which wasted 36px above the content. Now `pt-2 px-3 pb-2`.
+
+### 4. Reopening a closed side panel
+
+`src/app/components/MapHome.tsx` around line 675. Real bug, reported and reproduced from the code.
+
+The side panel opens from router history state `openSidePanel`. Closing it set the local state to `null` but left `openSidePanel: 'messages'` sitting in history. Navigating to the map again with the same intent produced an identical `requestedSidePanelView`, the effect's dependency never changed, so the panel never reopened. Visiting another page first changed the state object, which is why that path appeared to work.
+
+The effect now consumes the request with a `replace` navigation that clears `openSidePanel`.
+
+### 5. Edit Profile icon
+
+`src/app/components/Settings.tsx` line 37. The Edit Profile row masked `humanity-profile-selected-winged-heart-symmetric.png`. It now masks `cruush-white.png`, the heart-with-a-heart-inside glyph. The mask is still filled with `var(--cruush-gradient)`, so the gradient is unchanged.
+
+---
+
+## Verification
+
+Green:
+
+- `vitest src/app/components/LocalFeed.test.tsx` — 15 passed
+- `vitest src/app/components/Settings.test.tsx` — 17 passed
+- `vitest src/app/components/MapHome.test.tsx` — 70 passed
+- `vitest src/app/components/BottomNav.test.tsx` — 15 passed
+- `server: vitest src/policy-mapper.test.ts` — 34 passed
+- `server: vitest src/moderation-service.test.ts src/profile-photo-human-detection.test.ts src/moderation-provider.test.ts` — 72 passed
+- `server: vitest src/app.test.ts -t "POST /api/posts"` — 2 passed
+- `vite build` — succeeded
+
+Tests updated to match the new behaviour, none deleted:
+
+- `LocalFeed.test.tsx` — the two paywall tests became one test that a member without cruush+ can post.
+- `server/src/app.test.ts` — the 402 test is gone; the creation test now runs with `cruush_plus_enabled: false`, so the success path itself proves free posting.
+- `policy-mapper.test.ts` — the nudity rejection test asserts allow, plus new tests for object-allowed-on-feed, animal-still-rejected, and non-human-profile-photo-still-rejected.
+- `MapHome.test.tsx` — the dock assertion moved from a `z-50` class to the inline z-index, and asserts the new top grip exists.
+
+Pre-existing failures on `f00fb48`, not caused by this branch. Confirmed by stashing the whole diff and re-running:
+
+- `server: app.test.ts > returns the authenticated profile on GET /api/profiles/me`
+- `server: app.test.ts > upserts the authenticated profile on PUT /api/profiles/me`
+
+Both differ by a `custom_condoms` profile field, 50 keys against an expected 49.
+
+**Not verified: none of this has been rendered in a running app.** `npm run dev:local:seeded` exits immediately with "Cannot connect to local Postgres at localhost:5433/cruush", and Docker is not running on this machine, so the bundled Postgres could not be started. The free feed, the panel fixes, and the moderation policy have never been exercised against a live server. Per the standing rules that is not proof, and it is the main gap in this handoff.
+
+---
+
+## Before this ships
+
+1. **Rebase onto `origin/main` `4fec73e`.** Four files conflict:
+
+   - `src/app/components/LocalFeed.tsx` — upstream `e86ae30` "land the feed layout pass with its tests green" rewrote roughly 197 lines of this file. This is the real merge. Keep the upstream layout and reapply the paywall removal on top of it.
+   - `src/app/components/MapSidePanel.tsx` — upstream `845e85f` deleted the view tabs and the `onViewChange` prop entirely. Take upstream's version and reapply only the `pt-9` to `pt-2` padding fix to the simpler row it leaves behind.
+   - `src/app/components/DesktopDockPanel.tsx` — upstream `64ef8cd` already narrowed the grab strip for the same reason, to `left-1/2 top-0 h-8 w-24 -translate-x-1/2`. Prefer upstream's centred strip over the `left-0 right-20 h-6` version here, and keep the two grips, the per panel z-index, the transparency, and `EDGE_GAP`.
+   - `src/app/components/MapHome.tsx` — five upstream commits touch it. The reopen fix is a small isolated effect and should reapply cleanly.
+
+   `Settings.tsx` and all four server files have no upstream changes and should rebase clean.
+
+2. **Start Docker and run `npm run dev:local:seeded`**, then actually click: post to the feed as an account without cruush+, drag and resize a panel from both corners, click an overlapped panel, close and reopen the messages panel without leaving the page.
+
+3. **Amend the standing rules doc under `docs/`.** Invariant **G2** still reads "NSFW is allowed in the favorites gallery and in messages." The code now allows it everywhere. The doc and the code disagree until someone fixes the doc, and the file has an "Amending this file" procedure at the bottom.
+
+4. **Environment variables:** none added, removed, or changed by this branch.
+
+---
+
+## Open questions the next session should ask
+
+- **Which icon goes where.** The instruction landed as "use the heart-in-heart for cruushes only" and "the winged icon is for the feed and nothing else". Edit Profile currently uses the heart-in-heart, which may be wrong if that glyph is reserved for cruush actions. `BottomNav.tsx` lines 9 and 10 still use the winged heart for the Profile tab, which contradicts "nothing else", but the replacement was never named, so it was left alone rather than guessed at. `Changelog.tsx` line 59 also still describes the winged heart as the Profile icon.
+- **Crowd targeting and the feed pin setting behind cruush+.** Agreed as the replacement for the removed paywall, never implemented. Crowd targeting would gate on `payload.crowdTargets.length > 0` in `POST /api/posts`; the pin setting would gate `locationPinVisibility` in `PUT /api/feed/settings`. Free members would stay on the current `mutuals` default.
+- **Photo posts, reactions, and replies.** Designed, not built. The agreed layout is small square tiles welded into one 3.4rem block beside the body copy, tapping opens a full screen viewer, DL Mode masks them the same way it already masks explicit author avatars. Measured at 380px card width, that layout costs 29px of card height against a 143px text-only post.
+- **Stream Feeds.** Investigated and recommended against. Stream is already a dependency but only as the moderation provider. Feeds is a separately priced product; a moderation plan does not include it. The feed's encryption, hashed crowd tokens, geo queries, trust gating, and expiry do not port to their follow-graph model.

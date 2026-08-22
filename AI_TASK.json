@@ -152,7 +152,8 @@
     "src/app/components/FirstFeedPostPrompt.test.tsx",
     "src/app/lib/userNoticesApi.ts",
     "src/app/components/ProfilePhotoGallery.tsx",
-    "server/src/routes/posts.ts"
+    "server/src/routes/posts.ts",
+    "HANDOFF.md"
   ],
   "preserved": [
     "Preserve the trust gate on feed posting: trust_score above 20, no active suspension, no feature_restrictions row for feed_posting.",
