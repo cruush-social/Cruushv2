@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { KeyholeEyeGlyph, LipsGlyph, PartyHatColorGlyph, StraightEdgeGlyph, TongueGlyph } from './BadgeGlyphs';
+import { KeyholeEyeGlyph, LipsGlyph, PartyHatGlyph, SelkieGlyph, SelkiePeltGlyph, StraightEdgeGlyph, TongueGlyph } from './BadgeGlyphs';
 import {
   ArrowDown,
   ArrowLeft,
@@ -84,7 +84,7 @@ const BADGE_OPTIONS: BadgeOption[] = [
   { id: 'voyeur', label: 'Voyeur', icon: KeyholeEyeGlyph, group: 'Scene' },
   { id: 'group', label: 'Group', icon: UsersRound, group: 'Scene' },
   { id: 'public', label: 'Public', icon: TreePine, group: 'Scene' },
-  { id: 'chems', label: 'Party', icon: PartyHatColorGlyph, group: 'Scene' },
+  { id: 'chems', label: 'Party', icon: PartyHatGlyph, group: 'Scene' },
   { id: 'sober', label: 'Straight edge', icon: StraightEdgeGlyph, group: 'Scene' },
   { id: 'cuckold', label: 'Cuckolding', icon: VenetianMask, group: 'Scene' },
   { id: 'threesome', label: 'Threesome', icon: Users, group: 'Scene' },
@@ -195,6 +195,30 @@ export default function BadgePickerPreview() {
           ))}
         </div>
       </div>
+
+      <section className="mx-auto w-full max-w-2xl px-4 pt-4">
+        <h2 className="text-xs uppercase tracking-[0.14em] text-white/48">Selkie Mode marks</h2>
+        <div className="mt-2 grid grid-cols-2 gap-2">
+          {[
+            { label: 'At the waterline', Glyph: SelkieGlyph },
+            { label: 'Skin hung up', Glyph: SelkiePeltGlyph },
+          ].map(({ label, Glyph }) => (
+            <div className="rounded-xl border border-white/10 bg-black/40 p-3" key={label}>
+              <div className="flex items-end justify-center gap-4">
+                <Glyph className="h-10 w-10 text-white" />
+                <Glyph className="h-6 w-6 text-white" />
+                <span
+                  className="flex h-[1.5625rem] w-[1.5625rem] items-center justify-center rounded-full bg-black/85"
+                  style={{ borderColor: '#004BFF', borderWidth: '3.2px' }}
+                >
+                  <Glyph className="h-[0.8125rem] w-[0.8125rem] text-white" strokeWidth={2.6} />
+                </span>
+              </div>
+              <p className="mt-2 text-center text-xs text-white/58">{label}</p>
+            </div>
+          ))}
+        </div>
+      </section>
 
       <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-4">
         <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">

@@ -94,8 +94,56 @@ export function KeyholeEyeGlyph({ className, strokeWidth = 2 }: GlyphProps) {
   );
 }
 
-export function PartyHatColorGlyph({ className }: GlyphProps) {
-  // The app's own party hat in its own colours, which read better small than a
-  // flattened white silhouette.
-  return <img aria-hidden="true" alt="" className={className} src={partyHatIcon} />;
+export function PartyHatGlyph({ className }: GlyphProps) {
+  // Badge marks carry no colour, so the app's party hat is flattened to white
+  // like every other mark in the row.
+  return <img aria-hidden="true" alt="" className={`${className ?? ''} brightness-0 invert`} src={partyHatIcon} />;
+}
+
+export function SelkieGlyph({ className, strokeWidth = 2 }: GlyphProps) {
+  return (
+    <svg
+      aria-hidden="true"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={strokeWidth}
+      viewBox="0 0 24 24"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      {/* A seal watching from the waterline: the head and eyes read above the
+          surface, the rest of it does not. Both halves of the story in two
+          shapes, which is all that survives at pin size. */}
+      <path d="M6.9 14.6c0-2.9 2.3-5.2 5.1-5.2s5.1 2.3 5.1 5.2" />
+      <path d="M9.9 12.6h.01" />
+      <path d="M14.1 12.6h.01" />
+      <path d="M2.5 14.6h19" />
+      <path d="M2.5 18.1c1.6 0 1.6 1.5 3.2 1.5s1.6-1.5 3.2-1.5 1.6 1.5 3.1 1.5 1.6-1.5 3.2-1.5 1.6 1.5 3.2 1.5 1.6-1.5 3.2-1.5" />
+    </svg>
+  );
+}
+
+export function SelkiePeltGlyph({ className, strokeWidth = 2 }: GlyphProps) {
+  return (
+    <svg
+      aria-hidden="true"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={strokeWidth}
+      viewBox="0 0 24 24"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      {/* The other half of the story: the skin taken off and hung up, which is
+          what makes a selkie unrecognisable while it walks among people. */}
+      <path d="M12 2.6v2.2" />
+      <path d="M9.4 4.8h5.2" />
+      <path d="M9.4 4.8c-2 1.6-3.2 4-3.2 6.8 0 4.4 2.6 8 5.8 8s5.8-3.6 5.8-8c0-2.8-1.2-5.2-3.2-6.8" />
+      <path d="M12 9.4v6.2" />
+    </svg>
+  );
 }
