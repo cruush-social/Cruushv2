@@ -547,6 +547,9 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, fi
     const discoveryLocationWindow = "(extract(epoch from now() - interval '4 days') * 1000)::bigint";
     const where = [
       "profiles.id <> $1",
+      // A deleted, suspended or banned account keeps its row for audit, so it
+      // must never surface in discovery.
+      "coalesce(app_users.account_status, 'active') = 'active'",
       `(
         profiles.location_updated_at >= now() - interval '4 days'
         or location_envelopes.expires_at_ms > ${activeLocationWindow}
