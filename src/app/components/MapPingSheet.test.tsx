@@ -110,7 +110,9 @@ describe('MapPingSheet', () => {
     );
 
     expect(await screen.findByRole('dialog')).toBeInTheDocument();
-    expect(screen.getByText('At the park')).toBeInTheDocument();
+    // The signal reads twice: once on the demonstration heart, once in the
+    // field you edit.
+    expect(screen.getAllByText('At the park')).toHaveLength(2);
     expect(screen.getByText('2 of 3 Pulses available right now.')).toBeInTheDocument();
     expect(screen.getAllByRole('radio').map((radio) => radio.getAttribute('aria-label'))).toEqual([
       '1 mile',
