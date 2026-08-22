@@ -23,6 +23,15 @@ import { getMyProfile } from '../lib/profileApi';
 import { openConversationOrInbox } from '../lib/openConversation';
 import { resolveVibeTone, vibeCapsuleStyle } from '../lib/vibeTone';
 import ProfileActionTrio from './ProfileActionTrio';
+import CruushMatchSettings from './CruushMatchSettings';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from './ui/dialog';
 import { shouldMaskPhoto, useDlMode } from '../lib/dlMode';
 import { registerBugButtonSlot } from '../lib/bugButtonSlot';
 
@@ -227,6 +236,7 @@ export default function DirectMessages({ embedded = false }: { embedded?: boolea
   const [activeTab, setActiveTab] = useState<'all' | 'unread' | 'groups'>('all');
   const [error, setError] = useState<string | null>(null);
   const [composeChooserOpen, setComposeChooserOpen] = useState(false);
+  const [messageSettingsOpen, setMessageSettingsOpen] = useState(false);
   const [directComposerOpen, setDirectComposerOpen] = useState(false);
   const [groupComposerOpen, setGroupComposerOpen] = useState(false);
   const [groupName, setGroupName] = useState('');
@@ -508,16 +518,26 @@ export default function DirectMessages({ embedded = false }: { embedded?: boolea
               >
                 <Plus className="size-4" />
               </Button>
-              <Button
-                type="button"
-                size="icon"
-                aria-label="Message settings"
-                title="Message settings"
-                onClick={() => navigate('/cruush/settings')}
-                className="h-11 w-11 rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10"
-              >
-                <CruushIcon name="settings" className="h-5 w-5" />
-              </Button>
+              <Dialog open={messageSettingsOpen} onOpenChange={setMessageSettingsOpen}>
+                <DialogTrigger asChild>
+                  <Button
+                    type="button"
+                    size="icon"
+                    aria-label="Message settings"
+                    title="Message settings"
+                    className="h-11 w-11 rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10"
+                  >
+                    <CruushIcon name="settings" className="h-5 w-5" />
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-h-[calc(100dvh-2rem)] max-w-md overflow-y-auto overscroll-contain rounded-lg border-white/10 bg-background pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
+                  <DialogHeader>
+                    <DialogTitle>Message settings</DialogTitle>
+                    <DialogDescription>Choose who can start a chat with you.</DialogDescription>
+                  </DialogHeader>
+                  <CruushMatchSettings embedded />
+                </DialogContent>
+              </Dialog>
             </div>
           </div>
 
