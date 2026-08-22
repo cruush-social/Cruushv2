@@ -1227,7 +1227,7 @@ function GhostRotationPulse({ marker, children }: { marker: MapMarker; children:
         effectHost.style.setProperty('--cruush-ghost-photo-opacity', visibleFlash ? '0.62' : '1');
         effectHost.style.setProperty('--cruush-ghost-photo-echo-opacity', '0');
         effectHost.style.setProperty('--cruush-ghost-badge-opacity', '1');
-        effectHost.style.setProperty('--cruush-ghost-pepper-opacity', visibleFlash ? '0.72' : '1');
+        effectHost.style.setProperty('--cruush-ghost-pepper-opacity', '1');
         if (visibleFlash) {
           effectHost.style.setProperty('--cruush-ghost-surface-alpha', '0.34');
         } else {

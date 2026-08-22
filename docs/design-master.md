@@ -592,3 +592,13 @@ These are not preferences. Breaking one is a bug.
 - A capsule is filled with its own border colour, which is the colour that
   person's heart pin is drawn with: pink for no mutual, purple for a mutual,
   indigo for you.
+
+### Control shapes
+- Every icon control is a **circle**. Rounded squares are not part of the
+  language and do not appear on profile chrome, map chrome, or panels.
+- A control that carries a word rather than an icon is a **pill**, fully
+  rounded, never a rounded rectangle.
+
+### Notifications
+- One action only: mark all as read. There is no separate clear or delete
+  control; the two read as the same thing.
