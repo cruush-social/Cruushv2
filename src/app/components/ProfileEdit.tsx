@@ -10,6 +10,8 @@ import { Label } from './ui/label';
 import { Switch } from './ui/switch';
 import { Textarea } from './ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
+import { getMyBillingStatus } from '../lib/billingApi';
+import ProfileBadgesTab from './ProfileBadgesTab';
 import MultiSelect from './MultiSelect';
 import {
   emptyProfilePayload,
@@ -65,7 +67,9 @@ const MAX_PROFILE_PHOTOS = 4;
 const MAX_PROFILE_GROUP_SELECTIONS = 3;
 const MAX_PROFILE_VIBES = 3;
 const MAX_PROFILE_HOBBIES = 3;
-const MAX_PROFILE_KINKS = 3;
+const MAX_PROFILE_KINKS = 5;
+/** cruush+ lifts the ceiling rather than raising it. */
+const UNLIMITED_PROFILE_KINKS = Number.POSITIVE_INFINITY;
 const MAX_GENDER_IDENTITIES = MAX_PROFILE_GROUP_SELECTIONS;
 const PROFILE_PHOTO_LOAD_ERROR = 'This image could not be loaded. Try a JPG, PNG, or WebP file.';
 const PROFILE_PHOTO_SAVE_PATH_PATTERN = /^\/api\/media\/(?:profile-photos\/[0-9a-f-]{36}-[0-9a-f-]{8}-[0-9a-f-]{4}-[0-9a-f-]{4}-[0-9a-f-]{4}-[0-9a-f-]{12}\.(?:jpg|png|webp)|assets\/[0-9a-f-]{36}\/display)$/i;
@@ -132,8 +136,10 @@ function limitToFive(values: string[] = []) {
   return latestUniqueValues(values).slice(-5);
 }
 
-function limitToFiveKinks(values: string[] = []) {
-  return latestUniqueValues(values).slice(-MAX_PROFILE_KINKS);
+function limitKinks(values: string[] = [], limit: number = MAX_PROFILE_KINKS) {
+  const unique = latestUniqueValues(values);
+
+  return Number.isFinite(limit) ? unique.slice(-limit) : unique;
 }
 
 function limitGenderIdentities(values: string[]) {
@@ -488,7 +494,7 @@ function sanitizeVisibilityRules(profile: ProfilePayload): ProfileVisibilityRule
   };
 }
 
-function toProfileSavePayload(profile: ProfilePayload): ProfilePayload {
+function toProfileSavePayload(profile: ProfilePayload, kinkLimit: number = MAX_PROFILE_KINKS): ProfilePayload {
   return {
     display_name: getSaveDisplayName(profile),
     photos: sanitizeProfilePhotos(profile.photos ?? []),
@@ -511,8 +517,10 @@ function toProfileSavePayload(profile: ProfilePayload): ProfilePayload {
     crowds: sanitizeCrowds(profile),
     availability: limitToThree(profile.availability ?? []),
     hosting_travel: limitToThree(profile.hosting_travel ?? []),
-    kinks: limitToFiveKinks(profile.kinks ?? []),
-    kink_interests: sanitizeKinkInterests(profile).slice(-MAX_PROFILE_KINKS),
+    kinks: limitKinks(profile.kinks ?? [], kinkLimit),
+    kink_interests: Number.isFinite(kinkLimit)
+      ? sanitizeKinkInterests(profile).slice(-kinkLimit)
+      : sanitizeKinkInterests(profile),
     kinks_visibility: profile.kinks_visibility ?? 'public',
     vibes: limitToThree(mergeCategorizedVibes(profile)),
     scenes: [],
@@ -666,9 +674,35 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
     }));
   };
 
+  // A basic account carries five kinks and the two badges its profile already
+  // implies. cruush+ lifts the ceiling and opens the badge slots to choose from.
+  const [cruushPlus, setCruushPlus] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+
+    getMyBillingStatus()
+      .then((status) => {
+        if (active) {
+          setCruushPlus(status.cruushPlus === true);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setCruushPlus(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const kinkLimit = cruushPlus ? UNLIMITED_PROFILE_KINKS : MAX_PROFILE_KINKS;
+
   const handleKinksChange = (selectedKinks: string[]) => {
     setProfile((prev) => {
-      const limitedSelectedKinks = limitToFiveKinks(selectedKinks);
+      const limitedSelectedKinks = limitKinks(selectedKinks, kinkLimit);
       const existingById = new Map((prev.kink_interests ?? []).map((interest) => [interest.kink_id, interest]));
 
       return {
@@ -685,7 +719,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
     setSaving(true);
     setError(null);
     try {
-      const savedProfile = await saveMyProfile(toProfileSavePayload(profile));
+      const savedProfile = await saveMyProfile(toProfileSavePayload(profile, kinkLimit));
       if (profileSaveRequestRef.current !== requestId) {
         return;
       }
@@ -717,7 +751,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
     setPhotoUploadError(null);
 
     try {
-      const savedProfile = await saveMyProfile(toProfileSavePayload(nextProfile));
+      const savedProfile = await saveMyProfile(toProfileSavePayload(nextProfile, kinkLimit));
 
       if (profileSaveRequestRef.current === requestId) {
         applySavedProfile(savedProfile);
@@ -968,12 +1002,22 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
           </div>
         ) : null}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid h-auto w-full grid-cols-4 rounded-full border border-white/10 bg-background/25 p-1">
+          <TabsList className="grid h-auto w-full grid-cols-5 rounded-full border border-white/10 bg-background/25 p-1">
             <TabsTrigger value="photos" className="min-h-11" onClick={() => setActiveTab('photos')}>Photos</TabsTrigger>
+            <TabsTrigger value="badges" className="min-h-11" onClick={() => setActiveTab('badges')}>Badges</TabsTrigger>
             <TabsTrigger value="basics" className="min-h-11" onClick={() => setActiveTab('basics')}>Basics</TabsTrigger>
             <TabsTrigger value="intimacy" className="min-h-11" onClick={() => setActiveTab('intimacy')}>Intimacy</TabsTrigger>
             <TabsTrigger value="health" className="min-h-11" onClick={() => setActiveTab('health')}>Health</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="badges" className="space-y-4 mt-6">
+            <ProfileBadgesTab
+              cruushPlus={cruushPlus}
+              photo={normalizedProfile.photos?.[0] ?? null}
+              position={normalizedProfile.position ?? []}
+              role={normalizedProfile.role ?? []}
+            />
+          </TabsContent>
 
           <TabsContent value="photos" className="space-y-4 mt-6">
             <div className="rounded-md border border-border bg-card/70 p-3 text-sm text-muted-foreground">
