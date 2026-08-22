@@ -1506,12 +1506,10 @@ describe('MapHome', () => {
       'flex-1',
       'justify-between',
       'gap-1',
-      'pl-2',
-      'pr-[3.25rem]',
+      'px-2',
       'py-1',
       'sm:gap-1.5',
-      'sm:pl-3',
-      'sm:pr-[3.75rem]',
+      'sm:px-3',
       'sm:py-1.5',
       'lg:mx-auto',
       'lg:max-w-[52rem]',
@@ -1530,7 +1528,7 @@ describe('MapHome', () => {
     expect(topActions.parentElement).toHaveClass('w-full');
     expect(topActions).not.toHaveClass('mt-11');
     expect(plusStack).toHaveClass('relative', 'shrink-0');
-    expect(bugButtonSlot).toHaveClass('h-0', 'w-0');
+    expect(bugButtonSlot).toHaveClass('h-9', 'w-12', 'lg:h-0', 'lg:w-0');
     expect(bugButtonSlot).not.toHaveClass('size-11');
     expect(plusStack).toContainElement(cruushPlusButton);
     expect(plusStack).not.toContainElement(pingButton);

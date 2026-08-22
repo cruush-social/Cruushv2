@@ -716,7 +716,7 @@ test('selects Seeking and Visibility menu options with real mobile taps', async 
   await page.goto('/map');
   await expect(page.getByRole('button', { name: 'Feed' })).toBeVisible();
   await page.getByRole('button', { name: 'Feed' }).tap();
-  await expect(page.getByRole('heading', { name: 'Feed', exact: true })).toBeVisible();
+  await expect(page.getByTestId('local-feed-header').getByRole('heading', { name: 'Feed', exact: true })).toBeVisible();
 });
 
 test('short tap opens the profile and press-and-hold reveals the signal', async ({ page, context }) => {
@@ -742,7 +742,7 @@ test('short tap opens the profile and press-and-hold reveals the signal', async 
   await page.waitForTimeout(500);
   await expect(marker).toHaveAttribute('aria-pressed', 'true');
   await expect(marker).toHaveCSS('z-index', '110');
-  await expect(page.getByTestId('marker-heart-layer-nearby-ghost-no-photo')).toHaveClass(/scale-120/);
+  await expect(page.getByTestId('marker-heart-layer-nearby-ghost-no-photo')).toHaveClass(/scale-\[1\.38\]/);
   await expect(page.getByTestId('marker-signal-stack-nearby-ghost-no-photo')).toHaveClass(/opacity-100/);
   await cdp.send('Input.dispatchTouchEvent', {
     type: 'touchEnd',
@@ -802,6 +802,8 @@ test('resumes the map tutorial after Ghost and Feed route actions', async ({ pag
   await page.getByRole('button', { name: 'Map', exact: true }).tap();
   await expect(tutorial.getByRole('heading', { name: 'Ghost Mode' })).toBeVisible();
 
+  // ghost, then dl mode, ping, profile pin, zoom, cruise carousel, feed
+  await page.getByTestId('tutorial-next').tap();
   await page.getByTestId('tutorial-next').tap();
   await page.getByTestId('tutorial-next').tap();
   await page.getByTestId('tutorial-next').tap();
@@ -810,7 +812,7 @@ test('resumes the map tutorial after Ghost and Feed route actions', async ({ pag
   await expect(tutorial.getByRole('heading', { name: 'Feed' })).toBeVisible();
 
   await page.getByTestId('tutorial-try-step').tap();
-  await expect(page.getByRole('heading', { name: 'Feed', exact: true })).toBeVisible();
+  await expect(page.getByTestId('local-feed-header').getByRole('heading', { name: 'Feed', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Map', exact: true }).tap();
   await expect(tutorial.getByRole('heading', { name: 'Feed' })).toBeVisible();
 });

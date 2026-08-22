@@ -182,10 +182,11 @@ export default function DesktopDockPanel({
       className={`fixed z-50 flex flex-col overflow-hidden rounded-[28px] border border-white/10 bg-black/80 shadow-[0_24px_80px_rgba(0,0,0,0.48)] backdrop-blur-xl ${className ?? ''}`}
       style={panelStyle}
     >
+      {/* Keep the grab strip narrow so the panel's own corner controls stay clickable. */}
       <div
         data-testid={`desktop-dock-${slot}-handle`}
         aria-label={`Move ${ariaLabel}`}
-        className="absolute inset-x-0 top-0 z-30 h-9 cursor-grab active:cursor-grabbing"
+        className="absolute left-1/2 top-0 z-30 h-8 w-24 -translate-x-1/2 cursor-grab active:cursor-grabbing"
         onPointerCancel={endDrag}
         onPointerDown={(event) => beginDrag(event, 'move')}
         onPointerMove={continueDrag}
