@@ -491,24 +491,26 @@ export default function Auth({ onAuth }: AuthProps) {
                 <div className="flex items-start gap-2">
                   <MapPin className="mt-0.5 h-4 w-4 text-[#ff0072]" />
                   <p>
-                    NYC open beta.
+                    cruush is open in NYC and 50 miles around it.
                   </p>
                 </div>
                 <p className="text-white/50">Join the newsletter and request your city.</p>
               </div>
             ) : (
-              <div className="p-3 bg-white/5 border border-white/10 text-white/70 text-sm rounded space-y-3">
+              <div className="space-y-3 rounded border border-[#0ba8ff]/45 bg-[#0ba8ff]/[0.08] p-4 text-sm text-white shadow-[0_18px_44px_rgba(0,0,0,0.35)]">
+                <p className="text-xs uppercase tracking-[0.18em] text-[#7fd4ff]">Step 1</p>
                 <div className="flex items-start gap-2">
                   <MapPin className="mt-0.5 h-4 w-4 text-[#0ba8ff]" />
                   <p>
-                    NYC open beta.
+                    cruush is open in NYC and 50 miles around it. Check your location before you sign up.
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={handleBetaAccessCheck}
                   disabled={betaAccessStatus === 'checking'}
-                  className="w-full h-11 text-sm text-white bg-white/10 border border-white/15 rounded-sm hover:bg-white/15 disabled:opacity-50"
+                  className="h-11 w-full rounded-sm text-sm font-semibold text-white transition hover:brightness-110 disabled:opacity-50"
+                  style={{ background: 'var(--cruush-gradient)' }}
                 >
                   {betaAccessStatus === 'checking' ? 'Checking location...' : 'Check my location'}
                 </button>
@@ -884,13 +886,16 @@ export default function Auth({ onAuth }: AuthProps) {
               type="button"
               onClick={isForgotPassword ? showSignIn : toggleMode}
               disabled={isLoading}
-              className="launch-login-auth-secondary w-full text-sm text-white/40 hover:text-white/70 transition-colors disabled:opacity-50"
+              className="launch-login-auth-submit relative h-12 w-full overflow-hidden rounded-sm text-white transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+              style={{ background: 'var(--cruush-gradient)' }}
             >
-              {isForgotPassword
-                ? 'Back to sign in'
-                : isSignUp
-                  ? 'Already have an account? Sign in'
-                  : "Don't have an account? Sign up"}
+              <span className="relative z-10">
+                {isForgotPassword
+                  ? 'Back to sign in'
+                  : isSignUp
+                    ? 'Already have an account? Sign in'
+                    : "Don't have an account? Sign up"}
+              </span>
             </button>
 
             {!isForgotPassword ? (

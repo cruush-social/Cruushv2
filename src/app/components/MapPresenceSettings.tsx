@@ -6,6 +6,8 @@ import { getMapPresence, saveMapPresence } from '../lib/privacyApi';
 import { Button } from './ui/button';
 import { Label } from './ui/label';
 import { Slider } from './ui/slider';
+import { Switch } from './ui/switch';
+import { saveDistancePreferences, useDistancePreferences } from '../lib/distancePreferences';
 
 export const DEFAULT_MAP_PRESENCE_DAYS = 7;
 export const MIN_MAP_PRESENCE_DAYS = 1;
@@ -20,6 +22,7 @@ function describeDays(days: number) {
 }
 
 export default function MapPresenceSettings() {
+  const distancePreferences = useDistancePreferences();
   const navigate = useNavigate();
   const [days, setDays] = useState(DEFAULT_MAP_PRESENCE_DAYS);
   const [loading, setLoading] = useState(true);
@@ -75,6 +78,24 @@ export default function MapPresenceSettings() {
           You keep appearing on the map for a while after your last activity, so people can still find you when
           you are not in the app. Shorten it to disappear sooner, or lengthen it to stay discoverable.
         </p>
+
+        <div className="space-y-2 rounded-lg border border-white/10 bg-white/[0.035] p-3">
+          <div className="flex items-start justify-between gap-4">
+            <div className="space-y-0.5">
+              <Label htmlFor="map-presence-approx-distance">Distance labels</Label>
+              <p className="text-xs text-muted-foreground">
+                {distancePreferences.mode === 'approximate'
+                  ? 'Approximate both ways: you see approximate distances, and others see an approximate distance for you.'
+                  : 'Exact both ways: you see an exact distance only from people who also share exact, and they see yours the same way.'}
+              </p>
+            </div>
+            <Switch
+              id="map-presence-approx-distance"
+              checked={distancePreferences.mode === 'approximate'}
+              onCheckedChange={(checked) => saveDistancePreferences({ mode: checked ? 'approximate' : 'exact' })}
+            />
+          </div>
+        </div>
 
         <p className="rounded-lg border border-white/10 bg-white/[0.035] p-3 text-sm text-muted-foreground">
           Your privacy settings keep applying while you are away. Ghost Mode still fuzzes your pin, stealth still

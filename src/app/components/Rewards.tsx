@@ -191,16 +191,16 @@ export default function Rewards() {
                 <ul aria-label="cruush+ features" className="grid gap-3 sm:grid-cols-2">
                   {CRUUSH_PLUS_FEATURES.map((feature, index) => (
                     <li
-                      className="rounded-xl border border-transparent p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
+                      className="rounded-xl border border-white/20 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_10px_30px_rgba(255,0,114,0.18)]"
                       key={feature.title}
                       style={{
                         background: index % 2 === 0
-                          ? 'var(--cruush-gradient-soft-18)'
-                          : 'var(--cruush-gradient-soft-28)',
+                          ? 'var(--cruush-gradient-soft-28)'
+                          : 'var(--cruush-gradient)',
                       }}
                     >
-                      <p className="font-medium">{feature.title}</p>
-                      <p className="mt-1 text-sm leading-5 text-muted-foreground">{feature.description}</p>
+                      <p className="font-semibold text-white">{feature.title}</p>
+                      <p className="mt-1 text-sm leading-5 text-white/85">{feature.description}</p>
                     </li>
                   ))}
                 </ul>
