@@ -100,27 +100,25 @@ export function PartyHatGlyph({ className }: GlyphProps) {
   return <img aria-hidden="true" alt="" className={`${className ?? ''} brightness-0 invert`} src={partyHatIcon} />;
 }
 
-export function SelkieGlyph({ className, strokeWidth = 2 }: GlyphProps) {
+export function SelkieGlyph({ className }: GlyphProps) {
   return (
     <svg
       aria-hidden="true"
       className={className}
-      fill="none"
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth={strokeWidth}
+      fill="currentColor"
       viewBox="0 0 24 24"
       xmlns="http://www.w3.org/2000/svg"
     >
-      {/* A seal watching from the waterline: the head and eyes read above the
-          surface, the rest of it does not. Both halves of the story in two
-          shapes, which is all that survives at pin size. */}
-      <path d="M6.9 14.6c0-2.9 2.3-5.2 5.1-5.2s5.1 2.3 5.1 5.2" />
-      <path d="M9.9 12.6h.01" />
-      <path d="M14.1 12.6h.01" />
-      <path d="M2.5 14.6h19" />
-      <path d="M2.5 18.1c1.6 0 1.6 1.5 3.2 1.5s1.6-1.5 3.2-1.5 1.6 1.5 3.1 1.5 1.6-1.5 3.2-1.5 1.6 1.5 3.2 1.5 1.6-1.5 3.2-1.5" />
+      {/* A solid silhouette so it holds as a white shape at any size: long hair
+          falling either side, pointed ears, and the head cut off at the
+          waterline. The eyes are knocked out of the fill. */}
+      <path
+        clipRule="evenodd"
+        d="M12 4.4c-3.9 0-7 3.1-7 7v3.2h14v-3.2c0-3.9-3.1-7-7-7Zm-6.3 4.5L4 5.1l3.4 1.5a8.9 8.9 0 0 0-1.7 2.3Zm12.6 0L20 5.1l-3.4 1.5c.7.7 1.3 1.4 1.7 2.3ZM9.7 11a.9.9 0 1 0 0 1.8.9.9 0 0 0 0-1.8Zm4.6 0a.9.9 0 1 0 0 1.8.9.9 0 0 0 0-1.8Z"
+        fillRule="evenodd"
+      />
+      <path d="M2.6 16.2h18.8v1.5H2.6z" />
+      <path d="M2.6 19.1c1.4 0 1.4 1.3 2.8 1.3s1.4-1.3 2.8-1.3 1.4 1.3 2.8 1.3 1.4-1.3 2.8-1.3 1.4 1.3 2.8 1.3 1.4-1.3 2.8-1.3v1.5c-1.4 0-1.4 1.3-2.8 1.3s-1.4-1.3-2.8-1.3-1.4 1.3-2.8 1.3-1.4-1.3-2.8-1.3-1.4 1.3-2.8 1.3-1.4-1.3-2.8-1.3z" />
     </svg>
   );
 }
