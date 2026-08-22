@@ -358,9 +358,26 @@ export class MockModerationProvider implements ModerationProvider {
 
   async moderateImage(input: ImageModerationInput): Promise<ProviderModerationResult> {
     const startedAt = Date.now();
+    const labels = labelsFromFilename(input.filename);
+    // The real providers report who is in the frame, and the profile photo gate
+    // needs that signal. Without it every local upload fell to manual review,
+    // which made photo flows untestable outside production.
+    const hasSubjectLabel = labels.some((label) => [
+      "adult_human_body",
+      "human_present",
+      "profile_photo_not_adult_human"
+    ].includes(label.normalized_label));
 
     return {
-      ...makeResult("image", startedAt, labelsFromFilename(input.filename)),
+      ...makeResult("image", startedAt, hasSubjectLabel ? labels : [
+        ...labels,
+        {
+          provider_label: "mock_adult_human_body",
+          normalized_label: "adult_human_body",
+          confidence: 0.95,
+          severity: "none"
+        }
+      ]),
       status: "completed",
       recommended_action: "keep"
     };

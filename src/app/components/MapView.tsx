@@ -111,8 +111,10 @@ export const MAP_TILE_LABEL_SCALE = 1.25;
 const MAP_ACCESSIBILITY_TEXT_SCALE = 1.25;
 export const MAP_PIN_UNIT_SCALE = 1;
 const MARKER_INTERACTION_SUPPRESS_MS = 350;
-const PERSON_CLUSTER_MAX_ZOOM = 15.25;
-const PERSON_CLUSTER_RADIUS_PX = 84;
+// Clustering hides individual people, so it starts later and gives up sooner:
+// pins only merge when they are nearly on top of one another.
+const PERSON_CLUSTER_MAX_ZOOM = 13.5;
+const PERSON_CLUSTER_RADIUS_PX = 52;
 export const MAP_SERVICE_MASK_SOURCE_ID = 'cruush-map-service-mask';
 export const MAP_SERVICE_MASK_LAYER_ID = 'cruush-map-service-mask';
 // Rendered footprint of a heart pin, so no two pins may sit inside one another.
@@ -1394,7 +1396,7 @@ function VenueClusterMarker({ marker }: { marker: MapMarker }) {
 
   return (
     <span
-      className="flex h-16 min-w-16 items-center justify-center rounded-full border border-[3.2px] border-white/20 bg-black/82 px-4 text-xl font-semibold text-white shadow-[0_0_28px_rgba(255,0,114,0.34)] backdrop-blur-md"
+      className="flex h-16 min-w-16 items-center justify-center rounded-full border border-[3.2px] border-[#FF0072]/45 bg-black/82 px-4 text-xl font-semibold text-white shadow-[0_0_38px_rgba(255,0,114,0.55)] backdrop-blur-md"
       data-testid={`venue-cluster-marker-${marker.cluster?.id ?? marker.id}`}
     >
       {count > 999 ? '999+' : count}
@@ -1407,7 +1409,7 @@ function PeopleClusterMarker({ marker }: { marker: MapMarker }) {
 
   return (
     <span
-      className="flex h-16 min-w-16 items-center justify-center rounded-full border border-[3.2px] border-primary/40 bg-black/86 px-4 text-xl font-semibold text-white shadow-[0_0_34px_rgba(255,0,114,0.44)] backdrop-blur-md"
+      className="flex h-16 min-w-16 items-center justify-center rounded-full border border-[3.2px] border-[#FF0072]/70 bg-black/86 px-4 text-xl font-semibold text-white shadow-[0_0_46px_rgba(255,0,114,0.72)] backdrop-blur-md"
       data-testid={`people-cluster-marker-${marker.cluster?.id ?? marker.id}`}
     >
       {count > 999 ? '999+' : count}
@@ -1420,7 +1422,7 @@ function LaunchPartyMarker({ marker }: { marker: MapMarker }) {
 
   return (
     <span
-      className="flex h-16 min-w-16 items-center justify-center rounded-full border border-[3.2px] border-white/20 bg-black/82 px-4 text-xl font-semibold text-white shadow-[0_0_28px_rgba(255,0,114,0.34)] backdrop-blur-md"
+      className="flex h-16 min-w-16 items-center justify-center rounded-full border border-[3.2px] border-[#FF0072]/45 bg-black/82 px-4 text-xl font-semibold text-white shadow-[0_0_38px_rgba(255,0,114,0.55)] backdrop-blur-md"
       data-testid={`launch-party-marker-${marker.id}`}
     >
       {attendeeCount > 999 ? '999+' : attendeeCount}
