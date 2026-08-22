@@ -1088,7 +1088,9 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="signal">Signal</Label>
+              <Label htmlFor="signal">
+                Signal <span className="text-muted-foreground">{SIGNAL_MAX_LENGTH} characters</span>
+              </Label>
               <Input
                 id="signal"
                 maxLength={SIGNAL_MAX_LENGTH}

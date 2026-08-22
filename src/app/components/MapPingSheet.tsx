@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { SIGNAL_MAX_LENGTH } from '../lib/profileLimits';
 import PulseLedIcon from './PulseLedIcon';
-import HeartPhoto from './HeartPhoto';
+import { MapMarkerPin } from './MapView';
 import { ApiClientError } from '../lib/apiClient';
 import {
   MAP_PING_RADII_MILES,
@@ -33,6 +33,8 @@ type MapPingSheetProps = {
   onSaveSignal?: (signal: string) => Promise<void>;
   hasCruushPlus?: boolean;
   onUpgrade?: () => void;
+  /** Your own photo, so the demonstration is your pin and not a placeholder. */
+  photo?: string | null;
 };
 
 function formatTime(value: string) {
@@ -78,6 +80,7 @@ export default function MapPingSheet({
   loading,
   hasMapLocation,
   signal,
+  photo,
   onRefresh,
   onSend,
   onSaveSignal,
@@ -254,30 +257,25 @@ export default function MapPingSheet({
         </SheetHeader>
 
         <div className="space-y-4 px-4">
-          {/* What a Pulse does, shown rather than described: the same heart the
-              map draws, running the same animation it runs when a Pulse is on. */}
           <div className="flex items-center gap-4 rounded-xl border border-[#c8ff31]/45 bg-black/45 p-3">
-            <span className="flex w-24 shrink-0 flex-col items-center gap-1 overflow-visible">
-              {/* What the map actually shows: the green border a Pulse puts on
-                  your heart, your signal held open, and the same beat. */}
-              {signal ? (
-                <span className="max-w-full truncate rounded-full border border-[#c8ff31] bg-black/86 px-2 py-0.5 text-[0.6rem] font-semibold leading-tight text-white">
-                  {signal}
-                </span>
-              ) : null}
-              <span
-                className="cruush-map-ping-heart block origin-center"
-                data-testid="map-ping-preview-heart"
-                style={{ animation: 'cruush-map-ping-heart-pulse 1.35s ease-in-out infinite' }}
-              >
-                <HeartPhoto
-                  borderColor="#C8FF31"
-                  className="w-20"
-                  label="Your heart while a Pulse is running"
-                  masked={false}
-                  photo={null}
-                  theme="current"
-                  userId="pulse-preview"
+            {/* The real marker, running the real Pulse state, so this is what
+                people actually see rather than an approximation of it. */}
+            <span className="flex h-[8.5rem] w-32 shrink-0 items-center justify-center overflow-visible">
+              <span className="block origin-center scale-[0.78]" data-testid="map-ping-preview-heart">
+                <MapMarkerPin
+                  marker={{
+                    id: 'pulse-preview',
+                    kind: 'person',
+                    displayName: 'You',
+                    userId: 'pulse-preview',
+                    signal,
+                    approximateLatitude: 0,
+                    approximateLongitude: 0,
+                    photo: photo ?? null,
+                    isCurrentUser: true,
+                    activePing: { id: 'pulse-preview', expiresAt: '' },
+                  }}
+                  previewed
                 />
               </span>
             </span>
@@ -293,7 +291,9 @@ export default function MapPingSheet({
 
           <div className="rounded-xl border border-white/10 bg-white/[0.045] p-3">
             <div className="flex items-center justify-between gap-3">
-              <p className="text-xs uppercase tracking-[0.14em] text-white/48">Your signal</p>
+              <p className="text-xs uppercase tracking-[0.14em] text-white/48">
+                Your signal <span className="text-white/32">{SIGNAL_MAX_LENGTH} characters</span>
+              </p>
               {onSaveSignal && !editingSignal ? (
                 <button
                   type="button"

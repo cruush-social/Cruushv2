@@ -1430,7 +1430,7 @@ function LaunchPartyMarker({ marker }: { marker: MapMarker }) {
   );
 }
 
-function MapMarkerPin({ marker, previewed = false }: { marker: MapMarker; previewed?: boolean }) {
+export function MapMarkerPin({ marker, previewed = false }: { marker: MapMarker; previewed?: boolean }) {
   const isCurrentUser = marker.isCurrentUser === true;
   const isPerson = marker.kind == null || marker.kind === 'person';
   const signalPreview = isPerson ? truncateMarkerPreview(marker.signal) : '';
