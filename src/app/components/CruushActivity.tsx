@@ -278,6 +278,7 @@ function IncomingRow({
           userName={item.user.name}
           cruushState={actionState}
           cruushDisabled={actionState === 'mutual'}
+          cruushReceived
           onCruush={() => onCruushBack(item)}
           canMessage={item.permissions?.canMessage === true}
           onMessage={() => onMessage(item.user!.id)}

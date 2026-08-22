@@ -12,10 +12,13 @@ import { checkBetaAccess, requestBetaCity } from '../lib/betaAccessApi';
 import { getAppMeta, type AppMetaPayload } from '../lib/metaApi';
 import { persistSessionUser, setVerificationPreviewUrl } from '../lib/sessionUser';
 import { CruushIcon } from './CruushIconImage';
-import LaunchLoginMapTeaser from './LaunchLoginMapTeaser';
 import PublicPolicyLinks from './PublicPolicyLinks';
 import Turnstile, { getTurnstileSiteKey } from './Turnstile';
 import cruushLogo from '../assets/brand/cruush-logo.svg';
+
+// The spinning cruush model, the same recording the login page used to play
+// behind the form, now reads as the logo itself.
+const LOGO_SPIN_VIDEO = '/teasers/launch-login-teaser-mobile.mp4';
 import './Auth.css';
 
 interface AuthProps {
@@ -447,18 +450,22 @@ export default function Auth({ onAuth }: AuthProps) {
 
   return (
     <div className="launch-login-auth-shell overflow-x-hidden">
-      <LaunchLoginMapTeaser />
+      <div aria-hidden="true" className="launch-login-strobe-pane" data-testid="launch-login-strobe-pane" />
       <div className="launch-login-auth-card w-full max-w-[20rem] relative z-10" data-testid="launch-login-auth-panel">
         {/* Logo */}
         <div className="launch-login-auth-brand text-center" data-testid="launch-login-auth-brand">
           <h1 className="sr-only">cruush</h1>
-          <img
-            alt=""
+          <video
             aria-hidden="true"
-            className="launch-login-auth-logo-image"
+            autoPlay
+            className="launch-login-auth-logo-image launch-login-auth-logo-video"
             data-testid="launch-login-auth-logo"
-            draggable={false}
-            src={cruushLogo}
+            loop
+            muted
+            playsInline
+            poster={cruushLogo}
+            preload="metadata"
+            src={LOGO_SPIN_VIDEO}
           />
           <div className="launch-login-auth-tagline-stack">
             <p className="launch-login-auth-tagline" data-testid="launch-login-auth-tagline">

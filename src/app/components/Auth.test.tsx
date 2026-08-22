@@ -147,11 +147,12 @@ describe('Auth', () => {
     expect(screen.getByTestId('launch-login-auth-brand')).toHaveClass('launch-login-auth-brand');
     expect(screen.getByTestId('launch-login-auth-logo')).toHaveClass('launch-login-auth-logo-image');
     expect(screen.queryByTestId('launch-login-brand-mark')).not.toBeInTheDocument();
-    expect(screen.getByTestId('launch-login-map-teaser')).toHaveAttribute('aria-hidden', 'true');
+    expect(screen.getByTestId('launch-login-strobe-pane')).toHaveAttribute('aria-hidden', 'true');
     expect(screen.getByTestId('launch-login-auth-panel')).toHaveClass('launch-login-auth-card');
     expect(screen.queryByTestId('launch-login-auth-captcha')).not.toBeInTheDocument();
     expect(screen.queryByTestId('launch-login-foreground-rain-pane')).not.toBeInTheDocument();
-    expect(screen.getByTestId('launch-login-video-logo-scrub')).toBeInTheDocument();
+    // The spinning model is the logo now, so it plays above the tagline.
+    expect(screen.getByTestId('launch-login-auth-logo').tagName).toBe('VIDEO');
     expect(screen.queryByTestId('launch-login-map-scene')).not.toBeInTheDocument();
     const humanCheckInput = screen.getByTestId('launch-login-auth-human-check-input');
     expect(humanCheckInput).toHaveAttribute('tabindex', '-1');
@@ -159,7 +160,7 @@ describe('Auth', () => {
     expect(humanCheckInput).toHaveAttribute('autocomplete', 'off');
     expect(humanCheckInput).toHaveAttribute('data-lpignore', 'true');
     expect(humanCheckInput).toHaveAttribute('data-bwignore', 'true');
-    expect(container.querySelectorAll('[data-testid="launch-login-map-teaser"] img')).toHaveLength(0);
+    expect(container.querySelectorAll('[data-testid="launch-login-strobe-pane"] img')).toHaveLength(0);
     expect(screen.getByTestId('launch-login-auth-tagline')).toHaveTextContent('queer cruisers cruise cruush');
     expect(screen.getByLabelText('Email')).toHaveClass('launch-login-auth-input');
     const signInButton = screen.getByRole('button', { name: 'Sign In' });

@@ -18,6 +18,8 @@ export type ProfileActionTrioProps = {
   onCenterPin?: () => void;
   /** Force the quiet gradient, for example on cruushes you sent. */
   cruushTone?: 'bright' | 'dark';
+  /** A cruush already exists in one direction, so the double heart reads. */
+  cruushReceived?: boolean;
   size?: 'sm' | 'md';
   className?: string;
 };
@@ -41,6 +43,7 @@ export default function ProfileActionTrio({
   canCenterPin = false,
   onCenterPin,
   cruushTone,
+  cruushReceived = false,
   size = 'md',
   className,
 }: ProfileActionTrioProps) {
@@ -72,7 +75,7 @@ export default function ProfileActionTrio({
         data-cruush-state={cruushState}
       >
         <CruushIcon
-          name={cruushState === 'mutual' || cruushState === 'sent' ? 'safety' : 'cruush'}
+          name={cruushReceived || cruushState === 'mutual' || cruushState === 'sent' ? 'safety' : 'cruush'}
           className="h-5 w-5"
           variant="white"
         />
@@ -93,15 +96,20 @@ export default function ProfileActionTrio({
         </Button>
       ) : null}
 
-      {canCenterPin && onCenterPin ? (
+      {onCenterPin ? (
         <Button
           type="button"
           size="icon"
           variant="secondary"
-          className={`cruush-action-sheen ${sizeClass} shrink-0 rounded-full border-0 text-white`}
-          style={{ background: 'var(--cruush-gradient)' }}
-          aria-label={`Center the map on ${userName}`}
-          title={`Center the map on ${userName}`}
+          className={`cruush-action-sheen ${sizeClass} shrink-0 rounded-full border-0 disabled:opacity-100 ${canCenterPin ? 'text-white' : 'text-white/55'}`}
+          style={{ background: canCenterPin ? 'var(--cruush-gradient)' : '#151021' }}
+          aria-label={canCenterPin
+            ? `Center the map on ${userName}`
+            : `${userName} does not share their precise location`}
+          title={canCenterPin
+            ? `Center the map on ${userName}`
+            : `${userName} does not share their precise location`}
+          disabled={!canCenterPin}
           onClick={onCenterPin}
         >
           <CruushIconImage src={mapIconWhite} className="h-5 w-5" />

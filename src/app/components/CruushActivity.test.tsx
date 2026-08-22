@@ -236,7 +236,8 @@ describe('CruushActivity', () => {
     expect(within(incomingVibes).getAllByText(/Artsy|Chill|Goth/)).toHaveLength(3);
     expect(within(incomingVibes).queryByText('Extra')).not.toBeInTheDocument();
     const incomingCruushButton = screen.getByRole('button', { name: 'Send cruush to luna' });
-    expect(incomingCruushButton.querySelector('img')?.getAttribute('src')).toContain('cruush-white');
+    // They already cruushed you, so the control wears the double heart.
+    expect(incomingCruushButton.querySelector('img')?.getAttribute('src')).toContain('safety-white');
     fireEvent.click(incomingCruushButton);
     await waitFor(() => expect(sendCruush).toHaveBeenCalledWith('user-luna', expect.objectContaining({
       name: 'luna',
