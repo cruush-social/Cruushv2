@@ -563,7 +563,7 @@ export async function notifyConversationMessageRecipients(
       [input.conversationId, input.senderUserId]
     );
 
-    for (const recipient of recipients.rows) {
+    await Promise.all(recipients.rows.map(async (recipient) => {
       const senderName = recipient.sender_name?.trim() || "Someone";
       const groupTitle = recipient.conversation_title?.trim() || input.conversationTitle?.trim() || "Group chat";
       const isGroup = input.conversationKind === "group";
@@ -580,9 +580,10 @@ export async function notifyConversationMessageRecipients(
         metadata: {
           conversationKind: input.conversationKind
         },
-        suppressPush: recipient.muted
+        suppressPush: recipient.muted,
+        deferPush: true
       });
-    }
+    }));
   } catch (error) {
     app.log.warn({ err: error, conversationId: input.conversationId }, "message notification dispatch failed");
   }
@@ -1822,7 +1823,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
       throw new ApiError(403, "FEATURE_RESTRICTED", "Messaging is unavailable for this account.");
     }
 
-    await recordMeaningfulActivitySafely(app, {
+    void recordMeaningfulActivitySafely(app, {
       userId,
       activityType: "message",
       sourceEventId: created.id

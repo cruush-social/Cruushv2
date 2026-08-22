@@ -534,7 +534,11 @@ describe("notification routes", () => {
         groupsEnabled: true,
         nearbyEnabled: false,
         rewardsEnabled: false,
-        soundEnabled: true
+        soundEnabled: true,
+        quietHoursEnabled: false,
+        quietHoursStartMinute: 0,
+        quietHoursEndMinute: 360,
+        quietHoursTimezone: "UTC"
       }
     });
     expect(query.mock.calls[1]?.[0]).toContain("nearby_enabled");
@@ -587,7 +591,11 @@ describe("notification routes", () => {
         groupsEnabled: true,
         nearbyEnabled: true,
         rewardsEnabled: true,
-        soundEnabled: true
+        soundEnabled: true,
+        quietHoursEnabled: false,
+        quietHoursStartMinute: 0,
+        quietHoursEndMinute: 360,
+        quietHoursTimezone: "UTC"
       }
     });
   }, 10000);

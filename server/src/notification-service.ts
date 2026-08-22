@@ -153,7 +153,14 @@ export async function createAppNotification(
 
 export async function createAppNotificationAndPush(
   app: NotificationApp,
-  input: AppNotificationInput
+  input: AppNotificationInput & {
+    /**
+     * Persist the notification, then hand the push off without waiting for it.
+     * Push delivery is a network round trip per device, and on a chat send that
+     * time is spent while the sender watches their own message not appear.
+     */
+    deferPush?: boolean;
+  }
 ) {
   const notification = await createAppNotification(app, input);
 
@@ -161,11 +168,21 @@ export async function createAppNotificationAndPush(
     return notification;
   }
 
-  try {
-    await sendPushForNotification(app, notification);
-  } catch (error) {
-    app.log.warn({ err: error, notificationId: notification.id }, "notification push dispatch failed");
+  const deliver = async () => {
+    try {
+      await sendPushForNotification(app, notification);
+    } catch (error) {
+      app.log.warn({ err: error, notificationId: notification.id }, "notification push dispatch failed");
+    }
+  };
+
+  if (input.deferPush) {
+    void deliver();
+
+    return notification;
   }
+
+  await deliver();
 
   return notification;
 }
