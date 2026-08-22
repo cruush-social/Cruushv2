@@ -113,7 +113,25 @@ type TokenizedDiscoveryProfile = {
 type NearbyUsersResponse = {
   mapEpochMs: number;
   profiles: TokenizedDiscoveryProfile[];
+  /** Set when the map is pointed further than a member may browse from. */
+  outsideBrowseRadius?: boolean;
+  browseRadiusMiles?: number;
 };
+
+/**
+ * Discovery refuses to serve a view further out than someone may browse, and
+ * says so rather than returning an empty list that reads as "nobody here".
+ * Travel Mode is how you move where you browse from.
+ */
+export class OutsideBrowseRadiusError extends Error {
+  readonly browseRadiusMiles: number;
+
+  constructor(browseRadiusMiles: number) {
+    super(`Turn on Travel Mode to browse more than ${browseRadiusMiles} miles from where you are.`);
+    this.name = 'OutsideBrowseRadiusError';
+    this.browseRadiusMiles = browseRadiusMiles;
+  }
+}
 
 function appendListParams(params: URLSearchParams, key: string, values?: string[]) {
   for (const value of values ?? []) {
@@ -167,6 +185,10 @@ export async function getNearbyUsers(
       ...user,
       photoExplicit: user.photoExplicit === true,
     }));
+  }
+
+  if (response.outsideBrowseRadius === true) {
+    throw new OutsideBrowseRadiusError(response.browseRadiusMiles ?? 50);
   }
 
   return Promise.all(response.profiles.map(async (profile): Promise<DiscoveryUser> => {

@@ -22,7 +22,7 @@ import MapControlsTutorial, {
   notifyMapControlsTutorialCompleted,
   type MapControlsTutorialStepId,
 } from './MapControlsTutorial';
-import { getNearbyUsers, type DiscoveryUser } from '../lib/usersApi';
+import { OutsideBrowseRadiusError, getNearbyUsers, type DiscoveryUser } from '../lib/usersApi';
 import { getMutualCruushMap, type MutualCruushActivityItem } from '../lib/cruushApi';
 import { DEFAULT_PRIVACY_SETTINGS, getMyPrivacySettings, type PrivacySettings } from '../lib/privacyApi';
 import { CRUUSH_PLUS_CHANGED_EVENT, getMyBillingStatus, type BillingStatus } from '../lib/billingApi';
@@ -1220,6 +1220,16 @@ export default function MapHome(_props: MapHomeProps = {}) {
           : await getNearbyUsers(coordinates, undefined, discoveryRequestOptions()));
       }
     } catch (fetchError) {
+      // Looking further out than you may browse is not a failure. Say what it
+      // is and how to lift it, rather than showing an empty map.
+      if (fetchError instanceof OutsideBrowseRadiusError) {
+        setUsers([]);
+        if (!options.background) {
+          setError(fetchError.message);
+        }
+        return;
+      }
+
       console.error('Error fetching users:', fetchError);
       if (options.background) {
         // Never keep rendering an expired location token when a privacy refresh

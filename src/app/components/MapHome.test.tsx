@@ -125,6 +125,9 @@ vi.mock('sonner', () => ({
 
 vi.mock('../lib/usersApi', () => ({
   getNearbyUsers,
+  // The component narrows on this class, so the mock has to carry it or the
+  // instanceof check throws inside the catch it was meant to guard.
+  OutsideBrowseRadiusError: class OutsideBrowseRadiusError extends Error {},
 }));
 
 vi.mock('../lib/cruushApi', () => ({
