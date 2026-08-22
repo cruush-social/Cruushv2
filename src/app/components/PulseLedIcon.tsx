@@ -3,10 +3,12 @@
  * ping green. Drawn rather than borrowed so it holds the green at any size on a
  * clear background.
  */
-export default function PulseLedIcon({ className = '', fill = 'none' }: {
+export default function PulseLedIcon({ className = '', fill = 'none', ring = true }: {
   className?: string;
   /** The disc behind the line. Defaults to clear. */
   fill?: string;
+  /** Drop the ring where the control already draws a circle of its own. */
+  ring?: boolean;
 }) {
   return (
     <svg
@@ -16,7 +18,9 @@ export default function PulseLedIcon({ className = '', fill = 'none' }: {
       viewBox="0 0 24 24"
       xmlns="http://www.w3.org/2000/svg"
     >
-      <circle cx="12" cy="12" fill={fill} r="9.6" stroke="currentColor" strokeWidth="1.2" />
+      {ring ? (
+        <circle cx="12" cy="12" fill={fill} r="9.6" stroke="currentColor" strokeWidth="1.2" />
+      ) : null}
       <path
         d="M4.9 12h2.7l1.5-3.3 2.3 6.5 1.7-3.8 1.1 1.9h2.9"
         stroke="currentColor"
