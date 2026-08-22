@@ -528,7 +528,7 @@ Tradeoff:
 These are the decisions taken while shipping the 1.5 fixes. Follow them instead of inventing a new treatment per surface.
 
 ### Gradients
-- `--cruush-gradient` is the only bright gradient. Pink sits at the very edge and purple holds the middle, so no control reads as red.
+- `--cruush-gradient` is the only bright gradient, and its stops are fixed. Do not re-weight it; every button, pill and badge in the app inherits it.
 - `--cruush-gradient-soft-28` is the quiet state of that same gradient. Use it for anything already done: a cruush you sent, a mutual you already have, a secondary card.
 - `--cruush-gradient-soft-18` is the quietest tint. Use it for large surfaces that must stay readable behind text.
 - Never introduce a one-off gradient (no `from-fuchsia-500 via-violet-500` style stacks). If a surface needs emphasis, use the tokens plus a border or brighter text.
