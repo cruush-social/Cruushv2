@@ -111,7 +111,7 @@ describe('MapPingSheet', () => {
 
     expect(await screen.findByRole('dialog')).toBeInTheDocument();
     expect(screen.getByText('At the park')).toBeInTheDocument();
-    expect(screen.getByText('2 of 3 Pings available right now.')).toBeInTheDocument();
+    expect(screen.getByText('2 of 3 Pulses available right now.')).toBeInTheDocument();
     expect(screen.getAllByRole('radio').map((radio) => radio.getAttribute('aria-label'))).toEqual([
       '1 mile',
       '3 miles',
@@ -183,7 +183,7 @@ describe('MapPingSheet', () => {
       />,
     );
 
-    expect(screen.getByText('Add a signal to your profile before sending a Ping.')).toBeInTheDocument();
+    expect(screen.getByText('Add a signal to your profile before sending a Pulse.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Send Ping' })).toBeDisabled();
   });
 

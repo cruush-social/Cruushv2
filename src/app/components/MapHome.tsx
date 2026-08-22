@@ -935,7 +935,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
         await refreshMapPingStatus();
       } catch (pingError) {
         if (isMounted) {
-          console.warn('Error loading map Ping status:', pingError);
+          console.warn('Error loading map Pulse status:', pingError);
         }
       }
     };
@@ -1592,7 +1592,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
   );
   const handleSendMapPing = async (radiusMiles: MapPingRadiusMiles) => {
     if (!currentUserMapLocation) {
-      throw new Error('Share your map location before sending a Ping.');
+      throw new Error('Share your map location before sending a Pulse.');
     }
 
     await requestFreshMapPingLocation();
@@ -2609,11 +2609,11 @@ export default function MapHome(_props: MapHomeProps = {}) {
             onClick={() => setMapPingSheetOpen(true)}
             data-testid="map-ping-button"
             data-tutorial-target="ping"
-            aria-label="Send a Ping"
-            title="Send a Ping"
-            className="size-8 shrink-0 rounded-full border border-[#c8ff31]/45 bg-background/45 text-[#c8ff31] backdrop-blur-md hover:bg-[#c8ff31]/15 sm:size-9 lg:size-11"
+            aria-label="Send a Pulse"
+            title="Send a Pulse"
+            className="size-12 shrink-0 border-0 bg-transparent p-0 text-[#c8ff31] hover:bg-transparent hover:brightness-125 sm:size-[3.25rem] lg:size-14"
           >
-            <PulseLedIcon className="h-5 w-5 lg:h-7 lg:w-7" />
+            <PulseLedIcon className="size-full" />
           </Button>
 
           <div

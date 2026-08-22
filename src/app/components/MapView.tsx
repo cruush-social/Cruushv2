@@ -751,7 +751,7 @@ export function separateOverlappingMarkers(markers: MapMarker[], zoom: number) {
 }
 
 function canClusterMarker(marker: MapMarker, focusCoordinates: MapViewProps['focusCoordinates']) {
-  // An active Ping is a short-lived visibility signal. Keep its heart
+  // An active Pulse is a short-lived visibility signal. Keep its heart
   // independent from nearby clusters so it stays discoverable while zoomed out.
   if ((marker.kind ?? 'person') !== 'person' || marker.isCurrentUser === true || marker.activePing) {
     return false;

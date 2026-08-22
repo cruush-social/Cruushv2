@@ -1,8 +1,15 @@
 /**
- * The Pulse mark: a lit core with two rings coming off it. Drawn rather than
- * borrowed so it reads as the ping green at any size, on a clear background.
+ * The Pulse mark: a heart drawn in the ping green with a black centre and an
+ * ekg line running through it. Drawn rather than borrowed so it holds the green
+ * at any size against a clear background.
  */
-export default function PulseLedIcon({ className = '' }: { className?: string }) {
+const HEART_PATH = 'M12 20.6C6.6 16.8 3.4 13.6 3.4 10.1a4.7 4.7 0 0 1 8.6-2.7 4.7 4.7 0 0 1 8.6 2.7c0 3.5-3.2 6.7-8.6 10.5Z';
+
+export default function PulseLedIcon({ className = '', fill = '#050506' }: {
+  className?: string;
+  /** Pass "none" to let the surface behind the mark show through. */
+  fill?: string;
+}) {
   return (
     <svg
       aria-hidden="true"
@@ -11,20 +18,13 @@ export default function PulseLedIcon({ className = '' }: { className?: string })
       viewBox="0 0 24 24"
       xmlns="http://www.w3.org/2000/svg"
     >
-      <circle cx="12" cy="12" fill="currentColor" r="3.1" />
+      <path d={HEART_PATH} fill={fill} stroke="currentColor" strokeWidth="1.9" />
       <path
-        d="M6.9 6.9a7.2 7.2 0 0 0 0 10.2M17.1 6.9a7.2 7.2 0 0 1 0 10.2"
+        d="M5.6 12.1h2.6l1.4-2.8 2 5.4 1.5-3.2 1 1.5h2.9"
         stroke="currentColor"
         strokeLinecap="round"
-        strokeOpacity="0.85"
-        strokeWidth="1.9"
-      />
-      <path
-        d="M3.6 3.6a11.9 11.9 0 0 0 0 16.8M20.4 3.6a11.9 11.9 0 0 1 0 16.8"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeOpacity="0.45"
-        strokeWidth="1.6"
+        strokeLinejoin="round"
+        strokeWidth="1.5"
       />
     </svg>
   );

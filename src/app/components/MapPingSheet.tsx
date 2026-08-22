@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import PulseLedIcon from './PulseLedIcon';
+import HeartPhoto from './HeartPhoto';
 import { ApiClientError } from '../lib/apiClient';
 import {
   MAP_PING_RADII_MILES,
@@ -135,7 +136,7 @@ export default function MapPingSheet({
     }
 
     if (status) {
-      return `${status.allowance.remaining} of ${status.allowance.limit} Pings available right now.`;
+      return `${status.allowance.remaining} of ${status.allowance.limit} Pulses available right now.`;
     }
 
     return 'Checking your Ping allowance...';
@@ -243,17 +244,44 @@ export default function MapPingSheet({
           onPointerCancel={endDrag}
         >
           <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#c8ff31]/70 bg-transparent text-[#c8ff31]">
-              <PulseLedIcon className="h-5 w-5" />
-            </span>
+            <PulseLedIcon className="h-10 w-10 shrink-0 text-[#c8ff31]" />
             <div>
-              <SheetTitle>Send a Ping</SheetTitle>
+              <SheetTitle>Send a Pulse</SheetTitle>
               <SheetDescription>Light up your heart for people nearby.</SheetDescription>
             </div>
           </div>
         </SheetHeader>
 
         <div className="space-y-4 px-4">
+          {/* What a Pulse does, shown rather than described: the same heart the
+              map draws, running the same animation it runs when a Pulse is on. */}
+          <div className="flex items-center gap-4 rounded-xl border border-[#c8ff31]/45 bg-black/45 p-3">
+            <span className="flex h-20 w-20 shrink-0 items-center justify-center overflow-visible">
+              <span
+                className="cruush-map-ping-heart block origin-center"
+                data-testid="map-ping-preview-heart"
+                style={{ animation: 'cruush-map-ping-heart-pulse 1.35s ease-in-out infinite' }}
+              >
+                <HeartPhoto
+                  className="w-16"
+                  label="Your heart while a Pulse is running"
+                  masked={false}
+                  photo={null}
+                  theme="current"
+                  userId="pulse-preview"
+                />
+              </span>
+            </span>
+            <div className="min-w-0 space-y-1">
+              <p className="text-sm font-medium text-white">Your heart beats for 30 minutes</p>
+              <p className="text-xs leading-relaxed text-white/62">
+                Everyone inside your radius sees it beat, your pin rises above the others,
+                you come up more in the carousel, and your signal posts to the feed. Your pin
+                does not move.
+              </p>
+            </div>
+          </div>
+
           <div className="rounded-xl border border-white/10 bg-white/[0.045] p-3">
             <div className="flex items-center justify-between gap-3">
               <p className="text-xs uppercase tracking-[0.14em] text-white/48">Your signal</p>
@@ -284,7 +312,7 @@ export default function MapPingSheet({
                   <Button
                     type="button"
                     variant="outline"
-                    className="h-9 rounded-full border-white/15 text-white"
+                    className="h-9 rounded-full border-white/15 bg-black/45 text-white hover:border-white/30 hover:bg-white/[0.08] hover:text-white"
                     disabled={savingSignal}
                     onClick={() => setEditingSignal(false)}
                   >
@@ -292,7 +320,7 @@ export default function MapPingSheet({
                   </Button>
                   <Button
                     type="button"
-                    className="h-9 rounded-full border border-[#c8ff31]/70 bg-black/45 font-semibold text-white"
+                    className="h-9 rounded-full border border-[#c8ff31]/70 bg-black/45 font-semibold text-white hover:border-[#c8ff31] hover:bg-[#c8ff31]/10 hover:text-white"
                     disabled={savingSignal}
                     onClick={() => {
                       setSavingSignal(true);
@@ -309,15 +337,15 @@ export default function MapPingSheet({
               </div>
             ) : (
               <p className="mt-1 text-sm text-white">
-                {normalizedSignal || 'Add a signal to your profile before sending a Ping.'}
+                {normalizedSignal || 'Add a signal to your profile before sending a Pulse.'}
               </p>
             )}
           </div>
 
           <fieldset>
-            <legend className="text-sm font-medium text-white">Ping radius</legend>
+            <legend className="text-sm font-medium text-white">Pulse radius</legend>
             <RadioGroup
-              aria-label="Ping radius"
+              aria-label="Pulse radius"
               className="mt-2 grid grid-cols-5 gap-2"
               onValueChange={(value) => setRadiusMiles(Number(value) as MapPingRadiusMiles)}
               value={String(radiusMiles)}
@@ -339,11 +367,11 @@ export default function MapPingSheet({
               ? 'Your Ping uses the signal saved on your profile.'
               : hasMapLocation
                 ? statusText
-                : 'Share your map location before sending a Ping.'}
+                : 'Share your map location before sending a Pulse.'}
           </p>
           {cooldownCountdown && status?.allowance.nextEligibleAt ? (
             <div className="flex items-center justify-between gap-3 rounded-xl border border-[#c8ff31]/60 bg-black/45 px-3 py-2.5 text-sm">
-              <span className="text-white/65">Next Ping in</span>
+              <span className="text-white/65">Next Pulse in</span>
               <time
                 aria-label="Ping cooldown"
                 aria-live="off"
@@ -376,7 +404,7 @@ export default function MapPingSheet({
             onClick={() => void handleSend()}
             style={{ background: sendDisabled ? undefined : '#c8ff31' }}
           >
-            <PulseLedIcon className="mr-2 h-4 w-4" />
+            <PulseLedIcon className="mr-2 h-7 w-7 text-[#0B1200]" fill="none" />
             {sending ? 'Sending Ping...' : activePing ? 'Ping active' : 'Send Ping'}
           </Button>
         </SheetFooter>

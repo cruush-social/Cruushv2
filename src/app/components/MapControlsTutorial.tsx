@@ -78,9 +78,9 @@ const TUTORIAL_STEPS: TutorialStep[] = [
   },
   {
     id: 'ping',
-    title: 'Ping',
-    description: 'Ping is directly below Visibility. It briefly marks your heart as active on the map and shares your signal as a normal feed post.',
-    actionLabel: 'Open Ping',
+    title: 'Pulse',
+    description: 'Pulse is directly below Visibility. It briefly marks your heart as active on the map and shares your signal as a normal feed post.',
+    actionLabel: 'Open Pulse',
   },
   {
     id: 'profile-pin',

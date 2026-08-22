@@ -35,7 +35,7 @@ import { postExpirySchema, type PostExpiry } from "./post-schema.js";
 export const MAP_PING_RADIUS_MILES = [1, 3, 5, 10, 15] as const;
 export type MapPingRadiusMiles = typeof MAP_PING_RADIUS_MILES[number];
 
-export const MAP_PING_ACTIVE_MS = 10 * 60 * 1000;
+export const MAP_PING_ACTIVE_MS = 30 * 60 * 1000;
 export const MAP_PING_WINDOW_MS = 24 * 60 * 60 * 1000;
 export const MAP_PING_PLUS_COOLDOWN_MS = 4 * 60 * 60 * 1000;
 export const MAP_PING_SENDER_LOCATION_MAX_AGE_MS = 15 * 60 * 1000;
