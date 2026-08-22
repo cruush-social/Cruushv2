@@ -99,3 +99,83 @@ export function PlayingCard(props: GlyphProps) {
     </Glyph>
   );
 }
+
+/*
+ * Interlocking gender symbols. These are the oldest marks the communities have,
+ * older than any flag, and people still read them instantly. Drawn as circles
+ * and arms rather than glyph characters so they hold their weight beside the
+ * rest of the set at badge size.
+ */
+
+/** Mars over Mars. */
+export function DoubleMarsGlyph(props: GlyphProps) {
+  return (
+    <Glyph {...props}>
+      <circle cx="8" cy="16" r="4.2" />
+      <circle cx="14.6" cy="16" r="4.2" />
+      <path d="m11 13 4.4-4.4" />
+      <path d="M12.2 8.6h3.6v3.6" />
+      <path d="m17.6 13 3.4-3.4" />
+      <path d="M17.8 9.6H21v3.2" />
+    </Glyph>
+  );
+}
+
+/** Venus over Venus. */
+export function DoubleVenusGlyph(props: GlyphProps) {
+  return (
+    <Glyph {...props}>
+      <circle cx="8" cy="8.4" r="4.2" />
+      <circle cx="14.6" cy="8.4" r="4.2" />
+      <path d="M8 12.6v7.2" />
+      <path d="M5.6 17h4.8" />
+      <path d="M14.6 12.6v7.2" />
+      <path d="M12.2 17H17" />
+    </Glyph>
+  );
+}
+
+/** Mars and Venus, linked. */
+export function MarsVenusGlyph(props: GlyphProps) {
+  return (
+    <Glyph {...props}>
+      <circle cx="8.4" cy="12" r="4.2" />
+      <circle cx="15.4" cy="12" r="4.2" />
+      <path d="M8.4 16.2v5.2" />
+      <path d="M6.2 19h4.4" />
+      <path d="m18.2 8.6 2.8-2.8" />
+      <path d="M17.8 5.8H21V9" />
+    </Glyph>
+  );
+}
+
+/** The intersex symbol: one circle carrying both arms. */
+export function IntersexGlyph(props: GlyphProps) {
+  return (
+    <Glyph {...props}>
+      <circle cx="11" cy="13" r="4.6" />
+      <path d="M11 17.6v4.2" />
+      <path d="M8.8 19.8h4.4" />
+      <path d="m14.4 9.6 4.6-4.6" />
+      <path d="M15.4 5h3.6v3.6" />
+    </Glyph>
+  );
+}
+
+/** Trans over trans, for the pairing rather than the identity. */
+export function DoubleTransGlyph(props: GlyphProps) {
+  return (
+    <Glyph {...props}>
+      <circle cx="7.6" cy="13.6" r="3.6" />
+      <path d="M7.6 17.2v4.2" />
+      <path d="M5.6 19.4h4" />
+      <path d="m10 11.2 2.8-2.8" />
+      <path d="M10.2 8.2h2.8V11" />
+      <circle cx="16.4" cy="13.6" r="3.6" />
+      <path d="M16.4 17.2v4.2" />
+      <path d="M14.4 19.4h4" />
+      <path d="m18.8 11.2 2.6-2.6" />
+      <path d="M19 8.4h2.6V11" />
+    </Glyph>
+  );
+}

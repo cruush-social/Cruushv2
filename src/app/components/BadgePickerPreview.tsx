@@ -1,7 +1,29 @@
 import { useEffect, useState } from 'react';
 import { KeyholeEyeGlyph, LipsGlyph, PartyHatGlyph, StraightEdgeGlyph, TongueGlyph } from './BadgeGlyphs';
 import {
+  CollarHolderFemaleGlyph,
+  CollarHolderGlyph,
+  CollarHolderMaleGlyph,
+  CollarHolderNonbinaryGlyph,
+  CollarSwitchGlyph,
+  CollaredFemaleGlyph,
+  CollaredGlyph,
+  CollaredLittleGlyph,
+  CollaredMaleGlyph,
+  CollaredNonbinaryGlyph,
+  UncollaredFemaleGlyph,
+  UncollaredGlyph,
+  UncollaredLittleGlyph,
+  UncollaredMaleGlyph,
+  UncollaredNonbinaryGlyph,
+} from './OwnershipGlyphs';
+import {
+  DoubleMarsGlyph,
+  DoubleTransGlyph,
+  DoubleVenusGlyph,
+  IntersexGlyph,
   LabrysGlyph,
+  MarsVenusGlyph,
   NonbinaryGlyph,
   PlayingCard,
   PolyGlyph,
@@ -136,6 +158,24 @@ const BADGE_OPTIONS: BadgeOption[] = [
   { id: 'watersports', label: 'Watersports', icon: Droplet, group: 'Power' },
   { id: 'age-play', label: 'Age play', icon: Baby, group: 'Power' },
 
+  // Collar: where you stand, in the emblems the community already uses. The
+  // inner mark says whose gender is meant, not yours.
+  { id: 'collar-holder', label: 'Holds a collar', icon: CollarHolderGlyph, group: 'Collar' },
+  { id: 'collar-holder-f', label: 'Holds, woman', icon: CollarHolderFemaleGlyph, group: 'Collar' },
+  { id: 'collar-holder-m', label: 'Holds, man', icon: CollarHolderMaleGlyph, group: 'Collar' },
+  { id: 'collar-holder-nb', label: 'Holds, nonbinary', icon: CollarHolderNonbinaryGlyph, group: 'Collar' },
+  { id: 'collared', label: 'Collared', icon: CollaredGlyph, group: 'Collar' },
+  { id: 'collared-f', label: 'Collared, to a woman', icon: CollaredFemaleGlyph, group: 'Collar' },
+  { id: 'collared-m', label: 'Collared, to a man', icon: CollaredMaleGlyph, group: 'Collar' },
+  { id: 'collared-nb', label: 'Collared, to nonbinary', icon: CollaredNonbinaryGlyph, group: 'Collar' },
+  { id: 'collared-little', label: 'Collared little', icon: CollaredLittleGlyph, group: 'Collar' },
+  { id: 'uncollared', label: 'Uncollared', icon: UncollaredGlyph, group: 'Collar' },
+  { id: 'uncollared-f', label: 'Uncollared, seeks a woman', icon: UncollaredFemaleGlyph, group: 'Collar' },
+  { id: 'uncollared-m', label: 'Uncollared, seeks a man', icon: UncollaredMaleGlyph, group: 'Collar' },
+  { id: 'uncollared-nb', label: 'Uncollared, seeks nonbinary', icon: UncollaredNonbinaryGlyph, group: 'Collar' },
+  { id: 'uncollared-little', label: 'Uncollared little', icon: UncollaredLittleGlyph, group: 'Collar' },
+  { id: 'collar-switch', label: 'Switch', icon: CollarSwitchGlyph, group: 'Collar' },
+
   // Gear: what you wear, and what you want worn.
   { id: 'leather', label: 'Leather', icon: Shield, group: 'Gear' },
   { id: 'rubber', label: 'Rubber', icon: Layers, group: 'Gear' },
@@ -204,6 +244,17 @@ const BADGE_OPTIONS: BadgeOption[] = [
   { id: 'newly-out', label: 'Newly out', icon: DoorOpen, group: 'Community' },
   { id: 'poz-friendly', label: 'Poz friendly', icon: HeartHandshake, group: 'Community' },
   { id: 'on-prep', label: 'On PrEP', icon: Pill, group: 'Community' },
+
+  // Pride: the interlocking gender symbols, which people read faster than any
+  // flag and which pair as easily as a hanky does.
+  { id: 'mars-mars', label: 'Men', icon: DoubleMarsGlyph, group: 'Pride' },
+  { id: 'venus-venus', label: 'Women', icon: DoubleVenusGlyph, group: 'Pride' },
+  { id: 'mars-venus', label: 'Both', icon: MarsVenusGlyph, group: 'Pride' },
+  { id: 'trans-trans', label: 'Trans on trans', icon: DoubleTransGlyph, group: 'Pride' },
+  { id: 'trans-symbol', label: 'Trans', icon: TransGlyph, group: 'Pride' },
+  { id: 'intersex', label: 'Intersex', icon: IntersexGlyph, group: 'Pride' },
+  { id: 'enby', label: 'Nonbinary', icon: NonbinaryGlyph, group: 'Pride' },
+  { id: 'labrys', label: 'Labrys', icon: LabrysGlyph, group: 'Pride' },
 
   // Boundaries: worth flagging as loudly as anything else.
   { id: 'party', label: 'Party', icon: PartyHatGlyph, group: 'Boundaries' },

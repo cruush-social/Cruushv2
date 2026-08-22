@@ -130,6 +130,7 @@
     "src/app/components/NotificationCenter.tsx",
     "src/app/components/NotificationSettings.test.tsx",
     "src/app/components/NotificationSettings.tsx",
+    "src/app/components/OwnershipGlyphs.tsx",
     "src/app/components/PositionRoleGlyphs.tsx",
     "src/app/components/PrivacyAudit.tsx",
     "src/app/components/PrivateGroupChat.test.tsx",
