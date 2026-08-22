@@ -857,8 +857,8 @@ function applyPersonMarkerClusters(
 }
 
 // The preview spends its whole character budget. Trimming back to the last whole
-// word used to cost up to a third of the thirty characters a signal is allowed.
-function truncateMarkerPreview(value: string | null | undefined, maxCharacters = 30) {
+// word used to cost up to a third of the characters a signal is allowed.
+function truncateMarkerPreview(value: string | null | undefined, maxCharacters = 35) {
   const normalizedValue = (value ?? '').trim().replace(/\s+/g, ' ');
 
   if (normalizedValue.length <= maxCharacters) {

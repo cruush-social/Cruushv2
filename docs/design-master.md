@@ -562,8 +562,9 @@ These are the decisions taken while shipping the 1.5 fixes. Follow them instead 
 These are not preferences. Breaking one is a bug.
 
 ### Signal
-- A signal is at most **30 characters**. The editor input, the server payload
-  schema, and the map preview all hold that number, and it lives in one place:
+- A signal is at most **35 characters**, which is what the field holds on a
+  phone without wrapping. The editor input, the server payload schema, and the
+  map preview all hold that number, and it lives in one place:
   `SIGNAL_MAX_LENGTH` in `server/src/profile-schema.ts`.
 - A signal renders on **one line**, everywhere. It truncates; it never wraps to
   a second line and never grows the block it sits in.

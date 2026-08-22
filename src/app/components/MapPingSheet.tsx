@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { Radio } from 'lucide-react';
 import { ApiClientError } from '../lib/apiClient';
 import {
@@ -161,6 +161,50 @@ export default function MapPingSheet({
     return () => window.clearTimeout(timeoutId);
   }, [nextEligibleTimestamp, onRefresh, open]);
 
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const dragStateRef = useRef<{ pointerId: number; originX: number; originY: number; start: { x: number; y: number } } | null>(null);
+
+  const beginDrag = (event: ReactPointerEvent<HTMLElement>) => {
+    if (event.button !== 0) {
+      return;
+    }
+
+    event.currentTarget.setPointerCapture(event.pointerId);
+    dragStateRef.current = {
+      pointerId: event.pointerId,
+      originX: event.clientX,
+      originY: event.clientY,
+      start: dragOffset,
+    };
+  };
+
+  const continueDrag = (event: ReactPointerEvent<HTMLElement>) => {
+    const dragState = dragStateRef.current;
+
+    if (!dragState || dragState.pointerId !== event.pointerId) {
+      return;
+    }
+
+    setDragOffset({
+      x: dragState.start.x + (event.clientX - dragState.originX),
+      y: dragState.start.y + (event.clientY - dragState.originY),
+    });
+  };
+
+  const endDrag = (event: ReactPointerEvent<HTMLElement>) => {
+    const dragState = dragStateRef.current;
+
+    if (!dragState || dragState.pointerId !== event.pointerId) {
+      return;
+    }
+
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+
+    dragStateRef.current = null;
+  };
+
   const handleSend = async () => {
     setSending(true);
     setError(null);
@@ -178,10 +222,26 @@ export default function MapPingSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="bottom"
-        className="z-[80] max-h-[calc(100dvh-1rem)] overflow-y-auto rounded-t-2xl border-white/10 bg-background/96 pb-[calc(7rem+env(safe-area-inset-bottom))] backdrop-blur-xl sm:left-1/2 sm:bottom-4 sm:max-w-lg sm:-translate-x-1/2 sm:rounded-2xl sm:border sm:pb-[calc(1.5rem+env(safe-area-inset-bottom))]"
+        className="z-[80] max-h-[calc(100dvh-10rem)] overflow-y-auto rounded-2xl border border-white/10 bg-background/96 pb-4 backdrop-blur-xl sm:left-1/2 sm:max-w-lg"
         data-testid="map-ping-sheet"
+        style={{
+          // The sheet always opens just above the bottom nav, and stays where it
+          // is dragged.
+          bottom: `calc(6.25rem + env(safe-area-inset-bottom))`,
+          top: 'auto',
+          transform: `translate(calc(-50% + ${dragOffset.x}px), ${dragOffset.y}px)`,
+          left: '50%',
+          width: 'min(28rem, calc(100vw - 1.5rem))',
+        }}
       >
-        <SheetHeader className="pr-10">
+        <SheetHeader
+          className="cursor-grab pr-10 active:cursor-grabbing"
+          data-testid="map-ping-sheet-handle"
+          onPointerDown={beginDrag}
+          onPointerMove={continueDrag}
+          onPointerUp={endDrag}
+          onPointerCancel={endDrag}
+        >
           <div className="flex items-center gap-3">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#c8ff31]/70 bg-transparent text-[#c8ff31]">
               <Radio aria-hidden="true" className="h-5 w-5" />
@@ -267,7 +327,7 @@ export default function MapPingSheet({
                   className="flex min-h-12 cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-white/10 bg-white/[0.035] px-1 py-2 text-center text-xs text-white/72 has-[[data-state=checked]]:border-[#c8ff31] has-[[data-state=checked]]:text-white"
                   key={radius}
                 >
-                  <RadioGroupItem className="border-[#c8ff31]/55 text-[#c8ff31] focus-visible:ring-[#c8ff31]/40" value={String(radius)} aria-label={`${radius} ${radius === 1 ? 'mile' : 'miles'}`} />
+                  <RadioGroupItem className="border-[#c8ff31]/55 text-[#c8ff31] focus-visible:ring-[#c8ff31]/40 [&_svg]:fill-[#c8ff31]" value={String(radius)} aria-label={`${radius} ${radius === 1 ? 'mile' : 'miles'}`} />
                   <span>{radius} mi</span>
                 </label>
               ))}

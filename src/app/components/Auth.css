@@ -168,8 +168,11 @@
 }
 
 .launch-login-auth-logo-video {
+  /* The recording is a spinning logo on black. Screen blending drops the black
+     and the square crop cuts the empty frame above and below it, so what reads
+     is the model alone. */
   width: clamp(11rem, 26dvh, 16rem);
-  aspect-ratio: 9 / 16;
+  aspect-ratio: 1 / 1;
   object-fit: cover;
   object-position: center;
   background: transparent;

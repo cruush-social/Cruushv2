@@ -1090,7 +1090,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
               <Label htmlFor="signal">Signal</Label>
               <Input
                 id="signal"
-                maxLength={30}
+                maxLength={35}
                 placeholder="A short hover note for your map pin"
                 value={normalizedProfile.signal}
                 onChange={(e) => handleChange('signal', e.target.value)}

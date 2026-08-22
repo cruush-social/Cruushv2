@@ -2,7 +2,7 @@ import { z } from "zod";
 import { multilineTextSchema, optionalSingleLineTextSchema, singleLineTextSchema } from "./input-schema.js";
 
 // The map preview, the profile overlay, and the editor all hold to this.
-export const SIGNAL_MAX_LENGTH = 30;
+export const SIGNAL_MAX_LENGTH = 35;
 
 const currentYear = new Date().getFullYear();
 
@@ -181,7 +181,8 @@ export const profilePayloadSchema = z.object({
   display_name: singleLineTextSchema({ min: 2, max: 80 }),
   photos: z.array(appOwnedProfilePhotoPathSchema).max(4).optional().default([]),
   bio: multilineTextSchema({ max: 2000 }).optional().default(""),
-  // A signal is one short line. Thirty characters is the hard rule.
+  // A signal is one short line. Thirty five characters is the hard rule: it is
+  // what the field holds on a phone without wrapping.
   signal: optionalSingleLineTextSchema(SIGNAL_MAX_LENGTH),
   pronouns: upToThreeArrayField,
   custom_pronouns: shortStringField,
