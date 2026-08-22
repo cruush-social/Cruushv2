@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { KeyholeEyeGlyph, LipsGlyph, PartyHatGlyph, SelkieGlyph, SelkiePeltGlyph, StraightEdgeGlyph, TongueGlyph } from './BadgeGlyphs';
+import { KeyholeEyeGlyph, LipsGlyph, PartyHatGlyph, StraightEdgeGlyph, TongueGlyph } from './BadgeGlyphs';
 import {
   ArrowDown,
   ArrowLeft,
