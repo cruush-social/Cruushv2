@@ -29,6 +29,7 @@ type NotificationPreferencesRow = {
   quiet_hours_start_minute: number;
   quiet_hours_end_minute: number;
   quiet_hours_timezone: string;
+  pulse_enabled: boolean;
 };
 
 export type NotificationPreferences = {
@@ -45,6 +46,7 @@ export type NotificationPreferences = {
   quietHoursEndMinute: number;
   /** IANA zone the window is read in. */
   quietHoursTimezone: string;
+  pulseEnabled: boolean;
 };
 
 export type PushSubscriptionPayload = {
@@ -118,7 +120,8 @@ function mapPreferences(row?: Partial<NotificationPreferencesRow> | null): Notif
     quietHoursEnabled: row?.quiet_hours_enabled ?? false,
     quietHoursStartMinute: clampMinuteOfDay(row?.quiet_hours_start_minute, 0),
     quietHoursEndMinute: clampMinuteOfDay(row?.quiet_hours_end_minute, QUIET_HOURS_DEFAULT_END_MINUTE),
-    quietHoursTimezone: row?.quiet_hours_timezone || "UTC"
+    quietHoursTimezone: row?.quiet_hours_timezone || "UTC",
+    pulseEnabled: row?.pulse_enabled !== false
   };
 }
 
@@ -164,6 +167,10 @@ function isPreferenceEnabledForType(preferences: NotificationPreferences, type: 
 
   if (type === "incoming_cruush" || type === "mutual_cruush") {
     return preferences.cruushEnabled;
+  }
+
+  if (type === "pulse") {
+    return preferences.pulseEnabled;
   }
 
   if (type === "direct_message" || type === "group_message") {
@@ -233,7 +240,7 @@ export function getVapidPublicKey(config: AppConfig) {
 
 export async function getNotificationPreferences(app: PushApp, userId: string) {
   const result = await app.db.query<NotificationPreferencesRow>(
-    `select push_enabled, cruush_enabled, messages_enabled, groups_enabled, nearby_enabled, rewards_enabled, sound_enabled, quiet_hours_enabled, quiet_hours_start_minute, quiet_hours_end_minute, quiet_hours_timezone
+    `select push_enabled, cruush_enabled, messages_enabled, groups_enabled, nearby_enabled, rewards_enabled, sound_enabled, quiet_hours_enabled, quiet_hours_start_minute, quiet_hours_end_minute, quiet_hours_timezone, pulse_enabled
      from notification_preferences
      where user_id = $1
      limit 1`,
@@ -267,9 +274,10 @@ export async function updateNotificationPreferences(
        quiet_hours_enabled,
        quiet_hours_start_minute,
        quiet_hours_end_minute,
-       quiet_hours_timezone
+       quiet_hours_timezone,
+       pulse_enabled
      )
-     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
      on conflict (user_id) do update
        set push_enabled = excluded.push_enabled,
            cruush_enabled = excluded.cruush_enabled,
@@ -282,8 +290,9 @@ export async function updateNotificationPreferences(
            quiet_hours_start_minute = excluded.quiet_hours_start_minute,
            quiet_hours_end_minute = excluded.quiet_hours_end_minute,
            quiet_hours_timezone = excluded.quiet_hours_timezone,
+           pulse_enabled = excluded.pulse_enabled,
            updated_at = now()
-     returning push_enabled, cruush_enabled, messages_enabled, groups_enabled, nearby_enabled, rewards_enabled, sound_enabled, quiet_hours_enabled, quiet_hours_start_minute, quiet_hours_end_minute, quiet_hours_timezone`,
+     returning push_enabled, cruush_enabled, messages_enabled, groups_enabled, nearby_enabled, rewards_enabled, sound_enabled, quiet_hours_enabled, quiet_hours_start_minute, quiet_hours_end_minute, quiet_hours_timezone, pulse_enabled`,
     [
       userId,
       next.pushEnabled,
@@ -296,7 +305,8 @@ export async function updateNotificationPreferences(
       next.quietHoursEnabled,
       clampMinuteOfDay(next.quietHoursStartMinute, 0),
       clampMinuteOfDay(next.quietHoursEndMinute, QUIET_HOURS_DEFAULT_END_MINUTE),
-      next.quietHoursTimezone || "UTC"
+      next.quietHoursTimezone || "UTC",
+      next.pulseEnabled
     ]
   );
 
@@ -334,9 +344,9 @@ export async function upsertPushSubscription(
        on conflict (user_id) do update
          set push_enabled = true,
              updated_at = now()
-       returning push_enabled, cruush_enabled, messages_enabled, groups_enabled, nearby_enabled, rewards_enabled, sound_enabled, quiet_hours_enabled, quiet_hours_start_minute, quiet_hours_end_minute, quiet_hours_timezone
+       returning push_enabled, cruush_enabled, messages_enabled, groups_enabled, nearby_enabled, rewards_enabled, sound_enabled, quiet_hours_enabled, quiet_hours_start_minute, quiet_hours_end_minute, quiet_hours_timezone, pulse_enabled
      )
-     select push_enabled, cruush_enabled, messages_enabled, groups_enabled, nearby_enabled, rewards_enabled, sound_enabled, quiet_hours_enabled, quiet_hours_start_minute, quiet_hours_end_minute, quiet_hours_timezone
+     select push_enabled, cruush_enabled, messages_enabled, groups_enabled, nearby_enabled, rewards_enabled, sound_enabled, quiet_hours_enabled, quiet_hours_start_minute, quiet_hours_end_minute, quiet_hours_timezone, pulse_enabled
      from preferences_upsert`,
     [
       userId,

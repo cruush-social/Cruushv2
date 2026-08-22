@@ -14,6 +14,7 @@ function preferences(overrides: Partial<NotificationPreferences> = {}): Notifica
     quietHoursStartMinute: 0,
     quietHoursEndMinute: 360,
     quietHoursTimezone: "America/New_York",
+    pulseEnabled: true,
     ...overrides
   };
 }

@@ -43,7 +43,8 @@ const notificationPreferencesPayloadSchema = z.object({
   quietHoursEnabled: z.boolean().optional(),
   quietHoursStartMinute: z.number().int().min(0).max(1439).optional(),
   quietHoursEndMinute: z.number().int().min(0).max(1439).optional(),
-  quietHoursTimezone: z.string().trim().min(1).max(64).optional()
+  quietHoursTimezone: z.string().trim().min(1).max(64).optional(),
+  pulseEnabled: z.boolean().optional()
 }).strict();
 
 export const pushSubscriptionPayloadSchema = z.object({
