@@ -45,7 +45,7 @@ const CRUUSH_PLUS_FEATURES = [
     description: 'Use every seeking filter and visibility control together.',
   },
   {
-    title: 'Stealth Mode',
+    title: 'Voyeur',
     description: 'Browse the map without appearing on it.',
   },
 ] as const;
