@@ -292,7 +292,7 @@ export default function MapPingSheet({
           <div className="rounded-xl border border-white/10 bg-white/[0.045] p-3">
             <div className="flex items-center justify-between gap-3">
               <p className="text-xs uppercase tracking-[0.14em] text-white/48">
-                Your signal <span className="text-white/32">{SIGNAL_MAX_LENGTH} characters</span>
+                Your signal <span className="text-white/32">{SIGNAL_MAX_LENGTH} characters max</span>
               </p>
               {onSaveSignal && !editingSignal ? (
                 <button
