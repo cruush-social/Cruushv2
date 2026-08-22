@@ -2043,10 +2043,14 @@ describe('MapHome', () => {
     expect(screen.queryByText('nyc open beta')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /message now/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /send cruush/i })).toBeInTheDocument();
-    expect(screen.getByRole('complementary')).toHaveClass('z-50', 'fixed');
+    expect(screen.getByRole('complementary')).toHaveClass('fixed');
+    // Stacking is per panel now so a click always raises the pressed panel above
+    // the other one instead of both sitting on a shared z-50.
+    expect(Number(screen.getByRole('complementary').style.zIndex)).toBeGreaterThanOrEqual(50);
     expect(screen.getByRole('complementary')).toHaveAttribute('data-dock-slot', 'left');
     expect(screen.getByTestId('desktop-dock-left-handle')).toBeInTheDocument();
     expect(screen.getByTestId('desktop-dock-left-resize')).toBeInTheDocument();
+    expect(screen.getByTestId('desktop-dock-left-resize-top')).toBeInTheDocument();
     expect(screen.getByRole('complementary').querySelector('.profile-card-scroll')).toBeInTheDocument();
     expect(screen.getByRole('complementary').querySelector('.scrollbar-hide')).not.toBeInTheDocument();
     expect(screen.getByTestId('recently-active-panel').parentElement).toHaveClass('left-[calc(26rem+3rem)]', 'right-0', 'px-4');

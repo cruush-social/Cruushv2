@@ -34,7 +34,7 @@ describe("policy mapper", () => {
   });
 
   it.each(["private_photo", "feed"] as const)(
-    "rejects nudity on the non-message %s surface",
+    "allows nudity on the %s surface",
     (surface) => {
       const decision = mapProviderResultToPolicy({
         surface,
@@ -43,13 +43,41 @@ describe("policy mapper", () => {
       });
 
       expect(decision).toMatchObject({
-        decision: "reject",
-        reason_code: "nudity_outside_private_messages",
-        user_message_code: "nudity_private_messages_only",
+        decision: "allow",
+        reason_code: "adult_nudity_allowed",
         trust_impact: 0
       });
+      expect(decision.user_message_code).toBeFalsy();
     }
   );
+
+  it("allows an object photo on the feed but still rejects an animal", () => {
+    expect(mapProviderResultToPolicy({
+      surface: "feed",
+      contentType: "image",
+      providerResult: providerResult("profile_photo_not_adult_human", 0.99)
+    })).toMatchObject({
+      decision: "allow",
+      reason_code: "non_human_feed_photo_allowed"
+    });
+
+    expect(mapProviderResultToPolicy({
+      surface: "feed",
+      contentType: "image",
+      providerResult: providerResult("animal", 0.95)
+    }).decision).toBe("reject");
+  });
+
+  it("keeps rejecting a non-human profile photo", () => {
+    expect(mapProviderResultToPolicy({
+      surface: "profile_photo",
+      contentType: "image",
+      providerResult: providerResult("profile_photo_not_adult_human", 0.99)
+    })).toMatchObject({
+      decision: "reject",
+      reason_code: "profile_photo_not_adult_human"
+    });
+  });
 
   it("allows adult nudity on profile photos so DL Mode can mask the image client-side", () => {
     const decision = mapProviderResultToPolicy({

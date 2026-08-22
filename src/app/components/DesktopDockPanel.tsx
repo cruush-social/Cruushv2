@@ -3,6 +3,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 export type DesktopDockSlot = 'left' | 'right';
 
+type DockDragMode = 'move' | 'resize-top-right' | 'resize-bottom-right';
+
 type DockGeometry = {
   x: number;
   y: number;
@@ -19,7 +21,11 @@ type DesktopDockPanelProps = {
   minHeight?: number;
 };
 
-const EDGE_GAP = 24;
+const EDGE_GAP = 10;
+// Panels share one stacking counter. Pressing anywhere on a panel raises it, so
+// an overlapped panel is never left unclickable behind another one.
+const BASE_Z = 50;
+let topZ = BASE_Z;
 const DEFAULT_WIDTH = 416;
 const MIN_WIDTH = 360;
 const MIN_HEIGHT = 420;
@@ -96,7 +102,22 @@ export default function DesktopDockPanel({
       ? clampGeometry(stored, minWidth, minHeight)
       : defaultGeometry(slot, minWidth, minHeight);
   });
-  const dragStateRef = useRef<{ pointerId: number; mode: 'move' | 'resize'; originX: number; originY: number; start: DockGeometry } | null>(null);
+  const dragStateRef = useRef<{ pointerId: number; mode: DockDragMode; originX: number; originY: number; start: DockGeometry } | null>(null);
+  const [zIndex, setZIndex] = useState(() => {
+    topZ += 1;
+    return topZ;
+  });
+
+  const raise = useCallback(() => {
+    setZIndex((current) => {
+      if (current === topZ) {
+        return current;
+      }
+
+      topZ += 1;
+      return topZ;
+    });
+  }, []);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -121,10 +142,12 @@ export default function DesktopDockPanel({
     }
   }, [geometry, slot]);
 
-  const beginDrag = useCallback((event: ReactPointerEvent<HTMLElement>, mode: 'move' | 'resize') => {
+  const beginDrag = useCallback((event: ReactPointerEvent<HTMLElement>, mode: DockDragMode) => {
     if (event.button !== 0) {
       return;
     }
+
+    raise();
 
     event.preventDefault();
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -135,7 +158,7 @@ export default function DesktopDockPanel({
       originY: event.clientY,
       start: geometry,
     };
-  }, [geometry]);
+  }, [geometry, raise]);
 
   const continueDrag = useCallback((event: ReactPointerEvent<HTMLElement>) => {
     const dragState = dragStateRef.current;
@@ -146,10 +169,38 @@ export default function DesktopDockPanel({
     const deltaX = event.clientX - dragState.originX;
     const deltaY = event.clientY - dragState.originY;
 
+    if (dragState.mode === 'move') {
+      setGeometry(clampGeometry(
+        { ...dragState.start, x: dragState.start.x + deltaX, y: dragState.start.y + deltaY },
+        minWidth,
+        minHeight,
+      ));
+      return;
+    }
+
+    if (dragState.mode === 'resize-bottom-right') {
+      setGeometry(clampGeometry(
+        {
+          ...dragState.start,
+          width: dragState.start.width + deltaX,
+          height: dragState.start.height + deltaY,
+        },
+        minWidth,
+        minHeight,
+      ));
+      return;
+    }
+
+    // Top right grip: the panel grows to the right and upward, so the bottom
+    // edge stays put and y follows the height change.
+    const height = Math.max(dragState.start.height - deltaY, minHeight);
     setGeometry(clampGeometry(
-      dragState.mode === 'move'
-        ? { ...dragState.start, x: dragState.start.x + deltaX, y: dragState.start.y + deltaY }
-        : { ...dragState.start, width: dragState.start.width + deltaX, height: dragState.start.height + deltaY },
+      {
+        x: dragState.start.x,
+        y: dragState.start.y + (dragState.start.height - height),
+        width: dragState.start.width + deltaX,
+        height,
+      },
       minWidth,
       minHeight,
     ));
@@ -172,6 +223,7 @@ export default function DesktopDockPanel({
     top: `${geometry.y}px`,
     width: `${geometry.width}px`,
     height: `${geometry.height}px`,
+    zIndex,
   };
 
   return (
@@ -179,8 +231,9 @@ export default function DesktopDockPanel({
       aria-label={ariaLabel}
       data-dock-slot={slot}
       data-testid={`desktop-dock-${slot}`}
-      className={`fixed z-50 flex flex-col overflow-hidden rounded-[28px] border border-white/10 bg-black/80 shadow-[0_24px_80px_rgba(0,0,0,0.48)] backdrop-blur-xl ${className ?? ''}`}
+      className={`fixed flex flex-col overflow-hidden rounded-[28px] border border-white/12 bg-black/45 shadow-[0_24px_80px_rgba(0,0,0,0.48)] backdrop-blur-2xl ${className ?? ''}`}
       style={panelStyle}
+      onPointerDownCapture={raise}
     >
       {/* Keep the grab strip narrow so the panel's own corner controls stay clickable. */}
       <div
@@ -192,21 +245,33 @@ export default function DesktopDockPanel({
         onPointerMove={continueDrag}
         onPointerUp={endDrag}
       >
-        <span className="mx-auto mt-2 block h-1 w-12 rounded-full bg-white/25" />
+        <span className="mx-auto mt-1.5 block h-1 w-10 rounded-full bg-white/25" />
       </div>
 
       <div className="min-h-0 flex-1">{children}</div>
 
       <div
-        data-testid={`desktop-dock-${slot}-resize`}
-        aria-label={`Resize ${ariaLabel}`}
-        className="absolute bottom-0 right-0 z-30 h-6 w-6 cursor-nwse-resize"
+        data-testid={`desktop-dock-${slot}-resize-top`}
+        aria-label={`Resize ${ariaLabel} from the top right`}
+        className="absolute right-0 top-0 z-40 h-7 w-7 cursor-nesw-resize"
         onPointerCancel={endDrag}
-        onPointerDown={(event) => beginDrag(event, 'resize')}
+        onPointerDown={(event) => beginDrag(event, 'resize-top-right')}
         onPointerMove={continueDrag}
         onPointerUp={endDrag}
       >
-        <span className="absolute bottom-2 right-2 block h-2.5 w-2.5 rounded-[3px] border-b-2 border-r-2 border-white/45" />
+        <span className="absolute right-2 top-2 block h-2.5 w-2.5 rounded-[3px] border-r-2 border-t-2 border-white/70" />
+      </div>
+
+      <div
+        data-testid={`desktop-dock-${slot}-resize`}
+        aria-label={`Resize ${ariaLabel}`}
+        className="absolute bottom-0 right-0 z-40 h-7 w-7 cursor-nwse-resize"
+        onPointerCancel={endDrag}
+        onPointerDown={(event) => beginDrag(event, 'resize-bottom-right')}
+        onPointerMove={continueDrag}
+        onPointerUp={endDrag}
+      >
+        <span className="absolute bottom-2 right-2 block h-2.5 w-2.5 rounded-[3px] border-b-2 border-r-2 border-white/70" />
       </div>
     </aside>
   );

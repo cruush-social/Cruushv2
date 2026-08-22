@@ -34,7 +34,7 @@ import {
   setVerificationPreviewUrl,
 } from '../lib/sessionUser';
 import cruushLogo from '../assets/brand/cruush-logo.svg';
-import humanityProfileIcon from '../assets/ui-icons/humanity-profile-selected-winged-heart-symmetric.png';
+import cruushHeartIcon from '../assets/ui-icons/cruush-white.png';
 import {
   addAccessibilityPreferencesChangedListener,
   getAccessibilityPreferences,
@@ -64,11 +64,11 @@ type SettingsItem = SettingsActionItem | SettingsToggleItem;
 
 const editProfileIconStyle: CSSProperties = {
   background: 'var(--cruush-gradient)',
-  maskImage: `url(${humanityProfileIcon})`,
+  maskImage: `url(${cruushHeartIcon})`,
   maskPosition: 'center',
   maskRepeat: 'no-repeat',
   maskSize: 'contain',
-  WebkitMaskImage: `url(${humanityProfileIcon})`,
+  WebkitMaskImage: `url(${cruushHeartIcon})`,
   WebkitMaskPosition: 'center',
   WebkitMaskRepeat: 'no-repeat',
   WebkitMaskSize: 'contain',

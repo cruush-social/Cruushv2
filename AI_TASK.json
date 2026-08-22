@@ -3,9 +3,8 @@
   "product": "cruush",
   "release": "1.5",
   "repository": "cruush-social/Cruushv2",
-  "job": "Release the current cruush 1.5 fixes: preserve the fixed global bug-report control, keep desktop map profile panels at a usable phone width, shift the bottom navigation away from open panels, force the full-page mobile profile treatment when width or height cannot fit the desktop composition, and run the exact worktree locally with seeded profiles plus one active Ping. Private-message images may contain nonhuman subjects or multiple adults, while gore, hate symbols, violence, screenshots, image text or URLs, and people who appear underage remain blocked. Profile photos remain limited to one adult human. Remove redundant private-message toolbar labels and icons without changing timer behavior. Make map heart units 15 percent larger than their current enlarged size on hover, keyboard focus, and long-press preview while preserving their default size. Include the existing approved profile, appeal, moderation, activity, distance, carousel, profile-menu scrolling and alphabetization, SF and VC tabs, desktop signup footer, and dark-glass signup checkbox fixes in this release.",
-  "base": "ab111a92110d88a5aef35b9b7d9a0194c5aee35c",
-  "branch": "codex/carousel-photo-gallery-20260820",
+  "job": "Open local feed posting to every signed-in member, allow nudity and faceless photos on every surface, and fix the desktop dock panels.",
+  "branch": "feat/free-feed-board",
   "allowedPaths": [
     "AI_TASK.json",
     "server/sql/093_ghost_pulse_setting.sql",
@@ -152,61 +151,44 @@
     "src/app/components/FirstFeedPostPrompt.tsx",
     "src/app/components/FirstFeedPostPrompt.test.tsx",
     "src/app/lib/userNoticesApi.ts",
-    "src/app/components/ProfilePhotoGallery.tsx"
+    "src/app/components/ProfilePhotoGallery.tsx",
+    "server/src/routes/posts.ts"
   ],
   "preserved": [
-    "Keep private trans status as the eligibility gate for the optional T4T crowd; do not infer it from a selected gender identity.",
-    "Keep birth-control choices encrypted with other sensitive profile health data.",
-    "Keep profile overlays open after cruush and message actions unless the user explicitly closes or leaves them.",
-    "Keep the signed-in support flow and general public support flow unchanged.",
-    "Keep the existing appeal evidence requirements, encryption, 24-hour expiry, moderation visibility, and reports inbox delivery unchanged.",
-    "Keep rejected non-age photos deleted and never expose suspended-photo evidence outside authenticated moderator routes.",
-    "Keep profile-photo adult-human and single-person checks separate from private-message image policy.",
-    "Keep the default map heart size, map interactions, badges, profile opening, SF and VC layers, and marker stacking unchanged.",
-    "Preserve all unrelated worktrees and user changes."
+    "Preserve the trust gate on feed posting: trust_score above 20, no active suspension, no feature_restrictions row for feed_posting.",
+    "Preserve text moderation on every feed post through moderateTextOrReject.",
+    "Preserve owner full access behaviour, which still reads from the entitlement record.",
+    "Preserve every other cruush+ entitlement check outside the feed post route.",
+    "Preserve the bottom navigation profile icon, which keeps the symmetric winged heart and its baked gradient variant.",
+    "Preserve every existing icon asset. No asset files were added, edited, or deleted."
   ],
   "nonGoals": [
-    "Do not change T4T eligibility, crowd visibility, identity-change locks, or health privacy rules.",
-    "Do not add a database column for birth control or expose it in moderation text.",
-    "Do not delete an account, block a sender, or remove unrelated mutuals when dismissing an incoming cruush.",
-    "Do not redesign the appeal form or change authentication, suspension policy, moderation decisions, email providers, or environment configuration.",
-    "Do not redesign bottom-navigation icons or change the global mobile breakpoint used by unrelated routes.",
-    "Do not claim that a web app can prevent operating-system or browser screenshots.",
-    "Do not attach sensitive images to email or create a public media URL.",
-    "Do not weaken CSAM, underage, gore, hate-symbol, violence, screenshot, image-text, or image-URL enforcement in private messages.",
-    "Do not modify or discard the existing local carousel, Settings, or bug-button work.",
-    "Do not change authentication, signup validation, policy-link destinations, or consent behavior."
+    "Do not build a second board surface.",
+    "Do not add reactions, replies, or photo posts in this step.",
+    "Do not migrate the feed to the Stream Feeds SDK.",
+    "Do not change billing, pricing, or any other cruush+ entitlement.",
+    "Do not commit, push, or deploy without explicit sign-off."
   ],
   "proof": [
-    "Focused profile tests prove trans is an explicit gender option and private trans status no longer adds a separate visible trans identity label.",
-    "Focused onboarding tests prove the trans question explains optional T4T eligibility and still gates the T4T crowd.",
-    "Focused edit, schema, encryption, API, and profile-view tests prove any number of allowed birth-control choices save encrypted and render under Health.",
-    "Focused option tests prove profile-edit and onboarding menu choices are alphabetized.",
-    "Focused activity tests prove an incoming cruush can be dismissed, sent state uses a dark gradient, and profile actions do not invoke the close handler.",
-    "Focused distance tests prove approximate labels are reciprocal and the copy states that both sides use the selected level.",
-    "Render the actual profile edit Health tab and onboarding identity step at a small mobile viewport and inspect for overlap, clipping, and scroll access.",
-    "Show the rendered profile-card redesign preview to the user before any commit.",
-    "A focused App test proves a signed-out direct visit to /support?appeal=1 renders the appeal route instead of sign in.",
-    "A focused SupportPage test proves the query selects the suspension appeal form and requires a reply email plus both evidence uploads.",
-    "A focused server test proves an unauthenticated multipart appeal is accepted and both evidence files are encrypted.",
-    "The same appeal request test proves Resend receives reports@cruush.app, the suspension_appeal subject, and no evidence attachment.",
-    "Focused moderation tests prove minor-face suspension retains the encrypted asset linked to its content review while ordinary rejected photos are deleted.",
-    "Focused API and dashboard tests prove suspension_appeal records can be filtered and displayed in the moderation dashboard.",
-    "Render the actual signed-out route at 390x844, confirm the dedicated appeal form is visible, and inspect the full page for clipping or overlap.",
-    "At constrained desktop widths, opening a map profile uses the full-page mobile treatment instead of a narrow side panel; the desktop side panel remains at least 390 CSS pixels wide.",
-    "The bug-report button stays fixed at the same upper-right viewport coordinates on map and non-map routes without overlapping route controls.",
-    "The seeded local launcher serves this worktree on its configured port, and a local authenticated map renders seeded profiles with one active Ping.",
-    "Focused moderation tests prove nonhuman and multiple-adult images are allowed for direct and group messages while the same images remain rejected as profile photos.",
-    "Focused private-message tests prove the composer retains one timer control, shifts remaining controls left, and omits the redundant explanatory label.",
-    "The conversation-settings disappearing-timer menu uses the existing cruush Select treatment and is rendered open at desktop and 390x844 without clipping or overlap.",
-    "Focused map tests prove hover, keyboard focus, and long-press preview use a 1.38 scale while the resting heart remains at 1.00 scale.",
-    "Render the actual map at desktop and mobile viewports, exercise hover and long-press preview, and inspect the enlarged heart unit for clipping or overlap.",
-    "The local migration replay accepts an existing valid 1-hour disappearing timer without rewriting or deleting conversation data.",
-    "Run focused frontend and server tests, git diff check, and product-name casing checks.",
-    "Render the actual signup page at a desktop viewport. Verify footer links use the full bottom width and dark-glass checkbox unchecked and checked states remain visible and accessible.",
-    "Render the public About page and verify Julien's contact link is julien@cruush.app."
+    "Cite the exact removed gate lines in the server route and the client component.",
+    "Run the touched test files and report pass counts.",
+    "Build the client.",
+    "Render the feed composer as a member without cruush+ before claiming the paywall is gone."
   ],
-  "publicationTarget": "origin/main and production",
-  "environmentChanges": [],
-  "task": "Cluster tuning, pinker cluster glow, local photo moderation unblocked"
+  "proofResults": [
+    "Worktree created at /Volumes/good/Cruushv2-free-feed-20260822 on feat/free-feed-board off origin/main f00fb48, clean tree at creation.",
+    "server/src/routes/posts.ts: requireCruushPlus replaced with getCruushEntitlement, so POST /api/posts no longer throws 402 CRUUSH_PLUS_REQUIRED. ownerFullAccess still resolved from the same entitlement record.",
+    "src/app/components/LocalFeed.tsx: canPost, the billingStatus state, the billing loader, the CRUUSH_PLUS_CHANGED_EVENT listener, and the upsell notice removed. Composer, crowd targets, Post button, and the compose deep link are unconditional.",
+    "vitest src/app/components/LocalFeed.test.tsx: 15 passed.",
+    "vitest src/app/components/Settings.test.tsx: 17 passed.",
+    "vitest server/src/app.test.ts -t \"POST /api/posts\": 2 passed, including post creation for a member with cruush_plus_enabled false.",
+    "vite build: succeeded.",
+    "src/app/components/Settings.tsx line 37: Edit Profile masks humanity-profile-selected-winged-heart-symmetric.png, the double-heart glyph the bottom navigation uses. An earlier instruction to use the asymmetric humanity-profile-selected-winged-heart.png was superseded and reverted. No component references the asymmetric file."
+  ],
+  "unverified": [
+    "The feed composer has not been rendered in a running app as a member without cruush+.",
+    "The share of accounts holding cruush+ is unknown. No database count was run.",
+    "No environment variables were added, removed, or changed by this task."
+  ],
+  "task": "Free feed posting, nudity and faceless photos allowed, desktop dock panel grips"
 }

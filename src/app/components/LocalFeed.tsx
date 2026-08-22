@@ -6,7 +6,6 @@ import BlockUserAction from './BlockUserAction';
 import ReportAction from './ReportAction';
 import CruushBadge from './CruushBadge';
 import { CruushIcon } from './CruushIconImage';
-import CruushPlusWord from './CruushPlusWord';
 import HeartPhoto from './HeartPhoto';
 import { Switch } from './ui/switch';
 import {
@@ -18,7 +17,6 @@ import {
   DialogTrigger,
 } from './ui/dialog';
 import { Textarea } from './ui/textarea';
-import { CRUUSH_PLUS_CHANGED_EVENT, getMyBillingStatus, type BillingStatus } from '../lib/billingApi';
 import { addDlModeChangedListener, isDlModeEnabled, shouldMaskPhoto } from '../lib/dlMode';
 import {
   createFeedPost,
@@ -36,7 +34,6 @@ import { getMyProfile, type ProfileRecord } from '../lib/profileApi';
 import { getMyCruushActivity } from '../lib/cruushApi';
 import { CROWDS, normalizeCrowdValues } from '../lib/profileOptions';
 import { getCurrentUserId } from '../lib/sessionUser';
-import { hasPersistentNoticeFlag, setPersistentNoticeFlag } from '../lib/persistentNotice';
 import partyHatIcon from '../assets/ui-icons/party-hat.svg';
 
 function formatRelativeTime(isoTimestamp: string) {
@@ -96,7 +93,6 @@ const DEFAULT_FEED_SETTINGS: FeedSettings = {
   postExpiryDefault: 'never',
   feedWindow: '7d',
 };
-const CRUUSH_PLUS_FEED_NOTICE_KEY = 'cruush:feed-cruush-plus-notice-dismissed';
 // The vibe tags sit in a horizontal wrap under the post, not in a fixed-width
 // rail beside it, so they size to their own text instead of truncating.
 const feedVibeTagBaseClassName = 'min-w-0 max-w-full rounded-full border px-2 py-0.5 text-[11px] uppercase leading-tight tracking-[0.06em]';
@@ -132,7 +128,6 @@ export default function LocalFeed({ embedded = false }: { embedded?: boolean } =
   const [posting, setPosting] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [mutualUserIds, setMutualUserIds] = useState<Set<string>>(() => new Set());
-  const [billingStatus, setBillingStatus] = useState<BillingStatus | null>(null);
   const [deletingPostId, setDeletingPostId] = useState<string | null>(null);
   const [availableCrowdTargets, setAvailableCrowdTargets] = useState<string[]>([]);
   const [selectedCrowdTargets, setSelectedCrowdTargets] = useState<string[]>([]);
@@ -145,7 +140,6 @@ export default function LocalFeed({ embedded = false }: { embedded?: boolean } =
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [feedSettingsLoaded, setFeedSettingsLoaded] = useState(false);
-  const [showCruushPlusNotice, setShowCruushPlusNotice] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [dlModeActive, setDlModeActive] = useState(() => isDlModeEnabled());
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
@@ -153,14 +147,6 @@ export default function LocalFeed({ embedded = false }: { embedded?: boolean } =
   const feedSettingsRef = useRef<FeedSettings>(DEFAULT_FEED_SETTINGS);
   const feedSettingsSaveChainRef = useRef<Promise<void>>(Promise.resolve());
   const latestFeedExpiryChoiceRef = useRef(0);
-  const canPost = billingStatus?.cruushPlus === true;
-
-  useEffect(() => {
-    if (currentUserId && hasPersistentNoticeFlag(`${CRUUSH_PLUS_FEED_NOTICE_KEY}:${currentUserId}`)) {
-      setShowCruushPlusNotice(false);
-    }
-  }, [currentUserId]);
-
   const applyFeedSettings = (nextSettings: FeedSettings) => {
     feedSettingsRef.current = nextSettings;
     setFeedSettings(nextSettings);
@@ -184,7 +170,7 @@ export default function LocalFeed({ embedded = false }: { embedded?: boolean } =
   };
 
   useEffect(() => {
-    if (new URLSearchParams(location.search).get('compose') !== '1' || !canPost) {
+    if (new URLSearchParams(location.search).get('compose') !== '1') {
       return;
     }
 
@@ -195,7 +181,7 @@ export default function LocalFeed({ embedded = false }: { embedded?: boolean } =
       composerInputRef.current?.scrollIntoView?.({ block: 'center' });
       composerInputRef.current?.focus();
     });
-  }, [canPost, location.search]);
+  }, [location.search]);
 
   const fetchPosts = useCallback(async (options: {
     append?: boolean;
@@ -256,12 +242,6 @@ export default function LocalFeed({ embedded = false }: { embedded?: boolean } =
   useEffect(() => addDlModeChangedListener(setDlModeActive), []);
 
   useEffect(() => {
-    const loadBillingStatus = () => {
-      void getMyBillingStatus()
-        .then(setBillingStatus)
-        .catch(() => setBillingStatus(null));
-    };
-
     void getFeedSettings()
       .then((settings) => {
         const nextSettings = { ...DEFAULT_FEED_SETTINGS, ...settings };
@@ -282,7 +262,6 @@ export default function LocalFeed({ embedded = false }: { embedded?: boolean } =
     void getMyCruushActivity()
       .then((activity) => setMutualUserIds(new Set((activity.mutual ?? []).map((item) => item.user.id))))
       .catch(() => setMutualUserIds(new Set()));
-    loadBillingStatus();
     void getMyProfile()
       .then((profile) => {
         const normalizedCrowds = normalizeCrowdValues(profile.crowds ?? []);
@@ -302,11 +281,6 @@ export default function LocalFeed({ embedded = false }: { embedded?: boolean } =
         void fetchPosts({ coordinates: null });
       });
 
-    window.addEventListener(CRUUSH_PLUS_CHANGED_EVENT, loadBillingStatus);
-
-    return () => {
-      window.removeEventListener(CRUUSH_PLUS_CHANGED_EVENT, loadBillingStatus);
-    };
   }, []);
 
   const loadMorePosts = useCallback(() => {
@@ -343,11 +317,6 @@ export default function LocalFeed({ embedded = false }: { embedded?: boolean } =
 
   const handlePost = async () => {
     if (!newPost.trim()) return;
-    if (!billingStatus) return;
-    if (!billingStatus.cruushPlus) {
-      navigate('/rewards');
-      return;
-    }
 
     setPosting(true);
     setError(null);
@@ -369,10 +338,6 @@ export default function LocalFeed({ embedded = false }: { embedded?: boolean } =
   };
 
   const toggleCrowdTarget = (crowd: string) => {
-    if (!canPost) {
-      return;
-    }
-
     setSelectedCrowdTargets((currentTargets) => currentTargets.includes(crowd)
       ? currentTargets.filter((target) => target !== crowd)
       : [...currentTargets, crowd]);
@@ -577,7 +542,6 @@ export default function LocalFeed({ embedded = false }: { embedded?: boolean } =
                               : 'border-white/10 bg-black/40 text-white/72 hover:bg-white/8',
                           ].join(' ')}
                           aria-pressed={selected}
-                          disabled={!canPost}
                           onClick={() => toggleCrowdTarget(crowd)}
                         >
                           {crowd}
@@ -669,13 +633,7 @@ export default function LocalFeed({ embedded = false }: { embedded?: boolean } =
               }}
             >
               <CruushIcon name="send" className="h-4 w-4 shrink-0 opacity-70" />
-              <span className="min-w-0 flex-1 truncate">
-                {billingStatus === null
-                  ? 'Checking cruush+ access...'
-                  : canPost
-                    ? 'Share something with nearby people...'
-                    : 'Unlock feed posting with cruush+.'}
-              </span>
+              <span className="min-w-0 flex-1 truncate">Share something with nearby people...</span>
             </button>
           ) : null}
           <div className={composerOpen ? undefined : 'hidden'}>
@@ -683,41 +641,15 @@ export default function LocalFeed({ embedded = false }: { embedded?: boolean } =
             ref={composerInputRef}
             value={newPost}
             onChange={(e) => setNewPost(e.target.value)}
-            placeholder={billingStatus === null
-              ? 'Checking cruush+ access...'
-              : canPost
-                ? 'Share something with nearby people...'
-                : 'Unlock feed posting with cruush+.'}
+            placeholder="Share something with nearby people..."
             className="bg-input-background mb-3 min-h-[100px]"
-            disabled={!canPost}
           />
-          {billingStatus !== null && !canPost && showCruushPlusNotice ? (
-            <div
-              className="mb-3 flex flex-col gap-3 rounded-2xl border border-primary/35 bg-[linear-gradient(135deg,rgba(255,0,128,0.18),rgba(49,46,129,0.24))] p-4 text-sm text-white/78 shadow-[0_12px_36px_rgba(0,0,0,0.24)] sm:flex-row sm:items-center sm:justify-between"
-              data-testid="local-feed-cruush-plus-notice"
-            >
-              <div className="min-w-0">
-                <p className="font-medium text-white">Make the feed yours with <CruushPlusWord />.</p>
-                <p className="mt-1 text-xs text-white/68">Post updates, plans, and moments for nearby people. Unlock feed posting with <CruushPlusWord />.</p>
-              </div>
-              <div className="flex shrink-0 items-center gap-2">
-                <Button
-                  type="button"
-                  className="h-10 rounded-full px-5 font-semibold text-white shadow-[0_8px_24px_rgba(255,0,128,0.25)]"
-                  style={{ background: 'var(--cruush-gradient)' }}
-                  onClick={() => navigate('/rewards')}
-                >
-                  Unlock <CruushPlusWord />
-                </Button>
-              </div>
-            </div>
-          ) : null}
           {/* Expiry and crowd targeting live in the feed settings menu now, so
               the composer is the textarea and the Post button. */}
           <div className="flex items-center justify-end gap-3">
             <Button
               onClick={handlePost}
-              disabled={!canPost || !newPost.trim() || posting}
+              disabled={!newPost.trim() || posting}
               style={{
                 background: newPost.trim()
                   ? 'var(--cruush-gradient)'

@@ -23,7 +23,7 @@ export default function MapSidePanel({ view, onClose }: MapSidePanelProps) {
   return (
     <DesktopDockPanel slot="right" ariaLabel="Side panel">
       <div className="flex h-full flex-col">
-        <div className="flex shrink-0 items-center justify-end px-4 pb-2 pt-9">
+        <div className="flex shrink-0 items-center justify-end px-4 pb-2 pt-2">
           <button
             type="button"
             aria-label="Close side panel"

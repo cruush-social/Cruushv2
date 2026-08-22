@@ -188,7 +188,7 @@ describe('Settings', () => {
     expect(await screen.findByText('Main map')).toBeInTheDocument();
   });
 
-  it('renders Edit Profile with the same winged-heart icon as the bottom navigation', async () => {
+  it('renders Edit Profile with the cruush heart-in-heart icon', async () => {
     render(
       <MemoryRouter>
         <Settings />
@@ -200,7 +200,8 @@ describe('Settings', () => {
 
     expect(icon).toHaveClass('h-5', 'w-5');
     expect(icon).toHaveStyle({ background: 'var(--cruush-gradient)' });
-    expect(icon?.getAttribute('style')).toContain('humanity-profile-selected-winged-heart-symmetric');
+    expect(icon?.getAttribute('style')).toContain('cruush-white.png');
+    expect(icon?.getAttribute('style')).not.toContain('winged-heart');
     expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument();
     expect(screen.getByText('Email verified')).toBeInTheDocument();
     expect(screen.queryByLabelText('Jordan profile photo')).not.toBeInTheDocument();

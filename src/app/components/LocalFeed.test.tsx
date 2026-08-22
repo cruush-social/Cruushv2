@@ -527,7 +527,7 @@ describe('LocalFeed', () => {
     expect(screen.queryByRole('button', { name: 'Block me' })).not.toBeInTheDocument();
   });
 
-  it('locks local feed posting for free users and routes them to rewards', async () => {
+  it('lets free members post to the local feed without cruush+', async () => {
     getMyBillingStatus.mockResolvedValue({
       cruushPlus: false,
       expiresAt: null,
@@ -536,45 +536,30 @@ describe('LocalFeed', () => {
       testCheckout: true,
     });
     getFeedPosts.mockResolvedValue([]);
-
-    render(
-      <MemoryRouter initialEntries={['/feed']}>
-        <Routes>
-          <Route path="/feed" element={<><LocalFeed /><LocationProbe /></>} />
-          <Route path="/rewards" element={<LocationProbe />} />
-        </Routes>
-      </MemoryRouter>,
-    );
-
-    const notice = await screen.findByTestId('local-feed-cruush-plus-notice');
-    expect(notice).toHaveTextContent('Make the feed yours with cruush+.');
-    expect(notice).toHaveTextContent('Post updates, plans, and moments for nearby people. Unlock feed posting with cruush+.');
-    expect(within(notice).getAllByText('cruush+')).toHaveLength(3);
-    for (const cruushPlusText of within(notice).getAllByText('cruush+')) {
-      expect(cruushPlusText).toHaveClass('cruush-logo-font');
-    }
-
-    fireEvent.click(screen.getByRole('button', { name: 'Unlock cruush+' }));
-
-    expect(screen.getByTestId('location-probe')).toHaveTextContent('/rewards');
-    expect(createFeedPost).not.toHaveBeenCalled();
-  });
-
-  it('keeps the cruush+ feed gate visible for basic members', async () => {
-    getMyBillingStatus.mockResolvedValue({
-      cruushPlus: false,
+    createFeedPost.mockResolvedValue({
+      id: 'free-post-1',
+      content: 'first post as a free member',
+      expiresIn: 'never',
       expiresAt: null,
-      badges: [],
-      processor: 'fake',
-      testCheckout: true,
+      createdAt: new Date().toISOString(),
+      distance: 'Nearby',
+      user: { id: 'me', name: 'Me', pronouns: '', photo: null, photoExplicit: false },
     });
-    getFeedPosts.mockResolvedValue([]);
 
     render(<MemoryRouter initialEntries={['/feed']}><LocalFeed /></MemoryRouter>);
 
-    const notice = await screen.findByTestId('local-feed-cruush-plus-notice');
-    expect(within(notice).queryByRole('button', { name: 'Dismiss cruush+ notice' })).not.toBeInTheDocument();
-    expect(within(notice).getByRole('button', { name: /Unlock/ })).toBeInTheDocument();
+    const composer = await screen.findByPlaceholderText('Share something with nearby people...');
+    expect(composer).not.toBeDisabled();
+    expect(screen.queryByTestId('local-feed-cruush-plus-notice')).not.toBeInTheDocument();
+
+    fireEvent.change(composer, { target: { value: 'first post as a free member' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Post' }));
+
+    await waitFor(() => expect(createFeedPost).toHaveBeenCalledWith({
+      content: 'first post as a free member',
+      expiresIn: 'never',
+      crowdTargets: [],
+    }));
   });
 
   it('posts to no crowds or multiple allowed crowds selected from the composer', async () => {

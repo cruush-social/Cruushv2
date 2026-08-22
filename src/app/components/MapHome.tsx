@@ -680,10 +680,20 @@ export default function MapHome(_props: MapHomeProps = {}) {
   const requestedSidePanelView = usesFullPageProfile ? null : routeState?.openSidePanel ?? null;
 
   useEffect(() => {
-    if (requestedSidePanelView) {
-      setSidePanelView(requestedSidePanelView);
+    if (!requestedSidePanelView) {
+      return;
     }
-  }, [requestedSidePanelView]);
+
+    setSidePanelView(requestedSidePanelView);
+    // Consume the request. Without this the same openSidePanel value stays in
+    // history state after the panel is closed, so navigating here again with
+    // the same intent changes nothing and the panel cannot be reopened until
+    // the user visits another page first.
+    navigate(`${location.pathname}${location.search}`, {
+      replace: true,
+      state: { ...routeState, openSidePanel: undefined },
+    });
+  }, [location.pathname, location.search, navigate, requestedSidePanelView, routeState]);
 
   useEffect(() => {
     if (usesFullPageProfile && sidePanelView) {
