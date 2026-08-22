@@ -20,6 +20,7 @@
     "ship": "node scripts/ship.mjs",
     "check:copy": "node scripts/check-lowercase-cruush.mjs",
     "check:layout": "node scripts/check-layout-invariants.mjs",
+    "check:sw-release": "node scripts/check-service-worker-release.mjs",
     "docs:worktrees": "node scripts/update-worktrees-doc.mjs",
     "docs:env": "node scripts/update-env-matrix.mjs",
     "pretest": "node scripts/check-cruush-casing.mjs",

@@ -481,13 +481,13 @@ export default function Auth({ onAuth }: AuthProps) {
             ) : null}
 
             {cityRequestNotice ? (
-              <div className="p-3 bg-white/5 border border-white/10 text-white/70 text-sm rounded">
+              <div className="rounded-sm border border-[#d11f3a]/60 bg-[#d11f3a]/22 p-3 text-sm font-medium text-white shadow-[0_12px_32px_rgba(209,31,58,0.26)]">
                 {cityRequestNotice}
               </div>
             ) : null}
 
             {betaAccessStatus === 'outside' ? (
-              <div className="p-3 bg-white/5 border border-white/10 text-white/70 text-sm rounded space-y-2">
+              <div className="space-y-2 rounded-sm border border-[#d11f3a]/60 bg-[#d11f3a]/22 p-3 text-sm font-medium text-white shadow-[0_12px_32px_rgba(209,31,58,0.26)]">
                 <div className="flex items-start gap-2">
                   <MapPin className="mt-0.5 h-4 w-4 text-[#ff0072]" />
                   <p>
@@ -617,7 +617,7 @@ export default function Auth({ onAuth }: AuthProps) {
           )}
 
           {notice && (
-            <div className="p-3 bg-white/5 border border-white/10 text-white/70 text-sm rounded space-y-2">
+            <div className="space-y-2 rounded-sm border border-[#d11f3a]/60 bg-[#d11f3a]/22 p-3 text-sm font-medium text-white shadow-[0_12px_32px_rgba(209,31,58,0.26)]">
               <div className="flex items-start gap-2">
                 <CruushIcon name="notifications" className="mt-0.5 h-4 w-4" variant="colored" />
                 <span>{notice}</span>
@@ -631,7 +631,7 @@ export default function Auth({ onAuth }: AuthProps) {
           )}
 
 	          {verificationRetryAvailable && !notice ? (
-	            <div className="p-3 bg-white/5 border border-white/10 text-white/70 text-sm rounded space-y-3">
+	            <div className="space-y-3 rounded-sm border border-[#d11f3a]/60 bg-[#d11f3a]/22 p-3 text-sm font-medium text-white shadow-[0_12px_32px_rgba(209,31,58,0.26)]">
 	              <p>
 	                {verificationDeliveryFailed
 	                  ? "Your account was created, but we couldn't send the verification email. Try again."
@@ -668,7 +668,7 @@ export default function Auth({ onAuth }: AuthProps) {
 	          ) : null}
 
 	          {!isForgotPassword && isSignUp && betaAccessRequired && betaAccessStatus !== 'allowed' ? (
-	            <div className="p-3 bg-white/5 border border-white/10 text-white/70 text-sm rounded space-y-3">
+	            <div className="space-y-3 rounded-sm border border-[#d11f3a]/60 bg-[#d11f3a]/22 p-3 text-sm font-medium text-white shadow-[0_12px_32px_rgba(209,31,58,0.26)]">
 	              <div className="flex items-start gap-2">
 	                <MapPin className="mt-0.5 h-4 w-4 text-[#0ba8ff]" />
 	                <p>
@@ -897,41 +897,42 @@ export default function Auth({ onAuth }: AuthProps) {
                     : "Don't have an account? Sign up"}
               </span>
             </button>
-
-            {!isForgotPassword ? (
-              <button
-                type="button"
-                onClick={showForgotPassword}
-                disabled={isLoading}
-                className="launch-login-auth-secondary w-full text-sm text-white/40 hover:text-white/70 transition-colors disabled:opacity-50"
-              >
-                Forgot your password?
-              </button>
-            ) : null}
           </div>
         </form>
         )}
 
       </div>
       <div className="launch-login-auth-footer" data-testid="launch-login-auth-footer">
-        <a
-          className="launch-login-auth-contact"
-          data-testid="launch-login-auth-contact"
-          href="mailto:hello@cruush.app"
-        >
-          hello@cruush.app
-        </a>
-        <a className="launch-login-auth-contact" href="mailto:reports@cruush.app?subject=cruush%20bug%20report">
-          Report a bug
-        </a>
-        <a className="launch-login-auth-contact" href="/support">
-          Contact support
-        </a>
-        <a className="launch-login-auth-contact" href="/support?appeal=1">
-          Appeal an age-related suspension
-        </a>
-
-        <PublicPolicyLinks variant="compact" />
+        <PublicPolicyLinks variant="compact">
+          <div className="mt-1 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[0.65rem]">
+            {!isForgotPassword ? (
+              <button
+                type="button"
+                onClick={showForgotPassword}
+                disabled={isLoading}
+                className="underline hover:text-white/50 disabled:opacity-50"
+              >
+                Forgot your password?
+              </button>
+            ) : null}
+            <a
+              className="underline hover:text-white/50"
+              data-testid="launch-login-auth-contact"
+              href="mailto:hello@cruush.app"
+            >
+              hello@cruush.app
+            </a>
+            <a className="underline hover:text-white/50" href="mailto:reports@cruush.app?subject=cruush%20bug%20report">
+              Report a bug
+            </a>
+            <a className="underline hover:text-white/50" href="/support">
+              Contact support
+            </a>
+            <a className="underline hover:text-white/50" href="/support?appeal=1">
+              Appeal an age-related suspension
+            </a>
+          </div>
+        </PublicPolicyLinks>
       </div>
     </div>
   );

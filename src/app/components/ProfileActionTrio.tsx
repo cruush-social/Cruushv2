@@ -96,20 +96,17 @@ export default function ProfileActionTrio({
         </Button>
       ) : null}
 
-      {onCenterPin ? (
+      {/* No dead controls: when someone does not share their precise location the
+          pin is left out entirely rather than shown greyed out. */}
+      {canCenterPin && onCenterPin ? (
         <Button
           type="button"
           size="icon"
           variant="secondary"
-          className={`cruush-action-sheen ${sizeClass} shrink-0 rounded-full border-0 text-white disabled:opacity-100 ${canCenterPin ? '' : 'grayscale-[0.35] brightness-75'}`}
+          className={`cruush-action-sheen ${sizeClass} shrink-0 rounded-full border-0 text-white`}
           style={{ background: 'var(--cruush-gradient)' }}
-          aria-label={canCenterPin
-            ? `Center the map on ${userName}`
-            : `${userName} does not share their precise location`}
-          title={canCenterPin
-            ? `Center the map on ${userName}`
-            : `${userName} does not share their precise location`}
-          disabled={!canCenterPin}
+          aria-label={`Center the map on ${userName}`}
+          title={`Center the map on ${userName}`}
           onClick={onCenterPin}
         >
           <CruushIconImage src={mapIconWhite} className="h-6 w-6" />

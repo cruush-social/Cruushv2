@@ -1550,7 +1550,7 @@ describe('MapHome', () => {
     expect(pingButton).not.toHaveClass('absolute', 'mt-2');
     // The offsets keep an 8px gap under the top-actions bar at every breakpoint,
     // matching the gap-2 the stack uses between its own controls.
-    expect(rightActions).toHaveClass('right-3', 'top-[3.875rem]', 'sm:right-4', 'sm:top-[4.625rem]', 'lg:top-[4.875rem]');
+    expect(rightActions).toHaveClass('right-3', 'top-[4.625rem]', 'sm:right-4', 'sm:top-[4.625rem]', 'lg:top-[4.875rem]');
     expect(cruushPlusButton).toHaveClass(
       'cruush-plus-shimmer-button',
       'cruush-logo-font',

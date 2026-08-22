@@ -169,7 +169,9 @@ describe('Settings', () => {
     expect(screen.getByRole('button', { name: /Location privacy/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /DL Mode/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Two-factor authentication/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Rewards/i })).toHaveTextContent(
+    // Rows carry the label only; the old secondary line is gone from the screen
+    // and lives on purely as search text.
+    expect(screen.getByRole('button', { name: /Rewards/i })).not.toHaveTextContent(
       'Streaks, referrals, and promotional access.',
     );
   });
@@ -274,7 +276,7 @@ describe('Settings', () => {
 
     const changelogButton = await screen.findByRole('button', { name: /Changelog/i });
 
-    expect(changelogButton).toHaveTextContent('See what is new in cruush.');
+    expect(changelogButton).not.toHaveTextContent('See what is new in cruush.');
     fireEvent.click(changelogButton);
     expect(screen.getByTestId('location-probe')).toHaveTextContent('/settings/changelog');
   });

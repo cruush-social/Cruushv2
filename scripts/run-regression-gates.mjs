@@ -12,6 +12,9 @@ export const REGRESSION_CHECKS = [
   ['pnpm', ['check:copy']],
   ['pnpm', ['security:check']],
   ['pnpm', ['check:layout']],
+  // Rule: a frontend change that ships without a service worker release bump is
+  // invisible to everyone holding the cached app shell.
+  ['pnpm', ['check:sw-release']],
   // Rule L4: the full vitest suites are too slow to sit in the deploy path. Run
   // the targeted test files for what changed instead. Set CRUUSH_GATE_FULL_TESTS=1
   // to put them back for a release-gate run.

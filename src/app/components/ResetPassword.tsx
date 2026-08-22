@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react';
-import { Link } from 'react-router';
 import { Eye, EyeOff } from 'lucide-react';
 import { CruushIcon } from './CruushIconImage';
 import LaunchLoginMapTeaser from './LaunchLoginMapTeaser';
@@ -78,13 +77,19 @@ export default function ResetPassword() {
 
         <form onSubmit={handleSubmit} className="launch-login-auth-form" autoComplete="on">
           {error && (
-            <div className="p-3 bg-[#d11f3a]/10 border border-[#d11f3a]/30 text-[#ff0072] text-sm rounded">
+            <div
+              role="alert"
+              className="rounded-sm border border-[#d11f3a]/60 bg-[#d11f3a]/22 p-3 text-sm font-medium text-white shadow-[0_12px_32px_rgba(209,31,58,0.26)]"
+            >
               {error}
             </div>
           )}
 
           {notice && (
-            <div className="p-3 bg-white/5 border border-white/10 text-white/70 text-sm rounded space-y-2">
+            <div
+              role="status"
+              className="space-y-2 rounded-sm border border-[#d11f3a]/60 bg-[#d11f3a]/22 p-3 text-sm font-medium text-white shadow-[0_12px_32px_rgba(209,31,58,0.26)]"
+            >
               <div className="flex items-start gap-2">
                 <CruushIcon name="notifications" className="mt-0.5 h-4 w-4" variant="colored" />
                 <span>{notice}</span>
@@ -155,18 +160,22 @@ export default function ResetPassword() {
             disabled={isLoading}
             className="launch-login-auth-submit w-full h-12 rounded-sm text-white transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden"
             style={{
-              background: 'var(--cruush-gradient)',
+              background: 'var(--cruush-auth-button-gradient)',
             }}
           >
             <span className="relative z-10">{isLoading ? 'Resetting password...' : 'Reset password'}</span>
           </button>
 
-          <Link
-            to="/"
-            className="launch-login-auth-secondary block w-full text-center text-sm text-white/40 hover:text-white/70 transition-colors"
+          <a
+            href="/"
+            data-testid="reset-password-back-to-sign-in"
+            className="launch-login-auth-submit flex h-12 w-full items-center justify-center rounded-sm text-white transition-all active:scale-[0.98]"
+            style={{
+              background: 'var(--cruush-auth-button-gradient)',
+            }}
           >
-            Back to sign in
-          </Link>
+            <span className="relative z-10">Back to sign in</span>
+          </a>
         </form>
       </div>
       <div className="launch-login-auth-footer" data-testid="reset-password-footer">

@@ -62,6 +62,12 @@ function expectHighlightedAction(id: MapControlsTutorialStepId, name: string) {
   return action;
 }
 
+function expectTaughtStep(id: MapControlsTutorialStepId, name: string) {
+  expect(screen.queryByRole('button', { name })).not.toBeInTheDocument();
+  expect(screen.queryByTestId('tutorial-try-step')).not.toBeInTheDocument();
+  expect(screen.getByTestId('tutorial-spotlight')).toHaveAttribute('data-tutorial-step', id);
+}
+
 describe('calculateTutorialCardPlacement', () => {
   it('keeps the card inside the viewport and above the bottom navigation boundary', () => {
     const placement = calculateTutorialCardPlacement({
@@ -216,32 +222,29 @@ describe('MapControlsTutorial', () => {
     expect(await screen.findByRole('heading', { name: 'Seeking' })).toBeInTheDocument();
     expect(screen.getByTestId('tutorial-spotlight')).toHaveAttribute('data-tutorial-step', 'seeking');
     expect(screen.getByTestId('tutorial-spotlight').className).not.toContain('rgba(255,0,114');
-    fireEvent.click(expectHighlightedAction('seeking', 'Open Seeking'));
-    expect(onActivateStep).toHaveBeenLastCalledWith('seeking');
+    expectTaughtStep('seeking', 'Open Seeking');
     expect(screen.getByRole('heading', { name: 'Seeking' })).toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId('tutorial-next'));
     expect(screen.getByRole('heading', { name: 'Visibility' })).toBeInTheDocument();
-    expectHighlightedAction('visibility', 'Open Visibility');
+    expectTaughtStep('visibility', 'Open Visibility');
 
     fireEvent.click(screen.getByTestId('tutorial-next'));
     expect(screen.getByRole('heading', { name: 'Crowd Mode' })).toBeInTheDocument();
-    expectHighlightedAction('crowds', 'Open Crowd Mode');
+    expectTaughtStep('crowds', 'Open Crowd Mode');
 
     fireEvent.click(screen.getByTestId('tutorial-next'));
     expect(screen.getByRole('heading', { name: 'Ghost Mode' })).toBeInTheDocument();
-    expectHighlightedAction('ghost', 'Open Ghost Mode');
+    expectTaughtStep('ghost', 'Open Ghost Mode');
 
     fireEvent.click(screen.getByTestId('tutorial-next'));
     expect(screen.getByRole('heading', { name: 'DL Mode' })).toBeInTheDocument();
-    expectHighlightedAction('dl-mode', 'Toggle DL Mode');
+    expectTaughtStep('dl-mode', 'Toggle DL Mode');
 
     fireEvent.click(screen.getByTestId('tutorial-next'));
-    expect(screen.getByRole('heading', { name: 'Ping' })).toBeInTheDocument();
-    expect(screen.getByText('Ping is directly below Visibility. It briefly marks your heart as active on the map and shares your signal as a normal feed post.')).toBeInTheDocument();
-    fireEvent.click(expectHighlightedAction('ping', 'Open Ping'));
-    expect(onActivateStep).toHaveBeenLastCalledWith('ping');
-    expect(screen.getByTestId('tutorial-spotlight')).toHaveAttribute('data-tutorial-step', 'ping');
+    expect(screen.getByRole('heading', { name: 'Pulse' })).toBeInTheDocument();
+    expect(screen.getByText('Pulse is directly below Visibility. It briefly marks your heart as active on the map and shares your signal as a normal feed post.')).toBeInTheDocument();
+    expectTaughtStep('ping', 'Open Pulse');
 
     fireEvent.click(screen.getByTestId('tutorial-next'));
     expect(screen.getByRole('heading', { name: 'Profile pins' })).toBeInTheDocument();
@@ -252,18 +255,17 @@ describe('MapControlsTutorial', () => {
     fireEvent.click(screen.getByTestId('tutorial-next'));
     expect(screen.getByRole('heading', { name: 'Zoom' })).toBeInTheDocument();
     expect(screen.getByText('Use the highlighted controls to zoom the map in or out.')).toBeInTheDocument();
-    expectHighlightedAction('zoom', 'Zoom in');
+    expectTaughtStep('zoom', 'Zoom in');
     fireEvent.click(screen.getByTestId('tutorial-next'));
 
     expect(screen.getByRole('heading', { name: 'Cruise Carousel' })).toBeInTheDocument();
     expect(screen.getByText(/spin the Cruise Carousel to discover someone nearby/i)).toBeInTheDocument();
-    fireEvent.click(expectHighlightedAction('carousel', 'Open Cruise Carousel'));
-    expect(onActivateStep).toHaveBeenLastCalledWith('carousel');
+    expectTaughtStep('carousel', 'Open Cruise Carousel');
     fireEvent.click(screen.getByTestId('tutorial-next'));
 
     expect(screen.getByRole('heading', { name: 'Feed' })).toBeInTheDocument();
     expect(screen.getByText(/start with a short signal, question, or invitation/i)).toBeInTheDocument();
-    expectHighlightedAction('feed', 'Open Feed');
+    expectTaughtStep('feed', 'Open Feed');
     fireEvent.click(screen.getByTestId('tutorial-next'));
 
     expect(onComplete).toHaveBeenCalledTimes(1);
@@ -343,8 +345,7 @@ describe('MapControlsTutorial', () => {
     fireEvent.click(screen.getByTestId('tutorial-next'));
     expect(screen.getByRole('heading', { name: 'Ghost Mode' })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByTestId('tutorial-try-step'));
-    await waitFor(() => expect(onActivateStep).toHaveBeenLastCalledWith('ghost'));
+    expectTaughtStep('ghost', 'Open Ghost Mode');
     firstRender.unmount();
 
     const secondRender = render(
@@ -359,8 +360,7 @@ describe('MapControlsTutorial', () => {
     fireEvent.click(screen.getByTestId('tutorial-next'));
     fireEvent.click(screen.getByTestId('tutorial-next'));
     expect(screen.getByRole('heading', { name: 'Feed' })).toBeInTheDocument();
-    fireEvent.click(screen.getByTestId('tutorial-try-step'));
-    await waitFor(() => expect(onActivateStep).toHaveBeenLastCalledWith('feed'));
+    expectTaughtStep('feed', 'Open Feed');
     secondRender.unmount();
 
     render(<MapControlsTutorial open onActivateStep={onActivateStep} onComplete={vi.fn()} />);

@@ -194,9 +194,12 @@ describe('Auth', () => {
     const footer = screen.getByTestId('launch-login-auth-footer');
     expect(footer).toContainElement(contactLink);
     expect(footer).toContainElement(legalNotice);
-    expect(contactLink).toHaveClass('launch-login-auth-contact');
     expect(contactLink).toHaveAttribute('href', 'mailto:hello@cruush.app');
-    expect(contactLink.compareDocumentPosition(legalNotice) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // Contact links live inside the "Contact & policies" disclosure, after the
+    // policy links, so the signed-out screen stays clean until it is opened.
+    expect(legalNotice).toContainElement(contactLink);
+    expect(contactLink.closest('details')).not.toBeNull();
+    expect(legalNotice.compareDocumentPosition(contactLink) & Node.DOCUMENT_POSITION_CONTAINED_BY).toBeTruthy();
     expect(legalNotice).toHaveClass('text-center', 'text-white/30');
     expect(screen.queryByText('Legal and safety')).not.toBeInTheDocument();
     for (const link of AUTH_POLICY_LINKS) {

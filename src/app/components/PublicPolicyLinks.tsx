@@ -1,4 +1,4 @@
-import { Fragment } from 'react';
+import { Fragment, type ReactNode } from 'react';
 import { ExternalLink } from 'lucide-react';
 import { cn } from './ui/utils';
 
@@ -24,12 +24,13 @@ export const AUTH_POLICY_LINKS = [
 ];
 
 type PublicPolicyLinksProps = {
+  children?: ReactNode;
   className?: string;
   variant?: 'card' | 'compact';
   excludePaths?: string[];
 };
 
-export default function PublicPolicyLinks({ className, variant = 'card', excludePaths = [] }: PublicPolicyLinksProps) {
+export default function PublicPolicyLinks({ children, className, variant = 'card', excludePaths = [] }: PublicPolicyLinksProps) {
   const visiblePolicyLinks = PUBLIC_POLICY_LINKS.filter((link) => !excludePaths.includes(link.path));
 
   if (variant === 'compact') {
@@ -57,8 +58,8 @@ export default function PublicPolicyLinks({ className, variant = 'card', exclude
         </p>
 
         <details className="group mt-1">
-          <summary className="cursor-pointer list-none text-[0.65rem] uppercase tracking-[0.14em] text-white/35 transition hover:text-white/60">
-            More policies
+          <summary className="cursor-pointer list-none text-[0.8rem] uppercase tracking-[0.14em] text-white transition hover:text-white/70">
+            Contact &amp; policies
           </summary>
           <div className="mt-1 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[0.65rem]">
             {secondaryLinks.map((link) => (
@@ -73,6 +74,7 @@ export default function PublicPolicyLinks({ className, variant = 'card', exclude
               </a>
             ))}
           </div>
+          {children}
         </details>
       </div>
     );

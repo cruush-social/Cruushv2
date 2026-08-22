@@ -43,7 +43,9 @@ type ActivityTab = 'incoming' | 'sent' | 'mutual' | 'views';
 type CruushActionState = 'available' | 'sending' | 'sent' | 'mutual';
 
 const activityHeartClassName = 'w-20 shrink-0';
-const activityRowClassName = 'flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-card/70 p-3 text-left shadow-[0_12px_32px_rgba(0,0,0,0.24)] transition-colors hover:bg-white/[0.06]';
+// Under ~400px the name, pronouns and the action trio cannot share one line
+// without squeezing the text to a sliver, so the actions drop to their own row.
+const activityRowClassName = 'flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-card/70 p-3 text-left shadow-[0_12px_32px_rgba(0,0,0,0.24)] transition-colors hover:bg-white/[0.06] max-[400px]:flex-wrap max-[400px]:justify-end';
 
 function formatRelativeTime(isoTimestamp: string) {
   const now = Date.now();

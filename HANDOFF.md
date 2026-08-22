@@ -1,118 +1,132 @@
-# Handoff: feat/free-feed-board
+# Handoff: uncommitted work on `main`
 
-Worktree: `/Volumes/good/Cruushv2-free-feed-20260822`
-Branch: `feat/free-feed-board`
-Commit: `2bff9f9`, one commit, branched from `origin/main` at `f00fb48`
-Task contract: `AI_TASK.json`, status `active`
+Worktree: `/Volumes/good/Cruushv2-main`
+Branch: `main`, HEAD `b4621d5` ("revert: put verification and password reset back on their Resend templates")
+Task contract: `AI_TASK.json` still describes the `feat/free-feed-board` job and has **not** been updated for this batch.
 
-**Read this first: the branch is 14 commits behind `origin/main`, which is now `4fec73e`. It must be rebased before anything ships. Conflict points are listed at the bottom.**
+**Nothing is committed. Nothing is pushed. Nothing is deployed.** 23 tracked files are modified and one script is new. `cruush.app` is still serving the previous build — verified by downloading `https://cruush.app/assets/index-Ci4rA7AE.js` and grepping it: it contains `More policies` (the old label) and zero occurrences of `Contact & policies`.
 
-Nothing has been pushed. `feat/free-feed-board` does not exist on the remote. No deployment was run.
+The previous contents of this file, the handoff for the free feed branch, are in git history at commit `ed463fc`.
 
 ---
 
 ## What changed
 
-### 1. The local feed is free to post
+### 1. The password reset page no longer traps people
 
-The cruush+ entitlement gate is gone from both sides.
+`src/app/components/ResetPassword.tsx` — "Back to sign in" was a react-router `<Link to="/">`. It changed the path client-side, but `App` reads `window.location.search` once during render and is not subscribed to router navigation, so `?resetPasswordToken=` stayed live and the app kept rendering `ResetPassword`. The control appeared dead and a manual reload was the only way out. It is now a plain `<a href="/">`, which performs a real document navigation and clears the token. This matches what `VerifyEmail` already does (`window.location.href = '/'`).
 
-`server/src/routes/posts.ts` — `POST /api/posts` called `requireCruushPlus`, which threw a 402 entitlement error reading "Upgrade to cruush+ to post on the local feed." It now calls `getCruushEntitlement` instead. The entitlement record is still read, because `ownerFullAccess` comes from it and is passed to the insert as `$16`.
+Three tests were added in `ResetPassword.test.tsx`: the control is an anchor to `/`, its click is **not** cancelled (a router link cancels it, which is the exact regression), and the way back is still present after a successful reset.
 
-`src/app/components/LocalFeed.tsx` — removed `canPost`, the `billingStatus` state, the billing loader, the plus-changed window event listener, and the upsell card, plus the imports that only served them. The composer, the crowd target chips, the Post button, and the `?compose=1` deep link are all unconditional now. 70 lines net removal.
+### 2. Auth and reset screens
 
-Deliberately unchanged: the trust gate inside the insert CTE (`trust_score > 20`, no active suspension, no `feature_restrictions` row for `feed_posting`) and `moderateTextOrReject` on every post body.
+- Both primary buttons use a new token, `--cruush-auth-button-gradient`, defined in `Auth.css` as the **logo** gradient from `docs/design-master.md` line 57: `linear-gradient(90deg, #FF0072 6.08%, #6F00FF 53.27%, #004BFF 100%)`. Purple sits at the midpoint and the three stops spread evenly, instead of the five-stop button gradient that read as mostly pink.
+- "Back to sign in" is now the same full gradient button as "Reset password".
+- Every notice and error panel on both screens was a glass card (`bg-white/5 border-white/10`). They now use the red alert treatment (`border-[#d11f3a]/60 bg-[#d11f3a]/22`, white medium text, red shadow) and carry `role="alert"` / `role="status"`.
+- Mobile brand block matches desktop: the logo's `opacity: 0.78` plus `blur(0.14px) saturate(0.72) contrast(0.76)` wash is gone, it sits at `opacity: 1` with `z-index: 6` and the desktop drop-shadow stack; the tagline's blur/saturate/contrast wash is gone too.
+- The footer disclosure is renamed **Contact & policies**, is white and larger (0.8rem), and now holds the contact links and "Forgot your password?" as well as the secondary policy links. `PublicPolicyLinks` takes `children` for this. While it is closed the screen stays clean; opening it lets the shell grow and scroll on phone and desktop, via a `:has(.launch-login-auth-footer details[open])` rule at the end of `Auth.css`.
 
-### 2. Nude and faceless photos are allowed
+### 3. Tutorial teaches instead of doing
 
-`server/src/policy-mapper.ts` — the `adult_nudity` / `adult_explicit` branch rejected at confidence >= 0.85 on any surface except profile photos and private messages, with reason `nudity_outside_private_messages`. That rejection and its helper `adultExplicitProfilePhotosAllowed` are deleted. The branch now always allows, with reason `adult_nudity_allowed` outside profile photos and private messages.
+`src/app/components/MapControlsTutorial.tsx`
 
-`server/src/profile-photo-human-detection.ts` — `HUMAN_LABELS` was `human`, `people`, `person`. A close crop of a torso or a body part could miss all three, fail `hasHuman`, and get rejected as `profile_photo_not_adult_human`. It now includes body part labels: torso, back, chest, abdomen, thigh, hand, foot, skin, muscle, undressed, and the rest. Nobody has to show a face.
+- The pink `StepIcon` chip is gone, along with the component and its lucide imports. The spotlight on the real control is the illustration.
+- `SELF_SERVICE_STEP_IDS` is `['install', 'notifications']`. Only those two still render an action button in the card, because they open a browser dialog. Every other step highlights the real control and waits for the person to press it themselves.
+- `Settings` → Tutorial now navigates straight to `/map?replayTutorial=1` instead of the `/settings/tutorial` stop-off page. That page and its route still exist.
 
-`server/src/policy-mapper.ts` — `profile_photo_not_adult_human` now allows on the `feed` surface with reason `non_human_feed_photo_allowed`, so object photos, gear, and toys post fine. It still rejects on `profile_photo`, so profile photos remain photos of the account holder.
+`MobileInstallPrompt.tsx` — `handleInstallRequested` always opened our own sheet, even when a real `beforeinstallprompt` event had been captured, which is the second popup. It now calls `promptEvent.prompt()` directly and only falls back to the sheet's manual instructions when the browser gives us no prompt (iOS).
 
-`server/src/profile-photo-human-detection.ts` — the detector previously folded animals into the `profile_photo_not_adult_human` label. It now emits a separate `animal` label as well, so allowing non-human photos on the feed does not accidentally allow animals. Animals keep rejecting through the existing `animal` branch.
+`MapControlsTutorial.test.tsx` gained `expectTaughtStep(id, label)`, which asserts the button is absent and the spotlight points at that step. Note the Pulse step's title is `Pulse`, not `Ping`; the old test text was stale.
 
-Untouched on purpose: `minor_present`, `minor_age_ambiguous`, `underage_sexual`, and the child face gate in `childFaceLabels`. None of them share a code path with the change above.
+### 4. Settings
 
-### 3. Desktop dock panel fixes
+- Row descriptions are no longer rendered. They remain in the data because `settingsItemText` feeds the settings search on them.
+- **Privacy audit** is now its own row (`ShieldCheck`, `/privacy/audit`), next to Map presence, which already had one.
 
-All in `src/app/components/DesktopDockPanel.tsx`.
+### 5. Map, pulse, and dead controls
 
-- **Second resize grip.** There is now a grip on the top right as well as the bottom right. The drag mode is a union: `'move' | 'resize-top-right' | 'resize-bottom-right'`. The top right grip grows the panel right and upward, holding the bottom edge, so `y` moves by the height delta. Test ids are `desktop-dock-{slot}-resize-top` and `desktop-dock-{slot}-resize`.
-- **Overlapping panels are clickable.** Both panels rendered with a hardcoded `z-50`, so whichever painted last always swallowed the clicks. Stacking is now per panel, from a module level counter, and `onPointerDownCapture` raises the pressed panel to the front.
-- **More transparent.** `bg-black/80` to `bg-black/45`, `backdrop-blur-xl` to `backdrop-blur-2xl`, so the map reads through.
-- **A panel can nearly fill the window.** `EDGE_GAP` 24px to 10px.
+- `PulseLedIcon.tsx` was copied from `Cruushv2-carousel-photo-gallery-20260820`, where it had already been updated. `main` still had the 29-line thin ring; the current version draws the heart pin's own ekg trace (`PULSE_EKG_PATH`) and adds a `ring` prop for placements that already draw a circle.
+- `MapHome.tsx` — the right-hand control stack moved from `top-[3.875rem]` to `top-[4.625rem]`. At 375×812 the top row occupies `[88,8 → 323,66]` and SEEKING started at `62`, a 4px collision. It now sits at `74`, giving 8px above and below, matching the SEEKING-to-VISIBILITY gap that `expectSeekingTopSpacing` in `e2e/regression/session-interactions.spec.ts` asserts. `MapHome.test.tsx`'s class assertion moved with it.
+- `ProfileActionTrio.tsx` — the centre-pin button used to render greyed out and disabled when someone does not share their precise location. It is no longer rendered at all. No dead controls.
+- `CruushActivity.tsx` — rows wrap below 400px (`max-[400px]:flex-wrap`), so the action trio drops to its own line instead of squeezing the name and pronouns into a sliver.
 
-`src/app/components/MapSidePanel.tsx` — the header row was `pt-9 px-4 pb-3`, which wasted 36px above the content. Now `pt-2 px-3 pb-2`.
+The alpha bug button was moved to a bottom corner on phones and then **reverted**. It lives in the top-right corner at every size, is allowed to sit on top of other controls, and must not be repositioned.
 
-### 4. Reopening a closed side panel
+### 6. Service worker release gate (new)
 
-`src/app/components/MapHome.tsx` around line 675. Real bug, reported and reproduced from the code.
+`scripts/check-service-worker-release.mjs`, wired into `package.json` as `check:sw-release` and into `scripts/run-regression-gates.mjs` after `check:layout`.
 
-The side panel opens from router history state `openSidePanel`. Closing it set the local state to `null` but left `openSidePanel: 'messages'` sitting in history. Navigating to the map again with the same intent produced an identical `requestedSidePanelView`, the effect's dependency never changed, so the panel never reopened. Visiting another page first changed the state object, which is why that path appeared to work.
+It fails the release when the five copies of the release id disagree, and when any shipped frontend file (`src/`, `public/`, `index.html`, excluding test files) differs from `origin/main` while the id has not moved. Baseline is overridable with `CRUUSH_SW_BASELINE`.
 
-The effect now consumes the request with a `replace` navigation that clears `openSidePanel`.
-
-### 5. Edit Profile icon
-
-`src/app/components/Settings.tsx` line 37. The Edit Profile row masked `humanity-profile-selected-winged-heart-symmetric.png`. It now masks `cruush-white.png`, the heart-with-a-heart-inside glyph. The mask is still filled with `var(--cruush-gradient)`, so the gradient is unchanged.
+The id was bumped **v26 → v27** in all five places: `public/sw.js` (`CACHE_NAME` and `REFRESH_ID`), `src/main.tsx`, `index.html`, `public/service-worker-recovery.js`, and the expectations in `src/serviceWorkerUpdate.test.ts`.
 
 ---
 
 ## Verification
 
-Green:
+Passing:
 
-- `vitest src/app/components/LocalFeed.test.tsx` — 15 passed
-- `vitest src/app/components/Settings.test.tsx` — 17 passed
-- `vitest src/app/components/MapHome.test.tsx` — 70 passed
-- `vitest src/app/components/BottomNav.test.tsx` — 15 passed
-- `server: vitest src/policy-mapper.test.ts` — 34 passed
-- `server: vitest src/moderation-service.test.ts src/profile-photo-human-detection.test.ts src/moderation-provider.test.ts` — 72 passed
-- `server: vitest src/app.test.ts -t "POST /api/posts"` — 2 passed
-- `vite build` — succeeded
+- `src/serviceWorkerUpdate.test.ts` — 3/3
+- `Auth.test.tsx` + `ResetPassword.test.tsx` — 21/21
+- `Settings.test.tsx` + `MobileInstallPrompt.test.tsx` — 20/20
+- `MapControlsTutorial.test.tsx` — 11/11
+- `MapPingSheet.test.tsx` — 7/7
+- `CruushActivity.test.tsx` + `DirectMessages.test.tsx` — 16/16
+- `npm run build` — clean
+- `node scripts/check-service-worker-release.mjs` — passes on the bump, and was confirmed to exit 1 when one copy was set back to v26
 
-Tests updated to match the new behaviour, none deleted:
+Failing, pre-existing, **not** caused by this work:
 
-- `LocalFeed.test.tsx` — the two paywall tests became one test that a member without cruush+ can post.
-- `server/src/app.test.ts` — the 402 test is gone; the creation test now runs with `cruush_plus_enabled: false`, so the success path itself proves free posting.
-- `policy-mapper.test.ts` — the nudity rejection test asserts allow, plus new tests for object-allowed-on-feed, animal-still-rejected, and non-human-profile-photo-still-rejected.
-- `MapHome.test.tsx` — the dock assertion moved from a `z-50` class to the inline z-index, and asserts the new top grip exists.
+- `src/app/components/MapHome.test.tsx` — 69 of 70 fail with `No "MapMarkerPin" export is defined on the "./MapView" mock`. Confirmed by stashing every change in this batch and re-running: still 69 failures. The mock in that test file needs a `MapMarkerPin` export.
 
-Pre-existing failures on `f00fb48`, not caused by this branch. Confirmed by stashing the whole diff and re-running:
+Not verified:
 
-- `server: app.test.ts > returns the authenticated profile on GET /api/profiles/me`
-- `server: app.test.ts > upserts the authenticated profile on PUT /api/profiles/me`
-
-Both differ by a `custom_condoms` profile field, 50 keys against an expected 49.
-
-**Not verified: none of this has been rendered in a running app.** `npm run dev:local:seeded` exits immediately with "Cannot connect to local Postgres at localhost:5433/cruush", and Docker is not running on this machine, so the bundled Postgres could not be started. The free feed, the panel fixes, and the moderation policy have never been exercised against a live server. Per the standing rules that is not proof, and it is the main gap in this handoff.
+- Nothing in this batch has been seen rendered on the real local stack. Every visual claim rests on source and unit tests, except the reset page, which was screenshotted at 375×812 on a frontend-only server.
+- No e2e run, no server test run, no full vitest suite.
 
 ---
 
-## Before this ships
+## Running it locally
 
-1. **Rebase onto `origin/main` `4fec73e`.** Four files conflict:
+Use `https://localhost:5178`. That is `dev:local` for this checkout: vite plus the API on `:3001` plus Postgres, and it serves this working tree over HMR.
 
-   - `src/app/components/LocalFeed.tsx` — upstream `e86ae30` "land the feed layout pass with its tests green" rewrote roughly 197 lines of this file. This is the real merge. Keep the upstream layout and reapply the paywall removal on top of it.
-   - `src/app/components/MapSidePanel.tsx` — upstream `845e85f` deleted the view tabs and the `onViewChange` prop entirely. Take upstream's version and reapply only the `pt-9` to `pt-2` padding fix to the simpler row it leaves behind.
-   - `src/app/components/DesktopDockPanel.tsx` — upstream `64ef8cd` already narrowed the grab strip for the same reason, to `left-1/2 top-0 h-8 w-24 -translate-x-1/2`. Prefer upstream's centred strip over the `left-0 right-20 h-6` version here, and keep the two grips, the per panel z-index, the transparency, and `EDGE_GAP`.
-   - `src/app/components/MapHome.tsx` — five upstream commits touch it. The reopen fix is a small isolated effect and should reapply cleanly.
+Do **not** use a bare `npm run dev` on an arbitrary port. A frontend-only server on `http://127.0.0.1:5195` was handed over earlier in the session and every write failed with `Request origin is not allowed.` — the API's CORS allowlist does not include that origin. It made working features look broken.
 
-   `Settings.tsx` and all four server files have no upstream changes and should rebase clean.
-
-2. **Start Docker and run `npm run dev:local:seeded`**, then actually click: post to the feed as an account without cruush+, drag and resize a panel from both corners, click an overlapped panel, close and reopen the messages panel without leaving the page.
-
-3. **Amend the standing rules doc under `docs/`.** Invariant **G2** still reads "NSFW is allowed in the favorites gallery and in messages." The code now allows it everywhere. The doc and the code disagree until someone fixes the doc, and the file has an "Amending this file" procedure at the bottom.
-
-4. **Environment variables:** none added, removed, or changed by this branch.
+Staging is down: `https://staging.cruush.app` and `https://api-staging.cruush.app/api/meta` both return **503**. `https://cruush.app` returns 200.
 
 ---
 
-## Open questions the next session should ask
+## Requested and not done
 
-- **Which icon goes where.** The instruction landed as "use the heart-in-heart for cruushes only" and "the winged icon is for the feed and nothing else". Edit Profile currently uses the heart-in-heart, which may be wrong if that glyph is reserved for cruush actions. `BottomNav.tsx` lines 9 and 10 still use the winged heart for the Profile tab, which contradicts "nothing else", but the replacement was never named, so it was left alone rather than guessed at. `Changelog.tsx` line 59 also still describes the winged heart as the Profile icon.
-- **Crowd targeting and the feed pin setting behind cruush+.** Agreed as the replacement for the removed paywall, never implemented. Crowd targeting would gate on `payload.crowdTargets.length > 0` in `POST /api/posts`; the pin setting would gate `locationPinVisibility` in `PUT /api/feed/settings`. Free members would stay on the current `mutuals` default.
-- **Photo posts, reactions, and replies.** Designed, not built. The agreed layout is small square tiles welded into one 3.4rem block beside the body copy, tapping opens a full screen viewer, DL Mode masks them the same way it already masks explicit author avatars. Measured at 380px card width, that layout costs 29px of card height against a 143px text-only post.
-- **Stream Feeds.** Investigated and recommended against. Stream is already a dependency but only as the moderation provider. Feeds is a separately priced product; a moderation plan does not include it. The feed's encryption, hashed crowd tokens, geo queries, trust gating, and expiry do not port to their follow-graph model.
+Raised during the session, none of it started:
+
+1. **Quests.** One free day of cruush+ for finishing the tutorial, one day per profile photo uploaded up to four (a full set of four photos is worth four days), and one for the first feed post. Call them **quests** on the cruush+ page, and have the feed encourage a first post with the free day as the reward. Note this collides with the standing reward rule in `AI_CONTRACT.md`: new action-based credits are supposed to be rejected at the database boundary. That conflict needs resolving before anything is built.
+2. **Crowds as presets.** Replace crowds with named, customisable presets: one by default, up to four with cruush+, each with its own SF and VC, toggleable through VC and usable as a reverse filter. Set them in a tab in edit profile. Needs a new menu.
+3. **Heart pins at a constant size** everywhere they appear — the map's default size, never the hover size, unless stated otherwise.
+4. **Vibe pills and actions on message rows.** Requires API work first: `ConversationThread` in `src/app/lib/messagesApi.ts` carries neither vibes nor precise-location permission, so `/api/conversations` has to return them.
+5. **Tutorial coverage** of cruush settings, messages, profile edit, Ghost Mode's decoy, and badges; and it should say when something is on by default.
+6. **Bottom nav is too big** on the map screen.
+7. **Cruise Carousel: make the spin fun.** "Browse again" belongs directly under "Visit full profile" (`src/app/components/ProfileCard.tsx:299`, also used by `CruiseCarouselSlot.tsx:484`), and the plain button reads as boring. The carousel is a slot machine, so the control should behave like one. Proposal to build or argue with:
+
+   - Replace the button with a full-width **pull bar** sitting right under "Visit full profile". Press and drag it to the right; the cruush gradient charges along it as you pull, from 0 to 100 percent.
+   - Release past roughly 60 percent and it snaps back with a spring while the card face spins: a short reel of upcoming profile hearts scrolling fast, easing down, settling on the next person. Release short of that and it springs back with nothing spent.
+   - A plain tap on the bar spins too, so nothing depends on the drag gesture. Keyboard: Enter or Space on the focused bar.
+   - Under `prefers-reduced-motion: reduce`, skip the reel entirely and swap the card, keeping the charge fill as the only movement.
+   - If the carousel has a cooldown or a daily quota, the bar doubles as the meter: dim and uncharged while it is spent, with the remaining time on it. That gives the control something to say instead of sitting there grey.
+
+   A slider was the other idea floated. The pull bar is the same gesture with a slot-machine read, and it degrades to a button for taps and keyboards.
+8. **Cruise Carousel photos stay 4:5** at every screen size. Keep the aspect ratio fixed and fit the card to the space around it rather than letting the photo crop or letterbox to whatever is left.
+
+9. **Cruise Carousel top bar.** Strip it back to three things: the title, the back button, and the bug report button. Everything else that currently sits up there goes.
+
+   Then lift those onto the photo itself rather than a bar above it: title and back button overlaid on the image, so the image grows into the space the bar used to occupy and fills more of the screen. That in turn frees the bottom of the screen for the browse-again control described in item 7.
+
+10. **Crowds, in full.** Beyond "presets": each crowd gets its own SF and VC, the person names it, it is turned on and off through VC the way crowds are today, and it can be used as a reverse filter. One crowd by default, up to four with cruush+, acting as quick settings. They are selected and edited from a tab in edit profile, which needs a new menu. If someone has no crowd yet, the app should take them to that page to make one.
+
+11. **Controls must be honest.** A control that cannot do anything should not be on screen at all, and a dark gradient reads as "not clickable". Pressing message on a profile that allows messaging must open that person's thread immediately, not sit there. The dead centre-pin case is fixed; the rest of this needs a sweep across the message pages.
+
+12. **Adaptive sizing.** The menus read as cramped, and layouts should adapt to the width rather than squeeze. The Cruushes rows now wrap below 400px, but the same pass is owed across the message pages and the count grid, where labels such as "INCOMING" truncate to "INCOMI…".
+
+13. **Notes about notes.** Every time a request has to be repeated, write it into memory that same turn, and tell future sessions to keep doing the same. Two memory files now cover this: `repetition-means-write-it-down` and `bump-the-service-worker-release`.
+
+14. Reports that pressing cruush on incoming, and message on sent, did nothing were made against the broken `:5195` server. Re-test on `:5178` before treating them as bugs.

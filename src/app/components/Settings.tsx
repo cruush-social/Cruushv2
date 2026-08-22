@@ -253,7 +253,8 @@ export default function Settings() {
           icon: BookOpen,
           label: 'Tutorial',
           description: 'Review the main cruush defaults and privacy controls.',
-          action: () => navigate('/settings/tutorial'),
+          // Straight into the tour on the map, no stop-off page in between.
+          action: () => navigate('/map?replayTutorial=1'),
         },
         {
           icon: History,
@@ -266,6 +267,12 @@ export default function Settings() {
           label: 'Map presence',
           description: 'How long you stay on the map, and how distance reads on your profile.',
           action: () => navigate('/privacy/map-presence'),
+        },
+        {
+          icon: ShieldCheck,
+          label: 'Privacy audit',
+          description: 'See who accessed your location and revoke that access.',
+          action: () => navigate('/privacy/audit'),
         },
         {
           icon: UserX,
@@ -479,9 +486,6 @@ export default function Settings() {
                     ) : null}
                     <span className="flex-1 text-left">
                       <span className="block">{item.label}</span>
-                      {item.description ? (
-                        <span className="mt-1 block text-sm text-muted-foreground">{item.description}</span>
-                      ) : null}
                     </span>
                     <ChevronRight className="w-5 h-5 text-muted-foreground" />
                   </button>

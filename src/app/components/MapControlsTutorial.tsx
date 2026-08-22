@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Bell, Download, Eye, EyeOff, Ghost, MapPin, Radio, RefreshCw, Rss, SlidersHorizontal, Users, ZoomIn } from 'lucide-react';
 import { Button } from './ui/button';
 
 export const MAP_CONTROLS_TUTORIAL_STORAGE_KEY = 'cruush:tutorial-v4-seen';
@@ -20,6 +19,11 @@ export function notifyMapControlsTutorialCompleted() {
     window.dispatchEvent(new Event(MAP_CONTROLS_TUTORIAL_COMPLETED_EVENT));
   }
 }
+
+// Only these two need a button in the card: they open a browser dialog rather
+// than a control on the screen. Every other step highlights the real control and
+// waits for the person to press it.
+const SELF_SERVICE_STEP_IDS: MapControlsTutorialStepId[] = ['install', 'notifications'];
 
 export type MapControlsTutorialStepId = 'install' | 'notifications' | 'seeking' | 'visibility' | 'crowds' | 'ghost' | 'dl-mode' | 'ping' | 'profile-pin' | 'zoom' | 'carousel' | 'feed';
 
@@ -106,37 +110,6 @@ const TUTORIAL_STEPS: TutorialStep[] = [
     actionLabel: 'Open Feed',
   },
 ];
-
-function StepIcon({ id }: { id: MapControlsTutorialStepId }) {
-  switch (id) {
-    case 'install':
-      return <Download className="h-5 w-5 text-primary" />;
-    case 'notifications':
-      return <Bell className="h-5 w-5 text-primary" />;
-    case 'seeking':
-      return <SlidersHorizontal className="h-5 w-5 text-primary" />;
-    case 'visibility':
-      return <EyeOff className="h-5 w-5 text-primary" />;
-    case 'crowds':
-      return <Users className="h-5 w-5 text-primary" />;
-    case 'ghost':
-      return <Ghost className="h-5 w-5 text-primary animate-pulse" />;
-    case 'dl-mode':
-      return <Eye className="h-5 w-5 text-primary" />;
-    case 'ping':
-      return <Radio className="h-5 w-5 text-primary" />;
-    case 'profile-pin':
-      return <MapPin className="h-5 w-5 text-primary" />;
-    case 'zoom':
-      return <ZoomIn className="h-5 w-5 text-primary" />;
-    case 'carousel':
-      return <RefreshCw className="h-5 w-5 text-primary" />;
-    case 'feed':
-      return <Rss className="h-5 w-5 text-primary" />;
-    default:
-      return <Ghost className="h-5 w-5 text-primary" />;
-  }
-}
 
 export function getStoredMapControlsTutorialStep(): MapControlsTutorialStepId | null {
   if (typeof window === 'undefined') {
@@ -701,9 +674,6 @@ export default function MapControlsTutorial({ open, onComplete, onActivateStep, 
         </div>
 
         <div className="mt-2 flex items-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-primary/40 bg-primary/20 text-primary shadow-[0_0_15px_rgba(255,0,114,0.35)]">
-            <StepIcon id={step.id} />
-          </div>
           <div>
             <h2 className="text-xl font-medium">{step.title}</h2>
             <p className="text-[10px] uppercase tracking-[0.15em] text-white/50">
@@ -719,7 +689,7 @@ export default function MapControlsTutorial({ open, onComplete, onActivateStep, 
           </p>
         ) : null}
         <div className={`mt-4 flex flex-wrap items-center gap-2 ${step.actionLabel ? 'justify-between' : 'justify-end'}`}>
-          {step.actionLabel ? (
+          {step.actionLabel && SELF_SERVICE_STEP_IDS.includes(step.id) ? (
             <Button
               type="button"
               className="rounded-lg border border-white/25 text-white ring-2 ring-primary/60 ring-offset-2 ring-offset-background"

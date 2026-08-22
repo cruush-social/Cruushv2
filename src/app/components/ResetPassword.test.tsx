@@ -48,4 +48,45 @@ describe('ResetPassword', () => {
     }));
     expect(await screen.findByText('Your password has been reset. You can sign in now.')).toBeInTheDocument();
   });
+
+  it('leaves the reset screen with a real navigation so the reset token clears', () => {
+    window.history.replaceState({}, '', '/reset-password?resetPasswordToken=reset-token');
+
+    render(
+      <MemoryRouter>
+        <ResetPassword />
+      </MemoryRouter>,
+    );
+
+    const backToSignIn = screen.getByTestId('reset-password-back-to-sign-in');
+
+    expect(backToSignIn.tagName).toBe('A');
+    expect(backToSignIn).toHaveAttribute('href', '/');
+    expect(backToSignIn).toHaveTextContent('Back to sign in');
+
+    // A client-side router link would swallow this click and keep
+    // ?resetPasswordToken= in the address bar, which pins the app on the reset
+    // screen until the visitor reloads by hand.
+    const navigated = fireEvent.click(backToSignIn);
+
+    expect(navigated).toBe(true);
+  });
+
+  it('still shows the way back to sign in after a successful reset', async () => {
+    vi.mocked(resetPassword).mockResolvedValue(undefined);
+    window.history.replaceState({}, '', '/reset-password?resetPasswordToken=reset-token');
+
+    render(
+      <MemoryRouter>
+        <ResetPassword />
+      </MemoryRouter>,
+    );
+
+    fireEvent.change(screen.getByLabelText('New password'), { target: { value: 'password-123' } });
+    fireEvent.change(screen.getByLabelText('Confirm new password'), { target: { value: 'password-123' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Reset password' }));
+
+    expect(await screen.findByText('Your password has been reset. You can sign in now.')).toBeInTheDocument();
+    expect(screen.getByTestId('reset-password-back-to-sign-in')).toHaveAttribute('href', '/');
+  });
 });

@@ -58,8 +58,26 @@ export default function MobileInstallPrompt() {
       }
 
       const promptEvent = getInstallPrompt();
-      setInstallEvent(promptEvent);
-      setShowManualInstructions(!promptEvent);
+
+      // When the browser has a real install prompt for us, go straight to it.
+      // Asking again in our own sheet first is a second popup for no reason.
+      if (promptEvent) {
+        setInstallEvent(promptEvent);
+        void (async () => {
+          try {
+            await promptEvent.prompt();
+            await promptEvent.userChoice.catch(() => null);
+          } finally {
+            clearInstallPrompt();
+            setInstallEvent(null);
+            setVisible(false);
+          }
+        })();
+        return;
+      }
+
+      // No browser prompt (iOS, mainly), so the manual steps are all we have.
+      setShowManualInstructions(true);
       setVisible(true);
     };
 
