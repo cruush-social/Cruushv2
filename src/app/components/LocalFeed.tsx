@@ -678,14 +678,14 @@ export default function LocalFeed({ embedded = false }: { embedded?: boolean } =
           ) : null}
 
           {!loading ? (
-            <div className="space-y-3">
+            <div className="space-y-2">
               {posts.map((post) => {
                 const mutualAuthor = mutualUserIds.has(post.user.id);
                 return (
-                <div key={post.id} className="rounded-2xl border border-white/10 bg-black/72 p-4 transition-colors hover:bg-black/86">
+                <div key={post.id} className="rounded-2xl border border-white/10 bg-black/72 p-3 transition-colors hover:bg-black/86">
                   <div className="flex items-start gap-3">
                     <div
-                      className="-mt-2 flex w-14 flex-shrink-0 flex-col items-center"
+                      className="-mt-1 flex w-20 flex-shrink-0 flex-col items-center"
                       data-testid={`feed-post-profile-stack-${post.id}`}
                     >
                       <HeartPhoto
@@ -700,7 +700,7 @@ export default function LocalFeed({ embedded = false }: { embedded?: boolean } =
                       />
                     </div>
 
-                    <div className="min-w-0 flex-1 space-y-2">
+                    <div className="min-w-0 flex-1 space-y-1.5">
                       <div className="min-w-0 space-y-1">
                         <div className="flex min-w-0 items-center gap-2">
                           <span className="flex min-w-0 flex-1 items-center overflow-hidden whitespace-nowrap">
