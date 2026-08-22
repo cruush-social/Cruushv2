@@ -9,10 +9,32 @@ import { deleteEncryptedMediaObject, writeEncryptedMediaObject } from "../media-
 import { sendSupportRequestInboxEmail, sendSupportRequestReplyEmail } from "../mailer.js";
 import { getModeratorUser } from "../moderator-auth.js";
 import { getOptionalAuthenticatedUserId } from "../request-auth.js";
+
 import {
   createSupportRequestPayloadSchema,
   replySupportRequestPayloadSchema
 } from "../support-schema.js";
+
+// Whole words only. Matched unanchored, "age" hits inside message, page, image,
+// usage and manage, which filed effectively every support request as an urgent
+// age suspension appeal. A survey response is never an appeal, whatever words
+// it happens to contain.
+const AGE_APPEAL_TERMS =
+  /\b(?:underage|age|dob|birthday|birthdate|suspended|suspension|appeal|appeals|appealing|minor)\b|\b18\s*\+/i;
+
+export function isAgeSuspensionAppeal(input: {
+  category: string;
+  message: string;
+  source: string;
+  subject: string;
+}) {
+  if (input.source === "survey") {
+    return false;
+  }
+
+  return input.category === "policy"
+    || AGE_APPEAL_TERMS.test(`${input.subject} ${input.message}`);
+}
 
 type SupportRequestRow = {
   id: string;
@@ -468,9 +490,12 @@ export async function registerSupportRoutes(app: FastifyInstance) {
       message: "Too many support requests. Try again later."
     });
 
-    const isAgeAppeal =
-      payload.category === "policy" ||
-      /age|underage|birth|dob|suspension|appeal|18\+|minor/i.test(`${payload.subject} ${payload.message}`);
+    const isAgeAppeal = isAgeSuspensionAppeal({
+      category: payload.category,
+      message: payload.message,
+      source: payload.source,
+      subject: payload.subject
+    });
 
     const metadata = {
       userAgent: getUserAgent(request.headers["user-agent"]),

@@ -3,7 +3,7 @@
   "product": "cruush",
   "release": "1.5",
   "repository": "cruush-social/Cruushv2",
-  "job": "Open local feed posting to every signed-in member, allow nudity and faceless photos on every surface, and fix the desktop dock panels.",
+  "job": "Restore email delivery, and stop every support request being filed as an urgent age suspension appeal.",
   "branch": "feat/free-feed-board",
   "allowedPaths": [
     "AI_TASK.json",
@@ -166,7 +166,8 @@
     "src/app/components/BadgePickerPreview.tsx",
     "src/app/components/PulseEffectPreview.tsx",
     "src/app/components/BadgeGlyphs.tsx",
-    "server/src/mailer.test.ts"
+    "server/src/mailer.test.ts",
+    "server/src/age-appeal-detection.test.ts"
   ],
   "preserved": [
     "Preserve the trust gate on feed posting: trust_score above 20, no active suspension, no feature_restrictions row for feed_posting.",
