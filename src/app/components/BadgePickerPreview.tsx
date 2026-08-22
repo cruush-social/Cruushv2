@@ -335,7 +335,7 @@ function BadgeChip({ icon: Icon, side, meaning }: {
       <Icon aria-hidden="true" className="h-[0.8125rem] w-[0.8125rem]" strokeWidth={2.6} />
       {meaning ? (
         <span
-          className="pointer-events-none absolute bottom-full left-1/2 mb-1 -translate-x-1/2 whitespace-nowrap text-[0.7rem] leading-none text-white opacity-0 transition-opacity group-hover/badge:opacity-100"
+          className="pointer-events-none absolute left-1/2 top-full mt-1.5 -translate-x-1/2 whitespace-nowrap text-[0.7rem] leading-none text-white opacity-0 transition-opacity group-hover/badge:opacity-100"
           style={{ textShadow: '0 1px 3px rgba(0,0,0,0.95), 0 0 6px rgba(0,0,0,0.85)' }}
         >
           {meaning}

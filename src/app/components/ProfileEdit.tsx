@@ -1008,7 +1008,13 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid h-auto w-full grid-cols-5 rounded-full border border-white/10 bg-background/25 p-1">
             <TabsTrigger value="photos" className="min-h-11" onClick={() => setActiveTab('photos')}>Photos</TabsTrigger>
-            <TabsTrigger value="badges" className="min-h-11" onClick={() => setActiveTab('badges')}>Badges</TabsTrigger>
+            <TabsTrigger
+              value="badges"
+              className="min-h-11"
+              onClick={() => navigate(cruushPlus ? '/settings/badges' : '/cruush-plus')}
+            >
+              Badges
+            </TabsTrigger>
             <TabsTrigger value="basics" className="min-h-11" onClick={() => setActiveTab('basics')}>Basics</TabsTrigger>
             <TabsTrigger value="intimacy" className="min-h-11" onClick={() => setActiveTab('intimacy')}>Intimacy</TabsTrigger>
             <TabsTrigger value="health" className="min-h-11" onClick={() => setActiveTab('health')}>Health</TabsTrigger>

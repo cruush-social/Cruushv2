@@ -128,7 +128,7 @@ export default function ProfileBadgesTab({
         <h2 className="text-base text-white">Custom badges</h2>
         <p className="text-sm text-muted-foreground">
           {cruushPlus
-            ? 'Pick anything for either side instead of your role and position.'
+            ? 'Pick anything for either side instead of your role and position. Hover a badge anywhere in the app to read what it means.'
             : 'cruush+ lets you pick anything for either side instead of your role and position, and takes the ceiling off your kinks.'}
         </p>
         <Button
