@@ -162,7 +162,8 @@
     "src/app/components/AppErrorBoundary.tsx",
     "src/app/components/PulseLedIcon.tsx",
     "server/src/map-pings.ts",
-    "src/app/lib/profileLimits.ts"
+    "src/app/lib/profileLimits.ts",
+    "src/app/components/BadgePickerPreview.tsx"
   ],
   "preserved": [
     "Preserve the trust gate on feed posting: trust_score above 20, no active suspension, no feature_restrictions row for feed_posting.",
@@ -200,7 +201,7 @@
     "The share of accounts holding cruush+ is unknown. No database count was run.",
     "No environment variables were added, removed, or changed by this task."
   ],
-  "task": "Pulse preview matches a live pulse, larger chat heart",
+  "task": "Side badge picker mockup",
   "publicationTarget": "origin/main and production",
   "environmentChanges": "none"
 }
