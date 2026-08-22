@@ -16,6 +16,7 @@ import MapVisibilitySurface, { DEFAULT_VISIBILITY_STATE, type VisibilityControlS
 import MapPingSheet from './MapPingSheet';
 import MapControlsTutorial, {
   getStoredMapControlsTutorialStep,
+  MAP_CONTROLS_TUTORIAL_LEGACY_STORAGE_KEYS,
   MAP_CONTROLS_TUTORIAL_STORAGE_KEY,
   notifyMapControlsTutorialCompleted,
   type MapControlsTutorialStepId,
@@ -32,7 +33,7 @@ import { emailEventPass, getActiveEvents, joinEventChat, revealEventPass, type E
 import type { DenseVenueConfig } from '../lib/denseVenueMarkers';
 import { getProfileGradientCss } from '../lib/profileGradient';
 import { addDlModeChangedListener, isDlModeEnabled, shouldMaskPhoto, setDlModeEnabled } from '../lib/dlMode';
-import { markNoticeDismissed, resolveNoticeDismissal } from '../lib/userNoticesApi';
+import { markNoticeDismissed, resolveAnyNoticeDismissal } from '../lib/userNoticesApi';
 import { syncMyLocation, type ProfileLocationPayload, type ProfileLocationRecord } from '../lib/locationApi';
 import {
   getMapPingStatus,
@@ -465,6 +466,10 @@ const EARTH_RADIUS_MILES = 3958.7613;
 // Version the tutorial so the repaired interactive tour is shown once to users
 // who completed an older, non-interactive version. Settings can explicitly replay it.
 export const MAP_CONTROLS_INTRO_STORAGE_KEY = MAP_CONTROLS_TUTORIAL_STORAGE_KEY;
+const MAP_CONTROLS_TUTORIAL_DISMISSAL_KEYS = [
+  MAP_CONTROLS_TUTORIAL_STORAGE_KEY,
+  ...MAP_CONTROLS_TUTORIAL_LEGACY_STORAGE_KEYS,
+];
 
 export function readStoredMapViewport() {
   if (typeof window === 'undefined') {
@@ -493,7 +498,9 @@ export function readStoredMapViewport() {
     // Ignore malformed restore payloads and keep the default map camera.
   }
 
-  window.sessionStorage.removeItem(MAP_VIEWPORT_RESTORE_STORAGE_KEY);
+  // The camera is kept rather than consumed, so a remount, a hot reload, or a
+  // trip through another tab comes back to where the map was left instead of
+  // snapping to the default view.
   return parsedViewport;
 }
 
@@ -883,7 +890,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
 
     let isMounted = true;
 
-    void resolveNoticeDismissal(MAP_CONTROLS_INTRO_STORAGE_KEY).then((notice) => {
+    void resolveAnyNoticeDismissal(MAP_CONTROLS_TUTORIAL_DISMISSAL_KEYS).then((notice) => {
       if (!isMounted) {
         return;
       }
@@ -979,6 +986,27 @@ export default function MapHome(_props: MapHomeProps = {}) {
       removeListener();
     };
   }, []);
+
+  // Record the camera whenever it settles so every later mount can restore it.
+  useEffect(() => {
+    const eventfulMap = mapInstance as (CruushMapInstance & {
+      on?: (event: string, handler: () => void) => void;
+      off?: (event: string, handler: () => void) => void;
+    }) | null;
+
+    if (!eventfulMap?.on || !eventfulMap.off) {
+      return;
+    }
+
+    const handleMoveEnd = () => storeMapViewportForRestore(mapInstance);
+    eventfulMap.on('moveend', handleMoveEnd);
+    eventfulMap.on('zoomend', handleMoveEnd);
+
+    return () => {
+      eventfulMap.off?.('moveend', handleMoveEnd);
+      eventfulMap.off?.('zoomend', handleMoveEnd);
+    };
+  }, [mapInstance]);
 
   const openProfile = (user: DiscoveryUser) => {
     if (user.isDemo) {
@@ -2098,8 +2126,22 @@ export default function MapHome(_props: MapHomeProps = {}) {
         className="pointer-events-none absolute inset-x-0 top-0 z-40 px-2 pb-10 pt-2 sm:px-3 sm:pt-3"
         data-testid="map-top-chrome"
       >
-        <div className="relative flex w-full items-start">
+        <div className="relative flex w-full items-start gap-2 sm:gap-2.5">
           <h1 className="sr-only">cruush</h1>
+          {/* cruush+ is its own corner control, so the bar beside it carries
+              nothing but icons. */}
+          <div className="relative shrink-0" data-testid="map-plus-stack">
+            <Button
+              type="button"
+              onClick={() => navigate('/rewards')}
+              aria-label="cruush+ rewards"
+              title="cruush+ rewards"
+              className="cruush-plus-shimmer-button cruush-logo-font pointer-events-auto h-9 rounded-full px-3 text-base font-normal leading-none tracking-normal normal-case text-white max-[340px]:px-2 max-[340px]:text-sm sm:h-10 sm:px-3.5 sm:text-lg lg:h-11 lg:px-4 lg:text-xl"
+              style={{ background: 'var(--cruush-gradient)' }}
+            >
+              <CruushPlusWord />
+            </Button>
+          </div>
           {isMutualMapMode ? (
             <div
               className="pointer-events-auto absolute right-0 top-full mt-1 inline-flex max-w-[5.75rem] items-center rounded-full border border-white/10 bg-background/35 px-1.5 py-0.5 text-[8px] lowercase leading-none tracking-[0.08em] text-white/72 backdrop-blur-md sm:max-w-none sm:px-2 sm:text-[9px] sm:tracking-[0.1em]"
@@ -2110,21 +2152,9 @@ export default function MapHome(_props: MapHomeProps = {}) {
           ) : null}
 
           <div
-          className="cruush-map-top-actions pointer-events-auto mt-0 flex w-full min-w-0 flex-1 items-center justify-between gap-1 rounded-full border border-white/10 bg-background/25 px-2 py-1 backdrop-blur-md transition-[width,margin,transform] max-[360px]:gap-0 sm:gap-1.5 sm:px-3 sm:py-1.5 lg:mx-auto lg:max-w-[52rem] lg:flex-none"
+          className="cruush-map-top-actions pointer-events-auto mt-0 flex min-w-0 flex-1 items-center justify-between gap-0.5 rounded-full border border-white/10 bg-background/68 px-1.5 py-1 shadow-[0_20px_60px_rgba(0,0,0,0.42)] backdrop-blur-md transition-[width,margin,transform] max-[360px]:gap-0 sm:gap-1 sm:px-2 lg:mx-auto lg:max-w-[23rem] lg:flex-none"
             data-testid="map-top-actions"
           >
-            <div className="relative shrink-0" data-testid="map-plus-stack">
-              <Button
-                type="button"
-                onClick={() => navigate('/rewards')}
-                aria-label="cruush+ rewards"
-                title="cruush+ rewards"
-                className="cruush-plus-shimmer-button cruush-logo-font pointer-events-auto h-9 rounded-full px-3 text-base font-normal leading-none tracking-normal normal-case text-white max-[340px]:px-2 max-[340px]:text-sm sm:h-10 sm:px-3.5 sm:text-lg lg:h-11 lg:px-4 lg:text-xl"
-                style={{ background: 'var(--cruush-gradient)' }}
-              >
-                <CruushPlusWord />
-              </Button>
-            </div>
             <Button
               variant="ghost"
               size="icon"
@@ -2132,9 +2162,9 @@ export default function MapHome(_props: MapHomeProps = {}) {
               data-tutorial-target="carousel"
               aria-label="Cruise Carousel"
               title="Cruise Carousel"
-              className="size-9 rounded-full text-white/90 hover:bg-white/10 sm:size-10 lg:size-11"
+              className="size-9 rounded-full text-white/90 hover:bg-white/10 sm:size-9 lg:size-10"
             >
-              <CruushIconImage src={luckyIconWhite} className="h-[1.375rem] w-[1.375rem] scale-[1.55] sm:h-6 sm:w-6 lg:h-7 lg:w-7" />
+              <CruushIconImage src={luckyIconWhite} className="h-[1.375rem] w-[1.375rem] scale-[1.55] sm:h-[1.375rem] sm:w-[1.375rem] lg:h-6 lg:w-6" />
             </Button>
             <Button
               variant="ghost"
@@ -2143,12 +2173,12 @@ export default function MapHome(_props: MapHomeProps = {}) {
               data-tutorial-target="ghost"
               aria-label="Ghost Mode Settings"
               title="Ghost Mode Settings"
-              className="size-9 rounded-full text-white/90 hover:bg-white/10 sm:size-10 lg:size-11"
+              className="size-9 rounded-full text-white/90 hover:bg-white/10 sm:size-9 lg:size-10"
             >
               <CruushIcon
                 name="ghost"
                 variant={privacySettings.baseMode === 'STEALTH' ? 'stealth' : privacySettings.ghostModeEnabled ? 'colored' : 'white'}
-                className="h-[1.375rem] w-[1.375rem] sm:h-6 sm:w-6 lg:h-7 lg:w-7"
+                className="h-[1.375rem] w-[1.375rem] sm:h-[1.375rem] sm:w-[1.375rem] lg:h-6 lg:w-6"
               />
             </Button>
             <Button
@@ -2158,11 +2188,11 @@ export default function MapHome(_props: MapHomeProps = {}) {
               data-tutorial-target="dl-mode"
               aria-label={dlModeActive ? 'Turn DL Mode off' : 'Turn DL Mode on'}
               title={dlModeActive ? 'Turn DL Mode off' : 'Turn DL Mode on'}
-              className="size-9 rounded-full text-white/90 hover:bg-white/10 sm:size-10 lg:size-11"
+              className="size-9 rounded-full text-white/90 hover:bg-white/10 sm:size-9 lg:size-10"
             >
               <CruushIconImage
                 src={dlModeActive ? dlModeColored : dlModeWhite}
-                className="h-[1.375rem] w-[1.375rem] sm:h-6 sm:w-6 lg:h-7 lg:w-7"
+                className="h-[1.375rem] w-[1.375rem] sm:h-[1.375rem] sm:w-[1.375rem] lg:h-6 lg:w-6"
               />
             </Button>
             <Button
@@ -2172,9 +2202,9 @@ export default function MapHome(_props: MapHomeProps = {}) {
               data-tutorial-target="notifications"
               aria-label="Notifications"
               title="Notifications"
-              className="relative size-9 rounded-full text-white/90 hover:bg-white/10 sm:size-10 lg:size-11"
+              className="relative size-9 rounded-full text-white/90 hover:bg-white/10 sm:size-9 lg:size-10"
             >
-              <CruushIconImage src={notificationsIconWhite} className="h-[1.375rem] w-[1.375rem] scale-[1.4] sm:h-6 sm:w-6 lg:h-7 lg:w-7" />
+              <CruushIconImage src={notificationsIconWhite} className="h-[1.375rem] w-[1.375rem] scale-[1.4] sm:h-[1.375rem] sm:w-[1.375rem] lg:h-6 lg:w-6" />
               {notificationUnreadCount > 0 ? (
                 <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[0.62rem] font-semibold leading-none text-primary-foreground">
                   {notificationUnreadCount > 9 ? '9+' : notificationUnreadCount}
@@ -2187,19 +2217,20 @@ export default function MapHome(_props: MapHomeProps = {}) {
                 onClick={() => navigate('/settings')}
                 aria-label="Settings"
                 title="Settings"
-                className="size-9 rounded-full text-white/90 hover:bg-white/10 sm:size-10 lg:size-11"
+                className="size-9 rounded-full text-white/90 hover:bg-white/10 sm:size-9 lg:size-10"
               >
-                <CruushIconImage src={settingsIconWhite} className="h-[1.375rem] w-[1.375rem] scale-[1.18] sm:h-6 sm:w-6 lg:h-7 lg:w-7" />
+                <CruushIconImage src={settingsIconWhite} className="h-[1.375rem] w-[1.375rem] scale-[1.18] sm:h-[1.375rem] sm:w-[1.375rem] lg:h-6 lg:w-6" />
               </Button>
-              {/* The fixed bug button sits over the end of the bar until the bar
-                  narrows to its capped desktop width, so hold its place here. */}
-              <div
-                className="h-9 w-12 shrink-0 sm:h-10 sm:w-[3.5rem] lg:h-0 lg:w-0"
-                data-bug-button-size="large"
-                data-testid="map-bug-button-slot"
-                ref={registerBugButtonSlot}
-              />
             </div>
+
+            {/* The bug control is fixed to the corner like cruush+ is, so the bar
+                ends before it instead of running underneath it. */}
+            <div
+              className="h-9 w-9 shrink-0 sm:h-10 sm:w-10 lg:h-11 lg:w-11"
+              data-bug-button-size="large"
+              data-testid="map-bug-button-slot"
+              ref={registerBugButtonSlot}
+            />
           </div>
         </div>
 

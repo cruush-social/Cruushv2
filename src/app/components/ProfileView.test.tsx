@@ -206,7 +206,10 @@ describe('ProfileView', () => {
       </MemoryRouter>
     );
 
-    expect(await screen.findByText('Looking for late-night art kids near the venue.')).toBeInTheDocument();
+    // The signal reads on the photo beside the vibes and again in the card
+    // under it.
+    expect(await screen.findAllByText('Looking for late-night art kids near the venue.')).toHaveLength(2);
+    expect(screen.getByTestId('profile-overlay-signal')).toHaveTextContent('Looking for late-night art kids near the venue.');
   });
 
   it('shows the launch party hat without a circle treatment', async () => {

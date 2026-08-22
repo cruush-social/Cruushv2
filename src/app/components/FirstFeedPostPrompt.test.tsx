@@ -4,11 +4,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import FirstFeedPostPrompt from './FirstFeedPostPrompt';
 import { MAP_CONTROLS_TUTORIAL_COMPLETED_EVENT } from './MapControlsTutorial';
 
-const userNoticesApi = vi.hoisted(() => ({
-  dismissUserNotice: vi.fn(),
-  getUserNoticeDismissal: vi.fn(),
-  resolveNoticeDismissal: vi.fn(),
-}));
+const userNoticesApi = vi.hoisted(() => {
+  const resolveNoticeDismissal = vi.fn();
+
+  return {
+    dismissUserNotice: vi.fn(),
+    getUserNoticeDismissal: vi.fn(),
+    resolveNoticeDismissal,
+    // Every earlier tutorial key resolves through the same stub.
+    resolveAnyNoticeDismissal: (noticeKeys: string[]) => resolveNoticeDismissal(noticeKeys[0]),
+  };
+});
 
 vi.mock('../lib/userNoticesApi', () => userNoticesApi);
 

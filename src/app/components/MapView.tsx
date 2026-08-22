@@ -1167,10 +1167,17 @@ function GhostRotationPulse({ marker, children }: { marker: MapMarker; children:
     if (exitStartMs <= 0 && remainingMs > 0) {
       setExitElapsedMs(Math.min(GHOST_ROTATION_EXIT_MS, -exitStartMs));
     }
-    const exitTimer = window.setTimeout(() => setExitElapsedMs(0), Math.max(0, exitStartMs));
+    // A page load inside the exit window already resumed the animation part way
+    // through above. Scheduling this with a clamped delay fired it immediately
+    // and restarted the poof from zero, so the exit replayed on every load.
+    const exitTimer = exitStartMs > 0
+      ? window.setTimeout(() => setExitElapsedMs(0), exitStartMs)
+      : null;
     const endTimer = window.setTimeout(() => setExitElapsedMs(null), Math.max(0, remainingMs));
     return () => {
-      window.clearTimeout(exitTimer);
+      if (exitTimer !== null) {
+        window.clearTimeout(exitTimer);
+      }
       window.clearTimeout(endTimer);
     };
   }, [canAnimate, expiresAtMs]);

@@ -208,6 +208,8 @@ vi.mock('../lib/userNoticesApi', () => ({
   getUserNoticeDismissal,
   markNoticeDismissed,
   resolveNoticeDismissal,
+  // Every earlier tutorial key resolves through the same stub.
+  resolveAnyNoticeDismissal: (noticeKeys: string[]) => resolveNoticeDismissal(noticeKeys[0]),
 }));
 
 vi.mock('./ui/use-mobile', () => ({
@@ -1498,23 +1500,26 @@ describe('MapHome', () => {
     expect(screen.getByTestId('map-home-shell')).toHaveClass('relative');
     expect(screen.getByTestId('map-home-shell')).not.toHaveClass('fixed', 'inset-0');
     expect(screen.getByTestId('map-top-chrome')).toHaveClass('pointer-events-none');
+    // The bar carries icons only. cruush+ and the bug control are their own
+    // corner controls beside it rather than members of it.
     expect(topActions).toHaveClass(
       'pointer-events-auto',
       'mt-0',
       'min-w-0',
-      'w-full',
       'flex-1',
       'justify-between',
-      'gap-1',
-      'px-2',
+      'gap-0.5',
+      'px-1.5',
       'py-1',
-      'sm:gap-1.5',
-      'sm:px-3',
-      'sm:py-1.5',
+      'bg-background/68',
+      'sm:gap-1',
+      'sm:px-2',
       'lg:mx-auto',
-      'lg:max-w-[52rem]',
+      'lg:max-w-[23rem]',
       'lg:flex-none',
     );
+    expect(topActions).not.toContainElement(screen.getByTestId('map-plus-stack'));
+    expect(topActions).not.toContainElement(screen.getByTestId('map-bug-button-slot'));
     for (const button of [
       screen.getByRole('button', { name: 'Cruise Carousel' }),
       ghostModeButton,
@@ -1522,17 +1527,18 @@ describe('MapHome', () => {
       notificationButton,
       settingsButton,
     ]) {
-      expect(button).toHaveClass('size-9', 'sm:size-10', 'lg:size-11');
+      expect(button).toHaveClass('size-9', 'sm:size-9', 'lg:size-10');
     }
     expect(topActions).not.toHaveClass('sm:max-w-[34rem]');
     expect(topActions.parentElement).toHaveClass('w-full');
     expect(topActions).not.toHaveClass('mt-11');
     expect(plusStack).toHaveClass('relative', 'shrink-0');
-    expect(bugButtonSlot).toHaveClass('h-9', 'w-12', 'lg:h-0', 'lg:w-0');
-    expect(bugButtonSlot).not.toHaveClass('size-11');
+    // The slot now holds the corner open at the button's own size at every
+    // width, so the bar never runs underneath the bug control.
+    expect(bugButtonSlot).toHaveClass('h-9', 'w-9', 'sm:h-10', 'sm:w-10', 'lg:h-11', 'lg:w-11');
     expect(plusStack).toContainElement(cruushPlusButton);
     expect(plusStack).not.toContainElement(pingButton);
-    expect(topActions).toContainElement(cruushPlusButton);
+    expect(topActions).not.toContainElement(cruushPlusButton);
     expect(topActions).not.toContainElement(pingButton);
     expect(rightActions).toContainElement(pingButton);
     expect(screen.getByTestId('map-visibility-button').nextElementSibling).toBe(pingButton);
@@ -1564,11 +1570,11 @@ describe('MapHome', () => {
     );
     expect(screen.queryByRole('button', { name: 'Safety Center' })).not.toBeInTheDocument();
     expect(pingIcon).toHaveClass('h-5', 'w-5', 'lg:h-7', 'lg:w-7');
-    expect(luckyIcon).toHaveClass('h-[1.375rem]', 'w-[1.375rem]', 'scale-[1.55]', 'sm:h-6', 'sm:w-6', 'lg:h-7', 'lg:w-7');
-    expect(ghostModeIcon).toHaveClass('h-[1.375rem]', 'w-[1.375rem]', 'sm:h-6', 'sm:w-6', 'lg:h-7', 'lg:w-7');
-    expect(dlModeIcon).toHaveClass('h-[1.375rem]', 'w-[1.375rem]', 'sm:h-6', 'sm:w-6', 'lg:h-7', 'lg:w-7');
-    expect(notificationIcon).toHaveClass('h-[1.375rem]', 'w-[1.375rem]', 'scale-[1.4]', 'sm:h-6', 'sm:w-6', 'lg:h-7', 'lg:w-7');
-    expect(settingsIcon).toHaveClass('h-[1.375rem]', 'w-[1.375rem]', 'scale-[1.18]', 'sm:h-6', 'sm:w-6', 'lg:h-7', 'lg:w-7');
+    expect(luckyIcon).toHaveClass('h-[1.375rem]', 'w-[1.375rem]', 'scale-[1.55]', 'lg:h-6', 'lg:w-6');
+    expect(ghostModeIcon).toHaveClass('h-[1.375rem]', 'w-[1.375rem]', 'lg:h-6', 'lg:w-6');
+    expect(dlModeIcon).toHaveClass('h-[1.375rem]', 'w-[1.375rem]', 'lg:h-6', 'lg:w-6');
+    expect(notificationIcon).toHaveClass('h-[1.375rem]', 'w-[1.375rem]', 'scale-[1.4]', 'lg:h-6', 'lg:w-6');
+    expect(settingsIcon).toHaveClass('h-[1.375rem]', 'w-[1.375rem]', 'scale-[1.18]', 'lg:h-6', 'lg:w-6');
     expect(dlModeIcon?.getAttribute('src')).toContain('dl-mode-colored');
     expect(decodeURIComponent(ghostModeIcon?.getAttribute('src') ?? '')).toContain("fill='#ffffff'");
     expect(visibilityIcon).toHaveClass('h-4', 'w-4');

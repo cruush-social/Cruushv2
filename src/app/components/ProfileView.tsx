@@ -501,20 +501,37 @@ export default function ProfileView() {
             </div>
           ) : null}
 
-          {profileView.vibes.length > 0 ? (
-            <div className="mt-2 flex flex-wrap gap-1.5" data-testid="profile-overlay-vibes">
-              {profileView.vibes.slice(0, 3).map((vibe) => (
-                <span
-                  className="rounded-full border px-2 py-0.5 text-[11px] uppercase leading-tight tracking-[0.08em]"
-                  key={vibe}
-                  style={vibeCapsuleStyle(resolveVibeTone({
-                    mutual: profileView.relationship?.mutual_cruush,
-                    isCurrentUser: isOwnProfile,
-                  }))}
+          {profileView.vibes.length > 0 || profileView.signal ? (
+            <div className="mt-2 flex items-end justify-between gap-3">
+              {profileView.vibes.length > 0 ? (
+                <div className="flex min-w-0 flex-wrap gap-1.5" data-testid="profile-overlay-vibes">
+                  {profileView.vibes.slice(0, 3).map((vibe) => (
+                    <span
+                      className="rounded-full border px-2 py-0.5 text-[11px] uppercase leading-tight tracking-[0.08em]"
+                      key={vibe}
+                      style={vibeCapsuleStyle(resolveVibeTone({
+                        mutual: profileView.relationship?.mutual_cruush,
+                        isCurrentUser: isOwnProfile,
+                      }))}
+                    >
+                      {vibe}
+                    </span>
+                  ))}
+                </div>
+              ) : <span />}
+
+              {/* The signal balances the capsules on the other end of the same
+                  line, so the photo carries the two together. */}
+              {profileView.signal ? (
+                <p
+                  className="line-clamp-2 min-w-0 max-w-[52%] text-right text-[13px] leading-tight text-white"
+                  data-testid="profile-overlay-signal"
+                  style={PROFILE_OVERLAY_TEXT_STYLE}
+                  title={profileView.signal}
                 >
-                  {vibe}
-                </span>
-              ))}
+                  {profileView.signal}
+                </p>
+              ) : null}
             </div>
           ) : null}
         </div>

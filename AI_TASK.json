@@ -148,7 +148,10 @@
     "server/src/routes/auth.ts",
     "docs/design-master.md",
     "scripts/release-main-coolify.mjs",
-    "docs/plans/2026-08-22-feed-layout-handoff.md"
+    "docs/plans/2026-08-22-feed-layout-handoff.md",
+    "src/app/components/FirstFeedPostPrompt.tsx",
+    "src/app/components/FirstFeedPostPrompt.test.tsx",
+    "src/app/lib/userNoticesApi.ts"
   ],
   "preserved": [
     "Keep private trans status as the eligibility gate for the optional T4T crowd; do not infer it from a selected gender identity.",
@@ -203,5 +206,6 @@
     "Render the public About page and verify Julien's contact link is julien@cruush.app."
   ],
   "publicationTarget": "origin/main and production",
-  "environmentChanges": []
+  "environmentChanges": [],
+  "task": "Top bar corner controls, tutorial replay fix, ghost exit resume, map camera persistence, profile signal on the photo"
 }

@@ -6,21 +6,23 @@ import type { CSSProperties } from 'react';
  */
 export type VibeTone = 'nearby' | 'mutual' | 'self';
 
+// The capsules sit over photography, so they carry enough fill to stay legible
+// against a bright frame instead of washing out into it.
 const VIBE_TONE_STYLES: Record<VibeTone, CSSProperties> = {
   nearby: {
-    background: 'rgba(255, 0, 114, 0.16)',
-    borderColor: 'rgba(255, 0, 114, 0.55)',
-    color: '#FFB3D2',
+    background: 'rgba(255, 0, 114, 0.46)',
+    borderColor: 'rgba(255, 0, 114, 0.78)',
+    color: '#FFE2EE',
   },
   mutual: {
-    background: 'rgba(111, 0, 255, 0.18)',
-    borderColor: 'rgba(111, 0, 255, 0.6)',
-    color: '#DCC7FF',
+    background: 'rgba(111, 0, 255, 0.48)',
+    borderColor: 'rgba(111, 0, 255, 0.82)',
+    color: '#EFE4FF',
   },
   self: {
-    background: 'rgba(56, 38, 255, 0.2)',
-    borderColor: 'rgba(56, 38, 255, 0.62)',
-    color: '#C3D0FF',
+    background: 'rgba(56, 38, 255, 0.5)',
+    borderColor: 'rgba(56, 38, 255, 0.84)',
+    color: '#E2E8FF',
   },
 };
 

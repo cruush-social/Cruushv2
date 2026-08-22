@@ -12,11 +12,12 @@ import {
 } from './ui/dialog';
 import {
   MAP_CONTROLS_TUTORIAL_COMPLETED_EVENT,
+  MAP_CONTROLS_TUTORIAL_LEGACY_STORAGE_KEYS,
   MAP_CONTROLS_TUTORIAL_STORAGE_KEY,
 } from './MapControlsTutorial';
 import { acquireOneTimeDialog, onOneTimeDialogReleased, releaseOneTimeDialog } from '../lib/oneTimeDialogQueue';
 import { hasPersistentNoticeFlag, setPersistentNoticeFlag } from '../lib/persistentNotice';
-import { dismissUserNotice, getUserNoticeDismissal, resolveNoticeDismissal } from '../lib/userNoticesApi';
+import { dismissUserNotice, getUserNoticeDismissal, resolveAnyNoticeDismissal } from '../lib/userNoticesApi';
 
 const FIRST_FEED_POST_STORAGE_KEY = 'cruush:first-feed-post-prompt-seen';
 
@@ -101,7 +102,10 @@ export default function FirstFeedPostPrompt({ userId }: FirstFeedPostPromptProps
     };
 
     const startAfterTutorial = () => {
-      void resolveNoticeDismissal(MAP_CONTROLS_TUTORIAL_STORAGE_KEY).then((tutorialNotice) => {
+      void resolveAnyNoticeDismissal([
+        MAP_CONTROLS_TUTORIAL_STORAGE_KEY,
+        ...MAP_CONTROLS_TUTORIAL_LEGACY_STORAGE_KEYS,
+      ]).then((tutorialNotice) => {
         if (isMounted && tutorialNotice.dismissed) {
           startPrompt();
         }
