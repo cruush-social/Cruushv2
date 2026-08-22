@@ -265,8 +265,6 @@ describe('Auth', () => {
     fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'river@example.com' } });
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password-123' } });
     fireEvent.change(screen.getByLabelText('Confirm Password'), { target: { value: 'password-123' } });
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Accept the Terms of Service' }));
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Accept the Privacy Policy' }));
 
     expect(screen.queryByRole('link', { name: 'Launch rave tickets' })).not.toBeInTheDocument();
     expect(await screen.findByTestId('launch-login-auth-captcha')).toBeInTheDocument();
@@ -358,8 +356,6 @@ describe('Auth', () => {
     fireEvent.change(screen.getByLabelText('Date of birth'), { target: { value: '1994-06-15' } });
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password-123' } });
     fireEvent.change(screen.getByLabelText('Confirm Password'), { target: { value: 'password-123' } });
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Accept the Terms of Service' }));
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Accept the Privacy Policy' }));
     await screen.findByText('Mock Turnstile');
     fireEvent.click(screen.getByRole('button', { name: 'Create Account' }));
 
@@ -400,8 +396,6 @@ describe('Auth', () => {
     fireEvent.change(alphaPasswordInput, { target: { value: 'door-password' } });
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password-123' } });
     fireEvent.change(screen.getByLabelText('Confirm Password'), { target: { value: 'password-123' } });
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Accept the Terms of Service' }));
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Accept the Privacy Policy' }));
     await screen.findByText('Mock Turnstile');
     fireEvent.click(screen.getByRole('button', { name: 'Create Account' }));
 

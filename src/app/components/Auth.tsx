@@ -37,8 +37,6 @@ export default function Auth({ onAuth }: AuthProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState('');
-  const [termsAccepted, setTermsAccepted] = useState(false);
-  const [privacyAccepted, setPrivacyAccepted] = useState(false);
   const [productUpdatesOptIn, setProductUpdatesOptIn] = useState(false);
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -195,11 +193,6 @@ export default function Auth({ onAuth }: AuthProps) {
       }
       if (!dateOfBirth) {
         setError('Enter your date of birth.');
-        setIsLoading(false);
-        return;
-      }
-      if (!termsAccepted || !privacyAccepted) {
-        setError('Accept the Terms and Privacy Policy to create an account.');
         setIsLoading(false);
         return;
       }
@@ -721,28 +714,15 @@ export default function Auth({ onAuth }: AuthProps) {
 
           {isSignUp ? (
             <div className="space-y-3 rounded-sm border border-white/10 bg-black/25 p-3 text-sm text-white/70">
-              <label className="flex items-start gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  aria-label="Accept the Terms of Service"
-                  checked={termsAccepted}
-                  onChange={(event) => setTermsAccepted(event.target.checked)}
-                  disabled={isLoading}
-                  className="launch-login-auth-checkbox shrink-0 mt-0.5"
-                />
-                <span>I accept the <a className="underline" href="/terms" target="_blank" rel="noreferrer">Terms of Service</a>.</span>
-              </label>
-              <label className="flex items-start gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  aria-label="Accept the Privacy Policy"
-                  checked={privacyAccepted}
-                  onChange={(event) => setPrivacyAccepted(event.target.checked)}
-                  disabled={isLoading}
-                  className="launch-login-auth-checkbox shrink-0 mt-0.5"
-                />
-                <span>I accept the <a className="underline" href="/privacy" target="_blank" rel="noreferrer">Privacy Policy</a>.</span>
-              </label>
+              <details className="launch-login-auth-policies">
+                <summary>Terms of Service and Privacy Policy</summary>
+                <p className="mt-2">
+                  Creating an account accepts the{' '}
+                  <a className="underline" href="/terms" target="_blank" rel="noreferrer">Terms of Service</a>{' '}
+                  and the{' '}
+                  <a className="underline" href="/privacy" target="_blank" rel="noreferrer">Privacy Policy</a>.
+                </p>
+              </details>
               <label className="flex items-start gap-3 cursor-pointer">
                 <input
                   type="checkbox"

@@ -1164,3 +1164,25 @@ html[data-cruush-high-contrast] .launch-login-auth-input::placeholder {
       0 0 16px rgba(56, 38, 255, 0.26);
   }
 }
+
+/* The policies are offered to read at sign up rather than asked for a second
+   time, so they sit closed under one line instead of two checkboxes. */
+.launch-login-auth-policies > summary {
+  cursor: pointer;
+  list-style: none;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.launch-login-auth-policies > summary::-webkit-details-marker {
+  display: none;
+}
+
+.launch-login-auth-policies > summary::after {
+  content: '+';
+  margin-left: 0.4rem;
+  opacity: 0.6;
+}
+
+.launch-login-auth-policies[open] > summary::after {
+  content: '\2212';
+}
