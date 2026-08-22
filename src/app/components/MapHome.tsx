@@ -2108,7 +2108,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
           ) : null}
 
           <div
-          className="cruush-map-top-actions pointer-events-auto mt-0 flex w-full min-w-0 flex-1 items-center justify-between gap-0 rounded-full border border-white/10 bg-background/25 p-1 backdrop-blur-md transition-[width,margin,transform] sm:gap-1 sm:p-1.5 lg:mx-auto lg:max-w-[52rem] lg:flex-none"
+          className="cruush-map-top-actions pointer-events-auto mt-0 flex w-full min-w-0 flex-1 items-center justify-between gap-1 rounded-full border border-white/10 bg-background/25 px-2 py-1 backdrop-blur-md transition-[width,margin,transform] sm:gap-1.5 sm:px-3 sm:py-1.5 lg:mx-auto lg:max-w-[52rem] lg:flex-none"
             data-testid="map-top-actions"
           >
             <div className="relative shrink-0" data-testid="map-plus-stack">
@@ -2190,7 +2190,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
                 <CruushIconImage src={settingsIconWhite} className="h-[1.375rem] w-[1.375rem] scale-[1.18] sm:h-6 sm:w-6 lg:h-7 lg:w-7" />
               </Button>
               <div
-                className="size-9 shrink-0 sm:size-10 lg:hidden"
+                className="h-0 w-0 shrink-0"
                 data-bug-button-size="large"
                 data-testid="map-bug-button-slot"
                 ref={registerBugButtonSlot}

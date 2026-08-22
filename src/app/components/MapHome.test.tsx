@@ -1505,10 +1505,12 @@ describe('MapHome', () => {
       'w-full',
       'flex-1',
       'justify-between',
-      'gap-0',
-      'p-1',
-      'sm:gap-1',
-      'sm:p-1.5',
+      'gap-1',
+      'px-2',
+      'py-1',
+      'sm:gap-1.5',
+      'sm:px-3',
+      'sm:py-1.5',
       'lg:mx-auto',
       'lg:max-w-[52rem]',
       'lg:flex-none',
@@ -1526,7 +1528,7 @@ describe('MapHome', () => {
     expect(topActions.parentElement).toHaveClass('w-full');
     expect(topActions).not.toHaveClass('mt-11');
     expect(plusStack).toHaveClass('relative', 'shrink-0');
-    expect(bugButtonSlot).toHaveClass('size-9', 'sm:size-10', 'lg:hidden');
+    expect(bugButtonSlot).toHaveClass('h-0', 'w-0');
     expect(bugButtonSlot).not.toHaveClass('size-11');
     expect(plusStack).toContainElement(cruushPlusButton);
     expect(plusStack).not.toContainElement(pingButton);
@@ -2037,14 +2039,13 @@ describe('MapHome', () => {
     expect(screen.queryByText('nyc open beta')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /message now/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /send cruush/i })).toBeInTheDocument();
-    expect(screen.getByRole('complementary')).toHaveClass('z-50');
-    expect(screen.getByRole('complementary')).toHaveClass('bottom-[calc(0.75rem+env(safe-area-inset-bottom))]');
-    expect(screen.getByRole('complementary')).toHaveClass('top-[calc(0.75rem+env(safe-area-inset-top))]');
-    expect(screen.getByRole('complementary')).toHaveClass('w-[26rem]', 'block');
-    expect(screen.getByRole('complementary')).not.toHaveClass('w-72', 'lg:block', '2xl:block');
+    expect(screen.getByRole('complementary')).toHaveClass('z-50', 'fixed');
+    expect(screen.getByRole('complementary')).toHaveAttribute('data-dock-slot', 'left');
+    expect(screen.getByTestId('desktop-dock-left-handle')).toBeInTheDocument();
+    expect(screen.getByTestId('desktop-dock-left-resize')).toBeInTheDocument();
     expect(screen.getByRole('complementary').querySelector('.profile-card-scroll')).toBeInTheDocument();
     expect(screen.getByRole('complementary').querySelector('.scrollbar-hide')).not.toBeInTheDocument();
-    expect(screen.getByTestId('recently-active-panel').parentElement).toHaveClass('left-4', 'right-[calc(26rem+1.5rem)]', 'px-2');
+    expect(screen.getByTestId('recently-active-panel').parentElement).toHaveClass('left-[calc(26rem+3rem)]', 'right-0', 'px-4');
     expect(screen.getByTestId('recently-active-panel')).toHaveClass('w-fit', 'max-w-[30rem]', 'mx-auto');
     expect(await screen.findByRole('tab', { name: 'Basics' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('tab', { name: 'Intimacy' })).toBeInTheDocument();
