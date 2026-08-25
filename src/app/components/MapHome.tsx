@@ -2573,7 +2573,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
             className={`h-8 rounded-full border px-4 text-[11px] uppercase tracking-[0.18em] shadow-[0_12px_35px_rgba(0,0,0,0.25)] ${
               hasActiveFilters
                 ? 'border-white/15 text-white'
-                : 'border-white/10 bg-background/68 text-white backdrop-blur-md hover:bg-white/10'
+                : 'border-white/10 bg-background text-white hover:bg-white/10'
             }`}
             style={hasActiveFilters ? { background: 'var(--cruush-gradient)' } : undefined}
             data-testid="map-seeking-button"
@@ -2595,7 +2595,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
             className={`h-8 rounded-full border px-4 text-[11px] uppercase tracking-[0.18em] text-white shadow-[0_12px_35px_rgba(0,0,0,0.25)] has-[>img]:px-3 ${
               hasActiveVisibility
                 ? 'border-white/15'
-                : 'border-white/10 bg-background/68 backdrop-blur-md hover:bg-white/10'
+                : 'border-white/10 bg-background hover:bg-white/10'
             }`}
             style={hasActiveVisibility ? { background: 'var(--cruush-gradient)' } : undefined}
           >
@@ -2611,7 +2611,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
             data-tutorial-target="ping"
             aria-label="Send a Pulse"
             title="Send a Pulse"
-            className={`size-12 shrink-0 rounded-full border border-white/10 bg-background/55 p-0 backdrop-blur-md hover:brightness-125 sm:size-[3.25rem] lg:size-14 ${mapPingStatus?.activePing ? 'text-[#c8ff31]' : 'text-white'}`}
+            className={`size-12 shrink-0 rounded-full border border-white/10 bg-background p-0 hover:brightness-125 sm:size-[3.25rem] lg:size-14 ${mapPingStatus?.activePing ? 'text-[#c8ff31]' : 'text-white'}`}
           >
             <PulseLedIcon className="size-full" />
           </Button>
@@ -2627,7 +2627,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
               disabled={locationStatus === 'locating' || !mapInstance}
               aria-label={locationStatus === 'locating' ? 'Finding your location' : 'Center your location'}
               title={locationStatus === 'locating' ? 'Finding your location' : 'Center your location'}
-              className="rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10"
+              className="rounded-full border border-white/10 bg-background text-white hover:bg-white/10"
             >
               <MapPin className="h-4 w-4" />
             </Button>
@@ -2640,7 +2640,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
               data-tutorial-target="zoom"
               aria-label="Zoom in on map"
               title="Zoom in on map"
-              className="rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10"
+              className="rounded-full border border-white/10 bg-background text-white hover:bg-white/10"
             >
               <ZoomIn className="w-4 h-4" />
             </Button>
@@ -2653,7 +2653,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
               data-tutorial-target="zoom"
               aria-label="Zoom out on map"
               title="Zoom out on map"
-              className="rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10"
+              className="rounded-full border border-white/10 bg-background text-white hover:bg-white/10"
             >
               <ZoomOut className="w-4 h-4" />
             </Button>
@@ -2673,7 +2673,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
             <div
               className={`mx-auto ${
                 isRecentlyActiveOpen
-                  ? `${isMobile ? 'w-fit max-w-full' : 'w-fit max-w-[30rem]'} rounded-2xl border border-white/10 bg-background/68 p-3 shadow-[0_20px_60px_rgba(0,0,0,0.42)] backdrop-blur-md`
+                  ? `${isMobile ? 'w-fit max-w-full' : 'w-fit max-w-[30rem]'} rounded-2xl border border-white/10 bg-background p-3 shadow-[0_20px_60px_rgba(0,0,0,0.42)]`
                   : 'max-w-max p-0'
               } pointer-events-auto`}
               data-testid="recently-active-panel"
@@ -2685,7 +2685,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
                   aria-expanded={isRecentlyActiveOpen}
                   aria-label={isRecentlyActiveOpen ? 'Hide recently active bar' : 'Show recently active bar'}
                   className={`h-9 rounded-full border border-white/10 px-5 text-[11px] uppercase tracking-[0.18em] text-white shadow-[0_10px_24px_rgba(0,0,0,0.32)] backdrop-blur-md transition hover:border-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/65 ${
-                    isRecentlyActiveOpen ? '' : 'bg-background/68'
+                    isRecentlyActiveOpen ? '' : 'bg-background'
                   }`}
                   onClick={() => setIsRecentlyActiveOpen((open) => !open)}
                   style={isRecentlyActiveOpen ? { background: 'var(--cruush-gradient)' } : undefined}
