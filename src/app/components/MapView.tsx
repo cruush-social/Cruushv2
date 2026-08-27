@@ -1797,6 +1797,12 @@ function createGhostLeashFeature(leash: GhostLeash) {
   };
 }
 
+export function ghostLeashCameraPadding(containerWidth: number) {
+  return containerWidth < 640
+    ? { top: 180, right: 220, bottom: 190, left: 88 }
+    : { top: 120, right: 160, bottom: 140, left: 120 };
+}
+
 function cleanupRenderedMarker({ dispose, marker, root }: RenderedMapMarker) {
   dispose();
   marker.remove();
@@ -1826,6 +1832,7 @@ function MapView({
   const autoFitFocusKeyRef = useRef<string | null>(null);
   const hasAppliedAutoFitRef = useRef(false);
   const directFocusRef = useRef<{ map: MapLibreMap; key: string } | null>(null);
+  const ghostLeashFocusKeyRef = useRef<string | null>(null);
   const mapLabelTextSizesRef = useRef<{
     map: MapLibreMap | null;
     sizes: Map<string, ReturnType<MapLibreMap['getLayoutProperty']>>;
@@ -2304,6 +2311,7 @@ function MapView({
     const removeSource = typeof map.removeSource === 'function' ? map.removeSource.bind(map) : null;
 
     if (!ghostLeash) {
+      ghostLeashFocusKeyRef.current = null;
       if (getLayer(layerId) && removeLayer) {
         removeLayer(layerId);
       }
@@ -2314,6 +2322,33 @@ function MapView({
     }
 
     const data = createGhostLeashFeature(ghostLeash);
+    const ghostLeashFocusKey = [
+      ghostLeash.from.approximateLatitude,
+      ghostLeash.from.approximateLongitude,
+      ghostLeash.to.approximateLatitude,
+      ghostLeash.to.approximateLongitude,
+    ].map((value) => value.toFixed(6)).join(':');
+
+    if (focusCoordinates && ghostLeashFocusKeyRef.current !== ghostLeashFocusKey) {
+      ghostLeashFocusKeyRef.current = ghostLeashFocusKey;
+      map.fitBounds(
+        [
+          [
+            Math.min(ghostLeash.from.approximateLongitude, ghostLeash.to.approximateLongitude),
+            Math.min(ghostLeash.from.approximateLatitude, ghostLeash.to.approximateLatitude),
+          ],
+          [
+            Math.max(ghostLeash.from.approximateLongitude, ghostLeash.to.approximateLongitude),
+            Math.max(ghostLeash.from.approximateLatitude, ghostLeash.to.approximateLatitude),
+          ],
+        ],
+        {
+          padding: ghostLeashCameraPadding(map.getContainer().clientWidth),
+          maxZoom: FOCUSED_ZOOM,
+          duration: 500,
+        },
+      );
+    }
     const existingSource = getSource(sourceId) as GeoJSONSource | undefined;
 
     if (existingSource) {
@@ -2342,7 +2377,7 @@ function MapView({
       },
     });
     moveMapServiceOutsideMaskToTop(map);
-  }, [ghostLeash, mapInstance, mapLoadStatus]);
+  }, [focusCoordinates, ghostLeash, mapInstance, mapLoadStatus]);
 
   useEffect(() => {
     const map = mapInstance ?? mapRef.current;

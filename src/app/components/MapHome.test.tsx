@@ -1577,7 +1577,7 @@ describe('MapHome', () => {
     expect(decodeURIComponent(ghostModeIcon?.getAttribute('src') ?? '')).toContain("fill='#ffffff'");
     expect(visibilityIcon).toHaveClass('h-4', 'w-4');
     expect(decodeURIComponent(visibilityIcon?.getAttribute('src') ?? '')).toContain('Crush Icon - Group White'); // ai-contract-allow-product-example
-    expect(locationButton).toHaveClass('rounded-full', 'bg-background');
+    expect(locationButton).toHaveClass('rounded-full', 'bg-background/55');
     expect(locationButton.querySelector('svg')).toHaveClass('h-4', 'w-4');
     expect(screen.queryByText('DL Mode Active')).not.toBeInTheDocument();
 
@@ -2851,7 +2851,7 @@ describe('MapHome', () => {
     expect(recentToggle).toHaveAttribute('aria-expanded', 'false');
     expect(recentToggle).toHaveAccessibleName('Show recently active bar');
     expect(recentToggle).toHaveTextContent('Recently Active');
-    expect(recentToggle).toHaveClass('bg-background', 'backdrop-blur-md');
+    expect(recentToggle).toHaveClass('bg-background/68', 'backdrop-blur-md');
     expect(recentPanel).toHaveClass('max-w-max', 'p-0');
     expect(recentPanel).not.toHaveClass('rounded-2xl', 'bg-background/40', 'p-3');
     expect(screen.queryByTestId('recently-active-tray')).not.toBeInTheDocument();

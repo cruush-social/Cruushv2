@@ -13,6 +13,7 @@ import MapView, {
   createCruushVectorStyle,
   createMapMarkerBadge,
   getMapStyle,
+  ghostLeashCameraPadding,
   separateOverlappingMarkers,
 } from './MapView';
 import {
@@ -63,6 +64,7 @@ const { MockMap, MockMarker, mapInstances, markerInstances } = vi.hoisted(() => 
     removeSource = vi.fn((id: string) => {
       this.sources.delete(id);
     });
+    getContainer = vi.fn(() => this.container);
     remove = vi.fn();
 
     constructor(options: { container: HTMLElement }) {
@@ -639,6 +641,10 @@ describe('MapView', () => {
             approximateLongitude: -74.001,
           },
         }}
+        focusCoordinates={{
+          approximateLatitude: 40.714,
+          approximateLongitude: -74.004,
+        }}
       />
     );
 
@@ -685,6 +691,19 @@ describe('MapView', () => {
         'line-dasharray': [2, 1.5],
       }),
     }));
+    expect(mapInstances[0].fitBounds).toHaveBeenCalledWith(
+      [[-74.004, 40.714], [-74.001, 40.72]],
+      {
+        padding: { top: 180, right: 220, bottom: 190, left: 88 },
+        maxZoom: 14,
+        duration: 500,
+      },
+    );
+  });
+
+  it('reserves wider right-side map chrome space on narrow screens', () => {
+    expect(ghostLeashCameraPadding(412)).toEqual({ top: 180, right: 220, bottom: 190, left: 88 });
+    expect(ghostLeashCameraPadding(1280)).toEqual({ top: 120, right: 160, bottom: 140, left: 120 });
   });
 
   it('renders photo markers with current and nearby styling', async () => {
