@@ -1458,6 +1458,7 @@ export async function makeDisplayLocationToken(context: LocationPrivacyContext, 
   displayMode: DisplayMode;
   relationshipGrantVersion?: number;
   forceSelfPrecise?: boolean;
+  resolvedGhost?: Awaited<ReturnType<typeof resolveViewerGhostCoordinate>>;
 }) {
   const nowMs = Date.now();
   const center = locationPayloadToCoordinates(input.location);
@@ -1467,13 +1468,13 @@ export async function makeDisplayLocationToken(context: LocationPrivacyContext, 
   let accuracyDisplayM = input.location.accuracyM;
 
   if (input.displayMode === "GHOST" && !input.forceSelfPrecise) {
-    const ghost = await resolveViewerGhostCoordinate(context, {
-      subjectUserId: input.subjectUserId,
-      viewerUserId: input.viewerUserId,
-      policy: input.policy,
-      location: input.location,
-      nowMs
-    });
+    const ghost = input.resolvedGhost ?? await resolveViewerGhostCoordinate(context, {
+        subjectUserId: input.subjectUserId,
+        viewerUserId: input.viewerUserId,
+        policy: input.policy,
+        location: input.location,
+        nowMs
+      });
     coordinate = ghost.coordinate;
     rotationEpoch = ghost.rotationEpoch;
     // Never disclose the subject's configured ghost radius. Viewers decrypt this

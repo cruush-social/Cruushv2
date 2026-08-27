@@ -153,7 +153,7 @@ export async function createAppNotification(
 
 export async function createAppNotificationAndPush(
   app: NotificationApp,
-  input: AppNotificationInput
+  input: AppNotificationInput & { deferPush?: boolean }
 ) {
   const notification = await createAppNotification(app, input);
 
@@ -161,12 +161,20 @@ export async function createAppNotificationAndPush(
     return notification;
   }
 
-  try {
-    await sendPushForNotification(app, notification);
-  } catch (error) {
-    app.log.warn({ err: error, notificationId: notification.id }, "notification push dispatch failed");
+  const deliver = async () => {
+    try {
+      await sendPushForNotification(app, notification);
+    } catch (error) {
+      app.log.warn({ err: error, notificationId: notification.id }, "notification push dispatch failed");
+    }
+  };
+
+  if (input.deferPush) {
+    void deliver();
+    return notification;
   }
 
+  await deliver();
   return notification;
 }
 

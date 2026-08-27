@@ -240,6 +240,58 @@ describe("notification service", () => {
     expect(warn).toHaveBeenCalled();
   });
 
+  it("returns a deferred notification before push-network delivery settles", async () => {
+    let finishPush: (() => void) | undefined;
+    const pendingPush = new Promise<void>((resolve) => {
+      finishPush = resolve;
+    });
+    query
+      .mockResolvedValueOnce({ rows: [notificationRow()] })
+      .mockResolvedValueOnce({
+        rows: [{
+          push_enabled: true,
+          messages_enabled: true,
+          cruush_enabled: true,
+          groups_enabled: true
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "push-sub-1",
+          endpoint: "https://push.example/sub",
+          p256dh: "p256dh-key",
+          auth: "auth-key"
+        }]
+      });
+    sendNotification.mockReturnValueOnce(pendingPush);
+
+    const notification = await createAppNotificationAndPush({
+      config: {
+        ...baseConfig,
+        WEB_PUSH_ENABLED: true,
+        WEB_PUSH_VAPID_PUBLIC_KEY: "public-key",
+        WEB_PUSH_VAPID_PRIVATE_KEY: "private-key"
+      },
+      db: { query, end },
+      log: { warn: vi.fn(), error: vi.fn(), info: vi.fn() }
+    } as never, {
+      userId: recipientUserId,
+      actorUserId,
+      type: "direct_message",
+      title: "Alex sent you a message",
+      body: "Open cruush to reply.",
+      linkUrl: "/messages",
+      conversationId,
+      dedupeKey: `message:${notificationId}:${recipientUserId}`,
+      deferPush: true
+    });
+
+    expect(notification).toMatchObject({ id: notificationId });
+    await vi.waitFor(() => expect(sendNotification).toHaveBeenCalledTimes(1));
+    finishPush?.();
+    await pendingPush;
+  });
+
   it("uses generic nearby copy for nearby activity pushes", async () => {
     query
       .mockResolvedValueOnce({

@@ -24,6 +24,7 @@ import {
 } from "./location-privacy.js";
 import { encryptMediaBytes } from "./media-encryption.js";
 import { deleteEncryptedMediaObject, readEncryptedMediaObject, writeEncryptedMediaObject } from "./media-storage.js";
+import { isDiscoveryMapPingVisible } from "./routes/users.js";
 
 const { notifyNearbyUsersForLocationUpdate } = vi.hoisted(() => ({
   notifyNearbyUsersForLocationUpdate: vi.fn()
@@ -1482,9 +1483,65 @@ describe("server", () => {
         email: "river@example.com",
         expiresAt: "2026-04-30T12:00:00.000Z",
         previewUrl: expect.stringContaining("https://cruush.test/?verifyEmailToken="),
-        verificationEmailSent: true
+        verificationEmailSent: false
       }
     });
+  });
+
+  it("reports signup verification delivery only when the provider accepts the email", async () => {
+    const resendSignupApp = buildServer({
+      ...app.config,
+      RESEND_API_KEY: "re_test",
+      MAIL_FROM: "cruush <hello@cruush.test>",
+      EMAIL_PREVIEW_ENABLED: false
+    }, {
+      db: { query, end },
+      rateLimiter: createMemoryRateLimiter()
+    });
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: vi.fn().mockResolvedValue("")
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          id: userId,
+          email: "river@example.com",
+          display_name: null,
+          email_verified_at: null,
+          created_at: "2026-04-28T12:00:00.000Z"
+        }]
+      })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({
+        rows: [{ expires_at: "2026-04-30T12:00:00.000Z" }]
+      });
+
+    try {
+      const response = await resendSignupApp.inject({
+        method: "POST",
+        url: "/api/auth/signup",
+        payload: {
+          email: "river@example.com",
+          password: "password-123",
+          dateOfBirth: "1994-06-15",
+          termsAccepted: true,
+          privacyAccepted: true,
+          productUpdatesOptIn: false
+        }
+      });
+
+      expect(response.statusCode).toBe(201);
+      expect(response.json().data).toMatchObject({
+        previewUrl: null,
+        verificationEmailSent: true
+      });
+      expect(fetchMock).toHaveBeenCalledWith("https://api.resend.com/emails", expect.any(Object));
+    } finally {
+      await resendSignupApp.close();
+    }
   });
 
   it.each([
@@ -1658,7 +1715,7 @@ describe("server", () => {
         email: "river@example.com",
         expiresAt: "2026-04-30T12:00:00.000Z",
         previewUrl: expect.stringContaining("https://cruush.app/?verifyEmailToken="),
-        verificationEmailSent: true
+        verificationEmailSent: false
       }
     });
   });
@@ -1707,7 +1764,7 @@ describe("server", () => {
         email: "river@example.com",
         expiresAt: "2026-04-30T12:00:00.000Z",
         previewUrl: expect.stringContaining("https://cruush.app/?verifyEmailToken="),
-        verificationEmailSent: true
+        verificationEmailSent: false
       }
     });
   });
@@ -8868,6 +8925,8 @@ describe("server", () => {
     });
     expect(body.data.profiles[0]).not.toHaveProperty("lat");
     expect(body.data.profiles[0]).not.toHaveProperty("lng");
+    expect(body.data.profiles[0]).not.toHaveProperty("__pulseLat");
+    expect(body.data.profiles[0]).not.toHaveProperty("__pulseLng");
     expect(body.data.profiles[0].displayLocationToken).toMatchObject({
       version: 1,
       tokenVersion: 1,
@@ -8876,12 +8935,46 @@ describe("server", () => {
     });
     expect(body.data.profiles[0].distanceLabel).toBe("Nearby");
     expect(body.data.profiles[0].lastActive).toMatch(/ago$/);
+    const activePingQuery = query.mock.calls.find(([sql]) => String(sql).includes("from map_pings"));
+    expect(activePingQuery?.[0]).toContain("radius_miles");
+  });
+
+  it("limits discovery Pulse visibility to the sender-selected radius", () => {
+    const viewerCoordinates = { lat: 40.7128, lng: -74.006 };
+
+    expect(isDiscoveryMapPingVisible({
+      viewerCoordinates,
+      shownCoordinates: { lat: 40.72, lng: -74.006 },
+      radiusMiles: 1
+    })).toBe(true);
+    expect(isDiscoveryMapPingVisible({
+      viewerCoordinates,
+      shownCoordinates: { lat: 40.75, lng: -74.006 },
+      radiusMiles: 1
+    })).toBe(false);
+    expect(isDiscoveryMapPingVisible({
+      viewerCoordinates: null,
+      shownCoordinates: { lat: 40.7128, lng: -74.006 },
+      radiusMiles: 5
+    })).toBe(false);
+    expect(isDiscoveryMapPingVisible({
+      viewerCoordinates,
+      shownCoordinates: null,
+      radiusMiles: 5
+    })).toBe(false);
   });
 
   it("shows Ghost Mode profiles at shifted coordinates in nearby discovery", async () => {
     const targetUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+    const activePingId = "10000000-0000-4000-8000-000000000001";
     const targetLocation = await encryptedLocationEnvelopeRow({
       subjectUserId: targetUserId,
+      lat: 40.711,
+      lng: -74.002,
+      accuracyM: 50
+    });
+    const viewerLocation = await encryptedLocationEnvelopeRow({
+      subjectUserId: userId,
       lat: 40.711,
       lng: -74.002,
       accuracyM: 50
@@ -8910,7 +9003,7 @@ describe("server", () => {
       }
 
       if (normalizedSql.includes("from encrypted_location_envelopes")) {
-        return Promise.resolve({ rows: [targetLocation] });
+        return Promise.resolve({ rows: [targetLocation, viewerLocation] });
       }
 
       if (normalizedSql.includes("from encrypted_visibility_tokens")) {
@@ -8919,6 +9012,17 @@ describe("server", () => {
 
       if (normalizedSql.includes("insert into ghost_rotation_tokens")) {
         return Promise.resolve({ rows: [{ subject_user_id: targetUserId }] });
+      }
+
+      if (normalizedSql.includes("from map_pings")) {
+        return Promise.resolve({
+          rows: [{
+            id: activePingId,
+            user_id: targetUserId,
+            expires_at: "2099-04-30T12:00:00.000Z",
+            radius_miles: 0.01
+          }]
+        });
       }
 
       return Promise.resolve({ rows: [] });
@@ -8950,6 +9054,7 @@ describe("server", () => {
     expect(profile).not.toHaveProperty("lat");
     expect(profile).not.toHaveProperty("lng");
     expect(profile).not.toHaveProperty("ghostRadiusMeters");
+    expect(profile.activePing).toBeNull();
     expect(payload.displayMode).toBe("GHOST");
     expect({ lat: payload.latE7 / 10_000_000, lng: payload.lonE7 / 10_000_000 })
       .not.toEqual({ lat: 40.711, lng: -74.002 });

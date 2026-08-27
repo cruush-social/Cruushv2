@@ -1,49 +1,54 @@
 {
   "status": "validating",
   "product": "cruush",
-  "release": "1.5",
+  "release": "1.6 bugfix candidate",
   "repository": "cruush-social/Cruushv2",
-  "job": "Keep the signed-in user's Ghost decoy and its dashed leash out from under the Seeking, Visibility, right-side controls, Recently Active, and bottom navigation on Android-sized maps.",
-  "branch": "hotfix/pulse-control-overlap",
+  "job": "Ship three previously completed non-V2 bug fixes on the current main baseline: keep Pulse visibility inside the sender-selected radius without revealing Ghost coordinates, report signup verification delivery truthfully, and return message sends without waiting for push-network delivery.",
+  "branch": "hotfix/bugfix-release-20260827",
   "allowedPaths": [
     "AI_TASK.json",
-    "scripts/check-layout-invariants.mjs",
-    "src/app/components/MapHome.test.tsx",
-    "src/app/components/MapHome.tsx",
-    "src/app/components/MapView.test.tsx",
-    "src/app/components/MapView.tsx"
+    "server/src/app.test.ts",
+    "server/src/notification-service.ts",
+    "server/src/notifications.test.ts",
+    "server/src/location-privacy.ts",
+    "server/src/routes/auth.ts",
+    "server/src/routes/messages.ts",
+    "server/src/routes/users.ts"
   ],
   "preserved": [
-    "Preserve the trust gate on feed posting: trust_score above 20, no active suspension, no feature_restrictions row for feed_posting.",
-    "Preserve text moderation on every feed post through moderateTextOrReject.",
-    "Preserve owner full access behaviour, which still reads from the entitlement record.",
-    "Preserve every other cruush+ entitlement check outside the feed post route.",
-    "Preserve the bottom navigation profile icon, which keeps the symmetric winged heart and its baked gradient variant.",
-    "Preserve every existing icon asset. No asset files were added, edited, or deleted."
+    "Preserve Pulse creation, radius choices, expiry, idempotency, map privacy, Ghost rotation, visibility filtering, and every profile field returned by discovery.",
+    "Measure Pulse reach from the viewer's own stored location to the location that viewer is already allowed to see. Never expose or infer a Ghost user's true coordinate.",
+    "Persist message notifications before returning, preserve mute and deduplication behavior, and continue attempting push delivery with failures logged.",
+    "Preserve all verification and password-reset templates, routes, tokens, provider behavior, and UI copy. Change only the signup response's delivery truth value.",
+    "Preserve all current main UI, assets, map-overlap fixes, and unrelated user work."
   ],
   "nonGoals": [
-    "Restore the original translucent control surfaces. No size, position, icon, colour, animation, map-data, or interaction changes.",
-    "No top action bar, map marker, navigation, profile, or non-map changes."
+    "No Travel Mode, badge, feed, visual-design, survey, release-tooling, copy, migration, provider, or environment changes.",
+    "No public announcement, email campaign, social post, or changelog release communication.",
+    "Do not send a real Pulse, message, verification email, or push notification during verification."
   ],
-  "proof": "Render the authenticated map at the supplied Android viewport and a desktop viewport. Confirm pins and route lines do not read through right-side controls or Recently Active chrome. Exercise Pulse, location, zoom, Seeking, Visibility, and Recently Active. Run focused MapHome tests, client build, layout gate, then verify production SHA and live map.",
+  "proof": [
+    "Add focused server regression proof that Pulse reach respects the selected radius, uses the viewer-visible Ghost coordinate, and returns no Pulse when the viewer has no location.",
+    "Add focused server regression proof that signup reports verificationEmailSent false for a local preview and true only for real provider delivery.",
+    "Add focused notification proof that deferred push does not hold the message path open while notification persistence remains awaited.",
+    "Run the touched server tests, server TypeScript build, client production build, AI contract checks, and git diff checks.",
+    "Push only this isolated slice to origin/main, verify the remote and production SHAs, service health, and the live frontend response. Mark real multi-account behavior unverified because safe proof would send user-facing actions."
+  ],
   "proofResults": [
-    "The rejected opacity workaround was removed. Seeking, Visibility, Pulse, location, zoom, and Recently Active retain their original translucent surfaces.",
-    "MapView now fits the signed-in user's true position and Ghost decoy within a responsive camera safe area whenever that leash first appears or rotates.",
-    "At a 412px map width the safe padding is top 180px, right 220px, bottom 190px, left 88px. This clears the supplied Android screenshot's right controls, Recently Active, and bottom navigation.",
-    "At desktop widths the safe padding is top 120px, right 160px, bottom 140px, left 120px.",
-    "vitest src/app/components/MapView.test.tsx: 50 passed, including exact leash bounds and responsive padding assertions.",
-    "Client vite build succeeded. One pre-existing duplicate JSX attribute warning remains in PulseEffectPreview.tsx.",
-    "Production SHA dbc324fa4bef728df9b648aec0164f0b23817ca8 served the new safe-area code and https://cruush.app/map returned 200.",
-    "Authenticated production rendering at 412x915 showed both Ghost endpoints and the dashed leash clear of Seeking, Visibility, Pulse, location, zoom, Recently Active, and bottom navigation.",
-    "The expanded Recently Active tray remained below both Ghost markers. Seeking and Visibility dialogs opened and closed normally. Zoom controls remained operable.",
-    "Authenticated production rendering at 1280x800 showed both Ghost endpoints and the dashed leash clear of the desktop overlays.",
-    "Production layout invariants passed at mobile, tablet, and desktop viewports."
+    "Focused app tests passed: 8 passed and 289 unrelated tests skipped. This covered local-preview verification false, accepted-provider verification true, production link origins, viewer-visible Ghost coordinates, Pulse radius boundaries, missing viewer locations, and the real message creation route.",
+    "Notification tests passed: 14 of 14, including durable notification persistence and return before a pending push-network request settles.",
+    "The Ghost discovery integration test placed the viewer at the subject's true coordinate, used a 0.01 mile Pulse radius, decrypted a shifted Ghost display token, and confirmed activePing remained null.",
+    "The discovery response strips the internal Pulse comparison coordinates, and the active map-ping query now loads radius_miles.",
+    "Server TypeScript build succeeded.",
+    "Client Vite production build succeeded. The pre-existing duplicate strokeOpacity warning in PulseEffectPreview.tsx remains.",
+    "Public-copy scan passed across 330 files, and git diff --check passed.",
+    "No package or lockfile changed. No environment variable was added, removed, or changed."
   ],
   "unverified": [
-    "Pulse was not sent and location was not recentered because those actions were unnecessary for geometry validation and could create an outbound action or browser permission prompt. Their rendered bounds were inspected and clear.",
-    "No environment variables were added, removed, or changed by this task."
+    "No real Pulse, message, verification email, or push notification was sent during verification. Production multi-account behavior remains a post-deploy observation gate because exercising it would create user-facing actions.",
+    "npm ci reported one high-severity vulnerability in the existing server lockfile. This task changed no dependency or lockfile."
   ],
-  "task": "Ghost leash camera safe area",
-  "publicationTarget": "production",
+  "task": "Three non-V2 backend bug fixes",
+  "publicationTarget": "origin/main and production",
   "environmentChanges": "none"
 }
