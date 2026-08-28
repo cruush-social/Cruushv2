@@ -10,6 +10,7 @@ import MapView, {
   MAP_TILE_LABEL_SCALE,
   MAX_DISCOVERY_ZOOM,
   MIN_DISCOVERY_ZOOM,
+  MapMarkerPin,
   createCruushVectorStyle,
   createMapMarkerBadge,
   getMapStyle,
@@ -608,6 +609,51 @@ describe('MapView', () => {
     expect(marker.querySelector('path[stroke]')).toHaveAttribute('stroke', '#FF0072');
     expect(marker.querySelector('path[fill="#FF0072"]')).toBeNull();
     expect(marker.querySelector('path[style*="transform"]')).toBeNull();
+  });
+
+  it('does not replay an active Ghost rotation window when the pin mounts', () => {
+    render(
+      <MapMarkerPin
+        marker={{
+          id: 'ghost-load-window',
+          displayName: 'River',
+          approximateLatitude: 40.72,
+          approximateLongitude: -74.01,
+          displayMode: 'GHOST',
+          animationHint: 'FADE_LAST_MINUTE',
+          ghostRotationExpiresAtMs: Date.now() + 30_000,
+        }}
+      />,
+    );
+
+    expect(screen.queryByTestId('marker-ghost-pulse-ghost-load-window')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('marker-ghost-fly-icon-ghost-load-window')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('marker-ghost-puff-ghost-load-window')).not.toBeInTheDocument();
+  });
+
+  it('still animates a Ghost rotation window entered after the pin mounts', () => {
+    const ghostRotationExpiresAtMs = Date.now() + 30_000;
+    const marker = {
+      id: 'ghost-later-window',
+      displayName: 'River',
+      approximateLatitude: 40.72,
+      approximateLongitude: -74.01,
+      displayMode: 'GHOST' as const,
+      animationHint: 'NONE' as const,
+      ghostRotationExpiresAtMs,
+    };
+    const { rerender } = render(<MapMarkerPin marker={marker} />);
+
+    rerender(
+      <MapMarkerPin
+        marker={{
+          ...marker,
+          animationHint: 'FADE_LAST_MINUTE',
+        }}
+      />,
+    );
+
+    expect(screen.getByTestId('marker-ghost-pulse-ghost-later-window')).toBeInTheDocument();
   });
 
   it('draws the owner Ghost Mode radius around true location and a leash to the decoy', async () => {

@@ -1,9 +1,9 @@
 {
   "status": "validating",
   "product": "cruush",
-  "release": "1.6 mobile map overlap hotfix",
+  "release": "1.6 Ghost animation load hotfix",
   "repository": "cruush-social/Cruushv2",
-  "job": "Keep the signed-in user's Ghost Mode true location, decoy pin, and leash inside the mobile map safe area even when a saved map viewport exists, then publish the fix to origin/main and production.",
+  "job": "Keep the Ghost pin rotation animation, but do not replay an already-active countdown window when the map loads. Preserve later real rotation animation windows, then publish the fix to origin/main and production.",
   "branch": "hotfix/bugfix-release-20260827",
   "allowedPaths": [
     "AI_TASK.json",
@@ -11,30 +11,34 @@
     "src/app/components/MapView.tsx"
   ],
   "preserved": [
-    "Preserve all map controls, marker visuals, Ghost Mode coordinates, radius, privacy behavior, saved viewport restoration, and desktop layout.",
-    "Preserve every unrelated backend fix and current origin/main behavior."
+    "Preserve the existing Ghost heartbeat, border flash, heart exit, puff cloud, and flying Ghost animation for rotation windows reached after mount.",
+    "Preserve Ghost privacy, coordinate rotation, countdown settings, marker visuals outside animation, map layout, saved viewport behavior, and every prior bug fix."
   ],
   "nonGoals": [
-    "No copy, asset, environment, dependency, migration, provider, backend, navigation, or unrelated visual changes.",
-    "Do not create a real Pulse, message, verification email, or push notification during verification."
+    "Do not remove or redesign the Ghost animation.",
+    "No copy, asset, environment, dependency, migration, provider, backend, navigation, or unrelated visual changes."
   ],
   "proof": [
-    "Add focused regression proof that Ghost leash camera fitting runs without focusCoordinates, matching the saved-viewport path.",
+    "Add focused regression proof that a countdown window already active at component mount stays static.",
+    "Add focused regression proof that a countdown window entered after mount still animates.",
     "Run the focused MapView test, client production build, contract check, and git diff checks.",
-    "Inspect the authenticated rendered map at an Android mobile viewport with a saved viewport and Ghost leash, then push only this slice to origin/main.",
-    "Deploy production and verify remote SHA, production build SHA, API health, public frontend response, and the authenticated rendered mobile map."
+    "Inspect the authenticated rendered map at 412 by 915 before and after publication when the browser is available.",
+    "Push only this slice to origin/main, deploy production, and verify remote SHA, live build SHA, API health, and frontend response."
   ],
   "proofResults": [
-    "The saved-viewport regression failed before the source patch because fitBounds had zero calls, then passed after removing the focusCoordinates gate.",
-    "All 50 MapView tests passed with one serial fork worker.",
+    "The new initial-load regression failed before the patch because the active Ghost rotation wrapper rendered immediately, then passed after the mount-window guard.",
+    "Both focused timing tests passed: initial active window static, later post-mount window animated.",
+    "All 52 MapView tests passed with one serial fork worker.",
     "Client Vite production build passed. The existing duplicate strokeOpacity warning in PulseEffectPreview.tsx remains.",
+    "Authenticated mocked-data map route rendered at 412 by 915 with the actual application code. The active-at-load Ghost marker stayed static, both pins remained visible, and the screenshot showed no control or navigation overlap.",
     "Public-copy scan passed across 330 files, and git diff --check passed.",
     "No package or lockfile changed. No environment variable was added, removed, or changed."
   ],
   "unverified": [
-    "Post-deploy authenticated Android mobile visual inspection remains pending. The open authenticated browser became unavailable after the Mac locked."
+    "The authenticated production browser remains unavailable while the Mac is locked, so the post-deploy live animation sequence requires later observation.",
+    "The temporary visual harness later hit an unrelated existing Seeking Apply tap interception after the required map assertion and screenshot had already passed."
   ],
-  "task": "Saved-viewport Ghost leash overlap fix",
+  "task": "Ghost animation initial-load replay fix",
   "publicationTarget": "origin/main and production",
   "environmentChanges": "none"
 }

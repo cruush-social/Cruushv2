@@ -1152,9 +1152,20 @@ function GhostRotationPuff({ id, style }: { id: string; style?: CSSProperties })
 
 function GhostRotationPulse({ marker, children }: { marker: MapMarker; children: (exitActive: boolean, exitStyle?: CSSProperties) => ReactNode }) {
   const expiresAtMs = marker.ghostRotationExpiresAtMs;
+  const mountedAtMsRef = useRef(Date.now());
+  const suppressedMountDeadlineRef = useRef<number | null>(
+    marker.displayMode === 'GHOST' &&
+    marker.animationHint === 'FADE_LAST_MINUTE' &&
+    typeof expiresAtMs === 'number' &&
+    expiresAtMs > mountedAtMsRef.current &&
+    expiresAtMs - mountedAtMsRef.current <= GHOST_PULSE_WINDOW_MS
+      ? expiresAtMs
+      : null,
+  );
   const canAnimate = marker.displayMode === 'GHOST' &&
     marker.animationHint === 'FADE_LAST_MINUTE' &&
     typeof expiresAtMs === 'number' &&
+    expiresAtMs !== suppressedMountDeadlineRef.current &&
     !shouldReduceMotion();
   const [exitElapsedMs, setExitElapsedMs] = useState<number | null>(null);
   const pulseRef = useRef<HTMLSpanElement | null>(null);
