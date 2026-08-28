@@ -194,6 +194,34 @@ function mapLabel(label: ProviderLabel, surface: ModerationSurface, contentType:
     });
   }
 
+  // More than one person in the frame. A photo that shows faces in public is
+  // only one person's to publish, so a group belongs in a private message. It
+  // is not misconduct anywhere, so it never touches a trust score.
+  if (normalizedLabel === "multiple_people") {
+    if (isPrivateMessageSurface(surface)) {
+      return baseDecision({
+        category: normalizedLabel,
+        severity: label.severity ?? "low",
+        confidence: label.confidence,
+        reason_code: "group_message_photo_allowed"
+      });
+    }
+
+    return baseDecision({
+      decision: "reject",
+      category: normalizedLabel,
+      severity: label.severity ?? "medium",
+      confidence: label.confidence,
+      create_evidence_event: false,
+      evidence_value: 0,
+      trust_impact: 0,
+      penalty_decays: true,
+      moderation_history_required: false,
+      reason_code: "multiple_people_public_photo",
+      user_message_code: "multiple_people_public_photo"
+    });
+  }
+
   if (normalizedLabel === "profile_photo_not_adult_human") {
     // The feed carries object photos, gear, and anything else that is not a
     // person. Animals, gore, and hate still reject through their own labels.
@@ -516,6 +544,7 @@ export function mapProviderResultToPolicy(input: PolicyMapperInput): PolicyDecis
       "adult_nudity",
       "adult_explicit",
       "profile_photo_not_adult_human",
+      "multiple_people",
       "animal",
       "screenshot_or_interface"
     ].includes(label.normalized_label))

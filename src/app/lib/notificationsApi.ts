@@ -31,6 +31,12 @@ export type NotificationPreferences = {
   nearbyEnabled: boolean;
   rewardsEnabled: boolean;
   soundEnabled: boolean;
+  quietHoursEnabled: boolean;
+  /** Minutes past local midnight. A start above the end wraps past midnight. */
+  quietHoursStartMinute: number;
+  quietHoursEndMinute: number;
+  /** IANA zone the window is read in. */
+  quietHoursTimezone: string;
 };
 
 export type PushSubscriptionPayload = {

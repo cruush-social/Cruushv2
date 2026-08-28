@@ -191,7 +191,7 @@ function ExplicitMessagePhotoShield({ attachmentKey }: { attachmentKey: string }
       style={{ background: getProfileGradientCss(attachmentKey) }}
     >
       <CruushIconImage src={dlModeWhite} className="h-7 w-7 opacity-90" />
-      <span className="text-[11px] uppercase tracking-[0.18em] text-white/88">DL Mode</span>
+      <span className="text-[11px] uppercase tracking-[0.18em] text-white/88">DL Mode Active</span>
     </div>
   );
 }

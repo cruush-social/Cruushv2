@@ -102,8 +102,11 @@ const migrationFiles = [
   "093_ghost_pulse_setting.sql",
   "094_nsfwclub30_promo_code.sql",
   "095_nsfwclub30_promo_code_cap.sql",
+  "096_notification_quiet_hours.sql",
   "097_travel_pins.sql",
-  "098_feed_plus_audience.sql"
+  "098_feed_plus_audience.sql",
+  "099_profile_zodiac.sql",
+  "100_pulse_notifications.sql"
 ];
 const rewardSafetyPreflightFiles = [
   "079_daily_check_in_rewards.sql",

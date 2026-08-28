@@ -1225,6 +1225,9 @@ export async function registerUserRoutes(app: FastifyInstance) {
         })).then((rows) => rows.filter((row): row is NonNullable<typeof row> => row !== null));
 
     const visibleProfiles = realUsers.slice(0, parsedQuery.limit);
+    // The radius is measured from where this viewer actually is, never from the
+    // map centre they asked for. Panning across the city must not put anyone
+    // inside someone else's Pulse.
     const viewerCoordinates = viewerLocation ? locationPayloadToCoordinates(viewerLocation) : null;
 
     // You browse the fifty miles around wherever you are. Looking further than

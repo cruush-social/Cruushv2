@@ -872,16 +872,6 @@
 
   .launch-login-auth-logo-image {
     width: clamp(8.5rem, 17.5dvh, 11.5rem);
-    opacity: 0.78;
-    filter:
-      blur(0.14px)
-      saturate(0.72)
-      contrast(0.76)
-      brightness(1.04)
-      drop-shadow(0 0.72rem 1.4rem rgba(0, 0, 0, 0.92))
-      drop-shadow(0 0 0.76rem rgba(232, 240, 255, 0.2))
-      drop-shadow(0 0 1.05rem rgba(56, 38, 255, 0.22))
-      drop-shadow(0 0 0.9rem rgba(255, 0, 114, 0.14));
   }
 
   .launch-login-auth-tagline {
@@ -889,10 +879,8 @@
     min-width: 0;
     max-width: 100%;
     overflow: hidden;
-    color: rgba(240, 244, 249, 0.7);
     font-size: clamp(0.96rem, 2.55dvh, 1.16rem);
     line-height: 1.05;
-    filter: blur(0.12px) saturate(0.78) contrast(0.78) brightness(1.06);
     text-shadow:
       0 0.4rem 0.9rem rgba(0, 0, 0, 0.96),
       0 0 0.22rem rgba(255, 255, 255, 0.2),
@@ -1175,4 +1163,26 @@ html[data-cruush-high-contrast] .launch-login-auth-input::placeholder {
       0 0 10px rgba(255, 0, 114, 0.3),
       0 0 16px rgba(56, 38, 255, 0.26);
   }
+}
+
+/* The policies are offered to read at sign up rather than asked for a second
+   time, so they sit closed under one line instead of two checkboxes. */
+.launch-login-auth-policies > summary {
+  cursor: pointer;
+  list-style: none;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.launch-login-auth-policies > summary::-webkit-details-marker {
+  display: none;
+}
+
+.launch-login-auth-policies > summary::after {
+  content: '+';
+  margin-left: 0.4rem;
+  opacity: 0.6;
+}
+
+.launch-login-auth-policies[open] > summary::after {
+  content: '\2212';
 }

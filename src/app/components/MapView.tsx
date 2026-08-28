@@ -87,7 +87,7 @@ interface MapViewProps {
 const DEFAULT_CENTER: LngLatLike = [MAP_SERVICE_CENTER.longitude, MAP_SERVICE_CENTER.latitude];
 const DEFAULT_ZOOM = 12;
 const FOCUSED_ZOOM = 14;
-export const MIN_DISCOVERY_ZOOM = 10.5;
+export const MIN_DISCOVERY_ZOOM = 9.2;
 export const MAX_DISCOVERY_ZOOM = 22;
 const AUTO_FIT_MAX_ZOOM = 15;
 const AUTO_FIT_MIN_ZOOM = 10.5;
@@ -1778,10 +1778,32 @@ function createMarkerElement(
   }
 
   if (marker.kind == null || marker.kind === 'person') {
+    // Map and navigation controls sit over the map, and some of their wrappers
+    // let the pointer through. Reaching a control is not reaching the pin
+    // underneath it, so a preview only opens while the pin is what the pointer
+    // is actually on top of.
+    const pointerIsOnThisPin = (pointerEvent: PointerEvent) => {
+      const topmost = document.elementFromPoint(pointerEvent.clientX, pointerEvent.clientY);
+
+      return topmost !== null && element.contains(topmost);
+    };
+
     element.addEventListener('pointerenter', (event) => {
       const pointerEvent = event as PointerEvent;
-      if (pointerEvent.pointerType !== 'touch') {
+      if (pointerEvent.pointerType !== 'touch' && pointerIsOnThisPin(pointerEvent)) {
         onPinPreview(marker);
+      }
+    });
+    element.addEventListener('pointermove', (event) => {
+      const pointerEvent = event as PointerEvent;
+      if (pointerEvent.pointerType === 'touch') {
+        return;
+      }
+
+      if (pointerIsOnThisPin(pointerEvent)) {
+        onPinPreview(marker);
+      } else {
+        setPreviewed(false);
       }
     });
     element.addEventListener('pointerleave', (event) => {
@@ -1921,12 +1943,10 @@ function MapView({
         focusCoordinates,
         spiderfiedCluster,
       );
-      // At map scale, clustering already represents nearby people. Moving the
-      // remaining individual hearts would make their displayed locations drift
-      // away from server coordinates while zoomed out.
-      return currentZoom < PERSON_CLUSTER_MAX_ZOOM
-        ? clusteredMarkers
-        : separateOverlappingMarkers(clusteredMarkers, currentZoom);
+      // No pin ever touches another. Clustering collapses people standing in
+      // the same place; anything still overlapping after that is pushed apart,
+      // at every zoom rather than only once clustering stops.
+      return separateOverlappingMarkers(clusteredMarkers, currentZoom);
     },
     [currentZoom, denseMarkerResult.markers, focusCoordinates, spiderfiedCluster],
   );
@@ -2434,7 +2454,7 @@ function MapView({
       },
     });
     moveMapServiceOutsideMaskToTop(map);
-  }, [ghostLeash, mapInstance, mapLoadStatus]);
+  }, [ghostLeash, mapInstance, mapLoadStatus, renderedMarkerSignature]);
 
   useEffect(() => {
     const map = mapInstance ?? mapRef.current;

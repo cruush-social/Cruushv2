@@ -1,4 +1,4 @@
-export const MAP_SERVICE_RADIUS_MILES = 20;
+export const MAP_SERVICE_RADIUS_MILES = 100;
 
 export const MAP_SERVICE_CENTER = {
   latitude: 40.6828509,

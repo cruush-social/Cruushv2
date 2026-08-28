@@ -19,6 +19,7 @@ export type SensitiveProfileData = Pick<
 > & {
   health_preferences?: ProfilePayload["health_preferences"];
   birth_control?: ProfilePayload["birth_control"];
+  relationship_status?: ProfilePayload["relationship_status"];
 };
 
 export type EncryptedSensitiveProfile = {
@@ -175,6 +176,10 @@ export function decryptSensitiveProfile(
             "Rhythm method",
             "Spermicide"
           ].includes(value as ProfilePayload["birth_control"][number]))
+        : [],
+      relationship_status: Array.isArray(parsed.relationship_status)
+        ? parsed.relationship_status.filter((value): value is ProfilePayload["relationship_status"][number] =>
+            typeof value === "string")
         : []
     };
   } catch (error) {

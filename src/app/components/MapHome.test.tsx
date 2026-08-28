@@ -125,6 +125,9 @@ vi.mock('sonner', () => ({
 
 vi.mock('../lib/usersApi', () => ({
   getNearbyUsers,
+  // The component narrows on this class, so the mock has to carry it or the
+  // instanceof check throws inside the catch it was meant to guard.
+  OutsideBrowseRadiusError: class OutsideBrowseRadiusError extends Error {},
 }));
 
 vi.mock('../lib/cruushApi', () => ({
@@ -220,6 +223,8 @@ vi.mock('./MapView', async () => {
   const React = await vi.importActual<typeof import('react')>('react');
 
   return {
+    MapMarkerPin: ({ marker }: { marker?: { id?: string } }) =>
+      React.createElement('div', { 'data-testid': `map-marker-pin-${marker?.id ?? 'unknown'}` }),
     createMapMarkerBadge: (position: string[] = [], hostingTravel: string[] = []) => {
       const knownPosition = position.map((value) => value.trim().toLowerCase()).find((value) => ['top', 'bottom', 'versatile'].includes(value));
       return knownPosition ? { kind: 'position', label: knownPosition, iconName: knownPosition } : null;
@@ -1544,11 +1549,11 @@ describe('MapHome', () => {
     expect(rightActions).toContainElement(pingButton);
     expect(screen.getByTestId('map-visibility-button').nextElementSibling).toBe(pingButton);
     expect(pingButton.nextElementSibling).toBe(mapControls);
-    // The Pulse control reads larger than the other map controls.
+    // The Pulse control carries its own ring, so it sizes with the stack.
     expect(pingButton).toHaveClass(
-      'size-12',
+      'size-11',
       'shrink-0',
-      'lg:size-14',
+      'lg:size-[3.25rem]',
     );
     expect(pingButton).not.toHaveClass('absolute', 'mt-2');
     // The offsets keep an 8px gap under the top-actions bar at every breakpoint,
@@ -1570,10 +1575,9 @@ describe('MapHome', () => {
       'lg:text-xl',
     );
     expect(screen.queryByRole('button', { name: 'Safety Center' })).not.toBeInTheDocument();
-    expect(pingIcon).toHaveClass('size-full');
     expect(luckyIcon).toHaveClass('h-7', 'w-7', 'scale-[1.55]');
     expect(ghostModeIcon).toHaveClass('h-7', 'w-7');
-    expect(dlModeIcon).toHaveClass('h-7', 'w-7');
+    expect(dlModeIcon).toHaveClass('h-6', 'w-6');
     expect(notificationIcon).toHaveClass('h-7', 'w-7', 'scale-[1.4]');
     expect(settingsIcon).toHaveClass('h-7', 'w-7', 'scale-[1.18]');
     expect(dlModeIcon?.getAttribute('src')).toContain('dl-mode-colored');

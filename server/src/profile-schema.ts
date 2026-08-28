@@ -111,6 +111,44 @@ const kinkArrayField = upToThreeArrayField;
 
 const profileVisibilitySchema = z.enum(["public", "mutual_cruushes", "mutual_crowds"]);
 const healthPreferenceSchema = z.enum(["COVID tested", "Masks"]);
+const relationshipStatusSchema = z.enum([
+  "Single",
+  "Single and looking",
+  "Single, not looking",
+  "Newly single",
+  "Talking to someone",
+  "Situationship",
+  "Casually dating",
+  "Dating around",
+  "Seeing someone",
+  "Exclusive",
+  "Partnered",
+  "Committed",
+  "Engaged",
+  "Married",
+  "Domestic partnership",
+  "Long distance",
+  "Monogamish",
+  "Open relationship",
+  "Ethically non-monogamous",
+  "Polyamorous",
+  "Solo poly",
+  "Relationship anarchy",
+  "Nesting partner",
+  "Comet",
+  "Swinging",
+  "Don't ask don't tell",
+  "Partner knows",
+  "Taking a break",
+  "Separated",
+  "Divorced",
+  "Widowed",
+  "It's complicated",
+  "Let's discuss",
+  "Ask me",
+  "Prefer not to say"
+]);
+
 const birthControlSchema = z.enum([
   "Arm implant",
   "Ask me",
@@ -226,6 +264,8 @@ export const profilePayloadSchema = z.object({
   custom_mpox_vaccine: shortStringField,
   health_preferences: z.array(healthPreferenceSchema).max(2).optional().default([]),
   birth_control: z.array(birthControlSchema).max(8).optional().default([]),
+  relationship_status: z.array(relationshipStatusSchema).max(3).optional().default([]),
+  zodiac: arrayField,
   substance_boundaries: arrayField,
   visibility_rules: profileVisibilityRulesSchema.optional().default({
     active_crowd_modes: [],
@@ -332,6 +372,8 @@ export const emptyProfile = {
   custom_mpox_vaccine: "",
   health_preferences: [],
   birth_control: [],
+  relationship_status: [],
+  zodiac: [],
   substance_boundaries: [],
   visibility_rules: {
     active_crowd_modes: [],

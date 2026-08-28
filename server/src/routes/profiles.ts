@@ -149,6 +149,7 @@ type ProfileRow = {
   kinks: string[] | null;
   kinks_visibility: ProfileVisibility | null;
   vibes: string[] | null;
+  zodiac: string[] | null;
   scenes: string[] | null;
   archetypes: string[] | null;
   hobbies: string[] | null;
@@ -209,6 +210,7 @@ type VisibilitySubjectRow = {
   availability: string[] | null;
   hosting_travel: string[] | null;
   vibes: string[] | null;
+  zodiac: string[] | null;
   scenes: string[] | null;
   archetypes: string[] | null;
   hobbies: string[] | null;
@@ -314,6 +316,7 @@ const PROFILE_COLUMNS = [
   "kinks",
   "kinks_visibility",
   "vibes",
+  "zodiac",
   "scenes",
   "archetypes",
   "hobbies",
@@ -531,6 +534,7 @@ function mapProfileRow(
     kink_interests: resolvedKinkInterests,
     kinks_visibility: row.kinks_visibility ?? "public",
     vibes: row.vibes ?? [],
+    zodiac: row.zodiac ?? [],
     scenes: row.scenes ?? [],
     archetypes: row.archetypes ?? [],
     hobbies: row.hobbies ?? [],
@@ -551,6 +555,7 @@ function mapProfileRow(
     custom_mpox_vaccine: row.custom_mpox_vaccine ?? "",
     health_preferences: sensitiveProfile?.health_preferences ?? [],
     birth_control: sensitiveProfile?.birth_control ?? [],
+    relationship_status: sensitiveProfile?.relationship_status ?? [],
     substance_boundaries: row.substance_boundaries ?? [],
     ...((row.badges?.length ?? 0) > 0 ? { badges: row.badges } : {}),
     visibility_rules: includePrivateSensitive ? visibilityRules ?? emptyProfile.visibility_rules : emptyProfile.visibility_rules,
@@ -594,7 +599,8 @@ function fallbackSensitiveProfile(): SensitiveProfileData {
     hiv_status: [],
     custom_hiv_status: "",
     health_preferences: [],
-    birth_control: []
+    birth_control: [],
+    relationship_status: []
   };
 }
 

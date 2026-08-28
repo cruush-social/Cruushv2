@@ -769,8 +769,8 @@ async function loadMutualCruushRows(app: FastifyInstance, userId: string) {
       precise_location_visibility: profile.precise_location_visibility,
       can_message: relationship.canMessage,
       can_reveal_precise_location: relationship.canRevealPreciseLocation,
-      target_base_mode: relationship.targetBaseMode,
-      target_dark_room_distance_label: relationship.targetDarkRoomDistanceLabel
+      target_base_mode: relationship.targetBaseMode ?? "GHOST",
+      target_dark_room_distance_label: relationship.targetDarkRoomDistanceLabel === true
     };
   }));
 

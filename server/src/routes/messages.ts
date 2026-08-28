@@ -1823,7 +1823,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
       throw new ApiError(403, "FEATURE_RESTRICTED", "Messaging is unavailable for this account.");
     }
 
-    await recordMeaningfulActivitySafely(app, {
+    void recordMeaningfulActivitySafely(app, {
       userId,
       activityType: "message",
       sourceEventId: created.id

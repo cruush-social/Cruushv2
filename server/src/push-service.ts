@@ -25,6 +25,11 @@ type NotificationPreferencesRow = {
   nearby_enabled: boolean;
   rewards_enabled: boolean;
   sound_enabled: boolean;
+  quiet_hours_enabled: boolean;
+  quiet_hours_start_minute: number;
+  quiet_hours_end_minute: number;
+  quiet_hours_timezone: string;
+  pulse_enabled: boolean;
 };
 
 export type NotificationPreferences = {
@@ -35,6 +40,13 @@ export type NotificationPreferences = {
   nearbyEnabled: boolean;
   rewardsEnabled: boolean;
   soundEnabled: boolean;
+  quietHoursEnabled: boolean;
+  /** Minutes past local midnight. A start above the end wraps past midnight. */
+  quietHoursStartMinute: number;
+  quietHoursEndMinute: number;
+  /** IANA zone the window is read in. */
+  quietHoursTimezone: string;
+  pulseEnabled: boolean;
 };
 
 export type PushSubscriptionPayload = {
@@ -47,6 +59,55 @@ export type PushSubscriptionPayload = {
 
 let configuredVapidKey = "";
 
+const MINUTES_PER_DAY = 1440;
+const QUIET_HOURS_DEFAULT_END_MINUTE = 360;
+
+function clampMinuteOfDay(value: unknown, fallback: number) {
+  const minute = Math.trunc(Number(value));
+
+  return Number.isFinite(minute) && minute >= 0 && minute < MINUTES_PER_DAY ? minute : fallback;
+}
+
+/**
+ * The member's own wall clock, in minutes past midnight. Quiet hours are a
+ * human window, so an overnight span is read where the member lives rather
+ * than in UTC.
+ */
+function localMinuteOfDay(timezone: string, atMs: number) {
+  try {
+    const parts = new Intl.DateTimeFormat("en-US", {
+      hour: "2-digit",
+      hour12: false,
+      minute: "2-digit",
+      timeZone: timezone
+    }).formatToParts(new Date(atMs));
+    const hour = Number(parts.find((part) => part.type === "hour")?.value ?? "0");
+    const minute = Number(parts.find((part) => part.type === "minute")?.value ?? "0");
+
+    return ((hour % 24) * 60 + minute) % MINUTES_PER_DAY;
+  } catch {
+    const date = new Date(atMs);
+
+    return date.getUTCHours() * 60 + date.getUTCMinutes();
+  }
+}
+
+export function isWithinQuietHours(preferences: NotificationPreferences, atMs = Date.now()) {
+  if (!preferences.quietHoursEnabled) {
+    return false;
+  }
+
+  const { quietHoursStartMinute: start, quietHoursEndMinute: end } = preferences;
+  if (start === end) {
+    return false;
+  }
+
+  const minute = localMinuteOfDay(preferences.quietHoursTimezone, atMs);
+
+  // A window that wraps past midnight covers both ends of the day.
+  return start < end ? minute >= start && minute < end : minute >= start || minute < end;
+}
+
 function mapPreferences(row?: Partial<NotificationPreferencesRow> | null): NotificationPreferences {
   return {
     pushEnabled: Boolean(row?.push_enabled),
@@ -55,7 +116,12 @@ function mapPreferences(row?: Partial<NotificationPreferencesRow> | null): Notif
     groupsEnabled: row?.groups_enabled ?? true,
     nearbyEnabled: row?.nearby_enabled ?? true,
     rewardsEnabled: row?.rewards_enabled ?? true,
-    soundEnabled: row?.sound_enabled ?? true
+    soundEnabled: row?.sound_enabled ?? true,
+    quietHoursEnabled: row?.quiet_hours_enabled ?? false,
+    quietHoursStartMinute: clampMinuteOfDay(row?.quiet_hours_start_minute, 0),
+    quietHoursEndMinute: clampMinuteOfDay(row?.quiet_hours_end_minute, QUIET_HOURS_DEFAULT_END_MINUTE),
+    quietHoursTimezone: row?.quiet_hours_timezone || "UTC",
+    pulseEnabled: row?.pulse_enabled !== false
   };
 }
 
@@ -101,6 +167,10 @@ function isPreferenceEnabledForType(preferences: NotificationPreferences, type: 
 
   if (type === "incoming_cruush" || type === "mutual_cruush") {
     return preferences.cruushEnabled;
+  }
+
+  if (type === "pulse") {
+    return preferences.pulseEnabled;
   }
 
   if (type === "direct_message" || type === "group_message") {
@@ -170,7 +240,7 @@ export function getVapidPublicKey(config: AppConfig) {
 
 export async function getNotificationPreferences(app: PushApp, userId: string) {
   const result = await app.db.query<NotificationPreferencesRow>(
-    `select push_enabled, cruush_enabled, messages_enabled, groups_enabled, nearby_enabled, rewards_enabled, sound_enabled
+    `select push_enabled, cruush_enabled, messages_enabled, groups_enabled, nearby_enabled, rewards_enabled, sound_enabled, quiet_hours_enabled, quiet_hours_start_minute, quiet_hours_end_minute, quiet_hours_timezone, pulse_enabled
      from notification_preferences
      where user_id = $1
      limit 1`,
@@ -200,9 +270,14 @@ export async function updateNotificationPreferences(
        groups_enabled,
        nearby_enabled,
        rewards_enabled,
-       sound_enabled
+       sound_enabled,
+       quiet_hours_enabled,
+       quiet_hours_start_minute,
+       quiet_hours_end_minute,
+       quiet_hours_timezone,
+       pulse_enabled
      )
-     values ($1, $2, $3, $4, $5, $6, $7, $8)
+     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
      on conflict (user_id) do update
        set push_enabled = excluded.push_enabled,
            cruush_enabled = excluded.cruush_enabled,
@@ -211,8 +286,13 @@ export async function updateNotificationPreferences(
            nearby_enabled = excluded.nearby_enabled,
            rewards_enabled = excluded.rewards_enabled,
            sound_enabled = excluded.sound_enabled,
+           quiet_hours_enabled = excluded.quiet_hours_enabled,
+           quiet_hours_start_minute = excluded.quiet_hours_start_minute,
+           quiet_hours_end_minute = excluded.quiet_hours_end_minute,
+           quiet_hours_timezone = excluded.quiet_hours_timezone,
+           pulse_enabled = excluded.pulse_enabled,
            updated_at = now()
-     returning push_enabled, cruush_enabled, messages_enabled, groups_enabled, nearby_enabled, rewards_enabled, sound_enabled`,
+     returning push_enabled, cruush_enabled, messages_enabled, groups_enabled, nearby_enabled, rewards_enabled, sound_enabled, quiet_hours_enabled, quiet_hours_start_minute, quiet_hours_end_minute, quiet_hours_timezone, pulse_enabled`,
     [
       userId,
       next.pushEnabled,
@@ -221,7 +301,12 @@ export async function updateNotificationPreferences(
       next.groupsEnabled,
       next.nearbyEnabled,
       next.rewardsEnabled,
-      next.soundEnabled
+      next.soundEnabled,
+      next.quietHoursEnabled,
+      clampMinuteOfDay(next.quietHoursStartMinute, 0),
+      clampMinuteOfDay(next.quietHoursEndMinute, QUIET_HOURS_DEFAULT_END_MINUTE),
+      next.quietHoursTimezone || "UTC",
+      next.pulseEnabled
     ]
   );
 
@@ -259,9 +344,9 @@ export async function upsertPushSubscription(
        on conflict (user_id) do update
          set push_enabled = true,
              updated_at = now()
-       returning push_enabled, cruush_enabled, messages_enabled, groups_enabled, nearby_enabled, rewards_enabled, sound_enabled
+       returning push_enabled, cruush_enabled, messages_enabled, groups_enabled, nearby_enabled, rewards_enabled, sound_enabled, quiet_hours_enabled, quiet_hours_start_minute, quiet_hours_end_minute, quiet_hours_timezone, pulse_enabled
      )
-     select push_enabled, cruush_enabled, messages_enabled, groups_enabled, nearby_enabled, rewards_enabled, sound_enabled
+     select push_enabled, cruush_enabled, messages_enabled, groups_enabled, nearby_enabled, rewards_enabled, sound_enabled, quiet_hours_enabled, quiet_hours_start_minute, quiet_hours_end_minute, quiet_hours_timezone, pulse_enabled
      from preferences_upsert`,
     [
       userId,
@@ -331,6 +416,13 @@ export async function sendPushForNotification(app: PushApp, notification: AppNot
   }
 
   const preferences = await getNotificationPreferences(app, notification.userId);
+  if (isWithinQuietHours(preferences)) {
+    return {
+      attempted: false,
+      sent: 0
+    };
+  }
+
   if (!isPreferenceEnabledForType(preferences, notification.type)) {
     return {
       attempted: false,

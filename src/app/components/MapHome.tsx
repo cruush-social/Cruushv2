@@ -23,7 +23,7 @@ import MapControlsTutorial, {
   notifyMapControlsTutorialCompleted,
   type MapControlsTutorialStepId,
 } from './MapControlsTutorial';
-import { getNearbyUsers, type DiscoveryUser } from '../lib/usersApi';
+import { OutsideBrowseRadiusError, getNearbyUsers, type DiscoveryUser } from '../lib/usersApi';
 import { getMutualCruushMap, type MutualCruushActivityItem } from '../lib/cruushApi';
 import { DEFAULT_PRIVACY_SETTINGS, getMyPrivacySettings, type PrivacySettings } from '../lib/privacyApi';
 import { CRUUSH_PLUS_CHANGED_EVENT, getMyBillingStatus, type BillingStatus } from '../lib/billingApi';
@@ -1233,6 +1233,16 @@ export default function MapHome(_props: MapHomeProps = {}) {
           : await getNearbyUsers(coordinates, undefined, discoveryRequestOptions()));
       }
     } catch (fetchError) {
+      // Looking further out than you may browse is not a failure. Say what it
+      // is and how to lift it, rather than showing an empty map.
+      if (fetchError instanceof OutsideBrowseRadiusError) {
+        setUsers([]);
+        if (!options.background) {
+          setError(fetchError.message);
+        }
+        return;
+      }
+
       console.error('Error fetching users:', fetchError);
       if (options.background) {
         // Never keep rendering an expired location token when a privacy refresh
@@ -2219,11 +2229,14 @@ export default function MapHome(_props: MapHomeProps = {}) {
               data-tutorial-target="dl-mode"
               aria-label={dlModeActive ? 'Turn DL Mode off' : 'Turn DL Mode on'}
               title={dlModeActive ? 'Turn DL Mode off' : 'Turn DL Mode on'}
-              className="size-11 rounded-full text-white/90 hover:bg-white/10 sm:size-12 lg:size-[3.25rem]"
+              className={`size-11 overflow-visible rounded-full text-white/90 hover:bg-white/10 sm:size-12 lg:size-[3.25rem] [&_img]:!overflow-visible ${
+                dlModeActive ? 'bg-white/[0.07]' : ''
+              }`}
             >
+              {/* The gradient mark is the active state. Nothing is drawn around it. */}
               <CruushIconImage
                 src={dlModeActive ? dlModeColored : dlModeWhite}
-                className="h-7 w-7 lg:h-8 lg:w-8"
+                className="h-6 w-6 overflow-visible lg:h-7 lg:w-7"
               />
             </Button>
             <Button
@@ -2628,7 +2641,8 @@ export default function MapHome(_props: MapHomeProps = {}) {
             title="Send a Pulse"
             className={`size-12 shrink-0 rounded-full border border-white/10 bg-background/55 p-0 backdrop-blur-md hover:brightness-125 sm:size-[3.25rem] lg:size-14 ${mapPingStatus?.activePing ? 'text-[#c8ff31]' : 'text-white'}`}
           >
-            <PulseLedIcon className="size-full" />
+            {/* The mark draws its own ring, the way it does on the Send control. */}
+            <PulseLedIcon />
           </Button>
 
           <div

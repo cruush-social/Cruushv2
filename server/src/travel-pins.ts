@@ -112,7 +112,6 @@ export async function setTravelPin(
       "That location is outside the current cruush service area."
     );
   }
-
   const existing = await getTravelPin(app, userId);
   if (existing && nowMs < existing.movableAtMs) {
     throw new TravelPinCooldownError(existing.movableAtMs);

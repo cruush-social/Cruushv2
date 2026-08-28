@@ -244,6 +244,17 @@ class MapPingDb implements DbClient {
       return { rows: (active ? [active] : []) as T[] };
     }
 
+    // Nobody in these tests is travelling; Travel Mode has its own coverage.
+    if (sql.includes("from user_travel_pins")) {
+      return { rows: [] as T[] };
+    }
+
+    // The Pulse notification fan-out runs after the send and is covered on its
+    // own. These tests are about the send.
+    if (sql.includes("from map_ping_notifications") || sql.includes("into map_ping_notifications")) {
+      return { rows: [] as T[] };
+    }
+
     throw new Error(`Unexpected query: ${sql}`);
   }
 

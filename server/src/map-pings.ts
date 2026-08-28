@@ -31,6 +31,8 @@ import {
   type VisibilitySubjectProfile
 } from "./profile-visibility.js";
 import { postExpirySchema, type PostExpiry } from "./post-schema.js";
+import { getTravelPin } from "./travel-pins.js";
+import { notifyPulseRecipients } from "./pulse-notifications.js";
 
 export const MAP_PING_RADIUS_MILES = [1, 3, 5, 10, 15] as const;
 export type MapPingRadiusMiles = typeof MAP_PING_RADIUS_MILES[number];
@@ -326,6 +328,14 @@ async function loadSenderDispatchContext(
 
   if (visibilityPolicy.baseMode === "STEALTH") {
     throw new ApiError(403, "FEATURE_RESTRICTED", "Pulse is unavailable in Dark Room.");
+  }
+
+  if (await getTravelPin(app, userId)) {
+    throw new ApiError(
+      403,
+      "FEATURE_RESTRICTED",
+      "Pulse is unavailable in Travel Mode. Turn off Travel Mode to send one."
+    );
   }
 
   let sourceLocation: LocationPayload | null = null;
@@ -730,7 +740,7 @@ export async function createMapPing(
   });
   const encryptedSignal = encryptTextContent(app.config, "feed", moderatedSignal);
   const postId = randomUUID();
-  await runTransaction(app.db, async (db) => {
+  const createdPing = await runTransaction(app.db, async (db) => {
     const account = await db.query<{ id: string }>(
       `select id::text as id
        from app_users
@@ -912,9 +922,24 @@ export async function createMapPing(
     return ping;
   });
 
+  // Who hears about it is a much narrower question than who can see it. The
+  // send does not wait on the answer: a Pulse is time-sensitive and the sender
+  // should not watch a spinner while other people's phones are worked out.
+  if (createdPing) {
+    void notifyPulseRecipients(app, {
+      pingId: createdPing.id,
+      senderUserId: input.userId,
+      radiusMiles: input.radiusMiles
+    }, now.getTime()).catch((error) => {
+      app.log.warn({ err: error, pingId: createdPing.id }, "pulse notification dispatch failed");
+    });
+  }
+
   return getMapPingStatus(app, input.userId, {
     ...overrides,
     now: () => now,
     getEntitlement: async () => entitlement
   });
 }
+
+

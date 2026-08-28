@@ -61,6 +61,14 @@ These are not suggestions you interpret. Run them.
   circle around an icon — is a decision. Don't.
 - **C4.** Before touching a shared token or style object, enumerate every surface it
   affects. Scope the change or state the blast radius and ask.
+- **C10.** Julien is the only person who designs cruush. You may implement exactly the UI he
+  describes, and you may build a mock or preview page when he asks to see options so he can
+  pick. You may not originate any visual element, state treatment, colour, size, border, or
+  placement he did not name, and you may not re-interpret one he already settled. This is the
+  standing form of C2 and C3, which were not enough on their own: a pink halo was added around
+  the DL Mode mask as a "lit state" nobody asked for, and the vibe capsules drifted into
+  several variations after he asked for one colour and one text. If an element needs something
+  it does not have, say so in one sentence and wait.
 - **C5.** The map vector style, label sizing, and canvas filter are off limits unless the
   request names the map.
 - **C6.** After a visual edit, measure the adjacent geometry too. The thing you did not

@@ -19,6 +19,7 @@ export type NormalizedModerationLabel =
   | "text_on_image"
   | "url_on_image"
   | "profile_photo_not_adult_human"
+  | "multiple_people"
   | "minor_present"
   | "minor_age_ambiguous"
   | "adult_nudity"
