@@ -131,7 +131,7 @@ export default function MapFiltersSurface({
 }: MapFiltersSurfaceProps) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent closeSide="left" side="right" className="w-full flex h-full max-h-[100dvh] flex-col gap-0 overflow-hidden border-white/10 bg-background/95 p-0 sm:max-w-xl">
+      <SheetContent closeSide="left" side="right" className="z-[70] w-full flex h-full max-h-[100dvh] flex-col gap-0 overflow-hidden border-white/10 bg-background/95 p-0 sm:max-w-xl">
         <SheetHeader className="shrink-0 border-b border-white/10 py-4 pl-14 pr-5">
           <SheetTitle>{title}</SheetTitle>
           <SheetDescription>{description}</SheetDescription>

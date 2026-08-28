@@ -1,44 +1,43 @@
 {
   "status": "validating",
   "product": "cruush",
-  "release": "1.6 Ghost animation load hotfix",
+  "release": "1.6 Seeking mobile overlap hotfix",
   "repository": "cruush-social/Cruushv2",
-  "job": "Keep the Ghost pin rotation animation, but do not replay an already-active countdown window when the map loads. Preserve later real rotation animation windows, then publish the fix to origin/main and production.",
+  "job": "Keep the mobile Seeking sheet and its Apply action above the fixed bottom navigation so the navigation cannot cover or intercept the filter.",
   "branch": "hotfix/bugfix-release-20260827",
   "allowedPaths": [
     "AI_TASK.json",
-    "src/app/components/MapView.test.tsx",
-    "src/app/components/MapView.tsx"
+    "src/app/components/MapFiltersSurface.test.tsx",
+    "src/app/components/MapFiltersSurface.tsx"
   ],
   "preserved": [
-    "Preserve the existing Ghost heartbeat, border flash, heart exit, puff cloud, and flying Ghost animation for rotation windows reached after mount.",
-    "Preserve Ghost privacy, coordinate rotation, countdown settings, marker visuals outside animation, map layout, saved viewport behavior, and every prior bug fix."
+    "Preserve the Seeking design, fields, tabs, selection behavior, Clear and Apply behavior.",
+    "Preserve the Ghost animation fix, map layout, Visibility surface, bottom navigation design, and every prior bug fix."
   ],
   "nonGoals": [
-    "Do not remove or redesign the Ghost animation.",
-    "No copy, asset, environment, dependency, migration, provider, backend, navigation, or unrelated visual changes."
+    "No feature, copy, asset, animation, environment, dependency, migration, provider, backend, navigation, or unrelated visual change.",
+    "Do not redesign or hide the bottom navigation outside the open Seeking sheet."
   ],
   "proof": [
-    "Add focused regression proof that a countdown window already active at component mount stays static.",
-    "Add focused regression proof that a countdown window entered after mount still animates.",
-    "Run the focused MapView test, client production build, contract check, and git diff checks.",
-    "Inspect the authenticated rendered map at 412 by 915 before and after publication when the browser is available.",
+    "Show the existing mobile stacking failure before the patch.",
+    "Run the focused MapFiltersSurface test after the patch.",
+    "Render the actual map at a narrow Android-sized viewport, open Seeking, inspect the full sheet, and tap Apply without bottom-navigation interception.",
+    "Run the client production build, copy check, contract check, and git diff checks.",
     "Push only this slice to origin/main, deploy production, and verify remote SHA, live build SHA, API health, and frontend response."
   ],
   "proofResults": [
-    "The new initial-load regression failed before the patch because the active Ghost rotation wrapper rendered immediately, then passed after the mount-window guard.",
-    "Both focused timing tests passed: initial active window static, later post-mount window animated.",
-    "All 52 MapView tests passed with one serial fork worker.",
+    "The new stacking regression failed before the patch: Seeking had z-50 while the fixed bottom navigation has z-60.",
+    "All 5 focused MapFiltersSurface tests passed after the Seeking sheet moved to z-70.",
+    "The actual built map rendered at 360 by 650 with isolated mocked authentication and data. Seeking covered the bottom navigation, the sheet footer stayed within the viewport, touch selection worked, and Apply completed without interception.",
+    "Rendered geometry measured Seeking dialog z-index 70, bottom navigation z-index 60, dialog 360 by 650, and footer bottom exactly 650.",
     "Client Vite production build passed. The existing duplicate strokeOpacity warning in PulseEffectPreview.tsx remains.",
-    "Authenticated mocked-data map route rendered at 412 by 915 with the actual application code. The active-at-load Ghost marker stayed static, both pins remained visible, and the screenshot showed no control or navigation overlap.",
-    "Public-copy scan passed across 330 files, and git diff --check passed.",
+    "Public-copy scan passed across 330 files, product-name casing passed, mobile/tablet/desktop layout invariants passed against the built preview, and git diff --check passed.",
     "No package or lockfile changed. No environment variable was added, removed, or changed."
   ],
   "unverified": [
-    "The authenticated production browser remains unavailable while the Mac is locked, so the post-deploy live animation sequence requires later observation.",
-    "The temporary visual harness later hit an unrelated existing Seeking Apply tap interception after the required map assertion and screenshot had already passed."
+    "Authenticated production browser inspection remains unavailable while the Mac is locked; live production interaction must be separated from the local rendered proof."
   ],
-  "task": "Ghost animation initial-load replay fix",
+  "task": "Seeking sheet mobile overlap fix",
   "publicationTarget": "origin/main and production",
   "environmentChanges": "none"
 }

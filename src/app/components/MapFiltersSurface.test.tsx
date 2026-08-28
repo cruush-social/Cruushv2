@@ -24,6 +24,12 @@ function SeekingHarness({ hasCruushPlus = false, onUpgrade = vi.fn() }: { hasCru
 }
 
 describe('MapFiltersSurface', () => {
+  it('keeps the Seeking sheet above the fixed bottom navigation', () => {
+    render(<SeekingHarness />);
+
+    expect(screen.getByRole('dialog', { name: 'Seeking' })).toHaveClass('z-[70]');
+  });
+
   it('keeps the close control on the left away from the fixed bug button', () => {
     render(<SeekingHarness />);
 
