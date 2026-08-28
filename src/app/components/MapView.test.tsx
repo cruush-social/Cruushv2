@@ -641,10 +641,6 @@ describe('MapView', () => {
             approximateLongitude: -74.001,
           },
         }}
-        focusCoordinates={{
-          approximateLatitude: 40.714,
-          approximateLongitude: -74.004,
-        }}
       />
     );
 

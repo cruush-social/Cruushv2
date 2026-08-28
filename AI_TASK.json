@@ -1,54 +1,40 @@
 {
   "status": "validating",
   "product": "cruush",
-  "release": "1.6 bugfix candidate",
+  "release": "1.6 mobile map overlap hotfix",
   "repository": "cruush-social/Cruushv2",
-  "job": "Ship three previously completed non-V2 bug fixes on the current main baseline: keep Pulse visibility inside the sender-selected radius without revealing Ghost coordinates, report signup verification delivery truthfully, and return message sends without waiting for push-network delivery.",
+  "job": "Keep the signed-in user's Ghost Mode true location, decoy pin, and leash inside the mobile map safe area even when a saved map viewport exists, then publish the fix to origin/main and production.",
   "branch": "hotfix/bugfix-release-20260827",
   "allowedPaths": [
     "AI_TASK.json",
-    "server/src/app.test.ts",
-    "server/src/notification-service.ts",
-    "server/src/notifications.test.ts",
-    "server/src/location-privacy.ts",
-    "server/src/routes/auth.ts",
-    "server/src/routes/messages.ts",
-    "server/src/routes/users.ts"
+    "src/app/components/MapView.test.tsx",
+    "src/app/components/MapView.tsx"
   ],
   "preserved": [
-    "Preserve Pulse creation, radius choices, expiry, idempotency, map privacy, Ghost rotation, visibility filtering, and every profile field returned by discovery.",
-    "Measure Pulse reach from the viewer's own stored location to the location that viewer is already allowed to see. Never expose or infer a Ghost user's true coordinate.",
-    "Persist message notifications before returning, preserve mute and deduplication behavior, and continue attempting push delivery with failures logged.",
-    "Preserve all verification and password-reset templates, routes, tokens, provider behavior, and UI copy. Change only the signup response's delivery truth value.",
-    "Preserve all current main UI, assets, map-overlap fixes, and unrelated user work."
+    "Preserve all map controls, marker visuals, Ghost Mode coordinates, radius, privacy behavior, saved viewport restoration, and desktop layout.",
+    "Preserve every unrelated backend fix and current origin/main behavior."
   ],
   "nonGoals": [
-    "No Travel Mode, badge, feed, visual-design, survey, release-tooling, copy, migration, provider, or environment changes.",
-    "No public announcement, email campaign, social post, or changelog release communication.",
-    "Do not send a real Pulse, message, verification email, or push notification during verification."
+    "No copy, asset, environment, dependency, migration, provider, backend, navigation, or unrelated visual changes.",
+    "Do not create a real Pulse, message, verification email, or push notification during verification."
   ],
   "proof": [
-    "Add focused server regression proof that Pulse reach respects the selected radius, uses the viewer-visible Ghost coordinate, and returns no Pulse when the viewer has no location.",
-    "Add focused server regression proof that signup reports verificationEmailSent false for a local preview and true only for real provider delivery.",
-    "Add focused notification proof that deferred push does not hold the message path open while notification persistence remains awaited.",
-    "Run the touched server tests, server TypeScript build, client production build, AI contract checks, and git diff checks.",
-    "Push only this isolated slice to origin/main, verify the remote and production SHAs, service health, and the live frontend response. Mark real multi-account behavior unverified because safe proof would send user-facing actions."
+    "Add focused regression proof that Ghost leash camera fitting runs without focusCoordinates, matching the saved-viewport path.",
+    "Run the focused MapView test, client production build, contract check, and git diff checks.",
+    "Inspect the authenticated rendered map at an Android mobile viewport with a saved viewport and Ghost leash, then push only this slice to origin/main.",
+    "Deploy production and verify remote SHA, production build SHA, API health, public frontend response, and the authenticated rendered mobile map."
   ],
   "proofResults": [
-    "Focused app tests passed: 8 passed and 289 unrelated tests skipped. This covered local-preview verification false, accepted-provider verification true, production link origins, viewer-visible Ghost coordinates, Pulse radius boundaries, missing viewer locations, and the real message creation route.",
-    "Notification tests passed: 14 of 14, including durable notification persistence and return before a pending push-network request settles.",
-    "The Ghost discovery integration test placed the viewer at the subject's true coordinate, used a 0.01 mile Pulse radius, decrypted a shifted Ghost display token, and confirmed activePing remained null.",
-    "The discovery response strips the internal Pulse comparison coordinates, and the active map-ping query now loads radius_miles.",
-    "Server TypeScript build succeeded.",
-    "Client Vite production build succeeded. The pre-existing duplicate strokeOpacity warning in PulseEffectPreview.tsx remains.",
+    "The saved-viewport regression failed before the source patch because fitBounds had zero calls, then passed after removing the focusCoordinates gate.",
+    "All 50 MapView tests passed with one serial fork worker.",
+    "Client Vite production build passed. The existing duplicate strokeOpacity warning in PulseEffectPreview.tsx remains.",
     "Public-copy scan passed across 330 files, and git diff --check passed.",
     "No package or lockfile changed. No environment variable was added, removed, or changed."
   ],
   "unverified": [
-    "No real Pulse, message, verification email, or push notification was sent during verification. Production multi-account behavior remains a post-deploy observation gate because exercising it would create user-facing actions.",
-    "npm ci reported one high-severity vulnerability in the existing server lockfile. This task changed no dependency or lockfile."
+    "Post-deploy authenticated Android mobile visual inspection remains pending. The open authenticated browser became unavailable after the Mac locked."
   ],
-  "task": "Three non-V2 backend bug fixes",
+  "task": "Saved-viewport Ghost leash overlap fix",
   "publicationTarget": "origin/main and production",
   "environmentChanges": "none"
 }

@@ -2329,7 +2329,7 @@ function MapView({
       ghostLeash.to.approximateLongitude,
     ].map((value) => value.toFixed(6)).join(':');
 
-    if (focusCoordinates && ghostLeashFocusKeyRef.current !== ghostLeashFocusKey) {
+    if (ghostLeashFocusKeyRef.current !== ghostLeashFocusKey) {
       ghostLeashFocusKeyRef.current = ghostLeashFocusKey;
       map.fitBounds(
         [
@@ -2377,7 +2377,7 @@ function MapView({
       },
     });
     moveMapServiceOutsideMaskToTop(map);
-  }, [focusCoordinates, ghostLeash, mapInstance, mapLoadStatus]);
+  }, [ghostLeash, mapInstance, mapLoadStatus]);
 
   useEffect(() => {
     const map = mapInstance ?? mapRef.current;
