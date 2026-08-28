@@ -51,8 +51,8 @@ export const OVERLAY_SLOTS: OverlaySlot[] = [
     z: 40,
     // The wrapper spans the full width but is pointer-events-none; only the right-hand
     // icon cluster is actually painted and clickable, so that is what is modelled.
-    mobile: { top: 0.5, right: 0.5, width: 12, height: 2.75 },
-    desktop: { top: 0.75, right: 0.75, width: 14, height: 2.75 },
+    mobile: { top: 0.5, right: 0.5, width: 12, height: 3.625 },
+    desktop: { top: 0.75, right: 0.75, width: 14, height: 4.375 },
   },
   {
     id: 'map-right-actions',
@@ -60,18 +60,8 @@ export const OVERLAY_SLOTS: OverlaySlot[] = [
     z: 40,
     // Includes the widest state: crowd/ghost notices, Seeking, Visibility and the
     // complete vertical map-control stack.
-    mobile: { top: 3.875, right: 0.75, width: 12.117188, height: 15.25 },
-    desktop: { top: 4.875, right: 1, width: 12.117188, height: 15.25 },
-  },
-  {
-    id: 'map-ping-button',
-    source: 'src/app/components/MapHome.tsx',
-    z: 40,
-    // The generic bug trigger and tip use different map-specific geometry while this
-    // control exists, so their non-map registry entries cannot coexist with this slot.
-    exclusiveWith: ['alpha-bug-button', 'alpha-bug-tip'],
-    mobile: { top: 5.375, left: 1.722656, width: 2, height: 2 },
-    desktop: { top: 6.1875, left: 2.268555, width: 2.25, height: 2.25 },
+    mobile: { top: 4.625, right: 0.75, width: 12.117188, height: 15.25 },
+    desktop: { top: 5.625, right: 1, width: 12.117188, height: 15.25 },
   },
   {
     id: 'recently-active-panel',
@@ -92,7 +82,7 @@ export const OVERLAY_SLOTS: OverlaySlot[] = [
   {
     id: 'bottom-nav',
     source: 'src/app/components/BottomNav.tsx',
-    z: 50,
+    z: 60,
     // The nav wrapper is full width and pointer-events-none; the pill inside is
     // mx-auto with max-w-[23rem], so on desktop it leaves both edges free.
     mobile: { bottom: 0.75, left: 0.22, right: 0.22, height: 4 },
@@ -104,7 +94,7 @@ export const OVERLAY_SLOTS: OverlaySlot[] = [
     z: 50,
     // Every route uses this same viewport corner. The map header keeps a same-size
     // reserved slot so its Settings control never sits behind the fixed trigger.
-    exclusiveWith: ['map-header-row', 'map-right-actions', 'map-ping-button', 'map-alpha-bug-tip'],
+    exclusiveWith: ['map-header-row', 'map-right-actions', 'map-alpha-bug-tip'],
     mobile: { top: 0.75, right: 0.75, width: 2.75, height: 2.75 },
     desktop: { top: 0.75, right: 0.75, width: 2.75, height: 2.75 },
   },
@@ -115,7 +105,7 @@ export const OVERLAY_SLOTS: OverlaySlot[] = [
     // A one-time coach mark anchored near the button, dismissed on first tap.
     // Deliberately NOT marked transient: nothing belonging to the bug reporter may sit
     // on top of another control. The map keeps its separate below-controls placement.
-    exclusiveWith: ['alpha-bug-button', 'map-header-row', 'map-right-actions', 'map-ping-button', 'map-alpha-bug-tip'],
+    exclusiveWith: ['alpha-bug-button', 'map-header-row', 'map-right-actions', 'map-alpha-bug-tip'],
     mobile: { top: 4.5, right: 0.75, width: 18, height: 5 },
     desktop: { top: 4.5, right: 0.75, width: 18, height: 5 },
   },

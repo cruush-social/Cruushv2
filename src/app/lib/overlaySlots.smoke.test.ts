@@ -78,6 +78,24 @@ describe('smoke: floating overlays do not cover each other', () => {
       expect(bugButton!.source).not.toBe(slot.source);
     }
   });
+
+  it('keeps an 8px gap between the map top bar and right-side controls', () => {
+    const header = OVERLAY_SLOTS.find((slot) => slot.id === 'map-header-row');
+    const rightActions = OVERLAY_SLOTS.find((slot) => slot.id === 'map-right-actions');
+
+    expect(header).toBeDefined();
+    expect(rightActions).toBeDefined();
+
+    for (const [viewport, key] of [
+      [MOBILE_VIEWPORT, 'mobile'],
+      [DESKTOP_VIEWPORT, 'desktop'],
+    ] as const) {
+      const headerRect = resolveBox(header![key], viewport);
+      const rightActionsRect = resolveBox(rightActions![key], viewport);
+
+      expect(rightActionsRect.top - headerRect.bottom).toBe(0.5);
+    }
+  });
 });
 
 describe('smoke: declared overlay geometry matches the components', () => {
@@ -100,17 +118,12 @@ describe('smoke: declared overlay geometry matches the components', () => {
       ['top-[calc(20.125rem+env(safe-area-inset-top))]', 'sm:top-[calc(9.25rem+env(safe-area-inset-top))]', 'fixed z-50'],
     ],
     [
-      'map-ping-button',
-      'src/app/components/MapHome.tsx',
-      ['data-testid="map-beta-stack"', 'data-testid="map-ping-button"', 'data-tutorial-target="ping"', 'size-8', 'sm:size-9'],
-    ],
-    [
       'map-right-actions',
       'src/app/components/MapHome.tsx',
       [
-        'right-3 top-[3.875rem]',
-        'sm:right-4 sm:top-[4.625rem]',
-        'lg:top-[4.875rem]',
+        'right-3 top-[4.625rem]',
+        'sm:right-4 sm:top-[5.375rem]',
+        'lg:top-[5.625rem]',
         'data-testid="map-right-actions"',
       ],
     ],
@@ -122,7 +135,7 @@ describe('smoke: declared overlay geometry matches the components', () => {
     [
       'bottom-nav',
       'src/app/components/BottomNav.tsx',
-      ['fixed bottom-0', 'z-50'],
+      ['fixed bottom-0', 'z-[60]'],
     ],
   ];
 

@@ -224,6 +224,9 @@ vi.mock('./MapView', async () => {
       const knownPosition = position.map((value) => value.trim().toLowerCase()).find((value) => ['top', 'bottom', 'versatile'].includes(value));
       return knownPosition ? { kind: 'position', label: knownPosition, iconName: knownPosition } : null;
     },
+    MapMarkerPin: ({ marker }: { marker: { id: string } }) => (
+      <div data-testid={`mock-map-marker-pin-${marker.id}`} />
+    ),
     default: ({
       markers,
       fitToMarkers,
@@ -1550,7 +1553,7 @@ describe('MapHome', () => {
     expect(pingButton).not.toHaveClass('absolute', 'mt-2');
     // The offsets keep an 8px gap under the top-actions bar at every breakpoint,
     // matching the gap-2 the stack uses between its own controls.
-    expect(rightActions).toHaveClass('right-3', 'top-[3.875rem]', 'sm:right-4', 'sm:top-[4.625rem]', 'lg:top-[4.875rem]');
+    expect(rightActions).toHaveClass('right-3', 'top-[4.625rem]', 'sm:right-4', 'sm:top-[5.375rem]', 'lg:top-[5.625rem]');
     expect(cruushPlusButton).toHaveClass(
       'cruush-plus-shimmer-button',
       'cruush-logo-font',

@@ -1,43 +1,46 @@
 {
   "status": "validating",
   "product": "cruush",
-  "release": "1.6 duplicate text-message hotfix",
+  "release": "1.6 mobile Seeking top-bar overlap hotfix",
   "repository": "cruush-social/Cruushv2",
-  "job": "Prevent a rapid second text-message submit while the first send request is still in flight, so one user action produces one message.",
+  "job": "Move the closed Seeking and right-side map control stack below the true padded top-bar height with an 8px gap at mobile, tablet, and desktop breakpoints.",
   "branch": "hotfix/bugfix-release-20260827",
   "allowedPaths": [
     "AI_TASK.json",
-    "src/app/components/PrivateGroupChat.test.tsx",
-    "src/app/components/PrivateGroupChat.tsx"
+    "src/app/components/MapHome.test.tsx",
+    "src/app/components/MapHome.tsx",
+    "src/app/lib/overlaySlots.smoke.test.ts",
+    "src/app/lib/overlaySlots.ts"
   ],
   "preserved": [
-    "Preserve successful text sending, optimistic messages, retry after failure, message moderation errors, photos, favorites, notifications, and conversation permissions.",
-    "Preserve all map, Seeking, Ghost animation, layout, copy, asset, and prior bug fixes."
+    "Preserve the exact top bar, Seeking, Visibility, Pulse, zoom controls, bottom navigation, markers, and map behavior.",
+    "Preserve the Ghost animation, duplicate-message fix, Seeking sheet overlap fix, assets, copy, and every prior bug fix."
   ],
   "nonGoals": [
     "No feature, copy, asset, animation, environment, dependency, migration, provider, server, notification, navigation, or unrelated visual change.",
-    "Do not change photo-message or favorite-image sending."
+    "Do not resize, restyle, reorder, hide, or redesign any map control."
   ],
   "proof": [
-    "Add a focused regression that dispatches two submits while the first request remains unresolved and proves only one API call and one optimistic message.",
-    "Run the focused PrivateGroupChat test after the patch.",
-    "Render the actual conversation at a narrow Android-sized viewport and exercise a rapid double submit against isolated mocked authentication and data.",
+    "Correct the overlay registry so it models the padded top bar and requires an 8px gap before the right-side controls.",
+    "Run focused MapHome and overlay-slot tests after the patch.",
+    "Render and inspect the actual map at 360 by 650 and 412 by 915, measuring the top bar and Seeking rectangles at each viewport.",
     "Run the client production build, copy check, contract check, and git diff checks.",
     "Push only this slice to origin/main, deploy production, and verify remote SHA, live build SHA, API health, and frontend response."
   ],
   "proofResults": [
-    "The new regression failed before the patch: two same-frame submits produced two createMessage calls and two optimistic rows with the same local key.",
-    "The focused pending-send regression passed after the synchronous in-flight guard and disabled send state were added.",
-    "All 29 PrivateGroupChat tests passed.",
-    "The actual built conversation rendered at 360 by 650 with isolated mocked authentication and data. Two same-frame send-button clicks produced one POST, one visible message bubble, and a disabled send button while the request was pending.",
+    "The original right stack began at 62px while the rendered top-actions border box ended at 66px, creating a 4px overlap.",
+    "The new 8px overlay-gap regression failed before the patch, then passed after the padded top-bar and right-stack geometry were corrected.",
+    "All 81 MapHome and overlay-slot tests passed. The stale MapView mock and obsolete duplicate Pulse and bottom-nav overlay declarations were corrected only inside the test validator.",
+    "The actual built map rendered at 360 by 650 and 412 by 915 with isolated mocked authentication and data. At both viewports, the top-actions rectangle ended at 66px and Seeking began at 74px for an exact 8px gap.",
+    "Both rendered screenshots were visually inspected with the full map, top bar, Seeking, Visibility, right control rail, markers, and bottom navigation visible. No top collision or new clipping appeared.",
     "Client Vite production build passed. The existing duplicate strokeOpacity warning in PulseEffectPreview.tsx remains.",
-    "Public-copy and product-name checks passed, and git diff --check passed.",
+    "Public-copy, cruush-casing, and git diff checks passed.",
     "No package or lockfile changed. No environment variable was added, removed, or changed."
   ],
   "unverified": [
-    "Authenticated production duplicate-send interaction cannot be safely exercised without sending a real user message; live bundle and deployment evidence are required separately."
+    "Production authenticated 412 by 915 inspection remains required after deployment."
   ],
-  "task": "Duplicate text-message send fix",
+  "task": "Mobile Seeking top-bar overlap fix",
   "publicationTarget": "origin/main and production",
   "environmentChanges": "none"
 }
