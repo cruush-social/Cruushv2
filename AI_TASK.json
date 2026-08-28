@@ -1,46 +1,69 @@
 {
-  "status": "validating",
+  "status": "active",
   "product": "cruush",
-  "release": "1.6 mobile Seeking top-bar overlap hotfix",
+  "release": "1.6",
   "repository": "cruush-social/Cruushv2",
-  "job": "Move the closed Seeking and right-side map control stack below the true padded top-bar height with an 8px gap at mobile, tablet, and desktop breakpoints.",
-  "branch": "hotfix/bugfix-release-20260827",
+  "branch": "release/1.6-features-20260828",
+  "job": "Publish the verified bug fixes already on main together with Travel Mode, Feed posting for every signed-in member, the requested one-time cruush+ card popup, and the canonical cruush+ benefits card copy.",
   "allowedPaths": [
     "AI_TASK.json",
-    "src/app/components/MapHome.test.tsx",
-    "src/app/components/MapHome.tsx",
-    "src/app/lib/overlaySlots.smoke.test.ts",
-    "src/app/lib/overlaySlots.ts"
+    "server/sql/097_travel_pins.sql",
+    "server/src/app.test.ts",
+    "server/src/dev-seed-profiles.ts",
+    "server/src/map-pings.ts",
+    "server/src/migrate.ts",
+    "server/src/rewards-service.test.ts",
+    "server/src/rewards-service.ts",
+    "server/src/routes/privacy.ts",
+    "server/src/routes/profiles.ts",
+    "server/src/routes/rewards.ts",
+    "server/src/routes/users.ts",
+    "server/src/travel-mode-exclusion.test.ts",
+    "server/src/travel-pins.test.ts",
+    "server/src/travel-pins.ts",
+    "src/app/App.test.tsx",
+    "src/app/App.tsx",
+    "src/app/components/BadgeGlyphs.tsx",
+    "src/app/components/BetaLaunchCruushPlusOffer.css",
+    "src/app/components/BetaLaunchCruushPlusOffer.test.tsx",
+    "src/app/components/BetaLaunchCruushPlusOffer.tsx",
+    "src/app/components/MapView.test.tsx",
+    "src/app/components/MapView.tsx",
+    "src/app/components/ProfileView.tsx",
+    "src/app/components/Rewards.test.tsx",
+    "src/app/components/Rewards.tsx",
+    "src/app/components/Settings.tsx",
+    "src/app/components/TravelModeSettings.tsx",
+    "src/app/lib/cruushPlusFeatures.test.ts",
+    "src/app/lib/cruushPlusFeatures.ts",
+    "src/app/lib/mapServiceArea.test.ts",
+    "src/app/lib/mapServiceArea.ts",
+    "src/app/lib/privacyApi.ts",
+    "src/app/lib/rewardsApi.ts"
   ],
   "preserved": [
-    "Preserve the exact top bar, Seeking, Visibility, Pulse, zoom controls, bottom navigation, markers, and map behavior.",
-    "Preserve the Ghost animation, duplicate-message fix, Seeking sheet overlap fix, assets, copy, and every prior bug fix."
+    "Preserve every bug fix on origin/main through 3c9908e, including the exact 8px mobile Seeking clearance, duplicate-message lock, Ghost animation timing repair, open Seeking sheet clearance, Pulse radius privacy, truthful signup delivery reporting, and deferred push delivery.",
+    "Preserve Feed posting for every signed-in member from ba3dff0 and its trust, suspension, feature-restriction, and text-moderation safeguards.",
+    "Preserve supplied visual assets and current map, Ghost, Pulse, navigation, profile, messaging, billing, and moderation behavior outside the named features.",
+    "Travel Mode remains a cruush+ feature, expires after 24 hours, enforces the 3 hour move cooldown, keeps Dark Room unavailable while travelling, and never exposes a device location in place of the selected travel pin.",
+    "The cruush+ card keeps the approved moire treatment, lowercase cruush+ wordmark, explicit post-activation Done control, and reduced-motion behavior."
   ],
   "nonGoals": [
-    "No feature, copy, asset, animation, environment, dependency, migration, provider, server, notification, navigation, or unrelated visual change.",
-    "Do not resize, restyle, reorder, hide, or redesign any map control."
+    "Do not wholesale merge feat/visual-pass or any dirty worktree.",
+    "Do not include badge redesigns, notification quiet hours, Pulse notifications, DL Mode visual changes, crypto checkout, vouchers, analytics, moderation-dashboard work, or unrelated visual polish.",
+    "Do not change pricing, payment providers, production environment variables, secrets, or deployment configuration.",
+    "Do not redesign requested surfaces or change public copy beyond the recovered approved cruush+ and Travel Mode copy."
   ],
   "proof": [
-    "Correct the overlay registry so it models the padded top bar and requires an 8px gap before the right-side controls.",
-    "Run focused MapHome and overlay-slot tests after the patch.",
-    "Render and inspect the actual map at 360 by 650 and 412 by 915, measuring the top bar and Seeking rectangles at each viewport.",
-    "Run the client production build, copy check, contract check, and git diff checks.",
-    "Push only this slice to origin/main, deploy production, and verify remote SHA, live build SHA, API health, and frontend response."
+    "Prove Feed posting remains open to every eligible signed-in member without a cruush+ gate.",
+    "Run focused Travel Mode, rewards, App, Feed, map, privacy, and cruush+ card tests plus server and client builds.",
+    "Render and inspect Travel Mode, the cruush+ popup/card, the cruush+ benefits card, Feed composer, and the full map at real small-mobile dimensions.",
+    "Push only this isolated release slice to origin/main, deploy production, then verify remote SHA, stable live build SHA, API health, frontend response, and available authenticated live flows."
   ],
-  "proofResults": [
-    "The original right stack began at 62px while the rendered top-actions border box ended at 66px, creating a 4px overlap.",
-    "The new 8px overlay-gap regression failed before the patch, then passed after the padded top-bar and right-stack geometry were corrected.",
-    "All 81 MapHome and overlay-slot tests passed. The stale MapView mock and obsolete duplicate Pulse and bottom-nav overlay declarations were corrected only inside the test validator.",
-    "The actual built map rendered at 360 by 650 and 412 by 915 with isolated mocked authentication and data. At both viewports, the top-actions rectangle ended at 66px and Seeking began at 74px for an exact 8px gap.",
-    "Both rendered screenshots were visually inspected with the full map, top bar, Seeking, Visibility, right control rail, markers, and bottom navigation visible. No top collision or new clipping appeared.",
-    "Client Vite production build passed. The existing duplicate strokeOpacity warning in PulseEffectPreview.tsx remains.",
-    "Public-copy, cruush-casing, and git diff checks passed.",
-    "No package or lockfile changed. No environment variable was added, removed, or changed."
-  ],
+  "proofResults": [],
   "unverified": [
-    "Production authenticated 412 by 915 inspection remains required after deployment."
+    "No 1.6 feature slice has been integrated or visually validated in this worktree yet."
   ],
-  "task": "Mobile Seeking top-bar overlap fix",
   "publicationTarget": "origin/main and production",
   "environmentChanges": "none"
 }
