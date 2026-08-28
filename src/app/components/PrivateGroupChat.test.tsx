@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import PrivateGroupChat from './PrivateGroupChat';
@@ -224,6 +224,73 @@ describe('PrivateGroupChat', () => {
     expect(screen.queryByText('Preview thread')).not.toBeInTheDocument();
     expect(screen.queryByText('hosting for another hour if you still want to swing by')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Open River profile' })).not.toBeInTheDocument();
+  });
+
+  it('submits a text message only once while the first send is still pending', async () => {
+    const conversationId = '7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2';
+    getConversationMessages.mockResolvedValue({
+      conversation: {
+        id: conversationId,
+        kind: 'dm',
+        user: {
+          id: 'user-2',
+          name: 'River',
+          pronouns: 'they/them',
+          photo: null,
+        },
+        distance: 'Nearby',
+        updatedAt: '2026-04-29T12:00:00.000Z',
+        lastMessage: '',
+        unreadCount: 0,
+        pinned: false,
+        muted: false,
+        mutual: true,
+        tags: [],
+      },
+      messages: [],
+    });
+    let resolveSend!: (message: {
+      id: string;
+      userId: string;
+      content: string;
+      timestamp: string;
+    }) => void;
+    createMessage.mockReturnValue(new Promise((resolve) => {
+      resolveSend = resolve;
+    }));
+
+    render(
+      <MemoryRouter initialEntries={[`/chat/${conversationId}`]}>
+        <Routes>
+          <Route path="/chat/:chatId" element={<PrivateGroupChat />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText('No messages yet.')).toBeInTheDocument();
+    fireEvent.change(screen.getByPlaceholderText('Say what you want...'), {
+      target: { value: 'only once' },
+    });
+    const sendButton = screen.getByRole('button', { name: 'Send message' });
+
+    act(() => {
+      sendButton.click();
+      sendButton.click();
+    });
+
+    expect(createMessage).toHaveBeenCalledTimes(1);
+    expect(screen.getAllByText('only once').filter((element) => element.classList.contains('rounded-[22px]'))).toHaveLength(1);
+    expect(sendButton).toBeDisabled();
+
+    await act(async () => {
+      resolveSend({
+        id: 'msg-1',
+        userId: 'user-1',
+        content: 'only once',
+        timestamp: '2026-04-29T12:00:00.000Z',
+      });
+    });
+    expect(screen.getAllByText('only once').filter((element) => element.classList.contains('rounded-[22px]'))).toHaveLength(1);
   });
 
   it('does not show suggested reply chips or a quick-reply action', async () => {

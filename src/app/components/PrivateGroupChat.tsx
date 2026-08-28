@@ -255,6 +255,7 @@ export default function PrivateGroupChat({ conversationId }: { conversationId?: 
   const [composerErrorCode, setComposerErrorCode] = useState<string | null>(null);
   const [photoUploadNotice, setPhotoUploadNotice] = useState<string | null>(null);
   const [photoUploading, setPhotoUploading] = useState(false);
+  const [textMessageSending, setTextMessageSending] = useState(false);
   const [photoViewOnce, setPhotoViewOnce] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsSaving, setSettingsSaving] = useState(false);
@@ -278,6 +279,7 @@ export default function PrivateGroupChat({ conversationId }: { conversationId?: 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const favoriteFileInputRef = useRef<HTMLInputElement | null>(null);
   const settingsPanelRef = useRef<HTMLElement | null>(null);
+  const textMessageSendingRef = useRef(false);
 
   useEffect(() => addDlModeChangedListener(setDlModeActive), []);
 
@@ -786,7 +788,10 @@ export default function PrivateGroupChat({ conversationId }: { conversationId?: 
   };
 
   const handleSend = async () => {
-    if (!normalizedComposerMessage || !chatId || !conversation || composerDisabled) return;
+    if (!normalizedComposerMessage || !chatId || !conversation || composerDisabled || textMessageSendingRef.current) return;
+
+    textMessageSendingRef.current = true;
+    setTextMessageSending(true);
 
     const optimisticId = `local-${Date.now()}`;
     const optimisticMessage: ChatMessageRecord = {
@@ -822,6 +827,9 @@ export default function PrivateGroupChat({ conversationId }: { conversationId?: 
         setComposerError(textError.message);
         setComposerErrorCode(textError.code);
       }
+    } finally {
+      textMessageSendingRef.current = false;
+      setTextMessageSending(false);
     }
   };
 
@@ -1663,7 +1671,7 @@ export default function PrivateGroupChat({ conversationId }: { conversationId?: 
                     value={message}
                     onChange={(event) => setMessage(event.target.value)}
                     onKeyDown={(event) => {
-                      if (event.key === 'Enter' && !event.shiftKey && !composerDisabled) {
+                      if (event.key === 'Enter' && !event.shiftKey && !composerDisabled && !textMessageSending) {
                         event.preventDefault();
                         void handleSend();
                       }
@@ -1696,7 +1704,7 @@ export default function PrivateGroupChat({ conversationId }: { conversationId?: 
                     </Button>
                     <Button
                       onClick={() => void handleSend()}
-                      disabled={!canSendMessage || composerDisabled}
+                      disabled={!canSendMessage || composerDisabled || textMessageSending}
                       size="icon"
                       className="rounded-full"
                       aria-label="Send message"
