@@ -725,6 +725,18 @@ export default function MapHome(_props: MapHomeProps = {}) {
     };
   }, [luckySlot, selectedUser, usesFullPageProfile]);
 
+  useEffect(() => {
+    if (typeof document === 'undefined') {
+      return;
+    }
+
+    document.documentElement.setAttribute('data-cruush-map-route', 'open');
+
+    return () => {
+      document.documentElement.removeAttribute('data-cruush-map-route');
+    };
+  }, []);
+
 
   const syncApproximateMapLocation = (
     approximateLocation: ApproximateCoordinates,
@@ -2136,7 +2148,6 @@ export default function MapHome(_props: MapHomeProps = {}) {
         width: `${mobileVisualViewportBounds.width}px`,
       } : undefined}
     >
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-20 h-44 bg-gradient-to-b from-background/90 via-background/45 to-transparent" />
       <div
         className="pointer-events-none absolute inset-x-0 top-0 z-[60] px-2 pb-10 pt-2 sm:px-3 sm:pt-3"
         data-testid="map-top-chrome"
@@ -2380,7 +2391,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
 
         {selectedEvent ? (
           <div
-            className={`pointer-events-auto absolute z-[45] rounded-xl border border-white/10 bg-black/88 p-4 text-white shadow-[0_24px_80px_rgba(0,0,0,0.55)] backdrop-blur-xl ${
+            className={`pointer-events-auto absolute z-20 rounded-xl border border-white/10 bg-black/88 p-4 text-white shadow-[0_24px_80px_rgba(0,0,0,0.55)] backdrop-blur-xl ${
               isMobile
                 ? 'bottom-[calc(6.25rem+env(safe-area-inset-bottom))] left-3 right-3'
                 : 'left-4 top-[8.75rem] w-[22rem]'

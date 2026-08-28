@@ -50,7 +50,8 @@ import {
   locationPayloadToCoordinates,
   describeGhostRotation,
   makeDisplayLocationToken,
-  type DisplayMode
+  type DisplayMode,
+  type VisibilityBaseMode
 } from "../location-privacy.js";
 
 const cruushActivityParamsSchema = z.object({
@@ -215,6 +216,8 @@ type MutualCruushRow = {
   precise_location_visibility: "none" | "mutual_cruushes" | null;
   can_message: boolean | null;
   can_reveal_precise_location: boolean | null;
+  target_base_mode: VisibilityBaseMode;
+  target_dark_room_distance_label: boolean;
 };
 
 type CurrentProfileLocationRow = {
@@ -765,7 +768,9 @@ async function loadMutualCruushRows(app: FastifyInstance, userId: string) {
       ghost_mode_enabled: profile.ghost_mode_enabled,
       precise_location_visibility: profile.precise_location_visibility,
       can_message: relationship.canMessage,
-      can_reveal_precise_location: relationship.canRevealPreciseLocation
+      can_reveal_precise_location: relationship.canRevealPreciseLocation,
+      target_base_mode: relationship.targetBaseMode,
+      target_dark_room_distance_label: relationship.targetDarkRoomDistanceLabel
     };
   }));
 
@@ -939,7 +944,9 @@ function mapMutualCruushRow(
     }),
     mutualCrowds: sharedCrowds,
     vibes,
-    distance: formatMaybeDistance(options.currentCoordinates, coordinates),
+    distance: row.target_base_mode === "STEALTH" && row.target_dark_room_distance_label
+      ? "Dark Room"
+      : formatMaybeDistance(options.currentCoordinates, coordinates),
     lastActive: formatLastActiveFromDate(row.updated_at),
     canMessage: row.can_message === true,
     canRevealPreciseLocation: preciseAllowed,

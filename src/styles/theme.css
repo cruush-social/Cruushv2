@@ -189,18 +189,37 @@ html[data-cruush-alpha-bug-corner='top-right'] header.sticky.top-0[data-testid='
   padding-right: 0 !important;
 }
 
-@media (min-width: 1120px) and (min-height: 720px) {
-  html[data-cruush-map-profile-panel='open'] .cruush-map-top-actions {
-    width: min(52rem, calc(100vw - 34rem));
-    max-width: none;
-    flex: none;
-    margin-left: auto;
-    margin-right: 4.75rem;
-  }
+:root {
+  --cruush-map-top-clearance: 4.625rem;
+}
 
+@media (min-width: 640px) {
+  :root {
+    --cruush-map-top-clearance: 5.375rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --cruush-map-top-clearance: 5.625rem;
+  }
+}
+
+@media (min-width: 1120px) and (min-height: 720px) {
   html[data-cruush-map-profile-panel='open'] .cruush-bottom-nav-pill {
     transform: translateX(8rem);
   }
+}
+
+html[data-cruush-map-route='open'] [data-slot='dialog-overlay'] {
+  top: var(--cruush-map-top-clearance) !important;
+  z-index: 40 !important;
+}
+
+html[data-cruush-map-route='open'] [data-slot='dialog-content'] {
+  top: calc(var(--cruush-map-top-clearance) + ((100dvh - var(--cruush-map-top-clearance)) / 2)) !important;
+  max-height: calc(100dvh - var(--cruush-map-top-clearance) - 0.75rem) !important;
+  z-index: 40 !important;
 }
 
 html[data-cruush-alpha-bug-corner='top-right'] [data-testid='accessibility-quick-access'] {

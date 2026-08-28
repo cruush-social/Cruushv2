@@ -24,6 +24,7 @@ import { openConversationOrInbox } from '../lib/openConversation';
 import { emptyProfilePayload, getMyProfile, getProfileById, type ProfileRecord } from '../lib/profileApi';
 import mapIconWhite from '../assets/ui-icons/map-white.png';
 import sendIconWhite from '../assets/ui-icons/send-white.png';
+import DarkRoomMark from './DarkRoomMark';
 
 interface MapProfilePopupProps {
   user: any;
@@ -124,6 +125,7 @@ export default function MapProfilePopup({
   }, [fullProfile, user.distance, user.lastActive]);
 
   const canRevealPreciseLocation = fullProfile?.viewer_relationship?.can_reveal_precise_location === true;
+  const targetInDarkRoom = fullProfile?.viewer_relationship?.location_mode === 'STEALTH';
   const displayName = profileView?.name ?? user.name;
   const displayAge = profileView?.age ?? user.age;
   const displayPronouns = profileView?.pronouns ?? user.pronouns;
@@ -400,11 +402,13 @@ export default function MapProfilePopup({
                 type="button"
                 className="h-12 w-12 rounded-2xl border-0 px-0 text-white"
                 style={{ background: 'var(--cruush-gradient)' }}
-                aria-label={`Center the map on ${displayName}`}
-                title={`Center the map on ${displayName}`}
-                onClick={() => navigate('/map', { state: { focusUserId: user.id } })}
+                aria-label={targetInDarkRoom ? `${displayName} is in Dark Room` : `Center the map on ${displayName}`}
+                title={targetInDarkRoom ? 'Dark Room' : `Center the map on ${displayName}`}
+                onClick={targetInDarkRoom ? undefined : () => navigate('/map', { state: { focusUserId: user.id } })}
               >
-                <CruushIconImage src={mapIconWhite} className="h-5 w-5" />
+                {targetInDarkRoom
+                  ? <DarkRoomMark active className="h-5 w-5" />
+                  : <CruushIconImage src={mapIconWhite} className="h-5 w-5" />}
               </Button>
             ) : null}
 

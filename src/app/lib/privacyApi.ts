@@ -16,6 +16,7 @@ export type PrivacySettings = {
   ghostRadiusLabel: string;
   preciseToMutualCruushes: boolean;
   preciseToMutualCrowds: CrowdPrecisionPolicy[];
+  darkRoomDistanceLabel?: boolean;
   preciseLocationVisibility: 'none' | 'mutual_cruushes';
   updatedAtMs: number;
   ghostRotationExpiresAtMs?: number | null;
@@ -29,6 +30,7 @@ export type PrivacySettingsUpdate = Pick<
   | 'preciseToMutualCruushes'
   | 'preciseToMutualCrowds'
   | 'preciseLocationVisibility'
+  | 'darkRoomDistanceLabel'
 >;
 
 export const DEFAULT_PRIVACY_SETTINGS: PrivacySettings = {
@@ -39,6 +41,7 @@ export const DEFAULT_PRIVACY_SETTINGS: PrivacySettings = {
   preciseToMutualCruushes: false,
   preciseToMutualCrowds: [],
   preciseLocationVisibility: 'none',
+  darkRoomDistanceLabel: false,
   updatedAtMs: 0,
 };
 
@@ -133,6 +136,7 @@ function toPrivacySettingsUpdate(settings: PrivacySettings): PrivacySettingsUpda
     preciseToMutualCruushes: settings.preciseToMutualCruushes,
     preciseToMutualCrowds: settings.preciseToMutualCrowds,
     preciseLocationVisibility: settings.preciseLocationVisibility,
+    darkRoomDistanceLabel: settings.darkRoomDistanceLabel,
   };
 }
 

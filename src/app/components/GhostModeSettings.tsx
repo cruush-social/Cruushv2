@@ -59,6 +59,7 @@ export default function GhostModeSettings() {
     preciseToMutualCruushes: settings.preciseToMutualCruushes ?? settings.preciseLocationVisibility === 'mutual_cruushes',
     preciseLocationVisibility: settings.preciseLocationVisibility ?? (settings.preciseToMutualCruushes ? 'mutual_cruushes' : 'none'),
     preciseToMutualCrowds: settings.preciseToMutualCrowds ?? [],
+    darkRoomDistanceLabel: settings.darkRoomDistanceLabel === true,
     updatedAtMs: settings.updatedAtMs ?? 0,
     ghostRotationExpiresAtMs: settings.ghostRotationExpiresAtMs ?? null,
   });
@@ -341,6 +342,25 @@ export default function GhostModeSettings() {
                 </Button>
               )}
             </div>
+            {privacySettings.baseMode === 'STEALTH' ? (
+              <div className="mt-4 flex items-center justify-between gap-4 border-t border-white/10 pt-4">
+                <div>
+                  <p>Show Dark Room instead of distance</p>
+                  <p className="text-sm text-muted-foreground">Profiles and cruushes show Dark Room where your distance would appear.</p>
+                </div>
+                <Switch
+                  aria-label="Show Dark Room instead of distance"
+                  checked={privacySettings.darkRoomDistanceLabel}
+                  disabled={privacyStatus === 'loading' || privacyStatus === 'saving'}
+                  onCheckedChange={(enabled) => {
+                    void persistPrivacySettings({
+                      ...privacySettings,
+                      darkRoomDistanceLabel: enabled === true,
+                    });
+                  }}
+                />
+              </div>
+            ) : null}
           </div>
 
           <div className="space-y-3 rounded-lg border border-white/10 bg-white/[0.025] p-4">

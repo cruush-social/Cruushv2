@@ -36,6 +36,7 @@ export type VisibilityPolicyPayload = {
   ghostRadiusMeters: number | null;
   preciseToMutualCruushes: boolean;
   preciseToMutualCrowds: CrowdPrecisionPolicy[];
+  darkRoomDistanceLabel?: boolean;
   auditRequired: boolean;
   updatedAtMs: number;
   expiresAtMs: number | null;
@@ -427,6 +428,7 @@ export function buildDefaultVisibilityPolicy(
     ghostRadiusMeters: DEFAULT_GHOST_RADIUS_METERS,
     preciseToMutualCruushes: false,
     preciseToMutualCrowds: [],
+    darkRoomDistanceLabel: false,
     auditRequired: false,
     updatedAtMs: nowMs,
     expiresAtMs: null,
@@ -459,6 +461,7 @@ function buildFailClosedVisibilityPolicy(
     ghostSessionVersion: null,
     preciseToMutualCruushes: false,
     preciseToMutualCrowds: [],
+    darkRoomDistanceLabel: false,
     auditRequired: true
   };
 }
@@ -510,6 +513,7 @@ export function normalizeVisibilityPolicy(
     ghostRadiusMeters: input.ghostRadiusMeters ?? previous.ghostRadiusMeters ?? DEFAULT_GHOST_RADIUS_METERS,
     preciseToMutualCruushes,
     preciseToMutualCrowds: normalizeCrowdPrecisionPolicies(input.preciseToMutualCrowds ?? previous.preciseToMutualCrowds),
+    darkRoomDistanceLabel: input.darkRoomDistanceLabel ?? previous.darkRoomDistanceLabel === true,
     auditRequired: input.auditRequired ?? previous.auditRequired,
     updatedAtMs: nowMs,
     expiresAtMs: input.expiresAtMs ?? previous.expiresAtMs,
@@ -533,6 +537,7 @@ export function publicPrivacySettings(policy: VisibilityPolicyPayload, nowMs = D
     ghostRadiusLabel: radiusLabelForMeters(policy.ghostRadiusMeters ?? DEFAULT_GHOST_RADIUS_METERS),
     preciseToMutualCruushes: policy.preciseToMutualCruushes,
     preciseToMutualCrowds: normalizeCrowdPrecisionPolicies(policy.preciseToMutualCrowds),
+    darkRoomDistanceLabel: policy.darkRoomDistanceLabel === true,
     preciseLocationVisibility: policy.preciseToMutualCruushes ? "mutual_cruushes" as const : "none" as const,
     updatedAtMs: policy.updatedAtMs
   };

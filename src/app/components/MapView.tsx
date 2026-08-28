@@ -1323,7 +1323,8 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
   const [dlModeActive, setDlModeActive] = useState(() => isDlModeEnabled());
   useEffect(() => addDlModeChangedListener(setDlModeActive), []);
 
-  const showPhoto = Boolean(marker.photo && !shouldMaskPhoto(dlModeActive, marker.photoExplicit));
+  const isOwnStealthMarker = isCurrentUser && marker.ownerStealthActive === true;
+  const showPhoto = Boolean(!isOwnStealthMarker && marker.photo && !shouldMaskPhoto(dlModeActive, marker.photoExplicit));
   const resolvedPhoto = showPhoto && marker.photo ? resolveMediaUrl(marker.photo) : null;
   const hasPhoto = Boolean(resolvedPhoto);
   const gradientId = `marker-fill-${marker.id}`;
@@ -1331,12 +1332,13 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
   const isMutualCruush = marker.relationship?.kind === 'mutual_cruush';
   const isNpcGhostDemo = marker.npcGhostDemo === true;
   const isOwnGhostMarker = isCurrentUser && marker.displayMode === 'GHOST';
-  const isOwnStealthMarker = isCurrentUser && marker.ownerStealthActive === true;
   const pingActive = Boolean(marker.activePing);
   const theme = isCurrentUser || isNpcGhostDemo ? 'current' : isMutualCruush ? 'mutual' : 'nearby';
   const markerTheme = HEART_PIN_THEMES[theme];
   const borderColor = pingActive ? '#C8FF31' : isOwnStealthMarker || isOwnGhostMarker || isNpcGhostDemo ? '#0BA8FF' : markerTheme.border;
-  const gradientStops = isNpcGhostDemo
+  const gradientStops = isOwnStealthMarker
+    ? ['#ff0072', '#6f00ff', '#3826ff', '#1181ff']
+    : isNpcGhostDemo
     ? HEART_PIN_THEMES.ghost.stops
     : hasPhoto || isCurrentUser
     ? markerTheme.stops
@@ -1344,7 +1346,7 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
   const gradientOffsets = gradientStops.length === 4
     ? ['6%', '53%', '81%', '100%']
     : ['0%', '52%', '100%'];
-  const borderPaint = borderColor;
+  const borderPaint = isOwnStealthMarker ? `url(#${gradientId})` : borderColor;
   const borderStyle = { stroke: `var(--cruush-ghost-flash-border-color, ${borderColor})` } as CSSProperties;
   const fillPaint = isNpcGhostDemo ? '#0BA8FF' : `url(#${gradientId})`;
 
@@ -1371,7 +1373,30 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
           <path d={HEART_PIN_PATH} />
         </clipPath>
       </defs>
-      {hasPhoto ? (
+      {isOwnStealthMarker ? (
+        <>
+          <path
+            d={HEART_PIN_PATH}
+            data-testid={`marker-ghost-border-${marker.id}`}
+            fill={fillPaint}
+            fillOpacity={1}
+            stroke={borderPaint}
+            strokeWidth={3.2}
+          />
+          <g data-testid={`marker-dark-room-keyhole-${marker.id}`} transform="translate(9 6) scale(0.18)">
+            <path
+              d="M128,66 A44,44 0 0 0 107,148 L94,198 A7,7 0 0 0 101,206 H155 A7,7 0 0 0 162,198 L149,148 A44,44 0 0 0 128,66 Z"
+              fill="rgba(0,0,0,0.9)"
+            />
+            <path
+              clipRule="evenodd"
+              d="M96,110 C106,92 150,92 160,110 C150,128 106,128 96,110 Z M128,98 A12,12 0 1 0 128,122 A12,12 0 1 0 128,98 Z"
+              fill={fillPaint}
+              fillRule="evenodd"
+            />
+          </g>
+        </>
+      ) : hasPhoto ? (
         <>
           <image
             className="cruush-ghost-rotation-heart-photo"

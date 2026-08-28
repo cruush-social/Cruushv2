@@ -84,6 +84,7 @@ const ghostModePayloadSchema = z.object({
   preciseToMutualCruushes: z.boolean().optional(),
   preciseLocationVisibility: z.enum(["none", "mutual_cruushes"]).optional(),
   preciseToMutualCrowds: z.array(crowdPrecisionPolicySchema).max(3).optional(),
+  darkRoomDistanceLabel: z.boolean().optional(),
   updatedAtMs: z.number().int().optional()
 }).strict().superRefine((payload, ctx) => {
   if (
@@ -237,6 +238,7 @@ export async function registerPrivacyRoutes(app: FastifyInstance) {
             ghostRadiusMeters: legacy.ghostRadiusMeters,
             preciseToMutualCruushes: legacy.preciseToMutualCruushes,
             preciseToMutualCrowds: [],
+            darkRoomDistanceLabel: false,
             auditRequired: false,
             updatedAtMs: legacy.updatedAtMs,
             expiresAtMs: null,
@@ -288,6 +290,7 @@ export async function registerPrivacyRoutes(app: FastifyInstance) {
       ghostRadiusMeters: payload.ghostRadiusMeters ?? radiusMetersForLabel(radiusLabel),
       preciseToMutualCruushes,
       preciseToMutualCrowds,
+      darkRoomDistanceLabel: payload.darkRoomDistanceLabel === true,
       preciseLocationVisibility: preciseToMutualCruushes ? "mutual_cruushes" as const : "none" as const
     };
     const savedPolicy = await runTransaction(app.db, async (db) => {

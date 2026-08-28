@@ -237,7 +237,15 @@ function getMessageSender(
     : null;
 }
 
-export default function PrivateGroupChat({ conversationId }: { conversationId?: string } = {}) {
+export default function PrivateGroupChat({
+  conversationId,
+  embedded = false,
+  onClose,
+}: {
+  conversationId?: string;
+  embedded?: boolean;
+  onClose?: () => void;
+} = {}) {
   const params = useParams();
   // The dock renders this thread without a route of its own.
   const chatId = conversationId ?? params.chatId;
@@ -911,11 +919,11 @@ export default function PrivateGroupChat({ conversationId }: { conversationId?: 
   } as CSSProperties;
 
   return (
-    <div data-testid="private-group-chat-screen" className="relative min-h-screen max-w-full overflow-x-clip bg-background pb-20">
+    <div data-testid="private-group-chat-screen" className={`relative max-w-full overflow-x-clip bg-background pb-20 ${embedded ? 'min-h-full' : 'min-h-screen'}`}>
       <header data-testid="chat-thread-header" className="sticky top-0 z-40 border-b border-border bg-background/88 px-3 py-4 backdrop-blur-md sm:px-4">
         <div className="mx-auto flex w-full max-w-2xl items-center justify-between gap-3 sm:gap-4">
           <div className="flex min-w-0 flex-1 items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => navigate(-1)} aria-label="Back to messages">
+            <Button variant="ghost" size="icon" onClick={() => embedded ? onClose?.() : navigate(-1)} aria-label={embedded ? 'Close messages' : 'Back to messages'}>
               <ArrowLeft className="w-5 h-5" />
             </Button>
 
@@ -993,6 +1001,11 @@ export default function PrivateGroupChat({ conversationId }: { conversationId?: 
             >
               <MoreHorizontal className="w-5 h-5" />
             </Button>
+            {embedded ? (
+              <Button type="button" variant="ghost" size="icon" aria-label="Close messages" onClick={onClose}>
+                <X className="h-5 w-5" />
+              </Button>
+            ) : null}
           </div>
         </div>
       </header>

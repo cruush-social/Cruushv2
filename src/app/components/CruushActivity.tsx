@@ -454,7 +454,7 @@ function ViewRow({
   );
 }
 
-export default function CruushActivity({ embedded = false }: { embedded?: boolean } = {}) {
+export default function CruushActivity({ embedded = false, onClose }: { embedded?: boolean; onClose?: () => void } = {}) {
   const navigate = useNavigate();
   const [activity, setActivity] = useState<CruushActivity | null>(null);
   const [activeTab, setActiveTab] = useState<ActivityTab>('incoming');
@@ -609,7 +609,7 @@ export default function CruushActivity({ embedded = false }: { embedded?: boolea
       <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as ActivityTab)}>
         <header data-testid="cruush-activity-header" className="sticky top-0 z-20 border-b border-white/10 bg-black/88 px-4 pb-4 pt-4 shadow-[0_20px_55px_rgba(0,0,0,0.34)] backdrop-blur-xl">
           <div className="w-full space-y-4">
-            <div className="flex min-w-0 items-center gap-2 pr-[3.5rem]">
+            <div className="flex min-w-0 items-center gap-2">
               <div className="flex shrink-0 items-center justify-start">
                 <Button
                   type="button"
@@ -618,7 +618,7 @@ export default function CruushActivity({ embedded = false }: { embedded?: boolea
                   className="rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10"
                   aria-label="Back"
                   title="Back"
-                  onClick={() => navigate(-1)}
+                  onClick={() => embedded && onClose ? onClose() : navigate(-1)}
                 >
                   <ArrowLeft className="h-4 w-4" />
                 </Button>
@@ -648,6 +648,11 @@ export default function CruushActivity({ embedded = false }: { embedded?: boolea
                     <CruushMatchSettings embedded />
                   </DialogContent>
                 </Dialog>
+                {embedded && onClose ? (
+                  <Button type="button" variant="secondary" size="icon" className="rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10" aria-label="Close Cruushes" onClick={onClose}>
+                    <X className="h-4 w-4" />
+                  </Button>
+                ) : null}
               </div>
             </div>
 

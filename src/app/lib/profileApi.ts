@@ -114,6 +114,8 @@ export type ProfileRecord = ProfilePayload & {
     outgoing_cruush?: boolean;
     can_message: boolean;
     can_reveal_precise_location: boolean;
+    location_mode?: 'PUBLIC_PRECISE' | 'GHOST' | 'STEALTH';
+    dark_room_distance_label?: boolean;
   };
 };
 

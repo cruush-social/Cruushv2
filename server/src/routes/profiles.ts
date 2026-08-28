@@ -109,6 +109,7 @@ const privacySettingsPayloadSchema = z.object({
   preciseToMutualCruushes: z.boolean().optional(),
   preciseToMutualCrowds: z.array(crowdPrecisionPolicySchema).max(3).optional(),
   preciseLocationVisibility: z.enum(["none", "mutual_cruushes"]).optional(),
+  darkRoomDistanceLabel: z.boolean().optional(),
   updatedAtMs: z.number().int().optional()
 }).strict().superRefine((payload, ctx) => {
   if (
@@ -560,7 +561,9 @@ function mapProfileRow(
         mutual_cruush: options.relationship.isMutualCruush,
         outgoing_cruush: options.relationship.hasOutgoingCruush,
         can_message: options.canMessage ?? options.relationship.canMessage,
-        can_reveal_precise_location: options.relationship.canRevealPreciseLocation
+        can_reveal_precise_location: options.relationship.canRevealPreciseLocation,
+        location_mode: options.relationship.targetBaseMode,
+        dark_room_distance_label: options.relationship.targetDarkRoomDistanceLabel
       }
     } : {})
   };
@@ -1438,6 +1441,7 @@ export async function registerProfileRoutes(app: FastifyInstance) {
           ghostRadiusMeters: legacy.ghostRadiusMeters,
           preciseToMutualCruushes: legacy.preciseToMutualCruushes,
           preciseToMutualCrowds: [],
+          darkRoomDistanceLabel: false,
           auditRequired: false,
           updatedAtMs: legacy.updatedAtMs,
           expiresAtMs: null,
@@ -1480,6 +1484,7 @@ export async function registerProfileRoutes(app: FastifyInstance) {
       ghostRadiusMeters: payload.ghostRadiusMeters ?? radiusMetersForLabel(payload.ghostRadiusLabel),
       preciseToMutualCruushes,
       preciseToMutualCrowds,
+      darkRoomDistanceLabel: payload.darkRoomDistanceLabel === true,
       preciseLocationVisibility: preciseToMutualCruushes ? "mutual_cruushes" as const : "none" as const
     };
     const savedPolicy = await runTransaction(app.db, async (db) => {

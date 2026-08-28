@@ -38,6 +38,7 @@ import { getMyCruushActivity } from '../lib/cruushApi';
 import { CROWDS, normalizeCrowdValues } from '../lib/profileOptions';
 import { getCurrentUserId } from '../lib/sessionUser';
 import partyHatIcon from '../assets/ui-icons/party-hat.svg';
+import { registerBugButtonSlot } from '../lib/bugButtonSlot';
 
 function formatRelativeTime(isoTimestamp: string) {
   const now = Date.now();
@@ -119,7 +120,7 @@ function profileFeedCoordinates(profile: ProfileRecord): FeedCoordinates | null 
     : null;
 }
 
-export default function LocalFeed({ embedded = false }: { embedded?: boolean } = {}) {
+export default function LocalFeed({ embedded = false, onClose }: { embedded?: boolean; onClose?: () => void } = {}) {
   const navigate = useNavigate();
   const location = useLocation();
   const [newPost, setNewPost] = useState('');
@@ -496,7 +497,7 @@ export default function LocalFeed({ embedded = false }: { embedded?: boolean } =
       data-testid="local-feed-screen"
     >
       <header
-        className="sticky top-0 z-40 flex shrink-0 items-center gap-3 border-b border-white/10 bg-black/88 pl-4 pr-[calc(3.75rem+env(safe-area-inset-right))] pb-3 pt-[calc(0.75rem+env(safe-area-inset-top))] shadow-[0_20px_55px_rgba(0,0,0,0.34)] backdrop-blur-xl"
+        className="sticky top-0 z-40 flex shrink-0 items-center gap-2 border-b border-white/10 bg-black/88 px-4 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top))] shadow-[0_20px_55px_rgba(0,0,0,0.34)] backdrop-blur-xl"
         data-testid="local-feed-header"
       >
         <Button
@@ -506,13 +507,15 @@ export default function LocalFeed({ embedded = false }: { embedded?: boolean } =
           className="rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10"
           aria-label="Back"
           title="Back"
-          onClick={() => navigate(-1)}
+          onClick={() => embedded && onClose ? onClose() : navigate(-1)}
         >
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div className="min-w-0 flex-1 text-center">
           <h2 className="text-2xl text-white sm:text-3xl">Feed</h2>
         </div>
+        <div className="flex shrink-0 items-center gap-2">
+        <div className="h-10 w-10" data-testid="local-feed-bug-button-slot" ref={registerBugButtonSlot} />
         <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
           <DialogTrigger asChild>
             <Button
@@ -709,6 +712,12 @@ export default function LocalFeed({ embedded = false }: { embedded?: boolean } =
             </div>
           </DialogContent>
         </Dialog>
+        {embedded && onClose ? (
+          <Button type="button" variant="secondary" size="icon" className="rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10" aria-label="Close Feed" onClick={onClose}>
+            <X className="h-4 w-4" />
+          </Button>
+        ) : null}
+        </div>
       </header>
 
       <div className="mx-auto flex min-h-0 w-full max-w-2xl flex-1 flex-col overflow-hidden px-3 pt-4" data-testid="local-feed-content">

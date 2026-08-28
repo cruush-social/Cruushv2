@@ -11,6 +11,7 @@ import ReportAction from './ReportAction';
 import CruushBadge from './CruushBadge';
 import CruushIconImage, { CruushIcon } from './CruushIconImage';
 import mapIconWhite from '../assets/ui-icons/map-white.png';
+import DarkRoomMark from './DarkRoomMark';
 import { resolveVibeTone, vibeCapsuleStyle } from '../lib/vibeTone';
 import ProfilePhotoGallery from './ProfilePhotoGallery';
 import { revokeMutualCruush, revokeSentCruush, sendCruush } from '../lib/cruushApi';
@@ -134,6 +135,8 @@ function removeViewerCruush(profile: ProfileRecord, mutualRevoked: boolean): Pro
       outgoing_cruush: false,
       can_message: mutualRevoked ? false : relationship?.can_message ?? false,
       can_reveal_precise_location: mutualRevoked ? false : relationship?.can_reveal_precise_location ?? false,
+      location_mode: relationship?.location_mode,
+      dark_room_distance_label: relationship?.dark_room_distance_label,
     },
   };
 }
@@ -335,6 +338,10 @@ export default function ProfileView() {
   const canMessage = profileView?.relationship?.can_message !== false;
   const hasRevocableCruush = isAlreadyMutual || hasSentCruush;
   const canCenterPin = profileView?.relationship?.can_reveal_precise_location === true;
+  const targetInDarkRoom = profileView?.relationship?.location_mode === 'STEALTH';
+  const displayedDistance = targetInDarkRoom && profileView?.relationship?.dark_room_distance_label
+    ? 'Dark Room'
+    : profileView?.distance;
   const cruushDisabled = sendingCruush || revokingCruush;
   const heartTheme = isOwnProfile ? 'current' : isAlreadyMutual ? 'mutual' : 'nearby';
 
@@ -543,10 +550,12 @@ export default function ProfileView() {
             ) : null}
           </h1>
           <p className="mt-1 text-sm text-white" style={PROFILE_OVERLAY_TEXT_STYLE}>{profileView.pronouns}</p>
-          {profileView.distance ? (
+          {displayedDistance ? (
             <div className="mt-1 flex items-center gap-2 text-sm text-white" style={PROFILE_OVERLAY_TEXT_STYLE}>
-              <CruushIcon name="map" className="h-4 w-4" />
-              <span>{formatDistanceLabel(profileView.distance, distancePreferences.mode)} away</span>
+              {displayedDistance === 'Dark Room'
+                ? <DarkRoomMark active className="h-4 w-4" />
+                : <CruushIcon name="map" className="h-4 w-4" />}
+              <span>{displayedDistance === 'Dark Room' ? displayedDistance : `${formatDistanceLabel(displayedDistance, distancePreferences.mode)} away`}</span>
               {profileView.lastActive ? <span>• {profileView.lastActive}</span> : null}
             </div>
           ) : null}
@@ -623,11 +632,13 @@ export default function ProfileView() {
                   size="icon"
                   className="size-11 shrink-0 rounded-xl border-0 text-white transition hover:brightness-110"
                   style={{ background: 'var(--cruush-gradient)' }}
-                  aria-label={`Center the map on ${profileView.name}`}
-                  title={`Center the map on ${profileView.name}`}
-                  onClick={() => navigate('/map', { state: { focusUserId: profileView.id } })}
+                  aria-label={targetInDarkRoom ? `${profileView.name} is in Dark Room` : `Center the map on ${profileView.name}`}
+                  title={targetInDarkRoom ? 'Dark Room' : `Center the map on ${profileView.name}`}
+                  onClick={targetInDarkRoom ? undefined : () => navigate('/map', { state: { focusUserId: profileView.id } })}
                 >
-                  <CruushIconImage src={mapIconWhite} className="h-5 w-5" />
+                  {targetInDarkRoom
+                    ? <DarkRoomMark active className="h-5 w-5" />
+                    : <CruushIconImage src={mapIconWhite} className="h-5 w-5" />}
                 </Button>
               ) : null}
             </div>

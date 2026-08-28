@@ -172,7 +172,7 @@ export default function MapPingSheet({
   }, [nextEligibleTimestamp, onRefresh, open]);
 
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
-  const dragStateRef = useRef<{ pointerId: number; originX: number; originY: number; start: { x: number; y: number } } | null>(null);
+  const dragStateRef = useRef<{ pointerId: number; originX: number; originY: number; start: { x: number; y: number }; sheetTop: number; topClearance: number } | null>(null);
 
   const beginDrag = (event: ReactPointerEvent<HTMLElement>) => {
     if (event.button !== 0) {
@@ -180,11 +180,16 @@ export default function MapPingSheet({
     }
 
     event.currentTarget.setPointerCapture(event.pointerId);
+    const sheet = event.currentTarget.closest('[data-testid="map-ping-sheet"]');
+    const rootStyle = window.getComputedStyle(document.documentElement);
+    const topClearance = Number.parseFloat(rootStyle.getPropertyValue('--cruush-map-top-clearance')) || 90;
     dragStateRef.current = {
       pointerId: event.pointerId,
       originX: event.clientX,
       originY: event.clientY,
       start: dragOffset,
+      sheetTop: sheet?.getBoundingClientRect().top ?? topClearance,
+      topClearance,
     };
   };
 
@@ -195,9 +200,11 @@ export default function MapPingSheet({
       return;
     }
 
+    const nextY = dragState.start.y + (event.clientY - dragState.originY);
+    const minimumY = dragState.start.y - Math.max(0, dragState.sheetTop - dragState.topClearance);
     setDragOffset({
       x: dragState.start.x + (event.clientX - dragState.originX),
-      y: dragState.start.y + (event.clientY - dragState.originY),
+      y: Math.max(minimumY, nextY),
     });
   };
 
@@ -232,12 +239,14 @@ export default function MapPingSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="bottom"
-        className="z-[80] flex max-h-[calc(100dvh-7.25rem)] flex-col overflow-hidden rounded-2xl border border-white/10 bg-background/96 pb-3 backdrop-blur-xl sm:left-1/2 sm:max-w-lg"
+        overlayClassName="!z-[24]"
+        className="!z-[25] flex flex-col overflow-hidden rounded-2xl border border-white/10 bg-background/96 pb-3 backdrop-blur-xl sm:left-1/2 sm:max-w-lg"
         data-testid="map-ping-sheet"
         style={{
           // The sheet always opens just above the bottom nav, and stays where it
           // is dragged.
           bottom: `calc(6.25rem + env(safe-area-inset-bottom))`,
+          maxHeight: 'calc(100dvh - var(--cruush-map-top-clearance) - 6.75rem - env(safe-area-inset-bottom))',
           top: 'auto',
           transform: `translate(calc(-50% + ${dragOffset.x}px), ${dragOffset.y}px)`,
           left: '50%',

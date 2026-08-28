@@ -33,6 +33,7 @@ export type PrivacySettings = {
   ghostRadiusLabel: string;
   preciseToMutualCruushes: boolean;
   preciseToMutualCrowds: CrowdPrecisionPolicy[];
+  darkRoomDistanceLabel: boolean;
   preciseLocationVisibility: PreciseLocationVisibility;
   updatedAtMs: number;
 };
@@ -54,6 +55,8 @@ export type RelationshipPermissions = {
   shouldLogProfileView: boolean;
   viewerGhostMode: boolean;
   targetGhostMode: boolean;
+  targetBaseMode?: VisibilityBaseMode;
+  targetDarkRoomDistanceLabel?: boolean;
   targetPreciseLocationVisibility: PreciseLocationVisibility;
 };
 
@@ -144,6 +147,7 @@ export async function getPrivacySettings(app: FastifyInstance, userId: string): 
     ghostRadiusLabel: "1 mi",
     preciseToMutualCruushes,
     preciseToMutualCrowds: [],
+    darkRoomDistanceLabel: false,
     preciseLocationVisibility: preciseToMutualCruushes ? "mutual_cruushes" : "none",
     updatedAtMs: Date.now()
   };
@@ -186,6 +190,7 @@ function conservativePrivacySettingsFallback(): PrivacySettings {
     ghostRadiusLabel: "1 mi",
     preciseToMutualCruushes: false,
     preciseToMutualCrowds: [],
+    darkRoomDistanceLabel: false,
     preciseLocationVisibility: "none",
     updatedAtMs: Date.now()
   };
@@ -499,6 +504,8 @@ export async function getRelationshipPermissions(
       shouldLogProfileView: false,
       viewerGhostMode: viewerSettings.ghostModeEnabled,
       targetGhostMode: viewerSettings.ghostModeEnabled,
+      targetBaseMode: viewerSettings.baseMode ?? "GHOST",
+      targetDarkRoomDistanceLabel: viewerSettings.darkRoomDistanceLabel === true,
       targetPreciseLocationVisibility: viewerSettings.preciseLocationVisibility
     };
   }
@@ -536,7 +543,6 @@ export async function getRelationshipPermissions(
   const targetGhostMode = targetSettings.ghostModeEnabled;
   const preciseGrantCandidate = isMutualCruush &&
     hasActiveMatchToken &&
-    targetSettings.baseMode !== "STEALTH" &&
     targetPreciseLocationVisibility === "mutual_cruushes";
   const isRevoked = preciseGrantCandidate
     ? await isPreciseLocationRevoked(app, {
@@ -568,6 +574,8 @@ export async function getRelationshipPermissions(
     shouldLogProfileView: !blocked && !viewerGhostMode && !targetGhostMode,
     viewerGhostMode,
     targetGhostMode,
+    targetBaseMode: targetSettings.baseMode ?? "GHOST",
+    targetDarkRoomDistanceLabel: targetSettings.darkRoomDistanceLabel === true,
     targetPreciseLocationVisibility
   };
 }

@@ -227,7 +227,7 @@ function matchesMessageFilterBasics(user: DiscoveryUser, filters: FilterState) {
   return true;
 }
 
-export default function DirectMessages({ embedded = false }: { embedded?: boolean } = {}) {
+export default function DirectMessages({ embedded = false, onClose }: { embedded?: boolean; onClose?: () => void } = {}) {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [conversations, setConversations] = useState<ConversationThread[]>([]);
@@ -491,7 +491,7 @@ export default function DirectMessages({ embedded = false }: { embedded?: boolea
     <div className={embedded ? 'relative min-h-full bg-[#050505] pb-6 text-white' : 'relative min-h-screen bg-[#050505] pb-[calc(7rem+env(safe-area-inset-bottom))] text-white'}>
       <header data-testid="direct-messages-header" className="sticky top-0 z-20 border-b border-white/10 bg-black/88 pb-4 pt-4 shadow-[0_20px_55px_rgba(0,0,0,0.34)] backdrop-blur-xl">
         <div data-testid="direct-messages-header-content" className="mx-auto max-w-2xl space-y-4 px-4">
-          <div data-testid="direct-messages-header-row" className="flex items-center gap-3 pr-[3.5rem]">
+          <div data-testid="direct-messages-header-row" className="flex items-center gap-2">
             <Button
               type="button"
               size="icon"
@@ -499,7 +499,7 @@ export default function DirectMessages({ embedded = false }: { embedded?: boolea
               className="rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10"
               aria-label="Back"
               title="Back"
-              onClick={() => navigate(-1)}
+              onClick={() => embedded && onClose ? onClose() : navigate(-1)}
             >
               <ArrowLeft className="h-4 w-4" />
             </Button>
@@ -507,6 +507,7 @@ export default function DirectMessages({ embedded = false }: { embedded?: boolea
               <h1 className="text-2xl leading-none text-white sm:text-3xl">Messages</h1>
             </div>
             <div className="flex items-center gap-2">
+              <div className="h-11 w-11" data-testid="direct-messages-bug-button-slot" ref={registerBugButtonSlot} />
               <Button
                 type="button"
                 size="icon"
@@ -538,6 +539,11 @@ export default function DirectMessages({ embedded = false }: { embedded?: boolea
                   <CruushMatchSettings embedded />
                 </DialogContent>
               </Dialog>
+              {embedded && onClose ? (
+                <Button type="button" size="icon" variant="secondary" className="h-11 w-11 rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10" aria-label="Close Messages" onClick={onClose}>
+                  <X className="h-4 w-4" />
+                </Button>
+              ) : null}
             </div>
           </div>
 
