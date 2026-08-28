@@ -117,7 +117,7 @@ export default function MapPresenceSettings() {
         </div>
 
         <p className="rounded-lg border border-white/10 bg-white/[0.035] p-3 text-sm text-muted-foreground">
-          Your privacy settings keep applying while you are away. Ghost Mode still fuzzes your pin, stealth still
+          Your privacy settings keep applying while you are away. Ghost Mode still fuzzes your pin, Dark Room still
           hides you completely, and any audiences you hid yourself from stay hidden until you change them.
         </p>
 

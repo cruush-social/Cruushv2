@@ -1498,7 +1498,7 @@ describe('MapView', () => {
     expect(onPinClick).not.toHaveBeenCalled();
     expect(mapInstances[0].fitBounds).toHaveBeenCalledWith(
       [[-73.9902, 40.7128], [-73.99, 40.713]],
-      expect.objectContaining({ maxZoom: 13.5 }),
+      expect.objectContaining({ maxZoom: 12.5 }),
     );
     expect(mapInstances[0].setCenter).not.toHaveBeenCalled();
     expect(screen.getByRole('button', { name: 'Zoom into 2 nearby people on map' })).toBeInTheDocument();

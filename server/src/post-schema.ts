@@ -3,6 +3,7 @@ import { multilineTextSchema } from "./input-schema.js";
 import { normalizeCrowdOption } from "./profile-sensitive.js";
 
 export const postExpirySchema = z.enum(["1h", "6h", "24h", "7d", "never"]);
+export const feedPostAudienceSchema = z.enum(["public", "mutuals", "crowd"]);
 export const feedLocationPinVisibilitySchema = z.enum(["off", "mutuals", "same_crowd", "public"]);
 export const feedWindowSchema = z.enum(["1h", "3h", "6h", "24h", "7d"]);
 
@@ -26,14 +27,39 @@ const crowdTargetsSchema = z.array(z.string()).optional().default([])
       }
     }
 
+    if (normalizedValues.length > 1) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Choose one Crowd for this post."
+      });
+      return z.NEVER;
+    }
+
     return normalizedValues;
   });
 
 export const createPostPayloadSchema = z.object({
   content: multilineTextSchema({ min: 1, max: 1000 }),
   expiresIn: postExpirySchema.optional().default("never"),
+  audience: feedPostAudienceSchema.optional().default("public"),
   crowdTargets: crowdTargetsSchema
-}).strict();
+}).strict().superRefine((payload, ctx) => {
+  if (payload.audience === "crowd" && payload.crowdTargets.length !== 1) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["crowdTargets"],
+      message: "Choose one Crowd for this post."
+    });
+  }
+
+  if (payload.audience !== "crowd" && payload.crowdTargets.length > 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["crowdTargets"],
+      message: "Crowd targets require the Crowd audience."
+    });
+  }
+});
 
 export const updateFeedSettingsPayloadSchema = z.object({
   locationPinVisibility: feedLocationPinVisibilitySchema,
@@ -44,4 +70,5 @@ export const updateFeedSettingsPayloadSchema = z.object({
 
 export type CreatePostPayload = z.infer<typeof createPostPayloadSchema>;
 export type FeedLocationPinVisibility = z.infer<typeof feedLocationPinVisibilitySchema>;
+export type FeedPostAudience = z.infer<typeof feedPostAudienceSchema>;
 export type PostExpiry = z.infer<typeof postExpirySchema>;

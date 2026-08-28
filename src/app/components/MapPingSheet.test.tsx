@@ -120,6 +120,8 @@ describe('MapPingSheet', () => {
       '15 miles',
     ]);
     expect(onRefresh).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('map-ping-sheet')).toHaveClass('max-h-[calc(100dvh-7.25rem)]', 'overflow-hidden');
+    expect(screen.getByRole('button', { name: 'Send Pulse' }).closest('[data-slot="sheet-footer"]')).toHaveClass('shrink-0');
   });
 
   it('links a basic member with no remaining Pings to cruush+', () => {

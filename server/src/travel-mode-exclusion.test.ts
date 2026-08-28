@@ -13,12 +13,12 @@ const source = await import("node:fs").then((fs) => fs.readFileSync(privacyRoute
 describe("Travel Mode and Dark Room are mutually exclusive", () => {
   it("refuses Dark Room while a travel pin is down", () => {
     expect(source).toContain('baseMode === "STEALTH" && await loadTravelPinForMode(app, userId)');
-    expect(source).toContain("Dark Room is unavailable in Travel Mode");
+    expect(source).toContain("Dark Room is unavailable in Mile High Club");
   });
 
   it("refuses a travel pin while Dark Room is on", () => {
     expect(source).toContain('currentPolicy?.baseMode === "STEALTH"');
-    expect(source).toContain("Travel Mode is unavailable in Dark Room");
+    expect(source).toContain("Mile High Club is unavailable in Dark Room");
   });
 
   it("still allows Pulse while travelling", () => {

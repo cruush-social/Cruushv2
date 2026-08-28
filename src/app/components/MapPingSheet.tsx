@@ -35,7 +35,7 @@ type MapPingSheetProps = {
   onUpgrade?: () => void;
   /** Your own photo, so the demonstration is your pin and not a placeholder. */
   photo?: string | null;
-  /** Lurker Mode keeps you off the map, so a Pulse cannot go out. */
+  /** Dark Room keeps you off the map, so a Pulse cannot go out. */
   lurkerActive?: boolean;
 };
 
@@ -132,7 +132,7 @@ export default function MapPingSheet({
   );
   const normalizedSignal = signal?.trim() ?? '';
   // A Pulse asks people to look at you, which is the opposite of being off the
-  // map, so it stays shut while Lurker Mode is on.
+  // map, so it stays shut while Dark Room is on.
   const sendDisabled = loading || sending || !status || !hasMapLocation || activePing ||
     !normalizedSignal || status.allowance.remaining < 1 || cooldownActive || lurkerActive;
   const statusText = useMemo(() => {
@@ -232,7 +232,7 @@ export default function MapPingSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="bottom"
-        className="z-[80] max-h-[calc(100dvh-10rem)] overflow-y-auto rounded-2xl border border-white/10 bg-background/96 pb-4 backdrop-blur-xl sm:left-1/2 sm:max-w-lg"
+        className="z-[80] flex max-h-[calc(100dvh-7.25rem)] flex-col overflow-hidden rounded-2xl border border-white/10 bg-background/96 pb-3 backdrop-blur-xl sm:left-1/2 sm:max-w-lg"
         data-testid="map-ping-sheet"
         style={{
           // The sheet always opens just above the bottom nav, and stays where it
@@ -245,7 +245,7 @@ export default function MapPingSheet({
         }}
       >
         <SheetHeader
-          className="cursor-grab pr-10 active:cursor-grabbing"
+          className="shrink-0 cursor-grab pb-2 pr-10 pt-3 active:cursor-grabbing"
           data-testid="map-ping-sheet-handle"
           onPointerDown={beginDrag}
           onPointerMove={continueDrag}
@@ -253,7 +253,7 @@ export default function MapPingSheet({
           onPointerCancel={endDrag}
         >
           <div className="flex items-center gap-3">
-            <PulseLedIcon className="h-10 w-10 shrink-0 text-[#c8ff31]" />
+            <PulseLedIcon className="h-8 w-8 shrink-0 text-[#c8ff31]" />
             <div>
               <SheetTitle>Send a Pulse</SheetTitle>
               <SheetDescription>Light up your heart for people nearby.</SheetDescription>
@@ -261,12 +261,12 @@ export default function MapPingSheet({
           </div>
         </SheetHeader>
 
-        <div className="space-y-4 px-4">
-          <div className="flex items-center gap-5 rounded-xl border border-[#c8ff31]/45 bg-black/45 p-3">
+        <div className="min-h-0 space-y-2.5 overflow-y-auto px-4">
+          <div className="flex items-center gap-3 rounded-xl border border-[#c8ff31]/45 bg-black/45 p-2.5">
             {/* The real marker, running the real Pulse state, so this is what
                 people actually see rather than an approximation of it. */}
-            <span className="flex h-[10.5rem] w-[7.5rem] shrink-0 items-end justify-center overflow-visible">
-              <span className="block origin-bottom" data-testid="map-ping-preview-heart">
+            <span className="flex h-24 w-20 shrink-0 items-end justify-center overflow-visible">
+              <span className="block origin-bottom scale-[0.62]" data-testid="map-ping-preview-heart">
                 <MapMarkerPin
                   marker={{
                     id: 'pulse-preview',
@@ -284,17 +284,15 @@ export default function MapPingSheet({
                 />
               </span>
             </span>
-            <div className="min-w-0 space-y-0.5 pl-1">
+            <div className="min-w-0 space-y-0.5">
               <p className="text-sm font-medium text-white">Your heart beats for 30 minutes</p>
               <p className="text-xs leading-snug text-white/62">
-                Everyone inside your radius sees it beat, your pin rises above the others,
-                you come up more in the carousel, and your signal posts to the feed. Your pin
-                does not move.
+                People inside your radius see it beat, and your signal posts to the feed. Your pin does not move.
               </p>
             </div>
           </div>
 
-          <div className="rounded-xl border border-white/10 bg-white/[0.045] p-3">
+          <div className="rounded-xl border border-white/10 bg-white/[0.045] p-2.5">
             <div className="flex items-center justify-between gap-3">
               <p className="text-xs uppercase tracking-[0.14em] text-white/48">
                 Your signal <span className="text-white/32">{SIGNAL_MAX_LENGTH} characters max</span>
@@ -362,13 +360,13 @@ export default function MapPingSheet({
             <legend className="text-sm font-medium text-white">Pulse radius</legend>
             <RadioGroup
               aria-label="Pulse radius"
-              className="mt-2 grid grid-cols-5 gap-2"
+                className="mt-1.5 grid grid-cols-5 gap-1.5"
               onValueChange={(value) => setRadiusMiles(Number(value) as MapPingRadiusMiles)}
               value={String(radiusMiles)}
             >
               {MAP_PING_RADII_MILES.map((radius) => (
                 <label
-                  className="flex min-h-12 cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-white/10 bg-white/[0.035] px-1 py-2 text-center text-xs text-white/72 has-[[data-state=checked]]:border-[#c8ff31] has-[[data-state=checked]]:text-white"
+                  className="flex min-h-10 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-lg border border-white/10 bg-white/[0.035] px-1 py-1 text-center text-xs text-white/72 has-[[data-state=checked]]:border-[#c8ff31] has-[[data-state=checked]]:text-white"
                   key={radius}
                 >
                   <RadioGroupItem className="border-[#c8ff31]/55 text-[#c8ff31] focus-visible:ring-[#c8ff31]/40 [&_svg]:fill-[#c8ff31]" value={String(radius)} aria-label={`${radius} ${radius === 1 ? 'mile' : 'miles'}`} />
@@ -382,7 +380,7 @@ export default function MapPingSheet({
           <div className="flex items-center justify-between gap-3 text-sm">
             <p aria-live="polite" className="min-w-0 text-white/65">
               {lurkerActive
-                ? 'Turn off Lurker Mode to send a Pulse.'
+                ? 'Turn off Dark Room to send a Pulse.'
                 : !normalizedSignal
                 ? 'Your Pulse uses the signal saved on your profile.'
                 : hasMapLocation
@@ -414,7 +412,7 @@ export default function MapPingSheet({
           ) : null}
         </div>
 
-        <SheetFooter>
+        <SheetFooter className="shrink-0 bg-background/96 pb-[env(safe-area-inset-bottom)] pt-2">
           <Button
             type="button"
             className="cruush-action-sheen h-11 rounded-full font-semibold text-[#0B1200] disabled:text-white/45"
@@ -426,7 +424,7 @@ export default function MapPingSheet({
             {sending
               ? 'Sending Pulse...'
               : lurkerActive
-                ? 'Lurker Mode is on'
+                ? 'Dark Room is on'
                 : activePing
                   ? 'Pulse active'
                   : cooldownCountdown

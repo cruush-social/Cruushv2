@@ -446,13 +446,12 @@ export function buildDevelopmentTestProfiles(now = new Date()): DevelopmentTestP
   });
 }
 
-/** The seeded visitor: dropped in the West Village, in from out of town. */
-const DEVELOPMENT_TRAVEL_PROFILE_INDEX = 2;
-const DEVELOPMENT_TRAVEL_PIN = {
-  lat: 40.733572,
-  lng: -74.002742,
-  label: "In from Chicago"
-};
+/** Seeded visitors make Mile High Club visible on the local map and profiles. */
+const DEVELOPMENT_TRAVEL_PROFILES = new Map<number, { lat: number; lng: number; label: string }>([
+  [2, { lat: 40.733572, lng: -74.002742, label: "In from Chicago" }],
+  [7, { lat: 40.718112, lng: -73.958647, label: "In from Los Angeles" }],
+  [14, { lat: 40.81155, lng: -73.946477, label: "In from Atlanta" }]
+] as const);
 
 export function assertDevelopmentSeedConfig(config: Pick<AppConfig, "NODE_ENV" | "DEVELOPMENT_ADMIN_ENABLED" | "DEVELOPMENT_ADMIN_PASSWORD">) {
   if (config.NODE_ENV === "production") {
@@ -747,9 +746,10 @@ export async function seedDevelopmentProfilesWithDb(context: DevelopmentSeedCont
     for (const [profileIndex, profile] of profiles.entries()) {
       const profileUserId = await upsertDevelopmentProfile(context, profile);
 
-      // One seeded member is visiting, so Travel Mode can be seen on the map
-      // and on a profile without turning it on for the signed-in account.
-      if (profileIndex === DEVELOPMENT_TRAVEL_PROFILE_INDEX) {
+      // Visiting members show Mile High Club on the map and profiles without
+      // turning it on for the signed-in development account.
+      const travelPin = DEVELOPMENT_TRAVEL_PROFILES.get(profileIndex);
+      if (travelPin) {
         await context.db.query(
           `insert into user_travel_pins (user_id, latitude, longitude, label, set_at, updated_at)
            values ($1, $2, $3, $4, now(), now())
@@ -758,7 +758,7 @@ export async function seedDevelopmentProfilesWithDb(context: DevelopmentSeedCont
                  longitude = excluded.longitude,
                  label = excluded.label,
                  updated_at = now()`,
-          [profileUserId, DEVELOPMENT_TRAVEL_PIN.lat, DEVELOPMENT_TRAVEL_PIN.lng, DEVELOPMENT_TRAVEL_PIN.label]
+          [profileUserId, travelPin.lat, travelPin.lng, travelPin.label]
         );
       } else {
         await context.db.query(`delete from user_travel_pins where user_id = $1`, [profileUserId]);

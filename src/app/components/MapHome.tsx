@@ -8,6 +8,7 @@ import { Button } from './ui/button';
 import { useIsMobile } from './ui/use-mobile';
 import CruushIconImage, { CruushIcon } from './CruushIconImage';
 import CruushPlusWord from './CruushPlusWord';
+import DarkRoomMark from './DarkRoomMark';
 import MapProfilePopup from './MapProfilePopup';
 import CruiseCarouselSlot from './CruiseCarouselSlot';
 import MapSidePanel, { type MapSidePanelView } from './MapSidePanel';
@@ -2190,11 +2191,15 @@ export default function MapHome(_props: MapHomeProps = {}) {
               title="Ghost Mode Settings"
               className="size-11 rounded-full text-white/90 hover:bg-white/10 sm:size-12 lg:size-[3.25rem]"
             >
-              <CruushIcon
-                name="ghost"
-                variant={privacySettings.baseMode === 'STEALTH' ? 'stealth' : privacySettings.ghostModeEnabled ? 'colored' : 'white'}
-                className="h-7 w-7 lg:h-8 lg:w-8"
-              />
+              {privacySettings.baseMode === 'STEALTH' ? (
+                <DarkRoomMark active className="h-7 w-7 text-white lg:h-8 lg:w-8" />
+              ) : (
+                <CruushIcon
+                  name="ghost"
+                  variant={privacySettings.ghostModeEnabled ? 'colored' : 'white'}
+                  className="h-7 w-7 lg:h-8 lg:w-8"
+                />
+              )}
             </Button>
             <Button
               variant="ghost"

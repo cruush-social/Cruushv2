@@ -119,7 +119,7 @@ function hasPremiumPrivacySettings(input: {
 function premiumPrivacyMessage(input: {
   baseMode: VisibilityBaseMode;
 }) {
-  return "Upgrade to cruush+ to use stealth mode.";
+  return "Upgrade to cruush+ to use Dark Room.";
 }
 
 function isSchemaCompatibilityError(error: unknown) {
@@ -279,7 +279,7 @@ export async function registerPrivacyRoutes(app: FastifyInstance) {
       throw new ApiError(
         403,
         "FEATURE_RESTRICTED",
-        "Dark Room is unavailable in Travel Mode. Turn off Travel Mode to use it."
+        "Dark Room is unavailable in Mile High Club. Turn off Mile High Club to use it."
       );
     }
     const visibilityInput = {
@@ -399,7 +399,7 @@ export async function registerPrivacyRoutes(app: FastifyInstance) {
     // Travel Mode is a cruush+ feature. Everybody gets a day of cruush+ when
     // they join, and there are other ways to earn it, so this is a wall with a
     // door in it rather than a wall.
-    await requireCruushPlus(app, userId, "Travel Mode is part of cruush+.");
+    await requireCruushPlus(app, userId, "Mile High Club is part of cruush+.");
 
     // The same rule from the other side. Somebody already unseen cannot pick up
     // a borrowed location either, or the pairing is reachable by doing the two
@@ -412,7 +412,7 @@ export async function registerPrivacyRoutes(app: FastifyInstance) {
       throw new ApiError(
         403,
         "FEATURE_RESTRICTED",
-        "Travel Mode is unavailable in Dark Room. Turn off Dark Room to travel."
+        "Mile High Club is unavailable in Dark Room. Turn off Dark Room to use it."
       );
     }
 

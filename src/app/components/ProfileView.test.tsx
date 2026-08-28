@@ -210,6 +210,26 @@ describe('ProfileView', () => {
     expect(await screen.findByTestId('profile-overlay-signal')).toHaveTextContent('Looking for late-night art kids near the venue.');
   });
 
+  it('shows the Mile High Club plane beside the name for a travelling profile', async () => {
+    getProfileById.mockResolvedValue(createProfileFixture({
+      travelling: true,
+      travelLabel: 'In from Chicago',
+    }));
+
+    render(
+      <MemoryRouter initialEntries={['/profile/user-1']}>
+        <Routes>
+          <Route path="/profile/:userId" element={<ProfileView />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    const name = await screen.findByRole('heading', { name: /Jordan/ });
+    const badge = within(name).getByRole('img', { name: 'Mile High Club' });
+    expect(badge).toHaveAttribute('title', 'Mile High Club: In from Chicago');
+    expect(badge).toHaveClass('ml-2', 'shrink-0');
+  });
+
   it('shows the launch party hat without a circle treatment', async () => {
     getProfileById.mockResolvedValue(createProfileFixture({
       attendingLaunchParty: true,

@@ -4,6 +4,7 @@ import type { CruushBadge } from './billingApi';
 export type FeedPostExpiry = '1h' | '6h' | '24h' | '7d' | 'never';
 export type FeedPostWindow = '1h' | '3h' | '6h' | '24h' | '7d';
 export type FeedLocationPinVisibility = 'off' | 'mutuals' | 'same_crowd' | 'public';
+export type FeedPostAudience = 'public' | 'mutuals' | 'crowd';
 
 export type FeedPost = {
   id: string;
@@ -12,6 +13,7 @@ export type FeedPost = {
   expiresAt: string | null;
   createdAt: string;
   distance: string;
+  audience: FeedPostAudience;
   crowdTargets?: string[];
   locationPin?: {
     userId: string;
@@ -54,6 +56,7 @@ export type FeedPostFilters = {
 export type CreateFeedPostPayload = {
   content: string;
   expiresIn: FeedPostExpiry;
+  audience: FeedPostAudience;
   crowdTargets?: string[];
 };
 

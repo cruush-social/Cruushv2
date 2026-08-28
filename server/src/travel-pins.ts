@@ -1,4 +1,6 @@
 import type { FastifyInstance } from "fastify";
+import { isWithinBetaLaunchArea } from "./beta-access.js";
+import { ApiError } from "./errors.js";
 
 /**
  * Travel mode. A member visiting another place drops a pin there and the map
@@ -103,6 +105,14 @@ export async function setTravelPin(
   input: { latitude: number; longitude: number; label?: string },
   nowMs = Date.now()
 ): Promise<TravelPin> {
+  if (!isWithinBetaLaunchArea({ lat: input.latitude, lng: input.longitude })) {
+    throw new ApiError(
+      403,
+      "FEATURE_RESTRICTED",
+      "That location is outside the current cruush service area."
+    );
+  }
+
   const existing = await getTravelPin(app, userId);
   if (existing && nowMs < existing.movableAtMs) {
     throw new TravelPinCooldownError(existing.movableAtMs);

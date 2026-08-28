@@ -6,6 +6,7 @@ import { Slider } from './ui/slider';
 import { Switch } from './ui/switch';
 import { CruushIcon } from './CruushIconImage';
 import CruushPlusWord from './CruushPlusWord';
+import DarkRoomMark from './DarkRoomMark';
 import { CRUUSH_PLUS_CHANGED_EVENT, getMyBillingStatus } from '../lib/billingApi';
 import { DEBUG_CRUUSH_PLUS_EVENT } from '../lib/debugApi';
 import {
@@ -256,14 +257,16 @@ export default function GhostModeSettings() {
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div className="flex items-center gap-3">
-          <CruushIcon
-            name="ghost"
-            variant={privacySettings.baseMode === 'STEALTH' ? 'stealth' : privacySettings.ghostModeEnabled ? 'colored' : 'white'}
-            className="h-7 w-7"
-          />
+          {privacySettings.baseMode === 'STEALTH' ? (
+            <DarkRoomMark active className="h-7 w-7 text-white" />
+          ) : (
+            <CruushIcon name="ghost" variant={privacySettings.ghostModeEnabled ? 'colored' : 'white'} className="h-7 w-7" />
+          )}
           <div>
-            <h2 className="text-xl">Ghost Mode</h2>
-            <p className="text-xs text-muted-foreground">Shifting public map location</p>
+            <h2 className="text-xl">{privacySettings.baseMode === 'STEALTH' ? 'Dark Room' : 'Ghost Mode'}</h2>
+            <p className="text-xs text-muted-foreground">
+              {privacySettings.baseMode === 'STEALTH' ? 'Hidden from the map' : 'Shifting public map location'}
+            </p>
           </div>
         </div>
       </header>
@@ -307,15 +310,15 @@ export default function GhostModeSettings() {
           <div className="rounded-xl border border-white/10 bg-white/[0.025] p-4">
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-start gap-3">
-                <CruushIcon name="ghost" variant={privacySettings.baseMode === 'STEALTH' ? 'stealth' : 'white'} className="mt-1 h-5 w-5 opacity-80" />
+                <DarkRoomMark active={privacySettings.baseMode === 'STEALTH'} className="mt-1 h-5 w-5 text-white opacity-80" />
                 <div>
-                  <p>Stealth Mode</p>
+                  <p>Dark Room</p>
                   <p className="text-sm text-muted-foreground">Browse the map without appearing on it.</p>
                 </div>
               </div>
               {hasCruushPlus ? (
                 <Switch
-                  aria-label="Toggle Stealth Mode"
+                  aria-label="Toggle Dark Room"
                   checked={privacySettings.baseMode === 'STEALTH'}
                   disabled={privacyStatus === 'loading' || privacyStatus === 'saving'}
                   onCheckedChange={(enabled) => {
@@ -331,7 +334,7 @@ export default function GhostModeSettings() {
                   type="button"
                   variant="outline"
                   className="shrink-0"
-                  aria-label="Unlock Stealth Mode with cruush+"
+                  aria-label="Unlock Dark Room with cruush+"
                   onClick={() => navigate('/rewards')}
                 >
                   <CruushPlusWord />

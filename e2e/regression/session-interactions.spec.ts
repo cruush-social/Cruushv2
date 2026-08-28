@@ -210,6 +210,8 @@ const desktopRecentlyActiveUsers = [
 
 type MockOptions = {
   ghostOwner?: boolean;
+  darkRoomOwner?: boolean;
+  cruushPlus?: boolean;
   explicitOwnerPhoto?: boolean;
   users?: typeof remoteUsers;
 };
@@ -257,8 +259,8 @@ async function installAppMocks(page: Page, options: MockOptions = {}) {
     if (url.pathname === '/api/auth/me') data = session;
     else if (url.pathname === '/api/profiles/me' && request.method() === 'GET') data = ownerProfile;
     else if (url.pathname === '/api/profiles/me/privacy-settings') data = {
-      baseMode: options.ghostOwner ? 'GHOST' : 'PUBLIC_PRECISE',
-      ghostModeEnabled: options.ghostOwner === true,
+      baseMode: options.darkRoomOwner ? 'STEALTH' : options.ghostOwner ? 'GHOST' : 'PUBLIC_PRECISE',
+      ghostModeEnabled: options.darkRoomOwner ? false : options.ghostOwner === true,
       ghostRadiusMeters: 1609,
       ghostRadiusLabel: '1 mi',
       preciseToMutualCruushes: false,
@@ -281,7 +283,7 @@ async function installAppMocks(page: Page, options: MockOptions = {}) {
       receivedPings: [],
     };
     else if (url.pathname === '/api/billing/me') data = {
-      cruushPlus: false,
+      cruushPlus: options.cruushPlus === true,
       expiresAt: null,
       badges: [],
       processor: 'fake',
@@ -338,6 +340,7 @@ async function installAppMocks(page: Page, options: MockOptions = {}) {
     };
     else if (url.pathname === '/api/blocks') data = { blockedUsers: [] };
     else if (url.pathname === '/api/privacy/map-presence') data = { days: 7, minDays: 1, maxDays: 30 };
+    else if (url.pathname === '/api/privacy/travel-pin') data = { pin: null };
     else if (url.pathname === '/api/privacy/audit') data = { exact_location_access: [] };
     else if (url.pathname === '/api/events/active' || url.pathname === '/api/posts') data = [];
     else if (url.pathname === '/api/feed/settings') data = {
@@ -443,7 +446,7 @@ async function expectTopActionSizing(
   }
 
   const cruushPlusBox = await page.getByRole('button', { name: 'cruush+ rewards' }).boundingBox();
-  const pingBox = await page.getByRole('button', { name: 'Send a Ping' }).boundingBox();
+  const pingBox = await page.getByRole('button', { name: 'Send a Pulse' }).boundingBox();
   expect(cruushPlusBox).not.toBeNull();
   expect(pingBox).not.toBeNull();
   expect(cruushPlusBox!.height).toBeGreaterThanOrEqual(minimumButtonSize);
@@ -595,6 +598,64 @@ test('renders a full-width mobile top bar and a centered capped desktop top bar'
   }
 });
 
+test('keeps the 1.6 mobile map, Pulse, Feed+, and Mile High Club controls in view', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 650 });
+  await installAppMocks(page);
+  await openMap(page);
+  await expectSeekingTopSpacing(page);
+  await expect(page.getByRole('button', { name: /^Open .* on map$/ })).toHaveCount(3);
+
+  await page.getByRole('button', { name: 'Send a Pulse' }).tap();
+  const pulseDialog = page.getByRole('dialog', { name: 'Send a Pulse' });
+  const sendButton = pulseDialog.getByRole('button', { name: 'Send Pulse' });
+  await expect(pulseDialog).toBeVisible();
+  await page.waitForTimeout(550);
+  await expect(sendButton).toBeInViewport();
+  const pulseBox = await pulseDialog.boundingBox();
+  const sendBox = await sendButton.boundingBox();
+  expect(pulseBox).not.toBeNull();
+  expect(sendBox).not.toBeNull();
+  expect(pulseBox!.y).toBeGreaterThanOrEqual(0);
+  expect(sendBox!.y + sendBox!.height).toBeLessThanOrEqual(650);
+  await page.screenshot({ path: '/tmp/cruush-1.6-pulse-360x650.png' });
+
+  await page.keyboard.press('Escape');
+  await page.goto('/feed');
+  await page.getByRole('button', { name: 'Feed settings' }).tap();
+  await page.getByRole('button', { name: '1h +' }).tap();
+  await expect(page.getByTestId('cruush-plus-card')).toBeVisible();
+  await page.waitForTimeout(250);
+  await page.screenshot({ path: '/tmp/cruush-1.6-feed-plus-360x650.png' });
+  await page.getByRole('button', { name: 'Not now' }).tap();
+
+  await page.goto('/settings/travel');
+  await expect(page.getByRole('heading', { name: 'Mile High Club', level: 1 })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Mile High Club', level: 2 }).locator('xpath=..').locator('img'))
+    .toHaveAttribute('src', /Mile%20High%20Club%20White/);
+  await page.getByRole('button', { name: 'Turn on' }).tap();
+  const mileHighDialog = page.getByRole('dialog');
+  await expect(mileHighDialog.getByRole('heading', { name: 'Mile High Club' })).toBeVisible();
+  await expect(mileHighDialog.getByTestId('cruush-plus-card')).toBeVisible();
+  await page.waitForTimeout(250);
+  await page.screenshot({ path: '/tmp/cruush-1.6-mile-high-club-360x650.png' });
+});
+
+test('uses the approved Dark Room name and icon', async ({ page }) => {
+  await page.setViewportSize({ width: 412, height: 915 });
+  await installAppMocks(page, { darkRoomOwner: true, cruushPlus: true });
+  await openMap(page);
+
+  const privacyButton = page.getByRole('button', { name: 'Ghost Mode Settings' });
+  await expect(privacyButton.locator('svg image')).toHaveAttribute('href', /dl-mode-colored/);
+  await privacyButton.tap();
+  await expect(page.getByRole('heading', { name: 'Dark Room' })).toBeVisible();
+  await expect(page.getByText('Hidden from the map', { exact: true })).toBeVisible();
+  await expect(page.getByRole('switch', { name: 'Toggle Dark Room' })).toBeChecked();
+  await expect(page.getByText('Stealth Mode', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('Lurker Mode', { exact: true })).toHaveCount(0);
+  await page.screenshot({ path: '/tmp/cruush-1.6-dark-room-412x915.png' });
+});
+
 test('uses a pink-forward cruush gradient only while the profile nav icon is active', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await installAppMocks(page);
@@ -708,8 +769,8 @@ test('selects Seeking and Visibility menu options with real mobile taps', async 
       && (entry.body as { visibility_rules?: { identities?: string[] } })?.visibility_rules?.identities?.includes('man')
   ))).toBe(true);
 
-  await page.getByRole('button', { name: 'Send a Ping' }).tap();
-  await expect(page.getByRole('dialog', { name: 'Send a Ping' })).toBeVisible();
+  await page.getByRole('button', { name: 'Send a Pulse' }).tap();
+  await expect(page.getByRole('dialog', { name: 'Send a Pulse' })).toBeVisible();
   await page.keyboard.press('Escape');
   await page.getByRole('button', { name: 'cruush+ rewards' }).tap();
   await expect(page.getByRole('heading', { name: 'Rewards & cruush+' })).toBeVisible();

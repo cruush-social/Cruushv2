@@ -113,8 +113,8 @@ export const MAP_PIN_UNIT_SCALE = 1;
 const MARKER_INTERACTION_SUPPRESS_MS = 350;
 // Clustering hides individual people, so it starts later and gives up sooner:
 // pins only merge when they are nearly on top of one another.
-const PERSON_CLUSTER_MAX_ZOOM = 13.5;
-const PERSON_CLUSTER_RADIUS_PX = 52;
+const PERSON_CLUSTER_MAX_ZOOM = 12.5;
+const PERSON_CLUSTER_RADIUS_PX = 36;
 export const MAP_SERVICE_MASK_SOURCE_ID = 'cruush-map-service-mask';
 export const MAP_SERVICE_MASK_LAYER_ID = 'cruush-map-service-mask';
 // Rendered footprint of a heart pin, so no two pins may sit inside one another.

@@ -28,7 +28,7 @@ import { addProfileChangedListener, emptyProfilePayload, getMyProfile, getProfil
 import { openConversationOrInbox } from '../lib/openConversation';
 import { formatDistanceLabel, useDistancePreferences } from '../lib/distancePreferences';
 import partyHatIcon from '../assets/ui-icons/party-hat.svg';
-import { TravelPinGlyph } from './BadgeGlyphs';
+import mileHighClubBadgeDimensional from '../assets/ui-icons/mile-high-club-badge-dimensional.svg';
 
 type ProfileLocationState = {
   distance?: string;
@@ -532,11 +532,13 @@ export default function ProfileView() {
               {profileView.age ? <span>, {profileView.age}</span> : null}
             </span>
             {profileView.travelling ? (
-              <TravelPinGlyph
+              <img
+                alt="Mile High Club"
                 className="ml-2 h-5 w-5 shrink-0 sm:h-6 sm:w-6"
+                src={mileHighClubBadgeDimensional}
                 title={profileView.travelLabel
-                  ? `Travelling, ${profileView.travelLabel}`
-                  : 'Travelling'}
+                  ? `Mile High Club: ${profileView.travelLabel}`
+                  : 'Mile High Club'}
               />
             ) : null}
           </h1>

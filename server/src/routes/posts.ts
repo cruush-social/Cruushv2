@@ -3,7 +3,12 @@ import { z } from "zod";
 import { decryptTextContentOrFallback, encryptTextContent } from "../content-encryption.js";
 import { ApiError } from "../errors.js";
 import { approvedContentReviewCte, moderateTextOrReject } from "../moderation-service.js";
-import { createPostPayloadSchema, updateFeedSettingsPayloadSchema, type FeedLocationPinVisibility } from "../post-schema.js";
+import {
+  createPostPayloadSchema,
+  updateFeedSettingsPayloadSchema,
+  type FeedLocationPinVisibility,
+  type FeedPostAudience
+} from "../post-schema.js";
 import { createCrowdTokens } from "../profile-sensitive.js";
 import { getActiveAccountUserId, getAuthenticatedUserId } from "../request-auth.js";
 import { recordMeaningfulActivitySafely } from "../rewards-service.js";
@@ -20,6 +25,7 @@ type PostRow = {
   content_nonce?: string | null;
   content_auth_tag?: string | null;
   content_key_version?: string | null;
+  audience?: FeedPostAudience | null;
   display_name: string | null;
   pronouns: string[] | null;
   photos: string[] | null;
@@ -145,6 +151,7 @@ async function mapPostRow(app: FastifyInstance, row: PostRow, viewerUserId: stri
     expiresIn: row.expires_in,
     expiresAt: row.expires_in === "never" ? null : new Date(row.expires_at).toISOString(),
     createdAt: new Date(row.created_at).toISOString(),
+    audience: row.audience ?? (crowdTargets.length > 0 ? "crowd" : "public"),
     distance: typeof row.distance_miles === "number"
       ? formatCoarseDistance(row.distance_miles)
       : "Nearby",
@@ -167,6 +174,23 @@ async function mapPostRow(app: FastifyInstance, row: PostRow, viewerUserId: stri
       ...((row.badges?.length ?? 0) > 0 ? { badges: row.badges } : {})
     }
   };
+}
+
+async function canViewPostAudience(app: FastifyInstance, viewerUserId: string, row: PostRow) {
+  if (viewerUserId === row.user_id || row.audience !== "mutuals") {
+    return true;
+  }
+
+  try {
+    const relationship = await getRelationshipPermissions(app, viewerUserId, row.user_id);
+    return relationship.isMutualCruush === true;
+  } catch (error) {
+    app.log.warn(
+      { err: error, viewerUserId, authorUserId: row.user_id },
+      "feed mutual audience relationship check failed"
+    );
+    return false;
+  }
 }
 
 // DL Mode masks explicit avatars everywhere they render, so the feed needs the
@@ -192,6 +216,7 @@ const POST_COLUMNS = `
   p.content_auth_tag,
   p.content_key_version,
   p.map_ping_id,
+  p.audience,
   p.expires_in,
   p.expires_at,
   p.created_at,
@@ -347,8 +372,13 @@ export async function registerPostRoutes(app: FastifyInstance) {
       ]
     );
 
+    const audienceVisibility = await Promise.all(
+      result.rows.map(async (row) => ({ row, visible: await canViewPostAudience(app, userId, row) }))
+    );
+    const visibleRows = audienceVisibility.filter(({ visible }) => visible).map(({ row }) => row);
+
     return reply.send({
-      data: await Promise.all(result.rows.map((row) => mapPostRow(app, row, userId)))
+      data: await Promise.all(visibleRows.map((row) => mapPostRow(app, row, userId)))
     });
   });
 
@@ -379,6 +409,12 @@ export async function registerPostRoutes(app: FastifyInstance) {
   app.put("/api/feed/settings", async (request, reply) => {
     const userId = await getActiveAccountUserId(request);
     const payload = updateFeedSettingsPayloadSchema.parse(request.body);
+    if (payload.postExpiryDefault && payload.postExpiryDefault !== "never") {
+      const entitlement = await getCruushEntitlement(app, userId);
+      if (!entitlement.cruushPlus) {
+        throw new ApiError(402, "CRUUSH_PLUS_REQUIRED", "Choosing a Feed timer is part of cruush+.");
+      }
+    }
     const row = (await app.db.query<FeedSettingsRow>(
       `insert into user_privacy_settings (
          user_id,
@@ -422,6 +458,12 @@ export async function registerPostRoutes(app: FastifyInstance) {
     const userId = await getActiveAccountUserId(request);
     const payload = createPostPayloadSchema.parse(request.body);
     const entitlement = await getCruushEntitlement(app, userId);
+    if (payload.audience === "crowd" && !entitlement.cruushPlus) {
+      throw new ApiError(402, "CRUUSH_PLUS_REQUIRED", "Posting to a specific Crowd is part of cruush+.");
+    }
+    if (payload.expiresIn !== "never" && !entitlement.cruushPlus) {
+      throw new ApiError(402, "CRUUSH_PLUS_REQUIRED", "Choosing a Feed timer is part of cruush+.");
+    }
     const ownerFullAccess = entitlement.ownerFullAccess === true;
     const moderation = await moderateTextOrReject(app, {
       userId,
@@ -496,6 +538,7 @@ export async function registerPostRoutes(app: FastifyInstance) {
            content_nonce,
            content_auth_tag,
            content_key_version,
+           audience,
            expires_in,
            expires_at
          )
@@ -506,6 +549,7 @@ export async function registerPostRoutes(app: FastifyInstance) {
            $4,
            $5,
            $6,
+           $17,
            $2,
            case
              when $2 = 'never' then 'infinity'::timestamptz
@@ -526,6 +570,7 @@ export async function registerPostRoutes(app: FastifyInstance) {
            content_nonce,
            content_auth_tag,
            content_key_version,
+           audience,
            expires_in,
            expires_at,
            created_at
@@ -555,6 +600,7 @@ export async function registerPostRoutes(app: FastifyInstance) {
          i.content_nonce,
          i.content_auth_tag,
          i.content_key_version,
+         i.audience,
          i.expires_in,
          i.expires_at,
          i.created_at,
@@ -626,7 +672,8 @@ export async function registerPostRoutes(app: FastifyInstance) {
         JSON.stringify(moderation.providerResult.raw_result ?? {}),
         payload.crowdTargets,
         JSON.stringify(crowdTargetTokenRows),
-        ownerFullAccess
+        ownerFullAccess,
+        payload.audience
       ]
     );
     const row = result.rows[0];

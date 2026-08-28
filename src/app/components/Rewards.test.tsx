@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router';
+import { CRUUSH_PLUS_FEATURES } from '../lib/cruushPlusFeatures';
 import Rewards from './Rewards';
 
 const api = vi.hoisted(() => ({
@@ -128,14 +129,12 @@ describe('Rewards', () => {
     const benefitsToggle = screen.getByRole('button', { name: 'Hide cruush+ benefits' });
     expect(benefitsToggle).toHaveAttribute('aria-expanded', 'true');
     const featureList = screen.getByRole('list', { name: 'cruush+ features' });
-    expect(within(featureList).getAllByRole('listitem')).toHaveLength(6);
-    expect(within(featureList).getByText('See your full incoming cruush and profile-view lists.')).toBeInTheDocument();
-    expect(within(featureList).getByText('Send up to 3 Pings every 24 hours, with 4 hours between sends.')).toBeInTheDocument();
-    expect(within(featureList).getByText('Create posts on the local feed. Basic users can still read nearby posts.')).toBeInTheDocument();
-    expect(within(featureList).getByText('Spin through nearby profiles and browse again.')).toBeInTheDocument();
-    expect(within(featureList).getByText('Use every seeking filter and visibility control together.')).toBeInTheDocument();
-    expect(within(featureList).getByText('Browse the map without appearing on it.')).toBeInTheDocument();
-    expect(within(featureList).queryByText(/precise sharing|saved visibility sets|founder/i)).not.toBeInTheDocument();
+    expect(within(featureList).getAllByRole('listitem')).toHaveLength(CRUUSH_PLUS_FEATURES.length);
+    for (const feature of CRUUSH_PLUS_FEATURES) {
+      expect(within(featureList).getByText(feature.title)).toBeInTheDocument();
+      expect(within(featureList).getByText(feature.description)).toBeInTheDocument();
+    }
+    expect(within(featureList).queryByText(/\bPing\b|Voyeur|Create posts on the local feed/i)).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Hide cruush+ benefits' }));
     expect(window.localStorage.getItem('cruush:rewards:benefits-open')).toBe('false');

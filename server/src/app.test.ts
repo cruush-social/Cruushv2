@@ -10293,6 +10293,7 @@ describe("server", () => {
         expiresIn: "6h",
         expiresAt: "2026-04-28T18:00:00.000Z",
         createdAt: "2026-04-28T12:00:00.000Z",
+        audience: "public",
         distance: "Nearby",
         user: {
           id: userId,
@@ -10348,6 +10349,7 @@ describe("server", () => {
         expiresIn: "24h",
         expiresAt: "2026-08-10T18:00:00.000Z",
         createdAt: "2026-08-09T18:00:00.000Z",
+        audience: "public",
         distance: "<1 mi",
         locationPin: {
           userId: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
@@ -10387,7 +10389,7 @@ describe("server", () => {
     expect(query.mock.calls[1]?.[0]).toContain("from user_blocks block");
     expect(query.mock.calls[1]?.[0]).toContain("blocker_user_id = $1");
     expect(query.mock.calls[1]?.[0]).toContain("blocked_user_id = p.user_id");
-    expect(query.mock.calls[1]?.[1]).toEqual([userId, "7d", null, null, 15, null, 30]);
+    expect(query.mock.calls[1]?.[1]).toEqual([userId, "7d", null, null, 50, null, 30]);
   });
 
   it("filters crowd-targeted posts by the reader's crowd memberships at the query boundary", async () => {
@@ -10415,13 +10417,17 @@ describe("server", () => {
   });
 
   it("persists the feed expiry choice used by future Pings", async () => {
-    query.mockResolvedValueOnce({
-      rows: [{
-        feed_location_pin_visibility: "mutuals",
-        feed_show_distance_labels: true,
-        feed_post_expiry_default: "24h"
-      }]
-    });
+    query
+      .mockResolvedValueOnce({
+        rows: [{ cruush_plus_enabled: true, cruush_plus_expires_at: null }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          feed_location_pin_visibility: "mutuals",
+          feed_show_distance_labels: true,
+          feed_post_expiry_default: "24h"
+        }]
+      });
 
     const response = await app.inject({
       method: "PUT",
@@ -10437,10 +10443,10 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(query.mock.calls[0]?.[0]).toContain(
+    expect(query.mock.calls[1]?.[0]).toContain(
       "feed_post_expiry_default = coalesce($4::text, user_privacy_settings.feed_post_expiry_default)"
     );
-    expect(query.mock.calls[0]?.[1]).toEqual([userId, "mutuals", true, "24h", null]);
+    expect(query.mock.calls[1]?.[1]).toEqual([userId, "mutuals", true, "24h", null]);
     expect(response.json()).toEqual({
       data: {
         locationPinVisibility: "mutuals",
@@ -10545,8 +10551,9 @@ describe("server", () => {
           id: "post-2",
           user_id: userId,
           content: "Hosting tonight",
-          expires_in: "1h",
-          expires_at: "2026-04-28T13:00:00.000Z",
+          audience: "public",
+          expires_in: "never",
+          expires_at: "infinity",
           created_at: "2026-04-28T12:10:00.000Z",
           display_name: "Cruusher",
           pronouns: ["they/them"],
@@ -10562,7 +10569,7 @@ describe("server", () => {
       },
       payload: {
         content: "Hosting tonight",
-        expiresIn: "1h"
+        expiresIn: "never"
       }
     });
 
@@ -10575,9 +10582,10 @@ describe("server", () => {
       data: {
         id: "post-2",
         content: "Hosting tonight",
-        expiresIn: "1h",
-        expiresAt: "2026-04-28T13:00:00.000Z",
+        expiresIn: "never",
+        expiresAt: null,
         createdAt: "2026-04-28T12:10:00.000Z",
+        audience: "public",
         distance: "Nearby",
         user: {
           id: userId,
@@ -10588,6 +10596,55 @@ describe("server", () => {
         }
       }
     });
+  });
+
+  it("keeps custom Feed timers behind cruush+", async () => {
+    query.mockResolvedValueOnce({
+      rows: [{ cruush_plus_enabled: false, cruush_plus_expires_at: null }]
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/posts",
+      headers: { "x-user-id": userId },
+      payload: {
+        content: "One hour only",
+        expiresIn: "1h",
+        audience: "public"
+      }
+    });
+
+    expect(response.statusCode).toBe(402);
+    expect(response.json().error).toMatchObject({
+      code: "CRUUSH_PLUS_REQUIRED",
+      message: "Choosing a Feed timer is part of cruush+."
+    });
+    expect(query).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps a specific Crowd Feed audience behind cruush+", async () => {
+    query.mockResolvedValueOnce({
+      rows: [{ cruush_plus_enabled: false, cruush_plus_expires_at: null }]
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/posts",
+      headers: { "x-user-id": userId },
+      payload: {
+        content: "For one crowd",
+        expiresIn: "never",
+        audience: "crowd",
+        crowdTargets: ["Dyke"]
+      }
+    });
+
+    expect(response.statusCode).toBe(402);
+    expect(response.json().error).toMatchObject({
+      code: "CRUUSH_PLUS_REQUIRED",
+      message: "Posting to a specific Crowd is part of cruush+."
+    });
+    expect(query).toHaveBeenCalledTimes(1);
   });
 
   it("creates feed posts with seven-day and never expiry options", async () => {
@@ -10708,7 +10765,7 @@ describe("server", () => {
     expect(response.json().error.code).toBe(code);
   });
 
-  it("creates a feed post with multiple crowd targets only when the author belongs to those crowds", async () => {
+  it("creates a Feed+ post for one specific Crowd only when the author belongs to it", async () => {
     query
       .mockResolvedValueOnce({
         rows: [{
@@ -10728,7 +10785,8 @@ describe("server", () => {
           display_name: "Cruusher",
           pronouns: ["they/them"],
           photos: [],
-          crowd_targets: ["Dyke", "Gay"]
+          audience: "crowd",
+          crowd_targets: ["Dyke"]
         }]
       });
 
@@ -10741,15 +10799,17 @@ describe("server", () => {
       payload: {
         content: "Hosting for the crowd",
         expiresIn: "6h",
-        crowdTargets: ["Dyke", "Gay"]
+        audience: "crowd",
+        crowdTargets: ["Dyke"]
       }
     });
 
     expect(response.statusCode).toBe(201);
     expect(query.mock.calls[2]?.[0]).toContain("profile_sensitive_tokens author_crowd_token");
     expect(query.mock.calls[2]?.[0]).toContain("insert into feed_post_crowd_targets");
-    expect(query.mock.calls[2]?.[1]).toContainEqual(["Dyke", "Gay"]);
-    expect(response.json().data.crowdTargets).toEqual(["Dyke", "Gay"]);
+    expect(query.mock.calls[2]?.[1]).toContainEqual(["Dyke"]);
+    expect(response.json().data.audience).toBe("crowd");
+    expect(response.json().data.crowdTargets).toEqual(["Dyke"]);
   });
 
   it("deletes the current user's feed post on DELETE /api/posts/:postId", async () => {
@@ -12200,7 +12260,7 @@ describe("server", () => {
     expect(response.json()).toEqual({
       error: {
         code: "CRUUSH_PLUS_REQUIRED",
-        message: "Upgrade to cruush+ to use stealth mode.",
+        message: "Upgrade to cruush+ to use Dark Room.",
         details: null
       }
     });
@@ -12279,7 +12339,7 @@ describe("server", () => {
     expect(response.json()).toEqual({
       error: {
         code: "CRUUSH_PLUS_REQUIRED",
-        message: "Upgrade to cruush+ to use stealth mode.",
+        message: "Upgrade to cruush+ to use Dark Room.",
         details: null
       }
     });

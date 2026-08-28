@@ -325,7 +325,7 @@ async function loadSenderDispatchContext(
   }
 
   if (visibilityPolicy.baseMode === "STEALTH") {
-    throw new ApiError(403, "FEATURE_RESTRICTED", "Ping is unavailable in Stealth Mode.");
+    throw new ApiError(403, "FEATURE_RESTRICTED", "Pulse is unavailable in Dark Room.");
   }
 
   let sourceLocation: LocationPayload | null = null;

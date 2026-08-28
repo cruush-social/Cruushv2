@@ -558,11 +558,75 @@ describe('LocalFeed', () => {
     await waitFor(() => expect(createFeedPost).toHaveBeenCalledWith({
       content: 'first post as a free member',
       expiresIn: 'never',
+      audience: 'public',
       crowdTargets: [],
     }));
   });
 
-  it('posts to no crowds or multiple allowed crowds selected from the composer', async () => {
+  it('lets free members post to Mutuals', async () => {
+    getMyBillingStatus.mockResolvedValue({
+      cruushPlus: false,
+      expiresAt: null,
+      badges: [],
+      processor: 'fake',
+      testCheckout: true,
+    });
+    getFeedPosts.mockResolvedValue([]);
+    createFeedPost.mockResolvedValue({
+      id: 'mutual-post-1',
+      content: 'mutual post',
+      audience: 'mutuals',
+      expiresIn: 'never',
+      expiresAt: null,
+      createdAt: new Date().toISOString(),
+      distance: 'Nearby',
+      user: { id: 'me', name: 'Me', pronouns: '', photo: null },
+    });
+
+    render(<MemoryRouter><LocalFeed /></MemoryRouter>);
+    const composer = await screen.findByTestId('local-feed-composer');
+    openComposer();
+    fireEvent.change(within(composer).getByPlaceholderText('Share something with nearby people...'), {
+      target: { value: 'mutual post' },
+    });
+    const settings = await openFeedSettings();
+    fireEvent.click(within(settings).getByRole('button', { name: 'Mutuals' }));
+    fireEvent.keyDown(settings, { key: 'Escape' });
+    fireEvent.click(await within(composer).findByRole('button', { name: 'Post' }));
+
+    await waitFor(() => expect(createFeedPost).toHaveBeenCalledWith({
+      content: 'mutual post',
+      expiresIn: 'never',
+      audience: 'mutuals',
+      crowdTargets: [],
+    }));
+  });
+
+  it('opens the cruush+ card for a free custom timer or specific Crowd', async () => {
+    getMyBillingStatus.mockResolvedValue({
+      cruushPlus: false,
+      expiresAt: null,
+      badges: [],
+      processor: 'fake',
+      testCheckout: true,
+    });
+    getFeedPosts.mockResolvedValue([]);
+
+    render(<MemoryRouter><LocalFeed /></MemoryRouter>);
+    await screen.findByTestId('local-feed-composer');
+    const settings = await openFeedSettings();
+    await waitFor(() => expect(within(settings).getByRole('button', { name: '1h +' })).toBeEnabled());
+    fireEvent.click(within(settings).getByRole('button', { name: '1h +' }));
+
+    expect(await screen.findByTestId('cruush-plus-card')).toBeInTheDocument();
+    expect(updateFeedSettings).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Not now' }));
+
+    fireEvent.click(within(settings).getByRole('button', { name: 'Specific Crowd +' }));
+    expect(await screen.findByTestId('cruush-plus-card')).toBeInTheDocument();
+  });
+
+  it('lets Feed+ post to one specific allowed Crowd', async () => {
     getFeedPosts.mockResolvedValue([]);
     createFeedPost.mockResolvedValue({
       id: 'post-crowd',
@@ -571,7 +635,8 @@ describe('LocalFeed', () => {
       expiresAt: '2026-04-28T18:00:00.000Z',
       createdAt: '2026-04-28T12:00:00.000Z',
       distance: 'Nearby',
-      crowdTargets: ['Dyke', 'Gay'],
+      audience: 'crowd',
+      crowdTargets: ['Gay'],
       user: {
         id: 'user-1',
         name: 'me',
@@ -593,6 +658,7 @@ describe('LocalFeed', () => {
     });
 
     const crowdSettings = await openFeedSettings();
+    fireEvent.click(within(crowdSettings).getByRole('button', { name: 'Specific Crowd +' }));
     fireEvent.click(within(crowdSettings).getByRole('button', { name: 'Dyke' }));
     fireEvent.click(within(crowdSettings).getByRole('button', { name: 'Gay' }));
     expect(within(crowdSettings).queryByRole('button', { name: 'T4T' })).not.toBeInTheDocument();
@@ -603,7 +669,8 @@ describe('LocalFeed', () => {
     await waitFor(() => expect(createFeedPost).toHaveBeenCalledWith({
       content: 'hello crowd',
       expiresIn: 'never',
-      crowdTargets: ['Dyke', 'Gay'],
+      audience: 'crowd',
+      crowdTargets: ['Gay'],
     }));
   });
 
@@ -659,6 +726,7 @@ describe('LocalFeed', () => {
     await waitFor(() => expect(createFeedPost).toHaveBeenNthCalledWith(1, {
       content: 'seven day post',
       expiresIn: '7d',
+      audience: 'public',
       crowdTargets: [],
     }));
 
@@ -671,6 +739,7 @@ describe('LocalFeed', () => {
     await waitFor(() => expect(createFeedPost).toHaveBeenNthCalledWith(2, {
       content: 'never post',
       expiresIn: 'never',
+      audience: 'public',
       crowdTargets: [],
     }));
     expect(await screen.findByText('never post')).toBeInTheDocument();

@@ -146,25 +146,3 @@ export function KelpiePeltGlyph({ className, strokeWidth = 2 }: GlyphProps) {
     </svg>
   );
 }
-
-export function TravelPinGlyph({ className, strokeWidth = 2, title }: GlyphProps & { title?: string }) {
-  return (
-    <svg
-      aria-hidden={title ? undefined : 'true'}
-      className={className}
-      fill="none"
-      role={title ? 'img' : undefined}
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth={strokeWidth}
-      viewBox="0 0 24 24"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      {title ? <title>{title}</title> : null}
-      {/* A plane over a dropped pin: somewhere else, on purpose. */}
-      <path d="M12 21.4s6.4-5.4 6.4-10.2a6.4 6.4 0 1 0-12.8 0C5.6 16 12 21.4 12 21.4Z" />
-      <path d="M12 13.6 9.1 12l-2.2.6.7-1.6 1.7-.5-1-2.5 1.4-.5 2.1 2.2 2.6-.7a1 1 0 1 1 .5 1.9l-2.6.7-.5 2.9-1.6.5.8-2.1Z" />
-    </svg>
-  );
-}

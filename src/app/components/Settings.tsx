@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router';
 import profileNavIcon from '../assets/nav-icons/profile-white.png';
 import { useEffect, useMemo, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react';
-import { Accessibility, ArrowLeft, BookOpen, ChevronRight, Contrast, ExternalLink, Eye, Gift, History, KeyRound, LifeBuoy, LogOut, MapPin, MessageCircle, MessageSquareReply, ShieldAlert, ShieldCheck, Trash2, Type, UserX, type LucideIcon, Download, Plane,
+import { Accessibility, ArrowLeft, BookOpen, ChevronRight, Contrast, ExternalLink, Eye, Gift, History, KeyRound, LifeBuoy, LogOut, MapPin, MessageCircle, MessageSquareReply, ShieldAlert, ShieldCheck, Trash2, Type, UserX, type LucideIcon, Download,
 } from 'lucide-react';
 import { Button } from './ui/button';
 import CruushPlusWord from './CruushPlusWord';
@@ -44,11 +44,13 @@ import {
   type AccessibilityPreferences,
 } from '../lib/accessibilityPreferences';
 import { saveDistancePreferences, useDistancePreferences } from '../lib/distancePreferences';
+import mileHighClubWhite from '../assets/ui-icons/mile-high-club-white.svg';
 
 type SettingsActionItem = {
   icon?: LucideIcon;
   iconName?: CruushIconName;
   iconVariant?: CruushIconVariant;
+  iconSrc?: string;
   label: ReactNode;
   description?: string;
   action: () => void;
@@ -269,8 +271,8 @@ export default function Settings() {
           action: () => navigate('/privacy/map-presence'),
         },
         {
-          icon: Plane,
-          label: 'Travel Mode',
+          iconSrc: mileHighClubWhite,
+          label: 'Mile High Club',
           description: 'Drop a pin where you are visiting and browse from there.',
           action: () => navigate('/settings/travel'),
         },
@@ -466,7 +468,9 @@ export default function Settings() {
                       item.destructive ? 'text-destructive' : ''
                     } ${dividerClass}`}
                   >
-                    {item.iconName === 'profile' && item.iconVariant === 'gradient' ? (
+                    {item.iconSrc ? (
+                      <img aria-hidden="true" alt="" className="h-5 w-5" src={item.iconSrc} />
+                    ) : item.iconName === 'profile' && item.iconVariant === 'gradient' ? (
                       <img
                         aria-hidden="true"
                         alt=""

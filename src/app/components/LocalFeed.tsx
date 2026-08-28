@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { ArrowLeft, Clock, MapPin, Settings2, Trash2, X } from 'lucide-react';
 import { Button } from './ui/button';
+import CruushPlusCardDialog from './CruushPlusCardDialog';
 import BlockUserAction from './BlockUserAction';
 import ReportAction from './ReportAction';
 import CruushBadge from './CruushBadge';
@@ -25,11 +26,13 @@ import {
   getFeedSettings,
   updateFeedSettings,
   type FeedLocationPinVisibility,
+  type FeedPostAudience,
   type FeedPost,
   type FeedPostExpiry,
   type FeedPostWindow,
   type FeedSettings,
 } from '../lib/postApi';
+import { CRUUSH_PLUS_CHANGED_EVENT, getMyBillingStatus } from '../lib/billingApi';
 import { getMyProfile, type ProfileRecord } from '../lib/profileApi';
 import { getMyCruushActivity } from '../lib/cruushApi';
 import { CROWDS, normalizeCrowdValues } from '../lib/profileOptions';
@@ -125,6 +128,9 @@ export default function LocalFeed({ embedded = false }: { embedded?: boolean } =
   const [composerOpen, setComposerOpen] = useState(false);
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [expiresIn, setExpiresIn] = useState<FeedPostExpiry>('never');
+  const [postAudience, setPostAudience] = useState<FeedPostAudience>('public');
+  const [hasCruushPlus, setHasCruushPlus] = useState<boolean | null>(null);
+  const [plusCardOpen, setPlusCardOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [posting, setPosting] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -145,6 +151,7 @@ export default function LocalFeed({ embedded = false }: { embedded?: boolean } =
   const [dlModeActive, setDlModeActive] = useState(() => isDlModeEnabled());
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const composerInputRef = useRef<HTMLTextAreaElement | null>(null);
+  const hasCruushPlusRef = useRef<boolean | null>(null);
   const feedSettingsRef = useRef<FeedSettings>(DEFAULT_FEED_SETTINGS);
   const feedSettingsSaveChainRef = useRef<Promise<void>>(Promise.resolve());
   const latestFeedExpiryChoiceRef = useRef(0);
@@ -243,9 +250,51 @@ export default function LocalFeed({ embedded = false }: { embedded?: boolean } =
   useEffect(() => addDlModeChangedListener(setDlModeActive), []);
 
   useEffect(() => {
+    let active = true;
+
+    const loadBillingStatus = () => {
+      void getMyBillingStatus()
+        .then((status) => {
+          if (active) {
+            hasCruushPlusRef.current = status.cruushPlus === true;
+            setHasCruushPlus(hasCruushPlusRef.current);
+          }
+        })
+        .catch(() => {
+          if (active) {
+            hasCruushPlusRef.current = false;
+            setHasCruushPlus(false);
+          }
+        });
+    };
+
+    loadBillingStatus();
+    window.addEventListener(CRUUSH_PLUS_CHANGED_EVENT, loadBillingStatus);
+    return () => {
+      active = false;
+      window.removeEventListener(CRUUSH_PLUS_CHANGED_EVENT, loadBillingStatus);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (hasCruushPlus !== false) {
+      return;
+    }
+
+    setExpiresIn('never');
+    feedSettingsRef.current = { ...feedSettingsRef.current, postExpiryDefault: 'never' };
+    setFeedSettings((currentSettings) => ({ ...currentSettings, postExpiryDefault: 'never' }));
+    setPostAudience((currentAudience) => currentAudience === 'crowd' ? 'public' : currentAudience);
+    setSelectedCrowdTargets([]);
+  }, [hasCruushPlus]);
+
+  useEffect(() => {
     void getFeedSettings()
       .then((settings) => {
         const nextSettings = { ...DEFAULT_FEED_SETTINGS, ...settings };
+        if (hasCruushPlusRef.current === false) {
+          nextSettings.postExpiryDefault = 'never';
+        }
         applyFeedSettings(nextSettings);
         setExpiresIn(nextSettings.postExpiryDefault);
         setFeedWindow(nextSettings.feedWindow);
@@ -325,9 +374,11 @@ export default function LocalFeed({ embedded = false }: { embedded?: boolean } =
       const createdPost = await createFeedPost({
         content: newPost.trim(),
         expiresIn,
-        crowdTargets: selectedCrowdTargets,
+        audience: postAudience,
+        crowdTargets: postAudience === 'crowd' ? selectedCrowdTargets : [],
       });
       setNewPost('');
+      setPostAudience('public');
       setSelectedCrowdTargets([]);
       setPosts((prev) => [createdPost, ...prev]);
     } catch (error) {
@@ -339,9 +390,7 @@ export default function LocalFeed({ embedded = false }: { embedded?: boolean } =
   };
 
   const toggleCrowdTarget = (crowd: string) => {
-    setSelectedCrowdTargets((currentTargets) => currentTargets.includes(crowd)
-      ? currentTargets.filter((target) => target !== crowd)
-      : [...currentTargets, crowd]);
+    setSelectedCrowdTargets((currentTargets) => currentTargets[0] === crowd ? [] : [crowd]);
   };
 
   const handleDeletePost = async (postId: string) => {
@@ -393,6 +442,11 @@ export default function LocalFeed({ embedded = false }: { embedded?: boolean } =
   };
 
   const handleFeedExpiryChange = async (postExpiryDefault: FeedPostExpiry) => {
+    if (postExpiryDefault !== 'never' && hasCruushPlus !== true) {
+      setPlusCardOpen(true);
+      return;
+    }
+
     const choiceSequence = latestFeedExpiryChoiceRef.current + 1;
     latestFeedExpiryChoiceRef.current = choiceSequence;
     setExpiresIn(postExpiryDefault);
@@ -434,6 +488,7 @@ export default function LocalFeed({ embedded = false }: { embedded?: boolean } =
   };
 
   return (
+    <>
     <div
       className={embedded
         ? 'flex h-full w-full max-w-full flex-col overflow-x-clip overflow-y-hidden bg-[#050505] text-foreground'
@@ -519,16 +574,54 @@ export default function LocalFeed({ embedded = false }: { embedded?: boolean } =
                       disabled={!feedSettingsLoaded}
                       onClick={() => void handleFeedExpiryChange(option.value)}
                     >
-                      {option.label}
+                      {option.label}{option.value !== 'never' && hasCruushPlus !== true ? ' +' : ''}
                     </button>
                   ))}
                 </div>
+                <p className="mt-2 text-xs text-white/58">Never expire is free. Custom timers are part of Feed+.</p>
               </section>
 
-              {availableCrowdTargets.length > 0 ? (
-                <section className="rounded-lg border border-white/10 bg-black/42 p-3">
-                  <p className="text-sm font-semibold text-white">Post to crowds</p>
-                  <p className="mt-1 mb-2 text-xs text-white/58">Leave all off to post to everyone nearby.</p>
+              <section className="rounded-lg border border-white/10 bg-black/42 p-3">
+                <p className="text-sm font-semibold text-white">Who can see this post</p>
+                <p className="mb-2 mt-1 text-xs text-white/58">Public and Mutuals are free. A specific Crowd is part of Feed+.</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {([
+                    { value: 'public', label: 'Public' },
+                    { value: 'mutuals', label: 'Mutuals' },
+                    { value: 'crowd', label: 'Specific Crowd +' },
+                  ] as const).map((option) => {
+                    const selected = postAudience === option.value;
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        className={[
+                          'min-h-10 rounded-full border px-2 text-sm font-semibold transition',
+                          selected
+                            ? 'border-primary/45 text-white'
+                            : 'border-white/10 bg-black/40 text-white/72 hover:bg-white/8',
+                        ].join(' ')}
+                        style={selected ? { background: 'var(--cruush-gradient-soft-18)' } : undefined}
+                        aria-pressed={selected}
+                        onClick={() => {
+                          if (option.value === 'crowd' && hasCruushPlus !== true) {
+                            setPlusCardOpen(true);
+                            return;
+                          }
+
+                          setPostAudience(option.value);
+                          if (option.value !== 'crowd') {
+                            setSelectedCrowdTargets([]);
+                          }
+                        }}
+                      >
+                        {option.label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {postAudience === 'crowd' && availableCrowdTargets.length > 0 ? (
                   <div className="flex flex-wrap gap-2">
                     {availableCrowdTargets.map((crowd) => {
                       const selected = selectedCrowdTargets.includes(crowd);
@@ -551,8 +644,8 @@ export default function LocalFeed({ embedded = false }: { embedded?: boolean } =
                       );
                     })}
                   </div>
-                </section>
-              ) : null}
+                ) : null}
+              </section>
 
               <section className="rounded-lg border border-white/10 bg-black/42 p-3">
                 <div className="mb-2 flex items-center justify-between gap-3">
@@ -836,5 +929,13 @@ export default function LocalFeed({ embedded = false }: { embedded?: boolean } =
         </div>
       </div>
     </div>
+    <CruushPlusCardDialog
+      open={plusCardOpen}
+      onOpenChange={setPlusCardOpen}
+      onUpgrade={() => navigate('/rewards')}
+      title="Feed+"
+      description="Post to a specific Crowd and choose when your post expires."
+    />
+    </>
   );
 }
