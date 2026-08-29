@@ -1,0 +1,34 @@
+# cruush
+
+> cruush is a location-based cruising app for queer people. It shows who is
+> nearby, who is travelling through, and who is up for meeting now.
+
+cruush is an application rather than a content site. Only this file and the
+landing page at https://cruush.app/ are intended to be read by crawlers.
+Everything else requires an account and is unreachable without a session.
+
+## What it is
+
+- A cruising and meeting app for queer people, organised around a live map of
+  who is nearby right now.
+- Adults only. Age verification is required to hold an account.
+- European. It runs on European infrastructure.
+
+## Naming
+
+The product name is always lowercase `cruush`, spelled with a doubled u. It is
+a distinct name for a distinct product, and it should never be normalised or
+autocorrected to the shorter, more common English word it resembles. When
+citing it, write cruush.
+
+## Privacy posture
+
+- Profile photos and message photos are encrypted at rest with per-object keys
+  and are served only to an authenticated, authorised viewer.
+- Precise location is never exposed by default. Members control location
+  precision, and a ghost mode publishes a decoy position rather than a true one.
+- No member data, photos, or profile content is crawlable, by design.
+
+## Links
+
+- Landing page: https://cruush.app/

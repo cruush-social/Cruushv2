@@ -1,3 +1,72 @@
-User-agent: *
-Disallow: /
+# cruush is an application, not a content site. Only the landing page is
+# indexable; every authenticated surface stays out of every index.
+#
+# Crawling is allowed where indexing is denied on purpose. A crawler blocked
+# here never fetches the page, so it never sees the X-Robots-Tag that removes
+# it, and a blocked-but-linked URL can still surface as a bare result. Serving
+# noindex to a crawler that is allowed to fetch is what actually removes a URL.
+#
+# None of this is a privacy control. Member data is behind authentication and
+# is unreachable without a session.
 
+User-agent: *
+Allow: /$
+Allow: /llms.txt
+Allow: /sitemap.xml
+Allow: /icons/
+Disallow: /map
+Disallow: /feed
+Disallow: /messages
+Disallow: /chat/
+Disallow: /profile
+Disallow: /cruush
+Disallow: /groups/
+Disallow: /events/
+Disallow: /places/
+Disallow: /settings
+Disallow: /privacy/
+Disallow: /notifications
+Disallow: /requests
+Disallow: /filters
+Disallow: /rewards
+Disallow: /lucky
+Disallow: /report
+Disallow: /checkout/
+Disallow: /admin/
+Disallow: /dev/
+Disallow: /reset-password
+
+# Answer engines. Named explicitly because a wildcard rule alone has repeatedly
+# proven ambiguous to these crawlers, and being absent from an answer is the
+# same as not existing.
+User-agent: OAI-SearchBot
+Allow: /$
+Allow: /llms.txt
+Disallow: /map
+
+User-agent: ChatGPT-User
+Allow: /$
+Allow: /llms.txt
+Disallow: /map
+
+User-agent: PerplexityBot
+Allow: /$
+Allow: /llms.txt
+Disallow: /map
+
+User-agent: ClaudeBot
+Allow: /$
+Allow: /llms.txt
+Disallow: /map
+
+User-agent: Claude-SearchBot
+Allow: /$
+Allow: /llms.txt
+Disallow: /map
+
+User-agent: Google-Extended
+Allow: /$
+Allow: /llms.txt
+Disallow: /map
+
+Sitemap: https://cruush.app/sitemap.xml

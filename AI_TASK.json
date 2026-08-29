@@ -1,94 +1,67 @@
 {
   "schemaVersion": 2,
-  "taskId": "cruush-media-read-hardening-20260829",
+  "taskId": "cruush-seo-aeo-landing-20260829",
   "status": "active",
-  "objective": "Add HTTP validators to encrypted media responses, remove container healthcheck noise from the request log, emit non-identifying media read observations, and add previous-secret support so encryption keys can be rotated at all. Also repair the stale test fixtures and mocks that leave the suite red on main, so the release gate can run.",
-  "userOutcome": "Repeat views of a photo revalidate instead of re-downloading and re-decrypting, retained API logs cover about a day and a half of real traffic instead of eight hours of healthchecks, and a leaked media, message, feed or profile key can be replaced without destroying the data already encrypted under it.",
-  "audience": "Authenticated cruush members viewing profile, message and feed photos, and Julien operating the production box.",
+  "objective": "Make only the cruush landing page discoverable to search engines and answer engines, while keeping every member surface out of every index, and give non-JavaScript crawlers something to read.",
+  "userOutcome": "A search for cruush, and a question put to an answer engine, can resolve to cruush.app with an accurate description, without any member profile, photo or message becoming reachable or indexable.",
+  "audience": "Search and answer-engine crawlers, and people who find cruush through them.",
   "successCriteria": [
-    "Media responses carry a strong ETag derived from the stored object key and its wrapping key version.",
-    "A request whose If-None-Match matches receives 304 with no body and without reading or decrypting the stored object.",
-    "Authentication and per-surface authorization still run on every media request, including revalidations.",
-    "GET /health still returns 200 and the container healthcheck is unchanged, but neither is written to the request log.",
-    "A value sealed before a rotation still decrypts once the outgoing secret is retained as the previous one.",
-    "With no previous secret configured, encryption behaviour is identical to before the change.",
-    "server typecheck passes and the crypto, media and content test files pass.",
-    "Rotation is available for media, message, feed, profile, location, visibility policy, ghost and relationship data.",
-    "Test fixtures and mocks that drifted from the code are repaired, without weakening or deleting any assertion."
+    "GET / returns X-Robots-Tag: index, follow.",
+    "Every member route returns the noindex header, including after the SPA fallback rewrite.",
+    "robots.txt allows the landing page, disallows member routes, and names the answer-engine crawlers explicitly.",
+    "A crawler that does not run JavaScript reads a real description of cruush at /.",
+    "The JSON-LD block survives the Vite build byte-identical, so its Content-Security-Policy hash still matches.",
+    "The frontend still builds and every member route still serves the application."
   ],
   "mustPreserve": [
-    "Every media route authenticates before any authorization or observation work.",
-    "Per-surface authorization: block checks for profile photos, conversation membership plus view-once and expiry for message photos, feed access for feed photos.",
-    "Envelope encryption of media bytes at rest and the moderation-approved and not-deleted row filters.",
-    "The Docker healthcheck definition and the /health route body.",
-    "Fastify's existing request log line shapes for every non-healthcheck request.",
-    "Decryption of every value already sealed under the current secrets.",
-    "Every existing test assertion. Fixtures may gain fields the code genuinely returns; no assertion may be relaxed or removed to make a run pass."
+    "Every existing security header, including the Content-Security-Policy, which must not gain unsafe-inline.",
+    "The existing visual design and copy authored by Julien. No new page, route or visible UI.",
+    "The SPA fallback: every member route continues to serve the application.",
+    "That no member data is reachable without authentication."
   ],
   "nonGoals": [
-    "Rate limiting media reads. That is a later phase and depends on measurement.",
-    "Rotation for index keys and stored token hashes, which cannot use a previous-secret fallback.",
-    "Any PostHog or analytics change.",
-    "Any robots, indexing or marketing surface change.",
-    "Rotation for index keys and stored token hashes (relationship-index, match-token-signing, profile-token, display-session), which are compared by hash and cannot use a previous-secret fallback."
+    "Creating a marketing page, an about page, a blog or any new route.",
+    "Designing UI. Julien is the only designer.",
+    "Prerendering the application itself.",
+    "Any PostHog, analytics or Google Analytics change.",
+    "Deploying. This is a local branch only."
   ],
   "allowedPaths": [
     "AI_TASK.json",
-    "server/src/app.ts",
-    "server/src/config.ts",
-    "server/src/crypto-keys.ts",
-    "server/src/media-encryption.ts",
-    "server/src/content-encryption.ts",
-    "server/src/profile-sensitive.ts",
-    "server/src/routes/media.ts",
-    "server/src/media-read-budget.ts",
-    "server/src/key-rotation.test.ts",
-    "server/src/media-read-validator.test.ts",
-    "server/src/location-privacy.ts",
-    "server/src/encrypted-relationships.ts",
-    "server/src/app.test.ts",
-    "server/src/profile-sensitive.test.ts",
-    "server/src/message-photo-child-face-ban.test.ts",
-    "docs/media-read-hardening-handoff-2026-08-29.md"
+    "index.html",
+    "nginx.conf",
+    "public/robots.txt",
+    "public/sitemap.xml",
+    "public/llms.txt"
   ],
   "forbiddenPaths": [
     "src/**",
-    "server/sql/**",
+    "server/**",
     "scripts/**",
     ".env",
     ".env.production"
   ],
   "assumptions": [
     {
-      "statement": "Encrypted media bytes behind a given object key are never rewritten, so the object key plus its wrapping key version is a stable strong validator.",
-      "impact": "If bytes were rewritten in place under the same key, a stale cached body could be served until the version changed.",
+      "statement": "The landing page is the logged-out Auth screen, since App.tsx renders Auth for every path without a session, and it contains no member data.",
+      "impact": "If a logged-out route ever server-renders member content, indexing / would expose it. Nothing renders server side today.",
       "reversible": true,
       "confirmationState": "labeled"
     },
     {
-      "statement": "private, no-cache is preferred over a long max-age so blocks, deletions and withdrawn moderation approvals revoke immediately.",
-      "impact": "Costs one conditional request per view instead of serving from cache silently, in exchange for immediate revocation.",
-      "reversible": true,
-      "confirmationState": "labeled"
-    },
-    {
-      "statement": "Salting read observations with the UTC day gives exact within-day counts without recording which member viewed whose photo.",
-      "impact": "Counts cannot be linked across day boundaries, which is acceptable for choosing a daily budget.",
+      "statement": "The wording of the description sentence is a placeholder pending Julien's decision; only the mechanism is being delivered.",
+      "impact": "The sentence appears in the meta description, the JSON-LD, llms.txt and the noscript block. Changing it means changing those four places together.",
       "reversible": true,
       "confirmationState": "labeled"
     }
   ],
-  "nextVisibleMilestone": "Media responses revalidate with 304 instead of re-sending bodies, production logs stop being 81 percent healthcheck, and media, message, feed and profile keys become rotatable.",
+  "nextVisibleMilestone": "cruush.app can be indexed and cited with an accurate description while every member surface stays invisible.",
   "stopConditions": [
-    "Any media route would answer without authenticating.",
-    "Any test that passed on origin/main starts failing.",
-    "A change would make already-encrypted data unreadable.",
-    "A change would require touching production applications or secrets."
+    "Any member route would become indexable.",
+    "The Content-Security-Policy would need weakening.",
+    "A change would require new UI or new copy beyond the description sentence."
   ],
-  "costBudget": {
-    "maxUsd": 0,
-    "maxMinutes": null
-  },
+  "costBudget": { "maxUsd": 0, "maxMinutes": null },
   "externalEffects": {
     "externalMessages": "forbidden",
     "purchases": "forbidden",
@@ -100,13 +73,12 @@
     "newDefaults": "confirm",
     "identityCreativeDecisions": "forbidden"
   },
-  "publicationTarget": "local branch feat/media-read-rate-limit; commit only, no push or deploy",
+  "publicationTarget": "local branch feat/seo-aeo; commit only. Do not push: a push to main deploys production.",
   "requiredEvidence": [
-    "npx tsc -p tsconfig.json --noEmit in server exits 0 with zero errors.",
-    "npx vitest run src/key-rotation.test.ts passes, including the case proving decryption fails closed when the outgoing secret is not retained.",
-    "npx vitest run src/media-read-validator.test.ts passes, including that a 304 is returned without reading the stored object and that authentication is still required.",
-    "The 20 crypto, media, content and config test files pass with 90 tests and no failures.",
-    "app.test.ts and profile-schema.test.ts failures were reproduced on a stashed tree, so they pre-exist on origin/main.",
-    "src/key-rotation.test.ts covers media, message and feed round trips across a rotation, each with a fails-closed case."
+    "nginx -t passes against the real config in an nginx:1.27-alpine container.",
+    "Serving the real built dist, / returns index, follow and /map, /messages and /profile/:id return noindex.",
+    "The noscript description is present in the raw HTML of the built /.",
+    "The sha256 of the JSON-LD in the built dist/index.html equals the hash in the Content-Security-Policy.",
+    "vite build exits 0 and robots.txt, sitemap.xml and llms.txt are emitted to dist."
   ]
 }
