@@ -11,8 +11,12 @@
 
 User-agent: *
 Allow: /$
+Allow: /about
+Allow: /help
+Allow: /blog
 Allow: /llms.txt
 Allow: /sitemap.xml
+Allow: /pages.css
 Allow: /icons/
 Disallow: /map
 Disallow: /feed
@@ -41,31 +45,49 @@ Disallow: /reset-password
 # same as not existing.
 User-agent: OAI-SearchBot
 Allow: /$
+Allow: /about
+Allow: /help
+Allow: /blog
 Allow: /llms.txt
 Disallow: /map
 
 User-agent: ChatGPT-User
 Allow: /$
+Allow: /about
+Allow: /help
+Allow: /blog
 Allow: /llms.txt
 Disallow: /map
 
 User-agent: PerplexityBot
 Allow: /$
+Allow: /about
+Allow: /help
+Allow: /blog
 Allow: /llms.txt
 Disallow: /map
 
 User-agent: ClaudeBot
 Allow: /$
+Allow: /about
+Allow: /help
+Allow: /blog
 Allow: /llms.txt
 Disallow: /map
 
 User-agent: Claude-SearchBot
 Allow: /$
+Allow: /about
+Allow: /help
+Allow: /blog
 Allow: /llms.txt
 Disallow: /map
 
 User-agent: Google-Extended
 Allow: /$
+Allow: /about
+Allow: /help
+Allow: /blog
 Allow: /llms.txt
 Disallow: /map
 

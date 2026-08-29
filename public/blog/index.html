@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Structural metadata only. The wording below is a factual placeholder;
+         the final description is Julien's to write, and must match the sentence
+         used on the landing page, in llms.txt and in the JSON-LD. -->
+    <meta name="description" content="Writing from cruush." />
+    <link rel="canonical" href="https://cruush.app/blog" />
+    <meta name="theme-color" content="#ff006e" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="cruush" />
+    <meta property="og:title" content="cruush blog" />
+    <meta property="og:description" content="Writing from cruush." />
+    <meta property="og:url" content="https://cruush.app/blog" />
+    <meta property="og:image" content="https://cruush.app/icons/icon-512.png" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="cruush blog" />
+    <meta name="twitter:description" content="Writing from cruush." />
+    <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=UnifrakturMaguntia&family=Spectral:ital,wght@0,300;0,400;0,600;1,400&display=swap" />
+    <link rel="stylesheet" href="/pages.css" />
+    <title>cruush blog</title>
+  </head>
+  <body>
+    <div class="wrap">
+      <header class="site">
+        <a class="wordmark" href="/">cruush</a>
+        <nav class="site">
+          <a href="/">Home</a>
+          <a href="/about">About</a>
+          <a href="/help">Help</a>
+          <a href="/blog" aria-current="page">Blog</a>
+        </nav>
+      </header>
+      <main>
+        <h1>Blog</h1>
+        <div class="placeholder">A line saying what this blog is for. No posts exist yet.</div>
+        <!-- Each post is a sibling file, public/blog/<slug>.html, listed here
+             and added to public/sitemap.xml. A post should carry its own
+             BlogPosting JSON-LD with headline, datePublished and author.
+             Remember: any inline JSON-LD needs its sha256 added to the
+             Content-Security-Policy in nginx.conf, or the browser drops it. -->
+        <h2>Posts</h2>
+        <div class="placeholder">No posts yet. Add public/blog/&lt;slug&gt;.html, link it here, and add it to the sitemap.</div>
+      </main>
+      <footer class="site">
+        <p>
+          <a href="/">cruush</a> &middot;
+          <a href="/about">About</a> &middot;
+          <a href="/help">Help</a> &middot;
+          <a href="/blog">Blog</a>
+        </p>
+        <p>Adults only. An account requires age verification.</p>
+      </footer>
+    </div>
+    <script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "Blog",
+  "url": "https://cruush.app/blog",
+  "name": "cruush blog",
+  "publisher": {
+    "@type": "Organization",
+    "name": "cruush",
+    "url": "https://cruush.app/",
+    "logo": "https://cruush.app/icons/icon-512.png"
+  }
+}</script>
+  </body>
+</html>

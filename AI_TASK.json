@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "taskId": "cruush-seo-aeo-landing-20260829",
   "status": "active",
-  "objective": "Make only the cruush landing page discoverable to search engines and answer engines, while keeping every member surface out of every index, and give non-JavaScript crawlers something to read.",
+  "objective": "Make only the cruush landing page discoverable to search engines and answer engines, while keeping every member surface out of every index, and give non-JavaScript crawlers something to read. Add static About, Help and Blog pages outside the application so they are readable without JavaScript.",
   "userOutcome": "A search for cruush, and a question put to an answer engine, can resolve to cruush.app with an accurate description, without any member profile, photo or message becoming reachable or indexable.",
   "audience": "Search and answer-engine crawlers, and people who find cruush through them.",
   "successCriteria": [
@@ -11,7 +11,10 @@
     "robots.txt allows the landing page, disallows member routes, and names the answer-engine crawlers explicitly.",
     "A crawler that does not run JavaScript reads a real description of cruush at /.",
     "The JSON-LD block survives the Vite build byte-identical, so its Content-Security-Policy hash still matches.",
-    "The frontend still builds and every member route still serves the application."
+    "The frontend still builds and every member route still serves the application.",
+    "/about, /help and /blog return 200 with index, follow, and serve real HTML without JavaScript.",
+    "Each page's JSON-LD survives the build and its sha256 is present in the Content-Security-Policy.",
+    "Every body block a human must write is visibly marked as needing copy."
   ],
   "mustPreserve": [
     "Every existing security header, including the Content-Security-Policy, which must not gain unsafe-inline.",
@@ -20,11 +23,11 @@
     "That no member data is reachable without authentication."
   ],
   "nonGoals": [
-    "Creating a marketing page, an about page, a blog or any new route.",
     "Designing UI. Julien is the only designer.",
     "Prerendering the application itself.",
     "Any PostHog, analytics or Google Analytics change.",
-    "Deploying. This is a local branch only."
+    "Deploying. This is a local branch only.",
+    "Writing the body copy for the new pages. Julien supplies it; the pages ship with marked placeholders and no invented product claims."
   ],
   "allowedPaths": [
     "AI_TASK.json",
@@ -32,7 +35,11 @@
     "nginx.conf",
     "public/robots.txt",
     "public/sitemap.xml",
-    "public/llms.txt"
+    "public/llms.txt",
+    "public/about.html",
+    "public/help.html",
+    "public/blog/index.html",
+    "public/pages.css"
   ],
   "forbiddenPaths": [
     "src/**",
@@ -53,6 +60,12 @@
       "impact": "The sentence appears in the meta description, the JSON-LD, llms.txt and the noscript block. Changing it means changing those four places together.",
       "reversible": true,
       "confirmationState": "labeled"
+    },
+    {
+      "statement": "The new pages are plain static documents rather than React routes, because answer-engine crawlers do not execute JavaScript.",
+      "impact": "They do not share the application's design system, so they will look simpler than the product until someone decides otherwise.",
+      "reversible": true,
+      "confirmationState": "confirmed"
     }
   ],
   "nextVisibleMilestone": "cruush.app can be indexed and cited with an accurate description while every member surface stays invisible.",
@@ -61,7 +74,10 @@
     "The Content-Security-Policy would need weakening.",
     "A change would require new UI or new copy beyond the description sentence."
   ],
-  "costBudget": { "maxUsd": 0, "maxMinutes": null },
+  "costBudget": {
+    "maxUsd": 0,
+    "maxMinutes": null
+  },
   "externalEffects": {
     "externalMessages": "forbidden",
     "purchases": "forbidden",
@@ -79,6 +95,8 @@
     "Serving the real built dist, / returns index, follow and /map, /messages and /profile/:id return noindex.",
     "The noscript description is present in the raw HTML of the built /.",
     "The sha256 of the JSON-LD in the built dist/index.html equals the hash in the Content-Security-Policy.",
-    "vite build exits 0 and robots.txt, sitemap.xml and llms.txt are emitted to dist."
+    "vite build exits 0 and robots.txt, sitemap.xml and llms.txt are emitted to dist.",
+    "Serving the real built dist, /about, /about/, /help and /blog return 200 with index, follow, while /map, /messages and an unknown path return noindex.",
+    "The extracted text of /about contains the page content with no JavaScript executed."
   ]
 }
