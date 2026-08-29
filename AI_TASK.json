@@ -48,7 +48,8 @@
     "server/src/encrypted-relationships.ts",
     "server/src/app.test.ts",
     "server/src/profile-sensitive.test.ts",
-    "server/src/message-photo-child-face-ban.test.ts"
+    "server/src/message-photo-child-face-ban.test.ts",
+    "docs/media-read-hardening-handoff-2026-08-29.md"
   ],
   "forbiddenPaths": [
     "src/**",
