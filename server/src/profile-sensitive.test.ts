@@ -48,7 +48,8 @@ describe("profile-sensitive encryption", () => {
       kink_interests: [{ kink_id: "leather", label: "Leather" }],
       hiv_status: ["undetectable"],
       custom_hiv_status: "",
-      health_preferences: ["COVID tested", "Masks"]
+      health_preferences: ["COVID tested", "Masks"],
+      birth_control: []
     };
     const first = encryptSensitiveProfile(config, sensitiveProfile);
     const second = encryptSensitiveProfile(config, sensitiveProfile);

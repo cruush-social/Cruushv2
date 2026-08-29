@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "taskId": "cruush-media-read-hardening-20260829",
   "status": "active",
-  "objective": "Add HTTP validators to encrypted media responses, remove container healthcheck noise from the request log, emit non-identifying media read observations, and add previous-secret support so encryption keys can be rotated at all.",
+  "objective": "Add HTTP validators to encrypted media responses, remove container healthcheck noise from the request log, emit non-identifying media read observations, and add previous-secret support so encryption keys can be rotated at all. Also repair the stale test fixtures and mocks that leave the suite red on main, so the release gate can run.",
   "userOutcome": "Repeat views of a photo revalidate instead of re-downloading and re-decrypting, retained API logs cover about a day and a half of real traffic instead of eight hours of healthchecks, and a leaked media, message, feed or profile key can be replaced without destroying the data already encrypted under it.",
   "audience": "Authenticated cruush members viewing profile, message and feed photos, and Julien operating the production box.",
   "successCriteria": [
@@ -13,7 +13,8 @@
     "A value sealed before a rotation still decrypts once the outgoing secret is retained as the previous one.",
     "With no previous secret configured, encryption behaviour is identical to before the change.",
     "server typecheck passes and the crypto, media and content test files pass.",
-    "Rotation is available for media, message, feed, profile, location, visibility policy, ghost and relationship data."
+    "Rotation is available for media, message, feed, profile, location, visibility policy, ghost and relationship data.",
+    "Test fixtures and mocks that drifted from the code are repaired, without weakening or deleting any assertion."
   ],
   "mustPreserve": [
     "Every media route authenticates before any authorization or observation work.",
@@ -21,7 +22,8 @@
     "Envelope encryption of media bytes at rest and the moderation-approved and not-deleted row filters.",
     "The Docker healthcheck definition and the /health route body.",
     "Fastify's existing request log line shapes for every non-healthcheck request.",
-    "Decryption of every value already sealed under the current secrets."
+    "Decryption of every value already sealed under the current secrets.",
+    "Every existing test assertion. Fixtures may gain fields the code genuinely returns; no assertion may be relaxed or removed to make a run pass."
   ],
   "nonGoals": [
     "Rate limiting media reads. That is a later phase and depends on measurement.",
@@ -43,7 +45,10 @@
     "server/src/key-rotation.test.ts",
     "server/src/media-read-validator.test.ts",
     "server/src/location-privacy.ts",
-    "server/src/encrypted-relationships.ts"
+    "server/src/encrypted-relationships.ts",
+    "server/src/app.test.ts",
+    "server/src/profile-sensitive.test.ts",
+    "server/src/message-photo-child-face-ban.test.ts"
   ],
   "forbiddenPaths": [
     "src/**",

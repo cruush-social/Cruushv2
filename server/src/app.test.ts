@@ -11197,6 +11197,7 @@ describe("server", () => {
           createdAt: "2026-04-28T12:00:00.000Z",
           mutual: false,
           locked: false,
+          permissions: { canMessage: true, canRevealPreciseLocation: false, matchId: null },
           user: {
             id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
             name: "Alex",
@@ -11210,6 +11211,7 @@ describe("server", () => {
           createdAt: "2026-04-28T11:00:00.000Z",
           mutual: false,
           locked: true,
+          permissions: { canMessage: true, canRevealPreciseLocation: false, matchId: null },
           user: null
         }],
         sent: [{
@@ -11217,6 +11219,7 @@ describe("server", () => {
           createdAt: "2026-04-28T12:05:00.000Z",
           mutual: false,
           locked: false,
+          permissions: { canMessage: true, canRevealPreciseLocation: false, matchId: null },
           user: {
             id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
             name: "Alex",
@@ -12693,6 +12696,7 @@ describe("server", () => {
         custom_mpox_vaccine: "",
         substance_boundaries: ["No alcohol involved", "Let's discuss"],
         health_preferences: [],
+        birth_control: [],
         visibility_rules: emptyProfile.visibility_rules,
         updated_at: "2026-04-28T12:00:00.000Z"
       }
@@ -13478,6 +13482,7 @@ describe("server", () => {
         id: userId,
         ...payload,
         health_preferences: [],
+        birth_control: [],
         year_of_birth: 1994,
         photo_metadata: [],
         is_trans: null,
