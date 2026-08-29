@@ -83,8 +83,32 @@ function buildMetadata(config: AppConfig) {
 export function buildServer(config: AppConfig, deps: BuildServerDeps = {}) {
   const app = Fastify({
     logger: deps.logger ?? config.NODE_ENV !== "test",
+    // Request logging is reproduced by the hooks below so that the container
+    // healthcheck can be excluded from it.
+    disableRequestLogging: true,
     trustProxy: (config.TRUST_PROXY_HOPS ?? 0) > 0 ? config.TRUST_PROXY_HOPS : false
   });
+
+  // The container healthcheck polls /health every 15s. At two log lines per
+  // request that is roughly 11.5k lines a day, which buries real traffic and
+  // caps how far back the retained logs reach. These hooks restore Fastify's
+  // default request logging for everything else.
+  app.addHook("onRequest", (request, _reply, done) => {
+    if (request.url !== "/health") {
+      request.log.info({ req: request }, "incoming request");
+    }
+
+    done();
+  });
+
+  app.addHook("onResponse", (request, reply, done) => {
+    if (request.url !== "/health") {
+      request.log.info({ res: reply, responseTime: reply.elapsedTime }, "request completed");
+    }
+
+    done();
+  });
+
   const db = deps.db ?? createPool(config);
   const allowedCorsOrigins = new Set(
     config.CORS_ORIGIN

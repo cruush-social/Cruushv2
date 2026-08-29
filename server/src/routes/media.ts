@@ -1,4 +1,5 @@
-import type { FastifyInstance, FastifyReply } from "fastify";
+import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import { createHash } from "node:crypto";
 import { z } from "zod";
 import { ApiError } from "../errors.js";
 import { toReportablePhotoUploadError } from "../photo-upload-incident.js";
@@ -24,6 +25,7 @@ import { approvedContentReviewCte } from "../moderation-service.js";
 import { userHasOwnerFullAccess } from "../owner-access.js";
 import { photoUploadAvailability } from "../photo-upload-availability.js";
 import { getActiveAccountUserId, getAuthenticatedUserId } from "../request-auth.js";
+import { recordMediaRead } from "../media-read-budget.js";
 import { assertUsersNotBlocked } from "../user-blocks.js";
 
 const MAX_PROFILE_PHOTOS = 4;
@@ -89,7 +91,66 @@ export function parseProfilePhotoFilename(params: unknown) {
   return result.data;
 }
 
-async function sendEncryptedMedia(app: FastifyInstance, reply: FastifyReply, mediaObject: EncryptedMediaRow) {
+function buildMediaEntityTag(mediaObject: EncryptedMediaRow) {
+  // Object keys are unique per stored variant and the encrypted bytes behind one
+  // are never rewritten, so the key plus its wrapping key version is a stable
+  // strong validator for that exact body.
+  const digest = createHash("sha256")
+    .update(`${mediaObject.object_key}:${mediaObject.key_version}`)
+    .digest("hex")
+    .slice(0, 32);
+
+  return `"${digest}"`;
+}
+
+function requestMatchesEntityTag(request: FastifyRequest, entityTag: string) {
+  const header = request.headers["if-none-match"];
+
+  if (!header) {
+    return false;
+  }
+
+  const candidates = (Array.isArray(header) ? header.join(",") : header)
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+
+  return candidates.some(
+    (candidate) => candidate === "*" || candidate.replace(/^W\//, "") === entityTag
+  );
+}
+
+async function sendEncryptedMedia(
+  app: FastifyInstance,
+  request: FastifyRequest,
+  reply: FastifyReply,
+  mediaObject: EncryptedMediaRow,
+  viewerUserId: string
+) {
+  const entityTag = buildMediaEntityTag(mediaObject);
+
+  // "no-cache" tells the client to revalidate on every view rather than to skip
+  // storing the body. Authentication and the per-surface authorization checks
+  // therefore run again on each request, so a block, a deletion or a withdrawn
+  // moderation approval takes effect immediately instead of lingering in a
+  // browser cache. A matching validator still avoids the object read, the
+  // decrypt and the transfer.
+  reply.header("cache-control", "private, no-cache").header("etag", entityTag);
+
+  const observation = {
+    viewerUserId,
+    objectKey: mediaObject.object_key,
+    surface: mediaObject.surface
+  };
+
+  if (requestMatchesEntityTag(request, entityTag)) {
+    recordMediaRead(request.log, { ...observation, revalidated: true });
+
+    return reply.code(304).send();
+  }
+
+  recordMediaRead(request.log, { ...observation, revalidated: false });
+
   const encryptedBytes = await readEncryptedMediaObject(app.config, mediaObject.object_key);
   const bytes = decryptMediaBytes(app.config, {
     ciphertext: encryptedBytes,
@@ -101,10 +162,7 @@ async function sendEncryptedMedia(app: FastifyInstance, reply: FastifyReply, med
     keyVersion: mediaObject.key_version
   });
 
-  return reply
-    .type(mediaObject.mime_type)
-    .header("cache-control", "private, max-age=300")
-    .send(bytes);
+  return reply.type(mediaObject.mime_type).send(bytes);
 }
 
 async function sendModerationMedia(
@@ -267,7 +325,7 @@ export async function registerMediaRoutes(app: FastifyInstance) {
       await assertUsersNotBlocked(app, userId, mediaObject.owner_user_id);
     }
 
-    return sendEncryptedMedia(app, reply, mediaObject);
+    return sendEncryptedMedia(app, request, reply, mediaObject, userId);
   });
 
   app.get("/api/media/message-photos/:filename", async (request, reply) => {
@@ -310,7 +368,7 @@ export async function registerMediaRoutes(app: FastifyInstance) {
       throw new ApiError(404, "NOT_FOUND", "Media not found.");
     }
 
-    return sendEncryptedMedia(app, reply, mediaObject);
+    return sendEncryptedMedia(app, request, reply, mediaObject, userId);
   });
 
   app.get("/api/media/assets/:assetId/:variant", async (request, reply) => {
@@ -353,7 +411,7 @@ export async function registerMediaRoutes(app: FastifyInstance) {
       await assertMessageMediaAccess(app, userId, assetId);
     }
 
-    return sendEncryptedMedia(app, reply, mediaObject);
+    return sendEncryptedMedia(app, request, reply, mediaObject, userId);
   });
 
   app.get("/api/media/assets/me", async (request) => {

@@ -1,6 +1,6 @@
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 import type { AppConfig } from "./config.js";
-import { deriveKey } from "./crypto-keys.js";
+import { deriveKey, resolveSecretForVersion } from "./crypto-keys.js";
 
 export type EncryptedMediaBytes = {
   ciphertext: Buffer;
@@ -12,12 +12,17 @@ export type EncryptedMediaBytes = {
   keyVersion: string;
 };
 
-function getMediaEncryptionSecret(config: AppConfig) {
-  return config.MEDIA_ENCRYPTION_KEY || config.SESSION_SECRET;
-}
-
 function getMediaEncryptionKeyVersion(config: AppConfig) {
   return config.MEDIA_ENCRYPTION_KEY_VERSION || "v1";
+}
+
+function getMediaEncryptionSecret(config: AppConfig, storedVersion?: string) {
+  return resolveSecretForVersion({
+    currentSecret: config.MEDIA_ENCRYPTION_KEY || config.SESSION_SECRET,
+    previousSecret: config.MEDIA_ENCRYPTION_KEY_PREVIOUS,
+    currentVersion: getMediaEncryptionKeyVersion(config),
+    storedVersion
+  });
 }
 
 function encryptWithKey(key: Buffer, plaintext: Buffer) {
@@ -68,7 +73,11 @@ export function encryptMediaBytes(config: AppConfig, plaintext: Buffer): Encrypt
 }
 
 export function decryptMediaBytes(config: AppConfig, encrypted: EncryptedMediaBytes) {
-  const wrappingKey = deriveKey(getMediaEncryptionSecret(config), "media-data-key", encrypted.keyVersion);
+  const wrappingKey = deriveKey(
+    getMediaEncryptionSecret(config, encrypted.keyVersion),
+    "media-data-key",
+    encrypted.keyVersion
+  );
   const dataKey = decryptWithKey(wrappingKey, {
     ciphertext: Buffer.from(encrypted.encryptedDataKey, "base64"),
     nonce: encrypted.dataKeyNonce,

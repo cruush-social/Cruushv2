@@ -1,46 +1,102 @@
 {
-  "status": "validating",
-  "product": "cruush",
-  "release": "1.6 mobile Seeking top-bar overlap hotfix",
-  "repository": "cruush-social/Cruushv2",
-  "job": "Move the closed Seeking and right-side map control stack below the true padded top-bar height with an 8px gap at mobile, tablet, and desktop breakpoints.",
-  "branch": "hotfix/bugfix-release-20260827",
-  "allowedPaths": [
-    "AI_TASK.json",
-    "src/app/components/MapHome.test.tsx",
-    "src/app/components/MapHome.tsx",
-    "src/app/lib/overlaySlots.smoke.test.ts",
-    "src/app/lib/overlaySlots.ts"
+  "schemaVersion": 2,
+  "taskId": "cruush-media-read-hardening-20260829",
+  "status": "active",
+  "objective": "Add HTTP validators to encrypted media responses, remove container healthcheck noise from the request log, emit non-identifying media read observations, and add previous-secret support so encryption keys can be rotated at all.",
+  "userOutcome": "Repeat views of a photo revalidate instead of re-downloading and re-decrypting, retained API logs cover about a day and a half of real traffic instead of eight hours of healthchecks, and a leaked media, message, feed or profile key can be replaced without destroying the data already encrypted under it.",
+  "audience": "Authenticated cruush members viewing profile, message and feed photos, and Julien operating the production box.",
+  "successCriteria": [
+    "Media responses carry a strong ETag derived from the stored object key and its wrapping key version.",
+    "A request whose If-None-Match matches receives 304 with no body and without reading or decrypting the stored object.",
+    "Authentication and per-surface authorization still run on every media request, including revalidations.",
+    "GET /health still returns 200 and the container healthcheck is unchanged, but neither is written to the request log.",
+    "A value sealed before a rotation still decrypts once the outgoing secret is retained as the previous one.",
+    "With no previous secret configured, encryption behaviour is identical to before the change.",
+    "server typecheck passes and the crypto, media and content test files pass."
   ],
-  "preserved": [
-    "Preserve the exact top bar, Seeking, Visibility, Pulse, zoom controls, bottom navigation, markers, and map behavior.",
-    "Preserve the Ghost animation, duplicate-message fix, Seeking sheet overlap fix, assets, copy, and every prior bug fix."
+  "mustPreserve": [
+    "Every media route authenticates before any authorization or observation work.",
+    "Per-surface authorization: block checks for profile photos, conversation membership plus view-once and expiry for message photos, feed access for feed photos.",
+    "Envelope encryption of media bytes at rest and the moderation-approved and not-deleted row filters.",
+    "The Docker healthcheck definition and the /health route body.",
+    "Fastify's existing request log line shapes for every non-healthcheck request.",
+    "Decryption of every value already sealed under the current secrets."
   ],
   "nonGoals": [
-    "No feature, copy, asset, animation, environment, dependency, migration, provider, server, notification, navigation, or unrelated visual change.",
-    "Do not resize, restyle, reorder, hide, or redesign any map control."
+    "Rate limiting media reads. That is a later phase and depends on measurement.",
+    "Rotation for location, visibility policy, ghost and relationship data, blocked on the stale key version stamp in saveVisibilityPolicy.",
+    "Rotation for index keys and stored token hashes, which cannot use a previous-secret fallback.",
+    "Any PostHog or analytics change.",
+    "Any robots, indexing or marketing surface change."
   ],
-  "proof": [
-    "Correct the overlay registry so it models the padded top bar and requires an 8px gap before the right-side controls.",
-    "Run focused MapHome and overlay-slot tests after the patch.",
-    "Render and inspect the actual map at 360 by 650 and 412 by 915, measuring the top bar and Seeking rectangles at each viewport.",
-    "Run the client production build, copy check, contract check, and git diff checks.",
-    "Push only this slice to origin/main, deploy production, and verify remote SHA, live build SHA, API health, and frontend response."
+  "allowedPaths": [
+    "AI_TASK.json",
+    "server/src/app.ts",
+    "server/src/config.ts",
+    "server/src/crypto-keys.ts",
+    "server/src/media-encryption.ts",
+    "server/src/content-encryption.ts",
+    "server/src/profile-sensitive.ts",
+    "server/src/routes/media.ts",
+    "server/src/media-read-budget.ts",
+    "server/src/key-rotation.test.ts",
+    "server/src/media-read-validator.test.ts"
   ],
-  "proofResults": [
-    "The original right stack began at 62px while the rendered top-actions border box ended at 66px, creating a 4px overlap.",
-    "The new 8px overlay-gap regression failed before the patch, then passed after the padded top-bar and right-stack geometry were corrected.",
-    "All 81 MapHome and overlay-slot tests passed. The stale MapView mock and obsolete duplicate Pulse and bottom-nav overlay declarations were corrected only inside the test validator.",
-    "The actual built map rendered at 360 by 650 and 412 by 915 with isolated mocked authentication and data. At both viewports, the top-actions rectangle ended at 66px and Seeking began at 74px for an exact 8px gap.",
-    "Both rendered screenshots were visually inspected with the full map, top bar, Seeking, Visibility, right control rail, markers, and bottom navigation visible. No top collision or new clipping appeared.",
-    "Client Vite production build passed. The existing duplicate strokeOpacity warning in PulseEffectPreview.tsx remains.",
-    "Public-copy, cruush-casing, and git diff checks passed.",
-    "No package or lockfile changed. No environment variable was added, removed, or changed."
+  "forbiddenPaths": [
+    "src/**",
+    "server/sql/**",
+    "scripts/**",
+    ".env",
+    ".env.production"
   ],
-  "unverified": [
-    "Production authenticated 412 by 915 inspection remains required after deployment."
+  "assumptions": [
+    {
+      "statement": "Encrypted media bytes behind a given object key are never rewritten, so the object key plus its wrapping key version is a stable strong validator.",
+      "impact": "If bytes were rewritten in place under the same key, a stale cached body could be served until the version changed.",
+      "reversible": true,
+      "confirmationState": "labeled"
+    },
+    {
+      "statement": "private, no-cache is preferred over a long max-age so blocks, deletions and withdrawn moderation approvals revoke immediately.",
+      "impact": "Costs one conditional request per view instead of serving from cache silently, in exchange for immediate revocation.",
+      "reversible": true,
+      "confirmationState": "labeled"
+    },
+    {
+      "statement": "Salting read observations with the UTC day gives exact within-day counts without recording which member viewed whose photo.",
+      "impact": "Counts cannot be linked across day boundaries, which is acceptable for choosing a daily budget.",
+      "reversible": true,
+      "confirmationState": "labeled"
+    }
   ],
-  "task": "Mobile Seeking top-bar overlap fix",
-  "publicationTarget": "origin/main and production",
-  "environmentChanges": "none"
+  "nextVisibleMilestone": "Media responses revalidate with 304 instead of re-sending bodies, production logs stop being 81 percent healthcheck, and media, message, feed and profile keys become rotatable.",
+  "stopConditions": [
+    "Any media route would answer without authenticating.",
+    "Any test that passed on origin/main starts failing.",
+    "A change would make already-encrypted data unreadable.",
+    "A change would require touching production applications or secrets."
+  ],
+  "costBudget": {
+    "maxUsd": 0,
+    "maxMinutes": null
+  },
+  "externalEffects": {
+    "externalMessages": "forbidden",
+    "purchases": "forbidden",
+    "deployment": "forbidden",
+    "publication": "auto",
+    "deletion": "forbidden",
+    "securityChanges": "forbidden",
+    "credentials": "forbidden",
+    "newDefaults": "confirm",
+    "identityCreativeDecisions": "forbidden"
+  },
+  "publicationTarget": "local branch feat/media-read-rate-limit; commit only, no push or deploy",
+  "requiredEvidence": [
+    "npx tsc -p tsconfig.json --noEmit in server exits 0 with zero errors.",
+    "npx vitest run src/key-rotation.test.ts passes, including the case proving decryption fails closed when the outgoing secret is not retained.",
+    "npx vitest run src/media-read-validator.test.ts passes, including that a 304 is returned without reading the stored object and that authentication is still required.",
+    "The 20 crypto, media, content and config test files pass with 90 tests and no failures.",
+    "app.test.ts and profile-schema.test.ts failures were reproduced on a stashed tree, so they pre-exist on origin/main."
+  ]
 }
