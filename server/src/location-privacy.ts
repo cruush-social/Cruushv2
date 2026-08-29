@@ -8,6 +8,7 @@ import {
 } from "node:crypto";
 import type { FastifyRequest } from "fastify";
 import type { AppConfig } from "./config.js";
+import { resolveSecretForVersion } from "./crypto-keys.js";
 import type { DbClient } from "./db.js";
 import { getSessionTokenFromRequest, hashSessionToken } from "./auth.js";
 import { normalizeCrowdOption, type CrowdOption } from "./profile-sensitive.js";
@@ -247,20 +248,35 @@ function deriveKey(secret: string, purpose: string, keyVersion: string) {
     .digest();
 }
 
-function getLocationEncryptionSecret(config: AppConfig) {
-  return config.LOCATION_ENCRYPTION_KEY || config.SESSION_SECRET;
+function getLocationEncryptionSecret(config: AppConfig, storedVersion: string, currentVersion: string) {
+  return resolveSecretForVersion({
+    currentSecret: config.LOCATION_ENCRYPTION_KEY || config.SESSION_SECRET,
+    previousSecret: config.LOCATION_ENCRYPTION_KEY_PREVIOUS,
+    currentVersion,
+    storedVersion
+  });
 }
 
 function getLocationIndexSecret(config: AppConfig) {
   return config.LOCATION_INDEX_KEY || config.SESSION_SECRET;
 }
 
-function getVisibilityPolicySecret(config: AppConfig) {
-  return config.VISIBILITY_POLICY_ENCRYPTION_KEY || config.SESSION_SECRET;
+function getVisibilityPolicySecret(config: AppConfig, storedVersion: string, currentVersion: string) {
+  return resolveSecretForVersion({
+    currentSecret: config.VISIBILITY_POLICY_ENCRYPTION_KEY || config.SESSION_SECRET,
+    previousSecret: config.VISIBILITY_POLICY_ENCRYPTION_KEY_PREVIOUS,
+    currentVersion,
+    storedVersion
+  });
 }
 
-function getGhostDerivationSecret(config: AppConfig) {
-  return config.GHOST_DERIVATION_KEY || config.SESSION_SECRET;
+function getGhostDerivationSecret(config: AppConfig, storedVersion: string, currentVersion: string) {
+  return resolveSecretForVersion({
+    currentSecret: config.GHOST_DERIVATION_KEY || config.SESSION_SECRET,
+    previousSecret: config.GHOST_DERIVATION_KEY_PREVIOUS,
+    currentVersion,
+    storedVersion
+  });
 }
 
 function getDisplayTokenSecret(config: AppConfig) {
@@ -584,7 +600,7 @@ export async function loadVisibilityPolicyStrict(
       dekNonce: row.policy_dek_nonce,
       dekAuthTag: row.policy_dek_auth_tag,
       aad: policyAad(subjectUserId, policyVersion, updatedAtMs),
-      secret: getVisibilityPolicySecret(context.config),
+      secret: getVisibilityPolicySecret(context.config, row.key_version || getVisibilityPolicyKeyVersion(context.config), getVisibilityPolicyKeyVersion(context.config)),
       purpose: "visibility-policy",
       keyVersion: row.key_version || getVisibilityPolicyKeyVersion(context.config)
     });
@@ -615,7 +631,7 @@ export async function loadVisibilityPolicy(context: LocationPrivacyContext, subj
       plaintext: policy,
       aad: policyAad(subjectUserId, policy.policyVersion, policy.updatedAtMs),
       config: context.config,
-      secret: getVisibilityPolicySecret(context.config),
+      secret: getVisibilityPolicySecret(context.config, policy.keyVersion, policy.keyVersion),
       purpose: "visibility-policy",
       keyVersion: policy.keyVersion
     });
@@ -696,7 +712,7 @@ export async function saveVisibilityPolicy(
     plaintext: policy,
     aad: policyAad(subjectUserId, policy.policyVersion, policy.updatedAtMs),
     config: context.config,
-    secret: getVisibilityPolicySecret(context.config),
+    secret: getVisibilityPolicySecret(context.config, policy.keyVersion, policy.keyVersion),
     purpose: "visibility-policy",
     keyVersion: policy.keyVersion
   });
@@ -829,7 +845,7 @@ export async function storeLocationEnvelope(context: LocationPrivacyContext, inp
     plaintext: payload,
     aad: locationAad(input.subjectUserId, locationVersion, nowMs),
     config: context.config,
-    secret: getLocationEncryptionSecret(context.config),
+    secret: getLocationEncryptionSecret(context.config, keyVersion, keyVersion),
     purpose: "location-envelope",
     keyVersion
   });
@@ -897,7 +913,7 @@ export function decryptLocationEnvelope(context: LocationPrivacyContext, row: En
     dekNonce: row.location_dek_nonce,
     dekAuthTag: row.location_dek_auth_tag,
     aad: locationAad(subjectUserId, locationVersion, collectedAtMs),
-    secret: getLocationEncryptionSecret(context.config),
+    secret: getLocationEncryptionSecret(context.config, row.key_version || getLocationKeyVersion(context.config), getLocationKeyVersion(context.config)),
     purpose: "location-envelope",
     keyVersion: row.key_version || getLocationKeyVersion(context.config)
   });
@@ -1112,7 +1128,7 @@ async function loadOrCreateGhostRotation(context: LocationPrivacyContext, input:
       dekNonce: row.token_dek_nonce,
       dekAuthTag: row.token_dek_auth_tag,
       aad: rotationAad(input.subjectUserId, rotationEpoch, rotationPolicyVersion),
-      secret: getGhostDerivationSecret(context.config),
+      secret: getGhostDerivationSecret(context.config, row.key_version || getGhostDerivationKeyVersion(context.config), getGhostDerivationKeyVersion(context.config)),
       purpose: "ghost-rotation",
       keyVersion: row.key_version || getGhostDerivationKeyVersion(context.config)
     });
@@ -1138,7 +1154,7 @@ async function loadOrCreateGhostRotation(context: LocationPrivacyContext, input:
     plaintext: payload,
     aad: rotationAad(input.subjectUserId, rotationEpoch, rotationPolicyVersion),
     config: context.config,
-    secret: getGhostDerivationSecret(context.config),
+    secret: getGhostDerivationSecret(context.config, keyVersion, keyVersion),
     purpose: "ghost-rotation",
     keyVersion
   });
@@ -1232,10 +1248,13 @@ export function deriveGhostCoordinate(input: {
   radiusMeters: number;
   policyVersion: number;
 }) {
+  // A derivation, not a decrypt of anything stored: the coordinate is recomputed
+  // from the current key every time, so it always resolves to the current secret.
+  const ghostKeyVersion = getGhostDerivationKeyVersion(input.config);
   const key = deriveKey(
-    getGhostDerivationSecret(input.config),
+    getGhostDerivationSecret(input.config, ghostKeyVersion, ghostKeyVersion),
     "ghost-coordinate",
-    getGhostDerivationKeyVersion(input.config)
+    ghostKeyVersion
   );
   // Ghost v2. The v1 scheme offset the TRUE point by a fresh random vector each
   // epoch. Those offsets were unbiased, so an observer who recorded the decoy
@@ -1579,7 +1598,7 @@ export async function recordPrivacyAuditEvent(context: LocationPrivacyContext, p
     plaintext: payload,
     aad: eventAad(payload.subjectUserId, payload.viewerUserId, payload.createdAtMs),
     config: context.config,
-    secret: getVisibilityPolicySecret(context.config),
+    secret: getVisibilityPolicySecret(context.config, keyVersion, keyVersion),
     purpose: "privacy-audit",
     keyVersion
   });
@@ -1692,7 +1711,7 @@ export function decryptPrivacyAuditEvent(context: LocationPrivacyContext, row: P
     dekNonce: row.event_dek_nonce,
     dekAuthTag: row.event_dek_auth_tag,
     aad: eventAad(subjectUserId, viewerUserId, toNumber(row.created_at_ms)),
-    secret: getVisibilityPolicySecret(context.config),
+    secret: getVisibilityPolicySecret(context.config, row.key_version || getLocationKeyVersion(context.config), getLocationKeyVersion(context.config)),
     purpose: "privacy-audit",
     keyVersion: row.key_version || getLocationKeyVersion(context.config)
   });

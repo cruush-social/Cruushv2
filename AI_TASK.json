@@ -12,7 +12,8 @@
     "GET /health still returns 200 and the container healthcheck is unchanged, but neither is written to the request log.",
     "A value sealed before a rotation still decrypts once the outgoing secret is retained as the previous one.",
     "With no previous secret configured, encryption behaviour is identical to before the change.",
-    "server typecheck passes and the crypto, media and content test files pass."
+    "server typecheck passes and the crypto, media and content test files pass.",
+    "Rotation is available for media, message, feed, profile, location, visibility policy, ghost and relationship data."
   ],
   "mustPreserve": [
     "Every media route authenticates before any authorization or observation work.",
@@ -24,10 +25,10 @@
   ],
   "nonGoals": [
     "Rate limiting media reads. That is a later phase and depends on measurement.",
-    "Rotation for location, visibility policy, ghost and relationship data, blocked on the stale key version stamp in saveVisibilityPolicy.",
     "Rotation for index keys and stored token hashes, which cannot use a previous-secret fallback.",
     "Any PostHog or analytics change.",
-    "Any robots, indexing or marketing surface change."
+    "Any robots, indexing or marketing surface change.",
+    "Rotation for index keys and stored token hashes (relationship-index, match-token-signing, profile-token, display-session), which are compared by hash and cannot use a previous-secret fallback."
   ],
   "allowedPaths": [
     "AI_TASK.json",
@@ -40,7 +41,9 @@
     "server/src/routes/media.ts",
     "server/src/media-read-budget.ts",
     "server/src/key-rotation.test.ts",
-    "server/src/media-read-validator.test.ts"
+    "server/src/media-read-validator.test.ts",
+    "server/src/location-privacy.ts",
+    "server/src/encrypted-relationships.ts"
   ],
   "forbiddenPaths": [
     "src/**",
@@ -97,6 +100,7 @@
     "npx vitest run src/key-rotation.test.ts passes, including the case proving decryption fails closed when the outgoing secret is not retained.",
     "npx vitest run src/media-read-validator.test.ts passes, including that a 304 is returned without reading the stored object and that authentication is still required.",
     "The 20 crypto, media, content and config test files pass with 90 tests and no failures.",
-    "app.test.ts and profile-schema.test.ts failures were reproduced on a stashed tree, so they pre-exist on origin/main."
+    "app.test.ts and profile-schema.test.ts failures were reproduced on a stashed tree, so they pre-exist on origin/main.",
+    "src/key-rotation.test.ts covers media, message and feed round trips across a rotation, each with a fails-closed case."
   ]
 }
