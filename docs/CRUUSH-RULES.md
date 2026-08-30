@@ -129,6 +129,14 @@ These are not suggestions you interpret. Run them.
 - **G5.** Auto-moderation must reject images of people who could never be mistaken for
   adults, regardless of which provider is up. The fallback chain must always be live.
 - **G6.** Free tier: up to 3 seeking filters and up to 3 visibility controls.
+- **G7.** cruush does not refund cruush+. It is a digital good delivered
+  immediately. Do not build refund flows, refund tooling, or copy that offers
+  or implies a refund. The `refunded` payment state exists only to record an
+  exceptional hand-made refund truthfully; nothing may write to it without
+  Julien saying so. Where a jurisdiction grants a withdrawal right for digital
+  goods, the position depends on checkout capturing prior express consent to
+  immediate performance plus acknowledgement of losing that right, so that
+  consent flow is a payment-launch prerequisite, not optional polish.
 
 ## H. Third-party services
 

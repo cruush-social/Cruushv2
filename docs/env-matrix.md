@@ -38,6 +38,14 @@ same change that adds or renames a variable — see the standing rules, I1 and I
 | `CRUUSH_REAL_POSTGRES_URL` | server | no | `server/src/account-deletion-integrity.test.ts`, `server/src/reward-integrity-real-postgres.test.ts` | test-only |
 | `CRUUSH_SCREENSHOT_BASE_URL` | server | no | `scripts/capture-branch-page-matrix.mjs` | tooling |
 | `CRUUSH_SHIP_TIMEOUT_MS` | server | no | `scripts/ship.mjs` | tooling |
+| `CRYPTO_PROCESSOR_BASE_RPC_URL` | server | yes | `server/src/config.ts` |  |
+| `CRYPTO_PROCESSOR_CONFIRMATION_TARGET` | server | yes | `server/src/config.ts` |  |
+| `CRYPTO_PROCESSOR_ENABLED` | server | yes | `server/src/config.ts` |  |
+| `CRYPTO_PROCESSOR_ETHEREUM_RPC_URL` | server | yes | `server/src/config.ts` |  |
+| `CRYPTO_PROCESSOR_INTENT_TTL_MINUTES` | server | yes | `server/src/config.ts` |  |
+| `CRYPTO_PROCESSOR_WALLET_XPUB` | server | yes | `server/src/config.ts` |  |
+| `CRYPTO_PROCESSOR_WATCHER_ENABLED` | server | yes | `server/src/config.ts` |  |
+| `CRYPTO_PROCESSOR_WATCHER_INTERVAL_SECONDS` | server | yes | `server/src/config.ts` |  |
 | `CSAM_REPORTING_ENABLED` | server | yes | `server/src/config.ts` |  |
 | `CSAM_REPORTING_MODE` | server | yes | `server/src/config.ts` |  |
 | `CSAM_REPORTING_TEST_MODE` | server | yes | `server/src/config.ts` |  |

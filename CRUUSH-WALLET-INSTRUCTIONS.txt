@@ -1,0 +1,11 @@
+cruush wallet setup
+
+1. Open Terminal in the cruushwallet Mac user.
+2. Run:
+
+cd /Volumes/good/Cruushv2-crypto-processor-20260822/tools/cruush-wallet
+npm install --ignore-scripts --legacy-peer-deps
+npm run wallet -- --help
+
+Stop after the help text appears. Do not initialize the wallet yet.
+Never enter or share recovery words, private keys, or wallet QR codes here.

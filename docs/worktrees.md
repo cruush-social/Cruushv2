@@ -21,6 +21,7 @@ the branch name.
 | `codex/github-issues-20260808` | `/Volumes/good/Cruushv2-github-issues-20260808` | 2026-08-09 8d5e7df9 fix: resolve open beta issue regressions | dirty (1 files) | +0/-0 | GitHub issue bug fixes; approved bounded scope; Codex; in progress |
 | `agent/ping-feature` | `.` | 2026-08-10 b0cd26e9 chore: trim v1.2 email preview | dirty (39 files) | +4/-0 | v1.2 Ping, target-aware tutorial, map boundary, messaging fixes, and changelog; Codex; in progress; unmerged. |
 | `codex/fix-mobile-map-controls-20260820` | `/Volumes/good/Cruushv2-mobile-map-controls-20260820` | 2026-08-20 101f4b2d fix: polish activity and cruise carousel | dirty (3 files) | +0/-0 | Android Chrome visual-viewport map chrome clipping fix; Codex; in progress; unmerged. |
+| `feature/v2-crypto-processor-20260822` | `/Volumes/good/Cruushv2-crypto-processor-20260822` | 2026-08-22 5a77cb50 fix: stop the layout gate failing on a render race | dirty | +0/-0 | Disabled-by-default in-house Base USDC processor and seamless no-voucher store checkout; recovered from Claude session `cffee9e5-ed21-41a6-82ae-238e21493464`; Codex; in progress; unmerged. |
 
 ## Rules that apply here
 
