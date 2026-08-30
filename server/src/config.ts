@@ -217,6 +217,7 @@ const configSchema = z.object({
   // server-only and must never be logged or returned to a client.
   CRYPTO_PROCESSOR_BASE_RPC_URL: z.string().trim().optional().default(""),
   CRYPTO_PROCESSOR_ETHEREUM_RPC_URL: z.string().trim().optional().default(""),
+  CRYPTO_PROCESSOR_ARBITRUM_RPC_URL: z.string().trim().optional().default(""),
   // The watcher polls only when this is on AND an endpoint is configured.
   CRYPTO_PROCESSOR_WATCHER_ENABLED: booleanEnvSchema,
   // 60 seconds, not 30: the dominant wait is the confirmation target anyway
@@ -246,7 +247,11 @@ const configSchema = z.object({
       });
     }
 
-    if (!config.CRYPTO_PROCESSOR_BASE_RPC_URL && !config.CRYPTO_PROCESSOR_ETHEREUM_RPC_URL) {
+    if (
+      !config.CRYPTO_PROCESSOR_BASE_RPC_URL &&
+      !config.CRYPTO_PROCESSOR_ETHEREUM_RPC_URL &&
+      !config.CRYPTO_PROCESSOR_ARBITRUM_RPC_URL
+    ) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: "The crypto watcher needs at least one chain RPC endpoint configured.",
@@ -255,7 +260,11 @@ const configSchema = z.object({
     }
   }
 
-  for (const key of ["CRYPTO_PROCESSOR_BASE_RPC_URL", "CRYPTO_PROCESSOR_ETHEREUM_RPC_URL"] as const) {
+  for (const key of [
+    "CRYPTO_PROCESSOR_BASE_RPC_URL",
+    "CRYPTO_PROCESSOR_ETHEREUM_RPC_URL",
+    "CRYPTO_PROCESSOR_ARBITRUM_RPC_URL"
+  ] as const) {
     const value = config[key];
     if (!value) {
       continue;
@@ -838,6 +847,7 @@ type CryptoProcessorConfigKey =
   | "CRYPTO_PROCESSOR_INTENT_TTL_MINUTES"
   | "CRYPTO_PROCESSOR_BASE_RPC_URL"
   | "CRYPTO_PROCESSOR_ETHEREUM_RPC_URL"
+  | "CRYPTO_PROCESSOR_ARBITRUM_RPC_URL"
   | "CRYPTO_PROCESSOR_WATCHER_ENABLED"
   | "CRYPTO_PROCESSOR_WATCHER_INTERVAL_SECONDS";
 

@@ -2,8 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { ArrowLeft, Check, Copy, Shield, Sparkles } from 'lucide-react';
 import { Button } from './ui/button';
-import { Badge } from './ui/badge';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
+import { Card, CardContent } from './ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
 import CruushPlusWord from './CruushPlusWord';
 import { getBillingPlans, type CruushPlusPlan } from '../lib/billingApi';
@@ -13,6 +12,7 @@ import {
   getCryptoProcessorStatus,
   isOpenCryptoPayment,
   type CryptoPaymentIntent,
+  type CryptoPaymentNetwork,
   type CryptoPaymentRailId,
   type CryptoProcessorStatus,
 } from '../lib/cryptoCheckoutApi';
@@ -64,6 +64,60 @@ function termLabel(plan: CruushPlusPlan) {
   }
 }
 
+// People know which app their money is in, not which coin it settles in. Naming
+// the token here would put back exactly the jargon this picker exists to
+// remove; the payment screen states the asset and network precisely once an
+// address is on screen, which is the only place it matters.
+// Cash App sends USDC on Arbitrum; Venmo and PayPal send PYUSD on Arbitrum.
+const PAYMENT_SOURCES: ReadonlyArray<{
+  rail: CryptoPaymentRailId;
+  label: string;
+}> = [
+  { rail: 'usdc_arbitrum', label: 'Cash App' },
+  { rail: 'pyusd_arbitrum', label: 'Venmo or PayPal' },
+  { rail: 'usdc_base', label: 'A crypto wallet' },
+  { rail: 'pyusd_ethereum', label: 'Something else' },
+];
+
+// A network's display name. Getting this wrong on a payment screen sends money
+// somewhere unrecoverable, so it is spelled out rather than inferred.
+const NETWORK_LABELS: Record<CryptoPaymentNetwork, string> = {
+  arbitrum: 'Arbitrum',
+  base: 'Base',
+  ethereum: 'Ethereum',
+};
+
+// The monthly plan is the reference price everything else is measured against.
+// Showing a per-month equivalent is what makes a longer term legible as a
+// saving rather than as a bigger number.
+const MONTHLY_REFERENCE_ID = 'plus_monthly';
+
+function planMonths(plan: CruushPlusPlan) {
+  if (plan.durationMonths) {
+    return plan.durationMonths;
+  }
+  if (plan.durationDays) {
+    return plan.durationDays / 30;
+  }
+  return null;
+}
+
+function monthlyEquivalentCents(plan: CruushPlusPlan) {
+  const months = planMonths(plan);
+  if (!months || months <= 0) {
+    return null;
+  }
+  return Math.round(plan.amountCents / months);
+}
+
+function savingsPercent(plan: CruushPlusPlan, monthlyCents: number | null) {
+  const equivalent = monthlyEquivalentCents(plan);
+  if (!monthlyCents || !equivalent || equivalent >= monthlyCents) {
+    return null;
+  }
+  return Math.round(((monthlyCents - equivalent) / monthlyCents) * 100);
+}
+
 function createIdempotencyKey() {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
     return crypto.randomUUID();
@@ -89,7 +143,7 @@ export default function CruushPlusStore() {
   const [processor, setProcessor] = useState<CryptoProcessorStatus | null>(null);
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [intent, setIntent] = useState<CryptoPaymentIntent | null>(null);
-  const [selectedRail, setSelectedRail] = useState<CryptoPaymentRailId>('usdc_base');
+  const [selectedRail, setSelectedRail] = useState<CryptoPaymentRailId>('usdc_arbitrum');
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState(false);
@@ -107,7 +161,25 @@ export default function CruushPlusStore() {
 
         setPlans(billing.plans);
         setProcessor(cryptoStatus);
-        setSelectedPlanId((current) => current ?? billing.plans[0]?.id ?? null);
+        // Default to the best-value term that is still available rather than to
+        // whatever happens to be first, which is the cheapest and anchors every
+        // other price against it.
+        setSelectedPlanId((current) => {
+          if (current) {
+            return current;
+          }
+
+          const available = billing.plans.filter((plan) => plan.supplyRemaining !== 0);
+          const preferred = ['founder_annual', 'plus_annual', 'plus_6_month'] as const;
+          for (const id of preferred) {
+            const match = available.find((plan) => plan.id === id);
+            if (match) {
+              return match.id;
+            }
+          }
+
+          return available[0]?.id ?? billing.plans[0]?.id ?? null;
+        });
       })
       .catch((loadError) => {
         if (active) {
@@ -150,6 +222,11 @@ export default function CruushPlusStore() {
       window.clearInterval(timer);
     };
   }, [intent]);
+
+  const monthlyReferenceCents = useMemo(
+    () => plans.find((plan) => plan.id === MONTHLY_REFERENCE_ID)?.amountCents ?? null,
+    [plans],
+  );
 
   const selectedPlan = useMemo(
     () => plans.find((plan) => plan.id === selectedPlanId) ?? null,
@@ -215,22 +292,30 @@ export default function CruushPlusStore() {
         <h1 className="text-xl font-semibold">Get <CruushPlusWord /></h1>
       </header>
 
-      <main className="mx-auto flex max-w-3xl flex-col gap-5 px-5 py-6">
+      <main className="mx-auto flex max-w-3xl flex-col gap-3 px-4 py-3">
+        {/* Both explainers collapse, so choosing a term, choosing a network and
+            paying all fit one phone screen. Nothing was removed: each section is
+            one tap away. */}
+        {/* The reason to buy leads. Same gradient tile treatment as the rewards
+            page: one implementation per surface, so the two pages describing
+            cruush+ do not look like different products. */}
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-primary" />
-              What <CruushPlusWord /> unlocks
-            </CardTitle>
-            <CardDescription>
+          <CardContent className="p-4">
+            <p className="mb-1 flex items-center gap-2 text-sm font-semibold">
+              <Sparkles className="h-4 w-4 shrink-0 text-primary" />
+              <span>What <CruushPlusWord /> unlocks</span>
+            </p>
+            <p className="mb-3 text-xs text-muted-foreground">
               Viewing the map and messaging stay free for everyone, always.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
+            </p>
             <ul aria-label="cruush+ benefits" className="grid gap-2 sm:grid-cols-2">
               {PLUS_BENEFITS.map((benefit) => (
-                <li className="flex items-start gap-2 text-sm leading-5" key={benefit}>
-                  <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                <li
+                  className="flex items-start gap-2 rounded-xl border border-white/20 p-2.5 text-[13px] leading-4 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_10px_30px_rgba(255,0,114,0.18)]"
+                  key={benefit}
+                  style={{ background: 'var(--cruush-gradient)' }}
+                >
+                  <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-white" />
                   <span>{benefit}</span>
                 </li>
               ))}
@@ -241,7 +326,7 @@ export default function CruushPlusStore() {
         <Card>
           <Accordion collapsible type="single">
             <AccordionItem className="border-0" value="why-crypto">
-              <AccordionTrigger className="px-6 py-5 text-base hover:no-underline">
+              <AccordionTrigger className="px-4 py-3 text-sm hover:no-underline">
                 <span className="flex items-center gap-2">
                   <Shield className="h-5 w-5 text-primary" />
                   <span>Why cruush takes crypto</span>
@@ -279,18 +364,20 @@ export default function CruushPlusStore() {
 
         {!loading && plans.length > 0 ? (
           <Card>
-            <CardHeader>
-              <CardTitle>Choose your time</CardTitle>
-              <CardDescription>
-                Every option below is a single payment for a fixed amount of time. Crypto payments do
-                not renew on their own and nothing is billed to you again.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ul aria-label="cruush+ prices" className="grid gap-3 sm:grid-cols-2">
+            <CardContent className="p-4">
+              <p className="mb-2 text-sm font-semibold">Choose your time</p>
+              {/* Each tile carries the per-month equivalent and the saving
+                  against the monthly price, so a longer term reads as a better
+                  deal rather than as a bigger number. Scarcity counters are
+                  shown because they are real and they are the strongest signal
+                  on the page. */}
+              <ul aria-label="cruush+ prices" className="grid gap-2">
                 {plans.map((plan) => {
                   const selected = plan.id === selectedPlanId;
                   const soldOut = plan.supplyRemaining === 0;
+                  const perMonth = monthlyEquivalentCents(plan);
+                  const saving = savingsPercent(plan, monthlyReferenceCents);
+                  const scarce = plan.supplyRemaining !== null && plan.supplyRemaining > 0;
 
                   return (
                     <li key={plan.id}>
@@ -308,74 +395,96 @@ export default function CruushPlusStore() {
                           setCopied(false);
                           paymentAttemptRef.current = null;
                         }}
-                        className={`w-full rounded-xl border p-4 text-left transition ${
-                          selected ? 'border-primary bg-primary/5' : 'border-border bg-card'
+                        className={`flex w-full items-center justify-between gap-3 rounded-xl border px-3 py-2.5 text-left transition ${
+                          selected ? 'border-primary bg-primary/10' : 'border-border bg-card'
                         } ${soldOut ? 'opacity-50' : ''}`}
                       >
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <p className="font-semibold">{termLabel(plan)}</p>
-                            <p className="mt-1 text-sm text-muted-foreground">{plan.description}</p>
-                          </div>
-                          {plan.isFounder ? <Badge variant="secondary">Founder</Badge> : null}
-                        </div>
-                        <div className="mt-4 flex items-center justify-between gap-3">
-                          <span className="text-2xl font-semibold">
-                            {formatPrice(plan.amountCents, plan.currency)}
+                        <span className="flex min-w-0 flex-col">
+                          <span className="flex items-center gap-1.5">
+                            <span className="text-sm font-medium">{termLabel(plan)}</span>
+                            {plan.isFounder ? (
+                              <span className="rounded-full border border-primary/60 px-1.5 text-[10px] uppercase leading-4 tracking-wide text-primary">
+                                Founder
+                              </span>
+                            ) : null}
                           </span>
-                          {plan.supplyRemaining !== null ? (
-                            <span className="text-xs text-muted-foreground">
-                              {soldOut ? 'Sold out' : `${plan.supplyRemaining} left`}
+                          <span className="mt-0.5 text-[11px] leading-4 text-muted-foreground">
+                            {plan.isLifetime
+                              ? 'Pay once, keep it forever'
+                              : perMonth
+                                ? `${formatPrice(perMonth, plan.currency)}/month`
+                                : null}
+                            {scarce ? (
+                              <span className="text-primary">
+                                {plan.isLifetime || perMonth ? ' · ' : ''}
+                                {plan.supplyRemaining} left
+                              </span>
+                            ) : null}
+                          </span>
+                        </span>
+                        <span className="flex shrink-0 flex-col items-end">
+                          <span className="text-base font-semibold">
+                            {soldOut ? 'Sold out' : formatPrice(plan.amountCents, plan.currency)}
+                          </span>
+                          {saving && !soldOut ? (
+                            <span className="text-[11px] font-medium leading-4 text-primary">
+                              Save {saving}%
                             </span>
                           ) : null}
-                        </div>
+                        </span>
                       </button>
                     </li>
                   );
                 })}
               </ul>
+              <p className="mt-2 text-xs leading-4 text-muted-foreground">
+                One payment for a fixed amount of time. Nothing renews and nothing is billed again.
+              </p>
             </CardContent>
           </Card>
         ) : null}
 
         {!loading && selectedPlan ? (
           <Card>
-            <CardHeader>
-              <CardTitle>Pay with crypto</CardTitle>
-              <CardDescription>
-                {formatPrice(selectedPlan.amountCents, selectedPlan.currency)} for {termLabel(selectedPlan)}.
-                One payment, no renewal.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-5">
-              <div className="grid gap-2 sm:grid-cols-2" aria-label="Payment network">
-                <button type="button" className={`rounded-lg border p-3 text-left text-sm ${selectedRail === 'usdc_base' ? 'border-primary bg-primary/5' : 'border-border'}`} onClick={() => { setSelectedRail('usdc_base'); setIntent(null); }}>
-                  <span className="font-medium">USDC on Base</span>
-                  <span className="block text-xs text-muted-foreground">Use a wallet that supports Base.</span>
-                </button>
-                <button type="button" className={`rounded-lg border p-3 text-left text-sm ${selectedRail === 'pyusd_ethereum' ? 'border-primary bg-primary/5' : 'border-border'}`} onClick={() => { setSelectedRail('pyusd_ethereum'); setIntent(null); }}>
-                  <span className="font-medium">PYUSD on Ethereum</span>
-                  <span className="block text-xs text-muted-foreground">Venmo and PayPal can send PYUSD here.</span>
-                </button>
+            <CardContent className="space-y-3 p-4">
+              <p className="text-sm font-semibold">What are you paying from?</p>
+              {/* Ask which app someone is paying from, not which chain. Nobody
+                  outside crypto knows what Arbitrum is, and picking the wrong
+                  network sends money nowhere it can be recovered from. The app
+                  determines the token and the chain, so we choose those. */}
+              <div className="grid grid-cols-2 gap-2" aria-label="Where you are paying from">
+                {PAYMENT_SOURCES.map((source) => (
+                  <button
+                    key={source.rail}
+                    type="button"
+                    aria-pressed={selectedRail === source.rail}
+                    className={`rounded-xl border px-3 py-2 text-left ${selectedRail === source.rail ? 'border-primary bg-primary/10' : 'border-border'}`}
+                    onClick={() => { setSelectedRail(source.rail); setIntent(null); }}
+                  >
+                    <span className="block text-sm font-medium">{source.label}</span>
+                  </button>
+                ))}
               </div>
               {!processorReady ? (
-                <p className="rounded-lg border border-border bg-muted/40 p-3 text-sm text-muted-foreground">
+                <p className="rounded-lg border border-border bg-muted/40 p-2 text-xs leading-4 text-muted-foreground">
                   Crypto payment is not available yet. You can still earn cruush+ time through
                   check-ins and referrals.
                 </p>
               ) : null}
 
+              {/* Same gradient as the app's other primary actions. */}
               <Button
-                className="w-full"
+                className="h-12 w-full rounded-full text-base font-semibold text-white disabled:opacity-50"
                 type="button"
                 disabled={starting || !processorReady || paymentOpen}
                 onClick={() => void handleStartPayment()}
+                style={{ background: 'var(--cruush-logo)' }}
               >
                 {starting
                   ? 'Starting…'
                   : paymentOpen
                     ? 'Payment started'
-                    : `Pay ${formatPrice(selectedPlan.amountCents, selectedPlan.currency)}`}
+                    : `Get ${termLabel(selectedPlan).toLowerCase()} for ${formatPrice(selectedPlan.amountCents, selectedPlan.currency)}`}
               </Button>
 
               {intent ? (
@@ -388,7 +497,7 @@ export default function CruushPlusStore() {
                         <p className="text-xl font-semibold">
                           {formatUsdcAtomic(intent.quotedAmountAtomic)} {intent.asset}
                         </p>
-                        <p className="text-xs text-muted-foreground">on {intent.network === 'base' ? 'Base' : 'Ethereum'} to this address</p>
+                        <p className="text-xs text-muted-foreground">on {NETWORK_LABELS[intent.network]} to this address</p>
                       </div>
                       {intent.qrCodeDataUrl ? (
                         <img
@@ -405,7 +514,7 @@ export default function CruushPlusStore() {
                         {copied ? 'Copied' : 'Copy address'}
                       </Button>
                       <p className="text-xs leading-5 text-muted-foreground">
-                        Send only {intent.asset} on {intent.network === 'base' ? 'Base' : 'Ethereum'} to this address. Another asset or network may be lost.
+                        Send only {intent.asset} on {NETWORK_LABELS[intent.network]} to this address. Another asset or network may be lost.
                       </p>
                     </div>
                   ) : null}

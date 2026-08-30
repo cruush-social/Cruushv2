@@ -38,6 +38,7 @@ same change that adds or renames a variable — see the standing rules, I1 and I
 | `CRUUSH_REAL_POSTGRES_URL` | server | no | `server/src/account-deletion-integrity.test.ts`, `server/src/reward-integrity-real-postgres.test.ts` | test-only |
 | `CRUUSH_SCREENSHOT_BASE_URL` | server | no | `scripts/capture-branch-page-matrix.mjs` | tooling |
 | `CRUUSH_SHIP_TIMEOUT_MS` | server | no | `scripts/ship.mjs` | tooling |
+| `CRYPTO_PROCESSOR_ARBITRUM_RPC_URL` | server | no | `server/src/config.ts` | **missing from .env.example** |
 | `CRYPTO_PROCESSOR_BASE_RPC_URL` | server | yes | `server/src/config.ts` |  |
 | `CRYPTO_PROCESSOR_CONFIRMATION_TARGET` | server | yes | `server/src/config.ts` |  |
 | `CRYPTO_PROCESSOR_ENABLED` | server | yes | `server/src/config.ts` |  |
@@ -180,6 +181,7 @@ same change that adds or renames a variable — see the standing rules, I1 and I
 - `BETA_ACCESS_GEOFENCE_ENABLED` (server) — add it to `server/.env.example`.
 - `BUG_TRIAGE_BATCH_LIMIT` (server) — add it to `server/.env.example`.
 - `CRUUSH_MEDIA_BACKFILL_BATCH` (server) — add it to `server/.env.example`.
+- `CRYPTO_PROCESSOR_ARBITRUM_RPC_URL` (server) — add it to `server/.env.example`.
 - `FEED_ENCRYPTION_KEY_PREVIOUS` (server) — add it to `server/.env.example`.
 - `GHOST_DERIVATION_KEY_PREVIOUS` (server) — add it to `server/.env.example`.
 - `HUMAN_MODERATION_ENABLED` (server) — add it to `server/.env.example`.

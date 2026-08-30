@@ -46,6 +46,38 @@ const plans = [
   },
 ];
 
+// A fuller catalogue, used for the pricing-presentation tests. The monthly
+// plan is the reference every saving is measured against.
+const conversionPlans = [
+  { ...plans[0]! },
+  {
+    id: 'plus_annual' as const,
+    name: 'Annual cruush+',
+    description: '$119.99 per year for cruush+.',
+    amountCents: 11999,
+    currency: 'USD' as const,
+    interval: 'year' as const,
+    durationMonths: 12,
+    supplyRemaining: null,
+    isFounder: false,
+    isLifetime: false,
+    badgeKeys: [],
+  },
+  {
+    id: 'founder_annual' as const,
+    name: 'Founder annual cruush+',
+    description: '$99 for one year of cruush+.',
+    amountCents: 9900,
+    currency: 'USD' as const,
+    interval: 'year' as const,
+    durationMonths: 12,
+    supplyRemaining: 742,
+    isFounder: true,
+    isLifetime: false,
+    badgeKeys: ['founder' as const],
+  },
+];
+
 function renderStore() {
   return render(
     <MemoryRouter>
@@ -63,6 +95,76 @@ describe('CruushPlusStore', () => {
       testWarning: 'TEST CHECKOUT - no real payment will be collected.',
       currency: 'USD',
       plans,
+    });
+  });
+
+  describe('pricing presentation', () => {
+    beforeEach(() => {
+      vi.mocked(getCryptoProcessorStatus).mockResolvedValue({
+        ready: false,
+        asset: 'USDC',
+        network: 'base',
+        confirmationTarget: 1,
+      });
+      vi.mocked(getBillingPlans).mockResolvedValue({
+        processor: 'fake',
+        testCheckout: true,
+        testWarning: 'TEST CHECKOUT - no real payment will be collected.',
+        currency: 'USD',
+        plans: conversionPlans,
+      });
+    });
+
+    it('defaults to the best-value term rather than the cheapest one', async () => {
+      // Defaulting to the cheapest plan anchors every other price against it.
+      renderStore();
+
+      expect(
+        await screen.findByRole('button', { name: /get 1 year for \$99\.00/i }),
+      ).toBeInTheDocument();
+    });
+
+    it('shows the per-month equivalent so a longer term reads as a better deal', async () => {
+      renderStore();
+
+      // $99 a year is $8.25 a month; $119.99 a year is $10.00.
+      expect(await screen.findByText('$8.25/month')).toBeInTheDocument();
+      expect(screen.getByText('$10.00/month')).toBeInTheDocument();
+    });
+
+    it('shows the saving against the monthly price, and never on the monthly plan itself', async () => {
+      renderStore();
+
+      // $8.25 against $18.99 is 57%; $10.00 against $18.99 is 47%.
+      expect(await screen.findByText('Save 57%')).toBeInTheDocument();
+      expect(screen.getByText('Save 47%')).toBeInTheDocument();
+      expect(screen.queryByText('Save 0%')).not.toBeInTheDocument();
+    });
+
+    it('shows real scarcity on a limited plan', async () => {
+      renderStore();
+
+      expect(await screen.findByText(/742 left/)).toBeInTheDocument();
+    });
+
+    it('does not offer a sold-out plan', async () => {
+      vi.mocked(getBillingPlans).mockResolvedValue({
+        processor: 'fake',
+        testCheckout: true,
+        testWarning: 'TEST CHECKOUT - no real payment will be collected.',
+        currency: 'USD',
+        plans: conversionPlans.map((plan) =>
+          plan.id === 'founder_annual' ? { ...plan, supplyRemaining: 0 } : plan,
+        ),
+      });
+
+      renderStore();
+
+      // The sold-out founder plan must not become the default selection.
+      expect(
+        await screen.findByRole('button', { name: /get 1 year for \$119\.99/i }),
+      ).toBeInTheDocument();
+      expect(screen.getByText('Sold out')).toBeInTheDocument();
     });
   });
 
@@ -93,7 +195,7 @@ describe('CruushPlusStore', () => {
 
     renderStore();
 
-    const payButton = await screen.findByRole('button', { name: /pay \$18\.99/i });
+    const payButton = await screen.findByRole('button', { name: /get 1 month for \$18\.99/i });
     expect(payButton).toBeDisabled();
 
     fireEvent.click(payButton);
@@ -125,7 +227,7 @@ describe('CruushPlusStore', () => {
 
     renderStore();
 
-    fireEvent.click(await screen.findByRole('button', { name: /pay \$18\.99/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /get 1 month for \$18\.99/i }));
 
     await waitFor(() => {
       expect(createCryptoPaymentIntent).toHaveBeenCalledWith(
@@ -172,7 +274,7 @@ describe('CruushPlusStore', () => {
 
     renderStore();
 
-    fireEvent.click(await screen.findByRole('button', { name: /pay \$18\.99/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /get 1 month for \$18\.99/i }));
 
     const qrImage = await screen.findByAltText(/USDC payment address QR code/i);
     expect(qrImage).toHaveAttribute('src', 'data:image/png;base64,fake');
@@ -191,9 +293,9 @@ describe('CruushPlusStore', () => {
 
     renderStore();
 
-    fireEvent.click(await screen.findByRole('button', { name: /pay \$18\.99/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /get 1 month for \$18\.99/i }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Connection interrupted.');
-    fireEvent.click(screen.getByRole('button', { name: /pay \$18\.99/i }));
+    fireEvent.click(screen.getByRole('button', { name: /get 1 month for \$18\.99/i }));
 
     await waitFor(() => expect(createCryptoPaymentIntent).toHaveBeenCalledTimes(2));
     expect(vi.mocked(createCryptoPaymentIntent).mock.calls[0]?.[0].idempotencyKey).toBe(

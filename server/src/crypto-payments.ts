@@ -38,14 +38,33 @@ import {
  * later reorganized away, which is why neither number is 1.
  */
 export const CRYPTO_PAYMENT_RAILS = {
-  usdc_base: {
+  // Arbitrum first: it is the only network Cash App, Venmo, and PayPal can all
+  // send to, and its fees are negligible. Collecting a payment costs two
+  // transactions per order (fund the derived address with gas, then sweep it to
+  // the treasury), so a mainnet rail charges a fee on every sale forever.
+  // Arbitrum One produces a block roughly every 0.25 seconds, so 240 blocks is
+  // about a minute of protection, matching what 30 blocks buys on Base.
+  usdc_arbitrum: {
     asset: "USDC",
-    network: "base",
-    chainId: 8453,
-    tokenAddress: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+    network: "arbitrum",
+    chainId: 42161,
+    // Circle's published native USDC on Arbitrum.
+    tokenAddress: "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
     decimals: 6,
-    confirmationTarget: 30
+    confirmationTarget: 240
   },
+  pyusd_arbitrum: {
+    asset: "PYUSD",
+    network: "arbitrum",
+    chainId: 42161,
+    // Paxos' published PYUSD on Arbitrum. Paxos issues PYUSD, and PayPal
+    // confirmed the Arbitrum deployment on 2025-07-17.
+    tokenAddress: "0x46850aD61C2B7d64d08c9C754F45254596696984",
+    decimals: 6,
+    confirmationTarget: 240
+  },
+  // Ethereum mainnet stays as the fallback for anyone whose app will not offer
+  // Arbitrum. Reach is identical; the fees are not.
   pyusd_ethereum: {
     asset: "PYUSD",
     network: "ethereum",
@@ -53,13 +72,23 @@ export const CRYPTO_PAYMENT_RAILS = {
     tokenAddress: "0x6c3ea9036406852006290770BEdFcAbA0e23A0e8",
     decimals: 6,
     confirmationTarget: 12
+  },
+  // Base reaches none of Cash App, Venmo, or PayPal. Kept because it is built
+  // and costs nothing to leave in, but it is last for a reason.
+  usdc_base: {
+    asset: "USDC",
+    network: "base",
+    chainId: 8453,
+    tokenAddress: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+    decimals: 6,
+    confirmationTarget: 30
   }
 } as const;
 export type CryptoPaymentRailId = keyof typeof CRYPTO_PAYMENT_RAILS;
 export type CryptoPaymentAsset = typeof CRYPTO_PAYMENT_RAILS[CryptoPaymentRailId]["asset"];
 export type CryptoPaymentNetwork = typeof CRYPTO_PAYMENT_RAILS[CryptoPaymentRailId]["network"];
 export const CRYPTO_PAYMENT_ASSET = "USDC" as const;
-export const CRYPTO_PAYMENT_NETWORK = "base" as const;
+export const CRYPTO_PAYMENT_NETWORK = "arbitrum" as const;
 
 function cryptoRail(id: CryptoPaymentRailId) { return CRYPTO_PAYMENT_RAILS[id]; }
 function railFor(asset: CryptoPaymentAsset, network: CryptoPaymentNetwork): CryptoPaymentRailId {
@@ -354,7 +383,7 @@ export async function createInHouseCryptoPaymentIntent(
 ) {
   const wallet = assertCryptoProcessorReady(config);
   const walletXpubFingerprint = fingerprintCryptoWalletXpub(wallet.receiveChainXpub);
-  const rail = input.rail ?? "usdc_base";
+  const rail = input.rail ?? "usdc_arbitrum";
 
   return runTransaction(db, async (client) => {
     const reserved = await reserveCryptoPaymentIntent(client, {

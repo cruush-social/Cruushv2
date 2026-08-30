@@ -22,7 +22,7 @@ import { describeWatcherStatus } from "../crypto-watcher-runtime.js";
 const paymentIntentPayloadSchema = z.object({
   planId: z.string().min(1),
   idempotencyKey: z.string().trim().min(8).max(128),
-  rail: z.enum(["usdc_base", "pyusd_ethereum"]).default("usdc_base")
+  rail: z.enum(["usdc_arbitrum", "pyusd_arbitrum", "pyusd_ethereum", "usdc_base"]).default("usdc_arbitrum")
 }).strict();
 
 const paymentIntentParamsSchema = z.object({

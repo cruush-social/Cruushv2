@@ -229,10 +229,17 @@ export function planScanRange(input: {
     return null;
   }
 
+  // Re-read at least the confirmation window, because a chain that produces
+  // blocks quickly needs a proportionally deeper look back: 32 blocks is about
+  // a minute on Ethereum but only eight seconds on Arbitrum.
+  const reorgDepth = REORG_SAFETY_DEPTH > BigInt(input.confirmationTarget)
+    ? REORG_SAFETY_DEPTH
+    : BigInt(input.confirmationTarget);
+
   // Start from the reorg window behind the cursor so dropped logs are noticed.
   const start = cursor === null
     ? (headBlock > MAX_BLOCKS_PER_SCAN ? headBlock - MAX_BLOCKS_PER_SCAN : 0n)
-    : (cursor > REORG_SAFETY_DEPTH ? cursor - REORG_SAFETY_DEPTH : 0n);
+    : (cursor > reorgDepth ? cursor - reorgDepth : 0n);
 
   if (start > headBlock) {
     return null;

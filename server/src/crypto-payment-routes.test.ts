@@ -60,28 +60,46 @@ describe("crypto payment routes", () => {
       data: {
         ready: false,
         asset: "USDC",
-        network: "base",
+        network: "arbitrum",
         confirmationTarget: 1,
         rails: [
           {
-            id: "usdc_base",
+            id: "usdc_arbitrum",
             asset: "USDC",
-            network: "base",
-            chainId: 8453,
-            // Circle's own published address for native USDC on Base.
-            tokenAddress: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+            network: "arbitrum",
+            chainId: 42161,
+            // Circle's published native USDC on Arbitrum.
+            tokenAddress: "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
             decimals: 6,
-            confirmationTarget: 30
+            confirmationTarget: 240
+          },
+          {
+            id: "pyusd_arbitrum",
+            asset: "PYUSD",
+            network: "arbitrum",
+            chainId: 42161,
+            // Paxos' published PYUSD on Arbitrum.
+            tokenAddress: "0x46850aD61C2B7d64d08c9C754F45254596696984",
+            decimals: 6,
+            confirmationTarget: 240
           },
           {
             id: "pyusd_ethereum",
             asset: "PYUSD",
             network: "ethereum",
             chainId: 1,
-            // PayPal's published PYUSD address on Ethereum mainnet.
             tokenAddress: "0x6c3ea9036406852006290770BEdFcAbA0e23A0e8",
             decimals: 6,
             confirmationTarget: 12
+          },
+          {
+            id: "usdc_base",
+            asset: "USDC",
+            network: "base",
+            chainId: 8453,
+            tokenAddress: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+            decimals: 6,
+            confirmationTarget: 30
           }
         ]
       }
@@ -124,7 +142,7 @@ describe("crypto payment routes", () => {
       plan_id: "plus_monthly",
       processor: "in_house" as const,
       asset: "USDC" as const,
-      network: "base" as const,
+      network: "arbitrum" as const,
       amount_usd_cents: 1899,
       derivation_index: 1,
       wallet_xpub_fingerprint: fingerprintCryptoWalletXpub(receiveChainXpub),
@@ -180,12 +198,12 @@ describe("crypto payment routes", () => {
           quotedAmountAtomic: "18990000",
           paymentAddress,
           asset: "USDC",
-          network: "base",
+          network: "arbitrum",
           status: "awaiting_payment"
         }
       });
       expect(body.data.paymentUri).toBe(
-        `ethereum:0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913@8453/transfer?address=${paymentAddress}&uint256=18990000`
+        `ethereum:0xaf88d065e77c8cC2239327C5EDb3A432268e5831@42161/transfer?address=${paymentAddress}&uint256=18990000`
       );
       expect(body.data.qrCodeDataUrl).toMatch(/^data:image\/png;base64,/);
       expect(response.body).not.toContain("walletXpub");

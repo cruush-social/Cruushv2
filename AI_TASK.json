@@ -19,11 +19,14 @@
     "The watcher starts only when the processor is enabled, the watcher is enabled, and a chain endpoint is configured",
     "cruush does not refund cruush+, a digital good delivered immediately; no refund flow, tooling, or copy is built (standing invariant G7)",
     "The refunded payment state is unreachable record-keeping only, kept so an exceptional hand-made refund can be recorded truthfully",
-    "The no-refunds position depends on checkout capturing prior express consent to immediate performance plus acknowledgement of losing the EU withdrawal right; that consent flow is a payment-launch gate and is not built"
+    "The no-refunds position depends on checkout capturing prior express consent to immediate performance plus acknowledgement of losing the EU withdrawal right; that consent flow is a payment-launch gate and is not built",
+    "Arbitrum is the primary rail: it is the only network Cash App, Venmo, and PayPal can all send to, and its fees are negligible where mainnet charges per sale forever",
+    "The checkout asks which app someone is paying from, never which chain or coin"
   ],
   "allowedPaths": [
     "AI_TASK.json",
     "CRUUSH-WALLET-INSTRUCTIONS.txt",
+    "EUROPEAN_PROCESSOR_HANDOFF.md",
     "FABLE_HANDOFF.md",
     "cruush-wallet-next-steps.txt",
     "cruush-wallet-setup.sh",
@@ -39,6 +42,7 @@
     "server/sql/096_crypto_payment_intents.sql",
     "server/sql/097_crypto_payment_intents_multi_asset.sql",
     "server/sql/098_crypto_payment_settlement.sql",
+    "server/sql/099_crypto_payment_arbitrum_rail.sql",
     "server/src/app.ts",
     "server/src/billing.ts",
     "server/src/config.test.ts",
@@ -65,6 +69,8 @@
     "src/app/App.tsx",
     "src/app/components/CruushPlusStore.test.tsx",
     "src/app/components/CruushPlusStore.tsx",
+    "src/app/components/Rewards.test.tsx",
+    "src/app/components/Rewards.tsx",
     "src/app/lib/cryptoCheckoutApi.test.ts",
     "src/app/lib/cryptoCheckoutApi.ts",
     "tools/cruush-wallet/.gitignore",
@@ -102,7 +108,8 @@
     "CRYPTO_PROCESSOR_BASE_RPC_URL is new, server-only, empty by default, and may embed an API key",
     "CRYPTO_PROCESSOR_ETHEREUM_RPC_URL is new, server-only, empty by default, and may embed an API key",
     "CRYPTO_PROCESSOR_WATCHER_ENABLED is new, server-only, and false by default",
-    "CRYPTO_PROCESSOR_WATCHER_INTERVAL_SECONDS is new, server-only, and defaults to 30"
+    "CRYPTO_PROCESSOR_WATCHER_INTERVAL_SECONDS is new, server-only, and defaults to 30",
+    "CRYPTO_PROCESSOR_ARBITRUM_RPC_URL is new, server-only, empty by default, and may embed an API key"
   ],
   "schemaVersion": 2,
   "objective": "Complete the disabled-by-default in-house crypto payment processor for cruush+: watch-only USDC on Base and PYUSD on Ethereum receiving rails, an account-linked no-voucher /store checkout with ERC-681 payment URIs and QR codes, a chain settlement watcher, an idempotent entitlement grant, and reconciliation with moderator support lookup. Accept no funds and make no live RPC call.",

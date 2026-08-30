@@ -1,9 +1,9 @@
 import { requestApi } from './apiClient';
 import type { CruushPlusPlanId } from './billingApi';
 
-export type CryptoPaymentRailId = 'usdc_base' | 'pyusd_ethereum';
+export type CryptoPaymentRailId = 'usdc_arbitrum' | 'pyusd_arbitrum' | 'pyusd_ethereum' | 'usdc_base';
 export type CryptoPaymentAsset = 'USDC' | 'PYUSD';
-export type CryptoPaymentNetwork = 'base' | 'ethereum';
+export type CryptoPaymentNetwork = 'arbitrum' | 'base' | 'ethereum';
 
 export type CryptoProcessorStatus = {
   ready: boolean;
