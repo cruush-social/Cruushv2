@@ -93,22 +93,33 @@ Deployed and verified live.
   navigation reaches it. It and its `aboutSections` are dead code whose content
   now lives in the static page.
 
-### Launch geofence, removed
+### Launch geofence, opened
 
 Environment change, live, no code deploy.
 
-`BETA_ACCESS_GEOFENCE_ENABLED=false`, `BETA_ACCESS_RADIUS_MILES=100`.
+```
+BETA_ACCESS_GEOFENCE_ENABLED = false
+BETA_ACCESS_RADIUS_MILES     = 100
+BETA_ACCESS_CENTER           = 40.7128, -74.0060   (City Hall)
+live /api/meta               betaAccess {"enabled": false}
+```
 
-What it actually did, because it was easy to misread: it was **15 miles centred
-on 70 Scott Ave in Bushwick**, and it gated **signup and signin**, not access.
-`assertBetaAccessAllowed` runs on the auth path, so someone outside could not
-create an account. Nothing gated the map or feed by distance. Anyone can now
-sign up and use cruush from anywhere, and someone outside the active area joins
-it with the Mile High Club.
+**Anyone, anywhere, can sign up and use cruush right now. Nothing is
+enforced.** The 100 mile radius around the centre of New York is recorded as the
+active area, but no code reads it for enforcement.
 
-The location prompt on the signup screen disappeared on its own: it is
-conditional on `betaAccessRequired`, which the frontend reads from `/api/meta`
-at runtime. No frontend deploy was needed.
+What the geofence actually did, because it was easy to misread: it was 15 miles
+centred on 70 Scott Ave in Bushwick, and it gated **signup and signin**, not
+access. `assertBetaAccessAllowed` runs on the auth path, so someone outside
+could not create an account. Nothing gated the map or the feed by distance.
+
+The signup location prompt disappeared on its own. It is conditional on
+`betaAccessRequired`, which the frontend reads from `/api/meta` at runtime, so
+no frontend deploy was needed. Turning the flag back on brings the prompt back,
+because they are the same flag.
+
+The centre moved from Bushwick to City Hall, 4.4 miles. Immaterial at 100 miles;
+it mattered at 15.
 
 ## Outstanding
 
@@ -196,6 +207,71 @@ verified-member audience has been silently failing to populate.
   in your own Postgres rather than identifying users to a US vendor.
 - Off-site AEO, which is the real lever and is not code: App Store listing, a
   Wikidata entry to anchor the name collision, Reddit, roundups.
+
+## Next feature: the fog map, specified and not started
+
+The requirement, confirmed across several messages:
+
+- Anyone can sign up from anywhere, with no location check. **Already done.**
+- Onboarding runs all the way through, including the free cruush+ grant.
+- If the member is **outside 100 miles of the centre of New York**, they still
+  see the top and bottom nav bars, but the map itself is replaced by a fog.
+- The fog carries a big button in the middle to turn on **Mile High Club**,
+  which travels them into the active area.
+- The fog explains that cruush is testing its open beta within 100 miles of the
+  centre of New York.
+- It also offers them the option to **request a city**.
+
+### Where this has to be built
+
+Mile High Club is being built on a separate branch. It is **not on `main`**, and
+production runs main, so the fog cannot be built there: its button would have
+nothing to turn on.
+
+```
+main migrations end at   095_nsfwclub30_promo_code_cap.sql
+MHC lives in             097_travel_pins.sql, on the 1.6 line
+main server/src          no travel pin, no mile_high_club, no pin moving at all
+```
+
+The only "travel" on main is the `can travel` and `can't host` text on profiles,
+which is unrelated.
+
+So build the fog on the branch that carries MHC, and let it ship with that work.
+Confirm with Julien which branch that is before starting, since MHC is in
+active development and the branch may have moved.
+
+`Cruushv2-release-1.6-20260828` has 202 modified files in flight. Take a clean
+worktree off whichever branch is chosen rather than working in that checkout.
+
+### What already exists and must not be rebuilt
+
+All of this is on main today:
+
+- `POST /api/beta/access/check` in `server/src/routes/beta-access.ts` takes
+  `{lat, lng, accuracyMeters}` and returns `{enabled, allowed}`. This is the
+  radius test the fog needs.
+- `POST /api/beta/city-requests` saves a request via `saveBetaCityRequest` and
+  returns 202. This is the "request a city" flow, already built.
+- `requestBetaCity({email, requestedCity})` in `src/app/lib/betaAccessApi.ts`.
+- `Auth.tsx` already renders an outside-the-radius state with a city request
+  form and a `cityRequestNotice`. It is reachable only while the geofence is
+  enabled, but it is a working reference for the fog's copy and flow.
+- `checkBetaAccess` reads `BETA_ACCESS_CENTER_LATITUDE`,
+  `BETA_ACCESS_CENTER_LONGITUDE` and `BETA_ACCESS_RADIUS_MILES`, already set to
+  City Hall and 100 miles.
+
+### What has to be built
+
+- A gate on the map surface rather than the auth path.
+  `assertBetaAccessAllowed` is called only from `server/src/routes/auth.ts`
+  today. The fog needs the same radius test where map data is served, with an
+  exemption for a member whose Mile High Club pin is inside the active area.
+- The fog UI, keeping the top and bottom nav mounted.
+- Wiring the fog's button to whatever MHC exposes on 1.6.
+
+Julien is the only designer. The fog is a described layout, not an approved
+design, so confirm the visual before building it.
 
 ## Worktrees
 
