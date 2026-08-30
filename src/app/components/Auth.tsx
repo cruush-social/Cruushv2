@@ -914,24 +914,24 @@ export default function Auth({ onAuth }: AuthProps) {
 
       </div>
       <div className="launch-login-auth-footer" data-testid="launch-login-auth-footer">
-        <a
-          className="launch-login-auth-contact"
-          data-testid="launch-login-auth-contact"
-          href="mailto:hello@cruush.app"
-        >
-          hello@cruush.app
-        </a>
-        <a className="launch-login-auth-contact" href="mailto:reports@cruush.app?subject=cruush%20bug%20report">
-          Report a bug
-        </a>
-        <a className="launch-login-auth-contact" href="/support">
-          Contact support
-        </a>
-        <a className="launch-login-auth-contact" href="/support?appeal=1">
-          Appeal an age-related suspension
-        </a>
-
-        <PublicPolicyLinks variant="compact" />
+        <PublicPolicyLinks variant="compact">
+          <a
+            className="launch-login-auth-contact"
+            data-testid="launch-login-auth-contact"
+            href="mailto:hello@cruush.app"
+          >
+            hello@cruush.app
+          </a>
+          <a className="launch-login-auth-contact" href="mailto:reports@cruush.app?subject=cruush%20bug%20report">
+            Report a bug
+          </a>
+          <a className="launch-login-auth-contact" href="/support">
+            Contact support
+          </a>
+          <a className="launch-login-auth-contact" href="/support?appeal=1">
+            Appeal an age-related suspension
+          </a>
+        </PublicPolicyLinks>
       </div>
     </div>
   );

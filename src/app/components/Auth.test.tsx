@@ -196,7 +196,13 @@ describe('Auth', () => {
     expect(footer).toContainElement(legalNotice);
     expect(contactLink).toHaveClass('launch-login-auth-contact');
     expect(contactLink).toHaveAttribute('href', 'mailto:hello@cruush.app');
-    expect(contactLink.compareDocumentPosition(legalNotice) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // The contact links now live inside the legal block's disclosure, so they
+    // are hidden until "More policies" is opened rather than sitting above it.
+    expect(legalNotice).toContainElement(contactLink);
+    const disclosure = legalNotice.querySelector('details');
+    expect(disclosure).not.toBeNull();
+    expect(disclosure).toContainElement(contactLink);
+    expect(disclosure?.open).toBe(false);
     expect(legalNotice).toHaveClass('text-center', 'text-white/30');
     expect(screen.queryByText('Legal and safety')).not.toBeInTheDocument();
     for (const link of AUTH_POLICY_LINKS) {

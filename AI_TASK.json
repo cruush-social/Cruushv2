@@ -44,7 +44,9 @@
     "public/blog/index.html",
     "public/pages.css",
     "src/app/components/PublicPolicyLinks.tsx",
-    "vite.config.ts"
+    "vite.config.ts",
+    "src/app/components/Auth.tsx",
+    "src/app/components/Auth.test.tsx"
   ],
   "forbiddenPaths": [
     "server/**",
