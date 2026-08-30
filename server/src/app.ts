@@ -9,6 +9,7 @@ import { registerAdminModerationRoutes } from "./routes/admin-moderation.js";
 import { registerBetaAccessRoutes } from "./routes/beta-access.js";
 import { registerBlockRoutes } from "./routes/blocks.js";
 import { registerBillingRoutes } from "./routes/billing.js";
+import { registerVerotelRoutes } from "./routes/verotel.js";
 import { registerCruushRoutes } from "./routes/cruush.js";
 import { registerCryptoPaymentRoutes } from "./routes/crypto-payments.js";
 import { registerEventRoutes } from "./routes/events.js";
@@ -222,6 +223,7 @@ export function buildServer(config: AppConfig, deps: BuildServerDeps = {}) {
   void registerBetaAccessRoutes(app);
   void registerBlockRoutes(app);
   void registerBillingRoutes(app);
+  void registerVerotelRoutes(app);
   void registerModerationMediaRoutes(app);
   void registerMediaRoutes(app);
   void registerMessageRoutes(app);

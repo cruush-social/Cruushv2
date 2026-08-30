@@ -516,3 +516,26 @@ export async function grantCruushPlusPlan(
     testMode
   };
 }
+
+/**
+ * Grants cruush+ for a completed checkout session.
+ *
+ * A thin adapter over grantCruushPlusPlan, kept because the card rail's webhook
+ * hands us a session rather than a plan. Two extractions of this logic existed
+ * on two branches; this keeps both call shapes while leaving exactly one
+ * implementation, so the card, crypto, and test paths cannot drift on what a
+ * plan actually grants.
+ *
+ * Callers must mark the session completed first and must have proven the
+ * payment is real. This function trusts its input.
+ */
+export async function grantCruushPlusForCheckoutSession(
+  app: FastifyInstance,
+  session: ReturnType<typeof mapCheckoutSession>
+) {
+  return grantCruushPlusPlan(app, session.userId, getCruushPlusPlan(session.planId), {
+    kind: "checkout_session",
+    sessionId: session.id,
+    testMode: session.testMode
+  });
+}

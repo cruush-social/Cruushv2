@@ -80,7 +80,7 @@ const internalBugReportLinkSchema = z.object({
   { message: "Provide at least one of branch, prUrl, or status." }
 );
 
-function assertInternalAccess(app: FastifyInstance, headerValue: string | string[] | undefined) {
+export function assertInternalAccess(app: FastifyInstance, headerValue: string | string[] | undefined) {
   const configuredSecret = app.config.INTERNAL_API_SECRET ?? "";
   const providedSecret = Array.isArray(headerValue) ? headerValue[0] : headerValue;
   const configuredDigest = createHash("sha256").update(configuredSecret).digest();

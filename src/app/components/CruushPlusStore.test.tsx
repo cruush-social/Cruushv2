@@ -9,6 +9,8 @@ vi.mock('../lib/billingApi', async () => {
   return {
     ...actual,
     getBillingPlans: vi.fn(),
+    startCheckout: vi.fn(),
+    completeTestCheckoutSession: vi.fn(),
   };
 });
 
@@ -25,7 +27,7 @@ vi.mock('../lib/cryptoCheckoutApi', async () => {
   };
 });
 
-const { getBillingPlans } = await import('../lib/billingApi');
+const { getBillingPlans, startCheckout } = await import('../lib/billingApi');
 const { createCryptoPaymentIntent, getCryptoProcessorStatus } = await import(
   '../lib/cryptoCheckoutApi'
 );
@@ -78,6 +80,11 @@ const conversionPlans = [
   },
 ];
 
+// Card is the default method now, so a crypto test has to choose crypto first.
+async function chooseCrypto() {
+  fireEvent.click(await screen.findByRole('button', { name: /^crypto/i }));
+}
+
 function renderStore() {
   return render(
     <MemoryRouter>
@@ -95,6 +102,48 @@ describe('CruushPlusStore', () => {
       testWarning: 'TEST CHECKOUT - no real payment will be collected.',
       currency: 'USD',
       plans,
+    });
+  });
+
+  describe('choosing how to pay', () => {
+    it('defaults to card, so nobody has to understand crypto to buy', async () => {
+      vi.mocked(getCryptoProcessorStatus).mockResolvedValue({
+        ready: false, asset: 'USDC', network: 'arbitrum', confirmationTarget: 1,
+      });
+      renderStore();
+
+      expect(await screen.findByRole('button', { name: /^card/i })).toHaveAttribute('aria-pressed', 'true');
+      // Wallet wording stays hidden until crypto is actually chosen.
+      expect(screen.queryByText(/what are you paying from/i)).not.toBeInTheDocument();
+    });
+
+    it('sends the buyer to the processor hosted page and never handles a card itself', async () => {
+      vi.mocked(getCryptoProcessorStatus).mockResolvedValue({
+        ready: false, asset: 'USDC', network: 'arbitrum', confirmationTarget: 1,
+      });
+      vi.mocked(startCheckout).mockResolvedValue({
+        action: 'redirect',
+        session: { id: 'session-1' } as never,
+        orderUrl: 'https://secure.verotel.com/order/abc',
+      });
+      const assign = vi.fn();
+      Object.defineProperty(window, 'location', { value: { assign }, writable: true });
+
+      renderStore();
+      fireEvent.click(await screen.findByRole('button', { name: /get 1 month for \$18\.99/i }));
+
+      await waitFor(() => expect(assign).toHaveBeenCalledWith('https://secure.verotel.com/order/abc'));
+      // Card details are entered on the processor's page, never on ours.
+      expect(screen.queryByLabelText(/card number/i)).not.toBeInTheDocument();
+    });
+
+    it('card stays available even when the crypto processor is not ready', async () => {
+      vi.mocked(getCryptoProcessorStatus).mockResolvedValue({
+        ready: false, asset: 'USDC', network: 'arbitrum', confirmationTarget: 1,
+      });
+      renderStore();
+
+      expect(await screen.findByRole('button', { name: /get 1 month for \$18\.99/i })).toBeEnabled();
     });
   });
 
@@ -194,6 +243,7 @@ describe('CruushPlusStore', () => {
     });
 
     renderStore();
+    await chooseCrypto();
 
     const payButton = await screen.findByRole('button', { name: /get 1 month for \$18\.99/i });
     expect(payButton).toBeDisabled();
@@ -226,6 +276,7 @@ describe('CruushPlusStore', () => {
     });
 
     renderStore();
+    await chooseCrypto();
 
     fireEvent.click(await screen.findByRole('button', { name: /get 1 month for \$18\.99/i }));
 
@@ -273,6 +324,7 @@ describe('CruushPlusStore', () => {
     });
 
     renderStore();
+    await chooseCrypto();
 
     fireEvent.click(await screen.findByRole('button', { name: /get 1 month for \$18\.99/i }));
 
@@ -292,6 +344,7 @@ describe('CruushPlusStore', () => {
       .mockRejectedValueOnce(new Error('Connection interrupted.'));
 
     renderStore();
+    await chooseCrypto();
 
     fireEvent.click(await screen.findByRole('button', { name: /get 1 month for \$18\.99/i }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Connection interrupted.');

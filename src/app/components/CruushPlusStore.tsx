@@ -5,7 +5,7 @@ import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
 import CruushPlusWord from './CruushPlusWord';
-import { getBillingPlans, type CruushPlusPlan } from '../lib/billingApi';
+import { completeTestCheckoutSession, getBillingPlans, startCheckout, type CruushPlusPlan } from '../lib/billingApi';
 import {
   createCryptoPaymentIntent,
   getCryptoPaymentIntent,
@@ -63,6 +63,12 @@ function termLabel(plan: CruushPlusPlan) {
       return '';
   }
 }
+
+// Card first: it is what most people reach for, and the crypto rails exist for
+// the people a card processor will not serve. Choosing the method comes before
+// choosing the details of that method, so nobody reads wallet wording to find
+// out they could have used a card.
+type PaymentMethod = 'card' | 'crypto';
 
 // People know which app their money is in, not which coin it settles in. Naming
 // the token here would put back exactly the jargon this picker exists to
@@ -143,6 +149,7 @@ export default function CruushPlusStore() {
   const [processor, setProcessor] = useState<CryptoProcessorStatus | null>(null);
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [intent, setIntent] = useState<CryptoPaymentIntent | null>(null);
+  const [method, setMethod] = useState<PaymentMethod>('card');
   const [selectedRail, setSelectedRail] = useState<CryptoPaymentRailId>('usdc_arbitrum');
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -235,6 +242,35 @@ export default function CruushPlusStore() {
 
   const processorReady = processor?.ready === true;
   const paymentOpen = intent ? isOpenCryptoPayment(intent.status) : false;
+
+  const handleCardCheckout = useCallback(async () => {
+    if (!selectedPlan) {
+      return;
+    }
+
+    setStarting(true);
+    setError(null);
+
+    try {
+      const result = await startCheckout(selectedPlan.id);
+
+      if (result.action === 'redirect') {
+        // The buyer leaves cruush for the processor's own hosted page. cruush
+        // never sees a card number. Entitlement comes from the processor's
+        // server-to-server postback, never from the browser coming back.
+        window.location.assign(result.orderUrl);
+        return;
+      }
+
+      // No live processor configured, so this is the local test checkout.
+      await completeTestCheckoutSession(result.session.id);
+      navigate('/rewards');
+    } catch (checkoutError) {
+      setError(checkoutError instanceof Error ? checkoutError.message : 'Unable to start checkout.');
+    } finally {
+      setStarting(false);
+    }
+  }, [navigate, selectedPlan]);
 
   const handleStartPayment = useCallback(async () => {
     if (!selectedPlan) {
@@ -447,47 +483,72 @@ export default function CruushPlusStore() {
         {!loading && selectedPlan ? (
           <Card>
             <CardContent className="space-y-3 p-4">
-              <p className="text-sm font-semibold">What are you paying from?</p>
-              {/* Ask which app someone is paying from, not which chain. Nobody
-                  outside crypto knows what Arbitrum is, and picking the wrong
-                  network sends money nowhere it can be recovered from. The app
-                  determines the token and the chain, so we choose those. */}
-              <div className="grid grid-cols-2 gap-2" aria-label="Where you are paying from">
-                {PAYMENT_SOURCES.map((source) => (
+              <p className="text-sm font-semibold">How do you want to pay?</p>
+              <div className="grid grid-cols-2 gap-2" aria-label="Payment method">
+                {([
+                  { id: 'card' as const, label: 'Card', hint: 'Visa, Mastercard' },
+                  { id: 'crypto' as const, label: 'Crypto', hint: 'Cash App, Venmo, PayPal' },
+                ]).map((option) => (
                   <button
-                    key={source.rail}
+                    key={option.id}
                     type="button"
-                    aria-pressed={selectedRail === source.rail}
-                    className={`rounded-xl border px-3 py-2 text-left ${selectedRail === source.rail ? 'border-primary bg-primary/10' : 'border-border'}`}
-                    onClick={() => { setSelectedRail(source.rail); setIntent(null); }}
+                    aria-pressed={method === option.id}
+                    className={`rounded-xl border px-3 py-2 text-left ${method === option.id ? 'border-primary bg-primary/10' : 'border-border'}`}
+                    onClick={() => { setMethod(option.id); setIntent(null); setError(null); }}
                   >
-                    <span className="block text-sm font-medium">{source.label}</span>
+                    <span className="block text-sm font-medium">{option.label}</span>
+                    <span className="block text-xs text-muted-foreground">{option.hint}</span>
                   </button>
                 ))}
               </div>
-              {!processorReady ? (
+
+              {/* Which app you are paying from only matters once you have chosen
+                  crypto. Asking it up front made people read wallet wording to
+                  find out a card was an option. */}
+              {method === 'crypto' ? (
+                <>
+                  <p className="text-sm font-semibold">What are you paying from?</p>
+                  <div className="grid grid-cols-2 gap-2" aria-label="Where you are paying from">
+                    {PAYMENT_SOURCES.map((source) => (
+                      <button
+                        key={source.rail}
+                        type="button"
+                        aria-pressed={selectedRail === source.rail}
+                        className={`rounded-xl border px-3 py-2 text-left ${selectedRail === source.rail ? 'border-primary bg-primary/10' : 'border-border'}`}
+                        onClick={() => { setSelectedRail(source.rail); setIntent(null); }}
+                      >
+                        <span className="block text-sm font-medium">{source.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              ) : null}
+
+              {method === 'crypto' && !processorReady ? (
                 <p className="rounded-lg border border-border bg-muted/40 p-2 text-xs leading-4 text-muted-foreground">
-                  Crypto payment is not available yet. You can still earn cruush+ time through
-                  check-ins and referrals.
+                  Crypto payment is not available yet. You can still pay by card, or earn cruush+
+                  time through check-ins and referrals.
                 </p>
               ) : null}
 
-              {/* Same gradient as the app's other primary actions. */}
+              {/* Same gradient as the app's other primary actions. Card is
+                  disabled only while a request is in flight: with no live
+                  processor configured it falls back to the test checkout. */}
               <Button
                 className="h-12 w-full rounded-full text-base font-semibold text-white disabled:opacity-50"
                 type="button"
-                disabled={starting || !processorReady || paymentOpen}
-                onClick={() => void handleStartPayment()}
+                disabled={starting || (method === 'crypto' && (!processorReady || paymentOpen))}
+                onClick={() => void (method === 'card' ? handleCardCheckout() : handleStartPayment())}
                 style={{ background: 'var(--cruush-logo)' }}
               >
                 {starting
                   ? 'Starting…'
-                  : paymentOpen
+                  : method === 'crypto' && paymentOpen
                     ? 'Payment started'
                     : `Get ${termLabel(selectedPlan).toLowerCase()} for ${formatPrice(selectedPlan.amountCents, selectedPlan.currency)}`}
               </Button>
 
-              {intent ? (
+              {method === 'crypto' && intent ? (
                 <div aria-live="polite" className="space-y-3 rounded-lg border border-border p-4">
                   <p className="text-sm font-medium">{PAYMENT_STATUS_COPY[intent.status]}</p>
                   {intent.paymentAddress && intent.quotedAmountAtomic && isOpenCryptoPayment(intent.status) ? (

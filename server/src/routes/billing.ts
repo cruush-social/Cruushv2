@@ -10,6 +10,7 @@ import {
   loadCheckoutSession
 } from "../billing.js";
 import { getActiveAccountUserId, getAuthenticatedUserId } from "../request-auth.js";
+import { createVerotelCheckoutSession, isVerotelConfigured } from "../verotel-checkout.js";
 
 const checkoutSessionPayloadSchema = z.object({
   planId: z.string().min(1)
@@ -23,12 +24,13 @@ export async function registerBillingRoutes(app: FastifyInstance) {
   app.get("/api/billing/plans", async (request, reply) => {
     await getAuthenticatedUserId(request);
     const availability = await getPlanAvailability(app);
+    const live = isVerotelConfigured(app);
 
     return reply.send({
       data: {
-        processor: "fake",
-        testCheckout: true,
-        testWarning: TEST_CHECKOUT_WARNING,
+        processor: live ? "verotel" : "fake",
+        testCheckout: !live,
+        testWarning: live ? null : TEST_CHECKOUT_WARNING,
         currency: "USD",
         plans: CRUUSH_PLUS_PLANS.map((plan) => ({
           ...plan,
@@ -50,9 +52,13 @@ export async function registerBillingRoutes(app: FastifyInstance) {
     const userId = await getActiveAccountUserId(request);
     const payload = checkoutSessionPayloadSchema.parse(request.body);
 
-    return reply.code(201).send({
-      data: await createFakeCheckoutSession(app, userId, payload.planId)
-    });
+    // Live credentials switch cruush off the test processor. Until Verotel is
+    // configured this keeps returning the fake session local development uses.
+    const data = isVerotelConfigured(app)
+      ? await createVerotelCheckoutSession(app, userId, payload.planId)
+      : await createFakeCheckoutSession(app, userId, payload.planId);
+
+    return reply.code(201).send({ data });
   });
 
   app.get("/api/billing/checkout-sessions/:sessionId", async (request, reply) => {

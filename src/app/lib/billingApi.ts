@@ -29,10 +29,13 @@ export type CruushPlusPlan = {
   badgeKeys: CruushBadge[];
 };
 
+/** 'fake' is the local test processor; 'verotel' is live card processing. */
+export type BillingProcessor = 'fake' | 'verotel';
+
 export type BillingPlansResponse = {
-  processor: 'fake';
+  processor: BillingProcessor;
   testCheckout: boolean;
-  testWarning: string;
+  testWarning: string | null;
   currency: 'USD';
   plans: CruushPlusPlan[];
 };
@@ -41,7 +44,7 @@ export type BillingStatus = {
   cruushPlus: boolean;
   expiresAt: string | null;
   badges: CruushBadge[];
-  processor: 'fake';
+  processor: BillingProcessor;
   testCheckout: boolean;
 };
 
@@ -50,7 +53,7 @@ export type CheckoutSession = {
   userId: string;
   planId: CruushPlusPlanId;
   plan: CruushPlusPlan;
-  processor: 'fake';
+  processor: BillingProcessor;
   status: 'pending' | 'completed' | 'cancelled' | 'failed';
   testMode: boolean;
   amountCents: number;
@@ -59,6 +62,11 @@ export type CheckoutSession = {
   expiresAt: string | null;
   completedAt: string | null;
   testWarning: string | null;
+  /**
+   * Present only for a live processor. The hosted order page the buyer must be
+   * sent to. Absent on a test session, which is completed in-app instead.
+   */
+  orderUrl?: string;
 };
 
 export type CheckoutCompletion = {
@@ -91,4 +99,27 @@ export async function completeTestCheckoutSession(sessionId: string) {
   return requestApi<CheckoutCompletion>(`/api/billing/checkout-sessions/${sessionId}/complete-test`, {
     method: 'POST',
   });
+}
+
+/**
+ * Starts a cruush+ purchase and hands back what the caller should do next.
+ *
+ * On a live processor the buyer must leave cruush for the processor's hosted
+ * order page, so this returns `redirect` with that URL. On the local test
+ * processor there is nowhere to go and the caller completes the session in-app.
+ *
+ * This deliberately does not navigate on its own. Where the buyer is sent from,
+ * and what they see on the way, is a product decision.
+ */
+export async function startCheckout(planId: CruushPlusPlanId): Promise<
+  | { action: 'redirect'; session: CheckoutSession; orderUrl: string }
+  | { action: 'complete_in_app'; session: CheckoutSession }
+> {
+  const session = await createCheckoutSession(planId);
+
+  if (session.orderUrl) {
+    return { action: 'redirect', session, orderUrl: session.orderUrl };
+  }
+
+  return { action: 'complete_in_app', session };
 }

@@ -163,6 +163,10 @@ const configSchema = z.object({
   LAUNCH_PARTY_CHAT_ADMIN_EMAIL: z.string().trim().email().optional().default("julienlenazny@gmail.com"),
   LAUNCH_PARTY_CHAT_MAX_MEMBERS: z.coerce.number().int().min(2).max(500).optional().default(500),
   BETA_ACCESS_GEOFENCE_ENABLED: booleanEnvSchema.optional().default(false),
+  // Verotel FlexPay. Both empty by default, which leaves the Verotel processor
+  // disabled and the postback endpoint answering 503.
+  VEROTEL_SHOP_ID: z.string().trim().optional().default(""),
+  VEROTEL_SIGNATURE_KEY: z.string().optional().default(""),
   TURNSTILE_SECRET_KEY: z.string().optional().default(""),
   PROFILE_ENCRYPTION_KEY: z.string().optional().default(""),
   PROFILE_ENCRYPTION_KEY_PREVIOUS: z.string().optional(),
@@ -835,12 +839,17 @@ type CryptoProcessorConfigKey =
   | "CRYPTO_PROCESSOR_WATCHER_ENABLED"
   | "CRYPTO_PROCESSOR_WATCHER_INTERVAL_SECONDS";
 
+type VerotelConfigKey =
+  | "VEROTEL_SHOP_ID"
+  | "VEROTEL_SIGNATURE_KEY";
+
+// Both payment rails are optional configuration: the app runs with neither.
 export type AppConfig = Omit<
   ParsedAppConfig,
-  GhostModeConfigKey | ModerationConfigKey | WebPushConfigKey | TwoFactorConfigKey | AlphaTestConfigKey | LaunchPartyConfigKey | BetaAccessConfigKey | BugTriageConfigKey | BuildInfoConfigKey | AudienceConfigKey | CryptoProcessorConfigKey
+  GhostModeConfigKey | ModerationConfigKey | WebPushConfigKey | TwoFactorConfigKey | AlphaTestConfigKey | LaunchPartyConfigKey | BetaAccessConfigKey | BugTriageConfigKey | BuildInfoConfigKey | AudienceConfigKey | CryptoProcessorConfigKey | VerotelConfigKey
 > & Partial<Pick<
   ParsedAppConfig,
-  GhostModeConfigKey | ModerationConfigKey | WebPushConfigKey | TwoFactorConfigKey | AlphaTestConfigKey | LaunchPartyConfigKey | BetaAccessConfigKey | BugTriageConfigKey | BuildInfoConfigKey | AudienceConfigKey | CryptoProcessorConfigKey
+  GhostModeConfigKey | ModerationConfigKey | WebPushConfigKey | TwoFactorConfigKey | AlphaTestConfigKey | LaunchPartyConfigKey | BetaAccessConfigKey | BugTriageConfigKey | BuildInfoConfigKey | AudienceConfigKey | CryptoProcessorConfigKey | VerotelConfigKey
 >>;
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
