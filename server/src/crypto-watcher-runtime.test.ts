@@ -8,6 +8,7 @@ import {
 import type { AppConfig } from "./config.js";
 import type { DbClient } from "./db.js";
 
+const arbitrumRpc = "https://arbitrum.example/rpc-with-key";
 const baseRpc = "https://base.example/rpc-with-key";
 const ethereumRpc = "https://ethereum.example/rpc-with-key";
 
@@ -15,7 +16,8 @@ function config(overrides: Partial<AppConfig> = {}): AppConfig {
   return {
     CRYPTO_PROCESSOR_ENABLED: true,
     CRYPTO_PROCESSOR_WATCHER_ENABLED: true,
-    CRYPTO_PROCESSOR_BASE_RPC_URL: baseRpc,
+    CRYPTO_PROCESSOR_ARBITRUM_RPC_URL: arbitrumRpc,
+    CRYPTO_PROCESSOR_BASE_RPC_URL: "",
     CRYPTO_PROCESSOR_ETHEREUM_RPC_URL: "",
     CRYPTO_PROCESSOR_CONFIRMATION_TARGET: 1,
     CRYPTO_PROCESSOR_WATCHER_INTERVAL_SECONDS: 30,
@@ -37,7 +39,7 @@ const watchableIntentRow = {
   payment_address: "0x73659c60270d326c06ac204f1a9c63f889a3d14b",
   quoted_amount_atomic: "18990000",
   asset: "USDC",
-  network: "base"
+  network: "arbitrum"
 };
 
 function stubApp(overrides: Partial<AppConfig> = {}, rows: unknown[] = [watchableIntentRow]) {
@@ -53,7 +55,7 @@ function stubApp(overrides: Partial<AppConfig> = {}, rows: unknown[] = [watchabl
 
 describe("which chains get watched", () => {
   it("watches a chain only when the processor, the watcher, and an endpoint are all set", () => {
-    expect(resolveWatchedChains(config())).toEqual([{ chainId: 8453, endpointUrl: baseRpc }]);
+    expect(resolveWatchedChains(config())).toEqual([{ chainId: 42161, endpointUrl: arbitrumRpc }]);
   });
 
   it("watches nothing while the processor is disabled, even with an endpoint configured", () => {
@@ -65,15 +67,18 @@ describe("which chains get watched", () => {
   });
 
   it("watches nothing when no endpoint is configured", () => {
-    expect(resolveWatchedChains(config({ CRYPTO_PROCESSOR_BASE_RPC_URL: "" }))).toEqual([]);
+    expect(resolveWatchedChains(config({ CRYPTO_PROCESSOR_ARBITRUM_RPC_URL: "" }))).toEqual([]);
   });
 
-  it("watches both chains when both endpoints are configured", () => {
-    expect(resolveWatchedChains(config({ CRYPTO_PROCESSOR_ETHEREUM_RPC_URL: ethereumRpc })))
-      .toEqual([
-        { chainId: 8453, endpointUrl: baseRpc },
-        { chainId: 1, endpointUrl: ethereumRpc }
-      ]);
+  it("watches every chain that has an endpoint, Arbitrum first", () => {
+    expect(resolveWatchedChains(config({
+      CRYPTO_PROCESSOR_ETHEREUM_RPC_URL: ethereumRpc,
+      CRYPTO_PROCESSOR_BASE_RPC_URL: baseRpc
+    }))).toEqual([
+      { chainId: 42161, endpointUrl: arbitrumRpc },
+      { chainId: 1, endpointUrl: ethereumRpc },
+      { chainId: 8453, endpointUrl: baseRpc }
+    ]);
   });
 });
 
@@ -82,8 +87,8 @@ describe("reported watcher status", () => {
     const status = describeWatcherStatus(config());
 
     expect(JSON.stringify(status)).not.toContain("rpc-with-key");
-    expect(JSON.stringify(status)).not.toContain("base.example");
-    expect(status).toEqual({ running: true, watchedChainIds: [8453], reason: null });
+    expect(JSON.stringify(status)).not.toContain("arbitrum.example");
+    expect(status).toEqual({ running: true, watchedChainIds: [42161], reason: null });
   });
 
   it("says which gate is closed, so a silent watcher can be diagnosed", () => {
@@ -91,7 +96,7 @@ describe("reported watcher status", () => {
       .toBe("The crypto processor is disabled.");
     expect(describeWatcherStatus(config({ CRYPTO_PROCESSOR_WATCHER_ENABLED: false })).reason)
       .toBe("The crypto watcher is disabled.");
-    expect(describeWatcherStatus(config({ CRYPTO_PROCESSOR_BASE_RPC_URL: "" })).reason)
+    expect(describeWatcherStatus(config({ CRYPTO_PROCESSOR_ARBITRUM_RPC_URL: "" })).reason)
       .toBe("No chain RPC endpoint is configured.");
   });
 });
@@ -115,7 +120,7 @@ describe("starting the watcher", () => {
   it("keeps going when one chain's endpoint fails, instead of stopping settlement", async () => {
     const app = stubApp();
     const failing = {
-      chainId: 8453,
+      chainId: 42161,
       getBlockNumber: vi.fn().mockRejectedValue(new Error("endpoint down")),
       getLogs: vi.fn()
     };
@@ -134,7 +139,7 @@ describe("starting the watcher", () => {
     const results = await handle.runOnce();
 
     expect(app.log.error).toHaveBeenCalledWith(
-      expect.objectContaining({ chainId: 8453 }),
+      expect.objectContaining({ chainId: 42161 }),
       "crypto watcher pass failed"
     );
     expect(working.getBlockNumber).toHaveBeenCalled();
@@ -144,8 +149,8 @@ describe("starting the watcher", () => {
   it("does not put the endpoint URL into an error log", async () => {
     const app = stubApp();
     const failing = {
-      chainId: 8453,
-      getBlockNumber: vi.fn().mockRejectedValue(new Error(`failed calling ${baseRpc}`)),
+      chainId: 42161,
+      getBlockNumber: vi.fn().mockRejectedValue(new Error(`failed calling ${arbitrumRpc}`)),
       getLogs: vi.fn()
     };
 
@@ -161,7 +166,7 @@ describe("starting the watcher", () => {
   it("stops cleanly", () => {
     const app = stubApp();
     const source = {
-      chainId: 8453,
+      chainId: 42161,
       getBlockNumber: vi.fn().mockResolvedValue(1n),
       getLogs: vi.fn().mockResolvedValue([])
     };

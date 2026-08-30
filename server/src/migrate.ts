@@ -104,7 +104,8 @@ const migrationFiles = [
   "095_nsfwclub30_promo_code_cap.sql",
   "096_crypto_payment_intents.sql",
   "097_crypto_payment_intents_multi_asset.sql",
-  "098_crypto_payment_settlement.sql"
+  "098_crypto_payment_settlement.sql",
+  "099_crypto_payment_arbitrum_rail.sql"
 ];
 const rewardSafetyPreflightFiles = [
   "079_daily_check_in_rewards.sql",

@@ -36,9 +36,12 @@ export function resolveWatchedChains(config: AppConfig): ConfiguredChain[] {
     return [];
   }
 
+  // Arbitrum first: it carries both tokens and is the rail customers actually
+  // reach from Cash App, Venmo, and PayPal.
   const endpoints: Array<[number, string]> = [
-    [CRYPTO_PAYMENT_RAILS.usdc_base.chainId, config.CRYPTO_PROCESSOR_BASE_RPC_URL ?? ""],
-    [CRYPTO_PAYMENT_RAILS.pyusd_ethereum.chainId, config.CRYPTO_PROCESSOR_ETHEREUM_RPC_URL ?? ""]
+    [CRYPTO_PAYMENT_RAILS.usdc_arbitrum.chainId, config.CRYPTO_PROCESSOR_ARBITRUM_RPC_URL ?? ""],
+    [CRYPTO_PAYMENT_RAILS.pyusd_ethereum.chainId, config.CRYPTO_PROCESSOR_ETHEREUM_RPC_URL ?? ""],
+    [CRYPTO_PAYMENT_RAILS.usdc_base.chainId, config.CRYPTO_PROCESSOR_BASE_RPC_URL ?? ""]
   ];
 
   return endpoints

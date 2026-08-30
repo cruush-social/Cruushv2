@@ -25,7 +25,7 @@ function paymentRow(overrides: Partial<CryptoPaymentIntentRow> = {}): CryptoPaym
     plan_id: "plus_monthly",
     processor: "in_house",
     asset: "USDC",
-    network: "base",
+    network: "arbitrum",
     amount_usd_cents: 1899,
     quoted_amount_atomic: null,
     derivation_index: 1,
@@ -82,7 +82,7 @@ describe("crypto payment core", () => {
       userId: "00000000-0000-4000-8000-000000000001",
       amountUsdCents: 1899,
       asset: "USDC",
-      network: "base",
+      network: "arbitrum",
       status: "awaiting_payment"
     });
     expect(mapped).not.toHaveProperty("idempotencyKey");
@@ -94,13 +94,13 @@ describe("crypto payment core", () => {
     const notYetAssigned = mapCryptoPaymentIntent(paymentRow());
     expect(buildCryptoPaymentUri(notYetAssigned)).toBeNull();
 
-    const usdcBase = mapCryptoPaymentIntent(paymentRow({
+    const usdcArbitrum = mapCryptoPaymentIntent(paymentRow({
       quoted_amount_atomic: "18990000",
       payment_address: "0x73659c60270d326c06Ac204F1A9C63f889a3D14B",
       status: "awaiting_payment"
     }));
-    expect(buildCryptoPaymentUri(usdcBase)).toBe(
-      "ethereum:0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913@8453/transfer?address=0x73659c60270d326c06Ac204F1A9C63f889a3D14B&uint256=18990000"
+    expect(buildCryptoPaymentUri(usdcArbitrum)).toBe(
+      "ethereum:0xaf88d065e77c8cC2239327C5EDb3A432268e5831@42161/transfer?address=0x73659c60270d326c06Ac204F1A9C63f889a3D14B&uint256=18990000"
     );
 
     const pyusdEthereum = mapCryptoPaymentIntent(paymentRow({
@@ -125,7 +125,7 @@ describe("crypto payment core", () => {
       payment_address: "0x73659c60270d326c06Ac204F1A9C63f889a3D14B",
       status: "awaiting_payment"
     })));
-    expect(awaitingPayment.paymentUri).toMatch(/^ethereum:0x[0-9a-fA-F]+@8453\/transfer\?/);
+    expect(awaitingPayment.paymentUri).toMatch(/^ethereum:0x[0-9a-fA-F]+@42161\/transfer\?/);
     expect(awaitingPayment.qrCodeDataUrl).toMatch(/^data:image\/png;base64,/);
   });
 
@@ -136,7 +136,7 @@ describe("crypto payment core", () => {
     }))).toEqual({
       ready: false,
       asset: "USDC",
-      network: "base",
+      network: "arbitrum",
       rails: expect.any(Array),
       confirmationTarget: 1
     });
@@ -144,7 +144,7 @@ describe("crypto payment core", () => {
     expect(getCryptoProcessorStatus(cryptoConfig())).toEqual({
       ready: true,
       asset: "USDC",
-      network: "base",
+      network: "arbitrum",
       rails: expect.any(Array),
       confirmationTarget: 1
     });
