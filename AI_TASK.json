@@ -51,7 +51,8 @@
     "public/service-worker-recovery.js",
     "src/main.tsx",
     "src/serviceWorkerUpdate.test.ts",
-    "scripts/release-main-coolify.mjs"
+    "scripts/release-main-coolify.mjs",
+    "docs/session-handoff-2026-08-29.md"
   ],
   "forbiddenPaths": [
     "server/**",
