@@ -46,7 +46,11 @@
     "src/app/components/PublicPolicyLinks.tsx",
     "vite.config.ts",
     "src/app/components/Auth.tsx",
-    "src/app/components/Auth.test.tsx"
+    "src/app/components/Auth.test.tsx",
+    "public/sw.js",
+    "public/service-worker-recovery.js",
+    "src/main.tsx",
+    "src/serviceWorkerUpdate.test.ts"
   ],
   "forbiddenPaths": [
     "server/**",
@@ -90,7 +94,7 @@
   "externalEffects": {
     "externalMessages": "forbidden",
     "purchases": "forbidden",
-    "deployment": "forbidden",
+    "deployment": "confirm",
     "publication": "auto",
     "deletion": "forbidden",
     "securityChanges": "forbidden",
@@ -98,7 +102,7 @@
     "newDefaults": "confirm",
     "identityCreativeDecisions": "forbidden"
   },
-  "publicationTarget": "local branch feat/seo-aeo; commit only. Do not push: a push to main deploys production.",
+  "publicationTarget": "origin/main. Pushing deploys production.",
   "requiredEvidence": [
     "nginx -t passes against the real config in an nginx:1.27-alpine container.",
     "Serving the real built dist, / returns index, follow and /map, /messages and /profile/:id return noindex.",
