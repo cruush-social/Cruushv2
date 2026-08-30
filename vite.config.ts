@@ -17,6 +17,37 @@ function figmaAssetResolver() {
   }
 }
 
+// The About, Help and Blog pages are static documents in public/, served by
+// nginx in production so that crawlers which run no JavaScript can read them.
+// Vite serves public/ at the root, so without this /about would fall through to
+// the SPA and render a different page in development than in production, and
+// /help and /blog would not resolve at all. This makes both match nginx.conf.
+const STATIC_PAGES: Record<string, string> = {
+  '/about': 'about.html',
+  '/help': 'help.html',
+  '/blog': 'blog/index.html',
+}
+
+function staticPageRoutes() {
+  const serve = (server: { middlewares: { use: (fn: (req: any, res: any, next: () => void) => void) => void } }) => {
+    server.middlewares.use((req, res, next) => {
+      const pathname = (req.url ?? '').split('?')[0].replace(/\/$/, '') || '/'
+      const file = STATIC_PAGES[pathname]
+      if (!file) return next()
+      const full = path.resolve(__dirname, 'public', file)
+      if (!fs.existsSync(full)) return next()
+      res.setHeader('Content-Type', 'text/html; charset=utf-8')
+      res.end(fs.readFileSync(full))
+    })
+  }
+
+  return {
+    name: 'cruush-static-page-routes',
+    configureServer: serve,
+    configurePreviewServer: serve,
+  }
+}
+
 const devCertDirectory = path.resolve(__dirname, '.dev/certs')
 const devKeyPath = path.join(devCertDirectory, 'localhost-key.pem')
 const devCertPath = path.join(devCertDirectory, 'localhost-cert.pem')
@@ -34,6 +65,7 @@ const httpsConfig =
 export default defineConfig({
   plugins: [
     figmaAssetResolver(),
+    staticPageRoutes(),
     // The React and Tailwind plugins are both required for Make, even if
     // Tailwind is not being actively used – do not remove them
     react(),
