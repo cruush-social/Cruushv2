@@ -50,11 +50,11 @@
     "public/sw.js",
     "public/service-worker-recovery.js",
     "src/main.tsx",
-    "src/serviceWorkerUpdate.test.ts"
+    "src/serviceWorkerUpdate.test.ts",
+    "scripts/release-main-coolify.mjs"
   ],
   "forbiddenPaths": [
     "server/**",
-    "scripts/**",
     ".env",
     ".env.production",
     "src/app/App.tsx",
