@@ -1,0 +1,21 @@
+cruush wallet setup
+
+Do these steps only in this separate Mac user.
+
+1. Open Terminal.
+2. Paste these commands:
+
+cd /Volumes/good/Cruushv2-crypto-processor-20260822/tools/cruush-wallet
+npm install --ignore-scripts --legacy-peer-deps
+npm run wallet -- --help
+
+3. Stop and show Julien the help output.
+
+Do not initialize the wallet yet.
+
+Never type, copy, paste, save, screenshot, upload, or send recovery words,
+private keys, or wallet QR codes. Recovery words must only be written on paper
+and entered directly into the local wallet tool when explicitly instructed.
+
+Do not open cruush, ChatGPT, Claude, screen sharing, or cloud backup while
+creating or verifying the wallet.

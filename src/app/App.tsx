@@ -61,6 +61,7 @@ const EmailVerificationGate = lazy(() => import('./components/EmailVerificationG
 const BottomNav = lazy(() => import('./components/BottomNav'));
 const DebugCruushPlusToggle = lazy(() => import('./components/DebugCruushPlusToggle'));
 const Rewards = lazy(() => import('./components/Rewards'));
+const CruushPlusStore = lazy(() => import('./components/CruushPlusStore'));
 const AlphaBugButton = lazy(() => import('./components/AlphaBugButton'));
 const TwoFactorSettings = lazy(() => import('./components/TwoFactorSettings'));
 const PublicInfoPage = lazy(() => import('./components/PublicInfoPage'));
@@ -591,6 +592,7 @@ export default function App({
               ) : null}
               <Route path="/lucky" element={<FeelingLucky />} />
               <Route path="/requests" element={<RequestsDashboard />} />
+              <Route path="/store" element={<CruushPlusStore />} />
               <Route path="/upgrade" element={<Navigate to="/rewards" replace />} />
               <Route path="/rewards" element={<Rewards />} />
               <Route path="/checkout/success" element={<Navigate to="/rewards" replace />} />

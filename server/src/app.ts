@@ -10,6 +10,7 @@ import { registerBetaAccessRoutes } from "./routes/beta-access.js";
 import { registerBlockRoutes } from "./routes/blocks.js";
 import { registerBillingRoutes } from "./routes/billing.js";
 import { registerCruushRoutes } from "./routes/cruush.js";
+import { registerCryptoPaymentRoutes } from "./routes/crypto-payments.js";
 import { registerEventRoutes } from "./routes/events.js";
 import { ApiError, formatError, toApiError } from "./errors.js";
 import { registerMediaRoutes } from "./routes/media.js";
@@ -229,6 +230,7 @@ export function buildServer(config: AppConfig, deps: BuildServerDeps = {}) {
   void registerUserNoticeRoutes(app);
   void registerUserRoutes(app);
   void registerCruushRoutes(app);
+  void registerCryptoPaymentRoutes(app);
   void registerEventRoutes(app);
   void registerPostRoutes(app);
   void registerProfileRoutes(app);

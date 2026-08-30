@@ -364,7 +364,6 @@ export async function completeFakeCheckoutSession(app: FastifyInstance, userId: 
   }
 
   const plan = getCruushPlusPlan(session.planId);
-  const expiresAt = addPlanDuration(plan);
   await app.db.query(
     `update billing_checkout_sessions
      set status = 'completed',
@@ -375,43 +374,84 @@ export async function completeFakeCheckoutSession(app: FastifyInstance, userId: 
     [sessionId, userId]
   );
 
+  return grantCruushPlusPlan(app, userId, plan, {
+    kind: "checkout_session",
+    sessionId,
+    testMode: session.testMode
+  });
+}
+
+/**
+ * Where a cruush+ grant came from. Every grant must name one, so a paid access
+ * record can always be traced back to the thing that paid for it.
+ */
+export type CruushPlusGrantSource =
+  | { kind: "checkout_session"; sessionId: string; testMode: boolean }
+  | { kind: "crypto_payment_intent"; intentId: string };
+
+/**
+ * Applies one cruush+ plan to a member.
+ *
+ * This is the single implementation of "give someone cruush+". Both the test
+ * checkout path and the crypto settlement path go through it, so the two can
+ * never drift apart on what a plan actually grants.
+ *
+ * Callers are responsible for proving the payment is real before calling. This
+ * function does not verify payment; it applies a grant that has already been
+ * earned.
+ */
+export async function grantCruushPlusPlan(
+  app: FastifyInstance,
+  userId: string,
+  plan: CruushPlusPlan,
+  source: CruushPlusGrantSource
+) {
+  const expiresAt = addPlanDuration(plan);
+  const sessionId = source.kind === "checkout_session" ? source.sessionId : null;
+  const cryptoIntentId = source.kind === "crypto_payment_intent" ? source.intentId : null;
+  const testMode = source.kind === "checkout_session" ? source.testMode : false;
+
   if (plan.isLifetime) {
     await app.db.query(
       `insert into cruush_plus_lifetime_access (
          user_id,
          checkout_session_id,
+         crypto_payment_intent_id,
          plan_id,
          test_mode
        )
-       values ($1, $2, $3, $4)
+       values ($1, $2, $3, $4, $5)
        on conflict (user_id) do update
        set checkout_session_id = excluded.checkout_session_id,
+           crypto_payment_intent_id = excluded.crypto_payment_intent_id,
            plan_id = excluded.plan_id,
            test_mode = excluded.test_mode,
            granted_at = now()`,
-      [userId, sessionId, plan.id, session.testMode]
+      [userId, sessionId, cryptoIntentId, plan.id, testMode]
     );
   } else {
     await app.db.query(
       `insert into cruush_plus_subscriptions (
          user_id,
          checkout_session_id,
+         crypto_payment_intent_id,
          plan_id,
          status,
          current_period_starts_at,
          current_period_ends_at,
          test_mode
        )
-       values ($1, $2, $3, 'active', now(), $4, $5)
+       values ($1, $2, $3, $4, 'active', now(), $5, $6)
        on conflict (user_id) do update
        set checkout_session_id = excluded.checkout_session_id,
+           crypto_payment_intent_id = excluded.crypto_payment_intent_id,
            plan_id = excluded.plan_id,
            status = 'active',
            current_period_starts_at = excluded.current_period_starts_at,
            current_period_ends_at = excluded.current_period_ends_at,
            test_mode = excluded.test_mode,
            updated_at = now()`,
-      [userId, sessionId, plan.id, expiresAt, session.testMode]
+      [userId, sessionId, cryptoIntentId, plan.id, expiresAt, testMode]
     );
   }
 
@@ -437,17 +477,19 @@ export async function completeFakeCheckoutSession(app: FastifyInstance, userId: 
       `insert into founder_redemptions (
          user_id,
          checkout_session_id,
+         crypto_payment_intent_id,
          plan_id,
          amount_cents,
          test_mode
        )
-       values ($1, $2, $3, $4, $5)
+       values ($1, $2, $3, $4, $5, $6)
        on conflict (user_id, plan_id) do update
        set checkout_session_id = excluded.checkout_session_id,
+           crypto_payment_intent_id = excluded.crypto_payment_intent_id,
            amount_cents = excluded.amount_cents,
            test_mode = excluded.test_mode,
            redeemed_at = now()`,
-      [userId, sessionId, plan.id, plan.amountCents, session.testMode]
+      [userId, sessionId, cryptoIntentId, plan.id, plan.amountCents, testMode]
     );
   }
 
@@ -471,6 +513,6 @@ export async function completeFakeCheckoutSession(app: FastifyInstance, userId: 
     cruushPlus: entitlement?.cruush_plus_enabled === true,
     expiresAt: toIsoDate(entitlement?.cruush_plus_expires_at ?? expiresAt),
     badges: plan.badgeKeys,
-    testMode: session.testMode
+    testMode
   };
 }

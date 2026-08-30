@@ -3,6 +3,7 @@ import { loadConfig } from "./config.js";
 
 const strongSecret = "0123456789abcdef0123456789abcdef";
 const scryptPasswordHash = `scrypt$${"0".repeat(32)}$${"0".repeat(128)}`;
+const publicReceiveChainXpub = "xpub6FHa3pjLCk84BayeJxFW2SP4XRrFd1JYnxeLeU8EqN3vDfZmbqBqaGJAyiLjTAwm6ZLRQUMv1ZACTj37sR62cfN7fe5JnJ7dh8zL4fiyLHV";
 
 function validProductionEnv(overrides: NodeJS.ProcessEnv = {}): NodeJS.ProcessEnv {
   return {
@@ -124,6 +125,42 @@ describe("loadConfig", () => {
       "https://127.0.0.1:5173"
     ]));
     expect(config.APP_URL).toBe("https://localhost:5173");
+  });
+
+  it("keeps crypto payments disabled without wallet configuration", () => {
+    const config = loadConfig({
+      DATABASE_URL: "postgres://postgres:postgres@localhost:5432/cruush",
+      SESSION_SECRET: "local-dev-secret"
+    });
+
+    expect(config).toMatchObject({
+      CRYPTO_PROCESSOR_ENABLED: false,
+      CRYPTO_PROCESSOR_WALLET_XPUB: "",
+      CRYPTO_PROCESSOR_CONFIRMATION_TARGET: 1,
+      CRYPTO_PROCESSOR_INTENT_TTL_MINUTES: 30
+    });
+  });
+
+  it("requires a public receive-chain xpub before crypto payments can be enabled", () => {
+    const baseEnv = {
+      DATABASE_URL: "postgres://postgres:postgres@localhost:5432/cruush",
+      SESSION_SECRET: "local-dev-secret",
+      CRYPTO_PROCESSOR_ENABLED: "true"
+    };
+
+    expect(() => loadConfig(baseEnv)).toThrow(/CRYPTO_PROCESSOR_WALLET_XPUB is required/);
+    expect(() => loadConfig({
+      ...baseEnv,
+      CRYPTO_PROCESSOR_WALLET_XPUB: "xprv-not-accepted"
+    })).toThrow(/must never contain an extended private key/);
+
+    expect(loadConfig({
+      ...baseEnv,
+      CRYPTO_PROCESSOR_WALLET_XPUB: publicReceiveChainXpub
+    })).toMatchObject({
+      CRYPTO_PROCESSOR_ENABLED: true,
+      CRYPTO_PROCESSOR_WALLET_XPUB: publicReceiveChainXpub
+    });
   });
 
   it("validates optional public build sha metadata", () => {
