@@ -1,7 +1,7 @@
 {
   "task": "Continue the recovered cruush v2 crypto payment implementation. Slices now include the disabled-by-default watch-only Base USDC and Ethereum PYUSD rails, the seamless no-voucher cruush+ store checkout, ERC-681 payment URIs and QR codes, and the disabled-by-default chain watcher, settlement policy, entitlement grant, and reconciliation and support lookup. Accept no funds and make no live RPC call.",
   "status": "active",
-  "publicationTarget": "none",
+  "publicationTarget": "staging",
   "baselineSha": "5a77cb504d23bea71867cf0558bd10ede40e2248",
   "decisions": [
     "Checkout is seamless and account-linked; no voucher or promo-code issuance flow",
@@ -165,7 +165,8 @@
     "Any step would require a seed phrase, private key, xprv, or other wallet signing material",
     "Any step would make a live RPC call, broadcast a transaction, or move real funds",
     "Any step would push, deploy, or enable the processor in production",
-    "Julien says stop"
+    "Julien says stop",
+    "Any step would push to origin/main or deploy to production"
   ],
   "assumptions": [
     {
@@ -194,8 +195,8 @@
   "externalEffects": {
     "externalMessages": "forbidden",
     "purchases": "forbidden",
-    "deployment": "forbidden",
-    "publication": "confirm",
+    "deployment": "confirm",
+    "publication": "auto",
     "deletion": "forbidden",
     "securityChanges": "confirm",
     "credentials": "forbidden",
