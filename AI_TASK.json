@@ -14,7 +14,8 @@
     "The frontend still builds and every member route still serves the application.",
     "/about, /help and /blog return 200 with index, follow, and serve real HTML without JavaScript.",
     "Each page's JSON-LD survives the build and its sha256 is present in the Content-Security-Policy.",
-    "Every body block a human must write is visibly marked as needing copy."
+    "Every body block a human must write is visibly marked as needing copy.",
+    "About, Help and Blog appear in the shared policy link list, so they render both in Settings and at the bottom of the signed-out landing screen."
   ],
   "mustPreserve": [
     "Every existing security header, including the Content-Security-Policy, which must not gain unsafe-inline.",
@@ -27,7 +28,8 @@
     "Prerendering the application itself.",
     "Any PostHog, analytics or Google Analytics change.",
     "Deploying. This is a local branch only.",
-    "Writing the body copy for the new pages. Julien supplies it; the pages ship with marked placeholders and no invented product claims."
+    "Writing the body copy for the new pages. Julien supplies it; the pages ship with marked placeholders and no invented product claims.",
+    "Changing how the policy link list is laid out or styled. Only its entries change."
   ],
   "allowedPaths": [
     "AI_TASK.json",
@@ -39,14 +41,17 @@
     "public/about.html",
     "public/help.html",
     "public/blog/index.html",
-    "public/pages.css"
+    "public/pages.css",
+    "src/app/components/PublicPolicyLinks.tsx"
   ],
   "forbiddenPaths": [
-    "src/**",
     "server/**",
     "scripts/**",
     ".env",
-    ".env.production"
+    ".env.production",
+    "src/app/App.tsx",
+    "src/app/components/PublicInfoPage.tsx",
+    "server/**"
   ],
   "assumptions": [
     {

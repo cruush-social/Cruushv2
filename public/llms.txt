@@ -13,6 +13,8 @@ Everything else requires an account and is unreachable without a session.
   who is nearby right now.
 - Adults only. Age verification is required to hold an account.
 - European. It runs on European infrastructure.
+- Developed by technosovereign, a creative technology company
+  (https://technosovereign.com/).
 
 ## Naming
 

@@ -64,11 +64,18 @@
   "@graph": [
     {
       "@type": "Organization",
+      "@id": "https://technosovereign.com/#organization",
+      "name": "technosovereign",
+      "url": "https://technosovereign.com/"
+    },
+    {
+      "@type": "Organization",
       "@id": "https://cruush.app/#organization",
       "name": "cruush",
       "url": "https://cruush.app/",
       "logo": "https://cruush.app/icons/icon-512.png",
-      "description": "cruush is a location-based cruising app for queer people."
+      "description": "cruush is a location-based cruising app for queer people.",
+      "parentOrganization": { "@id": "https://technosovereign.com/#organization" }
     },
     {
       "@type": "WebSite",
@@ -84,7 +91,8 @@
       "operatingSystem": "Web",
       "url": "https://cruush.app/",
       "description": "cruush is a location-based cruising app for queer people. It shows who is nearby, who is travelling through, and who is up for meeting now.",
-      "publisher": { "@id": "https://cruush.app/#organization" }
+      "publisher": { "@id": "https://cruush.app/#organization" },
+      "author": { "@id": "https://technosovereign.com/#organization" }
     }
   ]
 }</script>
