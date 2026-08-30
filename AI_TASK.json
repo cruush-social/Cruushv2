@@ -54,7 +54,9 @@
     "scripts/release-main-coolify.mjs",
     "docs/session-handoff-2026-08-29.md",
     "server/src/mailer.ts",
-    "server/src/mailer.test.ts"
+    "server/src/mailer.test.ts",
+    "server/src/resend-audience.ts",
+    "server/src/resend-audience.test.ts"
   ],
   "forbiddenPaths": [
     ".env",
