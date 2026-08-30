@@ -214,13 +214,18 @@ The requirement, confirmed across several messages:
 
 - Anyone can sign up from anywhere, with no location check. **Already done.**
 - Onboarding runs all the way through, including the free cruush+ grant.
-- If the member is **outside 100 miles of the centre of New York**, they still
-  see the top and bottom nav bars, but the map itself is replaced by a fog.
-- The fog carries a big button in the middle to turn on **Mile High Club**,
-  which travels them into the active area.
-- The fog explains that cruush is testing its open beta within 100 miles of the
-  centre of New York.
-- It also offers them the option to **request a city**.
+- **The location check happens after onboarding, on the map itself.** It is not
+  an auth gate and must not become one.
+- If the member is outside **100 miles of the centre of New York**, they still
+  see the top and bottom nav bars, but the map is replaced by a fog.
+
+The fog carries three things:
+
+1. A "we're sorry" explanation that cruush is testing its open beta within 100
+   miles of the centre of New York.
+2. An offer to request their **city and state**.
+3. A big button in the middle to turn on **Mile High Club**, which travels them
+   into the active area.
 
 ### Where this has to be built
 
@@ -254,6 +259,11 @@ All of this is on main today:
 - `POST /api/beta/city-requests` saves a request via `saveBetaCityRequest` and
   returns 202. This is the "request a city" flow, already built.
 - `requestBetaCity({email, requestedCity})` in `src/app/lib/betaAccessApi.ts`.
+  Note the schema takes a **single** `requestedCity` string, validated by
+  `singleLineTextSchema({min: 2, max: 120})`. The fog asks for city **and
+  state**, so either both go in that one field or the payload needs a second
+  one. A second field means changing `betaCityRequestPayloadSchema`,
+  `saveBetaCityRequest` and the `beta_city_requests` table together.
 - `Auth.tsx` already renders an outside-the-radius state with a city request
   form and a `cityRequestNotice`. It is reachable only while the geofence is
   enabled, but it is a working reference for the fog's copy and flow.
