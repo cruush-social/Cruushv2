@@ -52,15 +52,15 @@
     "src/main.tsx",
     "src/serviceWorkerUpdate.test.ts",
     "scripts/release-main-coolify.mjs",
-    "docs/session-handoff-2026-08-29.md"
+    "docs/session-handoff-2026-08-29.md",
+    "server/src/mailer.ts",
+    "server/src/mailer.test.ts"
   ],
   "forbiddenPaths": [
-    "server/**",
     ".env",
     ".env.production",
     "src/app/App.tsx",
-    "src/app/components/PublicInfoPage.tsx",
-    "server/**"
+    "src/app/components/PublicInfoPage.tsx"
   ],
   "assumptions": [
     {
