@@ -86,7 +86,10 @@
     "tools/cruush-wallet/src/wallet.test.ts",
     "tools/cruush-wallet/src/wallet.ts",
     "tools/cruush-wallet/tsconfig.json",
-    "tools/cruush-wallet/vitest.config.ts"
+    "tools/cruush-wallet/vitest.config.ts",
+    "src/app/components/MapView.tsx",
+    "server/src/app.test.ts",
+    "vite.config.ts"
   ],
   "nonGoals": [
     "No real seed phrase, private key, xprv, wallet credential value, or production address in source, tests, configuration, logs, tool arguments, tool environment variables, chat, or agent-visible output; public deterministic test vectors are test-only",
@@ -182,5 +185,19 @@
     "newDefaults": "confirm",
     "identityCreativeDecisions": "forbidden"
   },
-  "forbiddenPaths": []
+  "forbiddenPaths": [],
+  "mapIncidentHotfix": {
+    "authorization": "User explicitly requested fixing the map locally and in production on 2026-08-30. Only MapView.tsx may be mirrored here. Crypto publication remains forbidden.",
+    "source": "/Volumes/good/Cruushv2-map-tile-hotfix-20260830",
+    "scope": "Retain approved custom vector style during slow loads and startup tile failures; do not substitute CARTO.",
+    "proof": "52 focused MapView tests and production client build passed. Actual MapView rendered desktop and 375px mobile with real OpenFreeMap tiles.",
+    "publicationTarget": "none from this checkout; isolated map-only hotfix publishes separately"
+  },
+  "pricingBatch20260831": {
+    "authorization": "Julien set the cruush+ prices across 2026-08-30/31: every Sniffies-matched tier one dollar under the Sniffies price where that is lower than the old price, weekly kept at the old lower $9.99, regular year $119.99 as the anchor, founder year $99.99, lifetime $999.99.",
+    "evidence": "Sniffies prices read from the live logged-in Sniffies upgrade sheet ($11.99 week, $19.99 month, $12.99/mo 3 months, $9.99/mo 6 months). Store rendered locally with the new catalog; store tests 10/10 and the plan catalog test pass.",
+    "replayFix": "Migration 097 recreated the network and source checks unconditionally, so replaying against a database holding arbitrum rows failed with 23514. It now widens only when the constraint has not yet moved past 096. Proven by a clean 99-migration replay over arbitrum intents.",
+    "devHost": "vite.config.ts gains a VITE_DEV_HOST passthrough because vite bound only IPv6 loopback when the IPv4 socket was contended, which blanks the page in the browser.",
+    "publicationTarget": "commit to feat/crypto-pricing only; no push, no deploy"
+  }
 }
