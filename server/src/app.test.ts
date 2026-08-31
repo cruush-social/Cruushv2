@@ -1136,10 +1136,10 @@ describe("server", () => {
           expect.objectContaining({ id: "plus_weekly", amountCents: 999, interval: "week" }),
           expect.objectContaining({ id: "plus_monthly", amountCents: 1899, interval: "month" }),
           expect.objectContaining({ id: "plus_3_month", amountCents: 3597, interval: "3_months" }),
-          expect.objectContaining({ id: "plus_6_month", amountCents: 5994, interval: "6_months" }),
+          expect.objectContaining({ id: "plus_6_month", amountCents: 5394, interval: "6_months" }),
           expect.objectContaining({ id: "plus_annual", amountCents: 11999, interval: "year" }),
-          expect.objectContaining({ id: "founder_annual", amountCents: 9900, interval: "year", supplyLimit: 1000 }),
-          expect.objectContaining({ id: "lifetime_founder", amountCents: 99900, interval: "lifetime", supplyLimit: 250 })
+          expect.objectContaining({ id: "founder_annual", amountCents: 9999, interval: "year", supplyLimit: 1000 }),
+          expect.objectContaining({ id: "lifetime_founder", amountCents: 99999, interval: "lifetime", supplyLimit: 250 })
         ])
       }
     });
@@ -1155,7 +1155,7 @@ describe("server", () => {
           processor: "fake",
           status: "pending",
           test_mode: true,
-          amount_cents: 99900,
+          amount_cents: 99999,
           currency: "USD",
           created_at: "2026-07-07T12:00:00.000Z",
           expires_at: "2026-07-07T12:30:00.000Z",
@@ -1196,7 +1196,7 @@ describe("server", () => {
           processor: "fake",
           status: "pending",
           test_mode: true,
-          amount_cents: 99900,
+          amount_cents: 99999,
           currency: "USD"
         }]
       })

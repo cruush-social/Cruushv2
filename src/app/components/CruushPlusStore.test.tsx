@@ -66,8 +66,8 @@ const conversionPlans = [
   {
     id: 'founder_annual' as const,
     name: 'Founder annual cruush+',
-    description: '$99 for one year of cruush+.',
-    amountCents: 9900,
+    description: '$99.99 for one year of cruush+.',
+    amountCents: 9999,
     currency: 'USD' as const,
     interval: 'year' as const,
     durationMonths: 12,
@@ -120,23 +120,23 @@ describe('CruushPlusStore', () => {
       renderStore();
 
       expect(
-        await screen.findByRole('button', { name: /get 1 year for \$99\.00/i }),
+        await screen.findByRole('button', { name: /get 1 year for \$99\.99/i }),
       ).toBeInTheDocument();
     });
 
     it('shows the per-month equivalent so a longer term reads as a better deal', async () => {
       renderStore();
 
-      // $99 a year is $8.25 a month; $119.99 a year is $10.00.
-      expect(await screen.findByText('$8.25/month')).toBeInTheDocument();
+      // $99.99 a year is $8.33 a month; $119.99 a year is $10.00.
+      expect(await screen.findByText('$8.33/month')).toBeInTheDocument();
       expect(screen.getByText('$10.00/month')).toBeInTheDocument();
     });
 
     it('shows the saving against the monthly price, and never on the monthly plan itself', async () => {
       renderStore();
 
-      // $8.25 against $18.99 is 57%; $10.00 against $18.99 is 47%.
-      expect(await screen.findByText('Save 57%')).toBeInTheDocument();
+      // $8.33 against $18.99 is 56%; $10.00 against $18.99 is 47%.
+      expect(await screen.findByText('Save 56%')).toBeInTheDocument();
       expect(screen.getByText('Save 47%')).toBeInTheDocument();
       expect(screen.queryByText('Save 0%')).not.toBeInTheDocument();
     });

@@ -95,8 +95,8 @@ export const CRUUSH_PLUS_PLANS: CruushPlusPlan[] = [
   {
     id: "plus_6_month",
     name: "6 month cruush+",
-    description: "$59.94 every 6 months for cruush+.",
-    amountCents: 5994,
+    description: "$53.94 every 6 months for cruush+.",
+    amountCents: 5394,
     currency: "USD",
     interval: "6_months",
     durationMonths: 6,
@@ -119,8 +119,8 @@ export const CRUUSH_PLUS_PLANS: CruushPlusPlan[] = [
   {
     id: "founder_annual",
     name: "Founder annual cruush+",
-    description: "$99 for one year of cruush+, limited to the first 1000 real users.",
-    amountCents: 9900,
+    description: "$99.99 for one year of cruush+, limited to the first 1000 real users.",
+    amountCents: 9999,
     currency: "USD",
     interval: "year",
     durationMonths: 12,
@@ -132,8 +132,8 @@ export const CRUUSH_PLUS_PLANS: CruushPlusPlan[] = [
   {
     id: "lifetime_founder",
     name: "Lifetime founder cruush+",
-    description: "$999 one-time lifetime cruush+ founder access, limited to the first 250 real users.",
-    amountCents: 99900,
+    description: "$999.99 one-time lifetime cruush+ founder access, limited to the first 250 real users.",
+    amountCents: 99999,
     currency: "USD",
     interval: "lifetime",
     supplyLimit: 250,

@@ -34,7 +34,7 @@ export type CryptoSettlementPolicy = {
   underpaymentToleranceBps: number;
   /**
    * Hard ceiling on the tolerance above, in atomic units. Without it, a
-   * percentage tolerance scales with price, so the $999 lifetime plan would
+   * percentage tolerance scales with price, so the $999.99 lifetime plan would
    * forgive far more than the $9.99 weekly one for no reason. Both rails use
    * 6 decimals, so 250000 is $0.25.
    */
