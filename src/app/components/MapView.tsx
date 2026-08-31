@@ -100,7 +100,7 @@ const DEFAULT_TILE_URLS = [
 const DEFAULT_ATTRIBUTION = '&copy; CARTO &copy; OpenStreetMap contributors';
 const DEFAULT_VECTOR_TILEJSON_URL = 'https://tiles.openfreemap.org/planet';
 const MAP_ERROR_MESSAGE = 'Map tiles could not load. Check the map style or tile URL configuration.';
-const MAP_READY_FALLBACK_TIMEOUT_MS = 4500;
+const MAP_READY_TIMEOUT_MS = 15000;
 const MAP_RENDER_READY_TIMEOUT_MS = 1200;
 const MOBILE_MARKER_LONG_PRESS_MS = 300;
 const MOBILE_MARKER_LONG_PRESS_MOVE_TOLERANCE_PX = 10;
@@ -175,11 +175,7 @@ export function createRasterStyle(tileUrls: string[], attribution: string): Styl
   };
 }
 
-function createDefaultRasterStyle() {
-  return createConfiguredRasterStyle();
-}
-
-function canFallbackToDefaultRasterStyle(style: ReturnType<typeof getMapStyle>) {
+function isCustomVectorStyle(style: ReturnType<typeof getMapStyle>) {
   if (typeof style === 'string') {
     return false;
   }
@@ -1935,8 +1931,8 @@ function MapView({
     }
 
     let isMounted = true;
-    let attemptedRasterFallback = false;
-    const shouldFallbackToRaster = canFallbackToDefaultRasterStyle(mapStyle);
+    let attemptedStyleRetry = false;
+    const usesCustomVectorStyle = isCustomVectorStyle(mapStyle);
 
     const initializeMap = async () => {
       const [mapLibreModule] = await Promise.all([
@@ -1951,7 +1947,7 @@ function MapView({
       const maplibregl = mapLibreModule.default;
       mapLibreRef.current = maplibregl;
 
-      const startMap = (style: ReturnType<typeof getMapStyle>, isFallbackAttempt = false) => {
+      const startMap = (style: ReturnType<typeof getMapStyle>) => {
         if (!isMounted || !containerRef.current) {
           return;
         }
@@ -1993,8 +1989,8 @@ function MapView({
           renderReadyTimeout = null;
         };
 
-        const restartWithRasterFallback = () => {
-          attemptedRasterFallback = true;
+        const restartWithCustomStyle = () => {
+          attemptedStyleRetry = true;
           clearReadyFallbackTimeout();
           clearRenderReadyTimeout();
           setMapLoadStatus('loading');
@@ -2002,7 +1998,8 @@ function MapView({
           map.remove();
           mapRef.current = null;
           setMapInstance(null);
-          startMap(createDefaultRasterStyle(), true);
+          // A transient provider error must never replace the approved map.
+          startMap(mapStyle);
         };
 
         const markMapReady = () => {
@@ -2022,7 +2019,7 @@ function MapView({
             return;
           }
 
-          if (shouldFallbackToRaster && !isFallbackAttempt) {
+          if (usesCustomVectorStyle) {
             return;
           }
 
@@ -2050,14 +2047,17 @@ function MapView({
           markMapReady();
         };
 
-        if (shouldFallbackToRaster && !isFallbackAttempt && !attemptedRasterFallback) {
+        if (usesCustomVectorStyle) {
           readyFallbackTimeout = window.setTimeout(() => {
-            if (!isMounted || mapRef.current !== map || didLoad || attemptedRasterFallback) {
+            if (!isMounted || mapRef.current !== map || didLoad) {
               return;
             }
 
-            restartWithRasterFallback();
-          }, MAP_READY_FALLBACK_TIMEOUT_MS);
+            // Keep pending tiles and the custom style intact on slow connections.
+            // A later load or idle event clears this recoverable error.
+            setMapLoadStatus('error');
+            setMapError(MAP_ERROR_MESSAGE);
+          }, MAP_READY_TIMEOUT_MS);
         }
 
         map.on('click', (event) => {
@@ -2089,8 +2089,8 @@ function MapView({
             return;
           }
 
-          if (shouldFallbackToRaster && !isFallbackAttempt && !attemptedRasterFallback) {
-            restartWithRasterFallback();
+          if (usesCustomVectorStyle && !attemptedStyleRetry) {
+            restartWithCustomStyle();
             return;
           }
 
@@ -2104,10 +2104,10 @@ function MapView({
       try {
         startMap(mapStyle);
       } catch (error) {
-        if (shouldFallbackToRaster && !attemptedRasterFallback) {
-          attemptedRasterFallback = true;
+        if (usesCustomVectorStyle && !attemptedStyleRetry) {
+          attemptedStyleRetry = true;
           try {
-            startMap(createDefaultRasterStyle(), true);
+            startMap(mapStyle);
             return;
           } catch (fallbackError) {
             console.error('Error initializing fallback map:', fallbackError);

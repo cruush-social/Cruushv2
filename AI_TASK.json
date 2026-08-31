@@ -1,94 +1,51 @@
 {
   "schemaVersion": 2,
-  "taskId": "cruush-seo-aeo-landing-20260829",
+  "taskId": "cruush-map-custom-recovery-20260830",
   "status": "active",
-  "objective": "Make only the cruush landing page discoverable to search engines and answer engines, while keeping every member surface out of every index, and give non-JavaScript crawlers something to read. Add static About, Help and Blog pages outside the application so they are readable without JavaScript.",
-  "userOutcome": "A search for cruush, and a question put to an answer engine, can resolve to cruush.app with an accurate description, without any member profile, photo or message becoming reachable or indexable.",
-  "audience": "Search and answer-engine crawlers, and people who find cruush through them.",
+  "objective": "Fix production issue 141: retain the approved custom vector map through slow loading and transient tile errors, never silently replace it with CARTO.",
+  "userOutcome": "Members see the custom cruush map without API KEY REQUIRED watermarks.",
+  "audience": "cruush members and Julien",
   "successCriteria": [
-    "GET / returns X-Robots-Tag: index, follow.",
-    "Every member route returns the noindex header, including after the SPA fallback rewrite.",
-    "robots.txt allows the landing page, disallows member routes, and names the answer-engine crawlers explicitly.",
-    "A crawler that does not run JavaScript reads a real description of cruush at /.",
-    "The JSON-LD block survives the Vite build byte-identical, so its Content-Security-Policy hash still matches.",
-    "The frontend still builds and every member route still serves the application.",
-    "/about, /help and /blog return 200 with index, follow, and serve real HTML without JavaScript.",
-    "Each page's JSON-LD survives the build and its sha256 is present in the Content-Security-Policy.",
-    "Every body block a human must write is visibly marked as needing copy.",
-    "About, Help and Blog appear in the shared policy link list, so they render both in Settings and at the bottom of the signed-out landing screen.",
-    "The static pages resolve at the same URLs in vite dev and preview as they do behind nginx."
+    "Custom map styles, labels and controls remain unchanged",
+    "Slow loads and transient errors never select unconfigured CARTO tiles",
+    "Focused map tests and frontend build pass",
+    "Production frontend serves the verified fix"
   ],
   "mustPreserve": [
-    "Every existing security header, including the Content-Security-Policy, which must not gain unsafe-inline.",
-    "The existing visual design and copy authored by Julien. No new page, route or visible UI.",
-    "The SPA fallback: every member route continues to serve the application.",
-    "That no member data is reachable without authentication."
+    "Approved vector style, Cormorant labels, map controls and markers",
+    "All unrelated changes and crypto work",
+    "Current production settings and database"
   ],
   "nonGoals": [
-    "Designing UI. Julien is the only designer.",
-    "Prerendering the application itself.",
-    "Any PostHog, analytics or Google Analytics change.",
-    "Deploying. This is a local branch only.",
-    "Writing the body copy for the new pages. Julien supplies it; the pages ship with marked placeholders and no invented product claims.",
-    "Changing how the policy link list is laid out or styled. Only its entries change."
+    "No rollback; superseded by latest user instruction",
+    "No provider account, credential, dependency or environment changes",
+    "No unrelated release or design change"
   ],
   "allowedPaths": [
     "AI_TASK.json",
-    "index.html",
-    "nginx.conf",
-    "public/robots.txt",
-    "public/sitemap.xml",
-    "public/llms.txt",
-    "public/about.html",
-    "public/help.html",
-    "public/blog/index.html",
-    "public/pages.css",
-    "src/app/components/PublicPolicyLinks.tsx",
-    "vite.config.ts",
-    "src/app/components/Auth.tsx",
-    "src/app/components/Auth.test.tsx",
-    "public/sw.js",
-    "public/service-worker-recovery.js",
-    "src/main.tsx",
-    "src/serviceWorkerUpdate.test.ts",
-    "scripts/release-main-coolify.mjs",
-    "docs/session-handoff-2026-08-29.md",
-    "server/src/mailer.ts",
-    "server/src/mailer.test.ts",
-    "server/src/resend-audience.ts",
-    "server/src/resend-audience.test.ts"
+    "src/app/components/MapView.tsx",
+    "src/app/components/MapView.test.tsx",
+    ".map-check.html",
+    ".map-check.tsx"
   ],
   "forbiddenPaths": [
-    ".env",
-    ".env.production",
-    "src/app/App.tsx",
-    "src/app/components/PublicInfoPage.tsx"
+    "server/**",
+    "public/**",
+    "package.json",
+    "pnpm-lock.yaml"
   ],
   "assumptions": [
     {
-      "statement": "The landing page is the logged-out Auth screen, since App.tsx renders Auth for every path without a session, and it contains no member data.",
-      "impact": "If a logged-out route ever server-renders member content, indexing / would expose it. Nothing renders server side today.",
-      "reversible": true,
-      "confirmationState": "labeled"
-    },
-    {
-      "statement": "The wording of the description sentence is a placeholder pending Julien's decision; only the mechanism is being delivered.",
-      "impact": "The sentence appears in the meta description, the JSON-LD, llms.txt and the noscript block. Changing it means changing those four places together.",
-      "reversible": true,
-      "confirmationState": "labeled"
-    },
-    {
-      "statement": "The new pages are plain static documents rather than React routes, because answer-engine crawlers do not execute JavaScript.",
-      "impact": "They do not share the application's design system, so they will look simpler than the product until someone decides otherwise.",
+      "statement": "The same MapView source is present in local crypto checkout and deployed main.",
+      "impact": "Apply identical narrow map patch locally without publishing crypto work.",
       "reversible": true,
       "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "cruush.app can be indexed and cited with an accurate description while every member surface stays invisible.",
+  "nextVisibleMilestone": "Custom map renders with real tiles, without fallback watermarks.",
   "stopConditions": [
-    "Any member route would become indexable.",
-    "The Content-Security-Policy would need weakening.",
-    "A change would require new UI or new copy beyond the description sentence."
+    "User says stop",
+    "Change would require unrelated publication or credential access"
   ],
   "costBudget": {
     "maxUsd": 0,
@@ -97,22 +54,20 @@
   "externalEffects": {
     "externalMessages": "forbidden",
     "purchases": "forbidden",
-    "deployment": "confirm",
+    "deployment": "auto",
     "publication": "auto",
     "deletion": "forbidden",
     "securityChanges": "forbidden",
     "credentials": "forbidden",
-    "newDefaults": "confirm",
+    "newDefaults": "forbidden",
     "identityCreativeDecisions": "forbidden"
   },
-  "publicationTarget": "origin/main. Pushing deploys production.",
+  "publicationTarget": "origin/main and cruush.app production frontend only",
   "requiredEvidence": [
-    "nginx -t passes against the real config in an nginx:1.27-alpine container.",
-    "Serving the real built dist, / returns index, follow and /map, /messages and /profile/:id return noindex.",
-    "The noscript description is present in the raw HTML of the built /.",
-    "The sha256 of the JSON-LD in the built dist/index.html equals the hash in the Content-Security-Policy.",
-    "vite build exits 0 and robots.txt, sitemap.xml and llms.txt are emitted to dist.",
-    "Serving the real built dist, /about, /about/, /help and /blog return 200 with index, follow, while /map, /messages and an unknown path return noindex.",
-    "The extracted text of /about contains the page content with no JavaScript executed."
-  ]
+    "Focused MapView tests",
+    "Frontend production build",
+    "Rendered actual MapView at desktop and mobile; authenticated flow separately marked if blocked",
+    "Remote SHA and production frontend deployment match"
+  ],
+  "environmentChanges": []
 }

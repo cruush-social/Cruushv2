@@ -1233,7 +1233,7 @@ describe('MapView', () => {
     expect(heart.querySelector('path[fill="#C8FF31"]')).toBeNull();
   });
 
-  it('retries the default vector style with raster fallback before showing a map error', async () => {
+  it('retries the same custom vector style after a startup error without requesting CARTO tiles', async () => {
     render(
       <MapView
         onPinClick={vi.fn()}
@@ -1249,16 +1249,8 @@ describe('MapView', () => {
 
     await waitFor(() => expect(MockMap.calls).toHaveLength(2));
     expect(mapInstances[0].remove).toHaveBeenCalledTimes(1);
-    expect(MockMap.calls[1]).toEqual(expect.objectContaining({
-      style: expect.objectContaining({
-        sources: expect.objectContaining({
-          osmRasterTiles: expect.objectContaining({
-            type: 'raster',
-            tiles: expect.arrayContaining(['https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png']),
-          }),
-        }),
-      }),
-    }));
+    expect(MockMap.calls[1]).toEqual(expect.objectContaining({ style: getMapStyle() }));
+    expect(JSON.stringify(MockMap.calls.map((call: any) => call.style))).not.toContain('cartocdn.com');
     expect(screen.queryByText(/Map tiles could not load/i)).not.toBeInTheDocument();
 
     act(() => {
@@ -1269,7 +1261,7 @@ describe('MapView', () => {
     expect(screen.queryByText(/Map tiles could not load/i)).not.toBeInTheDocument();
   });
 
-  it('retries the default vector style with raster fallback when map load hangs', async () => {
+  it('keeps slow custom tiles loading past the old fallback deadline and recovers on load', async () => {
     vi.useFakeTimers();
 
     render(
@@ -1290,26 +1282,26 @@ describe('MapView', () => {
       vi.advanceTimersByTime(4500);
     });
 
-    expect(MockMap.calls).toHaveLength(2);
-    expect(mapInstances[0].remove).toHaveBeenCalledTimes(1);
-    expect(MockMap.calls[1]).toEqual(expect.objectContaining({
-      style: expect.objectContaining({
-        sources: expect.objectContaining({
-          osmRasterTiles: expect.objectContaining({
-            type: 'raster',
-          }),
-        }),
-      }),
-    }));
+    expect(MockMap.calls).toHaveLength(1);
+    expect(mapInstances[0].remove).not.toHaveBeenCalled();
+    expect(screen.getByText(/Loading NYC map/i)).toBeInTheDocument();
+    expect(JSON.stringify(MockMap.calls.map((call: any) => call.style))).not.toContain('cartocdn.com');
 
     act(() => {
-      mapInstances[1].trigger('load');
+      vi.advanceTimersByTime(10500);
+    });
+    expect(screen.getByText(/Map tiles could not load/i)).toBeInTheDocument();
+    expect(MockMap.calls).toHaveLength(1);
+
+    act(() => {
+      mapInstances[0].trigger('load');
     });
 
     expect(screen.queryByText(/Loading NYC map/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Map tiles could not load/i)).not.toBeInTheDocument();
   });
 
-  it('clears the loading state when the raster fallback renders before load fires', async () => {
+  it('does not mistake a blank custom canvas render for loaded map tiles', async () => {
     vi.useFakeTimers();
 
     render(
@@ -1329,11 +1321,11 @@ describe('MapView', () => {
       vi.advanceTimersByTime(4500);
     });
 
-    expect(MockMap.calls).toHaveLength(2);
+    expect(MockMap.calls).toHaveLength(1);
     expect(screen.getByText(/Loading NYC map/i)).toBeInTheDocument();
 
     act(() => {
-      mapInstances[1].trigger('render');
+      mapInstances[0].trigger('render');
       vi.advanceTimersByTime(1199);
     });
 
@@ -1343,6 +1335,11 @@ describe('MapView', () => {
       vi.advanceTimersByTime(1);
     });
 
+    expect(screen.getByText(/Loading NYC map/i)).toBeInTheDocument();
+    expect(mapInstances[0].remove).not.toHaveBeenCalled();
+    act(() => {
+      mapInstances[0].trigger('load');
+    });
     expect(screen.queryByText(/Loading NYC map/i)).not.toBeInTheDocument();
   });
 
