@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import type { CSSProperties, ChangeEvent, RefObject } from 'react';
-import { useParams, useNavigate } from 'react-router';
+import { useLocation, useParams, useNavigate } from 'react-router';
 import { ArrowLeft, Eye, Image as ImageIcon, ImagePlus, Timer, Star, Trash2, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -254,6 +254,11 @@ export default function PrivateGroupChat({
   // The dock renders this thread without a route of its own.
   const chatId = conversationId ?? params.chatId;
   const navigate = useNavigate();
+  const location = useLocation();
+  const routeBackLabel = !embedded
+    && (location.state as { conversationOrigin?: string } | null)?.conversationOrigin === 'profile'
+    ? 'Back to profile'
+    : backLabel;
   const messagePhotoInputId = useId();
   const favoriteImageInputId = useId();
   const [message, setMessage] = useState('');
@@ -933,7 +938,7 @@ export default function PrivateGroupChat({
               variant="ghost"
               size="icon"
               onClick={() => embedded ? (onBack ?? onClose)?.() : navigate(-1)}
-              aria-label={backLabel}
+              aria-label={routeBackLabel}
             >
               <ArrowLeft className="w-5 h-5" />
             </Button>

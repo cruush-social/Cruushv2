@@ -462,7 +462,7 @@ export default function ProfileView() {
 
     setOpeningMessage(true);
     try {
-      await openConversationOrInbox(navigate, userId);
+      await openConversationOrInbox(navigate, userId, undefined, 'profile');
     } finally {
       setOpeningMessage(false);
     }

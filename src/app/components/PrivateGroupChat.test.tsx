@@ -226,6 +226,56 @@ describe('PrivateGroupChat', () => {
     expect(screen.queryByRole('button', { name: 'Open River profile' })).not.toBeInTheDocument();
   });
 
+  it('labels and returns to the profile that opened a full-screen conversation', async () => {
+    const conversationId = '7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2';
+    getConversationMessages.mockResolvedValue({
+      conversation: {
+        id: conversationId,
+        kind: 'dm',
+        user: {
+          id: 'user-2',
+          name: 'River',
+          pronouns: 'they/them',
+          photo: null,
+        },
+        distance: 'Nearby',
+        updatedAt: '2026-04-29T12:00:00.000Z',
+        lastMessage: '',
+        unreadCount: 0,
+        pinned: false,
+        muted: false,
+        mutual: true,
+        tags: [],
+      },
+      messages: [],
+    });
+
+    render(
+      <MemoryRouter
+        initialEntries={[
+          '/profile/user-2',
+          {
+            pathname: `/chat/${conversationId}`,
+            state: { conversationOrigin: 'profile' },
+          },
+        ]}
+        initialIndex={1}
+      >
+        <Routes>
+          <Route path="/profile/:userId" element={<LocationProbe />} />
+          <Route path="/chat/:chatId" element={<><PrivateGroupChat /><LocationProbe /></>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    const backButton = await screen.findByRole('button', { name: 'Back to profile' });
+    expect(screen.queryByRole('button', { name: 'Back to messages' })).not.toBeInTheDocument();
+
+    fireEvent.click(backButton);
+
+    await waitFor(() => expect(screen.getByTestId('location-probe')).toHaveTextContent('/profile/user-2'));
+  });
+
   it('submits a text message only once while the first send is still pending', async () => {
     const conversationId = '7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2';
     getConversationMessages.mockResolvedValue({

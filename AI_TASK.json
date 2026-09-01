@@ -61,6 +61,7 @@
     ,"Messages and Cruushes place the full-screen page name directly beside Back while preserving the reserved bug-button slot."
     ,"Cruushes puts name and pronouns together in a full-width mobile content row above the action trio, puts Last online and Distance on separate lines beside the vertically centered action trio, and omits vibe capsules."
     ,"Profile actions remain one line in this exact order: cruush, Pin that user, Message. Pin remains visibly present but disabled when precise location is unavailable."
+    ,"Opening a full-screen conversation from Profile labels its back control Back to profile and returns to that profile. Conversations opened from Messages keep Back to messages."
     ,"Every person-to-person Message action uses the arrow/send glyph. The bottom-navigation Messages glyph is never reused for a person action."
     ,"Every actionable cruush control is reversible from the same surface. Sent and Mutual states remain actionable so a second press unsends or removes the mutual."
     ,"After an unsend or mutual removal completes, the same cruush control immediately returns to the bright available gradient state."
@@ -548,6 +549,7 @@
     "src/app/lib/messagePhotoProcessing.test.ts",
     "src/app/lib/mapPingsApi.ts",
     "src/app/lib/openConversation.ts",
+    "src/app/lib/openConversation.test.ts",
     "src/app/lib/darkRoomPalette.ts",
     "src/app/lib/desktopPageLayoutPreferences.ts",
     "src/app/lib/distancePreferences.test.ts",
@@ -712,6 +714,7 @@
     ,"2026-09-01 Crowd no-update rollback: the branch-only dedicated Crowds sheet and Hydra assets were removed. The shared icon map again uses the existing crowds-colored.svg and crowds-white.svg assets. The tutorial action and active notice return to the existing Visibility Controls flow. At 390x844, the authenticated map opened Visibility Controls with the existing Crowd Mode section and no dedicated Crowds dialog. Three focused files passed 93 tests, and the production client build passed with 2077 transformed modules. No profile, Crowd, visibility, or account setting changed."
     ,"2026-09-01 message-composer submission fix: text leaves the composer immediately when Send is pressed, duplicate clicks remain synchronously blocked, and a failed request restores the submitted draft only if no replacement draft was typed. All 29 PrivateGroupChat tests and the 2077-module production client build passed. The authenticated seeded local flow rendered and sent once at desktop and 390x844 with an empty composer after each send. Both temporary verification messages were deleted, the browser returned to the map, and the viewport override was reset."
     ,"2026-09-01 Pop-ups profile proof: the authenticated populated mari profile rendered cruush, disabled Pin, and Message on one row in exact order. Message replaced the profile popup with the direct conversation in the same dock, without leaving the map or opening a second panel. The prior Full screen layout preference was restored after verification. No relationship, profile, message, or account data changed."
+    ,"2026-09-01 full-screen profile return proof: the authenticated mari Profile to Message flow rendered Back to profile in the conversation header at 1280x720. Activating it returned to mari's populated profile; the next Back returned to Messages and the final Back restored the map. Two focused files passed 32 tests, and the production client build passed with 2077 transformed modules. No message, profile, relationship, account, process, production, push, or deployment change occurred."
   ],
   "unverified": [
     "2026-09-01: Safari 18.6 rendered proof remains unavailable for #136. Production deployment and authenticated live-map proof remain unavailable for #141. #135 cannot be reproduced or safely redesigned without its missing visual target and surface.",
