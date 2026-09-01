@@ -148,6 +148,7 @@
     ,"Transfer the complete newest cruush+ work, including the exact scratch-card interaction, current card visuals, canonical supported-benefit copy, rewards behavior, and explicit post-acceptance dismissal. Locate the authoritative source before editing and never approximate the supplied card."
     ,"Rewards shows up to four active Side Quests after Invite people you trust. Claiming one moves it under Recent rewards and reveals the next unclaimed quest. Quests cover simple engagement across profiles, photos, cruushes, Pings, messages, Feed posts, Spots, and Visibility sets. Each Side Quest can be claimed once per member and earns either bonus Pings or one day of cruush+. A member can claim no more than one total Side Quest per local calendar day and no more than two free cruush+ days from Side Quests per local calendar week. Claims are idempotent and never replace paid, lifetime, legacy, referral, coupon, or other promotional access."
     ,"The cruush+ time capsule appears immediately below the cruush+ benefits accordion on the Rewards page."
+    ,"Core async app surfaces use shape-preserving loading skeletons instead of standalone loading text."
     ,"A Spot board post is the check-in action. It requires a message, lets the author choose 1h, 3h, 6h, 12h, or 24h, and provides one optional canonical checkmark to show the member in Who's Here for that same duration. There is no separate check-in button or profile-visibility form."
     ,"Spot board posts use the shared Feed and Messages person-card structure, including pronouns, cruush badges, side badges under the heart, post content, expiry, and owner Delete or viewer Report in the upper-right. Compact Spot posts do not show vibe tags."
     ,"Spot details expose the opt-in Who's Here list as its own tab alongside the board."
@@ -415,6 +416,7 @@
     "src/app/components/MileHighMarkPreview.tsx",
     "src/app/components/NotificationSettings.tsx",
     "src/app/components/NotificationCenter.tsx",
+    "src/app/components/LoadingCardSkeletons.tsx",
     "src/app/components/NotificationCenter.test.tsx",
     "src/app/components/ForegroundNotifications.tsx",
     "src/app/components/ForegroundNotifications.test.tsx",

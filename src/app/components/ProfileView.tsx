@@ -13,6 +13,7 @@ import CruushIconImage, { CruushIcon } from './CruushIconImage';
 import mapIconWhite from '../assets/ui-icons/map-white.png';
 import { resolveVibeTone, vibeCapsuleStyle } from '../lib/vibeTone';
 import ProfilePhotoGallery from './ProfilePhotoGallery';
+import LoadingCardSkeletons from './LoadingCardSkeletons';
 import { getMutualCruushMap, revokeMutualCruush, revokeSentCruush, sendCruush } from '../lib/cruushApi';
 import { addCruushChangedListener } from '../lib/cruushEvents';
 import {
@@ -479,7 +480,9 @@ export default function ProfileView() {
             <h1 className="text-xl">Profile</h1>
           </div>
         </header>
-        <div className="mx-auto max-w-2xl px-4 py-8 text-sm text-muted-foreground">Loading profile...</div>
+        <div className="mx-auto max-w-2xl px-4 py-8">
+          <LoadingCardSkeletons count={2} label="Loading profile" />
+        </div>
       </div>
     );
   }

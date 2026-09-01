@@ -29,6 +29,7 @@ import { shouldMaskPhoto, useDlMode } from '../lib/dlMode';
 import { formatDistanceLabel as formatUserDistanceLabel, useDistancePreferences } from '../lib/distancePreferences';
 import ProfileActionTrio from './ProfileActionTrio';
 import UserActivityCapsule from './UserActivityCapsule';
+import LoadingCardSkeletons from './LoadingCardSkeletons';
 import CruushMatchSettings from './CruushMatchSettings';
 import {
   Dialog,
@@ -831,7 +832,7 @@ export default function CruushActivity({
               ) : null}
 
               {loading ? (
-                <div className="p-6 text-sm text-white/60">Loading cruush activity...</div>
+                <LoadingCardSkeletons label="Loading cruush activity" />
               ) : null}
 
               {!loading && activity ? (

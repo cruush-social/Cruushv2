@@ -9,6 +9,7 @@ import CruushBadge from './CruushBadge';
 import { CruushIcon } from './CruushIconImage';
 import HeartPhoto from './HeartPhoto';
 import UserActivityCapsule from './UserActivityCapsule';
+import LoadingCardSkeletons from './LoadingCardSkeletons';
 import ProfileActionTrio from './ProfileActionTrio';
 import FeedAttachmentPreview from './FeedAttachmentPreview';
 import FeedPhotoViewer from './FeedPhotoViewer';
@@ -1231,9 +1232,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
           style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}
         >
           {loading ? (
-            <div className="rounded-2xl border border-white/10 bg-black/72 p-12 text-center">
-              <p className="text-white/58">Loading nearby posts...</p>
-            </div>
+            <LoadingCardSkeletons label="Loading nearby posts" />
           ) : null}
 
           {!loading ? (

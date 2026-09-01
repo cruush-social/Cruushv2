@@ -13,6 +13,7 @@ import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
 import CruushPlusWord from './CruushPlusWord';
+import LoadingCardSkeletons from './LoadingCardSkeletons';
 import { Input } from './ui/input';
 import { Progress } from './ui/progress';
 import {
@@ -328,9 +329,7 @@ export default function Rewards() {
         ) : null}
 
         {loading ? (
-          <div className="rounded-xl border border-border bg-card p-8 text-center text-sm text-muted-foreground">
-            Loading your rewards…
-          </div>
+          <LoadingCardSkeletons count={2} label="Loading your rewards" />
         ) : null}
 
         {error ? (

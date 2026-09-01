@@ -10,6 +10,7 @@ import CruushBadge from './CruushBadge';
 import ReportAction from './ReportAction';
 import ReportPage from './ReportPage';
 import UserActivityCapsule from './UserActivityCapsule';
+import LoadingCardSkeletons from './LoadingCardSkeletons';
 import { getStoredUserId } from '../lib/sessionUser';
 import { shouldMaskPhoto, useDlMode } from '../lib/dlMode';
 import { PLACE_FACILITY_LABELS, PLACE_TAG_LABELS, getVisibleSpotTags } from '../lib/places';
@@ -257,7 +258,13 @@ export default function PlaceDetail({ embedded = false, placeIdOverride }: Place
   };
 
   if (place?.id !== placeId && loading) {
-    return <div className={`flex items-center justify-center bg-background text-white/65 ${embedded ? 'min-h-72' : 'min-h-screen'}`}>Loading spot...</div>;
+    return (
+      <div className={`bg-background p-4 ${embedded ? 'min-h-72' : 'min-h-screen'}`}>
+        <div className="mx-auto max-w-2xl">
+          <LoadingCardSkeletons count={3} label="Loading spot" />
+        </div>
+      </div>
+    );
   }
 
   if (!place || place.id !== placeId) {
