@@ -57,16 +57,17 @@ export default function FeedAttachmentPreview({ photos, dlModeActive, onOpen }: 
   }
 
   return (
-    <div className="relative h-[4.75rem] w-[6.75rem]" data-testid="feed-photo-preview-three">
-      <div className="absolute left-0 top-0 z-[1]">
-        <PhotoHeart photo={visiblePhotos[0]} index={0} dlModeActive={dlModeActive} className="h-12 w-12" onOpen={onOpen} />
-      </div>
-      <div className="absolute left-10 top-0 z-[1]">
-        <PhotoHeart photo={visiblePhotos[1]} index={1} dlModeActive={dlModeActive} className="h-12 w-12" onOpen={onOpen} />
-      </div>
-      <div className="absolute bottom-0 left-5 z-[2]">
-        <PhotoHeart photo={visiblePhotos[2]} index={2} dlModeActive={dlModeActive} className="h-12 w-12" onOpen={onOpen} />
-      </div>
+    <div className="flex items-center" data-testid="feed-photo-preview-three">
+      {visiblePhotos.map((photo, index) => (
+        <PhotoHeart
+          className="h-12 w-12"
+          dlModeActive={dlModeActive}
+          index={index}
+          key={photo.id}
+          onOpen={onOpen}
+          photo={photo}
+        />
+      ))}
     </div>
   );
 }

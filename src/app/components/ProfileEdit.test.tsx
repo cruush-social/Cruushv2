@@ -241,6 +241,16 @@ describe('ProfileEdit', () => {
     expect(await screen.findByRole('dialog', { name: 'Crop profile photo' })).toBeInTheDocument();
     fireEvent.load(screen.getByAltText('Profile crop preview'));
     fireEvent.click(screen.getByRole('button', { name: 'Rotate right' }));
+    expect(screen.getByLabelText('Rotate photo')).toHaveValue('90');
+    expect(screen.getByText('90°')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Rotate left' }));
+    expect(screen.getByLabelText('Rotate photo')).toHaveValue('0');
+    fireEvent.change(screen.getByLabelText('Rotate photo'), {
+      target: {
+        value: '37',
+      },
+    });
+    expect(screen.getByText('37°')).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Zoom profile photo'), {
       target: {
         value: '1.4',

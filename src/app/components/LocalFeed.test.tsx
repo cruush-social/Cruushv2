@@ -364,6 +364,53 @@ describe('LocalFeed', () => {
     expect(screen.getByRole('button', { name: 'Open Feed photo 2' })).toBeEnabled();
   });
 
+  it('renders three Feed photos in one row and opens the shared full photo viewer', async () => {
+    getFeedPosts.mockResolvedValue([{
+      id: 'post-with-three-photos',
+      content: 'three photos',
+      expiresIn: '6h',
+      expiresAt: '2026-04-28T18:00:00.000Z',
+      createdAt: '2026-04-28T12:00:00.000Z',
+      distance: 'Nearby',
+      audience: 'public',
+      photos: [1, 2, 3].map((index) => ({
+        id: `photo-${index}`,
+        url: `/api/media/assets/photo-${index}/display`,
+        thumbnailUrl: `/api/media/assets/photo-${index}/thumbnail`,
+        explicit: false,
+      })),
+      user: {
+        id: 'user-2',
+        name: 'river',
+        pronouns: 'they/them',
+        photo: null,
+        photoExplicit: false,
+      },
+    }]);
+
+    render(
+      <MemoryRouter>
+        <LocalFeed />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText('three photos')).toBeInTheDocument();
+    expect(screen.getByTestId('feed-photo-preview-three')).toHaveClass('flex', 'items-center');
+    expect(screen.getAllByRole('button', { name: /Open Feed photo/ })).toHaveLength(3);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open Feed photo 3' }));
+
+    expect(screen.getByRole('dialog', { name: 'Feed photo viewer' })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'Feed photo 3 by river' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Report Feed photo' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Close Feed photo' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next Feed photo' }));
+    expect(screen.getByRole('img', { name: 'Feed photo 1 by river' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Close Feed photo' }));
+    expect(screen.queryByRole('dialog', { name: 'Feed photo viewer' })).not.toBeInTheDocument();
+  });
+
   it('lets users delete their own feed posts without showing delete for other posts', async () => {
     getFeedPosts.mockResolvedValue([{
       id: 'post-owned',

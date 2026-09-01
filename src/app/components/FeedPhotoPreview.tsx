@@ -1,11 +1,13 @@
 import { useState, type ChangeEvent, type ReactNode } from 'react';
-import { ArrowLeft, Flag, Trash2, X } from 'lucide-react';
+import { ArrowLeft, Flag, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router';
+import type { FeedPhoto } from '../lib/postApi';
+import FeedAttachmentPreview from './FeedAttachmentPreview';
+import FeedPhotoViewer from './FeedPhotoViewer';
 import HeartPhoto from './HeartPhoto';
 import { CruushIcon } from './CruushIconImage';
 import ProfileActionTrio from './ProfileActionTrio';
 import { ProfilePhotoCropper } from './ProfileEdit';
-import ReportAction from './ReportAction';
 import UserActivityCapsule from './UserActivityCapsule';
 
 /**
@@ -20,6 +22,13 @@ const PREVIEW_PHOTOS = [
   `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640"><defs><linearGradient id="b" x1="0" y1="1" x2="1" y2="0"><stop stop-color="#111a63"/><stop offset=".5" stop-color="#3456ff"/><stop offset="1" stop-color="#ff0072"/></linearGradient></defs><rect width="640" height="640" fill="url(#b)"/><circle cx="180" cy="180" r="92" fill="#03ecfc" opacity=".7"/><path d="M0 520c120-120 210-75 300-185 95-116 178-95 340 45v260H0Z" fill="#090916" opacity=".78"/><circle cx="430" cy="240" r="26" fill="#fff" opacity=".7"/></svg>')}`,
   `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640"><defs><linearGradient id="c" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ffb300"/><stop offset=".45" stop-color="#ff0072"/><stop offset="1" stop-color="#4f0dd9"/></linearGradient></defs><rect width="640" height="640" fill="url(#c)"/><path d="M0 210 130 100l90 94 112-148 308 302v292H0Z" fill="#220b3a" opacity=".75"/><circle cx="490" cy="140" r="64" fill="#03ecfc" opacity=".65"/></svg>')}`,
 ];
+
+const PREVIEW_FEED_PHOTOS: readonly FeedPhoto[] = PREVIEW_PHOTOS.map((url, index) => ({
+  id: `preview-photo-${index + 1}`,
+  url,
+  thumbnailUrl: url,
+  explicit: false,
+}));
 
 const POSTS = [
   {
@@ -115,39 +124,6 @@ function PostChrome({ post, children, heartSize }: {
         </div>
       )}
     />
-  );
-}
-
-function HeartAttachments({ count, onExpand, large = false, startIndex = 0 }: {
-  count: number;
-  onExpand: (index: number) => void;
-  large?: boolean;
-  startIndex?: number;
-}) {
-  const heartClass = large ? 'h-[min(86vw,86vh)] w-[min(86vw,86vh)]' : 'h-[3.4rem] w-[3.4rem]';
-
-  return (
-    <div className="flex shrink-0 items-center gap-0">
-      {Array.from({ length: count }, (_, index) => (
-        <button
-          aria-label={`Open photo attachment ${startIndex + index + 1}`}
-          className="flex items-center justify-center border-0 bg-transparent p-0 transition hover:brightness-125 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#03ecfc]/70"
-          key={index}
-          onClick={() => onExpand(startIndex + index)}
-          type="button"
-        >
-          <HeartPhoto
-            className={heartClass}
-            label={`Attachment ${startIndex + index + 1}`}
-            masked={false}
-            photo={PREVIEW_PHOTOS[(startIndex + index) % PREVIEW_PHOTOS.length]}
-            theme={(startIndex + index) % 2 === 0 ? 'nearby' : 'mutual'}
-            userId={`preview-attachment-${startIndex + index}`}
-            fallback={<CruushIcon name="camera" className={large ? 'h-8 w-8 opacity-30' : 'h-3 w-3 opacity-30'} />}
-          />
-        </button>
-      ))}
-    </div>
   );
 }
 
@@ -264,15 +240,15 @@ const OPTIONS = [
   },
   {
     id: 'three-hearts',
-    title: 'Three-heart cluster',
-    note: 'Three attachment hearts stay inside one compact block, with the third heart spanning the lower row.',
+    title: 'Three-heart row',
+    note: 'Three attachment hearts line up in one landscape row.',
     count: 3,
   },
 ] as const;
 
 export default function FeedPhotoPreview() {
   const navigate = useNavigate();
-  const [expanded, setExpanded] = useState<{ count: number; index: number } | null>(null);
+  const [expanded, setExpanded] = useState<{ photos: readonly FeedPhoto[]; index: number } | null>(null);
 
   return (
     <div className="min-h-screen bg-background pb-24 text-white">
@@ -315,43 +291,25 @@ export default function FeedPhotoPreview() {
               post={POSTS[1]}
               heartSize="w-20"
             >
-              <HeartAttachments count={option.count} onExpand={(index) => setExpanded({ count: option.count, index })} />
+              <FeedAttachmentPreview
+                dlModeActive={false}
+                onOpen={(index) => setExpanded({ photos: PREVIEW_FEED_PHOTOS.slice(0, option.count), index })}
+                photos={PREVIEW_FEED_PHOTOS.slice(0, option.count)}
+              />
             </PostChrome>
           </section>
         ))}
       </main>
 
       {expanded ? (
-        <div
-          aria-label="Photo attachment viewer"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black"
-          onClick={() => setExpanded(null)}
-          role="dialog"
-        >
-          <div className="relative flex flex-col items-center gap-3" onClick={(event) => event.stopPropagation()}>
-            <img
-              alt={`Photo attachment ${expanded.index + 1}`}
-              className="h-[min(86vw,86vh)] w-[min(86vw,86vh)] rounded-2xl object-contain"
-              src={PREVIEW_PHOTOS[expanded.index % PREVIEW_PHOTOS.length]}
-            />
-            <p className="text-sm text-white/68">Tap to close</p>
-            <div className="absolute -right-3 -top-3 flex items-center gap-2">
-              <ReportAction
-                className="flex h-9 w-9 items-center justify-center rounded-full border border-white/20 bg-black/75 p-0 text-white transition hover:bg-white/10"
-                iconOnly
-                label="Report photo"
-                size="icon"
-                targetId={`preview-photo-${expanded.index + 1}`}
-                targetLabel="this photo attachment"
-                targetType="post"
-                variant="ghost"
-              />
-              <button aria-label="Close photo viewer" className="flex h-9 w-9 items-center justify-center rounded-full border border-white/20 bg-black/75 text-white transition hover:bg-white/10" onClick={() => setExpanded(null)} type="button">
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-        </div>
+        <FeedPhotoViewer
+          authorName="Mika"
+          index={expanded.index}
+          onClose={() => setExpanded(null)}
+          onIndexChange={(index) => setExpanded((current) => current ? { ...current, index } : current)}
+          photos={expanded.photos}
+          postId="preview-photo-post"
+        />
       ) : null}
     </div>
   );

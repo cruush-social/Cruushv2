@@ -250,6 +250,7 @@ describe('CruushActivity', () => {
     expect(screen.getByTestId('activity-side-badges')).toBeInTheDocument();
     expect(screen.getByRole('img', { name: /left badge:.*dominant/i })).toBeInTheDocument();
     expect(screen.getByRole('img', { name: /right badge:.*top/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'luna preview' }).querySelector('path')).toHaveAttribute('stroke', '#FF0072');
     const incomingIdentity = screen.getByText('luna').closest('button');
     expect(incomingIdentity).toHaveClass('col-start-2', 'col-end-4');
     expect(screen.getByText('luna').parentElement).toHaveTextContent('lunathey/them');
@@ -271,6 +272,7 @@ describe('CruushActivity', () => {
     expect(await screen.findByText('jay')).toBeInTheDocument();
     expect(screen.getByText(/pending/i)).toBeInTheDocument();
     expectHeartPreviewSize('jay preview');
+    expect(screen.getByRole('button', { name: 'jay preview' }).querySelector('path')).toHaveAttribute('stroke', '#FF0072');
     expect(screen.queryByTestId('activity-vibes')).not.toBeInTheDocument();
 
     selectTab(/mutual/i);
@@ -280,6 +282,7 @@ describe('CruushActivity', () => {
     expect(screen.getByText('river')).toBeInTheDocument();
     expect(screen.getByText('~0.5 mi away')).toBeInTheDocument();
     expectHeartPreviewSize('river preview');
+    expect(screen.getByRole('button', { name: 'river preview' }).querySelector('path')).toHaveAttribute('stroke', '#6f00ff');
     expect(screen.queryByTestId('activity-vibes')).not.toBeInTheDocument();
     expect(screen.getByTestId('profile-action-trio').parentElement).toHaveClass('col-start-3', 'row-start-2');
 

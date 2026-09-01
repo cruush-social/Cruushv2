@@ -367,15 +367,25 @@ Status:
 - [x] Person-action rows keep cruush, Pin, and the message arrow visible in that order. Feed now uses
   server-authoritative message eligibility, so a member who is not accepting a new direct message
   renders a disabled arrow instead of opening an unrelated Messages list after a rejected request.
-- [ ] Keep heart border semantics: signed-in indigo, mutual purple, everyone else pink, Pulse lime,
+- [~] Keep heart border semantics: signed-in indigo, mutual purple, everyone else pink, Pulse lime,
   Ghost electric blue, and approved Dark Room treatment only in Dark Room. Mile High Club does not
-  recolor the main heart; only its side-badge and Signal borders become sky blue `#77B9DA`.
-- [ ] One-way Incoming and Sent hearts must never use mutual purple.
+  recolor the main heart; only its side-badge and Signal borders become sky blue `#77B9DA`. Source
+  centralizes indigo, purple, pink, and Ghost blue in `HEART_PIN_THEMES`; map source gives Pulse lime
+  priority and keeps Mile High Club off the main-heart border. Authenticated map, Carousel, Feed,
+  Cruushes, Ghost, and Mile High Club states were sampled, but every cross-surface state is not yet
+  visually proven.
+- [x] One-way Incoming and Sent hearts must never use mutual purple. At 390x844, authenticated
+  one-way Incoming rows rendered `#FF0072` pink while mutual rows rendered `#6f00ff` purple. The
+  Cruushes component test now also asserts pink one-way Incoming, pink one-way Sent, and purple
+  Mutual hearts; all seven focused tests pass.
 - [x] Cruushes count cards and Incoming, Sent, Mutual, Views tabs rendered centered as one unit with
   the same four-column geometry in the populated popup.
 - [x] Mutual resolves to the approved double-heart asset in the centralized icon map. The populated
   Cruushes surface rendered without a stray `mutuals` capsule over Map Controls.
-- [ ] Confirm the populated card at desktop, narrow desktop, 390x844, and 412x915.
+- [x] Confirm the populated card at desktop, narrow desktop, 390x844, and 412x915. Populated shared
+  cards rendered in the 1440x900 and 900x844 popup checks plus both exact mobile viewports. At
+  390x844, rows stayed within x=16 through x=374 with no horizontal overflow and retained identity,
+  metadata, badges, and action trio.
 
 ## P0. Finish desktop Pop-ups mode
 
@@ -422,8 +432,11 @@ Status:
   Trash controls.
 - [x] Preserve the three-action row without routing failed direct-message starts into the generic
   Messages list. The rendered jay post showed the disabled arrow and its exact unavailable label.
-- [ ] Keep basic text posting free. Preserve trust, suspension, feature restriction, moderation,
-  encrypted storage, audience, expiry, delete, report, block, and distance behavior.
+- [x] Keep basic text posting free. Preserve trust, suspension, feature restriction, moderation,
+  encrypted storage, audience, expiry, delete, report, block, and distance behavior. Existing
+  focused client coverage proves a free member posts text with an empty photo list, plus audience,
+  expiry, owner deletion, reporting, blocking, and distance presentation. The complete 648-test
+  client suite passes; no live post was added during this continuation.
 - [x] Feed Seeking sits beside Feed Settings and expands the content search inside the same popup.
   Searching `coffee` retained only the matching populated post.
 - [x] Feed Seeking reuses the complete map Seeking criteria while its Search field matches Feed post
@@ -436,10 +449,15 @@ Status:
 - [~] Feed attachment cleanup no longer resets an already-empty array on every basic-member
   render. Posting and crop confirmation now refuse concurrent operations; crop confirmation also
   rechecks the three-photo limit and current cruush+ access. Runtime proof remains pending.
-- [ ] Reuse the approved cropper with pan, zoom, continuous rotation, angle readout, and 90-degree
-  quick rotation.
-- [ ] One photo: one heart. Two: welded hearts. Three: heart cluster. Tap opens the full rectangular
-  photo with Close and Report in the upper-right.
+- [x] Reuse the approved cropper with pan, zoom, continuous rotation, angle readout, and 90-degree
+  quick rotation. The exact shared cropper rendered at 390x844 without overflow; pointer pan changed
+  the offset, Zoom reached 2.1, continuous Rotation reached 69 degrees with a matching readout, both
+  90-degree controls worked, and accepting the crop produced the local heart preview.
+- [x] One photo renders as one heart and two as welded hearts. By direct 2026-09-01 correction,
+  three photos now render side by side in one landscape row instead of a triangle cluster. The exact
+  production attachment and viewer components rendered at 390x844 and 1440x900 without horizontal
+  overflow. The full rectangular viewer kept Report and Close in the upper-right, cycled between
+  photos, closed with Escape, and restored focus to the selected heart.
 - [~] Apply explicit classification and DL Mode masking to Feed previews. Backend attachment rows
   preserve explicit classification and media reads recheck post audience authorization. Rendered
   masking and the real upload moderation chain remain unverified. Feed follows message-photo subject
@@ -481,7 +499,9 @@ Status:
 
 - [x] Profile photo guidance renders exactly the four supplied compact bullets with no added helper
   sentence.
-- [ ] Keep Signal one line at 35 characters and Vibes over the photo.
+- [x] Keep Signal one line at 35 characters and Vibes over the photo. Shared client and server limits
+  enforce 35 characters and a single line. The authenticated own-profile popup rendered Signal and
+  Vibes only over the photo at 412x915, with no duplicate section below About.
 - [ ] Verify own and other profiles, populated and empty photos, full photo viewer, report, badges,
   MHC, Dark Room, Ghost, and Pulse at desktop and small mobile.
 - [ ] Restore and verify the requested Carousel changes from the correct source branch. Do not call
@@ -695,12 +715,12 @@ Status:
 
 ## P2. Copy and catalog corrections still requiring rendered review
 
-- [ ] No new taglines. Preserve existing approved taglines unless a direct instruction changes one.
-- [ ] Seeking Filter and Visibility Controls use those exact headers. 1.6 has no Crowd icon in the
-  top navigation; the active Map Controls Crowd notice opens the fixed Crowds sheet.
-- [ ] Visibility keeps its existing single tagline `Pick who should not see you.` Spots keeps its
-  approved single tagline. Do not remove approved taglines and do not create new ones for searches,
-  fields, controls, or sections.
+- [x] No new taglines. The authenticated rendered surfaces retained only the approved Visibility and
+  Spots descriptions; Seeking rendered without a new description.
+- [x] Seeking Filter and Visibility Controls use those exact headers. 1.6 has no Crowd icon in the
+  top navigation; the rendered active Map Controls Crowd notice opens the fixed Crowds sheet.
+- [x] Visibility keeps its existing single tagline `Pick who should not see you.` Spots keeps its
+  approved single tagline. Both rendered in the authenticated 412x915 flow without a second tagline.
 - [x] Hanky meanings: white with black paisley is Bondage; lime is Mutual masturbation; orange is
   Anytime/anywhere; dark blue is Fucking; teal is Tribbing/frotting; dark pink is Nipples/tits;
   light pink is Mommy; purple is Toys; tan with black paisley is Heavy petting; lavender is
@@ -723,9 +743,10 @@ Status:
 
 ## P2. Account, Settings, notifications, and global chrome
 
-- [ ] Signup keeps required Terms of Service and Privacy Policy checkboxes plus the optional cruush
-  product-updates checkbox directly below password fields. Signup and onboarding never request
-  location.
+- [~] Signup source and focused checks keep required Terms of Service and Privacy Policy checkboxes
+  plus the optional cruush product-updates checkbox directly below password fields. Focused coverage
+  also proves signup and onboarding do not request location. Signed-out rendered proof remains open
+  because this continuation preserved the authenticated browser session.
 - [~] Popup settings replace the selected current surface and Settings search renders. Cruushes to
   Settings was exercised in one popup. Email, secondary-email, and digest work still require real API
   support and remain pending.
@@ -743,8 +764,9 @@ Status:
 - [~] The global Bug Fix control stayed outside the rendered Feed, Messages, Cruushes, New Message,
   direct chooser, and New group popups at the top-right viewport layer. Embedded message overlays no
   longer reserve its full-screen slot. Remaining popup surfaces still need direct visual proof.
-- [ ] The new magnifying-glass Seeking icon and hidden Visibility icon use the approved supplied
-  assets. Do not add a Crowd icon to the top navigation.
+- [x] The new magnifying-glass Seeking icon and hidden Visibility icon use the approved supplied
+  assets. The authenticated map rendered both controls; source imports the supplied SVGs directly.
+  No Crowd icon appears in the top navigation.
 
 ## P3. Proof, migrations, and release gates
 
