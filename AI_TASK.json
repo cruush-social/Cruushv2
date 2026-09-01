@@ -6,6 +6,7 @@
   "userOutcome": "Julien can authenticate locally and inspect the complete cruush 1.6 candidate, while the remaining project to-do list accurately separates completed work, implemented local-only work, unresolved decisions, and blocked verification.",
   "audience": "Authenticated cruush 1.6 members using desktop and mobile layouts.",
   "successCriteria": [
+    "Return to sign in from the password-reset page clears the reset-token URL and renders the signed-out sign-in page.",
     "The earned cruush+ scratch-card popup fills the complete viewport on desktop and mobile. Members remain inside the popup until they finish its interactions, press Done, or use its existing Close control.",
     "Recently Active remains centered on the desktop viewport with no panel, a profile panel, and a right page panel open.",
     "The bottom navigation remains centered on the desktop viewport with no panel, a profile panel, and a right page panel open.",
@@ -362,6 +363,8 @@
     "src/app/components/Auth.css",
     "src/app/components/Auth.test.tsx",
     "src/app/components/Auth.tsx",
+    "src/app/components/ResetPassword.tsx",
+    "src/app/components/ResetPassword.test.tsx",
     "src/app/components/AlphaBugButton.tsx",
     "src/app/components/AlphaBugButton.test.tsx",
     "src/app/components/BadgeFrames.tsx",
@@ -603,6 +606,7 @@
     "Run only TypeScript no-emit, production build, focused local API smoke calls, and real rendered browser interactions for the approved implementation slices."
   ],
   "proofResults": [
+    "2026-09-01 password-reset return gate: Back to sign in now uses React Router's reloadDocument path so the reset-token shell cannot remain mounted after client-side navigation. The focused ResetPassword file passes 3/3, including a regression that rejects history.pushState routing for this control. In an isolated signed-out 390x844 browser state, the reset-token page rendered, the real Back to sign in click navigated to http://localhost:5173/, the reset panel disappeared, and the Sign In form rendered. The prior authenticated browser cookies were restored afterward. The production client build passed with 2078 transformed modules. No password reset, email, provider, account-data, production, push, or deployment mutation occurred.",
     "2026-09-01 final continuation gate: The complete client suite passed 96 files and 653 tests after the profile-viewer fix. The production client build passed with 2078 transformed modules. Public-copy casing scanned 380 files clean, security checks passed, AI_TASK parsed as JSON, and git diff --check passed. Expected AppErrorBoundary test stderr included Map shell failed while that test passed. Server source did not change after the earlier complete 100-file, 951-test suite and TypeScript build. No provider, process, production, push, or deployment mutation occurred.",
     "2026-09-01 profile-viewer continuation gate: The authenticated other-member profile and its three-photo gallery rendered at 1440x900 and 390x844 without horizontal overflow. The full photo viewer exactly filled each viewport. Report and Close now clear the fixed Bug Fix button; the mobile action bounds ended at x=326 before the Bug button began at x=342, hit-testing identified Close photo, and a real Close click dismissed the viewer. The ProfileView file passes 20/20 focused tests. Profile and photo Report dialogs were opened and canceled without submission. Empty-photo and complete Mile High Club, Dark Room, Ghost, and Pulse profile matrices remain unverified. No account, report, provider, process, production, push, or deployment mutation occurred.",
     "2026-09-01 Pulse and badge-label continuation gate: Focused Pulse proof anchors the EKG at the heart's x=8 and x=56 inner edges on y=32, keeps both paths unfilled, clips them to the exact heart clip, and preserves the active Pulse above an adjacent people cluster. A live authenticated Pulse remains unverified. The legacy saved frottage badge ID now displays Frotting, preventing the removed label from returning through compatibility data. Active vibe and kink catalogs exclude the removed labels and include current replacements. The authenticated Badge picker rendered Frotting without Frottage at 1440x900 and 390x844 with no horizontal overflow; all 18 Hanky choices exposed meaning-only labels and no color-name button. Four focused files pass 85/85. No account, provider, process, production, push, or deployment mutation occurred.",
