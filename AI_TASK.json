@@ -1,19 +1,16 @@
 {
   "schemaVersion": 2,
   "taskId": "cruush-1.6-release-email-preview-20260901",
-  "status": "active",
-  "objective": "Finish the v1.6 email preview, clarify Spot check-in expiry, make the mobile map top row fill its width, and execute the Spot vibe migration through the authorized release path.",
+  "status": "validating",
+  "objective": "Repair the v1.6 release email preview and deliver a readable, balanced screenshot for review.",
   "userOutcome": "Julien can review the exact v1.6 announcement copy and a screenshot of the finished email before deciding whether to send it.",
   "audience": "cruush members receiving a future release broadcast.",
   "successCriteria": [
     "The subject, preheader, and body describe only confirmed user-visible v1.6 features.",
-    "The email includes real captures of the v1.6 map and Spot board, with no private profile or precise location details.",
-    "The public changelog matches the latest Spot behavior.",
+    "The email includes real, useful captures of confirmed v1.6 features, with no private profile or precise location details.",
     "The HTML preserves the Resend broadcast unsubscribe placeholder.",
-    "A local rendered screenshot is delivered for review.",
-    "The Spot form clearly says check-ins expire while board posts remain until deleted.",
-    "The mobile map top action capsule fills the space between cruush+ and the bug button.",
-    "Migration 114 runs through the production API migration entrypoint."
+    "The full email capture fills its frame at readable scale with no huge empty gutter, duplicate stitched region, overly tall feature image, or misleading sliver crop.",
+    "The final email is visually inspected at desktop and narrow mobile widths before delivery."
   ],
   "mustPreserve": [
     "Preserve the approved cruush logo, dark email style, existing changelog history, and user-visible terminology.",
@@ -33,7 +30,7 @@
       "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "Open the rendered v1.6 email preview and deliver its screenshot.",
+  "nextVisibleMilestone": "Julien reviews the corrected screenshot before any email send decision.",
   "stopConditions": [
     "Stop before sending or scheduling the email."
   ],
@@ -41,15 +38,15 @@
   "externalEffectDecisions": {
     "commit": "Authorized by Julien's standing instruction to commit v1.6 work.",
     "send": "forbidden without exact recipients, sender, final copy approval, and explicit send authority",
-    "push": "authorized by Julien's prior explicit main release instruction and current instruction to finish everything already requested",
-    "deploy": "authorized by Julien's prior explicit production release instruction and current instruction to execute the migration",
-    "migration": "authorized by Julien's explicit instruction to do the migration"
+    "push": "not authorized for this local preview correction",
+    "deploy": "not authorized for this local preview correction",
+    "migration": "already completed; outside this correction"
   },
   "externalEffects": {
     "externalMessages": "forbidden",
     "purchases": "forbidden",
-    "deployment": "auto",
-    "publication": "auto",
+    "deployment": "forbidden",
+    "publication": "forbidden",
     "deletion": "forbidden",
     "securityChanges": "forbidden",
     "credentials": "forbidden",
@@ -64,19 +61,13 @@
   "forbiddenPaths": ["HANDOFF.md", ".dev/**", "src/app/assets/ui-icons/ghost-horned-mask-source.png"],
   "allowedPaths": [
     "AI_TASK.json",
-    "docs/changelog.md",
     "docs/previews/cruush-1.6-update-email.html",
-    "src/app/components/Changelog.tsx",
-    "src/app/components/PlaceDetail.tsx",
-    "src/app/components/MapHome.tsx",
-    "server/src/errors.ts",
-    "server/sql/103_places.sql",
     "public/email/cruush-v1.6-map.jpg",
     "public/email/cruush-v1.6-spot-board.jpg",
     "docs/previews/cruush-1.6-update-email.jpg"
   ],
   "proofTarget": "Rendered local email preview at desktop and narrow mobile widths, plus a saved full-page screenshot.",
-  "publicationTarget": "origin/main and the existing cruush frontend/API production resources; no email send",
+  "publicationTarget": "Local committed preview only; no push, deploy, or email send",
   "requiredEvidence": [
     "Rendered full-page email screenshot",
     "Exact subject, preheader, CTA, image sources, support address, and unsubscribe placeholder"
