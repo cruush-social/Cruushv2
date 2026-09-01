@@ -829,7 +829,9 @@ Status:
   also proves signup and onboarding do not request location. Signed-out rendered proof remains open
   because this continuation preserved the authenticated browser session.
 - [~] Popup settings replace the selected current surface and Settings search renders. Cruushes to
-  Settings was exercised in one popup. Primary-email and digest work still require real API support.
+  Settings was exercised in one popup.
+- [deferred] Primary-email replacement and daily or weekly digest delivery are outside 1.6. Both
+  require separate verified-ownership, recovery, consent, content, and delivery rules.
 - [removed] Secondary email came only from the inherited `docs/todo-2026-08-22.md` and
   `docs/parallel-work-handoff-2026-08-22.md`; no verified direct request from Julien was found. It is
   not an active 1.6 requirement. Primary-address replacement must preserve verified ownership and
