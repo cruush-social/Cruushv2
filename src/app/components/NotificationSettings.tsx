@@ -9,6 +9,7 @@ import {
 import { disablePushNotifications, enablePushNotifications } from '../lib/pushNotifications';
 import { Button } from './ui/button';
 import { Switch } from './ui/switch';
+import LoadingCardSkeletons from './LoadingCardSkeletons';
 
 const MINUTES_PER_DAY = 1440;
 const QUIET_HOURS_STEP_MINUTES = 30;
@@ -250,7 +251,7 @@ export default function NotificationSettings() {
                 />
               </div>
             )) : isLoading ? (
-              <p className="text-sm text-muted-foreground">Loading settings...</p>
+              <LoadingCardSkeletons count={2} label="Loading notification settings" />
             ) : (
               <Button
                 type="button"

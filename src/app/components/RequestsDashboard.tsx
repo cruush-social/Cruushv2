@@ -13,6 +13,7 @@ import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Textarea } from './ui/textarea';
+import LoadingCardSkeletons from './LoadingCardSkeletons';
 
 type RequestStatusFilter = 'open' | 'in_progress' | 'closed' | 'dismissed' | 'all';
 type RequestCategoryFilter = 'all' | 'suspension_appeal';
@@ -242,9 +243,7 @@ export default function RequestsDashboard() {
                   {error}
                 </div>
               ) : isLoading ? (
-                <div className="rounded-lg border border-border bg-card/60 p-8 text-center text-muted-foreground">
-                  Loading bug reports...
-                </div>
+                <LoadingCardSkeletons label="Loading bug reports" />
               ) : requests.length === 0 ? (
                 <div className="rounded-lg border border-border bg-card/60 p-8 text-center text-muted-foreground">
                   {categoryFilter === 'suspension_appeal' ? 'No age suspension appeals match this filter.' : 'No requests match this filter.'}

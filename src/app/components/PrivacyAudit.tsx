@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router';
 import { ArrowLeft, ShieldCheck } from 'lucide-react';
 import { Button } from './ui/button';
 import { CruushIcon } from './CruushIconImage';
+import LoadingCardSkeletons from './LoadingCardSkeletons';
 import { resolveMediaUrl } from '../lib/apiClient';
 import { shouldMaskPhoto, useDlMode } from '../lib/dlMode';
 import { getCruushMatchSettings, type CruushMatchSettings } from '../lib/cruushSettingsApi';
@@ -141,9 +142,7 @@ export default function PrivacyAudit() {
         ) : null}
 
         {status === 'loading' ? (
-          <div className="rounded-lg border border-white/10 bg-card p-4 text-sm text-muted-foreground">
-            Loading access list...
-          </div>
+          <LoadingCardSkeletons label="Loading access list" />
         ) : null}
 
         {status !== 'loading' && items.length === 0 ? (

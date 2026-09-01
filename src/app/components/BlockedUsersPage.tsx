@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { Button } from './ui/button';
 import { CruushIcon } from './CruushIconImage';
 import HeartPhoto from './HeartPhoto';
+import LoadingCardSkeletons from './LoadingCardSkeletons';
 import { getBlockedUsers, unblockUser, type BlockedUser } from '../lib/blockApi';
 import { shouldMaskPhoto, useDlMode } from '../lib/dlMode';
 
@@ -89,9 +90,7 @@ export default function BlockedUsersPage() {
 
       <main className="mx-auto max-w-2xl space-y-3 p-4">
         {loading ? (
-          <div className="rounded-xl border border-border bg-card/80 p-4 text-sm text-muted-foreground">
-            Loading blocked users...
-          </div>
+          <LoadingCardSkeletons label="Loading blocked users" />
         ) : null}
 
         {!loading && error ? (

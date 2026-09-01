@@ -8,6 +8,7 @@ import { Label } from './ui/label';
 import { Slider } from './ui/slider';
 import { saveDistancePreferences, useDistancePreferences, type DistanceDisplayMode } from '../lib/distancePreferences';
 import { MAP_PRESENCE_OPTIONS } from '../lib/privacyApi';
+import LoadingCardSkeletons from './LoadingCardSkeletons';
 
 export const DEFAULT_MAP_PRESENCE_HOURS = 168;
 
@@ -134,7 +135,7 @@ export default function MapPresenceSettings() {
         ) : null}
 
         {loading ? (
-          <p className="text-sm text-muted-foreground">Loading your setting...</p>
+          <LoadingCardSkeletons count={2} label="Loading map presence settings" />
         ) : (
           <div className="space-y-4 rounded-lg border border-white/10 bg-white/[0.035] p-3">
             <Label htmlFor="map-presence-days">Stay on the map for</Label>
