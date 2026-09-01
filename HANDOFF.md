@@ -148,15 +148,15 @@ proves what it asserts.
 1. A wallet. It must be created outside this repo and outside any agent session;
    only the public xpub is ever handed over. No seed phrase, private key, or
    xprv touches cruush or a machine running an agent.
-2. A JSON-RPC provider account. Dwellir, confirmed 2026-09-01, on its free
-   tier: at a 60-second poll the worst case is about 5,760 requests a day across
-   both chains, under 6% of the free allowance, and it costs nothing at all
-   while no payment is in progress. Its European status was not verified from a
-   primary source. The account does not exist yet, so
-   CRYPTO_PROCESSOR_ARBITRUM_RPC_URL is empty and the watcher does not run.
-   If the signup is a nuisance, `https://arb1.arbitrum.io/rpc` is Arbitrum's own
-   public endpoint, needs no key, and was verified answering on 2026-09-01;
-   switching later is one environment variable.
+2. Nothing. The JSON-RPC endpoint is settled: `https://arb1.arbitrum.io/rpc`,
+   Arbitrum's own public endpoint, no account and no key. Dwellir was tried
+   first and rejected on evidence: their free plan returns HTTP 403 for
+   `eth_getLogs`, which is the only method the watcher uses, so no request
+   volume would have made it work. The chain source was verified against the
+   public endpoint on 2026-09-01, decoding 456 of 456 real USDC transfers over
+   a 200-block range. Set CRYPTO_PROCESSOR_ARBITRUM_RPC_URL to it when the rail
+   is enabled. It carries no availability guarantee; a paid provider is a
+   one-variable swap if load ever demands it.
 3. Sign-off on the settlement policy table in the plan doc.
 4. An unresolved HIGH security finding in the local wallet tool: its check for
    agent sessions is bypassable with a pseudo-terminal. Mitigated, documented,

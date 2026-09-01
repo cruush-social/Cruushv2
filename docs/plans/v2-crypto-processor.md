@@ -411,25 +411,42 @@ JSON-RPC documentation, which Base implements, and are quoted in the header of
 
 Status of each item:
 
-- Select and document the JSON-RPC source. **Dwellir, confirmed by Julien
-  2026-09-01.** The decision is cheap to reverse: the code is plain JSON-RPC
-  with nothing provider-specific in it, so switching is one environment
-  variable.
+- Select and document the JSON-RPC source. **Arbitrum's own public endpoint,
+  `https://arb1.arbitrum.io/rpc`, decided 2026-09-01 after Dwellir was tried and
+  rejected on evidence.**
 
-  It still needs an account, which is the owner's to create; no account exists
-  yet, so `CRYPTO_PROCESSOR_ARBITRUM_RPC_URL` remains empty and the watcher does
-  not run. The endpoint URL is expected to carry a key, so it is set directly in
-  the deployment environment and never committed.
+  Dwellir was recommended and an account was created, on arithmetic about
+  request volume: roughly 2,900 requests a day on this chain, far inside their
+  free allowance. That reasoning was wrong, because volume was never the binding
+  constraint. Their free plan refuses the method:
 
-  **A no-signup fallback was verified working on 2026-09-01**, in case the
-  account is a nuisance or Dwellir disappoints: Arbitrum publishes a free public
-  endpoint at `https://arb1.arbitrum.io/rpc`, which answered `eth_blockNumber`
-  with no key. Base's own `https://mainnet.base.org` answered too. Neither
-  carries an availability guarantee, and neither was wired into cruush; they
-  were probed from a developer machine, not by the application. They are a
-  reasonable way to exercise the rail end to end before committing to a
-  provider, given the worst-case load is about 2,880 requests a day on a chain
-  and nothing at all while no payment is in progress.
+  ```
+  HTTP 403  Your current plan does not support the eth_getLogs method.
+  ```
+
+  `eth_getLogs` is not incidental here, it is the only thing the watcher does.
+  A provider that gates it cannot run this workload at any volume. The lesson is
+  narrow and worth keeping: check that a plan permits the method before sizing
+  the request count.
+
+  Arbitrum's public endpoint answers the same query with no account and no key,
+  verified 2026-09-01 returning 2,264 real USDC transfers across a 1,000-block
+  range. It carries no availability guarantee, which is the trade being made
+  knowingly: nothing is being paid for, and switching to a paid provider later
+  is one environment variable because nothing in the code is provider-specific.
+
+  **The chain source was verified against it end to end on 2026-09-01**, the
+  first time this code had spoken to a real node rather than a fake. Reading a
+  200-block range of the pinned USDC contract returned 456 logs, all 456 of
+  which decoded as valid ERC-20 transfers with the expected token address and
+  six-decimal amounts. Before this, every test used an injected fake source, so
+  the JSON-RPC client, the hex parsing, the topic filter, and the transfer
+  decoder had never been exercised against production data.
+
+  If the public endpoint is rate-limited under real load, Dwellir's paid tier is
+  the obvious upgrade, and worth asking support@dwellir.com to price for roughly
+  2,900 `eth_getLogs` requests a day before assuming the published pricing
+  applies.
 
   **This costs nothing to run, and that is enforced in code rather than hoped
   for.** Three things do the work:
