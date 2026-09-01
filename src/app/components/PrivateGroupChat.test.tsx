@@ -271,6 +271,7 @@ describe('PrivateGroupChat', () => {
     fireEvent.change(screen.getByPlaceholderText('Say what you want...'), {
       target: { value: 'only once' },
     });
+    const composer = screen.getByPlaceholderText('Say what you want...');
     const sendButton = screen.getByRole('button', { name: 'Send message' });
 
     act(() => {
@@ -280,7 +281,10 @@ describe('PrivateGroupChat', () => {
 
     expect(createMessage).toHaveBeenCalledTimes(1);
     expect(screen.getAllByText('only once').filter((element) => element.classList.contains('rounded-[22px]'))).toHaveLength(1);
+    expect(composer).toHaveValue('');
     expect(sendButton).toBeDisabled();
+
+    fireEvent.change(composer, { target: { value: 'next message' } });
 
     await act(async () => {
       resolveSend({
@@ -291,6 +295,7 @@ describe('PrivateGroupChat', () => {
       });
     });
     expect(screen.getAllByText('only once').filter((element) => element.classList.contains('rounded-[22px]'))).toHaveLength(1);
+    expect(composer).toHaveValue('next message');
   });
 
   it('does not show suggested reply chips or a quick-reply action', async () => {

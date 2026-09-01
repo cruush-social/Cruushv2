@@ -313,3 +313,23 @@ final result: passed
 - No profile, visibility, or account setting was changed.
 
 final result: passed
+
+---
+
+# Design QA: Message composer submission
+
+## Rendered state
+
+- The authenticated seeded direct-message thread rendered at desktop and 390 x 844.
+- Pressing Send moved the text into one message bubble and left the composer empty.
+- The existing composer and bottom-navigation placement stayed unchanged.
+
+## Interaction and tests
+
+- Duplicate clicks remain blocked while the first text request is in flight.
+- A failed request restores the submitted draft only when no replacement draft exists.
+- All 29 `PrivateGroupChat` tests passed.
+- The production client build passed with 2077 transformed modules.
+- Both temporary local verification messages were deleted afterward.
+
+final result: passed

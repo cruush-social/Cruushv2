@@ -24,6 +24,11 @@ Status:
   `0px` gap at `412 x 740`; the input and composer do not overlap the pill, and horizontal overflow
   remains absent. Keyboard-open positioning keeps its prior keyboard inset and padding. The supplied
   screenshot and rendered fix were inspected together in a normalized comparison.
+- `[x]` Text messages now leave the composer immediately when Send is pressed while the optimistic
+  bubble confirms the action. A synchronous guard blocks duplicate submissions. Failed sends restore
+  the submitted draft only when the member has not started another message. The real seeded flow
+  passed at desktop and 390x844, and all 29 conversation tests passed. Both temporary messages were
+  deleted afterward. The production client build passed with 2077 transformed modules.
 - `[~]` All seven open GitHub bug reports were rechecked against the current 1.6 candidate. #140's
   visibility-only save path, #136's definite-height scroll container, #137 through #139's
   viewer-authorized discovery filtering, and #141's vector-only map path already exist in current

@@ -802,6 +802,7 @@ export default function PrivateGroupChat({
   const handleSend = async () => {
     if (!normalizedComposerMessage || !chatId || !conversation || composerDisabled || textMessageSendingRef.current) return;
 
+    const composerDraft = message;
     textMessageSendingRef.current = true;
     setTextMessageSending(true);
 
@@ -815,6 +816,7 @@ export default function PrivateGroupChat({
     };
 
     setMessages((prev) => [...prev, optimisticMessage]);
+    setMessage('');
     setComposerError(null);
     setComposerErrorCode(null);
     setError(null);
@@ -826,11 +828,11 @@ export default function PrivateGroupChat({
           ? normalizeRemoteMessage(createdMessage, currentUserId ?? createdMessage.userId)
           : item
       )));
-      setMessage((currentMessage) => currentMessage === normalizedComposerMessage ? '' : currentMessage);
       setError(null);
     } catch (error) {
       console.error('Error sending message:', error);
       setMessages((prev) => prev.filter((item) => item.id !== optimisticId));
+      setMessage((currentMessage) => currentMessage ? currentMessage : composerDraft);
       if (error instanceof ApiClientError && error.code === 'FORBIDDEN') {
         setError(error.message || 'You cannot message this user.');
       } else {
