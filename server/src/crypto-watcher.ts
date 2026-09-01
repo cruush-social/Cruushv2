@@ -325,8 +325,25 @@ async function recordTransfer(
  */
 async function markReorganizedTransfers(
   db: DbClient,
-  input: { chainId: number; fromBlock: bigint; toBlock: bigint; seenKeys: string[] }
+  input: {
+    chainId: number;
+    fromBlock: bigint;
+    toBlock: bigint;
+    seenKeys: string[];
+    watchedIntentIds: string[];
+  }
 ) {
+  // Only intents whose addresses were actually queried this pass can be judged.
+  // Without this the sweep condemned transfers it never asked about: once an
+  // intent settles it leaves the watch set, its address drops out of the log
+  // filter, and its transfer, still inside the re-read window, stopped
+  // appearing in seenKeys. A genuine, still-valid payment was then recorded as
+  // dropped by the chain, which is exactly what support sees when a member asks
+  // where their money went, and it drowned out any real reorganization.
+  if (input.watchedIntentIds.length === 0) {
+    return 0;
+  }
+
   const result = await db.query<{ id: string }>(
     `update crypto_payment_transfers
      set status = 'reorganized',
@@ -335,9 +352,16 @@ async function markReorganizedTransfers(
      where chain_id = $1
        and block_number between $2 and $3
        and status <> 'reorganized'
+       and intent_id = any($5::uuid[])
        and (transaction_hash || ':' || log_index::text) <> all($4::text[])
      returning id`,
-    [input.chainId, input.fromBlock.toString(), input.toBlock.toString(), input.seenKeys]
+    [
+      input.chainId,
+      input.fromBlock.toString(),
+      input.toBlock.toString(),
+      input.seenKeys,
+      input.watchedIntentIds
+    ]
   );
 
   return result.rows.length;
@@ -359,10 +383,15 @@ async function sumConfirmedAmount(db: DbClient, intentId: string): Promise<bigin
  * Applies settlement for one intent from its confirmed transfers, and grants
  * the entitlement if it just became paid.
  *
- * The grant is guarded three ways: the status transition must be legal, the
- * update that sets entitlement_granted_at only matches a row where it is still
- * null, and the database refuses a second paid access record for the same
- * intent. A concurrent second pass therefore cannot grant twice.
+ * A double grant is prevented by one thing: the atomic claim below, which only
+ * one pass can win because it matches on the row still being unpaid and
+ * ungranted. Everything then happens in that same transaction, so a failure
+ * rolls the claim back and the next pass retries cleanly.
+ *
+ * The partial unique index on crypto_payment_intent_id does NOT provide a
+ * second line of defence, despite appearances: grantCruushPlusPlan resolves its
+ * conflict on (user_id), and the same intent always carries the same user, so
+ * the index can never fire. Do not rely on it.
  */
 export async function settleIntent(
   app: { db: DbClient },
@@ -415,42 +444,52 @@ export async function settleIntent(
 
   const note = "note" in outcome ? outcome.note : null;
 
-  // Claim the paid transition. Only the pass that actually moves the row from a
-  // non-paid state gets to grant.
-  const claimed = await app.db.query<{ id: string }>(
-    `update crypto_payment_intents
-     set status = 'paid',
-         confirmed_amount_atomic = $2,
-         settlement_note = $3,
-         paid_at = coalesce(paid_at, now()),
-         updated_at = now()
-     where id = $1
-       and status <> 'paid'
-       and entitlement_granted_at is null
-     returning id`,
-    [intent.id, confirmedAmountAtomic.toString(), note]
-  );
+  // Claiming 'paid', granting, and recording the grant are one transaction.
+  // Run as three separate statements, a failure between them left an intent
+  // committed as paid with no entitlement, and loadWatchableIntents excludes
+  // paid, so the watcher would never look at it again: a member who had really
+  // paid would wait forever with no automatic route to their subscription.
+  // Rolling back instead means the next pass simply retries.
+  const granted = await runTransaction(app.db, async (tx) => {
+    // Only the pass that actually moves the row out of a non-paid, ungranted
+    // state gets to grant. This is what prevents a double grant.
+    const claimed = await tx.query<{ id: string }>(
+      `update crypto_payment_intents
+       set status = 'paid',
+           confirmed_amount_atomic = $2,
+           settlement_note = $3,
+           paid_at = coalesce(paid_at, now()),
+           updated_at = now()
+       where id = $1
+         and status <> 'paid'
+         and entitlement_granted_at is null
+       returning id`,
+      [intent.id, confirmedAmountAtomic.toString(), note]
+    );
 
-  if (claimed.rows.length === 0) {
-    return { settled: true, granted: false, note };
-  }
+    if (claimed.rows.length === 0) {
+      return false;
+    }
 
-  const plan = getCruushPlusPlan(intent.planId);
-  await grantCruushPlusPlan(app as never, intent.userId, plan, {
-    kind: "crypto_payment_intent",
-    intentId: intent.id
+    const plan = getCruushPlusPlan(intent.planId);
+    await grantCruushPlusPlan({ ...app, db: tx } as never, intent.userId, plan, {
+      kind: "crypto_payment_intent",
+      intentId: intent.id
+    });
+
+    await tx.query(
+      `update crypto_payment_intents
+       set entitlement_granted_at = now(),
+           updated_at = now()
+       where id = $1
+         and entitlement_granted_at is null`,
+      [intent.id]
+    );
+
+    return true;
   });
 
-  await app.db.query(
-    `update crypto_payment_intents
-     set entitlement_granted_at = now(),
-         updated_at = now()
-     where id = $1
-       and entitlement_granted_at is null`,
-    [intent.id]
-  );
-
-  return { settled: true, granted: true, note };
+  return { settled: true, granted, note };
 }
 
 /**
@@ -571,7 +610,8 @@ export async function runCryptoWatcherPass(
     chainId: source.chainId,
     fromBlock: range.fromBlock,
     toBlock: range.toBlock,
-    seenKeys
+    seenKeys,
+    watchedIntentIds: intents.map((intent) => intent.id)
   });
 
   let intentsSettled = 0;

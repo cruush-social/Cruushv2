@@ -175,6 +175,36 @@ describe("settling one intent", () => {
     expect(grantedCalls.some(([sql]) => /entitlement_granted_at = now\(\)/.test(sql as string))).toBe(true);
   });
 
+  it("claims, grants, and records in one transaction so a failed grant strands nobody", async () => {
+    // Three separate statements left a member committed as paid with no
+    // entitlement if anything failed in between, and loadWatchableIntents
+    // excludes paid, so the watcher would never revisit them.
+    const used: string[] = [];
+    const query = vi.fn(async (sql: string) => {
+      used.push(sql);
+      if (/coalesce\(sum\(amount_atomic/.test(sql)) return { rows: [{ total: "18990000" }] };
+      if (/set status = 'paid'/.test(sql)) return { rows: [{ id: intentId }] };
+      return { rows: [] };
+    });
+    let ranInTransaction = false;
+    const db = {
+      query,
+      end: vi.fn(),
+      transaction: async <T>(cb: (c: DbClient) => Promise<T>) => {
+        ranInTransaction = true;
+        return cb({ query, end: vi.fn() } as unknown as DbClient);
+      }
+    } as unknown as DbClient;
+
+    const result = await settleIntent({ db }, watchableIntent(), DEFAULT_CRYPTO_SETTLEMENT_POLICY);
+
+    expect(result).toMatchObject({ settled: true, granted: true });
+    expect(ranInTransaction).toBe(true);
+    // The claim and the grant record are both inside it.
+    expect(used.some((sql) => /set status = 'paid'/.test(sql))).toBe(true);
+    expect(used.some((sql) => /entitlement_granted_at = now\(\)/.test(sql))).toBe(true);
+  });
+
   it("does not grant a second time when another pass already claimed the intent", async () => {
     // The claiming update matches no row, which is what a concurrent pass sees.
     const { db } = stubDb([
@@ -401,6 +431,38 @@ describe("a full watcher pass", () => {
 
     expect(result.transfersObserved).toBe(0);
     expect(calls.some((call) => /insert into crypto_payment_transfers/.test(call.sql))).toBe(false);
+  });
+
+  it("only judges intents whose addresses it actually queried this pass", async () => {
+    // A settled intent leaves the watch set, so its address drops out of the
+    // log filter and its transfer stops appearing in seenKeys while still
+    // inside the re-read window. Without scoping, the sweep condemned that
+    // still-valid payment as dropped by the chain, and support would tell a
+    // paying member their money had vanished.
+    const { db, calls } = stubDb(passHandlers([
+      [/set status = 'reorganized'/, []],
+      [/coalesce\(sum\(amount_atomic/, [{ total: "0" }]]
+    ]));
+
+    await runCryptoWatcherPass({ db, config: config() }, chainSource([]));
+
+    const sweep = calls.find((call) => /set status = 'reorganized'/.test(call.sql))!;
+    expect(sweep.sql).toContain("intent_id = any(");
+    // Scoped to exactly the intents loaded for this pass.
+    expect(sweep.values[4]).toEqual([intentId]);
+  });
+
+  it("does not sweep at all when it watched nothing, since an empty list matches every row", async () => {
+    // `x <> all('{}')` is vacuously true in Postgres, so an unscoped sweep over
+    // an empty pass would have condemned the entire block range.
+    const { db, calls } = stubDb([
+      [/select id, user_id, plan_id, status/, []],
+      [/from crypto_chain_watch_cursors/, [{ last_scanned_block: "900" }]]
+    ]);
+
+    await runCryptoWatcherPass({ db, config: config() }, chainSource([]));
+
+    expect(calls.some((call) => /set status = 'reorganized'/.test(call.sql))).toBe(false);
   });
 
   it("marks transfers the chain no longer reports, and keeps them for support", async () => {
