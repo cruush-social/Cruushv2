@@ -487,7 +487,7 @@ export default function Rewards() {
                     </Button>
                   </>
                 ) : (
-                  <p className="text-sm text-muted-foreground">Loading Side Quests...</p>
+                  <LoadingCardSkeletons count={1} label="Loading Side Quests" />
                 )}
               </CardContent>
             </Card>

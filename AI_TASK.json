@@ -442,6 +442,7 @@
     "src/app/components/CruiseCarouselSlot.tsx",
     "src/app/components/DlModeSettings.tsx",
     "src/app/components/FeelingLucky.tsx",
+    "src/app/components/EventPassGuide.tsx",
     "src/app/components/MultiSelect.tsx",
     "src/app/components/PulseEffectPreview.tsx",
     "src/app/components/Settings.test.tsx",
