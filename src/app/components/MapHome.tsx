@@ -85,7 +85,7 @@ import {
   type MapMarker,
 } from '../lib/mapMarkers';
 import { getPlaces, type PlaceRecord } from '../lib/placesApi';
-import { PLACE_FACILITY_LABELS, type PlaceFacilityType } from '../lib/places';
+import { PLACE_FACILITY_LABELS, type PlaceFacilityType, type PlaceTag } from '../lib/places';
 import {
   addDesktopPageLayoutChangedListener,
   getDesktopPageLayout,
@@ -843,7 +843,10 @@ export default function MapHome(_props: MapHomeProps = {}) {
   const [spotMapFilters, setSpotMapFilters] = useState<{
     query: string;
     facilityTypes: PlaceFacilityType[];
-  }>({ query: '', facilityTypes: [] });
+    tags: PlaceTag[];
+    radiusMiles: number;
+    activity: 'any' | 'active' | 'recent';
+  }>({ query: '', facilityTypes: [], tags: [], radiusMiles: 100, activity: 'any' });
   const [places, setPlaces] = useState<PlaceRecord[]>([]);
   const [selectedPlace, setSelectedPlace] = useState<PlaceRecord | null>(null);
   const [spotBoardPlaceId, setSpotBoardPlaceId] = useState<string | null>(null);
@@ -2032,9 +2035,11 @@ export default function MapHome(_props: MapHomeProps = {}) {
     void getAllPlacesForMap({
       latitude: mapViewport?.center.latitude ?? currentUserMapLocation?.approximateLatitude,
       longitude: mapViewport?.center.longitude ?? currentUserMapLocation?.approximateLongitude,
-      radiusMiles: mapViewport?.radiusMiles,
       query: spotMapFilters.query || undefined,
       facilityTypes: spotMapFilters.facilityTypes,
+      tags: spotMapFilters.tags,
+      radiusMiles: Math.min(mapViewport?.radiusMiles ?? spotMapFilters.radiusMiles, spotMapFilters.radiusMiles),
+      activity: spotMapFilters.activity,
     }).then((nextPlaces) => {
       if (!cancelled) {
         setPlaces(nextPlaces.filter((place) => isCoordinateInViewport(place.latitude, place.longitude, mapViewport)));
@@ -2052,6 +2057,9 @@ export default function MapHome(_props: MapHomeProps = {}) {
     mapViewport?.signature,
     spotMapFilters.facilityTypes,
     spotMapFilters.query,
+    spotMapFilters.tags,
+    spotMapFilters.radiusMiles,
+    spotMapFilters.activity,
   ]);
   const handleSendMapPing = async (radiusMiles: MapPingRadiusMiles) => {
     if (!currentUserMapLocation) {
@@ -3367,40 +3375,6 @@ export default function MapHome(_props: MapHomeProps = {}) {
             </div>
           </div>
         )}
-
-        {selectedPlace && spotBoardPlaceId == null ? (
-          <div
-            className="pointer-events-auto absolute bottom-[calc(6.25rem+env(safe-area-inset-bottom))] left-3 z-40 w-[min(22rem,calc(100%-1.5rem))] rounded-2xl border border-white/10 bg-background/88 p-4 shadow-[0_20px_60px_rgba(0,0,0,0.48)] backdrop-blur-xl"
-            data-testid="map-place-preview"
-          >
-            <button
-              type="button"
-              aria-label="Close spot preview"
-              className="absolute right-3 top-3 text-white/60"
-              onClick={() => setSelectedPlace(null)}
-            >
-              <X className="h-4 w-4" />
-            </button>
-            <p className="pr-7 text-lg font-medium text-white">{selectedPlace.name}</p>
-            <p className="mt-1 text-xs text-white/55">
-              {PLACE_FACILITY_LABELS[selectedPlace.facilityType]} · {selectedPlace.activeCheckins} here now ·{' '}
-              {selectedPlace.ratingAverage?.toFixed(1) ?? 'New'} stars
-            </p>
-            <Button
-              type="button"
-              className="mt-3 w-full"
-              onClick={() => {
-                if (usesFullPageProfile) {
-                  navigate(`/places/${selectedPlace.id}`);
-                  return;
-                }
-                setSpotBoardPlaceId(selectedPlace.id);
-              }}
-            >
-              Open spot board
-            </Button>
-          </div>
-        ) : null}
 
         <SpotBoardDialog
           docked={desktopPageLayout === 'popups'}

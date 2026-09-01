@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Clock3, MapPin, Plus, Search, Star, Users } from 'lucide-react';
+import { ArrowLeft, Clock3, MapPin, Plus, Search, Star, Users } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
@@ -7,6 +7,8 @@ import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetT
 import {
   PLACE_FACILITY_LABELS,
   PLACE_FACILITY_TYPES,
+  PLACE_TAG_LABELS,
+  PLACE_TAGS,
   getSpotCategoryLabels,
   type PlaceFacilityType,
   type PlaceSort,
@@ -20,7 +22,13 @@ type PlacesDrawerProps = {
   coordinates: { latitude: number; longitude: number } | null;
   onPlacesChange?: (places: PlaceRecord[]) => void;
   onFiltersActiveChange?: (active: boolean) => void;
-  onMapFiltersChange?: (filters: { query: string; facilityTypes: PlaceFacilityType[] }) => void;
+  onMapFiltersChange?: (filters: {
+    query: string;
+    facilityTypes: PlaceFacilityType[];
+    tags: PlaceTag[];
+    radiusMiles: number;
+    activity: 'any' | 'active' | 'recent';
+  }) => void;
   onSelect: (place: PlaceRecord) => void;
 };
 
@@ -33,6 +41,8 @@ const SORT_OPTIONS: Array<{ value: PlaceSort; label: string }> = [
 ];
 
 const PLACE_PAGE_SIZE = 50;
+const DISTANCE_OPTIONS = [1, 5, 10, 25, 50, 100] as const;
+const FILTERABLE_PLACE_TAGS = PLACE_TAGS.filter((tag) => tag !== 'dyke_spot');
 
 function toggleValue<T extends string>(values: T[], value: T) {
   return values.includes(value) ? values.filter((item) => item !== value) : [...values, value];
@@ -44,6 +54,12 @@ export default function PlacesDrawer({ open, onOpenChange, coordinates, onFilter
   const [sort, setSort] = useState<PlaceSort>('nearest');
   const [facilityTypes, setFacilityTypes] = useState<PlaceFacilityType[]>([]);
   const [draftFacilityTypes, setDraftFacilityTypes] = useState<PlaceFacilityType[]>([]);
+  const [tags, setTags] = useState<PlaceTag[]>([]);
+  const [draftTags, setDraftTags] = useState<PlaceTag[]>([]);
+  const [radiusMiles, setRadiusMiles] = useState(100);
+  const [draftRadiusMiles, setDraftRadiusMiles] = useState(100);
+  const [activity, setActivity] = useState<'any' | 'active' | 'recent'>('any');
+  const [draftActivity, setDraftActivity] = useState<'any' | 'active' | 'recent'>('any');
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -70,7 +86,7 @@ export default function PlacesDrawer({ open, onOpenChange, coordinates, onFilter
       void getPlaces({
         latitude: coordinates?.latitude,
         longitude: coordinates?.longitude,
-        sort, query, facilityTypes, tags: [], limit: PLACE_PAGE_SIZE, offset: 0,
+        sort, query, facilityTypes, tags, radiusMiles, activity, limit: PLACE_PAGE_SIZE, offset: 0,
       }).then((result) => {
         if (cancelled) return;
         setPlaces(result);
@@ -86,13 +102,13 @@ export default function PlacesDrawer({ open, onOpenChange, coordinates, onFilter
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [coordinates?.latitude, coordinates?.longitude, facilityTypes, onPlacesChange, open, query, sort]);
+  }, [activity, coordinates?.latitude, coordinates?.longitude, facilityTypes, onPlacesChange, open, query, radiusMiles, sort, tags]);
 
-  const filterCount = facilityTypes.length + (query.trim() ? 1 : 0);
+  const filterCount = facilityTypes.length + tags.length + (query.trim() ? 1 : 0) + (radiusMiles < 100 ? 1 : 0) + (activity === 'any' ? 0 : 1);
   useEffect(() => {
     onFiltersActiveChange?.(filterCount > 0);
-    onMapFiltersChange?.({ query: query.trim(), facilityTypes });
-  }, [facilityTypes, filterCount, onFiltersActiveChange, onMapFiltersChange, query]);
+    onMapFiltersChange?.({ query: query.trim(), facilityTypes, tags, radiusMiles, activity });
+  }, [activity, facilityTypes, filterCount, onFiltersActiveChange, onMapFiltersChange, query, radiusMiles, tags]);
   const resultLabel = useMemo(() => loading ? 'Loading spots...' : `${places.length} ${places.length === 1 ? 'spot' : 'spots'}`, [loading, places.length]);
 
   const handleSubmit = async () => {
@@ -129,7 +145,9 @@ export default function PlacesDrawer({ open, onOpenChange, coordinates, onFilter
         sort,
         query,
         facilityTypes,
-        tags: [],
+        tags,
+        radiusMiles,
+        activity,
         limit: PLACE_PAGE_SIZE,
         offset: places.length,
       });
@@ -163,17 +181,20 @@ export default function PlacesDrawer({ open, onOpenChange, coordinates, onFilter
       latitude: coordinates.latitude,
       longitude: coordinates.longitude,
     }));
-    setSubmissionStatus('Map location pinned. Reviewers see the spot details, never who suggested it.');
+    setSubmissionStatus('Map location pinned.');
   };
 
   const drawerBody = (
     <div className="scrollbar-hide flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-5 py-4 overscroll-contain">
-          <div className="flex gap-2 pt-1">
-            <Button type="button" className="flex-1" variant={showSubmit ? 'secondary' : 'default'} onClick={() => setShowSubmit(false)}>Discover</Button>
-            <Button type="button" className="flex-1" variant={showSubmit ? 'default' : 'secondary'} onClick={() => setShowSubmit(true)}>
+          {showSubmit ? (
+            <Button type="button" className="w-full" variant="secondary" onClick={() => setShowSubmit(false)}>
+              <ArrowLeft className="mr-2 h-4 w-4" /> Back to Spots
+            </Button>
+          ) : (
+            <Button type="button" className="w-full" variant="secondary" onClick={() => setShowSubmit(true)}>
               <Plus className="mr-2 h-4 w-4" /> Add spot
             </Button>
-          </div>
+          )}
           {showSubmit ? (
             <div className="space-y-3" data-testid="place-submission-form">
               <Input aria-label="Spot name" placeholder="Spot name" value={submission.name} onChange={(event) => setSubmission((value) => ({ ...value, name: event.target.value }))} />
@@ -186,7 +207,6 @@ export default function PlacesDrawer({ open, onOpenChange, coordinates, onFilter
               <p className="text-xs text-white/55">Your suggestion is private. Reviewers see the spot details, never your identity.</p>
               <fieldset className="space-y-2">
                 <legend className="text-sm font-medium text-white">Categories</legend>
-                <p className="text-xs text-white/55">Choose one spot type.</p>
                 <div className="flex flex-wrap gap-2">
                   {PLACE_FACILITY_TYPES.map((type) => (
                     <button
@@ -224,12 +244,51 @@ export default function PlacesDrawer({ open, onOpenChange, coordinates, onFilter
                 onToggle={(event) => {
                   const nextOpen = event.currentTarget.open;
                   setFiltersOpen(nextOpen);
-                  if (nextOpen) setDraftFacilityTypes(facilityTypes);
+                  if (nextOpen) {
+                    setDraftFacilityTypes(facilityTypes);
+                    setDraftTags(tags);
+                    setDraftRadiusMiles(radiusMiles);
+                    setDraftActivity(activity);
+                  }
                 }}
               >
                 <summary className="cursor-pointer text-sm text-white">Spot filters{filterCount ? ` (${filterCount})` : ''}</summary>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {PLACE_FACILITY_TYPES.map((type) => <button key={type} type="button" aria-pressed={draftFacilityTypes.includes(type)} className={`rounded-full border px-3 py-1 text-xs ${draftFacilityTypes.includes(type) ? 'border-primary bg-primary/20 text-white' : 'border-white/10 text-white/65'}`} onClick={() => setDraftFacilityTypes(toggleValue(draftFacilityTypes, type))}>{PLACE_FACILITY_LABELS[type]}</button>)}
+                <div className="mt-4 space-y-4">
+                  <label className="block space-y-2 text-sm text-white">
+                    <span>Distance</span>
+                    <select
+                      aria-label="Spot distance"
+                      className="h-10 w-full rounded-md border border-white/15 bg-black px-3 text-sm text-white"
+                      value={draftRadiusMiles}
+                      onChange={(event) => setDraftRadiusMiles(Number(event.target.value))}
+                    >
+                      {DISTANCE_OPTIONS.map((miles) => <option key={miles} value={miles}>{miles === 100 ? 'Within 100 mi' : `Within ${miles} mi`}</option>)}
+                    </select>
+                  </label>
+                  <fieldset className="space-y-2">
+                    <legend className="text-sm text-white">Activity</legend>
+                    <div className="flex flex-wrap gap-2">
+                      {([
+                        ['any', 'Any activity'],
+                        ['active', 'Here now'],
+                        ['recent', 'Recent board activity'],
+                      ] as const).map(([value, label]) => (
+                        <button key={value} type="button" aria-pressed={draftActivity === value} className={`rounded-full border px-3 py-1 text-xs ${draftActivity === value ? 'border-primary bg-primary/20 text-white' : 'border-white/10 text-white/65'}`} onClick={() => setDraftActivity(value)}>{label}</button>
+                      ))}
+                    </div>
+                  </fieldset>
+                  <fieldset className="space-y-2">
+                    <legend className="text-sm text-white">Place type</legend>
+                    <div className="flex flex-wrap gap-2">
+                      {PLACE_FACILITY_TYPES.map((type) => <button key={type} type="button" aria-pressed={draftFacilityTypes.includes(type)} className={`rounded-full border px-3 py-1 text-xs ${draftFacilityTypes.includes(type) ? 'border-primary bg-primary/20 text-white' : 'border-white/10 text-white/65'}`} onClick={() => setDraftFacilityTypes(toggleValue(draftFacilityTypes, type))}>{PLACE_FACILITY_LABELS[type]}</button>)}
+                    </div>
+                  </fieldset>
+                  <fieldset className="space-y-2">
+                    <legend className="text-sm text-white">Community and care</legend>
+                    <div className="flex flex-wrap gap-2">
+                      {FILTERABLE_PLACE_TAGS.map((tag) => <button key={tag} type="button" aria-pressed={draftTags.includes(tag)} className={`rounded-full border px-3 py-1 text-xs ${draftTags.includes(tag) ? 'border-primary bg-primary/20 text-white' : 'border-white/10 text-white/65'}`} onClick={() => setDraftTags(toggleValue(draftTags, tag))}>{PLACE_TAG_LABELS[tag]}</button>)}
+                    </div>
+                  </fieldset>
                 </div>
               </details>
               <p className="text-xs text-white/55">{resultLabel}</p>
@@ -291,9 +350,18 @@ export default function PlacesDrawer({ open, onOpenChange, coordinates, onFilter
                 setSort('nearest');
                 setDraftFacilityTypes([]);
                 setFacilityTypes([]);
+                setDraftTags([]);
+                setTags([]);
+                setDraftRadiusMiles(100);
+                setRadiusMiles(100);
+                setDraftActivity('any');
+                setActivity('any');
               }}>Clear</Button>
               <Button type="button" className="flex-1" style={{ background: 'var(--cruush-gradient)' }} onClick={() => {
                 setFacilityTypes(draftFacilityTypes);
+                setTags(draftTags);
+                setRadiusMiles(draftRadiusMiles);
+                setActivity(draftActivity);
                 setFiltersOpen(false);
               }}>Apply</Button>
             </div>

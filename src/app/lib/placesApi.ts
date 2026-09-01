@@ -81,12 +81,14 @@ export async function getPlaces(options: {
   facilityTypes?: PlaceFacilityType[];
   tags?: PlaceTag[];
   radiusMiles?: number;
+  activity?: 'any' | 'active' | 'recent';
   limit?: number;
   offset?: number;
 } = {}) {
   const params = new URLSearchParams({
     radiusMiles: String(options.radiusMiles ?? 100),
     sort: options.sort ?? 'nearest',
+    activity: options.activity ?? 'any',
     limit: String(options.limit ?? 50),
     offset: String(options.offset ?? 0),
   });
@@ -125,6 +127,7 @@ export async function removePlaceRating(placeId: string) {
 export async function checkIntoPlace(placeId: string, input: {
   content: string;
   durationHours: 1 | 3 | 6 | 12 | 24;
+  boardDurationHours: 1 | 3 | 6 | 12 | 24 | 168 | null;
   visible: boolean;
   latitude: number;
   longitude: number;

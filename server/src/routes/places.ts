@@ -76,7 +76,7 @@ type BoardRow = {
   content_auth_tag: string;
   content_key_version: string;
   created_at: string | Date;
-  expires_at: string | Date;
+  expires_at: string | Date | null;
   display_name: string | null;
   photo: string | null;
   photo_explicit: boolean;
@@ -189,7 +189,7 @@ function basePlaceSelect(viewerParam: string, latParam: string, lngParam: string
           * power(sin(radians((p.longitude - ${lngParam}::double precision) / 2)), 2)
       )) end as distance_miles,
     (select count(*)::int from place_checkins c where c.place_id = p.id and c.expires_at > now()) as active_checkins,
-    (select max(m.created_at) from place_board_messages m where m.place_id = p.id and m.expires_at > now()) as recent_activity_at,
+    (select max(m.created_at) from place_board_messages m where m.place_id = p.id and (m.expires_at is null or m.expires_at > now())) as recent_activity_at,
     (select avg(r.stars)::float from place_ratings r where r.place_id = p.id and r.category = 'overall') as rating_average,
     (select count(*)::int from place_ratings r where r.place_id = p.id and r.category = 'overall') as rating_count,
     (select r.stars::int from place_ratings r where r.place_id = p.id and r.user_id = ${viewerParam}::uuid and r.category = 'overall') as viewer_rating`;
@@ -277,6 +277,9 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
                * power(sin(radians((p.longitude - $11::double precision) / 2)), 2)
            )) <= $12
        ) listed
+       where ($13::text = 'any'
+         or ($13::text = 'active' and active_checkins > 0)
+         or ($13::text = 'recent' and recent_activity_at is not null))
        order by ${placeOrder(query.sort)}
        limit $8 offset $9`,
       [
@@ -291,7 +294,8 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
         query.offset,
         NYC_SERVICE_AREA.center.lat,
         NYC_SERVICE_AREA.center.lng,
-        NYC_SERVICE_AREA.radiusMiles
+        NYC_SERVICE_AREA.radiusMiles,
+        query.activity
       ]
     );
     return reply.send({ data: result.rows.map(mapPlace), page: { limit: query.limit, offset: query.offset, hasMore: result.rows.length === query.limit } });
@@ -525,7 +529,7 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
               ) as travelling
        from place_board_messages m
        join profiles pr on pr.id = m.user_id
-       where m.place_id = $1 and m.expires_at > now()
+       where m.place_id = $1 and (m.expires_at is null or m.expires_at > now())
          and not exists (
            select 1 from user_blocks b
            where (b.blocker_user_id = $2 and b.blocked_user_id = m.user_id)
@@ -612,13 +616,16 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
          returning expires_at`,
         [userId, placeId, payload.visible, payload.durationHours]
       );
+      const boardDurationHours = payload.boardDurationHours === undefined
+        ? payload.durationHours
+        : payload.boardDurationHours;
       const boardPost = await db.query<{ id: string }>(
         `insert into place_board_messages (
            place_id, user_id, content, content_ciphertext, content_nonce, content_auth_tag, content_key_version,
            expires_at
          ) values (
            $1, $2, '[encrypted]', $3, $4, $5, $6,
-           now() + ($7::int * interval '1 hour')
+           case when $7::int is null then null else now() + ($7::int * interval '1 hour') end
          ) returning id::text`,
         [
           placeId,
@@ -627,7 +634,7 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
           encrypted.nonce,
           encrypted.authTag,
           encrypted.keyVersion,
-          payload.durationHours
+          boardDurationHours
         ]
       );
       if (event.rowCount) {

@@ -36,6 +36,11 @@ const CHECKIN_DURATION_OPTIONS = [
   { value: 12, label: '12h' },
   { value: 24, label: '24h' },
 ];
+const BOARD_DURATION_OPTIONS = [
+  ...CHECKIN_DURATION_OPTIONS,
+  { value: 168, label: '7d' },
+  { value: 'never', label: 'Never' },
+] as const;
 const RATING_LABELS: Record<PlaceRatingCategory, string> = {
   overall: 'Overall Experience',
   gender_inclusivity: 'Gender Inclusivity',
@@ -76,6 +81,7 @@ export default function PlaceDetail({ embedded = false, placeIdOverride }: Place
   const [loadingMoreBoard, setLoadingMoreBoard] = useState(false);
   const [message, setMessage] = useState('');
   const [checkinDurationHours, setCheckinDurationHours] = useState<1 | 3 | 6 | 12 | 24>(1);
+  const [boardDuration, setBoardDuration] = useState<1 | 3 | 6 | 12 | 24 | 168 | 'never'>(1);
   const [visibleCheckin, setVisibleCheckin] = useState(false);
   const [postingCheckin, setPostingCheckin] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
@@ -164,6 +170,7 @@ export default function PlaceDetail({ embedded = false, placeIdOverride }: Place
       void checkIntoPlace(placeId, {
         content: message.trim(),
         durationHours: checkinDurationHours,
+        boardDurationHours: boardDuration === 'never' ? null : boardDuration,
         visible: visibleCheckin,
         latitude: position.coords.latitude,
         longitude: position.coords.longitude,
@@ -309,15 +316,15 @@ export default function PlaceDetail({ embedded = false, placeIdOverride }: Place
 
   return (
     <div className={embedded ? 'bg-background' : 'min-h-screen bg-background pb-20'} data-testid="spot-detail">
-      {!embedded ? <header className="sticky top-0 bg-card/80 backdrop-blur-sm border-b border-border p-4 flex items-center gap-4 z-10">
-        <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-          <ArrowLeft className="w-5 h-5" />
+      {!embedded ? <header className="sticky top-0 z-10 flex min-h-[7rem] items-center gap-4 border-b border-border bg-card/80 px-4 py-5 pr-20 backdrop-blur-sm">
+        <Button variant="ghost" size="icon" className="h-12 w-12 shrink-0" onClick={() => navigate(-1)}>
+          <ArrowLeft className="h-6 w-6" />
         </Button>
-        <h2 className="text-xl">{place.name}</h2>
+        <h2 className="text-2xl leading-tight">{place.name}</h2>
       </header> : null}
 
-      <div className={`mx-auto space-y-6 p-6 ${embedded ? 'max-w-none' : 'max-w-2xl'}`}>
-        <div className="relative">
+      <div className={`mx-auto flex flex-col gap-6 p-6 ${embedded ? 'max-w-none' : 'max-w-2xl'}`}>
+        <div className={`relative ${embedded ? 'order-1' : 'order-3'}`}>
           <p className="text-xs uppercase tracking-[0.16em] text-primary">{PLACE_FACILITY_LABELS[place.facilityType]}</p>
           <h1 className={`mt-1 text-3xl ${embedded ? 'pr-10' : ''}`}>{place.name}</h1>
           <div className="mt-2 flex items-start gap-2 text-sm text-muted-foreground">
@@ -328,9 +335,9 @@ export default function PlaceDetail({ embedded = false, placeIdOverride }: Place
           <button type="button" className="mt-3 inline-flex items-center text-xs text-white/50 hover:text-white" onClick={() => embedded ? setReportTarget({ targetType: 'place', targetId: place.id, targetLabel: place.name }) : navigate('/report', { state: { targetType: 'place', placeId: place.id, targetLabel: place.name } })}><Flag className="mr-1 h-3.5 w-3.5" />Report incorrect or unsafe spot</button>
         </div>
 
-        {place.description ? <p className="text-muted-foreground">{place.description}</p> : null}
+        {place.description ? <p className="order-4 text-muted-foreground">{place.description}</p> : null}
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="order-5 grid grid-cols-2 gap-4">
           <div className="bg-card border border-border rounded-lg p-4 text-center">
             <Users className="mx-auto mb-2 h-6 w-6 text-primary" />
             <p className="text-2xl">{place.activeCheckins}</p>
@@ -353,7 +360,7 @@ export default function PlaceDetail({ embedded = false, placeIdOverride }: Place
           </DialogContent>
         </Dialog> : null}
 
-        <details className="rounded-xl border border-border bg-card p-4">
+        <details className="order-6 rounded-xl border border-border bg-card p-4">
           <summary className="flex cursor-pointer list-none items-center justify-between font-medium">Popular times<Clock className="h-5 w-5 text-primary" /></summary>
           <div className="mt-4">
             {place.popularTimes.length === 0 ? <p className="py-6 text-center text-sm text-muted-foreground">Not enough activity yet.</p> : (
@@ -371,12 +378,12 @@ export default function PlaceDetail({ embedded = false, placeIdOverride }: Place
           </div>
         </details>
 
-        {place.sourceUrl ? <a className="inline-flex items-center text-sm text-primary" href={place.sourceUrl} target="_blank" rel="noreferrer">Source{place.sourceAttribution ? `: ${place.sourceAttribution}` : ''}<ExternalLink className="ml-2 h-4 w-4" /></a> : null}
+        {place.sourceUrl ? <a className="order-7 inline-flex items-center text-sm text-primary" href={place.sourceUrl} target="_blank" rel="noreferrer">Source{place.sourceAttribution ? `: ${place.sourceAttribution}` : ''}<ExternalLink className="ml-2 h-4 w-4" /></a> : null}
 
-        {status ? <p className="text-sm text-primary">{status}</p> : null}
-        {error ? <p className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{error}</p> : null}
+        {status ? <p className="order-8 text-sm text-primary">{status}</p> : null}
+        {error ? <p className="order-9 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{error}</p> : null}
 
-        <Tabs defaultValue="feed" className="w-full">
+        <Tabs defaultValue="feed" className="order-2 w-full">
           <TabsList className="w-full grid grid-cols-2">
             <TabsTrigger value="feed">Board</TabsTrigger>
             <TabsTrigger value="here">Who's Here</TabsTrigger>
@@ -387,21 +394,34 @@ export default function PlaceDetail({ embedded = false, placeIdOverride }: Place
               <textarea aria-label="Leave a spot board message" className="min-h-20 w-full resize-none bg-transparent text-sm text-white outline-none" placeholder="Leave a message for this spot" value={message} onChange={(event) => setMessage(event.target.value)} maxLength={1000} />
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <label className="flex items-center gap-2 text-xs text-white/60">
-                  Duration
+                  Post duration
                   <select
-                    aria-label="Check-in duration"
+                    aria-label="Board post duration"
                     className="rounded-md border border-white/15 bg-black px-2 py-1 text-xs text-white"
-                    value={checkinDurationHours}
-                    onChange={(event) => setCheckinDurationHours(Number(event.target.value) as 1 | 3 | 6 | 12 | 24)}
+                    value={boardDuration}
+                    onChange={(event) => setBoardDuration(event.target.value === 'never' ? 'never' : Number(event.target.value) as 1 | 3 | 6 | 12 | 24 | 168)}
                   >
-                    {CHECKIN_DURATION_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                    {BOARD_DURATION_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                   </select>
                 </label>
                 <label className="flex items-center gap-2 text-xs text-white/70">
                   <Checkbox checked={visibleCheckin} onCheckedChange={(checked) => setVisibleCheckin(checked === true)} />
                   Show me in Who's Here
                 </label>
-                <Button size="sm" disabled={!message.trim() || postingCheckin || mutating} onClick={handlePostCheckin}>{postingCheckin ? 'Posting...' : 'Post check-in'}</Button>
+                {visibleCheckin ? (
+                  <label className="flex items-center gap-2 text-xs text-white/60">
+                    Who's Here duration
+                    <select
+                      aria-label="Who's Here duration"
+                      className="rounded-md border border-white/15 bg-black px-2 py-1 text-xs text-white"
+                      value={checkinDurationHours}
+                      onChange={(event) => setCheckinDurationHours(Number(event.target.value) as 1 | 3 | 6 | 12 | 24)}
+                    >
+                      {CHECKIN_DURATION_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                    </select>
+                  </label>
+                ) : null}
+                <Button size="sm" disabled={!message.trim() || postingCheckin || mutating} onClick={handlePostCheckin}>{postingCheckin ? 'Posting...' : 'Post to board'}</Button>
               </div>
               {place.viewerCheckin ? <div className="mt-3 flex items-center justify-between gap-3 border-t border-white/10 pt-3"><p className="text-xs text-white/55">Checked in until {new Date(place.viewerCheckin.expiresAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</p><button type="button" disabled={mutating || postingCheckin} className="text-xs text-white/65 hover:text-white disabled:opacity-50" onClick={() => void handleCheckout()}>Check out</button></div> : null}
             </div>

@@ -25,6 +25,7 @@ export const listPlacesQuerySchema = z.object({
   lng: z.coerce.number().min(-180).max(180).optional(),
   radiusMiles: z.coerce.number().positive().max(100).default(100),
   sort: z.enum(["nearest", "active", "recent", "top_rated", "az"]).default("nearest"),
+  activity: z.enum(["any", "active", "recent"]).default("any"),
   facilityTypes: z.string().optional().default(""),
   tags: z.string().optional().default(""),
   query: z.string().trim().max(120).optional().default(""),
@@ -49,6 +50,9 @@ export const storedPlaceSuggestionSchema = submitPlaceSchema.extend({
 export const placeCheckinSchema = z.object({
   content: multilineTextSchema({ min: 1, max: 1000 }),
   durationHours: z.union([z.literal(1), z.literal(3), z.literal(6), z.literal(12), z.literal(24)]),
+  boardDurationHours: z.union([
+    z.literal(1), z.literal(3), z.literal(6), z.literal(12), z.literal(24), z.literal(168), z.null()
+  ]).optional(),
   visible: z.boolean().default(false),
   ...coordinatesSchema,
   accuracyMeters: z.number().nonnegative().max(402.336),

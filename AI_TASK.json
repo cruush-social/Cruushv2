@@ -1,225 +1,61 @@
 {
   "schemaVersion": 2,
-  "taskId": "cruush-1.6-complete-handoffs-spots-20260829",
+  "taskId": "cruush-1.6-spots-board-first-20260901",
   "status": "active",
-  "objective": "Reconcile every supplied 1.6 handoff file-by-file, port every still-current exact non-conflicting source slice, preserve newer direct decisions and concurrent work, and prepare the dirty cruush 1.6 destination as a local-only candidate.",
-  "userOutcome": "Julien can authenticate locally and inspect the complete cruush 1.6 candidate, while the remaining project to-do list accurately separates completed work, implemented local-only work, unresolved decisions, and blocked verification.",
-  "audience": "Authenticated cruush 1.6 members using desktop and mobile layouts.",
+  "objective": "Correct the cruush 1.6 Spots experience shown in Julien's Android screenshots: restore useful Spot filters, open directly into the board, add 7-day and no-expiry board posts, move secondary details below the board, enlarge the mobile Spot header, remove redundant helper copy, and remove the nonfunctional Discover button.",
+  "userOutcome": "A member can find the right Spot quickly and reach its board immediately, with useful post lifetimes and no decorative steps blocking the board.",
+  "audience": "Authenticated cruush members using Spots on Android mobile and desktop.",
   "successCriteria": [
-    "Cruise Carousel keeps the current Browse again button unchanged. The rejected pull-bar lab and preview path are absent.",
-    "On small mobile message threads with the keyboard closed, the composer sits flush against the top of the fixed bottom-navigation pill without overlap. Opening the keyboard still moves the composer above the keyboard.",
-    "Every open GitHub bug report is checked against current 1.6 source and evidence. Already-fixed reports are recorded as such; safe reproducible unresolved bugs are implemented and verified in isolated slices; ambiguous or production-only reports remain blocked instead of receiving speculative edits.",
-    "Visibility Controls Apply accepts canonical app-owned profile-photo URLs and does not return Request validation failed for an unchanged valid visibility payload.",
-    "A signed-in member can have only one active survey response. Repeated submissions return the existing response instead of creating another record.",
-    "Opening /survey while signed out renders sign in instead of the survey. After successful sign-in and any required account gates, the member returns directly to /survey.",
-    "After a survey succeeds, its form cannot submit again from the same rendered page.",
-    "The Bug reports dashboard can filter specifically for age suspension appeals, reports the complete filtered count instead of only the first 25 rows, paginates beyond the first page, and exposes unexpired private appeal evidence through the existing moderator-only evidence endpoint.",
-    "The deployed age-suspension flow is checked separately for automatic suspension notification, signed-out appeal access, encrypted evidence storage, reports-inbox delivery, and moderator visibility. Production database counts remain unverified unless authenticated read-only evidence becomes available.",
-    "Return to sign in from the password-reset page clears the reset-token URL and renders the signed-out sign-in page.",
-    "The earned cruush+ scratch-card popup fills the complete viewport on desktop and mobile. Members remain inside the popup until they finish its interactions, press Done, or use its existing Close control.",
-    "Recently Active remains centered on the desktop viewport with no panel, a profile panel, and a right page panel open.",
-    "The bottom navigation remains centered on the desktop viewport with no panel, a profile panel, and a right page panel open.",
-    "Failed seeded profile images render the existing profile-gradient fallback instead of a broken image icon.",
-    "Mobile Recently Active and bottom navigation positioning remain unchanged.",
-    "Settings offers Pop-ups and Full screen for desktop page layout, with Pop-ups as the default.",
-    "Feed, cruushes, messages, and profile follow the selected desktop page layout from the bottom navigation.",
-    "The saved desktop Pop-ups preference remains effective on desktop devices when the browser window is narrower than 1120px; viewport width alone does not force full-screen navigation.",
-    "Map top actions fit within narrow desktop and small-mobile viewports without horizontal clipping, overlap, or hidden controls.",
-    "The map always uses cruush's in-app vector theme. Alternate style URLs, raster tiles, CARTO tiles, and automatic theme fallbacks are unsupported and cannot replace it after a slow load or tile error.",
-    "Published Spots load and appear on the map by default, while opening the Spots control opens discovery without changing layer visibility.",
-    "The Spots Map Controls button uses its active treatment only when one or more Spot filters limit the visible Spot dataset.",
-    "Individual Spot map markers use the approved black diamond with a blue app-theme glow and a flat white category mark. Beach uses Noun Project Beach Umbrella 1689481, Staircase uses clear ascending steps, and Adult venue uses 18+ in the cluster-pin UnifrakturMaguntia font.",
-    "Settings menu rows show only primary labels while actual setting pages retain feature descriptions.",
-    "Zoom never changes an individual member's coordinates; zoom may only cluster or uncluster members.",
-    "Map presence offers 1h, 3h, 6h, 8h, 12h, 24h, 48h, 3d, 4d, 5d, 6d, and 7d.",
-    "No labels is removed from Map presence because Dark Room owns the distance-label replacement."
-    ,"Top navigation icon buttons have no grey circle at rest and use the deployed translucent white hover fill so the active target is easier to read. Their existing focus visibility and click areas remain available."
-    ,"Crowd Mode receives no 1.6 update. Preserve the main-branch Crowd Mode UI, controls, copy, icon assets, and behavior without a dedicated Crowds sheet or Hydra icon."
-    ,"DL Mode uses Julien's exact supplied balaclava-and-halo icon in white while inactive and the existing cruush gradient while active, preserving the approved top-navigation canvas and spacing until Julien selects dedicated DL Mode colors."
-    ,"Bottom navigation icons have no resting grey circle and the Map tab uses Noun Project globe 7869983 in white and cruush-gradient states at a balanced 48px canvas."
-    ,"Mile High Club uses the same exact plane geometry throughout. Every MHC surface uses the approved shaded white 3D plane, including the map animation and settings. Every viewer sees the glyph immediately after an active member's age on both that member's own profile and other-member profiles; it is never moderator-only."
-    ,"The Mile High Club traveller animation uses the approved shaded white 3D plane, 18 contrail bands, a 0.52 moving span, 0.26 light-blue-to-white handoff, 0.20 blend, 0.55 hold, 0.72 plane scale, and 5200ms period. The contrail uses #DAF3FF, #A9DCF3, and #77B9DA before its white ending poofs. MHC side-badge and signal borders use #77B9DA unless Pulse temporarily applies lime."
-    ,"Mile High Club accepts an address or GPS coordinates in the first location control, places Use my current location and Drop my pin here directly below it, renders the selected pin with the canonical cruush heart instead of a circle, and lets the map fill the remaining screen down to the fixed bottom navigation."
-    ,"The Mile High Club picker keeps its MapLibre host at the full visible picker height and resizes it with the layout, so the map renders instead of leaving a blank framed area."
-    ,"The in-app Ghost Mode glyph uses the same exact electric-blue fading ghost shown by the map rotation fly-out."
-    ,"Signup shows required Terms of Service and Privacy Policy checkboxes plus the optional cruush product-updates checkbox directly below the password fields."
-    ,"The local 1.6 frontend can target its dedicated seeded API without reusing another worktree's port, so authenticated settings requests do not fail origin validation."
-    ,"The local 1.6 frontend uses a worktree-local Vite dependency cache and one React runtime even when node_modules is shared with another worktree."
-    ,"The current user's Dark Room heart renders the exact same shared keyhole and eye paths used by the Dark Room navigation icon, with the heart-pin keyhole filled solid black."
-    ,"The Pulse EKG is vertically centered and spans the complete 80px heart width, with its path reaching both horizontal edges."
-    ,"The Dark Room navigation mark punches its keyhole through the chapel at zero opacity while retaining the shared eye shape; only the heart-pin keyhole is filled solid black."
-    ,"Every top-navigation glyph uses the same 40px mobile and 44px desktop canvas as DL Mode."
-    ,"Top and right map controls paint above panels and marker previews, intercept pointer input, and prevent covered markers from previewing or opening."
-    ,"Messages and Cruushes reserve the fixed bug-button position at the far right of their header action groups, keeping their settings buttons fully visible to its left."
-    ,"Incoming, Sent, Mutual, and Views use one identical Cruushes row grid; mobile actions stay on the first row and each vibe capsule fits its own text below."
-    ,"Selected sent and mutual cruush controls use the dark gradient and remain actionable so a second click unsends or removes the mutual."
-    ,"Cruushes shows the permission-resolved distance beside activity time, using the member's mutual distance when available and Nearby otherwise."
-    ,"Conversation settings uses the standard cruush Settings glyph, and the composer timer menu opens upward."
-    ,"Cruushes uses the same segmented tab treatment as Messages, and switching Incoming, Sent, Mutual, or Views changes only the listed people and state-specific content inside the unchanged card grid."
-    ,"Messages profile previews use the Cruushes card structure, use the same content slot that Feed uses for post text, omit vibe capsules, and retain Delete in the card corner."
-    ,"Feed places a Seeking control beside Feed Settings. Its in-panel search field searches Feed post tags only, with or without a leading #. It does not search member profiles or post text."
-    ,"Feed reactions and replies are excluded from 1.6."
-    ,"GitHub issue #135 is excluded from 1.6 and does not authorize a checkbox visual change."
-    ,"Seeking includes a profile keyword search that matches visible names, bios, and configured profile keywords such as kinks. Visibility includes the same search field with inverse meaning: matching people are excluded from seeing the member."
-    ,"Messages and Cruushes place the full-screen page name directly beside Back while preserving the reserved bug-button slot."
-    ,"Cruushes puts name and pronouns together in a full-width mobile content row above the action trio, puts Last online and Distance on separate lines beside the vertically centered action trio, and omits vibe capsules."
-    ,"Profile actions remain one line in this exact order: cruush, Pin that user, Message. Pin remains visibly present but disabled when precise location is unavailable."
-    ,"Opening a full-screen conversation from Profile labels its back control Back to profile and returns to that profile. Conversations opened from Messages keep Back to messages."
-    ,"Every person-to-person Message action uses the arrow/send glyph. The bottom-navigation Messages glyph is never reused for a person action."
-    ,"Every actionable cruush control is reversible from the same surface. Sent and Mutual states remain actionable so a second press unsends or removes the mutual."
-    ,"After an unsend or mutual removal completes, the same cruush control immediately returns to the bright available gradient state."
-    ,"Feed uses the approved winged-heart icon. Every person-to-person cruush control, including Mutual, uses the approved double-heart icon and never falls back to the Feed icon."
-    ,"The signed-in member's profile popup and full profile show Signal and Vibes over the profile photo only. They do not repeat below About."
-    ,"The local development seed gives several mutual-capable profiles precise-location sharing so an enabled Cruushes pin action can be tested without changing production data."
-    ,"The landing tagline and NYC OPEN BETA capsule gain a white glow only while hovered, with their resting appearance unchanged."
-    ,"Cruushes count and tab bars size only from the viewport or containing desktop panel, never from the active tab's row count."
-    ,"Seeking Filters and Visibility Controls always render above both fixed navigation bars."
-    ,"Seeking Filters can show only active Mile High Club members, and Visibility Controls can hide the member from active Mile High Club members; both controls live under Intimacy."
-    ,"Visibility Controls does not duplicate the approximate distance-label preference owned by Map presence."
-    ,"Profile editing links directly to the current Your side badges page and never renders the superseded intermediate badge page."
-    ,"The current release offers only the Circle side-badge border. The border picker is absent and every legacy or saved frame renders as Circle. Custom border code and assets remain dormant for possible later work."
-    ,"The Badge editor Save control matches Edit Profile Save and occupies the popup header's far-right action position."
-    ,"Badge titles show the meaning without the Hanky color name. What this side says offers Give, Receive, Switch, Service, and Stone as independent intent choices."
-    ,"The embedded Badge editor provides working Back and Close controls that both return to Edit Profile inside the same popup."
-    ,"The Badge editor has no Remove Hanky action; selecting another badge replaces the Hanky on that side."
-    ,"Badge selections remain local drafts until Save succeeds. Back, Close, browser unload, and Badge links that leave the editor ask the member to save when changes are pending."
-    ,"The lime Hanky meaning is Mutual masturbation."
-    ,"Right-side desktop popups can be dragged flush to the viewport's right edge, never reserve space for the global Bug Fix control, and give docked popup headers a compact 0.5rem right inset so the final action remains visible near the popup edge."
-    ,"The kink menu removes tribadism and frottage, then lists tribbing, frotting, fingering, and hand jobs under Body & Touch."
-    ,"Vibes removes E-Girl/E-Boy; Style & Energy adds Blue-collar and Discreet; Scenes adds Collegiate; Archetypes adds Bull and Trade."
-    ,"The Circle side-badge border has a solid black interior, keeps its icon centered without touching the frame, and floats close to the profile heart without overlapping it."
-    ,"Hanky artwork fills the Circle border's interior and is clipped completely inside its stroke."
-    ,"Dominant uses the established BDSM badge chevron glyph, empty for Dominant and filled for Dominant, taken. It does not use a generic heraldic shield or the dormant Diamond border geometry."
-    ,"The dark pink Hanky meaning is Nipples/tits, replacing Tit torture."
-    ,"Submissive uses an unfilled circle ring and Submissive, taken uses a filled circle. Dominant uses the empty BDSM chevron and Dominant, taken uses the filled BDSM chevron. Top and Bottom use only a plain upward or downward arrow. Badge icons remain centered and clear of the Circle frame."
-    ,"Badge previews use the Dark Room purple gradient only when baseMode is STEALTH; Ghost Mode alone never recolors badge borders purple."
-    ,"The Badge editor preview and map use the same side-badge size and offset. Saving side badges updates the signed-in map pin immediately, including while Dark Room is active."
-    ,"Default left Role and right Position badges use the exact Badge-menu glyph and frame language, including the Switch hexagon, rather than alternate map-only icons."
-    ,"Hovering either side badge on the signed-in member's map pin, another member's map pin, or a profile badge preview shows that specific badge's user-visible label. Leaving the badge clears the label, and the label never intercepts pointer input or opens the profile."
-    ,"Every side-badge border is fully opaque. Signed-in user badges are indigo, mutual badges are purple, other-member badges are pink, active Mile High Club member badges are #77B9DA sky blue, Pulse badges are lime, Ghost decoy badges are Ghost blue, and Dark Room signed-in badges use the approved Dark Room gradient. These state colors apply consistently on map pins, profile previews, Cruushes, Messages, Feed, and other people listings."
-    ,"Hanky colors use white for bondage, lime for mutual masturbation, orange for anytime/anywhere, dark blue for fucking, teal for tribbing/frotting, light pink for mommy, purple for toys, tan for heavy petting, lavender for crossdressing, mint green for discreet, and gold for threesomes/groups, with black paisley on white and tan."
-    ,"Notifications is the far-right icon inside the desktop map top-navigation pill, immediately after Settings."
-    ,"No Custom Crowds, Hydra icon, dedicated Crowds sheet, or other Crowd Mode redesign ships in 1.6."
-    ,"Ghost Mode decoys carry decoy side badges in the same electric-blue treatment as the decoy heart, and active plus fly-out Ghost icons use the exact supplied /Volumes/good/ghost-mode-icon-final.svg asset."
-    ,"The signed-in member's Ghost decoy keeps both side badges and its profile photo beneath the active Ghost icon treatment: dark blue at the top, electric blue through the middle, full opacity through halfway down, then one smooth fade to 10% opacity at the bottom. Both decoy badges share that same opacity fade. The profile photo uses the exact regular-heart clip and never paints above or beyond the heart border. Hover shows the live time remaining until rotation, and the decoy plays the existing last-minute Ghost animation for its owner. The real signed-in pin and other members remain unchanged."
-    ,"Pride uses the supplied linked-symbol mark for T4T, uses clear purpose-drawn linked-symbol marks for Gay and Lesbian in the same visual family, replaces the rejected Nonbinary mark with a clear standard Nonbinary symbol, renames Both to Straight, removes Labrys plus Men and Women, and owns Trans and T4T instead of Community."
-    ,"Superseded custom Heart, Diamond, Dom, Sub, and Switch frame implementations remain dormant in source for possible later work and never appear in the current-release Badge editor or rendered side badges."
-    ,"The fixed Bug Fix button shares the topmost floating control layer with Seeking Filters, Visibility Controls, and Spots, above both navigation bars and map content, without changing its far-right position."
-    ,"The Spots sheet and its controls render above Seeking Filters, Visibility Controls, Bug Fix, and both navigation bars."
-    ,"Signup and onboarding never request or store location; location permission is requested only after an explicit location-dependent action."
-    ,"Every person pin targets the selected profile through focusUserId and the viewer-authorized mutual-map token; unresolved targets never fall back to the signed-in member."
-    ,"A person pin is bright and actionable only for a mutual who allows precise sharing, is not in Dark Room, and has a valid viewer-authorized token; every other state is dark, disabled, and non-navigable."
-    ,"Cruushes, normal Messages previews, Feed person cards, and every other compact people listing use one shared UserActivityCapsule style. The heart stays on the left; name and pronouns lead the content; activity metadata stacks; both side badges sit side by side directly under the heart; each badge exposes its meaning on hover; surface content follows the identity block; Delete remains optional in the upper-right. Compact listings do not show vibe tags."
-    ,"Compact people cards omit vibe capsules. Messages render the last-message preview in the same content slot where Feed renders post text."
-    ,"Full-screen Cruushes, Messages, Profile View, Profile Edit, Seeking Filters, and Visibility Controls center their tab and count bars against the viewport; embedded and popup layouts retain their current placement."
-    ,"In desktop Pop-ups mode, opening a normal message thread replaces the Messages list inside the same popup; Back returns to the list, Close dismisses the popup, and Settings plus Close remain at the popup's far-right edge."
-    ,"Opening Settings from any desktop popup replaces that popup's content inside the same popup. It never opens a second popup. Back returns to the prior popup content."
-    ,"Desktop popups keep a visible draggable move handle above sticky page headers; Settings and Close sit together at the popup's far-right edge without reserving an empty Bug Fix slot."
-    ,"Popup headers never reserve or render an internal Bug Fix slot; their normal far-right page action occupies that space while the global Bug Fix control remains outside the popup."
-    ,"Right-slot desktop popups default flush to the right screen margin and remain constrained to the right half while being dragged."
-    ,"Notifications supports authenticated owner-only individual deletion and confirmed bulk deletion, updating the visible list and global unread count immediately."
-    ,"Pulse EKG geometry is vertically centered, reaches both inner heart edges, and is entirely clipped to HEART_PIN_PATH in current-user, seeded Pulse, clustered, and preview states."
-    ,"Active Ghost Mode and the rotating fly-out use the exact supplied /Volumes/good/ghost-mode-icon-final.svg asset through the shared GhostColoredIcon implementation."
-    ,"Only missing Badge, Kink, and Vibe menu behavior and required schema support transfer from Cruushv2-visual; source map, Mile High Club location, and general location logic does not transfer."
-    ,"All user-facing place labels read Spots or spot while internal places tables, APIs, identifiers, component names, and the /places/:placeId route remain compatible."
-    ,"Seeking, Visibility, and Spots each show no more than one descriptive tagline directly below the header. Visibility says Pick who should not see you. Spots says Public cruising spaces, healthcare clinics, and community spots."
-    ,"Field labels and placeholders carry their own guidance. No field, control, section, card, or empty state gains helper copy unless Julien explicitly supplies that exact copy."
-    ,"Spot summaries and details use the current facility categories; Ginger's Bar is shown as Bars, and the legacy Dyke spot tag is never user-visible."
-    ,"Add spot is one flow. It includes an explicit option to use the current map pin as the suggested Spot's public coordinates instead of a second Pin my map action."
-    ,"The map loads every published Spot inside the settled map viewport through valid API page sizes; active Spot filters may narrow that viewport dataset, while the first 50-item drawer page never truncates map results."
-    ,"Spots supports the reviewed 100-mile service area, search, five sorts, staged facility filters, anonymous encrypted suggestions, moderator review, combined timed board-post check-ins, opt-in Who's Here, six-category ratings, and privacy-thresholded Popular times."
-    ,"The active cruush service area is one shared 100-mile radius centered on New York City. Members may zoom out until the complete service-area edge is visible, while dark blue fog of war obscures everything outside it. A member outside the service area receives no discovery profiles and keeps the top and bottom navigation over a fog state with direct Mile High Club and city-request actions. Discovery is limited to 50 miles from the member's current location, with Mile High Club fog obscuring the map beyond that browse radius. Trying to browse beyond the radius without Mile High Club offers a direct way to turn on Mile High Club there. While Mile High Club is active, its dropped pin replaces the member's current location for the same 50-mile browse radius and for the Center your location control."
-    ,"Desktop Spot selection opens the full Spot board popup and mobile selection opens /places/:placeId; hover, click, short-tap, and long-press behavior match the Spots handoff."
-    ,"One Map Controls dropdown contains Seeking or Mutuals, Visibility, Spots, Pulse, seven-day activity heatmap, location centering, and zoom controls in the approved order without allowing pointer events through to covered markers."
-    ,"Map Controls triggers and icons increase border, background, icon, and text contrast on hover; hover never makes a control less apparent."
-    ,"The heatmap is off by default and renders privacy-safe seven-day activity totals as broad area trends; it never mirrors one heat point beneath each current heart pin."
-    ,"The map loads and mounts only viewer-authorized people and published Spots inside the settled viewport. Pan and zoom refresh both viewport datasets, while applied Spot filters narrow only Spots."
-    ,"People and Spot clustering remain independent, exact-coordinate people retain spiderfy, cluster selection fits member bounds, and zoom never changes an individual member's display coordinates."
-    ,"Person heart pins do not show a mutual-relationship side badge; the left side defaults to the profile's Role glyph and the right side defaults to the profile's Position glyph."
-    ,"Feed message content renders directly below the identity and badge area and uses the same font size as the member name. Basic Feed posts remain text-only, while cruush+ Feed posts can upload and publish up to three policy-compliant photos with approved heart-shaped previews and a full rectangular viewer. Feed photos use the same allowed-content rules as message photos, including multiple subjects and allowed non-human imagery."
-    ,"One Feed photo renders as one 64px heart. Two or three Feed photos render as separate equal-size 64px hearts in one simple horizontal row with visible gaps and no welding, overlap, or cluster. Feed photo-preview hearts remain smaller than the 80px map and profile hearts. Opening any preview shows the full rectangular photo with Close and Report in the upper-right."
-    ,"Feed photo uploads reuse the approved shared cropper with pan, zoom, continuous rotation, live angle readout, and 90-degree quick rotation controls."
-    ,"Feed members can add up to five #tags to a post. Tags use lowercase letters, numbers, or underscores, are checked by the existing Feed text-moderation path before storage, and are searchable from Feed Seeking."
-    ,"Accessibility includes a persistent Color-blind mode toggle. It switches current-user, mutual, and nearby heart and side-badge state colors to a color-blind-safe blue, magenta, and orange palette without changing navigation size, map-pin size, profile photos, Ghost, Pulse, Mile High Club, or Dark Room treatments."
-    ,"Profile photos may show the uploader, any part of the uploader's body without requiring a face, or the uploader's gear. A profile photo may not contain more than one human subject, and every human subject shown across that profile's photos must be the same person. Feed photos use message-photo rules and may contain multiple subjects or allowed non-human imagery."
-    ,"Profile photo guidance is a compact four-item bullet list using only this copy: Profile photos may be SFW or NSFW. Use a photo of you or your gear. Add at least one SFW photo if you want people browsing in DL Mode to still see you. You don't have to show your face."
-    ,"Feed photo explicit classification drives the same DL Mode masking behavior as profile photos, while private message photos continue allowing multiple subjects under the existing message-photo policy."
-    ,"The cruush Hanky code dialog is substantially larger than its prior compact size and lays out its entries in three columns at supported widths."
-    ,"No frontend or API development server is started, restarted, stopped, killed, or replaced unless Julien explicitly requests that exact process action. Existing servers may only be inspected and reused."
-    ,"Remaining docs/todo-2026-08-22.md items are reconciled against current 1.6 source. Only items with claim-matched source and verification evidence are marked complete."
-    ,"Recently Active loads up to ten viewer-authorized profiles, displays no more than five before hidden-scrollbar horizontal scrolling, supports touch, pointer drag, and mouse-wheel scrolling, and restores the prior translucent black-glass container around the complete open Recently Active unit."
-    ,"The authoritative to-do keeps only the Spots requirements from /Volumes/good/custom-crowds-spots-handoff-2026-08-29.md. All Custom Crowds and Crowd Mode updates are outside 1.6. Preserved Custom Crowds source remains under /Volumes/good/cruushv2/custom-crowds-20260830."
-    ,"Transfer the complete newest cruush+ work, including the exact scratch-card interaction, current card visuals, canonical supported-benefit copy, rewards behavior, and explicit post-acceptance dismissal. Locate the authoritative source before editing and never approximate the supplied card."
-    ,"Rewards shows up to four active Side Quests after Invite people you trust. Claiming one moves it under Recent rewards and reveals the next unclaimed quest. Quests cover simple engagement across profiles, photos, cruushes, Pings, messages, Feed posts, Spots, and Visibility sets. Each Side Quest can be claimed once per member and earns either bonus Pings or one day of cruush+. A member can claim no more than one total Side Quest per local calendar day and no more than two free cruush+ days from Side Quests per local calendar week. Claims are idempotent and never replace paid, lifetime, legacy, referral, coupon, or other promotional access."
-    ,"The cruush+ time capsule appears immediately below the cruush+ benefits accordion on the Rewards page."
-    ,"Core async app surfaces use shape-preserving loading skeletons instead of standalone loading text."
-    ,"A Spot board post is the check-in action. It requires a message, lets the author choose 1h, 3h, 6h, 12h, or 24h, and provides one optional canonical checkmark to show the member in Who's Here for that same duration. There is no separate check-in button or profile-visibility form."
-    ,"Spot board posts use the shared Feed and Messages person-card structure, including pronouns, cruush badges, side badges under the heart, post content, expiry, and owner Delete or viewer Report in the upper-right. Compact Spot posts do not show vibe tags."
-    ,"Spot details expose the opt-in Who's Here list as its own tab alongside the board."
-    ,"Safe and unambiguous remaining to-do items are implemented in small isolated batches. Items requiring a product decision, merge, migration execution, server control, new visual design, or publication remain explicitly blocked or pending."
+    "The Spots drawer shows its search, sort, distance, activity, place-type, and existing public Spot-tag filters directly without a Discover mode button.",
+    "Filters alter both drawer results and the default Spot map layer using existing server-backed fields only.",
+    "Selecting a Spot opens its board immediately. The board and Who's Here switcher appears directly below the compact Spot identity block, before description, ratings, Popular times, source, and other secondary details.",
+    "Board posts offer 1h, 3h, 6h, 12h, 24h, 7d, and Never. A separate Who's Here duration appears only when the member opts into Who's Here.",
+    "The primary board action says Post to board.",
+    "The non-embedded Spot detail header has a larger Android-mobile touch and title area.",
+    "Redundant helper lines beneath the Add Spot controls are removed while required privacy and safety meaning remains intact.",
+    "No Discover button remains in the Spots drawer."
   ],
   "mustPreserve": [
-    "Preserve the exact earned cruush+ card artwork, scratch and flip interactions, earned amount, benefit copy, confirmation timing, Done action, and existing Close action while changing only the popup stage to full viewport.",
-    "Preserve existing Recently Active open, close, horizontal scroll, drag-scroll, tile sizing, and mobile behavior.",
-    "Preserve all desktop panel positions, sizes, resize and drag behavior, stacking, top navigation, and bottom safe-area clearance.",
-    "Preserve the approved bottom navigation and Recently Active visuals; change only viewport centering and broken-image fallback behavior.",
-    "Preserve mobile navigation, the default desktop Pop-ups behavior, actual feature-page descriptions, server-provided member coordinates, clustering, and tap-only spiderfy.",
-    "Preserve all existing Feed posting, moderation, audience, expiry, distance, pin, and text-card behavior while adding photo attachments only for cruush+ posts. Feed attachments use the same moderation rules, safety labels, provider fallback, and outage handling as message photos, plus the same explicit classification and DL Mode masking used by existing photos."
+    "Preserve the approved cruush vector map style and every non-Spots map behavior.",
+    "Preserve current Crowd Mode behavior and add no Crowd Mode menu or demographic Spot filter.",
+    "Preserve Spot search, five sorts, publishing, suggestions, ratings, reports, Popular times, board encryption, physical-distance checks, Who's Here opt-in, deletion, and pagination.",
+    "Preserve all unrelated user work and the exact existing icon assets."
+  ],
+  "nonGoals": [
+    "No map-theme or marker redesign.",
+    "No Crowd Mode changes, inferred demographic data, fabricated Spot vibes, or fake feature availability.",
+    "No test creation or test execution.",
+    "No server restart, migration execution, push, deployment, changelog edit, or email work."
   ],
   "assumptions": [
     {
-      "statement": "A recent direct request supersedes a conflicting handoff detail. Every non-conflicting approved handoff detail still transfers.",
-      "impact": "Current direct instructions define authority while compatible approved 1.6 work remains in scope.",
+      "statement": "Top bar refers to the Spot detail header shown in the supplied Android screenshot.",
+      "impact": "Only the Spot detail mobile header receives a larger touch and title area.",
       "reversible": true,
-      "confirmationState": "confirmed"
+      "confirmationState": "labeled"
     },
     {
-      "statement": "RA means the Recently Active bar shown in the supplied desktop screenshots.",
-      "impact": "Recently Active centering and scrolling requirements target that existing map control.",
+      "statement": "Restored 1.6 Spot filters must be backed by current real fields: distance, activity, facility type, and stored public Spot tags.",
+      "impact": "The release gains working filters without inventing privacy-sensitive crowd, vibe, opening-hours, or feature data.",
       "reversible": true,
-      "confirmationState": "confirmed"
-    },
-    {
-      "statement": "At all times means panel-open state must not translate or reframe either floating control.",
-      "impact": "Desktop panel state cannot move Recently Active or the bottom navigation away from viewport center.",
-      "reversible": true,
-      "confirmationState": "confirmed"
-    },
-    {
-      "statement": "The 2026-08-31 reactivation follows docs/CRUUSH-RULES.md G2: profile photos may show the account holder, any part of their body without requiring a face, or their gear. Gear-only photos retain every independent prohibited-content rejection.",
-      "impact": "Gear-only profile photos remain allowed without weakening independent safety checks.",
-      "reversible": true,
-      "confirmationState": "confirmed"
-    },
-    {
-      "statement": "One active survey response means one open or in-progress response per authenticated account. A closed or dismissed response does not block a later survey cycle.",
-      "impact": "Existing duplicate active responses are preserved but marked dismissed, and future retries reuse the active response.",
-      "reversible": true,
-      "confirmationState": "confirmed"
-    },
-    {
-      "statement": "Survey responses require an authenticated account; age-suspension appeals remain available while signed out.",
-      "impact": "The survey link preserves /survey through sign-in so account identity can enforce uniqueness without IP tracking or device fingerprinting.",
-      "reversible": true,
-      "confirmationState": "confirmed"
+      "confirmationState": "labeled"
     }
   ],
-  "nextVisibleMilestone": "Hand the source-reconciled local 1.6 candidate to Julien for testing, with tests, builds, browser behavior, migrations, and deployment explicitly unverified.",
+  "nextVisibleMilestone": "Commit the focused Spots source correction and hand it to Julien as intentionally unverified source, per the active code-only instruction.",
   "stopConditions": [
-    "Julien authorized continued local 1.6 todo implementation and commits on release/1.6-features-20260828 on 2026-08-31. Stop before any push, deployment, environment change, new design, or unrequested mobile layout change.",
-    "Julien explicitly authorized starting the exact local 1.6 frontend on port 5173 and API on port 3016 on 2026-08-31. Do not restart, stop, kill, or replace either process without further explicit authorization."
+    "Stop before any push, deployment, migration execution, server control, production data change, or email send.",
+    "Stop if the requested filter requires fabricated, inferred, or privacy-sensitive data not present in the current Spot model."
   ],
   "costBudget": {
     "maxUsd": 0,
     "maxMinutes": null
   },
   "externalEffectDecisions": {
-    "localSideQuestMigrations": "Authorized continuation after the explicit approval question: migrations 106, 107, and 108 only on localhost:5432/cruush_release_16_preview. One transaction; rollback on failure; preserve all existing records and reward guards.",
-    "localSideQuestClaim": "Julien explicitly authorized the real local admin Side Quest claim on 2026-08-31, including the resulting one-day cruush+ promotional entitlement and local notification. No production or external account mutation is authorized.",
-    "commit": "Julien authorized the original local candidate commit and, on 2026-08-31, explicitly authorized the follow-up local commit containing the verified fullscreen reward-card, popup-clearance, regression-test, and todo-evidence slice.",
-    "push": "not authorized",
-    "deploy": "not authorized",
-    "environmentChanges": "Source and local seed edits may restore the development admin credential to admin-password. Julien explicitly authorized starting the exact local 1.6 frontend on port 5173 and API on port 3016 on 2026-08-31. Restarting, stopping, killing, or replacing either process remains unauthorized."
+    "commit": "Authorized by Julien's standing instruction to commit while finishing the 1.6 release. Limit the commit to this focused Spots correction and task contract.",
+    "push": "not authorized by the current request",
+    "deploy": "not authorized by the current request",
+    "environmentChanges": "forbidden",
+    "migrationExecution": "forbidden"
   },
   "externalEffects": {
     "externalMessages": "forbidden",
@@ -235,553 +71,27 @@
   "product": "cruush",
   "release": "1.6",
   "repository": "cruush-social/Cruushv2",
-  "branch": "release/1.6-features-20260828",
-  "job": "Prepare the complete cruush 1.6 candidate as a local preview by integrating Spots, map controls, the people heatmap, cruush+ Feed photo posting, viewer-authorized selected-person navigation, recent UI requests, and the exact approved MHC, Ghost, and 1.6 visual handoff slices without regressing destination bug fixes.",
+  "branch": "release/1.6-integration-20260901",
+  "job": "Implement the focused board-first Spots correction from Julien's Android screenshots.",
   "forbiddenPaths": [
     "HANDOFF.md",
     ".dev/**",
     "src/app/assets/ui-icons/ghost-horned-mask-source.png"
   ],
   "allowedPaths": [
-    "scripts/release-main-coolify.mjs",
-    "FIXLOG.md",
-    "docs/design-master.md",
-    "DESIGN_DECISIONS.md",
-    "docs/session-handoff-2026-08-31.md",
-    "docs/changelog.md",
-    "docs/previews/cruush-1.6-update-email.html",
-    "docs/media-read-hardening-handoff-2026-08-29.md",
-    "docs/session-handoff-2026-08-29.md",
-    "public/service-worker-recovery.js",
-    "public/sw.js",
-    "scripts/update-env-matrix.mjs",
-    "server/src/billing-test-checkout-guard.test.ts",
-    "src/app/components/PublicPolicyLinks.tsx",
-    "src/main.tsx",
-    "src/serviceWorkerUpdate.test.ts",
-    "server/src/migrate.test.ts",
-    "server/src/policy-mapper.test.ts",
-    "server/src/profile-sensitive.test.ts",
-    "server/src/rewards-routes.test.ts",
-    "src/app/components/EarnedCruushPlusCards.test.tsx",
-    "src/app/components/EarnedCruushPlusCards.tsx",
-    "src/app/components/AccessibilityQuickAccess.tsx",
-    "src/app/lib/cruushScratchInteraction.ts",
-    "src/app/lib/accessibilityPreferences.ts",
-    "src/app/lib/notificationsApi.test.ts",
-    "src/app/components/CruushPlusScratchCard.tsx",
-    "src/app/components/CruushPlusScratchCard.css",
-    "src/app/components/CruushPlusScratchCard.test.tsx",
-    "src/app/lib/earnedCruushPlusCard.ts",
-    "src/app/lib/earnedCruushPlusCard.test.ts",
-    "src/app/components/CruushPlusSuccess.tsx",
-    "src/app/lib/privacyApi.test.ts",
-    "server/src/location-privacy.test.ts",
-    "docs/env-matrix.md",
-    "server/src/message-photo-child-face-ban.test.ts",
-    "index.html",
-    "nginx.conf",
-    "public/about.html",
-    "public/help.html",
-    "public/blog/index.html",
-    "public/pages.css",
-    "public/robots.txt",
-    "public/llms.txt",
-    "public/sitemap.xml",
-    "server/.env.example",
-    "server/src/config.ts",
-    "server/src/crypto-keys.ts",
-    "server/src/content-encryption.ts",
-    "server/src/media-encryption.ts",
-    "server/src/encrypted-relationships.ts",
-    "server/src/media-read-budget.ts",
-    "server/src/media-read-validator.test.ts",
-    "server/src/key-rotation.test.ts",
-    "server/src/rekognition-live.test.ts",
-    "server/src/mailer.test.ts",
-    "server/src/support-mailer.test.ts",
-    "server/src/resend-audience.ts",
-    "server/src/resend-audience.test.ts",
     "AI_TASK.json",
-    ".env.example",
-    "README.md",
-    ".env.local",
-    "design-qa.md",
-    "docs/CRUUSH-RULES.md",
-    "docs/parallel-work-handoff-2026-08-22.md",
-    "docs/todo-2026-08-22.md",
-    "docs/todo-execution-plan-2026-08-29.md",
-    "docs/travel-mode-handoff-2026-08-22.md",
-    "docs/visual-pass-handoff-2026-08-22.md",
-    "package.json",
-    "vite.config.ts",
-    "server/package.json",
-    "server/src/app.ts",
-    "server/src/dev-seed-places.ts",
-    "server/src/errors.ts",
-    "server/.env.local",
-    "e2e/regression/session-interactions.spec.ts",
-    "server/sql/097_travel_pins.sql",
-    "server/sql/098_feed_plus_audience.sql",
-    "server/sql/096_notification_quiet_hours.sql",
-    "server/sql/099_profile_zodiac.sql",
-    "server/sql/100_pulse_notifications.sql",
-    "server/sql/101_map_presence_hours.sql",
-    "server/sql/102_profile_side_badges.sql",
-    "server/sql/103_places.sql",
-    "server/sql/104_spots_taxonomy.sql",
-    "server/sql/105_feed_post_photos.sql",
-    "server/sql/106_side_quests.sql",
-    "server/sql/107_side_quest_first_ping.sql",
-    "server/sql/108_side_quest_catalog.sql",
-    "server/sql/109_survey_response_uniqueness.sql",
-    "server/sql/110_feed_post_tags.sql",
-    "server/src/app.test.ts",
-    "server/src/profile-schema.test.ts",
-    "server/src/beta-access.test.ts",
-    "server/src/beta-access.ts",
-    "server/src/beta-city-requests.ts",
-    "server/src/routes/admin-moderation.ts",
-    "server/src/billing.ts",
-    "server/src/dev-seed-profiles.test.ts",
-    "server/src/dev-seed-profiles.ts",
-    "server/src/development-admin.ts",
-    "server/src/map-pings.ts",
-    "server/src/map-pings.test.ts",
-    "server/src/map-ping-revocation.test.ts",
-    "server/src/map-presence-routes.test.ts",
-    "server/src/map-presence.ts",
-    "server/src/location-privacy.ts",
-    "server/src/match-relationships.ts",
-    "server/src/migrate.ts",
-    "server/src/routes/support.ts",
-    "server/src/support-routes.test.ts",
-    "server/src/support-schema.ts",
-    "server/src/moderation-provider.ts",
-    "server/src/moderation-service.ts",
-    "server/src/moderation-quiet.test.ts",
-    "server/src/moderation-types.ts",
-    "server/src/notification-quiet-hours.test.ts",
-    "server/src/notification-service.ts",
-    "server/src/mailer.ts",
-    "server/src/notifications.test.ts",
-    "server/src/policy-mapper.ts",
-    "server/src/profile-photo-human-detection.test.ts",
-    "server/src/profile-photo-human-detection.ts",
-    "server/src/profile-schema.ts",
-    "server/src/profile-sensitive.ts",
-    "server/src/places.ts",
-    "server/src/place-suggestion-privacy.ts",
-    "server/src/service-area.ts",
-    "server/src/places.test.ts",
-    "server/src/input-schema.ts",
-    "server/src/report-schema.ts",
-    "server/src/profile-visibility.ts",
-    "server/src/profile-visibility.test.ts",
-    "server/src/pulse-notifications.test.ts",
-    "server/src/pulse-notifications.ts",
-    "server/src/push-service.ts",
-    "server/src/post-schema.ts",
-    "server/src/feed-photo-upload.ts",
-    "server/src/media-assets.ts",
-    "server/src/media-assets.test.ts",
-    "server/src/photo-upload-availability.ts",
-    "server/src/photo-upload-incident.ts",
-    "server/src/rewards-service.test.ts",
-    "server/src/rewards-service.ts",
-    "server/src/side-quests.ts",
-    "server/src/routes/privacy.ts",
-    "server/src/routes/auth.ts",
-    "server/src/routes/cruush.ts",
-    "server/src/routes/messages.ts",
-    "server/src/routes/media.ts",
-    "server/src/routes/notifications.ts",
-    "server/src/routes/places.ts",
-    "server/src/routes/reports.ts",
-    "server/src/routes/posts.ts",
-    "server/src/routes/profiles.ts",
-    "server/src/routes/rewards.ts",
-    "server/src/routes/users.ts",
-    "server/src/travel-mode-exclusion.test.ts",
-    "server/src/travel-pins.test.ts",
-    "server/src/travel-pins.ts",
-    "server/src/send-verification-apology.ts",
-    "src/app/App.test.tsx",
-    "src/app/App.tsx",
-    "ghost-animation-preview.html",
-    "src/ghost-animation-preview.tsx",
-    "src/app/components/RequestsDashboard.test.tsx",
-    "src/app/components/RequestsDashboard.tsx",
-    "src/app/components/Survey.test.tsx",
-    "src/app/components/Survey.tsx",
-    "src/app/lib/supportApi.ts",
-    "src/app/components/BadgeGlyphs.tsx",
-    "src/app/components/Auth.css",
-    "src/app/components/Auth.test.tsx",
-    "src/app/components/Auth.tsx",
-    "src/app/components/ResetPassword.tsx",
-    "src/app/components/ResetPassword.test.tsx",
-    "src/app/components/AlphaBugButton.tsx",
-    "src/app/components/AlphaBugButton.test.tsx",
-    "src/app/components/BadgeFrames.tsx",
-    "src/app/components/BadgePickerPreview.tsx",
-    "src/app/components/BadgePickerPreview.test.tsx",
-    "src/app/components/BdsmEmblems.tsx",
-    "src/app/components/CommunityGlyphs.tsx",
-    "src/app/components/CruushIconImage.tsx",
-    "src/app/components/HankyFrame.tsx",
-    "src/app/components/HankyPreview.tsx",
-    "src/app/components/KelpieMarkPreview.tsx",
-    "src/app/components/MileHighMarkPreview.tsx",
-    "src/app/components/NotificationSettings.tsx",
-    "src/app/components/NotificationCenter.tsx",
-    "src/app/components/LoadingCardSkeletons.tsx",
-    "src/app/components/PrivacyAudit.tsx",
-    "src/app/components/TwoFactorSettings.tsx",
-    "src/app/components/BlockedUsersPage.tsx",
-    "src/app/components/NotificationCenter.test.tsx",
-    "src/app/components/ForegroundNotifications.tsx",
-    "src/app/components/ForegroundNotifications.test.tsx",
-    "src/app/components/OwnershipGlyphs.tsx",
-    "src/app/components/PositionRoleGlyphs.tsx",
-    "src/app/components/ProfileBadgesTab.tsx",
-    "src/app/components/ProfileActionTrio.tsx",
-    "src/app/components/ProfileEdit.tsx",
-    "src/app/components/ProfileOnboarding.tsx",
-    "src/app/components/ProfileEdit.test.tsx",
-    "src/app/components/ProfilePhotoGallery.tsx",
-    "src/app/components/UserActivityCapsule.tsx",
-    "src/app/components/SideBadgePair.tsx",
-    "src/app/components/PulseLedIcon.tsx",
-    "src/app/components/ZodiacGlyphs.tsx",
-    "src/app/components/DesktopDockPanel.test.tsx",
-    "src/app/components/DesktopDockPanel.tsx",
-    "src/app/components/DirectMessages.test.tsx",
-    "src/app/components/DirectMessages.tsx",
-    "src/app/components/CruiseCarouselSlot.tsx",
-    "src/app/components/DlModeSettings.tsx",
-    "src/app/components/FeelingLucky.tsx",
-    "src/app/components/EventPassGuide.tsx",
-    "src/app/components/MultiSelect.tsx",
-    "src/app/components/PulseEffectPreview.tsx",
-    "src/app/components/Settings.test.tsx",
-    "src/app/assets/ui-icons/mile-high-club-badge-colored.svg",
-    "src/app/assets/ui-icons/mile-high-club-badge-dimensional.svg",
-    "src/app/assets/ui-icons/mile-high-club-badge-white.svg",
-    "src/app/assets/ui-icons/mile-high-club-colored.svg",
-    "src/app/assets/ui-icons/mile-high-club-white.svg",
-    "src/app/assets/ui-icons/globe-noun-project-7869983.png",
-    "src/app/assets/ui-icons/dl-mode-mask-noun-project-7310239.png",
-    "src/app/assets/ui-icons/dl-mode-wing-cutout-noun-project-229901.png",
-    "src/app/assets/ui-icons/dl-mode-halo-wings-filled-cutout-noun-project-229901.png",
-    "src/app/assets/ui-icons/dl-mode-thief-noun-project-2233639.png",
-    "src/app/assets/ui-icons/dl-mode-balaclava-halo-user-supplied.png",
-    "src/app/assets/ui-icons/ghost-colored.svg",
-    "src/app/assets/ui-icons/t4t-pride-linked-symbol.png",
-    "src/app/assets/ui-icons/pillow-princess-raster.png",
-    "src/app/assets/ui-icons/pillow-princess-raster.LICENSE.md",
-    "src/app/assets/ui-icons/service-6745554.png",
-    "src/app/assets/ui-icons/service-6745554.LICENSE.md",
-    "src/app/assets/ui-icons/stone-top-raster.png",
-    "src/app/assets/ui-icons/stone-top-raster.LICENSE.md",
-    "src/app/assets/ui-icons/crown-7828268.png",
-    "src/app/assets/ui-icons/crown-7828268.LICENSE.md",
-    "src/app/assets/ui-icons/diamond-stone-3207495.png",
-    "src/app/assets/ui-icons/diamond-stone-3207495.LICENSE.md",
-    "src/app/assets/ui-icons/gem-485475.png",
-    "src/app/assets/ui-icons/gem-485475.LICENSE.md",
-    "src/app/assets/ui-icons/pillow-1493016.png",
-    "src/app/assets/ui-icons/pillow-1493016.LICENSE.md",
-    "src/app/assets/ui-icons/pillow-6944355.png",
-    "src/app/assets/ui-icons/pillow-6944355.LICENSE.md",
-    "src/app/assets/ui-icons/places-ghost-source.png",
-    "src/app/assets/ui-icons/condom-7796808.png",
-    "src/app/assets/ui-icons/condom-7796808.LICENSE.md",
-    "src/app/assets/ui-icons/leather-3553564.png",
-    "src/app/assets/ui-icons/leather-3553564.LICENSE.md",
-    "src/app/assets/ui-icons/lips-5754351.png",
-    "src/app/assets/ui-icons/lips-5754351.LICENSE.md",
-    "src/app/assets/ui-icons/nipple-7851008.png",
-    "src/app/assets/ui-icons/nipple-7851008.LICENSE.md",
-    "src/app/assets/ui-icons/paisley-515105.png",
-    "src/app/assets/ui-icons/paisley-515105.LICENSE.md",
-    "src/app/assets/ui-icons/peach-960664.png",
-    "src/app/assets/ui-icons/peach-960664.LICENSE.md",
-    "src/app/assets/ui-icons/rim-5420384.png",
-    "src/app/assets/ui-icons/rim-5420384.LICENSE.md",
-    "src/app/assets/ui-icons/seeking-magnifying-glass-8149381.svg",
-    "src/app/assets/ui-icons/seeking-magnifying-glass-8149381.LICENSE.md",
-    "src/app/assets/ui-icons/sex-1075251.png",
-    "src/app/assets/ui-icons/sex-1075251.LICENSE.md",
-    "src/app/assets/ui-icons/visibility-hidden-234738.svg",
-    "src/app/assets/ui-icons/visibility-hidden-234738.LICENSE.md",
-    "src/app/assets/ui-icons/zany-face-3459803.png",
-    "src/app/assets/ui-icons/zany-face-3459803.LICENSE.md",
-    "src/app/components/Changelog.tsx",
-    "src/app/components/CruushActivity.tsx",
-    "src/app/components/CruushActivity.test.tsx",
-    "src/app/components/CruushPlusCardDialog.css",
-    "src/app/components/CruushPlusCardDialog.test.tsx",
-    "src/app/components/CruushPlusCardDialog.tsx",
-    "src/app/components/DarkRoomMark.tsx",
-    "src/app/components/DlModeMark.tsx",
-    "src/app/components/BetaLaunchCruushPlusOffer.css",
-    "src/app/components/BetaLaunchCruushPlusOffer.test.tsx",
-    "src/app/components/BetaLaunchCruushPlusOffer.tsx",
-    "src/app/components/LocalFeed.test.tsx",
-    "src/app/components/LocalFeed.tsx",
-    "src/app/components/FeedAttachmentPreview.tsx",
-    "src/app/components/FeedPhotoViewer.tsx",
-    "src/app/components/ReportAction.tsx",
-    "src/app/components/ReportPage.tsx",
-    "src/app/components/FeedPhotoPreview.tsx",
-    "src/app/components/MapPingSheet.test.tsx",
-    "src/app/components/MapPingSheet.tsx",
-    "src/app/components/MapControlsTutorial.tsx",
+    "src/app/components/MapHome.tsx",
     "src/app/components/PlacesDrawer.tsx",
     "src/app/components/PlaceDetail.tsx",
-    "src/app/components/PlaceDetail.test.tsx",
-    "src/app/components/SpotBoardDialog.tsx",
-    "src/app/components/MapFiltersSurface.tsx",
-    "src/app/components/MapFiltersSurface.test.tsx",
-    "src/app/components/MapHome.test.tsx",
-    "src/app/components/MapHome.tsx",
-    "src/app/components/ModeratorReview.tsx",
-    "src/app/components/BottomNav.tsx",
-    "src/app/components/HeartPhoto.tsx",
-    "src/app/components/MileHighContrail.tsx",
-    "src/app/components/BottomNav.test.tsx",
-    "src/app/components/ProfileCard.tsx",
-    "src/app/components/ProfileCard.test.tsx",
-    "src/app/components/MapProfilePopup.tsx",
-    "src/app/components/MapSidePanel.tsx",
-    "src/app/components/MapSidePanel.test.tsx",
-    "src/app/components/MapPresenceSettings.tsx",
-    "src/app/components/MapPresenceSettings.test.tsx",
-    "src/app/components/MapVisibilitySurface.tsx",
-    "src/app/components/MapVisibilitySurface.test.tsx",
-    "src/app/components/MapView.test.tsx",
-    "src/app/components/MapView.tsx",
-    "src/app/assets/ui-icons/beach-umbrella-1689481.png",
-    "src/app/assets/ui-icons/beach-umbrella-1689481.LICENSE.md",
-    "src/app/components/ProfileView.tsx",
-    "src/app/components/ProfileView.test.tsx",
-    "src/app/components/PrivateGroupChat.tsx",
-    "src/app/components/PrivateGroupChat.test.tsx",
-    "src/app/components/Rewards.test.tsx",
-    "src/app/components/Rewards.tsx",
-    "src/app/components/Settings.tsx",
-    "src/app/components/GhostModeSettings.test.tsx",
-    "src/app/components/GhostModeSettings.tsx",
-    "src/app/components/TravelModeSettings.test.ts",
-    "src/app/components/TravelModeSettings.tsx",
-    "src/app/components/ui/sheet.tsx",
-    "src/app/lib/cruushPlusFeatures.test.ts",
-    "src/app/lib/cruushPlusFeatures.ts",
-    "src/app/lib/cruushApi.ts",
-    "src/app/lib/messagesApi.ts",
-    "src/app/lib/messagesApi.test.ts",
-    "src/app/lib/messagePhotoProcessing.test.ts",
-    "src/app/lib/mapPingsApi.ts",
-    "src/app/lib/openConversation.ts",
-    "src/app/lib/openConversation.test.ts",
-    "src/app/lib/darkRoomPalette.ts",
-    "src/app/lib/desktopPageLayoutPreferences.ts",
-    "src/app/lib/distancePreferences.test.ts",
-    "src/app/lib/distancePreferences.ts",
-    "src/app/lib/apiClient.ts",
-    "src/app/lib/badgeIntent.ts",
-    "src/app/lib/mapServiceArea.test.ts",
-    "src/app/lib/mapServiceArea.ts",
-    "src/app/lib/mapMarkers.ts",
-    "src/app/lib/moderationApi.ts",
-    "src/app/lib/places.ts",
     "src/app/lib/placesApi.ts",
-    "src/app/lib/reportApi.ts",
-    "src/app/lib/privacyApi.ts",
-    "src/app/lib/notificationsApi.ts",
-    "src/app/lib/postApi.ts",
-    "src/app/lib/profileApi.ts",
-    "src/app/lib/profileOptions.ts",
-    "src/app/lib/profileOptions.test.ts",
-    "src/app/lib/publicLegalContent.tsx",
-    "src/app/lib/rewardsApi.ts"
-    ,"src/app/lib/usersApi.ts"
-    ,"server/src/post-schema.test.ts"
-    ,"server/src/profile-photo-stream-automod-routes.test.ts"
-    ,"src/app/components/Changelog.test.tsx"
-    ,"src/app/components/DebugCruushPlusToggle.test.tsx"
-    ,"src/app/components/DesktopDockPanel.test.tsx"
-    ,"src/app/components/FeelingLucky.test.tsx"
-    ,"src/app/components/MapControlsTutorial.test.tsx"
-    ,"src/app/components/ProfileOnboarding.test.tsx"
-    ,"src/app/components/VisualValidation.test.tsx"
-    ,"src/app/lib/overlaySlots.smoke.test.ts"
-    ,"src/app/lib/overlaySlots.ts"
-    ,"src/styles/theme.css"
+    "server/src/migrate.ts",
+    "server/src/places.ts",
+    "server/src/routes/places.ts",
+    "server/sql/111_place_board_post_expiry.sql"
   ],
-  "preserved": [
-    "Preserve every bug fix on origin/main through 3c9908e, including the exact 8px mobile Seeking clearance, duplicate-message lock, Ghost animation timing repair, open Seeking sheet clearance, Pulse radius privacy, truthful signup delivery reporting, and deferred push delivery.",
-    "Preserve Feed posting for every signed-in member from ba3dff0 and its trust, suspension, feature-restriction, and text-moderation safeguards.",
-    "Free Feed posts may target Public or Mutuals and default to Never expire. Feed+ adds one specific Crowd target and custom post timers.",
-    "Preserve supplied visual assets and current map, Ghost, Pulse, navigation, profile, messaging, billing, and moderation behavior outside the named features.",
-    "Use the recovered approved Dark Room geometry: the keyhole with an eye inside a pointed gothic-lancet chapel housing. Keep its flat-white and cruush-gradient finishes.",
-    "Keep Pulse semantics, radii, allowance, countdown, marker preview, and signal behavior unchanged while fitting its sheet within the visible mobile viewport.",
-    "Mile High Club is the only feature represented by legacy internal travel identifiers. Mile High Club remains a cruush+ feature, expires after 24 hours, enforces the 3 hour move cooldown, keeps Dark Room unavailable while active, and never exposes a device location in place of the selected Mile High Club pin.",
-    "An active Mile High Club pin overrides the signed-in member's device/profile location for the main map camera, current-user marker, discovery origin, traveller treatment, and travel label.",
-    "The cruush+ card keeps the approved moire treatment, lowercase cruush+ wordmark, a clear dismissal control, and reduced-motion behavior."
-    ,"Desktop top navigation owns its full top band. Profile, Feed, Cruushes, Messages, Settings, and every other page panel start below it at all desktop widths."
-    ,"Panel title, New message, Settings, Report Bug, and Close controls stay on one header row. No separate close-control spacer row."
-    ,"Feed cards place Report and Block directly under the poster's side-badge icons while keeping cruush, pin, and message actions right-aligned as one group."
-    ,"Compact Feed, Cruushes, message inbox/thread, Spot board, New Message, and New group cards show side badges without vibe tags. Vibe tags remain only on profile views and profile editing surfaces."
-    ,"New group hides its scrollbar while retaining scrolling, searches messageable mutuals by name, pronouns, vibe, or shared Crowd, selects and deselects a person by pressing the complete row without a separate checkbox, sorts by Recently online by default, and also offers Distance sorting."
-    ,"Feed, Cruushes, and Messages popups preserve touch, wheel, and keyboard scrolling without showing scrollbar chrome."
-    ,"The loaded Cruise Carousel profile result ends immediately above the bottom navigation with only the navigation clearance between the profile card and navigation pill."
-    ,"Fullscreen Cruise Carousel suppresses the bottom-navigation page fade so the profile result meets the top edge of the navigation pill. Other routes keep their existing navigation fade."
-    ,"When Ghost Mode and Mile High Club are both active, every Ghost decoy is derived from the active Mile High Club pin and never from the saved device location."
-    ,"Profile hover cards and Pulse sheets never paint above profile or page panels, and no panel or transient popup paints above the fixed top navigation."
-    ,"Mile High Club keeps the existing 103px by 80px heart-pin unit. Only its plane finish, contrail colors, side-badge borders, signal border, and shared profile glyph receive the approved traveller treatment; relationship colours and all other geometry stay unchanged."
-    ,"Mile High Club uses the approved shaded white 3D plane with a light-blue gradient contrail ending in white poofs. Its signal and side-badge borders are #77B9DA sky blue when Mile High Club is active, except that Pulse lime takes priority while pulsing."
-    ,"Dark Room hides the member's heart unit from the map only. Profile and cruush surfaces keep setting-controlled distance access: permitted precise viewers see a numeric distance, other permitted viewers see the existing approximate reading, and disabled distance visibility shows no distance. Ghost distances use the decoy pin."
-    ,"The active Dark Room top-navigation icon keeps the full chapel housing and matches the adjacent navigation glyphs' visible footprint. The current user's map heart shows the exact solid-black keyhole and exact eye geometry. Its eye uses the same three-stop Dark Room gradient as the top-navigation icon; heart shape, size, and border remain unchanged."
-    ,"The Pulse surface remains a fitted bottom sheet on mobile. On desktop it opens at a stable fixed position below the top navigation, can be moved from its header, can be resized from its lower-right grip, and stays clear of the bottom navigation."
-    ,"The map Pulse control uses the exact Pulse treatment running from /Volumes/good/Cruushv2-visual on localhost:5195: the existing PulseLedIcon at full button size, ping green in idle and active states, solid map-control background, and the active Pulse halo."
-    ,"Recently Active and the bottom navigation stay centered on the desktop viewport regardless of profile or page panels. Mobile positioning remains unchanged. Failed Recently Active photos use the existing profile-gradient fallback instead of a broken image."
-    ,"The precise-location audience appears as one question. Public remains unavailable while Ghost Mode is active unless the member confirms that Ghost Mode should be turned off."
-    ,"Mile High Club Reduced Motion and the Ghost plus Mile High Club owner decoy use the exact existing animation paused at frame 420 of 1000, placing the plane at the upper-left of the heart. The normal traveller pin keeps the approved moving animation."
-  ],
-  "nonGoals": [
-    "Do not build Kelpie. Julien corrected that inherited item to Dark Room Mode on 2026-09-01.",
-    "Do not treat secondary email as an active 1.6 requirement; it has no verified direct user request.",
-    "Do not rotate provider credentials, change storage buckets, replace internal authentication secrets, or activate production geocoding without separate explicit authorization.",
-    "Do not overwrite or edit the feat/visual-pass worktree. Recover its completed 1.6 changes into this isolated release branch and resolve every conflict in favor of production bugfix behavior.",
-    "Do not include crypto checkout, vouchers, analytics, moderation-dashboard work, or work unrelated to the recovered 1.6 branches.",
-    "Do not change pricing, payment providers, production environment variables, secrets, or deployment configuration.",
-    "Do not redesign requested surfaces or change public copy beyond the recovered approved cruush+ and Mile High Club copy.",
-    "Do not merge, cherry-pick, push, deploy, execute migrations, clean worktrees, or modify the places-board worktree. One local candidate commit is authorized by Julien on 2026-08-31.",
-    "Do not transfer MapHome, MapView, MapSidePanel, travel, location, crypto, moderation-dashboard, or analytics logic from Cruushv2-visual.",
-    "Do not run tests, builds, browser checks, API smoke checks, migrations, or release gates. Julien explicitly requested source-only work and will test the candidate."
-    ,"Do not start, restart, stop, kill, or replace a frontend or API development server unless Julien explicitly requests that exact process action. Inspect and reuse existing processes only; report an absent or broken server as a blocker."
-  ],
+  "proofTarget": "Source-only diff. Tests, build, migration execution, and rendered verification are intentionally not run under Julien's active code-only instruction.",
+  "publicationTarget": "local commit only",
   "requiredEvidence": [
-    "Prove Feed posting remains open to every eligible signed-in member without a cruush+ gate.",
-    "Prove only cruush+ members can publish up to three Feed photos, while basic members remain text-only.",
-    "Prove Feed photo media ownership, moderation approval, attachment count, deletion, and report boundaries in source and focused API smoke checks.",
-    "Leave tests, builds, browser checks, API smoke checks, migrations, and release gates unverified for Julien's handoff because the current instruction explicitly forbids running them.",
-    "Record every supplied 1.6 handoff as integrated, superseded, blocked by a missing exact target, preserved as concurrent work, or outside the current release."
-  ],
-  "proofResults": [
-    "2026-09-01 password-reset return gate: Back to sign in now uses React Router's reloadDocument path so the reset-token shell cannot remain mounted after client-side navigation. The focused ResetPassword file passes 3/3, including a regression that rejects history.pushState routing for this control. In an isolated signed-out 390x844 browser state, the reset-token page rendered, the real Back to sign in click navigated to http://localhost:5173/, the reset panel disappeared, and the Sign In form rendered. The prior authenticated browser cookies were restored afterward. The production client build passed with 2078 transformed modules. No password reset, email, provider, account-data, production, push, or deployment mutation occurred.",
-    "2026-09-01 final continuation gate: The complete client suite passed 96 files and 653 tests after the profile-viewer fix. The production client build passed with 2078 transformed modules. Public-copy casing scanned 380 files clean, security checks passed, AI_TASK parsed as JSON, and git diff --check passed. Expected AppErrorBoundary test stderr included Map shell failed while that test passed. Server source did not change after the earlier complete 100-file, 951-test suite and TypeScript build. No provider, process, production, push, or deployment mutation occurred.",
-    "2026-09-01 profile-viewer continuation gate: The authenticated other-member profile and its three-photo gallery rendered at 1440x900 and 390x844 without horizontal overflow. The full photo viewer exactly filled each viewport. Report and Close now clear the fixed Bug Fix button; the mobile action bounds ended at x=326 before the Bug button began at x=342, hit-testing identified Close photo, and a real Close click dismissed the viewer. The ProfileView file passes 20/20 focused tests. Profile and photo Report dialogs were opened and canceled without submission. Empty-photo and complete Mile High Club, Dark Room, Ghost, and Pulse profile matrices remain unverified. No account, report, provider, process, production, push, or deployment mutation occurred.",
-    "2026-09-01 Pulse and badge-label continuation gate: Focused Pulse proof anchors the EKG at the heart's x=8 and x=56 inner edges on y=32, keeps both paths unfilled, clips them to the exact heart clip, and preserves the active Pulse above an adjacent people cluster. A live authenticated Pulse remains unverified. The legacy saved frottage badge ID now displays Frotting, preventing the removed label from returning through compatibility data. Active vibe and kink catalogs exclude the removed labels and include current replacements. The authenticated Badge picker rendered Frotting without Frottage at 1440x900 and 390x844 with no horizontal overflow; all 18 Hanky choices exposed meaning-only labels and no color-name button. Four focused files pass 85/85. No account, provider, process, production, push, or deployment mutation occurred.",
-    "2026-09-01 badge-parity continuation gate: The embedded Badge editor and live map now consume one shared side-badge geometry helper: 29.75px square, 70 percent vertical placement, and 5.25px edge offsets. The authenticated editor and signed-in plus Ghost-decoy map pins rendered at 1440x900 and 390x844 with solid black interiors, opaque borders, centered glyphs, visible heart clearance, and no horizontal overflow. The desktop editor hover rendered the meaning-only spiritual label. Focused MapView coverage passes 54/54. The complete other-member, Mile High Club, Pulse, Dark Room, and every-people-card state matrix remains unverified. No account, provider, process, production, push, or deployment mutation occurred.",
-    "2026-09-01 map and Mile High Club continuation gate: The authenticated approved vector map rendered at 1440x900 with CARTO and raster fallbacks absent. Heatmap off/on pairs rendered at identical zoom 10, 12, 14, and 16 states, returned to off after each pair, showed coarse cohort glows at populated zooms, and remained empty in sparse views. Focused MapView coverage now proves the seven-day minimum-three cohort, coarse coordinates, and self, developer-demo, stale, and sparse exclusions; the file passes 54/54. The signed-in Ghost decoy hover rendered a live final-minute countdown and changing pulse transform. Mile High Club now enforces a strict server-side distance greater than 50 miles against the encrypted actual-location envelope. Inside, exact-boundary, outside, non-finite, and route-wiring checks pass 11/11; the watched local API rejected a near-location request with 403 and left the pin off. No coordinate was returned or logged. No provider, process, production, push, or deployment action occurred.",
-    "2026-09-01 Feed-photo continuation gate: The exact shared cropper rendered at 390x844 without overflow. Pointer pan changed its offset, Zoom reached 2.1, continuous Rotation reached 69 degrees with a matching angle readout, both 90-degree buttons worked, and accepting the crop produced the local heart preview. After Julien's direct correction, the production three-photo preview now lays all three hearts in one landscape row. Exact production attachment and viewer components rendered at 390x844 and 1440x900 without horizontal overflow; Report and Close remained upper-right, next and previous navigation worked, Escape closed the viewer, and focus returned to the selected heart. Focused ProfileEdit, LocalFeed, and CruushActivity checks pass 51/51. No upload, post, report, provider, account, process, production, push, or deployment mutation occurred.",
-    "2026-08-31 shared-card continuation gate: Authenticated Cruushes at 390x844 rendered 20 Incoming, 8 Sent, 8 Mutual, and 0 Views with cards contained between x=16 and x=374 and no horizontal overflow. Live one-way Incoming hearts used #FF0072 pink while mutual rows used #6f00ff purple. The Cruushes component test now asserts pink one-way Incoming, pink one-way Sent, and purple Mutual hearts; all 7 focused tests pass. Existing focused Feed coverage preserves free text posting with no photo IDs plus audience, expiry, deletion, report, block, and distance behavior. No cruush, post, message, delete, or production mutation occurred.",
-    "2026-08-31 authenticated continuation gate: At 412x915, Cruushes Incoming, Sent, Mutual, and empty Views; Profile top and bottom; populated Carousel; Spots discovery, selection, full board, and empty board; Ghost settings top and bottom; Mile High Club entry; and the traveller map rendered without horizontal overflow. One reversible local Mile High Club cycle used Philadelphia GPS coordinates, rendered the traveller heart, plane and contrail, Ghost-derived decoy and tether, and local Spots, then cleared the travel pin and restored Mile High Club to off. A visible 2h 60m countdown defect was corrected to carry the sixtieth minute into the next hour; 2 focused formatter assertions pass and the exact live route rendered 3h before the second proof pin was cleared. At 1440x900, Feed moved, both resize grips changed geometry, close/reopen preserved exact geometry, and overlapping Feed plus Profile panels raised on click. Original popup geometries were restored. The post-change client suite passes 95 files and 648 tests, and the production client build passes with 2078 transformed modules. No production, deployment, provider, migration, process, push, or destructive action occurred.",
-    "2026-08-31 server type gate: TypeScript no-emit passes after two test-only fixture corrections. The owner-bound reward route mock now satisfies the generic database query interface, and the Mile High Club location fixture uses the current LocationPayload fields while preserving its unrelated extra property. The two focused files pass 14 tests. No runtime behavior, database, provider, environment, server process, account data, publication, or production state changed.",
-    "2026-08-31 Feed-media backend gate: Five focused checks pass with 303 unrelated cases skipped. Basic members cannot attach Feed photos; cruush+ posts accept only approved, owner-bound, currently unattached Feed media; insertion preserves request order; attached public media serves only after authenticated block checks; and a viewer outside the post Crowd receives 404. No photo upload, moderation provider, account write, server process action, environment change, commit, push, deployment, or production action occurred. Crop, explicit DL Mode masking, viewer controls, and the real upload chain remain unverified.",
-    "2026-08-31 Vitest isolation gate: The live Rekognition test no longer copies server/.env into the worker process environment, and mailer plus support-mailer tests restore global fetch after each case. A forced single-worker run across those three files plus key-rotation and media-read-validator passed 27 tests with three live AWS checks skipped because no credentials were present. No provider request, key change, environment change, server process action, account write, commit, push, deployment, or production action occurred. The complete server suite remains unrun, so broader order dependence is not claimed resolved.",
-    "2026-08-31 Mile High Club backend gate: Focused travel-pin, Dark Room exclusion, Pulse compatibility, and profile-visibility checks pass 14/14. Added coverage proves the three-hour move boundary, 24-hour expiry mapping, label cap, always-allowed clear, service-area rejection before database access, and travel-pin discovery coordinates. The replay-safe migration check passes 1/1 with 24 unrelated migration cases skipped. The 50-mile outsideBrowseRadius API contract passes 1/1 with 299 unrelated cases skipped. Complete rendered route interaction remains unverified.",
-    "2026-08-31 resumed fixture gate: Child-face enforcement and sensitive-profile encryption pass 13/13 after adding only current default fields to stale fixtures. The three affected API response contracts pass 3/3 with 296 unrelated cases skipped after adding the current side_badges response shape. This verifies the restored DetectTextCommand mock and current birth_control, relationship_status, visibility, cruush activity, and side-badge response fixtures without weakening behavior assertions.",
-    "2026-08-31 resumed backend gate: The six named checks from docs/session-handoff-2026-08-31.md pass 6/6 with 328 unrelated cases skipped. Current docs/CRUUSH-RULES.md G2 resolves gear-only profile photos as allowed; the profile upload expectation and design policy now match that rule. The complete policy-mapper file passes 34/34, including independent rejection coverage for animals and other prohibited labels. No server process, provider, migration, account data, commit, push, deployment, or production state changed.",
-    "2026-08-30: Current frontend production build passed with 2070 modules transformed.",
-    "2026-08-30: Current server TypeScript build passed after the missing Privacy and Side Quest error codes were added to the shared ErrorCode union.",
-    "2026-08-30: Configured local API health returned 200 on 127.0.0.1:3016 and the existing authenticated local Sign In flow succeeded without starting or restarting a server.",
-    "2026-08-30: Populated Feed, Cruushes, and Messages desktop popups rendered without compact vibe tags. Feed Report and Block rendered directly under side badges, while owner expiry and Delete remained upper-right.",
-    "2026-08-30: New group rendered without scrollbar chrome. Search filtered to one mutual, the complete row selected without a checkbox, Recently online was the default, and Distance switched successfully.",
-    "2026-08-30: New Message and New group rendered with profile hearts and side badges but no non-profile vibe capsules. The New group popup retained row selection, mutual search, Recently online and Distance sorting, and hidden scrollbar chrome.",
-    "2026-08-30: Opening a mutual thread from embedded Cruushes now replaces Cruushes inside the same map popup. Back to Cruushes restores the populated Cruushes list and Close remains in the thread header.",
-    "2026-08-30: Feed Settings replaced Feed inside the same map popup, and Back restored the populated Feed popup.",
-    "2026-08-30: Feed now receives server-authoritative direct-message eligibility per author. The rendered jay card kept the cruush, Pin, and message-arrow trio, disabled the arrow with the accessible label jay is not accepting messages from you, and no longer opened an unrelated Messages list after a rejected DM request.",
-    "2026-08-30: The signed-in profile popup rendered Signal and Vibes only over the profile image, with no duplicate Signal or Vibes section below About. Edit profile replaced that popup in place, and Back restored the profile preview.",
-    "2026-08-30: Mile High Club opened from embedded Settings inside the same map side panel instead of navigating full screen. Its Back control restored Settings and its Close control remained available.",
-    "2026-08-30: Desktop Spot board rendered one combined required-message check-in form with 1h, 3h, 6h, 12h, and 24h choices, canonical optional Who's Here checkbox, no photo control, hidden scrollbar, disabled empty state, and enabled populated state.",
-    "2026-08-30: Focused local Spot API smoke passed: authenticated login 200, combined check-in plus board post 201, board read 200 with the created post visible, board cleanup 204, and check-in cleanup 204. This proves the local write path with test coordinates, not real-device location permission or physical proximity.",
-    "2026-08-30: Selecting Ginger's Bar centered the map and rendered its marker and populated board. Two consecutive one-click zoom-ins kept the Ginger's Bar marker and board present, directly verifying the prior Spot disappearance fix against the configured local API.",
-    "2026-08-30: cruush+ Time Capsule rendered directly below the benefits accordion. Four Side Quests rendered after Invite people you trust, and incomplete quests displayed Incomplete.",
-    "2026-08-30: Side Quest completion now reads encrypted profile-view, cruush, and mutual-cruush relationship records, including removed cruush history. After refresh, View a profile, Send your first cruush, and Send your first message rendered as completed but Unavailable because the claim table migration is still intentionally blocked.",
-    "2026-08-30: Fullscreen Cruise Carousel result rendered directly above bottom navigation without the route-specific bottom fade.",
-    "2026-08-30: Active Ghost plus Mile High Club rendered the signed-in decoy around the Mile High Club pin rather than the saved device location."
-    ,"2026-08-30: The rejected 6:53 AM Mile High Club render-order change was reversed from its exact session patch. The restored pre-regression implementation paints the complete 18-band traveller animation after the heart artwork and restores the traveller heart-border opacity behavior. Authenticated map frames showed the full plane instead of the reported white fragments. The attempted focused Vitest run produced no captured result."
-    ,"2026-08-30: The authenticated map rendered a sharp dark-blue Mile High Club fog boundary 50 miles from the active travel pin. Panning the camera beyond that origin showed Mile High Club range and no out-of-range markers. Center your location returned the camera to the active travel pin and cleared the out-of-range state. Focused browse-mask geometry, MapView fog, inactive/active limit control, and embedded Mile High Club panel tests passed. The final frontend build passed with 2070 modules."
-    ,"2026-08-30: Spots rendered 50 populated results with its single approved tagline. Map Controls, Spots, and Ginger's Bar opened with one click each. Ginger's Bar rendered Board and Who's Here, a required message, 1h/3h/6h/12h/24h, the optional Who's Here checkmark, populated board posts, no photo control, and hidden-scrollbar scrolling."
-    ,"2026-08-30: Populated Feed, Messages, and Cruushes rendered through the shared compact card without vibe capsules. Side badges appeared below hearts where configured. Feed kept report/block or owner Trash, expiry, and post content; Messages kept previews; Cruushes kept centered counts and tabs. Person actions remained cruush, Pin, and arrow Message."
-    ,"2026-08-30: Feed Seeking rendered beside Feed Settings inside the same popup. Searching coffee retained only the matching post. The composer rendered text posting plus cruush+ Photo 0/3 without posting or uploading data."
-    ,"2026-08-30: The own profile popup rendered Signal and Vibes only over the photo, not below About. Photos rendered the exact four supplied bullets. The embedded Circle-only Badge editor rendered BDSM chevrons, circle rings, arrow marks, Give/Receive/Switch/Service/Stone, one Save, and no frame picker."
-    ,"2026-08-30: The populated fullscreen Cruise Carousel rendered flush above bottom navigation without the removed fade and kept cruush, Pin, Message on one row. Popup Settings replaced Cruushes in the same surface. User popup surfaces retain scrolling while the newly reconciled Spots, Seeking, Visibility, Crowds, Pulse, Carousel, and Badge/Hanky scrollbars remain hidden."
-    ,"2026-08-30: The exact supplied Ghost asset and app asset have identical SHA-256 76d94a6834a7c8bc6bb1efae747be2ee45a6f57e41d7e246f229ce67a4c2bf1. The owner decoy rendered both side badges and a live rotation timer. Settings rendered immediately before far-right Notifications, and the top-control source suppresses hover, focus, and focus-visible background fills."
-    ,"2026-08-30: Final frontend build passed with 2070 modules after the hidden-scrollbar reconciliation. AI_TASK JSON parsing and scoped git diff --check passed."
-    ,"2026-08-30: Mile High Club address lookup resolved Times Square in the authenticated embedded picker. The in-panel map rendered at full height, the selected location used the outlined heart marker, and Move my pin here became available without changing the saved travel pin."
-    ,"2026-08-30: The exact release-script portion of SEO handoff commit 7e0a5d8 was restored manually. Future release execution now preserves BETA_ACCESS_GEOFENCE_ENABLED=false and BETA_ACCESS_RADIUS_MILES=100 instead of silently restoring the old enabled 15-mile signup geofence. node --check and scoped git diff --check passed. No release or environment update ran."
-    ,"2026-08-30: Embedded New Message, Choose someone to message, and New group headers no longer reserve the full-screen global Bug Fix gap. Back and Close rendered at the popup edge. Full-screen variants retain their existing global Bug Fix clearance."
-    ,"2026-08-30: The long direct-message chooser keeps hidden scrollbar chrome and now reserves 112px plus the device safe area below its list. The authenticated populated chooser remained interactive and its live scroll container reported the expected 112px bottom clearance."
-    ,"2026-08-30: Superseded by direct instruction. The Hydra 8441396 Crowd mark was previously rendered, then removed from the 1.6 top navigation."
-    ,"2026-08-30: Notifications empty state rendered Mark all as read, Delete all notifications, and Settings. Source audit confirmed both deletion routes bind the authenticated member ID, bulk delete requires client confirmation, and successful mutations update the list plus global unread summary. No notification data was deleted during verification."
-    ,"2026-08-30: Feed Seeking now renders the complete map Seeking criteria with no new tagline and keeps its Search field specific to Feed post content. In the authenticated populated popup, coffee retained only jay's matching post and the Trans author filter retained jay while removing the signed-in member's posts. Filters were restored after proof."
-    ,"2026-08-30: Discovery search now trusts the server's complete name, bio, profile-field, and encrypted-kink result instead of dropping bio-only or kink-only matches through a narrower client re-filter. Mutual-map Seeking sends and applies the same search query server-side. Both search controls rendered and accepted input; the active travel-pin map had no populated matching cards for result proof."
-    ,"2026-08-30: Server TypeScript build, client production build, AI_TASK JSON parsing, and scoped git diff --check passed after the Feed and profile-search patches."
-    ,"2026-08-30: Full-screen Feed rendered Seeking and Feed Settings immediately beside the global Bug Fix control. The large Hanky code dialog rendered all 18 meaning-only entries in three columns with no added tagline. The embedded Circle-only Badge editor applied a receive/s&m proof draft with no Remove action, then restored the original pillow princess and dominant, taken badges; Save rendered disabled after restoration. The native pending-change prompt remains visually unverified because the browser harness automatically accepted it."
-    ,"2026-08-30: Profile catalog review rendered the corrected Body & Touch kinks (Tribbing, Frotting, Fingering, Hand jobs), corrected Vibes additions (Blue-collar, Discreet, Collegiate, Trade, Bull), and the Pride set (Gay, Lesbian, Straight, T4T, Trans, Intersex, Nonbinary) without the removed legacy labels. No profile catalog selection changed."
-    ,"2026-08-30: Mile High Club Reduced Motion now freezes the exact existing animation at frame 420 of 1000. The authenticated Ghost plus Mile High Club decoy stayed fixed at translate(21.94,8.00), placing the plane at the heart's upper-left, while the true Mile High Club plane changed position across the same 650ms sample. The rendered map was visually inspected after the change."
-    ,"2026-08-31: Four focused Spot route checks prove new board text stores only encrypted payload fields with an encrypted placeholder, authenticated reads decrypt it, bidirectional block guards exclude board and Who's Here rows, deletion binds message, Spot, and authenticated owner, and board plus Who's Here mutual state derives from encrypted relationship records. The audit found and removed two remaining legacy cruush_matches reads. No account write, provider call, broad suite, server process change, migration, production change, commit, push, or deployment ran."
-    ,"2026-08-31: Twenty focused Feed privacy and safety checks passed: five post/media route checks, three Feed DL Mode checks, six shared child-face checks, four shared image-policy checks, and two media-encryption checks. Post text and sanitized Feed photo bytes encrypt at rest; out-of-audience viewers receive no Feed photo bytes; the upload source reuses private-message image rules that allow multiple adult subjects and allowed non-human imagery while retaining prohibited-content and child-face enforcement; explicit attachments mask in DL Mode. No real upload, successful media-byte delivery, provider call, account write, broad suite, server process change, production change, commit, push, or deployment ran."
-    ,"2026-08-31: Three focused migration checks prove the runner lists every numbered SQL file, orders the 1.6 slice through migration 108, and retains source-level replay guards across 098 through 108. Migration 105 now scopes the media_objects_surface_check lookup to the media_objects table, preventing a same-named constraint elsewhere from causing a false-positive drop. No migration, schema-state change, account write, server process change, production change, commit, push, or deployment ran."
-    ,"2026-08-31: Two focused Spot map checks prove 500-item pagination loads every published page without duplicate IDs and settled viewport filtering handles normal and antimeridian bounds. Source audit confirms the drawer uses independent 50-item state, never writes map markers, and server validation accepts the map's 500-item page size. People and Spot refreshes remain separate viewport-driven effects. Rendered pan and zoom interaction remains unverified. No account write, provider call, broad suite, server process change, production change, commit, push, or deployment ran."
-    ,"2026-08-31: Five focused Spot taxonomy checks prove exactly 20 current facility choices, server rejection of legacy venue writes, migration of stored venue and dyke_bar values, two-label summaries, hidden legacy Dyke spot labels, and Ginger's Bar classified as Bars. Two focused spiderfy checks prove exact-coordinate people and Spot groups fan out independently without changing coordinates or zoom. Desktop and mobile Spot selection branching is source-confirmed but not rendered. No account write, provider call, broad suite, server process change, production change, commit, push, or deployment ran."
-    ,"2026-08-31: Six focused published-Spot list cases prove the exact 100-mile request cap, independent 100-mile NYC service-area SQL boundary, pagination inputs, and all five sort contracts. Every sort now ends with id ASC so tied rankings cannot reorder rows across offset pages. No real list request, account write, provider call, broad suite, server process change, production change, commit, push, or deployment ran."
-    ,"2026-08-31: Five focused Add Spot checks prove encrypted suggestion round-trips without plaintext storage, stable place-and-member-scoped supporter HMACs, one-support-per-member conflict handling, automatic shortlisting at three supporters, and moderator-only publication. Source confirms the sole Add Spot form can copy the current cruush map pin. No real suggestion, moderator action, account write, database mutation, provider call, broad suite, server process change, production change, commit, push, or deployment ran."
-    ,"2026-08-31: Nine focused rating and detail checks prove all six rating categories accept only 1 through 5 stars, Clear my ratings deletes only the authenticated member's ratings for the selected Spot, and Popular Times uses only 90-day weekday/hour aggregates with at least three check-ins. No real rating, check-in, board post, account record, provider call, broad suite, server process change, production change, commit, push, or deployment ran."
-    ,"2026-08-31: Ten focused board/check-in checks prove only 1h, 3h, 6h, 12h, and 24h are accepted, visibility defaults off, the selected duration controls both check-in and encrypted board-post expiry, Who's Here requires visible plus unexpired state, and expired board rows are excluded. Migration source retains cleanup indexes. No real check-in, board post, account record, provider call, broad suite, server process change, production change, commit, push, or deployment ran."
-    ,"2026-08-31 final local candidate gates: the complete client suite passed 93 files and 644 tests. The complete server suite passed 100 files and 951 tests, with 3 live-provider files and 14 tests intentionally skipped. Client and server production builds, security, public-copy casing, Coolify release-script, AI_TASK JSON parsing, and git diff --check passed. The layout invariant gate initially remained blocked because the local frontend was absent. No provider request, push, deployment, or production change ran."
-    ,"2026-08-31 authenticated reward proof: Julien authorized one exact local Side Quest claim. Send your first message created one banked cruush+ day and one notification, moved into Recent rewards, exposed the next quest with Tomorrow state, and opened the exact earned scratch card. The real card was scratched, revealed, flipped to the canonical benefits, and dismissed with Done. Reload preserved the reward. No production or provider action occurred."
-    ,"2026-08-31 full-viewport reward-card proof: the exact popup bounds were 1440x900, 390x844, and 412x915 at matching viewports, with zero document overflow and no map, bug, or navigation control above its stage. Scratch, benefits flip, Done, Close, and reduced-motion states remained functional. Prefers-reduced-motion produced no card or pattern animation, no transform, and no confetti. Two focused card queue tests passed."
-    ,"2026-08-31 authenticated popup-layout proof: desktop panels clear Map Controls by 10px, end 10px above Recently Active, never overlap the fixed bottom navigation, and retain internal scrolling. At 900x844 all five bottom-navigation targets and the complete Recently Active control were hit-testable. The mobile, tablet, and desktop layout-invariant checks passed against http://localhost:5173/."
-    ,"2026-08-31 exact local-pair proof: http://localhost:5173 proxied a 200 local-only admin login to the API on port 3016. The authenticated session read returned the active development admin and /api/build returned stage development. Neither process was restarted, stopped, killed, or replaced."
-    ,"2026-08-31 post-change client gate: the complete client suite passed 94 files and 646 tests. The focused earned-card queue and interaction files passed 2 tests. The production client build passed with 2078 modules. Public-copy casing scanned 380 files clean; security, AI_TASK JSON parsing, git diff --check, and mobile, tablet, and desktop layout gates passed. Server source did not change after its earlier 100-file, 951-test suite and TypeScript build."
-    ,"2026-09-01 Android message-composer proof: at 412x740, the closed-keyboard composer bottom and bottom-navigation pill top both measured 652px for a 0px gap, the message-input shell shared that bottom edge, horizontal overflow was absent, and the browser console had no error entries. The supplied screenshot and rendered fix were inspected together. Thirty-seven focused message and Carousel regression tests, two focused existing-issue checks, one server profile-visibility check, and the 2078-module client build passed."
-    ,"2026-09-01 GitHub bug triage: seven open reports remain. Current source already contains the #140 visibility-only save, #136 definite-height scrolling, #137 through #139 viewer-authorized discovery filtering, and #141 vector-only map path. #135 is excluded from 1.6 by direct correction, so no checkbox redesign is required. No GitHub issue was commented on or closed."
-    ,"2026-09-01 survey and age-appeal gate: signed-out /survey rendered Sign In at 412x740, successful local sign-in returned directly to the survey, and the authenticated survey rendered cleanly at mobile and desktop sizes. One active response is enforced by client submission locking, server conflict reuse, and migration 109_survey_response_uniqueness.sql. Bug reports gained filtered age-appeal counts, pagination, and moderator-only evidence previews. Focused client, App, server route, migration, and age-suspension email checks passed. Commit dbeb228 contains the verified slice. Migration 109 was not run, no production count was queried, and no push or deployment occurred."
-    ,"2026-09-01 post-survey regression gate: the complete client suite passed 96 files and 657 tests. The complete server suite passed 100 files and 956 tests, with 3 live-provider files and 14 tests intentionally skipped. Client and server production builds passed. Expected AppErrorBoundary Map shell failed stderr appeared while its test passed."
-    ,"2026-09-01 populated Recently Active gate: the authenticated map rendered ten viewer-authorized profiles at 390x844 and desktop size. Desktop showed exactly five complete tiles before horizontal scroll; scrolling reached the final profiles with hidden scrollbar chrome. Focused coverage proves the ten-profile cap and wheel plus pointer-drag behavior."
-    ,"2026-09-01 Crowd no-update rollback: the branch-only dedicated Crowds sheet and Hydra assets were removed. The shared icon map again uses the existing crowds-colored.svg and crowds-white.svg assets. The tutorial action and active notice return to the existing Visibility Controls flow. At 390x844, the authenticated map opened Visibility Controls with the existing Crowd Mode section and no dedicated Crowds dialog. Three focused files passed 93 tests, and the production client build passed with 2077 transformed modules. No profile, Crowd, visibility, or account setting changed."
-    ,"2026-09-01 message-composer submission fix: text leaves the composer immediately when Send is pressed, duplicate clicks remain synchronously blocked, and a failed request restores the submitted draft only if no replacement draft was typed. All 29 PrivateGroupChat tests and the 2077-module production client build passed. The authenticated seeded local flow rendered and sent once at desktop and 390x844 with an empty composer after each send. Both temporary verification messages were deleted, the browser returned to the map, and the viewport override was reset."
-    ,"2026-09-01 Pop-ups profile proof: the authenticated populated mari profile rendered cruush, disabled Pin, and Message on one row in exact order. Message replaced the profile popup with the direct conversation in the same dock, without leaving the map or opening a second panel. The prior Full screen layout preference was restored after verification. No relationship, profile, message, or account data changed."
-    ,"2026-09-01 full-screen profile return proof: the authenticated mari Profile to Message flow rendered Back to profile in the conversation header at 1280x720. Activating it returned to mari's populated profile; the next Back returned to Messages and the final Back restored the map. Two focused files passed 32 tests, and the production client build passed with 2077 transformed modules. No message, profile, relationship, account, process, production, push, or deployment change occurred."
-    ,"2026-09-01 GitHub #140 proof: unchanged Visibility Controls Apply reproduced Request validation failed at 390x844. The server returned photos validation errors because the profile schema's app-owned profile-photo pattern rejected the canonical one-UUID URLs generated by cruush. The corrected schema accepts canonical encrypted and media-asset paths; the profile-schema and visibility-route regressions passed 2/2, the server build passed, and retrying the exact authenticated mobile Apply closed the sheet without an error. The saved visibility rules were unchanged. No process command, production, push, deployment, provider, or external account change occurred."
-  ],
-  "unverified": [
-    "2026-09-01: Safari 18.6 rendered proof remains unavailable for #136. Production deployment and authenticated live-map proof remain unavailable for #141. #135 is excluded from 1.6 by direct correction.",
-    "2026-08-31: Read-only production inspection traced #141 to CARTO tile URLs in /assets/MapHome-DSxW3OjS.js. A provider PNG returned HTTP 200 while displaying API KEY REQUIRED. The candidate uses approved OpenFreeMap vectors without that fallback; error-state recovery is patched and focused regressions pass. Production and issue state remain unchanged. No provider settings, credentials, or environment variables changed.",
-    "2026-08-30: Owner Ghost rotation refresh now recovers missing/stale deadlines and refreshes after foreground/reconnect; the existing pulse scale is applied and motion-preference changes clear stale visual effects. Approved MHC geometry and static frame are unchanged. Source-only; no runtime reproduction or verification was performed.",
-    "2026-08-30: GitHub issue #141 was read through the existing GitHub CLI. It reports API key required over the iPhone map without a screenshot or build ID. The local candidate uses the approved OpenFreeMap vector source. Runtime and provider inspection is blocked by the code-only instruction; no claim of a fix, issue comment/closure, configuration change, or publication was made.",
-    "2026-08-30: Primary email-change and daily/weekly-digest source remains absent. Secondary email was removed from 1.6 because no verified direct request established it as a requirement. No login, recovery, email ownership, or delivery policy was changed.",
-    "2026-08-30: Ghost rotation choices are source-complete for 15 and 30 minutes and hourly through 24 hours. Both privacy APIs validate the values, and the existing encrypted visibility policy carries the preference and next-epoch schedule without a migration. Cadence edits retain the active epoch and deadline; the default is unchanged. Two focused cases cover scheduling and supported/default intervals. No tests, API requests, or visual checks ran.",
-    "2026-08-30: Side Quest availability refreshes only while Rewards is visible, using the existing read endpoint. Claims synchronously block duplicates and invalidate stale reads. Background failures preserve the visible list; refreshes do not claim or record daily check-ins. Two focused regression cases are source-only and unrun.",
-    "2026-08-30: Missing ba6ce50 fixture fixes were restored for DetectTextCommand and sensitive-profile birth_control. Existing cruush permission fixtures were retained. No assertion was weakened, and no test runner was invoked.",
-    "2026-08-30: Missing SEO source from 0cac0a6 through 1bae38a was ported narrowly: public documents, styles, crawler files, landing metadata, request-URI indexing allowlist, exact JSON-LD hashes, and static Vite routes. Local proxy/cache configuration and service-worker release identifiers are unchanged. Three unmatched static-page closing tags were removed. Built CSP hashes, route indexing headers, copy currency, and rendered layouts remain unverified; no build, server process command, or publication ran.",
-    "2026-08-30: The local 1.6 checkout lacked the deployed media handoff. Reviewed source hunks from c89f3f7 and 005a9d4 are now ported: authenticated ETag revalidation, observation-only daily digests, health-request log filtering, and previous-key selection for encrypted content, media, profiles, relationships, match tokens, locations, visibility policies, Ghost rotations, and privacy audit. Destination Feed-media authorization is preserved. Existing handoff tests were restored and media-test server cleanup was strengthened, but no tests or provider requests ran. Suite order dependence remains unresolved.",
-    "2026-08-30: Resend audience sync source now queues and paces requests, respects retry-after, uses bounded retries/timeouts, rechecks contact existence after ambiguous creation, stops startup reconciliation on provider-wide failures, and redacts member addresses from failure logs. Eligibility and contact preferences are unchanged. Three focused regression cases were added but not run. No provider request, configuration change, or publication occurred.",
-    "2026-08-30 source-only continuation: ReportPage resolves placeId and placeMessageId from report links and accepts an explicit embedded target. Embedded Spot and board-post reports replace the current board with the existing report form; Back returns to the same board. Other ReportAction uses retain their existing dialog behavior. No reports were submitted and no browser or API proof ran.",
-    "2026-08-30 source-only continuation: Docked popups clamp below their configured minimum width when the viewport requires it, reject non-finite stored geometry, preserve the bottom edge during top resizing, and handle pointer-capture loss. Spot switching clears old content; rating, clear-rating, checkout, and board deletion serialize writes and expose failures without allowing stale callbacks to overwrite a different Spot. Embedded Spot ratings replace the board inside the same popup. No tests, previews, API writes, or migration execution were run for these changes.",
-    "2026-08-30: Smaller map badges moved 2px outward from the prior flush placement to leave visible clearance. The current populated map was visually inspected. Badge size, vertical placement, hearts, and artwork are unchanged; the complete state and viewport matrix remains unverified.",
-    "2026-08-30: Map-only badges are 29.75px (15% smaller), with width-compensated inward placement and unchanged lower 70% alignment. The current populated local map was visually inspected; the complete viewport and marker-state matrix remains unverified. Hearts remain 80px, and Feed/message badge sizes are unchanged. No tests, migrations, server changes, or publication were run.",
-    "2026-08-30: Map side badges moved from 62% to 70% vertical placement (6.4px lower at rest) and 6px inward per side. Heart size, badge size, hover behavior, and other card layouts are unchanged. Rendered spacing remains unverified under the source-only instruction.",
-    "2026-08-30: The 15% map-heart increase was canceled and reverted before verification. Hearts remain 80px, badges remain 35px, and original positioning wrappers are restored. Own pins now use the same 1.38 hover enlargement as other people. No rendered or interaction verification was run.",
-    "2026-08-30: Side Quest client recovery separates successful claims from optional reward-history refresh failures, updates entitlement listeners promptly, and reloads quest state after rejected claims. Source only; no reward claim, migration, or API check was run.",
-    "2026-08-30 source-only continuation: Feed photo reports use a dialog layer above the viewer; Escape, arrow navigation, contained Tab focus, and focus restoration are wired into that viewer. Spot detail, pagination, location/check-in, and checkout callbacks ignore obsolete selections. The non-docked Spot dialog hides scrollbar chrome. No tests, browser interaction, or API verification ran for this batch.",
-    "2026-09-01 Spot request-isolation proof: three focused PlaceDetail regression tests passed. A late detail response cannot replace a newly selected Spot, a late board page cannot append to another Spot, and a delayed geolocation success cannot submit the previous Spot check-in. The test run completed in 65.16 seconds. Real-device proximity and rendered scrollbar interaction remain unverified.",
-    "2026-08-30 source-only continuation: shared-card and pinned-message hearts use the unchanged 80px map resting size; shared badges use the existing 35px map constant. Map hover is untouched. Feed basic-member attachment cleanup avoids repeated empty-array resets, and post/crop handlers guard concurrent work, current access, and attachment count. No tests, builds, or runtime checks were run for these patches.",
-    "2026-08-30: The signed-in member's active-MHC Feed heart reuses the exact map contrail renderer frozen at frame 420. Heart size and photo crop are unchanged; the underlying solid stroke is hidden for this treatment. The renderer was extracted into MileHighContrail.tsx and remains shared with the map. Source change only, not visually verified.",
-    "2026-08-30 source-only continuation: Who's Here uses shared profile cards with badges, pronouns, relationship heart colors, and MHC side-badge treatment. Spot avatars now carry media classification into DL Mode masking. The remaining mutual picker carries MHC side-badge treatment. Side Quests only reports all completed when every quest is claimed. No tests, builds, API calls, or rendered checks were run for this batch.",
-    "A real-device Spot post/check-in remains unverified because location permission and physical proximity within 0.25 miles were not exercised on hardware.",
-    "Custom saved Crowds and every Crowd Mode update are outside 1.6. Their unverified source is preserved under /Volumes/good/cruushv2/custom-crowds-20260830. No dedicated Crowds sheet or Hydra asset remains in the candidate; the existing Visibility Controls flow is preserved. The unrelated current migration 109 guards survey uniqueness.",
-    "The inactive Mile High Club out-of-range button was interaction-tested in the focused component test but was not rendered in the authenticated browser because that local account already had an active travel pin.",
-    "The complete desktop, narrow desktop, 390x844, and 412x915 route matrix remains incomplete.",
-    "Profile keyword result cards remain visually unverified because the active travel-pin map had no populated matches during the authenticated check.",
-    "No push, deploy, production migration, or production verification was performed."
-  ],
-  "publicationTarget": "authorized local commits on release/1.6-features-20260828 only; do not push or deploy",
-  "environmentChanges": "Source schema and example files now support nine optional previous-key settings: PROFILE_ENCRYPTION_KEY_PREVIOUS, MESSAGE_ENCRYPTION_KEY_PREVIOUS, FEED_ENCRYPTION_KEY_PREVIOUS, MEDIA_ENCRYPTION_KEY_PREVIOUS, RELATIONSHIP_ENCRYPTION_KEY_PREVIOUS, MATCH_TOKEN_ENCRYPTION_KEY_PREVIOUS, LOCATION_ENCRYPTION_KEY_PREVIOUS, VISIBILITY_POLICY_ENCRYPTION_KEY_PREVIOUS, and GHOST_DERIVATION_KEY_PREVIOUS. No actual environment value or secret was changed. No key rotation, provider activation, or deployment occurred."
+    "Focused source diff for the requested Spots files, labeled unverified because tests, build, migration execution, and rendered checks are excluded."
+  ]
 }
