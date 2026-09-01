@@ -155,7 +155,7 @@
   "objective": "Deliver a developer-reviewable, disabled-by-default in-house crypto payment processor on feat/crypto-pricing, including the conversion-focused account-linked /store checkout, settlement and support paths, complete handoff evidence, and a locally created watch-only source wallet whose recovery words are known only to Julien.",
   "userOutcome": "Julien has the complete crypto branch, a checkout that clearly sells the plans and payment apps, and a locally created wallet ready to contribute only its public xpub. No crypto reaches main or production.",
   "audience": "Julien as operator; cruush members buying cruush+ once the processor is enabled.",
-  "nextVisibleMilestone": "The redesigned /store is visibly verified on the running feature branch, the wallet initializer is waiting for Julien's private recovery-word step, and every remaining branch-safe item is committed and pushed to origin/feat/crypto-pricing.",
+  "nextVisibleMilestone": "The redesigned /store is visibly verified and published on the running feature branch. The wallet initializer waits for Julien's private recovery-word step, after which only the public descriptor is verified.",
   "successCriteria": [
     "The processor stays disabled and accepts no funds until Julien enables it",
     "A payment intent receives a unique receiving address that settles only that order",
@@ -277,7 +277,7 @@
     "createWalletInCurrentMacosUser": "in_progress_user_secret_step_required",
     "verifyPublicDescriptorWithoutSecretExposure": "pending",
     "focusedSecurityAndSecretReview": "completed_no_secret_material_found",
-    "commitAndPushFeatureBranchOnly": "pending_after_this_contract_snapshot",
+    "commitAndPushFeatureBranchOnly": "completed_feature_branch_only",
     "mainMerge": "forbidden",
     "productionDeploy": "forbidden"
   },
@@ -303,6 +303,6 @@
     ],
     "paymentSourceInteraction": "The local ready-state fixture selected Cash App, then Venmo or PayPal, then A crypto wallet; exactly one source remained selected after each click.",
     "finalTestsAndBuilds": "Client checkout and adjacent focused files: 42 current tests passed. Consolidated server slice: 201 passed and 11 optional PostgreSQL-gated tests skipped; final focused server slice: 128 passed and 3 gated tests skipped; disposable PostgreSQL atomicity and cursor suite: 25/25 passed. Wallet tool: 29/29 passed. Client, server, and wallet builds passed. Final integrated audit found no unresolved P0, P1, or P2 blocker.",
-    "publication": "Pending origin/feat/crypto-pricing only; main and deployment remain forbidden."
+    "publication": "Completed on origin/feat/crypto-pricing only; main and deployment remain forbidden."
   }
 }

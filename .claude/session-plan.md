@@ -156,6 +156,6 @@ show their one-payment price because a monthly equivalent would mislead.
 
 ## Next step
 
-Commit and push only `origin/feat/crypto-pricing`, then launch the wallet's
-Julien-only initialization step and verify only its public descriptor after he
-finishes it.
+Launch the wallet's Julien-only initialization step and verify only its public
+descriptor after he finishes it. The verified implementation is already
+published only to `origin/feat/crypto-pricing`.
