@@ -1563,7 +1563,8 @@ describe('PrivateGroupChat', () => {
       'max-w-[100vw]',
       'overflow-x-hidden',
     );
-    expect(composerBar.style.getPropertyValue('--chat-composer-bottom')).toBe('calc(6.25rem + env(safe-area-inset-bottom))');
+    expect(composerBar.style.getPropertyValue('--chat-composer-bottom')).toBe('calc(5.5rem + env(safe-area-inset-bottom))');
+    expect(composerBar).toHaveClass('pb-0');
     expect(screen.getByPlaceholderText('Say what you want...')).toHaveClass('min-w-0', 'flex-1');
     expect(screen.getByRole('button', { name: 'Send message' })).toHaveClass('size-9', 'rounded-full');
   });
@@ -1611,12 +1612,14 @@ describe('PrivateGroupChat', () => {
 
       await waitFor(() => expect(composerBar).toHaveAttribute('data-keyboard-open', 'true'));
       expect(composerBar.style.getPropertyValue('--chat-composer-bottom')).toBe('calc(0.75rem + env(safe-area-inset-bottom) + 380px)');
+      expect(composerBar).toHaveClass('pb-3');
 
       visualViewport.viewport.height = 900;
       visualViewport.dispatch('resize');
 
       await waitFor(() => expect(composerBar).not.toHaveAttribute('data-keyboard-open'));
-      expect(composerBar.style.getPropertyValue('--chat-composer-bottom')).toBe('calc(6.25rem + env(safe-area-inset-bottom))');
+      expect(composerBar.style.getPropertyValue('--chat-composer-bottom')).toBe('calc(5.5rem + env(safe-area-inset-bottom))');
+      expect(composerBar).toHaveClass('pb-0');
     } finally {
       visualViewport.restore();
     }

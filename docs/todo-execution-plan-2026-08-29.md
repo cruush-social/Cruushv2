@@ -18,6 +18,19 @@ Status:
 
 ## Current stop point, 2026-08-31
 
+- `[x]` The rejected Cruise Carousel pull-bar lab, preview query, and development route were removed.
+  Cruise Carousel retains the current Browse again button unchanged.
+- `[x]` The Android message composer now meets the top of the bottom-navigation pill with a measured
+  `0px` gap at `412 x 740`; the input and composer do not overlap the pill, and horizontal overflow
+  remains absent. Keyboard-open positioning keeps its prior keyboard inset and padding. The supplied
+  screenshot and rendered fix were inspected together in a normalized comparison.
+- `[~]` All seven open GitHub bug reports were rechecked against the current 1.6 candidate. #140's
+  visibility-only save path, #136's definite-height scroll container, #137 through #139's
+  viewer-authorized discovery filtering, and #141's vector-only map path already exist in current
+  source. #135 has no screenshot, affected surface, or reachable reporter, so changing checkbox
+  visuals would require an unapproved design guess. Safari 18.6 proof for #136 and production proof
+  for #141 remain open. No GitHub issue was commented on or closed.
+
 - `[~]` Focused checks are authorized by "fix the stuff". The subsequent "keep working" answered
   the specific request for local migrations 106 through 108, which are now applied. No other
   migration, server process change, provider configuration, commit, push, or deployment is authorized.
@@ -468,7 +481,8 @@ Status:
   allowed non-human imagery remain allowed while child-face enforcement stays active; explicit Feed
   attachments mask under DL Mode. Twenty focused checks passed. No real upload or successful media-byte
   delivery ran, so those integration gates remain pending.
-- [blocked] Replies and reactions need API/schema work. Reaction icon set still requires Julien's
+- [~] Julien directly authorized Feed replies and reactions as a 1.6 expansion on 2026-09-01.
+  API/schema work remains unbuilt, and the exact white cruush reaction icon set still requires his
   selection or approval.
 - [blocked] Decide whether crowd targeting and Feed pin visibility remain cruush+ gates after saved
   Crowds replace legacy crowd targeting.
@@ -512,11 +526,10 @@ Status:
   now keeps Report and Close clear of the fixed Bug Fix button; real Close clicks worked at both
   viewports. Empty-photo and complete Mile High Club, Dark Room, Ghost, and Pulse profile matrices
   remain unverified.
-- [blocked] The clean Carousel source branch is `codex/carousel-photo-gallery-20260820` at
-  `2342bca`; its implemented gallery lineage is already ancestral to this release branch. The later
-  pull-bar, 4:5-photo, and overlaid-header notes in `/Volumes/good/Cruushv2-main/HANDOFF.md` are an
-  unimplemented proposal, not restorable source. Julien must choose whether to build that proposal
-  or retain the current verified Carousel.
+- [x] The clean Carousel source branch is `codex/carousel-photo-gallery-20260820` at `2342bca`;
+  its implemented gallery lineage is already ancestral to this release branch. The later pull-bar
+  proposal was mocked and rejected on 2026-09-01. The current Browse again button remains unchanged,
+  and the pull-bar preview route and source were removed from the 1.6 candidate.
 - [x] The populated fullscreen Carousel result rendered one action row in exact order: cruush, Pin,
   Message. The card reaches the bottom navigation without the removed page fade.
 - [~] Profile keyword search is enforced by the discovery API across visible name, bio, configured
@@ -573,8 +586,8 @@ Status:
 - [deferred] Public Spot demographic composition is excluded from the current release by direct
   instruction. Keep voluntary check-in collection; do not add inferred identities or new collection.
 - [blocked] Build real Spot records and privacy-safe aggregate snapshots before adding demographic filters.
-- [blocked] Add a Spot-specific vibe taxonomy. Never reuse profile vibes. `Historical` and `Exposed` are
-  approved; full taxonomy is pending.
+- [~] Julien directly authorized the Spot taxonomy expansion on 2026-09-01. Never reuse profile
+  vibes. `Historical` and `Exposed` are approved; the rest of the taxonomy still requires approval.
 - [deferred] Add Crowd fit: Popular with my current crowd, Leans women, Leans men, Mixed, and Strong
   trans/NB presence.
 - [deferred] Show category, top three Spot vibes, gender lean, and the positive Strong trans/NB presence
@@ -668,7 +681,7 @@ Status:
   published Spots. No viewer-authorized people were returned there, so real distance-label proof
   remains unverified. The focused `outsideBrowseRadius` API check returns the Mile High Club
   invitation instead of a silent empty response.
-- [blocked] Kelpie while travelling remains unresolved because Kelpie itself is not built.
+- [removed] Do not build Kelpie. Julien corrected this item to Dark Room Mode on 2026-09-01.
 - [x] Active and fly-out Ghost use the exact supplied `ghost-mode-icon-final.svg`; its SHA-256 matches
   `src/app/assets/ui-icons/ghost-colored.svg`. The owner decoy rendered electric-blue side badges.
 - [~] Ghost decoy treatment starts fully opaque dark blue, passes through electric blue, holds full
@@ -787,13 +800,12 @@ Status:
   also proves signup and onboarding do not request location. Signed-out rendered proof remains open
   because this continuation preserved the authenticated browser session.
 - [~] Popup settings replace the selected current surface and Settings search renders. Cruushes to
-  Settings was exercised in one popup. Email, secondary-email, and digest work still require real API
-  support and remain pending.
-- [blocked] Email work is missing source, not merely missing proof. Define whether a secondary address
-  is notification-only or can authenticate/recover the account before implementing its permissions.
-  Primary-address replacement must preserve verified ownership and recovery safety. Daily/weekly
-  digest delivery still needs the approved content, consent, and delivery rules; do not activate
-  mail delivery or invent those decisions as part of a source-only pass.
+  Settings was exercised in one popup. Primary-email and digest work still require real API support.
+- [removed] Secondary email came only from the inherited `docs/todo-2026-08-22.md` and
+  `docs/parallel-work-handoff-2026-08-22.md`; no verified direct request from Julien was found. It is
+  not an active 1.6 requirement. Primary-address replacement must preserve verified ownership and
+  recovery safety. Daily/weekly digest delivery still needs approved content, consent, and delivery
+  rules; do not activate mail delivery or invent those decisions as part of a source-only pass.
 - [~] Notifications implements owner-only single deletion and confirmed bulk deletion. Both server
   queries bind the authenticated member ID; client success removes the item or list and emits the
   updated unread summary immediately. The authenticated empty state rendered both disabled controls.

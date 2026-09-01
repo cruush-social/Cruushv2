@@ -1,3 +1,32 @@
+# Design QA: Android message composer and bottom navigation
+
+## Visual source
+
+- User screenshot: `/tmp/codex-remote-attachments/01a059ff-61ed-7551-aa78-5efc21dfbc6b/ac415cce-2015-48db-b878-eb9d049a495b/1-Photo-1.jpg`.
+- Rendered fixed route: `/private/tmp/cruush-message-composer-android-after.png`.
+- Normalized before-and-after comparison: `/private/tmp/cruush-message-composer-before-after.png`.
+
+## Verified state
+
+- Authenticated local one-to-one conversation with `jay`.
+- Android Chrome-sized content viewport: `412 x 740` CSS pixels.
+- Closed keyboard: composer bottom `652px`; bottom-navigation pill top `652px`; gap `0px`.
+- Message-input shell and composer both meet the navigation pill without overlap.
+- Document width stayed `412px` with no horizontal overflow.
+- Keyboard-open positioning retains its existing keyboard inset and bottom padding.
+
+## Fidelity review
+
+- The supplied screenshot and fixed route were normalized into one comparison image.
+- The message controls, input shape, bottom-navigation visuals, typography, and colors remain unchanged.
+- Only the closed-keyboard gap beneath the message input was removed.
+- Focused tests passed 37 cases across PrivateGroupChat, FeelingLucky, and ProfileCard.
+- Browser console: no error-level messages in the inspected route.
+
+final result: passed
+
+---
+
 # Design QA: Message settings timer dropdown
 
 ## Visual source

@@ -919,7 +919,7 @@ export default function PrivateGroupChat({
   const composerBarStyle = {
     '--chat-composer-bottom': keyboardInset > 0
       ? `calc(0.75rem + env(safe-area-inset-bottom) + ${keyboardInset}px)`
-      : 'calc(6.25rem + env(safe-area-inset-bottom))',
+      : 'calc(5.5rem + env(safe-area-inset-bottom))',
   } as CSSProperties;
 
   return (
@@ -1475,7 +1475,7 @@ export default function PrivateGroupChat({
         {conversation ? (
           <div
             data-testid="chat-composer-bar"
-            className="fixed bottom-[var(--chat-composer-bottom)] left-0 right-0 max-w-[100vw] overflow-x-hidden border-t border-border bg-background/90 px-3 pb-3 pt-3 backdrop-blur-md sm:px-4"
+            className={`fixed bottom-[var(--chat-composer-bottom)] left-0 right-0 max-w-[100vw] overflow-x-hidden border-t border-border bg-background/90 px-3 pt-3 backdrop-blur-md sm:px-4 ${keyboardInset > 0 ? 'pb-3' : 'pb-0'}`}
             data-keyboard-open={keyboardInset > 0 ? 'true' : undefined}
             style={composerBarStyle}
           >
