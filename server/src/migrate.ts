@@ -117,7 +117,8 @@ const migrationFiles = [
   "108_side_quest_catalog.sql",
   "109_survey_response_uniqueness.sql",
   "110_feed_post_tags.sql",
-  "111_place_board_post_expiry.sql"
+  "111_place_board_post_expiry.sql",
+  "112_place_checkin_board_access.sql"
 ];
 const rewardSafetyPreflightFiles = [
   "079_daily_check_in_rewards.sql",

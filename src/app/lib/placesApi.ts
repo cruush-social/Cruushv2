@@ -116,6 +116,13 @@ export async function deletePlaceBoardMessage(placeId: string, messageId: string
   return requestApi<void>(`/api/places/${placeId}/board/${messageId}`, { method: 'DELETE' });
 }
 
+export async function postPlaceBoardMessage(placeId: string, input: { content: string }) {
+  return requestApi<{ placeId: string; boardPostId: string }>(`/api/places/${placeId}/board`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
 export async function ratePlace(placeId: string, category: PlaceRatingCategory, stars: number) {
   return requestApi<{ placeId: string; category: PlaceRatingCategory; stars: number }>(`/api/places/${placeId}/rating`, { method: 'PUT', body: JSON.stringify({ category, stars }) });
 }
@@ -125,16 +132,14 @@ export async function removePlaceRating(placeId: string) {
 }
 
 export async function checkIntoPlace(placeId: string, input: {
-  content: string;
   durationHours: 1 | 3 | 6 | 12 | 24;
-  boardDurationHours: 1 | 3 | 6 | 12 | 24 | 168 | null;
   visible: boolean;
   latitude: number;
   longitude: number;
   accuracyMeters: number;
   observedAt: string;
 }) {
-  return requestApi<{ placeId: string; boardPostId: string; visible: boolean; expiresAt: string }>(`/api/places/${placeId}/check-ins`, { method: 'POST', body: JSON.stringify(input) });
+  return requestApi<{ placeId: string; boardPostId: string | null; visible: boolean; expiresAt: string }>(`/api/places/${placeId}/check-ins`, { method: 'POST', body: JSON.stringify(input) });
 }
 
 export async function checkOutOfPlace(placeId: string) {

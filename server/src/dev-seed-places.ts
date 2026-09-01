@@ -52,7 +52,7 @@ export type DevelopmentPlaceSeedPlan = {
     userId: string;
     content: string;
     createdAt: Date;
-    expiresAt: Date;
+    expiresAt: null;
   }>;
   ratings: Array<{ placeId: string; userId: string; category: typeof RATING_CATEGORIES[number]; stars: number }>;
   checkins: Array<{ placeId: string; userId: string; visible: boolean; checkedInAt: Date; expiresAt: Date }>;
@@ -100,7 +100,7 @@ export function buildDevelopmentPlaceSeedPlan(now: Date, users: SeedUser[], plac
       userId: user.id,
       content: BOARD_MESSAGES[(placeIndex + messageIndex) % BOARD_MESSAGES.length],
       createdAt,
-      expiresAt: new Date(createdAt.getTime() + 7 * 24 * 60 * 60 * 1000)
+      expiresAt: null
     };
   }));
 

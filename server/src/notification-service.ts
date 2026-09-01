@@ -13,7 +13,8 @@ export type AppNotificationType =
   | "reward"
   | "announcement"
   | "nearby_user"
-  | "pulse";
+  | "pulse"
+  | "place_checkin_expired";
 
 export type AppNotificationRecord = {
   id: string;

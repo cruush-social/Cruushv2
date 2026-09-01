@@ -48,7 +48,7 @@ export const storedPlaceSuggestionSchema = submitPlaceSchema.extend({
 });
 
 export const placeCheckinSchema = z.object({
-  content: multilineTextSchema({ min: 1, max: 1000 }),
+  content: multilineTextSchema({ min: 1, max: 1000 }).optional(),
   durationHours: z.union([z.literal(1), z.literal(3), z.literal(6), z.literal(12), z.literal(24)]),
   boardDurationHours: z.union([
     z.literal(1), z.literal(3), z.literal(6), z.literal(12), z.literal(24), z.literal(168), z.null()
@@ -57,6 +57,10 @@ export const placeCheckinSchema = z.object({
   ...coordinatesSchema,
   accuracyMeters: z.number().nonnegative().max(402.336),
   observedAt: z.string().datetime()
+}).strict();
+
+export const placeBoardPostSchema = z.object({
+  content: multilineTextSchema({ min: 1, max: 1000 })
 }).strict();
 
 export const placeRatingSchema = z.object({

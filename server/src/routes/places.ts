@@ -15,6 +15,7 @@ import {
 } from "../place-suggestion-privacy.js";
 import {
   listPlacesQuerySchema,
+  placeBoardPostSchema,
   placeCheckinSchema,
   placeRatingSchema,
   slugifyPlaceName,
@@ -212,6 +213,18 @@ async function requirePublishedPlace(app: FastifyInstance, placeId: string) {
   return row;
 }
 
+async function requireActivePlaceCheckin(app: FastifyInstance, userId: string, placeId: string) {
+  const checkin = (await app.db.query<{ user_id: string }>(
+    `select user_id::text
+     from place_checkins
+     where user_id = $1 and place_id = $2 and expires_at > now()
+     limit 1`,
+    [userId, placeId]
+  )).rows[0];
+  if (!checkin) throw new ApiError(403, "PLACE_CHECKIN_REQUIRED", "Check in to view this Spot board.");
+  return checkin;
+}
+
 async function requireBoardPostingAllowed(app: FastifyInstance, userId: string) {
   const allowed = (await app.db.query<{ allowed: boolean }>(
     `select exists (
@@ -238,8 +251,6 @@ async function cleanupExpiredPlaceData(app: FastifyInstance) {
   const now = Date.now();
   if (now - lastPlaceCleanupAt < 15 * 60 * 1000) return;
   await runTransaction(app.db, async (db) => {
-    await db.query(`delete from place_board_messages where expires_at <= now()`);
-    await db.query(`delete from place_checkins where expires_at <= now()`);
     await db.query(`delete from place_checkin_events where expires_at <= now()`);
     await db.query(`delete from place_activity_hourly where bucket_start < now() - interval '90 days'`);
   });
@@ -505,6 +516,7 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
     const { placeId } = placeParamsSchema.parse(request.params);
     const query = boardQuerySchema.parse(request.query);
     await requirePublishedPlace(app, placeId);
+    await requireActivePlaceCheckin(app, userId, placeId);
     const [result, mutualUserIds] = await Promise.all([
       app.db.query<BoardRow>(
         `select m.id::text, m.user_id::text, m.content, m.content_ciphertext, m.content_nonce,
@@ -529,7 +541,7 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
               ) as travelling
        from place_board_messages m
        join profiles pr on pr.id = m.user_id
-       where m.place_id = $1 and (m.expires_at is null or m.expires_at > now())
+       where m.place_id = $1
          and not exists (
            select 1 from user_blocks b
            where (b.blocker_user_id = $2 and b.blocked_user_id = m.user_id)
@@ -567,9 +579,36 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
     });
   });
 
+  app.post("/api/places/:placeId/board", async (request, reply) => {
+    const userId = await getActiveAccountUserId(request);
+    const { placeId } = placeParamsSchema.parse(request.params);
+    const payload = placeBoardPostSchema.parse(request.body);
+    await requirePublishedPlace(app, placeId);
+    await requireActivePlaceCheckin(app, userId, placeId);
+    await app.rateLimiter.assert({
+      key: `place-board-post:${userId}`,
+      max: 10,
+      windowMs: 60 * 1000,
+      message: "Too many board messages. Try again later."
+    });
+    await requireBoardPostingAllowed(app, userId);
+    await moderateTextOrReject(app, { userId, surface: "feed", text: payload.content, contentRef: { placeId } });
+    const encrypted = encryptTextContent(app.config, "feed", payload.content);
+    const boardPost = await app.db.query<{ id: string }>(
+      `insert into place_board_messages (
+         place_id, user_id, content, content_ciphertext, content_nonce, content_auth_tag, content_key_version,
+         expires_at
+       ) values ($1, $2, '[encrypted]', $3, $4, $5, $6, null)
+       returning id::text`,
+      [placeId, userId, encrypted.ciphertext, encrypted.nonce, encrypted.authTag, encrypted.keyVersion]
+    );
+    return reply.code(201).send({ data: { placeId, boardPostId: boardPost.rows[0].id } });
+  });
+
   app.delete("/api/places/:placeId/board/:messageId", async (request, reply) => {
     const userId = await getActiveAccountUserId(request);
     const { placeId, messageId } = messageParamsSchema.parse(request.params);
+    await requireActivePlaceCheckin(app, userId, placeId);
     const result = await app.db.query(`delete from place_board_messages where id = $1 and place_id = $2 and user_id = $3`, [messageId, placeId, userId]);
     if (!result.rowCount) throw new ApiError(404, "NOT_FOUND", "Board message not found.");
     return reply.code(204).send();
@@ -585,21 +624,24 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
       windowMs: 60 * 60 * 1000,
       message: "Too many check-in updates. Try again later."
     });
-    await app.rateLimiter.assert({
-      key: `place-board-post:${userId}`,
-      max: 10,
-      windowMs: 60 * 1000,
-      message: "Too many board messages. Try again later."
-    });
     const observedAt = new Date(payload.observedAt);
     if (Math.abs(Date.now() - observedAt.getTime()) > 2 * 60 * 1000) throw new ApiError(400, "STALE_LOCATION", "Update your location before checking in.");
     if (payload.accuracyMeters > 402.336) throw new ApiError(400, "LOCATION_TOO_IMPRECISE", "A more precise location is required to check in.");
     const place = await requirePublishedPlace(app, placeId);
     const distance = distanceMiles({ lat: payload.latitude, lng: payload.longitude }, { lat: Number(place.latitude), lng: Number(place.longitude) });
     if (distance > 0.25) throw new ApiError(403, "CHECKIN_TOO_FAR", "Move within 0.25 miles of this place to check in.");
-    await requireBoardPostingAllowed(app, userId);
-    await moderateTextOrReject(app, { userId, surface: "feed", text: payload.content, contentRef: { placeId } });
-    const encrypted = encryptTextContent(app.config, "feed", payload.content);
+    let legacyBoardPost: ReturnType<typeof encryptTextContent> | null = null;
+    if (payload.content) {
+      await app.rateLimiter.assert({
+        key: `place-board-post:${userId}`,
+        max: 10,
+        windowMs: 60 * 1000,
+        message: "Too many board messages. Try again later."
+      });
+      await requireBoardPostingAllowed(app, userId);
+      await moderateTextOrReject(app, { userId, surface: "feed", text: payload.content, contentRef: { placeId } });
+      legacyBoardPost = encryptTextContent(app.config, "feed", payload.content);
+    }
     const result = await runTransaction(app.db, async (db) => {
       const bucketStart = new Date();
       bucketStart.setUTCMinutes(0, 0, 0);
@@ -616,27 +658,25 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
          returning expires_at`,
         [userId, placeId, payload.visible, payload.durationHours]
       );
-      const boardDurationHours = payload.boardDurationHours === undefined
-        ? payload.durationHours
-        : payload.boardDurationHours;
-      const boardPost = await db.query<{ id: string }>(
-        `insert into place_board_messages (
-           place_id, user_id, content, content_ciphertext, content_nonce, content_auth_tag, content_key_version,
-           expires_at
-         ) values (
-           $1, $2, '[encrypted]', $3, $4, $5, $6,
-           case when $7::int is null then null else now() + ($7::int * interval '1 hour') end
-         ) returning id::text`,
-        [
-          placeId,
-          userId,
-          encrypted.ciphertext,
-          encrypted.nonce,
-          encrypted.authTag,
-          encrypted.keyVersion,
-          boardDurationHours
-        ]
-      );
+      let boardPostId: string | null = null;
+      if (legacyBoardPost) {
+        const boardPost = await db.query<{ id: string }>(
+          `insert into place_board_messages (
+             place_id, user_id, content, content_ciphertext, content_nonce, content_auth_tag, content_key_version,
+             expires_at
+           ) values ($1, $2, '[encrypted]', $3, $4, $5, $6, null)
+           returning id::text`,
+          [
+            placeId,
+            userId,
+            legacyBoardPost.ciphertext,
+            legacyBoardPost.nonce,
+            legacyBoardPost.authTag,
+            legacyBoardPost.keyVersion
+          ]
+        );
+        boardPostId = boardPost.rows[0].id;
+      }
       if (event.rowCount) {
         await db.query(
           `insert into place_activity_hourly (place_id, bucket_start, checkin_count)
@@ -645,11 +685,10 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
           [placeId, bucketStart]
         );
       }
-      await db.query(`delete from place_board_messages where expires_at <= now()`);
       await db.query(`delete from place_checkin_events where expires_at <= now()`);
       await db.query(`delete from place_activity_hourly where bucket_start < now() - interval '90 days'`);
       return {
-        boardPostId: boardPost.rows[0].id,
+        boardPostId,
         expiresAt: new Date(checkin.rows[0].expires_at).toISOString()
       };
     });

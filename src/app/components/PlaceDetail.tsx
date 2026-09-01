@@ -20,6 +20,7 @@ import {
   deletePlaceBoardMessage,
   getPlace,
   getPlaceBoard,
+  postPlaceBoardMessage,
   ratePlace,
   removePlaceRating,
   type PlaceBoardMessage,
@@ -36,11 +37,6 @@ const CHECKIN_DURATION_OPTIONS = [
   { value: 12, label: '12h' },
   { value: 24, label: '24h' },
 ];
-const BOARD_DURATION_OPTIONS = [
-  ...CHECKIN_DURATION_OPTIONS,
-  { value: 168, label: '7d' },
-  { value: 'never', label: 'Never' },
-] as const;
 const RATING_LABELS: Record<PlaceRatingCategory, string> = {
   overall: 'Overall Experience',
   gender_inclusivity: 'Gender Inclusivity',
@@ -58,14 +54,6 @@ function relativeTime(value: string) {
   return hours < 24 ? `${hours}h` : `${Math.floor(hours / 24)}d`;
 }
 
-function boardExpiryLabel(value: string | null) {
-  if (!value) return 'Never';
-  const minutes = Math.max(0, Math.ceil((Date.parse(value) - Date.now()) / 60000));
-  if (minutes < 60) return `${minutes}m`;
-  const hours = Math.ceil(minutes / 60);
-  return hours < 24 ? `${hours}h` : `${Math.ceil(hours / 24)}d`;
-}
-
 type PlaceDetailProps = {
   embedded?: boolean;
   placeIdOverride?: string;
@@ -81,9 +69,9 @@ export default function PlaceDetail({ embedded = false, placeIdOverride }: Place
   const [loadingMoreBoard, setLoadingMoreBoard] = useState(false);
   const [message, setMessage] = useState('');
   const [checkinDurationHours, setCheckinDurationHours] = useState<1 | 3 | 6 | 12 | 24>(1);
-  const [boardDuration, setBoardDuration] = useState<1 | 3 | 6 | 12 | 24 | 168 | 'never'>(1);
   const [visibleCheckin, setVisibleCheckin] = useState(false);
   const [postingCheckin, setPostingCheckin] = useState(false);
+  const [postingBoard, setPostingBoard] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -110,14 +98,18 @@ export default function PlaceDetail({ embedded = false, placeIdOverride }: Place
     setLoadingMoreBoard(false);
     setError(null);
     try {
-      const [placeResult, boardResult] = await Promise.all([
-        getPlace(placeId),
-        getPlaceBoard(placeId, { limit: BOARD_PAGE_SIZE, offset: 0 }),
-      ]);
+      const placeResult = await getPlace(placeId);
       if (!isCurrent()) return;
       setPlace(placeResult);
-      setMessages(boardResult);
-      setBoardHasMore(boardResult.length === BOARD_PAGE_SIZE);
+      if (placeResult.viewerCheckin) {
+        const boardResult = await getPlaceBoard(placeId, { limit: BOARD_PAGE_SIZE, offset: 0 });
+        if (!isCurrent()) return;
+        setMessages(boardResult);
+        setBoardHasMore(boardResult.length === BOARD_PAGE_SIZE);
+      } else {
+        setMessages([]);
+        setBoardHasMore(false);
+      }
     } catch (loadError) {
       if (!isCurrent()) return;
       setError(loadError instanceof Error ? loadError.message : 'Spot could not load.');
@@ -134,6 +126,7 @@ export default function PlaceDetail({ embedded = false, placeIdOverride }: Place
     setMessages([]);
     setBoardHasMore(false);
     setPostingCheckin(false);
+    setPostingBoard(false);
     setMessage('');
     setStatus(null);
     setRatingOpen(false);
@@ -146,6 +139,18 @@ export default function PlaceDetail({ embedded = false, placeIdOverride }: Place
     };
   }, [placeId]);
 
+  useEffect(() => {
+    const expiresAt = place?.viewerCheckin?.expiresAt;
+    if (!expiresAt) return;
+    const remainingMs = Date.parse(expiresAt) - Date.now();
+    if (remainingMs <= 0) {
+      void refresh();
+      return;
+    }
+    const timer = window.setTimeout(() => void refresh(), remainingMs + 250);
+    return () => window.clearTimeout(timer);
+  }, [place?.viewerCheckin?.expiresAt]);
+
   const popularMaximum = useMemo(() => Math.max(1, ...(place?.popularTimes.map((bucket) => bucket.count) ?? [1])), [place]);
   const combinedRating = useMemo(() => {
     const ratings = place?.ratingBreakdown ?? [];
@@ -155,11 +160,11 @@ export default function PlaceDetail({ embedded = false, placeIdOverride }: Place
   }, [place]);
 
   const handlePostCheckin = () => {
-    if (!placeId || place?.id !== placeId || !message.trim() || postingCheckin || mutationRef.current) return;
+    if (!placeId || place?.id !== placeId || postingCheckin || postingBoard || mutationRef.current) return;
     const generation = ++checkinGeneration.current;
     const isCurrent = () => generation === checkinGeneration.current && activePlaceId.current === placeId;
     if (!navigator.geolocation) {
-      setError('Location is required to post a check-in.');
+      setError('Location is required to check in.');
       return;
     }
     setStatus(null);
@@ -168,9 +173,7 @@ export default function PlaceDetail({ embedded = false, placeIdOverride }: Place
     navigator.geolocation.getCurrentPosition((position) => {
       if (!isCurrent()) return;
       void checkIntoPlace(placeId, {
-        content: message.trim(),
         durationHours: checkinDurationHours,
-        boardDurationHours: boardDuration === 'never' ? null : boardDuration,
         visible: visibleCheckin,
         latitude: position.coords.latitude,
         longitude: position.coords.longitude,
@@ -178,19 +181,37 @@ export default function PlaceDetail({ embedded = false, placeIdOverride }: Place
         observedAt: new Date(position.timestamp).toISOString(),
       }).then(async () => {
         if (!isCurrent()) return;
-        setMessage('');
         await refresh();
       }).catch((postError: unknown) => {
         if (!isCurrent()) return;
-        setError(postError instanceof Error ? postError.message : 'Check-in could not be posted.');
+        setError(postError instanceof Error ? postError.message : 'Check-in could not be completed.');
       }).finally(() => {
         if (isCurrent()) setPostingCheckin(false);
       });
     }, () => {
       if (!isCurrent()) return;
       setPostingCheckin(false);
-      setError('Location permission is required to post a check-in.');
+      setError('Location permission is required to check in.');
     }, { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 });
+  };
+
+  const handlePostBoard = async () => {
+    if (!placeId || place?.id !== placeId || !place.viewerCheckin || !message.trim() || postingBoard || postingCheckin || mutationRef.current) return;
+    const generation = loadGeneration.current;
+    const isCurrent = () => generation === loadGeneration.current && activePlaceId.current === placeId;
+    setPostingBoard(true);
+    setError(null);
+    try {
+      await postPlaceBoardMessage(placeId, { content: message.trim() });
+      if (!isCurrent()) return;
+      setMessage('');
+      await refresh();
+    } catch (postError) {
+      if (!isCurrent()) return;
+      setError(postError instanceof Error ? postError.message : 'Board message could not be posted.');
+    } finally {
+      if (isCurrent()) setPostingBoard(false);
+    }
   };
 
   const handleLoadMoreBoard = async () => {
@@ -220,7 +241,7 @@ export default function PlaceDetail({ embedded = false, placeIdOverride }: Place
     failureMessage: string,
     successMessage?: string,
   ) => {
-    if (!placeId || place?.id !== placeId || mutationRef.current || postingCheckin) return;
+    if (!placeId || place?.id !== placeId || mutationRef.current || postingCheckin || postingBoard) return;
     const request = {};
     mutationRef.current = request;
     const isCurrent = () => mutationRef.current === request && activePlaceId.current === placeId;
@@ -316,14 +337,11 @@ export default function PlaceDetail({ embedded = false, placeIdOverride }: Place
 
   return (
     <div className={embedded ? 'bg-background' : 'min-h-screen bg-background pb-20'} data-testid="spot-detail">
-      {!embedded ? <header className="sticky top-0 z-10 flex min-h-[7rem] items-center gap-4 border-b border-border bg-card/80 px-4 py-5 pr-20 backdrop-blur-sm">
-        <Button variant="ghost" size="icon" className="h-12 w-12 shrink-0" onClick={() => navigate(-1)}>
+      {!embedded ? <button type="button" aria-label="Back" className="fixed left-3 top-[calc(0.75rem+env(safe-area-inset-top))] z-30 flex h-12 w-12 items-center justify-center rounded-full border border-white/12 bg-black/70 text-white backdrop-blur-sm" onClick={() => navigate(-1)}>
           <ArrowLeft className="h-6 w-6" />
-        </Button>
-        <h2 className="text-2xl leading-tight">{place.name}</h2>
-      </header> : null}
+      </button> : null}
 
-      <div className={`mx-auto flex flex-col gap-6 p-6 ${embedded ? 'max-w-none' : 'max-w-2xl'}`}>
+      <div className={`mx-auto flex flex-col gap-6 p-6 ${embedded ? 'max-w-none' : 'max-w-2xl pt-20'}`}>
         <div className={`relative ${embedded ? 'order-1' : 'order-3'}`}>
           <p className="text-xs uppercase tracking-[0.16em] text-primary">{PLACE_FACILITY_LABELS[place.facilityType]}</p>
           <h1 className={`mt-1 text-3xl ${embedded ? 'pr-10' : ''}`}>{place.name}</h1>
@@ -390,29 +408,25 @@ export default function PlaceDetail({ embedded = false, placeIdOverride }: Place
           </TabsList>
 
           <TabsContent value="feed" className="space-y-4 mt-4">
-            <div className="rounded-lg border border-border bg-card p-3">
-              <textarea aria-label="Leave a spot board message" className="min-h-20 w-full resize-none bg-transparent text-sm text-white outline-none" placeholder="Leave a message for this spot" value={message} onChange={(event) => setMessage(event.target.value)} maxLength={1000} />
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <label className="flex items-center gap-2 text-xs text-white/60">
-                  Post duration
-                  <select
-                    aria-label="Board post duration"
-                    className="rounded-md border border-white/15 bg-black px-2 py-1 text-xs text-white"
-                    value={boardDuration}
-                    onChange={(event) => setBoardDuration(event.target.value === 'never' ? 'never' : Number(event.target.value) as 1 | 3 | 6 | 12 | 24 | 168)}
-                  >
-                    {BOARD_DURATION_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-                  </select>
-                </label>
-                <label className="flex items-center gap-2 text-xs text-white/70">
-                  <Checkbox checked={visibleCheckin} onCheckedChange={(checked) => setVisibleCheckin(checked === true)} />
-                  Show me in Who's Here
-                </label>
-                {visibleCheckin ? (
+            {place.viewerCheckin ? (
+              <div className="rounded-lg border border-border bg-card p-3">
+                <textarea aria-label="Leave a spot board message" className="min-h-20 w-full resize-none bg-transparent text-sm text-white outline-none" placeholder="Leave a message for this spot" value={message} onChange={(event) => setMessage(event.target.value)} maxLength={1000} />
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <p className="text-xs text-white/55">Checked in until {new Date(place.viewerCheckin.expiresAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</p>
+                  <div className="flex items-center gap-3">
+                    <button type="button" disabled={mutating || postingCheckin || postingBoard} className="text-xs text-white/65 hover:text-white disabled:opacity-50" onClick={() => void handleCheckout()}>Check out</button>
+                    <Button size="sm" disabled={!message.trim() || postingBoard || postingCheckin || mutating} onClick={() => void handlePostBoard()}>{postingBoard ? 'Posting...' : 'Post to board'}</Button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="rounded-lg border border-border bg-card p-3">
+                <p className="mb-3 text-sm text-white/70">Check in to view this board.</p>
+                <div className="flex flex-wrap items-center justify-between gap-3">
                   <label className="flex items-center gap-2 text-xs text-white/60">
-                    Who's Here duration
+                    Duration
                     <select
-                      aria-label="Who's Here duration"
+                      aria-label="Check-in duration"
                       className="rounded-md border border-white/15 bg-black px-2 py-1 text-xs text-white"
                       value={checkinDurationHours}
                       onChange={(event) => setCheckinDurationHours(Number(event.target.value) as 1 | 3 | 6 | 12 | 24)}
@@ -420,13 +434,16 @@ export default function PlaceDetail({ embedded = false, placeIdOverride }: Place
                       {CHECKIN_DURATION_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                     </select>
                   </label>
-                ) : null}
-                <Button size="sm" disabled={!message.trim() || postingCheckin || mutating} onClick={handlePostCheckin}>{postingCheckin ? 'Posting...' : 'Post to board'}</Button>
+                <label className="flex items-center gap-2 text-xs text-white/70">
+                  <Checkbox checked={visibleCheckin} onCheckedChange={(checked) => setVisibleCheckin(checked === true)} />
+                  Show me in Who's Here
+                </label>
+                  <Button size="sm" disabled={postingCheckin || postingBoard || mutating} onClick={handlePostCheckin}>{postingCheckin ? 'Checking in...' : 'Check in'}</Button>
+                </div>
               </div>
-              {place.viewerCheckin ? <div className="mt-3 flex items-center justify-between gap-3 border-t border-white/10 pt-3"><p className="text-xs text-white/55">Checked in until {new Date(place.viewerCheckin.expiresAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</p><button type="button" disabled={mutating || postingCheckin} className="text-xs text-white/65 hover:text-white disabled:opacity-50" onClick={() => void handleCheckout()}>Check out</button></div> : null}
-            </div>
-            {messages.length === 0 ? <p className="py-8 text-center text-sm text-muted-foreground">No board messages yet.</p> : null}
-            {messages.map((post) => (
+            )}
+            {place.viewerCheckin && messages.length === 0 ? <p className="py-8 text-center text-sm text-muted-foreground">No board messages yet.</p> : null}
+            {place.viewerCheckin ? messages.map((post) => (
               <UserActivityCapsule
                 key={post.id}
                 testId={`spot-board-post-${post.id}`}
@@ -443,17 +460,16 @@ export default function PlaceDetail({ embedded = false, placeIdOverride }: Place
                 content={<p className="text-base">{post.content}</p>}
                 cornerAction={(
                   <div className="flex flex-col items-end gap-1">
-                    <span className="flex items-center gap-1 text-[11px] text-white/52"><Clock className="h-3 w-3" />{boardExpiryLabel(post.expiresAt)}</span>
                     {post.canDelete ? (
-                      <button type="button" aria-label="Delete board post" disabled={mutating || postingCheckin} className="rounded-md p-1.5 text-white/48 hover:text-white disabled:opacity-50" onClick={() => void mutatePlace((id) => deletePlaceBoardMessage(id, post.id), 'Board post could not be deleted.')}><Trash2 className="h-4 w-4" /></button>
+                      <button type="button" aria-label="Delete board post" disabled={mutating || postingCheckin || postingBoard} className="rounded-md p-1.5 text-white/48 hover:text-white disabled:opacity-50" onClick={() => void mutatePlace((id) => deletePlaceBoardMessage(id, post.id), 'Board post could not be deleted.')}><Trash2 className="h-4 w-4" /></button>
                     ) : (
                       <ReportAction targetType="place_message" targetId={post.id} targetLabel={`board post by ${post.user.name}`} className="h-8 w-8 text-muted-foreground hover:text-white" onRequestReport={embedded ? () => setReportTarget({ targetType: 'place_message', targetId: post.id, targetLabel: `board post by ${post.user.name}` }) : undefined} />
                     )}
                   </div>
                 )}
               />
-            ))}
-            {boardHasMore ? <div className="flex justify-center"><Button variant="outline" size="sm" disabled={loadingMoreBoard} onClick={() => void handleLoadMoreBoard()}>{loadingMoreBoard ? 'Loading more messages...' : 'Load more messages'}</Button></div> : null}
+            )) : null}
+            {place.viewerCheckin && boardHasMore ? <div className="flex justify-center"><Button variant="outline" size="sm" disabled={loadingMoreBoard} onClick={() => void handleLoadMoreBoard()}>{loadingMoreBoard ? 'Loading more messages...' : 'Load more messages'}</Button></div> : null}
           </TabsContent>
 
           <TabsContent value="here" className="space-y-4 mt-4">

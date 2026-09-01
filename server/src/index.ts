@@ -42,6 +42,7 @@ import { startMessageExpiryScheduler } from "./message-expiry.js";
 import { startAccountDeletionMediaCleanupScheduler } from "./account-deletion-media-cleanup.js";
 import { startPendingPhotoModerationRetryScheduler } from "./recheck-pending-photo-moderations.js";
 import { startMapPingCleanupScheduler } from "./map-ping-cleanup.js";
+import { startPlaceCheckinExpiryScheduler } from "./place-checkin-expiry.js";
 import { syncAllVerifiedMembersToResendAudience } from "./resend-audience.js";
 
 const config = loadConfig();
@@ -51,6 +52,7 @@ let stopMessageExpiryScheduler: (() => void) | null = null;
 let stopAccountDeletionMediaCleanupScheduler: (() => void) | null = null;
 let stopPendingPhotoModerationRetryScheduler: (() => void) | null = null;
 let stopMapPingCleanupScheduler: (() => void) | null = null;
+let stopPlaceCheckinExpiryScheduler: (() => void) | null = null;
 
 const shutdown = async () => {
   stopReferralScheduler?.();
@@ -58,6 +60,7 @@ const shutdown = async () => {
   stopAccountDeletionMediaCleanupScheduler?.();
   stopPendingPhotoModerationRetryScheduler?.();
   stopMapPingCleanupScheduler?.();
+  stopPlaceCheckinExpiryScheduler?.();
   await app.close();
 };
 
@@ -79,6 +82,7 @@ stopMessageExpiryScheduler = startMessageExpiryScheduler(app);
 stopAccountDeletionMediaCleanupScheduler = startAccountDeletionMediaCleanupScheduler(app);
 stopPendingPhotoModerationRetryScheduler = startPendingPhotoModerationRetryScheduler(app);
 stopMapPingCleanupScheduler = startMapPingCleanupScheduler(app);
+stopPlaceCheckinExpiryScheduler = startPlaceCheckinExpiryScheduler(app);
 void syncAllVerifiedMembersToResendAudience({
   config,
   db: app.db,

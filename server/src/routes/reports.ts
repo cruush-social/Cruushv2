@@ -260,7 +260,7 @@ async function validatePlaceMessageReport(app: FastifyInstance, reporterUserId: 
   if (!placeMessageId) throw new ApiError(400, "VALIDATION_ERROR", "Spot-message reports require placeMessageId.");
   const row = (await app.db.query<{ id: string; place_id: string; target_user_id: string }>(
     `select m.id::text, m.place_id::text, m.user_id::text as target_user_id
-     from place_board_messages m where m.id = $1 and m.expires_at > now() limit 1`,
+     from place_board_messages m where m.id = $1 limit 1`,
     [placeMessageId]
   )).rows[0];
   if (!row) throw new ApiError(404, "NOT_FOUND", "Spot message not found.");

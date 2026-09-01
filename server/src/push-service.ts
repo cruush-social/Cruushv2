@@ -157,7 +157,7 @@ function isPreferenceEnabledForType(preferences: NotificationPreferences, type: 
     return false;
   }
 
-  if (type === "nearby_activity") {
+  if (type === "nearby_activity" || type === "place_checkin_expired") {
     return preferences.nearbyEnabled;
   }
 
@@ -181,6 +181,13 @@ function isPreferenceEnabledForType(preferences: NotificationPreferences, type: 
 }
 
 function genericPushCopy(type: AppNotificationType) {
+  if (type === "place_checkin_expired") {
+    return {
+      title: "Spot check-in ended",
+      body: "Check in again to view the board."
+    };
+  }
+
   if (type === "incoming_cruush") {
     return {
       title: "New cruush",

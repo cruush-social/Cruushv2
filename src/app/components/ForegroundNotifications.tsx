@@ -51,7 +51,7 @@ export function isNotificationTypeEnabled(
     return preferences.groupsEnabled;
   }
 
-  if (type === 'nearby_activity') {
+  if (type === 'nearby_activity' || type === 'place_checkin_expired') {
     return preferences.nearbyEnabled;
   }
 

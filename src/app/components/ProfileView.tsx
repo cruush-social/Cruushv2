@@ -527,9 +527,11 @@ export default function ProfileView() {
             >
               <ArrowLeft className="h-5 w-5" />
             </button>
-            <span className="max-w-[min(42vw,18rem)] truncate rounded-full border border-white/12 bg-black/55 px-3 py-2 text-lg font-semibold text-white backdrop-blur-sm">
-              {profileView.name}
-            </span>
+            {!isOwnProfile ? (
+              <span className="max-w-[min(42vw,18rem)] truncate rounded-full border border-white/12 bg-black/55 px-3 py-2 text-lg font-semibold text-white backdrop-blur-sm">
+                {profileView.name}
+              </span>
+            ) : null}
           </div>
 
           <div className="pointer-events-auto flex items-center gap-2">

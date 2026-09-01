@@ -1,57 +1,54 @@
 {
   "schemaVersion": 2,
-  "taskId": "cruush-1.6-spots-board-first-20260901",
+  "taskId": "cruush-1.6-spot-checkin-board-access-20260901",
   "status": "active",
-  "objective": "Correct the cruush 1.6 Spots experience shown in Julien's Android screenshots: restore useful Spot filters, open directly into the board, add 7-day and no-expiry board posts, move secondary details below the board, enlarge the mobile Spot header, remove redundant helper copy, and remove the nonfunctional Discover button.",
-  "userOutcome": "A member can find the right Spot quickly and reach its board immediately, with useful post lifetimes and no decorative steps blocking the board.",
-  "audience": "Authenticated cruush members using Spots on Android mobile and desktop.",
+  "objective": "Remove the redundant own-profile name capsule and Spot title banner, then make active timed Spot check-ins control board access while board posts persist until deleted and expired check-ins generate a notification.",
+  "userOutcome": "Members see compact profile and Spot headers, check into a Spot for a chosen duration, access its board only during that check-in, keep board posts until deletion, and receive notice when access ends.",
+  "audience": "Authenticated cruush members using profiles and Spots on Android mobile and desktop.",
   "successCriteria": [
-    "The Spots drawer shows its search, sort, distance, activity, place-type, and existing public Spot-tag filters directly without a Discover mode button.",
-    "Filters alter both drawer results and the default Spot map layer using existing server-backed fields only.",
-    "Selecting a Spot opens its board immediately. The board and Who's Here switcher appears directly below the compact Spot identity block, before description, ratings, Popular times, source, and other secondary details.",
-    "Board posts offer 1h, 3h, 6h, 12h, 24h, 7d, and Never. A separate Who's Here duration appears only when the member opts into Who's Here.",
-    "The primary board action says Post to board.",
-    "The non-embedded Spot detail header has a larger Android-mobile touch and title area.",
-    "Redundant helper lines beneath the Add Spot controls are removed while required privacy and safety meaning remains intact.",
-    "No Discover button remains in the Spots drawer."
+    "The own-profile top overlay keeps Back, Edit Profile, and the global bug button but does not repeat the member name.",
+    "The Spot detail page removes the large repeated title banner while retaining Back and the global bug button.",
+    "A member without an active check-in cannot read or write a Spot board and sees the timed check-in control instead.",
+    "A member with an active check-in can read and write the Spot board until the selected check-in duration ends.",
+    "Board posts have no expiry and remain owner-deletable.",
+    "When a check-in expires, board access ends and the member receives an app and push notification through existing notification preferences."
   ],
   "mustPreserve": [
-    "Preserve the approved cruush vector map style and every non-Spots map behavior.",
-    "Preserve current Crowd Mode behavior and add no Crowd Mode menu or demographic Spot filter.",
-    "Preserve Spot search, five sorts, publishing, suggestions, ratings, reports, Popular times, board encryption, physical-distance checks, Who's Here opt-in, deletion, and pagination.",
-    "Preserve all unrelated user work and the exact existing icon assets."
+    "Preserve the profile image, profile details, Edit Profile control, Back control, and global bug button.",
+    "Preserve the approved cruush vector map style and all map behavior.",
+    "Preserve Spot identity details, ratings, reports, Popular times, Who's Here, board encryption, moderation, deletion, and pagination.",
+    "Preserve all unrelated user work and existing assets."
   ],
   "nonGoals": [
-    "No map-theme or marker redesign.",
-    "No Crowd Mode changes, inferred demographic data, fabricated Spot vibes, or fake feature availability.",
-    "No test creation or test execution.",
-    "No server restart, migration execution, push, deployment, changelog edit, or email work."
+    "No map, Crowd Mode, feed, Ghost Mode, profile-content, or unrelated Spot redesign.",
+    "No test creation or execution, build, preview, or rendered verification.",
+    "No server restart, migration execution, push, deployment, changelog, or email work."
   ],
   "assumptions": [
     {
-      "statement": "Top bar refers to the Spot detail header shown in the supplied Android screenshot.",
-      "impact": "Only the Spot detail mobile header receives a larger touch and title area.",
+      "statement": "The redundant profile name means only the top overlay name capsule shown in the supplied own-profile screenshot.",
+      "impact": "The name remains in the profile content beside the age.",
       "reversible": true,
-      "confirmationState": "labeled"
+      "confirmationState": "confirmed"
     },
     {
-      "statement": "Restored 1.6 Spot filters must be backed by current real fields: distance, activity, facility type, and stored public Spot tags.",
-      "impact": "The release gains working filters without inventing privacy-sensitive crowd, vibe, opening-hours, or feature data.",
+      "statement": "The unnecessary Spot banner means the repeated sticky title header shown in the supplied Spot screenshot.",
+      "impact": "The Spot identity remains in the page content while Back remains independently available.",
       "reversible": true,
-      "confirmationState": "labeled"
+      "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "Commit the focused Spots source correction and hand it to Julien as intentionally unverified source, per the active code-only instruction.",
+  "nextVisibleMilestone": "Commit the focused source changes and hand them to Julien as intentionally unverified code.",
   "stopConditions": [
-    "Stop before any push, deployment, migration execution, server control, production data change, or email send.",
-    "Stop if the requested filter requires fabricated, inferred, or privacy-sensitive data not present in the current Spot model."
+    "Stop before any push, deployment, migration execution, server control, production data change, or external message.",
+    "Stop if board access cannot be separated from unrelated Spot or map behavior."
   ],
   "costBudget": {
     "maxUsd": 0,
     "maxMinutes": null
   },
   "externalEffectDecisions": {
-    "commit": "Authorized by Julien's standing instruction to commit while finishing the 1.6 release. Limit the commit to this focused Spots correction and task contract.",
+    "commit": "Authorized by Julien's standing instruction to commit while finishing 1.6. Limit the commit to this focused correction and task contract.",
     "push": "not authorized by the current request",
     "deploy": "not authorized by the current request",
     "environmentChanges": "forbidden",
@@ -72,7 +69,7 @@
   "release": "1.6",
   "repository": "cruush-social/Cruushv2",
   "branch": "release/1.6-integration-20260901",
-  "job": "Implement the focused board-first Spots correction from Julien's Android screenshots.",
+  "job": "Implement timed Spot check-in board access, permanent posts, expiry notifications, and the two requested compact header corrections.",
   "forbiddenPaths": [
     "HANDOFF.md",
     ".dev/**",
@@ -80,18 +77,25 @@
   ],
   "allowedPaths": [
     "AI_TASK.json",
-    "src/app/components/MapHome.tsx",
-    "src/app/components/PlacesDrawer.tsx",
+    "src/app/components/ProfileView.tsx",
     "src/app/components/PlaceDetail.tsx",
+    "src/app/components/ForegroundNotifications.tsx",
     "src/app/lib/placesApi.ts",
-    "server/src/migrate.ts",
+    "src/app/lib/notificationsApi.ts",
     "server/src/places.ts",
     "server/src/routes/places.ts",
-    "server/sql/111_place_board_post_expiry.sql"
+    "server/src/routes/reports.ts",
+    "server/src/notification-service.ts",
+    "server/src/push-service.ts",
+    "server/src/place-checkin-expiry.ts",
+    "server/src/index.ts",
+    "server/src/migrate.ts",
+    "server/src/dev-seed-places.ts",
+    "server/sql/112_place_checkin_board_access.sql"
   ],
-  "proofTarget": "Source-only diff. Tests, build, migration execution, and rendered verification are intentionally not run under Julien's active code-only instruction.",
+  "proofTarget": "Source-only diff. Tests, build, migration execution, and rendered verification are intentionally excluded by Julien's active code-only instruction.",
   "publicationTarget": "local commit only",
   "requiredEvidence": [
-    "Focused source diff for the requested Spots files, labeled unverified because tests, build, migration execution, and rendered checks are excluded."
+    "Focused source diff for the requested profile, Spot, board-access, and notification files, labeled unverified because tests, build, migration execution, and rendered checks are excluded."
   ]
 }
