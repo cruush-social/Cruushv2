@@ -57,7 +57,7 @@
     ,"Conversation settings uses the standard cruush Settings glyph, and the composer timer menu opens upward."
     ,"Cruushes uses the same segmented tab treatment as Messages, and switching Incoming, Sent, Mutual, or Views changes only the listed people and state-specific content inside the unchanged card grid."
     ,"Messages profile previews use the Cruushes card structure, use the same content slot that Feed uses for post text, omit vibe capsules, and retain Delete in the card corner."
-    ,"Feed places a Seeking control beside Feed Settings. Its in-panel search field searches visible member names, bios, configured profile fields, and Feed post tags without searching post text. A leading # searches Feed post tags."
+    ,"Feed places a Seeking control beside Feed Settings. Its in-panel search field searches Feed post tags only, with or without a leading #. It does not search member profiles or post text."
     ,"Seeking includes a profile keyword search that matches visible names, bios, and configured profile keywords such as kinks. Visibility includes the same search field with inverse meaning: matching people are excluded from seeing the member."
     ,"Messages and Cruushes place the full-screen page name directly beside Back while preserving the reserved bug-button slot."
     ,"Cruushes puts name and pronouns together in a full-width mobile content row above the action trio, puts Last online and Distance on separate lines beside the vertically centered action trio, and omits vibe capsules."

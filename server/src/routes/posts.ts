@@ -529,8 +529,7 @@ function addFeedSensitiveTokenFilter(
   )`);
 }
 
-function addFeedSearchFilter(
-  app: FastifyInstance,
+function addFeedTagSearchFilter(
   where: string[],
   values: unknown[],
   searchQuery: string | undefined
@@ -540,7 +539,6 @@ function addFeedSearchFilter(
     return;
   }
 
-  const tagOnly = rawQuery.startsWith("#");
   const normalizedQuery = rawQuery.replace(/^#+/, "").trim();
   if (!normalizedQuery) {
     return;
@@ -548,59 +546,11 @@ function addFeedSearchFilter(
 
   values.push(`%${normalizedQuery}%`);
   const searchPlaceholder = `$${values.length}`;
-  const tagSearch = `exists (
+  where.push(`exists (
     select 1
     from feed_post_tags search_tag
     where search_tag.post_id = p.id
       and lower(search_tag.tag) like ${searchPlaceholder}
-  )`;
-
-  if (tagOnly) {
-    where.push(tagSearch);
-    return;
-  }
-
-  const normalizedKink = normalizeFilterTokenValue(normalizedQuery);
-  const tokenKeyVersion = getSensitiveProfileTokenKeyVersion(app.config);
-  const kinkTokenHash = normalizedKink
-    ? createSensitiveProfileToken(app.config, `kink:${normalizedKink}`, tokenKeyVersion).token_hash
-    : "";
-  values.push(kinkTokenHash);
-  const kinkTokenPlaceholder = `$${values.length}`;
-  values.push(tokenKeyVersion);
-  const tokenKeyVersionPlaceholder = `$${values.length}`;
-
-  where.push(`(
-    lower(coalesce(pr.display_name, '')) like ${searchPlaceholder}
-    or lower(coalesce(pr.bio, '')) like ${searchPlaceholder}
-    or exists (
-      select 1
-      from unnest(
-        coalesce(pr.identities, '{}'::text[])
-        || coalesce(pr.presentation, '{}'::text[])
-        || coalesce(pr.sexuality, '{}'::text[])
-        || coalesce(pr.body_type, '{}'::text[])
-        || coalesce(pr.availability, '{}'::text[])
-        || coalesce(pr.hosting_travel, '{}'::text[])
-        || coalesce(pr.looking_for, '{}'::text[])
-        || coalesce(pr.vibes, '{}'::text[])
-        || coalesce(pr.scenes, '{}'::text[])
-        || coalesce(pr.archetypes, '{}'::text[])
-        || coalesce(pr.hobbies, '{}'::text[])
-        || coalesce(pr.position, '{}'::text[])
-        || coalesce(pr.role, '{}'::text[])
-        || coalesce(pr.substance_boundaries, '{}'::text[])
-      ) as searchable(value)
-      where lower(searchable.value) like ${searchPlaceholder}
-    )
-    or exists (
-      select 1
-      from profile_sensitive_tokens search_token
-      where search_token.user_id = pr.id
-        and search_token.token_hash = ${kinkTokenPlaceholder}
-        and search_token.token_key_version = ${tokenKeyVersionPlaceholder}
-    )
-    or ${tagSearch}
   )`);
 }
 
@@ -691,7 +641,7 @@ export async function registerPostRoutes(app: FastifyInstance) {
       values.push(query.maxAge);
       where.push(`extract(year from current_date)::integer - pr.year_of_birth <= $${values.length}::integer`);
     }
-    addFeedSearchFilter(app, where, values, query.q);
+    addFeedTagSearchFilter(where, values, query.q);
     addFeedTextArrayFilter(where, values, "pr.identities", query.identities);
     addFeedTextArrayFilter(where, values, "pr.presentation", query.presentations);
     addFeedTextArrayFilter(where, values, "pr.looking_for", query.lookingFor);

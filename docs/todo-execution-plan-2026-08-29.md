@@ -477,9 +477,8 @@ Status:
   focused client coverage proves a free member posts text with an empty photo list, plus audience,
   expiry, owner deletion, reporting, blocking, and distance presentation. The complete 648-test
   client suite passes; no live post was added during this continuation.
-- [x] Feed Seeking sits beside Feed Settings and searches visible member names, bios, configured
-  profile fields, and Feed post tags inside the same popup. A leading `#` searches tags. Post text
-  is not searched.
+- [x] Feed Seeking sits beside Feed Settings and searches Feed post tags only inside the same popup.
+  It accepts a tag with or without a leading `#` and does not search profiles or post text.
 - [~] Complete cruush+ posting of up to three policy-compliant photos. Focused backend checks prove
   the cruush+ gate, approved-owner unattached-media boundary, ordered attachment insert, public
   authenticated read, and Crowd-audience denial. Upload moderation/provider and rendered-flow proof

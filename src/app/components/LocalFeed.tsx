@@ -1496,7 +1496,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
       onOpenChange={setSeekingOpen}
       onUpgrade={() => setPlusCardOpen(true)}
       open={seekingOpen}
-      searchPlaceholder="Search people or #tags"
+      searchPlaceholder="Search #tags"
       title="Seeking Filter"
       value={feedSeekingDraft}
     />
