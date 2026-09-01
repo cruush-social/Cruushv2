@@ -22,6 +22,7 @@ export type FeedPost = {
   createdAt: string;
   distance: string;
   audience: FeedPostAudience;
+  replyCount?: number;
   photos?: FeedPhoto[];
   crowdTargets?: string[];
   locationPin?: {
@@ -44,6 +45,20 @@ export type FeedPost = {
     attendingLaunchParty?: boolean;
     travelling?: boolean;
     vibes?: string[];
+  };
+};
+
+export type FeedReply = {
+  id: string;
+  postId: string;
+  content: string;
+  createdAt: string;
+  user: {
+    id: string;
+    name: string;
+    pronouns: string;
+    photo: string | null;
+    photoExplicit?: boolean;
   };
 };
 
@@ -189,6 +204,23 @@ export async function updateFeedSettings(payload: FeedSettings) {
 
 export async function deleteFeedPost(postId: string) {
   return requestApi<void>(`/api/posts/${postId}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function getFeedReplies(postId: string) {
+  return requestApi<FeedReply[]>(`/api/posts/${encodeURIComponent(postId)}/replies`);
+}
+
+export async function createFeedReply(postId: string, content: string) {
+  return requestApi<FeedReply>(`/api/posts/${encodeURIComponent(postId)}/replies`, {
+    method: 'POST',
+    body: JSON.stringify({ content }),
+  });
+}
+
+export async function deleteFeedReply(postId: string, replyId: string) {
+  return requestApi<void>(`/api/posts/${encodeURIComponent(postId)}/replies/${encodeURIComponent(replyId)}`, {
     method: 'DELETE',
   });
 }

@@ -62,6 +62,23 @@ type PostRow = {
     label?: string;
   } | string | null;
   map_ping_id?: string | null;
+  reply_count?: number | string | null;
+};
+
+type FeedReplyRow = {
+  id: string;
+  post_id: string;
+  user_id: string;
+  content: string;
+  content_ciphertext: string;
+  content_nonce: string;
+  content_auth_tag: string;
+  content_key_version: string;
+  created_at: string | Date;
+  display_name: string | null;
+  pronouns: string[] | null;
+  photos: string[] | null;
+  photo_explicit?: boolean | null;
 };
 
 type FeedSettingsRow = {
@@ -217,6 +234,7 @@ async function mapPostRow(app: FastifyInstance, row: PostRow, viewerUserId: stri
     } : {}),
     ...(partyStatus ? { partyStatus } : {}),
     ...(photos.length > 0 ? { photos } : {}),
+    replyCount: Number(row.reply_count ?? 0),
     user: {
       id: row.user_id,
       name: row.display_name?.trim() || "cruush user",
@@ -229,6 +247,27 @@ async function mapPostRow(app: FastifyInstance, row: PostRow, viewerUserId: stri
       ...(row.travelling === true ? { travelling: true } : {}),
       ...((row.badges?.length ?? 0) > 0 ? { badges: row.badges } : {}),
       ...(row.side_badges ? { sideBadges: row.side_badges } : {})
+    }
+  };
+}
+
+function mapReplyRow(app: FastifyInstance, row: FeedReplyRow) {
+  return {
+    id: row.id,
+    postId: row.post_id,
+    content: decryptTextContentOrFallback(app.config, "feed", {
+      ciphertext: row.content_ciphertext,
+      nonce: row.content_nonce,
+      authTag: row.content_auth_tag,
+      keyVersion: row.content_key_version
+    }, row.content),
+    createdAt: new Date(row.created_at).toISOString(),
+    user: {
+      id: row.user_id,
+      name: row.display_name?.trim() || "cruush user",
+      pronouns: row.pronouns?.join(", ") ?? "",
+      photo: row.photos?.[0] ?? null,
+      photoExplicit: row.photo_explicit === true
     }
   };
 }
@@ -369,11 +408,61 @@ const POST_COLUMNS = `
     order by membership.last_seen_at desc
     limit 1
   ) as party_status
+  , (select count(*) from feed_post_replies reply where reply.post_id = p.id)::int as reply_count
 `;
 
 const postParamsSchema = z.object({
   postId: z.uuid()
 });
+
+const replyParamsSchema = z.object({
+  postId: z.uuid(),
+  replyId: z.uuid()
+}).strict();
+
+const feedReplyQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  before: z.string().datetime().optional()
+}).strict();
+
+const createFeedReplySchema = z.object({
+  content: z.string().trim().min(1).max(500)
+}).strict();
+
+async function requireVisibleFeedPost(app: FastifyInstance, viewerUserId: string, postId: string) {
+  const row = (await app.db.query<Pick<PostRow, "id" | "user_id" | "audience">>(
+    `select p.id, p.user_id, p.audience
+     from posts p
+     join app_users author on author.id = p.user_id
+     where p.id = $2
+       and p.expires_at > now()
+       and coalesce(author.account_status, 'active') <> 'deleted'
+       and not exists (
+         select 1 from user_blocks block
+         where (block.blocker_user_id = $1 and block.blocked_user_id = p.user_id)
+            or (block.blocker_user_id = p.user_id and block.blocked_user_id = $1)
+       )
+       and (
+         not exists (select 1 from feed_post_crowd_targets target where target.post_id = p.id)
+         or exists (
+           select 1
+           from feed_post_crowd_targets target
+           join profile_sensitive_tokens viewer_token
+             on viewer_token.user_id = $1
+            and viewer_token.token_hash = target.token_hash
+            and viewer_token.token_key_version = target.token_key_version
+           where target.post_id = p.id
+         )
+       )
+     limit 1`,
+    [viewerUserId, postId]
+  )).rows[0];
+
+  if (!row || !(await canViewPostAudience(app, viewerUserId, row as PostRow))) {
+    throw new ApiError(404, "NOT_FOUND", "Feed post not found.");
+  }
+  return row;
+}
 
 const feedQueryArrayField = z.preprocess((value) => {
   if (value === undefined) {
@@ -1065,6 +1154,131 @@ export async function registerPostRoutes(app: FastifyInstance) {
     return reply.code(201).send({
       data: await mapPostRow(app, row, userId)
     });
+  });
+
+  app.get("/api/posts/:postId/replies", async (request, reply) => {
+    const userId = await getAuthenticatedUserId(request);
+    const { postId } = postParamsSchema.parse(request.params);
+    const query = feedReplyQuerySchema.parse(request.query);
+    await requireVisibleFeedPost(app, userId, postId);
+
+    const rows = (await app.db.query<FeedReplyRow>(
+      `select
+         reply.id::text,
+         reply.post_id::text,
+         reply.user_id::text,
+         reply.content,
+         reply.content_ciphertext,
+         reply.content_nonce,
+         reply.content_auth_tag,
+         reply.content_key_version,
+         reply.created_at,
+         profile.display_name,
+         profile.pronouns,
+         profile.photos,
+         ${feedAuthorPhotoExplicitSelect("reply", "profile")}
+       from feed_post_replies reply
+       join app_users author on author.id = reply.user_id
+       left join profiles profile on profile.id = reply.user_id
+       where reply.post_id = $2
+         and ($3::timestamptz is null or reply.created_at < $3::timestamptz)
+         and coalesce(author.account_status, 'active') <> 'deleted'
+         and not exists (
+           select 1 from user_blocks block
+           where (block.blocker_user_id = $1 and block.blocked_user_id = reply.user_id)
+              or (block.blocker_user_id = reply.user_id and block.blocked_user_id = $1)
+         )
+       order by reply.created_at desc, reply.id desc
+       limit $4`,
+      [userId, postId, query.before ?? null, query.limit]
+    )).rows;
+
+    return reply.send({ data: rows.reverse().map((row) => mapReplyRow(app, row)) });
+  });
+
+  app.post("/api/posts/:postId/replies", async (request, reply) => {
+    const userId = await getActiveAccountUserId(request);
+    const { postId } = postParamsSchema.parse(request.params);
+    const payload = createFeedReplySchema.parse(request.body);
+    await requireVisibleFeedPost(app, userId, postId);
+    await app.rateLimiter.assert({
+      key: `feed-reply:${userId}`,
+      max: 20,
+      windowMs: 60 * 1000,
+      message: "Too many replies. Try again later."
+    });
+
+    const restricted = (await app.db.query(
+      `select 1
+       from feature_restrictions restriction
+       where restriction.user_id = $1
+         and restriction.feature = 'feed_posting'
+         and (restriction.ends_at is null or restriction.ends_at > now())
+       limit 1`,
+      [userId]
+    )).rows[0];
+    if (restricted) {
+      throw new ApiError(403, "FEED_POSTING_RESTRICTED", "Feed posting is unavailable for this account.");
+    }
+
+    await moderateTextOrReject(app, {
+      userId,
+      surface: "feed",
+      text: payload.content,
+      contentRef: { postId, kind: "reply" }
+    });
+    const encrypted = encryptTextContent(app.config, "feed", payload.content);
+    const row = (await app.db.query<FeedReplyRow>(
+      `with inserted as (
+         insert into feed_post_replies (
+           post_id, user_id, content, content_ciphertext, content_nonce,
+           content_auth_tag, content_key_version
+         )
+         select p.id, $1, '[encrypted]', $3, $4, $5, $6
+         from posts p
+         where p.id = $2 and p.expires_at > now()
+         returning *
+       )
+       select
+         inserted.id::text,
+         inserted.post_id::text,
+         inserted.user_id::text,
+         inserted.content,
+         inserted.content_ciphertext,
+         inserted.content_nonce,
+         inserted.content_auth_tag,
+         inserted.content_key_version,
+         inserted.created_at,
+         profile.display_name,
+         profile.pronouns,
+         profile.photos,
+         ${feedAuthorPhotoExplicitSelect("inserted", "profile")}
+       from inserted
+       left join profiles profile on profile.id = inserted.user_id`,
+      [
+        userId,
+        postId,
+        encrypted.ciphertext,
+        encrypted.nonce,
+        encrypted.authTag,
+        encrypted.keyVersion
+      ]
+    )).rows[0];
+
+    if (!row) throw new ApiError(404, "NOT_FOUND", "Feed post not found.");
+    return reply.code(201).send({ data: mapReplyRow(app, row) });
+  });
+
+  app.delete("/api/posts/:postId/replies/:replyId", async (request, reply) => {
+    const userId = await getActiveAccountUserId(request);
+    const { postId, replyId } = replyParamsSchema.parse(request.params);
+    const result = await app.db.query(
+      `delete from feed_post_replies
+       where id = $1 and post_id = $2 and user_id = $3`,
+      [replyId, postId, userId]
+    );
+    if (!result.rowCount) throw new ApiError(404, "NOT_FOUND", "Feed reply not found.");
+    return reply.code(204).send();
   });
 
   app.delete("/api/posts/:postId", async (request, reply) => {
