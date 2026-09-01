@@ -13,6 +13,12 @@ import type { LocationPayload } from "./location-privacy.js";
  */
 
 export const TRAVEL_PIN_MOVE_COOLDOWN_MS = 3 * 60 * 60 * 1000;
+export const TRAVEL_PIN_MIN_DISTANCE_MILES = 50;
+
+export function isTravelPinDistanceAllowed(distanceMiles: number) {
+  return Number.isFinite(distanceMiles) && distanceMiles > TRAVEL_PIN_MIN_DISTANCE_MILES;
+}
+
 /**
  * A trip, not a residence. The pin lapses on its own after a day so nobody has
  * to remember to turn it off, and somebody who left a city three weeks ago is

@@ -521,7 +521,9 @@ Status:
   facility filters, encrypted suggestions, board, ratings, check-ins, Who's Here, and Popular times.
   The drawer, published results, desktop board popup, and combined check-in form were rendered in
   the existing local browser. Physical-distance-gated write proof remains pending.
-- [ ] Restore the approved Spots primary icon. Do not invent category-specific icons.
+- [x] Restore the approved Spots primary icon. The active Map Controls button imports the approved
+  handoff asset `places-ghost-source.png` directly and rendered it in the authenticated desktop and
+  mobile controls. No category-specific icons were invented.
 - [x] Spots renders exactly the approved tagline `Public cruising spaces, healthcare clinics, and
   community spots.` No second tagline appears.
 - [~] Show published Spots on the map by default. Opening the menu does not toggle visibility. Active
@@ -566,23 +568,34 @@ Status:
   trans/NB presence.
 - [deferred] Show category, top three Spot vibes, gender lean, and the positive Strong trans/NB presence
   label only when thresholds are satisfied.
-- [ ] Never show live or exact sensitive composition, negative trans/NB labels, counts, percentages,
-  or inferred identity.
+- [x] Never show live or exact sensitive composition, negative trans/NB labels, counts, percentages,
+  or inferred identity. Those deferred fields do not exist in the active Spot response or UI, and the
+  populated authenticated drawer and board rendered without them.
 - [blocked] Approve full Spot vibe, category, and feature taxonomies; usual versus live vibe model;
   crowd-combination semantics; protected-rule cooldown; and trans/NB aggregation ontology.
 
 ## P1. Map, heatmap, clustering, and Recently Active
 
-- [ ] Preserve the approved in-app vector map theme. Never fall back to CARTO, raster tiles, or a
-  different theme.
-- [ ] Derive hearts, people clusters, heatmap, and Recently Active from the same viewer-authorized,
-  privacy-adjusted person set.
-- [ ] Increase far-zoom clustering and show more authorized in-view people and Spots as the viewport
-  expands. Zoom never changes an individual's coordinates.
-- [ ] Cluster selection fits member bounds. Exact-coordinate groups spiderfy without overlap.
-- [ ] Heatmap stays off by default and represents coarse seven-day activity, not one glow beneath
-  each current heart.
-- [ ] Keep self and demo profiles out of density. Never fabricate activity in sparse or empty states.
+- [x] Preserve the approved in-app vector map theme. The authenticated map rendered the active dark
+  vector theme. Focused coverage rejects CARTO, ignores retired raster flags, keeps OpenFreeMap vector
+  tiles through slow/error/recovery states, and proves no raster layer is created.
+- [x] Derive hearts, people clusters, heatmap, and Recently Active from the same viewer-authorized,
+  privacy-adjusted person set. `displayedUsersInViewport` is the single shared people source for map
+  markers and Recently Active; clustering and heatmap consume those markers. The heatmap alone removes
+  self and developer-demo markers before aggregation.
+- [x] Increase far-zoom clustering and show more authorized in-view people and Spots as the viewport
+  expands. The zoom-10 authenticated render showed the larger authorized area as independent people
+  and Spot clusters. Focused coverage keeps every individual coordinate unchanged across zoom levels.
+- [~] Cluster selection fits member bounds in focused coverage, and exact-coordinate people and Spots
+  receive distinct pixel-only spiderfy offsets without mixing the two sets. The authenticated map
+  rendered populated people and Spot clusters, but this continuation did not find an exact-coordinate
+  cluster in the active viewport for a real selection proof.
+- [x] Heatmap stays off by default and represents coarse seven-day activity, not one glow beneath
+  each current heart. Authenticated zoom-10 and zoom-12 renders showed coarse cohort glows; sparse
+  zoom-14 and zoom-16 views correctly stayed empty when enabled.
+- [x] Keep self and demo profiles out of density. Never fabricate activity in sparse or empty states.
+  Focused source proof filters self, developer demos, activity older than seven days, and cohorts below
+  three before creating a heatmap point; the complete MapView file passes 54 tests.
 - [~] Recently Active loads up to ten viewer-authorized people, shows five before horizontal scroll,
   hides the scrollbar to reclaim its height, preserves touch, pointer-drag, and mouse-wheel scrolling,
   restores the prior translucent black-glass container around the complete open Recently Active unit, and remains centered with or without panels. Source is
@@ -590,13 +603,18 @@ Status:
   proof is pending because the current Mile High Club viewpoint returns no authorized recent profiles.
 - [x] Keep the bottom navigation centered with or without panels. Authenticated 1625x963 and
   900x844 renders kept the nav centered while profile and Feed panels were open.
-- [ ] Render heatmap off/on at identical zoom 10, 12, 14, and 16 camera states.
+- [x] Render heatmap off/on at identical zoom 10, 12, 14, and 16 camera states. Each authenticated
+  desktop pair retained the same camera, toggled `aria-pressed` false to true, and returned the
+  heatmap to off afterward without horizontal overflow.
 - [~] Source defines the active service area as the complete 100-mile circle around the NYC center
   and allows zooming until the whole edge is visible. Verify the camera never hides the boundary.
 - [~] Source adds dark-blue fog outside the allowed 100-mile circle. Verify it masks only the
   out-of-area map and does not capture pointer input inside the active area.
-- [ ] Require Mile High Club to cruise from a location more than 50 miles from the member's actual
-  location. Verify inside, boundary, and outside states without exposing precise location.
+- [x] Require Mile High Club to cruise from a location more than 50 miles from the member's actual
+  location. The write route now compares the candidate with the encrypted actual-location envelope
+  and never returns or logs coordinates. Focused inside, exact-boundary, outside, and non-finite cases
+  pass. The watched local API rejected a near-location request with 403 and left the pin off; the prior
+  Philadelphia outside-state activation succeeded and was cleared.
 - [x] Spot disappearance on zoom was traced to the server measuring the viewport radius from NYC's
   fixed center instead of the settled map center. The configured local API is available. Ginger's
   Bar remained rendered after selection and two consecutive one-click zoom-ins while its populated
@@ -647,8 +665,11 @@ Status:
   side badges share the same fade, and the normal heart clip hides all photo overflow. When Ghost
   and Mile High Club are active together, the decoy keeps the Mile High Club treatment but freezes
   it at the approved Reduced Motion frame rather than duplicating the moving traveller animation.
-- [ ] Hovering the signed-in member's decoy shows live time remaining until rotation. During the
-  final minute, the owner sees the existing Ghost rotation animation. Other members see no timer.
+- [x] Hovering the signed-in member's decoy shows live time remaining until rotation. The authenticated
+  owner hover rendered `Rotates in 0:23`; consecutive live samples changed both the countdown and pulse
+  transform during the final minute. Source restricts that timer to the owner Ghost decoy, and focused
+  coverage preserves the existing final-minute pulse and exit behavior for normal and Mile High Club
+  owner decoys.
 - [~] The older backlog's missing rotation choices are now implemented in source: 15 and 30
   minutes, then every hour through 24 hours. Both privacy write routes validate the same supported
   values. The existing encrypted policy stores the preference and next-epoch schedule; cadence

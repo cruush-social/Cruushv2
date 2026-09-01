@@ -14,7 +14,9 @@ import {
   GHOST_RADIUS_OPTIONS,
   GHOST_ROTATION_MINUTES,
   issueBrowserDisplayKey,
+  loadLocationEnvelope,
   loadVisibilityPolicy,
+  locationPayloadToCoordinates,
   normalizeVisibilityPolicy,
   publicPrivacySettings,
   radiusMetersForLabel,
@@ -36,6 +38,7 @@ import { getActiveAccountUserId, getAuthenticatedUserId } from "../request-auth.
 import { CROWD_OPTIONS, normalizeCrowdOption } from "../profile-sensitive.js";
 import {
   TRAVEL_LABEL_MAX_LENGTH,
+  isTravelPinDistanceAllowed,
   getTravelPin as loadTravelPinForMode,
   TravelPinCooldownError,
   clearTravelPin,
@@ -48,7 +51,7 @@ import {
   MIN_MAP_PRESENCE_HOURS,
   normalizeMapPresenceHours
 } from "../map-presence.js";
-import { NYC_SERVICE_AREA } from "../service-area.js";
+import { distanceMiles, NYC_SERVICE_AREA } from "../service-area.js";
 
 type AuditProfileRow = {
   id: string;
@@ -528,6 +531,29 @@ export async function registerPrivacyRoutes(app: FastifyInstance) {
         403,
         "FEATURE_RESTRICTED",
         "Mile High Club is unavailable in Dark Room. Turn off Dark Room to use it."
+      );
+    }
+
+    const actualLocation = await loadLocationEnvelope(
+      { config: app.config, db: app.db },
+      userId
+    );
+    if (!actualLocation) {
+      throw new ApiError(
+        409,
+        "FEATURE_RESTRICTED",
+        "Update your current location before using Mile High Club."
+      );
+    }
+    const actualCoordinates = locationPayloadToCoordinates(actualLocation);
+    if (!isTravelPinDistanceAllowed(distanceMiles(actualCoordinates, {
+      lat: payload.latitude,
+      lng: payload.longitude
+    }))) {
+      throw new ApiError(
+        403,
+        "FEATURE_RESTRICTED",
+        "Mile High Club locations must be more than 50 miles from your current location."
       );
     }
 

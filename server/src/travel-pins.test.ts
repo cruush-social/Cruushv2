@@ -3,13 +3,22 @@ import { describe, expect, it, vi } from "vitest";
 import {
   clearTravelPin,
   getTravelPin,
+  isTravelPinDistanceAllowed,
   locationPayloadAtTravelPin,
   setTravelPin,
   TRAVEL_PIN_LIFETIME_MS,
+  TRAVEL_PIN_MIN_DISTANCE_MILES,
   TRAVEL_PIN_MOVE_COOLDOWN_MS
 } from "./travel-pins.js";
 
 describe("travel pins", () => {
+  it("requires a Mile High Club pin to be strictly more than 50 miles away", () => {
+    expect(isTravelPinDistanceAllowed(TRAVEL_PIN_MIN_DISTANCE_MILES - 0.001)).toBe(false);
+    expect(isTravelPinDistanceAllowed(TRAVEL_PIN_MIN_DISTANCE_MILES)).toBe(false);
+    expect(isTravelPinDistanceAllowed(TRAVEL_PIN_MIN_DISTANCE_MILES + 0.001)).toBe(true);
+    expect(isTravelPinDistanceAllowed(Number.NaN)).toBe(false);
+  });
+
   it("rejects an out-of-area pin before querying the database", async () => {
     const query = vi.fn();
     const app = {

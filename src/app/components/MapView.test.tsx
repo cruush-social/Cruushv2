@@ -258,6 +258,56 @@ describe('MapView', () => {
     expect(screen.getByTestId('marker-heart-user-1').querySelector('filter')).toBeNull();
   });
 
+  it('builds the optional heatmap only from coarse seven-day cohorts', async () => {
+    const markers = [
+      { id: 'recent-1', displayName: 'Recent 1', approximateLatitude: 40.711, approximateLongitude: -74.011, lastActiveLabel: 'Now' },
+      { id: 'recent-2', displayName: 'Recent 2', approximateLatitude: 40.712, approximateLongitude: -74.012, lastActiveLabel: '4h ago' },
+      { id: 'recent-3', displayName: 'Recent 3', approximateLatitude: 40.713, approximateLongitude: -74.013, lastActiveLabel: '7d ago' },
+      { id: 'stale', displayName: 'Stale', approximateLatitude: 40.714, approximateLongitude: -74.014, lastActiveLabel: '8d ago' },
+      { id: 'self', displayName: 'You', approximateLatitude: 40.715, approximateLongitude: -74.015, lastActiveLabel: 'Now', isCurrentUser: true },
+      { id: 'demo', displayName: 'Demo', approximateLatitude: 40.716, approximateLongitude: -74.016, lastActiveLabel: 'Now', npcGhostDemo: true },
+    ];
+    const { rerender } = render(
+      <MapView
+        markers={markers}
+        onPinClick={vi.fn()}
+      />
+    );
+
+    await waitFor(() => expect(MockMap.calls).toHaveLength(1));
+    act(() => mapInstances[0].trigger('load'));
+
+    expect(mapInstances[0].getSource('cruush-user-heatmap')).toBeUndefined();
+    expect(mapInstances[0].getLayer('cruush-user-heatmap-layer')).toBeUndefined();
+
+    rerender(
+      <MapView
+        markers={markers}
+        onPinClick={vi.fn()}
+        peopleHeatmapEnabled
+      />
+    );
+
+    await waitFor(() => expect(mapInstances[0].getSource('cruush-user-heatmap')).toBeDefined());
+    const source = mapInstances[0].getSource('cruush-user-heatmap');
+    expect(source.data.features).toHaveLength(1);
+    expect(source.data.features[0]).toMatchObject({
+      properties: {
+        samples: 3,
+        weight: 0.25,
+      },
+      geometry: {
+        type: 'Point',
+      },
+    });
+    expect(source.data.features[0].geometry.coordinates).not.toEqual([-74.011, 40.711]);
+    expect(mapInstances[0].getLayer('cruush-user-heatmap-layer')).toEqual(expect.objectContaining({
+      type: 'heatmap',
+      source: 'cruush-user-heatmap',
+      maxzoom: 16.75,
+    }));
+  });
+
   it('uses the Dark Room palette and shows the owner photo through the keyhole', () => {
     render(
       <MapMarkerPin
@@ -759,6 +809,7 @@ describe('MapView', () => {
     expect(screen.queryByTestId('marker-ghost-pulse-ghost-static')).not.toBeInTheDocument();
     expect(screen.queryByTestId('marker-ghost-fly-icon-ghost-static')).not.toBeInTheDocument();
     expect(screen.queryByTestId('marker-ghost-puff-ghost-static')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('owner-ghost-rotation-countdown')).not.toBeInTheDocument();
     expect(marker).toHaveAttribute('data-marker-theme', 'nearby');
     expect(marker.querySelector('path[fill]')).toHaveAttribute('fill', 'url(#marker-fill-ghost-static)');
     expect(marker.querySelector('path[stroke]')).toHaveAttribute('stroke', '#FF0072');
