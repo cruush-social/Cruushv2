@@ -366,15 +366,14 @@ Status:
 
 ### Profile popup actions and duplicates
 
-- [~] Keep cruush, Pin that user, and Message on one row in the popup. A local source patch now
+- [x] Keep cruush, Pin that user, and Message on one row in the popup. A local source patch now
   uses one flex row and always keeps Pin in the middle, dark and disabled when precise location is
-  unavailable. The full-profile action row rendered in this order; the map-popup row still needs
-  direct rendered proof.
-- [~] In Pop-ups mode, Message must replace the current popup with the conversation. It must not
-  navigate away or open a second popup. Local callback routing is patched; interaction proof is
-  pending.
-- [~] Keep exact action order everywhere: cruush, Pin that user, Message. Shared compact cards and
-  the full profile rendered in this order; remaining popup surfaces need matrix proof.
+  unavailable. The full profile and populated Pop-ups mode profile both rendered this exact row.
+- [x] In Pop-ups mode, Message replaces the current profile popup with the conversation. It does not
+  navigate away or open a second popup. The populated mari profile-to-thread flow passed on the real
+  authenticated map.
+- [x] Keep exact action order everywhere: cruush, Pin that user, Message. Shared compact cards, the
+  full profile, and the populated profile popup rendered in this order.
 - [x] Person-to-person Message always uses the arrow/send glyph. Never reuse the bottom-nav
   Messages icon.
 - [~] Every actionable cruush button is reversible from the same surface. A second press unsends

@@ -27,6 +27,25 @@ final result: passed
 
 ---
 
+# Design QA: Pop-ups profile actions
+
+## Rendered state
+
+- The authenticated populated mari profile rendered in the movable map popup.
+- cruush, disabled Pin, and Message stayed on one row in exact order.
+- Message replaced the profile with the direct conversation in the same dock.
+
+## Interaction
+
+- The map remained visible throughout the profile-to-thread transition.
+- No second popup opened.
+- The prior Full screen layout preference was restored afterward.
+- No relationship, profile, message, or account data changed.
+
+final result: passed
+
+---
+
 # Design QA: Spot request isolation
 
 ## Interaction coverage
