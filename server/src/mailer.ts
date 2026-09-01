@@ -130,7 +130,6 @@ type EventPassEmailInput = {
 
 const CRUUSH_EMAIL_LOGO_URL = "https://cdn.resend.app/ff1dfa96-8b85-4552-8e56-d09cf53fb13e";
 const VERIFICATION_EMAIL_TEMPLATE_ID = "0dc8f32c-76e2-45b2-aaf7-f4649ab48ab0";
-const PASSWORD_RESET_EMAIL_TEMPLATE_ID = "c4c95694-b788-4862-804d-e0fb146304c3";
 const REPORTS_INBOX_EMAIL = "reports@cruush.app";
 
 function escapeHtml(value: string) {
@@ -434,6 +433,95 @@ export async function sendVerificationEmail(input: VerificationEmailInput): Prom
   };
 }
 
+// The password reset design is built here rather than referenced as a Resend
+// template. Resend renders the last *published* revision of a template, so an
+// edit that has not been published keeps going out as the previous design with
+// nothing in this repository to explain why. Holding the markup here means the
+// deployed commit is the design, and a change to it goes through review like any
+// other.
+//
+// Kept byte-identical to the Resend template c4c95694-b788-4862-804d-e0fb146304c3
+// it replaces, except that {{{RESET_URL}}} becomes the interpolated value.
+//
+// The URL is inserted already HTML-escaped, which is what an href needs: an
+// ampersand between query parameters has to reach the attribute as &amp;.
+function buildPasswordResetEmailHtml(escapedResetUrl: string) {
+  return `<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+  </head>
+  <body style="margin:0;background:#050507;color:#fff;font-family:Georgia,'Times New Roman',serif;">
+    <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background:#050507;">
+      <tr>
+        <td
+          align="center"
+          style="padding:32px 16px;background:#050507;background-image:radial-gradient(circle at 12% 8%,rgba(255,0,114,.48),transparent 25%),radial-gradient(circle at 92% 18%,rgba(17,129,255,.42),transparent 28%),radial-gradient(circle at 50% 100%,rgba(111,0,255,.38),transparent 36%);"
+        >
+          <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="max-width:600px;">
+            <tr>
+              <td align="center" style="padding:0 0 22px;">
+                <img
+                  src="https://cdn.resend.app/ff1dfa96-8b85-4552-8e56-d09cf53fb13e"
+                  alt="cruush"
+                  width="100"
+                  height="104"
+                  style="display:block;margin:0 auto;border:0;border-radius:0;mix-blend-mode:screen;"
+                />
+              </td>
+            </tr>
+            <tr>
+              <td
+                style="padding:30px 28px;border:1px solid rgba(255,255,255,.18);border-radius:22px;background:rgba(255,255,255,.055);background-image:linear-gradient(180deg,rgba(255,255,255,.18),rgba(255,255,255,.025) 30%,rgba(255,255,255,.06));box-shadow:0 0 2px 1px rgba(255,255,255,.35) inset,0 0 10px 4px rgba(255,255,255,.15) inset,0 18px 48px rgba(0,0,0,.38);backdrop-filter:blur(22px) saturate(1.48);-webkit-backdrop-filter:blur(22px) saturate(1.48);"
+              >
+                <h1 style="margin:0 0 16px;color:#fff;font-size:30px;line-height:1.12;">forgot your password?</h1>
+                <p style="margin:0 0 24px;color:#eeeeF2;font-size:16px;line-height:1.65;">
+                  We received a request to reset the password for your cruush account. Use the button below to choose a
+                  new one.
+                </p>
+                <table cellpadding="0" cellspacing="0" role="presentation">
+                  <tr>
+                    <td
+                      bgcolor="#ff0072"
+                      style="border-radius:999px;background:#ff0072;box-shadow:0 0 0 1px rgba(255,255,255,.26) inset,0 8px 24px rgba(255,0,114,.28);"
+                    >
+                      <a
+                        href="${escapedResetUrl}"
+                        style="display:inline-block;padding:13px 22px;color:#fff;text-decoration:none;font-size:14px;font-weight:700;"
+                        >Reset password</a
+                      >
+                    </td>
+                  </tr>
+                </table>
+                <p
+                  style="margin:22px 0 0;padding:14px 16px;border:1px solid rgba(255,255,255,.1);border-radius:14px;background:rgba(255,255,255,.04);box-shadow:0 0 2px 1px rgba(255,255,255,.26) inset;color:#bdbdc8;font-size:13px;line-height:1.55;"
+                >
+                  This password reset link expires in 1 hour. If you did not request a reset, you can safely ignore this
+                  email.
+                </p>
+                <p style="margin:22px 0 0;color:#898995;font-size:12px;line-height:1.5;">
+                  If the button does not open, copy and paste this link into your browser:<br /><a
+                    href="${escapedResetUrl}"
+                    style="color:#c7c7d0;word-break:break-all;"
+                    >${escapedResetUrl}</a
+                  >
+                </p>
+              </td>
+            </tr>
+            <tr>
+              <td align="center" style="padding:22px 0 0;color:#898995;font-size:12px;">
+                A message from cruush<br /><a href="mailto:hello@cruush.app" style="color:#c7c7d0;">hello@cruush.app</a>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
+}
+
 export async function sendPasswordResetEmail(input: PasswordResetEmailInput): Promise<VerificationDeliveryResult> {
   const { config, email, logger, resetUrl } = input;
 
@@ -445,12 +533,21 @@ export async function sendPasswordResetEmail(input: PasswordResetEmailInput): Pr
       email,
       logger,
       subject: "Reset your cruush password",
-      template: {
-        id: PASSWORD_RESET_EMAIL_TEMPLATE_ID,
-        variables: {
-          RESET_URL: escapedResetUrl
-        }
-      },
+      html: buildPasswordResetEmailHtml(escapedResetUrl),
+      // The plain text part carries the raw URL. Escaping belongs to the HTML
+      // attribute; an &amp; here would be pasted into a browser literally.
+      text: [
+        "forgot your password?",
+        "",
+        "We received a request to reset the password for your cruush account.",
+        "Open this link to choose a new one:",
+        resetUrl,
+        "",
+        "This password reset link expires in 1 hour. If you did not request a reset,",
+        "you can safely ignore this email.",
+        "",
+        "A message from cruush, hello@cruush.app"
+      ].join("\n"),
       failureMessage: "password reset email delivery failed"
     });
 
