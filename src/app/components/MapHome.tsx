@@ -2679,7 +2679,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
               onClick={() => navigate('/rewards')}
               aria-label="cruush+ rewards"
               title="cruush+ rewards"
-              className="cruush-plus-shimmer-button cruush-logo-font pointer-events-auto h-9 rounded-full px-3 text-base font-normal leading-none tracking-normal normal-case text-white max-[430px]:h-8 max-[430px]:px-1.5 max-[430px]:text-xs sm:h-10 sm:px-3.5 sm:text-lg lg:h-11 lg:px-4 lg:text-xl"
+              className="cruush-plus-shimmer-button cruush-logo-font pointer-events-auto h-12 rounded-full px-3 text-base font-normal leading-none tracking-normal normal-case text-white max-[360px]:h-11 max-[360px]:px-1.5 max-[360px]:text-xs sm:h-10 sm:px-3.5 sm:text-lg lg:h-11 lg:px-4 lg:text-xl"
               style={{ background: 'var(--cruush-gradient)' }}
             >
               <CruushPlusWord />
@@ -2687,7 +2687,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
           </div>
           <div className="flex min-w-0 flex-1 justify-center">
             <div
-              className="cruush-map-top-actions pointer-events-auto mt-0 flex min-w-0 max-w-full items-center justify-center gap-0.5 rounded-full border border-white/10 bg-background/25 px-2 py-1.5 backdrop-blur-md transition-[width,margin,transform] max-[430px]:gap-0 max-[430px]:px-0.5 max-[430px]:py-1 sm:gap-1 sm:px-2.5 sm:py-2"
+              className="cruush-map-top-actions pointer-events-auto mt-0 flex min-w-0 max-w-full items-center justify-center gap-0.5 rounded-full border border-white/10 bg-background/25 px-1 py-1 backdrop-blur-md transition-[width,margin,transform] max-[430px]:gap-0 max-[430px]:px-0.5 sm:gap-1 sm:px-2.5 sm:py-2"
               data-map-control-hit-layer="true"
               data-testid="map-top-actions"
               onPointerEnter={() => setMapControlsHovered(true)}
@@ -2700,9 +2700,9 @@ export default function MapHome(_props: MapHomeProps = {}) {
               data-tutorial-target="carousel"
               aria-label="Cruise Carousel"
               title="Cruise Carousel"
-              className="size-11 rounded-full bg-transparent text-white/90 hover:bg-white/10 focus:bg-transparent focus-visible:bg-transparent max-[430px]:size-8 sm:size-12 lg:size-[3.25rem]"
+              className="size-11 rounded-full bg-transparent text-white/90 hover:bg-white/10 focus:bg-transparent focus-visible:bg-transparent max-[360px]:size-10 sm:size-12 lg:size-[3.25rem]"
             >
-              <CruushIconImage src={luckyIconWhite} className="h-10 w-10 scale-[1.28] object-contain max-[430px]:h-7 max-[430px]:w-7 lg:h-11 lg:w-11" />
+              <CruushIconImage src={luckyIconWhite} className="h-10 w-10 scale-[1.28] object-contain max-[360px]:h-9 max-[360px]:w-9 lg:h-11 lg:w-11" />
             </Button>
             <Button
               variant="ghost"
@@ -2711,15 +2711,15 @@ export default function MapHome(_props: MapHomeProps = {}) {
               data-tutorial-target="ghost"
               aria-label="Ghost Mode Settings"
               title="Ghost Mode Settings"
-              className="size-11 rounded-full bg-transparent text-white/90 hover:bg-white/10 focus:bg-transparent focus-visible:bg-transparent max-[430px]:size-8 sm:size-12 lg:size-[3.25rem]"
+              className="size-11 rounded-full bg-transparent text-white/90 hover:bg-white/10 focus:bg-transparent focus-visible:bg-transparent max-[360px]:size-10 sm:size-12 lg:size-[3.25rem]"
             >
               {privacySettings.baseMode === 'STEALTH' ? (
-                <DarkRoomMark active className="!h-10 !w-10 text-white max-[430px]:!h-7 max-[430px]:!w-7 lg:!h-11 lg:!w-11" />
+                <DarkRoomMark active className="!h-10 !w-10 text-white max-[360px]:!h-9 max-[360px]:!w-9 lg:!h-11 lg:!w-11" />
               ) : (
                 <CruushIcon
                   name="ghost"
                   variant={privacySettings.ghostModeEnabled ? 'colored' : 'white'}
-                  className="h-10 w-10 scale-[1.15] object-contain max-[430px]:h-7 max-[430px]:w-7 lg:h-11 lg:w-11"
+                  className="h-10 w-10 scale-[1.15] object-contain max-[360px]:h-9 max-[360px]:w-9 lg:h-11 lg:w-11"
                 />
               )}
             </Button>
@@ -2730,10 +2730,10 @@ export default function MapHome(_props: MapHomeProps = {}) {
               data-tutorial-target="dl-mode"
               aria-label={dlModeActive ? 'Turn DL Mode off' : 'Turn DL Mode on'}
               title={dlModeActive ? 'Turn DL Mode off' : 'Turn DL Mode on'}
-              className="size-11 overflow-visible rounded-full bg-transparent text-white/90 hover:bg-white/10 focus:bg-transparent focus-visible:bg-transparent max-[430px]:size-8 sm:size-12 lg:size-[3.25rem] [&_img]:!overflow-visible"
+              className="size-11 overflow-visible rounded-full bg-transparent text-white/90 hover:bg-white/10 focus:bg-transparent focus-visible:bg-transparent max-[360px]:size-10 sm:size-12 lg:size-[3.25rem] [&_img]:!overflow-visible"
             >
               {/* The gradient mark is the active state. Nothing is drawn around it unless the button is hovered. */}
-              <DlModeMark active={dlModeActive} className="!h-10 !w-10 scale-[1.18] overflow-visible max-[430px]:!h-7 max-[430px]:!w-7 lg:!h-11 lg:!w-11" />
+              <DlModeMark active={dlModeActive} className="!h-10 !w-10 scale-[1.18] overflow-visible max-[360px]:!h-9 max-[360px]:!w-9 lg:!h-11 lg:!w-11" />
             </Button>
             <Button
                 variant="ghost"
@@ -2749,9 +2749,9 @@ export default function MapHome(_props: MapHomeProps = {}) {
                 }}
                 aria-label="Settings"
                 title="Settings"
-                className="size-11 rounded-full bg-transparent text-white/90 hover:bg-white/10 focus:bg-transparent focus-visible:bg-transparent max-[430px]:size-8 sm:size-12 lg:size-[3.25rem]"
+                className="size-11 rounded-full bg-transparent text-white/90 hover:bg-white/10 focus:bg-transparent focus-visible:bg-transparent max-[360px]:size-10 sm:size-12 lg:size-[3.25rem]"
               >
-                <CruushIconImage src={settingsIconWhite} className="h-10 w-10 object-contain max-[430px]:h-7 max-[430px]:w-7 lg:h-11 lg:w-11" />
+                <CruushIconImage src={settingsIconWhite} className="h-10 w-10 object-contain max-[360px]:h-9 max-[360px]:w-9 lg:h-11 lg:w-11" />
             </Button>
             <Button
               variant="ghost"
@@ -2760,9 +2760,9 @@ export default function MapHome(_props: MapHomeProps = {}) {
               data-tutorial-target="notifications"
               aria-label="Notifications"
               title="Notifications"
-              className="relative size-11 rounded-full bg-transparent text-white/90 hover:bg-white/10 focus:bg-transparent focus-visible:bg-transparent max-[430px]:size-8 sm:size-12 lg:size-[3.25rem]"
+              className="relative size-11 rounded-full bg-transparent text-white/90 hover:bg-white/10 focus:bg-transparent focus-visible:bg-transparent max-[360px]:size-10 sm:size-12 lg:size-[3.25rem]"
             >
-              <CruushIconImage src={notificationsIconWhite} className="h-10 w-10 scale-[1.28] object-contain max-[430px]:h-7 max-[430px]:w-7 lg:h-11 lg:w-11" />
+              <CruushIconImage src={notificationsIconWhite} className="h-10 w-10 scale-[1.28] object-contain max-[360px]:h-9 max-[360px]:w-9 lg:h-11 lg:w-11" />
               {notificationUnreadCount > 0 ? (
                 <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[0.62rem] font-semibold leading-none text-primary-foreground">
                   {notificationUnreadCount > 9 ? '9+' : notificationUnreadCount}
@@ -2775,7 +2775,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
           {/* The bug control is fixed to the corner like cruush+ is, so the bar
               ends before it instead of running underneath it. */}
             <div
-              className="h-9 w-9 shrink-0 max-[430px]:h-8 max-[430px]:w-8 sm:h-10 sm:w-10 lg:h-11 lg:w-11"
+              className="h-12 w-12 shrink-0 sm:h-10 sm:w-10 lg:h-11 lg:w-11"
               data-bug-button-size="large"
               data-map-control-hit-layer="true"
               data-testid="map-bug-button-slot"

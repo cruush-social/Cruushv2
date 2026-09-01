@@ -1,54 +1,44 @@
 {
   "schemaVersion": 2,
-  "taskId": "cruush-1.6-spot-checkin-board-access-20260901",
+  "taskId": "cruush-1.6-android-map-top-controls-20260901",
   "status": "active",
-  "objective": "Remove the redundant own-profile name capsule and Spot title banner, then make active timed Spot check-ins control board access while board posts persist until deleted and expired check-ins generate a notification.",
-  "userOutcome": "Members see compact profile and Spot headers, check into a Spot for a chosen duration, access its board only during that check-in, keep board posts until deletion, and receive notice when access ends.",
-  "audience": "Authenticated cruush members using profiles and Spots on Android mobile and desktop.",
+  "objective": "Increase only the Android-mobile map top controls: cruush+, the central mode-action capsule, its icons, and the bug button.",
+  "userOutcome": "Android members can see and tap the map's top controls comfortably without changing the Spot detail header.",
+  "audience": "Authenticated cruush members using the map on Android mobile.",
   "successCriteria": [
-    "The own-profile top overlay keeps Back, Edit Profile, and the global bug button but does not repeat the member name.",
-    "The Spot detail page removes the large repeated title banner while retaining Back and the global bug button.",
-    "A member without an active check-in cannot read or write a Spot board and sees the timed check-in control instead.",
-    "A member with an active check-in can read and write the Spot board until the selected check-in duration ends.",
-    "Board posts have no expiry and remain owner-deletable.",
-    "When a check-in expires, board access ends and the member receives an app and push notification through existing notification preferences."
+    "The cruush+ control is taller and more readable on narrow Android mobile widths.",
+    "The central map action capsule and its five controls are larger on narrow Android mobile widths.",
+    "The map bug button is larger on narrow Android mobile widths.",
+    "The Spot detail title banner remains removed and receives no enlarged replacement."
   ],
   "mustPreserve": [
-    "Preserve the profile image, profile details, Edit Profile control, Back control, and global bug button.",
-    "Preserve the approved cruush vector map style and all map behavior.",
-    "Preserve Spot identity details, ratings, reports, Popular times, Who's Here, board encryption, moderation, deletion, and pagination.",
-    "Preserve all unrelated user work and existing assets."
+    "Preserve all map control actions, icons, ordering, hover behavior, map style, and bottom navigation.",
+    "Preserve the removed Spot detail banner and all committed Spot check-in board behavior.",
+    "Preserve desktop sizing and unrelated user work."
   ],
   "nonGoals": [
-    "No map, Crowd Mode, feed, Ghost Mode, profile-content, or unrelated Spot redesign.",
-    "No test creation or execution, build, preview, or rendered verification.",
-    "No server restart, migration execution, push, deployment, changelog, or email work."
+    "No Spot detail header enlargement or redesign.",
+    "No map behavior, map theme, Crowd Mode, Ghost Mode animation, icon, or navigation change.",
+    "No tests, build, preview, rendered verification, push, or deployment."
   ],
   "assumptions": [
     {
-      "statement": "The redundant profile name means only the top overlay name capsule shown in the supplied own-profile screenshot.",
-      "impact": "The name remains in the profile content beside the age.",
-      "reversible": true,
-      "confirmationState": "confirmed"
-    },
-    {
-      "statement": "The unnecessary Spot banner means the repeated sticky title header shown in the supplied Spot screenshot.",
-      "impact": "The Spot identity remains in the page content while Back remains independently available.",
+      "statement": "The top Android controls mean the map row containing cruush+, the five center controls, and the bug button shown in the supplied screenshot.",
+      "impact": "Only narrow-mobile sizing classes in MapHome change.",
       "reversible": true,
       "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "Commit the focused source changes and hand them to Julien as intentionally unverified code.",
+  "nextVisibleMilestone": "Commit the narrow-mobile map top-control sizing correction as intentionally unverified source.",
   "stopConditions": [
-    "Stop before any push, deployment, migration execution, server control, production data change, or external message.",
-    "Stop if board access cannot be separated from unrelated Spot or map behavior."
+    "Stop before any push, deployment, build, preview, or unrelated UI edit."
   ],
   "costBudget": {
     "maxUsd": 0,
     "maxMinutes": null
   },
   "externalEffectDecisions": {
-    "commit": "Authorized by Julien's standing instruction to commit while finishing 1.6. Limit the commit to this focused correction and task contract.",
+    "commit": "Authorized by Julien's standing instruction to commit 1.6 corrections.",
     "push": "not authorized by the current request",
     "deploy": "not authorized by the current request",
     "environmentChanges": "forbidden",
@@ -69,33 +59,21 @@
   "release": "1.6",
   "repository": "cruush-social/Cruushv2",
   "branch": "release/1.6-integration-20260901",
-  "job": "Implement timed Spot check-in board access, permanent posts, expiry notifications, and the two requested compact header corrections.",
+  "job": "Enlarge only the Android-mobile map top controls.",
   "forbiddenPaths": [
     "HANDOFF.md",
     ".dev/**",
+    "src/app/components/PlaceDetail.tsx",
     "src/app/assets/ui-icons/ghost-horned-mask-source.png"
   ],
   "allowedPaths": [
     "AI_TASK.json",
-    "src/app/components/ProfileView.tsx",
-    "src/app/components/PlaceDetail.tsx",
-    "src/app/components/ForegroundNotifications.tsx",
-    "src/app/lib/placesApi.ts",
-    "src/app/lib/notificationsApi.ts",
-    "server/src/places.ts",
-    "server/src/routes/places.ts",
-    "server/src/routes/reports.ts",
-    "server/src/notification-service.ts",
-    "server/src/push-service.ts",
-    "server/src/place-checkin-expiry.ts",
-    "server/src/index.ts",
-    "server/src/migrate.ts",
-    "server/src/dev-seed-places.ts",
-    "server/sql/112_place_checkin_board_access.sql"
+    "src/app/components/AlphaBugButton.tsx",
+    "src/app/components/MapHome.tsx"
   ],
-  "proofTarget": "Source-only diff. Tests, build, migration execution, and rendered verification are intentionally excluded by Julien's active code-only instruction.",
+  "proofTarget": "Source-only diff. Tests, build, preview, and rendered verification are intentionally excluded by Julien's code-only instruction.",
   "publicationTarget": "local commit only",
   "requiredEvidence": [
-    "Focused source diff for the requested profile, Spot, board-access, and notification files, labeled unverified because tests, build, migration execution, and rendered checks are excluded."
+    "Focused MapHome source diff labeled unverified."
   ]
 }
