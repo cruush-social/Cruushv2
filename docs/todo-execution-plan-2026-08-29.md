@@ -615,7 +615,8 @@ Status:
 
 - [deferred] Public Spot demographic composition is excluded from the current release by direct
   instruction. Keep voluntary check-in collection; do not add inferred identities or new collection.
-- [blocked] Build real Spot records and privacy-safe aggregate snapshots before adding demographic filters.
+- [deferred] Privacy-safe Spot aggregate snapshots and demographic filters are a separate post-1.6
+  milestone. Current voluntary check-ins remain unchanged.
 - [~] Julien directly authorized the Spot taxonomy expansion on 2026-09-01. Never reuse profile
   vibes. `Historical` and `Exposed` are approved; the rest of the taxonomy still requires approval.
 - [deferred] Add Crowd fit: Popular with my current crowd, Leans women, Leans men, Mixed, and Strong
@@ -625,8 +626,8 @@ Status:
 - [x] Never show live or exact sensitive composition, negative trans/NB labels, counts, percentages,
   or inferred identity. Those deferred fields do not exist in the active Spot response or UI, and the
   populated authenticated drawer and board rendered without them.
-- [blocked] Approve full Spot vibe, category, and feature taxonomies; usual versus live vibe model;
-  crowd-combination semantics; protected-rule cooldown; and trans/NB aggregation ontology.
+- [deferred] Full Spot vibe, category, feature, usual-versus-live, crowd-combination, cooldown, and
+  aggregation decisions belong to the separate post-1.6 Spot expansion. They do not block 1.6.
 
 ## P1. Map, heatmap, clustering, and Recently Active
 
@@ -705,8 +706,9 @@ Status:
   Authenticated GPS lookup accepted Philadelphia coordinates, rendered the map, enabled the move
   action, and displayed the selected point with the outlined cruush heart rather than a circle. A
   reversible local cycle saved the pin, rendered the traveller state, and cleared it afterward.
-- [blocked] Address lookup source exists, but a production geocoding provider, privacy disclosure,
-  rate policy, caching policy, and failure behavior require approval before production activation.
+- [deferred] Production address lookup activation is separate post-1.6 work. It requires a geocoding
+  provider plus approved privacy, rate, caching, and failure behavior. Current GPS-coordinate and
+  current-location paths remain unchanged.
 - [~] Render traveller map state and distance labels. The 412x915 Philadelphia state rendered the
   traveller heart, approved plane/contrail treatment, Ghost-derived decoy and tether, and nearby
   published Spots. No viewer-authorized people were returned there, so real distance-label proof
@@ -787,10 +789,10 @@ Status:
   on provider-wide failure. Ambiguous creates restart with lookup; existing contacts are not
   updated. Eligibility is unchanged and logs omit addresses. Five focused mocked-provider tests
   passed on 2026-08-31. Live provider behavior remains unverified; no Resend request was made.
-- [blocked] Julien must separately authorize and perform provider/security operations: rotate the R2
+- [deferred] Separate provider/security operations remain outside the 1.6 source candidate: rotate the R2
   media token, decide whether to separate the shared staging-named media bucket, and replace the
   single unaudited `/api/internal/*` shared-secret model.
-- [blocked] Media read limits require a representative observation window. No limit was guessed
+- [deferred] Media read limits require a representative observation window. No limit was guessed
   from the current local-only evidence.
 
 ## P2. Copy and catalog corrections still requiring rendered review
