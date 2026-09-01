@@ -27,6 +27,24 @@ final result: passed
 
 ---
 
+# Design QA: Spot request isolation
+
+## Interaction coverage
+
+- Switching Spots invalidates the prior detail and first-board-page request.
+- Switching Spots invalidates an in-flight board pagination request.
+- Switching Spots invalidates a delayed geolocation callback before it can post a check-in.
+
+## Test evidence
+
+- `src/app/components/PlaceDetail.test.tsx`: 3 tests passed.
+- Focused run completed in 65.16 seconds.
+- Real-device proximity and rendered scrollbar interaction remain unverified.
+
+final result: passed
+
+---
+
 # Design QA: Crowd Mode 1.6 no-change rollback
 
 ## Preserved state

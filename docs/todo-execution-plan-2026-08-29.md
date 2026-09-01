@@ -204,9 +204,12 @@ Status:
 - `[~]` Feed photo reporting now renders above the photo viewer. The viewer handles Escape,
   arrow-key photo changes, contained Tab focus, and returning focus on close; nested Report dialogs
   retain their own keyboard handling. Source-only, with interaction proof pending.
-- `[~]` Spot detail, board pagination, and check-in callbacks now ignore stale responses after a
-  different Spot is selected. A delayed location result cannot submit an old Spot check-in after
-  switching. Spot dialogs hide scrollbar chrome while retaining scrolling. Runtime proof pending.
+- `[x]` Spot detail, board pagination, and check-in callbacks ignore stale responses after a
+  different Spot is selected. Three focused regression tests prove that a late detail response
+  cannot replace the selected Spot, a late board page cannot append to another Spot, and a delayed
+  location result cannot submit the old Spot check-in.
+- `[~]` Spot dialogs hide scrollbar chrome while retaining scrolling. Rendered scrolling proof
+  remains pending.
 - `[~]` Shared people cards now keep hearts at the map's unchanged 80px resting size and use
   the map's shared 35px badge constant. Pinned-message hearts also use 80px. Container-dependent
   heart and badge scaling is removed; map hover enlargement and full profile photos are untouched.
