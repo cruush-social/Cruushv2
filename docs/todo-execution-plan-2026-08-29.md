@@ -334,8 +334,8 @@ Status:
 
 ## Current 1.6 slice boundary
 
-- Local candidate only. No commit, push, merge, deployment, production migration, server process
-  change, dependency, environment change, or provider activation is authorized.
+- Local candidate commits are authorized. No push, merge, deployment, production migration, server
+  process change, dependency, environment change, or provider activation is authorized.
 - Preserve the dirty destination worktree. Port narrow source hunks only. Never merge or copy a
   handoff worktree wholesale.
 - Julien owns the scratch-card visual work. Do not edit or replace that prototype while he is
