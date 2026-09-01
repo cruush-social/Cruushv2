@@ -506,10 +506,17 @@ Status:
 - [x] Keep Signal one line at 35 characters and Vibes over the photo. Shared client and server limits
   enforce 35 characters and a single line. The authenticated own-profile popup rendered Signal and
   Vibes only over the photo at 412x915, with no duplicate section below About.
-- [ ] Verify own and other profiles, populated and empty photos, full photo viewer, report, badges,
-  MHC, Dark Room, Ghost, and Pulse at desktop and small mobile.
-- [ ] Restore and verify the requested Carousel changes from the correct source branch. Do not call
-  them complete from the current placeholder or stale branch.
+- [~] Own and other populated profiles rendered at 1440x900 and 390x844 without horizontal
+  overflow. The other profile rendered three photos, badges, tabs, actions, and the full-viewport
+  photo viewer. Profile and photo Report dialogs opened and canceled without submitting. The viewer
+  now keeps Report and Close clear of the fixed Bug Fix button; real Close clicks worked at both
+  viewports. Empty-photo and complete Mile High Club, Dark Room, Ghost, and Pulse profile matrices
+  remain unverified.
+- [blocked] The clean Carousel source branch is `codex/carousel-photo-gallery-20260820` at
+  `2342bca`; its implemented gallery lineage is already ancestral to this release branch. The later
+  pull-bar, 4:5-photo, and overlaid-header notes in `/Volumes/good/Cruushv2-main/HANDOFF.md` are an
+  unimplemented proposal, not restorable source. Julien must choose whether to build that proposal
+  or retain the current verified Carousel.
 - [x] The populated fullscreen Carousel result rendered one action row in exact order: cruush, Pin,
   Message. The card reaches the bottom navigation without the removed page fade.
 - [~] Profile keyword search is enforced by the discovery API across visible name, bio, configured
@@ -687,7 +694,9 @@ Status:
 - [~] DL Mode uses Julien's exact supplied balaclava-and-halo PNG, white while inactive and the
   existing cruush gradient while active. Keep the current gradient until Julien selects dedicated
   DL Mode colors.
-- [ ] DL Mode and Crowd glyphs match adjacent visible height; Crowd keeps extra side spacing.
+- [x] At 390x844, DL Mode rendered at the same adjacent visible scale inside the shared 32px button
+  canvas without overflow. The direct 1.6 decision supersedes Crowd glyph sizing and side spacing:
+  no Crowd control renders in the top navigation.
 - [~] Superseded: the Hydra Crowd icon is removed from the 1.6 top navigation. The active Crowd
   notice in Map Controls uses the existing old Crowd icon and opens the fixed Crowd sheet. Rendered
   proof is pending.
@@ -737,8 +746,8 @@ Status:
 - [blocked] Julien must separately authorize and perform provider/security operations: rotate the R2
   media token, decide whether to separate the shared staging-named media bucket, and replace the
   single unaudited `/api/internal/*` shared-secret model.
-- [ ] Choose media read limits only from collected observations. Do not guess limits before the
-  measurement window is representative.
+- [blocked] Media read limits require a representative observation window. No limit was guessed
+  from the current local-only evidence.
 
 ## P2. Copy and catalog corrections still requiring rendered review
 
@@ -780,7 +789,7 @@ Status:
 - [~] Popup settings replace the selected current surface and Settings search renders. Cruushes to
   Settings was exercised in one popup. Email, secondary-email, and digest work still require real API
   support and remain pending.
-- [ ] Email work is missing source, not merely missing proof. Define whether a secondary address
+- [blocked] Email work is missing source, not merely missing proof. Define whether a secondary address
   is notification-only or can authenticate/recover the account before implementing its permissions.
   Primary-address replacement must preserve verified ownership and recovery safety. Daily/weekly
   digest delivery still needs the approved content, consent, and delivery rules; do not activate

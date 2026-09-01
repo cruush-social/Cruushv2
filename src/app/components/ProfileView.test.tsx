@@ -369,6 +369,32 @@ describe('ProfileView', () => {
     expect(screen.getByRole('button', { name: 'Show profile photo 4' })).toBeInTheDocument();
   });
 
+  it('keeps full-photo report and close controls clear of the global bug button', async () => {
+    getProfileById.mockResolvedValue(createProfileFixture({
+      photos: ['https://example.com/main.jpg'],
+      photo_metadata: [{ url: 'https://example.com/main.jpg', explicit: false }],
+    }));
+
+    render(
+      <MemoryRouter initialEntries={['/profile/user-1']}>
+        <Routes>
+          <Route path="/profile/:userId" element={<ProfileView />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: "Show Jordan's photo full screen" }));
+
+    expect(screen.getByTestId('profile-photo-viewer')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Report this profile photo' })).toBeInTheDocument();
+    expect(screen.getByTestId('profile-photo-viewer-actions')).toHaveClass(
+      'right-[calc(4rem+env(safe-area-inset-right))]',
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close photo' }));
+    expect(screen.queryByTestId('profile-photo-viewer')).not.toBeInTheDocument();
+  });
+
   it('shows visible shared crowds when another profile includes them', async () => {
     getProfileById.mockResolvedValue(createProfileFixture({
       crowds: ['T4T'],

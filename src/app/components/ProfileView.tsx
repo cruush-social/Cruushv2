@@ -707,7 +707,8 @@ export default function ProfileView() {
 
           {/* A way out, and a way to report what you are looking at. */}
           <div
-            className="absolute right-3 top-[calc(0.75rem+env(safe-area-inset-top))] flex items-center gap-2"
+            className="absolute right-[calc(4rem+env(safe-area-inset-right))] top-[calc(0.75rem+env(safe-area-inset-top))] flex items-center gap-2"
+            data-testid="profile-photo-viewer-actions"
             onClick={(event) => event.stopPropagation()}
           >
             {isOwnProfile ? null : (
