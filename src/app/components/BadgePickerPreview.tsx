@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { AnalGlyph, GooningGlyph, KeyholeEyeGlyph, LeatherGlyph, LipsGlyph, NippleGlyph, PartyHatGlyph, PenetrationGlyph, RimmingGlyph, RubberGlyph, StraightEdgeGlyph } from './BadgeGlyphs';
+import { AnalGlyph, BondageGlyph, CyborgGlyph, GooningGlyph, HarnessGlyph, KeyholeEyeGlyph, LeatherGlyph, LipsGlyph, NeurodivergentGlyph, NippleGlyph, PartyHatGlyph, PenetrationGlyph, RaveGlyph, RimmingGlyph, RubberGlyph, SpankingGlyph, StraightEdgeGlyph } from './BadgeGlyphs';
 import {
   DoubleMarsGlyph,
   DoubleVenusGlyph,
@@ -177,10 +177,10 @@ const BADGE_OPTIONS: BadgeOption[] = [
   { id: 'service', label: 'Service', icon: ServiceGlyph, group: 'Role' },
 
   // Kinks: reuse the established badge glyphs for the profile kink choices.
-  { id: 'bondage', label: 'Bondage', icon: Link2, group: 'Kinks' },
+  { id: 'bondage', label: 'Bondage', icon: BondageGlyph, group: 'Kinks' },
   { id: 'rope', label: 'Rope', icon: Spline, group: 'Kinks' },
   { id: 'impact', label: 'Impact', icon: Hammer, group: 'Kinks' },
-  { id: 'spanking', label: 'Spanking', icon: HandMetal, group: 'Kinks' },
+  { id: 'spanking', label: 'Spanking', icon: SpankingGlyph, group: 'Kinks' },
   { id: 'control', label: 'Control', icon: Crown, group: 'Kinks' },
   { id: 'chastity', label: 'Chastity', icon: Lock, group: 'Kinks' },
   { id: 'humiliation', label: 'Humiliation', icon: ThumbsDown, group: 'Kinks' },
@@ -215,7 +215,7 @@ const BADGE_OPTIONS: BadgeOption[] = [
   { id: 'underwear', label: 'Underwear', icon: Bookmark, group: 'Kinks' },
   { id: 'socks', label: 'Socks', icon: Footprints, group: 'Kinks' },
   { id: 'sneakers', label: 'Sneakers', icon: Footprints, group: 'Kinks' },
-  { id: 'harness', label: 'Harness', icon: Cable, group: 'Kinks' },
+  { id: 'harness', label: 'Harness', icon: HarnessGlyph, group: 'Kinks' },
   { id: 'masks', label: 'Masks', icon: VenetianMask, group: 'Kinks' },
   { id: 'pup-play', label: 'Pup play', icon: Bone, group: 'Kinks' },
   { id: 'roleplay', label: 'Roleplay', icon: Wand2, group: 'Kinks' },
@@ -323,6 +323,9 @@ const PROFILE_BADGE_FALLBACK_ICONS: Record<ProfileBadgeGroup, Record<string, Bad
 const PROFILE_BADGE_VALUE_ICONS: Record<string, BadgeOption['icon']> = {
   leather: LeatherGlyph,
   rubber: RubberGlyph,
+  neurodivergent: NeurodivergentGlyph,
+  rave: RaveGlyph,
+  cyborg: CyborgGlyph,
 };
 
 function normalizeProfileBadgeValue(value: string) {
@@ -721,7 +724,7 @@ export default function BadgePickerPreview({
 
     return (
       <button
-        className={`flex min-h-24 flex-col items-center justify-center gap-2 rounded-xl border px-2 py-3 text-center text-sm leading-tight transition ${
+        className={`flex min-h-24 min-w-0 flex-col items-center justify-center gap-2 rounded-xl border px-2 py-3 text-center text-sm leading-tight transition ${
           selected
             ? 'border-[#004BFF] bg-black/60 text-white'
             : 'border-white/10 bg-black/40 text-white/70 hover:bg-white/[0.06]'
@@ -738,12 +741,12 @@ export default function BadgePickerPreview({
               color={option.hanky.color}
               label={option.hanky.meaning}
             />
-            <span>{option.hanky.meaning}</span>
+            <span className="w-full break-words">{option.hanky.meaning}</span>
           </>
         ) : (
           <>
             <Icon aria-hidden="true" className="h-6 w-6 text-white" strokeWidth={2.2} />
-            <span>{option.label}</span>
+            <span className="w-full break-words">{option.label}</span>
           </>
         )}
       </button>
@@ -818,7 +821,7 @@ export default function BadgePickerPreview({
           <span className="relative flex h-[7rem] w-[9rem] items-center justify-center">
             <span className="relative flex h-20 w-[103px] items-center justify-center">
               <HeartPhoto
-                className="z-10 w-20"
+                className="w-20"
                 label="Your heart with its side badges"
                 masked={false}
                 photo={profile?.photos?.[0] ?? null}
@@ -947,21 +950,19 @@ export default function BadgePickerPreview({
           </div>
         </div>
 
-        <div className="scrollbar-hide mt-6 flex shrink-0 gap-2 overflow-x-auto pb-1">
-          {groups.map((group) => (
-            <button
-              className={`shrink-0 rounded-full border px-4 py-1.5 text-sm transition ${
-                activeGroup === group
-                  ? 'border-[#004BFF] bg-black/60 text-white'
-                  : 'border-white/10 bg-black/40 text-white/64 hover:bg-white/[0.06]'
-              }`}
-              key={group}
-              onClick={() => chooseGroup(group)}
-              type="button"
-            >
-              {group}
-            </button>
-          ))}
+        <div className="mt-6">
+          <label className="block text-xs uppercase tracking-[0.14em] text-white/48" htmlFor="badge-category">
+            Badge category
+          </label>
+          <select
+            aria-label="Badge category"
+            className="mt-2 h-11 w-full rounded-full border border-white/12 bg-black/55 px-4 text-sm text-white outline-none focus:border-[#004BFF]"
+            id="badge-category"
+            onChange={(event) => chooseGroup(event.target.value)}
+            value={activeGroup}
+          >
+            {groups.map((group) => <option key={group} value={group}>{group}</option>)}
+          </select>
         </div>
 
         {activeGroup === 'Vibes' || activeGroup === 'Kinks' ? (
@@ -976,7 +977,7 @@ export default function BadgePickerPreview({
             {activeProfileCategories.length > 0 ? activeProfileCategories.map((category) => (
               <section className="space-y-2" key={category.label}>
                 <h2 className="text-xs uppercase tracking-[0.14em] text-white/48">{category.label}</h2>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                   {category.options.map(renderOptionCard)}
                 </div>
               </section>
@@ -987,7 +988,7 @@ export default function BadgePickerPreview({
             )}
           </div>
         ) : (
-          <div className="mt-3 grid grid-cols-3 gap-2">
+          <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
             {optionsForActiveGroup.map(renderOptionCard)}
           </div>
         )}

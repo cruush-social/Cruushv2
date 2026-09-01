@@ -197,30 +197,12 @@ function canvasToJpegFile(canvas: HTMLCanvasElement) {
 }
 
 function readProfilePhotoPreviewUrl(file: File): Promise<PendingProfilePhoto> {
-  return new Promise((resolve, reject) => {
-    if (typeof FileReader === 'undefined') {
-      const objectUrl = URL.createObjectURL(file);
-      resolve({
-        url: objectUrl,
-        objectUrl,
-      });
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onerror = () => reject(new Error(PROFILE_PHOTO_LOAD_ERROR));
-    reader.onload = () => {
-      if (typeof reader.result === 'string' && reader.result.startsWith('data:image/')) {
-        resolve({
-          url: reader.result,
-        });
-        return;
-      }
-
-      reject(new Error(PROFILE_PHOTO_LOAD_ERROR));
-    };
-    reader.readAsDataURL(file);
-  });
+  try {
+    const objectUrl = URL.createObjectURL(file);
+    return Promise.resolve({ url: objectUrl, objectUrl });
+  } catch {
+    return Promise.reject(new Error(PROFILE_PHOTO_LOAD_ERROR));
+  }
 }
 
 export function getPhotoUploadRejectedMessage(uploadError: unknown) {
@@ -349,16 +331,17 @@ export function ProfilePhotoCropper({
     <div
       aria-label={subjectLabel ? `Crop ${subjectLabel}` : 'Crop profile photo'}
       aria-modal="true"
-      className="fixed inset-0 z-[120] flex items-center justify-center bg-black/78 p-4 backdrop-blur-md"
+      className="fixed inset-0 z-[120] flex items-start justify-center overflow-y-auto bg-black/78 p-2 backdrop-blur-md sm:items-center sm:p-4"
       role="dialog"
     >
-      <div className="w-full max-w-md overflow-hidden rounded-2xl border border-white/12 bg-background text-foreground shadow-[0_28px_90px_rgba(0,0,0,0.52)]">
+      <div className="my-auto max-h-[calc(100dvh-1rem)] w-full max-w-md overflow-y-auto overscroll-contain rounded-2xl border border-white/12 bg-background text-foreground shadow-[0_28px_90px_rgba(0,0,0,0.52)] sm:max-h-[calc(100dvh-2rem)]">
         <div
-          className="relative mx-auto aspect-[4/5] w-full max-w-sm touch-none overflow-hidden bg-black"
+          className="relative mx-auto aspect-[4/5] touch-none overflow-hidden bg-black"
           onPointerCancel={handlePointerEnd}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerEnd}
+          style={{ width: 'min(100%, 41.6dvh, 24rem)' }}
         >
           <img
             ref={imageRef}
@@ -426,8 +409,8 @@ export function ProfilePhotoCropper({
             />
           </div>
 
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="ml-auto flex min-w-0 gap-2">
               <Button aria-label="Rotate left" onClick={() => setRotation((value) => value - 90)} type="button" variant="outline">
                 <RotateCcw className="h-4 w-4" />
               </Button>
@@ -1052,7 +1035,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
   };
   return (
     <div className={embedded ? 'bg-transparent pb-0' : 'min-h-screen bg-background pb-20'}>
-      <header className={`${embedded ? 'top-0 border-white/10 bg-black/85 text-white' : 'top-0 border-border bg-card/80'} sticky z-10 flex items-center justify-between border-b p-4 backdrop-blur-sm`}>
+      <header className={`${embedded ? 'top-0 border-white/10 bg-black/85 text-white' : 'top-0 border-border bg-card/80'} sticky z-30 flex items-center justify-between border-b p-4 backdrop-blur-sm`}>
         <div className="flex min-w-0 items-center gap-2">
           <Button variant="ghost" size="icon" onClick={() => void handleCancel()} aria-label={embedded ? 'Back to profile preview' : 'Back'}>
             <ArrowLeft className="w-5 h-5" />

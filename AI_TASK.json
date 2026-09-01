@@ -1,46 +1,47 @@
 {
   "schemaVersion": 2,
-  "taskId": "cruush-1.6-pink-book-checkin-20260901",
+  "taskId": "cruush-1.6-badge-ui-repair-20260901",
   "status": "active",
-  "objective": "Add an optional Pink Book post to Spot check-in, move the Pink Book section below attribution, and let authors delete their own Pink Book posts after checkout.",
-  "userOutcome": "Members can write a Pink Book post while checking in and later remove their own post without remaining checked in.",
-  "audience": "Authenticated cruush members using Spot details.",
+  "objective": "Repair the screenshot-reported Badge and profile-photo UI defects, make Badge categories explicit instead of hidden horizontal scrollers, improve unapproved generic Badge glyphs, and keep saved side badges beneath hearts on Feed, Messages, and Cruushes.",
+  "userOutcome": "Members can understand and use the Badge menu on mobile, crop a profile photo without a blank or clipped editor, and see their selected side badges consistently beneath heart photos across the named people surfaces.",
+  "audience": "Authenticated cruush members editing profiles and browsing Feed, Messages, and Cruushes.",
   "successCriteria": [
-    "The signed-out-of-check-in state includes an optional Pink Book text input inside the check-in card.",
-    "Submitting a check-in sends the optional post through the existing check-in endpoint.",
-    "The Pink Book and Who's Here section appears below the Spot source attribution.",
-    "Checked-out members see only their own Pink Book posts and can delete them; other members' posts remain hidden until check-in.",
-    "Affected user-visible Spot copy calls the feature Pink Book."
+    "The embedded Badge preview never overlaps the Edit Profile header or Save button.",
+    "Badge categories use an explicit mobile selector rather than a horizontally hidden chip row.",
+    "Badge option cards fit long labels without overflow at the supplied Android width.",
+    "The profile photo cropper uses a reliable local preview URL and keeps its image, controls, and confirmation button inside the mobile viewport.",
+    "Saved side badges render directly beneath the heart photo in the shared Feed, Messages, and Cruushes capsule.",
+    "Only generic fallback Badge glyphs change; every previously selected custom, Hanky, role, position, and Pride glyph remains unchanged."
   ],
   "mustPreserve": [
-    "Preserve Who's Here visibility without check-in.",
-    "Preserve active check-in requirements for reading other members' Pink Book posts and creating later posts.",
-    "Preserve existing Spot styling, vibes, amenities, timers, ratings, attribution, moderation, and location gates."
+    "Preserve every user-selected Noun Project asset and supplied custom badge symbol already recorded in source and design history.",
+    "Preserve Badge save behavior, left/right meaning, Circle frame, Hanky colors, map geometry, existing profile values, and adjacent profile tabs.",
+    "Preserve the current Feed, Messages, and Cruushes card content, actions, ordering, and heart size."
   ],
   "nonGoals": [
-    "Do not redesign adjacent Spot content or map behavior.",
-    "Do not expose other members' Pink Book posts without an active check-in.",
-    "Do not run tests or deploy; Julien will test this release slice."
+    "Do not change map tiles, map theme, Ghost Mode, Dark Room, Crowd behavior, Feed reactions, or replies.",
+    "Do not add unlicensed Flaticon or Noun Project files or a new dependency.",
+    "Do not run tests, build, push, or deploy; Julien will test this release slice."
   ],
   "assumptions": [
     {
-      "statement": "People outside an active check-in may access only their own Pink Book posts for deletion.",
-      "impact": "The existing Pink Book endpoint returns all visible posts while checked in and only the requesting author's posts otherwise.",
+      "statement": "External icon libraries are research references unless the exact asset has a confirmed cruush license.",
+      "impact": "Unlicensed candidate files will not enter the repository; generic fallbacks may use original or existing library glyphs informed by the research.",
       "reversible": true,
-      "confirmationState": "confirmed"
+      "confirmationState": "inferred"
     }
   ],
-  "nextVisibleMilestone": "Commit the Pink Book check-in and post-deletion slice for Julien's mobile test.",
+  "nextVisibleMilestone": "Commit the complete screenshot repair slice for Julien's Android test.",
   "stopConditions": [
-    "Stop before push or deployment."
+    "Stop before push, deployment, purchasing an icon, or importing an asset whose license is not confirmed."
   ],
   "costBudget": {"maxUsd": 0, "maxMinutes": null},
   "externalEffectDecisions": {
     "commit": "Authorized by Julien's standing instruction to commit v1.6 work.",
     "send": "forbidden",
-    "push": "not authorized for this local feature correction",
-    "deploy": "not authorized for this local feature correction",
-    "migration": "already completed; outside this correction"
+    "push": "not authorized",
+    "deploy": "not authorized",
+    "migration": "not required"
   },
   "externalEffects": {
     "externalMessages": "forbidden",
@@ -50,27 +51,36 @@
     "deletion": "forbidden",
     "securityChanges": "forbidden",
     "credentials": "forbidden",
-    "newDefaults": "forbidden",
-    "identityCreativeDecisions": "forbidden"
+    "newDefaults": "limited to the requested Badge menu presentation",
+    "identityCreativeDecisions": "authorized for generic Badge glyph selection only; protected glyphs are forbidden"
   },
   "product": "cruush",
   "release": "1.6",
   "repository": "cruush-social/Cruushv2",
   "branch": "release/1.6-integration-20260901",
-  "job": "Implement the requested Spot Pink Book behavior and layout.",
-  "forbiddenPaths": ["HANDOFF.md", ".dev/**", "src/app/assets/ui-icons/ghost-horned-mask-source.png"],
+  "job": "Implement the supplied four-screenshot Badge, cropper, and shared side-badge corrections.",
+  "forbiddenPaths": [
+    "HANDOFF.md",
+    ".dev/**",
+    "src/app/assets/ui-icons/ghost-horned-mask-source.png",
+    "src/app/components/MapView.tsx"
+  ],
   "allowedPaths": [
     "AI_TASK.json",
     "DESIGN_DECISIONS.md",
-    "FIXLOG.md",
-    "src/app/components/PlaceDetail.tsx",
-    "src/app/lib/placesApi.ts",
-    "server/src/routes/places.ts"
+    "src/app/components/BadgeGlyphs.tsx",
+    "src/app/components/BadgePickerPreview.tsx",
+    "src/app/components/MultiSelect.tsx",
+    "src/app/components/ProfileEdit.tsx",
+    "src/app/components/SideBadgePair.tsx",
+    "src/app/components/UserActivityCapsule.tsx",
+    "src/styles/theme.css"
   ],
-  "proofTarget": "Julien's Android Spot detail flow shown in the supplied 598x1278 screenshot; rendered verification remains with Julien under the explicit no-test instruction.",
-  "publicationTarget": "Local commit only; no push or deployment",
+  "proofTarget": "The supplied 598x1278 Android screenshots. Rendered verification remains with Julien under the explicit no-test and no-verify release instruction.",
+  "publicationTarget": "Local commit only; no push or deployment.",
   "requiredEvidence": [
-    "Source diff covering the four named changes",
-    "Clean local commit for Julien's mobile test"
+    "Source diff covering every named screenshot defect and surface.",
+    "Protected icon inventory and traceable research sources.",
+    "Clean local checkpoint commit."
   ]
 }
