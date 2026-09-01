@@ -36,6 +36,7 @@ export type ErrorCode =
   | "NOT_FOUND"
   | "OFFER_ENDED"
   | "PASS_NOT_REVEALED"
+  | "PLACE_CHECKIN_REQUIRED"
   | "RATE_LIMITED"
   | "QUEST_INCOMPLETE"
   | "REWARD_LIMIT"

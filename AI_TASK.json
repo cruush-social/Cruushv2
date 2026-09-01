@@ -69,9 +69,10 @@
     "src/app/components/Changelog.tsx",
     "src/app/components/PlaceDetail.tsx",
     "src/app/components/MapHome.tsx",
+    "server/src/errors.ts",
     "public/email/cruush-v1.6-map.jpg",
     "public/email/cruush-v1.6-spot-board.jpg",
-    "docs/previews/cruush-1.6-update-email.png"
+    "docs/previews/cruush-1.6-update-email.jpg"
   ],
   "proofTarget": "Rendered local email preview at desktop and narrow mobile widths, plus a saved full-page screenshot.",
   "publicationTarget": "origin/main and the existing cruush frontend/API production resources; no email send",
