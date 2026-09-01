@@ -309,6 +309,19 @@ describe("a full watcher pass", () => {
     ] as Array<[RegExp, unknown[]]>;
   }
 
+  it("closes stale checkout windows before deciding what to watch", async () => {
+    // If nothing expires an intent, the late-arrival window never starts
+    // counting and abandoned checkouts are watched forever.
+    const { db, calls } = stubDb(passHandlers([[/coalesce\(sum\(amount_atomic/, [{ total: "0" }]]]));
+
+    await runCryptoWatcherPass({ db, config: config() }, chainSource([]));
+
+    const expiryIndex = calls.findIndex((call) => /set status = 'expired'/.test(call.sql));
+    const loadIndex = calls.findIndex((call) => /select id, user_id, plan_id, status/.test(call.sql));
+    expect(expiryIndex).toBeGreaterThanOrEqual(0);
+    expect(expiryIndex).toBeLessThan(loadIndex);
+  });
+
   it("asks the endpoint only for Transfer logs addressed to watched addresses", async () => {
     const { db } = stubDb(passHandlers([[/coalesce\(sum\(amount_atomic/, [{ total: "0" }]]]));
     const source = chainSource([]);

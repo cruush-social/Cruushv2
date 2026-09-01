@@ -3,6 +3,7 @@ import {
   assertCryptoPaymentStatusTransition,
   buildCryptoPaymentUri,
   canTransitionCryptoPaymentStatus,
+  expireStaleCryptoPaymentIntents,
   createInHouseCryptoPaymentIntent,
   getCryptoProcessorStatus,
   hashCryptoPaymentEventPayload,
@@ -248,5 +249,32 @@ describe("crypto payment core", () => {
         hashCryptoPaymentEventPayload(payloadBytes)
       ]
     );
+  });
+});
+
+describe("expiring stale checkout windows", () => {
+  it("closes pending and awaiting_payment intents once the window has passed", async () => {
+    const query = vi.fn().mockResolvedValue({ rows: [{ id: "a" }, { id: "b" }] });
+    const db = { query, end: vi.fn() } as unknown as DbClient;
+
+    expect(await expireStaleCryptoPaymentIntents(db)).toBe(2);
+
+    const sql = query.mock.calls[0]![0] as string;
+    expect(sql).toContain("set status = 'expired'");
+    expect(sql).toContain("status in ('pending', 'awaiting_payment')");
+    expect(sql).toContain("expires_at < now()");
+  });
+
+  it("never expires an intent whose money has already been seen on chain", async () => {
+    // 'confirming' means a transfer was observed. A checkout timer must not
+    // discard a payment somebody actually sent.
+    const query = vi.fn().mockResolvedValue({ rows: [] });
+    const db = { query, end: vi.fn() } as unknown as DbClient;
+
+    await expireStaleCryptoPaymentIntents(db);
+
+    const sql = query.mock.calls[0]![0] as string;
+    expect(sql).not.toContain("confirming");
+    expect(sql).not.toContain("paid");
   });
 });

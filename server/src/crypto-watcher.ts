@@ -24,6 +24,7 @@ import { getCruushPlusPlan, grantCruushPlusPlan } from "./billing.js";
 import {
   CRYPTO_PAYMENT_RAILS,
   assertCryptoPaymentStatusTransition,
+  expireStaleCryptoPaymentIntents,
   type CryptoPaymentRailId,
   type CryptoPaymentStatus
 } from "./crypto-payments.js";
@@ -463,6 +464,11 @@ export async function runCryptoWatcherPass(
   app: { db: DbClient; config: AppConfig },
   source: ChainSource
 ): Promise<WatcherPassResult> {
+  // Close stale checkout windows before deciding what to watch. Without this an
+  // unpaid intent stays 'awaiting_payment' forever, so the late-arrival window
+  // never starts counting and abandoned checkouts are watched indefinitely.
+  await expireStaleCryptoPaymentIntents(app.db);
+
   const policy = resolveSettlementPolicy(app.config, source.chainId);
   const intents = await loadWatchableIntents(app.db, source.chainId, policy);
 

@@ -460,7 +460,36 @@ export async function recordCryptoPaymentEvent(db: DbClient, input: CryptoPaymen
   };
 }
 
+/**
+ * Moves intents past their checkout window to 'expired'.
+ *
+ * Nothing else did this, which left every unpaid intent sitting in
+ * 'awaiting_payment' forever: the member was told to keep waiting long after
+ * the window closed, and the watcher's late-arrival window never started
+ * counting, so abandoned checkouts were watched indefinitely.
+ *
+ * 'confirming' is deliberately excluded. Money has already been seen on chain
+ * for those, and a checkout timer must never discard a payment somebody has
+ * actually sent. Expiring is also not the end of the road: an expired intent
+ * still settles a late payment for as long as the late-arrival window allows.
+ */
+export async function expireStaleCryptoPaymentIntents(db: DbClient) {
+  const result = await db.query<{ id: string }>(
+    `update crypto_payment_intents
+     set status = 'expired',
+         updated_at = now()
+     where status in ('pending', 'awaiting_payment')
+       and expires_at < now()
+     returning id`,
+    []
+  );
+
+  return result.rows.length;
+}
+
 export async function loadCryptoPaymentIntent(db: DbClient, userId: string, intentId: string) {
+  await expireStaleCryptoPaymentIntents(db);
+
   const result = await db.query<CryptoPaymentIntentRow>(
     `select * from crypto_payment_intents where id = $1 and user_id = $2`,
     [intentId, userId]
