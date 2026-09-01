@@ -477,11 +477,9 @@ Status:
   focused client coverage proves a free member posts text with an empty photo list, plus audience,
   expiry, owner deletion, reporting, blocking, and distance presentation. The complete 648-test
   client suite passes; no live post was added during this continuation.
-- [x] Feed Seeking sits beside Feed Settings and expands the content search inside the same popup.
-  Searching `coffee` retained only the matching populated post.
-- [x] Feed Seeking reuses the complete map Seeking criteria while its Search field matches Feed post
-  content. In the authenticated populated popup, `coffee` retained only jay's matching post and the
-  Trans author filter retained jay while removing the signed-in member's posts.
+- [x] Feed Seeking sits beside Feed Settings and searches visible member names, bios, configured
+  profile fields, and Feed post tags inside the same popup. A leading `#` searches tags. Post text
+  is not searched.
 - [~] Complete cruush+ posting of up to three policy-compliant photos. Focused backend checks prove
   the cruush+ gate, approved-owner unattached-media boundary, ordered attachment insert, public
   authenticated read, and Crowd-audience denial. Upload moderation/provider and rendered-flow proof
@@ -493,8 +491,8 @@ Status:
   quick rotation. The exact shared cropper rendered at 390x844 without overflow; pointer pan changed
   the offset, Zoom reached 2.1, continuous Rotation reached 69 degrees with a matching readout, both
   90-degree controls worked, and accepting the crop produced the local heart preview.
-- [x] One photo renders as one heart and two as welded hearts. By direct 2026-09-01 correction,
-  three photos now render side by side in one landscape row instead of a triangle cluster. The exact
+- [x] One photo renders as one heart. By direct 2026-09-01 correction, two or three photos render as
+  separate equal-size hearts in one horizontal row with visible gaps and no overlap. The exact
   production attachment and viewer components rendered at 390x844 and 1440x900 without horizontal
   overflow. The full rectangular viewer kept Report and Close in the upper-right, cycled between
   photos, closed with Escape, and restored focus to the selected heart.
@@ -508,9 +506,10 @@ Status:
   allowed non-human imagery remain allowed while child-face enforcement stays active; explicit Feed
   attachments mask under DL Mode. Twenty focused checks passed. No real upload or successful media-byte
   delivery ran, so those integration gates remain pending.
-- [~] Julien directly authorized Feed replies and reactions as a 1.6 expansion on 2026-09-01.
-  API/schema work remains unbuilt, and the exact white cruush reaction icon set still requires his
-  selection or approval.
+- [x] Feed posts can add up to five moderated `#tags`, display them on the post, and find them through
+  Feed Seeking. Migration `110_feed_post_tags.sql` adds normalized post-tag storage.
+- [deferred] Feed replies were directly rejected and remain outside 1.6. Reactions remain deferred
+  until Julien selects the emoji set. Do not build either from the older backlog entry.
 - [blocked] Decide whether crowd targeting and Feed pin visibility remain cruush+ gates after saved
   Crowds replace legacy crowd targeting.
 
@@ -852,7 +851,7 @@ Status:
 - [~] The earlier source-only restriction was superseded for focused checks and local inspection.
   Only the specifically approved local migrations 106 through 108 ran. Broad suites, builds,
   real reward grants, provider actions, and publication still require their respective authority.
-- [~] The runner lists every numbered migration and orders the full 1.6 slice from 096 through 109.
+- [~] The runner lists every numbered migration and orders the full 1.6 slice from 096 through 110.
   Focused source checks cover 098 through 109 dependencies and replay guards. Migration 105 now
   scopes its constraint-existence check to `media_objects`, preventing a same-named constraint on
   another table from breaking replay. Three checks passed; disposable-database forward and replay
