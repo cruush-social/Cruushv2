@@ -833,11 +833,11 @@ Status:
   mutation cases remain unexercised.
 - [~] Focused and complete unit checks, client build, server build, casing check, security check,
   Coolify release-script check, and `git diff --check` pass. The final post-change client suite
-  passed 95 files and 648 tests, the client build passed with 2078 modules, and mobile, tablet, and
+  passed 96 files and 653 tests, the client build passed with 2078 modules, and mobile, tablet, and
   desktop layout checks passed. The complete changed-flow viewport matrix remains incomplete.
 - [x] Record passed, failed, blocked, and unverified gates separately in `AI_TASK.json`.
-- [blocked] No commit, push, merge, deployment, production migration, environment change, or feature
-  activation without separate explicit authority.
+- [~] Julien separately authorized local commits on this release branch. Push, merge, deployment,
+  production migration, environment changes, and feature activation remain unauthorized.
 
 ## Fastest safe execution order
 
