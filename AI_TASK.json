@@ -33,7 +33,7 @@
     "Zoom never changes an individual member's coordinates; zoom may only cluster or uncluster members.",
     "Map presence offers 1h, 3h, 6h, 8h, 12h, 24h, 48h, 3d, 4d, 5d, 6d, and 7d.",
     "No labels is removed from Map presence because Dark Room owns the distance-label replacement."
-    ,"Top navigation icon buttons never show a grey circle at rest or on hover. Their existing focus visibility and click areas remain available without a grey fill."
+    ,"Top navigation icon buttons have no grey circle at rest and use the deployed translucent white hover fill so the active target is easier to read. Their existing focus visibility and click areas remain available."
     ,"Crowd Mode receives no 1.6 update. Preserve the main-branch Crowd Mode UI, controls, copy, icon assets, and behavior without a dedicated Crowds sheet or Hydra icon."
     ,"DL Mode uses Julien's exact supplied balaclava-and-halo icon in white while inactive and the existing cruush gradient while active, preserving the approved top-navigation canvas and spacing until Julien selects dedicated DL Mode colors."
     ,"Bottom navigation icons have no resting grey circle and the Map tab uses Noun Project globe 7869983 in white and cruush-gradient states at a balanced 48px canvas."
