@@ -26,7 +26,7 @@ export function getAccessibilityPreferences(): AccessibilityPreferences {
     const stored = JSON.parse(window.localStorage.getItem(ACCESSIBILITY_PREFERENCES_STORAGE_KEY) ?? '{}');
 
     return {
-      colorBlindMode: stored.colorBlindMode === true,
+      ...(stored.colorBlindMode === true ? { colorBlindMode: true } : {}),
       highContrast: stored.highContrast === true,
       largerText: stored.largerText === true,
       reduceMotion: stored.reduceMotion === true,
