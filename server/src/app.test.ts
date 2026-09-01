@@ -14501,7 +14501,7 @@ describe("server", () => {
     const profileRow = {
       id: userId,
       display_name: "Cruusher",
-      photos: [],
+      photos: ["/api/media/profile-photos/c6ba810b-0607-4d2d-955b-b2f2828cfd13.png"],
       bio: "",
       pronouns: [],
       custom_pronouns: "",

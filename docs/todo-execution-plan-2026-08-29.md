@@ -29,12 +29,15 @@ Status:
   the submitted draft only when the member has not started another message. The real seeded flow
   passed at desktop and 390x844, and all 29 conversation tests passed. Both temporary messages were
   deleted afterward. The production client build passed with 2077 transformed modules.
-- `[~]` All seven open GitHub bug reports were rechecked against the current 1.6 candidate. #140's
-  visibility-only save path, #136's definite-height scroll container, #137 through #139's
-  viewer-authorized discovery filtering, and #141's vector-only map path already exist in current
-  source. #135 has no screenshot, affected surface, or reachable reporter, so changing checkbox
-  visuals would require an unapproved design guess. Safari 18.6 proof for #136 and production proof
-  for #141 remain open. No GitHub issue was commented on or closed.
+- `[~]` All seven open GitHub bug reports were rechecked against the current 1.6 candidate. #140 was
+  reproduced exactly at 390x844: unchanged Visibility Controls Apply returned `Request validation
+  failed` because the profile schema rejected canonical app-owned profile-photo URLs. The corrected
+  path validator and visibility-route regression pass, the server build passes, and the authenticated
+  mobile retry closed the sheet without an error. #136's definite-height scroll container, #137
+  through #139's viewer-authorized discovery filtering, and #141's vector-only map path exist in
+  current source. #135 has no screenshot, affected surface, or reachable reporter, so changing
+  checkbox visuals would require an unapproved design guess. Safari 18.6 proof for #136 and
+  production proof for #141 remain open. No GitHub issue was commented on or closed.
 - `[x]` Opening `/survey` while signed out renders the existing Sign In screen. Signing in returns
   directly to the survey after required account gates. The real local flow passed at 412x740 and
   desktop size, the focused App routing test passed, and the generic support endpoint rejects
