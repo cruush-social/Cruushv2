@@ -17,8 +17,10 @@ import {
   PLACE_AMENITY_LABELS,
   PLACE_FACILITY_LABELS,
   PLACE_TAG_LABELS,
+  PLACE_VIBES,
   PLACE_VIBE_LABELS,
   getVisibleSpotTags,
+  type PlaceVibe,
 } from '../lib/places';
 import {
   checkIntoPlace,
@@ -75,6 +77,7 @@ export default function PlaceDetail({ embedded = false, placeIdOverride }: Place
   const [loadingMoreBoard, setLoadingMoreBoard] = useState(false);
   const [message, setMessage] = useState('');
   const [checkinDurationHours, setCheckinDurationHours] = useState<1 | 3 | 6 | 12 | 24>(1);
+  const [checkinVibes, setCheckinVibes] = useState<PlaceVibe[]>([]);
   const [visibleCheckin, setVisibleCheckin] = useState(false);
   const [postingCheckin, setPostingCheckin] = useState(false);
   const [postingBoard, setPostingBoard] = useState(false);
@@ -134,6 +137,7 @@ export default function PlaceDetail({ embedded = false, placeIdOverride }: Place
     setPostingCheckin(false);
     setPostingBoard(false);
     setMessage('');
+    setCheckinVibes([]);
     setStatus(null);
     setRatingOpen(false);
     setReportTarget(null);
@@ -166,7 +170,7 @@ export default function PlaceDetail({ embedded = false, placeIdOverride }: Place
   }, [place]);
 
   const handlePostCheckin = () => {
-    if (!placeId || place?.id !== placeId || postingCheckin || postingBoard || mutationRef.current) return;
+    if (!placeId || place?.id !== placeId || checkinVibes.length === 0 || postingCheckin || postingBoard || mutationRef.current) return;
     const generation = ++checkinGeneration.current;
     const isCurrent = () => generation === checkinGeneration.current && activePlaceId.current === placeId;
     if (!navigator.geolocation) {
@@ -179,6 +183,7 @@ export default function PlaceDetail({ embedded = false, placeIdOverride }: Place
     navigator.geolocation.getCurrentPosition((position) => {
       if (!isCurrent()) return;
       void checkIntoPlace(placeId, {
+        vibes: checkinVibes,
         durationHours: checkinDurationHours,
         visible: visibleCheckin,
         latitude: position.coords.latitude,
@@ -356,13 +361,6 @@ export default function PlaceDetail({ embedded = false, placeIdOverride }: Place
             <button type="button" aria-label="Copy spot address" title="Copy address" className="shrink-0 rounded-md p-1 text-white/55 transition hover:bg-white/10 hover:text-white" onClick={() => void handleCopyAddress()}><Copy className="h-4 w-4" /></button>
           </div>
           {getVisibleSpotTags(place.tags).length ? <div className="mt-3 flex flex-wrap gap-2">{getVisibleSpotTags(place.tags).slice(0, 1).map((tag) => <span key={tag} className="rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-xs text-white">{PLACE_TAG_LABELS[tag]}</span>)}</div> : null}
-          {place.vibes?.length ? <div className="mt-3 flex flex-wrap gap-2">{(place.vibes ?? []).slice(0, 3).map((vibe) => <span key={vibe} className="rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-xs text-white">{PLACE_VIBE_LABELS[vibe]}</span>)}</div> : null}
-          {place.amenities?.length ? (
-            <div className="mt-4">
-              <p className="text-xs uppercase tracking-[0.14em] text-white/55">Amenities</p>
-              <div className="mt-2 flex flex-wrap gap-2">{(place.amenities ?? []).map((amenity) => <span key={amenity} className="rounded-full border border-white/10 px-3 py-1 text-xs text-white/70">{PLACE_AMENITY_LABELS[amenity]}</span>)}</div>
-            </div>
-          ) : null}
           <button type="button" className="mt-3 inline-flex items-center text-xs text-white/50 hover:text-white" onClick={() => embedded ? setReportTarget({ targetType: 'place', targetId: place.id, targetLabel: place.name }) : navigate('/report', { state: { targetType: 'place', placeId: place.id, targetLabel: place.name } })}><Flag className="mr-1 h-3.5 w-3.5" />Report incorrect or unsafe spot</button>
         </div>
 
@@ -415,6 +413,17 @@ export default function PlaceDetail({ embedded = false, placeIdOverride }: Place
         {error ? <p className="order-9 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{error}</p> : null}
 
         <Tabs defaultValue="feed" className="order-2 w-full">
+          {place.vibes?.length || place.amenities?.length ? (
+            <div className="mb-4 space-y-3">
+              {place.vibes?.length ? <div className="flex flex-wrap gap-2">{(place.vibes ?? []).slice(0, 2).map((vibe) => <span key={vibe} className="rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-xs text-white">{PLACE_VIBE_LABELS[vibe]}</span>)}</div> : null}
+              {place.amenities?.length ? (
+                <div>
+                  <p className="text-xs uppercase tracking-[0.14em] text-white/55">Amenities</p>
+                  <div className="mt-2 flex flex-wrap gap-2">{(place.amenities ?? []).map((amenity) => <span key={amenity} className="rounded-full border border-white/10 px-3 py-1 text-xs text-white/70">{PLACE_AMENITY_LABELS[amenity]}</span>)}</div>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
           <TabsList className="w-full grid grid-cols-2">
             <TabsTrigger value="feed">Board</TabsTrigger>
             <TabsTrigger value="here">Who's Here</TabsTrigger>
@@ -435,6 +444,27 @@ export default function PlaceDetail({ embedded = false, placeIdOverride }: Place
             ) : (
               <div className="rounded-lg border border-border bg-card p-3">
                 <p className="mb-3 text-sm text-white/70">Check in to view this board.</p>
+                <fieldset className="mb-4 space-y-2">
+                  <legend className="text-xs text-white/60">Spot vibes</legend>
+                  <div className="flex flex-wrap gap-2">
+                    {PLACE_VIBES.map((vibe) => {
+                      const selected = checkinVibes.includes(vibe);
+                      const selectionFull = checkinVibes.length >= 3 && !selected;
+                      return (
+                        <button
+                          key={vibe}
+                          type="button"
+                          aria-pressed={selected}
+                          disabled={selectionFull}
+                          className={`rounded-full border px-3 py-1 text-xs disabled:opacity-35 ${selected ? 'border-primary bg-primary/20 text-white' : 'border-white/10 text-white/65'}`}
+                          onClick={() => setCheckinVibes((current) => selected ? current.filter((item) => item !== vibe) : [...current, vibe])}
+                        >
+                          {PLACE_VIBE_LABELS[vibe]}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </fieldset>
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <label className="flex items-center gap-2 text-xs text-white/60">
                     Duration
@@ -451,7 +481,7 @@ export default function PlaceDetail({ embedded = false, placeIdOverride }: Place
                   <Checkbox checked={visibleCheckin} onCheckedChange={(checked) => setVisibleCheckin(checked === true)} />
                   Show me in Who's Here
                 </label>
-                  <Button size="sm" disabled={postingCheckin || postingBoard || mutating} onClick={handlePostCheckin}>{postingCheckin ? 'Checking in...' : 'Check in'}</Button>
+                  <Button size="sm" disabled={checkinVibes.length === 0 || postingCheckin || postingBoard || mutating} onClick={handlePostCheckin}>{postingCheckin ? 'Checking in...' : 'Check in'}</Button>
                 </div>
               </div>
             )}

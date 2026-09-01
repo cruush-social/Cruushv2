@@ -1,48 +1,46 @@
 {
   "schemaVersion": 2,
-  "taskId": "cruush-1.6-spot-vibes-amenities-20260901",
+  "taskId": "cruush-1.6-checkin-vibe-reports-20260901",
   "status": "active",
-  "objective": "Remove the Spots Activity filter and add the requested Spot-specific vibes and amenities across suggestion, moderation publication, storage, list/detail display, filtering, and map results.",
-  "userOutcome": "Members can describe new Spots with Spot vibes and amenities, see those values on Spots, and filter both the list and map by them without an Activity filter.",
-  "audience": "Authenticated cruush members and Spot moderators.",
+  "objective": "Collect Spot vibe reports during timed board check-in, aggregate deduplicated reports into each Spot's top two vibes, and show amenities on Spot cards and the compact Spot top section.",
+  "userOutcome": "Members report the current Spot vibe when entering its board, then see the two most-reported vibes and known amenities before interacting with the Spot.",
+  "audience": "Authenticated cruush members using Spots.",
   "successCriteria": [
-    "The Activity group is absent from Spot filters.",
-    "Spot vibes use a dedicated taxonomy separate from profile vibes.",
-    "Amenities are named Amenities in the interface and use the requested Spot amenity taxonomy.",
-    "New Spot suggestions can select up to three vibes and any applicable amenities.",
-    "Published suggestions persist their vibes and amenities as public Spot data.",
-    "Spot filters narrow both drawer results and map markers by selected vibes and amenities.",
-    "Spot results and detail surfaces display stored Spot vibes, and detail displays stored amenities."
+    "The board check-in control includes dedicated Spot vibe choices and requires at least one selection in the current client.",
+    "A check-in accepts up to three Spot vibes and replaces that member's prior report set for the same Spot.",
+    "Each member contributes at most one count per selected vibe per Spot, regardless of repeated check-ins.",
+    "Spot responses expose the two vibes with the most unique member reports, with stored suggestion vibes as the no-report fallback.",
+    "The compact top section, Spot list cards, and Spot detail show at most two top vibes.",
+    "Stored amenities appear on Spot list cards and in the compact top section.",
+    "Who’s Here remains visible without a check-in; only Board posts require an active check-in."
   ],
   "mustPreserve": [
-    "Preserve Spot search, sorting, distance, place type, community and care filters, map style, check-ins, boards, ratings, reports, and moderation privacy.",
-    "Preserve profile vibe taxonomy without reuse or mutation.",
-    "Preserve existing Spots with empty vibe and amenity data rather than fabricating values.",
-    "Preserve unrelated user work and the Android top-control sizing correction."
+    "Preserve the dedicated Spot vibe taxonomy and never reuse profile vibes.",
+    "Preserve board access duration, geolocation checks, Who's Here choice, permanent board posts, deletion, encryption, moderation, and expiry notifications.",
+    "Preserve board-first layout, map behavior, Spot filters, amenities, and unrelated user work.",
+    "Preserve older clients by accepting check-ins without vibe reports while the current interface requires them."
   ],
   "nonGoals": [
-    "No Crowd fit or demographic Spot filters.",
-    "No inferred, fabricated, or appearance-derived Spot data.",
-    "No activity-filter replacement under another label.",
+    "No demographic aggregation, Crowd fit, profile-vibe changes, fabricated reports, or fabricated amenities.",
     "No tests, build, preview, migration execution, push, or deployment."
   ],
   "assumptions": [
     {
-      "statement": "The requested vibe and amenity values are the newer Spots handoff taxonomy: Chill, Social, Flirty, Cruisy, Dancey, High-energy, Intimate, Community, After-hours, Outdoor, Historical, Exposed; and Restrooms, Drinks, Cover charge, Accessible, Transit nearby, Staff present, Indoor, Outdoor.",
-      "impact": "These values become the dedicated public Spot taxonomy without changing profile vibes.",
+      "statement": "A member may report one to three Spot vibes at check-in, matching the existing Spot suggestion limit.",
+      "impact": "Reports capture a small set while the visible aggregate remains limited to the top two.",
       "reversible": true,
-      "confirmationState": "confirmed"
+      "confirmationState": "labeled"
     },
     {
-      "statement": "Remove Activity filter means remove the Activity filter group, not the existing Active now and Recent activity sort choices.",
-      "impact": "Members retain sorting while no longer filtering by activity state.",
+      "statement": "Aggregate means unique-member counts over retained check-in reports, with the most recently reported vibe breaking equal-count ties.",
+      "impact": "Repeated check-ins cannot inflate counts and equal results respond to newer reports.",
       "reversible": true,
       "confirmationState": "labeled"
     }
   ],
-  "nextVisibleMilestone": "Commit the complete Spot vibe and amenity source path as intentionally unverified code.",
+  "nextVisibleMilestone": "Commit the check-in vibe-report aggregation and expanded amenity display as intentionally unverified source.",
   "stopConditions": [
-    "Stop before tests, build, preview, migration execution, push, deployment, or fabricated data."
+    "Stop before tests, build, preview, migration execution, push, deployment, or inferred data."
   ],
   "costBudget": {
     "maxUsd": 0,
@@ -70,7 +68,7 @@
   "release": "1.6",
   "repository": "cruush-social/Cruushv2",
   "branch": "release/1.6-integration-20260901",
-  "job": "Implement real Spot-specific vibes and amenities while removing the Activity filter.",
+  "job": "Add deduplicated Spot vibe reports to board check-in and display top two vibes plus amenities.",
   "forbiddenPaths": [
     "HANDOFF.md",
     ".dev/**",
@@ -78,19 +76,17 @@
   ],
   "allowedPaths": [
     "AI_TASK.json",
-    "src/app/lib/places.ts",
     "src/app/lib/placesApi.ts",
     "src/app/components/PlacesDrawer.tsx",
     "src/app/components/PlaceDetail.tsx",
-    "src/app/components/MapHome.tsx",
     "server/src/places.ts",
     "server/src/routes/places.ts",
     "server/src/migrate.ts",
-    "server/sql/113_spot_vibes_amenities.sql"
+    "server/sql/114_place_vibe_reports.sql"
   ],
   "proofTarget": "Source-only diff. Tests, build, preview, migration execution, and rendered verification are intentionally excluded by Julien's code-only instruction.",
   "publicationTarget": "local commit only",
   "requiredEvidence": [
-    "Focused source diff for Spot taxonomy, persistence, filtering, suggestion, and display files, labeled unverified."
+    "Focused source diff for check-in vibe input, deduplicated storage, top-two aggregation, and amenity display, labeled unverified."
   ]
 }

@@ -350,7 +350,8 @@ export default function PlacesDrawer({ open, onOpenChange, coordinates, onFilter
                       <div className="min-w-0">
                         <p className="truncate font-medium text-white">{place.name}</p>
                         <p className="mt-1 text-xs text-white/55">{getSpotCategoryLabels(place.facilityType, place.tags).join(' · ')}</p>
-                        {place.vibes?.length ? <p className="mt-1 text-xs text-primary">{(place.vibes ?? []).slice(0, 3).map((vibe) => PLACE_VIBE_LABELS[vibe]).join(' · ')}</p> : null}
+                        {place.vibes?.length ? <p className="mt-1 text-xs text-primary">{(place.vibes ?? []).slice(0, 2).map((vibe) => PLACE_VIBE_LABELS[vibe]).join(' · ')}</p> : null}
+                        {place.amenities?.length ? <p className="mt-1 text-xs text-white/50">{(place.amenities ?? []).map((amenity) => PLACE_AMENITY_LABELS[amenity]).join(' · ')}</p> : null}
                       </div>
                       {place.distanceMiles != null ? <span className="shrink-0 text-xs text-white/55"><MapPin className="mr-1 inline h-3 w-3" />{place.distanceMiles < 1 ? place.distanceMiles.toFixed(1) : place.distanceMiles.toFixed(0)} mi</span> : null}
                     </div>

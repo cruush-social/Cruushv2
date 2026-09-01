@@ -189,7 +189,20 @@ function basePlaceSelect(viewerParam: string, latParam: string, lngParam: string
     p.verified_at, p.created_at, p.suggestion_count, p.auto_shortlisted_at,
     p.suggestion_ciphertext, p.suggestion_nonce, p.suggestion_auth_tag, p.suggestion_key_version,
     coalesce((select array_agg(t.tag order by t.tag) from place_tags t where t.place_id = p.id), '{}') as tags,
-    coalesce((select array_agg(v.vibe order by v.vibe) from place_vibes v where v.place_id = p.id), '{}') as vibes,
+    coalesce(
+      (select array_agg(ranked.vibe order by ranked.report_count desc, ranked.last_reported_at desc, ranked.vibe)
+       from (
+         select report.vibe, count(distinct report.user_id)::int as report_count,
+                max(report.reported_at) as last_reported_at
+         from place_vibe_reports report
+         where report.place_id = p.id
+         group by report.vibe
+         order by report_count desc, last_reported_at desc, report.vibe
+         limit 2
+       ) ranked),
+      (select (array_agg(v.vibe order by v.vibe))[1:2] from place_vibes v where v.place_id = p.id),
+      '{}'
+    ) as vibes,
     coalesce((select array_agg(a.amenity order by a.amenity) from place_amenities a where a.place_id = p.id), '{}') as amenities,
     case when ${latParam}::double precision is null or ${lngParam}::double precision is null then null else
       3958.7613 * 2 * asin(sqrt(
@@ -285,7 +298,6 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
            and ($4::text = '' or p.name ilike '%' || $4 || '%' or p.description ilike '%' || $4 || '%')
            and (cardinality($5::text[]) = 0 or p.facility_type = any($5::text[]))
            and (cardinality($6::text[]) = 0 or exists (select 1 from place_tags filter_tag where filter_tag.place_id = p.id and filter_tag.tag = any($6::text[])))
-           and (cardinality($7::text[]) = 0 or exists (select 1 from place_vibes filter_vibe where filter_vibe.place_id = p.id and filter_vibe.vibe = any($7::text[])))
            and (cardinality($8::text[]) = 0 or exists (select 1 from place_amenities filter_amenity where filter_amenity.place_id = p.id and filter_amenity.amenity = any($8::text[])))
            -- Follow the settled map center as the viewport changes.
            and 3958.7613 * 2 * asin(sqrt(
@@ -300,7 +312,8 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
                * power(sin(radians((p.longitude - $13::double precision) / 2)), 2)
            )) <= $14
        ) listed
-       where ($15::text = 'any'
+       where (cardinality($7::text[]) = 0 or vibes && $7::text[])
+         and ($15::text = 'any'
          or ($15::text = 'active' and active_checkins > 0)
          or ($15::text = 'recent' and recent_activity_at is not null))
        order by ${placeOrder(query.sort)}
@@ -672,6 +685,16 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
          returning expires_at`,
         [userId, placeId, payload.visible, payload.durationHours]
       );
+      if (payload.vibes.length > 0) {
+        await db.query(`delete from place_vibe_reports where place_id = $1 and user_id = $2`, [placeId, userId]);
+        for (const vibe of [...new Set(payload.vibes)]) {
+          await db.query(
+            `insert into place_vibe_reports (place_id, user_id, vibe, reported_at)
+             values ($1, $2, $3, now())`,
+            [placeId, userId, vibe]
+          );
+        }
+      }
       let boardPostId: string | null = null;
       if (legacyBoardPost) {
         const boardPost = await db.query<{ id: string }>(

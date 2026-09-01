@@ -119,7 +119,8 @@ const migrationFiles = [
   "110_feed_post_tags.sql",
   "111_place_board_post_expiry.sql",
   "112_place_checkin_board_access.sql",
-  "113_spot_vibes_amenities.sql"
+  "113_spot_vibes_amenities.sql",
+  "114_place_vibe_reports.sql"
 ];
 const rewardSafetyPreflightFiles = [
   "079_daily_check_in_rewards.sql",
