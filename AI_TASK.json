@@ -248,6 +248,8 @@
     "docs/design-master.md",
     "DESIGN_DECISIONS.md",
     "docs/session-handoff-2026-08-31.md",
+    "docs/changelog.md",
+    "docs/previews/cruush-1.6-update-email.html",
     "docs/media-read-hardening-handoff-2026-08-29.md",
     "docs/session-handoff-2026-08-29.md",
     "public/service-worker-recovery.js",

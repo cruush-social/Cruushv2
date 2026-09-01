@@ -7,12 +7,12 @@ const changelogReleases = [
   {
     version: 'v1.6',
     items: [
-      'Mile High Club lets cruush+ members explore from a place they are visiting.',
-      'Feed posting is free. Public and Mutuals use Never expire by default. Feed+ adds one specific Crowd and custom timers.',
-      'Dark Room has its final name and new icon.',
-      'The map shows more individual members before clustering.',
-      'Pulse controls fit small mobile screens with Send always reachable.',
-      'Mobile map overlap, duplicate sends, Ghost timing, Pulse visibility, sign-up delivery, and notification reliability are fixed.',
+      'Explore from another location with Mile High Club.',
+      'Find Spots on the map, join their boards, see who is there, and share ratings.',
+      'Post text to Feed for free, search #tags, and add up to three photos with cruush+.',
+      'Complete Side Quests to earn bonus Pings and cruush+ days.',
+      'Ghost Mode keeps its familiar animation with the new 1.6 icon, while Dark Room adds a private way to browse.',
+      'Profiles, messages, map controls, loading states, and mobile layouts feel faster and clearer.',
     ],
   },
   {
