@@ -411,10 +411,25 @@ JSON-RPC documentation, which Base implements, and are quoted in the header of
 
 Status of each item:
 
-- Select and document the JSON-RPC source. **Chosen 2026-08-30: Dwellir.**
-  Julien asked for a pick rather than options, so this is a decision, not a
-  recommendation, and it is cheap to reverse: the code is plain JSON-RPC with
-  nothing provider-specific in it, so switching is one environment variable.
+- Select and document the JSON-RPC source. **Dwellir, confirmed by Julien
+  2026-09-01.** The decision is cheap to reverse: the code is plain JSON-RPC
+  with nothing provider-specific in it, so switching is one environment
+  variable.
+
+  It still needs an account, which is the owner's to create; no account exists
+  yet, so `CRYPTO_PROCESSOR_ARBITRUM_RPC_URL` remains empty and the watcher does
+  not run. The endpoint URL is expected to carry a key, so it is set directly in
+  the deployment environment and never committed.
+
+  **A no-signup fallback was verified working on 2026-09-01**, in case the
+  account is a nuisance or Dwellir disappoints: Arbitrum publishes a free public
+  endpoint at `https://arb1.arbitrum.io/rpc`, which answered `eth_blockNumber`
+  with no key. Base's own `https://mainnet.base.org` answered too. Neither
+  carries an availability guarantee, and neither was wired into cruush; they
+  were probed from a developer machine, not by the application. They are a
+  reasonable way to exercise the rail end to end before committing to a
+  provider, given the worst-case load is about 2,880 requests a day on a chain
+  and nothing at all while no payment is in progress.
 
   **This costs nothing to run, and that is enforced in code rather than hoped
   for.** Three things do the work:
