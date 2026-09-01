@@ -432,7 +432,7 @@ export default function PlaceDetail({ embedded = false, placeIdOverride }: Place
           <TabsContent value="feed" className="space-y-4 mt-4">
             {place.viewerCheckin ? (
               <div className="rounded-lg border border-border bg-card p-3">
-                <textarea aria-label="Leave a spot board message" className="min-h-20 w-full resize-none bg-transparent text-sm text-white outline-none" placeholder="Leave a message for this spot" value={message} onChange={(event) => setMessage(event.target.value)} maxLength={1000} />
+                <textarea aria-label="Leave a spot board message" className="min-h-20 w-full resize-none bg-transparent text-sm text-white outline-none" placeholder="Write a board post (stays until you delete it)" value={message} onChange={(event) => setMessage(event.target.value)} maxLength={1000} />
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <p className="text-xs text-white/55">Checked in until {new Date(place.viewerCheckin.expiresAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</p>
                   <div className="flex items-center gap-3">
@@ -443,7 +443,7 @@ export default function PlaceDetail({ embedded = false, placeIdOverride }: Place
               </div>
             ) : (
               <div className="rounded-lg border border-border bg-card p-3">
-                <p className="mb-3 text-sm text-white/70">Check in to view this board.</p>
+                <p className="mb-3 text-sm text-white/70">Check in to view the board. Your check-in expires; board posts stay until their author deletes them.</p>
                 <fieldset className="mb-4 space-y-2">
                   <legend className="text-xs text-white/60">Spot vibes</legend>
                   <div className="flex flex-wrap gap-2">
@@ -467,7 +467,7 @@ export default function PlaceDetail({ embedded = false, placeIdOverride }: Place
                 </fieldset>
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <label className="flex items-center gap-2 text-xs text-white/60">
-                    Duration
+                    Check-in expires in
                     <select
                       aria-label="Check-in duration"
                       className="rounded-md border border-white/15 bg-black px-2 py-1 text-xs text-white"

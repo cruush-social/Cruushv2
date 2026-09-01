@@ -1,62 +1,54 @@
 {
   "schemaVersion": 2,
-  "taskId": "cruush-1.6-checkin-vibe-reports-20260901",
+  "taskId": "cruush-1.6-release-email-preview-20260901",
   "status": "active",
-  "objective": "Collect Spot vibe reports during timed board check-in, aggregate deduplicated reports into each Spot's top two vibes, and show amenities on Spot cards and the compact Spot top section.",
-  "userOutcome": "Members report the current Spot vibe when entering its board, then see the two most-reported vibes and known amenities before interacting with the Spot.",
-  "audience": "Authenticated cruush members using Spots.",
+  "objective": "Finish the v1.6 email preview, clarify Spot check-in expiry, make the mobile map top row fill its width, and execute the Spot vibe migration through the authorized release path.",
+  "userOutcome": "Julien can review the exact v1.6 announcement copy and a screenshot of the finished email before deciding whether to send it.",
+  "audience": "cruush members receiving a future release broadcast.",
   "successCriteria": [
-    "The board check-in control includes dedicated Spot vibe choices and requires at least one selection in the current client.",
-    "A check-in accepts up to three Spot vibes and replaces that member's prior report set for the same Spot.",
-    "Each member contributes at most one count per selected vibe per Spot, regardless of repeated check-ins.",
-    "Spot responses expose the two vibes with the most unique member reports, with stored suggestion vibes as the no-report fallback.",
-    "The compact top section, Spot list cards, and Spot detail show at most two top vibes.",
-    "Stored amenities appear on Spot list cards and in the compact top section.",
-    "Who’s Here remains visible without a check-in; only Board posts require an active check-in."
+    "The subject, preheader, and body describe only confirmed user-visible v1.6 features.",
+    "The email includes real captures of the v1.6 map and Spot board, with no private profile or precise location details.",
+    "The public changelog matches the latest Spot behavior.",
+    "The HTML preserves the Resend broadcast unsubscribe placeholder.",
+    "A local rendered screenshot is delivered for review.",
+    "The Spot form clearly says check-ins expire while board posts remain until deleted.",
+    "The mobile map top action capsule fills the space between cruush+ and the bug button.",
+    "Migration 114 runs through the production API migration entrypoint."
   ],
   "mustPreserve": [
-    "Preserve the dedicated Spot vibe taxonomy and never reuse profile vibes.",
-    "Preserve board access duration, geolocation checks, Who's Here choice, permanent board posts, deletion, encryption, moderation, and expiry notifications.",
-    "Preserve board-first layout, map behavior, Spot filters, amenities, and unrelated user work.",
-    "Preserve older clients by accepting check-ins without vibe reports while the current interface requires them."
+    "Preserve the approved cruush logo, dark email style, existing changelog history, and user-visible terminology.",
+    "Preserve Who's Here visibility without check-in and describe board access as requiring a timed check-in.",
+    "Keep public copy brief and free of secrets, implementation details, provider details, exact addresses, radii, or internal release language."
   ],
   "nonGoals": [
-    "No demographic aggregation, Crowd fit, profile-vibe changes, fabricated reports, or fabricated amenities.",
-    "No tests, build, preview, migration execution, push, or deployment."
+    "Do not send or schedule the email.",
+    "Do not add unconfirmed features, Feed replies, reactions, Crowd changes, or exact location details.",
+    "Do not run tests; deployment may build through the existing release path."
   ],
   "assumptions": [
     {
-      "statement": "A member may report one to three Spot vibes at check-in, matching the existing Spot suggestion limit.",
-      "impact": "Reports capture a small set while the visible aggregate remains limited to the top two.",
+      "statement": "The established v1.2 Resend broadcast structure remains the correct visual template for v1.6.",
+      "impact": "The v1.6 preview reuses its logo, table layout, CTA, support address, and broadcast unsubscribe token.",
       "reversible": true,
-      "confirmationState": "labeled"
-    },
-    {
-      "statement": "Aggregate means unique-member counts over retained check-in reports, with the most recently reported vibe breaking equal-count ties.",
-      "impact": "Repeated check-ins cannot inflate counts and equal results respond to newer reports.",
-      "reversible": true,
-      "confirmationState": "labeled"
+      "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "Commit the check-in vibe-report aggregation and expanded amenity display as intentionally unverified source.",
+  "nextVisibleMilestone": "Open the rendered v1.6 email preview and deliver its screenshot.",
   "stopConditions": [
-    "Stop before tests, build, preview, migration execution, push, deployment, or inferred data."
+    "Stop before sending or scheduling the email."
   ],
-  "costBudget": {
-    "maxUsd": 0,
-    "maxMinutes": null
-  },
+  "costBudget": {"maxUsd": 0, "maxMinutes": null},
   "externalEffectDecisions": {
-    "commit": "Authorized by Julien's standing instruction to commit 1.6 corrections.",
-    "push": "not authorized by the current request",
-    "deploy": "not authorized by the current request",
-    "environmentChanges": "forbidden",
-    "migrationExecution": "forbidden"
+    "commit": "Authorized by Julien's standing instruction to commit v1.6 work.",
+    "send": "forbidden without exact recipients, sender, final copy approval, and explicit send authority",
+    "push": "authorized by Julien's prior explicit main release instruction and current instruction to finish everything already requested",
+    "deploy": "authorized by Julien's prior explicit production release instruction and current instruction to execute the migration",
+    "migration": "authorized by Julien's explicit instruction to do the migration"
   },
   "externalEffects": {
     "externalMessages": "forbidden",
     "purchases": "forbidden",
-    "deployment": "forbidden",
+    "deployment": "auto",
     "publication": "auto",
     "deletion": "forbidden",
     "securityChanges": "forbidden",
@@ -68,25 +60,23 @@
   "release": "1.6",
   "repository": "cruush-social/Cruushv2",
   "branch": "release/1.6-integration-20260901",
-  "job": "Add deduplicated Spot vibe reports to board check-in and display top two vibes plus amenities.",
-  "forbiddenPaths": [
-    "HANDOFF.md",
-    ".dev/**",
-    "src/app/assets/ui-icons/ghost-horned-mask-source.png"
-  ],
+  "job": "Update and render the v1.6 release email preview.",
+  "forbiddenPaths": ["HANDOFF.md", ".dev/**", "src/app/assets/ui-icons/ghost-horned-mask-source.png"],
   "allowedPaths": [
     "AI_TASK.json",
-    "src/app/lib/placesApi.ts",
-    "src/app/components/PlacesDrawer.tsx",
+    "docs/changelog.md",
+    "docs/previews/cruush-1.6-update-email.html",
+    "src/app/components/Changelog.tsx",
     "src/app/components/PlaceDetail.tsx",
-    "server/src/places.ts",
-    "server/src/routes/places.ts",
-    "server/src/migrate.ts",
-    "server/sql/114_place_vibe_reports.sql"
+    "src/app/components/MapHome.tsx",
+    "public/email/cruush-v1.6-map.jpg",
+    "public/email/cruush-v1.6-spot-board.jpg",
+    "docs/previews/cruush-1.6-update-email.png"
   ],
-  "proofTarget": "Source-only diff. Tests, build, preview, migration execution, and rendered verification are intentionally excluded by Julien's code-only instruction.",
-  "publicationTarget": "local commit only",
+  "proofTarget": "Rendered local email preview at desktop and narrow mobile widths, plus a saved full-page screenshot.",
+  "publicationTarget": "origin/main and the existing cruush frontend/API production resources; no email send",
   "requiredEvidence": [
-    "Focused source diff for check-in vibe input, deduplicated storage, top-two aggregation, and amenity display, labeled unverified."
+    "Rendered full-page email screenshot",
+    "Exact subject, preheader, CTA, image sources, support address, and unsubscribe placeholder"
   ]
 }

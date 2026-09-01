@@ -3,7 +3,8 @@
 ## Release 1.6 (September 1, 2026)
 
 - Explore from another location with Mile High Club.
-- Find Spots on the map, join their boards, see who is there, and share ratings.
+- Find Spots by vibe and amenities, see who is there, and join their boards while checked in.
+- Spot check-ins expire. Board posts stay until their author deletes them.
 - Post text to Feed for free, search #tags, and add up to three photos with cruush+.
 - Complete Side Quests to earn bonus Pings and cruush+ days.
 - Ghost Mode keeps its familiar animation with the new 1.6 icon, while Dark Room adds a private way to browse.

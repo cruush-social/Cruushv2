@@ -2690,7 +2690,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
           </div>
           <div className="flex min-w-0 flex-1 justify-center">
             <div
-              className="cruush-map-top-actions pointer-events-auto mt-0 flex min-w-0 max-w-full items-center justify-center gap-0.5 rounded-full border border-white/10 bg-background/25 px-1 py-1 backdrop-blur-md transition-[width,margin,transform] max-[430px]:gap-0 max-[430px]:px-0.5 sm:gap-1 sm:px-2.5 sm:py-2"
+              className="cruush-map-top-actions pointer-events-auto mt-0 flex w-full min-w-0 max-w-full items-center justify-center gap-0.5 rounded-full border border-white/10 bg-background/25 px-1 py-1 backdrop-blur-md transition-[width,margin,transform] max-[430px]:gap-0 max-[430px]:px-0.5 sm:w-auto sm:gap-1 sm:px-2.5 sm:py-2"
               data-map-control-hit-layer="true"
               data-testid="map-top-actions"
               onPointerEnter={() => setMapControlsHovered(true)}
