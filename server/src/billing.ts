@@ -311,7 +311,15 @@ export function mapCheckoutSession(row: BillingCheckoutSessionRow) {
   };
 }
 
+function assertTestCheckoutAllowed(app: FastifyInstance) {
+  if (app.config.BILLING_TEST_CHECKOUT_ENABLED !== true) {
+    throw new ApiError(404, "NOT_FOUND", "Not found.");
+  }
+}
+
 export async function createFakeCheckoutSession(app: FastifyInstance, userId: string, planId: string) {
+  assertTestCheckoutAllowed(app);
+
   const plan = getCruushPlusPlan(planId);
   const row = (await app.db.query<BillingCheckoutSessionRow>(
     `insert into billing_checkout_sessions (
@@ -354,6 +362,8 @@ export async function loadCheckoutSession(app: FastifyInstance, userId: string, 
 }
 
 export async function completeFakeCheckoutSession(app: FastifyInstance, userId: string, sessionId: string) {
+  assertTestCheckoutAllowed(app);
+
   const session = await loadCheckoutSession(app, userId, sessionId);
 
   if (session.processor !== "fake" || !session.testMode) {
