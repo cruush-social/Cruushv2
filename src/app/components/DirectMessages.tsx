@@ -24,6 +24,7 @@ import { getMyProfile } from '../lib/profileApi';
 import { openConversationOrInbox } from '../lib/openConversation';
 import ProfileActionTrio from './ProfileActionTrio';
 import UserActivityCapsule from './UserActivityCapsule';
+import LoadingCardSkeletons from './LoadingCardSkeletons';
 import CruushMatchSettings from './CruushMatchSettings';
 import {
   Dialog,
@@ -882,9 +883,7 @@ export default function DirectMessages({
                 ))}
               </div>
               {groupLoading ? (
-                <div className="rounded-2xl border border-border bg-card/70 p-4 text-sm text-muted-foreground">
-                  Loading mutuals...
-                </div>
+                <LoadingCardSkeletons count={3} label="Loading mutuals" />
               ) : null}
               {!groupLoading && mutualOptions.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-border bg-card/60 p-4 text-sm text-muted-foreground">
@@ -1377,9 +1376,7 @@ function DirectUserOverlay({
         ) : null}
 
         {loading ? (
-          <div className="rounded-2xl border border-border bg-card/70 p-4 text-sm text-muted-foreground">
-            Loading people...
-          </div>
+          <LoadingCardSkeletons count={3} label="Loading people" />
         ) : null}
 
         {!loading && activeComposerTab === 'mutuals' && mutuals.length === 0 ? (

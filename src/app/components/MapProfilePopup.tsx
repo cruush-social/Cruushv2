@@ -26,6 +26,7 @@ import mapIconWhite from '../assets/ui-icons/map-white.png';
 import mileHighClubWhite from '../assets/ui-icons/mile-high-club-white.svg';
 import sendIconWhite from '../assets/ui-icons/send-white.png';
 import DarkRoomMark from './DarkRoomMark';
+import LoadingCardSkeletons from './LoadingCardSkeletons';
 
 interface MapProfilePopupProps {
   user: any;
@@ -383,9 +384,9 @@ export default function MapProfilePopup({
               profileView={profileView}
             />
           ) : (
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm text-white/60">
-              {profileLoading ? 'Loading profile details...' : profileError ?? 'Profile details are unavailable.'}
-            </div>
+            profileLoading
+              ? <LoadingCardSkeletons count={2} label="Loading profile details" />
+              : <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm text-white/60">{profileError ?? 'Profile details are unavailable.'}</div>
           )}
         </div>
 

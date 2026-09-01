@@ -1,5 +1,6 @@
 import { Suspense, lazy, useEffect, useState } from 'react';
 import DesktopDockPanel from './DesktopDockPanel';
+import LoadingCardSkeletons from './LoadingCardSkeletons';
 import type { TravelPin } from '../lib/privacyApi';
 
 const LocalFeed = lazy(() => import('./LocalFeed'));
@@ -83,7 +84,7 @@ export default function MapSidePanel({
     <DesktopDockPanel slot="right" ariaLabel="Side panel">
       <div className="flex h-full flex-col">
         <div className="profile-card-scroll min-h-0 flex-1" data-testid="map-side-panel-content">
-          <Suspense fallback={<p className="px-4 py-6 text-sm text-white/62">Loading...</p>}>
+          <Suspense fallback={<LoadingCardSkeletons className="px-4 py-6" count={3} label="Loading side panel" />}>
             {conversationId ? (
               <PrivateGroupChat
                 backLabel={view === 'activity' ? 'Back to Cruushes' : 'Back to messages'}

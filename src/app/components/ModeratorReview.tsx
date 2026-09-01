@@ -64,6 +64,7 @@ import {
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
+import LoadingCardSkeletons from './LoadingCardSkeletons';
 
 type AccessState = 'checking' | 'ready' | 'denied' | 'error';
 type ModeratorView = 'queue' | 'users' | 'notifications' | 'system-errors' | 'email';
@@ -1276,7 +1277,7 @@ export default function ModeratorReview() {
           <section aria-labelledby="account-detail-heading" className="min-w-0 border-t border-border pt-5 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
             <h2 id="account-detail-heading" className="text-lg">Account detail</h2>
             {!selectedUserId ? <p className="mt-4 text-sm text-muted-foreground">Select an account to review its history and apply enforcement.</p> : null}
-            {userDetailLoading ? <p className="mt-4 text-sm text-muted-foreground">Loading account...</p> : null}
+            {userDetailLoading ? <LoadingCardSkeletons className="mt-4" count={2} label="Loading account" /> : null}
             {userDetailError ? <div className="mt-4 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{userDetailError}</div> : null}
 
             {!userDetailLoading && userDetail ? (
@@ -1476,7 +1477,7 @@ export default function ModeratorReview() {
         <section ref={detailSectionRef} aria-labelledby="detail-heading" className={`${selected ? 'order-first' : 'order-last'} min-w-0 border-t border-border pt-5 lg:order-2 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0`}>
           <h2 id="detail-heading" className="text-lg">Review detail</h2>
           {!selected ? <p className="mt-4 text-sm text-muted-foreground">Select a queue item to inspect its evidence and content context.</p> : null}
-          {detailLoading ? <p className="mt-4 text-sm text-muted-foreground">Loading moderation context...</p> : null}
+          {detailLoading ? <LoadingCardSkeletons className="mt-4" count={2} label="Loading moderation context" /> : null}
           {detailError ? <div className="mt-4 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{detailError}</div> : null}
 
           {!detailLoading && detail ? (

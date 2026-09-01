@@ -10,6 +10,7 @@ import { Label } from './ui/label';
 import { Switch } from './ui/switch';
 import { Textarea } from './ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
+import LoadingCardSkeletons from './LoadingCardSkeletons';
 import { getMyBillingStatus } from '../lib/billingApi';
 import MultiSelect from './MultiSelect';
 import {
@@ -998,7 +999,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
   };
 
   if (loading) {
-    return <div className={embedded ? 'p-5 text-sm text-white/60' : ''}>Loading...</div>;
+    return <LoadingCardSkeletons className={embedded ? 'p-5' : 'mx-auto max-w-2xl p-5'} count={3} label="Loading profile editor" />;
   }
 
   const normalizedProfile: ProfilePayload = {
@@ -1099,7 +1100,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
           </TabsList>
 
           <TabsContent forceMount value="badges" className="mt-0 data-[state=inactive]:hidden">
-            <Suspense fallback={<p className="px-5 py-6 text-sm text-white/60">Loading...</p>}>
+            <Suspense fallback={<LoadingCardSkeletons className="px-5 py-6" count={2} label="Loading badge editor" />}>
               <BadgePickerPreview
                 embedded
                 onClose={() => handleTabChange('basics')}

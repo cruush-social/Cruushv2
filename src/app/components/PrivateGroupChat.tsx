@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import BlockUserAction from './BlockUserAction';
 import ReportAction from './ReportAction';
 import { CruushIcon } from './CruushIconImage';
+import LoadingCardSkeletons from './LoadingCardSkeletons';
 import HeartPhoto from './HeartPhoto';
 import { Textarea } from './ui/textarea';
 import { getCurrentUserId } from '../lib/sessionUser';
@@ -1175,9 +1176,7 @@ export default function PrivateGroupChat({
                 <div className="space-y-2">
                   <p className="text-sm text-muted-foreground">Members</p>
                   {groupMembersLoading ? (
-                    <div className="rounded-2xl border border-border bg-background/60 p-3 text-sm text-muted-foreground">
-                      Loading members...
-                    </div>
+                    <LoadingCardSkeletons count={2} label="Loading members" />
                   ) : null}
                   {groupMembers.map((member) => (
                     <div key={member.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-background/60 p-3">
@@ -1627,9 +1626,7 @@ export default function PrivateGroupChat({
                     </div>
 
                     {favoriteImagesLoading ? (
-                      <div className="rounded-2xl border border-border bg-card/70 p-3 text-sm text-muted-foreground">
-                        Loading favorite images...
-                      </div>
+                      <LoadingCardSkeletons count={2} label="Loading favorite images" />
                     ) : null}
 
                     {!favoriteImagesLoading && favoriteImages.length === 0 ? (

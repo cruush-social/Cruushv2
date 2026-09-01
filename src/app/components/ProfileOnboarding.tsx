@@ -17,6 +17,7 @@ import {
 import { persistCurrentUser } from '../lib/sessionUser';
 import CruushPlusWord from './CruushPlusWord';
 import MultiSelect from './MultiSelect';
+import LoadingCardSkeletons from './LoadingCardSkeletons';
 
 interface ProfileOnboardingProps {
   onComplete: (session?: AuthSessionPayload, destination?: 'map' | 'rewards') => void;
@@ -847,9 +848,7 @@ export default function ProfileOnboarding({
                   </div>
 
                   {rewardSummaryLoading ? (
-                    <div className="rounded-md border border-white/10 bg-white/[0.04] p-4 text-sm text-white/58">
-                      Loading your affiliate link...
-                    </div>
+                    <LoadingCardSkeletons count={1} label="Loading your affiliate link" />
                   ) : null}
 
                   {!rewardSummaryLoading && affiliateLink ? (

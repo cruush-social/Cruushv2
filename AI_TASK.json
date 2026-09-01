@@ -428,6 +428,7 @@
     "src/app/components/ProfileBadgesTab.tsx",
     "src/app/components/ProfileActionTrio.tsx",
     "src/app/components/ProfileEdit.tsx",
+    "src/app/components/ProfileOnboarding.tsx",
     "src/app/components/ProfileEdit.test.tsx",
     "src/app/components/ProfilePhotoGallery.tsx",
     "src/app/components/UserActivityCapsule.tsx",
