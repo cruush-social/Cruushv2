@@ -18,6 +18,7 @@ import MapPingSheet from './MapPingSheet';
 import PlacesDrawer from './PlacesDrawer';
 import SpotBoardDialog from './SpotBoardDialog';
 import PulseLedIcon from './PulseLedIcon';
+import LoadingCardSkeletons from './LoadingCardSkeletons';
 import MapControlsTutorial, {
   getStoredMapControlsTutorialStep,
   MAP_CONTROLS_TUTORIAL_LEGACY_STORAGE_KEYS,
@@ -2736,8 +2737,8 @@ export default function MapHome(_props: MapHomeProps = {}) {
         <Suspense
           fallback={(
             <div className="relative h-full min-h-[400px] w-full overflow-hidden bg-background">
-              <div className="pointer-events-none absolute left-4 top-4 z-10 rounded-md bg-background/82 px-3 py-2 text-xs text-white/70 backdrop-blur-md">
-                Loading NYC map...
+              <div className="pointer-events-none absolute inset-x-4 top-[8.75rem] z-10 mx-auto max-w-lg">
+                <LoadingCardSkeletons count={3} label="Loading NYC map" />
               </div>
             </div>
           )}
@@ -2815,8 +2816,8 @@ export default function MapHome(_props: MapHomeProps = {}) {
         ) : null}
 
         {loading ? (
-          <div className="absolute inset-x-4 top-28 z-20 rounded-md bg-card/90 p-3 text-sm text-muted-foreground backdrop-blur-sm">
-            Loading nearby people...
+          <div className="pointer-events-none absolute inset-x-4 top-28 z-20 mx-auto max-w-sm">
+            <LoadingCardSkeletons count={1} label="Loading nearby people" />
           </div>
         ) : null}
 

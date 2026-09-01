@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "taskId": "cruush-1.6-complete-handoffs-spots-20260829",
   "status": "active",
-  "objective": "Integrate the four authoritative handoffs, the complete Spots feature, the Spots Map Controls dropdown and heatmap, approved cruush+ Feed photo posting, all recent approved requests, and the remaining safe unblocked items in docs/todo-2026-08-22.md into the dirty cruush 1.6 destination as a local-only candidate.",
+  "objective": "Reconcile every supplied 1.6 handoff file-by-file, port every still-current exact non-conflicting source slice, preserve newer direct decisions and concurrent work, and prepare the dirty cruush 1.6 destination as a local-only candidate.",
   "userOutcome": "Julien can authenticate locally and inspect the complete cruush 1.6 candidate, while the remaining project to-do list accurately separates completed work, implemented local-only work, unresolved decisions, and blocked verification.",
   "audience": "Authenticated cruush 1.6 members using desktop and mobile layouts.",
   "successCriteria": [
@@ -204,7 +204,7 @@
       "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "Hand the source-complete local 1.6 candidate to Julien for rendered interaction testing, then execute only separately authorized migrations or publication work.",
+  "nextVisibleMilestone": "Hand the source-reconciled local 1.6 candidate to Julien for testing, with tests, builds, browser behavior, migrations, and deployment explicitly unverified.",
   "stopConditions": [
     "Julien authorized continued local 1.6 todo implementation and commits on release/1.6-features-20260828 on 2026-08-31. Stop before any push, deployment, environment change, new design, or unrequested mobile layout change.",
     "Julien explicitly authorized starting the exact local 1.6 frontend on port 5173 and API on port 3016 on 2026-08-31. Do not restart, stop, kill, or replace either process without further explicit authorization."
@@ -649,17 +649,15 @@
     "Do not redesign requested surfaces or change public copy beyond the recovered approved cruush+ and Mile High Club copy.",
     "Do not merge, cherry-pick, push, deploy, execute migrations, clean worktrees, or modify the places-board worktree. One local candidate commit is authorized by Julien on 2026-08-31.",
     "Do not transfer MapHome, MapView, MapSidePanel, travel, location, crypto, moderation-dashboard, or analytics logic from Cruushv2-visual.",
-    "Do not run browser regression suites or external-write smoke suites. Local commit-level unit, type, build, casing, copy, layout, security, and release-script gates are authorized."
+    "Do not run tests, builds, browser checks, API smoke checks, migrations, or release gates. Julien explicitly requested source-only work and will test the candidate."
     ,"Do not start, restart, stop, kill, or replace a frontend or API development server unless Julien explicitly requests that exact process action. Inspect and reuse existing processes only; report an absent or broken server as a blocker."
   ],
   "requiredEvidence": [
     "Prove Feed posting remains open to every eligible signed-in member without a cruush+ gate.",
     "Prove only cruush+ members can publish up to three Feed photos, while basic members remain text-only.",
     "Prove Feed photo media ownership, moderation approval, attachment count, deletion, and report boundaries in source and focused API smoke checks.",
-    "Run only the focused checks authorized by the current plan for Mile High Club, rewards, App, Feed, map, privacy, and the cruush+ card, plus server and client builds.",
-    "Render and inspect Mile High Club, the cruush+ popup/card, the cruush+ benefits card, Feed composer, and the full map at real small-mobile dimensions.",
-    "Render the local authenticated Ghost Mode and Dark Room Mode page. Verify dynamic Ghost radius save feedback and the precise-location audience confirmation flow at 412 by 915 and desktop size.",
-    "Run only TypeScript no-emit, production build, focused local API smoke calls, and real rendered browser interactions for the approved implementation slices."
+    "Leave tests, builds, browser checks, API smoke checks, migrations, and release gates unverified for Julien's handoff because the current instruction explicitly forbids running them.",
+    "Record every supplied 1.6 handoff as integrated, superseded, blocked by a missing exact target, preserved as concurrent work, or outside the current release."
   ],
   "proofResults": [
     "2026-09-01 password-reset return gate: Back to sign in now uses React Router's reloadDocument path so the reset-token shell cannot remain mounted after client-side navigation. The focused ResetPassword file passes 3/3, including a regression that rejects history.pushState routing for this control. In an isolated signed-out 390x844 browser state, the reset-token page rendered, the real Back to sign in click navigated to http://localhost:5173/, the reset panel disappeared, and the Sign In form rendered. The prior authenticated browser cookies were restored afterward. The production client build passed with 2078 transformed modules. No password reset, email, provider, account-data, production, push, or deployment mutation occurred.",

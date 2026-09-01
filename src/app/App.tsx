@@ -19,6 +19,7 @@ import MapControlsTutorial, {
 } from './components/MapControlsTutorial';
 import { markNoticeDismissed } from './lib/userNoticesApi';
 import AccessibilityQuickAccess from './components/AccessibilityQuickAccess';
+import LoadingCardSkeletons from './components/LoadingCardSkeletons';
 
 const MapHome = lazy(() => import('./components/MapHome'));
 const LocalFeed = lazy(() => import('./components/LocalFeed'));
@@ -155,12 +156,16 @@ function CanonicalAppAddressBar() {
   return null;
 }
 
-function RouteLoading() {
+function AppLoading({ label }: { label: string }) {
   return (
-    <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
-      <div className="text-sm text-muted-foreground">Loading...</div>
+    <div className="min-h-screen bg-background text-foreground flex items-center justify-center px-4">
+      <LoadingCardSkeletons className="w-full max-w-lg" count={3} label={label} />
     </div>
   );
+}
+
+function RouteLoading() {
+  return <AppLoading label="Loading page" />;
 }
 
 function mapTutorialRoute(step: MapControlsTutorialStepId) {
@@ -395,11 +400,7 @@ export default function App({
   };
 
   if (authStatus === 'loading') {
-    return (
-      <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
-        <div className="text-sm text-muted-foreground">Loading session...</div>
-      </div>
-    );
+    return <AppLoading label="Loading session" />;
   }
 
   const tokenLinkType = getTokenLinkType();

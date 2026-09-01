@@ -270,9 +270,9 @@ Status:
 - `[~]` Side Quests no longer says every quest is completed when only temporarily unavailable
   cruush+ rewards remain. The weekly limit remains absent from visible copy.
 - `[~]` The remaining safe 1.6 source items at Spots, MHC/Ghost/Pulse, shared cards, popups, Feed
-  media, loading states, Feed tags, Feed preview sizing, and Color-blind mode are integrated. Current
-  open work is rendered interaction proof, authorized migration execution, deferred features, and
-  external operations. No additional safe source gap is confirmed.
+  media, loading states, Feed tags, Feed preview sizing, and Color-blind mode are integrated. The
+  exhaustive handoff source reconciliation is complete; tests, builds, browser checks, migrations,
+  and external operations remain unverified or deferred by the current source-only instruction.
 
 ## Sources reconciled
 
@@ -286,8 +286,47 @@ Status:
 - `/Volumes/good/mhc-plane-animation-main-handoff-2026-08-29.md`
 - `/Volumes/good/Cruushv2-media-rate-limit-20260829/docs/media-read-hardening-handoff-2026-08-29.md`
 - `/Volumes/good/cruush-card-recovery-20260829/HANDOFF.md`
+- `HANDOFF.md` (current dirty Feed continuation notes; newer direct Feed decisions override its
+  welded/clustered-heart and vibe-capsule details)
+- `/Users/julienlenaz/Downloads/20260822freefeedhandoff.md` (byte-identical duplicate of
+  `docs/plans/2026-08-22-free-feed-handoff.md`)
+- `/Users/julienlenaz/Downloads/TRAVELMODEHANDOFF.md`
+- `/Users/julienlenaz/Downloads/sessionhandoff20260829.md`
+- `/Users/julienlenaz/Downloads/sessionhandoff20260829111111.md` (later version; overrides the
+  earlier same-day session handoff where they differ)
+- `/Users/julienlenaz/Downloads/veroteltodohandoff.md` (billing/V2 handoff, outside 1.6)
+- `/Users/julienlenaz/Downloads/visualpasshandoff20260822.md`
 - `/Volumes/good/Cruushv2-seo-20260829/docs/session-handoff-2026-08-29.md`
+- `/Volumes/good/Cruushv2-visual/HANDOFF-1.6.md`
+- `docs/session-handoff-2026-08-31.md` (latest repository handoff; overrides older handoffs where
+  they conflict)
 - Current 2026-08-29 screenshots and direct corrections.
+
+### Handoff disposition
+
+- **Integrated:** current Feed text posting, cruush+ photos, shared cropper, full photo viewer,
+  horizontal 64px heart previews, moderated Feed tags and tag-only search.
+- **Integrated:** Badge, Kink, Vibe, Hanky, side-badge geometry/color, hover meaning, and shared
+  people-card slices from the visual handoffs. Map/location code from the visual worktree was not
+  transferred.
+- **Integrated:** Spots core, map controls, independent Spot markers/clusters, board/check-in source,
+  published data flow, service-area mask, and people heatmap. Public demographic composition and
+  Crowd-fit aggregates remain deferred.
+- **Integrated:** Mile High Club location, 50-mile browse origin, 100-mile service area, approved
+  plane/contrail animation, shared profile glyph, Pulse priority, Ghost decoy origin, Dark Room
+  exclusion, and moderator-only active-pin timing view.
+- **Integrated:** media revalidation, observation-only read accounting, health-log filtering,
+  previous-key reads, SEO/static discovery pages, release-script geofence preservation, Resend
+  audience pacing, exact scratch card, Side Quests, and Time Capsule source.
+- **Superseded:** Feed replies, Feed reactions, welded or clustered photo hearts, compact-card vibe
+  capsules, 4:5 Feed profile pins, custom Crowd menus, Kelpie, old Ghost icon changes, and older
+  Mile High Club restrictions that conflict with the later combined Ghost/Pulse behavior.
+- **Removed from 1.6:** secondary email, primary-email replacement, digest delivery, Verotel/card
+  checkout, crypto checkout, analytics expansion, provider credential rotation, and Custom Crowds.
+- **Blocked by missing exact target:** the old visual handoff says the winged-heart icon belongs to
+  Feed, but never names the replacement Profile-tab or Edit Profile asset. Do not invent either.
+- **Preserved concurrent work:** the dirty `MapView.tsx` Spot-marker changes and untracked beach and
+  Ghost source assets remain untouched and uncommitted by this reconciliation.
 
 ## Current 1.6 slice boundary
 
