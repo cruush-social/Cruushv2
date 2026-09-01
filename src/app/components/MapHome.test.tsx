@@ -3136,6 +3136,30 @@ describe('MapHome', () => {
     expect(screen.getByTestId('recently-active-tile-user-10')).toBeInTheDocument();
     expect(screen.queryByTestId('recently-active-tile-user-11')).not.toBeInTheDocument();
     expect(screen.queryByTestId('recently-active-tile-user-12')).not.toBeInTheDocument();
+
+    fireEvent.wheel(recentTray, { deltaY: 96 });
+    expect(recentTray.scrollLeft).toBe(96);
+
+    const pointerDown = new Event('pointerdown', { bubbles: true });
+    Object.defineProperties(pointerDown, {
+      clientX: { value: 140 },
+      pointerId: { value: 1 },
+    });
+    const pointerMove = new Event('pointermove', { bubbles: true });
+    Object.defineProperties(pointerMove, {
+      clientX: { value: 90 },
+      pointerId: { value: 1 },
+    });
+    const pointerUp = new Event('pointerup', { bubbles: true });
+    Object.defineProperties(pointerUp, {
+      clientX: { value: 90 },
+      pointerId: { value: 1 },
+    });
+
+    fireEvent(recentTray, pointerDown);
+    fireEvent(recentTray, pointerMove);
+    fireEvent(recentTray, pointerUp);
+    expect(recentTray.scrollLeft).toBe(146);
   });
 
   it('does not crash when pointer capture is rejected while dragging recently active', async () => {

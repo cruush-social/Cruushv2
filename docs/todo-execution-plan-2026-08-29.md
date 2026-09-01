@@ -30,6 +30,19 @@ Status:
   source. #135 has no screenshot, affected surface, or reachable reporter, so changing checkbox
   visuals would require an unapproved design guess. Safari 18.6 proof for #136 and production proof
   for #141 remain open. No GitHub issue was commented on or closed.
+- `[x]` Opening `/survey` while signed out renders the existing Sign In screen. Signing in returns
+  directly to the survey after required account gates. The real local flow passed at 412x740 and
+  desktop size, the focused App routing test passed, and the generic support endpoint rejects
+  signed-out survey writes.
+- `[~]` A signed-in member is limited to one open or in-progress survey response. The client blocks
+  repeated in-flight submission and removes the form after success; the server returns the existing
+  active response after a uniqueness conflict. Migration `109_survey_response_uniqueness.sql`
+  preserves historical rows, dismisses older active duplicates, and installs the partial uniqueness
+  index. Focused component, route, and migration-source checks pass. Migration 109 has not run.
+- `[~]` Bug reports now filter age suspension appeals, use the complete filtered count, page beyond
+  25 rows, and map unexpired ID and selfie evidence to the existing moderator-only preview route.
+  The empty/error filter state rendered cleanly at mobile and desktop sizes, and focused client and
+  server checks pass. A populated evidence card and production appeal count remain unverified.
 
 - `[~]` Focused checks are authorized by "fix the stuff". The subsequent "keep working" answered
   the specific request for local migrations 106 through 108, which are now applied. No other
@@ -211,9 +224,10 @@ Status:
 - `[~]` Saved Custom Crowds source is preserved under
   `/Volumes/good/cruushv2/custom-crowds-20260830`. Its migration, owner-only API, encrypted service,
   discovery/Profile/Feed access predicate, and editor remain unverified and deferred from 1.6.
-- `[~]` The 1.6 source removes migration `109` and the Custom Crowds server hooks, restores the
-  fixed Crowd sheet, removes Crowd from the top navigation, and uses the existing old Crowd icon
-  in the active Map Controls notice. Rendered proof is pending.
+- `[~]` The 1.6 source removes `109_custom_crowds.sql` and the Custom Crowds server hooks, restores
+  the fixed Crowd sheet, removes Crowd from the top navigation, and uses the existing old Crowd
+  icon in the active Map Controls notice. The current numbered migration 109 is the unrelated
+  survey-response uniqueness guard. Rendered fixed-Crowd proof is pending.
 - `[~]` Who's Here now uses the shared people card with pronouns, badges beneath the heart,
   relationship-aware heart colors, and MHC side-badge color. The server retains the existing
   active opt-in and bidirectional block filters. The remaining mutual picker also carries MHC
@@ -620,11 +634,12 @@ Status:
 - [x] Keep self and demo profiles out of density. Never fabricate activity in sparse or empty states.
   Focused source proof filters self, developer demos, activity older than seven days, and cohorts below
   three before creating a heatmap point; the complete MapView file passes 54 tests.
-- [~] Recently Active loads up to ten viewer-authorized people, shows five before horizontal scroll,
+- [x] Recently Active loads up to ten viewer-authorized people, shows five before horizontal scroll,
   hides the scrollbar to reclaim its height, preserves touch, pointer-drag, and mouse-wheel scrolling,
-  restores the prior translucent black-glass container around the complete open Recently Active unit, and remains centered with or without panels. Source is
-  patched. The empty authenticated state renders and opens in one click, but populated scrolling
-  proof is pending because the current Mile High Club viewpoint returns no authorized recent profiles.
+  restores the translucent black-glass container around the complete open unit, and remains centered
+  with or without panels. The authenticated populated map rendered ten profiles at 390x844 and
+  desktop size. Desktop showed exactly five complete tiles before scroll; horizontal scrolling
+  reached the final profiles. Focused coverage proves the ten-profile cap plus wheel and pointer drag.
 - [x] Keep the bottom navigation centered with or without panels. Authenticated 1625x963 and
   900x844 renders kept the nav centered while profile and Feed panels were open.
 - [x] Render heatmap off/on at identical zoom 10, 12, 14, and 16 camera states. Each authenticated
@@ -824,8 +839,8 @@ Status:
 - [~] The earlier source-only restriction was superseded for focused checks and local inspection.
   Only the specifically approved local migrations 106 through 108 ran. Broad suites, builds,
   real reward grants, provider actions, and publication still require their respective authority.
-- [~] The runner lists every numbered migration and orders the full 1.6 slice from 096 through 108.
-  Focused source checks cover 098 through 108 dependencies and replay guards. Migration 105 now
+- [~] The runner lists every numbered migration and orders the full 1.6 slice from 096 through 109.
+  Focused source checks cover 098 through 109 dependencies and replay guards. Migration 105 now
   scopes its constraint-existence check to `media_objects`, preventing a same-named constraint on
   another table from breaking replay. Three checks passed; disposable-database forward and replay
   execution remains pending and no migration ran.

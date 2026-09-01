@@ -27,6 +27,31 @@ final result: passed
 
 ---
 
+# Design QA: Populated Recently Active
+
+## Rendered state
+
+- Existing authenticated local map with ten viewer-authorized profiles.
+- Mobile viewport: 390 x 844 CSS pixels.
+- Desktop viewport: 1280 x 720 CSS pixels.
+- The open unit retained its translucent black-glass container, hidden
+  scrollbar chrome, existing profile tiles, map layering, and navigation.
+- Desktop showed exactly five complete profile tiles before horizontal scroll.
+  Mobile retained its narrower responsive tile count without overflow.
+
+## Interaction and tests
+
+- Opened Recently Active from its collapsed state in the real map.
+- Scrolled from the first profile group to the final profile group and back.
+- All ten profile controls remained present and horizontally reachable.
+- Focused `MapHome` coverage passed for the ten-profile cap, five-card desktop
+  width, mouse-wheel scrolling, and pointer-drag scrolling.
+- The complete client suite passed 96 files and 657 tests.
+
+final result: passed
+
+---
+
 # Design QA: Survey sign-in return and age-appeal dashboard
 
 ## Visual source
