@@ -157,7 +157,8 @@ const BADGE_OPTIONS: BadgeOption[] = [
   { id: 'fisting', label: 'Fisting', icon: Grab, group: 'Acts' },
   { id: 'large-insertion', label: 'Large insertion', icon: Maximize2, group: 'Acts' },
   { id: 'hands', label: 'Hands', icon: Handshake, group: 'Acts' },
-  { id: 'frottage', label: 'Frottage', icon: Repeat2, group: 'Acts' },
+  // Retain the saved ID for compatibility, but never return the removed label.
+  { id: 'frottage', label: 'Frotting', icon: Repeat2, group: 'Acts' },
   { id: 'mutual', label: 'Mutual', icon: Users, group: 'Acts' },
   { id: 'sixty-nine', label: 'Sixty-nine', icon: Recycle, group: 'Acts' },
   { id: 'docking', label: 'Docking', icon: Link2, group: 'Acts' },

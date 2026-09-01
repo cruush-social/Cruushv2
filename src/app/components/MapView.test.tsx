@@ -1460,7 +1460,11 @@ describe('MapView', () => {
     expect(heart.querySelector('path[fill="#C8FF31"]')).toBeNull();
     const pinEkg = screen.getByTestId('pulse-ekg-pin');
     expect(pinEkg.tagName.toLowerCase()).toBe('g');
+    expect(pinEkg).toHaveAttribute('clip-path', 'url(#marker-photo-clip-user-pinging)');
+    expect(PULSE_EKG_PIN_PATH).toMatch(/^M8 32/);
+    expect(PULSE_EKG_PIN_PATH).toMatch(/h18$/);
     expect(pinEkg.querySelectorAll(`path[d="${PULSE_EKG_PIN_PATH}"]`)).toHaveLength(2);
+    expect(pinEkg.querySelectorAll('path[fill]')).toHaveLength(0);
   });
 
   it('retains the approved vector map on tile failure and recovers without a CARTO fallback', async () => {
@@ -1773,6 +1777,7 @@ describe('MapView', () => {
     const clusterMarker = markerInstances.find((instance: any) => instance.element.dataset.mapMarkerKind === 'cluster');
     expect(pingMarker?.element.style.zIndex).not.toBe('');
     expect(Number(pingMarker?.element.style.zIndex)).toBeGreaterThan(Number(clusterMarker?.element.style.zIndex || 0));
+    expect(screen.getByTestId('pulse-ekg-pin')).toHaveAttribute('clip-path', 'url(#marker-photo-clip-user-pinging)');
   });
 
   it('keeps a focused person pin visible instead of hiding it in a nearby cluster', async () => {

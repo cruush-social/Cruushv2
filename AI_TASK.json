@@ -366,6 +366,7 @@
     "src/app/components/AlphaBugButton.test.tsx",
     "src/app/components/BadgeFrames.tsx",
     "src/app/components/BadgePickerPreview.tsx",
+    "src/app/components/BadgePickerPreview.test.tsx",
     "src/app/components/BdsmEmblems.tsx",
     "src/app/components/CommunityGlyphs.tsx",
     "src/app/components/CruushIconImage.tsx",
@@ -535,6 +536,7 @@
     "src/app/lib/postApi.ts",
     "src/app/lib/profileApi.ts",
     "src/app/lib/profileOptions.ts",
+    "src/app/lib/profileOptions.test.ts",
     "src/app/lib/publicLegalContent.tsx",
     "src/app/lib/rewardsApi.ts"
     ,"src/app/lib/usersApi.ts"
@@ -601,6 +603,7 @@
     "Run only TypeScript no-emit, production build, focused local API smoke calls, and real rendered browser interactions for the approved implementation slices."
   ],
   "proofResults": [
+    "2026-09-01 Pulse and badge-label continuation gate: Focused Pulse proof anchors the EKG at the heart's x=8 and x=56 inner edges on y=32, keeps both paths unfilled, clips them to the exact heart clip, and preserves the active Pulse above an adjacent people cluster. A live authenticated Pulse remains unverified. The legacy saved frottage badge ID now displays Frotting, preventing the removed label from returning through compatibility data. Active vibe and kink catalogs exclude the removed labels and include current replacements. The authenticated Badge picker rendered Frotting without Frottage at 1440x900 and 390x844 with no horizontal overflow; all 18 Hanky choices exposed meaning-only labels and no color-name button. Four focused files pass 85/85. No account, provider, process, production, push, or deployment mutation occurred.",
     "2026-09-01 badge-parity continuation gate: The embedded Badge editor and live map now consume one shared side-badge geometry helper: 29.75px square, 70 percent vertical placement, and 5.25px edge offsets. The authenticated editor and signed-in plus Ghost-decoy map pins rendered at 1440x900 and 390x844 with solid black interiors, opaque borders, centered glyphs, visible heart clearance, and no horizontal overflow. The desktop editor hover rendered the meaning-only spiritual label. Focused MapView coverage passes 54/54. The complete other-member, Mile High Club, Pulse, Dark Room, and every-people-card state matrix remains unverified. No account, provider, process, production, push, or deployment mutation occurred.",
     "2026-09-01 map and Mile High Club continuation gate: The authenticated approved vector map rendered at 1440x900 with CARTO and raster fallbacks absent. Heatmap off/on pairs rendered at identical zoom 10, 12, 14, and 16 states, returned to off after each pair, showed coarse cohort glows at populated zooms, and remained empty in sparse views. Focused MapView coverage now proves the seven-day minimum-three cohort, coarse coordinates, and self, developer-demo, stale, and sparse exclusions; the file passes 54/54. The signed-in Ghost decoy hover rendered a live final-minute countdown and changing pulse transform. Mile High Club now enforces a strict server-side distance greater than 50 miles against the encrypted actual-location envelope. Inside, exact-boundary, outside, non-finite, and route-wiring checks pass 11/11; the watched local API rejected a near-location request with 403 and left the pin off. No coordinate was returned or logged. No provider, process, production, push, or deployment action occurred.",
     "2026-09-01 Feed-photo continuation gate: The exact shared cropper rendered at 390x844 without overflow. Pointer pan changed its offset, Zoom reached 2.1, continuous Rotation reached 69 degrees with a matching angle readout, both 90-degree buttons worked, and accepting the crop produced the local heart preview. After Julien's direct correction, the production three-photo preview now lays all three hearts in one landscape row. Exact production attachment and viewer components rendered at 390x844 and 1440x900 without horizontal overflow; Report and Close remained upper-right, next and previous navigation worked, Escape closed the viewer, and focus returned to the selected heart. Focused ProfileEdit, LocalFeed, and CruushActivity checks pass 51/51. No upload, post, report, provider, account, process, production, push, or deployment mutation occurred.",

@@ -679,8 +679,10 @@ Status:
   values. The existing encrypted policy stores the preference and next-epoch schedule; cadence
   edits never change the current decoy epoch or deadline. Prove persistence, pending-change,
   repeated edits, legacy fallback, reactivation, and MHC compatibility before release.
-- [ ] Pulse EKG reaches both inner heart edges, stays centered, and remains clipped inside every
-  current, seeded, clustered, and preview pin state.
+- [~] Pulse EKG source and focused render proof anchor the trace at `M8 32`, finish it at x=56,
+  keep both strokes unfilled, and clip the group to the exact heart-photo clip. The active Pulse stays
+  independent and above an adjacent people cluster. The exact live authenticated Pulse and complete
+  current, seeded, clustered, and preview state matrix remain unverified.
 - [x] Notifications rendered far right in the top-nav pill with Settings immediately before it.
 - [~] DL Mode uses Julien's exact supplied balaclava-and-halo PNG, white while inactive and the
   existing cruush gradient while active. Keep the current gradient until Julien selects dedicated
@@ -761,8 +763,11 @@ Status:
   Lesbian, Straight, T4T, Trans, Intersex, and Nonbinary.
 - [x] The rendered Hanky code popup was substantially larger and showed all 18 meanings in three
   columns at the supported desktop width.
-- [ ] Ensure no color names appear in badge labels and no removed labels return through seed or
-  compatibility data.
+- [x] No color names appear in badge labels and no removed label returns through active catalogs,
+  development seeds, or compatibility display data. The legacy saved `frottage` badge ID remains
+  readable but now displays `Frotting`. Focused picker and catalog checks pass, and the authenticated
+  picker rendered `Frotting` without `Frottage` at 1440x900 and 390x844; all 18 Hanky choices rendered
+  meaning-only labels with no color-name button.
 - [x] Public copy uses `cruush` and `cruush+` lowercase and contains no Unicode em dash. The
   current public-copy gate scanned 380 files clean after the final local changes.
 
