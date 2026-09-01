@@ -10,29 +10,30 @@ import type {
   StyleSpecification,
 } from 'maplibre-gl';
 import {
-  ArrowUp,
-  Bed,
+  BedDouble,
+  BookOpen,
   CircleParking,
   Coffee,
   Cross,
   Dumbbell,
-  Footprints,
+  HeartHandshake,
   KeyRound,
-  Library,
   Martini,
   MapPinned,
   Music2,
-  Store,
+  Route,
+  Shapes,
+  ShoppingBag,
   Sparkles,
   Toilet,
   TrainFront,
   Trees,
   User,
-  UsersRound,
   Waves,
   type LucideIcon,
 } from 'lucide-react';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import beachUmbrellaIcon from '../assets/ui-icons/beach-umbrella-1689481.png';
 import { CruushIcon, GhostColoredIcon } from './CruushIconImage';
 import { resolveMediaUrl } from '../lib/apiClient';
 import { getProfileGradientStops } from '../lib/profileGradient';
@@ -1664,50 +1665,54 @@ function PeopleClusterMarker({ marker }: { marker: MapMarker }) {
   );
 }
 
-const PLACE_MARKER_CONFIG: Record<string, { icon: LucideIcon; color: string }> = {
-  clinic: { icon: Cross, color: '#22D3EE' },
-  bar: { icon: Martini, color: '#FB7185' },
-  nightclub: { icon: Music2, color: '#C084FC' },
-  community_space: { icon: UsersRound, color: '#F472B6' },
-  park: { icon: Trees, color: '#4ADE80' },
-  restroom: { icon: Toilet, color: '#60A5FA' },
-  sauna: { icon: Waves, color: '#F59E0B' },
-  gym: { icon: Dumbbell, color: '#A3E635' },
-  hotel: { icon: Bed, color: '#FBBF24' },
-  dungeon: { icon: KeyRound, color: '#F43F5E' },
-  venue: { icon: MapPinned, color: '#E879F9' },
-  cafe: { icon: Coffee, color: '#D6A26E' },
-  shop: { icon: Store, color: '#2DD4BF' },
-  library: { icon: Library, color: '#818CF8' },
-  staircase: { icon: ArrowUp, color: '#94A3B8' },
-  trail: { icon: Footprints, color: '#84CC16' },
-  transit: { icon: TrainFront, color: '#38BDF8' },
-  parking: { icon: CircleParking, color: '#A78BFA' },
-  beach: { icon: Waves, color: '#06B6D4' },
-  adult_venue: { icon: KeyRound, color: '#FF0072' },
-  other: { icon: MapPinned, color: '#03ECFC' },
+const PLACE_MARKER_CONFIG: Record<string, { icon?: LucideIcon; special?: 'stairs' | 'beach' | 'adult' }> = {
+  clinic: { icon: Cross },
+  bar: { icon: Martini },
+  nightclub: { icon: Music2 },
+  community_space: { icon: HeartHandshake },
+  park: { icon: Trees },
+  restroom: { icon: Toilet },
+  sauna: { icon: Waves },
+  gym: { icon: Dumbbell },
+  hotel: { icon: BedDouble },
+  dungeon: { icon: KeyRound },
+  venue: { icon: MapPinned },
+  cafe: { icon: Coffee },
+  shop: { icon: ShoppingBag },
+  library: { icon: BookOpen },
+  staircase: { special: 'stairs' },
+  trail: { icon: Route },
+  transit: { icon: TrainFront },
+  parking: { icon: CircleParking },
+  beach: { special: 'beach' },
+  adult_venue: { special: 'adult' },
+  other: { icon: Shapes },
 };
 
 function PlaceMarker({ marker, previewed = false }: { marker: MapMarker; previewed?: boolean }) {
   const active = (marker.place?.activeCheckins ?? 0) > 0;
   const facilityType = marker.place?.facilityType ?? 'other';
   const config = PLACE_MARKER_CONFIG[facilityType] ?? PLACE_MARKER_CONFIG.other;
-  const Icon = config.icon;
+  const Icon = config.icon ?? Shapes;
   return (
     <span
-      className={`relative flex h-12 w-12 items-center justify-center rounded-2xl border-2 bg-black/88 shadow-[0_10px_30px_rgba(0,0,0,0.45)] backdrop-blur-md ${active ? 'shadow-[0_0_28px_rgba(200,255,49,0.4)]' : ''}`}
+      className={`group relative flex h-12 w-12 rotate-45 items-center justify-center rounded-[0.7rem] border-2 bg-black/94 text-white shadow-[0_0_10px_rgba(20,157,255,0.95),0_0_24px_rgba(21,79,255,0.62)] backdrop-blur-md ${active ? 'border-[#C8FF31] shadow-[0_0_28px_rgba(200,255,49,0.55)]' : 'border-[#55C8FF]'}`}
       data-facility-type={facilityType}
       data-testid={`place-marker-${marker.place?.id ?? marker.id}`}
-      style={{ borderColor: active ? '#C8FF31' : config.color, color: config.color }}
     >
       <span
-        className={`pointer-events-none absolute bottom-[calc(100%+0.45rem)] left-1/2 w-max max-w-[14rem] -translate-x-1/2 rounded-full border border-white/15 bg-black/92 px-3 py-1 text-center text-xs font-semibold leading-tight text-white shadow-[0_8px_24px_rgba(0,0,0,0.5)] backdrop-blur-md transition-opacity duration-150 ${previewed ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100'}`}
+        className={`pointer-events-none absolute bottom-[calc(100%+0.75rem)] left-1/2 w-max max-w-[14rem] -translate-x-1/2 -rotate-45 rounded-full border border-white/15 bg-black/92 px-3 py-1 text-center text-xs font-semibold leading-tight text-white shadow-[0_8px_24px_rgba(0,0,0,0.5)] backdrop-blur-md transition-opacity duration-150 ${previewed ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100'}`}
         data-testid={`place-marker-title-${marker.place?.id ?? marker.id}`}
       >
         {marker.displayName}
       </span>
-      <Icon className="h-6 w-6" />
-      {active ? <span className="absolute -right-2 -top-2 flex h-6 min-w-6 items-center justify-center rounded-full bg-[#C8FF31] px-1 text-[10px] font-bold text-black">{marker.place?.activeCheckins}</span> : null}
+      <span className="flex h-8 w-8 -rotate-45 items-center justify-center">
+        {config.special === 'beach' ? <img src={beachUmbrellaIcon} alt="" className="h-7 w-7 brightness-0 invert" /> : null}
+        {config.special === 'stairs' ? <span aria-hidden="true" className="relative block h-6 w-6"><i className="absolute bottom-1 left-0 h-[3px] w-2.5 rounded-full bg-white" /><i className="absolute bottom-2.5 left-[7px] h-[3px] w-2.5 rounded-full bg-white" /><i className="absolute bottom-4 left-3.5 h-[3px] w-2.5 rounded-full bg-white" /></span> : null}
+        {config.special === 'adult' ? <span className="cruush-logo-font text-[21px] font-normal leading-none tracking-normal">18+</span> : null}
+        {!config.special ? <Icon className="h-6 w-6" /> : null}
+      </span>
+      {active ? <span className="absolute -right-2 -top-2 flex h-6 min-w-6 -rotate-45 items-center justify-center rounded-full bg-[#C8FF31] px-1 text-[10px] font-bold text-black">{marker.place?.activeCheckins}</span> : null}
     </span>
   );
 }
