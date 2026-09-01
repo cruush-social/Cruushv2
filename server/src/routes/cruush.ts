@@ -53,7 +53,8 @@ import {
   type DisplayMode,
   type VisibilityBaseMode
 } from "../location-privacy.js";
-import { loadTravelPins } from "../travel-pins.js";
+import { isWithinServiceArea } from "../service-area.js";
+import { loadTravelPins, locationPayloadAtTravelPin } from "../travel-pins.js";
 
 const cruushActivityParamsSchema = z.object({
   userId: z.uuid()
@@ -1272,7 +1273,7 @@ export async function registerCruushRoutes(app: FastifyInstance) {
 
       throw error;
     });
-    const currentCoordinates = currentLocation
+    let currentCoordinates = currentLocation
       ? locationPayloadToCoordinates(currentLocation)
       : null;
     const currentProfile = await loadCurrentProfileLocation(app, authenticatedUserId);
@@ -1290,8 +1291,24 @@ export async function registerCruushRoutes(app: FastifyInstance) {
       authenticatedUserId,
       ...rows.map((row) => row.other_user_id)
     ]).catch(() => new Map());
+    const viewerTravelPin = travelPins.get(authenticatedUserId);
+    if (currentLocation && viewerTravelPin) {
+      currentCoordinates = locationPayloadToCoordinates(
+        locationPayloadAtTravelPin(currentLocation, viewerTravelPin)
+      );
+    }
     if (viewerSubject) {
       viewerSubject.mile_high_club_member = travelPins.has(authenticatedUserId);
+      viewerSubject.coordinates = currentCoordinates;
+    }
+    if (currentCoordinates && !isWithinServiceArea(currentCoordinates)) {
+      return reply.send({
+        data: {
+          mapEpochMs: Date.now(),
+          profiles: [],
+          outsideServiceArea: true
+        }
+      });
     }
     const items = await Promise.all(rows.map((row) => mapTokenizedMutualCruushRow(app, request, authenticatedUserId, row, {
       currentCoordinates,

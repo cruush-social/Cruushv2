@@ -30,7 +30,7 @@ import { loadBlockedRelationshipUserIds } from "../user-blocks.js";
 import { DEFAULT_MAP_PRESENCE_HOURS } from "../map-presence.js";
 import { DEVELOPMENT_ADMIN_EMAIL } from "../development-admin.js";
 import { distanceMiles, isWithinBetaLaunchArea } from "../beta-access.js";
-import { NYC_SERVICE_AREA } from "../service-area.js";
+import { isWithinServiceArea, NYC_SERVICE_AREA } from "../service-area.js";
 
 /**
  * How far from your own location you may look. Mile High Club moves that location,
@@ -1202,9 +1202,21 @@ export async function registerUserRoutes(app: FastifyInstance) {
     });
 
     const viewerLocation = encryptedLocations.get(currentUserId);
+    const viewerCoordinates = viewerLocation ? locationPayloadToCoordinates(viewerLocation) : null;
     if (viewerLocation && discoveryViewer.subject) {
-      discoveryViewer.subject.coordinates = locationPayloadToCoordinates(viewerLocation);
+      discoveryViewer.subject.coordinates = viewerCoordinates;
     }
+
+    if (viewerCoordinates && !isWithinServiceArea(viewerCoordinates)) {
+      return reply.send({
+        data: {
+          mapEpochMs: Date.now(),
+          profiles: [],
+          outsideServiceArea: true
+        }
+      });
+    }
+
     const realUsers = discoveryRows.mode === "modern"
       ? (await Promise.all(discoveryRows.rows
           .filter((row) => {
@@ -1316,8 +1328,6 @@ export async function registerUserRoutes(app: FastifyInstance) {
     // The radius is measured from where this viewer actually is, never from the
     // map centre they asked for. Panning across the city must not put anyone
     // inside someone else's Pulse.
-    const viewerCoordinates = viewerLocation ? locationPayloadToCoordinates(viewerLocation) : null;
-
     // You browse the fifty miles around wherever you are. Looking further than
     // that is what Mile High Club is for, and Mile High Club works by moving where
     // you are, so this one rule covers both.

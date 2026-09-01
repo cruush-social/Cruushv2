@@ -6,6 +6,7 @@ import {
   decryptDisplayLocationToken,
   type DisplayLocationToken,
 } from './displayLocationTokens';
+import { OutsideServiceAreaError } from './usersApi';
 
 export type CruushTargetUser = {
   name: string;
@@ -100,6 +101,7 @@ type TokenizedMutualMapItem = Omit<MutualCruushActivityItem, 'id' | 'coordinates
 type MutualMapResponse = {
   mapEpochMs: number;
   profiles: TokenizedMutualMapItem[];
+  outsideServiceArea?: boolean;
 };
 
 export type MutualCruushMapFilters = {
@@ -235,6 +237,10 @@ export async function getMutualCruushMap(filters?: MutualCruushMapFilters) {
 
   if (Array.isArray(response)) {
     return response;
+  }
+
+  if (response.outsideServiceArea === true) {
+    throw new OutsideServiceAreaError();
   }
 
   return Promise.all(response.profiles.map(async (item): Promise<MutualCruushActivityItem> => {

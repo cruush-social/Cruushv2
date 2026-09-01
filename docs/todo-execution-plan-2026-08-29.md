@@ -312,6 +312,10 @@ Status:
 - **Integrated:** Spots core, map controls, independent Spot markers/clusters, board/check-in source,
   published data flow, service-area mask, and people heatmap. Public demographic composition and
   Crowd-fit aggregates remain deferred.
+- **Integrated:** the later service-area handoff now withholds nearby and mutual-map profiles when
+  the member's effective location is outside 100 miles, keeps navigation mounted over fog, and
+  offers Mile High Club plus the existing city-request path. An active Mile High Club pin inside
+  the service area becomes the effective location.
 - **Integrated:** Mile High Club location, 50-mile browse origin, 100-mile service area, approved
   plane/contrail animation, shared profile glyph, Pulse priority, Ghost decoy origin, Dark Room
   exclusion, and moderator-only active-pin timing view.

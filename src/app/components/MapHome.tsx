@@ -1,10 +1,11 @@
 // Vite env type declaration for TypeScript
 /// <reference types="vite/client" />
-import type { MouseEvent, PointerEvent, WheelEvent } from 'react';
+import type { FormEvent, MouseEvent, PointerEvent, WheelEvent } from 'react';
 import { lazy, Suspense, useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router';
 import { ChevronDown, ExternalLink, Flame, Mail, MapPin, MessageCircle, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { Button } from './ui/button';
+import { Input } from './ui/input';
 import { useIsMobile } from './ui/use-mobile';
 import CruushIconImage, { CruushIcon } from './CruushIconImage';
 import CruushPlusWord from './CruushPlusWord';
@@ -26,8 +27,15 @@ import MapControlsTutorial, {
   notifyMapControlsTutorialCompleted,
   type MapControlsTutorialStepId,
 } from './MapControlsTutorial';
-import { OutsideBrowseRadiusError, getNearbyUsers, type DiscoveryUser } from '../lib/usersApi';
+import {
+  OutsideBrowseRadiusError,
+  OutsideServiceAreaError,
+  getNearbyUsers,
+  type DiscoveryUser,
+} from '../lib/usersApi';
 import { getMutualCruushMap, type MutualCruushActivityItem } from '../lib/cruushApi';
+import { getAuthSession } from '../lib/authApi';
+import { requestBetaCity } from '../lib/betaAccessApi';
 import {
   DEFAULT_PRIVACY_SETTINGS,
   getMyPrivacySettings,
@@ -815,6 +823,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
   const usesFullPageProfile = !isDesktopPageLayoutDevice() || desktopPageLayout === 'fullscreen';
   const mobileVisualViewportBounds = useMobileVisualViewportBounds(isMobile);
   const [users, setUsers] = useState<DiscoveryUser[]>([]);
+  const [outsideServiceArea, setOutsideServiceArea] = useState(false);
   const [userApproximateLocation, setUserApproximateLocation] = useState<ApproximateCoordinates | null>(null);
   const [travelPin, setTravelPin] = useState<TravelPin | null>(null);
   const [ownerGhostMapLocation, setOwnerGhostMapLocation] = useState<ApproximateCoordinates | null>(null);
@@ -856,6 +865,11 @@ export default function MapHome(_props: MapHomeProps = {}) {
   const [visibilityError, setVisibilityError] = useState<string | null>(null);
   const [savingVisibility, setSavingVisibility] = useState(false);
   const [currentProfile, setCurrentProfile] = useState<ProfileRecord | null>(null);
+  const [currentUserEmail, setCurrentUserEmail] = useState('');
+  const [requestedCity, setRequestedCity] = useState('');
+  const [requestingCity, setRequestingCity] = useState(false);
+  const [cityRequestNotice, setCityRequestNotice] = useState<string | null>(null);
+  const [cityRequestError, setCityRequestError] = useState<string | null>(null);
   const [privacySettings, setPrivacySettings] = useState<PrivacySettings>(DEFAULT_PRIVACY_SETTINGS);
   const [billingStatus, setBillingStatus] = useState<BillingStatus | null>(null);
   const [notificationUnreadCount, setNotificationUnreadCount] = useState(0);
@@ -1330,12 +1344,14 @@ export default function MapHome(_props: MapHomeProps = {}) {
       getMyProfile(),
       getMyPrivacySettings().catch(() => DEFAULT_PRIVACY_SETTINGS),
       getMyTravelPin().catch(() => ({ pin: null })),
+      getAuthSession().catch(() => null),
     ])
-      .then(async ([profile, loadedPrivacySettings, loadedTravelPin]) => {
+      .then(async ([profile, loadedPrivacySettings, loadedTravelPin, authSession]) => {
         let initialFetchCoordinates: { lat: number; lng: number } | null = null;
 
         if (isMounted) {
           setCurrentProfile(profile);
+          setCurrentUserEmail(authSession?.user.email ?? '');
           setPrivacySettings(loadedPrivacySettings);
           setTravelPin(loadedTravelPin.pin);
           setVisibility(visibilityRulesToState(profile.visibility_rules));
@@ -1497,15 +1513,25 @@ export default function MapHome(_props: MapHomeProps = {}) {
     try {
       if (isMutualMapMode) {
         const mutualMapItems = await getMutualCruushMap(filterParams);
+        setOutsideServiceArea(false);
         setUsers(mutualMapItems
           .filter((item) => item.coordinates)
           .map(mutualMapItemToDiscoveryUser));
       } else {
-        setUsers(filterParams
+        const nearbyUsers = filterParams
           ? await getNearbyUsers(coordinates, filterParams, discoveryRequestOptions())
-          : await getNearbyUsers(coordinates, undefined, discoveryRequestOptions()));
+          : await getNearbyUsers(coordinates, undefined, discoveryRequestOptions());
+        setOutsideServiceArea(false);
+        setUsers(nearbyUsers);
       }
     } catch (fetchError) {
+      if (fetchError instanceof OutsideServiceAreaError) {
+        setOutsideServiceArea(true);
+        setUsers([]);
+        setError(null);
+        return;
+      }
+
       // Looking further out than you may browse is not a failure. Say what it
       // is and how to lift it, rather than showing an empty map.
       if (fetchError instanceof OutsideBrowseRadiusError) {
@@ -2591,6 +2617,27 @@ export default function MapHome(_props: MapHomeProps = {}) {
     setSidePanelView('settings');
   };
 
+  const handleCityRequest = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const city = requestedCity.trim();
+    if (city.length < 2 || !currentUserEmail || requestingCity) {
+      return;
+    }
+
+    setRequestingCity(true);
+    setCityRequestError(null);
+    setCityRequestNotice(null);
+    try {
+      await requestBetaCity({ email: currentUserEmail, requestedCity: city });
+      setRequestedCity('');
+      setCityRequestNotice('City request sent.');
+    } catch (requestError) {
+      setCityRequestError(requestError instanceof Error ? requestError.message : 'Unable to send the city request.');
+    } finally {
+      setRequestingCity(false);
+    }
+  };
+
   return (
     <div
       className={`cruush-map-shell ${isFiltersOpen || isVisibilityOpen ? 'cruush-map-surface-open' : ''} ${isMobile ? `fixed${mobileVisualViewportBounds ? '' : ' inset-0'}` : 'relative'} overflow-hidden overscroll-none bg-background select-none`}
@@ -2791,6 +2838,44 @@ export default function MapHome(_props: MapHomeProps = {}) {
         </Suspense>
         <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-24 bg-gradient-to-r from-background/65 to-transparent" />
 
+        {outsideServiceArea ? (
+          <div className="pointer-events-auto absolute inset-0 z-20 flex items-center justify-center px-4 pb-28 pt-32">
+            <div className="w-full max-w-md rounded-3xl border border-white/14 bg-black/88 p-6 text-center text-white shadow-[0_24px_80px_rgba(0,0,0,0.68)] backdrop-blur-xl">
+              <h2 className="text-2xl font-semibold">NYC open beta</h2>
+              <p className="mt-3 text-sm text-white/72">
+                cruush is testing its open beta within 100 miles of the center of New York.
+              </p>
+              <Button
+                className="mt-5 h-12 w-full rounded-full border border-[#77B9DA]/65 bg-black/88 text-white hover:bg-black/92"
+                onClick={openMileHighClubFromMap}
+                type="button"
+              >
+                <img alt="" aria-hidden="true" className="mr-2 h-5 w-5" src={mileHighClubWhite} />
+                Turn on Mile High Club
+              </Button>
+              <form className="mt-5 flex gap-2" onSubmit={handleCityRequest}>
+                <Input
+                  aria-label="Request a city"
+                  className="h-11 min-w-0 rounded-full border-white/14 bg-black/70 text-white placeholder:text-white/45"
+                  maxLength={120}
+                  onChange={(event) => setRequestedCity(event.target.value)}
+                  placeholder="Request a city"
+                  value={requestedCity}
+                />
+                <Button
+                  className="h-11 shrink-0 rounded-full"
+                  disabled={requestingCity || requestedCity.trim().length < 2 || !currentUserEmail}
+                  type="submit"
+                >
+                  {requestingCity ? 'Sending...' : 'Send'}
+                </Button>
+              </form>
+              {cityRequestNotice ? <p className="mt-3 text-sm text-white/72" role="status">{cityRequestNotice}</p> : null}
+              {cityRequestError ? <p className="mt-3 text-sm text-destructive" role="alert">{cityRequestError}</p> : null}
+            </div>
+          </div>
+        ) : null}
+
         {error ? (
           <div className="absolute left-4 right-20 top-[8.75rem] z-20 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
             {error}
@@ -2849,7 +2934,12 @@ export default function MapHome(_props: MapHomeProps = {}) {
               setSidePanelView('settings');
             } : undefined}
             openMileHighClub={openMileHighClubInSettings}
-            onTravelPinChange={setTravelPin}
+            onTravelPinChange={(nextTravelPin) => {
+              setTravelPin(nextTravelPin);
+              if (nextTravelPin) {
+                setOutsideServiceArea(false);
+              }
+            }}
             onClose={() => {
               setSidePanelView(null);
               setSidePanelReturnView(null);

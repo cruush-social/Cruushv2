@@ -123,6 +123,8 @@ type TokenizedDiscoveryProfile = {
 type NearbyUsersResponse = {
   mapEpochMs: number;
   profiles: TokenizedDiscoveryProfile[];
+  /** Set when the member must use Mile High Club to enter the active service area. */
+  outsideServiceArea?: boolean;
   /** Set when the map is pointed further than a member may browse from. */
   outsideBrowseRadius?: boolean;
   browseRadiusMiles?: number;
@@ -140,6 +142,13 @@ export class OutsideBrowseRadiusError extends Error {
     super(`Turn on Mile High Club to browse more than ${browseRadiusMiles} miles from where you are.`);
     this.name = 'OutsideBrowseRadiusError';
     this.browseRadiusMiles = browseRadiusMiles;
+  }
+}
+
+export class OutsideServiceAreaError extends Error {
+  constructor() {
+    super('Turn on Mile High Club to enter the active service area.');
+    this.name = 'OutsideServiceAreaError';
   }
 }
 
@@ -207,6 +216,10 @@ export async function getNearbyUsers(
 
   if (response.outsideBrowseRadius === true) {
     throw new OutsideBrowseRadiusError(response.browseRadiusMiles ?? 50);
+  }
+
+  if (response.outsideServiceArea === true) {
+    throw new OutsideServiceAreaError();
   }
 
   return Promise.all(response.profiles.map(async (profile): Promise<DiscoveryUser> => {
