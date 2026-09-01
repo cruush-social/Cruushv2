@@ -13,7 +13,13 @@ import UserActivityCapsule from './UserActivityCapsule';
 import LoadingCardSkeletons from './LoadingCardSkeletons';
 import { getStoredUserId } from '../lib/sessionUser';
 import { shouldMaskPhoto, useDlMode } from '../lib/dlMode';
-import { PLACE_FACILITY_LABELS, PLACE_TAG_LABELS, getVisibleSpotTags } from '../lib/places';
+import {
+  PLACE_AMENITY_LABELS,
+  PLACE_FACILITY_LABELS,
+  PLACE_TAG_LABELS,
+  PLACE_VIBE_LABELS,
+  getVisibleSpotTags,
+} from '../lib/places';
 import {
   checkIntoPlace,
   checkOutOfPlace,
@@ -350,6 +356,13 @@ export default function PlaceDetail({ embedded = false, placeIdOverride }: Place
             <button type="button" aria-label="Copy spot address" title="Copy address" className="shrink-0 rounded-md p-1 text-white/55 transition hover:bg-white/10 hover:text-white" onClick={() => void handleCopyAddress()}><Copy className="h-4 w-4" /></button>
           </div>
           {getVisibleSpotTags(place.tags).length ? <div className="mt-3 flex flex-wrap gap-2">{getVisibleSpotTags(place.tags).slice(0, 1).map((tag) => <span key={tag} className="rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-xs text-white">{PLACE_TAG_LABELS[tag]}</span>)}</div> : null}
+          {place.vibes?.length ? <div className="mt-3 flex flex-wrap gap-2">{(place.vibes ?? []).slice(0, 3).map((vibe) => <span key={vibe} className="rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-xs text-white">{PLACE_VIBE_LABELS[vibe]}</span>)}</div> : null}
+          {place.amenities?.length ? (
+            <div className="mt-4">
+              <p className="text-xs uppercase tracking-[0.14em] text-white/55">Amenities</p>
+              <div className="mt-2 flex flex-wrap gap-2">{(place.amenities ?? []).map((amenity) => <span key={amenity} className="rounded-full border border-white/10 px-3 py-1 text-xs text-white/70">{PLACE_AMENITY_LABELS[amenity]}</span>)}</div>
+            </div>
+          ) : null}
           <button type="button" className="mt-3 inline-flex items-center text-xs text-white/50 hover:text-white" onClick={() => embedded ? setReportTarget({ targetType: 'place', targetId: place.id, targetLabel: place.name }) : navigate('/report', { state: { targetType: 'place', placeId: place.id, targetLabel: place.name } })}><Flag className="mr-1 h-3.5 w-3.5" />Report incorrect or unsafe spot</button>
         </div>
 

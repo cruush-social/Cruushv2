@@ -1,37 +1,48 @@
 {
   "schemaVersion": 2,
-  "taskId": "cruush-1.6-android-map-top-controls-20260901",
+  "taskId": "cruush-1.6-spot-vibes-amenities-20260901",
   "status": "active",
-  "objective": "Increase only the Android-mobile map top controls: cruush+, the central mode-action capsule, its icons, and the bug button.",
-  "userOutcome": "Android members can see and tap the map's top controls comfortably without changing the Spot detail header.",
-  "audience": "Authenticated cruush members using the map on Android mobile.",
+  "objective": "Remove the Spots Activity filter and add the requested Spot-specific vibes and amenities across suggestion, moderation publication, storage, list/detail display, filtering, and map results.",
+  "userOutcome": "Members can describe new Spots with Spot vibes and amenities, see those values on Spots, and filter both the list and map by them without an Activity filter.",
+  "audience": "Authenticated cruush members and Spot moderators.",
   "successCriteria": [
-    "The cruush+ control is taller and more readable on narrow Android mobile widths.",
-    "The central map action capsule and its five controls are larger on narrow Android mobile widths.",
-    "The map bug button is larger on narrow Android mobile widths.",
-    "The Spot detail title banner remains removed and receives no enlarged replacement."
+    "The Activity group is absent from Spot filters.",
+    "Spot vibes use a dedicated taxonomy separate from profile vibes.",
+    "Amenities are named Amenities in the interface and use the requested Spot amenity taxonomy.",
+    "New Spot suggestions can select up to three vibes and any applicable amenities.",
+    "Published suggestions persist their vibes and amenities as public Spot data.",
+    "Spot filters narrow both drawer results and map markers by selected vibes and amenities.",
+    "Spot results and detail surfaces display stored Spot vibes, and detail displays stored amenities."
   ],
   "mustPreserve": [
-    "Preserve all map control actions, icons, ordering, hover behavior, map style, and bottom navigation.",
-    "Preserve the removed Spot detail banner and all committed Spot check-in board behavior.",
-    "Preserve desktop sizing and unrelated user work."
+    "Preserve Spot search, sorting, distance, place type, community and care filters, map style, check-ins, boards, ratings, reports, and moderation privacy.",
+    "Preserve profile vibe taxonomy without reuse or mutation.",
+    "Preserve existing Spots with empty vibe and amenity data rather than fabricating values.",
+    "Preserve unrelated user work and the Android top-control sizing correction."
   ],
   "nonGoals": [
-    "No Spot detail header enlargement or redesign.",
-    "No map behavior, map theme, Crowd Mode, Ghost Mode animation, icon, or navigation change.",
-    "No tests, build, preview, rendered verification, push, or deployment."
+    "No Crowd fit or demographic Spot filters.",
+    "No inferred, fabricated, or appearance-derived Spot data.",
+    "No activity-filter replacement under another label.",
+    "No tests, build, preview, migration execution, push, or deployment."
   ],
   "assumptions": [
     {
-      "statement": "The top Android controls mean the map row containing cruush+, the five center controls, and the bug button shown in the supplied screenshot.",
-      "impact": "Only narrow-mobile sizing classes in MapHome change.",
+      "statement": "The requested vibe and amenity values are the newer Spots handoff taxonomy: Chill, Social, Flirty, Cruisy, Dancey, High-energy, Intimate, Community, After-hours, Outdoor, Historical, Exposed; and Restrooms, Drinks, Cover charge, Accessible, Transit nearby, Staff present, Indoor, Outdoor.",
+      "impact": "These values become the dedicated public Spot taxonomy without changing profile vibes.",
       "reversible": true,
       "confirmationState": "confirmed"
+    },
+    {
+      "statement": "Remove Activity filter means remove the Activity filter group, not the existing Active now and Recent activity sort choices.",
+      "impact": "Members retain sorting while no longer filtering by activity state.",
+      "reversible": true,
+      "confirmationState": "labeled"
     }
   ],
-  "nextVisibleMilestone": "Commit the narrow-mobile map top-control sizing correction as intentionally unverified source.",
+  "nextVisibleMilestone": "Commit the complete Spot vibe and amenity source path as intentionally unverified code.",
   "stopConditions": [
-    "Stop before any push, deployment, build, preview, or unrelated UI edit."
+    "Stop before tests, build, preview, migration execution, push, deployment, or fabricated data."
   ],
   "costBudget": {
     "maxUsd": 0,
@@ -59,21 +70,27 @@
   "release": "1.6",
   "repository": "cruush-social/Cruushv2",
   "branch": "release/1.6-integration-20260901",
-  "job": "Enlarge only the Android-mobile map top controls.",
+  "job": "Implement real Spot-specific vibes and amenities while removing the Activity filter.",
   "forbiddenPaths": [
     "HANDOFF.md",
     ".dev/**",
-    "src/app/components/PlaceDetail.tsx",
     "src/app/assets/ui-icons/ghost-horned-mask-source.png"
   ],
   "allowedPaths": [
     "AI_TASK.json",
-    "src/app/components/AlphaBugButton.tsx",
-    "src/app/components/MapHome.tsx"
+    "src/app/lib/places.ts",
+    "src/app/lib/placesApi.ts",
+    "src/app/components/PlacesDrawer.tsx",
+    "src/app/components/PlaceDetail.tsx",
+    "src/app/components/MapHome.tsx",
+    "server/src/places.ts",
+    "server/src/routes/places.ts",
+    "server/src/migrate.ts",
+    "server/sql/113_spot_vibes_amenities.sql"
   ],
-  "proofTarget": "Source-only diff. Tests, build, preview, and rendered verification are intentionally excluded by Julien's code-only instruction.",
+  "proofTarget": "Source-only diff. Tests, build, preview, migration execution, and rendered verification are intentionally excluded by Julien's code-only instruction.",
   "publicationTarget": "local commit only",
   "requiredEvidence": [
-    "Focused MapHome source diff labeled unverified."
+    "Focused source diff for Spot taxonomy, persistence, filtering, suggestion, and display files, labeled unverified."
   ]
 }

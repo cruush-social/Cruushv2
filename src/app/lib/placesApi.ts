@@ -1,7 +1,7 @@
 import { requestApi } from './apiClient';
 import type { CruushBadge } from './billingApi';
 import type { SideBadges } from './profileApi';
-import type { PlaceFacilityType, PlaceSort, PlaceTag } from './places';
+import type { PlaceAmenity, PlaceFacilityType, PlaceSort, PlaceTag, PlaceVibe } from './places';
 
 export type PlaceRecord = {
   id: string;
@@ -19,6 +19,8 @@ export type PlaceRecord = {
   verifiedAt: string | null;
   createdAt: string;
   tags: PlaceTag[];
+  vibes?: PlaceVibe[];
+  amenities?: PlaceAmenity[];
   distanceMiles: number | null;
   activeCheckins: number;
   recentActivityAt: string | null;
@@ -80,6 +82,8 @@ export async function getPlaces(options: {
   query?: string;
   facilityTypes?: PlaceFacilityType[];
   tags?: PlaceTag[];
+  vibes?: PlaceVibe[];
+  amenities?: PlaceAmenity[];
   radiusMiles?: number;
   activity?: 'any' | 'active' | 'recent';
   limit?: number;
@@ -97,6 +101,8 @@ export async function getPlaces(options: {
   if (options.query) params.set('query', options.query);
   if (options.facilityTypes?.length) params.set('facilityTypes', options.facilityTypes.join(','));
   if (options.tags?.length) params.set('tags', options.tags.join(','));
+  if (options.vibes?.length) params.set('vibes', options.vibes.join(','));
+  if (options.amenities?.length) params.set('amenities', options.amenities.join(','));
   return requestApi<PlaceRecord[]>(`/api/places?${params.toString()}`, { method: 'GET' });
 }
 
@@ -154,6 +160,8 @@ export async function submitPlace(input: {
   address?: string;
   facilityType: PlaceFacilityType;
   tags: PlaceTag[];
+  vibes: PlaceVibe[];
+  amenities: PlaceAmenity[];
   sourceUrl?: string;
 }) {
   return requestApi<{ id: string; status: 'pending'; suggestionCount: number; autoShortlisted: boolean }>('/api/places', { method: 'POST', body: JSON.stringify(input) });

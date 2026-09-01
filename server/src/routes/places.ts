@@ -54,6 +54,8 @@ type PlaceRow = {
   verified_at: string | Date | null;
   created_at: string | Date;
   tags: string[] | null;
+  vibes: string[] | null;
+  amenities: string[] | null;
   distance_miles: number | null;
   active_checkins: number;
   recent_activity_at: string | Date | null;
@@ -137,6 +139,8 @@ function mapPlace(row: PlaceRow) {
     verifiedAt: row.verified_at ? new Date(row.verified_at).toISOString() : null,
     createdAt: new Date(row.created_at).toISOString(),
     tags: row.tags ?? [],
+    vibes: row.vibes ?? [],
+    amenities: row.amenities ?? [],
     distanceMiles: numberValue(row.distance_miles),
     activeCheckins: Number(row.active_checkins ?? 0),
     recentActivityAt: row.recent_activity_at ? new Date(row.recent_activity_at).toISOString() : null,
@@ -172,6 +176,8 @@ function mapPlaceForModerator(app: FastifyInstance, row: PlaceRow) {
     address: suggestion.address || null,
     facilityType: suggestion.facilityType,
     tags: suggestion.tags,
+    vibes: suggestion.vibes,
+    amenities: suggestion.amenities,
     sourceUrl: suggestion.sourceUrl ?? null
   };
 }
@@ -183,6 +189,8 @@ function basePlaceSelect(viewerParam: string, latParam: string, lngParam: string
     p.verified_at, p.created_at, p.suggestion_count, p.auto_shortlisted_at,
     p.suggestion_ciphertext, p.suggestion_nonce, p.suggestion_auth_tag, p.suggestion_key_version,
     coalesce((select array_agg(t.tag order by t.tag) from place_tags t where t.place_id = p.id), '{}') as tags,
+    coalesce((select array_agg(v.vibe order by v.vibe) from place_vibes v where v.place_id = p.id), '{}') as vibes,
+    coalesce((select array_agg(a.amenity order by a.amenity) from place_amenities a where a.place_id = p.id), '{}') as amenities,
     case when ${latParam}::double precision is null or ${lngParam}::double precision is null then null else
       3958.7613 * 2 * asin(sqrt(
         power(sin(radians((p.latitude - ${latParam}::double precision) / 2)), 2)
@@ -267,6 +275,8 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
     if (!isWithinServiceArea({ lat, lng })) throw new ApiError(400, "OUTSIDE_SERVICE_AREA", "Search from within the NYC service area.");
     const facilityTypes = query.facilityTypes.split(",").map((value) => value.trim()).filter(Boolean);
     const tags = query.tags.split(",").map((value) => value.trim()).filter(Boolean);
+    const vibes = query.vibes.split(",").map((value) => value.trim()).filter(Boolean);
+    const amenities = query.amenities.split(",").map((value) => value.trim()).filter(Boolean);
     const result = await app.db.query<PlaceRow>(
       `select * from (
          select ${basePlaceSelect("$1", "$2", "$3")}
@@ -275,24 +285,26 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
            and ($4::text = '' or p.name ilike '%' || $4 || '%' or p.description ilike '%' || $4 || '%')
            and (cardinality($5::text[]) = 0 or p.facility_type = any($5::text[]))
            and (cardinality($6::text[]) = 0 or exists (select 1 from place_tags filter_tag where filter_tag.place_id = p.id and filter_tag.tag = any($6::text[])))
+           and (cardinality($7::text[]) = 0 or exists (select 1 from place_vibes filter_vibe where filter_vibe.place_id = p.id and filter_vibe.vibe = any($7::text[])))
+           and (cardinality($8::text[]) = 0 or exists (select 1 from place_amenities filter_amenity where filter_amenity.place_id = p.id and filter_amenity.amenity = any($8::text[])))
            -- Follow the settled map center as the viewport changes.
            and 3958.7613 * 2 * asin(sqrt(
              power(sin(radians((p.latitude - $2::double precision) / 2)), 2)
              + cos(radians($2::double precision)) * cos(radians(p.latitude))
                * power(sin(radians((p.longitude - $3::double precision) / 2)), 2)
-           )) <= $7
+           )) <= $9
            -- Keep the independent NYC service-area boundary in force.
            and 3958.7613 * 2 * asin(sqrt(
-             power(sin(radians((p.latitude - $10::double precision) / 2)), 2)
-             + cos(radians($10::double precision)) * cos(radians(p.latitude))
-               * power(sin(radians((p.longitude - $11::double precision) / 2)), 2)
-           )) <= $12
+             power(sin(radians((p.latitude - $12::double precision) / 2)), 2)
+             + cos(radians($12::double precision)) * cos(radians(p.latitude))
+               * power(sin(radians((p.longitude - $13::double precision) / 2)), 2)
+           )) <= $14
        ) listed
-       where ($13::text = 'any'
-         or ($13::text = 'active' and active_checkins > 0)
-         or ($13::text = 'recent' and recent_activity_at is not null))
+       where ($15::text = 'any'
+         or ($15::text = 'active' and active_checkins > 0)
+         or ($15::text = 'recent' and recent_activity_at is not null))
        order by ${placeOrder(query.sort)}
-       limit $8 offset $9`,
+       limit $10 offset $11`,
       [
         userId,
         lat,
@@ -300,6 +312,8 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
         query.query,
         facilityTypes,
         tags,
+        vibes,
+        amenities,
         query.radiusMiles,
         query.limit,
         query.offset,
@@ -784,6 +798,14 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
         await db.query(`delete from place_tags where place_id = $1`, [placeId]);
         for (const tag of [...new Set(suggestion.tags)]) {
           await db.query(`insert into place_tags (place_id, tag) values ($1, $2)`, [placeId, tag]);
+        }
+        await db.query(`delete from place_vibes where place_id = $1`, [placeId]);
+        for (const vibe of [...new Set(suggestion.vibes)]) {
+          await db.query(`insert into place_vibes (place_id, vibe) values ($1, $2)`, [placeId, vibe]);
+        }
+        await db.query(`delete from place_amenities where place_id = $1`, [placeId]);
+        for (const amenity of [...new Set(suggestion.amenities)]) {
+          await db.query(`insert into place_amenities (place_id, amenity) values ($1, $2)`, [placeId, amenity]);
         }
       });
     } else {

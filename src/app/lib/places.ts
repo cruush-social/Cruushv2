@@ -9,8 +9,20 @@ export const PLACE_TAGS = [
   'dyke_spot', 't4t_spot', 'techno_club',
 ] as const;
 
+export const PLACE_VIBES = [
+  'chill', 'social', 'flirty', 'cruisy', 'dancey', 'high_energy',
+  'intimate', 'community', 'after_hours', 'outdoor', 'historical', 'exposed',
+] as const;
+
+export const PLACE_AMENITIES = [
+  'restrooms', 'drinks', 'cover_charge', 'accessible',
+  'transit_nearby', 'staff_present', 'indoor', 'outdoor',
+] as const;
+
 export type PlaceFacilityType = typeof PLACE_FACILITY_TYPES[number] | 'venue';
 export type PlaceTag = typeof PLACE_TAGS[number] | 'dyke_bar';
+export type PlaceVibe = typeof PLACE_VIBES[number];
+export type PlaceAmenity = typeof PLACE_AMENITIES[number];
 export type PlaceSort = 'nearest' | 'active' | 'recent' | 'top_rated' | 'az';
 
 export const PLACE_FACILITY_LABELS: Record<PlaceFacilityType, string> = {
@@ -24,6 +36,19 @@ export const PLACE_FACILITY_LABELS: Record<PlaceFacilityType, string> = {
 export const PLACE_TAG_LABELS: Record<PlaceTag, string> = {
   lgbtq_health: 'LGBTQ health', womens_health: 'Ob/gyn health', sexual_health: 'Sexual health',
   gay_spot: 'Gay spot', dyke_spot: 'Dyke spot', dyke_bar: 'Dyke spot', t4t_spot: 'T4T spot', techno_club: 'Techno club',
+};
+
+export const PLACE_VIBE_LABELS: Record<PlaceVibe, string> = {
+  chill: 'Chill', social: 'Social', flirty: 'Flirty', cruisy: 'Cruisy',
+  dancey: 'Dancey', high_energy: 'High-energy', intimate: 'Intimate',
+  community: 'Community', after_hours: 'After-hours', outdoor: 'Outdoor',
+  historical: 'Historical', exposed: 'Exposed',
+};
+
+export const PLACE_AMENITY_LABELS: Record<PlaceAmenity, string> = {
+  restrooms: 'Restrooms', drinks: 'Drinks', cover_charge: 'Cover charge',
+  accessible: 'Accessible', transit_nearby: 'Transit nearby',
+  staff_present: 'Staff present', indoor: 'Indoor', outdoor: 'Outdoor',
 };
 
 export function getVisibleSpotTags(tags: PlaceTag[]) {

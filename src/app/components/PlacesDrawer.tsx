@@ -7,12 +7,18 @@ import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetT
 import {
   PLACE_FACILITY_LABELS,
   PLACE_FACILITY_TYPES,
+  PLACE_AMENITIES,
+  PLACE_AMENITY_LABELS,
   PLACE_TAG_LABELS,
   PLACE_TAGS,
+  PLACE_VIBES,
+  PLACE_VIBE_LABELS,
   getSpotCategoryLabels,
+  type PlaceAmenity,
   type PlaceFacilityType,
   type PlaceSort,
   type PlaceTag,
+  type PlaceVibe,
 } from '../lib/places';
 import { getPlaces, submitPlace, type PlaceRecord } from '../lib/placesApi';
 
@@ -26,8 +32,9 @@ type PlacesDrawerProps = {
     query: string;
     facilityTypes: PlaceFacilityType[];
     tags: PlaceTag[];
+    vibes: PlaceVibe[];
+    amenities: PlaceAmenity[];
     radiusMiles: number;
-    activity: 'any' | 'active' | 'recent';
   }) => void;
   onSelect: (place: PlaceRecord) => void;
 };
@@ -56,10 +63,12 @@ export default function PlacesDrawer({ open, onOpenChange, coordinates, onFilter
   const [draftFacilityTypes, setDraftFacilityTypes] = useState<PlaceFacilityType[]>([]);
   const [tags, setTags] = useState<PlaceTag[]>([]);
   const [draftTags, setDraftTags] = useState<PlaceTag[]>([]);
+  const [vibes, setVibes] = useState<PlaceVibe[]>([]);
+  const [draftVibes, setDraftVibes] = useState<PlaceVibe[]>([]);
+  const [amenities, setAmenities] = useState<PlaceAmenity[]>([]);
+  const [draftAmenities, setDraftAmenities] = useState<PlaceAmenity[]>([]);
   const [radiusMiles, setRadiusMiles] = useState(100);
   const [draftRadiusMiles, setDraftRadiusMiles] = useState(100);
-  const [activity, setActivity] = useState<'any' | 'active' | 'recent'>('any');
-  const [draftActivity, setDraftActivity] = useState<'any' | 'active' | 'recent'>('any');
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -68,7 +77,8 @@ export default function PlacesDrawer({ open, onOpenChange, coordinates, onFilter
   const [showSubmit, setShowSubmit] = useState(false);
   const [submission, setSubmission] = useState({
     name: '', description: '', address: '', sourceUrl: '', facilityType: 'other' as PlaceFacilityType,
-    tags: [] as PlaceTag[], latitude: coordinates?.latitude ?? null as number | null, longitude: coordinates?.longitude ?? null as number | null,
+    tags: [] as PlaceTag[], vibes: [] as PlaceVibe[], amenities: [] as PlaceAmenity[],
+    latitude: coordinates?.latitude ?? null as number | null, longitude: coordinates?.longitude ?? null as number | null,
   });
   const [submissionStatus, setSubmissionStatus] = useState<string | null>(null);
 
@@ -86,7 +96,7 @@ export default function PlacesDrawer({ open, onOpenChange, coordinates, onFilter
       void getPlaces({
         latitude: coordinates?.latitude,
         longitude: coordinates?.longitude,
-        sort, query, facilityTypes, tags, radiusMiles, activity, limit: PLACE_PAGE_SIZE, offset: 0,
+        sort, query, facilityTypes, tags, vibes, amenities, radiusMiles, limit: PLACE_PAGE_SIZE, offset: 0,
       }).then((result) => {
         if (cancelled) return;
         setPlaces(result);
@@ -102,13 +112,13 @@ export default function PlacesDrawer({ open, onOpenChange, coordinates, onFilter
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [activity, coordinates?.latitude, coordinates?.longitude, facilityTypes, onPlacesChange, open, query, radiusMiles, sort, tags]);
+  }, [amenities, coordinates?.latitude, coordinates?.longitude, facilityTypes, onPlacesChange, open, query, radiusMiles, sort, tags, vibes]);
 
-  const filterCount = facilityTypes.length + tags.length + (query.trim() ? 1 : 0) + (radiusMiles < 100 ? 1 : 0) + (activity === 'any' ? 0 : 1);
+  const filterCount = facilityTypes.length + tags.length + vibes.length + amenities.length + (query.trim() ? 1 : 0) + (radiusMiles < 100 ? 1 : 0);
   useEffect(() => {
     onFiltersActiveChange?.(filterCount > 0);
-    onMapFiltersChange?.({ query: query.trim(), facilityTypes, tags, radiusMiles, activity });
-  }, [activity, facilityTypes, filterCount, onFiltersActiveChange, onMapFiltersChange, query, radiusMiles, tags]);
+    onMapFiltersChange?.({ query: query.trim(), facilityTypes, tags, vibes, amenities, radiusMiles });
+  }, [amenities, facilityTypes, filterCount, onFiltersActiveChange, onMapFiltersChange, query, radiusMiles, tags, vibes]);
   const resultLabel = useMemo(() => loading ? 'Loading spots...' : `${places.length} ${places.length === 1 ? 'spot' : 'spots'}`, [loading, places.length]);
 
   const handleSubmit = async () => {
@@ -128,7 +138,7 @@ export default function PlacesDrawer({ open, onOpenChange, coordinates, onFilter
       setSubmissionStatus(result.autoShortlisted
         ? `Supported by ${result.suggestionCount} people and shortlisted for moderator review.`
         : `Suggested for review. ${result.suggestionCount} ${result.suggestionCount === 1 ? 'person supports' : 'people support'} this spot.`);
-      setSubmission((value) => ({ ...value, name: '', description: '', address: '', sourceUrl: '', tags: [] }));
+      setSubmission((value) => ({ ...value, name: '', description: '', address: '', sourceUrl: '', tags: [], vibes: [], amenities: [] }));
     } catch (submitError) {
       setSubmissionStatus(submitError instanceof Error ? submitError.message : 'Spot could not be submitted.');
     }
@@ -146,8 +156,9 @@ export default function PlacesDrawer({ open, onOpenChange, coordinates, onFilter
         query,
         facilityTypes,
         tags,
+        vibes,
+        amenities,
         radiusMiles,
-        activity,
         limit: PLACE_PAGE_SIZE,
         offset: places.length,
       });
@@ -221,6 +232,43 @@ export default function PlacesDrawer({ open, onOpenChange, coordinates, onFilter
                   ))}
                 </div>
               </fieldset>
+              <fieldset className="space-y-2">
+                <legend className="text-sm font-medium text-white">Vibes</legend>
+                <div className="flex flex-wrap gap-2">
+                  {PLACE_VIBES.map((vibe) => (
+                    <button
+                      key={vibe}
+                      type="button"
+                      aria-pressed={submission.vibes.includes(vibe)}
+                      className={`rounded-full border px-3 py-1 text-xs ${submission.vibes.includes(vibe) ? 'border-primary bg-primary/20 text-white' : 'border-white/10 text-white/70'}`}
+                      onClick={() => setSubmission((value) => ({
+                        ...value,
+                        vibes: value.vibes.includes(vibe)
+                          ? value.vibes.filter((item) => item !== vibe)
+                          : value.vibes.length < 3 ? [...value.vibes, vibe] : value.vibes,
+                      }))}
+                    >
+                      {PLACE_VIBE_LABELS[vibe]}
+                    </button>
+                  ))}
+                </div>
+              </fieldset>
+              <fieldset className="space-y-2">
+                <legend className="text-sm font-medium text-white">Amenities</legend>
+                <div className="flex flex-wrap gap-2">
+                  {PLACE_AMENITIES.map((amenity) => (
+                    <button
+                      key={amenity}
+                      type="button"
+                      aria-pressed={submission.amenities.includes(amenity)}
+                      className={`rounded-full border px-3 py-1 text-xs ${submission.amenities.includes(amenity) ? 'border-primary bg-primary/20 text-white' : 'border-white/10 text-white/70'}`}
+                      onClick={() => setSubmission((value) => ({ ...value, amenities: toggleValue(value.amenities, amenity) }))}
+                    >
+                      {PLACE_AMENITY_LABELS[amenity]}
+                    </button>
+                  ))}
+                </div>
+              </fieldset>
               <Button type="button" className="w-full" disabled={!submission.name.trim()} onClick={() => void handleSubmit()}>Submit spot for review</Button>
               {submissionStatus ? <p className="text-sm text-white/70">{submissionStatus}</p> : null}
             </div>
@@ -247,8 +295,9 @@ export default function PlacesDrawer({ open, onOpenChange, coordinates, onFilter
                   if (nextOpen) {
                     setDraftFacilityTypes(facilityTypes);
                     setDraftTags(tags);
+                    setDraftVibes(vibes);
+                    setDraftAmenities(amenities);
                     setDraftRadiusMiles(radiusMiles);
-                    setDraftActivity(activity);
                   }
                 }}
               >
@@ -266,18 +315,6 @@ export default function PlacesDrawer({ open, onOpenChange, coordinates, onFilter
                     </select>
                   </label>
                   <fieldset className="space-y-2">
-                    <legend className="text-sm text-white">Activity</legend>
-                    <div className="flex flex-wrap gap-2">
-                      {([
-                        ['any', 'Any activity'],
-                        ['active', 'Here now'],
-                        ['recent', 'Recent board activity'],
-                      ] as const).map(([value, label]) => (
-                        <button key={value} type="button" aria-pressed={draftActivity === value} className={`rounded-full border px-3 py-1 text-xs ${draftActivity === value ? 'border-primary bg-primary/20 text-white' : 'border-white/10 text-white/65'}`} onClick={() => setDraftActivity(value)}>{label}</button>
-                      ))}
-                    </div>
-                  </fieldset>
-                  <fieldset className="space-y-2">
                     <legend className="text-sm text-white">Place type</legend>
                     <div className="flex flex-wrap gap-2">
                       {PLACE_FACILITY_TYPES.map((type) => <button key={type} type="button" aria-pressed={draftFacilityTypes.includes(type)} className={`rounded-full border px-3 py-1 text-xs ${draftFacilityTypes.includes(type) ? 'border-primary bg-primary/20 text-white' : 'border-white/10 text-white/65'}`} onClick={() => setDraftFacilityTypes(toggleValue(draftFacilityTypes, type))}>{PLACE_FACILITY_LABELS[type]}</button>)}
@@ -287,6 +324,18 @@ export default function PlacesDrawer({ open, onOpenChange, coordinates, onFilter
                     <legend className="text-sm text-white">Community and care</legend>
                     <div className="flex flex-wrap gap-2">
                       {FILTERABLE_PLACE_TAGS.map((tag) => <button key={tag} type="button" aria-pressed={draftTags.includes(tag)} className={`rounded-full border px-3 py-1 text-xs ${draftTags.includes(tag) ? 'border-primary bg-primary/20 text-white' : 'border-white/10 text-white/65'}`} onClick={() => setDraftTags(toggleValue(draftTags, tag))}>{PLACE_TAG_LABELS[tag]}</button>)}
+                    </div>
+                  </fieldset>
+                  <fieldset className="space-y-2">
+                    <legend className="text-sm text-white">Vibes</legend>
+                    <div className="flex flex-wrap gap-2">
+                      {PLACE_VIBES.map((vibe) => <button key={vibe} type="button" aria-pressed={draftVibes.includes(vibe)} className={`rounded-full border px-3 py-1 text-xs ${draftVibes.includes(vibe) ? 'border-primary bg-primary/20 text-white' : 'border-white/10 text-white/65'}`} onClick={() => setDraftVibes(toggleValue(draftVibes, vibe))}>{PLACE_VIBE_LABELS[vibe]}</button>)}
+                    </div>
+                  </fieldset>
+                  <fieldset className="space-y-2">
+                    <legend className="text-sm text-white">Amenities</legend>
+                    <div className="flex flex-wrap gap-2">
+                      {PLACE_AMENITIES.map((amenity) => <button key={amenity} type="button" aria-pressed={draftAmenities.includes(amenity)} className={`rounded-full border px-3 py-1 text-xs ${draftAmenities.includes(amenity) ? 'border-primary bg-primary/20 text-white' : 'border-white/10 text-white/65'}`} onClick={() => setDraftAmenities(toggleValue(draftAmenities, amenity))}>{PLACE_AMENITY_LABELS[amenity]}</button>)}
                     </div>
                   </fieldset>
                 </div>
@@ -301,6 +350,7 @@ export default function PlacesDrawer({ open, onOpenChange, coordinates, onFilter
                       <div className="min-w-0">
                         <p className="truncate font-medium text-white">{place.name}</p>
                         <p className="mt-1 text-xs text-white/55">{getSpotCategoryLabels(place.facilityType, place.tags).join(' · ')}</p>
+                        {place.vibes?.length ? <p className="mt-1 text-xs text-primary">{(place.vibes ?? []).slice(0, 3).map((vibe) => PLACE_VIBE_LABELS[vibe]).join(' · ')}</p> : null}
                       </div>
                       {place.distanceMiles != null ? <span className="shrink-0 text-xs text-white/55"><MapPin className="mr-1 inline h-3 w-3" />{place.distanceMiles < 1 ? place.distanceMiles.toFixed(1) : place.distanceMiles.toFixed(0)} mi</span> : null}
                     </div>
@@ -352,16 +402,19 @@ export default function PlacesDrawer({ open, onOpenChange, coordinates, onFilter
                 setFacilityTypes([]);
                 setDraftTags([]);
                 setTags([]);
+                setDraftVibes([]);
+                setVibes([]);
+                setDraftAmenities([]);
+                setAmenities([]);
                 setDraftRadiusMiles(100);
                 setRadiusMiles(100);
-                setDraftActivity('any');
-                setActivity('any');
               }}>Clear</Button>
               <Button type="button" className="flex-1" style={{ background: 'var(--cruush-gradient)' }} onClick={() => {
                 setFacilityTypes(draftFacilityTypes);
                 setTags(draftTags);
+                setVibes(draftVibes);
+                setAmenities(draftAmenities);
                 setRadiusMiles(draftRadiusMiles);
-                setActivity(draftActivity);
                 setFiltersOpen(false);
               }}>Apply</Button>
             </div>

@@ -85,7 +85,7 @@ import {
   type MapMarker,
 } from '../lib/mapMarkers';
 import { getPlaces, type PlaceRecord } from '../lib/placesApi';
-import { PLACE_FACILITY_LABELS, type PlaceFacilityType, type PlaceTag } from '../lib/places';
+import { PLACE_FACILITY_LABELS, type PlaceAmenity, type PlaceFacilityType, type PlaceTag, type PlaceVibe } from '../lib/places';
 import {
   addDesktopPageLayoutChangedListener,
   getDesktopPageLayout,
@@ -844,9 +844,10 @@ export default function MapHome(_props: MapHomeProps = {}) {
     query: string;
     facilityTypes: PlaceFacilityType[];
     tags: PlaceTag[];
+    vibes: PlaceVibe[];
+    amenities: PlaceAmenity[];
     radiusMiles: number;
-    activity: 'any' | 'active' | 'recent';
-  }>({ query: '', facilityTypes: [], tags: [], radiusMiles: 100, activity: 'any' });
+  }>({ query: '', facilityTypes: [], tags: [], vibes: [], amenities: [], radiusMiles: 100 });
   const [places, setPlaces] = useState<PlaceRecord[]>([]);
   const [selectedPlace, setSelectedPlace] = useState<PlaceRecord | null>(null);
   const [spotBoardPlaceId, setSpotBoardPlaceId] = useState<string | null>(null);
@@ -2038,8 +2039,9 @@ export default function MapHome(_props: MapHomeProps = {}) {
       query: spotMapFilters.query || undefined,
       facilityTypes: spotMapFilters.facilityTypes,
       tags: spotMapFilters.tags,
+      vibes: spotMapFilters.vibes,
+      amenities: spotMapFilters.amenities,
       radiusMiles: Math.min(mapViewport?.radiusMiles ?? spotMapFilters.radiusMiles, spotMapFilters.radiusMiles),
-      activity: spotMapFilters.activity,
     }).then((nextPlaces) => {
       if (!cancelled) {
         setPlaces(nextPlaces.filter((place) => isCoordinateInViewport(place.latitude, place.longitude, mapViewport)));
@@ -2056,10 +2058,11 @@ export default function MapHome(_props: MapHomeProps = {}) {
     currentUserMapLocation?.approximateLongitude,
     mapViewport?.signature,
     spotMapFilters.facilityTypes,
+    spotMapFilters.amenities,
     spotMapFilters.query,
     spotMapFilters.tags,
+    spotMapFilters.vibes,
     spotMapFilters.radiusMiles,
-    spotMapFilters.activity,
   ]);
   const handleSendMapPing = async (radiusMiles: MapPingRadiusMiles) => {
     if (!currentUserMapLocation) {

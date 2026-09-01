@@ -12,8 +12,20 @@ export const PLACE_TAGS = [
   "dyke_spot", "t4t_spot", "techno_club"
 ] as const;
 
+export const PLACE_VIBES = [
+  "chill", "social", "flirty", "cruisy", "dancey", "high_energy",
+  "intimate", "community", "after_hours", "outdoor", "historical", "exposed"
+] as const;
+
+export const PLACE_AMENITIES = [
+  "restrooms", "drinks", "cover_charge", "accessible",
+  "transit_nearby", "staff_present", "indoor", "outdoor"
+] as const;
+
 export const placeFacilityTypeSchema = z.enum(PLACE_FACILITY_TYPES);
 export const placeTagSchema = z.enum(PLACE_TAGS);
+export const placeVibeSchema = z.enum(PLACE_VIBES);
+export const placeAmenitySchema = z.enum(PLACE_AMENITIES);
 
 const coordinatesSchema = {
   latitude: z.number().min(-90).max(90),
@@ -28,6 +40,8 @@ export const listPlacesQuerySchema = z.object({
   activity: z.enum(["any", "active", "recent"]).default("any"),
   facilityTypes: z.string().optional().default(""),
   tags: z.string().optional().default(""),
+  vibes: z.string().optional().default(""),
+  amenities: z.string().optional().default(""),
   query: z.string().trim().max(120).optional().default(""),
   limit: z.coerce.number().int().min(1).max(500).default(500),
   offset: z.coerce.number().int().min(0).max(100000).default(0)
@@ -40,11 +54,15 @@ export const submitPlaceSchema = z.object({
   address: singleLineTextSchema({ max: 300 }).optional().default(""),
   facilityType: placeFacilityTypeSchema,
   tags: z.array(placeTagSchema).length(0).default([]),
+  vibes: z.array(placeVibeSchema).max(3).default([]),
+  amenities: z.array(placeAmenitySchema).max(PLACE_AMENITIES.length).default([]),
   sourceUrl: publicHttpsUrlSchema({ max: 1000 }).optional()
 }).strict();
 
 export const storedPlaceSuggestionSchema = submitPlaceSchema.extend({
-  tags: z.array(placeTagSchema).max(1).default([])
+  tags: z.array(placeTagSchema).max(1).default([]),
+  vibes: z.array(placeVibeSchema).max(3).default([]),
+  amenities: z.array(placeAmenitySchema).max(PLACE_AMENITIES.length).default([])
 });
 
 export const placeCheckinSchema = z.object({
