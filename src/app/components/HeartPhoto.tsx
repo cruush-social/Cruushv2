@@ -60,6 +60,7 @@ export default function HeartPhoto({
   return (
     <div
       className={`relative aspect-square ${onClick ? 'cursor-pointer' : ''} ${className}`.trim()}
+      data-heart-theme={theme}
       onClick={handleClick}
       onKeyDown={handleKeyDown}
       role={onClick ? 'button' : undefined}
@@ -81,7 +82,7 @@ export default function HeartPhoto({
               <image href={resolvedPhoto} width="64" height="64" preserveAspectRatio="xMidYMid slice" />
             </pattern>
           ) : null}
-          <linearGradient id={gradientId} x1="10" y1="9" x2="55" y2="56" gradientUnits="userSpaceOnUse">
+          <linearGradient data-heart-fill-theme={theme} id={gradientId} x1="10" y1="9" x2="55" y2="56" gradientUnits="userSpaceOnUse">
             <stop offset="0%" stopColor={gradientStops[0]} />
             <stop offset="52%" stopColor={gradientStops[1]} />
             <stop offset="100%" stopColor={gradientStops[2]} />

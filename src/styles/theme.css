@@ -163,6 +163,81 @@ html[data-cruush-high-contrast] .cruush-map .maplibregl-canvas {
   filter: brightness(1.28) contrast(1.38) saturate(0.9);
 }
 
+html[data-cruush-color-blind] [data-heart-theme='current'] > svg > path:first-of-type,
+html[data-cruush-color-blind] svg[data-marker-theme='current'][data-pulse-active='false'][data-traveller-active='false'][data-owner-stealth='false'][data-owner-ghost-decoy='false'] > path[data-testid^='marker-ghost-border'] {
+  stroke: #0072B2 !important;
+}
+
+html[data-cruush-color-blind] [data-heart-theme='mutual'] > svg > path:first-of-type,
+html[data-cruush-color-blind] svg[data-marker-theme='mutual'][data-pulse-active='false'][data-traveller-active='false'] > path[data-testid^='marker-ghost-border'] {
+  stroke: #CC79A7 !important;
+}
+
+html[data-cruush-color-blind] [data-heart-theme='nearby'] > svg > path:first-of-type,
+html[data-cruush-color-blind] svg[data-marker-theme='nearby'][data-pulse-active='false'][data-traveller-active='false'] > path[data-testid^='marker-ghost-border'] {
+  stroke: #E69F00 !important;
+}
+
+html[data-cruush-color-blind] [data-heart-fill-theme='current'] stop:nth-child(1) {
+  stop-color: #56B4E9 !important;
+}
+
+html[data-cruush-color-blind] [data-heart-fill-theme='current'] stop:nth-child(2) {
+  stop-color: #0072B2 !important;
+}
+
+html[data-cruush-color-blind] [data-heart-fill-theme='current'] stop:nth-child(3) {
+  stop-color: #004D73 !important;
+}
+
+html[data-cruush-color-blind] [data-heart-fill-theme='mutual'] stop:nth-child(1) {
+  stop-color: #E5A5C6 !important;
+}
+
+html[data-cruush-color-blind] [data-heart-fill-theme='mutual'] stop:nth-child(2) {
+  stop-color: #CC79A7 !important;
+}
+
+html[data-cruush-color-blind] [data-heart-fill-theme='mutual'] stop:nth-child(3) {
+  stop-color: #8E416C !important;
+}
+
+html[data-cruush-color-blind] [data-heart-fill-theme='nearby'] stop:nth-child(1) {
+  stop-color: #F7C95C !important;
+}
+
+html[data-cruush-color-blind] [data-heart-fill-theme='nearby'] stop:nth-child(2) {
+  stop-color: #E69F00 !important;
+}
+
+html[data-cruush-color-blind] [data-heart-fill-theme='nearby'] stop:nth-child(3) {
+  stop-color: #A66D00 !important;
+}
+
+html[data-cruush-color-blind] [data-badge-tone='current'] {
+  color: #0072B2 !important;
+}
+
+html[data-cruush-color-blind] [data-badge-tone='current'] > span > svg {
+  stroke: #0072B2 !important;
+}
+
+html[data-cruush-color-blind] [data-badge-tone='mutual'] {
+  color: #CC79A7 !important;
+}
+
+html[data-cruush-color-blind] [data-badge-tone='mutual'] > span > svg {
+  stroke: #CC79A7 !important;
+}
+
+html[data-cruush-color-blind] [data-badge-tone='nearby'] {
+  color: #E69F00 !important;
+}
+
+html[data-cruush-color-blind] [data-badge-tone='nearby'] > span > svg {
+  stroke: #E69F00 !important;
+}
+
 html[data-cruush-reduce-motion] *,
 html[data-cruush-reduce-motion] *::before,
 html[data-cruush-reduce-motion] *::after {

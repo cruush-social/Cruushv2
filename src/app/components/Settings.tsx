@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router';
 import profileNavIcon from '../assets/nav-icons/profile-white.png';
 import { useEffect, useMemo, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react';
-import { Accessibility, ArrowLeft, BookOpen, ChevronRight, Contrast, ExternalLink, Gift, History, KeyRound, LifeBuoy, LogOut, MapPin, MessageCircle, MessageSquareReply, ShieldAlert, ShieldCheck, Trash2, Type, UserX, X, type LucideIcon, Download,
+import { Accessibility, ArrowLeft, BookOpen, ChevronRight, Contrast, ExternalLink, Gift, History, KeyRound, LifeBuoy, LogOut, MapPin, MessageCircle, MessageSquareReply, Palette, ShieldAlert, ShieldCheck, Trash2, Type, UserX, X, type LucideIcon, Download,
 } from 'lucide-react';
 import { Button } from './ui/button';
 import CruushPlusWord from './CruushPlusWord';
@@ -309,6 +309,12 @@ export default function Settings({ embedded = false, onBack, onClose, onOpenMile
     {
       title: 'Accessibility',
       items: [
+        {
+          icon: Palette,
+          label: 'Color-blind mode',
+          checked: accessibilityPreferences.colorBlindMode === true,
+          onCheckedChange: (checked: boolean) => updateAccessibilityPreference('colorBlindMode', checked),
+        },
         {
           icon: Accessibility,
           label: 'Reduce motion',

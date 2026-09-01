@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Accessibility, Contrast, Type } from 'lucide-react';
+import { Accessibility, Contrast, Palette, Type } from 'lucide-react';
 import {
   addAccessibilityPreferencesChangedListener,
   getAccessibilityPreferences,
@@ -18,6 +18,7 @@ import { Label } from './ui/label';
 import { Switch } from './ui/switch';
 
 const ACCESSIBILITY_OPTIONS = [
+  { icon: Palette, key: 'colorBlindMode', label: 'Color-blind mode' },
   { icon: Accessibility, key: 'reduceMotion', label: 'Reduce motion' },
   { icon: Type, key: 'largerText', label: 'Larger text' },
   { icon: Contrast, key: 'highContrast', label: 'Increase contrast' },
@@ -82,7 +83,7 @@ export default function AccessibilityQuickAccess({
                 <Icon aria-hidden="true" className="h-5 w-5 text-muted-foreground" />
                 <Label className="flex-1" htmlFor={inputId}>{option.label}</Label>
                 <Switch
-                  checked={preferences[option.key]}
+                  checked={preferences[option.key] === true}
                   id={inputId}
                   onCheckedChange={(checked) => updatePreference(option.key, checked)}
                 />

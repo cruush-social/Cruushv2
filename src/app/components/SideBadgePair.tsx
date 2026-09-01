@@ -38,6 +38,7 @@ function SavedSideBadge({ badge, side, tone }: {
     <span
       aria-label={`${side} badge: ${label}`}
       className="group/badge relative inline-flex shrink-0 items-center justify-center text-white"
+      data-badge-tone={tone}
       data-testid={`activity-${side}-badge`}
       role="img"
       style={{ color: borderColor, width: SIDE_BADGE_SIZE_PX, height: SIDE_BADGE_SIZE_PX }}

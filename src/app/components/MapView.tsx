@@ -1068,6 +1068,17 @@ function MarkerSideBadge({
         ? `${side === 'left' ? 'left' : 'right'} badge: ${hoverLabel}`
         : `${side === 'left' ? 'role' : 'position'}: ${hoverLabel}`}
       className={`group/badge absolute flex items-center justify-center ${MAP_SIDE_BADGE_PLACEMENT_CLASS}`}
+      data-badge-tone={marker.activePing
+        ? 'pulse'
+        : marker.travelling === true
+          ? 'mile-high'
+          : isCurrentUser && (marker.ownerStealthActive || marker.displayMode === 'GHOST')
+            ? 'special'
+            : isCurrentUser
+              ? 'current'
+              : marker.relationship?.kind === 'mutual_cruush'
+                ? 'mutual'
+                : 'nearby'}
       data-testid={`marker-${side === 'left' ? 'role' : 'position'}-badge-${marker.id}`}
       role="img"
       style={{
@@ -1457,6 +1468,8 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
       data-testid={`marker-heart-${marker.id}`}
       data-has-photo={hasPhoto ? 'true' : 'false'}
       data-marker-theme={isNpcGhostDemo ? 'npc-ghost-demo' : theme}
+      data-pulse-active={pingActive ? 'true' : 'false'}
+      data-traveller-active={travellerActive ? 'true' : 'false'}
       data-owner-stealth={isOwnStealthMarker ? 'true' : 'false'}
       data-owner-ghost-decoy={isOwnGhostMarker ? 'true' : 'false'}
       height="80"
@@ -1466,7 +1479,15 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
       xmlns="http://www.w3.org/2000/svg"
     >
       <defs>
-        <linearGradient id={gradientId} x1="10" x2="55" y1="9" y2="56" gradientUnits="userSpaceOnUse">
+        <linearGradient
+          data-heart-fill-theme={!isOwnStealthMarker && !isOwnGhostMarker && !isNpcGhostDemo && !pingActive && !travellerActive ? theme : undefined}
+          id={gradientId}
+          x1="10"
+          x2="55"
+          y1="9"
+          y2="56"
+          gradientUnits="userSpaceOnUse"
+        >
           {gradientStops.map((stopColor, index) => (
             <stop key={`${gradientOffsets[index]}-${stopColor}`} offset={gradientOffsets[index]} stopColor={stopColor} />
           ))}

@@ -2,6 +2,7 @@ export const ACCESSIBILITY_PREFERENCES_CHANGED_EVENT = 'cruush:accessibility-pre
 export const ACCESSIBILITY_PREFERENCES_STORAGE_KEY = 'cruush:accessibility-preferences';
 
 export type AccessibilityPreferences = {
+  colorBlindMode?: boolean;
   highContrast: boolean;
   largerText: boolean;
   reduceMotion: boolean;
@@ -10,6 +11,7 @@ export type AccessibilityPreferences = {
 export type AccessibilityPreferencesListener = (preferences: AccessibilityPreferences) => void;
 
 const DEFAULT_ACCESSIBILITY_PREFERENCES: AccessibilityPreferences = {
+  colorBlindMode: false,
   highContrast: false,
   largerText: false,
   reduceMotion: false,
@@ -24,6 +26,7 @@ export function getAccessibilityPreferences(): AccessibilityPreferences {
     const stored = JSON.parse(window.localStorage.getItem(ACCESSIBILITY_PREFERENCES_STORAGE_KEY) ?? '{}');
 
     return {
+      colorBlindMode: stored.colorBlindMode === true,
       highContrast: stored.highContrast === true,
       largerText: stored.largerText === true,
       reduceMotion: stored.reduceMotion === true,
@@ -39,6 +42,7 @@ export function applyAccessibilityPreferences(preferences = getAccessibilityPref
   }
 
   const root = document.documentElement;
+  root.toggleAttribute('data-cruush-color-blind', preferences.colorBlindMode === true);
   root.toggleAttribute('data-cruush-high-contrast', preferences.highContrast);
   root.toggleAttribute('data-cruush-larger-text', preferences.largerText);
   root.toggleAttribute('data-cruush-reduce-motion', preferences.reduceMotion);
