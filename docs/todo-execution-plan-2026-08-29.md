@@ -490,8 +490,9 @@ Status:
   quick rotation. The exact shared cropper rendered at 390x844 without overflow; pointer pan changed
   the offset, Zoom reached 2.1, continuous Rotation reached 69 degrees with a matching readout, both
   90-degree controls worked, and accepting the crop produced the local heart preview.
-- [x] One photo renders as one heart. By direct 2026-09-01 correction, two or three photos render as
-  separate equal-size hearts in one horizontal row with visible gaps and no overlap. The exact
+- [x] One photo renders as one 64px heart from the approved sample page. By direct 2026-09-01 correction,
+  two or three photos render as separate equal-size 64px hearts in one horizontal row with visible gaps
+  and no overlap. Feed attachment previews remain smaller than 80px map and profile hearts. The exact
   production attachment and viewer components rendered at 390x844 and 1440x900 without horizontal
   overflow. The full rectangular viewer kept Report and Close in the upper-right, cycled between
   photos, closed with Escape, and restored focus to the selected heart.

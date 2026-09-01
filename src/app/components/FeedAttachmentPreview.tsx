@@ -43,7 +43,7 @@ export default function FeedAttachmentPreview({ photos, dlModeActive, onOpen }: 
     >
       {visiblePhotos.map((photo, index) => (
         <PhotoHeart
-          className="h-14 w-14 shrink-0"
+          className="h-16 w-16 shrink-0"
           dlModeActive={dlModeActive}
           index={index}
           key={photo.id}
