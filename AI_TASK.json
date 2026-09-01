@@ -2,50 +2,44 @@
   "schemaVersion": 2,
   "taskId": "cruush-map-custom-recovery-20260830",
   "status": "active",
-  "objective": "Fix production issue 141: retain the approved custom vector map through slow loading and transient tile errors, never silently replace it with CARTO.",
-  "userOutcome": "Members see the custom cruush map without API KEY REQUIRED watermarks.",
-  "audience": "cruush members and Julien",
+  "objective": "Make the fake test checkout unreachable in production and on any environment that has not explicitly opted in.",
+  "userOutcome": "Members can no longer grant themselves cruush+, including the lifetime founder plan, without paying.",
+  "audience": "cruush members and Julien as operator.",
   "successCriteria": [
-    "Custom map styles, labels and controls remain unchanged",
-    "Slow loads and transient errors never select unconfigured CARTO tiles",
-    "Focused map tests and frontend build pass",
-    "Production frontend serves the verified fix"
+    "The fake checkout refuses unless explicitly enabled",
+    "Production refuses to boot with it enabled",
+    "Local development still works when opted in"
   ],
   "mustPreserve": [
-    "Approved vector style, Cormorant labels, map controls and markers",
-    "All unrelated changes and crypto work",
-    "Current production settings and database"
+    "Local development can still exercise the entitlement path",
+    "Real checkout and entitlement behaviour is unchanged"
   ],
   "nonGoals": [
-    "No rollback; superseded by latest user instruction",
-    "No provider account, credential, dependency or environment changes",
-    "No unrelated release or design change"
+    "No change to pricing, plans, or the crypto rail",
+    "No deployment without Julien's say-so"
   ],
   "allowedPaths": [
     "AI_TASK.json",
-    "src/app/components/MapView.tsx",
-    "src/app/components/MapView.test.tsx",
-    ".map-check.html",
-    ".map-check.tsx"
+    "docs/env-matrix.md",
+    "scripts/update-env-matrix.mjs",
+    "server/.env.example",
+    "server/src/app.test.ts",
+    "server/src/billing-test-checkout-guard.test.ts",
+    "server/src/billing.ts",
+    "server/src/config.ts"
   ],
-  "forbiddenPaths": [
-    "server/**",
-    "public/**",
-    "package.json",
-    "pnpm-lock.yaml"
-  ],
+  "forbiddenPaths": [],
   "assumptions": [
     {
-      "statement": "The same MapView source is present in local crypto checkout and deployed main.",
-      "impact": "Apply identical narrow map patch locally without publishing crypto work.",
+      "statement": "404 is the right response rather than 403, so the route does not advertise itself.",
+      "impact": "A caller cannot distinguish a disabled feature from a missing one.",
       "reversible": true,
-      "confirmationState": "confirmed"
+      "confirmationState": "labeled"
     }
   ],
-  "nextVisibleMilestone": "Custom map renders with real tiles, without fallback watermarks.",
+  "nextVisibleMilestone": "The fix is deployed to production and the bypass no longer works there.",
   "stopConditions": [
-    "User says stop",
-    "Change would require unrelated publication or credential access"
+    "Any step would deploy without explicit approval"
   ],
   "costBudget": {
     "maxUsd": 0,
@@ -54,20 +48,27 @@
   "externalEffects": {
     "externalMessages": "forbidden",
     "purchases": "forbidden",
-    "deployment": "auto",
-    "publication": "auto",
+    "deployment": "confirm",
+    "publication": "confirm",
     "deletion": "forbidden",
-    "securityChanges": "forbidden",
+    "securityChanges": "auto",
     "credentials": "forbidden",
-    "newDefaults": "forbidden",
+    "newDefaults": "auto",
     "identityCreativeDecisions": "forbidden"
   },
-  "publicationTarget": "origin/main and cruush.app production frontend only",
+  "publicationTarget": "fix/test-checkout-production-guard",
   "requiredEvidence": [
-    "Focused MapView tests",
-    "Frontend production build",
-    "Rendered actual MapView at desktop and mobile; authenticated flow separately marked if blocked",
-    "Remote SHA and production frontend deployment match"
+    "Focused tests prove the guard refuses and that production rejects the configuration",
+    "Typecheck clean",
+    "Existing checkout tests still pass"
   ],
-  "environmentChanges": []
+  "environmentChanges": [
+    "BILLING_TEST_CHECKOUT_ENABLED is new, server-only, false by default, and must never be true in production"
+  ],
+  "task": "Close a live payment bypass: the fake checkout granted cruush+ with no payment to any authenticated member.",
+  "decisions": [
+    "Both halves of the fake checkout are gated, because session creation hardcodes the exact fields completion checks",
+    "Production refuses to boot rather than merely refusing the request"
+  ],
+  "proof": "5 focused guard tests, existing billing and config tests, typecheck, copy check."
 }

@@ -146,6 +146,11 @@ const configSchema = z.object({
   RESEND_CRUUSH_APP_AUDIENCE_ID: z.string().trim().optional().default(""),
   MAIL_FROM: z.string().optional().default(""),
   EMAIL_PREVIEW_ENABLED: booleanEnvSchema,
+  // The fake checkout grants cruush+ with no payment. It exists so local
+  // development can exercise the entitlement path, and it must never be
+  // reachable anywhere a real member can call it. Off unless switched on, and
+  // configuration refuses to switch it on in production at all.
+  BILLING_TEST_CHECKOUT_ENABLED: booleanEnvSchema,
   DEVELOPMENT_ADMIN_ENABLED: booleanEnvSchema,
   DEVELOPMENT_ADMIN_PASSWORD: z.string().optional().default(""),
   ALPHA_TEST_ENABLED: booleanEnvSchema,
@@ -458,6 +463,17 @@ const configSchema = z.object({
     return;
   }
 
+  // The fake checkout grants cruush+ without payment. Refusing to boot is the
+  // right response to finding it enabled in production: a server that will give
+  // subscriptions away must not start.
+  if (config.BILLING_TEST_CHECKOUT_ENABLED) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "BILLING_TEST_CHECKOUT_ENABLED must be disabled in production. It grants cruush+ with no payment.",
+      path: ["BILLING_TEST_CHECKOUT_ENABLED"]
+    });
+  }
+
   if (config.STREAM_IMAGE_BRIDGE_ENABLED) {
     const moderationMediaUrl = config.MODERATION_MEDIA_BASE_URL
       ? new URL(config.MODERATION_MEDIA_BASE_URL)
@@ -742,12 +758,15 @@ type BuildInfoConfigKey =
 type AudienceConfigKey =
   | "RESEND_CRUUSH_APP_AUDIENCE_ID";
 
+type TestCheckoutConfigKey =
+  | "BILLING_TEST_CHECKOUT_ENABLED";
+
 export type AppConfig = Omit<
   ParsedAppConfig,
-  GhostModeConfigKey | ModerationConfigKey | WebPushConfigKey | TwoFactorConfigKey | AlphaTestConfigKey | LaunchPartyConfigKey | BetaAccessConfigKey | BugTriageConfigKey | BuildInfoConfigKey | AudienceConfigKey
+  GhostModeConfigKey | ModerationConfigKey | WebPushConfigKey | TwoFactorConfigKey | AlphaTestConfigKey | LaunchPartyConfigKey | BetaAccessConfigKey | BugTriageConfigKey | BuildInfoConfigKey | AudienceConfigKey | TestCheckoutConfigKey
 > & Partial<Pick<
   ParsedAppConfig,
-  GhostModeConfigKey | ModerationConfigKey | WebPushConfigKey | TwoFactorConfigKey | AlphaTestConfigKey | LaunchPartyConfigKey | BetaAccessConfigKey | BugTriageConfigKey | BuildInfoConfigKey | AudienceConfigKey
+  GhostModeConfigKey | ModerationConfigKey | WebPushConfigKey | TwoFactorConfigKey | AlphaTestConfigKey | LaunchPartyConfigKey | BetaAccessConfigKey | BugTriageConfigKey | BuildInfoConfigKey | AudienceConfigKey | TestCheckoutConfigKey
 >>;
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {

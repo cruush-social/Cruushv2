@@ -310,7 +310,24 @@ export function mapCheckoutSession(row: BillingCheckoutSessionRow) {
   };
 }
 
+/**
+ * The fake checkout grants cruush+ with no payment taken. It exists so local
+ * development can exercise the entitlement path without a processor.
+ *
+ * Both halves are gated, not just completion: a session created here is
+ * hardcoded to `processor = 'fake'` and `test_mode = true`, which is exactly
+ * what the completion route checks, so a member who can create one can complete
+ * it. Guarding only completion would leave the hole open.
+ */
+function assertTestCheckoutAllowed(app: FastifyInstance) {
+  if (app.config.BILLING_TEST_CHECKOUT_ENABLED !== true) {
+    throw new ApiError(404, "NOT_FOUND", "Not found.");
+  }
+}
+
 export async function createFakeCheckoutSession(app: FastifyInstance, userId: string, planId: string) {
+  assertTestCheckoutAllowed(app);
+
   const plan = getCruushPlusPlan(planId);
   const row = (await app.db.query<BillingCheckoutSessionRow>(
     `insert into billing_checkout_sessions (
@@ -353,6 +370,8 @@ export async function loadCheckoutSession(app: FastifyInstance, userId: string, 
 }
 
 export async function completeFakeCheckoutSession(app: FastifyInstance, userId: string, sessionId: string) {
+  assertTestCheckoutAllowed(app);
+
   const session = await loadCheckoutSession(app, userId, sessionId);
 
   if (session.processor !== "fake" || !session.testMode) {

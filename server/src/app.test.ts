@@ -222,6 +222,9 @@ function installPrivacyAwareQueryMock() {
 
 const app = buildServer({
   NODE_ENV: "test",
+  // The fake checkout is opt-in now: it grants cruush+ with no payment, so it
+  // is off unless a non-production environment asks for it.
+  BILLING_TEST_CHECKOUT_ENABLED: true,
   PORT: 3001,
   HOST: "127.0.0.1",
   DATABASE_URL: "postgres://localhost:5432/cruush",
