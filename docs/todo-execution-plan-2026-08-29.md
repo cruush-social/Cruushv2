@@ -327,8 +327,8 @@ Status:
   Mile High Club restrictions that conflict with the later combined Ghost/Pulse behavior.
 - **Removed from 1.6:** secondary email, primary-email replacement, digest delivery, Verotel/card
   checkout, crypto checkout, analytics expansion, provider credential rotation, and Custom Crowds.
-- **Blocked by missing exact target:** the old visual handoff says the winged-heart icon belongs to
-  Feed, but never names the replacement Profile-tab or Edit Profile asset. Do not invent either.
+- **Excluded by direct instruction:** the old visual handoff never names replacement Profile-tab
+  or Edit Profile assets. The unresolved surface does not block 1.6; do not invent either icon.
 - **Preserved concurrent work:** the dirty `MapView.tsx` Spot-marker changes and untracked beach and
   Ghost source assets remain untouched and uncommitted by this reconciliation.
 
