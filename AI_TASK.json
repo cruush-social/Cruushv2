@@ -28,6 +28,7 @@
     "CRUUSH-WALLET-INSTRUCTIONS.txt",
     "EUROPEAN_PROCESSOR_HANDOFF.md",
     "FABLE_HANDOFF.md",
+    "HANDOFF.md",
     "cruush-wallet-next-steps.txt",
     "cruush-wallet-setup.sh",
     "docs/CRUUSH-RULES.md",
@@ -43,6 +44,7 @@
     "server/sql/097_crypto_payment_intents_multi_asset.sql",
     "server/sql/098_crypto_payment_settlement.sql",
     "server/sql/099_crypto_payment_arbitrum_rail.sql",
+    "server/src/app.test.ts",
     "server/src/app.ts",
     "server/src/billing.ts",
     "server/src/config.test.ts",
@@ -69,6 +71,7 @@
     "src/app/App.tsx",
     "src/app/components/CruushPlusStore.test.tsx",
     "src/app/components/CruushPlusStore.tsx",
+    "src/app/components/MapView.tsx",
     "src/app/components/Rewards.test.tsx",
     "src/app/components/Rewards.tsx",
     "src/app/lib/cryptoCheckoutApi.test.ts",
@@ -87,8 +90,6 @@
     "tools/cruush-wallet/src/wallet.ts",
     "tools/cruush-wallet/tsconfig.json",
     "tools/cruush-wallet/vitest.config.ts",
-    "src/app/components/MapView.tsx",
-    "server/src/app.test.ts",
     "vite.config.ts"
   ],
   "nonGoals": [
@@ -118,7 +119,7 @@
   "objective": "Complete the disabled-by-default in-house crypto payment processor for cruush+: watch-only USDC on Base and PYUSD on Ethereum receiving rails, an account-linked no-voucher /store checkout with ERC-681 payment URIs and QR codes, a chain settlement watcher, an idempotent entitlement grant, and reconciliation with moderator support lookup. Accept no funds and make no live RPC call.",
   "userOutcome": "Julien can accept cruush+ payments in stablecoin without a card processor, and can answer 'I paid and got nothing' from a support lookup instead of reading the chain by hand. Nothing is live until he supplies a wallet xpub and a chain endpoint.",
   "audience": "Julien as operator; cruush members buying cruush+ once the processor is enabled.",
-  "nextVisibleMilestone": "Julien sets a chain RPC endpoint and a watch-only wallet xpub, after which the disabled /store checkout can be enabled and exercised end to end on a local stack.",
+  "nextVisibleMilestone": "Another developer can check out feat/crypto-pricing, run it locally, and review the crypto rail end to end without asking anyone how.",
   "successCriteria": [
     "The processor stays disabled and accepts no funds until Julien enables it",
     "A payment intent receives a unique receiving address that settles only that order",

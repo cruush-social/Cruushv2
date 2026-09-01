@@ -1,118 +1,160 @@
-# Handoff: feat/free-feed-board
+# Handoff: feat/crypto-pricing
 
-Worktree: `/Volumes/good/Cruushv2-free-feed-20260822`
-Branch: `feat/free-feed-board`
-Commit: `2bff9f9`, one commit, branched from `origin/main` at `f00fb48`
-Task contract: `AI_TASK.json`, status `active`
+Branch: `feat/crypto-pricing`
+Worktree: `/Volumes/good/Cruushv2-crypto-release`
+Base: current `origin/main`, 0 behind / 6 ahead. Nothing pushed, nothing merged.
 
-**Read this first: the branch is 14 commits behind `origin/main`, which is now `4fec73e`. It must be rebased before anything ships. Conflict points are listed at the bottom.**
+This branch holds the whole in-house crypto payment rail for cruush+. It is for
+review and testing. It is not intended to be merged as-is.
 
-Nothing has been pushed. `feat/free-feed-board` does not exist on the remote. No deployment was run.
+## Read this first
 
----
+**Nothing here can take money.** The processor is off, no wallet xpub is
+configured, no chain endpoint is set, and the watcher refuses to start unless all
+three are deliberately enabled. Creating a payment intent returns
+`503 CRYPTO_PROCESSOR_NOT_READY`. No code path or test has ever made a live RPC
+call.
 
-## What changed
+## What it does
 
-### 1. The local feed is free to post
+A member picks a cruush+ term on `/store` and pays in stablecoin. Each order gets
+its own receiving address, derived from a public watch-only xpub, so a payment
+identifies the order that it settles. A watcher reads ERC-20 `Transfer` logs for
+those addresses, and only chain evidence can grant access.
 
-The cruush+ entitlement gate is gone from both sides.
+Rails, in the order the checkout offers them:
 
-`server/src/routes/posts.ts` — `POST /api/posts` called `requireCruushPlus`, which threw a 402 entitlement error reading "Upgrade to cruush+ to post on the local feed." It now calls `getCruushEntitlement` instead. The entitlement record is still read, because `ownerFullAccess` comes from it and is passed to the insert as `$16`.
+| Rail | Chain | Token | Confirmations | Who can pay from it |
+| --- | --- | --- | --- | --- |
+| `usdc_arbitrum` | Arbitrum 42161 | USDC | 240 (~60s) | Cash App |
+| `pyusd_arbitrum` | Arbitrum 42161 | PYUSD | 240 (~60s) | Venmo, PayPal |
+| `pyusd_ethereum` | Ethereum 1 | PYUSD | 12 (~2.4m) | fallback |
+| `usdc_base` | Base 8453 | USDC | 30 (~60s) | crypto wallets only |
 
-`src/app/components/LocalFeed.tsx` — removed `canPost`, the `billingStatus` state, the billing loader, the plus-changed window event listener, and the upsell card, plus the imports that only served them. The composer, the crowd target chips, the Post button, and the `?compose=1` deep link are all unconditional now. 70 lines net removal.
+Arbitrum leads because it is the only chain Cash App, Venmo, and PayPal can all
+send to, and because collecting a payment costs two transactions per order (fund
+the derived address with gas, then sweep it), so a mainnet rail charges a fee on
+every sale forever. Base reaches none of those three apps.
 
-Deliberately unchanged: the trust gate inside the insert CTE (`trust_score > 20`, no active suspension, no `feature_restrictions` row for `feed_posting`) and `moderateTextOrReject` on every post body.
+Token addresses were taken from the issuers' own documentation, not block
+explorers: Circle for USDC, Paxos for PYUSD. They are pinned in a route test so
+an accidental change fails loudly.
 
-### 2. Nude and faceless photos are allowed
+## Running it locally
 
-`server/src/policy-mapper.ts` — the `adult_nudity` / `adult_explicit` branch rejected at confidence >= 0.85 on any surface except profile photos and private messages, with reason `nudity_outside_private_messages`. That rejection and its helper `adultExplicitProfilePhotosAllowed` are deleted. The branch now always allows, with reason `adult_nudity_allowed` outside profile photos and private messages.
+Requires Postgres. There is a Homebrew `postgresql@16` on `5432` on this machine;
+the repo's docker-compose default points at `5433`, which is a separate thing.
 
-`server/src/profile-photo-human-detection.ts` — `HUMAN_LABELS` was `human`, `people`, `person`. A close crop of a torso or a body part could miss all three, fail `hasHuman`, and get rejected as `profile_photo_not_adult_human`. It now includes body part labels: torso, back, chest, abdomen, thigh, hand, foot, skin, muscle, undressed, and the rest. Nobody has to show a face.
+```
+createdb -h 127.0.0.1 -p 5432 cruush_crypto_dev
+```
 
-`server/src/policy-mapper.ts` — `profile_photo_not_adult_human` now allows on the `feed` surface with reason `non_human_feed_photo_allowed`, so object photos, gear, and toys post fine. It still rejects on `profile_photo`, so profile photos remain photos of the account holder.
+`server/.env.local` needs at least:
 
-`server/src/profile-photo-human-detection.ts` — the detector previously folded animals into the `profile_photo_not_adult_human` label. It now emits a separate `animal` label as well, so allowing non-human photos on the feed does not accidentally allow animals. Animals keep rejecting through the existing `animal` branch.
+```
+PORT=3011
+HOST=0.0.0.0
+DATABASE_URL=postgres://<you>@127.0.0.1:5432/cruush_crypto_dev
+CORS_ORIGIN=http://localhost:5180
+APP_URL=http://localhost:5180
+SESSION_SECRET=<any 32+ chars>
+DEVELOPMENT_ADMIN_ENABLED=true
+DEVELOPMENT_ADMIN_PASSWORD=admin-password
+MODERATION_PROVIDER=mock
+```
 
-Untouched on purpose: `minor_present`, `minor_age_ambiguous`, `underage_sexual`, and the child face gate in `childFaceLabels`. None of them share a code path with the change above.
+Then:
 
-### 3. Desktop dock panel fixes
+```
+VITE_DEV_PORT=5180 VITE_API_BASE_URL=http://localhost:3011 VITE_DEV_HTTPS=0 pnpm dev:local:seeded
+```
 
-All in `src/app/components/DesktopDockPanel.tsx`.
+Use `localhost` on both sides, not `127.0.0.1` on one. The session cookie is
+host-scoped, so a mismatch logs in over curl but leaves the browser at 401.
 
-- **Second resize grip.** There is now a grip on the top right as well as the bottom right. The drag mode is a union: `'move' | 'resize-top-right' | 'resize-bottom-right'`. The top right grip grows the panel right and upward, holding the bottom edge, so `y` moves by the height delta. Test ids are `desktop-dock-{slot}-resize-top` and `desktop-dock-{slot}-resize`.
-- **Overlapping panels are clickable.** Both panels rendered with a hardcoded `z-50`, so whichever painted last always swallowed the clicks. Stacking is now per panel, from a module level counter, and `onPointerDownCapture` raises the pressed panel to the front.
-- **More transparent.** `bg-black/80` to `bg-black/45`, `backdrop-blur-xl` to `backdrop-blur-2xl`, so the map reads through.
-- **A panel can nearly fill the window.** `EDGE_GAP` 24px to 10px.
+Sign in as `admin@cruush.local` / `admin-password`, then open `/store`.
 
-`src/app/components/MapSidePanel.tsx` — the header row was `pt-9 px-4 pb-3`, which wasted 36px above the content. Now `pt-2 px-3 pb-2`.
+Several dev servers are usually running on this machine from different sessions,
+each serving something that looks exactly like cruush. Judge which one you are
+looking at by the port alone.
 
-### 4. Reopening a closed side panel
+## Testing it
 
-`src/app/components/MapHome.tsx` around line 675. Real bug, reported and reproduced from the code.
+```
+cd server && pnpm vitest run src/crypto-payments.test.ts src/crypto-watcher.test.ts \
+  src/crypto-watcher-runtime.test.ts src/crypto-chain-source.test.ts \
+  src/crypto-settlement-policy.test.ts src/crypto-payment-routes.test.ts \
+  src/crypto-wallet.test.ts src/config.test.ts src/migrate.test.ts src/billing.test.ts
+```
 
-The side panel opens from router history state `openSidePanel`. Closing it set the local state to `null` but left `openSidePanel: 'messages'` sitting in history. Navigating to the map again with the same intent produced an identical `requestedSidePanelView`, the effect's dependency never changed, so the panel never reopened. Visiting another page first changed the state object, which is why that path appeared to work.
+145 pass. The wallet tool has its own 21 (`cd tools/cruush-wallet && npx vitest run`).
+Do not run the full suite; it is slow and there are unrelated pre-existing
+failures on main.
 
-The effect now consumes the request with a `replace` navigation that clears `openSidePanel`.
+Every test injects a fake chain source. Nothing reaches a network.
 
-### 5. Edit Profile icon
+## Where to look
 
-`src/app/components/Settings.tsx` line 37. The Edit Profile row masked `humanity-profile-selected-winged-heart-symmetric.png`. It now masks `cruush-white.png`, the heart-with-a-heart-inside glyph. The mask is still filled with `var(--cruush-gradient)`, so the gradient is unchanged.
+| Concern | File |
+| --- | --- |
+| Rails, intents, idempotency, expiry, ERC-681 URI and QR | `server/src/crypto-payments.ts` |
+| Read-only JSON-RPC and ERC-20 log decoding | `server/src/crypto-chain-source.ts` |
+| The watcher: scanning, dedup, reorgs, settlement, grant | `server/src/crypto-watcher.ts` |
+| Scheduling and which chains are watched | `server/src/crypto-watcher-runtime.ts` |
+| What an amount means | `server/src/crypto-settlement-policy.ts` |
+| Support lookup and the exception report | `server/src/crypto-reconciliation.ts` |
+| Address derivation from the xpub | `server/src/crypto-wallet.ts` |
+| Schema and its constraints | `server/sql/096`–`099` |
+| Checkout page | `src/app/components/CruushPlusStore.tsx` |
 
----
+`docs/plans/v2-crypto-processor.md` carries the reasoning behind every decision
+and is the more useful read than the code for a reviewer.
 
-## Verification
+## Things worth attacking during review
 
-Green:
+These are the properties the design depends on. Each has a test, but a test only
+proves what it asserts.
 
-- `vitest src/app/components/LocalFeed.test.tsx` — 15 passed
-- `vitest src/app/components/Settings.test.tsx` — 17 passed
-- `vitest src/app/components/MapHome.test.tsx` — 70 passed
-- `vitest src/app/components/BottomNav.test.tsx` — 15 passed
-- `server: vitest src/policy-mapper.test.ts` — 34 passed
-- `server: vitest src/moderation-service.test.ts src/profile-photo-human-detection.test.ts src/moderation-provider.test.ts` — 72 passed
-- `server: vitest src/app.test.ts -t "POST /api/posts"` — 2 passed
-- `vite build` — succeeded
+- Price is always derived server-side from `planId`. A client may name a rail and
+  nothing else: not an amount, asset, network, token address, or confirmation
+  target.
+- Entitlement is granted only from the `paid` transition, and only by the pass
+  that successfully claimed it. The database refuses a second grant, refuses a
+  grant on an unpaid intent, and refuses a paid intent with no confirmed amount.
+- One chain log is one row, keyed on `(chain_id, transaction_hash, log_index)`,
+  so re-reading a range cannot double-count.
+- Reorganized transfers stop counting but are never deleted.
+- The xpub, its fingerprint, the derivation index, and the RPC endpoint URL never
+  appear in a client response, a log, or an error message. The endpoint URL can
+  embed an API key.
+- `grantCruushPlusPlan` is the single entitlement implementation, shared with the
+  existing checkout path so the two cannot drift.
 
-Tests updated to match the new behaviour, none deleted:
+## Known gaps, deliberate
 
-- `LocalFeed.test.tsx` — the two paywall tests became one test that a member without cruush+ can post.
-- `server/src/app.test.ts` — the 402 test is gone; the creation test now runs with `cruush_plus_enabled: false`, so the success path itself proves free posting.
-- `policy-mapper.test.ts` — the nudity rejection test asserts allow, plus new tests for object-allowed-on-feed, animal-still-rejected, and non-human-profile-photo-still-rejected.
-- `MapHome.test.tsx` — the dock assertion moved from a `z-50` class to the inline z-index, and asserts the new top grip exists.
+- **No sweeping or gas funding.** Money lands at derived addresses and stays
+  there. Collecting it is a separate, unbuilt operator task.
+- **No refunds.** cruush does not refund cruush+, recorded as product invariant
+  G7. The `refunded` status is unreachable record-keeping only.
+- **No rendered proof of the QR code.** Showing it needs an assigned address,
+  which needs the processor enabled with an xpub, and enabling a test-vector xpub
+  outside automated tests is forbidden. Covered by unit and route tests only.
+- **One RPC endpoint per chain**, so provider disagreement is not handled.
+- **Depeg is not handled.** The quote is arithmetic on USD cents against a
+  dollar-pegged token. If a token loses its peg, nothing halts checkout.
 
-Pre-existing failures on `f00fb48`, not caused by this branch. Confirmed by stashing the whole diff and re-running:
+## Blocked on the owner
 
-- `server: app.test.ts > returns the authenticated profile on GET /api/profiles/me`
-- `server: app.test.ts > upserts the authenticated profile on PUT /api/profiles/me`
-
-Both differ by a `custom_condoms` profile field, 50 keys against an expected 49.
-
-**Not verified: none of this has been rendered in a running app.** `npm run dev:local:seeded` exits immediately with "Cannot connect to local Postgres at localhost:5433/cruush", and Docker is not running on this machine, so the bundled Postgres could not be started. The free feed, the panel fixes, and the moderation policy have never been exercised against a live server. Per the standing rules that is not proof, and it is the main gap in this handoff.
-
----
-
-## Before this ships
-
-1. **Rebase onto `origin/main` `4fec73e`.** Four files conflict:
-
-   - `src/app/components/LocalFeed.tsx` — upstream `e86ae30` "land the feed layout pass with its tests green" rewrote roughly 197 lines of this file. This is the real merge. Keep the upstream layout and reapply the paywall removal on top of it.
-   - `src/app/components/MapSidePanel.tsx` — upstream `845e85f` deleted the view tabs and the `onViewChange` prop entirely. Take upstream's version and reapply only the `pt-9` to `pt-2` padding fix to the simpler row it leaves behind.
-   - `src/app/components/DesktopDockPanel.tsx` — upstream `64ef8cd` already narrowed the grab strip for the same reason, to `left-1/2 top-0 h-8 w-24 -translate-x-1/2`. Prefer upstream's centred strip over the `left-0 right-20 h-6` version here, and keep the two grips, the per panel z-index, the transparency, and `EDGE_GAP`.
-   - `src/app/components/MapHome.tsx` — five upstream commits touch it. The reopen fix is a small isolated effect and should reapply cleanly.
-
-   `Settings.tsx` and all four server files have no upstream changes and should rebase clean.
-
-2. **Start Docker and run `npm run dev:local:seeded`**, then actually click: post to the feed as an account without cruush+, drag and resize a panel from both corners, click an overlapped panel, close and reopen the messages panel without leaving the page.
-
-3. **Amend the standing rules doc under `docs/`.** Invariant **G2** still reads "NSFW is allowed in the favorites gallery and in messages." The code now allows it everywhere. The doc and the code disagree until someone fixes the doc, and the file has an "Amending this file" procedure at the bottom.
-
-4. **Environment variables:** none added, removed, or changed by this branch.
-
----
-
-## Open questions the next session should ask
-
-- **Which icon goes where.** The instruction landed as "use the heart-in-heart for cruushes only" and "the winged icon is for the feed and nothing else". Edit Profile currently uses the heart-in-heart, which may be wrong if that glyph is reserved for cruush actions. `BottomNav.tsx` lines 9 and 10 still use the winged heart for the Profile tab, which contradicts "nothing else", but the replacement was never named, so it was left alone rather than guessed at. `Changelog.tsx` line 59 also still describes the winged heart as the Profile icon.
-- **Crowd targeting and the feed pin setting behind cruush+.** Agreed as the replacement for the removed paywall, never implemented. Crowd targeting would gate on `payload.crowdTargets.length > 0` in `POST /api/posts`; the pin setting would gate `locationPinVisibility` in `PUT /api/feed/settings`. Free members would stay on the current `mutuals` default.
-- **Photo posts, reactions, and replies.** Designed, not built. The agreed layout is small square tiles welded into one 3.4rem block beside the body copy, tapping opens a full screen viewer, DL Mode masks them the same way it already masks explicit author avatars. Measured at 380px card width, that layout costs 29px of card height against a 143px text-only post.
-- **Stream Feeds.** Investigated and recommended against. Stream is already a dependency but only as the moderation provider. Feeds is a separately priced product; a moderation plan does not include it. The feed's encryption, hashed crowd tokens, geo queries, trust gating, and expiry do not port to their follow-graph model.
+1. A wallet. It must be created outside this repo and outside any agent session;
+   only the public xpub is ever handed over. No seed phrase, private key, or
+   xprv touches cruush or a machine running an agent.
+2. A JSON-RPC provider. Dwellir was chosen on its free tier: at a 60-second poll
+   the worst case is about 5,760 requests a day across both chains, under 6% of
+   the free allowance, and it costs nothing while no payment is in progress.
+   Its European status was not verified from a primary source.
+3. Sign-off on the settlement policy table in the plan doc.
+4. An unresolved HIGH security finding in the local wallet tool: its check for
+   agent sessions is bypassable with a pseudo-terminal. Mitigated, documented,
+   and explicitly not a security boundary. It gates the recovery drill.
+5. Checkout consent capture for the EU right of withdrawal, which the no-refunds
+   position depends on.
