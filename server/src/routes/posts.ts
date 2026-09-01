@@ -62,6 +62,7 @@ type PostRow = {
     label?: string;
   } | string | null;
   map_ping_id?: string | null;
+  feed_tags?: string[] | null;
 };
 
 type FeedSettingsRow = {
@@ -205,6 +206,7 @@ async function mapPostRow(app: FastifyInstance, row: PostRow, viewerUserId: stri
     expiresAt: row.expires_in === "never" ? null : new Date(row.expires_at).toISOString(),
     createdAt: new Date(row.created_at).toISOString(),
     audience: row.audience ?? (crowdTargets.length > 0 ? "crowd" : "public"),
+    tags: row.feed_tags ?? [],
     distance: typeof row.distance_miles === "number"
       ? formatCoarseDistance(row.distance_miles)
       : "Nearby",
@@ -296,6 +298,11 @@ const POST_COLUMNS = `
   p.expires_at,
   p.created_at,
   ${feedPhotoAttachmentSelect("p")},
+  coalesce((
+    select array_agg(post_tag.tag order by post_tag.position)
+    from feed_post_tags post_tag
+    where post_tag.post_id = p.id
+  ), '{}'::text[]) as feed_tags,
   pr.display_name,
   pr.pronouns,
   pr.photos,
@@ -416,6 +423,7 @@ const feedPostQuerySchema = z.object({
   before: z.string().datetime().optional(),
   lat: z.coerce.number().min(-90).max(90).optional(),
   lng: z.coerce.number().min(-180).max(180).optional(),
+  q: z.string().trim().min(1).max(120).optional(),
   mileHighClub: feedBooleanQueryFlag,
   minAge: z.coerce.number().int().min(18).max(99).optional(),
   maxAge: z.coerce.number().int().min(18).max(99).optional(),
@@ -521,6 +529,81 @@ function addFeedSensitiveTokenFilter(
   )`);
 }
 
+function addFeedSearchFilter(
+  app: FastifyInstance,
+  where: string[],
+  values: unknown[],
+  searchQuery: string | undefined
+) {
+  const rawQuery = searchQuery?.trim().toLowerCase();
+  if (!rawQuery) {
+    return;
+  }
+
+  const tagOnly = rawQuery.startsWith("#");
+  const normalizedQuery = rawQuery.replace(/^#+/, "").trim();
+  if (!normalizedQuery) {
+    return;
+  }
+
+  values.push(`%${normalizedQuery}%`);
+  const searchPlaceholder = `$${values.length}`;
+  const tagSearch = `exists (
+    select 1
+    from feed_post_tags search_tag
+    where search_tag.post_id = p.id
+      and lower(search_tag.tag) like ${searchPlaceholder}
+  )`;
+
+  if (tagOnly) {
+    where.push(tagSearch);
+    return;
+  }
+
+  const normalizedKink = normalizeFilterTokenValue(normalizedQuery);
+  const tokenKeyVersion = getSensitiveProfileTokenKeyVersion(app.config);
+  const kinkTokenHash = normalizedKink
+    ? createSensitiveProfileToken(app.config, `kink:${normalizedKink}`, tokenKeyVersion).token_hash
+    : "";
+  values.push(kinkTokenHash);
+  const kinkTokenPlaceholder = `$${values.length}`;
+  values.push(tokenKeyVersion);
+  const tokenKeyVersionPlaceholder = `$${values.length}`;
+
+  where.push(`(
+    lower(coalesce(pr.display_name, '')) like ${searchPlaceholder}
+    or lower(coalesce(pr.bio, '')) like ${searchPlaceholder}
+    or exists (
+      select 1
+      from unnest(
+        coalesce(pr.identities, '{}'::text[])
+        || coalesce(pr.presentation, '{}'::text[])
+        || coalesce(pr.sexuality, '{}'::text[])
+        || coalesce(pr.body_type, '{}'::text[])
+        || coalesce(pr.availability, '{}'::text[])
+        || coalesce(pr.hosting_travel, '{}'::text[])
+        || coalesce(pr.looking_for, '{}'::text[])
+        || coalesce(pr.vibes, '{}'::text[])
+        || coalesce(pr.scenes, '{}'::text[])
+        || coalesce(pr.archetypes, '{}'::text[])
+        || coalesce(pr.hobbies, '{}'::text[])
+        || coalesce(pr.position, '{}'::text[])
+        || coalesce(pr.role, '{}'::text[])
+        || coalesce(pr.substance_boundaries, '{}'::text[])
+      ) as searchable(value)
+      where lower(searchable.value) like ${searchPlaceholder}
+    )
+    or exists (
+      select 1
+      from profile_sensitive_tokens search_token
+      where search_token.user_id = pr.id
+        and search_token.token_hash = ${kinkTokenPlaceholder}
+        and search_token.token_key_version = ${tokenKeyVersionPlaceholder}
+    )
+    or ${tagSearch}
+  )`);
+}
+
 export async function registerPostRoutes(app: FastifyInstance) {
   app.post("/api/feed/photos", async (request, reply) => {
     const userId = await getActiveAccountUserId(request);
@@ -608,6 +691,7 @@ export async function registerPostRoutes(app: FastifyInstance) {
       values.push(query.maxAge);
       where.push(`extract(year from current_date)::integer - pr.year_of_birth <= $${values.length}::integer`);
     }
+    addFeedSearchFilter(app, where, values, query.q);
     addFeedTextArrayFilter(where, values, "pr.identities", query.identities);
     addFeedTextArrayFilter(where, values, "pr.presentation", query.presentations);
     addFeedTextArrayFilter(where, values, "pr.looking_for", query.lookingFor);
@@ -756,7 +840,7 @@ export async function registerPostRoutes(app: FastifyInstance) {
     const moderation = await moderateTextOrReject(app, {
       userId,
       surface: "feed",
-      text: payload.content
+      text: [payload.content, ...payload.tags.map((tag) => `#${tag}`)].join("\n")
     });
     const encryptedContent = encryptTextContent(app.config, "feed", payload.content);
     const crowdTargetTokenRows = payload.crowdTargets.flatMap((crowd) => createCrowdTokens(app.config, [crowd]).map((token) => ({
@@ -908,6 +992,15 @@ export async function registerPostRoutes(app: FastifyInstance) {
           and media.moderation_status = 'approved'
           and media.deleted_at is null
          returning post_id, media_object_id
+       ), inserted_tags as (
+         insert into feed_post_tags (post_id, tag, position)
+         select
+           inserted.id,
+           requested.tag,
+           (requested.ordinality - 1)::smallint
+         from inserted
+         cross join unnest($19::text[]) with ordinality as requested(tag, ordinality)
+         returning post_id, tag
        )
        select
          i.id,
@@ -932,6 +1025,11 @@ export async function registerPostRoutes(app: FastifyInstance) {
            from unnest($18::uuid[]) with ordinality as requested(media_object_id, ordinality)
            join media_objects media on media.id = requested.media_object_id
          ), '[]'::jsonb) as feed_photos,
+         coalesce((
+           select array_agg(inserted_tag.tag order by inserted_tag.position)
+           from feed_post_tags inserted_tag
+           where inserted_tag.post_id = i.id
+         ), '{}'::text[]) as feed_tags,
          pr.display_name,
          pr.pronouns,
          pr.photos,
@@ -1008,7 +1106,8 @@ export async function registerPostRoutes(app: FastifyInstance) {
         JSON.stringify(crowdTargetTokenRows),
         ownerFullAccess,
         payload.audience,
-        payload.photoMediaIds
+        payload.photoMediaIds,
+        payload.tags
       ]
     );
     const row = result.rows[0];

@@ -22,6 +22,7 @@ export type FeedPost = {
   createdAt: string;
   distance: string;
   audience: FeedPostAudience;
+  tags?: string[];
   photos?: FeedPhoto[];
   crowdTargets?: string[];
   locationPin?: {
@@ -64,6 +65,7 @@ export type FeedPostFilters = {
     lng: number;
   } | null;
   seeking?: {
+    searchQuery?: string;
     mileHighClub?: boolean;
     ageRange?: [number, number];
     identities?: string[];
@@ -89,6 +91,7 @@ export type CreateFeedPostPayload = {
   audience: FeedPostAudience;
   crowdTargets?: string[];
   photoMediaIds?: string[];
+  tags?: string[];
 };
 
 export async function getFeedPosts(filters: FeedPostFilters = {}) {
@@ -117,6 +120,9 @@ export async function getFeedPosts(filters: FeedPostFilters = {}) {
 
   if (filters.seeking?.mileHighClub) {
     params.set('mileHighClub', '1');
+  }
+  if (filters.seeking?.searchQuery?.trim()) {
+    params.set('q', filters.seeking.searchQuery.trim());
   }
   if (filters.seeking?.ageRange && filters.seeking.ageRange[0] !== 18) {
     params.set('minAge', String(filters.seeking.ageRange[0]));

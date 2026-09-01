@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type ChangeEvent, type KeyboardEvent } from 'react';
 import { useLocation, useNavigate } from 'react-router';
-import { ArrowLeft, Clock, SlidersHorizontal, Trash2, X } from 'lucide-react';
+import { ArrowLeft, Clock, Hash, SlidersHorizontal, Trash2, X } from 'lucide-react';
 import { Button } from './ui/button';
 import CruushPlusCardDialog from './CruushPlusCardDialog';
 import BlockUserAction from './BlockUserAction';
@@ -134,10 +134,21 @@ function profileFeedCoordinates(profile: ProfileRecord): FeedCoordinates | null 
     : null;
 }
 
+function normalizeFeedTag(value: string) {
+  return value
+    .trim()
+    .replace(/^#+/, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9_]/g, '')
+    .slice(0, 24);
+}
+
 export default function LocalFeed({ embedded = false, onClose }: { embedded?: boolean; onClose?: () => void; onOpenSettings?: () => void } = {}) {
   const navigate = useNavigate();
   const location = useLocation();
   const [newPost, setNewPost] = useState('');
+  const [newTag, setNewTag] = useState('');
+  const [postTags, setPostTags] = useState<string[]>([]);
   // The composer stays a single row until it is opened. Expanded it takes a
   // third of a phone screen, which pushed the first post below the fold.
   const [composerOpen, setComposerOpen] = useState(false);
@@ -181,10 +192,6 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
   const feedSettingsRef = useRef<FeedSettings>(DEFAULT_FEED_SETTINGS);
   const feedSettingsSaveChainRef = useRef<Promise<void>>(Promise.resolve());
   const latestFeedExpiryChoiceRef = useRef(0);
-  const normalizedFeedSearchQuery = feedSeekingFilters.searchQuery.trim().toLocaleLowerCase();
-  const visiblePosts = normalizedFeedSearchQuery
-    ? posts.filter((post) => post.content.toLocaleLowerCase().includes(normalizedFeedSearchQuery))
-    : posts;
   const applyFeedSettings = (nextSettings: FeedSettings) => {
     feedSettingsRef.current = nextSettings;
     setFeedSettings(nextSettings);
@@ -449,8 +456,11 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
         audience: postAudience,
         crowdTargets: postAudience === 'crowd' ? selectedCrowdTargets : [],
         photoMediaIds: stagedPhotos.map((photo) => photo.id),
+        tags: postTags,
       });
       setNewPost('');
+      setNewTag('');
+      setPostTags([]);
       setStagedPhotos([]);
       setPostAudience('public');
       setSelectedCrowdTargets([]);
@@ -461,6 +471,29 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
     } finally {
       setPosting(false);
     }
+  };
+
+  const addPostTag = () => {
+    const tag = normalizeFeedTag(newTag);
+    if (!tag || postTags.includes(tag)) {
+      setNewTag('');
+      return;
+    }
+    if (postTags.length >= 5) {
+      setError('Feed posts can include up to five tags.');
+      return;
+    }
+    setPostTags((currentTags) => [...currentTags, tag]);
+    setNewTag('');
+    setError(null);
+  };
+
+  const handleTagKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key !== 'Enter' && event.key !== ',') {
+      return;
+    }
+    event.preventDefault();
+    addPostTag();
   };
 
   const handleFeedPhotoSelection = (event: ChangeEvent<HTMLInputElement>) => {
@@ -1157,6 +1190,45 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
             placeholder="Share something with nearby people..."
             className="bg-input-background mb-3 min-h-[100px]"
           />
+          <div className="mb-3 space-y-2">
+            <div className="flex items-center gap-2 rounded-md border border-white/10 bg-input-background px-3">
+              <Hash aria-hidden="true" className="h-4 w-4 shrink-0 text-white/55" />
+              <input
+                aria-label="Add Feed tag"
+                className="h-10 min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-white/45"
+                disabled={postTags.length >= 5}
+                maxLength={25}
+                onChange={(event) => setNewTag(event.target.value)}
+                onKeyDown={handleTagKeyDown}
+                placeholder="#tag"
+                value={newTag}
+              />
+              <button
+                className="text-sm font-semibold text-white/72 disabled:opacity-35"
+                disabled={!normalizeFeedTag(newTag) || postTags.length >= 5}
+                onClick={addPostTag}
+                type="button"
+              >
+                Add
+              </button>
+            </div>
+            {postTags.length > 0 ? (
+              <div className="flex flex-wrap gap-2" data-testid="feed-post-tags-draft">
+                {postTags.map((tag) => (
+                  <button
+                    aria-label={`Remove #${tag}`}
+                    className="inline-flex items-center gap-1 rounded-full border border-white/12 bg-black/55 px-2.5 py-1 text-xs text-white/72"
+                    key={tag}
+                    onClick={() => setPostTags((currentTags) => currentTags.filter((currentTag) => currentTag !== tag))}
+                    type="button"
+                  >
+                    #{tag}
+                    <X aria-hidden="true" className="h-3 w-3" />
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
           {stagedPhotos.length > 0 ? (
             <div className="mb-3 space-y-2 rounded-xl border border-white/10 bg-black/45 p-3" data-testid="feed-photo-staging">
               <FeedAttachmentPreview
@@ -1237,7 +1309,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
 
           {!loading ? (
             <div className="space-y-2">
-              {visiblePosts.map((post) => {
+              {posts.map((post) => {
                 const mutualAuthor = mutualUserIds.has(post.user.id);
                 const pinActionable = validPinUserIds.has(post.user.id);
                 return (
@@ -1348,6 +1420,11 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
                   content={(
                     <div className="space-y-1.5">
                       <p className="text-base">{post.content}</p>
+                      {(post.tags?.length ?? 0) > 0 ? (
+                        <div className="flex flex-wrap gap-x-2 gap-y-1 text-sm text-white/62">
+                          {post.tags?.map((tag) => <span key={tag}>#{tag}</span>)}
+                        </div>
+                      ) : null}
                       <FeedAttachmentPreview
                         dlModeActive={dlModeActive}
                         onOpen={(index) => setPhotoViewer({ post, index })}
@@ -1388,10 +1465,10 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
             </div>
           ) : null}
 
-          {!loading && visiblePosts.length === 0 && (
+          {!loading && posts.length === 0 && (
             <div className="rounded-2xl border border-white/10 bg-black/72 p-12 text-center">
-              <p className="text-white/68">{normalizedFeedSearchQuery ? 'No posts match that search.' : 'No posts nearby yet.'}</p>
-              <p className="text-sm text-white/50 mt-2">{normalizedFeedSearchQuery ? 'Try another word or clear the search.' : 'Be the first to share something!'}</p>
+              <p className="text-white/68">{feedSeekingFilters.searchQuery.trim() ? 'No posts match that search.' : 'No posts nearby yet.'}</p>
+              <p className="text-sm text-white/50 mt-2">{feedSeekingFilters.searchQuery.trim() ? 'Try another word, #tag, or clear the search.' : 'Be the first to share something!'}</p>
             </div>
           )}
         </div>
@@ -1419,7 +1496,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
       onOpenChange={setSeekingOpen}
       onUpgrade={() => setPlusCardOpen(true)}
       open={seekingOpen}
-      searchPlaceholder="Search post content"
+      searchPlaceholder="Search people or #tags"
       title="Seeking Filter"
       value={feedSeekingDraft}
     />

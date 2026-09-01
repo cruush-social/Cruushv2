@@ -38,12 +38,19 @@ const crowdTargetsSchema = z.array(z.string()).optional().default([])
     return normalizedValues;
   });
 
+const feedPostTagsSchema = z.array(
+  z.string().trim().regex(/^#?[a-zA-Z0-9_]{1,24}$/, "Tags can use letters, numbers, and underscores."),
+).max(5).optional().default([]).transform((values) => (
+  [...new Set(values.map((value) => value.replace(/^#/, "").toLowerCase()))]
+));
+
 export const createPostPayloadSchema = z.object({
   content: multilineTextSchema({ min: 1, max: 1000 }),
   expiresIn: postExpirySchema.optional().default("never"),
   audience: feedPostAudienceSchema.optional().default("public"),
   crowdTargets: crowdTargetsSchema,
-  photoMediaIds: z.array(z.uuid()).max(3).optional().default([])
+  photoMediaIds: z.array(z.uuid()).max(3).optional().default([]),
+  tags: feedPostTagsSchema
 }).strict().superRefine((payload, ctx) => {
   if (new Set(payload.photoMediaIds).size !== payload.photoMediaIds.length) {
     ctx.addIssue({
