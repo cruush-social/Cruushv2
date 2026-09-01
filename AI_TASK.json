@@ -70,6 +70,7 @@
     "src/app/components/PlaceDetail.tsx",
     "src/app/components/MapHome.tsx",
     "server/src/errors.ts",
+    "server/sql/103_places.sql",
     "public/email/cruush-v1.6-map.jpg",
     "public/email/cruush-v1.6-spot-board.jpg",
     "docs/previews/cruush-1.6-update-email.jpg"

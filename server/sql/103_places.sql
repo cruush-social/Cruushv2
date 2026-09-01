@@ -221,9 +221,9 @@ from (values
   ('corona-sexual-health-clinic', 'sexual_health'), ('corona-sexual-health-clinic', 'womens_health'),
   ('jamaica-sexual-health-clinic', 'sexual_health'), ('jamaica-sexual-health-clinic', 'womens_health'),
   ('morrisania-sexual-health-clinic', 'sexual_health'), ('morrisania-sexual-health-clinic', 'womens_health'),
-  ('henrietta-hudson', 'dyke_bar'), ('henrietta-hudson', 'dyke_spot'),
-  ('cubbyhole', 'dyke_bar'), ('cubbyhole', 'dyke_spot'),
-  ('gingers-bar', 'dyke_bar'), ('gingers-bar', 'dyke_spot'),
+  ('henrietta-hudson', 'dyke_spot'),
+  ('cubbyhole', 'dyke_spot'),
+  ('gingers-bar', 'dyke_spot'),
   ('basement-nyc', 'techno_club'), ('nowadays', 'techno_club'),
   ('knockdown-center', 'techno_club'), ('public-records', 'techno_club'),
   ('stonewall-inn', 'gay_spot'), ('metropolitan-bar', 'gay_spot'), ('three-dollar-bill', 'gay_spot')
