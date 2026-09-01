@@ -273,8 +273,10 @@ Status:
   cleanup-indexed. Ten focused checks pass; no real check-in or board post changed.
 - `[~]` Side Quests no longer says every quest is completed when only temporarily unavailable
   cruush+ rewards remain. The weekly limit remains absent from visible copy.
-- `[ ]` Continue the remaining 1.6 source items at Spots, MHC/Ghost/Pulse, shared cards, popups,
-  Feed media, and release blockers. Custom Crowds and the user-owned scratch card stay untouched.
+- `[~]` The remaining safe 1.6 source items at Spots, MHC/Ghost/Pulse, shared cards, popups, Feed
+  media, loading states, Feed tags, Feed preview sizing, and Color-blind mode are integrated. Current
+  open work is rendered interaction proof, authorized migration execution, deferred features, and
+  external operations. No additional safe source gap is confirmed.
 
 ## Sources reconciled
 
@@ -834,9 +836,7 @@ Status:
   require separate verified-ownership, recovery, consent, content, and delivery rules.
 - [removed] Secondary email came only from the inherited `docs/todo-2026-08-22.md` and
   `docs/parallel-work-handoff-2026-08-22.md`; no verified direct request from Julien was found. It is
-  not an active 1.6 requirement. Primary-address replacement must preserve verified ownership and
-  recovery safety. Daily/weekly digest delivery still needs approved content, consent, and delivery
-  rules; do not activate mail delivery or invent those decisions as part of a source-only pass.
+  not an active 1.6 requirement.
 - [~] Notifications implements owner-only single deletion and confirmed bulk deletion. Both server
   queries bind the authenticated member ID; client success removes the item or list and emits the
   updated unread summary immediately. The authenticated empty state rendered both disabled controls.

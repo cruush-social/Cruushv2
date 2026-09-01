@@ -204,7 +204,7 @@
       "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "Finish the remaining safe local 1.6 todo and viewport gates, commit each verified local slice, and stop before any push, deployment, environment change, process shutdown, or blocked product decision.",
+  "nextVisibleMilestone": "Hand the source-complete local 1.6 candidate to Julien for rendered interaction testing, then execute only separately authorized migrations or publication work.",
   "stopConditions": [
     "Julien authorized continued local 1.6 todo implementation and commits on release/1.6-features-20260828 on 2026-08-31. Stop before any push, deployment, environment change, new design, or unrequested mobile layout change.",
     "Julien explicitly authorized starting the exact local 1.6 frontend on port 5173 and API on port 3016 on 2026-08-31. Do not restart, stop, kill, or replace either process without further explicit authorization."
