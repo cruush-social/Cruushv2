@@ -399,12 +399,17 @@ Status:
   embedded headers were rendered. The long direct-message chooser now also reserves 112px plus the
   device safe area below its scrolling list so bottom navigation does not cover the final cards.
   Remaining popup surfaces still need direct proof.
-- [ ] Keep the drag handle visible. Right popups may move to the approved near-right inset while
-  staying fully visible and constrained to the right half.
-- [ ] Support both resize corners, raise a clicked overlapping popup, and preserve close/reopen size
-  and position.
-- [~] Narrow-viewport width clamping and top-resize anchoring are patched in source. Interrupted
-  pointer capture now ends dragging. Drag, resize, and persistence proof remains pending.
+- [x] Keep the drag handle visible. Right popups may move to the approved near-right inset while
+  staying fully visible and constrained to the right half. The authenticated 1440x900 Feed popup
+  moved from x=720 to x=820 while retaining its complete 392px width.
+- [x] Support both resize corners, raise a clicked overlapping popup, and preserve close/reopen size
+  and position. The bottom grip resized Feed to 472x504, the top grip resized it to 512x531 while
+  anchoring the bottom edge, and close/reopen restored the exact 820,136,512,531 geometry. An
+  overlapping Profile and Feed pair raised Feed from z=202 to z=204 and Profile from z=203 to
+  z=205 when each exposed surface was clicked.
+- [x] Narrow-viewport width clamping and top-resize anchoring are patched in source. Interrupted
+  pointer capture ends dragging. Real pointer drag, both resize grips, overlap raising, and
+  persistence passed; the original left and right stored geometries were restored afterward.
 - [x] Verify no popup blocks top navigation, bottom navigation, Map Controls, or Bug Fix. At
   900x844, both desktop panels stopped 10px above Recently Active and cleared Map Controls by
   10px; all five bottom-navigation targets and Recently Active remained hit-testable. The
@@ -585,7 +590,8 @@ Status:
   viewer discovery center, Dark Room exclusion, Pulse compatibility, and profile Visibility exclusion
   now pass 16 focused checks. Pulse remains allowed while travelling, matching the current lime-over-
   sky-blue priority contract. The 50-mile browse-radius API response now returns the Mile High Club
-  invitation contract without querying Pings. Complete rendered route interaction remains unverified.
+  invitation contract without querying Pings. The authenticated 412x915 route now also passed a
+  real activate, traveller-map render, and clear cycle; the local account was restored to off.
 - [~] Use exact `src/app/assets/ui-icons/mile-high-club-white.svg` geometry everywhere. The map plane
   has a white base, subtle edge shading, and length shading. The same shaded white plane appears
   beside the member age on own and other profiles.
@@ -603,13 +609,16 @@ Status:
   higher-priority temporary treatment.
 - [x] MHC location entry places Address or GPS coordinates first, then Use my current location and
   Drop or Move my pin here, then a larger map filling the remaining panel above bottom navigation.
-  Authenticated address lookup resolved Times Square, rendered the map, enabled the move action,
-  and displayed the selected point with the outlined cruush heart rather than a circle. The saved
-  travel pin was not changed during verification.
+  Authenticated GPS lookup accepted Philadelphia coordinates, rendered the map, enabled the move
+  action, and displayed the selected point with the outlined cruush heart rather than a circle. A
+  reversible local cycle saved the pin, rendered the traveller state, and cleared it afterward.
 - [blocked] Address lookup source exists, but a production geocoding provider, privacy disclosure,
   rate policy, caching policy, and failure behavior require approval before production activation.
-- [ ] Render traveller map state and distance labels. `outsideBrowseRadius` must produce a useful
-  Mile High Club invitation instead of a silent empty map.
+- [~] Render traveller map state and distance labels. The 412x915 Philadelphia state rendered the
+  traveller heart, approved plane/contrail treatment, Ghost-derived decoy and tether, and nearby
+  published Spots. No viewer-authorized people were returned there, so real distance-label proof
+  remains unverified. The focused `outsideBrowseRadius` API check returns the Mile High Club
+  invitation instead of a silent empty response.
 - [blocked] Kelpie while travelling remains unresolved because Kelpie itself is not built.
 - [x] Active and fly-out Ghost use the exact supplied `ghost-mode-icon-final.svg`; its SHA-256 matches
   `src/app/assets/ui-icons/ghost-colored.svg`. The owner decoy rendered electric-blue side badges.
@@ -751,13 +760,19 @@ Status:
   starting this pair. The 5173 frontend proxied a 200 login for the local-only admin credential to
   the 3016 development API; `/api/auth/me` returned the active admin and `/api/build` returned
   stage `development`. Neither process was restarted, stopped, killed, or replaced.
-- [ ] Render every changed flow in populated and empty states at desktop, narrow desktop, 390x844,
-  and 412x915. Inspect top, middle, and bottom scroll positions.
-- [ ] Exercise clicks, Back, Close, drag, resize, hover labels, save prompts, deletes, reversible
-  cruushes, searches, filters, message open, and popup replacement.
+- [~] Render every changed flow in populated and empty states at desktop, narrow desktop, 390x844,
+  and 412x915. The current 412x915 pass covers populated and empty Feed search, Messages search and
+  thread, all Cruushes tabs, own Profile top and bottom, Carousel, Spots discovery and empty board,
+  Ghost settings top and bottom, Mile High Club entry, and the traveller map. Desktop and narrow
+  popup clearance plus full-screen reward proof also pass. The complete matrix remains incomplete.
+- [~] Exercise clicks, Back, Close, drag, resize, hover labels, save prompts, deletes, reversible
+  cruushes, searches, filters, message open, and popup replacement. Search/filter restoration,
+  message open/Back, reward Done, a reversible Mile High Club cycle, real popup movement, both
+  resize grips, overlap raising, and close/reopen persistence pass. Destructive and remaining
+  mutation cases remain unexercised.
 - [~] Focused and complete unit checks, client build, server build, casing check, security check,
   Coolify release-script check, and `git diff --check` pass. The final post-change client suite
-  passed 94 files and 646 tests, the client build passed with 2078 modules, and mobile, tablet, and
+  passed 95 files and 648 tests, the client build passed with 2078 modules, and mobile, tablet, and
   desktop layout checks passed. The complete changed-flow viewport matrix remains incomplete.
 - [x] Record passed, failed, blocked, and unverified gates separately in `AI_TASK.json`.
 - [blocked] No commit, push, merge, deployment, production migration, environment change, or feature

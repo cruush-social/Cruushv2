@@ -176,9 +176,9 @@
       "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "Finish post-change client tests and build, record the authenticated desktop and small-mobile proof, then stop for explicit authority before a follow-up commit, push, deployment, or any process shutdown.",
+  "nextVisibleMilestone": "Finish the remaining safe local 1.6 todo and viewport gates, commit each verified local slice, and stop before any push, deployment, environment change, process shutdown, or blocked product decision.",
   "stopConditions": [
-    "One local commit on release/1.6-features-20260828 is authorized by Julien on 2026-08-31. Stop before any push, deployment, environment change, new design, or unrequested mobile layout change.",
+    "Julien authorized continued local 1.6 todo implementation and commits on release/1.6-features-20260828 on 2026-08-31. Stop before any push, deployment, environment change, new design, or unrequested mobile layout change.",
     "Julien explicitly authorized starting the exact local 1.6 frontend on port 5173 and API on port 3016 on 2026-08-31. Do not restart, stop, kill, or replace either process without further explicit authorization."
   ],
   "costBudget": {
@@ -507,6 +507,7 @@
     "src/app/components/Settings.tsx",
     "src/app/components/GhostModeSettings.test.tsx",
     "src/app/components/GhostModeSettings.tsx",
+    "src/app/components/TravelModeSettings.test.ts",
     "src/app/components/TravelModeSettings.tsx",
     "src/app/components/ui/sheet.tsx",
     "src/app/lib/cruushPlusFeatures.test.ts",
@@ -600,6 +601,7 @@
     "Run only TypeScript no-emit, production build, focused local API smoke calls, and real rendered browser interactions for the approved implementation slices."
   ],
   "proofResults": [
+    "2026-08-31 authenticated continuation gate: At 412x915, Cruushes Incoming, Sent, Mutual, and empty Views; Profile top and bottom; populated Carousel; Spots discovery, selection, full board, and empty board; Ghost settings top and bottom; Mile High Club entry; and the traveller map rendered without horizontal overflow. One reversible local Mile High Club cycle used Philadelphia GPS coordinates, rendered the traveller heart, plane and contrail, Ghost-derived decoy and tether, and local Spots, then cleared the travel pin and restored Mile High Club to off. A visible 2h 60m countdown defect was corrected to carry the sixtieth minute into the next hour; 2 focused formatter assertions pass and the exact live route rendered 3h before the second proof pin was cleared. At 1440x900, Feed moved, both resize grips changed geometry, close/reopen preserved exact geometry, and overlapping Feed plus Profile panels raised on click. Original popup geometries were restored. The post-change client suite passes 95 files and 648 tests, and the production client build passes with 2078 transformed modules. No production, deployment, provider, migration, process, push, or destructive action occurred.",
     "2026-08-31 server type gate: TypeScript no-emit passes after two test-only fixture corrections. The owner-bound reward route mock now satisfies the generic database query interface, and the Mile High Club location fixture uses the current LocationPayload fields while preserving its unrelated extra property. The two focused files pass 14 tests. No runtime behavior, database, provider, environment, server process, account data, publication, or production state changed.",
     "2026-08-31 Feed-media backend gate: Five focused checks pass with 303 unrelated cases skipped. Basic members cannot attach Feed photos; cruush+ posts accept only approved, owner-bound, currently unattached Feed media; insertion preserves request order; attached public media serves only after authenticated block checks; and a viewer outside the post Crowd receives 404. No photo upload, moderation provider, account write, server process action, environment change, commit, push, deployment, or production action occurred. Crop, explicit DL Mode masking, viewer controls, and the real upload chain remain unverified.",
     "2026-08-31 Vitest isolation gate: The live Rekognition test no longer copies server/.env into the worker process environment, and mailer plus support-mailer tests restore global fetch after each case. A forced single-worker run across those three files plus key-rotation and media-read-validator passed 27 tests with three live AWS checks skipped because no credentials were present. No provider request, key change, environment change, server process action, account write, commit, push, deployment, or production action occurred. The complete server suite remains unrun, so broader order dependence is not claimed resolved.",

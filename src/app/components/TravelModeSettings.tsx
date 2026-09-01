@@ -88,12 +88,16 @@ function parseCoordinates(raw: string): PickedPoint | null {
   return { latitude, longitude };
 }
 
-function formatCountdown(untilMs: number, nowMs: number) {
-  const remaining = Math.max(0, untilMs - nowMs);
-  const hours = Math.floor(remaining / 3_600_000);
-  const minutes = Math.ceil((remaining % 3_600_000) / 60_000);
+export function formatTravelPinCountdown(untilMs: number, nowMs: number) {
+  const totalMinutes = Math.ceil(Math.max(0, untilMs - nowMs) / 60_000);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
 
-  return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+  if (hours <= 0) {
+    return `${minutes}m`;
+  }
+
+  return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
 }
 
 function TravelPinPicker({
@@ -480,7 +484,7 @@ function TravelModeSection({ onTravelPinChange }: { onTravelPinChange?: (pin: Tr
           <p>
             {canMove
               ? 'Your pin can be moved now.'
-              : `Your pin can be moved again in ${formatCountdown(pin.movableAtMs, nowMs)}.`}
+              : `Your pin can be moved again in ${formatTravelPinCountdown(pin.movableAtMs, nowMs)}.`}
           </p>
         </div>
       ) : null}
