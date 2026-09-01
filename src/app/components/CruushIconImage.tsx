@@ -3,7 +3,8 @@ import cruushColored from '../assets/ui-icons/cruush-colored.png';
 import cruushWhite from '../assets/ui-icons/cruush-white.png';
 import cameraColored from '../assets/ui-icons/camera-colored.png';
 import cameraWhite from '../assets/ui-icons/camera-white.png';
-import crowdHydraWhite from '../assets/ui-icons/crowd-hydra-8441396-white.png';
+import crowdsColored from '../assets/ui-icons/crowds-colored.svg';
+import crowdsWhite from '../assets/ui-icons/crowds-white.svg';
 import feedColored from '../assets/ui-icons/feed-colored.png';
 import feedWhite from '../assets/ui-icons/feed-white.png';
 import ghostColored from '../assets/ui-icons/ghost-colored.svg';
@@ -66,8 +67,8 @@ const CRUUSH_ICON_SOURCES: Record<CruushIconName, Record<CruushIconAssetVariant,
     white: cruushWhite,
   },
   crowds: {
-    colored: crowdHydraWhite,
-    white: crowdHydraWhite,
+    colored: crowdsColored,
+    white: crowdsWhite,
   },
   feed: {
     colored: feedColored,

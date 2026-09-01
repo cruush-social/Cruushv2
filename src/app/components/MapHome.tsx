@@ -13,7 +13,6 @@ import MapProfilePopup from './MapProfilePopup';
 import CruiseCarouselSlot from './CruiseCarouselSlot';
 import MapSidePanel, { type MapSidePanelView } from './MapSidePanel';
 import MapFiltersSurface, { DEFAULT_FILTER_STATE, type FilterState } from './MapFiltersSurface';
-import MapCrowdsSurface from './MapCrowdsSurface';
 import MapVisibilitySurface, { DEFAULT_VISIBILITY_STATE, type VisibilityControlState } from './MapVisibilitySurface';
 import MapPingSheet from './MapPingSheet';
 import PlacesDrawer from './PlacesDrawer';
@@ -91,7 +90,7 @@ import mileHighClubWhite from '../assets/ui-icons/mile-high-club-white.svg';
 import placesGhostSource from '../assets/ui-icons/places-ghost-source.png';
 import seekingIcon from '../assets/ui-icons/seeking-magnifying-glass-8149381.svg';
 import visibilityIcon from '../assets/ui-icons/visibility-hidden-234738.svg';
-import crowdIconWhite from '../assets/ui-icons/crowds-white.svg';
+import crowdIconColored from '../assets/ui-icons/crowds-colored.svg';
 import DlModeMark from './DlModeMark';
 
 const DISCOVERY_MAP_LIMIT = 500;
@@ -851,7 +850,6 @@ export default function MapHome(_props: MapHomeProps = {}) {
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [isRecentlyActiveOpen, setIsRecentlyActiveOpen] = useState(false);
   const [filters, setFilters] = useState<FilterState>(() => routeState?.seekingFilters ?? DEFAULT_FILTER_STATE);
-  const [isCrowdsOpen, setIsCrowdsOpen] = useState(false);
   const [isVisibilityOpen, setIsVisibilityOpen] = useState(false);
   const [visibility, setVisibility] = useState<VisibilityControlState>(DEFAULT_VISIBILITY_STATE);
   const [visibilityError, setVisibilityError] = useState<string | null>(null);
@@ -1072,7 +1070,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
 
     if (step === 'crowds') {
       setVisibilityError(null);
-      setIsCrowdsOpen(true);
+      setIsVisibilityOpen(true);
       return;
     }
 
@@ -1856,7 +1854,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
     setVisibilityError(null);
   };
 
-  const handleApplyVisibility = async (surface: 'visibility' | 'crowds' = 'visibility') => {
+  const handleApplyVisibility = async () => {
     if (!currentProfile) {
       setVisibilityError('Create your profile before changing visibility.');
       return;
@@ -1874,11 +1872,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
       const savedProfile = await saveMyVisibilityRules(visibilityRules);
       setCurrentProfile(savedProfile);
       setVisibility(visibilityRulesToState(savedProfile.visibility_rules));
-      if (surface === 'crowds') {
-        setIsCrowdsOpen(false);
-      } else {
-        setIsVisibilityOpen(false);
-      }
+      setIsVisibilityOpen(false);
       void fetchUsers(getCurrentFetchCoordinates(), filters);
     } catch (saveError) {
       setVisibilityError(saveError instanceof Error ? saveError.message : 'Failed to save visibility.');
@@ -3076,6 +3070,21 @@ export default function MapHome(_props: MapHomeProps = {}) {
           onPointerEnter={() => setMapControlsHovered(true)}
           onPointerLeave={() => setMapControlsHovered(false)}
         >
+          {activeCrowdNotice ? (
+            <button
+              type="button"
+              className="inline-flex h-8 items-center gap-2 rounded-full border border-white/15 px-3 text-[11px] uppercase tracking-[0.16em] text-white shadow-[0_12px_35px_rgba(0,0,0,0.25)] backdrop-blur-md transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/65"
+              style={{ background: 'var(--cruush-gradient)' }}
+              onClick={() => {
+                setVisibilityError(null);
+                setIsVisibilityOpen(true);
+              }}
+            >
+              <CruushIconImage src={crowdIconColored} className="h-4 w-4" />
+              {activeCrowdNotice}
+            </button>
+          ) : null}
+
           <Button
             type="button"
             aria-controls="map-controls-menu"
@@ -3094,20 +3103,6 @@ export default function MapHome(_props: MapHomeProps = {}) {
               className="flex max-h-[calc(100dvh-9rem)] flex-col items-end gap-2 overflow-y-auto p-2"
               data-testid="map-controls-menu"
             >
-              {activeCrowdNotice ? (
-                <button
-                  type="button"
-                  className="inline-flex h-8 items-center gap-2 rounded-full border border-white/15 px-3 text-[11px] uppercase tracking-[0.16em] text-white"
-                  style={{ background: 'var(--cruush-gradient)' }}
-                  onClick={() => {
-                    setVisibilityError(null);
-                    setIsCrowdsOpen(true);
-                  }}
-                >
-                  <CruushIconImage src={crowdIconWhite} className="h-4 w-4" />
-                  {activeCrowdNotice}
-                </button>
-              ) : null}
               <Button
                 className={`h-8 rounded-full border px-4 text-[11px] uppercase tracking-[0.18em] transition-[filter,border-color,background-color] hover:border-white/30 hover:brightness-125 ${hasActiveFilters ? 'border-white/15 text-white' : 'border-white/10 bg-background/68 text-white hover:bg-white/10'}`}
                 style={hasActiveFilters ? { background: 'var(--cruush-gradient)' } : undefined}
@@ -3376,25 +3371,6 @@ export default function MapHome(_props: MapHomeProps = {}) {
             setIsFiltersOpen(false);
             void fetchUsers(getCurrentFetchCoordinates(), filters);
           }}
-        />
-
-        <MapCrowdsSurface
-          open={isCrowdsOpen}
-          onOpenChange={setIsCrowdsOpen}
-          value={safeVisibility.activeCrowdModes}
-          availableCrowds={availableCrowdModes}
-          saving={savingVisibility}
-          error={visibilityError}
-          onChange={(activeCrowdModes) => handleVisibilityChange({ ...safeVisibility, activeCrowdModes })}
-          onClear={() => {
-            handleVisibilityChange({ ...safeVisibility, activeCrowdModes: [] });
-            setVisibilityError(null);
-          }}
-          onEditCrowds={() => {
-            setIsCrowdsOpen(false);
-            navigate('/profile/edit');
-          }}
-          onApply={() => void handleApplyVisibility('crowds')}
         />
 
         <MapVisibilitySurface

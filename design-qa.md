@@ -27,6 +27,29 @@ final result: passed
 
 ---
 
+# Design QA: Crowd Mode 1.6 no-change rollback
+
+## Preserved state
+
+- No dedicated Crowds sheet remains.
+- No Hydra Crowd asset remains.
+- The existing Crowd Mode controls stay inside Visibility Controls.
+- The existing active Crowd notice opens Visibility Controls.
+- The shared icon map again uses `crowds-colored.svg` and `crowds-white.svg`.
+
+## Rendered and automated proof
+
+- At 390 x 844 CSS pixels, the authenticated map opened Visibility Controls with the existing
+  Crowd Mode section and no separate Crowds dialog.
+- No profile, Crowd, visibility, or account setting was changed.
+- MapHome, MapVisibilitySurface, and MapControlsTutorial passed 93 focused tests.
+- The production client build passed with 2077 transformed modules.
+- `git diff --check` passed.
+
+final result: passed
+
+---
+
 # Design QA: Populated Recently Active
 
 ## Rendered state
@@ -168,44 +191,6 @@ final result: passed
 
 ---
 
-# Design QA: Crowd Hydra 8441396
-
-## Visual truth and rendered evidence
-
-- Source visual truth: `/private/tmp/cruush-hydra.8Ftk9N/hydra-8441396.png`
-- Source asset: `src/app/assets/ui-icons/crowd-hydra-8441396-source.png`
-- Inactive implementation: `/private/tmp/cruush-crowd-hydra-inactive-clean.jpg`
-- Active implementation: `/private/tmp/cruush-crowd-hydra-active.jpg`
-- Combined source, inactive, and active comparison: `/private/tmp/cruush-crowd-hydra-comparison.jpg`
-- Source dimensions: 512 x 512 RGBA pixels.
-- Implementation viewport: 697 x 938 CSS pixels at devicePixelRatio 2. Browser screenshots are normalized to 698 x 938 pixels.
-- Rendered Crowd button: 48 x 48 CSS pixels with the existing 44px desktop icon canvas and established side spacing.
-
-## Compared states
-
-- Inactive: exact Hydra geometry renders solid white.
-- Active: the same Hydra geometry is used as a mask filled by `var(--cruush-gradient)`.
-- The temporary local Gay Crowd membership and active Crowd Mode used for the active capture were both removed after inspection.
-
-## Fidelity review
-
-- Full view: the Crowd control remains aligned with the existing top-navigation row and does not add a background, tagline, or new control treatment.
-- Focused region: the exact six-headed Hydra silhouette and negative-space details match between the downloaded source, inactive icon, and gradient-active icon.
-- Typography and copy: unchanged.
-- Spacing and layout rhythm: existing 48px control, desktop icon canvas, and side margins remain unchanged.
-- Colors and tokens: inactive is opaque white; active uses the existing app gradient token.
-- Image quality and asset fidelity: the implementation uses the exact 512px Noun Project PNG, not an approximation. The white derivative preserves the source alpha silhouette.
-- Interaction: opening Crowds, enabling Gay Crowd Mode, applying it, observing the gradient state, clearing it, and restoring the prior profile Crowd membership all completed in the existing authenticated local app.
-- `git diff --check` passed for the Crowd slice.
-
-## Remaining proof gap
-
-- The selected browser session did not expose a console-error log surface during this pass. Browser-rendered source, inactive, active, and interaction evidence all passed, but the Product Design console gate remains unverified.
-
-final result: blocked
-
----
-
 # Design QA: Supplied Ghost Mode asset
 
 ## Visual source
@@ -296,26 +281,17 @@ final result: passed
 
 ---
 
-# Design QA: Fixed Crowd sheet and mobile top navigation
+# Design QA: Mobile top navigation
 
 ## Rendered state
 
 - Authenticated 1.6 map rendered at 390 x 844 CSS pixels.
-- The top navigation had no Crowd control and no resting grey circle behind its visible icon buttons.
-- Tutorial step 8 opened the real fixed Crowds sheet. Its no-membership state showed Crowd Mode,
-  Edit Crowds, Clear, Apply, and Close without clipping or bottom-navigation overlap.
-- Closing the sheet and skipping the replay restored the prior completed tutorial state.
+- The top navigation had no resting grey circle behind its visible icon buttons.
 
 ## Interaction
 
 - Map Controls opened and closed from the mobile map.
 - Settings opened from the top navigation and Back returned directly to the map.
-- No profile, Crowd, visibility, or account setting was changed.
-
-## Remaining proof gap
-
-- The local profile has no Crowd membership, so the populated fixed sheet and active Map Controls
-  Crowd notice remain visually unverified. Focused MapHome coverage verifies the combined active
-  notice in source.
+- No profile, visibility, or account setting was changed.
 
 final result: passed

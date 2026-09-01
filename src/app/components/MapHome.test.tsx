@@ -1770,7 +1770,7 @@ describe('MapHome', () => {
       .toHaveAttribute('data-tone', 'white');
   });
 
-  it('shows one combined active crowd notice on the map', async () => {
+  it('keeps one combined active crowd notice on the map and returns to Visibility', async () => {
     useIsMobile.mockReturnValue(false);
     getMyProfile.mockResolvedValue({
       ...((await import('../lib/profileApi')).emptyProfilePayload),
@@ -1793,11 +1793,15 @@ describe('MapHome', () => {
       </MemoryRouter>
     );
 
-    await openMapControls();
-    expect(await screen.findByText('Dyke, Gay, and T4T Crowds Active')).toBeInTheDocument();
+    const crowdNotice = await screen.findByText('Dyke, Gay, and T4T Crowds Active');
+    expect(crowdNotice).toBeInTheDocument();
     expect(screen.queryByText(/^Dyke Crowd Active$/)).not.toBeInTheDocument();
     expect(screen.queryByText(/^Gay Crowd Active$/)).not.toBeInTheDocument();
     expect(screen.queryByText(/^T4T Crowd Active$/)).not.toBeInTheDocument();
+
+    fireEvent.click(crowdNotice);
+    expect(await screen.findByRole('heading', { name: 'Visibility Controls' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Crowds' })).not.toBeInTheDocument();
   });
 
   it('opens the desktop own-profile side panel from router state', async () => {

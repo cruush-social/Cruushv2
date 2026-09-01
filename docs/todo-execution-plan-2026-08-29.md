@@ -224,12 +224,12 @@ Status:
 - `[~]` Saved Custom Crowds source is preserved under
   `/Volumes/good/cruushv2/custom-crowds-20260830`. Its migration, owner-only API, encrypted service,
   discovery/Profile/Feed access predicate, and editor remain unverified and deferred from 1.6.
-- `[~]` The 1.6 source removes `109_custom_crowds.sql` and the Custom Crowds server hooks, restores
-  the fixed Crowd sheet, removes Crowd from the top navigation, and uses the existing old Crowd
-  icon in the active Map Controls notice. The current numbered migration 109 is the unrelated
-  survey-response uniqueness guard. At 390x844, the tutorial's real Crowd Mode action opened the
-  fixed sheet's no-membership state with Edit Crowds, Clear, Apply, and Close visible. The active
-  Map Controls Crowd notice remains visually unverified because the local profile has no Crowd.
+- `[x]` Direct 2026-09-01 correction removes every Crowd Mode update from 1.6. The branch-only
+  dedicated Crowds sheet and Hydra assets are removed; the existing main-branch Crowd Mode remains
+  inside Visibility and its active notice returns there. At 390x844, Visibility rendered the
+  existing Crowd Mode section with no separate Crowds dialog. Three focused files passed 93 tests,
+  and the production client build passed with 2077 modules.
+  The current numbered migration 109 is the unrelated survey-response uniqueness guard.
 - `[~]` Who's Here now uses the shared people card with pronouns, badges beneath the heart,
   relationship-aware heart colors, and MHC side-badge color. The server retains the existing
   active opt-in and bidirectional block filters. The remaining mutual picker also carries MHC
@@ -340,7 +340,7 @@ Status:
 ### Custom Crowds
 
 - [deferred] Custom saved Crowds are removed from the 1.6 release scope by direct instruction.
-  Keep the already-deployed fixed Crowd behavior in 1.6.
+  Do not update Crowd Mode in 1.6. Preserve the existing main-branch behavior.
 - [~] Unverified local source exists for private saved crowds: encrypted persistence, blind tokens,
   owner-only API, Basic/cruush+ limits, downgrade locks, current switching, delete cleanup,
   legacy provenance, reciprocal Crowd Mode, Visibility exclusion, Seeking inclusion, and a shared
@@ -348,10 +348,9 @@ Status:
 - [~] Exact Custom Crowds core source and mixed integration snapshots are preserved under
   `/Volumes/good/cruushv2/custom-crowds-20260830`. Migration `109_custom_crowds.sql` is removed
   from the 1.6 migration list and was not run.
-- [~] The fixed Crowd UI and behavior are restored in the 1.6 source without removing unrelated
-  map, Seeking, Visibility, Feed, profile, or privacy work. At 390x844, the fixed sheet's
-  no-membership state rendered without clipping and closed normally. Populated and active-notice
-  states remain visually unverified.
+- [x] The branch-only dedicated Crowds sheet and Hydra assets are removed. The existing Crowd Mode
+  controls remain in Visibility, and the active notice opens Visibility. At 390x844, the real
+  Visibility sheet rendered that existing flow without a separate Crowds dialog. No setting changed.
 - [deferred] No-crowd, five-crowd, downgrade, lock, conflict, loading, empty, offline, retry,
   deletion, re-upgrade, onboarding templates, and onboarding copy move with the Custom Crowds work.
 
@@ -727,12 +726,10 @@ Status:
   existing cruush gradient while active. Keep the current gradient until Julien selects dedicated
   DL Mode colors.
 - [x] At 390x844, DL Mode rendered at the same adjacent visible scale inside the shared 32px button
-  canvas without overflow. The direct 1.6 decision supersedes Crowd glyph sizing and side spacing:
-  no Crowd control renders in the top navigation.
-- [~] Superseded: the Hydra Crowd icon is removed from the 1.6 top navigation. At 390x844, no Crowd
-  control rendered in that navigation and the tutorial's real Crowd Mode action opened the fixed
-  Crowd sheet. The active Map Controls Crowd notice remains visually unverified because the local
-  profile has no Crowd.
+  canvas without overflow.
+- [x] Direct correction removes the branch-only Hydra asset and dedicated Crowds sheet from 1.6.
+  The existing main-branch Crowd Mode control and active notice return to Visibility. Three focused
+  files passed 93 tests, and the production client build passed.
 - [x] Top-nav source explicitly removes hover, focus, and focus-visible fills and uses one shared
   visible canvas. Desktop inactive and active states rendered without a grey hover circle. At
   390x844, the resting icon row had no grey circles, Map Controls opened and closed, Settings opened,
@@ -787,8 +784,8 @@ Status:
 
 - [x] No new taglines. The authenticated rendered surfaces retained only the approved Visibility and
   Spots descriptions; Seeking rendered without a new description.
-- [x] Seeking Filter and Visibility Controls use those exact headers. 1.6 has no Crowd icon in the
-  top navigation; the tutorial's rendered Crowd Mode action opens the fixed Crowds sheet.
+- [x] Seeking Filter and Visibility Controls use those exact headers. Crowd Mode receives no 1.6
+  redesign and remains inside the existing Visibility flow.
 - [x] Visibility keeps its existing single tagline `Pick who should not see you.` Spots keeps its
   approved single tagline. Both rendered in the authenticated 412x915 flow without a second tagline.
 - [x] Hanky meanings: white with black paisley is Bondage; lime is Mutual masturbation; orange is
