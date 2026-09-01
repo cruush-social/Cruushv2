@@ -84,10 +84,9 @@ Status:
 - `[~]` The authenticated Rewards page now loads four Side Quests, with completed quests showing
   enabled Claim controls and unfinished quests disabled. Seven Rewards tests pass, including
   stale-refresh protection, four-card replacement, daily lock state, and focus refresh.
-- `[blocked]` The real first-message quest claim was rejected by the browser safety boundary
-  because it grants one day of account time and creates a notification. No workaround or grant
-  was performed. Explicit approval of that local account mutation is still required. The browser
-  later returned to sign-in, so authenticated follow-up also needs the session restored.
+- `[x]` The later-authorized real local first-message quest claim granted one banked cruush+ day
+  and one notification, moved under Recent rewards, and revealed the next quest. The earlier
+  browser safety stop is superseded.
 - `[~]` Older reward notification links now use `/api/rewards/grants/:grantId`, an authenticated,
   owner-bound read independent of the latest 20 grants. The response omits private audit fields;
   missing or non-owned grants return 404. Reversed grants do not open the card. Replay never
@@ -147,12 +146,9 @@ Status:
   only for that member's server-confirmed completed checkout. It does not complete payment or
   enable the retired checkout UI. Current billing still exposes the fake processor contract;
   real purchase integration and all card interactions remain unverified.
-- `[blocked]` GitHub issue [#141](https://github.com/cruush-social/Cruushv2/issues/141) reports
-  “API key required” across an iPhone map. The current 1.6 source defaults to key-free OpenFreeMap
-  vector tiles and does not contain that message or a keyed tile provider. The report has no
-  screenshot or build identifier. Identifying the affected served bundle and tile request needs
-  read-only runtime inspection, currently excluded by the code-only instruction. No provider,
-  key, live configuration, or GitHub issue state was changed; this issue is not marked fixed.
+- `[~]` GitHub issue [#141](https://github.com/cruush-social/Cruushv2/issues/141) was later traced to
+  the deployed CARTO raster fallback. The 1.6 source keeps the approved key-free OpenFreeMap vector
+  path and rejects that fallback. Production remains unchanged and the issue is not marked fixed.
 - `[~]` Ghost rotation now has the requested 15-minute, 30-minute, and hourly-through-24-hour
   options using the existing selector. The preference and schedule stay in the encrypted
   visibility policy. A cadence edit retains the current epoch, decoy, and deadline, then begins
