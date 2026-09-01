@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { useLocation, useNavigate } from 'react-router';
-import { ArrowLeft, Clock, MessageCircle, SlidersHorizontal, Trash2, X } from 'lucide-react';
+import { ArrowLeft, Clock, SlidersHorizontal, Trash2, X } from 'lucide-react';
 import { Button } from './ui/button';
 import CruushPlusCardDialog from './CruushPlusCardDialog';
 import BlockUserAction from './BlockUserAction';
@@ -27,17 +27,13 @@ import { Textarea } from './ui/textarea';
 import { addDlModeChangedListener, isDlModeEnabled, shouldMaskPhoto } from '../lib/dlMode';
 import {
   createFeedPost,
-  createFeedReply,
-  deleteFeedReply,
   deleteStagedFeedPhoto,
   deleteFeedPost,
-  getFeedReplies,
   getFeedPosts,
   getFeedSettings,
   updateFeedSettings,
   uploadFeedPhoto,
   type FeedPhoto,
-  type FeedReply,
   type FeedLocationPinVisibility,
   type FeedPostAudience,
   type FeedPost,
@@ -161,12 +157,6 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
   const [sendingCruushUserIds, setSendingCruushUserIds] = useState<Set<string>>(() => new Set());
   const [validPinUserIds, setValidPinUserIds] = useState<Set<string>>(() => new Set());
   const [deletingPostId, setDeletingPostId] = useState<string | null>(null);
-  const [openReplyPostIds, setOpenReplyPostIds] = useState<Set<string>>(() => new Set());
-  const [repliesByPostId, setRepliesByPostId] = useState<Record<string, FeedReply[]>>({});
-  const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
-  const [loadingReplyPostIds, setLoadingReplyPostIds] = useState<Set<string>>(() => new Set());
-  const [submittingReplyPostId, setSubmittingReplyPostId] = useState<string | null>(null);
-  const [deletingReplyId, setDeletingReplyId] = useState<string | null>(null);
   const [availableCrowdTargets, setAvailableCrowdTargets] = useState<string[]>([]);
   const [selectedCrowdTargets, setSelectedCrowdTargets] = useState<string[]>([]);
   const [feedSettings, setFeedSettings] = useState<FeedSettings>(DEFAULT_FEED_SETTINGS);
@@ -555,77 +545,6 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
       setError(error instanceof Error ? error.message : 'Failed to delete post.');
     } finally {
       setDeletingPostId(null);
-    }
-  };
-
-  const handleToggleReplies = async (postId: string) => {
-    if (openReplyPostIds.has(postId)) {
-      setOpenReplyPostIds((current) => {
-        const next = new Set(current);
-        next.delete(postId);
-        return next;
-      });
-      return;
-    }
-
-    setOpenReplyPostIds((current) => new Set(current).add(postId));
-    if (repliesByPostId[postId]) return;
-
-    setLoadingReplyPostIds((current) => new Set(current).add(postId));
-    try {
-      const replies = await getFeedReplies(postId);
-      setRepliesByPostId((current) => ({ ...current, [postId]: replies }));
-    } catch (replyError) {
-      setError(replyError instanceof Error ? replyError.message : 'Failed to load replies.');
-    } finally {
-      setLoadingReplyPostIds((current) => {
-        const next = new Set(current);
-        next.delete(postId);
-        return next;
-      });
-    }
-  };
-
-  const handleCreateReply = async (postId: string) => {
-    const content = replyDrafts[postId]?.trim();
-    if (!content || submittingReplyPostId) return;
-
-    setSubmittingReplyPostId(postId);
-    setError(null);
-    try {
-      const created = await createFeedReply(postId, content);
-      setRepliesByPostId((current) => ({
-        ...current,
-        [postId]: [...(current[postId] ?? []), created],
-      }));
-      setReplyDrafts((current) => ({ ...current, [postId]: '' }));
-      setPosts((current) => current.map((post) => post.id === postId
-        ? { ...post, replyCount: (post.replyCount ?? 0) + 1 }
-        : post));
-    } catch (replyError) {
-      setError(replyError instanceof Error ? replyError.message : 'Failed to post reply.');
-    } finally {
-      setSubmittingReplyPostId(null);
-    }
-  };
-
-  const handleDeleteReply = async (postId: string, replyId: string) => {
-    if (deletingReplyId) return;
-    setDeletingReplyId(replyId);
-    setError(null);
-    try {
-      await deleteFeedReply(postId, replyId);
-      setRepliesByPostId((current) => ({
-        ...current,
-        [postId]: (current[postId] ?? []).filter((reply) => reply.id !== replyId),
-      }));
-      setPosts((current) => current.map((post) => post.id === postId
-        ? { ...post, replyCount: Math.max(0, (post.replyCount ?? 0) - 1) }
-        : post));
-    } catch (replyError) {
-      setError(replyError instanceof Error ? replyError.message : 'Failed to delete reply.');
-    } finally {
-      setDeletingReplyId(null);
     }
   };
 
@@ -1435,79 +1354,6 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
                         onOpen={(index) => setPhotoViewer({ post, index })}
                         photos={post.photos ?? []}
                       />
-                      <div className="border-t border-white/8 pt-1.5">
-                        <button
-                          className="inline-flex min-h-8 items-center gap-1.5 text-sm text-white/62 transition hover:text-white"
-                          onClick={() => void handleToggleReplies(post.id)}
-                          type="button"
-                        >
-                          <MessageCircle className="h-4 w-4" />
-                          {(post.replyCount ?? 0) > 0
-                            ? `${post.replyCount} ${post.replyCount === 1 ? 'reply' : 'replies'}`
-                            : 'Reply'}
-                        </button>
-                        {openReplyPostIds.has(post.id) ? (
-                          <div className="mt-1.5 space-y-2">
-                            {loadingReplyPostIds.has(post.id) ? <p className="text-sm text-white/52">Loading replies...</p> : null}
-                            {(repliesByPostId[post.id] ?? []).map((feedReply) => (
-                              <div className="rounded-xl border border-white/10 bg-black/35 px-3 py-2" key={feedReply.id}>
-                                <div className="flex items-start justify-between gap-2">
-                                  <div className="min-w-0">
-                                    <button
-                                      className="truncate text-sm font-medium text-white hover:underline"
-                                      onClick={() => navigate(`/profile/${feedReply.user.id}`)}
-                                      type="button"
-                                    >
-                                      {feedReply.user.name}
-                                    </button>
-                                    <span className="ml-2 text-xs text-white/45">{formatRelativeTime(feedReply.createdAt)}</span>
-                                  </div>
-                                  {feedReply.user.id === currentUserId ? (
-                                    <Button
-                                      aria-label="Delete reply"
-                                      className="size-7 shrink-0 text-white/48 hover:text-white"
-                                      disabled={deletingReplyId === feedReply.id}
-                                      onClick={() => void handleDeleteReply(post.id, feedReply.id)}
-                                      size="icon"
-                                      title="Delete reply"
-                                      variant="ghost"
-                                    >
-                                      <Trash2 className="h-3.5 w-3.5" />
-                                    </Button>
-                                  ) : null}
-                                </div>
-                                <p className="mt-0.5 whitespace-pre-wrap text-sm text-white/82">{feedReply.content}</p>
-                              </div>
-                            ))}
-                            <form
-                              className="flex items-end gap-2"
-                              onSubmit={(event) => {
-                                event.preventDefault();
-                                void handleCreateReply(post.id);
-                              }}
-                            >
-                              <Textarea
-                                aria-label={`Reply to ${post.user.name}`}
-                                className="min-h-10 resize-none bg-black/45"
-                                maxLength={500}
-                                onChange={(event) => setReplyDrafts((current) => ({ ...current, [post.id]: event.target.value }))}
-                                placeholder="Write a reply..."
-                                rows={1}
-                                value={replyDrafts[post.id] ?? ''}
-                              />
-                              <Button
-                                aria-label="Post reply"
-                                className="size-10 shrink-0"
-                                disabled={!replyDrafts[post.id]?.trim() || submittingReplyPostId !== null}
-                                size="icon"
-                                type="submit"
-                              >
-                                <CruushIcon className="h-4 w-4" name="send" />
-                              </Button>
-                            </form>
-                          </div>
-                        ) : null}
-                      </div>
                     </div>
                   )}
                   cornerAction={(

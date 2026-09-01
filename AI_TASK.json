@@ -316,7 +316,6 @@
     "server/sql/107_side_quest_first_ping.sql",
     "server/sql/108_side_quest_catalog.sql",
     "server/sql/109_survey_response_uniqueness.sql",
-    "server/sql/110_feed_replies.sql",
     "server/src/app.test.ts",
     "server/src/profile-schema.test.ts",
     "server/src/beta-access.test.ts",
