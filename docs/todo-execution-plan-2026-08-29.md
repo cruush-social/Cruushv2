@@ -38,6 +38,8 @@ Status:
   current source. #135 has no screenshot, affected surface, or reachable reporter, so changing
   checkbox visuals would require an unapproved design guess. Safari 18.6 proof for #136 and
   production proof for #141 remain open. No GitHub issue was commented on or closed.
+- `[removed]` GitHub #135 is not a 1.6 release item by direct 2026-09-01 correction. It requires no
+  checkbox visual change and no longer blocks the 1.6 candidate.
 - `[x]` Opening `/survey` while signed out renders the existing Sign In screen. Signing in returns
   directly to the survey after required account gates. The real local flow passed at 412x740 and
   desktop size, the focused App routing test passed, and the generic support endpoint rejects
@@ -508,10 +510,10 @@ Status:
   delivery ran, so those integration gates remain pending.
 - [x] Feed posts can add up to five moderated `#tags`, display them on the post, and find them through
   Feed Seeking. Migration `110_feed_post_tags.sql` adds normalized post-tag storage.
-- [deferred] Feed replies were directly rejected and remain outside 1.6. Reactions remain deferred
-  until Julien selects the emoji set. Do not build either from the older backlog entry.
-- [blocked] Decide whether crowd targeting and Feed pin visibility remain cruush+ gates after saved
-  Crowds replace legacy crowd targeting.
+- [removed] Feed replies and reactions were directly rejected and remain outside 1.6. Do not build
+  either from the older backlog entry.
+- [removed] Saved-Crowd targeting and Feed pin entitlement decisions move with Custom Crowds beyond
+  1.6. They do not block this release.
 
 ## P1. Badge editor and side badges
 
