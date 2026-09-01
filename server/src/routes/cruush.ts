@@ -952,15 +952,17 @@ async function mapTokenizedMutualCruushRow(
     }),
     mutualCrowds: sharedCrowds,
     vibes,
-    distanceLabel: options.currentCoordinates?.lat != null && options.currentCoordinates.lng != null
-      ? formatDistanceLabel({
-          displayMode,
-          viewerLat: options.currentCoordinates.lat,
-          viewerLng: options.currentCoordinates.lng,
-          targetLat: preciseCoordinates.lat,
-          targetLng: preciseCoordinates.lng
-        })
-      : "Nearby",
+    distanceLabel: options.activeTravelUserIds.has(row.other_user_id) && !relationship.canRevealPreciseLocation
+      ? "Far far away"
+      : options.currentCoordinates?.lat != null && options.currentCoordinates.lng != null
+        ? formatDistanceLabel({
+            displayMode,
+            viewerLat: options.currentCoordinates.lat,
+            viewerLng: options.currentCoordinates.lng,
+            targetLat: preciseCoordinates.lat,
+            targetLng: preciseCoordinates.lng
+          })
+        : "Nearby",
     lastActive: formatLastActiveFromDate(row.updated_at),
     canMessage: relationship.canMessage,
     canRevealPreciseLocation: relationship.canRevealPreciseLocation,
@@ -1024,7 +1026,9 @@ function mapMutualCruushRow(
     vibes,
     distance: row.target_base_mode === "STEALTH" && row.target_dark_room_distance_label
       ? "Dark Room"
-      : formatMaybeDistance(options.currentCoordinates, coordinates),
+      : row.travelling && !preciseAllowed
+        ? "Far far away"
+        : formatMaybeDistance(options.currentCoordinates, coordinates),
     lastActive: formatLastActiveFromDate(row.updated_at),
     canMessage: row.can_message === true,
     canRevealPreciseLocation: preciseAllowed,

@@ -666,7 +666,7 @@ export default function Settings({ embedded = false, onBack, onClose, onOpenMile
             />
             <p className="flex flex-col items-center justify-center gap-0.5 whitespace-nowrap text-xs text-muted-foreground">
               <span className="tracking-[0.18em]">OPEN BETA</span>
-              <span>Version 1.5</span>
+              <span>Version 1.6</span>
             </p>
           </div>
         </div>

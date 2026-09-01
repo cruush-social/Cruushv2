@@ -890,6 +890,7 @@ async function mapModernDiscoveryRow(
   encryptedLocation: LocationPayload | null = null,
   options: {
     npcGhostDemoRadiusMeters?: number | null;
+    targetTravelling?: boolean;
     viewerCrowds?: string[];
   } = {}
 ) {
@@ -996,13 +997,15 @@ async function mapModernDiscoveryRow(
     age: row.year_of_birth ? new Date().getFullYear() - row.year_of_birth : null,
     pronouns: coerceStringArray(row.pronouns).join(", "),
     lastActive: formatLastActiveFromDate(row.location_updated_at ?? row.updated_at),
-    distanceLabel: formatDistanceLabel({
-      displayMode,
-      viewerLat: centerLat,
-      viewerLng: centerLng,
-      targetLat: preciseCoordinates.lat,
-      targetLng: preciseCoordinates.lng
-    }),
+    distanceLabel: options.targetTravelling && relationship?.canRevealPreciseLocation !== true
+      ? "Far far away"
+      : formatDistanceLabel({
+          displayMode,
+          viewerLat: centerLat,
+          viewerLng: centerLng,
+          targetLat: preciseCoordinates.lat,
+          targetLng: preciseCoordinates.lng
+        }),
     displayLocationToken,
     displayExpiresAtMs: displayLocationToken.expiresAtMs,
     __pulseLat: shownCoordinates.lat,
@@ -1229,6 +1232,7 @@ export async function registerUserRoutes(app: FastifyInstance) {
                 npcGhostDemoRadiusMeters: shouldApplyNpcGhostDemo(app, row, npcGhostDemoEnabled)
                   ? viewerGhostRadiusMeters
                   : null,
+                targetTravelling: travelPins.has(row.id),
                 viewerCrowds: discoveryViewer.subject?.crowds ?? []
               }
             );
@@ -1281,13 +1285,15 @@ export async function registerUserRoutes(app: FastifyInstance) {
             age: legacy.age,
             pronouns: legacy.pronouns,
             lastActive: legacy.lastActive,
-            distanceLabel: formatDistanceLabel({
-              displayMode,
-              viewerLat: centerLat,
-              viewerLng: centerLng,
-              targetLat: legacy.lat,
-              targetLng: legacy.lng
-            }),
+            distanceLabel: travelPins.has(legacy.id)
+              ? "Far far away"
+              : formatDistanceLabel({
+                  displayMode,
+                  viewerLat: centerLat,
+                  viewerLng: centerLng,
+                  targetLat: legacy.lat,
+                  targetLng: legacy.lng
+                }),
             displayLocationToken,
             displayExpiresAtMs: displayLocationToken.expiresAtMs,
             __pulseLat: shownCoordinates.lat,
