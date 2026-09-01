@@ -119,8 +119,8 @@ import { Button } from './ui/button';
 import {
   BadgeFrame,
   BadgeHoverLabel,
-  SIDE_BADGE_SIZE_PX,
-  sideBadgeEdgeOffsetPx,
+  MAP_SIDE_BADGE_PLACEMENT_CLASS,
+  mapSideBadgeStyle,
   type BadgeFrameId,
 } from './BadgeFrames';
 
@@ -409,16 +409,12 @@ function BadgeChip({ darkRoom = false, frame, option, side, meaning }: {
       aria-label={meaning}
       className={[
         'group/badge absolute flex items-center justify-center text-white',
-        'top-[62%] z-20 -translate-y-1/2',
+        MAP_SIDE_BADGE_PLACEMENT_CLASS,
       ].join(' ')}
       role="img"
       style={{
         color: CURRENT_USER_BORDER,
-        height: SIDE_BADGE_SIZE_PX,
-        width: SIDE_BADGE_SIZE_PX,
-        ...(side === 'left'
-          ? { left: sideBadgeEdgeOffsetPx(frame) }
-          : { right: sideBadgeEdgeOffsetPx(frame) }),
+        ...mapSideBadgeStyle(side, frame),
       }}
     >
       <BadgeFrame

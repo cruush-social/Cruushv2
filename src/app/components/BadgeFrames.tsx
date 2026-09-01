@@ -78,6 +78,8 @@ const HEART_FRAME_SCALE = 1.25;
 
 /** Matches the old 25px Hanky square after its 45-degree rotation. */
 export const SIDE_BADGE_SIZE_PX = 35;
+export const MAP_SIDE_BADGE_SIZE_PX = SIDE_BADGE_SIZE_PX * 0.85;
+export const MAP_SIDE_BADGE_PLACEMENT_CLASS = 'top-[70%] z-20 -translate-y-1/2';
 export const SIDE_BADGE_GLYPH_SCALE_PERCENT = 60;
 const HEART_BADGE_GLYPH_SCALE_PERCENT = SIDE_BADGE_GLYPH_SCALE_PERCENT * 0.85;
 /** Leaves 1px between the badge and the visible edge of the 80px profile-heart path. */
@@ -95,6 +97,16 @@ export function sideBadgeEdgeOffsetPx(frame: BadgeFrameId) {
   }
 
   return resolvedFrame === 'hexagon' ? -15.5 : SIDE_BADGE_EDGE_OFFSET_PX;
+}
+
+export function mapSideBadgeStyle(side: 'left' | 'right', frame: BadgeFrameId = 'circle') {
+  const edgeOffset = sideBadgeEdgeOffsetPx(frame) + 4 + (SIDE_BADGE_SIZE_PX - MAP_SIDE_BADGE_SIZE_PX);
+
+  return {
+    height: MAP_SIDE_BADGE_SIZE_PX,
+    width: MAP_SIDE_BADGE_SIZE_PX,
+    ...(side === 'left' ? { left: edgeOffset } : { right: edgeOffset }),
+  };
 }
 
 /** Arms, in the direction each symbol actually puts them. */

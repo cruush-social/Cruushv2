@@ -47,8 +47,8 @@ import { positionGlyphFor, roleGlyphFor } from './PositionRoleGlyphs';
 import {
   BadgeFrame,
   BadgeHoverLabel,
-  SIDE_BADGE_SIZE_PX,
-  sideBadgeEdgeOffsetPx,
+  MAP_SIDE_BADGE_PLACEMENT_CLASS,
+  mapSideBadgeStyle,
   type BadgeFrameId,
 } from './BadgeFrames';
 import { HANKY_COLORS } from './HankyFrame';
@@ -975,22 +975,6 @@ function truncateMarkerPreview(value: string | null | undefined, maxCharacters =
   return `${normalizedValue.slice(0, maxCharacters).trimEnd()}...`;
 }
 
-function getHeartSideBadgeClass(side: 'left' | 'right') {
-  return 'top-[70%] z-20 -translate-y-1/2';
-}
-
-function getHeartSideBadgeStyle(side: 'left' | 'right', frame: BadgeFrameId = 'circle') {
-  const size = SIDE_BADGE_SIZE_PX * 0.85;
-  const edgeOffset = sideBadgeEdgeOffsetPx(frame) + 4 + (SIDE_BADGE_SIZE_PX - size);
-  return {
-    height: size,
-    width: size,
-    ...(side === 'left'
-      ? { left: edgeOffset }
-      : { right: edgeOffset }),
-  };
-}
-
 const MILE_HIGH_SKY_BLUE = '#77B9DA';
 const OWNER_GHOST_DECOY_FADE_MASK = 'linear-gradient(to bottom, #000 0%, #000 50%, rgba(0,0,0,0.1) 100%)';
 
@@ -1071,7 +1055,6 @@ function MarkerSideBadge({
   const badgeGradientStops = isCurrentUser && marker.ownerStealthActive && marker.travelling !== true
     ? [DARK_ROOM_PALETTE.dark, DARK_ROOM_PALETTE.middle, DARK_ROOM_PALETTE.light] as const
     : undefined;
-  const placementClass = getHeartSideBadgeClass(side);
   const frame: BadgeFrameId = 'circle';
   const hoverLabel = hanky
     ? formatBadgeLabel(hanky.meaning, badge.intent ?? 'none')
@@ -1084,12 +1067,12 @@ function MarkerSideBadge({
       aria-label={badge.saved
         ? `${side === 'left' ? 'left' : 'right'} badge: ${hoverLabel}`
         : `${side === 'left' ? 'role' : 'position'}: ${hoverLabel}`}
-      className={`group/badge absolute flex items-center justify-center ${placementClass}`}
+      className={`group/badge absolute flex items-center justify-center ${MAP_SIDE_BADGE_PLACEMENT_CLASS}`}
       data-testid={`marker-${side === 'left' ? 'role' : 'position'}-badge-${marker.id}`}
       role="img"
       style={{
         color: badgeBorderColor,
-        ...getHeartSideBadgeStyle(side, frame),
+        ...mapSideBadgeStyle(side, frame),
         ...ownerGhostDecoyFadeStyle(marker, isCurrentUser),
       }}
     >

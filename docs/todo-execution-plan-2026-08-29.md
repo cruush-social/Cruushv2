@@ -480,8 +480,12 @@ Status:
 - [x] Dominant renders the BDSM chevron, empty for Dominant and filled for Dominant, taken.
 - [x] Submissive uses an empty circle ring; Submissive, taken uses a filled circle. Top and Bottom use
   plain up and down arrows.
-- [ ] Keep icon size, centering, black interior, opaque border, heart clearance, map/editor parity,
-  Hanky clipping, state colors, and hover labels consistent on every pin and people card.
+- [~] Keep icon size, centering, black interior, opaque border, heart clearance, map/editor parity,
+  Hanky clipping, state colors, and hover labels consistent on every pin and people card. Map and
+  embedded Badge editor now share one 29.75px, 70-percent-height, 5.25px edge-offset geometry helper.
+  The authenticated signed-in and Ghost-decoy map pins plus editor preview rendered at 1440x900 and
+  390x844 without overflow; the meaning-only hover label rendered on desktop. The complete other-user,
+  Mile High Club, Pulse, Dark Room, and every-people-card state matrix remains open.
 - [x] Badge titles show only the meaning, never the Hanky color name. The rendered Hanky picker and
   `S&M` option title used meaning-only text.
 - [x] Under `What this side says`, allow Give, Receive, Switch, Service, or Stone. The rendered

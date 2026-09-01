@@ -228,6 +228,11 @@ describe('MapView', () => {
       'top-[70%]',
       '-translate-y-1/2',
     );
+    expect(screen.getByTestId('marker-position-badge-me')).toHaveStyle({
+      width: '29.75px',
+      height: '29.75px',
+      right: '-5.25px',
+    });
     expect(screen.getByTestId('marker-position-badge-me')).toHaveStyle({ color: '#004BFF' });
     expect(screen.getByTestId('marker-position-badge-user-1')).toHaveStyle({ color: '#FF0072' });
     expect(screen.getByTestId('marker-heart-me')).toHaveAttribute('data-marker-theme', 'current');
