@@ -28,7 +28,7 @@
     "The map always uses cruush's in-app vector theme. Alternate style URLs, raster tiles, CARTO tiles, and automatic theme fallbacks are unsupported and cannot replace it after a slow load or tile error.",
     "Published Spots load and appear on the map by default, while opening the Spots control opens discovery without changing layer visibility.",
     "The Spots Map Controls button uses its active treatment only when one or more Spot filters limit the visible Spot dataset.",
-    "The Map Controls Spots button keeps the approved places handoff icon until Julien supplies category-specific Spot icons.",
+    "Individual Spot map markers use the approved black diamond with a blue app-theme glow and a flat white category mark. Beach uses Noun Project Beach Umbrella 1689481, Staircase uses clear ascending steps, and Adult venue uses 18+ in the cluster-pin UnifrakturMaguntia font.",
     "Settings menu rows show only primary labels while actual setting pages retain feature descriptions.",
     "Zoom never changes an individual member's coordinates; zoom may only cluster or uncluster members.",
     "Map presence offers 1h, 3h, 6h, 8h, 12h, 24h, 48h, 3d, 4d, 5d, 6d, and 7d.",
@@ -135,7 +135,7 @@
     ,"People and Spot clustering remain independent, exact-coordinate people retain spiderfy, cluster selection fits member bounds, and zoom never changes an individual member's display coordinates."
     ,"Person heart pins do not show a mutual-relationship side badge; the left side defaults to the profile's Role glyph and the right side defaults to the profile's Position glyph."
     ,"Feed message content renders directly below the identity and badge area and uses the same font size as the member name. Basic Feed posts remain text-only, while cruush+ Feed posts can upload and publish up to three policy-compliant photos with approved heart-shaped previews and a full rectangular viewer. Feed photos use the same allowed-content rules as message photos, including multiple subjects and allowed non-human imagery."
-    ,"One Feed photo renders as one heart, two as welded hearts, and three as a heart cluster; opening any preview shows the full rectangular photo with Close and Report in the upper-right."
+    ,"One Feed photo renders as one heart. Two or three Feed photos render as separate equal-size hearts in one simple horizontal row with visible gaps and no welding, overlap, or cluster. Opening any preview shows the full rectangular photo with Close and Report in the upper-right."
     ,"Feed photo uploads reuse the approved shared cropper with pan, zoom, continuous rotation, live angle readout, and 90-degree quick rotation controls."
     ,"Profile photos may show the uploader, any part of the uploader's body without requiring a face, or the uploader's gear. A profile photo may not contain more than one human subject, and every human subject shown across that profile's photos must be the same person. Feed photos use message-photo rules and may contain multiple subjects or allowed non-human imagery."
     ,"Profile photo guidance is a compact four-item bullet list using only this copy: Profile photos may be SFW or NSFW. Use a photo of you or your gear. Add at least one SFW photo if you want people browsing in DL Mode to still see you. You don't have to show your face."
@@ -242,6 +242,7 @@
     "scripts/release-main-coolify.mjs",
     "FIXLOG.md",
     "docs/design-master.md",
+    "DESIGN_DECISIONS.md",
     "docs/session-handoff-2026-08-31.md",
     "server/src/migrate.test.ts",
     "server/src/policy-mapper.test.ts",
@@ -543,6 +544,8 @@
     "src/app/components/MapVisibilitySurface.test.tsx",
     "src/app/components/MapView.test.tsx",
     "src/app/components/MapView.tsx",
+    "src/app/assets/ui-icons/beach-umbrella-1689481.png",
+    "src/app/assets/ui-icons/beach-umbrella-1689481.LICENSE.md",
     "src/app/components/ProfileView.tsx",
     "src/app/components/ProfileView.test.tsx",
     "src/app/components/PrivateGroupChat.tsx",

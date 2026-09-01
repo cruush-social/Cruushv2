@@ -234,8 +234,8 @@ const OPTIONS = [
   },
   {
     id: 'two-hearts',
-    title: 'Two welded heart previews',
-    note: 'Two attachment hearts share one compact block with no gap between them.',
+    title: 'Two-heart row',
+    note: 'Two separate attachment hearts line up in one landscape row.',
     count: 2,
   },
   {

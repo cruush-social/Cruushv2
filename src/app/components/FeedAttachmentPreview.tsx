@@ -36,31 +36,14 @@ export default function FeedAttachmentPreview({ photos, dlModeActive, onOpen }: 
     return null;
   }
 
-  if (visiblePhotos.length === 1) {
-    return (
-      <div className="flex items-center" data-testid="feed-photo-preview-one">
-        <PhotoHeart photo={visiblePhotos[0]} index={0} dlModeActive={dlModeActive} className="h-14 w-14" onOpen={onOpen} />
-      </div>
-    );
-  }
-
-  if (visiblePhotos.length === 2) {
-    return (
-      <div className="flex items-center" data-testid="feed-photo-preview-two">
-        {visiblePhotos.map((photo, index) => (
-          <div className={index === 0 ? '' : '-ml-2'} key={photo.id}>
-            <PhotoHeart photo={photo} index={index} dlModeActive={dlModeActive} className="h-14 w-14" onOpen={onOpen} />
-          </div>
-        ))}
-      </div>
-    );
-  }
-
   return (
-    <div className="flex items-center" data-testid="feed-photo-preview-three">
+    <div
+      className="flex items-center gap-2"
+      data-testid={`feed-photo-preview-${visiblePhotos.length === 1 ? 'one' : visiblePhotos.length === 2 ? 'two' : 'three'}`}
+    >
       {visiblePhotos.map((photo, index) => (
         <PhotoHeart
-          className="h-12 w-12"
+          className="h-14 w-14 shrink-0"
           dlModeActive={dlModeActive}
           index={index}
           key={photo.id}
