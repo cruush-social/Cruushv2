@@ -1,7 +1,7 @@
 {
   "task": "Continue the recovered cruush v2 crypto payment implementation. Slices now include the disabled-by-default watch-only Base USDC and Ethereum PYUSD rails, the seamless no-voucher cruush+ store checkout, ERC-681 payment URIs and QR codes, and the disabled-by-default chain watcher, settlement policy, entitlement grant, and reconciliation and support lookup. Accept no funds and make no live RPC call.",
   "status": "active",
-  "publicationTarget": "none",
+  "publicationTarget": "feat/crypto-pricing",
   "baselineSha": "5a77cb504d23bea71867cf0558bd10ede40e2248",
   "decisions": [
     "Checkout is seamless and account-linked; no voucher or promo-code issuance flow",
