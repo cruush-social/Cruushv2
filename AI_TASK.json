@@ -1,45 +1,45 @@
 {
   "schemaVersion": 2,
-  "taskId": "cruush-1.6-release-email-preview-20260901",
-  "status": "validating",
-  "objective": "Repair the v1.6 release email preview and deliver a readable, balanced screenshot for review.",
-  "userOutcome": "Julien can review the exact v1.6 announcement copy and a screenshot of the finished email before deciding whether to send it.",
-  "audience": "cruush members receiving a future release broadcast.",
+  "taskId": "cruush-1.6-pink-book-checkin-20260901",
+  "status": "active",
+  "objective": "Add an optional Pink Book post to Spot check-in, move the Pink Book section below attribution, and let authors delete their own Pink Book posts after checkout.",
+  "userOutcome": "Members can write a Pink Book post while checking in and later remove their own post without remaining checked in.",
+  "audience": "Authenticated cruush members using Spot details.",
   "successCriteria": [
-    "The subject, preheader, and body describe only confirmed user-visible v1.6 features.",
-    "The email includes real, useful captures of confirmed v1.6 features, with no private profile or precise location details.",
-    "The HTML preserves the Resend broadcast unsubscribe placeholder.",
-    "The full email capture fills its frame at readable scale with no huge empty gutter, duplicate stitched region, overly tall feature image, or misleading sliver crop.",
-    "The final email is visually inspected at desktop and narrow mobile widths before delivery."
+    "The signed-out-of-check-in state includes an optional Pink Book text input inside the check-in card.",
+    "Submitting a check-in sends the optional post through the existing check-in endpoint.",
+    "The Pink Book and Who's Here section appears below the Spot source attribution.",
+    "Checked-out members see only their own Pink Book posts and can delete them; other members' posts remain hidden until check-in.",
+    "Affected user-visible Spot copy calls the feature Pink Book."
   ],
   "mustPreserve": [
-    "Preserve the approved cruush logo, dark email style, existing changelog history, and user-visible terminology.",
-    "Preserve Who's Here visibility without check-in and describe board access as requiring a timed check-in.",
-    "Keep public copy brief and free of secrets, implementation details, provider details, exact addresses, radii, or internal release language."
+    "Preserve Who's Here visibility without check-in.",
+    "Preserve active check-in requirements for reading other members' Pink Book posts and creating later posts.",
+    "Preserve existing Spot styling, vibes, amenities, timers, ratings, attribution, moderation, and location gates."
   ],
   "nonGoals": [
-    "Do not send or schedule the email.",
-    "Do not add unconfirmed features, Feed replies, reactions, Crowd changes, or exact location details.",
-    "Do not run tests; deployment may build through the existing release path."
+    "Do not redesign adjacent Spot content or map behavior.",
+    "Do not expose other members' Pink Book posts without an active check-in.",
+    "Do not run tests or deploy; Julien will test this release slice."
   ],
   "assumptions": [
     {
-      "statement": "The established v1.2 Resend broadcast structure remains the correct visual template for v1.6.",
-      "impact": "The v1.6 preview reuses its logo, table layout, CTA, support address, and broadcast unsubscribe token.",
+      "statement": "People outside an active check-in may access only their own Pink Book posts for deletion.",
+      "impact": "The existing Pink Book endpoint returns all visible posts while checked in and only the requesting author's posts otherwise.",
       "reversible": true,
       "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "Julien reviews the corrected screenshot before any email send decision.",
+  "nextVisibleMilestone": "Commit the Pink Book check-in and post-deletion slice for Julien's mobile test.",
   "stopConditions": [
-    "Stop before sending or scheduling the email."
+    "Stop before push or deployment."
   ],
   "costBudget": {"maxUsd": 0, "maxMinutes": null},
   "externalEffectDecisions": {
     "commit": "Authorized by Julien's standing instruction to commit v1.6 work.",
-    "send": "forbidden without exact recipients, sender, final copy approval, and explicit send authority",
-    "push": "not authorized for this local preview correction",
-    "deploy": "not authorized for this local preview correction",
+    "send": "forbidden",
+    "push": "not authorized for this local feature correction",
+    "deploy": "not authorized for this local feature correction",
     "migration": "already completed; outside this correction"
   },
   "externalEffects": {
@@ -57,19 +57,20 @@
   "release": "1.6",
   "repository": "cruush-social/Cruushv2",
   "branch": "release/1.6-integration-20260901",
-  "job": "Update and render the v1.6 release email preview.",
+  "job": "Implement the requested Spot Pink Book behavior and layout.",
   "forbiddenPaths": ["HANDOFF.md", ".dev/**", "src/app/assets/ui-icons/ghost-horned-mask-source.png"],
   "allowedPaths": [
     "AI_TASK.json",
-    "docs/previews/cruush-1.6-update-email.html",
-    "public/email/cruush-v1.6-map.jpg",
-    "public/email/cruush-v1.6-spot-board.jpg",
-    "docs/previews/cruush-1.6-update-email.jpg"
+    "DESIGN_DECISIONS.md",
+    "FIXLOG.md",
+    "src/app/components/PlaceDetail.tsx",
+    "src/app/lib/placesApi.ts",
+    "server/src/routes/places.ts"
   ],
-  "proofTarget": "Rendered local email preview at desktop and narrow mobile widths, plus a saved full-page screenshot.",
-  "publicationTarget": "Local committed preview only; no push, deploy, or email send",
+  "proofTarget": "Julien's Android Spot detail flow shown in the supplied 598x1278 screenshot; rendered verification remains with Julien under the explicit no-test instruction.",
+  "publicationTarget": "Local commit only; no push or deployment",
   "requiredEvidence": [
-    "Rendered full-page email screenshot",
-    "Exact subject, preheader, CTA, image sources, support address, and unsubscribe placeholder"
+    "Source diff covering the four named changes",
+    "Clean local commit for Julien's mobile test"
   ]
 }

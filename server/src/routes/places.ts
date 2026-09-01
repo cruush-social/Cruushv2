@@ -234,7 +234,7 @@ async function requirePublishedPlace(app: FastifyInstance, placeId: string) {
   return row;
 }
 
-async function requireActivePlaceCheckin(app: FastifyInstance, userId: string, placeId: string) {
+async function hasActivePlaceCheckin(app: FastifyInstance, userId: string, placeId: string) {
   const checkin = (await app.db.query<{ user_id: string }>(
     `select user_id::text
      from place_checkins
@@ -242,8 +242,13 @@ async function requireActivePlaceCheckin(app: FastifyInstance, userId: string, p
      limit 1`,
     [userId, placeId]
   )).rows[0];
-  if (!checkin) throw new ApiError(403, "PLACE_CHECKIN_REQUIRED", "Check in to view this Spot board.");
-  return checkin;
+  return Boolean(checkin);
+}
+
+async function requireActivePlaceCheckin(app: FastifyInstance, userId: string, placeId: string) {
+  if (!await hasActivePlaceCheckin(app, userId, placeId)) {
+    throw new ApiError(403, "PLACE_CHECKIN_REQUIRED", "Check in to view this Spot Pink Book.");
+  }
 }
 
 async function requireBoardPostingAllowed(app: FastifyInstance, userId: string) {
@@ -263,7 +268,7 @@ async function requireBoardPostingAllowed(app: FastifyInstance, userId: string) 
      ) as allowed`,
     [userId]
   )).rows[0]?.allowed;
-  if (!allowed) throw new ApiError(403, "FEATURE_RESTRICTED", "Spot board posting is unavailable for this account.");
+  if (!allowed) throw new ApiError(403, "FEATURE_RESTRICTED", "Spot Pink Book posting is unavailable for this account.");
 }
 
 let lastPlaceCleanupAt = 0;
@@ -543,7 +548,7 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
     const { placeId } = placeParamsSchema.parse(request.params);
     const query = boardQuerySchema.parse(request.query);
     await requirePublishedPlace(app, placeId);
-    await requireActivePlaceCheckin(app, userId, placeId);
+    const viewerHasActiveCheckin = await hasActivePlaceCheckin(app, userId, placeId);
     const [result, mutualUserIds] = await Promise.all([
       app.db.query<BoardRow>(
         `select m.id::text, m.user_id::text, m.content, m.content_ciphertext, m.content_nonce,
@@ -569,13 +574,14 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
        from place_board_messages m
        join profiles pr on pr.id = m.user_id
        where m.place_id = $1
+         and ($5::boolean or m.user_id = $2)
          and not exists (
            select 1 from user_blocks b
            where (b.blocker_user_id = $2 and b.blocked_user_id = m.user_id)
               or (b.blocker_user_id = m.user_id and b.blocked_user_id = $2)
          )
          order by m.created_at desc limit $3 offset $4`,
-        [placeId, userId, query.limit, query.offset]
+        [placeId, userId, query.limit, query.offset, viewerHasActiveCheckin]
       ),
       loadActiveMutualUserIds(app, userId)
     ]);
@@ -616,7 +622,7 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
       key: `place-board-post:${userId}`,
       max: 10,
       windowMs: 60 * 1000,
-      message: "Too many board messages. Try again later."
+      message: "Too many Pink Book posts. Try again later."
     });
     await requireBoardPostingAllowed(app, userId);
     await moderateTextOrReject(app, { userId, surface: "feed", text: payload.content, contentRef: { placeId } });
@@ -635,9 +641,9 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
   app.delete("/api/places/:placeId/board/:messageId", async (request, reply) => {
     const userId = await getActiveAccountUserId(request);
     const { placeId, messageId } = messageParamsSchema.parse(request.params);
-    await requireActivePlaceCheckin(app, userId, placeId);
+    await requirePublishedPlace(app, placeId);
     const result = await app.db.query(`delete from place_board_messages where id = $1 and place_id = $2 and user_id = $3`, [messageId, placeId, userId]);
-    if (!result.rowCount) throw new ApiError(404, "NOT_FOUND", "Board message not found.");
+    if (!result.rowCount) throw new ApiError(404, "NOT_FOUND", "Pink Book post not found.");
     return reply.code(204).send();
   });
 
@@ -663,7 +669,7 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
         key: `place-board-post:${userId}`,
         max: 10,
         windowMs: 60 * 1000,
-        message: "Too many board messages. Try again later."
+        message: "Too many Pink Book posts. Try again later."
       });
       await requireBoardPostingAllowed(app, userId);
       await moderateTextOrReject(app, { userId, surface: "feed", text: payload.content, contentRef: { placeId } });

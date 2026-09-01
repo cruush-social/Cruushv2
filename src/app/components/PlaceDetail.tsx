@@ -110,15 +110,10 @@ export default function PlaceDetail({ embedded = false, placeIdOverride }: Place
       const placeResult = await getPlace(placeId);
       if (!isCurrent()) return;
       setPlace(placeResult);
-      if (placeResult.viewerCheckin) {
-        const boardResult = await getPlaceBoard(placeId, { limit: BOARD_PAGE_SIZE, offset: 0 });
-        if (!isCurrent()) return;
-        setMessages(boardResult);
-        setBoardHasMore(boardResult.length === BOARD_PAGE_SIZE);
-      } else {
-        setMessages([]);
-        setBoardHasMore(false);
-      }
+      const boardResult = await getPlaceBoard(placeId, { limit: BOARD_PAGE_SIZE, offset: 0 });
+      if (!isCurrent()) return;
+      setMessages(boardResult);
+      setBoardHasMore(boardResult.length === BOARD_PAGE_SIZE);
     } catch (loadError) {
       if (!isCurrent()) return;
       setError(loadError instanceof Error ? loadError.message : 'Spot could not load.');
@@ -183,6 +178,7 @@ export default function PlaceDetail({ embedded = false, placeIdOverride }: Place
     navigator.geolocation.getCurrentPosition((position) => {
       if (!isCurrent()) return;
       void checkIntoPlace(placeId, {
+        ...(message.trim() ? { content: message.trim() } : {}),
         vibes: checkinVibes,
         durationHours: checkinDurationHours,
         visible: visibleCheckin,
@@ -192,6 +188,7 @@ export default function PlaceDetail({ embedded = false, placeIdOverride }: Place
         observedAt: new Date(position.timestamp).toISOString(),
       }).then(async () => {
         if (!isCurrent()) return;
+        setMessage('');
         await refresh();
       }).catch((postError: unknown) => {
         if (!isCurrent()) return;
@@ -219,7 +216,7 @@ export default function PlaceDetail({ embedded = false, placeIdOverride }: Place
       await refresh();
     } catch (postError) {
       if (!isCurrent()) return;
-      setError(postError instanceof Error ? postError.message : 'Board message could not be posted.');
+      setError(postError instanceof Error ? postError.message : 'Pink Book post could not be posted.');
     } finally {
       if (isCurrent()) setPostingBoard(false);
     }
@@ -241,7 +238,7 @@ export default function PlaceDetail({ embedded = false, placeIdOverride }: Place
       setBoardHasMore(nextPage.length === BOARD_PAGE_SIZE);
     } catch (loadError) {
       if (!isCurrent()) return;
-      setError(loadError instanceof Error ? loadError.message : 'More board messages could not load.');
+      setError(loadError instanceof Error ? loadError.message : 'More Pink Book posts could not load.');
     } finally {
       if (isCurrent()) setLoadingMoreBoard(false);
     }
@@ -336,7 +333,7 @@ export default function PlaceDetail({ embedded = false, placeIdOverride }: Place
     return (
       <section className="space-y-5 bg-background p-6" data-testid="spot-rating-panel" aria-busy={mutating}>
         <header className="flex items-center gap-3 pr-10">
-          <Button type="button" variant="ghost" size="icon" autoFocus aria-label="Back to spot board" onClick={() => setRatingOpen(false)}>
+          <Button type="button" variant="ghost" size="icon" autoFocus aria-label="Back to Spot" onClick={() => setRatingOpen(false)}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <h2 className="text-xl">Rate this spot</h2>
@@ -409,10 +406,10 @@ export default function PlaceDetail({ embedded = false, placeIdOverride }: Place
 
         {place.sourceUrl ? <a className="order-7 inline-flex items-center text-sm text-primary" href={place.sourceUrl} target="_blank" rel="noreferrer">Source{place.sourceAttribution ? `: ${place.sourceAttribution}` : ''}<ExternalLink className="ml-2 h-4 w-4" /></a> : null}
 
-        {status ? <p className="order-8 text-sm text-primary">{status}</p> : null}
-        {error ? <p className="order-9 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{error}</p> : null}
+        {status ? <p className="order-9 text-sm text-primary">{status}</p> : null}
+        {error ? <p className="order-10 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{error}</p> : null}
 
-        <Tabs defaultValue="feed" className="order-2 w-full">
+        <Tabs defaultValue="feed" className="order-8 w-full">
           {place.vibes?.length || place.amenities?.length ? (
             <div className="mb-4 space-y-3">
               {place.vibes?.length ? <div className="flex flex-wrap gap-2">{(place.vibes ?? []).slice(0, 2).map((vibe) => <span key={vibe} className="rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-xs text-white">{PLACE_VIBE_LABELS[vibe]}</span>)}</div> : null}
@@ -425,25 +422,26 @@ export default function PlaceDetail({ embedded = false, placeIdOverride }: Place
             </div>
           ) : null}
           <TabsList className="w-full grid grid-cols-2">
-            <TabsTrigger value="feed">Board</TabsTrigger>
+            <TabsTrigger value="feed">Pink Book</TabsTrigger>
             <TabsTrigger value="here">Who's Here</TabsTrigger>
           </TabsList>
 
           <TabsContent value="feed" className="space-y-4 mt-4">
             {place.viewerCheckin ? (
               <div className="rounded-lg border border-border bg-card p-3">
-                <textarea aria-label="Leave a spot board message" className="min-h-20 w-full resize-none bg-transparent text-sm text-white outline-none" placeholder="Write a board post (stays until you delete it)" value={message} onChange={(event) => setMessage(event.target.value)} maxLength={1000} />
+                <textarea aria-label="Write a Pink Book post" className="min-h-20 w-full resize-none bg-transparent text-sm text-white outline-none" placeholder="Write a Pink Book post" value={message} onChange={(event) => setMessage(event.target.value)} maxLength={1000} />
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <p className="text-xs text-white/55">Checked in until {new Date(place.viewerCheckin.expiresAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</p>
                   <div className="flex items-center gap-3">
                     <button type="button" disabled={mutating || postingCheckin || postingBoard} className="text-xs text-white/65 hover:text-white disabled:opacity-50" onClick={() => void handleCheckout()}>Check out</button>
-                    <Button size="sm" disabled={!message.trim() || postingBoard || postingCheckin || mutating} onClick={() => void handlePostBoard()}>{postingBoard ? 'Posting...' : 'Post to board'}</Button>
+                    <Button size="sm" disabled={!message.trim() || postingBoard || postingCheckin || mutating} onClick={() => void handlePostBoard()}>{postingBoard ? 'Posting...' : 'Post to Pink Book'}</Button>
                   </div>
                 </div>
               </div>
             ) : (
               <div className="rounded-lg border border-border bg-card p-3">
-                <p className="mb-3 text-sm text-white/70">Check in to view the board. Your check-in expires; board posts stay until their author deletes them.</p>
+                <p className="mb-3 text-sm text-white/70">Check in to read other members' Pink Book posts. Your posts stay until you delete them.</p>
+                <textarea aria-label="Pink Book post for check-in" className="mb-4 min-h-20 w-full resize-none rounded-md border border-white/10 bg-black/30 p-3 text-sm text-white outline-none focus:border-primary/45" placeholder="Write a Pink Book post (optional)" value={message} onChange={(event) => setMessage(event.target.value)} maxLength={1000} />
                 <fieldset className="mb-4 space-y-2">
                   <legend className="text-xs text-white/60">Spot vibes</legend>
                   <div className="flex flex-wrap gap-2">
@@ -485,8 +483,8 @@ export default function PlaceDetail({ embedded = false, placeIdOverride }: Place
                 </div>
               </div>
             )}
-            {place.viewerCheckin && messages.length === 0 ? <p className="py-8 text-center text-sm text-muted-foreground">No board messages yet.</p> : null}
-            {place.viewerCheckin ? messages.map((post) => (
+            {place.viewerCheckin && messages.length === 0 ? <p className="py-8 text-center text-sm text-muted-foreground">No Pink Book posts yet.</p> : null}
+            {messages.map((post) => (
               <UserActivityCapsule
                 key={post.id}
                 testId={`spot-board-post-${post.id}`}
@@ -504,15 +502,15 @@ export default function PlaceDetail({ embedded = false, placeIdOverride }: Place
                 cornerAction={(
                   <div className="flex flex-col items-end gap-1">
                     {post.canDelete ? (
-                      <button type="button" aria-label="Delete board post" disabled={mutating || postingCheckin || postingBoard} className="rounded-md p-1.5 text-white/48 hover:text-white disabled:opacity-50" onClick={() => void mutatePlace((id) => deletePlaceBoardMessage(id, post.id), 'Board post could not be deleted.')}><Trash2 className="h-4 w-4" /></button>
+                      <button type="button" aria-label="Delete Pink Book post" disabled={mutating || postingCheckin || postingBoard} className="rounded-md p-1.5 text-white/48 hover:text-white disabled:opacity-50" onClick={() => void mutatePlace((id) => deletePlaceBoardMessage(id, post.id), 'Pink Book post could not be deleted.')}><Trash2 className="h-4 w-4" /></button>
                     ) : (
-                      <ReportAction targetType="place_message" targetId={post.id} targetLabel={`board post by ${post.user.name}`} className="h-8 w-8 text-muted-foreground hover:text-white" onRequestReport={embedded ? () => setReportTarget({ targetType: 'place_message', targetId: post.id, targetLabel: `board post by ${post.user.name}` }) : undefined} />
+                      <ReportAction targetType="place_message" targetId={post.id} targetLabel={`Pink Book post by ${post.user.name}`} className="h-8 w-8 text-muted-foreground hover:text-white" onRequestReport={embedded ? () => setReportTarget({ targetType: 'place_message', targetId: post.id, targetLabel: `Pink Book post by ${post.user.name}` }) : undefined} />
                     )}
                   </div>
                 )}
               />
-            )) : null}
-            {place.viewerCheckin && boardHasMore ? <div className="flex justify-center"><Button variant="outline" size="sm" disabled={loadingMoreBoard} onClick={() => void handleLoadMoreBoard()}>{loadingMoreBoard ? 'Loading more messages...' : 'Load more messages'}</Button></div> : null}
+            ))}
+            {boardHasMore ? <div className="flex justify-center"><Button variant="outline" size="sm" disabled={loadingMoreBoard} onClick={() => void handleLoadMoreBoard()}>{loadingMoreBoard ? 'Loading more posts...' : 'Load more posts'}</Button></div> : null}
           </TabsContent>
 
           <TabsContent value="here" className="space-y-4 mt-4">

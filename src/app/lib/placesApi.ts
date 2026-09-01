@@ -138,6 +138,7 @@ export async function removePlaceRating(placeId: string) {
 }
 
 export async function checkIntoPlace(placeId: string, input: {
+  content?: string;
   vibes: PlaceVibe[];
   durationHours: 1 | 3 | 6 | 12 | 24;
   visible: boolean;

@@ -5,3 +5,4 @@
 - Feed search searches Feed post tags only. It does not search member names, profiles, or post text.
 - Feed reactions and replies are not part of 1.6. Do not build either.
 - GitHub issue #135 is not a 1.6 release item. Do not invent or change checkbox visuals for it.
+- The Spot board is called the Pink Book. Its section sits below source attribution. Check-in includes an optional Pink Book post. An active check-in is required to read other members' posts, but authors can always view and delete their own posts after checkout.
