@@ -114,6 +114,8 @@ export type ProfileRecord = ProfilePayload & {
   photo_metadata?: ProfilePhotoMetadata[];
   badges?: CruushBadge[];
   attendingLaunchParty?: boolean;
+  travelling?: boolean;
+  travelLabel?: string;
   location?: {
     id: string;
     display_location_token?: DisplayLocationToken;
