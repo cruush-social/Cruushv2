@@ -14,9 +14,11 @@ import {
 } from "../match-relationships.js";
 import {
   birthYearFromDateOfBirth,
+  emptySideBadges,
   emptyProfile,
   profileLocationPayloadSchema,
   profilePayloadSchema,
+  sideBadgesSchema,
   profileVisibilityRulesSchema,
   type ProfilePayload
 } from "../profile-schema.js";
@@ -53,10 +55,11 @@ import {
 } from "../profile-sensitive.js";
 import { getActiveAccountUserId, getAuthenticatedUserId } from "../request-auth.js";
 import { assertUsersNotBlocked } from "../user-blocks.js";
-import { getTravelPin } from "../travel-pins.js";
+import { getTravelPin, locationPayloadAtTravelPin } from "../travel-pins.js";
 import {
   DEFAULT_GHOST_RADIUS_METERS,
   GHOST_RADIUS_OPTIONS,
+  GHOST_ROTATION_MINUTES,
   loadLocationEnvelope,
   loadVisibilityPolicy,
   makeDisplayLocationToken,
@@ -105,6 +108,7 @@ const privacySettingsPayloadSchema = z.object({
   baseMode: z.enum(["PUBLIC_PRECISE", "GHOST", "STEALTH"]).optional(),
   ghostModeEnabled: z.boolean().optional(),
   ghostRadiusMeters: z.number().int().optional(),
+  ghostRotationMinutes: z.number().int().refine((value) => GHOST_ROTATION_MINUTES.includes(value), "Ghost rotation interval is unsupported.").optional(),
   ghostRadiusLabel: z.string().optional(),
   preciseToMutualCruushes: z.boolean().optional(),
   preciseToMutualCrowds: z.array(crowdPrecisionPolicySchema).max(3).optional(),
@@ -143,6 +147,7 @@ type ProfileRow = {
   weight: string | null;
   position: string[] | null;
   role: string[] | null;
+  side_badges: ProfilePayload["side_badges"] | null;
   trans_status_visibility: ProfileVisibility | null;
   availability: string[] | null;
   hosting_travel: string[] | null;
@@ -349,6 +354,8 @@ const PROFILE_COLUMNS = [
   "trans_crowds_changed_at"
 ] as const;
 
+const SIDE_BADGES_SELECT = "(to_jsonb(profiles)->'side_badges') as side_badges";
+
 const PROFILE_VISIBILITY_SET_COLUMNS = [
   "id::text as id",
   "user_id::text as user_id",
@@ -521,6 +528,7 @@ function mapProfileRow(
     weight: row.weight ?? "",
     position: row.position ?? [],
     role: row.role ?? [],
+    side_badges: row.side_badges ?? emptySideBadges,
     is_trans: showTransStatus ? sensitiveProfile?.is_trans ?? null : null,
     trans_status_visibility: row.trans_status_visibility ?? "mutual_cruushes",
     crowds: visibleCrowds,
@@ -628,6 +636,7 @@ function profilePayloadFromRow(
     weight: row.weight ?? "",
     position: row.position ?? [],
     role: row.role ?? [],
+    side_badges: row.side_badges ?? emptySideBadges,
     is_trans: sensitiveProfile.is_trans,
     trans_status_visibility: row.trans_status_visibility ?? "mutual_cruushes",
     crowds: sensitiveProfile.crowds,
@@ -705,6 +714,9 @@ async function buildOwnerLocationDisplay(app: FastifyInstance, request: FastifyR
     return null;
   }
 
+  const travelPin = await getTravelPin(app, userId).catch(() => null);
+  const displayLocation = travelPin ? locationPayloadAtTravelPin(location, travelPin) : location;
+
   const policy = await loadVisibilityPolicy(app, userId).catch((error) => {
     if (isSchemaCompatibilityError(error)) {
       return null;
@@ -729,7 +741,7 @@ async function buildOwnerLocationDisplay(app: FastifyInstance, request: FastifyR
     subjectUserId: userId,
     viewerUserId: userId,
     policy: effectivePolicy,
-    location,
+    location: displayLocation,
     displayMode: "PRECISE",
     forceSelfPrecise: true
   });
@@ -738,7 +750,7 @@ async function buildOwnerLocationDisplay(app: FastifyInstance, request: FastifyR
         subjectUserId: userId,
         viewerUserId: userId,
         policy: effectivePolicy,
-        location,
+        location: displayLocation,
         displayMode: "GHOST"
       })
     : null;
@@ -754,7 +766,7 @@ async function buildOwnerLocationDisplay(app: FastifyInstance, request: FastifyR
           ghost_display_expires_at_ms: ghostToken.expiresAtMs
         }
       : {}),
-    location_updated_at: new Date(location.collectedAtMs).toISOString()
+    location_updated_at: new Date(displayLocation.collectedAtMs).toISOString()
   };
 }
 
@@ -961,7 +973,7 @@ async function syncSensitiveProfileTokens(app: FastifyInstance, userId: string, 
 
 async function loadOwnerProfileRow(app: FastifyInstance, userId: string) {
   const result = await app.db.query<ProfileRow>(
-    `select ${PROFILE_COLUMNS.join(", ")}, updated_at
+    `select ${PROFILE_COLUMNS.join(", ")}, ${SIDE_BADGES_SELECT}, updated_at
      from profiles
      where id = $1`,
     [userId]
@@ -1006,7 +1018,7 @@ async function applyProfileVisibilityRules(
            profile_visibility_token_key_version = $6,
            updated_at = now()
        where id = $1
-       returning ${PROFILE_COLUMNS.join(", ")}, updated_at`,
+       returning ${PROFILE_COLUMNS.join(", ")}, ${SIDE_BADGES_SELECT}, updated_at`,
       [
         userId,
         encryptedProfileVisibility.profile_visibility_ciphertext,
@@ -1277,6 +1289,7 @@ async function loadProfileData(
 ) {
   const result = await app.db.query<ProfileRow>(
     `select ${PROFILE_COLUMNS.join(", ")},
+            ${SIDE_BADGES_SELECT},
             ${profilePhotoMetadataSelect("profiles")},
             lat,
             lng,
@@ -1367,7 +1380,7 @@ async function loadProfileData(
     canMessage
   });
 
-  // Travel mode is worth reading before you cross a city for someone, so it is
+  // Mile High Club is worth reading before you cross a city for someone, so it is
   // stated on the profile itself.
   const travelPin = await getTravelPin(app, userId).catch(() => null);
   const withTravel = travelPin
@@ -1394,6 +1407,10 @@ async function assertProfileRowVisibleToViewer(
   viewerUserId: string | undefined,
   visibilityRules: ProfileVisibilityRules | null
 ) {
+  if (viewerUserId === row.id) {
+    return;
+  }
+
   if (visibilityRulesArePublic(visibilityRules)) {
     return;
   }
@@ -1410,6 +1427,7 @@ async function assertProfileRowVisibleToViewer(
 export async function assertProfileVisibleToViewer(app: FastifyInstance, viewerUserId: string, targetUserId: string) {
   const result = await app.db.query<ProfileRow>(
     `select ${PROFILE_COLUMNS.join(", ")},
+            ${SIDE_BADGES_SELECT},
             lat,
             lng,
             fuzzy_lat,
@@ -1432,6 +1450,26 @@ export async function registerProfileRoutes(app: FastifyInstance) {
   app.get("/api/profiles/me", async (request, reply) => {
     const userId = await getAuthenticatedUserId(request);
     return loadProfile(app, request, userId, reply);
+  });
+
+  app.put("/api/profiles/me/side-badges", async (request, reply) => {
+    const userId = await getActiveAccountUserId(request);
+    const sideBadges = sideBadgesSchema.parse(request.body);
+    await requireCruushPlus(app, userId, "Upgrade to cruush+ to choose custom side badges.");
+    const result = await app.db.query<{ side_badges: ProfilePayload["side_badges"] }>(
+      `update profiles
+       set side_badges = $2::jsonb,
+           updated_at = now()
+       where id = $1
+       returning side_badges`,
+      [userId, JSON.stringify(sideBadges)]
+    );
+
+    if (!result.rows[0]) {
+      throw new ApiError(404, "NOT_FOUND", "Profile not found");
+    }
+
+    return reply.send({ data: result.rows[0].side_badges });
   });
 
   app.get("/api/profiles/me/privacy-settings", async (request, reply) => {
@@ -1488,6 +1526,7 @@ export async function registerProfileRoutes(app: FastifyInstance) {
       baseMode,
       ghostModeEnabled: baseMode === "GHOST",
       ghostRadiusMeters: payload.ghostRadiusMeters ?? radiusMetersForLabel(payload.ghostRadiusLabel),
+      ghostRotationMinutes: payload.ghostRotationMinutes,
       preciseToMutualCruushes,
       preciseToMutualCrowds,
       darkRoomDistanceLabel: payload.darkRoomDistanceLabel === true,
@@ -1781,7 +1820,7 @@ export async function registerProfileRoutes(app: FastifyInstance) {
            values (${placeholders.join(", ")})
            on conflict (id) do update
            set ${updates.join(", ")}, updated_at = now()
-           returning ${PROFILE_COLUMNS.join(", ")}, updated_at`,
+           returning ${PROFILE_COLUMNS.join(", ")}, ${SIDE_BADGES_SELECT}, updated_at`,
           values
         );
 
@@ -1872,11 +1911,13 @@ export async function registerProfileRoutes(app: FastifyInstance) {
         };
       });
       const policy = await getEffectiveVisibilityPolicy(app, userId);
+      const travelPin = await getTravelPin(app, userId).catch(() => null);
+      const displayLocation = travelPin ? locationPayloadAtTravelPin(location, travelPin) : location;
       const token = await makeDisplayLocationToken(app, request, {
         subjectUserId: userId,
         viewerUserId: userId,
         policy,
-        location,
+        location: displayLocation,
         displayMode: "PRECISE",
         forceSelfPrecise: true
       });
@@ -1885,7 +1926,7 @@ export async function registerProfileRoutes(app: FastifyInstance) {
             subjectUserId: userId,
             viewerUserId: userId,
             policy,
-            location,
+            location: displayLocation,
             displayMode: "GHOST"
           })
         : null;
@@ -1894,7 +1935,7 @@ export async function registerProfileRoutes(app: FastifyInstance) {
         try {
           await notifyNearbyUsersForLocationUpdate(app, {
             sourceUserId: userId,
-            location,
+            location: displayLocation,
             visibilityPolicy: policy
           });
         } catch (error) {
@@ -1915,7 +1956,7 @@ export async function registerProfileRoutes(app: FastifyInstance) {
                 ghost_display_expires_at_ms: ghostToken.expiresAtMs
               }
             : {}),
-          location_updated_at: new Date(location.collectedAtMs).toISOString()
+          location_updated_at: new Date(displayLocation.collectedAtMs).toISOString()
         }
       });
     } catch (error) {

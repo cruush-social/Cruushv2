@@ -29,7 +29,9 @@ type ReportActionProps = {
   targetLabel: string;
   targetUserId?: string;
   onReported?: (targetId: string) => void;
+  onRequestReport?: () => void;
   className?: string;
+  dialogClassName?: string;
   disabled?: boolean;
   iconOnly?: boolean;
   label?: string;
@@ -43,7 +45,9 @@ export default function ReportAction({
   targetLabel,
   targetUserId,
   onReported,
+  onRequestReport,
   className,
+  dialogClassName,
   disabled = false,
   iconOnly = true,
   label,
@@ -62,6 +66,11 @@ export default function ReportAction({
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (submitting) {
+      return;
+    }
+
+    if (nextOpen && onRequestReport) {
+      onRequestReport();
       return;
     }
 
@@ -120,7 +129,7 @@ export default function ReportAction({
         <Flag className="h-4 w-4" />
         {iconOnly ? null : <span>Report</span>}
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className={dialogClassName}>
         <form className="space-y-5" onSubmit={(event) => void handleSubmit(event)}>
           <DialogHeader>
             <DialogTitle>Report {safeLabel}?</DialogTitle>

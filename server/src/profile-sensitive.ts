@@ -5,7 +5,7 @@ import {
   randomBytes
 } from "node:crypto";
 import type { AppConfig } from "./config.js";
-import { deriveKey } from "./crypto-keys.js";
+import { deriveKey, resolveSecretForVersion } from "./crypto-keys.js";
 import type { ProfilePayload } from "./profile-schema.js";
 
 export type SensitiveProfileData = Pick<
@@ -79,8 +79,17 @@ function normalizeTokenValue(value: string) {
     .replace(/^-+|-+$/g, "");
 }
 
-function getProfileEncryptionSecret(config: AppConfig) {
-  return config.PROFILE_ENCRYPTION_KEY || config.SESSION_SECRET;
+function getProfileEncryptionSecret(
+  config: AppConfig,
+  storedVersion: string,
+  currentVersion: string
+) {
+  return resolveSecretForVersion({
+    currentSecret: config.PROFILE_ENCRYPTION_KEY || config.SESSION_SECRET,
+    previousSecret: config.PROFILE_ENCRYPTION_KEY_PREVIOUS,
+    currentVersion,
+    storedVersion
+  });
 }
 
 function getProfileTokenSecret(config: AppConfig) {
@@ -105,7 +114,11 @@ export function encryptSensitiveProfile(
 ): EncryptedSensitiveProfile {
   const keyVersion = getSensitiveProfileKeyVersion(config);
   const tokenKeyVersion = getSensitiveProfileTokenKeyVersion(config);
-  const key = deriveKey(getProfileEncryptionSecret(config), "profile-sensitive", keyVersion);
+  const key = deriveKey(
+    getProfileEncryptionSecret(config, keyVersion, keyVersion),
+    "profile-sensitive",
+    keyVersion
+  );
   const nonce = randomBytes(12);
   const cipher = createCipheriv("aes-256-gcm", key, nonce);
   const plaintext = JSON.stringify(sensitiveProfile);
@@ -142,7 +155,11 @@ export function decryptSensitiveProfile(
 
   try {
     const keyVersion = encryptedProfile.profile_sensitive_key_version || getSensitiveProfileKeyVersion(config);
-    const key = deriveKey(getProfileEncryptionSecret(config), "profile-sensitive", keyVersion);
+    const key = deriveKey(
+      getProfileEncryptionSecret(config, keyVersion, getSensitiveProfileKeyVersion(config)),
+      "profile-sensitive",
+      keyVersion
+    );
     const decipher = createDecipheriv(
       "aes-256-gcm",
       key,
@@ -193,7 +210,11 @@ export function encryptProfileVisibility(
 ): EncryptedProfileVisibility {
   const keyVersion = getProfileVisibilityKeyVersion(config);
   const tokenKeyVersion = getSensitiveProfileTokenKeyVersion(config);
-  const key = deriveKey(getProfileEncryptionSecret(config), "profile-visibility", keyVersion);
+  const key = deriveKey(
+    getProfileEncryptionSecret(config, keyVersion, keyVersion),
+    "profile-visibility",
+    keyVersion
+  );
   const nonce = randomBytes(12);
   const cipher = createCipheriv("aes-256-gcm", key, nonce);
   const plaintext = JSON.stringify(visibilityRules);
@@ -230,7 +251,11 @@ export function decryptProfileVisibility(
 
   try {
     const keyVersion = encryptedProfile.profile_visibility_key_version || getProfileVisibilityKeyVersion(config);
-    const key = deriveKey(getProfileEncryptionSecret(config), "profile-visibility", keyVersion);
+    const key = deriveKey(
+      getProfileEncryptionSecret(config, keyVersion, getProfileVisibilityKeyVersion(config)),
+      "profile-visibility",
+      keyVersion
+    );
     const decipher = createDecipheriv(
       "aes-256-gcm",
       key,
@@ -244,7 +269,9 @@ export function decryptProfileVisibility(
     const parsed = JSON.parse(plaintext) as Partial<ProfileVisibilityRules>;
 
     return {
+      search_query: typeof parsed.search_query === "string" ? parsed.search_query.trim().slice(0, 120) : "",
       active_crowd_modes: normalizeCrowdOptions(parsed.active_crowd_modes),
+      mile_high_club_members: parsed.mile_high_club_members === true,
       age_range: Array.isArray(parsed.age_range) && parsed.age_range.length === 2 && parsed.age_range.every((value) => typeof value === "number")
         ? [parsed.age_range[0], parsed.age_range[1]]
         : null,

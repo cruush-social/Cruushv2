@@ -5,8 +5,9 @@ import AlphaBugButton from './AlphaBugButton';
 import CruushActivity from './CruushActivity';
 import { emitCruushChanged } from '../lib/cruushEvents';
 
-const { getMyCruushActivity, revokeSentCruush, sendCruush } = vi.hoisted(() => ({
+const { getMyCruushActivity, revokeMutualCruush, revokeSentCruush, sendCruush } = vi.hoisted(() => ({
   getMyCruushActivity: vi.fn(),
+  revokeMutualCruush: vi.fn(),
   revokeSentCruush: vi.fn(),
   sendCruush: vi.fn(),
 }));
@@ -26,6 +27,7 @@ vi.mock('../lib/cruushApi', async () => {
   return {
     ...actual,
     getMyCruushActivity,
+    revokeMutualCruush,
     revokeSentCruush,
     sendCruush,
   };
@@ -78,6 +80,10 @@ const activityFixture = {
       pronouns: 'they/them',
       photo: null,
       vibes: ['Artsy', 'Chill', 'Goth', 'Extra'],
+      sideBadges: {
+        left: { badge_id: 'dominant', frame: 'circle', intent: 'give' },
+        right: { badge_id: 'top', frame: 'circle', intent: 'receive' },
+      },
     },
   }, {
     id: 'incoming-locked',
@@ -147,6 +153,7 @@ const activityFixture = {
 describe('CruushActivity', () => {
   beforeEach(() => {
     getMyCruushActivity.mockReset();
+    revokeMutualCruush.mockReset();
     revokeSentCruush.mockReset();
     sendCruush.mockReset();
     openConversationOrInbox.mockReset();
@@ -157,6 +164,7 @@ describe('CruushActivity', () => {
       revoked: true,
       mutualRevoked: false,
     });
+    revokeMutualCruush.mockResolvedValue({ revoked: true });
     sendCruush.mockResolvedValue({
       id: 'cruush-return',
       fromUserId: 'me',
@@ -184,11 +192,14 @@ describe('CruushActivity', () => {
 
     expect(header).not.toContainElement(reportButton);
     expect(slot).not.toContainElement(reportButton);
+    expect(slot.parentElement?.lastElementChild).toBe(slot);
+    expect(screen.getByRole('button', { name: 'Open cruush match settings' }).getBoundingClientRect().right)
+      .toBeLessThanOrEqual(slot.getBoundingClientRect().left);
     expect(reportButton).toHaveClass(
       'fixed',
       'right-[calc(0.75rem+env(safe-area-inset-right))]',
       'top-[calc(0.75rem+env(safe-area-inset-top))]',
-      'z-[70]',
+      'z-[1500]',
     );
     expect(screen.getByTestId('cruush-count-grid')).not.toContainElement(reportButton);
     expect(screen.getByTestId('cruush-tab-grid')).not.toContainElement(reportButton);
@@ -210,13 +221,16 @@ describe('CruushActivity', () => {
     expect(container.firstElementChild).not.toHaveClass('overflow-y-scroll');
     expect(container.firstElementChild).not.toHaveClass('[scrollbar-gutter:stable]');
     expect(screen.getByTestId('cruush-activity-header')).toHaveClass('sticky', 'top-0');
-    expect(screen.getByTestId('cruush-count-grid')).toHaveClass('mx-auto', 'max-w-2xl');
+    expect(screen.getByTestId('cruush-activity-header-content')).toHaveClass('w-[min(42rem,calc(100dvw-2rem))]');
+    expect(screen.getByTestId('cruush-stats-tabs')).toHaveClass('mx-auto', 'w-[min(38rem,100%)]');
+    expect(screen.getByTestId('cruush-count-grid')).toHaveClass('w-full');
     expect(container.querySelector('main')).toHaveClass('mx-auto', 'max-w-2xl');
     expect(screen.getByRole('heading', { name: 'Cruushes' })).toBeInTheDocument();
     expect(container.querySelector('img[src*="cruush-logo.svg"]')).not.toBeInTheDocument();
     expect(screen.getByTestId('cruush-count-grid')).toHaveClass('grid-cols-[repeat(4,minmax(0,1fr))]');
     expect(screen.getByTestId('cruush-count-grid').children[0]).toHaveClass('min-w-0');
     expect(screen.getByTestId('cruush-tab-grid')).toHaveClass('grid-cols-[repeat(4,minmax(0,1fr))]');
+    expect(screen.getByTestId('cruush-tab-grid')).toHaveClass('rounded-lg', 'border-white/10', 'bg-background/25', 'p-1');
     expect(screen.queryByText('your cruushes')).not.toBeInTheDocument();
     expect(screen.queryByText('relationships, interest & activity')).not.toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'incoming' })).toHaveClass('min-w-0');
@@ -232,9 +246,19 @@ describe('CruushActivity', () => {
     expectHeartPreviewSize('luna preview');
     expectHeartPreviewSize('Locked incoming cruush');
 
-    const incomingVibes = screen.getByTestId('activity-vibes');
-    expect(within(incomingVibes).getAllByText(/Artsy|Chill|Goth/)).toHaveLength(3);
-    expect(within(incomingVibes).queryByText('Extra')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('activity-vibes')).not.toBeInTheDocument();
+    expect(screen.getByTestId('activity-side-badges')).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: /left badge:.*dominant/i })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: /right badge:.*top/i })).toBeInTheDocument();
+    const incomingIdentity = screen.getByText('luna').closest('button');
+    expect(incomingIdentity).toHaveClass('col-start-2', 'col-end-4');
+    expect(screen.getByText('luna').parentElement).toHaveTextContent('lunathey/them');
+    const incomingMeta = screen.getByText('Nearby').closest('p');
+    expect(incomingMeta).toHaveClass('flex', 'h-11', 'flex-col', 'justify-center');
+    expect(incomingMeta).not.toHaveClass('sm:flex-row');
+    expect(incomingMeta?.closest('button')?.parentElement).toHaveClass('col-start-2');
+    expect(within(incomingMeta!).getByText('Nearby')).toHaveClass('block');
+    expect(within(incomingMeta!).getByText('Nearby')).not.toHaveClass('sm:inline');
     const incomingCruushButton = screen.getByRole('button', { name: 'Send cruush to luna' });
     // They already cruushed you, so the control wears the double heart.
     expect(incomingCruushButton.querySelector('img')?.getAttribute('src')).toContain('safety-white');
@@ -247,23 +271,22 @@ describe('CruushActivity', () => {
     expect(await screen.findByText('jay')).toBeInTheDocument();
     expect(screen.getByText(/pending/i)).toBeInTheDocument();
     expectHeartPreviewSize('jay preview');
-    expect(screen.getByTestId('activity-vibes')).toHaveTextContent('PunkGeekLeather');
+    expect(screen.queryByTestId('activity-vibes')).not.toBeInTheDocument();
 
     selectTab(/mutual/i);
     await waitFor(() => expect(screen.getByText('river')).toBeInTheDocument());
     expect(screen.queryByText('your mutuals')).not.toBeInTheDocument();
     expect(screen.queryByText('People you are mutually into.')).not.toBeInTheDocument();
     expect(screen.getByText('river')).toBeInTheDocument();
-    expect(screen.getByText('0.4 mi away')).toBeInTheDocument();
+    expect(screen.getByText('~0.5 mi away')).toBeInTheDocument();
     expectHeartPreviewSize('river preview');
-    expect(screen.getByTestId('activity-vibes')).toHaveTextContent('GothAltArtsy');
-    expect(within(screen.getByTestId('activity-vibes')).queryByText('Extra')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('activity-vibes')).not.toBeInTheDocument();
+    expect(screen.getByTestId('profile-action-trio').parentElement).toHaveClass('col-start-3', 'row-start-2');
 
     fireEvent.click(screen.getByRole('button', { name: 'Message river' }));
-    expect(openConversationOrInbox).toHaveBeenCalledWith(expect.any(Function), 'user-river');
+    expect(openConversationOrInbox).toHaveBeenCalledWith(expect.any(Function), 'user-river', undefined);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Center the map on river' }));
-    expect(screen.getByTestId('location-probe')).toHaveTextContent('/map?mode=mutuals&focusUserId=user-river');
+    expect(screen.getByRole('button', { name: 'river does not share their precise location' })).toBeDisabled();
 
     expect(screen.queryByRole('button', { name: /^Map$/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /See mutuals on the map/i })).not.toBeInTheDocument();
@@ -331,10 +354,10 @@ describe('CruushActivity', () => {
     expect(screen.getByText('Upgrade to view')).toBeInTheDocument();
     expectHeartPreviewSize('indigo preview');
     expectHeartPreviewSize('Locked profile view');
-    expect(screen.getByTestId('activity-vibes')).toHaveTextContent('SoftChillArtsy');
+    expect(screen.queryByTestId('activity-vibes')).not.toBeInTheDocument();
 
     const cruushButton = screen.getByRole('button', { name: 'Send cruush to indigo' });
-    expect(cruushButton.querySelector('img')?.getAttribute('src')).toContain('cruush-white');
+    expect(cruushButton.querySelector('img')?.getAttribute('src')).toContain('safety-white');
     fireEvent.click(cruushButton);
     await waitFor(() => expect(sendCruush).toHaveBeenCalledWith('user-indigo', expect.objectContaining({
       name: 'indigo',
@@ -359,7 +382,7 @@ describe('CruushActivity', () => {
     await waitFor(() => expect(getMyCruushActivity).toHaveBeenCalledTimes(2));
   });
 
-  it('does not offer a repeat cruush action for mutual incoming rows', async () => {
+  it('uses a dark selected state and lets a mutual incoming row become unmutual', async () => {
     getMyCruushActivity.mockResolvedValue({
       ...activityFixture,
       incoming: [{
@@ -379,10 +402,13 @@ describe('CruushActivity', () => {
     );
 
     expect(await screen.findByText('luna')).toBeInTheDocument();
-    const mutualButton = screen.getByRole('button', { name: 'Mutual with luna' });
-    expect(mutualButton).toBeDisabled();
+    const mutualButton = screen.getByRole('button', { name: 'Remove mutual with luna' });
+    expect(mutualButton).toBeEnabled();
+    expect(mutualButton).toHaveAttribute('data-cruush-state', 'mutual');
+    expect(mutualButton).toHaveStyle({ background: 'var(--cruush-gradient-soft-28)' });
 
     fireEvent.click(mutualButton);
+    await waitFor(() => expect(revokeMutualCruush).toHaveBeenCalledWith('user-luna'));
     expect(sendCruush).not.toHaveBeenCalled();
   });
 });

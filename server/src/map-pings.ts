@@ -31,8 +31,9 @@ import {
   type VisibilitySubjectProfile
 } from "./profile-visibility.js";
 import { postExpirySchema, type PostExpiry } from "./post-schema.js";
-import { getTravelPin } from "./travel-pins.js";
+import { getTravelPin, type TravelPin } from "./travel-pins.js";
 import { notifyPulseRecipients } from "./pulse-notifications.js";
+import { getSideQuestPingBalance } from "./side-quests.js";
 
 export const MAP_PING_RADIUS_MILES = [1, 3, 5, 10, 15] as const;
 export type MapPingRadiusMiles = typeof MAP_PING_RADIUS_MILES[number];
@@ -117,7 +118,24 @@ type MapPingDispatchContext = {
   visibilityPolicy: VisibilityPolicyPayload;
 };
 
+function locationPayloadFromMileHighClubPin(userId: string, pin: TravelPin): LocationPayload {
+  return {
+    version: 1,
+    subjectUserId: userId,
+    locationVersion: 1,
+    latE7: Math.round(pin.latitude * 10_000_000),
+    lonE7: Math.round(pin.longitude * 10_000_000),
+    accuracyM: 0,
+    source: "MANUAL",
+    deviceReportedAtMs: pin.setAtMs,
+    collectedAtMs: pin.setAtMs,
+    expiresAtMs: pin.expiresAtMs,
+    keyVersion: "mile-high-club"
+  };
+}
+
 export type MapPingStatus = {
+  bonusCredits: number;
   allowance: {
     limit: number;
     used: number;
@@ -194,6 +212,15 @@ function buildAllowance(
     used,
     remaining: Math.max(0, limit - used),
     nextEligibleAt: nextEligibleMs > nowMs ? new Date(nextEligibleMs).toISOString() : null
+  };
+}
+
+function withBonusCredits(allowance: MapPingStatus["allowance"], bonusCredits: number) {
+  return {
+    limit: allowance.limit + bonusCredits,
+    used: allowance.used,
+    remaining: allowance.remaining + bonusCredits,
+    nextEligibleAt: bonusCredits > 0 ? null : allowance.nextEligibleAt
   };
 }
 
@@ -330,27 +357,26 @@ async function loadSenderDispatchContext(
     throw new ApiError(403, "FEATURE_RESTRICTED", "Pulse is unavailable in Dark Room.");
   }
 
-  if (await getTravelPin(app, userId)) {
-    throw new ApiError(
-      403,
-      "FEATURE_RESTRICTED",
-      "Pulse is unavailable in Travel Mode. Turn off Travel Mode to send one."
-    );
-  }
-
   let sourceLocation: LocationPayload | null = null;
+  const mileHighClubPin = await getTravelPin(app, userId);
 
-  try {
-    sourceLocation = await dependencies.loadLocation({ config: app.config, db }, userId);
-  } catch {
-    sourceLocation = null;
+  if (mileHighClubPin) {
+    sourceLocation = locationPayloadFromMileHighClubPin(userId, mileHighClubPin);
+  } else {
+    try {
+      sourceLocation = await dependencies.loadLocation({ config: app.config, db }, userId);
+    } catch {
+      sourceLocation = null;
+    }
   }
 
   if (!sourceLocation) {
     throw new ApiError(409, "LOCATION_STORAGE_UNAVAILABLE", "Refresh your location before sending a Ping.");
   }
 
-  assertLocationIsFresh(sourceLocation, userId, now, MAP_PING_SENDER_LOCATION_MAX_AGE_MS);
+  if (!mileHighClubPin) {
+    assertLocationIsFresh(sourceLocation, userId, now, MAP_PING_SENDER_LOCATION_MAX_AGE_MS);
+  }
   const sourceCoordinates = locationPayloadToCoordinates(sourceLocation);
 
   if (
@@ -515,18 +541,23 @@ async function recipientCanReceiveMapPing(
   dependencies: MapPingDependencies
 ) {
   const sourceCoordinates = locationPayloadToCoordinates(context.sourceLocation);
-  const recipientLocation = await dependencies.loadLocation(app, recipient.id);
+  const mileHighClubPin = await getTravelPin(app, recipient.id);
+  const recipientLocation = mileHighClubPin
+    ? locationPayloadFromMileHighClubPin(recipient.id, mileHighClubPin)
+    : await dependencies.loadLocation(app, recipient.id);
 
   if (!recipientLocation) {
     return false;
   }
 
-  assertLocationIsFresh(
-    recipientLocation,
-    recipient.id,
-    now,
-    MAP_PING_RECIPIENT_LOCATION_MAX_AGE_MS
-  );
+  if (!mileHighClubPin) {
+    assertLocationIsFresh(
+      recipientLocation,
+      recipient.id,
+      now,
+      MAP_PING_RECIPIENT_LOCATION_MAX_AGE_MS
+    );
+  }
   const recipientCoordinates = locationPayloadToCoordinates(recipientLocation);
   const relationship = context.visibilityPolicy.baseMode === "GHOST"
     ? await dependencies.getRelationship(app, recipient.id, ping.user_id)
@@ -569,6 +600,7 @@ async function loadRecentPingRows(db: DbClient, userId: string, now: Date) {
     `select created_at
      from map_pings
      where user_id = $1
+       and coalesce((to_jsonb(map_pings)->>'bonus_credit_used')::boolean, false) = false
        and created_at > $2::timestamptz
      order by created_at asc`,
     [userId, new Date(now.getTime() - MAP_PING_WINDOW_MS).toISOString()]
@@ -585,7 +617,7 @@ export async function getMapPingStatus(
   const dependencies = resolveDependencies(overrides);
   const now = dependencies.now();
   const entitlement = await dependencies.getEntitlement(app, userId);
-  const [recentRows, activeResult, receivedResult] = await Promise.all([
+  const [recentRows, activeResult, receivedResult, bonusCredits] = await Promise.all([
     loadRecentPingRows(app.db, userId, now),
     app.db.query<MapPingRow>(
       `select
@@ -628,7 +660,8 @@ export async function getMapPingStatus(
          )
        order by ping.expires_at asc`,
       [userId, now.toISOString()]
-    )
+    ),
+    getSideQuestPingBalance(app.db, userId)
   ]);
   const activePing = activeResult.rows[0];
   const currentReceivedPings = (await Promise.all(receivedResult.rows.map(async (ping) => {
@@ -665,7 +698,8 @@ export async function getMapPingStatus(
   }))).filter((ping): ping is ReceivedMapPingRow => ping !== null);
 
   return {
-    allowance: buildAllowance(recentRows.map((row) => row.created_at), entitlement, now),
+    bonusCredits,
+    allowance: withBonusCredits(buildAllowance(recentRows.map((row) => row.created_at), entitlement, now), bonusCredits),
     activePing: activePing
       ? {
           id: activePing.id,
@@ -719,8 +753,9 @@ export async function createMapPing(
     entitlement,
     now
   );
+  const preflightBonusCredits = await getSideQuestPingBalance(app.db, input.userId);
 
-  if (preflightAllowance.nextEligibleAt) {
+  if (preflightAllowance.nextEligibleAt && preflightBonusCredits < 1) {
     throw new ApiError(
       429,
       "RATE_LIMITED",
@@ -789,8 +824,10 @@ export async function createMapPing(
     const postExpiresAt = feedPostExpiresAt(feedExpiry, now);
     const recentRows = await loadRecentPingRows(db, input.userId, now);
     const allowance = buildAllowance(recentRows.map((row) => row.created_at), entitlement, now);
+    const bonusCredits = await getSideQuestPingBalance(db, input.userId);
+    const useBonusCredit = Boolean(allowance.nextEligibleAt && bonusCredits > 0);
 
-    if (allowance.nextEligibleAt) {
+    if (allowance.nextEligibleAt && !useBonusCredit) {
       throw new ApiError(
         429,
         "RATE_LIMITED",
@@ -800,8 +837,23 @@ export async function createMapPing(
     }
 
     const expiresAt = new Date(now.getTime() + MAP_PING_ACTIVE_MS);
-    const insertResult = await db.query<MapPingRow>(
-      `insert into map_pings (
+    const insertSql = useBonusCredit
+      ? `insert into map_pings (
+         user_id,
+         radius_miles,
+         idempotency_key,
+         created_at,
+         expires_at,
+         bonus_credit_used
+       )
+       values ($1, $2, $3::uuid, $4::timestamptz, $5::timestamptz, $6)
+       returning
+         id::text as id,
+         user_id::text as user_id,
+         radius_miles,
+         created_at,
+         expires_at`
+      : `insert into map_pings (
          user_id,
          radius_miles,
          idempotency_key,
@@ -814,13 +866,16 @@ export async function createMapPing(
          user_id::text as user_id,
          radius_miles,
          created_at,
-         expires_at`,
+         expires_at`;
+    const insertResult = await db.query<MapPingRow>(
+      insertSql,
       [
         input.userId,
         input.radiusMiles,
         input.idempotencyKey,
         now.toISOString(),
-        expiresAt.toISOString()
+        expiresAt.toISOString(),
+        ...(useBonusCredit ? [true] : [])
       ]
     );
     const ping = insertResult.rows[0];
@@ -941,5 +996,3 @@ export async function createMapPing(
     getEntitlement: async () => entitlement
   });
 }
-
-

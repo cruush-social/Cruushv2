@@ -1,8 +1,9 @@
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
-import { ChevronLeft, ChevronRight, Clock3, MapPin, Pin, Plus, Search, Settings2, SlidersHorizontal, Trash2, X, ArrowLeft } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock3, MapPin, Pin, Plus, Search, Settings2, Trash2, X, ArrowLeft } from 'lucide-react';
 import CruushIconImage, { CruushIcon } from './CruushIconImage';
 import mapIconWhite from '../assets/ui-icons/map-white.png';
+import seekingIcon from '../assets/ui-icons/seeking-magnifying-glass-8149381.svg';
 import HeartPhoto from './HeartPhoto';
 import { Input } from './ui/input';
 import { Tabs, TabsList, TabsTrigger } from './ui/tabs';
@@ -16,13 +17,13 @@ import {
   type ConversationThread,
   type ConversationTimer,
 } from '../lib/messagesApi';
-import { getMyCruushActivity, sendCruush, type MutualCruushActivityItem } from '../lib/cruushApi';
+import { getMutualCruushMap, getMyCruushActivity, revokeMutualCruush, revokeSentCruush, sendCruush, type MutualCruushActivityItem } from '../lib/cruushApi';
 import { getNearbyUsers, type DiscoveryUser } from '../lib/usersApi';
 import { getMyBillingStatus } from '../lib/billingApi';
 import { getMyProfile } from '../lib/profileApi';
 import { openConversationOrInbox } from '../lib/openConversation';
-import { resolveVibeTone, vibeCapsuleStyle } from '../lib/vibeTone';
 import ProfileActionTrio from './ProfileActionTrio';
+import UserActivityCapsule from './UserActivityCapsule';
 import CruushMatchSettings from './CruushMatchSettings';
 import {
   Dialog,
@@ -34,6 +35,15 @@ import {
 } from './ui/dialog';
 import { shouldMaskPhoto, useDlMode } from '../lib/dlMode';
 import { registerBugButtonSlot } from '../lib/bugButtonSlot';
+import { formatDistanceLabel, useDistancePreferences } from '../lib/distancePreferences';
+import {
+  handleCruushSendSuccess,
+  handleMutualCruushRevokeSuccess,
+  handleSentCruushRevokeSuccess,
+  notifyCruushSendError,
+  notifyMutualCruushRevokeError,
+  notifySentCruushRevokeError,
+} from '../lib/cruushNotifications';
 
 const timerOptions: Array<{ value: ConversationTimer; label: string }> = [
   { value: 'off', label: 'Off' },
@@ -76,6 +86,8 @@ function normalizeConversation(raw: any): ConversationThread {
       pronouns: raw?.user?.pronouns ?? '',
       photo: raw?.user?.photo ?? null,
       photoExplicit: raw?.user?.photoExplicit,
+      sideBadges: raw?.user?.sideBadges,
+      travelling: raw?.user?.travelling === true,
     },
     distance: raw?.distance ?? 'Nearby',
     updatedAt: raw?.updatedAt ?? raw?.timestamp ?? new Date().toISOString(),
@@ -98,14 +110,6 @@ function canDeleteConversation(conversation: ConversationThread) {
 
 const mutualBadgeClassName = 'rounded-md border border-[#8B5CF6]/45 bg-[#8B5CF6]/15 px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-[#DCC7FF]';
 const quietBadgeClassName = 'rounded-md border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-white/52';
-const vibeBadgeBaseClassName = 'rounded-full border px-2 py-0.5 text-[11px] uppercase leading-tight tracking-[0.08em]';
-const mutualVibeBadgeClassName = `${vibeBadgeBaseClassName} border-[#6F00FF]/55 bg-[#6F00FF]/12 text-[#DCC7FF]`;
-const nearbyVibeBadgeClassName = `${vibeBadgeBaseClassName} border-transparent bg-[rgba(111,0,255,0.22)] text-white/88`;
-
-function topVibeTags(...groups: Array<string[] | undefined>) {
-  return [...new Set(groups.flatMap((group) => group ?? []).map((value) => value.trim()).filter(Boolean))].slice(0, 3);
-}
-
 function getConversationHeartTheme(conversation: ConversationThread) {
   if (conversation.kind === 'group' || conversation.mutual) {
     return 'mutual';
@@ -193,7 +197,7 @@ function compareDistance(a: DiscoveryUser, b: DiscoveryUser, viewer: { lat: numb
 }
 
 function describeDiscoveryUser(user: DiscoveryUser) {
-  return [user.pronouns, user.age ? String(user.age) : '', ...(user.presentation ?? []), ...(user.identities ?? [])]
+  return [user.age ? String(user.age) : '', ...(user.presentation ?? []), ...(user.identities ?? [])]
     .filter(Boolean)
     .slice(0, 5)
     .join(' · ');
@@ -227,10 +231,19 @@ function matchesMessageFilterBasics(user: DiscoveryUser, filters: FilterState) {
   return true;
 }
 
-export default function DirectMessages({ embedded = false, onClose }: { embedded?: boolean; onClose?: () => void } = {}) {
+export default function DirectMessages({
+  embedded = false,
+  onClose,
+  onOpenConversation,
+}: {
+  embedded?: boolean;
+  onClose?: () => void;
+  onOpenConversation?: (conversationId: string) => void;
+} = {}) {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [conversations, setConversations] = useState<ConversationThread[]>([]);
+  const [validPinUserIds, setValidPinUserIds] = useState<Set<string>>(() => new Set());
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<'all' | 'unread' | 'groups'>('all');
@@ -241,6 +254,8 @@ export default function DirectMessages({ embedded = false, onClose }: { embedded
   const [groupComposerOpen, setGroupComposerOpen] = useState(false);
   const [groupName, setGroupName] = useState('');
   const [groupTimer, setGroupTimer] = useState<ConversationTimer>('24h');
+  const [groupSearchQuery, setGroupSearchQuery] = useState('');
+  const [groupSortMode, setGroupSortMode] = useState<DirectSortMode>('lastOnline');
   const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
   const [mutualOptions, setMutualOptions] = useState<MutualCruushActivityItem[]>([]);
   const [directOptions, setDirectOptions] = useState<DiscoveryUser[]>([]);
@@ -253,8 +268,10 @@ export default function DirectMessages({ embedded = false, onClose }: { embedded
   const [viewerCoordinates, setViewerCoordinates] = useState<{ lat: number; lng: number } | null>(null);
   const [groupCreating, setGroupCreating] = useState(false);
   const [deletingConversationId, setDeletingConversationId] = useState<string | null>(null);
+  const [changingCruushUserId, setChangingCruushUserId] = useState<string | null>(null);
   const deferredSearchQuery = useDeferredValue(searchQuery);
   const dlModeActive = useDlMode();
+  const distancePreferences = useDistancePreferences();
 
   useEffect(() => {
     void fetchConversations();
@@ -270,6 +287,33 @@ export default function DirectMessages({ embedded = false, onClose }: { embedded
         : [];
 
       setConversations(normalized);
+
+      try {
+        const [activity, mutualMapItems] = await Promise.all([
+          getMyCruushActivity(),
+          getMutualCruushMap().catch(() => []),
+        ]);
+        const distanceByUserId = new Map((activity?.mutual ?? []).map((item) => [
+          item.user.id,
+          item.distance,
+        ]));
+        setConversations(normalized.map((conversation) => conversation.kind === 'dm'
+          ? {
+              ...conversation,
+              distance: distanceByUserId.get(conversation.user.id) ?? conversation.distance,
+            }
+          : conversation));
+        setRequestedCruushIds((activity?.sent ?? [])
+          .filter((item) => item.user && !item.mutual)
+          .map((item) => item.user!.id));
+        setValidPinUserIds(new Set(mutualMapItems
+          .filter((item) => item.canRevealPreciseLocation === true
+            && item.coordinates?.precision === 'precise'
+            && (item.displayExpiresAtMs == null || item.displayExpiresAtMs > Date.now()))
+          .map((item) => item.user.id)));
+      } catch {
+        setValidPinUserIds(new Set());
+      }
     } catch (error) {
       console.error('Error fetching conversations:', error);
       setConversations([]);
@@ -303,6 +347,33 @@ export default function DirectMessages({ embedded = false, onClose }: { embedded
   const pinnedConversations = conversations.filter((conversation) => conversation.pinned).slice(0, 4);
   const unreadCount = conversations.reduce((sum, conversation) => sum + conversation.unreadCount, 0);
   const activeNowCount = conversations.filter((conversation) => formatRelativeTime(conversation.updatedAt).includes('m')).length;
+  const groupMutuals = useMemo(() => {
+    const groupQuery = groupSearchQuery.trim().toLowerCase();
+    const filtered = mutualOptions.filter((item) => {
+      if (!groupQuery) return true;
+      return [
+        item.user.name,
+        item.user.pronouns,
+        ...item.vibes,
+        ...item.mutualCrowds,
+      ].some((value) => value.toLowerCase().includes(groupQuery));
+    });
+
+    return [...filtered].sort((a, b) => {
+      if (groupSortMode === 'distance') {
+        const aDistance = parseDistanceMiles(a.distance);
+        const bDistance = parseDistanceMiles(b.distance);
+        if (aDistance !== null || bDistance !== null) {
+          if (aDistance === null) return 1;
+          if (bDistance === null) return -1;
+          if (aDistance !== bDistance) return aDistance - bDistance;
+        }
+      }
+
+      return parseLastActiveRank(a.lastActive) - parseLastActiveRank(b.lastActive)
+        || a.user.name.localeCompare(b.user.name);
+    });
+  }, [groupSearchQuery, groupSortMode, mutualOptions]);
 
   const loadMessageableMutuals = async ({
     setComposerError,
@@ -417,6 +488,8 @@ export default function DirectMessages({ embedded = false, onClose }: { embedded
     setGroupComposerOpen(false);
     setGroupName('');
     setGroupTimer('24h');
+    setGroupSearchQuery('');
+    setGroupSortMode('lastOnline');
     setSelectedMemberIds([]);
     setGroupError(null);
   };
@@ -424,6 +497,15 @@ export default function DirectMessages({ embedded = false, onClose }: { embedded
   const resetDirectComposer = () => {
     setDirectComposerOpen(false);
     setDirectError(null);
+  };
+
+  const openConversation = (conversationId: string) => {
+    if (embedded && onOpenConversation) {
+      onOpenConversation(conversationId);
+      return;
+    }
+
+    navigate(`/chat/${conversationId}`);
   };
 
   const returnToMessageOptions = () => {
@@ -434,7 +516,7 @@ export default function DirectMessages({ embedded = false, onClose }: { embedded
 
   const handleStartDirectChat = (userId: string) => {
     resetDirectComposer();
-    void openConversationOrInbox(navigate, userId);
+    void openConversationOrInbox(navigate, userId, embedded ? onOpenConversation : undefined);
   };
 
   const handleCreateGroup = async () => {
@@ -452,7 +534,7 @@ export default function DirectMessages({ embedded = false, onClose }: { embedded
         disappearingTimer: groupTimer,
       });
       resetGroupComposer();
-      navigate(`/chat/${created.id}`);
+      openConversation(created.id);
     } catch (error) {
       console.error('Error creating group conversation:', error);
       setGroupError(error instanceof Error ? error.message : 'Failed to create group.');
@@ -487,6 +569,81 @@ export default function DirectMessages({ embedded = false, onClose }: { embedded
     }
   };
 
+  const handleConversationCruush = async (conversation: ConversationThread) => {
+    if (conversation.kind !== 'dm' || changingCruushUserId) return;
+
+    const userId = conversation.user.id;
+    const sent = requestedCruushIds.includes(userId);
+    setChangingCruushUserId(userId);
+
+    try {
+      if (conversation.mutual) {
+        await revokeMutualCruush(userId);
+        setConversations((current) => current.map((item) => item.user.id === userId ? { ...item, mutual: false } : item));
+        setMutualOptions((current) => current.filter((item) => item.user.id !== userId));
+        setRequestedCruushIds((current) => current.filter((id) => id !== userId));
+        setValidPinUserIds((current) => {
+          const next = new Set(current);
+          next.delete(userId);
+          return next;
+        });
+        handleMutualCruushRevokeSuccess(userId, conversation.user.name);
+      } else if (sent) {
+        await revokeSentCruush(userId);
+        setRequestedCruushIds((current) => current.filter((id) => id !== userId));
+        handleSentCruushRevokeSuccess(userId, conversation.user.name);
+      } else {
+        const result = await sendCruush(userId, conversation.user);
+        if (result.mutual) {
+          setConversations((current) => current.map((item) => item.user.id === userId ? { ...item, mutual: true } : item));
+        } else {
+          setRequestedCruushIds((current) => current.includes(userId) ? current : [...current, userId]);
+        }
+        handleCruushSendSuccess(userId, conversation.user.name, result);
+      }
+    } catch (error) {
+      if (conversation.mutual) notifyMutualCruushRevokeError(error);
+      else if (sent) notifySentCruushRevokeError(error);
+      else notifyCruushSendError(error);
+    } finally {
+      setChangingCruushUserId(null);
+    }
+  };
+
+  if (embedded && messageSettingsOpen) {
+    return (
+      <div className="relative min-h-full bg-[#050505] pb-6 text-white" data-testid="embedded-message-settings">
+        <header className="sticky top-0 z-20 flex items-center gap-2 border-b border-white/10 bg-black/88 px-4 pb-4 pt-4 shadow-[0_20px_55px_rgba(0,0,0,0.34)] backdrop-blur-xl">
+          <Button
+            type="button"
+            size="icon"
+            variant="secondary"
+            className="h-11 w-11 rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10"
+            aria-label="Back to Messages"
+            title="Back to Messages"
+            onClick={() => setMessageSettingsOpen(false)}
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <h1 className="min-w-0 flex-1 text-2xl leading-none text-white sm:text-3xl">Message settings</h1>
+          {onClose ? (
+            <Button
+              type="button"
+              size="icon"
+              variant="secondary"
+              className="h-11 w-11 rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10"
+              aria-label="Close Message settings"
+              onClick={onClose}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          ) : null}
+        </header>
+        <CruushMatchSettings embedded />
+      </div>
+    );
+  }
+
   return (
     <div className={embedded ? 'relative min-h-full bg-[#050505] pb-6 text-white' : 'relative min-h-screen bg-[#050505] pb-[calc(7rem+env(safe-area-inset-bottom))] text-white'}>
       <header data-testid="direct-messages-header" className="sticky top-0 z-20 border-b border-white/10 bg-black/88 pb-4 pt-4 shadow-[0_20px_55px_rgba(0,0,0,0.34)] backdrop-blur-xl">
@@ -503,11 +660,10 @@ export default function DirectMessages({ embedded = false, onClose }: { embedded
             >
               <ArrowLeft className="h-4 w-4" />
             </Button>
-            <div className="min-w-0 flex-1 text-center">
+            <div className="min-w-0 flex-1">
               <h1 className="text-2xl leading-none text-white sm:text-3xl">Messages</h1>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="h-11 w-11" data-testid="direct-messages-bug-button-slot" ref={registerBugButtonSlot} />
+            <div className="ml-auto flex shrink-0 items-center gap-1">
               <Button
                 type="button"
                 size="icon"
@@ -519,7 +675,18 @@ export default function DirectMessages({ embedded = false, onClose }: { embedded
               >
                 <Plus className="size-4" />
               </Button>
-              <Dialog open={messageSettingsOpen} onOpenChange={setMessageSettingsOpen}>
+              {embedded ? (
+                <Button
+                  type="button"
+                  size="icon"
+                  aria-label="Message settings"
+                  title="Message settings"
+                  className="h-11 w-11 rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10"
+                  onClick={() => setMessageSettingsOpen(true)}
+                >
+                  <CruushIcon name="settings" className="h-5 w-5" />
+                </Button>
+              ) : <Dialog open={messageSettingsOpen} onOpenChange={setMessageSettingsOpen}>
                 <DialogTrigger asChild>
                   <Button
                     type="button"
@@ -531,19 +698,20 @@ export default function DirectMessages({ embedded = false, onClose }: { embedded
                     <CruushIcon name="settings" className="h-5 w-5" />
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="max-h-[calc(100dvh-2rem)] max-w-md overflow-y-auto overscroll-contain rounded-lg border-white/10 bg-background pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
+                <DialogContent className="scrollbar-hide max-h-[calc(100dvh-2rem)] max-w-md overflow-y-auto overscroll-contain rounded-lg border-white/10 bg-background pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
                   <DialogHeader>
                     <DialogTitle>Message settings</DialogTitle>
                     <DialogDescription>Choose who can start a chat with you.</DialogDescription>
                   </DialogHeader>
                   <CruushMatchSettings embedded />
                 </DialogContent>
-              </Dialog>
+              </Dialog>}
               {embedded && onClose ? (
                 <Button type="button" size="icon" variant="secondary" className="h-11 w-11 rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10" aria-label="Close Messages" onClick={onClose}>
                   <X className="h-4 w-4" />
                 </Button>
               ) : null}
+              {!embedded ? <div className="h-11 w-11 shrink-0" data-testid="direct-messages-bug-button-slot" ref={registerBugButtonSlot} /> : null}
             </div>
           </div>
 
@@ -584,6 +752,7 @@ export default function DirectMessages({ embedded = false, onClose }: { embedded
 
       {composeChooserOpen ? (
         <ComposeChoiceOverlay
+          embedded={embedded}
           onClose={() => setComposeChooserOpen(false)}
           onStartDirect={() => void openDirectComposer()}
           onStartGroup={() => void openGroupComposer()}
@@ -592,6 +761,7 @@ export default function DirectMessages({ embedded = false, onClose }: { embedded
 
       {directComposerOpen ? (
         <DirectUserOverlay
+          embedded={embedded}
           error={directError}
           loading={directLoading}
           users={directOptions}
@@ -601,6 +771,16 @@ export default function DirectMessages({ embedded = false, onClose }: { embedded
           requestedCruushIds={requestedCruushIds}
           onAskMutual={(user) => {
             setRequestedCruushIds((current) => current.includes(user.id) ? current : [...current, user.id]);
+          }}
+          onRemoveSentCruush={(userId) => setRequestedCruushIds((current) => current.filter((id) => id !== userId))}
+          onRemoveMutual={(userId) => {
+            setMutualOptions((current) => current.filter((item) => item.user.id !== userId));
+            setConversations((current) => current.map((item) => item.user.id === userId ? { ...item, mutual: false } : item));
+            setValidPinUserIds((current) => {
+              const next = new Set(current);
+              next.delete(userId);
+              return next;
+            });
           }}
           onClose={resetDirectComposer}
           onBack={returnToMessageOptions}
@@ -618,17 +798,17 @@ export default function DirectMessages({ embedded = false, onClose }: { embedded
 
       {groupComposerOpen ? (
         <div
-          className="fixed inset-0 z-40 overflow-y-auto overscroll-contain bg-background/95 px-4 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-6 backdrop-blur-md"
+          className="scrollbar-hide fixed inset-0 z-40 overflow-y-auto overscroll-contain bg-background/95 px-4 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-6 backdrop-blur-md"
           style={{ WebkitOverflowScrolling: 'touch' }}
         >
           <div className="mx-auto max-w-2xl space-y-5">
-            <div className="flex items-center justify-between gap-3 pr-14">
+            <div className={`flex items-center justify-between gap-3 ${embedded ? '' : 'pr-14'}`}>
               <div>
                 <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Group chat</p>
                 <h3 className="text-2xl">New group</h3>
               </div>
               <div className="flex items-center gap-2">
-                <div data-testid="direct-messages-group-bug-button-slot" ref={registerBugButtonSlot} />
+                {!embedded ? <div data-testid="direct-messages-group-bug-button-slot" ref={registerBugButtonSlot} /> : null}
                 <Button type="button" variant="ghost" size="icon" aria-label="Close group composer" onClick={resetGroupComposer}>
                   <X className="size-4" />
                 </Button>
@@ -667,6 +847,40 @@ export default function DirectMessages({ embedded = false, onClose }: { embedded
 
             <div className="space-y-3">
               <p className="text-sm text-muted-foreground">Mutuals</p>
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  aria-label="Search mutuals"
+                  className="pl-9"
+                  value={groupSearchQuery}
+                  onChange={(event) => setGroupSearchQuery(event.target.value)}
+                  placeholder="Search mutuals"
+                />
+              </div>
+              <div
+                className="grid grid-cols-2 gap-2 rounded-2xl border border-white/10 bg-background/55 p-1"
+                role="group"
+                aria-label="Sort mutuals"
+              >
+                {([
+                  ['lastOnline', 'Recently online', Clock3],
+                  ['distance', 'Distance', MapPin],
+                ] as const).map(([value, label, Icon]) => (
+                  <Button
+                    key={value}
+                    type="button"
+                    size="sm"
+                    variant={groupSortMode === value ? 'default' : 'ghost'}
+                    aria-label={`Sort mutuals by ${label}`}
+                    aria-pressed={groupSortMode === value}
+                    className="min-h-11 min-w-0 rounded-xl px-2 text-xs"
+                    onClick={() => setGroupSortMode(value)}
+                  >
+                    <Icon className="mr-1.5 size-3.5" />
+                    {label}
+                  </Button>
+                ))}
+              </div>
               {groupLoading ? (
                 <div className="rounded-2xl border border-border bg-card/70 p-4 text-sm text-muted-foreground">
                   Loading mutuals...
@@ -677,42 +891,45 @@ export default function DirectMessages({ embedded = false, onClose }: { embedded
                   No mutuals available.
                 </div>
               ) : null}
+              {!groupLoading && mutualOptions.length > 0 && groupMutuals.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-border bg-card/60 p-4 text-sm text-muted-foreground">
+                  No mutuals match your search.
+                </div>
+              ) : null}
               <div className="space-y-2">
-                {mutualOptions.map((item) => (
-                  <label
+                {groupMutuals.map((item) => {
+                  const selected = selectedMemberIds.includes(item.user.id);
+                  return (
+                  <UserActivityCapsule
                     key={item.user.id}
-                    className="flex items-center gap-3 rounded-2xl border border-border bg-card/70 p-3"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedMemberIds.includes(item.user.id)}
-                      onChange={() => toggleSelectedMember(item.user.id)}
-                    />
-                    <HeartPhoto
-                      className="w-10 shrink-0"
-                      label={`${item.user.name} avatar`}
-                      masked={shouldMaskPhoto(dlModeActive, item.user.photoExplicit)}
-                      photo={item.user.photo}
-                      userId={item.user.id}
-                      theme="mutual"
-                      onClick={() => navigate(`/profile/${item.user.id}`)}
-                      fallback={<div className="text-xs text-white/80">{getConversationInitials(item.user.name)}</div>}
-                    />
-                    <span className="min-w-0">
-                      <span className="block truncate">{item.user.name}</span>
-                      <span className="block text-xs text-muted-foreground">{item.distance}</span>
-                      {item.vibes.length > 0 ? (
-                        <span className="mt-1 flex flex-wrap gap-1">
-                          {item.vibes.slice(0, 3).map((vibe) => (
-                            <span key={vibe} className={mutualVibeBadgeClassName}>
-                              {vibe}
-                            </span>
-                          ))}
-                        </span>
-                      ) : null}
-                    </span>
-                  </label>
-                ))}
+                    testId={`group-mutual-${item.user.id}`}
+                    heart={(
+                      <HeartPhoto
+                        className="w-20 shrink-0"
+                        label={`${item.user.name} avatar`}
+                        masked={shouldMaskPhoto(dlModeActive, item.user.photoExplicit)}
+                        photo={item.user.photo}
+                        userId={item.user.id}
+                        theme="mutual"
+                        fallback={<div className="text-base text-white/80">{getConversationInitials(item.user.name)}</div>}
+                      />
+                    )}
+                    name={item.user.name}
+                    pronouns={item.user.pronouns || 'Ask me'}
+                    sideBadges={item.user.sideBadges}
+                    sideBadgeTone={item.user.travelling ? 'mile-high' : 'mutual'}
+                    metadata={(
+                      <span className="flex min-w-0 flex-col gap-0.5 text-left text-xs leading-snug text-white/62">
+                        <span className="truncate">{item.lastActive}</span>
+                        <span className="truncate">{formatDistanceLabel(item.distance, distancePreferences.mode) ?? item.distance}</span>
+                      </span>
+                    )}
+                    mutual
+                    onSelect={() => toggleSelectedMember(item.user.id)}
+                    selected={selected}
+                    selectLabel={`${selected ? 'Remove' : 'Add'} ${item.user.name} ${selected ? 'from' : 'to'} group`}
+                  />
+                )})}
               </div>
             </div>
 
@@ -739,12 +956,12 @@ export default function DirectMessages({ embedded = false, onClose }: { embedded
               {pinnedConversations.map((conversation) => (
                 <button
                   key={conversation.id}
-                  onClick={() => navigate(`/chat/${conversation.id}`)}
+                  onClick={() => openConversation(conversation.id)}
                   className="min-w-[150px] rounded-lg border border-white/10 bg-black/72 p-3 text-left transition-colors hover:bg-white/[0.06]"
                 >
                   <div className="flex items-start justify-between gap-2">
                     <HeartPhoto
-                      className="w-12"
+                      className="w-[var(--cruush-profile-heart-size)] shrink-0"
                       label={`${conversation.user.name} avatar`}
                       masked={shouldMaskPhoto(dlModeActive, conversation.user.photoExplicit)}
                       photo={conversation.user.photo}
@@ -760,7 +977,7 @@ export default function DirectMessages({ embedded = false, onClose }: { embedded
                     ) : null}
                   </div>
                   <p className="mt-3 truncate">{conversation.user.name}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">{conversation.distance}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{formatDistanceLabel(conversation.distance, distancePreferences.mode) ?? conversation.distance}</p>
                 </button>
               ))}
             </div>
@@ -789,97 +1006,88 @@ export default function DirectMessages({ embedded = false, onClose }: { embedded
               ? `Delete ${conversation.user.name} group chat for everyone`
               : `Delete ${conversation.user.name} chat for everyone`;
 
+            const openIdentity = conversation.kind === 'dm'
+              ? () => navigate(`/profile/${conversation.user.id}`)
+              : () => openConversation(conversation.id);
+            const identityAdornment = (
+              <>
+                {conversation.kind === 'group' ? <Badge variant="outline" className={quietBadgeClassName}>Group</Badge> : null}
+                {conversation.currentUserRole && conversation.currentUserRole !== 'member' ? <Badge variant="outline" className={quietBadgeClassName}>{conversation.currentUserRole}</Badge> : null}
+                {conversation.muted ? <Badge variant="outline" className={quietBadgeClassName}>Quiet</Badge> : null}
+                {conversation.unreadCount > 0 ? <span className="rounded-full bg-primary px-2 py-0.5 text-[11px] text-white">{conversation.unreadCount}</span> : null}
+              </>
+            );
+
             return (
-              <article
+              <UserActivityCapsule
                 key={conversation.id}
-                className="relative rounded-lg border border-white/10 bg-black/72 shadow-[0_20px_60px_rgba(0,0,0,0.28)] backdrop-blur-xl transition-colors hover:bg-white/[0.06]"
-              >
-                <button
-                  type="button"
-                  onClick={() => navigate(`/chat/${conversation.id}`)}
-                  className="block w-full p-4 pr-12 text-left"
-                >
-                  <div className="flex gap-4">
-                    <HeartPhoto
-                      className="w-20 shrink-0"
-                      label={`${conversation.user.name} avatar`}
-                      masked={shouldMaskPhoto(dlModeActive, conversation.user.photoExplicit)}
-                      photo={conversation.user.photo}
-                      userId={conversation.user.id}
-                      theme={getConversationHeartTheme(conversation)}
-                      onClick={conversation.kind === 'dm' ? () => navigate(`/profile/${conversation.user.id}`) : undefined}
-                      fallback={
-                        conversation.kind === 'group'
-                          ? <CruushIcon name="profile" className="size-7 opacity-80" />
-                          : <div className="text-lg text-white/80">{getConversationInitials(conversation.user.name)}</div>
-                      }
-                    />
-
-                    <div className="min-w-0 flex-1">
-                      <div className="flex min-w-0 flex-wrap items-center gap-2">
-                        <p className={`min-w-0 max-w-full truncate text-base text-white ${conversation.unreadCount > 0 ? 'font-medium' : ''}`}>
-                          {conversation.user.name}
-                        </p>
-                        {conversation.kind === 'group' ? (
-                          <Badge variant="outline" className={quietBadgeClassName}>
-                            Group
-                          </Badge>
-                        ) : null}
-                        {conversation.currentUserRole && conversation.currentUserRole !== 'member' ? (
-                          <Badge variant="outline" className={quietBadgeClassName}>
-                            {conversation.currentUserRole}
-                          </Badge>
-                        ) : null}
-                        {conversation.muted ? (
-                          <Badge variant="outline" className={quietBadgeClassName}>
-                            Quiet
-                          </Badge>
-                        ) : null}
+                testId="conversation-preview-row"
+                heart={(
+                  <HeartPhoto
+                    className="w-20 shrink-0"
+                    label={`${conversation.user.name} avatar`}
+                    masked={shouldMaskPhoto(dlModeActive, conversation.user.photoExplicit)}
+                    photo={conversation.user.photo}
+                    userId={conversation.user.id}
+                    theme={getConversationHeartTheme(conversation)}
+                    onClick={openIdentity}
+                    fallback={conversation.kind === 'group'
+                      ? <CruushIcon name="profile" className="size-7 opacity-80" />
+                      : <div className="text-lg text-white/80">{getConversationInitials(conversation.user.name)}</div>}
+                  />
+                )}
+                name={conversation.user.name}
+                pronouns={conversation.user.pronouns || conversation.membersLabel}
+                sideBadges={conversation.user.sideBadges}
+                sideBadgeTone={conversation.user.travelling ? 'mile-high' : conversation.mutual ? 'mutual' : 'nearby'}
+                identityAdornment={identityAdornment}
+                onOpenIdentity={openIdentity}
+                metadata={(
+                  <button type="button" className="flex h-11 min-w-0 flex-col justify-center gap-0.5 text-left text-xs leading-snug text-white/62 sm:text-sm" onClick={() => openConversation(conversation.id)}>
+                    <span className="truncate">{formatRelativeTime(conversation.updatedAt)}</span>
+                    <span className="truncate">{formatDistanceLabel(conversation.distance, distancePreferences.mode) ?? conversation.distance}</span>
+                  </button>
+                )}
+                actions={conversation.kind === 'dm' ? (
+                  <ProfileActionTrio
+                    size="sm"
+                    userName={conversation.user.name}
+                    cruushState={changingCruushUserId === conversation.user.id
+                      ? 'sending'
+                      : conversation.mutual
+                        ? 'mutual'
+                        : requestedCruushIds.includes(conversation.user.id)
+                          ? 'sent'
+                          : 'available'}
+                    cruushTone={conversation.mutual || requestedCruushIds.includes(conversation.user.id) ? 'dark' : undefined}
+                    onCruush={() => void handleConversationCruush(conversation)}
+                    canMessage
+                    onMessage={() => openConversation(conversation.id)}
+                    canCenterPin={validPinUserIds.has(conversation.user.id)}
+                    onCenterPin={() => navigate(`/map?mode=mutuals&focusUserId=${encodeURIComponent(conversation.user.id)}`)}
+                  />
+                ) : undefined}
+                mutual={conversation.kind === 'group' || conversation.mutual === true}
+                content={(
+                  <div className="space-y-2">
+                    {conversation.lastMessage ? (
+                      <button
+                        type="button"
+                        className={`line-clamp-1 min-w-0 break-words text-left text-base ${conversation.unreadCount > 0 ? 'text-white' : 'text-white/62'}`}
+                        onClick={() => openConversation(conversation.id)}
+                      >
+                        {conversation.lastMessage}
+                      </button>
+                    ) : null}
+                    {(conversation.disappearingTimer && conversation.disappearingTimer !== 'off') || conversation.closed ? (
+                      <div className="flex flex-wrap gap-2">
+                        {conversation.disappearingTimer && conversation.disappearingTimer !== 'off' ? <Badge variant="outline" className={quietBadgeClassName}>{conversation.disappearingTimer}</Badge> : null}
+                        {conversation.closed ? <Badge variant="outline" className="rounded-md border border-destructive/30 bg-destructive/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-destructive">Closed</Badge> : null}
                       </div>
-
-                      <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-sm text-white/62">
-                        {conversation.user.pronouns ? <span className="truncate">{conversation.user.pronouns}</span> : null}
-                        {conversation.membersLabel ? <span>{conversation.membersLabel}</span> : null}
-                        <span className="inline-flex items-center gap-1">
-                          <CruushIcon name="map" className="size-3 opacity-70" />
-                          {conversation.distance}
-                        </span>
-                        <span className="text-white/52">{formatRelativeTime(conversation.updatedAt)}</span>
-                        {conversation.unreadCount > 0 ? (
-                          <span className="rounded-full bg-primary px-2 py-0.5 text-[11px] text-white">
-                            {conversation.unreadCount}
-                          </span>
-                        ) : null}
-                      </div>
-
-                      {conversation.lastMessage ? (
-                        <p className={`mt-3 line-clamp-2 break-words text-sm ${conversation.unreadCount > 0 ? 'text-white' : 'text-white/62'}`}>
-                          {conversation.lastMessage}
-                        </p>
-                      ) : null}
-
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {conversation.tags.slice(0, 2).map((tag) => (
-                          <Badge key={tag} variant="outline" className={quietBadgeClassName}>
-                            {tag}
-                          </Badge>
-                        ))}
-                        {conversation.disappearingTimer && conversation.disappearingTimer !== 'off' ? (
-                          <Badge variant="outline" className={quietBadgeClassName}>
-                            {conversation.disappearingTimer}
-                          </Badge>
-                        ) : null}
-                        {conversation.closed ? (
-                          <Badge variant="outline" className="rounded-md border border-destructive/30 bg-destructive/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-destructive">
-                            Closed
-                          </Badge>
-                        ) : null}
-                      </div>
-                    </div>
+                    ) : null}
                   </div>
-                </button>
-
-                {canDeleteConversation(conversation) ? (
+                )}
+                cornerAction={canDeleteConversation(conversation) ? (
                   <Button
                     type="button"
                     variant="ghost"
@@ -888,14 +1096,12 @@ export default function DirectMessages({ embedded = false, onClose }: { embedded
                     title={deleteLabel}
                     disabled={deletingConversationId === conversation.id}
                     onClick={() => void handleDeleteConversation(conversation)}
-                    className="absolute right-3 top-3 size-8 text-white/55 hover:bg-white/10 hover:text-white"
+                    className="size-8 text-white/55 hover:bg-white/10 hover:text-white"
                   >
                     <Trash2 className="size-4" />
                   </Button>
-                ) : (
-                  <ChevronRight className="absolute right-4 top-5 size-4 text-white/40" />
-                )}
-              </article>
+                ) : <ChevronRight className="m-2 size-4 text-white/40" />}
+              />
             );
           })}
 
@@ -934,10 +1140,12 @@ export default function DirectMessages({ embedded = false, onClose }: { embedded
 }
 
 function ComposeChoiceOverlay({
+  embedded,
   onClose,
   onStartDirect,
   onStartGroup,
 }: {
+  embedded: boolean;
   onClose: () => void;
   onStartDirect: () => void;
   onStartGroup: () => void;
@@ -945,7 +1153,7 @@ function ComposeChoiceOverlay({
   return (
     <div className="fixed inset-0 z-40 bg-background/95 px-4 py-6 backdrop-blur-md">
       <div className="mx-auto max-w-2xl space-y-5">
-        <div className="flex items-center justify-between gap-3 pr-14">
+        <div className={`flex items-center justify-between gap-3 ${embedded ? '' : 'pr-14'}`}>
           <div>
             <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">new message</p>
             <h3 className="text-2xl">Start a conversation</h3>
@@ -979,6 +1187,7 @@ function ComposeChoiceOverlay({
 }
 
 function DirectUserOverlay({
+  embedded,
   error,
   loading,
   users,
@@ -987,6 +1196,8 @@ function DirectUserOverlay({
   hasCruushPlus,
   requestedCruushIds,
   onAskMutual,
+  onRemoveSentCruush,
+  onRemoveMutual,
   onClose,
   onBack,
   onApplyFilters,
@@ -995,6 +1206,7 @@ function DirectUserOverlay({
   onOpenMap,
   onOpenProfile,
 }: {
+  embedded: boolean;
   error: string | null;
   loading: boolean;
   users: DiscoveryUser[];
@@ -1003,6 +1215,8 @@ function DirectUserOverlay({
   hasCruushPlus: boolean;
   requestedCruushIds: string[];
   onAskMutual: (user: DiscoveryUser) => void;
+  onRemoveSentCruush: (userId: string) => void;
+  onRemoveMutual: (userId: string) => void;
   onClose: () => void;
   onBack: () => void;
   onApplyFilters: (filters: FilterState) => Promise<void>;
@@ -1033,32 +1247,58 @@ function DirectUserOverlay({
       : compareRecentActivity(a, b, viewerCoordinates)));
   }, [broadenedPublicUsers, sortMode, viewerCoordinates]);
 
-  const requestMutual = async (user: DiscoveryUser) => {
-    if (requestingUserId || requestedCruushIds.includes(user.id)) {
-      return;
-    }
+  const togglePublicCruush = async (user: DiscoveryUser) => {
+    if (requestingUserId) return;
 
     setRequestingUserId(user.id);
     setRequestError(null);
 
     try {
-      await sendCruush(user.id, {
-        name: user.name,
-        pronouns: user.pronouns,
-        photo: user.photo,
-      });
-      onAskMutual(user);
+      if (requestedCruushIds.includes(user.id)) {
+        await revokeSentCruush(user.id);
+        onRemoveSentCruush(user.id);
+        handleSentCruushRevokeSuccess(user.id, user.name);
+      } else {
+        const result = await sendCruush(user.id, {
+          name: user.name,
+          pronouns: user.pronouns,
+          photo: user.photo,
+        });
+        onAskMutual(user);
+        handleCruushSendSuccess(user.id, user.name, result);
+      }
     } catch (error) {
-      setRequestError(error instanceof Error ? error.message : 'Failed to send cruush.');
+      if (requestedCruushIds.includes(user.id)) notifySentCruushRevokeError(error);
+      else notifyCruushSendError(error);
+      setRequestError(error instanceof Error ? error.message : 'Failed to update cruush.');
+    } finally {
+      setRequestingUserId(null);
+    }
+  };
+
+  const removeMutual = async (item: MutualCruushActivityItem) => {
+    if (requestingUserId) return;
+    setRequestingUserId(item.user.id);
+    setRequestError(null);
+    try {
+      await revokeMutualCruush(item.user.id);
+      onRemoveMutual(item.user.id);
+      handleMutualCruushRevokeSuccess(item.user.id, item.user.name);
+    } catch (error) {
+      notifyMutualCruushRevokeError(error);
+      setRequestError(error instanceof Error ? error.message : 'Failed to remove mutual.');
     } finally {
       setRequestingUserId(null);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-40 overflow-y-auto overscroll-contain bg-background/95 px-4 py-6 backdrop-blur-md" style={{ WebkitOverflowScrolling: 'touch' }}>
+    <div
+      className="scrollbar-hide fixed inset-0 z-40 overflow-y-auto overscroll-contain bg-background/95 px-4 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-6 backdrop-blur-md"
+      style={{ WebkitOverflowScrolling: 'touch' }}
+    >
       <div className="mx-auto min-h-full max-w-2xl space-y-5 pb-8">
-        <div className="flex items-center justify-between gap-3 pr-14">
+        <div className={`flex items-center justify-between gap-3 ${embedded ? '' : 'pr-14'}`}>
           <div className="flex min-w-0 items-center gap-1">
             <Button type="button" variant="ghost" size="icon" aria-label="Back to message options" onClick={onBack}>
               <ChevronLeft className="size-4" />
@@ -1087,7 +1327,7 @@ function DirectUserOverlay({
               className="h-9 rounded-full border-white/12 bg-background/70 px-3 text-xs text-foreground"
               onClick={() => setFiltersOpen(true)}
             >
-              <SlidersHorizontal className="mr-1.5 size-3.5 text-primary" />
+              <CruushIconImage src={seekingIcon} className="mr-1.5 size-3.5 brightness-0 invert" />
               Seeking filters
             </Button>
 
@@ -1152,20 +1392,14 @@ function DirectUserOverlay({
           {activeComposerTab === 'public' && sortedPublicUsers.length > 0 ? sortedPublicUsers.map((user) => {
             const requested = requestedCruushIds.includes(user.id);
             const canMessageNow = user.relationship?.canMessage === true;
-            const hasPreciseLocation = user.displayMode === 'PRECISE';
-            const vibeTags = topVibeTags(user.vibes, user.scenes, user.archetypes);
             return (
-              <div
+              <UserActivityCapsule
                 key={user.id}
-                className="flex w-full items-center gap-3 rounded-2xl border border-border bg-card/70 p-3 text-left transition-colors hover:bg-accent/60"
-              >
-                <button
-                  type="button"
-                  className="flex min-w-0 flex-1 items-center gap-3 text-left"
-                  onClick={() => canMessageNow ? onMessage(user.id) : onOpenProfile(user.id)}
-                >
+                className="border-border bg-card/70 hover:bg-accent/60"
+                testId={`message-discovery-${user.id}`}
+                heart={(
                   <HeartPhoto
-                    className="w-20 shrink-0"
+                    className="w-20"
                     label={`${user.name} avatar`}
                     masked={shouldMaskPhoto(dlModeActive, user.photoExplicit)}
                     photo={user.photo}
@@ -1173,99 +1407,85 @@ function DirectUserOverlay({
                     onClick={() => onOpenProfile(user.id)}
                     fallback={<div className="text-base text-white/80">{getConversationInitials(user.name)}</div>}
                   />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-base">{user.name}</span>
-                    <span className="mt-0.5 block truncate text-xs text-muted-foreground">{describeDiscoveryUser(user) || user.distance}</span>
-                    <span className="mt-2 flex flex-wrap items-center gap-1.5">
-                      <Badge variant="outline" className={quietBadgeClassName}>{user.distance}</Badge>
-                      {vibeTags.map((vibe) => (
-                        <Badge
-                          key={vibe}
-                          variant="outline"
-                          className={vibeBadgeBaseClassName}
-                          style={vibeCapsuleStyle(resolveVibeTone({ mutual: user.relationship?.mutualCruush, isCurrentUser: user.isCurrentUser }))}
-                        >
-                          {vibe}
-                        </Badge>
-                      ))}
-                      {user.latestFeedPostPreview ? (
-                        <Badge variant="outline" className="max-w-[12rem] border-white/10 bg-white/[0.04] text-[10px] text-white/62">
-                          <CruushIcon name="map" className="mr-1 inline size-3 opacity-80" />
-                          {user.latestFeedPostPreview}
-                        </Badge>
-                      ) : null}
-                    </span>
-                  </span>
-                </button>
-                <ProfileActionTrio
+                )}
+                name={user.name}
+                pronouns={user.pronouns || 'Ask me'}
+                sideBadges={user.sideBadges}
+                sideBadgeTone={user.activePing ? 'pulse' : user.travelling ? 'mile-high' : user.isCurrentUser ? 'current' : user.relationship?.mutualCruush ? 'mutual' : 'nearby'}
+                onOpenIdentity={() => onOpenProfile(user.id)}
+                metadata={(
+                  <button type="button" className="flex min-w-0 flex-col gap-0.5 text-left text-xs leading-snug text-white/62" onClick={() => onOpenProfile(user.id)}>
+                    {describeDiscoveryUser(user) ? <span className="truncate">{describeDiscoveryUser(user)}</span> : null}
+                    <span className="truncate">{user.distance}</span>
+                  </button>
+                )}
+                actions={<ProfileActionTrio
                   size="sm"
                   userName={user.name}
                   cruushState={requestingUserId === user.id ? 'sending' : requested ? 'sent' : 'available'}
-                  cruushDisabled={requested || requestingUserId === user.id}
-                  onCruush={() => { void requestMutual(user); }}
+                  onCruush={() => { void togglePublicCruush(user); }}
                   canMessage={canMessageNow}
                   onMessage={() => onMessage(user.id)}
-                  canCenterPin={hasPreciseLocation}
+                  canCenterPin={false}
                   onCenterPin={() => onOpenMap(user.id, false)}
-                />
-              </div>
-            );
-          }) : mutuals.map((item) => (
-            <div
-              key={item.user.id}
-              className="flex w-full items-center gap-3 rounded-2xl border border-[#8B5CF6]/35 bg-card/70 p-3 text-left transition-colors hover:bg-accent/60"
-            >
-              <button
-                type="button"
-                className="flex min-w-0 flex-1 items-center gap-3 text-left"
-                onClick={() => onMessage(item.user.id)}
-              >
-                <HeartPhoto
-                  className="w-20 shrink-0"
-                  label={`${item.user.name} avatar`}
-                  masked={shouldMaskPhoto(dlModeActive, item.user.photoExplicit)}
-                  photo={item.user.photo}
-                  theme="mutual"
-                  userId={item.user.id}
-                  onClick={() => onOpenProfile(item.user.id)}
-                  fallback={<div className="text-base text-white/80">{getConversationInitials(item.user.name)}</div>}
-                />
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-base">{item.user.name}</span>
-                  <span className="mt-0.5 block truncate text-xs text-muted-foreground">{[item.user.pronouns, item.distance].filter(Boolean).join(' · ')}</span>
-                  <span className="mt-2 flex flex-wrap items-center gap-1.5">
-                    {topVibeTags(item.vibes).map((vibe) => (
-                      <Badge
-                        key={vibe}
-                        variant="outline"
-                        className={vibeBadgeBaseClassName}
-                        style={vibeCapsuleStyle('mutual')}
-                      >
-                        {vibe}
-                      </Badge>
-                    ))}
-                  </span>
-                </span>
-              </button>
-              <ProfileActionTrio
-                size="sm"
-                userName={item.user.name}
-                cruushState="mutual"
-                cruushDisabled
-                onCruush={() => onOpenProfile(item.user.id)}
-                canMessage={item.canMessage !== false}
-                onMessage={() => onMessage(item.user.id)}
-                canCenterPin={item.coordinates?.precision === 'precise'}
-                onCenterPin={() => onOpenMap(item.user.id, true)}
+                />}
+                mutual={user.relationship?.mutualCruush === true}
+                content={user.latestFeedPostPreview ? <p className="text-base text-white/78">{user.latestFeedPostPreview}</p> : undefined}
               />
-            </div>
-          ))}
+            );
+          }) : mutuals.map((item) => {
+            const canCenterPin = item.canRevealPreciseLocation === true
+              && item.coordinates?.precision === 'precise'
+              && (item.displayExpiresAtMs == null || item.displayExpiresAtMs > Date.now());
+            return (
+              <UserActivityCapsule
+                key={item.user.id}
+                className="border-[#8B5CF6]/35 bg-card/70 hover:bg-accent/60"
+                testId={`message-mutual-discovery-${item.user.id}`}
+                heart={(
+                  <HeartPhoto
+                    className="w-20"
+                    label={`${item.user.name} avatar`}
+                    masked={shouldMaskPhoto(dlModeActive, item.user.photoExplicit)}
+                    photo={item.user.photo}
+                    theme="mutual"
+                    userId={item.user.id}
+                    onClick={() => onOpenProfile(item.user.id)}
+                    fallback={<div className="text-base text-white/80">{getConversationInitials(item.user.name)}</div>}
+                  />
+                )}
+                name={item.user.name}
+                pronouns={item.user.pronouns || 'Ask me'}
+                sideBadges={item.user.sideBadges}
+                sideBadgeTone={item.user.travelling ? 'mile-high' : 'mutual'}
+                onOpenIdentity={() => onOpenProfile(item.user.id)}
+                metadata={(
+                  <button type="button" className="flex min-w-0 flex-col gap-0.5 text-left text-xs leading-snug text-white/62" onClick={() => onOpenProfile(item.user.id)}>
+                    <span className="truncate">{item.lastActive}</span>
+                    <span className="truncate">{item.distance}</span>
+                  </button>
+                )}
+                actions={<ProfileActionTrio
+                  size="sm"
+                  userName={item.user.name}
+                  cruushState={requestingUserId === item.user.id ? 'sending' : 'mutual'}
+                  cruushTone="dark"
+                  onCruush={() => void removeMutual(item)}
+                  canMessage={item.canMessage !== false}
+                  onMessage={() => onMessage(item.user.id)}
+                  canCenterPin={canCenterPin}
+                  onCenterPin={() => onOpenMap(item.user.id, true)}
+                />}
+                mutual
+              />
+            );
+          })}
         </div>
 
         <MapFiltersSurface
           open={filtersOpen}
           onOpenChange={setFiltersOpen}
-          title="Seeking"
+          title="Seeking Filter"
           description=""
           value={filters}
           onChange={setFilters}

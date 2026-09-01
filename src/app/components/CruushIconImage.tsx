@@ -1,10 +1,9 @@
-import type { CSSProperties } from 'react';
+import type { CSSProperties, ImgHTMLAttributes } from 'react';
 import cruushColored from '../assets/ui-icons/cruush-colored.png';
 import cruushWhite from '../assets/ui-icons/cruush-white.png';
 import cameraColored from '../assets/ui-icons/camera-colored.png';
 import cameraWhite from '../assets/ui-icons/camera-white.png';
-import crowdsColored from '../assets/ui-icons/crowds-colored.svg';
-import crowdsWhite from '../assets/ui-icons/crowds-white.svg';
+import crowdHydraWhite from '../assets/ui-icons/crowd-hydra-8441396-white.png';
 import feedColored from '../assets/ui-icons/feed-colored.png';
 import feedWhite from '../assets/ui-icons/feed-white.png';
 import ghostColored from '../assets/ui-icons/ghost-colored.svg';
@@ -45,6 +44,7 @@ export type CruushIconName =
   | 'lucky'
   | 'map'
   | 'messages'
+  | 'mutual'
   | 'notifications'
   | 'profile'
   | 'safety'
@@ -66,8 +66,8 @@ const CRUUSH_ICON_SOURCES: Record<CruushIconName, Record<CruushIconAssetVariant,
     white: cruushWhite,
   },
   crowds: {
-    colored: crowdsColored,
-    white: crowdsWhite,
+    colored: crowdHydraWhite,
+    white: crowdHydraWhite,
   },
   feed: {
     colored: feedColored,
@@ -88,6 +88,12 @@ const CRUUSH_ICON_SOURCES: Record<CruushIconName, Record<CruushIconAssetVariant,
   messages: {
     colored: messagesColored,
     white: messagesWhite,
+  },
+  // Mutual is always the approved double-heart. The winged-heart `cruush`
+  // asset belongs to Feed and must never be substituted for this state.
+  mutual: {
+    colored: safetyColored,
+    white: safetyWhite,
   },
   notifications: {
     colored: notificationsColored,
@@ -115,6 +121,19 @@ const CRUUSH_ICON_SOURCES: Record<CruushIconName, Record<CruushIconAssetVariant,
   },
 };
 
+export function GhostColoredIcon({ className, ...props }: ImgHTMLAttributes<HTMLImageElement>) {
+  return (
+    <img
+      {...props}
+      alt=""
+      aria-hidden="true"
+      className={`shrink-0 object-contain ${className ?? ''}`}
+      draggable={false}
+      src={ghostColored}
+    />
+  );
+}
+
 export default function CruushIconImage({
   className = 'h-[1.5625rem] w-[1.5625rem]',
   src,
@@ -141,6 +160,10 @@ export function CruushIcon({
   name: CruushIconName;
   variant?: CruushIconVariant;
 }) {
+  if (name === 'ghost' && variant === 'colored') {
+    return <GhostColoredIcon className={className} />;
+  }
+
   if (variant === 'stealth') {
     return <CruushIconImage className={className} src={name === 'ghost' ? ghostStealth : CRUUSH_ICON_SOURCES[name].white} />;
   }

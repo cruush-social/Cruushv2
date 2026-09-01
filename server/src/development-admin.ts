@@ -40,7 +40,6 @@ export function isDevelopmentAdminLogin(
   password: string
 ) {
   return (
-    context.config.DEVELOPMENT_ADMIN_ENABLED &&
     context.config.NODE_ENV !== "production" &&
     context.config.DEVELOPMENT_ADMIN_PASSWORD.length > 0 &&
     email === DEVELOPMENT_ADMIN_EMAIL &&

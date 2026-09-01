@@ -19,6 +19,7 @@ function SeekingHarness({ hasCruushPlus = false, onUpgrade = vi.fn() }: { hasCru
         onApply={() => setApplied(value)}
       />
       <output data-testid="applied-identities">{applied?.identities.join(',') ?? ''}</output>
+      <output data-testid="applied-mile-high-club">{String(applied?.mileHighClub ?? false)}</output>
     </>
   );
 }
@@ -27,14 +28,14 @@ describe('MapFiltersSurface', () => {
   it('keeps the Seeking sheet above the fixed bottom navigation', () => {
     render(<SeekingHarness />);
 
-    expect(screen.getByRole('dialog', { name: 'Seeking' })).toHaveClass('z-[70]');
+    expect(screen.getByRole('dialog', { name: 'Seeking Filter' })).toHaveClass('z-[1100]');
   });
 
   it('keeps the close control on the left away from the fixed bug button', () => {
     render(<SeekingHarness />);
 
     expect(screen.getByRole('button', { name: 'Close' })).toHaveClass('left-4');
-    expect(screen.getByRole('dialog', { name: 'Seeking' }).querySelector('[data-slot="sheet-header"]')).toHaveClass('pl-14');
+    expect(screen.getByRole('dialog', { name: 'Seeking Filter' }).querySelector('[data-slot="sheet-header"]')).toHaveClass('pl-14');
   });
 
   it('links basic members to cruush+ for more than three seeking filter categories', () => {
@@ -51,6 +52,19 @@ describe('MapFiltersSurface', () => {
     expect(screen.queryByText('Basic includes up to 3 seeking filter categories.')).not.toBeInTheDocument();
   });
 
+  it('can limit Seeking to active Mile High Club members from Intimacy', () => {
+    render(<SeekingHarness />);
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Intimacy' }));
+    const control = screen.getByRole('switch', { name: /Mile High Club members/ });
+    expect(control).not.toBeChecked();
+
+    fireEvent.click(control);
+    fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+
+    expect(screen.getByTestId('applied-mile-high-club')).toHaveTextContent('true');
+  });
+
   it('keeps a portalled Seeking option inside the modal touch boundary and applies it', () => {
     render(<SeekingHarness />);
 
@@ -59,7 +73,7 @@ describe('MapFiltersSurface', () => {
 
     const option = screen.getByRole('option', { name: 'man', exact: true });
     const menu = option.parentElement?.parentElement;
-    expect(option.closest('[data-slot="sheet-content"]')).toBe(screen.getByRole('dialog', { name: 'Seeking' }));
+    expect(option.closest('[data-slot="sheet-content"]')).toBe(screen.getByRole('dialog', { name: 'Seeking Filter' }));
     expect(menu).toHaveStyle({ pointerEvents: 'auto' });
 
     fireEvent.pointerDown(option, { isPrimary: true, pointerType: 'touch' });
@@ -67,7 +81,7 @@ describe('MapFiltersSurface', () => {
     fireEvent.click(option);
 
     expect(trigger).toHaveTextContent('1 selected');
-    expect(screen.getByRole('dialog', { name: 'Seeking' })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Seeking Filter' })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
     expect(screen.getByTestId('applied-identities')).toHaveTextContent('man');

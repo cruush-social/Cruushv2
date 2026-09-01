@@ -21,6 +21,7 @@ export type ReceivedMapPing = ActiveMapPing & {
 };
 
 export type MapPingStatus = {
+  bonusCredits: number;
   allowance: MapPingAllowance;
   activePing: ActiveMapPing | null;
   receivedPings: ReceivedMapPing[];

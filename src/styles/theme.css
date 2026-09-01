@@ -2,6 +2,7 @@
 
 :root {
   --font-size: 16px;
+  --cruush-profile-heart-size: 80px;
 
   /* cruush brand colors */
   --cruush-pink: #ff0072;
@@ -20,6 +21,10 @@
   --cruush-heart-photo-gradient: linear-gradient(90deg, #FF0072 0%, #DA045D 48.5577%, #B40849 100%);
   --cruush-heart-pin-red-gradient: linear-gradient(90deg, #FF0072 0%, #DA045D 48.5577%, #B40849 100%);
   --cruush-heart-pin-blue-gradient: linear-gradient(90deg, #0099FF 0%, #1968EA 48.5577%, #3236D4 100%);
+  --cruush-dark-room-dark: #2B0057;
+  --cruush-dark-room-middle: #6F00FF;
+  --cruush-dark-room-light: #B86CFF;
+  --cruush-dark-room-gradient: linear-gradient(135deg, var(--cruush-dark-room-dark) 0%, var(--cruush-dark-room-middle) 50%, var(--cruush-dark-room-light) 100%);
   --crimson-bright: #d11f3a;
   --crimson-mid: #9f1730;
   --crimson-dark: #690f1f;
@@ -189,6 +194,12 @@ html[data-cruush-alpha-bug-corner='top-right'] header.sticky.top-0[data-testid='
   padding-right: 0 !important;
 }
 
+/* Docked popups own their complete header. The global Bug Fix button stays
+   outside them and must not create an empty header slot. */
+html[data-cruush-alpha-bug-corner='top-right'] [data-dock-slot] header.sticky.top-0 {
+  padding-right: 0.5rem !important;
+}
+
 :root {
   --cruush-map-top-clearance: 4.625rem;
 }
@@ -202,12 +213,6 @@ html[data-cruush-alpha-bug-corner='top-right'] header.sticky.top-0[data-testid='
 @media (min-width: 1024px) {
   :root {
     --cruush-map-top-clearance: 5.625rem;
-  }
-}
-
-@media (min-width: 1120px) and (min-height: 720px) {
-  html[data-cruush-map-profile-panel='open'] .cruush-bottom-nav-pill {
-    transform: translateX(8rem);
   }
 }
 
@@ -930,13 +935,6 @@ html[data-cruush-alpha-bug-corner='top-right'] [data-testid='accessibility-quick
     box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.55);
   }
 
-  /* D1: the bug report control never intersects another interactive element.
-     A dialog puts its own close button in the same top-right corner, so the
-     bug control stands down for as long as any dialog is open. */
-  body:has([role="dialog"][data-state="open"]) .cruush-alpha-bug-button {
-    display: none;
-  }
-
   /* A trace running the signal capsule's border, once per beat, so the caption
      reads as part of the same heartbeat. The border flash belongs to the ghost
      countdown, so this stays a moving highlight rather than a flash. */
@@ -1149,5 +1147,89 @@ html[data-cruush-alpha-bug-corner='top-right'] [data-testid='accessibility-quick
       animation: none;
       transform: translateX(0);
     }
+  }
+
+  .cruush-dark-room-ring {
+    border-color: transparent !important;
+    background-clip: padding-box, border-box;
+    background-origin: border-box;
+  }
+
+  .cruush-mile-high-ring {
+    border-color: #77b9da !important;
+    background-image: none;
+  }
+
+  .cruush-dark-room-ring {
+    background-image:
+      linear-gradient(rgba(0, 0, 0, var(--cruush-ghost-surface-alpha, 0.85)), rgba(0, 0, 0, var(--cruush-ghost-surface-alpha, 0.85))),
+      linear-gradient(90deg, #2B0057 0%, #6F00FF 50%, #B86CFF 100%);
+  }
+
+  .cruush-user-activity-shell {
+    container-type: inline-size;
+  }
+
+  .cruush-user-activity-capsule {
+    grid-template-columns: var(--cruush-profile-heart-size) minmax(0, 1fr) auto;
+    column-gap: clamp(0.75rem, 5.3cqw, 2.2rem);
+    row-gap: clamp(0.5rem, 1.8cqw, 0.85rem);
+    border-radius: clamp(1rem, 4cqw, 1.75rem);
+    padding: clamp(0.75rem, 5.3cqw, 2.2rem);
+  }
+
+  .cruush-user-activity-heart {
+    width: var(--cruush-profile-heart-size);
+  }
+
+  .cruush-user-activity-heart > :first-child {
+    width: var(--cruush-profile-heart-size) !important;
+    height: var(--cruush-profile-heart-size);
+  }
+
+  .cruush-user-activity-heart [data-testid='activity-side-badges'] {
+    gap: 0.25rem;
+  }
+
+  .cruush-user-activity-name {
+    font-size: clamp(1rem, 4.3cqw, 1.75rem);
+    line-height: 1.15;
+  }
+
+  .cruush-user-activity-pronouns {
+    font-size: clamp(0.875rem, 3.2cqw, 1.35rem);
+    line-height: 1.2;
+  }
+
+  .cruush-user-activity-metadata {
+    font-size: clamp(0.75rem, 3.2cqw, 1.35rem);
+  }
+
+  .cruush-user-activity-content {
+    font-size: clamp(1rem, 4.3cqw, 1.75rem);
+    line-height: 1.5;
+  }
+
+  .cruush-user-activity-content > p,
+  .cruush-user-activity-content > button,
+  .cruush-user-activity-content > div > p,
+  .cruush-user-activity-content > div > button {
+    font-size: inherit;
+    line-height: inherit;
+  }
+
+  .cruush-user-activity-actions [data-testid='profile-action-trio'] {
+    gap: clamp(0.5rem, 2cqw, 1rem);
+  }
+
+  .cruush-user-activity-actions [data-testid='profile-action-trio'] > button {
+    width: clamp(2.5rem, 11cqw, 4.5rem);
+    height: clamp(2.5rem, 11cqw, 4.5rem);
+  }
+
+  .cruush-user-activity-actions [data-testid='profile-action-trio'] > button > svg,
+  .cruush-user-activity-actions [data-testid='profile-action-trio'] > button > img {
+    width: clamp(1.5rem, 4.9cqw, 2rem);
+    height: clamp(1.5rem, 4.9cqw, 2rem);
   }
 }

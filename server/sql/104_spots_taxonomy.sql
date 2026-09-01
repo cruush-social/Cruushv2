@@ -1,0 +1,26 @@
+-- Preserve legacy Spot data before removing obsolete submission categories.
+update places
+set facility_type = 'other', updated_at = now()
+where facility_type = 'venue';
+
+insert into place_tags (place_id, tag)
+select place_id, 'dyke_spot'
+from place_tags
+where tag = 'dyke_bar'
+on conflict (place_id, tag) do nothing;
+
+delete from place_tags
+where tag = 'dyke_bar';
+
+alter table places drop constraint if exists places_facility_type_check;
+alter table places add constraint places_facility_type_check check (facility_type in (
+  'clinic', 'bar', 'nightclub', 'community_space', 'park', 'restroom',
+  'sauna', 'gym', 'hotel', 'dungeon', 'cafe', 'shop', 'library',
+  'staircase', 'trail', 'transit', 'parking', 'beach', 'adult_venue', 'other'
+));
+
+alter table place_tags drop constraint if exists place_tags_tag_check;
+alter table place_tags add constraint place_tags_tag_check check (tag in (
+  'lgbtq_health', 'womens_health', 'sexual_health', 'gay_spot',
+  'dyke_spot', 't4t_spot', 'techno_club'
+));

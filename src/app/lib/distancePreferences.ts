@@ -4,12 +4,11 @@ export const DISTANCE_PREFERENCES_CHANGED_EVENT = 'cruush:distance-preferences-c
 export const DISTANCE_PREFERENCES_STORAGE_KEY = 'cruush:distance-preference';
 
 /**
- * How far away someone is, in three settings that always read both ways: turn
- * labels off and nobody sees a distance in either direction, keep them
- * approximate and both sides see a rough label, or go precise and both sides
- * see the miles. The stricter of the two people's settings wins.
+ * How far away someone is. Approximate and precise settings always read both
+ * ways, with the stricter of the two people's settings winning. Dark Room owns
+ * the separate option to replace distance text completely.
  */
-export type DistanceDisplayMode = 'off' | 'approximate' | 'precise';
+export type DistanceDisplayMode = 'approximate' | 'precise';
 
 export type DistancePreferences = {
   mode: DistanceDisplayMode;
@@ -17,7 +16,7 @@ export type DistancePreferences = {
 
 export type DistancePreferencesListener = (preferences: DistancePreferences) => void;
 
-const DISTANCE_DISPLAY_MODES: DistanceDisplayMode[] = ['off', 'approximate', 'precise'];
+const DISTANCE_DISPLAY_MODES: DistanceDisplayMode[] = ['approximate', 'precise'];
 
 function isDistanceDisplayMode(value: unknown): value is DistanceDisplayMode {
   return typeof value === 'string' && (DISTANCE_DISPLAY_MODES as string[]).includes(value);
@@ -40,7 +39,11 @@ export function getDistancePreferences(): DistancePreferences {
     if (stored) {
       const parsed = JSON.parse(stored);
       // 'exact' was the old name for precise labels.
-      const mode = parsed.mode === 'exact' ? 'precise' : parsed.mode;
+      const mode = parsed.mode === 'exact'
+        ? 'precise'
+        : parsed.mode === 'off'
+          ? 'approximate'
+          : parsed.mode;
       if (isDistanceDisplayMode(mode)) {
         return { mode };
       }
@@ -92,8 +95,8 @@ export function useDistancePreferences() {
 }
 
 /**
- * Formats a distance string for the shared display mode: nothing when labels
- * are off, the miles when precise, a rough band when approximate.
+ * Formats a distance string for the shared display mode: miles when precise,
+ * a rough band when approximate.
  */
 export function formatDistanceLabel(
   distance: string | null | undefined,
@@ -101,10 +104,6 @@ export function formatDistanceLabel(
 ): string | null {
   if (!distance) return null;
   if (distance === 'You' || distance === 'Own profile') return distance;
-
-  if (mode === 'off') {
-    return null;
-  }
 
   if (mode === 'precise') {
     return distance;
@@ -170,10 +169,6 @@ export function resolveSharedDistanceMode(
   viewer: DistanceDisplayMode,
   subject: DistanceDisplayMode,
 ): DistanceDisplayMode {
-  if (viewer === 'off' || subject === 'off') {
-    return 'off';
-  }
-
   if (viewer === 'approximate' || subject === 'approximate') {
     return 'approximate';
   }

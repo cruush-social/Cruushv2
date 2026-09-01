@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import type { CSSProperties, ChangeEvent, RefObject } from 'react';
 import { useParams, useNavigate } from 'react-router';
-import { ArrowLeft, Eye, Image as ImageIcon, ImagePlus, MoreHorizontal, Timer, Star, Trash2, X } from 'lucide-react';
+import { ArrowLeft, Eye, Image as ImageIcon, ImagePlus, Timer, Star, Trash2, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Checkbox } from './ui/checkbox';
@@ -9,7 +9,7 @@ import { Input } from './ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import BlockUserAction from './BlockUserAction';
 import ReportAction from './ReportAction';
-import CruushIconImage, { CruushIcon } from './CruushIconImage';
+import { CruushIcon } from './CruushIconImage';
 import HeartPhoto from './HeartPhoto';
 import { Textarea } from './ui/textarea';
 import { getCurrentUserId } from '../lib/sessionUser';
@@ -48,7 +48,7 @@ import { ApiClientError, resolveMediaUrl } from '../lib/apiClient';
 import { addDlModeChangedListener, isDlModeEnabled, shouldMaskPhoto } from '../lib/dlMode';
 import { MESSAGE_PHOTO_UPLOAD_ACCEPT, prepareMessagePhotoForUpload } from '../lib/messagePhotoProcessing';
 import { getProfileGradientCss } from '../lib/profileGradient';
-import dlModeWhite from '../assets/ui-icons/dl-mode-white.png';
+import DlModeMark from './DlModeMark';
 
 const timerOptions: Array<{ value: ConversationTimer; label: string }> = [
   { value: 'off', label: 'Off' },
@@ -190,7 +190,7 @@ function ExplicitMessagePhotoShield({ attachmentKey }: { attachmentKey: string }
       role="img"
       style={{ background: getProfileGradientCss(attachmentKey) }}
     >
-      <CruushIconImage src={dlModeWhite} className="h-7 w-7 opacity-90" />
+      <DlModeMark active={false} className="h-7 w-7 opacity-90" />
       <span className="text-[11px] uppercase tracking-[0.18em] text-white/88">DL Mode Active</span>
     </div>
   );
@@ -238,12 +238,16 @@ function getMessageSender(
 }
 
 export default function PrivateGroupChat({
+  backLabel = 'Back to messages',
   conversationId,
   embedded = false,
+  onBack,
   onClose,
 }: {
+  backLabel?: string;
   conversationId?: string;
   embedded?: boolean;
+  onBack?: () => void;
   onClose?: () => void;
 } = {}) {
   const params = useParams();
@@ -923,7 +927,12 @@ export default function PrivateGroupChat({
       <header data-testid="chat-thread-header" className="sticky top-0 z-40 border-b border-border bg-background/88 px-3 py-4 backdrop-blur-md sm:px-4">
         <div className="mx-auto flex w-full max-w-2xl items-center justify-between gap-3 sm:gap-4">
           <div className="flex min-w-0 flex-1 items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => embedded ? onClose?.() : navigate(-1)} aria-label={embedded ? 'Close messages' : 'Back to messages'}>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => embedded ? (onBack ?? onClose)?.() : navigate(-1)}
+              aria-label={backLabel}
+            >
               <ArrowLeft className="w-5 h-5" />
             </Button>
 
@@ -980,7 +989,7 @@ export default function PrivateGroupChat({
             </div>
           </div>
 
-          <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+          <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
             {conversation ? (
               <ReportAction
                 targetType="conversation"
@@ -993,13 +1002,13 @@ export default function PrivateGroupChat({
               type="button"
               variant="ghost"
               size="icon"
-              aria-label="More conversation options"
+              aria-label="Conversation settings"
               aria-expanded={settingsOpen}
               aria-controls="conversation-settings"
               disabled={!conversation}
               onClick={openSettings}
             >
-              <MoreHorizontal className="w-5 h-5" />
+              <CruushIcon name="settings" className="h-5 w-5" />
             </Button>
             {embedded ? (
               <Button type="button" variant="ghost" size="icon" aria-label="Close messages" onClick={onClose}>
@@ -1508,6 +1517,7 @@ export default function PrivateGroupChat({
                   </SelectTrigger>
                   <SelectContent
                     align="start"
+                    side="top"
                     className="min-w-36 rounded-2xl border-white/12 bg-card/95 p-1 text-foreground shadow-[0_18px_52px_rgba(0,0,0,0.46)] backdrop-blur-xl"
                   >
                     {timerOptions.map((option) => (
@@ -1622,7 +1632,7 @@ export default function PrivateGroupChat({
                     ) : null}
 
                     {favoriteImages.length > 0 ? (
-                      <div className="grid max-h-64 grid-cols-3 gap-2 overflow-y-auto pr-1 sm:grid-cols-4">
+                      <div className="scrollbar-hide grid max-h-64 grid-cols-3 gap-2 overflow-y-auto sm:grid-cols-4">
                         {favoriteImages.map((favorite) => {
                           const favoriteBusy = favoriteSendingId === favorite.id || favoriteRemovingId === favorite.id;
                           const hiddenByDlMode = shouldMaskPhoto(dlModeActive, favorite.explicit);
@@ -1637,7 +1647,7 @@ export default function PrivateGroupChat({
                                     role="img"
                                     style={{ background: getProfileGradientCss(`favorite:${favorite.id}`) }}
                                   >
-                                    <CruushIconImage src={dlModeWhite} className="size-5" />
+                                    <DlModeMark active={false} className="size-5" />
                                   </div>
                                 ) : (
                                   <img

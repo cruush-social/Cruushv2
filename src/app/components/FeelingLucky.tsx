@@ -128,7 +128,7 @@ export default function FeelingLucky() {
   };
 
   return (
-    <div className="flex h-[100dvh] flex-col overflow-hidden bg-[#050505] pb-[calc(6rem+env(safe-area-inset-bottom))] text-foreground">
+    <div className="flex h-[100dvh] flex-col overflow-hidden bg-[#050505] pb-[calc(5rem+env(safe-area-inset-bottom))] text-foreground">
       <header className="sticky top-0 z-10 flex items-center gap-4 border-b border-white/10 bg-black/88 p-4 backdrop-blur-sm">
         <Button variant="ghost" size="icon" onClick={() => navigate(-1)} aria-label="Back">
           <ArrowLeft className="w-5 h-5" />
@@ -168,7 +168,7 @@ export default function FeelingLucky() {
         ) : null}
 
         {status === 'profile' && targetUser ? (
-          <div data-testid="lucky-profile-result" className="flex min-h-0 flex-1 flex-col gap-2 pb-1">
+          <div data-testid="lucky-profile-result" className="flex min-h-0 flex-1 flex-col gap-2">
             <ProfileCard
               density="compact"
               fillAvailableHeight

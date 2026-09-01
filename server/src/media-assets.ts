@@ -27,7 +27,7 @@ import type { PolicyDecision, ProviderModerationResult } from "./moderation-type
 import type { PhotoDnaResult } from "./photodna.js";
 import { severeAccessBanIdentity } from "./severe-access-bans.js";
 
-export type MediaSurface = "profile_photo" | "message_photo";
+export type MediaSurface = "profile_photo" | "message_photo" | "feed_photo";
 
 type PendingModerationGrant = {
   id: string;
@@ -431,7 +431,8 @@ function usesSignedInspectionUrl(app: FastifyInstance, asset: PendingMediaAsset)
   return app.config.STREAM_IMAGE_BRIDGE_ENABLED === true &&
     (
       app.config.PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED === true ||
-      asset.surface === "message_photo"
+      asset.surface === "message_photo" ||
+      asset.surface === "feed_photo"
     );
 }
 
@@ -465,7 +466,11 @@ export async function moderatePendingMediaAsset(
           surface: input.moderationSurface,
           imageBytes: asset.canonicalBytes,
           mimeType: asset.mimeType,
-          sourceRoute: asset.surface === "profile_photo" ? "/api/profile-photos" : "/api/messages/photos",
+          sourceRoute: asset.surface === "profile_photo"
+            ? "/api/profile-photos"
+            : asset.surface === "feed_photo"
+              ? "/api/feed/photos"
+              : "/api/messages/photos",
           requestIp: request.ip,
           userAgent: request.headers["user-agent"],
           severeAccessBanIdentity: accessBanIdentity,
@@ -611,7 +616,18 @@ export async function removeOwnedNonPublicMediaAsset(
        set deleted_at = now()
        where id = $1
          and owner_user_id = $2
-         and moderation_status in ('pending', 'rejected', 'failed', 'approved_explicit')
+         and (
+           moderation_status in ('pending', 'rejected', 'failed', 'approved_explicit')
+           or (
+             surface = 'feed_photo'
+             and moderation_status = 'approved'
+             and not exists (
+               select 1
+               from feed_post_attachments attachment
+               where attachment.media_object_id = media_objects.id
+             )
+           )
+         )
          and deleted_at is null
        returning object_key
      ), deleted_variants as (

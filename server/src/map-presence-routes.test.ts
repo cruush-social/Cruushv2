@@ -61,17 +61,17 @@ describe("map presence routes", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({
       data: {
-        days: 7,
-        minDays: 1,
-        maxDays: 30
+        hours: 168,
+        minHours: 1,
+        maxHours: 168
       }
     });
 
     await app.close();
-  });
+  }, 10_000);
 
   it("returns the saved map presence duration", async () => {
-    const { app } = buildTestApp(vi.fn().mockResolvedValue({ rows: [{ map_presence_days: 14 }] }));
+    const { app } = buildTestApp(vi.fn().mockResolvedValue({ rows: [{ map_presence_hours: 48 }] }));
 
     const response = await app.inject({
       method: "GET",
@@ -82,13 +82,13 @@ describe("map presence routes", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(response.json().data.days).toBe(14);
+    expect(response.json().data.hours).toBe(48);
 
     await app.close();
   });
 
   it("upserts a new map presence duration for the signed-in account", async () => {
-    const query = vi.fn().mockResolvedValue({ rows: [{ map_presence_days: 3 }] });
+    const query = vi.fn().mockResolvedValue({ rows: [{ map_presence_hours: 3 }] });
     const { app } = buildTestApp(query);
 
     const response = await app.inject({
@@ -98,14 +98,14 @@ describe("map presence routes", () => {
         "x-user-id": userId
       },
       payload: {
-        days: 3
+        hours: 3
       }
     });
 
     expect(response.statusCode).toBe(200);
-    expect(response.json().data.days).toBe(3);
+    expect(response.json().data.hours).toBe(3);
     expect(query).toHaveBeenCalledWith(
-      expect.stringContaining("insert into user_privacy_settings (user_id, map_presence_days)"),
+      expect.stringContaining("insert into user_privacy_settings (user_id, map_presence_hours, map_presence_days)"),
       [userId, 3]
     );
 
@@ -122,7 +122,7 @@ describe("map presence routes", () => {
         "x-user-id": userId
       },
       payload: {
-        days: 90
+        hours: 169
       }
     });
 

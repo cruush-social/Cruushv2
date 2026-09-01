@@ -495,7 +495,7 @@ export default function CruiseCarouselSlot({
         aria-label="cruise carousel"
         className="fixed inset-0 z-50 flex items-center justify-center bg-black/88 p-6 backdrop-blur-xl"
       >
-        <div className="h-full max-h-[46rem] w-full max-w-3xl overflow-y-auto rounded-[28px] border border-white/10 bg-black/84 shadow-[0_24px_80px_rgba(0,0,0,0.48)]">
+        <div className="scrollbar-hide h-full max-h-[46rem] w-full max-w-3xl overflow-y-auto rounded-[28px] border border-white/10 bg-black/84 shadow-[0_24px_80px_rgba(0,0,0,0.48)]">
           {content}
         </div>
       </aside>

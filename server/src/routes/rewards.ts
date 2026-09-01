@@ -5,6 +5,7 @@ import { getModeratorUser } from "../moderator-auth.js";
 import { getActiveAccountUserId, getAuthenticatedUserId } from "../request-auth.js";
 import { getReferralInfo, qualifyPendingReferrals } from "../referrals-service.js";
 import {
+  getOwnedRewardGrant,
   getRewardSummary,
   normalizeTimeZone,
   recordMeaningfulActivity,
@@ -18,6 +19,7 @@ import {
   regenerateRecoveryCodes,
   startTwoFactorSetup
 } from "../two-factor.js";
+import { claimSideQuest, getSideQuests, SIDE_QUEST_KEYS } from "../side-quests.js";
 
 const passwordPayloadSchema = z.object({
   password: z.string().min(1).max(200)
@@ -54,6 +56,10 @@ const adminReferralQuerySchema = z.object({
 
 const adminGrantQuerySchema = z.object({
   userId: z.uuid().optional()
+}).strict();
+
+const sideQuestParamsSchema = z.object({
+  questKey: z.enum(SIDE_QUEST_KEYS)
 }).strict();
 
 function assertValidTimeZone(value: string) {
@@ -125,6 +131,23 @@ export async function registerRewardRoutes(app: FastifyInstance) {
     const userId = await getAuthenticatedUserId(request);
     const summary = await getRewardSummary(app, userId);
     return reply.send({ data: summary.recentGrants });
+  });
+
+  app.get("/api/rewards/grants/:grantId", async (request, reply) => {
+    const userId = await getAuthenticatedUserId(request);
+    const { grantId } = reversalParamsSchema.parse(request.params);
+    return reply.send({ data: await getOwnedRewardGrant(app, userId, grantId) });
+  });
+
+  app.get("/api/rewards/side-quests", async (request, reply) => {
+    const userId = await getAuthenticatedUserId(request);
+    return reply.send({ data: await getSideQuests(app, userId) });
+  });
+
+  app.post("/api/rewards/side-quests/:questKey/claim", async (request, reply) => {
+    const userId = await getActiveAccountUserId(request);
+    const { questKey } = sideQuestParamsSchema.parse(request.params);
+    return reply.send({ data: await claimSideQuest(app, userId, questKey) });
   });
 
   app.put("/api/rewards/timezone", async (request, reply) => {

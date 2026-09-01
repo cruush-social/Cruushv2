@@ -48,7 +48,9 @@ describe("profile-sensitive encryption", () => {
       kink_interests: [{ kink_id: "leather", label: "Leather" }],
       hiv_status: ["undetectable"],
       custom_hiv_status: "",
-      health_preferences: ["COVID tested", "Masks"]
+      health_preferences: ["COVID tested", "Masks"],
+      birth_control: [],
+      relationship_status: []
     };
     const first = encryptSensitiveProfile(config, sensitiveProfile);
     const second = encryptSensitiveProfile(config, sensitiveProfile);
@@ -94,7 +96,9 @@ describe("profile-sensitive encryption", () => {
 
   it("encrypts visibility rules with distinct nonces and fails closed on tampering", () => {
     const visibilityRules: ProfileVisibilityRules = {
+      search_query: "",
       active_crowd_modes: ["T4T"],
+      mile_high_club_members: false,
       age_range: [25, 45] as [number, number],
       distance: 25,
       identities: ["nonbinary"],
@@ -156,7 +160,9 @@ describe("profile-sensitive encryption", () => {
     expect(decryptSensitiveProfile(config, encryptSensitiveProfile(config, legacySensitiveProfile))?.crowds).toEqual(["Dyke"]);
     expect(decryptProfileVisibility(config, encryptProfileVisibility(config, legacyVisibilityRules))).toEqual({
       ...legacyVisibilityRules,
+      search_query: "",
       active_crowd_modes: ["Dyke"],
+      mile_high_club_members: false,
       crowds: ["Dyke"]
     });
 

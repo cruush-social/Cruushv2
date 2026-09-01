@@ -5,7 +5,9 @@ import type { DisplayLocationToken } from './displayLocationTokens';
 export type ProfileVisibility = 'public' | 'mutual_cruushes' | 'mutual_crowds';
 
 export type ProfileVisibilityRules = {
+  search_query: string;
   active_crowd_modes: string[];
+  mile_high_club_members: boolean;
   age_range: [number, number] | null;
   distance: number | null;
   identities: string[];
@@ -28,6 +30,22 @@ export type KinkInterest = {
   kink_id: string;
   label?: string;
   category?: string;
+};
+
+export type SideBadgeSelection = {
+  badge_id: string;
+  intent: 'none' | 'give' | 'receive' | 'switch' | 'service' | 'stone';
+  frame: string;
+};
+
+export type SideBadges = {
+  left: SideBadgeSelection | null;
+  right: SideBadgeSelection | null;
+};
+
+export const emptySideBadges: SideBadges = {
+  left: null,
+  right: null,
 };
 
 export type ProfilePhotoMetadata = {
@@ -54,6 +72,7 @@ export type ProfilePayload = {
   weight: string;
   position: string[];
   role: string[];
+  side_badges: SideBadges;
   is_trans: boolean | null;
   trans_status_visibility: ProfileVisibility;
   crowds: string[];
@@ -151,6 +170,7 @@ export const emptyProfilePayload: ProfilePayload = {
   weight: '',
   position: [],
   role: [],
+  side_badges: emptySideBadges,
   is_trans: null,
   trans_status_visibility: 'mutual_cruushes',
   crowds: [],
@@ -184,7 +204,9 @@ export const emptyProfilePayload: ProfilePayload = {
   zodiac: [],
   substance_boundaries: [],
   visibility_rules: {
+    search_query: '',
     active_crowd_modes: [],
+    mile_high_club_members: false,
     age_range: null,
     distance: null,
     identities: [],
@@ -264,6 +286,22 @@ export async function saveMyProfile(profile: ProfilePayload) {
   });
   notifyProfileChanged(savedProfile);
   return savedProfile;
+}
+
+export async function saveMySideBadges(sideBadges: SideBadges) {
+  const savedSideBadges = await requestApi<SideBadges>('/api/profiles/me/side-badges', {
+    method: 'PUT',
+    body: JSON.stringify(sideBadges),
+  });
+
+  try {
+    notifyProfileChanged(await getMyProfile());
+  } catch {
+    // The badge save succeeded. A later profile refresh can reconcile the map
+    // if this best-effort immediate refresh is temporarily unavailable.
+  }
+
+  return savedSideBadges;
 }
 
 export async function saveMyVisibilityRules(visibilityRules: ProfileVisibilityRules) {

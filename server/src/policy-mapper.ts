@@ -223,14 +223,17 @@ function mapLabel(label: ProviderLabel, surface: ModerationSurface, contentType:
   }
 
   if (normalizedLabel === "profile_photo_not_adult_human") {
-    // The feed carries object photos, gear, and anything else that is not a
-    // person. Animals, gore, and hate still reject through their own labels.
-    if (surface === "feed") {
+    // Feed and profile surfaces may carry allowed gear or object photos.
+    // Animals, gore, hate, and other blocked classes still reject through
+    // their own labels.
+    if (surface === "feed" || surface === "profile_photo") {
       return baseDecision({
         category: normalizedLabel,
         severity: label.severity ?? "low",
         confidence: label.confidence,
-        reason_code: "non_human_feed_photo_allowed"
+        reason_code: surface === "profile_photo"
+          ? "profile_gear_photo_allowed"
+          : "non_human_feed_photo_allowed"
       });
     }
 

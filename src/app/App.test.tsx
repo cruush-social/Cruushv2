@@ -3,7 +3,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useNavigate } from 'react-router';
 import App, { getInitialAppEntries } from './App';
 
-const { loadCurrentSession, persistSessionUser, recordDailyRewardCheckIn, routeModuleLoads, updateRewardTimezone } = vi.hoisted(() => ({
+const { getRewardSummary, loadCurrentSession, persistSessionUser, recordDailyRewardCheckIn, routeModuleLoads, updateRewardTimezone } = vi.hoisted(() => ({
+  getRewardSummary: vi.fn(),
   loadCurrentSession: vi.fn(),
   persistSessionUser: vi.fn(),
   recordDailyRewardCheckIn: vi.fn(),
@@ -17,6 +18,7 @@ vi.mock('./lib/sessionUser', () => ({
 }));
 
 vi.mock('./lib/rewardsApi', () => ({
+  getRewardSummary,
   recordDailyRewardCheckIn,
   updateRewardTimezone,
 }));
@@ -275,6 +277,7 @@ describe('App', () => {
   };
 
   beforeEach(() => {
+    getRewardSummary.mockReset().mockResolvedValue({ recentGrants: [] });
     localStorage.clear();
     window.history.replaceState({}, '', '/');
     loadCurrentSession.mockReset();

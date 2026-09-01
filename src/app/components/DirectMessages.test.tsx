@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import DirectMessages from './DirectMessages';
@@ -88,7 +88,10 @@ describe('DirectMessages', () => {
     expect(await screen.findByText('No messages yet.')).toBeInTheDocument();
     expect(screen.getByTestId('direct-messages-header')).not.toHaveClass('px-4');
     expect(screen.getByTestId('direct-messages-header-content')).toHaveClass('max-w-2xl', 'px-4');
-    expect(screen.getByTestId('direct-messages-header-row')).toHaveClass('pr-[3.5rem]');
+    const slot = screen.getByTestId('direct-messages-bug-button-slot');
+    expect(slot.parentElement?.lastElementChild).toBe(slot);
+    expect(screen.getByRole('button', { name: 'Message settings' }).getBoundingClientRect().right)
+      .toBeLessThanOrEqual(slot.getBoundingClientRect().left);
     expect(screen.getByTestId('direct-messages-header-row')).not.toContainElement(
       screen.getByPlaceholderText('Search people, threads, vibes'),
     );
@@ -154,6 +157,45 @@ describe('DirectMessages', () => {
     expect(await screen.findByText('Beta crew')).toBeInTheDocument();
     expect(screen.getByText('owner')).toBeInTheDocument();
     expect(screen.getByText('1h')).toBeInTheDocument();
+  });
+
+  it('uses the Cruushes card structure without vibe capsules', async () => {
+    getConversations.mockResolvedValue([{
+      id: 'conversation-vibes',
+      kind: 'dm',
+      user: {
+        id: 'user-vibes',
+        name: 'River',
+        pronouns: 'they/them',
+        photo: null,
+      },
+      distance: 'Nearby',
+      updatedAt: new Date().toISOString(),
+      lastMessage: 'meet by the door',
+      unreadCount: 0,
+      pinned: false,
+      muted: false,
+      mutual: true,
+      tags: [],
+    }]);
+    getMyCruushActivity.mockResolvedValue({
+      mutual: [{
+        user: { id: 'user-vibes' },
+        vibes: ['Soft', 'Chill', 'Artsy', 'Extra'],
+      }],
+    });
+
+    render(
+      <MemoryRouter>
+        <DirectMessages />
+      </MemoryRouter>,
+    );
+
+    const row = await screen.findByTestId('conversation-preview-row');
+    expect(row).toHaveClass('cruush-user-activity-capsule', 'grid', 'bg-card/70');
+    expect(screen.queryByTestId('activity-vibes')).not.toBeInTheDocument();
+    expect(screen.getByText('meet by the door')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Delete River chat for everyone' })).toBeInTheDocument();
   });
 
   it('deletes a conversation for everyone from the inbox list', async () => {
@@ -259,7 +301,9 @@ describe('DirectMessages', () => {
     fireEvent.change(screen.getByLabelText('Group name'), {
       target: { value: 'Beta crew' },
     });
-    fireEvent.click(screen.getByRole('checkbox', { name: /River/ }));
+    const riverOption = screen.getByRole('button', { name: 'Add River to group' });
+    fireEvent.click(riverOption);
+    expect(riverOption).toHaveAttribute('aria-pressed', 'true');
     fireEvent.change(screen.getByLabelText('Disappearing timer'), {
       target: { value: '1h' },
     });
@@ -327,9 +371,9 @@ describe('DirectMessages', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'New message' }));
     fireEvent.click(screen.getByRole('button', { name: /^Start chat with someone/ }));
-    fireEvent.click((await screen.findAllByRole('button', { name: /River/ }))[0]);
+    fireEvent.click(await screen.findByRole('button', { name: 'Message River' }));
 
-    expect(openConversationOrInbox).toHaveBeenCalledWith(expect.any(Function), '53fd68d7-24fc-4cff-8cd7-a97ec0cadf97');
+    expect(openConversationOrInbox).toHaveBeenCalledWith(expect.any(Function), '53fd68d7-24fc-4cff-8cd7-a97ec0cadf97', undefined);
   });
 
   it('shows messageable mutuals on Public when no public profiles are available', async () => {

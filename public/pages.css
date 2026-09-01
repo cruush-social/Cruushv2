@@ -1,0 +1,102 @@
+/* Styling for the static pages. These are plain documents that must stay
+   readable to a crawler running no JavaScript, so they cannot use the
+   application's Tailwind classes. The values below are copied from
+   src/styles/theme.css and the layout mirrors PublicInfoPage, which is how the
+   in-app policy pages look, so the two surfaces read as the same product. */
+
+:root {
+  --background: #080808;
+  --foreground: #f5f5f7;
+  --card: #101014;
+  --primary: #ff0072;
+  --muted-foreground: #9999a8;
+  --border: rgba(255, 255, 255, 0.08);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: 'Spectral', Georgia, 'Times New Roman', serif;
+  font-size: 1rem;
+  line-height: 1.6;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* Mirrors PublicInfoPage's sticky header. */
+header.site {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border);
+  background: rgba(16, 16, 20, 0.8);
+  backdrop-filter: blur(8px);
+}
+
+.wordmark {
+  font-family: 'UnifrakturMaguntia', 'Spectral', serif;
+  font-size: 1.5rem;
+  color: var(--foreground);
+  text-decoration: none;
+}
+
+.eyebrow {
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.25em;
+  color: var(--primary);
+  margin: 0;
+}
+
+nav.site { display: flex; gap: 1.25rem; flex-wrap: wrap; margin-left: auto; }
+nav.site a { color: var(--muted-foreground); text-decoration: none; font-size: 0.9rem; }
+nav.site a:hover, nav.site a[aria-current="page"] { color: var(--primary); }
+
+main { max-width: 48rem; margin: 0 auto; padding: 1.5rem 1.25rem 5rem; }
+
+h1 { font-size: 1.25rem; font-weight: 500; margin: 0 0 1.25rem; }
+
+/* Sections are cards, as in PublicInfoPage. */
+section.card {
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: rgba(16, 16, 20, 0.7);
+  padding: 1.25rem;
+  margin-bottom: 1.25rem;
+}
+
+section.card h2 { font-size: 1.125rem; font-weight: 500; margin: 0 0 0.75rem; }
+
+section.card p,
+section.card li {
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: var(--muted-foreground);
+  margin: 0 0 0.75rem;
+}
+section.card p:last-child, section.card li:last-child { margin-bottom: 0; }
+section.card ul { margin: 0; padding-left: 1.1rem; }
+
+a { color: var(--foreground); text-decoration: underline; text-underline-offset: 4px; }
+a:hover { color: var(--primary); }
+
+.lede { font-size: 0.9375rem; color: var(--foreground); }
+
+footer.site {
+  max-width: 48rem;
+  margin: 0 auto;
+  padding: 1.5rem 1.25rem 3rem;
+  border-top: 1px solid var(--border);
+  color: var(--muted-foreground);
+  font-size: 0.85rem;
+}
+footer.site a { color: var(--muted-foreground); }

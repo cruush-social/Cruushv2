@@ -40,10 +40,13 @@ describe('ProfileEdit', () => {
     getMyProfile.mockReset();
     saveMyProfile.mockReset();
     uploadProfilePhoto.mockReset();
-    vi.stubGlobal('URL', {
-      createObjectURL: vi.fn(() => 'blob:profile-crop-preview'),
-      revokeObjectURL: vi.fn(),
+    const NativeURL = globalThis.URL;
+    class MockURL extends NativeURL {}
+    Object.defineProperties(MockURL, {
+      createObjectURL: { value: vi.fn(() => 'blob:profile-crop-preview') },
+      revokeObjectURL: { value: vi.fn() },
     });
+    vi.stubGlobal('URL', MockURL);
     HTMLCanvasElement.prototype.getContext = vi.fn(() => ({
       clearRect: vi.fn(),
       drawImage: vi.fn(),
@@ -616,7 +619,10 @@ describe('ProfileEdit', () => {
 
     fireEvent.click(await screen.findByRole('tab', { name: 'Photos' }));
 
-    expect(screen.getByText("profile photos may be SFW or NSFW, but they must only be of you. add at least one SFW photo if you want people browsing in DL Mode to still see you. you don't have to show your face.")).toBeInTheDocument();
+    expect(screen.getByText('Profile photos may be SFW or NSFW.')).toBeInTheDocument();
+    expect(screen.getByText('Use a photo of you or your gear.')).toBeInTheDocument();
+    expect(screen.getByText('Add at least one SFW photo if you want people browsing in DL Mode to still see you.')).toBeInTheDocument();
+    expect(screen.getByText("You don't have to show your face.")).toBeInTheDocument();
     expect(screen.queryByText(/you must be 18 or older/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/face is optional/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/naked or clothed/i)).not.toBeInTheDocument();

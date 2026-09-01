@@ -3,9 +3,11 @@ import { useId } from 'react';
 import { resolveMediaUrl } from '../lib/apiClient';
 import { HEART_PIN_PATH, HEART_PIN_THEMES, type HeartPinTheme } from '../lib/heartPin';
 import { getProfileGradientStops } from '../lib/profileGradient';
+import MileHighContrail from './MileHighContrail';
 
 interface HeartPhotoProps {
   borderColor?: string;
+  staticMileHigh?: boolean;
   className?: string;
   fallback?: ReactNode;
   label: string;
@@ -18,6 +20,7 @@ interface HeartPhotoProps {
 
 export default function HeartPhoto({
   borderColor,
+  staticMileHigh = false,
   className = '',
   fallback = null,
   label,
@@ -88,8 +91,16 @@ export default function HeartPhoto({
           d={HEART_PIN_PATH}
           fill={resolvedPhoto ? `url(#${patternId})` : `url(#${gradientId})`}
           stroke={resolvedBorderColor}
+          strokeOpacity={staticMileHigh ? 0 : 1}
           strokeWidth="3.2"
         />
+        {staticMileHigh ? (
+          <MileHighContrail
+            forceReducedMotion
+            gradientId={`${gradientId}-mile-high`}
+            marker={{ id: patternId }}
+          />
+        ) : null}
       </svg>
 
       {!resolvedPhoto && fallback ? (

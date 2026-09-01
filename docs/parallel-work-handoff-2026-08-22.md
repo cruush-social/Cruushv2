@@ -26,7 +26,7 @@ the padding above the tabs; the body is free.
 line, chat layout. Careful: the send handler itself was changed on this branch, see below.
 
 **Settings pages** — change email, secondary email, digest, search bar. Only
-`Settings.tsx`'s row list was touched here, to add a Travel Mode row.
+`Settings.tsx`'s row list was touched here, to add a Mile High Club row.
 
 **Chrome** — skeleton loading states, pop-out panel drag, page headers on one line for
 Messages, Notifications, Settings. None of it overlaps.
@@ -49,7 +49,7 @@ Ordered by how badly a conflict would hurt.
 - `src/app/components/ProfileEdit.tsx` — the Badges tab, the kink limit, relationship
   status, zodiac.
 - `server/src/routes/users.ts` — the Pulse radius check, travel pins, the browse radius.
-- `server/src/travel-pins.ts`, `server/src/routes/privacy.ts` — Travel Mode.
+- `server/src/travel-pins.ts`, `server/src/routes/privacy.ts` — Mile High Club.
 - `server/src/profile-schema.ts`, `server/src/profile-sensitive.ts`,
   `server/src/routes/profiles.ts` — relationship status and zodiac.
 - `server/src/policy-mapper.ts`, `moderation-provider.ts`,
@@ -84,7 +84,7 @@ breaks Resend delivery tracking. Merge `origin/main` into it first and confirm
 `grep -c "TEMPLATE_ID = " server/src/mailer.ts` prints `2`.
 
 That branch has no other code. Its value is the design record and five Mile High Club
-SVGs. Take the assets, abandon the branch. Travel Mode is already built here at `6185039`.
+SVGs. Take the assets, abandon the branch. Mile High Club is already built here at `6185039`.
 
 ## State
 
@@ -97,4 +97,4 @@ Green as of this writing: client build, server typecheck, `server/src/app.test.t
 `NotificationSettings.test.tsx`.
 
 Untested throughout: badge frames, hankies, zodiac glyphs, relationship status, and
-Travel Mode itself. All of it compiles; none of it has a test or a rendered check.
+Mile High Club itself. All of it compiles; none of it has a test or a rendered check.

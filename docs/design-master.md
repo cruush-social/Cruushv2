@@ -164,6 +164,92 @@ Privacy state:
 
 - Users with high location fuzziness enabled should show a flat pulsing outline or badge around their pin to indicate approximate location.
 
+## Shared User Preview Unit
+
+`UserActivityCapsule` is the canonical compact user preview for Feed posts, message previews,
+cruush activity, Spot boards, Who's Here, and people pickers. These surfaces must not independently
+redesign the card. They supply surface-specific content and controls to the same hierarchy.
+
+### Fixed hierarchy
+
+1. The heart sits in the left column and uses the same canonical profile-heart geometry as map pins.
+2. Both side badges sit together directly below the heart. They never sit below the card text or in
+   the action column. Each badge exposes its user-visible meaning.
+3. Name and pronouns lead the center column on one wrapping identity row. Identity adornments, such
+   as compact profile badges or state labels, follow them without replacing either field.
+4. Activity metadata stacks below identity. Use two short lines when both time and distance exist.
+5. The person-action trio occupies the right column when the surface permits actions. Its order is
+   always cruush, Pin that user, Message. Person-to-person Message always uses the arrow glyph.
+6. Surface content spans the center and right columns below identity. Feed post text and the latest
+   message preview use this same content slot and the same typographic scale as the name.
+7. Expiration, Delete, Report, or a disclosure control may occupy the upper-right corner without
+   moving the heart, identity, metadata, or action trio.
+
+The heart and both side badges are identity, not decoration. Preserve their geometry, photo crop,
+fallback treatment, DL Mode masking, and state colors across every surface. The shared capsule owns
+container-responsive spacing and type. Individual surfaces must not introduce alternate heart sizes,
+badge placement, or card grids.
+
+### Information rules
+
+- Compact user previews never show Vibe capsules. Vibes belong on profile views and profile editing.
+- Show only server-authorized distance. If distance is unavailable, use the approved nearby label or
+  omit it; never infer precise location.
+- Preserve name, pronouns, profile badges, side badges, and travel treatment from the same user data.
+- The signed-in heart is indigo, a mutual heart is purple, and another member is pink. One-way
+  Incoming and Sent states are not mutual and never use mutual purple. Pulse temporarily uses lime.
+  Ghost uses electric blue. Mile High Club keeps the normal heart border and applies `#77B9DA` only
+  to its side-badge and Signal borders.
+- The entire row can become a keyboard-selectable control in chooser surfaces. Its selected state
+  must be exposed through `aria-pressed`; do not add a separate checkbox or checkmark.
+- Nested identity, content, safety, and action controls retain their own accessible labels and must
+  not accidentally trigger row selection.
+
+### Surface contracts
+
+Feed posts:
+
+- Use the content slot for post text and optional approved Feed attachments.
+- Keep expiration plus owner Delete in the upper-right. Other-member Report and Block controls sit
+  below the side badges.
+- Preserve reversible cruush, authorized Pin, and arrow Message actions for other members.
+
+Message previews:
+
+- Use the content slot for the latest message. A missing preview leaves the slot empty rather than
+  adding filler text.
+- Keep unread, quiet, role, timer, and closed state as compact identity or content adornments.
+- Keep owner-authorized conversation Delete or the disclosure affordance in the upper-right.
+- Group previews may use the shared heart fallback and omit person actions; direct-message previews
+  use the normal person-action trio.
+
+cruush activity:
+
+- Incoming, Sent, Mutual, and Views share one card geometry. Tabs change data and relationship state,
+  not the card structure.
+- Sent and Mutual cruush controls remain actionable so a second press can undo the state. The control
+  returns to the bright available treatment after the server confirms removal.
+- Locked items may hide identity and actions, but they retain the same card frame and metadata slots.
+
+Spot and chooser previews:
+
+- Spot board posts reuse the Feed structure, including post text, expiry, and owner Delete or viewer
+  Report. Who's Here reuses the identity unit without manufacturing a post.
+- New Message and group-member pickers reuse the same identity hierarchy. Group selection uses the
+  complete row and never displays a separate selection checkbox.
+
+### Canonical implementation
+
+- Structure and slots: `src/app/components/UserActivityCapsule.tsx`
+- Responsive geometry and typography: `.cruush-user-activity-*` in `src/styles/theme.css`
+- Heart rendering: `src/app/components/HeartPhoto.tsx`
+- Side badges: `src/app/components/SideBadgePair.tsx`
+- Person actions: `src/app/components/ProfileActionTrio.tsx`
+
+Changes to this unit must be made at the shared layer unless a surface contract above explicitly
+requires a different content or corner control. Verify changes in Feed, Messages, Cruushes, a Spot
+board, and at least one chooser before treating the shared unit as complete.
+
 ## Photo Rules
 
 All user profile photos must follow a split media system.
@@ -188,9 +274,11 @@ Surface-specific rules:
 
 ## Nudity and Explicit Photo Handling
 
-Nude or sexually explicit photos are allowed only as authenticated attachments in direct and group messages between adults. They are prohibited from profile photos, map/discovery surfaces, profile cards and previews, the local feed, events, places, groups, and every other non-message photo surface.
+NSFW photos are allowed in the favorites gallery, Feed, profile photos, and authenticated direct and group messages when they comply with the current media policy. Profile photos may show the account holder, any part of their body without requiring a face, or their gear. A profile photo may contain no more than one person, and every person shown across that profile's photos must be the same person.
 
-Do not offer an explicit-photo profile toggle or a global `Show Explicit Photos` preference. A detected nude profile upload must be rejected before publication and its quarantined media deleted. Private-message eligibility does not override rules against minors, non-consensual imagery, exploitation, bestiality, revenge porn, trafficking, or other prohibited content.
+Explicit classification must drive the approved DL Mode masking on public profile and Feed surfaces. Independent rules against minors, non-consensual imagery, exploitation, bestiality, revenge porn, trafficking, and other prohibited content always apply.
+
+Do not offer an explicit-photo profile toggle or a global `Show Explicit Photos` preference. A profile or Feed upload rejected by an independent safety rule must not be published. Quarantined media must follow the current retention or deletion rule for that decision. Private-message eligibility never overrides prohibited-content rules.
 
 Required adult-content controls:
 
@@ -517,8 +605,8 @@ Tradeoff:
 - Do not use glow effects; use flat colors, solid surfaces, borders, and gradients for emphasis.
 - Use heart-shaped map pins.
 - Use `4:5` profile photo surfaces for primary people/media blocks except tiny avatars and pin crops.
-- Reject nude or sexually explicit photos outside direct/group messages; never expose them on profiles, discovery, feed, event, place, or group-detail surfaces.
-- Treat permitted private-message nudity as adult-web content requiring consent, moderation, authenticated storage, and hosting/provider compliance.
+- Allow policy-compliant NSFW photos in favorites, Feed, profile photos, and authenticated direct and group messages. Profile photos may show the account holder, any part of their body without requiring a face, or their gear, while preserving the one-person and same-person rules.
+- Treat permitted adult content as adult-web content requiring consent, moderation, authenticated storage, and hosting/provider compliance. Independent prohibited-content rules always apply.
 - Include Location Fuzziness in settings.
 - Show last-active context prominently on map surfaces.
 - Do not put profile encryption keys or other backend secrets in frontend code.

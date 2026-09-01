@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import fs from 'fs'
 import path from 'path'
 import tailwindcss from '@tailwindcss/vite'
@@ -17,11 +17,45 @@ function figmaAssetResolver() {
   }
 }
 
+// The About, Help and Blog pages are static documents in public/, served by
+// nginx in production so that crawlers which run no JavaScript can read them.
+// Vite serves public/ at the root, so without this /about would fall through to
+// the SPA and render a different page in development than in production, and
+// /help and /blog would not resolve at all. This makes both match nginx.conf.
+const STATIC_PAGES: Record<string, string> = {
+  '/about': 'about.html',
+  '/help': 'help.html',
+  '/blog': 'blog/index.html',
+}
+
+function staticPageRoutes() {
+  const serve = (server: { middlewares: { use: (fn: (req: any, res: any, next: () => void) => void) => void } }) => {
+    server.middlewares.use((req, res, next) => {
+      const pathname = (req.url ?? '').split('?')[0].replace(/\/$/, '') || '/'
+      const file = STATIC_PAGES[pathname]
+      if (!file) return next()
+      const full = path.resolve(__dirname, 'public', file)
+      if (!fs.existsSync(full)) return next()
+      res.setHeader('Content-Type', 'text/html; charset=utf-8')
+      res.end(fs.readFileSync(full))
+    })
+  }
+
+  return {
+    name: 'cruush-static-page-routes',
+    configureServer: serve,
+    configurePreviewServer: serve,
+  }
+}
+
 const devCertDirectory = path.resolve(__dirname, '.dev/certs')
 const devKeyPath = path.join(devCertDirectory, 'localhost-key.pem')
 const devCertPath = path.join(devCertDirectory, 'localhost-cert.pem')
-const useHttps = process.env.VITE_DEV_HTTPS !== '0' && process.env.VITE_DEV_HTTPS !== 'false'
-const configuredDevPort = Number(process.env.VITE_DEV_PORT ?? 5173)
+const localDevEnv = loadEnv('development', __dirname, '')
+const useHttpsValue = process.env.VITE_DEV_HTTPS ?? localDevEnv.VITE_DEV_HTTPS
+const useHttps = useHttpsValue !== '0' && useHttpsValue !== 'false'
+const configuredDevPort = Number(process.env.VITE_DEV_PORT ?? localDevEnv.VITE_DEV_PORT ?? 5173)
+const configuredApiProxyTarget = process.env.VITE_API_PROXY_TARGET ?? localDevEnv.VITE_API_PROXY_TARGET ?? 'http://127.0.0.1:3001'
 
 const httpsConfig =
   useHttps && fs.existsSync(devKeyPath) && fs.existsSync(devCertPath)
@@ -32,8 +66,10 @@ const httpsConfig =
     : undefined
 
 export default defineConfig({
+  cacheDir: path.resolve(__dirname, '.dev/vite-cache'),
   plugins: [
     figmaAssetResolver(),
+    staticPageRoutes(),
     // The React and Tailwind plugins are both required for Make, even if
     // Tailwind is not being actively used – do not remove them
     react(),
@@ -45,15 +81,15 @@ export default defineConfig({
     strictPort: Boolean(process.env.VITE_DEV_PORT),
     proxy: {
       '/api': {
-        target: 'http://127.0.0.1:3001',
+        target: configuredApiProxyTarget,
         changeOrigin: true,
       },
       '/health': {
-        target: 'http://127.0.0.1:3001',
+        target: configuredApiProxyTarget,
         changeOrigin: true,
       },
       '/media': {
-        target: 'http://127.0.0.1:3001',
+        target: configuredApiProxyTarget,
         changeOrigin: true,
       },
     },
@@ -75,6 +111,7 @@ export default defineConfig({
     },
   },
   resolve: {
+    dedupe: ['react', 'react-dom'],
     alias: {
       // Alias @ to the src directory
       '@': path.resolve(__dirname, './src'),

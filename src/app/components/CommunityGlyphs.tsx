@@ -5,6 +5,8 @@
  * already wear is worth more than a prettier one they do not recognise.
  */
 
+import t4tLinkedSymbol from '../assets/ui-icons/t4t-pride-linked-symbol.png';
+
 type GlyphProps = {
   className?: string;
   strokeWidth?: number;
@@ -43,27 +45,28 @@ export function TransGlyph(props: GlyphProps) {
   );
 }
 
-/** Two of the same, facing each other. */
-export function T4TGlyph(props: GlyphProps) {
+/** The supplied linked trans-symbol mark. */
+export function T4TGlyph({ className }: GlyphProps) {
   return (
-    <Glyph {...props}>
-      <path d="M3 5.6h6.4" />
-      <path d="M6.2 5.6v8.2" />
-      <path d="M14.6 5.6H21" />
-      <path d="M17.8 5.6v8.2" />
-      <path d="M8.6 19.4c1-1.6 2.2-2.4 3.4-2.4s2.4.8 3.4 2.4" />
-    </Glyph>
+    <img
+      alt=""
+      aria-hidden="true"
+      className={`object-contain ${className ?? ''}`}
+      draggable={false}
+      src={t4tLinkedSymbol}
+    />
   );
 }
 
-/** The nonbinary symbol: the circle with the plain arm above it. */
+/** The nonbinary circle with the established asterisk arm. */
 export function NonbinaryGlyph(props: GlyphProps) {
   return (
-    <Glyph {...props}>
-      <circle cx="12" cy="15" r="4.4" />
-      <path d="M12 10.6V3.2" />
-      <path d="m9.1 5.1 5.8-1.6" />
-      <path d="m14.9 5.1-5.8-1.6" />
+    <Glyph {...props} strokeWidth={props.strokeWidth ?? 2.55}>
+      <circle cx="12" cy="15.2" r="5.5" />
+      <path d="M12 9.7V2" />
+      <path d="M8.3 5.1h7.4" />
+      <path d="m9.4 2.5 5.2 5.2" />
+      <path d="m14.6 2.5-5.2 5.2" />
     </Glyph>
   );
 }
@@ -110,13 +113,13 @@ export function PlayingCard(props: GlyphProps) {
 /** Mars over Mars. */
 export function DoubleMarsGlyph(props: GlyphProps) {
   return (
-    <Glyph {...props}>
-      <circle cx="8" cy="16" r="4.2" />
-      <circle cx="14.6" cy="16" r="4.2" />
-      <path d="m11 13 4.4-4.4" />
-      <path d="M12.2 8.6h3.6v3.6" />
-      <path d="m17.6 13 3.4-3.4" />
-      <path d="M17.8 9.6H21v3.2" />
+    <Glyph {...props} strokeWidth={props.strokeWidth ?? 2.65}>
+      <circle cx="8.1" cy="15.5" r="4.6" />
+      <circle cx="14.9" cy="15.5" r="4.6" />
+      <path d="m11.4 12.2 5.2-5.2" />
+      <path d="M13.2 7h3.4v3.4" />
+      <path d="m18.2 12.2 4-4" />
+      <path d="M18.8 8.2h3.4v3.4" />
     </Glyph>
   );
 }
@@ -124,13 +127,13 @@ export function DoubleMarsGlyph(props: GlyphProps) {
 /** Venus over Venus. */
 export function DoubleVenusGlyph(props: GlyphProps) {
   return (
-    <Glyph {...props}>
-      <circle cx="8" cy="8.4" r="4.2" />
-      <circle cx="14.6" cy="8.4" r="4.2" />
-      <path d="M8 12.6v7.2" />
-      <path d="M5.6 17h4.8" />
-      <path d="M14.6 12.6v7.2" />
-      <path d="M12.2 17H17" />
+    <Glyph {...props} strokeWidth={props.strokeWidth ?? 2.65}>
+      <circle cx="8.1" cy="8.3" r="4.6" />
+      <circle cx="14.9" cy="8.3" r="4.6" />
+      <path d="M8.1 12.9v8.2" />
+      <path d="M4.9 17.7h6.4" />
+      <path d="M14.9 12.9v8.2" />
+      <path d="M11.7 17.7h6.4" />
     </Glyph>
   );
 }
@@ -138,13 +141,13 @@ export function DoubleVenusGlyph(props: GlyphProps) {
 /** Mars and Venus, linked. */
 export function MarsVenusGlyph(props: GlyphProps) {
   return (
-    <Glyph {...props}>
-      <circle cx="8.4" cy="12" r="4.2" />
-      <circle cx="15.4" cy="12" r="4.2" />
-      <path d="M8.4 16.2v5.2" />
-      <path d="M6.2 19h4.4" />
-      <path d="m18.2 8.6 2.8-2.8" />
-      <path d="M17.8 5.8H21V9" />
+    <Glyph {...props} strokeWidth={props.strokeWidth ?? 2.65}>
+      <circle cx="8.1" cy="12" r="4.6" />
+      <circle cx="15" cy="12" r="4.6" />
+      <path d="M8.1 16.6v5.1" />
+      <path d="M5.2 19.1H11" />
+      <path d="m18.3 8.7 3.9-3.9" />
+      <path d="M18.8 4.8h3.4v3.4" />
     </Glyph>
   );
 }

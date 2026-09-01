@@ -36,3 +36,162 @@
 ## Result
 
 Passed for the requested visual change. No actionable P0, P1, or P2 visual mismatch found. No commit or deployment performed.
+
+---
+
+# Design QA: 1.6 map Pulse and Dark Room controls
+
+## Visual source
+
+- Source implementation: `/Volumes/good/Cruushv2-visual/src/app/components/MapHome.tsx`, served by the localhost:5195 Vite process from commit `d3edc20`.
+- Target implementation: `src/app/components/MapHome.tsx`, `src/app/components/MapPingSheet.tsx`, `src/app/components/MapView.tsx`, and `src/app/components/DarkRoomMark.tsx`.
+- Rendered target state: authenticated local map at 644 x 938 CSS pixels with Dark Room active.
+
+## Fidelity review
+
+- The map Pulse control uses the exact localhost:5195 button treatment: full-size existing `PulseLedIcon`, solid map-control background, ping-green inactive and active color, and active halo.
+- Rendered Pulse control measured 48 x 48 CSS pixels; its SVG measured 46 x 46 CSS pixels. Rendered color was `rgb(200, 255, 49)` and background was `rgb(8, 8, 8)`.
+- The active Dark Room navigation glyph keeps the approved chapel housing and now matches the adjacent controls' apparent footprint.
+- The current user's Dark Room heart keeps its prior heart shape, size, and border. Only the exact black keyhole and shared eye geometry are added; the eye uses the same three-stop Dark Room gradient as the navigation icon.
+- No P0, P1, or P2 visual mismatch was found in the inspected rendered target state.
+
+## Interaction and tests
+
+- Pulse remains a fitted bottom sheet on mobile.
+- Desktop Pulse opens at a stable stored position below the top navigation, moves from its header, resizes from its lower-right grip, and clamps above the bottom navigation.
+- `src/app/components/MapPingSheet.test.tsx`: 8 tests passed.
+- Focused `src/app/components/MapHome.test.tsx`: 2 tests passed; 69 skipped.
+- Focused `src/app/components/MapView.test.tsx`: 1 test passed; 54 skipped.
+- Client production build passed with one pre-existing duplicate `strokeOpacity` warning outside this scope.
+
+## Result
+
+final result: passed
+
+---
+
+# Design QA: Crowd Hydra 8441396
+
+## Visual truth and rendered evidence
+
+- Source visual truth: `/private/tmp/cruush-hydra.8Ftk9N/hydra-8441396.png`
+- Source asset: `src/app/assets/ui-icons/crowd-hydra-8441396-source.png`
+- Inactive implementation: `/private/tmp/cruush-crowd-hydra-inactive-clean.jpg`
+- Active implementation: `/private/tmp/cruush-crowd-hydra-active.jpg`
+- Combined source, inactive, and active comparison: `/private/tmp/cruush-crowd-hydra-comparison.jpg`
+- Source dimensions: 512 x 512 RGBA pixels.
+- Implementation viewport: 697 x 938 CSS pixels at devicePixelRatio 2. Browser screenshots are normalized to 698 x 938 pixels.
+- Rendered Crowd button: 48 x 48 CSS pixels with the existing 44px desktop icon canvas and established side spacing.
+
+## Compared states
+
+- Inactive: exact Hydra geometry renders solid white.
+- Active: the same Hydra geometry is used as a mask filled by `var(--cruush-gradient)`.
+- The temporary local Gay Crowd membership and active Crowd Mode used for the active capture were both removed after inspection.
+
+## Fidelity review
+
+- Full view: the Crowd control remains aligned with the existing top-navigation row and does not add a background, tagline, or new control treatment.
+- Focused region: the exact six-headed Hydra silhouette and negative-space details match between the downloaded source, inactive icon, and gradient-active icon.
+- Typography and copy: unchanged.
+- Spacing and layout rhythm: existing 48px control, desktop icon canvas, and side margins remain unchanged.
+- Colors and tokens: inactive is opaque white; active uses the existing app gradient token.
+- Image quality and asset fidelity: the implementation uses the exact 512px Noun Project PNG, not an approximation. The white derivative preserves the source alpha silhouette.
+- Interaction: opening Crowds, enabling Gay Crowd Mode, applying it, observing the gradient state, clearing it, and restoring the prior profile Crowd membership all completed in the existing authenticated local app.
+- `git diff --check` passed for the Crowd slice.
+
+## Remaining proof gap
+
+- The selected browser session did not expose a console-error log surface during this pass. Browser-rendered source, inactive, active, and interaction evidence all passed, but the Product Design console gate remains unverified.
+
+final result: blocked
+
+---
+
+# Design QA: Supplied Ghost Mode asset
+
+## Visual source
+
+- Exact user-supplied asset: `/Volumes/good/ghost-blue.svg`
+- Active asset: `src/app/assets/ui-icons/ghost-colored.svg`
+- Shared renderer: `GhostColoredIcon` in `src/app/components/CruushIconImage.tsx`
+- Fly-out consumer: `GhostRotationFlyIcon` in `src/app/components/MapView.tsx`
+
+## Source and build evidence
+
+- The active asset contains the supplied silhouette, view box, path, and
+  four-stop vertical gradient. Its only byte difference from the supplied file
+  is a final newline.
+- Both the active top-navigation state and the fly-out call the same
+  `GhostColoredIcon`, so no second approximation remains in source.
+- `git diff --check` passed.
+- The client production build passed after the asset replacement.
+
+## Blocker
+
+- The existing Vite process at `127.0.0.1:5173` is the correct 1.6 worktree.
+- No API process is listening at the configured `127.0.0.1:3016` target.
+- `/health` and `/api/auth/me` through Vite both return `500 Internal Server Error`.
+- The active authenticated Ghost state and timed fly-out cannot be rendered or
+  compared while the API is unavailable. The task contract forbids starting,
+  restarting, stopping, killing, or replacing a development server without an
+  explicit process instruction.
+
+final result: blocked
+
+---
+
+# Design QA: Signup agreements
+
+## Rendered state
+
+- Local signup rendered from the existing cruush 1.6 app at `http://127.0.0.1:5173/`.
+- Required Terms of Service and Privacy Policy checkboxes sit directly below Confirm Password.
+- The optional cruush product-updates checkbox follows the legal agreements in the same compact panel.
+- Terms of Service and Privacy Policy remain direct links.
+
+## Interaction and tests
+
+- Required legal checkboxes start unchecked and both accept checked state in the rendered form.
+- Product updates starts unchecked and remains optional.
+- Signup is blocked until both legal agreements are accepted.
+- `src/app/components/Auth.test.tsx`: 18 tests passed.
+- `git diff --check`: passed.
+- No account was created. No commit, push, or deployment was performed.
+
+final result: passed
+
+---
+
+# Design QA: Map globe scale and Ghost Mode icon
+
+## Visual source
+
+- Oversized-globe reference: `/var/folders/cs/ckc4b_8j28x6gttwjkpcyk4c0000gn/T/TemporaryItems/NSIRD_screencaptureui_omRQVW/Screenshot 2026-08-28 at 7.17.39 PM.png`
+- Exact Ghost Mode fly-out source: `/tmp/cruush-ghost-rotation-fly-icon.svg`
+- Rendered authenticated map: `/tmp/cruush-1.6-map-globe-ghost-after.png`
+- Before-and-after map comparison: `/tmp/cruush-map-globe-before-after.png`
+
+## Verified state
+
+- Authenticated seeded 1.6 map at 834 x 938 CSS pixels.
+- Map globe reduced from a 57.6 px visible footprint to a balanced 48 px canvas.
+- Active Ghost Mode top-navigation glyph uses the exact fly-out silhouette and six-stop electric-blue fade.
+- Both changes hot-reloaded in the existing local app without altering navigation behavior.
+
+## Fidelity review
+
+- The globe no longer dominates the Feed, cruush, Messages, and Profile glyphs.
+- The Ghost Mode glyph matches the fly-out path, view box, color stops, and opacity stops.
+- No resting gray icon circle appears in the top or bottom navigation.
+- No P0, P1, or P2 visual mismatch was found in the inspected rendered state.
+
+## Interaction and tests
+
+- `src/app/components/MapHome.test.tsx`: changed Ghost Mode asset assertion passed.
+- `src/app/components/BottomNav.test.tsx`: 17 tests passed.
+- Ghost Mode SVG parsed successfully with `xmllint`.
+- `git diff --check`: passed.
+- No commit, push, or deployment performed.
+
+final result: passed

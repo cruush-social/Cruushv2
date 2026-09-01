@@ -7,6 +7,7 @@ import {
   timingSafeEqual
 } from "node:crypto";
 import type { AppConfig } from "./config.js";
+import { resolveSecretForVersion } from "./crypto-keys.js";
 import type { DbClient } from "./db.js";
 
 export type EncryptedRelationshipType =
@@ -108,16 +109,26 @@ function deriveKey(secret: string, purpose: string, keyVersion: string) {
     .digest();
 }
 
-function getRelationshipEncryptionSecret(config: AppConfig) {
-  return config.RELATIONSHIP_ENCRYPTION_KEY || config.SESSION_SECRET;
+function getRelationshipEncryptionSecret(config: AppConfig, storedVersion: string, currentVersion: string) {
+  return resolveSecretForVersion({
+    currentSecret: config.RELATIONSHIP_ENCRYPTION_KEY || config.SESSION_SECRET,
+    previousSecret: config.RELATIONSHIP_ENCRYPTION_KEY_PREVIOUS,
+    currentVersion,
+    storedVersion
+  });
 }
 
 function getRelationshipIndexSecret(config: AppConfig) {
   return config.RELATIONSHIP_INDEX_KEY || config.SESSION_SECRET;
 }
 
-function getMatchEncryptionSecret(config: AppConfig) {
-  return config.MATCH_TOKEN_ENCRYPTION_KEY || config.SESSION_SECRET;
+function getMatchEncryptionSecret(config: AppConfig, storedVersion: string, currentVersion: string) {
+  return resolveSecretForVersion({
+    currentSecret: config.MATCH_TOKEN_ENCRYPTION_KEY || config.SESSION_SECRET,
+    previousSecret: config.MATCH_TOKEN_ENCRYPTION_KEY_PREVIOUS,
+    currentVersion,
+    storedVersion
+  });
 }
 
 function getMatchSigningSecret(config: AppConfig) {
@@ -211,7 +222,11 @@ function createRelationshipIndexes(config: AppConfig, payload: EncryptedRelation
 
 function encryptRelationshipPayload(config: AppConfig, payload: EncryptedRelationshipPayload) {
   const keyVersion = getRelationshipEncryptionKeyVersion(config);
-  const encryptionKey = deriveKey(getRelationshipEncryptionSecret(config), "relationship-record", keyVersion);
+  const encryptionKey = deriveKey(
+    getRelationshipEncryptionSecret(config, keyVersion, keyVersion),
+    "relationship-record",
+    keyVersion
+  );
   const nonce = randomBytes(12);
   const cipher = createCipheriv("aes-256-gcm", encryptionKey, nonce);
   const plaintext = JSON.stringify(payload);
@@ -236,7 +251,11 @@ export function decryptRelationshipPayload(
   >
 ): EncryptedRelationshipPayload {
   const encryptionKey = deriveKey(
-    getRelationshipEncryptionSecret(config),
+    getRelationshipEncryptionSecret(
+      config,
+      row.encryption_key_version || getRelationshipEncryptionKeyVersion(config),
+      getRelationshipEncryptionKeyVersion(config)
+    ),
     "relationship-record",
     row.encryption_key_version || getRelationshipEncryptionKeyVersion(config)
   );
@@ -720,7 +739,11 @@ export async function updateEncryptedRelationshipRecordStatus(
 
 function encryptMatchTokenPayload(config: AppConfig, payload: EncryptedRelationshipTokenPayload) {
   const keyVersion = getMatchTokenKeyVersion(config);
-  const encryptionKey = deriveKey(getMatchEncryptionSecret(config), "cruush-match-token-encryption", keyVersion);
+  const encryptionKey = deriveKey(
+    getMatchEncryptionSecret(config, keyVersion, keyVersion),
+    "cruush-match-token-encryption",
+    keyVersion
+  );
   const nonce = randomBytes(12);
   const cipher = createCipheriv("aes-256-gcm", encryptionKey, nonce);
   const plaintext = JSON.stringify(payload);
@@ -739,7 +762,11 @@ function encryptMatchTokenPayload(config: AppConfig, payload: EncryptedRelations
 
 function decryptMatchTokenPayload(config: AppConfig, row: EncryptedRelationshipTokenRow) {
   const encryptionKey = deriveKey(
-    getMatchEncryptionSecret(config),
+    getMatchEncryptionSecret(
+      config,
+      row.token_key_version || getMatchTokenKeyVersion(config),
+      getMatchTokenKeyVersion(config)
+    ),
     "cruush-match-token-encryption",
     row.token_key_version || getMatchTokenKeyVersion(config)
   );

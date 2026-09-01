@@ -8,6 +8,7 @@ import {
 } from "node:crypto";
 import type { FastifyRequest } from "fastify";
 import type { AppConfig } from "./config.js";
+import { resolveSecretForVersion } from "./crypto-keys.js";
 import type { DbClient } from "./db.js";
 import { getSessionTokenFromRequest, hashSessionToken } from "./auth.js";
 import { normalizeCrowdOption, type CrowdOption } from "./profile-sensitive.js";
@@ -33,6 +34,8 @@ export type VisibilityPolicyPayload = {
   baseMode: VisibilityBaseMode;
   ghostActivatedAtMs?: number | null;
   ghostSessionVersion?: number | null;
+  ghostRotationMinutes?: number;
+  ghostRotationSchedule?: { startsAtMs: number; firstEpoch: number } | null;
   ghostRadiusMeters: number | null;
   preciseToMutualCruushes: boolean;
   preciseToMutualCrowds: CrowdPrecisionPolicy[];
@@ -216,6 +219,11 @@ export const DISPLAY_TOKEN_TTL_MS = 180 * 1000;
 export const LOCATION_DISCOVERY_WINDOW_MS = 4 * 24 * 60 * 60 * 1000;
 const LOCATION_TTL_MS = LOCATION_DISCOVERY_WINDOW_MS;
 const ROTATION_INTERVAL_MS = 15 * 60 * 1000;
+export const GHOST_ROTATION_MINUTES = [15, 30, ...Array.from({ length: 24 }, (_, index) => (index + 1) * 60)];
+
+function normalizeGhostRotationMinutes(value: number | undefined) {
+  return typeof value === "number" && GHOST_ROTATION_MINUTES.includes(value) ? value : 15;
+}
 const DISPLAY_KEY_TTL_MS = 30 * 60 * 1000;
 const COARSE_CELL_DEGREES = 0.02;
 
@@ -248,20 +256,35 @@ function deriveKey(secret: string, purpose: string, keyVersion: string) {
     .digest();
 }
 
-function getLocationEncryptionSecret(config: AppConfig) {
-  return config.LOCATION_ENCRYPTION_KEY || config.SESSION_SECRET;
+function getLocationEncryptionSecret(config: AppConfig, storedVersion: string, currentVersion: string) {
+  return resolveSecretForVersion({
+    currentSecret: config.LOCATION_ENCRYPTION_KEY || config.SESSION_SECRET,
+    previousSecret: config.LOCATION_ENCRYPTION_KEY_PREVIOUS,
+    currentVersion,
+    storedVersion
+  });
 }
 
 function getLocationIndexSecret(config: AppConfig) {
   return config.LOCATION_INDEX_KEY || config.SESSION_SECRET;
 }
 
-function getVisibilityPolicySecret(config: AppConfig) {
-  return config.VISIBILITY_POLICY_ENCRYPTION_KEY || config.SESSION_SECRET;
+function getVisibilityPolicySecret(config: AppConfig, storedVersion: string, currentVersion: string) {
+  return resolveSecretForVersion({
+    currentSecret: config.VISIBILITY_POLICY_ENCRYPTION_KEY || config.SESSION_SECRET,
+    previousSecret: config.VISIBILITY_POLICY_ENCRYPTION_KEY_PREVIOUS,
+    currentVersion,
+    storedVersion
+  });
 }
 
-function getGhostDerivationSecret(config: AppConfig) {
-  return config.GHOST_DERIVATION_KEY || config.SESSION_SECRET;
+function getGhostDerivationSecret(config: AppConfig, storedVersion: string, currentVersion: string) {
+  return resolveSecretForVersion({
+    currentSecret: config.GHOST_DERIVATION_KEY || config.SESSION_SECRET,
+    previousSecret: config.GHOST_DERIVATION_KEY_PREVIOUS,
+    currentVersion,
+    storedVersion
+  });
 }
 
 function getDisplayTokenSecret(config: AppConfig) {
@@ -425,6 +448,7 @@ export function buildDefaultVisibilityPolicy(
     baseMode: "GHOST",
     ghostActivatedAtMs: nowMs,
     ghostSessionVersion: 1,
+    ghostRotationMinutes: 15,
     ghostRadiusMeters: DEFAULT_GHOST_RADIUS_METERS,
     preciseToMutualCruushes: false,
     preciseToMutualCrowds: [],
@@ -503,6 +527,18 @@ export function normalizeVisibilityPolicy(
         ? false
         : previous.preciseToMutualCruushes;
 
+  const ghostRotationMinutes = normalizeGhostRotationMinutes(input.ghostRotationMinutes ?? previous.ghostRotationMinutes);
+  let ghostRotationSchedule = baseMode === "GHOST" && previous.baseMode === "GHOST"
+    ? previous.ghostRotationSchedule ?? null
+    : null;
+  if (baseMode === "GHOST" && previous.baseMode === "GHOST" &&
+      ghostRotationMinutes !== normalizeGhostRotationMinutes(previous.ghostRotationMinutes)) {
+    const current = getGhostRotationState(previous, nowMs);
+    // Keep the active epoch and deadline. A settings edit must not move the
+    // decoy early or reset its derivation; the new cadence starts next epoch.
+    ghostRotationSchedule = { startsAtMs: current.expiresAtMs, firstEpoch: current.rotationEpoch + 1 };
+  }
+
   return {
     version: 1,
     subjectUserId,
@@ -510,6 +546,8 @@ export function normalizeVisibilityPolicy(
     baseMode,
     ghostActivatedAtMs,
     ghostSessionVersion,
+    ghostRotationMinutes,
+    ghostRotationSchedule,
     ghostRadiusMeters: input.ghostRadiusMeters ?? previous.ghostRadiusMeters ?? DEFAULT_GHOST_RADIUS_METERS,
     preciseToMutualCruushes,
     preciseToMutualCrowds: normalizeCrowdPrecisionPolicies(input.preciseToMutualCrowds ?? previous.preciseToMutualCrowds),
@@ -523,15 +561,13 @@ export function normalizeVisibilityPolicy(
 
 export function publicPrivacySettings(policy: VisibilityPolicyPayload, nowMs = Date.now()) {
   const ghostRotationExpiresAtMs = policy.baseMode === "GHOST"
-    ? rotationExpiresAtMs(
-        ghostActivationAnchorMs(policy),
-        currentRotationEpoch(nowMs, ghostActivationAnchorMs(policy))
-      )
+    ? getGhostRotationState(policy, nowMs).expiresAtMs
     : null;
 
   return {
     baseMode: policy.baseMode,
     ghostModeEnabled: policy.baseMode === "GHOST",
+    ghostRotationMinutes: normalizeGhostRotationMinutes(policy.ghostRotationMinutes),
     ...(ghostRotationExpiresAtMs === null ? {} : { ghostRotationExpiresAtMs }),
     ghostRadiusMeters: policy.ghostRadiusMeters ?? DEFAULT_GHOST_RADIUS_METERS,
     ghostRadiusLabel: radiusLabelForMeters(policy.ghostRadiusMeters ?? DEFAULT_GHOST_RADIUS_METERS),
@@ -589,7 +625,7 @@ export async function loadVisibilityPolicyStrict(
       dekNonce: row.policy_dek_nonce,
       dekAuthTag: row.policy_dek_auth_tag,
       aad: policyAad(subjectUserId, policyVersion, updatedAtMs),
-      secret: getVisibilityPolicySecret(context.config),
+      secret: getVisibilityPolicySecret(context.config, row.key_version || getVisibilityPolicyKeyVersion(context.config), getVisibilityPolicyKeyVersion(context.config)),
       purpose: "visibility-policy",
       keyVersion: row.key_version || getVisibilityPolicyKeyVersion(context.config)
     });
@@ -620,7 +656,7 @@ export async function loadVisibilityPolicy(context: LocationPrivacyContext, subj
       plaintext: policy,
       aad: policyAad(subjectUserId, policy.policyVersion, policy.updatedAtMs),
       config: context.config,
-      secret: getVisibilityPolicySecret(context.config),
+      secret: getVisibilityPolicySecret(context.config, policy.keyVersion, policy.keyVersion),
       purpose: "visibility-policy",
       keyVersion: policy.keyVersion
     });
@@ -687,8 +723,8 @@ export async function saveVisibilityPolicy(
     ghostRotationPolicyVersion(currentPolicy) === ghostRotationPolicyVersion(policy);
 
   if (ghostSessionContinues) {
-    // Snapshot the active interval before saving same-session radius or
-    // precision edits. The edited radius takes effect when the next interval
+    // Snapshot the active interval before saving same-session radius, cadence,
+    // or precision edits. The edited radius takes effect when the next interval
     // creates its rotation, never in the middle of the current one.
     await loadOrCreateGhostRotation(context, {
       subjectUserId,
@@ -701,7 +737,7 @@ export async function saveVisibilityPolicy(
     plaintext: policy,
     aad: policyAad(subjectUserId, policy.policyVersion, policy.updatedAtMs),
     config: context.config,
-    secret: getVisibilityPolicySecret(context.config),
+    secret: getVisibilityPolicySecret(context.config, policy.keyVersion, policy.keyVersion),
     purpose: "visibility-policy",
     keyVersion: policy.keyVersion
   });
@@ -834,7 +870,7 @@ export async function storeLocationEnvelope(context: LocationPrivacyContext, inp
     plaintext: payload,
     aad: locationAad(input.subjectUserId, locationVersion, nowMs),
     config: context.config,
-    secret: getLocationEncryptionSecret(context.config),
+    secret: getLocationEncryptionSecret(context.config, keyVersion, keyVersion),
     purpose: "location-envelope",
     keyVersion
   });
@@ -902,7 +938,7 @@ export function decryptLocationEnvelope(context: LocationPrivacyContext, row: En
     dekNonce: row.location_dek_nonce,
     dekAuthTag: row.location_dek_auth_tag,
     aad: locationAad(subjectUserId, locationVersion, collectedAtMs),
-    secret: getLocationEncryptionSecret(context.config),
+    secret: getLocationEncryptionSecret(context.config, row.key_version || getLocationKeyVersion(context.config), getLocationKeyVersion(context.config)),
     purpose: "location-envelope",
     keyVersion: row.key_version || getLocationKeyVersion(context.config)
   });
@@ -1011,8 +1047,23 @@ function ghostRotationPolicyVersion(policy: VisibilityPolicyPayload) {
   return policy.ghostSessionVersion ?? policy.policyVersion;
 }
 
-function rotationExpiresAtMs(activationAnchorMs: number, rotationEpoch: number) {
-  return activationAnchorMs + (rotationEpoch + 1) * ROTATION_INTERVAL_MS;
+export function getGhostRotationState(policy: VisibilityPolicyPayload, nowMs = Date.now()) {
+  const intervalMs = normalizeGhostRotationMinutes(policy.ghostRotationMinutes) * 60_000;
+  const schedule = policy.ghostRotationSchedule;
+  if (schedule && Number.isFinite(schedule.startsAtMs) &&
+      Number.isSafeInteger(schedule.firstEpoch) && schedule.firstEpoch > 0) {
+    if (nowMs < schedule.startsAtMs) {
+      return { rotationEpoch: schedule.firstEpoch - 1, expiresAtMs: schedule.startsAtMs };
+    }
+    const elapsed = Math.floor((nowMs - schedule.startsAtMs) / intervalMs);
+    return {
+      rotationEpoch: schedule.firstEpoch + elapsed,
+      expiresAtMs: schedule.startsAtMs + (elapsed + 1) * intervalMs
+    };
+  }
+  const anchorMs = ghostActivationAnchorMs(policy);
+  const rotationEpoch = Math.max(0, Math.floor((nowMs - anchorMs) / intervalMs));
+  return { rotationEpoch, expiresAtMs: anchorMs + (rotationEpoch + 1) * intervalMs };
 }
 
 // The last minute before a ghost pin relocates. Viewers get the deadline itself
@@ -1040,9 +1091,7 @@ export async function describeGhostRotation(
   policy: VisibilityPolicyPayload,
   nowMs = Date.now()
 ) {
-  const activationAnchorMs = ghostActivationAnchorMs(policy);
-  const rotationEpoch = currentRotationEpoch(nowMs, activationAnchorMs);
-  const expiresAtMs = rotationExpiresAtMs(activationAnchorMs, rotationEpoch);
+  const { expiresAtMs } = getGhostRotationState(policy, nowMs);
   const remainingMs = expiresAtMs - nowMs;
 
   // The deadline is derived from the policy already in hand, but the opt-out is
@@ -1082,8 +1131,7 @@ async function loadOrCreateGhostRotation(context: LocationPrivacyContext, input:
   nowMs?: number;
 }) {
   const nowMs = input.nowMs ?? Date.now();
-  const activationAnchorMs = ghostActivationAnchorMs(input.policy);
-  const rotationEpoch = currentRotationEpoch(nowMs, activationAnchorMs);
+  const { rotationEpoch, expiresAtMs } = getGhostRotationState(input.policy, nowMs);
   const rotationPolicyVersion = ghostRotationPolicyVersion(input.policy);
   const loadActiveRotation = async () => (await context.db.query<EncryptedGhostRotationTokenRow>(
     `select
@@ -1117,7 +1165,7 @@ async function loadOrCreateGhostRotation(context: LocationPrivacyContext, input:
       dekNonce: row.token_dek_nonce,
       dekAuthTag: row.token_dek_auth_tag,
       aad: rotationAad(input.subjectUserId, rotationEpoch, rotationPolicyVersion),
-      secret: getGhostDerivationSecret(context.config),
+      secret: getGhostDerivationSecret(context.config, row.key_version || getGhostDerivationKeyVersion(context.config), getGhostDerivationKeyVersion(context.config)),
       purpose: "ghost-rotation",
       keyVersion: row.key_version || getGhostDerivationKeyVersion(context.config)
     });
@@ -1137,13 +1185,13 @@ async function loadOrCreateGhostRotation(context: LocationPrivacyContext, input:
     policyVersion: rotationPolicyVersion,
     centerLocationVersion: input.centerLocationVersion,
     tokenCreatedAtMs: nowMs,
-    tokenExpiresAtMs: rotationExpiresAtMs(activationAnchorMs, rotationEpoch) + 15_000
+    tokenExpiresAtMs: expiresAtMs + 15_000
   };
   const encrypted = encryptWithWrappedDataKey({
     plaintext: payload,
     aad: rotationAad(input.subjectUserId, rotationEpoch, rotationPolicyVersion),
     config: context.config,
-    secret: getGhostDerivationSecret(context.config),
+    secret: getGhostDerivationSecret(context.config, keyVersion, keyVersion),
     purpose: "ghost-rotation",
     keyVersion
   });
@@ -1237,10 +1285,13 @@ export function deriveGhostCoordinate(input: {
   radiusMeters: number;
   policyVersion: number;
 }) {
+  // A derivation, not a decrypt of anything stored: the coordinate is recomputed
+  // from the current key every time, so it always resolves to the current secret.
+  const ghostKeyVersion = getGhostDerivationKeyVersion(input.config);
   const key = deriveKey(
-    getGhostDerivationSecret(input.config),
+    getGhostDerivationSecret(input.config, ghostKeyVersion, ghostKeyVersion),
     "ghost-coordinate",
-    getGhostDerivationKeyVersion(input.config)
+    ghostKeyVersion
   );
   // Ghost v2. The v1 scheme offset the TRUE point by a fresh random vector each
   // epoch. Those offsets were unbiased, so an observer who recorded the decoy
@@ -1584,7 +1635,7 @@ export async function recordPrivacyAuditEvent(context: LocationPrivacyContext, p
     plaintext: payload,
     aad: eventAad(payload.subjectUserId, payload.viewerUserId, payload.createdAtMs),
     config: context.config,
-    secret: getVisibilityPolicySecret(context.config),
+    secret: getVisibilityPolicySecret(context.config, keyVersion, keyVersion),
     purpose: "privacy-audit",
     keyVersion
   });
@@ -1697,7 +1748,7 @@ export function decryptPrivacyAuditEvent(context: LocationPrivacyContext, row: P
     dekNonce: row.event_dek_nonce,
     dekAuthTag: row.event_dek_auth_tag,
     aad: eventAad(subjectUserId, viewerUserId, toNumber(row.created_at_ms)),
-    secret: getVisibilityPolicySecret(context.config),
+    secret: getVisibilityPolicySecret(context.config, row.key_version || getLocationKeyVersion(context.config), getLocationKeyVersion(context.config)),
     purpose: "privacy-audit",
     keyVersion: row.key_version || getLocationKeyVersion(context.config)
   });

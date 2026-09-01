@@ -97,3 +97,10 @@ export function publicHttpsUrlSchema(options: { max?: number; message?: string }
 }
 
 export const uuidSchema = z.uuid();
+
+// PostgreSQL accepts canonical UUID text without requiring RFC version or variant
+// bits. Deterministic seeded records use that broader database representation.
+export const databaseUuidSchema = z.string().regex(
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+  "Invalid database UUID."
+);

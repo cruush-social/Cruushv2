@@ -1,4 +1,11 @@
-import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type PointerEvent as ReactPointerEvent,
+} from 'react';
 import { SIGNAL_MAX_LENGTH } from '../lib/profileLimits';
 import PulseLedIcon from './PulseLedIcon';
 import { MapMarkerPin } from './MapView';
@@ -12,6 +19,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 import CruushPlusGateNotice from './CruushPlusGateNotice';
+import { useIsMobile } from './ui/use-mobile';
 import {
   Sheet,
   SheetContent,
@@ -38,6 +46,106 @@ type MapPingSheetProps = {
   /** Dark Room keeps you off the map, so a Pulse cannot go out. */
   lurkerActive?: boolean;
 };
+
+type PulseDesktopGeometry = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
+type PulseDragState = {
+  pointerId: number;
+  mode: 'desktop-move' | 'desktop-resize' | 'mobile-move';
+  originX: number;
+  originY: number;
+  desktopStart?: PulseDesktopGeometry;
+  mobileStart?: { x: number; y: number };
+  sheetTop?: number;
+  topClearance?: number;
+};
+
+const PULSE_DESKTOP_STORAGE_KEY = 'cruush.pulse.desktopGeometry';
+const PULSE_DESKTOP_EDGE_GAP = 10;
+const PULSE_DESKTOP_BOTTOM_CLEARANCE = 110;
+const PULSE_DESKTOP_MIN_WIDTH = 360;
+const PULSE_DESKTOP_MIN_HEIGHT = 420;
+const PULSE_DESKTOP_DEFAULT_WIDTH = 448;
+const PULSE_DESKTOP_DEFAULT_HEIGHT = 600;
+
+function pulseTopClearance() {
+  if (typeof window === 'undefined') {
+    return 90;
+  }
+
+  const configured = Number.parseFloat(
+    window.getComputedStyle(document.documentElement).getPropertyValue('--cruush-map-top-clearance'),
+  );
+  return Number.isFinite(configured) && configured > 0 ? configured : 90;
+}
+
+function clampPulseDesktopGeometry(geometry: PulseDesktopGeometry): PulseDesktopGeometry {
+  if (typeof window === 'undefined') {
+    return geometry;
+  }
+
+  const minimumY = pulseTopClearance();
+  const maxWidth = Math.max(PULSE_DESKTOP_MIN_WIDTH, window.innerWidth - PULSE_DESKTOP_EDGE_GAP * 2);
+  const maxHeight = Math.max(1, window.innerHeight - minimumY - PULSE_DESKTOP_BOTTOM_CLEARANCE);
+  const width = Math.min(Math.max(geometry.width, PULSE_DESKTOP_MIN_WIDTH), maxWidth);
+  const effectiveMinHeight = Math.min(PULSE_DESKTOP_MIN_HEIGHT, maxHeight);
+  const height = Math.min(Math.max(geometry.height, effectiveMinHeight), maxHeight);
+  const x = Math.min(
+    Math.max(geometry.x, PULSE_DESKTOP_EDGE_GAP),
+    Math.max(PULSE_DESKTOP_EDGE_GAP, window.innerWidth - width - PULSE_DESKTOP_EDGE_GAP),
+  );
+  const y = Math.min(
+    Math.max(geometry.y, minimumY),
+    Math.max(minimumY, window.innerHeight - height - PULSE_DESKTOP_BOTTOM_CLEARANCE),
+  );
+
+  return { x, y, width, height };
+}
+
+function defaultPulseDesktopGeometry(): PulseDesktopGeometry {
+  if (typeof window === 'undefined') {
+    return { x: PULSE_DESKTOP_EDGE_GAP, y: 90, width: PULSE_DESKTOP_DEFAULT_WIDTH, height: PULSE_DESKTOP_DEFAULT_HEIGHT };
+  }
+
+  const width = Math.min(PULSE_DESKTOP_DEFAULT_WIDTH, window.innerWidth - PULSE_DESKTOP_EDGE_GAP * 2);
+  const minimumY = pulseTopClearance();
+  return clampPulseDesktopGeometry({
+    x: Math.round((window.innerWidth - width) / 2),
+    y: minimumY + 12,
+    width,
+    height: PULSE_DESKTOP_DEFAULT_HEIGHT,
+  });
+}
+
+function readPulseDesktopGeometry(): PulseDesktopGeometry | null {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  try {
+    const raw = window.localStorage.getItem(PULSE_DESKTOP_STORAGE_KEY);
+    if (!raw) {
+      return null;
+    }
+    const parsed = JSON.parse(raw) as Partial<PulseDesktopGeometry>;
+    if (
+      typeof parsed.x !== 'number'
+      || typeof parsed.y !== 'number'
+      || typeof parsed.width !== 'number'
+      || typeof parsed.height !== 'number'
+    ) {
+      return null;
+    }
+    return { x: parsed.x, y: parsed.y, width: parsed.width, height: parsed.height };
+  } catch {
+    return null;
+  }
+}
 
 function formatTime(value: string) {
   const timestamp = Date.parse(value);
@@ -90,6 +198,7 @@ export default function MapPingSheet({
   lurkerActive = false,
   onUpgrade,
 }: MapPingSheetProps) {
+  const isMobile = useIsMobile();
   const [radiusMiles, setRadiusMiles] = useState<MapPingRadiusMiles>(3);
   const [sending, setSending] = useState(false);
   const [editingSignal, setEditingSignal] = useState(false);
@@ -97,6 +206,10 @@ export default function MapPingSheet({
   const [savingSignal, setSavingSignal] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
+  const [desktopGeometry, setDesktopGeometry] = useState<PulseDesktopGeometry>(() => {
+    const stored = readPulseDesktopGeometry();
+    return stored ? clampPulseDesktopGeometry(stored) : defaultPulseDesktopGeometry();
+  });
 
   useEffect(() => {
     if (!open) {
@@ -172,22 +285,58 @@ export default function MapPingSheet({
   }, [nextEligibleTimestamp, onRefresh, open]);
 
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
-  const dragStateRef = useRef<{ pointerId: number; originX: number; originY: number; start: { x: number; y: number }; sheetTop: number; topClearance: number } | null>(null);
+  const dragStateRef = useRef<PulseDragState | null>(null);
 
-  const beginDrag = (event: ReactPointerEvent<HTMLElement>) => {
+  useEffect(() => {
+    if (isMobile) {
+      return undefined;
+    }
+
+    const handleResize = () => setDesktopGeometry((current) => clampPulseDesktopGeometry(current));
+    window.addEventListener('resize', handleResize);
+    setDesktopGeometry((current) => clampPulseDesktopGeometry(current));
+    return () => window.removeEventListener('resize', handleResize);
+  }, [isMobile]);
+
+  useEffect(() => {
+    if (isMobile) {
+      return;
+    }
+
+    try {
+      window.localStorage.setItem(PULSE_DESKTOP_STORAGE_KEY, JSON.stringify(desktopGeometry));
+    } catch {
+      // Window geometry is a convenience. Ignore storage failures.
+    }
+  }, [desktopGeometry, isMobile]);
+
+  const beginDrag = (event: ReactPointerEvent<HTMLElement>, mode: 'move' | 'resize' = 'move') => {
     if (event.button !== 0) {
       return;
     }
 
+    event.preventDefault();
     event.currentTarget.setPointerCapture(event.pointerId);
+
+    if (!isMobile) {
+      dragStateRef.current = {
+        pointerId: event.pointerId,
+        mode: mode === 'resize' ? 'desktop-resize' : 'desktop-move',
+        originX: event.clientX,
+        originY: event.clientY,
+        desktopStart: desktopGeometry,
+      };
+      return;
+    }
+
     const sheet = event.currentTarget.closest('[data-testid="map-ping-sheet"]');
-    const rootStyle = window.getComputedStyle(document.documentElement);
-    const topClearance = Number.parseFloat(rootStyle.getPropertyValue('--cruush-map-top-clearance')) || 90;
+    const topClearance = pulseTopClearance();
     dragStateRef.current = {
       pointerId: event.pointerId,
+      mode: 'mobile-move',
       originX: event.clientX,
       originY: event.clientY,
-      start: dragOffset,
+      mobileStart: dragOffset,
       sheetTop: sheet?.getBoundingClientRect().top ?? topClearance,
       topClearance,
     };
@@ -200,10 +349,31 @@ export default function MapPingSheet({
       return;
     }
 
-    const nextY = dragState.start.y + (event.clientY - dragState.originY);
-    const minimumY = dragState.start.y - Math.max(0, dragState.sheetTop - dragState.topClearance);
+    if (dragState.mode === 'desktop-move' && dragState.desktopStart) {
+      setDesktopGeometry(clampPulseDesktopGeometry({
+        ...dragState.desktopStart,
+        x: dragState.desktopStart.x + (event.clientX - dragState.originX),
+        y: dragState.desktopStart.y + (event.clientY - dragState.originY),
+      }));
+      return;
+    }
+
+    if (dragState.mode === 'desktop-resize' && dragState.desktopStart) {
+      setDesktopGeometry(clampPulseDesktopGeometry({
+        ...dragState.desktopStart,
+        width: dragState.desktopStart.width + (event.clientX - dragState.originX),
+        height: dragState.desktopStart.height + (event.clientY - dragState.originY),
+      }));
+      return;
+    }
+
+    const mobileStart = dragState.mobileStart ?? dragOffset;
+    const sheetTop = dragState.sheetTop ?? pulseTopClearance();
+    const topClearance = dragState.topClearance ?? pulseTopClearance();
+    const nextY = mobileStart.y + (event.clientY - dragState.originY);
+    const minimumY = mobileStart.y - Math.max(0, sheetTop - topClearance);
     setDragOffset({
-      x: dragState.start.x + (event.clientX - dragState.originX),
+      x: mobileStart.x + (event.clientX - dragState.originX),
       y: Math.max(minimumY, nextY),
     });
   };
@@ -235,23 +405,35 @@ export default function MapPingSheet({
     }
   };
 
+  const sheetStyle: CSSProperties = isMobile
+    ? {
+      bottom: 'calc(6.25rem + env(safe-area-inset-bottom))',
+      maxHeight: 'calc(100dvh - var(--cruush-map-top-clearance) - 6.75rem - env(safe-area-inset-bottom))',
+      top: 'auto',
+      transform: `translate(calc(-50% + ${dragOffset.x}px), ${dragOffset.y}px)`,
+      left: '50%',
+      width: 'min(28rem, calc(100vw - 1.5rem))',
+    }
+    : {
+      bottom: 'auto',
+      height: `${desktopGeometry.height}px`,
+      left: `${desktopGeometry.x}px`,
+      maxHeight: 'none',
+      right: 'auto',
+      top: `${desktopGeometry.y}px`,
+      transform: 'none',
+      width: `${desktopGeometry.width}px`,
+    };
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="bottom"
         overlayClassName="!z-[24]"
-        className="!z-[25] flex flex-col overflow-hidden rounded-2xl border border-white/10 bg-background/96 pb-3 backdrop-blur-xl sm:left-1/2 sm:max-w-lg"
+        className="!z-[25] flex flex-col overflow-hidden rounded-2xl border border-white/10 bg-background/96 pb-3 backdrop-blur-xl sm:max-w-lg lg:max-w-none"
         data-testid="map-ping-sheet"
-        style={{
-          // The sheet always opens just above the bottom nav, and stays where it
-          // is dragged.
-          bottom: `calc(6.25rem + env(safe-area-inset-bottom))`,
-          maxHeight: 'calc(100dvh - var(--cruush-map-top-clearance) - 6.75rem - env(safe-area-inset-bottom))',
-          top: 'auto',
-          transform: `translate(calc(-50% + ${dragOffset.x}px), ${dragOffset.y}px)`,
-          left: '50%',
-          width: 'min(28rem, calc(100vw - 1.5rem))',
-        }}
+        data-window-mode={isMobile ? 'mobile-sheet' : 'desktop-window'}
+        style={sheetStyle}
       >
         <SheetHeader
           className="shrink-0 cursor-grab pb-2 pr-10 pt-3 active:cursor-grabbing"
@@ -270,7 +452,7 @@ export default function MapPingSheet({
           </div>
         </SheetHeader>
 
-        <div className="min-h-0 space-y-2.5 overflow-y-auto px-4">
+        <div className="scrollbar-hide min-h-0 space-y-2.5 overflow-y-auto px-4">
           <div className="flex items-center gap-3 rounded-xl border border-[#c8ff31]/45 bg-black/45 p-2.5">
             {/* The real marker, running the real Pulse state, so this is what
                 people actually see rather than an approximation of it. */}
@@ -441,6 +623,20 @@ export default function MapPingSheet({
                     : 'Send Pulse'}
           </Button>
         </SheetFooter>
+
+        {!isMobile ? (
+          <div
+            aria-label="Resize Pulse panel"
+            className="absolute bottom-0 right-0 z-40 h-7 w-7 cursor-nwse-resize"
+            data-testid="map-ping-sheet-resize"
+            onPointerCancel={endDrag}
+            onPointerDown={(event) => beginDrag(event, 'resize')}
+            onPointerMove={continueDrag}
+            onPointerUp={endDrag}
+          >
+            <span className="absolute bottom-2 right-2 block h-2.5 w-2.5 rounded-[3px] border-b-2 border-r-2 border-white/70" />
+          </div>
+        ) : null}
       </SheetContent>
     </Sheet>
   );

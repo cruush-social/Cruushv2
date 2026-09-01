@@ -1,6 +1,6 @@
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 import type { AppConfig } from "./config.js";
-import { deriveKey } from "./crypto-keys.js";
+import { deriveKey, resolveSecretForVersion } from "./crypto-keys.js";
 
 export type TextContentPurpose = "message" | "feed";
 
@@ -11,20 +11,30 @@ export type EncryptedTextContent = {
   keyVersion: string;
 };
 
-function getTextEncryptionSecret(config: AppConfig, purpose: TextContentPurpose) {
-  if (purpose === "message") {
-    return config.MESSAGE_ENCRYPTION_KEY || config.SESSION_SECRET;
-  }
-
-  return config.FEED_ENCRYPTION_KEY || config.SESSION_SECRET;
-}
-
 function getTextEncryptionKeyVersion(config: AppConfig, purpose: TextContentPurpose) {
   if (purpose === "message") {
     return config.MESSAGE_ENCRYPTION_KEY_VERSION || "v1";
   }
 
   return config.FEED_ENCRYPTION_KEY_VERSION || "v1";
+}
+
+function getTextEncryptionSecret(
+  config: AppConfig,
+  purpose: TextContentPurpose,
+  storedVersion?: string
+) {
+  const message = purpose === "message";
+
+  return resolveSecretForVersion({
+    currentSecret: (message ? config.MESSAGE_ENCRYPTION_KEY : config.FEED_ENCRYPTION_KEY)
+      || config.SESSION_SECRET,
+    previousSecret: message
+      ? config.MESSAGE_ENCRYPTION_KEY_PREVIOUS
+      : config.FEED_ENCRYPTION_KEY_PREVIOUS,
+    currentVersion: getTextEncryptionKeyVersion(config, purpose),
+    storedVersion
+  });
 }
 
 function keyPurpose(purpose: TextContentPurpose) {
@@ -58,7 +68,11 @@ export function decryptTextContent(
   purpose: TextContentPurpose,
   encrypted: EncryptedTextContent
 ) {
-  const key = deriveKey(getTextEncryptionSecret(config, purpose), keyPurpose(purpose), encrypted.keyVersion);
+  const key = deriveKey(
+    getTextEncryptionSecret(config, purpose, encrypted.keyVersion),
+    keyPurpose(purpose),
+    encrypted.keyVersion
+  );
   const decipher = createDecipheriv("aes-256-gcm", key, Buffer.from(encrypted.nonce, "base64"));
   decipher.setAuthTag(Buffer.from(encrypted.authTag, "base64"));
 

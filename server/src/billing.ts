@@ -145,6 +145,7 @@ export const CRUUSH_PLUS_PLANS: CruushPlusPlan[] = [
 
 export const PREMIUM_DISCOVERY_FILTER_KEYS = [
   "identities",
+  "mileHighClub",
   "presentations",
   "lookingFor",
   "timing",
@@ -228,7 +229,7 @@ export function getCruushPlusPlan(planId: string): CruushPlusPlan {
 export function countActivePremiumDiscoveryFilters(query: Record<string, unknown>) {
   return PREMIUM_DISCOVERY_FILTER_KEYS.reduce((count, key) => {
     const value = query[key];
-    return Array.isArray(value) && value.length > 0 ? count + 1 : count;
+    return (Array.isArray(value) && value.length > 0) || value === true ? count + 1 : count;
   }, 0);
 }
 

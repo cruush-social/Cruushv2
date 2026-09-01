@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createPostPayloadSchema } from "./post-schema.js";
 
 describe("createPostPayloadSchema", () => {
-  it("allows no crowd targets, one crowd, or multiple normalized crowd targets", () => {
+  it("allows no crowd target or one normalized Crowd target", () => {
     expect(createPostPayloadSchema.parse({
       content: "Local feed post",
       expiresIn: "6h"
@@ -11,8 +11,16 @@ describe("createPostPayloadSchema", () => {
     expect(createPostPayloadSchema.parse({
       content: "Dyke crowd post",
       expiresIn: "6h",
-      crowdTargets: ["Dyke", "Gay", "Dyke"]
-    }).crowdTargets).toEqual(["Dyke", "Gay"]);
+      audience: "crowd",
+      crowdTargets: ["Dyke", "Dyke"]
+    }).crowdTargets).toEqual(["Dyke"]);
+
+    expect(() => createPostPayloadSchema.parse({
+      content: "Multiple crowd post",
+      expiresIn: "6h",
+      audience: "crowd",
+      crowdTargets: ["Dyke", "Gay"]
+    })).toThrow();
   });
 
   it("allows seven-day and never feed expiry values", () => {
@@ -36,6 +44,7 @@ describe("createPostPayloadSchema", () => {
   it("keeps T4T as an explicit crowd target value for server-side membership enforcement", () => {
     expect(createPostPayloadSchema.parse({
       content: "T4T post",
+      audience: "crowd",
       crowdTargets: ["T4T"]
     }).crowdTargets).toEqual(["T4T"]);
   });

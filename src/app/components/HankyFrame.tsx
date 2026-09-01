@@ -1,12 +1,5 @@
-/**
- * A folded hanky, which is the one badge that carries no icon at all.
- *
- * The hanky code is a colour code. The cloth says nothing on its own and the
- * colour says everything, so this frame is the shape and the colour and nothing
- * else. It is the single place in the app where a badge is not flat white,
- * because a white hanky already means something specific and it is not "no
- * colour chosen".
- */
+import paisley515105 from '../assets/ui-icons/paisley-515105.png';
+import { HEART_PIN_THEMES } from '../lib/heartPin';
 
 export type HankyColor = {
   id: string;
@@ -17,128 +10,117 @@ export type HankyColor = {
 };
 
 export const HANKY_COLORS: HankyColor[] = [
-  { id: 'black', label: 'Black', meaning: 'heavy play', color: '#1A1A1E' },
-  { id: 'grey', label: 'Grey', meaning: 'bondage', color: '#9AA0A6' },
-  { id: 'light-blue', label: 'Light blue', meaning: 'oral', color: '#7EC8F2' },
-  { id: 'navy', label: 'Navy', meaning: 'anal', color: '#1F3A93' },
-  { id: 'red', label: 'Red', meaning: 'fisting', color: '#D62828' },
-  { id: 'dark-red', label: 'Dark red', meaning: 'heavy fisting', color: '#7A1220' },
-  { id: 'yellow', label: 'Yellow', meaning: 'watersports', color: '#F2C230' },
-  { id: 'orange', label: 'Orange', meaning: 'anything goes', color: '#F07818' },
-  { id: 'purple', label: 'Purple', meaning: 'piercing', color: '#7A3CB8' },
-  { id: 'lavender', label: 'Lavender', meaning: 'drag', color: '#C4A7E7' },
-  { id: 'pink', label: 'Pink', meaning: 'toys', color: '#F06AA8' },
-  { id: 'fuchsia', label: 'Fuchsia', meaning: 'spanking', color: '#C2185B' },
-  { id: 'white', label: 'White', meaning: 'mutual', color: '#F4F6F8' },
-  { id: 'beige', label: 'Beige', meaning: 'rimming', color: '#D9C3A0' },
-  { id: 'charcoal', label: 'Charcoal', meaning: 'latex', color: '#3C4048' },
-  { id: 'olive', label: 'Olive', meaning: 'uniform', color: '#6B7A3A' },
-  { id: 'mustard', label: 'Mustard', meaning: 'size', color: '#C9A227' },
-  { id: 'teal', label: 'Teal', meaning: 'CBT', color: '#1E8C8C' },
-  { id: 'brown', label: 'Brown', meaning: 'scat, discuss first', color: '#6B4423' },
-  { id: 'coral', label: 'Coral', meaning: 'feet', color: '#F58C7B' },
-  { id: 'magenta', label: 'Magenta', meaning: 'armpit', color: '#B5179E' },
-  { id: 'hunter-green', label: 'Hunter green', meaning: 'daddy or boy', color: '#2F5D3A' },
-  { id: 'apricot', label: 'Apricot', meaning: 'chubby chaser', color: '#F2B279' },
-  { id: 'denim', label: 'Denim', meaning: 'anything but', color: '#4A6FA5' },
+  { id: 'black', label: 'black', meaning: 'S&M', color: '#1A1A1E' },
+  { id: 'grey', label: 'white', meaning: 'bondage', color: '#FFFFFF' },
+  { id: 'lime', label: 'lime', meaning: 'mutual masturbation', color: '#B8FF2C' },
+  { id: 'dark-blue', label: 'light blue', meaning: 'oral', color: '#62B6FF' },
+  { id: 'orange', label: 'orange', meaning: 'anytime/anywhere', color: '#FF7A00' },
+  { id: 'indigo', label: 'dark blue', meaning: 'fucking', color: '#1F3A93' },
+  { id: 'red', label: 'red', meaning: 'fisting', color: '#E30613' },
+  { id: 'yellow', label: 'yellow', meaning: 'watersports', color: '#F2C230' },
+  { id: 'purple', label: 'purple', meaning: 'toys', color: '#7A3CB8' },
+  { id: 'pink', label: 'light pink', meaning: 'mommy', color: '#F06AA8' },
+  { id: 'fuchsia', label: 'dark pink', meaning: 'nipples/tits', color: '#C2185B' },
+  { id: 'teal', label: 'teal', meaning: 'tribbing/frotting', color: '#00C2B8' },
+  { id: 'tan', label: 'tan', meaning: 'heavy petting', color: '#D2B48C' },
+  { id: 'lavender', label: 'lavender', meaning: 'crossdressing', color: '#B57EDC' },
+  { id: 'mint-green', label: 'mint green', meaning: 'discreet', color: '#98FF98' },
+  { id: 'gold', label: 'gold', meaning: 'threesomes/groups', color: '#D4AF37' },
+  { id: 'magenta', label: 'magenta', meaning: 'pits', color: '#B5179E' },
+  { id: 'hunter-green', label: 'hunter green', meaning: 'daddy', color: '#2F5D3A' },
 ];
 
-/**
- * A bandana, on the diagonal the way it hangs, reduced to what still reads at
- * the size of a badge chip: the colour, a paisley band inset from the edges,
- * and a couple of loose drops in the field.
- *
- * The band is drawn as actual paisley commas rather than beads. A dashed line
- * reads as a dashed line, and the whole point of a hanky is that it looks like
- * a hanky.
- */
-
-/** The paisley comma: a teardrop that curls back on itself. */
-const PAISLEY_COMMA = 'M0 0c2.7-.2 4.6 1.5 4.9 3.9.3 2.7-1.6 4.8-4.4 5-1.6.1-2.8-.7-2.9-1.9-.1-1 .5-1.7 1.4-1.8';
-
-function Paisley({ x, y, rotate, scale = 1, opacity = 0.95, seed = false }: {
-  x: number;
-  y: number;
-  rotate: number;
-  scale?: number;
-  opacity?: number;
-  /** The dot inside the curl, which is what makes it read as paisley. */
-  seed?: boolean;
+function hankyDetailColor(color: string) {
+  return color.toUpperCase() === '#1A1A1E' ? '#FFFFFF' : '#05050A';
+}
+export function HankyPaisleyIcon({
+  className,
+  color,
+  label,
+}: {
+  className?: string;
+  color: string;
+  label: string;
 }) {
-  return (
-    <g opacity={opacity} transform={`translate(${x} ${y}) rotate(${rotate}) scale(${scale})`}>
-      <path d={PAISLEY_COMMA} fill="none" stroke="#fff" strokeLinecap="round" strokeWidth="1.7" />
-      {seed ? <circle cx="0.9" cy="4.4" fill="#fff" r="1.3" /> : null}
-    </g>
-  );
-}
-
-/** A row of commas along one edge of the inset square, before rotation. */
-function PaisleyBand({ side }: { side: number }) {
-  const commas = [-13.5, -4.5, 4.5, 13.5];
+  const maskImage = `url(${paisley515105})`;
 
   return (
-    <g transform={`rotate(${side} 32 32)`}>
-      {commas.map((offset) => (
-        <Paisley key={offset} rotate={90} scale={0.62} x={32 + offset} y={13.5} />
-      ))}
-    </g>
-  );
-}
-
-export function HankyFrame({ className, color = '#D62828' }: { className?: string; color?: string }) {
-  return (
-    <svg
-      aria-hidden="true"
-      className={className}
-      viewBox="0 0 64 64"
-      xmlns="http://www.w3.org/2000/svg"
+    <span
+      aria-label={label}
+      className={`relative inline-block shrink-0 overflow-hidden ${className ?? ''}`}
+      role="img"
     >
-      <g transform="rotate(45 32 32)">
-        {/* The cloth. */}
-        <rect fill={color} height="45" rx="2.5" width="45" x="9.5" y="9.5" />
+      <span
+        className="absolute inset-0"
+        style={{ backgroundColor: hankyDetailColor(color) }}
+      />
+      <span
+        className="absolute inset-0 scale-[1.12]"
+        style={{
+          backgroundColor: color,
+          maskImage,
+          maskPosition: 'center',
+          maskRepeat: 'no-repeat',
+          maskSize: 'contain',
+          WebkitMaskImage: maskImage,
+          WebkitMaskPosition: 'center',
+          WebkitMaskRepeat: 'no-repeat',
+          WebkitMaskSize: 'contain',
+        }}
+      />
+    </span>
+  );
+}
 
-        {/* Two rules with the comma band running between them. */}
-        <rect
-          fill="none"
-          height="37"
-          stroke="#fff"
-          strokeOpacity="0.92"
-          strokeWidth="1.5"
-          width="37"
-          x="13.5"
-          y="13.5"
-        />
-        <rect
-          fill="none"
-          height="27"
-          stroke="#fff"
-          strokeOpacity="0.6"
-          strokeWidth="1.1"
-          width="27"
-          x="18.5"
-          y="18.5"
-        />
-        {[0, 90, 180, 270].map((side) => (
-          <PaisleyBand key={side} side={side} />
-        ))}
+/**
+ * Exact selected source: "Paisley" by Wes Breazell from Noun Project.
+ * https://thenounproject.com/icon/paisley-515105/
+ *
+ * Every Hanky icon uses this one source image, size, and rotation. The source
+ * image's transparent ornament reads black, its black fill changes to the
+ * selected Hanky color, and its own diamond edge uses the pin unit color. The
+ * source's 25px transparent margin is scaled beyond the inner square so the
+ * paisley uses the available space without creating a second white border.
+ */
+export function HankyFrame({
+  className,
+  color = '#D62828',
+  unitColor = HEART_PIN_THEMES.current.border,
+}: {
+  className?: string;
+  color?: string;
+  unitColor?: string;
+}) {
+  const maskImage = `url(${paisley515105})`;
+  const detailColor = hankyDetailColor(color);
 
-        {/* Two big drops in the middle field, facing each other. */}
-        <Paisley rotate={-30} scale={1.15} seed x={27} y={27} />
-        <Paisley rotate={150} scale={1.15} seed x={38} y={38} />
-
-        {/* A hemmed edge, so a pale colour still has a boundary. */}
-        <rect
-          fill="none"
-          height="45"
-          rx="2.5"
-          stroke="rgba(0,0,0,0.36)"
-          strokeWidth="1.5"
-          width="45"
-          x="9.5"
-          y="9.5"
-        />
-      </g>
-    </svg>
+  return (
+    <span
+      aria-hidden="true"
+      className={`inline-flex items-center justify-center ${className ?? ''}`}
+    >
+      <span
+        className="relative block h-full w-full rotate-45"
+        style={{ backgroundColor: unitColor }}
+      >
+        <span className="absolute inset-[3.2px] overflow-hidden">
+          <span className="absolute inset-[0.5px]" style={{ backgroundColor: detailColor }} />
+          <span
+            className="absolute inset-0 scale-[1.12]"
+            style={{
+              backgroundColor: color,
+              maskImage,
+              maskPosition: 'center',
+              maskRepeat: 'no-repeat',
+              maskSize: 'contain',
+              WebkitMaskImage: maskImage,
+              WebkitMaskPosition: 'center',
+              WebkitMaskRepeat: 'no-repeat',
+              WebkitMaskSize: 'contain',
+            }}
+          />
+        </span>
+      </span>
+    </span>
   );
 }

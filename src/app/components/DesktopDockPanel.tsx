@@ -2,6 +2,7 @@ import type { CSSProperties, PointerEvent as ReactPointerEvent, ReactNode } from
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 export type DesktopDockSlot = 'left' | 'right';
+export type DesktopDockLayer = 'panel' | 'modal';
 
 type DockDragMode = 'move' | 'resize-top-right' | 'resize-bottom-right';
 
@@ -19,16 +20,19 @@ type DesktopDockPanelProps = {
   className?: string;
   minWidth?: number;
   minHeight?: number;
+  layer?: DesktopDockLayer;
 };
 
 const EDGE_GAP = 10;
-const RIGHT_CONTROL_LANE = 104;
 // Panels share one stacking counter. Pressing anywhere on a panel raises it, so
 // an overlapped panel is never left unclickable behind another one.
 // Panels stack among themselves but always sit under the top chrome and page
 // dialogs. Transient map surfaces stay below these panels.
-const BASE_Z = 30;
-let topZ = BASE_Z;
+const BASE_Z: Record<DesktopDockLayer, number> = {
+  panel: 200,
+  modal: 1600,
+};
+const topZ: Record<DesktopDockLayer, number> = { ...BASE_Z };
 const DEFAULT_WIDTH = 416;
 const MIN_WIDTH = 360;
 const MIN_HEIGHT = 420;
@@ -59,13 +63,25 @@ function clampGeometry(slot: DesktopDockSlot, geometry: DockGeometry, minWidth: 
   }
 
   const minimumY = topChromeClearance();
-  const rightClearance = slot === 'right' ? RIGHT_CONTROL_LANE : EDGE_GAP;
-  const maxWidth = Math.max(minWidth, window.innerWidth - EDGE_GAP - rightClearance);
+  // Right-side popups can travel to the edge without sitting flush against it.
+  // This small inset keeps the popup's own Close control fully visible and does
+  // not reserve any internal space for the independent Bug Fix control.
+  const rightClearance = EDGE_GAP;
+  const hasRoomForRightHalf = slot === 'right'
+    && window.innerWidth >= minWidth * 2 + EDGE_GAP * 2;
+  const minimumX = hasRoomForRightHalf
+    ? Math.floor(window.innerWidth / 2)
+    : EDGE_GAP;
+  const maxWidth = Math.max(1, window.innerWidth - minimumX - rightClearance);
   const maxHeight = Math.max(1, window.innerHeight - minimumY - EDGE_GAP);
-  const width = Math.min(Math.max(geometry.width, minWidth), maxWidth);
+  const effectiveMinWidth = Math.min(minWidth, maxWidth);
+  const width = Math.min(Math.max(geometry.width, effectiveMinWidth), maxWidth);
   const effectiveMinHeight = Math.min(minHeight, maxHeight);
   const height = Math.min(Math.max(geometry.height, effectiveMinHeight), maxHeight);
-  const x = Math.min(Math.max(geometry.x, EDGE_GAP), Math.max(EDGE_GAP, window.innerWidth - width - rightClearance));
+  const x = Math.min(
+    Math.max(geometry.x, minimumX),
+    Math.max(minimumX, window.innerWidth - width - rightClearance),
+  );
   const y = Math.min(Math.max(geometry.y, minimumY), Math.max(minimumY, window.innerHeight - height - EDGE_GAP));
 
   return { x, y, width, height };
@@ -100,6 +116,7 @@ function readStoredGeometry(slot: DesktopDockSlot): DockGeometry | null {
       || typeof parsed.y !== 'number'
       || typeof parsed.width !== 'number'
       || typeof parsed.height !== 'number'
+      || ![parsed.x, parsed.y, parsed.width, parsed.height].every(Number.isFinite)
     ) {
       return null;
     }
@@ -117,6 +134,7 @@ export default function DesktopDockPanel({
   className,
   minWidth = MIN_WIDTH,
   minHeight = MIN_HEIGHT,
+  layer = 'panel',
 }: DesktopDockPanelProps) {
   const [geometry, setGeometry] = useState<DockGeometry>(() => {
     const stored = readStoredGeometry(slot);
@@ -126,20 +144,20 @@ export default function DesktopDockPanel({
   });
   const dragStateRef = useRef<{ pointerId: number; mode: DockDragMode; originX: number; originY: number; start: DockGeometry } | null>(null);
   const [zIndex, setZIndex] = useState(() => {
-    topZ += 1;
-    return topZ;
+    topZ[layer] += 1;
+    return topZ[layer];
   });
 
   const raise = useCallback(() => {
     setZIndex((current) => {
-      if (current === topZ) {
+      if (current === topZ[layer]) {
         return current;
       }
 
-      topZ += 1;
-      return topZ;
+      topZ[layer] += 1;
+      return topZ[layer];
     });
-  }, []);
+  }, [layer]);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -215,7 +233,12 @@ export default function DesktopDockPanel({
 
     // Top right grip: the panel grows to the right and upward, so the bottom
     // edge stays put and y follows the height change.
-    const height = Math.max(dragState.start.height - deltaY, minHeight);
+    const bottom = dragState.start.y + dragState.start.height;
+    const maxHeight = Math.max(1, bottom - topChromeClearance());
+    const height = Math.min(
+      Math.max(dragState.start.height - deltaY, Math.min(minHeight, maxHeight)),
+      maxHeight,
+    );
     setGeometry(clampGeometry(slot,
       {
         x: dragState.start.x,
@@ -261,13 +284,14 @@ export default function DesktopDockPanel({
       <div
         data-testid={`desktop-dock-${slot}-handle`}
         aria-label={`Move ${ariaLabel}`}
-        className="absolute left-1/2 top-0 z-30 h-8 w-24 -translate-x-1/2 cursor-grab active:cursor-grabbing"
+        className="absolute left-1/2 top-0 z-[60] h-8 w-24 -translate-x-1/2 touch-none cursor-grab active:cursor-grabbing"
+        onLostPointerCapture={endDrag}
         onPointerCancel={endDrag}
         onPointerDown={(event) => beginDrag(event, 'move')}
         onPointerMove={continueDrag}
         onPointerUp={endDrag}
       >
-        <span className="mx-auto mt-1.5 block h-1 w-10 rounded-full bg-white/25" />
+        <span className="mx-auto mt-1.5 block h-1.5 w-12 rounded-full border border-black/35 bg-white/55 shadow-[0_1px_8px_rgba(0,0,0,0.55)]" />
       </div>
 
       <div className="min-h-0 flex-1">{children}</div>
@@ -275,7 +299,8 @@ export default function DesktopDockPanel({
       <div
         data-testid={`desktop-dock-${slot}-resize-top`}
         aria-label={`Resize ${ariaLabel} from the top right`}
-        className="absolute right-0 top-0 z-40 h-7 w-7 cursor-nesw-resize"
+        className="absolute right-0 top-0 z-[60] h-7 w-7 touch-none cursor-nesw-resize"
+        onLostPointerCapture={endDrag}
         onPointerCancel={endDrag}
         onPointerDown={(event) => beginDrag(event, 'resize-top-right')}
         onPointerMove={continueDrag}
@@ -287,7 +312,8 @@ export default function DesktopDockPanel({
       <div
         data-testid={`desktop-dock-${slot}-resize`}
         aria-label={`Resize ${ariaLabel}`}
-        className="absolute bottom-0 right-0 z-40 h-7 w-7 cursor-nwse-resize"
+        className="absolute bottom-0 right-0 z-[60] h-7 w-7 touch-none cursor-nwse-resize"
+        onLostPointerCapture={endDrag}
         onPointerCancel={endDrag}
         onPointerDown={(event) => beginDrag(event, 'resize-bottom-right')}
         onPointerMove={continueDrag}

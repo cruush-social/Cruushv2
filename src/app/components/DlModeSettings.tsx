@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { ArrowLeft, Eye, Image as ImageIcon, MessageCircle } from 'lucide-react';
+import { ArrowLeft, Image as ImageIcon, MessageCircle } from 'lucide-react';
 import { Button } from './ui/button';
 import { Switch } from './ui/switch';
+import DlModeMark from './DlModeMark';
 import { addDlModeChangedListener, isDlModeEnabled, setDlModeEnabled } from '../lib/dlMode';
-
-const activeEyeStyle = { stroke: 'url(#cruush-dl-mode-settings-gradient)' };
 
 export default function DlModeSettings() {
   const navigate = useNavigate();
@@ -20,23 +19,13 @@ export default function DlModeSettings() {
 
   return (
     <div className="min-h-screen bg-background pb-20">
-      <svg aria-hidden="true" className="absolute h-0 w-0">
-        <defs>
-          <linearGradient id="cruush-dl-mode-settings-gradient" x1="0" x2="1" y1="0" y2="1">
-            <stop offset="0%" stopColor="#FF0072" />
-            <stop offset="52%" stopColor="#6F00FF" />
-            <stop offset="100%" stopColor="#0BA8FF" />
-          </linearGradient>
-        </defs>
-      </svg>
-
       <header className="sticky top-0 z-10 flex items-center gap-4 border-b border-border bg-card/80 p-4 backdrop-blur-sm">
         <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div className="flex items-center gap-3">
           <span className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/[0.045]">
-            <Eye className="h-5 w-5 text-white/80" style={enabled ? activeEyeStyle : undefined} strokeWidth={2.35} />
+            <DlModeMark active={enabled} className="h-6 w-6" />
           </span>
           <div>
             <h2 className="text-xl">DL Mode</h2>
@@ -49,7 +38,7 @@ export default function DlModeSettings() {
         <div className="rounded-lg border border-border bg-card p-4">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-start gap-3">
-              <Eye className="mt-1 h-5 w-5 text-white/70" style={enabled ? activeEyeStyle : undefined} strokeWidth={2.35} />
+              <DlModeMark active={enabled} className="mt-1 h-5 w-5" />
               <div>
                 <p>DL Mode</p>
                 <p className="text-sm text-muted-foreground">Hide explicit images behind deterministic gradients while you browse.</p>

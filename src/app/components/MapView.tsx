@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import MileHighContrail from './MileHighContrail';
 import { flushSync } from 'react-dom';
 import { createRoot, type Root } from 'react-dom/client';
 import type {
@@ -9,29 +10,56 @@ import type {
   StyleSpecification,
 } from 'maplibre-gl';
 import {
-  ArrowDown,
   ArrowUp,
   Bed,
-  CircleDot,
-  MessageCircle,
-  MinusCircle,
-  Mountain,
-  MoveHorizontal,
-  Repeat2,
+  CircleParking,
+  Coffee,
+  Cross,
+  Dumbbell,
+  Footprints,
+  KeyRound,
+  Library,
+  Martini,
+  MapPinned,
+  Music2,
+  Store,
+  Sparkles,
+  Toilet,
+  TrainFront,
+  Trees,
   User,
+  UsersRound,
+  Waves,
   type LucideIcon,
 } from 'lucide-react';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { CruushIcon } from './CruushIconImage';
+import { CruushIcon, GhostColoredIcon } from './CruushIconImage';
 import { resolveMediaUrl } from '../lib/apiClient';
 import { getProfileGradientStops } from '../lib/profileGradient';
 import { applyDenseVenueMarkers, type DenseVenueConfig } from '../lib/denseVenueMarkers';
 import {
   createMapMarkerBadge,
+  createMapMarkerRoleBadge,
   type MapMarker,
   type MapMarkerBadge,
 } from '../lib/mapMarkers';
+import { positionGlyphFor, roleGlyphFor } from './PositionRoleGlyphs';
+import {
+  BadgeFrame,
+  BadgeHoverLabel,
+  SIDE_BADGE_SIZE_PX,
+  sideBadgeEdgeOffsetPx,
+  type BadgeFrameId,
+} from './BadgeFrames';
+import { HANKY_COLORS } from './HankyFrame';
+import { formatBadgeLabel } from '../lib/badgeIntent';
 import { HEART_PIN_PATH, HEART_PIN_THEMES } from '../lib/heartPin';
+import { DARK_ROOM_PALETTE } from '../lib/darkRoomPalette';
+import {
+  DARK_ROOM_EYE_PATH,
+  DARK_ROOM_KEYHOLE_PATH,
+  DarkRoomKeyholeEyeGraphic,
+} from './DarkRoomMark';
 import { addDlModeChangedListener, isDlModeEnabled, shouldMaskPhoto } from '../lib/dlMode';
 import {
   addAccessibilityPreferencesChangedListener,
@@ -42,9 +70,11 @@ import {
   MAP_SERVICE_CENTER,
   MAP_SERVICE_MAX_BOUNDS,
   MAP_SERVICE_OUTSIDE_MASK,
+  createMapOutsideRadiusMask,
+  mapServiceMinZoomForViewport,
 } from '../lib/mapServiceArea';
 
-export { createMapMarkerBadge };
+export { createMapMarkerBadge, createMapMarkerRoleBadge };
 
 type RadiusCircle = {
   center: {
@@ -57,6 +87,11 @@ type RadiusCircle = {
 type GhostLeash = {
   from: RadiusCircle['center'];
   to: RadiusCircle['center'];
+};
+
+type BrowseArea = {
+  center: RadiusCircle['center'];
+  radiusMiles: number;
 };
 
 type InitialViewport = {
@@ -72,6 +107,7 @@ interface MapViewProps {
   onMapClick?: () => void;
   onMapReady?: (map: MapLibreMap) => void;
   markers: MapMarker[];
+  peopleHeatmapEnabled?: boolean;
   fitToMarkers?: boolean;
   focusCoordinates?: {
     approximateLatitude: number;
@@ -79,6 +115,7 @@ interface MapViewProps {
   } | null;
   initialViewport?: InitialViewport;
   radiusCircle?: RadiusCircle | null;
+  browseArea?: BrowseArea | null;
   ghostLeash?: GhostLeash | null;
   demoRadiusCircles?: RadiusCircle[];
   denseVenue?: DenseVenueConfig | null;
@@ -91,16 +128,23 @@ export const MIN_DISCOVERY_ZOOM = 9.2;
 export const MAX_DISCOVERY_ZOOM = 22;
 const AUTO_FIT_MAX_ZOOM = 15;
 const AUTO_FIT_MIN_ZOOM = 10.5;
-const DEFAULT_TILE_URLS = [
-  'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
-  'https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
-  'https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
-  'https://d.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
-];
-const DEFAULT_ATTRIBUTION = '&copy; CARTO &copy; OpenStreetMap contributors';
 const DEFAULT_VECTOR_TILEJSON_URL = 'https://tiles.openfreemap.org/planet';
+const FORBIDDEN_MAP_PROVIDER_PATTERN = /(?:^|\.)cartocdn\.com$/i;
+export const CRUUSH_MAP_THEME_LAYER_IDS = [
+  'background',
+  'landcover-base',
+  'landuse-blocks',
+  'minor-roads',
+  'major-roads',
+  'major-road-dashes',
+  'road-marking-dashes',
+  'minor-road-labels',
+  'secondary-road-labels',
+  'primary-road-labels',
+  'prominent-road-labels',
+  'place-labels',
+] as const;
 const MAP_ERROR_MESSAGE = 'Map tiles could not load. Check the map style or tile URL configuration.';
-const MAP_READY_FALLBACK_TIMEOUT_MS = 4500;
 const MAP_RENDER_READY_TIMEOUT_MS = 1200;
 const MOBILE_MARKER_LONG_PRESS_MS = 300;
 const MOBILE_MARKER_LONG_PRESS_MOVE_TOLERANCE_PX = 10;
@@ -113,10 +157,14 @@ export const MAP_PIN_UNIT_SCALE = 1;
 const MARKER_INTERACTION_SUPPRESS_MS = 350;
 // Clustering hides individual people, so it starts later and gives up sooner:
 // pins only merge when they are nearly on top of one another.
-const PERSON_CLUSTER_MAX_ZOOM = 12.5;
-const PERSON_CLUSTER_RADIUS_PX = 36;
+// Keep dense map pins grouped while zoomed out. These values match the
+// approved map handoff and prevent nearby profile hearts from stacking.
+const PERSON_CLUSTER_MAX_ZOOM = 15.25;
+const PERSON_CLUSTER_RADIUS_PX = 84;
 export const MAP_SERVICE_MASK_SOURCE_ID = 'cruush-map-service-mask';
 export const MAP_SERVICE_MASK_LAYER_ID = 'cruush-map-service-mask';
+export const MAP_BROWSE_MASK_SOURCE_ID = 'cruush-map-browse-mask';
+export const MAP_BROWSE_MASK_LAYER_ID = 'cruush-map-browse-mask';
 // Rendered footprint of a heart pin, so no two pins may sit inside one another.
 // The complete heart-pin unit renders at 125% of its original footprint.
 // Keep neighboring units visibly separate instead of letting badges overlap.
@@ -132,6 +180,16 @@ const SAME_LOCATION_CLUSTER_PRECISION = 6;
 const SPIDERFY_RADIUS_PX = 86;
 const SPIDERFY_SECOND_RING_RADIUS_PX = 122;
 const SPIDERFY_SECOND_RING_AFTER = 10;
+const PLACE_CLUSTER_MAX_ZOOM = 13.5;
+const PLACE_CLUSTER_RADIUS_PX = 68;
+const USER_HEATMAP_SOURCE_ID = 'cruush-user-heatmap';
+const USER_HEATMAP_LAYER_ID = 'cruush-user-heatmap-layer';
+// Broad cells plus a minimum cohort keep the activity layer from tracing one
+// current heart. At New York latitudes, 0.05 degrees spans several miles.
+const USER_HEATMAP_CELL_DEGREES = 0.05;
+const USER_HEATMAP_MIN_SAMPLES = 3;
+const USER_HEATMAP_WINDOW_MINUTES = 7 * 24 * 60;
+const MAP_DETAIL_LAYER_TYPES = new Set(['line', 'symbol']);
 const PERSON_CLUSTER_ZOOM_STEP = 1.5;
 const ACTIVE_PING_MARKER_Z_INDEX = 100;
 const SIGNAL_PREVIEW_MARKER_Z_INDEX = ACTIVE_PING_MARKER_Z_INDEX + 10;
@@ -159,40 +217,21 @@ function playEventMarkerConfetti() {
   }));
 }
 
-export function createRasterStyle(tileUrls: string[], attribution: string): StyleSpecification {
-  return {
-    version: 8,
-    sources: {
-      osmRasterTiles: {
-        type: 'raster',
-        tiles: tileUrls,
-        tileSize: 256,
-        attribution,
-      },
-    },
-    layers: [
-      {
-        id: 'osm-raster-tiles',
-        type: 'raster',
-        source: 'osmRasterTiles',
-      },
-    ],
-  };
-}
-
-function createDefaultRasterStyle() {
-  return createConfiguredRasterStyle();
-}
-
-function canFallbackToDefaultRasterStyle(style: ReturnType<typeof getMapStyle>) {
-  if (typeof style === 'string') {
-    return false;
-  }
-
-  return Boolean(style.sources?.openmaptiles) && !style.sources?.osmRasterTiles;
+function hasActiveMapStyle(map: MapLibreMap | null | undefined): map is MapLibreMap {
+  return Boolean(map && (map as MapLibreMap & { style?: unknown }).style);
 }
 
 function addMapServiceOutsideMask(map: MapLibreMap) {
+  if (
+    !hasActiveMapStyle(map)
+    || typeof map.getSource !== 'function'
+    || typeof map.addSource !== 'function'
+    || typeof map.getLayer !== 'function'
+    || typeof map.addLayer !== 'function'
+  ) {
+    return;
+  }
+
   if (!map.getSource(MAP_SERVICE_MASK_SOURCE_ID)) {
     map.addSource(MAP_SERVICE_MASK_SOURCE_ID, {
       type: 'geojson',
@@ -207,31 +246,70 @@ function addMapServiceOutsideMask(map: MapLibreMap) {
       source: MAP_SERVICE_MASK_SOURCE_ID,
       paint: {
         'fill-antialias': false,
-        'fill-color': '#080808',
-        'fill-opacity': 1,
+        'fill-color': '#06101F',
+        'fill-opacity': 0.9,
       },
     });
   }
 }
 
 function moveMapServiceOutsideMaskToTop(map: MapLibreMap) {
-  if (map.getLayer(MAP_SERVICE_MASK_LAYER_ID) && typeof map.moveLayer === 'function') {
-    map.moveLayer(MAP_SERVICE_MASK_LAYER_ID);
+  if (!hasActiveMapStyle(map) || typeof map.getLayer !== 'function' || typeof map.moveLayer !== 'function') {
+    return;
+  }
+
+  for (const layerId of [MAP_SERVICE_MASK_LAYER_ID, MAP_BROWSE_MASK_LAYER_ID]) {
+    if (map.getLayer(layerId)) {
+      map.moveLayer(layerId);
+    }
   }
 }
 
-function isEnabledEnvFlag(value: string | undefined) {
-  return ['1', 'true', 'yes', 'on'].includes(value?.trim().toLowerCase() ?? '');
-}
+function syncMapBrowseOutsideMask(map: MapLibreMap, browseArea: BrowseArea | null | undefined) {
+  if (
+    !hasActiveMapStyle(map)
+    || typeof map.getSource !== 'function'
+    || typeof map.getLayer !== 'function'
+  ) {
+    return;
+  }
 
-function createConfiguredRasterStyle() {
-  const configuredTileUrl = import.meta.env.VITE_MAP_TILE_URL?.trim();
-  const configuredAttribution = import.meta.env.VITE_MAP_ATTRIBUTION?.trim();
+  if (!browseArea) {
+    if (map.getLayer(MAP_BROWSE_MASK_LAYER_ID) && typeof map.removeLayer === 'function') {
+      map.removeLayer(MAP_BROWSE_MASK_LAYER_ID);
+    }
+    if (map.getSource(MAP_BROWSE_MASK_SOURCE_ID) && typeof map.removeSource === 'function') {
+      map.removeSource(MAP_BROWSE_MASK_SOURCE_ID);
+    }
+    return;
+  }
 
-  return createRasterStyle(
-    configuredTileUrl ? [configuredTileUrl] : DEFAULT_TILE_URLS,
-    configuredAttribution || DEFAULT_ATTRIBUTION,
-  );
+  const data = createMapOutsideRadiusMask({
+    latitude: browseArea.center.approximateLatitude,
+    longitude: browseArea.center.approximateLongitude,
+  }, browseArea.radiusMiles);
+  const existingSource = map.getSource(MAP_BROWSE_MASK_SOURCE_ID) as GeoJSONSource | undefined;
+
+  if (existingSource) {
+    existingSource.setData(data);
+  } else if (typeof map.addSource === 'function') {
+    map.addSource(MAP_BROWSE_MASK_SOURCE_ID, { type: 'geojson', data });
+  }
+
+  if (!map.getLayer(MAP_BROWSE_MASK_LAYER_ID) && typeof map.addLayer === 'function') {
+    map.addLayer({
+      id: MAP_BROWSE_MASK_LAYER_ID,
+      type: 'fill',
+      source: MAP_BROWSE_MASK_SOURCE_ID,
+      paint: {
+        'fill-antialias': false,
+        'fill-color': '#06152B',
+        'fill-opacity': 0.88,
+      },
+    });
+  }
+
+  moveMapServiceOutsideMaskToTop(map);
 }
 
 async function loadMapLabelFonts() {
@@ -493,38 +571,31 @@ export function createCruushVectorStyle(
 }
 
 export function getMapStyle() {
-  const configuredStyleUrl = import.meta.env.VITE_MAP_STYLE_URL?.trim();
-
-  if (configuredStyleUrl) {
-    return configuredStyleUrl;
-  }
-
-  if (isEnabledEnvFlag(import.meta.env.VITE_MAP_USE_RASTER_TILES)) {
-    return createConfiguredRasterStyle();
-  }
-
   const configuredVectorTileJsonUrl = import.meta.env.VITE_MAP_VECTOR_TILEJSON_URL?.trim();
   const configuredGlyphsUrl = import.meta.env.VITE_MAP_GLYPHS_URL?.trim();
 
-  return createCruushVectorStyle(
-    configuredVectorTileJsonUrl || DEFAULT_VECTOR_TILEJSON_URL,
-    configuredGlyphsUrl || undefined,
-  );
-}
+  const vectorTileJsonUrl = configuredVectorTileJsonUrl || DEFAULT_VECTOR_TILEJSON_URL;
+  const vectorTileHost = (() => {
+    try {
+      return new URL(vectorTileJsonUrl).hostname;
+    } catch {
+      return '';
+    }
+  })();
 
-const POSITION_BADGE_ICONS: Record<string, LucideIcon> = {
-  bottom: ArrowDown,
-  side: MoveHorizontal,
-  'pillow princess': Bed,
-  'stone top': Mountain,
-  top: ArrowUp,
-  'vers bottom': ArrowDown,
-  'vers top': ArrowUp,
-  versatile: Repeat2,
-  none: MinusCircle,
-  oral: MessageCircle,
-  gooner: CircleDot,
-};
+  if (FORBIDDEN_MAP_PROVIDER_PATTERN.test(vectorTileHost)) {
+    throw new Error('CARTO map sources are not allowed. cruush must use its approved map theme.');
+  }
+
+  const style = createCruushVectorStyle(vectorTileJsonUrl, configuredGlyphsUrl || undefined);
+  const layerIds = new Set(style.layers.map((layer) => layer.id));
+
+  if (CRUUSH_MAP_THEME_LAYER_IDS.some((layerId) => !layerIds.has(layerId))) {
+    throw new Error('The approved cruush map theme is missing required layers.');
+  }
+
+  return style;
+}
 
 type RenderedMapMarker = {
   dispose: () => void;
@@ -612,8 +683,12 @@ function isPersonCluster(marker: MapMarker) {
   return marker.kind === 'cluster' && marker.cluster?.kind === 'people';
 }
 
+function isPlaceCluster(marker: MapMarker) {
+  return marker.kind === 'cluster' && marker.cluster?.kind === 'place';
+}
+
 function isSpiderfyCluster(marker: MapMarker) {
-  return isPersonCluster(marker) && marker.cluster?.action === 'spiderfy';
+  return marker.kind === 'cluster' && marker.cluster?.action === 'spiderfy';
 }
 
 function getDisplayName(marker: MapMarker) {
@@ -645,130 +720,14 @@ function mercatorPixelPoint(marker: MapMarker, zoom: number) {
   };
 }
 
-function mercatorPixelToCoordinates(point: { x: number; y: number }, zoom: number) {
-  const worldSize = 512 * 2 ** zoom;
-  const longitude = (point.x / worldSize) * 360 - 180;
-  const n = Math.PI * (1 - 2 * (point.y / worldSize));
-
-  return {
-    approximateLatitude: (180 / Math.PI) * Math.atan(Math.sinh(n)),
-    approximateLongitude: longitude,
-  };
-}
-
-function markerAngleSeed(id: string) {
-  let hash = 0;
-
-  for (let index = 0; index < id.length; index += 1) {
-    hash = (hash * 31 + id.charCodeAt(index)) % 360;
-  }
-
-  return (hash * Math.PI) / 180;
-}
-
 /**
- * Clustering only merges person pins below PERSON_CLUSTER_MAX_ZOOM, and it
- * never touches the current user, event or venue pins. Above that zoom, or
- * whenever an unclusterable pin sits near another, two hearts render on top of
- * each other and one is unreadable. Resolve every collision so each pin owns
- * its own footprint.
- *
- * The current user is pinned in place and everything else moves around it, so
- * your own location never drifts. Remaining pins are processed in a stable id
- * order and pushed just outside whatever they overlap, so the result is
- * deterministic and does not jitter between renders. Displayed coordinates are
- * already approximate, so a nudge of a pin's own width costs no real accuracy.
+ * Member coordinates are authoritative display locations. Zoom may replace
+ * nearby members with a cluster, but it must never move an individual member.
+ * Same-location members can still fan out with pixel-only offsets after the
+ * user opens their cluster.
  */
-export function separateOverlappingMarkers(markers: MapMarker[], zoom: number) {
-  if (markers.length < 2) {
-    return markers;
-  }
-
-  // Spiderfied members are placed by explicit pixel offsets at render time and
-  // all share one coordinate by definition, so nudging them here would fight
-  // the fan-out. Leave them, and let everything else avoid their anchor.
-  if (markers.some((marker) => (marker as DisplayMapMarker).spiderfy)) {
-    return markers;
-  }
-
-  const ordered = [...markers].sort((a, b) => {
-    // Your own pin and your decoy claim their ground first, because they are
-    // the two that never move. A cluster is a centroid, an approximation of a
-    // group, so it is the one that yields.
-    if ((a.isCurrentUser === true) !== (b.isCurrentUser === true)) {
-      return a.isCurrentUser === true ? -1 : 1;
-    }
-    const aIsCluster = a.kind === 'cluster';
-    const bIsCluster = b.kind === 'cluster';
-    if (aIsCluster !== bIsCluster) return aIsCluster ? -1 : 1;
-    const aHasActivePing = Boolean(a.activePing);
-    const bHasActivePing = Boolean(b.activePing);
-    if (aHasActivePing !== bHasActivePing) return aHasActivePing ? -1 : 1;
-    return a.id.localeCompare(b.id);
-  });
-
-  const placed: Array<{ x: number; y: number; clearance: number }> = [];
-  const moved = new Map<string, MapMarker>();
-
-  // A Pulse shows its signal without anyone hovering, so its caption is on the
-  // map permanently and has to be given room. Everything else only shows a
-  // signal one at a time, on hover.
-  const clearanceFor = (marker: MapMarker) =>
-    marker.activePing && truncateMarkerPreview(marker.signal)
-      ? SIGNAL_CLEARANCE_PX
-      : MARKER_CLEARANCE_PX;
-
-  const isFree = (x: number, y: number, clearance: number) =>
-    !placed.some((other) =>
-      Math.hypot(other.x - x, other.y - y) < Math.max(clearance, other.clearance));
-
-  ordered.forEach((marker) => {
-    const origin = mercatorPixelPoint(marker, zoom);
-
-    // Cluster coordinates are their groups' centroid. Keep them fixed across
-    // zoom changes. Your own pin and Ghost decoy also stay at their server-set
-    // coordinates so the leash remains truthful. Other hearts move around them.
-    const clearance = clearanceFor(marker);
-
-    if (marker.kind === 'cluster' || marker.isCurrentUser === true) {
-      placed.push({ ...origin, clearance });
-      return;
-    }
-
-    let spot = { x: origin.x, y: origin.y };
-
-    if (!isFree(spot.x, spot.y, clearance)) {
-      // Walk outward through evenly spaced slots on widening rings and take the
-      // first free one. Even spacing keeps a co-located crowd from collapsing
-      // back onto itself the way per-marker angles could.
-      outer: for (let ring = 1; ring <= 6; ring += 1) {
-        const slots = 6 * ring;
-
-        for (let slot = 0; slot < slots; slot += 1) {
-          const angle = (2 * Math.PI * slot) / slots + ring * 0.4 + markerAngleSeed(marker.id) * 0.05;
-          const candidateX = origin.x + Math.cos(angle) * clearance * ring;
-          const candidateY = origin.y + Math.sin(angle) * clearance * ring;
-
-          if (isFree(candidateX, candidateY, clearance)) {
-            spot = { x: candidateX, y: candidateY };
-            break outer;
-          }
-        }
-      }
-    }
-
-    placed.push({ ...spot, clearance });
-
-    if (spot.x !== origin.x || spot.y !== origin.y) {
-      moved.set(marker.id, { ...marker, ...mercatorPixelToCoordinates(spot, zoom) });
-    }
-  });
-
-  if (moved.size === 0) {
-    return markers;
-  }
-
-  return markers.map((marker) => moved.get(marker.id) ?? marker);
+export function separateOverlappingMarkers(markers: MapMarker[], _zoom: number) {
+  return markers;
 }
 
 function canClusterMarker(marker: MapMarker, focusCoordinates: MapViewProps['focusCoordinates']) {
@@ -877,6 +836,133 @@ function applyPersonMarkerClusters(
   ];
 }
 
+function buildPlaceCluster(
+  group: DisplayMapMarker[],
+  index: number,
+  action: 'zoom' | 'spiderfy' = 'zoom',
+): MapMarker {
+  const count = group.length;
+  const sortedIds = group.map((marker) => marker.id).sort();
+  const averageLatitude = group.reduce((sum, marker) => sum + marker.approximateLatitude, 0) / count;
+  const averageLongitude = group.reduce((sum, marker) => sum + marker.approximateLongitude, 0) / count;
+
+  return {
+    id: `place-cluster-${index}-${hashString(sortedIds.join('|'))}`,
+    kind: 'cluster',
+    displayName: `${count} spots`,
+    approximateLatitude: averageLatitude,
+    approximateLongitude: averageLongitude,
+    cluster: {
+      id: `places-${index}`,
+      count,
+      label: `${count} spots`,
+      kind: 'place',
+      memberIds: sortedIds,
+      action,
+    },
+  };
+}
+
+function applyPlaceMarkerClusters(markers: DisplayMapMarker[], zoom: number): DisplayMapMarker[] {
+  const placeMarkers = markers.filter((marker) => marker.kind === 'place' && !marker.spiderfy);
+  const clusteredIds = new Set<string>();
+  const clusters: MapMarker[] = [];
+
+  // Spots can share a public coordinate. Keep them selectable at every zoom
+  // with the same pixel-only fan-out used for people at an exact coordinate.
+  Array.from(groupMarkersByCoordinate(placeMarkers).values())
+    .filter((group) => group.length >= 2)
+    .forEach((group) => {
+      group.forEach((marker) => clusteredIds.add(marker.id));
+      clusters.push(buildPlaceCluster(group, clusters.length, 'spiderfy'));
+    });
+
+  if (zoom >= PLACE_CLUSTER_MAX_ZOOM) {
+    return [...markers.filter((marker) => !clusteredIds.has(marker.id)), ...clusters];
+  }
+
+  placeMarkers.forEach((seed) => {
+    if (clusteredIds.has(seed.id)) return;
+    const seedPoint = mercatorPixelPoint(seed, zoom);
+    const group = placeMarkers.filter((candidate) => {
+      if (clusteredIds.has(candidate.id)) return false;
+      const candidatePoint = mercatorPixelPoint(candidate, zoom);
+      return Math.hypot(candidatePoint.x - seedPoint.x, candidatePoint.y - seedPoint.y) <= PLACE_CLUSTER_RADIUS_PX;
+    });
+    if (group.length < 2) return;
+    group.forEach((marker) => clusteredIds.add(marker.id));
+    clusters.push(buildPlaceCluster(group, clusters.length));
+  });
+
+  return [...markers.filter((marker) => !clusteredIds.has(marker.id)), ...clusters];
+}
+
+function heatmapActivityIsWithinSevenDays(lastActiveLabel: string | null | undefined) {
+  const normalized = lastActiveLabel?.trim().toLowerCase();
+  if (!normalized) return false;
+  if (normalized === 'now' || normalized === 'online') return true;
+
+  const match = normalized.match(/^(\d+)\s*(m|h|d)/);
+  if (!match) return false;
+  const amount = Number(match[1]);
+  const minutes = match[2] === 'd' ? amount * 24 * 60 : match[2] === 'h' ? amount * 60 : amount;
+  return minutes <= USER_HEATMAP_WINDOW_MINUTES;
+}
+
+function createUserHeatmapFeatureCollection(markers: MapMarker[]) {
+  const people = markers.filter((marker) => (
+    (marker.kind ?? 'person') === 'person'
+    && marker.isCurrentUser !== true
+    && marker.npcGhostDemo !== true
+    && isMapMarker(marker)
+    && heatmapActivityIsWithinSevenDays(marker.lastActiveLabel)
+  ));
+
+  const cells = new Map<string, { count: number; latitudeIndex: number; longitudeIndex: number }>();
+
+  people.forEach((marker) => {
+    const latitudeIndex = Math.floor(marker.approximateLatitude / USER_HEATMAP_CELL_DEGREES);
+    const longitudeIndex = Math.floor(marker.approximateLongitude / USER_HEATMAP_CELL_DEGREES);
+    const key = `${latitudeIndex}:${longitudeIndex}`;
+    const current = cells.get(key);
+
+    cells.set(key, {
+      count: (current?.count ?? 0) + 1,
+      latitudeIndex,
+      longitudeIndex,
+    });
+  });
+
+  return {
+    type: 'FeatureCollection' as const,
+    features: [...cells.values()]
+      .filter((cell) => cell.count >= USER_HEATMAP_MIN_SAMPLES)
+      .sort((left, right) => (
+        left.latitudeIndex - right.latitudeIndex
+        || left.longitudeIndex - right.longitudeIndex
+      ))
+      .map((cell) => ({
+      type: 'Feature' as const,
+      properties: {
+        samples: cell.count,
+        weight: Math.min(1, cell.count / 12),
+      },
+      geometry: {
+        type: 'Point' as const,
+        coordinates: [
+          Number(((cell.longitudeIndex + 0.5) * USER_HEATMAP_CELL_DEGREES).toFixed(6)),
+          Number(((cell.latitudeIndex + 0.5) * USER_HEATMAP_CELL_DEGREES).toFixed(6)),
+        ],
+      },
+    })),
+  };
+}
+
+function getHeatmapBeforeLayerId(map: MapLibreMap) {
+  if (typeof map.getStyle !== 'function') return undefined;
+  return map.getStyle()?.layers?.find((layer) => MAP_DETAIL_LAYER_TYPES.has(layer.type))?.id;
+}
+
 // The preview spends its whole character budget. Trimming back to the last whole
 // word used to cost up to a third of the characters a signal is allowed.
 function truncateMarkerPreview(value: string | null | undefined, maxCharacters = 35) {
@@ -889,53 +975,51 @@ function truncateMarkerPreview(value: string | null | undefined, maxCharacters =
   return `${normalizedValue.slice(0, maxCharacters).trimEnd()}...`;
 }
 
-function getBadgeIcon(badge: MapMarkerBadge | null | undefined) {
-  if (!badge?.iconName) {
-    return null;
-  }
-
-  return POSITION_BADGE_ICONS[badge.iconName] ?? null;
-}
-
 function getHeartSideBadgeClass(side: 'left' | 'right') {
-  const edgeClass = side === 'left'
-    ? 'left-[-0.25rem]'
-    : 'right-[-0.25rem]';
-  return `${edgeClass} top-[62%] z-20 -translate-y-1/2`;
+  return 'top-[70%] z-20 -translate-y-1/2';
 }
 
-function getMarkerBorderClass(marker: MapMarker, isCurrentUser: boolean) {
-  if (marker.activePing) {
-    return 'border-[#C8FF31]';
-  }
-
-  if (isCurrentUser && marker.ownerStealthActive) {
-    return 'border-[#0BA8FF]';
-  }
-
-  if ((isCurrentUser && marker.displayMode === 'GHOST') || marker.npcGhostDemo) {
-    return 'border-[#0BA8FF]';
-  }
-
-  if (isCurrentUser || marker.npcGhostDemo) {
-    return 'border-[#004BFF]/80';
-  }
-
-  return marker.relationship?.kind === 'mutual_cruush'
-    ? 'border-[#6f00ff]/80'
-    : 'border-[#FF0072]/80';
+function getHeartSideBadgeStyle(side: 'left' | 'right', frame: BadgeFrameId = 'circle') {
+  const size = SIDE_BADGE_SIZE_PX * 0.85;
+  const edgeOffset = sideBadgeEdgeOffsetPx(frame) + 4 + (SIDE_BADGE_SIZE_PX - size);
+  return {
+    height: size,
+    width: size,
+    ...(side === 'left'
+      ? { left: edgeOffset }
+      : { right: edgeOffset }),
+  };
 }
 
-// The class twin of getMarkerBorderClass. Inline styles cannot read a Tailwind
-// class, and the ghost flash swaps the border through a CSS variable, so the
-// same colours are needed as values.
+const MILE_HIGH_SKY_BLUE = '#77B9DA';
+const OWNER_GHOST_DECOY_FADE_MASK = 'linear-gradient(to bottom, #000 0%, #000 50%, rgba(0,0,0,0.1) 100%)';
+
+function ownerGhostDecoyFadeStyle(marker: MapMarker, isCurrentUser: boolean): CSSProperties {
+  if (!isCurrentUser || marker.displayMode !== 'GHOST') {
+    return {};
+  }
+
+  return {
+    WebkitMaskImage: OWNER_GHOST_DECOY_FADE_MASK,
+    WebkitMaskRepeat: 'no-repeat',
+    WebkitMaskSize: '100% 100%',
+    maskImage: OWNER_GHOST_DECOY_FADE_MASK,
+    maskRepeat: 'no-repeat',
+    maskSize: '100% 100%',
+  };
+}
+
 function getMarkerBorderColor(marker: MapMarker, isCurrentUser: boolean) {
   if (marker.activePing) {
     return '#C8FF31';
   }
 
+  if (marker.travelling === true) {
+    return MILE_HIGH_SKY_BLUE;
+  }
+
   if (isCurrentUser && marker.ownerStealthActive) {
-    return '#0BA8FF';
+    return DARK_ROOM_PALETTE.middle;
   }
 
   if ((isCurrentUser && marker.displayMode === 'GHOST') || marker.npcGhostDemo) {
@@ -943,84 +1027,86 @@ function getMarkerBorderColor(marker: MapMarker, isCurrentUser: boolean) {
   }
 
   if (isCurrentUser || marker.npcGhostDemo) {
-    return 'rgba(0, 75, 255, 0.8)';
+    return '#004BFF';
   }
 
   return marker.relationship?.kind === 'mutual_cruush'
-    ? 'rgba(111, 0, 255, 0.8)'
-    : 'rgba(255, 0, 114, 0.8)';
+    ? '#6F00FF'
+    : '#FF0072';
 }
 
-function MarkerBadge({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUser: boolean }) {
-  const badge = marker.badge;
-  const Icon = getBadgeIcon(badge);
+function getMileHighRingClass(marker: MapMarker) {
+  return marker.travelling === true && !marker.activePing ? 'cruush-mile-high-ring' : '';
+}
 
-  if (!isCurrentUser && (!badge || !Icon)) {
+function MarkerSideBadge({
+  badge,
+  marker,
+  isCurrentUser,
+  side,
+}: {
+  badge: MapMarkerBadge | null | undefined;
+  marker: MapMarker;
+  isCurrentUser: boolean;
+  side: 'left' | 'right';
+}) {
+  if (!badge) {
     return null;
   }
 
-  const borderClass = getMarkerBorderClass(marker, isCurrentUser);
+  const Glyph = badge.kind === 'role'
+    ? roleGlyphFor(badge.iconName)
+    : badge.kind === 'position'
+      ? positionGlyphFor(badge.iconName)
+      : Sparkles;
+  const hanky = badge.badgeId?.startsWith('hanky ')
+    ? HANKY_COLORS.find((color) => `hanky ${color.id.replace(/-/g, ' ')}` === badge.badgeId)
+    : undefined;
 
-  return (
-    <span
-      aria-label={isCurrentUser ? 'Your profile' : badge?.label}
-      className={[
-        'absolute flex h-[1.5625rem] w-[1.5625rem] items-center justify-center rounded-full border bg-black/85 text-white backdrop-blur-sm',
-        getHeartSideBadgeClass('right'),
-        borderClass,
-      ].join(' ')}
-      data-testid={`marker-badge-${marker.id}`}
-      role="img"
-      style={{
-        backgroundColor: 'rgba(0, 0, 0, var(--cruush-ghost-surface-alpha, 0.85))',
-        borderColor: `var(--cruush-ghost-flash-border-color, ${getMarkerBorderColor(marker, isCurrentUser)})`,
-        borderWidth: '3.2px',
-      } as CSSProperties}
-      title={isCurrentUser ? 'Your profile' : badge?.label}
-    >
-      {isCurrentUser ? (
-        <User aria-hidden="true" className="cruush-ghost-rotation-badge-symbol h-[1.0625rem] w-[1.0625rem]" strokeWidth={2.6} />
-      ) : Icon ? (
-        <Icon aria-hidden="true" className="cruush-ghost-rotation-badge-symbol h-[0.9375rem] w-[0.9375rem]" strokeWidth={2.6} />
-      ) : null}
-    </span>
-  );
-}
-
-function MarkerRelationshipBadge({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUser: boolean }) {
-  if (marker.relationship?.kind !== 'mutual_cruush') {
+  if (!Glyph && !hanky) {
     return null;
   }
 
-  const precisionLabel = marker.relationship.precision === 'precise'
-    ? 'precise mutual location'
-    : marker.relationship.precision === 'fuzzy'
-      ? 'fuzzy mutual location'
-      : 'mutual';
-  const title = marker.relationship.precision === 'precise'
-    ? 'precise mutual location'
-    : marker.relationship.precision === 'fuzzy'
-      ? 'fuzzy mutual location'
-      : 'mutual';
+  const badgeBorderColor = getMarkerBorderColor(marker, isCurrentUser);
+  const badgeGradientStops = isCurrentUser && marker.ownerStealthActive && marker.travelling !== true
+    ? [DARK_ROOM_PALETTE.dark, DARK_ROOM_PALETTE.middle, DARK_ROOM_PALETTE.light] as const
+    : undefined;
+  const placementClass = getHeartSideBadgeClass(side);
+  const frame: BadgeFrameId = 'circle';
+  const hoverLabel = hanky
+    ? formatBadgeLabel(hanky.meaning, badge.intent ?? 'none')
+    : badge.saved
+      ? formatBadgeLabel(badge.label, badge.intent ?? 'none')
+      : badge.label;
 
   return (
     <span
-      aria-label={precisionLabel}
-      className={[
-        'absolute flex h-[1.5625rem] w-[1.5625rem] items-center justify-center rounded-full border bg-black/85 text-white/78 backdrop-blur-sm',
-        getHeartSideBadgeClass('left'),
-        getMarkerBorderClass(marker, isCurrentUser),
-      ].join(' ')}
-      data-testid={`marker-relationship-${marker.id}`}
+      aria-label={badge.saved
+        ? `${side === 'left' ? 'left' : 'right'} badge: ${hoverLabel}`
+        : `${side === 'left' ? 'role' : 'position'}: ${hoverLabel}`}
+      className={`group/badge absolute flex items-center justify-center ${placementClass}`}
+      data-testid={`marker-${side === 'left' ? 'role' : 'position'}-badge-${marker.id}`}
       role="img"
       style={{
-        backgroundColor: 'rgba(0, 0, 0, var(--cruush-ghost-surface-alpha, 0.85))',
-        borderColor: `var(--cruush-ghost-flash-border-color, ${getMarkerBorderColor(marker, isCurrentUser)})`,
-        borderWidth: '3.2px',
-      } as CSSProperties}
-      title={title}
+        color: badgeBorderColor,
+        ...getHeartSideBadgeStyle(side, frame),
+        ...ownerGhostDecoyFadeStyle(marker, isCurrentUser),
+      }}
     >
-      <CruushIcon name="safety" className="cruush-ghost-rotation-badge-symbol h-[1.171875rem] w-[1.171875rem] opacity-85" variant="white" />
+      <BadgeFrame
+        className="h-full w-full"
+        frame={frame}
+        gradientStops={badgeGradientStops}
+        hankyColor={hanky?.color}
+        strokeColor={badgeBorderColor}
+      >
+        {!hanky ? (
+          <span className={`flex h-full w-full items-center justify-center text-white ${isCurrentUser && marker.displayMode === 'GHOST' ? 'overflow-hidden rounded-full' : ''}`}>
+            <Glyph className="cruush-ghost-rotation-badge-symbol h-full w-full" strokeWidth={2.6} />
+          </span>
+        ) : null}
+      </BadgeFrame>
+      <BadgeHoverLabel>{hoverLabel}</BadgeHoverLabel>
     </span>
   );
 }
@@ -1129,32 +1215,12 @@ export function ghostPulseScale(elapsedSeconds: number) {
 }
 
 function GhostRotationFlyIcon({ id, style }: { id: string; style?: CSSProperties }) {
-  const ghostFillId = `marker-ghost-fly-fill-${id}`;
-
   return (
-    <svg
-      aria-hidden="true"
-      className="cruush-ghost-rotation-fly-icon absolute left-1/2 top-1/2 z-40 h-[4.39875rem] w-[3.825rem] overflow-visible"
+    <GhostColoredIcon
+      className="cruush-ghost-rotation-fly-icon absolute left-1/2 top-1/2 z-40 h-[4.39875rem] w-[4.39875rem] overflow-visible"
       data-testid={`marker-ghost-fly-icon-${id}`}
       style={style}
-      viewBox="0 0 243.6 278.74"
-    >
-      <defs>
-        <linearGradient id={ghostFillId} x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0%" stopColor="#0BA8FF" stopOpacity="0.98" />
-          <stop offset="62%" stopColor="#0BA8FF" stopOpacity="0.92" />
-          <stop offset="82%" stopColor="#0BA8FF" stopOpacity="0.72" />
-          <stop offset="91%" stopColor="#48BFFF" stopOpacity="0.42" />
-          <stop offset="97%" stopColor="#B8EBFF" stopOpacity="0.18" />
-          <stop offset="100%" stopColor="#FFFFFF" stopOpacity="0.05" />
-        </linearGradient>
-      </defs>
-      <path
-        d="M819.81,476.56c-34.13-58.3-26.19-113.51-55.56-158.35,12.27-37.63,6.39-54.79-33.1-74.86,8.28,15.93,20.09,32.56-.57,52.21-28.82-12.72-65.37-.06-65.57,1-25-22.52-8.13-44.24-4.3-52-29.38,4.1-51.47,52.94-26.88,78-15.72,22.66-24.44,64.55-26.39,91.57-9.7,32.8-50.38,78-14.55,93.06,3.49,1.25,7.13,0,10.76-2.44,24.39-24.79,33.65,15.74,58,17,10.94,1,12.5-4.6,17.84-9.9,32.33-23.07,36.38,4.92,57.53,9.66,20.37,4.09,22.28-16,35.63-24.71,14.35-10.48,16.69,0,27.42,5.81C825.71,512.31,823.42,488,819.81,476.56Zm-138.68-111c-27.55,36.3-58.55,11.4-37.27-24.94,0,.12-.16.42-.35.94C644.92,341,681.55,348.43,681.13,365.56Zm73.74,4.78c-9.21,33.66-88.09-12.23-6.77-29.82C750.66,347.21,757,361.13,754.87,370.34Z"
-        fill={`url(#${ghostFillId})`}
-        transform="translate(-578.4 -243.35)"
-      />
-    </svg>
+    />
   );
 }
 
@@ -1171,27 +1237,55 @@ function GhostRotationPuff({ id, style }: { id: string; style?: CSSProperties })
   );
 }
 
+function formatGhostRotationCountdown(expiresAtMs: number, nowMs: number) {
+  const secondsRemaining = Math.max(0, Math.ceil((expiresAtMs - nowMs) / 1_000));
+  const minutes = Math.floor(secondsRemaining / 60);
+  const seconds = secondsRemaining % 60;
+
+  return `${minutes}:${String(seconds).padStart(2, '0')}`;
+}
+
+function GhostRotationCountdown({ expiresAtMs }: { expiresAtMs?: number }) {
+  const [nowMs, setNowMs] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (typeof expiresAtMs !== 'number') return undefined;
+    const interval = window.setInterval(() => setNowMs(Date.now()), 1_000);
+    return () => window.clearInterval(interval);
+  }, [expiresAtMs]);
+
+  return (
+    <span data-testid="owner-ghost-rotation-countdown">
+      {typeof expiresAtMs === 'number'
+        ? `Rotates in ${formatGhostRotationCountdown(expiresAtMs, nowMs)}`
+        : 'Ghost Mode decoy'}
+    </span>
+  );
+}
+
 function GhostRotationPulse({ marker, children }: { marker: MapMarker; children: (exitActive: boolean, exitStyle?: CSSProperties) => ReactNode }) {
   const expiresAtMs = marker.ghostRotationExpiresAtMs;
-  const mountedAtMsRef = useRef(Date.now());
-  const suppressedMountDeadlineRef = useRef<number | null>(
-    marker.displayMode === 'GHOST' &&
-    marker.animationHint === 'FADE_LAST_MINUTE' &&
-    typeof expiresAtMs === 'number' &&
-    expiresAtMs > mountedAtMsRef.current &&
-    expiresAtMs - mountedAtMsRef.current <= GHOST_PULSE_WINDOW_MS
-      ? expiresAtMs
-      : null,
-  );
+  const [reduceMotion, setReduceMotion] = useState(shouldReduceMotion);
+  useEffect(() => {
+    const syncMotion = () => setReduceMotion(shouldReduceMotion());
+    const unsubscribe = addAccessibilityPreferencesChangedListener(syncMotion);
+    const preference = window.matchMedia?.('(prefers-reduced-motion: reduce)');
+    preference?.addEventListener?.('change', syncMotion);
+    return () => {
+      unsubscribe();
+      preference?.removeEventListener?.('change', syncMotion);
+    };
+  }, []);
   const canAnimate = marker.displayMode === 'GHOST' &&
     marker.animationHint === 'FADE_LAST_MINUTE' &&
     typeof expiresAtMs === 'number' &&
-    expiresAtMs !== suppressedMountDeadlineRef.current &&
-    !shouldReduceMotion();
+    Number.isFinite(expiresAtMs) &&
+    !reduceMotion;
   const [exitElapsedMs, setExitElapsedMs] = useState<number | null>(null);
   const pulseRef = useRef<HTMLSpanElement | null>(null);
 
   useEffect(() => {
+    setExitElapsedMs(null);
     if (!canAnimate || typeof expiresAtMs !== 'number') return;
     const remainingMs = expiresAtMs - Date.now();
     const exitStartMs = remainingMs - GHOST_ROTATION_EXIT_MS;
@@ -1233,6 +1327,7 @@ function GhostRotationPulse({ marker, children }: { marker: MapMarker; children:
       const inExit = remainingMs <= GHOST_ROTATION_EXIT_MS;
 
       if (elapsedSeconds >= 0 && elapsedSeconds < 60 && !inExit) {
+        node.style.transform = `scale(${ghostPulseScale(elapsedSeconds)})`;
         const visibleFlash = ghostFlashOn(elapsedSeconds) ? 1 : 0;
         effectHost.style.setProperty('--cruush-ghost-border-opacity', visibleFlash.toFixed(4));
         if (visibleFlash) {
@@ -1278,6 +1373,7 @@ function GhostRotationPulse({ marker, children }: { marker: MapMarker; children:
             : 'none',
         );
       } else {
+        node.style.removeProperty('transform');
         effectHost.style.setProperty('--cruush-ghost-border-opacity', '0');
         effectHost.style.removeProperty('--cruush-ghost-flash-border-color');
         effectHost.style.setProperty('--cruush-ghost-heart-border-color', 'var(--cruush-ghost-heart-base-border)');
@@ -1299,11 +1395,20 @@ function GhostRotationPulse({ marker, children }: { marker: MapMarker; children:
 
     frame = requestAnimationFrame(step);
 
-    return () => cancelAnimationFrame(frame);
+    return () => {
+      cancelAnimationFrame(frame);
+      node.style.removeProperty('transform');
+      // Changing Reduce Motion or the deadline must not leave a frozen flash.
+      for (const property of Array.from(effectHost.style)) {
+        if (property.startsWith('--cruush-ghost-') && !property.endsWith('-base-border')) {
+          effectHost.style.removeProperty(property);
+        }
+      }
+    };
   }, [canAnimate, expiresAtMs]);
 
-  const exitActive = exitElapsedMs != null;
-  const exitStyle = exitActive ? ({ '--cruush-ghost-rotation-exit-delay': `${-exitElapsedMs}ms` } as CSSProperties) : undefined;
+  const exitActive = canAnimate && exitElapsedMs != null;
+  const exitStyle = exitActive ? ({ '--cruush-ghost-rotation-exit-delay': `${-(exitElapsedMs ?? 0)}ms` } as CSSProperties) : undefined;
 
   return (
     <span
@@ -1319,36 +1424,61 @@ function GhostRotationPulse({ marker, children }: { marker: MapMarker; children:
   );
 }
 
+
 function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUser: boolean }) {
   const [dlModeActive, setDlModeActive] = useState(() => isDlModeEnabled());
   useEffect(() => addDlModeChangedListener(setDlModeActive), []);
 
   const isOwnStealthMarker = isCurrentUser && marker.ownerStealthActive === true;
-  const showPhoto = Boolean(!isOwnStealthMarker && marker.photo && !shouldMaskPhoto(dlModeActive, marker.photoExplicit));
-  const resolvedPhoto = showPhoto && marker.photo ? resolveMediaUrl(marker.photo) : null;
+  const visiblePhoto = marker.photo && !shouldMaskPhoto(dlModeActive, marker.photoExplicit)
+    ? resolveMediaUrl(marker.photo)
+    : null;
+  const resolvedPhoto = !isOwnStealthMarker ? visiblePhoto : null;
+  const darkRoomPhoto = isOwnStealthMarker ? visiblePhoto : null;
   const hasPhoto = Boolean(resolvedPhoto);
   const gradientId = `marker-fill-${marker.id}`;
   const clipId = `marker-photo-clip-${marker.id}`;
+  const stealthEyeClipId = `marker-dark-room-eye-clip-${marker.id}`;
+  const stealthKeyholeMaskId = `marker-dark-room-keyhole-mask-${marker.id}`;
+  const stealthMarkGradientId = `marker-dark-room-mark-gradient-${marker.id}`;
+  const travelGradientId = `marker-travel-gradient-${marker.id}`;
+  const ghostDecoyGradientId = `marker-ghost-decoy-gradient-${marker.id}`;
   const isMutualCruush = marker.relationship?.kind === 'mutual_cruush';
   const isNpcGhostDemo = marker.npcGhostDemo === true;
   const isOwnGhostMarker = isCurrentUser && marker.displayMode === 'GHOST';
   const pingActive = Boolean(marker.activePing);
   const theme = isCurrentUser || isNpcGhostDemo ? 'current' : isMutualCruush ? 'mutual' : 'nearby';
   const markerTheme = HEART_PIN_THEMES[theme];
-  const borderColor = pingActive ? '#C8FF31' : isOwnStealthMarker || isOwnGhostMarker || isNpcGhostDemo ? '#0BA8FF' : markerTheme.border;
+  const borderColor = pingActive
+    ? '#C8FF31'
+    : isOwnStealthMarker || isOwnGhostMarker || isNpcGhostDemo
+      ? '#0BA8FF'
+      : markerTheme.border;
   const gradientStops = isOwnStealthMarker
-    ? ['#ff0072', '#6f00ff', '#3826ff', '#1181ff']
+    ? [DARK_ROOM_PALETTE.dark, DARK_ROOM_PALETTE.middle, DARK_ROOM_PALETTE.light]
     : isNpcGhostDemo
     ? HEART_PIN_THEMES.ghost.stops
     : hasPhoto || isCurrentUser
     ? markerTheme.stops
     : getProfileGradientStops(marker.userId ?? marker.id);
-  const gradientOffsets = gradientStops.length === 4
-    ? ['6%', '53%', '81%', '100%']
-    : ['0%', '52%', '100%'];
+  const gradientOffsets = isOwnStealthMarker
+    ? ['0%', '50%', '100%']
+    : gradientStops.length === 4
+      ? ['6%', '53%', '81%', '100%']
+      : ['0%', '52%', '100%'];
   const borderPaint = isOwnStealthMarker ? `url(#${gradientId})` : borderColor;
   const borderStyle = { stroke: `var(--cruush-ghost-flash-border-color, ${borderColor})` } as CSSProperties;
-  const fillPaint = isNpcGhostDemo ? '#0BA8FF' : `url(#${gradientId})`;
+  const fillPaint = isOwnGhostMarker
+    ? `url(#${ghostDecoyGradientId})`
+    : isNpcGhostDemo
+      ? '#0BA8FF'
+      : `url(#${gradientId})`;
+  const travellerActive = marker.travelling === true && !isOwnStealthMarker && !pingActive;
+  const staticGhostTraveller = travellerActive && marker.displayMode === 'GHOST';
+  const hideOwnerDecoyHeartStroke = staticGhostTraveller && isOwnGhostMarker;
+  const ghostDecoyFadeStyle = isOwnGhostMarker
+    ? ownerGhostDecoyFadeStyle(marker, isCurrentUser)
+    : undefined;
 
   return (
     <svg
@@ -1358,7 +1488,9 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
       data-has-photo={hasPhoto ? 'true' : 'false'}
       data-marker-theme={isNpcGhostDemo ? 'npc-ghost-demo' : theme}
       data-owner-stealth={isOwnStealthMarker ? 'true' : 'false'}
+      data-owner-ghost-decoy={isOwnGhostMarker ? 'true' : 'false'}
       height="80"
+      style={ghostDecoyFadeStyle}
       viewBox="0 0 64 64"
       width="80"
       xmlns="http://www.w3.org/2000/svg"
@@ -1372,6 +1504,47 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
         <clipPath id={clipId}>
           <path d={HEART_PIN_PATH} />
         </clipPath>
+        {travellerActive ? (
+          <linearGradient id={travelGradientId} x1="8" x2="56" y1="32" y2="32" gradientUnits="userSpaceOnUse">
+            <stop offset="6%" stopColor="#ff0072" />
+            <stop offset="53%" stopColor="#6f00ff" />
+            <stop offset="81%" stopColor="#3826ff" />
+            <stop offset="100%" stopColor="#1181ff" />
+          </linearGradient>
+        ) : null}
+        {isOwnGhostMarker ? (
+          <linearGradient id={ghostDecoyGradientId} x1="32" x2="32" y1="0" y2="64" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stopColor="#3826FF" />
+            <stop offset="14%" stopColor="#004BFF" />
+            <stop offset="42%" stopColor="#0BA8FF" />
+            <stop offset="100%" stopColor="#0BA8FF" />
+          </linearGradient>
+        ) : null}
+        {isOwnStealthMarker ? (
+          <>
+            <linearGradient id={stealthMarkGradientId} x1="42" x2="214" y1="4" y2="226" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stopColor={DARK_ROOM_PALETTE.dark} />
+              <stop offset="50%" stopColor={DARK_ROOM_PALETTE.middle} />
+              <stop offset="100%" stopColor={DARK_ROOM_PALETTE.light} />
+            </linearGradient>
+            <clipPath id={stealthEyeClipId}>
+              <g transform="translate(9 6) scale(0.18)">
+                <path
+                  clipRule="evenodd"
+                  d={DARK_ROOM_EYE_PATH}
+                  fill="white"
+                  fillRule="evenodd"
+                />
+              </g>
+            </clipPath>
+            <mask id={stealthKeyholeMaskId} maskUnits="userSpaceOnUse" x="0" y="0" width="64" height="64">
+              <rect width="64" height="64" fill="white" />
+              <g transform="translate(9 6) scale(0.18)">
+                <path d={DARK_ROOM_KEYHOLE_PATH} fill="black" />
+              </g>
+            </mask>
+          </>
+        ) : null}
       </defs>
       {isOwnStealthMarker ? (
         <>
@@ -1380,21 +1553,27 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
             data-testid={`marker-ghost-border-${marker.id}`}
             fill={fillPaint}
             fillOpacity={1}
+            mask={`url(#${stealthKeyholeMaskId})`}
             stroke={borderPaint}
             strokeWidth={3.2}
           />
           <g data-testid={`marker-dark-room-keyhole-${marker.id}`} transform="translate(9 6) scale(0.18)">
-            <path
-              d="M128,66 A44,44 0 0 0 107,148 L94,198 A7,7 0 0 0 101,206 H155 A7,7 0 0 0 162,198 L149,148 A44,44 0 0 0 128,66 Z"
-              fill="rgba(0,0,0,0.9)"
-            />
-            <path
-              clipRule="evenodd"
-              d="M96,110 C106,92 150,92 160,110 C150,128 106,128 96,110 Z M128,98 A12,12 0 1 0 128,122 A12,12 0 1 0 128,98 Z"
-              fill={fillPaint}
-              fillRule="evenodd"
+            <DarkRoomKeyholeEyeGraphic
+              eyeFill={`url(#${stealthMarkGradientId})`}
             />
           </g>
+          {darkRoomPhoto ? (
+            <image
+              className="cruush-ghost-rotation-heart-photo"
+              clipPath={`url(#${stealthEyeClipId})`}
+              data-dark-room-part="eye"
+              data-testid={`marker-dark-room-photo-${marker.id}`}
+              height="64"
+              href={darkRoomPhoto}
+              preserveAspectRatio="xMidYMid slice"
+              width="64"
+            />
+          ) : null}
         </>
       ) : hasPhoto ? (
         <>
@@ -1407,11 +1586,21 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
             preserveAspectRatio="xMidYMid slice"
             width="64"
           />
+          {isOwnGhostMarker ? (
+            <path
+              d={HEART_PIN_PATH}
+              data-testid={`marker-owner-ghost-decoy-overlay-${marker.id}`}
+              fill={`url(#${ghostDecoyGradientId})`}
+              fillOpacity={0.5}
+              pointerEvents="none"
+            />
+          ) : null}
           <path
             d={HEART_PIN_PATH}
             data-testid={`marker-ghost-border-${marker.id}`}
             fill="none"
             stroke={borderPaint}
+            strokeOpacity={hideOwnerDecoyHeartStroke || (travellerActive && !staticGhostTraveller) ? 0 : 1}
             strokeWidth={3.2}
             style={borderStyle}
           />
@@ -1424,6 +1613,7 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
             fill={fillPaint}
             fillOpacity={1}
             stroke={borderPaint}
+            strokeOpacity={hideOwnerDecoyHeartStroke ? 0 : 1}
             strokeWidth={3.2}
             style={borderStyle}
           />
@@ -1440,10 +1630,19 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
           fill={fillPaint}
           fillOpacity={1}
           stroke={borderPaint}
+          strokeOpacity={hideOwnerDecoyHeartStroke ? 0 : 1}
           strokeWidth={3.2}
           style={borderStyle}
         />
       )}
+      {travellerActive ? (
+        <MileHighContrail
+          forceReducedMotion={staticGhostTraveller}
+          gradientId={travelGradientId}
+          marker={marker}
+        />
+      ) : null}
+      {pingActive && !travellerActive ? <PulseEkgHeartTrace clipId={clipId} /> : null}
     </svg>
   );
 }
@@ -1474,6 +1673,54 @@ function PeopleClusterMarker({ marker }: { marker: MapMarker }) {
   );
 }
 
+const PLACE_MARKER_CONFIG: Record<string, { icon: LucideIcon; color: string }> = {
+  clinic: { icon: Cross, color: '#22D3EE' },
+  bar: { icon: Martini, color: '#FB7185' },
+  nightclub: { icon: Music2, color: '#C084FC' },
+  community_space: { icon: UsersRound, color: '#F472B6' },
+  park: { icon: Trees, color: '#4ADE80' },
+  restroom: { icon: Toilet, color: '#60A5FA' },
+  sauna: { icon: Waves, color: '#F59E0B' },
+  gym: { icon: Dumbbell, color: '#A3E635' },
+  hotel: { icon: Bed, color: '#FBBF24' },
+  dungeon: { icon: KeyRound, color: '#F43F5E' },
+  venue: { icon: MapPinned, color: '#E879F9' },
+  cafe: { icon: Coffee, color: '#D6A26E' },
+  shop: { icon: Store, color: '#2DD4BF' },
+  library: { icon: Library, color: '#818CF8' },
+  staircase: { icon: ArrowUp, color: '#94A3B8' },
+  trail: { icon: Footprints, color: '#84CC16' },
+  transit: { icon: TrainFront, color: '#38BDF8' },
+  parking: { icon: CircleParking, color: '#A78BFA' },
+  beach: { icon: Waves, color: '#06B6D4' },
+  adult_venue: { icon: KeyRound, color: '#FF0072' },
+  other: { icon: MapPinned, color: '#03ECFC' },
+};
+
+function PlaceMarker({ marker, previewed = false }: { marker: MapMarker; previewed?: boolean }) {
+  const active = (marker.place?.activeCheckins ?? 0) > 0;
+  const facilityType = marker.place?.facilityType ?? 'other';
+  const config = PLACE_MARKER_CONFIG[facilityType] ?? PLACE_MARKER_CONFIG.other;
+  const Icon = config.icon;
+  return (
+    <span
+      className={`relative flex h-12 w-12 items-center justify-center rounded-2xl border-2 bg-black/88 shadow-[0_10px_30px_rgba(0,0,0,0.45)] backdrop-blur-md ${active ? 'shadow-[0_0_28px_rgba(200,255,49,0.4)]' : ''}`}
+      data-facility-type={facilityType}
+      data-testid={`place-marker-${marker.place?.id ?? marker.id}`}
+      style={{ borderColor: active ? '#C8FF31' : config.color, color: config.color }}
+    >
+      <span
+        className={`pointer-events-none absolute bottom-[calc(100%+0.45rem)] left-1/2 w-max max-w-[14rem] -translate-x-1/2 rounded-full border border-white/15 bg-black/92 px-3 py-1 text-center text-xs font-semibold leading-tight text-white shadow-[0_8px_24px_rgba(0,0,0,0.5)] backdrop-blur-md transition-opacity duration-150 ${previewed ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100'}`}
+        data-testid={`place-marker-title-${marker.place?.id ?? marker.id}`}
+      >
+        {marker.displayName}
+      </span>
+      <Icon className="h-6 w-6" />
+      {active ? <span className="absolute -right-2 -top-2 flex h-6 min-w-6 items-center justify-center rounded-full bg-[#C8FF31] px-1 text-[10px] font-bold text-black">{marker.place?.activeCheckins}</span> : null}
+    </span>
+  );
+}
+
 function LaunchPartyMarker({ marker }: { marker: MapMarker }) {
   const attendeeCount = marker.event?.attendeeCount ?? 0;
 
@@ -1487,46 +1734,56 @@ function LaunchPartyMarker({ marker }: { marker: MapMarker }) {
   );
 }
 
-export // A Pulse draws an ekg across the pin and through its caption on the same beat.
+export // A Pulse draws an EKG inside the heart and through its caption on the same beat.
 // Both sit light so a face still reads through them.
-const PULSE_EKG_PIN_PATH = 'M2 26h6q1.2 -2 2.4 0h1.6l1 2.6 1.4 -17 1.4 20 1 -5.6q2.6 -5 5.2 0h7';
+const PULSE_EKG_PIN_PATH = 'M8 32h9q1.5 -2.5 3 0h2l2 5 3 -20 3 25 2 -10q3 -7 6 0h18';
 const PULSE_EKG_SIGNAL_PATH = 'M0 6h7q1 -1.6 2 0h1.4l0.8 2 1.2 -5.4 1.2 6.6 0.8 -2q2 -1.8 4 0h23.6';
 
-function PulseEkgTrace({ variant }: { variant: 'pin' | 'signal' }) {
-  const isPin = variant === 'pin';
+function PulseEkgHeartTrace({ clipId }: { clipId: string }) {
+  return (
+    <g clipPath={`url(#${clipId})`} data-testid="pulse-ekg-pin" fill="none">
+      <path
+        className="cruush-pulse-ekg-draw"
+        d={PULSE_EKG_PIN_PATH}
+        stroke="#C8FF31"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeOpacity="0.5"
+        strokeWidth="3.4"
+        style={{ filter: 'blur(1.6px)' }}
+      />
+      <path
+        className="cruush-pulse-ekg-draw"
+        d={PULSE_EKG_PIN_PATH}
+        stroke="#EDFFB4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeOpacity="0.85"
+        strokeWidth="1.2"
+      />
+    </g>
+  );
+}
+
+function PulseEkgSignalTrace() {
 
   return (
     <svg
       aria-hidden="true"
-      className={isPin
-        ? 'pointer-events-none absolute left-1/2 top-[52%] z-20 h-12 w-[6.1rem] -translate-x-1/2 -translate-y-1/2'
-        : 'pointer-events-none absolute inset-0 h-full w-full'}
-      data-testid={`pulse-ekg-${variant}`}
+      className="pointer-events-none absolute inset-0 h-full w-full"
+      data-testid="pulse-ekg-signal"
       fill="none"
-      preserveAspectRatio={isPin ? undefined : 'none'}
-      viewBox={isPin ? '0 0 42 42' : '0 0 42 12'}
+      preserveAspectRatio="none"
+      viewBox="0 0 42 12"
     >
-      {isPin ? (
-        <g style={{ filter: 'blur(1.6px)' }}>
-          <path
-            className="cruush-pulse-ekg-draw"
-            d={PULSE_EKG_PIN_PATH}
-            stroke="#C8FF31"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeOpacity="0.5"
-            strokeWidth="2.6"
-          />
-        </g>
-      ) : null}
       <path
         className="cruush-pulse-ekg-draw"
-        d={isPin ? PULSE_EKG_PIN_PATH : PULSE_EKG_SIGNAL_PATH}
-        stroke={isPin ? '#EDFFB4' : '#C8FF31'}
+        d={PULSE_EKG_SIGNAL_PATH}
+        stroke="#C8FF31"
         strokeLinecap="round"
         strokeLinejoin="round"
-        strokeOpacity={isPin ? 0.85 : 0.5}
-        strokeWidth={isPin ? 1 : 0.9}
+        strokeOpacity="0.5"
+        strokeWidth="0.9"
       />
     </svg>
   );
@@ -1534,16 +1791,24 @@ function PulseEkgTrace({ variant }: { variant: 'pin' | 'signal' }) {
 
 export function MapMarkerPin({ marker, previewed = false }: { marker: MapMarker; previewed?: boolean }) {
   const isCurrentUser = marker.isCurrentUser === true;
+  const isOwnerGhostDecoy = isCurrentUser && marker.displayMode === 'GHOST';
   const isPerson = marker.kind == null || marker.kind === 'person';
   const signalPreview = isPerson ? truncateMarkerPreview(marker.signal) : '';
   const postPreview = isPerson ? truncateMarkerPreview(marker.latestFeedPostPreview) : '';
   const pingActive = Boolean(marker.activePing);
+  const travellerActive = marker.travelling === true
+    && !(isCurrentUser && marker.ownerStealthActive === true)
+    && !pingActive;
   // The signal capsule wears the same border as the unit it belongs to, so the
   // pin and its caption read as one object.
   const signalBorderColor = getMarkerBorderColor(marker, isCurrentUser);
 
   if (marker.kind === 'cluster') {
     return isPersonCluster(marker) ? <PeopleClusterMarker marker={marker} /> : <VenueClusterMarker marker={marker} />;
+  }
+
+  if (marker.kind === 'place') {
+    return <PlaceMarker marker={marker} previewed={previewed} />;
   }
 
   if (marker.kind === 'event') {
@@ -1557,25 +1822,24 @@ export function MapMarkerPin({ marker, previewed = false }: { marker: MapMarker;
       data-active-ping={pingActive ? 'true' : 'false'}
     >
       <span
-        className={`cruush-ghost-rotation-unit-material relative flex h-20 w-[103px] origin-bottom items-center justify-center transition-transform duration-150 group-hover:scale-[1.38] group-focus-within:scale-[1.38] ${previewed ? 'scale-[1.38]' : ''} ${pingActive ? 'cruush-map-ping-heart' : ''}`}
+        className={`cruush-ghost-rotation-unit-material relative flex h-20 w-[103px] origin-bottom items-center justify-center transition-transform duration-150 group-hover:scale-[1.38] group-focus-within:scale-[1.38] ${previewed ? 'scale-[1.38]' : ''} ${pingActive && !travellerActive ? 'cruush-map-ping-heart' : ''}`}
         data-testid={`marker-heart-layer-${marker.id}`}
       >
         <GhostRotationPulse marker={marker}>
           {(exitActive, exitStyle) => <>
             <span className={exitActive ? 'cruush-ghost-rotation-heart-exit' : ''} style={exitStyle}>
               <MarkerHeart marker={marker} isCurrentUser={isCurrentUser} />
-              <MarkerBadge marker={marker} isCurrentUser={isCurrentUser} />
-              <MarkerRelationshipBadge marker={marker} isCurrentUser={isCurrentUser} />
-              {pingActive ? <PulseEkgTrace variant="pin" /> : null}
+              <MarkerSideBadge badge={marker.roleBadge} marker={marker} isCurrentUser={isCurrentUser} side="left" />
+              <MarkerSideBadge badge={marker.badge} marker={marker} isCurrentUser={isCurrentUser} side="right" />
             </span>
-            {signalPreview && !exitActive ? (
+            {(signalPreview || isOwnerGhostDecoy) && !exitActive ? (
               <span
                 className={`absolute left-1/2 top-0 z-30 flex w-max max-w-[16rem] -translate-x-1/2 -translate-y-full flex-col items-center gap-1 transition-opacity duration-150 ${pingActive || previewed ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'}`}
                 data-signal-position="v2-frame-top"
                 data-testid={`marker-signal-stack-${marker.id}`}
               >
                 <span
-                  className="relative overflow-hidden rounded-full border border-[3.2px] bg-black/86 px-3 py-1 text-center text-[0.7rem] font-semibold leading-tight text-white backdrop-blur-md"
+                  className={`relative overflow-hidden rounded-full border border-[3.2px] bg-black/86 px-3 py-1 text-center text-[0.7rem] font-semibold leading-tight text-white backdrop-blur-md ${getMileHighRingClass(marker)}`}
                   data-testid={`marker-signal-badge-${marker.id}`}
                   style={{
                     backgroundColor: 'rgba(0, 0, 0, var(--cruush-ghost-surface-alpha, 0.86))',
@@ -1583,8 +1847,12 @@ export function MapMarkerPin({ marker, previewed = false }: { marker: MapMarker;
                     borderWidth: '3.2px',
                   } as CSSProperties}
                 >
-                  {pingActive ? <PulseEkgTrace variant="signal" /> : null}
-                  <span className="cruush-ghost-rotation-signal-symbol relative">{signalPreview}</span>
+                  {pingActive ? <PulseEkgSignalTrace /> : null}
+                  <span className="cruush-ghost-rotation-signal-symbol relative">
+                    {isOwnerGhostDecoy
+                      ? <GhostRotationCountdown expiresAtMs={marker.ghostRotationExpiresAtMs} />
+                      : signalPreview}
+                  </span>
                 </span>
               </span>
             ) : null}
@@ -1618,7 +1886,7 @@ function createMarkerElement(
   onMarkerInteraction: () => void,
 ) {
   const isCurrentUser = marker.id === 'me' || marker.isCurrentUser;
-  const isInteractive = !isCurrentUser || marker.kind === 'event' || marker.kind === 'cluster';
+  const isInteractive = !isCurrentUser || marker.kind === 'event' || marker.kind === 'place' || marker.kind === 'cluster';
   const element = document.createElement(isInteractive ? 'button' : 'div');
   const name = getDisplayName(marker);
 
@@ -1643,6 +1911,7 @@ function createMarkerElement(
   element.dataset.activePing = marker.activePing ? 'true' : 'false';
   const root = createRoot(element);
   const hasSignalPreview = Boolean(truncateMarkerPreview(marker.signal));
+  const supportsHoldPreview = marker.kind == null || marker.kind === 'person' || marker.kind === 'place';
   let previewed = false;
   let restingZIndex: string | null = null;
   let lastPointerType = '';
@@ -1676,7 +1945,7 @@ function createMarkerElement(
         restingZIndex = null;
       }
     }
-    if (element instanceof HTMLButtonElement && (marker.kind == null || marker.kind === 'person')) {
+    if (element instanceof HTMLButtonElement && supportsHoldPreview) {
       element.setAttribute('aria-pressed', nextPreviewed ? 'true' : 'false');
     }
     renderMarker();
@@ -1696,10 +1965,14 @@ function createMarkerElement(
         : isPersonCluster(marker)
         ? `Zoom into ${marker.cluster?.label ?? name} on map`
         : `Open ${marker.cluster?.label ?? name} on map`
+      : marker.kind === 'place'
+        ? `Open ${name} spot board`
       : `Open ${name} on map`);
-    if (marker.kind == null || marker.kind === 'person') {
+    if (supportsHoldPreview) {
       button.setAttribute('aria-pressed', 'false');
-      button.title = 'Tap to open profile; hover for details';
+      button.title = marker.kind === 'place'
+        ? 'Click to open spot board; hover or hold for name'
+        : 'Tap to open profile; hover for details';
     }
     const recordMarkerInteraction = (event: Event) => {
       event.stopPropagation();
@@ -1709,14 +1982,29 @@ function createMarkerElement(
     // Preview on pointer enter for every pointer type. The hover media query is
     // false under a coarse pointer, and device emulation reports a mouse as a
     // touch pointer, so gating on either left the preview dead on mobile.
-    button.addEventListener('pointerenter', () => onPinPreview(marker));
+    button.addEventListener('pointerenter', (event) => {
+      if (document.documentElement.dataset.cruushMapControlsHovered === 'true') {
+        setPreviewed(false);
+        return;
+      }
+      const pointerEvent = event as PointerEvent;
+      if (marker.kind !== 'place' || pointerEvent.pointerType !== 'touch') {
+        onPinPreview(marker);
+      }
+    });
     button.addEventListener('pointerleave', () => setPreviewed(false));
 
     button.addEventListener('pointerdown', (event) => {
+      if (document.documentElement.dataset.cruushMapControlsHovered === 'true') {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        setPreviewed(false);
+        return;
+      }
       const pointerEvent = event as PointerEvent;
       lastPointerType = pointerEvent.pointerType || '';
       recordMarkerInteraction(event);
-      if ((marker.kind == null || marker.kind === 'person') && lastPointerType === 'touch') {
+      if (supportsHoldPreview && lastPointerType === 'touch') {
         clearLongPressTimer();
         longPressTriggered = false;
         touchStartPoint = { x: pointerEvent.clientX, y: pointerEvent.clientY };
@@ -1739,7 +2027,7 @@ function createMarkerElement(
         clearLongPressTimer();
       }
     });
-    if (marker.kind == null || marker.kind === 'person') {
+    if (supportsHoldPreview) {
       button.addEventListener('focus', () => onPinPreview(marker));
       button.addEventListener('blur', () => setPreviewed(false));
     }
@@ -1760,7 +2048,7 @@ function createMarkerElement(
       event.stopPropagation();
       event.stopImmediatePropagation();
       onMarkerInteraction();
-      if ((marker.kind == null || marker.kind === 'person') && lastPointerType === 'touch' && event.detail > 0) {
+      if (supportsHoldPreview && lastPointerType === 'touch' && event.detail > 0) {
         if (longPressTriggered) {
           longPressTriggered = false;
           return;
@@ -1783,9 +2071,11 @@ function createMarkerElement(
     // underneath it, so a preview only opens while the pin is what the pointer
     // is actually on top of.
     const pointerIsOnThisPin = (pointerEvent: PointerEvent) => {
-      const topmost = document.elementFromPoint(pointerEvent.clientX, pointerEvent.clientY);
+      const topmost = typeof document.elementFromPoint === 'function'
+        ? document.elementFromPoint(pointerEvent.clientX, pointerEvent.clientY)
+        : pointerEvent.target;
 
-      return topmost !== null && element.contains(topmost);
+      return topmost instanceof Node && element.contains(topmost);
     };
 
     element.addEventListener('pointerenter', (event) => {
@@ -1893,10 +2183,12 @@ function MapView({
   onMapClick,
   onMapReady,
   markers,
+  peopleHeatmapEnabled = false,
   fitToMarkers = false,
   focusCoordinates,
   initialViewport,
   radiusCircle,
+  browseArea,
   ghostLeash,
   demoRadiusCircles = [],
   denseVenue = null,
@@ -1908,6 +2200,7 @@ function MapView({
   const demoRadiusCirclesRef = useRef<RadiusCircle[]>([]);
   const mapLibreRef = useRef<MapLibreExport | null>(null);
   const initialViewportRef = useRef(initialViewport);
+  const browseAreaRef = useRef(browseArea);
   const autoFitFocusKeyRef = useRef<string | null>(null);
   const hasAppliedAutoFitRef = useRef(false);
   const directFocusRef = useRef<{ map: MapLibreMap; key: string } | null>(null);
@@ -1920,6 +2213,7 @@ function MapView({
   const onMapClickRef = useRef(onMapClick);
   const onMapReadyRef = useRef(onMapReady);
   const lastMarkerInteractionAtRef = useRef(0);
+  browseAreaRef.current = browseArea;
   const [mapInstance, setMapInstance] = useState<MapLibreMap | null>(null);
   const [mapLoadStatus, setMapLoadStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [mapError, setMapError] = useState<string | null>(null);
@@ -1943,14 +2237,18 @@ function MapView({
         focusCoordinates,
         spiderfiedCluster,
       );
-      // No pin ever touches another. Clustering collapses people standing in
-      // the same place; anything still overlapping after that is pushed apart,
-      // at every zoom rather than only once clustering stops.
-      return separateOverlappingMarkers(clusteredMarkers, currentZoom);
+      // Clustering can collapse nearby members, but individual member
+      // coordinates stay exactly where the API placed them at every zoom.
+      const withPlaceClusters = applyPlaceMarkerClusters(clusteredMarkers, currentZoom);
+      return separateOverlappingMarkers(withPlaceClusters, currentZoom);
     },
     [currentZoom, denseMarkerResult.markers, focusCoordinates, spiderfiedCluster],
   );
   const renderedMarkerSignature = useMemo(() => JSON.stringify(renderedMarkers), [renderedMarkers]);
+  const heatmapData = useMemo(() => createUserHeatmapFeatureCollection(markers), [markers]);
+  const heatmapFeatureSignature = useMemo(() => heatmapData.features.map((feature) => (
+    `${feature.geometry.coordinates.join(':')}:${feature.properties.samples}:${feature.properties.weight}`
+  )).join('|'), [heatmapData]);
   const renderedMarkersRef = useRef(renderedMarkers);
   renderedMarkersRef.current = renderedMarkers;
   const viewportMarkerSignature = useMemo(() => renderedMarkers
@@ -2001,8 +2299,6 @@ function MapView({
     }
 
     let isMounted = true;
-    let attemptedRasterFallback = false;
-    const shouldFallbackToRaster = canFallbackToDefaultRasterStyle(mapStyle);
 
     const initializeMap = async () => {
       const [mapLibreModule] = await Promise.all([
@@ -2017,13 +2313,13 @@ function MapView({
       const maplibregl = mapLibreModule.default;
       mapLibreRef.current = maplibregl;
 
-      const startMap = (style: ReturnType<typeof getMapStyle>, isFallbackAttempt = false) => {
+      const startMap = (style: ReturnType<typeof getMapStyle>) => {
         if (!isMounted || !containerRef.current) {
           return;
         }
 
         let didLoad = false;
-        let readyFallbackTimeout: ReturnType<typeof window.setTimeout> | null = null;
+        let failedBeforeLoad = false;
         let renderReadyTimeout: ReturnType<typeof window.setTimeout> | null = null;
         const map = new maplibregl.Map({
           container: containerRef.current,
@@ -2032,7 +2328,11 @@ function MapView({
             ? [initialViewportRef.current.center.approximateLongitude, initialViewportRef.current.center.approximateLatitude]
             : DEFAULT_CENTER,
           zoom: initialViewportRef.current?.zoom ?? DEFAULT_ZOOM,
-          minZoom: MIN_DISCOVERY_ZOOM,
+          minZoom: mapServiceMinZoomForViewport(
+            containerRef.current.clientWidth,
+            containerRef.current.clientHeight,
+            MIN_DISCOVERY_ZOOM,
+          ),
           maxZoom: MAX_DISCOVERY_ZOOM,
           maxBounds: MAP_SERVICE_MAX_BOUNDS,
           renderWorldCopies: false,
@@ -2040,15 +2340,6 @@ function MapView({
         });
         mapRef.current = map;
         setMapInstance(map);
-
-        const clearReadyFallbackTimeout = () => {
-          if (readyFallbackTimeout == null) {
-            return;
-          }
-
-          window.clearTimeout(readyFallbackTimeout);
-          readyFallbackTimeout = null;
-        };
 
         const clearRenderReadyTimeout = () => {
           if (renderReadyTimeout == null) {
@@ -2059,36 +2350,20 @@ function MapView({
           renderReadyTimeout = null;
         };
 
-        const restartWithRasterFallback = () => {
-          attemptedRasterFallback = true;
-          clearReadyFallbackTimeout();
-          clearRenderReadyTimeout();
-          setMapLoadStatus('loading');
-          setMapError(null);
-          map.remove();
-          mapRef.current = null;
-          setMapInstance(null);
-          startMap(createDefaultRasterStyle(), true);
-        };
-
         const markMapReady = () => {
           if (!isMounted || mapRef.current !== map) {
             return;
           }
 
           didLoad = true;
-          clearReadyFallbackTimeout();
+          failedBeforeLoad = false;
           clearRenderReadyTimeout();
           setMapLoadStatus('ready');
           setMapError(null);
         };
 
         const scheduleRenderedReady = () => {
-          if (didLoad || renderReadyTimeout != null) {
-            return;
-          }
-
-          if (shouldFallbackToRaster && !isFallbackAttempt) {
+          if (didLoad || failedBeforeLoad || renderReadyTimeout != null) {
             return;
           }
 
@@ -2109,22 +2384,13 @@ function MapView({
           }
 
           addMapServiceOutsideMask(map);
+          syncMapBrowseOutsideMask(map, browseAreaRef.current);
         };
 
         const handleMapLoad = () => {
           handleMapStyleLoad();
           markMapReady();
         };
-
-        if (shouldFallbackToRaster && !isFallbackAttempt && !attemptedRasterFallback) {
-          readyFallbackTimeout = window.setTimeout(() => {
-            if (!isMounted || mapRef.current !== map || didLoad || attemptedRasterFallback) {
-              return;
-            }
-
-            restartWithRasterFallback();
-          }, MAP_READY_FALLBACK_TIMEOUT_MS);
-        }
 
         map.on('click', (event) => {
           const markerInteractionWasRecent = Date.now() - lastMarkerInteractionAtRef.current < MARKER_INTERACTION_SUPPRESS_MS;
@@ -2155,12 +2421,8 @@ function MapView({
             return;
           }
 
-          if (shouldFallbackToRaster && !isFallbackAttempt && !attemptedRasterFallback) {
-            restartWithRasterFallback();
-            return;
-          }
-
-          clearReadyFallbackTimeout();
+          failedBeforeLoad = true;
+          clearRenderReadyTimeout();
           setMapLoadStatus('error');
           setMapError(MAP_ERROR_MESSAGE);
         });
@@ -2170,16 +2432,6 @@ function MapView({
       try {
         startMap(mapStyle);
       } catch (error) {
-        if (shouldFallbackToRaster && !attemptedRasterFallback) {
-          attemptedRasterFallback = true;
-          try {
-            startMap(createDefaultRasterStyle(), true);
-            return;
-          } catch (fallbackError) {
-            console.error('Error initializing fallback map:', fallbackError);
-          }
-        }
-
         console.error('Error initializing map:', error);
         setMapLoadStatus('error');
         setMapError('Map could not start. Check the map style or tile URL configuration.');
@@ -2200,7 +2452,7 @@ function MapView({
 
   useEffect(() => {
     const map = mapInstance ?? mapRef.current;
-    if (!map || mapLoadStatus !== 'ready') {
+    if (!hasActiveMapStyle(map) || mapLoadStatus !== 'ready') {
       return;
     }
 
@@ -2217,7 +2469,7 @@ function MapView({
     }
 
     const { sizes } = mapLabelTextSizesRef.current;
-    for (const layer of map.getStyle().layers ?? []) {
+    for (const layer of map.getStyle()?.layers ?? []) {
       if (layer.type !== 'symbol') {
         continue;
       }
@@ -2240,6 +2492,22 @@ function MapView({
       );
     }
   }, [largerMapText, mapInstance, mapLoadStatus]);
+
+  useEffect(() => {
+    const map = mapInstance ?? mapRef.current;
+
+    if (!hasActiveMapStyle(map) || mapLoadStatus !== 'ready') {
+      return;
+    }
+
+    syncMapBrowseOutsideMask(map, browseArea);
+  }, [
+    browseArea?.center.approximateLatitude,
+    browseArea?.center.approximateLongitude,
+    browseArea?.radiusMiles,
+    mapInstance,
+    mapLoadStatus,
+  ]);
 
   useEffect(() => {
     const map = mapInstance ?? mapRef.current;
@@ -2309,7 +2577,7 @@ function MapView({
   useEffect(() => {
     const map = mapInstance ?? mapRef.current;
 
-    if (!map || mapLoadStatus !== 'ready') {
+    if (!hasActiveMapStyle(map) || mapLoadStatus !== 'ready') {
       return;
     }
 
@@ -2376,7 +2644,7 @@ function MapView({
   useEffect(() => {
     const map = mapInstance ?? mapRef.current;
 
-    if (!map || mapLoadStatus !== 'ready') {
+    if (!hasActiveMapStyle(map) || mapLoadStatus !== 'ready') {
       return;
     }
 
@@ -2459,7 +2727,7 @@ function MapView({
   useEffect(() => {
     const map = mapInstance ?? mapRef.current;
 
-    if (!map || mapLoadStatus !== 'ready') {
+    if (!hasActiveMapStyle(map) || mapLoadStatus !== 'ready') {
       return;
     }
 
@@ -2526,9 +2794,65 @@ function MapView({
 
   useEffect(() => {
     const map = mapInstance ?? mapRef.current;
+    if (!hasActiveMapStyle(map) || mapLoadStatus !== 'ready') return;
+    const getLayer = typeof map.getLayer === 'function' ? map.getLayer.bind(map) : () => undefined;
+    const getSource = typeof map.getSource === 'function' ? map.getSource.bind(map) : () => undefined;
+    const removeLayer = typeof map.removeLayer === 'function' ? map.removeLayer.bind(map) : null;
+    const removeSource = typeof map.removeSource === 'function' ? map.removeSource.bind(map) : null;
+
+    if (!peopleHeatmapEnabled || heatmapData.features.length === 0) {
+      if (getLayer(USER_HEATMAP_LAYER_ID) && removeLayer) removeLayer(USER_HEATMAP_LAYER_ID);
+      if (getSource(USER_HEATMAP_SOURCE_ID) && removeSource) removeSource(USER_HEATMAP_SOURCE_ID);
+      return;
+    }
+
+    const existingSource = getSource(USER_HEATMAP_SOURCE_ID) as GeoJSONSource | undefined;
+    if (existingSource) {
+      existingSource.setData(heatmapData);
+      return;
+    }
+    if (typeof map.addSource !== 'function' || typeof map.addLayer !== 'function') return;
+    map.addSource(USER_HEATMAP_SOURCE_ID, { type: 'geojson', data: heatmapData });
+    const layer = {
+      id: USER_HEATMAP_LAYER_ID,
+      type: 'heatmap' as const,
+      source: USER_HEATMAP_SOURCE_ID,
+      maxzoom: 16.75,
+      paint: {
+        'heatmap-weight': ['interpolate', ['linear'], ['get', 'weight'], 0, 0, 1, 1.25],
+        'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 10, 1.35, 14, 2.65, 16, 3.4],
+        'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 10, 34, 14, 68, 16, 96],
+        'heatmap-opacity': ['interpolate', ['linear'], ['zoom'], 10.5, 0.34, 13, 0.58, 16.75, 0.52],
+        'heatmap-color': [
+          'interpolate',
+          ['linear'],
+          ['heatmap-density'],
+          0,
+          'rgba(255, 0, 114, 0)',
+          0.06,
+          'rgba(17, 129, 255, 0.45)',
+          0.22,
+          'rgba(0, 75, 255, 0.68)',
+          0.42,
+          'rgba(56, 38, 255, 0.78)',
+          0.62,
+          'rgba(111, 0, 255, 0.88)',
+          0.82,
+          'rgba(255, 0, 114, 0.94)',
+          1,
+          'rgba(255, 64, 163, 1)',
+        ],
+      },
+    };
+    const beforeId = getHeatmapBeforeLayerId(map);
+    if (beforeId) map.addLayer(layer, beforeId); else map.addLayer(layer);
+  }, [heatmapFeatureSignature, heatmapData, mapInstance, mapLoadStatus, peopleHeatmapEnabled]);
+
+  useEffect(() => {
+    const map = mapInstance ?? mapRef.current;
     const maplibregl = mapLibreRef.current;
 
-    if (!map || !maplibregl) {
+    if (!hasActiveMapStyle(map) || !maplibregl) {
       return;
     }
 
@@ -2562,9 +2886,10 @@ function MapView({
               return;
             }
 
-            if (isPersonCluster(selectedMarker)) {
+            if (isPersonCluster(selectedMarker) || isPlaceCluster(selectedMarker)) {
               const memberIds = selectedMarker.cluster?.memberIds ?? [];
               const memberMarkers = denseMarkerResult.markers.filter((candidate) => memberIds.includes(candidate.id));
+              const clusterMaxZoom = isPlaceCluster(selectedMarker) ? PLACE_CLUSTER_MAX_ZOOM : PERSON_CLUSTER_MAX_ZOOM;
               const coordinates = memberMarkers.map((candidate) => [
                 candidate.approximateLongitude,
                 candidate.approximateLatitude,
@@ -2575,13 +2900,13 @@ function MapView({
                 setSpiderfiedCluster(null);
                 map.fitBounds(
                   [[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]],
-                  { padding: { top: 180, right: 140, bottom: 220, left: 140 }, maxZoom: PERSON_CLUSTER_MAX_ZOOM, duration: 450 },
+                  { padding: { top: 180, right: 140, bottom: 220, left: 140 }, maxZoom: clusterMaxZoom, duration: 450 },
                 );
                 return;
               }
               const nextZoom = Math.min(
-                PERSON_CLUSTER_MAX_ZOOM + 0.75,
-                Math.max(currentZoom + PERSON_CLUSTER_ZOOM_STEP, PERSON_CLUSTER_MAX_ZOOM + 0.25),
+                clusterMaxZoom + 0.75,
+                Math.max(currentZoom + PERSON_CLUSTER_ZOOM_STEP, clusterMaxZoom + 0.25),
               );
               setSpiderfiedCluster(null);
               map.setCenter([selectedMarker.approximateLongitude, selectedMarker.approximateLatitude]);

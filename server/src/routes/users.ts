@@ -27,16 +27,17 @@ import { normalizeSingleLineText } from "../input-schema.js";
 import { getEffectiveVisibilityPolicy, getRelationshipPermissions } from "../match-relationships.js";
 import { canStartDirectMessage } from "../cruush-match-settings.js";
 import { loadBlockedRelationshipUserIds } from "../user-blocks.js";
-import { DEFAULT_MAP_PRESENCE_DAYS } from "../map-presence.js";
+import { DEFAULT_MAP_PRESENCE_HOURS } from "../map-presence.js";
 import { DEVELOPMENT_ADMIN_EMAIL } from "../development-admin.js";
 import { distanceMiles, isWithinBetaLaunchArea } from "../beta-access.js";
+import { NYC_SERVICE_AREA } from "../service-area.js";
 
 /**
- * How far from your own location you may look. Travel Mode moves that location,
+ * How far from your own location you may look. Mile High Club moves that location,
  * so a member visiting another place browses from their pin instead.
  */
 const DISCOVERY_BROWSE_RADIUS_MILES = 50;
-import { type TravelPin, loadTravelPins } from "../travel-pins.js";
+import { type TravelPin, loadTravelPins, locationPayloadAtTravelPin } from "../travel-pins.js";
 import { primaryPhotoExplicitSelect } from "../profile-photo-explicit.js";
 import {
   DEFAULT_GHOST_RADIUS_METERS,
@@ -57,6 +58,7 @@ type DiscoveryProfileRow = {
   id: string;
   email: string | null;
   display_name: string | null;
+  bio: string | null;
   signal: string | null;
   year_of_birth: number | null;
   pronouns: string[] | null;
@@ -91,6 +93,7 @@ type DiscoveryProfileRow = {
   location_updated_at?: string | Date | null;
   updated_at: string | Date;
   badges?: string[] | null;
+  side_badges?: unknown;
   latest_feed_post_content: string | null;
   latest_feed_post_content_ciphertext: string | null;
   latest_feed_post_content_nonce: string | null;
@@ -107,7 +110,7 @@ const NPC_GHOST_DEMO_EMAILS = new Set([
   CODEVELOPER_NYC_EMAIL
 ]);
 
-type DiscoveryViewerRow = Omit<DiscoveryProfileRow, "id" | "email" | "display_name" | "photos" | "updated_at">;
+type DiscoveryViewerRow = Omit<DiscoveryProfileRow, "id" | "email" | "photos" | "updated_at">;
 
 type DiscoveryToolUserRow = {
   email: string | null;
@@ -193,8 +196,13 @@ const booleanQueryFlag = z.preprocess((value) => {
 const discoveryQuerySchema = z.object({
   lat: z.coerce.number().min(-90).max(90).optional(),
   lng: z.coerce.number().min(-180).max(180).optional(),
+  q: z.preprocess(
+    (value) => typeof value === "string" ? normalizeSingleLineText(value) : value,
+    z.string().max(120).optional()
+  ),
   limit: z.coerce.number().int().min(1).max(500).default(500),
   npcGhostDemo: booleanQueryFlag,
+  mileHighClub: booleanQueryFlag,
   identities: queryArrayField,
   presentations: queryArrayField,
   lookingFor: queryArrayField,
@@ -215,15 +223,13 @@ const discoveryQuerySchema = z.object({
 
 type DiscoveryQuery = z.infer<typeof discoveryQuerySchema>;
 
-const DEFAULT_CENTER = {
-  lat: 40.6782,
-  lng: -73.9442
-};
+const DEFAULT_CENTER = NYC_SERVICE_AREA.center;
 
 // Each profile controls how long it keeps showing on the map after its last
 // location update. `pin_settings` is the user_privacy_settings row for the
 // profile being scanned, so the window is per-subject, not per-viewer.
-const MAP_PRESENCE_DAYS_SQL = `coalesce(pin_settings.map_presence_days, ${DEFAULT_MAP_PRESENCE_DAYS})`;
+const MAP_PRESENCE_HOURS_SQL = `coalesce(pin_settings.map_presence_hours, pin_settings.map_presence_days * 24, ${DEFAULT_MAP_PRESENCE_HOURS})`;
+const MAP_PRESENCE_START_MS_SQL = `(extract(epoch from now() - make_interval(hours => ${MAP_PRESENCE_HOURS_SQL})) * 1000)::bigint`;
 
 function isSchemaCompatibilityError(error: unknown) {
   const code = typeof error === "object" && error !== null && "code" in error
@@ -361,6 +367,62 @@ function addSensitiveTokenFilter(
          )`);
 }
 
+function addProfileSearchFilter(
+  app: FastifyInstance,
+  where: string[],
+  values: unknown[],
+  searchQuery: string | undefined
+) {
+  const normalizedQuery = searchQuery?.trim().toLowerCase();
+  if (!normalizedQuery) {
+    return;
+  }
+
+  values.push(`%${normalizedQuery}%`);
+  const searchPlaceholder = `$${values.length}`;
+  const normalizedKink = normalizeFilterTokenValue(normalizedQuery);
+  const tokenKeyVersion = getSensitiveProfileTokenKeyVersion(app.config);
+  const kinkTokenHash = normalizedKink
+    ? createSensitiveProfileToken(app.config, `kink:${normalizedKink}`, tokenKeyVersion).token_hash
+    : "";
+  values.push(kinkTokenHash);
+  const kinkTokenPlaceholder = `$${values.length}`;
+  values.push(tokenKeyVersion);
+  const tokenKeyVersionPlaceholder = `$${values.length}`;
+
+  where.push(`(
+           lower(coalesce(profiles.display_name, '')) like ${searchPlaceholder}
+           or lower(coalesce(profiles.bio, '')) like ${searchPlaceholder}
+           or exists (
+             select 1
+             from unnest(
+               coalesce(profiles.identities, '{}'::text[])
+               || coalesce(profiles.presentation, '{}'::text[])
+               || coalesce(profiles.sexuality, '{}'::text[])
+               || coalesce(profiles.body_type, '{}'::text[])
+               || coalesce(profiles.availability, '{}'::text[])
+               || coalesce(profiles.hosting_travel, '{}'::text[])
+               || coalesce(profiles.looking_for, '{}'::text[])
+               || coalesce(profiles.vibes, '{}'::text[])
+               || coalesce(profiles.scenes, '{}'::text[])
+               || coalesce(profiles.archetypes, '{}'::text[])
+               || coalesce(profiles.hobbies, '{}'::text[])
+               || coalesce(profiles.position, '{}'::text[])
+               || coalesce(profiles.role, '{}'::text[])
+               || coalesce(profiles.substance_boundaries, '{}'::text[])
+             ) as searchable(value)
+             where lower(searchable.value) like ${searchPlaceholder}
+           )
+           or exists (
+             select 1
+             from profile_sensitive_tokens search_token
+             where search_token.user_id = profiles.id
+               and search_token.token_hash = ${kinkTokenPlaceholder}
+               and search_token.token_key_version = ${tokenKeyVersionPlaceholder}
+           )
+         )`);
+}
+
 function getLegacyCoordinates(
   row: LegacyDiscoveryProfileRow,
   centerLat: number,
@@ -401,6 +463,8 @@ function toVisibilitySubject(app: FastifyInstance, row: DiscoveryProfileRow | Di
   const sensitiveProfile = decryptSensitiveProfile(app.config, row);
 
   return {
+    display_name: row.display_name,
+    bio: row.bio,
     year_of_birth: row.year_of_birth,
     identities: row.identities ?? [],
     presentations: row.presentation ?? [],
@@ -426,6 +490,8 @@ async function loadDiscoveryViewer(app: FastifyInstance, currentUserId: string) 
   try {
     const result = await app.db.query<DiscoveryViewerRow>(
       `select
+         display_name,
+         bio,
          year_of_birth,
          pronouns,
          looking_for,
@@ -523,6 +589,7 @@ function discoveryRowIsVisibleToViewer(
   }
 
   const targetSubject = toVisibilitySubject(app, row);
+  targetSubject.coordinates = targetCoordinates;
 
   if (!hasAnyCrowd(viewer.activeCrowdModes, targetSubject)) {
     return false;
@@ -568,16 +635,15 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, fi
       createCoarseIndexTokens(app.config, centerLat, centerLng)
     ];
     const activeLocationWindow = "(extract(epoch from now()) * 1000)::bigint";
-    const discoveryLocationWindow = "(extract(epoch from now() - interval '4 days') * 1000)::bigint";
     const where = [
       "profiles.id <> $1",
       // A deleted, suspended or banned account keeps its row for audit, so it
       // must never surface in discovery.
       "coalesce(app_users.account_status, 'active') = 'active'",
       `(
-        profiles.location_updated_at >= now() - interval '4 days'
+        profiles.location_updated_at >= now() - make_interval(hours => ${MAP_PRESENCE_HOURS_SQL})
         or location_envelopes.expires_at_ms > ${activeLocationWindow}
-        or location_envelopes.collected_at_ms >= ${discoveryLocationWindow}
+        or location_envelopes.collected_at_ms >= ${MAP_PRESENCE_START_MS_SQL}
       )`,
       `not exists (
         select 1
@@ -590,13 +656,22 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, fi
           location_envelopes.expires_at_ms > ${activeLocationWindow}
           and location_envelopes.coarse_index_tokens && $2::text[]
         )
-        or location_envelopes.collected_at_ms >= ${discoveryLocationWindow}
+        or location_envelopes.collected_at_ms >= ${MAP_PRESENCE_START_MS_SQL}
         or (
           (profiles.fuzzy_lat is not null and profiles.fuzzy_lng is not null)
           or (profiles.lat is not null and profiles.lng is not null)
         )
       )`
     ];
+
+    if (filters.mileHighClub) {
+      where.push(`exists (
+        select 1
+        from user_travel_pins active_travel_pin
+        where active_travel_pin.user_id = profiles.id
+          and active_travel_pin.set_at > now() - interval '24 hours'
+      )`);
+    }
 
     addTextArrayFilter(where, values, "identities", filters.identities);
     addTextArrayFilter(where, values, "presentation", filters.presentations);
@@ -614,6 +689,7 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, fi
     addTextArrayFilter(where, values, "substance_boundaries", filters.substanceBoundaries);
     addSensitiveTokenFilter(app, where, values, "crowd", filters.crowds);
     addSensitiveTokenFilter(app, where, values, "kink", filters.kinks);
+    addProfileSearchFilter(app, where, values, filters.q);
     values.push(filters.limit);
     const limitPlaceholder = `$${values.length}`;
 
@@ -622,6 +698,7 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, fi
          profiles.id::text as id,
          app_users.email,
          profiles.display_name as display_name,
+         profiles.bio,
          profiles.signal,
          year_of_birth,
          pronouns,
@@ -675,6 +752,7 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, fi
            from user_badges
            where user_badges.user_id = profiles.id
          ), '{}'::text[]) as badges,
+         (to_jsonb(profiles)->'side_badges') as side_badges,
          profiles.updated_at
        from profiles
        join app_users
@@ -959,6 +1037,7 @@ async function mapModernDiscoveryRow(
     photoExplicit: row.primary_photo_explicit === true,
     hasSharedCrowd: row.has_shared_crowd === true,
     ...((row.badges?.length ?? 0) > 0 ? { badges: row.badges } : {}),
+    ...(row.side_badges ? { sideBadges: row.side_badges } : {}),
     relationship: relationship
       ? {
           mutualCruush: relationship.isMutualCruush,
@@ -1095,7 +1174,7 @@ export async function registerUserRoutes(app: FastifyInstance) {
           throw error;
         })
       : new Map<string, LocationPayload>();
-    // Travel mode replaces the device location with the pin the member dropped,
+    // Mile High Club replaces the device location with the pin the member dropped,
     // for the viewer's own position as well as everyone they are shown.
     const travelPins = await loadTravelPins(app, [
       currentUserId,
@@ -1108,12 +1187,15 @@ export async function registerUserRoutes(app: FastifyInstance) {
       throw error;
     });
 
+    if (discoveryViewer.subject) {
+      discoveryViewer.subject.mile_high_club_member = travelPins.has(currentUserId);
+    }
+
     travelPins.forEach((pin, userId) => {
-      encryptedLocations.set(userId, {
-        ...(encryptedLocations.get(userId) ?? {}),
-        latE7: Math.round(pin.latitude * 10_000_000),
-        lonE7: Math.round(pin.longitude * 10_000_000)
-      } as LocationPayload);
+      const savedLocation = encryptedLocations.get(userId);
+      if (savedLocation) {
+        encryptedLocations.set(userId, locationPayloadAtTravelPin(savedLocation, pin));
+      }
     });
 
     const viewerLocation = encryptedLocations.get(currentUserId);
@@ -1231,7 +1313,7 @@ export async function registerUserRoutes(app: FastifyInstance) {
     const viewerCoordinates = viewerLocation ? locationPayloadToCoordinates(viewerLocation) : null;
 
     // You browse the fifty miles around wherever you are. Looking further than
-    // that is what Travel Mode is for, and Travel Mode works by moving where
+    // that is what Mile High Club is for, and Mile High Club works by moving where
     // you are, so this one rule covers both.
     if (
       viewerCoordinates &&
@@ -1273,6 +1355,8 @@ export async function registerUserRoutes(app: FastifyInstance) {
 
           return {
             ...visibleProfile,
+            travelling: travelPins.has(profile.profileToken),
+            travelLabel: travelPins.get(profile.profileToken)?.label ?? "",
             activePing
           };
         })

@@ -135,6 +135,85 @@ describe("migration runner", () => {
       .rejects.toMatchObject({ code: "ENOENT" });
   });
 
+  it("keeps the Mile High Club pin schema replay-safe", async () => {
+    const migrateSource = await readFile(path.join(currentDir, "migrate.ts"), "utf8");
+    const travelPinsSql = await readFile(path.join(serverRoot, "sql", "097_travel_pins.sql"), "utf8");
+
+    expect(migrateSource).toContain('"097_travel_pins.sql"');
+    expect(travelPinsSql).toContain("create table if not exists user_travel_pins");
+    expect(travelPinsSql).toContain("create index if not exists user_travel_pins_set_at_idx");
+    expect(travelPinsSql).toContain("user_id uuid primary key references profiles(id) on delete cascade");
+    expect(travelPinsSql).not.toMatch(/\b(drop|truncate|delete from|update)\b/i);
+  });
+
+  it("orders the complete 1.6 schema slice from Feed audiences through the Side Quest catalog", async () => {
+    const migrateSource = await readFile(path.join(currentDir, "migrate.ts"), "utf8");
+
+    expect(migrateSource).toMatch(
+      /"097_travel_pins\.sql",\s*"098_feed_plus_audience\.sql",\s*"099_profile_zodiac\.sql",\s*"100_pulse_notifications\.sql",\s*"101_map_presence_hours\.sql",\s*"102_profile_side_badges\.sql",\s*"103_places\.sql",\s*"104_spots_taxonomy\.sql",\s*"105_feed_post_photos\.sql",\s*"106_side_quests\.sql",\s*"107_side_quest_first_ping\.sql",\s*"108_side_quest_catalog\.sql"/
+    );
+  });
+
+  it("keeps the late 1.6 migrations replay-safe and dependency ordered", async () => {
+    const [
+      feedAudienceSql,
+      zodiacSql,
+      pulseSql,
+      presenceSql,
+      sideBadgesSql,
+      placesSql,
+      taxonomySql,
+      feedPhotosSql,
+      sideQuestsSql,
+      firstPingSql,
+      catalogSql
+    ] = await Promise.all([
+      "098_feed_plus_audience.sql",
+      "099_profile_zodiac.sql",
+      "100_pulse_notifications.sql",
+      "101_map_presence_hours.sql",
+      "102_profile_side_badges.sql",
+      "103_places.sql",
+      "104_spots_taxonomy.sql",
+      "105_feed_post_photos.sql",
+      "106_side_quests.sql",
+      "107_side_quest_first_ping.sql",
+      "108_side_quest_catalog.sql"
+    ].map((file) => readFile(path.join(serverRoot, "sql", file), "utf8")));
+
+    expect(feedAudienceSql).toContain("add column if not exists audience");
+    expect(feedAudienceSql).toContain("drop constraint if exists posts_audience_check");
+    expect(feedAudienceSql).toContain("create index if not exists posts_audience_created_at_idx");
+    expect(zodiacSql).toContain("add column if not exists zodiac");
+    expect(pulseSql).toContain("create table if not exists map_ping_notifications");
+    expect(pulseSql).toContain("create unique index if not exists map_ping_notifications_ping_recipient_idx");
+    expect(presenceSql).toContain("where map_presence_hours is null");
+    expect(presenceSql).toContain("drop constraint if exists user_privacy_settings_map_presence_hours_check");
+    expect(sideBadgesSql).toContain("add column if not exists side_badges");
+    expect(placesSql).toContain("create table if not exists place_board_messages");
+    expect(placesSql).toContain("on conflict (id) do nothing");
+    expect(placesSql).toContain("expires_at timestamptz not null default (now() + interval '7 days')");
+    expect(placesSql).toContain("create index if not exists idx_place_board_messages_expires");
+    expect(placesSql).toContain("create index if not exists idx_place_checkins_place_active");
+    expect(taxonomySql).toContain("on conflict (place_id, tag) do nothing");
+    expect(taxonomySql).toContain("where tag = 'dyke_bar'");
+    expect(taxonomySql).toContain("set facility_type = 'other'");
+    expect(taxonomySql).toContain("where facility_type = 'venue'");
+    expect(placesSql).toContain("'gingers-bar', 'Ginger''s Bar'");
+    expect(placesSql).toMatch(/'gingers-bar'.*'bar'.*'published'/);
+    expect(feedPhotosSql).toContain("conrelid = 'media_objects'::regclass");
+    expect(feedPhotosSql).toContain("create table if not exists feed_post_attachments");
+    expect(feedPhotosSql).toContain("create or replace function assert_feed_attachment_media_approved");
+    expect(feedPhotosSql).toContain("drop trigger if exists feed_attachments_approved_media_only");
+    expect(sideQuestsSql).toContain("create table if not exists side_quest_claims");
+    expect(sideQuestsSql).toContain("add column if not exists bonus_credit_used");
+    expect(firstPingSql).toContain("drop constraint if exists side_quest_claims_quest_check");
+    expect(firstPingSql).toContain("'send_ping'");
+    expect(catalogSql).toContain("drop constraint if exists side_quest_claims_quest_check");
+    expect(catalogSql).toContain("'upload_first_photo'");
+    expect(catalogSql).toContain("'save_visibility_set'");
+  });
+
   it("keeps account deletion evidence valid across migration replays", async () => {
     const migrateSource = await readFile(path.join(currentDir, "migrate.ts"), "utf8");
     const reportsSql = await readFile(path.join(serverRoot, "sql", "021_reports.sql"), "utf8");

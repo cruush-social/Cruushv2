@@ -105,7 +105,7 @@ type ModerateProfileInput = {
 type UserReportInput = {
   reporterId: string;
   targetUserId: string | null;
-  contentType: "user" | "profile" | "conversation" | "message" | "post" | "profile_photo";
+  contentType: "user" | "profile" | "conversation" | "message" | "post" | "profile_photo" | "place" | "place_message";
   contentId: string;
   reason: string;
   details?: string;
@@ -114,6 +114,8 @@ type UserReportInput = {
   postId?: string | null;
   mediaObjectId?: string | null;
   profilePhotoUrl?: string | null;
+  placeId?: string | null;
+  placeMessageId?: string | null;
 };
 
 type ContentReviewInput = {
@@ -286,7 +288,7 @@ export function userMessageForDecision(
   }
 
   if (decision.user_message_code === "profile_photo_not_adult_human") {
-    return "Profile photo must be of you.";
+    return "Profile photo must show you or your gear.";
   }
 
   if (decision.user_message_code === "content_pending_review") {
@@ -336,6 +338,12 @@ function hasHumanProof(providerResult: ProviderModerationResult) {
     ["adult_human_body", "human_present"].includes(label.normalized_label) &&
     label.confidence >= requiredConfidence
   );
+}
+
+function hasAllowedProfileGearProof(providerResult: ProviderModerationResult) {
+  return providerResult.labels.some((label) => (
+    label.normalized_label === "profile_photo_not_adult_human"
+  ));
 }
 
 function hasCompleteStreamKeep(providerResult: ProviderModerationResult) {
@@ -632,6 +640,7 @@ export function resolveProfilePhotoAdultHumanGate(
   if (
     decision.decision !== "allow" ||
     hasHumanProof(providerResult) ||
+    hasAllowedProfileGearProof(providerResult) ||
     hasCompleteStreamKeep(providerResult)
   ) {
     return {
@@ -1116,7 +1125,7 @@ export async function createUserReport(app: FastifyInstance, input: UserReportIn
     userId: reviewUserId,
     surface: input.contentType === "profile_photo"
       ? "profile_photo"
-      : input.contentType === "post"
+      : input.contentType === "post" || input.contentType === "place" || input.contentType === "place_message"
       ? "feed"
       : input.contentType === "profile" || input.contentType === "user"
         ? "profile"
@@ -1136,6 +1145,8 @@ export async function createUserReport(app: FastifyInstance, input: UserReportIn
       postId: input.postId ?? null,
       mediaObjectId: input.mediaObjectId ?? null,
       profilePhotoUrl: input.profilePhotoUrl ?? null,
+      placeId: input.placeId ?? null,
+      placeMessageId: input.placeMessageId ?? null,
       reason: input.reason,
       hasDetails: Boolean(input.details?.trim())
     },

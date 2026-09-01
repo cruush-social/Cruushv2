@@ -1,6 +1,7 @@
 import { getCurrentUserId } from './sessionUser';
 import { requestApi } from './apiClient';
 import type { CruushBadge } from './billingApi';
+import type { SideBadges } from './profileApi';
 import {
   decryptDisplayLocationToken,
   type DisplayLocationToken,
@@ -33,6 +34,8 @@ export type CruushActivityItem = CruushRecord & {
     photo: string | null;
     photoExplicit?: boolean;
     badges?: CruushBadge[];
+    sideBadges?: SideBadges;
+    travelling?: boolean;
   };
 };
 
@@ -43,6 +46,8 @@ export type CruushActivityPerson = {
   photo: string | null;
   photoExplicit?: boolean;
   badges?: CruushBadge[];
+  sideBadges?: SideBadges;
+  travelling?: boolean;
   vibes?: string[];
 };
 
@@ -98,6 +103,8 @@ type MutualMapResponse = {
 };
 
 export type MutualCruushMapFilters = {
+  searchQuery?: string;
+  mileHighClub?: boolean;
   ageRange?: [number, number];
   distance?: number;
   identities?: string[];
@@ -192,6 +199,12 @@ function appendMutualMapListParams(params: URLSearchParams, key: string, values?
 
 export async function getMutualCruushMap(filters?: MutualCruushMapFilters) {
   const params = new URLSearchParams();
+  if (filters?.searchQuery?.trim()) {
+    params.set('q', filters.searchQuery.trim());
+  }
+  if (filters?.mileHighClub) {
+    params.set('mileHighClub', '1');
+  }
   if (filters?.distance != null && filters.distance !== 100) {
     params.set('distance', String(filters.distance));
   }

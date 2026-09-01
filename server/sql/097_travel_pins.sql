@@ -1,4 +1,4 @@
--- Travel mode. A member away from home drops a pin where they are visiting and
+-- Mile High Club. A member away from home drops a pin where they are visiting and
 -- the map shows them there. The pin can only be moved every few hours, which is
 -- what stops it being swept across a city to farm strangers.
 create table if not exists user_travel_pins (

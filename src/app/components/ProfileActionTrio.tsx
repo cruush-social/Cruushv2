@@ -16,7 +16,7 @@ export type ProfileActionTrioProps = {
   /** Their privacy settings decide whether their pin can be centred on the map. */
   canCenterPin?: boolean;
   onCenterPin?: () => void;
-  /** Force the quiet gradient, for example on cruushes you sent. */
+  /** Allow a non-available state to remain bright when a surface requires it. */
   cruushTone?: 'bright' | 'dark';
   /** A cruush already exists in one direction, so the double heart reads. */
   cruushReceived?: boolean;
@@ -31,7 +31,7 @@ const SIZE_CLASSES: Record<'sm' | 'md', string> = {
 
 /**
  * The three controls every profile surface offers, each shown only when the
- * viewed person's privacy settings allow it: cruush, message, centre their pin.
+ * viewed person's privacy settings allow it: cruush, centre their pin, message.
  */
 export default function ProfileActionTrio({
   userName,
@@ -43,7 +43,6 @@ export default function ProfileActionTrio({
   canCenterPin = false,
   onCenterPin,
   cruushTone,
-  cruushReceived = false,
   size = 'md',
   className,
 }: ProfileActionTrioProps) {
@@ -64,9 +63,9 @@ export default function ProfileActionTrio({
         variant="secondary"
         className={`cruush-action-sheen ${sizeClass} shrink-0 rounded-full border-0 text-white disabled:opacity-100`}
         style={{
-          background: cruushTone === 'dark' || cruushState === 'sent' || cruushState === 'sending'
-            ? 'var(--cruush-gradient-soft-28)'
-            : 'var(--cruush-gradient)',
+          background: cruushState === 'available' || cruushTone === 'bright'
+            ? 'var(--cruush-gradient)'
+            : 'var(--cruush-gradient-soft-28)',
         }}
         aria-label={cruushLabel}
         title={cruushLabel}
@@ -74,35 +73,16 @@ export default function ProfileActionTrio({
         onClick={onCruush}
         data-cruush-state={cruushState}
       >
-        <CruushIcon
-          name={cruushReceived || cruushState === 'mutual' || cruushState === 'sent' ? 'safety' : 'cruush'}
-          className="h-6 w-6"
-          variant="white"
-        />
+        <CruushIcon name="mutual" className="h-6 w-6" variant="white" />
       </Button>
-
-      {canMessage && onMessage ? (
-        <Button
-          type="button"
-          size="icon"
-          variant="secondary"
-          className={`cruush-action-sheen ${sizeClass} shrink-0 rounded-full border-0 text-white`}
-          style={{ background: 'var(--cruush-gradient)' }}
-          aria-label={`Message ${userName}`}
-          title={`Message ${userName}`}
-          onClick={onMessage}
-        >
-          <CruushIcon name="send" className="h-6 w-6" variant="white" />
-        </Button>
-      ) : null}
 
       {onCenterPin ? (
         <Button
           type="button"
           size="icon"
           variant="secondary"
-          className={`cruush-action-sheen ${sizeClass} shrink-0 rounded-full border-0 text-white disabled:opacity-100 ${canCenterPin ? '' : 'grayscale-[0.35] brightness-75'}`}
-          style={{ background: 'var(--cruush-gradient)' }}
+          className={`cruush-action-sheen ${sizeClass} shrink-0 rounded-full border-0 text-white disabled:opacity-100`}
+          style={{ background: canCenterPin ? 'var(--cruush-gradient)' : 'var(--cruush-gradient-soft-28), #0A0A12' }}
           aria-label={canCenterPin
             ? `Center the map on ${userName}`
             : `${userName} does not share their precise location`}
@@ -112,7 +92,23 @@ export default function ProfileActionTrio({
           disabled={!canCenterPin}
           onClick={onCenterPin}
         >
-          <CruushIconImage src={mapIconWhite} className="h-6 w-6" />
+          <CruushIconImage src={mapIconWhite} className={`h-7 w-7 ${canCenterPin ? '' : 'opacity-45'}`} />
+        </Button>
+      ) : null}
+
+      {onMessage ? (
+        <Button
+          type="button"
+          size="icon"
+          variant="secondary"
+          className={`cruush-action-sheen ${sizeClass} shrink-0 rounded-full border-0 text-white disabled:opacity-100`}
+          style={{ background: canMessage ? 'var(--cruush-gradient)' : 'var(--cruush-gradient-soft-28), #0A0A12' }}
+          aria-label={canMessage ? `Message ${userName}` : `${userName} is not accepting messages from you`}
+          title={canMessage ? `Message ${userName}` : `${userName} is not accepting messages from you`}
+          disabled={!canMessage}
+          onClick={onMessage}
+        >
+          <CruushIcon name="send" className={`h-6 w-6 ${canMessage ? '' : 'opacity-45'}`} variant="white" />
         </Button>
       ) : null}
     </div>

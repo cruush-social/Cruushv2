@@ -1,18 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Bell, Download, Eye, EyeOff, Ghost, MapPin, Radio, RefreshCw, Rss, SlidersHorizontal, Users, ZoomIn } from 'lucide-react';
+import { Bell, Download, Eye, EyeOff, Flame, Ghost, MapPin, MapPinned, Radio, RefreshCw, Rss, SlidersHorizontal, Users, ZoomIn } from 'lucide-react';
 import { Button } from './ui/button';
 
-export const MAP_CONTROLS_TUTORIAL_STORAGE_KEY = 'cruush:tutorial-v4-seen';
+export const MAP_CONTROLS_TUTORIAL_STORAGE_KEY = 'cruush:tutorial-v5-seen';
 // Finishing the tour is permanent. Versioning the key ships a repaired tour to
 // people who never took one, so every earlier version still counts as done and
 // nobody is asked to sit through the tutorial twice.
 export const MAP_CONTROLS_TUTORIAL_LEGACY_STORAGE_KEYS = [
+  'cruush:tutorial-v4-seen',
   'cruush:tutorial-v3-seen',
   'cruush:tutorial-v2-seen',
   'cruush:tutorial-v1-seen',
 ];
-export const MAP_CONTROLS_TUTORIAL_PROGRESS_KEY = 'cruush:tutorial-v4-progress';
+export const MAP_CONTROLS_TUTORIAL_PROGRESS_KEY = 'cruush:tutorial-v5-progress';
 export const MAP_CONTROLS_TUTORIAL_COMPLETED_EVENT = 'cruush:map-controls-tutorial-completed';
 
 export function notifyMapControlsTutorialCompleted() {
@@ -21,7 +22,7 @@ export function notifyMapControlsTutorialCompleted() {
   }
 }
 
-export type MapControlsTutorialStepId = 'install' | 'notifications' | 'seeking' | 'visibility' | 'crowds' | 'ghost' | 'dl-mode' | 'ping' | 'profile-pin' | 'zoom' | 'carousel' | 'feed';
+export type MapControlsTutorialStepId = 'install' | 'notifications' | 'map-controls' | 'seeking' | 'visibility' | 'places' | 'heatmap' | 'crowds' | 'ghost' | 'dl-mode' | 'ping' | 'profile-pin' | 'zoom' | 'carousel' | 'feed';
 
 type TutorialStep = {
   id: MapControlsTutorialStepId;
@@ -47,6 +48,12 @@ const TUTORIAL_STEPS: TutorialStep[] = [
     optional: true,
   },
   {
+    id: 'map-controls',
+    title: 'Map Controls',
+    description: 'Open Map Controls to reach Seeking, Visibility, Spots, the seven-day activity heatmap, Pulse, location, and zoom without covering the map.',
+    actionLabel: 'Open Map Controls',
+  },
+  {
     id: 'seeking',
     title: 'Seeking',
     description: 'Seeking filters the people you see on the map. Try it when you want to narrow the map by what you are looking for.',
@@ -57,6 +64,18 @@ const TUTORIAL_STEPS: TutorialStep[] = [
     title: 'Visibility',
     description: 'Visibility controls who can see you. Your choices affect your map presence, and you can change them whenever you want.',
     actionLabel: 'Open Visibility',
+  },
+  {
+    id: 'places',
+    title: 'Spots',
+    description: 'Find public queer spaces, health services, clubs, and community spots. You can rate, check in, and leave a board message.',
+    actionLabel: 'Open Spots',
+  },
+  {
+    id: 'heatmap',
+    title: 'Seven-day activity heatmap',
+    description: 'See broad activity trends from the last seven days. The view uses deidentified area totals, not individual pin locations, and stays off by default.',
+    actionLabel: 'Show heatmap',
   },
   {
     id: 'crowds',
@@ -79,7 +98,7 @@ const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'ping',
     title: 'Pulse',
-    description: 'Pulse is directly below Visibility. It briefly marks your heart as active on the map and shares your signal as a normal feed post.',
+    description: 'Pulse is inside Map Controls. It briefly marks your heart as active on the map and shares your signal as a normal feed post.',
     actionLabel: 'Open Pulse',
   },
   {
@@ -113,10 +132,16 @@ function StepIcon({ id }: { id: MapControlsTutorialStepId }) {
       return <Download className="h-5 w-5 text-primary" />;
     case 'notifications':
       return <Bell className="h-5 w-5 text-primary" />;
+    case 'map-controls':
+      return <SlidersHorizontal className="h-5 w-5 text-primary" />;
     case 'seeking':
       return <SlidersHorizontal className="h-5 w-5 text-primary" />;
     case 'visibility':
       return <EyeOff className="h-5 w-5 text-primary" />;
+    case 'places':
+      return <MapPinned className="h-5 w-5 text-primary" />;
+    case 'heatmap':
+      return <Flame className="h-5 w-5 text-primary" />;
     case 'crowds':
       return <Users className="h-5 w-5 text-primary" />;
     case 'ghost':

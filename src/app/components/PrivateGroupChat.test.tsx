@@ -616,7 +616,7 @@ describe('PrivateGroupChat', () => {
       </MemoryRouter>,
     );
 
-    fireEvent.click(await screen.findByRole('button', { name: 'More conversation options' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Conversation settings' }));
     fireEvent.click(screen.getByRole('button', { name: 'Block River' }));
 
     expect(screen.getByText('Block River?')).toBeInTheDocument();
@@ -660,7 +660,7 @@ describe('PrivateGroupChat', () => {
       </MemoryRouter>,
     );
 
-    fireEvent.click(await screen.findByRole('button', { name: 'More conversation options' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Conversation settings' }));
 
     expect(screen.queryByRole('button', { name: /Block/ })).not.toBeInTheDocument();
   });
@@ -933,8 +933,9 @@ describe('PrivateGroupChat', () => {
     );
 
     const shield = await screen.findByRole('img', { name: 'Explicit message photo hidden by DL Mode' });
-    expect(shield.querySelector('img')).toHaveAttribute('src', expect.stringContaining('dl-mode-white'));
-    expect(shield.querySelector('svg')).not.toBeInTheDocument();
+    expect(shield.querySelector('[data-testid="dl-mode-mark"]')).toHaveAttribute('data-source', 'Julien supplied balaclava halo DL Mode icon');
+    expect(shield.querySelector('[data-testid="dl-mode-mark"]')).toHaveAttribute('data-tone', 'white');
+    expect(shield.querySelector('[data-testid="dl-mode-mark"]')).toHaveAttribute('viewBox', '0 0 1100 1430');
   });
 
   it('sends a selected message photo with the current caption', async () => {
@@ -1387,7 +1388,7 @@ describe('PrivateGroupChat', () => {
       </MemoryRouter>,
     );
 
-    fireEvent.click(await screen.findByRole('button', { name: 'More conversation options' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Conversation settings' }));
     const settingsTimer = await screen.findByLabelText('Disappearing timer');
     expect(settingsTimer).toHaveAttribute('data-slot', 'select-trigger');
     expect(screen.queryByRole('combobox', { name: 'Disappearing timer', hidden: true })).toBe(settingsTimer);
@@ -1443,7 +1444,7 @@ describe('PrivateGroupChat', () => {
       </MemoryRouter>,
     );
 
-    fireEvent.click(await screen.findByRole('button', { name: 'More conversation options' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Conversation settings' }));
     fireEvent.click(screen.getByRole('button', { name: 'Delete chat for everyone' }));
 
     expect(confirmSpy).toHaveBeenCalledWith('Delete this chat for everyone? This removes the chat and its messages for all participants.');

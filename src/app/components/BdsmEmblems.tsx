@@ -4,7 +4,7 @@
  * It reads on four separate channels, which is exactly why it works and why a
  * single icon never could:
  *
- *   frame   the role      chevron is dominant, square is submissive, hexagon is switch
+ *   frame   the role      chevron is dominant, circle is submissive, hexagon is switch
  *   inner   the position  an up arrow tops, a down arrow bottoms
  *   nesting the depth     a second outline inside goes deeper than the plain frame
  *   corners the status    four dots means taken
@@ -12,10 +12,8 @@
  * A top and a dominant are not the same thing, and this is the set that makes
  * that difference legible at a glance.
  *
- * The community's own words for the deepest ranks are master and slave, and for
- * a taken submissive, owned. cruush keeps master, and says bonded and collared
- * for the other two: the same arrangements, in words about the bond and the
- * collar rather than about property.
+ * cruush uses dominant, submissive, bonded, and collared language. The labels
+ * describe the role or relationship without describing a person as property.
  */
 
 type EmblemProps = {
@@ -30,7 +28,7 @@ type Inner = 'none' | 'deep' | 'bonded' | 'top' | 'bottom' | 'dom' | 'sub';
 /* Frames, drawn to the same optical weight so a row of them sits level. */
 
 const FRAME_PATHS: Record<Frame, string> = {
-  // A chevron: flat across the top, driving to a point at the bottom.
+  // The BDSM badge chevron: outline is Dominant; the same badge filled is taken.
   dominant: 'M3.6 3.4h16.8v8.9L12 20.9 3.6 12.3z',
   // A square: closed on every side.
   submissive: 'M4.3 4.3h15.4v15.4H4.3z',
@@ -91,7 +89,6 @@ function innerMark(frame: Frame, inner: Inner) {
   // A square inside: the submissive frame, borrowed.
   return <path d="M8.4 8.4h7.2v7.2H8.4z" />;
 }
-
 function Emblem({
   className,
   frame,
@@ -133,38 +130,56 @@ function Emblem({
 
 /* Dominant */
 
-export function MasterEmblem(props: EmblemProps) {
-  return <Emblem {...props} frame="dominant" inner="bonded" />;
+export function DominantTakenEmblem(props: EmblemProps) {
+  return <Emblem {...props} frame="dominant" solid />;
 }
 
 export function DomEmblem(props: EmblemProps) {
-  return <Emblem {...props} frame="dominant" inner="deep" />;
+  return <Emblem {...props} frame="dominant" />;
 }
 
 export function TopEmblem(props: EmblemProps) {
-  return <Emblem {...props} frame="dominant" inner="top" />;
-}
-
-export function DomTakenEmblem(props: EmblemProps) {
-  return <Emblem {...props} frame="dominant" inner="deep" taken />;
+  return (
+    <svg aria-hidden="true" className={props.className} fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12 19V6" />
+      <path d="M6.5 11.5 12 5.5l5.5 6" />
+    </svg>
+  );
 }
 
 /* Submissive */
 
-export function BondedEmblem(props: EmblemProps) {
-  return <Emblem {...props} frame="submissive" inner="bonded" />;
+function SubmissiveCircleEmblem({ className, solid = false }: EmblemProps) {
+  return (
+    <svg
+      aria-hidden="true"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.9"
+      viewBox="0 0 24 24"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <circle cx="12" cy="12" fill={solid ? 'currentColor' : 'none'} r="7.7" />
+    </svg>
+  );
+}
+
+export function SubmissiveTakenEmblem(props: EmblemProps) {
+  return <SubmissiveCircleEmblem {...props} solid />;
 }
 
 export function SubEmblem(props: EmblemProps) {
-  return <Emblem {...props} frame="submissive" inner="deep" />;
+  return <SubmissiveCircleEmblem {...props} />;
 }
 
 export function BottomEmblem(props: EmblemProps) {
-  return <Emblem {...props} frame="submissive" inner="bottom" />;
-}
-
-export function CollaredEmblem(props: EmblemProps) {
-  return <Emblem {...props} frame="submissive" inner="deep" taken />;
+  return (
+    <svg aria-hidden="true" className={props.className} fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12 5v13" />
+      <path d="M6.5 12.5 12 18.5l5.5-6" />
+    </svg>
+  );
 }
 
 /* Switch */
@@ -193,6 +208,6 @@ export function BottomSwitchEmblem(props: EmblemProps) {
   return <Emblem {...props} frame="switch" inner="bottom" />;
 }
 
-export function SwitchTakenEmblem(props: EmblemProps) {
-  return <Emblem {...props} frame="switch" inner="none" taken />;
+export function TakenSwitchEmblem(props: EmblemProps) {
+  return <Emblem {...props} frame="switch" solid />;
 }

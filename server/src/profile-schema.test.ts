@@ -95,7 +95,7 @@ describe("profile schema", () => {
     expect(parsed.visibility_rules.crowds).toEqual(["Dyke"]);
   });
 
-  it("limits explicitly capped profile option groups", () => {
+  it("limits profile option groups to their current server and editor caps", () => {
     const baseProfile = {
       ...emptyProfile,
       display_name: "Cruusher",
@@ -133,13 +133,13 @@ describe("profile schema", () => {
 
     expect(profilePayloadSchema.parse({
       ...baseProfile,
-      position: ["top", "bottom"]
-    }).position).toEqual(["bottom"]);
+      position: ["top", "bottom", "vers", "vers top"]
+    }).position).toEqual(["bottom", "vers", "vers top"]);
 
     expect(profilePayloadSchema.parse({
       ...baseProfile,
-      role: ["switch", "dominant"]
-    }).role).toEqual(["dominant"]);
+      role: ["switch", "dominant", "submissive", "service"]
+    }).role).toEqual(["dominant", "submissive", "service"]);
 
     expect(profilePayloadSchema.parse({
       ...baseProfile,

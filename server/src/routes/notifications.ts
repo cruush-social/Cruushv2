@@ -171,6 +171,22 @@ export function registerNotificationRoutes(app: FastifyInstance) {
     });
   });
 
+  app.delete("/api/notifications/:notificationId", async (request, reply) => {
+    const userId = await getAuthenticatedUserId(request);
+    const { notificationId } = notificationParamsSchema.parse(request.params);
+
+    await app.db.query(
+      `delete from app_notifications notification
+       where notification.id::text = $1
+         and notification.user_id = $2`,
+      [notificationId, userId]
+    );
+
+    return reply.send({
+      data: await getNotificationSummary(app, userId)
+    });
+  });
+
   app.get("/api/notification-preferences", async (request, reply) => {
     const userId = await getAuthenticatedUserId(request);
 

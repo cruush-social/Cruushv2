@@ -1,5 +1,5 @@
 /** User-visible cruush+ benefits, kept in one place so the card cannot drift. */
-export const CRUUSH_PLUS_SERVER_GATE_COUNT = 11;
+export const CRUUSH_PLUS_SERVER_GATE_COUNT = 13;
 
 export const CRUUSH_PLUS_FEATURES = [
   {

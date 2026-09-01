@@ -36,10 +36,13 @@ describe('message photo preprocessing', () => {
       result: string | ArrayBuffer | null = null;
       readAsDataURL = readAsDataURL;
     });
-    vi.stubGlobal('URL', {
-      createObjectURL: vi.fn().mockReturnValue('blob:phone-photo'),
-      revokeObjectURL: vi.fn(),
+    const NativeURL = globalThis.URL;
+    class MockURL extends NativeURL {}
+    Object.defineProperties(MockURL, {
+      createObjectURL: { value: vi.fn().mockReturnValue('blob:phone-photo') },
+      revokeObjectURL: { value: vi.fn() },
     });
+    vi.stubGlobal('URL', MockURL);
     vi.stubGlobal('Image', class {
       onload: (() => void) | null = null;
       onerror: (() => void) | null = null;

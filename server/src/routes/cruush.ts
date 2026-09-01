@@ -53,6 +53,7 @@ import {
   type DisplayMode,
   type VisibilityBaseMode
 } from "../location-privacy.js";
+import { loadTravelPins } from "../travel-pins.js";
 
 const cruushActivityParamsSchema = z.object({
   userId: z.uuid()
@@ -73,6 +74,17 @@ const mutualMapQueryArrayField = z.preprocess((value) => {
     : []);
 }, z.array(z.string().min(1).max(120)).max(50).default([]));
 
+const mutualMapBooleanQueryFlag = z.preprocess((value) => {
+  if (value === undefined) {
+    return false;
+  }
+
+  const normalizedValue = Array.isArray(value) ? value[0] : value;
+  return typeof normalizedValue === "string"
+    ? ["1", "true", "yes", "on"].includes(normalizedValue.trim().toLowerCase())
+    : normalizedValue === true;
+}, z.boolean().default(false));
+
 const mutualMapCrowdQueryArrayField = z.preprocess((value) => {
   if (value === undefined) {
     return [];
@@ -85,6 +97,11 @@ const mutualMapCrowdQueryArrayField = z.preprocess((value) => {
 }, z.array(z.enum(CROWD_OPTIONS)).max(3).default([]));
 
 const mutualMapQuerySchema = z.object({
+  q: z.preprocess(
+    (value) => typeof value === "string" ? normalizeSingleLineText(value) : value,
+    z.string().max(120).optional()
+  ),
+  mileHighClub: mutualMapBooleanQueryFlag,
   distance: z.coerce.number().min(1).max(100).optional(),
   minAge: z.coerce.number().int().min(18).max(99).optional(),
   maxAge: z.coerce.number().int().min(18).max(99).optional(),
@@ -180,10 +197,13 @@ type MutualCruushRow = {
   match_id: string;
   other_user_id: string;
   display_name: string | null;
+  bio: string | null;
   pronouns: string[] | null;
   photos: string[] | null;
   photo_explicit?: boolean | null;
   badges?: string[] | null;
+  side_badges?: unknown;
+  travelling: boolean;
   updated_at: string | Date;
   year_of_birth: number | null;
   lat: number | null;
@@ -221,6 +241,8 @@ type MutualCruushRow = {
 };
 
 type CurrentProfileLocationRow = {
+  display_name: string | null;
+  bio: string | null;
   year_of_birth: number | null;
   looking_for: string[] | null;
   vibes: string[] | null;
@@ -253,10 +275,13 @@ type CurrentProfileLocationRow = {
 type ActivityProfileRow = {
   id: string;
   display_name: string | null;
+  bio: string | null;
   pronouns: string[] | null;
   photos: string[] | null;
   photo_explicit?: boolean | null;
   badges?: string[] | null;
+  side_badges?: unknown;
+  travelling: boolean;
   updated_at: string | Date;
   year_of_birth: number | null;
   lat: number | null;
@@ -362,6 +387,8 @@ function mapActivityPerson(row: {
   fallbackPronouns?: string | null;
   fallbackPhoto?: string | null;
   badges?: string[] | null;
+  sideBadges?: unknown;
+  travelling?: boolean;
   vibes?: string[] | null;
 }) {
   return {
@@ -370,8 +397,10 @@ function mapActivityPerson(row: {
     pronouns: row.pronouns?.join(", ") ?? row.fallbackPronouns ?? "",
     photo: row.photos?.[0] ?? null,
     photoExplicit: row.photoExplicit === true,
+    travelling: row.travelling === true,
     vibes: row.vibes ?? [],
-    ...((row.badges?.length ?? 0) > 0 ? { badges: row.badges } : {})
+    ...((row.badges?.length ?? 0) > 0 ? { badges: row.badges } : {}),
+    ...(row.sideBadges ? { sideBadges: row.sideBadges } : {})
   };
 }
 
@@ -522,6 +551,30 @@ function matchesMutualMapSeeking(
   viewerCoordinates: VisibilityCoordinates | null,
   filters: MutualMapQuery
 ) {
+  const searchQuery = filters.q?.trim().toLowerCase();
+  if (searchQuery && ![
+    target.display_name ?? "",
+    target.bio ?? "",
+    ...(target.identities ?? []),
+    ...(target.presentations ?? []),
+    ...(target.looking_for ?? []),
+    ...(target.timing ?? []),
+    ...(target.hosting ?? []),
+    ...(target.vibes ?? []),
+    ...(target.scenes ?? []),
+    ...(target.archetypes ?? []),
+    ...(target.crowds ?? []),
+    ...(target.hobbies ?? []),
+    ...(target.positions ?? []),
+    ...(target.roles ?? []),
+    ...(target.kinks ?? []),
+    ...(target.body_types ?? []),
+    ...(target.sexuality ?? []),
+    ...(target.substance_boundaries ?? []),
+  ].some((value) => value.trim().toLowerCase().includes(searchQuery))) {
+    return false;
+  }
+
   if (filters.minAge != null || filters.maxAge != null) {
     const age = target.year_of_birth ? new Date().getFullYear() - target.year_of_birth : null;
     if (age == null || (filters.minAge != null && age < filters.minAge) || (filters.maxAge != null && age > filters.maxAge)) {
@@ -567,6 +620,8 @@ function toMapVisibilitySubject(
     : sensitiveProfile?.kinks ?? [];
 
   return {
+    display_name: row.display_name,
+    bio: row.bio,
     year_of_birth: row.year_of_birth,
     identities: row.identities ?? [],
     presentations: row.presentation ?? [],
@@ -592,6 +647,8 @@ async function loadCurrentProfileLocation(app: FastifyInstance, userId: string) 
   return (await safeQueryRows<CurrentProfileLocationRow>(
     app,
     `select
+       display_name,
+       bio,
        year_of_birth,
        looking_for,
        vibes,
@@ -638,6 +695,7 @@ async function loadActivityProfiles(app: FastifyInstance, userIds: string[]) {
     `select
        profiles.id::text as id,
        profiles.display_name,
+       profiles.bio,
        profiles.pronouns,
        profiles.photos,
        coalesce((
@@ -659,6 +717,12 @@ async function loadActivityProfiles(app: FastifyInstance, userIds: string[]) {
        profiles.vibes,
        profiles.scenes,
        profiles.archetypes,
+       (to_jsonb(profiles)->'side_badges') as side_badges,
+       exists (
+         select 1 from user_travel_pins travel
+         where travel.user_id = profiles.id
+           and travel.set_at > now() - interval '24 hours'
+       ) as travelling,
        profiles.identities,
        profiles.presentation,
        profiles.sexuality,
@@ -733,10 +797,13 @@ async function loadMutualCruushRows(app: FastifyInstance, userId: string) {
       match_id: record.id,
       other_user_id: otherUserId,
       display_name: profile.display_name,
+      bio: profile.bio,
       pronouns: profile.pronouns,
       photos: profile.photos,
       photo_explicit: profile.photo_explicit,
       badges: profile.badges,
+      side_badges: profile.side_badges,
+      travelling: profile.travelling,
       updated_at: profile.updated_at,
       year_of_birth: profile.year_of_birth,
       lat: profile.lat,
@@ -799,6 +866,7 @@ async function mapTokenizedMutualCruushRow(
     currentCrowds: string[];
     activeCrowdModes: string[];
     viewerSubject: VisibilitySubjectProfile | null;
+    activeTravelUserIds: Set<string>;
     filters: MutualMapQuery;
   }
 ) {
@@ -806,6 +874,10 @@ async function mapTokenizedMutualCruushRow(
   const otherCrowds = sensitiveProfile?.crowds ?? [];
 
   if (!hasAnyCrowd(options.activeCrowdModes, otherCrowds)) {
+    return null;
+  }
+
+  if (options.filters.mileHighClub && !options.activeTravelUserIds.has(row.other_user_id)) {
     return null;
   }
 
@@ -874,6 +946,8 @@ async function mapTokenizedMutualCruushRow(
       photos: row.photos,
       photoExplicit: row.photo_explicit,
       badges: row.badges ?? null,
+      sideBadges: row.side_badges,
+      travelling: row.travelling,
       vibes
     }),
     mutualCrowds: sharedCrowds,
@@ -916,7 +990,9 @@ function mapMutualCruushRow(
     viewerGhostMode: boolean;
   }
 ) {
-  const preciseAllowed = row.can_reveal_precise_location === true && !options.viewerGhostMode;
+  const preciseAllowed = row.can_reveal_precise_location === true
+    && !options.viewerGhostMode
+    && row.target_base_mode !== "STEALTH";
   const coordinates = getRowCoordinates(row, preciseAllowed);
   const sensitiveProfile = decryptSensitiveProfile(app.config, row);
   const otherCrowds = sensitiveProfile?.crowds ?? [];
@@ -940,6 +1016,8 @@ function mapMutualCruushRow(
       photos: row.photos,
       photoExplicit: row.photo_explicit,
       badges: row.badges ?? null,
+      sideBadges: row.side_badges,
+      travelling: row.travelling,
       vibes
     }),
     mutualCrowds: sharedCrowds,
@@ -1027,6 +1105,8 @@ async function mapIncomingCruushRecords(
         photos: senderProfile?.photos ?? null,
         photoExplicit: senderProfile?.photo_explicit,
         badges: senderProfile?.badges ?? null,
+        sideBadges: senderProfile?.side_badges,
+        travelling: senderProfile?.travelling,
         vibes: activityProfileVibes(senderProfile)
       })
     };
@@ -1067,6 +1147,8 @@ async function mapSentCruushRecords(
         fallbackName: snapshot?.name ?? null,
         fallbackPronouns: snapshot?.pronouns ?? null,
         badges: targetProfile?.badges ?? null,
+        sideBadges: targetProfile?.side_badges,
+        travelling: targetProfile?.travelling,
         vibes: activityProfileVibes(targetProfile)
       })
     };
@@ -1098,6 +1180,8 @@ function mapProfileViewRecords(
           photos: viewerProfile?.photos ?? null,
           photoExplicit: viewerProfile?.photo_explicit,
           badges: viewerProfile?.badges ?? null,
+          sideBadges: viewerProfile?.side_badges,
+          travelling: viewerProfile?.travelling,
           vibes: activityProfileVibes(viewerProfile)
         })
       };
@@ -1198,11 +1282,19 @@ export async function registerCruushRoutes(app: FastifyInstance) {
       ? toMapVisibilitySubject(app, currentProfile, currentCoordinates)
       : null;
     const rows = await loadMutualCruushRows(app, authenticatedUserId);
+    const travelPins = await loadTravelPins(app, [
+      authenticatedUserId,
+      ...rows.map((row) => row.other_user_id)
+    ]).catch(() => new Map());
+    if (viewerSubject) {
+      viewerSubject.mile_high_club_member = travelPins.has(authenticatedUserId);
+    }
     const items = await Promise.all(rows.map((row) => mapTokenizedMutualCruushRow(app, request, authenticatedUserId, row, {
       currentCoordinates,
       currentCrowds: currentSensitiveProfile?.crowds ?? [],
       activeCrowdModes: currentVisibilityRules?.active_crowd_modes ?? [],
       viewerSubject,
+      activeTravelUserIds: new Set(travelPins.keys()),
       filters
     })));
 

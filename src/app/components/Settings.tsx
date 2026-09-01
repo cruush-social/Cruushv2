@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router';
 import profileNavIcon from '../assets/nav-icons/profile-white.png';
 import { useEffect, useMemo, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react';
-import { Accessibility, ArrowLeft, BookOpen, ChevronRight, Contrast, ExternalLink, Eye, Gift, History, KeyRound, LifeBuoy, LogOut, MapPin, MessageCircle, MessageSquareReply, ShieldAlert, ShieldCheck, Trash2, Type, UserX, type LucideIcon, Download,
+import { Accessibility, ArrowLeft, BookOpen, ChevronRight, Contrast, ExternalLink, Gift, History, KeyRound, LifeBuoy, LogOut, MapPin, MessageCircle, MessageSquareReply, ShieldAlert, ShieldCheck, Trash2, Type, UserX, X, type LucideIcon, Download,
 } from 'lucide-react';
 import { Button } from './ui/button';
 import CruushPlusWord from './CruushPlusWord';
@@ -26,6 +26,7 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Switch } from './ui/switch';
 import { CruushIcon, type CruushIconName, type CruushIconVariant } from './CruushIconImage';
+import DlModeMark from './DlModeMark';
 import PublicPolicyLinks from './PublicPolicyLinks';
 import { changePassword, deleteAccount, sendVerificationEmail, signOut } from '../lib/authApi';
 import SupportRequestForm from './SupportRequestForm';
@@ -43,14 +44,20 @@ import {
   saveAccessibilityPreferences,
   type AccessibilityPreferences,
 } from '../lib/accessibilityPreferences';
-import { saveDistancePreferences, useDistancePreferences } from '../lib/distancePreferences';
 import mileHighClubWhite from '../assets/ui-icons/mile-high-club-white.svg';
+import {
+  addDesktopPageLayoutChangedListener,
+  getDesktopPageLayout,
+  saveDesktopPageLayout,
+  type DesktopPageLayout,
+} from '../lib/desktopPageLayoutPreferences';
 
 type SettingsActionItem = {
   icon?: LucideIcon;
   iconName?: CruushIconName;
   iconVariant?: CruushIconVariant;
   iconSrc?: string;
+  iconNode?: ReactNode;
   label: ReactNode;
   description?: string;
   action: () => void;
@@ -78,9 +85,15 @@ const editProfileIconStyle: CSSProperties = {
   WebkitMaskSize: 'contain',
 };
 
-export default function Settings() {
+type SettingsProps = {
+  embedded?: boolean;
+  onBack?: () => void;
+  onClose?: () => void;
+  onOpenMileHighClub?: () => void;
+};
+
+export default function Settings({ embedded = false, onBack, onClose, onOpenMileHighClub }: SettingsProps = {}) {
   const navigate = useNavigate();
-  const distancePreferences = useDistancePreferences();
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [isResendingVerification, setIsResendingVerification] = useState(false);
   const [verificationError, setVerificationError] = useState<string | null>(null);
@@ -100,10 +113,17 @@ export default function Settings() {
   const storedUser = useMemo(() => getStoredCurrentUser(), []);
   const [accessibilityPreferences, setAccessibilityPreferences] = useState(getAccessibilityPreferences);
   const [previewUrl, setPreviewUrlState] = useState(() => getVerificationPreviewUrl());
+  const [desktopPageLayout, setDesktopPageLayout] = useState(getDesktopPageLayout);
   const isEmailVerified = Boolean(storedUser?.email_verified_at);
   const moderatorRole = storedUser?.moderator_role ?? null;
 
   useEffect(() => addAccessibilityPreferencesChangedListener(setAccessibilityPreferences), []);
+  useEffect(() => addDesktopPageLayoutChangedListener(setDesktopPageLayout), []);
+
+  const updateDesktopPageLayout = (layout: DesktopPageLayout) => {
+    setDesktopPageLayout(layout);
+    saveDesktopPageLayout(layout);
+  };
 
   const updateAccessibilityPreference = (
     preference: keyof AccessibilityPreferences,
@@ -241,7 +261,7 @@ export default function Settings() {
           action: () => navigate('/privacy/ghost-mode'),
         },
         {
-          icon: Eye,
+          iconNode: <DlModeMark active={false} className="h-5 w-5 opacity-65" />,
           label: 'DL Mode',
           description: 'Mask explicit message and favorite-image previews with gradients.',
           action: () => navigate('/privacy/dl-mode'),
@@ -274,7 +294,9 @@ export default function Settings() {
           iconSrc: mileHighClubWhite,
           label: 'Mile High Club',
           description: 'Drop a pin where you are visiting and browse from there.',
-          action: () => navigate('/settings/travel'),
+          action: embedded && onOpenMileHighClub
+            ? onOpenMileHighClub
+            : () => navigate('/settings/travel'),
         },
         {
           icon: UserX,
@@ -310,6 +332,8 @@ export default function Settings() {
   ];
 
   const normalizedSettingsQuery = settingsQuery.trim().toLowerCase();
+  const desktopLayoutMatchesQuery = !normalizedSettingsQuery
+    || 'desktop page layout pop-ups full screen'.includes(normalizedSettingsQuery);
   const settingsItemText = (item: SettingsItem) => [
     typeof item.label === 'string' ? item.label : '',
     'description' in item && typeof item.description === 'string' ? item.description : '',
@@ -327,15 +351,33 @@ export default function Settings() {
     : settingsSections;
 
   return (
-    <div className="min-h-screen bg-background pb-20">
+    <div className={embedded ? 'min-h-full bg-background pb-6' : 'min-h-screen bg-background pb-20'}>
       <header className="sticky top-0 bg-card/80 backdrop-blur-sm border-b border-border p-4 flex items-center gap-4 z-10">
-        <Button variant="ghost" size="icon" onClick={() => navigate('/map')} aria-label="Back to map">
+        <Button variant="ghost" size="icon" onClick={embedded ? (onBack ?? onClose) : () => navigate('/map')} aria-label={embedded ? 'Back' : 'Back to map'}>
           <ArrowLeft className="w-5 h-5" />
         </Button>
-        <h2 className="text-xl">Settings</h2>
+        <h2 className="flex-1 text-xl">Settings</h2>
+        {embedded && onClose ? (
+          <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close Settings">
+            <X className="h-5 w-5" />
+          </Button>
+        ) : null}
       </header>
 
-      <div className="max-w-2xl mx-auto p-6 space-y-8">
+      <div className={`max-w-2xl mx-auto space-y-8 ${embedded ? 'p-4' : 'p-6'}`}>
+        <div className="px-2">
+          <label className="sr-only" htmlFor="settings-search">Search settings</label>
+          <Input
+            autoComplete="off"
+            className="bg-input-background"
+            id="settings-search"
+            onChange={(event) => setSettingsQuery(event.target.value)}
+            placeholder="Search settings"
+            type="search"
+            value={settingsQuery}
+          />
+        </div>
+
         <div className="space-y-2">
           <h3 className="text-sm text-muted-foreground px-2">Email</h3>
           <div className="bg-card rounded-2xl border border-border p-4 space-y-4">
@@ -414,21 +456,44 @@ export default function Settings() {
           </div>
         </div>
 
-        <div className="px-2">
-          <label className="sr-only" htmlFor="settings-search">Search settings</label>
-          <Input
-            autoComplete="off"
-            className="bg-input-background"
-            id="settings-search"
-            onChange={(event) => setSettingsQuery(event.target.value)}
-            placeholder="Search settings"
-            type="search"
-            value={settingsQuery}
-          />
-        </div>
-
         {visibleSettingsSections.length === 0 ? (
           <p className="px-2 text-sm text-muted-foreground">No settings match that search.</p>
+        ) : null}
+
+        {desktopLayoutMatchesQuery ? (
+          <div className="space-y-2">
+            <h3 className="px-2 text-sm text-muted-foreground">Desktop</h3>
+            <div className="rounded-2xl border border-border bg-card p-4">
+              <div className="flex items-center justify-between gap-4">
+                <span>Page layout</span>
+                <div
+                  aria-label="Desktop page layout"
+                  className="grid grid-cols-2 rounded-full border border-border bg-background/70 p-1"
+                  role="radiogroup"
+                >
+                  {([
+                    ['popups', 'Pop-ups'],
+                    ['fullscreen', 'Full screen'],
+                  ] as const).map(([value, label]) => (
+                    <button
+                      key={value}
+                      aria-checked={desktopPageLayout === value}
+                      className={`rounded-full px-3 py-1.5 text-sm transition-colors ${
+                        desktopPageLayout === value
+                          ? 'bg-white/10 text-foreground'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                      onClick={() => updateDesktopPageLayout(value)}
+                      role="radio"
+                      type="button"
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
         ) : null}
 
         {visibleSettingsSections.map((section) => (
@@ -468,7 +533,9 @@ export default function Settings() {
                       item.destructive ? 'text-destructive' : ''
                     } ${dividerClass}`}
                   >
-                    {item.iconSrc ? (
+                    {item.iconNode ? (
+                      item.iconNode
+                    ) : item.iconSrc ? (
                       <img aria-hidden="true" alt="" className="h-5 w-5" src={item.iconSrc} />
                     ) : item.iconName === 'profile' && item.iconVariant === 'gradient' ? (
                       <img
@@ -490,9 +557,6 @@ export default function Settings() {
                     ) : null}
                     <span className="flex-1 text-left">
                       <span className="block">{item.label}</span>
-                      {item.description ? (
-                        <span className="mt-1 block text-sm text-muted-foreground">{item.description}</span>
-                      ) : null}
                     </span>
                     <ChevronRight className="w-5 h-5 text-muted-foreground" />
                   </button>
@@ -568,7 +632,6 @@ export default function Settings() {
               <Trash2 className="h-5 w-5" />
               <span className="flex-1 text-left">
                 <span className="block">Delete account</span>
-                <span className="mt-1 block text-sm text-muted-foreground">Permanently delete your cruush account.</span>
               </span>
               <ChevronRight className="h-5 w-5 text-muted-foreground" />
             </button>

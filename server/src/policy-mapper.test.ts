@@ -68,14 +68,14 @@ describe("policy mapper", () => {
     }).decision).toBe("reject");
   });
 
-  it("keeps rejecting a non-human profile photo", () => {
+  it("allows a gear-only profile photo", () => {
     expect(mapProviderResultToPolicy({
       surface: "profile_photo",
       contentType: "image",
       providerResult: providerResult("profile_photo_not_adult_human", 0.99)
     })).toMatchObject({
-      decision: "reject",
-      reason_code: "profile_photo_not_adult_human"
+      decision: "allow",
+      reason_code: "profile_gear_photo_allowed"
     });
   });
 
@@ -116,6 +116,20 @@ describe("policy mapper", () => {
       });
     }
   );
+
+  it("allows multiple adult subjects through the private-message image policy reused by Feed uploads", () => {
+    const decision = mapProviderResultToPolicy({
+      surface: "direct_message",
+      contentType: "image",
+      providerResult: providerResult("multiple_people", 0.99)
+    });
+
+    expect(decision).toMatchObject({
+      decision: "allow",
+      reason_code: "group_message_photo_allowed",
+      trust_impact: 0
+    });
+  });
 
   it("allows an animal image in private messages", () => {
     const decision = mapProviderResultToPolicy({

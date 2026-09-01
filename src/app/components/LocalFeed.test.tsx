@@ -321,6 +321,49 @@ describe('LocalFeed', () => {
     expect(screen.getAllByLabelText('river preview').at(-1)?.querySelector('image')).not.toBeNull();
   });
 
+  it('masks explicit Feed attachments while keeping safe attachments actionable in DL Mode', async () => {
+    window.localStorage.setItem('cruush:dl-mode-enabled', 'true');
+    getFeedPosts.mockResolvedValue([{
+      id: 'post-with-photos',
+      content: 'two photos',
+      expiresIn: '6h',
+      expiresAt: '2026-04-28T18:00:00.000Z',
+      createdAt: '2026-04-28T12:00:00.000Z',
+      distance: 'Nearby',
+      audience: 'public',
+      photos: [{
+        id: 'explicit-photo',
+        url: '/api/media/assets/explicit-photo/display',
+        thumbnailUrl: '/api/media/assets/explicit-photo/thumbnail',
+        explicit: true,
+      }, {
+        id: 'safe-photo',
+        url: '/api/media/assets/safe-photo/display',
+        thumbnailUrl: '/api/media/assets/safe-photo/thumbnail',
+        explicit: false,
+      }],
+      user: {
+        id: 'user-2',
+        name: 'river',
+        pronouns: 'they/them',
+        photo: null,
+        photoExplicit: false,
+      },
+    }]);
+
+    render(
+      <MemoryRouter>
+        <LocalFeed />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText('two photos')).toBeInTheDocument();
+    const masked = screen.getByRole('img', { name: 'Feed photo 1 hidden by DL Mode' });
+    expect(masked.querySelector('image')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Feed photo 1 hidden by DL Mode' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Open Feed photo 2' })).toBeEnabled();
+  });
+
   it('lets users delete their own feed posts without showing delete for other posts', async () => {
     getFeedPosts.mockResolvedValue([{
       id: 'post-owned',
@@ -410,6 +453,7 @@ describe('LocalFeed', () => {
     await waitFor(() => expect(createReport).toHaveBeenCalledWith({
       targetType: 'post',
       targetId: 'post-other',
+      targetUserId: 'user-2',
       reason: 'spam_scam',
       details: undefined,
     }));
@@ -417,7 +461,7 @@ describe('LocalFeed', () => {
     expect(screen.getByText('suspicious link in this post')).toBeInTheDocument();
   });
 
-  it('renders feed profile previews without showing author pronouns', async () => {
+  it('renders feed profile previews with compact author metadata', async () => {
     getFeedPosts.mockResolvedValue([{
       id: 'post-other',
       content: 'hello nearby',
@@ -442,14 +486,13 @@ describe('LocalFeed', () => {
 
     const preview = await screen.findByRole('img', { name: 'River preview' });
     expect(preview.parentElement).toHaveClass('w-full');
-    // The rail holds only the avatar now; vibes moved into the post column.
-    expect(screen.getByTestId('feed-post-profile-stack-post-other')).toHaveClass('-mt-1', 'w-20', 'flex-col');
-    expect(screen.getByTestId('feed-post-author-post-other')).toHaveClass('min-w-0', 'flex-1', 'truncate');
+    // The rail holds only the avatar; the compact feed card omits profile tags.
+    expect(screen.getByTestId('feed-post-profile-stack-post-other')).toHaveClass('-mt-1', 'w-20');
+    expect(screen.getByTestId('feed-post-author-post-other')).toHaveClass('text-left');
     expect(screen.getByTestId('feed-post-author-post-other')).not.toHaveClass('max-w-[32%]');
-    expect(within(screen.getByTestId('feed-post-vibes-post-other')).getAllByTitle(/Chill|Geek|Service/).map((tag) => tag.textContent))
-      .toEqual(['Chill', 'Geek', 'Service']);
-    expect(screen.getByTestId('feed-post-meta-post-other')).toHaveClass('flex-wrap');
-    expect(screen.queryByText('he/him')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('feed-post-vibes-post-other')).not.toBeInTheDocument();
+    expect(screen.getByTestId('feed-post-meta-post-other')).toHaveClass('flex', 'h-11', 'flex-col');
+    expect(screen.getByText('he/him')).toBeInTheDocument();
   });
 
   it('blocks another feed author and removes all of their posts locally', async () => {
@@ -560,6 +603,7 @@ describe('LocalFeed', () => {
       expiresIn: 'never',
       audience: 'public',
       crowdTargets: [],
+      photoMediaIds: [],
     }));
   });
 
@@ -599,6 +643,7 @@ describe('LocalFeed', () => {
       expiresIn: 'never',
       audience: 'mutuals',
       crowdTargets: [],
+      photoMediaIds: [],
     }));
   });
 
@@ -637,6 +682,7 @@ describe('LocalFeed', () => {
       distance: 'Nearby',
       audience: 'crowd',
       crowdTargets: ['Gay'],
+      photoMediaIds: [],
       user: {
         id: 'user-1',
         name: 'me',
@@ -671,6 +717,7 @@ describe('LocalFeed', () => {
       expiresIn: 'never',
       audience: 'crowd',
       crowdTargets: ['Gay'],
+      photoMediaIds: [],
     }));
   });
 
@@ -728,6 +775,7 @@ describe('LocalFeed', () => {
       expiresIn: '7d',
       audience: 'public',
       crowdTargets: [],
+      photoMediaIds: [],
     }));
 
     fireEvent.change(input, { target: { value: 'never post' } });
@@ -741,6 +789,7 @@ describe('LocalFeed', () => {
       expiresIn: 'never',
       audience: 'public',
       crowdTargets: [],
+      photoMediaIds: [],
     }));
     expect(await screen.findByText('never post')).toBeInTheDocument();
     // The expiry control now lives in the settings dialog, so the only Never

@@ -84,6 +84,8 @@ type ConversationRow = {
   other_user_pronouns: string[] | null;
   other_user_photo: string | null;
   other_user_photo_explicit?: boolean | null;
+  other_user_side_badges?: unknown;
+  other_user_travelling?: boolean;
   member_count: number;
 };
 
@@ -385,7 +387,9 @@ function mapConversationRow(app: FastifyInstance, row: ConversationRow, options:
         : row.other_user_name?.trim() || "cruush user",
       pronouns: isGroup ? "" : row.other_user_pronouns?.join(", ") ?? "",
       photo: isGroup ? null : row.other_user_photo ?? null,
-      ...(isGroup ? {} : { photoExplicit: row.other_user_photo_explicit === true })
+      ...(isGroup ? {} : { photoExplicit: row.other_user_photo_explicit === true }),
+      ...(isGroup || !row.other_user_side_badges ? {} : { sideBadges: row.other_user_side_badges }),
+      ...(isGroup ? {} : { travelling: row.other_user_travelling === true })
     },
     distance: "Nearby",
     updatedAt: new Date(row.updated_at).toISOString(),
@@ -652,6 +656,12 @@ const CONVERSATION_SELECT = `
     end as other_user_name,
     other_profile.pronouns as other_user_pronouns,
     case when c.kind = 'dm' then other_profile.photos[1] else null end as other_user_photo,
+    case when c.kind = 'dm' then to_jsonb(other_profile)->'side_badges' else null end as other_user_side_badges,
+    case when c.kind = 'dm' then exists (
+      select 1 from user_travel_pins travel
+      where travel.user_id = other_member.user_id
+        and travel.set_at > now() - interval '24 hours'
+    ) else false end as other_user_travelling,
     case when c.kind = 'dm' then coalesce((
       select media.explicit_classification is distinct from 'non_explicit'
       from media_objects media

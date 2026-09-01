@@ -56,7 +56,7 @@ describe('ForegroundNotifications behavior', () => {
   });
 
   it('uses the mutual icon for mutual notifications', () => {
-    expect(notificationPopupIconName('mutual_cruush')).toBe('safety');
+    expect(notificationPopupIconName('mutual_cruush')).toBe('mutual');
     expect(notificationPopupIconName('direct_message')).toBe('bell');
   });
 });

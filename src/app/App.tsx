@@ -65,6 +65,8 @@ const EmailVerificationGate = lazy(() => import('./components/EmailVerificationG
 const BottomNav = lazy(() => import('./components/BottomNav'));
 const DebugCruushPlusToggle = lazy(() => import('./components/DebugCruushPlusToggle'));
 const Rewards = lazy(() => import('./components/Rewards'));
+const EarnedCruushPlusCards = lazy(() => import('./components/EarnedCruushPlusCards'));
+const CruushPlusSuccess = lazy(() => import('./components/CruushPlusSuccess'));
 const AlphaBugButton = lazy(() => import('./components/AlphaBugButton'));
 const TwoFactorSettings = lazy(() => import('./components/TwoFactorSettings'));
 const PublicInfoPage = lazy(() => import('./components/PublicInfoPage'));
@@ -90,6 +92,7 @@ function renderPublicRoutes(includeSupport = false) {
       <Route key={route.path} path={route.path} element={<PublicInfoPage page={route.page} />} />
     )),
     <Route key="/survey" path="/survey" element={<Survey />} />,
+    <Route key="/feed/photo-preview" path="/feed/photo-preview" element={<FeedPhotoPreview />} />,
     ...(includeSupport
       ? [<Route key="/support" path="/support" element={<SupportPage publicAccess />} />]
       : []),
@@ -260,6 +263,7 @@ export default function App({
   const [authStatus, setAuthStatus] = useState<'loading' | 'signed_out' | 'signed_in'>('loading');
   const [session, setSession] = useState<AuthSessionPayload | null>(null);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
+  const [showOnboardingReward, setShowOnboardingReward] = useState(false);
   const authShellControlsScrolled = useAuthShellControlsScrolled(authStatus === 'signed_out');
 
   useEffect(() => {
@@ -338,12 +342,14 @@ export default function App({
   };
 
   const handleSignedOut = () => {
+    setShowOnboardingReward(false);
     setSession(null);
     setNeedsOnboarding(false);
     setAuthStatus('signed_out');
   };
 
   const handleOnboardingComplete = (nextSession?: AuthSessionPayload, destination: 'map' | 'rewards' = 'map') => {
+    setShowOnboardingReward(true);
     if (nextSession) {
       setSession(nextSession);
       setNeedsOnboarding(nextSession.needsOnboarding);
@@ -601,7 +607,7 @@ export default function App({
               <Route path="/requests" element={<RequestsDashboard />} />
               <Route path="/upgrade" element={<Navigate to="/rewards" replace />} />
               <Route path="/rewards" element={<Rewards />} />
-              <Route path="/checkout/success" element={<Navigate to="/rewards" replace />} />
+              <Route path="/checkout/success" element={<CruushPlusSuccess />} />
               <Route path="/checkout/:sessionId" element={<Navigate to="/rewards" replace />} />
               <Route path="*" element={<Navigate to="/map" replace />} />
             </Routes>
@@ -611,6 +617,7 @@ export default function App({
             <FirstFeedPostPrompt userId={session.user.id} />
             <BottomNav />
             <ForegroundNotifications />
+            <EarnedCruushPlusCards key={session.user.id} userId={session.user.id} afterOnboarding={showOnboardingReward} />
             <DebugCruushPlusToggle />
             {alphaBugControl}
           </Suspense>

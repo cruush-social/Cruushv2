@@ -166,7 +166,6 @@ function EkgHead() {
         stroke="#C8FF31"
         strokeLinecap="round"
         strokeLinejoin="round"
-        strokeOpacity="0.55"
         strokeOpacity="0.62" strokeWidth="1.9"
       />
       <circle

@@ -67,6 +67,11 @@ function preferenceRows(preferences: NotificationPreferences) {
       checked: preferences.nearbyEnabled,
     },
     {
+      key: 'pulseEnabled' as const,
+      label: 'Pulse alerts',
+      checked: preferences.pulseEnabled,
+    },
+    {
       key: 'rewardsEnabled' as const,
       label: 'Reward updates',
       checked: preferences.rewardsEnabled,

@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router';
 import HeartPhoto from './HeartPhoto';
+import { BadgeHoverLabel } from './BadgeFrames';
 import { Button } from './ui/button';
 import {
   POSITION_GLYPHS,
@@ -19,24 +20,29 @@ import {
 const HEART_UNIT_CLASS = 'relative flex h-20 w-[103px] items-end justify-center';
 const CHIP_CLASS = 'absolute top-[62%] flex h-[1.5625rem] w-[1.5625rem] -translate-y-1/2 items-center justify-center rounded-full bg-black/86 backdrop-blur-md';
 
-function BadgeChip({ side, children }: { side: 'left' | 'right'; children: React.ReactNode }) {
+function BadgeChip({ side, children, meaning }: { side: 'left' | 'right'; children: React.ReactNode; meaning: string }) {
   return (
     <span
-      className={`${CHIP_CLASS} ${side === 'left' ? 'left-[-0.25rem]' : 'right-[-0.25rem]'}`}
+      aria-label={meaning}
+      className={`group/badge ${CHIP_CLASS} ${side === 'left' ? 'left-[-0.25rem]' : 'right-[-0.25rem]'}`}
+      role="img"
       style={{ border: '3.2px solid #004BFF' }}
     >
       {children}
+      <BadgeHoverLabel>{meaning}</BadgeHoverLabel>
     </span>
   );
 }
 
 export default function ProfileBadgesTab({
   cruushPlus,
+  onChooseBadges,
   photo,
   position,
   role,
 }: {
   cruushPlus: boolean;
+  onChooseBadges?: () => void;
   photo: string | null;
   position: string[];
   role: string[];
@@ -46,6 +52,19 @@ export default function ProfileBadgesTab({
   const firstPosition = position[0] ?? null;
   const RoleGlyph = roleGlyphFor(firstRole);
   const PositionGlyph = positionGlyphFor(firstPosition);
+  const handleChooseBadges = () => {
+    if (!cruushPlus) {
+      navigate('/cruush-plus');
+      return;
+    }
+
+    if (onChooseBadges) {
+      onChooseBadges();
+      return;
+    }
+
+    navigate('/settings/badges');
+  };
 
   return (
     <div className="space-y-6">
@@ -63,10 +82,10 @@ export default function ProfileBadgesTab({
             />
           </span>
           {RoleGlyph ? (
-            <BadgeChip side="left"><RoleGlyph className="h-3.5 w-3.5 text-white" /></BadgeChip>
+            <BadgeChip meaning={firstRole ?? 'Role badge'} side="left"><RoleGlyph className="h-3.5 w-3.5 text-white" /></BadgeChip>
           ) : null}
           {PositionGlyph ? (
-            <BadgeChip side="right"><PositionGlyph className="h-3.5 w-3.5 text-white" /></BadgeChip>
+            <BadgeChip meaning={firstPosition ?? 'Position badge'} side="right"><PositionGlyph className="h-3.5 w-3.5 text-white" /></BadgeChip>
           ) : null}
         </span>
         <p className="text-center text-sm text-muted-foreground">
@@ -91,6 +110,7 @@ export default function ProfileBadgesTab({
                   selected ? 'border-[#004BFF] bg-black/60' : 'border-white/10 bg-white/[0.035]'
                 }`}
                 key={value}
+                title={value}
               >
                 <Mark className="h-7 w-7 text-white" />
                 <span className="text-center text-xs capitalize text-white/80">{value}</span>
@@ -115,6 +135,7 @@ export default function ProfileBadgesTab({
                   selected ? 'border-[#004BFF] bg-black/60' : 'border-white/10 bg-white/[0.035]'
                 }`}
                 key={value}
+                title={value}
               >
                 <Mark className="h-7 w-7 text-white" />
                 <span className="text-center text-xs capitalize text-white/80">{value}</span>
@@ -133,7 +154,7 @@ export default function ProfileBadgesTab({
         </p>
         <Button
           className="w-full rounded-full text-white"
-          onClick={() => navigate(cruushPlus ? '/settings/badges' : '/cruush-plus')}
+          onClick={handleChooseBadges}
           style={{ background: 'var(--cruush-gradient)' }}
           type="button"
         >

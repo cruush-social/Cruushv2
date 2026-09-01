@@ -359,8 +359,13 @@ function releaseRuntimeEnvData(target) {
       is_runtime: true,
     },
     {
+      // The launch geofence is off: anyone can sign up and use cruush from
+      // anywhere, and someone outside the active area joins it with the Mile
+      // High Club rather than being refused an account. This value must stay
+      // false, because every release run rewrites it and flipping it back to
+      // true would silently start refusing signups again.
       key: 'BETA_ACCESS_GEOFENCE_ENABLED',
-      value: 'true',
+      value: 'false',
       is_preview: false,
       is_buildtime: false,
       is_runtime: true,
@@ -380,8 +385,10 @@ function releaseRuntimeEnvData(target) {
       is_runtime: true,
     },
     {
+      // Unused while the geofence is disabled, but kept accurate: the active
+      // area is 100 miles around New York, not the original 15.
       key: 'BETA_ACCESS_RADIUS_MILES',
-      value: '15',
+      value: '100',
       is_preview: false,
       is_buildtime: false,
       is_runtime: true,
@@ -516,7 +523,7 @@ async function validateAndPatchApps(targets, dryRun, expectedSha) {
 
     if (dryRun) {
       assertSourceConfig(app, target, expectedSha);
-      console.log(`[dry-run] Would set ${target.label} git_branch=main, git_commit_sha=${expectedSha}, alpha env cutoff values, 15-mile beta access geofence, reports inbox, and launch party pin.`);
+      console.log(`[dry-run] Would set ${target.label} git_branch=main, git_commit_sha=${expectedSha}, alpha env cutoff values, the disabled beta access geofence, reports inbox, and launch party pin.`);
       continue;
     }
 

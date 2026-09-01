@@ -1,4 +1,12 @@
 import partyHatIcon from '../assets/ui-icons/party-hat.svg';
+import lips5754351 from '../assets/ui-icons/lips-5754351.png';
+import nipple7851008 from '../assets/ui-icons/nipple-7851008.png';
+import rim5420384 from '../assets/ui-icons/rim-5420384.png';
+import peach960664 from '../assets/ui-icons/peach-960664.png';
+import sex1075251 from '../assets/ui-icons/sex-1075251.png';
+import zanyFace3459803 from '../assets/ui-icons/zany-face-3459803.png';
+import leather3553564 from '../assets/ui-icons/leather-3553564.png';
+import condom7796808 from '../assets/ui-icons/condom-7796808.png';
 import type { LucideProps } from 'lucide-react';
 
 /**
@@ -8,49 +16,65 @@ import type { LucideProps } from 'lucide-react';
 
 type GlyphProps = Pick<LucideProps, 'className' | 'strokeWidth'>;
 
-export function LipsGlyph({ className, strokeWidth = 2 }: GlyphProps) {
+function NounProjectGlyph({ className, source }: GlyphProps & { source: string }) {
+  const maskImage = `url(${source})`;
+
   return (
-    <svg
+    <span
       aria-hidden="true"
       className={className}
-      fill="none"
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth={strokeWidth}
-      viewBox="0 0 24 24"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      {/* Upper lip: two peaks of the cupid's bow meeting at a centre dip, then
-          down to the corners. Lower lip: one fuller curve back. */}
-      <path d="M12 9.8 10.2 7.9C8.9 6.6 7.4 6.7 5.9 8L2.8 10.6" />
-      <path d="M12 9.8 13.8 7.9c1.3-1.3 2.8-1.2 4.3.1l3.1 2.6" />
-      <path d="M2.8 10.6h18.4" />
-      <path d="M2.8 10.6c1.8 4.4 4.8 6.6 9.2 6.6s7.4-2.2 9.2-6.6" />
-    </svg>
+      style={{
+        backgroundColor: 'currentColor',
+        maskImage,
+        maskPosition: 'center',
+        maskRepeat: 'no-repeat',
+        maskSize: 'contain',
+        WebkitMaskImage: maskImage,
+        WebkitMaskPosition: 'center',
+        WebkitMaskRepeat: 'no-repeat',
+        WebkitMaskSize: 'contain',
+      }}
+    />
   );
 }
+/** Exact Lips icon 5754351 by zafdesign from Noun Project. */
+export function LipsGlyph(props: GlyphProps) {
+  return <NounProjectGlyph {...props} source={lips5754351} />;
+}
 
-export function TongueGlyph({ className, strokeWidth = 2 }: GlyphProps) {
-  return (
-    <svg
-      aria-hidden="true"
-      className={className}
-      fill="none"
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth={strokeWidth}
-      viewBox="0 0 24 24"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      {/* An open mouth with the tongue out: gooning rather than a lightning bolt. */}
-      <path d="M3.4 8.6c2.4-2.4 4.8-2.6 7-0.6l1.6 1.4 1.6-1.4c2.2-2 4.6-1.8 7 0.6" />
-      <path d="M3.4 8.6c0 4.4 2.6 7.4 6 8.2" />
-      <path d="M20.6 8.6c0 4.4-2.6 7.4-6 8.2" />
-      <path d="M9.4 12.6h5.2v4.4a2.6 2.6 0 0 1-5.2 0z" />
-    </svg>
-  );
+/** Exact nipple icon 7851008 by Heztasia from Noun Project. */
+export function NippleGlyph(props: GlyphProps) {
+  return <NounProjectGlyph {...props} source={nipple7851008} />;
+}
+
+/** Exact Sex icon 1075251 by sobinsergey from Noun Project. */
+export function PenetrationGlyph(props: GlyphProps) {
+  return <NounProjectGlyph {...props} source={sex1075251} />;
+}
+
+/** Exact peach icon 960664 by Blair Adams from Noun Project. */
+export function AnalGlyph(props: GlyphProps) {
+  return <NounProjectGlyph {...props} source={peach960664} />;
+}
+
+/** Exact rim icon 5420384 by Muh zakaria from Noun Project. */
+export function RimmingGlyph(props: GlyphProps) {
+  return <NounProjectGlyph {...props} source={rim5420384} />;
+}
+
+/** Exact Zany Face icon 3459803 by Hamed Mirhashemi from Noun Project. */
+export function GooningGlyph(props: GlyphProps) {
+  return <NounProjectGlyph {...props} source={zanyFace3459803} />;
+}
+
+/** Exact leather icon 3553564 by Gregor Cresnar from Noun Project. */
+export function LeatherGlyph(props: GlyphProps) {
+  return <NounProjectGlyph {...props} source={leather3553564} />;
+}
+
+/** Exact Condom icon 7796808 by Rikas Dzihab from Noun Project. */
+export function RubberGlyph(props: GlyphProps) {
+  return <NounProjectGlyph {...props} source={condom7796808} />;
 }
 
 export function StraightEdgeGlyph({ className, strokeWidth = 2 }: GlyphProps) {

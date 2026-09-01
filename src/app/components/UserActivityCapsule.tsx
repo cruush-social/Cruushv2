@@ -1,0 +1,105 @@
+import type { KeyboardEvent, ReactNode } from 'react';
+import type { SideBadges } from '../lib/profileApi';
+import SideBadgePair, { type SideBadgeTone } from './SideBadgePair';
+
+export type UserActivityCapsuleProps = {
+  heart: ReactNode;
+  sideBadges?: SideBadges | null;
+  sideBadgeTone?: SideBadgeTone;
+  heartActions?: ReactNode;
+  name: ReactNode;
+  pronouns?: ReactNode;
+  identityAdornment?: ReactNode;
+  metadata?: ReactNode;
+  actions?: ReactNode;
+  mutual?: boolean;
+  content?: ReactNode;
+  cornerAction?: ReactNode;
+  onOpenIdentity?: () => void;
+  identityDisabled?: boolean;
+  onSelect?: () => void;
+  selected?: boolean;
+  selectLabel?: string;
+  className?: string;
+  testId?: string;
+};
+
+/** Shared person-list capsule for Cruushes, Messages, and Feed. */
+export default function UserActivityCapsule({
+  heart,
+  sideBadges,
+  heartActions,
+  name,
+  pronouns,
+  identityAdornment,
+  metadata,
+  actions,
+  mutual = false,
+  sideBadgeTone = mutual ? 'mutual' : 'nearby',
+  content,
+  cornerAction,
+  onOpenIdentity,
+  identityDisabled = false,
+  onSelect,
+  selected = false,
+  selectLabel,
+  className,
+  testId = 'user-activity-capsule',
+}: UserActivityCapsuleProps) {
+  const identity = (
+    <div className="cruush-user-activity-identity flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5 pr-9">
+      <span className="cruush-user-activity-name min-w-0 break-words text-base text-white">{name}</span>
+      {pronouns ? <span className="cruush-user-activity-pronouns shrink-0 text-sm text-white/62">{pronouns}</span> : null}
+      {identityAdornment}
+    </div>
+  );
+
+  const handleSelectKeyDown = (event: KeyboardEvent<HTMLElement>) => {
+    if (event.target !== event.currentTarget || !onSelect || (event.key !== 'Enter' && event.key !== ' ')) return;
+    event.preventDefault();
+    onSelect();
+  };
+
+  return (
+    <div className="cruush-user-activity-shell w-full">
+      <article
+        aria-label={onSelect ? selectLabel : undefined}
+        aria-pressed={onSelect ? selected : undefined}
+        className={`cruush-user-activity-capsule relative grid w-full items-center border bg-card/70 text-left shadow-[0_12px_32px_rgba(0,0,0,0.24)] transition-colors ${selected ? 'border-[#8B5CF6] bg-[#8B5CF6]/18' : 'border-white/10 hover:bg-white/[0.06]'} ${onSelect ? 'cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8B5CF6]/70' : ''} ${className ?? ''}`}
+        data-testid={testId}
+        onClick={onSelect}
+        onKeyDown={handleSelectKeyDown}
+        role={onSelect ? 'button' : undefined}
+        tabIndex={onSelect ? 0 : undefined}
+      >
+      <div className="cruush-user-activity-heart row-span-4 flex flex-col items-center self-start">
+        {heart}
+        <SideBadgePair badges={sideBadges} tone={sideBadgeTone} />
+        {heartActions}
+      </div>
+
+      {onOpenIdentity ? (
+        <button
+          type="button"
+          className="col-start-2 col-end-4 min-w-0 text-left"
+          disabled={identityDisabled}
+          onClick={(event) => {
+            if (onSelect) event.stopPropagation();
+            onOpenIdentity();
+          }}
+        >
+          {identity}
+        </button>
+      ) : (
+        <div className="col-start-2 col-end-4 min-w-0">{identity}</div>
+      )}
+
+      {metadata ? <div className="cruush-user-activity-metadata col-start-2 min-w-0 self-center">{metadata}</div> : null}
+      {actions ? <div className="cruush-user-activity-actions col-start-3 row-start-2 self-center">{actions}</div> : null}
+
+      {content ? <div className="cruush-user-activity-content col-start-2 col-end-4 min-w-0">{content}</div> : null}
+      {cornerAction ? <div className="absolute right-3 top-3">{cornerAction}</div> : null}
+      </article>
+    </div>
+  );
+}

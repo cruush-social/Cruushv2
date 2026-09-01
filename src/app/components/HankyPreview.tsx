@@ -24,11 +24,6 @@ export default function HankyPreview() {
       </header>
 
       <main className="mx-auto w-full max-w-2xl space-y-4 px-4 py-4">
-        <p className="text-sm text-white/62">
-          Large, at control size, and in the badge chip. The hanky carries no icon: the colour is
-          the whole message.
-        </p>
-
         {HANKY_COLORS.map((hanky) => (
           <section
             className="flex items-center gap-4 rounded-2xl border border-white/10 bg-black/45 p-4"
@@ -36,12 +31,7 @@ export default function HankyPreview() {
           >
             <HankyFrame className="h-14 w-14 shrink-0" color={hanky.color} />
             <HankyFrame className="h-8 w-8 shrink-0" color={hanky.color} />
-            <span
-              className="flex h-[1.5625rem] w-[1.5625rem] shrink-0 items-center justify-center overflow-hidden rounded-full bg-black/86"
-              style={{ border: '3.2px solid #004BFF' }}
-            >
-              <HankyFrame className="h-full w-full" color={hanky.color} />
-            </span>
+            <HankyFrame className="h-[1.5625rem] w-[1.5625rem] shrink-0" color={hanky.color} />
             <div className="min-w-0">
               <p className="truncate text-sm text-white">{hanky.label}</p>
               <p className="truncate text-xs text-white/55">{hanky.meaning}</p>

@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
+import { isWithinBetaLaunchArea } from "../beta-access.js";
 import { requireCruushPlus } from "../billing.js";
 import { runTransaction } from "../db.js";
 import { ApiError } from "../errors.js";
@@ -11,6 +12,7 @@ import {
 import {
   buildRevokeActionToken,
   GHOST_RADIUS_OPTIONS,
+  GHOST_ROTATION_MINUTES,
   issueBrowserDisplayKey,
   loadVisibilityPolicy,
   normalizeVisibilityPolicy,
@@ -41,11 +43,12 @@ import {
   setTravelPin
 } from "../travel-pins.js";
 import {
-  DEFAULT_MAP_PRESENCE_DAYS,
-  MAX_MAP_PRESENCE_DAYS,
-  MIN_MAP_PRESENCE_DAYS,
-  normalizeMapPresenceDays
+  DEFAULT_MAP_PRESENCE_HOURS,
+  MAX_MAP_PRESENCE_HOURS,
+  MIN_MAP_PRESENCE_HOURS,
+  normalizeMapPresenceHours
 } from "../map-presence.js";
+import { NYC_SERVICE_AREA } from "../service-area.js";
 
 type AuditProfileRow = {
   id: string;
@@ -67,7 +70,7 @@ const crowdPrecisionPolicySchema = z.object({
 }).strip();
 
 const mapPresencePayloadSchema = z.object({
-  days: z.coerce.number().int().min(MIN_MAP_PRESENCE_DAYS).max(MAX_MAP_PRESENCE_DAYS)
+  hours: z.coerce.number().int().min(MIN_MAP_PRESENCE_HOURS).max(MAX_MAP_PRESENCE_HOURS)
 }).strict();
 
 const ghostPulsePayloadSchema = z.object({
@@ -81,6 +84,7 @@ const ghostModePayloadSchema = z.object({
   radiusLabel: z.string().optional(),
   ghostRadiusLabel: z.string().optional(),
   ghostRadiusMeters: z.number().int().optional(),
+  ghostRotationMinutes: z.number().int().refine((value) => GHOST_ROTATION_MINUTES.includes(value), "Ghost rotation interval is unsupported.").optional(),
   preciseToMutualCruushes: z.boolean().optional(),
   preciseLocationVisibility: z.enum(["none", "mutual_cruushes"]).optional(),
   preciseToMutualCrowds: z.array(crowdPrecisionPolicySchema).max(3).optional(),
@@ -104,6 +108,99 @@ const travelPinPayloadSchema = z.object({
   longitude: z.number().min(-180).max(180),
   label: z.string().trim().max(TRAVEL_LABEL_MAX_LENGTH).optional()
 }).strict();
+
+const travelAddressPayloadSchema = z.object({
+  query: z.string().trim().min(3).max(200)
+}).strict();
+
+type TravelAddressResult = {
+  latitude: number;
+  longitude: number;
+  label: string;
+  attribution: string;
+};
+
+const TRAVEL_ADDRESS_CACHE_MS = 7 * 24 * 60 * 60 * 1000;
+const TRAVEL_ADDRESS_REQUEST_INTERVAL_MS = 1100;
+const travelAddressCache = new Map<string, { expiresAtMs: number; result: TravelAddressResult | null }>();
+let travelAddressQueue: Promise<void> = Promise.resolve();
+let nextTravelAddressRequestAtMs = 0;
+
+function compactAddressLabel(value: string) {
+  const parts = value.split(",").map((part) => part.trim()).filter(Boolean);
+  const compact = parts.slice(0, 3).join(", ");
+  return (compact || value).slice(0, TRAVEL_LABEL_MAX_LENGTH);
+}
+
+async function searchTravelAddress(query: string): Promise<TravelAddressResult | null> {
+  const cacheKey = query.trim().toLowerCase().replace(/\s+/g, " ");
+  const cached = travelAddressCache.get(cacheKey);
+  if (cached && cached.expiresAtMs > Date.now()) {
+    return cached.result;
+  }
+
+  let releaseQueue: () => void = () => undefined;
+  const previousRequest = travelAddressQueue;
+  travelAddressQueue = new Promise<void>((resolve) => {
+    releaseQueue = resolve;
+  });
+  await previousRequest;
+
+  try {
+    const waitMs = Math.max(0, nextTravelAddressRequestAtMs - Date.now());
+    if (waitMs > 0) {
+      await new Promise((resolve) => setTimeout(resolve, waitMs));
+    }
+    nextTravelAddressRequestAtMs = Date.now() + TRAVEL_ADDRESS_REQUEST_INTERVAL_MS;
+
+    const latitudeRadius = NYC_SERVICE_AREA.radiusMiles / 69;
+    const longitudeRadius = NYC_SERVICE_AREA.radiusMiles
+      / (69 * Math.cos(NYC_SERVICE_AREA.center.lat * Math.PI / 180));
+    const url = new URL("https://nominatim.openstreetmap.org/search");
+    url.searchParams.set("q", query);
+    url.searchParams.set("format", "jsonv2");
+    url.searchParams.set("limit", "5");
+    url.searchParams.set("countrycodes", "us");
+    url.searchParams.set("bounded", "1");
+    url.searchParams.set("viewbox", [
+      NYC_SERVICE_AREA.center.lng - longitudeRadius,
+      NYC_SERVICE_AREA.center.lat + latitudeRadius,
+      NYC_SERVICE_AREA.center.lng + longitudeRadius,
+      NYC_SERVICE_AREA.center.lat - latitudeRadius
+    ].join(","));
+
+    const response = await fetch(url, {
+      headers: {
+        accept: "application/json",
+        "user-agent": "cruush/1.6 (https://cruush.app/help)"
+      },
+      signal: AbortSignal.timeout(6000)
+    });
+    if (!response.ok) {
+      throw new ApiError(502, "ADDRESS_LOOKUP_FAILED", "Address search is temporarily unavailable.");
+    }
+
+    const candidates = await response.json() as Array<{ display_name?: unknown; lat?: unknown; lon?: unknown }>;
+    const match = Array.isArray(candidates) ? candidates.find((candidate) => {
+      const latitude = Number(candidate.lat);
+      const longitude = Number(candidate.lon);
+      return Number.isFinite(latitude)
+        && Number.isFinite(longitude)
+        && isWithinBetaLaunchArea({ lat: latitude, lng: longitude });
+    }) : undefined;
+    const result = match ? {
+      latitude: Number(match.lat),
+      longitude: Number(match.lon),
+      label: compactAddressLabel(typeof match.display_name === "string" ? match.display_name : query),
+      attribution: "© OpenStreetMap contributors"
+    } : null;
+
+    travelAddressCache.set(cacheKey, { expiresAtMs: Date.now() + TRAVEL_ADDRESS_CACHE_MS, result });
+    return result;
+  } finally {
+    releaseQueue();
+  }
+}
 
 const revokePayloadSchema = z.object({
   revoke_action_token: z.string().min(1)
@@ -274,7 +371,7 @@ export async function registerPrivacyRoutes(app: FastifyInstance) {
     }
 
     // A borrowed location and an unseen viewer is the one pair we do not allow.
-    // Travel Mode already lets somebody stand where they are not; letting them
+    // Mile High Club already lets somebody stand where they are not; letting them
     // do it unseen as well is the exact shape a creep needs. Enforced here
     // rather than only in the interface, because the interface is not a lock.
     if (baseMode === "STEALTH" && await loadTravelPinForMode(app, userId)) {
@@ -288,6 +385,7 @@ export async function registerPrivacyRoutes(app: FastifyInstance) {
       baseMode,
       ghostModeEnabled: baseMode === "GHOST",
       ghostRadiusMeters: payload.ghostRadiusMeters ?? radiusMetersForLabel(radiusLabel),
+      ghostRotationMinutes: payload.ghostRotationMinutes,
       preciseToMutualCruushes,
       preciseToMutualCrowds,
       darkRoomDistanceLabel: payload.darkRoomDistanceLabel === true,
@@ -314,18 +412,18 @@ export async function registerPrivacyRoutes(app: FastifyInstance) {
 
   app.get("/api/privacy/map-presence", async (request, reply) => {
     const userId = await getAuthenticatedUserId(request);
-    const result = await app.db.query<{ map_presence_days: number | null }>(
-      `select map_presence_days
+    const result = await app.db.query<{ map_presence_hours: number | null }>(
+      `select coalesce(map_presence_hours, map_presence_days * 24, $2) as map_presence_hours
        from user_privacy_settings
        where user_id = $1`,
-      [userId]
+      [userId, DEFAULT_MAP_PRESENCE_HOURS]
     );
 
     return reply.send({
       data: {
-        days: normalizeMapPresenceDays(result.rows[0]?.map_presence_days ?? DEFAULT_MAP_PRESENCE_DAYS),
-        minDays: MIN_MAP_PRESENCE_DAYS,
-        maxDays: MAX_MAP_PRESENCE_DAYS
+        hours: normalizeMapPresenceHours(result.rows[0]?.map_presence_hours ?? DEFAULT_MAP_PRESENCE_HOURS),
+        minHours: MIN_MAP_PRESENCE_HOURS,
+        maxHours: MAX_MAP_PRESENCE_HOURS
       }
     });
   });
@@ -333,21 +431,22 @@ export async function registerPrivacyRoutes(app: FastifyInstance) {
   app.put("/api/privacy/map-presence", async (request, reply) => {
     const userId = await getActiveAccountUserId(request);
     const payload = mapPresencePayloadSchema.parse(request.body);
-    const result = await app.db.query<{ map_presence_days: number | null }>(
-      `insert into user_privacy_settings (user_id, map_presence_days)
-       values ($1, $2)
+    const result = await app.db.query<{ map_presence_hours: number | null }>(
+      `insert into user_privacy_settings (user_id, map_presence_hours, map_presence_days)
+       values ($1, $2, greatest(1, ceil($2 / 24.0))::integer)
        on conflict (user_id) do update
-       set map_presence_days = excluded.map_presence_days,
+       set map_presence_hours = excluded.map_presence_hours,
+           map_presence_days = excluded.map_presence_days,
            updated_at = now()
-       returning map_presence_days`,
-      [userId, payload.days]
+       returning map_presence_hours`,
+      [userId, payload.hours]
     );
 
     return reply.send({
       data: {
-        days: normalizeMapPresenceDays(result.rows[0]?.map_presence_days ?? payload.days),
-        minDays: MIN_MAP_PRESENCE_DAYS,
-        maxDays: MAX_MAP_PRESENCE_DAYS
+        hours: normalizeMapPresenceHours(result.rows[0]?.map_presence_hours ?? payload.hours),
+        minHours: MIN_MAP_PRESENCE_HOURS,
+        maxHours: MAX_MAP_PRESENCE_HOURS
       }
     });
   });
@@ -395,11 +494,24 @@ export async function registerPrivacyRoutes(app: FastifyInstance) {
     return reply.send({ data: { pin } });
   });
 
+  app.post("/api/privacy/travel/geocode", async (request, reply) => {
+    const userId = await getAuthenticatedUserId(request);
+    const payload = travelAddressPayloadSchema.parse(request.body);
+    await app.rateLimiter.assert({
+      key: `travel-address-search:${userId}`,
+      max: 20,
+      windowMs: 60 * 60 * 1000,
+      message: "Too many address searches. Try again later."
+    });
+
+    return reply.send({ data: { result: await searchTravelAddress(payload.query) } });
+  });
+
   app.put("/api/privacy/travel", async (request, reply) => {
     const userId = await getActiveAccountUserId(request);
     const payload = travelPinPayloadSchema.parse(request.body);
 
-    // Travel Mode is a cruush+ feature. Everybody gets a day of cruush+ when
+    // Mile High Club is a cruush+ feature. Everybody gets a day of cruush+ when
     // they join, and there are other ways to earn it, so this is a wall with a
     // door in it rather than a wall.
     await requireCruushPlus(app, userId, "Mile High Club is part of cruush+.");

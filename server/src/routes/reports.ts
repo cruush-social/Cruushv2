@@ -14,6 +14,8 @@ type ReportTarget = {
   postId: string | null;
   mediaObjectId: string | null;
   profilePhotoUrl: string | null;
+  placeId?: string | null;
+  placeMessageId?: string | null;
 };
 
 type ReportRow = {
@@ -245,6 +247,27 @@ async function validateProfilePhotoReport(app: FastifyInstance, reporterUserId: 
   };
 }
 
+async function validatePlaceReport(app: FastifyInstance, payload: CreateReportPayload): Promise<ReportTarget> {
+  const placeId = payload.placeId ?? payload.targetId ?? null;
+  if (!placeId) throw new ApiError(400, "VALIDATION_ERROR", "Spot reports require placeId.");
+  const row = (await app.db.query<{ id: string }>(`select id::text from places where id = $1 and status <> 'archived' limit 1`, [placeId])).rows[0];
+  if (!row) throw new ApiError(404, "NOT_FOUND", "Spot not found.");
+  return { targetUserId: null, conversationId: null, messageId: null, postId: null, mediaObjectId: null, profilePhotoUrl: null, placeId: row.id, placeMessageId: null };
+}
+
+async function validatePlaceMessageReport(app: FastifyInstance, reporterUserId: string, payload: CreateReportPayload): Promise<ReportTarget> {
+  const placeMessageId = payload.placeMessageId ?? payload.targetId ?? null;
+  if (!placeMessageId) throw new ApiError(400, "VALIDATION_ERROR", "Spot-message reports require placeMessageId.");
+  const row = (await app.db.query<{ id: string; place_id: string; target_user_id: string }>(
+    `select m.id::text, m.place_id::text, m.user_id::text as target_user_id
+     from place_board_messages m where m.id = $1 and m.expires_at > now() limit 1`,
+    [placeMessageId]
+  )).rows[0];
+  if (!row) throw new ApiError(404, "NOT_FOUND", "Spot message not found.");
+  if (row.target_user_id === reporterUserId) throw new ApiError(400, "VALIDATION_ERROR", "Choose another place message to report.");
+  return { targetUserId: row.target_user_id, conversationId: null, messageId: null, postId: null, mediaObjectId: null, profilePhotoUrl: null, placeId: row.place_id, placeMessageId: row.id };
+}
+
 async function validateReportTarget(app: FastifyInstance, reporterUserId: string, payload: CreateReportPayload) {
   if (payload.targetType === "user") {
     return validateUserReport(app, reporterUserId, payload);
@@ -264,6 +287,14 @@ async function validateReportTarget(app: FastifyInstance, reporterUserId: string
 
   if (payload.targetType === "profile_photo") {
     return validateProfilePhotoReport(app, reporterUserId, payload);
+  }
+
+  if (payload.targetType === "place") {
+    return validatePlaceReport(app, payload);
+  }
+
+  if (payload.targetType === "place_message") {
+    return validatePlaceMessageReport(app, reporterUserId, payload);
   }
 
   return validateMessageReport(app, reporterUserId, payload);
@@ -293,6 +324,8 @@ export async function registerReportRoutes(app: FastifyInstance) {
          post_id,
          media_object_id,
          profile_photo_url,
+         place_id,
+         place_board_message_id,
          reason,
          details,
          report_weight
@@ -308,6 +341,8 @@ export async function registerReportRoutes(app: FastifyInstance) {
          $8,
          $9,
          $10,
+         $11,
+         $12,
          coalesce((select report_weight from user_trust_profiles where user_id = $1), 50)
        )
        returning id::text as id, status, created_at`,
@@ -320,6 +355,8 @@ export async function registerReportRoutes(app: FastifyInstance) {
         target.postId,
         target.mediaObjectId,
         target.profilePhotoUrl,
+        target.placeId ?? null,
+        target.placeMessageId ?? null,
         payload.reason,
         payload.details
       ]
@@ -341,7 +378,9 @@ export async function registerReportRoutes(app: FastifyInstance) {
         messageId: target.messageId,
         postId: target.postId,
         mediaObjectId: target.mediaObjectId,
-        profilePhotoUrl: target.profilePhotoUrl
+        profilePhotoUrl: target.profilePhotoUrl,
+        placeId: target.placeId ?? null,
+        placeMessageId: target.placeMessageId ?? null
       }, db);
 
       await db.query(
@@ -430,6 +469,8 @@ export async function registerReportRoutes(app: FastifyInstance) {
           postId: target.postId,
           mediaObjectId: target.mediaObjectId,
           profilePhotoUrl: target.profilePhotoUrl,
+          placeId: target.placeId ?? null,
+          placeMessageId: target.placeMessageId ?? null,
           reason: payload.reason,
           details: payload.details
         }

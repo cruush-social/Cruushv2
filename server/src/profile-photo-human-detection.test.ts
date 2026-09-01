@@ -135,7 +135,7 @@ describe("image child-face and profile-photo human detection", () => {
     });
   });
 
-  it("rejects profile photos without a Person signal or visible face", () => {
+  it("allows gear-only profile photos without a Person signal or visible face", () => {
     expect(classifyProfilePhotoSafety({
       Labels: [{ Name: "Landscape", Confidence: 99 }],
       $metadata: { requestId: "rekognition-landscape" }
@@ -143,7 +143,7 @@ describe("image child-face and profile-photo human detection", () => {
       FaceDetails: [],
       $metadata: { requestId: "rekognition-no-faces" }
     }, null, config)).toMatchObject({
-      recommended_action: "remove",
+      recommended_action: "keep",
       labels: [{ normalized_label: "profile_photo_not_adult_human" }],
       raw_result: { outcome: "human_not_detected" }
     });

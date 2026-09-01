@@ -1,3 +1,8 @@
+import pillowPrincessRaster from '../assets/ui-icons/pillow-princess-raster.png';
+import serviceRaster from '../assets/ui-icons/service-6745554.png';
+import stoneTopRaster from '../assets/ui-icons/stone-top-raster.png';
+import { DomEmblem, SubEmblem, SwitchEmblem } from './BdsmEmblems';
+
 /**
  * Marks for the two badges a basic account carries: the role on one side of the
  * heart and the position on the other.
@@ -29,6 +34,28 @@ function Glyph({ children, className, strokeWidth = 2 }: GlyphProps & { children
     >
       {children}
     </svg>
+  );
+}
+
+function NounProjectGlyph({ className, source }: GlyphProps & { source: string }) {
+  const maskImage = `url(${source})`;
+
+  return (
+    <span
+      aria-hidden="true"
+      className={className}
+      style={{
+        backgroundColor: 'currentColor',
+        maskImage,
+        maskPosition: 'center',
+        maskRepeat: 'no-repeat',
+        maskSize: 'contain',
+        WebkitMaskImage: maskImage,
+        WebkitMaskPosition: 'center',
+        WebkitMaskRepeat: 'no-repeat',
+        WebkitMaskSize: 'contain',
+      }}
+    />
   );
 }
 
@@ -97,72 +124,29 @@ export function SideGlyph(props: GlyphProps) {
 }
 
 export function StoneTopGlyph(props: GlyphProps) {
-  return (
-    <Glyph {...props}>
-      {/* Gives, and the line under it is the part that does not open. */}
-      <path d="M12 17V5.5" />
-      <path d="M6.5 11 12 5l5.5 6" />
-      <path d="M6 20.2h12" />
-    </Glyph>
-  );
+  return <NounProjectGlyph {...props} source={stoneTopRaster} />;
 }
 
 export function PillowPrincessGlyph(props: GlyphProps) {
-  return (
-    <Glyph {...props}>
-      {/* Takes, and is waited on: the arrow rests on a pillow. */}
-      <path d="M12 4v8.5" />
-      <path d="M8 9 12 13l4-4" />
-      <path d="M4.4 17.4c2.4-1.2 4.9-1.8 7.6-1.8s5.2.6 7.6 1.8c-2.4 1.4-4.9 2.1-7.6 2.1s-5.2-.7-7.6-2.1Z" />
-    </Glyph>
-  );
+  return <NounProjectGlyph {...props} source={pillowPrincessRaster} />;
 }
 
 /* Roles */
 
 export function DominantGlyph(props: GlyphProps) {
-  return (
-    <Glyph {...props}>
-      {/* Leading: the point is up and the weight sits above the line. */}
-      <path d="M12 4.6 19 16H5z" />
-      <path d="M6 20h12" />
-    </Glyph>
-  );
+  return <DomEmblem className={props.className} />;
 }
 
 export function SubmissiveGlyph(props: GlyphProps) {
-  return (
-    <Glyph {...props}>
-      {/* The same shape, inverted, with the line above it. */}
-      <path d="M12 19.4 5 8h14z" />
-      <path d="M6 4h12" />
-    </Glyph>
-  );
+  return <SubEmblem className={props.className} />;
 }
 
 export function SwitchGlyph(props: GlyphProps) {
-  return (
-    <Glyph {...props}>
-      {/* Turns between the two rather than sitting in one. */}
-      <path d="M4.8 9.6A7.6 7.6 0 0 1 19 8.4" />
-      <path d="M19.2 14.4A7.6 7.6 0 0 1 5 15.6" />
-      <path d="M15.6 4.8 19.4 8.6 15.6 12" />
-      <path d="M8.4 19.2 4.6 15.4 8.4 12" />
-    </Glyph>
-  );
+  return <SwitchEmblem className={props.className} />;
 }
 
 export function ServiceGlyph(props: GlyphProps) {
-  return (
-    <Glyph {...props}>
-      {/* An open hand, held out. Service is offered, not taken. */}
-      <path d="M4.6 13.4c3.4-2 6.1-3 8.2-3 2.1 0 4.1.4 6.1 1.1" />
-      <path d="M4.6 13.4c1 3.6 3.6 5.4 7.6 5.4 3.6 0 6.2-1.6 7.5-4.8" />
-      <path d="M9 10.6V6.4" />
-      <path d="M12.6 10.4V5.2" />
-      <path d="M16 11V7.2" />
-    </Glyph>
-  );
+  return <NounProjectGlyph {...props} source={serviceRaster} />;
 }
 
 export const POSITION_GLYPHS: Record<string, (props: GlyphProps) => JSX.Element> = {

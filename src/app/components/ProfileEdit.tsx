@@ -1,8 +1,8 @@
 import type { ChangeEvent, PointerEvent } from 'react';
 import { SIGNAL_MAX_LENGTH } from '../lib/profileLimits';
-import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router';
-import { ArrowLeft, Eye, RotateCcw, RotateCw, Star, Trash2, Upload } from 'lucide-react';
+import { lazy, Suspense, useState, useEffect, useRef } from 'react';
+import { useLocation, useNavigate } from 'react-router';
+import { ArrowLeft, Eye, RotateCcw, RotateCw, Star, Trash2, Upload, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { Checkbox } from './ui/checkbox';
 import { Input } from './ui/input';
@@ -11,7 +11,6 @@ import { Switch } from './ui/switch';
 import { Textarea } from './ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { getMyBillingStatus } from '../lib/billingApi';
-import ProfileBadgesTab from './ProfileBadgesTab';
 import MultiSelect from './MultiSelect';
 import {
   emptyProfilePayload,
@@ -66,6 +65,7 @@ import {
 } from '../lib/profileOptions';
 
 const MAX_PROFILE_PHOTOS = 4;
+const BadgePickerPreview = lazy(() => import('./BadgePickerPreview'));
 const MAX_PROFILE_GROUP_SELECTIONS = 3;
 const MAX_PROFILE_VIBES = 3;
 const MAX_PROFILE_HOBBIES = 3;
@@ -232,16 +232,18 @@ export function getPhotoUploadRejectedMessage(uploadError: unknown) {
   return uploadError instanceof Error ? uploadError.message : 'Failed to upload profile photo.';
 }
 
-function ProfilePhotoCropper({
+export function ProfilePhotoCropper({
   onCancel,
   onConfirm,
   processing,
   sourceUrl,
+  subjectLabel,
 }: {
   onCancel: () => void;
   onConfirm: (file: File) => Promise<void>;
   processing: boolean;
   sourceUrl: string;
+  subjectLabel?: string;
 }) {
   const imageRef = useRef<HTMLImageElement | null>(null);
   const dragRef = useRef<{ x: number; y: number } | null>(null);
@@ -344,7 +346,7 @@ function ProfilePhotoCropper({
 
   return (
     <div
-      aria-label="Crop profile photo"
+      aria-label={subjectLabel ? `Crop ${subjectLabel}` : 'Crop profile photo'}
       aria-modal="true"
       className="fixed inset-0 z-[120] flex items-center justify-center bg-black/78 p-4 backdrop-blur-md"
       role="dialog"
@@ -359,7 +361,7 @@ function ProfilePhotoCropper({
         >
           <img
             ref={imageRef}
-            alt="Profile crop preview"
+            alt={subjectLabel ? `${subjectLabel} crop preview` : 'Profile crop preview'}
             className="h-full w-full select-none object-cover"
             draggable={false}
             onError={() => {
@@ -393,7 +395,7 @@ function ProfilePhotoCropper({
           <div className="space-y-2">
             <Label htmlFor="profile-photo-zoom">Zoom</Label>
             <input
-              aria-label="Zoom profile photo"
+              aria-label={subjectLabel ? `Zoom ${subjectLabel}` : 'Zoom profile photo'}
               className="cruush-range"
               id="profile-photo-zoom"
               max="2.5"
@@ -402,6 +404,24 @@ function ProfilePhotoCropper({
               step="0.05"
               type="range"
               value={zoom}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-3">
+              <Label htmlFor="profile-photo-rotation">Rotation</Label>
+              <span className="text-xs text-muted-foreground" aria-live="polite">{rotation}°</span>
+            </div>
+            <input
+              aria-label="Rotate photo"
+              className="cruush-range"
+              id="profile-photo-rotation"
+              max="180"
+              min="-180"
+              onChange={(event) => setRotation(Number(event.target.value))}
+              step="1"
+              type="range"
+              value={rotation}
             />
           </div>
 
@@ -560,6 +580,8 @@ interface ProfileEditProps {
 
 export default function ProfileEdit({ embedded = false, onCancel, onSaved }: ProfileEditProps = {}) {
   const navigate = useNavigate();
+  const location = useLocation();
+  const requestedProfileSection = (location.state as { profileSection?: 'vibes' | 'kinks' } | null)?.profileSection;
   const distancePreferences = useDistancePreferences();
   const [profile, setProfile] = useState<ProfilePayload>(emptyProfilePayload);
   const [loading, setLoading] = useState(true);
@@ -569,11 +591,27 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
   const [photoUploadError, setPhotoUploadError] = useState<string | null>(null);
   const [photoUploadNotice, setPhotoUploadNotice] = useState<string | null>(null);
   const [profilePhotoUploadsAvailable, setProfilePhotoUploadsAvailable] = useState<boolean | null>(null);
-  const [activeTab, setActiveTab] = useState('basics');
+  const [activeTab, setActiveTab] = useState(requestedProfileSection === 'kinks' ? 'intimacy' : 'basics');
+  const badgeExitGuardRef = useRef<(() => Promise<boolean>) | null>(null);
+  const badgeSaveRef = useRef<(() => Promise<boolean>) | null>(null);
+  const [badgeDirty, setBadgeDirty] = useState(false);
+  const [badgeSaveState, setBadgeSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [pendingPhoto, setPendingPhoto] = useState<PendingProfilePhoto | null>(null);
   const [dlModeActive, setDlModeActive] = useState(() => isDlModeEnabled());
   const photoPreviewRequestRef = useRef(0);
   const profileSaveRequestRef = useRef(0);
+
+  useEffect(() => {
+    if (loading || !requestedProfileSection) {
+      return undefined;
+    }
+
+    const frame = window.requestAnimationFrame(() => {
+      document.getElementById(`profile-${requestedProfileSection}`)?.scrollIntoView({ block: 'center' });
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [loading, requestedProfileSection]);
 
   const applySavedProfile = (savedProfile: ProfileRecord) => {
     const loadedProfile = {
@@ -920,12 +958,43 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
     void persistProfilePhotoEdit(nextProfile);
   };
 
-  const handleCancel = () => {
+  const handleCancel = async () => {
+    if (activeTab === 'badges' && badgeExitGuardRef.current && !(await badgeExitGuardRef.current())) {
+      return;
+    }
+
     if (embedded) {
       onCancel?.();
     } else {
       navigate(-1);
     }
+  };
+
+  const handleTabChange = (nextTab: string) => {
+    if (nextTab === 'badges' && !cruushPlus) {
+      navigate('/cruush-plus');
+      return;
+    }
+
+    if (activeTab === 'badges' && nextTab !== 'badges' && badgeExitGuardRef.current) {
+      void badgeExitGuardRef.current().then((canLeave) => {
+        if (canLeave) {
+          setActiveTab(nextTab);
+        }
+      });
+      return;
+    }
+
+    setActiveTab(nextTab);
+  };
+
+  const handleHeaderSave = () => {
+    if (activeTab === 'badges') {
+      void badgeSaveRef.current?.();
+      return;
+    }
+
+    void handleSave();
   };
 
   if (loading) {
@@ -983,20 +1052,29 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
   return (
     <div className={embedded ? 'bg-transparent pb-0' : 'min-h-screen bg-background pb-20'}>
       <header className={`${embedded ? 'top-0 border-white/10 bg-black/85 text-white' : 'top-0 border-border bg-card/80'} sticky z-10 flex items-center justify-between border-b p-4 backdrop-blur-sm`}>
-        <Button variant="ghost" size="icon" onClick={handleCancel} aria-label={embedded ? 'Back to profile preview' : 'Back'}>
-          <ArrowLeft className="w-5 h-5" />
-        </Button>
-        <h2 className="text-xl">Edit Profile</h2>
-        <Button
-          size="sm"
-          onClick={handleSave}
-          disabled={saving}
-          style={{
-            background: 'var(--cruush-gradient)',
-          }}
-        >
-          {saving ? 'Saving...' : 'Save'}
-        </Button>
+        <div className="flex min-w-0 items-center gap-2">
+          <Button variant="ghost" size="icon" onClick={() => void handleCancel()} aria-label={embedded ? 'Back to profile preview' : 'Back'}>
+            <ArrowLeft className="w-5 h-5" />
+          </Button>
+          <h2 className="truncate text-xl">Edit Profile</h2>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            onClick={handleHeaderSave}
+            disabled={activeTab === 'badges' ? badgeSaveState === 'saving' || !badgeDirty : saving}
+            style={{
+              background: 'var(--cruush-gradient)',
+            }}
+          >
+            {activeTab === 'badges' && badgeSaveState === 'saving' || activeTab !== 'badges' && saving ? 'Saving...' : 'Save'}
+          </Button>
+          {embedded ? (
+            <Button variant="ghost" size="icon" onClick={() => void handleCancel()} aria-label="Close Edit Profile">
+              <X className="h-5 w-5" />
+            </Button>
+          ) : null}
+        </div>
       </header>
 
       <div className={embedded ? 'px-5 py-5' : 'max-w-2xl mx-auto p-6'}>
@@ -1005,33 +1083,46 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
             {error}
           </div>
         ) : null}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
           <TabsList className="grid h-auto w-full grid-cols-5 rounded-full border border-white/10 bg-background/25 p-1">
-            <TabsTrigger value="photos" className="min-h-11" onClick={() => setActiveTab('photos')}>Photos</TabsTrigger>
+            <TabsTrigger value="photos" className="min-h-11" onClick={() => handleTabChange('photos')}>Photos</TabsTrigger>
             <TabsTrigger
               value="badges"
               className="min-h-11"
-              onClick={() => navigate(cruushPlus ? '/settings/badges' : '/cruush-plus')}
+              onClick={() => handleTabChange('badges')}
             >
               Badges
             </TabsTrigger>
-            <TabsTrigger value="basics" className="min-h-11" onClick={() => setActiveTab('basics')}>Basics</TabsTrigger>
-            <TabsTrigger value="intimacy" className="min-h-11" onClick={() => setActiveTab('intimacy')}>Intimacy</TabsTrigger>
-            <TabsTrigger value="health" className="min-h-11" onClick={() => setActiveTab('health')}>Health</TabsTrigger>
+            <TabsTrigger value="basics" className="min-h-11" onClick={() => handleTabChange('basics')}>Basics</TabsTrigger>
+            <TabsTrigger value="intimacy" className="min-h-11" onClick={() => handleTabChange('intimacy')}>Intimacy</TabsTrigger>
+            <TabsTrigger value="health" className="min-h-11" onClick={() => handleTabChange('health')}>Health</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="badges" className="space-y-4 mt-6">
-            <ProfileBadgesTab
-              cruushPlus={cruushPlus}
-              photo={normalizedProfile.photos?.[0] ?? null}
-              position={normalizedProfile.position ?? []}
-              role={normalizedProfile.role ?? []}
-            />
+          <TabsContent forceMount value="badges" className="mt-0 data-[state=inactive]:hidden">
+            <Suspense fallback={<p className="px-5 py-6 text-sm text-white/60">Loading...</p>}>
+              <BadgePickerPreview
+                embedded
+                onClose={() => handleTabChange('basics')}
+                onExitGuardReady={(guard) => {
+                  badgeExitGuardRef.current = guard;
+                }}
+                onDirtyChange={setBadgeDirty}
+                onSaveReady={(save) => {
+                  badgeSaveRef.current = save;
+                }}
+                onSaveStateChange={setBadgeSaveState}
+              />
+            </Suspense>
           </TabsContent>
 
           <TabsContent value="photos" className="space-y-4 mt-6">
-            <div className="rounded-md border border-border bg-card/70 p-3 text-sm text-muted-foreground">
-              profile photos may be SFW or NSFW, but they must only be of you. add at least one SFW photo if you want people browsing in DL Mode to still see you. you don't have to show your face.
+            <div className="rounded-md border border-border bg-card/70 p-3 text-xs leading-snug text-muted-foreground sm:text-sm">
+              <ul className="list-disc space-y-1 pl-5">
+                <li>Profile photos may be SFW or NSFW.</li>
+                <li>Use a photo of you or your gear.</li>
+                <li>Add at least one SFW photo if you want people browsing in DL Mode to still see you.</li>
+                <li>You don't have to show your face.</li>
+              </ul>
             </div>
             {photoUploadNotice ? (
               <div className="rounded-md border border-primary/30 bg-primary/10 p-3 text-sm text-foreground">
@@ -1156,6 +1247,17 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
               <p className="text-xs text-muted-foreground">This appears when someone hovers over your heart pin on the map.</p>
             </div>
 
+            <div className="space-y-2" id="profile-vibes">
+              <Label>Vibes</Label>
+              <MultiSelect
+                {...profileMenuProps}
+                ariaLabel="Vibes"
+                maxSelections={MAX_PROFILE_VIBES}
+                optionGroups={VIBE_GROUPS}
+                value={normalizedProfile.vibes}
+                onChange={(vals) => handleChange('vibes', limitToThree(vals))}
+              />
+            </div>
 
             <div className="space-y-2">
               <Label>Pronouns</Label>
@@ -1194,18 +1296,6 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
                 options={ZODIAC}
                 value={normalizedProfile.zodiac}
                 onChange={(vals) => handleChange('zodiac', vals.slice(-1))}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Vibes</Label>
-              <MultiSelect
-                {...profileMenuProps}
-                ariaLabel="Vibes"
-                maxSelections={MAX_PROFILE_VIBES}
-                optionGroups={VIBE_GROUPS}
-                value={normalizedProfile.vibes}
-                onChange={(vals) => handleChange('vibes', limitToThree(vals))}
               />
             </div>
 
@@ -1330,13 +1420,14 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
               <Label>Hosting/Travel</Label>
               <MultiSelect {...profileMenuProps} maxSelections={MAX_PROFILE_GROUP_SELECTIONS} options={HOSTING} value={normalizedProfile.hosting_travel} onChange={vals => handleChange('hosting_travel', limitToThree(vals))} />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-2" id="profile-kinks">
               <Label>Kinks & Fetishes</Label>
               <MultiSelect
                 {...profileMenuProps}
                 ariaLabel="Kinks & Fetishes"
                 maxSelections={MAX_PROFILE_KINKS}
                 optionGroups={KINK_GROUPS}
+                searchable
                 value={normalizedProfile.kinks}
                 onChange={handleKinksChange}
               />

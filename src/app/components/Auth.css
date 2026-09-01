@@ -214,43 +214,17 @@
     0 0.6rem 1.35rem rgba(0, 0, 0, 0.9),
     0 0 0.95rem rgba(255, 0, 114, 0.16),
     0 0 1.1rem rgba(17, 129, 255, 0.14);
-  animation: launch-login-auth-tagline-strobe 3.2s ease-in-out infinite;
+  transition: color 180ms ease, text-shadow 180ms ease;
 }
 
-@keyframes launch-login-auth-tagline-strobe {
-  0%,
-  100% {
-    color: rgba(255, 255, 255, 0.9);
-    text-shadow:
-      0 0.6rem 1.35rem rgba(0, 0, 0, 0.9),
-      0 0 0.95rem rgba(255, 0, 114, 0.16),
-      0 0 1.1rem rgba(17, 129, 255, 0.14);
-  }
-
-  6% {
-    color: #fff;
-    text-shadow:
-      0 0.6rem 1.35rem rgba(0, 0, 0, 0.9),
-      0 0 1.2rem rgba(255, 255, 255, 0.85),
-      0 0 2.4rem rgba(255, 255, 255, 0.5),
-      0 0 0.95rem rgba(255, 0, 114, 0.16),
-      0 0 1.1rem rgba(17, 129, 255, 0.14);
-  }
-
-  12%,
-  92% {
-    color: rgba(255, 255, 255, 0.9);
-    text-shadow:
-      0 0.6rem 1.35rem rgba(0, 0, 0, 0.9),
-      0 0 0.95rem rgba(255, 0, 114, 0.16),
-      0 0 1.1rem rgba(17, 129, 255, 0.14);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .launch-login-auth-tagline {
-    animation: none;
-  }
+.launch-login-auth-tagline:hover {
+  animation: none;
+  color: #fff;
+  text-shadow:
+    0 0.6rem 1.35rem rgba(0, 0, 0, 0.9),
+    0 0 0.75rem rgba(255, 255, 255, 0.98),
+    0 0 1.55rem rgba(255, 255, 255, 0.72),
+    0 0 2.8rem rgba(255, 255, 255, 0.42);
 }
 
 .launch-login-auth-tagline span {
@@ -275,7 +249,20 @@
     0 0 1.1rem rgba(255, 0, 114, 0.13),
     0 0 1.2rem rgba(17, 129, 255, 0.12);
   text-shadow: 0 0.35rem 0.85rem rgba(0, 0, 0, 0.88);
+  transition: border-color 180ms ease, box-shadow 180ms ease, color 180ms ease, text-shadow 180ms ease;
   white-space: nowrap;
+}
+
+.launch-login-auth-beta-capsule:hover {
+  border-color: rgba(255, 255, 255, 0.82);
+  color: #fff;
+  box-shadow:
+    0 0.55rem 1.25rem rgba(0, 0, 0, 0.55),
+    0 0 0.75rem rgba(255, 255, 255, 0.92),
+    0 0 1.7rem rgba(255, 255, 255, 0.52);
+  text-shadow:
+    0 0 0.55rem rgba(255, 255, 255, 0.95),
+    0 0 1.2rem rgba(255, 255, 255, 0.62);
 }
 
 .launch-login-auth-form {
@@ -559,6 +546,64 @@
   text-align: center;
 }
 
+.launch-login-auth-footer-accordion {
+  width: 100%;
+  max-width: 100%;
+  margin-inline: auto;
+}
+
+.launch-login-auth-footer-accordion > summary {
+  cursor: pointer;
+  list-style: none;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.launch-login-auth-footer-accordion > summary::-webkit-details-marker {
+  display: none;
+}
+
+.launch-login-auth-footer-accordion > summary::after {
+  content: ' +';
+}
+
+.launch-login-auth-footer-accordion[open] > summary::after {
+  content: ' −';
+}
+
+.launch-login-auth-footer-accordion-content {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem 1.5rem;
+  margin-top: 0.45rem;
+}
+
+.launch-login-auth-footer-policies {
+  flex-basis: 100%;
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 0.72rem;
+  line-height: 1.2;
+}
+
+.launch-login-auth-footer-policy-list {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.18rem 0.8rem;
+  margin-top: 0.25rem;
+}
+
+.launch-login-auth-footer-policies a {
+  color: rgba(255, 255, 255, 0.84);
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+
 .launch-login-auth-footer [aria-label="Legal and safety links"] {
   width: 100%;
   max-width: 100%;
@@ -588,6 +633,16 @@
   .launch-login-auth-footer [aria-label="Legal and safety links"] {
     flex-basis: 100%;
     text-align: center;
+  }
+
+  .launch-login-auth-footer-accordion-content {
+    gap: 0.3rem 2.25rem;
+  }
+
+  .launch-login-auth-footer-accordion-content .launch-login-auth-contact {
+    width: auto;
+    max-width: none;
+    margin-inline: 0;
   }
 }
 
@@ -1011,6 +1066,25 @@
     margin-bottom: max(0.08rem, env(safe-area-inset-bottom));
   }
 
+  .launch-login-auth-shell:has(.launch-login-auth-footer-accordion[open]) {
+    height: auto;
+    max-height: none;
+    min-height: 100vh;
+    min-height: 100dvh;
+    overflow-y: visible;
+  }
+
+  .launch-login-auth-footer-accordion[open] {
+    padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+  }
+
+  .launch-login-auth-footer-accordion-content {
+    align-items: stretch;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    gap: 0.45rem;
+  }
+
   .launch-login-auth-footer [aria-label="Legal and safety links"] {
     position: relative;
     left: auto;
@@ -1165,24 +1239,8 @@ html[data-cruush-high-contrast] .launch-login-auth-input::placeholder {
   }
 }
 
-/* The policies are offered to read at sign up rather than asked for a second
-   time, so they sit closed under one line instead of two checkboxes. */
-.launch-login-auth-policies > summary {
-  cursor: pointer;
-  list-style: none;
-  color: rgba(255, 255, 255, 0.82);
-}
-
-.launch-login-auth-policies > summary::-webkit-details-marker {
-  display: none;
-}
-
-.launch-login-auth-policies > summary::after {
-  content: '+';
-  margin-left: 0.4rem;
-  opacity: 0.6;
-}
-
-.launch-login-auth-policies[open] > summary::after {
-  content: '\2212';
+.launch-login-auth-consents a {
+  color: rgba(255, 255, 255, 0.92);
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }

@@ -81,10 +81,10 @@ function getCurrentPageUrl() {
 
 function getBugTipPlacement(pathname: string) {
   if (pathname === '/map' || pathname.startsWith('/map/')) {
-    return 'left-4 top-[calc(20.125rem+env(safe-area-inset-top))] sm:top-[calc(9.25rem+env(safe-area-inset-top))] fixed z-50';
+    return 'left-4 top-[calc(20.125rem+env(safe-area-inset-top))] sm:top-[calc(9.25rem+env(safe-area-inset-top))] fixed z-[1200]';
   }
 
-  return 'right-[calc(0.75rem+env(safe-area-inset-right))] top-[calc(4.5rem+env(safe-area-inset-top))] fixed z-50';
+  return 'right-[calc(0.75rem+env(safe-area-inset-right))] top-[calc(4.5rem+env(safe-area-inset-top))] fixed z-[1200]';
 }
 
 function waitForVideoMetadata(video: HTMLVideoElement) {
@@ -329,7 +329,7 @@ export default function AlphaBugButton({
       <button
         aria-label="Report alpha bug"
         data-testid="alpha-bug-button"
-        className="cruush-alpha-bug-button fixed right-[calc(0.75rem+env(safe-area-inset-right))] top-[calc(0.75rem+env(safe-area-inset-top))] z-[70] inline-flex h-9 w-9 items-center justify-center rounded-full border border-destructive/45 bg-destructive text-white shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-md transition-[background-color,opacity] duration-150 hover:bg-destructive/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-destructive sm:h-10 sm:w-10 lg:h-11 lg:w-11"
+        className="cruush-alpha-bug-button fixed right-[calc(0.75rem+env(safe-area-inset-right))] top-[calc(0.75rem+env(safe-area-inset-top))] z-[1500] inline-flex h-9 w-9 items-center justify-center rounded-full border border-destructive/45 bg-destructive text-white shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-md transition-[background-color,opacity] duration-150 hover:bg-destructive/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-destructive sm:h-10 sm:w-10 lg:h-11 lg:w-11"
         title="Report a bug"
         type="button"
       >
@@ -364,7 +364,7 @@ export default function AlphaBugButton({
       }}
     >
       {showTip ? (
-        <div className={`fixed z-50 w-[min(18rem,calc(100vw-2rem))] rounded-md border border-primary/25 bg-background/95 p-3 text-center text-sm text-foreground shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-md ${getBugTipPlacement(location.pathname)}`}>
+        <div className={`fixed z-[1500] w-[min(18rem,calc(100vw-2rem))] rounded-md border border-primary/25 bg-background/95 p-3 text-center text-sm text-foreground shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-md ${getBugTipPlacement(location.pathname)}`}>
           <p className="leading-snug">Alpha test: tap the bug icon to report anything broken.</p>
           <button
             className="mt-2 text-xs font-semibold text-primary"

@@ -10,6 +10,8 @@
     "dev": "tsx watch src/index.ts",
     "migrate:dev": "tsx src/migrate.ts",
     "seed:dev-profiles": "tsx src/dev-seed-profiles.ts",
+    "seed:dev-profile-locations": "tsx src/dev-seed-profiles.ts --locations-only",
+    "seed:dev-places": "tsx src/dev-seed-places.ts",
     "seed:reviewer-accounts": "sh -c 'if [ -f dist/reviewer-test-accounts.js ]; then node --enable-source-maps dist/reviewer-test-accounts.js; else tsx src/reviewer-test-accounts.ts; fi'",
     "start": "node --enable-source-maps dist/index.js",
     "migrate": "node --enable-source-maps dist/migrate.js",

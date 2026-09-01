@@ -7,6 +7,11 @@ import { AUTH_POLICY_LINKS } from './PublicPolicyLinks';
 
 const authCss = readFileSync('src/app/components/Auth.css', 'utf8');
 
+function acceptSignupPolicies() {
+  fireEvent.click(screen.getByLabelText('Agree to Terms of Service'));
+  fireEvent.click(screen.getByLabelText('Agree to Privacy Policy'));
+}
+
 const { signIn, resendVerificationEmail, signUp, requestPasswordReset, getAppMeta } = vi.hoisted(() => ({
   signIn: vi.fn(),
   resendVerificationEmail: vi.fn(),
@@ -189,6 +194,10 @@ describe('Auth', () => {
   it('links signed-out visitors to public policy pages without rendering the support form inline', async () => {
     render(<Auth onAuth={vi.fn()} />);
 
+    const footerAccordion = screen.getByText('More policies');
+    expect(footerAccordion.closest('details')).not.toHaveAttribute('open');
+    fireEvent.click(footerAccordion);
+    expect(footerAccordion.closest('details')).toHaveAttribute('open');
     const legalNotice = screen.getByLabelText('Legal and safety links');
     const contactLink = screen.getByRole('link', { name: 'hello@cruush.app' });
     const footer = screen.getByTestId('launch-login-auth-footer');
@@ -197,7 +206,7 @@ describe('Auth', () => {
     expect(contactLink).toHaveClass('launch-login-auth-contact');
     expect(contactLink).toHaveAttribute('href', 'mailto:hello@cruush.app');
     expect(contactLink.compareDocumentPosition(legalNotice) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(legalNotice).toHaveClass('text-center', 'text-white/30');
+    expect(legalNotice).toHaveClass('launch-login-auth-footer-policies');
     expect(screen.queryByText('Legal and safety')).not.toBeInTheDocument();
     for (const link of AUTH_POLICY_LINKS) {
       expect(within(legalNotice).getByRole('link', { name: link.label })).toHaveAttribute(
@@ -295,7 +304,7 @@ describe('Auth', () => {
     expect(screen.queryByRole('link', { name: 'Launch rave tickets' })).not.toBeInTheDocument();
   });
 
-  it('shows alpha signup and the beta radius check before account creation', async () => {
+  it('shows signup without requesting location permission', async () => {
     getAppMeta.mockResolvedValue({
       service: 'cruush-server',
       auth: 'session-cookie',
@@ -321,12 +330,11 @@ describe('Auth', () => {
 
     expect(screen.getByRole('button', { name: 'Create Account' })).toBeInTheDocument();
     expect(screen.queryByLabelText('Alpha password')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Check my location' })).toBeInTheDocument();
-    expect(screen.getAllByText('NYC open beta.').length).toBeGreaterThan(0);
+    expect(screen.queryByRole('button', { name: 'Check my location' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Launch rave tickets' })).not.toBeInTheDocument();
   });
 
-  it('fails closed to alpha signup and beta radius check when launch metadata is unavailable', async () => {
+  it('keeps signup location-free when launch metadata is unavailable', async () => {
     getAppMeta.mockRejectedValue(new Error('meta unavailable'));
 
     render(<Auth onAuth={vi.fn()} />);
@@ -337,8 +345,7 @@ describe('Auth', () => {
 
     expect(screen.getByRole('button', { name: 'Create Account' })).toBeInTheDocument();
     expect(screen.queryByLabelText('Alpha password')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Check my location' })).toBeInTheDocument();
-    expect(screen.getAllByText('NYC open beta.').length).toBeGreaterThan(0);
+    expect(screen.queryByRole('button', { name: 'Check my location' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Launch rave tickets' })).not.toBeInTheDocument();
   });
 
@@ -356,6 +363,7 @@ describe('Auth', () => {
     fireEvent.change(screen.getByLabelText('Date of birth'), { target: { value: '1994-06-15' } });
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password-123' } });
     fireEvent.change(screen.getByLabelText('Confirm Password'), { target: { value: 'password-123' } });
+    acceptSignupPolicies();
     await screen.findByText('Mock Turnstile');
     fireEvent.click(screen.getByRole('button', { name: 'Create Account' }));
 
@@ -363,6 +371,7 @@ describe('Auth', () => {
       referralCode: 'abcdefghijklmnop',
     })));
     expect(signUp.mock.calls[0]?.[0]).not.toHaveProperty('displayName');
+    expect(signUp.mock.calls[0]?.[0]).not.toHaveProperty('betaAccessLocation');
     expect(screen.queryByText('abcdefghijklmnop')).not.toBeInTheDocument();
     expect(window.sessionStorage.getItem('cruush_referral_code')).toBeNull();
   });
@@ -396,6 +405,7 @@ describe('Auth', () => {
     fireEvent.change(alphaPasswordInput, { target: { value: 'door-password' } });
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password-123' } });
     fireEvent.change(screen.getByLabelText('Confirm Password'), { target: { value: 'password-123' } });
+    acceptSignupPolicies();
     await screen.findByText('Mock Turnstile');
     fireEvent.click(screen.getByRole('button', { name: 'Create Account' }));
 
@@ -403,6 +413,50 @@ describe('Auth', () => {
       alphaPassword: 'door-password',
     })));
     expect(signUp.mock.calls[0]?.[0]).not.toHaveProperty('displayName');
+  });
+
+  it('requires legal consent directly below the password fields and keeps product updates optional', async () => {
+    signUp.mockResolvedValue({
+      alreadyVerified: false,
+      expiresAt: '2026-07-28T12:00:00.000Z',
+      previewUrl: null,
+    });
+
+    render(<Auth onAuth={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: "Don't have an account? Sign up" }));
+
+    const confirmPassword = screen.getByLabelText('Confirm Password');
+    const agreements = screen.getByRole('group', { name: 'Signup agreements' });
+    const terms = screen.getByLabelText('Agree to Terms of Service');
+    const privacy = screen.getByLabelText('Agree to Privacy Policy');
+    const updates = screen.getByLabelText('Send me cruush product updates');
+
+    expect(confirmPassword.compareDocumentPosition(agreements) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(terms.compareDocumentPosition(privacy) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(privacy.compareDocumentPosition(updates) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(terms).toBeRequired();
+    expect(privacy).toBeRequired();
+    expect(updates).not.toBeRequired();
+
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'river@example.com' } });
+    fireEvent.change(screen.getByLabelText('Date of birth'), { target: { value: '1994-06-15' } });
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password-123' } });
+    fireEvent.change(confirmPassword, { target: { value: 'password-123' } });
+    await screen.findByText('Mock Turnstile');
+
+    const createAccount = screen.getByRole('button', { name: 'Create Account' });
+    fireEvent.submit(createAccount.closest('form')!);
+    expect(await screen.findByText('Agree to the Terms of Service and Privacy Policy to create an account.')).toBeInTheDocument();
+    expect(signUp).not.toHaveBeenCalled();
+
+    acceptSignupPolicies();
+    fireEvent.click(createAccount);
+
+    await waitFor(() => expect(signUp).toHaveBeenCalledWith(expect.objectContaining({
+      termsAccepted: true,
+      privacyAccepted: true,
+      productUpdatesOptIn: false,
+    })));
   });
 
   it('prompts for and submits a second factor only after the backend requires it', async () => {

@@ -12,7 +12,9 @@ const userId = "00000000-0000-4000-8000-000000000001";
 const now = new Date("2026-08-09T20:00:00.000Z");
 
 const publicProfileRules: ProfileVisibilityRules = {
+  search_query: "",
   active_crowd_modes: [],
+  mile_high_club_members: false,
   age_range: null,
   distance: null,
   identities: [],

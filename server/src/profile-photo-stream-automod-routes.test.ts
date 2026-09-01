@@ -248,7 +248,7 @@ describe("shared Stream profile-photo automod route", () => {
     ].map((objectKey) => deleteEncryptedMediaObject(app.config, objectKey as string)));
   });
 
-  it("fails closed and deletes ciphertext when Stream keeps but no human is detected", async () => {
+  it("publishes gear-only photos when Stream keeps and no human is detected", async () => {
     providerState.rekognitionLabels = [{
       Name: "Landscape",
       Confidence: 99,
@@ -274,15 +274,15 @@ describe("shared Stream profile-photo automod route", () => {
       mediaCall?.[1]?.[25]
     ] as string[];
 
-    expect(response.statusCode, response.body).toBe(400);
-    expect(response.json()).toMatchObject({ error: { code: "CONTENT_REJECTED" } });
+    expect(response.statusCode, response.body).toBe(201);
     expect(JSON.stringify(query.mock.calls)).toContain("human_not_detected");
-    expect(query.mock.calls.some(([text]) => String(text).includes("insert into profiles"))).toBe(false);
+    expect(query.mock.calls.some(([text]) => String(text).includes("insert into profiles"))).toBe(true);
     for (const objectKey of objectKeys) {
-      await expect(readEncryptedMediaObject(app.config, objectKey)).rejects.toThrow();
+      await expect(readEncryptedMediaObject(app.config, objectKey)).resolves.toBeInstanceOf(Buffer);
     }
 
     await app.close();
+    await Promise.all(objectKeys.map((objectKey) => deleteEncryptedMediaObject(app.config, objectKey)));
   });
 
   it("suspends the account for human review when a child face is detected", async () => {

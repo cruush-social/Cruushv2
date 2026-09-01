@@ -112,20 +112,21 @@ describe('GhostModeSettings', () => {
       </MemoryRouter>
     );
 
-    expect(await screen.findByRole('heading', { name: 'Ghost Mode' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Ghost Mode & Dark Room Mode' })).toBeInTheDocument();
     expect(screen.getByText('Other people see a shifting location inside your selected radius. You still see your own current map position.')).toBeInTheDocument();
     expect(screen.getByText('Larger radius gives you more cover; smaller radius keeps your public pin closer to where you are.')).toBeInTheDocument();
 
-    const preciseSwitch = await screen.findByRole('switch', {
-      name: 'Toggle precise location for mutuals',
-    });
+    expect(screen.getByText('Who can see my precise location?')).toBeInTheDocument();
+    expect(screen.queryByText('Precise location for mutual crowds')).not.toBeInTheDocument();
+
+    const mutualsButton = await screen.findByRole('button', { name: 'Mutuals' });
     const ghostSwitch = screen.getByRole('switch', {
       name: 'Toggle Ghost Mode',
     });
     expect(ghostSwitch).toHaveAttribute('data-tutorial-target', 'ghost');
 
-    await waitFor(() => expect(preciseSwitch).not.toBeDisabled());
-    fireEvent.click(preciseSwitch);
+    await waitFor(() => expect(mutualsButton).not.toBeDisabled());
+    fireEvent.click(mutualsButton);
 
     await waitFor(() => expect(saveMyPrivacySettings).toHaveBeenCalledWith(expect.objectContaining({
       baseMode: 'PUBLIC_PRECISE',
@@ -151,6 +152,96 @@ describe('GhostModeSettings', () => {
     expect(screen.getByTestId('location-probe')).toHaveTextContent('/privacy/audit');
   });
 
+  it('shows live Ghost radius save progress and only reports Saved after confirmation', async () => {
+    let resolveSave: ((value: unknown) => void) | undefined;
+    const setTimeoutSpy = vi.spyOn(globalThis, 'setTimeout');
+    saveMyPrivacySettings.mockImplementationOnce(() => new Promise((resolve) => {
+      resolveSave = resolve;
+    }));
+
+    try {
+      render(
+        <MemoryRouter initialEntries={['/privacy/ghost-mode']}>
+          <Routes>
+            <Route path="/privacy/ghost-mode" element={<GhostModeSettings />} />
+          </Routes>
+        </MemoryRouter>
+      );
+
+      const radiusSlider = await screen.findByRole('slider');
+      await waitFor(() => expect(radiusSlider).not.toBeDisabled());
+      expect(screen.queryByText('Saved')).not.toBeInTheDocument();
+
+      fireEvent.keyDown(radiusSlider, { key: 'ArrowRight', code: 'ArrowRight' });
+
+      expect(await screen.findByText('Saving…')).toBeInTheDocument();
+      expect(saveMyPrivacySettings).toHaveBeenCalledWith(expect.objectContaining({
+        ghostRadiusMeters: 4828,
+        ghostRadiusLabel: '3 mi',
+      }));
+
+      act(() => resolveSave?.({
+        baseMode: 'PUBLIC_PRECISE',
+        ghostModeEnabled: false,
+        ghostRadiusMeters: 4828,
+        ghostRadiusLabel: '3 mi',
+        preciseToMutualCruushes: false,
+        preciseToMutualCrowds: [],
+        preciseLocationVisibility: 'none',
+        updatedAtMs: Date.now(),
+      }));
+
+      expect(await screen.findByText('Saved')).toBeInTheDocument();
+      expect(screen.queryByText('Saving…')).not.toBeInTheDocument();
+      expect(setTimeoutSpy).toHaveBeenCalledWith(expect.any(Function), 1_800);
+    } finally {
+      setTimeoutSpy.mockRestore();
+    }
+  });
+
+  it('asks before turning off Ghost Mode for Public precise location', async () => {
+    getMyPrivacySettings.mockResolvedValue({
+      baseMode: 'GHOST',
+      ghostModeEnabled: true,
+      ghostRadiusMeters: 1609,
+      ghostRadiusLabel: '1 mi',
+      preciseToMutualCruushes: false,
+      preciseToMutualCrowds: [],
+      preciseLocationVisibility: 'none',
+      updatedAtMs: Date.now(),
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/privacy/ghost-mode']}>
+        <Routes>
+          <Route path="/privacy/ghost-mode" element={<GhostModeSettings />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    const publicButton = await screen.findByRole('button', { name: 'Public' });
+    await waitFor(() => expect(publicButton).not.toBeDisabled());
+    fireEvent.click(publicButton);
+
+    let dialog = await screen.findByRole('alertdialog');
+    expect(within(dialog).getByRole('heading', { name: 'Turn off Ghost Mode?' })).toBeInTheDocument();
+    expect(within(dialog).getByText('Public means your precise location appears on the public map.')).toBeInTheDocument();
+    expect(saveMyPrivacySettings).not.toHaveBeenCalled();
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Keep Ghost Mode' }));
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+    expect(saveMyPrivacySettings).not.toHaveBeenCalled();
+
+    fireEvent.click(publicButton);
+    dialog = await screen.findByRole('alertdialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Turn off Ghost Mode' }));
+
+    await waitFor(() => expect(saveMyPrivacySettings).toHaveBeenCalledWith(expect.objectContaining({
+      baseMode: 'PUBLIC_PRECISE',
+      ghostModeEnabled: false,
+    })));
+  });
+
   it('restores the saved Ghost Mode setting after a failed save', async () => {
     saveMyPrivacySettings.mockRejectedValueOnce(new Error('Upgrade to cruush+ to share precise location with mutuals.'));
 
@@ -162,15 +253,13 @@ describe('GhostModeSettings', () => {
       </MemoryRouter>
     );
 
-    const preciseSwitch = await screen.findByRole('switch', {
-      name: 'Toggle precise location for mutuals',
-    });
-    await waitFor(() => expect(preciseSwitch).not.toBeDisabled());
+    const mutualsButton = await screen.findByRole('button', { name: 'Mutuals' });
+    await waitFor(() => expect(mutualsButton).not.toBeDisabled());
 
-    fireEvent.click(preciseSwitch);
+    fireEvent.click(mutualsButton);
 
     expect(await screen.findByText('Upgrade to cruush+ to share precise location with mutuals.')).toBeInTheDocument();
-    expect(preciseSwitch).not.toBeChecked();
+    expect(mutualsButton).toHaveAttribute('aria-pressed', 'false');
   });
 
   it('offers the pin countdown as an opt-out that starts on', async () => {
@@ -182,7 +271,7 @@ describe('GhostModeSettings', () => {
       </MemoryRouter>
     );
 
-    expect(await screen.findByRole('heading', { name: 'Ghost Mode' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Ghost Mode & Dark Room Mode' })).toBeInTheDocument();
     expect(screen.getByText('Countdown animation')).toBeInTheDocument();
 
     const countdownToggle = await screen.findByRole('switch', {
@@ -259,10 +348,10 @@ describe('GhostModeSettings', () => {
     );
 
     const ghostSwitch = await screen.findByRole('switch', { name: 'Toggle Ghost Mode' });
-    const preciseSwitch = screen.getByRole('switch', { name: 'Toggle precise location for mutuals' });
+    const mutualsButton = screen.getByRole('button', { name: 'Mutuals' });
     await waitFor(() => {
       expect(ghostSwitch).not.toBeDisabled();
-      expect(preciseSwitch).not.toBeDisabled();
+      expect(mutualsButton).not.toBeDisabled();
     });
 
     expect(screen.queryByRole('switch', { name: 'Toggle Dark Room' })).not.toBeInTheDocument();

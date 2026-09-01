@@ -106,7 +106,15 @@ const migrationFiles = [
   "097_travel_pins.sql",
   "098_feed_plus_audience.sql",
   "099_profile_zodiac.sql",
-  "100_pulse_notifications.sql"
+  "100_pulse_notifications.sql",
+  "101_map_presence_hours.sql",
+  "102_profile_side_badges.sql",
+  "103_places.sql",
+  "104_spots_taxonomy.sql",
+  "105_feed_post_photos.sql",
+  "106_side_quests.sql",
+  "107_side_quest_first_ping.sql",
+  "108_side_quest_catalog.sql"
 ];
 const rewardSafetyPreflightFiles = [
   "079_daily_check_in_rewards.sql",

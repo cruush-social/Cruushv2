@@ -17,7 +17,7 @@ type EmblemProps = {
   className?: string;
 };
 
-type InnerMark = 'plain' | 'female' | 'male' | 'nonbinary' | 'little';
+type InnerMark = 'plain' | 'female' | 'male' | 'nonbinary';
 
 /** Marks are drawn around this point in all three frames. */
 const MARK_CENTRE = { x: 12, y: 10.9 };
@@ -60,11 +60,6 @@ function markPath(mark: InnerMark) {
     };
 
     return [bar(90), bar(30), bar(150)].join(' ');
-  }
-
-  if (mark === 'little') {
-    // A small heart.
-    return `M${x} ${y + 2.4}c-2.5-1.7-3.7-3-3.7-4.4a2 2 0 0 1 3.7-1.05 2 2 0 0 1 3.7 1.05c0 1.4-1.2 2.7-3.7 4.4z`;
   }
 
   // Plain: a ring with its centre left solid, which is the collar mark.
@@ -143,10 +138,6 @@ export function CollaredNonbinaryGlyph(props: EmblemProps) {
   return <Emblem {...props} frame="ring" mark="nonbinary" />;
 }
 
-export function CollaredLittleGlyph(props: EmblemProps) {
-  return <Emblem {...props} frame="ring" mark="little" />;
-}
-
 export function UncollaredGlyph(props: EmblemProps) {
   return <Emblem {...props} frame="brackets" mark="plain" />;
 }
@@ -161,10 +152,6 @@ export function UncollaredMaleGlyph(props: EmblemProps) {
 
 export function UncollaredNonbinaryGlyph(props: EmblemProps) {
   return <Emblem {...props} frame="brackets" mark="nonbinary" />;
-}
-
-export function UncollaredLittleGlyph(props: EmblemProps) {
-  return <Emblem {...props} frame="brackets" mark="little" />;
 }
 
 /** Two arrows turning around a heart: moves between the two. */

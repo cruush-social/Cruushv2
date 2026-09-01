@@ -42,8 +42,17 @@ export const createPostPayloadSchema = z.object({
   content: multilineTextSchema({ min: 1, max: 1000 }),
   expiresIn: postExpirySchema.optional().default("never"),
   audience: feedPostAudienceSchema.optional().default("public"),
-  crowdTargets: crowdTargetsSchema
+  crowdTargets: crowdTargetsSchema,
+  photoMediaIds: z.array(z.uuid()).max(3).optional().default([])
 }).strict().superRefine((payload, ctx) => {
+  if (new Set(payload.photoMediaIds).size !== payload.photoMediaIds.length) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["photoMediaIds"],
+      message: "Choose each Feed photo once."
+    });
+  }
+
   if (payload.audience === "crowd" && payload.crowdTargets.length !== 1) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,

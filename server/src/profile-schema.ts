@@ -179,7 +179,9 @@ const appOwnedProfilePhotoPathSchema = z.string()
   );
 
 export const profileVisibilityRulesSchema = z.object({
+  search_query: optionalSingleLineTextSchema(120),
   active_crowd_modes: z.array(crowdSchema).max(3).optional().default([]),
+  mile_high_club_members: z.boolean().optional().default(false),
   age_range: z.tuple([
     z.number().int().min(18).max(99),
     z.number().int().min(18).max(99)
@@ -215,6 +217,29 @@ export const profileKinkInterestSchema = z.object({
   category: singleLineTextSchema({ min: 1, max: 120 }).optional()
 }).strip();
 
+const sideBadgeSelectionSchema = z.object({
+  badge_id: singleLineTextSchema({ min: 1, max: 120 }),
+  intent: z.enum(["none", "give", "receive", "switch", "service", "stone"]),
+  frame: z.enum([
+    "plain", "circle", "diamond", "heart", "square", "female", "male", "transgender", "nonbinary",
+    "agender", "neutrois", "androgyne", "demigirl", "demiboy", "intergender",
+    "genderfluid", "bigender", "third-gender", "pangender", "butch", "femme",
+    "chevron", "bracket-square", "hexagon"
+  ])
+}).strict();
+
+export const sideBadgesSchema = z.object({
+  left: sideBadgeSelectionSchema.nullable(),
+  right: sideBadgeSelectionSchema.nullable()
+}).strict();
+
+export type SideBadges = z.infer<typeof sideBadgesSchema>;
+
+export const emptySideBadges: SideBadges = {
+  left: null,
+  right: null
+};
+
 export const profilePayloadSchema = z.object({
   display_name: singleLineTextSchema({ min: 2, max: 80 }),
   photos: z.array(appOwnedProfilePhotoPathSchema).max(4).optional().default([]),
@@ -235,6 +260,7 @@ export const profilePayloadSchema = z.object({
   weight: shortStringField,
   position: upToThreeArrayField,
   role: upToThreeArrayField,
+  side_badges: sideBadgesSchema.optional().default(emptySideBadges),
   is_trans: transStatusSchema,
   trans_status_visibility: profileVisibilitySchema.optional().default("mutual_cruushes"),
   crowds: z.array(crowdSchema).max(3).optional().default([]),
@@ -268,7 +294,9 @@ export const profilePayloadSchema = z.object({
   zodiac: arrayField,
   substance_boundaries: arrayField,
   visibility_rules: profileVisibilityRulesSchema.optional().default({
+    search_query: "",
     active_crowd_modes: [],
+    mile_high_club_members: false,
     age_range: null,
     distance: null,
     identities: [],
@@ -343,6 +371,7 @@ export const emptyProfile = {
   weight: "",
   position: [],
   role: [],
+  side_badges: emptySideBadges,
   is_trans: null,
   trans_status_visibility: "mutual_cruushes",
   crowds: [],
@@ -376,7 +405,9 @@ export const emptyProfile = {
   zodiac: [],
   substance_boundaries: [],
   visibility_rules: {
+    search_query: "",
     active_crowd_modes: [],
+    mile_high_club_members: false,
     age_range: null,
     distance: null,
     identities: [],

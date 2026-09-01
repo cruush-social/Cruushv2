@@ -23,6 +23,7 @@ import {
 import { openConversationOrInbox } from '../lib/openConversation';
 import { emptyProfilePayload, getMyProfile, getProfileById, type ProfileRecord } from '../lib/profileApi';
 import mapIconWhite from '../assets/ui-icons/map-white.png';
+import mileHighClubWhite from '../assets/ui-icons/mile-high-club-white.svg';
 import sendIconWhite from '../assets/ui-icons/send-white.png';
 import DarkRoomMark from './DarkRoomMark';
 
@@ -128,6 +129,8 @@ export default function MapProfilePopup({
   const targetInDarkRoom = fullProfile?.viewer_relationship?.location_mode === 'STEALTH';
   const displayName = profileView?.name ?? user.name;
   const displayAge = profileView?.age ?? user.age;
+  const displayTravelling = profileView?.travelling ?? user.travelling === true;
+  const displayTravelLabel = profileView?.travelLabel ?? user.travelLabel ?? '';
   const displayPronouns = profileView?.pronouns ?? user.pronouns;
   const displayPhoto = profileView?.photos[0] ?? user.photo;
   const displayPhotos = profileView?.photos ?? (user.photo ? [user.photo] : []);
@@ -148,6 +151,7 @@ export default function MapProfilePopup({
   const canMessage = isMutualCruush
     || (profileView?.relationship ? profileView.relationship.can_message : user.relationship?.canMessage);
   const cruushDisabled = isDemo || sendingCruush || revokingCruush;
+  const pinActionable = canRevealPreciseLocation && !targetInDarkRoom;
 
 
   const handleCruush = async () => {
@@ -218,11 +222,11 @@ export default function MapProfilePopup({
     try {
       // Opening the thread has to work from every surface, so it always goes
       // through the same path the messages page uses.
-      const conversationId = await openConversationOrInbox(navigate, user.id);
-
-      if (conversationId) {
-        onOpenMessages?.(user.id);
-      }
+      await openConversationOrInbox(
+        navigate,
+        user.id,
+        onOpenMessages ? () => onOpenMessages(user.id) : undefined,
+      );
     } finally {
       setOpeningMessage(false);
     }
@@ -261,7 +265,7 @@ export default function MapProfilePopup({
             photos={displayPhotos}
             userId={profileView?.id ?? user.id}
           />
-          <div className="absolute inset-x-0 top-0 flex items-start justify-between gap-3 p-4">
+          <div className="absolute inset-x-0 top-0 flex items-start justify-between gap-3 py-4 pl-4 pr-1">
             <div className="rounded-full border border-white/10 bg-black/45 px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-white/80 backdrop-blur-sm">
               {isOwnProfile ? 'Your profile' : 'Nearby now'}
             </div>
@@ -309,9 +313,17 @@ export default function MapProfilePopup({
           <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black via-black/70 to-transparent px-5 pb-5 pt-10">
             <div className="flex items-end justify-between gap-3">
               <div className="min-w-0">
-                <h3 className="truncate text-3xl text-white">
-                  {displayName}
-                  {displayAge ? <span className="text-white/80">, {displayAge}</span> : null}
+                <h3 className="flex min-w-0 items-center text-3xl text-white">
+                  <span className="min-w-0 truncate">{displayName}</span>
+                  {displayAge ? <span className="shrink-0 whitespace-nowrap text-white/80">, {displayAge}</span> : null}
+                  {displayTravelling ? (
+                    <img
+                      alt="Mile High Club"
+                      className="ml-2 h-5 w-5 shrink-0"
+                      src={mileHighClubWhite}
+                      title={displayTravelLabel ? `Mile High Club: ${displayTravelLabel}` : 'Mile High Club'}
+                    />
+                  ) : null}
                 </h3>
                 <div className="mt-1">
                   <CruushBadge badges={displayBadges} compact />
@@ -366,6 +378,7 @@ export default function MapProfilePopup({
             <ProfileDetailsTabs
               activeTab={activeTab}
               compact
+              hideTopOverlayDuplicates={isOwnProfile}
               onActiveTabChange={setActiveTab}
               profileView={profileView}
             />
@@ -378,7 +391,7 @@ export default function MapProfilePopup({
 
         {!isOwnProfile ? (
           <div className="sticky bottom-0 border-t border-white/10 bg-black/85 px-5 py-4 backdrop-blur-xl">
-          <div className="grid grid-cols-[auto_1fr] gap-3">
+          <div className="flex items-center gap-3">
             <Button
               onClick={() => {
                 void (hasRevocableCruush ? handleRevokeCruush() : handleCruush());
@@ -394,26 +407,33 @@ export default function MapProfilePopup({
               }}
               aria-label={isDemo ? 'Demo profile' : revokingCruush ? (isAlreadyMutual ? 'Removing mutual' : 'Unsending cruush') : isAlreadyMutual ? 'Remove mutual' : hasSentCruush ? 'Unsend cruush' : sendingCruush ? 'sending cruush' : 'send cruush'}
             >
-              <CruushIcon name="safety" className={`h-6 w-6 ${cruushDisabled ? 'opacity-45 grayscale' : ''}`} variant="white" />
+              <CruushIcon name="mutual" className={`h-6 w-6 ${cruushDisabled ? 'opacity-45 grayscale' : ''}`} variant="white" />
             </Button>
 
-            {canRevealPreciseLocation ? (
-              <Button
-                type="button"
-                className="h-12 w-12 rounded-2xl border-0 px-0 text-white"
-                style={{ background: 'var(--cruush-gradient)' }}
-                aria-label={targetInDarkRoom ? `${displayName} is in Dark Room` : `Center the map on ${displayName}`}
-                title={targetInDarkRoom ? 'Dark Room' : `Center the map on ${displayName}`}
-                onClick={targetInDarkRoom ? undefined : () => navigate('/map', { state: { focusUserId: user.id } })}
-              >
-                {targetInDarkRoom
-                  ? <DarkRoomMark active className="h-5 w-5" />
-                  : <CruushIconImage src={mapIconWhite} className="h-5 w-5" />}
-              </Button>
-            ) : null}
+            <Button
+              type="button"
+              className="h-12 w-12 rounded-2xl border-0 px-0 text-white disabled:opacity-100"
+              style={{ background: pinActionable ? 'var(--cruush-gradient)' : 'var(--cruush-gradient-soft-28), #0A0A12' }}
+              aria-label={pinActionable
+                ? `Center the map on ${displayName}`
+                : targetInDarkRoom
+                  ? `${displayName} is in Dark Room`
+                  : `${displayName} does not share their precise location`}
+              title={pinActionable
+                ? `Center the map on ${displayName}`
+                : targetInDarkRoom
+                  ? 'Dark Room'
+                  : 'Precise location unavailable'}
+              disabled={!pinActionable}
+              onClick={() => navigate('/map', { state: { focusUserId: user.id } })}
+            >
+              {targetInDarkRoom
+                ? <DarkRoomMark active className="h-5 w-5 opacity-55" />
+                : <CruushIconImage src={mapIconWhite} className={`h-5 w-5 ${pinActionable ? '' : 'opacity-45'}`} />}
+            </Button>
 
             <Button
-              className="h-12 justify-center rounded-2xl border-0 text-base text-white"
+              className="h-12 min-w-0 flex-1 justify-center rounded-2xl border-0 text-base text-white"
               style={{
                 background: isDemo ? 'rgba(255,255,255,0.16)' : 'var(--cruush-gradient)',
               }}

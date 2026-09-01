@@ -1,9 +1,10 @@
 import type { FastifyInstance } from "fastify";
 import { isWithinBetaLaunchArea } from "./beta-access.js";
 import { ApiError } from "./errors.js";
+import type { LocationPayload } from "./location-privacy.js";
 
 /**
- * Travel mode. A member visiting another place drops a pin there and the map
+ * Mile High Club. A member visiting another place drops a pin there and the map
  * shows them at that pin instead of their device location.
  *
  * The pin holds for a few hours before it can be moved again. A pin that can be
@@ -31,6 +32,20 @@ export type TravelPin = {
   /** When it lapses on its own. */
   expiresAtMs: number;
 };
+
+export function locationPayloadAtTravelPin(location: LocationPayload, pin: TravelPin): LocationPayload {
+  return {
+    ...location,
+    locationVersion: pin.setAtMs,
+    latE7: Math.round(pin.latitude * 10_000_000),
+    lonE7: Math.round(pin.longitude * 10_000_000),
+    accuracyM: 0,
+    source: "MANUAL",
+    deviceReportedAtMs: pin.setAtMs,
+    collectedAtMs: pin.setAtMs,
+    expiresAtMs: pin.expiresAtMs
+  };
+}
 
 type TravelPinRow = {
   user_id: string;

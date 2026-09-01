@@ -169,7 +169,7 @@ describe('ProfileView', () => {
     );
 
     expect(await screen.findByTestId('profile-gallery-frame')).toHaveStyle({
-      width: 'min(100%, calc((100dvh - var(--profile-view-header-height, 4.3125rem) - 1px) * 0.8))',
+      width: 'min(100%, 30rem)',
     });
     const heroMedia = screen.getByTestId('profile-hero-media');
     expect(heroMedia).toHaveStyle({
@@ -191,6 +191,28 @@ describe('ProfileView', () => {
     expect(screen.getByText('Role')).toBeInTheDocument();
     expect(screen.getByText('Switch')).toBeInTheDocument();
     expect(getProfileById).toHaveBeenCalledWith('user-1');
+  });
+
+  it('keeps the age outside the clipped name span', async () => {
+    getProfileById.mockResolvedValue(createProfileFixture({
+      display_name: 'A very long profile name that needs truncation',
+      year_of_birth: new Date().getFullYear() - 36,
+    }));
+
+    render(
+      <MemoryRouter initialEntries={['/profile/user-1']}>
+        <Routes>
+          <Route path="/profile/:userId" element={<ProfileView />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    const heading = await screen.findByRole('heading', { name: /A very long profile name that needs truncation/ });
+    const age = within(heading).getByText(', 36');
+
+    expect(heading).toHaveClass('overflow-visible', 'pb-1', 'leading-tight');
+    expect(age).toHaveClass('shrink-0', 'whitespace-nowrap', 'pr-1');
+    expect(age).not.toHaveClass('truncate', 'overflow-hidden');
   });
 
   it('shows the saved profile signal on the profile page', async () => {
@@ -228,6 +250,31 @@ describe('ProfileView', () => {
     const badge = within(name).getByRole('img', { name: 'Mile High Club' });
     expect(badge).toHaveAttribute('title', 'Mile High Club: In from Chicago');
     expect(badge).toHaveClass('ml-2', 'shrink-0');
+    expect(badge.getAttribute('src')).toContain('Mile%20High%20Club%20White');
+    expect(badge.getAttribute('src')).toContain('M0,-13');
+    expect(badge.getAttribute('src')).toContain('plane-width-shade');
+    expect(badge.getAttribute('src')).toContain('plane-length-shade');
+  });
+
+  it('shows the same Mile High Club plane beside the name on the travelling member’s own profile', async () => {
+    getMyProfile.mockResolvedValue(createProfileFixture({
+      travelling: true,
+      travelLabel: 'In from Chicago',
+    }));
+
+    render(
+      <MemoryRouter initialEntries={['/profile']}>
+        <Routes>
+          <Route path="/profile" element={<ProfileView />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    const name = await screen.findByRole('heading', { name: /Jordan/ });
+    const badge = within(name).getByRole('img', { name: 'Mile High Club' });
+    expect(badge).toHaveAttribute('title', 'Mile High Club: In from Chicago');
+    expect(badge.getAttribute('src')).toContain('plane-width-shade');
+    expect(getMyProfile).toHaveBeenCalledTimes(1);
   });
 
   it('shows the launch party hat without a circle treatment', async () => {
@@ -310,8 +357,8 @@ describe('ProfileView', () => {
     expect(screen.getByRole('button', { name: 'Show profile photo 3' })).toBeInTheDocument();
     const fourthPreview = screen.getByRole('button', { name: 'Show profile photo 4' });
     expect(fourthPreview).toHaveStyle({
-      height: 'clamp(2.75rem, 9dvh, 4rem)',
-      width: 'clamp(2.75rem, 9dvh, 4rem)',
+      height: 'clamp(3.25rem, 10.5dvh, 4.75rem)',
+      width: 'clamp(3.25rem, 10.5dvh, 4.75rem)',
     });
 
     fireEvent.click(screen.getByRole('button', { name: 'Show profile photo 3' }));
@@ -574,14 +621,14 @@ describe('ProfileView', () => {
       </MemoryRouter>
     );
 
-    expect(await screen.findByText('Jordan')).toBeInTheDocument();
+    expect((await screen.findAllByText('Jordan')).length).toBeGreaterThan(0);
 
     fireEvent.click(screen.getByRole('button', { name: 'Block Jordan' }));
     fireEvent.click(screen.getByRole('button', { name: 'Block' }));
 
     await waitFor(() => expect(blockUser).toHaveBeenCalledWith('user-1'));
     expect(toastError).toHaveBeenCalledWith('Unable to block this user right now.');
-    expect(screen.getByText('Jordan')).toBeInTheDocument();
+    expect(screen.getAllByText('Jordan').length).toBeGreaterThan(0);
   });
 
   it('reports another profile from the profile safety action', async () => {

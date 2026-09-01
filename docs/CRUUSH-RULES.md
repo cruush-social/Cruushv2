@@ -124,19 +124,31 @@ These are not suggestions you interpret. Run them.
 - **F3.** Never describe the product as nightlife-only. It is for the whole queer community.
 - **F4.** Public-facing copy never uses the Unicode em dash character (U+2014). Use a
   period, comma, colon, semicolon, parentheses, or a separate sentence instead.
+- **F5.** A page, popup, sheet, or settings surface may have at most one descriptive
+  tagline, placed directly below its header. Never invent a second tagline, subhead, or
+  explanatory sentence unless Julien explicitly requests it.
 
 ## G. Product invariants
 
 - **G1.** HIV status, trans status, and ethnicity are display fields only. They are never
   filters, visibility predicates, saved-set predicates, or token filter signals.
-- **G2.** NSFW is allowed in the favorites gallery and in messages. Profile photos must be
-  of the account holder.
+- **G2.** NSFW is allowed in the favorites gallery, messages, Feed photos, and profile photos
+  when it does not violate the current media policy. Feed and message photos may contain
+  multiple subjects and allowed non-human imagery. Profile photos may show the account holder,
+  any part of their body without requiring a face, or their gear. A profile photo may contain
+  no more than one person, and every person shown across that profile's photos must be the same
+  person.
 - **G3.** cruush will never be in an app store. Do not propose app-store-driven constraints.
 - **G4.** A "cruush" is one-sided; a mutual cruush is a match. Keep that distinction in copy
   and in code.
 - **G5.** Auto-moderation must reject images of people who could never be mistaken for
   adults, regardless of which provider is up. The fallback chain must always be live.
 - **G6.** Free tier: up to 3 seeking filters and up to 3 visibility controls.
+- **G7.** The winged-heart icon is Feed-only. Every person-to-person cruush
+  control, including Mutual, uses the approved double-heart icon. Never
+  substitute the Feed icon for a cruush action.
+- **G8.** A completed uncruush or mutual removal immediately restores the same
+  cruush control to its bright, available gradient state.
 
 ## H. Third-party services
 

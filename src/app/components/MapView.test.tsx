@@ -3,7 +3,8 @@ import { validateStyleMin } from '@maplibre/maplibre-gl-style-spec';
 import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import MapView, {
-  MARKER_CLEARANCE_PX,
+  MAP_BROWSE_MASK_LAYER_ID,
+  MAP_BROWSE_MASK_SOURCE_ID,
   MAP_PIN_UNIT_SCALE,
   MAP_SERVICE_MASK_LAYER_ID,
   MAP_SERVICE_MASK_SOURCE_ID,
@@ -11,6 +12,7 @@ import MapView, {
   MAX_DISCOVERY_ZOOM,
   MIN_DISCOVERY_ZOOM,
   MapMarkerPin,
+  PULSE_EKG_PIN_PATH,
   createCruushVectorStyle,
   createMapMarkerBadge,
   getMapStyle,
@@ -21,7 +23,9 @@ import {
   MAP_SERVICE_CENTER,
   MAP_SERVICE_MAX_BOUNDS,
   MAP_SERVICE_OUTSIDE_MASK,
+  createMapOutsideRadiusMask,
 } from '../lib/mapServiceArea';
+import { DARK_ROOM_EYE_PATH, DARK_ROOM_KEYHOLE_PATH } from './DarkRoomMark';
 
 const { MockMap, MockMarker, mapInstances, markerInstances } = vi.hoisted(() => {
   const mapInstances: MockMapInstance[] = [];
@@ -30,6 +34,7 @@ const { MockMap, MockMarker, mapInstances, markerInstances } = vi.hoisted(() => 
   class MockMapInstance {
     static calls: unknown[] = [];
     container: HTMLElement;
+    style: unknown;
     handlers = new Map<string, Array<(event?: unknown) => void>>();
     zoomIn = vi.fn();
     zoomOut = vi.fn();
@@ -68,8 +73,9 @@ const { MockMap, MockMarker, mapInstances, markerInstances } = vi.hoisted(() => 
     getContainer = vi.fn(() => this.container);
     remove = vi.fn();
 
-    constructor(options: { container: HTMLElement }) {
+    constructor(options: { container: HTMLElement; style?: unknown }) {
       this.container = options.container;
+      this.style = options.style ?? {};
       MockMapInstance.calls.push(options);
       mapInstances.push(this);
     }
@@ -216,16 +222,14 @@ describe('MapView', () => {
     expect(screen.queryByText('Now')).not.toBeInTheDocument();
     expect(screen.queryByText('2m ago')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('bottom')).not.toBeInTheDocument();
-    expect(screen.getByLabelText('Your profile')).toBeInTheDocument();
-    expect(screen.getByLabelText('top')).toBeInTheDocument();
-    expect(screen.getByTestId('marker-badge-me')).toHaveClass(
-      'border-[#004BFF]/80',
-      'right-[-0.25rem]',
-      'top-[62%]',
+    expect(screen.getByLabelText('position: bottom')).toBeInTheDocument();
+    expect(screen.getByLabelText('position: top')).toBeInTheDocument();
+    expect(screen.getByTestId('marker-position-badge-me')).toHaveClass(
+      'top-[70%]',
       '-translate-y-1/2',
     );
-    expect(screen.getByTestId('marker-badge-me').querySelector('svg')).toHaveClass('h-[1.0625rem]', 'w-[1.0625rem]');
-    expect(screen.getByTestId('marker-badge-user-1')).toHaveClass('border-[#FF0072]/80');
+    expect(screen.getByTestId('marker-position-badge-me')).toHaveStyle({ color: '#004BFF' });
+    expect(screen.getByTestId('marker-position-badge-user-1')).toHaveStyle({ color: '#FF0072' });
     expect(screen.getByTestId('marker-heart-me')).toHaveAttribute('data-marker-theme', 'current');
     expect(Array.from(screen.getByTestId('marker-heart-me').querySelectorAll('stop')).map((stop) => stop.getAttribute('stop-color'))).toEqual([
       '#3826FF',
@@ -254,6 +258,76 @@ describe('MapView', () => {
     expect(screen.getByTestId('marker-heart-user-1').querySelector('filter')).toBeNull();
   });
 
+  it('uses the Dark Room palette and shows the owner photo through the keyhole', () => {
+    render(
+      <MapMarkerPin
+        marker={{
+          id: 'dark-room-owner',
+          displayName: 'You',
+          approximateLatitude: 40.73,
+          approximateLongitude: -73.99,
+          isCurrentUser: true,
+          ownerStealthActive: true,
+          photo: 'https://example.com/dark-room-owner.jpg',
+        }}
+      />,
+    );
+
+    const heart = screen.getByTestId('marker-heart-dark-room-owner');
+    expect(Array.from(heart.querySelectorAll('linearGradient:first-of-type stop')).map((stop) => stop.getAttribute('stop-color'))).toEqual([
+      '#2B0057',
+      '#6F00FF',
+      '#B86CFF',
+    ]);
+    expect(screen.getByTestId('marker-ghost-border-dark-room-owner')).toHaveAttribute('stroke', 'url(#marker-fill-dark-room-owner)');
+    expect(screen.getByTestId('marker-dark-room-photo-dark-room-owner')).toHaveAttribute('href', 'https://example.com/dark-room-owner.jpg');
+    expect(screen.getByTestId('marker-dark-room-photo-dark-room-owner')).toHaveAttribute(
+      'clip-path',
+      'url(#marker-dark-room-eye-clip-dark-room-owner)',
+    );
+    const darkRoomMark = screen.getByTestId('marker-dark-room-keyhole-dark-room-owner');
+    expect(darkRoomMark.querySelectorAll('path')).toHaveLength(2);
+    expect(darkRoomMark.querySelector('[data-dark-room-part="keyhole"]')).toHaveAttribute('d', DARK_ROOM_KEYHOLE_PATH);
+    expect(darkRoomMark.querySelector('[data-dark-room-part="keyhole"]')).toHaveAttribute('fill', '#000000');
+    expect(darkRoomMark.querySelector('[data-dark-room-part="eye"]')).toHaveAttribute(
+      'fill',
+      'url(#marker-dark-room-mark-gradient-dark-room-owner)',
+    );
+    expect(heart.querySelector(`#marker-dark-room-eye-clip-dark-room-owner path`)).toHaveAttribute('d', DARK_ROOM_EYE_PATH);
+    expect(screen.getByTestId('marker-dark-room-photo-dark-room-owner')).toHaveAttribute('data-dark-room-part', 'eye');
+  });
+
+  it('matches the Dark Room icon gradient on the keyhole eye when no photo is available', () => {
+    render(
+      <MapMarkerPin
+        marker={{
+          id: 'dark-room-owner-without-photo',
+          displayName: 'You',
+          approximateLatitude: 40.73,
+          approximateLongitude: -73.99,
+          isCurrentUser: true,
+          ownerStealthActive: true,
+        }}
+      />,
+    );
+
+    const heart = screen.getByTestId('marker-heart-dark-room-owner-without-photo');
+    const markGradient = heart.querySelector('#marker-dark-room-mark-gradient-dark-room-owner-without-photo');
+    expect(Array.from(markGradient?.querySelectorAll('stop') ?? []).map((stop) => stop.getAttribute('stop-color'))).toEqual([
+      '#2B0057',
+      '#6F00FF',
+      '#B86CFF',
+    ]);
+    expect(markGradient).toHaveAttribute('x1', '42');
+    expect(markGradient).toHaveAttribute('x2', '214');
+    expect(markGradient).toHaveAttribute('y1', '4');
+    expect(markGradient).toHaveAttribute('y2', '226');
+    expect(heart.querySelector('[data-dark-room-part="eye"]')).toHaveAttribute(
+      'fill',
+      'url(#marker-dark-room-mark-gradient-dark-room-owner-without-photo)',
+    );
+  });
+
   it('starts inside the configured service boundary when no viewport is restored', async () => {
     render(
       <MapView
@@ -267,6 +341,51 @@ describe('MapView', () => {
       center: [MAP_SERVICE_CENTER.longitude, MAP_SERVICE_CENTER.latitude],
       maxBounds: MAP_SERVICE_MAX_BOUNDS,
     }));
+  });
+
+  it('draws the Mile High Club contrail and plane on an active travel pin', async () => {
+    render(
+      <MapMarkerPin
+        marker={{
+          id: 'traveller',
+          displayName: 'Atlas',
+          approximateLatitude: 40.733572,
+          approximateLongitude: -74.002742,
+          travelling: true,
+          travelLabel: 'In from Chicago',
+          signal: 'In from Chicago',
+          photo: 'https://example.com/atlas.jpg',
+          roleBadge: {
+            kind: 'role',
+            label: 'Switch',
+            iconName: 'switch',
+          },
+          badge: createMapMarkerBadge(['Top'], []),
+        }}
+      />
+    );
+
+    const mileHighUnit = await screen.findByTestId('marker-mile-high-traveller');
+    expect(mileHighUnit).toHaveAttribute('data-contrail-style', 'cluster');
+    expect(mileHighUnit.querySelectorAll('[data-mile-high-band]')).toHaveLength(18);
+    expect(mileHighUnit.querySelectorAll('[data-mile-high-ink="light-blue"]')).toHaveLength(18);
+    expect(mileHighUnit.querySelectorAll('[data-mile-high-ink="white"]')).toHaveLength(18);
+    expect(mileHighUnit.querySelectorAll('[data-mile-high-ink="brand"]')).toHaveLength(0);
+    expect(mileHighUnit.querySelectorAll('[data-mile-high-ink="ghost"]')).toHaveLength(0);
+    expect(mileHighUnit.querySelector('[data-mile-high-band="0"]')).toHaveAttribute('data-mile-high-phase', 'light-blue');
+    expect(mileHighUnit.querySelector('[data-mile-high-band="4"]')).toHaveAttribute('data-mile-high-phase', 'light-blue');
+    expect(mileHighUnit.querySelector('[data-mile-high-band="5"]')).toHaveAttribute('data-mile-high-phase', 'blend');
+    expect(mileHighUnit.querySelector('[data-mile-high-band="7"]')).toHaveAttribute('data-mile-high-phase', 'blend');
+    expect(mileHighUnit.querySelector('[data-mile-high-band="8"]')).toHaveAttribute('data-mile-high-phase', 'white-poof');
+    expect(mileHighUnit.querySelector('[data-mile-high-band="17"]')).toHaveAttribute('data-mile-high-phase', 'white-poof');
+    expect(screen.getByTestId('marker-mile-high-engine-trail-traveller')).toHaveAttribute('stroke-width', '3.2');
+    expect(screen.getByTestId('marker-mile-high-engine-trail-traveller')).toHaveAttribute('stroke', 'rgb(218 243 255)');
+    expect(screen.getByTestId('marker-mile-high-plane-traveller').querySelectorAll('path')).toHaveLength(3);
+    expect(screen.getByTestId('marker-mile-high-plane-traveller').querySelector('path')).toHaveAttribute('fill', '#ffffff');
+    expect(screen.getByTestId('marker-role-badge-traveller').querySelector('svg')).toHaveAttribute('stroke', '#77B9DA');
+    expect(screen.getByTestId('marker-position-badge-traveller').querySelector('svg')).toHaveAttribute('stroke', '#77B9DA');
+    expect(screen.getByTestId('marker-signal-badge-traveller').getAttribute('style')).toContain('#77B9DA');
+    expect(screen.getByTestId('marker-heart-traveller').querySelector('[data-testid="marker-ghost-border-traveller"]')).toHaveAttribute('stroke-opacity', '0');
   });
 
   it('masks map pixels outside the circular service area without decorating the inside', async () => {
@@ -300,8 +419,8 @@ describe('MapView', () => {
       source: MAP_SERVICE_MASK_SOURCE_ID,
       paint: {
         'fill-antialias': false,
-        'fill-color': '#080808',
-        'fill-opacity': 1,
+        'fill-color': '#06101F',
+        'fill-opacity': 0.9,
       },
     });
     expect(mapInstances[0].layers.get(MAP_SERVICE_MASK_LAYER_ID)).not.toHaveProperty('outline');
@@ -312,6 +431,42 @@ describe('MapView', () => {
     expect(MockMap.calls[0]).toEqual(expect.objectContaining({
       maxBounds: MAP_SERVICE_MAX_BOUNDS,
     }));
+  });
+
+  it('adds Mile High Club fog outside the fifty-mile browse origin', async () => {
+    const browseArea = {
+      center: {
+        approximateLatitude: 40.5,
+        approximateLongitude: -73.5,
+      },
+      radiusMiles: 50,
+    };
+
+    render(<MapView browseArea={browseArea} onPinClick={vi.fn()} markers={[]} />);
+
+    await waitFor(() => expect(mapInstances[0]).toBeDefined());
+    act(() => {
+      mapInstances[0].trigger('style.load');
+      mapInstances[0].trigger('load');
+    });
+
+    await waitFor(() => {
+      expect(mapInstances[0].addSource).toHaveBeenCalledWith(MAP_BROWSE_MASK_SOURCE_ID, {
+        type: 'geojson',
+        data: createMapOutsideRadiusMask({ latitude: 40.5, longitude: -73.5 }, 50),
+      });
+    });
+    expect(mapInstances[0].addLayer).toHaveBeenCalledWith({
+      id: MAP_BROWSE_MASK_LAYER_ID,
+      type: 'fill',
+      source: MAP_BROWSE_MASK_SOURCE_ID,
+      paint: {
+        'fill-antialias': false,
+        'fill-color': '#06152B',
+        'fill-opacity': 0.88,
+      },
+    });
+    expect(mapInstances[0].moveLayer).toHaveBeenCalledWith(MAP_BROWSE_MASK_LAYER_ID);
   });
 
   it('does not recreate the map when the onMapReady callback identity changes', async () => {
@@ -626,7 +781,7 @@ describe('MapView', () => {
       />,
     );
 
-    expect(screen.queryByTestId('marker-ghost-pulse-ghost-load-window')).not.toBeInTheDocument();
+    expect(screen.getByTestId('marker-ghost-pulse-ghost-load-window')).toBeInTheDocument();
     expect(screen.queryByTestId('marker-ghost-fly-icon-ghost-load-window')).not.toBeInTheDocument();
     expect(screen.queryByTestId('marker-ghost-puff-ghost-load-window')).not.toBeInTheDocument();
   });
@@ -654,6 +809,38 @@ describe('MapView', () => {
     );
 
     expect(screen.getByTestId('marker-ghost-pulse-ghost-later-window')).toBeInTheDocument();
+  });
+
+  it('pulses and plays the existing exit for an owner MHC decoy while leaving its plane static', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-08-30T12:00:00Z'));
+    vi.stubGlobal('matchMedia', vi.fn(() => ({
+      matches: false,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    })));
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => window.setTimeout(() => callback(performance.now()), 16));
+    vi.stubGlobal('cancelAnimationFrame', (id: number) => window.clearTimeout(id));
+    render(<MapMarkerPin marker={{
+      id: 'owner-mhc-rotation', displayName: 'Your Ghost pin', isCurrentUser: true,
+      travelling: true, displayMode: 'GHOST', animationHint: 'FADE_LAST_MINUTE',
+      approximateLatitude: 40.72, approximateLongitude: -74.01,
+      ghostRotationExpiresAtMs: Date.now() + 5_000,
+    }} />);
+    await act(async () => { await vi.advanceTimersByTimeAsync(16); });
+    const pulse = screen.getByTestId('marker-ghost-pulse-owner-mhc-rotation');
+    expect(pulse.style.transform).toMatch(/^scale\(/);
+    expect(screen.getByTestId('marker-mile-high-owner-mhc-rotation')).toHaveAttribute('data-contrail-style', 'reduced-motion');
+    const plane = screen.getByTestId('marker-mile-high-plane-owner-mhc-rotation');
+    const initialPlane = plane.outerHTML;
+    await act(async () => { await vi.advanceTimersByTimeAsync(3_100); });
+    expect(screen.getByTestId('marker-ghost-fly-icon-owner-mhc-rotation')).toBeInTheDocument();
+    expect(screen.getByTestId('marker-ghost-puff-owner-mhc-rotation')).toBeInTheDocument();
+    expect(pulse).toHaveAttribute('data-ghost-rotation-exit', 'true');
+    expect(plane.outerHTML).toBe(initialPlane);
+    await act(async () => { await vi.advanceTimersByTimeAsync(2_000); });
+    expect(screen.queryByTestId('marker-ghost-fly-icon-owner-mhc-rotation')).not.toBeInTheDocument();
+    expect(pulse.style.transform).toBe('');
   });
 
   it('draws the owner Ghost Mode radius around true location and a leash to the decoy', async () => {
@@ -786,8 +973,7 @@ describe('MapView', () => {
     expect(screen.getByTestId('marker-heart-user-photo')).toHaveAttribute('data-has-photo', 'true');
     expect(screen.getByTestId('marker-heart-user-photo')).toHaveAttribute('data-marker-theme', 'nearby');
     expect(screen.queryByLabelText('versatile')).not.toBeInTheDocument();
-    expect(screen.getByLabelText('Your profile')).toBeInTheDocument();
-    expect(screen.getByTestId('marker-badge-me').querySelector('svg')).toHaveClass('h-[1.0625rem]', 'w-[1.0625rem]');
+    expect(screen.getByLabelText('position: versatile')).toBeInTheDocument();
     expect(screen.queryByText('12m ago')).not.toBeInTheDocument();
   });
 
@@ -814,9 +1000,9 @@ describe('MapView', () => {
     expect(heart).toHaveAttribute('data-has-photo', 'true');
     expect(screen.getByTestId('marker-photo-fill-ghost-photo')).toHaveAttribute('href', 'https://example.com/river.jpg');
     expect(heart.querySelector('path[stroke]')).toHaveAttribute('stroke', '#FF0072');
-    expect(screen.getByTestId('marker-badge-ghost-photo')).toHaveClass('border-[#FF0072]/80');
+    expect(screen.getByTestId('marker-position-badge-ghost-photo')).toHaveStyle({ color: '#FF0072' });
     // The capsule border tracks the unit's own border colour.
-    expect(screen.getByTestId('marker-signal-badge-ghost-photo').getAttribute('style')).toContain('rgba(255, 0, 114, 0.8)');
+    expect(screen.getByTestId('marker-signal-badge-ghost-photo').getAttribute('style')).toContain('#FF0072');
   });
 
   it('keeps the signed-in Ghost marker electric blue without replacing its profile photo', async () => {
@@ -843,7 +1029,7 @@ describe('MapView', () => {
     expect(heart).toHaveAttribute('data-has-photo', 'true');
     expect(screen.getByTestId('marker-photo-fill-me')).toHaveAttribute('href', 'https://example.com/me.jpg');
     expect(heart.querySelector('path[stroke]')).toHaveAttribute('stroke', '#0BA8FF');
-    expect(screen.getByTestId('marker-badge-me')).toHaveClass('border-[#0BA8FF]');
+    expect(screen.getByTestId('marker-position-badge-me')).toHaveStyle({ color: '#0BA8FF' });
     expect(screen.getByTestId('marker-signal-badge-me').getAttribute('style')).toContain('#0BA8FF');
   });
 
@@ -937,20 +1123,8 @@ describe('MapView', () => {
     expect(screen.getByTestId('marker-heart-user-mutual')).toHaveClass('h-20', 'w-20');
     // Tall enough to hold the ghost exit animation without clipping it.
     expect(markerInstances[0].element).toHaveClass('h-[128px]', 'w-[103px]');
-    expect(screen.getByTestId('marker-badge-user-mutual')).toHaveClass(
-      'border-[#6f00ff]/80',
-      'right-[-0.25rem]',
-      'top-[62%]',
-      '-translate-y-1/2',
-    );
-    expect(screen.getByLabelText('mutual')).toBeInTheDocument();
-    expect(screen.getByTestId('marker-relationship-user-mutual')).toHaveClass(
-      'border-[#6f00ff]/80',
-      'left-[-0.25rem]',
-      'top-[62%]',
-      '-translate-y-1/2',
-    );
-    expect(screen.getByTestId('marker-relationship-user-mutual').querySelector('img')?.getAttribute('src')).toContain('safety-white');
+    expect(screen.getByTestId('marker-position-badge-user-mutual')).toHaveStyle({ color: '#6F00FF' });
+    expect(screen.getByLabelText('position: bottom')).toBeInTheDocument();
   });
 
   it('keeps the positioned marker element stable on hover', async () => {
@@ -1202,8 +1376,7 @@ describe('MapView', () => {
     const heartLayer = screen.getByTestId('marker-heart-layer-user-pinging');
     const pinUnit = screen.getByTestId('marker-pin-unit-user-pinging');
     const signalBadge = screen.getByTestId('marker-signal-badge-user-pinging');
-    const positionBadge = screen.getByTestId('marker-badge-user-pinging');
-    const relationshipBadge = screen.getByTestId('marker-relationship-user-pinging');
+    const positionBadge = screen.getByTestId('marker-position-badge-user-pinging');
     const postPreview = screen.getByTestId('marker-post-preview-user-pinging');
     expect(signalStack).toHaveClass('opacity-100');
     expect(signalStack).not.toHaveClass('opacity-0');
@@ -1220,10 +1393,8 @@ describe('MapView', () => {
     expect(heart.querySelector('path[stroke="#C8FF31"]')).not.toBeNull();
     expect(signalBadge.getAttribute('style')).toContain('#C8FF31');
     expect(signalBadge).not.toHaveClass('shadow-[0_12px_30px_rgba(0,0,0,0.45)]');
-    expect(positionBadge).toHaveClass('border-[#C8FF31]');
-    expect(relationshipBadge).toHaveClass('border-[#C8FF31]');
+    expect(positionBadge).toHaveStyle({ color: '#C8FF31' });
     expect(heartLayer).toContainElement(positionBadge);
-    expect(heartLayer).toContainElement(relationshipBadge);
     expect(heartLayer).not.toContainElement(postPreview);
     expect(heartLayer).toContainElement(signalStack);
     expect(markerInstances[0].element).toHaveAttribute('data-active-ping', 'true');
@@ -1231,9 +1402,12 @@ describe('MapView', () => {
     const unchangedFill = heart.querySelector('path[fill="url(#marker-fill-user-pinging)"]');
     expect(unchangedFill).toHaveAttribute('fill-opacity', '1');
     expect(heart.querySelector('path[fill="#C8FF31"]')).toBeNull();
+    const pinEkg = screen.getByTestId('pulse-ekg-pin');
+    expect(pinEkg.tagName.toLowerCase()).toBe('g');
+    expect(pinEkg.querySelectorAll(`path[d="${PULSE_EKG_PIN_PATH}"]`)).toHaveLength(2);
   });
 
-  it('retries the default vector style with raster fallback before showing a map error', async () => {
+  it('retains the approved vector map on tile failure and recovers without a CARTO fallback', async () => {
     render(
       <MapView
         onPinClick={vi.fn()}
@@ -1247,29 +1421,29 @@ describe('MapView', () => {
       mapInstances[0].trigger('error', { error: new Error('tilejson failed') });
     });
 
-    await waitFor(() => expect(MockMap.calls).toHaveLength(2));
-    expect(mapInstances[0].remove).toHaveBeenCalledTimes(1);
-    expect(MockMap.calls[1]).toEqual(expect.objectContaining({
+    expect(MockMap.calls).toHaveLength(1);
+    expect(mapInstances[0].remove).not.toHaveBeenCalled();
+    expect(MockMap.calls[0]).toEqual(expect.objectContaining({
       style: expect.objectContaining({
         sources: expect.objectContaining({
-          osmRasterTiles: expect.objectContaining({
-            type: 'raster',
-            tiles: expect.arrayContaining(['https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png']),
+          openmaptiles: expect.objectContaining({
+            type: 'vector',
+            url: 'https://tiles.openfreemap.org/planet',
           }),
         }),
       }),
     }));
-    expect(screen.queryByText(/Map tiles could not load/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/Map tiles could not load/i)).toBeInTheDocument();
 
     act(() => {
-      mapInstances[1].trigger('load');
+      mapInstances[0].trigger('load');
     });
 
     await waitFor(() => expect(screen.queryByText(/Loading NYC map/i)).not.toBeInTheDocument());
     expect(screen.queryByText(/Map tiles could not load/i)).not.toBeInTheDocument();
   });
 
-  it('retries the default vector style with raster fallback when map load hangs', async () => {
+  it('keeps the approved vector source during a slow load instead of starting a CARTO fallback', async () => {
     vi.useFakeTimers();
 
     render(
@@ -1290,26 +1464,27 @@ describe('MapView', () => {
       vi.advanceTimersByTime(4500);
     });
 
-    expect(MockMap.calls).toHaveLength(2);
-    expect(mapInstances[0].remove).toHaveBeenCalledTimes(1);
-    expect(MockMap.calls[1]).toEqual(expect.objectContaining({
+    expect(MockMap.calls).toHaveLength(1);
+    expect(mapInstances[0].remove).not.toHaveBeenCalled();
+    expect(MockMap.calls[0]).toEqual(expect.objectContaining({
       style: expect.objectContaining({
         sources: expect.objectContaining({
-          osmRasterTiles: expect.objectContaining({
-            type: 'raster',
+          openmaptiles: expect.objectContaining({
+            type: 'vector',
+            url: 'https://tiles.openfreemap.org/planet',
           }),
         }),
       }),
     }));
 
     act(() => {
-      mapInstances[1].trigger('load');
+      mapInstances[0].trigger('load');
     });
 
     expect(screen.queryByText(/Loading NYC map/i)).not.toBeInTheDocument();
   });
 
-  it('clears the loading state when the raster fallback renders before load fires', async () => {
+  it('does not hide a vector tile failure merely because an empty canvas rendered', async () => {
     vi.useFakeTimers();
 
     render(
@@ -1326,24 +1501,27 @@ describe('MapView', () => {
 
     act(() => {
       mapInstances[0].trigger('render');
-      vi.advanceTimersByTime(4500);
+      vi.advanceTimersByTime(500);
+      mapInstances[0].trigger('error', { error: new Error('tilejson failed') });
+      vi.advanceTimersByTime(4000);
     });
 
-    expect(MockMap.calls).toHaveLength(2);
-    expect(screen.getByText(/Loading NYC map/i)).toBeInTheDocument();
+    expect(MockMap.calls).toHaveLength(1);
+    expect(screen.getByText(/Map tiles could not load/i)).toBeInTheDocument();
 
     act(() => {
-      mapInstances[1].trigger('render');
-      vi.advanceTimersByTime(1199);
+      mapInstances[0].trigger('render');
+      vi.advanceTimersByTime(1200);
     });
 
-    expect(screen.getByText(/Loading NYC map/i)).toBeInTheDocument();
+    expect(screen.getByText(/Map tiles could not load/i)).toBeInTheDocument();
 
     act(() => {
-      vi.advanceTimersByTime(1);
+      mapInstances[0].trigger('load');
     });
 
     expect(screen.queryByText(/Loading NYC map/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Map tiles could not load/i)).not.toBeInTheDocument();
   });
 
   it('does not show the map error banner for nonfatal tile errors after load', async () => {
@@ -1498,7 +1676,7 @@ describe('MapView', () => {
     expect(onPinClick).not.toHaveBeenCalled();
     expect(mapInstances[0].fitBounds).toHaveBeenCalledWith(
       [[-73.9902, 40.7128], [-73.99, 40.713]],
-      expect.objectContaining({ maxZoom: 12.5 }),
+      expect.objectContaining({ maxZoom: 15.25 }),
     );
     expect(mapInstances[0].setCenter).not.toHaveBeenCalled();
     expect(screen.getByRole('button', { name: 'Zoom into 2 nearby people on map' })).toBeInTheDocument();
@@ -1655,11 +1833,20 @@ describe('MapView', () => {
     expect(validateStyleMin(getMapStyle() as any)).toEqual([]);
   });
 
-  it('keeps the explicit style URL override as highest priority', () => {
+  it('ignores external style overrides so the cruush theme remains authoritative', () => {
     vi.stubEnv('VITE_MAP_STYLE_URL', 'https://example.com/custom-style.json');
     vi.stubEnv('VITE_MAP_TILE_URL', 'https://tiles.example.com/{z}/{x}/{y}.png');
 
-    expect(getMapStyle()).toBe('https://example.com/custom-style.json');
+    const style = getMapStyle() as any;
+
+    expect(style.sources.openmaptiles.url).toBe('https://tiles.openfreemap.org/planet');
+    expect(style.layers.some((layer: any) => layer.id === 'major-roads')).toBe(true);
+  });
+
+  it('rejects CARTO even when configured as the vector source', () => {
+    vi.stubEnv('VITE_MAP_VECTOR_TILEJSON_URL', 'https://a.basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json');
+
+    expect(() => getMapStyle()).toThrow('CARTO map sources are not allowed');
   });
 
   it('keeps the custom vector style when only a raster fallback URL is configured', () => {
@@ -1677,26 +1864,20 @@ describe('MapView', () => {
     expect(style.layers.some((layer: any) => layer.id === 'major-roads')).toBe(true);
   });
 
-  it('uses configured raster tiles only when explicitly enabled', () => {
+  it('ignores retired raster flags and keeps the approved vector theme', () => {
     vi.stubEnv('VITE_MAP_USE_RASTER_TILES', 'true');
     vi.stubEnv('VITE_MAP_TILE_URL', 'https://tiles.example.com/{z}/{x}/{y}.png');
     vi.stubEnv('VITE_MAP_ATTRIBUTION', '&copy; Example Tiles');
 
     const style = getMapStyle() as any;
 
-    expect(style.sources.osmRasterTiles).toEqual({
-      type: 'raster',
-      tiles: ['https://tiles.example.com/{z}/{x}/{y}.png'],
-      tileSize: 256,
-      attribution: '&copy; Example Tiles',
+    expect(style.sources.openmaptiles).toEqual({
+      type: 'vector',
+      url: 'https://tiles.openfreemap.org/planet',
     });
-    expect(style.layers).toEqual([
-      {
-        id: 'osm-raster-tiles',
-        type: 'raster',
-        source: 'osmRasterTiles',
-      },
-    ]);
+    expect(style.sources.osmRasterTiles).toBeUndefined();
+    expect(style.layers.some((layer: any) => layer.type === 'raster')).toBe(false);
+    expect(style.layers.some((layer: any) => layer.id === 'major-roads')).toBe(true);
   });
 
   it('allows vector tile and glyph URLs to be overridden without switching to raster tiles', () => {
@@ -1710,22 +1891,6 @@ describe('MapView', () => {
     expect(style.layers.some((layer: any) => layer.id === 'major-roads')).toBe(true);
   });
 });
-
-function pixelDistance(a: { approximateLatitude: number; approximateLongitude: number },
-                       b: { approximateLatitude: number; approximateLongitude: number },
-                       zoom: number) {
-  const worldSize = 512 * 2 ** zoom;
-  const project = (m: { approximateLatitude: number; approximateLongitude: number }) => {
-    const sinLatitude = Math.min(0.9999, Math.max(-0.9999, Math.sin(m.approximateLatitude * Math.PI / 180)));
-    return {
-      x: (m.approximateLongitude + 180) / 360 * worldSize,
-      y: (0.5 - Math.log((1 + sinLatitude) / (1 - sinLatitude)) / (4 * Math.PI)) * worldSize,
-    };
-  };
-  const p1 = project(a);
-  const p2 = project(b);
-  return Math.hypot(p2.x - p1.x, p2.y - p1.y);
-}
 
 describe('spiderfy clusters', () => {
   it('fans same-spot people out on tap instead of zooming', async () => {
@@ -1759,28 +1924,64 @@ describe('spiderfy clusters', () => {
     // Every member gets a distinct offset so none of them stack.
     expect(new Set(offsets.map((o: number[]) => o.join(','))).size).toBe(3);
   });
+
+  it('fans same-coordinate Spots out without mixing them with people', async () => {
+    const onPinClick = vi.fn();
+    render(
+      <MapView
+        onPinClick={onPinClick}
+        markers={[
+          {
+            id: 'person-a',
+            kind: 'person',
+            displayName: 'Person A',
+            approximateLatitude: 40.7128,
+            approximateLongitude: -73.99,
+          },
+          {
+            id: 'place-a',
+            kind: 'place',
+            displayName: 'Spot A',
+            approximateLatitude: 40.7128,
+            approximateLongitude: -73.99,
+            place: { id: 'a', facilityType: 'bar', activeCheckins: 0 },
+          },
+          {
+            id: 'place-b',
+            kind: 'place',
+            displayName: 'Spot B',
+            approximateLatitude: 40.7128,
+            approximateLongitude: -73.99,
+            place: { id: 'b', facilityType: 'clinic', activeCheckins: 0 },
+          },
+        ]}
+      />
+    );
+
+    expect(await screen.findByRole('button', { name: 'Open Person A on map' })).toBeInTheDocument();
+    const cluster = screen.getByRole('button', { name: 'Open 2 spots sharing this map spot' });
+
+    await act(async () => {
+      fireEvent.click(cluster);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(mapInstances[0].setZoom).not.toHaveBeenCalled();
+    expect(await screen.findByRole('button', { name: 'Open Spot A spot board' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Open Spot B spot board' })).toBeInTheDocument();
+    expect(onPinClick).not.toHaveBeenCalled();
+
+    const spotOffsets = markerInstances
+      .filter((instance: any) => instance.element.isConnected)
+      .map((instance: any) => instance.offset)
+      .filter((offset: number[] | undefined) => Boolean(offset));
+    expect(spotOffsets).toHaveLength(2);
+    expect(new Set(spotOffsets.map((offset: number[]) => offset.join(','))).size).toBe(2);
+  });
 });
 
 describe('separateOverlappingMarkers', () => {
-  it('separates two ordinary user pins that share coordinates', () => {
-    const a = { ...me, id: 'a', isCurrentUser: false };
-    const b = { ...me, id: 'b', isCurrentUser: false };
-    const [ra, rb] = separateOverlappingMarkers([a, b], zoom);
-
-    expect(pixelDistance(ra, rb, zoom)).toBeGreaterThanOrEqual(MARKER_CLEARANCE_PX - 0.5);
-  });
-
-  it('separates a whole crowd so no two pins overlap', () => {
-    const crowd = Array.from({ length: 6 }, (_, i) => ({ ...me, id: `p${i}`, isCurrentUser: false }));
-    const out = separateOverlappingMarkers(crowd, zoom);
-
-    for (let i = 0; i < out.length; i += 1) {
-      for (let j = i + 1; j < out.length; j += 1) {
-        expect(pixelDistance(out[i], out[j], zoom)).toBeGreaterThanOrEqual(MARKER_CLEARANCE_PX - 0.5);
-      }
-    }
-  });
-
   const zoom = 14;
   const me = {
     id: 'me',
@@ -1790,50 +1991,16 @@ describe('separateOverlappingMarkers', () => {
     isCurrentUser: true,
   } as any;
 
-  it('pushes a pin sharing the current user coordinates out of the pin footprint', () => {
+  it('keeps every member at the same coordinates across zoom levels', () => {
     const other = { ...me, id: 'other', displayName: 'Someone', isCurrentUser: false };
-    const [, moved] = separateOverlappingMarkers([me, other], zoom);
-
-    expect(pixelDistance(me, moved, zoom)).toBeGreaterThanOrEqual(MARKER_CLEARANCE_PX - 0.5);
-  });
-
-  it('keeps an active Ping at its map position before an ordinary overlapping heart', () => {
-    const ordinary = { ...me, id: 'a-ordinary', isCurrentUser: false };
-    const pinging = {
-      ...me,
-      id: 'z-pinging',
-      isCurrentUser: false,
-      activePing: { id: 'ping-1', expiresAt: '2026-08-11T19:00:00.000Z' },
-    };
-    const separated = separateOverlappingMarkers([ordinary, pinging], zoom);
-    const placedPinging = separated.find((marker) => marker.id === pinging.id)!;
-    const placedOrdinary = separated.find((marker) => marker.id === ordinary.id)!;
-
-    expect(placedPinging.approximateLatitude).toBe(pinging.approximateLatitude);
-    expect(placedPinging.approximateLongitude).toBe(pinging.approximateLongitude);
-    expect(pixelDistance(placedOrdinary, pinging, zoom)).toBeGreaterThanOrEqual(MARKER_CLEARANCE_PX - 0.5);
-  });
-
-  it('never moves the current user pin', () => {
-    const other = { ...me, id: 'other', isCurrentUser: false };
-    const [mine] = separateOverlappingMarkers([me, other], zoom);
-
-    expect(mine.approximateLatitude).toBe(me.approximateLatitude);
-    expect(mine.approximateLongitude).toBe(me.approximateLongitude);
-  });
-
-  it('leaves pins that already clear the footprint untouched', () => {
     const far = { ...me, id: 'far', isCurrentUser: false, approximateLatitude: 40.7 };
-    const [, untouched] = separateOverlappingMarkers([me, far], zoom);
+    const markers = [me, other, far];
+    const zoomedOut = separateOverlappingMarkers(markers, 10);
+    const zoomedIn = separateOverlappingMarkers(markers, 18);
 
-    expect(untouched).toBe(far);
-  });
-
-  it('is stable across renders so pins do not jitter', () => {
-    const other = { ...me, id: 'other', isCurrentUser: false };
-    const first = separateOverlappingMarkers([me, other], zoom)[1];
-    const second = separateOverlappingMarkers([me, other], zoom)[1];
-
-    expect(second).toEqual(first);
+    expect(zoomedOut).toBe(markers);
+    expect(zoomedIn).toBe(markers);
+    expect(zoomedOut.map(({ approximateLatitude, approximateLongitude }) => [approximateLatitude, approximateLongitude]))
+      .toEqual(zoomedIn.map(({ approximateLatitude, approximateLongitude }) => [approximateLatitude, approximateLongitude]));
   });
 });

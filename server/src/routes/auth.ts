@@ -10,7 +10,6 @@ import {
   verifyAlphaTestPassword
 } from "../alpha-test.js";
 import { ApiError } from "../errors.js";
-import { assertBetaAccessAllowed } from "../beta-access.js";
 import {
   createClearedSessionCookie,
   createSessionCookie,
@@ -38,7 +37,6 @@ import { runTransaction } from "../db.js";
 import { verifyClientSecurityCheck } from "../client-security-check.js";
 import { ensureDevelopmentAdminUser, isDevelopmentAdminLogin } from "../development-admin.js";
 import { verifyTurnstileToken } from "../turnstile.js";
-import { storeLocationEnvelope } from "../location-privacy.js";
 import {
   assertRequestNotSeverelyBanned,
   ensureDeviceCookie
@@ -494,11 +492,8 @@ export async function registerAuthRoutes(app: FastifyInstance) {
         message: "Too many sign-up attempts. Try again later."
       }
     ]);
-    if (app.config.BETA_ACCESS_GEOFENCE_ENABLED) {
-      assertBetaAccessAllowed(app.config, payload.betaAccessLocation);
-    } else {
+    if (!app.config.BETA_ACCESS_GEOFENCE_ENABLED) {
       await verifyAlphaTestPassword(app.config, payload.alphaPassword);
-      assertBetaAccessAllowed(app.config, payload.betaAccessLocation);
     }
     verifyClientSecurityCheck(payload.clientCheck);
     await verifyTurnstileToken(request, payload.captchaToken);
@@ -620,18 +615,6 @@ export async function registerAuthRoutes(app: FastifyInstance) {
       }
 
       throw error;
-    }
-
-    if (payload.betaAccessLocation) {
-      await storeLocationEnvelope(app, {
-        subjectUserId: createdUser.id,
-        lat: payload.betaAccessLocation.lat,
-        lng: payload.betaAccessLocation.lng,
-        accuracyM: payload.betaAccessLocation.accuracyMeters,
-        source: "GPS"
-      }).catch((error) => {
-        request.log.warn({ err: error, userId: createdUser.id }, "signup location storage unavailable");
-      });
     }
 
     const verification = await createVerificationToken(app, createdUser.id);

@@ -1,5 +1,6 @@
 import { requestApi } from './apiClient';
 import type { CruushBadge } from './billingApi';
+import type { SideBadges } from './profileApi';
 import {
   decryptDisplayLocationToken,
   type DisplayLocationToken,
@@ -27,13 +28,17 @@ export type DiscoveryUser = {
   position: string[];
   role: string[];
   hostingTravel: string[];
+  travelling?: boolean;
+  travelLabel?: string;
   photo: string | null;
   photoExplicit?: boolean;
   badges?: CruushBadge[];
+  sideBadges?: SideBadges;
   isDemo?: boolean;
   isCurrentUser?: boolean;
   displayMode?: DisplayMode;
   displayExpiresAtMs?: number;
+  canRevealPreciseLocation?: boolean;
   ghostRotationExpiresAtMs?: number;
   privacyRadiusMeters?: number;
   npcGhostDemo?: boolean;
@@ -56,6 +61,8 @@ type Coordinates = {
 };
 
 export type DiscoveryFilterParams = {
+  searchQuery?: string;
+  mileHighClub?: boolean;
   identities?: string[];
   presentations?: string[];
   lookingFor?: string[];
@@ -103,9 +110,12 @@ type TokenizedDiscoveryProfile = {
   position: string[];
   role: string[];
   hostingTravel: string[];
+  travelling?: boolean;
+  travelLabel?: string;
   photo: string | null;
   photoExplicit?: boolean;
   badges?: CruushBadge[];
+  sideBadges?: SideBadges;
   relationship?: DiscoveryUser['relationship'];
   activePing?: DiscoveryUser['activePing'];
 };
@@ -121,13 +131,13 @@ type NearbyUsersResponse = {
 /**
  * Discovery refuses to serve a view further out than someone may browse, and
  * says so rather than returning an empty list that reads as "nobody here".
- * Travel Mode is how you move where you browse from.
+ * Mile High Club is how you move where you browse from.
  */
 export class OutsideBrowseRadiusError extends Error {
   readonly browseRadiusMiles: number;
 
   constructor(browseRadiusMiles: number) {
-    super(`Turn on Travel Mode to browse more than ${browseRadiusMiles} miles from where you are.`);
+    super(`Turn on Mile High Club to browse more than ${browseRadiusMiles} miles from where you are.`);
     this.name = 'OutsideBrowseRadiusError';
     this.browseRadiusMiles = browseRadiusMiles;
   }
@@ -159,6 +169,14 @@ export async function getNearbyUsers(
 
   if (options?.npcGhostDemo) {
     params.set('npcGhostDemo', '1');
+  }
+
+  if (filters?.mileHighClub) {
+    params.set('mileHighClub', '1');
+  }
+
+  if (filters?.searchQuery?.trim()) {
+    params.set('q', filters.searchQuery.trim());
   }
 
   appendListParams(params, 'identities', filters?.identities);
@@ -215,9 +233,12 @@ export async function getNearbyUsers(
       position: profile.position,
       role: profile.role,
       hostingTravel: profile.hostingTravel,
+      travelling: profile.travelling === true,
+      travelLabel: profile.travelLabel ?? '',
       photo: profile.photo,
       photoExplicit: profile.photoExplicit === true,
       badges: profile.badges,
+      sideBadges: profile.sideBadges,
       displayMode: displayPayload.displayMode,
       displayExpiresAtMs: profile.displayExpiresAtMs,
       // The in-memory NPC demo pins have no rotation of their own, so they stay

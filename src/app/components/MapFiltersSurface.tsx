@@ -1,10 +1,13 @@
+import { useState } from 'react';
 import { Button } from './ui/button';
 import { Label } from './ui/label';
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from './ui/sheet';
 import { Slider } from './ui/slider';
+import { Switch } from './ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import MultiSelect, { type MultiSelectOptionGroup } from './MultiSelect';
 import CruushPlusGateNotice from './CruushPlusGateNotice';
+import { Search } from 'lucide-react';
 import {
   AVAILABILITY,
   BODY_TYPES,
@@ -23,8 +26,10 @@ import {
 } from '../lib/profileOptions';
 
 export interface FilterState {
+  searchQuery: string;
   ageRange: [number, number];
   distance: number;
+  mileHighClub: boolean;
   identities: string[];
   presentations: string[];
   lookingFor: string[];
@@ -42,8 +47,10 @@ export interface FilterState {
 }
 
 export const DEFAULT_FILTER_STATE: FilterState = {
+  searchQuery: '',
   ageRange: [18, 99],
   distance: 100,
+  mileHighClub: false,
   identities: [],
   presentations: [],
   lookingFor: [],
@@ -66,7 +73,7 @@ interface MapFiltersSurfaceProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title?: string;
-  description?: string;
+  description?: string | null;
   value: FilterState;
   onChange: (value: FilterState) => void;
   onClear: () => void;
@@ -74,9 +81,10 @@ interface MapFiltersSurfaceProps {
   onMutualCruushesOnlyChange?: (enabled: boolean) => void;
   hasCruushPlus?: boolean;
   onUpgrade?: () => void;
+  searchPlaceholder?: string;
 }
 
-type MultiSelectKey = Exclude<keyof FilterState, 'ageRange' | 'distance'>;
+type MultiSelectKey = Exclude<keyof FilterState, 'searchQuery' | 'ageRange' | 'distance' | 'mileHighClub'>;
 
 function updateList(value: FilterState, key: MultiSelectKey, items: string[]): FilterState {
   return {
@@ -119,8 +127,8 @@ export default function MapFiltersSurface({
   mutualCruushesOnly = false,
   open,
   onOpenChange,
-  title = 'Seeking',
-  description = 'Refine nearby people by distance, profile details, and vibe.',
+  title = 'Seeking Filter',
+  description = null,
   value,
   onChange,
   onClear,
@@ -128,16 +136,23 @@ export default function MapFiltersSurface({
   onMutualCruushesOnlyChange,
   hasCruushPlus = false,
   onUpgrade,
+  searchPlaceholder = 'Search names, bios, and profile keywords',
 }: MapFiltersSurfaceProps) {
+  const [activeTab, setActiveTab] = useState('basics');
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent closeSide="left" side="right" className="z-[70] w-full flex h-full max-h-[100dvh] flex-col gap-0 overflow-hidden border-white/10 bg-background/95 p-0 sm:max-w-xl">
+      <SheetContent
+        closeSide="left"
+        side="right"
+        overlayClassName="z-[1090]"
+        className="z-[1100] w-full flex h-full max-h-[100dvh] flex-col gap-0 overflow-hidden border-white/10 bg-background/95 p-0 sm:max-w-xl"
+      >
         <SheetHeader className="shrink-0 border-b border-white/10 py-4 pl-14 pr-5">
           <SheetTitle>{title}</SheetTitle>
-          <SheetDescription>{description}</SheetDescription>
+          {description ? <SheetDescription>{description}</SheetDescription> : null}
         </SheetHeader>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 overscroll-contain">
+        <div className="scrollbar-hide min-h-0 flex-1 overflow-y-auto px-5 py-4 overscroll-contain">
           {!hasCruushPlus && onUpgrade ? (
             <div className="mb-5">
               <CruushPlusGateNotice
@@ -146,6 +161,20 @@ export default function MapFiltersSurface({
               />
             </div>
           ) : null}
+          <div className="mb-5 space-y-2">
+            <Label htmlFor="seeking-profile-search">Search</Label>
+            <div className="flex items-center gap-2 rounded-xl border border-white/12 bg-white/[0.045] px-3">
+              <Search aria-hidden="true" className="h-4 w-4 shrink-0 text-white/55" />
+              <input
+                id="seeking-profile-search"
+                type="search"
+                value={value.searchQuery}
+                onChange={(event) => onChange({ ...value, searchQuery: event.target.value })}
+                placeholder={searchPlaceholder}
+                className="h-11 min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-white/42"
+              />
+            </div>
+          </div>
           {onMutualCruushesOnlyChange ? (
             <button
               type="button"
@@ -169,11 +198,11 @@ export default function MapFiltersSurface({
             </button>
           ) : null}
 
-          <Tabs defaultValue="basics" className="w-full">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid h-auto w-full grid-cols-3 rounded-full border border-white/10 bg-background/25 p-1">
-              <TabsTrigger value="basics" className="min-h-11">Basics</TabsTrigger>
-              <TabsTrigger value="intimacy" className="min-h-11">Intimacy</TabsTrigger>
-              <TabsTrigger value="health" className="min-h-11">Health</TabsTrigger>
+              <TabsTrigger value="basics" className="min-h-11" onClick={() => setActiveTab('basics')}>Basics</TabsTrigger>
+              <TabsTrigger value="intimacy" className="min-h-11" onClick={() => setActiveTab('intimacy')}>Intimacy</TabsTrigger>
+              <TabsTrigger value="health" className="min-h-11" onClick={() => setActiveTab('health')}>Health</TabsTrigger>
             </TabsList>
 
             <TabsContent value="basics" className="mt-6 space-y-6">
@@ -215,6 +244,17 @@ export default function MapFiltersSurface({
             </TabsContent>
 
             <TabsContent value="intimacy" className="mt-6 space-y-6">
+              <div className="flex items-start justify-between gap-4 rounded-2xl border border-white/10 bg-white/[0.035] p-4">
+                <div className="space-y-0.5">
+                  <Label htmlFor="seeking-mile-high-club">Mile High Club members only</Label>
+                  <p className="text-xs text-muted-foreground">Show only members currently using Mile High Club.</p>
+                </div>
+                <Switch
+                  id="seeking-mile-high-club"
+                  checked={value.mileHighClub}
+                  onCheckedChange={(mileHighClub) => onChange({ ...value, mileHighClub })}
+                />
+              </div>
               <FieldGroup label="Looking For" options={LOOKING_FOR} stateKey="lookingFor" value={value} onChange={onChange} />
               <FieldGroup label="Timing" options={AVAILABILITY} stateKey="timing" value={value} onChange={onChange} />
               <FieldGroup label="Hosting/Travel" options={HOSTING} stateKey="hosting" value={value} onChange={onChange} />

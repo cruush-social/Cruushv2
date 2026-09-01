@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router';
 import {
   ArrowLeft,
@@ -6,6 +6,7 @@ import {
   Gift,
   Share2,
   Sparkles,
+  Zap,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from './ui/button';
@@ -16,13 +17,18 @@ import { Input } from './ui/input';
 import { Progress } from './ui/progress';
 import {
   getRewardSummary,
+  getSideQuests,
+  claimSideQuest,
   recordDailyRewardCheckIn,
   redeemCruushPlusPromoCode,
   updateRewardTimezone,
   type RewardSummary,
+  type SideQuestKey,
+  type SideQuestSummary,
 } from '../lib/rewardsApi';
 import { CRUUSH_PLUS_CHANGED_EVENT } from '../lib/billingApi';
 import { CRUUSH_PLUS_FEATURES } from '../lib/cruushPlusFeatures';
+import { showEarnedCruushPlusCard } from '../lib/earnedCruushPlusCard';
 
 const BENEFITS_OPEN_STORAGE_KEY = 'cruush:rewards:benefits-open';
 
@@ -75,11 +81,57 @@ function formatDate(value: string | null) {
 export default function Rewards() {
   const navigate = useNavigate();
   const [summary, setSummary] = useState<RewardSummary | null>(null);
+  const [sideQuests, setSideQuests] = useState<SideQuestSummary | null>(null);
+  const [sideQuestError, setSideQuestError] = useState<string | null>(null);
+  const [sideQuestLoading, setSideQuestLoading] = useState(false);
+  const [claimingQuest, setClaimingQuest] = useState<SideQuestKey | null>(null);
   const [promoCode, setPromoCode] = useState('');
   const [loading, setLoading] = useState(true);
   const [promoSaving, setPromoSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [benefitsOpen, setBenefitsOpen] = useState(readBenefitsOpenPreference);
+  const mountedRef = useRef(true);
+  const questRequestRef = useRef(0);
+  const questReadPendingRef = useRef(false);
+  const claimPendingRef = useRef(false);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      questRequestRef.current += 1;
+      questReadPendingRef.current = false;
+    };
+  }, []);
+
+  const loadSideQuestSummary = useCallback(async (quiet = false) => {
+    if (!mountedRef.current || claimPendingRef.current || questReadPendingRef.current) return;
+    const requestId = ++questRequestRef.current;
+    questReadPendingRef.current = true;
+    if (!quiet) {
+      setSideQuestLoading(true);
+      setSideQuestError(null);
+    }
+
+    try {
+      const nextSideQuests = await getSideQuests();
+      if (!mountedRef.current || requestId !== questRequestRef.current) return;
+      setSideQuests(nextSideQuests);
+      setSideQuestError(null);
+    } catch {
+      if (!mountedRef.current || requestId !== questRequestRef.current) return;
+      // A background refresh must not erase the last usable quest list.
+      if (!quiet) {
+        setSideQuests(null);
+        setSideQuestError('Side Quests are temporarily unavailable.');
+      }
+    } finally {
+      if (mountedRef.current && requestId === questRequestRef.current) {
+        questReadPendingRef.current = false;
+        setSideQuestLoading(false);
+      }
+    }
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -89,17 +141,38 @@ export default function Rewards() {
       const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
       await updateRewardTimezone(timezone).catch(() => undefined);
       await recordDailyRewardCheckIn().catch(() => undefined);
-      setSummary(await getRewardSummary());
+      const [rewardSummary] = await Promise.all([
+        getRewardSummary(),
+        loadSideQuestSummary(),
+      ]);
+      setSummary(rewardSummary);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'Unable to load rewards.');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [loadSideQuestSummary]);
 
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (loading) return;
+    const refreshVisibleQuests = () => {
+      if (document.visibilityState === 'visible') void loadSideQuestSummary(true);
+    };
+    // Eligibility can change in another popup or tab, or at the member's local
+    // day/week boundary. Only read while visible; never claim or check in here.
+    const interval = window.setInterval(refreshVisibleQuests, 60_000);
+    window.addEventListener('focus', refreshVisibleQuests);
+    document.addEventListener('visibilitychange', refreshVisibleQuests);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener('focus', refreshVisibleQuests);
+      document.removeEventListener('visibilitychange', refreshVisibleQuests);
+    };
+  }, [loading, loadSideQuestSummary]);
 
   const copy = async (value: string, label: string) => {
     await navigator.clipboard.writeText(value);
@@ -113,6 +186,7 @@ export default function Rewards() {
 
     try {
       const claim = await redeemCruushPlusPromoCode(promoCode);
+      if (claim.claimed && claim.grant) showEarnedCruushPlusCard(claim.grant);
       setPromoCode('');
       await load();
       window.dispatchEvent(new CustomEvent(CRUUSH_PLUS_CHANGED_EVENT, { detail: claim }));
@@ -129,6 +203,56 @@ export default function Rewards() {
     setBenefitsOpen(open);
     saveBenefitsOpenPreference(open);
   };
+
+  const handleClaimSideQuest = async (questKey: SideQuestKey) => {
+    if (claimPendingRef.current) return;
+    claimPendingRef.current = true;
+    // Invalidate a pending read before the mutation so its old claim flags
+    // cannot replace the authoritative response returned by the claim.
+    questRequestRef.current += 1;
+    questReadPendingRef.current = false;
+    setSideQuestLoading(false);
+    setClaimingQuest(questKey);
+    setError(null);
+    let refreshAfterFailure = false;
+    try {
+      const nextSideQuests = await claimSideQuest(questKey);
+      window.dispatchEvent(new CustomEvent(CRUUSH_PLUS_CHANGED_EVENT));
+      if (!mountedRef.current) return;
+      setSideQuests(nextSideQuests);
+      setSideQuestError(null);
+      toast.success('Side Quest claimed.');
+      // The claim has succeeded. A history refresh failure must not present it
+      // as a failed claim or prevent the newly earned entitlement from updating.
+      const nextSummary = await getRewardSummary().catch(() => null);
+      if (mountedRef.current && nextSummary) {
+        setSummary(nextSummary);
+        const grant = nextSummary.recentGrants.find(item => item.sideQuestKey === questKey && item.status === 'active');
+        if (grant) showEarnedCruushPlusCard(grant);
+      }
+    } catch (claimError) {
+      if (!mountedRef.current) return;
+      setError(claimError instanceof Error ? claimError.message : 'Side Quest could not be claimed.');
+      refreshAfterFailure = true;
+    } finally {
+      claimPendingRef.current = false;
+      if (mountedRef.current) {
+        setClaimingQuest(null);
+        if (refreshAfterFailure) await loadSideQuestSummary();
+      }
+    }
+  };
+
+  const weeklyCruushPlusCapReached = sideQuests
+    ? (sideQuests.cruushPlusClaimsThisWeek ?? 0) >= (sideQuests.cruushPlusWeeklyLimit ?? 2)
+    : false;
+  const openSideQuests = sideQuests?.quests
+    .filter((quest) => !quest.claimed && (!weeklyCruushPlusCapReached || quest.rewardKind !== 'cruush_plus_day'))
+    .slice(0, 4) ?? [];
+  const completedSideQuests = sideQuests?.quests
+    .filter((quest) => quest.claimed)
+    .sort((left, right) => new Date(right.claimedAt ?? 0).getTime() - new Date(left.claimedAt ?? 0).getTime()) ?? [];
+  const recentNonQuestGrants = summary?.recentGrants.filter((grant) => !grant.sideQuestKey) ?? [];
 
   return (
     <div className="min-h-screen bg-background pb-24">
@@ -182,6 +306,26 @@ export default function Rewards() {
             </AccordionItem>
           </Accordion>
         </Card>
+
+        {!loading && summary ? (
+          <Card>
+            <CardHeader>
+              <CardTitle><CruushPlusWord /> time capsule</CardTitle>
+            </CardHeader>
+            <CardContent className="grid grid-cols-2 gap-3 text-sm">
+              <div className="rounded-lg bg-muted/40 p-3">
+                <p className="text-muted-foreground">Active through</p>
+                <p className="mt-1 font-medium">
+                  {formatDate(summary.promotionalAccess.activeUntil) ?? 'No active promo'}
+                </p>
+              </div>
+              <div className="rounded-lg bg-muted/40 p-3">
+                <p className="text-muted-foreground">Banked</p>
+                <p className="mt-1 font-medium">{summary.promotionalAccess.bankedDays} days</p>
+              </div>
+            </CardContent>
+          </Card>
+        ) : null}
 
         {loading ? (
           <div className="rounded-xl border border-border bg-card p-8 text-center text-sm text-muted-foreground">
@@ -282,22 +426,70 @@ export default function Rewards() {
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle><CruushPlusWord /> time</CardTitle>
-                <CardDescription>Earn cruush+ through check-ins, referrals, and promotional grants.</CardDescription>
+            <Card data-testid="side-quests-card">
+              <CardHeader className="flex-row items-center justify-between gap-3">
+                <CardTitle>Side Quests</CardTitle>
+                {sideQuests ? (
+                  <span className="inline-flex items-center gap-1 rounded-full border border-primary/35 bg-primary/10 px-3 py-1 text-sm text-white">
+                    <Zap className="h-4 w-4 text-primary" />{sideQuests.pingCredits} {sideQuests.pingCredits === 1 ? 'Ping' : 'Pings'}
+                  </span>
+                ) : null}
               </CardHeader>
-              <CardContent className="grid grid-cols-2 gap-3 text-sm">
-                <div className="rounded-lg bg-muted/40 p-3">
-                  <p className="text-muted-foreground">Active through</p>
-                  <p className="mt-1 font-medium">
-                    {formatDate(summary.promotionalAccess.activeUntil) ?? 'No active promo'}
-                  </p>
-                </div>
-                <div className="rounded-lg bg-muted/40 p-3">
-                  <p className="text-muted-foreground">Banked</p>
-                  <p className="mt-1 font-medium">{summary.promotionalAccess.bankedDays} days</p>
-                </div>
+              <CardContent>
+                {sideQuests ? (
+                  openSideQuests.length > 0 ? (
+                  <ul className="grid gap-3 sm:grid-cols-2">
+                    {openSideQuests.map((quest) => {
+                      const dailyLimit = sideQuests.claimedToday && !quest.claimed;
+                      const claimingUnavailable = !sideQuests.claimingAvailable;
+                      return (
+                        <li key={quest.key} className="rounded-xl border border-white/12 bg-black/30 p-4">
+                          <p className="font-medium text-white">{quest.title}</p>
+                          <div className="mt-3 flex items-center justify-between gap-3">
+                            <span className="text-sm text-primary">{quest.rewardKind === 'ping' ? `${quest.rewardAmount} ${quest.rewardAmount === 1 ? 'Ping' : 'Pings'}` : '1 day of cruush+'}</span>
+                            <Button
+                              size="sm"
+                              variant={quest.claimed ? 'outline' : 'default'}
+                              disabled={claimingUnavailable || !quest.completed || quest.claimed || dailyLimit || claimingQuest !== null}
+                              onClick={() => void handleClaimSideQuest(quest.key)}
+                            >
+                              {quest.claimed
+                                ? 'Claimed'
+                                : !quest.completed
+                                  ? 'Incomplete'
+                                  : dailyLimit
+                                    ? 'Tomorrow'
+                                    : claimingUnavailable
+                                      ? 'Unavailable'
+                                      : claimingQuest === quest.key
+                                        ? 'Claiming...'
+                                        : 'Claim'}
+                            </Button>
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                  ) : sideQuests.quests.every((quest) => quest.claimed) ? (
+                    <p className="text-sm text-muted-foreground">All Side Quests completed.</p>
+                  ) : null
+                ) : sideQuestError ? (
+                  <>
+                    <div role="alert" className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
+                      {sideQuestError}
+                    </div>
+                    <Button
+                      className="mt-3"
+                      variant="outline"
+                      disabled={sideQuestLoading}
+                      onClick={() => void loadSideQuestSummary()}
+                    >
+                      {sideQuestLoading ? 'Trying again...' : 'Try again'}
+                    </Button>
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Loading Side Quests...</p>
+                )}
               </CardContent>
             </Card>
 
@@ -329,11 +521,11 @@ export default function Rewards() {
                 <CardTitle>Recent rewards</CardTitle>
               </CardHeader>
               <CardContent>
-                {summary.recentGrants.length === 0 ? (
+                {recentNonQuestGrants.length === 0 && completedSideQuests.length === 0 ? (
                   <p className="text-sm text-muted-foreground">Your first confirmed reward will appear here.</p>
                 ) : (
                   <ul className="divide-y divide-border">
-                    {summary.recentGrants.map((grant) => (
+                    {recentNonQuestGrants.map((grant) => (
                       <li key={grant.id} className="flex items-center justify-between gap-3 py-3 text-sm">
                         <div>
                           <p>{sourceLabel(grant.source)}</p>
@@ -341,6 +533,17 @@ export default function Rewards() {
                         </div>
                         <span className={grant.status === 'reversed' ? 'text-muted-foreground line-through' : 'text-primary'}>
                           +{grant.days} {grant.days === 1 ? 'day' : 'days'}
+                        </span>
+                      </li>
+                    ))}
+                    {completedSideQuests.map((quest) => (
+                      <li key={`side-quest-${quest.key}`} className="flex items-center justify-between gap-3 py-3 text-sm">
+                        <div>
+                          <p>Side Quest: {quest.title}</p>
+                          <p className="text-xs text-muted-foreground">{formatDate(quest.claimedAt) ?? 'Completed'}</p>
+                        </div>
+                        <span className="text-primary">
+                          +{quest.rewardAmount} {quest.rewardKind === 'ping' ? (quest.rewardAmount === 1 ? 'Ping' : 'Pings') : 'cruush+ day'}
                         </span>
                       </li>
                     ))}
