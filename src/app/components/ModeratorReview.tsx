@@ -1296,6 +1296,19 @@ export default function ModeratorReview() {
                   <p className="text-sm text-muted-foreground">
                     {userDetail.user.openReportCount} open / {userDetail.user.totalReportCount} total reports against this account
                   </p>
+                  <div className="pt-2">
+                    <p className="text-sm font-medium">Mile High Club</p>
+                    {userDetail.mileHighClubPin ? (
+                      <div className="mt-1 space-y-1 text-xs text-muted-foreground">
+                        <p>{userDetail.mileHighClubPin.label || 'Active pin'}</p>
+                        <p>Set {formatDateTime(userDetail.mileHighClubPin.setAt)}</p>
+                        <p>Can move {formatDateTime(userDetail.mileHighClubPin.movableAt)}</p>
+                        <p>Expires {formatDateTime(userDetail.mileHighClubPin.expiresAt)}</p>
+                      </div>
+                    ) : (
+                      <p className="mt-1 text-xs text-muted-foreground">No active pin</p>
+                    )}
+                  </div>
                 </div>
 
                 <div className="space-y-3 border-b border-border pb-5">

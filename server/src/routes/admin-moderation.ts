@@ -17,6 +17,7 @@ import {
   getPendingProfilePhotoReviewImage,
   rejectPendingProfilePhotoReview
 } from "../profile-photo-manual-reviews.js";
+import { getTravelPin } from "../travel-pins.js";
 
 const reportParamsSchema = z.object({ reportId: uuidSchema }).strict();
 const userParamsSchema = z.object({ userId: uuidSchema }).strict();
@@ -1855,7 +1856,7 @@ export async function registerAdminModerationRoutes(app: FastifyInstance) {
     const row = result.rows[0];
     if (!row) throw new ApiError(404, "NOT_FOUND", "User not found.");
 
-    const [history, reports] = await Promise.all([
+    const [history, reports, travelPin] = await Promise.all([
       app.db.query<ModerationHistoryRow>(
         `select action.id::text as id, action.action, action.reason_code, action.notes,
                 action.created_at,
@@ -1872,7 +1873,8 @@ export async function registerAdminModerationRoutes(app: FastifyInstance) {
         `${reportSelectSql("where reports.target_user_id = $1")}
          order by reports.created_at desc limit 25`,
         [userId]
-      )
+      ),
+      getTravelPin(app, userId)
     ]);
 
     await recordModeratorAccess(app.db, {
@@ -1892,7 +1894,15 @@ export async function registerAdminModerationRoutes(app: FastifyInstance) {
           actorDisplayName: historyRow.actor_display_name?.trim() || "former moderator",
           createdAt: new Date(historyRow.created_at).toISOString()
         })),
-        reports: reports.rows.map(mapReportRow)
+        reports: reports.rows.map(mapReportRow),
+        mileHighClubPin: travelPin
+          ? {
+              label: travelPin.label,
+              setAt: new Date(travelPin.setAtMs).toISOString(),
+              movableAt: new Date(travelPin.movableAtMs).toISOString(),
+              expiresAt: new Date(travelPin.expiresAtMs).toISOString()
+            }
+          : null
       }
     });
   });

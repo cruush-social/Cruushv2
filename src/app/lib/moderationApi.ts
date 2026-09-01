@@ -390,6 +390,12 @@ export type ModeratedUserDetail = {
   user: ModeratedUser;
   history: ModerationHistoryItem[];
   reports: ModerationReport[];
+  mileHighClubPin: {
+    label: string;
+    setAt: string;
+    movableAt: string;
+    expiresAt: string;
+  } | null;
 };
 
 export function searchModeratedUsers(options: {
