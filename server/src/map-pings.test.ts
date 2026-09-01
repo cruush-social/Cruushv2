@@ -663,7 +663,7 @@ describe("map Pings", () => {
     expect(resolveGhostCoordinate).not.toHaveBeenCalled();
   });
 
-  it("fails closed for missing privacy policy, Stealth Mode, and stale location", async () => {
+  it("fails closed for missing privacy policy, Dark Room, and stale location", async () => {
     const missingPolicyDb = new MapPingDb();
     await expect(createMapPing(appWithDb(missingPolicyDb), {
       userId: senderUserId,

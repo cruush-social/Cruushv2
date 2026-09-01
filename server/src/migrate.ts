@@ -105,7 +105,9 @@ const migrationFiles = [
   "096_crypto_payment_intents.sql",
   "097_crypto_payment_intents_multi_asset.sql",
   "098_crypto_payment_settlement.sql",
-  "099_crypto_payment_arbitrum_rail.sql"
+  "099_crypto_payment_arbitrum_rail.sql",
+  "100_crypto_payment_watch_start.sql",
+  "101_crypto_payment_chain_positions.sql"
 ];
 const rewardSafetyPreflightFiles = [
   "079_daily_check_in_rewards.sql",

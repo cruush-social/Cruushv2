@@ -1,162 +1,206 @@
 # Handoff: European payment processor
 
-For whoever is building the European card/SEPA processor. Written 2026-08-30
-from the crypto-processor branch `feature/v2-crypto-processor-20260822`, which
-is **unpushed and not merged**. Read this before you touch billing, because we
-overlap in exactly one dangerous place.
+Current crypto worktree: `/Volumes/good/Cruushv2-crypto-release`
 
-## The one thing that will break if you ignore this handoff
+Current crypto branch: `feat/crypto-pricing`
 
-**Use `grantCruushPlusPlan` in `server/src/billing.ts`. Do not write your own
-grant.**
+The remote feature branch exists. This handoff does not establish the final
+commit or push state. Verify fresh SHA and ahead/behind evidence before
+coordinating publication. Do not assume these changes are on `main` or
+deployed.
 
-There used to be one entitlement grant, inlined in `completeFakeCheckoutSession`.
-This branch extracted it so the crypto path and the test-checkout path share it:
+## Shared entitlement boundary
 
-```ts
-export type CruushPlusGrantSource =
-  | { kind: "checkout_session"; sessionId: string; testMode: boolean }
-  | { kind: "crypto_payment_intent"; intentId: string };
+Use `grantCruushPlusPlan` in `server/src/billing.ts`. Do not create a second
+entitlement implementation.
 
-export async function grantCruushPlusPlan(app, userId, plan, source)
-```
+The function applies a grant after payment has already been proven. It does not
+verify money. Add a provider-specific source variant and database reference,
+then prove settlement independently through the provider's signed evidence.
+Browser redirects never qualify as payment proof.
 
-Add your own variant to `CruushPlusGrantSource` (something like
-`{ kind: "card_payment"; paymentId: string }`) and a matching nullable column on
-the paid-access tables, the way `crypto_payment_intent_id` was added in
-migration `098`. Three implementations of "give someone cruush+" will drift, and
-when they drift someone pays and gets nothing.
+Migrations `096` through `101` are already used by the crypto branch. Before an
+address becomes payable, the route verifies the selected endpoint's
+`eth_chainId` against the server-fixed rail, reads its head, and migration
+`100_crypto_payment_watch_start.sql` provides the durable head-origin column.
+Migration `101_crypto_payment_chain_positions.sql` adds a durable origin and
+cursor for every intent on every supported chain, plus authoritative transfer
+block timestamps. Active watcher passes verify chain ID before the head or log
+read, and a mismatch aborts before cursor advancement.
+Resolve the next available migration number from the current target branch
+before editing. `server/src/migrate.ts` uses an explicit ordered list, and its
+drift test must include every SQL migration.
 
-That function does **not** verify payment. It applies a grant already earned.
-Proving the money is real is your job, same as it is the watcher's.
+For finite crypto grants, the shared function atomically extends access from
+the later current subscription end, entitlement end, or now. Existing fake
+checkout replacement behavior is unchanged. Crypto lifetime access cannot be
+purchased twice, and active lifetime access blocks every new crypto purchase.
+A successful shared lifetime grant atomically closes the member's `pending`
+and `awaiting_payment` crypto intents, while preserving `confirming` intents so
+already observed funds can finish settlement. Founder annual and lifetime
+founder reservation and final grant checks are transactionally serialized
+against the 1,000 and 250 supply caps. Preserve those source-specific semantics
+when adding a European source.
 
-## Merge conflict warning
+## Legal correction
 
-This branch modifies `server/src/billing.ts`, `server/src/config.ts`,
-`server/src/errors.ts`, `server/src/index.ts`, `server/src/migrate.ts`, and
-`src/app/components/CruushPlusStore.tsx`. If you are also in billing or config,
-expect conflicts. Nothing is on `origin` yet, so coordinate with Julien on merge
-order rather than assuming this will be there.
+cruush+ is an ongoing interactive digital service, not immediate digital
+content. EU consumers generally have a 14-day withdrawal right. Immediate
+access, prior consent to begin service, or an acknowledgement does not by
+itself erase that right before the service is fully performed. Do not implement
+a checkbox described as making the purchase non-refundable.
 
-Migrations `096` through `099` are taken. Start at `100`. `migrate.ts` uses a
-hardcoded ordered list, not directory discovery, and a migration that is not in
-that list silently never runs. There is a test that catches the drift
-(`migrate.test.ts`); it caught exactly that bug on this branch.
+cruush does not offer generic voluntary refunds for cruush+. That does not
+override legally required withdrawal, refund, remedy, chargeback, or forced
+reversal outcomes. Keep those outcomes reconcilable and decide entitlement
+treatment with Julien before implementation. Do not add generic refund tooling
+or refund-offering copy unless he names that scope.
 
-## Things already decided that constrain you
+EU/EEA sales remain blocked until jurisdiction-specific legal review and a
+compliant service-withdrawal flow are complete, or those consumers are excluded
+server-side. The crypto checkout has not solved this gate for a card or SEPA
+processor.
 
-**cruush does not refund cruush+.** Recorded as product invariant **G7** in the
-standing rules doc under `docs/`. It is a digital good delivered immediately.
-Do not build refund flows or refund-offering copy.
+Never collect raw card numbers or CVVs. Use hosted checkout or hosted fields.
+Confirm adult-category eligibility, merchant-of-record responsibility,
+descriptor, reserve, settlement, chargeback, privacy, retention, and geographic
+terms in writing before integrating a provider.
 
-**This is your problem more than it was ours.** In the EU a consumer buying
-digital content has a 14-day right of withdrawal. The exemption cruush relies on
-is conditional: it needs the consumer's **prior express consent** to performance
-beginning immediately **and their acknowledgement** that this loses the
-withdrawal right, both captured at checkout and retained as evidence. A line in
-the terms is generally not enough. `/store` captures neither today. It is a
-listed payment-launch gate in `docs/plans/v2-crypto-processor.md`.
+## Shared pricing and checkout layout
 
-A card processor also makes this sharper in a way crypto did not: **chargebacks
-are refunds you do not get to refuse.** G7 governs what cruush offers, not what
-a card network forces. Your reconciliation needs to handle a forced reversal and
-decide what happens to the entitlement, and that is a policy question for Julien,
-not an implementation detail.
+`CRUUSH_PLUS_PLANS` in `server/src/billing.ts` is the only source for term,
+amount, founder supply, and badge data. Never accept an amount from a client.
 
-**Never collect raw card data.** Hosted checkout or hosted fields only. cruush
-must never receive a card number or CVV. This predates us and is in the plan doc.
+Current price facts:
 
-**Prices come from the billing catalog only.** `CRUUSH_PLUS_PLANS` in
-`server/src/billing.ts` is the single source of terms, amounts, founder supply
-limits, and badges. Never accept an amount from a client. The crypto route
-derives the price server-side from `planId` alone; do the same.
+| Term | Total | Monthly equivalent |
+| --- | ---: | ---: |
+| Six months | $65.94 | $10.99/month |
+| Annual | $119.99 | $10.00/month |
+| Founder annual | $99.99 | $8.33/month |
 
-## What already exists that you should extend, not rebuild
+The former six-month pricing inversion is resolved. On every term of at least
+one month, `/store` shows the monthly equivalent prominently on the right and
+the total as the left-side subtitle. Weekly and lifetime show the one-payment
+amount because they have no monthly rate.
 
-**`/store`** (`src/app/components/CruushPlusStore.tsx`) is the checkout page. It
-was reworked for conversion on 2026-08-30 and the choices are deliberate:
+The current crypto source picker shows only "Cash App", "Venmo or PayPal", and
+"A crypto wallet". It intentionally has no "Something else" or "Other payment
+options" item. A future card or SEPA choice must be concrete and must not
+reintroduce a generic crypto label.
 
-- The full cruush+ benefit list leads, as bright gradient tiles matching the
-  rewards page. One implementation per surface.
-- Every plan tile shows a per-month equivalent and a saving against the monthly
-  price, so a longer term reads as a better deal rather than a bigger number.
-- Founder scarcity counters are shown because they are real.
-- The default selection is the best-value available term, never the cheapest,
-  and never a sold-out one.
-- The payment picker asks **which app you are paying from**, not which chain or
-  coin. Naming the token was tried and removed: it is the jargon the picker
-  exists to eliminate. If you add a card option, add it as another entry in
-  `PAYMENT_SOURCES` in the same voice, not as a separate concept.
+## cruush+ benefit truth
 
-There are tests locking the conversion behaviour in
-`src/app/components/CruushPlusStore.test.tsx`. If you change the defaults you
-will fail them; that is the point. Update them deliberately, do not loosen them.
+The checkout represents these seven paid capabilities:
 
-**Support and reconciliation** already exist in
-`server/src/crypto-reconciliation.ts`, exposed moderator-gated at
-`GET /api/crypto/support/payments` and `GET /api/crypto/support/reconciliation`.
-The exception report covers paid-without-entitlement,
-entitlement-without-payment, confirmed-money-that-never-settled, orphan
-transfers, and flagged settlements. Build the card equivalent to the same shape
-so support has one mental model, and consider a combined view rather than a
-second dashboard.
+1. Who has a cruush on you.
+2. See who viewed your profile.
+3. Send up to 3 Pulses every 24 hours.
+4. Land on a nearby profile in Cruise Carousel, then browse again.
+5. Use more than 3 seeking filter categories at once.
+6. Use more than 3 visibility filters at once.
+7. Use Dark Room to browse without appearing on the map.
 
-**Idempotency is enforced in the database, not just in code.** Look at migration
-`098` before designing yours: a check constraint refuses an entitlement record
-on an intent that is not paid, another refuses a paid intent with no confirmed
-amount, and unique partial indexes stop a second subscription or lifetime record
-being created for the same payment. Application-level guards alone were
-considered insufficient for money. Copy the approach.
+Mile High Club and Feed+ are not implemented in this branch. They may be
+advertised only after the corresponding v1.6 release-line work is merged and
+verified.
 
-## Business context you will otherwise rediscover the hard way
+Dark Room is not Ghost Mode, and it is never Stealth Mode. Basic members can
+browse nearby profiles, post text to the local feed, and spin Cruise Carousel.
+Do not present those basic actions as cruush+ benefits.
 
-**There is a pricing inversion, unfixed.** 6 months at $59.94 is $9.99/month;
-1 year at $119.99 is $10.00/month. The annual plan is *worse per month* than the
-half-year plan, so there is no rational reason to buy it, and the per-month
-figures are now displayed on the checkout page where customers can see it.
-Fixing it is Julien's pricing decision, not ours. Raise it with him.
+Keep one shared benefit source when the crypto and European payment work meet.
+Do not let the surface that takes money drift from the v1.6 product rules.
 
-**The crypto rails lean American, which is the opposite of the mandate you are
-under.** PYUSD is issued by Paxos Trust Company, a US entity. The rails were
-chosen for reach into Cash App, Venmo, and PayPal, which are US consumer apps.
-Your European processor is the counterweight to that, and it is probably the
-primary rail for European members rather than a secondary option. Worth agreeing
-with Julien which audience each rail is actually for before you design the
-checkout hierarchy.
+The crypto page reloads the member's current active intent. It displays the
+server expiry countdown, hides payable details when the window closes, and
+locks plan and source selectors while an open or paid intent owns checkout.
+If the restored intent's rail is unavailable, it stays selected and locked
+through `paid`; readiness changes do not discard or switch payment state. A
+European checkout needs equivalent server-owned expiry and selector locks.
 
-**Julien has no budget for paid APIs or usage-based services right now.** Pick
-free tiers, and state the arithmetic rather than saying something is cheap. If a
-processor needs a paid plan or a card on file to start, say so before building
-on it.
+## Crypto state to coordinate around
 
-**What cruush+ actually does is changing.** Julien is building new cruush+
-capabilities on a different branch. The benefit list is currently duplicated:
-`PLUS_BENEFITS` in `CruushPlusStore.tsx` and `CRUUSH_PLUS_FEATURES` in
-`Rewards.tsx`. Two hardcoded lists on two pages, one of which takes money. When
-his new work lands, whoever gets there first should collapse these into one
-shared source. Flagged, not fixed, because it is his copy.
+The crypto processor includes server-fixed rails, unique watch-only addresses,
+a read-only watcher, settlement, the shared entitlement grant, and moderator
+reconciliation. It is disabled by default.
 
-## Current state of the crypto side
+Readiness is per rail. A crypto intent requires processor enabled, valid xpub,
+watcher enabled, and an RPC URL for that rail's chain. Global readiness means
+at least one rail is ready, not that every rail may accept funds.
 
-Disabled end to end. Processor off, no wallet xpub, no chain endpoints, watcher
-off, and configuration refuses to start the watcher unless the processor is
-enabled and an endpoint is set. Creating an intent returns
-`503 CRYPTO_PROCESSOR_NOT_READY`. It has never made a live RPC call.
+An exact positive transfer is recorded and moves an awaiting intent to
+`confirming` atomically. The watcher reads each candidate log's authoritative
+block timestamp and validates its block number and hash. Only exact-rail funds
+mined at or before `expires_at` can count; legacy evidence with no authoritative
+timestamp never grants. A scheduler-expired intent may therefore settle an
+on-time transfer that was still awaiting confirmations, but a transfer mined
+after expiry never grants. Failed and cancelled intents never auto-settle or
+grant. A confirming intent that remains unsettled seven days after quote expiry
+becomes `failed`, while its transfer rows stay available to support. Terminal
+intents return no payment URI or QR.
 
-Rails are USDC and PYUSD on Arbitrum (primary), PYUSD on Ethereum (fallback),
-USDC on Base (last; it reaches none of Cash App, Venmo, or PayPal). Contract
-addresses were verified against Circle's and Paxos' own documentation, not
-block explorers.
+Every configured supported chain scans all bounded watchable addresses for the
+known token contracts on that chain. Known wrong-chain and wrong-token
+transfers are retained as non-creditable support evidence and never settle.
+Unknown tokens and transfers first presented after the bounded watch still
+need independent receipt ingestion. Transaction-hash input alone does not
+solve that launch blocker.
 
-Full detail, including every settlement policy decision and its reasoning, is in
-`docs/plans/v2-crypto-processor.md`. Branch state and open blockers are in
-`FABLE_HANDOFF.md`.
+The crypto path allows one active intent per member and reuses a compatible
+open intent. `GET /api/crypto/payment-intents/current` restores it after a
+reload. Create requests are limited to 5 per member per minute; the current and
+intent-ID reads share 30 per member per minute. Watcher recipient queries batch
+100 addresses at a time, and its QR cache is bounded at 256 entries.
 
-## Open questions worth putting to Julien together
+Settlement locks member, intent, exact-rail confirmed transfer rows, then any
+limited-plan supply lock. The locked transfer rows are re-summed inside the
+same paid-and-grant transaction. Reconciliation's
+`confirmed_money_not_settled` query uses that exact rail and the settlement
+threshold of 50 basis points capped at 250000 atomic units ($0.25).
 
-1. Which rail leads for a European member: card/SEPA or crypto? The checkout
-   currently assumes crypto is the only option.
-2. What happens to an entitlement on a chargeback, given G7.
-3. Whether the withdrawal-right consent flow is built once for both processors,
-   which seems obviously right, and who writes the copy. Julien writes cruush's
-   copy; neither of us should invent it.
+The visible crypto mappings are:
+
+| Source | Rail |
+| --- | --- |
+| Cash App | USDC on Arbitrum |
+| Venmo or PayPal | PYUSD on Arbitrum |
+| A crypto wallet | USDC on Base |
+
+PYUSD on Ethereum remains a hidden fallback. Dwellir's free plan is not the
+selected watcher source because it rejected `eth_getLogs` with HTTP 403.
+Arbitrum's public endpoint was exercised against real USDC logs, while Base and
+Ethereum still require their own RPC URLs before those rails can be ready.
+
+## Reconciliation shape
+
+Crypto support routes are moderator-gated:
+
+- `GET /api/crypto/support/payments`
+- `GET /api/crypto/support/reconciliation`
+
+They cover paid-without-entitlement, entitlement-without-payment,
+confirmed-money-that-never-settled, orphan transfers, and flagged settlement.
+Build the card or SEPA equivalent around the same concepts so support gets one
+mental model. Preserve provider-native receipt evidence separately from
+browser redirects.
+
+Database constraints, not application checks alone, must prevent duplicate
+grants and an entitlement without confirmed payment. Migration `098` is the
+crypto reference.
+
+## Decisions still required before European acceptance
+
+1. Provider selection and written confirmation that the adult dating category
+   is supported in each intended country.
+2. Merchant-of-record, tax, sanctions, privacy, data-retention, reserve,
+   settlement, dispute, chargeback, and forced-reversal responsibilities.
+3. A compliant service-withdrawal flow and evidence model, reviewed for each
+   intended jurisdiction.
+4. Entitlement treatment after a lawful withdrawal, remedy, chargeback, or
+   forced reversal.
+5. Whether card, SEPA, or crypto leads for a European member.
+6. Server-side EU/EEA exclusion until the legal flow is complete.
+
+Do not claim processor approval, legal compliance, production readiness, or
+deployment from this handoff.

@@ -11,6 +11,9 @@ container images.
 
 - Never run a secret-bearing command through Codex, Claude, CI, a pipe, output
   redirection, screen sharing, or remote control.
+- Close Codex, Claude, screen sharing, terminal recording, and remote-control
+  apps before answering the live-presence challenge. Keep them closed until the
+  recovery-word screen has cleared and Terminal is closed.
 - Never provide recovery words through command arguments, environment
   variables, files, chat, screenshots, or clipboard history.
 - Write recovery words on paper and keep physical backups secure. This tool
@@ -67,10 +70,24 @@ npm run wallet -- sign-gas /safe/path/gas-plan.json /safe/path/gas-signed.json
 npm run wallet -- sign-sweep /safe/path/sweep-plan.json /safe/path/sweep-signed.json
 ```
 
-`init` displays recovery words once in the terminal's alternate screen. After
-physical recording and confirmation, it displays only a public descriptor:
-the receive-chain xpub, its SHA-256 fingerprint, the treasury address, and sample
-child addresses.
+`init` preflights a fixed current-user output before creating wallet entropy:
+`~/Library/Application Support/cruush/operator-wallet/public-descriptor.json`.
+There is no command-line or environment-variable output override. The private
+wallet-specific parent directories are mode `0700`; the public descriptor is an atomic,
+no-clobber, regular mode `0600` file. Every existing directory from the current
+user's home to the target is checked for ownership, type, permissions, and inode
+continuity. Existing files, detected links, unsafe ownership, unsafe permissions,
+and detected directory swaps are refused. A final path is never unlinked after
+publication, because Node cannot atomically condition an unlink on inode identity.
+An ambiguous post-publication validation failure therefore preserves the path and
+aborts. Temporary cleanup uses an unpredictable exclusive name and repeated inode
+checks, but a malicious same-user process can still race Node's final path-based
+unlink; the current macOS user is the trust boundary.
+
+Recovery words appear once in the terminal's alternate screen. After physical
+recording and confirmation, the tool saves only allowlisted public descriptor
+fields. The terminal then prints only the descriptor path, xpub fingerprint,
+and an instruction to close Terminal.
 
 Signing commands accept strict Base Sepolia plans, require visible confirmation,
 then prompt for recovery words with terminal echo disabled. Signed artifacts
@@ -87,7 +104,7 @@ and mainnet USDC signing are deliberately unsupported in this slice.
 - Independent address matching at multiple indices
 - Base Sepolia gas funding and USDC sweep
 - Gas budget and batch-sweep policy
-- Refund procedure
+- Exceptional and legally required withdrawal, refund, remedy, and forced-reversal procedure
 - Mainnet support as a separate, explicitly authorized change
 
 Until those gates pass, keep `CRYPTO_PROCESSOR_ENABLED=false`.

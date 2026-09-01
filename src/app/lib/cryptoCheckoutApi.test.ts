@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   createCryptoPaymentIntent,
+  getCurrentCryptoPaymentIntent,
   getCryptoPaymentIntent,
   getCryptoProcessorStatus,
 } from './cryptoCheckoutApi';
@@ -15,6 +16,7 @@ describe('cryptoCheckoutApi', () => {
 
   it('loads authenticated processor and intent status', async () => {
     await getCryptoProcessorStatus();
+    await getCurrentCryptoPaymentIntent();
     await getCryptoPaymentIntent('00000000-0000-4000-8000-000000000010');
 
     expect(fetch).toHaveBeenNthCalledWith(1, '/api/crypto/status', expect.objectContaining({
@@ -22,6 +24,11 @@ describe('cryptoCheckoutApi', () => {
     }));
     expect(fetch).toHaveBeenNthCalledWith(
       2,
+      '/api/crypto/payment-intents/current',
+      expect.objectContaining({ credentials: 'include' }),
+    );
+    expect(fetch).toHaveBeenNthCalledWith(
+      3,
       '/api/crypto/payment-intents/00000000-0000-4000-8000-000000000010',
       expect.objectContaining({ credentials: 'include' }),
     );

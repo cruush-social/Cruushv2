@@ -1,7 +1,7 @@
 # cruush session decisions
 
 - Keep all session work on `codex/session-dirty-work-20260811`. Never push or merge this branch to `main` without a new explicit instruction.
-- Ghost Mode is available to basic and cruush+ members. Ghost radius and precise-location choices remain available to both. Stealth Mode alone requires cruush+.
+- Ghost Mode is available to basic and cruush+ members. Ghost radius and precise-location choices remain available to both. Dark Room is the separate cruush+ browse-without-appearing feature.
 - Ghost Mode changes location disclosure, not profile-photo rendering. The signed-in Ghost user sees an electric-blue self border. Other people see normal pink borders, or purple for mutual cruushes, with normal DL Mode photo rules.
 - On mobile map hearts, a short tap opens the profile. A press-and-hold enlarges the heart and reveals its signal. Keep real-touch regression coverage.
 - Seeking and Visibility use body-portalled menus inside modal sheets. Portals must remain pointer-enabled and must not move when selected badges appear. Test both real touch selection and the resulting Apply request.

@@ -248,7 +248,7 @@ describe('GhostModeSettings', () => {
     }
   });
 
-  it('keeps Ghost Mode and precise sharing available to basic members while linking locked Stealth Mode to cruush+', async () => {
+  it('keeps Ghost Mode and precise sharing available to basic members while linking locked Dark Room to cruush+', async () => {
     render(
       <MemoryRouter initialEntries={['/privacy/ghost-mode']}>
         <Routes>
@@ -265,13 +265,13 @@ describe('GhostModeSettings', () => {
       expect(preciseSwitch).not.toBeDisabled();
     });
 
-    expect(screen.queryByRole('switch', { name: 'Toggle Stealth Mode' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('switch', { name: 'Toggle Dark Room' })).not.toBeInTheDocument();
     expect(screen.getByText('Browse the map without appearing on it.')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Unlock Stealth Mode with cruush+' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Unlock Dark Room with cruush+' }));
     expect(screen.getByTestId('location-probe')).toHaveTextContent('/rewards');
   });
 
-  it('lets cruush+ members enable Stealth Mode without changing precise sharing', async () => {
+  it('lets cruush+ members enable Dark Room without changing precise sharing', async () => {
     getMyBillingStatus.mockResolvedValue({
       cruushPlus: true,
       expiresAt: null,
@@ -288,7 +288,7 @@ describe('GhostModeSettings', () => {
       </MemoryRouter>
     );
 
-    const stealthSwitch = await screen.findByRole('switch', { name: 'Toggle Stealth Mode' });
+    const stealthSwitch = await screen.findByRole('switch', { name: 'Toggle Dark Room' });
     await waitFor(() => expect(stealthSwitch).not.toBeDisabled());
     fireEvent.click(stealthSwitch);
 
@@ -302,7 +302,7 @@ describe('GhostModeSettings', () => {
   it.each([
     DEBUG_CRUUSH_PLUS_EVENT,
     CRUUSH_PLUS_CHANGED_EVENT,
-  ])('locks Stealth Mode when %s reports that cruush+ ended', async (eventName) => {
+  ])('locks Dark Room when %s reports that cruush+ ended', async (eventName) => {
     getMyPrivacySettings.mockResolvedValue({
       baseMode: 'STEALTH',
       ghostModeEnabled: false,
@@ -332,12 +332,12 @@ describe('GhostModeSettings', () => {
       </MemoryRouter>
     );
 
-    expect(await screen.findByRole('switch', { name: 'Toggle Stealth Mode' })).toBeChecked();
+    expect(await screen.findByRole('switch', { name: 'Toggle Dark Room' })).toBeChecked();
 
     window.dispatchEvent(new CustomEvent(eventName));
 
-    expect(await screen.findByRole('button', { name: 'Unlock Stealth Mode with cruush+' })).toBeInTheDocument();
-    expect(screen.queryByRole('switch', { name: 'Toggle Stealth Mode' })).not.toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Unlock Dark Room with cruush+' })).toBeInTheDocument();
+    expect(screen.queryByRole('switch', { name: 'Toggle Dark Room' })).not.toBeInTheDocument();
     expect(getMyBillingStatus).toHaveBeenCalledTimes(2);
     expect(getMyPrivacySettings).toHaveBeenCalledTimes(2);
   });

@@ -1,5 +1,8 @@
 import type { FastifyInstance } from "fastify";
+import type { DbClient } from "./db.js";
+import { runTransaction } from "./db.js";
 import { ApiError } from "./errors.js";
+import { CRYPTO_LATE_EVIDENCE_WINDOW_DAYS } from "./crypto-settlement-policy.js";
 import { getCruushEntitlement } from "./match-relationships.js";
 import { bankActivePromotionForPaidSubscription } from "./rewards-service.js";
 
@@ -39,6 +42,10 @@ type BadgeRow = {
   badge_key: UserBadgeKey;
 };
 
+type SupplyReservationCountRow = {
+  reservation_count: string | number;
+};
+
 export type BillingCheckoutSessionRow = {
   id: string;
   user_id: string;
@@ -59,8 +66,8 @@ export const CRUUSH_PLUS_PLANS: CruushPlusPlan[] = [
   {
     id: "plus_weekly",
     name: "Weekly cruush+",
-    description: "$9.99 weekly cruush+ access.",
-    amountCents: 999,
+    description: "$10.99 weekly cruush+ access.",
+    amountCents: 1099,
     currency: "USD",
     interval: "week",
     durationDays: 7,
@@ -95,8 +102,8 @@ export const CRUUSH_PLUS_PLANS: CruushPlusPlan[] = [
   {
     id: "plus_6_month",
     name: "6 month cruush+",
-    description: "$53.94 every 6 months for cruush+.",
-    amountCents: 5394,
+    description: "$65.94 every 6 months for cruush+.",
+    amountCents: 6594,
     currency: "USD",
     interval: "6_months",
     durationMonths: 6,
@@ -213,6 +220,99 @@ function addPlanDuration(plan: CruushPlusPlan, from = new Date()) {
   }
 
   return expiresAt;
+}
+
+/**
+ * Crypto intent creation and settlement use the same lock order: member first,
+ * then limited plan. Transaction-scoped advisory locks let aggregate checks
+ * remain safe without adding a reservation table or changing checkout data.
+ */
+export async function lockCryptoPurchaseUser(db: DbClient, userId: string) {
+  await db.query(
+    "select pg_advisory_xact_lock(hashtextextended($1, 0))",
+    [`cruush:crypto-purchase:user:${userId}`]
+  );
+}
+
+export async function lockCryptoPlanSupply(db: DbClient, planId: CruushPlusPlanId) {
+  await db.query(
+    "select pg_advisory_xact_lock(hashtextextended($1, 0))",
+    [`cruush:crypto-supply:plan:${planId}`]
+  );
+}
+
+async function countCryptoPlanSupplyReservations(db: DbClient, planId: CruushPlusPlanId) {
+  const result = await db.query<SupplyReservationCountRow>(
+    `select count(*)::int as reservation_count
+     from (
+       select user_id
+       from founder_redemptions
+       where plan_id = $1
+         and test_mode = false
+       union
+       select user_id
+       from crypto_payment_intents
+       where plan_id = $1
+         and (
+           status in ('confirming', 'paid', 'refunded')
+           or (
+             status in ('pending', 'awaiting_payment')
+             and expires_at > now()
+           )
+           or (
+             status = 'expired'
+             and expires_at > now() - ($2::integer * interval '1 day')
+           )
+         )
+     ) reserved_users`,
+    [planId, CRYPTO_LATE_EVIDENCE_WINDOW_DAYS]
+  );
+
+  return Number(result.rows[0]?.reservation_count ?? 0);
+}
+
+export async function assertCryptoPlanCanReserve(
+  db: DbClient,
+  plan: CruushPlusPlan
+) {
+  if (!plan.supplyLimit) {
+    return;
+  }
+
+  await lockCryptoPlanSupply(db, plan.id);
+  const reservationCount = await countCryptoPlanSupplyReservations(db, plan.id);
+  if (reservationCount >= plan.supplyLimit) {
+    throw new ApiError(409, "VALIDATION_ERROR", "That cruush+ plan is sold out.");
+  }
+}
+
+async function assertCryptoPlanGrantWithinSupply(
+  db: DbClient,
+  plan: CruushPlusPlan,
+  userId: string,
+  intentId: string
+) {
+  if (!plan.supplyLimit) {
+    return;
+  }
+
+  await lockCryptoPlanSupply(db, plan.id);
+  const intent = await db.query<{ reserved: boolean }>(
+    `select exists (
+       select 1
+       from crypto_payment_intents
+       where id = $1
+         and user_id = $2
+         and plan_id = $3
+         and status = 'paid'
+     ) as reserved`,
+    [intentId, userId, plan.id]
+  );
+  const reservationCount = await countCryptoPlanSupplyReservations(db, plan.id);
+
+  if (intent.rows[0]?.reserved !== true || reservationCount > plan.supplyLimit) {
+    throw new ApiError(409, "VALIDATION_ERROR", "That cruush+ plan is sold out.");
+  }
 }
 
 export function getCruushPlusPlan(planId: string): CruushPlusPlan {
@@ -372,31 +472,37 @@ export async function loadCheckoutSession(app: FastifyInstance, userId: string, 
 export async function completeFakeCheckoutSession(app: FastifyInstance, userId: string, sessionId: string) {
   assertTestCheckoutAllowed(app);
 
-  const session = await loadCheckoutSession(app, userId, sessionId);
+  return runTransaction(app.db, async (transactionDb) => {
+    const transactionApp = {
+      config: app.config,
+      db: transactionDb
+    } as FastifyInstance;
+    const session = await loadCheckoutSession(transactionApp, userId, sessionId);
 
-  if (session.processor !== "fake" || !session.testMode) {
-    throw new ApiError(400, "VALIDATION_ERROR", "Only test checkout sessions can be completed here.");
-  }
+    if (session.processor !== "fake" || !session.testMode) {
+      throw new ApiError(400, "VALIDATION_ERROR", "Only test checkout sessions can be completed here.");
+    }
 
-  if (session.status !== "pending") {
-    throw new ApiError(400, "VALIDATION_ERROR", "Checkout session is not pending.");
-  }
+    if (session.status !== "pending") {
+      throw new ApiError(400, "VALIDATION_ERROR", "Checkout session is not pending.");
+    }
 
-  const plan = getCruushPlusPlan(session.planId);
-  await app.db.query(
-    `update billing_checkout_sessions
-     set status = 'completed',
-         completed_at = now(),
-         updated_at = now()
-     where id = $1
-       and user_id = $2`,
-    [sessionId, userId]
-  );
+    const plan = getCruushPlusPlan(session.planId);
+    await transactionDb.query(
+      `update billing_checkout_sessions
+       set status = 'completed',
+           completed_at = now(),
+           updated_at = now()
+       where id = $1
+         and user_id = $2`,
+      [sessionId, userId]
+    );
 
-  return grantCruushPlusPlan(app, userId, plan, {
-    kind: "checkout_session",
-    sessionId,
-    testMode: session.testMode
+    return grantCruushPlusPlan(transactionApp, userId, plan, {
+      kind: "checkout_session",
+      sessionId,
+      testMode: session.testMode
+    });
   });
 }
 
@@ -425,29 +531,154 @@ export async function grantCruushPlusPlan(
   plan: CruushPlusPlan,
   source: CruushPlusGrantSource
 ) {
-  const expiresAt = addPlanDuration(plan);
+  let expiresAt = addPlanDuration(plan);
   const sessionId = source.kind === "checkout_session" ? source.sessionId : null;
   const cryptoIntentId = source.kind === "crypto_payment_intent" ? source.intentId : null;
   const testMode = source.kind === "checkout_session" ? source.testMode : false;
 
+  if (source.kind === "crypto_payment_intent" || plan.isLifetime) {
+    await lockCryptoPurchaseUser(app.db, userId);
+  }
+
+  if (source.kind === "crypto_payment_intent") {
+    await assertCryptoPlanGrantWithinSupply(app.db, plan, userId, source.intentId);
+  }
+
   if (plan.isLifetime) {
-    await app.db.query(
-      `insert into cruush_plus_lifetime_access (
+    if (source.kind === "crypto_payment_intent") {
+      const lifetimeGrant = await app.db.query<{ user_id: string }>(
+        `with lifetime_grant as (
+           insert into cruush_plus_lifetime_access (
+             user_id,
+             checkout_session_id,
+             crypto_payment_intent_id,
+             plan_id,
+             test_mode
+           )
+           values ($1, null, $2, $3, false)
+           on conflict (user_id) do nothing
+           returning user_id
+         ), closed_unpaid_intents as (
+           update crypto_payment_intents
+           set status = case
+                 when status = 'awaiting_payment' then 'expired'
+                 else 'cancelled'
+               end,
+               settlement_note = 'Lifetime access was granted before this payment completed. No additional payment was accepted.',
+               updated_at = now()
+           where user_id in (select user_id from lifetime_grant)
+             and status in ('pending', 'awaiting_payment')
+           returning id
+         )
+         select user_id from lifetime_grant`,
+        [userId, source.intentId, plan.id]
+      );
+
+      if (lifetimeGrant.rows.length === 0) {
+        throw new ApiError(409, "VALIDATION_ERROR", "Lifetime cruush+ is already active.");
+      }
+    } else {
+      await app.db.query(
+        `with lifetime_grant as (
+           insert into cruush_plus_lifetime_access (
+             user_id,
+             checkout_session_id,
+             crypto_payment_intent_id,
+             plan_id,
+             test_mode
+           )
+           values ($1, $2, $3, $4, $5)
+           on conflict (user_id) do update
+           set checkout_session_id = excluded.checkout_session_id,
+               crypto_payment_intent_id = excluded.crypto_payment_intent_id,
+               plan_id = excluded.plan_id,
+               test_mode = excluded.test_mode,
+               granted_at = now()
+           returning user_id
+         ), closed_unpaid_intents as (
+           update crypto_payment_intents
+           set status = case
+                 when status = 'awaiting_payment' then 'expired'
+                 else 'cancelled'
+               end,
+               settlement_note = 'Lifetime access was granted before this payment completed. No additional payment was accepted.',
+               updated_at = now()
+           where user_id in (select user_id from lifetime_grant)
+             and status in ('pending', 'awaiting_payment')
+           returning id
+         )
+         select user_id from lifetime_grant`,
+        [userId, sessionId, cryptoIntentId, plan.id, testMode]
+      );
+    }
+  } else if (source.kind === "crypto_payment_intent") {
+    const durationMonths = plan.durationMonths ?? 0;
+    const durationDays = plan.durationDays ?? 0;
+    const subscription = await app.db.query<{ current_period_ends_at: string | Date }>(
+      `with current_entitlement as (
+         select cruush_plus_expires_at
+         from user_entitlements
+         where user_id = $1
+         for update
+       )
+       insert into cruush_plus_subscriptions (
          user_id,
          checkout_session_id,
          crypto_payment_intent_id,
          plan_id,
+         status,
+         current_period_starts_at,
+         current_period_ends_at,
          test_mode
        )
-       values ($1, $2, $3, $4, $5)
+       values (
+         $1,
+         null,
+         $2,
+         $3,
+         'active',
+         now(),
+         (
+           greatest(
+             now(),
+             coalesce((select cruush_plus_expires_at from current_entitlement), now())
+           ) at time zone 'UTC'
+           + make_interval(months => $4::integer, days => $5::integer)
+         ) at time zone 'UTC',
+         false
+       )
        on conflict (user_id) do update
-       set checkout_session_id = excluded.checkout_session_id,
+       set checkout_session_id = null,
            crypto_payment_intent_id = excluded.crypto_payment_intent_id,
            plan_id = excluded.plan_id,
-           test_mode = excluded.test_mode,
-           granted_at = now()`,
-      [userId, sessionId, cryptoIntentId, plan.id, testMode]
+           status = 'active',
+           current_period_starts_at = case
+             when greatest(
+               cruush_plus_subscriptions.current_period_ends_at,
+               coalesce((select cruush_plus_expires_at from current_entitlement), '-infinity'::timestamptz)
+             ) > now()
+             then cruush_plus_subscriptions.current_period_starts_at
+             else now()
+           end,
+           current_period_ends_at = (
+             greatest(
+               now(),
+               cruush_plus_subscriptions.current_period_ends_at,
+               coalesce((select cruush_plus_expires_at from current_entitlement), '-infinity'::timestamptz)
+             ) at time zone 'UTC'
+             + make_interval(months => $4::integer, days => $5::integer)
+           ) at time zone 'UTC',
+           test_mode = false,
+           updated_at = now()
+       returning current_period_ends_at`,
+      [userId, source.intentId, plan.id, durationMonths, durationDays]
     );
+
+    if (!subscription.rows[0]) {
+      throw new ApiError(500, "INTERNAL_ERROR", "Unable to grant cruush+.");
+    }
+
+    expiresAt = new Date(subscription.rows[0].current_period_ends_at);
   } else {
     await app.db.query(
       `insert into cruush_plus_subscriptions (

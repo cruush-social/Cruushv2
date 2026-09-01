@@ -1,4 +1,4 @@
-# cruush — STANDING RULES FOR ALL AGENTS
+# cruush: STANDING RULES FOR ALL AGENTS
 
 **Read this file completely before doing anything. It overrides your defaults.**
 
@@ -48,7 +48,7 @@ These are not suggestions you interpret. Run them.
   frame strip.
 - **B3.** Before claiming a fix, hard-reload and confirm the served asset actually changed.
   A stale service worker has served old assets here before and burned whole sessions.
-- **B4.** Exercise the real path yourself — log in, click it, upload the photo. Do not ask
+- **B4.** Exercise the real path yourself: log in, click it, upload the photo. Do not ask
   Julien to check something you can check.
 - **B5.** If you could not verify, say "I could not verify X" plainly. Never imply success.
 
@@ -57,8 +57,8 @@ These are not suggestions you interpret. Run them.
 - **C1.** Change only what was named. Adjacent problems get one sentence, not an edit.
 - **C2.** Never make product, design, or policy decisions. Options plus a recommendation,
   then wait.
-- **C3.** Adding anything unrequested — an outline, a toggle, a new dropdown style, a
-  circle around an icon — is a decision. Don't.
+- **C3.** Adding anything unrequested: an outline, a toggle, a new dropdown style, a
+  circle around an icon: is a decision. Don't.
 - **C4.** Before touching a shared token or style object, enumerate every surface it
   affects. Scope the change or state the blast radius and ask.
 - **C5.** The map vector style, label sizing, and canvas filter are off limits unless the
@@ -78,7 +78,7 @@ These are not suggestions you interpret. Run them.
 - **C9.** Before committing, read your own full diff and account for every removed line. Any
   removal not named by the request gets reverted before the commit, not explained after it.
 
-## D. Layout invariants — do not regress
+## D. Layout invariants: do not regress
 
 - **D1.** The bug-report button never intersects any interactive element or the logo, on
   any page, at any viewport.
@@ -88,7 +88,7 @@ These are not suggestions you interpret. Run them.
 - **D4.** The seeking bar never sits under the top nav.
 - **D5.** Bottom links fill the page width and sit flush to the bottom.
 - **D6.** Markers are circles, never ovals.
-- **D7.** Nothing overlaps anything, anywhere, ever — except butterflies, which may fly
+- **D7.** Nothing overlaps anything, anywhere, ever: except butterflies, which may fly
   over everything.
 
 ## E. Design system
@@ -97,13 +97,13 @@ These are not suggestions you interpret. Run them.
   settings icon. Never introduce a second variant. If a surface needs something the
   primitive cannot do, extend the primitive.
 - **E2.** Heart pin colors are global and semantic: **self = blue, mutual = purple,
-  everyone else = pink/red.** Map, feed, messages, gallery — all of them.
+  everyone else = pink/red.** Map, feed, messages, gallery: all of them.
 - **E3.** Spacing, size and radius come from named tokens in `src/styles/theme.css`.
   No ad-hoc pixel values in components. "Same padding as X" means "same token as X."
 - **E4.** Settings icons use the same glyph in the same position on every page.
 - **E5.** No tan or beige frost anywhere. White, or the bottom-nav color.
 - **E6.** When given a reference implementation (CodePen, gist, repo), port the actual
-  code — same filter primitives, same constants, same layer order — into an isolated
+  code: same filter primitives, same constants, same layer order: into an isolated
   component first, verify it renders identically side by side, then adapt it to app colors
   and shapes. Never paraphrase a reference from memory. Keep the reference URL and a copy
   of its source in the repo next to the component that uses it.
@@ -129,14 +129,18 @@ These are not suggestions you interpret. Run them.
 - **G5.** Auto-moderation must reject images of people who could never be mistaken for
   adults, regardless of which provider is up. The fallback chain must always be live.
 - **G6.** Free tier: up to 3 seeking filters and up to 3 visibility controls.
-- **G7.** cruush does not refund cruush+. It is a digital good delivered
-  immediately. Do not build refund flows, refund tooling, or copy that offers
-  or implies a refund. The `refunded` payment state exists only to record an
-  exceptional hand-made refund truthfully; nothing may write to it without
-  Julien saying so. Where a jurisdiction grants a withdrawal right for digital
-  goods, the position depends on checkout capturing prior express consent to
-  immediate performance plus acknowledgement of losing that right, so that
-  consent flow is a payment-launch prerequisite, not optional polish.
+- **G7.** cruush does not offer voluntary refunds for cruush+, except where law
+  requires a withdrawal, refund, remedy, or forced reversal. cruush+ is an
+  ongoing interactive digital service. Never assume that immediate access makes
+  the service fully performed or removes a statutory withdrawal right. Do not
+  build a generic refund flow or refund-offering copy without Julien naming that
+  scope. The `refunded` payment state records exceptional or legally required
+  outcomes truthfully. EU/EEA sales remain blocked until jurisdiction-specific
+  legal review and a compliant service-withdrawal flow are complete, or those
+  consumers are excluded server-side.
+- **G8.** The cruush+ benefit for browsing without appearing is **Dark Room**.
+  Ghost Mode is a separate feature. Never label Dark Room as Stealth Mode or
+  Ghost Mode.
 
 ## H. Third-party services
 
@@ -153,7 +157,7 @@ These are not suggestions you interpret. Run them.
 ## I. Config and secrets
 
 - **I1.** Any new or renamed environment variable ends the turn with an explicit block:
-  `NEW ENV VARS — name, value shape, which service, where to set it.` Never buried in prose.
+  `NEW ENV VARS: name, value shape, which service, where to set it.` Never buried in prose.
 - **I2.** Update `server/.env.example` and `docs/env-matrix.md` in the same change.
 - **I3.** Only request credential rotation when there is evidence of exposure, and state
   the evidence. Do not rotate defensively by default.
@@ -172,8 +176,8 @@ These are not suggestions you interpret. Run them.
 
 ## K. Planning
 
-- **K1.** Anything beyond a bounded edit — a new feature, a schema change, a cross-file
-  refactor, anything touching moderation, privacy, or payments — gets a written plan and
+- **K1.** Anything beyond a bounded edit: a new feature, a schema change, a cross-file
+  refactor, anything touching moderation, privacy, or payments: gets a written plan and
   sign-off before code.
 - **K2.** Batch questions. All of them, numbered, in one message. Twenty at once is fine.
 - **K3.** Read `HANDOFF.md` and this file first. Do not ask Julien to repeat documented

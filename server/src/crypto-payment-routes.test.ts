@@ -3,7 +3,13 @@ import { buildServer } from "./app.js";
 import { deriveCryptoReceivingAddress, fingerprintCryptoWalletXpub } from "./crypto-wallet.js";
 import type { AppConfig } from "./config.js";
 import type { DbClient } from "./db.js";
+import { ApiError } from "./errors.js";
 import { createMemoryRateLimiter } from "./rate-limit.js";
+import {
+  CRYPTO_PAYMENT_INTENT_CREATE_RATE_LIMIT,
+  CRYPTO_PAYMENT_INTENT_READ_RATE_LIMIT,
+  resolvePrePublicationWatchStartBlocks
+} from "./routes/crypto-payments.js";
 
 const userId = "00000000-0000-4000-8000-000000000001";
 const intentId = "00000000-0000-4000-8000-000000000010";
@@ -20,6 +26,10 @@ function baseConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     APP_URL: "https://cruush.test",
     CRYPTO_PROCESSOR_ENABLED: false,
     CRYPTO_PROCESSOR_WALLET_XPUB: "",
+    CRYPTO_PROCESSOR_WATCHER_ENABLED: false,
+    CRYPTO_PROCESSOR_ARBITRUM_RPC_URL: "",
+    CRYPTO_PROCESSOR_BASE_RPC_URL: "",
+    CRYPTO_PROCESSOR_ETHEREUM_RPC_URL: "",
     CRYPTO_PROCESSOR_CONFIRMATION_TARGET: 1,
     CRYPTO_PROCESSOR_INTENT_TTL_MINUTES: 30,
     ...overrides
@@ -71,7 +81,8 @@ describe("crypto payment routes", () => {
             // Circle's published native USDC on Arbitrum.
             tokenAddress: "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
             decimals: 6,
-            confirmationTarget: 240
+            confirmationTarget: 240,
+            ready: false
           },
           {
             id: "pyusd_arbitrum",
@@ -81,7 +92,8 @@ describe("crypto payment routes", () => {
             // Paxos' published PYUSD on Arbitrum.
             tokenAddress: "0x46850aD61C2B7d64d08c9C754F45254596696984",
             decimals: 6,
-            confirmationTarget: 240
+            confirmationTarget: 240,
+            ready: false
           },
           {
             id: "pyusd_ethereum",
@@ -90,7 +102,8 @@ describe("crypto payment routes", () => {
             chainId: 1,
             tokenAddress: "0x6c3ea9036406852006290770BEdFcAbA0e23A0e8",
             decimals: 6,
-            confirmationTarget: 12
+            confirmationTarget: 12,
+            ready: false
           },
           {
             id: "usdc_base",
@@ -99,13 +112,16 @@ describe("crypto payment routes", () => {
             chainId: 8453,
             tokenAddress: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
             decimals: 6,
-            confirmationTarget: 30
+            confirmationTarget: 30,
+            ready: false
           }
         ]
       }
     });
     expect(response.body).not.toContain("XPUB");
     expect(response.body).not.toContain("WALLET");
+    expect(response.body).not.toContain("RPC_URL");
+    expect(response.body).not.toContain("http");
   });
 
   it("requires authentication and rejects client-controlled payment fields", async () => {
@@ -134,8 +150,163 @@ describe("crypto payment routes", () => {
     expect(response.statusCode).toBe(400);
   });
 
+  it("rate-limits payment intent creation per member before processor work", async () => {
+    const query = vi.fn();
+    const app = buildServer(baseConfig(), {
+      db: {
+        query,
+        end: vi.fn().mockResolvedValue(undefined)
+      },
+      rateLimiter: createMemoryRateLimiter()
+    });
+    const request = {
+      method: "POST" as const,
+      url: "/api/crypto/payment-intents",
+      headers: {
+        "content-type": "application/json",
+        "x-user-id": userId
+      },
+      payload: {
+        planId: "plus_monthly",
+        idempotencyKey: "checkout-rate-limit"
+      }
+    };
+
+    try {
+      for (let attempt = 0; attempt < CRYPTO_PAYMENT_INTENT_CREATE_RATE_LIMIT.max; attempt += 1) {
+        const response = await app.inject(request);
+        expect(response.statusCode).toBe(503);
+      }
+
+      const limited = await app.inject(request);
+      expect(limited.statusCode).toBe(429);
+      expect(limited.json()).toEqual({
+        error: {
+          code: "RATE_LIMITED",
+          message: "Too many crypto payment attempts. Try again shortly.",
+          details: expect.any(Object)
+        }
+      });
+      expect(query).not.toHaveBeenCalled();
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("shares one member polling limit across current and by-id intent reads", async () => {
+    const query = vi.fn().mockResolvedValue({ rows: [] });
+    const app = buildServer(baseConfig(), {
+      db: {
+        query,
+        end: vi.fn().mockResolvedValue(undefined)
+      },
+      rateLimiter: createMemoryRateLimiter()
+    });
+    const byIdRequest = {
+      method: "GET" as const,
+      url: `/api/crypto/payment-intents/${intentId}`,
+      headers: { "x-user-id": userId }
+    };
+    const currentRequest = {
+      ...byIdRequest,
+      url: "/api/crypto/payment-intents/current"
+    };
+
+    try {
+      for (let attempt = 0; attempt < CRYPTO_PAYMENT_INTENT_READ_RATE_LIMIT.max; attempt += 1) {
+        const readsCurrentIntent = attempt % 2 === 0;
+        const response = await app.inject(readsCurrentIntent ? currentRequest : byIdRequest);
+        expect(response.statusCode).toBe(readsCurrentIntent ? 200 : 404);
+      }
+
+      const queryCallsBeforeLimit = query.mock.calls.length;
+      const limited = await app.inject(currentRequest);
+      expect(limited.statusCode).toBe(429);
+      expect(limited.json()).toEqual({
+        error: {
+          code: "RATE_LIMITED",
+          message: "Too many crypto payment status checks. Try again shortly.",
+          details: expect.any(Object)
+        }
+      });
+      expect(query).toHaveBeenCalledTimes(queryCallsBeforeLimit);
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("treats current as a static route and returns the newest open intent or null", async () => {
+    const paymentAddress = deriveCryptoReceivingAddress(receiveChainXpub, 1);
+    const openIntent = {
+      id: intentId,
+      user_id: userId,
+      plan_id: "plus_monthly",
+      processor: "in_house" as const,
+      asset: "USDC" as const,
+      network: "arbitrum" as const,
+      amount_usd_cents: 1899,
+      quoted_amount_atomic: "18990000",
+      derivation_index: 1,
+      wallet_xpub_fingerprint: fingerprintCryptoWalletXpub(receiveChainXpub),
+      payment_address: paymentAddress,
+      status: "awaiting_payment" as const,
+      idempotency_key: "checkout-current",
+      metadata: { source: "store" },
+      expires_at: "2026-08-22T18:00:00Z",
+      created_at: "2026-08-22T17:30:00Z",
+      updated_at: "2026-08-22T17:30:00Z",
+      paid_at: null
+    };
+    const query = vi.fn()
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [openIntent] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
+    const app = buildServer(baseConfig(), {
+      db: {
+        query,
+        end: vi.fn().mockResolvedValue(undefined)
+      },
+      rateLimiter: createMemoryRateLimiter()
+    });
+
+    try {
+      const current = await app.inject({
+        method: "GET",
+        url: "/api/crypto/payment-intents/current",
+        headers: { "x-user-id": userId }
+      });
+
+      expect(current.statusCode).toBe(200);
+      expect(current.json()).toMatchObject({
+        data: {
+          id: intentId,
+          status: "awaiting_payment",
+          paymentAddress
+        }
+      });
+      const currentLookupSql = query.mock.calls[1]?.[0] as string;
+      expect(currentLookupSql).toContain("status in ('pending', 'awaiting_payment', 'confirming')");
+      expect(currentLookupSql).toContain("order by created_at desc");
+      expect(currentLookupSql).toContain("limit 1");
+
+      const none = await app.inject({
+        method: "GET",
+        url: "/api/crypto/payment-intents/current",
+        headers: { "x-user-id": userId }
+      });
+      expect(none.statusCode).toBe(200);
+      expect(none.json()).toEqual({ data: null });
+    } finally {
+      await app.close();
+    }
+  });
+
   it("derives the plan amount on the server and returns one account-linked address", async () => {
     const paymentAddress = deriveCryptoReceivingAddress(receiveChainXpub, 1);
+    const readRailHead = vi.fn(async (_config: AppConfig, rail: string) =>
+      rail === "usdc_base" ? 50_000_000n : 123_456n
+    );
     const commonRow = {
       id: intentId,
       user_id: userId,
@@ -146,6 +317,7 @@ describe("crypto payment routes", () => {
       amount_usd_cents: 1899,
       derivation_index: 1,
       wallet_xpub_fingerprint: fingerprintCryptoWalletXpub(receiveChainXpub),
+      watch_start_block: null,
       idempotency_key: "checkout-route-1",
       metadata: { source: "store" },
       expires_at: "2026-08-22T18:00:00Z",
@@ -153,25 +325,41 @@ describe("crypto payment routes", () => {
       updated_at: "2026-08-22T17:30:00Z",
       paid_at: null
     };
-    const query = vi.fn()
-      .mockResolvedValueOnce({ rows: [{
-        ...commonRow,
-        quoted_amount_atomic: null,
-        payment_address: null,
-        status: "pending" as const
-      }] })
-      .mockResolvedValueOnce({ rows: [{
-        ...commonRow,
-        quoted_amount_atomic: "18990000",
-        payment_address: paymentAddress,
-        status: "awaiting_payment" as const
-      }] });
+    const reservedRow = {
+      ...commonRow,
+      quoted_amount_atomic: null,
+      payment_address: null,
+      status: "pending" as const
+    };
+    const allocatedRow = {
+      ...commonRow,
+      quoted_amount_atomic: "18990000",
+      payment_address: paymentAddress,
+      watch_start_block: "123456",
+      status: "awaiting_payment" as const
+    };
+    const query = vi.fn(async (sql: string, _values: unknown[] = []) => {
+      if (sql.includes("from crypto_chain_watch_cursors")) return { rows: [] };
+      if (sql.includes("pg_advisory_xact_lock")) return { rows: [] };
+      if (sql.includes("set status = 'expired'")) return { rows: [] };
+      if (sql.includes("idempotency_key = $2")) return { rows: [] };
+      if (sql.includes("wallet_xpub_fingerprint = $4")) return { rows: [] };
+      if (sql.includes("open_count")) return { rows: [{ open_count: 0 }] };
+      if (sql.includes("insert into crypto_payment_intents")) return { rows: [reservedRow] };
+      if (sql.includes("insert into crypto_payment_watch_positions")) return { rows: [] };
+      if (sql.includes("set payment_address = $2")) return { rows: [allocatedRow] };
+      throw new Error(`Unexpected query: ${sql}`);
+    });
     const app = buildServer(baseConfig({
       CRYPTO_PROCESSOR_ENABLED: true,
-      CRYPTO_PROCESSOR_WALLET_XPUB: receiveChainXpub
+      CRYPTO_PROCESSOR_WALLET_XPUB: receiveChainXpub,
+      CRYPTO_PROCESSOR_WATCHER_ENABLED: true,
+      CRYPTO_PROCESSOR_ARBITRUM_RPC_URL: "https://arbitrum.example/rpc-secret",
+      CRYPTO_PROCESSOR_BASE_RPC_URL: "https://base.example/rpc-secret"
     }), {
       db: databaseWithTransaction(query),
-      rateLimiter: createMemoryRateLimiter()
+      rateLimiter: createMemoryRateLimiter(),
+      cryptoPaymentRailHeadReader: readRailHead
     });
 
     try {
@@ -208,7 +396,196 @@ describe("crypto payment routes", () => {
       expect(body.data.qrCodeDataUrl).toMatch(/^data:image\/png;base64,/);
       expect(response.body).not.toContain("walletXpub");
       expect(response.body).not.toContain("idempotencyKey");
-      expect(query.mock.calls[0]?.[1]).toEqual(expect.arrayContaining([1899]));
+      expect(readRailHead).toHaveBeenCalledWith(expect.any(Object), "usdc_arbitrum");
+      expect(readRailHead).toHaveBeenCalledWith(expect.any(Object), "usdc_base");
+      const positionAllocation = query.mock.calls.find(([sql]) =>
+        String(sql).includes("insert into crypto_payment_watch_positions")
+      );
+      expect((positionAllocation as unknown as [string, unknown[]] | undefined)?.[1]).toEqual([
+        intentId,
+        42161,
+        "123456",
+        [1, 8453, 42161],
+        ["0", "50000000", null]
+      ]);
+      expect(query.mock.calls.some(([sql]) =>
+        String(sql).includes("crypto_chain_watch_cursors")
+      )).toBe(false);
+      const addressAllocation = query.mock.calls.find(([sql]) =>
+        String(sql).includes("set payment_address = $2")
+      );
+      expect((addressAllocation as unknown as [string, unknown[]] | undefined)?.[1]).toEqual([
+        intentId,
+        paymentAddress,
+        "18990000",
+        "123456"
+      ]);
+      const reservation = query.mock.calls.find(([sql]) =>
+        String(sql).includes("insert into crypto_payment_intents")
+      );
+      expect((reservation as unknown as [string, unknown[]] | undefined)?.[1])
+        .toEqual(expect.arrayContaining([1899]));
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("uses a configured secondary's current verified head and zero only for an unconfigured chain", async () => {
+    const readRailHead = vi.fn().mockResolvedValue(50_000_000n);
+
+    await expect(resolvePrePublicationWatchStartBlocks(
+      baseConfig({ CRYPTO_PROCESSOR_BASE_RPC_URL: "https://base.example/rpc-secret" }),
+      "usdc_arbitrum",
+      readRailHead
+    )).resolves.toEqual({
+      1: 0n,
+      8453: 50_000_000n
+    });
+    expect(readRailHead).toHaveBeenCalledOnce();
+    expect(readRailHead).toHaveBeenCalledWith(expect.any(Object), "usdc_base");
+  });
+
+  it("issues no address when the rail endpoint fails chain verification", async () => {
+    const query = vi.fn();
+    const readRailHead = vi.fn().mockRejectedValue(new ApiError(
+      502,
+      "CRYPTO_CHAIN_SOURCE_UNAVAILABLE",
+      "Crypto chain source is connected to the wrong network."
+    ));
+    const app = buildServer(baseConfig({
+      CRYPTO_PROCESSOR_ENABLED: true,
+      CRYPTO_PROCESSOR_WALLET_XPUB: receiveChainXpub,
+      CRYPTO_PROCESSOR_WATCHER_ENABLED: true,
+      CRYPTO_PROCESSOR_ARBITRUM_RPC_URL: "https://arbitrum.example/rpc-secret"
+    }), {
+      db: databaseWithTransaction(query),
+      rateLimiter: createMemoryRateLimiter(),
+      cryptoPaymentRailHeadReader: readRailHead
+    });
+
+    try {
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/crypto/payment-intents",
+        headers: {
+          "content-type": "application/json",
+          "x-user-id": userId
+        },
+        payload: {
+          planId: "plus_monthly",
+          idempotencyKey: "checkout-route-wrong-chain"
+        }
+      });
+
+      expect(response.statusCode).toBe(502);
+      expect(response.json()).toMatchObject({
+        error: { code: "CRYPTO_CHAIN_SOURCE_UNAVAILABLE" }
+      });
+      expect(query).not.toHaveBeenCalled();
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("issues no address when a configured secondary endpoint fails chain verification", async () => {
+    const query = vi.fn(async (sql: string) => {
+      if (sql.includes("from crypto_chain_watch_cursors")) return { rows: [] };
+      throw new Error(`Unexpected query: ${sql}`);
+    });
+    const readRailHead = vi.fn(async (_config: AppConfig, rail: string) => {
+      if (rail === "usdc_arbitrum") return 123_456n;
+      throw new ApiError(
+        502,
+        "CRYPTO_CHAIN_SOURCE_UNAVAILABLE",
+        "Crypto chain source is connected to the wrong network."
+      );
+    });
+    const app = buildServer(baseConfig({
+      CRYPTO_PROCESSOR_ENABLED: true,
+      CRYPTO_PROCESSOR_WALLET_XPUB: receiveChainXpub,
+      CRYPTO_PROCESSOR_WATCHER_ENABLED: true,
+      CRYPTO_PROCESSOR_ARBITRUM_RPC_URL: "https://arbitrum.example/rpc-secret",
+      CRYPTO_PROCESSOR_BASE_RPC_URL: "https://base.example/rpc-secret"
+    }), {
+      db: databaseWithTransaction(query),
+      rateLimiter: createMemoryRateLimiter(),
+      cryptoPaymentRailHeadReader: readRailHead
+    });
+
+    try {
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/crypto/payment-intents",
+        headers: {
+          "content-type": "application/json",
+          "x-user-id": userId
+        },
+        payload: {
+          planId: "plus_monthly",
+          idempotencyKey: "checkout-route-secondary-wrong-chain"
+        }
+      });
+
+      expect(response.statusCode).toBe(502);
+      expect(response.json()).toMatchObject({
+        error: { code: "CRYPTO_CHAIN_SOURCE_UNAVAILABLE" }
+      });
+      expect(readRailHead).toHaveBeenCalledWith(expect.any(Object), "usdc_arbitrum");
+      expect(readRailHead).toHaveBeenCalledWith(expect.any(Object), "usdc_base");
+      expect(query.mock.calls.some(([sql]) =>
+        String(sql).includes("insert into crypto_payment_intents")
+          || String(sql).includes("set payment_address = $2")
+      )).toBe(false);
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("never returns fillable payment instructions for an expired intent", async () => {
+    const paymentAddress = deriveCryptoReceivingAddress(receiveChainXpub, 1);
+    const query = vi.fn()
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{
+        id: intentId,
+        user_id: userId,
+        plan_id: "plus_monthly",
+        processor: "in_house" as const,
+        asset: "USDC" as const,
+        network: "arbitrum" as const,
+        amount_usd_cents: 1899,
+        quoted_amount_atomic: "18990000",
+        derivation_index: 1,
+        wallet_xpub_fingerprint: fingerprintCryptoWalletXpub(receiveChainXpub),
+        payment_address: paymentAddress,
+        status: "expired" as const,
+        idempotency_key: "checkout-route-expired",
+        metadata: { source: "store" },
+        expires_at: "2026-08-22T18:00:00Z",
+        created_at: "2026-08-22T17:30:00Z",
+        updated_at: "2026-08-22T18:00:01Z",
+        paid_at: null
+      }] });
+    const app = buildServer(baseConfig(), {
+      db: databaseWithTransaction(query),
+      rateLimiter: createMemoryRateLimiter()
+    });
+
+    try {
+      const response = await app.inject({
+        method: "GET",
+        url: `/api/crypto/payment-intents/${intentId}`,
+        headers: { "x-user-id": userId }
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toMatchObject({
+        data: {
+          id: intentId,
+          status: "expired",
+          paymentUri: null,
+          qrCodeDataUrl: null
+        }
+      });
     } finally {
       await app.close();
     }

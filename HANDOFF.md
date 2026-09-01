@@ -1,165 +1,251 @@
-# Handoff: feat/crypto-pricing
+# Handoff: `feat/crypto-pricing`
 
-Branch: `feat/crypto-pricing`
 Worktree: `/Volumes/good/Cruushv2-crypto-release`
-Base: current `origin/main`, 0 behind / 6 ahead. Nothing pushed, nothing merged.
 
-This branch holds the whole in-house crypto payment rail for cruush+. It is for
-review and testing. It is not intended to be merged as-is.
+Publication target: `origin/feat/crypto-pricing` only. The feature branch
+already exists on `origin`. This handoff does not establish the final commit or
+push state, so fetch and record the current branch SHA and ahead/behind counts
+before any publication. Do not merge, push `main`, deploy, or enable real money
+from this handoff.
 
-## Read this first
+## Current outcome
 
-**Nothing here can take money.** The processor is off, no wallet xpub is
-configured, no chain endpoint is set, and the watcher refuses to start unless all
-three are deliberately enabled. Creating a payment intent returns
-`503 CRYPTO_PROCESSOR_NOT_READY`. No code path or test has ever made a live RPC
-call.
+This branch contains the in-house stablecoin checkout, watcher, settlement,
+support, and local wallet tooling for cruush+. It remains disabled by default
+and is not production-ready.
 
-## What it does
+Readiness is per rail. A rail may accept an intent only when all four of its
+gates are present:
 
-A member picks a cruush+ term on `/store` and pays in stablecoin. Each order gets
-its own receiving address, derived from a public watch-only xpub, so a payment
-identifies the order that it settles. A watcher reads ERC-20 `Transfer` logs for
-those addresses, and only chain evidence can grant access.
+1. `CRYPTO_PROCESSOR_ENABLED=true`.
+2. A valid watch-only receive-chain xpub is configured.
+3. `CRYPTO_PROCESSOR_WATCHER_ENABLED=true`.
+4. That rail's chain has a configured RPC URL.
 
-Rails, in the order the checkout offers them:
+Global status is ready when at least one rail is ready. Checkout must disable
+every source whose mapped rail is not ready. This prevents a customer from
+receiving a payment address for a rail the watcher cannot settle. The current
+local configuration keeps the processor and watcher off.
 
-| Rail | Chain | Token | Confirmations | Who can pay from it |
+Intent creation verifies the selected RPC's `eth_chainId`, then reads its head
+before assigning an address. Migration `100_crypto_payment_watch_start.sql`
+persists that exact head as the address's durable intended-chain watch origin.
+Migration `101_crypto_payment_chain_positions.sql` adds one durable origin and
+cursor for every intent on every supported chain. The intended chain keeps its
+exact pre-address head. Before publishing the address, each other supported
+configured chain must verify `eth_chainId` and supply its current head. A global
+cursor is not used for allocation because it can be stale after an idle period.
+An unconfigured chain falls back to block zero and is not currently watchable,
+so wrong-network evidence on it has an explicit recovery gap. All positions are
+inserted atomically with address allocation. A transfer counts only when its
+block number is strictly greater than that position's origin.
+
+If the selected RPC or any configured secondary RPC is unavailable or
+identifies the wrong chain, no address becomes payable. Every active watcher
+pass checks `eth_chainId` again before reading the head or logs. A mismatch
+aborts before any cursor advances. After an outage, bounded scans resume from
+each persisted per-intent chain position until they catch up; they do not guess
+from current chain speed.
+
+## Checkout decisions
+
+`/store` asks which app or wallet the member is paying from. These are the only
+visible choices:
+
+| Checkout label | Rail |
+| --- | --- |
+| Cash App | `usdc_arbitrum` |
+| Venmo or PayPal | `pyusd_arbitrum` |
+| A crypto wallet | `usdc_base` |
+
+The hidden `pyusd_ethereum` rail remains a server fallback. Do not expose a
+generic "Something else" or "Other payment options" choice. Those labels say
+nothing useful in a crypto checkout.
+
+For terms of one month or longer, the monthly equivalent is the prominent
+right-side price and the total is the left-side subtitle. Weekly and lifetime
+show their one-payment amount because they have no monthly rate.
+
+Current price facts:
+
+| Term | Total | Displayed monthly equivalent |
+| --- | ---: | ---: |
+| Six months | $65.94 | $10.99/month |
+| Annual | $119.99 | $10.00/month |
+| Founder annual | $99.99 | $8.33/month |
+
+The server billing catalog remains the source of truth. Never accept a price,
+token contract, network, chain ID, or confirmation target from the client.
+
+The seven paid benefits this branch can truthfully advertise are:
+
+1. Who has a cruush on you.
+2. See who viewed your profile.
+3. Send up to 3 Pulses every 24 hours.
+4. Land on a nearby profile in Cruise Carousel, then browse again.
+5. Use more than 3 seeking filter categories at once.
+6. Use more than 3 visibility filters at once.
+7. Use Dark Room to browse without appearing on the map.
+
+Mile High Club and Feed+ remain separate v1.6 release-line work and are not
+implemented in this checkout's current tree. Do not advertise either here
+until its implementation is merged and verified.
+
+Dark Room is the browse-without-appearing benefit. Ghost Mode is separate.
+Never call Dark Room Stealth Mode or Ghost Mode. Basic members can browse
+nearby profiles, post text to the local feed, and spin Cruise Carousel. Do not
+sell those basic capabilities as cruush+ benefits.
+
+## Payment rails
+
+| Rail | Chain | Token | Confirmations | Checkout source |
 | --- | --- | --- | --- | --- |
-| `usdc_arbitrum` | Arbitrum 42161 | USDC | 240 (~60s) | Cash App |
-| `pyusd_arbitrum` | Arbitrum 42161 | PYUSD | 240 (~60s) | Venmo, PayPal |
-| `pyusd_ethereum` | Ethereum 1 | PYUSD | 12 (~2.4m) | fallback |
-| `usdc_base` | Base 8453 | USDC | 30 (~60s) | crypto wallets only |
+| `usdc_arbitrum` | Arbitrum 42161 | USDC | 240 | Cash App |
+| `pyusd_arbitrum` | Arbitrum 42161 | PYUSD | 240 | Venmo or PayPal |
+| `pyusd_ethereum` | Ethereum 1 | PYUSD | 12 | hidden fallback |
+| `usdc_base` | Base 8453 | USDC | 30 | crypto wallets |
 
-Arbitrum leads because it is the only chain Cash App, Venmo, and PayPal can all
-send to, and because collecting a payment costs two transactions per order (fund
-the derived address with gas, then sweep it), so a mainnet rail charges a fee on
-every sale forever. Base reaches none of those three apps.
+Token addresses are fixed server-side and were taken from issuer material.
+Arbitrum's public RPC endpoint, `https://arb1.arbitrum.io/rpc`, was exercised
+against real USDC logs on 2026-09-01. Dwellir's free plan was rejected because
+it returned HTTP 403 for `eth_getLogs`, the method this watcher requires. Do
+not restore the stale Dwellir recommendation. Base and Ethereum rails still
+need their own RPC URLs before those rails can become ready.
 
-Token addresses were taken from the issuers' own documentation, not block
-explorers: Circle for USDC, Paxos for PYUSD. They are pinned in a route test so
-an accidental change fails loudly.
+## Settlement invariants
 
-## Running it locally
+- Each intent gets a unique address derived from a public watch-only xpub.
+- One member may have at most one active crypto intent. A compatible open
+  intent is reused, and `GET /api/crypto/payment-intents/current` restores it
+  after a reload.
+- Active lifetime access blocks every new crypto purchase. A successful shared
+  lifetime grant atomically closes that member's `pending` and
+  `awaiting_payment` crypto intents, while preserving `confirming` intents so
+  funds already observed can finish settlement.
+- A fresh second lifetime purchase is refused. If authoritative on-time
+  evidence later proves an older lifetime intent was paid after lifetime access
+  was already active, the watcher records that intent as `paid`, makes no
+  duplicate grant, adds an explicit support-review note, and continues the
+  chain pass. This records no refund and makes no refund promise.
+- Only matching chain, token contract, receiving address, and confirmed amount
+  count toward settlement.
+- Every configured supported chain scans every bounded watchable address and
+  every known token contract on that chain. A known wrong-chain or wrong-token
+  transfer is retained as non-creditable support evidence. It never advances
+  or settles the intent.
+- Recording any positive exact-chain, exact-token transfer and moving
+  `awaiting_payment` to `confirming` happen atomically, even before the transfer
+  reaches its confirmation target.
+- Only exact-rail evidence with an authoritative block timestamp at or before
+  `expires_at` may count. The watcher reads that timestamp from
+  `eth_getBlockByNumber`, validates the returned block number and hash against
+  the log, and never grants from a legacy row whose timestamp is null.
+- `awaiting_payment` and `confirming` may transition to `paid`. An intent that
+  the scheduler already marked `expired` may settle only when the authoritative
+  block timestamp proves the exact-rail funds arrived by `expires_at`; this
+  preserves an on-time transfer that was still awaiting confirmations.
+- Transfers mined after `expires_at` never grant. `failed` and `cancelled`
+  intents never auto-settle or grant, even if later evidence is observed.
+- A `confirming` intent that still has not settled seven days after quote
+  expiry becomes `failed`; its transfer rows remain available to support.
+- Terminal intents return no payment URI and no QR code.
+- Reorganization-aware transfer rows are retained and cannot double-count.
+- Settlement takes locks in one order: member, intent, exact-rail confirmed
+  transfer rows, then any limited-plan supply lock. It re-sums the locked,
+  pre-expiry, exact-chain and exact-token evidence inside the same transaction
+  that claims `paid` and grants access, so a concurrent reorganization cannot
+  invalidate the grant total.
+- Entitlement uses `grantCruushPlusPlan`, shared with the existing checkout
+  path, and is claimed once at the database boundary.
+- Finite crypto purchases extend atomically from the later of the current
+  subscription end, entitlement end, or now. Founder annual and lifetime
+  founder supply reservations and grants are serialized transactionally
+  against their 1,000 and 250 caps.
 
-Requires Postgres. There is a Homebrew `postgresql@16` on `5432` on this machine;
-the repo's docker-compose default points at `5433`, which is a separate thing.
+The create route is limited to 5 attempts per member per minute. The current
+and ID status routes share a 30 reads per member per minute limit. Watcher log
+queries batch at most 100 recipient topics. Payment QR generation uses a
+bounded 256-entry cache with concurrent request reuse and failed-entry removal.
+The `confirmed_money_not_settled` reconciliation check uses the settlement
+threshold exactly: 50 basis points, capped at 250000 atomic units ($0.25), on
+the intent's exact chain and token.
 
-```
-createdb -h 127.0.0.1 -p 5432 cruush_crypto_dev
-```
+The checkout shows the server expiry countdown and stops displaying payable
+details when the window closes. Pending or awaiting polling stops at expiry;
+confirming polling has a 20-minute post-expiry ceiling. Plan and payment-source
+selectors stay locked while an open or paid intent owns checkout. The page
+reloads the member's current active intent before choosing defaults. If that
+intent's original rail becomes unavailable, the page preserves that rail and
+its payment state through `paid`; it never switches or unlocks the checkout.
 
-`server/.env.local` needs at least:
+The watcher keeps a bounded post-expiry evidence window. Evidence-only support
+lookup for funds discovered beyond that bounded watch is not complete. Do not
+claim that a transaction hash can always recover an out-of-window payment.
+Unknown token contracts and transfers first presented after the watch window
+need an independent receipt-ingestion path. That support workflow, including
+the owner decision for funds received after a quote expires, remains a launch
+blocker.
 
-```
-PORT=3011
-HOST=0.0.0.0
-DATABASE_URL=postgres://<you>@127.0.0.1:5432/cruush_crypto_dev
-CORS_ORIGIN=http://localhost:5180
-APP_URL=http://localhost:5180
-SESSION_SECRET=<any 32+ chars>
-DEVELOPMENT_ADMIN_ENABLED=true
-DEVELOPMENT_ADMIN_PASSWORD=admin-password
-MODERATION_PROVIDER=mock
-```
+## Legal boundary
 
-Then:
+cruush+ is an ongoing interactive digital service, not immediate digital
+content. EU consumers generally retain a 14-day withdrawal right. Immediate
+access plus a checkbox does not erase it before full performance. Legally
+required withdrawals, refunds, remedies, and forced reversals remain possible.
 
-```
-VITE_DEV_PORT=5180 VITE_API_BASE_URL=http://localhost:3011 VITE_DEV_HTTPS=0 pnpm dev:local:seeded
-```
+Do not build generic voluntary refund tooling or refund-offering copy unless
+Julien names that scope. Keep the `refunded` ledger state for truthful recording
+of exceptional or legally required outcomes. EU/EEA sales remain blocked until
+jurisdiction-specific legal review and a compliant service-withdrawal flow are
+complete, or those consumers are excluded server-side.
 
-Use `localhost` on both sides, not `127.0.0.1` on one. The session cookie is
-host-scoped, so a mismatch logs in over curl but leaves the browser at 401.
-
-Sign in as `admin@cruush.local` / `admin-password`, then open `/store`.
-
-Several dev servers are usually running on this machine from different sessions,
-each serving something that looks exactly like cruush. Judge which one you are
-looking at by the port alone.
-
-## Testing it
-
-```
-cd server && pnpm vitest run src/crypto-payments.test.ts src/crypto-watcher.test.ts \
-  src/crypto-watcher-runtime.test.ts src/crypto-chain-source.test.ts \
-  src/crypto-settlement-policy.test.ts src/crypto-payment-routes.test.ts \
-  src/crypto-wallet.test.ts src/config.test.ts src/migrate.test.ts src/billing.test.ts
-```
-
-145 pass. The wallet tool has its own 21 (`cd tools/cruush-wallet && npx vitest run`).
-Do not run the full suite; it is slow and there are unrelated pre-existing
-failures on main.
-
-Every test injects a fake chain source. Nothing reaches a network.
-
-## Where to look
+## Primary files
 
 | Concern | File |
 | --- | --- |
-| Rails, intents, idempotency, expiry, ERC-681 URI and QR | `server/src/crypto-payments.ts` |
-| Read-only JSON-RPC and ERC-20 log decoding | `server/src/crypto-chain-source.ts` |
-| The watcher: scanning, dedup, reorgs, settlement, grant | `server/src/crypto-watcher.ts` |
-| Scheduling and which chains are watched | `server/src/crypto-watcher-runtime.ts` |
-| What an amount means | `server/src/crypto-settlement-policy.ts` |
-| Support lookup and the exception report | `server/src/crypto-reconciliation.ts` |
-| Address derivation from the xpub | `server/src/crypto-wallet.ts` |
-| Schema and its constraints | `server/sql/096`–`099` |
-| Checkout page | `src/app/components/CruushPlusStore.tsx` |
+| Catalog and entitlement grant | `server/src/billing.ts` |
+| Rails, intents, readiness, URI, and QR | `server/src/crypto-payments.ts` |
+| Route status and intent creation | `server/src/routes/crypto-payments.ts` |
+| Read-only JSON-RPC decoding | `server/src/crypto-chain-source.ts` |
+| Watcher and settlement | `server/src/crypto-watcher.ts` |
+| Per-chain scheduling | `server/src/crypto-watcher-runtime.ts` |
+| Amount policy | `server/src/crypto-settlement-policy.ts` |
+| Support and reconciliation | `server/src/crypto-reconciliation.ts` |
+| Intended-chain watch origin | `server/sql/100_crypto_payment_watch_start.sql` |
+| Per-intent chain positions and block timestamps | `server/sql/101_crypto_payment_chain_positions.sql` |
+| Checkout | `src/app/components/CruushPlusStore.tsx` |
+| Public wallet descriptor tool | `tools/cruush-wallet` |
 
-`docs/plans/v2-crypto-processor.md` carries the reasoning behind every decision
-and is the more useful read than the code for a reviewer.
+Migrations `096` through `101` are the complete ordered crypto schema slice.
+Keep `server/src/migrate.ts` synchronized with all six files.
 
-## Things worth attacking during review
+## Local preview target
 
-These are the properties the design depends on. Each has a test, but a test only
-proves what it asserts.
+The branch's assigned frontend is `http://localhost:5191/store` and its API is
+`http://localhost:3022`. Use `admin@cruush.local` / `admin-password`. Keep the
+API explicitly disabled while previewing:
 
-- Price is always derived server-side from `planId`. A client may name a rail and
-  nothing else: not an amount, asset, network, token address, or confirmation
-  target.
-- Entitlement is granted only from the `paid` transition, and only by the pass
-  that successfully claimed it. The database refuses a second grant, refuses a
-  grant on an unpaid intent, and refuses a paid intent with no confirmed amount.
-- One chain log is one row, keyed on `(chain_id, transaction_hash, log_index)`,
-  so re-reading a range cannot double-count.
-- Reorganized transfers stop counting but are never deleted.
-- The xpub, its fingerprint, the derivation index, and the RPC endpoint URL never
-  appear in a client response, a log, or an error message. The endpoint URL can
-  embed an API key.
-- `grantCruushPlusPlan` is the single entitlement implementation, shared with the
-  existing checkout path so the two cannot drift.
+```sh
+PORT=3022 HOST=127.0.0.1 CORS_ORIGIN=http://localhost:5191 \
+  APP_URL=http://localhost:5191 CRYPTO_PROCESSOR_ENABLED=false \
+  CRYPTO_PROCESSOR_WATCHER_ENABLED=false npm run dev
+```
 
-## Known gaps, deliberate
+Verify `/api/crypto/status` reports no ready rail before offering a disabled
+preview. Use the exact local ports; other cruush worktrees may also be running.
 
-- **No sweeping or gas funding.** Money lands at derived addresses and stays
-  there. Collecting it is a separate, unbuilt operator task.
-- **No refunds.** cruush does not refund cruush+, recorded as product invariant
-  G7. The `refunded` status is unreachable record-keeping only.
-- **No rendered proof of the QR code.** Showing it needs an assigned address,
-  which needs the processor enabled with an xpub, and enabling a test-vector xpub
-  outside automated tests is forbidden. Covered by unit and route tests only.
-- **One RPC endpoint per chain**, so provider disagreement is not handled.
-- **Depeg is not handled.** The quote is arithmetic on USD cents against a
-  dollar-pegged token. If a token loses its peg, nothing halts checkout.
+## Remaining launch gates
 
-## Blocked on the owner
-
-1. A wallet. It must be created outside this repo and outside any agent session;
-   only the public xpub is ever handed over. No seed phrase, private key, or
-   xprv touches cruush or a machine running an agent.
-2. Nothing. The JSON-RPC endpoint is settled: `https://arb1.arbitrum.io/rpc`,
-   Arbitrum's own public endpoint, no account and no key. Dwellir was tried
-   first and rejected on evidence: their free plan returns HTTP 403 for
-   `eth_getLogs`, which is the only method the watcher uses, so no request
-   volume would have made it work. The chain source was verified against the
-   public endpoint on 2026-09-01, decoding 456 of 456 real USDC transfers over
-   a 200-block range. Set CRYPTO_PROCESSOR_ARBITRUM_RPC_URL to it when the rail
-   is enabled. It carries no availability guarantee; a paid provider is a
-   one-variable swap if load ever demands it.
-3. Sign-off on the settlement policy table in the plan doc.
-4. An unresolved HIGH security finding in the local wallet tool: its check for
-   agent sessions is bypassable with a pseudo-terminal. Mitigated, documented,
-   and explicitly not a security boundary. It gates the recovery drill.
-5. Checkout consent capture for the EU right of withdrawal, which the no-refunds
-   position depends on.
+- Complete the private recovery-word ceremony, validate the generated public
+  descriptor, and configure only the public xpub. Never expose recovery words,
+  private keys, or an xprv to an agent, repo, log, screenshot, or chat.
+- Independently match several derived addresses and prove the operator wallet
+  can later spend from them.
+- Complete gas-funding and sweeping procedures.
+- Complete evidence-only support handling beyond the bounded watch window.
+- Render and exercise every configured payment state at desktop and small
+  mobile sizes. Source tests and builds do not replace that proof.
+- Complete a controlled receive-through-entitlement and reconciliation run.
+- Complete jurisdiction-specific legal, tax, sanctions, privacy, and consumer
+  review. Block EU/EEA sales until its legal gate is resolved.
+- Keep the processor disabled until every applicable gate passes.

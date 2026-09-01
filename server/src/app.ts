@@ -30,11 +30,13 @@ import { registerDevRoutes } from "./routes/dev.js";
 import { registerRewardRoutes } from "./routes/rewards.js";
 import { photoUploadAvailability } from "./photo-upload-availability.js";
 import { createPostgresRateLimiter, type RateLimiter } from "./rate-limit.js";
+import type { CryptoPaymentRailHeadReader } from "./crypto-watcher-runtime.js";
 
 type BuildServerDeps = {
   db?: DbClient;
   rateLimiter?: RateLimiter;
   logger?: FastifyServerOptions["logger"];
+  cryptoPaymentRailHeadReader?: CryptoPaymentRailHeadReader;
 };
 
 const stateChangingMethods = new Set(["POST", "PUT", "PATCH", "DELETE"]);
@@ -230,7 +232,9 @@ export function buildServer(config: AppConfig, deps: BuildServerDeps = {}) {
   void registerUserNoticeRoutes(app);
   void registerUserRoutes(app);
   void registerCruushRoutes(app);
-  void registerCryptoPaymentRoutes(app);
+  void registerCryptoPaymentRoutes(app, {
+    readRailHead: deps.cryptoPaymentRailHeadReader
+  });
   void registerEventRoutes(app);
   void registerPostRoutes(app);
   void registerProfileRoutes(app);

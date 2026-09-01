@@ -253,7 +253,7 @@ export const privacySections: PolicySection[] = [
     title: "Location privacy",
     body: [
       "Location-based features may require location signals, map coordinates, visibility settings, movement-related timestamps, or derived proximity information. Location precision and visibility may vary by feature, device settings, safety controls, and user choices.",
-      "Ghost Mode, Stealth Mode, blocking, blurring, city-level display, or other privacy controls reduce certain visibility, but they do not make cruush anonymous to cruush, payment providers, service providers, law enforcement where legally required, or everyone who may have already seen prior activity."
+      "Ghost Mode, Dark Room, blocking, blurring, city-level display, or other privacy controls reduce certain visibility, but they do not make cruush anonymous to cruush, payment providers, service providers, law enforcement where legally required, or everyone who may have already seen prior activity."
     ]
   },
   {

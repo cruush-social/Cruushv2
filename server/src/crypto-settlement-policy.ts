@@ -6,15 +6,15 @@
  * docs/plans/v2-crypto-processor.md. They are gathered in one place so that
  * changing the policy never means editing the watcher.
  *
- * The bias throughout: never take money without granting access, and never
- * grant access silently when something is off. Anything unusual is still
- * settled or still flagged, but it always leaves a note a human can read.
+ * The bias throughout: never grant access without sufficient confirmed
+ * evidence mined inside the checkout window. Anything unusual remains visible
+ * to support instead of being silently treated as an ordinary settlement.
  */
 
 export type CryptoSettlementPolicy = {
   /**
-   * Confirmations required before confirmed money counts. 1 is the current
-   * placeholder from the original plan and is NOT a production decision.
+   * Confirmations required before confirmed money counts. Each rail sets its
+   * own minimum; configuration may raise that minimum but never lower it.
    */
   confirmationTarget: number;
   /**
@@ -35,7 +35,7 @@ export type CryptoSettlementPolicy = {
   /**
    * Hard ceiling on the tolerance above, in atomic units. Without it, a
    * percentage tolerance scales with price, so the $999.99 lifetime plan would
-   * forgive far more than the $9.99 weekly one for no reason. Both rails use
+   * forgive far more than the $10.99 weekly one for no reason. Both rails use
    * 6 decimals, so 250000 is $0.25.
    */
   underpaymentToleranceMaxAtomic: bigint;
@@ -43,16 +43,17 @@ export type CryptoSettlementPolicy = {
    * Overpayment beyond this is still granted, and recorded rather than passing
    * silently.
    *
-   * cruush does not refund, so this flag does not start a refund decision. It
-   * exists so that a member who sends $500 for a $9.99 plan by mistake shows up
-   * in the reconciliation report instead of vanishing into the treasury
-   * unnoticed. What happens next is a human's call, not the processor's.
+   * This flag does not start an automatic refund decision. It exists so that a
+   * member who sends $500 for a $10.99 plan by mistake shows up in the
+   * reconciliation report instead of vanishing into the treasury unnoticed.
+   * Legally required outcomes and any other response remain separate human
+   * decisions, not processor behavior.
    */
   overpaymentFlagBps: number;
   /**
-   * Whether money that arrives after the checkout window expired can still
-   * settle. A transfer is irreversible; refusing it would mean keeping funds
-   * and giving nothing, so this defaults to true.
+   * Whether a scheduler-expired address remains watched for evidence. Status
+   * alone never authorizes settlement: only an exact-rail transfer mined no
+   * later than expires_at can grant.
    */
   acceptLatePayment: boolean;
   /**
@@ -65,12 +66,14 @@ export type CryptoSettlementPolicy = {
    *
    * Seven days is long enough to cover someone who started a checkout, got
    * distracted, and finished days later, while keeping the watch set bounded.
-   * Money arriving after the window is not lost: it still lands in a wallet
-   * cruush controls, and the reconciliation report can still find it by address
-   * or transaction hash. It just is not settled automatically.
+   * Evidence observed during the window remains preserved. The watcher stops
+   * after the window; ingesting a newly discovered out-of-window transfer is a
+   * separate support workflow and is not automatic settlement.
    */
   lateArrivalWatchDays: number;
 };
+
+export const CRYPTO_LATE_EVIDENCE_WINDOW_DAYS = 7;
 
 export const DEFAULT_CRYPTO_SETTLEMENT_POLICY: CryptoSettlementPolicy = {
   // Overridden per rail by CRYPTO_PAYMENT_RAILS; see resolveSettlementPolicy.
@@ -80,7 +83,7 @@ export const DEFAULT_CRYPTO_SETTLEMENT_POLICY: CryptoSettlementPolicy = {
   underpaymentToleranceMaxAtomic: 250_000n,
   overpaymentFlagBps: 100,
   acceptLatePayment: true,
-  lateArrivalWatchDays: 7
+  lateArrivalWatchDays: CRYPTO_LATE_EVIDENCE_WINDOW_DAYS
 };
 
 export type SettlementOutcome =
@@ -150,21 +153,4 @@ export function evaluateCryptoSettlement(input: {
 
 export function settlementOutcomeGrantsAccess(outcome: SettlementOutcome) {
   return outcome.kind !== "insufficient";
-}
-
-/**
- * Whether an intent that has already passed its checkout window may still be
- * settled by money that has now arrived. Kept separate from the amount
- * decision because it is a different question with a different answer.
- */
-export function lateArrivalIsSettleable(input: {
-  status: string;
-  policy: CryptoSettlementPolicy;
-}) {
-  if (input.status === "expired") {
-    return input.policy.acceptLatePayment;
-  }
-
-  // Anything already terminal for a non-timing reason stays terminal.
-  return input.status === "awaiting_payment" || input.status === "confirming";
 }

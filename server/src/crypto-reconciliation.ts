@@ -11,11 +11,16 @@
  */
 
 import type { DbClient } from "./db.js";
+import { CRYPTO_PAYMENT_RAILS } from "./crypto-payments.js";
+import { DEFAULT_CRYPTO_SETTLEMENT_POLICY } from "./crypto-settlement-policy.js";
 
 export type CryptoPaymentTransferRow = {
   id: string;
   intent_id: string;
   chain_id: number;
+  token_address: string;
+  block_hash: string;
+  block_timestamp: string | Date | null;
   transaction_hash: string;
   log_index: number;
   block_number: string;
@@ -47,6 +52,9 @@ export type CryptoReconciliationRecord = {
     transactionHash: string;
     logIndex: number;
     chainId: number;
+    tokenAddress: string;
+    blockHash: string;
+    blockTimestamp: string | Date | null;
     blockNumber: string;
     amountAtomic: string;
     fromAddress: string;
@@ -97,7 +105,8 @@ async function attachTransfers(db: DbClient, rows: IntentRow[]): Promise<CryptoR
   }
 
   const transfers = await db.query<CryptoPaymentTransferRow>(
-    `select id, intent_id, chain_id, transaction_hash, log_index, block_number::text as block_number,
+    `select id, intent_id, chain_id, token_address, block_hash, block_timestamp,
+            transaction_hash, log_index, block_number::text as block_number,
             amount_atomic, from_address, to_address, confirmations, status, first_seen_at, confirmed_at
      from crypto_payment_transfers
      where intent_id = any($1::uuid[])
@@ -131,6 +140,9 @@ async function attachTransfers(db: DbClient, rows: IntentRow[]): Promise<CryptoR
       transactionHash: transfer.transaction_hash,
       logIndex: transfer.log_index,
       chainId: transfer.chain_id,
+      tokenAddress: transfer.token_address,
+      blockHash: transfer.block_hash,
+      blockTimestamp: transfer.block_timestamp,
       blockNumber: transfer.block_number,
       amountAtomic: transfer.amount_atomic,
       fromAddress: transfer.from_address,
@@ -250,18 +262,42 @@ export async function findCryptoReconciliationExceptions(db: DbClient): Promise<
   }
 
   // Confirmed money that covers the quote, on an intent the watcher never
-  // moved. Catches a watcher that died mid-pass.
+  // moved. Only the intent's exact chain and token count. Mismatched transfers
+  // stay stored and remain visible through support lookup as truthful,
+  // non-creditable evidence.
+  const intendedRails = Object.values(CRYPTO_PAYMENT_RAILS);
   const stuck = await db.query<{ id: string; confirmed: string; quoted: string }>(
     `select i.id,
             sum(t.amount_atomic::numeric)::text as confirmed,
             i.quoted_amount_atomic as quoted
      from crypto_payment_intents i
-     join crypto_payment_transfers t on t.intent_id = i.id and t.status = 'confirmed'
+     join unnest($1::text[], $2::text[], $3::integer[], $4::text[])
+       as intended(asset, network, chain_id, token_address)
+       on intended.asset = i.asset
+      and intended.network = i.network
+     join crypto_payment_transfers t
+       on t.intent_id = i.id
+      and t.status = 'confirmed'
+      and t.chain_id = intended.chain_id
+      and lower(t.token_address) = intended.token_address
+      and t.block_number > coalesce(i.watch_start_block, 0)
+      and t.block_timestamp <= i.expires_at
      where i.status not in ('paid', 'refunded')
        and i.quoted_amount_atomic is not null
      group by i.id, i.quoted_amount_atomic
-     having sum(t.amount_atomic::numeric) >= i.quoted_amount_atomic::numeric`,
-    []
+     having sum(t.amount_atomic::numeric) >=
+       i.quoted_amount_atomic::numeric - least(
+         floor(i.quoted_amount_atomic::numeric * $5::integer / 10000),
+         $6::numeric
+       )`,
+    [
+      intendedRails.map((rail) => rail.asset),
+      intendedRails.map((rail) => rail.network),
+      intendedRails.map((rail) => rail.chainId),
+      intendedRails.map((rail) => rail.tokenAddress.toLowerCase()),
+      DEFAULT_CRYPTO_SETTLEMENT_POLICY.underpaymentToleranceBps,
+      DEFAULT_CRYPTO_SETTLEMENT_POLICY.underpaymentToleranceMaxAtomic.toString()
+    ]
   );
   for (const row of stuck.rows) {
     exceptions.push({

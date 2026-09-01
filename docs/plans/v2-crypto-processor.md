@@ -1,8 +1,8 @@
 # cruush v2 crypto processor plan
 
-Last updated 2026-08-28. This revision records the current product decisions:
-direct USDC payment on Base, a seamless account-linked checkout, no voucher or
-promo-code issuance step, and a zero-cost software-only operator wallet.
+Last updated 2026-09-01. This revision records the current multi-rail,
+account-linked checkout, disabled-by-default settlement path, and local
+software-wallet boundary.
 
 This is an engineering plan. It does not establish licensing, tax, sanctions,
 consumer-protection, banking, or payment-provider conclusions. Those questions
@@ -11,8 +11,9 @@ require current professional review before real payments are enabled.
 ## Product outcome
 
 The `/store` page sells fixed terms of cruush+ through one payment. A signed-in
-member chooses a term, receives one unique Base address, sends the exact USDC
-amount, and sees status updates on the same page. Nothing renews automatically.
+member chooses a term and a concrete source, receives one unique address for
+the server-selected stablecoin rail, sends the quoted amount, and sees status
+updates on the same page. Nothing renews automatically.
 
 Checkout stays linked to the member account so confirmed payment can grant the
 selected term without a voucher, code, or second redemption step.
@@ -20,6 +21,87 @@ selected term without a voucher, code, or second redemption step.
 Card payment is a separate future integration. No card processor, approval,
 timeline, API contract, or commercial term is assumed in this plan. cruush must
 never collect raw card numbers or CVVs.
+
+## Current authoritative state, 2026-09-01
+
+Worktree: `/Volumes/good/Cruushv2-crypto-release`
+
+Branch: `feat/crypto-pricing`
+
+Publication target: `origin/feat/crypto-pricing` only. The remote feature
+branch exists. This plan does not establish the final commit or push state;
+record fresh SHA and ahead/behind evidence after final verification. This plan
+does not authorize a merge, `main` push, deployment, live funds, or processor
+activation.
+
+The processor, watcher, settlement, and support implementation exist but stay
+disabled by default. Readiness is per rail: processor enabled, valid xpub,
+watcher enabled, and that rail's chain RPC URL are all required before an
+intent may be created. Global readiness means at least one rail is ready, not
+that every rail can accept funds.
+
+Visible source mappings are fixed:
+
+| Checkout source | Rail |
+| --- | --- |
+| Cash App | `usdc_arbitrum` |
+| Venmo or PayPal | `pyusd_arbitrum` |
+| A crypto wallet | `usdc_base` |
+
+`pyusd_ethereum` remains hidden fallback capacity. Do not expose "Something
+else" or "Other payment options". These labels provide no useful crypto
+direction.
+
+For plans of at least one month, checkout displays the monthly equivalent
+prominently on the right and the total as the left-side subtitle. Weekly and
+lifetime retain their one-payment amount.
+
+| Term | Total | Monthly equivalent |
+| --- | ---: | ---: |
+| Six months | $65.94 | $10.99/month |
+| Annual | $119.99 | $10.00/month |
+| Founder annual | $99.99 | $8.33/month |
+
+The checkout advertises only benefits present in this branch:
+
+1. Who has a cruush on you.
+2. See who viewed your profile.
+3. Send up to 3 Pulses every 24 hours.
+4. Land on a nearby profile in Cruise Carousel, then browse again.
+5. Use more than 3 seeking filter categories at once.
+6. Use more than 3 visibility filters at once.
+7. Use Dark Room to browse without appearing on the map.
+
+Mile High Club and Feed+ remain separate v1.6 release-line work. Do not sell
+either benefit in this checkout until its implementation is merged and
+verified in this tree.
+
+Dark Room and Ghost Mode are separate. Never call Dark Room Stealth Mode or
+Ghost Mode. Basic members can browse nearby profiles, post text to the local
+feed, and spin Cruise Carousel; those are not paid benefits.
+
+Settlement is fail-closed. An exact positive transfer is stored and moves an
+awaiting intent to `confirming` atomically. Every candidate transfer gets an
+authoritative block timestamp whose block number and hash must match the log.
+Only exact-rail evidence mined at or before `expires_at` may count, and legacy
+evidence with a null timestamp never grants. A scheduler-expired intent may
+settle only that on-time evidence if confirmation finished after the checkout
+window; a transfer mined after expiry never grants. Failed and cancelled
+intents never auto-settle or grant. A confirming intent that remains unsettled
+seven days after quote expiry becomes `failed`, with transfer evidence
+preserved. Configured supported chains also retain known wrong-chain and
+wrong-token transfers as non-creditable evidence. Terminal intents return no
+payment URI or QR.
+Evidence ingestion for unknown tokens or transfers first presented after the
+bounded watch window is incomplete and remains a launch blocker.
+
+cruush+ is an ongoing interactive digital service, not immediate digital
+content. Immediate access plus a checkbox does not generally erase an EU
+consumer's 14-day withdrawal right before full performance. EU/EEA sales remain
+blocked until a jurisdiction-specific compliant service-withdrawal flow is
+reviewed and complete, or those consumers are excluded server-side. No generic
+voluntary refund tooling is planned, but legally required withdrawals, refunds,
+remedies, and forced reversals remain possible and must be recorded truthfully.
 
 ## Hard safety boundaries
 
@@ -54,194 +136,79 @@ validation, reconciliation, and deployment integrity remain required.
 
 ## Current local implementation
 
-Worktree: `/Volumes/good/Cruushv2-crypto-processor-20260822`
-
-Branch: `feature/v2-crypto-processor-20260822`
-
-Baseline: `5a77cb504d23bea71867cf0558bd10ede40e2248`
-
-Nothing in this worktree is committed, pushed, deployed, or enabled in
-production.
+The authoritative worktree, branch, and publication boundary are recorded in
+the dated state section above. Historical SHAs and old worktree paths below are
+verification context only. They are not current publication evidence. Nothing
+in this document establishes deployment or production activation.
 
 Implemented locally:
 
-- `server/sql/096_crypto_payment_intents.sql` defines payment intents and an
-  event intake table. Each intent receives a database identity
-  index, an xpub fingerprint, and a unique payment address.
+- Migrations `096` through `101` are the complete ordered crypto schema slice:
+  `096` creates intents and event intake, `097` adds the multi-asset/network
+  rails, `098` adds observed transfers, cursors, settlement constraints, and
+  paid-access references, `099` adds Arbitrum, and `100` adds the durable
+  intended-chain watch-start block. `101` adds per-intent origins and cursors
+  for every supported chain plus authoritative transfer block timestamps.
+  `server/src/migrate.ts` lists all six.
 - `server/src/crypto-wallet.ts` validates a depth-4 public receive-chain xpub,
   rejects xprv-shaped input, derives non-hardened public children, converts them
   to checksummed Ethereum addresses, fingerprints the configured xpub, and
-  quotes USD cents as six-decimal USDC atomic units.
-- Server wallet derivation uses `@scure/bip32` and `@noble/hashes`. The server
-  includes no mnemonic, private-key, transaction-signing, RPC, or broadcast
-  dependency.
-- `server/src/crypto-payments.ts` reserves the database derivation index before
-  deriving the address, binds idempotency keys to one purchase, and moves a new
-  intent from `pending` to `awaiting_payment` inside one transaction.
+  quotes USD cents as supported six-decimal stablecoin atomic units.
+- Server wallet derivation uses `@scure/bip32` and `@noble/hashes`. It includes
+  no mnemonic, private-key, transaction-signing, or broadcast capability. The
+  watcher RPC client is separate and read-only.
+- `server/src/crypto-payments.ts` allows one active intent per member, reuses a
+  compatible open intent, reserves the derivation index before deriving the
+  address, and moves a new intent from `pending` to `awaiting_payment` inside
+  one transaction. Payment QR work is cached in a 256-entry bounded cache.
 - `server/src/routes/crypto-payments.ts` exposes authenticated status, intent
-  creation, and ownership-scoped intent lookup. Pricing always comes from the
-  existing server billing catalog.
+  creation, `GET /api/crypto/payment-intents/current`, and ownership-scoped
+  intent lookup. Before address allocation it verifies the selected endpoint's
+  chain ID and reads its head, which is persisted by migration `100` as the
+  intended-chain watch origin. Creation is limited to 5 requests per member per
+  minute; current and ID lookup share 30 reads per member per minute. Pricing
+  always comes from the existing server billing catalog.
+- `server/src/crypto-watcher.ts` catches an intended chain up from the durable
+  per-intent chain origin or cursor in bounded block ranges. Before every active
+  scan it verifies `eth_chainId`; a mismatch aborts before the head, logs, or
+  cursor writes. Every configured supported chain scans every bounded watchable
+  address for the known tokens on that chain, splitting recipient filters into
+  batches of at most 100. Known wrong-chain and wrong-token transfers are
+  retained as non-creditable evidence. Exact positive evidence is recorded with
+  the awaiting-to-confirming transition in one database statement.
+- `server/src/billing.ts` stacks finite crypto grants atomically from the later
+  current subscription end, entitlement end, or now. It refuses duplicate
+  lifetime access, blocks every new crypto purchase after lifetime access is
+  active, and atomically closes `pending` and `awaiting_payment` crypto intents
+  after a successful shared lifetime grant. It preserves `confirming` intents
+  so already observed funds can settle. Founder annual and lifetime founder
+  reservation and grant checks remain serialized against their 1,000 and 250
+  supply caps.
 - `src/app/components/CruushPlusStore.tsx` renders the account-linked `/store`
-  flow. It has no voucher step, no asset picker, and no network picker. The only
-  configured rails are USDC on Base and PYUSD on Ethereum. PYUSD is the
-  Venmo-compatible receiving option. The server maps rail IDs to fixed token
-  and network metadata.
+  flow. It has no voucher, asset, or network picker. It asks for a concrete
+  payment source and maps it to server-fixed Arbitrum or Base metadata. PYUSD
+  on Ethereum remains hidden fallback capacity. It restores the current active
+  intent, displays the server expiry countdown, hides payable details after
+  expiry, and locks plan and source selectors while an open or paid intent owns
+  checkout. A restored unavailable rail remains selected and locked through
+  `paid`, so a readiness change cannot discard or switch payment state.
 - The existing `/upgrade` route keeps its prior destination. `/store` is added
   without replacing the existing rewards checkout flow.
 - `tools/cruush-wallet` is an isolated local operator package. It can generate
-  and verify the public wallet descriptor in a direct non-agent terminal, and
-  it can sign only bounded Base Sepolia gas-funding and Circle USDC sweep plans.
-  It has no RPC client or broadcast command and refuses secret-bearing commands
-  in agent, CI, piped, or redirected sessions.
+  and verify a public wallet descriptor in a direct private Terminal session,
+  and it can sign only bounded Base Sepolia gas-funding and Circle USDC sweep
+  plans. It has no RPC client or broadcast command. Recovery words, private
+  keys, and xprv data must never enter an agent, file, argument, environment
+  variable, pipe, log, screenshot, or chat.
 
-Verification recorded 2026-08-28:
+## Evidence boundary
 
-- Local wallet TypeScript build passed. Its 11 public-vector tests passed and
-  `npm audit --omit=dev` reported 0 vulnerabilities.
-- The 33 focused server wallet, payment-core, route, and configuration tests
-  passed before the treasury-index review. The updated payment-core suite then
-  passed 7 tests, including rejection of treasury index `0`. The server build
-  passed.
-- All 24 migration tests passed, including discovery of migration `096`.
-- The 6 focused checkout API and store component tests passed. The client
-  production build passed with one pre-existing duplicate JSX attribute
-  warning in `PulseEffectPreview.tsx`, outside this task.
-- The disabled `/store` checkout was rendered through the real application at
-  desktop size and at 360x740. Top, middle, and bottom states were inspected.
-  The accordion and plan selection worked, the payment button remained
-  disabled, no content or controls were clipped or blocked, and the final
-  clean render produced no browser console warnings or errors.
-- A broader client test invocation unintentionally ran the existing full suite
-  and exposed unrelated `MapMarkerPin` mock failures. This task did not modify
-  those tests. The correctly scoped checkout tests passed afterward.
-
-No real wallet was initialized. No recovery words, funds, RPC endpoint,
-transaction broadcast, commit, push, deployment, or production setting was
-used for this verification.
-
-Verification recorded 2026-08-30 (continuing this branch, one commit still
-unpushed at `5a77cb5`):
-
-- Found and fixed a real, pre-existing build break: `CryptoPaymentIntentRow`
-  declared `rail`/`chainId`/`tokenAddress` as if they were columns returned by
-  the intent SQL query. No query ever selects them (they don't exist in the
-  schema; `mapCryptoPaymentIntent` derives them from `asset`/`network` via the
-  `CRYPTO_PAYMENT_RAILS` lookup), so `server/src/crypto-payments.test.ts`'s row
-  fixture — which correctly omitted them — failed `tsc -p tsconfig.json` with
-  TS2322/TS2353. Moved those three fields to the `CryptoPaymentIntent` output
-  type instead, where the client (`src/app/lib/cryptoCheckoutApi.ts`) already
-  expected them. `pnpm exec tsc --noEmit` in `server/` is clean after the fix;
-  it was not clean before it.
-- Added the payment-URI/QR checkout-completion slice described above.
-- 37 focused server tests pass (`crypto-payments`, `crypto-payment-routes`,
-  `crypto-wallet`, `config`), including 3 new tests for
-  `buildCryptoPaymentUri`/`withCryptoPaymentDisplay`. 7 focused client tests
-  pass (`CruushPlusStore`, `cryptoCheckoutApi`), including 1 new test for the
-  QR image. Server build (`tsc -p tsconfig.json`) and client build (`vite
-  build`) both pass.
-- Ran an independent security review (a fresh agent, not the one that wrote
-  this code) over every file in this slice, scoped to concrete exploitability
-  only. One HIGH finding, in the local wallet tool's session-safety check —
-  see "Zero-cost software wallet contract" below. Everything else it checked
-  came back clean: payment-route ownership (`user_id` always comes from the
-  authenticated session, never the client), the derivation-index/address
-  uniqueness (enforced by real DB constraints in migration `096`, not just
-  application logic), idempotency-key scoping, server-fixed pricing/rail
-  metadata (a client can request a rail, never a price or contract), and no
-  xpub/fingerprint/derivation-index leakage to any response.
-- Found and fixed a second real bug, this one shipping-blocking: migration
-  `097_crypto_payment_intents_multi_asset.sql` was never added to the ordered
-  `migrationFiles` list in `server/src/migrate.ts`, so it never ran. Without
-  it the `096` constraints stay `check (asset in ('USDC'))` and
-  `check (network in ('base'))`, and every PYUSD/Ethereum intent insert would
-  have failed against a real database while every mocked test passed. The
-  repo already has a guard for exactly this drift —
-  `migrate.test.ts` asserts the list equals the `sql/` directory — and it was
-  failing; the 2026-08-28 verification predates `097` (created 2026-08-29), so
-  nobody re-ran it. Registered `097`, and `migrate.test.ts` is 24/24 green.
-  Confirmed applied against a live database:
-  `crypto_payment_intents_asset_check` now reads
-  `CHECK ((asset = ANY (ARRAY['USDC'::text, 'PYUSD'::text])))` and the network
-  check likewise allows `base` and `ethereum`.
-- Brought a real local stack up after all, which the 2026-08-28 session could
-  not. Docker is still not running on this machine, but Homebrew
-  `postgresql@16` is, on port 5432 — the repo's default only ever pointed at
-  Docker's 5433. Created a dedicated database `cruush_crypto_20260830` for
-  this worktree rather than reusing any existing one, and ran the frontend on
-  5180 / API on 3011 to avoid the ports other sessions are using.
-  `server/.env.local` holds the server side (gitignored, so nothing entered
-  the tree). The frontend side is passed inline rather than through a root
-  `.env.local`, because vitest also loads `.env.local` and a
-  `VITE_API_BASE_URL` in it makes `cryptoCheckoutApi.test.ts` fail on absolute
-  URLs — a trap worth not leaving behind. To bring the same stack back up:
-
-  ```
-  VITE_DEV_PORT=5180 VITE_API_BASE_URL=http://localhost:3011 VITE_DEV_HTTPS=0 pnpm dev:local
-  ```
-
-  Use `localhost` on both sides, not `127.0.0.1` on one: the session cookie is
-  host-scoped, so a `127.0.0.1` API with a `localhost` frontend logs in over
-  curl but leaves the browser at 401.
-- Verified against that running stack, not a mock:
-  - The development administrator login `admin@cruush.local` /
-    `admin-password` works on this exact frontend/API pair.
-  - `GET /api/crypto/status` returns 200 with both rails, correct chain IDs
-    (8453, 1) and token contracts, and no xpub, fingerprint, or derivation
-    index anywhere in the response.
-  - `POST /api/crypto/payment-intents` fails closed with 503
-    `CRYPTO_PROCESSOR_NOT_READY` while the processor is disabled.
-  - `/store` rendered and inspected at 1280x900 desktop and 360x740 mobile,
-    top and bottom. Both rails show with their own descriptions, the
-    unavailable notice shows, the Pay button is disabled, the bug-report
-    button stays top-right clear of everything (D1), and nothing clips or
-    overlaps at either size. `/api/crypto/status` returns 200 on the page's
-    own network log.
-- Still unverified, and deliberately so: the QR code and payment URI have no
-  rendered proof, because displaying them requires an assigned payment
-  address, which requires enabling the processor with an xpub. This document
-  forbids enabling a test-vector xpub outside automated tests, so that was not
-  done. The QR path is covered by unit tests at both layers and by the route
-  test asserting the exact ERC-681 string and a `data:image/png;base64,` QR,
-  but nobody has looked at it on screen. That belongs to the same gate as the
-  other configured payment states.
-- No real wallet was initialized. No recovery words, funds, RPC endpoint,
-  transaction broadcast, commit, push, deployment, or production setting was
-  used for this verification either.
-
-Verification recorded 2026-08-30, second pass (settlement slices 1 to 4):
-
-- Migration `098_crypto_payment_settlement.sql` adds `crypto_payment_transfers`,
-  `crypto_chain_watch_cursors`, settlement columns on the intent, and the
-  crypto intent reference on paid access records. Applied against the live
-  local database.
-- The database guards were proven by trying to violate them on that live
-  database, not only in mocked tests:
-  - `update ... set status='paid'` with no confirmed amount was refused by
-    `crypto_payment_intents_paid_has_amount_check`.
-  - `update ... set entitlement_granted_at=now()` on an `awaiting_payment`
-    intent was refused by `crypto_payment_intents_grant_requires_paid_check`.
-  - The legitimate order (set paid with an amount, then grant) was allowed.
-  - Inserting the same `(chain_id, transaction_hash, log_index)` twice was
-    refused, leaving exactly one row.
-  Test rows were deleted afterwards.
-- The reconciliation queries were run against that live database: lookup by
-  transaction hash and by payment address each returned the seeded intent, and
-  the exception report correctly reported nothing while the intent was paid and
-  granted, then reported `paid_without_entitlement` as soon as the grant was
-  removed.
-- 134 focused server tests pass across ten files, including 30 new watcher
-  tests (reorganization, double-count, partial payment, late payment, split
-  payment, concurrent grant claim, malformed logs, unowned addresses), 18
-  chain-source tests, 12 settlement-policy tests, and 12 watcher-runtime tests.
-  Server `tsc` and `tsc -p tsconfig.json` both clean.
-- Two failures exist in `src/app.test.ts` (`GET /api/cruush/:userId` and
-  `GET /api/cruush/me`). They were confirmed pre-existing by restoring the
-  baseline `billing.ts` from git and re-running: they fail identically without
-  any change from this session. They are unrelated to billing or crypto.
-- The watcher has never made a real RPC call. No endpoint is configured, no
-  provider is selected, `CRYPTO_PROCESSOR_WATCHER_ENABLED` defaults to false,
-  and configuration refuses to start the watcher unless the processor is
-  enabled and an endpoint is set. Every test injects a fake source.
+Old per-file test counts and old worktree SHAs are deliberately omitted here;
+they are not evidence for the current dirty branch. Final focused tests,
+builds, rendered screenshots, and branch SHA must be recorded from the exact
+tree being published. No real wallet initialization, controlled mainnet
+receipt, transaction broadcast, production configuration, deployment, or live
+payment is established by this document.
 
 ## Watch-only wallet contract
 
@@ -267,49 +234,20 @@ payments. Do not work around it by importing an xprv or seed phrase.
 
 ## Zero-cost software wallet contract
 
-**Finding 2026-08-30, HIGH, partly mitigated 2026-08-30, still not a
-boundary.** What was changed in response: the environment denylist now also
-covers `CLAUDE_CODE_SESSION_ID` (the real Claude Code variable, which the
-original list missed by name), `CLAUDE_CODE_ENTRYPOINT`, `CURSOR_TRACE_ID`,
-and the common CI markers; remote shells are refused outright via `SSH_TTY` /
-`SSH_CONNECTION` / `SSH_CLIENT`, because recovery words must never cross a
-network link; the parent process is checked against known terminal recorders
-and multiplexers (`script`, `expect`, `unbuffer`, `socat`, `screen`, `tmux`,
-`asciinema`), which catches the literal exploit below; and
-`showRecoveryWordsOnce` now demands an unpredictable three-word phrase be
-typed back **before** anything secret is written to the stream, so recovery
-words are never emitted into a session nobody is sitting at.
-`tools/cruush-wallet/src/interactive.test.ts` covers all of it (21 tool tests
-green). The help text no longer claims the tool "refuses Codex, Claude, CI"
-outright; it now says these are heuristics that stop accidents and names the
-real control. **None of this makes the check a security boundary**, and it
-must not be described as one. The original finding stands as written below
-and still gates the recovery drill.
+The session checks are accident guards, not a security boundary. They require
+direct TTY input/output, refuse recognized agent/CI environments, remote
+shells, and common terminal recorders, and require an unpredictable live
+presence response before any recovery word is written. A deliberate same-user
+process or pseudo-terminal driver can still bypass heuristics and capture the
+raw stream.
 
-Original finding as reported: the session-safety check
-that is supposed to refuse secret-bearing commands (`init`, `verify`,
-`sign-gas`, `sign-sweep`) in an agent/CI session is bypassable. It gates only
-on `stdin.isTTY && stdout.isTTY` plus the absence of 5 named env vars
-(`CODEX_SESSION_ID`, `CODEX_THREAD_ID`, `CLAUDECODE`, `CLAUDE_SESSION_ID`,
-`CI`). An independent review agent confirmed, by running a `tty-check`
-harness under `env -u ... script -q captured.log node tty-check.js` in a
-sandbox (not the real wallet — no real initialization was run), that both
-signals report exactly what a normal interactive terminal would report even
-when the actual driver is a fully automated, non-interactive process wrapped
-in a pseudo-terminal. `showRecoveryWordsOnce` writes the words to stdout
-before the operator confirms having written them down, so they land in
-whatever is capturing that pty's byte stream — the alternate-screen-buffer
-trick only clears a real terminal emulator's rendered scrollback, not a
-`script(1)`-style capture. Separately, `CLAUDE_SESSION_ID` doesn't match the
-real Claude Code environment variable (`CLAUDE_CODE_SESSION_ID`), though
-fixing that alone would not close the underlying gap. Net effect: this check
-is a speed bump against accidentally running the tool from an agent, not a
-boundary that can stop a deliberate one — which is exactly the actor this
-tool's own threat model names as forbidden from ever observing a recovery
-phrase. This must be resolved, and independently reviewed again, before a
-recovery drill or any real wallet initialization — items 1 and "the
-cybersecurity reviewer approves the local signing tool and operator
-procedure" under "Gates before accepting real money" below.
+The operational boundary is therefore human-controlled: use a normal local
+macOS Terminal; close Codex, Claude, screen sharing, terminal recording, and
+remote-control apps before answering the live-presence challenge; keep them
+closed until the alternate recovery-word screen clears and Terminal closes;
+write the words only on paper; never use clipboard, screenshots, files, chat,
+arguments, environment variables, pipes, or redirection. No agent may answer
+the challenge, observe the recovery screen, or inspect Terminal output.
 
 The approved wallet is a local operator tool under `tools/cruush-wallet`. It is
 not part of the cruush client, server, container image, or deployment. No
@@ -329,8 +267,21 @@ continues deriving payment addresses without signing capability.
 Initial setup generates recovery words locally and displays them only in an
 interactive terminal. The operator writes them down physically. The tool emits
 only the public xpub, its fingerprint, and public addresses after the recovery
-words are no longer displayed. The agent must build and test this path only
-with public deterministic vectors and must never execute real initialization.
+words are no longer displayed. After private confirmation, it writes an
+allowlisted public descriptor to
+`/Users/julienlenaz/Library/Application Support/cruush/operator-wallet/public-descriptor.json`.
+The fixed current-user path is preflighted before entropy generation. Its
+wallet directories must be owned by the current user with mode `0700`; the
+descriptor is a no-clobber regular file with mode `0600`. Existing targets,
+links, unsafe permissions, ownership changes, and detected directory swaps are
+refused. Node cannot make a final path unlink conditional on inode identity,
+so a published descriptor is never unlinked after ambiguous validation
+failure. The current same-UID macOS user remains the filesystem trust boundary.
+The file contains no recovery words, private key, or xprv. An agent may test
+this path only with public deterministic vectors. An agent may prepare and
+launch the dedicated normal-Terminal initializer, but must stop before the
+live-presence response and must never inspect its output. Julien alone answers
+the challenge, records the recovery words, confirms them, and closes Terminal.
 
 Signing is deliberately manual. An online process prepares a bounded unsigned
 transaction plan. The operator disconnects the signing computer from the
@@ -342,37 +293,50 @@ broadcast.
 
 Software custody cannot remove host-compromise risk. Malware present while the
 recovery words are entered can steal them. Minimum operating controls before a
-recovery drill are FileVault, an isolated macOS account, current operating
-system patches, no cloud-synced wallet files, no remote-control or screen-share
-session, and a disconnected network during secret entry. A separate offline
-computer would reduce risk but is not required by the zero-dollar build scope.
+recovery drill are FileVault, the current `julienlenaz` macOS user, current
+operating-system patches, no cloud-synced secret material, no remote-control or
+screen-share session, and a disconnected network during secret entry. A
+separate offline computer would reduce risk but is not required by the current
+zero-dollar build scope.
 
 Every derived payment address needs Base ETH before it can send its USDC to the
 treasury. Gas funding, batch sweeping, and fee policy remain explicit
 pre-production gates. Customer checkout can remain seamless while those
-operator actions remain manual. Refund signing is not among them: cruush does
-not refund cruush+.
+operator actions remain manual. No generic voluntary refund-signing workflow is
+planned. Exceptional or legally required withdrawals, refunds, remedies, and
+forced reversals still need a truthful operator procedure.
 
 ## Payment lifecycle
 
 Current states:
 
 1. `pending`: database intent reserved; no address returned yet.
-2. `awaiting_payment`: unique address and exact USDC amount assigned.
-3. `confirming`: matching Base transfer observed; confirmation target not yet
-   reached.
+2. `awaiting_payment`: unique address and exact rail amount assigned.
+3. `confirming`: a positive exact-chain, exact-token transfer mined by
+   `expires_at` was recorded; the total may still be short or below the
+   confirmation target.
 4. `paid`: configured confirmation target reached and settlement checks passed.
-5. `expired`, `failed`, or `cancelled`: no entitlement grant.
-6. `refunded`: **not reachable, and not a product feature.** cruush does not
-   refund cruush+. This state exists only so that an exceptional refund an
-   operator makes by hand can be recorded truthfully. No code path sets it.
+5. `expired`: the checkout window closed. It may settle only exact-rail evidence
+   whose authoritative block timestamp proves the funds arrived by
+   `expires_at`; transfers mined later never grant.
+6. `failed` or `cancelled`: no entitlement grant.
+7. `refunded`: not a normal product path. It exists so an exceptional, legally
+   required, or forced refund can be recorded truthfully.
 
-Allowed transitions are explicit and forward-only. `expired` cannot become
-`paid` under current code. Late-payment policy must be implemented before the
-watcher is enabled.
+Allowed transitions are explicit and forward-only. A scheduler-expired intent
+can become `paid` only for on-time exact-rail evidence that finished confirming
+after expiry. The watcher may retain later evidence during the bounded window,
+but a post-expiry transfer never grants. A `confirming` intent that has not
+settled seven days after its quote expired becomes `failed`, while its transfer
+rows remain available to support.
 
-The current intent-creation path ends at `awaiting_payment`. No chain watcher or
-entitlement grant exists yet.
+Only one active intent may exist per member. A compatible open intent is reused
+instead of allocating another address, and
+`GET /api/crypto/payment-intents/current` restores it after reload. An address
+does not become payable until the selected endpoint identifies the intended
+chain and its current head is stored as the durable watch origin. The watcher
+can then advance an open intent through `confirming` to `paid` and call the
+shared entitlement grant, but all live gates remain disabled by default.
 
 ## Next implementation slices
 
@@ -403,6 +367,11 @@ JSON-RPC documentation, which Base implements, and are quoted in the header of
 
 - `eth_blockNumber` request `{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":83}`,
   response `{"id":83,"jsonrpc":"2.0","result":"0x4b7"}`.
+- `eth_chainId` request `{"jsonrpc":"2.0","method":"eth_chainId","params":[],"id":84}`,
+  response `{"id":84,"jsonrpc":"2.0","result":"0x2105"}`.
+- `eth_getBlockByNumber` reads the authoritative timestamp for a candidate log.
+  The watcher requires the returned block number and hash to match the log
+  before the timestamp may make that evidence creditable.
 - `eth_getLogs` takes a filter object with `fromBlock`, `toBlock`, `address`,
   and `topics`; each returned log carries `address`, `topics`, `data`,
   `blockNumber`, `transactionHash`, `transactionIndex`, `blockHash`,
@@ -443,76 +412,70 @@ Status of each item:
   the JSON-RPC client, the hex parsing, the topic filter, and the transfer
   decoder had never been exercised against production data.
 
-  If the public endpoint is rate-limited under real load, Dwellir's paid tier is
-  the obvious upgrade, and worth asking support@dwellir.com to price for roughly
-  2,900 `eth_getLogs` requests a day before assuming the published pricing
-  applies.
-
-  **This costs nothing to run, and that is enforced in code rather than hoped
-  for.** Three things do the work:
+  **The disabled and idle paths make no RPC request.** Three things bound the
+  active read workload:
 
   1. **No payment in progress means no request at all**, not even a head read.
      A pass checks the database for watchable intents and returns before
-     touching the chain if there are none. With no live intent there is no
-     payment address in existence, so nothing on chain could concern us. Cost
-     scales with actual checkouts, not with uptime.
+     touching the chain if there are none. Assigned addresses may remain in the
+     ledger, but none is inside an automatic-settlement or bounded-evidence
+     watch state. Cost scales with relevant checkouts, not with uptime.
   2. **Abandoned checkouts stop being watched** seven days after they expire.
      This closes the largest long-run leak in the design: accepting late
      payment without a bound means every abandoned checkout is watched forever,
      so the watch set only ever grows and the watcher polls for eternity on
-     payments that will never arrive. Money arriving after the window is not
-     lost, it still reaches a wallet cruush controls and reconciliation can
-     still find it by address or transaction hash; it just is not settled
-     automatically.
+     payments that will never arrive. A post-expiry transfer never grants; a
+     scheduler-expired intent may settle only exact-rail evidence whose
+     authoritative timestamp proves arrival by `expires_at`. Evidence not
+     ingested during the bounded window needs a separate verified support path;
+     a member-supplied hash is not enough.
   3. **The poll is 60 seconds, not 30.** The confirmation target dominates the
      member's wait anyway (about 60 seconds on Base, about 2.4 minutes on
      Ethereum), so polling twice as often would halve nothing anyone would
      notice while doubling requests.
 
-  Worst case, with a checkout open continuously 24 hours a day: two calls per
-  pass per chain (`eth_blockNumber` and `eth_getLogs`) at a 60-second poll, so
-  2,880 calls per chain per day, about 5,760 per day for both chains. That is
-  under 6% of the free tier below. No subscription, no card, no bill.
+  Before an address is issued, the create route checks the selected endpoint's
+  `eth_chainId`, then reads `eth_blockNumber`. Migration
+  `100_crypto_payment_watch_start.sql` stores that head in the same
+  address-allocation update. Migration
+  `101_crypto_payment_chain_positions.sql` gives every intent a durable origin
+  and cursor on every supported chain. The intended chain keeps the exact
+  pre-address head. Before address publication, each secondary chain uses its
+  verified current head when it is configured. The allocation path does not use
+  a global cursor because it can be stale after a long idle period. A configured
+  secondary failure or chain-ID mismatch blocks issuance. An unconfigured
+  secondary falls back to block zero and is not watchable, leaving a
+  wrong-network evidence gap until a source is configured and catches up. All
+  rows are inserted atomically with address allocation, and only blocks strictly
+  after each origin can count. A watcher pass verifies `eth_chainId` again before
+  the head or logs and aborts without advancing a cursor on mismatch. After an
+  outage, each per-intent chain position resumes in ranges of at most 2,000
+  blocks until it catches up.
 
-  | Provider | Free tier | Charges eth_getLogs at | Notes |
-  | --- | --- | --- | --- |
-  | **Dwellir** | 100k responses/day | 1:1, flat | Base and Ethereum mainnet with archive. Paid tier starts at $49/mo. |
-  | Chainstack | 3M requests/month | 1:1, flat | Largest free allowance. Singapore-headquartered. |
-  | Alchemy | 30M compute units/mo | 60 CU | Effectively ~500k getLogs calls. US. |
-  | Infura | 100k/day | 255 credits | The multiplier bites hardest on a log-heavy workload. US, ConsenSys. |
-  | `mainnet.base.org` | public, no key | n/a | Base's own endpoint. No availability guarantee. Base only. |
+  Arbitrum currently uses its public no-key endpoint. It carries no uptime or
+  capacity guarantee. Dwellir's free plan is not a fallback because it rejects
+  `eth_getLogs` with HTTP 403. Select a replacement only after proving that the
+  exact plan permits `eth_getLogs` and documenting cost, privacy, and retention
+  terms. Base and Ethereum each need their own configured source before their
+  rails can become ready.
 
-  Dwellir wins on the axis that actually matters here: this watcher is almost
-  entirely `eth_getLogs`, and providers that price by compute unit charge that
-  one call at 60x to 255x a cheap call, so a nominally larger allowance buys
-  far fewer of the requests we actually make. Flat 1:1 pricing also means the
-  bill stays predictable if the poll interval ever drops.
-
-  If creating an account is itself unwanted, `https://mainnet.base.org` is
-  Base's own public endpoint: no key, no signup, no card, and it covers the
-  USDC rail. It carries no availability guarantee, so it is a reasonable place
-  to start rather than a permanent answer. The PYUSD rail would stay unwatched
-  until an Ethereum endpoint exists, which is fine, because a rail nobody can
-  settle should not be offered at checkout.
-
-  Two caveats stated plainly. First, the provider sees which addresses we
-  query, which correlates to paying members; that is a real privacy leak to a
-  third party, and the only way to remove it entirely is self-hosting a node,
-  which is not free in storage or operations and is out of scope here.
-  Second, Dwellir presents as a European company but **this was not verified**
-  from a primary source; if EU-vendor status matters for this, it is worth one
-  check before signing up. Chainstack is the fallback if it does not hold up.
+  Any third-party RPC source can observe queried addresses and correlate them
+  with payment activity. Removing that disclosure requires self-hosting, which
+  is outside this zero-cost scope.
 
 - Read current official documentation before adding any chain ID, contract
   address, RPC request, or event shape. Done for the JSON-RPC shapes and the
-  ERC-20 `Transfer` topic above. **Token addresses verified 2026-08-30 and both
-  already matched the code exactly:**
+  ERC-20 `Transfer` topic above. The current fixed contracts are:
+  - USDC on Arbitrum `0xaf88d065e77c8cC2239327C5EDb3A432268e5831`,
+    Circle's native USDC deployment.
+  - PYUSD on Arbitrum `0x46850aD61C2B7d64d08c9C754F45254596696984`,
+    Paxos' deployment announced with PayPal.
   - USDC on Base `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913`, from Circle's
     own contract-address documentation. Circle lists a single native USDC on
     Base, so there is no bridged-USDbC ambiguity to resolve.
   - PYUSD on Ethereum `0x6c3ea9036406852006290770BEdFcAbA0e23A0e8`, from
     PayPal's own material and Etherscan's verified token page.
-  Both use 6 decimals, which is what `quoteUsdCentsAsStablecoinAtomic` assumes;
+  All four use 6 decimals, which is what `quoteUsdCentsAsStablecoinAtomic` assumes;
   `decimals` is now recorded in the rail so the assumption is checkable.
 
   Worth knowing rather than acting on: PYUSD is issued by **Paxos Trust
@@ -520,20 +483,36 @@ Status of each item:
   rails, the Venmo-compatible rail is the least European part of this design.
   It is still only a token transfer, not a processor relationship, so nothing
   is changed here, but it should not come as a surprise later.
-- Poll ERC-20 `Transfer` logs for assigned addresses. Done. The filter narrows
-  by token contract and by recipient topic, so the endpoint does the work
-  rather than shipping every transfer on the chain.
+- Poll ERC-20 `Transfer` logs for assigned addresses. Done. Every configured
+  supported chain queries every bounded watchable address and all known token
+  contracts configured on that chain. Recipient topics are split into batches
+  of at most 100. This retains known wrong-chain and wrong-token transfers as
+  non-creditable support evidence without letting them advance or settle an
+  intent. Unknown token contracts and transfers first presented after the
+  seven-day watch window still need independent receipt ingestion.
+- Read authoritative block time before deciding whether a transfer arrived by
+  expiry. Done. `eth_getBlockByNumber` must return the requested block number
+  and the same block hash as the log. Only timestamps at or before `expires_at`
+  count, and null legacy timestamps never grant.
 - Pin the expected chain ID and token contract. Done, server-side, in
-  `CRYPTO_PAYMENT_RAILS`. A client can name a rail, never a contract.
+  `CRYPTO_PAYMENT_RAILS`. A client can name a rail, never a contract. Every
+  active pass rechecks the endpoint's chain ID before the head or logs; a
+  mismatch leaves every durable cursor unchanged.
 - Deduplicate by chain ID, transaction hash, and log index. Done, and enforced
   by a unique constraint in migration `098`, not only in code.
-- Persist observed block number, amount, sender, receiver, transaction hash.
-  Done, in `crypto_payment_transfers`.
+- Persist observed block number, amount, sender, receiver, token contract, and
+  transaction hash. Done, in `crypto_payment_transfers`. Recording a positive
+  exact-chain, exact-token transfer and moving `awaiting_payment` to
+  `confirming` occur atomically.
 - Handle timeouts, duplicate logs, and chain reorganization. Done: bounded
   scan ranges, a re-read window behind the cursor, `removed` logs ignored, and
   a sweep that marks vanished transfers `reorganized` without deleting them so
-  support can still see them. **RPC disagreement between two providers is not
-  handled; there is only one endpoint per chain.**
+  support can still see them. Settlement locks and re-sums the intent's
+  confirmed, pre-expiry, exact-chain and exact-token transfer rows inside the
+  grant transaction. The lock order is member, intent, evidence, then any
+  limited-plan supply lock. A concurrent reorganization therefore cannot
+  invalidate a total after it grants. **RPC disagreement between two providers
+  is not handled; there is only one endpoint per chain.**
 - Never trust an unverified browser transaction hash as settlement evidence.
   Done. No route accepts a transaction hash as input to settlement; the only
   writer is the watcher.
@@ -549,21 +528,27 @@ options. These are now the defaults, not placeholders.
 
 | Decision | Value | Reasoning |
 | --- | --- | --- |
+| Confirmation target, Arbitrum | `240` (~60s) | Arbitrum produces blocks much faster than Base. The per-rail target provides about the same one-minute wait as 30 Base blocks. |
 | Confirmation target, Base | `30` (~60s) | Per rail, not global: this was the bug. Base builds an L2 block about every 2 seconds, so the original `1` bought about 2 seconds of protection on a grant with no revoke path. Base's own finality documentation puts reorg risk at "near 0%" once a transaction is in an L2 block and "effectively 0%" once the batch reaches L1 about 2 minutes later; 30 blocks sits well past the first and heads toward the second, for a minute of member waiting. |
 | Confirmation target, Ethereum | `12` (~2.4m) | Ethereum blocks are ~12 seconds and finality is 2 epochs, 64 blocks, about 12.8 minutes. 12 is the ordinary exchange-grade bar for crediting a stablecoin deposit. |
-| Underpayment tolerance | `50` bps, capped at `250000` atomic ($0.25) | Not zero, which was wrong. An ERC-20 transfer pays gas separately, so a self-custody sender pays the exact amount, but a custodial sender (Venmo, PayPal, an exchange) can deduct its withdrawal fee from the amount. With zero tolerance that member pays, gets nothing, and has to contact support while cruush holds the money. The absolute cap exists so the $999 lifetime plan does not forgive $5 where the $9.99 weekly plan forgives $0.05. |
-| Overpayment flag | `100` bps (1%) | Grant anyway and record it, rather than letting it pass silently. cruush does not refund, so this is support visibility: someone who sends $500 for a $9.99 plan by mistake should appear in the reconciliation report, not vanish into the treasury unnoticed. What happens then is a human's call. |
-| Late payment | accepted | A transfer cannot be undone. Refusing it means keeping the money and giving nothing. |
+| Underpayment tolerance | `50` bps, capped at `250000` atomic ($0.25) | Not zero, which was wrong. An ERC-20 transfer pays gas separately, so a self-custody sender pays the exact amount, but a custodial sender (Venmo, PayPal, an exchange) can deduct its withdrawal fee from the amount. With zero tolerance that member pays, gets nothing, and has to contact support while cruush holds the money. The absolute cap exists so the $999 lifetime plan does not forgive $5 where the $10.99 weekly plan forgives about $0.05. |
+| Overpayment flag | `100` bps (1%) | Grant an otherwise valid open intent and record the exception. Someone who overpays should appear in reconciliation rather than disappear into treasury accounting. Any legally required remedy or exceptional owner action remains separate from automatic settlement. |
+| Payment after expiry | evidence only | A transfer mined after `expires_at` never grants. A scheduler-expired intent may settle only exact-rail evidence authoritatively timestamped by `expires_at`, because the on-time transfer may still have been awaiting confirmations when the checkout window closed. |
 
 `CRYPTO_PROCESSOR_CONFIRMATION_TARGET` is kept, but now acts as a **floor**: an
 operator can demand more confirmations than a rail asks for, never fewer. That
 preserves the existing knob without letting it reintroduce the one-number bug.
 
-| Late-arrival watch window | `7` days past expiry | Closed the one remaining open question here, and the largest long-run cost leak: without a bound, every abandoned checkout is watched forever and the watch set only grows. Seven days covers someone who started a checkout, got distracted, and came back days later. Money arriving later is not lost, it still reaches a cruush-controlled wallet and reconciliation can find it by address or transaction hash; it just is not settled automatically. |
+| Late-arrival evidence window | `7` days past expiry | Bounds abandoned-intent scanning. Post-expiry transfers observed during this window remain evidence only and never grant. A transfer never ingested during the bounded watch is not automatically discoverable from a member-supplied hash. |
 
-Still open: how support safely resumes an intent that fell outside the
-late-arrival window. Today that is a manual lookup plus a hand-made grant, and
-nothing in the product does it.
+The same seven-day bound terminalizes an unresolved `confirming` intent as
+`failed`. Its transfer evidence and settlement note remain stored for support;
+the failed intent does not settle or grant later.
+
+Still open: receipt evidence verification and support handling for funds found
+outside the bounded watch. Do not hand-make a grant from an unverified hash.
+The owner must decide how changed quotes and confirmed post-expiry funds are
+handled before launch.
 
 ### 3. Entitlement grant
 
@@ -577,14 +562,38 @@ Built 2026-08-30.
   into `grantCruushPlusPlan` in `server/src/billing.ts`, so the test checkout
   path and the crypto path are now literally the same code and cannot drift on
   what a plan grants. The existing checkout behaviour is unchanged.
-- Idempotent at the database boundary. Done, three ways: the claiming update
-  matches only a row that is not already paid and not already granted; unique
-  partial indexes on `crypto_payment_intent_id` stop a second subscription or
-  lifetime record; and a check constraint refuses `entitlement_granted_at` on
-  any intent that is not `paid` or `refunded`.
+- Idempotent at the database boundary. Done: the paid claim matches only an
+  open, ungranted row and the grant plus `entitlement_granted_at` update run in
+  the same transaction. A check constraint refuses a grant marker on an intent
+  that is not `paid` or `refunded`.
+- Settlement takes locks in one order: member, intent, exact-rail transfer
+  evidence, then any limited-plan supply lock. The watcher re-sums locked,
+  confirmed, pre-expiry evidence for the intent's exact chain and token inside
+  the transaction that claims `paid` and grants access.
 - Record the payment intent ID on the paid access record. Done, via new
   `crypto_payment_intent_id` columns. The existing `checkout_session_id` is
   untouched and stays null for crypto.
+- Finite crypto purchases stack atomically. The next term starts from the later
+  of now, the current subscription end, or the current entitlement end. The
+  existing fake-checkout replacement behavior remains unchanged.
+- A crypto lifetime grant uses no-overwrite insertion, and active lifetime
+  access blocks every fresh crypto purchase. A successful shared lifetime grant
+  atomically closes that member's `pending` and `awaiting_payment` crypto
+  intents while preserving `confirming` intents, because those already have
+  observed funds. If authoritative on-time evidence later proves an older
+  lifetime intent was paid after lifetime access was already active, settlement
+  records it as `paid`, makes no duplicate grant, adds an explicit support-review
+  note, and continues the chain pass. This record makes no refund promise.
+  Member and plan advisory locks serialize intent creation and settlement.
+  Founder annual and lifetime founder reservations and grants count unique real
+  users transactionally against their 1,000 and 250 caps. An expired
+  limited-plan intent keeps its supply reservation through the same seven-day
+  evidence window, so authoritative on-time payment can still grant without a
+  later buyer taking its slot. An evidence-free reservation releases after that
+  bound. This means an abandoned limited checkout can hold scarce supply for up
+  to seven days. Launch needs monitoring and an explicit reservation-abuse
+  response; per-member request throttling alone does not prevent coordinated
+  account abuse.
 - Never grant from a client poll, copied address, member-supplied transaction
   hash, or intent creation. Done. No route can reach the grant.
 
@@ -594,73 +603,81 @@ Built 2026-08-30 in `server/src/crypto-reconciliation.ts`, read-only, exposed
 at `GET /api/crypto/support/payments` and
 `GET /api/crypto/support/reconciliation`, both moderator-gated.
 
-- Look up by intent ID, member ID, payment address, and transaction hash. Done.
-  Address and transaction hash matter most, because they are the only two
-  things a member can actually produce.
+- Look up already ingested evidence by intent ID, member ID, payment address,
+  and transaction hash. Done. This does not fetch a never-ingested receipt from
+  chain. Evidence verification beyond the bounded watcher window remains open.
 - Reconcile assigned addresses against observed transfers and granted
   entitlements. Done. The exception report covers paid-without-entitlement,
   entitlement-without-paid, confirmed-money-that-never-settled, transfers with
   no intent, and anything settlement flagged on the way through.
+- `confirmed_money_not_settled` uses only the intent's exact chain and token and
+  the same threshold as settlement: 50 basis points capped at 250000 atomic
+  units ($0.25). It does not flag a transfer total settlement would still treat
+  as insufficient.
 - The reconciliation endpoint also reports whether the watcher is actually
   running and, if not, which gate is closed. A silent watcher is the failure
   mode that would otherwise go unnoticed until someone complains.
-- **Refunds: none. Decided by Julien 2026-08-30.** cruush+ is a digital good
-  delivered immediately, and cruush does not refund it. No refund tooling will
-  be built, and this is no longer open work.
+- cruush does not offer generic voluntary refunds for cruush+. The `refunded`
+  state remains for exceptional or legally required outcomes and forced
+  reversals. Do not add generic refund tooling or refund-offering copy without
+  Julien naming that scope.
 
-  What that changed in code: an overpayment is still recorded, but as support
-  visibility, not as "flagged for a refund decision". The `refunded` payment
-  status stays in the schema and the transition table, and **no code path
-  reaches it**; it exists only so an exceptional hand-made refund can be
-  recorded truthfully rather than leaving the ledger disagreeing with reality.
-  It is not a feature and nothing should be built onto it without Julien
-  saying so.
+  cruush+ is an ongoing interactive digital service, not immediate digital
+  content. EU consumers generally retain a 14-day withdrawal right. Immediate
+  access, prior consent to begin service, and an acknowledgement do not by
+  themselves erase that right before full performance. A checkout checkbox is
+  not a no-refund switch.
 
-  **One thing this needs to hold up, and it is not built.** In the EU, a
-  consumer buying digital content or a digital service normally has a 14-day
-  right of withdrawal. The exemption Julien is relying on is real, but it is
-  conditional: it applies where the consumer has given **prior express consent**
-  to performance beginning immediately **and acknowledged** that doing so loses
-  the withdrawal right. Both parts have to be captured at checkout and kept as
-  evidence; a line in the terms is generally not enough on its own. Today the
-  `/store` checkout captures neither.
-
-  This was deliberately not implemented here, because it is customer-facing
-  copy and a consent record, and Julien writes cruush's copy. It is also the
-  kind of thing that should be confirmed by someone qualified rather than by
-  an agent reading the directive: the existing "legal, tax, sanctions,
-  consumer-protection, privacy, refund, and terms review" gate below already
-  covers it, and this is now the most concrete item in it. Flagging it plainly
-  rather than quietly shipping a no-refunds policy with nothing behind it,
-  because the exposure lands on cruush, not on the code.
+  EU/EEA sales are blocked until jurisdiction-specific legal review and a
+  compliant service-withdrawal flow are complete, or those consumers are
+  excluded server-side. No compliant flow or exclusion is established by this
+  plan.
 
 ### 5. Checkout completion
 
 - Done 2026-08-30: payment URIs and QR codes. `buildCryptoPaymentUri` in
   `server/src/crypto-payments.ts` builds an ERC-681 (Final status,
-  https://eips.ethereum.org/EIPS/eip-681) `transfer` request URI —
+  https://eips.ethereum.org/EIPS/eip-681) `transfer` request URI:
   `ethereum:<tokenContract>@<chainId>/transfer?address=<paymentAddress>&uint256=<atomicAmount>`
-  — from metadata already in `CRYPTO_PAYMENT_RAILS`, and only once an address
+ : from metadata already in `CRYPTO_PAYMENT_RAILS`, and only once an address
   and quoted amount exist. `withCryptoPaymentDisplay` renders it to a QR with
   the existing `qrcode` server dependency (same call shape as
   `two-factor.ts`'s `QRCode.toDataURL`, so this is not a second QR
-  implementation). Both crypto payment routes return `paymentUri` and
-  `qrCodeDataUrl` alongside the intent; `CruushPlusStore.tsx` renders the QR
+  implementation). Intent create, current, and ID responses return `paymentUri`
+  and `qrCodeDataUrl` alongside the intent; `CruushPlusStore.tsx` renders the QR
   image next to the existing copyable address when present. No new
   dependency, no live network call, no change to what is displayed today
   besides the QR image itself. PYUSD/Venmo note: Venmo's own send flow
   supports scanning a wallet-address QR (per Venmo's help docs), but there is
   no confirmed evidence it parses a full ERC-681 request URI rather than a
-  bare address — the QR is still spec-correct and the full address stays
+  bare address: the QR is still spec-correct and the full address stays
   visible/copyable as the reliable fallback either way.
+- QR encoding uses a process-local 256-entry bounded cache. Concurrent reads of
+  one payment URI share the same pending encode; a failed encode is removed so
+  a later request can retry.
+- Only an open payable intent may include `paymentUri` or `qrCodeDataUrl`.
+  Terminal states return both as `null` so an expired quote cannot keep asking
+  for funds.
 - Keep the full address visible and copyable.
 - Warn clearly that sending another asset or using another network may lose
   funds.
-- Preserve one-page checkout and account-linked status polling.
-- Exercise pending, confirming, paid, expired, failed, and mobile layouts in the
-  real local application. Still not done: this needs a running local stack
-  (Docker/Postgres), which was not available in this session (see Verification
-  log below).
+- Preserve one-page checkout and account-linked status polling. Creation is
+  limited to 5 requests per member per minute. Current and intent-ID reads
+  share a 30 requests per member per minute limit.
+- Display the server expiry countdown. After the window closes, hide the
+  address and QR and stop treating the quote as payable. Pending or awaiting
+  polling stops at expiry; confirming polling has a 20-minute post-expiry
+  ceiling. A locally expired pending or awaiting quote offers a fresh-payment
+  action. Keep plan and payment-source selectors locked while an open or paid
+  intent owns checkout. Restore the current active intent before selecting
+  defaults on reload. If the restored intent's original rail is unavailable,
+  preserve that rail and its payment state through `paid`; do not switch or
+  unlock the checkout.
+- Exercise unavailable, ready, pending, confirming, paid, expired, failed, and
+  mobile layouts in the real local application. The earlier disabled-state
+  render does not prove the redesigned pricing, benefits, per-rail readiness,
+  or configured payment states. Record fresh screenshots and interaction
+  evidence before calling this gate complete.
 
 ## Card track
 
@@ -699,19 +716,18 @@ selection and documentation exist.
   addresses before any mainnet transaction is signed.
 - Checkout copy accurately states asset, network, amount, expiry, and
   non-renewal behavior.
-- Checkout captures the consumer's prior express consent to immediate
-  performance and their acknowledgement of losing the EU withdrawal right,
-  and stores that as evidence. This is what the no-refunds position rests on
-  for a digital good; without it the position is asserted rather than held.
+- EU/EEA sales are excluded server-side until jurisdiction-specific review and
+  a compliant interactive-service withdrawal flow are complete. Immediate
+  access plus acknowledgement does not erase the right before full
+  performance.
 - Desktop and 360x740 mobile disabled-checkout states are rendered and
   inspected. Configured payment states remain a separate gate.
 - Production environment variables are set directly in the server runtime and
   independently verified without exposing values.
 - One controlled end-to-end payment passes from intent creation through
   entitlement and reconciliation.
-- Legal, tax, sanctions, consumer-protection, privacy, and terms review is
-  complete for the intended launch jurisdictions, including confirmation that
-  the no-refunds position for a digital good holds in each of them.
+- Legal, tax, sanctions, consumer-protection, privacy, withdrawal, refund,
+  remedy, and terms review is complete for every intended launch jurisdiction.
 
 Until every gate passes, the processor stays disabled and the worktree must not
 be described as production-ready.

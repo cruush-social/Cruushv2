@@ -105,7 +105,7 @@ function hasPremiumPrivacySettings(input: {
 function premiumPrivacyMessage(input: {
   baseMode: VisibilityBaseMode;
 }) {
-  return "Upgrade to cruush+ to use stealth mode.";
+  return "Upgrade to cruush+ to use Dark Room.";
 }
 
 function isSchemaCompatibilityError(error: unknown) {

@@ -239,7 +239,7 @@ function premiumPrivacyMessage(input: {
   preciseToMutualCruushes: boolean;
   preciseToMutualCrowds: CrowdPrecisionPolicy[];
 }) {
-  return "Upgrade to cruush+ to use stealth mode.";
+  return "Upgrade to cruush+ to use Dark Room.";
 }
 
 type ProfileKinkInterest = {

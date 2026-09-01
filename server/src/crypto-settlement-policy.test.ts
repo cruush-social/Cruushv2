@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_CRYPTO_SETTLEMENT_POLICY,
   evaluateCryptoSettlement,
-  lateArrivalIsSettleable,
   settlementOutcomeGrantsAccess
 } from "./crypto-settlement-policy.js";
 
@@ -61,9 +60,9 @@ describe("crypto settlement amounts", () => {
   });
 
   it("caps the tolerance in absolute terms, so an expensive plan does not forgive more", () => {
-    // 50 bps of the $999 lifetime plan would be about $5. The cap holds it to
+    // 50 bps of the $999.99 lifetime plan would be about $5. The cap holds it to
     // $0.25, the same as every other plan.
-    const lifetime = 999_000_000n;
+    const lifetime = 999_990_000n;
 
     expect(evaluateCryptoSettlement({
       quotedAmountAtomic: lifetime,
@@ -79,8 +78,8 @@ describe("crypto settlement amounts", () => {
   });
 
   it("keeps the tolerance proportional when that is smaller than the cap", () => {
-    // 50 bps of the $9.99 weekly plan is about $0.05, well under the $0.25 cap.
-    const weekly = 9_990_000n;
+    // 50 bps of the $10.99 weekly plan is about $0.05, well under the $0.25 cap.
+    const weekly = 10_990_000n;
 
     expect(evaluateCryptoSettlement({
       quotedAmountAtomic: weekly,
@@ -100,7 +99,7 @@ describe("crypto settlement amounts", () => {
     expect(evaluate(quoted + 1_000n).kind).toBe("settled");
   });
 
-  it("grants on a large overpayment and records it, since cruush does not refund", () => {
+  it("grants on a large overpayment and records it for support review", () => {
     const outcome = evaluate(quoted + 5_000_000n);
 
     expect(outcome.kind).toBe("settled_overpaid");
@@ -122,31 +121,5 @@ describe("crypto settlement amounts", () => {
       confirmedAmountAtomic: 1n,
       policy: DEFAULT_CRYPTO_SETTLEMENT_POLICY
     })).toThrow(/positive quoted amount/);
-  });
-});
-
-describe("late arrival", () => {
-  it("settles money that arrives after expiry, because a transfer cannot be undone", () => {
-    expect(lateArrivalIsSettleable({ status: "expired", policy: DEFAULT_CRYPTO_SETTLEMENT_POLICY })).toBe(true);
-    expect(DEFAULT_CRYPTO_SETTLEMENT_POLICY.acceptLatePayment).toBe(true);
-  });
-
-  it("leaves expired intents alone when late payment is turned off", () => {
-    expect(lateArrivalIsSettleable({
-      status: "expired",
-      policy: { ...DEFAULT_CRYPTO_SETTLEMENT_POLICY, acceptLatePayment: false }
-    })).toBe(false);
-  });
-
-  it("watches open intents and never revives a terminal one", () => {
-    expect(lateArrivalIsSettleable({ status: "awaiting_payment", policy: DEFAULT_CRYPTO_SETTLEMENT_POLICY })).toBe(true);
-    expect(lateArrivalIsSettleable({ status: "confirming", policy: DEFAULT_CRYPTO_SETTLEMENT_POLICY })).toBe(true);
-
-    for (const status of ["failed", "cancelled", "refunded", "paid"]) {
-      expect(
-        lateArrivalIsSettleable({ status, policy: DEFAULT_CRYPTO_SETTLEMENT_POLICY }),
-        `${status} must not be settleable`
-      ).toBe(false);
-    }
   });
 });

@@ -3,6 +3,7 @@ import {
   assertCryptoPaymentStatusTransition,
   buildCryptoPaymentUri,
   canTransitionCryptoPaymentStatus,
+  createBoundedCryptoPaymentQrCodeCache,
   expireStaleCryptoPaymentIntents,
   createInHouseCryptoPaymentIntent,
   getCryptoProcessorStatus,
@@ -47,6 +48,10 @@ function cryptoConfig(overrides: Partial<AppConfig> = {}): AppConfig {
   return {
     CRYPTO_PROCESSOR_ENABLED: true,
     CRYPTO_PROCESSOR_WALLET_XPUB: receiveChainXpub,
+    CRYPTO_PROCESSOR_WATCHER_ENABLED: true,
+    CRYPTO_PROCESSOR_ARBITRUM_RPC_URL: "https://arbitrum.example/rpc-secret",
+    CRYPTO_PROCESSOR_BASE_RPC_URL: "",
+    CRYPTO_PROCESSOR_ETHEREUM_RPC_URL: "",
     CRYPTO_PROCESSOR_CONFIRMATION_TARGET: 1,
     CRYPTO_PROCESSOR_INTENT_TTL_MINUTES: 30,
     ...overrides
@@ -62,13 +67,32 @@ function transactionDb(query: ReturnType<typeof vi.fn>): DbClient {
   } as DbClient;
 }
 
+function newIntentQuery(
+  reserved: CryptoPaymentIntentRow,
+  updated?: CryptoPaymentIntentRow
+) {
+  return vi.fn(async (sql: string) => {
+    if (sql.includes("pg_advisory_xact_lock")) return { rows: [] };
+    if (sql.includes("set status = 'expired'")) return { rows: [] };
+    if (sql.includes("idempotency_key = $2")) return { rows: [] };
+    if (sql.includes("wallet_xpub_fingerprint = $4")) return { rows: [] };
+    if (sql.includes("open_count")) return { rows: [{ open_count: 0 }] };
+    if (sql.includes("insert into crypto_payment_intents")) return { rows: [reserved] };
+    if (sql.includes("set payment_address = $2")) return { rows: updated ? [updated] : [] };
+    if (sql.includes("insert into crypto_payment_watch_positions")) return { rows: [] };
+    throw new Error(`Unexpected query: ${sql}`);
+  });
+}
+
 describe("crypto payment core", () => {
-  it("allows only explicit forward payment transitions and safe terminal repeats", () => {
+  it("allows only explicit forward payment transitions", () => {
     expect(canTransitionCryptoPaymentStatus("pending", "awaiting_payment")).toBe(true);
     expect(canTransitionCryptoPaymentStatus("confirming", "paid")).toBe(true);
     expect(canTransitionCryptoPaymentStatus("pending", "paid")).toBe(false);
     expect(canTransitionCryptoPaymentStatus("paid", "pending")).toBe(false);
-    expect(canTransitionCryptoPaymentStatus("expired", "paid")).toBe(false);
+    // The watcher applies this transition only after locked authoritative
+    // evidence proves the transfer was mined by expires_at.
+    expect(canTransitionCryptoPaymentStatus("expired", "paid")).toBe(true);
     expect(() => assertCryptoPaymentStatusTransition("paid", "pending")).toThrow(/cannot move/);
   });
 
@@ -116,7 +140,7 @@ describe("crypto payment core", () => {
     );
   });
 
-  it("only attaches a QR code once a payment URI exists, and never otherwise", async () => {
+  it("only attaches payment instructions while an intent can still accept payment", async () => {
     const notYetAssigned = await withCryptoPaymentDisplay(mapCryptoPaymentIntent(paymentRow()));
     expect(notYetAssigned.paymentUri).toBeNull();
     expect(notYetAssigned.qrCodeDataUrl).toBeNull();
@@ -128,70 +152,204 @@ describe("crypto payment core", () => {
     })));
     expect(awaitingPayment.paymentUri).toMatch(/^ethereum:0x[0-9a-fA-F]+@42161\/transfer\?/);
     expect(awaitingPayment.qrCodeDataUrl).toMatch(/^data:image\/png;base64,/);
+
+    for (const status of ["paid", "expired", "failed", "cancelled", "refunded"] as const) {
+      const terminal = await withCryptoPaymentDisplay(mapCryptoPaymentIntent(paymentRow({
+        quoted_amount_atomic: "18990000",
+        payment_address: "0x73659c60270d326c06Ac204F1A9C63f889a3D14B",
+        status
+      })));
+
+      expect(terminal.paymentUri, `${status} must not remain fillable`).toBeNull();
+      expect(terminal.qrCodeDataUrl, `${status} must not retain a QR code`).toBeNull();
+    }
   });
 
-  it("fails closed unless the processor and public wallet configuration are both ready", () => {
-    expect(getCryptoProcessorStatus(cryptoConfig({
+  it("reuses one QR encoding while polling and keeps the cache bounded", async () => {
+    const encode = vi.fn(async (paymentUri: string) => `data:image/png;base64,${paymentUri}`);
+    const qrCodeCache = createBoundedCryptoPaymentQrCodeCache(2, encode);
+    const intent = mapCryptoPaymentIntent(paymentRow({
+      quoted_amount_atomic: "18990000",
+      payment_address: "0x73659c60270d326c06Ac204F1A9C63f889a3D14B",
+      status: "awaiting_payment"
+    }));
+
+    const [firstPoll, secondPoll] = await Promise.all([
+      withCryptoPaymentDisplay(intent, qrCodeCache),
+      withCryptoPaymentDisplay(intent, qrCodeCache)
+    ]);
+
+    expect(firstPoll.qrCodeDataUrl).toBe(secondPoll.qrCodeDataUrl);
+    expect(encode).toHaveBeenCalledTimes(1);
+
+    await qrCodeCache.get("payment-uri-2");
+    await qrCodeCache.get("payment-uri-3");
+    expect(qrCodeCache.size).toBe(2);
+
+    await qrCodeCache.get(firstPoll.paymentUri!);
+    expect(encode).toHaveBeenCalledTimes(4);
+    expect(qrCodeCache.size).toBe(2);
+  });
+
+  it("retries a QR encoding after a failed cache entry", async () => {
+    const encode = vi.fn()
+      .mockRejectedValueOnce(new Error("encode failed"))
+      .mockResolvedValueOnce("data:image/png;base64,recovered");
+    const qrCodeCache = createBoundedCryptoPaymentQrCodeCache(2, encode);
+
+    await expect(qrCodeCache.get("payment-uri")).rejects.toThrow("encode failed");
+    await expect(qrCodeCache.get("payment-uri")).resolves.toBe("data:image/png;base64,recovered");
+    expect(encode).toHaveBeenCalledTimes(2);
+  });
+
+  it("reports readiness per rail and never exposes RPC endpoints", () => {
+    const disabled = getCryptoProcessorStatus(cryptoConfig({
       CRYPTO_PROCESSOR_ENABLED: false,
       CRYPTO_PROCESSOR_WALLET_XPUB: ""
-    }))).toEqual({
+    }));
+    expect(disabled).toMatchObject({
       ready: false,
       asset: "USDC",
       network: "arbitrum",
-      rails: expect.any(Array),
       confirmationTarget: 1
     });
+    expect(disabled.rails.every((rail) => rail.ready === false)).toBe(true);
 
-    expect(getCryptoProcessorStatus(cryptoConfig())).toEqual({
+    const arbitrumOnly = getCryptoProcessorStatus(cryptoConfig());
+    expect(arbitrumOnly).toMatchObject({
       ready: true,
       asset: "USDC",
       network: "arbitrum",
-      rails: expect.any(Array),
       confirmationTarget: 1
     });
+    expect(arbitrumOnly.rails.map(({ id, ready }) => ({ id, ready }))).toEqual([
+      { id: "usdc_arbitrum", ready: true },
+      { id: "pyusd_arbitrum", ready: true },
+      { id: "pyusd_ethereum", ready: false },
+      { id: "usdc_base", ready: false }
+    ]);
+    expect(JSON.stringify(arbitrumOnly)).not.toContain("rpc-secret");
+    expect(JSON.stringify(arbitrumOnly)).not.toContain("arbitrum.example");
+  });
+
+  it("sets global readiness when any one rail is ready", () => {
+    const baseOnly = getCryptoProcessorStatus(cryptoConfig({
+      CRYPTO_PROCESSOR_ARBITRUM_RPC_URL: "",
+      CRYPTO_PROCESSOR_BASE_RPC_URL: "https://base.example/rpc-secret"
+    }));
+
+    expect(baseOnly.ready).toBe(true);
+    expect(baseOnly.rails.find((rail) => rail.id === "usdc_base")?.ready).toBe(true);
+    expect(baseOnly.rails.filter((rail) => rail.id !== "usdc_base").every((rail) => !rail.ready)).toBe(true);
+  });
+
+  it.each(
+    [
+      ["invalid wallet", { CRYPTO_PROCESSOR_WALLET_XPUB: "not-an-xpub" }],
+      ["disabled watcher", { CRYPTO_PROCESSOR_WATCHER_ENABLED: false }],
+      ["missing chain endpoints", { CRYPTO_PROCESSOR_ARBITRUM_RPC_URL: "" }]
+    ] satisfies Array<[string, Partial<AppConfig>]>
+  )("reports every rail unavailable with %s", (_reason, overrides) => {
+    const status = getCryptoProcessorStatus(cryptoConfig(overrides));
+
+    expect(status.ready).toBe(false);
+    expect(status.rails.every((rail) => !rail.ready)).toBe(true);
+  });
+
+  it("rejects intent creation before touching the database when the watcher is disabled", async () => {
+    const query = vi.fn();
+
+    await expect(createInHouseCryptoPaymentIntent(transactionDb(query), cryptoConfig({
+      CRYPTO_PROCESSOR_WATCHER_ENABLED: false
+    }), {
+      userId: "00000000-0000-4000-8000-000000000001",
+      planId: "plus_monthly",
+      amountUsdCents: 1899,
+      idempotencyKey: "checkout-watcher-disabled"
+    })).rejects.toMatchObject({ statusCode: 503, code: "CRYPTO_PROCESSOR_NOT_READY" });
+    expect(query).not.toHaveBeenCalled();
+  });
+
+  it("rejects an unwatchable Base intent even when another rail is ready", async () => {
+    const query = vi.fn();
+
+    await expect(createInHouseCryptoPaymentIntent(transactionDb(query), cryptoConfig(), {
+      userId: "00000000-0000-4000-8000-000000000001",
+      planId: "plus_monthly",
+      amountUsdCents: 1899,
+      idempotencyKey: "checkout-base-unwatchable",
+      rail: "usdc_base"
+    })).rejects.toMatchObject({ statusCode: 503, code: "CRYPTO_PROCESSOR_NOT_READY" });
+    expect(query).not.toHaveBeenCalled();
   });
 
   it("reserves one database index before deriving a unique watch-only address", async () => {
     const address = deriveCryptoReceivingAddress(receiveChainXpub, 1);
-    const query = vi.fn()
-      .mockResolvedValueOnce({ rows: [paymentRow()] })
-      .mockResolvedValueOnce({ rows: [paymentRow({
+    const query = newIntentQuery(
+      paymentRow(),
+      paymentRow({
         quoted_amount_atomic: "18990000",
         payment_address: address,
+        watch_start_block: "123456",
         status: "awaiting_payment"
-      })] });
+      })
+    );
 
     await expect(createInHouseCryptoPaymentIntent(transactionDb(query), cryptoConfig(), {
       userId: "00000000-0000-4000-8000-000000000001",
       planId: "plus_monthly",
       amountUsdCents: 1899,
       idempotencyKey: "checkout-1",
-      metadata: { source: "store" }
+      metadata: { source: "store" },
+      watchStartBlock: 123456n
     })).resolves.toMatchObject({
       paymentAddress: address,
       quotedAmountAtomic: "18990000",
       status: "awaiting_payment"
     });
 
-    expect(query).toHaveBeenNthCalledWith(
-      1,
+    expect(query).toHaveBeenCalledWith(
       expect.stringContaining("on conflict (user_id, idempotency_key) do update"),
       expect.arrayContaining([1899, walletFingerprint, "checkout-1"])
     );
-    expect(query).toHaveBeenNthCalledWith(
-      2,
+    expect(query).toHaveBeenCalledWith(
       expect.stringContaining("and payment_address is null"),
-      ["00000000-0000-4000-8000-000000000010", address, "18990000"]
+      ["00000000-0000-4000-8000-000000000010", address, "18990000", "123456"]
     );
+    expect(query).toHaveBeenCalledWith(
+      expect.stringContaining("insert into crypto_payment_watch_positions"),
+      [
+        "00000000-0000-4000-8000-000000000010",
+        42161,
+        "123456",
+        [1, 8453, 42161],
+        [null, null, null]
+      ]
+    );
+    const positionIndex = query.mock.calls.findIndex(([sql]) =>
+      String(sql).includes("insert into crypto_payment_watch_positions")
+    );
+    const addressIndex = query.mock.calls.findIndex(([sql]) =>
+      String(sql).includes("set payment_address = $2")
+    );
+    expect(positionIndex).toBeGreaterThanOrEqual(0);
+    expect(positionIndex).toBeLessThan(addressIndex);
+    expect(String(query.mock.calls[positionIndex]?.[0])).toContain(
+      "coalesce(supported.supplied_origin, 0)"
+    );
+    expect(String(query.mock.calls[positionIndex]?.[0])).not.toContain("crypto_chain_watch_cursors");
   });
 
-  it("supports the Venmo-compatible PYUSD Ethereum rail without changing wallet derivation", async () => {
+  it("keeps the hidden PYUSD Ethereum backend rail available when its chain is watchable", async () => {
     const address = deriveCryptoReceivingAddress(receiveChainXpub, 1);
-    const query = vi.fn()
-      .mockResolvedValueOnce({ rows: [paymentRow({ asset: "PYUSD", network: "ethereum" })] })
-      .mockResolvedValueOnce({ rows: [paymentRow({ asset: "PYUSD", network: "ethereum", quoted_amount_atomic: "18990000", payment_address: address, status: "awaiting_payment" })] });
+    const query = newIntentQuery(
+      paymentRow({ asset: "PYUSD", network: "ethereum" }),
+      paymentRow({ asset: "PYUSD", network: "ethereum", quoted_amount_atomic: "18990000", payment_address: address, status: "awaiting_payment" })
+    );
 
-    await expect(createInHouseCryptoPaymentIntent(transactionDb(query), cryptoConfig(), {
+    await expect(createInHouseCryptoPaymentIntent(transactionDb(query), cryptoConfig({
+      CRYPTO_PROCESSOR_ETHEREUM_RPC_URL: "https://ethereum.example/rpc-secret"
+    }), {
       userId: "00000000-0000-4000-8000-000000000001",
       planId: "plus_monthly",
       amountUsdCents: 1899,
@@ -201,9 +359,7 @@ describe("crypto payment core", () => {
   });
 
   it("never allocates the treasury derivation index to a payment intent", async () => {
-    const query = vi.fn().mockResolvedValueOnce({
-      rows: [paymentRow({ derivation_index: 0 })]
-    });
+    const query = newIntentQuery(paymentRow({ derivation_index: 0 }));
 
     await expect(createInHouseCryptoPaymentIntent(transactionDb(query), cryptoConfig(), {
       userId: "00000000-0000-4000-8000-000000000001",
@@ -211,12 +367,17 @@ describe("crypto payment core", () => {
       amountUsdCents: 1899,
       idempotencyKey: "checkout-treasury-index"
     })).rejects.toThrow(/invalid wallet derivation index/);
-    expect(query).toHaveBeenCalledTimes(1);
+    expect(query.mock.calls.some(([sql]) => String(sql).includes("set payment_address = $2"))).toBe(false);
   });
 
   it("rejects reuse of an idempotency key for a different purchase", async () => {
-    const query = vi.fn().mockResolvedValueOnce({
-      rows: [paymentRow({ plan_id: "plus_yearly" })]
+    const query = vi.fn(async (sql: string) => {
+      if (sql.includes("pg_advisory_xact_lock")) return { rows: [] };
+      if (sql.includes("set status = 'expired'")) return { rows: [] };
+      if (sql.includes("idempotency_key = $2")) {
+        return { rows: [paymentRow({ plan_id: "plus_yearly" })] };
+      }
+      throw new Error(`Unexpected query: ${sql}`);
     });
 
     await expect(createInHouseCryptoPaymentIntent(transactionDb(query), cryptoConfig(), {
@@ -225,7 +386,7 @@ describe("crypto payment core", () => {
       amountUsdCents: 1899,
       idempotencyKey: "checkout-1"
     })).rejects.toMatchObject({ statusCode: 409, code: "VALIDATION_ERROR" });
-    expect(query).toHaveBeenCalledTimes(1);
+    expect(query.mock.calls.some(([sql]) => String(sql).includes("insert into crypto_payment_intents"))).toBe(false);
   });
 
   it("deduplicates chain events at the database boundary", async () => {

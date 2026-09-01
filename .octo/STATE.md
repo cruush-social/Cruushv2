@@ -1,19 +1,31 @@
 # Octo State
 
 **Schema:** 2.0
-**Last Updated:** 2026-08-11T05:09:12Z
-**Current Phase:** 1
-**Current Position:** Discovery blocked: provider smoke test
-**Status:** blocked
+**Last Updated:** 2026-09-01T14:52:42Z
+**Current Phase:** 3
+**Current Position:** Feature-branch publication and wallet public handoff
+**Status:** in_progress
 
 ## Blockers
 
-- Octopus discovery blocked: Codex smoke test failed and Gemini authentication failed; no provider result files were created.
+- Wallet recovery words require Julien's private Terminal interaction.
+- Real-money launch remains blocked by hardware-wallet migration, controlled
+  settlement proof, EU/EEA service-withdrawal compliance or exclusion,
+  evidence-only support lookup beyond the bounded watch window, and explicit
+  production authority.
 
 ## History
 
-- [2026-08-11T05:09:12Z] Phase 1: Discovery blocked: provider smoke test (blocked)
-
-- [2026-08-11T05:06:47Z] Phase 1: Discovery (in_progress)
-
-- [2026-08-11T05:06:46Z] Phase 1: Project initialized (ready)
+- [2026-09-01T14:52:42Z] Phase 3: Final focused client, server, wallet,
+  disposable-PostgreSQL, build, security, and rendered checkout verification
+  passed; feature-branch publication and Julien-only wallet initialization remain
+  (in_progress)
+- [2026-09-01T13:16:08Z] Phase 3: Per-intent chain positions, authoritative
+  pre-expiry evidence, atomic settlement re-sum, lifetime-intent closure,
+  tolerant exact-rail reconciliation, and unavailable paid-rail restoration
+  implemented; final verification remains (in_progress)
+- [2026-09-01T11:30:00Z] Phase 3: Seven branch-present benefits, six-month $65.94 price,
+  monthly-rate-first plan cards, and settlement guards implemented; final
+  verification remains (in_progress)
+- [2026-09-01T08:26:24Z] Claude session ended at usage limit with pricing work dirty (paused)
+- [2026-08-30T00:00:00Z] Crypto processor, watcher, settlement, and reconciliation built disabled by default (complete)

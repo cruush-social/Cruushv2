@@ -1133,10 +1133,10 @@ describe("server", () => {
         testCheckout: true,
         currency: "USD",
         plans: expect.arrayContaining([
-          expect.objectContaining({ id: "plus_weekly", amountCents: 999, interval: "week" }),
+          expect.objectContaining({ id: "plus_weekly", amountCents: 1099, interval: "week" }),
           expect.objectContaining({ id: "plus_monthly", amountCents: 1899, interval: "month" }),
           expect.objectContaining({ id: "plus_3_month", amountCents: 3597, interval: "3_months" }),
-          expect.objectContaining({ id: "plus_6_month", amountCents: 5394, interval: "6_months" }),
+          expect.objectContaining({ id: "plus_6_month", amountCents: 6594, interval: "6_months" }),
           expect.objectContaining({ id: "plus_annual", amountCents: 11999, interval: "year" }),
           expect.objectContaining({ id: "founder_annual", amountCents: 9999, interval: "year", supplyLimit: 1000 }),
           expect.objectContaining({ id: "lifetime_founder", amountCents: 99999, interval: "lifetime", supplyLimit: 250 })
@@ -1188,6 +1188,7 @@ describe("server", () => {
 
     query.mockReset();
     query
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({
         rows: [{
           id: "7d39c89e-e816-4684-82e0-b48e3f8127d4",
@@ -1200,6 +1201,7 @@ describe("server", () => {
           currency: "USD"
         }]
       })
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({
@@ -12181,7 +12183,7 @@ describe("server", () => {
     expect(query.mock.calls.some(([sql]) => /ghost_pulse_enabled/.test(String(sql)))).toBe(true);
   });
 
-  it("requires cruush+ before enabling stealth mode", async () => {
+  it("requires cruush+ before enabling Dark Room", async () => {
     query.mockResolvedValueOnce({
       rows: [{
         cruush_plus_enabled: false,
@@ -12206,7 +12208,7 @@ describe("server", () => {
     expect(response.json()).toEqual({
       error: {
         code: "CRUUSH_PLUS_REQUIRED",
-        message: "Upgrade to cruush+ to use stealth mode.",
+        message: "Upgrade to cruush+ to use Dark Room.",
         details: null
       }
     });
@@ -12285,7 +12287,7 @@ describe("server", () => {
     expect(response.json()).toEqual({
       error: {
         code: "CRUUSH_PLUS_REQUIRED",
-        message: "Upgrade to cruush+ to use stealth mode.",
+        message: "Upgrade to cruush+ to use Dark Room.",
         details: null
       }
     });

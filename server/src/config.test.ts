@@ -141,6 +141,16 @@ describe("loadConfig", () => {
     });
   });
 
+  it("accepts a confirmation floor above the Arbitrum rail default", () => {
+    const config = loadConfig({
+      DATABASE_URL: "postgres://postgres:postgres@localhost:5432/cruush",
+      SESSION_SECRET: "local-dev-secret",
+      CRYPTO_PROCESSOR_CONFIRMATION_TARGET: "241"
+    });
+
+    expect(config.CRYPTO_PROCESSOR_CONFIRMATION_TARGET).toBe(241);
+  });
+
   it("requires a public receive-chain xpub before crypto payments can be enabled", () => {
     const baseEnv = {
       DATABASE_URL: "postgres://postgres:postgres@localhost:5432/cruush",

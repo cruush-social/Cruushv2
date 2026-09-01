@@ -98,6 +98,66 @@ describe("JSON-RPC chain source", () => {
     expect(body).toMatchObject({ jsonrpc: "2.0", method: "eth_blockNumber", params: [] });
   });
 
+  it("reads and verifies the endpoint chain id as a safe integer", async () => {
+    const transport = vi.fn().mockResolvedValue(jsonResponse({ jsonrpc: "2.0", id: 1, result: "0x2105" }));
+
+    expect(await sourceWith(transport).getChainId()).toBe(8453);
+
+    const body = JSON.parse(transport.mock.calls[0]![1] as string);
+    expect(body).toMatchObject({ jsonrpc: "2.0", method: "eth_chainId", params: [] });
+  });
+
+  it("reads the authoritative timestamp for the exact requested block", async () => {
+    const transport = vi.fn().mockResolvedValue(jsonResponse({
+      jsonrpc: "2.0",
+      id: 1,
+      result: { number: "0x3e8", timestamp: "0x66d4f640" }
+    }));
+
+    expect(await sourceWith(transport).getBlockTimestamp(1000n))
+      .toEqual(new Date(Number(0x66d4f640) * 1000));
+
+    const body = JSON.parse(transport.mock.calls[0]![1] as string);
+    expect(body).toMatchObject({
+      jsonrpc: "2.0",
+      method: "eth_getBlockByNumber",
+      params: ["0x3e8", false]
+    });
+  });
+
+  it("rejects a block response for a different height", async () => {
+    const transport = vi.fn().mockResolvedValue(jsonResponse({
+      jsonrpc: "2.0",
+      id: 1,
+      result: { number: "0x3e9", timestamp: "0x66d4f640" }
+    }));
+
+    await expect(sourceWith(transport).getBlockTimestamp(1000n))
+      .rejects.toThrow(/different block/);
+  });
+
+  it("rejects a block whose canonical hash no longer matches the transfer log", async () => {
+    const transport = vi.fn().mockResolvedValue(jsonResponse({
+      jsonrpc: "2.0",
+      id: 1,
+      result: {
+        number: "0x3e8",
+        hash: `0x${"c".repeat(64)}`,
+        timestamp: "0x66d4f640"
+      }
+    }));
+
+    await expect(sourceWith(transport).getBlockTimestamp(1000n, `0x${"a".repeat(64)}`))
+      .rejects.toThrow(/different block hash/);
+  });
+
+  it("rejects an unsafe endpoint chain id", async () => {
+    const unsafe = `0x${(BigInt(Number.MAX_SAFE_INTEGER) + 1n).toString(16)}`;
+    const transport = vi.fn().mockResolvedValue(jsonResponse({ jsonrpc: "2.0", id: 1, result: unsafe }));
+
+    await expect(sourceWith(transport).getChainId()).rejects.toThrow(/safe integer range/);
+  });
+
   it("filters eth_getLogs by block range, token address, and recipient topic", async () => {
     const transport = vi.fn().mockResolvedValue(jsonResponse({ jsonrpc: "2.0", id: 1, result: [] }));
 

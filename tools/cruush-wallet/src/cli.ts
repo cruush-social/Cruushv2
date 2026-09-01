@@ -10,6 +10,10 @@ import {
   showRecoveryWordsOnce
 } from "./interactive.js";
 import {
+  preflightPublicDescriptorTarget,
+  writePublicDescriptorFile
+} from "./public-descriptor-file.js";
+import {
   parseBaseSepoliaGasFundingPlan,
   parseBaseSepoliaUsdcSweepPlan,
   signBaseSepoliaGasFundingPlan,
@@ -35,7 +39,8 @@ Secret-bearing commands require a normal interactive terminal and refuse known
 agent, CI, remote-shell, and terminal-recording sessions, plus pipes and
 redirection. Those checks are heuristics that stop accidents, not a boundary:
 a process that deliberately wraps this tool in a pseudo-terminal defeats all of
-them. Run these commands only on a machine with no agent tooling installed.
+them. Close agent apps, screen sharing, terminal recording, and remote control
+before answering the live-presence challenge.
 No command broadcasts a transaction.`;
 
 function serializePublicJson(value: unknown) {
@@ -142,13 +147,17 @@ async function initializeWallet(args: string[]) {
   }
   assertSafeSecretSession();
 
+  const descriptorTarget = await preflightPublicDescriptorTarget();
+
   let recoveryWords = generateWalletMnemonic();
   try {
     await showRecoveryWordsOnce(recoveryWords);
     const descriptor = deriveWalletPublicDescriptor(recoveryWords);
+    const descriptorPath = await writePublicDescriptorFile(descriptorTarget, descriptor);
     process.stdout.write(
-      "Recovery words are no longer displayed. Keep them offline.\n\n" +
-      `${serializePublicJson(descriptor)}\n`
+      `Public descriptor path: ${descriptorPath}\n` +
+      `Fingerprint: ${descriptor.xpubFingerprint}\n` +
+      "Close Terminal now.\n"
     );
   } finally {
     recoveryWords = "";

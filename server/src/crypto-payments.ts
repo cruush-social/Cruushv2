@@ -5,6 +5,11 @@ import type { DbClient } from "./db.js";
 import { runTransaction } from "./db.js";
 import { ApiError } from "./errors.js";
 import {
+  assertCryptoPlanCanReserve,
+  getCruushPlusPlan,
+  lockCryptoPurchaseUser
+} from "./billing.js";
+import {
   deriveCryptoReceivingAddress,
   fingerprintCryptoWalletXpub,
   isValidCryptoWalletXpub,
@@ -89,8 +94,35 @@ export type CryptoPaymentAsset = typeof CRYPTO_PAYMENT_RAILS[CryptoPaymentRailId
 export type CryptoPaymentNetwork = typeof CRYPTO_PAYMENT_RAILS[CryptoPaymentRailId]["network"];
 export const CRYPTO_PAYMENT_ASSET = "USDC" as const;
 export const CRYPTO_PAYMENT_NETWORK = "arbitrum" as const;
+export const CRYPTO_OPEN_INTENT_LIMIT_PER_USER = 1;
+const CRYPTO_PAYMENT_CHAIN_IDS = Array.from(new Set(
+  (Object.values(CRYPTO_PAYMENT_RAILS) as (typeof CRYPTO_PAYMENT_RAILS)[CryptoPaymentRailId][])
+    .map((rail) => rail.chainId)
+)).sort((left, right) => left - right);
 
 function cryptoRail(id: CryptoPaymentRailId) { return CRYPTO_PAYMENT_RAILS[id]; }
+
+export function getCryptoPaymentRailRpcEndpoint(
+  config: AppConfig,
+  railId: CryptoPaymentRailId
+) {
+  switch (cryptoRail(railId).network) {
+    case "arbitrum":
+      return config.CRYPTO_PROCESSOR_ARBITRUM_RPC_URL ?? "";
+    case "base":
+      return config.CRYPTO_PROCESSOR_BASE_RPC_URL ?? "";
+    case "ethereum":
+      return config.CRYPTO_PROCESSOR_ETHEREUM_RPC_URL ?? "";
+  }
+}
+
+export function isCryptoPaymentRailReady(config: AppConfig, railId: CryptoPaymentRailId) {
+  return config.CRYPTO_PROCESSOR_ENABLED === true
+    && isValidCryptoWalletXpub(config.CRYPTO_PROCESSOR_WALLET_XPUB ?? "")
+    && config.CRYPTO_PROCESSOR_WATCHER_ENABLED === true
+    && getCryptoPaymentRailRpcEndpoint(config, railId).trim().length > 0;
+}
+
 function railFor(asset: CryptoPaymentAsset, network: CryptoPaymentNetwork): CryptoPaymentRailId {
   const entry = (Object.entries(CRYPTO_PAYMENT_RAILS) as [CryptoPaymentRailId, typeof CRYPTO_PAYMENT_RAILS[CryptoPaymentRailId]][])
     .find(([, rail]) => rail.asset === asset && rail.network === network);
@@ -122,6 +154,7 @@ export type CryptoPaymentIntentRow = {
   derivation_index: number | string;
   wallet_xpub_fingerprint: string;
   payment_address?: string | null;
+  watch_start_block?: number | string | null;
   status: CryptoPaymentStatus;
   idempotency_key: string;
   metadata: Record<string, unknown>;
@@ -157,18 +190,19 @@ export type CryptoPaymentEventInput = {
   payload: Record<string, unknown>;
 };
 
-// cruush does not offer refunds on cruush+, which is a digital good delivered
-// immediately. The 'refunded' status below is therefore NOT a product feature
-// and no code path reaches it: it stays only so that a refund an operator makes
-// by hand, for whatever exceptional reason, can be recorded truthfully instead
-// of leaving the ledger disagreeing with reality. Do not build a refund flow
-// onto it without Julien saying so.
+// cruush does not offer a generic voluntary refund flow for cruush+. The
+// 'refunded' state remains so exceptional or legally required outcomes and
+// forced reversals can be recorded truthfully instead of leaving the ledger
+// inconsistent. Do not add refund-offering product behavior without Julien
+// naming that scope.
 const allowedStatusTransitions: Record<CryptoPaymentStatus, readonly CryptoPaymentStatus[]> = {
   pending: ["pending", "awaiting_payment", "failed", "cancelled"],
   awaiting_payment: ["awaiting_payment", "confirming", "expired", "failed", "cancelled"],
   confirming: ["confirming", "paid", "failed"],
   paid: ["paid", "refunded"],
-  expired: ["expired"],
+  // The watcher alone may take expired -> paid, and only after its locked
+  // evidence query proves the exact-rail transfer was mined by expires_at.
+  expired: ["expired", "paid"],
   failed: ["failed"],
   cancelled: ["cancelled"],
   refunded: ["refunded"]
@@ -220,14 +254,77 @@ export function buildCryptoPaymentUri(
   return `ethereum:${intent.tokenAddress}@${intent.chainId}/transfer?${params.toString()}`;
 }
 
-export async function withCryptoPaymentDisplay(intent: CryptoPaymentIntent) {
-  const paymentUri = buildCryptoPaymentUri(intent);
+export const CRYPTO_PAYMENT_QR_CACHE_MAX_ENTRIES = 256;
+
+export type CryptoPaymentQrCodeCache = {
+  get(paymentUri: string): Promise<string>;
+  readonly size: number;
+};
+
+export function createBoundedCryptoPaymentQrCodeCache(
+  maxEntries: number,
+  encode: (paymentUri: string) => Promise<string>
+): CryptoPaymentQrCodeCache {
+  if (!Number.isSafeInteger(maxEntries) || maxEntries < 1) {
+    throw new Error("Crypto payment QR cache size must be a positive safe integer.");
+  }
+
+  const entries = new Map<string, Promise<string>>();
+
+  return {
+    get(paymentUri) {
+      const existing = entries.get(paymentUri);
+      if (existing) {
+        entries.delete(paymentUri);
+        entries.set(paymentUri, existing);
+        return existing;
+      }
+
+      let cached!: Promise<string>;
+      cached = Promise.resolve()
+        .then(() => encode(paymentUri))
+        .catch((error) => {
+          if (entries.get(paymentUri) === cached) {
+            entries.delete(paymentUri);
+          }
+          throw error;
+        });
+      entries.set(paymentUri, cached);
+
+      while (entries.size > maxEntries) {
+        const oldestPaymentUri = entries.keys().next().value;
+        if (oldestPaymentUri === undefined) {
+          break;
+        }
+        entries.delete(oldestPaymentUri);
+      }
+
+      return cached;
+    },
+    get size() {
+      return entries.size;
+    }
+  };
+}
+
+const cryptoPaymentQrCodeCache = createBoundedCryptoPaymentQrCodeCache(
+  CRYPTO_PAYMENT_QR_CACHE_MAX_ENTRIES,
+  (paymentUri) => QRCode.toDataURL(paymentUri, { errorCorrectionLevel: "M", margin: 2, width: 256 })
+);
+
+export async function withCryptoPaymentDisplay(
+  intent: CryptoPaymentIntent,
+  qrCodeCache: Pick<CryptoPaymentQrCodeCache, "get"> = cryptoPaymentQrCodeCache
+) {
+  const paymentUri = intent.status === "awaiting_payment" || intent.status === "confirming"
+    ? buildCryptoPaymentUri(intent)
+    : null;
 
   return {
     ...intent,
     paymentUri,
     qrCodeDataUrl: paymentUri
-      ? await QRCode.toDataURL(paymentUri, { errorCorrectionLevel: "M", margin: 2, width: 256 })
+      ? await qrCodeCache.get(paymentUri)
       : null
   };
 }
@@ -257,19 +354,25 @@ export function hashCryptoPaymentEventPayload(payloadBytes: Buffer) {
 }
 
 export function getCryptoProcessorStatus(config: AppConfig) {
-  const enabled = config.CRYPTO_PROCESSOR_ENABLED === true;
-  const walletConfigured = isValidCryptoWalletXpub(config.CRYPTO_PROCESSOR_WALLET_XPUB ?? "");
+  const rails = (Object.entries(CRYPTO_PAYMENT_RAILS) as [
+    CryptoPaymentRailId,
+    typeof CRYPTO_PAYMENT_RAILS[CryptoPaymentRailId]
+  ][]).map(([id, rail]) => ({
+    id,
+    ...rail,
+    ready: isCryptoPaymentRailReady(config, id)
+  }));
 
   return {
-    ready: enabled && walletConfigured,
+    ready: rails.some((rail) => rail.ready),
     asset: CRYPTO_PAYMENT_ASSET,
     network: CRYPTO_PAYMENT_NETWORK,
-    rails: (Object.entries(CRYPTO_PAYMENT_RAILS) as [CryptoPaymentRailId, typeof CRYPTO_PAYMENT_RAILS[CryptoPaymentRailId]][]).map(([id, rail]) => ({ id, ...rail })),
+    rails,
     confirmationTarget: config.CRYPTO_PROCESSOR_CONFIRMATION_TARGET ?? 1
   };
 }
 
-export function assertCryptoProcessorReady(config: AppConfig) {
+export function assertCryptoProcessorReady(config: AppConfig, railId: CryptoPaymentRailId) {
   if (config.CRYPTO_PROCESSOR_ENABLED !== true) {
     throw new ApiError(503, "CRYPTO_PROCESSOR_NOT_READY", "Crypto payments are not enabled.");
   }
@@ -277,6 +380,14 @@ export function assertCryptoProcessorReady(config: AppConfig) {
   const receiveChainXpub = config.CRYPTO_PROCESSOR_WALLET_XPUB ?? "";
   if (!isValidCryptoWalletXpub(receiveChainXpub)) {
     throw new ApiError(503, "CRYPTO_PROCESSOR_NOT_READY", "Crypto wallet setup is not ready.");
+  }
+
+  if (config.CRYPTO_PROCESSOR_WATCHER_ENABLED !== true) {
+    throw new ApiError(503, "CRYPTO_PROCESSOR_NOT_READY", "Crypto payment monitoring is not ready.");
+  }
+
+  if (getCryptoPaymentRailRpcEndpoint(config, railId).trim().length === 0) {
+    throw new ApiError(503, "CRYPTO_PROCESSOR_NOT_READY", "That crypto payment method is not available.");
   }
 
   return {
@@ -369,6 +480,182 @@ async function reserveCryptoPaymentIntent(
   return row;
 }
 
+async function loadIdempotentCryptoPaymentIntent(
+  db: DbClient,
+  userId: string,
+  idempotencyKey: string
+) {
+  const result = await db.query<CryptoPaymentIntentRow>(
+    `select *
+     from crypto_payment_intents
+     where user_id = $1
+       and idempotency_key = $2
+     limit 1
+     for update`,
+    [userId, idempotencyKey]
+  );
+
+  return result.rows[0] ?? null;
+}
+
+async function loadCompatibleOpenCryptoPaymentIntent(
+  db: DbClient,
+  input: {
+    userId: string;
+    planId: string;
+    amountUsdCents: number;
+    walletXpubFingerprint: string;
+    rail: CryptoPaymentRailId;
+  }
+) {
+  const rail = cryptoRail(input.rail);
+  const result = await db.query<CryptoPaymentIntentRow>(
+    `select *
+     from crypto_payment_intents
+     where user_id = $1
+       and plan_id = $2
+       and amount_usd_cents = $3
+       and wallet_xpub_fingerprint = $4
+       and asset = $5
+       and network = $6
+       and (
+         status = 'confirming'
+         or (
+           status in ('pending', 'awaiting_payment')
+           and expires_at > now()
+         )
+       )
+     order by created_at desc
+     limit 1
+     for update`,
+    [
+      input.userId,
+      input.planId,
+      input.amountUsdCents,
+      input.walletXpubFingerprint,
+      rail.asset,
+      rail.network
+    ]
+  );
+
+  return result.rows[0] ?? null;
+}
+
+async function hasCruushPlusLifetimeAccess(db: DbClient, userId: string) {
+  const result = await db.query<{ has_lifetime_access: boolean }>(
+    `select exists (
+       select 1
+       from cruush_plus_lifetime_access
+       where user_id = $1
+     ) as has_lifetime_access`,
+    [userId]
+  );
+
+  return result.rows[0]?.has_lifetime_access === true;
+}
+
+async function assertLifetimeCryptoPurchaseAvailable(db: DbClient, userId: string) {
+  const result = await db.query<{ unavailable: boolean }>(
+    `select (
+       exists (
+         select 1
+         from cruush_plus_lifetime_access
+         where user_id = $1
+       )
+       or exists (
+         select 1
+         from crypto_payment_intents
+         where user_id = $1
+           and plan_id = 'lifetime_founder'
+           and (
+             status in ('confirming', 'paid', 'refunded')
+             or (
+               status in ('pending', 'awaiting_payment')
+               and expires_at > now()
+             )
+           )
+       )
+     ) as unavailable`,
+    [userId]
+  );
+
+  if (result.rows[0]?.unavailable === true) {
+    throw new ApiError(409, "VALIDATION_ERROR", "A lifetime cruush+ payment is already active or in progress.");
+  }
+}
+
+async function terminalizeUnpaidCryptoIntentAfterLifetimeAccess(
+  db: DbClient,
+  intent: CryptoPaymentIntentRow
+) {
+  if (!(["pending", "awaiting_payment"] as CryptoPaymentStatus[]).includes(intent.status)) {
+    return false;
+  }
+
+  if (!await hasCruushPlusLifetimeAccess(db, intent.user_id)) {
+    return false;
+  }
+
+  const result = await db.query<CryptoPaymentIntentRow>(
+    `update crypto_payment_intents
+     set status = case
+           when status = 'awaiting_payment' then 'expired'
+           else 'cancelled'
+         end,
+         settlement_note = 'Lifetime access became active before this payment completed. No additional payment was accepted.',
+         updated_at = now()
+     where id = $1
+       and status in ('pending', 'awaiting_payment')
+     returning *`,
+    [intent.id]
+  );
+
+  if (!result.rows[0]) {
+    throw new Error("Open crypto payment could not be closed after lifetime access became active.");
+  }
+
+  return true;
+}
+
+async function assertCryptoOpenIntentCapacity(db: DbClient, userId: string) {
+  const result = await db.query<{
+    open_count: string | number;
+    has_lifetime_access: boolean;
+  }>(
+    `select
+       (
+         select count(*)::int
+         from crypto_payment_intents
+         where user_id = $1
+           and (
+             status = 'confirming'
+             or (
+               status in ('pending', 'awaiting_payment')
+               and expires_at > now()
+             )
+           )
+       ) as open_count,
+       exists (
+         select 1
+         from cruush_plus_lifetime_access
+         where user_id = $1
+       ) as has_lifetime_access`,
+    [userId]
+  );
+
+  if (result.rows[0]?.has_lifetime_access === true) {
+    throw new ApiError(409, "VALIDATION_ERROR", "Lifetime cruush+ is already active.");
+  }
+
+  if (Number(result.rows[0]?.open_count ?? 0) >= CRYPTO_OPEN_INTENT_LIMIT_PER_USER) {
+    throw new ApiError(
+      409,
+      "VALIDATION_ERROR",
+      "Finish or wait for an existing crypto payment before starting another."
+    );
+  }
+}
+
 export async function createInHouseCryptoPaymentIntent(
   db: DbClient,
   config: AppConfig,
@@ -379,19 +666,53 @@ export async function createInHouseCryptoPaymentIntent(
     idempotencyKey: string;
     metadata?: Record<string, unknown>;
     rail?: CryptoPaymentRailId;
+    watchStartBlock?: bigint;
+    watchStartBlocksByChain?: Readonly<Partial<Record<number, bigint>>>;
   }
 ) {
-  const wallet = assertCryptoProcessorReady(config);
-  const walletXpubFingerprint = fingerprintCryptoWalletXpub(wallet.receiveChainXpub);
   const rail = input.rail ?? "usdc_arbitrum";
+  const wallet = assertCryptoProcessorReady(config, rail);
+  const walletXpubFingerprint = fingerprintCryptoWalletXpub(wallet.receiveChainXpub);
+  const plan = getCruushPlusPlan(input.planId);
 
-  return runTransaction(db, async (client) => {
-    const reserved = await reserveCryptoPaymentIntent(client, {
-      ...input,
-      walletXpubFingerprint,
-      intentTtlMinutes: wallet.intentTtlMinutes,
-      rail
-    });
+  if (plan.amountCents !== input.amountUsdCents) {
+    throw new ApiError(400, "VALIDATION_ERROR", "Crypto payment amount does not match that cruush+ plan.");
+  }
+
+  const outcome = await runTransaction(db, async (client) => {
+    await lockCryptoPurchaseUser(client, input.userId);
+    await expireStaleCryptoPaymentIntents(client);
+
+    let reserved = await loadIdempotentCryptoPaymentIntent(
+      client,
+      input.userId,
+      input.idempotencyKey
+    );
+
+    if (!reserved) {
+      reserved = await loadCompatibleOpenCryptoPaymentIntent(client, {
+        ...input,
+        walletXpubFingerprint,
+        rail
+      });
+    }
+
+    const reusedReservation = reserved !== null;
+
+    if (!reserved) {
+      if (plan.isLifetime) {
+        await assertLifetimeCryptoPurchaseAvailable(client, input.userId);
+      }
+
+      await assertCryptoOpenIntentCapacity(client, input.userId);
+      await assertCryptoPlanCanReserve(client, plan);
+      reserved = await reserveCryptoPaymentIntent(client, {
+        ...input,
+        walletXpubFingerprint,
+        intentTtlMinutes: wallet.intentTtlMinutes,
+        rail
+      });
+    }
 
     assertIdempotentReservationMatches(reserved, {
       planId: input.planId,
@@ -400,8 +721,12 @@ export async function createInHouseCryptoPaymentIntent(
       rail
     });
 
+    if (reusedReservation && await terminalizeUnpaidCryptoIntentAfterLifetimeAccess(client, reserved)) {
+      return { intent: null, lifetimeAccessConflict: true as const };
+    }
+
     if (reserved.payment_address) {
-      return mapCryptoPaymentIntent(reserved);
+      return { intent: mapCryptoPaymentIntent(reserved), lifetimeAccessConflict: false as const };
     }
 
     if (reserved.status !== "pending") {
@@ -413,17 +738,63 @@ export async function createInHouseCryptoPaymentIntent(
       numericDerivationIndex(reserved.derivation_index)
     );
     const quotedAmountAtomic = quoteUsdCentsAsStablecoinAtomic(input.amountUsdCents);
+    const watchStartBlock = input.watchStartBlock ?? 0n;
+    if (watchStartBlock < 0n || watchStartBlock > 9_223_372_036_854_775_807n) {
+      throw new Error("Crypto payment intent has an invalid watch-start block.");
+    }
+    const suppliedWatchStartBlocks = CRYPTO_PAYMENT_CHAIN_IDS.map((chainId) => {
+      const supplied = input.watchStartBlocksByChain?.[chainId];
+      if (supplied === undefined) return null;
+      if (supplied < 0n || supplied > 9_223_372_036_854_775_807n) {
+        throw new Error("Crypto payment intent has an invalid watch-start block.");
+      }
+
+      return supplied.toString();
+    });
+
+    // Snapshot every chain origin before the address becomes payable. The
+    // intended chain uses the verified raw head. Explicit secondary origins
+    // were resolved while the address was still private: a verified current
+    // head for every configured chain, or zero only for an unconfigured chain.
+    // A durable global cursor is deliberately not an allocation fallback: it
+    // may be far behind the chain after a long idle period.
+    await client.query(
+      `insert into crypto_payment_watch_positions (
+         intent_id,
+         chain_id,
+         watch_start_block,
+         last_scanned_block
+       )
+       select $1,
+              supported.chain_id,
+              case
+                when supported.chain_id = $2 then $3::bigint
+                else coalesce(supported.supplied_origin, 0)
+              end,
+              null
+       from unnest($4::integer[], $5::bigint[]) as supported(chain_id, supplied_origin)
+       on conflict (intent_id, chain_id) do nothing`,
+      [
+        reserved.id,
+        cryptoRail(rail).chainId,
+        watchStartBlock.toString(),
+        CRYPTO_PAYMENT_CHAIN_IDS,
+        suppliedWatchStartBlocks
+      ]
+    );
+
     const updated = await client.query<CryptoPaymentIntentRow>(
       `update crypto_payment_intents
        set payment_address = $2,
            quoted_amount_atomic = $3,
+           watch_start_block = $4,
            status = 'awaiting_payment',
            updated_at = now()
        where id = $1
          and status = 'pending'
          and payment_address is null
        returning *`,
-      [reserved.id, paymentAddress, quotedAmountAtomic]
+      [reserved.id, paymentAddress, quotedAmountAtomic, watchStartBlock.toString()]
     );
 
     const row = updated.rows[0];
@@ -431,8 +802,14 @@ export async function createInHouseCryptoPaymentIntent(
       throw new Error("Crypto payment intent address allocation returned no row.");
     }
 
-    return mapCryptoPaymentIntent(row);
+    return { intent: mapCryptoPaymentIntent(row), lifetimeAccessConflict: false as const };
   });
+
+  if (outcome.lifetimeAccessConflict) {
+    throw new ApiError(409, "VALIDATION_ERROR", "Lifetime cruush+ is already active.");
+  }
+
+  return outcome.intent;
 }
 
 export async function recordCryptoPaymentEvent(db: DbClient, input: CryptoPaymentEventInput) {
@@ -470,8 +847,9 @@ export async function recordCryptoPaymentEvent(db: DbClient, input: CryptoPaymen
  *
  * 'confirming' is deliberately excluded. Money has already been seen on chain
  * for those, and a checkout timer must never discard a payment somebody has
- * actually sent. Expiring is also not the end of the road: an expired intent
- * still settles a late payment for as long as the late-arrival window allows.
+ * actually sent. An expired intent never exposes fillable payment details. It
+ * may become paid only when the watcher proves the transfer was mined no later
+ * than expires_at; a post-expiry transfer never grants.
  */
 export async function expireStaleCryptoPaymentIntents(db: DbClient) {
   const result = await db.query<{ id: string }>(
@@ -485,6 +863,22 @@ export async function expireStaleCryptoPaymentIntents(db: DbClient) {
   );
 
   return result.rows.length;
+}
+
+export async function loadCurrentOpenCryptoPaymentIntent(db: DbClient, userId: string) {
+  await expireStaleCryptoPaymentIntents(db);
+
+  const result = await db.query<CryptoPaymentIntentRow>(
+    `select *
+     from crypto_payment_intents
+     where user_id = $1
+       and status in ('pending', 'awaiting_payment', 'confirming')
+     order by created_at desc
+     limit 1`,
+    [userId]
+  );
+
+  return result.rows[0] ? mapCryptoPaymentIntent(result.rows[0]) : null;
 }
 
 export async function loadCryptoPaymentIntent(db: DbClient, userId: string, intentId: string) {

@@ -14,9 +14,15 @@
 
 import type { AppConfig } from "./config.js";
 import type { DbClient } from "./db.js";
-import { CRYPTO_PAYMENT_RAILS, type CryptoPaymentRailId } from "./crypto-payments.js";
+import {
+  CRYPTO_PAYMENT_RAILS,
+  assertCryptoProcessorReady,
+  getCryptoPaymentRailRpcEndpoint,
+  type CryptoPaymentRailId
+} from "./crypto-payments.js";
 import { createJsonRpcChainSource, type ChainSource } from "./crypto-chain-source.js";
 import { runCryptoWatcherPass, type WatcherPassResult } from "./crypto-watcher.js";
+import { ApiError } from "./errors.js";
 
 export type WatcherLogger = {
   info(payload: Record<string, unknown>, message: string): void;
@@ -25,6 +31,39 @@ export type WatcherLogger = {
 };
 
 export type ConfiguredChain = { chainId: number; endpointUrl: string };
+export type CryptoPaymentRailHeadReader = (
+  config: AppConfig,
+  railId: CryptoPaymentRailId
+) => Promise<bigint>;
+
+/**
+ * Captures the exact chain origin before a payment address becomes fillable.
+ * The endpoint must identify itself as the fixed rail's chain before its head
+ * can be persisted; a configured URL alone is not enough evidence.
+ */
+export async function readVerifiedCryptoPaymentRailHead(
+  config: AppConfig,
+  railId: CryptoPaymentRailId,
+  sourceFactory: (input: { chainId: number; endpointUrl: string }) => ChainSource = createJsonRpcChainSource
+) {
+  assertCryptoProcessorReady(config, railId);
+  const rail = CRYPTO_PAYMENT_RAILS[railId];
+  const source = sourceFactory({
+    chainId: rail.chainId,
+    endpointUrl: getCryptoPaymentRailRpcEndpoint(config, railId)
+  });
+  const observedChainId = await source.getChainId();
+
+  if (observedChainId !== rail.chainId) {
+    throw new ApiError(
+      502,
+      "CRYPTO_CHAIN_SOURCE_UNAVAILABLE",
+      "Crypto chain source is connected to the wrong network."
+    );
+  }
+
+  return source.getBlockNumber();
+}
 
 /**
  * Which chains are actually watchable, given configuration. Returns nothing at
@@ -39,9 +78,9 @@ export function resolveWatchedChains(config: AppConfig): ConfiguredChain[] {
   // Arbitrum first: it carries both tokens and is the rail customers actually
   // reach from Cash App, Venmo, and PayPal.
   const endpoints: Array<[number, string]> = [
-    [CRYPTO_PAYMENT_RAILS.usdc_arbitrum.chainId, config.CRYPTO_PROCESSOR_ARBITRUM_RPC_URL ?? ""],
-    [CRYPTO_PAYMENT_RAILS.pyusd_ethereum.chainId, config.CRYPTO_PROCESSOR_ETHEREUM_RPC_URL ?? ""],
-    [CRYPTO_PAYMENT_RAILS.usdc_base.chainId, config.CRYPTO_PROCESSOR_BASE_RPC_URL ?? ""]
+    [CRYPTO_PAYMENT_RAILS.usdc_arbitrum.chainId, getCryptoPaymentRailRpcEndpoint(config, "usdc_arbitrum")],
+    [CRYPTO_PAYMENT_RAILS.pyusd_ethereum.chainId, getCryptoPaymentRailRpcEndpoint(config, "pyusd_ethereum")],
+    [CRYPTO_PAYMENT_RAILS.usdc_base.chainId, getCryptoPaymentRailRpcEndpoint(config, "usdc_base")]
   ];
 
   return endpoints

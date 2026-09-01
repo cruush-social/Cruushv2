@@ -9,6 +9,14 @@
  *     request  {"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":83}
  *     response {"id":83,"jsonrpc":"2.0","result":"0x4b7"}
  *
+ *   eth_chainId
+ *     request  {"jsonrpc":"2.0","method":"eth_chainId","params":[],"id":84}
+ *     response {"id":84,"jsonrpc":"2.0","result":"0x2105"}
+ *
+ *   eth_getBlockByNumber
+ *     request  {"jsonrpc":"2.0","method":"eth_getBlockByNumber","params":["0x4b7",false],"id":85}
+ *     response block object containing the authoritative hex `number` and `timestamp`
+ *
  *   eth_getLogs
  *     request  filter object with fromBlock, toBlock, address, topics
  *              (blockHash is mutually exclusive with fromBlock/toBlock)
@@ -43,7 +51,9 @@ export type ChainLog = {
 
 export type ChainSource = {
   chainId: number;
+  getChainId(): Promise<number>;
   getBlockNumber(): Promise<bigint>;
+  getBlockTimestamp(blockNumber: bigint, expectedBlockHash?: string): Promise<Date>;
   getLogs(input: {
     fromBlock: bigint;
     toBlock: bigint;
@@ -244,8 +254,54 @@ export function createJsonRpcChainSource(input: {
   return {
     chainId: input.chainId,
 
+    async getChainId() {
+      const chainId = parseHexQuantity(await call("eth_chainId", []), "chain id");
+      if (chainId > BigInt(Number.MAX_SAFE_INTEGER)) {
+        throw new Error("Chain source returned a chain id outside the safe integer range.");
+      }
+      return Number(chainId);
+    },
+
     async getBlockNumber() {
       return parseHexQuantity(await call("eth_blockNumber", []), "block number");
+    },
+
+    async getBlockTimestamp(blockNumber, expectedBlockHash) {
+      if (blockNumber < 0n) {
+        throw new Error("Block numbers cannot be negative.");
+      }
+
+      const result = await call("eth_getBlockByNumber", [toHexQuantity(blockNumber), false]);
+      if (typeof result !== "object" || result === null) {
+        throw new ApiError(
+          502,
+          "CRYPTO_CHAIN_SOURCE_UNAVAILABLE",
+          "Chain source returned no block for eth_getBlockByNumber."
+        );
+      }
+
+      const block = result as Record<string, unknown>;
+      const observedBlockNumber = parseHexQuantity(block.number, "block number");
+      if (observedBlockNumber !== blockNumber) {
+        throw new Error("Chain source returned a different block than requested.");
+      }
+      if (expectedBlockHash !== undefined) {
+        if (
+          typeof block.hash !== "string"
+          || !/^0x[0-9a-fA-F]{64}$/.test(block.hash)
+          || block.hash.toLowerCase() !== expectedBlockHash.toLowerCase()
+        ) {
+          throw new Error("Chain source returned a different block hash than the transfer log.");
+        }
+      }
+
+      const timestampSeconds = parseHexQuantity(block.timestamp, "block timestamp");
+      const maxDateSeconds = 8_640_000_000_000n;
+      if (timestampSeconds > maxDateSeconds) {
+        throw new Error("Chain source returned a block timestamp outside the supported date range.");
+      }
+
+      return new Date(Number(timestampSeconds) * 1000);
     },
 
     async getLogs(filter) {

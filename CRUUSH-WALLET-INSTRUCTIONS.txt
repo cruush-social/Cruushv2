@@ -1,11 +1,22 @@
 cruush wallet setup
 
-1. Open Terminal in the cruushwallet Mac user.
-2. Run:
+This temporary software wallet belongs to the current julienlenaz macOS user.
+The hardware wallet will replace it before meaningful funds are accepted.
 
-cd /Volumes/good/Cruushv2-crypto-processor-20260822/tools/cruush-wallet
-npm install --ignore-scripts --legacy-peer-deps
-npm run wallet -- --help
+1. In the normal macOS Terminal opened for this setup, read the live-presence
+   challenge. Do not answer it yet.
+2. Close Codex, Claude, screen sharing, terminal recording, and every other
+   app that could capture the screen or terminal.
+3. Type the unpredictable three-word challenge shown in Terminal.
+4. Write every recovery word on paper. Never photograph, copy, paste, upload,
+   or type the words anywhere except the wallet's hidden verification prompt.
+5. Type exactly: I WROTE THE RECOVERY WORDS
+6. The secret screen clears. Terminal may then show only the public descriptor
+   path and fingerprint. Close Terminal.
+7. Reopen this Codex task. The agent may inspect only:
 
-Stop after the help text appears. Do not initialize the wallet yet.
-Never enter or share recovery words, private keys, or wallet QR codes here.
+   /Users/julienlenaz/Library/Application Support/cruush/operator-wallet/public-descriptor.json
+
+Never send recovery words, a private key, or an xprv in chat. Never save a
+digital copy. If anything other than that exact Terminal flow asks for them,
+cancel.

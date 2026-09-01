@@ -10,7 +10,14 @@ export type CryptoProcessorStatus = {
   asset: CryptoPaymentAsset;
   network: CryptoPaymentNetwork;
   confirmationTarget: number;
-  rails: Array<{ id: CryptoPaymentRailId; asset: CryptoPaymentAsset; network: CryptoPaymentNetwork; chainId: number; tokenAddress: string }>;
+  rails: Array<{
+    id: CryptoPaymentRailId;
+    asset: CryptoPaymentAsset;
+    network: CryptoPaymentNetwork;
+    chainId: number;
+    tokenAddress: string;
+    ready: boolean;
+  }>;
 };
 
 export type CryptoPaymentStatus =
@@ -69,4 +76,8 @@ export async function createCryptoPaymentIntent(input: {
 
 export async function getCryptoPaymentIntent(intentId: string) {
   return requestApi<CryptoPaymentIntent>(`/api/crypto/payment-intents/${intentId}`);
+}
+
+export async function getCurrentCryptoPaymentIntent() {
+  return requestApi<CryptoPaymentIntent | null>('/api/crypto/payment-intents/current');
 }
