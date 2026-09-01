@@ -227,7 +227,9 @@ Status:
 - `[~]` The 1.6 source removes `109_custom_crowds.sql` and the Custom Crowds server hooks, restores
   the fixed Crowd sheet, removes Crowd from the top navigation, and uses the existing old Crowd
   icon in the active Map Controls notice. The current numbered migration 109 is the unrelated
-  survey-response uniqueness guard. Rendered fixed-Crowd proof is pending.
+  survey-response uniqueness guard. At 390x844, the tutorial's real Crowd Mode action opened the
+  fixed sheet's no-membership state with Edit Crowds, Clear, Apply, and Close visible. The active
+  Map Controls Crowd notice remains visually unverified because the local profile has no Crowd.
 - `[~]` Who's Here now uses the shared people card with pronouns, badges beneath the heart,
   relationship-aware heart colors, and MHC side-badge color. The server retains the existing
   active opt-in and bidirectional block filters. The remaining mutual picker also carries MHC
@@ -347,7 +349,9 @@ Status:
   `/Volumes/good/cruushv2/custom-crowds-20260830`. Migration `109_custom_crowds.sql` is removed
   from the 1.6 migration list and was not run.
 - [~] The fixed Crowd UI and behavior are restored in the 1.6 source without removing unrelated
-  map, Seeking, Visibility, Feed, profile, or privacy work. Visual proof is pending.
+  map, Seeking, Visibility, Feed, profile, or privacy work. At 390x844, the fixed sheet's
+  no-membership state rendered without clipping and closed normally. Populated and active-notice
+  states remain visually unverified.
 - [deferred] No-crowd, five-crowd, downgrade, lock, conflict, loading, empty, offline, retry,
   deletion, re-upgrade, onboarding templates, and onboarding copy move with the Custom Crowds work.
 
@@ -725,12 +729,14 @@ Status:
 - [x] At 390x844, DL Mode rendered at the same adjacent visible scale inside the shared 32px button
   canvas without overflow. The direct 1.6 decision supersedes Crowd glyph sizing and side spacing:
   no Crowd control renders in the top navigation.
-- [~] Superseded: the Hydra Crowd icon is removed from the 1.6 top navigation. The active Crowd
-  notice in Map Controls uses the existing old Crowd icon and opens the fixed Crowd sheet. Rendered
-  proof is pending.
-- [~] Top-nav source explicitly removes hover, focus, and focus-visible fills, uses one shared visible
-  canvas, and gives Crowd extra side spacing. Desktop inactive and active states rendered without a
-  grey hover circle. Real 390px interaction proof remains pending.
+- [~] Superseded: the Hydra Crowd icon is removed from the 1.6 top navigation. At 390x844, no Crowd
+  control rendered in that navigation and the tutorial's real Crowd Mode action opened the fixed
+  Crowd sheet. The active Map Controls Crowd notice remains visually unverified because the local
+  profile has no Crowd.
+- [x] Top-nav source explicitly removes hover, focus, and focus-visible fills and uses one shared
+  visible canvas. Desktop inactive and active states rendered without a grey hover circle. At
+  390x844, the resting icon row had no grey circles, Map Controls opened and closed, Settings opened,
+  and Back returned to the map without changing a setting.
 
 ## P2. Media, SEO, and release-script follow-up
 
@@ -782,7 +788,7 @@ Status:
 - [x] No new taglines. The authenticated rendered surfaces retained only the approved Visibility and
   Spots descriptions; Seeking rendered without a new description.
 - [x] Seeking Filter and Visibility Controls use those exact headers. 1.6 has no Crowd icon in the
-  top navigation; the rendered active Map Controls Crowd notice opens the fixed Crowds sheet.
+  top navigation; the tutorial's rendered Crowd Mode action opens the fixed Crowds sheet.
 - [x] Visibility keeps its existing single tagline `Pick who should not see you.` Spots keeps its
   approved single tagline. Both rendered in the authenticated 412x915 flow without a second tagline.
 - [x] Hanky meanings: white with black paisley is Bondage; lime is Mutual masturbation; orange is

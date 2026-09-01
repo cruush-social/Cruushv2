@@ -293,3 +293,29 @@ final result: passed
 - No commit, push, or deployment performed.
 
 final result: passed
+
+---
+
+# Design QA: Fixed Crowd sheet and mobile top navigation
+
+## Rendered state
+
+- Authenticated 1.6 map rendered at 390 x 844 CSS pixels.
+- The top navigation had no Crowd control and no resting grey circle behind its visible icon buttons.
+- Tutorial step 8 opened the real fixed Crowds sheet. Its no-membership state showed Crowd Mode,
+  Edit Crowds, Clear, Apply, and Close without clipping or bottom-navigation overlap.
+- Closing the sheet and skipping the replay restored the prior completed tutorial state.
+
+## Interaction
+
+- Map Controls opened and closed from the mobile map.
+- Settings opened from the top navigation and Back returned directly to the map.
+- No profile, Crowd, visibility, or account setting was changed.
+
+## Remaining proof gap
+
+- The local profile has no Crowd membership, so the populated fixed sheet and active Map Controls
+  Crowd notice remain visually unverified. Focused MapHome coverage verifies the combined active
+  notice in source.
+
+final result: passed
