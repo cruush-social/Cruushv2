@@ -33,6 +33,7 @@ Index keys and signing/hash keys are outside this fallback mechanism.
 | `BETA_ACCESS_CENTER_LATITUDE` | server | no | `server/src/config.ts` | **missing from .env.example** |
 | `BETA_ACCESS_CENTER_LONGITUDE` | server | no | `server/src/config.ts` | **missing from .env.example** |
 | `BETA_ACCESS_GEOFENCE_ENABLED` | server | no | `server/src/config.ts` | **missing from .env.example** |
+| `BILLING_TEST_CHECKOUT_ENABLED` | server | yes | `server/src/config.ts` |  |
 | `BETA_ACCESS_RADIUS_MILES` | server | no | `server/src/config.ts` | **missing from .env.example** |
 | `BETA_ACCESS_VENUE_NAME` | server | no | `server/src/config.ts` | **missing from .env.example** |
 | `BUG_TRIAGE_BATCH_LIMIT` | server | no | `server/src/sync-bug-report-issues.ts` | **missing from .env.example** |

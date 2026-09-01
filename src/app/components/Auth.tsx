@@ -10,7 +10,7 @@ import {
 import { getAppMeta, type AppMetaPayload } from '../lib/metaApi';
 import { persistSessionUser, setVerificationPreviewUrl } from '../lib/sessionUser';
 import { CruushIcon } from './CruushIconImage';
-import { AUTH_POLICY_LINKS } from './PublicPolicyLinks';
+import PublicPolicyLinks from './PublicPolicyLinks';
 import Turnstile, { getTurnstileSiteKey } from './Turnstile';
 import cruushLogo from '../assets/brand/cruush-logo.svg';
 
@@ -730,42 +730,24 @@ export default function Auth({ onAuth }: AuthProps) {
 
       </div>
       <div className="launch-login-auth-footer" data-testid="launch-login-auth-footer">
-        <details className="launch-login-auth-footer-accordion">
-          <summary>More policies</summary>
-          <div className="launch-login-auth-footer-accordion-content">
-            <a
-              className="launch-login-auth-contact"
-              data-testid="launch-login-auth-contact"
-              href="mailto:hello@cruush.app"
-            >
-              hello@cruush.app
-            </a>
-            <a className="launch-login-auth-contact" href="mailto:reports@cruush.app?subject=cruush%20bug%20report">
-              Report a bug
-            </a>
-            <a className="launch-login-auth-contact" href="/support">
-              Contact support
-            </a>
-            <a className="launch-login-auth-contact" href="/support?appeal=1">
-              Appeal an age-related suspension
-            </a>
-            <div aria-label="Legal and safety links" className="launch-login-auth-footer-policies">
-              <p>
-                By continuing, you agree to our{' '}
-                <a href="/terms" rel="noreferrer" target="_blank">Terms of Service</a>{' '}
-                and{' '}
-                <a href="/privacy" rel="noreferrer" target="_blank">Privacy Policy</a>.
-              </p>
-              <div className="launch-login-auth-footer-policy-list">
-                {AUTH_POLICY_LINKS.filter((link) => link.path !== '/terms' && link.path !== '/privacy').map((link) => (
-                  <a href={link.path} key={link.path} rel="noreferrer" target="_blank">
-                    {link.label}
-                  </a>
-                ))}
-              </div>
-            </div>
-          </div>
-        </details>
+        <PublicPolicyLinks variant="compact">
+          <a
+            className="launch-login-auth-contact"
+            data-testid="launch-login-auth-contact"
+            href="mailto:hello@cruush.app"
+          >
+            hello@cruush.app
+          </a>
+          <a className="launch-login-auth-contact" href="mailto:reports@cruush.app?subject=cruush%20bug%20report">
+            Report a bug
+          </a>
+          <a className="launch-login-auth-contact" href="/support">
+            Contact support
+          </a>
+          <a className="launch-login-auth-contact" href="/support?appeal=1">
+            Appeal an age-related suspension
+          </a>
+        </PublicPolicyLinks>
       </div>
     </div>
   );

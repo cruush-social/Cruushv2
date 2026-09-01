@@ -68,7 +68,7 @@ describe("mailer", () => {
     expect(body).not.toHaveProperty("text");
   });
 
-  it("sends password reset emails with the current Resend template", async () => {
+  it("sends password reset emails as inline html so Resend's publish state cannot change the design", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true
     });
@@ -82,14 +82,23 @@ describe("mailer", () => {
     });
 
     const body = JSON.parse(fetchMock.mock.calls[0][1].body);
-    expect(body.template).toEqual({
-      id: "c4c95694-b788-4862-804d-e0fb146304c3",
-      variables: {
-        RESET_URL: "https://cruush.test/?resetPasswordToken=abc&amp;next=&lt;script&gt;alert(1)&lt;/script&gt;"
-      }
-    });
-    expect(body).not.toHaveProperty("html");
-    expect(body).not.toHaveProperty("text");
+
+    // A referenced Resend template renders whatever revision was last published
+    // there, which is invisible from here. The markup ships with the commit.
+    expect(body).not.toHaveProperty("template");
+
+    // The href carries the escaped url: an ampersand between query parameters
+    // has to reach the attribute as &amp;, and the injected markup must not
+    // survive into the document.
+    expect(body.html).toContain(
+      'href="https://cruush.test/?resetPasswordToken=abc&amp;next=&lt;script&gt;alert(1)&lt;/script&gt;"'
+    );
+    expect(body.html).not.toContain("<script>alert(1)</script>");
+
+    // The text part carries the raw url, because an &amp; pasted into a browser
+    // is a different address.
+    expect(body.text).toContain("https://cruush.test/?resetPasswordToken=abc&next=<script>alert(1)</script>");
+    expect(body.text).not.toContain("&amp;");
   });
 
   it("sends PhotoDNA match alerts without evidence bytes or media object details", async () => {

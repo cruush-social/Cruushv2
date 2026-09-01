@@ -224,6 +224,7 @@ function installPrivacyAwareQueryMock() {
 
 const app = buildServer({
   NODE_ENV: "test",
+  BILLING_TEST_CHECKOUT_ENABLED: true,
   PORT: 3001,
   HOST: "127.0.0.1",
   DATABASE_URL: "postgres://localhost:5432/cruush",

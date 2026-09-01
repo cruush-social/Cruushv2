@@ -1,9 +1,11 @@
-import { Fragment } from 'react';
+import { Fragment, type ReactNode } from 'react';
 import { ExternalLink } from 'lucide-react';
 import { cn } from './ui/utils';
 
 export const PUBLIC_POLICY_LINKS = [
   { label: 'About', path: '/about' },
+  { label: 'Help', path: '/help' },
+  { label: 'Blog', path: '/blog' },
   { label: 'Human trafficking policy', path: '/human-trafficking-policy' },
   { label: 'Report or request removal of content', path: '/content-removal' },
   { label: 'Safety', path: '/safety' },
@@ -27,13 +29,20 @@ type PublicPolicyLinksProps = {
   className?: string;
   variant?: 'card' | 'compact';
   excludePaths?: string[];
+  /** Rendered inside the disclosure, between the consent line and the links. */
+  children?: ReactNode;
 };
 
-export default function PublicPolicyLinks({ className, variant = 'card', excludePaths = [] }: PublicPolicyLinksProps) {
+export default function PublicPolicyLinks({ className, variant = 'card', excludePaths = [], children }: PublicPolicyLinksProps) {
   const visiblePolicyLinks = PUBLIC_POLICY_LINKS.filter((link) => !excludePaths.includes(link.path));
 
   if (variant === 'compact') {
+    // The consent line sits above the disclosure so the disclosure is still
+    // made at the point of action. Its two documents are reachable from here as
+    // well as from inside the list below.
     const consentLinks = AUTH_POLICY_LINKS.filter((link) => AUTH_CONSENT_POLICY_PATHS.includes(link.path));
+    // Terms and Privacy are reachable from the consent line, so listing them
+    // again inside the disclosure would show the same link twice in one block.
     const secondaryLinks = AUTH_POLICY_LINKS.filter((link) => !AUTH_CONSENT_POLICY_PATHS.includes(link.path));
 
     return (
@@ -44,7 +53,7 @@ export default function PublicPolicyLinks({ className, variant = 'card', exclude
             <Fragment key={link.path}>
               {index > 0 ? (index === consentLinks.length - 1 ? ' and ' : ', ') : null}
               <a
-                className="underline hover:text-white/50"
+                className="text-white underline underline-offset-2 transition-colors hover:text-primary"
                 href={link.path}
                 rel="noreferrer"
                 target="_blank"
@@ -60,7 +69,13 @@ export default function PublicPolicyLinks({ className, variant = 'card', exclude
           <summary className="cursor-pointer list-none text-[0.65rem] uppercase tracking-[0.14em] text-white/35 transition hover:text-white/60">
             More policies
           </summary>
-          <div className="mt-1 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[0.65rem]">
+          {children ? (
+            <div className="mt-2 flex flex-wrap items-center justify-center gap-x-8 gap-y-2 text-[0.7rem]">
+              {children}
+            </div>
+          ) : null}
+
+          <div className="mt-2 flex flex-wrap items-center justify-center gap-x-6 gap-y-1 text-[0.65rem]">
             {secondaryLinks.map((link) => (
               <a
                 className="underline hover:text-white/50"
@@ -74,6 +89,7 @@ export default function PublicPolicyLinks({ className, variant = 'card', exclude
             ))}
           </div>
         </details>
+
       </div>
     );
   }
