@@ -24,6 +24,16 @@ type DesktopDockPanelProps = {
 };
 
 const EDGE_GAP = 10;
+function bottomFloatingControlsClearance() {
+  if (typeof window === 'undefined') {
+    return 146;
+  }
+
+  // Recently Active sits above the fixed bottom-navigation pill. Panels end
+  // 10px above that control at both desktop responsive breakpoints so neither
+  // centered map control can be hidden or intercept pointer input.
+  return window.innerWidth >= 1024 ? 146 : 138;
+}
 // Panels share one stacking counter. Pressing anywhere on a panel raises it, so
 // an overlapped panel is never left unclickable behind another one.
 // Panels stack among themselves but always sit under the top chrome and page
@@ -41,17 +51,17 @@ function storageKey(slot: DesktopDockSlot) {
   return `cruush.desktopDock.${slot}`;
 }
 
-function topChromeClearance() {
+function topChromeClearance(slot: DesktopDockSlot) {
   if (typeof window === 'undefined') {
     return EDGE_GAP;
   }
 
   if (window.innerWidth >= 1024) {
-    return 90;
+    return slot === 'right' ? 136 : 90;
   }
 
   if (window.innerWidth >= 640) {
-    return 86;
+    return slot === 'right' ? 132 : 86;
   }
 
   return 74;
@@ -62,7 +72,7 @@ function clampGeometry(slot: DesktopDockSlot, geometry: DockGeometry, minWidth: 
     return geometry;
   }
 
-  const minimumY = topChromeClearance();
+  const minimumY = topChromeClearance(slot);
   // Right-side popups can travel to the edge without sitting flush against it.
   // This small inset keeps the popup's own Close control fully visible and does
   // not reserve any internal space for the independent Bug Fix control.
@@ -73,7 +83,8 @@ function clampGeometry(slot: DesktopDockSlot, geometry: DockGeometry, minWidth: 
     ? Math.floor(window.innerWidth / 2)
     : EDGE_GAP;
   const maxWidth = Math.max(1, window.innerWidth - minimumX - rightClearance);
-  const maxHeight = Math.max(1, window.innerHeight - minimumY - EDGE_GAP);
+  const bottomClearance = bottomFloatingControlsClearance();
+  const maxHeight = Math.max(1, window.innerHeight - minimumY - bottomClearance);
   const effectiveMinWidth = Math.min(minWidth, maxWidth);
   const width = Math.min(Math.max(geometry.width, effectiveMinWidth), maxWidth);
   const effectiveMinHeight = Math.min(minHeight, maxHeight);
@@ -82,7 +93,10 @@ function clampGeometry(slot: DesktopDockSlot, geometry: DockGeometry, minWidth: 
     Math.max(geometry.x, minimumX),
     Math.max(minimumX, window.innerWidth - width - rightClearance),
   );
-  const y = Math.min(Math.max(geometry.y, minimumY), Math.max(minimumY, window.innerHeight - height - EDGE_GAP));
+  const y = Math.min(
+    Math.max(geometry.y, minimumY),
+    Math.max(minimumY, window.innerHeight - height - bottomClearance),
+  );
 
   return { x, y, width, height };
 }
@@ -96,7 +110,7 @@ function defaultGeometry(slot: DesktopDockSlot, minWidth: number, minHeight: num
   const height = Math.max(minHeight, window.innerHeight - EDGE_GAP * 2);
   const x = slot === 'left' ? EDGE_GAP : Math.max(EDGE_GAP, window.innerWidth - width - EDGE_GAP);
 
-  return clampGeometry(slot, { x, y: topChromeClearance(), width, height }, minWidth, minHeight);
+  return clampGeometry(slot, { x, y: topChromeClearance(slot), width, height }, minWidth, minHeight);
 }
 
 function readStoredGeometry(slot: DesktopDockSlot): DockGeometry | null {
@@ -234,7 +248,7 @@ export default function DesktopDockPanel({
     // Top right grip: the panel grows to the right and upward, so the bottom
     // edge stays put and y follows the height change.
     const bottom = dragState.start.y + dragState.start.height;
-    const maxHeight = Math.max(1, bottom - topChromeClearance());
+    const maxHeight = Math.max(1, bottom - topChromeClearance(slot));
     const height = Math.min(
       Math.max(dragState.start.height - deltaY, Math.min(minHeight, maxHeight)),
       maxHeight,

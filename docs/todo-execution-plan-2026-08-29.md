@@ -301,9 +301,12 @@ Status:
   the encrypted relationship store rather than the retired plaintext cruush and profile-view tables.
 - [x] Apply `106_side_quests.sql`, `107_side_quest_first_ping.sql`, and `108_side_quest_catalog.sql`
   atomically on the named local preview database, preserving existing grants and reward guards.
-- [blocked] Exercise a real local claim, replacement, repeat claim, and daily-limit response after
-  explicit approval to grant the completed first-message quest's one day and notification.
-- [ ] Render and exercise the restored card at desktop, narrow desktop, 390x844, and 412x915.
+- [~] The authorized real local first-message claim granted one banked cruush+ day and one
+  notification, moved under Recent rewards, and revealed the next quest. Repeat-claim and
+  daily-limit requests remain unexercised because the authority covered one exact claim only.
+- [x] Render and exercise the restored card at desktop, narrow desktop, 390x844, and 412x915.
+  The exact popup fills every viewport, prevents underlying map controls from painting above it,
+  retains scratch, flip, benefits, Close, and Done, and produces no document overflow.
 
 ### Custom Crowds
 
@@ -402,7 +405,10 @@ Status:
   and position.
 - [~] Narrow-viewport width clamping and top-resize anchoring are patched in source. Interrupted
   pointer capture now ends dragging. Drag, resize, and persistence proof remains pending.
-- [ ] Verify no popup blocks top navigation, bottom navigation, Map Controls, or Bug Fix.
+- [x] Verify no popup blocks top navigation, bottom navigation, Map Controls, or Bug Fix. At
+  900x844, both desktop panels stopped 10px above Recently Active and cleared Map Controls by
+  10px; all five bottom-navigation targets and Recently Active remained hit-testable. The
+  full-size desktop render retained the same clearances and internal panel scrolling.
 
 ## P1. Feed completion
 
@@ -557,7 +563,8 @@ Status:
   restores the prior translucent black-glass container around the complete open Recently Active unit, and remains centered with or without panels. Source is
   patched. The empty authenticated state renders and opens in one click, but populated scrolling
   proof is pending because the current Mile High Club viewpoint returns no authorized recent profiles.
-- [ ] Keep the bottom navigation centered with or without panels.
+- [x] Keep the bottom navigation centered with or without panels. Authenticated 1625x963 and
+  900x844 renders kept the nav centered while profile and Feed panels were open.
 - [ ] Render heatmap off/on at identical zoom 10, 12, 14, and 16 camera states.
 - [~] Source defines the active service area as the complete 100-mile circle around the NYC center
   and allows zooming until the whole edge is visible. Verify the camera never hides the boundary.
@@ -702,7 +709,8 @@ Status:
   columns at the supported desktop width.
 - [ ] Ensure no color names appear in badge labels and no removed labels return through seed or
   compatibility data.
-- [ ] Public copy uses `cruush` and `cruush+` lowercase and contains no Unicode em dash.
+- [x] Public copy uses `cruush` and `cruush+` lowercase and contains no Unicode em dash. The
+  current public-copy gate scanned 380 files clean after the final local changes.
 
 ## P2. Account, Settings, notifications, and global chrome
 
@@ -739,15 +747,18 @@ Status:
   scopes its constraint-existence check to `media_objects`, preventing a same-named constraint on
   another table from breaking replay. Three checks passed; disposable-database forward and replay
   execution remains pending and no migration ran.
-- [ ] Prove the exact local frontend/API pair and local development admin login without starting,
-  stopping, restarting, killing, or replacing a server process.
+- [x] Prove the exact local frontend/API pair and local development admin login. Julien authorized
+  starting this pair. The 5173 frontend proxied a 200 login for the local-only admin credential to
+  the 3016 development API; `/api/auth/me` returned the active admin and `/api/build` returned
+  stage `development`. Neither process was restarted, stopped, killed, or replaced.
 - [ ] Render every changed flow in populated and empty states at desktop, narrow desktop, 390x844,
   and 412x915. Inspect top, middle, and bottom scroll positions.
 - [ ] Exercise clicks, Back, Close, drag, resize, hover labels, save prompts, deletes, reversible
   cruushes, searches, filters, message open, and popup replacement.
 - [~] Focused and complete unit checks, client build, server build, casing check, security check,
-  Coolify release-script check, and `git diff --check` pass. Visible behavior remains incompletely
-  verified, and the layout check is blocked by the absent local frontend process.
+  Coolify release-script check, and `git diff --check` pass. The final post-change client suite
+  passed 94 files and 646 tests, the client build passed with 2078 modules, and mobile, tablet, and
+  desktop layout checks passed. The complete changed-flow viewport matrix remains incomplete.
 - [x] Record passed, failed, blocked, and unverified gates separately in `AI_TASK.json`.
 - [blocked] No commit, push, merge, deployment, production migration, environment change, or feature
   activation without separate explicit authority.

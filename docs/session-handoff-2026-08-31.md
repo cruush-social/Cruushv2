@@ -126,8 +126,9 @@ this rule.
 - The final earned-reward guards were present.
 - Existing grant count and total cruush+ days were unchanged by migration application.
 - Rewards rendered up to four active Side Quests below Invite people you trust.
-- A real Side Quest claim was not executed because it would grant one cruush+ day and create a notification. No reward grant was made.
-- Claim verification still requires explicit authorization because it creates a local entitlement and notification.
+- Julien authorized one exact local Side Quest claim. The authenticated admin claimed Send your first
+  message once, received one banked cruush+ day plus one notification, and the quest moved under
+  Recent rewards while its replacement appeared for the next day.
 
 Older reward-notification restoration implemented:
 
@@ -145,6 +146,10 @@ Prior focused evidence: 37 tests passed across Rewards, scratch-card navigation,
 - Preserve its exact recovered interaction and approved visual assets.
 - Do not approximate, redraw, or replace the card.
 - Julien's separate scratch-card work remains authoritative where newer.
+- The earned-card popup now fills the complete viewport on desktop and mobile while preserving the
+  recovered card, scratch, flip, Close, and Done behavior.
+- Authenticated claim-to-card proof passed at 390x844. Fullscreen bounds passed at 1440x900,
+  390x844, and 412x915. Reduced-motion media disables card and pattern animation plus confetti.
 
 ### Map provider and production issue #141
 
@@ -243,14 +248,15 @@ After Julien explicitly reactivates the task:
 | Profile selection caps fixture | Edited, unverified | Position and Role aligned to current three-selection behavior |
 | Profile gear-only moderation | Resolved and tested | `docs/CRUUSH-RULES.md` G2 allows gear-only photos while independent safety rules remain enforced | <!-- ai-contract-allow-product-example -->
 | Side Quest migrations | Applied locally previously | 106, 107, and 108 applied to the dedicated local preview database |
-| Side Quest real claim | Not performed | Would create a local entitlement and notification |
-| Scratch card | Recovered in source previously | Focused navigation/reward tests passed earlier; latest whole state not rerun |
+| Side Quest real claim | Verified locally | One Send your first message claim created one banked day, one notification, a Recent rewards row, and the next quest |
+| Scratch card | Verified locally | Exact scratch, reveal, flip, benefits, Done, Close, reload, reduced motion, and full-viewport desktop/mobile states passed |
 | Spots | Substantial local implementation present | Earlier focused browser and API evidence; current whole state not rerun |
-| Complete client suite | Passed | 93 files, 644 tests |
+| Complete client suite | Passed after follow-up UI work | 94 files, 646 tests |
 | Complete server suite | Passed with intentional live-provider skips | 100 files and 951 tests passed; 3 files and 14 tests skipped |
-| Production builds | Passed | Client Vite build and server TypeScript build |
+| Production builds | Passed | Latest client Vite build transformed 2078 modules; server TypeScript build passed before the CSS-only follow-up |
 | Static release gates | Passed | Security, public-copy casing, Coolify release-script, and whitespace checks |
-| Layout invariant gate | Blocked | No frontend reachable at `http://localhost:5173`; server process changes are not authorized |
+| Layout invariant gate | Passed | Mobile, tablet, and desktop checks passed against `http://localhost:5173/` |
+| Exact local pair | Passed | Frontend 5173 proxied a 200 local-only admin login to API 3016; authenticated session and development build reads returned 200 |
 | Ghost plus Mile High Club | Source changes present | Targeted checks passed earlier; exact fly-out remains visually unverified |
 | Local authenticated map | Observed before stop | Loaded in ego-lite; claim-matched screenshots not captured |
 | Full client/server suite | Not run | Explicitly incomplete |
