@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import Survey from './Survey';
 
 const { createSupportRequest } = vi.hoisted(() => ({
@@ -12,6 +12,10 @@ vi.mock('../lib/supportApi', () => ({
 }));
 
 describe('Survey', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it('renders the star ratings and written feedback questions', () => {
     render(
       <MemoryRouter>
@@ -53,6 +57,34 @@ describe('Survey', () => {
       subject: 'cruush survey response',
     })));
     expect(createSupportRequest.mock.calls[0]?.[0]).not.toHaveProperty('contactEmail');
+    expect(await screen.findByText(/Your feedback was sent/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Send feedback' })).not.toBeInTheDocument();
+  });
+
+  it('allows only one in-flight submission', async () => {
+    let resolveRequest: ((value: unknown) => void) | undefined;
+    createSupportRequest.mockImplementation(() => new Promise((resolve) => {
+      resolveRequest = resolve;
+    }));
+
+    render(
+      <MemoryRouter>
+        <Survey />
+      </MemoryRouter>,
+    );
+
+    const form = screen.getByRole('button', { name: 'Send feedback' }).closest('form');
+    expect(form).not.toBeNull();
+    fireEvent.submit(form!);
+    fireEvent.submit(form!);
+
+    expect(createSupportRequest).toHaveBeenCalledTimes(1);
+    resolveRequest?.({
+      id: 'survey-response-1',
+      status: 'open',
+      aiTriageStatus: 'pending',
+      createdAt: '2026-08-18T12:00:00.000Z',
+    });
     expect(await screen.findByText(/Your feedback was sent/)).toBeInTheDocument();
   });
 });

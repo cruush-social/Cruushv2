@@ -392,14 +392,16 @@ describe('App', () => {
     expect(await screen.findByText('Mock Public Info about')).toBeInTheDocument();
   });
 
-  it('renders the survey before authentication', async () => {
+  it('requires sign in for the survey and returns directly to it after authentication', async () => {
     window.history.replaceState({}, '', '/survey');
     loadCurrentSession.mockResolvedValue(null);
 
     render(<App />);
 
+    fireEvent.click(await screen.findByRole('button', { name: 'Mock Auth' }));
+
     expect(await screen.findByText('Mock Survey')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Mock Auth' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Mock Map')).not.toBeInTheDocument();
   });
 
   it('renders the age suspension appeal before authentication', async () => {

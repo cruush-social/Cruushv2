@@ -27,6 +27,50 @@ final result: passed
 
 ---
 
+# Design QA: Survey sign-in return and age-appeal dashboard
+
+## Visual source
+
+- User-supplied legacy Bug reports screenshots:
+  `/tmp/codex-remote-attachments/01a059ff-61ed-7551-aa78-5efc21dfbc6b/bbd0e25e-744b-4d49-b6e4-0be4a9703430/1-Photo-1.jpg`
+  and
+  `/tmp/codex-remote-attachments/01a059ff-61ed-7551-aa78-5efc21dfbc6b/bbd0e25e-744b-4d49-b6e4-0be4a9703430/2-Photo-2.jpg`.
+- Rendered local route: the existing authenticated cruush 1.6 app at
+  `http://localhost:5173/`.
+- Inspected viewports: 412 x 740 CSS pixels and 1280 x 720 CSS pixels.
+
+## Verified state
+
+- Opening `/survey` while signed out rendered the existing Sign In screen and
+  did not expose the survey form.
+- Signing in through that rendered screen returned directly to the survey.
+- The survey remained inside the viewport at desktop and mobile sizes. Its
+  existing typography, controls, navigation, and spacing were unchanged.
+- Bug reports exposed an `Age suspension appeals` filter. Selecting it changed
+  the total label and empty state to the filtered category on desktop and
+  mobile without clipping or overlap.
+- The local test account did not have moderator access to request records, so a
+  populated appeal card and private evidence links could not be rendered in
+  this pass. Their data mapping remains covered by focused component and route
+  tests.
+
+## Interaction and tests
+
+- Signed out, reopened `/survey`, signed in, and observed the survey as the
+  immediate destination.
+- Selected the age-suspension appeal filter in the rendered Bug reports page.
+- Survey and Bug reports component tests passed 7 cases.
+- The focused App routing test passed.
+- Support route tests passed 11 cases.
+- The survey uniqueness migration test passed.
+- The automatic age-suspension notification test passed.
+- Client and server production builds passed.
+
+final result: passed for the survey route and empty appeal-filter state;
+populated appeal evidence remains visually unverified
+
+---
+
 # Design QA: Message settings timer dropdown
 
 ## Visual source

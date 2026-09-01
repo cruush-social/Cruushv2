@@ -226,16 +226,8 @@ describe("support routes", () => {
     });
   }, 10000);
 
-  it("creates an anonymous survey response without contact email", async () => {
+  it("requires authentication before accepting a survey response", async () => {
     const app = buildSupportApp();
-    query.mockResolvedValueOnce({
-      rows: [{
-        id: "survey-response-1",
-        status: "open",
-        ai_triage_status: "pending",
-        created_at: "2026-08-18T12:00:00.000Z"
-      }]
-    });
 
     const response = await app.inject({
       method: "POST",
@@ -250,10 +242,40 @@ describe("support routes", () => {
     });
     await app.close();
 
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toMatchObject({ error: { code: "AUTH_REQUIRED" } });
+    expect(query).not.toHaveBeenCalled();
+  }, 10000);
+
+  it("creates one active survey response for a signed-in member", async () => {
+    const app = buildSupportApp();
+    query.mockResolvedValueOnce({
+      rows: [{
+        id: "survey-response-1",
+        status: "open",
+        ai_triage_status: "pending",
+        created_at: "2026-08-18T12:00:00.000Z"
+      }]
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/support-requests",
+      headers: { "x-user-id": userId },
+      payload: {
+        category: "comment",
+        subject: "cruush survey response",
+        message: "Overall experience: 5",
+        source: "survey",
+        pageUrl: "https://cruush.test/survey"
+      }
+    });
+    await app.close();
+
     expect(response.statusCode).toBe(201);
-    expect(query.mock.calls[0]?.[0]).toContain("insert into support_requests");
+    expect(query.mock.calls[0]?.[0]).toContain("on conflict do nothing");
     expect(query.mock.calls[0]?.[1]).toEqual([
-      null,
+      userId,
       null,
       "comment",
       "cruush survey response",
@@ -264,6 +286,39 @@ describe("support routes", () => {
         aiSupport: expect.objectContaining({ status: "pending" })
       })
     ]);
+  }, 10000);
+
+  it("returns the existing active survey response instead of inserting a duplicate", async () => {
+    const app = buildSupportApp();
+    query
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "survey-response-1",
+          status: "open",
+          ai_triage_status: "pending",
+          created_at: "2026-08-18T12:00:00.000Z"
+        }]
+      });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/support-requests",
+      headers: { "x-user-id": userId },
+      payload: {
+        category: "comment",
+        subject: "cruush survey response",
+        message: "Overall experience: 5",
+        source: "survey",
+        pageUrl: "https://cruush.test/survey"
+      }
+    });
+    await app.close();
+
+    expect(response.statusCode).toBe(200);
+    expect(query).toHaveBeenCalledTimes(2);
+    expect(query.mock.calls[1]?.[0]).toContain("status in ('open', 'in_progress')");
+    expect(response.json().data.id).toBe("survey-response-1");
   }, 10000);
 
   it("requires a reply email for signed-out support requests", async () => {
@@ -456,18 +511,19 @@ describe("support routes", () => {
             id: "support-5",
             requester_user_id: "user-5",
             contact_email: "reporter@example.com",
-            category: "bug",
-            subject: "Map crash",
-            message: "The map crashed after I opened it.",
-            source: "settings",
-            page_url: "/map",
+            category: "suspension_appeal",
+            subject: "Suspension appeal",
+            message: "Please review my age suspension.",
+            source: "auth",
+            page_url: "/support?appeal=1",
             ai_triage_status: "pending",
             status: "open",
             created_at: "2026-07-07T12:20:00.000Z",
             updated_at: "2026-07-07T12:20:00.000Z",
             recipient_email: "reporter@example.com",
             reply_count: 0,
-            last_reply_at: null
+            last_reply_at: null,
+            appeal_evidence_types: ["id", "selfie"]
           }]
         };
       }
@@ -477,7 +533,7 @@ describe("support routes", () => {
 
     const response = await app.inject({
       method: "GET",
-      url: "/api/admin/support-requests",
+      url: "/api/admin/support-requests?status=open&category=suspension_appeal&limit=25&offset=0",
       headers: {
         "x-user-id": userId
       }
@@ -491,18 +547,28 @@ describe("support routes", () => {
           id: "support-5",
           requesterUserId: "user-5",
           contactEmail: "reporter@example.com",
-          category: "bug",
-          subject: "Map crash",
-          message: "The map crashed after I opened it.",
-          source: "settings",
-          pageUrl: "/map",
+          category: "suspension_appeal",
+          subject: "Suspension appeal",
+          message: "Please review my age suspension.",
+          source: "auth",
+          pageUrl: "/support?appeal=1",
           aiTriageStatus: "pending",
           status: "open",
           createdAt: "2026-07-07T12:20:00.000Z",
           updatedAt: "2026-07-07T12:20:00.000Z",
           recipientEmail: "reporter@example.com",
           replyCount: 0,
-          lastReplyAt: null
+          lastReplyAt: null,
+          appealEvidence: [
+            {
+              type: "id",
+              previewUrl: "/api/admin/moderation/support-requests/support-5/appeal-evidence/id"
+            },
+            {
+              type: "selfie",
+              previewUrl: "/api/admin/moderation/support-requests/support-5/appeal-evidence/selfie"
+            }
+          ]
         }],
         page: {
           limit: 25,
@@ -512,6 +578,7 @@ describe("support routes", () => {
         }
       }
     });
+    expect(query.mock.calls.some(([, params]) => JSON.stringify(params) === JSON.stringify(["open", "suspension_appeal", 25, 0]))).toBe(true);
   });
 
   it("saves and emails a support reply", async () => {

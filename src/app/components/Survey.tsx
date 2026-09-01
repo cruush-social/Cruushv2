@@ -1,4 +1,4 @@
-import { FormEvent, useState } from 'react';
+import { FormEvent, useRef, useState } from 'react';
 import { ArrowLeft, Star } from 'lucide-react';
 import { Button } from './ui/button';
 import { Label } from './ui/label';
@@ -15,10 +15,16 @@ export default function Survey() {
   const [improvement, setImprovement] = useState('');
   const [bugs, setBugs] = useState('');
   const [sent, setSent] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const submittingRef = useRef(false);
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (sent || submittingRef.current) return;
+
+    submittingRef.current = true;
+    setSubmitting(true);
     setError('');
     const body = [
       `Overall experience (1–5): ${ratings.overall || 'Not answered'}`,
@@ -33,9 +39,17 @@ export default function Survey() {
       `Bugs or confusing moments\n${bugs || 'Not answered'}`,
     ].join('\n');
     try {
-      await createSupportRequest({ category: 'comment', subject: 'cruush survey response', message: body, source: 'survey', pageUrl: window.location.href });
+      await createSupportRequest({
+        category: 'comment',
+        subject: 'cruush survey response',
+        message: body,
+        source: 'survey',
+        pageUrl: window.location.href,
+      });
       setSent(true);
     } catch {
+      submittingRef.current = false;
+      setSubmitting(false);
       setError(`We couldn't send your feedback. Please try again or email ${SURVEY_RECIPIENT}.`);
     }
   };
@@ -65,7 +79,9 @@ export default function Survey() {
         <p className="text-muted-foreground">
           Help us improve cruush. Your feedback is sent directly to {SURVEY_RECIPIENT}.
         </p>
-        <form onSubmit={submit} className="space-y-5">
+        {sent ? (
+          <p className="text-sm text-muted-foreground">Your feedback was sent to {SURVEY_RECIPIENT}.</p>
+        ) : <form onSubmit={submit} className="space-y-5">
           <StarRating id="overall" label="How is cruush feeling overall?" />
           <StarRating id="ease" label="How easy is cruush to use?" />
           <StarRating id="map" label="How is the map experience?" />
@@ -73,10 +89,9 @@ export default function Survey() {
           <div className="space-y-2"><Label htmlFor="survey-best">What is working best?</Label><Textarea id="survey-best" value={bestPart} onChange={(event) => setBestPart(event.target.value)} /></div>
           <div className="space-y-2"><Label htmlFor="survey-improvement">What should we improve?</Label><Textarea id="survey-improvement" value={improvement} onChange={(event) => setImprovement(event.target.value)} /></div>
           <div className="space-y-2"><Label htmlFor="survey-bugs">Did you hit any bugs or confusing moments?</Label><Textarea id="survey-bugs" value={bugs} onChange={(event) => setBugs(event.target.value)} /></div>
-          <Button type="submit">Send feedback</Button>
-          {sent ? <p className="text-sm text-muted-foreground">Your feedback was sent to {SURVEY_RECIPIENT}.</p> : null}
+          <Button disabled={submitting} type="submit">{submitting ? 'Sending...' : 'Send feedback'}</Button>
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
-        </form>
+        </form>}
       </main>
     </div>
   );

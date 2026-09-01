@@ -154,6 +154,19 @@ describe("migration runner", () => {
     );
   });
 
+  it("deduplicates active survey responses before installing replay-safe uniqueness guards", async () => {
+    const migrateSource = await readFile(path.join(currentDir, "migrate.ts"), "utf8");
+    const surveySql = await readFile(path.join(serverRoot, "sql", "109_survey_response_uniqueness.sql"), "utf8");
+
+    expect(migrateSource).toMatch(/"108_side_quest_catalog\.sql",\s*"109_survey_response_uniqueness\.sql"/);
+    expect(surveySql).toContain("partition by requester_user_id");
+    expect(surveySql).toContain("set status = 'dismissed'");
+    expect(surveySql).toContain("deduplicatedSurveyResponse");
+    expect(surveySql).toContain("support_requests_active_survey_requester_uidx");
+    expect(surveySql).not.toContain("surveySubmissionId");
+    expect(surveySql).not.toMatch(/\b(delete from|truncate|drop table)\b/i);
+  });
+
   it("keeps the late 1.6 migrations replay-safe and dependency ordered", async () => {
     const [
       feedAudienceSql,

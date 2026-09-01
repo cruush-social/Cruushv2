@@ -114,7 +114,8 @@ const migrationFiles = [
   "105_feed_post_photos.sql",
   "106_side_quests.sql",
   "107_side_quest_first_ping.sql",
-  "108_side_quest_catalog.sql"
+  "108_side_quest_catalog.sql",
+  "109_survey_response_uniqueness.sql"
 ];
 const rewardSafetyPreflightFiles = [
   "079_daily_check_in_rewards.sql",

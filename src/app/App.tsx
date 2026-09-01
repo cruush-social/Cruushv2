@@ -91,7 +91,6 @@ function renderPublicRoutes(includeSupport = false) {
     ...PUBLIC_INFO_ROUTES.map((route) => (
       <Route key={route.path} path={route.path} element={<PublicInfoPage page={route.page} />} />
     )),
-    <Route key="/survey" path="/survey" element={<Survey />} />,
     <Route key="/feed/photo-preview" path="/feed/photo-preview" element={<FeedPhotoPreview />} />,
     ...(includeSupport
       ? [<Route key="/support" path="/support" element={<SupportPage publicAccess />} />]
@@ -101,6 +100,12 @@ function renderPublicRoutes(includeSupport = false) {
 
 function redirectToMap() {
   window.history.replaceState({}, '', '/map');
+}
+
+function redirectAfterAuthentication() {
+  if (window.location.pathname !== '/survey') {
+    redirectToMap();
+  }
 }
 
 function redirectToRewards() {
@@ -328,7 +333,7 @@ export default function App({
   const handleAuth = (session: AuthSessionPayload) => {
     setSession(session);
     if (session.user.emailVerifiedAt) {
-      redirectToMap();
+      redirectAfterAuthentication();
     }
     setNeedsOnboarding(session.needsOnboarding);
     setAuthStatus('signed_in');
@@ -337,7 +342,7 @@ export default function App({
   const handleVerified = (nextSession: AuthSessionPayload) => {
     setSession(nextSession);
     setNeedsOnboarding(nextSession.needsOnboarding);
-    redirectToMap();
+    redirectAfterAuthentication();
     setAuthStatus('signed_in');
   };
 
@@ -356,7 +361,9 @@ export default function App({
     } else {
       setNeedsOnboarding(false);
     }
-    if (destination === 'rewards') {
+    if (window.location.pathname === '/survey') {
+      window.history.replaceState({}, '', '/survey');
+    } else if (destination === 'rewards') {
       redirectToRewards();
     } else {
       redirectToMap();
@@ -571,6 +578,7 @@ export default function App({
               <Route path="/verify-email" element={<VerifyEmail />} />
               <Route path="/reset-password" element={<ResetPassword />} />
               {renderPublicRoutes()}
+              <Route path="/survey" element={<Survey />} />
               <Route path="/groups/:groupId" element={<GroupDetail />} />
               <Route path="/events/:eventId/pass-guide" element={<EventPassGuide />} />
               <Route path="/events/:eventId" element={<EventDetail />} />
