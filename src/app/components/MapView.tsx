@@ -1248,27 +1248,25 @@ function GhostRotationCountdown({ expiresAtMs }: { expiresAtMs?: number }) {
 
 function GhostRotationPulse({ marker, children }: { marker: MapMarker; children: (exitActive: boolean, exitStyle?: CSSProperties) => ReactNode }) {
   const expiresAtMs = marker.ghostRotationExpiresAtMs;
-  const [reduceMotion, setReduceMotion] = useState(shouldReduceMotion);
-  useEffect(() => {
-    const syncMotion = () => setReduceMotion(shouldReduceMotion());
-    const unsubscribe = addAccessibilityPreferencesChangedListener(syncMotion);
-    const preference = window.matchMedia?.('(prefers-reduced-motion: reduce)');
-    preference?.addEventListener?.('change', syncMotion);
-    return () => {
-      unsubscribe();
-      preference?.removeEventListener?.('change', syncMotion);
-    };
-  }, []);
+  const mountedAtMsRef = useRef(Date.now());
+  const suppressedMountDeadlineRef = useRef<number | null>(
+    marker.displayMode === 'GHOST' &&
+    marker.animationHint === 'FADE_LAST_MINUTE' &&
+    typeof expiresAtMs === 'number' &&
+    expiresAtMs > mountedAtMsRef.current &&
+    expiresAtMs - mountedAtMsRef.current <= GHOST_PULSE_WINDOW_MS
+      ? expiresAtMs
+      : null,
+  );
   const canAnimate = marker.displayMode === 'GHOST' &&
     marker.animationHint === 'FADE_LAST_MINUTE' &&
     typeof expiresAtMs === 'number' &&
-    Number.isFinite(expiresAtMs) &&
-    !reduceMotion;
+    expiresAtMs !== suppressedMountDeadlineRef.current &&
+    !shouldReduceMotion();
   const [exitElapsedMs, setExitElapsedMs] = useState<number | null>(null);
   const pulseRef = useRef<HTMLSpanElement | null>(null);
 
   useEffect(() => {
-    setExitElapsedMs(null);
     if (!canAnimate || typeof expiresAtMs !== 'number') return;
     const remainingMs = expiresAtMs - Date.now();
     const exitStartMs = remainingMs - GHOST_ROTATION_EXIT_MS;
@@ -1310,7 +1308,6 @@ function GhostRotationPulse({ marker, children }: { marker: MapMarker; children:
       const inExit = remainingMs <= GHOST_ROTATION_EXIT_MS;
 
       if (elapsedSeconds >= 0 && elapsedSeconds < 60 && !inExit) {
-        node.style.transform = `scale(${ghostPulseScale(elapsedSeconds)})`;
         const visibleFlash = ghostFlashOn(elapsedSeconds) ? 1 : 0;
         effectHost.style.setProperty('--cruush-ghost-border-opacity', visibleFlash.toFixed(4));
         if (visibleFlash) {
@@ -1356,7 +1353,6 @@ function GhostRotationPulse({ marker, children }: { marker: MapMarker; children:
             : 'none',
         );
       } else {
-        node.style.removeProperty('transform');
         effectHost.style.setProperty('--cruush-ghost-border-opacity', '0');
         effectHost.style.removeProperty('--cruush-ghost-flash-border-color');
         effectHost.style.setProperty('--cruush-ghost-heart-border-color', 'var(--cruush-ghost-heart-base-border)');
@@ -1378,20 +1374,11 @@ function GhostRotationPulse({ marker, children }: { marker: MapMarker; children:
 
     frame = requestAnimationFrame(step);
 
-    return () => {
-      cancelAnimationFrame(frame);
-      node.style.removeProperty('transform');
-      // Changing Reduce Motion or the deadline must not leave a frozen flash.
-      for (const property of Array.from(effectHost.style)) {
-        if (property.startsWith('--cruush-ghost-') && !property.endsWith('-base-border')) {
-          effectHost.style.removeProperty(property);
-        }
-      }
-    };
+    return () => cancelAnimationFrame(frame);
   }, [canAnimate, expiresAtMs]);
 
-  const exitActive = canAnimate && exitElapsedMs != null;
-  const exitStyle = exitActive ? ({ '--cruush-ghost-rotation-exit-delay': `${-(exitElapsedMs ?? 0)}ms` } as CSSProperties) : undefined;
+  const exitActive = exitElapsedMs != null;
+  const exitStyle = exitActive ? ({ '--cruush-ghost-rotation-exit-delay': `${-exitElapsedMs}ms` } as CSSProperties) : undefined;
 
   return (
     <span

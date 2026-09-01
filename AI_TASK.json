@@ -386,6 +386,8 @@
     "server/src/send-verification-apology.ts",
     "src/app/App.test.tsx",
     "src/app/App.tsx",
+    "ghost-animation-preview.html",
+    "src/ghost-animation-preview.tsx",
     "src/app/components/RequestsDashboard.test.tsx",
     "src/app/components/RequestsDashboard.tsx",
     "src/app/components/Survey.test.tsx",

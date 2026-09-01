@@ -837,7 +837,7 @@ describe('MapView', () => {
       />,
     );
 
-    expect(screen.getByTestId('marker-ghost-pulse-ghost-load-window')).toBeInTheDocument();
+    expect(screen.queryByTestId('marker-ghost-pulse-ghost-load-window')).not.toBeInTheDocument();
     expect(screen.queryByTestId('marker-ghost-fly-icon-ghost-load-window')).not.toBeInTheDocument();
     expect(screen.queryByTestId('marker-ghost-puff-ghost-load-window')).not.toBeInTheDocument();
   });
@@ -867,7 +867,7 @@ describe('MapView', () => {
     expect(screen.getByTestId('marker-ghost-pulse-ghost-later-window')).toBeInTheDocument();
   });
 
-  it('pulses and plays the existing exit for an owner MHC decoy while leaving its plane static', async () => {
+  it('plays the deployed Ghost exit for an owner MHC decoy while leaving its plane static', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-08-30T12:00:00Z'));
     vi.stubGlobal('matchMedia', vi.fn(() => ({
@@ -877,20 +877,25 @@ describe('MapView', () => {
     })));
     vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => window.setTimeout(() => callback(performance.now()), 16));
     vi.stubGlobal('cancelAnimationFrame', (id: number) => window.clearTimeout(id));
-    render(<MapMarkerPin marker={{
+    const marker = {
       id: 'owner-mhc-rotation', displayName: 'Your Ghost pin', isCurrentUser: true,
-      travelling: true, displayMode: 'GHOST', animationHint: 'FADE_LAST_MINUTE',
+      travelling: true, displayMode: 'GHOST' as const, animationHint: 'NONE' as const,
       approximateLatitude: 40.72, approximateLongitude: -74.01,
       ghostRotationExpiresAtMs: Date.now() + 5_000,
-    }} />);
+    };
+    const { rerender } = render(<MapMarkerPin marker={marker} />);
+    rerender(<MapMarkerPin marker={{ ...marker, animationHint: 'FADE_LAST_MINUTE' }} />);
     await act(async () => { await vi.advanceTimersByTimeAsync(16); });
     const pulse = screen.getByTestId('marker-ghost-pulse-owner-mhc-rotation');
-    expect(pulse.style.transform).toMatch(/^scale\(/);
+    expect(pulse.style.transform).toBe('');
     expect(screen.getByTestId('marker-mile-high-owner-mhc-rotation')).toHaveAttribute('data-contrail-style', 'reduced-motion');
     const plane = screen.getByTestId('marker-mile-high-plane-owner-mhc-rotation');
     const initialPlane = plane.outerHTML;
     await act(async () => { await vi.advanceTimersByTimeAsync(3_100); });
-    expect(screen.getByTestId('marker-ghost-fly-icon-owner-mhc-rotation')).toBeInTheDocument();
+    const flyIcon = screen.getByTestId('marker-ghost-fly-icon-owner-mhc-rotation');
+    expect(flyIcon.tagName).toBe('IMG');
+    expect(flyIcon).toHaveClass('w-[4.39875rem]');
+    expect(flyIcon).toHaveAttribute('src', expect.stringContaining('cruush%20Ghost%20Mode%20icon'));
     expect(screen.getByTestId('marker-ghost-puff-owner-mhc-rotation')).toBeInTheDocument();
     expect(pulse).toHaveAttribute('data-ghost-rotation-exit', 'true');
     expect(plane.outerHTML).toBe(initialPlane);
