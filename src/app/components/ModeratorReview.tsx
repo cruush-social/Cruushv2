@@ -20,6 +20,7 @@ import {
   changeModeratedAccountStatus,
   decideContentReview,
   getAdminNotifications,
+  getBetaCityRequests,
   getModerationSystemErrors,
   getModeratedUser,
   getModerationQueue,
@@ -32,6 +33,7 @@ import {
   updateSupportRequestStatus,
   type AdminNotification,
   type AdminNotificationFilter,
+  type BetaCityRequest,
   type ModeratedAccountStatus,
   type ModeratedUser,
   type ModeratedUserDetail,
@@ -356,6 +358,11 @@ export default function ModeratorReview() {
   const [supportLoading, setSupportLoading] = useState(false);
   const [supportError, setSupportError] = useState<string | null>(null);
   const [supportUpdatingId, setSupportUpdatingId] = useState<string | null>(null);
+  const [betaCityRequests, setBetaCityRequests] = useState<BetaCityRequest[]>([]);
+  const [betaCityOffset, setBetaCityOffset] = useState(0);
+  const [betaCityPage, setBetaCityPage] = useState({ limit: PAGE_SIZE, offset: 0, total: 0, hasMore: false });
+  const [betaCityLoading, setBetaCityLoading] = useState(false);
+  const [betaCityError, setBetaCityError] = useState<string | null>(null);
   const [announcementTitle, setAnnouncementTitle] = useState('');
   const [announcementBody, setAnnouncementBody] = useState('');
   const [announcementLink, setAnnouncementLink] = useState('');
@@ -529,6 +536,30 @@ export default function ModeratorReview() {
     if (view !== 'email' || accessState !== 'ready') return;
     void loadSupportRequests();
   }, [accessState, loadSupportRequests, view]);
+
+  const loadBetaCityRequests = useCallback(async () => {
+    setBetaCityLoading(true);
+    setBetaCityError(null);
+    try {
+      const data = await getBetaCityRequests({ limit: PAGE_SIZE, offset: betaCityOffset });
+      setBetaCityRequests(Array.isArray(data.requests) ? data.requests : []);
+      setBetaCityPage(data.page);
+    } catch (error) {
+      if (isAccessDenied(error)) {
+        setBetaCityRequests([]);
+        setAccessState('denied');
+      } else {
+        setBetaCityError('Unable to load requested cities right now.');
+      }
+    } finally {
+      setBetaCityLoading(false);
+    }
+  }, [betaCityOffset]);
+
+  useEffect(() => {
+    if (view !== 'email' || accessState !== 'ready') return;
+    void loadBetaCityRequests();
+  }, [accessState, loadBetaCityRequests, view]);
 
   const loadUserDetail = useCallback(async (userId: string) => {
     setUserDetailLoading(true);
@@ -808,17 +839,20 @@ export default function ModeratorReview() {
             <Button
               className="shrink-0"
               variant="outline"
-              disabled={refreshing || usersLoading || notificationsLoading || systemErrorsLoading || supportLoading}
+              disabled={refreshing || usersLoading || notificationsLoading || systemErrorsLoading || supportLoading || betaCityLoading}
               onClick={() => {
                 if (view === 'users') void loadUsers();
                 else if (view === 'notifications') void loadNotifications();
                 else if (view === 'system-errors') void loadSystemErrors();
-                else if (view === 'email') void loadSupportRequests();
+                else if (view === 'email') {
+                  void loadSupportRequests();
+                  void loadBetaCityRequests();
+                }
                 else void loadQueue('refresh');
               }}
             >
-              <RefreshCw className={refreshing || usersLoading || notificationsLoading || systemErrorsLoading || supportLoading ? 'animate-spin' : ''} />
-              {refreshing || usersLoading || notificationsLoading || systemErrorsLoading || supportLoading ? 'Refreshing...' : 'Refresh'}
+              <RefreshCw className={refreshing || usersLoading || notificationsLoading || systemErrorsLoading || supportLoading || betaCityLoading ? 'animate-spin' : ''} />
+              {refreshing || usersLoading || notificationsLoading || systemErrorsLoading || supportLoading || betaCityLoading ? 'Refreshing...' : 'Refresh'}
             </Button>
           </div>
         </div>
@@ -1030,6 +1064,50 @@ export default function ModeratorReview() {
                   })}
                 </div>
               )}
+            </div>
+
+            <div className="mt-5 rounded-lg border border-border bg-card p-4" aria-labelledby="beta-city-requests-heading">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h3 id="beta-city-requests-heading" className="font-medium">Requested cities</h3>
+                  <p className="mt-1 text-xs text-muted-foreground">{betaCityPage.total} requests from outside the current beta area</p>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Button
+                    aria-label="Previous requested cities page"
+                    disabled={betaCityOffset === 0 || betaCityLoading}
+                    onClick={() => setBetaCityOffset(Math.max(0, betaCityOffset - PAGE_SIZE))}
+                    size="icon"
+                    variant="outline"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    aria-label="Next requested cities page"
+                    disabled={!betaCityPage.hasMore || betaCityLoading}
+                    onClick={() => setBetaCityOffset(betaCityOffset + PAGE_SIZE)}
+                    size="icon"
+                    variant="outline"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+              {betaCityError ? <p className="mt-4 text-sm text-destructive">{betaCityError}</p> : null}
+              {!betaCityLoading && betaCityRequests.length === 0 && !betaCityError ? (
+                <p className="mt-4 text-sm text-muted-foreground">No city requests yet.</p>
+              ) : null}
+              {betaCityRequests.length > 0 ? (
+                <div className="mt-4 divide-y divide-border">
+                  {betaCityRequests.map((cityRequest) => (
+                    <article className="grid gap-1 py-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-center sm:gap-4" key={cityRequest.id}>
+                      <p className="truncate font-medium">{cityRequest.requestedCity}</p>
+                      <p className="truncate text-sm text-muted-foreground">{cityRequest.email}</p>
+                      <p className="text-xs text-muted-foreground">Updated {formatDateTime(cityRequest.updatedAt)}</p>
+                    </article>
+                  ))}
+                </div>
+              ) : null}
             </div>
 
             {supportError ? (

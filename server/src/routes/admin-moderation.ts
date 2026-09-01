@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { z } from "zod";
 import { normalizeAccountStatus, type AccountStatus } from "../account-status.js";
+import { listBetaCityRequests } from "../beta-city-requests.js";
 import { decryptTextContentOrFallback } from "../content-encryption.js";
 import type { DbClient } from "../db.js";
 import { ApiError } from "../errors.js";
@@ -92,6 +93,11 @@ const supportRequestStatusSchema = z.object({
 
 const adminNotificationListQuerySchema = z.object({
   filter: z.enum(["all", "unread"]).optional().default("all"),
+  limit: z.coerce.number().int().min(1).max(100).optional().default(25),
+  offset: z.coerce.number().int().min(0).optional().default(0)
+}).strict();
+
+const betaCityRequestListQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).optional().default(25),
   offset: z.coerce.number().int().min(0).optional().default(0)
 }).strict();
@@ -1337,6 +1343,21 @@ export async function registerAdminModerationRoutes(app: FastifyInstance) {
       metadata: { itemKind: "support_request", requestId, status: payload.status }
     });
     return reply.send({ data: { request: mapSupportRequestRow(row, moderator.role) } });
+  });
+
+  app.get("/api/admin/moderation/beta-city-requests", async (request, reply) => {
+    const moderator = await getModeratorUser(request);
+    if (moderator.role !== "admin") {
+      throw new ApiError(403, "FORBIDDEN", "Admin access required.");
+    }
+    const query = betaCityRequestListQuerySchema.parse(request.query);
+    await app.rateLimiter.assert({
+      key: `beta-city-request-list:${moderator.userId}`,
+      max: 30,
+      windowMs: 60 * 1000,
+      message: "Too many request-list refreshes. Try again later."
+    });
+    return reply.send({ data: await listBetaCityRequests(app, query) });
   });
 
   app.get("/api/admin/moderation/notifications", async (request, reply) => {

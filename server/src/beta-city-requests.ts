@@ -1,4 +1,4 @@
-import { createCipheriv, createHmac, randomBytes } from "node:crypto";
+import { createCipheriv, createDecipheriv, createHmac, randomBytes } from "node:crypto";
 import type { FastifyInstance } from "fastify";
 import type { AppConfig } from "./config.js";
 import { deriveKey } from "./crypto-keys.js";
@@ -39,6 +39,16 @@ function encryptValue(config: AppConfig, purpose: string, plaintext: string): En
     authTag: cipher.getAuthTag().toString("base64"),
     keyVersion
   };
+}
+
+function decryptValue(config: AppConfig, purpose: string, encrypted: EncryptedValue) {
+  const key = deriveKey(config.SESSION_SECRET, `beta-city-request-${purpose}`, encrypted.keyVersion);
+  const decipher = createDecipheriv("aes-256-gcm", key, Buffer.from(encrypted.nonce, "base64"));
+  decipher.setAuthTag(Buffer.from(encrypted.authTag, "base64"));
+  return Buffer.concat([
+    decipher.update(Buffer.from(encrypted.ciphertext, "base64")),
+    decipher.final()
+  ]).toString("utf8");
 }
 
 function hashValue(config: AppConfig, purpose: string, plaintext: string) {
@@ -85,4 +95,75 @@ export async function saveBetaCityRequest(
   );
 
   return result.rows[0] ?? null;
+}
+
+type BetaCityRequestRow = {
+  id: string;
+  email_ciphertext: string;
+  email_nonce: string;
+  email_auth_tag: string;
+  email_key_version: string;
+  requested_city_ciphertext: string;
+  requested_city_nonce: string;
+  requested_city_auth_tag: string;
+  requested_city_key_version: string;
+  source: string;
+  created_at: string | Date;
+  updated_at: string | Date;
+};
+
+export async function listBetaCityRequests(
+  app: Pick<FastifyInstance, "config" | "db">,
+  options: { limit: number; offset: number }
+) {
+  const [rows, count] = await Promise.all([
+    app.db.query<BetaCityRequestRow>(
+      `select
+         id::text,
+         email_ciphertext,
+         email_nonce,
+         email_auth_tag,
+         email_key_version,
+         requested_city_ciphertext,
+         requested_city_nonce,
+         requested_city_auth_tag,
+         requested_city_key_version,
+         source,
+         created_at,
+         updated_at
+       from beta_city_requests
+       order by updated_at desc, id desc
+       limit $1 offset $2`,
+      [options.limit, options.offset]
+    ),
+    app.db.query<{ count: number | string }>("select count(*)::int as count from beta_city_requests")
+  ]);
+
+  const total = Number(count.rows[0]?.count ?? 0);
+  return {
+    requests: rows.rows.map((row) => ({
+      id: row.id,
+      email: decryptValue(app.config, "email", {
+        ciphertext: row.email_ciphertext,
+        nonce: row.email_nonce,
+        authTag: row.email_auth_tag,
+        keyVersion: row.email_key_version
+      }),
+      requestedCity: decryptValue(app.config, "city", {
+        ciphertext: row.requested_city_ciphertext,
+        nonce: row.requested_city_nonce,
+        authTag: row.requested_city_auth_tag,
+        keyVersion: row.requested_city_key_version
+      }),
+      source: row.source,
+      createdAt: new Date(row.created_at).toISOString(),
+      updatedAt: new Date(row.updated_at).toISOString()
+    })),
+    page: {
+      limit: options.limit,
+      offset: options.offset,
+      total,
+      hasMore: options.offset + rows.rows.length < total
+    }
+  };
 }

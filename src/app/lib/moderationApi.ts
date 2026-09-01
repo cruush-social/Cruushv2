@@ -240,6 +240,25 @@ export type SupportRequestListResponse = {
   };
 };
 
+export type BetaCityRequest = {
+  id: string;
+  email: string;
+  requestedCity: string;
+  source: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type BetaCityRequestListResponse = {
+  requests: BetaCityRequest[];
+  page: {
+    limit: number;
+    offset: number;
+    total: number;
+    hasMore: boolean;
+  };
+};
+
 export type AdminNotification = {
   id: string;
   user: {
@@ -465,6 +484,14 @@ export function getSupportRequests(options: {
     searchParams.set('category', options.category);
   }
   return requestApi<SupportRequestListResponse>(`/api/admin/moderation/support-requests?${searchParams.toString()}`);
+}
+
+export function getBetaCityRequests(options: { limit?: number; offset?: number } = {}) {
+  const searchParams = new URLSearchParams({
+    limit: String(options.limit ?? 25),
+    offset: String(options.offset ?? 0),
+  });
+  return requestApi<BetaCityRequestListResponse>(`/api/admin/moderation/beta-city-requests?${searchParams.toString()}`);
 }
 
 export function updateSupportRequestStatus(requestId: string, status: SupportRequestStatus) {
