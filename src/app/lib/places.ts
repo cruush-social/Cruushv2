@@ -5,8 +5,8 @@ export const PLACE_FACILITY_TYPES = [
 ] as const;
 
 export const PLACE_TAGS = [
-  'lgbtq_health', 'womens_health', 'sexual_health', 'gay_spot',
-  'dyke_spot', 't4t_spot', 'techno_club',
+  'lgbtq_health', 'womens_health', 'sexual_health', 'leans_men',
+  'leans_women', 't4t_spot', 'techno_club',
 ] as const;
 
 export const PLACE_VIBES = [
@@ -20,7 +20,7 @@ export const PLACE_AMENITIES = [
 ] as const;
 
 export type PlaceFacilityType = typeof PLACE_FACILITY_TYPES[number] | 'venue';
-export type PlaceTag = typeof PLACE_TAGS[number] | 'dyke_bar';
+export type PlaceTag = typeof PLACE_TAGS[number];
 export type PlaceVibe = typeof PLACE_VIBES[number];
 export type PlaceAmenity = typeof PLACE_AMENITIES[number];
 export type PlaceSort = 'nearest' | 'active' | 'recent' | 'top_rated' | 'az';
@@ -35,7 +35,7 @@ export const PLACE_FACILITY_LABELS: Record<PlaceFacilityType, string> = {
 
 export const PLACE_TAG_LABELS: Record<PlaceTag, string> = {
   lgbtq_health: 'LGBTQ health', womens_health: 'Ob/gyn health', sexual_health: 'Sexual health',
-  gay_spot: 'Gay spot', dyke_spot: 'Dyke spot', dyke_bar: 'Dyke spot', t4t_spot: 'T4T spot', techno_club: 'Techno club',
+  leans_men: 'Leans men', leans_women: 'Leans women', t4t_spot: 'T4T spot', techno_club: 'Techno club',
 };
 
 export const PLACE_VIBE_LABELS: Record<PlaceVibe, string> = {
@@ -52,8 +52,7 @@ export const PLACE_AMENITY_LABELS: Record<PlaceAmenity, string> = {
 };
 
 export function getVisibleSpotTags(tags: PlaceTag[]) {
-  return [...new Set(tags.map((tag) => tag === 'dyke_bar' ? 'dyke_spot' : tag))]
-    .filter((tag) => tag !== 'dyke_spot')
+  return [...new Set(tags)]
     .filter((tag): tag is typeof PLACE_TAGS[number] => PLACE_TAGS.includes(tag as typeof PLACE_TAGS[number]));
 }
 

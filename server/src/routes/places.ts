@@ -43,6 +43,7 @@ type PlaceRow = {
   slug: string;
   name: string;
   description: string;
+  access_instructions: string;
   latitude: number;
   longitude: number;
   address: string | null;
@@ -128,6 +129,7 @@ function mapPlace(row: PlaceRow) {
     slug: row.slug,
     name: row.name,
     description: row.description,
+    accessInstructions: row.access_instructions,
     latitude: Number(row.latitude),
     longitude: Number(row.longitude),
     address: row.address,
@@ -171,6 +173,7 @@ function mapPlaceForModerator(app: FastifyInstance, row: PlaceRow) {
     ...mapPlace(row),
     name: suggestion.name,
     description: suggestion.description,
+    accessInstructions: suggestion.accessInstructions,
     latitude: suggestion.latitude,
     longitude: suggestion.longitude,
     address: suggestion.address || null,
@@ -184,7 +187,7 @@ function mapPlaceForModerator(app: FastifyInstance, row: PlaceRow) {
 
 function basePlaceSelect(viewerParam: string, latParam: string, lngParam: string) {
   return `
-    p.id::text, p.slug, p.name, p.description, p.latitude, p.longitude, p.address,
+    p.id::text, p.slug, p.name, p.description, p.access_instructions, p.latitude, p.longitude, p.address,
     p.facility_type, p.status, p.source_kind, p.source_url, p.source_attribution,
     p.verified_at, p.created_at, p.suggestion_count, p.auto_shortlisted_at,
     p.suggestion_ciphertext, p.suggestion_nonce, p.suggestion_auth_tag, p.suggestion_key_version,
@@ -203,7 +206,19 @@ function basePlaceSelect(viewerParam: string, latParam: string, lngParam: string
       (select (array_agg(v.vibe order by v.vibe))[1:2] from place_vibes v where v.place_id = p.id),
       '{}'
     ) as vibes,
-    coalesce((select array_agg(a.amenity order by a.amenity) from place_amenities a where a.place_id = p.id), '{}') as amenities,
+    coalesce(
+      (select array_agg(ranked.amenity order by ranked.report_count desc, ranked.last_reported_at desc, ranked.amenity)
+       from (
+         select report.amenity, count(distinct report.user_id)::int as report_count,
+                max(report.reported_at) as last_reported_at
+         from place_amenity_reports report
+         where report.place_id = p.id
+         group by report.amenity
+         order by report_count desc, last_reported_at desc, report.amenity
+       ) ranked),
+      (select array_agg(a.amenity order by a.amenity) from place_amenities a where a.place_id = p.id),
+      '{}'
+    ) as amenities,
     case when ${latParam}::double precision is null or ${lngParam}::double precision is null then null else
       3958.7613 * 2 * asin(sqrt(
         power(sin(radians((p.latitude - ${latParam}::double precision) / 2)), 2)
@@ -303,7 +318,9 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
            and ($4::text = '' or p.name ilike '%' || $4 || '%' or p.description ilike '%' || $4 || '%')
            and (cardinality($5::text[]) = 0 or p.facility_type = any($5::text[]))
            and (cardinality($6::text[]) = 0 or exists (select 1 from place_tags filter_tag where filter_tag.place_id = p.id and filter_tag.tag = any($6::text[])))
-           and (cardinality($8::text[]) = 0 or exists (select 1 from place_amenities filter_amenity where filter_amenity.place_id = p.id and filter_amenity.amenity = any($8::text[])))
+           and (cardinality($8::text[]) = 0
+             or exists (select 1 from place_amenities filter_amenity where filter_amenity.place_id = p.id and filter_amenity.amenity = any($8::text[]))
+             or exists (select 1 from place_amenity_reports filter_report where filter_report.place_id = p.id and filter_report.amenity = any($8::text[])))
            -- Follow the settled map center as the viewport changes.
            and 3958.7613 * 2 * asin(sqrt(
              power(sin(radians((p.latitude - $2::double precision) / 2)), 2)
@@ -356,13 +373,21 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
     if (!place) throw new ApiError(404, "NOT_FOUND", "Spot not found.");
     const [popularTimes, visiblePeople, ratingBreakdown, viewerCheckin, mutualUserIds] = await Promise.all([
       app.db.query<{ weekday: number; hour: number; count: number }>(
-        `select extract(isodow from bucket_start)::int as weekday,
-                extract(hour from bucket_start)::int as hour,
-                sum(checkin_count)::int as count
-         from place_activity_hourly
-         where place_id = $1 and bucket_start >= now() - interval '90 days'
+        `select weekday, hour, sum(count)::int as count
+         from (
+           select extract(isodow from bucket_start)::int as weekday,
+                  extract(hour from bucket_start)::int as hour,
+                  sum(checkin_count)::int as count
+           from place_activity_hourly
+           where place_id = $1 and bucket_start >= now() - interval '90 days'
+           group by weekday, hour
+           union all
+           select weekday, hour, visit_count::int as count
+           from place_popular_time_baselines
+           where place_id = $1
+         ) activity
          group by weekday, hour
-         having sum(checkin_count) >= 3
+         having sum(count) >= 3
          order by weekday, hour`,
         [placeId]
       ),
@@ -467,7 +492,7 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
     if (!isWithinServiceArea({ lat: payload.latitude, lng: payload.longitude })) {
       throw new ApiError(400, "OUTSIDE_SERVICE_AREA", "Spots must be within 100 miles of NYC.");
     }
-    await moderateTextOrReject(app, { userId, surface: "feed", text: `${payload.name}\n${payload.description}` });
+    await moderateTextOrReject(app, { userId, surface: "feed", text: `${payload.name}\n${payload.description}\n${payload.accessInstructions}` });
     const publishedDuplicate = (await app.db.query<{ id: string }>(
       `select id::text, status from places
        where status = 'published'
@@ -701,6 +726,16 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
           );
         }
       }
+      if (payload.amenities.length > 0) {
+        await db.query(`delete from place_amenity_reports where place_id = $1 and user_id = $2`, [placeId, userId]);
+        for (const amenity of [...new Set(payload.amenities)]) {
+          await db.query(
+            `insert into place_amenity_reports (place_id, user_id, amenity, reported_at)
+             values ($1, $2, $3, now())`,
+            [placeId, userId, amenity]
+          );
+        }
+      }
       let boardPostId: string | null = null;
       if (legacyBoardPost) {
         const boardPost = await db.query<{ id: string }>(
@@ -804,17 +839,18 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
       await runTransaction(app.db, async (db) => {
         await db.query(
           `update places set
-             slug = $1, name = $2, description = $3, latitude = $4, longitude = $5,
-             address = nullif($6, ''), facility_type = $7, source_url = $8,
+             slug = $1, name = $2, description = $3, access_instructions = $4,
+             latitude = $5, longitude = $6, address = nullif($7, ''), facility_type = $8, source_url = $9,
              source_attribution = 'Anonymous community suggestion', submitted_by = null,
-             status = 'published', reviewed_by = $9, reviewed_at = now(), verified_at = now(),
+             status = 'published', reviewed_by = $10, reviewed_at = now(), verified_at = now(),
              suggestion_ciphertext = null, suggestion_nonce = null,
              suggestion_auth_tag = null, suggestion_key_version = null, updated_at = now()
-           where id = $10`,
+           where id = $11`,
           [
             `${slugifyPlaceName(suggestion.name)}-${placeId.slice(0, 8)}`,
             suggestion.name,
             suggestion.description,
+            suggestion.accessInstructions,
             suggestion.latitude,
             suggestion.longitude,
             suggestion.address,

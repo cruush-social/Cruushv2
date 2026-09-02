@@ -16,11 +16,11 @@ import { shouldMaskPhoto, useDlMode } from '../lib/dlMode';
 import { resolveUserBorderTone } from '../lib/userBorderTone';
 import {
   PLACE_AMENITY_LABELS,
+  PLACE_AMENITIES,
   PLACE_FACILITY_LABELS,
-  PLACE_TAG_LABELS,
   PLACE_VIBES,
   PLACE_VIBE_LABELS,
-  getVisibleSpotTags,
+  type PlaceAmenity,
   type PlaceVibe,
 } from '../lib/places';
 import {
@@ -65,10 +65,11 @@ function relativeTime(value: string) {
 
 type PlaceDetailProps = {
   embedded?: boolean;
+  onBack?: () => void;
   placeIdOverride?: string;
 };
 
-export default function PlaceDetail({ embedded = false, placeIdOverride }: PlaceDetailProps = {}) {
+export default function PlaceDetail({ embedded = false, onBack, placeIdOverride }: PlaceDetailProps = {}) {
   const { placeId: routePlaceId } = useParams();
   const placeId = placeIdOverride ?? routePlaceId;
   const navigate = useNavigate();
@@ -79,6 +80,7 @@ export default function PlaceDetail({ embedded = false, placeIdOverride }: Place
   const [message, setMessage] = useState('');
   const [checkinDurationHours, setCheckinDurationHours] = useState<1 | 3 | 6 | 12 | 24>(1);
   const [checkinVibes, setCheckinVibes] = useState<PlaceVibe[]>([]);
+  const [checkinAmenities, setCheckinAmenities] = useState<PlaceAmenity[]>([]);
   const [visibleCheckin, setVisibleCheckin] = useState(false);
   const [postingCheckin, setPostingCheckin] = useState(false);
   const [postingBoard, setPostingBoard] = useState(false);
@@ -134,6 +136,7 @@ export default function PlaceDetail({ embedded = false, placeIdOverride }: Place
     setPostingBoard(false);
     setMessage('');
     setCheckinVibes([]);
+    setCheckinAmenities([]);
     setStatus(null);
     setRatingOpen(false);
     setReportTarget(null);
@@ -181,6 +184,7 @@ export default function PlaceDetail({ embedded = false, placeIdOverride }: Place
       void checkIntoPlace(placeId, {
         ...(message.trim() ? { content: message.trim() } : {}),
         vibes: checkinVibes,
+        amenities: checkinAmenities,
         durationHours: checkinDurationHours,
         visible: visibleCheckin,
         latitude: position.coords.latitude,
@@ -346,11 +350,14 @@ export default function PlaceDetail({ embedded = false, placeIdOverride }: Place
 
   return (
     <div className={embedded ? 'bg-background' : 'min-h-screen bg-background pb-20'} data-testid="spot-detail">
-      {!embedded ? <button type="button" aria-label="Back" className="fixed left-3 top-[calc(0.75rem+env(safe-area-inset-top))] z-30 flex h-12 w-12 items-center justify-center rounded-full border border-white/12 bg-black/70 text-white backdrop-blur-sm" onClick={() => navigate(-1)}>
-          <ArrowLeft className="h-6 w-6" />
-      </button> : null}
+      <header className="sticky top-0 z-20 flex min-h-16 items-center gap-3 border-b border-white/10 bg-background/95 px-4 pr-16 backdrop-blur-md">
+        <button type="button" aria-label="Back" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/12 bg-black/70 text-white" onClick={onBack ?? (() => navigate(-1))}>
+          <ArrowLeft className="h-5 w-5" />
+        </button>
+        <h1 className="min-w-0 truncate text-xl">Spot</h1>
+      </header>
 
-      <div className={`mx-auto flex flex-col gap-6 p-6 ${embedded ? 'max-w-none' : 'max-w-2xl pt-20'}`}>
+      <div className={`mx-auto flex flex-col gap-6 p-6 ${embedded ? 'max-w-none' : 'max-w-2xl'}`}>
         <div className={`relative ${embedded ? 'order-1' : 'order-3'}`}>
           <p className="text-xs uppercase tracking-[0.16em] text-primary">{PLACE_FACILITY_LABELS[place.facilityType]}</p>
           <h1 className={`mt-1 text-3xl ${embedded ? 'pr-10' : ''}`}>{place.name}</h1>
@@ -358,11 +365,15 @@ export default function PlaceDetail({ embedded = false, placeIdOverride }: Place
             <p className="min-w-0 flex-1"><MapPin className="mr-1 inline h-4 w-4" />{place.address || `${place.latitude.toFixed(5)}, ${place.longitude.toFixed(5)}`}</p>
             <button type="button" aria-label="Copy spot address" title="Copy address" className="shrink-0 rounded-md p-1 text-white/55 transition hover:bg-white/10 hover:text-white" onClick={() => void handleCopyAddress()}><Copy className="h-4 w-4" /></button>
           </div>
-          {getVisibleSpotTags(place.tags).length ? <div className="mt-3 flex flex-wrap gap-2">{getVisibleSpotTags(place.tags).slice(0, 1).map((tag) => <span key={tag} className="rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-xs text-white">{PLACE_TAG_LABELS[tag]}</span>)}</div> : null}
+          {place.vibes?.length ? <div className="mt-3 flex flex-wrap gap-2">{place.vibes.slice(0, 2).map((vibe) => <span key={vibe} className="rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-xs text-white">{PLACE_VIBE_LABELS[vibe]}</span>)}</div> : null}
+          {place.amenities?.length ? <div className="mt-2 flex flex-wrap gap-2">{place.amenities.map((amenity) => <span key={amenity} className="rounded-full border border-white/10 px-3 py-1 text-xs text-white/70">{PLACE_AMENITY_LABELS[amenity]}</span>)}</div> : null}
           <button type="button" className="mt-3 inline-flex items-center text-xs text-white/50 hover:text-white" onClick={() => embedded ? setReportTarget({ targetType: 'place', targetId: place.id, targetLabel: place.name }) : navigate('/report', { state: { targetType: 'place', placeId: place.id, targetLabel: place.name } })}><Flag className="mr-1 h-3.5 w-3.5" />Report incorrect or unsafe spot</button>
         </div>
 
-        {place.description ? <p className="order-4 -mt-5 text-muted-foreground">{place.description}</p> : null}
+        {place.description || place.accessInstructions ? <div className="order-4 -mt-5 space-y-3 text-muted-foreground">
+          {place.description ? <p>{place.description}</p> : null}
+          {place.accessInstructions ? <div><p className="text-xs uppercase tracking-[0.14em] text-white/55">Access</p><p className="mt-1">{place.accessInstructions}</p></div> : null}
+        </div> : null}
 
         <div className="order-5 grid grid-cols-2 gap-3 sm:gap-4">
           <div className="flex min-h-12 items-center justify-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-center sm:block sm:p-4">
@@ -411,17 +422,6 @@ export default function PlaceDetail({ embedded = false, placeIdOverride }: Place
         {error ? <p className="order-10 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{error}</p> : null}
 
         <Tabs defaultValue="feed" className="order-8 w-full">
-          {place.vibes?.length || place.amenities?.length ? (
-            <div className="mb-4 space-y-3">
-              {place.vibes?.length ? <div className="flex flex-wrap gap-2">{(place.vibes ?? []).slice(0, 2).map((vibe) => <span key={vibe} className="rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-xs text-white">{PLACE_VIBE_LABELS[vibe]}</span>)}</div> : null}
-              {place.amenities?.length ? (
-                <div>
-                  <p className="text-xs uppercase tracking-[0.14em] text-white/55">Amenities</p>
-                  <div className="mt-2 flex flex-wrap gap-2">{(place.amenities ?? []).map((amenity) => <span key={amenity} className="rounded-full border border-white/10 px-3 py-1 text-xs text-white/70">{PLACE_AMENITY_LABELS[amenity]}</span>)}</div>
-                </div>
-              ) : null}
-            </div>
-          ) : null}
           <TabsList className="grid h-10 w-full grid-cols-2 p-1">
             <TabsTrigger className="h-8 rounded-full py-0" value="feed">Pink Book</TabsTrigger>
             <TabsTrigger className="h-8 rounded-full py-0" value="here">Who's Here</TabsTrigger>
@@ -459,6 +459,25 @@ export default function PlaceDetail({ embedded = false, placeIdOverride }: Place
                           onClick={() => setCheckinVibes((current) => selected ? current.filter((item) => item !== vibe) : [...current, vibe])}
                         >
                           {PLACE_VIBE_LABELS[vibe]}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </fieldset>
+                <fieldset className="mb-4 space-y-2">
+                  <legend className="text-xs text-white/60">Amenities (optional)</legend>
+                  <div className="flex flex-wrap gap-2">
+                    {PLACE_AMENITIES.map((amenity) => {
+                      const selected = checkinAmenities.includes(amenity);
+                      return (
+                        <button
+                          key={amenity}
+                          type="button"
+                          aria-pressed={selected}
+                          className={`rounded-full border px-3 py-1 text-xs ${selected ? 'border-primary bg-primary/20 text-white' : 'border-white/10 text-white/65'}`}
+                          onClick={() => setCheckinAmenities((current) => selected ? current.filter((item) => item !== amenity) : [...current, amenity])}
+                        >
+                          {PLACE_AMENITY_LABELS[amenity]}
                         </button>
                       );
                     })}

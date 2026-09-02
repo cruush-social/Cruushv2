@@ -124,7 +124,9 @@ const migrationFiles = [
   "115_profile_tags.sql",
   "116_tutorial_side_quest.sql",
   "117_public_spots_100mi_nyc.sql",
-  "118_women_centered_queer_venues.sql"
+  "118_women_centered_queer_venues.sql",
+  "119_spot_lean_amenity_access.sql",
+  "120_public_spot_details.sql"
 ];
 const rewardSafetyPreflightFiles = [
   "079_daily_check_in_rewards.sql",

@@ -8,8 +8,8 @@ export const PLACE_FACILITY_TYPES = [
 ] as const;
 
 export const PLACE_TAGS = [
-  "lgbtq_health", "womens_health", "sexual_health", "gay_spot",
-  "dyke_spot", "t4t_spot", "techno_club"
+  "lgbtq_health", "womens_health", "sexual_health", "leans_men",
+  "leans_women", "t4t_spot", "techno_club"
 ] as const;
 
 export const PLACE_VIBES = [
@@ -50,6 +50,7 @@ export const listPlacesQuerySchema = z.object({
 export const submitPlaceSchema = z.object({
   name: singleLineTextSchema({ min: 2, max: 120 }),
   description: multilineTextSchema({ max: 1000 }).default(""),
+  accessInstructions: multilineTextSchema({ max: 1000 }).default(""),
   ...coordinatesSchema,
   address: singleLineTextSchema({ max: 300 }).optional().default(""),
   facilityType: placeFacilityTypeSchema,
@@ -68,6 +69,7 @@ export const storedPlaceSuggestionSchema = submitPlaceSchema.extend({
 export const placeCheckinSchema = z.object({
   content: multilineTextSchema({ min: 1, max: 1000 }).optional(),
   vibes: z.array(placeVibeSchema).max(3).default([]),
+  amenities: z.array(placeAmenitySchema).max(PLACE_AMENITIES.length).default([]),
   durationHours: z.union([z.literal(1), z.literal(3), z.literal(6), z.literal(12), z.literal(24)]),
   boardDurationHours: z.union([
     z.literal(1), z.literal(3), z.literal(6), z.literal(12), z.literal(24), z.literal(168), z.null()

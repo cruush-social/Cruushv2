@@ -1,45 +1,57 @@
 {
   "schemaVersion": 2,
-  "taskId": "cruush-1.6-nyc-100mi-spots-20260902",
-  "status": "validating",
-  "objective": "Make every retained spot from the existing 100-mile NYC public-place workbook available on the map and through the Spots list, then add current women-centered queer venues found from current public sources under their normal spot categories without exposing a special audience label.",
-  "userOutcome": "The Spots map contains the complete retained 100-mile NYC workbook dataset, the Spots list continues beyond the first 50 results, and current women-centered queer venues appear as bars, community spaces, shops, or cafes without being called dyke spots.",
-  "audience": "cruush members browsing Spots within 100 miles of New York City.",
+  "taskId": "cruush-1.6-spots-support-email-finalization-20260902",
+  "status": "active",
+  "objective": "Finish the named 1.6 spot, support-report, badge-menu, cluster-pin, and release-email changes while preserving all unrelated approved behavior.",
+  "userOutcome": "Spots includes every recoverable public Sniffies place within 100 miles of New York City plus independently sourced women-friendly queer venues, with accurate category, lean, vibe, amenity, access, and popularity information; support replies route correctly; the badge preview stays below the mobile header; and the 1.6 email shows the final rendered features.",
+  "audience": "cruush members and the 1.6 release-email audience.",
   "successCriteria": [
-    "All 3,717 retained workbook rows are represented by idempotent published place records using only factual name, coordinates, public category, and source identity fields.",
-    "Copied source descriptions, access instructions, popularity history, and visitor data are not imported.",
-    "The Spots list automatically continues past its first 50 results without forcing members to find a manual load button.",
-    "Current independently sourced women-centered queer venues inside the 100-mile radius are included under their normal facility categories.",
-    "No visible category, filter, card, or spot detail calls these venues dyke spots.",
-    "People clusters, spot clusters, map tiles, map theme, and unrelated map behavior remain unchanged."
+    "Recover and import the full prior public Sniffies dataset within 100 miles, including public spots and gyms, while excluding residences, visitor identities, access codes, and other private data.",
+    "Use Leans men and Leans women where supported; remove gay spot, dyke spot, and dyke bar labels from the app.",
+    "Collect optional amenities during check-in and amenities, vibes, access instructions, and category when suggesting a spot.",
+    "Show top two aggregate vibes and amenities on spot details, with Pink Book access governed by check-in and Who's Here still publicly viewable.",
+    "Put Spot, back, and bug controls on one header line.",
+    "Render spot cluster counts without an icon and use the logo font for both people and spot cluster counts without changing map tiles or theme.",
+    "Signed-out bug reporters can supply email; signed-in reporters use their account email; email replies route between reporter and reports inbox.",
+    "The badge heart preview does not scroll into the mobile top bar.",
+    "Refresh the actual Spot, spot-cluster, badge-menu, MHC, and feed screenshots used by the 1.6 email and show the resulting email."
   ],
   "mustPreserve": [
-    "Preserve the approved custom map tiles and theme exactly.",
-    "Preserve the existing separate people and spot cluster behavior.",
-    "Preserve existing published spot records, check-ins, Pink Book posts, ratings, vibes, amenities, and unrelated 1.6 work.",
-    "Keep imported source rows limited to the prior workbook's public-access retained set."
+    "Preserve approved custom map tiles, theme, people pins, Ghost Mode, Dark Room, Pulse, and unrelated map behavior.",
+    "Preserve existing published spots, check-ins, Pink Book posts, ratings, and unrelated 1.6 work.",
+    "Never display gay spot, dyke spot, or dyke bar as a public label.",
+    "Do not infer trans or nonbinary presence from profiles or scraped visitor data.",
+    "Keep user-facing copy free of em dashes and spell cruush lowercase."
   ],
   "nonGoals": [
-    "Do not scrape Sniffies again, copy its descriptions, import access codes, import private residences, import visitor history, add a new public audience category, change spot cards, add tests, build the app, update email screenshots, push, or deploy.",
-    "Do not change map pin visuals, cluster visuals, map navigation, filters, or adjacent pages."
+    "No map tile or theme changes, no reaction or feed-reply work, no crowd-mode changes, no standalone vibe or amenity reporting flow, no tests, no broad build, no push, and no deploy.",
+    "Do not import private residences, visitor identities, access codes, or covertly inferred identity attributes.",
+    "Do not redesign unrelated pages or add unrelated labels, taglines, controls, or filters."
   ],
   "assumptions": [
     {
-      "statement": "The existing user-controlled workbook is the requested prior Sniffies-derived 100-mile NYC dataset.",
-      "impact": "The import is generated from its 3,717 retained rows without a new competitor scrape.",
+      "statement": "The prior user-controlled Sniffies extraction may be reused if its full source cache can be recovered locally.",
+      "impact": "The complete public source set can be imported without a new competitor scrape.",
       "reversible": true,
       "confirmationState": "confirmed"
     },
     {
-      "statement": "Respective categories means existing facility categories such as Bar, Community space, Shop, and Cafe, not a new public audience label.",
-      "impact": "Women-centered venues remain discoverable as ordinary Spots without the rejected label.",
+      "statement": "Source-platform places can initially use Leans men, and independently sourced women-centered venues can use Leans women, while future crowd composition comes from cruush aggregate data.",
+      "impact": "Search has useful initial lean labels without gay or dyke labels or trans/nonbinary inference.",
       "reversible": true,
-      "confirmationState": "labeled"
+      "confirmationState": "confirmed"
+    },
+    {
+      "statement": "Public venue descriptions, non-sensitive access directions, and aggregate popular-time history are acceptable imports; private access details are not.",
+      "impact": "Spot details can be useful without exposing sensitive information.",
+      "reversible": true,
+      "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "A scoped commit containing the generated place migration, sourced venue additions, and automatic list continuation.",
+  "nextVisibleMilestone": "A local checkpoint commit plus refreshed rendered 1.6 email screenshots and email preview.",
   "stopConditions": [
-    "Stop if the source workbook cannot be read, a retained row lies outside 100 miles, generated SQL cannot preserve the existing place schema, or a named file has conflicting user edits."
+    "Stop the data-expansion slice if the full prior source cache cannot be recovered or if a source record is private or unsafe to publish.",
+    "Stop publication because push and deployment are not authorized by this task."
   ],
   "costBudget": {"maxUsd": 0, "maxMinutes": null},
   "externalEffectDecisions": {
@@ -63,28 +75,49 @@
   "release": "1.6",
   "repository": "cruush-social/Cruushv2",
   "branch": "release/1.6-integration-20260901",
-  "job": "Generate the scoped spot migrations, make list pagination automatic, and checkpoint commit.",
-  "forbiddenPaths": [
-    "src/app/components/MapView.tsx",
-    "src/app/components/MapHome.tsx",
-    "src/styles/**",
-    "public/**",
-    "docs/previews/**"
-  ],
+  "job": "Finish the named 1.6 changes and update the release email locally.",
   "allowedPaths": [
     "AI_TASK.json",
+    "src/app/components/AlphaBugButton.tsx",
+    "src/app/components/BadgePickerPreview.tsx",
+    "src/app/components/MapView.tsx",
+    "src/app/components/PlaceDetail.tsx",
     "src/app/components/PlacesDrawer.tsx",
+    "src/app/components/SpotBoardDialog.tsx",
     "src/app/lib/places.ts",
+    "src/app/lib/placesApi.ts",
+    "server/src/mailer.ts",
     "server/src/migrate.ts",
+    "server/src/places.ts",
+    "server/src/routes/places.ts",
+    "server/src/routes/support.ts",
     "server/sql/117_public_spots_100mi_nyc.sql",
     "server/sql/118_women_centered_queer_venues.sql",
-    "scripts/generate-public-spots-migration.mjs"
+    "server/sql/119_spot_lean_amenity_access.sql",
+    "server/sql/120_public_spot_details.sql",
+    "scripts/generate-public-spots-migration.mjs",
+    "docs/previews/cruush-1.6-update-email.html",
+    "docs/previews/cruush-1.6-update-email.jpg",
+    "public/email/cruush-v1.6-spot.jpg",
+    "public/email/cruush-v1.6-spot-clusters.jpg",
+    "public/email/cruush-v1.6-badges.jpg",
+    "public/email/cruush-v1.6-mhc.jpg",
+    "public/email/cruush-v1.6-feed.jpg",
+    "FIXLOG.md"
   ],
-  "proofTarget": "Generated-row audit showing exactly 3,717 unique retained workbook records within 100 miles, source review for added venues, and source inspection of automatic progressive list pagination.",
+  "forbiddenPaths": [
+    "src/app/assets/brand/**",
+    "src/app/components/GhostMode*.tsx",
+    "src/app/components/DarkRoom*.tsx",
+    "src/app/components/Pulse*.tsx"
+  ],
+  "proofTarget": "Actual rendered mobile Spot detail, spot clusters, and badge menu plus refreshed release-email screenshot.",
   "publicationTarget": "local checkpoint commit only",
   "requiredEvidence": [
-    "The generated migration has exactly 3,717 unique workbook-backed records and contains no copied descriptions or visit-history fields.",
-    "Each added women-centered venue has a current public source and lies within 100 miles of the NYC center.",
-    "The first 50 list results automatically request the next page when the continuation sentinel enters view."
+    "Source-count accounting for the recovered 100-mile dataset and independently sourced women-friendly venues.",
+    "Rendered Spot detail showing header, top two vibes, amenities, and compact Pink Book/Who's Here access.",
+    "Rendered map showing separate icon-free spot cluster counts and unchanged map theme.",
+    "Rendered mobile badge menu showing the heart preview below the top bar.",
+    "Rendered 1.6 email using refreshed feature crops."
   ]
 }

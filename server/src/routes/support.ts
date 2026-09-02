@@ -497,11 +497,21 @@ export async function registerSupportRoutes(app: FastifyInstance) {
     const requesterUserId = await getOptionalAuthenticatedUserId(request);
     const payload = createSupportRequestPayloadSchema.parse(request.body);
 
+    let resolvedContactEmail = payload.contactEmail ?? null;
+    if (requesterUserId) {
+      const account = (await app.db.query<{ email: string }>(
+        `select email from app_users where id = $1 limit 1`,
+        [requesterUserId]
+      )).rows[0];
+      if (!account) throw new ApiError(401, "AUTH_REQUIRED", "Sign in again before sending this report.");
+      resolvedContactEmail = authEmailSchema.parse(account.email);
+    }
+
     if (!requesterUserId && payload.source === "survey") {
       throw new ApiError(401, "AUTH_REQUIRED", "Sign in before sending survey feedback.");
     }
 
-    if (!requesterUserId && !payload.contactEmail && payload.source !== "survey") {
+    if (!requesterUserId && !resolvedContactEmail && payload.source !== "survey") {
       throw new ApiError(400, "VALIDATION_ERROR", "Enter an email so support can reply.");
     }
 
@@ -546,7 +556,7 @@ export async function registerSupportRoutes(app: FastifyInstance) {
        returning id::text as id, status, ai_triage_status, created_at`,
       [
         requesterUserId,
-        payload.contactEmail ?? null,
+        resolvedContactEmail,
         payload.category,
         payload.subject,
         payload.message,
@@ -588,7 +598,7 @@ export async function registerSupportRoutes(app: FastifyInstance) {
         request: {
           id: row.id,
           category: payload.category,
-          contactEmail: payload.contactEmail ?? null,
+          contactEmail: resolvedContactEmail,
           createdAt: new Date(row.created_at).toISOString(),
           message: payload.message,
           pageUrl: payload.pageUrl,

@@ -49,7 +49,7 @@ const SORT_OPTIONS: Array<{ value: PlaceSort; label: string }> = [
 
 const PLACE_PAGE_SIZE = 50;
 const DISTANCE_OPTIONS = [1, 5, 10, 25, 50, 100] as const;
-const FILTERABLE_PLACE_TAGS = PLACE_TAGS.filter((tag) => tag !== 'dyke_spot');
+const FILTERABLE_PLACE_TAGS = PLACE_TAGS;
 
 function toggleValue<T extends string>(values: T[], value: T) {
   return values.includes(value) ? values.filter((item) => item !== value) : [...values, value];
@@ -78,7 +78,7 @@ export default function PlacesDrawer({ open, onOpenChange, coordinates, onFilter
   const [error, setError] = useState<string | null>(null);
   const [showSubmit, setShowSubmit] = useState(false);
   const [submission, setSubmission] = useState({
-    name: '', description: '', address: '', sourceUrl: '', facilityType: 'other' as PlaceFacilityType,
+    name: '', description: '', accessInstructions: '', address: '', sourceUrl: '', facilityType: 'other' as PlaceFacilityType,
     tags: [] as PlaceTag[], vibes: [] as PlaceVibe[], amenities: [] as PlaceAmenity[],
     latitude: coordinates?.latitude ?? null as number | null, longitude: coordinates?.longitude ?? null as number | null,
   });
@@ -140,7 +140,7 @@ export default function PlacesDrawer({ open, onOpenChange, coordinates, onFilter
       setSubmissionStatus(result.autoShortlisted
         ? `Supported by ${result.suggestionCount} people and shortlisted for moderator review.`
         : `Suggested for review. ${result.suggestionCount} ${result.suggestionCount === 1 ? 'person supports' : 'people support'} this spot.`);
-      setSubmission((value) => ({ ...value, name: '', description: '', address: '', sourceUrl: '', tags: [], vibes: [], amenities: [] }));
+      setSubmission((value) => ({ ...value, name: '', description: '', accessInstructions: '', address: '', sourceUrl: '', tags: [], vibes: [], amenities: [] }));
     } catch (submitError) {
       setSubmissionStatus(submitError instanceof Error ? submitError.message : 'Spot could not be submitted.');
     }
@@ -225,6 +225,7 @@ export default function PlacesDrawer({ open, onOpenChange, coordinates, onFilter
             <div className="space-y-3" data-testid="place-submission-form">
               <Input aria-label="Spot name" placeholder="Spot name" value={submission.name} onChange={(event) => setSubmission((value) => ({ ...value, name: event.target.value }))} />
               <textarea aria-label="Spot description" className="min-h-24 w-full rounded-md border border-white/10 bg-white/[0.05] p-3 text-sm text-white outline-none" placeholder="Short public description" value={submission.description} onChange={(event) => setSubmission((value) => ({ ...value, description: event.target.value }))} />
+              <textarea aria-label="Access instructions" className="min-h-20 w-full rounded-md border border-white/10 bg-white/[0.05] p-3 text-sm text-white outline-none" placeholder="Access instructions (optional)" value={submission.accessInstructions} onChange={(event) => setSubmission((value) => ({ ...value, accessInstructions: event.target.value }))} />
               <Input aria-label="Public address" placeholder="Public address (optional)" value={submission.address} onChange={(event) => setSubmission((value) => ({ ...value, address: event.target.value }))} />
               <Input aria-label="Source URL" placeholder="Official source URL (optional)" value={submission.sourceUrl} onChange={(event) => setSubmission((value) => ({ ...value, sourceUrl: event.target.value }))} />
               <Button type="button" variant="secondary" className="w-full border border-primary/25" onClick={pinCurrentLocation}>
