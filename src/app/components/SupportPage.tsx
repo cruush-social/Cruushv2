@@ -13,7 +13,9 @@ type SupportPageProps = {
 export default function SupportPage({ appealOnly = false, publicAccess = false }: SupportPageProps = {}) {
   const location = useLocation();
   const goBack = useBackOrFallback('/');
-  const appealMode = appealOnly || new URLSearchParams(location.search).get('appeal') === '1';
+  const searchParams = new URLSearchParams(location.search);
+  const appealMode = appealOnly || searchParams.get('appeal') === '1';
+  const refundMode = !appealMode && searchParams.get('refund') === '1';
 
   return (
     <div className="min-h-screen bg-background pb-20">
@@ -29,10 +31,11 @@ export default function SupportPage({ appealOnly = false, publicAccess = false }
         <h2 className="text-xl">Support</h2>
       </header>
 
-      <main className="w-full p-6">
-        <div className="mx-auto max-w-2xl space-y-4">
+      <main className="box-border min-w-0 px-6 py-6">
+        <div className="mx-auto w-full min-w-0 max-w-2xl space-y-4">
           <SupportRequestForm
             appealMode={appealMode}
+            refundMode={refundMode}
             requireContactEmail={appealMode || publicAccess}
             source={appealMode || publicAccess ? 'auth' : 'settings'}
           />
@@ -42,7 +45,7 @@ export default function SupportPage({ appealOnly = false, publicAccess = false }
             </p>
           ) : null}
         </div>
-        <PublicPolicyLinks className="mt-4 w-full" />
+        <PublicPolicyLinks className="mx-auto mt-4 w-full min-w-0 max-w-2xl" />
       </main>
     </div>
   );

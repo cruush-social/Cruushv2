@@ -37,9 +37,9 @@ receiving a payment address for a rail the watcher cannot settle. The current
 local configuration keeps the processor and watcher off.
 
 Intent creation verifies the selected RPC's `eth_chainId`, then reads its head
-before assigning an address. Migration `100_crypto_payment_watch_start.sql`
+before assigning an address. Migration `120_crypto_payment_watch_start.sql`
 persists that exact head as the address's durable intended-chain watch origin.
-Migration `101_crypto_payment_chain_positions.sql` adds one durable origin and
+Migration `121_crypto_payment_chain_positions.sql` adds one durable origin and
 cursor for every intent on every supported chain. The intended chain keeps its
 exact pre-address head. Before publishing the address, each other supported
 configured chain must verify `eth_chainId` and supply its current head. A global
@@ -64,18 +64,23 @@ visible choices:
 | Checkout label | Rail |
 | --- | --- |
 | Cash App | `usdc_arbitrum` |
-| Venmo or PayPal | `pyusd_arbitrum` |
+| PayPal | `pyusd_arbitrum` |
 | A crypto wallet | `usdc_base` |
 
 Each source names its exact asset and network before the order starts:
 
 - Cash App sends USDC on Arbitrum.
-- Venmo and PayPal send PYUSD on Arbitrum.
+- PayPal sends PYUSD on Arbitrum.
 - A crypto wallet sends USDC on Base.
 
+New orders use a 60-minute server deadline. A member can cancel before sending
+or cancel to choose another source. The cancelled attempt remains in
+`crypto_payment_intents`; its address is never reused. Confirming or paid
+orders cannot be cancelled.
+
 The checkout includes numbered, source-specific sending steps before payment
-and repeats the applicable guide beside an active order. Venmo and PayPal have
-separate steps. The instructions always direct the member to use the unique
+and repeats the applicable guide beside an active order. The instructions
+always direct the member to use the unique
 order address, exact amount, exact asset, exact network, and active order timer.
 
 The hidden `pyusd_ethereum` rail remains a server fallback. Do not expose a
@@ -99,17 +104,13 @@ token contract, network, chain ID, or confirmation target from the client.
 
 The seven paid benefits this branch can truthfully advertise are:
 
-1. Who has a cruush on you.
-2. See who viewed your profile.
-3. Send up to 3 Pulses every 24 hours.
-4. Land on a nearby profile in Cruise Carousel, then browse again.
-5. Use more than 3 seeking filter categories at once.
-6. Use more than 3 visibility filters at once.
-7. Use Dark Room to browse without appearing on the map.
-
-Mile High Club and Feed+ remain separate v1.6 release-line work and are not
-implemented in this checkout's current tree. Do not advertise either here
-until its implementation is merged and verified.
+1. Who has a cruush on you: see your full incoming cruush and profile-view lists.
+2. More Pulses: send more Pulses throughout the day.
+3. Mile High Club: drop a pin where you are visiting and cruise from there.
+4. Feed+: add up to three photo hearts, post to a specific Crowd, and choose when your post expires.
+5. Cruise carousel: spin through nearby profiles and browse again.
+6. All seeking and visibility controls: use all seeking filters, combine more visibility controls, and add up to 10 searchable profile tags. Basic includes 3.
+7. Dark Room: browse the map without appearing on it.
 
 Dark Room is the browse-without-appearing benefit. Ghost Mode is separate.
 Never call Dark Room Stealth Mode or Ghost Mode. Basic members can browse
@@ -121,7 +122,7 @@ sell those basic capabilities as cruush+ benefits.
 | Rail | Chain | Token | Confirmations | Checkout source |
 | --- | --- | --- | --- | --- |
 | `usdc_arbitrum` | Arbitrum 42161 | USDC | 240 | Cash App |
-| `pyusd_arbitrum` | Arbitrum 42161 | PYUSD | 240 | Venmo or PayPal |
+| `pyusd_arbitrum` | Arbitrum 42161 | PYUSD | 240 | PayPal |
 | `pyusd_ethereum` | Ethereum 1 | PYUSD | 12 | hidden fallback |
 | `usdc_base` | Base 8453 | USDC | 30 | crypto wallets |
 
@@ -246,14 +247,15 @@ app-store billing language.
 | Per-chain scheduling | `server/src/crypto-watcher-runtime.ts` |
 | Amount policy | `server/src/crypto-settlement-policy.ts` |
 | Support, receipt recovery, and reconciliation | `server/src/crypto-reconciliation.ts`, `server/src/routes/crypto-payments.ts` |
-| Intended-chain watch origin | `server/sql/100_crypto_payment_watch_start.sql` |
-| Per-intent chain positions and block timestamps | `server/sql/101_crypto_payment_chain_positions.sql` |
+| Intended-chain watch origin | `server/sql/120_crypto_payment_watch_start.sql` |
+| Per-intent chain positions and block timestamps | `server/sql/121_crypto_payment_chain_positions.sql` |
+| 60-minute database order-window fallback | `server/sql/122_crypto_payment_intent_window.sql` |
 | Checkout | `src/app/components/CruushPlusStore.tsx` |
 | Billing policy route and copy | `src/app/components/PublicInfoPage.tsx`, `src/app/lib/publicLegalContent.tsx` |
 | Public wallet descriptor tool | `tools/cruush-wallet` |
 
-Migrations `096` through `101` are the complete ordered crypto schema slice.
-Keep `server/src/migrate.ts` synchronized with all six files.
+Migrations `116` through `122` are the complete ordered crypto schema slice.
+Keep `server/src/migrate.ts` synchronized with all seven files.
 
 ## Local preview target
 

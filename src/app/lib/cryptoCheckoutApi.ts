@@ -81,3 +81,9 @@ export async function getCryptoPaymentIntent(intentId: string) {
 export async function getCurrentCryptoPaymentIntent() {
   return requestApi<CryptoPaymentIntent | null>('/api/crypto/payment-intents/current');
 }
+
+export async function cancelCryptoPaymentIntent(intentId: string) {
+  return requestApi<CryptoPaymentIntent>(`/api/crypto/payment-intents/${intentId}/cancel`, {
+    method: 'POST',
+  });
+}

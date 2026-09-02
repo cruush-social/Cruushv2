@@ -207,7 +207,7 @@ const configSchema = z.object({
   CRYPTO_PROCESSOR_ENABLED: booleanEnvSchema,
   CRYPTO_PROCESSOR_WALLET_XPUB: z.string().trim().optional().default(""),
   CRYPTO_PROCESSOR_CONFIRMATION_TARGET: z.coerce.number().int().min(1).max(10_000).optional().default(1),
-  CRYPTO_PROCESSOR_INTENT_TTL_MINUTES: z.coerce.number().int().min(5).max(180).optional().default(30),
+  CRYPTO_PROCESSOR_INTENT_TTL_MINUTES: z.coerce.number().int().min(5).max(180).optional().default(60),
   // Read-only JSON-RPC endpoints for the settlement watcher. Empty means the
   // watcher for that chain never runs. These may carry an API key, so they are
   // server-only and must never be logged or returned to a client.

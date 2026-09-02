@@ -20,11 +20,12 @@ import {
  * The receiving rails. Every value here is fixed server-side; a client may name
  * a rail and nothing else.
  *
- * Token addresses verified 2026-08-30 against the issuers' own documentation:
- * - USDC on Base 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913, from Circle's
+ * Token addresses verified 2026-09-02 against the issuers' own documentation:
+ * - USDC on Arbitrum 0xaf88d065e77c8cC2239327C5EDb3A432268e5831 and Base
+ *   0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913, from Circle's
  *   contract-address list (developers.circle.com/stablecoins/usdc-contract-addresses).
- * - PYUSD on Ethereum 0x6c3ea9036406852006290770BEdFcAbA0e23A0e8, from PayPal
- *   and Etherscan's verified token page. Issued by Paxos Trust Company.
+ * - PYUSD on Arbitrum 0x46850aD61C2B7d64d08c9C754F45254596696984 and Ethereum
+ *   0x6c3ea9036406852006290770BEdFcAbA0e23A0e8, from Paxos' mainnet list.
  * Both tokens use 6 decimals, which is what quoteUsdCentsAsStablecoinAtomic
  * assumes; `decimals` is recorded here so that assumption is checkable rather
  * than implicit.
@@ -333,12 +334,14 @@ export async function withCryptoPaymentDisplay(
   intent: CryptoPaymentIntent,
   qrCodeCache: Pick<CryptoPaymentQrCodeCache, "get"> = cryptoPaymentQrCodeCache
 ) {
-  const paymentUri = intent.status === "awaiting_payment" || intent.status === "confirming"
+  const paymentOpen = intent.status === "awaiting_payment" || intent.status === "confirming";
+  const paymentUri = paymentOpen
     ? buildCryptoPaymentUri(intent)
     : null;
 
   return {
     ...intent,
+    paymentAddress: paymentOpen ? intent.paymentAddress : null,
     paymentUri,
     qrCodeDataUrl: paymentUri
       ? await qrCodeCache.get(paymentUri)
@@ -912,4 +915,65 @@ export async function loadCryptoPaymentIntent(db: DbClient, userId: string, inte
   }
 
   return mapCryptoPaymentIntent(row);
+}
+
+/**
+ * Cancels one member-owned checkout without deleting its audit row.
+ *
+ * A confirming payment cannot be cancelled: chain evidence already exists and
+ * settlement must finish. Locking both the member purchase lane and the intent
+ * makes this decision serialize with creation and watcher settlement.
+ */
+export async function cancelCryptoPaymentIntent(db: DbClient, userId: string, intentId: string) {
+  return runTransaction(db, async (client) => {
+    await lockCryptoPurchaseUser(client, userId);
+    const locked = await client.query<CryptoPaymentIntentRow>(
+      `select *
+       from crypto_payment_intents
+       where id = $1
+         and user_id = $2
+       for update`,
+      [intentId, userId]
+    );
+    const intent = locked.rows[0];
+
+    if (!intent) {
+      throw new ApiError(404, "CRYPTO_PAYMENT_NOT_FOUND", "That crypto payment was not found.");
+    }
+
+    if (intent.status === "cancelled") {
+      return mapCryptoPaymentIntent(intent);
+    }
+
+    if (intent.status === "confirming" || intent.status === "paid") {
+      throw new ApiError(
+        409,
+        "VALIDATION_ERROR",
+        "This payment cannot be cancelled because funds were already detected."
+      );
+    }
+
+    if (intent.status !== "pending" && intent.status !== "awaiting_payment") {
+      throw new ApiError(409, "VALIDATION_ERROR", "This payment can no longer be cancelled.");
+    }
+
+    const updated = await client.query<CryptoPaymentIntentRow>(
+      `update crypto_payment_intents
+       set status = 'cancelled',
+           metadata = metadata || '{"cancelledBy":"member"}'::jsonb,
+           settlement_note = 'Member cancelled before cruush detected payment.',
+           updated_at = now()
+       where id = $1
+         and user_id = $2
+         and status in ('pending', 'awaiting_payment')
+       returning *`,
+      [intentId, userId]
+    );
+    const cancelled = updated.rows[0];
+    if (!cancelled) {
+      throw new ApiError(409, "VALIDATION_ERROR", "This payment could not be cancelled.");
+    }
+
+    return mapCryptoPaymentIntent(cancelled);
+  });
 }

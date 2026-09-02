@@ -24,7 +24,7 @@ export const CRUUSH_PLUS_FEATURES = [
   },
   {
     title: 'All seeking and visibility controls',
-    description: 'Use all seeking filters, combine more visibility controls, save visibility sets, and add up to 10 searchable profile tags. Basic includes 3.',
+    description: 'Use all seeking filters, combine more visibility controls, and add up to 10 searchable profile tags. Basic includes 3.',
   },
   {
     title: 'Dark Room',

@@ -45,7 +45,7 @@ Visible source mappings are fixed:
 | Checkout source | Rail |
 | --- | --- |
 | Cash App | `usdc_arbitrum` |
-| Venmo or PayPal | `pyusd_arbitrum` |
+| PayPal | `pyusd_arbitrum` |
 | A crypto wallet | `usdc_base` |
 
 `pyusd_ethereum` remains hidden fallback capacity. Do not expose "Something
@@ -62,19 +62,15 @@ lifetime retain their one-payment amount.
 | Annual | $119.99 | $10.00/month |
 | Founder annual | $99.99 | $8.33/month |
 
-The checkout advertises only benefits present in this branch:
+The checkout advertises these seven verified release benefits:
 
-1. Who has a cruush on you.
-2. See who viewed your profile.
-3. Send up to 3 Pulses every 24 hours.
-4. Land on a nearby profile in Cruise Carousel, then browse again.
-5. Use more than 3 seeking filter categories at once.
-6. Use more than 3 visibility filters at once.
-7. Use Dark Room to browse without appearing on the map.
-
-Mile High Club and Feed+ remain separate v1.6 release-line work. Do not sell
-either benefit in this checkout until its implementation is merged and
-verified in this tree.
+1. Who has a cruush on you: see your full incoming cruush and profile-view lists.
+2. More Pulses: send more Pulses throughout the day.
+3. Mile High Club: drop a pin where you are visiting and cruise from there.
+4. Feed+: add up to three photo hearts, post to a specific Crowd, and choose when your post expires.
+5. Cruise carousel: spin through nearby profiles and browse again.
+6. All seeking and visibility controls: use all seeking filters, combine more visibility controls, and add up to 10 searchable profile tags. Basic includes 3.
+7. Dark Room: browse the map without appearing on it.
 
 Dark Room and Ghost Mode are separate. Never call Dark Room Stealth Mode or
 Ghost Mode. Basic members can browse nearby profiles, post text to the local
@@ -146,13 +142,14 @@ in this document establishes deployment or production activation.
 
 Implemented locally:
 
-- Migrations `096` through `101` are the complete ordered crypto schema slice:
-  `096` creates intents and event intake, `097` adds the multi-asset/network
-  rails, `098` adds observed transfers, cursors, settlement constraints, and
-  paid-access references, `099` adds Arbitrum, and `100` adds the durable
-  intended-chain watch-start block. `101` adds per-intent origins and cursors
-  for every supported chain plus authoritative transfer block timestamps.
-  `server/src/migrate.ts` lists all six.
+- Migrations `116` through `122` are the complete ordered crypto schema slice:
+  `116` creates intents and event intake, `117` adds the multi-asset/network
+  rails, `118` adds observed transfers, cursors, settlement constraints, and
+  paid-access references, `119` adds Arbitrum, and `120` adds the durable
+  intended-chain watch-start block. `121` adds per-intent origins and cursors
+  for every supported chain plus authoritative transfer block timestamps. `122`
+  changes the database fallback for new order windows to 60 minutes.
+  `server/src/migrate.ts` lists all seven.
 - `server/src/crypto-wallet.ts` validates a depth-4 public receive-chain xpub,
   rejects xprv-shaped input, derives non-hardened public children, converts them
   to checksummed Ethereum addresses, fingerprints the configured xpub, and
@@ -165,9 +162,9 @@ Implemented locally:
   address, and moves a new intent from `pending` to `awaiting_payment` inside
   one transaction. Payment QR work is cached in a 256-entry bounded cache.
 - `server/src/routes/crypto-payments.ts` exposes authenticated status, intent
-  creation, `GET /api/crypto/payment-intents/current`, and ownership-scoped
+  creation, cancellation, `GET /api/crypto/payment-intents/current`, and ownership-scoped
   intent lookup. Before address allocation it verifies the selected endpoint's
-  chain ID and reads its head, which is persisted by migration `100` as the
+  chain ID and reads its head, which is persisted by migration `120` as the
   intended-chain watch origin. Creation is limited to 5 requests per member per
   minute; current and ID lookup share 30 reads per member per minute. Pricing
   always comes from the existing server billing catalog.
@@ -195,6 +192,11 @@ Implemented locally:
   expiry, and locks plan and source selectors while an open or paid intent owns
   checkout. A restored unavailable rail remains selected and locked through
   `paid`, so a readiness change cannot discard or switch payment state.
+  New intents use a 60-minute server deadline. A member can cancel only while
+  the intent is `pending` or `awaiting_payment`; cancellation retains the row
+  and member link, closes the deadline, and never reuses the assigned address.
+  The next source creates a new intent. `confirming` and `paid` intents cannot
+  be cancelled.
 - The existing `/upgrade` route keeps its prior destination. `/store` is added
   without replacing the existing rewards checkout flow.
 - `tools/cruush-wallet` is an isolated local operator package. It validates and
@@ -447,9 +449,9 @@ Status of each item:
 
   Before an address is issued, the create route checks the selected endpoint's
   `eth_chainId`, then reads `eth_blockNumber`. Migration
-  `100_crypto_payment_watch_start.sql` stores that head in the same
+  `120_crypto_payment_watch_start.sql` stores that head in the same
   address-allocation update. Migration
-  `101_crypto_payment_chain_positions.sql` gives every intent a durable origin
+  `121_crypto_payment_chain_positions.sql` gives every intent a durable origin
   and cursor on every supported chain. The intended chain keeps the exact
   pre-address head. Before address publication, each secondary chain uses its
   verified current head when it is configured. The allocation path does not use
@@ -491,7 +493,7 @@ Status of each item:
 
   Worth knowing rather than acting on: PYUSD is issued by **Paxos Trust
   Company, a US entity**. Given the standing preference for European payment
-  rails, the Venmo-compatible rail is the least European part of this design.
+  rails, the PayPal-compatible rail is the least European part of this design.
   It is still only a token transfer, not a processor relationship, so nothing
   is changed here, but it should not come as a surprise later.
 - Poll ERC-20 `Transfer` logs for assigned addresses. Done. Every configured
@@ -542,7 +544,7 @@ options. These are now the defaults, not placeholders.
 | Confirmation target, Arbitrum | `240` (~60s) | Arbitrum produces blocks much faster than Base. The per-rail target provides about the same one-minute wait as 30 Base blocks. |
 | Confirmation target, Base | `30` (~60s) | Per rail, not global: this was the bug. Base builds an L2 block about every 2 seconds, so the original `1` bought about 2 seconds of protection on a grant with no revoke path. Base's own finality documentation puts reorg risk at "near 0%" once a transaction is in an L2 block and "effectively 0%" once the batch reaches L1 about 2 minutes later; 30 blocks sits well past the first and heads toward the second, for a minute of member waiting. |
 | Confirmation target, Ethereum | `12` (~2.4m) | Ethereum blocks are ~12 seconds and finality is 2 epochs, 64 blocks, about 12.8 minutes. 12 is the ordinary exchange-grade bar for crediting a stablecoin deposit. |
-| Underpayment tolerance | `50` bps, capped at `250000` atomic ($0.25) | Not zero, which was wrong. An ERC-20 transfer pays gas separately, so a self-custody sender pays the exact amount, but a custodial sender (Venmo, PayPal, an exchange) can deduct its withdrawal fee from the amount. With zero tolerance that member pays, gets nothing, and has to contact support while cruush holds the money. The absolute cap exists so the $999 lifetime plan does not forgive $5 where the $10.99 weekly plan forgives about $0.05. |
+| Underpayment tolerance | `50` bps, capped at `250000` atomic ($0.25) | Not zero, which was wrong. An ERC-20 transfer pays gas separately, so a self-custody sender pays the exact amount, but a custodial sender (PayPal or an exchange) can deduct its withdrawal fee from the amount. With zero tolerance that member pays, gets nothing, and has to contact support while cruush holds the money. The absolute cap exists so the $999 lifetime plan does not forgive $5 where the $10.99 weekly plan forgives about $0.05. |
 | Overpayment flag | `100` bps (1%) | Grant an otherwise valid open intent and record the exception. Someone who overpays should appear in reconciliation rather than disappear into treasury accounting. Any legally required remedy or exceptional owner action remains separate from automatic settlement. |
 | Payment after expiry | evidence only | A transfer mined after `expires_at` never grants. A scheduler-expired intent may settle only exact-rail evidence authoritatively timestamped by `expires_at`, because the on-time transfer may still have been awaiting confirmations when the checkout window closed. |
 
@@ -658,11 +660,10 @@ at `GET /api/crypto/support/payments` and
   and `qrCodeDataUrl` alongside the intent; `CruushPlusStore.tsx` renders the QR
   image next to the existing copyable address when present. No new
   dependency, no live network call, no change to what is displayed today
-  besides the QR image itself. PYUSD/Venmo note: Venmo's own send flow
-  supports scanning a wallet-address QR (per Venmo's help docs), but there is
-  no confirmed evidence it parses a full ERC-681 request URI rather than a
-  bare address: the QR is still spec-correct and the full address stays
-  visible/copyable as the reliable fallback either way.
+  besides the QR image itself. PayPal accepts a pasted address or scanned QR,
+  but there is no confirmed evidence it parses a full ERC-681 request URI
+  rather than a bare address. The QR remains spec-correct and the full address
+  stays visible and copyable as the reliable fallback.
 - QR encoding uses a process-local 256-entry bounded cache. Concurrent reads of
   one payment URI share the same pending encode; a failed encode is removed so
   a later request can retry.

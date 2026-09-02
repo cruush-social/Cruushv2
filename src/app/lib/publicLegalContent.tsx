@@ -531,7 +531,8 @@ export const billingSections: PolicySection[] = [
     title: "Crypto order window",
     body: [
       "Starting a crypto payment creates one order with a unique payment address, exact asset, exact network, exact amount, and expiration time. The checkout displays the remaining time.",
-      "Only a matching transfer that arrives on-chain by the order deadline can count toward that order. Do not send to an expired order address. If you already sent before the deadline and the checkout says the payment is confirming, do not send again."
+      "Only a matching transfer that arrives on-chain by the order deadline can count toward that order. Do not send to an expired order address. If you already sent before the deadline and the checkout says the payment is confirming, do not send again.",
+      "Before sending, you may cancel an order or cancel it to choose another payment method. Cancellation closes that order but preserves its record, and the address is never reused. Do not cancel if you have already sent payment."
     ]
   },
   {
@@ -552,7 +553,12 @@ export const billingSections: PolicySection[] = [
     title: "Refunds",
     body: [
       "cruush does not offer voluntary refunds for cruush+. Purchases are final and non-refundable except where applicable law requires a withdrawal, refund, remedy, or forced reversal.",
-      "Unused time, partial terms, price changes, promotions, sending mistakes, and account closure do not create a voluntary refund right. Any legally required outcome is handled under applicable law."
+      "Unused time, partial terms, price changes, promotions, sending mistakes, and account closure do not create a voluntary refund right. Any legally required outcome is handled under applicable law.",
+      <>
+        If you believe applicable law requires a withdrawal, refund, price reduction, or another billing
+        remedy, <a href="/support?refund=1">submit a refund request</a>. Include the order ID, transaction
+        hash, purchase date, country or region, and reason. cruush will review the request under applicable law.
+      </>
     ]
   },
   {

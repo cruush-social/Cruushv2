@@ -138,6 +138,24 @@ describe('SupportPage', () => {
     })));
   });
 
+  it('opens a legally required refund review with the subject prefilled', async () => {
+    window.history.pushState({}, '', '/support?refund=1');
+
+    render(
+      <MemoryRouter initialEntries={['/support?refund=1']}>
+        <SupportPage publicAccess />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByRole('form', { name: 'Refund request' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Request a refund review' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Support subject')).toHaveValue('Refund request');
+    expect(screen.getByText(/does not guarantee a refund/i)).toBeInTheDocument();
+    expect(screen.getByText(/Never include wallet recovery words/i)).toBeInTheDocument();
+    expect(screen.getByRole('main')).toHaveClass('box-border', 'min-w-0');
+    expect(screen.getByRole('form', { name: 'Refund request' }).closest('section')).toHaveClass('max-w-full', 'overflow-hidden');
+  });
+
   it('returns a directly opened signed-out appeal to sign in', async () => {
     render(
       <MemoryRouter initialEntries={['/support?appeal=1']}>

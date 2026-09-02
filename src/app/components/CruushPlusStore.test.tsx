@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CryptoPaymentRailId, CryptoProcessorStatus } from '../lib/cryptoCheckoutApi';
@@ -23,12 +23,14 @@ vi.mock('../lib/cryptoCheckoutApi', async () => {
     getCryptoProcessorStatus: vi.fn(),
     getCurrentCryptoPaymentIntent: vi.fn(),
     createCryptoPaymentIntent: vi.fn(),
+    cancelCryptoPaymentIntent: vi.fn(),
     getCryptoPaymentIntent: vi.fn(),
   };
 });
 
 const { getBillingPlans } = await import('../lib/billingApi');
 const {
+  cancelCryptoPaymentIntent,
   createCryptoPaymentIntent,
   getCryptoPaymentIntent,
   getCryptoProcessorStatus,
@@ -271,20 +273,32 @@ describe('CruushPlusStore', () => {
 
     expect(await screen.findByText('$18.99/month')).toBeInTheDocument();
     expect(screen.getByText('Who has a cruush on you')).toBeInTheDocument();
-    expect(screen.getByText('See who viewed your profile')).toBeInTheDocument();
-    expect(screen.getByText('Send up to 3 Pulses every 24 hours')).toBeInTheDocument();
-    expect(screen.getByText('Cruise Carousel: land on a nearby profile, then browse again')).toBeInTheDocument();
-    expect(screen.getByText('Use more than 3 seeking filter categories at once')).toBeInTheDocument();
-    expect(screen.getByText('Use more than 3 visibility filters at once')).toBeInTheDocument();
-    expect(screen.getByText('Dark Room: browse without appearing on the map')).toBeInTheDocument();
-    expect(screen.queryByText(/Mile High Club/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/Feed\+/i)).not.toBeInTheDocument();
+    expect(screen.getByText('See your full incoming cruush and profile-view lists.')).toBeInTheDocument();
+    expect(screen.getByText('More Pulses')).toBeInTheDocument();
+    expect(screen.getByText('Send more Pulses throughout the day.')).toBeInTheDocument();
+    expect(screen.getByText('Mile High Club')).toBeInTheDocument();
+    expect(screen.getByText('Drop a pin where you are visiting and cruise from there.')).toBeInTheDocument();
+    expect(screen.getByText('Feed+')).toBeInTheDocument();
+    expect(screen.getByText('Add up to three photo hearts, post to a specific Crowd, and choose when your post expires.')).toBeInTheDocument();
+    expect(screen.getByText('Cruise carousel')).toBeInTheDocument();
+    expect(screen.getByText('Spin through nearby profiles and browse again.')).toBeInTheDocument();
+    expect(screen.getByText('All seeking and visibility controls')).toBeInTheDocument();
+    expect(screen.getByText('Use all seeking filters, combine more visibility controls, and add up to 10 searchable profile tags. Basic includes 3.')).toBeInTheDocument();
+    expect(screen.queryByText(/visibility sets/i)).not.toBeInTheDocument();
+    expect(screen.getByText('Dark Room')).toBeInTheDocument();
+    expect(screen.getByText('Browse the map without appearing on it.')).toBeInTheDocument();
+    const benefits = screen.getByRole('list', { name: 'cruush+ benefits' });
+    const benefitCards = within(benefits).getAllByRole('listitem');
+    expect(benefits).toHaveClass('grid-cols-6');
+    expect(benefitCards).toHaveLength(7);
+    expect(benefitCards.slice(0, 4).every((card) => card.classList.contains('col-span-3'))).toBe(true);
+    expect(benefitCards.slice(4).every((card) => card.classList.contains('col-span-2'))).toBe(true);
     expect(screen.queryByText('Post to the local feed')).not.toBeInTheDocument();
     expect(screen.queryByText('Cruise nearby profiles')).not.toBeInTheDocument();
     expect(screen.queryByText('Stealth Mode')).not.toBeInTheDocument();
     expect(screen.queryByText('Ghost Mode')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Cash App' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Venmo or PayPal' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'PayPal' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'A crypto wallet' })).toBeInTheDocument();
     expect(screen.getByText('USDC · Arbitrum')).toBeInTheDocument();
     expect(screen.getByText('PYUSD · Arbitrum')).toBeInTheDocument();
@@ -319,7 +333,7 @@ describe('CruushPlusStore', () => {
     expect(main?.children[0]).toHaveTextContent('Recommended');
     expect(main?.children[1]).toHaveTextContent('What are you paying from?');
     expect(main?.children[1]).toContainElement(screen.getByRole('button', { name: 'Cash App' }));
-    expect(main?.children[1]).toContainElement(screen.getByRole('button', { name: 'Venmo or PayPal' }));
+    expect(main?.children[1]).toContainElement(screen.getByRole('button', { name: 'PayPal' }));
     expect(main?.children[1]).toContainElement(screen.getByRole('button', { name: 'A crypto wallet' }));
     expect(main?.children[1]).toContainElement(screen.getByRole('button', { name: /get 1 year for \$99\.99/i }));
     expect(main?.children[2]).toContainElement(screen.getByRole('list', { name: 'cruush+ benefits' }));
@@ -334,7 +348,7 @@ describe('CruushPlusStore', () => {
 
     const payButton = await screen.findByRole('button', { name: /get 1 month for \$18\.99/i });
     expect(payButton).toBeDisabled();
-    for (const sourceLabel of ['Cash App', 'Venmo or PayPal', 'A crypto wallet']) {
+    for (const sourceLabel of ['Cash App', 'PayPal', 'A crypto wallet']) {
       const sourceButton = screen.getByRole('button', { name: sourceLabel });
       expect(sourceButton).toBeDisabled();
       expect(sourceButton).toHaveAttribute('aria-pressed', 'false');
@@ -349,8 +363,7 @@ describe('CruushPlusStore', () => {
     ['Cash App', 'usdc_arbitrum', [
       'Open Cash App and go to the Payment tab.',
     ]],
-    ['Venmo or PayPal', 'pyusd_arbitrum', [
-      'Open Venmo, go to Crypto, and choose PayPal USD (PYUSD).',
+    ['PayPal', 'pyusd_arbitrum', [
       'Open PayPal, go to Finances, and open your PayPal USD (PYUSD) balance.',
     ]],
     ['A crypto wallet', 'usdc_base', [
@@ -394,7 +407,7 @@ describe('CruushPlusStore', () => {
     await waitFor(() => expect(walletButton).toHaveAttribute('aria-pressed', 'true'));
     expect(walletButton).toBeEnabled();
     expect(screen.getByRole('button', { name: 'Cash App' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Venmo or PayPal' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'PayPal' })).toBeDisabled();
   });
 
   it('keeps the backend PYUSD Ethereum rail hidden and cannot start it from checkout', async () => {
@@ -405,7 +418,7 @@ describe('CruushPlusStore', () => {
     const payButton = await screen.findByRole('button', { name: /get 1 month for \$18\.99/i });
     expect(payButton).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Cash App' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Venmo or PayPal' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'PayPal' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'A crypto wallet' })).toBeDisabled();
     expect(screen.queryByRole('button', { name: /something else/i })).not.toBeInTheDocument();
     expect(createCryptoPaymentIntent).not.toHaveBeenCalled();
@@ -485,6 +498,62 @@ describe('CruushPlusStore', () => {
     expect(screen.getByText('0x73659c60270d326c06Ac204F1A9C63f889a3D14B')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Payment started' })).toBeDisabled();
     expect(createCryptoPaymentIntent).not.toHaveBeenCalled();
+  });
+
+  it('cancels a recorded order before unlocking another payment method', async () => {
+    vi.mocked(getCryptoProcessorStatus).mockResolvedValue(processorStatus([
+      'usdc_arbitrum',
+      'pyusd_arbitrum',
+      'usdc_base',
+    ]));
+    const openIntent = {
+      id: '00000000-0000-4000-8000-000000000010',
+      userId: '00000000-0000-4000-8000-000000000001',
+      planId: 'plus_monthly' as const,
+      asset: 'USDC' as const,
+      network: 'arbitrum' as const,
+      rail: 'usdc_arbitrum' as const,
+      chainId: 42161,
+      tokenAddress: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
+      amountUsdCents: 1899,
+      quotedAmountAtomic: '18990000',
+      paymentAddress: '0x1111111111111111111111111111111111111111',
+      paymentUri: null,
+      qrCodeDataUrl: null,
+      status: 'awaiting_payment' as const,
+      expiresAt: '2099-09-01T13:00:00.000Z',
+      createdAt: '2099-09-01T12:00:00.000Z',
+      updatedAt: '2099-09-01T12:00:00.000Z',
+      paidAt: null,
+    };
+    vi.mocked(getCurrentCryptoPaymentIntent).mockResolvedValue(openIntent);
+    vi.mocked(cancelCryptoPaymentIntent).mockResolvedValue({
+      ...openIntent,
+      paymentAddress: null,
+      status: 'cancelled',
+      updatedAt: '2099-09-01T12:01:00.000Z',
+    });
+
+    renderStore();
+
+    expect(await screen.findByRole('button', { name: 'Change payment method' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Cancel order' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'PayPal' })).toBeDisabled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Change payment method' }));
+    expect(screen.getByText(/only cancel if you have not sent payment/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel and choose another method' }));
+
+    await waitFor(() => {
+      expect(cancelCryptoPaymentIntent).toHaveBeenCalledWith(openIntent.id);
+    });
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'Previous order cancelled. Choose how you want to pay.',
+    );
+    expect(screen.queryByText(openIntent.paymentAddress)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'PayPal' })).toBeEnabled();
+    fireEvent.click(screen.getByRole('button', { name: 'PayPal' }));
+    expect(screen.getByRole('button', { name: 'PayPal' })).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('keeps a restored open payment on its original rail when that rail is unavailable', async () => {
@@ -660,7 +729,7 @@ describe('CruushPlusStore', () => {
 
     expect(await screen.findByRole('button', { name: 'Starting…' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Cash App' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Venmo or PayPal' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'PayPal' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'A crypto wallet' })).toBeDisabled();
     resolveIntent = null;
   });
@@ -749,7 +818,9 @@ describe('CruushPlusStore', () => {
     renderStore();
 
     const link = await screen.findByRole('link', { name: 'Read the billing policy' });
+    const refundLink = screen.getByRole('link', { name: 'Request a legally required refund review' });
     expect(link).toHaveAttribute('href', '/billing-policy');
+    expect(refundLink).toHaveAttribute('href', '/support?refund=1');
     expect(link.closest('div')).toHaveTextContent('One-time purchase. Nothing renews automatically.');
     expect(link.closest('div')).toHaveTextContent(
       'Purchases are final and non-refundable except where applicable law requires a withdrawal, refund, remedy, or forced reversal.',

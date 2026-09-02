@@ -4,6 +4,7 @@ import { getCruushPlusPlan } from "../billing.js";
 import type { AppConfig } from "../config.js";
 import {
   CRYPTO_PAYMENT_RAILS,
+  cancelCryptoPaymentIntent,
   createInHouseCryptoPaymentIntent,
   getCryptoPaymentRailRpcEndpoint,
   getCryptoProcessorStatus,
@@ -46,6 +47,11 @@ export const CRYPTO_PAYMENT_INTENT_CREATE_RATE_LIMIT = {
 
 export const CRYPTO_PAYMENT_INTENT_READ_RATE_LIMIT = {
   max: 30,
+  windowMs: 60_000
+} as const;
+
+export const CRYPTO_PAYMENT_INTENT_CANCEL_RATE_LIMIT = {
+  max: 5,
   windowMs: 60_000
 } as const;
 
@@ -186,6 +192,21 @@ export async function registerCryptoPaymentRoutes(
     await assertCryptoPaymentIntentReadRateLimit(app, userId);
     const { intentId } = paymentIntentParamsSchema.parse(request.params);
     const intent = await loadCryptoPaymentIntent(app.db, userId, intentId);
+
+    return reply.send({
+      data: await withCryptoPaymentDisplay(intent)
+    });
+  });
+
+  app.post("/api/crypto/payment-intents/:intentId/cancel", async (request, reply) => {
+    const userId = await getActiveAccountUserId(request);
+    await app.rateLimiter.assert({
+      key: `crypto-payment-intents:cancel:${userId}`,
+      ...CRYPTO_PAYMENT_INTENT_CANCEL_RATE_LIMIT,
+      message: "Too many crypto payment cancellation attempts. Try again shortly."
+    });
+    const { intentId } = paymentIntentParamsSchema.parse(request.params);
+    const intent = await cancelCryptoPaymentIntent(app.db, userId, intentId);
 
     return reply.send({
       data: await withCryptoPaymentDisplay(intent)

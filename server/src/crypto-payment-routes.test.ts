@@ -369,6 +369,69 @@ describe("crypto payment routes", () => {
     }
   });
 
+  it("cancels only the member-owned open intent and keeps its recorded row", async () => {
+    const paymentAddress = deriveCryptoReceivingAddress(receiveChainXpub, 1);
+    const openIntent = {
+      id: intentId,
+      user_id: userId,
+      plan_id: "plus_monthly",
+      processor: "in_house" as const,
+      asset: "USDC" as const,
+      network: "arbitrum" as const,
+      amount_usd_cents: 1899,
+      quoted_amount_atomic: "18990000",
+      derivation_index: 1,
+      wallet_xpub_fingerprint: fingerprintCryptoWalletXpub(receiveChainXpub),
+      payment_address: paymentAddress,
+      status: "awaiting_payment" as const,
+      idempotency_key: "checkout-cancel",
+      metadata: { source: "store" },
+      expires_at: "2099-08-22T18:00:00Z",
+      created_at: "2099-08-22T17:00:00Z",
+      updated_at: "2099-08-22T17:00:00Z",
+      paid_at: null
+    };
+    const cancelledIntent = {
+      ...openIntent,
+      status: "cancelled" as const,
+      metadata: { source: "store", cancelledBy: "member" },
+      updated_at: "2099-08-22T17:01:00Z"
+    };
+    const query = vi.fn(async (sql: string) => {
+      if (sql.includes("pg_advisory_xact_lock")) return { rows: [] };
+      if (sql.includes("for update")) return { rows: [openIntent] };
+      if (sql.includes("set status = 'cancelled'")) return { rows: [cancelledIntent] };
+      throw new Error(`Unexpected query: ${sql}`);
+    });
+    const app = buildServer(baseConfig(), {
+      db: databaseWithTransaction(query),
+      rateLimiter: createMemoryRateLimiter()
+    });
+
+    try {
+      const response = await app.inject({
+        method: "POST",
+        url: `/api/crypto/payment-intents/${intentId}/cancel`,
+        headers: { "x-user-id": userId }
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toMatchObject({
+        data: {
+          id: intentId,
+          userId,
+          status: "cancelled",
+          paymentAddress: null,
+          paymentUri: null,
+          qrCodeDataUrl: null
+        }
+      });
+      expect(query.mock.calls.some(([sql]) => String(sql).includes("delete from"))).toBe(false);
+    } finally {
+      await app.close();
+    }
+  });
+
   it("derives the plan amount on the server and returns one account-linked address", async () => {
     const paymentAddress = deriveCryptoReceivingAddress(receiveChainXpub, 1);
     const readRailHead = vi.fn(async (_config: AppConfig, rail: string) =>

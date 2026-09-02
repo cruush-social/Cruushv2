@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   assertCryptoPaymentStatusTransition,
   buildCryptoPaymentUri,
+  cancelCryptoPaymentIntent,
   canTransitionCryptoPaymentStatus,
   createBoundedCryptoPaymentQrCodeCache,
   expireStaleCryptoPaymentIntents,
@@ -96,6 +97,53 @@ describe("crypto payment core", () => {
     expect(() => assertCryptoPaymentStatusTransition("paid", "pending")).toThrow(/cannot move/);
   });
 
+  it("keeps a member cancellation as a terminal audit row", async () => {
+    const open = paymentRow({
+      quoted_amount_atomic: "18990000",
+      payment_address: "0x73659c60270d326c06Ac204F1A9C63f889a3D14B",
+      status: "awaiting_payment"
+    });
+    const cancelled = paymentRow({
+      ...open,
+      status: "cancelled",
+      metadata: { source: "store", cancelledBy: "member" }
+    });
+    const query = vi.fn(async (sql: string) => {
+      if (sql.includes("pg_advisory_xact_lock")) return { rows: [] };
+      if (sql.includes("for update")) return { rows: [open] };
+      if (sql.includes("set status = 'cancelled'")) return { rows: [cancelled] };
+      throw new Error(`Unexpected query: ${sql}`);
+    });
+
+    const result = await cancelCryptoPaymentIntent(
+      transactionDb(query),
+      open.user_id,
+      open.id
+    );
+
+    expect(result.status).toBe("cancelled");
+    const update = query.mock.calls.find(([sql]) => String(sql).includes("set status = 'cancelled'"));
+    expect(update?.[0]).toContain("metadata = metadata ||");
+    expect(update?.[0]).not.toContain("expires_at");
+    expect(update?.[0]).not.toContain("delete from");
+  });
+
+  it("never cancels after chain funds are detected", async () => {
+    const confirming = paymentRow({ status: "confirming" });
+    const query = vi.fn(async (sql: string) => {
+      if (sql.includes("pg_advisory_xact_lock")) return { rows: [] };
+      if (sql.includes("for update")) return { rows: [confirming] };
+      throw new Error(`Unexpected query: ${sql}`);
+    });
+
+    await expect(cancelCryptoPaymentIntent(
+      transactionDb(query),
+      confirming.user_id,
+      confirming.id
+    )).rejects.toThrow(/funds were already detected/i);
+    expect(query.mock.calls.some(([sql]) => String(sql).includes("set status = 'cancelled'"))).toBe(false);
+  });
+
   it("maps database rows without exposing idempotency or wallet configuration", () => {
     const mapped = mapCryptoPaymentIntent(paymentRow({
       quoted_amount_atomic: "18990000",
@@ -160,6 +208,7 @@ describe("crypto payment core", () => {
         status
       })));
 
+      expect(terminal.paymentAddress, `${status} must not expose a retired address`).toBeNull();
       expect(terminal.paymentUri, `${status} must not remain fillable`).toBeNull();
       expect(terminal.qrCodeDataUrl, `${status} must not retain a QR code`).toBeNull();
     }

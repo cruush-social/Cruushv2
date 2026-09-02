@@ -23,6 +23,16 @@ describe("migration runner", () => {
     expect(listedFiles).toEqual(sqlFiles);
   });
 
+  it("keeps the crypto order database fallback at 60 minutes", async () => {
+    const windowSql = await readFile(
+      path.join(serverRoot, "sql", "122_crypto_payment_intent_window.sql"),
+      "utf8"
+    );
+
+    expect(windowSql).toContain("alter column expires_at set default");
+    expect(windowSql).toContain("interval '60 minutes'");
+  });
+
   it("keeps cruush+ billing ownership on app users before profile onboarding", async () => {
     const billingSql = await readFile(path.join(serverRoot, "sql", "027_cruush_plus_billing.sql"), "utf8");
     const rewardsSql = await readFile(path.join(serverRoot, "sql", "042_rewards_and_two_factor.sql"), "utf8");

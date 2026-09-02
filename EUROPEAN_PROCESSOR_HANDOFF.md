@@ -19,11 +19,11 @@ verify money. Add a provider-specific source variant and database reference,
 then prove settlement independently through the provider's signed evidence.
 Browser redirects never qualify as payment proof.
 
-Migrations `096` through `101` are already used by the crypto branch. Before an
+Migrations `116` through `122` are already used by the crypto branch. Before an
 address becomes payable, the route verifies the selected endpoint's
 `eth_chainId` against the server-fixed rail, reads its head, and migration
-`100_crypto_payment_watch_start.sql` provides the durable head-origin column.
-Migration `101_crypto_payment_chain_positions.sql` adds a durable origin and
+`120_crypto_payment_watch_start.sql` provides the durable head-origin column.
+Migration `121_crypto_payment_chain_positions.sql` adds a durable origin and
 cursor for every intent on every supported chain, plus authoritative transfer
 block timestamps. Active watcher passes verify chain ID before the head or log
 read, and a mismatch aborts before cursor advancement.
@@ -84,7 +84,7 @@ one month, `/store` shows the monthly equivalent prominently on the right and
 the total as the left-side subtitle. Weekly and lifetime show the one-payment
 amount because they have no monthly rate.
 
-The current crypto source picker shows only "Cash App", "Venmo or PayPal", and
+The current crypto source picker shows only "Cash App", "PayPal", and
 "A crypto wallet". It intentionally has no "Something else" or "Other payment
 options" item. A future card or SEPA choice must be concrete and must not
 reintroduce a generic crypto label.
@@ -93,17 +93,13 @@ reintroduce a generic crypto label.
 
 The checkout represents these seven paid capabilities:
 
-1. Who has a cruush on you.
-2. See who viewed your profile.
-3. Send up to 3 Pulses every 24 hours.
-4. Land on a nearby profile in Cruise Carousel, then browse again.
-5. Use more than 3 seeking filter categories at once.
-6. Use more than 3 visibility filters at once.
-7. Use Dark Room to browse without appearing on the map.
-
-Mile High Club and Feed+ are not implemented in this branch. They may be
-advertised only after the corresponding v1.6 release-line work is merged and
-verified.
+1. Who has a cruush on you: see your full incoming cruush and profile-view lists.
+2. More Pulses: send more Pulses throughout the day.
+3. Mile High Club: drop a pin where you are visiting and cruise from there.
+4. Feed+: add up to three photo hearts, post to a specific Crowd, and choose when your post expires.
+5. Cruise carousel: spin through nearby profiles and browse again.
+6. All seeking and visibility controls: use all seeking filters, combine more visibility controls, and add up to 10 searchable profile tags. Basic includes 3.
+7. Dark Room: browse the map without appearing on it.
 
 Dark Room is not Ghost Mode, and it is never Stealth Mode. Basic members can
 browse nearby profiles, post text to the local feed, and spin Cruise Carousel.
@@ -118,6 +114,11 @@ locks plan and source selectors while an open or paid intent owns checkout.
 If the restored intent's rail is unavailable, it stays selected and locked
 through `paid`; readiness changes do not discard or switch payment state. A
 European checkout needs equivalent server-owned expiry and selector locks.
+
+The crypto checkout uses a 60-minute deadline and supports cancellation before
+payment is sent. Cancellation preserves the member-linked PostgreSQL attempt,
+never reuses its address, and unlocks payment-source selection. Confirming and
+paid orders cannot be cancelled.
 
 ## Crypto state to coordinate around
 
@@ -164,7 +165,7 @@ The visible crypto mappings are:
 | Source | Rail |
 | --- | --- |
 | Cash App | USDC on Arbitrum |
-| Venmo or PayPal | PYUSD on Arbitrum |
+| PayPal | PYUSD on Arbitrum |
 | A crypto wallet | USDC on Base |
 
 PYUSD on Ethereum remains a hidden fallback. Dwellir's free plan is not the

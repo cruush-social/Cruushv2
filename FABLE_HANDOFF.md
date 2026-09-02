@@ -28,9 +28,9 @@ ready. Checkout disables sources whose mapped rail is not ready.
 
 Before an address becomes payable, the create route verifies the selected
 endpoint's `eth_chainId` and reads its head. Migration
-`100_crypto_payment_watch_start.sql` stores that head with the address as a
+`120_crypto_payment_watch_start.sql` stores that head with the address as a
 durable intended-chain watch origin. Migration
-`101_crypto_payment_chain_positions.sql` gives every intent a durable origin
+`121_crypto_payment_chain_positions.sql` gives every intent a durable origin
 and cursor on every supported chain. A secondary chain with an existing durable
 cursor still verifies `eth_chainId` and reads its current head because that
 cursor may be stale after an idle period. Every configured secondary does this
@@ -47,16 +47,16 @@ Rails:
 | Rail | Chain | Token | Checkout use |
 | --- | --- | --- | --- |
 | `usdc_arbitrum` | Arbitrum | USDC | Cash App |
-| `pyusd_arbitrum` | Arbitrum | PYUSD | Venmo or PayPal |
+| `pyusd_arbitrum` | Arbitrum | PYUSD | PayPal |
 | `pyusd_ethereum` | Ethereum | PYUSD | hidden fallback |
 | `usdc_base` | Base | USDC | A crypto wallet |
 
-Venmo and PayPal are external token transfers, not embedded merchant checkout.
-No Venmo, PayPal, card-provider, or third-party payment API was added.
+PayPal is an external token transfer, not embedded merchant checkout. No
+PayPal, card-provider, or third-party payment API was added.
 
 ## Checkout truth
 
-The visible payment choices are exactly "Cash App", "Venmo or PayPal", and
+The visible payment choices are exactly "Cash App", "PayPal", and
 "A crypto wallet". Do not restore "Something else" or "Other payment
 options". A crypto checkout needs a concrete source, not a generic escape
 label.
@@ -77,17 +77,13 @@ target.
 
 The checkout advertises seven capabilities present in this branch:
 
-1. Who has a cruush on you.
-2. See who viewed your profile.
-3. Send up to 3 Pulses every 24 hours.
-4. Land on a nearby profile in Cruise Carousel, then browse again.
-5. Use more than 3 seeking filter categories at once.
-6. Use more than 3 visibility filters at once.
-7. Use Dark Room to browse without appearing on the map.
-
-Mile High Club and Feed+ remain separate v1.6 release-line work. Do not add
-either benefit to this checkout until its implementation is merged and
-verified in the same tree.
+1. Who has a cruush on you: see your full incoming cruush and profile-view lists.
+2. More Pulses: send more Pulses throughout the day.
+3. Mile High Club: drop a pin where you are visiting and cruise from there.
+4. Feed+: add up to three photo hearts, post to a specific Crowd, and choose when your post expires.
+5. Cruise carousel: spin through nearby profiles and browse again.
+6. All seeking and visibility controls: use all seeking filters, combine more visibility controls, and add up to 10 searchable profile tags. Basic includes 3.
+7. Dark Room: browse the map without appearing on it.
 
 Dark Room and Ghost Mode are separate features. Never call Dark Room Stealth
 Mode or Ghost Mode. Nearby profile browsing, text feed posts, and the initial
@@ -101,6 +97,11 @@ closes, the page hides the address and QR and stops treating the quote as
 fillable. An unavailable restored rail stays selected and locked through the
 intent's `paid` state, so readiness changes never discard or switch payment
 state.
+
+New orders use a 60-minute server deadline. Before sending, a member may cancel
+the order or cancel it to choose another method. The cancelled intent stays in
+PostgreSQL, its address is never reused, and a replacement payment is a new
+member-linked attempt. Confirming and paid intents cannot be cancelled.
 
 ## Settlement safety
 
@@ -231,17 +232,18 @@ server-side.
 
 ## Useful implementation history
 
-- Migrations `096` through `101` define intents, multi-asset constraints,
+- Migrations `116` through `122` define intents, multi-asset constraints,
   observed transfers, settlement constraints, the durable pre-address watch
-  origin, and per-intent positions for every supported chain. Migration `101`
-  also adds authoritative block timestamps to transfer evidence. The ordered
+  origin, and per-intent positions for every supported chain. Migration `121`
+  also adds authoritative block timestamps to transfer evidence. Migration
+  `122` sets the database fallback for new order windows to 60 minutes. The ordered
   list in `server/src/migrate.ts` must stay synchronized with the SQL directory.
 - `grantCruushPlusPlan` was extracted so crypto and existing checkout grants do
   not drift.
 - Payment URI and QR output use fixed server rail metadata. Terminal states now
   suppress both.
 - Idle watcher passes return before an RPC call when no intent needs evidence.
-- Arbitrum leads Cash App and Venmo/PayPal reach. Base remains the self-custody
+- Arbitrum leads Cash App and PayPal reach. Base remains the self-custody
   wallet rail.
 - Base Sepolia-only gas and USDC sweep signing primitives exist in the local
   wallet tool, with no RPC client or broadcast command. Mainnet gas funding,

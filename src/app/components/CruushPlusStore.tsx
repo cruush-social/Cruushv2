@@ -7,6 +7,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './
 import CruushPlusWord from './CruushPlusWord';
 import { getBillingPlans, type CruushPlusPlan } from '../lib/billingApi';
 import {
+  cancelCryptoPaymentIntent,
   createCryptoPaymentIntent,
   getCurrentCryptoPaymentIntent,
   getCryptoPaymentIntent,
@@ -17,15 +18,24 @@ import {
   type CryptoPaymentRailId,
   type CryptoProcessorStatus,
 } from '../lib/cryptoCheckoutApi';
+import { CRUUSH_PLUS_FEATURES } from '../lib/cruushPlusFeatures';
 
-const PLUS_BENEFITS = [
-  'Who has a cruush on you',
-  'See who viewed your profile',
-  'Send up to 3 Pulses every 24 hours',
-  'Cruise Carousel: land on a nearby profile, then browse again',
-  'Use more than 3 seeking filter categories at once',
-  'Use more than 3 visibility filters at once',
-  'Dark Room: browse without appearing on the map',
+const CHECKOUT_PLUS_FEATURES = CRUUSH_PLUS_FEATURES.map((benefit) =>
+  benefit.title === 'Full activity'
+    ? { ...benefit, title: 'Who has a cruush on you' }
+    : benefit,
+);
+
+// Keep seven benefits balanced in exactly three rows: two, two, then three.
+// The shortest descriptions occupy the narrower final row.
+const BALANCED_CHECKOUT_PLUS_FEATURES = [
+  CHECKOUT_PLUS_FEATURES[0],
+  CHECKOUT_PLUS_FEATURES[5],
+  CHECKOUT_PLUS_FEATURES[2],
+  CHECKOUT_PLUS_FEATURES[3],
+  CHECKOUT_PLUS_FEATURES[1],
+  CHECKOUT_PLUS_FEATURES[4],
+  CHECKOUT_PLUS_FEATURES[6],
 ] as const;
 
 const PAYMENT_STATUS_COPY: Record<CryptoPaymentIntent['status'], string> = {
@@ -73,7 +83,7 @@ const PAYMENT_SOURCES: ReadonlyArray<{
   network: string;
 }> = [
   { rail: 'usdc_arbitrum', label: 'Cash App', asset: 'USDC', network: 'Arbitrum' },
-  { rail: 'pyusd_arbitrum', label: 'Venmo or PayPal', asset: 'PYUSD', network: 'Arbitrum' },
+  { rail: 'pyusd_arbitrum', label: 'PayPal', asset: 'PYUSD', network: 'Arbitrum' },
   { rail: 'usdc_base', label: 'A crypto wallet', asset: 'USDC', network: 'Base' },
 ];
 
@@ -90,26 +100,18 @@ const PAYMENT_METHOD_GUIDES: Partial<Record<CryptoPaymentRailId, readonly Paymen
       'Copy the order address from cruush and paste it into the Cash App search bar.',
       'Enter the exact dollar amount shown by cruush. Cash App sends it as USDC.',
       'When Cash App shows the network, choose Arbitrum.',
+      'If Arbitrum is not listed, do not send. Choose another available payment method.',
       'Check the amount and address, then send before the cruush order timer reaches 0.',
     ],
   }],
   pyusd_arbitrum: [
     {
-      title: 'Venmo',
-      steps: [
-        'Open Venmo, go to Crypto, and choose PayPal USD (PYUSD).',
-        'Tap the transfer arrows, tap Send, then paste or scan the order address from cruush.',
-        'Choose Arbitrum as the network.',
-        'Enter the exact PYUSD amount shown by cruush.',
-        'Check the amount, network, and address, then send before the cruush order timer reaches 0.',
-      ],
-    },
-    {
       title: 'PayPal',
       steps: [
         'Open PayPal, go to Finances, and open your PayPal USD (PYUSD) balance.',
         'Tap the transfer arrows, tap Send, then paste or scan the order address from cruush.',
-        'Choose Arbitrum on the blockchain network confirmation screen.',
+        'On the blockchain network confirmation screen, confirm the network is Arbitrum.',
+        'If the screen does not say Arbitrum, do not send. Choose another available payment method.',
         'Enter the exact PYUSD amount shown by cruush.',
         'Review the amount, network, and address, then tap Send Now before the cruush order timer reaches 0.',
       ],
@@ -222,11 +224,15 @@ export default function CruushPlusStore() {
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelAction, setCancelAction] = useState<'change' | 'cancel' | null>(null);
+  const [checkoutNotice, setCheckoutNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
   const [clockMs, setClockMs] = useState(() => Date.now());
   const paymentAttemptRef = useRef<{ planId: string; rail: CryptoPaymentRailId; idempotencyKey: string } | null>(null);
   const pollStartedRef = useRef<{ intentId: string; startedAt: number } | null>(null);
+  const cancelledIntentIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -329,7 +335,7 @@ export default function CruushPlusStore() {
     pollStartedRef.current = pollStarted;
     const hardStopAt = Number.isFinite(intentExpiresAtMs)
       ? intentExpiresAtMs + (intent.status === 'confirming' ? 20 * 60 * 1000 : 0)
-      : pollStarted.startedAt + (30 * 60 * 1000);
+      : pollStarted.startedAt + (60 * 60 * 1000);
 
     const timer = window.setInterval(() => {
       if (Date.now() >= hardStopAt || document.visibilityState === 'hidden') {
@@ -338,7 +344,7 @@ export default function CruushPlusStore() {
 
       getCryptoPaymentIntent(intent.id)
         .then((next) => {
-          if (active) {
+          if (active && cancelledIntentIdRef.current !== next.id) {
             setStatusError(null);
             setClockMs(Date.now());
             setIntent((current) => current?.id === next.id
@@ -433,6 +439,7 @@ export default function CruushPlusStore() {
     setStarting(true);
     setError(null);
     setStatusError(null);
+    setCheckoutNotice(null);
     setCopied(false);
 
     try {
@@ -462,6 +469,37 @@ export default function CruushPlusStore() {
       setStarting(false);
     }
   }, [locallyExpired, paymentOpen, paymentPaid, selectedPlan, selectedRail, selectedRailReady, starting]);
+
+  const handleCancelPayment = useCallback(async () => {
+    if (!intent || !cancelAction || cancelling || !['pending', 'awaiting_payment'].includes(intent.status)) {
+      return;
+    }
+
+    setCancelling(true);
+    cancelledIntentIdRef.current = intent.id;
+    setError(null);
+    setStatusError(null);
+
+    try {
+      const cancelledIntent = await cancelCryptoPaymentIntent(intent.id);
+      paymentAttemptRef.current = null;
+      setCopied(false);
+      setCancelAction(null);
+
+      if (cancelAction === 'change') {
+        setIntent(null);
+        setCheckoutNotice('Previous order cancelled. Choose how you want to pay.');
+      } else {
+        setIntent(cancelledIntent);
+        setCheckoutNotice('Order cancelled. Its address will not be reused.');
+      }
+    } catch (cancelError) {
+      cancelledIntentIdRef.current = null;
+      setError(cancelError instanceof Error ? cancelError.message : 'Unable to cancel this payment.');
+    } finally {
+      setCancelling(false);
+    }
+  }, [cancelAction, cancelling, intent]);
 
   const handleCopyAddress = useCallback(async () => {
     if (!intent?.paymentAddress) {
@@ -608,6 +646,11 @@ export default function CruushPlusStore() {
           <Card>
             <CardContent className="space-y-2 p-3">
               <p className="text-sm font-semibold">What are you paying from?</p>
+              {checkoutNotice ? (
+                <p role="status" className="rounded-lg border border-border bg-muted/40 p-2 text-xs leading-4 text-muted-foreground">
+                  {checkoutNotice}
+                </p>
+              ) : null}
               <div className="grid grid-cols-3 gap-2" aria-label="Where you are paying from">
                 {PAYMENT_SOURCES.map((source) => {
                   const sourceReady = readyRailIds.has(source.rail);
@@ -731,6 +774,47 @@ export default function CruushPlusStore() {
                       not cancel it. Return here to see the same active payment.
                     </p>
                   ) : null}
+                  {paymentOpen && !locallyExpired && intent.status !== 'confirming' ? (
+                    cancelAction ? (
+                      <div className="space-y-2 rounded-lg border border-destructive/30 bg-destructive/10 p-3">
+                        <p className="text-xs leading-5 text-foreground">
+                          Only cancel if you have not sent payment. Blockchain transfers cannot be stopped,
+                          and funds sent to this address after cancellation will not activate this order automatically.
+                        </p>
+                        <div className="grid gap-2 sm:grid-cols-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            disabled={cancelling}
+                            onClick={() => setCancelAction(null)}
+                          >
+                            Keep order
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            disabled={cancelling}
+                            onClick={() => void handleCancelPayment()}
+                          >
+                            {cancelling
+                              ? 'Cancelling…'
+                              : cancelAction === 'change'
+                                ? 'Cancel and choose another method'
+                                : 'Cancel order'}
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        <Button type="button" variant="outline" onClick={() => setCancelAction('change')}>
+                          Change payment method
+                        </Button>
+                        <Button type="button" variant="ghost" onClick={() => setCancelAction('cancel')}>
+                          Cancel order
+                        </Button>
+                      </div>
+                    )
+                  ) : null}
                 </div>
               ) : null}
             </CardContent>
@@ -749,15 +833,18 @@ export default function CruushPlusStore() {
             <p className="mb-2 text-xs text-muted-foreground">
               Viewing the map and messaging stay free for everyone, always.
             </p>
-            <ul aria-label="cruush+ benefits" className="grid grid-cols-2 gap-x-1.5 gap-y-1">
-              {PLUS_BENEFITS.map((benefit) => (
+            <ul aria-label="cruush+ benefits" className="grid grid-cols-6 gap-1.5">
+              {BALANCED_CHECKOUT_PLUS_FEATURES.map((benefit, index) => (
                 <li
-                  className="flex items-center gap-1.5 rounded-xl border border-white/20 p-2 text-[11px] leading-4 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_10px_30px_rgba(255,0,114,0.18)]"
-                  key={benefit}
+                  className={`${index < 4 ? 'col-span-3' : 'col-span-2'} flex h-full items-start gap-1.5 rounded-xl border border-white/20 p-2 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_10px_30px_rgba(255,0,114,0.18)]`}
+                  key={benefit.title}
                   style={{ background: 'var(--cruush-gradient)' }}
                 >
-                  <Check className="h-3.5 w-3.5 shrink-0 text-white" />
-                  <span>{benefit}</span>
+                  <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-white" />
+                  <span className="min-w-0">
+                    <span className="block text-[11px] font-semibold leading-4">{benefit.title}</span>
+                    <span className="block text-[10px] leading-4 text-white/85">{benefit.description}</span>
+                  </span>
                 </li>
               ))}
             </ul>
@@ -779,7 +866,7 @@ export default function CruushPlusStore() {
                   queer community.
                 </p>
                 <p>
-                  Cash App pays with USDC on Arbitrum. Venmo and PayPal pay with PYUSD on Arbitrum.
+                  Cash App pays with USDC on Arbitrum. PayPal pays with PYUSD on Arbitrum.
                   You pay once for the cruush+ time you choose. Nothing renews automatically.
                 </p>
                 <p>
@@ -800,6 +887,9 @@ export default function CruushPlusStore() {
             </p>
             <a className="font-medium text-foreground underline underline-offset-4" href="/billing-policy">
               Read the billing policy
+            </a>
+            <a className="block font-medium text-foreground underline underline-offset-4" href="/support?refund=1">
+              Request a legally required refund review
             </a>
           </CardContent>
         </Card>

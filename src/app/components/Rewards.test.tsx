@@ -121,7 +121,7 @@ describe('Rewards', () => {
     }));
     renderRewards();
 
-    expect(screen.getByText('Loading your rewards…')).toBeInTheDocument();
+    expect(screen.getByRole('status', { name: 'Loading your rewards' })).toBeInTheDocument();
     resolveSummary(summary);
 
     expect(await screen.findByText('6-day streak')).toBeInTheDocument();

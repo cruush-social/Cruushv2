@@ -47,7 +47,7 @@ describe('Changelog', () => {
     expect(v13Section?.textContent ?? '').toMatch(/Ghost Mode has clearer controls and status feedback/i);
     expect(v13Section?.textContent ?? '').toMatch(/same detailed Seeking filters as the map/i);
     expect(v13Section?.textContent ?? '').toMatch(/free day of cruush\+ when they enable 2FA/i);
-    expect(screen.getAllByText(/Dark Room adds a new cruush\+ privacy control/i)).not.toHaveLength(0);
+    expect(screen.getAllByText(/Dark Room adds a cruush\+ privacy control/i)).not.toHaveLength(0);
     expect(screen.queryByText(/Stealth Mode/i)).not.toBeInTheDocument();
     expect(screen.getByText(/Ping briefly activates your map heart.*local feed.*saved post duration/i)).toBeInTheDocument();
     expect(screen.getByText(/interactive tutorial highlights the real Install, Notifications/i)).toBeInTheDocument();

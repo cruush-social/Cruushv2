@@ -1,5 +1,11 @@
 # FIXLOG
 
+- 2026-09-02: The billing policy and checkout now link to a prefilled refund-review request for legally required withdrawal, refund, price-reduction, or other billing remedies without promising voluntary refunds.
+- 2026-09-02: The seven checkout benefit capsules now fill exactly three balanced rows; no public cruush+ benefit claims saved visibility sets.
+- 2026-09-02: Cancelled, expired, failed, paid, and refunded payment responses no longer expose a retired order address.
+- 2026-09-02: The cruush+ checkout now uses the current v1.6 benefit set, removes the nonexistent visibility-sets claim, and keeps the exact “Who has a cruush on you” title.
+- 2026-09-02: Members can cancel an unsent crypto order or cancel it to change payment method; the PostgreSQL attempt remains recorded, its address is never reused, and confirming or paid orders cannot be cancelled.
+- 2026-09-02: New crypto orders now use a 60-minute window, and Venmo is no longer advertised because its current official documentation does not confirm Arbitrum support.
 - 2026-09-01: The cruush+ checkout now labels the browse-without-appearing benefit as Dark Room and no longer shows the meaningless Something else crypto payment choice.
 - 2026-09-01: The checkout now lists seven benefits implemented in this branch, explains Dark Room, and no longer sells unmerged Mile High Club or Feed+, basic feed posting, or nearby-profile browsing as paid features.
 - 2026-09-01: Plan cards now show the monthly rate prominently on the right and the exact charged total under the term on the left; six months is $65.94 total and $10.99/month.

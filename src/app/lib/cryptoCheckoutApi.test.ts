@@ -1,5 +1,6 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  cancelCryptoPaymentIntent,
   createCryptoPaymentIntent,
   getCurrentCryptoPaymentIntent,
   getCryptoPaymentIntent,
@@ -7,7 +8,12 @@ import {
 } from './cryptoCheckoutApi';
 
 describe('cryptoCheckoutApi', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   beforeEach(() => {
+    vi.stubEnv('VITE_API_BASE_URL', '');
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
       ok: true,
       text: vi.fn().mockResolvedValue(JSON.stringify({ data: {} })),
@@ -48,5 +54,17 @@ describe('cryptoCheckoutApi', () => {
         idempotencyKey: 'checkout-client-1',
       }),
     }));
+  });
+
+  it('cancels one member-owned intent through its dedicated action', async () => {
+    await cancelCryptoPaymentIntent('00000000-0000-4000-8000-000000000010');
+
+    expect(fetch).toHaveBeenCalledWith(
+      '/api/crypto/payment-intents/00000000-0000-4000-8000-000000000010/cancel',
+      expect.objectContaining({
+        method: 'POST',
+        credentials: 'include',
+      }),
+    );
   });
 });

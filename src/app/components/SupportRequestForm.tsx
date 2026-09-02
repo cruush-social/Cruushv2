@@ -17,6 +17,7 @@ const SUPPORT_CATEGORIES: Array<{ value: SupportRequestCategory; label: string }
 type SupportRequestFormProps = {
   className?: string;
   appealMode?: boolean;
+  refundMode?: boolean;
   requireContactEmail?: boolean;
   source: SupportRequestSource;
 };
@@ -32,13 +33,14 @@ function getCurrentPageUrl() {
 export default function SupportRequestForm({
   appealMode = false,
   className,
+  refundMode = false,
   requireContactEmail = false,
   source,
 }: SupportRequestFormProps) {
   const idPrefix = useId();
   const [category, setCategory] = useState<SupportRequestCategory>('question');
   const [contactEmail, setContactEmail] = useState('');
-  const [subject, setSubject] = useState('');
+  const [subject, setSubject] = useState(refundMode ? 'Refund request' : '');
   const [message, setMessage] = useState('');
   const [status, setStatus] = useState<'idle' | 'submitting' | 'success'>('idle');
   const [error, setError] = useState<string | null>(null);
@@ -176,7 +178,7 @@ export default function SupportRequestForm({
       });
       }
       setStatus('success');
-      setSubject('');
+      setSubject(refundMode ? 'Refund request' : '');
       setMessage('');
       setIdDocument(null);
       setSelfie(null);
@@ -193,12 +195,21 @@ export default function SupportRequestForm({
   };
 
   return (
-    <section className={cn('rounded-lg border border-border bg-card/70 p-4', className)}>
+    <section className={cn('min-w-0 max-w-full overflow-hidden rounded-lg border border-border bg-card/70 p-4', className)}>
       <div className="mb-4">
-        <h3 className="text-lg">{appealMode ? 'Appeal a suspension' : 'Contact support'}</h3>
+        <h3 className="text-lg">
+          {appealMode ? 'Appeal a suspension' : refundMode ? 'Request a refund review' : 'Contact support'}
+        </h3>
         {appealMode ? (
           <p className="mt-2 text-sm text-muted-foreground">
             A human reviews age-related photo suspensions. Take a photo of your ID, then mark over everything except your date of birth and photo. Add a selfie holding a handwritten card with your account email and today’s date. Evidence stays private, expires after 24 hours, and is deleted when the review is closed.
+          </p>
+        ) : refundMode ? (
+          <p className="mt-2 text-sm text-muted-foreground">
+            Submitting a request does not guarantee a refund. cruush reviews legally required withdrawal,
+            refund, price-reduction, and other billing-remedy claims under applicable law. Include the order
+            ID, transaction hash, purchase date, country or region, and reason. Never include wallet recovery
+            words, a private key, or a seed phrase.
           </p>
         ) : null}
       </div>
@@ -214,7 +225,7 @@ export default function SupportRequestForm({
           </Button>
         </div>
       ) : (
-        <form aria-label={appealMode ? 'Suspension appeal' : 'Contact support'} className="space-y-4" onSubmit={handleSubmit}>
+        <form aria-label={appealMode ? 'Suspension appeal' : refundMode ? 'Refund request' : 'Contact support'} className="space-y-4" onSubmit={handleSubmit}>
           {error ? (
             <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
               {error}
