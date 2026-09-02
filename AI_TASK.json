@@ -62,7 +62,7 @@
     ".octo/ROADMAP.md",
     ".octo/STATE.md",
     "AI_TASK.json",
-    "CRUUSH-WALLET-INSTRUCTIONS.txt",
+    "cruush-wallet-instructions.txt",
     "EUROPEAN_PROCESSOR_HANDOFF.md",
     "FABLE_HANDOFF.md",
     "FIXLOG.md",
@@ -494,5 +494,22 @@
       "/private/tmp/cruush-refund-desktop-bottom-1280x900-2026-09-02.png"
     ],
     "renderedResult": "Actual localhost renders at 390x844 and 1280x900 show no horizontal overflow on any of the three named pages. Final content clears the fixed bottom navigation. Pulse benefits render as three balanced two-card rows. The complete payment-method, protected-order, cancellation, billing, and legally required refund paths remain accessible."
+  },
+  "processorVerification20260902": {
+    "scope": "Crypto processor and checkout verification only. No group-Pulse product work, production activation, transaction signing, transaction broadcast, or main merge.",
+    "serverProof": "All 238 unique focused processor assertions passed across payment creation, address allocation, routes, cancellation, reconciliation, settlement policy, configuration, watch-only wallet validation, watcher runtime, watcher settlement, migrations, PostgreSQL atomicity, and Pulse-pack fulfillment. Both disposable PostgreSQL databases accepted all migrations, migration replay, and their real-database suites.",
+    "clientProof": "All 46 focused checkout assertions passed across cruush+, Pulse packs, crypto checkout APIs, billing policy, and refund review. The operator-wallet suite passed 40/40. Server, client, and operator-wallet production builds passed.",
+    "liveLocalProof": "An authenticated current-branch server exposed a healthy watch-only processor. Cash App created USDC on Arbitrum, PayPal created PYUSD on Arbitrum, a crypto wallet created USDC on Base, and the Pulse-pack checkout created the selected 10-Pulse order for $7.99. Each order received its own address and 60-minute deadline, displayed exact sending instructions, and was cancelled without deleting its PostgreSQL attempt. Change payment method cancelled the prior order before returning to source selection.",
+    "renderedProof": [
+      "/private/tmp/cruush-crypto-store-mobile-top-390x844.png",
+      "/private/tmp/cruush-crypto-store-mobile-bottom-390x844.png",
+      "/private/tmp/cruush-pulse-pack-mobile-top-390x844.png",
+      "/private/tmp/cruush-pulse-pack-mobile-bottom-390x844.png",
+      "/private/tmp/cruush-pulse-pack-desktop-1280x900.png"
+    ],
+    "renderedResult": "Actual checkout, billing-policy, and refund-review renders at 390x844 and Pulse-pack checkout at 1280x900 had zero horizontal overflow. Bottom content cleared the fixed navigation. All three visible payment methods were enabled when their required local chain endpoints were configured.",
+    "environmentProof": "Arbitrum and Base mainnet chain IDs were verified before payment-address publication. The official rate-limited Base endpoint was used only for local QA; production still requires provider-grade CRYPTO_PROCESSOR_ARBITRUM_RPC_URL and CRYPTO_PROCESSOR_BASE_RPC_URL values.",
+    "repositoryProof": "The branch contains current origin/main. Product-name, public-copy, layout, security, whitespace, and conflict-marker checks passed after renaming the processor instruction file to lowercase.",
+    "remainingOperationalGates": "No live funds were sent. Before production activation, configure production RPC endpoints, complete the documented controlled receive-through-entitlement and reconciliation drill, resolve EU/EEA withdrawal compliance or exclusion, fund operator gas safely, and move signing custody to the hardware wallet when available."
   }
 }
