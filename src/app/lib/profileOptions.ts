@@ -32,7 +32,7 @@ export const POSITIONS = alphabetize([
 ]);
 
 export const ROLES = alphabetize([
-  'dominant', 'service', 'submissive', 'switch'
+  'brat', 'dominant', 'handler', 'pet', 'rigger', 'rope bunny', 'service', 'submissive', 'switch', 'trainer', 'worship'
 ]);
 
 export const LOOKING_FOR = alphabetize([

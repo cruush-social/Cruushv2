@@ -175,6 +175,13 @@ export const BADGE_OPTIONS: BadgeOption[] = [
   { id: 'switch', label: 'Switch', icon: SwitchEmblem, group: 'Role' },
   { id: 'switch-taken', label: 'Switch, taken', icon: TakenSwitchEmblem, group: 'Role' },
   { id: 'service', label: 'Service', icon: ServiceGlyph, group: 'Role' },
+  { id: 'worship', label: 'Worship', icon: HeartHandshake, group: 'Role' },
+  { id: 'handler', label: 'Handler', icon: Handshake, group: 'Role' },
+  { id: 'pet', label: 'Pet', icon: Bone, group: 'Role' },
+  { id: 'brat', label: 'Brat', icon: Drama, group: 'Role' },
+  { id: 'rigger', label: 'Rigger', icon: Spline, group: 'Role' },
+  { id: 'rope-bunny', label: 'Rope bunny', icon: Feather, group: 'Role' },
+  { id: 'trainer', label: 'Trainer', icon: Dumbbell, group: 'Role' },
 
   // Kinks: reuse the established badge glyphs for the profile kink choices.
   { id: 'bondage', label: 'Bondage', icon: BondageGlyph, group: 'Kinks' },
