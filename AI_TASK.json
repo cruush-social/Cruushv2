@@ -1,43 +1,30 @@
 {
   "schemaVersion": 2,
-  "taskId": "cruush-1.6-spot-tags-badges-email-20260901",
+  "taskId": "cruush-1.6-spot-clusters-plus-protection-email-20260901",
   "status": "complete",
-  "objective": "Compact the mobile Spot summary, add moderated profile tags to profile edit/view and Seeking/Visibility search, confirm saved side badges under heart previews, and refresh tightly cropped v1.6 email images.",
-  "userOutcome": "Spots reveal Pink Book sooner on mobile; members can add moderated tags below Bio and be found by those tags through Seeking and Visibility; saved side badges appear below person hearts; email images show only each feature without distracting page chrome.",
+  "objective": "Finish the named v1.6 Spot spacing and tab fixes, membership tag and Feed-photo entitlements, badge visibility, cruush+ benefit styling, separate Spot clustering, labeled protection values, and announcement screenshots.",
+  "userOutcome": "Spot pages read cleanly, basic and cruush+ limits are clear and enforced, badges remain under profile hearts, map clusters distinguish people from Spots, protection answers are understandable, and the v1.6 email shows the corrected features.",
   "audience": "cruush members and v1.6 announcement recipients.",
   "successCriteria": [
-    "Here now and rating capsules are compact on mobile while desktop geometry and behavior remain unchanged.",
-    "Pink Book and Who's Here appear in the initial mobile Spot viewport.",
-    "Profile edit includes a Tags field directly below Bio and explains that tags are searchable in Seeking and Visibility.",
-    "Profile view shows Tags directly below About.",
-    "Profile tags are normalized, stored, moderated with profile content, and included in Seeking and Visibility text matching.",
-    "Saved side badges render directly under heart previews on Feed, Messages, and cruush activity.",
-    "The MHC screenshot reflects the real responsive behavior and is cropped to the address control.",
-    "All email feature images and the rendered email screenshot are refreshed with feature-focused crops."
+    "Stonewall Inn description spacing is tighter and the Spot tab active segment fits its capsule.",
+    "Basic members can add 3 profile tags and cruush+ members can add 10.",
+    "Basic Feed posts are text-only and cruush+ Feed posts can include up to 3 photo hearts.",
+    "Saved side badges render below heart previews on Feed, Messages, and cruush activity.",
+    "Every cruush+ benefit uses the bright product gradient and the benefit copy states the new limits.",
+    "Circular numbered clusters contain only people; Spot clusters use a distinct Spot-style marker and open only Spots.",
+    "Protection answers identify Condoms, PrEP, and DoxyPEP.",
+    "The v1.6 email images and rendered email screenshot show the corrected features."
   ],
   "mustPreserve": [
-    "Preserve MHC behavior: desktop Settings is an embedded map popup and MHC replaces it there; direct mobile MHC remains a full page.",
-    "Preserve existing badge icons, side-badge geometry, profile data, Spot behavior, email copy, and all unrelated UI.",
-    "Use actual local release code and seeded data for screenshots."
+    "Preserve map tiles, map theme, person pin style, badge icons, Spot data, Feed heart size, and unrelated UI.",
+    "Use actual local release code and seeded data for screenshots.",
+    "Keep Feed photo previews as separate small horizontal hearts."
   ],
   "nonGoals": [
-    "Do not redesign top chrome, invent badge placeholders, change Feed post tag search, send email, push, deploy, or run test suites."
+    "Do not add or run test suites, build, push, deploy, send email, change badge glyphs, change map tiles, or redesign adjacent surfaces."
   ],
-  "assumptions": [
-    {
-      "statement": "SF means Seeking Filters and VC means Visibility Controls.",
-      "impact": "Profile-tag matching is added to the shared profile search used by those controls.",
-      "reversible": true,
-      "confirmationState": "inferred from existing product names and shared search implementation"
-    },
-    {
-      "statement": "Desktop MHC may appear in a popup only because desktop Settings itself is embedded in the map popup.",
-      "impact": "No MHC navigation behavior change is needed; the email image will crop out unrelated map chrome.",
-      "reversible": true,
-      "confirmationState": "confirmed from current source and release handoff"
-    }
-  ],
-  "nextVisibleMilestone": "Hand off the rendered v1.6 email and local checkpoint commit.",
+  "assumptions": [],
+  "nextVisibleMilestone": "Hand off rendered corrected surfaces, refreshed email screenshot, and a local checkpoint commit.",
   "stopConditions": [
     "Stop before any push, deployment, email send, or production-data action."
   ],
@@ -46,8 +33,7 @@
     "commit": "authorized by Julien's standing v1.6 commit instruction",
     "send": "forbidden",
     "push": "not authorized",
-    "deploy": "not authorized",
-    "migration": "source migration authorized; local preview application allowed for rendering only"
+    "deploy": "not authorized"
   },
   "externalEffects": {
     "externalMessages": "forbidden",
@@ -56,14 +42,14 @@
     "deletion": "forbidden",
     "securityChanges": "forbidden",
     "credentials": "local development credentials only",
-    "newDefaults": "profile tags default to empty",
+    "newDefaults": "basic profile tag limit is 3; cruush+ profile tag limit is 10",
     "identityCreativeDecisions": "forbidden"
   },
   "product": "cruush",
   "release": "1.6",
   "repository": "cruush-social/Cruushv2",
   "branch": "release/1.6-integration-20260901",
-  "job": "Finish the named Spot, profile tag, side-badge, MHC, and email-image work.",
+  "job": "Finish the exact named Spot, entitlement, badge, cluster, protection, and email corrections.",
   "forbiddenPaths": [
     "src/styles/**",
     "HANDOFF.md",
@@ -73,38 +59,27 @@
     "AI_TASK.json",
     "DESIGN_DECISIONS.md",
     "src/app/components/PlaceDetail.tsx",
-    "src/app/components/MapFiltersSurface.tsx",
-    "src/app/components/MapVisibilitySurface.tsx",
-    "src/app/components/ProfileEdit.tsx",
-    "src/app/components/ProfileOnboarding.tsx",
     "src/app/components/ProfileView.tsx",
-    "src/app/components/UserActivityCapsule.tsx",
-    "src/app/components/LocalFeed.tsx",
-    "src/app/components/DirectMessages.tsx",
-    "src/app/components/CruushActivity.tsx",
-    "src/app/lib/profileApi.ts",
-    "server/sql/115_profile_tags.sql",
-    "server/src/migrate.ts",
+    "src/app/components/ProfileEdit.tsx",
+    "src/app/components/Rewards.tsx",
+    "src/app/components/MapView.tsx",
+    "src/app/components/FeedPhotoPreview.tsx",
+    "src/app/lib/cruushPlusFeatures.ts",
     "server/src/profile-schema.ts",
-    "server/src/profile-visibility.ts",
     "server/src/routes/profiles.ts",
-    "server/src/routes/users.ts",
-    "server/src/routes/cruush.ts",
-    "server/src/map-pings.ts",
-    "server/src/nearby-notifications.ts",
-    "server/src/pulse-notifications.ts",
+    "docs/previews/cruush-1.6-update-email.html",
+    "docs/previews/cruush-1.6-update-email.jpg",
     "public/email/cruush-v1.6-mhc-address.jpg",
     "public/email/cruush-v1.6-spot.jpg",
     "public/email/cruush-v1.6-badges.jpg",
-    "public/email/cruush-v1.6-feed-photos.jpg",
-    "docs/previews/cruush-1.6-update-email.jpg"
+    "public/email/cruush-v1.6-feed-photos.jpg"
   ],
-  "proofTarget": "Rendered 390x844 and 598x1278 mobile states, desktop Settings/MHC popup state, populated side-badge cards on all three named surfaces, and the rendered 600px-wide email.",
+  "proofTarget": "Rendered Android-sized Spot, Profile Health, Profile Edit, cruush+ benefits, people and Spot cluster states, populated badges on Feed/Messages/cruush, and refreshed email screenshot.",
   "publicationTarget": "Local checkpoint commit only.",
   "requiredEvidence": [
-    "Rendered Spot showing compact capsules and both tabs without initial scroll.",
-    "Rendered profile edit and profile view tag fields.",
-    "Rendered Feed, Messages, and cruush cards with saved side badges under the heart.",
+    "Rendered affected routes at Android mobile size.",
+    "Rendered separate people and Spot clusters.",
+    "Rendered Feed, Messages, and cruush cards with saved side badges under hearts.",
     "Feature-focused email images and rendered email screenshot.",
     "Clean scoped commit."
   ]

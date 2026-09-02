@@ -71,7 +71,8 @@ const MAX_PROFILE_GROUP_SELECTIONS = 3;
 const MAX_PROFILE_VIBES = 3;
 const MAX_PROFILE_HOBBIES = 3;
 const MAX_PROFILE_KINKS = 5;
-const MAX_PROFILE_TAGS = 5;
+const BASIC_PROFILE_TAGS = 3;
+const CRUUSH_PLUS_PROFILE_TAGS = 10;
 /** cruush+ lifts the ceiling rather than raising it. */
 const UNLIMITED_PROFILE_KINKS = Number.POSITIVE_INFINITY;
 const MAX_GENDER_IDENTITIES = MAX_PROFILE_GROUP_SELECTIONS;
@@ -506,12 +507,16 @@ function sanitizeVisibilityRules(profile: ProfilePayload): ProfileVisibilityRule
   };
 }
 
-function toProfileSavePayload(profile: ProfilePayload, kinkLimit: number = MAX_PROFILE_KINKS): ProfilePayload {
+function toProfileSavePayload(
+  profile: ProfilePayload,
+  kinkLimit: number = MAX_PROFILE_KINKS,
+  profileTagLimit: number = BASIC_PROFILE_TAGS,
+): ProfilePayload {
   return {
     display_name: getSaveDisplayName(profile),
     photos: sanitizeProfilePhotos(profile.photos ?? []),
     bio: (profile.bio ?? '').trim(),
-    tags: uniqueValues(profile.tags ?? []).map(normalizeProfileTag).filter(Boolean).slice(0, MAX_PROFILE_TAGS),
+    tags: uniqueValues(profile.tags ?? []).map(normalizeProfileTag).filter(Boolean).slice(0, profileTagLimit),
     signal: (profile.signal ?? '').trim(),
     pronouns: limitToThree(profile.pronouns ?? []),
     custom_pronouns: (profile.custom_pronouns ?? '').trim(),
@@ -733,6 +738,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
   }, []);
 
   const kinkLimit = cruushPlus ? UNLIMITED_PROFILE_KINKS : MAX_PROFILE_KINKS;
+  const profileTagLimit = cruushPlus ? CRUUSH_PLUS_PROFILE_TAGS : BASIC_PROFILE_TAGS;
 
   const handleKinksChange = (selectedKinks: string[]) => {
     setProfile((prev) => {
@@ -753,7 +759,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
     setSaving(true);
     setError(null);
     try {
-      const savedProfile = await saveMyProfile(toProfileSavePayload(profile, kinkLimit));
+      const savedProfile = await saveMyProfile(toProfileSavePayload(profile, kinkLimit, profileTagLimit));
       if (profileSaveRequestRef.current !== requestId) {
         return;
       }
@@ -785,7 +791,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
     setPhotoUploadError(null);
 
     try {
-      const savedProfile = await saveMyProfile(toProfileSavePayload(nextProfile, kinkLimit));
+      const savedProfile = await saveMyProfile(toProfileSavePayload(nextProfile, kinkLimit, profileTagLimit));
 
       if (profileSaveRequestRef.current === requestId) {
         applySavedProfile(savedProfile);
@@ -996,7 +1002,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
   const normalizedProfile: ProfilePayload = {
     ...profile,
     photos: sanitizeProfilePhotos(profile.photos || []),
-    tags: uniqueValues(profile.tags || []).map(normalizeProfileTag).filter(Boolean).slice(0, MAX_PROFILE_TAGS),
+    tags: uniqueValues(profile.tags || []).map(normalizeProfileTag).filter(Boolean).slice(0, profileTagLimit),
     signal: profile.signal ?? '',
     pronouns: profile.pronouns || [],
     identities: limitGenderIdentities(profile.identities || []),
@@ -1223,7 +1229,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
                 onChange={e => handleChange('bio', e.target.value)}
                 className="min-h-[120px] bg-input-background"
               />
-              <p className="text-xs text-muted-foreground">Add tags below so people can find your profile in Seeking and Visibility.</p>
+              <p className="text-xs text-muted-foreground">Add tags below so people can find your profile in Seeking and Visibility. Basic includes 3; cruush+ includes 10.</p>
             </div>
 
             <div className="space-y-2">
@@ -1233,7 +1239,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
                 <input
                   aria-label="Add profile tag"
                   className="h-10 min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-white/45"
-                  disabled={normalizedProfile.tags.length >= MAX_PROFILE_TAGS}
+                  disabled={normalizedProfile.tags.length >= profileTagLimit}
                   id="profile-tags"
                   maxLength={25}
                   onChange={(event) => setProfileTagDraft(event.target.value)}
@@ -1241,7 +1247,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
                     if (event.key !== 'Enter') return;
                     event.preventDefault();
                     const tag = normalizeProfileTag(profileTagDraft);
-                    if (!tag || normalizedProfile.tags.includes(tag) || normalizedProfile.tags.length >= MAX_PROFILE_TAGS) return;
+                    if (!tag || normalizedProfile.tags.includes(tag) || normalizedProfile.tags.length >= profileTagLimit) return;
                     handleChange('tags', [...normalizedProfile.tags, tag]);
                     setProfileTagDraft('');
                   }}
@@ -1250,10 +1256,10 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
                 />
                 <button
                   className="text-sm font-semibold text-white/72 disabled:opacity-35"
-                  disabled={!normalizeProfileTag(profileTagDraft) || normalizedProfile.tags.includes(normalizeProfileTag(profileTagDraft)) || normalizedProfile.tags.length >= MAX_PROFILE_TAGS}
+                  disabled={!normalizeProfileTag(profileTagDraft) || normalizedProfile.tags.includes(normalizeProfileTag(profileTagDraft)) || normalizedProfile.tags.length >= profileTagLimit}
                   onClick={() => {
                     const tag = normalizeProfileTag(profileTagDraft);
-                    if (!tag || normalizedProfile.tags.includes(tag) || normalizedProfile.tags.length >= MAX_PROFILE_TAGS) return;
+                    if (!tag || normalizedProfile.tags.includes(tag) || normalizedProfile.tags.length >= profileTagLimit) return;
                     handleChange('tags', [...normalizedProfile.tags, tag]);
                     setProfileTagDraft('');
                   }}

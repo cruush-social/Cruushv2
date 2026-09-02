@@ -1644,10 +1644,13 @@ function VenueClusterMarker({ marker }: { marker: MapMarker }) {
 
   return (
     <span
-      className="flex h-16 min-w-16 items-center justify-center rounded-full border border-[3.2px] border-[#FF0072]/45 bg-black/82 px-4 text-xl font-semibold text-white shadow-[0_0_38px_rgba(255,0,114,0.55)] backdrop-blur-md"
+      className="relative left-8 top-6 flex h-12 w-12 rotate-45 items-center justify-center rounded-[0.7rem] border-2 border-[#55C8FF] bg-black/94 text-white shadow-[0_0_10px_rgba(20,157,255,0.95),0_0_24px_rgba(21,79,255,0.62)] backdrop-blur-md"
       data-testid={`venue-cluster-marker-${marker.cluster?.id ?? marker.id}`}
     >
-      {count > 999 ? '999+' : count}
+      <span className="flex -rotate-45 items-center gap-1 text-base font-semibold">
+        <MapPinned className="h-3.5 w-3.5" />
+        {count > 999 ? '999+' : count}
+      </span>
     </span>
   );
 }

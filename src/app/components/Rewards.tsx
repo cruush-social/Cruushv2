@@ -288,14 +288,12 @@ export default function Rewards() {
               </AccordionTrigger>
               <AccordionContent className="px-6 pb-6">
                 <ul aria-label="cruush+ features" className="grid gap-3 sm:grid-cols-2">
-                  {CRUUSH_PLUS_FEATURES.map((feature, index) => (
+                  {CRUUSH_PLUS_FEATURES.map((feature) => (
                     <li
                       className="rounded-xl border border-white/20 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_10px_30px_rgba(255,0,114,0.18)]"
                       key={feature.title}
                       style={{
-                        background: index % 2 === 0
-                          ? 'var(--cruush-gradient-soft-28)'
-                          : 'var(--cruush-gradient)',
+                        background: 'var(--cruush-gradient)',
                       }}
                     >
                       <p className="font-semibold text-white">{feature.title}</p>

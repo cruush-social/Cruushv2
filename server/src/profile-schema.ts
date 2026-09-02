@@ -235,7 +235,7 @@ export const sideBadgesSchema = z.object({
 
 const profileTagsSchema = z.array(
   z.string().trim().regex(/^#?[a-zA-Z0-9_]{1,24}$/, "Tags can use letters, numbers, and underscores."),
-).max(5).optional().default([]).transform((values) => (
+).max(10).optional().default([]).transform((values) => (
   [...new Set(values.map((value) => value.replace(/^#/, "").toLowerCase()))]
 ));
 

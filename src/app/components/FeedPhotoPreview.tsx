@@ -2,6 +2,7 @@ import { useState, type ChangeEvent, type ReactNode } from 'react';
 import { ArrowLeft, Flag, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import type { FeedPhoto } from '../lib/postApi';
+import type { SideBadges } from '../lib/profileApi';
 import FeedAttachmentPreview from './FeedAttachmentPreview';
 import FeedPhotoViewer from './FeedPhotoViewer';
 import HeartPhoto from './HeartPhoto';
@@ -30,6 +31,11 @@ const PREVIEW_FEED_PHOTOS: readonly FeedPhoto[] = PREVIEW_PHOTOS.map((url, index
   explicit: false,
 }));
 
+const PREVIEW_SIDE_BADGES: SideBadges = {
+  left: { badge_id: 'leather', intent: 'none', frame: 'circle' },
+  right: { badge_id: 'dominant', intent: 'none', frame: 'diamond' },
+};
+
 const POSTS = [
   {
     id: 'text-only',
@@ -42,6 +48,7 @@ const POSTS = [
     vibes: ['GOTH', 'LEATHER', 'CAM'],
     theme: 'nearby' as const,
     owner: true,
+    sideBadges: PREVIEW_SIDE_BADGES,
   },
   {
     id: 'photo-post',
@@ -54,6 +61,7 @@ const POSTS = [
     vibes: ['MUSIC', 'DANCE', 'LATE'],
     theme: 'mutual' as const,
     owner: false,
+    sideBadges: PREVIEW_SIDE_BADGES,
   },
 ] as const;
 
@@ -82,6 +90,7 @@ function PostChrome({ post, children, heartSize }: {
       )}
       name={post.author}
       pronouns={post.pronouns}
+      sideBadges={post.sideBadges}
       metadata={(
         <div className="flex h-11 min-w-0 flex-col justify-center gap-0.5 overflow-hidden text-xs leading-snug text-white/62 sm:text-sm">
           <span className="truncate">{post.age}</span>

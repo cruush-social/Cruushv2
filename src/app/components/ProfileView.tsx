@@ -180,7 +180,11 @@ export function profileRecordToProfileView(
     vibes: [...new Set([...profile.vibes, ...profile.scenes, ...profile.archetypes])],
     kinks: profile.kinks,
     hobbies: profile.hobbies,
-    protection: [...profile.condoms, ...profile.prep, ...profile.doxypep].filter(Boolean),
+    protection: [
+      ...profile.condoms.map((value) => `Condoms: ${value}`),
+      ...profile.prep.map((value) => `PrEP: ${value}`),
+      ...profile.doxypep.map((value) => `DoxyPEP: ${value}`),
+    ].filter(Boolean),
     hivStatus: formatSingle(profile.hiv_status),
     covidStatus: formatSingle(profile.covid_vaccine),
     mpoxStatus: formatSingle(profile.mpox_vaccine),

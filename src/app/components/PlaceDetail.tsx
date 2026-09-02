@@ -361,7 +361,7 @@ export default function PlaceDetail({ embedded = false, placeIdOverride }: Place
           <button type="button" className="mt-3 inline-flex items-center text-xs text-white/50 hover:text-white" onClick={() => embedded ? setReportTarget({ targetType: 'place', targetId: place.id, targetLabel: place.name }) : navigate('/report', { state: { targetType: 'place', placeId: place.id, targetLabel: place.name } })}><Flag className="mr-1 h-3.5 w-3.5" />Report incorrect or unsafe spot</button>
         </div>
 
-        {place.description ? <p className="order-4 text-muted-foreground">{place.description}</p> : null}
+        {place.description ? <p className="order-4 -mt-5 text-muted-foreground">{place.description}</p> : null}
 
         <div className="order-5 grid grid-cols-2 gap-3 sm:gap-4">
           <div className="flex min-h-12 items-center justify-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-center sm:block sm:p-4">
@@ -421,9 +421,9 @@ export default function PlaceDetail({ embedded = false, placeIdOverride }: Place
               ) : null}
             </div>
           ) : null}
-          <TabsList className="w-full grid grid-cols-2">
-            <TabsTrigger value="feed">Pink Book</TabsTrigger>
-            <TabsTrigger value="here">Who's Here</TabsTrigger>
+          <TabsList className="grid h-10 w-full grid-cols-2 p-1">
+            <TabsTrigger className="h-8 rounded-full py-0" value="feed">Pink Book</TabsTrigger>
+            <TabsTrigger className="h-8 rounded-full py-0" value="here">Who's Here</TabsTrigger>
           </TabsList>
 
           <TabsContent value="feed" className="space-y-4 mt-4">

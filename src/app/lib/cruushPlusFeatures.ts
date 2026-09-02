@@ -16,7 +16,7 @@ export const CRUUSH_PLUS_FEATURES = [
   },
   {
     title: 'Feed+',
-    description: 'Post to a specific Crowd and choose when your post expires.',
+    description: 'Add up to three photo hearts, post to a specific Crowd, and choose when your post expires.',
   },
   {
     title: 'Cruise carousel',
@@ -24,7 +24,7 @@ export const CRUUSH_PLUS_FEATURES = [
   },
   {
     title: 'All seeking and visibility controls',
-    description: 'Use all seeking filters, combine more visibility controls, and save visibility sets.',
+    description: 'Use all seeking filters, combine more visibility controls, save visibility sets, and add up to 10 searchable profile tags. Basic includes 3.',
   },
   {
     title: 'Dark Room',

@@ -5,6 +5,7 @@ import { canStartDirectMessage } from "../cruush-match-settings.js";
 import { runTransaction, type DbClient } from "../db.js";
 import { ApiError } from "../errors.js";
 import {
+  getCruushEntitlement,
   getRelationshipPermissions,
   getEffectiveVisibilityPolicy,
   getPrivacySettings,
@@ -1738,6 +1739,13 @@ export async function registerProfileRoutes(app: FastifyInstance) {
   app.put("/api/profiles/me", async (request, reply) => {
     const userId = await getActiveAccountUserId(request);
     const parsedPayload = profilePayloadSchema.parse(request.body);
+
+    if (parsedPayload.tags.length > 3) {
+      const entitlement = await getCruushEntitlement(app, userId);
+      if (!entitlement.cruushPlus) {
+        throw new ApiError(402, "CRUUSH_PLUS_REQUIRED", "Upgrade to cruush+ to add up to 10 profile tags.");
+      }
+    }
 
     if (countVisibilityExclusionFilters(parsedPayload.visibility_rules) > FREE_VISIBILITY_EXCLUSION_LIMIT) {
       await requireCruushPlus(app, userId, VISIBILITY_EXCLUSION_LIMIT_MESSAGE);
