@@ -18,3 +18,4 @@
   tapping the owner pin set its pressed state and displayed the signal above the heart.
 - 2026-09-01: The current user's regular and Ghost Mode decoy previews now stay open after a mobile
   tap instead of closing on touch pointer-leave; tapping the same heart again closes the preview.
+- 2026-09-02: GitHub #142. Onboarding now matches the server's 35-character Signal limit and names the invalid field instead of only showing `Request validation failed`; skipping optional 2FA remains supported.

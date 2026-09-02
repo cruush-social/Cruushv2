@@ -1,31 +1,27 @@
 {
   "schemaVersion": 2,
-  "taskId": "cruush-1.6-email-cruush-actions-production-20260901",
+  "taskId": "cruush-1.6-github-142-spot-clusters-email-20260902",
   "status": "validating",
-  "objective": "Finish the authorized 1.6 release: keep cruush and Messages metadata clear, center cruush metadata beside the heart and Badges, preserve the approved Ghost Mode exit while replacing the decoy photo's blue filter with its reduced-opacity Pepper's Ghost treatment, make owner and decoy pins respond to mobile tap, remove clipping and overlap across reachable app surfaces with Larger text enabled, repair Cruise Carousel mobile layout, make the Pulse panel immovable on mobile, refresh the email screenshots, commit, and deploy production main.",
-  "userOutcome": "Cruush and Messages labels remain readable, owner and Ghost Mode decoy pins respond on mobile, the decoy photo stays translucent without the unwanted blue filter, reachable mobile app surfaces remain usable with Larger text, Cruise Carousel fits, Pulse stays fixed on mobile, the v1.6 email is accurate, and the release is live from main.",
+  "objective": "Fix GitHub #142's unclear onboarding validation after optional 2FA is skipped, preserve optional 2FA behavior, confirm Spot clusters use their own Spot-style marker separate from people clusters, add focused Spot-cluster proof to the v1.6 email, refresh its screenshot, commit, and deploy production main.",
+  "userOutcome": "New members can finish onboarding after skipping optional 2FA without an unexplained validation failure, map clusters clearly distinguish Spots from people, and the v1.6 email shows the shipped Spot cluster treatment.",
   "audience": "cruush members and v1.6 announcement recipients.",
   "successCriteria": [
-    "Cruush activity action buttons use a smaller footprint while name, last active, and distance remain centered beside the heart and Badges.",
-    "Messages card buttons use the same compact footprint while preserving message-preview spacing.",
-    "Time, recently active, Nearby, and Far far away labels remain complete and do not overlap action buttons at Android mobile width.",
-    "The v1.6 email keeps the Badge editor image and adds a focused populated cruush card using a gradient heart and showing matching heart and Badge borders.",
-    "The Ghost Mode decoy keeps reduced opacity and the approved exit animation without applying the unwanted blue photo filter.",
-    "The owner's regular and Ghost Mode decoy pins expose their preview on mobile tap and desktop hover.",
-    "Reachable signed-in app surfaces at Android mobile width show no text overlap, clipped actions, or inaccessible content with Larger text enabled, including the open Mile High Club picker.",
-    "Cruise Carousel fills mobile without clipped headers, controls, cards, or actions in default and Larger text modes.",
-    "The Pulse panel cannot be dragged, translated, or resized on mobile while its desktop window behavior stays unchanged.",
+    "Onboarding's Signal input enforces the same 35-character limit as the server.",
+    "A server validation response identifies the invalid onboarding field instead of only saying Request validation failed.",
+    "Skipping optional 2FA remains supported and does not change profile-save behavior.",
+    "People clusters remain numeric people clusters; Spot clusters remain separate custom Spot-style markers.",
+    "The v1.6 email includes a focused screenshot showing the separate Spot cluster treatment.",
     "The committed release reaches origin/main and production reports the exact deployed SHA with the refreshed service worker."
   ],
   "mustPreserve": [
-    "Preserve map tiles, map theme, badge glyphs, the approved Ghost Mode exit icon and motion, decoy reduced opacity, heart sizes, all action-button sizes outside cruush activity and Messages cards, Messages preview spacing, email template structure, data, and unrelated UI.",
+    "Preserve map tiles, map theme, people-cluster behavior, Spot data, optional 2FA behavior, onboarding sequence, email template structure, and unrelated UI.",
     "Use actual local release code and populated local data for screenshots. Do not send the email."
   ],
   "nonGoals": [
-    "Do not add or run tests, run a local build, send the email, change badge glyphs, change map tiles, or redesign adjacent surfaces."
+    "Do not add or run tests, run a local build, send the email, change 2FA requirements, change map tiles, or redesign adjacent surfaces."
   ],
   "assumptions": [],
-  "nextVisibleMilestone": "Show the corrected Android cruush card and updated full email capture, then publish the exact commit to main and verify production SHA.",
+  "nextVisibleMilestone": "Show the updated full email with focused Spot-cluster proof after publishing the scoped fix to main.",
   "stopConditions": ["Stop only for a password form, user browser takeover, non-fast-forward main, or failed claim-matched production proof."],
   "costBudget": {"maxUsd": 0, "maxMinutes": null},
   "externalEffectDecisions": {
@@ -49,7 +45,7 @@
   "release": "1.6",
   "repository": "cruush-social/Cruushv2",
   "branch": "release/1.6-integration-20260901",
-  "job": "Compact cruush activity and Messages card actions, center cruush metadata beside the heart and Badges, refresh the v1.6 email proof, commit, push main, and verify the production deploy.",
+  "job": "Fix GitHub #142 onboarding validation, confirm separate Spot clustering, refresh the v1.6 email proof, commit, push main, and verify production.",
   "forbiddenPaths": ["HANDOFF.md", ".dev/**"],
   "allowedPaths": [
     "AI_TASK.json",
@@ -66,6 +62,7 @@
     "src/app/components/ProfilePhotoGallery.tsx",
     "src/app/components/MapProfilePopup.tsx",
     "src/app/components/ProfileView.tsx",
+    "src/app/components/ProfileOnboarding.tsx",
     "src/app/components/MapView.tsx",
     "src/app/components/TravelModeSettings.tsx",
     "src/app/components/CruiseCarouselSlot.tsx",
@@ -85,22 +82,20 @@
     "public/email/cruush-v1.6-badges.jpg",
     "public/email/cruush-v1.6-mhc-address.jpg",
     "public/email/cruush-v1.6-spot.jpg",
+    "public/email/cruush-v1.6-spot-clusters.jpg",
     "docs/previews/cruush-1.6-update-email.html",
     "docs/previews/cruush-1.6-update-email.jpg",
     "docs/changelog.md",
     "FIXLOG.md"
   ],
-  "proofTarget": "Rendered populated Android cruush activity and Messages cards, actual owner and decoy map pins with mobile preview and the decoy photo treatment, every reachable production route audited with Larger text at Android width, fixed Cruise Carousel and immovable mobile Pulse, refreshed email captures, origin/main SHA, production /api/build SHA, refreshed live service worker, and live Android surfaces.",
+  "proofTarget": "Rendered onboarding Signal limit and field-specific validation copy, rendered live people and Spot clusters as separate marker treatments, refreshed email capture, origin/main SHA, production /api/build SHA, and refreshed live service worker.",
   "publicationTarget": "origin/main and cruush production through Coolify.",
   "requiredEvidence": [
-    "Rendered populated Android cruush activity and Messages cards with no control and metadata overlap.",
-    "Rendered full email and inspected both focused Badge images.",
-    "Rendered the actual Ghost Mode decoy and owner pin and exercised their mobile tap preview.",
-    "Audited every reachable signed-in production route at Android mobile size with Larger text enabled and recorded the route count and visible failures.",
-    "Rendered the open Mile High Club picker and Cruise Carousel at Android mobile size with Larger text enabled and confirmed visible content and actions do not overlap.",
-    "Exercised the Pulse header with mobile pointer movement and confirmed its panel rectangle does not move.",
+    "Rendered the onboarding Signal field with the 35-character browser limit and field-specific validation copy.",
+    "Rendered the live map with a numeric people cluster and a separate Spot-style Spot cluster.",
+    "Rendered the full email and inspected the focused Spot-cluster image.",
     "Clean scoped commit and matching origin/main SHA.",
     "Production /api/build SHA matches origin/main and live /sw.js contains the new cache version.",
-    "Authenticated live Android cruush route shows the compact non-overlapping controls."
+    "Live onboarding and map surfaces show the scoped fixes."
   ]
 }
