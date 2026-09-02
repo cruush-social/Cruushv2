@@ -186,20 +186,6 @@
   isolation: isolate;
 }
 
-.launch-login-auth-logo-wrap::before {
-  position: absolute;
-  inset: -0.25rem;
-  z-index: 0;
-  content: '';
-  pointer-events: none;
-  background: var(--cruush-logo);
-  -webkit-mask: url('../assets/brand/cruush-logo.svg') center / contain no-repeat;
-  mask: url('../assets/brand/cruush-logo.svg') center / contain no-repeat;
-  filter: blur(0.32rem);
-  opacity: 0.26;
-  transform: scale(1.02);
-}
-
 .launch-login-auth-logo-image {
   display: block;
   position: relative;
