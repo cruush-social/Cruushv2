@@ -188,21 +188,21 @@
 
 .launch-login-auth-logo-wrap::before {
   position: absolute;
-  inset: 0;
+  inset: -0.25rem;
   z-index: 0;
   content: '';
   pointer-events: none;
   background: var(--cruush-logo);
   -webkit-mask: url('../assets/brand/cruush-logo.svg') center / contain no-repeat;
   mask: url('../assets/brand/cruush-logo.svg') center / contain no-repeat;
-  filter: blur(0.34rem);
-  opacity: 0.16;
-  transform: scale(1.015);
+  filter: blur(0.32rem);
+  opacity: 0.26;
+  transform: scale(1.02);
   transition: opacity 180ms ease;
 }
 
 .launch-login-auth-logo-wrap:hover::before {
-  opacity: 0.58;
+  opacity: 0.76;
 }
 
 .launch-login-auth-logo-image {
@@ -228,7 +228,7 @@
   width: 100%;
   max-width: 100%;
   margin: 0;
-  color: rgba(255, 255, 255, 0.9);
+  color: #ffffff;
   font-size: clamp(1.38rem, 3.25dvh, 2.18rem);
   font-weight: 700;
   line-height: 1.08;
@@ -236,9 +236,7 @@
   white-space: nowrap;
   text-wrap: balance;
   text-shadow:
-    0 0.6rem 1.35rem rgba(0, 0, 0, 0.9),
-    0 0 0.95rem rgba(255, 0, 114, 0.16),
-    0 0 1.1rem rgba(17, 129, 255, 0.14);
+    0 0.6rem 1.35rem rgba(0, 0, 0, 0.9);
   transition: color 180ms ease, text-shadow 180ms ease;
 }
 
@@ -266,7 +264,7 @@
   border-radius: 999px;
   background: rgba(5, 9, 20, 0.48);
   padding: 0.22rem 0.68rem;
-  color: rgba(246, 248, 255, 0.82);
+  color: #ffffff;
   font-size: clamp(0.72rem, 1.58dvh, 0.88rem);
   font-weight: 700;
   letter-spacing: 0.12em;
@@ -274,9 +272,7 @@
   text-align: center;
   text-transform: uppercase;
   box-shadow:
-    0 0.55rem 1.25rem rgba(0, 0, 0, 0.55),
-    0 0 1.1rem rgba(255, 0, 114, 0.13),
-    0 0 1.2rem rgba(17, 129, 255, 0.12);
+    0 0.55rem 1.25rem rgba(0, 0, 0, 0.55);
   text-shadow: 0 0.35rem 0.85rem rgba(0, 0, 0, 0.88);
   transition: border-color 180ms ease, box-shadow 180ms ease, color 180ms ease, text-shadow 180ms ease;
   white-space: nowrap;
