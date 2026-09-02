@@ -24,7 +24,6 @@ import {
   Route,
   Shapes,
   ShoppingBag,
-  Sparkles,
   Toilet,
   TrainFront,
   Trees,
@@ -58,6 +57,7 @@ import { HANKY_COLORS } from './HankyFrame';
 import { formatBadgeLabel } from '../lib/badgeIntent';
 import { HEART_PIN_PATH, HEART_PIN_THEMES } from '../lib/heartPin';
 import { DARK_ROOM_PALETTE } from '../lib/darkRoomPalette';
+import { resolveSavedBadgeGlyph } from './SavedBadgeGlyphs';
 import {
   DARK_ROOM_EYE_PATH,
   DARK_ROOM_KEYHOLE_PATH,
@@ -1058,11 +1058,12 @@ function MarkerSideBadge({
     return null;
   }
 
+  const savedBadge = resolveSavedBadgeGlyph(badge.badgeId ?? '');
   const Glyph = badge.kind === 'role'
     ? roleGlyphFor(badge.iconName)
     : badge.kind === 'position'
       ? positionGlyphFor(badge.iconName)
-      : Sparkles;
+      : savedBadge.icon;
   const hanky = badge.badgeId?.startsWith('hanky ')
     ? HANKY_COLORS.find((color) => `hanky ${color.id.replace(/-/g, ' ')}` === badge.badgeId)
     : undefined;
@@ -1079,7 +1080,7 @@ function MarkerSideBadge({
   const hoverLabel = hanky
     ? formatBadgeLabel(hanky.meaning, badge.intent ?? 'none')
     : badge.saved
-      ? formatBadgeLabel(badge.label, badge.intent ?? 'none')
+      ? formatBadgeLabel(savedBadge.label ?? badge.label, badge.intent ?? 'none')
       : badge.label;
 
   return (

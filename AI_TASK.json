@@ -123,6 +123,7 @@
     "src/app/App.tsx",
     "src/app/components/BadgeFrames.tsx",
     "src/app/components/ProfileBadgeGlyphs.tsx",
+    "src/app/components/SavedBadgeGlyphs.tsx",
     "src/app/components/BadgePickerPreview.tsx",
     "src/app/components/DirectMessages.tsx",
     "src/app/components/LocalFeed.tsx",
