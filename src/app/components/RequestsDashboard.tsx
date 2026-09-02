@@ -155,18 +155,18 @@ export default function RequestsDashboard() {
 
   return (
     <div className="min-h-screen bg-background pb-20">
-      <header className="sticky top-0 z-10 flex items-center gap-4 border-b border-border bg-card/80 p-4 backdrop-blur-sm">
+      <header className="cruush-requests-header sticky top-0 z-10 flex items-center gap-4 border-b border-border bg-card/80 p-4 backdrop-blur-sm">
         <Button variant="ghost" size="icon" onClick={() => navigate(-1)} aria-label="Back">
           <ArrowLeft className="h-5 w-5" />
         </Button>
-        <div className="min-w-0">
-          <h2 className="truncate text-xl">Bug reports</h2>
+        <div className="cruush-requests-title min-w-0">
+          <h2 className="text-xl">Bug reports</h2>
           <p className="text-sm text-muted-foreground">
             {page.total} {categoryFilter === 'suspension_appeal' ? 'age suspension appeal' : 'request'}{page.total === 1 ? '' : 's'}
           </p>
         </div>
         <Button
-          className="ml-auto"
+          className="cruush-requests-refresh ml-auto"
           variant="outline"
           onClick={() => {
             setIsLoading(true);
@@ -189,7 +189,7 @@ export default function RequestsDashboard() {
 
       <div className="mx-auto max-w-5xl p-4">
         <Tabs value={filter} onValueChange={(value) => { setOffset(0); setFilter(value as RequestStatusFilter); }} className="w-full">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="cruush-requests-tabs grid w-full grid-cols-5">
             {statusTabs.map((tab) => (
               <TabsTrigger key={tab.value} value={tab.value}>
                 {tab.label}

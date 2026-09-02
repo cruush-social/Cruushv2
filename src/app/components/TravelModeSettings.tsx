@@ -272,8 +272,8 @@ function TravelPinPicker({
   };
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-2">
-      <form className="flex gap-2" onSubmit={(event) => { event.preventDefault(); void findLocation(); }}>
+    <div className="cruush-travel-mode-picker flex min-h-0 flex-1 flex-col gap-2">
+      <form className="cruush-travel-mode-search flex gap-2" onSubmit={(event) => { event.preventDefault(); void findLocation(); }}>
         <input
           aria-label="Start entering an address or GPS coordinates"
           className="min-w-0 flex-1 rounded-full border border-white/10 bg-black/40 px-4 py-2 text-sm text-white placeholder:text-white/35"
@@ -282,7 +282,7 @@ function TravelPinPicker({
             setLocationText(event.target.value);
             setMapError('');
           }}
-          placeholder="Start entering an address or GPS coordinates"
+          placeholder="Address or GPS coordinates"
           value={locationText}
         />
         <Button aria-label="Find address" className="size-10 shrink-0 rounded-full" disabled={searching || !locationText.trim()} size="icon" type="submit" variant="outline">
@@ -291,7 +291,7 @@ function TravelPinPicker({
       </form>
       {actions}
       {mapError ? <p className="text-sm text-destructive">{mapError}</p> : null}
-      <div className="relative min-h-64 flex-1 overflow-hidden rounded-lg border border-white/10">
+      <div className="cruush-travel-mode-picker-map relative min-h-64 flex-1 overflow-hidden rounded-lg border border-white/10">
         <div
           aria-label="Pick where your travel pin goes"
           className="h-full min-h-64 w-full"
@@ -438,7 +438,7 @@ function TravelModeSection({ onTravelPinChange }: { onTravelPinChange?: (pin: Tr
 
   return (
     <>
-    <div className={`${pickerOpen ? 'flex min-h-0 flex-1 flex-col' : ''} space-y-3 rounded-lg border border-white/10 bg-white/[0.035] p-3`}>
+    <div className={`cruush-travel-mode-section ${pickerOpen ? 'flex min-h-0 flex-1 flex-col' : ''} space-y-3 rounded-lg border border-white/10 bg-white/[0.035] p-3`}>
       <div className="flex min-w-0 items-center gap-2">
         <img
           alt=""
@@ -490,8 +490,8 @@ function TravelModeSection({ onTravelPinChange }: { onTravelPinChange?: (pin: Tr
       ) : null}
 
       {!pin && showTerms ? (
-        <div className="flex min-h-0 flex-1 flex-col gap-3">
-          <ul className="max-h-32 space-y-2 overflow-y-auto pr-1 text-sm text-muted-foreground">
+        <div className="cruush-travel-mode-open-panel flex min-h-0 flex-1 flex-col gap-3">
+          <ul className="cruush-travel-mode-terms max-h-32 space-y-2 overflow-y-auto pr-1 text-sm text-muted-foreground">
             {TRAVEL_MODE_TERMS.map((term) => (
               <li className="flex gap-2" key={term}>
                 <span aria-hidden="true" className="text-white/40">-</span>
@@ -501,7 +501,7 @@ function TravelModeSection({ onTravelPinChange }: { onTravelPinChange?: (pin: Tr
           </ul>
           <TravelPinPicker
             actions={(
-              <div className="grid grid-cols-2 gap-2">
+              <div className="cruush-travel-mode-actions grid grid-cols-2 gap-2">
                 <Button className="rounded-full" onClick={useCurrentLocation} type="button" variant="outline">Use my current location</Button>
                 <Button className="rounded-full text-white" disabled={saving || !point} onClick={savePin} style={{ background: 'var(--cruush-gradient)' }} type="button">{saving ? 'Dropping your pin...' : 'Drop my pin here'}</Button>
               </div>
@@ -526,10 +526,10 @@ function TravelModeSection({ onTravelPinChange }: { onTravelPinChange?: (pin: Tr
       ) : null}
 
       {pin && canMove && showPicker ? (
-        <div className="flex min-h-0 flex-1 flex-col gap-3">
+        <div className="cruush-travel-mode-open-panel flex min-h-0 flex-1 flex-col gap-3">
           <TravelPinPicker
             actions={(
-              <div className="grid grid-cols-2 gap-2">
+              <div className="cruush-travel-mode-actions grid grid-cols-2 gap-2">
                 <Button className="rounded-full" onClick={useCurrentLocation} type="button" variant="outline">Use my current location</Button>
                 <Button className="rounded-full text-white" disabled={saving || !point} onClick={savePin} style={{ background: 'var(--cruush-gradient)' }} type="button">{saving ? 'Moving your pin...' : 'Move my pin here'}</Button>
               </div>
@@ -565,7 +565,7 @@ export default function TravelModeSettings({ embedded = false, onBack, onClose, 
   const navigate = useNavigate();
 
   return (
-    <div className={`flex min-h-0 flex-col overflow-hidden bg-background text-foreground ${embedded ? 'h-full' : 'h-[100dvh] pb-[calc(6rem+env(safe-area-inset-bottom))]'}`}>
+    <div className={`cruush-travel-mode-page flex min-h-0 flex-col overflow-hidden bg-background text-foreground ${embedded ? 'h-full' : 'h-[100dvh] pb-[calc(6rem+env(safe-area-inset-bottom))]'}`}>
       <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-border bg-background/88 px-4 py-3 backdrop-blur-md">
         <button
           aria-label="Back"
@@ -588,8 +588,8 @@ export default function TravelModeSettings({ embedded = false, onBack, onClose, 
         ) : null}
       </header>
 
-      <main className="mx-auto flex min-h-0 w-full max-w-2xl flex-1 flex-col px-4 py-4">
-        <p className="mb-3 text-sm text-muted-foreground">Drop your pin somewhere else to explore and connect with people there.</p>
+      <main className="cruush-travel-mode-main mx-auto flex min-h-0 w-full max-w-2xl flex-1 flex-col px-4 py-4">
+        <p className="cruush-travel-mode-intro mb-3 text-sm text-muted-foreground">Drop your pin somewhere else to explore and connect with people there.</p>
         <TravelModeSection onTravelPinChange={onTravelPinChange} />
       </main>
     </div>

@@ -56,13 +56,10 @@ type PulseDesktopGeometry = {
 
 type PulseDragState = {
   pointerId: number;
-  mode: 'desktop-move' | 'desktop-resize' | 'mobile-move';
+  mode: 'desktop-move' | 'desktop-resize';
   originX: number;
   originY: number;
-  desktopStart?: PulseDesktopGeometry;
-  mobileStart?: { x: number; y: number };
-  sheetTop?: number;
-  topClearance?: number;
+  desktopStart: PulseDesktopGeometry;
 };
 
 const PULSE_DESKTOP_STORAGE_KEY = 'cruush.pulse.desktopGeometry';
@@ -180,7 +177,7 @@ function resolvePingErrorMessage(error: unknown) {
     return error.message;
   }
 
-  return 'Ping could not send. Try again.';
+  return 'Pulse could not send. Try again.';
 }
 
 export default function MapPingSheet({
@@ -250,18 +247,18 @@ export default function MapPingSheet({
     !normalizedSignal || status.allowance.remaining < 1 || cooldownActive || lurkerActive;
   const statusText = useMemo(() => {
     if (activePing && status?.activePing) {
-      return `Your Ping is active until ${formatTime(status.activePing.expiresAt)}.`;
+      return `Your Pulse is active until ${formatTime(status.activePing.expiresAt)}.`;
     }
 
     if (cooldownActive && status?.allowance.nextEligibleAt) {
-      return `Your next Ping is ready at ${formatTime(status.allowance.nextEligibleAt)}.`;
+      return `Your next Pulse is ready at ${formatTime(status.allowance.nextEligibleAt)}.`;
     }
 
     if (status) {
       return `${status.allowance.remaining} of ${status.allowance.limit} Pulses available right now.`;
     }
 
-    return 'Checking your Ping allowance...';
+    return 'Checking your Pulse allowance...';
   }, [activePing, cooldownActive, status]);
 
   useEffect(() => {
@@ -284,7 +281,6 @@ export default function MapPingSheet({
     return () => window.clearTimeout(timeoutId);
   }, [nextEligibleTimestamp, onRefresh, open]);
 
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const dragStateRef = useRef<PulseDragState | null>(null);
 
   useEffect(() => {
@@ -311,34 +307,19 @@ export default function MapPingSheet({
   }, [desktopGeometry, isMobile]);
 
   const beginDrag = (event: ReactPointerEvent<HTMLElement>, mode: 'move' | 'resize' = 'move') => {
-    if (event.button !== 0) {
+    if (isMobile || event.button !== 0) {
       return;
     }
 
     event.preventDefault();
     event.currentTarget.setPointerCapture(event.pointerId);
 
-    if (!isMobile) {
-      dragStateRef.current = {
-        pointerId: event.pointerId,
-        mode: mode === 'resize' ? 'desktop-resize' : 'desktop-move',
-        originX: event.clientX,
-        originY: event.clientY,
-        desktopStart: desktopGeometry,
-      };
-      return;
-    }
-
-    const sheet = event.currentTarget.closest('[data-testid="map-ping-sheet"]');
-    const topClearance = pulseTopClearance();
     dragStateRef.current = {
       pointerId: event.pointerId,
-      mode: 'mobile-move',
+      mode: mode === 'resize' ? 'desktop-resize' : 'desktop-move',
       originX: event.clientX,
       originY: event.clientY,
-      mobileStart: dragOffset,
-      sheetTop: sheet?.getBoundingClientRect().top ?? topClearance,
-      topClearance,
+      desktopStart: desktopGeometry,
     };
   };
 
@@ -349,7 +330,7 @@ export default function MapPingSheet({
       return;
     }
 
-    if (dragState.mode === 'desktop-move' && dragState.desktopStart) {
+    if (dragState.mode === 'desktop-move') {
       setDesktopGeometry(clampPulseDesktopGeometry({
         ...dragState.desktopStart,
         x: dragState.desktopStart.x + (event.clientX - dragState.originX),
@@ -358,24 +339,13 @@ export default function MapPingSheet({
       return;
     }
 
-    if (dragState.mode === 'desktop-resize' && dragState.desktopStart) {
+    if (dragState.mode === 'desktop-resize') {
       setDesktopGeometry(clampPulseDesktopGeometry({
         ...dragState.desktopStart,
         width: dragState.desktopStart.width + (event.clientX - dragState.originX),
         height: dragState.desktopStart.height + (event.clientY - dragState.originY),
       }));
-      return;
     }
-
-    const mobileStart = dragState.mobileStart ?? dragOffset;
-    const sheetTop = dragState.sheetTop ?? pulseTopClearance();
-    const topClearance = dragState.topClearance ?? pulseTopClearance();
-    const nextY = mobileStart.y + (event.clientY - dragState.originY);
-    const minimumY = mobileStart.y - Math.max(0, sheetTop - topClearance);
-    setDragOffset({
-      x: mobileStart.x + (event.clientX - dragState.originX),
-      y: Math.max(minimumY, nextY),
-    });
   };
 
   const endDrag = (event: ReactPointerEvent<HTMLElement>) => {
@@ -410,7 +380,7 @@ export default function MapPingSheet({
       bottom: 'calc(6.25rem + env(safe-area-inset-bottom))',
       maxHeight: 'calc(100dvh - var(--cruush-map-top-clearance) - 6.75rem - env(safe-area-inset-bottom))',
       top: 'auto',
-      transform: `translate(calc(-50% + ${dragOffset.x}px), ${dragOffset.y}px)`,
+      transform: 'translate(-50%, 0)',
       left: '50%',
       width: 'min(28rem, calc(100vw - 1.5rem))',
     }
@@ -436,12 +406,12 @@ export default function MapPingSheet({
         style={sheetStyle}
       >
         <SheetHeader
-          className="shrink-0 cursor-grab pb-2 pr-10 pt-3 active:cursor-grabbing"
+          className={`shrink-0 pb-2 pr-10 pt-3 ${isMobile ? '' : 'cursor-grab active:cursor-grabbing'}`}
           data-testid="map-ping-sheet-handle"
-          onPointerDown={beginDrag}
-          onPointerMove={continueDrag}
-          onPointerUp={endDrag}
-          onPointerCancel={endDrag}
+          onPointerDown={isMobile ? undefined : beginDrag}
+          onPointerMove={isMobile ? undefined : continueDrag}
+          onPointerUp={isMobile ? undefined : endDrag}
+          onPointerCancel={isMobile ? undefined : endDrag}
         >
           <div className="flex items-center gap-3">
             <PulseLedIcon className="h-8 w-8 shrink-0 text-[#c8ff31]" />
@@ -592,7 +562,7 @@ export default function MapPingSheet({
           </div>
           {!hasCruushPlus && status?.allowance.remaining === 0 && onUpgrade ? (
             <CruushPlusGateNotice
-              description="Basic includes 1 Ping every 24 hours."
+              description="Basic includes 1 Pulse every 24 hours."
               onUpgrade={onUpgrade}
             />
           ) : null}

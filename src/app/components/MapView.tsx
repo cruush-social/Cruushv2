@@ -1135,10 +1135,6 @@ function ghostPulseBeatSchedule() {
 
 const GHOST_PULSE_BEATS = ghostPulseBeatSchedule();
 
-// Pepper's ghost: the lit parts of the pin turn spectral electric blue while
-// the dark parts stay dark, the way a reflected stage apparition reads.
-const GHOST_PEPPER_FILTER = 'grayscale(1) sepia(1) saturate(2.6) hue-rotate(155deg) brightness(1.04) contrast(0.9)';
-
 // The border flash is gated to a fixed on-window per beat rather than to the
 // summed contraction, so the pin keeps alternating purple and electric blue
 // through the accelerating end of the minute instead of sitting solid blue.
@@ -1353,18 +1349,8 @@ function GhostRotationPulse({ marker, children }: { marker: MapMarker; children:
         } else {
           effectHost.style.removeProperty('--cruush-ghost-surface-alpha');
         }
-        effectHost.style.setProperty(
-          '--cruush-ghost-photo-filter',
-          visibleFlash >= 0.5
-            ? GHOST_PEPPER_FILTER
-            : 'none',
-        );
-        effectHost.style.setProperty(
-          '--cruush-ghost-pepper-filter',
-          visibleFlash >= 0.5
-            ? GHOST_PEPPER_FILTER
-            : 'none',
-        );
+        effectHost.style.setProperty('--cruush-ghost-photo-filter', 'none');
+        effectHost.style.setProperty('--cruush-ghost-pepper-filter', 'none');
       } else {
         effectHost.style.setProperty('--cruush-ghost-border-opacity', '0');
         effectHost.style.removeProperty('--cruush-ghost-flash-border-color');
@@ -1579,17 +1565,9 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
             height="64"
             href={resolvedPhoto}
             preserveAspectRatio="xMidYMid slice"
+            style={isOwnGhostMarker ? ({ '--cruush-ghost-photo-opacity': 0.62 } as CSSProperties) : undefined}
             width="64"
           />
-          {isOwnGhostMarker ? (
-            <path
-              d={HEART_PIN_PATH}
-              data-testid={`marker-owner-ghost-decoy-overlay-${marker.id}`}
-              fill={`url(#${ghostDecoyGradientId})`}
-              fillOpacity={0.5}
-              pointerEvents="none"
-            />
-          ) : null}
           <path
             d={HEART_PIN_PATH}
             data-testid={`marker-ghost-border-${marker.id}`}
@@ -1888,7 +1866,7 @@ function createMarkerElement(
   onMarkerInteraction: () => void,
 ) {
   const isCurrentUser = marker.id === 'me' || marker.isCurrentUser;
-  const isInteractive = !isCurrentUser || marker.kind === 'event' || marker.kind === 'place' || marker.kind === 'cluster';
+  const isInteractive = true;
   const element = document.createElement(isInteractive ? 'button' : 'div');
   const name = getDisplayName(marker);
 
@@ -1912,7 +1890,8 @@ function createMarkerElement(
   element.dataset.mapMarkerKind = marker.kind ?? 'person';
   element.dataset.activePing = marker.activePing ? 'true' : 'false';
   const root = createRoot(element);
-  const hasSignalPreview = Boolean(truncateMarkerPreview(marker.signal));
+  const hasSignalPreview = Boolean(truncateMarkerPreview(marker.signal))
+    || (isCurrentUser && marker.displayMode === 'GHOST');
   const supportsHoldPreview = marker.kind == null || marker.kind === 'person' || marker.kind === 'place';
   let previewed = false;
   let restingZIndex: string | null = null;
@@ -1959,7 +1938,11 @@ function createMarkerElement(
   } else {
     const button = element as HTMLButtonElement;
     button.type = 'button';
-    button.setAttribute('aria-label', marker.kind === 'event'
+    button.setAttribute('aria-label', isCurrentUser
+      ? marker.displayMode === 'GHOST'
+        ? 'Show your Ghost Mode decoy details'
+        : 'Show your pin details'
+      : marker.kind === 'event'
       ? `Open ${marker.event?.venueName ?? name} launch party on map`
       : marker.kind === 'cluster'
       ? isSpiderfyCluster(marker)
@@ -1972,7 +1955,9 @@ function createMarkerElement(
       : `Open ${name} on map`);
     if (supportsHoldPreview) {
       button.setAttribute('aria-pressed', 'false');
-      button.title = marker.kind === 'place'
+      button.title = isCurrentUser
+        ? 'Tap or hover for details'
+        : marker.kind === 'place'
         ? 'Click to open spot board; hover or hold for name'
         : 'Tap to open profile; hover for details';
     }
@@ -2050,6 +2035,10 @@ function createMarkerElement(
       event.stopPropagation();
       event.stopImmediatePropagation();
       onMarkerInteraction();
+      if (isCurrentUser) {
+        onPinPreview(marker);
+        return;
+      }
       if (supportsHoldPreview && lastPointerType === 'touch' && event.detail > 0) {
         if (longPressTriggered) {
           longPressTriggered = false;

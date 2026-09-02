@@ -415,11 +415,10 @@ export default function CruiseCarouselSlot({
     : 'No eligible nearby profiles are available right now.';
 
   const content = (
-    <div className="flex h-full flex-col">
-      <div className="flex items-start justify-between gap-3 p-4">
+    <div className="cruush-carousel-content flex h-full min-h-0 flex-col">
+      <div className="cruush-carousel-heading flex items-start justify-between gap-3 p-4">
         <div>
-          <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">cruise carousel</p>
-          <h2 className={`${variant === 'page' ? 'text-3xl' : 'text-2xl'} text-white`}>{title}</h2>
+          <h2 className={`cruush-carousel-title ${variant === 'page' ? 'text-2xl sm:text-3xl' : 'text-2xl'} text-white`}>{title}</h2>
         </div>
         {onClose ? (
           <button
@@ -433,7 +432,7 @@ export default function CruiseCarouselSlot({
         ) : null}
       </div>
 
-      <div className={`${variant === 'page' ? 'px-3 sm:px-6' : 'px-4'} flex-1`}>
+      <div className={`cruush-carousel-body ${variant === 'page' ? 'px-3 sm:px-6' : 'px-4'} flex min-h-0 flex-1 flex-col justify-center`}>
         <div className="relative overflow-hidden rounded-[24px] border border-white/10 bg-black/55 p-4 shadow-[0_24px_70px_rgba(0,0,0,0.4)]">
           <div className="pointer-events-none absolute inset-y-4 left-0 z-10 w-14 bg-gradient-to-r from-black/75 to-transparent" />
           <div className="pointer-events-none absolute inset-y-4 right-0 z-10 w-14 bg-gradient-to-l from-black/75 to-transparent" />
@@ -493,9 +492,9 @@ export default function CruiseCarouselSlot({
     return (
       <aside
         aria-label="cruise carousel"
-        className="fixed inset-0 z-50 flex items-center justify-center bg-black/88 p-6 backdrop-blur-xl"
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/88 p-0 backdrop-blur-xl sm:p-6"
       >
-        <div className="scrollbar-hide h-full max-h-[46rem] w-full max-w-3xl overflow-y-auto rounded-[28px] border border-white/10 bg-black/84 shadow-[0_24px_80px_rgba(0,0,0,0.48)]">
+        <div className="scrollbar-hide h-full max-h-[46rem] w-full max-w-3xl overflow-y-auto border-y border-white/10 bg-black/84 shadow-[0_24px_80px_rgba(0,0,0,0.48)] sm:rounded-[28px] sm:border">
           {content}
         </div>
       </aside>
@@ -505,7 +504,7 @@ export default function CruiseCarouselSlot({
   return (
     <section
       aria-label="cruise carousel"
-      className="mx-auto h-full w-full max-w-2xl overflow-hidden rounded-[28px] border border-white/10 bg-black/78 shadow-[0_24px_80px_rgba(0,0,0,0.46)] backdrop-blur-xl"
+      className="mx-auto h-full w-full max-w-2xl overflow-hidden border-y border-white/10 bg-black/78 shadow-[0_24px_80px_rgba(0,0,0,0.46)] backdrop-blur-xl sm:rounded-[28px] sm:border"
     >
       {content}
     </section>

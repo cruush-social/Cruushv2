@@ -146,7 +146,7 @@ export default function NotificationCenter() {
 
   return (
     <div className="min-h-screen bg-background pb-28 text-foreground">
-      <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-border bg-background/88 px-4 py-3 backdrop-blur-md">
+      <header className="cruush-notification-header sticky top-0 z-20 flex items-center gap-3 border-b border-border bg-background/88 px-4 py-3 backdrop-blur-md">
         <Button
           variant="ghost"
           size="icon"
@@ -156,14 +156,14 @@ export default function NotificationCenter() {
         >
           <ArrowLeft className="h-5 w-5" />
         </Button>
-        <h1 className="min-w-0 flex-1 truncate text-xl text-white">Notifications</h1>
+        <h1 className="cruush-notification-title min-w-0 flex-1 truncate text-xl text-white">Notifications</h1>
         <Button
           type="button"
           variant="outline"
           onClick={handleMarkAllRead}
           disabled={unreadCount === 0 || isMarkingAll}
           aria-label="Mark all as read"
-          className="gap-2 rounded-full"
+          className="cruush-notification-mark-all gap-2 rounded-full"
         >
           <CheckCheck className="h-4 w-4" />
           <span className="hidden sm:inline">Mark all as read</span>
@@ -174,7 +174,7 @@ export default function NotificationCenter() {
           onClick={() => void handleClearAll()}
           disabled={notifications.length === 0 || isClearingAll}
           aria-label="Delete all notifications"
-          className="gap-2 rounded-full"
+          className="cruush-notification-delete-all gap-2 rounded-full"
         >
           <Trash2 className="h-4 w-4" />
           <span className="hidden sm:inline">Delete all notifications</span>
@@ -185,11 +185,11 @@ export default function NotificationCenter() {
           size="icon"
           onClick={() => navigate('/settings/notifications')}
           aria-label="Notification settings"
-          className="rounded-full text-white/88 hover:bg-white/10"
+          className="cruush-notification-settings rounded-full text-white/88 hover:bg-white/10"
         >
           <CruushIcon name="settings" className="h-5 w-5" />
         </Button>
-        <div className="h-10 w-10 shrink-0" data-testid="notification-bug-button-slot" ref={registerBugButtonSlot} />
+        <div className="cruush-notification-bug-slot h-10 w-10 shrink-0" data-testid="notification-bug-button-slot" ref={registerBugButtonSlot} />
       </header>
 
       <main className="mx-auto flex w-full max-w-2xl flex-col gap-3 px-4 py-5">

@@ -807,7 +807,7 @@ export default function CruushActivity({
               className="mx-auto w-[min(38rem,100%)] space-y-3"
               data-testid="cruush-stats-tabs"
             >
-              <div data-testid="cruush-count-grid" className="grid w-full grid-cols-[repeat(4,minmax(0,1fr))] gap-2">
+              <div data-testid="cruush-count-grid" className="cruush-activity-count-grid grid w-full grid-cols-[repeat(4,minmax(0,1fr))] gap-2">
                 {(['incoming', 'sent', 'mutual', 'views'] as ActivityTab[]).map((tab) => (
                   <div key={tab} className="min-w-0 rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1.5 text-center">
                     <p className="truncate text-[9px] uppercase tracking-[0.08em] text-white/46 sm:text-[10px]">{tab}</p>
@@ -818,7 +818,7 @@ export default function CruushActivity({
 
               <TabsList
                 data-testid="cruush-tab-grid"
-                className="grid h-auto w-full grid-cols-[repeat(4,minmax(0,1fr))] rounded-lg border border-white/10 bg-background/25 p-1 shadow-[0_20px_55px_rgba(0,0,0,0.32)] backdrop-blur-xl"
+                className="cruush-activity-tab-grid grid h-auto w-full grid-cols-[repeat(4,minmax(0,1fr))] rounded-lg border border-white/10 bg-background/25 p-1 shadow-[0_20px_55px_rgba(0,0,0,0.32)] backdrop-blur-xl"
               >
                 <ActivityTabButton value="incoming" label="incoming" />
                 <ActivityTabButton value="sent" label="sent" />
