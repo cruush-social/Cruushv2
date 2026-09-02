@@ -1676,17 +1676,18 @@ describe('MapHome', () => {
       notificationButton,
       settingsButton,
     ]) {
-      expect(button).toHaveClass('size-11', 'max-[360px]:size-10');
+      expect(button).toHaveClass('size-11', 'max-[360px]:size-10', 'sm:size-12');
     }
     expect(topActions).not.toHaveClass('sm:max-w-[34rem]');
     // The pill sits in a centring wrapper inside the full-width chrome row.
     expect(topActions.parentElement).toHaveClass('flex-1', 'justify-center');
-    expect(topActions.parentElement?.parentElement).toHaveClass('mx-auto', 'w-full', 'max-w-[42rem]');
+    expect(topActions.parentElement?.parentElement).toHaveClass('w-full');
+    expect(topActions.parentElement?.parentElement).not.toHaveClass('mx-auto', 'max-w-[42rem]');
     expect(topActions).not.toHaveClass('mt-11');
     expect(plusStack).toHaveClass('relative', 'shrink-0');
     // The slot now holds the corner open at the button's own size at every
     // width, so the bar never runs underneath the bug control.
-    expect(bugButtonSlot).toHaveClass('h-12', 'w-12', 'max-[360px]:h-11', 'max-[360px]:w-11');
+    expect(bugButtonSlot).toHaveClass('h-12', 'w-12', 'sm:h-10', 'sm:w-10', 'lg:h-11', 'lg:w-11');
     expect(plusStack).toContainElement(cruushPlusButton);
     expect(plusStack).not.toContainElement(pingButton);
     expect(topActions).not.toContainElement(cruushPlusButton);
@@ -1728,11 +1729,17 @@ describe('MapHome', () => {
       'max-[360px]:h-11',
       'max-[360px]:px-1.5',
       'max-[360px]:text-xs',
+      'sm:h-10',
+      'sm:px-3.5',
+      'sm:text-lg',
+      'lg:h-11',
+      'lg:px-4',
+      'lg:text-xl',
     );
     expect(screen.queryByRole('button', { name: 'Safety Center' })).not.toBeInTheDocument();
-    expect(luckyIcon).toHaveClass('h-10', 'w-10', 'scale-[1.28]', 'object-contain', 'max-[360px]:h-9', 'max-[360px]:w-9');
-    expect(ghostModeIcon).toHaveClass('h-10', 'w-10', 'scale-[1.15]', 'object-contain', 'max-[360px]:h-9', 'max-[360px]:w-9');
-    expect(dlModeIcon).toHaveClass('!h-10', '!w-10', 'scale-[1.18]', 'max-[360px]:!h-9', 'max-[360px]:!w-9');
+    expect(luckyIcon).toHaveClass('h-10', 'w-10', 'scale-[1.28]', 'object-contain', 'max-[360px]:h-9', 'max-[360px]:w-9', 'lg:h-11', 'lg:w-11');
+    expect(ghostModeIcon).toHaveClass('h-10', 'w-10', 'scale-[1.15]', 'object-contain', 'max-[360px]:h-9', 'max-[360px]:w-9', 'lg:h-11', 'lg:w-11');
+    expect(dlModeIcon).toHaveClass('!h-10', '!w-10', 'scale-[1.18]', 'max-[360px]:!h-9', 'max-[360px]:!w-9', 'lg:!h-11', 'lg:!w-11');
     expect(settingsButton.nextElementSibling).toBe(notificationButton);
     expect(topActions.lastElementChild).toBe(notificationButton);
     for (const button of [
@@ -1746,8 +1753,8 @@ describe('MapHome', () => {
       expect(button).not.toHaveClass('hover:bg-transparent');
     }
     expect(dlModeButton).not.toHaveClass('bg-white/[0.07]');
-    expect(notificationIcon).toHaveClass('h-10', 'w-10', 'scale-[1.28]', 'object-contain', 'max-[360px]:h-9', 'max-[360px]:w-9');
-    expect(settingsIcon).toHaveClass('h-10', 'w-10', 'object-contain', 'max-[360px]:h-9', 'max-[360px]:w-9');
+    expect(notificationIcon).toHaveClass('h-10', 'w-10', 'scale-[1.28]', 'object-contain', 'max-[360px]:h-9', 'max-[360px]:w-9', 'lg:h-11', 'lg:w-11');
+    expect(settingsIcon).toHaveClass('h-10', 'w-10', 'object-contain', 'max-[360px]:h-9', 'max-[360px]:w-9', 'lg:h-11', 'lg:w-11');
     expect(dlModeIcon).toHaveAttribute('data-source', 'Julien supplied balaclava halo DL Mode icon');
     expect(dlModeIcon).toHaveAttribute('data-tone', 'gradient');
     expect(dlModeIcon?.querySelector('[data-dl-mode-part="balaclava-halo"]')).toHaveAttribute('href', expect.stringContaining('dl-mode-balaclava-halo-user-supplied.png'));
@@ -2448,7 +2455,7 @@ describe('MapHome', () => {
     );
 
     const darkRoomMark = (await screen.findByRole('button', { name: 'Ghost Mode Settings' })).querySelector('svg');
-    expect(darkRoomMark).toHaveClass('!h-10', '!w-10', 'max-[360px]:!h-9', 'max-[360px]:!w-9');
+    expect(darkRoomMark).toHaveClass('!h-10', '!w-10', 'max-[360px]:!h-9', 'max-[360px]:!w-9', 'lg:!h-11', 'lg:!w-11');
     expect(darkRoomMark).not.toHaveClass('scale-[1.12]');
     expect(darkRoomMark?.querySelector('[data-dark-room-part="housing"]')).toHaveAttribute('fill-rule', 'evenodd');
     expect(darkRoomMark?.querySelector('[data-dark-room-part="keyhole"]')).not.toBeInTheDocument();

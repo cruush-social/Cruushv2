@@ -794,7 +794,12 @@ export default function CruushActivity({
                     <CruushMatchSettings embedded />
                   </DialogContent>
                 </Dialog>}
-                <div className="h-11 w-11 shrink-0" data-testid="cruush-activity-bug-button-slot" ref={registerBugButtonSlot} />
+                {embedded && onClose ? (
+                  <Button type="button" variant="secondary" size="icon" className="rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10" aria-label="Close Cruushes" onClick={onClose}>
+                    <X className="h-4 w-4" />
+                  </Button>
+                ) : null}
+                {!embedded ? <div className="h-11 w-11 shrink-0" data-testid="cruush-activity-bug-button-slot" ref={registerBugButtonSlot} /> : null}
               </div>
             </div>
 

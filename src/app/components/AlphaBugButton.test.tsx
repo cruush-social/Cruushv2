@@ -182,8 +182,8 @@ describe('AlphaBugButton', () => {
     expect(slot).not.toContainElement(reportButton);
     expect(reportButton).toHaveClass(
       'fixed',
-      'h-9',
-      'w-9',
+      'h-12',
+      'w-12',
       'sm:h-10',
       'sm:w-10',
       'lg:h-11',
@@ -191,7 +191,7 @@ describe('AlphaBugButton', () => {
       'right-[calc(0.75rem+env(safe-area-inset-right))]',
       'top-[calc(0.75rem+env(safe-area-inset-top))]',
     );
-    expect(reportButton.querySelector('svg')).toHaveClass('h-5', 'w-5', 'lg:h-7', 'lg:w-7');
+    expect(reportButton.querySelector('svg')).toHaveClass('h-7', 'w-7', 'sm:h-5', 'sm:w-5', 'lg:h-7', 'lg:w-7');
   });
 
   it('remains available on the signed-out support flow', () => {

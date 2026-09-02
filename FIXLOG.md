@@ -37,3 +37,5 @@
 - Fixed the 1.6 profile-taxonomy migration using a nonexistent `profiles.roles` column, which stopped later migrations and broke authenticated map/profile loading.
 - Kept Map Controls and Recently Active from covering mobile side panels, and condensed the Mile High Club rules so its address controls and map remain visible with Larger text.
 - Zodiac saved in Edit Profile now appears on profiles and is available in Seeking Filters and Visibility Controls.
+- Restored deployed top-bar, popup-shell, and Close-control geometry after unrelated 1.6 edits changed shared page chrome; Profile Intimacy now renders one Hair now section instead of two. Regression coverage: `src/app/components/AlphaBugButton.test.tsx`, `src/app/components/CruushActivity.test.tsx`, `src/app/components/MapHome.test.tsx`, and `src/app/components/ProfileView.test.tsx`.
+- That sweep also reverted requested Cruushes layout. The centered stats and tab block and the small-screen tab padding that keeps all four labels readable are restored. Regression coverage: `src/app/components/CruushActivity.test.tsx`.

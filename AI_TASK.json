@@ -6,6 +6,7 @@
   "userOutcome": "The retained 100-mile Spot import remains available while a later re-scrape is deferred; Spot details and hover labels are compact and clear; MHC works for cruush+ from any distance; Spot and profile locations can be shared only inside cruush; responsive headers, badges, legal copy, colorblind mode, named hover states, public content-removal reports, and suspension appeals work; and the 1.6 email shows final rendered features.",
   "audience": "cruush members and the 1.6 release-email audience.",
   "successCriteria": [
+    "Audit every changed UI surface against the deployed origin/main source and restore any top-bar, popup-shell, tab-layout, or adjacent visual change that was not explicitly requested, while preserving requested 1.6 features.",
     "Preserve the retained public Spot import within 100 miles while deferring a new exhaustive scrape to a later session.",
     "Use Leans men and Leans women where supported; remove gay spot, dyke spot, and dyke bar labels from the app.",
     "Collect optional amenities during check-in and amenities, vibes, access instructions, and category when suggesting a spot.",
@@ -148,6 +149,9 @@
     "src/app/lib/profileOptions.ts",
     "src/app/components/MapHome.tsx",
     "src/app/components/MapHome.test.tsx",
+    "src/app/components/AlphaBugButton.test.tsx",
+    "src/app/components/CruushActivity.test.tsx",
+    "src/app/components/Settings.test.tsx",
     "src/app/components/MapSidePanel.tsx",
     "src/app/components/MapView.tsx",
     "src/app/components/PlaceDetail.tsx",

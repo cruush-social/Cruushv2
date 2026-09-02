@@ -899,10 +899,6 @@ export function ProfileDetailsTabs({
 
       <TabsContent value="intimacy" className={`${compact ? 'mt-4 space-y-4' : 'mt-5 space-y-5'}`}>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Section title="Body hair" compact={compact}>
-            <BadgeList items={profileView.bodyHair ? [profileView.bodyHair] : []} compact={compact} />
-          </Section>
-
           <Section title="Looking For" compact={compact}>
             <BadgeList items={profileView.lookingFor} compact={compact} />
             {profileView.timing ? (
@@ -928,14 +924,15 @@ export function ProfileDetailsTabs({
             <BadgeList items={profileView.role} compact={compact} />
           </Section>
 
-          <Section title="Hair now" compact={compact}>
-            <div className="grid gap-3 sm:grid-cols-3">
-              <DetailItem label="Body hair" value={profileView.bodyHair} compact={compact} />
-              <DetailItem label="Pubic hair" value={profileView.pubicHair} compact={compact} />
-              <DetailItem label="Facial hair" value={profileView.facialHair} compact={compact} />
-            </div>
-          </Section>
         </div>
+
+        <Section title="Hair now" compact={compact}>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <DetailItem label="Body hair" value={profileView.bodyHair} compact={compact} />
+            <DetailItem label="Pubic hair" value={profileView.pubicHair} compact={compact} />
+            <DetailItem label="Facial hair" value={profileView.facialHair} compact={compact} />
+          </div>
+        </Section>
 
         <Section title="Kinks & Fetishes" compact={compact}>
           <BadgeList items={profileView.kinks} compact={compact} />

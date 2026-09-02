@@ -1,5 +1,4 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { useLocation } from 'react-router';
 import { Bug, CheckCircle2 } from 'lucide-react';
 import { createSupportRequest } from '../lib/supportApi';
@@ -17,7 +16,6 @@ import {
 } from './ui/dialog';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
-import { getBugButtonSlot, subscribeToBugButtonSlot } from '../lib/bugButtonSlot';
 
 type AlphaBugButtonProps = {
   enabled?: boolean;
@@ -215,7 +213,6 @@ export default function AlphaBugButton({
   const [errorCode, setErrorCode] = useState('');
   const [deviceSummary, setDeviceSummary] = useState('');
   const [showTip, setShowTip] = useState(false);
-  const [slotElement, setSlotElement] = useState<HTMLElement | null>(() => getBugButtonSlot());
   const pageUrl = useMemo(() => getCurrentPageUrl(), [open]);
   const mapRoute = location.pathname === '/map' || location.pathname.startsWith('/map/');
 
@@ -230,8 +227,6 @@ export default function AlphaBugButton({
       document.documentElement.removeAttribute('data-cruush-alpha-bug-corner');
     };
   }, [enabled]);
-
-  useEffect(() => subscribeToBugButtonSlot(() => setSlotElement(getBugButtonSlot())), []);
 
   useEffect(() => {
     if (!enabled || typeof window === 'undefined') {
@@ -335,7 +330,7 @@ export default function AlphaBugButton({
       <button
         aria-label="Report alpha bug"
         data-testid="alpha-bug-button"
-        className={`cruush-alpha-bug-button inline-flex items-center justify-center rounded-full border border-destructive/45 bg-destructive text-white shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-md transition-[background-color,opacity] duration-150 hover:bg-destructive/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-destructive ${slotElement ? 'relative h-full w-full' : `fixed right-[calc(0.75rem+env(safe-area-inset-right))] top-[calc(0.75rem+env(safe-area-inset-top))] z-[1500] ${mapRoute ? 'h-12 w-12 sm:h-10 sm:w-10 lg:h-11 lg:w-11' : 'h-9 w-9 sm:h-10 sm:w-10 lg:h-11 lg:w-11'}`}`}
+        className={`cruush-alpha-bug-button fixed right-[calc(0.75rem+env(safe-area-inset-right))] top-[calc(0.75rem+env(safe-area-inset-top))] z-[1500] inline-flex items-center justify-center rounded-full border border-destructive/45 bg-destructive text-white shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-md transition-[background-color,opacity] duration-150 hover:bg-destructive/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-destructive ${mapRoute ? 'h-12 w-12 sm:h-10 sm:w-10 lg:h-11 lg:w-11' : 'h-9 w-9 sm:h-10 sm:w-10 lg:h-11 lg:w-11'}`}
         title="Report a bug"
         type="button"
       >
@@ -381,7 +376,7 @@ export default function AlphaBugButton({
           </button>
         </div>
       ) : null}
-      {slotElement ? createPortal(trigger, slotElement) : trigger}
+      {trigger}
       <DialogContent className="max-w-md rounded-lg border-white/10 bg-background">
         <DialogHeader>
           <DialogTitle>Report alpha bug</DialogTitle>

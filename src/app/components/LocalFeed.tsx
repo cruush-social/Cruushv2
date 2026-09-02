@@ -56,7 +56,6 @@ import {
 import { CROWDS, normalizeCrowdValues } from '../lib/profileOptions';
 import { getCurrentUserId } from '../lib/sessionUser';
 import { resolveUserBorderTone } from '../lib/userBorderTone';
-import { registerBugButtonSlot } from '../lib/bugButtonSlot';
 import partyHatIcon from '../assets/ui-icons/party-hat.svg';
 
 function formatRelativeTime(isoTimestamp: string) {
@@ -981,7 +980,11 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
           </DialogContent>
         </Dialog>}
         </> : null}
-        <div className="h-11 w-11 shrink-0" data-testid="local-feed-bug-button-slot" ref={registerBugButtonSlot} />
+        {embedded && onClose ? (
+          <Button type="button" variant="secondary" size="icon" className="rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10" aria-label="Close Feed" onClick={onClose}>
+            <X className="h-4 w-4" />
+          </Button>
+        ) : null}
         </div>
       </header>
 

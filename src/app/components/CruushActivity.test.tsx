@@ -221,8 +221,8 @@ describe('CruushActivity', () => {
     expect(container.firstElementChild).not.toHaveClass('overflow-y-scroll');
     expect(container.firstElementChild).not.toHaveClass('[scrollbar-gutter:stable]');
     expect(screen.getByTestId('cruush-activity-header')).toHaveClass('sticky', 'top-0');
-    expect(screen.getByTestId('cruush-activity-header-content')).toHaveClass('w-[min(42rem,calc(100dvw-2rem))]');
-    expect(screen.getByTestId('cruush-stats-tabs')).toHaveClass('mx-auto', 'w-[min(38rem,100%)]');
+    expect(screen.getByTestId('cruush-activity-header-content')).toHaveClass('max-w-2xl', 'px-4');
+    expect(screen.getByTestId('cruush-stats-tabs')).toHaveClass('mx-auto', 'max-w-[38rem]', 'flex-col', 'items-center', 'text-center');
     expect(screen.getByTestId('cruush-count-grid')).toHaveClass('w-full');
     expect(container.querySelector('main')).toHaveClass('mx-auto', 'max-w-2xl');
     expect(screen.getByRole('heading', { name: 'Cruushes' })).toBeInTheDocument();
@@ -252,12 +252,12 @@ describe('CruushActivity', () => {
     expect(screen.getByRole('img', { name: /right badge:.*top/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'luna preview' }).querySelector('path')).toHaveAttribute('stroke', '#FF0072');
     const incomingIdentity = screen.getByText('luna').closest('button');
-    expect(incomingIdentity).toHaveClass('col-start-2', 'col-end-4');
+    expect(incomingIdentity).toHaveClass('min-w-0', 'text-left');
     expect(screen.getByText('luna').parentElement).toHaveTextContent('lunathey/them');
     const incomingMeta = screen.getByText('Nearby').closest('p');
     expect(incomingMeta).toHaveClass('flex', 'h-11', 'flex-col', 'justify-center');
     expect(incomingMeta).not.toHaveClass('sm:flex-row');
-    expect(incomingMeta?.closest('button')?.parentElement).toHaveClass('col-start-2');
+    expect(incomingMeta?.closest('button')).toHaveClass('min-w-0', 'text-left');
     expect(within(incomingMeta!).getByText('Nearby')).toHaveClass('block');
     expect(within(incomingMeta!).getByText('Nearby')).not.toHaveClass('sm:inline');
     const incomingCruushButton = screen.getByRole('button', { name: 'Send cruush to luna' });
@@ -282,9 +282,9 @@ describe('CruushActivity', () => {
     expect(screen.getByText('river')).toBeInTheDocument();
     expect(screen.getByText('~0.5 mi away')).toBeInTheDocument();
     expectHeartPreviewSize('river preview');
-    expect(screen.getByRole('button', { name: 'river preview' }).querySelector('path')).toHaveAttribute('stroke', '#6f00ff');
+    expect(screen.getByRole('button', { name: 'river preview' }).querySelector('path')).toHaveAttribute('stroke', '#6F00FF');
     expect(screen.queryByTestId('activity-vibes')).not.toBeInTheDocument();
-    expect(screen.getByTestId('profile-action-trio').parentElement).toHaveClass('col-start-3', 'row-start-2');
+    expect(screen.getByTestId('profile-action-trio').parentElement).toHaveClass('col-start-3', 'row-start-1');
 
     fireEvent.click(screen.getByRole('button', { name: 'Message river' }));
     expect(openConversationOrInbox).toHaveBeenCalledWith(expect.any(Function), 'user-river', undefined);

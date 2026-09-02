@@ -240,7 +240,7 @@ describe('Settings', () => {
       </MemoryRouter>
     );
 
-    const version = await screen.findByText('Version 1.5');
+    const version = await screen.findByText('Version 1.6');
     const openBeta = screen.getByText('OPEN BETA');
     expect(version.parentElement).toContainElement(openBeta);
     expect(container.querySelector('img[src*="cruush-logo.svg"]')).toHaveAttribute('alt', 'cruush');
