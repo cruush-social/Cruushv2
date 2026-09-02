@@ -10,21 +10,21 @@ type StripeFlagProps = FlagGlyphProps & {
 };
 
 function StripeFlag({ children, className, colors }: StripeFlagProps) {
-  const stripeHeight = 20 / colors.length;
+  const stripeHeight = 24 / colors.length;
   return (
-    <svg aria-hidden="true" className={className} preserveAspectRatio="xMidYMid meet" viewBox="0 0 28 20">
+    <svg aria-hidden="true" className={className} viewBox="0 0 24 24">
       <defs>
         <clipPath id="pride-flag-rounding">
-          <rect height="20" rx="2.6" width="28" />
+          <circle cx="12" cy="12" r="11.5" />
         </clipPath>
       </defs>
       <g clipPath="url(#pride-flag-rounding)">
         {colors.map((color, index) => (
-          <rect fill={color} height={stripeHeight + 0.08} key={`${color}-${index}`} width="28" x="0" y={index * stripeHeight} />
+          <rect fill={color} height={stripeHeight + 0.08} key={`${color}-${index}`} width="24" x="0" y={index * stripeHeight} />
         ))}
-        {children}
+        <g transform="scale(.857142857 1.2)">{children}</g>
       </g>
-      <rect fill="none" height="19" rx="2.2" stroke="currentColor" strokeOpacity="0.7" strokeWidth="1" width="27" x="0.5" y="0.5" />
+      <circle cx="12" cy="12" fill="none" r="11.5" stroke="currentColor" strokeOpacity="0.7" />
     </svg>
   );
 }
@@ -98,20 +98,38 @@ export function BearFlagGlyph({ className }: FlagGlyphProps) {
   return (
     <StripeFlag className={className} colors={['#623804', '#D56300', '#FEDD63', '#FEE6B8', '#FFFFFF', '#555555', '#000000']}>
       <g fill="#000000">
-        <circle cx="5.8" cy="7.2" r="1.1" />
-        <circle cx="8.7" cy="6.1" r="1.1" />
-        <circle cx="11.2" cy="7.6" r="1.1" />
-        <circle cx="4.8" cy="10.1" r="1.1" />
-        <path d="M6.2 10.2c1.2-2.1 4.6-1.1 4.8 1.3.2 2.2-1.9 3.6-4.1 2.6-1.7-.8-1.8-2.2-.7-3.9Z" />
+        <circle cx="5.1" cy="7.2" r="1.15" />
+        <circle cx="7.6" cy="5.7" r="1.15" />
+        <circle cx="10.5" cy="5.9" r="1.15" />
+        <circle cx="12.9" cy="7.8" r="1.15" />
+        <path d="M6.1 10.1c.7-2.2 3.6-3.2 5.1-1.3 1.6 2 .2 4.7-2.3 4.7-2.2 0-3.5-1.5-2.8-3.4Z" />
       </g>
     </StripeFlag>
+  );
+}
+
+export function BearPawGlyph({ className }: FlagGlyphProps) {
+  return (
+    <svg aria-hidden="true" className={className} fill="currentColor" viewBox="0 0 24 24">
+      <circle cx="6" cy="8" r="2" />
+      <circle cx="10" cy="5.7" r="2" />
+      <circle cx="14.3" cy="6" r="2" />
+      <circle cx="18" cy="8.8" r="2" />
+      <path d="M7.5 14.1c1-3.3 5.4-4.7 7.7-1.9 2.4 3 .3 7-3.5 7-3.3 0-5.2-2.2-4.2-5.1Z" />
+    </svg>
   );
 }
 
 export function PupFlagGlyph({ className }: FlagGlyphProps) {
   return (
     <StripeFlag className={className} colors={['#111111', '#1A2D50', '#FFFFFF', '#1A2D50', '#111111']}>
-      <path d="M7.1 7.6a2 2 0 1 0-2.5-2.4L2.2 7.6a2 2 0 1 0 0 2.8l2.4 2.4a2 2 0 1 0 2.5-2.4h7.8a2 2 0 1 0 2.5 2.4l2.4-2.4a2 2 0 1 0 0-2.8l-2.4-2.4a2 2 0 1 0-2.5 2.4Z" fill="#D51D2F" transform="scale(.95) translate(1.4 .5)" />
+      <g fill="#D51D2F" transform="rotate(-9 14 10)">
+        <rect height="3.8" rx="1.9" width="15" x="6.5" y="8.1" />
+        <circle cx="6.4" cy="7.5" r="2.15" />
+        <circle cx="6.4" cy="12.5" r="2.15" />
+        <circle cx="21.6" cy="7.5" r="2.15" />
+        <circle cx="21.6" cy="12.5" r="2.15" />
+      </g>
     </StripeFlag>
   );
 }

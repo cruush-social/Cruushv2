@@ -37,12 +37,13 @@ export const POSITIONS = alphabetize([
 
 export const ROLES = alphabetize([
   'brat', 'brat tamer', 'caregiver', 'degradee', 'degrader', 'dominant', 'handler', 'hunter', 'little', 'masochist', 'owner',
-  'pet', 'prey', 'rigger', 'rope bunny', 'sadist', 'sadomasochist', 'service', 'submissive', 'switch', 'trainer',
+  'pet', 'pleasure dom', 'pleasure sub', 'pleasure switch', 'prey', 'rigger', 'rope bunny', 'sadist', 'sadomasochist', 'service',
+  'service dom', 'service sub', 'service switch', 'submissive', 'switch', 'trainer',
   'worshipped', 'worshipper'
 ]);
 
 export const LOOKING_FOR = alphabetize([
-  'chat', 'cruise', 'dating', 'dynamic', 'friends', 'group', 'hookup', 'networking', 'play partner', 'right now', 'sneaky link', 'threesome'
+  'chat', 'cruise', 'dating', 'dynamic', 'friends', 'group', 'hookup', 'networking', 'play partner', 'right now', 'sex parties', 'sneaky link', 'threesome'
 ]);
 
 export const AVAILABILITY = alphabetize([
@@ -76,8 +77,8 @@ export const VIBE_GROUPS = [
   {
     label: 'Energy',
     options: [
-      'Adventurous', 'Affectionate', 'Alpha', 'Beta', 'Bold', 'Chaotic', 'Chill', 'Cozy', 'Curious', 'Deadpan', 'Direct', 'Dreamy',
-      'Experimental', 'Feral', 'Flirty', 'Gentle', 'Goofy', 'High-energy', 'Homebody', 'Intense', 'Mysterious', 'Night owl', 'Normie',
+      'Adventurous', 'Affectionate', 'Alpha', 'Beta', 'Bold', 'Chaotic', 'Chill', 'Cozy', 'Curious', 'Deadpan', 'Deviant', 'Direct', 'Dreamy',
+      'Experimental', 'Flirty', 'Freak', 'Gentle', 'Goofy', 'High-energy', 'Homebody', 'Intense', 'Mysterious', 'Night owl', 'Normie',
       'Outdoorsy', 'Playful', 'Romantic', 'Sensual', 'Soft-spoken', 'Spiritual', 'Spontaneous', 'Tender', 'Unfiltered', 'Vanilla', 'Warm', 'Weird'
     ].sort((left, right) => left.localeCompare(right, undefined, { sensitivity: 'base' })),
   },
@@ -87,7 +88,7 @@ export const VIBE_GROUPS = [
       'ABDL', 'Art scene', 'Ballroom', 'Beach', 'Burlesque', 'Burner', 'Cabaret', 'Camping', 'Circuit', 'Club Kid', 'Collegiate',
       'Cosplay', 'Country', 'Disco', 'Drag', 'Fashion', 'Festival', 'Furry', 'Goth', 'Horror', 'House', 'Hyperpop',
       'Footwork', 'Hardcore', 'Indie', 'Industrial', 'Jock', 'Karaoke', 'Kiki', 'LARPing', 'Leather', 'Maker', 'Metal', 'Nature', 'Nudist',
-      'Party', 'Producer', 'Punk', 'Queer arts', 'Queer nightlife', 'Raver', 'Rubber', 'Sci-fi', 'Sex-positive', 'Skate', 'Sober',
+      'Organizer', 'Party', 'Producer', 'Punk', 'Queer arts', 'Queer nightlife', 'Raver', 'Rubber', 'Sci-fi', 'Sex-positive', 'Skate', 'Sober',
       'Stoner', 'Techno', 'Thespian',
       'Underground'
     ].sort((left, right) => left.localeCompare(right, undefined, { sensitivity: 'base' })),
@@ -95,11 +96,12 @@ export const VIBE_GROUPS = [
   {
     label: 'Archetypes',
     options: [
-      'Angel', 'Baddie', 'Bimbo', 'Bitch', 'Boss', 'Bull', 'Bully', 'Chaser', 'Cougar', 'Cuck', 'Cuckquean', 'Cum dump', 'Cyborg', 'Daddy',
-      'Deity', 'Demon', 'Doll', 'Drone', 'God/Goddess', 'Gooner', 'Gremlin', 'Hedonist', 'Himbo', 'Hothusband', 'Hotwife', 'Incubus',
-      'Jester', 'King', 'Kitten', 'Master', 'Minx', 'Mistress', 'Mommy', 'Musician', 'Object', 'Outlaw', 'Owned', 'Pig', 'Pixie', 'Plaything',
-      'Pony', 'Pornstar', 'Prince', 'Princess', 'Pup', 'Queen', 'Sensualist', 'Servant', 'Silver fox', 'Siren', 'Sissy', 'Size royalty', 'Succubus', 'Trade',
-      'Unicorn', 'Vampire', 'Wolf'
+      'Angel', 'Baddie', 'Bimbo', 'Bitch', 'Boss', 'Bro', 'Bull', 'Bully', 'Chaser', 'Clown', 'Cock sleeve', 'Cougar', 'Cuck', 'Cuckquean',
+      'Cum dump', 'Cyborg', 'Daddy', 'Deity', 'Demon', 'Doll', 'Drone', 'Dude', 'God/Goddess', 'Gooner', 'Gremlin', 'Hedonist', 'Himbo',
+      'Hothusband', 'Hotwife', 'Incubus', 'Jester', 'King', 'Kitten', 'Master', 'Minx', 'Mistress', 'Mommy', 'Musician', 'Nympho',
+      'Object', 'Outlaw', 'Owned', 'Pervert', 'Pig', 'Pixie', 'Plaything', 'Pony', 'Pornstar', 'Prince', 'Princess', 'Pup', 'Queen',
+      'Sensualist', 'Servant', 'Side piece', 'Silver fox', 'Siren', 'Sis', 'Sissy', 'Size royalty', 'Slut', 'Succubus', 'Swinger', 'Thembo',
+      'Toilet', 'Trade', 'Unicorn', 'Vampire', 'Werewolf', 'Whore', 'Wolf'
     ].sort((left, right) => left.localeCompare(right, undefined, { sensitivity: 'base' })),
   },
   {
@@ -174,9 +176,6 @@ export const KINK_CATALOG = [
   { id: 'fingering', label: 'fingering', category: 'Body & Touch' },
   { id: 'frotting', label: 'frotting', category: 'Body & Touch' },
   { id: 'hand-jobs', label: 'hand jobs', category: 'Body & Touch' },
-  { id: 'mutual-masturbation', label: 'mutual masturbation', category: 'Acts' },
-  { id: 'nipple-play', label: 'nipple play', category: 'Acts' },
-  { id: 'oral', label: 'oral', category: 'Acts' },
   { id: 'pegging', label: 'pegging', category: 'Body & Touch' },
   { id: 'pits', label: 'pits', category: 'Body & Touch' },
   { id: 'feet', label: 'feet', category: 'Body & Touch' },
@@ -205,7 +204,6 @@ export const KINK_CATALOG = [
   { id: 'toys', label: 'toys', category: 'Toys' },
   { id: 'breath-play', label: 'breath play', category: 'Edge' },
   { id: 'cock-ball-torture', label: 'cock & ball torture', category: 'Edge' },
-  { id: 'fisting', label: 'fisting', category: 'Acts' },
   { id: 'gooning', label: 'gooning', category: 'Edge' },
   { id: 'tribbing', label: 'tribbing', category: 'Body & Touch' },
   { id: 'watersports', label: 'watersports', category: 'Other' },
@@ -216,31 +214,48 @@ export const KINK_CATALOG = [
   { id: 'cunnilingus', label: 'cunnilingus', category: 'Body & Touch' },
   { id: 'deep-throat', label: 'deep throat', category: 'Body & Touch' },
   { id: 'docking', label: 'docking', category: 'Body & Touch' },
+  { id: 'facials', label: 'facials', category: 'Body & Touch' },
   { id: 'grinding', label: 'grinding', category: 'Body & Touch' },
+  { id: 'hands', label: 'hands', category: 'Body & Touch' },
   { id: 'hair-pulling', label: 'hair pulling', category: 'Body & Touch' },
   { id: 'making-out', label: 'making out', category: 'Body & Touch' },
   { id: 'marking', label: 'marking', category: 'Body & Touch' },
   { id: 'muscle-worship', label: 'muscle worship', category: 'Body & Touch' },
+  { id: 'mutual-masturbation', label: 'mutual masturbation', category: 'Body & Touch' },
+  { id: 'navel-belly', label: 'navel/belly', category: 'Body & Touch' },
   { id: 'penetrative-sex', label: 'penetrative sex', category: 'Body & Touch' },
+  { id: 'piercings', label: 'piercings', category: 'Body & Touch' },
   { id: 'scratching', label: 'scratching', category: 'Body & Touch' },
   { id: 'sixty-nine', label: 'sixty-nine', category: 'Body & Touch' },
+  { id: 'squirting', label: 'squirting', category: 'Body & Touch' },
   { id: 'sweat', label: 'sweat', category: 'Body & Touch' },
+  { id: 'tattoos', label: 'tattoos', category: 'Body & Touch' },
   { id: 'twenty-four-seven', label: '24/7', category: 'Power' },
   { id: 'cuckholding', label: 'cuckholding', category: 'Power' },
   { id: 'degradation', label: 'degradation', category: 'Power' },
   { id: 'discipline', label: 'discipline', category: 'Power' },
   { id: 'financial-domination', label: 'financial domination', category: 'Power' },
+  { id: 'femdom', label: 'femdom', category: 'Power' },
   { id: 'free-use', label: 'free use', category: 'Power' },
   { id: 'obedience', label: 'obedience', category: 'Power' },
   { id: 'orgasm-control', label: 'orgasm control', category: 'Power' },
   { id: 'orgasm-denial', label: 'orgasm denial', category: 'Power' },
+  { id: 'power-exchange', label: 'power exchange', category: 'Power' },
   { id: 'protocol', label: 'protocol', category: 'Power' },
   { id: 'training', label: 'training', category: 'Power' },
   { id: 'worship', label: 'worship', category: 'Power' },
+  { id: 'ass-worship', label: 'ass worship', category: 'Power' },
+  { id: 'cock-worship', label: 'cock worship', category: 'Power' },
+  { id: 'pussy-worship', label: 'pussy worship', category: 'Power' },
+  { id: 'tit-worship', label: 'tit worship', category: 'Power' },
   { id: 'boots', label: 'boots', category: 'Gear' },
   { id: 'boxers', label: 'boxers', category: 'Gear' },
+  { id: 'breast-plate', label: 'breast plate', category: 'Gear' },
   { id: 'briefs', label: 'briefs', category: 'Gear' },
+  { id: 'cage', label: 'cage', category: 'Gear' },
+  { id: 'chains', label: 'chains', category: 'Gear' },
   { id: 'collars', label: 'collars', category: 'Gear' },
+  { id: 'corsets', label: 'corsets', category: 'Gear' },
   { id: 'cuffs', label: 'cuffs', category: 'Gear' },
   { id: 'crops', label: 'crops', category: 'Gear' },
   { id: 'diaper', label: 'diapers', category: 'Gear' },
@@ -254,12 +269,14 @@ export const KINK_CATALOG = [
   { id: 'masks', label: 'masks', category: 'Gear' },
   { id: 'panties', label: 'panties', category: 'Gear' },
   { id: 'paddles', label: 'paddles', category: 'Gear' },
+  { id: 'pvc', label: 'PVC', category: 'Gear' },
   { id: 'rope', label: 'rope', category: 'Gear' },
   { id: 'rubber', label: 'rubber', category: 'Gear' },
   { id: 'singlets', label: 'singlets', category: 'Gear' },
   { id: 'sneakers', label: 'sneakers', category: 'Gear' },
   { id: 'socks', label: 'socks', category: 'Gear' },
   { id: 'sportswear', label: 'sportswear', category: 'Gear' },
+  { id: 'spreader-bar', label: 'spreader bar', category: 'Gear' },
   { id: 'suits', label: 'suits', category: 'Gear' },
   { id: 'boss-and-worker', label: 'boss and worker', category: 'Roleplay' },
   { id: 'bimbofication', label: 'bimbofication', category: 'Roleplay' },
@@ -268,6 +285,8 @@ export const KINK_CATALOG = [
   { id: 'fantasy-roleplay', label: 'fantasy roleplay', category: 'Roleplay' },
   { id: 'feminization', label: 'feminization', category: 'Roleplay' },
   { id: 'fantasy-scenes', label: 'fantasy scenes', category: 'Roleplay' },
+  { id: 'feral', label: 'feral', category: 'Roleplay' },
+  { id: 'gender-play', label: 'gender play', category: 'Roleplay' },
   { id: 'hypno', label: 'hypno', category: 'Roleplay' },
   { id: 'forced-bi', label: 'forced-bi', category: 'Roleplay' },
   { id: 'kitten-play', label: 'kitten play', category: 'Roleplay' },
@@ -306,6 +325,7 @@ export const KINK_CATALOG = [
   { id: 'fire-play', label: 'fire play', category: 'Bondage & Sensation' },
   { id: 'ice', label: 'ice', category: 'Bondage & Sensation' },
   { id: 'light-bondage', label: 'light bondage', category: 'Bondage & Sensation' },
+  { id: 'mummification', label: 'mummification', category: 'Bondage & Sensation' },
   { id: 'sensory-deprivation', label: 'sensory deprivation', category: 'Bondage & Sensation' },
   { id: 'temperature-play', label: 'temperature play', category: 'Bondage & Sensation' },
   { id: 'tickling', label: 'tickling', category: 'Bondage & Sensation' },
@@ -314,11 +334,13 @@ export const KINK_CATALOG = [
   { id: 'cock-rings', label: 'cock rings', category: 'Toys' },
   { id: 'dildos', label: 'dildos', category: 'Toys' },
   { id: 'fantasy-dildos', label: 'fantasy dildos', category: 'Toys' },
+  { id: 'fuck-machine', label: 'fuck machine', category: 'Toys' },
   { id: 'harness-toys', label: 'harness toys', category: 'Toys' },
   { id: 'plugs-in-public', label: 'plugs in public', category: 'Toys' },
   { id: 'large-insertions', label: 'large insertions', category: 'Toys' },
   { id: 'prostate-toys', label: 'prostate toys', category: 'Toys' },
   { id: 'pumps', label: 'pumps', category: 'Toys' },
+  { id: 'rose-toy', label: 'rose toy', category: 'Toys' },
   { id: 'strap-ons', label: 'strap-ons', category: 'Toys' },
   { id: 'vibrators', label: 'vibrators', category: 'Toys' },
   { id: 'cnc', label: 'CNC', category: 'Edge' },
@@ -329,10 +351,14 @@ export const KINK_CATALOG = [
   { id: 'needles', label: 'needles', category: 'Edge' },
   { id: 'rope-suspension', label: 'rope suspension', category: 'Edge' },
   { id: 'tit-torture', label: 'tit torture', category: 'Edge' },
+  { id: 'small-penis-humiliation', label: 'small penis humiliation', category: 'Power' },
   { id: 'chastity-keyholding', label: 'chastity keyholding', category: 'Power' },
+  { id: 'breeding', label: 'breeding', category: 'Body & Touch' },
+  { id: 'erotic-literature', label: 'erotic literature', category: 'Other' },
   { id: 'food-play', label: 'food play', category: 'Other' },
-  { id: 'feederism', label: 'feederism', category: 'Other' },
+  { id: 'hentai', label: 'hentai', category: 'Other' },
   { id: 'messy-play', label: 'messy play', category: 'Other' },
+  { id: 'omorashi', label: 'omorashi', category: 'Other' },
   { id: 'pup-play', label: 'pup play', category: 'Roleplay' },
   { id: 'shibari', label: 'shibari', category: 'Bondage & Sensation' },
   { id: 'showers', label: 'showers', category: 'Other' },
@@ -448,3 +474,80 @@ export const HOBBY_GROUPS = [
 ].sort((left, right) => left.label.localeCompare(right.label, undefined, { sensitivity: 'base' }));
 
 export const HOBBIES = alphabetize(HOBBY_GROUPS.flatMap((group) => group.options));
+
+export type StructuredProfileOptionField = {
+  label: string;
+  options: string[];
+};
+
+export const STRUCTURED_PROFILE_OPTION_FIELDS: StructuredProfileOptionField[] = [
+  { label: 'Pronouns', options: PRONOUNS },
+  { label: 'Identity', options: IDENTITIES },
+  { label: 'Presentation', options: PRESENTATIONS },
+  { label: 'Sexuality', options: SEXUALITY },
+  { label: 'Ethnicity', options: ETHNICITIES },
+  { label: 'Body type', options: BODY_TYPES },
+  { label: 'Body hair', options: BODY_HAIR },
+  { label: 'Position', options: POSITIONS },
+  { label: 'Role', options: ROLES },
+  { label: 'Availability', options: AVAILABILITY },
+  { label: 'Hosting/Travel', options: HOSTING },
+  { label: 'Preferred spots', options: PREFERRED_SPOTS },
+  { label: 'Relationship status', options: RELATIONSHIP_STATUS },
+  { label: 'Zodiac', options: ZODIAC },
+  { label: 'Kinks', options: KINKS },
+  { label: 'Vibes', options: VIBES },
+  { label: 'Hobbies', options: HOBBIES },
+  { label: 'Looking for', options: LOOKING_FOR },
+  { label: 'Crowd Mode', options: CROWDS },
+  { label: 'HIV status', options: HIV_STATUS },
+  { label: 'Condoms', options: CONDOMS },
+  { label: 'PrEP', options: PREP },
+  { label: 'DoxyPEP', options: DOXYPEP },
+  { label: 'COVID vaccine', options: COVID_VACCINE },
+  { label: 'MPOX vaccine', options: MPOX_VACCINE },
+  { label: 'Health preferences', options: HEALTH_PREFERENCES },
+  { label: 'Birth control', options: BIRTH_CONTROL },
+  { label: 'Substance boundaries', options: SUBSTANCE_BOUNDARIES },
+  { label: 'Protection boundaries', options: PROTECTION_BOUNDARIES },
+];
+
+function singularizeProfileOptionToken(token: string) {
+  if (token === 'men') return 'man';
+  if (token === 'women') return 'woman';
+  if (token === 'people') return 'person';
+  if (/[^aeiou]ies$/.test(token)) return `${token.slice(0, -3)}y`;
+  if (/(?:ches|shes|xes|zes|ses)$/.test(token)) return token.slice(0, -2);
+  if (token.length > 3 && token.endsWith('s') && !token.endsWith('ss')) return token.slice(0, -1);
+  return token;
+}
+
+export function normalizeStructuredProfileOption(value: string) {
+  return value
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .replace(/^#+/, '')
+    .toLowerCase()
+    .replace(/&/g, ' and ')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map(singularizeProfileOptionToken)
+    .join(' ');
+}
+
+export const PROFILE_TAG_RESERVATIONS = STRUCTURED_PROFILE_OPTION_FIELDS.flatMap((field) => (
+  field.options.map((option) => ({
+    field: field.label,
+    normalized: normalizeStructuredProfileOption(option),
+  }))
+)).filter((entry, index, entries) => (
+  entry.normalized && entries.findIndex((candidate) => candidate.normalized === entry.normalized) === index
+));
+
+export function findStructuredProfileFieldForTag(value: string) {
+  const normalized = normalizeStructuredProfileOption(value);
+  return PROFILE_TAG_RESERVATIONS.find((entry) => entry.normalized === normalized)?.field ?? null;
+}

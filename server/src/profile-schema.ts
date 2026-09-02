@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { multilineTextSchema, optionalSingleLineTextSchema, singleLineTextSchema } from "./input-schema.js";
+import { findStructuredProfileFieldForTag } from "./profile-tag-reservations.js";
 
 // The map preview, the profile overlay, and the editor all hold to this.
 export const SIGNAL_MAX_LENGTH = 35;
@@ -239,7 +240,19 @@ const profileTagsSchema = z.array(
   z.string().trim().regex(/^#?[a-zA-Z0-9_]{1,24}$/, "Tags can use letters, numbers, and underscores."),
 ).max(10).optional().default([]).transform((values) => (
   [...new Set(values.map((value) => value.replace(/^#/, "").toLowerCase()))]
-));
+)).superRefine((values, ctx) => {
+  values.forEach((value, index) => {
+    const structuredField = findStructuredProfileFieldForTag(value);
+
+    if (structuredField) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `That tag is already a profile option. Add it under ${structuredField}.`,
+        path: [index]
+      });
+    }
+  });
+});
 
 export type SideBadges = z.infer<typeof sideBadgesSchema>;
 

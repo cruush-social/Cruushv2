@@ -43,6 +43,7 @@ import {
   CROWDS,
   DOXYPEP,
   ETHNICITIES,
+  findStructuredProfileFieldForTag,
   HEALTH_PREFERENCES,
   HIV_STATUS,
   HOBBY_GROUPS,
@@ -527,7 +528,7 @@ function toProfileSavePayload(
     display_name: getSaveDisplayName(profile),
     photos: sanitizeProfilePhotos(profile.photos ?? []),
     bio: (profile.bio ?? '').trim(),
-    tags: uniqueValues(profile.tags ?? []).map(normalizeProfileTag).filter(Boolean).slice(0, profileTagLimit),
+    tags: uniqueValues(profile.tags ?? []).map(normalizeProfileTag).filter((tag) => Boolean(tag) && !findStructuredProfileFieldForTag(tag)).slice(0, profileTagLimit),
     signal: (profile.signal ?? '').trim(),
     pronouns: limitToThree(profile.pronouns ?? []),
     custom_pronouns: (profile.custom_pronouns ?? '').trim(),
@@ -601,6 +602,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
   const [photoUploadError, setPhotoUploadError] = useState<string | null>(null);
   const [photoUploadNotice, setPhotoUploadNotice] = useState<string | null>(null);
   const [profileTagDraft, setProfileTagDraft] = useState('');
+  const [profileTagError, setProfileTagError] = useState<string | null>(null);
   const [profilePhotoUploadsAvailable, setProfilePhotoUploadsAvailable] = useState<boolean | null>(null);
   const [activeTab, setActiveTab] = useState(requestedProfileSection === 'kinks' ? 'intimacy' : 'basics');
   const badgeExitGuardRef = useRef<(() => Promise<boolean>) | null>(null);
@@ -1010,7 +1012,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
   const normalizedProfile: ProfilePayload = {
     ...profile,
     photos: sanitizeProfilePhotos(profile.photos || []),
-    tags: uniqueValues(profile.tags || []).map(normalizeProfileTag).filter(Boolean).slice(0, profileTagLimit),
+    tags: uniqueValues(profile.tags || []).map(normalizeProfileTag).filter((tag) => Boolean(tag) && !findStructuredProfileFieldForTag(tag)).slice(0, profileTagLimit),
     signal: profile.signal ?? '',
     pronouns: profile.pronouns || [],
     identities: limitGenderIdentities(profile.identities || []),
@@ -1058,6 +1060,20 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
   );
   const profileMenuProps = {
     menuPortal: true,
+  };
+  const addProfileTag = () => {
+    const tag = normalizeProfileTag(profileTagDraft);
+    const structuredField = findStructuredProfileFieldForTag(profileTagDraft);
+
+    if (structuredField) {
+      setProfileTagError(`That is already a profile option. Add it under ${structuredField}.`);
+      return;
+    }
+    if (!tag || normalizedProfile.tags.includes(tag) || normalizedProfile.tags.length >= profileTagLimit) return;
+
+    handleChange('tags', [...normalizedProfile.tags, tag]);
+    setProfileTagDraft('');
+    setProfileTagError(null);
   };
   return (
     <div className={embedded ? 'bg-transparent pb-0' : 'min-h-screen bg-background pb-20'}>
@@ -1252,14 +1268,14 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
                   disabled={normalizedProfile.tags.length >= profileTagLimit}
                   id="profile-tags"
                   maxLength={25}
-                  onChange={(event) => setProfileTagDraft(event.target.value)}
+                  onChange={(event) => {
+                    setProfileTagDraft(event.target.value);
+                    setProfileTagError(null);
+                  }}
                   onKeyDown={(event) => {
                     if (event.key !== 'Enter') return;
                     event.preventDefault();
-                    const tag = normalizeProfileTag(profileTagDraft);
-                    if (!tag || normalizedProfile.tags.includes(tag) || normalizedProfile.tags.length >= profileTagLimit) return;
-                    handleChange('tags', [...normalizedProfile.tags, tag]);
-                    setProfileTagDraft('');
+                    addProfileTag();
                   }}
                   placeholder="#tag"
                   value={profileTagDraft}
@@ -1267,17 +1283,13 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
                 <button
                   className="text-sm font-semibold text-white/72 disabled:opacity-35"
                   disabled={!normalizeProfileTag(profileTagDraft) || normalizedProfile.tags.includes(normalizeProfileTag(profileTagDraft)) || normalizedProfile.tags.length >= profileTagLimit}
-                  onClick={() => {
-                    const tag = normalizeProfileTag(profileTagDraft);
-                    if (!tag || normalizedProfile.tags.includes(tag) || normalizedProfile.tags.length >= profileTagLimit) return;
-                    handleChange('tags', [...normalizedProfile.tags, tag]);
-                    setProfileTagDraft('');
-                  }}
+                  onClick={addProfileTag}
                   type="button"
                 >
                   Add
                 </button>
               </div>
+              {profileTagError ? <p className="text-sm text-destructive">{profileTagError}</p> : null}
               {normalizedProfile.tags.length > 0 ? (
                 <div className="flex flex-wrap gap-2" data-testid="profile-tags-draft">
                   {normalizedProfile.tags.map((tag) => (

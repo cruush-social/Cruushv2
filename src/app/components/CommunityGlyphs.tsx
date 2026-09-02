@@ -6,10 +6,8 @@
  */
 
 import t4tLinkedSymbol from '../assets/ui-icons/t4t-pride-linked-symbol.png';
-import aceSpectrumDiamond from '../assets/ui-icons/ace-spectrum-diamond-2226685.png';
 import bdsmTriskelion from '../assets/ui-icons/bdsm-89011.png';
 import bisexualitySymbol from '../assets/ui-icons/bisexuality-2431635.png';
-import gayCoupleSymbol from '../assets/ui-icons/gay-7284797.png';
 import labrysSymbol from '../assets/ui-icons/labrys-5692573.png';
 import polyamoryInfinityHeart from '../assets/ui-icons/polyamory-2751502.png';
 
@@ -114,13 +112,11 @@ export function PolyGlyph(props: GlyphProps) {
 /** The ace of spades, which the ace community wears. */
 export function PlayingCard(props: GlyphProps) {
   return (
-    <img
-      alt=""
-      aria-hidden="true"
-      className={`object-contain invert ${props.className ?? ''}`}
-      draggable={false}
-      src={aceSpectrumDiamond}
-    />
+    <Glyph {...props}>
+      <rect height="18.4" rx="2.4" width="14" x="5" y="2.8" />
+      <path d="M12 7.2c1.8 2.2 3.4 3.8 3.4 5.4a2 2 0 0 1-3.4 1.4 2 2 0 0 1-3.4-1.4c0-1.6 1.6-3.2 3.4-5.4Z" />
+      <path d="M12 14v2.8" />
+    </Glyph>
   );
 }
 
@@ -132,9 +128,16 @@ export function PlayingCard(props: GlyphProps) {
  */
 
 /** Mars over Mars. */
-export function DoubleMarsGlyph({ className }: GlyphProps) {
+export function DoubleMarsGlyph(props: GlyphProps) {
   return (
-    <img alt="" aria-hidden="true" className={`object-contain invert ${className ?? ''}`} draggable={false} src={gayCoupleSymbol} />
+    <Glyph {...props} strokeWidth={props.strokeWidth ?? 2.65}>
+      <circle cx="8.1" cy="15.5" r="4.6" />
+      <circle cx="14.9" cy="15.5" r="4.6" />
+      <path d="m11.4 12.2 5.2-5.2" />
+      <path d="M13.2 7h3.4v3.4" />
+      <path d="m18.2 12.2 4-4" />
+      <path d="M18.8 8.2h3.4v3.4" />
+    </Glyph>
   );
 }
 
