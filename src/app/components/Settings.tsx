@@ -40,9 +40,11 @@ import cruushLogo from '../assets/brand/cruush-logo.svg';
 import cruushHeartIcon from '../assets/ui-icons/cruush-white.png';
 import {
   addAccessibilityPreferencesChangedListener,
+  COLOR_VISION_MODES,
   getAccessibilityPreferences,
   saveAccessibilityPreferences,
   type AccessibilityPreferences,
+  type ColorVisionMode,
 } from '../lib/accessibilityPreferences';
 import mileHighClubWhite from '../assets/ui-icons/mile-high-club-white.svg';
 import {
@@ -71,7 +73,26 @@ type SettingsToggleItem = {
   onCheckedChange: (checked: boolean) => void;
 };
 
-type SettingsItem = SettingsActionItem | SettingsToggleItem;
+type SettingsChoiceItem = {
+  icon: LucideIcon;
+  label: string;
+  onValueChange: (value: string) => void;
+  options: Array<{ label: string; value: string }>;
+  value: string;
+};
+
+type SettingsItem = SettingsActionItem | SettingsToggleItem | SettingsChoiceItem;
+
+const COLOR_VISION_LABELS: Record<ColorVisionMode, string> = {
+  off: 'Off',
+  deuteranomaly: 'Deuteranomaly',
+  deuteranopia: 'Deuteranopia',
+  protanomaly: 'Protanomaly',
+  protanopia: 'Protanopia',
+  tritanomaly: 'Tritanomaly',
+  tritanopia: 'Tritanopia',
+  monochromacy: 'Monochromacy',
+};
 
 const editProfileIconStyle: CSSProperties = {
   background: 'var(--cruush-gradient)',
@@ -126,12 +147,22 @@ export default function Settings({ embedded = false, onBack, onClose, onOpenMile
   };
 
   const updateAccessibilityPreference = (
-    preference: keyof AccessibilityPreferences,
+    preference: Exclude<keyof AccessibilityPreferences, 'colorVisionMode'>,
     checked: boolean,
   ) => {
     const nextPreferences = {
       ...accessibilityPreferences,
       [preference]: checked,
+    };
+    setAccessibilityPreferences(nextPreferences);
+    saveAccessibilityPreferences(nextPreferences);
+  };
+
+  const updateColorVisionMode = (colorVisionMode: ColorVisionMode) => {
+    const nextPreferences = {
+      ...accessibilityPreferences,
+      colorBlindMode: colorVisionMode !== 'off',
+      colorVisionMode,
     };
     setAccessibilityPreferences(nextPreferences);
     saveAccessibilityPreferences(nextPreferences);
@@ -311,9 +342,10 @@ export default function Settings({ embedded = false, onBack, onClose, onOpenMile
       items: [
         {
           icon: Palette,
-          label: 'Color-blind mode',
-          checked: accessibilityPreferences.colorBlindMode === true,
-          onCheckedChange: (checked: boolean) => updateAccessibilityPreference('colorBlindMode', checked),
+          label: 'Color vision',
+          value: accessibilityPreferences.colorVisionMode,
+          options: COLOR_VISION_MODES.map((value) => ({ value, label: COLOR_VISION_LABELS[value] })),
+          onValueChange: (value: string) => updateColorVisionMode(value as ColorVisionMode),
         },
         {
           icon: Accessibility,
@@ -508,6 +540,32 @@ export default function Settings({ embedded = false, onBack, onClose, onOpenMile
             <div className="bg-card rounded-2xl border border-border overflow-hidden">
               {section.items.map((item, index) => {
                 const dividerClass = index !== section.items.length - 1 ? 'border-b border-border' : '';
+
+                if ('options' in item) {
+                  const Icon = item.icon;
+                  const inputId = `accessibility-${item.label.toLowerCase().replace(/\s+/g, '-')}`;
+
+                  return (
+                    <div
+                      key={`${section.title}-${item.label}`}
+                      className={`flex w-full items-center gap-3 p-4 ${dividerClass}`}
+                    >
+                      <Icon className="h-5 w-5 shrink-0 text-muted-foreground" />
+                      <Label className="flex-1" htmlFor={inputId}>{item.label}</Label>
+                      <select
+                        aria-label={item.label}
+                        className="min-w-0 max-w-[11rem] rounded-full border border-border bg-background px-3 py-2 text-sm text-foreground"
+                        id={inputId}
+                        onChange={(event) => item.onValueChange(event.target.value)}
+                        value={item.value}
+                      >
+                        {item.options.map((option) => (
+                          <option key={option.value} value={option.value}>{option.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                  );
+                }
 
                 if ('checked' in item) {
                   const Icon = item.icon;

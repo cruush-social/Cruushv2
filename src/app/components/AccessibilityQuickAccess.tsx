@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react';
 import { Accessibility, Contrast, Palette, Type } from 'lucide-react';
 import {
   addAccessibilityPreferencesChangedListener,
+  COLOR_VISION_MODES,
   getAccessibilityPreferences,
   saveAccessibilityPreferences,
   type AccessibilityPreferences,
+  type ColorVisionMode,
 } from '../lib/accessibilityPreferences';
 import {
   Dialog,
@@ -18,11 +20,21 @@ import { Label } from './ui/label';
 import { Switch } from './ui/switch';
 
 const ACCESSIBILITY_OPTIONS = [
-  { icon: Palette, key: 'colorBlindMode', label: 'Color-blind mode' },
   { icon: Accessibility, key: 'reduceMotion', label: 'Reduce motion' },
   { icon: Type, key: 'largerText', label: 'Larger text' },
   { icon: Contrast, key: 'highContrast', label: 'Increase contrast' },
 ] as const;
+
+const COLOR_VISION_LABELS: Record<ColorVisionMode, string> = {
+  off: 'Off',
+  deuteranomaly: 'Deuteranomaly',
+  deuteranopia: 'Deuteranopia',
+  protanomaly: 'Protanomaly',
+  protanopia: 'Protanopia',
+  tritanomaly: 'Tritanomaly',
+  tritanopia: 'Tritanopia',
+  monochromacy: 'Monochromacy',
+};
 
 type AccessibilityQuickAccessProps = {
   authShellScrolled?: boolean;
@@ -35,11 +47,27 @@ export default function AccessibilityQuickAccess({
 
   useEffect(() => addAccessibilityPreferencesChangedListener(setPreferences), []);
 
-  const updatePreference = (key: keyof AccessibilityPreferences, checked: boolean) => {
+  const updatePreference = (
+    key: Exclude<keyof AccessibilityPreferences, 'colorVisionMode'>,
+    checked: boolean,
+  ) => {
     setPreferences((currentPreferences) => {
       const nextPreferences = {
         ...currentPreferences,
         [key]: checked,
+      };
+
+      saveAccessibilityPreferences(nextPreferences);
+      return nextPreferences;
+    });
+  };
+
+  const updateColorVisionMode = (colorVisionMode: ColorVisionMode) => {
+    setPreferences((currentPreferences) => {
+      const nextPreferences = {
+        ...currentPreferences,
+        colorBlindMode: colorVisionMode !== 'off',
+        colorVisionMode,
       };
 
       saveAccessibilityPreferences(nextPreferences);
@@ -71,6 +99,21 @@ export default function AccessibilityQuickAccess({
         </DialogHeader>
 
         <div className="overflow-hidden rounded-lg border border-border bg-card">
+          <div className="flex min-h-14 items-center gap-3 border-b border-border p-4">
+            <Palette aria-hidden="true" className="h-5 w-5 shrink-0 text-muted-foreground" />
+            <Label className="flex-1" htmlFor="quick-accessibility-color-vision">Color vision</Label>
+            <select
+              aria-label="Color vision"
+              className="min-w-0 max-w-[10.5rem] rounded-full border border-border bg-background px-3 py-2 text-sm text-foreground"
+              id="quick-accessibility-color-vision"
+              onChange={(event) => updateColorVisionMode(event.target.value as ColorVisionMode)}
+              value={preferences.colorVisionMode}
+            >
+              {COLOR_VISION_MODES.map((value) => (
+                <option key={value} value={value}>{COLOR_VISION_LABELS[value]}</option>
+              ))}
+            </select>
+          </div>
           {ACCESSIBILITY_OPTIONS.map((option, index) => {
             const Icon = option.icon;
             const inputId = `quick-accessibility-${option.key}`;

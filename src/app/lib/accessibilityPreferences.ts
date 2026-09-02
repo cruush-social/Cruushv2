@@ -1,8 +1,23 @@
 export const ACCESSIBILITY_PREFERENCES_CHANGED_EVENT = 'cruush:accessibility-preferences-changed';
 export const ACCESSIBILITY_PREFERENCES_STORAGE_KEY = 'cruush:accessibility-preferences';
 
+export const COLOR_VISION_MODES = [
+  'off',
+  'deuteranomaly',
+  'deuteranopia',
+  'protanomaly',
+  'protanopia',
+  'tritanomaly',
+  'tritanopia',
+  'monochromacy',
+] as const;
+
+export type ColorVisionMode = typeof COLOR_VISION_MODES[number];
+
 export type AccessibilityPreferences = {
+  /** Kept while stored preferences from the original toggle migrate. */
   colorBlindMode?: boolean;
+  colorVisionMode: ColorVisionMode;
   highContrast: boolean;
   largerText: boolean;
   reduceMotion: boolean;
@@ -12,6 +27,7 @@ export type AccessibilityPreferencesListener = (preferences: AccessibilityPrefer
 
 const DEFAULT_ACCESSIBILITY_PREFERENCES: AccessibilityPreferences = {
   colorBlindMode: false,
+  colorVisionMode: 'off',
   highContrast: false,
   largerText: false,
   reduceMotion: false,
@@ -24,9 +40,15 @@ export function getAccessibilityPreferences(): AccessibilityPreferences {
 
   try {
     const stored = JSON.parse(window.localStorage.getItem(ACCESSIBILITY_PREFERENCES_STORAGE_KEY) ?? '{}');
+    const storedColorVisionMode = COLOR_VISION_MODES.includes(stored.colorVisionMode)
+      ? stored.colorVisionMode as ColorVisionMode
+      : stored.colorBlindMode === true
+        ? 'deuteranopia'
+        : 'off';
 
     return {
-      ...(stored.colorBlindMode === true ? { colorBlindMode: true } : {}),
+      colorBlindMode: storedColorVisionMode !== 'off',
+      colorVisionMode: storedColorVisionMode,
       highContrast: stored.highContrast === true,
       largerText: stored.largerText === true,
       reduceMotion: stored.reduceMotion === true,
@@ -42,7 +64,14 @@ export function applyAccessibilityPreferences(preferences = getAccessibilityPref
   }
 
   const root = document.documentElement;
-  root.toggleAttribute('data-cruush-color-blind', preferences.colorBlindMode === true);
+  const colorVisionMode = preferences.colorVisionMode
+    ?? (preferences.colorBlindMode === true ? 'deuteranopia' : 'off');
+  root.toggleAttribute('data-cruush-color-blind', colorVisionMode !== 'off');
+  if (colorVisionMode === 'off') {
+    root.removeAttribute('data-cruush-color-vision');
+  } else {
+    root.setAttribute('data-cruush-color-vision', colorVisionMode);
+  }
   root.toggleAttribute('data-cruush-high-contrast', preferences.highContrast);
   root.toggleAttribute('data-cruush-larger-text', preferences.largerText);
   root.toggleAttribute('data-cruush-reduce-motion', preferences.reduceMotion);
@@ -54,7 +83,13 @@ export function saveAccessibilityPreferences(preferences: AccessibilityPreferenc
   }
 
   try {
-    window.localStorage.setItem(ACCESSIBILITY_PREFERENCES_STORAGE_KEY, JSON.stringify(preferences));
+    const colorVisionMode = preferences.colorVisionMode
+      ?? (preferences.colorBlindMode === true ? 'deuteranopia' : 'off');
+    window.localStorage.setItem(ACCESSIBILITY_PREFERENCES_STORAGE_KEY, JSON.stringify({
+      ...preferences,
+      colorBlindMode: colorVisionMode !== 'off',
+      colorVisionMode,
+    }));
   } catch {
     // Apply the preference for this page even when storage is unavailable.
   }
