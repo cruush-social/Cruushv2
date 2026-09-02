@@ -397,14 +397,16 @@ export default function Auth({ onAuth }: AuthProps) {
         {/* Logo */}
         <div className="launch-login-auth-brand text-center" data-testid="launch-login-auth-brand">
           <h1 className="sr-only">cruush</h1>
-          <img
-            alt=""
-            aria-hidden="true"
-            className="cruush-brand-logo launch-login-auth-logo-image"
-            data-testid="launch-login-auth-logo"
-            draggable={false}
-            src={cruushLogo}
-          />
+          <span className="launch-login-auth-logo-wrap">
+            <img
+              alt=""
+              aria-hidden="true"
+              className="cruush-brand-logo launch-login-auth-logo-image"
+              data-testid="launch-login-auth-logo"
+              draggable={false}
+              src={cruushLogo}
+            />
+          </span>
           <div className="launch-login-auth-tagline-stack">
             <p className="launch-login-auth-tagline" data-testid="launch-login-auth-tagline">
               <span>queer cruisers cruise</span>{' '}

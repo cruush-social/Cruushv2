@@ -179,26 +179,39 @@
   mix-blend-mode: screen;
 }
 
+.launch-login-auth-logo-wrap {
+  position: relative;
+  display: inline-flex;
+  max-width: 100%;
+  isolation: isolate;
+}
+
+.launch-login-auth-logo-wrap::before {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  content: '';
+  pointer-events: none;
+  background: var(--cruush-logo);
+  -webkit-mask: url('../assets/brand/cruush-logo.svg') center / contain no-repeat;
+  mask: url('../assets/brand/cruush-logo.svg') center / contain no-repeat;
+  filter: blur(0.34rem);
+  opacity: 0.16;
+  transform: scale(1.015);
+  transition: opacity 180ms ease;
+}
+
+.launch-login-auth-logo-wrap:hover::before {
+  opacity: 0.58;
+}
+
 .launch-login-auth-logo-image {
   display: block;
   width: clamp(10rem, 21dvh, 14.25rem);
   max-width: 100%;
   height: auto;
   opacity: 0.98;
-  filter:
-    drop-shadow(0 0.95rem 1.9rem rgba(0, 0, 0, 0.74))
-    drop-shadow(0 0 2.2rem rgba(17, 129, 255, 0.34))
-    drop-shadow(0 0 1.8rem rgba(255, 0, 114, 0.26));
-  transition: filter 180ms ease;
-}
-
-.launch-login-auth-logo-image:hover {
-  filter:
-    drop-shadow(0 0.95rem 1.9rem rgba(0, 0, 0, 0.74))
-    drop-shadow(0 0 0.16rem #ff0072)
-    drop-shadow(0 0 0.28rem #6f00ff)
-    drop-shadow(0 0 0.42rem #3826ff)
-    drop-shadow(0 0 0.58rem #1181ff);
+  filter: drop-shadow(0 0.95rem 1.9rem rgba(0, 0, 0, 0.74));
 }
 
 .launch-login-auth-tagline-stack {
@@ -1212,19 +1225,7 @@ html[data-cruush-color-blind] .launch-login-strobe-pane::after {
 html[data-cruush-color-blind] .launch-login-auth-logo-image {
   filter:
     hue-rotate(38deg) saturate(0.88) brightness(1.08)
-    drop-shadow(0 0.95rem 1.9rem rgba(0, 0, 0, 0.74))
-    drop-shadow(0 0 2.2rem rgba(86, 180, 233, 0.34))
-    drop-shadow(0 0 1.8rem rgba(230, 159, 0, 0.26));
-}
-
-html[data-cruush-color-blind] .launch-login-auth-logo-image:hover {
-  filter:
-    hue-rotate(38deg) saturate(0.88) brightness(1.08)
-    drop-shadow(0 0.95rem 1.9rem rgba(0, 0, 0, 0.74))
-    drop-shadow(0 0 0.16rem #E69F00)
-    drop-shadow(0 0 0.28rem #CC79A7)
-    drop-shadow(0 0 0.42rem #0072B2)
-    drop-shadow(0 0 0.58rem #56B4E9);
+    drop-shadow(0 0.95rem 1.9rem rgba(0, 0, 0, 0.74));
 }
 
 html[data-cruush-color-blind] .launch-login-auth-input,
