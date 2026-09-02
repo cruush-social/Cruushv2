@@ -167,6 +167,17 @@ describe("migration runner", () => {
     expect(surveySql).not.toMatch(/\b(delete from|truncate|drop table)\b/i);
   });
 
+  it("normalizes saved Gaming hobbies to Video games in a replay-safe migration", async () => {
+    const migrateSource = await readFile(path.join(currentDir, "migrate.ts"), "utf8");
+    const videoGamesSql = await readFile(path.join(serverRoot, "sql", "133_profile_video_games.sql"), "utf8");
+
+    expect(migrateSource).toMatch(/"132_default_profile_side_badges\.sql",\s*"133_profile_video_games\.sql"/);
+    expect(videoGamesSql).toContain("when 'gaming' then 'Video games'");
+    expect(videoGamesSql).toContain("when 'video games' then 'Video games'");
+    expect(videoGamesSql).toContain("where lower(trim(value)) in ('gaming', 'video games')");
+    expect(videoGamesSql).not.toMatch(/\b(delete from|truncate|drop table)\b/i);
+  });
+
   it("keeps the late 1.6 migrations replay-safe and dependency ordered", async () => {
     const [
       feedAudienceSql,
@@ -209,7 +220,8 @@ describe("migration runner", () => {
     expect(placesSql).toContain("create index if not exists idx_place_board_messages_expires");
     expect(placesSql).toContain("create index if not exists idx_place_checkins_place_active");
     expect(taxonomySql).toContain("on conflict (place_id, tag) do nothing");
-    expect(taxonomySql).toContain("where tag = 'dyke_bar'");
+    expect(taxonomySql).toContain("where tag in ('gay_spot', 'dyke_spot', 'dyke_bar')");
+    expect(taxonomySql).toContain("case when tag in ('dyke_spot', 'dyke_bar') then 'leans_women' else 'leans_men' end");
     expect(taxonomySql).toContain("set facility_type = 'other'");
     expect(taxonomySql).toContain("where facility_type = 'venue'");
     expect(placesSql).toContain("'gingers-bar', 'Ginger''s Bar'");

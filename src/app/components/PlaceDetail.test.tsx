@@ -156,6 +156,17 @@ describe('PlaceDetail request isolation', () => {
     expect(screen.queryByText('Spot A')).not.toBeInTheDocument();
   });
 
+  it('shows the Pink Book before Popular times on the compact Spot page', async () => {
+    getPlace.mockResolvedValue(makePlace('spot-a', 'Spot A'));
+    getPlaceBoard.mockResolvedValue([]);
+
+    render(placeDetail('spot-a'));
+
+    expect(await screen.findByRole('heading', { name: 'Spot A' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Pink Book' }).closest('[data-slot="tabs"]')).toHaveClass('order-7');
+    expect(screen.getByText('Popular times').closest('details')).toHaveClass('order-8');
+  });
+
   it('does not append an old Spot board page after switching Spots', async () => {
     const oldNextPage = deferred<PlaceBoardMessage[]>();
     const firstPage = Array.from({ length: 30 }, (_, index) => makeBoardMessage(`a-${index}`, `Spot A post ${index}`));
@@ -169,7 +180,7 @@ describe('PlaceDetail request isolation', () => {
     });
 
     const view = render(placeDetail('spot-a'));
-    fireEvent.click(await screen.findByRole('button', { name: 'Load more messages' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Load more posts' }));
     await waitFor(() => expect(getPlaceBoard).toHaveBeenCalledWith('spot-a', { limit: 30, offset: 30 }));
 
     view.rerender(placeDetail('spot-b'));
@@ -191,10 +202,11 @@ describe('PlaceDetail request isolation', () => {
     getPlaceBoard.mockResolvedValue([]);
 
     const view = render(placeDetail('spot-a'));
-    fireEvent.change(await screen.findByRole('textbox', { name: 'Leave a spot board message' }), {
+    fireEvent.change(await screen.findByRole('textbox', { name: 'Pink Book post for check-in' }), {
       target: { value: 'Checking in' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Post check-in' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Chill' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Check in' }));
     expect(getCurrentPosition).toHaveBeenCalledTimes(1);
 
     view.rerender(placeDetail('spot-b'));

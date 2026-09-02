@@ -27,3 +27,6 @@
 # 2026-09-02
 
 - Mobile Notifications header now keeps Back, title, Settings, and Bug visible on its first row; bulk actions sit below instead of squeezing out the title.
+- Spot pages now show the Pink Book tabs before Popular times on compact screens so the primary Spot interaction appears sooner.
+- Pride flag badges now fill their circular badge frame while keeping identity-defining symbols visible.
+- Existing saved Gaming hobbies now migrate to Video games without deleting other hobby selections.

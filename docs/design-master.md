@@ -198,8 +198,8 @@ badge placement, or card grids.
 - Preserve name, pronouns, profile badges, side badges, and travel treatment from the same user data.
 - The signed-in heart is indigo, a mutual heart is purple, and another member is pink. One-way
   Incoming and Sent states are not mutual and never use mutual purple. Pulse temporarily uses lime.
-  Ghost uses electric blue. Mile High Club keeps the normal heart border and applies `#77B9DA` only
-  to its side-badge and Signal borders.
+  Ghost uses electric blue. Active Mile High Club profiles use `#77B9DA` for the heart, side badges,
+  and Signal borders across every app surface.
 - The entire row can become a keyboard-selectable control in chooser surfaces. Its selected state
   must be exposed through `aria-pressed`; do not add a separate checkbox or checkmark.
 - Nested identity, content, safety, and action controls retain their own accessible labels and must
@@ -233,8 +233,10 @@ cruush activity:
 
 Spot and chooser previews:
 
-- Spot board posts reuse the Feed structure, including post text, expiry, and owner Delete or viewer
-  Report. Who's Here reuses the identity unit without manufacturing a post.
+- Pink Book posts reuse the Feed structure, including post text and owner Delete or viewer Report.
+  Pink Book posts do not expire. Reading or writing the Pink Book requires an active Spot check-in,
+  but authors can delete their own posts later from their own post history. Who's Here stays publicly
+  viewable and reuses the identity unit without manufacturing a post.
 - New Message and group-member pickers reuse the same identity hierarchy. Group selection uses the
   complete row and never displays a separate selection checkbox.
 
@@ -336,21 +338,37 @@ Mutable taxonomy source:
 - Add, remove, rename, or reorder options there first.
 - The master guide should describe the architecture and category intent; the code owns the current exact lists.
 - This applies to pronouns, identities, presentations, ethnicities, body types, positions, roles, looking-for values, timing, hosting/travel, vibes, protection, kinks/fetishes, hobbies, and health/safety values.
-- Position is the top/bottom/versatile-style field, including vers top, vers bottom, pillow princess, and stone top. Role is the dominant/submissive/switch-style field, including service.
+- Position is the top/bottom/versatile-style field, including vers top, vers bottom, stone bottom, stone top, hands only, and oral only. Role is the dominant/submissive/switch-style field, including service.
 - Kinks and fetishes use a catalog-backed tap-to-select list. The whole Kinks & Fetishes field has one visibility setting instead of per-kink role or seeking controls.
+- Basic profiles can save up to 3 kinks and 3 profile tags. cruush+ profiles have no product kink limit and can save up to 10 profile tags.
+- Hosting/Travel contains logistics only. Preferred spots is a separate field directly below it, accepts up to 3 choices, and includes the current Spot categories plus private-place choices.
+- Protection and Protection boundaries are separate fields. Protection boundaries use meaningful choices rather than unexplained yes values.
+- Identity values can appear on profiles and in Seeking filters, but Visibility Controls do not expose Identity filtering.
+- Profile tags cannot duplicate a structured profile choice. A rejected tag directs the member to the matching profile field.
 - Visibility options should use the same vocabulary across profile fields: public, mutual Cruushes, and mutual crowds.
 - HIV status, raw trans status, and ethnicity are profile/display fields only. They must not be used as seeking filters, visibility predicates, saved visibility set predicates, or blind-token filter signals.
 - T4T is the explicit exception as a self-selected crowd and crowd-mode audience gate. Do not treat T4T as a raw trans-status filter.
 - Dropdown/selectable-control rule for future implementation: do not create one-off dropdown UI or raw `<select>` controls for profile, filter, or visibility taxonomies. Use the existing shared `MultiSelect` control for multi-select and single-select taxonomy pickers; extend that component if the app needs new dropdown behavior.
 
+Badge rules:
+
+- All members can choose current custom side badges. Paid badge packs remain later work.
+- Left defaults to the member's role and right defaults to position until the member selects custom badges.
+- The badge intent choices are the undescribed default, Give, Receive, and Switch only.
+- Role, Position, Pride, Vibes, Kinks, and Hanky code are badge groups. There is no separate Acts, Presentation, or Boundaries badge group.
+- Hanky code remains the act-signaling system. Its deployed unbordered icons and member-selected Dom, Sub, Switch, and taken variants do not change during icon curation.
+- Pride flags fill the circular badge while keeping identity-defining symbols visible. A concept can offer both a recognized symbol and a flag variant.
+- Saved side badges render under the heart on Feed, Messages, cruush activity, Spots, map previews, and profile previews. Their border always matches the heart border, including Mile High Club.
+
 ## Filter Architecture
 
-Filters should be grouped into 13 major groups:
+Filters should be grouped into these major groups:
 
 - Age Range
 - Gender Identities
 - Presentation
 - Hosting/Travel
+- Preferred spots
 - Position
 - Role
 - Looking For
@@ -360,9 +378,21 @@ Filters should be grouped into 13 major groups:
 - Hobbies
 - Substance Boundaries
 - Protection
+- Protection boundaries
 
 Filters should be dense but scannable. Do not flatten the architecture into a small dating-app filter set.
 On the map, the filter button should open a branded popup/sheet that reuses the same filter groups, tabs, and pill selection language as the standalone filters screen.
+
+## Spots
+
+- People and Spots cluster independently. People clusters use the shared count-only person cluster; Spot clusters use the count-only Spot treatment. Both counts use the logo typeface. Never combine people and Spots into one count.
+- Hover labels sit directly above and centered on their Spot marker.
+- A Spot page header is one line: back, singular Spot category, and Bug. The Spot name starts the page content.
+- Top two reported vibes and available amenities appear with the Spot details. Members can contribute vibes, amenities, and access details without checking in or being nearby.
+- Here now and ratings stay compact. Attribution appears before the Pink Book tabs. The Pink Book and Who's Here tabs appear before Popular times on compact screens.
+- Who's Here is publicly viewable. Reading or writing the Pink Book requires an active check-in. A check-in has a selected duration and sends an expiry notification. Pink Book posts do not expire and remain deletable by their author.
+- A successful check-in creates one moderated public Feed post per member, Spot, and hourly check-in event. Pink Book posts remain separate.
+- Spot shares and profile shares stay inside cruush.
 
 ## Core Features
 
@@ -539,7 +569,7 @@ Account:
 - Safety and privacy center
 - Group detail and join-request flow
 - Event detail, event feed, and attendee list
-- Place detail, place feed, and who-is-here
+- Spot detail, Pink Book, and Who's Here
 - Private group chat
 - DMs
 - cruush activity
@@ -689,8 +719,8 @@ These are not preferences. Breaking one is a bug.
   rounded, never a rounded rectangle.
 
 ### Notifications
-- One action only: mark all as read. There is no separate clear or delete
-  control; the two read as the same thing.
+- Back, title, Settings, and Bug remain on one header line at every width. Bulk mark-read and delete
+  actions sit below the header on compact layouts so they never hide or overlap the title.
 
 ### Page headers
 - A page header is **one line**: back control, title, and icon controls all sit
@@ -698,9 +728,16 @@ These are not preferences. Breaking one is a bug.
   shrink; the row never wraps and the title never moves to its own line.
 - The title truncates before the row wraps.
 
-### Ping and Pulse
-- Ping green (`#C8FF31`) is a **border and an icon colour**, never a fill. The
+### Pulse
+- Pulse green (`#C8FF31`) is a **border and an icon colour**, never a fill. The
   surface stays grey or black.
 - The one exception is the send control itself, which is filled green and picks
   up the hover sheen.
 - The sheet floats above the bottom nav. Nothing opens behind it.
+- Basic members receive 1 Pulse per rolling day. cruush+ members receive 5 Pulses per rolling day.
+  The rolling window has no calendar reset or carryover. Earned bonus Pulses persist until used and
+  are spent only after the included allowance is exhausted.
+- Sending has no cooldown. Recipient Pulse alerts are optional, limited to one alert every 4 hours,
+  and limited to one alert from the same sender per day.
+- Group owners and admins spend one of their own Pulses to alert a group. Group alerts use the same
+  recipient preference and repeat limits. Parties remain deferred.
