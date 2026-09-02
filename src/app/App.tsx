@@ -8,7 +8,7 @@ import GoogleAnalyticsPageTracker from './components/GoogleAnalyticsPageTracker'
 import { Toaster } from './components/ui/sonner';
 import { loadCurrentSession } from './lib/sessionUser';
 import { canUseDeveloperMapToolsEmail } from './lib/developerMapTools';
-import { recordDailyRewardCheckIn, updateRewardTimezone } from './lib/rewardsApi';
+import { recordDailyRewardCheckIn, recordTutorialCompletion, updateRewardTimezone } from './lib/rewardsApi';
 import type { AuthSessionPayload } from './lib/authApi';
 import type { ProfileRecord } from './lib/profileApi';
 import MapControlsTutorial, {
@@ -93,6 +93,9 @@ function renderPublicRoutes(includeSupport = false) {
       <Route key={route.path} path={route.path} element={<PublicInfoPage page={route.page} />} />
     )),
     <Route key="/feed/photo-preview" path="/feed/photo-preview" element={<FeedPhotoPreview />} />,
+    ...(import.meta.env.DEV
+      ? [<Route key="/dev/onboarding-preview" path="/dev/onboarding-preview" element={<OnboardingPreview />} />]
+      : []),
     ...(includeSupport
       ? [<Route key="/support" path="/support" element={<SupportPage publicAccess />} />]
       : []),
@@ -181,6 +184,14 @@ function mapTutorialRoute(step: MapControlsTutorialStepId) {
     return '/lucky';
   }
 
+  if (step === 'cruush-plus') {
+    return '/rewards';
+  }
+
+  if (step === 'mile-high-club') {
+    return '/settings/travel';
+  }
+
   return '/map';
 }
 
@@ -201,9 +212,12 @@ function MapTutorialRouteFollower() {
     }
   };
 
-  const completeTutorial = () => {
+  const completeTutorial = (completed: boolean) => {
     markNoticeDismissed(MAP_CONTROLS_TUTORIAL_STORAGE_KEY);
     notifyMapControlsTutorialCompleted();
+    if (completed) {
+      void recordTutorialCompletion().catch(() => undefined);
+    }
   };
 
   return (
@@ -274,9 +288,15 @@ export default function App({
   const [session, setSession] = useState<AuthSessionPayload | null>(null);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
   const [showOnboardingReward, setShowOnboardingReward] = useState(false);
+  const devOnboardingPreview = import.meta.env.DEV && window.location.pathname === '/dev/onboarding-preview';
   const authShellControlsScrolled = useAuthShellControlsScrolled(authStatus === 'signed_out');
 
   useEffect(() => {
+    if (devOnboardingPreview) {
+      setAuthStatus('signed_out');
+      return undefined;
+    }
+
     let isActive = true;
 
     const bootstrap = async () => {
@@ -312,7 +332,7 @@ export default function App({
     return () => {
       isActive = false;
     };
-  }, []);
+  }, [devOnboardingPreview]);
 
   useEffect(() => {
     if (authStatus !== 'signed_in' || !session?.user.emailVerifiedAt) {
@@ -398,6 +418,18 @@ export default function App({
       },
     } : currentSession);
   };
+
+  if (devOnboardingPreview) {
+    return (
+      <BrowserRouter key="dev-onboarding-preview-router">
+        <Suspense fallback={<RouteLoading />}>
+          <Routes>
+            <Route path="*" element={<OnboardingPreview />} />
+          </Routes>
+        </Suspense>
+      </BrowserRouter>
+    );
+  }
 
   if (authStatus === 'loading') {
     return <AppLoading label="Loading session" />;
@@ -609,9 +641,6 @@ export default function App({
               <Route path="/settings/mile-high-marks" element={<MileHighMarkPreview />} />
               <Route path="/settings/hankies" element={<HankyPreview />} />
               <Route path="/privacy/audit" element={<PrivacyAudit />} />
-              {import.meta.env.DEV ? (
-                <Route path="/dev/onboarding-preview" element={<OnboardingPreview />} />
-              ) : null}
               <Route path="/lucky" element={<FeelingLucky />} />
               <Route path="/requests" element={<RequestsDashboard />} />
               <Route path="/upgrade" element={<Navigate to="/rewards" replace />} />

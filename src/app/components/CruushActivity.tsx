@@ -743,7 +743,7 @@ export default function CruushActivity({
             data-testid="cruush-activity-header-content"
             className={embedded
               ? 'mx-auto w-full space-y-4 px-4'
-              : 'mx-auto w-[min(42rem,calc(100dvw-2rem))] space-y-4'}
+              : 'mx-auto w-full max-w-2xl space-y-4 px-4'}
           >
             <div className="flex min-w-0 items-center gap-2">
               <div className="flex shrink-0 items-center justify-start">
@@ -804,7 +804,7 @@ export default function CruushActivity({
             </div>
 
             <div
-              className="mx-auto w-[min(38rem,100%)] space-y-3"
+              className="mx-auto flex w-full max-w-[38rem] flex-col items-center space-y-3 text-center"
               data-testid="cruush-stats-tabs"
             >
               <div data-testid="cruush-count-grid" className="cruush-activity-count-grid grid w-full grid-cols-[repeat(4,minmax(0,1fr))] gap-2">

@@ -5,9 +5,10 @@ export const MAP_PING_RADII_MILES = [1, 3, 5, 10, 15] as const;
 export type MapPingRadiusMiles = (typeof MAP_PING_RADII_MILES)[number];
 
 export type MapPingAllowance = {
-  limit: number;
+  unlimited: boolean;
+  limit: number | null;
   used: number;
-  remaining: number;
+  remaining: number | null;
   nextEligibleAt: string | null;
 };
 

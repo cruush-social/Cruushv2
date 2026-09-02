@@ -13,6 +13,7 @@ import {
 } from "./rewards-service.js";
 
 export const SIDE_QUEST_KEYS = [
+  "complete_tutorial",
   "upload_first_photo",
   "complete_profile",
   "upload_four_photos",
@@ -42,6 +43,7 @@ type QuestDefinition = {
 };
 
 const QUESTS: QuestDefinition[] = [
+  { key: "complete_tutorial", title: "Complete the tutorial", rewardKind: "ping", rewardAmount: 1 },
   { key: "view_profile", title: "View a profile", rewardKind: "ping", rewardAmount: 1 },
   { key: "send_ping", title: "Send your first Ping", rewardKind: "ping", rewardAmount: 1 },
   { key: "send_cruush", title: "Send your first cruush", rewardKind: "ping", rewardAmount: 1 },
@@ -79,6 +81,7 @@ async function loadCompletions(
   const row = (await app.db.query<CompletionRow>(
     `select
        coalesce(u.timezone, 'UTC') as timezone,
+       exists (select 1 from tutorial_completions tutorial where tutorial.user_id = $1) as complete_tutorial,
        exists (
          select 1 from profiles p where p.id = $1
            and nullif(trim(p.display_name), '') is not null

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Bell, Download, Eye, EyeOff, Flame, Ghost, MapPin, MapPinned, Radio, RefreshCw, Rss, SlidersHorizontal, Users, ZoomIn } from 'lucide-react';
+import { Bell, Download, Eye, EyeOff, Flame, Ghost, MapPin, MapPinned, Plane, Radio, RefreshCw, Rss, SlidersHorizontal, Sparkles, Users, ZoomIn } from 'lucide-react';
 import { Button } from './ui/button';
 
 export const MAP_CONTROLS_TUTORIAL_STORAGE_KEY = 'cruush:tutorial-v5-seen';
@@ -22,7 +22,7 @@ export function notifyMapControlsTutorialCompleted() {
   }
 }
 
-export type MapControlsTutorialStepId = 'install' | 'notifications' | 'map-controls' | 'seeking' | 'visibility' | 'places' | 'heatmap' | 'crowds' | 'ghost' | 'dl-mode' | 'ping' | 'profile-pin' | 'zoom' | 'carousel' | 'feed';
+export type MapControlsTutorialStepId = 'install' | 'notifications' | 'map-controls' | 'seeking' | 'visibility' | 'cruush-plus' | 'mile-high-club' | 'places' | 'heatmap' | 'crowds' | 'ghost' | 'dl-mode' | 'ping' | 'profile-pin' | 'zoom' | 'carousel' | 'feed';
 
 type TutorialStep = {
   id: MapControlsTutorialStepId;
@@ -66,9 +66,21 @@ const TUTORIAL_STEPS: TutorialStep[] = [
     actionLabel: 'Open Visibility',
   },
   {
+    id: 'cruush-plus',
+    title: 'cruush+',
+    description: 'cruush+ unlocks full activity, unlimited Pulses with a 3-hour cooldown, Mile High Club, photo hearts and more controls in Feed+, the Cruise Carousel, all Seeking and Visibility controls, up to 10 profile tags, and Dark Room.',
+    actionLabel: 'Open cruush+',
+  },
+  {
+    id: 'mile-high-club',
+    title: 'Mile High Club',
+    description: 'With cruush+, search an address or use your current location to drop your pin somewhere else and browse there. You can move the pin again after 3 hours. The sky border and plane glyph show when Mile High Club is on.',
+    actionLabel: 'Open Mile High Club',
+  },
+  {
     id: 'places',
     title: 'Spots',
-    description: 'Find public queer spaces, health services, clubs, and community spots. You can rate, check in, and leave a board message.',
+    description: 'Find queer spaces, health services, clubs, and community Spots. Anyone can see who is there. Check in to read and post in the Pink Book, report the vibe, and rate the Spot.',
     actionLabel: 'Open Spots',
   },
   {
@@ -98,7 +110,7 @@ const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'ping',
     title: 'Pulse',
-    description: 'Pulse is inside Map Controls. It briefly marks your heart as active on the map and shares your signal as a normal feed post.',
+    description: 'Pulse makes your heart beat for 30 minutes inside the radius you choose and posts your saved profile signal to Feed without moving your pin. Phone alerts go only to eligible mutuals, and the same person will not receive another Pulse alert from you for 24 hours. Basic includes one Pulse every 24 hours. cruush+ includes unlimited Pulses with a 3-hour cooldown.',
     actionLabel: 'Open Pulse',
   },
   {
@@ -121,7 +133,7 @@ const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'feed',
     title: 'Feed',
-    description: 'With cruush+, use Feed to share a post with people nearby. Start with a short signal, question, or invitation.',
+    description: 'Basic members can share text posts and searchable tags with people nearby. Feed+ adds up to three photo hearts in a row, specific Crowd audiences, and custom expiration times.',
     actionLabel: 'Open Feed',
   },
 ];
@@ -138,6 +150,10 @@ function StepIcon({ id }: { id: MapControlsTutorialStepId }) {
       return <SlidersHorizontal className="h-5 w-5 text-primary" />;
     case 'visibility':
       return <EyeOff className="h-5 w-5 text-primary" />;
+    case 'cruush-plus':
+      return <Sparkles className="h-5 w-5 text-primary" />;
+    case 'mile-high-club':
+      return <Plane className="h-5 w-5 text-primary" />;
     case 'places':
       return <MapPinned className="h-5 w-5 text-primary" />;
     case 'heatmap':
@@ -182,7 +198,7 @@ function readTutorialProgressIndex() {
 
 type MapControlsTutorialProps = {
   open: boolean;
-  onComplete: () => void;
+  onComplete: (completed: boolean) => void | Promise<void>;
   onActivateStep: (step: MapControlsTutorialStepId) => void | Promise<void>;
   onStepChange?: (step: MapControlsTutorialStepId) => void;
 };
@@ -591,20 +607,20 @@ export default function MapControlsTutorial({ open, onComplete, onActivateStep, 
     };
   }, [measurements, targetBounds]);
 
-  const completeTutorial = (event?: React.SyntheticEvent) => {
+  const completeTutorial = (completed: boolean, event?: React.SyntheticEvent) => {
     if (event) {
       event.stopPropagation();
     }
     window.localStorage.setItem(MAP_CONTROLS_TUTORIAL_STORAGE_KEY, 'true');
     window.localStorage.removeItem(MAP_CONTROLS_TUTORIAL_PROGRESS_KEY);
-    onComplete();
+    void onComplete(completed);
   };
 
   const moveToStep = (nextIndex: number) => {
     const nextStep = TUTORIAL_STEPS[nextIndex];
 
     if (!nextStep) {
-      completeTutorial();
+      completeTutorial(true);
       return;
     }
 
@@ -715,10 +731,10 @@ export default function MapControlsTutorial({ open, onComplete, onActivateStep, 
             type="button"
             className="flex items-center gap-1 px-2.5 py-1 rounded-full border border-white/15 bg-white/10 text-xs font-medium text-white/80 hover:bg-white/20 hover:text-white active:scale-95 transition-all shadow-sm cursor-pointer"
             data-testid="skip-map-controls-tutorial"
-            onClick={completeTutorial}
+            onClick={(event) => completeTutorial(false, event)}
             onTouchEnd={(event) => {
               event.preventDefault();
-              completeTutorial(event);
+              completeTutorial(false, event);
             }}
           >
             <span>Skip tutorial</span>

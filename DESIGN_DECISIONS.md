@@ -16,3 +16,6 @@
 - On cruush activity cards, identity plus last-active and distance stay centered beside the heart and Badges, with compact actions at right. Messages keeps its message-preview spacing. Marketing mock previews use gradient hearts instead of profile photos or photo placeholders.
 - Mile High Club is a full page on mobile. On desktop it may replace Settings inside the existing map popup because desktop Settings itself is embedded there; it must not open a second popup.
 - On mobile Spot detail, Here now and rating summaries stay compact so Pink Book and Who's Here appear in the initial screen.
+- The tutorial covers cruush+, Mile High Club, current Spots/Pink Book, Basic and Feed+ posting, and full Pulse behavior. Completing the full tutorial is a Side Quest; skipping it is not completion. The local dev onboarding preview requires no account and never writes onboarding data.
+- Basic includes one Pulse per rolling 24 hours. cruush+ includes unlimited Pulses with a strict 3-hour cooldown. Existing Pulse duration, radius, mutual-only alerts, privacy checks, and same-sender 24-hour alert suppression remain unchanged.
+- Cruushes, Messages, and Feed keep back, title, settings where present, and the bug button in one mobile header row. Cruush counts and tabs remain centered, and mobile page scrolling never shows a vertical bar.

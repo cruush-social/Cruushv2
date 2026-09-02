@@ -60,6 +60,7 @@ import {
   type MapPingRadiusMiles,
   type MapPingStatus,
 } from '../lib/mapPingsApi';
+import { recordTutorialCompletion } from '../lib/rewardsApi';
 import {
   emptyProfilePayload,
   addProfileChangedListener,
@@ -1050,10 +1051,13 @@ export default function MapHome(_props: MapHomeProps = {}) {
     }
   }, []);
 
-  const dismissMapControlsIntro = () => {
+  const dismissMapControlsIntro = (completed: boolean) => {
     setMapControlsIntroOpen(false);
     markNoticeDismissed(MAP_CONTROLS_INTRO_STORAGE_KEY, { offline: mapControlsNoticeOffline });
     notifyMapControlsTutorialCompleted();
+    if (completed) {
+      void recordTutorialCompletion().catch(() => undefined);
+    }
 
     if (shouldReplayTutorial) {
       navigate('/map', { replace: true });
@@ -1098,6 +1102,16 @@ export default function MapHome(_props: MapHomeProps = {}) {
       return;
     }
 
+    if (step === 'cruush-plus') {
+      navigate('/rewards');
+      return;
+    }
+
+    if (step === 'mile-high-club') {
+      navigate('/settings/travel');
+      return;
+    }
+
     if (step === 'dl-mode') {
       handleToggleDlMode();
       return;
@@ -1121,6 +1135,16 @@ export default function MapHome(_props: MapHomeProps = {}) {
   const followMapTutorialStep = (step: MapControlsTutorialStepId) => {
     if (step === 'ghost') {
       navigate('/privacy/ghost-mode');
+      return;
+    }
+
+    if (step === 'cruush-plus') {
+      navigate('/rewards');
+      return;
+    }
+
+    if (step === 'mile-high-club') {
+      navigate('/settings/travel');
       return;
     }
 

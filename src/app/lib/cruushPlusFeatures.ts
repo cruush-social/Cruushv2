@@ -7,8 +7,8 @@ export const CRUUSH_PLUS_FEATURES = [
     description: 'See your full incoming cruush and profile-view lists.',
   },
   {
-    title: 'More Pulses',
-    description: 'Send more Pulses throughout the day.',
+    title: 'Unlimited Pulses',
+    description: 'Send another Pulse after a 3-hour cooldown.',
   },
   {
     title: 'Mile High Club',

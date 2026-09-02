@@ -26,6 +26,7 @@ interface ProfileOnboardingProps {
   needsCodeOfConduct?: boolean;
   codeOfConductVersion?: string;
   constrainedViewport?: boolean;
+  previewMode?: boolean;
 }
 
 type OnboardingStep =
@@ -205,6 +206,7 @@ export default function ProfileOnboarding({
   needsCodeOfConduct = false,
   codeOfConductVersion = '',
   constrainedViewport = false,
+  previewMode = false,
 }: ProfileOnboardingProps) {
   // Minimal onboarding steps, but state includes all schema fields for upsert
   const steps: OnboardingStep[] = needsCodeOfConduct
@@ -275,7 +277,7 @@ export default function ProfileOnboarding({
   const [rewardSummaryLoading, setRewardSummaryLoading] = useState(false);
   const [rewardSummaryError, setRewardSummaryError] = useState<string | null>(null);
   const currentStep = steps[step];
-  const affiliateLink = rewardSummary?.referrals.link ?? '';
+  const affiliateLink = previewMode ? 'https://cruush.app/join/preview' : rewardSummary?.referrals.link ?? '';
   const canUseNativeShare = typeof navigator !== 'undefined' && 'share' in navigator;
 
   useEffect(() => {
@@ -297,6 +299,13 @@ export default function ProfileOnboarding({
     setPhotoUploading(true);
     setPhotoUploadError(null);
     setPhotoUploadNotice(null);
+
+    if (previewMode) {
+      setProfileField('photos', [...profile.photos, URL.createObjectURL(photo)].slice(0, 4));
+      setPhotoUploadNotice('Photo added to this preview only.');
+      setPhotoUploading(false);
+      return;
+    }
 
     try {
       const uploaded = await uploadProfilePhoto(photo);
@@ -329,10 +338,10 @@ export default function ProfileOnboarding({
   };
 
   useEffect(() => {
-    if (currentStep === 'affiliateShare' && !rewardSummary && !rewardSummaryLoading && !rewardSummaryError) {
+    if (!previewMode && currentStep === 'affiliateShare' && !rewardSummary && !rewardSummaryLoading && !rewardSummaryError) {
       void loadRewardSummary();
     }
-  }, [currentStep]);
+  }, [currentStep, previewMode]);
 
   const canProceed = (): boolean => {
     const field = steps[step];
@@ -420,6 +429,14 @@ export default function ProfileOnboarding({
     setTwoFactorSaving(true);
     setTwoFactorError(null);
 
+    if (previewMode) {
+      setTwoFactorRecoveryCodes(['PREVIEW-ONLY', 'NOT-A-REAL-CODE']);
+      setTwoFactorPassword('');
+      setTwoFactorEnabled(true);
+      setTwoFactorSaving(false);
+      return;
+    }
+
     try {
       setTwoFactorSetup(await startTwoFactorSetup(twoFactorPassword));
       setTwoFactorPassword('');
@@ -442,6 +459,15 @@ export default function ProfileOnboarding({
     setTwoFactorSaving(true);
     setTwoFactorError(null);
 
+    if (previewMode) {
+      setTwoFactorRecoveryCodes(['PREVIEW-ONLY', 'NOT-A-REAL-CODE']);
+      setTwoFactorSetup(null);
+      setTwoFactorToken('');
+      setTwoFactorEnabled(true);
+      setTwoFactorSaving(false);
+      return;
+    }
+
     try {
       const result = await completeTwoFactorSetup(twoFactorToken);
       setTwoFactorRecoveryCodes(result.recoveryCodes);
@@ -459,6 +485,11 @@ export default function ProfileOnboarding({
   const handleComplete = async (destination: 'map' | 'rewards') => {
     setSaving(true);
     setSaveError(null);
+    if (previewMode) {
+      setSaving(false);
+      onComplete(undefined, destination);
+      return;
+    }
     try {
       const displayName = profile.name.trim();
       const bio = profile.bio.trim();
@@ -562,7 +593,7 @@ export default function ProfileOnboarding({
   return (
     <div
       ref={scrollContainerRef}
-      className={`${constrainedViewport ? 'h-full' : 'h-[100dvh]'} scrollbar-subtle max-w-full overflow-x-hidden overflow-y-auto overscroll-contain bg-[#050505] text-foreground`}
+      className={`${constrainedViewport ? 'h-full' : 'h-[100dvh]'} scrollbar-hide max-w-full overflow-x-hidden overflow-y-auto overscroll-contain bg-[#050505] text-foreground`}
       style={{ WebkitOverflowScrolling: 'touch' }}
     >
       <div className="mx-auto flex min-h-full w-full max-w-md flex-col justify-center px-3 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-3 sm:px-4 sm:pt-4">

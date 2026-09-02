@@ -40,7 +40,7 @@ export type MapPingRadiusMiles = typeof MAP_PING_RADIUS_MILES[number];
 
 export const MAP_PING_ACTIVE_MS = 30 * 60 * 1000;
 export const MAP_PING_WINDOW_MS = 24 * 60 * 60 * 1000;
-export const MAP_PING_PLUS_COOLDOWN_MS = 4 * 60 * 60 * 1000;
+export const MAP_PING_PLUS_COOLDOWN_MS = 3 * 60 * 60 * 1000;
 export const MAP_PING_SENDER_LOCATION_MAX_AGE_MS = 15 * 60 * 1000;
 export const MAP_PING_RECIPIENT_LOCATION_MAX_AGE_MS = 60 * 60 * 1000;
 const MAP_PING_LOCATION_FUTURE_TOLERANCE_MS = 5 * 60 * 1000;
@@ -138,9 +138,10 @@ function locationPayloadFromMileHighClubPin(userId: string, pin: TravelPin): Loc
 export type MapPingStatus = {
   bonusCredits: number;
   allowance: {
-    limit: number;
+    unlimited: boolean;
+    limit: number | null;
     used: number;
-    remaining: number;
+    remaining: number | null;
     nextEligibleAt: string | null;
   };
   activePing: {
@@ -185,7 +186,8 @@ function buildAllowance(
   now: Date
 ) {
   const nowMs = now.getTime();
-  const limit = entitlement.cruushPlus ? 3 : 1;
+  const unlimited = entitlement.cruushPlus;
+  const limit = unlimited ? null : 1;
   const timestamps = createdAtValues
     .map(toTimestamp)
     .filter((timestamp) => Number.isFinite(timestamp) && timestamp > nowMs - MAP_PING_WINDOW_MS)
@@ -193,7 +195,7 @@ function buildAllowance(
   const used = timestamps.length;
   let nextEligibleMs = nowMs;
 
-  if (used >= limit) {
+  if (limit !== null && used >= limit) {
     const limitingTimestamp = timestamps[used - limit];
 
     if (limitingTimestamp != null) {
@@ -209,17 +211,22 @@ function buildAllowance(
   }
 
   return {
+    unlimited,
     limit,
     used,
-    remaining: Math.max(0, limit - used),
+    remaining: limit === null ? null : Math.max(0, limit - used),
     nextEligibleAt: nextEligibleMs > nowMs ? new Date(nextEligibleMs).toISOString() : null
   };
 }
 
 function withBonusCredits(allowance: MapPingStatus["allowance"], bonusCredits: number) {
+  if (allowance.unlimited || allowance.limit === null || allowance.remaining === null) {
+    return allowance;
+  }
+
   return {
+    ...allowance,
     limit: allowance.limit + bonusCredits,
-    used: allowance.used,
     remaining: allowance.remaining + bonusCredits,
     nextEligibleAt: bonusCredits > 0 ? null : allowance.nextEligibleAt
   };
@@ -758,7 +765,7 @@ export async function createMapPing(
   );
   const preflightBonusCredits = await getSideQuestPingBalance(app.db, input.userId);
 
-  if (preflightAllowance.nextEligibleAt && preflightBonusCredits < 1) {
+  if (preflightAllowance.nextEligibleAt && (preflightAllowance.unlimited || preflightBonusCredits < 1)) {
     throw new ApiError(
       429,
       "RATE_LIMITED",
@@ -828,7 +835,7 @@ export async function createMapPing(
     const recentRows = await loadRecentPingRows(db, input.userId, now);
     const allowance = buildAllowance(recentRows.map((row) => row.created_at), entitlement, now);
     const bonusCredits = await getSideQuestPingBalance(db, input.userId);
-    const useBonusCredit = Boolean(allowance.nextEligibleAt && bonusCredits > 0);
+    const useBonusCredit = Boolean(!allowance.unlimited && allowance.nextEligibleAt && bonusCredits > 0);
 
     if (allowance.nextEligibleAt && !useBonusCredit) {
       throw new ApiError(

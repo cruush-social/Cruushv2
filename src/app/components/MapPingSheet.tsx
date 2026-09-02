@@ -244,7 +244,7 @@ export default function MapPingSheet({
   // A Pulse asks people to look at you, which is the opposite of being off the
   // map, so it stays shut while Dark Room is on.
   const sendDisabled = loading || sending || !status || !hasMapLocation || activePing ||
-    !normalizedSignal || status.allowance.remaining < 1 || cooldownActive || lurkerActive;
+    !normalizedSignal || status.allowance.remaining === 0 || cooldownActive || lurkerActive;
   const statusText = useMemo(() => {
     if (activePing && status?.activePing) {
       return `Your Pulse is active until ${formatTime(status.activePing.expiresAt)}.`;
@@ -255,6 +255,9 @@ export default function MapPingSheet({
     }
 
     if (status) {
+      if (status.allowance.unlimited) {
+        return 'Unlimited Pulses with a 3-hour cooldown.';
+      }
       return `${status.allowance.remaining} of ${status.allowance.limit} Pulses available right now.`;
     }
 
@@ -448,7 +451,7 @@ export default function MapPingSheet({
             <div className="min-w-0 space-y-0.5">
               <p className="text-sm font-medium text-white">Your heart beats for 30 minutes</p>
               <p className="text-xs leading-snug text-white/62">
-                People inside your radius see it beat, and your signal posts to the feed. Your pin does not move.
+                Eligible people inside your radius see it beat, your saved signal posts to Feed, and your pin does not move. Phone alerts go only to mutuals, with no repeat alert from you to the same person for 24 hours.
               </p>
             </div>
           </div>

@@ -56,6 +56,7 @@ import {
 import { CROWDS, normalizeCrowdValues } from '../lib/profileOptions';
 import { getCurrentUserId } from '../lib/sessionUser';
 import { resolveUserBorderTone } from '../lib/userBorderTone';
+import { registerBugButtonSlot } from '../lib/bugButtonSlot';
 import partyHatIcon from '../assets/ui-icons/party-hat.svg';
 
 function formatRelativeTime(isoTimestamp: string) {
@@ -985,6 +986,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
             <X className="h-4 w-4" />
           </Button>
         ) : null}
+        {!embedded ? <div className="h-11 w-11 shrink-0" data-testid="local-feed-bug-button-slot" ref={registerBugButtonSlot} /> : null}
         </div>
       </header>
 

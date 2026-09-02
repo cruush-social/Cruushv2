@@ -21,7 +21,7 @@ export default function Tutorial() {
         <section className="rounded-xl border border-white/10 bg-card/80 p-4">
           <h3 className="text-base">Interactive map tutorial</h3>
           <p className="mt-1 text-sm text-white/58">
-            Replay the step-by-step tour for installing cruush, enabling notifications, and trying the real Seeking, Visibility, Crowd Mode, Ghost Mode, DL Mode, Pulse, Feed, and Zoom controls.
+            Replay the full tour for cruush+, Mile High Club, Spots and the Pink Book, Seeking, Visibility, Crowd Mode, Ghost Mode, Dark Room, DL Mode, Pulse, Feed, the Cruise Carousel, profile pins, and map controls. Finish the tour to complete its Side Quest.
           </p>
           <Button
             className="mt-4 rounded-full"
@@ -68,7 +68,7 @@ export default function Tutorial() {
             <div>
               <h3 className="text-base">Feed and profile controls</h3>
               <p className="mt-1 text-sm text-white/58">
-                Feed settings control post windows, distance, and whether your feed pin appears to mutuals, shared crowds, or public viewers.
+                Basic members can post text and tags. Feed+ adds up to three photo hearts, specific Crowd audiences, and custom expiration times. Profile tags are searchable in Seeking and Visibility.
               </p>
               <div className="mt-4 flex flex-wrap gap-2">
                 <Button className="rounded-full" variant="outline" onClick={() => navigate('/feed')}>
