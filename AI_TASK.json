@@ -242,6 +242,7 @@
     "server/sql/129_profile_preferred_spots_protection.sql",
     "server/sql/130_profile_tag_reservations.sql",
     "server/sql/131_profile_taxonomy_refinements.sql",
+    "server/sql/132_default_profile_side_badges.sql",
     "server/sql/128_profile_taxonomy_final.sql",
     "server/sql/127_profile_hair_now.sql",
     "src/app/components/MapFiltersSurface.tsx",

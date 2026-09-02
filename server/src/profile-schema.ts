@@ -261,6 +261,27 @@ export const emptySideBadges: SideBadges = {
   right: null
 };
 
+function withDefaultSideBadges<T extends {
+  role: string[];
+  position: string[];
+  side_badges: SideBadges;
+}>(payload: T): T {
+  const leftRole = payload.role[0]?.trim();
+  const rightPosition = payload.position[0]?.trim();
+
+  return {
+    ...payload,
+    side_badges: {
+      left: payload.side_badges.left ?? (leftRole
+        ? { badge_id: leftRole, intent: "none", frame: "circle" }
+        : null),
+      right: payload.side_badges.right ?? (rightPosition
+        ? { badge_id: rightPosition, intent: "none", frame: "circle" }
+        : null)
+    }
+  };
+}
+
 export const profilePayloadSchema = z.object({
   display_name: singleLineTextSchema({ min: 2, max: 80 }),
   photos: z.array(appOwnedProfilePhotoPathSchema).max(4).optional().default([]),
@@ -368,7 +389,7 @@ export const profilePayloadSchema = z.object({
       break;
     }
   }
-});
+}).transform(withDefaultSideBadges);
 
 export type ProfilePayload = z.infer<typeof profilePayloadSchema>;
 
