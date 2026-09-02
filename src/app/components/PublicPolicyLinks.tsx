@@ -81,7 +81,7 @@ export default function PublicPolicyLinks({ className, variant = 'card', exclude
         </p>
 
         <details className="group mt-1">
-          <summary className="cursor-pointer list-none text-[0.65rem] uppercase tracking-[0.14em] text-white/35 transition hover:text-white/60">
+          <summary className="launch-login-auth-more-policies cursor-pointer list-none text-[0.65rem] uppercase tracking-[0.14em] text-white/35 transition hover:text-white/60">
             More policies
           </summary>
           {children ? (

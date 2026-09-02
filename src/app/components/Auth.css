@@ -1216,7 +1216,7 @@ html[data-cruush-larger-text] .launch-login-auth-footer-accordion > summary {
   }
 }
 
-@media (min-width: 641px) and (max-width: 1100px) {
+@media (min-width: 641px) {
   .launch-login-auth-footer [aria-label="Legal and safety links"],
   .launch-login-auth-primary-links,
   .launch-login-auth-consent,
@@ -1226,7 +1226,7 @@ html[data-cruush-larger-text] .launch-login-auth-footer-accordion > summary {
     line-height: 1.24;
   }
 
-  .launch-login-auth-footer-accordion > summary {
+  .launch-login-auth-more-policies {
     font-size: 1rem;
   }
 }
