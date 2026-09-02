@@ -225,6 +225,52 @@ describe("JSON-RPC chain source", () => {
     expect(log!.blockHash).toBe(`0x${"a".repeat(64)}`);
   });
 
+  it("reads a canonical successful transaction receipt and rejects mismatched receipt logs", async () => {
+    const log = {
+      address: usdcOnBase,
+      topics: [ERC20_TRANSFER_TOPIC, addressToTopic(senderAddress), addressToTopic(paymentAddress)],
+      data: `0x${(18_990_000).toString(16).padStart(64, "0")}`,
+      blockNumber: "0x3e8",
+      blockHash: `0x${"a".repeat(64)}`,
+      transactionHash: `0x${"b".repeat(64)}`,
+      logIndex: "0x3",
+      removed: false
+    };
+    const transport = vi.fn().mockResolvedValue(jsonResponse({
+      jsonrpc: "2.0",
+      id: 1,
+      result: {
+        transactionHash: log.transactionHash,
+        blockNumber: log.blockNumber,
+        blockHash: log.blockHash,
+        status: "0x1",
+        logs: [log]
+      }
+    }));
+
+    await expect(sourceWith(transport).getTransactionReceipt!(log.transactionHash)).resolves.toMatchObject({
+      transactionHash: log.transactionHash,
+      blockNumber: 1000n,
+      blockHash: log.blockHash,
+      succeeded: true,
+      logs: [expect.objectContaining({ logIndex: 3 })]
+    });
+
+    const mismatched = sourceWith(vi.fn().mockResolvedValue(jsonResponse({
+      jsonrpc: "2.0",
+      id: 1,
+      result: {
+        transactionHash: log.transactionHash,
+        blockNumber: log.blockNumber,
+        blockHash: log.blockHash,
+        status: "0x1",
+        logs: [{ ...log, transactionHash: `0x${"c".repeat(64)}` }]
+      }
+    })));
+    await expect(mismatched.getTransactionReceipt!(log.transactionHash))
+      .rejects.toThrow(/do not match/);
+  });
+
   it("carries the reorganization flag through", async () => {
     const transport = vi.fn().mockResolvedValue(jsonResponse({
       jsonrpc: "2.0",

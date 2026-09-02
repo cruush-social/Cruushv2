@@ -1,5 +1,5 @@
 {
-  "task": "Finish every remaining crypto-branch item that does not require exposing wallet secrets, spending money, or publishing crypto to production. Complete the conversion-focused /store redesign, remove the meaningless Other payment options copy, finish review and documentation gaps, create the owner-authorized local software wallet in the current macOS user through a user-only secret display, and publish only the verified branch to origin/feat/crypto-pricing.",
+  "task": "Finish the production-capable watch-only crypto processor around Julien's verified local wallet. Real customer funds must arrive at unique child addresses owned by this wallet, confirmed chain evidence must grant the exact entitlement once, the local operator wallet must safely consolidate supported stablecoins to its treasury, and moderators must be able to verify a never-ingested transaction receipt from chain. Keep signing material outside cruush, do not broadcast or deploy during this build, and publish only the verified branch to origin/feat/crypto-pricing.",
   "status": "validating",
   "publicationTarget": "feat/crypto-pricing",
   "baselineSha": "5a77cb504d23bea71867cf0558bd10ede40e2248",
@@ -10,8 +10,12 @@
     "Every intent receives a unique address derived from a watch-only account xpub",
     "The cruush application and server never receive a seed phrase, private key, or raw card data",
     "Wallet custody is temporarily software-only in Julien's current macOS user until his hardware wallet arrives",
+    "Real customer funds are received directly by unique child addresses controlled by Julien's wallet; they are not held by cruush or a third-party processor",
+    "The server remains permanently watch-only; every gas-funding, stablecoin-sweep, and broadcast operation lives only in the local operator wallet",
+    "Supported stablecoin balances are consolidated from payment child addresses to derivation index 0, the verified treasury address in the same wallet",
+    "A moderator-supplied transaction hash is only a lookup key; the server must fetch and validate its canonical receipt, chain, block, token, address, amount, confirmations, and timestamp before it becomes evidence",
     "A local operator tool may handle recovery words transiently through a normal interactive Terminal, but never stores them, accepts them through arguments or environment variables, or deploys them",
-    "Initial transaction signing is limited to Base Sepolia and never broadcasts",
+    "Mainnet transaction signing support may exist only in the isolated local operator package and must pin every supported chain and token; no signing or broadcast is run by an agent",
     "Settlement evidence is chain logs read by the server; a browser poll, copied address, or member-supplied transaction hash is never evidence",
     "The entitlement grant is shared with the existing checkout path through grantCruushPlusPlan, so the two cannot drift",
     "Grant idempotency is enforced by database constraints, not only by application logic",
@@ -118,10 +122,14 @@
     "tools/cruush-wallet/src/constants.ts",
     "tools/cruush-wallet/src/interactive.test.ts",
     "tools/cruush-wallet/src/interactive.ts",
+    "tools/cruush-wallet/src/networks.test.ts",
+    "tools/cruush-wallet/src/networks.ts",
     "tools/cruush-wallet/src/public-descriptor-file.test.ts",
     "tools/cruush-wallet/src/public-descriptor-file.ts",
     "tools/cruush-wallet/src/signing.test.ts",
     "tools/cruush-wallet/src/signing.ts",
+    "tools/cruush-wallet/src/wallet-rpc.test.ts",
+    "tools/cruush-wallet/src/wallet-rpc.ts",
     "tools/cruush-wallet/src/wallet.test.ts",
     "tools/cruush-wallet/src/wallet.ts",
     "tools/cruush-wallet/tsconfig.json",
@@ -132,14 +140,14 @@
     "No real seed phrase, private key, xprv, or signing credential in source, tests, configuration, logs, tool arguments, tool environment variables, chat, or agent-visible output; a public-only wallet descriptor containing an xpub fingerprint and public addresses is intentionally agent-readable after Julien completes the private Terminal step",
     "No persistent digital recovery-word or private-key vault in this slice",
     "No recovery words, private keys, or xprv values in any agent-visible command, output, screenshot, log, file, clipboard, chat, or environment variable",
-    "No Base mainnet transaction signing or transaction broadcast",
+    "No server-side transaction signing, private key, xprv, recovery-word handling, or transaction broadcast",
     "No third-party crypto provider adapter or provider API calls",
     "No card form or raw card data anywhere in cruush",
-    "No merge to main, production deployment, production activation, or live payment; a verified commit and push to origin/feat/crypto-pricing are authorized",
-    "No additional live RPC call, no live payment, and no transaction broadcast in this continuation; the prior branch session already verified the selected public Arbitrum endpoint with read-only chain data",
+    "No merge to main, production deployment, production activation, live customer payment, signed mainnet transaction, or transaction broadcast during this implementation; a verified commit and push to origin/feat/crypto-pricing are authorized",
+    "Read-only chain calls are allowed for receipt and operator-plan verification, but no transaction may be broadcast or funds moved by an agent",
     "No generic refund flow or refund-offering copy; legally required withdrawals, remedies, and forced reversals remain separate launch work"
   ],
-  "proof": "Focused public-vector wallet derivation, crypto core, route, config, checkout API, and checkout component tests; wallet tool, server, and client builds; secret and deployment-boundary scans; rendered local /store inspection before and after at desktop plus 390x844 and 360x740 mobile, with the payment-method interaction exercised. Wallet initialization is launched in a normal Terminal, and the user alone handles the recovery-word screen. Payment activation, mainnet receipt, signing, and broadcast remain unverified.",
+  "proof": "Focused public-descriptor, multichain signing-plan, chain-receipt, settlement, support-route, wallet, server, and checkout regression tests; wallet tool, server, and client builds; secret and deployment-boundary scans; rendered local /store inspection at 390x844 and desktop with every configured payment state exercised. No secret-bearing command or transaction broadcast is run. Mainnet receipt and signing logic are proven from strict public vectors and injected RPC responses; a controlled real receive and broadcast remain separate operator gates.",
   "environmentChanges": [
     "CRYPTO_PROCESSOR_ENABLED remains false by default",
     "CRYPTO_PROCESSOR_WALLET_XPUB is new, server-only, empty by default, and must never contain an xprv",
@@ -149,18 +157,19 @@
     "CRYPTO_PROCESSOR_ETHEREUM_RPC_URL is new, server-only, empty by default, and may embed an API key",
     "CRYPTO_PROCESSOR_WATCHER_ENABLED is new, server-only, and false by default",
     "CRYPTO_PROCESSOR_WATCHER_INTERVAL_SECONDS is new, server-only, and defaults to 60",
-    "CRYPTO_PROCESSOR_ARBITRUM_RPC_URL is new, server-only, empty by default, and may embed an API key"
+    "CRYPTO_PROCESSOR_ARBITRUM_RPC_URL is new, server-only, empty by default, and may embed an API key",
+    "CRUUSH_WALLET_RPC_URL is new, local-operator-only, required only for sweep planning or broadcasting, may embed an API key, and must never be set in the cruush client or API environment"
   ],
   "schemaVersion": 2,
-  "objective": "Deliver a developer-reviewable, disabled-by-default in-house crypto payment processor on feat/crypto-pricing, including the conversion-focused account-linked /store checkout, settlement and support paths, complete handoff evidence, and a locally created watch-only source wallet whose recovery words are known only to Julien.",
-  "userOutcome": "Julien has the complete crypto branch, a checkout that clearly sells the plans and payment apps, and a locally created wallet ready to contribute only its public xpub. No crypto reaches main or production.",
+  "objective": "Deliver a production-capable, disabled-by-default in-house crypto payment processor on feat/crypto-pricing that receives real funds into Julien's wallet-owned child addresses, grants from canonical chain evidence, recovers never-ingested receipts, and gives Julien a constrained local path to consolidate supported stablecoins into his wallet treasury.",
+  "userOutcome": "Julien can inspect and access the verified wallet locally, configure cruush with only its public xpub, accept supported stablecoins directly into wallet-owned addresses after launch approval, recover missed receipt evidence, and consolidate balances without ever placing signing material in cruush.",
   "audience": "Julien as operator; cruush members buying cruush+ once the processor is enabled.",
-  "nextVisibleMilestone": "This feature-branch task is complete. Hardware-wallet migration and controlled launch evidence are separate future milestones; the processor and watcher remain disabled.",
+  "nextVisibleMilestone": "The local wallet status and address commands, public-xpub configuration path, multichain sweep workflow, and verified receipt-recovery path work from the feature branch while processor activation and broadcast remain off.",
   "successCriteria": [
     "The processor stays disabled and accepts no funds until Julien enables it",
     "A payment intent receives a unique receiving address that settles only that order",
     "Entitlement is granted once and only once, from confirmed chain evidence alone",
-    "Support can find an intent and any already ingested transfer evidence by intent, member, address, or transaction hash; independent receipt ingestion beyond the bounded watcher remains a launch blocker",
+    "Support can find an intent and transfer evidence by intent, member, address, or transaction hash, and a moderator can independently ingest a canonical successful receipt that the bounded watcher missed",
     "Reconciliation surfaces paid-without-entitlement and entitlement-without-payment",
     "Running the watcher costs nothing while no payment is in progress",
     "Prices and the recommended plan are visible without scrolling at the required phone viewports",
@@ -177,6 +186,11 @@
     "Active lifetime access blocks new crypto purchases and a shared lifetime grant closes only pending and awaiting-payment crypto intents",
     "Confirmed-money reconciliation uses the settlement tolerance of 50 basis points capped at $0.25 on the exact rail",
     "The wallet recovery words never enter agent-visible state"
+    ,"The wallet status command validates the fixed current-user descriptor and shows the treasury and sample addresses without exposing an xpub or secret"
+    ,"The wallet configures only its validated public receive-chain xpub into an existing local server environment file without printing it or changing processor enable flags"
+    ,"Every supported mainnet signing plan pins chain ID, token contract, derivation paths, wallet fingerprint, addresses, amount, nonce, gas, and hard fee caps before recovery words are requested"
+    ,"A never-ingested transaction hash cannot grant anything until the moderator-only path independently verifies a successful canonical receipt and exact on-time rail evidence"
+    ,"Support responses include the derivation index required to sweep each wallet-owned payment address"
   ],
   "mustPreserve": [
     "The current Sniffies-derived pricing decisions and entitlement behavior remain authoritative unless the active checkout task explicitly changes a named tier",
@@ -184,6 +198,7 @@
     "Processor stays disabled unless valid watch-only configuration is present",
     "The production server remains watch-only and receives no signing dependency or signing endpoint",
     "The local software-wallet tool is excluded from server build and runtime images",
+    "No RPC write method or signing dependency enters the production server",
     "All unrelated dirty work and worktrees remain untouched",
     "Existing checkout and entitlement behaviour is unchanged by the shared grant extraction",
     "Unrelated dirty work, other worktrees, and other sessions' stashes stay untouched"
@@ -197,7 +212,7 @@
   ],
   "stopConditions": [
     "Any wallet secret would become visible to the agent rather than only to Julien in the dedicated Terminal flow",
-    "Any step would make a live RPC call, broadcast a transaction, or move real funds",
+    "Any step would expose recovery words, run a secret-bearing wallet command through an agent, broadcast a transaction, or move real funds",
     "Any step would merge to main, deploy, or enable the processor in production",
     "Julien says stop"
   ],
@@ -305,5 +320,27 @@
     "finalTestsAndBuilds": "Client checkout and adjacent focused files: 42 current tests passed. Consolidated server slice: 201 passed and 11 optional PostgreSQL-gated tests skipped; final focused server slice: 128 passed and 3 gated tests skipped; disposable PostgreSQL atomicity and cursor suite: 25/25 passed. Wallet tool: 30/30 passed, including hidden exact recovery-backup matching. Client, server, and wallet builds passed. Final integrated audit found no unresolved P0, P1, or P2 blocker.",
     "publication": "Completed on origin/feat/crypto-pricing only; main and deployment remain forbidden.",
     "walletPublicDescriptor": "The untrusted first descriptor remains quarantined and must never be funded or configured. The replacement descriptor was written only after hidden exact re-entry of all 24 recovery words. It is owned by julienlenaz with mode 0600, its SHA-256 fingerprint matches its receive-chain xpub, its treasury and three sample addresses validate, and no mnemonic, recovery-word, private-key, seed, or xprv field exists."
+  },
+  "continuationEvidence20260902": {
+    "implementation": [
+      "The ignored local server environment now contains only the validated public receive-chain xpub; processor and watcher flags remain false.",
+      "The local operator wallet validates its fixed public descriptor and exposes status, child-address lookup, and a non-printing public-xpub configuration command.",
+      "Pinned Base Sepolia, Arbitrum, Base, and Ethereum wallet operations create exact gas-funding and full-balance stablecoin-sweep plans with bounded fees and gas funding.",
+      "Offline signing derives only the specified wallet path, verifies every signed field, and emits a constrained artifact for later operator-controlled broadcast.",
+      "Broadcast waits for a successful gas receipt before sending the token sweep and never runs in the cruush server.",
+      "The moderator-only receipt-recovery route independently fetches canonical receipt and block evidence, then settles through the same locked, idempotent grant path as the watcher.",
+      "Support reconciliation includes the payment derivation index needed to consolidate a wallet-owned child balance."
+    ],
+    "focusedProof": "Wallet signing: 8/8; wallet RPC sweep sequence: 3/3; public-descriptor and pinned-network checks: 11/11; server chain-source receipt checks: 24/24; watcher settlement checks: 62 passed and 3 existing database-gated checks skipped; moderator route checks: 11/11; checkout checks: 24/24. Wallet, server, and client builds passed.",
+    "securityProof": "All 27 changed files are in allowedPaths. Diff whitespace, JSON parsing, conflict-marker, credential-pattern, server signing/broadcast boundary, and disabled-default checks passed. No transaction was signed or broadcast, no live funds moved, and no main or production action ran.",
+    "renderedCheckout": [
+      "/private/tmp/cruush-crypto-store-desktop-2026-09-02.png",
+      "/private/tmp/cruush-crypto-store-mobile-390x844-2026-09-02.png",
+      "/private/tmp/cruush-crypto-store-mobile-bottom-390x844-2026-09-02.png",
+      "/private/tmp/cruush-crypto-store-mobile-pricing-390x844-2026-09-02.png"
+    ],
+    "renderedResult": "Desktop and 390x844 local store states show the required price hierarchy, exact Who has a cruush on you copy, all seven reachable benefits, Dark Room behavior, named payment sources, no Other payment options label, and no bottom-navigation overlap. No client UI source changed during this wallet continuation.",
+    "publication": "Published only to origin/feat/crypto-pricing. Main, production deployment, processor activation, transaction signing, and transaction broadcast remain untouched.",
+    "remainingLaunchGates": "Run a disposable Base Sepolia receive and sweep drill, configure production RPC endpoints and gas budget, exercise a controlled receive-through-entitlement and reconciliation flow, resolve EU/EEA withdrawal compliance or exclusion, obtain explicit production authority, and migrate signing custody to hardware before material balances accumulate."
   }
 }

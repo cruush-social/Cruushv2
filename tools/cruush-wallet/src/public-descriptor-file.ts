@@ -3,7 +3,17 @@ import { constants, type Stats } from "node:fs";
 import { lstat, link, mkdir, open, unlink } from "node:fs/promises";
 import { userInfo } from "node:os";
 import path from "node:path";
-import type { WalletPublicDescriptor } from "./wallet.js";
+import {
+  deriveAddressFromReceiveChainXpub,
+  fingerprintReceiveChainXpub,
+  toChecksumEthereumAddress,
+  type WalletPublicDescriptor
+} from "./wallet.js";
+import {
+  PUBLIC_DESCRIPTOR_SAMPLE_INDICES,
+  RECEIVE_CHAIN_PATH,
+  TREASURY_DERIVATION_INDEX
+} from "./constants.js";
 
 const PRIVATE_DIRECTORY_MODE = 0o700;
 const PRIVATE_FILE_MODE = 0o600;
@@ -57,6 +67,110 @@ async function lstatIfPresent(filePath: string) {
 
 function permissionBits(mode: number) {
   return mode & MODE_BITS;
+}
+
+function assertRecord(value: unknown): asserts value is Record<string, unknown> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("Public descriptor must contain a JSON object.");
+  }
+}
+
+function assertExactPublicDescriptorKeys(record: Record<string, unknown>) {
+  const expected = [
+    "receiveChainPath",
+    "receiveChainXpub",
+    "sampleAddresses",
+    "treasuryAddress",
+    "treasuryDerivationIndex",
+    "version",
+    "xpubFingerprint"
+  ].sort();
+  const actual = Object.keys(record).sort();
+  if (actual.length !== expected.length || actual.some((key, index) => key !== expected[index])) {
+    throw new Error("Public descriptor contains missing or unsupported fields.");
+  }
+}
+
+export function parsePublicDescriptorFile(contents: string): WalletPublicDescriptor {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(contents) as unknown;
+  } catch {
+    throw new Error("Public descriptor must contain valid JSON.");
+  }
+
+  assertRecord(parsed);
+  assertExactPublicDescriptorKeys(parsed);
+  if (
+    parsed.version !== 1
+    || parsed.receiveChainPath !== RECEIVE_CHAIN_PATH
+    || parsed.treasuryDerivationIndex !== TREASURY_DERIVATION_INDEX
+    || typeof parsed.receiveChainXpub !== "string"
+    || typeof parsed.xpubFingerprint !== "string"
+    || !/^[a-f0-9]{64}$/.test(parsed.xpubFingerprint)
+    || typeof parsed.treasuryAddress !== "string"
+    || !Array.isArray(parsed.sampleAddresses)
+  ) {
+    throw new Error("Public descriptor has invalid wallet metadata.");
+  }
+
+  const expectedFingerprint = fingerprintReceiveChainXpub(parsed.receiveChainXpub);
+  if (parsed.xpubFingerprint !== expectedFingerprint) {
+    throw new Error("Public descriptor xpub fingerprint does not match its public node.");
+  }
+
+  const expectedTreasury = deriveAddressFromReceiveChainXpub(
+    parsed.receiveChainXpub,
+    TREASURY_DERIVATION_INDEX
+  );
+  let treasuryAddress: string;
+  try {
+    treasuryAddress = toChecksumEthereumAddress(parsed.treasuryAddress);
+  } catch {
+    throw new Error("Public descriptor treasury address is invalid.");
+  }
+  if (treasuryAddress !== expectedTreasury) {
+    throw new Error("Public descriptor treasury address does not match derivation index 0.");
+  }
+
+  if (parsed.sampleAddresses.length !== PUBLIC_DESCRIPTOR_SAMPLE_INDICES.length) {
+    throw new Error("Public descriptor has the wrong sample-address count.");
+  }
+  const sampleAddresses = parsed.sampleAddresses.map((sample, index) => {
+    assertRecord(sample);
+    const actualKeys = Object.keys(sample).sort();
+    if (actualKeys.length !== 2 || actualKeys[0] !== "address" || actualKeys[1] !== "derivationIndex") {
+      throw new Error("Public descriptor sample contains unsupported fields.");
+    }
+    const derivationIndex = PUBLIC_DESCRIPTOR_SAMPLE_INDICES[index]!;
+    if (sample.derivationIndex !== derivationIndex || typeof sample.address !== "string") {
+      throw new Error("Public descriptor sample index is invalid.");
+    }
+    const expectedAddress = deriveAddressFromReceiveChainXpub(
+      parsed.receiveChainXpub as string,
+      derivationIndex
+    );
+    let address: string;
+    try {
+      address = toChecksumEthereumAddress(sample.address);
+    } catch {
+      throw new Error("Public descriptor sample address is invalid.");
+    }
+    if (address !== expectedAddress) {
+      throw new Error("Public descriptor sample address does not match its derivation index.");
+    }
+    return { derivationIndex, address };
+  });
+
+  return {
+    version: 1,
+    receiveChainPath: RECEIVE_CHAIN_PATH,
+    receiveChainXpub: parsed.receiveChainXpub,
+    xpubFingerprint: parsed.xpubFingerprint,
+    treasuryDerivationIndex: TREASURY_DERIVATION_INDEX,
+    treasuryAddress,
+    sampleAddresses
+  };
 }
 
 async function assertOwnedSafeDirectory(
@@ -232,6 +346,47 @@ export function publicDescriptorPathForHome(homedir: string) {
 
 export function getDefaultPublicDescriptorPath() {
   return publicDescriptorPathForHome(userInfo().homedir);
+}
+
+export async function readDefaultPublicDescriptor(
+  currentUser: CurrentUser = userInfo()
+) {
+  if (!Number.isSafeInteger(currentUser.uid) || currentUser.uid < 0) {
+    throw new Error("Current user ID is invalid.");
+  }
+
+  const homedir = path.resolve(currentUser.homedir);
+  await assertOwnedSafeDirectory(homedir, currentUser.uid, false);
+  let directoryPath = homedir;
+  for (const segment of PUBLIC_DESCRIPTOR_DIRECTORY_SEGMENTS) {
+    directoryPath = path.join(directoryPath, segment);
+    await assertOwnedSafeDirectory(directoryPath, currentUser.uid, true);
+  }
+
+  const filePath = path.join(directoryPath, PUBLIC_DESCRIPTOR_FILE_NAME);
+  const pathStats = await lstat(filePath);
+  if (pathStats.isSymbolicLink()) {
+    throw new Error("Public descriptor must not be a symbolic link.");
+  }
+  assertPrivateRegularFile(pathStats, currentUser.uid);
+  if (pathStats.nlink !== 1) {
+    throw new Error("Public descriptor has an unexpected link count.");
+  }
+
+  const file = await openPathIfSameFile(filePath, pathStats);
+  if (!file) {
+    throw new Error("Public descriptor changed while it was opened.");
+  }
+  try {
+    const contents = await file.readFile("utf8");
+    const finalStats = await lstat(filePath);
+    if (!isSameFile(finalStats, pathStats)) {
+      throw new Error("Public descriptor changed while it was read.");
+    }
+    return { filePath, descriptor: parsePublicDescriptorFile(contents) };
+  } finally {
+    await file.close();
+  }
 }
 
 export async function preflightPublicDescriptorTarget(

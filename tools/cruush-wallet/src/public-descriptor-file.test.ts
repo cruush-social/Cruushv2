@@ -17,8 +17,10 @@ import { tmpdir } from "node:os";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   getDefaultPublicDescriptorPath,
+  parsePublicDescriptorFile,
   preflightPublicDescriptorTarget,
   publicDescriptorPathForHome,
+  readDefaultPublicDescriptor,
   serializePublicDescriptorFile,
   writePublicDescriptorFile
 } from "./public-descriptor-file.js";
@@ -210,6 +212,29 @@ describe("public descriptor atomic handoff", () => {
       sampleAddresses: descriptor.sampleAddresses
     });
     expect(await readdir(target.directoryPath)).toEqual(["public-descriptor.json"]);
+
+    await expect(readDefaultPublicDescriptor(currentUserAt(homedir))).resolves.toEqual({
+      filePath: target.filePath,
+      descriptor
+    });
+  });
+
+  it("rejects any descriptor whose fingerprint, samples, or field allowlist does not match", () => {
+    const descriptor = deriveWalletPublicDescriptor(PUBLIC_TEST_MNEMONIC);
+    const serialized = JSON.parse(serializePublicDescriptorFile(descriptor)) as Record<string, unknown>;
+
+    expect(() => parsePublicDescriptorFile(JSON.stringify({
+      ...serialized,
+      xpubFingerprint: "0".repeat(64)
+    }))).toThrow(/fingerprint/);
+    expect(() => parsePublicDescriptorFile(JSON.stringify({
+      ...serialized,
+      sampleAddresses: [{ derivationIndex: 0, address: descriptor.treasuryAddress }]
+    }))).toThrow(/sample-address count/);
+    expect(() => parsePublicDescriptorFile(JSON.stringify({
+      ...serialized,
+      recoveryWords: "forbidden"
+    }))).toThrow(/unsupported fields/);
   });
 
   it("does not overwrite a target created after preflight and leaves no temp file", async () => {

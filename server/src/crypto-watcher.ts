@@ -114,6 +114,22 @@ type LockedIntentRow = IntentRow & {
   entitlement_granted_at: string | Date | null;
 };
 
+type ReceiptIntentRow = LockedIntentRow & {
+  selected_watch_start_block: string;
+};
+
+export type CryptoReceiptIngestionResult = {
+  intentId: string;
+  transactionHash: string;
+  chainId: number;
+  transfersRecorded: number;
+  creditableTransfers: number;
+  confirmations: number;
+  settled: boolean;
+  entitlementGranted: boolean;
+  settlementNote: string | null;
+};
+
 function railIdFor(asset: string, network: string): CryptoPaymentRailId | null {
   const entry = (Object.entries(CRYPTO_PAYMENT_RAILS) as [
     CryptoPaymentRailId,
@@ -703,6 +719,181 @@ export async function settleIntent(
   return runTransaction(app.db, (tx) =>
     settleIntentInTransaction(app, tx, intent, policy)
   );
+}
+
+/**
+ * Recovers one transaction that fell outside the bounded watcher scan.
+ *
+ * A moderator-supplied hash is only a lookup key. The configured chain source
+ * must independently return a successful canonical receipt whose logs, block,
+ * token, recipient, amount, timestamp, origin, and confirmations are validated
+ * exactly like watcher evidence. Wrong-chain, wrong-token, and post-expiry
+ * transfers are retained for support but never grant access.
+ */
+export async function ingestCryptoPaymentReceipt(
+  app: { db: DbClient; config: AppConfig },
+  source: ChainSource,
+  input: { intentId: string; transactionHash: string }
+): Promise<CryptoReceiptIngestionResult> {
+  if (!source.getTransactionReceipt) {
+    throw new Error("Crypto chain source does not support receipt recovery.");
+  }
+  const observedChainId = await source.getChainId();
+  if (observedChainId !== source.chainId) {
+    throw new ApiError(
+      502,
+      "CRYPTO_CHAIN_SOURCE_UNAVAILABLE",
+      "Crypto receipt source is connected to the wrong network."
+    );
+  }
+  const receipt = await source.getTransactionReceipt(input.transactionHash);
+  if (!receipt) {
+    throw new ApiError(404, "NOT_FOUND", "That transaction receipt was not found on this network.");
+  }
+  if (!receipt.succeeded) {
+    throw new ApiError(422, "VALIDATION_ERROR", "That transaction reverted and transferred no funds.");
+  }
+  const headBlock = await source.getBlockNumber();
+  if (headBlock < receipt.blockNumber) {
+    throw new ApiError(
+      502,
+      "CRYPTO_CHAIN_SOURCE_UNAVAILABLE",
+      "Crypto receipt source returned a receipt above its current head."
+    );
+  }
+  const blockTimestamp = await source.getBlockTimestamp(
+    receipt.blockNumber,
+    receipt.blockHash
+  );
+  const confirmations = Number(headBlock - receipt.blockNumber) + 1;
+  const policy = resolveSettlementPolicy(app.config, source.chainId);
+
+  const owner = await app.db.query<{ user_id: string }>(
+    `select user_id from crypto_payment_intents where id = $1`,
+    [input.intentId]
+  );
+  const userId = owner.rows[0]?.user_id;
+  if (!userId) {
+    throw new ApiError(404, "NOT_FOUND", "Crypto payment intent not found.");
+  }
+
+  return runTransaction(app.db, async (tx) => {
+    await lockCryptoPurchaseUser(tx, userId);
+    const locked = await tx.query<ReceiptIntentRow>(
+      `select i.id, i.user_id, i.plan_id, i.status, i.payment_address,
+              i.quoted_amount_atomic, i.asset, i.network,
+              i.watch_start_block::text as watch_start_block,
+              i.expires_at, i.entitlement_granted_at,
+              coalesce(
+                position.watch_start_block,
+                case
+                  when $2 = case i.network
+                    when 'ethereum' then 1
+                    when 'arbitrum' then 42161
+                    when 'base' then 8453
+                    else null
+                  end then coalesce(i.watch_start_block, 0)
+                  else 0
+                end
+              )::text as selected_watch_start_block
+       from crypto_payment_intents i
+       left join crypto_payment_watch_positions position
+         on position.intent_id = i.id
+        and position.chain_id = $2
+       where i.id = $1
+         and i.user_id = $3
+       for update of i`,
+      [input.intentId, source.chainId, userId]
+    );
+    const intentRow = locked.rows[0];
+    if (!intentRow || !intentRow.payment_address || !intentRow.quoted_amount_atomic) {
+      throw new ApiError(409, "VALIDATION_ERROR", "Crypto payment intent has no payable address.");
+    }
+    const intendedRailId = railIdFor(intentRow.asset, intentRow.network);
+    if (!intendedRailId) {
+      throw new ApiError(409, "VALIDATION_ERROR", "Crypto payment intent has an unsupported rail.");
+    }
+    const intendedRail = CRYPTO_PAYMENT_RAILS[intendedRailId];
+    const arrivedBeforeExpiry = blockTimestamp.getTime() <= new Date(intentRow.expires_at).getTime();
+    const arrivedAfterAddressOrigin = receipt.blockNumber > BigInt(
+      intentRow.selected_watch_start_block
+    );
+    let transfersRecorded = 0;
+    let creditableTransfers = 0;
+
+    for (const log of receipt.logs) {
+      if (log.removed) {
+        continue;
+      }
+      const transfer = decodeErc20Transfer(log);
+      if (
+        !transfer
+        || transfer.toAddress.toLowerCase() !== intentRow.payment_address.toLowerCase()
+        || transfer.amountAtomic <= 0n
+      ) {
+        continue;
+      }
+      const isExpectedRail = source.chainId === intendedRail.chainId
+        && transfer.tokenAddress.toLowerCase() === intendedRail.tokenAddress.toLowerCase();
+      const isCreditableTransfer = isExpectedRail
+        && arrivedBeforeExpiry
+        && arrivedAfterAddressOrigin;
+      await recordTransfer(tx, {
+        intentId: intentRow.id,
+        chainId: source.chainId,
+        transactionHash: receipt.transactionHash,
+        logIndex: log.logIndex,
+        blockNumber: receipt.blockNumber,
+        blockHash: receipt.blockHash,
+        blockTimestamp,
+        tokenAddress: transfer.tokenAddress,
+        fromAddress: transfer.fromAddress,
+        toAddress: transfer.toAddress,
+        amountAtomic: transfer.amountAtomic,
+        confirmations,
+        status: confirmations >= policy.confirmationTarget ? "confirmed" : "observed",
+        markIntentConfirming: isCreditableTransfer
+      });
+      transfersRecorded += 1;
+      if (isCreditableTransfer) {
+        creditableTransfers += 1;
+      }
+    }
+    if (transfersRecorded === 0) {
+      throw new ApiError(
+        422,
+        "VALIDATION_ERROR",
+        "That receipt contains no positive ERC-20 transfer to this payment address."
+      );
+    }
+
+    const intent: WatchableIntent = {
+      id: intentRow.id,
+      userId: intentRow.user_id,
+      planId: intentRow.plan_id,
+      status: intentRow.status,
+      paymentAddress: intentRow.payment_address,
+      quotedAmountAtomic: intentRow.quoted_amount_atomic,
+      rail: intendedRailId,
+      watchStartBlock: intentRow.watch_start_block ?? "0",
+      expiresAt: new Date(intentRow.expires_at).toISOString()
+    };
+    const settlement = creditableTransfers > 0
+      ? await settleIntentInTransaction(app, tx, intent, policy, true)
+      : { settled: false, granted: false, note: null };
+
+    return {
+      intentId: intentRow.id,
+      transactionHash: receipt.transactionHash,
+      chainId: source.chainId,
+      transfersRecorded,
+      creditableTransfers,
+      confirmations,
+      settled: settlement.settled,
+      entitlementGranted: settlement.granted,
+      settlementNote: settlement.note
+    };
+  });
 }
 
 function emptyWatcherPassResult(chainId: number, watchedAddresses: number): WatcherPassResult {

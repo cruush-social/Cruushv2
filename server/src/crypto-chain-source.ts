@@ -49,6 +49,14 @@ export type ChainLog = {
   removed: boolean;
 };
 
+export type ChainTransactionReceipt = {
+  transactionHash: string;
+  blockNumber: bigint;
+  blockHash: string;
+  succeeded: boolean;
+  logs: ChainLog[];
+};
+
 export type ChainSource = {
   chainId: number;
   getChainId(): Promise<number>;
@@ -60,6 +68,7 @@ export type ChainSource = {
     address: string[];
     topics: (string | string[] | null)[];
   }): Promise<ChainLog[]>;
+  getTransactionReceipt?(transactionHash: string): Promise<ChainTransactionReceipt | null>;
 };
 
 // keccak256("Transfer(address,address,uint256)"). This is fixed by ERC-20 and
@@ -124,6 +133,51 @@ function parseLog(value: unknown): ChainLog {
     // An absent `removed` is treated as not removed, which is what the field
     // means; it is only ever set to true by a reorganization.
     removed: log.removed === true
+  };
+}
+
+function parseTransactionReceipt(
+  value: unknown,
+  expectedTransactionHash: string
+): ChainTransactionReceipt {
+  if (typeof value !== "object" || value === null) {
+    throw new Error("Chain source returned a receipt that is not an object.");
+  }
+  const receipt = value as Record<string, unknown>;
+  if (
+    typeof receipt.transactionHash !== "string"
+    || !/^0x[0-9a-fA-F]{64}$/.test(receipt.transactionHash)
+    || receipt.transactionHash.toLowerCase() !== expectedTransactionHash.toLowerCase()
+  ) {
+    throw new Error("Chain source returned a receipt for a different transaction.");
+  }
+  if (typeof receipt.blockHash !== "string" || !/^0x[0-9a-fA-F]{64}$/.test(receipt.blockHash)) {
+    throw new Error("Chain source returned a receipt without a valid block hash.");
+  }
+  const blockNumber = parseHexQuantity(receipt.blockNumber, "receipt block number");
+  const status = parseHexQuantity(receipt.status, "receipt status");
+  if (status !== 0n && status !== 1n) {
+    throw new Error("Chain source returned an unsupported receipt status.");
+  }
+  if (!Array.isArray(receipt.logs)) {
+    throw new Error("Chain source returned a receipt without logs.");
+  }
+  const transactionHash = receipt.transactionHash.toLowerCase();
+  const blockHash = receipt.blockHash.toLowerCase();
+  const logs = receipt.logs.map(parseLog);
+  if (logs.some((log) =>
+    log.transactionHash !== transactionHash
+    || log.blockNumber !== blockNumber
+    || log.blockHash !== blockHash
+  )) {
+    throw new Error("Chain source receipt logs do not match the receipt block and transaction.");
+  }
+  return {
+    transactionHash,
+    blockNumber,
+    blockHash,
+    succeeded: status === 1n,
+    logs
   };
 }
 
@@ -331,6 +385,16 @@ export function createJsonRpcChainSource(input: {
       }
 
       return result.map(parseLog);
+    },
+
+    async getTransactionReceipt(transactionHash) {
+      if (!/^0x[0-9a-fA-F]{64}$/.test(transactionHash)) {
+        throw new Error("Transaction hash must contain exactly 32 bytes.");
+      }
+      const result = await call("eth_getTransactionReceipt", [transactionHash.toLowerCase()]);
+      return result === null
+        ? null
+        : parseTransactionReceipt(result, transactionHash);
     }
   };
 }

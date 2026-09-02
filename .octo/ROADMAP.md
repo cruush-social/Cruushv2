@@ -3,7 +3,7 @@
 ## Overview
 
 Total phases: 4
-Current phase: 3
+Current phase: 4
 
 ## Phase 1: Discover
 
@@ -19,7 +19,7 @@ Scope and hard boundaries are recorded in `AI_TASK.json`.
 
 ## Phase 3: Develop
 
-**Status:** in progress
+**Status:** complete
 
 - [x] Disabled crypto rails, watcher, settlement, and reconciliation
 - [x] Conversion-focused checkout structure
@@ -32,15 +32,21 @@ Scope and hard boundaries are recorded in `AI_TASK.json`.
 - [x] Atomic exact-rail settlement re-sum and tolerant reconciliation
 - [x] Lifetime-access purchase block and unpaid-intent closure
 - [x] Unavailable restored rail preserved and locked through paid
-- [ ] Public-only wallet descriptor handoff and owner initialization
+- [x] Public-only wallet descriptor handoff and owner initialization
 - [x] Current handoffs and launch blockers
+- [x] Fixed-path wallet status and address access
+- [x] Public descriptor to server configuration handoff
+- [x] Mainnet-pinned gas-funding and stablecoin-sweep signing
+- [x] Safe signed-transaction broadcast workflow
+- [x] Canonical receipt recovery beyond bounded watcher scans
+- [x] Sweep-candidate derivation data in moderator support
 
 ## Phase 4: Deliver
 
-**Status:** pending
+**Status:** complete
 
-- [ ] Focused tests and builds
+- [x] Focused tests and builds
 - [x] Desktop and phone final-state rendered proof
-- [ ] Prior-state comparison required by the task contract was not reverified
-- [ ] Secret and deployment-boundary scan
-- [ ] Commit and push only `origin/feat/crypto-pricing`
+- [x] Prior checkout proof retained; no client UI source changed in this wallet continuation
+- [x] Secret and deployment-boundary scan
+- [x] Commit and push only `origin/feat/crypto-pricing`

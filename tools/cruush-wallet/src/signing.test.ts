@@ -13,9 +13,15 @@ import {
 import {
   parseBaseSepoliaGasFundingPlan,
   parseBaseSepoliaUsdcSweepPlan,
+  parseSignedOperatorWalletTransaction,
+  parseWalletGasFundingPlan,
+  parseWalletTokenSweepPlan,
   signBaseSepoliaGasFundingPlan,
-  signBaseSepoliaUsdcSweepPlan
+  signBaseSepoliaUsdcSweepPlan,
+  signWalletGasFundingPlan,
+  signWalletTokenSweepPlan
 } from "./signing.js";
+import { OPERATOR_WALLET_NETWORKS, OPERATOR_WALLET_RAILS } from "./networks.js";
 import { deriveWalletPublicDescriptor } from "./wallet.js";
 
 // Public development mnemonic used by local Ethereum test tools. Never use it for funds.
@@ -148,5 +154,100 @@ describe("Base Sepolia constrained signing", () => {
     await expect(signBaseSepoliaUsdcSweepPlan(PUBLIC_TEST_MNEMONIC, usdcSweepPlan({
       fromAddress: treasuryAddress
     }))).rejects.toThrow(/addresses do not match/);
+  });
+});
+
+function mainnetGasPlan(overrides: Record<string, unknown> = {}) {
+  return {
+    version: 1,
+    kind: "wallet-gas-funding",
+    network: "arbitrum",
+    chainId: 42161,
+    walletXpubFingerprint: descriptor.xpubFingerprint,
+    fromDerivationIndex: 0,
+    toDerivationIndex: 1,
+    fromAddress: treasuryAddress,
+    toAddress: paymentAddress,
+    valueWei: "100000000000000",
+    nonce: "7",
+    gasLimit: "21000",
+    maxFeePerGas: "100000000",
+    maxPriorityFeePerGas: "1000000",
+    ...overrides
+  };
+}
+
+function mainnetSweepPlan(overrides: Record<string, unknown> = {}) {
+  return {
+    version: 1,
+    kind: "wallet-token-sweep",
+    rail: "usdc_arbitrum",
+    chainId: 42161,
+    walletXpubFingerprint: descriptor.xpubFingerprint,
+    fromDerivationIndex: 1,
+    treasuryDerivationIndex: 0,
+    fromAddress: paymentAddress,
+    treasuryAddress,
+    tokenContract: OPERATOR_WALLET_RAILS.usdc_arbitrum.tokenAddress,
+    amountAtomic: "65940000",
+    nonce: "0",
+    gasLimit: "100000",
+    maxFeePerGas: "100000000",
+    maxPriorityFeePerGas: "1000000",
+    ...overrides
+  };
+}
+
+describe("mainnet-pinned operator signing", () => {
+  it("signs only treasury-to-child gas funding on the selected pinned chain", async () => {
+    const artifact = await signWalletGasFundingPlan(PUBLIC_TEST_MNEMONIC, mainnetGasPlan());
+    const parsed = parseTransaction(artifact.rawTransaction);
+
+    expect(await recoverTransactionAddress({ serializedTransaction: artifact.rawTransaction }))
+      .toBe(treasuryAddress);
+    expect(parsed).toMatchObject({ chainId: 42161, nonce: 7 });
+    expect(getAddress(parsed.to!)).toBe(paymentAddress);
+    expect(artifact).toMatchObject({ network: "arbitrum", rail: null });
+  });
+
+  it("signs an exact pinned stablecoin transfer from one child to treasury", async () => {
+    const artifact = await signWalletTokenSweepPlan(PUBLIC_TEST_MNEMONIC, mainnetSweepPlan());
+    const parsed = parseTransaction(artifact.rawTransaction);
+
+    expect(await recoverTransactionAddress({ serializedTransaction: artifact.rawTransaction }))
+      .toBe(paymentAddress);
+    expect(getAddress(parsed.to!)).toBe(OPERATOR_WALLET_RAILS.usdc_arbitrum.tokenAddress);
+    expect(artifact).toMatchObject({
+      network: "arbitrum",
+      rail: "usdc_arbitrum",
+      recipientAddress: treasuryAddress,
+      amountAtomic: "65940000"
+    });
+  });
+
+  it("rejects chain, contract, fee-cap, derivation, and unknown-field drift", () => {
+    expect(() => parseWalletGasFundingPlan(mainnetGasPlan({ chainId: 8453 })))
+      .toThrow(/chainId/);
+    expect(() => parseWalletTokenSweepPlan(mainnetSweepPlan({
+      tokenContract: OPERATOR_WALLET_RAILS.pyusd_arbitrum.tokenAddress
+    }))).toThrow(/pinned issuer contract/);
+    expect(() => parseWalletTokenSweepPlan(mainnetSweepPlan({
+      gasLimit: "250000",
+      maxFeePerGas: "10000000000"
+    }))).toThrow(/maximum fee/);
+    expect(() => parseWalletTokenSweepPlan(mainnetSweepPlan({ fromDerivationIndex: 0 })))
+      .toThrow(/fromDerivationIndex/);
+    expect(() => parseWalletTokenSweepPlan(mainnetSweepPlan({ surprise: true })))
+      .toThrow(/unsupported fields/);
+  });
+
+  it("rechecks the network fee cap when loading a signed artifact for broadcast", async () => {
+    const artifact = await signWalletTokenSweepPlan(PUBLIC_TEST_MNEMONIC, mainnetSweepPlan());
+
+    await expect(parseSignedOperatorWalletTransaction({
+      ...artifact,
+      maximumFeeWei: (OPERATOR_WALLET_NETWORKS.arbitrum.maxSignedTransactionFeeWei + 1n)
+        .toString()
+    })).rejects.toThrow(/maximumFeeWei/);
   });
 });

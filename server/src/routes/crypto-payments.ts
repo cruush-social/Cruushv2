@@ -22,10 +22,12 @@ import {
   findCryptoReconciliationExceptions
 } from "../crypto-reconciliation.js";
 import {
+  createCryptoReceiptSource,
   describeWatcherStatus,
   readVerifiedCryptoPaymentRailHead,
   type CryptoPaymentRailHeadReader
 } from "../crypto-watcher-runtime.js";
+import { ingestCryptoPaymentReceipt } from "../crypto-watcher.js";
 
 const paymentIntentPayloadSchema = z.object({
   planId: z.string().min(1),
@@ -109,9 +111,24 @@ const supportLookupSchema = z.union([
   z.object({ transactionHash: z.string().regex(/^0x[0-9a-fA-F]{64}$/) }).strict()
 ]);
 
+const supportReceiptSchema = z.object({
+  intentId: z.uuid(),
+  transactionHash: z.string().regex(/^0x[0-9a-fA-F]{64}$/),
+  chainId: z.union([z.literal(1), z.literal(42161), z.literal(8453)])
+}).strict();
+
+export const CRYPTO_SUPPORT_RECEIPT_RATE_LIMIT = {
+  max: 10,
+  windowMs: 60 * 60_000
+} as const;
+
 export async function registerCryptoPaymentRoutes(
   app: FastifyInstance,
-  deps: { readRailHead?: CryptoPaymentRailHeadReader } = {}
+  deps: {
+    readRailHead?: CryptoPaymentRailHeadReader;
+    createReceiptSource?: typeof createCryptoReceiptSource;
+    ingestReceipt?: typeof ingestCryptoPaymentReceipt;
+  } = {}
 ) {
   app.get("/api/crypto/status", async (request, reply) => {
     await getAuthenticatedUserId(request);
@@ -207,5 +224,20 @@ export async function registerCryptoPaymentRoutes(
         exceptions: await findCryptoReconciliationExceptions(app.db)
       }
     });
+  });
+
+  app.post("/api/crypto/support/payment-receipts", async (request, reply) => {
+    const moderator = await getModeratorUser(request);
+    await app.rateLimiter.assert({
+      key: `crypto-support-receipt:${moderator.userId}`,
+      ...CRYPTO_SUPPORT_RECEIPT_RATE_LIMIT,
+      message: "Too many crypto receipt recovery attempts. Try again later."
+    });
+    const payload = supportReceiptSchema.parse(request.body);
+    const sourceFactory = deps.createReceiptSource ?? createCryptoReceiptSource;
+    const source = sourceFactory(app.config, payload.chainId);
+    const ingestReceipt = deps.ingestReceipt ?? ingestCryptoPaymentReceipt;
+    const result = await ingestReceipt(app, source, payload);
+    return reply.send({ data: result });
   });
 }

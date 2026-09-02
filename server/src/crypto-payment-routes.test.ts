@@ -8,8 +8,10 @@ import { createMemoryRateLimiter } from "./rate-limit.js";
 import {
   CRYPTO_PAYMENT_INTENT_CREATE_RATE_LIMIT,
   CRYPTO_PAYMENT_INTENT_READ_RATE_LIMIT,
+  CRYPTO_SUPPORT_RECEIPT_RATE_LIMIT,
   resolvePrePublicationWatchStartBlocks
 } from "./routes/crypto-payments.js";
+import type { ChainSource } from "./crypto-chain-source.js";
 
 const userId = "00000000-0000-4000-8000-000000000001";
 const intentId = "00000000-0000-4000-8000-000000000010";
@@ -148,6 +150,71 @@ describe("crypto payment routes", () => {
     });
 
     expect(response.statusCode).toBe(400);
+  });
+
+  it("keeps receipt recovery moderator-only, rate-limited, and independently ingested", async () => {
+    const transactionHash = `0x${"b".repeat(64)}`;
+    const query = vi.fn(async (sql: string, values: unknown[] = []) => {
+      if (/from app_users users/.test(sql) && values[0] === userId) {
+        return { rows: [{ role: "admin", email: "admin@cruush.local" }] };
+      }
+      return { rows: [] };
+    });
+    const source = { chainId: 8453 } as ChainSource;
+    const createReceiptSource = vi.fn().mockReturnValue(source);
+    const ingestReceipt = vi.fn().mockResolvedValue({
+      intentId,
+      transactionHash,
+      chainId: 8453,
+      transfersRecorded: 1,
+      creditableTransfers: 1,
+      confirmations: 30,
+      settled: true,
+      entitlementGranted: true,
+      settlementNote: null
+    });
+    const app = buildServer(baseConfig(), {
+      db: { query, end: vi.fn().mockResolvedValue(undefined) } as unknown as DbClient,
+      rateLimiter: createMemoryRateLimiter(),
+      cryptoReceiptSourceFactory: createReceiptSource,
+      cryptoReceiptIngestor: ingestReceipt
+    });
+    const request = {
+      method: "POST" as const,
+      url: "/api/crypto/support/payment-receipts",
+      headers: { "content-type": "application/json", "x-user-id": userId },
+      payload: { intentId, transactionHash, chainId: 8453 }
+    };
+
+    try {
+      const forbidden = await app.inject({
+        ...request,
+        headers: {
+          ...request.headers,
+          "x-user-id": "00000000-0000-4000-8000-000000000099"
+        }
+      });
+      expect(forbidden.statusCode).toBe(403);
+      expect(createReceiptSource).not.toHaveBeenCalled();
+      expect(ingestReceipt).not.toHaveBeenCalled();
+
+      const response = await app.inject(request);
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toMatchObject({ data: { settled: true, entitlementGranted: true } });
+      expect(createReceiptSource.mock.calls[0]?.[0]).toBe(app.config);
+      expect(createReceiptSource.mock.calls[0]?.[1]).toBe(8453);
+      expect(ingestReceipt.mock.calls[0]?.[0]).toBe(app);
+      expect(ingestReceipt.mock.calls[0]?.[1]).toBe(source);
+      expect(ingestReceipt.mock.calls[0]?.[2]).toEqual(request.payload);
+
+      for (let attempt = 1; attempt < CRYPTO_SUPPORT_RECEIPT_RATE_LIMIT.max; attempt += 1) {
+        expect((await app.inject(request)).statusCode).toBe(200);
+      }
+      expect((await app.inject(request)).statusCode).toBe(429);
+      expect(ingestReceipt).toHaveBeenCalledTimes(CRYPTO_SUPPORT_RECEIPT_RATE_LIMIT.max);
+    } finally {
+      await app.close();
+    }
   });
 
   it("rate-limits payment intent creation per member before processor work", async () => {

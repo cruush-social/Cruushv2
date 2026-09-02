@@ -10,9 +10,10 @@ from this handoff.
 
 ## Current outcome
 
-This branch contains the in-house stablecoin checkout, watcher, settlement,
-support, and local wallet tooling for cruush+. It remains disabled by default
-and is not production-ready.
+This branch contains the production-capable in-house stablecoin checkout,
+watcher, settlement, receipt recovery, support, and local wallet tooling for
+cruush+. It remains disabled by default. Controlled operational, legal, and
+deployment gates remain before real customer payments are enabled.
 
 The first temporary software-wallet descriptor remains quarantined after Julien
 reported that its paper recovery backup might be incorrect. Never fund or
@@ -186,13 +187,15 @@ reloads the member's current active intent before choosing defaults. If that
 intent's original rail becomes unavailable, the page preserves that rail and
 its payment state through `paid`; it never switches or unlocks the checkout.
 
-The watcher keeps a bounded post-expiry evidence window. Evidence-only support
-lookup for funds discovered beyond that bounded watch is not complete. Do not
-claim that a transaction hash can always recover an out-of-window payment.
-Unknown token contracts and transfers first presented after the watch window
-need an independent receipt-ingestion path. That support workflow, including
-the owner decision for funds received after a quote expires, remains a launch
-blocker.
+The watcher keeps a bounded post-expiry evidence window. The moderator-only
+`POST /api/crypto/support/payment-receipts` path recovers a transaction first
+presented after that window. A supplied hash is only a lookup key. The server
+independently reads a successful canonical receipt from the selected configured
+chain, verifies its block hash and timestamp, confirmation count, token,
+recipient, amount, address origin, and expiry, then reuses the atomic settlement
+path. Wrong-token and post-expiry transfers are retained as non-creditable
+evidence. Unknown token contracts never grant. The owner decision and legally
+required treatment for funds received after quote expiry remain launch work.
 
 ## Legal boundary
 
@@ -218,7 +221,7 @@ complete, or those consumers are excluded server-side.
 | Watcher and settlement | `server/src/crypto-watcher.ts` |
 | Per-chain scheduling | `server/src/crypto-watcher-runtime.ts` |
 | Amount policy | `server/src/crypto-settlement-policy.ts` |
-| Support and reconciliation | `server/src/crypto-reconciliation.ts` |
+| Support, receipt recovery, and reconciliation | `server/src/crypto-reconciliation.ts`, `server/src/routes/crypto-payments.ts` |
 | Intended-chain watch origin | `server/sql/100_crypto_payment_watch_start.sql` |
 | Per-intent chain positions and block timestamps | `server/sql/101_crypto_payment_chain_positions.sql` |
 | Checkout | `src/app/components/CruushPlusStore.tsx` |
@@ -230,11 +233,13 @@ Keep `server/src/migrate.ts` synchronized with all six files.
 ## Local preview target
 
 The branch's assigned frontend is `http://localhost:5191/store` and its API is
-`http://localhost:3022`. Use `admin@cruush.local` / `admin-password`. Keep the
+`http://localhost:3022`. Keep the same `localhost` host on both URLs so the
+local session cookie remains first-party. Use `admin@cruush.local` /
+`admin-password`. Keep the
 API explicitly disabled while previewing:
 
 ```sh
-PORT=3022 HOST=127.0.0.1 CORS_ORIGIN=http://localhost:5191 \
+PORT=3022 HOST=127.0.0.1 CORS_ORIGIN=http://localhost:5191,http://127.0.0.1:5191 \
   APP_URL=http://localhost:5191 CRYPTO_PROCESSOR_ENABLED=false \
   CRYPTO_PROCESSOR_WATCHER_ENABLED=false npm run dev
 ```
@@ -244,13 +249,14 @@ preview. Use the exact local ports; other cruush worktrees may also be running.
 
 ## Remaining launch gates
 
-- Complete the private recovery-word ceremony, validate the generated public
-  descriptor, and configure only the public xpub. Never expose recovery words,
-  private keys, or an xprv to an agent, repo, log, screenshot, or chat.
-- Independently match several derived addresses and prove the operator wallet
-  can later spend from them.
-- Complete gas-funding and sweeping procedures.
-- Complete evidence-only support handling beyond the bounded watch window.
+- Keep the verified replacement public descriptor as the only active wallet.
+  Never expose recovery words, private keys, or an xprv to an agent, repo, log,
+  screenshot, or chat.
+- Independently match several derived addresses and complete a disposable-wallet
+  Base Sepolia recovery, gas-funding, sweep, and broadcast drill.
+- Approve production RPC endpoints and an operating gas budget. Mainnet sweep
+  planning, offline signing, and confirmed sequential broadcast are implemented
+  but no agent has signed or broadcast a transaction.
 - Render and exercise every configured payment state at desktop and small
   mobile sizes. Source tests and builds do not replace that proof.
 - Complete a controlled receive-through-entitlement and reconciliation run.

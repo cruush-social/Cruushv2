@@ -92,8 +92,11 @@ seven days after quote expiry becomes `failed`, with transfer evidence
 preserved. Configured supported chains also retain known wrong-chain and
 wrong-token transfers as non-creditable evidence. Terminal intents return no
 payment URI or QR.
-Evidence ingestion for unknown tokens or transfers first presented after the
-bounded watch window is incomplete and remains a launch blocker.
+The moderator-only receipt-recovery route handles supported token transfers
+first presented after the bounded watch window. A supplied transaction hash is
+only a lookup key. The server independently verifies the canonical receipt and
+reuses the same exact-rail, origin, expiry, confirmation, and atomic settlement
+rules. Unknown tokens never grant.
 
 cruush+ is an ongoing interactive digital service, not immediate digital
 content. Immediate access plus a checkbox does not generally erase an EU
@@ -194,12 +197,13 @@ Implemented locally:
   `paid`, so a readiness change cannot discard or switch payment state.
 - The existing `/upgrade` route keeps its prior destination. `/store` is added
   without replacing the existing rewards checkout flow.
-- `tools/cruush-wallet` is an isolated local operator package. It can generate
-  and verify a public wallet descriptor in a direct private Terminal session,
-  and it can sign only bounded Base Sepolia gas-funding and Circle USDC sweep
-  plans. It has no RPC client or broadcast command. Recovery words, private
-  keys, and xprv data must never enter an agent, file, argument, environment
-  variable, pipe, log, screenshot, or chat.
+- `tools/cruush-wallet` is an isolated local operator package. It validates and
+  inspects the active public descriptor, derives public addresses, atomically
+  configures only the public xpub in a local server environment, prepares
+  bounded Base Sepolia or supported-mainnet gas-funding and stablecoin sweep
+  bundles, signs them offline, and broadcasts only after exact confirmation.
+  Recovery words, private keys, and xprv data must never enter an agent, file,
+  argument, environment variable, pipe, log, screenshot, or chat.
 
 ## Evidence boundary
 
@@ -288,10 +292,13 @@ the challenge, records the recovery words, confirms them, and closes Terminal.
 Signing is deliberately manual. An online process prepares a bounded unsigned
 transaction plan. The operator disconnects the signing computer from the
 network, enters the recovery words through hidden terminal input, verifies the
-displayed source, destination, amount, fee ceiling, chain, and USDC contract,
-and signs. The signed transaction returns to an online process for a separate
-broadcast step. This first slice supports Base Sepolia only and does not include
-broadcast.
+displayed source, destination, amount, fee ceiling, chain, and token contract,
+and signs. The signed bundle returns to a fresh online Terminal for a separate
+broadcast step. The broadcaster verifies the current descriptor and signed
+transactions, checks the RPC chain ID, sends child gas funding only when needed,
+waits for its successful receipt, then sends the full token-balance sweep and
+waits for that receipt. Supported rails are Base Sepolia USDC, Arbitrum USDC and
+PYUSD, Base USDC, and Ethereum PYUSD.
 
 Software custody cannot remove host-compromise risk. Malware present while the
 recovery words are entered can steal them. Minimum operating controls before a
@@ -301,12 +308,14 @@ screen-share session, and a disconnected network during secret entry. A
 separate offline computer would reduce risk but is not required by the current
 zero-dollar build scope.
 
-Every derived payment address needs Base ETH before it can send its USDC to the
-treasury. Gas funding, batch sweeping, and fee policy remain explicit
-pre-production gates. Customer checkout can remain seamless while those
-operator actions remain manual. No generic voluntary refund-signing workflow is
-planned. Exceptional or legally required withdrawals, refunds, remedies, and
-forced reversals still need a truthful operator procedure.
+Every derived payment address needs the chain's native gas before it can send
+its stablecoin to treasury. The planner funds only the missing bounded amount.
+Production RPC selection, gas-budget approval, hardware-wallet migration, and a
+disposable-wallet broadcast drill remain pre-production gates. Customer checkout
+can remain seamless while those operator actions remain manual. No generic
+voluntary refund-signing workflow is planned. Exceptional or legally required
+withdrawals, refunds, remedies, and forced reversals still need a truthful
+operator procedure.
 
 ## Payment lifecycle
 

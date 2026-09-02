@@ -106,14 +106,31 @@ export function getCryptoPaymentRailRpcEndpoint(
   config: AppConfig,
   railId: CryptoPaymentRailId
 ) {
-  switch (cryptoRail(railId).network) {
-    case "arbitrum":
+  return getCryptoPaymentChainRpcEndpoint(config, cryptoRail(railId).chainId);
+}
+
+export function getCryptoPaymentChainRpcEndpoint(config: AppConfig, chainId: number) {
+  switch (chainId) {
+    case 42161:
       return config.CRYPTO_PROCESSOR_ARBITRUM_RPC_URL ?? "";
-    case "base":
+    case 8453:
       return config.CRYPTO_PROCESSOR_BASE_RPC_URL ?? "";
-    case "ethereum":
+    case 1:
       return config.CRYPTO_PROCESSOR_ETHEREUM_RPC_URL ?? "";
+    default:
+      return "";
   }
+}
+
+export function getCryptoPaymentRailIdForChainId(chainId: number): CryptoPaymentRailId {
+  const entry = (Object.entries(CRYPTO_PAYMENT_RAILS) as [
+    CryptoPaymentRailId,
+    typeof CRYPTO_PAYMENT_RAILS[CryptoPaymentRailId]
+  ][]).find(([, rail]) => rail.chainId === chainId);
+  if (!entry) {
+    throw new ApiError(400, "VALIDATION_ERROR", "Unsupported crypto payment chain.");
+  }
+  return entry[0];
 }
 
 export function isCryptoPaymentRailReady(config: AppConfig, railId: CryptoPaymentRailId) {

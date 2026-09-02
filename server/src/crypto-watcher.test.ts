@@ -5,6 +5,7 @@ import {
   MAX_RECIPIENT_TOPICS_PER_LOG_QUERY,
   REORG_SAFETY_DEPTH,
   failStaleConfirmingIntents,
+  ingestCryptoPaymentReceipt,
   loadWatchableIntents,
   planScanRange,
   resolveSettlementPolicy,
@@ -72,6 +73,25 @@ function chainSource(
     getBlockNumber: vi.fn().mockResolvedValue(headBlock),
     getBlockTimestamp: vi.fn().mockResolvedValue(blockTimestamp),
     getLogs: vi.fn().mockResolvedValue(logs)
+  };
+}
+
+function receiptSource(
+  logs: ChainLog[],
+  headBlock = 1029n,
+  chainId = 8453,
+  blockTimestamp = new Date("2026-09-01T00:00:00.000Z")
+): ChainSource {
+  const source = chainSource(logs, headBlock, chainId, blockTimestamp);
+  return {
+    ...source,
+    getTransactionReceipt: vi.fn().mockResolvedValue({
+      transactionHash: transferLog().transactionHash,
+      blockNumber: 1000n,
+      blockHash: transferLog().blockHash,
+      succeeded: true,
+      logs
+    })
   };
 }
 
@@ -590,6 +610,81 @@ describe("settling one intent", () => {
     await expect(settleIntent({ db }, watchableIntent(), DEFAULT_CRYPTO_SETTLEMENT_POLICY))
       .resolves.toMatchObject({ settled: false, granted: false });
     expect(used.some((sql) => /set status = 'paid'/.test(sql))).toBe(false);
+  });
+});
+
+describe("recovering one transaction receipt", () => {
+  function lockedReceiptIntent() {
+    return {
+      id: intentId,
+      user_id: userId,
+      plan_id: "plus_monthly",
+      status: "awaiting_payment",
+      payment_address: paymentAddress,
+      quoted_amount_atomic: "18990000",
+      asset: "USDC",
+      network: "base",
+      watch_start_block: "900",
+      selected_watch_start_block: "900",
+      expires_at: "2026-09-01T00:30:00.000Z",
+      entitlement_granted_at: null
+    };
+  }
+
+  it("independently verifies a confirmed exact-rail receipt and grants once", async () => {
+    const { db, calls } = stubDb([
+      [/select user_id from crypto_payment_intents where id/, [{ user_id: userId }]],
+      [/selected_watch_start_block/, [lockedReceiptIntent()]],
+      [/coalesce\(sum\(amount_atomic/, [{ total: "18990000" }]],
+      [/set status = 'paid'/, [{ id: intentId }]]
+    ]);
+    const source = receiptSource([transferLog()]);
+
+    const result = await ingestCryptoPaymentReceipt(
+      { db, config: config() },
+      source,
+      { intentId, transactionHash: transferLog().transactionHash }
+    );
+
+    expect(result).toMatchObject({
+      transfersRecorded: 1,
+      creditableTransfers: 1,
+      confirmations: 30,
+      settled: true,
+      entitlementGranted: true
+    });
+    expect(vi.mocked(source.getChainId).mock.invocationCallOrder[0])
+      .toBeLessThan(vi.mocked(source.getTransactionReceipt!).mock.invocationCallOrder[0]!);
+    expect(source.getBlockTimestamp).toHaveBeenCalledWith(1000n, transferLog().blockHash);
+    const evidence = calls.find((call) => /insert into crypto_payment_transfers/.test(call.sql))!;
+    expect(evidence.values[1]).toBe(8453);
+    expect(evidence.values[12]).toBe("confirmed");
+    expect(evidence.values[13]).toBe(true);
+  });
+
+  it("retains a supported wrong-token receipt but never credits or grants it", async () => {
+    const wrongTokenLog = transferLog({ address: usdcOnArbitrum });
+    const { db, calls } = stubDb([
+      [/select user_id from crypto_payment_intents where id/, [{ user_id: userId }]],
+      [/selected_watch_start_block/, [lockedReceiptIntent()]]
+    ]);
+
+    const result = await ingestCryptoPaymentReceipt(
+      { db, config: config() },
+      receiptSource([wrongTokenLog]),
+      { intentId, transactionHash: wrongTokenLog.transactionHash }
+    );
+
+    expect(result).toMatchObject({
+      transfersRecorded: 1,
+      creditableTransfers: 0,
+      settled: false,
+      entitlementGranted: false
+    });
+    const evidence = calls.find((call) => /insert into crypto_payment_transfers/.test(call.sql))!;
+    expect(evidence.values[7]).toBe(usdcOnArbitrum);
+    expect(evidence.values[13]).toBe(false);
+    expect(calls.some((call) => /set status = 'paid'/.test(call.sql))).toBe(false);
   });
 });
 

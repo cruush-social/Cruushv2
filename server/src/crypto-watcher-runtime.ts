@@ -17,7 +17,9 @@ import type { DbClient } from "./db.js";
 import {
   CRYPTO_PAYMENT_RAILS,
   assertCryptoProcessorReady,
+  getCryptoPaymentChainRpcEndpoint,
   getCryptoPaymentRailRpcEndpoint,
+  getCryptoPaymentRailIdForChainId,
   type CryptoPaymentRailId
 } from "./crypto-payments.js";
 import { createJsonRpcChainSource, type ChainSource } from "./crypto-chain-source.js";
@@ -109,6 +111,24 @@ export function createChainSources(config: AppConfig): ChainSource[] {
   return resolveWatchedChains(config).map((chain) =>
     createJsonRpcChainSource({ chainId: chain.chainId, endpointUrl: chain.endpointUrl })
   );
+}
+
+export function createCryptoReceiptSource(
+  config: AppConfig,
+  chainId: number,
+  sourceFactory: (input: { chainId: number; endpointUrl: string }) => ChainSource = createJsonRpcChainSource
+) {
+  const readinessRail = getCryptoPaymentRailIdForChainId(chainId);
+  assertCryptoProcessorReady(config, readinessRail);
+  const endpointUrl = getCryptoPaymentChainRpcEndpoint(config, chainId);
+  if (!endpointUrl) {
+    throw new ApiError(
+      503,
+      "CRYPTO_PROCESSOR_NOT_READY",
+      "That crypto payment network is not configured for receipt recovery."
+    );
+  }
+  return sourceFactory({ chainId, endpointUrl });
 }
 
 export type CryptoWatcherHandle = {

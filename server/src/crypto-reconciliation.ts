@@ -40,6 +40,7 @@ export type CryptoReconciliationRecord = {
   status: string;
   asset: string;
   network: string;
+  derivationIndex: number;
   paymentAddress: string | null;
   quotedAmountAtomic: string | null;
   confirmedAmountAtomic: string | null;
@@ -72,6 +73,7 @@ const INTENT_COLUMNS = `
   i.status,
   i.asset,
   i.network,
+  i.derivation_index,
   i.payment_address,
   i.quoted_amount_atomic,
   i.confirmed_amount_atomic,
@@ -89,6 +91,7 @@ type IntentRow = {
   status: string;
   asset: string;
   network: string;
+  derivation_index: number | string;
   payment_address: string | null;
   quoted_amount_atomic: string | null;
   confirmed_amount_atomic: string | null;
@@ -128,6 +131,7 @@ async function attachTransfers(db: DbClient, rows: IntentRow[]): Promise<CryptoR
     status: row.status,
     asset: row.asset,
     network: row.network,
+    derivationIndex: Number(row.derivation_index),
     paymentAddress: row.payment_address,
     quotedAmountAtomic: row.quoted_amount_atomic,
     confirmedAmountAtomic: row.confirmed_amount_atomic,

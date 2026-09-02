@@ -2,8 +2,8 @@
 
 ## Vision
 
-A disabled-by-default, watch-only in-house crypto checkout for cruush+ that
-another developer can review locally before any production decision.
+A production-capable, disabled-by-default, watch-only in-house crypto checkout
+for cruush+ that receives supported stablecoins directly into Julien's wallet.
 
 ## Requirements
 
@@ -28,9 +28,14 @@ another developer can review locally before any production decision.
   confirming intents with observed funds.
 - A restored unavailable payment rail remains selected and locked through paid.
 - Recovery words and private keys never enter cruush or agent-visible state.
+- The local operator wallet alone may sign pinned gas-funding and stablecoin
+  sweep transactions from wallet-owned payment children to wallet treasury.
+- Moderator receipt recovery independently verifies chain evidence before any
+  missed transaction can affect settlement.
 
 ## Constraints
 
 - Zero-dollar provider budget.
-- No main merge, production deployment, processor activation, or live payment.
+- No main merge, production deployment, processor activation, live payment, or
+  transaction broadcast during implementation.
 - Current feature-branch publication target only: `origin/feat/crypto-pricing`.
