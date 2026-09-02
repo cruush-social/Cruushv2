@@ -755,6 +755,19 @@ html[data-cruush-alpha-bug-corner='top-right'] [data-testid='accessibility-quick
     display: none;
   }
 
+  @media (hover: none) and (pointer: coarse) {
+    * {
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+
+    *::-webkit-scrollbar {
+      width: 0;
+      height: 0;
+      display: none;
+    }
+  }
+
   .profile-card-scroll {
     overflow-y: auto;
     overscroll-behavior: contain;
