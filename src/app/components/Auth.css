@@ -198,11 +198,6 @@
   filter: blur(0.32rem);
   opacity: 0.26;
   transform: scale(1.02);
-  transition: opacity 180ms ease;
-}
-
-.launch-login-auth-logo-wrap:hover::before {
-  opacity: 0.76;
 }
 
 .launch-login-auth-logo-image {
@@ -237,21 +232,6 @@
   text-wrap: balance;
   text-shadow:
     0 0.6rem 1.35rem rgba(0, 0, 0, 0.9);
-  transition: color 180ms ease, text-shadow 180ms ease;
-}
-
-.launch-login-auth-tagline:hover {
-  animation: none;
-  color: #ffffff;
-  filter: none;
-  mix-blend-mode: normal;
-  position: relative;
-  z-index: 1;
-  text-shadow:
-    0 0 0.12rem #ffffff,
-    0 0 0.42rem #ffffff,
-    0 0 0.86rem #ffffff,
-    0 0 1.55rem #ffffff;
 }
 
 .launch-login-auth-tagline span {
@@ -274,24 +254,7 @@
   box-shadow:
     0 0.55rem 1.25rem rgba(0, 0, 0, 0.55);
   text-shadow: 0 0.35rem 0.85rem rgba(0, 0, 0, 0.88);
-  transition: border-color 180ms ease, box-shadow 180ms ease, color 180ms ease, text-shadow 180ms ease;
   white-space: nowrap;
-}
-
-.launch-login-auth-beta-capsule:hover {
-  border-color: rgba(255, 255, 255, 0.82);
-  color: #ffffff;
-  filter: none;
-  mix-blend-mode: normal;
-  position: relative;
-  z-index: 1;
-  box-shadow:
-    0 0.55rem 1.25rem rgba(0, 0, 0, 0.55),
-    0 0 0.75rem rgba(255, 255, 255, 0.92),
-    0 0 1.7rem rgba(255, 255, 255, 0.52);
-  text-shadow:
-    0 0 0.55rem rgba(255, 255, 255, 0.95),
-    0 0 1.2rem rgba(255, 255, 255, 0.62);
 }
 
 .launch-login-auth-form {
