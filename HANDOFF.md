@@ -102,7 +102,7 @@ Current price facts:
 The server billing catalog remains the source of truth. Never accept a price,
 token contract, network, chain ID, or confirmation target from the client.
 
-The seven paid benefits this branch can truthfully advertise are:
+The eight paid benefits this branch can truthfully advertise are:
 
 1. Who has a cruush on you: see your full incoming cruush and profile-view lists.
 2. More Pulses: send more Pulses throughout the day.
@@ -111,6 +111,7 @@ The seven paid benefits this branch can truthfully advertise are:
 5. Cruise carousel: spin through nearby profiles and browse again.
 6. All seeking and visibility controls: use all seeking filters, combine more visibility controls, and add up to 10 searchable profile tags. Basic includes 3.
 7. Dark Room: browse the map without appearing on it.
+8. Custom side badges: choose any badge for either side of your heart instead of only your role and position.
 
 Dark Room is the browse-without-appearing benefit. Ghost Mode is separate.
 Never call Dark Room Stealth Mode or Ghost Mode. Basic members can browse

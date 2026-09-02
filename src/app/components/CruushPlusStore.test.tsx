@@ -287,12 +287,14 @@ describe('CruushPlusStore', () => {
     expect(screen.queryByText(/visibility sets/i)).not.toBeInTheDocument();
     expect(screen.getByText('Dark Room')).toBeInTheDocument();
     expect(screen.getByText('Browse the map without appearing on it.')).toBeInTheDocument();
+    expect(screen.getByText('Custom side badges')).toBeInTheDocument();
+    expect(screen.getByText('Choose any badge for either side of your heart instead of only your role and position.')).toBeInTheDocument();
     const benefits = screen.getByRole('list', { name: 'cruush+ benefits' });
     const benefitCards = within(benefits).getAllByRole('listitem');
-    expect(benefits).toHaveClass('grid-cols-3');
-    expect(benefitCards).toHaveLength(7);
+    expect(benefits).toHaveClass('grid-cols-2');
+    expect(benefitCards).toHaveLength(8);
     expect(benefitCards.every((card) => !card.className.includes('col-span-'))).toBe(true);
-    expect(benefitCards.at(-1)).toHaveClass('col-start-2');
+    expect(benefitCards.every((card) => !card.className.includes('col-start-'))).toBe(true);
     expect(screen.queryByText('Post to the local feed')).not.toBeInTheDocument();
     expect(screen.queryByText('Cruise nearby profiles')).not.toBeInTheDocument();
     expect(screen.queryByText('Stealth Mode')).not.toBeInTheDocument();

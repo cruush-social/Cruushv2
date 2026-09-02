@@ -45,6 +45,11 @@ const IMPLEMENTATION_MARKERS = [
     file: 'server/src/routes/privacy.ts',
     marker: 'return input.baseMode === "STEALTH";',
   },
+  {
+    title: 'Custom side badges',
+    file: 'server/src/routes/profiles.ts',
+    marker: '"Upgrade to cruush+ to choose custom side badges."',
+  },
 ] as const;
 
 function countEntitlementGates(dir: string): number {
@@ -96,6 +101,8 @@ describe('cruush+ benefits copy tracks the gates', () => {
       'seeking',
       'visibility',
       'dark room',
+      'custom side badges',
+      'either side of your heart',
     ]) {
       expect(copy).toContain(promise);
     }

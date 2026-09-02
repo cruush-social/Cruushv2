@@ -75,7 +75,7 @@ Prices always come from `CRUUSH_PLUS_PLANS` in `server/src/billing.ts`. Client
 input never controls an amount, asset, network, token contract, or confirmation
 target.
 
-The checkout advertises seven capabilities present in this branch:
+The checkout advertises eight capabilities present in this branch:
 
 1. Who has a cruush on you: see your full incoming cruush and profile-view lists.
 2. More Pulses: send more Pulses throughout the day.
@@ -84,6 +84,7 @@ The checkout advertises seven capabilities present in this branch:
 5. Cruise carousel: spin through nearby profiles and browse again.
 6. All seeking and visibility controls: use all seeking filters, combine more visibility controls, and add up to 10 searchable profile tags. Basic includes 3.
 7. Dark Room: browse the map without appearing on it.
+8. Custom side badges: choose any badge for either side of your heart instead of only your role and position.
 
 Dark Room and Ghost Mode are separate features. Never call Dark Room Stealth
 Mode or Ghost Mode. Nearby profile browsing, text feed posts, and the initial

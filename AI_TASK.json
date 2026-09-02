@@ -1,5 +1,5 @@
 {
-  "task": "Finish the production-capable watch-only crypto processor around Julien's verified local wallet. Add exact customer steps for Cash App, PayPal, and a crypto wallet; use a 60-minute server-owned order window; let members cancel an unsent order or change payment method without deleting its PostgreSQL attempt record; restore the billing-policy page and checkout-bottom disclosure with the current one-time, no-voluntary-refund policy and a real request path for legally required remedies. Set both founder offers to 1,000 real users, release the regular $1,999.99 lifetime offer only after founder lifetime sells out, and render all seven cruush+ benefits in three columns because the count is odd. Add a separate Ping pack checkout for 3 Pings at $2.99, 10 Pings at $7.99, and 25 Pings at $14.99, linked from the Pulse menu and cruush+ store. Purchased Ping credits never expire, included daily Pings are used first, and every activated Pulse still lasts exactly 30 minutes. Keep signing material outside cruush, do not broadcast or deploy during this build, and publish only the verified branch to origin/feat/crypto-pricing.",
+  "task": "Finish the production-capable watch-only crypto processor around Julien's verified local wallet. Add exact customer steps for Cash App, PayPal, and a crypto wallet; use a 60-minute server-owned order window; let members cancel an unsent order or change payment method without deleting its PostgreSQL attempt record; restore the billing-policy page and checkout-bottom disclosure with the current one-time, no-voluntary-refund policy and a real request path for legally required remedies. Set both founder offers to 1,000 real users, release the regular $1,999.99 lifetime offer only after founder lifetime sells out, and render all eight verified cruush+ benefits in two columns on checkout and the cruush+ screen. Add a separate Ping pack checkout for 3 Pings at $2.99, 10 Pings at $7.99, and 25 Pings at $14.99, linked from the Pulse menu and cruush+ store. Purchased Ping credits never expire, included daily Pings are used first, and every activated Pulse still lasts exactly 30 minutes. Keep signing material outside cruush, do not broadcast or deploy during this build, and publish only the verified branch to origin/feat/crypto-pricing.",
   "status": "validating",
   "publicationTarget": "feat/crypto-pricing",
   "baselineSha": "5a77cb504d23bea71867cf0558bd10ede40e2248",
@@ -41,7 +41,7 @@
     "A restored crypto intent keeps its original source and locked selectors through paid even when that rail is unavailable",
     "Only origin/feat/crypto-pricing may be updated; main and production remain forbidden"
     ,"Founder annual and founder lifetime are each limited to 1,000 real users; regular lifetime cruush+ costs $1,999.99 and remains unavailable until all 1,000 real founder lifetime spots are redeemed"
-    ,"The seven cruush+ benefit capsules use three columns because the benefit count is odd; an even benefit count would use two columns"
+    ,"The eight verified cruush+ benefit capsules use two columns on checkout and the cruush+ screen because the benefit count is even"
     ,"Cash App checkout warns before order creation that Cash App stablecoin transfers are not available to New York residents"
     ,"Ping packs use a separate checkout linked from the Pulse menu and cruush+ store: 3 Pings cost $2.99, 10 Pings cost $7.99, and 25 Pings cost $14.99"
     ,"Purchased Ping credits never expire, the included daily Ping allowance is consumed first, and each activated Pulse remains visible for exactly 30 minutes"
@@ -57,7 +57,7 @@
     ".octo/ROADMAP.md",
     ".octo/STATE.md",
     "AI_TASK.json",
-    "cruush-wallet-instructions.txt",
+    "CRUUSH-WALLET-INSTRUCTIONS.txt",
     "EUROPEAN_PROCESSOR_HANDOFF.md",
     "FABLE_HANDOFF.md",
     "FIXLOG.md",
@@ -66,7 +66,9 @@
     "cruush-wallet-setup.sh",
     "docs/CRUUSH-RULES.md",
     "docs/env-matrix.md",
+    "docs/parallel-work-handoff-2026-08-22.md",
     "docs/plans/v2-crypto-processor.md",
+    "docs/todo-2026-08-22.md",
     "docs/worktrees.md",
     "pnpm-lock.yaml",
     "scripts/update-env-matrix.mjs",
@@ -151,10 +153,12 @@
     "src/app/lib/cryptoCheckoutApi.ts",
     "src/app/lib/billingApi.test.ts",
     "src/app/lib/billingApi.ts",
+    "src/app/lib/cruushPlusFeatures.test.ts",
     "src/app/lib/cruushPlusFeatures.ts",
     "src/app/lib/publicLegalContent.tsx",
     "src/app/lib/pingPackApi.test.ts",
     "src/app/lib/pingPackApi.ts",
+    "src/app/lib/overlaySlots.ts",
     "tools/cruush-wallet/.gitignore",
     "tools/cruush-wallet/README.md",
     "tools/cruush-wallet/package-lock.json",
@@ -216,9 +220,9 @@
     "Prices and the recommended plan are visible without scrolling at the required phone viewports",
     "For every term of at least one month, the monthly rate is prominent on the right and the exact charged total is under the term on the left",
     "Six months costs $65.94 total and displays as $10.99/month",
-    "The checkout names the seven current release benefits, including Mile High Club, Feed+, and an accurate Dark Room explanation, without claiming nonexistent visibility sets",
-    "The seven checkout benefit capsules occupy exactly three balanced rows",
-    "Because seven is odd, all seven checkout benefit capsules use the same one-third width and the final capsule is centered on the third row",
+    "Checkout and the cruush+ screen name the eight current release benefits, including Mile High Club, Feed+, Dark Room, and custom side badges, without claiming nonexistent visibility sets",
+    "The eight benefit capsules occupy exactly four balanced rows on both surfaces",
+    "Because eight is even, all eight benefit capsules use the same half width in two-column grids",
     "The activity benefit uses the exact phrase Who has a cruush on you",
     "The checkout names actual payment apps or methods and contains no Other payment options label",
     "Cash App shows a numbered USDC-on-Arbitrum flow; PayPal shows a numbered PYUSD-on-Arbitrum flow; a generic crypto wallet shows a numbered USDC-on-Base flow; Venmo is not advertised without official Arbitrum support",
@@ -391,15 +395,21 @@
       "The moderator-only receipt-recovery route independently fetches canonical receipt and block evidence, then settles through the same locked, idempotent grant path as the watcher.",
       "Support reconciliation includes the payment derivation index needed to consolidate a wallet-owned child balance."
     ],
-    "focusedProof": "Wallet signing: 8/8; wallet RPC sweep sequence: 3/3; public-descriptor and pinned-network checks: 11/11; server chain-source receipt checks: 24/24; watcher settlement checks: 62 passed and 3 existing database-gated checks skipped; moderator route checks: 11/11; checkout checks: 24/24. Wallet, server, and client builds passed.",
-    "securityProof": "All 27 changed files are in allowedPaths. Diff whitespace, JSON parsing, conflict-marker, credential-pattern, server signing/broadcast boundary, and disabled-default checks passed. No transaction was signed or broadcast, no live funds moved, and no main or production action ran.",
+    "focusedProof": "Final task-matched client slice passed 70/70 and built; server crypto, billing, configuration, migration, Ping, and watcher slice passed 253 with 12 optional PostgreSQL-gated checks skipped and built; wallet passed 40/40 and built.",
+    "securityProof": "All 115 branch-changed files are in allowedPaths. Diff whitespace, JSON parsing, conflict-marker, credential-pattern, server signing/broadcast boundary, and disabled-default checks passed. No transaction was signed or broadcast, no live funds moved, and no main or production action ran.",
     "renderedCheckout": [
       "/private/tmp/cruush-crypto-store-desktop-2026-09-02.png",
       "/private/tmp/cruush-crypto-store-mobile-390x844-2026-09-02.png",
       "/private/tmp/cruush-crypto-store-mobile-bottom-390x844-2026-09-02.png",
-      "/private/tmp/cruush-crypto-store-mobile-pricing-390x844-2026-09-02.png"
+      "/private/tmp/cruush-crypto-store-mobile-pricing-390x844-2026-09-02.png",
+      "/private/tmp/cruush-checkout-eight-unlocks-360x740-2026-09-02.png",
+      "/private/tmp/cruush-checkout-eight-unlocks-mobile-2026-09-02.png",
+      "/private/tmp/cruush-checkout-eight-unlocks-desktop-2026-09-02.png",
+      "/private/tmp/cruush-plus-eight-unlocks-360x740-2026-09-02.png",
+      "/private/tmp/cruush-plus-eight-unlocks-mobile-bottom-2026-09-02.png",
+      "/private/tmp/cruush-plus-eight-unlocks-desktop-2026-09-02.png"
     ],
-    "renderedResult": "Desktop and 390x844 local store states show the required price hierarchy, exact Who has a cruush on you copy, all seven reachable benefits, Dark Room behavior, named payment sources, no Other payment options label, and no bottom-navigation overlap. No client UI source changed during this wallet continuation.",
+    "renderedResult": "Desktop, 390x844, and 360x740 local renders show all eight verified benefits in four balanced two-column rows on checkout and the cruush+ screen. The final Dark Room and custom side-badges row remains readable, scrollable past the bottom navigation, and free of overlap.",
     "publication": "Published only to origin/feat/crypto-pricing. Main, production deployment, processor activation, transaction signing, and transaction broadcast remain untouched.",
     "remainingLaunchGates": "Run a disposable Base Sepolia receive and sweep drill, configure production RPC endpoints and gas budget, exercise a controlled receive-through-entitlement and reconciliation flow, resolve EU/EEA withdrawal compliance or exclusion, obtain explicit production authority, and migrate signing custody to hardware before material balances accumulate."
   },
@@ -414,13 +424,13 @@
       "Members can cancel only pending or awaiting-payment orders, retain every cancelled attempt in PostgreSQL, and start a replacement with a different payment method.",
       "Terminal intents no longer return retired payment addresses, payment URIs, or QR codes.",
       "The checkout and billing policy link to a prefilled support request for legally required remedies without promising a refund.",
-      "The seven current cruush+ benefits omit nonexistent visibility sets and render as three balanced rows.",
-      "The seven current cruush+ benefits render as three equal columns with the final capsule centered on its third row.",
+      "The eight current cruush+ benefits omit nonexistent visibility sets and include the implemented custom side-badges control.",
+      "Checkout and the cruush+ screen render all eight benefit capsules as four balanced rows in two equal columns.",
       "Cash App checkout warns before order creation that stablecoin transfers are unavailable to New York residents.",
       "Founder annual and founder lifetime each cap at 1,000 real users; regular lifetime cruush+ costs $1,999.99 and stays hidden and server-blocked until founder lifetime sells out.",
       "The refund support page uses a bounded responsive container and has no horizontal overflow at 360, 390, or 408 CSS pixels."
     ],
-    "focusedProof": "Final client checkout, billing, support, rewards, changelog, and API regression slice passed 86/86; client production build passed. Final server crypto, billing, configuration, migration, and watcher slice passed 227 with 11 optional PostgreSQL-gated checks skipped; server build passed. Disposable PostgreSQL settlement and cancellation proof passed earlier in this continuation. Wallet tool passed 40/40 and built. Copy, casing, environment-documentation, security, conflict-marker, whitespace, public em-dash, and stale-reference checks passed.",
+    "focusedProof": "Final client checkout, billing, support, rewards, changelog, and API regression slice passed 70/70; client production build passed. Final server crypto, billing, configuration, migration, Ping, and watcher slice passed 253 with 12 optional PostgreSQL-gated checks skipped; server build passed. Disposable PostgreSQL settlement, purchase, and cancellation proof passed earlier in this continuation. Wallet tool passed 40/40 and built. Copy, casing, environment-documentation, security, conflict-marker, whitespace, public em-dash, and stale-reference checks passed.",
     "renderedCheckout": [
       "/private/tmp/cruush-crypto-checkout-guides-mobile-top-390x844-2026-09-02.png",
       "/private/tmp/cruush-crypto-venmo-paypal-guide-mobile-390x844-2026-09-02.png",
@@ -433,9 +443,15 @@
       "/private/tmp/cruush-checkout-mobile-benefits.png",
       "/private/tmp/cruush-checkout-mobile-bottom.png",
       "/private/tmp/cruush-refund-mobile-fixed-2026-09-02-v2.png",
-      "/private/tmp/cruush-checkout-safe-preview-mobile-2026-09-02.png"
+      "/private/tmp/cruush-checkout-safe-preview-mobile-2026-09-02.png",
+      "/private/tmp/cruush-checkout-eight-unlocks-360x740-2026-09-02.png",
+      "/private/tmp/cruush-checkout-eight-unlocks-mobile-2026-09-02.png",
+      "/private/tmp/cruush-checkout-eight-unlocks-desktop-2026-09-02.png",
+      "/private/tmp/cruush-plus-eight-unlocks-360x740-2026-09-02.png",
+      "/private/tmp/cruush-plus-eight-unlocks-mobile-bottom-2026-09-02.png",
+      "/private/tmp/cruush-plus-eight-unlocks-desktop-2026-09-02.png"
     ],
-    "renderedResult": "Final desktop and 390x844 renders show the monthly-rate hierarchy, named disabled-by-default payment sources, exact three-row benefits layout, checkout billing disclosure, and responsive refund request. Geometry checks found no horizontal overflow at 360, 390, 408, or 1440 CSS pixels. The enabled local fixture previously exercised exact payment guides, the protected 60-minute order, cancellation, replacement, and terminal-address retirement.",
+    "renderedResult": "Final desktop, 390x844, and 360x740 renders show the monthly-rate hierarchy, named disabled-by-default payment sources, eight benefits in four balanced two-column rows on both surfaces, checkout billing disclosure, and responsive refund request. Geometry checks found no horizontal overflow at 360, 390, 408, or 1440 CSS pixels. The enabled local fixture previously exercised exact payment guides, the protected 60-minute order, cancellation, replacement, and terminal-address retirement.",
     "publication": "Published only to origin/feat/crypto-pricing after final proof. Main, deployment, processor activation, signing, broadcast, and funds remain untouched."
   }
 }

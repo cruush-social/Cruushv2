@@ -62,7 +62,7 @@ lifetime retain their one-payment amount.
 | Annual | $119.99 | $10.00/month |
 | Founder annual | $99.99 | $8.33/month |
 
-The checkout advertises these seven verified release benefits:
+The checkout advertises these eight verified release benefits:
 
 1. Who has a cruush on you: see your full incoming cruush and profile-view lists.
 2. More Pulses: send more Pulses throughout the day.
@@ -71,6 +71,7 @@ The checkout advertises these seven verified release benefits:
 5. Cruise carousel: spin through nearby profiles and browse again.
 6. All seeking and visibility controls: use all seeking filters, combine more visibility controls, and add up to 10 searchable profile tags. Basic includes 3.
 7. Dark Room: browse the map without appearing on it.
+8. Custom side badges: choose any badge for either side of your heart instead of only your role and position.
 
 Dark Room and Ghost Mode are separate. Never call Dark Room Stealth Mode or
 Ghost Mode. Basic members can browse nearby profiles, post text to the local

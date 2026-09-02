@@ -30,8 +30,7 @@ const CHECKOUT_PLUS_FEATURES = CRUUSH_PLUS_FEATURES.map((benefit) =>
     : benefit,
 );
 
-// Seven is odd, so this surface uses three equal columns. If the catalogue
-// becomes even, it switches to two equal columns.
+// Even catalogues use two equal columns. Odd catalogues use three equal columns.
 const BALANCED_CHECKOUT_PLUS_FEATURES = [
   CHECKOUT_PLUS_FEATURES[0],
   CHECKOUT_PLUS_FEATURES[5],
@@ -40,6 +39,7 @@ const BALANCED_CHECKOUT_PLUS_FEATURES = [
   CHECKOUT_PLUS_FEATURES[1],
   CHECKOUT_PLUS_FEATURES[4],
   CHECKOUT_PLUS_FEATURES[6],
+  CHECKOUT_PLUS_FEATURES[7],
 ] as const;
 
 const PAYMENT_STATUS_COPY: Record<CryptoPaymentIntent['status'], string> = {

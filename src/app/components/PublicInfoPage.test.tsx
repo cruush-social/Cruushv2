@@ -42,7 +42,7 @@ describe('PublicInfoPage', () => {
 
     expect(screen.getByRole('heading', { name: 'billing policy' })).toBeInTheDocument();
     expect(screen.getByText('Last updated: September 2, 2026')).toBeInTheDocument();
-    expect(screen.getByText(/nothing renews automatically/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/nothing renews automatically/i)).toHaveLength(2);
     expect(screen.getByText(/does not offer voluntary refunds/i)).toBeInTheDocument();
     expect(screen.getByText(/unique payment address, exact asset, exact network, exact amount, and expiration time/i)).toBeInTheDocument();
     expect(screen.getByText(/before sending, you may cancel an order/i)).toBeInTheDocument();

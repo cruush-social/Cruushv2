@@ -156,7 +156,9 @@ describe('Rewards', () => {
     const benefitsToggle = screen.getByRole('button', { name: 'Hide cruush+ benefits' });
     expect(benefitsToggle).toHaveAttribute('aria-expanded', 'true');
     const featureList = screen.getByRole('list', { name: 'cruush+ features' });
-    expect(within(featureList).getAllByRole('listitem')).toHaveLength(CRUUSH_PLUS_FEATURES.length);
+    expect(featureList).toHaveClass('grid-cols-2');
+    expect(within(featureList).getAllByRole('listitem')).toHaveLength(8);
+    expect(CRUUSH_PLUS_FEATURES).toHaveLength(8);
     for (const feature of CRUUSH_PLUS_FEATURES) {
       expect(within(featureList).getByText(feature.title)).toBeInTheDocument();
       expect(within(featureList).getByText(feature.description)).toBeInTheDocument();

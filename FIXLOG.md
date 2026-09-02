@@ -1,5 +1,6 @@
 # FIXLOG
 
+- 2026-09-02: Checkout and the cruush+ screen now list eight verified cruush+ benefits in two-column capsule grids, including custom side badges.
 - 2026-09-02: Separate Ping pack checkout now sells 3 for $2.99, 10 for $7.99, or 25 for $14.99; paid credits are permanent, tied to the member and order, visible in the Pulse menu, and used only after included daily Pings.
 - 2026-09-02: Founder annual and founder lifetime now each cap at 1,000 real users; the $1,999.99 regular lifetime plan stays hidden and server-blocked until founder lifetime sells out.
 - 2026-09-02: The seven cruush+ benefit capsules now use three equal columns with the final capsule centered, and Cash App checkout warns that stablecoin transfers are unavailable to New York residents.

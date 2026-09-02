@@ -287,7 +287,7 @@ export default function Rewards() {
                 </span>
               </AccordionTrigger>
               <AccordionContent className="px-6 pb-6">
-                <ul aria-label="cruush+ features" className="grid gap-3 sm:grid-cols-2">
+                <ul aria-label="cruush+ features" className="grid grid-cols-2 gap-3">
                   {CRUUSH_PLUS_FEATURES.map((feature) => (
                     <li
                       className="rounded-xl border border-white/20 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_10px_30px_rgba(255,0,114,0.18)]"

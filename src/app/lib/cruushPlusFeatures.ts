@@ -30,4 +30,8 @@ export const CRUUSH_PLUS_FEATURES = [
     title: 'Dark Room',
     description: 'Browse the map without appearing on it.',
   },
+  {
+    title: 'Custom side badges',
+    description: 'Choose any badge for either side of your heart instead of only your role and position.',
+  },
 ] as const;
