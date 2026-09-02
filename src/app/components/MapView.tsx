@@ -1979,7 +1979,11 @@ function createMarkerElement(
         onPinPreview(marker);
       }
     });
-    button.addEventListener('pointerleave', () => setPreviewed(false));
+    button.addEventListener('pointerleave', (event) => {
+      if ((event as PointerEvent).pointerType !== 'touch') {
+        setPreviewed(false);
+      }
+    });
 
     button.addEventListener('pointerdown', (event) => {
       if (document.documentElement.dataset.cruushMapControlsHovered === 'true') {
@@ -2036,7 +2040,15 @@ function createMarkerElement(
       event.stopImmediatePropagation();
       onMarkerInteraction();
       if (isCurrentUser) {
-        onPinPreview(marker);
+        if (lastPointerType === 'touch') {
+          if (previewed) {
+            setPreviewed(false);
+          } else {
+            onPinPreview(marker);
+          }
+        } else {
+          onPinPreview(marker);
+        }
         return;
       }
       if (supportsHoldPreview && lastPointerType === 'touch' && event.detail > 0) {

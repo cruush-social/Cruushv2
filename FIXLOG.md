@@ -16,3 +16,5 @@
   drag left its mobile sheet rectangle unchanged at x=12, y=124.625, width=366, height=619.375.
 - 2026-09-01: The current user's map pin now opens its signal preview on mobile tap. Rendered assertion:
   tapping the owner pin set its pressed state and displayed the signal above the heart.
+- 2026-09-01: The current user's regular and Ghost Mode decoy previews now stay open after a mobile
+  tap instead of closing on touch pointer-leave; tapping the same heart again closes the preview.
