@@ -64,7 +64,7 @@ export const VIBE_GROUPS = [
   {
     label: 'Archetypes',
     options: [
-      'Angel', 'Baddie', 'Bimbo', 'Brat', 'Bull', 'Cuck', 'Cuckquean', 'Cyborg', 'Daddy', 'Doll', 'Goddess', 'Handler', 'Himbo', 'Hothusband', 'Hotwife', 'Incubus', 'Jester', 'King', 'Kitten', 'Masochist', 'Mommy', 'Pixie', 'Pony', 'Prince', 'Princess', 'Pup', 'Queen', 'Rigger', 'Rope Bunny', 'Sadist', 'Service', 'Succubus', 'Trade', 'Trainer', 'Unicorn', 'Vampire', 'Wolf'
+      'Angel', 'Baddie', 'Bimbo', 'Bull', 'Cuck', 'Cuckquean', 'Cyborg', 'Daddy', 'Doll', 'Goddess', 'Handler', 'Himbo', 'Hothusband', 'Hotwife', 'Incubus', 'Jester', 'King', 'Kitten', 'Masochist', 'Mommy', 'Pixie', 'Pony', 'Prince', 'Princess', 'Pup', 'Queen', 'Rigger', 'Rope Bunny', 'Sadist', 'Service', 'Succubus', 'Trade', 'Trainer', 'Unicorn', 'Vampire', 'Wolf'
     ].sort((left, right) => left.localeCompare(right, undefined, { sensitivity: 'base' })),
   },
 ];
