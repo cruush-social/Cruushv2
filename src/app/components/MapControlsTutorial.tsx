@@ -92,7 +92,7 @@ const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'crowds',
     title: 'Crowd Mode',
-    description: 'Crowd Mode is part of Visibility. Choose active crowds when you want only people in those crowds to see you.',
+    description: 'Choosing crowds alone does not change who can see you. Turn Crowd Mode on when you want only people in your selected crowds to see you, then turn it off to return to your normal visibility.',
     actionLabel: 'Open Crowd Mode',
   },
   {
