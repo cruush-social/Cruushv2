@@ -32,4 +32,18 @@ describe('PublicInfoPage', () => {
     expect(screen.getByText('Last updated: July 21, 2026')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Sensitive information' })).toBeInTheDocument();
   });
+
+  it('renders the current one-time billing and refund policy', () => {
+    render(
+      <MemoryRouter>
+        <PublicInfoPage page="billing" />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole('heading', { name: 'billing policy' })).toBeInTheDocument();
+    expect(screen.getByText('Last updated: September 2, 2026')).toBeInTheDocument();
+    expect(screen.getByText(/nothing renews automatically/i)).toBeInTheDocument();
+    expect(screen.getByText(/does not offer voluntary refunds/i)).toBeInTheDocument();
+    expect(screen.getByText(/unique payment address, exact asset, exact network, exact amount, and expiration time/i)).toBeInTheDocument();
+  });
 });

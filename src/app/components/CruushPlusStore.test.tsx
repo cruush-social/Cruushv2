@@ -286,6 +286,9 @@ describe('CruushPlusStore', () => {
     expect(screen.getByRole('button', { name: 'Cash App' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Venmo or PayPal' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'A crypto wallet' })).toBeInTheDocument();
+    expect(screen.getByText('USDC · Arbitrum')).toBeInTheDocument();
+    expect(screen.getByText('PYUSD · Arbitrum')).toBeInTheDocument();
+    expect(screen.getByText('USDC · Base')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Something else' })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /why cruush takes crypto/i }));
@@ -311,7 +314,7 @@ describe('CruushPlusStore', () => {
 
     const main = (await screen.findByText('Choose your time')).closest('main');
     expect(main).not.toBeNull();
-    expect(main?.children).toHaveLength(4);
+    expect(main?.children).toHaveLength(5);
     expect(main?.children[0]).toHaveTextContent('Choose your time');
     expect(main?.children[0]).toHaveTextContent('Recommended');
     expect(main?.children[1]).toHaveTextContent('What are you paying from?');
@@ -321,6 +324,7 @@ describe('CruushPlusStore', () => {
     expect(main?.children[1]).toContainElement(screen.getByRole('button', { name: /get 1 year for \$99\.99/i }));
     expect(main?.children[2]).toContainElement(screen.getByRole('list', { name: 'cruush+ benefits' }));
     expect(main?.children[3]).toContainElement(screen.getByRole('button', { name: /why cruush takes crypto/i }));
+    expect(main?.children[4]).toContainElement(screen.getByRole('link', { name: /read the billing policy/i }));
   });
 
   it('never starts a payment while the processor is not ready', async () => {
@@ -342,10 +346,17 @@ describe('CruushPlusStore', () => {
   });
 
   it.each([
-    ['Cash App', 'usdc_arbitrum'],
-    ['Venmo or PayPal', 'pyusd_arbitrum'],
-    ['A crypto wallet', 'usdc_base'],
-  ] as const)('maps %s to the exact %s rail', async (sourceLabel, rail) => {
+    ['Cash App', 'usdc_arbitrum', [
+      'Open Cash App and go to the Payment tab.',
+    ]],
+    ['Venmo or PayPal', 'pyusd_arbitrum', [
+      'Open Venmo, go to Crypto, and choose PayPal USD (PYUSD).',
+      'Open PayPal, go to Finances, and open your PayPal USD (PYUSD) balance.',
+    ]],
+    ['A crypto wallet', 'usdc_base', [
+      'Choose USDC as the asset and Base as the network.',
+    ]],
+  ] as const)('maps %s to the exact %s rail and instructions', async (sourceLabel, rail, instructions) => {
     vi.mocked(getCryptoProcessorStatus).mockResolvedValue(processorStatus([
       'usdc_arbitrum',
       'pyusd_arbitrum',
@@ -358,6 +369,10 @@ describe('CruushPlusStore', () => {
     const sourceButton = await screen.findByRole('button', { name: sourceLabel });
     fireEvent.click(sourceButton);
     expect(sourceButton).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(screen.getByRole('button', { name: /how to send this payment/i }));
+    for (const instruction of instructions) {
+      expect(await screen.findByText(instruction)).toBeInTheDocument();
+    }
 
     fireEvent.click(screen.getByRole('button', { name: /get 1 month for \$18\.99/i }));
 
@@ -462,7 +477,11 @@ describe('CruushPlusStore', () => {
     renderStore();
 
     expect(await screen.findByText(/waiting for your payment to arrive/i)).toBeInTheDocument();
-    expect(screen.getByText(/payment window closes in/i)).toBeInTheDocument();
+    expect(screen.getByText('Protected order')).toBeInTheDocument();
+    expect(screen.getByText(/order timer:/i)).toBeInTheDocument();
+    expect(screen.getByText(/this address is unique to this order/i)).toHaveTextContent(
+      /only the exact amount in USDC on Base that arrives on-chain before the timer reaches 0 can count toward it/i,
+    );
     expect(screen.getByText('0x73659c60270d326c06Ac204F1A9C63f889a3D14B')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Payment started' })).toBeDisabled();
     expect(createCryptoPaymentIntent).not.toHaveBeenCalled();
@@ -721,6 +740,19 @@ describe('CruushPlusStore', () => {
     await waitFor(() => expect(createCryptoPaymentIntent).toHaveBeenCalledTimes(2));
     expect(vi.mocked(createCryptoPaymentIntent).mock.calls[0]?.[0].idempotencyKey).toBe(
       vi.mocked(createCryptoPaymentIntent).mock.calls[1]?.[0].idempotencyKey,
+    );
+  });
+
+  it('puts the one-time no-voluntary-refund billing policy at the bottom', async () => {
+    vi.mocked(getCryptoProcessorStatus).mockResolvedValue(processorStatus());
+
+    renderStore();
+
+    const link = await screen.findByRole('link', { name: 'Read the billing policy' });
+    expect(link).toHaveAttribute('href', '/billing-policy');
+    expect(link.closest('div')).toHaveTextContent('One-time purchase. Nothing renews automatically.');
+    expect(link.closest('div')).toHaveTextContent(
+      'Purchases are final and non-refundable except where applicable law requires a withdrawal, refund, remedy, or forced reversal.',
     );
   });
 });

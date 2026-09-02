@@ -7,6 +7,7 @@ export type PolicySection = {
 
 export const legalUpdated = "July 10, 2026";
 export const privacyUpdated = "July 21, 2026";
+export const billingUpdated = "September 2, 2026";
 export const legalContact = "hello@cruush.app";
 export const legalEntity = "cruush technologies LLC";
 
@@ -100,6 +101,16 @@ export const termsSections: PolicySection[] = [
         to {contactLink}.
       </>,
       "You may not upload content unless you own it, created it, have permission to use it, or are otherwise legally allowed to share it."
+    ]
+  },
+  {
+    title: "cruush+ purchases",
+    body: [
+      "Every cruush+ checkout currently offered by cruush is a one-time purchase for the access period shown at checkout. Nothing renews automatically, and cruush does not bill the purchase again.",
+      <>
+        Crypto order timing, transfer requirements, and refund terms are described
+        in the <a href="/billing-policy">Billing Policy</a>.
+      </>
     ]
   },
   {
@@ -503,6 +514,62 @@ export const statement2257Sections: PolicySection[] = [
         Questions about this 18 U.S.C. § 2257 Statement can be sent to{" "}
         {contactLink}. cruush may update this statement as explicit-content
         features, moderation practices, or legal requirements change.
+      </>
+    ]
+  }
+];
+
+export const billingSections: PolicySection[] = [
+  {
+    title: "One-time cruush+ purchases",
+    body: [
+      "Every cruush+ checkout currently offered by cruush is a one-time purchase for the access period shown at checkout. Nothing renews automatically, and cruush does not bill the purchase again.",
+      "The exact total price and access period are shown before an order starts."
+    ]
+  },
+  {
+    title: "Crypto order window",
+    body: [
+      "Starting a crypto payment creates one order with a unique payment address, exact asset, exact network, exact amount, and expiration time. The checkout displays the remaining time.",
+      "Only a matching transfer that arrives on-chain by the order deadline can count toward that order. Do not send to an expired order address. If you already sent before the deadline and the checkout says the payment is confirming, do not send again."
+    ]
+  },
+  {
+    title: "Sending crypto",
+    body: [
+      "Blockchain transfers cannot be canceled or reversed. Send only the asset, network, amount, and address shown for the active order. A transfer using another asset, network, amount, or address may not activate cruush+ and may be lost.",
+      "Any sending-platform or blockchain network fee is separate. Make sure the exact amount shown by cruush reaches the order address before the timer expires."
+    ]
+  },
+  {
+    title: "When access starts",
+    body: [
+      "cruush+ access starts only after cruush independently confirms the matching blockchain transfer. A submitted transaction or copied address is not proof of payment.",
+      "The purchased access lasts for the fixed period shown at checkout. It does not renew automatically."
+    ]
+  },
+  {
+    title: "Refunds",
+    body: [
+      "cruush does not offer voluntary refunds for cruush+. Purchases are final and non-refundable except where applicable law requires a withdrawal, refund, remedy, or forced reversal.",
+      "Unused time, partial terms, price changes, promotions, sending mistakes, and account closure do not create a voluntary refund right. Any legally required outcome is handled under applicable law."
+    ]
+  },
+  {
+    title: "Late, incomplete, or unmatched transfers",
+    body: [
+      "A late, incomplete, underpaid, wrong-asset, wrong-network, or otherwise unmatched transfer does not automatically activate cruush+. Available blockchain evidence may be retained for support, fraud prevention, accounting, disputes, and legally required handling.",
+      <>
+        Contact <a href={`mailto:${legalContact}`}>{legalContact}</a> with the order details
+        and transaction hash. Never send cruush your wallet recovery words, private key, or seed phrase.
+      </>
+    ]
+  },
+  {
+    title: "Billing support",
+    body: [
+      <>
+        Billing questions can be sent to <a href={`mailto:${legalContact}`}>{legalContact}</a>.
       </>
     ]
   }

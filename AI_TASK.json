@@ -1,5 +1,5 @@
 {
-  "task": "Finish the production-capable watch-only crypto processor around Julien's verified local wallet. Real customer funds must arrive at unique child addresses owned by this wallet, confirmed chain evidence must grant the exact entitlement once, the local operator wallet must safely consolidate supported stablecoins to its treasury, and moderators must be able to verify a never-ingested transaction receipt from chain. Keep signing material outside cruush, do not broadcast or deploy during this build, and publish only the verified branch to origin/feat/crypto-pricing.",
+  "task": "Finish the production-capable watch-only crypto processor around Julien's verified local wallet. Add exact customer steps for Cash App, Venmo, PayPal, and a crypto wallet; make the server-owned expiring order protection explicit; restore the billing-policy page and checkout-bottom disclosure with the current one-time, no-voluntary-refund policy. Keep signing material outside cruush, do not broadcast or deploy during this build, and publish only the verified branch to origin/feat/crypto-pricing.",
   "status": "validating",
   "publicationTarget": "feat/crypto-pricing",
   "baselineSha": "5a77cb504d23bea71867cf0558bd10ede40e2248",
@@ -27,6 +27,9 @@
     "Arbitrum is the primary rail: it is the only network Cash App, Venmo, and PayPal can all send to, and its fees are negligible where mainnet charges per sale forever",
     "The checkout asks which app someone is paying from, never which chain or coin",
     "The Other payment options label is removed because it does not identify a useful crypto choice; the underlying payment controls remain",
+    "Cash App instructions name USDC on Arbitrum; Venmo and PayPal instructions separately name PYUSD on Arbitrum; generic wallet instructions name USDC on Base",
+    "The payment window is one server-owned order deadline. Its unique address, exact asset, network, and amount apply only to that order; the browser countdown never creates settlement evidence",
+    "The restored billing policy describes one-time fixed-term crypto purchases only. Nothing renews automatically, and cruush offers no voluntary refunds except where law requires a withdrawal, refund, remedy, or forced reversal",
     "Julien explicitly authorized creating the software wallet in the current julienlenaz macOS user on 2026-09-01",
     "Recovery words and private keys remain user-only: the agent may prepare and launch initialization but must stop before the live-presence response and never inspect, capture, copy, store, or transmit the secret display",
     "Migration 101 gives every payment intent a durable origin and cursor on every supported chain and adds authoritative transfer block timestamps",
@@ -109,6 +112,9 @@
     "src/app/components/GhostModeSettings.tsx",
     "src/app/components/MapPresenceSettings.tsx",
     "src/app/components/MapView.tsx",
+    "src/app/components/PublicInfoPage.test.tsx",
+    "src/app/components/PublicInfoPage.tsx",
+    "src/app/components/PublicPolicyLinks.tsx",
     "src/app/components/Rewards.test.tsx",
     "src/app/components/Rewards.tsx",
     "src/app/lib/cryptoCheckoutApi.test.ts",
@@ -161,10 +167,10 @@
     "CRUUSH_WALLET_RPC_URL is new, local-operator-only, required only for sweep planning or broadcasting, may embed an API key, and must never be set in the cruush client or API environment"
   ],
   "schemaVersion": 2,
-  "objective": "Deliver a production-capable, disabled-by-default in-house crypto payment processor on feat/crypto-pricing that receives real funds into Julien's wallet-owned child addresses, grants from canonical chain evidence, recovers never-ingested receipts, and gives Julien a constrained local path to consolidate supported stablecoins into his wallet treasury.",
-  "userOutcome": "Julien can inspect and access the verified wallet locally, configure cruush with only its public xpub, accept supported stablecoins directly into wallet-owned addresses after launch approval, recover missed receipt evidence, and consolidate balances without ever placing signing material in cruush.",
+  "objective": "Deliver a production-capable, disabled-by-default in-house crypto payment processor on feat/crypto-pricing that receives real funds into Julien's wallet-owned child addresses, gives customers exact source-specific sending steps, protects each order with a server deadline and unique address, grants from canonical chain evidence, restores the current billing policy, recovers never-ingested receipts, and gives Julien a constrained local path to consolidate supported stablecoins into his wallet treasury.",
+  "userOutcome": "A customer can choose Cash App, Venmo, PayPal, or a crypto wallet, see exactly what asset and network to use, follow app-specific steps, understand the order countdown, and review the one-time no-voluntary-refund billing policy before sending. Julien retains direct wallet custody and a watch-only server.",
   "audience": "Julien as operator; cruush members buying cruush+ once the processor is enabled.",
-  "nextVisibleMilestone": "The local wallet status and address commands, public-xpub configuration path, multichain sweep workflow, and verified receipt-recovery path work from the feature branch while processor activation and broadcast remain off.",
+  "nextVisibleMilestone": "The local checkout renders source-specific sending steps, protected-order countdown copy, and a restored billing-policy page and bottom disclosure at desktop and phone sizes while processor activation remains off.",
   "successCriteria": [
     "The processor stays disabled and accepts no funds until Julien enables it",
     "A payment intent receives a unique receiving address that settles only that order",
@@ -178,6 +184,10 @@
     "The checkout names seven benefits implemented in this branch without selling unmerged Mile High Club or Feed+, free map, feed-text, or basic nearby-browsing behavior",
     "The activity benefit uses the exact phrase Who has a cruush on you",
     "The checkout names actual payment apps or methods and contains no Other payment options label",
+    "Cash App shows a numbered USDC-on-Arbitrum flow; Venmo and PayPal each show their own numbered PYUSD-on-Arbitrum flow; a generic crypto wallet shows a numbered USDC-on-Base flow",
+    "The active order identifies its countdown, unique order address, exact asset, exact network, exact amount, and stops exposing payable details at expiry",
+    "A Billing policy disclosure appears at the bottom of checkout and links to a public /billing-policy page",
+    "The billing page states that every current checkout is one-time, nothing renews automatically, and purchases are final and non-refundable except where applicable law requires a withdrawal, refund, remedy, or forced reversal",
     "Each visible payment source is disabled unless its exact rail is ready",
     "A restored unavailable rail remains selected and locked through paid",
     "Every active scan verifies chain ID before advancing its durable per-intent chain position",
@@ -207,7 +217,7 @@
     "Focused server, client, and wallet-tool tests pass for every touched file",
     "Server and client production builds pass",
     "Database settlement guards proven against a live local database by attempting to violate them",
-    "Rendered local /store inspected at desktop and 360x740",
+    "Rendered local /store and /billing-policy inspected at desktop and 390x844",
     "Secret and deployment-boundary scans clean"
   ],
   "stopConditions": [
@@ -342,5 +352,28 @@
     "renderedResult": "Desktop and 390x844 local store states show the required price hierarchy, exact Who has a cruush on you copy, all seven reachable benefits, Dark Room behavior, named payment sources, no Other payment options label, and no bottom-navigation overlap. No client UI source changed during this wallet continuation.",
     "publication": "Published only to origin/feat/crypto-pricing. Main, production deployment, processor activation, transaction signing, and transaction broadcast remain untouched.",
     "remainingLaunchGates": "Run a disposable Base Sepolia receive and sweep drill, configure production RPC endpoints and gas budget, exercise a controlled receive-through-entitlement and reconciliation flow, resolve EU/EEA withdrawal compliance or exclusion, obtain explicit production authority, and migrate signing custody to hardware before material balances accumulate."
+  },
+  "checkoutBillingEvidence20260902": {
+    "implementation": [
+      "Cash App identifies USDC on Arbitrum and has a numbered sending guide.",
+      "Venmo and PayPal identify PYUSD on Arbitrum and have separate numbered sending guides.",
+      "The crypto-wallet route identifies USDC on Base and has a numbered sending guide.",
+      "An active checkout labels the intent as a protected order, displays the server deadline as a countdown, and states that only the exact matching transfer received on-chain before zero can count.",
+      "The checkout-bottom billing disclosure is restored and links to the restored /billing-policy route.",
+      "The billing policy covers one-time purchases, order expiry, sending mistakes, confirmation, unmatched transfers, and no voluntary refunds except legally required outcomes."
+    ],
+    "focusedProof": "CruushPlusStore, PublicInfoPage, and Auth focused tests passed 45/45. Client production build passed with the two existing unrelated PulseEffectPreview and MapView warnings.",
+    "renderedCheckout": [
+      "/private/tmp/cruush-crypto-checkout-guides-mobile-top-390x844-2026-09-02.png",
+      "/private/tmp/cruush-crypto-venmo-paypal-guide-mobile-390x844-2026-09-02.png",
+      "/private/tmp/cruush-crypto-protected-order-mobile-390x844-2026-09-02.png",
+      "/private/tmp/cruush-crypto-protected-order-guide-mobile-390x844-2026-09-02.png",
+      "/private/tmp/cruush-crypto-checkout-billing-mobile-bottom-390x844-2026-09-02.png",
+      "/private/tmp/cruush-billing-policy-mobile-390x844-2026-09-02.png",
+      "/private/tmp/cruush-billing-policy-mobile-bottom-390x844-2026-09-02.png",
+      "/private/tmp/cruush-crypto-checkout-guides-desktop-2026-09-02.png"
+    ],
+    "renderedResult": "The actual local checkout was inspected at desktop and 390x844. Cash App, Venmo, PayPal, and crypto-wallet guides were exercised. A temporary local-only ready and active-order fixture rendered the protected-order countdown and was removed before validation. The restored billing link and page were exercised at top and bottom mobile scroll positions.",
+    "publication": "Pending verified feature-branch-only publication. Main, deployment, processor activation, signing, broadcast, and funds remain untouched."
   }
 }

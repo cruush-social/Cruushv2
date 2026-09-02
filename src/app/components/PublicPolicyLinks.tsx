@@ -12,6 +12,7 @@ export const PUBLIC_POLICY_LINKS = [
   { label: 'Privacy', path: '/privacy' },
   { label: 'Terms', path: '/terms' },
   { label: 'Security', path: '/security' },
+  { label: 'Billing policy', path: '/billing-policy' },
   { label: '2257', path: '/2257' },
   { label: 'Takedown policy', path: '/takedown-policy' },
 ];

@@ -2,6 +2,8 @@ import { ArrowLeft } from 'lucide-react';
 import { Button } from './ui/button';
 import { useBackOrFallback } from '../lib/useBackOrFallback';
 import {
+  billingSections,
+  billingUpdated,
   legalContact,
   legalUpdated,
   privacySections,
@@ -20,6 +22,7 @@ export type PublicInfoPageId =
   | 'privacy'
   | 'safety'
   | 'security'
+  | 'billing'
   | 'content-removal'
   | 'human-trafficking'
   | 'takedown'
@@ -170,6 +173,12 @@ const pageContent: Record<PublicInfoPageId, PublicInfoPageContent> = {
     title: 'security faq',
     updated: securityUpdated,
     sections: securitySections,
+  },
+  billing: {
+    eyebrow: 'Billing',
+    title: 'billing policy',
+    updated: billingUpdated,
+    sections: billingSections,
   },
   'content-removal': {
     eyebrow: 'Removal request',

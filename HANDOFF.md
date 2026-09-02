@@ -67,6 +67,17 @@ visible choices:
 | Venmo or PayPal | `pyusd_arbitrum` |
 | A crypto wallet | `usdc_base` |
 
+Each source names its exact asset and network before the order starts:
+
+- Cash App sends USDC on Arbitrum.
+- Venmo and PayPal send PYUSD on Arbitrum.
+- A crypto wallet sends USDC on Base.
+
+The checkout includes numbered, source-specific sending steps before payment
+and repeats the applicable guide beside an active order. Venmo and PayPal have
+separate steps. The instructions always direct the member to use the unique
+order address, exact amount, exact asset, exact network, and active order timer.
+
 The hidden `pyusd_ethereum` rail remains a server fallback. Do not expose a
 generic "Something else" or "Other payment options" choice. Those labels say
 nothing useful in a crypto checkout.
@@ -186,6 +197,11 @@ selectors stay locked while an open or paid intent owns checkout. The page
 reloads the member's current active intent before choosing defaults. If that
 intent's original rail becomes unavailable, the page preserves that rail and
 its payment state through `paid`; it never switches or unlocks the checkout.
+The active-order panel labels this as a protected order and states that only
+the exact asset and amount on the named network that arrives on-chain at the
+unique address before the timer reaches zero can count. A transfer already in
+`confirming` remains tracked after the sending deadline; the member is told not
+to send again.
 
 The watcher keeps a bounded post-expiry evidence window. The moderator-only
 `POST /api/crypto/support/payment-receipts` path recovers a transaction first
@@ -210,6 +226,14 @@ of exceptional or legally required outcomes. EU/EEA sales remain blocked until
 jurisdiction-specific legal review and a compliant service-withdrawal flow are
 complete, or those consumers are excluded server-side.
 
+`/billing-policy` is restored for this release. Checkout links to it from a
+bottom disclosure that says the purchase is one-time, never renews
+automatically, and is final and non-refundable except where applicable law
+requires a withdrawal, refund, remedy, or forced reversal. The policy also
+documents the order window, sending mistakes, confirmation boundary, late or
+unmatched transfers, and billing support. Do not restore obsolete recurring or
+app-store billing language.
+
 ## Primary files
 
 | Concern | File |
@@ -225,6 +249,7 @@ complete, or those consumers are excluded server-side.
 | Intended-chain watch origin | `server/sql/100_crypto_payment_watch_start.sql` |
 | Per-intent chain positions and block timestamps | `server/sql/101_crypto_payment_chain_positions.sql` |
 | Checkout | `src/app/components/CruushPlusStore.tsx` |
+| Billing policy route and copy | `src/app/components/PublicInfoPage.tsx`, `src/app/lib/publicLegalContent.tsx` |
 | Public wallet descriptor tool | `tools/cruush-wallet` |
 
 Migrations `096` through `101` are the complete ordered crypto schema slice.

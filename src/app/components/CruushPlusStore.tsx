@@ -66,19 +66,66 @@ function termLabel(plan: CruushPlusPlan) {
   }
 }
 
-// People know which app their money is in, not which coin it settles in. Naming
-// the token here would put back exactly the jargon this picker exists to
-// remove; the payment screen states the asset and network precisely once an
-// address is on screen, which is the only place it matters.
-// Cash App sends USDC on Arbitrum; Venmo and PayPal send PYUSD on Arbitrum.
 const PAYMENT_SOURCES: ReadonlyArray<{
   rail: CryptoPaymentRailId;
   label: string;
+  asset: string;
+  network: string;
 }> = [
-  { rail: 'usdc_arbitrum', label: 'Cash App' },
-  { rail: 'pyusd_arbitrum', label: 'Venmo or PayPal' },
-  { rail: 'usdc_base', label: 'A crypto wallet' },
+  { rail: 'usdc_arbitrum', label: 'Cash App', asset: 'USDC', network: 'Arbitrum' },
+  { rail: 'pyusd_arbitrum', label: 'Venmo or PayPal', asset: 'PYUSD', network: 'Arbitrum' },
+  { rail: 'usdc_base', label: 'A crypto wallet', asset: 'USDC', network: 'Base' },
 ];
+
+type PaymentMethodGuide = {
+  title: string;
+  steps: readonly string[];
+};
+
+const PAYMENT_METHOD_GUIDES: Partial<Record<CryptoPaymentRailId, readonly PaymentMethodGuide[]>> = {
+  usdc_arbitrum: [{
+    title: 'Cash App',
+    steps: [
+      'Open Cash App and go to the Payment tab.',
+      'Copy the order address from cruush and paste it into the Cash App search bar.',
+      'Enter the exact dollar amount shown by cruush. Cash App sends it as USDC.',
+      'When Cash App shows the network, choose Arbitrum.',
+      'Check the amount and address, then send before the cruush order timer reaches 0.',
+    ],
+  }],
+  pyusd_arbitrum: [
+    {
+      title: 'Venmo',
+      steps: [
+        'Open Venmo, go to Crypto, and choose PayPal USD (PYUSD).',
+        'Tap the transfer arrows, tap Send, then paste or scan the order address from cruush.',
+        'Choose Arbitrum as the network.',
+        'Enter the exact PYUSD amount shown by cruush.',
+        'Check the amount, network, and address, then send before the cruush order timer reaches 0.',
+      ],
+    },
+    {
+      title: 'PayPal',
+      steps: [
+        'Open PayPal, go to Finances, and open your PayPal USD (PYUSD) balance.',
+        'Tap the transfer arrows, tap Send, then paste or scan the order address from cruush.',
+        'Choose Arbitrum on the blockchain network confirmation screen.',
+        'Enter the exact PYUSD amount shown by cruush.',
+        'Review the amount, network, and address, then tap Send Now before the cruush order timer reaches 0.',
+      ],
+    },
+  ],
+  usdc_base: [{
+    title: 'Crypto wallet',
+    steps: [
+      'Open your wallet or exchange and choose Send.',
+      'Choose USDC as the asset and Base as the network.',
+      'Paste the order address from cruush or scan its QR code.',
+      'Enter the exact USDC amount shown by cruush.',
+      'Check the amount, network, and address, then send before the cruush order timer reaches 0.',
+    ],
+  }],
+};
 
 // A network's display name. Getting this wrong on a payment screen sends money
 // somewhere unrecoverable, so it is spelled out rather than inferred.
@@ -146,6 +193,23 @@ function formatPaymentTimeRemaining(expiresAt: string, nowMs: number) {
   const minutes = Math.floor(remainingSeconds / 60);
   const seconds = remainingSeconds % 60;
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+}
+
+function PaymentMethodInstructions({ rail }: { rail: CryptoPaymentRailId }) {
+  const guides = PAYMENT_METHOD_GUIDES[rail] ?? [];
+
+  return (
+    <div className="space-y-3">
+      {guides.map((guide) => (
+        <section className="rounded-lg border border-border bg-muted/30 p-3" key={guide.title}>
+          <h3 className="text-sm font-semibold">{guide.title}</h3>
+          <ol className="mt-2 list-decimal space-y-1 pl-5 text-xs leading-5 text-muted-foreground">
+            {guide.steps.map((step) => <li key={step}>{step}</li>)}
+          </ol>
+        </section>
+      ))}
+    </div>
+  );
 }
 
 export default function CruushPlusStore() {
@@ -544,10 +608,6 @@ export default function CruushPlusStore() {
           <Card>
             <CardContent className="space-y-2 p-3">
               <p className="text-sm font-semibold">What are you paying from?</p>
-              {/* Ask which app someone is paying from, not which chain. Nobody
-                  outside crypto knows what Arbitrum is, and picking the wrong
-                  network sends money nowhere it can be recovered from. The app
-                  determines the token and the chain, so we choose those. */}
               <div className="grid grid-cols-3 gap-2" aria-label="Where you are paying from">
                 {PAYMENT_SOURCES.map((source) => {
                   const sourceReady = readyRailIds.has(source.rail);
@@ -558,6 +618,7 @@ export default function CruushPlusStore() {
                     <button
                       key={source.rail}
                       type="button"
+                      aria-label={source.label}
                       aria-pressed={sourceSelected}
                       disabled={!sourceReady || checkoutSelectionLocked}
                       className={`rounded-xl border px-2 py-2 text-center disabled:opacity-50 ${sourceSelected ? 'border-primary bg-primary/10' : 'border-border'}`}
@@ -569,10 +630,25 @@ export default function CruushPlusStore() {
                       }}
                     >
                       <span className="block text-sm font-medium">{source.label}</span>
+                      <span className="mt-0.5 block text-[10px] leading-4 text-muted-foreground">
+                        {source.asset} · {source.network}
+                      </span>
                     </button>
                   );
                 })}
               </div>
+              {!intent ? (
+                <Accordion collapsible type="single">
+                  <AccordionItem className="border-0" value="payment-instructions">
+                    <AccordionTrigger className="py-2 text-xs hover:no-underline">
+                      How to send this payment
+                    </AccordionTrigger>
+                    <AccordionContent className="pb-1">
+                      <PaymentMethodInstructions rail={selectedRail} />
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
+              ) : null}
               {/* Same gradient as the app's other primary actions. */}
               <Button
                 className="h-12 w-full rounded-full text-base font-semibold text-white disabled:opacity-50"
@@ -606,9 +682,16 @@ export default function CruushPlusStore() {
                   </p>
                   {statusError ? <p className="text-xs text-destructive">{statusError}</p> : null}
                   {!paymentWindowClosed && intent.expiresAt && isOpenCryptoPayment(intent.status) ? (
-                    <p className="text-xs font-medium text-muted-foreground">
-                      Payment window closes in {formatPaymentTimeRemaining(intent.expiresAt, clockMs)}.
-                    </p>
+                    <div className="rounded-lg border border-border bg-muted/40 p-3">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-foreground">Protected order</p>
+                      <p className="mt-1 text-sm font-semibold">
+                        Order timer: {formatPaymentTimeRemaining(intent.expiresAt, clockMs)}
+                      </p>
+                      <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                        This address is unique to this order. Only the exact amount in {intent.asset} on{' '}
+                        {NETWORK_LABELS[intent.network]} that arrives on-chain before the timer reaches 0 can count toward it.
+                      </p>
+                    </div>
                   ) : null}
                   {intent.paymentAddress && intent.quotedAmountAtomic && isOpenCryptoPayment(intent.status) && !paymentWindowClosed ? (
                     <div className="space-y-3">
@@ -636,6 +719,10 @@ export default function CruushPlusStore() {
                       <p className="text-xs leading-5 text-muted-foreground">
                         Send only {intent.asset} on {NETWORK_LABELS[intent.network]} to this address. Another asset or network may be lost.
                       </p>
+                      <div>
+                        <p className="mb-2 text-sm font-semibold">How to send it</p>
+                        <PaymentMethodInstructions rail={selectedRail} />
+                      </div>
                     </div>
                   ) : null}
                   {!locallyExpired ? (
@@ -702,6 +789,19 @@ export default function CruushPlusStore() {
               </AccordionContent>
             </AccordionItem>
           </Accordion>
+        </Card>
+
+        <Card>
+          <CardContent className="space-y-2 p-4 text-xs leading-5 text-muted-foreground">
+            <h2 className="text-sm font-semibold text-foreground">Billing policy</h2>
+            <p>
+              One-time purchase. Nothing renews automatically. Purchases are final and non-refundable
+              except where applicable law requires a withdrawal, refund, remedy, or forced reversal.
+            </p>
+            <a className="font-medium text-foreground underline underline-offset-4" href="/billing-policy">
+              Read the billing policy
+            </a>
+          </CardContent>
         </Card>
       </main>
     </div>
