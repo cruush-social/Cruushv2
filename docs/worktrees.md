@@ -10,6 +10,7 @@ the branch name.
 | Branch | Worktree path | Last commit | State | Ahead/behind main | Purpose |
 | --- | --- | --- | --- | --- | --- |
 | `feature/moderation-dashboard-full-access` | `/Volumes/good/Cruushv2-1` | 2026-08-06 f2055305 Restore the notchless spinning logo loop on the landing page | dirty (114 files) | +31/-146 |  |
+| `codex/sh-review-only-20260902` | `/Volumes/good/Cruushv2-sh-review-only` | 2026-09-02 a69841f4 fix: clarify onboarding validation | dirty (9 files) | +0/-0 | Stream sexual-harassment-only results publish with moderator review; Codex; deploying. |
 | `(detached)` | `/private/tmp/cruush-baseline-20260809` | 2026-08-08 d9a1776a fix: clarify moderation errors and normalize chat sends | dirty (2 files) | +0/-1 |  |
 | `agent/stop-automatic-cruush-plus` | `/private/tmp/cruush-plus-release-20260809` | 2026-08-09 d4e138a8 stop automatic cruush+ trials | clean | +1/-1 |  |
 | `(detached)` | `/private/tmp/cruush-v12-validation-20260809` | 2026-08-09 8d02b294 Fix tutorial clearance and publish v1.2 changelog | dirty (3 files) | +1/-0 |  |

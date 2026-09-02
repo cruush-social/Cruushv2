@@ -33,6 +33,7 @@
     "Preserve existing published spots, check-ins, Pink Book posts, ratings, and unrelated 1.6 work.",
     "Never display gay spot, dyke spot, or dyke bar as a public label.",
     "Do not infer trans or nonbinary presence from profiles or scraped visitor data.",
+    "Harassment-only Stream results must publish with flagged moderator review, while mixed unsafe labels and non-harassment flags retain their existing enforcement.",
     "Keep user-facing copy free of em dashes and spell cruush lowercase."
   ],
   "nonGoals": [
@@ -128,6 +129,12 @@
     "server/src/routes/support.ts",
     "server/src/routes/auth.ts",
     "server/src/referrals-service.ts",
+    "server/src/policy-mapper.ts",
+    "server/src/policy-mapper.test.ts",
+    "server/src/moderation-service.ts",
+    "server/src/moderation-service.test.ts",
+    "server/src/routes/posts.ts",
+    "server/src/routes/messages.ts",
     "server/sql/103_places.sql",
     "server/sql/104_spots_taxonomy.sql",
     "server/sql/117_public_spots_100mi_nyc.sql",
@@ -145,6 +152,7 @@
     "public/email/cruush-v1.6-mhc.jpg",
     "public/email/cruush-v1.6-feed.jpg",
     "FIXLOG.md",
+    "docs/worktrees.md",
     "src/styles/theme.css"
   ],
   "forbiddenPaths": [
