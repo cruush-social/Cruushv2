@@ -146,6 +146,8 @@ type ProfileRow = {
   sexuality: string[] | null;
   body_type: string[] | null;
   body_hair: string[] | null;
+  pubic_hair: string[] | null;
+  facial_hair: string[] | null;
   height: string | null;
   weight: string | null;
   position: string[] | null;
@@ -217,6 +219,9 @@ type VisibilitySubjectRow = {
   presentation: string[] | null;
   sexuality: string[] | null;
   body_type: string[] | null;
+  body_hair: string[] | null;
+  pubic_hair: string[] | null;
+  facial_hair: string[] | null;
   looking_for: string[] | null;
   availability: string[] | null;
   hosting_travel: string[] | null;
@@ -321,6 +326,8 @@ const PROFILE_COLUMNS = [
   "sexuality",
   "body_type",
   "body_hair",
+  "pubic_hair",
+  "facial_hair",
   "height",
   "weight",
   "position",
@@ -538,6 +545,8 @@ function mapProfileRow(
     sexuality: row.sexuality ?? [],
     body_type: row.body_type ?? [],
     body_hair: row.body_hair ?? [],
+    pubic_hair: row.pubic_hair ?? [],
+    facial_hair: row.facial_hair ?? [],
     height: row.height ?? "",
     weight: row.weight ?? "",
     position: row.position ?? [],
@@ -650,6 +659,8 @@ function profilePayloadFromRow(
     sexuality: row.sexuality ?? [],
     body_type: row.body_type ?? [],
     body_hair: row.body_hair ?? [],
+    pubic_hair: row.pubic_hair ?? [],
+    facial_hair: row.facial_hair ?? [],
     height: row.height ?? "",
     weight: row.weight ?? "",
     position: row.position ?? [],
@@ -819,6 +830,9 @@ async function loadVisibilitySubjectProfile(app: FastifyInstance, userId: string
          presentation,
          sexuality,
          body_type,
+         body_hair,
+         pubic_hair,
+         facial_hair,
          looking_for,
          availability,
          hosting_travel,
@@ -870,6 +884,9 @@ async function loadVisibilitySubjectProfile(app: FastifyInstance, userId: string
       roles: row.role ?? [],
       kinks: sensitiveKinksForVisibility(sensitiveProfile, row.kinks),
       body_types: row.body_type ?? [],
+      body_hair: row.body_hair ?? [],
+      pubic_hair: row.pubic_hair ?? [],
+      facial_hair: row.facial_hair ?? [],
       sexuality: row.sexuality ?? [],
       substance_boundaries: row.substance_boundaries ?? [],
       protection_boundaries: row.protection_boundaries ?? [],

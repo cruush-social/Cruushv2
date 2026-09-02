@@ -6,11 +6,15 @@ import { Slider } from './ui/slider';
 import { Switch } from './ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import MultiSelect, { type MultiSelectOptionGroup } from './MultiSelect';
+import SingleSelect from './SingleSelect';
 import CruushPlusGateNotice from './CruushPlusGateNotice';
 import { Search } from 'lucide-react';
 import {
   AVAILABILITY,
   BODY_TYPES,
+  BODY_HAIR,
+  PUBIC_HAIR,
+  FACIAL_HAIR,
   CROWDS,
   HOBBIES,
   HOSTING,
@@ -45,6 +49,9 @@ export interface FilterState {
   roles: string[];
   kinks: string[];
   bodyTypes: string[];
+  bodyHair: string[];
+  pubicHair: string[];
+  facialHair: string[];
   sexuality: string[];
   substanceBoundaries: string[];
   protectionBoundaries: string[];
@@ -68,6 +75,9 @@ export const DEFAULT_FILTER_STATE: FilterState = {
   roles: [],
   kinks: [],
   bodyTypes: [],
+  bodyHair: [],
+  pubicHair: [],
+  facialHair: [],
   sexuality: [],
   substanceBoundaries: [],
   protectionBoundaries: [],
@@ -106,6 +116,7 @@ function FieldGroup({
   stateKey,
   value,
   onChange,
+  selectionMode = 'multiple',
 }: {
   label: string;
   options?: string[];
@@ -113,18 +124,19 @@ function FieldGroup({
   stateKey: MultiSelectKey;
   value: FilterState;
   onChange: (value: FilterState) => void;
+  selectionMode?: 'multiple' | 'single';
 }) {
   return (
     <div className="space-y-2">
       <Label>{label}</Label>
-      <MultiSelect
+      {selectionMode === 'single' ? <SingleSelect ariaLabel={label} options={options ?? []} value={value[stateKey][0]} onChange={(item) => onChange(updateList(value, stateKey, item ? [item] : []))} /> : <MultiSelect
         ariaLabel={label}
         menuPortal
         options={options}
         optionGroups={optionGroups}
         value={value[stateKey]}
         onChange={(items) => onChange(updateList(value, stateKey, items))}
-      />
+      />}
     </div>
   );
 }
@@ -244,6 +256,7 @@ export default function MapFiltersSurface({
               <FieldGroup label="Presentation" options={PRESENTATIONS} stateKey="presentations" value={value} onChange={onChange} />
               <FieldGroup label="Crowds" options={CROWDS} stateKey="crowds" value={value} onChange={onChange} />
               <FieldGroup label="Body Type" options={BODY_TYPES} stateKey="bodyTypes" value={value} onChange={onChange} />
+              <div className="space-y-4 rounded-2xl border border-white/10 bg-white/[0.035] p-4"><Label className="text-base">Hair now</Label><FieldGroup label="Body hair" options={BODY_HAIR} stateKey="bodyHair" selectionMode="single" value={value} onChange={onChange} /><FieldGroup label="Pubic hair" options={PUBIC_HAIR} stateKey="pubicHair" selectionMode="single" value={value} onChange={onChange} /><FieldGroup label="Facial hair" options={FACIAL_HAIR} stateKey="facialHair" selectionMode="single" value={value} onChange={onChange} /></div>
               <FieldGroup label="Sexuality" options={SEXUALITY} stateKey="sexuality" value={value} onChange={onChange} />
               <FieldGroup label="Vibes" optionGroups={VIBE_GROUPS} stateKey="vibes" value={value} onChange={onChange} />
               <FieldGroup label="Hobbies" options={HOBBIES} stateKey="hobbies" value={value} onChange={onChange} />

@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import LoadingCardSkeletons from './LoadingCardSkeletons';
 import { getMyBillingStatus } from '../lib/billingApi';
 import MultiSelect from './MultiSelect';
+import SingleSelect from './SingleSelect';
 import {
   emptyProfilePayload,
   getMyProfile,
@@ -43,6 +44,7 @@ import {
   CROWDS,
   DOXYPEP,
   ETHNICITIES,
+  FACIAL_HAIR,
   findStructuredProfileFieldForTag,
   HEALTH_PREFERENCES,
   HIV_STATUS,
@@ -58,6 +60,7 @@ import {
   MPOX_VACCINE,
   normalizeCrowdValues,
   POSITIONS,
+  PUBIC_HAIR,
   PREP,
   PREFERRED_SPOTS,
   PRESENTATIONS,
@@ -511,6 +514,9 @@ function sanitizeVisibilityRules(profile: ProfilePayload): ProfileVisibilityRule
     roles: uniqueValues(rules.roles ?? []),
     kinks: uniqueValues(rules.kinks ?? []),
     body_types: uniqueValues(rules.body_types ?? []),
+    body_hair: uniqueValues(rules.body_hair ?? []),
+    pubic_hair: uniqueValues(rules.pubic_hair ?? []),
+    facial_hair: uniqueValues(rules.facial_hair ?? []),
     sexuality: uniqueValues(rules.sexuality ?? []),
     substance_boundaries: uniqueValues(rules.substance_boundaries ?? []),
     protection_boundaries: uniqueValues(rules.protection_boundaries ?? []),
@@ -539,6 +545,8 @@ function toProfileSavePayload(
     sexuality: limitToThree(profile.sexuality ?? []),
     body_type: limitToThree(profile.body_type ?? []),
     body_hair: singleValue(profile.body_hair ?? []),
+    pubic_hair: singleValue(profile.pubic_hair ?? []),
+    facial_hair: singleValue(profile.facial_hair ?? []),
     height: profile.height ?? '',
     weight: profile.weight ?? '',
     position: limitToThree(profile.position ?? []),
@@ -1020,6 +1028,8 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
     sexuality: singleValue(profile.sexuality || []),
     body_type: limitToThree(profile.body_type || []),
     body_hair: singleValue(profile.body_hair || []),
+    pubic_hair: singleValue(profile.pubic_hair || []),
+    facial_hair: singleValue(profile.facial_hair || []),
     position: limitToThree(profile.position || []),
     role: limitToThree(profile.role || []),
     is_trans: profile.is_trans ?? null,
@@ -1447,17 +1457,11 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
           </TabsContent>
 
           <TabsContent value="intimacy" className="space-y-6 mt-6">
-            <div className="space-y-2">
-              <Label>Body hair</Label>
-              <MultiSelect
-                {...profileMenuProps}
-                ariaLabel="Body hair"
-                maxSelections={1}
-                options={BODY_HAIR}
-                selectionMode="single"
-                value={normalizedProfile.body_hair}
-                onChange={(values) => handleChange('body_hair', singleValue(values))}
-              />
+            <div className="space-y-4 rounded-2xl border border-white/10 bg-white/[0.035] p-4">
+              <Label className="text-base">Hair now</Label>
+              <div className="space-y-2"><Label>Body hair</Label><SingleSelect ariaLabel="Body hair" options={BODY_HAIR} value={normalizedProfile.body_hair[0]} onChange={(value) => handleChange('body_hair', singleValue(value ? [value] : []))} /></div>
+              <div className="space-y-2"><Label>Pubic hair</Label><SingleSelect ariaLabel="Pubic hair" options={PUBIC_HAIR} value={normalizedProfile.pubic_hair[0]} onChange={(value) => handleChange('pubic_hair', singleValue(value ? [value] : []))} /></div>
+              <div className="space-y-2"><Label>Facial hair</Label><SingleSelect ariaLabel="Facial hair" options={FACIAL_HAIR} value={normalizedProfile.facial_hair[0]} onChange={(value) => handleChange('facial_hair', singleValue(value ? [value] : []))} /></div>
             </div>
 
             <div className="space-y-2">

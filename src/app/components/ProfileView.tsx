@@ -83,6 +83,8 @@ export type ProfileViewModel = {
   ethnicity: string | null;
   bodyType: string | null;
   bodyHair: string | null;
+  pubicHair: string | null;
+  facialHair: string | null;
   height: string | null;
   weight: string | null;
   isTrans: boolean | null;
@@ -172,6 +174,8 @@ export function profileRecordToProfileView(
     ethnicity: profile.ethnicity || null,
     bodyType: formatJoined(profile.body_type),
     bodyHair: formatSingle(profile.body_hair),
+    pubicHair: formatSingle(profile.pubic_hair),
+    facialHair: formatSingle(profile.facial_hair),
     height: profile.height || null,
     weight: profile.weight || null,
     isTrans: profile.is_trans,
@@ -916,6 +920,14 @@ export function ProfileDetailsTabs({
 
           <Section title="Role" compact={compact}>
             <BadgeList items={profileView.role} compact={compact} />
+          </Section>
+
+          <Section title="Hair now" compact={compact}>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <DetailItem label="Body hair" value={profileView.bodyHair} compact={compact} />
+              <DetailItem label="Pubic hair" value={profileView.pubicHair} compact={compact} />
+              <DetailItem label="Facial hair" value={profileView.facialHair} compact={compact} />
+            </div>
           </Section>
         </div>
 

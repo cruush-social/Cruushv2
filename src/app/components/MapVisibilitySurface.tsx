@@ -7,9 +7,13 @@ import { Slider } from './ui/slider';
 import { Switch } from './ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import MultiSelect, { type MultiSelectOptionGroup } from './MultiSelect';
+import SingleSelect from './SingleSelect';
 import {
   AVAILABILITY,
   BODY_TYPES,
+  BODY_HAIR,
+  PUBIC_HAIR,
+  FACIAL_HAIR,
   CROWDS,
   HOBBIES,
   HOSTING,
@@ -73,6 +77,9 @@ const VISIBILITY_LIST_KEYS: VisibilityListKey[] = [
   'roles',
   'kinks',
   'bodyTypes',
+  'bodyHair',
+  'pubicHair',
+  'facialHair',
   'sexuality',
   'substanceBoundaries',
   'protectionBoundaries',
@@ -104,6 +111,7 @@ function FieldGroup({
   limitReached,
   onLimitReached,
   onChange,
+  selectionMode = 'multiple',
 }: {
   label: string;
   options?: string[];
@@ -113,13 +121,14 @@ function FieldGroup({
   limitReached: boolean;
   onLimitReached: () => void;
   onChange: (value: VisibilityControlState) => void;
+  selectionMode?: 'multiple' | 'single';
 }) {
   const fieldHasSelections = value[stateKey].length > 0;
 
   return (
     <div className="space-y-2">
       <Label>{label}</Label>
-      <MultiSelect
+      {selectionMode === 'single' ? <SingleSelect ariaLabel={label} options={options ?? []} value={value[stateKey][0]} onChange={(item) => onChange(updateList(value, stateKey, item ? [item] : []))} /> : <MultiSelect
         ariaLabel={label}
         menuPortal
         options={options}
@@ -128,7 +137,7 @@ function FieldGroup({
         disableAddingOptions={limitReached && !fieldHasSelections}
         onAddingDisabled={onLimitReached}
         onChange={(items) => onChange(updateList(value, stateKey, items))}
-      />
+      />}
     </div>
   );
 }
@@ -338,6 +347,7 @@ export default function MapVisibilitySurface({
                 A crowd you select here cannot see you.
               </p>
               <FieldGroup label="Body Type" options={BODY_TYPES} stateKey="bodyTypes" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} />
+              <div className="space-y-4 rounded-2xl border border-white/10 bg-white/[0.035] p-4"><Label className="text-base">Hair now</Label><FieldGroup label="Body hair" options={BODY_HAIR} stateKey="bodyHair" selectionMode="single" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} /><FieldGroup label="Pubic hair" options={PUBIC_HAIR} stateKey="pubicHair" selectionMode="single" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} /><FieldGroup label="Facial hair" options={FACIAL_HAIR} stateKey="facialHair" selectionMode="single" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} /></div>
               <FieldGroup label="Sexuality" options={SEXUALITY} stateKey="sexuality" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} />
               <FieldGroup label="Vibes" optionGroups={VISIBILITY_VIBE_GROUPS} stateKey="vibes" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} />
               <FieldGroup label="Hobbies" options={HOBBIES} stateKey="hobbies" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} />

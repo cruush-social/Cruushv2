@@ -133,6 +133,7 @@ const migrationFiles = [
   "124_profile_taxonomy.sql",
   "125_profile_body_hair.sql",
   "126_profile_taxonomy_expansion.sql",
+  "127_profile_hair_now.sql",
   "128_profile_taxonomy_final.sql",
   "129_profile_preferred_spots_protection.sql",
   "130_profile_tag_reservations.sql",

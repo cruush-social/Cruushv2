@@ -23,6 +23,9 @@ export type ProfileVisibilityRules = {
   roles: string[];
   kinks: string[];
   body_types: string[];
+  body_hair: string[];
+  pubic_hair: string[];
+  facial_hair: string[];
   sexuality: string[];
   substance_boundaries: string[];
   protection_boundaries: string[];
@@ -72,6 +75,8 @@ export type ProfilePayload = {
   sexuality: string[];
   body_type: string[];
   body_hair: string[];
+  pubic_hair: string[];
+  facial_hair: string[];
   height: string;
   weight: string;
   position: string[];
@@ -176,6 +181,8 @@ export const emptyProfilePayload: ProfilePayload = {
   sexuality: [],
   body_type: [],
   body_hair: [],
+  pubic_hair: [],
+  facial_hair: [],
   height: '',
   weight: '',
   position: [],
@@ -234,6 +241,9 @@ export const emptyProfilePayload: ProfilePayload = {
     roles: [],
     kinks: [],
     body_types: [],
+    body_hair: [],
+    pubic_hair: [],
+    facial_hair: [],
     sexuality: [],
     substance_boundaries: [],
     protection_boundaries: [],

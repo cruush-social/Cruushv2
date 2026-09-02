@@ -30,6 +30,8 @@ export const BODY_TYPES = alphabetize([
 ]);
 
 export const BODY_HAIR = ['Natural', 'Hairy', 'Trimmed', 'Shaved', 'Smooth'];
+export const PUBIC_HAIR = ['Smooth', 'Stubble', 'Trimmed', 'Shaped', 'Full/bush', 'Mixed', 'Varies'];
+export const FACIAL_HAIR = ['Smooth', 'Clean-shaven', 'Stubble', 'Mustache', 'Goatee', 'Short beard', 'Full beard', 'Sideburns', 'Mixed', 'Varies'];
 
 export const POSITIONS = alphabetize([
   'bottom', 'hands only', 'oral only', 'side', 'stone bottom', 'stone top', 'top', 'vers bottom', 'vers top', 'versatile'
