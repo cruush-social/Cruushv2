@@ -128,6 +128,8 @@
     "src/app/components/PulseLedIcon.tsx",
     "src/app/components/Auth.tsx",
     "src/app/components/Auth.css",
+    "src/app/components/CruushPlusCardDialog.css",
+    "src/app/components/CruushPlusScratchCard.css",
     "src/app/components/BottomNav.tsx",
     "src/app/components/CruushIconImage.tsx",
     "src/app/components/HeartPhoto.tsx",

@@ -649,3 +649,22 @@ html[data-cruush-reduce-motion] .cruush-scratch-dialog .confetti { display: none
   .cruush-scratch-dialog[data-layout="desktop"] .beta-launch-plus-card__valid i { font-size: 1.6rem; }
   .cruush-scratch-dialog[data-layout="desktop"] .card-back-body { padding: 0 5cqi; }
   .cruush-scratch-dialog[data-layout="desktop"] .card-back li { font-size: 5cqh; padding: 0.6cqh 0; }
+
+  html[data-cruush-larger-text] .cruush-scratch-dialog .scratch-hint { font-size: 0.703125rem; }
+  html[data-cruush-larger-text] .cruush-scratch-dialog .card-back li { font-size: 4.8125cqh; }
+  html[data-cruush-larger-text] .cruush-scratch-dialog .flip-tab { font-size: 1.1875rem; }
+  html[data-cruush-larger-text] .cruush-scratch-dialog .beta-launch-plus-dialog__title { font-size: 1.775rem; }
+  html[data-cruush-larger-text] .cruush-scratch-dialog .beta-launch-plus-dialog__description { font-size: 1.325rem; }
+  html[data-cruush-larger-text] .cruush-scratch-dialog .launch-login-auth-submit { font-size: 1.3125rem; }
+  html[data-cruush-larger-text] .cruush-scratch-dialog .beta-launch-plus-card { font-size: clamp(0.9375rem, 0.823875rem + 0.568125vw, 1.25rem); }
+  html[data-cruush-larger-text] .cruush-scratch-dialog .beta-launch-plus-card__label-text { font-size: 5.0625rem; }
+  html[data-cruush-larger-text] .cruush-scratch-dialog .beta-launch-plus-card__valid em { font-size: 8rem; }
+  html[data-cruush-larger-text] .cruush-scratch-dialog .beta-launch-plus-card__valid i { font-size: 2.5625rem; }
+  html[data-cruush-larger-text] .cruush-scratch-dialog .beta-launch-plus-card__valid b[data-format="compact"] em { font-size: 6.4375rem; }
+  html[data-cruush-larger-text] .cruush-scratch-dialog .beta-launch-plus-card__valid b[data-format="compact"] i { font-size: 2.125rem; }
+  html[data-cruush-larger-text] .cruush-scratch-dialog .beta-launch-plus-card__valid b[data-format="word"] em { font-size: 3.375rem; }
+  html[data-cruush-larger-text] .cruush-scratch-dialog[data-layout="phone"] .beta-launch-plus-card__valid b[data-format="word"] em { font-size: 3.9375rem; }
+  html[data-cruush-larger-text] .cruush-scratch-dialog[data-layout="desktop"] .beta-launch-plus-card__label-text { font-size: 3.3125rem; }
+  html[data-cruush-larger-text] .cruush-scratch-dialog[data-layout="desktop"] .beta-launch-plus-card__valid em { font-size: 5.75rem; }
+  html[data-cruush-larger-text] .cruush-scratch-dialog[data-layout="desktop"] .beta-launch-plus-card__valid i { font-size: 2rem; }
+  html[data-cruush-larger-text] .cruush-scratch-dialog[data-layout="desktop"] .card-back li { font-size: 6.25cqh; }

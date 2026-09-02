@@ -119,12 +119,24 @@ html[data-cruush-larger-text] :where([class~="text-[0.65rem]"]) {
   font-size: 0.8125rem !important;
 }
 
+html[data-cruush-larger-text] :where([class~="text-[0.68rem]"]) {
+  font-size: 0.85rem !important;
+}
+
 html[data-cruush-larger-text] :where([class~="text-[0.7rem]"]) {
   font-size: 0.875rem !important;
 }
 
+html[data-cruush-larger-text] :where([class~="text-[0.72rem]"]) {
+  font-size: 0.9rem !important;
+}
+
 html[data-cruush-larger-text] :where([class~="text-[0.8rem]"]) {
   font-size: 1rem !important;
+}
+
+html[data-cruush-larger-text] :where([class~="text-[21px]"]) {
+  font-size: 26.25px !important;
 }
 
 @media (max-width: 640px) {
@@ -884,7 +896,9 @@ html[data-cruush-alpha-bug-corner='top-right'] [data-testid='accessibility-quick
     line-height: 1.5;
   }
 
-  input {
+  input,
+  textarea,
+  select {
     font-size: var(--text-base);
     font-weight: var(--font-weight-normal);
     line-height: 1.5;
@@ -1684,6 +1698,22 @@ html[data-cruush-alpha-bug-corner='top-right'] [data-testid='accessibility-quick
   .cruush-user-activity-content > div > button {
     font-size: inherit;
     line-height: inherit;
+  }
+
+  html[data-cruush-larger-text] .cruush-user-activity-name {
+    font-size: clamp(1.25rem, 5.375cqw, 2.1875rem);
+  }
+
+  html[data-cruush-larger-text] .cruush-user-activity-pronouns {
+    font-size: clamp(1.09375rem, 4cqw, 1.6875rem);
+  }
+
+  html[data-cruush-larger-text] .cruush-user-activity-metadata {
+    font-size: clamp(0.9375rem, 4cqw, 1.6875rem);
+  }
+
+  html[data-cruush-larger-text] .cruush-user-activity-content {
+    font-size: clamp(1.25rem, 5.375cqw, 2.1875rem);
   }
 
   .cruush-user-activity-actions [data-testid='profile-action-trio'] {
