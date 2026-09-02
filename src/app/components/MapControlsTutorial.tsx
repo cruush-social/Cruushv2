@@ -68,7 +68,7 @@ const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'cruush-plus',
     title: 'cruush+',
-    description: 'cruush+ unlocks full activity, 5 Pulses per day, Mile High Club, photo hearts and more controls in Feed+, the Cruise Carousel, all Seeking and Visibility controls, up to 10 profile tags, and Dark Room.',
+    description: 'cruush+ unlocks full activity, 5 Pulses per day, Mile High Club, photo hearts and more controls in Feed+, the Cruise Carousel, all Seeking and Visibility controls, up to 10 profile tags, unlimited profile kinks, and Dark Room.',
     actionLabel: 'Open cruush+',
   },
   {

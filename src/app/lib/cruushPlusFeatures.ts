@@ -1,5 +1,5 @@
 /** User-visible cruush+ benefits, kept in one place so the card cannot drift. */
-export const CRUUSH_PLUS_SERVER_GATE_COUNT = 13;
+export const CRUUSH_PLUS_SERVER_GATE_COUNT = 12;
 
 export const CRUUSH_PLUS_FEATURES = [
   {
@@ -24,7 +24,7 @@ export const CRUUSH_PLUS_FEATURES = [
   },
   {
     title: 'All seeking and visibility controls',
-    description: 'Use all seeking filters, combine more visibility controls, save visibility sets, and add up to 10 searchable profile tags. Basic includes 3.',
+    description: 'Use all seeking filters, combine more visibility controls, save visibility sets, add up to 10 searchable profile tags, and add as many profile kinks as fit you. Basic includes 3 tags and 3 kinks.',
   },
   {
     title: 'Dark Room',

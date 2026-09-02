@@ -1464,7 +1464,6 @@ export async function registerProfileRoutes(app: FastifyInstance) {
   app.put("/api/profiles/me/side-badges", async (request, reply) => {
     const userId = await getActiveAccountUserId(request);
     const sideBadges = sideBadgesSchema.parse(request.body);
-    await requireCruushPlus(app, userId, "Upgrade to cruush+ to choose custom side badges.");
     const result = await app.db.query<{ side_badges: ProfilePayload["side_badges"] }>(
       `update profiles
        set side_badges = $2::jsonb,
@@ -1739,12 +1738,19 @@ export async function registerProfileRoutes(app: FastifyInstance) {
   app.put("/api/profiles/me", async (request, reply) => {
     const userId = await getActiveAccountUserId(request);
     const parsedPayload = profilePayloadSchema.parse(request.body);
+    const kinkInterests = normalizeKinkInterests(parsedPayload);
+    const entitlement = parsedPayload.tags.length > 3 || kinkInterests.length > 3
+      ? await getCruushEntitlement(app, userId)
+      : null;
 
     if (parsedPayload.tags.length > 3) {
-      const entitlement = await getCruushEntitlement(app, userId);
-      if (!entitlement.cruushPlus) {
+      if (!entitlement?.cruushPlus) {
         throw new ApiError(402, "CRUUSH_PLUS_REQUIRED", "Upgrade to cruush+ to add up to 10 profile tags.");
       }
+    }
+
+    if (kinkInterests.length > 3 && !entitlement?.cruushPlus) {
+      throw new ApiError(402, "CRUUSH_PLUS_REQUIRED", "Upgrade to cruush+ to add more than 3 kinks.");
     }
 
     if (countVisibilityExclusionFilters(parsedPayload.visibility_rules) > FREE_VISIBILITY_EXCLUSION_LIMIT) {
@@ -1772,7 +1778,6 @@ export async function registerProfileRoutes(app: FastifyInstance) {
       hiv_status_visibility: FIXED_PRIVATE_HEALTH_VISIBILITY
     };
 
-    const kinkInterests = normalizeKinkInterests(payload);
     const sensitiveProfile = buildSensitiveProfile(payload, kinkInterests);
     assertIdentityGateChangeAllowed(
       existingIdentityState,

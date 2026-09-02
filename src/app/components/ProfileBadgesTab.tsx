@@ -12,9 +12,8 @@ import {
 /**
  * The two marks that ride either side of your heart on the map.
  *
- * A basic account carries what its profile already says: the role on the left,
- * the position on the right. cruush+ opens both slots to anything in the badge
- * set, the way a hanky code lets you say something the profile fields do not.
+ * A profile starts with its role on the left and position on the right. Every
+ * member can replace either side with anything in the current badge set.
  */
 
 const HEART_UNIT_CLASS = 'relative flex h-20 w-[103px] items-end justify-center';
@@ -36,13 +35,11 @@ function BadgeChip({ side, children, meaning }: { side: 'left' | 'right'; childr
 }
 
 export default function ProfileBadgesTab({
-  cruushPlus,
   onChooseBadges,
   photo,
   position,
   role,
 }: {
-  cruushPlus: boolean;
   onChooseBadges?: () => void;
   photo: string | null;
   position: string[];
@@ -54,11 +51,6 @@ export default function ProfileBadgesTab({
   const RoleGlyph = roleGlyphFor(firstRole);
   const PositionGlyph = positionGlyphFor(firstPosition);
   const handleChooseBadges = () => {
-    if (!cruushPlus) {
-      navigate('/cruush-plus');
-      return;
-    }
-
     if (onChooseBadges) {
       onChooseBadges();
       return;
@@ -149,9 +141,7 @@ export default function ProfileBadgesTab({
       <section className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.035] p-4">
         <h2 className="text-base text-white">Custom badges</h2>
         <p className="text-sm text-muted-foreground">
-          {cruushPlus
-            ? 'Pick anything for either side instead of your role and position. Hover, or press and hold, a badge to read what it means.'
-            : 'cruush+ lets you pick anything for either side instead of your role and position, and takes the ceiling off your kinks.'}
+          Pick anything for either side instead of your role and position. Hover, or press and hold, a badge to read what it means.
         </p>
         <Button
           className="w-full rounded-full text-white"
@@ -159,7 +149,7 @@ export default function ProfileBadgesTab({
           style={{ background: 'var(--cruush-gradient)' }}
           type="button"
         >
-          {cruushPlus ? 'Choose your badges' : 'See cruush+'}
+          Choose your badges
         </Button>
       </section>
     </div>

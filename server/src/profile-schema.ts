@@ -107,7 +107,7 @@ const cappedArrayField = (max: number) =>
     });
 const upToThreeArrayField = cappedArrayField(3);
 const singleArrayField = cappedArrayField(1);
-const kinkArrayField = upToThreeArrayField;
+const kinkArrayField = cappedArrayField(200);
 
 const profileVisibilitySchema = z.enum(["public", "mutual_cruushes", "mutual_crowds"]);
 const healthPreferenceSchema = z.enum(["COVID tested", "Masks"]);
@@ -274,7 +274,7 @@ export const profilePayloadSchema = z.object({
   availability: upToThreeArrayField,
   hosting_travel: upToThreeArrayField,
   kinks: kinkArrayField,
-  kink_interests: z.array(profileKinkInterestSchema).max(3).optional().default([]),
+  kink_interests: z.array(profileKinkInterestSchema).max(200).optional().default([]),
   kinks_visibility: profileVisibilitySchema.optional().default("public"),
   vibes: upToThreeArrayField,
   scenes: arrayField,

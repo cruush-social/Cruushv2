@@ -70,7 +70,7 @@ const BadgePickerPreview = lazy(() => import('./BadgePickerPreview'));
 const MAX_PROFILE_GROUP_SELECTIONS = 3;
 const MAX_PROFILE_VIBES = 3;
 const MAX_PROFILE_HOBBIES = 3;
-const MAX_PROFILE_KINKS = 5;
+const MAX_PROFILE_KINKS = 3;
 const BASIC_PROFILE_TAGS = 3;
 const CRUUSH_PLUS_PROFILE_TAGS = 10;
 /** cruush+ lifts the ceiling rather than raising it. */
@@ -713,8 +713,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
     }));
   };
 
-  // A basic account carries five kinks and the two badges its profile already
-  // implies. cruush+ lifts the ceiling and opens the badge slots to choose from.
+  // Basic profiles carry three kinks. cruush+ can use the full catalog.
   const [cruushPlus, setCruushPlus] = useState(false);
 
   useEffect(() => {
@@ -1473,12 +1472,13 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
               <MultiSelect
                 {...profileMenuProps}
                 ariaLabel="Kinks & Fetishes"
-                maxSelections={MAX_PROFILE_KINKS}
+                maxSelections={Number.isFinite(kinkLimit) ? kinkLimit : undefined}
                 optionGroups={KINK_GROUPS}
                 searchable
                 value={normalizedProfile.kinks}
                 onChange={handleKinksChange}
               />
+              <p className="text-xs text-muted-foreground">Basic includes 3. cruush+ has no profile kink limit.</p>
             </div>
             <div className="space-y-2">
               <Label>Kinks & Fetishes visibility</Label>
