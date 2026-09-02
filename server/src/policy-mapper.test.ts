@@ -284,6 +284,47 @@ describe("policy mapper", () => {
     expect(decision.reason_code).toBe("provider_flagged_by_automod");
   });
 
+  it("keeps harassment-only Stream flags publishable while mixed threats still reject", () => {
+    const harassment = providerResult("harassment", 0.98);
+    const reviewOnly = mapProviderResultToPolicy({
+      surface: "feed",
+      contentType: "text",
+      providerResult: {
+        ...harassment,
+        provider: "stream",
+        recommended_action: "flag",
+        status: "complete"
+      }
+    });
+    const mixedThreat = mapProviderResultToPolicy({
+      surface: "feed",
+      contentType: "text",
+      providerResult: {
+        ...harassment,
+        provider: "stream",
+        labels: [
+          ...harassment.labels,
+          providerResult("threat", 0.98).labels[0]
+        ],
+        recommended_action: "flag",
+        status: "complete"
+      }
+    });
+
+    expect(reviewOnly).toMatchObject({
+      decision: "allow",
+      category: "harassment",
+      create_evidence_event: true,
+      trust_impact: 0,
+      reason_code: "harassment_evidence_only"
+    });
+    expect(mixedThreat).toMatchObject({
+      decision: "reject",
+      category: "threat",
+      reason_code: "credible_threat"
+    });
+  });
+
   it.each(["block", "bounce", "shadow_block"])(
     "rejects Stream %s recommendations instead of treating them as an allow",
     (recommendedAction) => {

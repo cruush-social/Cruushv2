@@ -1,28 +1,45 @@
 {
   "schemaVersion": 2,
-  "taskId": "cruush-1.6-github-142-spot-clusters-email-20260902",
+  "taskId": "cruush-sh-review-only-20260902",
   "status": "validating",
-  "objective": "Fix GitHub #142's unclear onboarding validation after optional 2FA is skipped, preserve optional 2FA behavior, confirm Spot clusters use their own Spot-style marker separate from people clusters, add focused Spot-cluster proof to the v1.6 email, refresh its screenshot, commit, and deploy production main.",
-  "userOutcome": "New members can finish onboarding after skipping optional 2FA without an unexplained validation failure, map clusters clearly distinguish Spots from people, and the v1.6 email shows the shipped Spot cluster treatment.",
-  "audience": "cruush members and v1.6 announcement recipients.",
+  "objective": "Make Stream sexual-harassment-only results publishable while preserving the provider label for moderator review.",
+  "userOutcome": "Consensual explicit queer content is not blocked solely because Stream applies SEXUAL_HARASSMENT, including Feed posts and profile bios.",
+  "audience": "Adult cruush members and cruush moderators.",
   "successCriteria": [
-    "Onboarding's Signal input enforces the same 35-character limit as the server.",
-    "A server validation response identifies the invalid onboarding field instead of only saying Request validation failed.",
-    "Skipping optional 2FA remains supported and does not change profile-save behavior.",
-    "People clusters remain numeric people clusters; Spot clusters remain separate custom Spot-style markers.",
-    "The v1.6 email includes a focused screenshot showing the separate Spot cluster treatment.",
-    "The committed release reaches origin/main and production reports the exact deployed SHA with the refreshed service worker."
+    "A harassment-only Stream result maps to allow even when Stream recommends Flag.",
+    "Allowed harassment-only results retain normalized labels, policy evidence, and flagged moderator-review status.",
+    "Feed posts, messages, profiles, and other text surfaces can publish harassment-only results.",
+    "Threat, hate-speech, scam, mixed unsafe-label, provider-outage, and all image behavior remains unchanged.",
+    "Focused regression tests, server build, copy checks, and scope checks pass.",
+    "The verified commit reaches origin/main and production reports the same build SHA.",
+    "The allowed sample persists after reload on live Feed and Bio, then the test post is deleted and the original Bio is restored."
   ],
   "mustPreserve": [
-    "Preserve map tiles, map theme, people-cluster behavior, Spot data, optional 2FA behavior, onboarding sequence, email template structure, and unrelated UI.",
-    "Use actual local release code and populated local data for screenshots. Do not send the email."
+    "Preserve every non-harassment moderation decision, trust penalty, account restriction, provider fallback, image rule, environment variable, UI surface, and unrelated user work.",
+    "Keep Stream's configured SEXUAL_HARASSMENT label available to moderators as review evidence."
   ],
   "nonGoals": [
-    "Do not add or run tests, run a local build, send the email, change 2FA requirements, change map tiles, or redesign adjacent surfaces."
+    "Do not change the Stream dashboard policy, add UI, change database schema, add migrations, or tune any non-harassment label.",
+    "Do not send external messages or alter unrelated application behavior."
   ],
-  "assumptions": [],
-  "nextVisibleMilestone": "Show the updated full email with focused Spot-cluster proof after publishing the scoped fix to main.",
-  "stopConditions": ["Stop only for a password form, user browser takeover, non-fast-forward main, or failed claim-matched production proof."],
+  "assumptions": [
+    {
+      "statement": "Stream SEXUAL_HARASSMENT normalizes to harassment.",
+      "impact": "The review-only exception matches only the intended Stream label.",
+      "reversible": true,
+      "confirmationState": "confirmed"
+    },
+    {
+      "statement": "Threats and hate speech continue arriving as their existing separate normalized labels.",
+      "impact": "Threat and hate enforcement remains outside the harassment-only exception.",
+      "reversible": true,
+      "confirmationState": "confirmed"
+    }
+  ],
+  "nextVisibleMilestone": "Production Feed and Bio accept the allowed sample after the deployed build SHA matches origin/main.",
+  "stopConditions": [
+    "Stop only for a password form, user browser takeover, non-fast-forward main, failed safety check, or production build mismatch."
+  ],
   "costBudget": {"maxUsd": 0, "maxMinutes": null},
   "externalEffectDecisions": {
     "commit": "authorized by Julien's current instruction",
@@ -35,7 +52,7 @@
     "purchases": "forbidden",
     "deployment": "auto",
     "publication": "auto",
-    "deletion": "forbidden",
+    "deletion": "auto",
     "securityChanges": "forbidden",
     "credentials": "forbidden",
     "newDefaults": "forbidden",
@@ -44,58 +61,30 @@
   "product": "cruush",
   "release": "1.6",
   "repository": "cruush-social/Cruushv2",
-  "branch": "release/1.6-integration-20260901",
-  "job": "Fix GitHub #142 onboarding validation, confirm separate Spot clustering, refresh the v1.6 email proof, commit, push main, and verify production.",
+  "branch": "codex/sh-review-only-20260902",
+  "job": "Implement, verify, push, deploy, and live-test harassment-only review behavior.",
   "forbiddenPaths": ["HANDOFF.md", ".dev/**"],
   "allowedPaths": [
     "AI_TASK.json",
-    "DESIGN_DECISIONS.md",
-    "src/app/components/HeartPhoto.tsx",
-    "src/app/components/SideBadgePair.tsx",
-    "src/app/components/UserActivityCapsule.tsx",
-    "src/app/components/CruushActivity.tsx",
-    "src/app/components/ProfileActionTrio.tsx",
-    "src/app/components/DirectMessages.tsx",
-    "src/app/components/LocalFeed.tsx",
-    "src/app/components/PlaceDetail.tsx",
-    "src/app/components/ProfileCard.tsx",
-    "src/app/components/ProfilePhotoGallery.tsx",
-    "src/app/components/MapProfilePopup.tsx",
-    "src/app/components/ProfileView.tsx",
-    "src/app/components/ProfileOnboarding.tsx",
-    "src/app/components/MapView.tsx",
-    "src/app/components/TravelModeSettings.tsx",
-    "src/app/components/CruiseCarouselSlot.tsx",
-    "src/app/components/FeelingLucky.tsx",
-    "src/app/components/MapPingSheet.tsx",
-    "src/app/components/NotificationCenter.tsx",
-    "src/app/components/RequestsDashboard.tsx",
-    "src/app/components/BadgePickerPreview.tsx",
-    "src/app/lib/distancePreferences.ts",
-    "src/app/lib/userBorderTone.ts",
-    "src/main.tsx",
-    "src/styles/theme.css",
-    "index.html",
-    "public/service-worker-recovery.js",
+    "server/src/policy-mapper.ts",
+    "server/src/policy-mapper.test.ts",
+    "server/src/moderation-service.ts",
+    "server/src/moderation-service.test.ts",
+    "server/src/routes/posts.ts",
+    "server/src/routes/messages.ts",
+    "FIXLOG.md",
+    "docs/worktrees.md",
     "public/sw.js",
-    "public/email/cruush-v1.6-badges-in-use.jpg",
-    "public/email/cruush-v1.6-badges.jpg",
-    "public/email/cruush-v1.6-mhc-address.jpg",
-    "public/email/cruush-v1.6-spot.jpg",
-    "public/email/cruush-v1.6-spot-clusters.jpg",
-    "docs/previews/cruush-1.6-update-email.html",
-    "docs/previews/cruush-1.6-update-email.jpg",
-    "docs/changelog.md",
-    "FIXLOG.md"
+    "public/service-worker-recovery.js"
   ],
-  "proofTarget": "Rendered onboarding Signal limit and field-specific validation copy, rendered live people and Spot clusters as separate marker treatments, refreshed email capture, origin/main SHA, production /api/build SHA, and refreshed live service worker.",
+  "proofTarget": "Focused mapper and service assertions, scoped diff, server build, origin/main SHA, production /api/build SHA, and restored live Feed/Bio smoke actions.",
   "publicationTarget": "origin/main and cruush production through Coolify.",
   "requiredEvidence": [
-    "Rendered the onboarding Signal field with the 35-character browser limit and field-specific validation copy.",
-    "Rendered the live map with a numeric people cluster and a separate Spot-style Spot cluster.",
-    "Rendered the full email and inspected the focused Spot-cluster image.",
+    "Focused test proves harassment-only Flag allows and remains flagged for review.",
+    "Focused test proves a mixed harassment plus threat result still rejects.",
+    "Server build and cruush casing/copy checks pass.",
     "Clean scoped commit and matching origin/main SHA.",
-    "Production /api/build SHA matches origin/main and live /sw.js contains the new cache version.",
-    "Live onboarding and map surfaces show the scoped fixes."
+    "Production /api/build SHA matches origin/main.",
+    "Live Feed and Bio accept the allowed sample after reload; temporary content is removed and the original Bio restored."
   ]
 }

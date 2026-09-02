@@ -251,6 +251,45 @@ describe("moderation error messages", () => {
     expect(streamModerationCheck).toHaveBeenCalledTimes(3);
   });
 
+  it("publishes a Stream sexual-harassment flag and records it for moderator review", async () => {
+    const app = createStreamApp();
+    streamModerationCheck.mockResolvedValue({
+      status: "complete",
+      recommended_action: "flag",
+      item: {
+        id: "stream-sexual-harassment-review",
+        ai_text_severity: "high",
+        flags: [{
+          type: "SEXUAL_HARASSMENT",
+          labels: ["SEXUAL_HARASSMENT"]
+        }]
+      }
+    });
+
+    await expect(moderateProfileOrReject(app, {
+      userId: "user-1",
+      fields: { bio: "Yes sir, fuck me harder, fag. I love when we talk like this." },
+      contentId: "user-1"
+    })).resolves.toMatchObject({
+      decision: {
+        decision: "allow",
+        category: "harassment",
+        reason_code: "harassment_evidence_only"
+      },
+      moderationStatus: "flagged",
+      flaggedReason: "harassment_review_only"
+    });
+
+    const reviewInsert = (app.db.query as ReturnType<typeof vi.fn>).mock.calls.find(
+      ([sql]) => String(sql).includes("insert into content_reviews")
+    );
+    expect(reviewInsert?.[1]).toEqual(expect.arrayContaining([
+      "allowed",
+      "flagged",
+      "harassment_review_only"
+    ]));
+  });
+
   it("uses the local fallback for direct-message text instead of leaving it pending when Stream is unavailable", async () => {
     streamModerationCheck.mockRejectedValue(new Error("Stream unavailable"));
 

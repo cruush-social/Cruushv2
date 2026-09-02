@@ -43,6 +43,14 @@ type ModerateTextInput = {
   text: string;
   contentId?: string;
   contentRef?: Record<string, unknown>;
+  persistAllowedReview?: boolean;
+};
+
+type TextModerationResult = {
+  decision: PolicyDecision;
+  providerResult: ProviderModerationResult;
+  moderationStatus?: "allowed" | "flagged";
+  flaggedReason?: string | null;
 };
 
 type ModerateImageInput = {
@@ -748,6 +756,17 @@ function moderationStatusForReview(status: ContentReviewInput["status"], decisio
   return "blocked";
 }
 
+function allowedReviewMetadata(providerResult: ProviderModerationResult, decision: PolicyDecision) {
+  const harassmentOnly = decision.decision === "allow" &&
+    providerResult.labels.length > 0 &&
+    providerResult.labels.every((label) => label.normalized_label === "harassment");
+
+  return {
+    moderationStatus: harassmentOnly ? "flagged" as const : "allowed" as const,
+    flaggedReason: harassmentOnly ? "harassment_review_only" : null
+  };
+}
+
 async function handlePolicyDecision(
   app: FastifyInstance,
   userId: string,
@@ -759,6 +778,7 @@ async function handlePolicyDecision(
     contentId?: string | null;
     contentRef?: Record<string, unknown>;
     severeAccessBanIdentity?: SevereAccessBanIdentity;
+    persistAllowedReview?: boolean;
   } = {}
 ) {
   await syncModerationSystemErrors(app, {
@@ -769,9 +789,27 @@ async function handlePolicyDecision(
   });
 
   if (decision.decision === "allow") {
+    const reviewMetadata = allowedReviewMetadata(providerResult, decision);
+
+    if (reviewMetadata.moderationStatus === "flagged" && options.persistAllowedReview !== false) {
+      await recordContentReview(app, {
+        userId,
+        surface,
+        contentType,
+        status: "allowed",
+        moderationStatus: reviewMetadata.moderationStatus,
+        flaggedReason: reviewMetadata.flaggedReason,
+        contentId: options.contentId,
+        contentRef: options.contentRef,
+        providerResult,
+        decision
+      });
+    }
+
     return {
       decision,
-      providerResult
+      providerResult,
+      ...reviewMetadata
     };
   }
 
@@ -885,7 +923,10 @@ export async function moderateTextWithLocalFallback(
 
 export const moderateFeedTextWithLocalFallback = moderateTextWithLocalFallback;
 
-export async function moderateTextOrReject(app: FastifyInstance, input: ModerateTextInput) {
+export async function moderateTextOrReject(
+  app: FastifyInstance,
+  input: ModerateTextInput
+): Promise<TextModerationResult> {
   const providerResultFromPrimary: ProviderModerationResult = containsBlockedRacialSlur(input.text)
     ? {
         provider: "local_text_policy",
@@ -919,7 +960,8 @@ export async function moderateTextOrReject(app: FastifyInstance, input: Moderate
 
   return handlePolicyDecision(app, input.userId, input.surface, "text", providerResult, decision, {
     contentId: input.contentId,
-    contentRef: input.contentRef
+    contentRef: input.contentRef,
+    persistAllowedReview: input.persistAllowedReview
   });
 }
 
@@ -951,7 +993,9 @@ export async function moderateMessageTextOrAllowByKeyword(app: FastifyInstance, 
         matchedCategories: prefilter.matchedCategories,
         streamCallSkipped: true
       }
-    } as ProviderModerationResult
+    } as ProviderModerationResult,
+    moderationStatus: "allowed" as const,
+    flaggedReason: null
   };
 }
 
@@ -1104,7 +1148,9 @@ export async function moderateProfileOrReject(app: FastifyInstance, input: Moder
         provider_request_id: "empty-profile-text",
         labels: [],
         latency_ms: 0
-      } as ProviderModerationResult
+      } as ProviderModerationResult,
+      moderationStatus: "allowed" as const,
+      flaggedReason: null
     };
   }
 
