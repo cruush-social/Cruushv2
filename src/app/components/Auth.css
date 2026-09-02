@@ -195,10 +195,10 @@
 .launch-login-auth-logo-image:hover {
   filter:
     drop-shadow(0 0.95rem 1.9rem rgba(0, 0, 0, 0.74))
-    drop-shadow(0 0 0.3rem #ff0072)
-    drop-shadow(0 0 0.72rem #6f00ff)
-    drop-shadow(0 0 1.25rem #3826ff)
-    drop-shadow(0 0 1.7rem #1181ff);
+    drop-shadow(0 0 0.16rem #ff0072)
+    drop-shadow(0 0 0.28rem #6f00ff)
+    drop-shadow(0 0 0.42rem #3826ff)
+    drop-shadow(0 0 0.58rem #1181ff);
 }
 
 .launch-login-auth-tagline-stack {
@@ -230,11 +230,14 @@
 .launch-login-auth-tagline:hover {
   animation: none;
   color: #ffffff;
+  filter: none;
+  mix-blend-mode: normal;
+  position: relative;
+  z-index: 1;
   text-shadow:
-    0 0 0.12rem #ffffff,
-    0 0 0.42rem #ffffff,
-    0 0 0.86rem #ffffff,
-    0 0 1.55rem #ffffff;
+    0 0 0.06rem #ffffff,
+    0 0 0.16rem #ffffff,
+    0 0 0.34rem rgba(255, 255, 255, 0.82);
 }
 
 .launch-login-auth-tagline span {
