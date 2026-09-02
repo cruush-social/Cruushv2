@@ -1,20 +1,13 @@
-cruush wallet setup
+cruush wallet setup complete
 
-The wallet initializer is launched only in the normal macOS Terminal for the
-current julienlenaz user. The agent must stop before the live-presence response.
+Completed 2026-09-01 in the current julienlenaz macOS user. The recovery words
+exist only on Julien's paper backup. The validated public-only descriptor is:
 
-1. Wait until Terminal prints an unpredictable three-word challenge.
-2. Before answering, close Codex, Claude, screen sharing, terminal recording,
-   and every app that could capture the screen or terminal.
-3. Type the challenge exactly.
-4. Write the recovery words on paper. Do not photograph, copy, paste, upload,
-   save, or share them.
-5. Type exactly: I WROTE THE RECOVERY WORDS
-6. The recovery-word screen clears. Close Terminal after it prints only the
-   public descriptor path and fingerprint.
-7. Reopen this Codex task. The only agent-readable wallet artifact is:
+  /Users/julienlenaz/Library/Application Support/cruush/operator-wallet/public-descriptor.json
 
-   /Users/julienlenaz/Library/Application Support/cruush/operator-wallet/public-descriptor.json
+Keep the paper backup private and offline. Do not photograph, copy, paste,
+upload, save, or share it. Migrate to the hardware wallet before meaningful
+funds are accepted.
 
 The software wallet is temporary until the hardware wallet arrives. Keep the
 processor and watcher disabled. No signing or transaction broadcast is part of

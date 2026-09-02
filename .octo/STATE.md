@@ -1,14 +1,13 @@
 # Octo State
 
 **Schema:** 2.0
-**Last Updated:** 2026-09-01T14:58:04Z
+**Last Updated:** 2026-09-02T00:42:04Z
 **Current Phase:** 3
-**Current Position:** Wallet private initialization and public handoff
-**Status:** in_progress
+**Current Position:** Feature branch and temporary local wallet delivered
+**Status:** complete
 
 ## Blockers
 
-- Wallet recovery words require Julien's private Terminal interaction.
 - Real-money launch remains blocked by hardware-wallet migration, controlled
   settlement proof, EU/EEA service-withdrawal compliance or exclusion,
   evidence-only support lookup beyond the bounded watch window, and explicit
@@ -16,6 +15,10 @@
 
 ## History
 
+- [2026-09-02T00:42:04Z] Phase 3: Julien completed the private wallet ceremony.
+  The public descriptor is owned by julienlenaz with mode 0600, its fingerprint
+  matches its receive-chain xpub, its public addresses validate, and it contains
+  no secret fields. Feature task complete; launch gates remain separate (complete)
 - [2026-09-01T14:58:04Z] Phase 3: Verified implementation published only to
   origin/feat/crypto-pricing; main and production untouched. Julien-only wallet
   initialization and public-descriptor verification remain (in_progress)

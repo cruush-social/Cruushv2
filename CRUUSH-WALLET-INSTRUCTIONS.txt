@@ -1,22 +1,13 @@
-cruush wallet setup
+cruush wallet setup complete
 
-This temporary software wallet belongs to the current julienlenaz macOS user.
-The hardware wallet will replace it before meaningful funds are accepted.
+Completed 2026-09-01 in the current julienlenaz macOS user. The hardware wallet
+will replace it before meaningful funds are accepted.
 
-1. In the normal macOS Terminal opened for this setup, read the live-presence
-   challenge. Do not answer it yet.
-2. Close Codex, Claude, screen sharing, terminal recording, and every other
-   app that could capture the screen or terminal.
-3. Type the unpredictable three-word challenge shown in Terminal.
-4. Write every recovery word on paper. Never photograph, copy, paste, upload,
-   or type the words anywhere except the wallet's hidden verification prompt.
-5. Type exactly: I WROTE THE RECOVERY WORDS
-6. The secret screen clears. Terminal may then show only the public descriptor
-   path and fingerprint. Close Terminal.
-7. Reopen this Codex task. The agent may inspect only:
+The recovery words exist only on Julien's paper backup. Never photograph, copy,
+paste, upload, save, or share them. The only agent-readable wallet artifact is:
 
-   /Users/julienlenaz/Library/Application Support/cruush/operator-wallet/public-descriptor.json
+  /Users/julienlenaz/Library/Application Support/cruush/operator-wallet/public-descriptor.json
 
 Never send recovery words, a private key, or an xprv in chat. Never save a
-digital copy. If anything other than that exact Terminal flow asks for them,
-cancel.
+digital copy. Keep the processor and watcher disabled until the separate launch
+gates are complete.

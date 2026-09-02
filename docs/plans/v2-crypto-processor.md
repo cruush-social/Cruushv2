@@ -203,10 +203,11 @@ Implemented locally:
 
 ## Evidence boundary
 
-Old per-file test counts and old worktree SHAs are deliberately omitted here;
-they are not evidence for the current dirty branch. Final focused tests,
-builds, rendered screenshots, and branch SHA must be recorded from the exact
-tree being published. No real wallet initialization, controlled mainnet
+Final focused tests, builds, rendered screenshots, and branch SHA are recorded
+from the exact published tree in `AI_TASK.json`. Julien completed the private
+wallet initialization on 2026-09-01. Only the public descriptor was inspected:
+owner julienlenaz, mode `0600`, matching receive-chain xpub fingerprint, valid
+treasury and sample addresses, and no secret fields. No controlled mainnet
 receipt, transaction broadcast, production configuration, deployment, or live
 payment is established by this document.
 

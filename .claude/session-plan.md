@@ -156,6 +156,7 @@ show their one-payment price because a monthly equivalent would mislead.
 
 ## Next step
 
-Launch the wallet's Julien-only initialization step and verify only its public
-descriptor after he finishes it. The verified implementation is already
-published only to `origin/feat/crypto-pricing`.
+Complete. Julien finished the private wallet ceremony, and the public descriptor
+passed owner, permission, fingerprint, public-address, and secret-field checks.
+Hardware-wallet migration and controlled launch evidence are separate future
+work. The processor and watcher remain disabled.
