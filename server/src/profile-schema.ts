@@ -205,6 +205,7 @@ export const profileVisibilityRulesSchema = z.object({
   pubic_hair: visibilityArrayField,
   facial_hair: visibilityArrayField,
   sexuality: visibilityArrayField,
+  zodiac: visibilityArrayField,
   substance_boundaries: visibilityArrayField,
   protection_boundaries: visibilityArrayField
 }).strict().superRefine((rules, ctx) => {

@@ -1,6 +1,7 @@
 type BugButtonSlotListener = () => void;
 
 let slotElement: HTMLElement | null = null;
+let slotElements: HTMLElement[] = [];
 const listeners = new Set<BugButtonSlotListener>();
 
 /**
@@ -8,12 +9,25 @@ const listeners = new Set<BugButtonSlotListener>();
  * trigger renders inside their own controls instead of floating over them.
  */
 export function registerBugButtonSlot(element: HTMLElement | null) {
-  if (slotElement === element) {
+  if (element) {
+    slotElements = [...slotElements.filter((candidate) => candidate !== element && candidate.isConnected), element];
+    if (slotElement === element) {
+      return;
+    }
+    slotElement = element;
+    listeners.forEach((listener) => listener());
     return;
   }
 
-  slotElement = element;
-  listeners.forEach((listener) => listener());
+  queueMicrotask(() => {
+    slotElements = slotElements.filter((candidate) => candidate.isConnected);
+    const nextSlot = slotElements.at(-1) ?? null;
+    if (nextSlot === slotElement) {
+      return;
+    }
+    slotElement = nextSlot;
+    listeners.forEach((listener) => listener());
+  });
 }
 
 export function subscribeToBugButtonSlot(listener: BugButtonSlotListener) {

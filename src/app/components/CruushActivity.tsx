@@ -794,12 +794,7 @@ export default function CruushActivity({
                     <CruushMatchSettings embedded />
                   </DialogContent>
                 </Dialog>}
-                {embedded && onClose ? (
-                  <Button type="button" variant="secondary" size="icon" className="rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10" aria-label="Close Cruushes" onClick={onClose}>
-                    <X className="h-4 w-4" />
-                  </Button>
-                ) : null}
-                {!embedded ? <div className="h-11 w-11 shrink-0" data-testid="cruush-activity-bug-button-slot" ref={registerBugButtonSlot} /> : null}
+                <div className="h-11 w-11 shrink-0" data-testid="cruush-activity-bug-button-slot" ref={registerBugButtonSlot} />
               </div>
             </div>
 
@@ -809,7 +804,7 @@ export default function CruushActivity({
             >
               <div data-testid="cruush-count-grid" className="cruush-activity-count-grid grid w-full grid-cols-[repeat(4,minmax(0,1fr))] gap-2">
                 {(['incoming', 'sent', 'mutual', 'views'] as ActivityTab[]).map((tab) => (
-                  <div key={tab} className="min-w-0 rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1.5 text-center">
+                  <div key={tab} className="min-w-0 rounded-lg border border-white/10 bg-white/[0.04] px-1 py-1.5 text-center sm:px-2">
                     <p className="truncate text-[9px] uppercase tracking-[0.08em] text-white/46 sm:text-[10px]">{tab}</p>
                     <p className="truncate text-sm tabular-nums text-white">{activity?.counts[tab] ?? 0}</p>
                   </div>
@@ -954,7 +949,7 @@ function ActivityTabButton({
   return (
     <TabsTrigger
       value={value}
-      className="h-10 min-w-0 rounded-md px-2 text-sm text-white/72"
+      className="h-10 min-w-0 rounded-md px-0.5 text-sm text-white/72 sm:px-2"
     >
       <span className="block min-w-0 truncate">{label}</span>
     </TabsTrigger>

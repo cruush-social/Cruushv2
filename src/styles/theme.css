@@ -214,11 +214,6 @@ html[data-cruush-larger-text] :where([class~="text-[21px]"]) {
     grid-column: 1 / -1;
   }
 
-  html[data-cruush-larger-text] .cruush-activity-count-grid,
-  html[data-cruush-larger-text] .cruush-activity-tab-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
   html[data-cruush-larger-text] .cruush-carousel-heading {
     padding: 0.625rem 0.75rem;
   }

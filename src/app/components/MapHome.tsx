@@ -350,6 +350,7 @@ function hasActiveSeekingFilters(filters: FilterState) {
       filters.kinks,
       filters.bodyTypes,
       filters.sexuality,
+      filters.zodiac,
       filters.substanceBoundaries,
       filters.protectionBoundaries,
     ].some((items) => items.length > 0);
@@ -378,6 +379,7 @@ function normalizeVisibilityRules(rules?: ProfileVisibilityRules): ProfileVisibi
     kinks: uniqueValues(rules?.kinks ?? defaults.kinks),
     body_types: uniqueValues(rules?.body_types ?? defaults.body_types),
     sexuality: uniqueValues(rules?.sexuality ?? defaults.sexuality),
+    zodiac: uniqueValues(rules?.zodiac ?? defaults.zodiac),
     substance_boundaries: uniqueValues(rules?.substance_boundaries ?? defaults.substance_boundaries),
     protection_boundaries: uniqueValues(rules?.protection_boundaries ?? defaults.protection_boundaries),
     age_range: rules?.age_range ?? null,
@@ -411,6 +413,7 @@ function visibilityRulesToState(rules?: ProfileVisibilityRules): VisibilityContr
     kinks: normalizedRules.kinks,
     bodyTypes: normalizedRules.body_types,
     sexuality: normalizedRules.sexuality,
+    zodiac: normalizedRules.zodiac,
     substanceBoundaries: normalizedRules.substance_boundaries,
     protectionBoundaries: normalizedRules.protection_boundaries,
   };
@@ -437,6 +440,7 @@ function visibilityStateToRules(state: VisibilityControlState): ProfileVisibilit
     kinks: uniqueValues(state.kinks),
     body_types: uniqueValues(state.bodyTypes),
     sexuality: uniqueValues(state.sexuality),
+    zodiac: uniqueValues(state.zodiac),
     substance_boundaries: uniqueValues(state.substanceBoundaries),
     protection_boundaries: uniqueValues(state.protectionBoundaries),
   };
@@ -571,6 +575,7 @@ function hasActiveVisibilityControls(visibility: VisibilityControlState) {
       visibility.kinks,
       visibility.bodyTypes,
       visibility.sexuality,
+      visibility.zodiac,
       visibility.substanceBoundaries,
       visibility.protectionBoundaries,
     ].some((items) => items.length > 0);

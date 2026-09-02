@@ -76,6 +76,7 @@ type DiscoveryProfileRow = {
   identities: string[] | null;
   presentation: string[] | null;
   sexuality: string[] | null;
+  zodiac: string[] | null;
   body_type: string[] | null;
   availability: string[] | null;
   hobbies: string[] | null;
@@ -222,6 +223,7 @@ const discoveryQuerySchema = z.object({
   kinks: queryArrayField,
   bodyTypes: queryArrayField,
   sexuality: queryArrayField,
+  zodiac: queryArrayField,
   substanceBoundaries: queryArrayField,
   protectionBoundaries: queryArrayField
 }).strict();
@@ -497,6 +499,7 @@ function toVisibilitySubject(app: FastifyInstance, row: DiscoveryProfileRow | Di
     kinks: sensitiveKinksForVisibility(sensitiveProfile, null),
     body_types: row.body_type ?? [],
     sexuality: row.sexuality ?? [],
+    zodiac: row.zodiac ?? [],
     substance_boundaries: row.substance_boundaries ?? [],
     protection_boundaries: row.protection_boundaries ?? [],
     coordinates: getCoordinates(row)
@@ -523,6 +526,7 @@ async function loadDiscoveryViewer(app: FastifyInstance, currentUserId: string) 
          identities,
          presentation,
          sexuality,
+         zodiac,
          body_type,
          availability,
          hobbies,
@@ -707,6 +711,7 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, fi
     addTextArrayFilter(where, values, "role", filters.roles);
     addTextArrayFilter(where, values, "body_type", filters.bodyTypes);
     addTextArrayFilter(where, values, "sexuality", filters.sexuality);
+    addTextArrayFilter(where, values, "zodiac", filters.zodiac);
     addTextArrayFilter(where, values, "substance_boundaries", filters.substanceBoundaries);
     addTextArrayFilter(where, values, "protection_boundaries", filters.protectionBoundaries);
     addSensitiveTokenFilter(app, where, values, "crowd", filters.crowds);
@@ -738,6 +743,7 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, fi
          identities,
          presentation,
          sexuality,
+         zodiac,
          body_type,
          availability,
          hobbies,

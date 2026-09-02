@@ -12,6 +12,7 @@ import ReportPage from './ReportPage';
 import UserActivityCapsule from './UserActivityCapsule';
 import LoadingCardSkeletons from './LoadingCardSkeletons';
 import InAppShareDialog from './InAppShareDialog';
+import { registerBugButtonSlot } from '../lib/bugButtonSlot';
 import { getStoredUserId } from '../lib/sessionUser';
 import { shouldMaskPhoto, useDlMode } from '../lib/dlMode';
 import { resolveUserBorderTone } from '../lib/userBorderTone';
@@ -391,11 +392,12 @@ export default function PlaceDetail({ embedded = false, onBack, placeIdOverride 
 
   return (
     <div className={embedded ? 'bg-background' : 'min-h-screen bg-background pb-20'} data-testid="spot-detail">
-      <header className="sticky top-0 z-20 flex min-h-16 items-center gap-3 border-b border-white/10 bg-background/95 px-4 pr-16 backdrop-blur-md">
+      <header className="sticky top-0 z-20 flex min-h-16 items-center gap-3 border-b border-white/10 bg-background/95 px-4 backdrop-blur-md">
         <button type="button" aria-label="Back" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/12 bg-black/70 text-white" onClick={onBack ?? (() => navigate(-1))}>
           <ArrowLeft className="h-5 w-5" />
         </button>
         <h1 className="min-w-0 truncate text-xl">{PLACE_FACILITY_SINGULAR_LABELS[place.facilityType]}</h1>
+        <div className="ml-auto h-11 w-11 shrink-0" data-testid="spot-detail-bug-button-slot" ref={registerBugButtonSlot} />
       </header>
 
       <div className={`mx-auto flex flex-col gap-4 px-4 py-4 sm:gap-6 sm:p-6 ${embedded ? 'max-w-none' : 'max-w-2xl'}`}>

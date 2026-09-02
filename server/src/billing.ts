@@ -161,6 +161,7 @@ export const PREMIUM_DISCOVERY_FILTER_KEYS = [
   "kinks",
   "bodyTypes",
   "sexuality",
+  "zodiac",
   "substanceBoundaries",
   "protectionBoundaries"
 ] as const;

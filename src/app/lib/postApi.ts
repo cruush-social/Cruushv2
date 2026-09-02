@@ -82,6 +82,7 @@ export type FeedPostFilters = {
     kinks?: string[];
     bodyTypes?: string[];
     sexuality?: string[];
+    zodiac?: string[];
     substanceBoundaries?: string[];
     protectionBoundaries?: string[];
   };
@@ -153,6 +154,7 @@ export async function getFeedPosts(filters: FeedPostFilters = {}) {
   appendSeekingValues('kinks', filters.seeking?.kinks);
   appendSeekingValues('bodyTypes', filters.seeking?.bodyTypes);
   appendSeekingValues('sexuality', filters.seeking?.sexuality);
+  appendSeekingValues('zodiac', filters.seeking?.zodiac);
   appendSeekingValues('substanceBoundaries', filters.seeking?.substanceBoundaries);
   appendSeekingValues('protectionBoundaries', filters.seeking?.protectionBoundaries);
 

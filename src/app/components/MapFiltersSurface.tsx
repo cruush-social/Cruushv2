@@ -29,6 +29,7 @@ import {
   SEXUALITY,
   SUBSTANCE_BOUNDARIES,
   VIBE_GROUPS,
+  ZODIAC,
 } from '../lib/profileOptions';
 
 export interface FilterState {
@@ -53,6 +54,7 @@ export interface FilterState {
   pubicHair: string[];
   facialHair: string[];
   sexuality: string[];
+  zodiac: string[];
   substanceBoundaries: string[];
   protectionBoundaries: string[];
 }
@@ -79,6 +81,7 @@ export const DEFAULT_FILTER_STATE: FilterState = {
   pubicHair: [],
   facialHair: [],
   sexuality: [],
+  zodiac: [],
   substanceBoundaries: [],
   protectionBoundaries: [],
 };
@@ -258,6 +261,7 @@ export default function MapFiltersSurface({
               <FieldGroup label="Body Type" options={BODY_TYPES} stateKey="bodyTypes" value={value} onChange={onChange} />
               <div className="space-y-4 rounded-2xl border border-white/10 bg-white/[0.035] p-4"><Label className="text-base">Hair now</Label><FieldGroup label="Body hair" options={BODY_HAIR} stateKey="bodyHair" selectionMode="single" value={value} onChange={onChange} /><FieldGroup label="Pubic hair" options={PUBIC_HAIR} stateKey="pubicHair" selectionMode="single" value={value} onChange={onChange} /><FieldGroup label="Facial hair" options={FACIAL_HAIR} stateKey="facialHair" selectionMode="single" value={value} onChange={onChange} /></div>
               <FieldGroup label="Sexuality" options={SEXUALITY} stateKey="sexuality" value={value} onChange={onChange} />
+              <FieldGroup label="Zodiac" options={ZODIAC} stateKey="zodiac" selectionMode="single" value={value} onChange={onChange} />
               <FieldGroup label="Vibes" optionGroups={VIBE_GROUPS} stateKey="vibes" value={value} onChange={onChange} />
               <FieldGroup label="Hobbies" options={HOBBIES} stateKey="hobbies" value={value} onChange={onChange} />
             </TabsContent>

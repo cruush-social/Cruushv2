@@ -34,3 +34,4 @@
 
 - Fixed the 1.6 profile-taxonomy migration using a nonexistent `profiles.roles` column, which stopped later migrations and broke authenticated map/profile loading.
 - Kept Map Controls and Recently Active from covering mobile side panels, and condensed the Mile High Club rules so its address controls and map remain visible with Larger text.
+- Zodiac saved in Edit Profile now appears on profiles and is available in Seeking Filters and Visibility Controls.

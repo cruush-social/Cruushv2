@@ -77,6 +77,7 @@ export type DiscoveryFilterParams = {
   kinks?: string[];
   bodyTypes?: string[];
   sexuality?: string[];
+  zodiac?: string[];
   substanceBoundaries?: string[];
   protectionBoundaries?: string[];
 };
@@ -204,6 +205,7 @@ export async function getNearbyUsers(
   appendListParams(params, 'kinks', filters?.kinks);
   appendListParams(params, 'bodyTypes', filters?.bodyTypes);
   appendListParams(params, 'sexuality', filters?.sexuality);
+  appendListParams(params, 'zodiac', filters?.zodiac);
   appendListParams(params, 'substanceBoundaries', filters?.substanceBoundaries);
   appendListParams(params, 'protectionBoundaries', filters?.protectionBoundaries);
 

@@ -30,6 +30,7 @@ export type VisibilitySubjectProfile = {
   pubic_hair?: string[] | null;
   facial_hair?: string[] | null;
   sexuality?: string[] | null;
+  zodiac?: string[] | null;
   substance_boundaries?: string[] | null;
   protection_boundaries?: string[] | null;
   coordinates?: VisibilityCoordinates | null;
@@ -95,6 +96,7 @@ function matchesSearchQuery(searchQuery: string, subject: VisibilitySubjectProfi
     ...(subject.pubic_hair ?? []),
     ...(subject.facial_hair ?? []),
     ...(subject.sexuality ?? []),
+    ...(subject.zodiac ?? []),
     ...(subject.substance_boundaries ?? []),
     ...(subject.protection_boundaries ?? []),
   ].some((value) => normalize(value).includes(normalizedQuery));
@@ -150,6 +152,7 @@ function normalizeVisibilityRules(rules: ProfileVisibilityRules): ProfileVisibil
     pubic_hair: rules.pubic_hair ?? [],
     facial_hair: rules.facial_hair ?? [],
     sexuality: rules.sexuality ?? [],
+    zodiac: rules.zodiac ?? [],
     substance_boundaries: rules.substance_boundaries ?? [],
     protection_boundaries: rules.protection_boundaries ?? []
   };
@@ -184,6 +187,7 @@ export function visibilityRulesArePublic(rules: ProfileVisibilityRules | null | 
     normalizedRules.pubic_hair.length === 0 &&
     normalizedRules.facial_hair.length === 0 &&
     normalizedRules.sexuality.length === 0 &&
+    normalizedRules.zodiac.length === 0 &&
     normalizedRules.substance_boundaries.length === 0 &&
     normalizedRules.protection_boundaries.length === 0;
 }
@@ -217,6 +221,7 @@ export function countVisibilityExclusionFilters(rules: ProfileVisibilityRules | 
     normalizedRules.pubic_hair.length > 0,
     normalizedRules.facial_hair.length > 0,
     normalizedRules.sexuality.length > 0,
+    normalizedRules.zodiac.length > 0,
     normalizedRules.substance_boundaries.length > 0,
     normalizedRules.protection_boundaries.length > 0
   ].filter(Boolean).length;
@@ -285,6 +290,7 @@ export function canSubjectViewProfile(
     excludesAny(normalizedRules.pubic_hair, subject.pubic_hair) &&
     excludesAny(normalizedRules.facial_hair, subject.facial_hair) &&
     excludesAny(normalizedRules.sexuality, subject.sexuality) &&
+    excludesAny(normalizedRules.zodiac, subject.zodiac) &&
     excludesAny(normalizedRules.substance_boundaries, subject.substance_boundaries) &&
     excludesAny(normalizedRules.protection_boundaries, subject.protection_boundaries);
 }

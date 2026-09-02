@@ -71,4 +71,14 @@ describe("profile visibility rules", () => {
       kinks: ["leather"]
     })).toBe(5);
   });
+
+  it("treats a selected Zodiac value as an excluded audience", () => {
+    const rules: ProfileVisibilityRules = {
+      ...emptyProfile.visibility_rules,
+      zodiac: ["Leo"]
+    };
+
+    expect(canSubjectViewProfile(rules, { zodiac: ["Leo"] })).toBe(false);
+    expect(canSubjectViewProfile(rules, { zodiac: ["Virgo"] })).toBe(true);
+  });
 });

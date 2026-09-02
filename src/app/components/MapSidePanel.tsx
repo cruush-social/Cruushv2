@@ -100,7 +100,6 @@ export default function MapSidePanel({
               <TravelModeSettings
                 embedded
                 onBack={() => setSettingsDetail(null)}
-                onClose={onClose}
                 onTravelPinChange={onTravelPinChange}
               />
             ) : null}

@@ -80,6 +80,7 @@ function createProfileFixture(overrides: Record<string, unknown> = {}) {
     identities: ['Non-binary'],
     presentation: ['Femme'],
     sexuality: ['Queer'],
+    zodiac: ['Leo'],
     body_type: ['Athletic'],
     height: "5'8\"",
     weight: '155 lbs',
@@ -183,6 +184,8 @@ describe('ProfileView', () => {
     expect(screen.getByRole('tab', { name: 'Intimacy' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Health' })).toBeInTheDocument();
     expect(screen.getByText('About')).toBeInTheDocument();
+    expect(screen.getByText('Zodiac')).toBeInTheDocument();
+    expect(screen.getByText('Leo')).toBeInTheDocument();
     expect(screen.queryByText('Crowds')).not.toBeInTheDocument();
     const intimacyTab = screen.getByRole('tab', { name: 'Intimacy' });
     fireEvent.pointerDown(intimacyTab, { button: 0, ctrlKey: false });

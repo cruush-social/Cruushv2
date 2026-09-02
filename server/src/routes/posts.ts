@@ -441,6 +441,7 @@ const feedPostQuerySchema = z.object({
   kinks: feedQueryArrayField,
   bodyTypes: feedQueryArrayField,
   sexuality: feedQueryArrayField,
+  zodiac: feedQueryArrayField,
   substanceBoundaries: feedQueryArrayField,
   protectionBoundaries: feedQueryArrayField
 }).strict().superRefine((query, context) => {
@@ -656,6 +657,7 @@ export async function registerPostRoutes(app: FastifyInstance) {
     addFeedTextArrayFilter(where, values, "pr.role", query.roles);
     addFeedTextArrayFilter(where, values, "pr.body_type", query.bodyTypes);
     addFeedTextArrayFilter(where, values, "pr.sexuality", query.sexuality);
+    addFeedTextArrayFilter(where, values, "pr.zodiac", query.zodiac);
     addFeedTextArrayFilter(where, values, "pr.substance_boundaries", query.substanceBoundaries);
     addFeedTextArrayFilter(where, values, "pr.protection_boundaries", query.protectionBoundaries);
     addFeedSensitiveTokenFilter(app, where, values, "crowd", query.crowds);

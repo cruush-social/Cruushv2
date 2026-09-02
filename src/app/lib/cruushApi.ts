@@ -123,6 +123,7 @@ export type MutualCruushMapFilters = {
   kinks?: string[];
   bodyTypes?: string[];
   sexuality?: string[];
+  zodiac?: string[];
   substanceBoundaries?: string[];
   protectionBoundaries?: string[];
 };
@@ -232,6 +233,7 @@ export async function getMutualCruushMap(filters?: MutualCruushMapFilters) {
   appendMutualMapListParams(params, 'kinks', filters?.kinks);
   appendMutualMapListParams(params, 'bodyTypes', filters?.bodyTypes);
   appendMutualMapListParams(params, 'sexuality', filters?.sexuality);
+  appendMutualMapListParams(params, 'zodiac', filters?.zodiac);
   appendMutualMapListParams(params, 'substanceBoundaries', filters?.substanceBoundaries);
   appendMutualMapListParams(params, 'protectionBoundaries', filters?.protectionBoundaries);
   const query = params.toString();

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import { ArrowLeft, Search, X } from 'lucide-react';
+import { ArrowLeft, Search } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
 import {
@@ -22,6 +22,7 @@ import { CRUUSH_PLUS_CHANGED_EVENT, getMyBillingStatus } from '../lib/billingApi
 import 'maplibre-gl/dist/maplibre-gl.css';
 import mileHighClubWhite from '../assets/ui-icons/mile-high-club-white.svg';
 import { HEART_PIN_PATH, HEART_PIN_THEMES } from '../lib/heartPin';
+import { registerBugButtonSlot } from '../lib/bugButtonSlot';
 
 /** What Mile High Club does and does not allow, stated before it is turned on. */
 const TRAVEL_MODE_TERMS = [
@@ -554,11 +555,10 @@ function TravelModeSection({ onTravelPinChange }: { onTravelPinChange?: (pin: Tr
 type TravelModeSettingsProps = {
   embedded?: boolean;
   onBack?: () => void;
-  onClose?: () => void;
   onTravelPinChange?: (pin: TravelPin | null) => void;
 };
 
-export default function TravelModeSettings({ embedded = false, onBack, onClose, onTravelPinChange }: TravelModeSettingsProps = {}) {
+export default function TravelModeSettings({ embedded = false, onBack, onTravelPinChange }: TravelModeSettingsProps = {}) {
   const navigate = useNavigate();
 
   return (
@@ -573,16 +573,7 @@ export default function TravelModeSettings({ embedded = false, onBack, onClose, 
           <ArrowLeft className="h-5 w-5" />
         </button>
         <h1 className="min-w-0 flex-1 truncate text-lg text-white">Mile High Club</h1>
-        {embedded ? (
-          <button
-            aria-label="Close Mile High Club"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/12 bg-black/55"
-            onClick={onClose}
-            type="button"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        ) : null}
+        <div className="h-10 w-10 shrink-0" data-testid="mile-high-club-bug-button-slot" ref={registerBugButtonSlot} />
       </header>
 
       <main className="cruush-travel-mode-main mx-auto flex min-h-0 w-full max-w-2xl flex-1 flex-col px-4 py-4">

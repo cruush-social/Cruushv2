@@ -27,6 +27,7 @@ export type ProfileVisibilityRules = {
   pubic_hair: string[];
   facial_hair: string[];
   sexuality: string[];
+  zodiac: string[];
   substance_boundaries: string[];
   protection_boundaries: string[];
 };
@@ -245,6 +246,7 @@ export const emptyProfilePayload: ProfilePayload = {
     pubic_hair: [],
     facial_hair: [],
     sexuality: [],
+    zodiac: [],
     substance_boundaries: [],
     protection_boundaries: [],
   },

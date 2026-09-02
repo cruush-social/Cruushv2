@@ -54,6 +54,7 @@ import {
   saveDesktopPageLayout,
   type DesktopPageLayout,
 } from '../lib/desktopPageLayoutPreferences';
+import { registerBugButtonSlot } from '../lib/bugButtonSlot';
 
 type SettingsActionItem = {
   icon?: LucideIcon;
@@ -396,11 +397,7 @@ export default function Settings({ embedded = false, onBack, onClose, onOpenMile
           <ArrowLeft className="w-5 h-5" />
         </Button>
         <h2 className="flex-1 text-xl">Settings</h2>
-        {embedded && onClose ? (
-          <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close Settings">
-            <X className="h-5 w-5" />
-          </Button>
-        ) : null}
+        <div className="h-11 w-11 shrink-0" data-testid="settings-bug-button-slot" ref={registerBugButtonSlot} />
       </header>
 
       <div className={`max-w-2xl mx-auto space-y-8 ${embedded ? 'p-4' : 'p-6'}`}>

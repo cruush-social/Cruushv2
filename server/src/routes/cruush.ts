@@ -120,6 +120,7 @@ const mutualMapQuerySchema = z.object({
   kinks: mutualMapQueryArrayField,
   bodyTypes: mutualMapQueryArrayField,
   sexuality: mutualMapQueryArrayField,
+  zodiac: mutualMapQueryArrayField,
   substanceBoundaries: mutualMapQueryArrayField,
   protectionBoundaries: mutualMapQueryArrayField
 }).strict().superRefine((query, context) => {
@@ -221,6 +222,7 @@ type MutualCruushRow = {
   identities: string[] | null;
   presentation: string[] | null;
   sexuality: string[] | null;
+  zodiac: string[] | null;
   body_type: string[] | null;
   availability: string[] | null;
   hobbies: string[] | null;
@@ -258,6 +260,7 @@ type CurrentProfileLocationRow = {
   identities: string[] | null;
   presentation: string[] | null;
   sexuality: string[] | null;
+  zodiac: string[] | null;
   body_type: string[] | null;
   availability: string[] | null;
   hobbies: string[] | null;
@@ -305,6 +308,7 @@ type ActivityProfileRow = {
   identities: string[] | null;
   presentation: string[] | null;
   sexuality: string[] | null;
+  zodiac: string[] | null;
   body_type: string[] | null;
   availability: string[] | null;
   hobbies: string[] | null;
@@ -626,6 +630,7 @@ function matchesMutualMapSeeking(
     matchesAnySelected(filters.kinks, target.kinks) &&
     matchesAnySelected(filters.bodyTypes, target.body_types) &&
     matchesAnySelected(filters.sexuality, target.sexuality) &&
+    matchesAnySelected(filters.zodiac, target.zodiac) &&
     matchesAnySelected(filters.substanceBoundaries, target.substance_boundaries) &&
     matchesAnySelected(filters.protectionBoundaries, target.protection_boundaries);
 }
@@ -661,6 +666,7 @@ function toMapVisibilitySubject(
     kinks,
     body_types: row.body_type ?? [],
     sexuality: row.sexuality ?? [],
+    zodiac: row.zodiac ?? [],
     substance_boundaries: row.substance_boundaries ?? [],
     protection_boundaries: row.protection_boundaries ?? [],
     coordinates
@@ -682,6 +688,7 @@ async function loadCurrentProfileLocation(app: FastifyInstance, userId: string) 
        identities,
        presentation,
        sexuality,
+       zodiac,
        body_type,
        availability,
        hobbies,
@@ -754,6 +761,7 @@ async function loadActivityProfiles(app: FastifyInstance, userIds: string[]) {
        profiles.identities,
        profiles.presentation,
        profiles.sexuality,
+       profiles.zodiac,
        profiles.body_type,
        profiles.availability,
        profiles.hobbies,
@@ -848,6 +856,7 @@ async function loadMutualCruushRows(app: FastifyInstance, userId: string) {
       identities: profile.identities,
       presentation: profile.presentation,
       sexuality: profile.sexuality,
+      zodiac: profile.zodiac,
       body_type: profile.body_type,
       availability: profile.availability,
       hobbies: profile.hobbies,

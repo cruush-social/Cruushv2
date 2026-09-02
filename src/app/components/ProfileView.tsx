@@ -80,6 +80,7 @@ export type ProfileViewModel = {
   identities: string[];
   presentation: string[];
   sexuality: string[];
+  zodiac: string[];
   ethnicity: string | null;
   bodyType: string | null;
   bodyHair: string | null;
@@ -171,6 +172,7 @@ export function profileRecordToProfileView(
     identities: profile.identities,
     presentation: profile.presentation,
     sexuality: profile.sexuality,
+    zodiac: profile.zodiac,
     ethnicity: profile.ethnicity || null,
     bodyType: formatJoined(profile.body_type),
     bodyHair: formatSingle(profile.body_hair),
@@ -863,6 +865,10 @@ export function ProfileDetailsTabs({
 
         <Section title="Sexuality" compact={compact}>
           <BadgeList items={profileView.sexuality} compact={compact} />
+        </Section>
+
+        <Section title="Zodiac" compact={compact}>
+          <BadgeList items={profileView.zodiac} compact={compact} />
         </Section>
 
         {profileView.crowds.length > 0 ? (

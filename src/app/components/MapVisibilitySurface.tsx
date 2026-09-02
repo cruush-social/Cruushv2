@@ -28,6 +28,7 @@ import {
   SEXUALITY,
   SUBSTANCE_BOUNDARIES,
   VISIBILITY_VIBE_GROUPS,
+  ZODIAC,
 } from '../lib/profileOptions';
 import { DEFAULT_FILTER_STATE, type FilterState } from './MapFiltersSurface';
 import CruushPlusGateNotice from './CruushPlusGateNotice';
@@ -81,6 +82,7 @@ const VISIBILITY_LIST_KEYS: VisibilityListKey[] = [
   'pubicHair',
   'facialHair',
   'sexuality',
+  'zodiac',
   'substanceBoundaries',
   'protectionBoundaries',
 ];
@@ -349,6 +351,7 @@ export default function MapVisibilitySurface({
               <FieldGroup label="Body Type" options={BODY_TYPES} stateKey="bodyTypes" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} />
               <div className="space-y-4 rounded-2xl border border-white/10 bg-white/[0.035] p-4"><Label className="text-base">Hair now</Label><FieldGroup label="Body hair" options={BODY_HAIR} stateKey="bodyHair" selectionMode="single" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} /><FieldGroup label="Pubic hair" options={PUBIC_HAIR} stateKey="pubicHair" selectionMode="single" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} /><FieldGroup label="Facial hair" options={FACIAL_HAIR} stateKey="facialHair" selectionMode="single" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} /></div>
               <FieldGroup label="Sexuality" options={SEXUALITY} stateKey="sexuality" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} />
+              <FieldGroup label="Zodiac" options={ZODIAC} stateKey="zodiac" selectionMode="single" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} />
               <FieldGroup label="Vibes" optionGroups={VISIBILITY_VIBE_GROUPS} stateKey="vibes" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} />
               <FieldGroup label="Hobbies" options={HOBBIES} stateKey="hobbies" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} />
             </TabsContent>
