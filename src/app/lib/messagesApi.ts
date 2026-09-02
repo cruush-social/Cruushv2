@@ -38,6 +38,7 @@ export type ChatMessageRecord = {
   author: 'self' | 'other' | 'system';
   content: string;
   timestamp: string;
+  readAt?: string;
   expiresAt?: string;
   attachments?: MessageAttachment[];
   user?: MessageSender;
@@ -56,6 +57,7 @@ export type RemoteChatMessage = {
   userId: string;
   content: string;
   timestamp: string;
+  readAt?: string;
   expiresAt?: string;
   attachments?: MessageAttachment[];
   user?: MessageSender;

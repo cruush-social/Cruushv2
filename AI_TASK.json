@@ -34,7 +34,7 @@
     "Group owners and admins can spend one of their own Pulses to alert members of that group; group Pulses obey the same recipient notification preferences and repeat limits as individual Pulses.",
     "The Pulse panel is fixed in place on mobile and exposes drag and resize interactions only on desktop.",
     "A successful Spot check-in creates one moderated public Feed post per member, Spot, and hourly check-in event while Pink Book posts remain separate and persistent.",
-    "Direct messages support read receipts using the final privacy and display rules selected for this release.",
+    "Direct messages show a simple Read label only beneath the sender's own message after the other member opens the conversation; group messages do not expose member-by-member receipts.",
     "Onboarding explains that Crowd Mode affects visibility only when enabled and includes the approved profile-photo rules.",
     "Onboarding step 2 accepts an optional friend invite code and explains that invite benefits require the invited member to enable 2FA.",
     "Onboarding places role and position before badges, shows the full uploaded-photo heart unit, and visibly defaults the left badge to role and the right badge to position when no custom badges are chosen.",

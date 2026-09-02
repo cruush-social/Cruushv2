@@ -112,6 +112,7 @@ type MessageRow = {
   content_auth_tag?: string | null;
   content_key_version?: string | null;
   created_at: string | Date;
+  read_at?: string | Date | null;
   expires_at?: string | Date | null;
   attachments?: MessageAttachment[] | string | null;
 };
@@ -518,6 +519,7 @@ function mapMessageRow(app: FastifyInstance, row: MessageRow) {
       keyVersion: row.content_key_version ?? undefined
     }, row.content),
     timestamp: new Date(row.created_at).toISOString(),
+    ...(row.read_at ? { readAt: new Date(row.read_at).toISOString() } : {}),
     ...(row.expires_at ? { expiresAt: new Date(row.expires_at).toISOString() } : {}),
     ...(hasSender ? {
       user: {
@@ -1912,6 +1914,10 @@ export async function registerMessageRoutes(app: FastifyInstance) {
          m.content_key_version,
          m.created_at,
          m.expires_at,
+         case
+           when c.kind = 'dm' and m.user_id = $2 then recipient_read.last_read_at
+           else null
+         end as read_at,
          coalesce(sender_profile.display_name, sender_user.display_name, sender_user.email) as sender_name,
          sender_profile.pronouns as sender_pronouns,
          sender_profile.photos[1] as sender_photo,
@@ -1929,6 +1935,13 @@ export async function registerMessageRoutes(app: FastifyInstance) {
        join conversations c on c.id = m.conversation_id
        join app_users sender_user on sender_user.id = m.user_id
        left join profiles sender_profile on sender_profile.id = m.user_id
+       left join lateral (
+         select max(recipient_member.last_read_at) as last_read_at
+         from conversation_members recipient_member
+         where recipient_member.conversation_id = m.conversation_id
+           and recipient_member.user_id <> $2
+           and recipient_member.last_read_at >= m.created_at
+       ) as recipient_read on true
        left join lateral (
          select jsonb_agg(jsonb_build_object(
            'id', media.id::text,

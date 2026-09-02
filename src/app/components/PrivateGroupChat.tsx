@@ -158,6 +158,7 @@ function normalizeRemoteMessage(message: RemoteChatMessage, activeUserId: string
     author: message.userId === activeUserId ? 'self' : 'other',
     content: String(message.content ?? ''),
     timestamp: String(message.timestamp ?? new Date().toISOString()),
+    readAt: message.readAt ? String(message.readAt) : undefined,
     expiresAt: message.expiresAt ? String(message.expiresAt) : undefined,
     attachments: Array.isArray(message.attachments) ? message.attachments : undefined,
     user: message.user
@@ -1504,6 +1505,7 @@ export default function PrivateGroupChat({
                     <span className="text-[11px] text-muted-foreground">
                       {formatMessageTime(msg.timestamp)}
                       {!isOwn && msg.expiresAt ? ` · ${formatExpirationTime(msg.expiresAt)}` : ''}
+                      {isOwn && msg.readAt ? ' · Read' : ''}
                     </span>
                     {(isOwn || (conversation?.kind === 'group' && canManageConversation)) ? (
                       <Button
