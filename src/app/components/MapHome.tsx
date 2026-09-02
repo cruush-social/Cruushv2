@@ -3200,7 +3200,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
         ) : null}
 
         <div
-          className="pointer-events-auto absolute right-3 top-[4.625rem] z-[900] flex flex-col items-end gap-2 sm:right-4 sm:top-[5.375rem] lg:top-[5.625rem]"
+          className={`pointer-events-auto absolute right-3 top-[4.625rem] z-[900] flex flex-col items-end gap-2 sm:right-4 sm:top-[5.375rem] lg:top-[5.625rem] ${isMobile && (sidePanelView || selectedPlace || selectedUser) ? 'hidden' : ''}`}
           data-map-control-hit-layer="true"
           data-testid="map-right-actions"
           onPointerEnter={() => setMapControlsHovered(true)}
@@ -3347,7 +3347,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
           ) : null}
         </div>
 
-        {displayedUsers.length > 0 && !selectedEvent && !selectedPlace && (
+        {displayedUsers.length > 0 && !selectedEvent && !selectedPlace && !sidePanelView && !selectedUser && (
           <div
             className={`pointer-events-none absolute ${
               isMobile

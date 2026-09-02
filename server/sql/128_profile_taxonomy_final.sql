@@ -146,7 +146,7 @@ $$;
 
 update profiles
 set
-  roles = pg_temp.cruush_profile_roles_v16(roles, kinks),
+  role = pg_temp.cruush_profile_roles_v16(role, kinks),
   kinks = pg_temp.cruush_profile_kinks_v16(kinks)
 where exists (
   select 1

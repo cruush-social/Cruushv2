@@ -96,7 +96,7 @@ where exists (
 );
 
 update profiles
-set roles = array(
+set role = array(
   select role
   from (
     select
@@ -105,7 +105,7 @@ set roles = array(
         else value
       end as role,
       min(position) as first_position
-    from unnest(coalesce(roles, '{}'::text[])) with ordinality as role_values(value, position)
+    from unnest(coalesce(role, '{}'::text[])) with ordinality as role_values(value, position)
     where trim(value) <> ''
     group by case lower(trim(value))
       when 'primal' then 'hunter'
@@ -116,7 +116,7 @@ set roles = array(
 )
 where exists (
   select 1
-  from unnest(coalesce(roles, '{}'::text[])) as role_values(value)
+  from unnest(coalesce(role, '{}'::text[])) as role_values(value)
   where lower(trim(value)) = 'primal'
 );
 
@@ -125,28 +125,28 @@ with owned_profiles as (
     id,
     array(
       select value
-      from unnest(coalesce(roles, '{}'::text[])) with ordinality as role_values(value, position)
+      from unnest(coalesce(role, '{}'::text[])) with ordinality as role_values(value, position)
       where lower(trim(value)) <> 'owned'
       order by position
-    ) as roles_without_owned,
+    ) as role_without_owned,
     case
       when exists (
         select 1
-        from unnest(coalesce(vibes, '{}'::text[])) as vibe_values(value)
+        from unnest(coalesce(archetypes, '{}'::text[])) as archetype_values(value)
         where lower(trim(value)) = 'owned'
-      ) then vibes
-      else array_append(coalesce(vibes, '{}'::text[]), 'Owned')
-    end as vibes_with_owned
+      ) then archetypes
+      else array_append(coalesce(archetypes, '{}'::text[]), 'Owned')
+    end as archetypes_with_owned
   from profiles
   where exists (
     select 1
-    from unnest(coalesce(roles, '{}'::text[])) as role_values(value)
+    from unnest(coalesce(role, '{}'::text[])) as role_values(value)
     where lower(trim(value)) = 'owned'
   )
 )
 update profiles
 set
-  roles = owned_profiles.roles_without_owned,
-  vibes = owned_profiles.vibes_with_owned
+  role = owned_profiles.role_without_owned,
+  archetypes = owned_profiles.archetypes_with_owned
 from owned_profiles
 where profiles.id = owned_profiles.id;

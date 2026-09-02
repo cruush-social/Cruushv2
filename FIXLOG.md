@@ -30,3 +30,7 @@
 - Spot pages now show the Pink Book tabs before Popular times on compact screens so the primary Spot interaction appears sooner.
 - Pride flag badges now fill their circular badge frame while keeping identity-defining symbols visible.
 - Existing saved Gaming hobbies now migrate to Video games without deleting other hobby selections.
+# 2026-09-02
+
+- Fixed the 1.6 profile-taxonomy migration using a nonexistent `profiles.roles` column, which stopped later migrations and broke authenticated map/profile loading.
+- Kept Map Controls and Recently Active from covering mobile side panels, and condensed the Mile High Club rules so its address controls and map remain visible with Larger text.

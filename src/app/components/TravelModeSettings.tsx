@@ -25,11 +25,8 @@ import { HEART_PIN_PATH, HEART_PIN_THEMES } from '../lib/heartPin';
 
 /** What Mile High Club does and does not allow, stated before it is turned on. */
 const TRAVEL_MODE_TERMS = [
-  'Your pin sits where you drop it, and the map shows you there instead of your device location.',
-  'The pin can be moved once every 3 hours, so it cannot be swept across a city.',
-  'You can browse, cruush, and message the same as anywhere else.',
-  'Pulse works from your travel pin, the same as it works from home.',
-  'Ghost Mode still works, and it fuzzes the travel pin the same way it fuzzes home.',
+  'Your pin shows where you drop it instead of your device location, and it can move once every 3 hours.',
+  'Browse, cruush, message, and Pulse from your travel pin. Ghost Mode still fuzzes it.',
   'Dark Room is off while you are travelling. A borrowed location and an unseen viewer is the one pair we do not allow.',
 ];
 

@@ -178,6 +178,17 @@ describe("migration runner", () => {
     expect(videoGamesSql).not.toMatch(/\b(delete from|truncate|drop table)\b/i);
   });
 
+  it("migrates kink roles through the existing profile role column", async () => {
+    const taxonomySql = await readFile(path.join(serverRoot, "sql", "128_profile_taxonomy_final.sql"), "utf8");
+    const profileFieldsSql = await readFile(path.join(serverRoot, "sql", "129_profile_preferred_spots_protection.sql"), "utf8");
+
+    expect(taxonomySql).toContain("role = pg_temp.cruush_profile_roles_v16(role, kinks)");
+    expect(taxonomySql).not.toMatch(/\broles\s*=/);
+    expect(profileFieldsSql).toContain("set role = array(");
+    expect(profileFieldsSql).toContain("archetypes = owned_profiles.archetypes_with_owned");
+    expect(profileFieldsSql).not.toMatch(/\broles\s*=/);
+  });
+
   it("keeps the late 1.6 migrations replay-safe and dependency ordered", async () => {
     const [
       feedAudienceSql,
