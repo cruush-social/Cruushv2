@@ -1477,7 +1477,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
           {!loading && posts.length === 0 && (
             <div className="rounded-2xl border border-white/10 bg-black/72 p-12 text-center">
               <p className="text-white/68">{feedSeekingFilters.searchQuery.trim() ? 'No posts match that search.' : 'No posts nearby yet.'}</p>
-              <p className="text-sm text-white/50 mt-2">{feedSeekingFilters.searchQuery.trim() ? 'Try another word, #tag, or clear the search.' : 'Be the first to share something!'}</p>
+              <p className="text-sm text-white/50 mt-2">{feedSeekingFilters.searchQuery.trim() ? 'Try another #tag or clear the search.' : 'Be the first to share something!'}</p>
             </div>
           )}
         </div>
