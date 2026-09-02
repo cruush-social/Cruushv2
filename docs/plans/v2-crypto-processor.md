@@ -204,12 +204,12 @@ Implemented locally:
 ## Evidence boundary
 
 Final focused tests, builds, rendered screenshots, and branch SHA are recorded
-from the exact published tree in `AI_TASK.json`. Julien completed the private
-wallet initialization on 2026-09-01. Only the public descriptor was inspected:
-owner julienlenaz, mode `0600`, matching receive-chain xpub fingerprint, valid
-treasury and sample addresses, and no secret fields. No controlled mainnet
-receipt, transaction broadcast, production configuration, deployment, or live
-payment is established by this document.
+from the exact published tree in `AI_TASK.json`. The first public descriptor was
+quarantined after Julien reported that its paper backup might be incorrect.
+Replacement initialization requires hidden exact re-entry of all 24 recovery
+words before writing a descriptor. No controlled mainnet receipt, transaction
+broadcast, production configuration, deployment, or live payment is
+established by this document.
 
 ## Watch-only wallet contract
 
@@ -266,10 +266,11 @@ treasury address. The server receives only the depth-4 receive-chain xpub and
 continues deriving payment addresses without signing capability.
 
 Initial setup generates recovery words locally and displays them only in an
-interactive terminal. The operator writes them down physically. The tool emits
-only the public xpub, its fingerprint, and public addresses after the recovery
-words are no longer displayed. After private confirmation, it writes an
-allowlisted public descriptor to
+interactive terminal. The operator writes them down physically, then re-enters
+all 24 words at a hidden prompt. The tool writes nothing unless that backup
+exactly matches the generated wallet. It emits only the public xpub, its
+fingerprint, and public addresses after the recovery words are no longer
+displayed. After private verification, it writes an allowlisted descriptor to
 `/Users/julienlenaz/Library/Application Support/cruush/operator-wallet/public-descriptor.json`.
 The fixed current-user path is preflighted before entropy generation. Its
 wallet directories must be owned by the current user with mode `0700`; the

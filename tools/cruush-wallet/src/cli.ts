@@ -24,7 +24,8 @@ import {
 } from "./signing.js";
 import {
   deriveWalletPublicDescriptor,
-  generateWalletMnemonic
+  generateWalletMnemonic,
+  walletRecoveryWordsMatch
 } from "./wallet.js";
 
 const HELP = `cruush local software wallet (Base Sepolia signing only)
@@ -150,8 +151,17 @@ async function initializeWallet(args: string[]) {
   const descriptorTarget = await preflightPublicDescriptorTarget();
 
   let recoveryWords = generateWalletMnemonic();
+  let backupWords = "";
   try {
     await showRecoveryWordsOnce(recoveryWords);
+    backupWords = await readHiddenLine(
+      "Re-enter all 24 recovery words in order to verify the paper backup (hidden): "
+    );
+    if (!walletRecoveryWordsMatch(recoveryWords, backupWords)) {
+      throw new Error(
+        "Re-entered recovery words did not match. Wallet initialization cancelled."
+      );
+    }
     const descriptor = deriveWalletPublicDescriptor(recoveryWords);
     const descriptorPath = await writePublicDescriptorFile(descriptorTarget, descriptor);
     process.stdout.write(
@@ -160,6 +170,7 @@ async function initializeWallet(args: string[]) {
       "Close Terminal now.\n"
     );
   } finally {
+    backupWords = "";
     recoveryWords = "";
   }
 }

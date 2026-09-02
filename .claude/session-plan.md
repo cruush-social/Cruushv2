@@ -156,7 +156,7 @@ show their one-payment price because a monthly equivalent would mislead.
 
 ## Next step
 
-Complete. Julien finished the private wallet ceremony, and the public descriptor
-passed owner, permission, fingerprint, public-address, and secret-field checks.
-Hardware-wallet migration and controlled launch evidence are separate future
-work. The processor and watcher remain disabled.
+The first public descriptor is quarantined because Julien reported that its
+paper recovery backup might be incorrect. Complete one replacement ceremony
+with hidden exact re-entry of all 24 words, then validate only the new public
+descriptor. The processor and watcher remain disabled.

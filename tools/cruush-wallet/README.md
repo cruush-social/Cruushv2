@@ -85,9 +85,10 @@ checks, but a malicious same-user process can still race Node's final path-based
 unlink; the current macOS user is the trust boundary.
 
 Recovery words appear once in the terminal's alternate screen. After physical
-recording and confirmation, the tool saves only allowlisted public descriptor
-fields. The terminal then prints only the descriptor path, xpub fingerprint,
-and an instruction to close Terminal.
+recording and confirmation, the operator must re-enter all 24 words at a hidden
+prompt. The tool writes the allowlisted public descriptor only when that backup
+exactly matches the generated wallet. The terminal then prints only the
+descriptor path, xpub fingerprint, and an instruction to close Terminal.
 
 Signing commands accept strict Base Sepolia plans, require visible confirmation,
 then prompt for recovery words with terminal echo disabled. Signed artifacts

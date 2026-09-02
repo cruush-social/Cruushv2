@@ -206,10 +206,10 @@ paper recovery backup. Configure only its public receive-chain xpub
 server-side, still with the processor and watcher disabled. Independently match
 several derived addresses before any customer address is shown.
 
-Completed 2026-09-01: Julien finished the private ceremony. The descriptor is
-owned by julienlenaz with mode `0600`; its fingerprint matches its receive-chain
-xpub, its treasury and three sample addresses validate, and it contains no
-secret fields. No production configuration changed.
+The first descriptor was quarantined after Julien reported that its paper
+recovery backup might be incorrect. Never fund or configure it. Replacement
+setup requires hidden exact re-entry of all 24 recovery words before a new
+public-only descriptor is written. No production configuration changed.
 
 ## Legal correction
 
@@ -249,7 +249,7 @@ server-side.
 
 ## Remaining launch gates
 
-1. Complete 2026-09-01: private wallet ceremony and public-only descriptor validation.
+1. Replace the quarantined wallet with a backup-verified wallet and validate only its public descriptor.
 2. Independently reproduce derived addresses and a spend path.
 3. Complete evidence-only support handling outside the bounded watch.
 4. Build and verify gas funding and sweeping without exposing signing material.

@@ -3,7 +3,8 @@ import { getSecretSessionSafetyError } from "./interactive.js";
 import {
   deriveAddressFromReceiveChainXpub,
   deriveWalletPublicDescriptor,
-  generateWalletMnemonic
+  generateWalletMnemonic,
+  walletRecoveryWordsMatch
 } from "./wallet.js";
 
 // Public development mnemonic used by local Ethereum test tools. Never use it for funds.
@@ -63,6 +64,18 @@ describe("local software wallet public derivation", () => {
     expect(() => deriveAddressFromReceiveChainXpub(PUBLIC_BIP32_RECEIVE_CHAIN_XPUB, -1)).toThrow(
       /31-bit integer/
     );
+  });
+
+  it("requires the hidden paper-backup re-entry to match all recovery words", () => {
+    expect(walletRecoveryWordsMatch(
+      PUBLIC_TEST_MNEMONIC,
+      `  ${PUBLIC_TEST_MNEMONIC.replaceAll(" ", "  ")}  `
+    )).toBe(true);
+    expect(walletRecoveryWordsMatch(
+      PUBLIC_TEST_MNEMONIC,
+      "test test test test test test test test test test junk test"
+    )).toBe(false);
+    expect(walletRecoveryWordsMatch(PUBLIC_TEST_MNEMONIC, "test test test")).toBe(false);
   });
 });
 

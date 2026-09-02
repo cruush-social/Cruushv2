@@ -3,11 +3,13 @@
 **Schema:** 2.0
 **Last Updated:** 2026-09-02T00:42:04Z
 **Current Phase:** 3
-**Current Position:** Feature branch and temporary local wallet delivered
-**Status:** complete
+**Current Position:** Replace untrusted paper wallet backup with verified backup
+**Status:** in_progress
 
 ## Blockers
 
+- The first wallet backup is untrusted and its public descriptor is quarantined.
+  A replacement must pass hidden exact re-entry of all 24 recovery words.
 - Real-money launch remains blocked by hardware-wallet migration, controlled
   settlement proof, EU/EEA service-withdrawal compliance or exclusion,
   evidence-only support lookup beyond the bounded watch window, and explicit
@@ -15,6 +17,10 @@
 
 ## History
 
+- [2026-09-02T00:42:04Z] Phase 3: Julien reported that the first paper recovery
+  backup might be incorrect. Its public descriptor was quarantined and must not
+  be funded. Replacement setup now requires hidden exact 24-word re-entry
+  before writing a descriptor (in_progress)
 - [2026-09-02T00:42:04Z] Phase 3: Julien completed the private wallet ceremony.
   The public descriptor is owned by julienlenaz with mode 0600, its fingerprint
   matches its receive-chain xpub, its public addresses validate, and it contains

@@ -1,6 +1,6 @@
 {
   "task": "Finish every remaining crypto-branch item that does not require exposing wallet secrets, spending money, or publishing crypto to production. Complete the conversion-focused /store redesign, remove the meaningless Other payment options copy, finish review and documentation gaps, create the owner-authorized local software wallet in the current macOS user through a user-only secret display, and publish only the verified branch to origin/feat/crypto-pricing.",
-  "status": "validating",
+  "status": "active",
   "publicationTarget": "feat/crypto-pricing",
   "baselineSha": "5a77cb504d23bea71867cf0558bd10ede40e2248",
   "decisions": [
@@ -155,7 +155,7 @@
   "objective": "Deliver a developer-reviewable, disabled-by-default in-house crypto payment processor on feat/crypto-pricing, including the conversion-focused account-linked /store checkout, settlement and support paths, complete handoff evidence, and a locally created watch-only source wallet whose recovery words are known only to Julien.",
   "userOutcome": "Julien has the complete crypto branch, a checkout that clearly sells the plans and payment apps, and a locally created wallet ready to contribute only its public xpub. No crypto reaches main or production.",
   "audience": "Julien as operator; cruush members buying cruush+ once the processor is enabled.",
-  "nextVisibleMilestone": "This feature-branch task is complete. Hardware-wallet migration and controlled launch evidence are separate future milestones; the processor and watcher remain disabled.",
+  "nextVisibleMilestone": "Replace the quarantined untrusted wallet backup with a new wallet whose 24 recovery words pass hidden exact re-entry before its public descriptor is written.",
   "successCriteria": [
     "The processor stays disabled and accepts no funds until Julien enables it",
     "A payment intent receives a unique receiving address that settles only that order",
@@ -274,8 +274,8 @@
     "useSettlementToleranceInReconciliation": "completed_tested",
     "renderBeforeAndAfterDesktopAndMobile": "final_state_completed_top_bottom_desktop_mobile",
     "exercisePaymentMethodInteraction": "completed_fixture",
-    "createWalletInCurrentMacosUser": "completed_by_julien_in_private_terminal",
-    "verifyPublicDescriptorWithoutSecretExposure": "completed_public_fields_only",
+    "createWalletInCurrentMacosUser": "replacement_required_prior_paper_backup_uncertain",
+    "verifyPublicDescriptorWithoutSecretExposure": "pending_replacement_descriptor",
     "focusedSecurityAndSecretReview": "completed_no_secret_material_found",
     "commitAndPushFeatureBranchOnly": "completed_feature_branch_only",
     "mainMerge": "forbidden",
@@ -302,8 +302,8 @@
       "/private/tmp/cruush-crypto-final-1280x900.png"
     ],
     "paymentSourceInteraction": "The local ready-state fixture selected Cash App, then Venmo or PayPal, then A crypto wallet; exactly one source remained selected after each click.",
-    "finalTestsAndBuilds": "Client checkout and adjacent focused files: 42 current tests passed. Consolidated server slice: 201 passed and 11 optional PostgreSQL-gated tests skipped; final focused server slice: 128 passed and 3 gated tests skipped; disposable PostgreSQL atomicity and cursor suite: 25/25 passed. Wallet tool: 29/29 passed. Client, server, and wallet builds passed. Final integrated audit found no unresolved P0, P1, or P2 blocker.",
+    "finalTestsAndBuilds": "Client checkout and adjacent focused files: 42 current tests passed. Consolidated server slice: 201 passed and 11 optional PostgreSQL-gated tests skipped; final focused server slice: 128 passed and 3 gated tests skipped; disposable PostgreSQL atomicity and cursor suite: 25/25 passed. Wallet tool: 30/30 passed, including hidden exact recovery-backup matching. Client, server, and wallet builds passed. Final integrated audit found no unresolved P0, P1, or P2 blocker.",
     "publication": "Completed on origin/feat/crypto-pricing only; main and deployment remain forbidden.",
-    "walletPublicDescriptor": "Created in the current julienlenaz macOS user. Owner is julienlenaz, mode is 0600, the SHA-256 fingerprint matches the receive-chain xpub, three sample addresses and the treasury address validate, and no mnemonic, recovery-word, private-key, seed, or xprv field exists. Recovery words were handled only by Julien."
+    "walletPublicDescriptor": "The first public descriptor was quarantined after Julien reported that its paper recovery backup might be incorrect. It must never be funded or configured. Replacement setup now requires hidden exact re-entry of all 24 recovery words before a new descriptor can be written."
   }
 }

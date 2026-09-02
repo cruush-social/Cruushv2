@@ -1,4 +1,4 @@
-import { ECDH, createHash, randomBytes } from "node:crypto";
+import { ECDH, createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { keccak_256 } from "@noble/hashes/sha3.js";
 import { HDKey } from "@scure/bip32";
 import {
@@ -37,6 +37,21 @@ export function assertValidWalletMnemonic(value: string) {
     throw new Error("Recovery words are not a valid English BIP-39 wallet backup.");
   }
   return normalized;
+}
+
+export function walletRecoveryWordsMatch(expected: string, candidate: string) {
+  const normalizedExpected = normalizeWalletMnemonic(expected);
+  const normalizedCandidate = normalizeWalletMnemonic(candidate);
+  const expectedDigest = createHash("sha256").update(normalizedExpected, "utf8").digest();
+  const candidateDigest = createHash("sha256").update(normalizedCandidate, "utf8").digest();
+
+  try {
+    return normalizedExpected.length === normalizedCandidate.length
+      && timingSafeEqual(expectedDigest, candidateDigest);
+  } finally {
+    expectedDigest.fill(0);
+    candidateDigest.fill(0);
+  }
 }
 
 export function generateWalletMnemonic(

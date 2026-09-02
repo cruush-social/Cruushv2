@@ -15,3 +15,4 @@
 - 2026-09-01: A database advisory lock now serializes reorganization detection, evidence updates, settlement, and cursor advancement across watcher processes so a stale transfer cannot grant access.
 - 2026-09-01: Limited founder and lifetime quotes retain their supply reservation through the seven-day evidence window; an authoritative duplicate lifetime payment is recorded for support without a second grant or a blocked watcher pass.
 - 2026-09-01: Support transfer records now include authoritative block hash and timestamp, and reconciliation excludes pre-origin and post-expiry evidence from missed-settlement findings.
+- 2026-09-01: Wallet initialization now requires hidden exact re-entry of all 24 recovery words before writing a public descriptor.

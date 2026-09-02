@@ -14,13 +14,11 @@ This branch contains the in-house stablecoin checkout, watcher, settlement,
 support, and local wallet tooling for cruush+. It remains disabled by default
 and is not production-ready.
 
-Julien completed the temporary software-wallet ceremony in his current macOS
-user on 2026-09-01. The public-only descriptor is at
-`/Users/julienlenaz/Library/Application Support/cruush/operator-wallet/public-descriptor.json`.
-It is owned by julienlenaz with mode `0600`; its fingerprint matches its
-receive-chain xpub, its treasury and three sample addresses validate, and it
-contains no secret fields. Recovery words are known only to Julien. Do not put
-the descriptor or any wallet secret in the repository.
+The first temporary software-wallet descriptor was quarantined after Julien
+reported that its paper recovery backup might be incorrect. Never fund or
+configure that wallet. Replacement setup requires hidden exact re-entry of all
+24 recovery words before it writes a new public-only descriptor. Do not put a
+descriptor or any wallet secret in the repository.
 
 Readiness is per rail. A rail may accept an intent only when all four of its
 gates are present:
