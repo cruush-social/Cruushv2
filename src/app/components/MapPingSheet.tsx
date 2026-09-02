@@ -243,11 +243,14 @@ export default function MapPingSheet({
   const normalizedSignal = signal?.trim() ?? '';
   // A Pulse asks people to look at you, which is the opposite of being off the
   // map, so it stays shut while Dark Room is on.
-  const sendDisabled = loading || sending || !status || !hasMapLocation || activePing ||
+  const sendDisabled = loading || sending || !status || !hasMapLocation ||
     !normalizedSignal || status.allowance.remaining === 0 || cooldownActive || lurkerActive;
   const statusText = useMemo(() => {
     if (activePing && status?.activePing) {
-      return `Your Pulse is active until ${formatTime(status.activePing.expiresAt)}.`;
+      const remaining = status.allowance.remaining;
+      return remaining != null && remaining > 0
+        ? `Pulse active until ${formatTime(status.activePing.expiresAt)}. ${remaining} of ${status.allowance.limit} still available.`
+        : `Your Pulse is active until ${formatTime(status.activePing.expiresAt)}.`;
     }
 
     if (cooldownActive && status?.allowance.nextEligibleAt) {
@@ -586,8 +589,10 @@ export default function MapPingSheet({
               ? 'Sending Pulse...'
               : lurkerActive
                 ? 'Dark Room is on'
-                : activePing
+                : activePing && status?.allowance.remaining === 0
                   ? 'Pulse active'
+                  : activePing
+                    ? 'Send another Pulse'
                   : cooldownCountdown
                     ? `Next Pulse in ${cooldownCountdown}`
                     : 'Send Pulse'}
