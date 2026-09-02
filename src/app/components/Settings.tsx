@@ -25,6 +25,7 @@ import {
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Switch } from './ui/switch';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
 import { CruushIcon, type CruushIconName, type CruushIconVariant } from './CruushIconImage';
 import DlModeMark from './DlModeMark';
 import PublicPolicyLinks from './PublicPolicyLinks';
@@ -546,24 +547,23 @@ export default function Settings({ embedded = false, onBack, onClose, onOpenMile
                   const inputId = `accessibility-${item.label.toLowerCase().replace(/\s+/g, '-')}`;
 
                   return (
-                    <div
-                      key={`${section.title}-${item.label}`}
-                      className={`flex w-full items-center gap-3 p-4 ${dividerClass}`}
-                    >
-                      <Icon className="h-5 w-5 shrink-0 text-muted-foreground" />
-                      <Label className="flex-1" htmlFor={inputId}>{item.label}</Label>
-                      <select
-                        aria-label={item.label}
-                        className="min-w-0 max-w-[11rem] rounded-full border border-border bg-background px-3 py-2 text-sm text-foreground"
-                        id={inputId}
-                        onChange={(event) => item.onValueChange(event.target.value)}
-                        value={item.value}
-                      >
-                        {item.options.map((option) => (
-                          <option key={option.value} value={option.value}>{option.label}</option>
-                        ))}
-                      </select>
-                    </div>
+                    <Accordion key={`${section.title}-${item.label}`} type="single" collapsible className={dividerClass}>
+                      <AccordionItem value={inputId} className="border-0">
+                        <AccordionTrigger className="min-h-14 px-4 py-3 hover:no-underline">
+                          <span className="flex min-w-0 flex-1 items-center gap-3 text-left">
+                            <Icon className="h-5 w-5 shrink-0 text-muted-foreground" />
+                            <span className="min-w-0 flex-1">{item.label}</span>
+                            <span className="truncate text-sm text-muted-foreground">{item.options.find((option) => option.value === item.value)?.label ?? item.value}</span>
+                          </span>
+                        </AccordionTrigger>
+                        <AccordionContent className="px-4 pb-4 pt-0">
+                          <Label className="sr-only" htmlFor={inputId}>{item.label}</Label>
+                          <select aria-label={item.label} className="w-full rounded-full border border-border bg-background px-3 py-2 text-sm text-foreground" id={inputId} onChange={(event) => item.onValueChange(event.target.value)} value={item.value}>
+                            {item.options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                          </select>
+                        </AccordionContent>
+                      </AccordionItem>
+                    </Accordion>
                   );
                 }
 
