@@ -110,6 +110,8 @@
     "src/app/App.tsx",
     "src/app/components/BadgeFrames.tsx",
     "src/app/components/BadgePickerPreview.tsx",
+    "src/app/components/BadgeGalleryPreview.tsx",
+    "src/app/components/CommunityGlyphs.tsx",
     "src/app/components/MapHome.tsx",
     "src/app/components/MapView.tsx",
     "src/app/components/PlaceDetail.tsx",

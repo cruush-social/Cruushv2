@@ -114,12 +114,12 @@ export function PlayingCard(props: GlyphProps) {
 export function DoubleMarsGlyph(props: GlyphProps) {
   return (
     <Glyph {...props} strokeWidth={props.strokeWidth ?? 2.65}>
-      <circle cx="8.1" cy="15.5" r="4.6" />
-      <circle cx="14.9" cy="15.5" r="4.6" />
-      <path d="m11.4 12.2 5.2-5.2" />
-      <path d="M13.2 7h3.4v3.4" />
-      <path d="m18.2 12.2 4-4" />
-      <path d="M18.8 8.2h3.4v3.4" />
+      <circle cx="6.4" cy="15.8" r="3.2" />
+      <path d="m8.7 13.5 4.1-4.1" />
+      <path d="M9.8 9.4h3v3" />
+      <circle cx="14.2" cy="15.8" r="3.2" />
+      <path d="m16.5 13.5 4.1-4.1" />
+      <path d="M17.6 9.4h3v3" />
     </Glyph>
   );
 }

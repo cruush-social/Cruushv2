@@ -25,6 +25,7 @@ const MapHome = lazy(() => import('./components/MapHome'));
 const LocalFeed = lazy(() => import('./components/LocalFeed'));
 const FeedPhotoPreview = lazy(() => import('./components/FeedPhotoPreview'));
 const BadgePickerPreview = lazy(() => import('./components/BadgePickerPreview'));
+const BadgeGalleryPreview = lazy(() => import('./components/BadgeGalleryPreview'));
 const PulseEffectPreview = lazy(() => import('./components/PulseEffectPreview'));
 const ProfileView = lazy(() => import('./components/ProfileView'));
 const ProfileEdit = lazy(() => import('./components/ProfileEdit'));
@@ -94,7 +95,10 @@ function renderPublicRoutes(includeSupport = false, signedIn = false) {
     )),
     <Route key="/feed/photo-preview" path="/feed/photo-preview" element={<FeedPhotoPreview />} />,
     ...(import.meta.env.DEV
-      ? [<Route key="/dev/onboarding-preview" path="/dev/onboarding-preview" element={<OnboardingPreview />} />]
+      ? [
+          <Route key="/dev/onboarding-preview" path="/dev/onboarding-preview" element={<OnboardingPreview />} />,
+          <Route key="/dev/badge-gallery" path="/dev/badge-gallery" element={<BadgeGalleryPreview />} />,
+        ]
       : []),
     ...(includeSupport
       ? [<Route key="/support" path="/support" element={<SupportPage publicAccess signedIn={signedIn} />} />]

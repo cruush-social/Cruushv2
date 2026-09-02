@@ -130,7 +130,7 @@ import {
  * map actually draws.
  */
 
-type BadgeOption = {
+export type BadgeOption = {
   id: string;
   label: string;
   icon: (props: { className?: string; strokeWidth?: number }) => JSX.Element;
@@ -139,7 +139,7 @@ type BadgeOption = {
   hanky?: HankyColor;
 };
 
-const HANKY_GROUP = 'Hanky code';
+export const HANKY_GROUP = 'Hanky code';
 const HANKY_BADGE_OPTIONS: BadgeOption[] = HANKY_COLORS.map((hanky) => ({
   id: `hanky-${hanky.id}`,
   label: hanky.meaning,
@@ -148,7 +148,7 @@ const HANKY_BADGE_OPTIONS: BadgeOption[] = HANKY_COLORS.map((hanky) => ({
   hanky,
 }));
 
-const BADGE_OPTIONS: BadgeOption[] = [
+export const BADGE_OPTIONS: BadgeOption[] = [
   // Acts: what happens, in the plainest terms.
   { id: 'oral', label: 'Oral', icon: LipsGlyph, group: 'Acts' },
   { id: 'rimming', label: 'Rimming', icon: RimmingGlyph, group: 'Acts' },
@@ -342,7 +342,7 @@ function profileBadgeCategory(group: ProfileBadgeGroup, value: string) {
   ))?.label ?? 'Other';
 }
 
-function buildProfileBadgeOptions(group: ProfileBadgeGroup, values: string[] = []) {
+export function buildProfileBadgeOptions(group: ProfileBadgeGroup, values: string[] = []) {
   return [...new Set(values.map((value) => value.trim()).filter(Boolean))].map((value) => {
     const normalized = normalizeProfileBadgeValue(value);
     const existing = BADGE_OPTIONS.find((option) => (
