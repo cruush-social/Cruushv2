@@ -30,6 +30,7 @@ export const PULSE_NOTIFICATION_PER_SENDER_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 export const PULSE_NOTIFICATION_PER_RECIPIENT_COOLDOWN_MS = 4 * 60 * 60 * 1000;
 
 type PulseProfileRow = {
+  tags: string[] | null;
   year_of_birth: number | null;
   identities: string[] | null;
   presentation: string[] | null;
@@ -88,6 +89,7 @@ function toPulseVisibilitySubject(
 
   return {
     mile_high_club_member: mileHighClubMember,
+    tags: row.tags ?? [],
     year_of_birth: row.year_of_birth,
     identities: row.identities ?? [],
     presentations: row.presentation ?? [],
@@ -128,6 +130,7 @@ function profilesAreMutuallyVisible(
 async function loadSender(app: FastifyInstance, userId: string) {
   const result = await app.db.query<SenderRow>(
     `select display_name,
+            tags,
             year_of_birth,
             identities,
             presentation,
@@ -186,6 +189,7 @@ async function loadNearbyCandidates(
 
   const result = await app.db.query<PulseCandidateRow>(
     `select profiles.id::text as user_id,
+            profiles.tags,
             profiles.year_of_birth,
             profiles.identities,
             profiles.presentation,

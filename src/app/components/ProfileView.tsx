@@ -73,6 +73,7 @@ export type ProfileViewModel = {
   travelling: boolean;
   travelLabel: string;
   bio: string;
+  tags: string[];
   signal: string;
   identities: string[];
   presentation: string[];
@@ -159,6 +160,7 @@ export function profileRecordToProfileView(
     travelling: profile.travelling === true,
     travelLabel: typeof profile.travelLabel === 'string' ? profile.travelLabel : '',
     bio: profile.bio,
+    tags: profile.tags ?? [],
     signal: profile.signal ?? '',
     identities: profile.identities,
     presentation: profile.presentation,
@@ -814,6 +816,12 @@ export function ProfileDetailsTabs({
         {profileView.bio ? (
           <Section title="About" compact={compact}>
             <p className="text-muted-foreground">{profileView.bio}</p>
+          </Section>
+        ) : null}
+
+        {profileView.tags.length > 0 ? (
+          <Section title="Tags" compact={compact}>
+            <BadgeList items={profileView.tags.map((tag) => `#${tag}`)} compact={compact} />
           </Section>
         ) : null}
 

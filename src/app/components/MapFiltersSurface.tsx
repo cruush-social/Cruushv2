@@ -136,7 +136,7 @@ export default function MapFiltersSurface({
   onMutualCruushesOnlyChange,
   hasCruushPlus = false,
   onUpgrade,
-  searchPlaceholder = 'Search names, bios, and profile keywords',
+  searchPlaceholder = 'Search names, bios, or #tags',
 }: MapFiltersSurfaceProps) {
   const [activeTab, setActiveTab] = useState('basics');
   return (

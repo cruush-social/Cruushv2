@@ -58,6 +58,7 @@ export type ProfilePayload = {
   photos: string[];
   photo_metadata?: ProfilePhotoMetadata[];
   bio: string;
+  tags: string[];
   signal: string;
   pronouns: string[];
   custom_pronouns: string;
@@ -159,6 +160,7 @@ export const emptyProfilePayload: ProfilePayload = {
   display_name: '',
   photos: [],
   bio: '',
+  tags: [],
   signal: '',
   pronouns: [],
   custom_pronouns: '',

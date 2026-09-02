@@ -233,6 +233,12 @@ export const sideBadgesSchema = z.object({
   right: sideBadgeSelectionSchema.nullable()
 }).strict();
 
+const profileTagsSchema = z.array(
+  z.string().trim().regex(/^#?[a-zA-Z0-9_]{1,24}$/, "Tags can use letters, numbers, and underscores."),
+).max(5).optional().default([]).transform((values) => (
+  [...new Set(values.map((value) => value.replace(/^#/, "").toLowerCase()))]
+));
+
 export type SideBadges = z.infer<typeof sideBadgesSchema>;
 
 export const emptySideBadges: SideBadges = {
@@ -244,6 +250,7 @@ export const profilePayloadSchema = z.object({
   display_name: singleLineTextSchema({ min: 2, max: 80 }),
   photos: z.array(appOwnedProfilePhotoPathSchema).max(4).optional().default([]),
   bio: multilineTextSchema({ max: 2000 }).optional().default(""),
+  tags: profileTagsSchema,
   // A signal is one short line. Thirty five characters is the hard rule: it is
   // what the field holds on a phone without wrapping.
   signal: optionalSingleLineTextSchema(SIGNAL_MAX_LENGTH),
@@ -358,6 +365,7 @@ export const emptyProfile = {
   display_name: "",
   photos: [],
   bio: "",
+  tags: [],
   signal: "",
   pronouns: [],
   custom_pronouns: "",

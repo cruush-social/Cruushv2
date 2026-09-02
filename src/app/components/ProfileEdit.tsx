@@ -2,7 +2,7 @@ import type { ChangeEvent, PointerEvent } from 'react';
 import { SIGNAL_MAX_LENGTH } from '../lib/profileLimits';
 import { lazy, Suspense, useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router';
-import { ArrowLeft, Eye, RotateCcw, RotateCw, Star, Trash2, Upload, X } from 'lucide-react';
+import { ArrowLeft, Eye, Hash, RotateCcw, RotateCw, Star, Trash2, Upload, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { Checkbox } from './ui/checkbox';
 import { Input } from './ui/input';
@@ -71,6 +71,7 @@ const MAX_PROFILE_GROUP_SELECTIONS = 3;
 const MAX_PROFILE_VIBES = 3;
 const MAX_PROFILE_HOBBIES = 3;
 const MAX_PROFILE_KINKS = 5;
+const MAX_PROFILE_TAGS = 5;
 /** cruush+ lifts the ceiling rather than raising it. */
 const UNLIMITED_PROFILE_KINKS = Number.POSITIVE_INFINITY;
 const MAX_GENDER_IDENTITIES = MAX_PROFILE_GROUP_SELECTIONS;
@@ -107,6 +108,11 @@ function getSaveDisplayName(profile: ProfilePayload) {
 
 function uniqueValues(values: string[]) {
   return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
+}
+
+function normalizeProfileTag(value: string) {
+  const normalized = value.trim().replace(/^#+/, '').toLowerCase();
+  return /^[a-z0-9_]{1,24}$/.test(normalized) ? normalized : '';
 }
 
 function latestUniqueValues(values: string[]) {
@@ -505,6 +511,7 @@ function toProfileSavePayload(profile: ProfilePayload, kinkLimit: number = MAX_P
     display_name: getSaveDisplayName(profile),
     photos: sanitizeProfilePhotos(profile.photos ?? []),
     bio: (profile.bio ?? '').trim(),
+    tags: uniqueValues(profile.tags ?? []).map(normalizeProfileTag).filter(Boolean).slice(0, MAX_PROFILE_TAGS),
     signal: (profile.signal ?? '').trim(),
     pronouns: limitToThree(profile.pronouns ?? []),
     custom_pronouns: (profile.custom_pronouns ?? '').trim(),
@@ -574,6 +581,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
   const [error, setError] = useState<string | null>(null);
   const [photoUploadError, setPhotoUploadError] = useState<string | null>(null);
   const [photoUploadNotice, setPhotoUploadNotice] = useState<string | null>(null);
+  const [profileTagDraft, setProfileTagDraft] = useState('');
   const [profilePhotoUploadsAvailable, setProfilePhotoUploadsAvailable] = useState<boolean | null>(null);
   const [activeTab, setActiveTab] = useState(requestedProfileSection === 'kinks' ? 'intimacy' : 'basics');
   const badgeExitGuardRef = useRef<(() => Promise<boolean>) | null>(null);
@@ -988,6 +996,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
   const normalizedProfile: ProfilePayload = {
     ...profile,
     photos: sanitizeProfilePhotos(profile.photos || []),
+    tags: uniqueValues(profile.tags || []).map(normalizeProfileTag).filter(Boolean).slice(0, MAX_PROFILE_TAGS),
     signal: profile.signal ?? '',
     pronouns: profile.pronouns || [],
     identities: limitGenderIdentities(profile.identities || []),
@@ -1214,6 +1223,61 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
                 onChange={e => handleChange('bio', e.target.value)}
                 className="min-h-[120px] bg-input-background"
               />
+              <p className="text-xs text-muted-foreground">Add tags below so people can find your profile in Seeking and Visibility.</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="profile-tags">Tags</Label>
+              <div className="flex items-center gap-2 rounded-md border border-white/10 bg-input-background px-3">
+                <Hash aria-hidden="true" className="h-4 w-4 shrink-0 text-white/55" />
+                <input
+                  aria-label="Add profile tag"
+                  className="h-10 min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-white/45"
+                  disabled={normalizedProfile.tags.length >= MAX_PROFILE_TAGS}
+                  id="profile-tags"
+                  maxLength={25}
+                  onChange={(event) => setProfileTagDraft(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key !== 'Enter') return;
+                    event.preventDefault();
+                    const tag = normalizeProfileTag(profileTagDraft);
+                    if (!tag || normalizedProfile.tags.includes(tag) || normalizedProfile.tags.length >= MAX_PROFILE_TAGS) return;
+                    handleChange('tags', [...normalizedProfile.tags, tag]);
+                    setProfileTagDraft('');
+                  }}
+                  placeholder="#tag"
+                  value={profileTagDraft}
+                />
+                <button
+                  className="text-sm font-semibold text-white/72 disabled:opacity-35"
+                  disabled={!normalizeProfileTag(profileTagDraft) || normalizedProfile.tags.includes(normalizeProfileTag(profileTagDraft)) || normalizedProfile.tags.length >= MAX_PROFILE_TAGS}
+                  onClick={() => {
+                    const tag = normalizeProfileTag(profileTagDraft);
+                    if (!tag || normalizedProfile.tags.includes(tag) || normalizedProfile.tags.length >= MAX_PROFILE_TAGS) return;
+                    handleChange('tags', [...normalizedProfile.tags, tag]);
+                    setProfileTagDraft('');
+                  }}
+                  type="button"
+                >
+                  Add
+                </button>
+              </div>
+              {normalizedProfile.tags.length > 0 ? (
+                <div className="flex flex-wrap gap-2" data-testid="profile-tags-draft">
+                  {normalizedProfile.tags.map((tag) => (
+                    <button
+                      aria-label={`Remove #${tag}`}
+                      className="inline-flex items-center gap-1 rounded-full border border-white/12 bg-black/55 px-2.5 py-1 text-xs text-white/72"
+                      key={tag}
+                      onClick={() => handleChange('tags', normalizedProfile.tags.filter((profileTag) => profileTag !== tag))}
+                      type="button"
+                    >
+                      #{tag}
+                      <X aria-hidden="true" className="h-3 w-3" />
+                    </button>
+                  ))}
+                </div>
+              ) : null}
             </div>
 
             <div className="space-y-2">

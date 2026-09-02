@@ -59,6 +59,7 @@ type DiscoveryProfileRow = {
   email: string | null;
   display_name: string | null;
   bio: string | null;
+  tags: string[] | null;
   signal: string | null;
   year_of_birth: number | null;
   pronouns: string[] | null;
@@ -380,6 +381,8 @@ function addProfileSearchFilter(
 
   values.push(`%${normalizedQuery}%`);
   const searchPlaceholder = `$${values.length}`;
+  values.push(`%${normalizedQuery.replace(/^#+/, "")}%`);
+  const tagSearchPlaceholder = `$${values.length}`;
   const normalizedKink = normalizeFilterTokenValue(normalizedQuery);
   const tokenKeyVersion = getSensitiveProfileTokenKeyVersion(app.config);
   const kinkTokenHash = normalizedKink
@@ -393,6 +396,11 @@ function addProfileSearchFilter(
   where.push(`(
            lower(coalesce(profiles.display_name, '')) like ${searchPlaceholder}
            or lower(coalesce(profiles.bio, '')) like ${searchPlaceholder}
+           or exists (
+             select 1
+             from unnest(coalesce(profiles.tags, '{}'::text[])) as profile_tag(value)
+             where lower(profile_tag.value) like ${tagSearchPlaceholder}
+           )
            or exists (
              select 1
              from unnest(
@@ -465,6 +473,7 @@ function toVisibilitySubject(app: FastifyInstance, row: DiscoveryProfileRow | Di
   return {
     display_name: row.display_name,
     bio: row.bio,
+    tags: row.tags ?? [],
     year_of_birth: row.year_of_birth,
     identities: row.identities ?? [],
     presentations: row.presentation ?? [],
@@ -492,6 +501,7 @@ async function loadDiscoveryViewer(app: FastifyInstance, currentUserId: string) 
       `select
          display_name,
          bio,
+         tags,
          year_of_birth,
          pronouns,
          looking_for,
@@ -699,6 +709,7 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, fi
          app_users.email,
          profiles.display_name as display_name,
          profiles.bio,
+         profiles.tags,
          profiles.signal,
          year_of_birth,
          pronouns,

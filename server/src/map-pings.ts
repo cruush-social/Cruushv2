@@ -73,6 +73,7 @@ type SenderProfileRow = {
 
 type RecipientProfileRow = {
   id: string;
+  tags: string[] | null;
   year_of_birth: number | null;
   identities: string[] | null;
   presentation: string[] | null;
@@ -255,6 +256,7 @@ function recipientVisibilitySubject(
   }
 
   return {
+    tags: row.tags ?? [],
     year_of_birth: row.year_of_birth,
     identities: row.identities ?? [],
     presentations: row.presentation ?? [],
@@ -473,6 +475,7 @@ async function loadEligibleRecipients(
   const result = await app.db.query<RecipientProfileRow>(
     `select
        profile.id::text as id,
+       profile.tags,
        profile.year_of_birth,
        profile.identities,
        profile.presentation,

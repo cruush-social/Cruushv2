@@ -7,3 +7,6 @@
 - GitHub issue #135 is not a 1.6 release item. Do not invent or change checkbox visuals for it.
 - The Spot board is called the Pink Book. Its section sits below source attribution. Check-in includes an optional Pink Book post. An active check-in is required to read other members' posts, but authors can always view and delete their own posts after checkout.
 - Badge categories must be explicit on mobile, never discoverable only by horizontal scrolling. Preserve every deliberately selected custom, Hanky, role, position, and Pride badge glyph. Saved side badges sit beneath the heart photo on Feed, Messages, and Cruushes.
+- Profile Tags are a separate field directly below Bio. They are moderated with the rest of the profile, display directly below About, and match the shared Seeking and Visibility text search with or without a leading `#`.
+- Mile High Club is a full page on mobile. On desktop it may replace Settings inside the existing map popup because desktop Settings itself is embedded there; it must not open a second popup.
+- On mobile Spot detail, Here now and rating summaries stay compact so Pink Book and Who's Here appear in the initial screen.

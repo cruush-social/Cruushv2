@@ -447,6 +447,7 @@ export default function ProfileOnboarding({
         looking_for: profile.lookingFor,
         vibes: profile.vibes,
         bio,
+        tags: [],
         signal,
         photos: profile.photos,
         presentation: profile.gender_presentation,

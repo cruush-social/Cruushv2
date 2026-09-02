@@ -134,6 +134,7 @@ type ProfileRow = {
   photos: string[] | null;
   photo_metadata?: ProfilePhotoMetadata[] | null;
   bio: string | null;
+  tags: string[] | null;
   signal: string | null;
   pronouns: string[] | null;
   custom_pronouns: string | null;
@@ -206,6 +207,7 @@ type ProfileVisibilitySetRow = EncryptedProfileVisibility & {
 };
 
 type VisibilitySubjectRow = {
+  tags: string[] | null;
   year_of_birth: number | null;
   identities: string[] | null;
   presentation: string[] | null;
@@ -302,6 +304,7 @@ const PROFILE_COLUMNS = [
   "display_name",
   "photos",
   "bio",
+  "tags",
   "signal",
   "pronouns",
   "custom_pronouns",
@@ -514,6 +517,7 @@ function mapProfileRow(
     photos,
     photo_metadata: photoMetadata,
     bio: row.bio ?? "",
+    tags: row.tags ?? [],
     signal: row.signal ?? "",
     ...(row.attending_launch_party === true ? { attendingLaunchParty: true } : {}),
     pronouns: row.pronouns ?? [],
@@ -623,6 +627,7 @@ function profilePayloadFromRow(
     display_name: row.display_name ?? "",
     photos: row.photos ?? [],
     bio: row.bio ?? "",
+    tags: row.tags ?? [],
     signal: row.signal ?? "",
     pronouns: row.pronouns ?? [],
     custom_pronouns: row.custom_pronouns ?? "",
@@ -793,6 +798,7 @@ async function loadVisibilitySubjectProfile(app: FastifyInstance, userId: string
   try {
     const result = await app.db.query<VisibilitySubjectRow>(
       `select
+         tags,
          year_of_birth,
          identities,
          presentation,
@@ -830,6 +836,7 @@ async function loadVisibilitySubjectProfile(app: FastifyInstance, userId: string
     const sensitiveProfile = decryptSensitiveProfile(app.config, row);
 
     return {
+      tags: row.tags ?? [],
       year_of_birth: row.year_of_birth,
       identities: row.identities ?? [],
       presentations: row.presentation ?? [],
@@ -1093,6 +1100,7 @@ function buildProfileModerationFields(payload: ProfilePayload, kinkInterests: Pr
   return {
     display_name: payload.display_name,
     bio: payload.bio,
+    tags: payload.tags,
     signal: payload.signal,
     custom_pronouns: payload.custom_pronouns,
     custom_hobby: payload.custom_hobby,

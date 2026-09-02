@@ -8,6 +8,7 @@ export type VisibilityCoordinates = {
 export type VisibilitySubjectProfile = {
   display_name?: string | null;
   bio?: string | null;
+  tags?: string[] | null;
   mile_high_club_member?: boolean;
   year_of_birth?: number | null;
   identities?: string[] | null;
@@ -67,7 +68,7 @@ function matchesSearchQuery(searchQuery: string, subject: VisibilitySubjectProfi
     return false;
   }
 
-  return [
+  const matchesProfileText = [
     subject.display_name ?? "",
     subject.bio ?? "",
     ...(subject.identities ?? []),
@@ -87,6 +88,10 @@ function matchesSearchQuery(searchQuery: string, subject: VisibilitySubjectProfi
     ...(subject.sexuality ?? []),
     ...(subject.substance_boundaries ?? []),
   ].some((value) => normalize(value).includes(normalizedQuery));
+  const normalizedTagQuery = normalizedQuery.replace(/^#+/, "");
+
+  return matchesProfileText || Boolean(normalizedTagQuery && (subject.tags ?? [])
+    .some((value) => normalize(value).includes(normalizedTagQuery)));
 }
 
 function getAge(yearOfBirth: number | null | undefined) {

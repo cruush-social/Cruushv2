@@ -199,6 +199,7 @@ type MutualCruushRow = {
   other_user_id: string;
   display_name: string | null;
   bio: string | null;
+  tags: string[] | null;
   pronouns: string[] | null;
   photos: string[] | null;
   photo_explicit?: boolean | null;
@@ -244,6 +245,7 @@ type MutualCruushRow = {
 type CurrentProfileLocationRow = {
   display_name: string | null;
   bio: string | null;
+  tags: string[] | null;
   year_of_birth: number | null;
   looking_for: string[] | null;
   vibes: string[] | null;
@@ -277,6 +279,7 @@ type ActivityProfileRow = {
   id: string;
   display_name: string | null;
   bio: string | null;
+  tags: string[] | null;
   pronouns: string[] | null;
   photos: string[] | null;
   photo_explicit?: boolean | null;
@@ -553,7 +556,8 @@ function matchesMutualMapSeeking(
   filters: MutualMapQuery
 ) {
   const searchQuery = filters.q?.trim().toLowerCase();
-  if (searchQuery && ![
+  const searchTagQuery = searchQuery?.replace(/^#+/, "");
+  const textMatch = searchQuery ? [
     target.display_name ?? "",
     target.bio ?? "",
     ...(target.identities ?? []),
@@ -572,7 +576,11 @@ function matchesMutualMapSeeking(
     ...(target.body_types ?? []),
     ...(target.sexuality ?? []),
     ...(target.substance_boundaries ?? []),
-  ].some((value) => value.trim().toLowerCase().includes(searchQuery))) {
+  ].some((value) => value.trim().toLowerCase().includes(searchQuery)) : true;
+  const tagMatch = searchTagQuery
+    ? (target.tags ?? []).some((value) => value.trim().toLowerCase().includes(searchTagQuery))
+    : true;
+  if (searchQuery && !textMatch && !tagMatch) {
     return false;
   }
 
@@ -623,6 +631,7 @@ function toMapVisibilitySubject(
   return {
     display_name: row.display_name,
     bio: row.bio,
+    tags: row.tags ?? [],
     year_of_birth: row.year_of_birth,
     identities: row.identities ?? [],
     presentations: row.presentation ?? [],
@@ -650,6 +659,7 @@ async function loadCurrentProfileLocation(app: FastifyInstance, userId: string) 
     `select
        display_name,
        bio,
+       tags,
        year_of_birth,
        looking_for,
        vibes,
@@ -697,6 +707,7 @@ async function loadActivityProfiles(app: FastifyInstance, userIds: string[]) {
        profiles.id::text as id,
        profiles.display_name,
        profiles.bio,
+       profiles.tags,
        profiles.pronouns,
        profiles.photos,
        coalesce((
@@ -799,6 +810,7 @@ async function loadMutualCruushRows(app: FastifyInstance, userId: string) {
       other_user_id: otherUserId,
       display_name: profile.display_name,
       bio: profile.bio,
+      tags: profile.tags,
       pronouns: profile.pronouns,
       photos: profile.photos,
       photo_explicit: profile.photo_explicit,

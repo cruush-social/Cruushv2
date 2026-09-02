@@ -363,16 +363,16 @@ export default function PlaceDetail({ embedded = false, placeIdOverride }: Place
 
         {place.description ? <p className="order-4 text-muted-foreground">{place.description}</p> : null}
 
-        <div className="order-5 grid grid-cols-2 gap-4">
-          <div className="bg-card border border-border rounded-lg p-4 text-center">
-            <Users className="mx-auto mb-2 h-6 w-6 text-primary" />
-            <p className="text-2xl">{place.activeCheckins}</p>
-            <p className="text-sm text-muted-foreground">Here now</p>
+        <div className="order-5 grid grid-cols-2 gap-3 sm:gap-4">
+          <div className="flex min-h-12 items-center justify-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-center sm:block sm:p-4">
+            <Users className="h-5 w-5 shrink-0 text-primary sm:mx-auto sm:mb-2 sm:h-6 sm:w-6" />
+            <p className="text-lg leading-none sm:text-2xl sm:leading-normal">{place.activeCheckins}</p>
+            <p className="text-xs leading-none text-muted-foreground sm:text-sm sm:leading-normal">Here now</p>
           </div>
-          <button type="button" className="rounded-lg border border-border bg-card p-4 text-center transition hover:border-primary/35 hover:bg-white/[0.055]" aria-label={`Rate this spot. ${place.ratingAverage?.toFixed(1) ?? 'New'} from ${place.ratingCount} ratings`} onClick={() => setRatingOpen(true)}>
-            <Star className="w-6 h-6 mx-auto mb-2 text-primary" />
-            <p className="text-2xl">{place.ratingAverage?.toFixed(1) ?? 'New'}</p>
-            <p className="text-sm text-muted-foreground">{place.ratingCount} ratings · Rate this spot</p>
+          <button type="button" className="flex min-h-12 items-center justify-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-center transition hover:border-primary/35 hover:bg-white/[0.055] sm:block sm:p-4" aria-label={`Rate this spot. ${place.ratingAverage?.toFixed(1) ?? 'New'} from ${place.ratingCount} ratings`} onClick={() => setRatingOpen(true)}>
+            <Star className="h-5 w-5 shrink-0 text-primary sm:mx-auto sm:mb-2 sm:h-6 sm:w-6" />
+            <p className="text-lg leading-none sm:text-2xl sm:leading-normal">{place.ratingAverage?.toFixed(1) ?? 'New'}</p>
+            <p className="text-xs leading-tight text-muted-foreground sm:text-sm sm:leading-normal">{place.ratingCount} ratings · Rate this spot</p>
           </button>
         </div>
 

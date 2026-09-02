@@ -212,7 +212,7 @@ export default function MapVisibilitySurface({
                 type="search"
                 value={value.searchQuery}
                 onChange={(event) => handleLimitedChange({ ...value, searchQuery: event.target.value })}
-                placeholder="Hide from matching names, bios, or keywords"
+                placeholder="Hide from matching names, bios, or #tags"
                 className="h-11 min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-white/42"
               />
             </div>
