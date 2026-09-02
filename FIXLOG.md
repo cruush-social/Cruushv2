@@ -7,3 +7,5 @@
   `#77B9DA` across Feed, Messages, cruush activity, profile hearts, Spots, and the map. `Far far away`
   stays inside its metadata column. Rendered assertion: populated Android-width cards showed identical
   heart and badge strokes on relationship and MHC states.
+- 2026-09-01: Cruush activity and Messages action trios now use 36px controls with 4px gaps. Cruush
+  centers identity, last active, and distance beside the heart; Messages preserves its preview spacing.

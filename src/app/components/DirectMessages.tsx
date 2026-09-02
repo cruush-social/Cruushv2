@@ -47,6 +47,8 @@ import {
   notifySentCruushRevokeError,
 } from '../lib/cruushNotifications';
 
+const messageCardActionClassName = '!gap-1 [&>button]:!size-9 [&>button]:!p-1.5 [&>button>img]:!size-5 [&>button>svg]:!size-5';
+
 const timerOptions: Array<{ value: ConversationTimer; label: string }> = [
   { value: 'off', label: 'Off' },
   { value: '1h', label: '1 hour' },
@@ -1062,6 +1064,7 @@ export default function DirectMessages({
                 )}
                 actions={conversation.kind === 'dm' ? (
                   <ProfileActionTrio
+                    className={messageCardActionClassName}
                     size="sm"
                     userName={conversation.user.name}
                     cruushState={changingCruushUserId === conversation.user.id
@@ -1441,6 +1444,7 @@ function DirectUserOverlay({
                   </button>
                 )}
                 actions={<ProfileActionTrio
+                  className={messageCardActionClassName}
                   size="sm"
                   userName={user.name}
                   cruushState={requestingUserId === user.id ? 'sending' : requested ? 'sent' : 'available'}
@@ -1488,6 +1492,7 @@ function DirectUserOverlay({
                   </button>
                 )}
                 actions={<ProfileActionTrio
+                  className={messageCardActionClassName}
                   size="sm"
                   userName={item.user.name}
                   cruushState={requestingUserId === item.user.id ? 'sending' : 'mutual'}

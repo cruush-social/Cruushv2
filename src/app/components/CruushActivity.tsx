@@ -46,6 +46,8 @@ type ActivityTab = 'incoming' | 'sent' | 'mutual' | 'views';
 type CruushActionState = 'available' | 'sending' | 'sent' | 'mutual';
 
 const activityHeartClassName = 'w-20 shrink-0';
+const activityActionClassName = '!gap-1 [&>button]:!size-9 [&>button]:!p-1.5 [&>button>img]:!size-5 [&>button>svg]:!size-5';
+const activityCardClassName = '!py-3';
 
 function formatRelativeTime(isoTimestamp: string) {
   const now = Date.now();
@@ -252,6 +254,8 @@ function IncomingRow({
 
   return (
     <UserActivityCapsule
+      className={activityCardClassName}
+      compactIdentityMeta
       testId="activity-row"
       heart={<PersonHeart item={item} fallbackLabel="Locked incoming cruush" onOpenProfile={onOpenProfile} />}
       name={unlocked ? item.user.name : 'Someone new'}
@@ -272,6 +276,7 @@ function IncomingRow({
       )}
       actions={unlocked ? (
         <ProfileActionTrio
+          className={activityActionClassName}
           userName={item.user.name}
           cruushState={actionState}
           cruushTone={actionState === 'mutual' ? 'dark' : undefined}
@@ -315,6 +320,8 @@ function SentRow({
 
   return (
     <UserActivityCapsule
+      className={activityCardClassName}
+      compactIdentityMeta
       testId="activity-row"
       heart={(
         <HeartPhoto
@@ -338,6 +345,7 @@ function SentRow({
       metadata={<button type="button" className="min-w-0 text-left" onClick={() => onOpenProfile(item.user!.id)}><ActivityMeta items={[formatRelativeTime(item.createdAt), distance]} /></button>}
       actions={(
         <ProfileActionTrio
+          className={activityActionClassName}
           cruushTone="dark"
           userName={item.user.name}
           cruushState={pendingRevoke ? 'sending' : item.mutual ? 'mutual' : 'sent'}
@@ -376,6 +384,8 @@ function MutualRow({
   const borderTone = resolveUserBorderTone({ mileHigh: item.user.travelling, mutual: true });
   return (
     <UserActivityCapsule
+      className={activityCardClassName}
+      compactIdentityMeta
       testId="activity-row"
       heart={(
         <HeartPhoto
@@ -399,6 +409,7 @@ function MutualRow({
       metadata={<button type="button" className="min-w-0 text-left" onClick={() => onOpenProfile(item.user.id)}><ActivityMeta items={[item.lastActive, distance]} /></button>}
       actions={(
         <ProfileActionTrio
+          className={activityActionClassName}
           cruushTone="dark"
           userName={item.user.name}
           cruushState={pendingRevoke ? 'sending' : 'mutual'}
@@ -437,6 +448,8 @@ function ViewRow({
 
   return (
     <UserActivityCapsule
+      className={activityCardClassName}
+      compactIdentityMeta
       testId="activity-row"
       heart={<PersonHeart item={item} fallbackLabel="Locked profile view" onOpenProfile={onOpenProfile} />}
       name={unlocked ? item.user.name : 'Someone new'}
@@ -457,6 +470,7 @@ function ViewRow({
       )}
       actions={unlocked ? (
         <ProfileActionTrio
+          className={activityActionClassName}
           userName={item.user.name}
           cruushState={actionState}
           cruushTone={actionState === 'mutual' ? 'dark' : undefined}

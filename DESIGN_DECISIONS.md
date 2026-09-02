@@ -13,5 +13,6 @@
 - Profile protection answers always keep their field labels so repeated values such as "yes" remain understandable.
 - Every benefit card on the cruush+ page uses the bright product gradient.
 - A person's saved badge borders always use the exact same resolved color as their heart border. While MHC is active, both use the approved sky color `#77B9DA` across the app. Travel distance text, including `Far far away`, never overlaps identity actions.
+- On cruush activity cards, identity plus last-active and distance stay centered beside the heart and Badges, with compact actions at right. Messages keeps its message-preview spacing. Marketing mock previews use gradient hearts instead of profile photos or photo placeholders.
 - Mile High Club is a full page on mobile. On desktop it may replace Settings inside the existing map popup because desktop Settings itself is embedded there; it must not open a second popup.
 - On mobile Spot detail, Here now and rating summaries stay compact so Pink Book and Who's Here appear in the initial screen.

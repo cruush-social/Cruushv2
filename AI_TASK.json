@@ -1,39 +1,38 @@
 {
   "schemaVersion": 2,
-  "taskId": "cruush-1.6-badge-heart-mhc-alignment-20260901",
+  "taskId": "cruush-1.6-email-cruush-actions-production-20260901",
   "status": "complete",
-  "objective": "Make saved badge borders match each user's heart border, show badges on populated cruush activity cards, prevent Far far away from overlapping, and apply the approved sky border to MHC hearts and badges across app identity surfaces.",
-  "userOutcome": "Every visible badge and heart reads as one coherent identity unit, MHC identity units are sky blue everywhere, cruush activity visibly includes saved badges, and travel distance text never overlaps adjacent controls.",
+  "objective": "Reduce the cruush activity and Messages card action-button footprint so time, recently active, and distance labels never overlap, center cruush identity metadata beside the heart and Badges without removing Messages preview spacing, update the v1.6 email with a gradient-based populated Badge treatment, commit the exact release slice, and deploy it to production main.",
+  "userOutcome": "Cruush activity and Messages labels remain readable beside compact controls, cruush cards no longer reserve message-preview-like space, the v1.6 email accurately shows Badges in use and the Badge editor, and the authorized release is live from main.",
   "audience": "cruush members and v1.6 announcement recipients.",
   "successCriteria": [
-    "Saved badge borders use the exact same resolved border color as the associated heart.",
-    "Populated cruush activity cards visibly render saved badges directly below the heart.",
-    "Far far away remains readable and never overlaps identity actions at Android mobile width.",
-    "When MHC is active, the heart and every saved badge use the approved sky color across Feed, Messages, cruush activity, Spots, and profile-card heart previews."
+    "Cruush activity action buttons use a smaller footprint while name, last active, and distance remain centered beside the heart and Badges.",
+    "Messages card buttons use the same compact footprint while preserving message-preview spacing.",
+    "Time, recently active, Nearby, and Far far away labels remain complete and do not overlap action buttons at Android mobile width.",
+    "The v1.6 email keeps the Badge editor image and adds a focused populated cruush card using a gradient heart and showing matching heart and Badge borders.",
+    "The committed release reaches origin/main and production reports the exact deployed SHA with the refreshed service worker."
   ],
   "mustPreserve": [
-    "Preserve map tiles, map theme, badge glyphs, MHC animation, relationship colors when MHC is off, heart sizes, data, and unrelated UI.",
-    "Use actual local release code and populated local data for screenshots."
+    "Preserve map tiles, map theme, badge glyphs, MHC animation, heart sizes, all action-button sizes outside cruush activity and Messages cards, Messages preview spacing, email template structure, data, and unrelated UI.",
+    "Use actual local release code and populated local data for screenshots. Do not send the email."
   ],
   "nonGoals": [
-    "Do not add or run tests, build, push, deploy, send email, change badge glyphs, change map tiles, or redesign adjacent surfaces."
+    "Do not add or run tests, run a local build, send the email, change badge glyphs, change map tiles, or redesign adjacent surfaces."
   ],
   "assumptions": [],
-  "nextVisibleMilestone": "Hand off populated Android renders of cruush, MHC Feed, MHC Messages, and non-overlapping Far far away with a local checkpoint commit.",
-  "stopConditions": [
-    "Stop before any push, deployment, email send, or production-data action."
-  ],
+  "nextVisibleMilestone": "Show the corrected Android cruush card and updated full email capture, then publish the exact commit to main and verify production SHA.",
+  "stopConditions": ["Stop only for a password form, user browser takeover, non-fast-forward main, or failed claim-matched production proof."],
   "costBudget": {"maxUsd": 0, "maxMinutes": null},
   "externalEffectDecisions": {
-    "commit": "authorized by Julien's standing v1.6 commit instruction",
+    "commit": "authorized by Julien's current instruction",
     "send": "forbidden",
-    "push": "not authorized",
-    "deploy": "not authorized"
+    "push": "authorized to origin/main by Julien's current instruction",
+    "deploy": "authorized to production by Julien's current instruction"
   },
   "externalEffects": {
     "externalMessages": "forbidden",
     "purchases": "forbidden",
-    "publication": "forbidden",
+    "publication": "authorized for origin/main and the cruush production deployment only",
     "deletion": "forbidden",
     "securityChanges": "forbidden",
     "credentials": "local development credentials only",
@@ -44,7 +43,7 @@
   "release": "1.6",
   "repository": "cruush-social/Cruushv2",
   "branch": "release/1.6-integration-20260901",
-  "job": "Fix the exact named badge, heart, MHC, cruush activity, and Far far away presentation issues.",
+  "job": "Compact cruush activity and Messages card actions, center cruush metadata beside the heart and Badges, refresh the v1.6 email proof, commit, push main, and verify the production deploy.",
   "forbiddenPaths": ["HANDOFF.md", ".dev/**"],
   "allowedPaths": [
     "AI_TASK.json",
@@ -53,6 +52,7 @@
     "src/app/components/SideBadgePair.tsx",
     "src/app/components/UserActivityCapsule.tsx",
     "src/app/components/CruushActivity.tsx",
+    "src/app/components/ProfileActionTrio.tsx",
     "src/app/components/DirectMessages.tsx",
     "src/app/components/LocalFeed.tsx",
     "src/app/components/PlaceDetail.tsx",
@@ -64,14 +64,20 @@
     "src/app/lib/distancePreferences.ts",
     "src/app/lib/userBorderTone.ts",
     "src/styles/theme.css",
+    "public/sw.js",
+    "public/email/cruush-v1.6-badges-in-use.jpg",
+    "public/email/cruush-v1.6-badges.jpg",
+    "docs/previews/cruush-1.6-update-email.html",
+    "docs/previews/cruush-1.6-update-email.jpg",
     "FIXLOG.md"
   ],
-  "proofTarget": "Rendered populated Android-sized Feed, Messages, cruush activity, Spot people, and profile-card heart states with MHC on and off, including Far far away.",
-  "publicationTarget": "Local checkpoint commit only.",
+  "proofTarget": "Rendered populated Android cruush activity and Messages cards with compact controls and readable time/distance, a readable full email capture with focused Badge images, origin/main SHA, production /api/build SHA, refreshed live service worker, and live Android cruush and Messages surfaces.",
+  "publicationTarget": "origin/main and cruush production through Coolify.",
   "requiredEvidence": [
-    "Rendered populated cruush activity card with saved badges under the heart.",
-    "Rendered matching heart and badge borders for relationship and MHC states.",
-    "Rendered Far far away without overlap at Android mobile size.",
-    "Clean scoped commit."
+    "Rendered populated Android cruush activity and Messages cards with no control and metadata overlap.",
+    "Rendered full email and inspected both focused Badge images.",
+    "Clean scoped commit and matching origin/main SHA.",
+    "Production /api/build SHA matches origin/main and live /sw.js contains the new cache version.",
+    "Authenticated live Android cruush route shows the compact non-overlapping controls."
   ]
 }

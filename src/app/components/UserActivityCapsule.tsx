@@ -20,6 +20,7 @@ export type UserActivityCapsuleProps = {
   onSelect?: () => void;
   selected?: boolean;
   selectLabel?: string;
+  compactIdentityMeta?: boolean;
   className?: string;
   testId?: string;
 };
@@ -43,11 +44,12 @@ export default function UserActivityCapsule({
   onSelect,
   selected = false,
   selectLabel,
+  compactIdentityMeta = false,
   className,
   testId = 'user-activity-capsule',
 }: UserActivityCapsuleProps) {
   const identity = (
-    <div className="cruush-user-activity-identity flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5 pr-9">
+    <div className={`cruush-user-activity-identity flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5 ${compactIdentityMeta ? '' : 'pr-9'}`}>
       <span className="cruush-user-activity-name min-w-0 break-words text-base text-white">{name}</span>
       {pronouns ? <span className="cruush-user-activity-pronouns shrink-0 text-sm text-white/62">{pronouns}</span> : null}
       {identityAdornment}
@@ -59,6 +61,22 @@ export default function UserActivityCapsule({
     event.preventDefault();
     onSelect();
   };
+
+  const identityControl = onOpenIdentity ? (
+    <button
+      type="button"
+      className={compactIdentityMeta ? 'min-w-0 text-left' : 'col-start-2 col-end-4 min-w-0 text-left'}
+      disabled={identityDisabled}
+      onClick={(event) => {
+        if (onSelect) event.stopPropagation();
+        onOpenIdentity();
+      }}
+    >
+      {identity}
+    </button>
+  ) : (
+    <div className={compactIdentityMeta ? 'min-w-0' : 'col-start-2 col-end-4 min-w-0'}>{identity}</div>
+  );
 
   return (
     <div className="cruush-user-activity-shell w-full">
@@ -72,30 +90,25 @@ export default function UserActivityCapsule({
         role={onSelect ? 'button' : undefined}
         tabIndex={onSelect ? 0 : undefined}
       >
-      <div className="cruush-user-activity-heart row-span-4 flex flex-col items-center self-start">
+      <div className={`cruush-user-activity-heart flex flex-col items-center ${compactIdentityMeta ? 'row-start-1 self-center' : 'row-span-4 self-start'}`}>
         {heart}
         <SideBadgePair badges={sideBadges} tone={sideBadgeTone} />
         {heartActions}
       </div>
 
-      {onOpenIdentity ? (
-        <button
-          type="button"
-          className="col-start-2 col-end-4 min-w-0 text-left"
-          disabled={identityDisabled}
-          onClick={(event) => {
-            if (onSelect) event.stopPropagation();
-            onOpenIdentity();
-          }}
-        >
-          {identity}
-        </button>
+      {compactIdentityMeta ? (
+        <div className="col-start-2 row-start-1 min-w-0 self-center">
+          {identityControl}
+          {metadata ? <div className="cruush-user-activity-metadata min-w-0 overflow-hidden">{metadata}</div> : null}
+        </div>
       ) : (
-        <div className="col-start-2 col-end-4 min-w-0">{identity}</div>
+        <>
+          {identityControl}
+          {metadata ? <div className="cruush-user-activity-metadata col-start-2 min-w-0 self-center overflow-hidden">{metadata}</div> : null}
+        </>
       )}
 
-      {metadata ? <div className="cruush-user-activity-metadata col-start-2 min-w-0 self-center overflow-hidden">{metadata}</div> : null}
-      {actions ? <div className="cruush-user-activity-actions col-start-3 row-start-2 self-center">{actions}</div> : null}
+      {actions ? <div className={`cruush-user-activity-actions col-start-3 self-center ${compactIdentityMeta ? 'row-start-1' : 'row-start-2'}`}>{actions}</div> : null}
 
       {content ? <div className="cruush-user-activity-content col-start-2 col-end-4 min-w-0">{content}</div> : null}
       {cornerAction ? <div className="absolute right-3 top-3">{cornerAction}</div> : null}
