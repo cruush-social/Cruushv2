@@ -141,6 +141,10 @@ const acceptCodeOfConductPayloadSchema = z.object({
   version: z.string().min(1)
 }).strict();
 
+const attachReferralPayloadSchema = z.object({
+  referralCode: z.string().trim().regex(/^[A-Za-z0-9_-]{16,64}$/)
+}).strict();
+
 function mapSessionRow(row: AuthUserRow) {
   const displayName = row.app_display_name?.trim() || row.profile_display_name?.trim() || row.email;
   const profileDisplayName = row.profile_display_name?.trim() || null;
@@ -655,6 +659,84 @@ export async function registerAuthRoutes(app: FastifyInstance) {
         verificationEmailSent
       }
     });
+  });
+
+  app.post("/api/auth/referral", async (request, reply) => {
+    await assertRequestNotSeverelyBanned(app, request);
+    const userId = await resolveSessionUserId(request);
+    const payload = attachReferralPayloadSchema.parse(request.body);
+    const existing = await app.db.query<{ referral_code: string }>(
+      `select referral_code
+       from referrals
+       where referred_user_id = $1
+       limit 1`,
+      [userId]
+    );
+
+    if (existing.rows[0]) {
+      if (existing.rows[0].referral_code === payload.referralCode) {
+        return reply.send({ data: { attached: true } });
+      }
+
+      throw new ApiError(409, "VALIDATION_ERROR", "An invite code is already attached to this account.");
+    }
+
+    const referral = await prepareSignupReferral(app, request, payload.referralCode);
+
+    if (!referral) {
+      throw new ApiError(400, "VALIDATION_ERROR", "Referral code is invalid.");
+    }
+
+    if (referral.referrerUserId === userId) {
+      throw new ApiError(400, "VALIDATION_ERROR", "You cannot use your own invite code.");
+    }
+
+    const privacy = encryptReferralSignupPrivacy(app.config, referral);
+
+    try {
+      await app.db.query(
+        `insert into referrals (
+           referrer_user_id,
+           referred_user_id,
+           referral_code,
+           status,
+           risk_score,
+           review_flags,
+           signup_ip_hash,
+           signup_device_hash,
+           signup_privacy_ciphertext,
+           signup_privacy_nonce,
+           signup_privacy_auth_tag,
+           signup_privacy_key_version
+         ) values ($1, $2, $3, $4, $5, $6::jsonb, $7, $8, $9, $10, $11, $12)`,
+        [
+          referral.referrerUserId,
+          userId,
+          referral.code,
+          referral.status,
+          referral.riskScore,
+          JSON.stringify(referral.reviewFlags),
+          referral.ipHash,
+          referral.deviceHash,
+          privacy.ciphertext,
+          privacy.nonce,
+          privacy.authTag,
+          privacy.keyVersion
+        ]
+      );
+    } catch (error) {
+      const code = typeof error === "object" && error !== null && "code" in error
+        ? String((error as { code?: string }).code)
+        : "";
+
+      if (code === "23505") {
+        throw new ApiError(409, "VALIDATION_ERROR", "An invite code is already attached to this account.");
+      }
+
+      throw error;
+    }
+
+    return reply.code(201).send({ data: { attached: true } });
   });
 
   app.post("/api/auth/login", async (request, reply) => {

@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
-import { CROWDS, IDENTITIES, LOOKING_FOR, MAX_PROFILE_SEXUALITIES, PRONOUNS, SEXUALITY, VIBE_GROUPS } from '../lib/profileOptions';
+import { CROWDS, IDENTITIES, LOOKING_FOR, MAX_PROFILE_SEXUALITIES, POSITIONS, PRONOUNS, ROLES, SEXUALITY, VIBE_GROUPS } from '../lib/profileOptions';
 import { ArrowRight, Check, Clipboard, Gift, Share2, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { acceptCodeOfConduct, getAuthSession, type AuthSessionPayload } from '../lib/authApi';
+import { acceptCodeOfConduct, attachReferralCode, getAuthSession, type AuthSessionPayload } from '../lib/authApi';
 import { CODE_OF_CONDUCT_ITEMS } from '../lib/codeOfConduct';
-import { saveMyProfile, toDefaultKinkInterest, type ProfilePayload, uploadProfilePhoto } from '../lib/profileApi';
+import { emptyProfilePayload, emptySideBadges, saveMyProfile, toDefaultKinkInterest, type ProfilePayload, type SideBadges, uploadProfilePhoto } from '../lib/profileApi';
 import { ApiClientError } from '../lib/apiClient';
 import { SIGNAL_MAX_LENGTH } from '../lib/profileLimits';
 import {
@@ -20,6 +20,7 @@ import { persistCurrentUser } from '../lib/sessionUser';
 import CruushPlusWord from './CruushPlusWord';
 import MultiSelect from './MultiSelect';
 import LoadingCardSkeletons from './LoadingCardSkeletons';
+import BadgePickerPreview from './BadgePickerPreview';
 import cruushLogo from '../assets/brand/cruush-logo.svg';
 
 interface ProfileOnboardingProps {
@@ -38,6 +39,8 @@ type OnboardingStep =
   | 'lookingFor'
   | 'vibes'
   | 'bio'
+  | 'rolePosition'
+  | 'badges'
   | 'oath'
   | 'twoFactor'
   | 'affiliateShare';
@@ -50,6 +53,8 @@ const PROFILE_STEPS: OnboardingStep[] = [
   'lookingFor',
   'vibes',
   'bio',
+  'rolePosition',
+  'badges',
 ];
 
 const STEP_COPY: Record<OnboardingStep, { rite: string; title: string; detail: string }> = {
@@ -71,7 +76,7 @@ const STEP_COPY: Record<OnboardingStep, { rite: string; title: string; detail: s
   crowds: {
     rite: 'find your crowd',
     title: 'Choose your crowds.',
-    detail: 'Optional visibility rooms, not identity labels. Think of a gay bar, dyke bar, or another room you choose to enter. Turn Crowd Mode on to be seen only by your selected crowds; turn it off to return to your normal visibility. Leave this empty for broader visibility.',
+    detail: 'Choose up to three optional crowds. Your visibility changes only when you turn Crowd Mode on.',
   },
   lookingFor: {
     rite: 'declare your hunger',
@@ -87,6 +92,16 @@ const STEP_COPY: Record<OnboardingStep, { rite: string; title: string; detail: s
     rite: 'leave your confession',
     title: 'Give them a reason to look twice.',
     detail: 'Keep it real, specific, and safe.',
+  },
+  rolePosition: {
+    rite: 'name your role',
+    title: 'Choose your role and position.',
+    detail: 'These become your default left and right badges.',
+  },
+  badges: {
+    rite: 'dress your heart',
+    title: 'Set your badges.',
+    detail: 'Left defaults to your role. Right defaults to your position. Choose another badge only if you want to change either side.',
   },
   oath: {
     rite: 'take the oath',
@@ -200,6 +215,7 @@ type OnboardingProfileState = {
   custom_covid_vaccine: string;
   custom_mpox_vaccine: string;
   sexuality: string[];
+  sideBadges: SideBadges;
 };
 
 export default function ProfileOnboarding({
@@ -211,7 +227,7 @@ export default function ProfileOnboarding({
 }: ProfileOnboardingProps) {
   // Minimal onboarding steps, but state includes all schema fields for upsert
   const steps: OnboardingStep[] = needsCodeOfConduct
-    ? [...PROFILE_STEPS, 'oath', 'twoFactor', 'affiliateShare']
+    ? [...PROFILE_STEPS, 'twoFactor', 'affiliateShare', 'oath']
     : [...PROFILE_STEPS, 'twoFactor', 'affiliateShare'];
   const [step, setStep] = useState(0);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -259,6 +275,7 @@ export default function ProfileOnboarding({
     custom_covid_vaccine: '',
     custom_mpox_vaccine: '',
     sexuality: [],
+    sideBadges: emptySideBadges,
   });
   const [oathAccepted, setOathAccepted] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -277,6 +294,10 @@ export default function ProfileOnboarding({
   const [rewardSummary, setRewardSummary] = useState<RewardSummary | null>(null);
   const [rewardSummaryLoading, setRewardSummaryLoading] = useState(false);
   const [rewardSummaryError, setRewardSummaryError] = useState<string | null>(null);
+  const [inviteCode, setInviteCode] = useState('');
+  const [inviteCodeAttached, setInviteCodeAttached] = useState(false);
+  const [inviteCodeSaving, setInviteCodeSaving] = useState(false);
+  const [inviteCodeError, setInviteCodeError] = useState<string | null>(null);
   const currentStep = steps[step];
   const affiliateLink = previewMode ? 'https://cruush.app/join/preview' : rewardSummary?.referrals.link ?? '';
   const canUseNativeShare = typeof navigator !== 'undefined' && 'share' in navigator;
@@ -361,6 +382,9 @@ export default function ProfileOnboarding({
         return profile.vibes.length > 0;
       case 'bio':
         return profile.bio.trim().length > 0;
+      case 'rolePosition':
+      case 'badges':
+        return true;
       case 'oath':
         return oathAccepted;
       case 'twoFactor':
@@ -369,6 +393,28 @@ export default function ProfileOnboarding({
         return true;
       default:
         return true;
+    }
+  };
+
+  const handleNextRite = async () => {
+    if (currentStep !== 'pronouns' || !inviteCode.trim() || inviteCodeAttached) {
+      setStep((current) => current + 1);
+      return;
+    }
+
+    setInviteCodeSaving(true);
+    setInviteCodeError(null);
+
+    try {
+      if (!previewMode) {
+        await attachReferralCode(inviteCode.trim());
+      }
+      setInviteCodeAttached(true);
+      setStep((current) => current + 1);
+    } catch (error) {
+      setInviteCodeError(error instanceof Error ? error.message : 'Unable to attach this invite code.');
+    } finally {
+      setInviteCodeSaving(false);
     }
   };
 
@@ -507,6 +553,7 @@ export default function ProfileOnboarding({
         ? profile.crowds
         : profile.crowds.filter((crowd) => crowd !== 'T4T');
       const payload: ProfilePayload = {
+        ...emptyProfilePayload,
         display_name: displayName,
         year_of_birth: null,
         pronouns: profile.pronouns,
@@ -524,6 +571,7 @@ export default function ProfileOnboarding({
         weight: profile.weight,
         position: profile.position,
         role: profile.role,
+        side_badges: profile.sideBadges,
         is_trans: profile.is_trans,
         trans_status_visibility: 'mutual_cruushes',
         crowds: sanitizedCrowds,
@@ -640,7 +688,7 @@ export default function ProfileOnboarding({
                   />
                   <div className="space-y-2 rounded-lg border border-white/10 bg-white/[0.04] p-3">
                     <label className="text-sm block text-white/82" htmlFor="onboarding-profile-photo">Profile photo</label>
-                    <p className="text-xs leading-5 text-white/58">Add a photo so people can recognize you. Optional for now; you can add one later.</p>
+                    <p className="text-xs leading-5 text-white/58">NSFW is allowed. Your face is optional, but the photo must show you or your gear.</p>
                     <Input
                       id="onboarding-profile-photo"
                       aria-label="Profile photo"
@@ -657,17 +705,39 @@ export default function ProfileOnboarding({
               );
             case 'pronouns':
               return (
-                <div>
-                  <label className="text-sm mb-2 block text-white/82">Pronouns</label>
-                  <MultiSelect
-                    menuPortal
-                    ariaLabel="Pronouns"
-                    maxSelections={3}
-                    options={PRONOUNS}
-                    value={profile.pronouns}
-                    onChange={(values) => setProfileField('pronouns', limitToThree(values))}
-                  />
-                  <p className="text-xs text-white/58 mt-1">Select up to 3</p>
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-sm mb-2 block text-white/82">Pronouns</label>
+                    <MultiSelect
+                      menuPortal
+                      ariaLabel="Pronouns"
+                      maxSelections={3}
+                      options={PRONOUNS}
+                      value={profile.pronouns}
+                      onChange={(values) => setProfileField('pronouns', limitToThree(values))}
+                    />
+                    <p className="text-xs text-white/58 mt-1">Select up to 3</p>
+                  </div>
+                  <div className="space-y-2 rounded-lg border border-white/10 bg-white/[0.04] p-3">
+                    <label className="text-sm block text-white/82" htmlFor="onboarding-invite-code">Friend invite code</label>
+                    <Input
+                      id="onboarding-invite-code"
+                      autoCapitalize="none"
+                      autoCorrect="off"
+                      disabled={inviteCodeAttached || inviteCodeSaving}
+                      placeholder="Optional"
+                      value={inviteCode}
+                      onChange={(event) => {
+                        setInviteCode(event.target.value);
+                        setInviteCodeError(null);
+                      }}
+                    />
+                    <p className="text-xs leading-5 text-white/58">
+                      If a friend invited you, enter their code here. You must enable 2FA before they can redeem their benefit.
+                    </p>
+                    {inviteCodeAttached ? <p className="text-xs text-primary">Invite code attached.</p> : null}
+                    {inviteCodeError ? <p className="text-xs text-destructive" role="alert">{inviteCodeError}</p> : null}
+                  </div>
                 </div>
               );
             case 'identities':
@@ -777,6 +847,52 @@ export default function ProfileOnboarding({
                     onChange={e => setProfileField('signal', e.target.value)}
                   />
                   <p className="mt-2 text-xs text-white/50">Your signal appears when someone hovers over your heart pin on the map. {SIGNAL_MAX_LENGTH} characters max.</p>
+                </div>
+              );
+            case 'rolePosition':
+              return (
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-sm mb-2 block text-white/82">Role</label>
+                    <MultiSelect
+                      menuPortal
+                      ariaLabel="Role"
+                      maxSelections={1}
+                      options={ROLES}
+                      value={profile.role}
+                      onChange={(values) => setProfileField('role', values.slice(-1))}
+                    />
+                    <p className="mt-1 text-xs text-white/58">Optional. This becomes your left badge.</p>
+                  </div>
+                  <div>
+                    <label className="text-sm mb-2 block text-white/82">Position</label>
+                    <MultiSelect
+                      menuPortal
+                      ariaLabel="Position"
+                      maxSelections={1}
+                      options={POSITIONS}
+                      value={profile.position}
+                      onChange={(values) => setProfileField('position', values.slice(-1))}
+                    />
+                    <p className="mt-1 text-xs text-white/58">Optional. This becomes your right badge.</p>
+                  </div>
+                </div>
+              );
+            case 'badges':
+              return (
+                <div className="-mx-1 rounded-lg border border-white/10 bg-black/35 px-1 pt-3">
+                  <BadgePickerPreview
+                    embedded
+                    onboardingProfile={{
+                      photos: profile.photos,
+                      role: profile.role,
+                      position: profile.position,
+                      vibes: profile.vibes,
+                      kinks: profile.kinks,
+                      side_badges: profile.sideBadges,
+                    }}
+                    onOnboardingBadgesChange={(sideBadges) => setProfileField('sideBadges', sideBadges)}
+                  />
                 </div>
               );
             case 'oath':
@@ -970,8 +1086,8 @@ export default function ProfileOnboarding({
               )}
             </div>
           ) : step < steps.length - 1 ? (
-            <Button onClick={() => setStep((s) => s + 1)} disabled={!canProceed()}>
-              Next rite <ArrowRight className="ml-2 w-4 h-4" />
+            <Button onClick={() => void handleNextRite()} disabled={!canProceed() || inviteCodeSaving}>
+              {inviteCodeSaving ? 'Checking code...' : 'Next rite'} {!inviteCodeSaving ? <ArrowRight className="ml-2 w-4 h-4" /> : null}
             </Button>
           ) : (
             <div className="flex flex-wrap justify-end gap-2">

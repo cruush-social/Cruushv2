@@ -82,8 +82,8 @@ export default function OnboardingPreview() {
           <div>
             <p>Run onboarding</p>
             <p className="text-sm text-muted-foreground">
-              Steps through the full rite list including the code of conduct, Signal broadcast, 2FA, and affiliate share.
-              No email or account is needed. Photos, 2FA, profile details, and completion stay inside this preview and are not saved.
+              Steps through the full rite list including the optional invite code, role, position, badges, 2FA, affiliate share, and final code of conduct.
+              No email or account is needed. Photos, invite codes, 2FA, profile details, and completion stay inside this preview and are not saved.
             </p>
           </div>
           <Button onClick={() => setShowOnboarding(true)} style={{ background: 'var(--cruush-gradient)' }}>

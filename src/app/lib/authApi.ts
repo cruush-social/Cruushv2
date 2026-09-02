@@ -106,6 +106,13 @@ export function acceptCodeOfConduct(version: string) {
   });
 }
 
+export function attachReferralCode(referralCode: string) {
+  return requestApi<{ attached: true }>('/api/auth/referral', {
+    method: 'POST',
+    body: JSON.stringify({ referralCode }),
+  });
+}
+
 export function sendVerificationEmail() {
   return requestApi<VerificationDeliveryPayload>('/api/auth/verification/send', {
     method: 'POST',

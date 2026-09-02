@@ -442,6 +442,15 @@ function BadgeChip({ darkRoom = false, frame, option, side, meaning }: {
 
 type BadgePickerPreviewProps = {
   embedded?: boolean;
+  onboardingProfile?: {
+    photos: string[];
+    role: string[];
+    position: string[];
+    vibes: string[];
+    kinks: string[];
+    side_badges: SideBadges;
+  };
+  onOnboardingBadgesChange?: (sideBadges: SideBadges) => void;
   onClose?: () => void;
   onDirtyChange?: (dirty: boolean) => void;
   onExitGuardReady?: (guard: (() => Promise<boolean>) | null) => void;
@@ -451,6 +460,8 @@ type BadgePickerPreviewProps = {
 
 export default function BadgePickerPreview({
   embedded = false,
+  onboardingProfile,
+  onOnboardingBadgesChange,
   onClose,
   onDirtyChange,
   onExitGuardReady,
@@ -469,7 +480,14 @@ export default function BadgePickerPreview({
   const [rightFrame, setRightFrame] = useState<BadgeFrameId>('circle');
   const [darkRoomEnabled, setDarkRoomEnabled] = useState(false);
   const [activeSide, setActiveSide] = useState<'left' | 'right'>('left');
-  const [profile, setProfile] = useState<Awaited<ReturnType<typeof getMyProfile>> | null>(null);
+  const [profile, setProfile] = useState<{
+    photos?: string[];
+    role?: string[];
+    position?: string[];
+    vibes?: string[];
+    kinks?: string[];
+    side_badges?: SideBadges;
+  } | null>(onboardingProfile ?? null);
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const hasChangedBadgeRef = useRef(false);
   const sideBadgesRef = useRef<SideBadges>(emptySideBadges);
@@ -499,10 +517,14 @@ export default function BadgePickerPreview({
   useEffect(() => {
     let isMounted = true;
 
-    void Promise.all([
-      getMyProfile(),
-      getMyPrivacySettings().catch(() => DEFAULT_PRIVACY_SETTINGS),
-    ])
+    const profileRequest = onboardingProfile
+      ? Promise.resolve([onboardingProfile, DEFAULT_PRIVACY_SETTINGS] as const)
+      : Promise.all([
+          getMyProfile(),
+          getMyPrivacySettings().catch(() => DEFAULT_PRIVACY_SETTINGS),
+        ]);
+
+    void profileRequest
       .then(([loaded, privacy]) => {
         if (!isMounted) {
           return;
@@ -567,7 +589,7 @@ export default function BadgePickerPreview({
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [onboardingProfile]);
 
   useEffect(() => {
     if (saveState !== 'saved') {
@@ -609,6 +631,7 @@ export default function BadgePickerPreview({
     };
     sideBadgesRef.current = nextSideBadges;
     setProfile((current) => current ? { ...current, side_badges: nextSideBadges } : current);
+    onOnboardingBadgesChange?.(nextSideBadges);
     setSaveState('idle');
   };
   const chooseBadge = (id: string) => {
@@ -649,7 +672,9 @@ export default function BadgePickerPreview({
     setSaveState('saving');
 
     try {
-      const savedSideBadges = await saveMySideBadges(sideBadgesRef.current);
+      const savedSideBadges = onboardingProfile
+        ? sideBadgesRef.current
+        : await saveMySideBadges(sideBadgesRef.current);
 
       if (saveVersionRef.current !== version) {
         return false;
@@ -968,13 +993,13 @@ export default function BadgePickerPreview({
 
         {activeGroup === 'Vibes' || activeGroup === 'Kinks' ? (
           <div className="mt-3 space-y-4">
-            <button
+            {!onboardingProfile ? <button
               className="w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-left text-sm text-white/76 transition hover:bg-white/[0.06]"
               onClick={() => editProfileGroup(activeGroup)}
               type="button"
             >
               Edit profile {activeGroup.toLowerCase()}
-            </button>
+            </button> : null}
             {activeProfileCategories.length > 0 ? activeProfileCategories.map((category) => (
               <section className="space-y-2" key={category.label}>
                 <h2 className="text-xs uppercase tracking-[0.14em] text-white/48">{category.label}</h2>
