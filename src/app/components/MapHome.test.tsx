@@ -144,6 +144,7 @@ vi.mock('../lib/usersApi', () => ({
   // The component narrows on this class, so the mock has to carry it or the
   // instanceof check throws inside the catch it was meant to guard.
   OutsideBrowseRadiusError: class OutsideBrowseRadiusError extends Error {},
+  OutsideServiceAreaError: class OutsideServiceAreaError extends Error {},
 }));
 
 vi.mock('../lib/placesApi', async () => {
@@ -1164,7 +1165,7 @@ describe('MapHome', () => {
     });
 
     await waitFor(() => expect(sendMapPing).toHaveBeenCalledWith(10, expect.any(String)));
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Pulse active' })).toBeDisabled());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Send another Pulse' })).toBeEnabled());
   });
 
   it('does not send a Ping when the fresh map-location update fails', async () => {
@@ -1237,7 +1238,7 @@ describe('MapHome', () => {
     const retryIdempotencyKey = sendMapPing.mock.calls[1]?.[1];
     expect(firstIdempotencyKey).toEqual(expect.any(String));
     expect(retryIdempotencyKey).toBe(firstIdempotencyKey);
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Pulse active' })).toBeDisabled());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Send another Pulse' })).toBeEnabled());
   });
 
   it('does not let a stale status refresh erase a newly sent Ping', async () => {
@@ -1284,7 +1285,7 @@ describe('MapHome', () => {
       sentStatus.resolve(activeStatus);
       await sentStatus.promise;
     });
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Pulse active' })).toBeDisabled());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Send another Pulse' })).toBeEnabled());
 
     await act(async () => {
       staleRefresh.resolve({
@@ -1300,7 +1301,7 @@ describe('MapHome', () => {
       await staleRefresh.promise;
     });
 
-    expect(screen.getByRole('button', { name: 'Pulse active' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Send another Pulse' })).toBeEnabled();
   });
 
   it('wires the visible zoom controls to the live map instance', async () => {
@@ -1659,9 +1660,10 @@ describe('MapHome', () => {
       'min-w-0',
       'justify-center',
       'gap-0.5',
-      'px-2',
-      'py-1.5',
+      'px-1',
+      'py-1',
       'bg-background/25',
+      'max-[430px]:px-0.5',
       'sm:gap-1',
       'sm:px-2.5',
     );
@@ -1674,17 +1676,17 @@ describe('MapHome', () => {
       notificationButton,
       settingsButton,
     ]) {
-      expect(button).toHaveClass('size-11', 'sm:size-12');
+      expect(button).toHaveClass('size-11', 'max-[360px]:size-10');
     }
     expect(topActions).not.toHaveClass('sm:max-w-[34rem]');
     // The pill sits in a centring wrapper inside the full-width chrome row.
     expect(topActions.parentElement).toHaveClass('flex-1', 'justify-center');
-    expect(topActions.parentElement?.parentElement).toHaveClass('w-full');
+    expect(topActions.parentElement?.parentElement).toHaveClass('mx-auto', 'w-full', 'max-w-[42rem]');
     expect(topActions).not.toHaveClass('mt-11');
     expect(plusStack).toHaveClass('relative', 'shrink-0');
     // The slot now holds the corner open at the button's own size at every
     // width, so the bar never runs underneath the bug control.
-    expect(bugButtonSlot).toHaveClass('h-9', 'w-9', 'sm:h-10', 'sm:w-10', 'lg:h-11', 'lg:w-11');
+    expect(bugButtonSlot).toHaveClass('h-12', 'w-12', 'max-[360px]:h-11', 'max-[360px]:w-11');
     expect(plusStack).toContainElement(cruushPlusButton);
     expect(plusStack).not.toContainElement(pingButton);
     expect(topActions).not.toContainElement(cruushPlusButton);
@@ -1720,20 +1722,17 @@ describe('MapHome', () => {
       'cruush-logo-font',
       'normal-case',
       'tracking-normal',
-      'h-9',
+      'h-12',
       'px-3',
       'text-base',
-      'sm:h-10',
-      'sm:px-3.5',
-      'sm:text-lg',
-      'lg:h-11',
-      'lg:px-4',
-      'lg:text-xl',
+      'max-[360px]:h-11',
+      'max-[360px]:px-1.5',
+      'max-[360px]:text-xs',
     );
     expect(screen.queryByRole('button', { name: 'Safety Center' })).not.toBeInTheDocument();
-    expect(luckyIcon).toHaveClass('h-10', 'w-10', 'scale-[1.28]', 'object-contain', 'lg:h-11', 'lg:w-11');
-    expect(ghostModeIcon).toHaveClass('h-10', 'w-10', 'scale-[1.15]', 'object-contain', 'lg:h-11', 'lg:w-11');
-    expect(dlModeIcon).toHaveClass('!h-10', '!w-10', 'scale-[1.18]', 'lg:!h-11', 'lg:!w-11');
+    expect(luckyIcon).toHaveClass('h-10', 'w-10', 'scale-[1.28]', 'object-contain', 'max-[360px]:h-9', 'max-[360px]:w-9');
+    expect(ghostModeIcon).toHaveClass('h-10', 'w-10', 'scale-[1.15]', 'object-contain', 'max-[360px]:h-9', 'max-[360px]:w-9');
+    expect(dlModeIcon).toHaveClass('!h-10', '!w-10', 'scale-[1.18]', 'max-[360px]:!h-9', 'max-[360px]:!w-9');
     expect(settingsButton.nextElementSibling).toBe(notificationButton);
     expect(topActions.lastElementChild).toBe(notificationButton);
     for (const button of [
@@ -1743,12 +1742,12 @@ describe('MapHome', () => {
       notificationButton,
       settingsButton,
     ]) {
-      expect(button).toHaveClass('bg-transparent', 'hover:bg-transparent', 'focus-visible:bg-transparent');
-      expect(button).not.toHaveClass('hover:bg-white/10');
+      expect(button).toHaveClass('bg-transparent', 'hover:bg-white/10', 'focus-visible:bg-transparent');
+      expect(button).not.toHaveClass('hover:bg-transparent');
     }
     expect(dlModeButton).not.toHaveClass('bg-white/[0.07]');
-    expect(notificationIcon).toHaveClass('h-10', 'w-10', 'scale-[1.28]', 'object-contain', 'lg:h-11', 'lg:w-11');
-    expect(settingsIcon).toHaveClass('h-10', 'w-10', 'object-contain', 'lg:h-11', 'lg:w-11');
+    expect(notificationIcon).toHaveClass('h-10', 'w-10', 'scale-[1.28]', 'object-contain', 'max-[360px]:h-9', 'max-[360px]:w-9');
+    expect(settingsIcon).toHaveClass('h-10', 'w-10', 'object-contain', 'max-[360px]:h-9', 'max-[360px]:w-9');
     expect(dlModeIcon).toHaveAttribute('data-source', 'Julien supplied balaclava halo DL Mode icon');
     expect(dlModeIcon).toHaveAttribute('data-tone', 'gradient');
     expect(dlModeIcon?.querySelector('[data-dl-mode-part="balaclava-halo"]')).toHaveAttribute('href', expect.stringContaining('dl-mode-balaclava-halo-user-supplied.png'));
@@ -2249,9 +2248,7 @@ describe('MapHome', () => {
     expect(screen.getByTestId('desktop-dock-left-resize-top')).toBeInTheDocument();
     expect(screen.getByRole('complementary').querySelector('.profile-card-scroll')).toBeInTheDocument();
     expect(screen.getByRole('complementary').querySelector('.scrollbar-hide')).not.toBeInTheDocument();
-    expect(screen.getByTestId('recently-active-panel').parentElement).toHaveClass('left-0', 'right-0', 'px-4');
-    expect(screen.getByTestId('recently-active-panel').parentElement).not.toHaveClass('left-[calc(26rem+3rem)]');
-    expect(screen.getByTestId('recently-active-panel')).toHaveClass('w-fit', 'max-w-[35.75rem]', 'mx-auto');
+    expect(screen.queryByTestId('recently-active-panel')).not.toBeInTheDocument();
     expect(await screen.findByRole('tab', { name: 'Basics' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('tab', { name: 'Intimacy' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Health' })).toBeInTheDocument();
@@ -2451,7 +2448,7 @@ describe('MapHome', () => {
     );
 
     const darkRoomMark = (await screen.findByRole('button', { name: 'Ghost Mode Settings' })).querySelector('svg');
-    expect(darkRoomMark).toHaveClass('!h-10', '!w-10', 'lg:!h-11', 'lg:!w-11');
+    expect(darkRoomMark).toHaveClass('!h-10', '!w-10', 'max-[360px]:!h-9', 'max-[360px]:!w-9');
     expect(darkRoomMark).not.toHaveClass('scale-[1.12]');
     expect(darkRoomMark?.querySelector('[data-dark-room-part="housing"]')).toHaveAttribute('fill-rule', 'evenodd');
     expect(darkRoomMark?.querySelector('[data-dark-room-part="keyhole"]')).not.toBeInTheDocument();
@@ -3052,27 +3049,7 @@ describe('MapHome', () => {
     expect(await screen.findByRole('button', { name: /message now/i })).toBeInTheDocument();
     expect(screen.getByRole('complementary')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Close profile preview' }));
-    fireEvent.wheel(recentTray, { deltaY: 96 });
-    expect(recentTray.scrollLeft).toBe(0);
-    const pointerDown = new Event('pointerdown', { bubbles: true });
-    Object.defineProperties(pointerDown, {
-      clientX: { value: 140 },
-      pointerId: { value: 1 },
-    });
-    const pointerMove = new Event('pointermove', { bubbles: true });
-    Object.defineProperties(pointerMove, {
-      clientX: { value: 90 },
-      pointerId: { value: 1 },
-    });
-    const pointerUp = new Event('pointerup', { bubbles: true });
-    Object.defineProperties(pointerUp, {
-      clientX: { value: 90 },
-      pointerId: { value: 1 },
-    });
-    fireEvent(recentTray, pointerDown);
-    fireEvent(recentTray, pointerMove);
-    fireEvent(recentTray, pointerUp);
-    expect(recentTray.scrollLeft).toBe(50);
+    expect(recentTray).toHaveAttribute('data-scrollable', 'false');
     expect(screen.queryByText('Last Active')).not.toBeInTheDocument();
     expect(screen.queryByText('2m ago')).not.toBeInTheDocument();
     expect(screen.queryByText('Jordan')).not.toBeInTheDocument();
@@ -3081,22 +3058,24 @@ describe('MapHome', () => {
     expect(recentMedia?.className).toContain('aspect-[4/5]');
     expect(within(recentTray).queryByText(/./)).not.toBeInTheDocument();
 
-    fireEvent.click(recentToggle);
+    const restoredRecentToggle = screen.getByRole('button', { name: 'Hide recently active bar' });
+    fireEvent.click(restoredRecentToggle);
 
-    expect(recentToggle).toHaveAttribute('aria-expanded', 'false');
-    expect(recentToggle).toHaveAccessibleName('Show recently active bar');
-    expect(recentToggle).toHaveTextContent('Recently Active');
-    expect(recentToggle).toHaveClass('bg-background/68', 'backdrop-blur-md');
-    expect(recentPanel).toHaveClass('max-w-max', 'p-0');
-    expect(recentPanel).not.toHaveClass('rounded-2xl', 'bg-background/40', 'p-3');
+    expect(restoredRecentToggle).toHaveAttribute('aria-expanded', 'false');
+    expect(restoredRecentToggle).toHaveAccessibleName('Show recently active bar');
+    expect(restoredRecentToggle).toHaveTextContent('Recently Active');
+    expect(restoredRecentToggle).toHaveClass('bg-background/68', 'backdrop-blur-md');
+    const restoredRecentPanel = screen.getByTestId('recently-active-panel');
+    expect(restoredRecentPanel).toHaveClass('max-w-max', 'p-0');
+    expect(restoredRecentPanel).not.toHaveClass('rounded-2xl', 'bg-background/40', 'p-3');
     expect(screen.queryByTestId('recently-active-tray')).not.toBeInTheDocument();
 
-    fireEvent.click(recentToggle);
+    fireEvent.click(restoredRecentToggle);
 
-    expect(recentToggle).toHaveAttribute('aria-expanded', 'true');
-    expect(recentToggle).toHaveAccessibleName('Hide recently active bar');
-    expect(recentToggle).toHaveTextContent('Recently Active');
-    expect(recentPanel).toHaveClass('max-w-[35.75rem]', 'rounded-2xl', 'bg-background/68', 'backdrop-blur-md', 'p-3');
+    expect(restoredRecentToggle).toHaveAttribute('aria-expanded', 'true');
+    expect(restoredRecentToggle).toHaveAccessibleName('Hide recently active bar');
+    expect(restoredRecentToggle).toHaveTextContent('Recently Active');
+    expect(restoredRecentPanel).toHaveClass('max-w-[35.75rem]', 'rounded-2xl', 'bg-background/68', 'backdrop-blur-md', 'p-3');
     expect(screen.getByTestId('recently-active-tray')).toBeInTheDocument();
   });
 
