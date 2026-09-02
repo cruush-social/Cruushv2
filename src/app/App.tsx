@@ -378,8 +378,12 @@ export default function App({
     setAuthStatus('signed_out');
   };
 
-  const handleOnboardingComplete = (nextSession?: AuthSessionPayload, destination: 'map' | 'rewards' = 'map') => {
-    setShowOnboardingReward(true);
+  const handleOnboardingComplete = (
+    nextSession?: AuthSessionPayload,
+    destination: 'map' | 'rewards' = 'map',
+    rewardGranted = false,
+  ) => {
+    setShowOnboardingReward(rewardGranted);
     if (nextSession) {
       setSession(nextSession);
       setNeedsOnboarding(nextSession.needsOnboarding);
@@ -654,8 +658,8 @@ export default function App({
             <DlModeDefaultNotice />
             <FirstFeedPostPrompt userId={session.user.id} />
             <BottomNav />
-            <ForegroundNotifications />
-            <EarnedCruushPlusCards key={session.user.id} userId={session.user.id} afterOnboarding={showOnboardingReward} />
+            <ForegroundNotifications showLatestRewardOnFirstPoll={showOnboardingReward} />
+            <EarnedCruushPlusCards key={session.user.id} userId={session.user.id} />
             <DebugCruushPlusToggle />
             {alphaBugControl}
           </Suspense>

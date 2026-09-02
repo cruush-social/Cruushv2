@@ -67,7 +67,7 @@ export function isNotificationTypeEnabled(
 }
 
 export function shouldShowInAppNotificationPopup(pathname: string, notification: NotificationRecord) {
-  return !isMapPath(pathname) && !isActiveConversationPath(pathname, notification);
+  return notification.type === 'reward' || (!isMapPath(pathname) && !isActiveConversationPath(pathname, notification));
 }
 
 export function shouldPlayInAppNotificationSound(pathname: string, notification: NotificationRecord) {
@@ -171,7 +171,9 @@ async function playHeartbeatNotificationSound(audioContextRef: MutableRefObject<
   }
 }
 
-export default function ForegroundNotifications() {
+export default function ForegroundNotifications({ showLatestRewardOnFirstPoll = false }: {
+  showLatestRewardOnFirstPoll?: boolean;
+}) {
   const navigate = useNavigate();
   const location = useLocation();
   const pathnameRef = useRef(location.pathname);
@@ -298,11 +300,22 @@ export default function ForegroundNotifications() {
         ), latestCreatedAtRef.current);
 
         if (!hasBaselineRef.current) {
+          const onboardingReward = showLatestRewardOnFirstPoll
+            ? payload.notifications.find((notification) => (
+                notification.type === 'reward' && isNotificationTypeEnabled(preferences, notification.type)
+              ))
+            : null;
           payload.notifications.forEach((notification) => {
             seenIdsRef.current.add(notification.id);
           });
           latestCreatedAtRef.current = newestTimestamp;
           hasBaselineRef.current = true;
+          if (onboardingReward) {
+            if (preferences.soundEnabled && shouldPlayInAppNotificationSound(pathnameRef.current, onboardingReward)) {
+              void playHeartbeatNotificationSound(audioContextRef);
+            }
+            showPopup(onboardingReward);
+          }
           return;
         }
 
@@ -359,7 +372,7 @@ export default function ForegroundNotifications() {
       window.removeEventListener('focus', pollWhenVisible);
       document.removeEventListener('visibilitychange', pollWhenVisible);
     };
-  }, [showPopup]);
+  }, [showLatestRewardOnFirstPoll, showPopup]);
 
   return null;
 }

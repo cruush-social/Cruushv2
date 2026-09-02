@@ -24,7 +24,7 @@ import BadgePickerPreview from './BadgePickerPreview';
 import cruushLogo from '../assets/brand/cruush-logo.svg';
 
 interface ProfileOnboardingProps {
-  onComplete: (session?: AuthSessionPayload, destination?: 'map' | 'rewards') => void;
+  onComplete: (session?: AuthSessionPayload, destination?: 'map' | 'rewards', rewardGranted?: boolean) => void;
   needsCodeOfConduct?: boolean;
   codeOfConductVersion?: string;
   constrainedViewport?: boolean;
@@ -534,7 +534,7 @@ export default function ProfileOnboarding({
     setSaveError(null);
     if (previewMode) {
       setSaving(false);
-      onComplete(undefined, destination);
+      onComplete(undefined, destination, twoFactorPromoDaysGranted > 0);
       return;
     }
     try {
@@ -620,7 +620,7 @@ export default function ProfileOnboarding({
         throw new Error("We couldn't finish setting up your profile. Try again.");
       }
 
-      onComplete(nextSession, destination);
+      onComplete(nextSession, destination, twoFactorPromoDaysGranted > 0);
     } catch (error) {
       console.error('Error saving profile:', error);
       setSaveError(getOnboardingSaveError(error));
