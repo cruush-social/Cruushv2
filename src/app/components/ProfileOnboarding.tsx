@@ -192,6 +192,7 @@ type OnboardingProfileState = {
   crowds: string[];
   availability: string[];
   hosting_travel: string[];
+  preferred_spots: string[];
   kinks: string[];
   kinks_visibility: ProfilePayload['kinks_visibility'];
   scenes: string[];
@@ -206,6 +207,7 @@ type OnboardingProfileState = {
   mpox_vaccine: string[];
   birth_control: string[];
   substance_boundaries: string[];
+  protection_boundaries: string[];
   custom_pronouns: string;
   custom_hobby: string;
   custom_hiv_status: string;
@@ -252,6 +254,7 @@ export default function ProfileOnboarding({
     crowds: [],
     availability: [],
     hosting_travel: [],
+    preferred_spots: [],
     kinks: [],
     kinks_visibility: 'public',
     scenes: [],
@@ -266,6 +269,7 @@ export default function ProfileOnboarding({
     mpox_vaccine: [],
     birth_control: [],
     substance_boundaries: [],
+    protection_boundaries: [],
     custom_pronouns: '',
     custom_hobby: '',
     custom_hiv_status: '',
@@ -577,6 +581,7 @@ export default function ProfileOnboarding({
         crowds: sanitizedCrowds,
         availability: profile.availability,
         hosting_travel: profile.hosting_travel,
+        preferred_spots: profile.preferred_spots,
         kinks: profile.kinks,
         kink_interests: profile.kinks.map(toDefaultKinkInterest),
         kinks_visibility: profile.kinks_visibility,
@@ -593,6 +598,7 @@ export default function ProfileOnboarding({
         health_preferences: [],
         birth_control: profile.birth_control,
         substance_boundaries: profile.substance_boundaries,
+        protection_boundaries: profile.protection_boundaries,
         custom_pronouns: customPronouns,
         custom_hobby: customHobby,
         custom_hiv_status: customHivStatus,

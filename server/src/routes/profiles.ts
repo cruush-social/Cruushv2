@@ -154,6 +154,7 @@ type ProfileRow = {
   trans_status_visibility: ProfileVisibility | null;
   availability: string[] | null;
   hosting_travel: string[] | null;
+  preferred_spots: string[] | null;
   kinks: string[] | null;
   kinks_visibility: ProfileVisibility | null;
   vibes: string[] | null;
@@ -177,6 +178,7 @@ type ProfileRow = {
   mpox_vaccine: string[] | null;
   custom_mpox_vaccine: string | null;
   substance_boundaries: string[] | null;
+  protection_boundaries: string[] | null;
   profile_sensitive_ciphertext: string | null;
   profile_sensitive_nonce: string | null;
   profile_sensitive_auth_tag: string | null;
@@ -218,6 +220,7 @@ type VisibilitySubjectRow = {
   looking_for: string[] | null;
   availability: string[] | null;
   hosting_travel: string[] | null;
+  preferred_spots: string[] | null;
   vibes: string[] | null;
   zodiac: string[] | null;
   scenes: string[] | null;
@@ -227,6 +230,7 @@ type VisibilitySubjectRow = {
   role: string[] | null;
   kinks: string[] | null;
   substance_boundaries: string[] | null;
+  protection_boundaries: string[] | null;
   lat: number | null;
   lng: number | null;
   fuzzy_lat: number | null;
@@ -324,6 +328,7 @@ const PROFILE_COLUMNS = [
   "trans_status_visibility",
   "availability",
   "hosting_travel",
+  "preferred_spots",
   "kinks",
   "kinks_visibility",
   "vibes",
@@ -347,6 +352,7 @@ const PROFILE_COLUMNS = [
   "mpox_vaccine",
   "custom_mpox_vaccine",
   "substance_boundaries",
+  "protection_boundaries",
   "profile_sensitive_ciphertext",
   "profile_sensitive_nonce",
   "profile_sensitive_auth_tag",
@@ -542,6 +548,7 @@ function mapProfileRow(
     crowds: visibleCrowds,
     availability: row.availability ?? [],
     hosting_travel: row.hosting_travel ?? [],
+    preferred_spots: row.preferred_spots ?? [],
     kinks: resolvedKinkInterests.length > 0
       ? resolvedKinkInterests.map((interest) => interest.label ?? interest.kink_id)
       : sensitiveKinks.length > 0
@@ -573,6 +580,7 @@ function mapProfileRow(
     birth_control: sensitiveProfile?.birth_control ?? [],
     relationship_status: sensitiveProfile?.relationship_status ?? [],
     substance_boundaries: row.substance_boundaries ?? [],
+    protection_boundaries: row.protection_boundaries ?? [],
     ...((row.badges?.length ?? 0) > 0 ? { badges: row.badges } : {}),
     visibility_rules: includePrivateSensitive ? visibilityRules ?? emptyProfile.visibility_rules : emptyProfile.visibility_rules,
     updated_at: new Date(row.updated_at).toISOString(),
@@ -652,6 +660,7 @@ function profilePayloadFromRow(
     crowds: sensitiveProfile.crowds,
     availability: row.availability ?? [],
     hosting_travel: row.hosting_travel ?? [],
+    preferred_spots: row.preferred_spots ?? [],
     kinks: sensitiveProfile.kinks,
     kink_interests: kinkInterests.length > 0 ? kinkInterests : sensitiveProfile.kink_interests,
     kinks_visibility: row.kinks_visibility ?? "public",
@@ -677,6 +686,7 @@ function profilePayloadFromRow(
     health_preferences: sensitiveProfile.health_preferences ?? [],
     birth_control: sensitiveProfile.birth_control ?? [],
     substance_boundaries: row.substance_boundaries ?? [],
+    protection_boundaries: row.protection_boundaries ?? [],
     visibility_rules: visibilityRules
   };
 }
@@ -812,6 +822,7 @@ async function loadVisibilitySubjectProfile(app: FastifyInstance, userId: string
          looking_for,
          availability,
          hosting_travel,
+         preferred_spots,
          vibes,
          scenes,
          archetypes,
@@ -820,6 +831,7 @@ async function loadVisibilitySubjectProfile(app: FastifyInstance, userId: string
          role,
          kinks,
          substance_boundaries,
+         protection_boundaries,
          lat,
          lng,
          fuzzy_lat,
@@ -848,6 +860,7 @@ async function loadVisibilitySubjectProfile(app: FastifyInstance, userId: string
       looking_for: row.looking_for ?? [],
       timing: row.availability ?? [],
       hosting: row.hosting_travel ?? [],
+      preferred_spots: row.preferred_spots ?? [],
       vibes: row.vibes ?? [],
       scenes: row.scenes ?? [],
       archetypes: row.archetypes ?? [],
@@ -859,6 +872,7 @@ async function loadVisibilitySubjectProfile(app: FastifyInstance, userId: string
       body_types: row.body_type ?? [],
       sexuality: row.sexuality ?? [],
       substance_boundaries: row.substance_boundaries ?? [],
+      protection_boundaries: row.protection_boundaries ?? [],
       coordinates: getProfileCoordinates(row)
     };
   } catch (error) {

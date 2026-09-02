@@ -15,6 +15,7 @@ export type ProfileVisibilityRules = {
   looking_for: string[];
   timing: string[];
   hosting: string[];
+  preferred_spots: string[];
   vibes: string[];
   crowds: string[];
   hobbies: string[];
@@ -24,6 +25,7 @@ export type ProfileVisibilityRules = {
   body_types: string[];
   sexuality: string[];
   substance_boundaries: string[];
+  protection_boundaries: string[];
 };
 
 export type KinkInterest = {
@@ -80,6 +82,7 @@ export type ProfilePayload = {
   crowds: string[];
   availability: string[];
   hosting_travel: string[];
+  preferred_spots: string[];
   kinks: string[];
   kink_interests: KinkInterest[];
   kinks_visibility: ProfileVisibility;
@@ -107,6 +110,7 @@ export type ProfilePayload = {
   relationship_status: string[];
   zodiac: string[];
   substance_boundaries: string[];
+  protection_boundaries: string[];
   visibility_rules: ProfileVisibilityRules;
 };
 
@@ -182,6 +186,7 @@ export const emptyProfilePayload: ProfilePayload = {
   crowds: [],
   availability: [],
   hosting_travel: [],
+  preferred_spots: [],
   kinks: [],
   kink_interests: [],
   kinks_visibility: 'public',
@@ -209,6 +214,7 @@ export const emptyProfilePayload: ProfilePayload = {
   relationship_status: [],
   zodiac: [],
   substance_boundaries: [],
+  protection_boundaries: [],
   visibility_rules: {
     search_query: '',
     active_crowd_modes: [],
@@ -220,6 +226,7 @@ export const emptyProfilePayload: ProfilePayload = {
     looking_for: [],
     timing: [],
     hosting: [],
+    preferred_spots: [],
     vibes: [],
     crowds: [],
     hobbies: [],
@@ -229,6 +236,7 @@ export const emptyProfilePayload: ProfilePayload = {
     body_types: [],
     sexuality: [],
     substance_boundaries: [],
+    protection_boundaries: [],
   },
 };
 

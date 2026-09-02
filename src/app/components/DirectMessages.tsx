@@ -411,7 +411,7 @@ export default function DirectMessages({
     });
   };
 
-  const loadDirectMessageOptions = async (_filters: FilterState = DEFAULT_FILTER_STATE) => {
+  const loadDirectMessageOptions = async (filters: FilterState = DEFAULT_FILTER_STATE) => {
     setDirectError(null);
     setDirectLoading(true);
 
@@ -442,7 +442,7 @@ export default function DirectMessages({
         // They must never remove every otherwise-messageable profile at the API boundary.
         const nearbyUsers = await getNearbyUsers(
           typeof coordinates?.lat === 'number' && typeof coordinates?.lng === 'number' ? coordinates : null,
-          undefined,
+          filters,
           { limit: DIRECT_MESSAGE_DISCOVERY_LIMIT },
         );
         setDirectOptions(nearbyUsers);

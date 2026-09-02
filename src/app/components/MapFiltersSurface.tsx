@@ -18,7 +18,9 @@ import {
   KINK_GROUPS,
   LOOKING_FOR,
   POSITIONS,
+  PREFERRED_SPOTS,
   PRESENTATIONS,
+  PROTECTION_BOUNDARIES,
   ROLES,
   SEXUALITY,
   SUBSTANCE_BOUNDARIES,
@@ -35,6 +37,7 @@ export interface FilterState {
   lookingFor: string[];
   timing: string[];
   hosting: string[];
+  preferredSpots: string[];
   vibes: string[];
   crowds: string[];
   hobbies: string[];
@@ -44,6 +47,7 @@ export interface FilterState {
   bodyTypes: string[];
   sexuality: string[];
   substanceBoundaries: string[];
+  protectionBoundaries: string[];
 }
 
 export const DEFAULT_FILTER_STATE: FilterState = {
@@ -56,6 +60,7 @@ export const DEFAULT_FILTER_STATE: FilterState = {
   lookingFor: [],
   timing: [],
   hosting: [],
+  preferredSpots: [],
   vibes: [],
   crowds: [],
   hobbies: [],
@@ -65,6 +70,7 @@ export const DEFAULT_FILTER_STATE: FilterState = {
   bodyTypes: [],
   sexuality: [],
   substanceBoundaries: [],
+  protectionBoundaries: [],
 };
 
 interface MapFiltersSurfaceProps {
@@ -258,6 +264,7 @@ export default function MapFiltersSurface({
               <FieldGroup label="Looking For" options={LOOKING_FOR} stateKey="lookingFor" value={value} onChange={onChange} />
               <FieldGroup label="Timing" options={AVAILABILITY} stateKey="timing" value={value} onChange={onChange} />
               <FieldGroup label="Hosting/Travel" options={HOSTING} stateKey="hosting" value={value} onChange={onChange} />
+              <FieldGroup label="Preferred spots" options={PREFERRED_SPOTS} stateKey="preferredSpots" value={value} onChange={onChange} />
               <FieldGroup label="Position" options={POSITIONS} stateKey="positions" value={value} onChange={onChange} />
               <FieldGroup label="Role" options={ROLES} stateKey="roles" value={value} onChange={onChange} />
               <FieldGroup label="Kinks & Fetishes" optionGroups={KINK_GROUPS} stateKey="kinks" value={value} onChange={onChange} />
@@ -268,6 +275,13 @@ export default function MapFiltersSurface({
                 label="Substance Boundaries"
                 options={SUBSTANCE_BOUNDARIES}
                 stateKey="substanceBoundaries"
+                value={value}
+                onChange={onChange}
+              />
+              <FieldGroup
+                label="Protection boundaries"
+                options={PROTECTION_BOUNDARIES}
+                stateKey="protectionBoundaries"
                 value={value}
                 onChange={onChange}
               />

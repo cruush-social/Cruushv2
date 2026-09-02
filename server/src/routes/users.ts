@@ -70,6 +70,7 @@ type DiscoveryProfileRow = {
   position: string[] | null;
   role: string[] | null;
   hosting_travel: string[] | null;
+  preferred_spots: string[] | null;
   photos: string[] | null;
   primary_photo_explicit?: boolean | null;
   identities: string[] | null;
@@ -79,6 +80,7 @@ type DiscoveryProfileRow = {
   availability: string[] | null;
   hobbies: string[] | null;
   substance_boundaries: string[] | null;
+  protection_boundaries: string[] | null;
   profile_sensitive_ciphertext: string | null;
   profile_sensitive_nonce: string | null;
   profile_sensitive_auth_tag: string | null;
@@ -209,6 +211,7 @@ const discoveryQuerySchema = z.object({
   lookingFor: queryArrayField,
   timing: queryArrayField,
   hosting: queryArrayField,
+  preferredSpots: queryArrayField,
   vibes: queryArrayField,
   scenes: queryArrayField,
   archetypes: queryArrayField,
@@ -219,7 +222,8 @@ const discoveryQuerySchema = z.object({
   kinks: queryArrayField,
   bodyTypes: queryArrayField,
   sexuality: queryArrayField,
-  substanceBoundaries: queryArrayField
+  substanceBoundaries: queryArrayField,
+  protectionBoundaries: queryArrayField
 }).strict();
 
 type DiscoveryQuery = z.infer<typeof discoveryQuerySchema>;
@@ -410,6 +414,7 @@ function addProfileSearchFilter(
                || coalesce(profiles.body_type, '{}'::text[])
                || coalesce(profiles.availability, '{}'::text[])
                || coalesce(profiles.hosting_travel, '{}'::text[])
+               || coalesce(profiles.preferred_spots, '{}'::text[])
                || coalesce(profiles.looking_for, '{}'::text[])
                || coalesce(profiles.vibes, '{}'::text[])
                || coalesce(profiles.scenes, '{}'::text[])
@@ -418,6 +423,7 @@ function addProfileSearchFilter(
                || coalesce(profiles.position, '{}'::text[])
                || coalesce(profiles.role, '{}'::text[])
                || coalesce(profiles.substance_boundaries, '{}'::text[])
+               || coalesce(profiles.protection_boundaries, '{}'::text[])
              ) as searchable(value)
              where lower(searchable.value) like ${searchPlaceholder}
            )
@@ -480,6 +486,7 @@ function toVisibilitySubject(app: FastifyInstance, row: DiscoveryProfileRow | Di
     looking_for: row.looking_for ?? [],
     timing: row.availability ?? [],
     hosting: row.hosting_travel ?? [],
+    preferred_spots: row.preferred_spots ?? [],
     vibes: row.vibes ?? [],
     scenes: row.scenes ?? [],
     archetypes: row.archetypes ?? [],
@@ -491,6 +498,7 @@ function toVisibilitySubject(app: FastifyInstance, row: DiscoveryProfileRow | Di
     body_types: row.body_type ?? [],
     sexuality: row.sexuality ?? [],
     substance_boundaries: row.substance_boundaries ?? [],
+    protection_boundaries: row.protection_boundaries ?? [],
     coordinates: getCoordinates(row)
   };
 }
@@ -511,6 +519,7 @@ async function loadDiscoveryViewer(app: FastifyInstance, currentUserId: string) 
          position,
          role,
          hosting_travel,
+         preferred_spots,
          identities,
          presentation,
          sexuality,
@@ -518,6 +527,7 @@ async function loadDiscoveryViewer(app: FastifyInstance, currentUserId: string) 
          availability,
          hobbies,
          substance_boundaries,
+         protection_boundaries,
          profile_sensitive_ciphertext,
          profile_sensitive_nonce,
          profile_sensitive_auth_tag,
@@ -688,6 +698,7 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, fi
     addTextArrayFilter(where, values, "looking_for", filters.lookingFor);
     addTextArrayFilter(where, values, "availability", filters.timing);
     addTextArrayFilter(where, values, "hosting_travel", filters.hosting);
+    addTextArrayFilter(where, values, "preferred_spots", filters.preferredSpots);
     addVibeFilter(where, values, filters.vibes);
     addTextArrayFilter(where, values, "scenes", filters.scenes);
     addTextArrayFilter(where, values, "archetypes", filters.archetypes);
@@ -697,6 +708,7 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, fi
     addTextArrayFilter(where, values, "body_type", filters.bodyTypes);
     addTextArrayFilter(where, values, "sexuality", filters.sexuality);
     addTextArrayFilter(where, values, "substance_boundaries", filters.substanceBoundaries);
+    addTextArrayFilter(where, values, "protection_boundaries", filters.protectionBoundaries);
     addSensitiveTokenFilter(app, where, values, "crowd", filters.crowds);
     addSensitiveTokenFilter(app, where, values, "kink", filters.kinks);
     addProfileSearchFilter(app, where, values, filters.q);
@@ -720,6 +732,7 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, fi
          position,
          role,
          hosting_travel,
+         preferred_spots,
          photos,
          ${primaryPhotoExplicitSelect("profiles", "primary_photo_explicit")},
          identities,
@@ -729,6 +742,7 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, fi
          availability,
          hobbies,
          substance_boundaries,
+         protection_boundaries,
          profile_sensitive_ciphertext,
          profile_sensitive_nonce,
          profile_sensitive_auth_tag,

@@ -17,7 +17,9 @@ import {
   KINK_GROUPS,
   LOOKING_FOR,
   POSITIONS,
+  PREFERRED_SPOTS,
   PRESENTATIONS,
+  PROTECTION_BOUNDARIES,
   ROLES,
   SEXUALITY,
   SUBSTANCE_BOUNDARIES,
@@ -63,6 +65,7 @@ const VISIBILITY_LIST_KEYS: VisibilityListKey[] = [
   'lookingFor',
   'timing',
   'hosting',
+  'preferredSpots',
   'vibes',
   'crowds',
   'hobbies',
@@ -72,6 +75,7 @@ const VISIBILITY_LIST_KEYS: VisibilityListKey[] = [
   'bodyTypes',
   'sexuality',
   'substanceBoundaries',
+  'protectionBoundaries',
 ];
 
 function updateList(value: VisibilityControlState, key: VisibilityListKey, items: string[]): VisibilityControlState {
@@ -354,6 +358,7 @@ export default function MapVisibilitySurface({
               <FieldGroup label="Looking For" options={LOOKING_FOR} stateKey="lookingFor" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} />
               <FieldGroup label="Timing" options={AVAILABILITY} stateKey="timing" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} />
               <FieldGroup label="Hosting/Travel" options={HOSTING} stateKey="hosting" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} />
+              <FieldGroup label="Preferred spots" options={PREFERRED_SPOTS} stateKey="preferredSpots" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} />
               <FieldGroup label="Position" options={POSITIONS} stateKey="positions" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} />
               <FieldGroup label="Role" options={ROLES} stateKey="roles" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} />
               <FieldGroup label="Kinks & Fetishes" optionGroups={KINK_GROUPS} stateKey="kinks" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} />
@@ -364,6 +369,15 @@ export default function MapVisibilitySurface({
                 label="Substance Boundaries"
                 options={SUBSTANCE_BOUNDARIES}
                 stateKey="substanceBoundaries"
+                value={value}
+                limitReached={freeLimitReached}
+                onLimitReached={showLimitNotice}
+                onChange={handleLimitedChange}
+              />
+              <FieldGroup
+                label="Protection boundaries"
+                options={PROTECTION_BOUNDARIES}
+                stateKey="protectionBoundaries"
                 value={value}
                 limitReached={freeLimitReached}
                 onLimitReached={showLimitNotice}

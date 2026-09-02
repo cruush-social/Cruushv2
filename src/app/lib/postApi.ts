@@ -73,6 +73,7 @@ export type FeedPostFilters = {
     lookingFor?: string[];
     timing?: string[];
     hosting?: string[];
+    preferredSpots?: string[];
     vibes?: string[];
     crowds?: string[];
     hobbies?: string[];
@@ -82,6 +83,7 @@ export type FeedPostFilters = {
     bodyTypes?: string[];
     sexuality?: string[];
     substanceBoundaries?: string[];
+    protectionBoundaries?: string[];
   };
 };
 
@@ -142,6 +144,7 @@ export async function getFeedPosts(filters: FeedPostFilters = {}) {
   appendSeekingValues('lookingFor', filters.seeking?.lookingFor);
   appendSeekingValues('timing', filters.seeking?.timing);
   appendSeekingValues('hosting', filters.seeking?.hosting);
+  appendSeekingValues('preferredSpots', filters.seeking?.preferredSpots);
   appendSeekingValues('vibes', filters.seeking?.vibes);
   appendSeekingValues('crowds', filters.seeking?.crowds);
   appendSeekingValues('hobbies', filters.seeking?.hobbies);
@@ -151,6 +154,7 @@ export async function getFeedPosts(filters: FeedPostFilters = {}) {
   appendSeekingValues('bodyTypes', filters.seeking?.bodyTypes);
   appendSeekingValues('sexuality', filters.seeking?.sexuality);
   appendSeekingValues('substanceBoundaries', filters.seeking?.substanceBoundaries);
+  appendSeekingValues('protectionBoundaries', filters.seeking?.protectionBoundaries);
 
   const query = params.toString();
   return requestApi<FeedPost[]>(query ? `/api/posts?${query}` : '/api/posts');

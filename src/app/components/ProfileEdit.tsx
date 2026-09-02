@@ -48,6 +48,7 @@ import {
   HOBBY_GROUPS,
   HOSTING,
   IDENTITIES,
+  KINK_CATALOG,
   KINK_GROUPS,
   LOOKING_FOR,
   RELATIONSHIP_STATUS,
@@ -57,7 +58,9 @@ import {
   normalizeCrowdValues,
   POSITIONS,
   PREP,
+  PREFERRED_SPOTS,
   PRESENTATIONS,
+  PROTECTION_BOUNDARIES,
   PROFILE_VISIBILITY_OPTIONS,
   PRONOUNS,
   ROLES,
@@ -461,12 +464,13 @@ function sanitizeKinkInterests(profile: ProfilePayload): ProfilePayload['kink_in
     ? profile.kink_interests ?? []
     : (profile.kinks ?? []).map(toDefaultKinkInterest);
   const seen = new Set<string>();
+  const allowedKinkIds = new Set(KINK_CATALOG.map((kink) => kink.id));
 
   return sourceInterests
     .map((interest) => {
       const kinkId = toKinkId(interest.kink_id || interest.label || '');
 
-      if (!kinkId || seen.has(kinkId)) {
+      if (!kinkId || seen.has(kinkId) || !allowedKinkIds.has(kinkId)) {
         return null;
       }
 
@@ -479,6 +483,10 @@ function sanitizeKinkInterests(profile: ProfilePayload): ProfilePayload['kink_in
       };
     })
     .filter((interest): interest is ProfilePayload['kink_interests'][number] => Boolean(interest));
+}
+
+function normalizeProfileHobbies(values: string[]) {
+  return limitToThree(uniqueValues(values).map((value) => value.trim().toLowerCase() === 'gaming' ? 'video games' : value));
 }
 
 function sanitizeVisibilityRules(profile: ProfilePayload): ProfileVisibilityRules {
@@ -494,6 +502,7 @@ function sanitizeVisibilityRules(profile: ProfilePayload): ProfileVisibilityRule
     looking_for: uniqueValues(rules.looking_for ?? []),
     timing: uniqueValues(rules.timing ?? []),
     hosting: uniqueValues(rules.hosting ?? []),
+    preferred_spots: uniqueValues(rules.preferred_spots ?? []),
     vibes: uniqueValues(rules.vibes ?? []),
     crowds: normalizeCrowdValues(rules.crowds ?? []).slice(0, MAX_PROFILE_GROUP_SELECTIONS),
     hobbies: uniqueValues(rules.hobbies ?? []),
@@ -503,6 +512,7 @@ function sanitizeVisibilityRules(profile: ProfilePayload): ProfileVisibilityRule
     body_types: uniqueValues(rules.body_types ?? []),
     sexuality: uniqueValues(rules.sexuality ?? []),
     substance_boundaries: uniqueValues(rules.substance_boundaries ?? []),
+    protection_boundaries: uniqueValues(rules.protection_boundaries ?? []),
     age_range: rules.age_range ?? null,
     distance: rules.distance ?? null,
   };
@@ -537,6 +547,7 @@ function toProfileSavePayload(
     crowds: sanitizeCrowds(profile),
     availability: limitToThree(profile.availability ?? []),
     hosting_travel: limitToThree(profile.hosting_travel ?? []),
+    preferred_spots: limitToThree(profile.preferred_spots ?? []),
     relationship_status: limitToThree(profile.relationship_status ?? []),
     zodiac: (profile.zodiac ?? []).slice(-1),
     kinks: limitKinks(profile.kinks ?? [], kinkLimit),
@@ -547,7 +558,7 @@ function toProfileSavePayload(
     vibes: limitToThree(mergeCategorizedVibes(profile)),
     scenes: [],
     archetypes: [],
-    hobbies: limitToThree(profile.hobbies ?? []),
+    hobbies: normalizeProfileHobbies(profile.hobbies ?? []),
     custom_hobby: (profile.custom_hobby ?? '').trim(),
     looking_for: limitToThree(profile.looking_for ?? []),
     hiv_status: singleValue(profile.hiv_status ?? []),
@@ -566,6 +577,7 @@ function toProfileSavePayload(
     health_preferences: profile.health_preferences ?? [],
     birth_control: profile.birth_control ?? [],
     substance_boundaries: profile.substance_boundaries ?? [],
+    protection_boundaries: singleValue(profile.protection_boundaries ?? []),
     visibility_rules: sanitizeVisibilityRules(profile),
   };
 }
@@ -1013,13 +1025,14 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
     crowds: sanitizeCrowds(profile),
     availability: limitToThree(profile.availability || []),
     hosting_travel: limitToThree(profile.hosting_travel || []),
+    preferred_spots: limitToThree(profile.preferred_spots || []),
     kinks: profile.kinks || [],
     kink_interests: profile.kink_interests || [],
     kinks_visibility: profile.kinks_visibility || 'public',
     vibes: limitToThree(mergeCategorizedVibes(profile)),
     scenes: [],
     archetypes: [],
-    hobbies: limitToThree(profile.hobbies || []),
+    hobbies: normalizeProfileHobbies(profile.hobbies || []),
     looking_for: limitToThree(profile.looking_for || []),
     hiv_status: singleValue(profile.hiv_status || []),
     hiv_status_visibility: FIXED_PRIVATE_PROFILE_VISIBILITY,
@@ -1031,6 +1044,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
     health_preferences: profile.health_preferences || [],
     birth_control: profile.birth_control || [],
     substance_boundaries: profile.substance_boundaries || [],
+    protection_boundaries: singleValue(profile.protection_boundaries || []),
     visibility_rules: sanitizeVisibilityRules(profile),
     year_of_birth: profile.year_of_birth,
   };
@@ -1483,6 +1497,10 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
               <Label>Hosting/Travel</Label>
               <MultiSelect {...profileMenuProps} maxSelections={MAX_PROFILE_GROUP_SELECTIONS} options={HOSTING} value={normalizedProfile.hosting_travel} onChange={vals => handleChange('hosting_travel', limitToThree(vals))} />
             </div>
+            <div className="space-y-2">
+              <Label>Preferred spots</Label>
+              <MultiSelect {...profileMenuProps} maxSelections={MAX_PROFILE_GROUP_SELECTIONS} options={PREFERRED_SPOTS} value={normalizedProfile.preferred_spots} onChange={vals => handleChange('preferred_spots', limitToThree(vals))} />
+            </div>
             <div className="space-y-2" id="profile-kinks">
               <Label>Kinks & Fetishes</Label>
               <MultiSelect
@@ -1586,6 +1604,17 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
                 options={SUBSTANCE_BOUNDARIES}
                 value={normalizedProfile.substance_boundaries}
                 onChange={vals => handleChange('substance_boundaries', vals)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Protection boundaries</Label>
+              <MultiSelect
+                {...profileMenuProps}
+                ariaLabel="Protection boundaries"
+                options={PROTECTION_BOUNDARIES}
+                value={normalizedProfile.protection_boundaries}
+                onChange={vals => handleChange('protection_boundaries', singleValue(vals))}
+                selectionMode="single"
               />
             </div>
           </TabsContent>

@@ -341,6 +341,7 @@ function hasActiveSeekingFilters(filters: FilterState) {
       filters.lookingFor,
       filters.timing,
       filters.hosting,
+      filters.preferredSpots,
       filters.vibes,
       filters.crowds,
       filters.hobbies,
@@ -350,6 +351,7 @@ function hasActiveSeekingFilters(filters: FilterState) {
       filters.bodyTypes,
       filters.sexuality,
       filters.substanceBoundaries,
+      filters.protectionBoundaries,
     ].some((items) => items.length > 0);
 }
 
@@ -367,6 +369,7 @@ function normalizeVisibilityRules(rules?: ProfileVisibilityRules): ProfileVisibi
     looking_for: uniqueValues(rules?.looking_for ?? defaults.looking_for),
     timing: uniqueValues(rules?.timing ?? defaults.timing),
     hosting: uniqueValues(rules?.hosting ?? defaults.hosting),
+    preferred_spots: uniqueValues(rules?.preferred_spots ?? defaults.preferred_spots),
     vibes: uniqueValues(rules?.vibes ?? defaults.vibes),
     crowds: normalizeCrowdValues(rules?.crowds ?? defaults.crowds),
     hobbies: uniqueValues(rules?.hobbies ?? defaults.hobbies),
@@ -376,6 +379,7 @@ function normalizeVisibilityRules(rules?: ProfileVisibilityRules): ProfileVisibi
     body_types: uniqueValues(rules?.body_types ?? defaults.body_types),
     sexuality: uniqueValues(rules?.sexuality ?? defaults.sexuality),
     substance_boundaries: uniqueValues(rules?.substance_boundaries ?? defaults.substance_boundaries),
+    protection_boundaries: uniqueValues(rules?.protection_boundaries ?? defaults.protection_boundaries),
     age_range: rules?.age_range ?? null,
     distance: rules?.distance ?? null,
   };
@@ -398,6 +402,7 @@ function visibilityRulesToState(rules?: ProfileVisibilityRules): VisibilityContr
     lookingFor: normalizedRules.looking_for,
     timing: normalizedRules.timing,
     hosting: normalizedRules.hosting,
+    preferredSpots: normalizedRules.preferred_spots,
     vibes: normalizedRules.vibes,
     crowds: normalizedRules.crowds,
     hobbies: normalizedRules.hobbies,
@@ -407,6 +412,7 @@ function visibilityRulesToState(rules?: ProfileVisibilityRules): VisibilityContr
     bodyTypes: normalizedRules.body_types,
     sexuality: normalizedRules.sexuality,
     substanceBoundaries: normalizedRules.substance_boundaries,
+    protectionBoundaries: normalizedRules.protection_boundaries,
   };
 }
 
@@ -422,6 +428,7 @@ function visibilityStateToRules(state: VisibilityControlState): ProfileVisibilit
     looking_for: uniqueValues(state.lookingFor),
     timing: uniqueValues(state.timing),
     hosting: uniqueValues(state.hosting),
+    preferred_spots: uniqueValues(state.preferredSpots),
     vibes: uniqueValues(state.vibes),
     crowds: normalizeCrowdValues(state.crowds),
     hobbies: uniqueValues(state.hobbies),
@@ -431,6 +438,7 @@ function visibilityStateToRules(state: VisibilityControlState): ProfileVisibilit
     body_types: uniqueValues(state.bodyTypes),
     sexuality: uniqueValues(state.sexuality),
     substance_boundaries: uniqueValues(state.substanceBoundaries),
+    protection_boundaries: uniqueValues(state.protectionBoundaries),
   };
 }
 
@@ -554,6 +562,7 @@ function hasActiveVisibilityControls(visibility: VisibilityControlState) {
       visibility.lookingFor,
       visibility.timing,
       visibility.hosting,
+      visibility.preferredSpots,
       visibility.vibes,
       visibility.crowds,
       visibility.hobbies,
@@ -563,6 +572,7 @@ function hasActiveVisibilityControls(visibility: VisibilityControlState) {
       visibility.bodyTypes,
       visibility.sexuality,
       visibility.substanceBoundaries,
+      visibility.protectionBoundaries,
     ].some((items) => items.length > 0);
 }
 

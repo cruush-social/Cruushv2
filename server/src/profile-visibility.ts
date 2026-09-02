@@ -16,6 +16,7 @@ export type VisibilitySubjectProfile = {
   looking_for?: string[] | null;
   timing?: string[] | null;
   hosting?: string[] | null;
+  preferred_spots?: string[] | null;
   vibes?: string[] | null;
   scenes?: string[] | null;
   archetypes?: string[] | null;
@@ -27,6 +28,7 @@ export type VisibilitySubjectProfile = {
   body_types?: string[] | null;
   sexuality?: string[] | null;
   substance_boundaries?: string[] | null;
+  protection_boundaries?: string[] | null;
   coordinates?: VisibilityCoordinates | null;
 };
 
@@ -76,6 +78,7 @@ function matchesSearchQuery(searchQuery: string, subject: VisibilitySubjectProfi
     ...(subject.looking_for ?? []),
     ...(subject.timing ?? []),
     ...(subject.hosting ?? []),
+    ...(subject.preferred_spots ?? []),
     ...(subject.vibes ?? []),
     ...(subject.scenes ?? []),
     ...(subject.archetypes ?? []),
@@ -87,6 +90,7 @@ function matchesSearchQuery(searchQuery: string, subject: VisibilitySubjectProfi
     ...(subject.body_types ?? []),
     ...(subject.sexuality ?? []),
     ...(subject.substance_boundaries ?? []),
+    ...(subject.protection_boundaries ?? []),
   ].some((value) => normalize(value).includes(normalizedQuery));
   const normalizedTagQuery = normalizedQuery.replace(/^#+/, "");
 
@@ -128,6 +132,7 @@ function normalizeVisibilityRules(rules: ProfileVisibilityRules): ProfileVisibil
     looking_for: rules.looking_for ?? [],
     timing: rules.timing ?? [],
     hosting: rules.hosting ?? [],
+    preferred_spots: rules.preferred_spots ?? [],
     vibes: rules.vibes ?? [],
     crowds: rules.crowds ?? [],
     hobbies: rules.hobbies ?? [],
@@ -136,7 +141,8 @@ function normalizeVisibilityRules(rules: ProfileVisibilityRules): ProfileVisibil
     kinks: rules.kinks ?? [],
     body_types: rules.body_types ?? [],
     sexuality: rules.sexuality ?? [],
-    substance_boundaries: rules.substance_boundaries ?? []
+    substance_boundaries: rules.substance_boundaries ?? [],
+    protection_boundaries: rules.protection_boundaries ?? []
   };
 }
 
@@ -157,6 +163,7 @@ export function visibilityRulesArePublic(rules: ProfileVisibilityRules | null | 
     normalizedRules.looking_for.length === 0 &&
     normalizedRules.timing.length === 0 &&
     normalizedRules.hosting.length === 0 &&
+    normalizedRules.preferred_spots.length === 0 &&
     normalizedRules.vibes.length === 0 &&
     normalizedRules.crowds.length === 0 &&
     normalizedRules.hobbies.length === 0 &&
@@ -165,7 +172,8 @@ export function visibilityRulesArePublic(rules: ProfileVisibilityRules | null | 
     normalizedRules.kinks.length === 0 &&
     normalizedRules.body_types.length === 0 &&
     normalizedRules.sexuality.length === 0 &&
-    normalizedRules.substance_boundaries.length === 0;
+    normalizedRules.substance_boundaries.length === 0 &&
+    normalizedRules.protection_boundaries.length === 0;
 }
 
 export function countVisibilityExclusionFilters(rules: ProfileVisibilityRules | null | undefined) {
@@ -185,6 +193,7 @@ export function countVisibilityExclusionFilters(rules: ProfileVisibilityRules | 
     normalizedRules.looking_for.length > 0,
     normalizedRules.timing.length > 0,
     normalizedRules.hosting.length > 0,
+    normalizedRules.preferred_spots.length > 0,
     normalizedRules.vibes.length > 0,
     normalizedRules.crowds.length > 0,
     normalizedRules.hobbies.length > 0,
@@ -193,7 +202,8 @@ export function countVisibilityExclusionFilters(rules: ProfileVisibilityRules | 
     normalizedRules.kinks.length > 0,
     normalizedRules.body_types.length > 0,
     normalizedRules.sexuality.length > 0,
-    normalizedRules.substance_boundaries.length > 0
+    normalizedRules.substance_boundaries.length > 0,
+    normalizedRules.protection_boundaries.length > 0
   ].filter(Boolean).length;
 }
 
@@ -244,6 +254,7 @@ export function canSubjectViewProfile(
     excludesAny(normalizedRules.looking_for, subject.looking_for) &&
     excludesAny(normalizedRules.timing, subject.timing) &&
     excludesAny(normalizedRules.hosting, subject.hosting) &&
+    excludesAny(normalizedRules.preferred_spots, subject.preferred_spots) &&
     excludesAny(normalizedRules.vibes, [
       ...(subject.vibes ?? []),
       ...(subject.scenes ?? []),
@@ -256,5 +267,6 @@ export function canSubjectViewProfile(
     excludesAny(normalizedRules.kinks, subject.kinks) &&
     excludesAny(normalizedRules.body_types, subject.body_types) &&
     excludesAny(normalizedRules.sexuality, subject.sexuality) &&
-    excludesAny(normalizedRules.substance_boundaries, subject.substance_boundaries);
+    excludesAny(normalizedRules.substance_boundaries, subject.substance_boundaries) &&
+    excludesAny(normalizedRules.protection_boundaries, subject.protection_boundaries);
 }

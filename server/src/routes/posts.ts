@@ -432,6 +432,7 @@ const feedPostQuerySchema = z.object({
   lookingFor: feedQueryArrayField,
   timing: feedQueryArrayField,
   hosting: feedQueryArrayField,
+  preferredSpots: feedQueryArrayField,
   vibes: feedQueryArrayField,
   crowds: feedCrowdQueryArrayField,
   hobbies: feedQueryArrayField,
@@ -440,7 +441,8 @@ const feedPostQuerySchema = z.object({
   kinks: feedQueryArrayField,
   bodyTypes: feedQueryArrayField,
   sexuality: feedQueryArrayField,
-  substanceBoundaries: feedQueryArrayField
+  substanceBoundaries: feedQueryArrayField,
+  protectionBoundaries: feedQueryArrayField
 }).strict().superRefine((query, context) => {
   if (query.minAge != null && query.maxAge != null && query.minAge > query.maxAge) {
     context.addIssue({
@@ -647,6 +649,7 @@ export async function registerPostRoutes(app: FastifyInstance) {
     addFeedTextArrayFilter(where, values, "pr.looking_for", query.lookingFor);
     addFeedTextArrayFilter(where, values, "pr.availability", query.timing);
     addFeedTextArrayFilter(where, values, "pr.hosting_travel", query.hosting);
+    addFeedTextArrayFilter(where, values, "pr.preferred_spots", query.preferredSpots);
     addFeedVibeFilter(where, values, query.vibes);
     addFeedTextArrayFilter(where, values, "pr.hobbies", query.hobbies);
     addFeedTextArrayFilter(where, values, "pr.position", query.positions);
@@ -654,6 +657,7 @@ export async function registerPostRoutes(app: FastifyInstance) {
     addFeedTextArrayFilter(where, values, "pr.body_type", query.bodyTypes);
     addFeedTextArrayFilter(where, values, "pr.sexuality", query.sexuality);
     addFeedTextArrayFilter(where, values, "pr.substance_boundaries", query.substanceBoundaries);
+    addFeedTextArrayFilter(where, values, "pr.protection_boundaries", query.protectionBoundaries);
     addFeedSensitiveTokenFilter(app, where, values, "crowd", query.crowds);
     addFeedSensitiveTokenFilter(app, where, values, "kink", query.kinks);
     values.push(query.limit);

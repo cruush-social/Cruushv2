@@ -37,6 +37,7 @@ type PulseProfileRow = {
   looking_for: string[] | null;
   availability: string[] | null;
   hosting_travel: string[] | null;
+  preferred_spots: string[] | null;
   vibes: string[] | null;
   scenes: string[] | null;
   archetypes: string[] | null;
@@ -46,6 +47,7 @@ type PulseProfileRow = {
   body_type: string[] | null;
   sexuality: string[] | null;
   substance_boundaries: string[] | null;
+  protection_boundaries: string[] | null;
   profile_sensitive_ciphertext: string | null;
   profile_sensitive_nonce: string | null;
   profile_sensitive_auth_tag: string | null;
@@ -103,6 +105,7 @@ function toPulseVisibilitySubject(
     looking_for: row.looking_for ?? [],
     timing: row.availability ?? [],
     hosting: row.hosting_travel ?? [],
+    preferred_spots: row.preferred_spots ?? [],
     vibes: row.vibes ?? [],
     scenes: row.scenes ?? [],
     archetypes: row.archetypes ?? [],
@@ -114,6 +117,7 @@ function toPulseVisibilitySubject(
     body_types: row.body_type ?? [],
     sexuality: row.sexuality ?? [],
     substance_boundaries: row.substance_boundaries ?? [],
+    protection_boundaries: row.protection_boundaries ?? [],
     coordinates
   };
 }
@@ -144,6 +148,7 @@ async function loadSender(app: FastifyInstance, userId: string) {
             looking_for,
             availability,
             hosting_travel,
+            preferred_spots,
             vibes,
             scenes,
             archetypes,
@@ -153,6 +158,7 @@ async function loadSender(app: FastifyInstance, userId: string) {
             body_type,
             sexuality,
             substance_boundaries,
+            protection_boundaries,
             profile_sensitive_ciphertext,
             profile_sensitive_nonce,
             profile_sensitive_auth_tag,
@@ -203,6 +209,7 @@ async function loadNearbyCandidates(
             profiles.looking_for,
             profiles.availability,
             profiles.hosting_travel,
+            profiles.preferred_spots,
             profiles.vibes,
             profiles.scenes,
             profiles.archetypes,
@@ -212,6 +219,7 @@ async function loadNearbyCandidates(
             profiles.body_type,
             profiles.sexuality,
             profiles.substance_boundaries,
+            profiles.protection_boundaries,
             profiles.profile_sensitive_ciphertext,
             profiles.profile_sensitive_nonce,
             profiles.profile_sensitive_auth_tag,

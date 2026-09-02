@@ -192,6 +192,7 @@ export const profileVisibilityRulesSchema = z.object({
   looking_for: visibilityArrayField,
   timing: visibilityArrayField,
   hosting: visibilityArrayField,
+  preferred_spots: visibilityArrayField,
   vibes: visibilityArrayField,
   crowds: z.array(crowdSchema).max(3).optional().default([]),
   hobbies: visibilityArrayField,
@@ -200,7 +201,8 @@ export const profileVisibilityRulesSchema = z.object({
   kinks: visibilityArrayField,
   body_types: visibilityArrayField,
   sexuality: visibilityArrayField,
-  substance_boundaries: visibilityArrayField
+  substance_boundaries: visibilityArrayField,
+  protection_boundaries: visibilityArrayField
 }).strict().superRefine((rules, ctx) => {
   if (rules.age_range && rules.age_range[0] > rules.age_range[1]) {
     ctx.addIssue({
@@ -274,6 +276,7 @@ export const profilePayloadSchema = z.object({
   crowds: z.array(crowdSchema).max(3).optional().default([]),
   availability: upToThreeArrayField,
   hosting_travel: upToThreeArrayField,
+  preferred_spots: upToThreeArrayField,
   kinks: kinkArrayField,
   kink_interests: z.array(profileKinkInterestSchema).max(200).optional().default([]),
   kinks_visibility: profileVisibilitySchema.optional().default("public"),
@@ -301,6 +304,7 @@ export const profilePayloadSchema = z.object({
   relationship_status: z.array(relationshipStatusSchema).max(3).optional().default([]),
   zodiac: arrayField,
   substance_boundaries: arrayField,
+  protection_boundaries: singleArrayField,
   visibility_rules: profileVisibilityRulesSchema.optional().default({
     search_query: "",
     active_crowd_modes: [],
@@ -312,6 +316,7 @@ export const profilePayloadSchema = z.object({
     looking_for: [],
     timing: [],
     hosting: [],
+    preferred_spots: [],
     vibes: [],
     crowds: [],
     hobbies: [],
@@ -320,7 +325,8 @@ export const profilePayloadSchema = z.object({
     kinks: [],
     body_types: [],
     sexuality: [],
-    substance_boundaries: []
+    substance_boundaries: [],
+    protection_boundaries: []
   })
 }).strict().superRefine((payload, ctx) => {
   if (payload.crowds.includes("T4T") && payload.is_trans !== true) {
@@ -387,6 +393,7 @@ export const emptyProfile = {
   crowds: [],
   availability: [],
   hosting_travel: [],
+  preferred_spots: [],
   kinks: [],
   kink_interests: [],
   kinks_visibility: "public",
@@ -414,6 +421,7 @@ export const emptyProfile = {
   relationship_status: [],
   zodiac: [],
   substance_boundaries: [],
+  protection_boundaries: [],
   visibility_rules: {
     search_query: "",
     active_crowd_modes: [],
@@ -425,6 +433,7 @@ export const emptyProfile = {
     looking_for: [],
     timing: [],
     hosting: [],
+    preferred_spots: [],
     vibes: [],
     crowds: [],
     hobbies: [],
@@ -433,6 +442,7 @@ export const emptyProfile = {
     kinks: [],
     body_types: [],
     sexuality: [],
-    substance_boundaries: []
+    substance_boundaries: [],
+    protection_boundaries: []
   }
 } satisfies ProfilePayload;

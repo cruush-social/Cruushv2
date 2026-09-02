@@ -93,6 +93,7 @@ export type ProfileViewModel = {
   availability: string[];
   timing: string | null;
   hosting: string[];
+  preferredSpots: string[];
   vibes: string[];
   kinks: string[];
   hobbies: string[];
@@ -181,10 +182,12 @@ export function profileRecordToProfileView(
     availability: profile.availability,
     timing: formatJoined(profile.availability),
     hosting: profile.hosting_travel,
+    preferredSpots: profile.preferred_spots,
     vibes: [...new Set([...profile.vibes, ...profile.scenes, ...profile.archetypes])],
     kinks: profile.kinks,
     hobbies: profile.hobbies,
     protection: [
+      ...profile.protection_boundaries.map((value) => `Protection boundary: ${value}`),
       ...profile.condoms.map((value) => `Condoms: ${value}`),
       ...profile.prep.map((value) => `PrEP: ${value}`),
       ...profile.doxypep.map((value) => `DoxyPEP: ${value}`),
@@ -901,6 +904,10 @@ export function ProfileDetailsTabs({
 
           <Section title="Hosting/Travel" compact={compact}>
             <BadgeList items={profileView.hosting} compact={compact} />
+          </Section>
+
+          <Section title="Preferred spots" compact={compact}>
+            <BadgeList items={profileView.preferredSpots} compact={compact} />
           </Section>
 
           <Section title="Position" compact={compact}>

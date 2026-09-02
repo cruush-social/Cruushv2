@@ -281,6 +281,7 @@ export function decryptProfileVisibility(
       looking_for: Array.isArray(parsed.looking_for) ? parsed.looking_for.filter((value): value is string => typeof value === "string") : [],
       timing: Array.isArray(parsed.timing) ? parsed.timing.filter((value): value is string => typeof value === "string") : [],
       hosting: Array.isArray(parsed.hosting) ? parsed.hosting.filter((value): value is string => typeof value === "string") : [],
+      preferred_spots: Array.isArray(parsed.preferred_spots) ? parsed.preferred_spots.filter((value): value is string => typeof value === "string") : [],
       vibes: Array.isArray(parsed.vibes) ? parsed.vibes.filter((value): value is string => typeof value === "string") : [],
       crowds: normalizeCrowdOptions(parsed.crowds),
       hobbies: Array.isArray(parsed.hobbies) ? parsed.hobbies.filter((value): value is string => typeof value === "string") : [],
@@ -289,7 +290,8 @@ export function decryptProfileVisibility(
       kinks: Array.isArray(parsed.kinks) ? parsed.kinks.filter((value): value is string => typeof value === "string") : [],
       body_types: Array.isArray(parsed.body_types) ? parsed.body_types.filter((value): value is string => typeof value === "string") : [],
       sexuality: Array.isArray(parsed.sexuality) ? parsed.sexuality.filter((value): value is string => typeof value === "string") : [],
-      substance_boundaries: Array.isArray(parsed.substance_boundaries) ? parsed.substance_boundaries.filter((value): value is string => typeof value === "string") : []
+      substance_boundaries: Array.isArray(parsed.substance_boundaries) ? parsed.substance_boundaries.filter((value): value is string => typeof value === "string") : [],
+      protection_boundaries: Array.isArray(parsed.protection_boundaries) ? parsed.protection_boundaries.filter((value): value is string => typeof value === "string") : []
     };
   } catch (error) {
     return null;

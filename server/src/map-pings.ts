@@ -88,6 +88,7 @@ type RecipientProfileRow = {
   looking_for: string[] | null;
   availability: string[] | null;
   hosting_travel: string[] | null;
+  preferred_spots: string[] | null;
   vibes: string[] | null;
   scenes: string[] | null;
   archetypes: string[] | null;
@@ -97,6 +98,7 @@ type RecipientProfileRow = {
   body_type: string[] | null;
   sexuality: string[] | null;
   substance_boundaries: string[] | null;
+  protection_boundaries: string[] | null;
   profile_sensitive_ciphertext: string | null;
   profile_sensitive_nonce: string | null;
   profile_sensitive_auth_tag: string | null;
@@ -271,6 +273,7 @@ function recipientVisibilitySubject(
     looking_for: row.looking_for ?? [],
     timing: row.availability ?? [],
     hosting: row.hosting_travel ?? [],
+    preferred_spots: row.preferred_spots ?? [],
     vibes: row.vibes ?? [],
     scenes: row.scenes ?? [],
     archetypes: row.archetypes ?? [],
@@ -284,6 +287,7 @@ function recipientVisibilitySubject(
     body_types: row.body_type ?? [],
     sexuality: row.sexuality ?? [],
     substance_boundaries: row.substance_boundaries ?? [],
+    protection_boundaries: row.protection_boundaries ?? [],
     coordinates
   };
 }
@@ -490,6 +494,7 @@ async function loadEligibleRecipients(
        profile.looking_for,
        profile.availability,
        profile.hosting_travel,
+       profile.preferred_spots,
        profile.vibes,
        profile.scenes,
        profile.archetypes,
@@ -499,6 +504,7 @@ async function loadEligibleRecipients(
        profile.body_type,
        profile.sexuality,
        profile.substance_boundaries,
+       profile.protection_boundaries,
        profile.profile_sensitive_ciphertext,
        profile.profile_sensitive_nonce,
        profile.profile_sensitive_auth_tag,

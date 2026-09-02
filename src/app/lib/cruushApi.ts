@@ -114,6 +114,7 @@ export type MutualCruushMapFilters = {
   lookingFor?: string[];
   timing?: string[];
   hosting?: string[];
+  preferredSpots?: string[];
   vibes?: string[];
   crowds?: string[];
   hobbies?: string[];
@@ -123,6 +124,7 @@ export type MutualCruushMapFilters = {
   bodyTypes?: string[];
   sexuality?: string[];
   substanceBoundaries?: string[];
+  protectionBoundaries?: string[];
 };
 
 export type ProfileViewActivityItem = CruushLockableActivityItem & {
@@ -221,6 +223,7 @@ export async function getMutualCruushMap(filters?: MutualCruushMapFilters) {
   appendMutualMapListParams(params, 'lookingFor', filters?.lookingFor);
   appendMutualMapListParams(params, 'timing', filters?.timing);
   appendMutualMapListParams(params, 'hosting', filters?.hosting);
+  appendMutualMapListParams(params, 'preferredSpots', filters?.preferredSpots);
   appendMutualMapListParams(params, 'vibes', filters?.vibes);
   appendMutualMapListParams(params, 'crowds', filters?.crowds);
   appendMutualMapListParams(params, 'hobbies', filters?.hobbies);
@@ -230,6 +233,7 @@ export async function getMutualCruushMap(filters?: MutualCruushMapFilters) {
   appendMutualMapListParams(params, 'bodyTypes', filters?.bodyTypes);
   appendMutualMapListParams(params, 'sexuality', filters?.sexuality);
   appendMutualMapListParams(params, 'substanceBoundaries', filters?.substanceBoundaries);
+  appendMutualMapListParams(params, 'protectionBoundaries', filters?.protectionBoundaries);
   const query = params.toString();
   const response = await requestApi<MutualMapResponse | MutualCruushActivityItem[]>(
     query ? `/api/cruush/mutual-map?${query}` : '/api/cruush/mutual-map',

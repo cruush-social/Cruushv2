@@ -111,6 +111,7 @@ const mutualMapQuerySchema = z.object({
   lookingFor: mutualMapQueryArrayField,
   timing: mutualMapQueryArrayField,
   hosting: mutualMapQueryArrayField,
+  preferredSpots: mutualMapQueryArrayField,
   vibes: mutualMapQueryArrayField,
   crowds: mutualMapCrowdQueryArrayField,
   hobbies: mutualMapQueryArrayField,
@@ -119,7 +120,8 @@ const mutualMapQuerySchema = z.object({
   kinks: mutualMapQueryArrayField,
   bodyTypes: mutualMapQueryArrayField,
   sexuality: mutualMapQueryArrayField,
-  substanceBoundaries: mutualMapQueryArrayField
+  substanceBoundaries: mutualMapQueryArrayField,
+  protectionBoundaries: mutualMapQueryArrayField
 }).strict().superRefine((query, context) => {
   if (query.minAge != null && query.maxAge != null && query.minAge > query.maxAge) {
     context.addIssue({
@@ -225,7 +227,9 @@ type MutualCruushRow = {
   position: string[] | null;
   role: string[] | null;
   hosting_travel: string[] | null;
+  preferred_spots: string[] | null;
   substance_boundaries: string[] | null;
+  protection_boundaries: string[] | null;
   profile_sensitive_ciphertext: string | null;
   profile_sensitive_nonce: string | null;
   profile_sensitive_auth_tag: string | null;
@@ -260,7 +264,9 @@ type CurrentProfileLocationRow = {
   position: string[] | null;
   role: string[] | null;
   hosting_travel: string[] | null;
+  preferred_spots: string[] | null;
   substance_boundaries: string[] | null;
+  protection_boundaries: string[] | null;
   lat: number | null;
   lng: number | null;
   fuzzy_lat: number | null;
@@ -305,7 +311,9 @@ type ActivityProfileRow = {
   position: string[] | null;
   role: string[] | null;
   hosting_travel: string[] | null;
+  preferred_spots: string[] | null;
   substance_boundaries: string[] | null;
+  protection_boundaries: string[] | null;
   profile_sensitive_ciphertext: string | null;
   profile_sensitive_nonce: string | null;
   profile_sensitive_auth_tag: string | null;
@@ -576,6 +584,8 @@ function matchesMutualMapSeeking(
     ...(target.body_types ?? []),
     ...(target.sexuality ?? []),
     ...(target.substance_boundaries ?? []),
+    ...(target.preferred_spots ?? []),
+    ...(target.protection_boundaries ?? []),
   ].some((value) => value.trim().toLowerCase().includes(searchQuery)) : true;
   const tagMatch = searchTagQuery
     ? (target.tags ?? []).some((value) => value.trim().toLowerCase().includes(searchTagQuery))
@@ -603,6 +613,7 @@ function matchesMutualMapSeeking(
     matchesAnySelected(filters.lookingFor, target.looking_for) &&
     matchesAnySelected(filters.timing, target.timing) &&
     matchesAnySelected(filters.hosting, target.hosting) &&
+    matchesAnySelected(filters.preferredSpots, target.preferred_spots) &&
     matchesAnySelected(filters.vibes, [
       ...(target.vibes ?? []),
       ...(target.scenes ?? []),
@@ -615,7 +626,8 @@ function matchesMutualMapSeeking(
     matchesAnySelected(filters.kinks, target.kinks) &&
     matchesAnySelected(filters.bodyTypes, target.body_types) &&
     matchesAnySelected(filters.sexuality, target.sexuality) &&
-    matchesAnySelected(filters.substanceBoundaries, target.substance_boundaries);
+    matchesAnySelected(filters.substanceBoundaries, target.substance_boundaries) &&
+    matchesAnySelected(filters.protectionBoundaries, target.protection_boundaries);
 }
 
 function toMapVisibilitySubject(
@@ -638,6 +650,7 @@ function toMapVisibilitySubject(
     looking_for: row.looking_for ?? [],
     timing: row.availability ?? [],
     hosting: row.hosting_travel ?? [],
+    preferred_spots: row.preferred_spots ?? [],
     vibes: row.vibes ?? [],
     scenes: row.scenes ?? [],
     archetypes: row.archetypes ?? [],
@@ -649,6 +662,7 @@ function toMapVisibilitySubject(
     body_types: row.body_type ?? [],
     sexuality: row.sexuality ?? [],
     substance_boundaries: row.substance_boundaries ?? [],
+    protection_boundaries: row.protection_boundaries ?? [],
     coordinates
   };
 }
@@ -674,7 +688,9 @@ async function loadCurrentProfileLocation(app: FastifyInstance, userId: string) 
        position,
        role,
        hosting_travel,
+       preferred_spots,
        substance_boundaries,
+       protection_boundaries,
        null::double precision as lat,
        null::double precision as lng,
        null::double precision as fuzzy_lat,
@@ -744,7 +760,9 @@ async function loadActivityProfiles(app: FastifyInstance, userIds: string[]) {
        profiles.position,
        profiles.role,
        profiles.hosting_travel,
+       profiles.preferred_spots,
        profiles.substance_boundaries,
+       profiles.protection_boundaries,
        profiles.profile_sensitive_ciphertext,
        profiles.profile_sensitive_nonce,
        profiles.profile_sensitive_auth_tag,
@@ -836,7 +854,9 @@ async function loadMutualCruushRows(app: FastifyInstance, userId: string) {
       position: profile.position,
       role: profile.role,
       hosting_travel: profile.hosting_travel,
+      preferred_spots: profile.preferred_spots,
       substance_boundaries: profile.substance_boundaries,
+      protection_boundaries: profile.protection_boundaries,
       profile_sensitive_ciphertext: profile.profile_sensitive_ciphertext,
       profile_sensitive_nonce: profile.profile_sensitive_nonce,
       profile_sensitive_auth_tag: profile.profile_sensitive_auth_tag,
