@@ -56,6 +56,9 @@ reversal outcomes. Keep those outcomes reconcilable and decide entitlement
 treatment with Julien before implementation. Do not add generic refund tooling
 or refund-offering copy unless he names that scope.
 
+The current checkout and billing policy link to `/support?refund=1` for a
+prefilled legal-remedy review request. It does not promise or execute a refund.
+
 EU/EEA sales remain blocked until jurisdiction-specific legal review and a
 compliant service-withdrawal flow are complete, or those consumers are excluded
 server-side. The crypto checkout has not solved this gate for a card or SEPA

@@ -87,7 +87,7 @@ intents never auto-settle or grant. A confirming intent that remains unsettled
 seven days after quote expiry becomes `failed`, with transfer evidence
 preserved. Configured supported chains also retain known wrong-chain and
 wrong-token transfers as non-creditable evidence. Terminal intents return no
-payment URI or QR.
+retired payment address, payment URI, or QR.
 The moderator-only receipt-recovery route handles supported token transfers
 first presented after the bounded watch window. A supplied transaction hash is
 only a lookup key. The server independently verifies the canonical receipt and
@@ -101,6 +101,8 @@ blocked until a jurisdiction-specific compliant service-withdrawal flow is
 reviewed and complete, or those consumers are excluded server-side. No generic
 voluntary refund tooling is planned, but legally required withdrawals, refunds,
 remedies, and forced reversals remain possible and must be recorded truthfully.
+Checkout and the billing policy link to a prefilled `/support?refund=1` review
+request. It does not promise a refund or execute a refund transaction.
 
 ## Hard safety boundaries
 

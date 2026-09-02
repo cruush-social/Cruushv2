@@ -169,7 +169,7 @@ need their own RPC URLs before those rails can become ready.
   intents never auto-settle or grant, even if later evidence is observed.
 - A `confirming` intent that still has not settled seven days after quote
   expiry becomes `failed`; its transfer rows remain available to support.
-- Terminal intents return no payment URI and no QR code.
+- Terminal intents return no retired payment address, payment URI, or QR code.
 - Reorganization-aware transfer rows are retained and cannot double-count.
 - Settlement takes locks in one order: member, intent, exact-rail confirmed
   transfer rows, then any limited-plan supply lock. It re-sums the locked,
@@ -235,6 +235,11 @@ documents the order window, sending mistakes, confirmation boundary, late or
 unmatched transfers, and billing support. Do not restore obsolete recurring or
 app-store billing language.
 
+Checkout and the billing policy link to `/support?refund=1`. That route opens a
+prefilled refund-review request and asks for the order ID, transaction hash,
+purchase date, country or region, and reason. It does not promise a refund or
+run any automatic refund transaction.
+
 ## Primary files
 
 | Concern | File |
@@ -251,7 +256,7 @@ app-store billing language.
 | Per-intent chain positions and block timestamps | `server/sql/121_crypto_payment_chain_positions.sql` |
 | 60-minute database order-window fallback | `server/sql/122_crypto_payment_intent_window.sql` |
 | Checkout | `src/app/components/CruushPlusStore.tsx` |
-| Billing policy route and copy | `src/app/components/PublicInfoPage.tsx`, `src/app/lib/publicLegalContent.tsx` |
+| Billing policy and refund-review routes | `src/app/components/PublicInfoPage.tsx`, `src/app/lib/publicLegalContent.tsx`, `src/app/components/SupportPage.tsx`, `src/app/components/SupportRequestForm.tsx` |
 | Public wallet descriptor tool | `tools/cruush-wallet` |
 
 Migrations `116` through `122` are the complete ordered crypto schema slice.

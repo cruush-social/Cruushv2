@@ -226,6 +226,9 @@ required withdrawals, refunds, remedies, and forced reversals still apply. The
 truthfully. Do not add generic refund tooling or refund-offering copy unless
 Julien names that scope.
 
+Checkout and the billing policy now link to `/support?refund=1`, which opens a
+prefilled support review. It does not promise or execute a refund.
+
 EU/EEA sales remain blocked until jurisdiction-specific legal review and a
 compliant service-withdrawal flow are complete, or those consumers are excluded
 server-side.

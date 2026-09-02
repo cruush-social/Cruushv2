@@ -1,5 +1,6 @@
 # FIXLOG
 
+- 2026-09-02: The refund-review page now stays within the viewport at small-mobile widths; its form and legal links use bounded responsive containers.
 - 2026-09-02: The billing policy and checkout now link to a prefilled refund-review request for legally required withdrawal, refund, price-reduction, or other billing remedies without promising voluntary refunds.
 - 2026-09-02: The seven checkout benefit capsules now fill exactly three balanced rows; no public cruush+ benefit claims saved visibility sets.
 - 2026-09-02: Cancelled, expired, failed, paid, and refunded payment responses no longer expose a retired order address.
