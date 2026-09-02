@@ -82,6 +82,7 @@ export type ProfileViewModel = {
   sexuality: string[];
   ethnicity: string | null;
   bodyType: string | null;
+  bodyHair: string | null;
   height: string | null;
   weight: string | null;
   isTrans: boolean | null;
@@ -169,6 +170,7 @@ export function profileRecordToProfileView(
     sexuality: profile.sexuality,
     ethnicity: profile.ethnicity || null,
     bodyType: formatJoined(profile.body_type),
+    bodyHair: formatSingle(profile.body_hair),
     height: profile.height || null,
     weight: profile.weight || null,
     isTrans: profile.is_trans,
@@ -884,6 +886,10 @@ export function ProfileDetailsTabs({
 
       <TabsContent value="intimacy" className={`${compact ? 'mt-4 space-y-4' : 'mt-5 space-y-5'}`}>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Section title="Body hair" compact={compact}>
+            <BadgeList items={profileView.bodyHair ? [profileView.bodyHair] : []} compact={compact} />
+          </Section>
+
           <Section title="Looking For" compact={compact}>
             <BadgeList items={profileView.lookingFor} compact={compact} />
             {profileView.timing ? (

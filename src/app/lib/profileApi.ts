@@ -69,6 +69,7 @@ export type ProfilePayload = {
   presentation: string[];
   sexuality: string[];
   body_type: string[];
+  body_hair: string[];
   height: string;
   weight: string;
   position: string[];
@@ -170,6 +171,7 @@ export const emptyProfilePayload: ProfilePayload = {
   presentation: [],
   sexuality: [],
   body_type: [],
+  body_hair: [],
   height: '',
   weight: '',
   position: [],

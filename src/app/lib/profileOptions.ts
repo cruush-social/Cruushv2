@@ -27,6 +27,8 @@ export const BODY_TYPES = alphabetize([
   'BBW', 'BBM', 'athletic', 'average', 'bear', 'chubby', 'chub', 'cub', 'curvy', 'full-figured', 'muscular', 'otter', 'petite', 'plus-size', 'slim', 'stocky', 'toned', 'twink'
 ]);
 
+export const BODY_HAIR = ['Natural', 'Hairy', 'Trimmed', 'Shaved', 'Smooth'];
+
 export const POSITIONS = alphabetize([
   'bottom', 'pillow princess', 'side', 'stone bottom', 'stone top', 'top', 'vers bottom', 'vers top', 'versatile'
 ]);

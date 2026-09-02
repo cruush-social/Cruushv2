@@ -35,6 +35,7 @@ import { getProfileGradientCss } from '../lib/profileGradient';
 import { saveDistancePreferences, useDistancePreferences } from '../lib/distancePreferences';
 import {
   AVAILABILITY,
+  BODY_HAIR,
   BODY_TYPES,
   BIRTH_CONTROL,
   CONDOMS,
@@ -526,6 +527,7 @@ function toProfileSavePayload(
     presentation: limitToThree(profile.presentation ?? []),
     sexuality: limitToThree(profile.sexuality ?? []),
     body_type: limitToThree(profile.body_type ?? []),
+    body_hair: singleValue(profile.body_hair ?? []),
     height: profile.height ?? '',
     weight: profile.weight ?? '',
     position: limitToThree(profile.position ?? []),
@@ -1003,6 +1005,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
     presentation: limitToThree(profile.presentation || []),
     sexuality: singleValue(profile.sexuality || []),
     body_type: limitToThree(profile.body_type || []),
+    body_hair: singleValue(profile.body_hair || []),
     position: limitToThree(profile.position || []),
     role: limitToThree(profile.role || []),
     is_trans: profile.is_trans ?? null,
@@ -1418,6 +1421,19 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
           </TabsContent>
 
           <TabsContent value="intimacy" className="space-y-6 mt-6">
+            <div className="space-y-2">
+              <Label>Body hair</Label>
+              <MultiSelect
+                {...profileMenuProps}
+                ariaLabel="Body hair"
+                maxSelections={1}
+                options={BODY_HAIR}
+                selectionMode="single"
+                value={normalizedProfile.body_hair}
+                onChange={(values) => handleChange('body_hair', singleValue(values))}
+              />
+            </div>
+
             <div className="space-y-2">
               <Label>Relationship status</Label>
               <MultiSelect

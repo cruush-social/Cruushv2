@@ -145,6 +145,7 @@ type ProfileRow = {
   presentation: string[] | null;
   sexuality: string[] | null;
   body_type: string[] | null;
+  body_hair: string[] | null;
   height: string | null;
   weight: string | null;
   position: string[] | null;
@@ -315,6 +316,7 @@ const PROFILE_COLUMNS = [
   "presentation",
   "sexuality",
   "body_type",
+  "body_hair",
   "height",
   "weight",
   "position",
@@ -529,6 +531,7 @@ function mapProfileRow(
     presentation: row.presentation ?? [],
     sexuality: row.sexuality ?? [],
     body_type: row.body_type ?? [],
+    body_hair: row.body_hair ?? [],
     height: row.height ?? "",
     weight: row.weight ?? "",
     position: row.position ?? [],
@@ -638,6 +641,7 @@ function profilePayloadFromRow(
     presentation: row.presentation ?? [],
     sexuality: row.sexuality ?? [],
     body_type: row.body_type ?? [],
+    body_hair: row.body_hair ?? [],
     height: row.height ?? "",
     weight: row.weight ?? "",
     position: row.position ?? [],
