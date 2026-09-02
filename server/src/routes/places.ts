@@ -7,7 +7,8 @@ import { ApiError } from "../errors.js";
 import { listEncryptedRelationshipRecordsByParticipant } from "../encrypted-relationships.js";
 import { databaseUuidSchema, uuidSchema } from "../input-schema.js";
 import { getModeratorUser } from "../moderator-auth.js";
-import { moderateTextOrReject } from "../moderation-service.js";
+import { approvedContentReviewCte, moderateTextOrReject } from "../moderation-service.js";
+import { userHasOwnerFullAccess } from "../owner-access.js";
 import {
   decryptPlaceSuggestion,
   encryptPlaceSuggestion,
@@ -690,6 +691,17 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
     const place = await requirePublishedPlace(app, placeId);
     const distance = distanceMiles({ lat: payload.latitude, lng: payload.longitude }, { lat: Number(place.latitude), lng: Number(place.longitude) });
     if (distance > 0.25) throw new ApiError(403, "CHECKIN_TOO_FAR", "Move within 0.25 miles of this place to check in.");
+    const feedPostContent = `Checked in at ${place.name}.`;
+    const feedModeration = await moderateTextOrReject(app, {
+      userId,
+      surface: "feed",
+      text: feedPostContent,
+      contentRef: { source: "place_checkin", placeId },
+      persistAllowedReview: false
+    });
+    const encryptedFeedPost = encryptTextContent(app.config, "feed", feedPostContent);
+    const feedPostId = randomUUID();
+    const ownerFullAccess = await userHasOwnerFullAccess(app, userId);
     let legacyBoardPost: ReturnType<typeof encryptTextContent> | null = null;
     if (payload.content) {
       await app.rateLimiter.assert({
@@ -763,6 +775,103 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
            values ($1, $2, 1)
            on conflict (place_id, bucket_start) do update set checkin_count = place_activity_hourly.checkin_count + 1`,
           [placeId, bucketStart]
+        );
+        await db.query(
+          `with eligible_user as (
+             select account.id
+             from app_users account
+             left join user_trust_profiles trust on trust.user_id = account.id
+             where account.id = $1
+               and (
+                 $15::boolean
+                 or (
+                   coalesce(trust.is_suspended, false) = false
+                   and coalesce(trust.trust_score, 50) > 20
+                   and not exists (
+                     select 1
+                     from suspensions suspension
+                     where suspension.user_id = account.id
+                       and (suspension.permanent or suspension.ends_at is null or suspension.ends_at > now())
+                   )
+                   and not exists (
+                     select 1
+                     from feature_restrictions restriction
+                     where restriction.user_id = account.id
+                       and restriction.feature = 'feed_posting'
+                       and (restriction.ends_at is null or restriction.ends_at > now())
+                   )
+                 )
+               )
+           ), feed_preferences as (
+             select coalesce(
+               (select settings.feed_post_expiry_default from user_privacy_settings settings where settings.user_id = $1),
+               'never'
+             ) as expires_in
+           ),
+           ${approvedContentReviewCte({
+             userIdParam: "$1",
+             surface: "feed",
+             contentType: "text",
+             fromCte: "eligible_user",
+             providerParam: "$7",
+             providerRequestIdParam: "$8",
+             normalizedLabelsParam: "$9",
+             policyDecisionParam: "$10",
+             moderationStatusParam: "$11",
+             flaggedReasonParam: "$12",
+             moderationRawResultParam: "$13",
+             contentIdParam: "$2::uuid",
+             contentRefParam: "$14"
+           })}
+           insert into posts (
+             id,
+             user_id,
+             content,
+             content_ciphertext,
+             content_nonce,
+             content_auth_tag,
+             content_key_version,
+             audience,
+             expires_in,
+             expires_at
+           )
+           select
+             $2::uuid,
+             eligible_user.id,
+             '[encrypted]',
+             $3,
+             $4,
+             $5,
+             $6,
+             'public',
+             feed_preferences.expires_in,
+             case feed_preferences.expires_in
+               when '1h' then now() + interval '1 hour'
+               when '6h' then now() + interval '6 hours'
+               when '24h' then now() + interval '24 hours'
+               when '7d' then now() + interval '7 days'
+               else 'infinity'::timestamptz
+             end
+           from eligible_user
+           join moderation_review on true
+           cross join feed_preferences`,
+          [
+            userId,
+            feedPostId,
+            encryptedFeedPost.ciphertext,
+            encryptedFeedPost.nonce,
+            encryptedFeedPost.authTag,
+            encryptedFeedPost.keyVersion,
+            feedModeration.providerResult.provider,
+            feedModeration.providerResult.provider_request_id,
+            JSON.stringify(feedModeration.providerResult.labels),
+            JSON.stringify(feedModeration.decision),
+            feedModeration.moderationStatus ?? "allowed",
+            feedModeration.flaggedReason ?? null,
+            JSON.stringify(feedModeration.providerResult.raw_result ?? {}),
+            JSON.stringify({ source: "place_checkin", placeId }),
+            ownerFullAccess
+          ]
         );
       }
       await db.query(`delete from place_checkin_events where expires_at <= now()`);

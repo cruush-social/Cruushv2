@@ -10,6 +10,7 @@ const changelogReleases = [
       'Explore from another location with Mile High Club.',
       'Find Spots by vibe and amenities, see who is there, and read their Pink Book while checked in.',
       'Spot check-ins expire. Pink Book posts stay until their author deletes them.',
+      'Checking into a Spot now shares it to the Feed.',
       'Post text to Feed for free, search #tags, and add up to three photos with cruush+.',
       'cruush+ includes 5 Pulses per day, with optional alerts protected from repeats; group admins can spend their own Pulse to alert the group.',
       'Complete Side Quests to earn bonus Pings and cruush+ days.',

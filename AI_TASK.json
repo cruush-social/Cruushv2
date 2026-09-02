@@ -25,6 +25,7 @@
     "Mobile long-press reveals badge meanings while desktop hover remains; hanky labels do not overflow.",
     "Basic members receive 1 Pulse per rolling day and cruush+ members receive 5; there is no sender cooldown, Pulse alerts remain optional, each recipient receives at most one Pulse alert every 4 hours, and the same sender cannot alert the same recipient more than once per day.",
     "Group owners and admins can spend one of their own Pulses to alert members of that group; group Pulses obey the same recipient notification preferences and repeat limits as individual Pulses.",
+    "A successful Spot check-in creates one moderated public Feed post per member, Spot, and hourly check-in event while Pink Book posts remain separate and persistent.",
     "Onboarding explains that Crowd Mode affects visibility only when enabled and includes the approved profile-photo rules.",
     "Onboarding step 2 accepts an optional friend invite code and explains that invite benefits require the invited member to enable 2FA.",
     "Onboarding places role and position before badges, shows the full uploaded-photo heart unit, and visibly defaults the left badge to role and the right badge to position when no custom badges are chosen.",
@@ -33,6 +34,7 @@
     "Members can contribute Spot vibes, amenities, and access details without checking in or being near the Spot.",
     "No public Spot source attribution names Sniffies; OpenStreetMap attribution remains where applicable.",
     "Refresh the actual Spot, spot-cluster, badge-menu, MHC, and feed screenshots used by the 1.6 email and show the resulting email."
+    ,"After implementation, add or update focused tests for the session rules and update the repository design-rules Markdown."
   ],
   "mustPreserve": [
     "Preserve approved custom map tiles, theme, people pins, Ghost Mode, Dark Room, Pulse, and unrelated map behavior.",
@@ -43,7 +45,7 @@
     "Keep user-facing copy free of em dashes and spell cruush lowercase."
   ],
   "nonGoals": [
-    "No map tile or theme changes, no reaction or feed-reply work, no crowd-mode changes, no new Spot scrape, no heart-halo or presence-indicator implementation, no phone verification or physical-device identity enforcement before 1.7, no party Pulse before parties exist, no tests, no broad build, no push, and no deploy.",
+    "No map tile or theme changes, no reaction or feed-reply work, no crowd-mode changes, no new Spot scrape, no heart-halo or presence-indicator implementation, no phone verification or physical-device identity enforcement before 1.7, no public-group or party implementation before those features exist, no broad build, no push, and no deploy.",
     "Do not import private residences, visitor identities, access codes, or covertly inferred identity attributes.",
     "Do not redesign unrelated pages or add unrelated labels, taglines, controls, or filters."
   ],
@@ -161,6 +163,7 @@
     "server/src/moderation-service.test.ts",
     "server/src/routes/posts.ts",
     "server/src/routes/messages.ts",
+    "server/src/routes/*.test.ts",
     "server/sql/103_places.sql",
     "server/sql/104_spots_taxonomy.sql",
     "server/sql/117_public_spots_100mi_nyc.sql",
@@ -179,6 +182,7 @@
     "public/email/cruush-v1.6-mhc.jpg",
     "public/email/cruush-v1.6-feed.jpg",
     "FIXLOG.md",
+    "docs/**/*.md",
     "docs/worktrees.md",
     "src/styles/theme.css"
   ],
