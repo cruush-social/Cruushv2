@@ -521,10 +521,17 @@ export const statement2257Sections: PolicySection[] = [
 
 export const billingSections: PolicySection[] = [
   {
-    title: "One-time cruush+ purchases",
+    title: "One-time purchases",
     body: [
-      "Every cruush+ checkout currently offered by cruush is a one-time purchase for the access period shown at checkout. Nothing renews automatically, and cruush does not bill the purchase again.",
-      "The exact total price and access period are shown before an order starts."
+      "Every cruush+ and Ping pack checkout currently offered by cruush is a one-time purchase. Nothing renews automatically, and cruush does not bill the purchase again.",
+      "The exact total price, cruush+ access period, or Ping count is shown before an order starts."
+    ]
+  },
+  {
+    title: "Ping packs",
+    body: [
+      "Purchased Ping credits do not expire. cruush uses a member's included daily Ping allowance before consuming a purchased or earned Ping credit.",
+      "Each Ping credit activates one Pulse for 30 minutes. Buying more credits does not extend the duration of an active Pulse."
     ]
   },
   {
@@ -538,21 +545,21 @@ export const billingSections: PolicySection[] = [
   {
     title: "Sending crypto",
     body: [
-      "Blockchain transfers cannot be canceled or reversed. Send only the asset, network, amount, and address shown for the active order. A transfer using another asset, network, amount, or address may not activate cruush+ and may be lost.",
+      "Blockchain transfers cannot be canceled or reversed. Send only the asset, network, amount, and address shown for the active order. A transfer using another asset, network, amount, or address may not activate the purchased cruush+ time or Ping pack and may be lost.",
       "Any sending-platform or blockchain network fee is separate. Make sure the exact amount shown by cruush reaches the order address before the timer expires."
     ]
   },
   {
-    title: "When access starts",
+    title: "When your purchase is delivered",
     body: [
-      "cruush+ access starts only after cruush independently confirms the matching blockchain transfer. A submitted transaction or copied address is not proof of payment.",
-      "The purchased access lasts for the fixed period shown at checkout. It does not renew automatically."
+      "cruush+ access or purchased Ping credits are added only after cruush independently confirms the matching blockchain transfer. A submitted transaction or copied address is not proof of payment.",
+      "cruush+ access lasts for the fixed period shown at checkout. Purchased Ping credits do not expire. Nothing renews automatically."
     ]
   },
   {
     title: "Refunds",
     body: [
-      "cruush does not offer voluntary refunds for cruush+. Purchases are final and non-refundable except where applicable law requires a withdrawal, refund, remedy, or forced reversal.",
+      "cruush does not offer voluntary refunds for cruush+ or Ping packs. Purchases are final and non-refundable except where applicable law requires a withdrawal, refund, remedy, or forced reversal.",
       "Unused time, partial terms, price changes, promotions, sending mistakes, and account closure do not create a voluntary refund right. Any legally required outcome is handled under applicable law.",
       <>
         If you believe applicable law requires a withdrawal, refund, price reduction, or another billing
@@ -564,7 +571,7 @@ export const billingSections: PolicySection[] = [
   {
     title: "Late, incomplete, or unmatched transfers",
     body: [
-      "A late, incomplete, underpaid, wrong-asset, wrong-network, or otherwise unmatched transfer does not automatically activate cruush+. Available blockchain evidence may be retained for support, fraud prevention, accounting, disputes, and legally required handling.",
+      "A late, incomplete, underpaid, wrong-asset, wrong-network, or otherwise unmatched transfer does not automatically activate cruush+ or add Ping credits. Available blockchain evidence may be retained for support, fraud prevention, accounting, disputes, and legally required handling.",
       <>
         Contact <a href={`mailto:${legalContact}`}>{legalContact}</a> with the order details
         and transaction hash. Never send cruush your wallet recovery words, private key, or seed phrase.

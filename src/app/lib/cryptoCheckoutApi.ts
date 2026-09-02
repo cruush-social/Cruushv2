@@ -33,7 +33,8 @@ export type CryptoPaymentStatus =
 export type CryptoPaymentIntent = {
   id: string;
   userId: string;
-  planId: CruushPlusPlanId;
+  planId: string;
+  productType: 'cruush_plus' | 'ping_pack';
   asset: CryptoPaymentAsset;
   network: CryptoPaymentNetwork;
   rail: CryptoPaymentRailId;

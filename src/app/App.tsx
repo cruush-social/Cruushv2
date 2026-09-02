@@ -67,6 +67,7 @@ const BottomNav = lazy(() => import('./components/BottomNav'));
 const DebugCruushPlusToggle = lazy(() => import('./components/DebugCruushPlusToggle'));
 const Rewards = lazy(() => import('./components/Rewards'));
 const CruushPlusStore = lazy(() => import('./components/CruushPlusStore'));
+const PingPackStore = lazy(() => import('./components/PingPackStore'));
 const EarnedCruushPlusCards = lazy(() => import('./components/EarnedCruushPlusCards'));
 const CruushPlusSuccess = lazy(() => import('./components/CruushPlusSuccess'));
 const AlphaBugButton = lazy(() => import('./components/AlphaBugButton'));
@@ -617,6 +618,7 @@ export default function App({
               <Route path="/lucky" element={<FeelingLucky />} />
               <Route path="/requests" element={<RequestsDashboard />} />
               <Route path="/store" element={<CruushPlusStore />} />
+              <Route path="/ping-packs" element={<PingPackStore />} />
               <Route path="/upgrade" element={<Navigate to="/rewards" replace />} />
               <Route path="/rewards" element={<Rewards />} />
               <Route path="/checkout/success" element={<CruushPlusSuccess />} />

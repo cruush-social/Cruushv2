@@ -15,6 +15,7 @@ import {
   isValidCryptoWalletXpub,
   quoteUsdCentsAsStablecoinAtomic
 } from "./crypto-wallet.js";
+import { getPingPack } from "./ping-packs.js";
 
 /**
  * The receiving rails. Every value here is fixed server-side; a client may name
@@ -159,11 +160,13 @@ export const CRYPTO_PAYMENT_STATUSES = [
   "refunded"
 ] as const;
 export type CryptoPaymentStatus = typeof CRYPTO_PAYMENT_STATUSES[number];
+export type CryptoPaymentProductType = "cruush_plus" | "ping_pack";
 
 export type CryptoPaymentIntentRow = {
   id: string;
   user_id: string;
   plan_id: string;
+  product_type?: CryptoPaymentProductType;
   processor: "in_house";
   asset: CryptoPaymentAsset;
   network: CryptoPaymentNetwork;
@@ -186,6 +189,7 @@ export type CryptoPaymentIntent = {
   id: string;
   userId: string;
   planId: string;
+  productType: CryptoPaymentProductType;
   asset: CryptoPaymentAsset;
   network: CryptoPaymentNetwork;
   rail: CryptoPaymentRailId;
@@ -240,6 +244,7 @@ export function mapCryptoPaymentIntent(row: CryptoPaymentIntentRow): CryptoPayme
     id: row.id,
     userId: row.user_id,
     planId: row.plan_id,
+    productType: row.product_type ?? "cruush_plus",
     asset: row.asset,
     network: row.network,
     rail: railFor(row.asset, row.network),
@@ -419,11 +424,18 @@ export function assertCryptoProcessorReady(config: AppConfig, railId: CryptoPaym
 
 function assertIdempotentReservationMatches(
   row: CryptoPaymentIntentRow,
-  input: { planId: string; amountUsdCents: number; walletXpubFingerprint: string; rail: CryptoPaymentRailId }
+  input: {
+    planId: string;
+    productType: CryptoPaymentProductType;
+    amountUsdCents: number;
+    walletXpubFingerprint: string;
+    rail: CryptoPaymentRailId;
+  }
 ) {
   const rail = cryptoRail(input.rail);
   if (
     row.plan_id !== input.planId ||
+    (row.product_type ?? "cruush_plus") !== input.productType ||
     Number(row.amount_usd_cents) !== input.amountUsdCents ||
     row.asset !== rail.asset ||
     row.network !== rail.network ||
@@ -442,6 +454,7 @@ async function reserveCryptoPaymentIntent(
   input: {
     userId: string;
     planId: string;
+    productType: CryptoPaymentProductType;
     amountUsdCents: number;
     idempotencyKey: string;
     walletXpubFingerprint: string;
@@ -454,6 +467,7 @@ async function reserveCryptoPaymentIntent(
     `insert into crypto_payment_intents (
        user_id,
        plan_id,
+       product_type,
        processor,
        asset,
        network,
@@ -466,15 +480,16 @@ async function reserveCryptoPaymentIntent(
      ) values (
        $1,
        $2,
-       'in_house',
        $3,
+       'in_house',
        $4,
        $5,
        $6,
-       'pending',
        $7,
-       $8::jsonb,
-       now() + ($9::integer * interval '1 minute')
+       'pending',
+       $8,
+       $9::jsonb,
+       now() + ($10::integer * interval '1 minute')
      )
      on conflict (user_id, idempotency_key) do update
        set updated_at = crypto_payment_intents.updated_at
@@ -482,6 +497,7 @@ async function reserveCryptoPaymentIntent(
     [
       input.userId,
       input.planId,
+      input.productType,
       cryptoRail(input.rail).asset,
       cryptoRail(input.rail).network,
       input.amountUsdCents,
@@ -523,6 +539,7 @@ async function loadCompatibleOpenCryptoPaymentIntent(
   input: {
     userId: string;
     planId: string;
+    productType: CryptoPaymentProductType;
     amountUsdCents: number;
     walletXpubFingerprint: string;
     rail: CryptoPaymentRailId;
@@ -534,10 +551,11 @@ async function loadCompatibleOpenCryptoPaymentIntent(
      from crypto_payment_intents
      where user_id = $1
        and plan_id = $2
-       and amount_usd_cents = $3
-       and wallet_xpub_fingerprint = $4
-       and asset = $5
-       and network = $6
+       and product_type = $3
+       and amount_usd_cents = $4
+       and wallet_xpub_fingerprint = $5
+       and asset = $6
+       and network = $7
        and (
          status = 'confirming'
          or (
@@ -551,6 +569,7 @@ async function loadCompatibleOpenCryptoPaymentIntent(
     [
       input.userId,
       input.planId,
+      input.productType,
       input.amountUsdCents,
       input.walletXpubFingerprint,
       rail.asset,
@@ -586,7 +605,8 @@ async function assertLifetimeCryptoPurchaseAvailable(db: DbClient, userId: strin
          select 1
          from crypto_payment_intents
          where user_id = $1
-           and plan_id = 'lifetime_founder'
+           and product_type = 'cruush_plus'
+           and plan_id in ('lifetime_founder', 'plus_lifetime')
            and (
              status in ('confirming', 'paid', 'refunded')
              or (
@@ -608,6 +628,10 @@ async function terminalizeUnpaidCryptoIntentAfterLifetimeAccess(
   db: DbClient,
   intent: CryptoPaymentIntentRow
 ) {
+  if ((intent.product_type ?? "cruush_plus") !== "cruush_plus") {
+    return false;
+  }
+
   if (!(["pending", "awaiting_payment"] as CryptoPaymentStatus[]).includes(intent.status)) {
     return false;
   }
@@ -637,7 +661,11 @@ async function terminalizeUnpaidCryptoIntentAfterLifetimeAccess(
   return true;
 }
 
-async function assertCryptoOpenIntentCapacity(db: DbClient, userId: string) {
+async function assertCryptoOpenIntentCapacity(
+  db: DbClient,
+  userId: string,
+  productType: CryptoPaymentProductType
+) {
   const result = await db.query<{
     open_count: string | number;
     has_lifetime_access: boolean;
@@ -663,7 +691,7 @@ async function assertCryptoOpenIntentCapacity(db: DbClient, userId: string) {
     [userId]
   );
 
-  if (result.rows[0]?.has_lifetime_access === true) {
+  if (productType === "cruush_plus" && result.rows[0]?.has_lifetime_access === true) {
     throw new ApiError(409, "VALIDATION_ERROR", "Lifetime cruush+ is already active.");
   }
 
@@ -682,6 +710,7 @@ export async function createInHouseCryptoPaymentIntent(
   input: {
     userId: string;
     planId: string;
+    productType?: CryptoPaymentProductType;
     amountUsdCents: number;
     idempotencyKey: string;
     metadata?: Record<string, unknown>;
@@ -691,12 +720,25 @@ export async function createInHouseCryptoPaymentIntent(
   }
 ) {
   const rail = input.rail ?? "usdc_arbitrum";
+  const productType = input.productType ?? "cruush_plus";
   const wallet = assertCryptoProcessorReady(config, rail);
   const walletXpubFingerprint = fingerprintCryptoWalletXpub(wallet.receiveChainXpub);
-  const plan = getCruushPlusPlan(input.planId);
+  const cruushPlusPlan = productType === "cruush_plus"
+    ? getCruushPlusPlan(input.planId)
+    : null;
+  const pingPack = productType === "ping_pack"
+    ? getPingPack(input.planId)
+    : null;
+  const amountCents = cruushPlusPlan?.amountCents ?? pingPack?.amountCents;
 
-  if (plan.amountCents !== input.amountUsdCents) {
-    throw new ApiError(400, "VALIDATION_ERROR", "Crypto payment amount does not match that cruush+ plan.");
+  if (amountCents !== input.amountUsdCents) {
+    throw new ApiError(
+      400,
+      "VALIDATION_ERROR",
+      productType === "ping_pack"
+        ? "Crypto payment amount does not match that Ping pack."
+        : "Crypto payment amount does not match that cruush+ plan."
+    );
   }
 
   const outcome = await runTransaction(db, async (client) => {
@@ -712,6 +754,7 @@ export async function createInHouseCryptoPaymentIntent(
     if (!reserved) {
       reserved = await loadCompatibleOpenCryptoPaymentIntent(client, {
         ...input,
+        productType,
         walletXpubFingerprint,
         rail
       });
@@ -720,14 +763,17 @@ export async function createInHouseCryptoPaymentIntent(
     const reusedReservation = reserved !== null;
 
     if (!reserved) {
-      if (plan.isLifetime) {
+      if (cruushPlusPlan?.isLifetime) {
         await assertLifetimeCryptoPurchaseAvailable(client, input.userId);
       }
 
-      await assertCryptoOpenIntentCapacity(client, input.userId);
-      await assertCryptoPlanCanReserve(client, plan);
+      await assertCryptoOpenIntentCapacity(client, input.userId, productType);
+      if (cruushPlusPlan) {
+        await assertCryptoPlanCanReserve(client, cruushPlusPlan);
+      }
       reserved = await reserveCryptoPaymentIntent(client, {
         ...input,
+        productType,
         walletXpubFingerprint,
         intentTtlMinutes: wallet.intentTtlMinutes,
         rail
@@ -736,6 +782,7 @@ export async function createInHouseCryptoPaymentIntent(
 
     assertIdempotentReservationMatches(reserved, {
       planId: input.planId,
+      productType,
       amountUsdCents: input.amountUsdCents,
       walletXpubFingerprint,
       rail
@@ -885,17 +932,22 @@ export async function expireStaleCryptoPaymentIntents(db: DbClient) {
   return result.rows.length;
 }
 
-export async function loadCurrentOpenCryptoPaymentIntent(db: DbClient, userId: string) {
+export async function loadCurrentOpenCryptoPaymentIntent(
+  db: DbClient,
+  userId: string,
+  productType: CryptoPaymentProductType = "cruush_plus"
+) {
   await expireStaleCryptoPaymentIntents(db);
 
   const result = await db.query<CryptoPaymentIntentRow>(
     `select *
      from crypto_payment_intents
      where user_id = $1
+       and product_type = $2
        and status in ('pending', 'awaiting_payment', 'confirming')
      order by created_at desc
      limit 1`,
-    [userId]
+    [userId, productType]
   );
 
   return result.rows[0] ? mapCryptoPaymentIntent(result.rows[0]) : null;

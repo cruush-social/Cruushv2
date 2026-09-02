@@ -3476,6 +3476,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
           onSend={handleSendMapPing}
           hasCruushPlus={hasCruushPlus}
           onUpgrade={() => navigate('/rewards')}
+          onBuyPingPacks={() => navigate('/ping-packs')}
         />
 
         <MapControlsTutorial

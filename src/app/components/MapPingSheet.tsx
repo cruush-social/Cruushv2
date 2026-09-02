@@ -41,6 +41,7 @@ type MapPingSheetProps = {
   onSaveSignal?: (signal: string) => Promise<void>;
   hasCruushPlus?: boolean;
   onUpgrade?: () => void;
+  onBuyPingPacks?: () => void;
   /** Your own photo, so the demonstration is your pin and not a placeholder. */
   photo?: string | null;
   /** Dark Room keeps you off the map, so a Pulse cannot go out. */
@@ -194,6 +195,7 @@ export default function MapPingSheet({
   hasCruushPlus = false,
   lurkerActive = false,
   onUpgrade,
+  onBuyPingPacks,
 }: MapPingSheetProps) {
   const isMobile = useIsMobile();
   const [radiusMiles, setRadiusMiles] = useState<MapPingRadiusMiles>(3);
@@ -560,11 +562,25 @@ export default function MapPingSheet({
               </time>
             ) : null}
           </div>
+          {status && status.bonusCredits > 0 ? (
+            <p className="text-xs text-white/58">
+              {status.bonusCredits} extra {status.bonusCredits === 1 ? 'Ping' : 'Pings'} ready. Included daily Pings are used first.
+            </p>
+          ) : null}
           {!hasCruushPlus && status?.allowance.remaining === 0 && onUpgrade ? (
             <CruushPlusGateNotice
               description="Basic includes 1 Pulse every 24 hours."
               onUpgrade={onUpgrade}
             />
+          ) : null}
+          {onBuyPingPacks ? (
+            <button
+              type="button"
+              className="w-full rounded-full border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white transition hover:border-[#c8ff31]/70 hover:bg-[#c8ff31]/10"
+              onClick={onBuyPingPacks}
+            >
+              Buy Ping packs
+            </button>
           ) : null}
           {error ? (
             <p className="rounded-lg border border-white/15 bg-white/[0.06] px-3 py-2 text-sm text-white/85" role="alert">

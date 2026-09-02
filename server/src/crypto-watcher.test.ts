@@ -282,6 +282,44 @@ describe("settling one intent", () => {
     expect(grantedCalls.some(([sql]) => /entitlement_granted_at = now\(\)/.test(sql as string))).toBe(true);
   });
 
+  it("grants a paid Ping pack once instead of cruush+ time", async () => {
+    const { db, calls } = stubDb([
+      [/from crypto_payment_intents[\s\S]*for update/, [{
+        id: intentId,
+        user_id: userId,
+        plan_id: "ping_10",
+        product_type: "ping_pack",
+        status: "awaiting_payment",
+        payment_address: paymentAddress,
+        quoted_amount_atomic: "7990000",
+        asset: "USDC",
+        network: "base",
+        watch_start_block: "900",
+        expires_at: "2026-09-01T00:30:00.000Z",
+        entitlement_granted_at: null
+      }]],
+      [/coalesce\(sum\(amount_atomic/, [{ total: "7990000" }]],
+      [/set status = 'paid'/, [{ id: intentId }]],
+      [/insert into ping_pack_purchases/, [{ id: "00000000-0000-4000-8000-000000000099" }]]
+    ]);
+
+    const result = await settleIntent(
+      { db },
+      watchableIntent({
+        planId: "ping_10",
+        productType: "ping_pack",
+        quotedAmountAtomic: "7990000"
+      }),
+      DEFAULT_CRYPTO_SETTLEMENT_POLICY
+    );
+
+    expect(result).toMatchObject({ settled: true, granted: true });
+    const grant = calls.find((call) => /insert into ping_pack_purchases/.test(call.sql));
+    expect(grant?.values).toEqual([userId, intentId, "ping_10", 10, 799, "USD"]);
+    expect(calls.some((call) => /with current_entitlement/.test(call.sql))).toBe(false);
+    expect(calls.some((call) => /entitlement_granted_at = now\(\)/.test(call.sql))).toBe(true);
+  });
+
   it("claims, grants, and records in one transaction so a failed grant strands nobody", async () => {
     // Three separate statements left a member committed as paid with no
     // entitlement if anything failed in between, and loadWatchableIntents

@@ -46,6 +46,8 @@ describe('PublicInfoPage', () => {
     expect(screen.getByText(/does not offer voluntary refunds/i)).toBeInTheDocument();
     expect(screen.getByText(/unique payment address, exact asset, exact network, exact amount, and expiration time/i)).toBeInTheDocument();
     expect(screen.getByText(/before sending, you may cancel an order/i)).toBeInTheDocument();
+    expect(screen.getByText(/cruush\+ access or purchased Ping credits are added only after/i)).toBeInTheDocument();
+    expect(screen.getByText(/does not automatically activate cruush\+ or add Ping credits/i)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'submit a refund request' })).toHaveAttribute(
       'href',
       '/support?refund=1',

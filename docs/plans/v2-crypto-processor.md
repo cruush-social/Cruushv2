@@ -144,14 +144,15 @@ in this document establishes deployment or production activation.
 
 Implemented locally:
 
-- Migrations `116` through `122` are the complete ordered crypto schema slice:
+- Migrations `116` through `123` are the complete ordered crypto schema slice:
   `116` creates intents and event intake, `117` adds the multi-asset/network
   rails, `118` adds observed transfers, cursors, settlement constraints, and
   paid-access references, `119` adds Arbitrum, and `120` adds the durable
   intended-chain watch-start block. `121` adds per-intent origins and cursors
   for every supported chain plus authoritative transfer block timestamps. `122`
-  changes the database fallback for new order windows to 60 minutes.
-  `server/src/migrate.ts` lists all seven.
+  changes the database fallback for new order windows to 60 minutes. `123`
+  identifies cruush+ versus Ping pack intents and adds the permanent Ping grant
+  ledger. `server/src/migrate.ts` lists all eight.
 - `server/src/crypto-wallet.ts` validates a depth-4 public receive-chain xpub,
   rejects xprv-shaped input, derives non-hardened public children, converts them
   to checksummed Ethereum addresses, fingerprints the configured xpub, and
@@ -184,8 +185,18 @@ Implemented locally:
   active, and atomically closes `pending` and `awaiting_payment` crypto intents
   after a successful shared lifetime grant. It preserves `confirming` intents
   so already observed funds can settle. Founder annual and lifetime founder
-  reservation and grant checks remain serialized against their 1,000 and 250
-  supply caps.
+  reservation and grant checks remain serialized against their 1,000 and 1,000
+  supply caps. Regular lifetime cruush+ costs $1,999.99 and remains hidden and
+  server-blocked until all 1,000 real lifetime founder spots are redeemed.
+- `server/src/ping-packs.ts` and migration `123` keep Ping packs separate from
+  cruush+ grants. The fixed catalog is 3 Pings for $2.99, 10 for $7.99, and 25
+  for $14.99. Each settled order creates one idempotent, member-linked
+  `ping_pack_purchases` row. Purchased credits do not expire. Included daily
+  Pings are used first, and every activated Pulse still lasts 30 minutes.
+- `src/app/components/PingPackStore.tsx` renders the account-linked
+  `/ping-packs` flow and reuses the same protected order, payment-source,
+  cancellation, exact transfer-guide, billing-policy, and legal-review
+  boundaries as cruush+ checkout.
 - `src/app/components/CruushPlusStore.tsx` renders the account-linked `/store`
   flow. It has no voucher, asset, or network picker. It asks for a concrete
   payment source and maps it to server-fixed Arbitrum or Base metadata. PYUSD
@@ -601,7 +612,9 @@ Built 2026-08-30.
   note, and continues the chain pass. This record makes no refund promise.
   Member and plan advisory locks serialize intent creation and settlement.
   Founder annual and lifetime founder reservations and grants count unique real
-  users transactionally against their 1,000 and 250 caps. An expired
+  users transactionally against their 1,000 and 1,000 caps. Regular lifetime
+  access costs $1,999.99 and cannot be listed or purchased until all 1,000 real
+  lifetime founder spots are redeemed. An expired
   limited-plan intent keeps its supply reservation through the same seven-day
   evidence window, so authoritative on-time payment can still grant without a
   later buyer taking its slot. An evidence-free reservation releases after that

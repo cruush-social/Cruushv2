@@ -45,6 +45,7 @@ import {
   type CryptoSettlementPolicy
 } from "./crypto-settlement-policy.js";
 import { ApiError } from "./errors.js";
+import { getPingPack, grantPingPackPurchase } from "./ping-packs.js";
 
 // A single pass never reads more than this many blocks, so a watcher that has
 // fallen far behind catches up in bounded steps instead of one enormous query
@@ -67,6 +68,7 @@ export type WatchableIntent = {
   id: string;
   userId: string;
   planId: string;
+  productType?: "cruush_plus" | "ping_pack";
   status: CryptoPaymentStatus;
   paymentAddress: string;
   quotedAmountAtomic: string;
@@ -90,6 +92,7 @@ type IntentRow = {
   id: string;
   user_id: string;
   plan_id: string;
+  product_type?: "cruush_plus" | "ping_pack";
   status: CryptoPaymentStatus;
   payment_address: string;
   quoted_amount_atomic: string;
@@ -188,7 +191,7 @@ export async function loadWatchableIntents(
   }
 
   const result = await db.query<IntentRow>(
-    `select id, user_id, plan_id, status, payment_address, quoted_amount_atomic, asset, network,
+    `select id, user_id, plan_id, status, product_type, payment_address, quoted_amount_atomic, asset, network,
             watch_start_block::text as watch_start_block, expires_at
      from crypto_payment_intents
      where status = any($1::text[])
@@ -214,6 +217,7 @@ export async function loadWatchableIntents(
       id: row.id,
       userId: row.user_id,
       planId: row.plan_id,
+      productType: row.product_type ?? "cruush_plus",
       status: row.status,
       paymentAddress: row.payment_address,
       quotedAmountAtomic: row.quoted_amount_atomic,
@@ -569,7 +573,7 @@ async function settleIntentInTransaction(
   }
 
   const locked = await tx.query<LockedIntentRow>(
-    `select id, user_id, plan_id, status, payment_address,
+    `select id, user_id, plan_id, status, product_type, payment_address,
             quoted_amount_atomic, asset, network,
             watch_start_block::text as watch_start_block,
             expires_at, entitlement_granted_at
@@ -639,7 +643,9 @@ async function settleIntentInTransaction(
   }
 
   const note = "note" in outcome ? outcome.note : null;
-  const plan = getCruushPlusPlan(current.plan_id);
+  const productType = current.product_type ?? "cruush_plus";
+  const plan = productType === "cruush_plus" ? getCruushPlusPlan(current.plan_id) : null;
+  const pingPack = productType === "ping_pack" ? getPingPack(current.plan_id) : null;
   let entitlementAlreadyActive = false;
   let settlementNote = note;
 
@@ -648,7 +654,7 @@ async function settleIntentInTransaction(
   // payment is finally observed. That confirmed payment must remain recorded,
   // but the known business conflict must not roll back every other settlement,
   // transfer, and cursor update in this chain pass.
-  if (plan.isLifetime) {
+  if (plan?.isLifetime) {
     const existingLifetime = await tx.query<{ has_lifetime_access: boolean }>(
       `select exists (
          select 1
@@ -685,10 +691,18 @@ async function settleIntentInTransaction(
     return { settled: true, granted: false, note: settlementNote };
   }
 
-  await grantCruushPlusPlan({ ...app, db: tx } as never, current.user_id, plan, {
-    kind: "crypto_payment_intent",
-    intentId: current.id
-  });
+  if (pingPack) {
+    await grantPingPackPurchase(tx, {
+      userId: current.user_id,
+      cryptoPaymentIntentId: current.id,
+      pack: pingPack
+    });
+  } else if (plan) {
+    await grantCruushPlusPlan({ ...app, db: tx } as never, current.user_id, plan, {
+      kind: "crypto_payment_intent",
+      intentId: current.id
+    });
+  }
 
   await tx.query(
     `update crypto_payment_intents
@@ -780,7 +794,7 @@ export async function ingestCryptoPaymentReceipt(
   return runTransaction(app.db, async (tx) => {
     await lockCryptoPurchaseUser(tx, userId);
     const locked = await tx.query<ReceiptIntentRow>(
-      `select i.id, i.user_id, i.plan_id, i.status, i.payment_address,
+      `select i.id, i.user_id, i.plan_id, i.status, i.product_type, i.payment_address,
               i.quoted_amount_atomic, i.asset, i.network,
               i.watch_start_block::text as watch_start_block,
               i.expires_at, i.entitlement_granted_at,
@@ -871,6 +885,7 @@ export async function ingestCryptoPaymentReceipt(
       id: intentRow.id,
       userId: intentRow.user_id,
       planId: intentRow.plan_id,
+      productType: intentRow.product_type ?? "cruush_plus",
       status: intentRow.status,
       paymentAddress: intentRow.payment_address,
       quotedAmountAtomic: intentRow.quoted_amount_atomic,

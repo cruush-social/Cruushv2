@@ -289,10 +289,10 @@ describe('CruushPlusStore', () => {
     expect(screen.getByText('Browse the map without appearing on it.')).toBeInTheDocument();
     const benefits = screen.getByRole('list', { name: 'cruush+ benefits' });
     const benefitCards = within(benefits).getAllByRole('listitem');
-    expect(benefits).toHaveClass('grid-cols-6');
+    expect(benefits).toHaveClass('grid-cols-3');
     expect(benefitCards).toHaveLength(7);
-    expect(benefitCards.slice(0, 4).every((card) => card.classList.contains('col-span-3'))).toBe(true);
-    expect(benefitCards.slice(4).every((card) => card.classList.contains('col-span-2'))).toBe(true);
+    expect(benefitCards.every((card) => !card.className.includes('col-span-'))).toBe(true);
+    expect(benefitCards.at(-1)).toHaveClass('col-start-2');
     expect(screen.queryByText('Post to the local feed')).not.toBeInTheDocument();
     expect(screen.queryByText('Cruise nearby profiles')).not.toBeInTheDocument();
     expect(screen.queryByText('Stealth Mode')).not.toBeInTheDocument();
@@ -304,6 +304,7 @@ describe('CruushPlusStore', () => {
     expect(screen.getByText('PYUSD · Arbitrum')).toBeInTheDocument();
     expect(screen.getByText('USDC · Base')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Something else' })).not.toBeInTheDocument();
+    expect(screen.getByText(/Cash App stablecoin transfers are not available to New York residents/i)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /why cruush takes crypto/i }));
     expect(await screen.findByText(/Cash App pays with USDC on Arbitrum/i)).toBeInTheDocument();
@@ -328,17 +329,18 @@ describe('CruushPlusStore', () => {
 
     const main = (await screen.findByText('Choose your time')).closest('main');
     expect(main).not.toBeNull();
-    expect(main?.children).toHaveLength(5);
+    expect(main?.children).toHaveLength(6);
     expect(main?.children[0]).toHaveTextContent('Choose your time');
     expect(main?.children[0]).toHaveTextContent('Recommended');
-    expect(main?.children[1]).toHaveTextContent('What are you paying from?');
-    expect(main?.children[1]).toContainElement(screen.getByRole('button', { name: 'Cash App' }));
-    expect(main?.children[1]).toContainElement(screen.getByRole('button', { name: 'PayPal' }));
-    expect(main?.children[1]).toContainElement(screen.getByRole('button', { name: 'A crypto wallet' }));
-    expect(main?.children[1]).toContainElement(screen.getByRole('button', { name: /get 1 year for \$99\.99/i }));
-    expect(main?.children[2]).toContainElement(screen.getByRole('list', { name: 'cruush+ benefits' }));
-    expect(main?.children[3]).toContainElement(screen.getByRole('button', { name: /why cruush takes crypto/i }));
-    expect(main?.children[4]).toContainElement(screen.getByRole('link', { name: /read the billing policy/i }));
+    expect(main?.children[1]).toContainElement(screen.getByRole('button', { name: 'Buy Ping packs' }));
+    expect(main?.children[2]).toHaveTextContent('What are you paying from?');
+    expect(main?.children[2]).toContainElement(screen.getByRole('button', { name: 'Cash App' }));
+    expect(main?.children[2]).toContainElement(screen.getByRole('button', { name: 'PayPal' }));
+    expect(main?.children[2]).toContainElement(screen.getByRole('button', { name: 'A crypto wallet' }));
+    expect(main?.children[2]).toContainElement(screen.getByRole('button', { name: /get 1 year for \$99\.99/i }));
+    expect(main?.children[3]).toContainElement(screen.getByRole('list', { name: 'cruush+ benefits' }));
+    expect(main?.children[4]).toContainElement(screen.getByRole('button', { name: /why cruush takes crypto/i }));
+    expect(main?.children[5]).toContainElement(screen.getByRole('link', { name: /read the billing policy/i }));
   });
 
   it('never starts a payment while the processor is not ready', async () => {
@@ -361,6 +363,7 @@ describe('CruushPlusStore', () => {
 
   it.each([
     ['Cash App', 'usdc_arbitrum', [
+      'Confirm you are eligible. Cash App says stablecoin transfers are not available to New York residents.',
       'Open Cash App and go to the Payment tab.',
     ]],
     ['PayPal', 'pyusd_arbitrum', [

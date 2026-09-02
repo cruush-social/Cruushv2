@@ -37,6 +37,7 @@ export type CryptoReconciliationRecord = {
   intentId: string;
   userId: string;
   planId: string;
+  productType: "cruush_plus" | "ping_pack";
   status: string;
   asset: string;
   network: string;
@@ -70,6 +71,7 @@ const INTENT_COLUMNS = `
   i.id,
   i.user_id,
   i.plan_id,
+  i.product_type,
   i.status,
   i.asset,
   i.network,
@@ -88,6 +90,7 @@ type IntentRow = {
   id: string;
   user_id: string;
   plan_id: string;
+  product_type?: "cruush_plus" | "ping_pack";
   status: string;
   asset: string;
   network: string;
@@ -128,6 +131,7 @@ async function attachTransfers(db: DbClient, rows: IntentRow[]): Promise<CryptoR
     intentId: row.id,
     userId: row.user_id,
     planId: row.plan_id,
+    productType: row.product_type ?? "cruush_plus",
     status: row.status,
     asset: row.asset,
     network: row.network,

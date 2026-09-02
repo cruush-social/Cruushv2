@@ -162,7 +162,15 @@ proves an older lifetime intent was paid after lifetime access was already
 active, the watcher records it as `paid`, makes no duplicate grant, adds an
 explicit support-review note, and continues the chain pass. That record makes
 no refund promise. Founder annual and lifetime founder reservation and grant
-checks are serialized transactionally against the 1,000 and 250 supply caps.
+checks are serialized transactionally against the 1,000 and 1,000 supply caps.
+Regular lifetime cruush+ costs $1,999.99 and remains unavailable until the
+1,000 real lifetime founder spots are redeemed.
+
+Ping packs settle through the same watch-only processor without granting
+cruush+. The fixed catalog is 3 Pings for $2.99, 10 for $7.99, and 25 for
+$14.99. One settled order creates one idempotent, member-linked
+`ping_pack_purchases` row. Purchased credits do not expire, included daily
+Pings are used first, and each activated Pulse still lasts exactly 30 minutes.
 
 The `confirmed_money_not_settled` reconciliation check uses the same threshold
 as settlement: 50 basis points, capped at 250000 atomic units ($0.25), and only
@@ -235,11 +243,13 @@ server-side.
 
 ## Useful implementation history
 
-- Migrations `116` through `122` define intents, multi-asset constraints,
+- Migrations `116` through `123` define intents, multi-asset constraints,
   observed transfers, settlement constraints, the durable pre-address watch
   origin, and per-intent positions for every supported chain. Migration `121`
   also adds authoritative block timestamps to transfer evidence. Migration
-  `122` sets the database fallback for new order windows to 60 minutes. The ordered
+  `122` sets the database fallback for new order windows to 60 minutes. Migration
+  `123` identifies cruush+ versus Ping pack intents and adds the permanent,
+  idempotent Ping grant ledger. The ordered
   list in `server/src/migrate.ts` must stay synchronized with the SQL directory.
 - `grantCruushPlusPlan` was extracted so crypto and existing checkout grants do
   not drift.

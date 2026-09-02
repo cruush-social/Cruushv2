@@ -181,7 +181,15 @@ need their own RPC URLs before those rails can become ready.
 - Finite crypto purchases extend atomically from the later of the current
   subscription end, entitlement end, or now. Founder annual and lifetime
   founder supply reservations and grants are serialized transactionally
-  against their 1,000 and 250 caps.
+  against their 1,000 and 1,000 caps. Regular lifetime cruush+ costs $1,999.99
+  and remains hidden and server-blocked until all 1,000 real lifetime founder
+  spots are redeemed.
+- Ping packs use the same order and settlement boundary without granting
+  cruush+. The fixed catalog is 3 Pings for $2.99, 10 for $7.99, and 25 for
+  $14.99. Each settled order creates one idempotent, member-linked
+  `ping_pack_purchases` row. Purchased credits do not expire. The existing
+  daily allowance is consumed first, and every activated Pulse still lasts
+  exactly 30 minutes.
 
 The create route is limited to 5 attempts per member per minute. The current
 and ID status routes share a 30 reads per member per minute limit. Watcher log
@@ -255,12 +263,14 @@ run any automatic refund transaction.
 | Intended-chain watch origin | `server/sql/120_crypto_payment_watch_start.sql` |
 | Per-intent chain positions and block timestamps | `server/sql/121_crypto_payment_chain_positions.sql` |
 | 60-minute database order-window fallback | `server/sql/122_crypto_payment_intent_window.sql` |
+| Ping pack product and permanent grant ledger | `server/sql/123_ping_pack_purchases.sql`, `server/src/ping-packs.ts` |
 | Checkout | `src/app/components/CruushPlusStore.tsx` |
+| Ping pack checkout | `src/app/components/PingPackStore.tsx` |
 | Billing policy and refund-review routes | `src/app/components/PublicInfoPage.tsx`, `src/app/lib/publicLegalContent.tsx`, `src/app/components/SupportPage.tsx`, `src/app/components/SupportRequestForm.tsx` |
 | Public wallet descriptor tool | `tools/cruush-wallet` |
 
-Migrations `116` through `122` are the complete ordered crypto schema slice.
-Keep `server/src/migrate.ts` synchronized with all seven files.
+Migrations `116` through `123` are the complete ordered crypto schema slice.
+Keep `server/src/migrate.ts` synchronized with all eight files.
 
 ## Local preview target
 

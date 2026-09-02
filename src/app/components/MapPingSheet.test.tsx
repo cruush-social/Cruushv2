@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import MapPingSheet from './MapPingSheet';
 
 const availableStatus = {
+  bonusCredits: 0,
   allowance: {
     limit: 3,
     used: 1,
@@ -201,9 +202,46 @@ describe('MapPingSheet', () => {
       />,
     );
 
-    expect(screen.getByText('Basic includes 1 Ping every 24 hours.')).toBeInTheDocument();
+    expect(screen.getByText('Basic includes 1 Pulse every 24 hours.')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Get cruush+' }));
     expect(onUpgrade).toHaveBeenCalledTimes(1);
+  });
+
+  it('opens the separate Ping pack checkout from the Pulse menu', () => {
+    const onBuyPingPacks = vi.fn();
+    render(
+      <MapPingSheet
+        open
+        onOpenChange={vi.fn()}
+        status={availableStatus}
+        loading={false}
+        hasMapLocation
+        signal="At the park"
+        onRefresh={vi.fn().mockResolvedValue(undefined)}
+        onSend={vi.fn()}
+        onBuyPingPacks={onBuyPingPacks}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Buy Ping packs' }));
+    expect(onBuyPingPacks).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows extra Ping balance and preserves included-first guidance', () => {
+    render(
+      <MapPingSheet
+        open
+        onOpenChange={vi.fn()}
+        status={{ ...availableStatus, bonusCredits: 10 }}
+        loading={false}
+        hasMapLocation
+        signal="At the park"
+        onRefresh={vi.fn().mockResolvedValue(undefined)}
+        onSend={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('10 extra Pings ready. Included daily Pings are used first.')).toBeInTheDocument();
   });
 
   it('sends the selected radius', async () => {

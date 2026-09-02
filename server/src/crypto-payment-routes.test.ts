@@ -126,6 +126,26 @@ describe("crypto payment routes", () => {
     expect(response.body).not.toContain("http");
   });
 
+  it("serves the approved permanent Ping pack catalog to a member", async () => {
+    const response = await disabledApp.inject({
+      method: "GET",
+      url: "/api/billing/ping-packs",
+      headers: { "x-user-id": userId }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      data: {
+        currency: "USD",
+        packs: [
+          expect.objectContaining({ id: "ping_3", pingCount: 3, amountCents: 299 }),
+          expect.objectContaining({ id: "ping_10", pingCount: 10, amountCents: 799 }),
+          expect.objectContaining({ id: "ping_25", pingCount: 25, amountCents: 1499 })
+        ]
+      }
+    });
+  });
+
   it("requires authentication and rejects client-controlled payment fields", async () => {
     const unauthenticated = await disabledApp.inject({
       method: "GET",
@@ -473,7 +493,7 @@ describe("crypto payment routes", () => {
       if (sql.includes("pg_advisory_xact_lock")) return { rows: [] };
       if (sql.includes("set status = 'expired'")) return { rows: [] };
       if (sql.includes("idempotency_key = $2")) return { rows: [] };
-      if (sql.includes("wallet_xpub_fingerprint = $4")) return { rows: [] };
+      if (sql.includes("wallet_xpub_fingerprint = $5")) return { rows: [] };
       if (sql.includes("open_count")) return { rows: [{ open_count: 0 }] };
       if (sql.includes("insert into crypto_payment_intents")) return { rows: [reservedRow] };
       if (sql.includes("insert into crypto_payment_watch_positions")) return { rows: [] };

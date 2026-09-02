@@ -12,6 +12,7 @@ export type CruushPlusPlanId =
   | "plus_3_month"
   | "plus_6_month"
   | "plus_annual"
+  | "plus_lifetime"
   | "founder_annual"
   | "lifetime_founder";
 
@@ -139,14 +140,25 @@ export const CRUUSH_PLUS_PLANS: CruushPlusPlan[] = [
   {
     id: "lifetime_founder",
     name: "Lifetime founder cruush+",
-    description: "$999.99 one-time lifetime cruush+ founder access, limited to the first 250 real users.",
+    description: "$999.99 one-time lifetime cruush+ founder access, limited to the first 1000 real users.",
     amountCents: 99999,
     currency: "USD",
     interval: "lifetime",
-    supplyLimit: 250,
+    supplyLimit: 1000,
     isFounder: true,
     isLifetime: true,
     badgeKeys: ["founder", "lifetime_founder"]
+  },
+  {
+    id: "plus_lifetime",
+    name: "Lifetime cruush+",
+    description: "$1,999.99 one-time lifetime cruush+ access after the founder offer ends.",
+    amountCents: 199999,
+    currency: "USD",
+    interval: "lifetime",
+    isFounder: false,
+    isLifetime: true,
+    badgeKeys: []
   }
 ];
 
@@ -254,6 +266,7 @@ async function countCryptoPlanSupplyReservations(db: DbClient, planId: CruushPlu
        select user_id
        from crypto_payment_intents
        where plan_id = $1
+         and product_type = 'cruush_plus'
          and (
            status in ('confirming', 'paid', 'refunded')
            or (
@@ -276,6 +289,25 @@ export async function assertCryptoPlanCanReserve(
   db: DbClient,
   plan: CruushPlusPlan
 ) {
+  if (plan.id === "plus_lifetime") {
+    const founderPlan = getCruushPlusPlan("lifetime_founder");
+    await lockCryptoPlanSupply(db, founderPlan.id);
+    const result = await db.query<SupplyReservationCountRow>(
+      `select count(*)::int as reservation_count
+       from founder_redemptions
+       where plan_id = $1
+         and test_mode = false`,
+      [founderPlan.id]
+    );
+    const redemptionCount = Number(result.rows[0]?.reservation_count ?? 0);
+
+    if (!founderPlan.supplyLimit || redemptionCount < founderPlan.supplyLimit) {
+      throw new ApiError(409, "VALIDATION_ERROR", "Founder lifetime cruush+ is still available.");
+    }
+
+    return;
+  }
+
   if (!plan.supplyLimit) {
     return;
   }
@@ -305,6 +337,7 @@ async function assertCryptoPlanGrantWithinSupply(
        where id = $1
          and user_id = $2
          and plan_id = $3
+         and product_type = 'cruush_plus'
          and status = 'paid'
      ) as reserved`,
     [intentId, userId, plan.id]
@@ -367,6 +400,18 @@ export async function getPlanAvailability(app: FastifyInstance) {
 
     return [plan.id, Math.max(plan.supplyLimit - (countByPlan.get(plan.id) ?? 0), 0)] as const;
   }));
+}
+
+export async function getPublicCruushPlusPlans(app: FastifyInstance) {
+  const availability = await getPlanAvailability(app);
+  const founderLifetimeSoldOut = availability.get("lifetime_founder") === 0;
+
+  return CRUUSH_PLUS_PLANS
+    .filter((plan) => plan.id !== "plus_lifetime" || founderLifetimeSoldOut)
+    .map((plan) => ({
+      ...plan,
+      supplyRemaining: availability.get(plan.id) ?? null
+    }));
 }
 
 export async function getUserBillingStatus(app: FastifyInstance, userId: string) {
@@ -559,6 +604,7 @@ export async function grantCruushPlusPlan(
                settlement_note = 'Lifetime access was granted before this payment completed. No additional payment was accepted.',
                updated_at = now()
            where user_id in (select user_id from lifetime_grant)
+             and product_type = 'cruush_plus'
              and status in ('pending', 'awaiting_payment')
            returning id
          )
@@ -596,6 +642,7 @@ export async function grantCruushPlusPlan(
                settlement_note = 'Lifetime access was granted before this payment completed. No additional payment was accepted.',
                updated_at = now()
            where user_id in (select user_id from lifetime_grant)
+             and product_type = 'cruush_plus'
              and status in ('pending', 'awaiting_payment')
            returning id
          )

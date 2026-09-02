@@ -14,11 +14,15 @@ import {
   getCryptoProcessorStatus,
   isOpenCryptoPayment,
   type CryptoPaymentIntent,
-  type CryptoPaymentNetwork,
   type CryptoPaymentRailId,
   type CryptoProcessorStatus,
 } from '../lib/cryptoCheckoutApi';
 import { CRUUSH_PLUS_FEATURES } from '../lib/cruushPlusFeatures';
+import {
+  CRYPTO_NETWORK_LABELS,
+  CRYPTO_PAYMENT_SOURCES,
+  CryptoPaymentMethodInstructions,
+} from './CryptoPaymentMethods';
 
 const CHECKOUT_PLUS_FEATURES = CRUUSH_PLUS_FEATURES.map((benefit) =>
   benefit.title === 'Full activity'
@@ -26,8 +30,8 @@ const CHECKOUT_PLUS_FEATURES = CRUUSH_PLUS_FEATURES.map((benefit) =>
     : benefit,
 );
 
-// Keep seven benefits balanced in exactly three rows: two, two, then three.
-// The shortest descriptions occupy the narrower final row.
+// Seven is odd, so this surface uses three equal columns. If the catalogue
+// becomes even, it switches to two equal columns.
 const BALANCED_CHECKOUT_PLUS_FEATURES = [
   CHECKOUT_PLUS_FEATURES[0],
   CHECKOUT_PLUS_FEATURES[5],
@@ -75,67 +79,6 @@ function termLabel(plan: CruushPlusPlan) {
       return '';
   }
 }
-
-const PAYMENT_SOURCES: ReadonlyArray<{
-  rail: CryptoPaymentRailId;
-  label: string;
-  asset: string;
-  network: string;
-}> = [
-  { rail: 'usdc_arbitrum', label: 'Cash App', asset: 'USDC', network: 'Arbitrum' },
-  { rail: 'pyusd_arbitrum', label: 'PayPal', asset: 'PYUSD', network: 'Arbitrum' },
-  { rail: 'usdc_base', label: 'A crypto wallet', asset: 'USDC', network: 'Base' },
-];
-
-type PaymentMethodGuide = {
-  title: string;
-  steps: readonly string[];
-};
-
-const PAYMENT_METHOD_GUIDES: Partial<Record<CryptoPaymentRailId, readonly PaymentMethodGuide[]>> = {
-  usdc_arbitrum: [{
-    title: 'Cash App',
-    steps: [
-      'Open Cash App and go to the Payment tab.',
-      'Copy the order address from cruush and paste it into the Cash App search bar.',
-      'Enter the exact dollar amount shown by cruush. Cash App sends it as USDC.',
-      'When Cash App shows the network, choose Arbitrum.',
-      'If Arbitrum is not listed, do not send. Choose another available payment method.',
-      'Check the amount and address, then send before the cruush order timer reaches 0.',
-    ],
-  }],
-  pyusd_arbitrum: [
-    {
-      title: 'PayPal',
-      steps: [
-        'Open PayPal, go to Finances, and open your PayPal USD (PYUSD) balance.',
-        'Tap the transfer arrows, tap Send, then paste or scan the order address from cruush.',
-        'On the blockchain network confirmation screen, confirm the network is Arbitrum.',
-        'If the screen does not say Arbitrum, do not send. Choose another available payment method.',
-        'Enter the exact PYUSD amount shown by cruush.',
-        'Review the amount, network, and address, then tap Send Now before the cruush order timer reaches 0.',
-      ],
-    },
-  ],
-  usdc_base: [{
-    title: 'Crypto wallet',
-    steps: [
-      'Open your wallet or exchange and choose Send.',
-      'Choose USDC as the asset and Base as the network.',
-      'Paste the order address from cruush or scan its QR code.',
-      'Enter the exact USDC amount shown by cruush.',
-      'Check the amount, network, and address, then send before the cruush order timer reaches 0.',
-    ],
-  }],
-};
-
-// A network's display name. Getting this wrong on a payment screen sends money
-// somewhere unrecoverable, so it is spelled out rather than inferred.
-const NETWORK_LABELS: Record<CryptoPaymentNetwork, string> = {
-  arbitrum: 'Arbitrum',
-  base: 'Base',
-  ethereum: 'Ethereum',
-};
 
 // The monthly plan is the reference price everything else is measured against.
 // Showing a per-month equivalent is what makes a longer term legible as a
@@ -195,23 +138,6 @@ function formatPaymentTimeRemaining(expiresAt: string, nowMs: number) {
   const minutes = Math.floor(remainingSeconds / 60);
   const seconds = remainingSeconds % 60;
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-}
-
-function PaymentMethodInstructions({ rail }: { rail: CryptoPaymentRailId }) {
-  const guides = PAYMENT_METHOD_GUIDES[rail] ?? [];
-
-  return (
-    <div className="space-y-3">
-      {guides.map((guide) => (
-        <section className="rounded-lg border border-border bg-muted/30 p-3" key={guide.title}>
-          <h3 className="text-sm font-semibold">{guide.title}</h3>
-          <ol className="mt-2 list-decimal space-y-1 pl-5 text-xs leading-5 text-muted-foreground">
-            {guide.steps.map((step) => <li key={step}>{step}</li>)}
-          </ol>
-        </section>
-      ))}
-    </div>
-  );
 }
 
 export default function CruushPlusStore() {
@@ -397,10 +323,11 @@ export default function CruushPlusStore() {
     [processor],
   );
   const readyVisibleSources = useMemo(
-    () => PAYMENT_SOURCES.filter((source) => readyRailIds.has(source.rail)),
+    () => CRYPTO_PAYMENT_SOURCES.filter((source) => readyRailIds.has(source.rail)),
     [readyRailIds],
   );
   const selectedRailReady = readyRailIds.has(selectedRail);
+  const selectedPaymentSource = CRYPTO_PAYMENT_SOURCES.find((source) => source.rail === selectedRail) ?? null;
   const visibleProcessorReady = readyVisibleSources.length > 0;
   const paymentOpen = intent ? isOpenCryptoPayment(intent.status) : false;
   const paymentPaid = intent?.status === 'paid';
@@ -642,6 +569,15 @@ export default function CruushPlusStore() {
           </Card>
         ) : null}
 
+        <Button
+          type="button"
+          variant="outline"
+          className="h-11 w-full rounded-full"
+          onClick={() => navigate('/ping-packs')}
+        >
+          Buy Ping packs
+        </Button>
+
         {!loading && selectedPlan ? (
           <Card>
             <CardContent className="space-y-2 p-3">
@@ -652,7 +588,7 @@ export default function CruushPlusStore() {
                 </p>
               ) : null}
               <div className="grid grid-cols-3 gap-2" aria-label="Where you are paying from">
-                {PAYMENT_SOURCES.map((source) => {
+                {CRYPTO_PAYMENT_SOURCES.map((source) => {
                   const sourceReady = readyRailIds.has(source.rail);
                   const sourceSelected = selectedRail === source.rail
                     && (sourceReady || paymentOpen || paymentPaid);
@@ -680,6 +616,11 @@ export default function CruushPlusStore() {
                   );
                 })}
               </div>
+              {selectedPaymentSource?.availabilityNote ? (
+                <p className="rounded-lg border border-border bg-muted/40 p-2 text-xs leading-4 text-muted-foreground">
+                  {selectedPaymentSource.availabilityNote}
+                </p>
+              ) : null}
               {!intent ? (
                 <Accordion collapsible type="single">
                   <AccordionItem className="border-0" value="payment-instructions">
@@ -687,7 +628,7 @@ export default function CruushPlusStore() {
                       How to send this payment
                     </AccordionTrigger>
                     <AccordionContent className="pb-1">
-                      <PaymentMethodInstructions rail={selectedRail} />
+                      <CryptoPaymentMethodInstructions rail={selectedRail} />
                     </AccordionContent>
                   </AccordionItem>
                 </Accordion>
@@ -732,7 +673,7 @@ export default function CruushPlusStore() {
                       </p>
                       <p className="mt-1 text-xs leading-5 text-muted-foreground">
                         This address is unique to this order. Only the exact amount in {intent.asset} on{' '}
-                        {NETWORK_LABELS[intent.network]} that arrives on-chain before the timer reaches 0 can count toward it.
+                        {CRYPTO_NETWORK_LABELS[intent.network]} that arrives on-chain before the timer reaches 0 can count toward it.
                       </p>
                     </div>
                   ) : null}
@@ -743,7 +684,7 @@ export default function CruushPlusStore() {
                         <p className="text-xl font-semibold">
                           {formatUsdcAtomic(intent.quotedAmountAtomic)} {intent.asset}
                         </p>
-                        <p className="text-xs text-muted-foreground">on {NETWORK_LABELS[intent.network]} to this address</p>
+                        <p className="text-xs text-muted-foreground">on {CRYPTO_NETWORK_LABELS[intent.network]} to this address</p>
                       </div>
                       {intent.qrCodeDataUrl ? (
                         <img
@@ -760,11 +701,11 @@ export default function CruushPlusStore() {
                         {copied ? 'Copied' : 'Copy address'}
                       </Button>
                       <p className="text-xs leading-5 text-muted-foreground">
-                        Send only {intent.asset} on {NETWORK_LABELS[intent.network]} to this address. Another asset or network may be lost.
+                        Send only {intent.asset} on {CRYPTO_NETWORK_LABELS[intent.network]} to this address. Another asset or network may be lost.
                       </p>
                       <div>
                         <p className="mb-2 text-sm font-semibold">How to send it</p>
-                        <PaymentMethodInstructions rail={selectedRail} />
+                        <CryptoPaymentMethodInstructions rail={selectedRail} />
                       </div>
                     </div>
                   ) : null}
@@ -833,10 +774,13 @@ export default function CruushPlusStore() {
             <p className="mb-2 text-xs text-muted-foreground">
               Viewing the map and messaging stay free for everyone, always.
             </p>
-            <ul aria-label="cruush+ benefits" className="grid grid-cols-6 gap-1.5">
+            <ul
+              aria-label="cruush+ benefits"
+              className={`grid gap-1.5 ${BALANCED_CHECKOUT_PLUS_FEATURES.length % 2 === 0 ? 'grid-cols-2' : 'grid-cols-3'}`}
+            >
               {BALANCED_CHECKOUT_PLUS_FEATURES.map((benefit, index) => (
                 <li
-                  className={`${index < 4 ? 'col-span-3' : 'col-span-2'} flex h-full items-start gap-1.5 rounded-xl border border-white/20 p-2 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_10px_30px_rgba(255,0,114,0.18)]`}
+                  className={`${BALANCED_CHECKOUT_PLUS_FEATURES.length % 2 === 1 && index === BALANCED_CHECKOUT_PLUS_FEATURES.length - 1 ? 'col-start-2' : ''} flex h-full items-start gap-1.5 rounded-xl border border-white/20 p-2 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_10px_30px_rgba(255,0,114,0.18)]`}
                   key={benefit.title}
                   style={{ background: 'var(--cruush-gradient)' }}
                 >

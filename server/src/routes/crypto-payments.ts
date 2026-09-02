@@ -15,6 +15,7 @@ import {
 } from "../crypto-payments.js";
 import { getActiveAccountUserId, getAuthenticatedUserId } from "../request-auth.js";
 import { getModeratorUser } from "../moderator-auth.js";
+import { getPingPack } from "../ping-packs.js";
 import {
   findCryptoPaymentsByAddress,
   findCryptoPaymentsByIntentId,
@@ -32,6 +33,12 @@ import { ingestCryptoPaymentReceipt } from "../crypto-watcher.js";
 
 const paymentIntentPayloadSchema = z.object({
   planId: z.string().min(1),
+  idempotencyKey: z.string().trim().min(8).max(128),
+  rail: z.enum(["usdc_arbitrum", "pyusd_arbitrum", "pyusd_ethereum", "usdc_base"]).default("usdc_arbitrum")
+}).strict();
+
+const pingPackIntentPayloadSchema = z.object({
+  packId: z.enum(["ping_3", "ping_10", "ping_25"]),
   idempotencyKey: z.string().trim().min(8).max(128),
   rail: z.enum(["usdc_arbitrum", "pyusd_arbitrum", "pyusd_ethereum", "usdc_base"]).default("usdc_arbitrum")
 }).strict();
@@ -177,10 +184,52 @@ export async function registerCryptoPaymentRoutes(
     return reply.code(201).send({ data: await withCryptoPaymentDisplay(intent) });
   });
 
+  app.post("/api/crypto/ping-pack-intents", async (request, reply) => {
+    const userId = await getActiveAccountUserId(request);
+    await app.rateLimiter.assert({
+      key: `crypto-payment-intents:create:${userId}`,
+      ...CRYPTO_PAYMENT_INTENT_CREATE_RATE_LIMIT,
+      message: "Too many crypto payment attempts. Try again shortly."
+    });
+    const payload = pingPackIntentPayloadSchema.parse(request.body);
+    const pack = getPingPack(payload.packId);
+    const rail = payload.rail as CryptoPaymentRailId;
+    const readRailHead = deps.readRailHead ?? readVerifiedCryptoPaymentRailHead;
+    const watchStartBlock = assertWatchStartBlock(await readRailHead(app.config, rail));
+    const watchStartBlocksByChain = await resolvePrePublicationWatchStartBlocks(
+      app.config,
+      rail,
+      readRailHead
+    );
+    const intent = await createInHouseCryptoPaymentIntent(app.db, app.config, {
+      userId,
+      planId: pack.id,
+      productType: "ping_pack",
+      amountUsdCents: pack.amountCents,
+      idempotencyKey: payload.idempotencyKey,
+      rail,
+      watchStartBlock,
+      watchStartBlocksByChain,
+      metadata: { source: "ping_pack_store", pingCount: pack.pingCount }
+    });
+
+    return reply.code(201).send({ data: await withCryptoPaymentDisplay(intent) });
+  });
+
   app.get("/api/crypto/payment-intents/current", async (request, reply) => {
     const userId = await getAuthenticatedUserId(request);
     await assertCryptoPaymentIntentReadRateLimit(app, userId);
     const intent = await loadCurrentOpenCryptoPaymentIntent(app.db, userId);
+
+    return reply.send({
+      data: intent ? await withCryptoPaymentDisplay(intent) : null
+    });
+  });
+
+  app.get("/api/crypto/ping-pack-intents/current", async (request, reply) => {
+    const userId = await getAuthenticatedUserId(request);
+    await assertCryptoPaymentIntentReadRateLimit(app, userId);
+    const intent = await loadCurrentOpenCryptoPaymentIntent(app.db, userId, "ping_pack");
 
     return reply.send({
       data: intent ? await withCryptoPaymentDisplay(intent) : null

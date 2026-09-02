@@ -76,7 +76,7 @@ function newIntentQuery(
     if (sql.includes("pg_advisory_xact_lock")) return { rows: [] };
     if (sql.includes("set status = 'expired'")) return { rows: [] };
     if (sql.includes("idempotency_key = $2")) return { rows: [] };
-    if (sql.includes("wallet_xpub_fingerprint = $4")) return { rows: [] };
+    if (sql.includes("wallet_xpub_fingerprint = $5")) return { rows: [] };
     if (sql.includes("open_count")) return { rows: [{ open_count: 0 }] };
     if (sql.includes("insert into crypto_payment_intents")) return { rows: [reserved] };
     if (sql.includes("set payment_address = $2")) return { rows: updated ? [updated] : [] };
@@ -387,6 +387,54 @@ describe("crypto payment core", () => {
       "coalesce(supported.supplied_origin, 0)"
     );
     expect(String(query.mock.calls[positionIndex]?.[0])).not.toContain("crypto_chain_watch_cursors");
+  });
+
+  it("reserves an approved Ping pack without entering cruush+ supply logic", async () => {
+    const address = deriveCryptoReceivingAddress(receiveChainXpub, 2);
+    const reserved = paymentRow({
+      plan_id: "ping_10",
+      product_type: "ping_pack",
+      amount_usd_cents: 799,
+      derivation_index: 2,
+      idempotency_key: "ping-pack-10"
+    });
+    const query = newIntentQuery(
+      reserved,
+      paymentRow({
+        ...reserved,
+        quoted_amount_atomic: "7990000",
+        payment_address: address,
+        watch_start_block: "123456",
+        status: "awaiting_payment"
+      })
+    );
+
+    await expect(createInHouseCryptoPaymentIntent(transactionDb(query), cryptoConfig(), {
+      userId: reserved.user_id,
+      planId: "ping_10",
+      productType: "ping_pack",
+      amountUsdCents: 799,
+      idempotencyKey: "ping-pack-10",
+      metadata: { source: "ping_pack_store", pingCount: 10 },
+      watchStartBlock: 123456n
+    })).resolves.toMatchObject({
+      planId: "ping_10",
+      productType: "ping_pack",
+      amountUsdCents: 799,
+      quotedAmountAtomic: "7990000",
+      paymentAddress: address
+    });
+
+    const reservation = query.mock.calls.find(([sql]) =>
+      String(sql).includes("insert into crypto_payment_intents")
+    );
+    expect((reservation as unknown as [string, unknown[]] | undefined)?.[1]).toEqual(expect.arrayContaining([
+      "ping_10",
+      "ping_pack",
+      799,
+      "ping-pack-10"
+    ]));
+    expect(query.mock.calls.some(([sql]) => String(sql).includes("reservation_count"))).toBe(false);
   });
 
   it("keeps the hidden PYUSD Ethereum backend rail available when its chain is watchable", async () => {

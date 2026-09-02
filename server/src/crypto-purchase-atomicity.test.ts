@@ -5,6 +5,7 @@ import type { AppConfig } from "./config.js";
 import { createPool, runTransaction, type DbClient } from "./db.js";
 import {
   CRUUSH_PLUS_PLANS,
+  assertCryptoPlanCanReserve,
   completeFakeCheckoutSession,
   getCruushPlusPlan,
   grantCruushPlusPlan
@@ -250,7 +251,7 @@ describe("crypto purchase atomicity SQL boundaries", () => {
       if (sql.includes("pg_advisory_xact_lock")) return { rows: [] };
       if (sql.includes("set status = 'expired'")) return { rows: [] };
       if (sql.includes("idempotency_key = $2")) return { rows: [] };
-      if (sql.includes("wallet_xpub_fingerprint = $4")) return { rows: [existing] };
+      if (sql.includes("wallet_xpub_fingerprint = $5")) return { rows: [existing] };
       if (sql.includes("has_lifetime_access")) return { rows: [{ has_lifetime_access: false }] };
       throw new Error(`unexpected query: ${sql}`);
     }) as DbClient["query"];
@@ -393,7 +394,7 @@ describe("crypto purchase atomicity SQL boundaries", () => {
       if (sql.includes("pg_advisory_xact_lock")) return { rows: [] };
       if (sql.includes("set status = 'expired'")) return { rows: [] };
       if (sql.includes("idempotency_key = $2")) return { rows: [] };
-      if (sql.includes("wallet_xpub_fingerprint = $4")) return { rows: [] };
+      if (sql.includes("wallet_xpub_fingerprint = $5")) return { rows: [] };
       if (sql.includes("open_count")) {
         return { rows: [{ open_count: 0, has_lifetime_access: true }] };
       }
@@ -421,7 +422,7 @@ describe("crypto purchase atomicity SQL boundaries", () => {
       if (sql.includes("pg_advisory_xact_lock")) return { rows: [] };
       if (sql.includes("set status = 'expired'")) return { rows: [] };
       if (sql.includes("idempotency_key = $2")) return { rows: [] };
-      if (sql.includes("wallet_xpub_fingerprint = $4")) return { rows: [] };
+      if (sql.includes("wallet_xpub_fingerprint = $5")) return { rows: [] };
       if (sql.includes("open_count")) return { rows: [{ open_count: CRYPTO_OPEN_INTENT_LIMIT_PER_USER }] };
       throw new Error(`unexpected query: ${sql}`);
     }) as DbClient["query"];
@@ -444,14 +445,14 @@ describe("crypto purchase atomicity SQL boundaries", () => {
 
   it.each([
     ["founder_annual", 1000],
-    ["lifetime_founder", 250]
+    ["lifetime_founder", 1000]
   ] as const)("blocks sold-out %s before address reservation", async (planId, supplyLimit) => {
     const plan = getCruushPlusPlan(planId);
     const query = vi.fn(async (sql: string) => {
       if (sql.includes("pg_advisory_xact_lock")) return { rows: [] };
       if (sql.includes("set status = 'expired'")) return { rows: [] };
       if (sql.includes("idempotency_key = $2")) return { rows: [] };
-      if (sql.includes("wallet_xpub_fingerprint = $4")) return { rows: [] };
+      if (sql.includes("wallet_xpub_fingerprint = $5")) return { rows: [] };
       if (sql.includes("unavailable")) return { rows: [{ unavailable: false }] };
       if (sql.includes("open_count")) return { rows: [{ open_count: 0 }] };
       if (sql.includes("reservation_count")) return { rows: [{ reservation_count: supplyLimit }] };
@@ -480,6 +481,26 @@ describe("crypto purchase atomicity SQL boundaries", () => {
       "expires_at > now() - ($2::integer * interval '1 day')"
     );
     expect(supplyCall?.[1]).toEqual([planId, CRYPTO_LATE_EVIDENCE_WINDOW_DAYS]);
+  });
+
+  it("keeps regular lifetime unavailable until 1000 real founder lifetime redemptions exist", async () => {
+    const plan = getCruushPlusPlan("plus_lifetime");
+    const beforeSellout = vi.fn(async (sql: string) => {
+      if (sql.includes("pg_advisory_xact_lock")) return { rows: [] };
+      if (sql.includes("from founder_redemptions")) return { rows: [{ reservation_count: 999 }] };
+      throw new Error(`unexpected query: ${sql}`);
+    }) as DbClient["query"];
+
+    await expect(assertCryptoPlanCanReserve(transactionDb(beforeSellout), plan))
+      .rejects.toMatchObject({ statusCode: 409, code: "VALIDATION_ERROR" });
+
+    const afterSellout = vi.fn(async (sql: string) => {
+      if (sql.includes("pg_advisory_xact_lock")) return { rows: [] };
+      if (sql.includes("from founder_redemptions")) return { rows: [{ reservation_count: 1000 }] };
+      throw new Error(`unexpected query: ${sql}`);
+    }) as DbClient["query"];
+
+    await expect(assertCryptoPlanCanReserve(transactionDb(afterSellout), plan)).resolves.toBeUndefined();
   });
 
   it("restores the newest current open intent after expiring stale checkout rows", async () => {
@@ -611,7 +632,7 @@ describe.skipIf(!realPostgresUrl)("crypto purchase atomicity with real PostgreSQ
       `with users as (
          insert into app_users (email, password_hash)
          select 'crypto-atomicity-supply-' || n || '@example.test', 'test-hash'
-         from generate_series(1, 248) as n
+         from generate_series(1, 998) as n
          returning id
        )
        insert into founder_redemptions (user_id, plan_id, amount_cents, test_mode)
@@ -1148,7 +1169,7 @@ describe("crypto catalog limited plans", () => {
     expect(CRUUSH_PLUS_PLANS.filter((plan) => plan.supplyLimit).map((plan) => [plan.id, plan.supplyLimit]))
       .toEqual([
         ["founder_annual", 1000],
-        ["lifetime_founder", 250]
+        ["lifetime_founder", 1000]
       ]);
   });
 });
