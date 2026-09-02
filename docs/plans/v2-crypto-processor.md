@@ -204,12 +204,12 @@ Implemented locally:
 ## Evidence boundary
 
 Final focused tests, builds, rendered screenshots, and branch SHA are recorded
-from the exact published tree in `AI_TASK.json`. The first public descriptor was
-quarantined after Julien reported that its paper backup might be incorrect.
-Replacement initialization requires hidden exact re-entry of all 24 recovery
-words before writing a descriptor. No controlled mainnet receipt, transaction
-broadcast, production configuration, deployment, or live payment is
-established by this document.
+from the exact published tree in `AI_TASK.json`. The first untrusted public
+descriptor remains quarantined. Its replacement was written only after hidden
+exact re-entry of all 24 recovery words and passed public permission,
+fingerprint, address, and secret-field validation. No controlled mainnet
+receipt, transaction broadcast, production configuration, deployment, or live
+payment is established by this document.
 
 ## Watch-only wallet contract
 

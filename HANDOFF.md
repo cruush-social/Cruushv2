@@ -14,10 +14,12 @@ This branch contains the in-house stablecoin checkout, watcher, settlement,
 support, and local wallet tooling for cruush+. It remains disabled by default
 and is not production-ready.
 
-The first temporary software-wallet descriptor was quarantined after Julien
+The first temporary software-wallet descriptor remains quarantined after Julien
 reported that its paper recovery backup might be incorrect. Never fund or
-configure that wallet. Replacement setup requires hidden exact re-entry of all
-24 recovery words before it writes a new public-only descriptor. Do not put a
+configure it. Its replacement was written only after hidden exact re-entry of
+all 24 recovery words. The active public descriptor is owned by julienlenaz with
+mode `0600`; its fingerprint matches its receive-chain xpub, its treasury and
+three sample addresses validate, and it contains no secret fields. Do not put a
 descriptor or any wallet secret in the repository.
 
 Readiness is per rail. A rail may accept an intent only when all four of its

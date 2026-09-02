@@ -1,11 +1,11 @@
-cruush wallet replacement required
+cruush verified wallet replacement complete
 
-The first public descriptor was quarantined after Julien reported that its
-paper recovery backup might be incorrect. Never fund or configure that wallet.
+The first untrusted public descriptor remains quarantined. Never fund or
+configure it.
 
-Replacement setup writes a new descriptor only after Julien re-enters all 24
-recovery words at a hidden prompt and they exactly match the generated wallet.
-Nothing appears while the hidden words are typed.
+The replacement descriptor was written only after Julien re-entered all 24
+recovery words at a hidden prompt and they exactly matched the generated wallet.
+It passed public permission, fingerprint, address, and secret-field checks.
 
 Keep the verified paper backup private and offline. Do not photograph, copy,
 paste, upload, save, or share it. Migrate to the hardware wallet before

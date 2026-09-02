@@ -1,15 +1,14 @@
-cruush wallet setup replacement required
+cruush verified wallet replacement complete
 
-The first descriptor was quarantined after Julien reported that its paper
-recovery backup might be incorrect. Never fund or configure that wallet.
+The first untrusted descriptor remains quarantined. Never fund or configure it.
 
-Replacement setup must complete every private Terminal step:
+The replacement completed every private Terminal step:
 
 1. Type the unpredictable three-word live-presence challenge.
 2. Write all 24 recovery words on paper.
 3. Type exactly: I WROTE THE RECOVERY WORDS
-4. Re-enter all 24 recovery words at the hidden verification prompt. Nothing
-   appears while typing. The descriptor is written only after an exact match.
+4. Re-enter all 24 recovery words at the hidden verification prompt. The
+   descriptor was written only after an exact match.
 
 Never send recovery words, a private key, or an xprv in chat. Never save a
 digital copy. Keep the processor and watcher disabled until the separate launch

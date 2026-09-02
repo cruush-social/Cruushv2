@@ -1,15 +1,13 @@
 # Octo State
 
 **Schema:** 2.0
-**Last Updated:** 2026-09-02T00:42:04Z
+**Last Updated:** 2026-09-02T02:06:20Z
 **Current Phase:** 3
-**Current Position:** Replace untrusted paper wallet backup with verified backup
-**Status:** in_progress
+**Current Position:** Feature branch and backup-verified temporary wallet delivered
+**Status:** complete
 
 ## Blockers
 
-- The first wallet backup is untrusted and its public descriptor is quarantined.
-  A replacement must pass hidden exact re-entry of all 24 recovery words.
 - Real-money launch remains blocked by hardware-wallet migration, controlled
   settlement proof, EU/EEA service-withdrawal compliance or exclusion,
   evidence-only support lookup beyond the bounded watch window, and explicit
@@ -17,6 +15,10 @@
 
 ## History
 
+- [2026-09-02T02:06:20Z] Phase 3: Replacement wallet passed hidden exact
+  re-entry of all 24 recovery words before its descriptor was written. Public
+  permissions, fingerprint, addresses, and secret-field absence validate. The
+  first untrusted descriptor remains quarantined (complete)
 - [2026-09-02T00:42:04Z] Phase 3: Julien reported that the first paper recovery
   backup might be incorrect. Its public descriptor was quarantined and must not
   be funded. Replacement setup now requires hidden exact 24-word re-entry

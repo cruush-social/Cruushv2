@@ -156,7 +156,7 @@ show their one-payment price because a monthly equivalent would mislead.
 
 ## Next step
 
-The first public descriptor is quarantined because Julien reported that its
-paper recovery backup might be incorrect. Complete one replacement ceremony
-with hidden exact re-entry of all 24 words, then validate only the new public
-descriptor. The processor and watcher remain disabled.
+Complete. The first untrusted descriptor remains quarantined. Its replacement
+passed hidden exact re-entry of all 24 recovery words before the public
+descriptor was written and validated. The processor and watcher remain
+disabled.
