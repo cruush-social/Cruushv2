@@ -1,6 +1,6 @@
 {
   "task": "Finish the production-capable watch-only crypto processor around Julien's verified local wallet. Add exact customer steps for Cash App, Venmo, PayPal, and a crypto wallet; make the server-owned expiring order protection explicit; restore the billing-policy page and checkout-bottom disclosure with the current one-time, no-voluntary-refund policy. Keep signing material outside cruush, do not broadcast or deploy during this build, and publish only the verified branch to origin/feat/crypto-pricing.",
-  "status": "validating",
+  "status": "active",
   "publicationTarget": "feat/crypto-pricing",
   "baselineSha": "5a77cb504d23bea71867cf0558bd10ede40e2248",
   "decisions": [
@@ -167,10 +167,10 @@
     "CRUUSH_WALLET_RPC_URL is new, local-operator-only, required only for sweep planning or broadcasting, may embed an API key, and must never be set in the cruush client or API environment"
   ],
   "schemaVersion": 2,
-  "objective": "Deliver a production-capable, disabled-by-default in-house crypto payment processor on feat/crypto-pricing that receives real funds into Julien's wallet-owned child addresses, gives customers exact source-specific sending steps, protects each order with a server deadline and unique address, grants from canonical chain evidence, restores the current billing policy, recovers never-ingested receipts, and gives Julien a constrained local path to consolidate supported stablecoins into his wallet treasury.",
-  "userOutcome": "A customer can choose Cash App, Venmo, PayPal, or a crypto wallet, see exactly what asset and network to use, follow app-specific steps, understand the order countdown, and review the one-time no-voluntary-refund billing policy before sending. Julien retains direct wallet custody and a watch-only server.",
+  "objective": "Make feat/crypto-pricing fully merge-ready against current origin/main as a production-capable, disabled-by-default in-house crypto payment processor. Close every code, focused-proof, disposable end-to-end, environment-documentation, branch-integration, and rendered-flow gap that can be completed without exposing wallet secrets, moving funds, deploying, activating customer payments, or merging main.",
+  "userOutcome": "The feature branch can be reviewed and merged without unresolved implementation or integration defects. Customers have exact payment instructions and protected expiring orders, Julien retains direct wallet custody through a watch-only server, and every remaining post-merge launch gate is explicitly operational or legal rather than unfinished code.",
   "audience": "Julien as operator; cruush members buying cruush+ once the processor is enabled.",
-  "nextVisibleMilestone": "The local checkout renders source-specific sending steps, protected-order countdown copy, and a restored billing-policy page and bottom disclosure at desktop and phone sizes while processor activation remains off.",
+  "nextVisibleMilestone": "A current-main compatibility and launch-gate audit identifies the exact remaining code or proof gaps before implementation changes.",
   "successCriteria": [
     "The processor stays disabled and accepts no funds until Julien enables it",
     "A payment intent receives a unique receiving address that settles only that order",
@@ -201,6 +201,11 @@
     ,"Every supported mainnet signing plan pins chain ID, token contract, derivation paths, wallet fingerprint, addresses, amount, nonce, gas, and hard fee caps before recovery words are requested"
     ,"A never-ingested transaction hash cannot grant anything until the moderator-only path independently verifies a successful canonical receipt and exact on-time rail evidence"
     ,"Support responses include the derivation index required to sweep each wallet-owned payment address"
+    ,"The complete intent-to-canonical-evidence-to-entitlement flow passes against an isolated disposable database without trusting browser state"
+    ,"The branch integrates cleanly with current origin/main in an isolated merge verification and contains no conflict markers or unbuildable tree"
+    ,"All crypto runtime variables read by code are documented in server/.env.example and docs/env-matrix.md"
+    ,"All changed checkout states are rendered from the actual app at desktop and small-mobile sizes with no overlap or inaccessible content"
+    ,"The feature branch is committed and pushed only to origin/feat/crypto-pricing with local and remote SHA equality"
   ],
   "mustPreserve": [
     "The current Sniffies-derived pricing decisions and entitlement behavior remain authoritative unless the active checkout task explicitly changes a named tier",
