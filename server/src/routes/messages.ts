@@ -2297,7 +2297,8 @@ export async function registerMessageRoutes(app: FastifyInstance) {
     const moderation = await moderateMessageTextOrAllowByKeyword(app, {
       userId,
       surface: moderationSurface,
-      text: payload.content
+      text: payload.content,
+      persistAllowedReview: false
     });
     const encryptedContent = encryptTextContent(app.config, "message", payload.content);
     const disappearingTimer = conversation.disappearing_timer ?? "off";
@@ -2428,8 +2429,8 @@ export async function registerMessageRoutes(app: FastifyInstance) {
         moderation.providerResult.provider_request_id,
         JSON.stringify(moderation.providerResult.labels),
         JSON.stringify(moderation.decision),
-        "allowed",
-        null,
+        moderation.moderationStatus ?? "allowed",
+        moderation.flaggedReason ?? null,
         JSON.stringify(moderation.providerResult.raw_result ?? {}),
         disappearingTimer,
         ownerFullAccess

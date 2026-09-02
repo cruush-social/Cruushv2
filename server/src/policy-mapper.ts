@@ -423,11 +423,7 @@ function mapLabel(label: ProviderLabel, surface: ModerationSurface, contentType:
   }
 
   if (normalizedLabel === "harassment") {
-    return thresholdedReject(label, {
-      evidenceValue: 100,
-      trustImpact: -20,
-      reasonCode: "harassment"
-    });
+    return evidenceOnly(label, 100);
   }
 
   if (normalizedLabel === "doxxing" || normalizedLabel === "location_privacy") {
@@ -523,6 +519,8 @@ export function mapProviderResultToPolicy(input: PolicyMapperInput): PolicyDecis
   const decision = input.providerResult.labels
     .map((label) => mapLabel(label, input.surface, input.contentType))
     .reduce(chooseDecision, ALLOW_POLICY_DECISION);
+  const isHarassmentOnly = input.providerResult.labels.length > 0 &&
+    input.providerResult.labels.every((label) => label.normalized_label === "harassment");
   const isPrivateAdultImageOnly = (
     isPrivateMessageSurface(input.surface) &&
     input.contentType === "image" &&
@@ -563,7 +561,7 @@ export function mapProviderResultToPolicy(input: PolicyMapperInput): PolicyDecis
     )
   );
 
-  if (decision.decision === "allow" && (isPrivateAdultImageOnly || isPrivateNonHumanImageOnly || isPrivateAllowedImageOnly || isAllowedAdultProfilePhoto)) {
+  if (decision.decision === "allow" && (isHarassmentOnly || isPrivateAdultImageOnly || isPrivateNonHumanImageOnly || isPrivateAllowedImageOnly || isAllowedAdultProfilePhoto)) {
     return decision;
   }
 

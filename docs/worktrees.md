@@ -9,61 +9,20 @@ the branch name.
 
 | Branch | Worktree path | Last commit | State | Ahead/behind main | Purpose |
 | --- | --- | --- | --- | --- | --- |
-| `feature/moderation-dashboard-full-access` | `/Volumes/corrupt/Cruushv2-1` | 2026-08-08 282804fc Enforce lowercase cruush product naming | dirty (118 files) | +33/-420 |  |
-| `codex/admin-notification-email-dashboards` | `/private/tmp/cruush-admin-dashboards.fAX3v0` | 2026-08-07 3ccf5746 Add moderator notification and email dashboards | clean | +0/-284 |  |
-| `codex/publish-message-settings-recently-active-fix` | `/private/tmp/cruush-bugfixes-main.HoFsCW` | 2026-08-08 bd9b6474 Fix messages settings and recently active touch crash | clean | +0/-283 |  |
-| `(detached)` | `/private/tmp/cruush-main-logo-fix.w0cX4Y` | 2026-08-07 8f3414b1 Restore notchless landing logo loops | clean | +0/-285 |  |
-| `codex/nearby-activity-push` | `/private/tmp/cruush-nearby-main.A7cs7e` | 2026-08-08 10a6c7f7 Add nearby activity push notifications | clean | +0/-282 |  |
-| `(detached)` | `/Users/julienlenaz/.claude/jobs/d3323ee8/tmp/verify-09ad544` | 2026-08-02 09ad544e Keep cruush+ trial card dismissible after activation | clean | +0/-465 |  |
-| `(detached)` | `/Users/julienlenaz/cruush-merge-verify` | 2026-08-06 95201cf1 Merge remote-tracking branch 'origin/main' into merge/urgent- | dirty (1 files) | +0/-379 |  |
-| `fix/reward-service-bugs` | `/Volumes/corrupt/cruush-reward-fixes` | 2026-08-03 b10ada75 Dock bug report trigger into screen chrome so it never overla | clean | +1/-427 |  |
-| `fix/reward-service` | `/Volumes/corrupt/cruush-reward-service` | 2026-08-03 4f05d46e reward updates | clean | +2/-427 |  |
-| `(detached)` | `/Volumes/corrupt/Cruushv2-1-text-error-release` | 2026-08-06 70039aa8 Fix mobile shell, bug report placement, and feed image checks | clean | +0/-413 |  |
-| `codex/account-delete-500` | `/Volumes/corrupt/Cruushv2-1.worktrees/account-delete-500` | 2026-08-05 554c9991 test account deletion end to end | clean | +30/-420 |  |
-| `(detached)` | `/Volumes/corrupt/Cruushv2-1.worktrees/account-delete-release` | 2026-08-06 410dd02c test account deletion end to end | clean | +0/-417 |  |
-| `fix/moderation-fail-closed` | `/Volumes/corrupt/Cruushv2-1.worktrees/app-breaking` | 2026-08-05 0a95592b feat: alert when Rekognition breaks, and reword the unscreene | dirty (2 files) | +0/-442 |  |
-| `feature/beta-polish-continuation` | `/Volumes/corrupt/Cruushv2-1.worktrees/beta-polish-continuation` | 2026-08-05 5a1fd8ed feat: direct messages pinning, favorites tab, quick access ga | dirty (14 files) | +30/-420 |  |
-| `fix/bug-button-always-visible` | `/Volumes/corrupt/Cruushv2-1.worktrees/bug-button` | 2026-08-04 9cb7503e Merge remote-tracking branch 'origin/main' into fix/bug-butto | clean | +0/-458 |  |
-| `fix/bug-button-placement` | `/Volumes/corrupt/Cruushv2-1.worktrees/bugbtn-placement` | 2026-08-05 ed7aaaf1 test: fail the build when floating overlays cover each other | clean | +0/-456 |  |
-| `codex/build-sha-endpoint` | `/Volumes/corrupt/Cruushv2-1.worktrees/build-sha-endpoint` | 2026-08-06 ca1f9b27 Fix message photo send route | clean | +0/-409 |  |
-| `(detached)` | `/Volumes/corrupt/Cruushv2-1.worktrees/deployed-origin-main` | 2026-08-05 409dd639 fix: make an approved photo actually send | clean | +0/-432 |  |
-| `fix/dl-mode-coverage-and-chat` | `/Volumes/corrupt/Cruushv2-1.worktrees/dl-mode-chat-fixes` | 2026-08-05 a58e97dd docs: plan the DL Mode coverage and messaging repair | dirty (5 files) | +30/-420 |  |
-| `codex/recently-active-preview` | `/Volumes/corrupt/Cruushv2-1.worktrees/feed-expire-options` | 2026-08-06 4041bc1a Add feed expiry options | dirty (33 files) | +0/-372 |  |
-| `agents/filter-menu-issue-fix` | `/Volumes/corrupt/Cruushv2-1.worktrees/filter-menu-issue-fix` | 2026-08-02 6aa48f60 major ui overhaul | dirty (1 files) | +0/-438 |  |
-| `agents/first-login-match-system-popup` | `/Volumes/corrupt/Cruushv2-1.worktrees/first-login-match-system-popup` | 2026-08-02 09d1b332 Add MatchSystemIntro modal and show it once after onboarding | clean | +0/-437 |  |
-| `docs/iam-production-warning` | `/Volumes/corrupt/Cruushv2-1.worktrees/iamdoc` | 2026-08-05 bae1346d chore: ignore local Claude Code config | clean | +0/-440 |  |
-| `codex/instagram-ad-landing-loop` | `/Volumes/corrupt/Cruushv2-1.worktrees/instagram-ad-landing-loop` | 2026-08-06 186568b0 fix: harden profile loading and set indigo user hearts | dirty (4 files) | +51/-420 |  |
-| `feature/landing-page-liquid-glass-antigravity` | `/Volumes/corrupt/Cruushv2-1.worktrees/landing-page-liquid-glass-antigravity` | 2026-08-06 186568b0 fix: harden profile loading and set indigo user hearts | dirty (8 files) | +51/-420 |  |
-| `agents/landing-page-video-background-glow` | `/Volumes/corrupt/Cruushv2-1.worktrees/landing-page-video-background-glow` | 2026-08-02 cf558cb1 Use looping launch teaser video on landing page and add glow  | dirty (2 files) | +0/-436 |  |
-| `codex/message-permission-settings` | `/Volumes/corrupt/Cruushv2-1.worktrees/message-permission-settings` | 2026-08-06 12beb755 Stop minor face permanent access bans | clean | +0/-370 |  |
-| `codex/messaging-neon-regression` | `/Volumes/corrupt/Cruushv2-1.worktrees/messaging-neon-regression` | 2026-08-06 63cb6d24 Fix message photo responses and DL mode masking | clean | +29/-420 |  |
-| `codex/messaging-photo-policy-fix` | `/Volumes/corrupt/Cruushv2-1.worktrees/messaging-photo-policy-fix` | 2026-08-06 f230afbc Allow non-human message images | clean | +0/-416 |  |
-| `codex/moderation-dashboard-modal` | `/Volumes/corrupt/Cruushv2-1.worktrees/moderation-dashboard-modal` | 2026-08-06 4041bc1a Add feed expiry options | clean | +0/-372 |  |
-| `codex/publish-selected-changes` | `/Volumes/corrupt/Cruushv2-1.worktrees/publish-selected-changes` | 2026-08-06 b8dc18d0 Keep app URL stable and widen composer input | dirty (19 files) | +0/-286 |  |
-| `agents/push-changes-to-main` | `/Volumes/corrupt/Cruushv2-1.worktrees/push-changes-to-main` | 2026-08-02 1d71dce6 Boost map contrast for landmass/roads/labels, add tagline str | clean | +0/-439 |  |
-| `agents/react-error-130-debugging` | `/Volumes/corrupt/Cruushv2-1.worktrees/react-error-130-debugging` | 2026-08-03 c401144c reward service | clean | +0/-427 |  |
-| `agents/screen-lock-behavior` | `/Volumes/corrupt/Cruushv2-1.worktrees/screen-lock-behavior` | 2026-08-02 1d71dce6 Boost map contrast for landmass/roads/labels, add tagline str | clean | +0/-439 |  |
-| `codex/site-wide-notifications` | `/Volumes/corrupt/Cruushv2-1.worktrees/site-wide-notifications` | 2026-08-06 a12e45f6 Fix messages settings and recently active touch crash | dirty (14 files) | +29/-420 |  |
-| `codex/stream-policy-drift-check` | `/Volumes/corrupt/Cruushv2-1.worktrees/stream-policy-drift-check` | 2026-08-06 1a610a05 Add Stream policy drift check and Rekognition type fix | clean | +0/-405 |  |
-| `agents/svg-backdrop-displacement-filter` | `/Volumes/corrupt/Cruushv2-1.worktrees/svg-backdrop-displacement-filter` | 2026-08-02 1d71dce6 Boost map contrast for landmass/roads/labels, add tagline str | dirty (17 files) | +0/-439 |  |
-| `feature/notifications-and-onboarding` | `/Volumes/corrupt/Cruushv2-1.worktrees/test-notifications-onboarding` | 2026-08-05 409dd639 fix: make an approved photo actually send | dirty (4 files) | +0/-432 |  |
-| `codex/v1-1-liquid-glass-magnifying-lens` | `/Volumes/corrupt/Cruushv2-1.worktrees/v1-1-liquid-glass-magnifying-lens` | 2026-08-05 9b1c518f fix(landing): enforce perfectly equal top and bottom logo pad | dirty (12 files) | +49/-420 |  |
-| `feature/bug-report-triage-queue` | `/Volumes/corrupt/Cruushv2-1/.claude/worktrees/bug-triage` | 2026-08-04 6bdfc861 feat: mirror bug reports into GitHub issues for triage | dirty (2 files) | +0/-471 |  |
-| `claude/fable-handoff-continuation-3c70ca` | `/Volumes/corrupt/Cruushv2-1/.claude/worktrees/fable-handoff-continuation-3c70ca` | 2026-08-08 168d7b6e Hide Ghost Mode profiles from discovery | dirty (1 files) | +0/-277 |  |
-| `worktree-spec-work` | `/Volumes/corrupt/Cruushv2-1/.claude/worktrees/spec-work` | 2026-08-06 53bc6bba docs: fold the standing rules and the repeat audit into the s | dirty (50 files) | +0/-404 |  |
-| `(detached)` | `/Volumes/corrupt/Cruushv2-1/.claude/worktrees/stoic-kare-c26211` | 2026-08-02 ca44258e Mask explicit map pins in DL Mode | dirty (4 files) | +0/-443 |  |
-| `worktree-sunny-twirling-cherny` | `/Volumes/corrupt/Cruushv2-1/.claude/worktrees/sunny-twirling-cherny` | 2026-08-06 9754df03 feat: cruush-colored neon treatment on the glass nav | dirty (22 files) | +5/-420 |  |
-| `feature/v2-crypto-processor` | `/Volumes/corrupt/Cruushv2-crypto-processor` | 2026-08-08 bbd34eb9 Add Julien and Senga payment briefs | clean | +35/-420 |  |
-| `codex/github-issues-aug6` | `/Volumes/corrupt/Cruushv2-issues` | 2026-08-06 943e4eb5 Merge pull request #18 from cruush-social/posthog/instrumenta | clean | +0/-295 |  |
-| `main` | `/Volumes/corrupt/Cruushv2-main` | 2026-08-22 b4621d57 revert: put verification and password reset back on their Res | dirty (396 files) | +0/-30 |  |
-| `codex/urgent-bugfix-safety-release` | `/Volumes/corrupt/Cruushv2-urgent-release` | 2026-08-06 120bde20 show unclassified photos when dl mode is off | dirty (16 files) | +0/-416 |  |
-| `fix/test-checkout-production-guard` | `/Volumes/good/Cruushv2-billing-hotfix` | 2026-09-01 bcd1421b fix: close a payment bypass that granted cruush+ without paym | clean | +0/-0 |  |
-| `feature/v2-crypto-processor-20260822` | `/Volumes/good/Cruushv2-crypto-processor-20260822` | 2026-08-30 6d88c557 feat: move the crypto rails to Arbitrum and rebuild the check | dirty (1 files) | +2/-28 | Disabled-by-default in-house Base USDC processor and seamless no-voucher store checkout; recovered from Claude session `cffee9e5-ed21-41a6-82ae-238e21493464`; Codex; in progress; unmerged. |
-| `feat/crypto-pricing` | `.` | 2026-09-01 a2a14086 docs: correct the RPC provider decision after testing Dwellir | dirty (14 files) | +11/-0 |  |
-| `feat/free-feed-board` | `/Volumes/good/Cruushv2-free-feed-20260822` | 2026-08-22 1c401be5 chore: declare the publication target for the free feed branc | clean | +0/-74 |  |
-| `fix/map-tile-recovery-20260830` | `/Volumes/good/Cruushv2-map-tile-hotfix-20260830` | 2026-08-30 2884a5f6 fix: preserve custom map during slow tile loads | clean | +0/-1 |  |
-| `staging` | `/Volumes/good/Cruushv2-staging` | 2026-08-30 1903edc9 chore: declare staging as the publication target | dirty (2 files) | +4/-2 |  |
-| `feat/verotel-billing` | `/Volumes/good/Cruushv2-verotel-billing` | 2026-08-22 b4621d57 revert: put verification and password reset back on their Res | dirty (28 files) | +0/-30 |  |
+| `feature/moderation-dashboard-full-access` | `/Volumes/good/Cruushv2-1` | 2026-08-06 f2055305 Restore the notchless spinning logo loop on the landing page | dirty (114 files) | +31/-146 |  |
+| `codex/sh-review-only-20260902` | `/Volumes/good/Cruushv2-sh-review-only` | 2026-09-02 a69841f4 fix: clarify onboarding validation | dirty (9 files) | +0/-0 | Stream sexual-harassment-only results publish with moderator review; Codex; deploying. |
+| `feat/crypto-pricing` | `/Volumes/good/Cruushv2-crypto-release` | 2026-09-02 a2c73423 feat(crypto): add permanent Ping pack checkout | dirty (merge in progress) | +13/-0 | Disabled-by-default watch-only crypto processor, checkout, billing policy, operator wallet, and permanent Ping packs; Codex; readying for review; unmerged. |
+| `(detached)` | `/private/tmp/cruush-baseline-20260809` | 2026-08-08 d9a1776a fix: clarify moderation errors and normalize chat sends | dirty (2 files) | +0/-1 |  |
+| `agent/stop-automatic-cruush-plus` | `/private/tmp/cruush-plus-release-20260809` | 2026-08-09 d4e138a8 stop automatic cruush+ trials | clean | +1/-1 |  |
+| `(detached)` | `/private/tmp/cruush-v12-validation-20260809` | 2026-08-09 8d02b294 Fix tutorial clearance and publish v1.2 changelog | dirty (3 files) | +1/-0 |  |
+| `(detached)` | `/Users/julienlenaz/.claude/jobs/d3323ee8/tmp/verify-09ad544` | 2026-08-02 09ad544e Keep cruush+ trial card dismissible after activation | clean | +0/-191 |  |
+| `(detached)` | `/Users/julienlenaz/cruush-merge-verify` | 2026-08-06 95201cf1 Merge remote-tracking branch 'origin/main' into merge/urgent- | clean | +0/-105 |  |
+| `merge/urgent-bugfix-into-main` | `/Volumes/corrupt/Cruushv2-1/.claude/worktrees/repeated-instructions-audit` | 2026-08-06 99f86fc6 Forward flags through the media backfill npm script | clean | +0/-103 |  |
+| `worktree-spec-work` | `/Volumes/corrupt/Cruushv2-1/.claude/worktrees/spec-work` | 2026-08-06 53bc6bba docs: fold the standing rules and the repeat audit into the s | clean | +0/-130 |  |
+| `worktree/corrupt-dirty-migration-v2` | `/Volumes/good/Cruushv2-1-corrupt-dirty-migration` | 2026-08-08 8ad39840 chore: define v2 consolidation scope | dirty (239 files) | +33/-146 |  |
+| `codex/github-issues-20260808` | `/Volumes/good/Cruushv2-github-issues-20260808` | 2026-08-09 8d5e7df9 fix: resolve open beta issue regressions | dirty (1 files) | +0/-0 | GitHub issue bug fixes; approved bounded scope; Codex; in progress |
+| `agent/ping-feature` | `.` | 2026-08-10 b0cd26e9 chore: trim v1.2 email preview | dirty (39 files) | +4/-0 | v1.2 Ping, target-aware tutorial, map boundary, messaging fixes, and changelog; Codex; in progress; unmerged. |
+| `codex/fix-mobile-map-controls-20260820` | `/Volumes/good/Cruushv2-mobile-map-controls-20260820` | 2026-08-20 101f4b2d fix: polish activity and cruise carousel | dirty (3 files) | +0/-0 | Android Chrome visual-viewport map chrome clipping fix; Codex; in progress; unmerged. |
 
 ## Rules that apply here
 

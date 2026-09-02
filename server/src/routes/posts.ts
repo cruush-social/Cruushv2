@@ -790,7 +790,8 @@ export async function registerPostRoutes(app: FastifyInstance) {
     const moderation = await moderateTextOrReject(app, {
       userId,
       surface: "feed",
-      text: [payload.content, ...payload.tags.map((tag) => `#${tag}`)].join("\n")
+      text: [payload.content, ...payload.tags.map((tag) => `#${tag}`)].join("\n"),
+      persistAllowedReview: false
     });
     const encryptedContent = encryptTextContent(app.config, "feed", payload.content);
     const crowdTargetTokenRows = payload.crowdTargets.flatMap((crowd) => createCrowdTokens(app.config, [crowd]).map((token) => ({
@@ -1049,8 +1050,8 @@ export async function registerPostRoutes(app: FastifyInstance) {
         moderation.providerResult.provider_request_id,
         JSON.stringify(moderation.providerResult.labels),
         JSON.stringify(moderation.decision),
-        "allowed",
-        null,
+        moderation.moderationStatus ?? "allowed",
+        moderation.flaggedReason ?? null,
         JSON.stringify(moderation.providerResult.raw_result ?? {}),
         payload.crowdTargets,
         JSON.stringify(crowdTargetTokenRows),
