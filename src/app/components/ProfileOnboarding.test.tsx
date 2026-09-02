@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { ComponentType } from 'react';
+import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import ProfileOnboarding from './ProfileOnboarding';
 
@@ -24,14 +25,19 @@ vi.mock('../lib/authApi', () => ({
   getAuthSession,
 }));
 
-vi.mock('../lib/profileApi', () => ({
-  saveMyProfile,
-  uploadProfilePhoto,
-  toDefaultKinkInterest: (kink: string) => ({
-    kink_id: kink.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''),
-    label: kink,
-  }),
-}));
+vi.mock('../lib/profileApi', async () => {
+  const actual = await vi.importActual<typeof import('../lib/profileApi')>('../lib/profileApi');
+
+  return {
+    ...actual,
+    saveMyProfile,
+    uploadProfilePhoto,
+    toDefaultKinkInterest: (kink: string) => ({
+      kink_id: kink.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''),
+      label: kink,
+    }),
+  };
+});
 
 vi.mock('../lib/sessionUser', () => ({
   persistCurrentUser,
@@ -90,6 +96,13 @@ async function chooseMultiSelect(label: string, value: string) {
   fireEvent.click(screen.getByRole('button', { name: label }));
 }
 
+async function chooseVibe(group: 'Style' | 'Energy' | 'Scenes' | 'Archetypes' | 'Identity', value: string) {
+  fireEvent.click(screen.getByRole('button', { name: 'Vibes' }));
+  fireEvent.click(await screen.findByRole('tab', { name: group }));
+  fireEvent.click(await screen.findByRole('option', { name: value }));
+  fireEvent.click(screen.getByRole('button', { name: 'Vibes' }));
+}
+
 function renderConductOnboarding(onComplete = vi.fn()) {
   const OnboardingWithConduct = ProfileOnboarding as ComponentType<{
     onComplete: () => void;
@@ -98,11 +111,13 @@ function renderConductOnboarding(onComplete = vi.fn()) {
   }>;
 
   render(
-    <OnboardingWithConduct
-      onComplete={onComplete}
-      needsCodeOfConduct
-      codeOfConductVersion="2026-07-07"
-    />
+    <MemoryRouter>
+      <OnboardingWithConduct
+        onComplete={onComplete}
+        needsCodeOfConduct
+        codeOfConductVersion="2026-07-07"
+      />
+    </MemoryRouter>
   );
 
   return onComplete;
@@ -124,11 +139,23 @@ async function fillProfileRites() {
   await chooseMultiSelect('Looking For', 'cruise');
   fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
-  await chooseMultiSelect('Vibes', 'Goth');
+  await chooseVibe('Scenes', 'Goth');
   fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
   fireEvent.change(screen.getByPlaceholderText('A little about you...'), { target: { value: 'Velvet trouble.' } });
   fireEvent.click(screen.getByRole('button', { name: /next/i }));
+
+  expect(screen.getByText('name your role')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: /next/i }));
+  expect(screen.getByText('dress your heart')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: /next/i }));
+}
+
+async function reachFinalOath() {
+  fireEvent.click(screen.getByRole('button', { name: /skip 2fa for now/i }));
+  expect(await screen.findByText('summon your circle')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: /next rite/i }));
+  expect(await screen.findByText('take the oath')).toBeInTheDocument();
 }
 
 async function skipTwoFactorAndEnter() {
@@ -190,18 +217,19 @@ describe('ProfileOnboarding', () => {
     renderConductOnboarding();
 
     await fillProfileRites();
+    await reachFinalOath();
 
-    const nextButton = screen.getByRole('button', { name: /next/i });
+    const enterButton = screen.getByRole('button', { name: /enter cruush/i });
 
     expect(screen.getByText('take the oath')).toBeInTheDocument();
-    expect(nextButton).toBeDisabled();
+    expect(enterButton).toBeDisabled();
     expect(saveMyProfile).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole('checkbox', {
       name: /i have read and agree to the cruush code of conduct/i,
     }));
 
-    expect(nextButton).not.toBeDisabled();
+    expect(enterButton).not.toBeDisabled();
   });
 
   it('keeps the same rites while using profile edit option menus', async () => {
@@ -222,7 +250,7 @@ describe('ProfileOnboarding', () => {
 
     expect(screen.getByText('find your crowd')).toBeInTheDocument();
     expect(screen.getByText('Choose your crowds.')).toBeInTheDocument();
-    expect(screen.getByText(/Optional visibility rooms, not identity labels\./)).toBeInTheDocument();
+    expect(screen.getByText(/visibility changes only when you turn Crowd Mode on/i)).toBeInTheDocument();
     await chooseMultiSelect('Crowds', 'Gay');
     fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
@@ -233,7 +261,7 @@ describe('ProfileOnboarding', () => {
     expect(screen.getByText('reveal your aura')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Vibes' }));
     expect(await screen.findByRole('tablist', { name: 'Vibes categories' })).toBeInTheDocument();
-    expect(screen.getByRole('group', { name: 'Style & Energy' })).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Style' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('tab', { name: 'Scenes' }));
     expect(screen.queryByRole('option', { name: 'Bear' })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('tab', { name: 'Archetypes' }));
@@ -245,7 +273,7 @@ describe('ProfileOnboarding', () => {
   });
 
   it('offers trans man and trans woman while saving up to three gender identities', async () => {
-    render(<ProfileOnboarding onComplete={vi.fn()} />);
+    render(<MemoryRouter><ProfileOnboarding onComplete={vi.fn()} /></MemoryRouter>);
 
     fireEvent.change(screen.getByPlaceholderText('Your name'), { target: { value: 'River' } });
     fireEvent.click(screen.getByRole('button', { name: /next/i }));
@@ -272,13 +300,15 @@ describe('ProfileOnboarding', () => {
     fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
     expect(screen.getByText('Select up to 3')).toBeInTheDocument();
-    await chooseMultiSelect('Vibes', 'Alt');
-    await chooseMultiSelect('Vibes', 'Artsy');
-    await chooseMultiSelect('Vibes', 'Chill');
-    await chooseMultiSelect('Vibes', 'Goth');
+    await chooseVibe('Style', 'Alt');
+    await chooseVibe('Style', 'Artsy');
+    await chooseVibe('Energy', 'Chill');
+    await chooseVibe('Scenes', 'Goth');
     fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
     fireEvent.change(screen.getByPlaceholderText('A little about you...'), { target: { value: 'Velvet trouble.' } });
+    fireEvent.click(screen.getByRole('button', { name: /next/i }));
+    fireEvent.click(screen.getByRole('button', { name: /next/i }));
     fireEvent.click(screen.getByRole('button', { name: /next/i }));
     await skipTwoFactorAndEnter();
 
@@ -291,7 +321,7 @@ describe('ProfileOnboarding', () => {
   });
 
   it('only offers T4T during onboarding after the user marks that they are trans', async () => {
-    render(<ProfileOnboarding onComplete={vi.fn()} />);
+    render(<MemoryRouter><ProfileOnboarding onComplete={vi.fn()} /></MemoryRouter>);
 
     fireEvent.change(screen.getByPlaceholderText('Your name'), { target: { value: 'River' } });
     fireEvent.click(screen.getByRole('button', { name: /next/i }));
@@ -315,16 +345,16 @@ describe('ProfileOnboarding', () => {
     const onComplete = renderConductOnboarding();
 
     await fillProfileRites();
+    await reachFinalOath();
     fireEvent.click(screen.getByRole('checkbox', {
       name: /i have read and agree to the cruush code of conduct/i,
     }));
-    fireEvent.click(screen.getByRole('button', { name: /next/i }));
-    await skipTwoFactorAndEnter();
+    fireEvent.click(screen.getByRole('button', { name: /enter cruush/i }));
 
     await waitFor(() => expect(onComplete).toHaveBeenCalledTimes(1));
     expect(onComplete).toHaveBeenCalledWith(expect.objectContaining({
       needsCodeOfConduct: false,
-    }), 'map');
+    }), 'map', false);
     expect(saveMyProfile).toHaveBeenCalledTimes(1);
     expect(saveMyProfile).toHaveBeenCalledWith(expect.objectContaining({
       display_name: 'River',
@@ -361,7 +391,7 @@ describe('ProfileOnboarding', () => {
       value: vi.fn().mockResolvedValue(undefined),
     });
     const onComplete = vi.fn();
-    render(<ProfileOnboarding onComplete={onComplete} />);
+    render(<MemoryRouter><ProfileOnboarding onComplete={onComplete} /></MemoryRouter>);
 
     await fillProfileRites();
     fireEvent.click(screen.getByRole('button', { name: /skip 2fa for now/i }));
@@ -394,7 +424,7 @@ describe('ProfileOnboarding', () => {
     fireEvent.click(screen.getByRole('button', { name: /enter cruush/i }));
 
     await waitFor(() => expect(saveMyProfile).toHaveBeenCalledTimes(1));
-    expect(onComplete).toHaveBeenCalledWith(expect.objectContaining({ needsOnboarding: false }), 'map');
+    expect(onComplete).toHaveBeenCalledWith(expect.objectContaining({ needsOnboarding: false }), 'map', false);
   });
 
   it('lets users enable 2FA directly during onboarding before entering the map', async () => {
@@ -404,7 +434,7 @@ describe('ProfileOnboarding', () => {
       promotionalDaysGranted: 1,
     });
     const onComplete = vi.fn();
-    render(<ProfileOnboarding onComplete={onComplete} />);
+    render(<MemoryRouter><ProfileOnboarding onComplete={onComplete} /></MemoryRouter>);
 
     await fillProfileRites();
 
@@ -434,13 +464,13 @@ describe('ProfileOnboarding', () => {
     fireEvent.click(screen.getByRole('button', { name: /enter cruush/i }));
 
     await waitFor(() => expect(saveMyProfile).toHaveBeenCalledTimes(1));
-    expect(onComplete).toHaveBeenCalledWith(expect.objectContaining({ needsOnboarding: false }), 'map');
+    expect(onComplete).toHaveBeenCalledWith(expect.objectContaining({ needsOnboarding: false }), 'map', true);
   });
 
   it('keeps the user in onboarding when the server still requires a profile', async () => {
     getAuthSession.mockResolvedValueOnce({ needsOnboarding: true });
     const onComplete = vi.fn();
-    render(<ProfileOnboarding onComplete={onComplete} />);
+    render(<MemoryRouter><ProfileOnboarding onComplete={onComplete} /></MemoryRouter>);
 
     await fillProfileRites();
     await skipTwoFactorAndEnter();
@@ -450,7 +480,7 @@ describe('ProfileOnboarding', () => {
   });
 
   it('does not collect date of birth during onboarding', () => {
-    render(<ProfileOnboarding onComplete={vi.fn()} />);
+    render(<MemoryRouter><ProfileOnboarding onComplete={vi.fn()} /></MemoryRouter>);
 
     fireEvent.change(screen.getByPlaceholderText('Your name'), { target: { value: 'River' } });
     fireEvent.click(screen.getByRole('button', { name: /next/i }));

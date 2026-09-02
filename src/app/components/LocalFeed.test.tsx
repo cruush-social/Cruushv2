@@ -651,6 +651,7 @@ describe('LocalFeed', () => {
       audience: 'public',
       crowdTargets: [],
       photoMediaIds: [],
+      tags: [],
     }));
   });
 
@@ -691,6 +692,7 @@ describe('LocalFeed', () => {
       audience: 'mutuals',
       crowdTargets: [],
       photoMediaIds: [],
+      tags: [],
     }));
   });
 
@@ -730,6 +732,7 @@ describe('LocalFeed', () => {
       audience: 'crowd',
       crowdTargets: ['Gay'],
       photoMediaIds: [],
+      tags: [],
       user: {
         id: 'user-1',
         name: 'me',
@@ -765,6 +768,7 @@ describe('LocalFeed', () => {
       audience: 'crowd',
       crowdTargets: ['Gay'],
       photoMediaIds: [],
+      tags: [],
     }));
   });
 
@@ -823,6 +827,7 @@ describe('LocalFeed', () => {
       audience: 'public',
       crowdTargets: [],
       photoMediaIds: [],
+      tags: [],
     }));
 
     fireEvent.change(input, { target: { value: 'never post' } });
@@ -837,6 +842,7 @@ describe('LocalFeed', () => {
       audience: 'public',
       crowdTargets: [],
       photoMediaIds: [],
+      tags: [],
     }));
     expect(await screen.findByText('never post')).toBeInTheDocument();
     // The expiry control now lives in the settings dialog, so the only Never

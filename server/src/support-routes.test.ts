@@ -171,7 +171,7 @@ describe("support routes", () => {
       await app.close();
       await rm(mediaDir, { recursive: true, force: true });
     }
-  });
+  }, 10000);
 
   it("creates an anonymous support request with contact email", async () => {
     const app = buildSupportApp();
@@ -249,14 +249,16 @@ describe("support routes", () => {
 
   it("creates one active survey response for a signed-in member", async () => {
     const app = buildSupportApp();
-    query.mockResolvedValueOnce({
-      rows: [{
-        id: "survey-response-1",
-        status: "open",
-        ai_triage_status: "pending",
-        created_at: "2026-08-18T12:00:00.000Z"
-      }]
-    });
+    query
+      .mockResolvedValueOnce({ rows: [{ email: "member@example.com" }] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "survey-response-1",
+          status: "open",
+          ai_triage_status: "pending",
+          created_at: "2026-08-18T12:00:00.000Z"
+        }]
+      });
 
     const response = await app.inject({
       method: "POST",
@@ -273,10 +275,10 @@ describe("support routes", () => {
     await app.close();
 
     expect(response.statusCode).toBe(201);
-    expect(query.mock.calls[0]?.[0]).toContain("on conflict do nothing");
-    expect(query.mock.calls[0]?.[1]).toEqual([
+    expect(query.mock.calls[1]?.[0]).toContain("on conflict do nothing");
+    expect(query.mock.calls[1]?.[1]).toEqual([
       userId,
-      null,
+      "member@example.com",
       "comment",
       "cruush survey response",
       "Overall experience: 5",
@@ -291,6 +293,7 @@ describe("support routes", () => {
   it("returns the existing active survey response instead of inserting a duplicate", async () => {
     const app = buildSupportApp();
     query
+      .mockResolvedValueOnce({ rows: [{ email: "member@example.com" }] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({
         rows: [{
@@ -316,8 +319,8 @@ describe("support routes", () => {
     await app.close();
 
     expect(response.statusCode).toBe(200);
-    expect(query).toHaveBeenCalledTimes(2);
-    expect(query.mock.calls[1]?.[0]).toContain("status in ('open', 'in_progress')");
+    expect(query).toHaveBeenCalledTimes(3);
+    expect(query.mock.calls[2]?.[0]).toContain("status in ('open', 'in_progress')");
     expect(response.json().data.id).toBe("survey-response-1");
   }, 10000);
 
@@ -349,14 +352,16 @@ describe("support routes", () => {
 
   it("creates a signed-in support request without requiring contact email", async () => {
     const app = buildSupportApp();
-    query.mockResolvedValueOnce({
-      rows: [{
-        id: "support-2",
-        status: "open",
-        ai_triage_status: "pending",
-        created_at: "2026-07-07T12:05:00.000Z"
-      }]
-    });
+    query
+      .mockResolvedValueOnce({ rows: [{ email: "member@example.com" }] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "support-2",
+          status: "open",
+          ai_triage_status: "pending",
+          created_at: "2026-07-07T12:05:00.000Z"
+        }]
+      });
 
     const response = await app.inject({
       method: "POST",
@@ -381,9 +386,9 @@ describe("support routes", () => {
     await app.close();
 
     expect(response.statusCode).toBe(201);
-    expect(query.mock.calls[0]?.[1]).toEqual([
+    expect(query.mock.calls[1]?.[1]).toEqual([
       userId,
-      null,
+      "member@example.com",
       "bug",
       "Settings bug",
       "The settings screen got stuck after opening support.",

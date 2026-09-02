@@ -11,6 +11,8 @@ const TARGET_STEP_IDS: MapControlsTutorialStepId[] = [
   'map-controls',
   'seeking',
   'visibility',
+  'cruush-plus',
+  'mile-high-club',
   'places',
   'heatmap',
   'crowds',
@@ -203,7 +205,7 @@ describe('MapControlsTutorial', () => {
 
     render(<MapControlsTutorial open onActivateStep={onActivateStep} onComplete={onComplete} />);
 
-    expect(screen.getByText('Map tutorial · Step 1 of 15')).toBeInTheDocument();
+    expect(screen.getByText('Map tutorial · Step 1 of 17')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Install cruush' })).toBeInTheDocument();
     fireEvent.click(expectHighlightedAction('install', 'Install cruush'));
     expect(onActivateStep).toHaveBeenLastCalledWith('install');
@@ -233,6 +235,14 @@ describe('MapControlsTutorial', () => {
     expectHighlightedAction('visibility', 'Open Visibility');
 
     fireEvent.click(screen.getByTestId('tutorial-next'));
+    expect(screen.getByRole('heading', { name: 'cruush+' })).toBeInTheDocument();
+    expectHighlightedAction('cruush-plus', 'Open cruush+');
+
+    fireEvent.click(screen.getByTestId('tutorial-next'));
+    expect(screen.getByRole('heading', { name: 'Mile High Club' })).toBeInTheDocument();
+    expectHighlightedAction('mile-high-club', 'Open Mile High Club');
+
+    fireEvent.click(screen.getByTestId('tutorial-next'));
     expect(screen.getByRole('heading', { name: 'Spots' })).toBeInTheDocument();
     expectHighlightedAction('places', 'Open Spots');
 
@@ -254,7 +264,7 @@ describe('MapControlsTutorial', () => {
 
     fireEvent.click(screen.getByTestId('tutorial-next'));
     expect(screen.getByRole('heading', { name: 'Pulse' })).toBeInTheDocument();
-    expect(screen.getByText('Pulse is inside Map Controls. It briefly marks your heart as active on the map and shares your signal as a normal feed post.')).toBeInTheDocument();
+    expect(screen.getByText(/Pulse makes your heart beat for 30 minutes/i)).toBeInTheDocument();
     fireEvent.click(expectHighlightedAction('ping', 'Open Pulse'));
     expect(onActivateStep).toHaveBeenLastCalledWith('ping');
     expect(screen.getByTestId('tutorial-spotlight')).toHaveAttribute('data-tutorial-step', 'ping');
@@ -278,7 +288,7 @@ describe('MapControlsTutorial', () => {
     fireEvent.click(screen.getByTestId('tutorial-next'));
 
     expect(screen.getByRole('heading', { name: 'Feed' })).toBeInTheDocument();
-    expect(screen.getByText(/start with a short signal, question, or invitation/i)).toBeInTheDocument();
+    expect(screen.getByText(/Basic members can share text posts and searchable tags/i)).toBeInTheDocument();
     expectHighlightedAction('feed', 'Open Feed');
     fireEvent.click(screen.getByTestId('tutorial-next'));
 
@@ -354,6 +364,8 @@ describe('MapControlsTutorial', () => {
 
     fireEvent.click(screen.getByTestId('tutorial-skip-step'));
     fireEvent.click(screen.getByTestId('tutorial-skip-step'));
+    fireEvent.click(screen.getByTestId('tutorial-next'));
+    fireEvent.click(screen.getByTestId('tutorial-next'));
     fireEvent.click(screen.getByTestId('tutorial-next'));
     fireEvent.click(screen.getByTestId('tutorial-next'));
     fireEvent.click(screen.getByTestId('tutorial-next'));

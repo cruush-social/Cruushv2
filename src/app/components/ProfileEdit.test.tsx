@@ -29,6 +29,15 @@ vi.mock('../lib/profileApi', async () => {
 const existingProfilePhoto = '/api/media/assets/11111111-1111-4111-8111-111111111111/display';
 const uploadedProfilePhoto = '/api/media/assets/d271f6da-c51d-4d73-a322-d9c56f45d4fa/display';
 
+async function selectProfileEditTab(name: 'Photos' | 'Badges' | 'Basics' | 'Intimacy' | 'Health') {
+  const tab = await screen.findByRole('tab', { name });
+  fireEvent.pointerDown(tab, { button: 0, ctrlKey: false });
+  fireEvent.click(tab);
+  fireEvent.keyDown(tab, { key: 'Enter', code: 'Enter' });
+  await waitFor(() => expect(tab).toHaveAttribute('aria-selected', 'true'));
+  return tab;
+}
+
 describe('ProfileEdit', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
@@ -127,11 +136,7 @@ describe('ProfileEdit', () => {
       </MemoryRouter>
     );
 
-    const intimacyTab = await screen.findByRole('tab', { name: 'Intimacy' });
-    fireEvent.pointerDown(intimacyTab, { button: 0, ctrlKey: false });
-    fireEvent.click(intimacyTab);
-
-    await waitFor(() => expect(intimacyTab).toHaveAttribute('aria-selected', 'true'));
+    await selectProfileEditTab('Intimacy');
 
     expect(await screen.findAllByText('leather')).not.toHaveLength(0);
     expect(screen.queryByLabelText('leather seeking')).not.toBeInTheDocument();
@@ -141,7 +146,7 @@ describe('ProfileEdit', () => {
     const positionListbox = await screen.findByRole('listbox', { name: 'Position' });
     expect(positionListbox.parentElement).toHaveClass('overflow-hidden', 'overscroll-contain', 'rounded-md');
     expect(positionListbox).toHaveClass('scrollbar-subtle', 'overflow-y-auto');
-    expect(screen.getByRole('option', { name: 'pillow princess' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'stone bottom' })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: 'stone top' })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: 'vers bottom' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('option', { name: 'vers top' }));
@@ -226,8 +231,7 @@ describe('ProfileEdit', () => {
       </MemoryRouter>
     );
 
-    const photosTab = await screen.findByRole('tab', { name: 'Photos' });
-    fireEvent.click(photosTab);
+    await selectProfileEditTab('Photos');
 
     const uploadInput = screen.getByText('Upload photo').closest('label')?.querySelector('input[type="file"]');
     expect(uploadInput).toBeTruthy();
@@ -326,8 +330,7 @@ describe('ProfileEdit', () => {
       </MemoryRouter>
     );
 
-    const photosTab = await screen.findByRole('tab', { name: 'Photos' });
-    fireEvent.click(photosTab);
+    await selectProfileEditTab('Photos');
 
     const uploadInput = screen.getByText('Upload photo').closest('label')?.querySelector('input[type="file"]');
     expect(uploadInput).toBeTruthy();
@@ -343,11 +346,9 @@ describe('ProfileEdit', () => {
     const uploadedImage = await screen.findByAltText('Primary profile photo');
     expect(uploadedImage).toHaveAttribute('src', expect.stringContaining(uploadedPhoto));
 
-    const profileTab = screen.getByRole('tab', { name: 'Basics' });
-    fireEvent.click(profileTab);
-    expect(profileTab).toHaveAttribute('aria-selected', 'true');
+    await selectProfileEditTab('Basics');
 
-    fireEvent.click(photosTab);
+    await selectProfileEditTab('Photos');
     expect(screen.getByAltText('Primary profile photo')).toHaveAttribute('src', expect.stringContaining(uploadedPhoto));
   });
 
@@ -373,7 +374,7 @@ describe('ProfileEdit', () => {
       </MemoryRouter>,
     );
 
-    fireEvent.click(await screen.findByRole('tab', { name: 'Photos' }));
+    await selectProfileEditTab('Photos');
     const uploadInput = screen.getByText('Upload photo').closest('label')?.querySelector('input[type="file"]');
     fireEvent.change(uploadInput as HTMLInputElement, {
       target: { files: [new File([new Uint8Array([1, 2, 3])], 'profile.png', { type: 'image/png' })] },
@@ -411,7 +412,7 @@ describe('ProfileEdit', () => {
       </MemoryRouter>,
     );
 
-    fireEvent.click(await screen.findByRole('tab', { name: 'Photos' }));
+    await selectProfileEditTab('Photos');
     expect(await screen.findByAltText('Profile photo 2')).toHaveAttribute('src', expect.stringContaining(safePhoto));
     expect(screen.queryByAltText('Primary profile photo')).not.toBeInTheDocument();
     expect(screen.getByAltText('Profile photo 3')).toHaveAttribute('src', expect.stringContaining(unknownPhoto));
@@ -431,7 +432,7 @@ describe('ProfileEdit', () => {
       </MemoryRouter>
     );
 
-    fireEvent.click(await screen.findByRole('tab', { name: 'Photos' }));
+    await selectProfileEditTab('Photos');
 
     const uploadInput = screen.getByText('Upload photo').closest('label')?.querySelector('input[type="file"]');
     expect(uploadInput).toBeTruthy();
@@ -464,7 +465,7 @@ describe('ProfileEdit', () => {
       </MemoryRouter>,
     );
 
-    fireEvent.click(await screen.findByRole('tab', { name: 'Photos' }));
+    await selectProfileEditTab('Photos');
 
     const uploadInput = screen.getByText('Upload photo').closest('label')?.querySelector('input[type="file"]');
     expect(uploadInput).toBeTruthy();
@@ -487,31 +488,14 @@ describe('ProfileEdit', () => {
     expect(screen.queryByText(/^Photo rejected:/)).not.toBeInTheDocument();
   });
 
-  it('previews selected profile photos as data URLs before cropping', async () => {
-    const previewDataUrl = 'data:image/png;base64,cHJvZmlsZQ==';
-    const readAsDataURL = vi.fn();
-
-    class MockFileReader {
-      result: FileReader['result'] = null;
-      onload: FileReader['onload'] = null;
-      onerror: FileReader['onerror'] = null;
-
-      readAsDataURL(file: Blob) {
-        readAsDataURL(file);
-        this.result = previewDataUrl;
-        this.onload?.call(this as unknown as FileReader, new ProgressEvent('load') as ProgressEvent<FileReader>);
-      }
-    }
-
-    vi.stubGlobal('FileReader', MockFileReader);
-
+  it('previews selected profile photos with a local object URL before cropping', async () => {
     render(
       <MemoryRouter>
         <ProfileEdit />
       </MemoryRouter>
     );
 
-    fireEvent.click(await screen.findByRole('tab', { name: 'Photos' }));
+    await selectProfileEditTab('Photos');
 
     const uploadInput = screen.getByText('Upload photo').closest('label')?.querySelector('input[type="file"]');
     expect(uploadInput).toBeTruthy();
@@ -524,9 +508,8 @@ describe('ProfileEdit', () => {
     });
 
     const preview = await screen.findByAltText('Profile crop preview');
-    expect(readAsDataURL).toHaveBeenCalledWith(selectedFile);
-    expect(URL.createObjectURL).not.toHaveBeenCalled();
-    expect(preview).toHaveAttribute('src', previewDataUrl);
+    expect(URL.createObjectURL).toHaveBeenCalledWith(selectedFile);
+    expect(preview).toHaveAttribute('src', 'blob:profile-crop-preview');
 
     fireEvent.load(preview);
     fireEvent.click(screen.getByRole('button', { name: 'Use cropped photo' }));
@@ -544,7 +527,7 @@ describe('ProfileEdit', () => {
         </MemoryRouter>
       );
 
-      fireEvent.click(await screen.findByRole('tab', { name: 'Photos' }));
+      await selectProfileEditTab('Photos');
 
       const uploadInput = screen.getByText('Upload photo').closest('label')?.querySelector('input[type="file"]');
       expect(uploadInput).toBeTruthy();
@@ -583,7 +566,7 @@ describe('ProfileEdit', () => {
       </MemoryRouter>
     );
 
-    fireEvent.click(await screen.findByRole('tab', { name: 'Photos' }));
+    await selectProfileEditTab('Photos');
 
     expect(screen.queryByText('Upload photo')).not.toBeInTheDocument();
     expect(screen.queryByText('Add up to 4 photos of yourself. Your first photo will be your profile picture. SFW photos are suggested, not required.')).not.toBeInTheDocument();
@@ -613,7 +596,7 @@ describe('ProfileEdit', () => {
       </MemoryRouter>
     );
 
-    fireEvent.click(await screen.findByRole('tab', { name: 'Photos' }));
+    await selectProfileEditTab('Photos');
 
     expect(await screen.findByText('Profile photo uploads are temporarily unavailable.')).toBeInTheDocument();
     const uploadInput = screen.getByText('Upload photo').closest('label')?.querySelector('input[type="file"]');
@@ -627,7 +610,7 @@ describe('ProfileEdit', () => {
       </MemoryRouter>
     );
 
-    fireEvent.click(await screen.findByRole('tab', { name: 'Photos' }));
+    await selectProfileEditTab('Photos');
 
     expect(screen.getByText('Profile photos may be SFW or NSFW.')).toBeInTheDocument();
     expect(screen.getByText('Use a photo of you or your gear.')).toBeInTheDocument();
@@ -660,7 +643,7 @@ describe('ProfileEdit', () => {
       </MemoryRouter>
     );
 
-    fireEvent.click(await screen.findByRole('tab', { name: 'Photos' }));
+    await selectProfileEditTab('Photos');
 
     const uploadInput = screen.getByText('Upload photo').closest('label')?.querySelector('input[type="file"]');
     expect(uploadInput).toBeTruthy();
@@ -691,15 +674,15 @@ describe('ProfileEdit', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Vibes' }));
     expect(screen.getByRole('tablist', { name: 'Vibes categories' })).toBeInTheDocument();
-    expect(screen.getByRole('group', { name: 'Style & Energy' })).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Style' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('tab', { name: 'Scenes' }));
     const scenesGroup = screen.getByRole('group', { name: 'Scenes' });
     expect(within(scenesGroup).queryByRole('option', { name: 'Bear' })).not.toBeInTheDocument();
     for (const scene of ['Jock', 'Circuit', 'Club Kid', 'Camping', 'Cosplay', 'Country', 'Festival', 'Rubber', 'Leather', 'Burner', 'Sober', 'Stoner']) {
       expect(within(scenesGroup).getByRole('option', { name: scene })).toBeInTheDocument();
     }
-    fireEvent.click(screen.getByRole('tab', { name: 'Style & Energy' }));
-    const styleGroup = screen.getByRole('group', { name: 'Style & Energy' });
+    fireEvent.click(screen.getByRole('tab', { name: 'Style' }));
+    const styleGroup = screen.getByRole('group', { name: 'Style' });
     expect(within(styleGroup).queryByRole('option', { name: 'Sober' })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('tab', { name: 'Archetypes' }));
@@ -707,7 +690,7 @@ describe('ProfileEdit', () => {
 
     fireEvent.click(within(archetypesGroup).getByRole('option', { name: 'Daddy' }));
     fireEvent.click(within(archetypesGroup).getByRole('option', { name: 'Doll' }));
-    fireEvent.click(within(archetypesGroup).getByRole('option', { name: 'Goddess' }));
+    fireEvent.click(within(archetypesGroup).getByRole('option', { name: 'God/Goddess' }));
     fireEvent.click(within(archetypesGroup).getByRole('option', { name: 'Kitten' }));
 
     fireEvent.click(basicsTab);
@@ -730,8 +713,7 @@ describe('ProfileEdit', () => {
     fireEvent.click(screen.getByRole('option', { name: 'T4T' }));
     fireEvent.click(screen.getByRole('option', { name: 'Dyke' }));
 
-    const healthTab = screen.getByRole('tab', { name: 'Health' });
-    fireEvent.click(healthTab);
+    await selectProfileEditTab('Health');
 
     fireEvent.click(screen.getByRole('button', { name: 'HIV Status' }));
     fireEvent.click(screen.getByRole('option', { name: 'undetectable' }));
@@ -743,7 +725,7 @@ describe('ProfileEdit', () => {
     await waitFor(() => expect(saveMyProfile).toHaveBeenCalledWith(expect.objectContaining({
       is_trans: true,
       trans_status_visibility: 'mutual_cruushes',
-      vibes: ['Doll', 'Goddess', 'Kitten'],
+      vibes: ['Doll', 'God/Goddess', 'Kitten'],
       scenes: [],
       hiv_status: ['undetectable'],
       hiv_status_visibility: 'mutual_cruushes',
@@ -757,8 +739,7 @@ describe('ProfileEdit', () => {
       </MemoryRouter>
     );
 
-    const healthTab = await screen.findByRole('tab', { name: 'Health' });
-    fireEvent.click(healthTab);
+    await selectProfileEditTab('Health');
 
     fireEvent.click(screen.getByRole('button', { name: 'HIV Status' }));
     fireEvent.click(screen.getByRole('option', { name: 'negative' }));
@@ -953,8 +934,7 @@ describe('ProfileEdit', () => {
       </MemoryRouter>
     );
 
-    const healthTab = await screen.findByRole('tab', { name: 'Health' });
-    fireEvent.click(healthTab);
+    await selectProfileEditTab('Health');
 
     fireEvent.click(screen.getByRole('button', { name: 'Substance Boundaries' }));
     const menu = screen.getByRole('listbox', { name: 'Substance Boundaries' });

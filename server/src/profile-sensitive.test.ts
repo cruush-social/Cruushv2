@@ -106,6 +106,7 @@ describe("profile-sensitive encryption", () => {
       looking_for: [],
       timing: [],
       hosting: [],
+      preferred_spots: [],
       vibes: [],
       crowds: [],
       hobbies: [],
@@ -114,7 +115,8 @@ describe("profile-sensitive encryption", () => {
       kinks: ["leather"],
       body_types: [],
       sexuality: [],
-      substance_boundaries: []
+      substance_boundaries: [],
+      protection_boundaries: []
     };
     const first = encryptProfileVisibility(config, visibilityRules);
     const second = encryptProfileVisibility(config, visibilityRules);
@@ -146,6 +148,7 @@ describe("profile-sensitive encryption", () => {
       looking_for: [],
       timing: [],
       hosting: [],
+      preferred_spots: [],
       vibes: [],
       crowds: ["Sapphic"],
       hobbies: [],
@@ -154,7 +157,8 @@ describe("profile-sensitive encryption", () => {
       kinks: [],
       body_types: [],
       sexuality: [],
-      substance_boundaries: []
+      substance_boundaries: [],
+      protection_boundaries: []
     } as unknown as ProfileVisibilityRules;
 
     expect(decryptSensitiveProfile(config, encryptSensitiveProfile(config, legacySensitiveProfile))?.crowds).toEqual(["Dyke"]);

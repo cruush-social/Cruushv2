@@ -33,6 +33,8 @@ describe('AccessibilityQuickAccess', () => {
     expect(document.documentElement).toHaveAttribute('data-cruush-larger-text');
     expect(document.documentElement).toHaveAttribute('data-cruush-high-contrast');
     expect(JSON.parse(window.localStorage.getItem(ACCESSIBILITY_PREFERENCES_STORAGE_KEY) ?? '{}')).toEqual({
+      colorBlindMode: false,
+      colorVisionMode: 'off',
       highContrast: true,
       largerText: true,
       reduceMotion: true,

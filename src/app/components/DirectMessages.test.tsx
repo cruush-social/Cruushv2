@@ -514,7 +514,12 @@ describe('DirectMessages', () => {
     await waitFor(() => {
       expect(getNearbyUsers).toHaveBeenCalledWith(
         { lat: 40.75, lng: -73.98 },
-        undefined,
+        expect.objectContaining({
+          preferredSpots: [],
+          protectionBoundaries: [],
+          searchQuery: '',
+          zodiac: [],
+        }),
         { limit: 500 },
       );
     });
