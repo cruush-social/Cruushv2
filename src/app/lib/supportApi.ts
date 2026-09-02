@@ -61,6 +61,11 @@ export type CreateSuspensionAppealPayload = {
   selfie: File;
 };
 
+export type CreateGeneralSuspensionAppealPayload = {
+  contactEmail?: string;
+  message: string;
+};
+
 export type SupportRequestAdminListResponse = {
   requests: SupportRequestAdminRecord[];
   page: {
@@ -100,6 +105,16 @@ export function createSuspensionAppeal(payload: CreateSuspensionAppealPayload) {
   return requestApi<SupportRequestRecord>('/api/support-requests/suspension-appeal', {
     method: 'POST',
     body: form,
+  });
+}
+
+export function createGeneralSuspensionAppeal(payload: CreateGeneralSuspensionAppealPayload) {
+  return requestApi<SupportRequestRecord>('/api/support-requests/general-suspension-appeal', {
+    method: 'POST',
+    body: JSON.stringify({
+      ...(payload.contactEmail ? { contactEmail: payload.contactEmail.trim() } : {}),
+      message: payload.message.trim(),
+    }),
   });
 }
 

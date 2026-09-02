@@ -87,17 +87,17 @@ const PUBLIC_INFO_ROUTES = [
   { path: '/2257', page: '2257' },
 ] as const;
 
-function renderPublicRoutes(includeSupport = false) {
+function renderPublicRoutes(includeSupport = false, signedIn = false) {
   return [
     ...PUBLIC_INFO_ROUTES.map((route) => (
-      <Route key={route.path} path={route.path} element={<PublicInfoPage page={route.page} />} />
+      <Route key={route.path} path={route.path} element={<PublicInfoPage page={route.page} signedIn={signedIn} />} />
     )),
     <Route key="/feed/photo-preview" path="/feed/photo-preview" element={<FeedPhotoPreview />} />,
     ...(import.meta.env.DEV
       ? [<Route key="/dev/onboarding-preview" path="/dev/onboarding-preview" element={<OnboardingPreview />} />]
       : []),
     ...(includeSupport
-      ? [<Route key="/support" path="/support" element={<SupportPage publicAccess />} />]
+      ? [<Route key="/support" path="/support" element={<SupportPage publicAccess signedIn={signedIn} />} />]
       : []),
   ];
 }
@@ -500,7 +500,7 @@ export default function App({
           <Routes>
             <Route path="/verify-email" element={<VerifyEmail />} />
             <Route path="/reset-password" element={<ResetPassword />} />
-            {renderPublicRoutes(true)}
+            {renderPublicRoutes(true, true)}
             <Route
               path="*"
               element={(
@@ -527,7 +527,7 @@ export default function App({
           <Routes>
             <Route path="/verify-email" element={<VerifyEmail />} />
             <Route path="/reset-password" element={<ResetPassword />} />
-            {renderPublicRoutes(true)}
+            {renderPublicRoutes(true, true)}
             <Route path="*" element={<AgeVerification onVerified={handleAgeVerified} />} />
           </Routes>
           {alphaBugControl}
@@ -545,7 +545,7 @@ export default function App({
           <Routes>
             <Route path="/verify-email" element={<VerifyEmail />} />
             <Route path="/reset-password" element={<ResetPassword />} />
-            {renderPublicRoutes(true)}
+            {renderPublicRoutes(true, true)}
             <Route
               path="*"
               element={(
@@ -572,7 +572,7 @@ export default function App({
           <Routes>
             <Route path="/verify-email" element={<VerifyEmail />} />
             <Route path="/reset-password" element={<ResetPassword />} />
-            {renderPublicRoutes(true)}
+            {renderPublicRoutes(true, true)}
             <Route
               path="*"
               element={(
@@ -610,7 +610,7 @@ export default function App({
               <Route path="/filters" element={<FiltersPanel />} />
               <Route path="/verify-email" element={<VerifyEmail />} />
               <Route path="/reset-password" element={<ResetPassword />} />
-              {renderPublicRoutes()}
+              {renderPublicRoutes(false, true)}
               <Route path="/survey" element={<Survey />} />
               <Route path="/groups/:groupId" element={<GroupDetail />} />
               <Route path="/events/:eventId/pass-guide" element={<EventPassGuide />} />
@@ -632,7 +632,7 @@ export default function App({
               <Route path="/settings/2fa" element={<TwoFactorSettings />} />
               <Route path="/settings/tutorial" element={<Tutorial />} />
               <Route path="/settings/changelog" element={<Changelog />} />
-              <Route path="/support" element={<SupportPage />} />
+              <Route path="/support" element={<SupportPage signedIn />} />
               <Route path="/privacy/ghost-mode" element={<GhostModeSettings />} />
               <Route path="/privacy/dl-mode" element={<DlModeSettings />} />
               <Route path="/privacy/map-presence" element={<MapPresenceSettings />} />

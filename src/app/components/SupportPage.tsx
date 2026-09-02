@@ -8,12 +8,16 @@ import { useBackOrFallback } from '../lib/useBackOrFallback';
 type SupportPageProps = {
   appealOnly?: boolean;
   publicAccess?: boolean;
+  signedIn?: boolean;
 };
 
-export default function SupportPage({ appealOnly = false, publicAccess = false }: SupportPageProps = {}) {
+export default function SupportPage({ appealOnly = false, publicAccess = false, signedIn = false }: SupportPageProps = {}) {
   const location = useLocation();
   const goBack = useBackOrFallback('/');
-  const appealMode = appealOnly || new URLSearchParams(location.search).get('appeal') === '1';
+  const appealValue = new URLSearchParams(location.search).get('appeal');
+  const ageAppealMode = appealOnly || appealValue === '1' || appealValue === 'age';
+  const generalAppealMode = appealValue === 'general';
+  const appealMode = ageAppealMode || generalAppealMode;
 
   return (
     <div className="min-h-screen bg-background pb-20">
@@ -32,8 +36,10 @@ export default function SupportPage({ appealOnly = false, publicAccess = false }
       <main className="w-full p-6">
         <div className="mx-auto max-w-2xl space-y-4">
           <SupportRequestForm
-            appealMode={appealMode}
+            appealMode={ageAppealMode}
+            generalAppealMode={generalAppealMode}
             requireContactEmail={appealMode || publicAccess}
+            signedIn={signedIn}
             source={appealMode || publicAccess ? 'auth' : 'settings'}
           />
           {!appealMode ? (

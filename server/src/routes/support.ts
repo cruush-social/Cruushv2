@@ -12,6 +12,7 @@ import { getOptionalAuthenticatedUserId } from "../request-auth.js";
 
 import {
   createSupportRequestPayloadSchema,
+  generalSuspensionAppealPayloadSchema,
   replySupportRequestPayloadSchema
 } from "../support-schema.js";
 
@@ -25,15 +26,15 @@ const AGE_APPEAL_TERMS =
 export function isAgeSuspensionAppeal(input: {
   category: string;
   message: string;
+  pageUrl?: string;
   source: string;
   subject: string;
 }) {
-  if (input.source === "survey") {
+  if (input.source === "survey" || input.pageUrl?.startsWith("/content-removal")) {
     return false;
   }
 
-  return input.category === "policy"
-    || AGE_APPEAL_TERMS.test(`${input.subject} ${input.message}`);
+  return AGE_APPEAL_TERMS.test(`${input.subject} ${input.message}`);
 }
 
 type SupportRequestRow = {
@@ -101,6 +102,27 @@ function getUserAgent(value: string | string[] | undefined) {
   return value ?? "";
 }
 
+async function resolveSupportContactEmail(
+  app: FastifyInstance,
+  requesterUserId: string | null,
+  suppliedEmail: string | null | undefined
+) {
+  if (requesterUserId) {
+    const account = (await app.db.query<{ email: string }>(
+      "select email from app_users where id = $1 limit 1",
+      [requesterUserId]
+    )).rows[0];
+    if (!account) throw new ApiError(401, "AUTH_REQUIRED", "Sign in again before sending this report.");
+    return authEmailSchema.parse(account.email);
+  }
+
+  if (!suppliedEmail?.trim()) {
+    throw new ApiError(400, "VALIDATION_ERROR", "Enter an email so support can reply.");
+  }
+
+  return authEmailSchema.parse(suppliedEmail.trim());
+}
+
 export async function registerSupportRoutes(app: FastifyInstance) {
   app.post("/api/support-requests/suspension-appeal", async (request, reply) => {
     const requesterUserId = await getOptionalAuthenticatedUserId(request);
@@ -151,7 +173,7 @@ export async function registerSupportRoutes(app: FastifyInstance) {
       throw new ApiError(400, "VALIDATION_ERROR", "Each appeal image must be 5 MB or smaller.");
     }
 
-    const normalizedEmail = authEmailSchema.parse(contactEmail);
+    const normalizedEmail = await resolveSupportContactEmail(app, requesterUserId, contactEmail);
     for (const type of appealEvidenceTypes) {
       const upload = uploads.get(type);
       if (!upload || upload.buffer.length === 0 || upload.truncated) {
@@ -235,6 +257,71 @@ export async function registerSupportRoutes(app: FastifyInstance) {
           createdAt: new Date(created.created_at).toISOString(),
           message: "A suspension appeal with private ID and selfie evidence is ready for human review.",
           pageUrl: "/support?appeal=1",
+          requesterUserId,
+          screenshot: null,
+          source: "auth",
+          subject: "Suspension appeal"
+        }
+      }).catch((error) => {
+        app.log.error({ err: error, supportRequestId: created.id }, "suspension appeal inbox email delivery failed");
+      });
+    }
+
+    return reply.code(201).send({
+      data: {
+        id: created.id,
+        status: created.status,
+        aiTriageStatus: created.ai_triage_status,
+        createdAt: new Date(created.created_at).toISOString()
+      }
+    });
+  });
+
+  app.post("/api/support-requests/general-suspension-appeal", async (request, reply) => {
+    const requesterUserId = await getOptionalAuthenticatedUserId(request);
+    const payload = generalSuspensionAppealPayloadSchema.parse(request.body);
+    const contactEmail = await resolveSupportContactEmail(app, requesterUserId, payload.contactEmail);
+
+    await app.rateLimiter.assert({
+      key: requesterUserId ? `general-suspension-appeal:user:${requesterUserId}` : `general-suspension-appeal:ip:${request.ip}`,
+      max: 2,
+      windowMs: 24 * 60 * 60 * 1000,
+      message: "Too many suspension appeals. Try again tomorrow."
+    });
+
+    const metadata = {
+      appealKind: "general",
+      userAgent: getUserAgent(request.headers["user-agent"])
+    };
+    const result = await app.db.query<SupportRequestRow>(
+      `insert into support_requests (
+         requester_user_id,
+         contact_email,
+         category,
+         subject,
+         message,
+         source,
+         page_url,
+         metadata
+       )
+       values ($1, $2, 'suspension_appeal', 'Suspension appeal', $3, 'auth', '/support?appeal=general', $4::jsonb)
+       returning id::text as id, status, ai_triage_status, created_at`,
+      [requesterUserId, contactEmail, payload.message, metadata]
+    );
+    const created = result.rows[0];
+    if (!created) throw new ApiError(500, "INTERNAL_ERROR", "Failed to create suspension appeal.");
+
+    if (app.config.RESEND_API_KEY && app.config.MAIL_FROM) {
+      await sendSupportRequestInboxEmail({
+        config: app.config,
+        logger: app.log,
+        request: {
+          id: created.id,
+          category: "suspension_appeal",
+          contactEmail,
+          createdAt: new Date(created.created_at).toISOString(),
+          message: payload.message,
+          pageUrl: "/support?appeal=general",
           requesterUserId,
           screenshot: null,
           source: "auth",
@@ -497,23 +584,11 @@ export async function registerSupportRoutes(app: FastifyInstance) {
     const requesterUserId = await getOptionalAuthenticatedUserId(request);
     const payload = createSupportRequestPayloadSchema.parse(request.body);
 
-    let resolvedContactEmail = payload.contactEmail ?? null;
-    if (requesterUserId) {
-      const account = (await app.db.query<{ email: string }>(
-        `select email from app_users where id = $1 limit 1`,
-        [requesterUserId]
-      )).rows[0];
-      if (!account) throw new ApiError(401, "AUTH_REQUIRED", "Sign in again before sending this report.");
-      resolvedContactEmail = authEmailSchema.parse(account.email);
-    }
-
     if (!requesterUserId && payload.source === "survey") {
       throw new ApiError(401, "AUTH_REQUIRED", "Sign in before sending survey feedback.");
     }
 
-    if (!requesterUserId && !resolvedContactEmail && payload.source !== "survey") {
-      throw new ApiError(400, "VALIDATION_ERROR", "Enter an email so support can reply.");
-    }
+    const resolvedContactEmail = await resolveSupportContactEmail(app, requesterUserId, payload.contactEmail);
 
     await app.rateLimiter.assert({
       key: requesterUserId ? `support-create:user:${requesterUserId}` : `support-create:ip:${request.ip}`,
@@ -525,6 +600,7 @@ export async function registerSupportRoutes(app: FastifyInstance) {
     const isAgeAppeal = isAgeSuspensionAppeal({
       category: payload.category,
       message: payload.message,
+      pageUrl: payload.pageUrl,
       source: payload.source,
       subject: payload.subject
     });

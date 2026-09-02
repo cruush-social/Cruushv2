@@ -94,6 +94,7 @@
   "allowedPaths": [
     "AI_TASK.json",
     "src/app/components/AlphaBugButton.tsx",
+    "src/app/App.tsx",
     "src/app/components/BadgeFrames.tsx",
     "src/app/components/BadgePickerPreview.tsx",
     "src/app/components/MapHome.tsx",
@@ -133,6 +134,7 @@
     "server/src/places.ts",
     "server/src/routes/places.ts",
     "server/src/routes/support.ts",
+    "server/src/support-schema.ts",
     "server/src/routes/auth.ts",
     "server/src/referrals-service.ts",
     "server/src/trust-engine.ts",
