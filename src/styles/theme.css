@@ -218,6 +218,15 @@ html[data-cruush-larger-text] :where([class~="text-[21px]"]) {
     padding: 0.625rem 0.75rem;
   }
 
+  html[data-cruush-larger-text] .cruush-activity-count-grid > div > p:first-child {
+    font-size: 10px !important;
+    letter-spacing: 0.04em !important;
+  }
+
+  html[data-cruush-larger-text] .cruush-activity-tab-grid [role="tab"] {
+    font-size: 0.875rem !important;
+  }
+
   html[data-cruush-larger-text] .cruush-carousel-title {
     font-size: 1.5rem;
     line-height: 1.15;
