@@ -34,7 +34,9 @@ export const POSITIONS = alphabetize([
 ]);
 
 export const ROLES = alphabetize([
-  'brat', 'dominant', 'handler', 'pet', 'rigger', 'rope bunny', 'service', 'submissive', 'switch', 'trainer', 'worship'
+  'brat', 'brat tamer', 'caregiver', 'degradee', 'degrader', 'dominant', 'handler', 'little', 'masochist', 'owned', 'owner',
+  'pet', 'prey', 'primal', 'rigger', 'rope bunny', 'sadist', 'sadomasochist', 'service', 'submissive', 'switch', 'trainer',
+  'worshipped', 'worshipper'
 ]);
 
 export const LOOKING_FOR = alphabetize([
@@ -51,27 +53,51 @@ export const HOSTING = alphabetize([
 
 export const VIBE_GROUPS = [
   {
-    label: 'Style & Energy',
+    label: 'Style',
     options: [
-      'Academia', 'Alt', 'Artsy', 'Blue-collar', 'Chill', 'Clean-cut', 'Corporate', 'Cottagecore', 'Disabled', 'Discreet', 'Geek', 'Goth', 'Granola',
-      'Hacker', 'Homebody', 'Hippie', 'Neurodivergent', 'Punk', 'Rugged', 'Spiritual'
+      'Academia', 'Alt', 'Artsy', 'Blue-collar', 'Camp', 'Clean-cut', 'Corporate', 'Cottagecore', 'DIY', 'Earthy', 'Eclectic',
+      'Elegant', 'Futurist', 'Geek', 'Glam', 'Granola', 'Hippie', 'Maximalist', 'Minimalist', 'Polished', 'Rugged', 'Techie',
+      'Vintage', 'Witchy'
+    ].sort((left, right) => left.localeCompare(right, undefined, { sensitivity: 'base' })),
+  },
+  {
+    label: 'Energy',
+    options: [
+      'Adventurous', 'Affectionate', 'Bold', 'Chaotic', 'Chill', 'Cozy', 'Curious', 'Deadpan', 'Direct', 'Discreet', 'Dreamy',
+      'Experimental', 'Flirty', 'Gentle', 'Goofy', 'High-energy', 'Homebody', 'Intense', 'Mysterious', 'Night owl', 'Outdoorsy',
+      'Playful', 'Romantic', 'Sensual', 'Soft-spoken', 'Spiritual', 'Spontaneous', 'Tender', 'Unfiltered', 'Warm', 'Weird'
     ].sort((left, right) => left.localeCompare(right, undefined, { sensitivity: 'base' })),
   },
   {
     label: 'Scenes',
     options: [
-      'Ballroom', 'Burner', 'Camping', 'Circuit', 'Club Kid', 'Collegiate', 'Cosplay', 'Country', 'Drag', 'Festival', 'Furry', 'Jock', 'Leather', 'Raver', 'Rubber', 'Sober', 'Stoner', 'Thespian'
+      'Art scene', 'Ballroom', 'Beach', 'Burlesque', 'Burner', 'Cabaret', 'Camping', 'Circuit', 'Club Kid', 'Collegiate',
+      'Cosplay', 'Country', 'Disco', 'Drag', 'Fashion', 'Festival', 'Furry', 'Gaming', 'Goth', 'Horror', 'House', 'Hyperpop',
+      'Indie', 'Industrial', 'Jock', 'Karaoke', 'Kiki', 'Leather', 'Maker', 'Metal', 'Nature', 'Nudist', 'Punk', 'Queer arts',
+      'Queer nightlife', 'Raver', 'Rubber', 'Sci-fi', 'Sex-positive', 'Skate', 'Sober', 'Stoner', 'Techno', 'Thespian',
+      'Underground', 'Warehouse'
     ].sort((left, right) => left.localeCompare(right, undefined, { sensitivity: 'base' })),
   },
   {
     label: 'Archetypes',
     options: [
-      'Angel', 'Baddie', 'Bimbo', 'Bull', 'Cuck', 'Cuckquean', 'Cyborg', 'Daddy', 'Doll', 'Goddess', 'Himbo', 'Hothusband', 'Hotwife', 'Incubus', 'Jester', 'King', 'Kitten', 'Masochist', 'Mommy', 'Pixie', 'Pony', 'Prince', 'Princess', 'Pup', 'Queen', 'Sadist', 'Succubus', 'Trade', 'Unicorn', 'Vampire', 'Wolf'
+      'Angel', 'Baddie', 'Bimbo', 'Bull', 'Cuck', 'Cuckquean', 'Cyborg', 'Daddy', 'Deity', 'Demon', 'Doll', 'God/Goddess',
+      'Gooner', 'Gremlin', 'Hedonist', 'Himbo', 'Hothusband', 'Hotwife', 'Incubus', 'Jester', 'King', 'Kitten', 'Minx',
+      'Mommy', 'Pixie', 'Pony', 'Pornstar', 'Prince', 'Princess', 'Pup', 'Queen', 'Sensualist', 'Siren', 'Size royalty',
+      'Succubus', 'Trade', 'Unicorn', 'Vampire', 'Wolf'
+    ].sort((left, right) => left.localeCompare(right, undefined, { sensitivity: 'base' })),
+  },
+  {
+    label: 'Identity',
+    options: [
+      'ADHD', 'Autistic', 'Blind/low vision', 'Chronically ill', 'Deaf', 'Disabled', 'Hard of hearing',
+      'Mobility-aid user', 'Neurodivergent'
     ].sort((left, right) => left.localeCompare(right, undefined, { sensitivity: 'base' })),
   },
 ];
 
 export const VIBES = alphabetize(VIBE_GROUPS.flatMap((group) => group.options));
+export const VISIBILITY_VIBE_GROUPS = VIBE_GROUPS.filter((group) => group.label !== 'Identity');
 
 export const CROWDS = alphabetize(['Dyke', 'Gay', 'T4T']);
 

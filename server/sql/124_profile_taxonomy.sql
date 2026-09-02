@@ -11,8 +11,8 @@ as $$
         case lower(trim(item))
           when 'sporty' then 'Jock'
           when 'jock' then 'Jock'
-          when 'techie' then 'Hacker'
-          when 'hacker' then 'Hacker'
+          when 'techie' then 'Techie'
+          when 'hacker' then 'Techie'
           when 'rave' then 'Raver'
           when 'raver' then 'Raver'
           else item

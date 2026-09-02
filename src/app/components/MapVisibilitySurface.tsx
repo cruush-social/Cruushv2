@@ -21,7 +21,7 @@ import {
   ROLES,
   SEXUALITY,
   SUBSTANCE_BOUNDARIES,
-  VIBE_GROUPS,
+  VISIBILITY_VIBE_GROUPS,
 } from '../lib/profileOptions';
 import { DEFAULT_FILTER_STATE, type FilterState } from './MapFiltersSurface';
 import CruushPlusGateNotice from './CruushPlusGateNotice';
@@ -335,7 +335,7 @@ export default function MapVisibilitySurface({
               </p>
               <FieldGroup label="Body Type" options={BODY_TYPES} stateKey="bodyTypes" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} />
               <FieldGroup label="Sexuality" options={SEXUALITY} stateKey="sexuality" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} />
-              <FieldGroup label="Vibes" optionGroups={VIBE_GROUPS} stateKey="vibes" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} />
+              <FieldGroup label="Vibes" optionGroups={VISIBILITY_VIBE_GROUPS} stateKey="vibes" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} />
               <FieldGroup label="Hobbies" options={HOBBIES} stateKey="hobbies" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} />
             </TabsContent>
 

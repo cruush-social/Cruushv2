@@ -307,9 +307,11 @@ const PROFILE_BADGE_GROUPS = {
 
 const PROFILE_BADGE_FALLBACK_ICONS: Record<ProfileBadgeGroup, Record<string, BadgeOption['icon']>> = {
   Vibes: {
-    'Style & Energy': Sparkles,
+    Style: Sparkles,
+    Energy: Zap,
     Scenes: Drama,
     Archetypes: Crown,
+    Identity: CircleDot,
     Other: Sparkles,
   },
   Kinks: {
@@ -331,7 +333,8 @@ const PROFILE_BADGE_VALUE_ICONS: Record<string, BadgeOption['icon']> = {
   leather: LeatherGlyph,
   rubber: RubberGlyph,
   neurodivergent: NeurodivergentGlyph,
-  rave: RaveGlyph,
+  raver: RaveGlyph,
+  techie: Cable,
   cyborg: CyborgGlyph,
 };
 
