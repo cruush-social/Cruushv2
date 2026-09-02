@@ -21,7 +21,7 @@ import {
   shouldUseSecureCookies,
   verifyPassword
 } from "../auth.js";
-import { sendPasswordResetEmail, sendVerificationEmail } from "../mailer.js";
+import { isAgeRelatedSuspensionReason, sendPasswordResetEmail, sendVerificationEmail } from "../mailer.js";
 import {
   ageVerificationPayloadSchema,
   changePasswordPayloadSchema,
@@ -81,6 +81,7 @@ type CreatedUserRow = {
 type PasswordUserRow = CreatedUserRow & {
   password_hash: string;
   account_status?: string | null;
+  suspension_reason_code?: string | null;
   two_factor_enabled?: boolean | null;
 };
 
@@ -766,6 +767,22 @@ export async function registerAuthRoutes(app: FastifyInstance) {
          email_verified_at,
          created_at,
          coalesce(account_status, 'active') as account_status,
+         (
+           select suspension_reason.reason_code
+           from (
+             select suspension.reason_code, suspension.created_at
+             from suspensions suspension
+             where suspension.user_id = app_users.id
+               and (suspension.permanent or suspension.ends_at is null or suspension.ends_at > now())
+             union all
+             select action.reason_code, action.created_at
+             from moderation_actions action
+             where action.target_user_id = app_users.id
+               and action.action = 'suspend_user'
+           ) suspension_reason
+           order by suspension_reason.created_at desc
+           limit 1
+         ) as suspension_reason_code,
          exists (
            select 1 from user_two_factor_auth two_factor
            where two_factor.user_id = app_users.id
@@ -800,6 +817,16 @@ export async function registerAuthRoutes(app: FastifyInstance) {
     const accountStatus = normalizeAccountStatus(user.account_status);
 
     if (!accountCanAuthenticate(accountStatus) && !ownerCanBypassAccountStatus(user.email, accountStatus)) {
+      ensureDeviceCookie(reply, request);
+      if (accountStatus === "suspended") {
+        const ageRelated = isAgeRelatedSuspensionReason(user.suspension_reason_code ?? "");
+        throw new ApiError(
+          403,
+          "ACCOUNT_SUSPENDED",
+          "Your cruush account is suspended.",
+          { appealUrl: `/support?appeal=${ageRelated ? "1" : "general"}` }
+        );
+      }
       throw new ApiError(401, "AUTH_REQUIRED", "Invalid email or password.");
     }
 

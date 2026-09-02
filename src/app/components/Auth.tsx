@@ -73,6 +73,7 @@ export default function Auth({ onAuth }: AuthProps) {
   const [verificationPreviewUrl, setLocalVerificationPreviewUrl] = useState<string | null>(null);
   const [verificationRetryAvailable, setVerificationRetryAvailable] = useState(false);
   const [verificationDeliveryFailed, setVerificationDeliveryFailed] = useState(false);
+  const [suspendedAppealUrl, setSuspendedAppealUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const isSignUp = mode === 'signup';
   const isForgotPassword = mode === 'forgot';
@@ -274,6 +275,20 @@ export default function Auth({ onAuth }: AuthProps) {
         return;
       }
 
+      if (errorCode === 'ACCOUNT_SUSPENDED') {
+        const details = (err as Error & { details?: unknown }).details;
+        const appealUrl = details && typeof details === 'object' && 'appealUrl' in details
+          && typeof details.appealUrl === 'string'
+          ? details.appealUrl
+          : '/support?appeal=general';
+        setSuspendedAppealUrl(appealUrl);
+        setPassword('');
+        setTwoFactorCode('');
+        setIsLoading(false);
+        resetCaptcha();
+        return;
+      }
+
       setError(err instanceof Error ? err.message : 'An error occurred. Please try again.');
       setVerificationRetryAvailable(false);
       setIsLoading(false);
@@ -342,6 +357,16 @@ export default function Auth({ onAuth }: AuthProps) {
     resetCaptcha();
   };
 
+  const leaveSuspendedPage = () => {
+    setSuspendedAppealUrl(null);
+    setEmail('');
+    setPassword('');
+    setError('');
+    setNotice('');
+    setMode('signin');
+    resetCaptcha();
+  };
+
   const handleResendVerification = async () => {
     setError('');
     setNotice('');
@@ -392,7 +417,26 @@ export default function Auth({ onAuth }: AuthProps) {
         </div>
 
         {/* Auth form */}
-        <form onSubmit={handleSubmit} className="launch-login-auth-form" autoComplete="on">
+        {suspendedAppealUrl ? (
+          <section aria-label="Suspended account" className="launch-login-auth-form space-y-4 rounded-sm border border-white/15 bg-black/45 p-4 text-center">
+            <h2 className="text-xl text-white">Account suspended</h2>
+            <p className="text-sm text-white/72">Check your email for the reason. You can ask a person to review the suspension without signing in.</p>
+            <a
+              className="launch-login-auth-submit flex h-12 w-full items-center justify-center rounded-sm text-white"
+              href={suspendedAppealUrl}
+              style={{ background: 'var(--cruush-logo)' }}
+            >
+              Appeal suspension
+            </a>
+            <button
+              className="launch-login-auth-secondary w-full text-sm text-white/60 hover:text-white"
+              onClick={leaveSuspendedPage}
+              type="button"
+            >
+              Log out
+            </button>
+          </section>
+        ) : <form onSubmit={handleSubmit} className="launch-login-auth-form" autoComplete="on">
           <div className="launch-login-auth-human-check" aria-hidden="true">
             <label htmlFor="launch-login-auth-middle-name">Leave blank</label>
             <input
@@ -726,7 +770,7 @@ export default function Auth({ onAuth }: AuthProps) {
               </button>
             ) : null}
           </div>
-        </form>
+        </form>}
 
       </div>
       <div className="launch-login-auth-footer" data-testid="launch-login-auth-footer">
