@@ -158,9 +158,11 @@ import { Button } from './ui/button';
 import { profileBadgeCategory, profileBadgeGlyph, type ProfileBadgeGroup } from './ProfileBadgeGlyphs';
 import {
   BadgeFrame,
+  BADGE_INTERACTION_CLASS,
   BadgeHoverLabel,
   MAP_SIDE_BADGE_PLACEMENT_CLASS,
   mapSideBadgeStyle,
+  preventBadgeContextMenu,
   type BadgeFrameId,
 } from './BadgeFrames';
 
@@ -426,10 +428,11 @@ function BadgeChip({ darkRoom = false, frame, option, side, meaning }: {
     <span
       aria-label={meaning}
       className={[
-        'group/badge absolute flex items-center justify-center text-white',
+        `group/badge absolute flex items-center justify-center text-white ${BADGE_INTERACTION_CLASS}`,
         MAP_SIDE_BADGE_PLACEMENT_CLASS,
       ].join(' ')}
       role="img"
+      onContextMenu={preventBadgeContextMenu}
       style={{
         color: CURRENT_USER_BORDER,
         ...mapSideBadgeStyle(side, frame),

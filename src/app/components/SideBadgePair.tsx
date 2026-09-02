@@ -4,7 +4,7 @@ import { formatBadgeLabel } from '../lib/badgeIntent';
 import { createSavedMapMarkerBadge, type MapMarkerBadge } from '../lib/mapMarkers';
 import type { SideBadges } from '../lib/profileApi';
 import { AnalGlyph, BondageGlyph, CyborgGlyph, GooningGlyph, HarnessGlyph, KeyholeEyeGlyph, LeatherGlyph, LipsGlyph, NeurodivergentGlyph, NippleGlyph, PartyHatGlyph, PenetrationGlyph, RaveGlyph, RimmingGlyph, RubberGlyph, SpankingGlyph, StraightEdgeGlyph } from './BadgeGlyphs';
-import { BadgeFrame, BadgeHoverLabel, SIDE_BADGE_SIZE_PX } from './BadgeFrames';
+import { BADGE_INTERACTION_CLASS, BadgeFrame, BadgeHoverLabel, preventBadgeContextMenu, SIDE_BADGE_SIZE_PX } from './BadgeFrames';
 import { BdsmTriskelionGlyph, BisexualGlyph, DoubleMarsGlyph, DoubleVenusGlyph, IntersexGlyph, LabrysGlyph, MarsVenusGlyph, NonbinaryGlyph, PlayingCard, PolyGlyph, T4TGlyph, TransGlyph } from './CommunityGlyphs';
 import { HANKY_COLORS } from './HankyFrame';
 import {
@@ -116,10 +116,11 @@ function SavedSideBadge({ badge, side, tone }: {
   return (
     <span
       aria-label={`${side} badge: ${label}`}
-      className="group/badge relative inline-flex shrink-0 items-center justify-center text-white"
+      className={`group/badge relative inline-flex shrink-0 items-center justify-center text-white ${BADGE_INTERACTION_CLASS}`}
       data-badge-tone={tone}
       data-testid={`activity-${side}-badge`}
       role="img"
+      onContextMenu={preventBadgeContextMenu}
       style={{ color: borderColor, width: SIDE_BADGE_SIZE_PX, height: SIDE_BADGE_SIZE_PX }}
       tabIndex={0}
     >

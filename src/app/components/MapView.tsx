@@ -47,9 +47,11 @@ import {
 import { positionGlyphFor, roleGlyphFor } from './PositionRoleGlyphs';
 import {
   BadgeFrame,
+  BADGE_INTERACTION_CLASS,
   BadgeHoverLabel,
   MAP_SIDE_BADGE_PLACEMENT_CLASS,
   mapSideBadgeStyle,
+  preventBadgeContextMenu,
   type BadgeFrameId,
 } from './BadgeFrames';
 import { HANKY_COLORS } from './HankyFrame';
@@ -1085,7 +1087,7 @@ function MarkerSideBadge({
       aria-label={badge.saved
         ? `${side === 'left' ? 'left' : 'right'} badge: ${hoverLabel}`
         : `${side === 'left' ? 'role' : 'position'}: ${hoverLabel}`}
-      className={`group/badge absolute flex items-center justify-center ${MAP_SIDE_BADGE_PLACEMENT_CLASS}`}
+      className={`group/badge absolute flex items-center justify-center ${MAP_SIDE_BADGE_PLACEMENT_CLASS} ${BADGE_INTERACTION_CLASS}`}
       data-badge-tone={marker.activePing
         ? 'pulse'
         : marker.travelling === true
@@ -1099,6 +1101,7 @@ function MarkerSideBadge({
                 : 'nearby'}
       data-testid={`marker-${side === 'left' ? 'role' : 'position'}-badge-${marker.id}`}
       role="img"
+      onContextMenu={preventBadgeContextMenu}
       tabIndex={0}
       style={{
         color: badgeBorderColor,

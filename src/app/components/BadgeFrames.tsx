@@ -14,7 +14,7 @@
  * uses a hexagon, and Heart is the default.
  */
 
-import { useId } from 'react';
+import { useId, type MouseEvent } from 'react';
 import paisley515105 from '../assets/ui-icons/paisley-515105.png';
 import { HEART_PIN_PATH } from '../lib/heartPin';
 
@@ -44,6 +44,12 @@ export type BadgeFrameId =
   | 'bracket-square'
   | 'hexagon';
 
+export const BADGE_INTERACTION_CLASS = 'cursor-help touch-manipulation select-none [-webkit-touch-callout:none]';
+
+export function preventBadgeContextMenu(event: MouseEvent<HTMLElement>) {
+  event.preventDefault();
+}
+
 type FrameProps = {
   className?: string;
   /** The badge itself, drawn inside the frame at its own scale. */
@@ -58,7 +64,7 @@ export function BadgeHoverLabel({ children }: { children: React.ReactNode }) {
   return (
     <span
       aria-hidden="true"
-      className="pointer-events-none absolute left-1/2 top-full z-50 mt-1.5 w-max max-w-[min(16rem,calc(100vw-2rem))] -translate-x-1/2 whitespace-normal rounded-full border border-white/20 bg-black/95 px-2 py-1 text-center text-[0.7rem] font-semibold leading-tight text-white opacity-0 shadow-lg transition-opacity group-active/badge:opacity-100 group-focus-within/badge:opacity-100 group-hover/badge:opacity-100"
+      className="pointer-events-none absolute left-1/2 top-full z-50 mt-1.5 w-max max-w-[min(13rem,calc(100vw-2rem))] -translate-x-1/2 break-words whitespace-normal rounded-xl border border-white/20 bg-black/95 px-2 py-1 text-center text-[0.7rem] font-semibold leading-tight text-white opacity-0 shadow-lg transition-opacity group-active/badge:opacity-100 group-focus-within/badge:opacity-100 group-hover/badge:opacity-100"
     >
       {children}
     </span>

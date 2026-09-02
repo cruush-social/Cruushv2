@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router';
 import HeartPhoto from './HeartPhoto';
-import { BadgeHoverLabel } from './BadgeFrames';
+import { BADGE_INTERACTION_CLASS, BadgeHoverLabel, preventBadgeContextMenu } from './BadgeFrames';
 import { Button } from './ui/button';
 import {
   POSITION_GLYPHS,
@@ -23,8 +23,9 @@ function BadgeChip({ side, children, meaning }: { side: 'left' | 'right'; childr
   return (
     <span
       aria-label={meaning}
-      className={`group/badge ${CHIP_CLASS} ${side === 'left' ? 'left-[-0.25rem]' : 'right-[-0.25rem]'}`}
+      className={`group/badge ${BADGE_INTERACTION_CLASS} ${CHIP_CLASS} ${side === 'left' ? 'left-[-0.25rem]' : 'right-[-0.25rem]'}`}
       role="img"
+      onContextMenu={preventBadgeContextMenu}
       style={{ border: '3.2px solid #004BFF' }}
       tabIndex={0}
     >
