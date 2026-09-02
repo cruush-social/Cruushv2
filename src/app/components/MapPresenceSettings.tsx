@@ -6,27 +6,24 @@ import { getMapPresence, saveMapPresence } from '../lib/privacyApi';
 import { Button } from './ui/button';
 import { Label } from './ui/label';
 import { Slider } from './ui/slider';
-import { Switch } from './ui/switch';
 import { saveDistancePreferences, useDistancePreferences, type DistanceDisplayMode } from '../lib/distancePreferences';
+import { MAP_PRESENCE_OPTIONS } from '../lib/privacyApi';
+import LoadingCardSkeletons from './LoadingCardSkeletons';
 
-export const DEFAULT_MAP_PRESENCE_DAYS = 7;
-export const MIN_MAP_PRESENCE_DAYS = 1;
-export const MAX_MAP_PRESENCE_DAYS = 30;
+export const DEFAULT_MAP_PRESENCE_HOURS = 168;
 
-function describeDays(days: number) {
-  const hours = days * 24;
-  const window = days === 1 ? '1 day' : `${days} days`;
+function formatPresenceWindow(hours: number) {
+  return hours <= 48
+    ? `${hours} ${hours === 1 ? 'hour' : 'hours'}`
+    : `${hours / 24} ${hours === 24 ? 'day' : 'days'}`;
+}
 
-  return `You stay on the map for ${window}, ${hours} hours, after you were last active. People can still find you while you are out of the app.`;
+function describeHours(hours: number) {
+  return `You stay on the map for ${formatPresenceWindow(hours)} after you were last active.`;
 }
 
 // Every setting reads both ways, and the stricter of two people's settings wins.
 const DISTANCE_LABEL_OPTIONS: { value: DistanceDisplayMode; label: string; description: string }[] = [
-  {
-    value: 'off',
-    label: 'No labels',
-    description: 'You see no distances and nobody sees one for you.',
-  },
   {
     value: 'approximate',
     label: 'Approximate',
@@ -42,7 +39,8 @@ const DISTANCE_LABEL_OPTIONS: { value: DistanceDisplayMode; label: string; descr
 export default function MapPresenceSettings() {
   const distancePreferences = useDistancePreferences();
   const navigate = useNavigate();
-  const [days, setDays] = useState(DEFAULT_MAP_PRESENCE_DAYS);
+  const [hours, setHours] = useState(DEFAULT_MAP_PRESENCE_HOURS);
+  const [savedHours, setSavedHours] = useState(DEFAULT_MAP_PRESENCE_HOURS);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -52,7 +50,9 @@ export default function MapPresenceSettings() {
     setError(null);
     try {
       const data = await getMapPresence();
-      setDays(data.days ?? DEFAULT_MAP_PRESENCE_DAYS);
+      const nextHours = data.hours ?? DEFAULT_MAP_PRESENCE_HOURS;
+      setHours(nextHours);
+      setSavedHours(nextHours);
     } catch {
       setError('Could not load your map presence setting.');
     } finally {
@@ -69,8 +69,10 @@ export default function MapPresenceSettings() {
     setSaving(true);
     setError(null);
     try {
-      const data = await saveMapPresence(days);
-      setDays(data.days ?? days);
+      const data = await saveMapPresence(hours);
+      const nextHours = data.hours ?? hours;
+      setHours(nextHours);
+      setSavedHours(nextHours);
       toast.success('Map presence updated.');
     } catch {
       setError('Could not save your map presence setting.');
@@ -78,6 +80,11 @@ export default function MapPresenceSettings() {
       setSaving(false);
     }
   };
+
+  const selectedIndex = Math.max(
+    0,
+    MAP_PRESENCE_OPTIONS.findIndex((option) => option.hours === hours),
+  );
 
   return (
     <div className="min-h-screen bg-background pb-24">
@@ -128,30 +135,44 @@ export default function MapPresenceSettings() {
         ) : null}
 
         {loading ? (
-          <p className="text-sm text-muted-foreground">Loading your setting...</p>
+          <LoadingCardSkeletons count={2} label="Loading map presence settings" />
         ) : (
           <div className="space-y-4 rounded-lg border border-white/10 bg-white/[0.035] p-3">
             <Label htmlFor="map-presence-days">Stay on the map for</Label>
+            <p aria-live="polite" className="text-lg text-white">{formatPresenceWindow(hours)}</p>
             <Slider
               id="map-presence-days"
-              aria-label="Days to stay on the map"
-              value={[days]}
-              min={MIN_MAP_PRESENCE_DAYS}
-              max={MAX_MAP_PRESENCE_DAYS}
+              aria-label="Time to stay on the map"
+              value={[selectedIndex]}
+              min={0}
+              max={MAP_PRESENCE_OPTIONS.length - 1}
               step={1}
-              onValueChange={([nextDays]) => setDays(nextDays)}
+              onValueChange={([nextIndex]) => setHours(MAP_PRESENCE_OPTIONS[nextIndex]?.hours ?? DEFAULT_MAP_PRESENCE_HOURS)}
             />
-            <p className="text-sm text-muted-foreground">{describeDays(days)}</p>
+            <div className="flex justify-between gap-0.5">
+              {MAP_PRESENCE_OPTIONS.map((option) => (
+                <button
+                  aria-label={`Set map presence to ${formatPresenceWindow(option.hours)}`}
+                  className={`min-w-0 flex-1 text-center text-[10px] ${option.hours === hours ? 'text-white' : 'text-muted-foreground'}`}
+                  key={option.hours}
+                  onClick={() => setHours(option.hours)}
+                  type="button"
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+            <p className="text-sm text-muted-foreground">{describeHours(hours)}</p>
             <div className="flex gap-3">
               <Button
                 type="button"
                 variant="outline"
-                disabled={saving || days === DEFAULT_MAP_PRESENCE_DAYS}
-                onClick={() => setDays(DEFAULT_MAP_PRESENCE_DAYS)}
+                disabled={saving || hours === DEFAULT_MAP_PRESENCE_HOURS}
+                onClick={() => setHours(DEFAULT_MAP_PRESENCE_HOURS)}
               >
-                Reset to {DEFAULT_MAP_PRESENCE_DAYS} days
+                Reset to 7 days
               </Button>
-              <Button type="button" disabled={saving} onClick={() => void handleSave()}>
+              <Button type="button" disabled={saving || hours === savedHours} onClick={() => void handleSave()}>
                 {saving ? 'Saving...' : 'Save'}
               </Button>
             </div>

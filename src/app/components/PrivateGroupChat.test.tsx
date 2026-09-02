@@ -226,6 +226,56 @@ describe('PrivateGroupChat', () => {
     expect(screen.queryByRole('button', { name: 'Open River profile' })).not.toBeInTheDocument();
   });
 
+  it('labels and returns to the profile that opened a full-screen conversation', async () => {
+    const conversationId = '7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2';
+    getConversationMessages.mockResolvedValue({
+      conversation: {
+        id: conversationId,
+        kind: 'dm',
+        user: {
+          id: 'user-2',
+          name: 'River',
+          pronouns: 'they/them',
+          photo: null,
+        },
+        distance: 'Nearby',
+        updatedAt: '2026-04-29T12:00:00.000Z',
+        lastMessage: '',
+        unreadCount: 0,
+        pinned: false,
+        muted: false,
+        mutual: true,
+        tags: [],
+      },
+      messages: [],
+    });
+
+    render(
+      <MemoryRouter
+        initialEntries={[
+          '/profile/user-2',
+          {
+            pathname: `/chat/${conversationId}`,
+            state: { conversationOrigin: 'profile' },
+          },
+        ]}
+        initialIndex={1}
+      >
+        <Routes>
+          <Route path="/profile/:userId" element={<LocationProbe />} />
+          <Route path="/chat/:chatId" element={<><PrivateGroupChat /><LocationProbe /></>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    const backButton = await screen.findByRole('button', { name: 'Back to profile' });
+    expect(screen.queryByRole('button', { name: 'Back to messages' })).not.toBeInTheDocument();
+
+    fireEvent.click(backButton);
+
+    await waitFor(() => expect(screen.getByTestId('location-probe')).toHaveTextContent('/profile/user-2'));
+  });
+
   it('submits a text message only once while the first send is still pending', async () => {
     const conversationId = '7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2';
     getConversationMessages.mockResolvedValue({
@@ -271,6 +321,7 @@ describe('PrivateGroupChat', () => {
     fireEvent.change(screen.getByPlaceholderText('Say what you want...'), {
       target: { value: 'only once' },
     });
+    const composer = screen.getByPlaceholderText('Say what you want...');
     const sendButton = screen.getByRole('button', { name: 'Send message' });
 
     act(() => {
@@ -280,7 +331,10 @@ describe('PrivateGroupChat', () => {
 
     expect(createMessage).toHaveBeenCalledTimes(1);
     expect(screen.getAllByText('only once').filter((element) => element.classList.contains('rounded-[22px]'))).toHaveLength(1);
+    expect(composer).toHaveValue('');
     expect(sendButton).toBeDisabled();
+
+    fireEvent.change(composer, { target: { value: 'next message' } });
 
     await act(async () => {
       resolveSend({
@@ -291,6 +345,7 @@ describe('PrivateGroupChat', () => {
       });
     });
     expect(screen.getAllByText('only once').filter((element) => element.classList.contains('rounded-[22px]'))).toHaveLength(1);
+    expect(composer).toHaveValue('next message');
   });
 
   it('does not show suggested reply chips or a quick-reply action', async () => {
@@ -616,7 +671,7 @@ describe('PrivateGroupChat', () => {
       </MemoryRouter>,
     );
 
-    fireEvent.click(await screen.findByRole('button', { name: 'More conversation options' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Conversation settings' }));
     fireEvent.click(screen.getByRole('button', { name: 'Block River' }));
 
     expect(screen.getByText('Block River?')).toBeInTheDocument();
@@ -660,7 +715,7 @@ describe('PrivateGroupChat', () => {
       </MemoryRouter>,
     );
 
-    fireEvent.click(await screen.findByRole('button', { name: 'More conversation options' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Conversation settings' }));
 
     expect(screen.queryByRole('button', { name: /Block/ })).not.toBeInTheDocument();
   });
@@ -933,8 +988,9 @@ describe('PrivateGroupChat', () => {
     );
 
     const shield = await screen.findByRole('img', { name: 'Explicit message photo hidden by DL Mode' });
-    expect(shield.querySelector('img')).toHaveAttribute('src', expect.stringContaining('dl-mode-white'));
-    expect(shield.querySelector('svg')).not.toBeInTheDocument();
+    expect(shield.querySelector('[data-testid="dl-mode-mark"]')).toHaveAttribute('data-source', 'Julien supplied balaclava halo DL Mode icon');
+    expect(shield.querySelector('[data-testid="dl-mode-mark"]')).toHaveAttribute('data-tone', 'white');
+    expect(shield.querySelector('[data-testid="dl-mode-mark"]')).toHaveAttribute('viewBox', '0 0 1100 1430');
   });
 
   it('sends a selected message photo with the current caption', async () => {
@@ -1387,7 +1443,7 @@ describe('PrivateGroupChat', () => {
       </MemoryRouter>,
     );
 
-    fireEvent.click(await screen.findByRole('button', { name: 'More conversation options' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Conversation settings' }));
     const settingsTimer = await screen.findByLabelText('Disappearing timer');
     expect(settingsTimer).toHaveAttribute('data-slot', 'select-trigger');
     expect(screen.queryByRole('combobox', { name: 'Disappearing timer', hidden: true })).toBe(settingsTimer);
@@ -1443,7 +1499,7 @@ describe('PrivateGroupChat', () => {
       </MemoryRouter>,
     );
 
-    fireEvent.click(await screen.findByRole('button', { name: 'More conversation options' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Conversation settings' }));
     fireEvent.click(screen.getByRole('button', { name: 'Delete chat for everyone' }));
 
     expect(confirmSpy).toHaveBeenCalledWith('Delete this chat for everyone? This removes the chat and its messages for all participants.');
@@ -1562,7 +1618,8 @@ describe('PrivateGroupChat', () => {
       'max-w-[100vw]',
       'overflow-x-hidden',
     );
-    expect(composerBar.style.getPropertyValue('--chat-composer-bottom')).toBe('calc(6.25rem + env(safe-area-inset-bottom))');
+    expect(composerBar.style.getPropertyValue('--chat-composer-bottom')).toBe('calc(5.5rem + env(safe-area-inset-bottom))');
+    expect(composerBar).toHaveClass('pb-0');
     expect(screen.getByPlaceholderText('Say what you want...')).toHaveClass('min-w-0', 'flex-1');
     expect(screen.getByRole('button', { name: 'Send message' })).toHaveClass('size-9', 'rounded-full');
   });
@@ -1610,12 +1667,14 @@ describe('PrivateGroupChat', () => {
 
       await waitFor(() => expect(composerBar).toHaveAttribute('data-keyboard-open', 'true'));
       expect(composerBar.style.getPropertyValue('--chat-composer-bottom')).toBe('calc(0.75rem + env(safe-area-inset-bottom) + 380px)');
+      expect(composerBar).toHaveClass('pb-3');
 
       visualViewport.viewport.height = 900;
       visualViewport.dispatch('resize');
 
       await waitFor(() => expect(composerBar).not.toHaveAttribute('data-keyboard-open'));
-      expect(composerBar.style.getPropertyValue('--chat-composer-bottom')).toBe('calc(6.25rem + env(safe-area-inset-bottom))');
+      expect(composerBar.style.getPropertyValue('--chat-composer-bottom')).toBe('calc(5.5rem + env(safe-area-inset-bottom))');
+      expect(composerBar).toHaveClass('pb-0');
     } finally {
       visualViewport.restore();
     }

@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { buildServer } from "./app.js";
 import { loadConfig } from "./config.js";
+import type { DbClient } from "./db.js";
 import { ApiError } from "./errors.js";
 
 const twoFactor = vi.hoisted(() => ({
@@ -48,6 +49,51 @@ afterEach(async () => {
 });
 
 describe("rewards and 2FA routes", () => {
+  it("replays an owned reward outside recent history without changing entitlements", async () => {
+    const grantId = "bd91eaec-4fdb-485e-9552-de9849652ad2";
+    const query = vi.fn(async (sql: string, params: unknown[]) => {
+      expect(sql).toContain("where reward.user_id = $1 and reward.id = $2");
+      expect(params).toEqual([userId, grantId]);
+      expect(sql).not.toMatch(/\b(insert|update|delete)\b/i);
+      return { rows: [{
+        id: grantId, user_id: userId, source: "admin", days: 1,
+        created_at: "2025-01-01T00:00:00.000Z", reversed_at: null,
+        audit_metadata: { sideQuest: "send_message", privateAuditDetail: "not public" }
+      }], rowCount: 1 };
+    });
+    const app = buildServer(testConfig(), {
+      logger: false,
+      db: { query, end: vi.fn() } as unknown as DbClient
+    });
+    apps.push(app);
+    const response = await app.inject({
+      method: "GET", url: `/api/rewards/grants/${grantId}`, headers: { "x-user-id": userId }
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ data: {
+      id: grantId, source: "admin", days: 1, status: "active",
+      createdAt: "2025-01-01T00:00:00.000Z", sideQuestKey: "send_message"
+    } });
+    expect(query).toHaveBeenCalledOnce();
+  });
+
+  it("does not reveal missing or another member's reward, or read without authentication", async () => {
+    const grantId = "bd91eaec-4fdb-485e-9552-de9849652ad2";
+    const query = vi.fn(async () => ({ rows: [], rowCount: 0 }));
+    const app = buildServer(testConfig(), { logger: false, db: { query, end: vi.fn() } });
+    apps.push(app);
+    const url = `/api/rewards/grants/${grantId}`;
+    const anonymous = await app.inject({ method: "GET", url });
+    expect(anonymous.statusCode).toBe(401);
+    expect(query).not.toHaveBeenCalled();
+    const missing = await app.inject({ method: "GET", url, headers: { "x-user-id": userId } });
+    expect(missing.statusCode).toBe(404);
+    expect(missing.json()).toMatchObject({ error: { code: "NOT_FOUND" } });
+    expect(query).toHaveBeenCalledWith(
+      expect.stringContaining("where reward.user_id = $1 and reward.id = $2"), [userId, grantId]
+    );
+  });
+
   it("requires authentication for reward summaries", async () => {
     const app = buildServer(testConfig(), {
       logger: false,

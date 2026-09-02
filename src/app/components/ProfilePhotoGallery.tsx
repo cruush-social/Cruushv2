@@ -9,6 +9,7 @@ import { getProfileGradientCss } from '../lib/profileGradient';
 import type { ProfilePhotoMetadata } from '../lib/profileApi';
 import type { HeartPinTheme } from '../lib/heartPin';
 import cruushIconWhite from '../assets/ui-icons/cruush-white.png';
+import type { UserBorderTone } from '../lib/userBorderTone';
 
 interface ProfilePhotoGalleryProps {
   fitViewport?: boolean;
@@ -19,6 +20,7 @@ interface ProfilePhotoGalleryProps {
   photoMetadata?: ProfilePhotoMetadata[];
   reportTargetUserId?: string;
   theme?: HeartPinTheme;
+  borderTone?: UserBorderTone;
   userId?: string | null;
 }
 
@@ -31,6 +33,7 @@ export default function ProfilePhotoGallery({
   photos,
   reportTargetUserId,
   theme = 'nearby',
+  borderTone,
   userId = null,
 }: ProfilePhotoGalleryProps) {
   const visiblePhotos = useMemo(() => photos.slice(0, 4), [photos]);
@@ -118,11 +121,12 @@ export default function ProfilePhotoGallery({
               onClick={() => setActiveIndex(index)}
               className="flex items-center justify-center overflow-visible border-0 bg-transparent p-0 drop-shadow-[0_10px_24px_rgba(0,0,0,0.42)] transition hover:scale-[1.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
               style={{
-                height: 'clamp(2.75rem, 9dvh, 4rem)',
-                width: 'clamp(2.75rem, 9dvh, 4rem)',
+                height: 'clamp(3.25rem, 10.5dvh, 4.75rem)',
+                width: 'clamp(3.25rem, 10.5dvh, 4.75rem)',
               }}
             >
               <HeartPhoto
+                borderTone={borderTone}
                 label={`${fallbackLabel} ${index + 1}`}
                 masked={shouldMaskPhoto(dlModeActive, photoMetadataByUrl.get(photo))}
                 photo={photo}

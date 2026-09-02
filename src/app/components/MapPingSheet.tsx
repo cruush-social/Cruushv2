@@ -1,4 +1,11 @@
-import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type PointerEvent as ReactPointerEvent,
+} from 'react';
 import { SIGNAL_MAX_LENGTH } from '../lib/profileLimits';
 import PulseLedIcon from './PulseLedIcon';
 import { MapMarkerPin } from './MapView';
@@ -12,6 +19,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 import CruushPlusGateNotice from './CruushPlusGateNotice';
+import { useIsMobile } from './ui/use-mobile';
 import {
   Sheet,
   SheetContent,
@@ -35,9 +43,106 @@ type MapPingSheetProps = {
   onUpgrade?: () => void;
   /** Your own photo, so the demonstration is your pin and not a placeholder. */
   photo?: string | null;
-  /** Lurker Mode keeps you off the map, so a Pulse cannot go out. */
+  /** Dark Room keeps you off the map, so a Pulse cannot go out. */
   lurkerActive?: boolean;
 };
+
+type PulseDesktopGeometry = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
+type PulseDragState = {
+  pointerId: number;
+  mode: 'desktop-move' | 'desktop-resize';
+  originX: number;
+  originY: number;
+  desktopStart: PulseDesktopGeometry;
+};
+
+const PULSE_DESKTOP_STORAGE_KEY = 'cruush.pulse.desktopGeometry';
+const PULSE_DESKTOP_EDGE_GAP = 10;
+const PULSE_DESKTOP_BOTTOM_CLEARANCE = 110;
+const PULSE_DESKTOP_MIN_WIDTH = 360;
+const PULSE_DESKTOP_MIN_HEIGHT = 420;
+const PULSE_DESKTOP_DEFAULT_WIDTH = 448;
+const PULSE_DESKTOP_DEFAULT_HEIGHT = 600;
+
+function pulseTopClearance() {
+  if (typeof window === 'undefined') {
+    return 90;
+  }
+
+  const configured = Number.parseFloat(
+    window.getComputedStyle(document.documentElement).getPropertyValue('--cruush-map-top-clearance'),
+  );
+  return Number.isFinite(configured) && configured > 0 ? configured : 90;
+}
+
+function clampPulseDesktopGeometry(geometry: PulseDesktopGeometry): PulseDesktopGeometry {
+  if (typeof window === 'undefined') {
+    return geometry;
+  }
+
+  const minimumY = pulseTopClearance();
+  const maxWidth = Math.max(PULSE_DESKTOP_MIN_WIDTH, window.innerWidth - PULSE_DESKTOP_EDGE_GAP * 2);
+  const maxHeight = Math.max(1, window.innerHeight - minimumY - PULSE_DESKTOP_BOTTOM_CLEARANCE);
+  const width = Math.min(Math.max(geometry.width, PULSE_DESKTOP_MIN_WIDTH), maxWidth);
+  const effectiveMinHeight = Math.min(PULSE_DESKTOP_MIN_HEIGHT, maxHeight);
+  const height = Math.min(Math.max(geometry.height, effectiveMinHeight), maxHeight);
+  const x = Math.min(
+    Math.max(geometry.x, PULSE_DESKTOP_EDGE_GAP),
+    Math.max(PULSE_DESKTOP_EDGE_GAP, window.innerWidth - width - PULSE_DESKTOP_EDGE_GAP),
+  );
+  const y = Math.min(
+    Math.max(geometry.y, minimumY),
+    Math.max(minimumY, window.innerHeight - height - PULSE_DESKTOP_BOTTOM_CLEARANCE),
+  );
+
+  return { x, y, width, height };
+}
+
+function defaultPulseDesktopGeometry(): PulseDesktopGeometry {
+  if (typeof window === 'undefined') {
+    return { x: PULSE_DESKTOP_EDGE_GAP, y: 90, width: PULSE_DESKTOP_DEFAULT_WIDTH, height: PULSE_DESKTOP_DEFAULT_HEIGHT };
+  }
+
+  const width = Math.min(PULSE_DESKTOP_DEFAULT_WIDTH, window.innerWidth - PULSE_DESKTOP_EDGE_GAP * 2);
+  const minimumY = pulseTopClearance();
+  return clampPulseDesktopGeometry({
+    x: Math.round((window.innerWidth - width) / 2),
+    y: minimumY + 12,
+    width,
+    height: PULSE_DESKTOP_DEFAULT_HEIGHT,
+  });
+}
+
+function readPulseDesktopGeometry(): PulseDesktopGeometry | null {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  try {
+    const raw = window.localStorage.getItem(PULSE_DESKTOP_STORAGE_KEY);
+    if (!raw) {
+      return null;
+    }
+    const parsed = JSON.parse(raw) as Partial<PulseDesktopGeometry>;
+    if (
+      typeof parsed.x !== 'number'
+      || typeof parsed.y !== 'number'
+      || typeof parsed.width !== 'number'
+      || typeof parsed.height !== 'number'
+    ) {
+      return null;
+    }
+    return { x: parsed.x, y: parsed.y, width: parsed.width, height: parsed.height };
+  } catch {
+    return null;
+  }
+}
 
 function formatTime(value: string) {
   const timestamp = Date.parse(value);
@@ -72,7 +177,7 @@ function resolvePingErrorMessage(error: unknown) {
     return error.message;
   }
 
-  return 'Ping could not send. Try again.';
+  return 'Pulse could not send. Try again.';
 }
 
 export default function MapPingSheet({
@@ -90,6 +195,7 @@ export default function MapPingSheet({
   lurkerActive = false,
   onUpgrade,
 }: MapPingSheetProps) {
+  const isMobile = useIsMobile();
   const [radiusMiles, setRadiusMiles] = useState<MapPingRadiusMiles>(3);
   const [sending, setSending] = useState(false);
   const [editingSignal, setEditingSignal] = useState(false);
@@ -97,6 +203,10 @@ export default function MapPingSheet({
   const [savingSignal, setSavingSignal] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
+  const [desktopGeometry, setDesktopGeometry] = useState<PulseDesktopGeometry>(() => {
+    const stored = readPulseDesktopGeometry();
+    return stored ? clampPulseDesktopGeometry(stored) : defaultPulseDesktopGeometry();
+  });
 
   useEffect(() => {
     if (!open) {
@@ -132,23 +242,23 @@ export default function MapPingSheet({
   );
   const normalizedSignal = signal?.trim() ?? '';
   // A Pulse asks people to look at you, which is the opposite of being off the
-  // map, so it stays shut while Lurker Mode is on.
+  // map, so it stays shut while Dark Room is on.
   const sendDisabled = loading || sending || !status || !hasMapLocation || activePing ||
     !normalizedSignal || status.allowance.remaining < 1 || cooldownActive || lurkerActive;
   const statusText = useMemo(() => {
     if (activePing && status?.activePing) {
-      return `Your Ping is active until ${formatTime(status.activePing.expiresAt)}.`;
+      return `Your Pulse is active until ${formatTime(status.activePing.expiresAt)}.`;
     }
 
     if (cooldownActive && status?.allowance.nextEligibleAt) {
-      return `Your next Ping is ready at ${formatTime(status.allowance.nextEligibleAt)}.`;
+      return `Your next Pulse is ready at ${formatTime(status.allowance.nextEligibleAt)}.`;
     }
 
     if (status) {
       return `${status.allowance.remaining} of ${status.allowance.limit} Pulses available right now.`;
     }
 
-    return 'Checking your Ping allowance...';
+    return 'Checking your Pulse allowance...';
   }, [activePing, cooldownActive, status]);
 
   useEffect(() => {
@@ -171,20 +281,45 @@ export default function MapPingSheet({
     return () => window.clearTimeout(timeoutId);
   }, [nextEligibleTimestamp, onRefresh, open]);
 
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
-  const dragStateRef = useRef<{ pointerId: number; originX: number; originY: number; start: { x: number; y: number } } | null>(null);
+  const dragStateRef = useRef<PulseDragState | null>(null);
 
-  const beginDrag = (event: ReactPointerEvent<HTMLElement>) => {
-    if (event.button !== 0) {
+  useEffect(() => {
+    if (isMobile) {
+      return undefined;
+    }
+
+    const handleResize = () => setDesktopGeometry((current) => clampPulseDesktopGeometry(current));
+    window.addEventListener('resize', handleResize);
+    setDesktopGeometry((current) => clampPulseDesktopGeometry(current));
+    return () => window.removeEventListener('resize', handleResize);
+  }, [isMobile]);
+
+  useEffect(() => {
+    if (isMobile) {
       return;
     }
 
+    try {
+      window.localStorage.setItem(PULSE_DESKTOP_STORAGE_KEY, JSON.stringify(desktopGeometry));
+    } catch {
+      // Window geometry is a convenience. Ignore storage failures.
+    }
+  }, [desktopGeometry, isMobile]);
+
+  const beginDrag = (event: ReactPointerEvent<HTMLElement>, mode: 'move' | 'resize' = 'move') => {
+    if (isMobile || event.button !== 0) {
+      return;
+    }
+
+    event.preventDefault();
     event.currentTarget.setPointerCapture(event.pointerId);
+
     dragStateRef.current = {
       pointerId: event.pointerId,
+      mode: mode === 'resize' ? 'desktop-resize' : 'desktop-move',
       originX: event.clientX,
       originY: event.clientY,
-      start: dragOffset,
+      desktopStart: desktopGeometry,
     };
   };
 
@@ -195,10 +330,22 @@ export default function MapPingSheet({
       return;
     }
 
-    setDragOffset({
-      x: dragState.start.x + (event.clientX - dragState.originX),
-      y: dragState.start.y + (event.clientY - dragState.originY),
-    });
+    if (dragState.mode === 'desktop-move') {
+      setDesktopGeometry(clampPulseDesktopGeometry({
+        ...dragState.desktopStart,
+        x: dragState.desktopStart.x + (event.clientX - dragState.originX),
+        y: dragState.desktopStart.y + (event.clientY - dragState.originY),
+      }));
+      return;
+    }
+
+    if (dragState.mode === 'desktop-resize') {
+      setDesktopGeometry(clampPulseDesktopGeometry({
+        ...dragState.desktopStart,
+        width: dragState.desktopStart.width + (event.clientX - dragState.originX),
+        height: dragState.desktopStart.height + (event.clientY - dragState.originY),
+      }));
+    }
   };
 
   const endDrag = (event: ReactPointerEvent<HTMLElement>) => {
@@ -228,32 +375,46 @@ export default function MapPingSheet({
     }
   };
 
+  const sheetStyle: CSSProperties = isMobile
+    ? {
+      bottom: 'calc(6.25rem + env(safe-area-inset-bottom))',
+      maxHeight: 'calc(100dvh - var(--cruush-map-top-clearance) - 6.75rem - env(safe-area-inset-bottom))',
+      top: 'auto',
+      transform: 'translate(-50%, 0)',
+      left: '50%',
+      width: 'min(28rem, calc(100vw - 1.5rem))',
+    }
+    : {
+      bottom: 'auto',
+      height: `${desktopGeometry.height}px`,
+      left: `${desktopGeometry.x}px`,
+      maxHeight: 'none',
+      right: 'auto',
+      top: `${desktopGeometry.y}px`,
+      transform: 'none',
+      width: `${desktopGeometry.width}px`,
+    };
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="bottom"
-        className="z-[80] max-h-[calc(100dvh-10rem)] overflow-y-auto rounded-2xl border border-white/10 bg-background/96 pb-4 backdrop-blur-xl sm:left-1/2 sm:max-w-lg"
+        overlayClassName="!z-[24]"
+        className="!z-[25] flex flex-col overflow-hidden rounded-2xl border border-white/10 bg-background/96 pb-3 backdrop-blur-xl sm:max-w-lg lg:max-w-none"
         data-testid="map-ping-sheet"
-        style={{
-          // The sheet always opens just above the bottom nav, and stays where it
-          // is dragged.
-          bottom: `calc(6.25rem + env(safe-area-inset-bottom))`,
-          top: 'auto',
-          transform: `translate(calc(-50% + ${dragOffset.x}px), ${dragOffset.y}px)`,
-          left: '50%',
-          width: 'min(28rem, calc(100vw - 1.5rem))',
-        }}
+        data-window-mode={isMobile ? 'mobile-sheet' : 'desktop-window'}
+        style={sheetStyle}
       >
         <SheetHeader
-          className="cursor-grab pr-10 active:cursor-grabbing"
+          className={`shrink-0 pb-2 pr-10 pt-3 ${isMobile ? '' : 'cursor-grab active:cursor-grabbing'}`}
           data-testid="map-ping-sheet-handle"
-          onPointerDown={beginDrag}
-          onPointerMove={continueDrag}
-          onPointerUp={endDrag}
-          onPointerCancel={endDrag}
+          onPointerDown={isMobile ? undefined : beginDrag}
+          onPointerMove={isMobile ? undefined : continueDrag}
+          onPointerUp={isMobile ? undefined : endDrag}
+          onPointerCancel={isMobile ? undefined : endDrag}
         >
           <div className="flex items-center gap-3">
-            <PulseLedIcon className="h-10 w-10 shrink-0 text-[#c8ff31]" />
+            <PulseLedIcon className="h-8 w-8 shrink-0 text-[#c8ff31]" />
             <div>
               <SheetTitle>Send a Pulse</SheetTitle>
               <SheetDescription>Light up your heart for people nearby.</SheetDescription>
@@ -261,12 +422,12 @@ export default function MapPingSheet({
           </div>
         </SheetHeader>
 
-        <div className="space-y-4 px-4">
-          <div className="flex items-center gap-5 rounded-xl border border-[#c8ff31]/45 bg-black/45 p-3">
+        <div className="scrollbar-hide min-h-0 space-y-2.5 overflow-y-auto px-4">
+          <div className="flex items-center gap-3 rounded-xl border border-[#c8ff31]/45 bg-black/45 p-2.5">
             {/* The real marker, running the real Pulse state, so this is what
                 people actually see rather than an approximation of it. */}
-            <span className="flex h-[10.5rem] w-[7.5rem] shrink-0 items-end justify-center overflow-visible">
-              <span className="block origin-bottom" data-testid="map-ping-preview-heart">
+            <span className="flex h-24 w-20 shrink-0 items-end justify-center overflow-visible">
+              <span className="block origin-bottom scale-[0.62]" data-testid="map-ping-preview-heart">
                 <MapMarkerPin
                   marker={{
                     id: 'pulse-preview',
@@ -284,17 +445,15 @@ export default function MapPingSheet({
                 />
               </span>
             </span>
-            <div className="min-w-0 space-y-0.5 pl-1">
+            <div className="min-w-0 space-y-0.5">
               <p className="text-sm font-medium text-white">Your heart beats for 30 minutes</p>
               <p className="text-xs leading-snug text-white/62">
-                Everyone inside your radius sees it beat, your pin rises above the others,
-                you come up more in the carousel, and your signal posts to the feed. Your pin
-                does not move.
+                People inside your radius see it beat, and your signal posts to the feed. Your pin does not move.
               </p>
             </div>
           </div>
 
-          <div className="rounded-xl border border-white/10 bg-white/[0.045] p-3">
+          <div className="rounded-xl border border-white/10 bg-white/[0.045] p-2.5">
             <div className="flex items-center justify-between gap-3">
               <p className="text-xs uppercase tracking-[0.14em] text-white/48">
                 Your signal <span className="text-white/32">{SIGNAL_MAX_LENGTH} characters max</span>
@@ -362,13 +521,13 @@ export default function MapPingSheet({
             <legend className="text-sm font-medium text-white">Pulse radius</legend>
             <RadioGroup
               aria-label="Pulse radius"
-              className="mt-2 grid grid-cols-5 gap-2"
+                className="mt-1.5 grid grid-cols-5 gap-1.5"
               onValueChange={(value) => setRadiusMiles(Number(value) as MapPingRadiusMiles)}
               value={String(radiusMiles)}
             >
               {MAP_PING_RADII_MILES.map((radius) => (
                 <label
-                  className="flex min-h-12 cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-white/10 bg-white/[0.035] px-1 py-2 text-center text-xs text-white/72 has-[[data-state=checked]]:border-[#c8ff31] has-[[data-state=checked]]:text-white"
+                  className="flex min-h-10 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-lg border border-white/10 bg-white/[0.035] px-1 py-1 text-center text-xs text-white/72 has-[[data-state=checked]]:border-[#c8ff31] has-[[data-state=checked]]:text-white"
                   key={radius}
                 >
                   <RadioGroupItem className="border-[#c8ff31]/55 text-[#c8ff31] focus-visible:ring-[#c8ff31]/40 [&_svg]:fill-[#c8ff31]" value={String(radius)} aria-label={`${radius} ${radius === 1 ? 'mile' : 'miles'}`} />
@@ -382,7 +541,7 @@ export default function MapPingSheet({
           <div className="flex items-center justify-between gap-3 text-sm">
             <p aria-live="polite" className="min-w-0 text-white/65">
               {lurkerActive
-                ? 'Turn off Lurker Mode to send a Pulse.'
+                ? 'Turn off Dark Room to send a Pulse.'
                 : !normalizedSignal
                 ? 'Your Pulse uses the signal saved on your profile.'
                 : hasMapLocation
@@ -403,7 +562,7 @@ export default function MapPingSheet({
           </div>
           {!hasCruushPlus && status?.allowance.remaining === 0 && onUpgrade ? (
             <CruushPlusGateNotice
-              description="Basic includes 1 Ping every 24 hours."
+              description="Basic includes 1 Pulse every 24 hours."
               onUpgrade={onUpgrade}
             />
           ) : null}
@@ -414,7 +573,7 @@ export default function MapPingSheet({
           ) : null}
         </div>
 
-        <SheetFooter>
+        <SheetFooter className="shrink-0 bg-background/96 pb-[env(safe-area-inset-bottom)] pt-2">
           <Button
             type="button"
             className="cruush-action-sheen h-11 rounded-full font-semibold text-[#0B1200] disabled:text-white/45"
@@ -426,7 +585,7 @@ export default function MapPingSheet({
             {sending
               ? 'Sending Pulse...'
               : lurkerActive
-                ? 'Lurker Mode is on'
+                ? 'Dark Room is on'
                 : activePing
                   ? 'Pulse active'
                   : cooldownCountdown
@@ -434,6 +593,20 @@ export default function MapPingSheet({
                     : 'Send Pulse'}
           </Button>
         </SheetFooter>
+
+        {!isMobile ? (
+          <div
+            aria-label="Resize Pulse panel"
+            className="absolute bottom-0 right-0 z-40 h-7 w-7 cursor-nwse-resize"
+            data-testid="map-ping-sheet-resize"
+            onPointerCancel={endDrag}
+            onPointerDown={(event) => beginDrag(event, 'resize')}
+            onPointerMove={continueDrag}
+            onPointerUp={endDrag}
+          >
+            <span className="absolute bottom-2 right-2 block h-2.5 w-2.5 rounded-[3px] border-b-2 border-r-2 border-white/70" />
+          </div>
+        ) : null}
       </SheetContent>
     </Sheet>
   );

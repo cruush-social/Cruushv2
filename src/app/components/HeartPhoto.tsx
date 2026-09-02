@@ -3,9 +3,13 @@ import { useId } from 'react';
 import { resolveMediaUrl } from '../lib/apiClient';
 import { HEART_PIN_PATH, HEART_PIN_THEMES, type HeartPinTheme } from '../lib/heartPin';
 import { getProfileGradientStops } from '../lib/profileGradient';
+import MileHighContrail from './MileHighContrail';
+import { USER_BORDER_COLORS, type UserBorderTone } from '../lib/userBorderTone';
 
 interface HeartPhotoProps {
   borderColor?: string;
+  borderTone?: UserBorderTone;
+  staticMileHigh?: boolean;
   className?: string;
   fallback?: ReactNode;
   label: string;
@@ -18,6 +22,8 @@ interface HeartPhotoProps {
 
 export default function HeartPhoto({
   borderColor,
+  borderTone,
+  staticMileHigh = false,
   className = '',
   fallback = null,
   label,
@@ -33,7 +39,8 @@ export default function HeartPhoto({
   const resolvedTheme = HEART_PIN_THEMES[theme];
   const showPhoto = Boolean(photo && !masked);
   const gradientStops = userId && !showPhoto && theme !== 'current' ? getProfileGradientStops(userId) : resolvedTheme.stops;
-  const resolvedBorderColor = borderColor ?? resolvedTheme.border;
+  const resolvedBorderColor = borderColor
+    ?? (staticMileHigh ? USER_BORDER_COLORS['mile-high'] : borderTone ? USER_BORDER_COLORS[borderTone] : resolvedTheme.border);
   const resolvedPhoto = showPhoto && photo ? resolveMediaUrl(photo) : null;
   const handleClick = onClick
     ? (event: MouseEvent<HTMLDivElement>) => {
@@ -57,6 +64,7 @@ export default function HeartPhoto({
   return (
     <div
       className={`relative aspect-square ${onClick ? 'cursor-pointer' : ''} ${className}`.trim()}
+      data-heart-theme={theme}
       onClick={handleClick}
       onKeyDown={handleKeyDown}
       role={onClick ? 'button' : undefined}
@@ -78,7 +86,7 @@ export default function HeartPhoto({
               <image href={resolvedPhoto} width="64" height="64" preserveAspectRatio="xMidYMid slice" />
             </pattern>
           ) : null}
-          <linearGradient id={gradientId} x1="10" y1="9" x2="55" y2="56" gradientUnits="userSpaceOnUse">
+          <linearGradient data-heart-fill-theme={theme} id={gradientId} x1="10" y1="9" x2="55" y2="56" gradientUnits="userSpaceOnUse">
             <stop offset="0%" stopColor={gradientStops[0]} />
             <stop offset="52%" stopColor={gradientStops[1]} />
             <stop offset="100%" stopColor={gradientStops[2]} />
@@ -88,8 +96,16 @@ export default function HeartPhoto({
           d={HEART_PIN_PATH}
           fill={resolvedPhoto ? `url(#${patternId})` : `url(#${gradientId})`}
           stroke={resolvedBorderColor}
+          strokeOpacity={1}
           strokeWidth="3.2"
         />
+        {staticMileHigh ? (
+          <MileHighContrail
+            forceReducedMotion
+            gradientId={`${gradientId}-mile-high`}
+            marker={{ id: patternId }}
+          />
+        ) : null}
       </svg>
 
       {!resolvedPhoto && fallback ? (

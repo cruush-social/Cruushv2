@@ -124,6 +124,10 @@ function createTestApp() {
       return { rows: [{ redeemed: true }] };
     }
 
+    if (sql === "select email from app_users where id = $1 limit 1") {
+      return { rows: [{ email: "suspended@example.com" }] };
+    }
+
     if (sql.includes("returning photos")) {
       return { rows: [{ photos: [params[2]] }] };
     }
@@ -205,6 +209,7 @@ describe("shared Stream profile-photo automod route", () => {
 
   afterEach(() => {
     vi.clearAllMocks();
+    vi.unstubAllGlobals();
   });
 
   it("publishes only when Stream keeps and Rekognition detects a human", async () => {
@@ -248,7 +253,7 @@ describe("shared Stream profile-photo automod route", () => {
     ].map((objectKey) => deleteEncryptedMediaObject(app.config, objectKey as string)));
   });
 
-  it("fails closed and deletes ciphertext when Stream keeps but no human is detected", async () => {
+  it("publishes gear-only photos when Stream keeps and no human is detected", async () => {
     providerState.rekognitionLabels = [{
       Name: "Landscape",
       Confidence: 99,
@@ -274,15 +279,15 @@ describe("shared Stream profile-photo automod route", () => {
       mediaCall?.[1]?.[25]
     ] as string[];
 
-    expect(response.statusCode, response.body).toBe(400);
-    expect(response.json()).toMatchObject({ error: { code: "CONTENT_REJECTED" } });
+    expect(response.statusCode, response.body).toBe(201);
     expect(JSON.stringify(query.mock.calls)).toContain("human_not_detected");
-    expect(query.mock.calls.some(([text]) => String(text).includes("insert into profiles"))).toBe(false);
+    expect(query.mock.calls.some(([text]) => String(text).includes("insert into profiles"))).toBe(true);
     for (const objectKey of objectKeys) {
-      await expect(readEncryptedMediaObject(app.config, objectKey)).rejects.toThrow();
+      await expect(readEncryptedMediaObject(app.config, objectKey)).resolves.toBeInstanceOf(Buffer);
     }
 
     await app.close();
+    await Promise.all(objectKeys.map((objectKey) => deleteEncryptedMediaObject(app.config, objectKey)));
   });
 
   it("suspends the account for human review when a child face is detected", async () => {
@@ -291,6 +296,16 @@ describe("shared Stream profile-photo automod route", () => {
       AgeRange: { Low: 6, High: 10 }
     }];
     const { app, query } = createTestApp();
+    Object.assign(app.config, {
+      RESEND_API_KEY: "re_test",
+      MAIL_FROM: "cruush <hello@cruush.test>"
+    });
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: async () => ""
+    });
+    vi.stubGlobal("fetch", fetchMock);
     const multipart = multipartFilePayload(validPng());
     const response = await app.inject({
       method: "POST",
@@ -326,6 +341,18 @@ describe("shared Stream profile-photo automod route", () => {
     expect(sql.some((text) => text.includes("insert into profiles"))).toBe(false);
     expect(sql.some((text) => text.includes("set moderation_status = 'rejected'") && text.includes("content_review_id = $3"))).toBe(true);
     expect(sql.some((text) => text.includes("delete from media_objects"))).toBe(false);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const emailBodies = fetchMock.mock.calls.map(([, init]) => JSON.parse(String(init?.body)));
+    expect(emailBodies).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        to: ["suspended@example.com"],
+        subject: "Appeal your cruush age-related suspension"
+      }),
+      expect.objectContaining({
+        to: ["reports@cruush.app"],
+        subject: "age-related suspension applied"
+      })
+    ]));
     for (const objectKey of objectKeys) {
       const ciphertext = await readEncryptedMediaObject(app.config, objectKey);
       expect(ciphertext.equals(validPng())).toBe(false);

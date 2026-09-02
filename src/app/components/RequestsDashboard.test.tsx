@@ -76,6 +76,12 @@ describe('RequestsDashboard', () => {
     renderDashboard();
 
     expect(await screen.findByText('Map crash')).toBeInTheDocument();
+    expect(getSupportRequests).toHaveBeenCalledWith({
+      status: 'open',
+      category: 'all',
+      limit: 25,
+      offset: 0,
+    });
     fireEvent.change(screen.getByPlaceholderText('Write the reply that should go to the reporter...'), {
       target: { value: 'We fixed the crash in the next build.' },
     });
@@ -87,6 +93,75 @@ describe('RequestsDashboard', () => {
     await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith('Reply sent.'));
   });
 
+  it('filters age suspension appeals and renders their private evidence', async () => {
+    getSupportRequests.mockImplementation(async (options) => {
+      if (options.category !== 'suspension_appeal') {
+        return {
+          requests: [],
+          page: { limit: 25, offset: 0, total: 0, hasMore: false },
+        };
+      }
+
+      return {
+        requests: [{
+          id: 'appeal-1',
+          requesterUserId: 'user-appeal',
+          contactEmail: 'appeal@example.com',
+          category: 'suspension_appeal',
+          subject: 'Suspension appeal',
+          message: 'Please review my age suspension.',
+          source: 'auth',
+          pageUrl: '/support?appeal=1',
+          aiTriageStatus: 'pending',
+          status: 'open',
+          createdAt: '2026-09-01T06:00:00.000Z',
+          updatedAt: '2026-09-01T06:00:00.000Z',
+          recipientEmail: 'appeal@example.com',
+          replyCount: 0,
+          lastReplyAt: null,
+          appealEvidence: [
+            { type: 'id', previewUrl: '/api/admin/moderation/support-requests/appeal-1/appeal-evidence/id' },
+            { type: 'selfie', previewUrl: '/api/admin/moderation/support-requests/appeal-1/appeal-evidence/selfie' },
+          ],
+        }],
+        page: { limit: 25, offset: 0, total: 1, hasMore: false },
+      };
+    });
+
+    renderDashboard();
+    fireEvent.change(await screen.findByRole('combobox', { name: 'Request type filter' }), {
+      target: { value: 'suspension_appeal' },
+    });
+
+    expect(await screen.findByRole('heading', { name: 'Suspension appeal' })).toBeInTheDocument();
+    expect(screen.getByText('1 age suspension appeal')).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'Redacted ID showing date of birth and photo' })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'Appeal selfie' })).toBeInTheDocument();
+    expect(getSupportRequests).toHaveBeenLastCalledWith({
+      status: 'open',
+      category: 'suspension_appeal',
+      limit: 25,
+      offset: 0,
+    });
+  });
+
+  it('loads requests beyond the first 25 rows', async () => {
+    getSupportRequests.mockResolvedValue({
+      requests: [],
+      page: { limit: 25, offset: 0, total: 26, hasMore: true },
+    });
+
+    renderDashboard();
+    fireEvent.click(await screen.findByRole('button', { name: 'Next request page' }));
+
+    await waitFor(() => expect(getSupportRequests).toHaveBeenLastCalledWith({
+      status: 'open',
+      category: 'all',
+      limit: 25,
+      offset: 25,
+    }));
+  });
+
   it('shows access denied state for non-moderators', async () => {
     const { ApiClientError } = await import('../lib/apiClient');
     getSupportRequests.mockRejectedValue(new ApiClientError(403, 'FORBIDDEN', 'Moderator access required.'));
@@ -94,5 +169,6 @@ describe('RequestsDashboard', () => {
     renderDashboard();
 
     expect(await screen.findByText('Moderator access is required to read bug reports.')).toBeInTheDocument();
+    expect(screen.queryByText('No requests match this filter.')).not.toBeInTheDocument();
   });
 });

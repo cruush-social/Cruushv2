@@ -74,39 +74,42 @@ async function imageWithMetadata() {
 }
 
 describe("privacy-hardened media assets", () => {
-  it("encrypts only sanitized canonical bytes and does not create a legacy grant for shared automod", async () => {
-    const { app, config, query, request } = await setup(true);
-    const uploadedBytes = await imageWithMetadata();
-    const processed = await processUploadedImage(uploadedBytes, "image/jpeg");
+  it.each(["profile_photo", "feed_photo"] as const)(
+    "encrypts only sanitized canonical bytes for %s and does not create a legacy grant for shared automod",
+    async (surface) => {
+      const { app, config, query, request } = await setup(true);
+      const uploadedBytes = await imageWithMetadata();
+      const processed = await processUploadedImage(uploadedBytes, "image/jpeg");
 
-    const asset = await createPendingMediaAsset(app, request, {
-      ownerUserId,
-      surface: "profile_photo",
-      processed
-    });
+      const asset = await createPendingMediaAsset(app, request, {
+        ownerUserId,
+        surface,
+        processed
+      });
 
-    const calls = query.mock.calls as Array<[string, unknown[]?]>;
-    const mediaInsert = calls.find(([sql]) => String(sql).includes("with inserted_media as"));
-    const mediaParams = mediaInsert?.[1] as unknown[];
-    const objectKey = mediaParams[3] as string;
-    const ciphertext = await readEncryptedMediaObject(config, objectKey);
-    const plaintext = decryptMediaBytes(config, {
-      ciphertext,
-      encryptedDataKey: mediaParams[8] as string,
-      dataKeyNonce: mediaParams[9] as string,
-      dataKeyAuthTag: mediaParams[10] as string,
-      nonce: mediaParams[11] as string,
-      authTag: mediaParams[12] as string,
-      keyVersion: mediaParams[13] as string
-    });
+      const calls = query.mock.calls as Array<[string, unknown[]?]>;
+      const mediaInsert = calls.find(([sql]) => String(sql).includes("with inserted_media as"));
+      const mediaParams = mediaInsert?.[1] as unknown[];
+      const objectKey = mediaParams[3] as string;
+      const ciphertext = await readEncryptedMediaObject(config, objectKey);
+      const plaintext = decryptMediaBytes(config, {
+        ciphertext,
+        encryptedDataKey: mediaParams[8] as string,
+        dataKeyNonce: mediaParams[9] as string,
+        dataKeyAuthTag: mediaParams[10] as string,
+        nonce: mediaParams[11] as string,
+        authTag: mediaParams[12] as string,
+        keyVersion: mediaParams[13] as string
+      });
 
-    expect(plaintext).toEqual(processed.canonicalBytes);
-    expect(plaintext).not.toEqual(uploadedBytes);
-    expect(mediaParams[5]).toBe(processed.canonicalBytes.length);
-    expect(objectKey).toMatch(/^originals\/[0-9a-f-]{36}\.enc$/);
-    expect(asset.grant).toBeUndefined();
-    expect(calls.some(([sql]) => String(sql).includes("insert into moderation_media_grants"))).toBe(false);
-  });
+      expect(plaintext).toEqual(processed.canonicalBytes);
+      expect(plaintext).not.toEqual(uploadedBytes);
+      expect(mediaParams[5]).toBe(processed.canonicalBytes.length);
+      expect(objectKey).toMatch(/^originals\/[0-9a-f-]{36}\.enc$/);
+      expect(asset.grant).toBeUndefined();
+      expect(calls.some(([sql]) => String(sql).includes("insert into moderation_media_grants"))).toBe(false);
+    }
+  );
 
   it("deletes every ciphertext object and the asset row when moderation rejects", async () => {
     const { app, config, query, request } = await setup(false);
@@ -118,7 +121,7 @@ describe("privacy-hardened media assets", () => {
     });
 
     await expect(moderatePendingMediaAsset(app, request, asset, {
-      filename: "neutral-non-human-gradient.jpg",
+      filename: "animal.jpg",
       moderationSurface: "profile_photo"
     })).rejects.toMatchObject({ code: "CONTENT_REJECTED" });
 

@@ -105,17 +105,17 @@ describe('smoke: declared overlay geometry matches the components', () => {
     [
       'alpha-bug-button',
       'src/app/components/AlphaBugButton.tsx',
-      ['right-[calc(0.75rem+env(safe-area-inset-right))]', 'top-[calc(0.75rem+env(safe-area-inset-top))]', 'z-50'],
+      ['right-[calc(0.75rem+env(safe-area-inset-right))]', 'top-[calc(0.75rem+env(safe-area-inset-top))]', 'z-[1500]'],
     ],
     [
       'alpha-bug-tip',
       'src/app/components/AlphaBugButton.tsx',
-      ['right-[calc(0.75rem+env(safe-area-inset-right))]', 'top-[calc(4.5rem+env(safe-area-inset-top))]', 'fixed z-50'],
+      ['right-[calc(0.75rem+env(safe-area-inset-right))]', 'top-[calc(4.5rem+env(safe-area-inset-top))]', 'fixed z-[1200]'],
     ],
     [
       'map-alpha-bug-tip',
       'src/app/components/AlphaBugButton.tsx',
-      ['top-[calc(20.125rem+env(safe-area-inset-top))]', 'sm:top-[calc(9.25rem+env(safe-area-inset-top))]', 'fixed z-50'],
+      ['top-[calc(20.125rem+env(safe-area-inset-top))]', 'sm:top-[calc(9.25rem+env(safe-area-inset-top))]', 'fixed z-[1200]'],
     ],
     [
       'map-right-actions',

@@ -34,9 +34,12 @@ export type VisibilityPolicyPayload = {
   baseMode: VisibilityBaseMode;
   ghostActivatedAtMs?: number | null;
   ghostSessionVersion?: number | null;
+  ghostRotationMinutes?: number;
+  ghostRotationSchedule?: { startsAtMs: number; firstEpoch: number } | null;
   ghostRadiusMeters: number | null;
   preciseToMutualCruushes: boolean;
   preciseToMutualCrowds: CrowdPrecisionPolicy[];
+  darkRoomDistanceLabel?: boolean;
   auditRequired: boolean;
   updatedAtMs: number;
   expiresAtMs: number | null;
@@ -216,6 +219,11 @@ export const DISPLAY_TOKEN_TTL_MS = 180 * 1000;
 export const LOCATION_DISCOVERY_WINDOW_MS = 4 * 24 * 60 * 60 * 1000;
 const LOCATION_TTL_MS = LOCATION_DISCOVERY_WINDOW_MS;
 const ROTATION_INTERVAL_MS = 15 * 60 * 1000;
+export const GHOST_ROTATION_MINUTES = [15, 30, ...Array.from({ length: 24 }, (_, index) => (index + 1) * 60)];
+
+function normalizeGhostRotationMinutes(value: number | undefined) {
+  return typeof value === "number" && GHOST_ROTATION_MINUTES.includes(value) ? value : 15;
+}
 const DISPLAY_KEY_TTL_MS = 30 * 60 * 1000;
 const COARSE_CELL_DEGREES = 0.02;
 
@@ -440,9 +448,11 @@ export function buildDefaultVisibilityPolicy(
     baseMode: "GHOST",
     ghostActivatedAtMs: nowMs,
     ghostSessionVersion: 1,
+    ghostRotationMinutes: 15,
     ghostRadiusMeters: DEFAULT_GHOST_RADIUS_METERS,
     preciseToMutualCruushes: false,
     preciseToMutualCrowds: [],
+    darkRoomDistanceLabel: false,
     auditRequired: false,
     updatedAtMs: nowMs,
     expiresAtMs: null,
@@ -475,6 +485,7 @@ function buildFailClosedVisibilityPolicy(
     ghostSessionVersion: null,
     preciseToMutualCruushes: false,
     preciseToMutualCrowds: [],
+    darkRoomDistanceLabel: false,
     auditRequired: true
   };
 }
@@ -516,6 +527,18 @@ export function normalizeVisibilityPolicy(
         ? false
         : previous.preciseToMutualCruushes;
 
+  const ghostRotationMinutes = normalizeGhostRotationMinutes(input.ghostRotationMinutes ?? previous.ghostRotationMinutes);
+  let ghostRotationSchedule = baseMode === "GHOST" && previous.baseMode === "GHOST"
+    ? previous.ghostRotationSchedule ?? null
+    : null;
+  if (baseMode === "GHOST" && previous.baseMode === "GHOST" &&
+      ghostRotationMinutes !== normalizeGhostRotationMinutes(previous.ghostRotationMinutes)) {
+    const current = getGhostRotationState(previous, nowMs);
+    // Keep the active epoch and deadline. A settings edit must not move the
+    // decoy early or reset its derivation; the new cadence starts next epoch.
+    ghostRotationSchedule = { startsAtMs: current.expiresAtMs, firstEpoch: current.rotationEpoch + 1 };
+  }
+
   return {
     version: 1,
     subjectUserId,
@@ -523,9 +546,12 @@ export function normalizeVisibilityPolicy(
     baseMode,
     ghostActivatedAtMs,
     ghostSessionVersion,
+    ghostRotationMinutes,
+    ghostRotationSchedule,
     ghostRadiusMeters: input.ghostRadiusMeters ?? previous.ghostRadiusMeters ?? DEFAULT_GHOST_RADIUS_METERS,
     preciseToMutualCruushes,
     preciseToMutualCrowds: normalizeCrowdPrecisionPolicies(input.preciseToMutualCrowds ?? previous.preciseToMutualCrowds),
+    darkRoomDistanceLabel: input.darkRoomDistanceLabel ?? previous.darkRoomDistanceLabel === true,
     auditRequired: input.auditRequired ?? previous.auditRequired,
     updatedAtMs: nowMs,
     expiresAtMs: input.expiresAtMs ?? previous.expiresAtMs,
@@ -535,20 +561,19 @@ export function normalizeVisibilityPolicy(
 
 export function publicPrivacySettings(policy: VisibilityPolicyPayload, nowMs = Date.now()) {
   const ghostRotationExpiresAtMs = policy.baseMode === "GHOST"
-    ? rotationExpiresAtMs(
-        ghostActivationAnchorMs(policy),
-        currentRotationEpoch(nowMs, ghostActivationAnchorMs(policy))
-      )
+    ? getGhostRotationState(policy, nowMs).expiresAtMs
     : null;
 
   return {
     baseMode: policy.baseMode,
     ghostModeEnabled: policy.baseMode === "GHOST",
+    ghostRotationMinutes: normalizeGhostRotationMinutes(policy.ghostRotationMinutes),
     ...(ghostRotationExpiresAtMs === null ? {} : { ghostRotationExpiresAtMs }),
     ghostRadiusMeters: policy.ghostRadiusMeters ?? DEFAULT_GHOST_RADIUS_METERS,
     ghostRadiusLabel: radiusLabelForMeters(policy.ghostRadiusMeters ?? DEFAULT_GHOST_RADIUS_METERS),
     preciseToMutualCruushes: policy.preciseToMutualCruushes,
     preciseToMutualCrowds: normalizeCrowdPrecisionPolicies(policy.preciseToMutualCrowds),
+    darkRoomDistanceLabel: policy.darkRoomDistanceLabel === true,
     preciseLocationVisibility: policy.preciseToMutualCruushes ? "mutual_cruushes" as const : "none" as const,
     updatedAtMs: policy.updatedAtMs
   };
@@ -698,8 +723,8 @@ export async function saveVisibilityPolicy(
     ghostRotationPolicyVersion(currentPolicy) === ghostRotationPolicyVersion(policy);
 
   if (ghostSessionContinues) {
-    // Snapshot the active interval before saving same-session radius or
-    // precision edits. The edited radius takes effect when the next interval
+    // Snapshot the active interval before saving same-session radius, cadence,
+    // or precision edits. The edited radius takes effect when the next interval
     // creates its rotation, never in the middle of the current one.
     await loadOrCreateGhostRotation(context, {
       subjectUserId,
@@ -1022,8 +1047,23 @@ function ghostRotationPolicyVersion(policy: VisibilityPolicyPayload) {
   return policy.ghostSessionVersion ?? policy.policyVersion;
 }
 
-function rotationExpiresAtMs(activationAnchorMs: number, rotationEpoch: number) {
-  return activationAnchorMs + (rotationEpoch + 1) * ROTATION_INTERVAL_MS;
+export function getGhostRotationState(policy: VisibilityPolicyPayload, nowMs = Date.now()) {
+  const intervalMs = normalizeGhostRotationMinutes(policy.ghostRotationMinutes) * 60_000;
+  const schedule = policy.ghostRotationSchedule;
+  if (schedule && Number.isFinite(schedule.startsAtMs) &&
+      Number.isSafeInteger(schedule.firstEpoch) && schedule.firstEpoch > 0) {
+    if (nowMs < schedule.startsAtMs) {
+      return { rotationEpoch: schedule.firstEpoch - 1, expiresAtMs: schedule.startsAtMs };
+    }
+    const elapsed = Math.floor((nowMs - schedule.startsAtMs) / intervalMs);
+    return {
+      rotationEpoch: schedule.firstEpoch + elapsed,
+      expiresAtMs: schedule.startsAtMs + (elapsed + 1) * intervalMs
+    };
+  }
+  const anchorMs = ghostActivationAnchorMs(policy);
+  const rotationEpoch = Math.max(0, Math.floor((nowMs - anchorMs) / intervalMs));
+  return { rotationEpoch, expiresAtMs: anchorMs + (rotationEpoch + 1) * intervalMs };
 }
 
 // The last minute before a ghost pin relocates. Viewers get the deadline itself
@@ -1051,9 +1091,7 @@ export async function describeGhostRotation(
   policy: VisibilityPolicyPayload,
   nowMs = Date.now()
 ) {
-  const activationAnchorMs = ghostActivationAnchorMs(policy);
-  const rotationEpoch = currentRotationEpoch(nowMs, activationAnchorMs);
-  const expiresAtMs = rotationExpiresAtMs(activationAnchorMs, rotationEpoch);
+  const { expiresAtMs } = getGhostRotationState(policy, nowMs);
   const remainingMs = expiresAtMs - nowMs;
 
   // The deadline is derived from the policy already in hand, but the opt-out is
@@ -1093,8 +1131,7 @@ async function loadOrCreateGhostRotation(context: LocationPrivacyContext, input:
   nowMs?: number;
 }) {
   const nowMs = input.nowMs ?? Date.now();
-  const activationAnchorMs = ghostActivationAnchorMs(input.policy);
-  const rotationEpoch = currentRotationEpoch(nowMs, activationAnchorMs);
+  const { rotationEpoch, expiresAtMs } = getGhostRotationState(input.policy, nowMs);
   const rotationPolicyVersion = ghostRotationPolicyVersion(input.policy);
   const loadActiveRotation = async () => (await context.db.query<EncryptedGhostRotationTokenRow>(
     `select
@@ -1148,7 +1185,7 @@ async function loadOrCreateGhostRotation(context: LocationPrivacyContext, input:
     policyVersion: rotationPolicyVersion,
     centerLocationVersion: input.centerLocationVersion,
     tokenCreatedAtMs: nowMs,
-    tokenExpiresAtMs: rotationExpiresAtMs(activationAnchorMs, rotationEpoch) + 15_000
+    tokenExpiresAtMs: expiresAtMs + 15_000
   };
   const encrypted = encryptWithWrappedDataKey({
     plaintext: payload,

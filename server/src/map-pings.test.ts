@@ -65,7 +65,9 @@ const hiddenUserId = "00000000-0000-4000-8000-000000000004";
 const now = new Date("2026-08-09T16:00:00.000Z");
 
 const publicRules: ProfileVisibilityRules = {
+  search_query: "",
   active_crowd_modes: [],
+  mile_high_club_members: false,
   age_range: null,
   distance: null,
   identities: [],
@@ -242,6 +244,21 @@ class MapPingDb implements DbClient {
         .filter((ping) => ping.user_id === params[0] && new Date(ping.expires_at).getTime() > cutoff)
         .sort((first, second) => second.created_at.localeCompare(first.created_at))[0];
       return { rows: (active ? [active] : []) as T[] };
+    }
+
+    if (sql.includes("from side_quest_claims") && sql.includes("as balance")) {
+      return { rows: [{ balance: 0 }] as T[] };
+    }
+
+    // Nobody in these tests is travelling; Mile High Club has its own coverage.
+    if (sql.includes("from user_travel_pins")) {
+      return { rows: [] as T[] };
+    }
+
+    // The Pulse notification fan-out runs after the send and is covered on its
+    // own. These tests are about the send.
+    if (sql.includes("from map_ping_notifications") || sql.includes("into map_ping_notifications")) {
+      return { rows: [] as T[] };
     }
 
     throw new Error(`Unexpected query: ${sql}`);
@@ -734,7 +751,7 @@ describe("map Pings", () => {
       radiusMiles: 5,
       idempotencyKey: "30000000-0000-4000-8000-000000000015"
     }, dependencies({
-      locations: new Map([[senderUserId, location(senderUserId, 41.1, -73.9521325)]])
+      locations: new Map([[senderUserId, location(senderUserId, 43, -73.9521325)]])
     }))).rejects.toMatchObject({
       code: "FEATURE_RESTRICTED"
     });
@@ -815,7 +832,7 @@ describe("map Pings", () => {
     }));
     const serialized = JSON.stringify(status);
 
-    expect(Object.keys(status)).toEqual(["allowance", "activePing", "receivedPings"]);
+    expect(Object.keys(status)).toEqual(["bonusCredits", "allowance", "activePing", "receivedPings"]);
     expect(Object.keys(status.receivedPings[0] ?? {})).toEqual(["id", "sourceUserId", "expiresAt"]);
     expect(serialized).not.toMatch(/radius|distance|latitude|longitude|coordinates|recipientCount|deliveryCount/i);
     const receivedQuery = db.queries.find(({ sql }) => sql.includes("from map_pings ping"));

@@ -42,6 +42,7 @@ import { startMessageExpiryScheduler } from "./message-expiry.js";
 import { startAccountDeletionMediaCleanupScheduler } from "./account-deletion-media-cleanup.js";
 import { startPendingPhotoModerationRetryScheduler } from "./recheck-pending-photo-moderations.js";
 import { startMapPingCleanupScheduler } from "./map-ping-cleanup.js";
+import { startPlaceCheckinExpiryScheduler } from "./place-checkin-expiry.js";
 import { syncAllVerifiedMembersToResendAudience } from "./resend-audience.js";
 import { startCryptoWatcher } from "./crypto-watcher-runtime.js";
 
@@ -53,6 +54,7 @@ let stopAccountDeletionMediaCleanupScheduler: (() => void) | null = null;
 let stopPendingPhotoModerationRetryScheduler: (() => void) | null = null;
 let stopMapPingCleanupScheduler: (() => void) | null = null;
 let stopCryptoWatcher: (() => void) | null = null;
+let stopPlaceCheckinExpiryScheduler: (() => void) | null = null;
 
 const shutdown = async () => {
   stopReferralScheduler?.();
@@ -61,6 +63,7 @@ const shutdown = async () => {
   stopPendingPhotoModerationRetryScheduler?.();
   stopMapPingCleanupScheduler?.();
   stopCryptoWatcher?.();
+  stopPlaceCheckinExpiryScheduler?.();
   await app.close();
 };
 
@@ -85,6 +88,7 @@ stopMapPingCleanupScheduler = startMapPingCleanupScheduler(app);
 // Returns null and logs why unless the processor, the watcher, and a chain
 // endpoint are all explicitly configured.
 stopCryptoWatcher = startCryptoWatcher(app)?.stop ?? null;
+stopPlaceCheckinExpiryScheduler = startPlaceCheckinExpiryScheduler(app);
 void syncAllVerifiedMembersToResendAudience({
   config,
   db: app.db,

@@ -1,7 +1,8 @@
 import { useState } from 'react';
+import { Search } from 'lucide-react';
 import { Button } from './ui/button';
 import { Label } from './ui/label';
-import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from './ui/sheet';
+import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle } from './ui/sheet';
 import { Slider } from './ui/slider';
 import { Switch } from './ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
@@ -24,7 +25,6 @@ import {
 } from '../lib/profileOptions';
 import { DEFAULT_FILTER_STATE, type FilterState } from './MapFiltersSurface';
 import CruushPlusGateNotice from './CruushPlusGateNotice';
-import { saveDistancePreferences, useDistancePreferences } from '../lib/distancePreferences';
 
 export interface VisibilityControlState extends FilterState {
   activeCrowdModes: string[];
@@ -56,7 +56,7 @@ interface MapVisibilitySurfaceProps {
   onUpgrade?: () => void;
 }
 
-type VisibilityListKey = Exclude<keyof VisibilityControlState, 'ageRange' | 'distance' | 'activeCrowdModes' | 'restrictAge' | 'restrictDistance'>;
+type VisibilityListKey = Exclude<keyof VisibilityControlState, 'searchQuery' | 'ageRange' | 'distance' | 'mileHighClub' | 'activeCrowdModes' | 'restrictAge' | 'restrictDistance'>;
 const VISIBILITY_LIST_KEYS: VisibilityListKey[] = [
   'identities',
   'presentations',
@@ -83,8 +83,10 @@ function updateList(value: VisibilityControlState, key: VisibilityListKey, items
 
 export function countVisibilityExclusionFilters(value: VisibilityControlState) {
   return [
+    value.searchQuery.trim().length > 0,
     value.restrictAge,
     value.restrictDistance,
+    value.mileHighClub,
     ...VISIBILITY_LIST_KEYS.map((key) => value[key].length > 0),
   ].filter(Boolean).length;
 }
@@ -151,9 +153,9 @@ export default function MapVisibilitySurface({
   onApply,
   onUpgrade,
 }: MapVisibilitySurfaceProps) {
-  const distancePreferences = useDistancePreferences();
   const visibleCrowdModes = availableCrowdModes.length > 0 ? availableCrowdModes : [];
   const [limitNotice, setLimitNotice] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState('basics');
   const exclusionCount = countVisibilityExclusionFilters(value);
   const freeLimitReached = !hasCruushPlus && exclusionCount >= FREE_VISIBILITY_EXCLUSION_LIMIT;
 
@@ -178,13 +180,17 @@ export default function MapVisibilitySurface({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent closeSide="left" side="right" className="w-full flex h-full max-h-[100dvh] flex-col gap-0 overflow-hidden border-white/10 bg-background/95 p-0 sm:max-w-xl">
+      <SheetContent
+        closeSide="left"
+        side="right"
+        overlayClassName="z-[1090]"
+        className="z-[1100] w-full flex h-full max-h-[100dvh] flex-col gap-0 overflow-hidden border-white/10 bg-background/95 p-0 sm:max-w-xl"
+      >
         <SheetHeader className="shrink-0 border-b border-white/10 py-4 pl-14 pr-5">
-          <SheetTitle>Visibility</SheetTitle>
-          <SheetDescription>Hide yourself from selected audiences. No hidden filters means everyone can see you.</SheetDescription>
+          <SheetTitle>Visibility Controls</SheetTitle>
         </SheetHeader>
 
-        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-4 overscroll-contain">
+        <div className="scrollbar-hide min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-4 overscroll-contain">
           {error ? (
             <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
               {error}
@@ -195,6 +201,21 @@ export default function MapVisibilitySurface({
             <p className="text-sm text-muted-foreground">
               Pick who should not see you.
             </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="visibility-profile-search">Search</Label>
+            <div className="flex items-center gap-2 rounded-xl border border-white/12 bg-white/[0.045] px-3">
+              <Search aria-hidden="true" className="h-4 w-4 shrink-0 text-white/55" />
+              <input
+                id="visibility-profile-search"
+                type="search"
+                value={value.searchQuery}
+                onChange={(event) => handleLimitedChange({ ...value, searchQuery: event.target.value })}
+                placeholder="Hide from matching names, bios, or #tags"
+                className="h-11 min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-white/42"
+              />
+            </div>
           </div>
 
           {!hasCruushPlus && onUpgrade ? (
@@ -252,11 +273,11 @@ export default function MapVisibilitySurface({
             )}
           </div>
 
-          <Tabs defaultValue="basics" className="w-full">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid h-auto w-full grid-cols-3 rounded-full border border-white/10 bg-background/25 p-1">
-              <TabsTrigger value="basics" className="min-h-11">Basics</TabsTrigger>
-              <TabsTrigger value="intimacy" className="min-h-11">Intimacy</TabsTrigger>
-              <TabsTrigger value="health" className="min-h-11">Health</TabsTrigger>
+              <TabsTrigger value="basics" className="min-h-11" onClick={() => setActiveTab('basics')}>Basics</TabsTrigger>
+              <TabsTrigger value="intimacy" className="min-h-11" onClick={() => setActiveTab('intimacy')}>Intimacy</TabsTrigger>
+              <TabsTrigger value="health" className="min-h-11" onClick={() => setActiveTab('health')}>Health</TabsTrigger>
             </TabsList>
 
             <TabsContent value="basics" className="mt-6 space-y-6">
@@ -280,21 +301,6 @@ export default function MapVisibilitySurface({
                 <p className="text-sm text-muted-foreground">
                   {value.restrictDistance ? `Hide me from people farther than ${value.distance} miles` : 'No distance-based hiding'}
                 </p>
-                <div className="pt-2 flex items-start justify-between gap-4 border-t border-white/10">
-                  <div className="space-y-0.5">
-                    <Label htmlFor="visibility-approx-distance">Approximate distance labels</Label>
-                    <p className="text-xs text-muted-foreground">
-                      {distancePreferences.mode === 'approximate'
-                        ? 'Approximate both ways: you see approximate distances, and others see an approximate distance for you.'
-                        : 'Exact both ways: you see an exact distance only from people who also share exact, and they see yours the same way.'}
-                    </p>
-                  </div>
-                  <Switch
-                    id="visibility-approx-distance"
-                    checked={distancePreferences.mode === 'approximate'}
-                    onCheckedChange={(checked) => saveDistancePreferences({ mode: checked ? 'approximate' : 'precise' })}
-                  />
-                </div>
               </div>
 
               <div className="space-y-4">
@@ -334,6 +340,17 @@ export default function MapVisibilitySurface({
             </TabsContent>
 
             <TabsContent value="intimacy" className="mt-6 space-y-6">
+              <div className="flex items-start justify-between gap-4 rounded-2xl border border-white/10 bg-white/[0.035] p-4">
+                <div className="space-y-0.5">
+                  <Label htmlFor="visibility-mile-high-club">Hide me from Mile High Club members</Label>
+                  <p className="text-xs text-muted-foreground">Hide me from members currently using Mile High Club.</p>
+                </div>
+                <Switch
+                  id="visibility-mile-high-club"
+                  checked={value.mileHighClub}
+                  onCheckedChange={(mileHighClub) => handleLimitedChange({ ...value, mileHighClub })}
+                />
+              </div>
               <FieldGroup label="Looking For" options={LOOKING_FOR} stateKey="lookingFor" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} />
               <FieldGroup label="Timing" options={AVAILABILITY} stateKey="timing" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} />
               <FieldGroup label="Hosting/Travel" options={HOSTING} stateKey="hosting" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} />

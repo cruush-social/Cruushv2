@@ -27,6 +27,7 @@ import { photoUploadAvailability } from "../photo-upload-availability.js";
 import { getActiveAccountUserId, getAuthenticatedUserId } from "../request-auth.js";
 import { recordMediaRead } from "../media-read-budget.js";
 import { assertUsersNotBlocked } from "../user-blocks.js";
+import { getRelationshipPermissions } from "../match-relationships.js";
 
 const MAX_PROFILE_PHOTOS = 4;
 const mediaUuidPattern = "[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}";
@@ -46,12 +47,12 @@ const moderationMediaQuerySchema = z.object({
   signature: z.string()
 }).strict();
 const ownedMediaQuerySchema = z.object({
-  surface: z.enum(["profile_photo", "message_photo"]).optional()
+  surface: z.enum(["profile_photo", "message_photo", "feed_photo"]).optional()
 }).strict();
 
 type EncryptedMediaRow = {
   owner_user_id: string;
-  surface: "profile_photo" | "message_photo";
+  surface: "profile_photo" | "message_photo" | "feed_photo";
   object_key: string;
   mime_type: string;
   encrypted_data_key: string;
@@ -64,7 +65,7 @@ type EncryptedMediaRow = {
 
 type OwnedMediaRow = {
   id: string;
-  surface: "profile_photo" | "message_photo";
+  surface: "profile_photo" | "message_photo" | "feed_photo";
   mime_type: string;
   width: number | null;
   height: number | null;
@@ -221,6 +222,56 @@ async function assertMessageMediaAccess(app: FastifyInstance, userId: string, as
   if (!result.rows[0]?.allowed) {
     throw new ApiError(404, "NOT_FOUND", "Media not found.");
   }
+}
+
+async function assertFeedMediaAccess(app: FastifyInstance, userId: string, assetId: string) {
+  const access = (await app.db.query<{
+    owner_user_id: string;
+    audience: "public" | "mutuals" | "crowd";
+    has_shared_crowd: boolean;
+  }>(
+    `select
+       post.user_id::text as owner_user_id,
+       coalesce(post.audience, 'public') as audience,
+       exists (
+         select 1
+         from feed_post_crowd_targets target
+         join profile_sensitive_tokens viewer_token
+           on viewer_token.user_id = $2
+          and viewer_token.token_hash = target.token_hash
+          and viewer_token.token_key_version = target.token_key_version
+         where target.post_id = post.id
+       ) as has_shared_crowd
+     from feed_post_attachments attachment
+     join posts post on post.id = attachment.post_id
+     where attachment.media_object_id = $1
+       and post.expires_at > now()
+     limit 1`,
+    [assetId, userId]
+  )).rows[0];
+
+  if (!access) {
+    throw new ApiError(404, "NOT_FOUND", "Media not found.");
+  }
+  if (access.owner_user_id === userId) {
+    return;
+  }
+
+  await assertUsersNotBlocked(app, userId, access.owner_user_id);
+  if (access.audience === "public") {
+    return;
+  }
+  if (access.audience === "crowd" && access.has_shared_crowd) {
+    return;
+  }
+  if (access.audience === "mutuals") {
+    const relationship = await getRelationshipPermissions(app, userId, access.owner_user_id);
+    if (relationship.isMutualCruush) {
+      return;
+    }
+  }
+
+  throw new ApiError(404, "NOT_FOUND", "Media not found.");
 }
 
 function toUploadError(error: unknown) {
@@ -391,7 +442,7 @@ export async function registerMediaRoutes(app: FastifyInstance) {
        where media.id = $1
          and variant.variant_type = $2
          and media.moderation_status = 'approved'
-         and media.surface in ('message_photo', 'profile_photo')
+         and media.surface in ('message_photo', 'profile_photo', 'feed_photo')
          and media.deleted_at is null
          and variant.deleted_at is null
        limit 1`,
@@ -407,6 +458,8 @@ export async function registerMediaRoutes(app: FastifyInstance) {
       if (mediaObject.owner_user_id !== userId) {
         await assertUsersNotBlocked(app, userId, mediaObject.owner_user_id);
       }
+    } else if (mediaObject.surface === "feed_photo") {
+      await assertFeedMediaAccess(app, userId, assetId);
     } else if (mediaObject.owner_user_id !== userId) {
       await assertMessageMediaAccess(app, userId, assetId);
     }

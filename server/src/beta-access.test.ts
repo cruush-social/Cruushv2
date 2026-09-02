@@ -10,11 +10,11 @@ describe("beta access geofence", () => {
   it("allows locations inside the launch area and blocks outside locations", () => {
     expect(checkBetaAccess(config, { lat: 40.7128, lng: -74.0060 })).toMatchObject({
       allowed: true,
-      radiusMiles: 50
+      radiusMiles: 100
     });
-    expect(checkBetaAccess(config, { lat: 40.0, lng: -73.0 })).toMatchObject({
+    expect(checkBetaAccess(config, { lat: 42.3601, lng: -71.0589 })).toMatchObject({
       allowed: false,
-      radiusMiles: 50
+      radiusMiles: 100
     });
   });
 

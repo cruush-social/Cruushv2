@@ -58,13 +58,14 @@ describe("profile schema", () => {
 
   it("accepts app-owned uploaded profile photo paths", () => {
     const uploadedPhotoPath = "/api/media/assets/7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2/display";
+    const encryptedPhotoPath = "/api/media/profile-photos/c6ba810b-0607-4d2d-955b-b2f2828cfd13.png";
 
     expect(profilePayloadSchema.parse({
       ...emptyProfile,
       display_name: "Cruusher",
       year_of_birth: 1994,
-      photos: [uploadedPhotoPath]
-    }).photos).toEqual([uploadedPhotoPath]);
+      photos: [uploadedPhotoPath, encryptedPhotoPath]
+    }).photos).toEqual([uploadedPhotoPath, encryptedPhotoPath]);
   });
 
   it("rejects local data image profile photos", () => {
@@ -95,7 +96,7 @@ describe("profile schema", () => {
     expect(parsed.visibility_rules.crowds).toEqual(["Dyke"]);
   });
 
-  it("limits explicitly capped profile option groups", () => {
+  it("limits profile option groups to their current server and editor caps", () => {
     const baseProfile = {
       ...emptyProfile,
       display_name: "Cruusher",
@@ -133,13 +134,13 @@ describe("profile schema", () => {
 
     expect(profilePayloadSchema.parse({
       ...baseProfile,
-      position: ["top", "bottom"]
-    }).position).toEqual(["bottom"]);
+      position: ["top", "bottom", "vers", "vers top"]
+    }).position).toEqual(["bottom", "vers", "vers top"]);
 
     expect(profilePayloadSchema.parse({
       ...baseProfile,
-      role: ["switch", "dominant"]
-    }).role).toEqual(["dominant"]);
+      role: ["switch", "dominant", "submissive", "service"]
+    }).role).toEqual(["dominant", "submissive", "service"]);
 
     expect(profilePayloadSchema.parse({
       ...baseProfile,

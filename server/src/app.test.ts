@@ -4,6 +4,7 @@ import sharp from "sharp";
 import { buildServer } from "./app.js";
 import { createSessionCookie, generateSessionToken, hashPassword, hashSessionToken } from "./auth.js";
 import type { AppConfig } from "./config.js";
+import { decryptTextContent, encryptTextContent } from "./content-encryption.js";
 import type { DbClient } from "./db.js";
 import { DEVELOPMENT_ADMIN_EMAIL, DEVELOPMENT_ADMIN_LOCATION } from "./development-admin.js";
 import {
@@ -24,6 +25,7 @@ import {
 } from "./location-privacy.js";
 import { encryptMediaBytes } from "./media-encryption.js";
 import { deleteEncryptedMediaObject, readEncryptedMediaObject, writeEncryptedMediaObject } from "./media-storage.js";
+import { decryptPlaceSuggestion, encryptPlaceSuggestion } from "./place-suggestion-privacy.js";
 import { isDiscoveryMapPingVisible } from "./routes/users.js";
 
 const { notifyNearbyUsersForLocationUpdate } = vi.hoisted(() => ({
@@ -222,8 +224,6 @@ function installPrivacyAwareQueryMock() {
 
 const app = buildServer({
   NODE_ENV: "test",
-  // The fake checkout is opt-in now: it grants cruush+ with no payment, so it
-  // is off unless a non-production environment asks for it.
   BILLING_TEST_CHECKOUT_ENABLED: true,
   PORT: 3001,
   HOST: "127.0.0.1",
@@ -1549,6 +1549,118 @@ describe("server", () => {
     }
   });
 
+  it("stores a new Spot suggestion only in an encrypted envelope", async () => {
+    const payload = {
+      name: "Private proposed Spot",
+      description: "Private review detail",
+      latitude: 40.72,
+      longitude: -73.98,
+      address: "Private review address",
+      facilityType: "bar",
+      tags: []
+    };
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/places",
+      headers: { "x-user-id": userId },
+      payload
+    });
+    const insertCall = query.mock.calls.find(([sql]) => String(sql).includes("insert into places ("));
+    const insertSql = String(insertCall?.[0]);
+    const insertParams = insertCall?.[1] ?? [];
+
+    expect(response.statusCode).toBe(201);
+    expect(response.json().data).toMatchObject({ status: "pending", suggestionCount: 1, autoShortlisted: false });
+    expect(insertSql).toContain("'[encrypted suggestion]', '', 0, 0, null, 'other'");
+    expect(insertSql).toContain("submitted_by");
+    expect(insertParams).not.toContain(payload.name);
+    expect(insertParams).not.toContain(payload.description);
+    expect(insertParams).not.toContain(payload.address);
+    expect(insertParams).not.toContain(payload.latitude);
+    expect(insertParams).not.toContain(payload.longitude);
+    expect(decryptPlaceSuggestion(app.config, {
+      ciphertext: String(insertParams[2]),
+      nonce: String(insertParams[3]),
+      authTag: String(insertParams[4]),
+      keyVersion: String(insertParams[5])
+    })).toEqual(payload);
+  });
+
+  it("adds anonymous duplicate support and shortlists at three supporters", async () => {
+    const placeId = "10000000-0000-4000-8000-000000000099";
+    const payload = {
+      name: "Supported proposed Spot",
+      description: "Private review detail",
+      latitude: 40.72,
+      longitude: -73.98,
+      address: "",
+      facilityType: "bar",
+      tags: []
+    };
+    const encrypted = encryptPlaceSuggestion(app.config, payload);
+
+    query.mockImplementation((sql: string) => {
+      const text = String(sql);
+      if (text.includes("where status = 'published'")) return Promise.resolve({ rows: [] });
+      if (text.includes("p.status = 'pending'")) {
+        return Promise.resolve({ rows: [{
+          id: placeId,
+          suggestion_ciphertext: encrypted.ciphertext,
+          suggestion_nonce: encrypted.nonce,
+          suggestion_auth_tag: encrypted.authTag,
+          suggestion_key_version: encrypted.keyVersion
+        }] });
+      }
+      if (text.includes("insert into place_suggestions")) return Promise.resolve({ rows: [{ place_id: placeId }] });
+      if (text.includes("update places set") && text.includes("suggestion_count")) {
+        return Promise.resolve({ rows: [{ suggestion_count: 3, auto_shortlisted_at: "2026-08-31T20:00:00.000Z" }] });
+      }
+      return Promise.resolve({ rows: [] });
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/places",
+      headers: { "x-user-id": userId },
+      payload
+    });
+    const supportCall = query.mock.calls.find(([sql]) => String(sql).includes("insert into place_suggestions"));
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data).toEqual({ id: placeId, status: "pending", suggestionCount: 3, autoShortlisted: true });
+    expect(String(supportCall?.[0])).toContain("on conflict do nothing");
+    expect(supportCall?.[1]?.[1]).not.toBe(userId);
+    expect(String(supportCall?.[1]?.[1])).not.toContain(userId);
+  });
+
+  it("denies Spot publication before any moderator update", async () => {
+    const placeId = "10000000-0000-4000-8000-000000000099";
+    const response = await app.inject({
+      method: "PATCH",
+      url: `/api/admin/places/${placeId}`,
+      headers: { "x-user-id": userId },
+      payload: { status: "published" }
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(query.mock.calls.some(([sql]) => String(sql).includes("update places set status"))).toBe(false);
+  });
+
+  it("clears only the authenticated member's ratings for the selected Spot", async () => {
+    const placeId = "10000000-0000-4000-8000-000000000099";
+    const response = await app.inject({
+      method: "DELETE",
+      url: `/api/places/${placeId}/rating`,
+      headers: { "x-user-id": userId }
+    });
+    const deleteCall = query.mock.calls.find(([sql]) => String(sql).includes("delete from place_ratings"));
+
+    expect(response.statusCode).toBe(204);
+    expect(String(deleteCall?.[0])).toContain("where place_id = $1 and user_id = $2");
+    expect(deleteCall?.[1]).toEqual([placeId, userId]);
+  });
+
   it.each([
     [undefined, "Enter your complete date of birth."],
     ["2020-02-30", "Enter a valid date of birth."],
@@ -1618,7 +1730,7 @@ describe("server", () => {
     }
   });
 
-  it("allows alpha signup without a password inside the beta access radius", async () => {
+  it("allows beta signup without requesting or storing a signup location", async () => {
     const alphaGeofenceSignupApp = buildServer({
       ...app.config,
       ALPHA_TEST_ENABLED: true,
@@ -1644,7 +1756,6 @@ describe("server", () => {
         }]
       })
       .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({
         rows: [{
           expires_at: "2026-04-30T12:00:00.000Z"
@@ -1661,16 +1772,13 @@ describe("server", () => {
           dateOfBirth: "1994-06-15",
           termsAccepted: true,
           privacyAccepted: true,
-          productUpdatesOptIn: false,
-          betaAccessLocation: {
-            lat: 40.7099,
-            lng: -73.9226
-          }
+          productUpdatesOptIn: false
         }
       });
 
-      expect(response.statusCode).toBe(201);
+      expect(response.statusCode, response.body).toBe(201);
       expect(query.mock.calls[0]?.[0]).toContain("insert into app_users");
+      expect(query.mock.calls.some(([sql]) => String(sql).includes("insert into encrypted_location_envelopes"))).toBe(false);
     } finally {
       await alphaGeofenceSignupApp.close();
     }
@@ -3170,6 +3278,9 @@ describe("server", () => {
         }]
       })
       .mockResolvedValueOnce({
+        rows: []
+      })
+      .mockResolvedValueOnce({
         rows: [{
           id: postId
         }]
@@ -3186,7 +3297,7 @@ describe("server", () => {
     expect(response.statusCode).toBe(204);
     expect(query.mock.calls[0]?.[0]).toContain("from app_sessions s");
     expect(query.mock.calls[0]?.[1]).toEqual([hashSessionToken("active-session-token")]);
-    expect(query.mock.calls[1]?.[0]).toContain("delete from posts");
+    expect(query.mock.calls[2]?.[0]).toContain("delete from posts");
   });
 
   it("revokes suspended cookie-backed sessions on routes using the shared auth helper", async () => {
@@ -3848,7 +3959,8 @@ describe("server", () => {
           name: "Alex",
           pronouns: "they/them",
           photo: "https://example.com/alex.jpg",
-          photoExplicit: false
+          photoExplicit: false,
+          travelling: false
         },
         distance: "Nearby",
         updatedAt: "2026-04-29T12:00:00.000Z",
@@ -3901,7 +4013,8 @@ describe("server", () => {
           name: "Alex",
           pronouns: "they/them",
           photo: null,
-          photoExplicit: false
+          photoExplicit: false,
+          travelling: false
         },
         distance: "Nearby",
         updatedAt: "2026-04-29T12:00:00.000Z",
@@ -4050,7 +4163,8 @@ describe("server", () => {
           name: "Alex",
           pronouns: "they/them",
           photo: "https://example.com/alex.jpg",
-          photoExplicit: false
+          photoExplicit: false,
+          travelling: false
         },
         distance: "Nearby",
         updatedAt: "2026-04-29T12:00:00.000Z",
@@ -4843,7 +4957,8 @@ describe("server", () => {
             name: "Alex",
             pronouns: "they/them",
             photo: "https://example.com/alex.jpg",
-            photoExplicit: false
+            photoExplicit: false,
+            travelling: false
           },
           distance: "Nearby",
           updatedAt: "2026-04-29T12:00:00.000Z",
@@ -6282,6 +6397,8 @@ describe("server", () => {
       null,
       null,
       null,
+      null,
+      null,
       "harassment",
       "keeps sending threats"
     ]);
@@ -6495,6 +6612,8 @@ describe("server", () => {
       null,
       null,
       null,
+      null,
+      null,
       "privacy_location",
       ""
     ]);
@@ -6536,6 +6655,8 @@ describe("server", () => {
       userId,
       "user",
       targetUserId,
+      null,
+      null,
       null,
       null,
       null,
@@ -6591,6 +6712,8 @@ describe("server", () => {
       postId,
       null,
       null,
+      null,
+      null,
       "hate",
       ""
     ]);
@@ -6640,6 +6763,8 @@ describe("server", () => {
       null,
       null,
       null,
+      null,
+      null,
       "violence_threat",
       ""
     ]);
@@ -6680,6 +6805,8 @@ describe("server", () => {
       null,
       mediaObjectId,
       profilePhotoUrl,
+      null,
+      null,
       "non_consensual_imagery",
       ""
     ]);
@@ -8542,12 +8669,12 @@ describe("server", () => {
     }
   });
 
-  it("rejects profile photos without adult-human proof and deletes quarantine storage", async () => {
+  it("accepts a gear-only profile photo while preserving independent safety checks", async () => {
     mockPendingProfileMediaQueries();
     const png = await validPng();
     const multipart = multipartFilePayload({
       fieldName: "photo",
-      filename: "profile.png",
+      filename: "non-human.png",
       contentType: "image/png",
       content: png
     });
@@ -8563,18 +8690,18 @@ describe("server", () => {
     });
     const queries = query.mock.calls.map(([sql]) => String(sql));
 
-    expect(response.statusCode).toBe(400);
+    expect(response.statusCode, response.body).toBe(201);
     expect(response.json()).toEqual({
-      error: {
-        code: "CONTENT_REJECTED",
-        message: "Profile photo must be of you.",
-        details: null
+      data: {
+        url: expect.stringMatching(/^\/api\/media\/assets\/[0-9a-f-]{36}\/display$/),
+        photos: [expect.stringMatching(/^\/api\/media\/assets\/[0-9a-f-]{36}\/display$/)],
+        explicit: false
       }
     });
     expect(queries.some((sql) => sql.includes("select photos from profiles"))).toBe(true);
     expect(queries.some((sql) => sql.includes("insert into media_objects"))).toBe(true);
-    expect(queries.some((sql) => sql.includes("delete from media_objects"))).toBe(true);
-    expect(queries.some((sql) => sql.includes("insert into profiles"))).toBe(false);
+    expect(queries.some((sql) => sql.includes("delete from media_objects"))).toBe(false);
+    expect(queries.some((sql) => sql.includes("insert into profiles"))).toBe(true);
     expect(queries.some((sql) => sql.includes("insert into content_reviews"))).toBe(true);
   });
 
@@ -8621,12 +8748,14 @@ describe("server", () => {
     const reviewCall = query.mock.calls.find(([sql]) => String(sql).includes("insert into content_reviews"));
     const reviewParams = JSON.stringify(reviewCall?.[1] ?? []);
 
-    expect(response.statusCode).toBe(400);
+    expect(response.statusCode).toBe(202);
     expect(reviewParams).not.toContain("moderation-media-staging.cruush.app");
     expect(reviewParams).not.toContain("private-original-name.png");
     expect(reviewParams).not.toContain("profile-photos/");
     expect(reviewParams).not.toContain("/api/media/profile-photos/");
-    expect(reviewParams).toContain("assetId");
+    // Nothing was tagged, so the upload passes and writes no moderation record
+    // at all. There is nothing held, and nothing to leak.
+    expect(reviewParams).not.toContain("assetId");
   });
 
   it("rejects profile photo uploads when the profile already has 4 photos", async () => {
@@ -8893,7 +9022,7 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(query).toHaveBeenCalledTimes(10);
+    expect(query).toHaveBeenCalledTimes(11);
     expect(query.mock.calls[1]?.[0]).toContain("from profiles");
     expect(query.mock.calls[1]?.[0]).toContain("join encrypted_location_envelopes");
     expect(query.mock.calls[1]?.[0]).toContain("profiles.display_name as display_name");
@@ -8901,7 +9030,7 @@ describe("server", () => {
     expect(query.mock.calls[1]?.[0]).toContain("), false) as primary_photo_explicit");
     expect(query.mock.calls[1]?.[0]).not.toContain("media.explicit_classification is distinct from 'non_explicit'");
     expect(query.mock.calls[1]?.[0]).toContain("where profiles.id <> $1");
-    expect(query.mock.calls[1]?.[0]).toContain("profiles.location_updated_at >= now() - interval '4 days'");
+    expect(query.mock.calls[1]?.[0]).toContain("profiles.location_updated_at >= now() - make_interval(hours => coalesce(pin_settings.map_presence_hours, pin_settings.map_presence_days * 24, 168))");
     expect(query.mock.calls[1]?.[0]).toContain("location_envelopes.collected_at_ms >=");
     expect(query.mock.calls[1]?.[0]).not.toContain("discovery_match");
     expect(query.mock.calls[1]?.[0]).toContain("limit $3");
@@ -8942,6 +9071,43 @@ describe("server", () => {
     expect(body.data.profiles[0].lastActive).toMatch(/ago$/);
     const activePingQuery = query.mock.calls.find(([sql]) => String(sql).includes("from map_pings"));
     expect(activePingQuery?.[0]).toContain("radius_miles");
+  });
+
+  it("returns the Mile High Club invitation contract beyond the viewer browse radius", async () => {
+    const viewerLocation = await encryptedLocationEnvelopeRow({
+      subjectUserId: userId,
+      lat: 40.7128,
+      lng: -74.006,
+      accuracyM: 25
+    });
+    query.mockImplementation(async (sql: string) => {
+      const normalizedSql = sql.toLowerCase();
+
+      if (normalizedSql.includes("from encrypted_location_envelopes")) {
+        return { rows: [viewerLocation] };
+      }
+
+      return { rows: [] };
+    });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/users?lat=39.9526&lng=-75.1652",
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      data: {
+        mapEpochMs: expect.any(Number),
+        profiles: [],
+        browseRadiusMiles: 50,
+        outsideBrowseRadius: true
+      }
+    });
+    expect(query.mock.calls.some(([sql]) => String(sql).includes("from map_pings"))).toBe(false);
   });
 
   it("limits discovery Pulse visibility to the sender-selected radius", () => {
@@ -9092,8 +9258,8 @@ describe("server", () => {
     const targetUserId = "4d9ae00c-d3e1-4adf-b2b1-e7ddc2f78b82";
     const targetLocation = await encryptedLocationEnvelopeRow({
       subjectUserId: targetUserId,
-      lat: 40.3,
-      lng: -73.0,
+      lat: 42.3601,
+      lng: -71.0589,
       accuracyM: 50
     });
 
@@ -9105,10 +9271,10 @@ describe("server", () => {
           rows: [{
             id: targetUserId,
             display_name: "Outside",
-            lat: 40.3,
-            lng: -73.0,
-            fuzzy_lat: 40.3,
-            fuzzy_lng: -73.0,
+            lat: 42.3601,
+            lng: -71.0589,
+            fuzzy_lat: 42.3601,
+            fuzzy_lng: -71.0589,
             updated_at: "2026-04-28T12:00:00.000Z"
           }]
         });
@@ -10025,7 +10191,7 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(query).toHaveBeenCalledTimes(6);
+    expect(query).toHaveBeenCalledTimes(7);
     expect(query.mock.calls[2]?.[0]).toContain("tribes as legacy_vibe_tags");
     expect(query.mock.calls[2]?.[0]).toContain("where last_active >= now() - interval '4 days'");
 
@@ -10298,13 +10464,15 @@ describe("server", () => {
         expiresIn: "6h",
         expiresAt: "2026-04-28T18:00:00.000Z",
         createdAt: "2026-04-28T12:00:00.000Z",
+        audience: "public",
         distance: "Nearby",
         user: {
           id: userId,
           name: "Cruusher",
           pronouns: "they/them",
           photo: "https://example.com/photo.jpg",
-          photoExplicit: false
+          photoExplicit: false,
+          canMessage: false
         }
       }]
     });
@@ -10353,6 +10521,7 @@ describe("server", () => {
         expiresIn: "24h",
         expiresAt: "2026-08-10T18:00:00.000Z",
         createdAt: "2026-08-09T18:00:00.000Z",
+        audience: "public",
         distance: "<1 mi",
         locationPin: {
           userId: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
@@ -10363,7 +10532,8 @@ describe("server", () => {
           name: "Nearby person",
           pronouns: "they/them",
           photo: null,
-          photoExplicit: false
+          photoExplicit: false,
+          canMessage: false
         }
       }]
     });
@@ -10392,7 +10562,7 @@ describe("server", () => {
     expect(query.mock.calls[1]?.[0]).toContain("from user_blocks block");
     expect(query.mock.calls[1]?.[0]).toContain("blocker_user_id = $1");
     expect(query.mock.calls[1]?.[0]).toContain("blocked_user_id = p.user_id");
-    expect(query.mock.calls[1]?.[1]).toEqual([userId, "7d", null, null, 15, null, 30]);
+    expect(query.mock.calls[1]?.[1]).toEqual([userId, "7d", null, null, 50, null, 30]);
   });
 
   it("filters crowd-targeted posts by the reader's crowd memberships at the query boundary", async () => {
@@ -10420,13 +10590,17 @@ describe("server", () => {
   });
 
   it("persists the feed expiry choice used by future Pings", async () => {
-    query.mockResolvedValueOnce({
-      rows: [{
-        feed_location_pin_visibility: "mutuals",
-        feed_show_distance_labels: true,
-        feed_post_expiry_default: "24h"
-      }]
-    });
+    query
+      .mockResolvedValueOnce({
+        rows: [{ cruush_plus_enabled: true, cruush_plus_expires_at: null }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          feed_location_pin_visibility: "mutuals",
+          feed_show_distance_labels: true,
+          feed_post_expiry_default: "24h"
+        }]
+      });
 
     const response = await app.inject({
       method: "PUT",
@@ -10442,10 +10616,10 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(query.mock.calls[0]?.[0]).toContain(
+    expect(query.mock.calls[1]?.[0]).toContain(
       "feed_post_expiry_default = coalesce($4::text, user_privacy_settings.feed_post_expiry_default)"
     );
-    expect(query.mock.calls[0]?.[1]).toEqual([userId, "mutuals", true, "24h", null]);
+    expect(query.mock.calls[1]?.[1]).toEqual([userId, "mutuals", true, "24h", null]);
     expect(response.json()).toEqual({
       data: {
         locationPinVisibility: "mutuals",
@@ -10550,8 +10724,9 @@ describe("server", () => {
           id: "post-2",
           user_id: userId,
           content: "Hosting tonight",
-          expires_in: "1h",
-          expires_at: "2026-04-28T13:00:00.000Z",
+          audience: "public",
+          expires_in: "never",
+          expires_at: "infinity",
           created_at: "2026-04-28T12:10:00.000Z",
           display_name: "Cruusher",
           pronouns: ["they/them"],
@@ -10567,7 +10742,7 @@ describe("server", () => {
       },
       payload: {
         content: "Hosting tonight",
-        expiresIn: "1h"
+        expiresIn: "never"
       }
     });
 
@@ -10575,24 +10750,184 @@ describe("server", () => {
     expect(query).toHaveBeenCalledTimes(3);
     expect(query.mock.calls[2]?.[0]).toContain("insert into posts");
     expect(query.mock.calls[2]?.[0]).toContain("content_ciphertext");
+    expect(query.mock.calls[2]?.[0]).toContain("'[encrypted]'");
     expect(query.mock.calls[2]?.[1]).not.toContain("Hosting tonight");
+    expect(decryptTextContent(app.config, "feed", {
+      ciphertext: String(query.mock.calls[2]?.[1]?.[2]),
+      nonce: String(query.mock.calls[2]?.[1]?.[3]),
+      authTag: String(query.mock.calls[2]?.[1]?.[4]),
+      keyVersion: String(query.mock.calls[2]?.[1]?.[5])
+    })).toBe("Hosting tonight");
     expect(response.json()).toEqual({
       data: {
         id: "post-2",
         content: "Hosting tonight",
-        expiresIn: "1h",
-        expiresAt: "2026-04-28T13:00:00.000Z",
+        expiresIn: "never",
+        expiresAt: null,
         createdAt: "2026-04-28T12:10:00.000Z",
+        audience: "public",
         distance: "Nearby",
         user: {
           id: userId,
           name: "Cruusher",
           pronouns: "they/them",
           photo: null,
-          photoExplicit: false
+          photoExplicit: false,
+          canMessage: false
         }
       }
     });
+  });
+
+  it("keeps custom Feed timers behind cruush+", async () => {
+    query.mockResolvedValueOnce({
+      rows: [{ cruush_plus_enabled: false, cruush_plus_expires_at: null }]
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/posts",
+      headers: { "x-user-id": userId },
+      payload: {
+        content: "One hour only",
+        expiresIn: "1h",
+        audience: "public"
+      }
+    });
+
+    expect(response.statusCode).toBe(402);
+    expect(response.json().error).toMatchObject({
+      code: "CRUUSH_PLUS_REQUIRED",
+      message: "Choosing a Feed timer is part of cruush+."
+    });
+    expect(query).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps Feed photo posts behind cruush+", async () => {
+    query.mockResolvedValueOnce({
+      rows: [{ cruush_plus_enabled: false, cruush_plus_expires_at: null }]
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/posts",
+      headers: { "x-user-id": userId },
+      payload: {
+        content: "Photo post",
+        expiresIn: "never",
+        audience: "public",
+        photoMediaIds: ["aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"]
+      }
+    });
+
+    expect(response.statusCode).toBe(402);
+    expect(response.json().error).toMatchObject({
+      code: "CRUUSH_PLUS_REQUIRED",
+      message: "Photo posts are part of cruush+."
+    });
+    expect(query).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects Feed photo assets that are not approved, owned, and unattached", async () => {
+    query
+      .mockResolvedValueOnce({
+        rows: [{ cruush_plus_enabled: true, cruush_plus_expires_at: null }]
+      })
+      .mockResolvedValueOnce({ rows: [{ count: 0 }] });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/posts",
+      headers: { "x-user-id": userId },
+      payload: {
+        content: "Photo post",
+        expiresIn: "never",
+        audience: "public",
+        photoMediaIds: ["aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"]
+      }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json().error).toMatchObject({
+      code: "VALIDATION_ERROR",
+      message: "Choose up to three approved Feed photos that you uploaded."
+    });
+    expect(query.mock.calls[1]?.[0]).toContain("media.owner_user_id = $1");
+    expect(query.mock.calls[1]?.[0]).toContain("media.moderation_status = 'approved'");
+    expect(query.mock.calls[1]?.[0]).toContain("from feed_post_attachments attachment");
+  });
+
+  it("attaches approved Feed photos to a cruush+ post in request order", async () => {
+    const photoId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+    query
+      .mockResolvedValueOnce({
+        rows: [{ cruush_plus_enabled: true, cruush_plus_expires_at: null }]
+      })
+      .mockResolvedValueOnce({ rows: [{ count: 1 }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "post-photo",
+          user_id: userId,
+          content: "Photo post",
+          audience: "public",
+          expires_in: "never",
+          expires_at: "infinity",
+          created_at: "2026-04-28T12:10:00.000Z",
+          feed_photos: [{ id: photoId, explicit: true }],
+          display_name: "Cruusher",
+          pronouns: ["they/them"],
+          photos: []
+        }]
+      });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/posts",
+      headers: { "x-user-id": userId },
+      payload: {
+        content: "Photo post",
+        expiresIn: "never",
+        audience: "public",
+        photoMediaIds: [photoId]
+      }
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(query.mock.calls[3]?.[0]).toContain("insert into feed_post_attachments");
+    expect(query.mock.calls[3]?.[0]).toContain("with ordinality");
+    expect(query.mock.calls[3]?.[1]?.[17]).toEqual([photoId]);
+    expect(response.json().data.photos).toEqual([{
+      id: photoId,
+      url: `/api/media/assets/${photoId}/display`,
+      thumbnailUrl: `/api/media/assets/${photoId}/thumbnail`,
+      explicit: true
+    }]);
+  });
+
+  it("keeps a specific Crowd Feed audience behind cruush+", async () => {
+    query.mockResolvedValueOnce({
+      rows: [{ cruush_plus_enabled: false, cruush_plus_expires_at: null }]
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/posts",
+      headers: { "x-user-id": userId },
+      payload: {
+        content: "For one crowd",
+        expiresIn: "never",
+        audience: "crowd",
+        crowdTargets: ["Dyke"]
+      }
+    });
+
+    expect(response.statusCode).toBe(402);
+    expect(response.json().error).toMatchObject({
+      code: "CRUUSH_PLUS_REQUIRED",
+      message: "Posting to a specific Crowd is part of cruush+."
+    });
+    expect(query).toHaveBeenCalledTimes(1);
   });
 
   it("creates feed posts with seven-day and never expiry options", async () => {
@@ -10713,7 +11048,7 @@ describe("server", () => {
     expect(response.json().error.code).toBe(code);
   });
 
-  it("creates a feed post with multiple crowd targets only when the author belongs to those crowds", async () => {
+  it("creates a Feed+ post for one specific Crowd only when the author belongs to it", async () => {
     query
       .mockResolvedValueOnce({
         rows: [{
@@ -10733,7 +11068,8 @@ describe("server", () => {
           display_name: "Cruusher",
           pronouns: ["they/them"],
           photos: [],
-          crowd_targets: ["Dyke", "Gay"]
+          audience: "crowd",
+          crowd_targets: ["Dyke"]
         }]
       });
 
@@ -10746,22 +11082,24 @@ describe("server", () => {
       payload: {
         content: "Hosting for the crowd",
         expiresIn: "6h",
-        crowdTargets: ["Dyke", "Gay"]
+        audience: "crowd",
+        crowdTargets: ["Dyke"]
       }
     });
 
     expect(response.statusCode).toBe(201);
     expect(query.mock.calls[2]?.[0]).toContain("profile_sensitive_tokens author_crowd_token");
     expect(query.mock.calls[2]?.[0]).toContain("insert into feed_post_crowd_targets");
-    expect(query.mock.calls[2]?.[1]).toContainEqual(["Dyke", "Gay"]);
-    expect(response.json().data.crowdTargets).toEqual(["Dyke", "Gay"]);
+    expect(query.mock.calls[2]?.[1]).toContainEqual(["Dyke"]);
+    expect(response.json().data.audience).toBe("crowd");
+    expect(response.json().data.crowdTargets).toEqual(["Dyke"]);
   });
 
   it("deletes the current user's feed post on DELETE /api/posts/:postId", async () => {
     const postId = "7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2";
-    query.mockResolvedValueOnce({
-      rows: [{ id: postId }]
-    });
+    query
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: postId }] });
 
     const response = await app.inject({
       method: "DELETE",
@@ -10773,17 +11111,17 @@ describe("server", () => {
 
     expect(response.statusCode).toBe(204);
     expect(response.body).toBe("");
-    expect(query).toHaveBeenCalledTimes(1);
-    expect(query.mock.calls[0]?.[0]).toContain("delete from posts");
-    expect(query.mock.calls[0]?.[0]).toContain("user_id = $1");
-    expect(query.mock.calls[0]?.[1]).toEqual([userId, postId]);
+    expect(query).toHaveBeenCalledTimes(2);
+    expect(query.mock.calls[1]?.[0]).toContain("delete from posts");
+    expect(query.mock.calls[1]?.[0]).toContain("user_id = $1");
+    expect(query.mock.calls[1]?.[1]).toEqual([userId, postId]);
   });
 
   it("does not delete another user's feed post on DELETE /api/posts/:postId", async () => {
     const postId = "7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2";
-    query.mockResolvedValueOnce({
-      rows: []
-    });
+    query
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
 
     const response = await app.inject({
       method: "DELETE",
@@ -10801,9 +11139,9 @@ describe("server", () => {
         details: null
       }
     });
-    expect(query).toHaveBeenCalledTimes(1);
-    expect(query.mock.calls[0]?.[0]).toContain("delete from posts");
-    expect(query.mock.calls[0]?.[1]).toEqual([userId, postId]);
+    expect(query).toHaveBeenCalledTimes(2);
+    expect(query.mock.calls[1]?.[0]).toContain("delete from posts");
+    expect(query.mock.calls[1]?.[1]).toEqual([userId, postId]);
   });
 
   it("rejects prohibited feed content before storing a post", async () => {
@@ -11001,7 +11339,7 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(query).toHaveBeenCalledTimes(7);
+    expect(query).toHaveBeenCalledTimes(17);
     expect(query.mock.calls[0]?.[0]).toContain("encrypted_relationship_records");
     expect(query.mock.calls[1]?.[0]).toContain("encrypted_relationship_records");
     expect(query.mock.calls[4]?.[0]).toContain("from profiles");
@@ -11019,6 +11357,7 @@ describe("server", () => {
             pronouns: "they/them",
             photo: "https://example.com/alex.jpg",
             photoExplicit: false,
+            travelling: false,
             vibes: ["Artsy", "Chill", "Drag"]
           }
         }],
@@ -11034,6 +11373,7 @@ describe("server", () => {
             pronouns: "they/them",
             photo: null,
             photoExplicit: false,
+            travelling: false,
             vibes: []
           }
         }]
@@ -11202,13 +11542,18 @@ describe("server", () => {
           createdAt: "2026-04-28T12:00:00.000Z",
           mutual: false,
           locked: false,
-          permissions: { canMessage: true, canRevealPreciseLocation: false, matchId: null },
+          permissions: {
+            canMessage: true,
+            canRevealPreciseLocation: false,
+            matchId: null
+          },
           user: {
             id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
             name: "Alex",
             pronouns: "they/them",
             photo: "https://example.com/alex.jpg",
             photoExplicit: false,
+            travelling: false,
             vibes: ["Artsy", "Chill", "Drag"]
           }
         }, {
@@ -11216,7 +11561,11 @@ describe("server", () => {
           createdAt: "2026-04-28T11:00:00.000Z",
           mutual: false,
           locked: true,
-          permissions: { canMessage: true, canRevealPreciseLocation: false, matchId: null },
+          permissions: {
+            canMessage: true,
+            canRevealPreciseLocation: false,
+            matchId: null
+          },
           user: null
         }],
         sent: [{
@@ -11224,13 +11573,18 @@ describe("server", () => {
           createdAt: "2026-04-28T12:05:00.000Z",
           mutual: false,
           locked: false,
-          permissions: { canMessage: true, canRevealPreciseLocation: false, matchId: null },
+          permissions: {
+            canMessage: true,
+            canRevealPreciseLocation: false,
+            matchId: null
+          },
           user: {
             id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
             name: "Alex",
             pronouns: "they/them",
             photo: "https://example.com/alex.jpg",
             photoExplicit: false,
+            travelling: false,
             vibes: ["Artsy", "Chill", "Drag"]
           }
         }],
@@ -11246,6 +11600,7 @@ describe("server", () => {
             pronouns: "they/them",
             photo: "https://example.com/alex.jpg",
             photoExplicit: false,
+            travelling: false,
             vibes: ["Artsy", "Chill", "Drag"]
           }
         }, {
@@ -11594,8 +11949,9 @@ describe("server", () => {
     const queries = query.mock.calls.map(([sql]) => String(sql));
 
     expect(response.statusCode).toBe(200);
-    expect(query).toHaveBeenCalledTimes(4);
+    expect(query).toHaveBeenCalledTimes(5);
     expect(query.mock.calls[3]?.[0]).toContain("from user_blocks");
+    expect(query.mock.calls[4]?.[0]).toContain("from user_travel_pins");
     expect(queries.some((sql) => sql.includes("where profiles.id = any"))).toBe(false);
     expect(response.json()).toEqual({
       data: {
@@ -12584,6 +12940,10 @@ describe("server", () => {
         display_name: "Cruusher",
         photos: [],
         photo_metadata: [],
+        side_badges: {
+          left: null,
+          right: null
+        },
         bio: "Hello",
         signal: "",
         pronouns: ["they/them"],
@@ -12603,6 +12963,9 @@ describe("server", () => {
         crowds: [],
         availability: ["Tonight"],
         hosting_travel: ["Hosting"],
+        birth_control: [],
+        relationship_status: [],
+        zodiac: [],
         kinks: ["Leather"],
         kinks_visibility: "mutual_crowds",
         kink_interests: [{
@@ -12655,6 +13018,10 @@ describe("server", () => {
         display_name: "Cruusher",
         photos: [],
         photo_metadata: [],
+        side_badges: {
+          left: null,
+          right: null
+        },
         bio: "Hello",
         signal: "",
         pronouns: ["they/them"],
@@ -12674,6 +13041,9 @@ describe("server", () => {
         crowds: [],
         availability: ["Tonight"],
         hosting_travel: ["Hosting"],
+        birth_control: [],
+        relationship_status: [],
+        zodiac: [],
         kinks: ["Leather"],
         kinks_visibility: "mutual_crowds",
         kink_interests: [{
@@ -12701,7 +13071,6 @@ describe("server", () => {
         custom_mpox_vaccine: "",
         substance_boundaries: ["No alcohol involved", "Let's discuss"],
         health_preferences: [],
-        birth_control: [],
         visibility_rules: emptyProfile.visibility_rules,
         updated_at: "2026-04-28T12:00:00.000Z"
       }
@@ -12741,6 +13110,9 @@ describe("server", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({
       data: expect.objectContaining({
+        birth_control: [],
+        relationship_status: [],
+        zodiac: [],
         kinks: ["Leather"],
         kinks_visibility: "mutual_crowds",
         kink_interests: [{
@@ -13059,13 +13431,15 @@ describe("server", () => {
           label: "Leather"
         }],
         kinks_visibility: "mutual_cruushes",
-        viewer_relationship: {
+        viewer_relationship: expect.objectContaining({
           match_id: "match-1",
           mutual_cruush: true,
           outgoing_cruush: true,
           can_message: true,
-          can_reveal_precise_location: false
-        }
+          can_reveal_precise_location: false,
+          location_mode: "GHOST",
+          dark_room_distance_label: false
+        })
       })
     });
   });
@@ -13486,10 +13860,16 @@ describe("server", () => {
       data: {
         id: userId,
         ...payload,
-        health_preferences: [],
         birth_control: [],
+        relationship_status: [],
+        zodiac: [],
+        health_preferences: [],
         year_of_birth: 1994,
         photo_metadata: [],
+        side_badges: {
+          left: null,
+          right: null
+        },
         is_trans: null,
         trans_status_visibility: "mutual_cruushes",
         crowds: [],
@@ -13940,7 +14320,11 @@ describe("server", () => {
 
     expect(response.json()).toEqual({
       data: expect.objectContaining({
-        visibility_rules: payload.visibility_rules
+        visibility_rules: {
+          ...payload.visibility_rules,
+          search_query: "",
+          mile_high_club_members: false
+        }
       })
     });
   });
@@ -14120,7 +14504,7 @@ describe("server", () => {
     const profileRow = {
       id: userId,
       display_name: "Cruusher",
-      photos: [],
+      photos: ["/api/media/profile-photos/c6ba810b-0607-4d2d-955b-b2f2828cfd13.png"],
       bio: "",
       pronouns: [],
       custom_pronouns: "",
@@ -15020,5 +15404,347 @@ describe("server", () => {
         details: null
       }
     });
+  });
+
+  it.each([
+    ["nearest", "distance_miles asc nulls last, lower(name) asc, id asc"],
+    ["active", "active_checkins desc, recent_activity_at desc nulls last, distance_miles asc nulls last, id asc"],
+    ["recent", "recent_activity_at desc nulls last, active_checkins desc, distance_miles asc nulls last, id asc"],
+    ["top_rated", "(rating_count >= 3) desc, rating_average desc nulls last, rating_count desc, distance_miles asc nulls last, id asc"],
+    ["az", "lower(name) asc, distance_miles asc nulls last, id asc"]
+  ])("lists published Spots with the %s sort and bounded pagination", async (sort, expectedOrder) => {
+    const response = await app.inject({
+      method: "GET",
+      url: `/api/places?lat=40.7128&lng=-74.006&radiusMiles=100&sort=${sort}&limit=23&offset=46`,
+      headers: { "x-user-id": userId }
+    });
+    const listCall = query.mock.calls.find(([sql]) => String(sql).includes("where p.status = 'published'"));
+    const listSql = String(listCall?.[0]);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().page).toEqual({ limit: 23, offset: 46, hasMore: false });
+    expect(listSql).toContain(`order by ${expectedOrder}`);
+    expect(listSql).toContain("limit $8 offset $9");
+    expect(listCall?.[1]).toEqual(expect.arrayContaining([100, 23, 46]));
+    expect(listCall?.[1]?.[6]).toBe(100);
+    expect(listCall?.[1]?.[11]).toBe(100);
+  });
+
+  it("rejects a published Spot search radius above 100 miles before database access", async () => {
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/places?lat=40.7128&lng=-74.006&radiusMiles=100.01",
+      headers: { "x-user-id": userId }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(query).not.toHaveBeenCalled();
+  });
+
+  it("reads encrypted Spot board messages and uses encrypted mutual relationships", async () => {
+    const placeId = "10000000-0000-4000-8000-000000000001";
+    const authorUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+    const encrypted = encryptTextContent(app.config, "feed", "Meet by the entrance");
+    const mutualRecord = await encryptedRelationshipRecordRow({
+      id: "spot-board-mutual",
+      type: "mutual_cruush",
+      actorUserId: userId,
+      targetUserId: authorUserId
+    });
+
+    query.mockImplementation((sql: string) => {
+      const text = sql.toLowerCase();
+
+      if (text.includes("from places where id")) {
+        return Promise.resolve({ rows: [{ id: placeId, latitude: 40.7, longitude: -74 }] });
+      }
+
+      if (text.includes("from place_board_messages m")) {
+        return Promise.resolve({
+          rows: [{
+            id: "20000000-0000-4000-8000-000000000001",
+            user_id: authorUserId,
+            content: "[encrypted]",
+            content_ciphertext: encrypted.ciphertext,
+            content_nonce: encrypted.nonce,
+            content_auth_tag: encrypted.authTag,
+            content_key_version: encrypted.keyVersion,
+            created_at: "2026-08-31T16:00:00.000Z",
+            expires_at: "2026-08-31T19:00:00.000Z",
+            display_name: "River",
+            photo: null,
+            photo_explicit: false,
+            pronouns: ["they/them"],
+            vibes: [],
+            scenes: [],
+            archetypes: [],
+            badges: [],
+            side_badges: null,
+            travelling: false
+          }]
+        });
+      }
+
+      if (text.includes("from encrypted_relationship_records")) {
+        return Promise.resolve({ rows: [mutualRecord] });
+      }
+
+      return Promise.resolve({ rows: [] });
+    });
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/api/places/${placeId}/board`,
+      headers: { "x-user-id": userId }
+    });
+    const boardSql = String(query.mock.calls.find(([sql]) => String(sql).includes("from place_board_messages m"))?.[0]);
+    const queries = query.mock.calls.map(([sql]) => String(sql));
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data[0]).toEqual(expect.objectContaining({
+      content: "Meet by the entrance",
+      canDelete: false,
+      user: expect.objectContaining({ id: authorUserId, mutual: true })
+    }));
+    expect(boardSql).toContain("b.blocker_user_id = $2 and b.blocked_user_id = m.user_id");
+    expect(boardSql).toContain("b.blocker_user_id = m.user_id and b.blocked_user_id = $2");
+    expect(boardSql).toContain("m.expires_at > now()");
+    expect(queries.some((sql) => sql.includes("encrypted_relationship_records"))).toBe(true);
+    expect(queries.every((sql) => !sql.includes("cruush_matches"))).toBe(true);
+  });
+
+  it("stores new Spot board text only as encrypted content", async () => {
+    const placeId = "10000000-0000-4000-8000-000000000001";
+    const content = "Meet by the entrance";
+    let boardInsertSql = "";
+    let boardInsertParams: unknown[] = [];
+    let checkinInsertSql = "";
+    let checkinInsertParams: unknown[] = [];
+
+    query.mockImplementation((sql: string, params: unknown[] = []) => {
+      const text = sql.toLowerCase();
+
+      if (text.includes("from places where id")) {
+        return Promise.resolve({ rows: [{ id: placeId, latitude: 40.7, longitude: -74 }] });
+      }
+
+      if (text.includes("select exists") && text.includes("feature_restrictions")) {
+        return Promise.resolve({ rows: [{ allowed: true }] });
+      }
+
+      if (text.includes("insert into place_checkin_events")) {
+        return Promise.resolve({ rows: [{ place_id: placeId }], rowCount: 1 });
+      }
+
+      if (text.includes("insert into place_checkins")) {
+        checkinInsertSql = sql;
+        checkinInsertParams = params;
+        return Promise.resolve({ rows: [{ expires_at: "2026-08-31T19:00:00.000Z" }] });
+      }
+
+      if (text.includes("insert into place_board_messages")) {
+        boardInsertSql = sql;
+        boardInsertParams = params;
+        return Promise.resolve({ rows: [{ id: "20000000-0000-4000-8000-000000000001" }] });
+      }
+
+      return Promise.resolve({ rows: [] });
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/api/places/${placeId}/check-ins`,
+      headers: { "x-user-id": userId },
+      payload: {
+        content,
+        durationHours: 3,
+        visible: true,
+        latitude: 40.7,
+        longitude: -74,
+        accuracyMeters: 10,
+        observedAt: new Date().toISOString()
+      }
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(boardInsertSql).toContain("'[encrypted]'");
+    expect(boardInsertSql).toContain("now() + ($7::int * interval '1 hour')");
+    expect(boardInsertParams).not.toContain(content);
+    expect(boardInsertParams[6]).toBe(3);
+    expect(checkinInsertSql).toContain("now() + ($4::int * interval '1 hour')");
+    expect(checkinInsertParams).toEqual([userId, placeId, true, 3]);
+    expect(decryptTextContent(app.config, "feed", {
+      ciphertext: String(boardInsertParams[2]),
+      nonce: String(boardInsertParams[3]),
+      authTag: String(boardInsertParams[4]),
+      keyVersion: String(boardInsertParams[5])
+    })).toBe(content);
+  });
+
+  it("derives Who's Here mutual state from encrypted relationships", async () => {
+    const placeId = "10000000-0000-4000-8000-000000000001";
+    const checkedInUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+    const mutualRecord = await encryptedRelationshipRecordRow({
+      id: "spot-who-is-here-mutual",
+      type: "mutual_cruush",
+      actorUserId: checkedInUserId,
+      targetUserId: userId
+    });
+
+    query.mockImplementation((sql: string) => {
+      const text = sql.toLowerCase();
+
+      if (text.includes("from places p where p.id")) {
+        return Promise.resolve({
+          rows: [{
+            id: placeId,
+            slug: "test-spot",
+            name: "Test Spot",
+            description: "",
+            latitude: 40.7,
+            longitude: -74,
+            address: null,
+            facility_type: "bar",
+            status: "published",
+            source_kind: "community",
+            source_url: null,
+            source_attribution: null,
+            verified_at: null,
+            created_at: "2026-08-31T16:00:00.000Z",
+            tags: [],
+            distance_miles: null,
+            active_checkins: 1,
+            recent_activity_at: null,
+            rating_average: null,
+            rating_count: 0,
+            viewer_rating: null,
+            suggestion_count: 1,
+            auto_shortlisted_at: null
+          }]
+        });
+      }
+
+      if (text.includes("from place_checkins c") && text.includes("join app_users u")) {
+        return Promise.resolve({
+          rows: [{
+            id: checkedInUserId,
+            name: "River",
+            photo: null,
+            photo_explicit: false,
+            pronouns: ["they/them"],
+            side_badges: null,
+            badges: [],
+            travelling: false
+          }]
+        });
+      }
+
+      if (text.includes("from encrypted_relationship_records")) {
+        return Promise.resolve({ rows: [mutualRecord] });
+      }
+
+      return Promise.resolve({ rows: [] });
+    });
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/api/places/${placeId}`,
+      headers: { "x-user-id": userId }
+    });
+    const peopleSql = String(query.mock.calls.find(([sql]) => {
+      const text = String(sql);
+      return text.includes("from place_checkins c") && text.includes("join app_users u");
+    })?.[0]);
+    const queries = query.mock.calls.map(([sql]) => String(sql));
+    const popularTimesSql = queries.find((sql) => sql.includes("select extract(isodow") && sql.includes("from place_activity_hourly"));
+    const ratingsSql = queries.find((sql) => sql.includes("from unnest(array['overall'"));
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data.visiblePeople).toEqual([
+      expect.objectContaining({ id: checkedInUserId, mutual: true })
+    ]);
+    expect(peopleSql).toContain("b.blocker_user_id = $2 and b.blocked_user_id = c.user_id");
+    expect(peopleSql).toContain("b.blocker_user_id = c.user_id and b.blocked_user_id = $2");
+    expect(peopleSql).toContain("c.visible = true and c.expires_at > now()");
+    expect(queries.some((sql) => sql.includes("encrypted_relationship_records"))).toBe(true);
+    expect(queries.every((sql) => !sql.includes("cruush_matches"))).toBe(true);
+    expect(popularTimesSql).toContain("bucket_start >= now() - interval '90 days'");
+    expect(popularTimesSql).toContain("having sum(checkin_count) >= 3");
+    expect(ratingsSql).toContain("'overall', 'gender_inclusivity', 'lgbtq_friendliness', 'safety', 'accessibility', 'cleanliness'");
+  });
+
+  it("enforces Spot board message deletion ownership in the delete statement", async () => {
+    const placeId = "10000000-0000-4000-8000-000000000001";
+    const messageId = "20000000-0000-4000-8000-000000000001";
+    const otherUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+
+    query.mockImplementation((sql: string, params: unknown[] = []) => {
+      if (sql.toLowerCase().includes("delete from place_board_messages")) {
+        return Promise.resolve({ rows: [], rowCount: params[2] === userId ? 1 : 0 });
+      }
+
+      return Promise.resolve({ rows: [] });
+    });
+
+    const denied = await app.inject({
+      method: "DELETE",
+      url: `/api/places/${placeId}/board/${messageId}`,
+      headers: { "x-user-id": otherUserId }
+    });
+    const allowed = await app.inject({
+      method: "DELETE",
+      url: `/api/places/${placeId}/board/${messageId}`,
+      headers: { "x-user-id": userId }
+    });
+    const deleteCalls = query.mock.calls.filter(([sql]) => String(sql).includes("delete from place_board_messages"));
+
+    expect(denied.statusCode).toBe(404);
+    expect(allowed.statusCode).toBe(204);
+    expect(deleteCalls).toHaveLength(2);
+    expect(String(deleteCalls[0]?.[0])).toContain("user_id = $3");
+    expect(deleteCalls[0]?.[1]).toEqual([messageId, placeId, otherUserId]);
+    expect(deleteCalls[1]?.[1]).toEqual([messageId, placeId, userId]);
+  });
+
+  it("denies Feed photo bytes when the authenticated viewer is outside the post audience", async () => {
+    const assetId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+    const ownerUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          owner_user_id: ownerUserId,
+          surface: "feed_photo",
+          object_key: "feed-photos/not-read.enc",
+          mime_type: "image/webp",
+          encrypted_data_key: "unused",
+          data_key_nonce: "unused",
+          data_key_auth_tag: "unused",
+          content_nonce: "unused",
+          content_auth_tag: "unused",
+          key_version: "v1"
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          owner_user_id: ownerUserId,
+          audience: "crowd",
+          has_shared_crowd: false
+        }]
+      })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/api/media/assets/${assetId}/display`,
+      headers: { "x-user-id": userId }
+    });
+
+    expect(response.statusCode).toBe(404);
+    expect(query).toHaveBeenCalledTimes(3);
+    expect(query.mock.calls[1]?.[0]).toContain("from feed_post_attachments attachment");
+    expect(query.mock.calls[1]?.[0]).toContain("post.expires_at > now()");
+    expect(query.mock.calls[1]?.[0]).toContain("viewer_token.user_id = $2");
+    expect(query.mock.calls[2]?.[0]).toContain("from user_blocks");
   });
 });

@@ -8,7 +8,7 @@
 // install prompt. Each was found by a user rather than by a test.
 //
 // Adding a new floating overlay means adding it here. If the test fails, the two overlays
-// really do collide on a real screen — move one, do not widen the tolerance.
+// really do collide on a real screen: move one, do not widen the tolerance.
 
 export type OverlayBox = {
   // Distances from the named viewport edge, in rem. Give either an edge pair
@@ -91,7 +91,7 @@ export const OVERLAY_SLOTS: OverlaySlot[] = [
   {
     id: 'alpha-bug-button',
     source: 'src/app/components/AlphaBugButton.tsx',
-    z: 50,
+    z: 1500,
     // Every route uses this same viewport corner. The map header keeps a same-size
     // reserved slot so its Settings control never sits behind the fixed trigger.
     exclusiveWith: ['map-header-row', 'map-right-actions', 'map-alpha-bug-tip'],
@@ -101,7 +101,7 @@ export const OVERLAY_SLOTS: OverlaySlot[] = [
   {
     id: 'alpha-bug-tip',
     source: 'src/app/components/AlphaBugButton.tsx',
-    z: 50,
+    z: 1500,
     // A one-time coach mark anchored near the button, dismissed on first tap.
     // Deliberately NOT marked transient: nothing belonging to the bug reporter may sit
     // on top of another control. The map keeps its separate below-controls placement.
@@ -112,7 +112,7 @@ export const OVERLAY_SLOTS: OverlaySlot[] = [
   {
     id: 'map-alpha-bug-tip',
     source: 'src/app/components/AlphaBugButton.tsx',
-    z: 50,
+    z: 1500,
     exclusiveWith: ['alpha-bug-button', 'alpha-bug-tip'],
     mobile: { top: 20.125, left: 1, width: 18, height: 5.625 },
     desktop: { top: 9.25, left: 1.25, width: 18, height: 5.625 },

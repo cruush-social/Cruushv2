@@ -111,6 +111,44 @@ const kinkArrayField = upToThreeArrayField;
 
 const profileVisibilitySchema = z.enum(["public", "mutual_cruushes", "mutual_crowds"]);
 const healthPreferenceSchema = z.enum(["COVID tested", "Masks"]);
+const relationshipStatusSchema = z.enum([
+  "Single",
+  "Single and looking",
+  "Single, not looking",
+  "Newly single",
+  "Talking to someone",
+  "Situationship",
+  "Casually dating",
+  "Dating around",
+  "Seeing someone",
+  "Exclusive",
+  "Partnered",
+  "Committed",
+  "Engaged",
+  "Married",
+  "Domestic partnership",
+  "Long distance",
+  "Monogamish",
+  "Open relationship",
+  "Ethically non-monogamous",
+  "Polyamorous",
+  "Solo poly",
+  "Relationship anarchy",
+  "Nesting partner",
+  "Comet",
+  "Swinging",
+  "Don't ask don't tell",
+  "Partner knows",
+  "Taking a break",
+  "Separated",
+  "Divorced",
+  "Widowed",
+  "It's complicated",
+  "Let's discuss",
+  "Ask me",
+  "Prefer not to say"
+]);
+
 const birthControlSchema = z.enum([
   "Arm implant",
   "Ask me",
@@ -136,12 +174,14 @@ const appOwnedProfilePhotoPathSchema = z.string()
   .trim()
   .max(256)
   .regex(
-    /^\/api\/media\/(?:profile-photos\/[0-9a-f-]{36}-[0-9a-f-]{8}-[0-9a-f-]{4}-[0-9a-f-]{4}-[0-9a-f-]{4}-[0-9a-f-]{12}\.(?:jpg|png|webp)|assets\/[0-9a-f-]{36}\/display)$/i,
+    /^\/api\/media\/(?:profile-photos\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(?:jpg|png|webp)|assets\/[0-9a-f-]{36}\/display)$/i,
     "Photo paths must be uploaded cruush profile photos."
   );
 
 export const profileVisibilityRulesSchema = z.object({
+  search_query: optionalSingleLineTextSchema(120),
   active_crowd_modes: z.array(crowdSchema).max(3).optional().default([]),
+  mile_high_club_members: z.boolean().optional().default(false),
   age_range: z.tuple([
     z.number().int().min(18).max(99),
     z.number().int().min(18).max(99)
@@ -177,10 +217,40 @@ export const profileKinkInterestSchema = z.object({
   category: singleLineTextSchema({ min: 1, max: 120 }).optional()
 }).strip();
 
+const sideBadgeSelectionSchema = z.object({
+  badge_id: singleLineTextSchema({ min: 1, max: 120 }),
+  intent: z.enum(["none", "give", "receive", "switch", "service", "stone"]),
+  frame: z.enum([
+    "plain", "circle", "diamond", "heart", "square", "female", "male", "transgender", "nonbinary",
+    "agender", "neutrois", "androgyne", "demigirl", "demiboy", "intergender",
+    "genderfluid", "bigender", "third-gender", "pangender", "butch", "femme",
+    "chevron", "bracket-square", "hexagon"
+  ])
+}).strict();
+
+export const sideBadgesSchema = z.object({
+  left: sideBadgeSelectionSchema.nullable(),
+  right: sideBadgeSelectionSchema.nullable()
+}).strict();
+
+const profileTagsSchema = z.array(
+  z.string().trim().regex(/^#?[a-zA-Z0-9_]{1,24}$/, "Tags can use letters, numbers, and underscores."),
+).max(10).optional().default([]).transform((values) => (
+  [...new Set(values.map((value) => value.replace(/^#/, "").toLowerCase()))]
+));
+
+export type SideBadges = z.infer<typeof sideBadgesSchema>;
+
+export const emptySideBadges: SideBadges = {
+  left: null,
+  right: null
+};
+
 export const profilePayloadSchema = z.object({
   display_name: singleLineTextSchema({ min: 2, max: 80 }),
   photos: z.array(appOwnedProfilePhotoPathSchema).max(4).optional().default([]),
   bio: multilineTextSchema({ max: 2000 }).optional().default(""),
+  tags: profileTagsSchema,
   // A signal is one short line. Thirty five characters is the hard rule: it is
   // what the field holds on a phone without wrapping.
   signal: optionalSingleLineTextSchema(SIGNAL_MAX_LENGTH),
@@ -197,6 +267,7 @@ export const profilePayloadSchema = z.object({
   weight: shortStringField,
   position: upToThreeArrayField,
   role: upToThreeArrayField,
+  side_badges: sideBadgesSchema.optional().default(emptySideBadges),
   is_trans: transStatusSchema,
   trans_status_visibility: profileVisibilitySchema.optional().default("mutual_cruushes"),
   crowds: z.array(crowdSchema).max(3).optional().default([]),
@@ -226,9 +297,13 @@ export const profilePayloadSchema = z.object({
   custom_mpox_vaccine: shortStringField,
   health_preferences: z.array(healthPreferenceSchema).max(2).optional().default([]),
   birth_control: z.array(birthControlSchema).max(8).optional().default([]),
+  relationship_status: z.array(relationshipStatusSchema).max(3).optional().default([]),
+  zodiac: arrayField,
   substance_boundaries: arrayField,
   visibility_rules: profileVisibilityRulesSchema.optional().default({
+    search_query: "",
     active_crowd_modes: [],
+    mile_high_club_members: false,
     age_range: null,
     distance: null,
     identities: [],
@@ -290,6 +365,7 @@ export const emptyProfile = {
   display_name: "",
   photos: [],
   bio: "",
+  tags: [],
   signal: "",
   pronouns: [],
   custom_pronouns: "",
@@ -303,6 +379,7 @@ export const emptyProfile = {
   weight: "",
   position: [],
   role: [],
+  side_badges: emptySideBadges,
   is_trans: null,
   trans_status_visibility: "mutual_cruushes",
   crowds: [],
@@ -332,9 +409,13 @@ export const emptyProfile = {
   custom_mpox_vaccine: "",
   health_preferences: [],
   birth_control: [],
+  relationship_status: [],
+  zodiac: [],
   substance_boundaries: [],
   visibility_rules: {
+    search_query: "",
     active_crowd_modes: [],
+    mile_high_club_members: false,
     age_range: null,
     distance: null,
     identities: [],

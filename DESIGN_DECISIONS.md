@@ -1,0 +1,18 @@
+# cruush design decisions
+
+- Feed photo previews are 64px hearts, matching the approved sample page. One photo uses one heart. Two or three photos use separate equal-size hearts in one horizontal row with visible gaps. They never weld, overlap, cluster, or grow to the 80px map-heart size.
+- Color-blind mode is an Accessibility toggle. Navigation-size and map-pin-size controls are not part of 1.6.
+- Feed search searches Feed post tags only. It does not search member names, profiles, or post text.
+- Feed reactions and replies are not part of 1.6. Do not build either.
+- GitHub issue #135 is not a 1.6 release item. Do not invent or change checkbox visuals for it.
+- The Spot board is called the Pink Book. Its section sits below source attribution. Check-in includes an optional Pink Book post. An active check-in is required to read other members' posts, but authors can always view and delete their own posts after checkout.
+- Badge categories must be explicit on mobile, never discoverable only by horizontal scrolling. Preserve every deliberately selected custom, Hanky, role, position, and Pride badge glyph. Saved side badges sit beneath the heart photo on Feed, Messages, and Cruushes.
+- Profile Tags are a separate field directly below Bio. They are moderated with the rest of the profile, display directly below About, and match the shared Seeking and Visibility text search with or without a leading `#`.
+- Basic members can save up to 3 profile tags. cruush+ members can save up to 10. Basic Feed posts are text-only; cruush+ Feed posts can attach up to 3 photo hearts.
+- Circular numbered map clusters are people-only and open only those profiles. Spot clusters stay separate, use the blue diamond Spot style, and open only those Spots.
+- Profile protection answers always keep their field labels so repeated values such as "yes" remain understandable.
+- Every benefit card on the cruush+ page uses the bright product gradient.
+- A person's saved badge borders always use the exact same resolved color as their heart border. While MHC is active, both use the approved sky color `#77B9DA` across the app. Travel distance text, including `Far far away`, never overlaps identity actions.
+- On cruush activity cards, identity plus last-active and distance stay centered beside the heart and Badges, with compact actions at right. Messages keeps its message-preview spacing. Marketing mock previews use gradient hearts instead of profile photos or photo placeholders.
+- Mile High Club is a full page on mobile. On desktop it may replace Settings inside the existing map popup because desktop Settings itself is embedded there; it must not open a second popup.
+- On mobile Spot detail, Here now and rating summaries stay compact so Pink Book and Who's Here appear in the initial screen.

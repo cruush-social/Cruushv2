@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react';
+import type { CSSProperties, ImgHTMLAttributes } from 'react';
 import cruushColored from '../assets/ui-icons/cruush-colored.png';
 import cruushWhite from '../assets/ui-icons/cruush-white.png';
 import cameraColored from '../assets/ui-icons/camera-colored.png';
@@ -32,6 +32,8 @@ import visibilityWhite from '../assets/ui-icons/visibility-white.png';
 interface CruushIconImageProps {
   className?: string;
   src: string;
+  /** For a lit state, which a bitmap icon can only carry as a filter. */
+  style?: CSSProperties;
 }
 
 export type CruushIconName =
@@ -43,6 +45,7 @@ export type CruushIconName =
   | 'lucky'
   | 'map'
   | 'messages'
+  | 'mutual'
   | 'notifications'
   | 'profile'
   | 'safety'
@@ -87,6 +90,12 @@ const CRUUSH_ICON_SOURCES: Record<CruushIconName, Record<CruushIconAssetVariant,
     colored: messagesColored,
     white: messagesWhite,
   },
+  // Mutual is always the approved double-heart. The winged-heart `cruush`
+  // asset belongs to Feed and must never be substituted for this state.
+  mutual: {
+    colored: safetyColored,
+    white: safetyWhite,
+  },
   notifications: {
     colored: notificationsColored,
     white: notificationsWhite,
@@ -113,7 +122,24 @@ const CRUUSH_ICON_SOURCES: Record<CruushIconName, Record<CruushIconAssetVariant,
   },
 };
 
-export default function CruushIconImage({ className = 'h-[1.5625rem] w-[1.5625rem]', src }: CruushIconImageProps) {
+export function GhostColoredIcon({ className, ...props }: ImgHTMLAttributes<HTMLImageElement>) {
+  return (
+    <img
+      {...props}
+      alt=""
+      aria-hidden="true"
+      className={`shrink-0 object-contain ${className ?? ''}`}
+      draggable={false}
+      src={ghostColored}
+    />
+  );
+}
+
+export default function CruushIconImage({
+  className = 'h-[1.5625rem] w-[1.5625rem]',
+  src,
+  style,
+}: CruushIconImageProps) {
   return (
     <img
       alt=""
@@ -121,6 +147,7 @@ export default function CruushIconImage({ className = 'h-[1.5625rem] w-[1.5625re
       className={`shrink-0 object-contain ${className}`}
       draggable={false}
       src={src}
+      style={style}
     />
   );
 }
@@ -134,6 +161,10 @@ export function CruushIcon({
   name: CruushIconName;
   variant?: CruushIconVariant;
 }) {
+  if (name === 'ghost' && variant === 'colored') {
+    return <GhostColoredIcon className={className} />;
+  }
+
   if (variant === 'stealth') {
     return <CruushIconImage className={className} src={name === 'ghost' ? ghostStealth : CRUUSH_ICON_SOURCES[name].white} />;
   }

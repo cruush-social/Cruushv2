@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BODY_TYPES, HOBBIES, LOOKING_FOR, VIBE_GROUPS } from './profileOptions';
+import { BODY_TYPES, HOBBIES, KINK_CATALOG, LOOKING_FOR, VIBE_GROUPS } from './profileOptions';
 
 function optionsFor(groupLabel: string) {
   return VIBE_GROUPS.find((group) => group.label === groupLabel)?.options ?? [];
@@ -34,5 +34,14 @@ describe('profileOptions', () => {
   it('keeps body descriptors in body type instead of vibes', () => {
     expect(BODY_TYPES).toEqual(expect.arrayContaining(['BBW', 'BBM', 'bear', 'otter', 'twink']));
     expect(optionsFor('Scenes')).not.toEqual(expect.arrayContaining(['Bear', 'Otter', 'Twink']));
+  });
+
+  it('keeps removed profile labels out of active catalogs', () => {
+    const vibeLabels = VIBE_GROUPS.flatMap((group) => group.options);
+    const kinkLabels = KINK_CATALOG.map((option) => option.label);
+
+    expect(vibeLabels).not.toEqual(expect.arrayContaining(['E-Girl', 'E-Boy']));
+    expect(kinkLabels).not.toEqual(expect.arrayContaining(['tribadism', 'frottage']));
+    expect(kinkLabels).toEqual(expect.arrayContaining(['tribbing', 'frotting']));
   });
 });

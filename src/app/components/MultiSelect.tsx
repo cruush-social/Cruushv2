@@ -2,7 +2,7 @@ import type { CSSProperties } from 'react';
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Badge } from './ui/badge';
-import { Check, X } from 'lucide-react';
+import { Check, Search, X } from 'lucide-react';
 
 export type MultiSelectOptionGroup = {
   label: string;
@@ -41,8 +41,8 @@ interface MultiSelectProps {
   disableAddingOptions?: boolean;
   onAddingDisabled?: () => void;
   maxSelections?: number;
+  searchable?: boolean;
 }
-
 export default function MultiSelect({
   options = [],
   optionGroups,
@@ -56,6 +56,7 @@ export default function MultiSelect({
   disableAddingOptions = false,
   onAddingDisabled,
   maxSelections,
+  searchable = false,
 }: MultiSelectProps) {
   const [selected, setSelected] = useState<string[]>(value);
   const [isOpen, setIsOpen] = useState(false);
@@ -69,7 +70,15 @@ export default function MultiSelect({
   const groups = useMemo(() => optionGroups ?? [{ label: '', options }], [optionGroups, options]);
   const hasCategoryPicker = Boolean(optionGroups?.length && optionGroups.length > 1);
   const [activeGroupLabel, setActiveGroupLabel] = useState(groups[0]?.label ?? '');
+  const [searchQuery, setSearchQuery] = useState('');
   const activeGroup = groups.find((group) => group.label === activeGroupLabel) ?? groups[0] ?? { label: '', options: [] };
+  const normalizedSearchQuery = searchQuery.trim().toLowerCase();
+  const searchGroups = normalizedSearchQuery
+    ? groups.map((group) => ({
+        ...group,
+        options: group.options.filter((option) => option.toLowerCase().includes(normalizedSearchQuery)),
+      })).filter((group) => group.options.length > 0)
+    : [];
   const tablistRef = useRef<HTMLDivElement | null>(null);
   const touchDragState = useRef({ isDown: false, startX: 0, scrollLeft: 0 });
 
@@ -99,6 +108,12 @@ export default function MultiSelect({
   }, [value]);
 
   useEffect(() => {
+    if (!isOpen) {
+      setSearchQuery('');
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
     if (!groups.some((group) => group.label === activeGroupLabel)) {
       setActiveGroupLabel(groups[0]?.label ?? '');
     }
@@ -119,15 +134,11 @@ export default function MultiSelect({
   }, [instanceId]);
 
   const toggleMenu = () => {
-    setIsOpen((current) => {
-      const nextOpen = !current;
-
-      if (nextOpen) {
-        window.dispatchEvent(new CustomEvent(MULTI_SELECT_OPEN_EVENT, { detail: instanceId }));
-      }
-
-      return nextOpen;
-    });
+    const nextOpen = !isOpen;
+    if (nextOpen) {
+      window.dispatchEvent(new CustomEvent(MULTI_SELECT_OPEN_EVENT, { detail: instanceId }));
+    }
+    setIsOpen(nextOpen);
   };
 
   useLayoutEffect(() => {
@@ -274,10 +285,54 @@ export default function MultiSelect({
     onChange?.(newSelected);
   };
 
-  const menuContent = (
-    <>
-      {hasCategoryPicker ? (
-        <div className="flex h-[18rem] min-h-0 min-w-0 max-h-[inherit] flex-col overflow-hidden sm:h-full sm:flex-row">
+  const menuContent = hasCategoryPicker ? (
+    <div className="flex h-full min-h-0 flex-col">
+      {searchable ? (
+        <label className="flex shrink-0 items-center gap-2 border-b border-border px-3 py-2">
+          <Search aria-hidden="true" className="h-4 w-4 shrink-0 text-muted-foreground" />
+          <input
+            aria-label={`Search ${ariaLabel ?? 'options'}`}
+            autoComplete="off"
+            className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+            onChange={(event) => setSearchQuery(event.target.value)}
+            placeholder="Search"
+            type="search"
+            value={searchQuery}
+          />
+        </label>
+      ) : null}
+      {normalizedSearchQuery ? (
+        <div role="listbox" aria-label={`${ariaLabel ?? 'Options'} search results`} className="scrollbar-subtle min-h-0 flex-1 overflow-y-auto py-1" style={TOUCH_SCROLL_STYLE}>
+          {searchGroups.length > 0 ? searchGroups.map((group) => (
+            <div key={group.label} role="group" aria-label={group.label}>
+              <div className="sticky top-0 bg-popover px-4 py-2 text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                {group.label}
+              </div>
+              {group.options.map((option) => {
+                const isSelected = selected.includes(option);
+                return (
+                  <button
+                    key={option}
+                    type="button"
+                    role="option"
+                    aria-selected={isSelected}
+                    onClick={() => toggleOption(option)}
+                    className={`flex w-full items-center justify-between px-4 py-2 text-left text-sm transition-colors hover:bg-accent ${
+                      isSelected ? 'bg-accent/80 font-medium text-accent-foreground' : ''
+                    }`}
+                  >
+                    <span>{option}</span>
+                    {isSelected ? <Check className="h-4 w-4 shrink-0 text-primary" /> : null}
+                  </button>
+                );
+              })}
+            </div>
+          )) : (
+            <p className="px-4 py-6 text-center text-sm text-muted-foreground">No matching kinks</p>
+          )}
+        </div>
+      ) : (
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden sm:flex-row">
           {/* Horizontal Category Tabstrip for Mobile, Vertical Sidebar for Desktop */}
           <div
             ref={tablistRef}
@@ -342,34 +397,34 @@ export default function MultiSelect({
             </div>
           </div>
         </div>
-      ) : (
-        <div role="listbox" aria-label={ariaLabel} className="scrollbar-subtle min-h-0 max-h-[inherit] overflow-y-auto" style={TOUCH_SCROLL_STYLE}>
-          {groups.map((group) => (
-            <div key={group.label || 'options'} role={group.label ? 'group' : undefined} aria-label={group.label || undefined}>
-              {group.label ? (
-                <div className="sticky top-0 bg-popover px-4 py-2 text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
-                  {group.label}
-                </div>
-              ) : null}
-              {group.options.map((option) => (
-                <button
-                  key={option}
-                  type="button"
-                  role="option"
-                  aria-selected={selected.includes(option)}
-                  onClick={() => toggleOption(option)}
-                  className={`w-full px-4 py-2 text-left text-sm hover:bg-accent transition-colors ${
-                    selected.includes(option) ? 'bg-accent text-accent-foreground' : ''
-                  }`}
-                >
-                  {option}
-                </button>
-              ))}
+      )}
+    </div>
+  ) : (
+    <div role="listbox" aria-label={ariaLabel} className="scrollbar-subtle min-h-0 max-h-[inherit] overflow-y-auto" style={TOUCH_SCROLL_STYLE}>
+      {groups.map((group) => (
+        <div key={group.label || 'options'} role={group.label ? 'group' : undefined} aria-label={group.label || undefined}>
+          {group.label ? (
+            <div className="sticky top-0 bg-popover px-4 py-2 text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
+              {group.label}
             </div>
+          ) : null}
+          {group.options.map((option) => (
+            <button
+              key={option}
+              type="button"
+              role="option"
+              aria-selected={selected.includes(option)}
+              onClick={() => toggleOption(option)}
+              className={`w-full px-4 py-2 text-left text-sm hover:bg-accent transition-colors ${
+                selected.includes(option) ? 'bg-accent text-accent-foreground' : ''
+              }`}
+            >
+              {option}
+            </button>
           ))}
         </div>
-      )}
-    </>
+      ))}
+    </div>
   );
 
   const menu = isOpen && menuPortal && portalStyle && portalRoot

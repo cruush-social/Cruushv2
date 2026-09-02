@@ -9,15 +9,21 @@ import { encryptMediaBytes } from "./media-encryption.js";
 import { writeEncryptedMediaObject } from "./media-storage.js";
 
 const ownerId = "11111111-1111-4111-8111-111111111111";
+const viewerId = "44444444-4444-4444-8444-444444444444";
 const assetId = "22222222-2222-4222-8222-222222222222";
 const objectKey = "objects/33333333-3333-4333-8333-333333333333.enc";
 
 describe("media read validators", () => {
   const tempDirs: string[] = [];
+  const servers: ReturnType<typeof buildServer>[] = [];
 
   afterEach(async () => {
-    await Promise.all(tempDirs.map((dir) => rm(dir, { recursive: true, force: true })));
-    tempDirs.length = 0;
+    try {
+      await Promise.all(servers.splice(0).map((app) => app.close()));
+    } finally {
+      await Promise.all(tempDirs.splice(0).map((dir) => rm(dir, { recursive: true, force: true })));
+      vi.restoreAllMocks();
+    }
   });
 
   async function testConfig() {
@@ -38,16 +44,24 @@ describe("media read validators", () => {
     } as AppConfig;
   }
 
-  async function buildMediaServer(config: AppConfig) {
+  async function buildMediaServer(config: AppConfig, options: {
+    surface?: "profile_photo" | "feed_photo";
+    feedAccess?: {
+      owner_user_id: string;
+      audience: "public" | "mutuals" | "crowd";
+      has_shared_crowd: boolean;
+    };
+  } = {}) {
     const plaintext = Buffer.from("encrypted-media-body");
     const encrypted = encryptMediaBytes(config, plaintext);
     await writeEncryptedMediaObject(config, objectKey, encrypted.ciphertext);
 
-    const query = vi.fn(async (sql: string) => ({
-      rows: sql.includes("from media_objects media")
-        ? [{
+    const query = vi.fn(async (sql: string) => {
+      if (sql.includes("from media_objects media")) {
+        return {
+          rows: [{
             owner_user_id: ownerId,
-            surface: "profile_photo",
+            surface: options.surface ?? "profile_photo",
             object_key: objectKey,
             mime_type: "image/png",
             encrypted_data_key: encrypted.encryptedDataKey,
@@ -57,12 +71,24 @@ describe("media read validators", () => {
             content_auth_tag: encrypted.authTag,
             key_version: encrypted.keyVersion
           }]
-        : []
-    }));
+        };
+      }
+
+      if (sql.includes("from feed_post_attachments attachment")) {
+        return { rows: options.feedAccess ? [options.feedAccess] : [] };
+      }
+
+      if (sql.includes("from user_blocks")) {
+        return { rows: [] };
+      }
+
+      return { rows: [] };
+    });
 
     const app = buildServer(config, {
       db: { query, end: async () => {} } as unknown as DbClient
     });
+    servers.push(app);
 
     return { app, plaintext };
   }
@@ -130,6 +156,51 @@ describe("media read validators", () => {
     });
 
     expect(anonymous.statusCode).toBe(401);
+
+    await app.close();
+  });
+
+  it("serves an attached public Feed photo to an authenticated unblocked viewer", async () => {
+    const config = await testConfig();
+    const { app, plaintext } = await buildMediaServer(config, {
+      surface: "feed_photo",
+      feedAccess: {
+        owner_user_id: ownerId,
+        audience: "public",
+        has_shared_crowd: false
+      }
+    });
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/api/media/assets/${assetId}/display`,
+      headers: { "x-user-id": viewerId }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.rawPayload.equals(plaintext)).toBe(true);
+
+    await app.close();
+  });
+
+  it("does not serve a Feed photo when the viewer lacks its Crowd audience", async () => {
+    const config = await testConfig();
+    const { app } = await buildMediaServer(config, {
+      surface: "feed_photo",
+      feedAccess: {
+        owner_user_id: ownerId,
+        audience: "crowd",
+        has_shared_crowd: false
+      }
+    });
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/api/media/assets/${assetId}/display`,
+      headers: { "x-user-id": viewerId }
+    });
+
+    expect(response.statusCode).toBe(404);
 
     await app.close();
   });

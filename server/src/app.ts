@@ -20,6 +20,7 @@ import { registerInternalRoutes } from "./routes/internal.js";
 import { registerMapPingRoutes } from "./routes/map-pings.js";
 import { registerNotificationRoutes } from "./routes/notifications.js";
 import { registerPostRoutes } from "./routes/posts.js";
+import { registerPlaceRoutes } from "./routes/places.js";
 import { registerProfileRoutes } from "./routes/profiles.js";
 import { registerPrivacyRoutes } from "./routes/privacy.js";
 import { registerReportRoutes } from "./routes/reports.js";
@@ -245,6 +246,7 @@ export function buildServer(config: AppConfig, deps: BuildServerDeps = {}) {
   });
   void registerEventRoutes(app);
   void registerPostRoutes(app);
+  void registerPlaceRoutes(app);
   void registerProfileRoutes(app);
   void registerPrivacyRoutes(app);
   void registerReportRoutes(app);

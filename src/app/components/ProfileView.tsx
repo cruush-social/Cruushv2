@@ -13,7 +13,8 @@ import CruushIconImage, { CruushIcon } from './CruushIconImage';
 import mapIconWhite from '../assets/ui-icons/map-white.png';
 import { resolveVibeTone, vibeCapsuleStyle } from '../lib/vibeTone';
 import ProfilePhotoGallery from './ProfilePhotoGallery';
-import { revokeMutualCruush, revokeSentCruush, sendCruush } from '../lib/cruushApi';
+import LoadingCardSkeletons from './LoadingCardSkeletons';
+import { getMutualCruushMap, revokeMutualCruush, revokeSentCruush, sendCruush } from '../lib/cruushApi';
 import { addCruushChangedListener } from '../lib/cruushEvents';
 import {
   handleCruushSendSuccess,
@@ -26,8 +27,10 @@ import {
 } from '../lib/cruushNotifications';
 import { addProfileChangedListener, emptyProfilePayload, getMyProfile, getProfileById, ProfileApiError, type ProfileRecord } from '../lib/profileApi';
 import { openConversationOrInbox } from '../lib/openConversation';
-import { formatDistanceLabel, useDistancePreferences } from '../lib/distancePreferences';
+import { formatDistanceWithAway, useDistancePreferences } from '../lib/distancePreferences';
+import { resolveUserBorderTone } from '../lib/userBorderTone';
 import partyHatIcon from '../assets/ui-icons/party-hat.svg';
+import mileHighClubWhite from '../assets/ui-icons/mile-high-club-white.svg';
 
 type ProfileLocationState = {
   distance?: string;
@@ -53,7 +56,7 @@ export const PROFILE_OVERLAY_TEXT_STYLE = {
 };
 
 const PROFILE_VIEW_GALLERY_FRAME_STYLE = {
-  width: `min(100%, calc((100dvh - var(--profile-view-header-height, ${PROFILE_VIEW_HEADER_HEIGHT}) - 1px) * 0.8))`,
+  width: 'min(100%, 30rem)',
 } as const;
 
 export type ProfileViewModel = {
@@ -67,7 +70,11 @@ export type ProfileViewModel = {
   photoMetadata: NonNullable<ProfileRecord['photo_metadata']>;
   badges: ProfileRecord['badges'];
   attendingLaunchParty: boolean;
+  /** Reading from a travel pin rather than a live location. */
+  travelling: boolean;
+  travelLabel: string;
   bio: string;
+  tags: string[];
   signal: string;
   identities: string[];
   presentation: string[];
@@ -130,6 +137,8 @@ function removeViewerCruush(profile: ProfileRecord, mutualRevoked: boolean): Pro
       outgoing_cruush: false,
       can_message: mutualRevoked ? false : relationship?.can_message ?? false,
       can_reveal_precise_location: mutualRevoked ? false : relationship?.can_reveal_precise_location ?? false,
+      location_mode: relationship?.location_mode,
+      dark_room_distance_label: relationship?.dark_room_distance_label,
     },
   };
 }
@@ -149,7 +158,10 @@ export function profileRecordToProfileView(
     photoMetadata: profile.photo_metadata ?? profile.photos.map((photo) => ({ url: photo, explicit: false })),
     badges: profile.badges ?? [],
     attendingLaunchParty: profile.attendingLaunchParty === true,
+    travelling: profile.travelling === true,
+    travelLabel: typeof profile.travelLabel === 'string' ? profile.travelLabel : '',
     bio: profile.bio,
+    tags: profile.tags ?? [],
     signal: profile.signal ?? '',
     identities: profile.identities,
     presentation: profile.presentation,
@@ -169,7 +181,11 @@ export function profileRecordToProfileView(
     vibes: [...new Set([...profile.vibes, ...profile.scenes, ...profile.archetypes])],
     kinks: profile.kinks,
     hobbies: profile.hobbies,
-    protection: [...profile.condoms, ...profile.prep, ...profile.doxypep].filter(Boolean),
+    protection: [
+      ...profile.condoms.map((value) => `Condoms: ${value}`),
+      ...profile.prep.map((value) => `PrEP: ${value}`),
+      ...profile.doxypep.map((value) => `DoxyPEP: ${value}`),
+    ].filter(Boolean),
     hivStatus: formatSingle(profile.hiv_status),
     covidStatus: formatSingle(profile.covid_vaccine),
     mpoxStatus: formatSingle(profile.mpox_vaccine),
@@ -198,6 +214,7 @@ export default function ProfileView() {
   const [openingMessage, setOpeningMessage] = useState(false);
   const [activeTab, setActiveTab] = useState('basics');
   const [expandedPhoto, setExpandedPhoto] = useState<string | null>(null);
+  const [pinTokenValid, setPinTokenValid] = useState(false);
 
   useEffect(() => {
     if (!expandedPhoto) {
@@ -324,11 +341,55 @@ export default function ProfileView() {
     return profileRecordToProfileView(profile, previewState);
   }, [previewState?.distance, previewState?.lastActive, profile]);
 
+  useEffect(() => {
+    if (
+      isOwnProfile
+      || !userId
+      || profileView?.relationship?.mutual_cruush !== true
+      || profileView.relationship.can_reveal_precise_location !== true
+      || profileView.relationship.location_mode === 'STEALTH'
+    ) {
+      setPinTokenValid(false);
+      return undefined;
+    }
+
+    let active = true;
+    void getMutualCruushMap()
+      .then((items) => {
+        if (!active) return;
+        const target = items.find((item) => item.user.id === userId);
+        setPinTokenValid(Boolean(
+          target
+          && target.canRevealPreciseLocation === true
+          && target.coordinates?.precision === 'precise'
+          && (target.displayExpiresAtMs == null || target.displayExpiresAtMs > Date.now()),
+        ));
+      })
+      .catch(() => {
+        if (active) setPinTokenValid(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [
+    isOwnProfile,
+    profileView?.relationship?.can_reveal_precise_location,
+    profileView?.relationship?.location_mode,
+    profileView?.relationship?.mutual_cruush,
+    userId,
+  ]);
+
   const isAlreadyMutual = cruushBecameMutual || profileView?.relationship?.mutual_cruush === true;
   const hasSentCruush = !isAlreadyMutual && (cruushed || profileView?.relationship?.outgoing_cruush === true);
   const canMessage = profileView?.relationship?.can_message !== false;
   const hasRevocableCruush = isAlreadyMutual || hasSentCruush;
   const canCenterPin = profileView?.relationship?.can_reveal_precise_location === true;
+  const targetInDarkRoom = profileView?.relationship?.location_mode === 'STEALTH';
+  const pinActionable = !isOwnProfile && isAlreadyMutual && canCenterPin && !targetInDarkRoom && pinTokenValid;
+  const displayedDistance = targetInDarkRoom && profileView?.relationship?.dark_room_distance_label
+    ? 'Dark Room'
+    : profileView?.distance;
   const cruushDisabled = sendingCruush || revokingCruush;
   const heartTheme = isOwnProfile ? 'current' : isAlreadyMutual ? 'mutual' : 'nearby';
 
@@ -409,7 +470,7 @@ export default function ProfileView() {
 
     setOpeningMessage(true);
     try {
-      await openConversationOrInbox(navigate, userId);
+      await openConversationOrInbox(navigate, userId, undefined, 'profile');
     } finally {
       setOpeningMessage(false);
     }
@@ -419,13 +480,16 @@ export default function ProfileView() {
     return (
       <div className="min-h-screen bg-background pb-20">
         <header className="sticky top-0 z-10 border-b border-border bg-card/90 p-4 backdrop-blur-sm">
-          <div className="mx-auto flex max-w-2xl items-center justify-between">
-            <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+          <div className="mx-auto flex max-w-2xl items-center gap-2">
+            <Button variant="ghost" size="icon" onClick={() => navigate(-1)} aria-label="Back">
               <ArrowLeft className="w-5 h-5" />
             </Button>
+            <h1 className="text-xl">Profile</h1>
           </div>
         </header>
-        <div className="mx-auto max-w-2xl px-4 py-8 text-sm text-muted-foreground">Loading profile...</div>
+        <div className="mx-auto max-w-2xl px-4 py-8">
+          <LoadingCardSkeletons count={2} label="Loading profile" />
+        </div>
       </div>
     );
   }
@@ -434,10 +498,11 @@ export default function ProfileView() {
     return (
       <div className="min-h-screen bg-background pb-20">
         <header className="sticky top-0 z-10 border-b border-border bg-card/90 p-4 backdrop-blur-sm">
-          <div className="mx-auto flex max-w-2xl items-center justify-between">
-            <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+          <div className="mx-auto flex max-w-2xl items-center gap-2">
+            <Button variant="ghost" size="icon" onClick={() => navigate(-1)} aria-label="Back">
               <ArrowLeft className="w-5 h-5" />
             </Button>
+            <h1 className="text-xl">Profile</h1>
           </div>
         </header>
         <div className="mx-auto max-w-2xl px-4 py-8">
@@ -459,15 +524,22 @@ export default function ProfileView() {
         {/* The page chrome rides on the photo instead of a bar above it, each
             control in its own circle so it stays legible over any picture. */}
         <div className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-start justify-between p-3 pr-[calc(3.75rem+env(safe-area-inset-right))] lg:pr-[calc(4.25rem+env(safe-area-inset-right))]">
-          <button
-            aria-label="Back"
-            className="pointer-events-auto flex h-10 w-10 items-center justify-center rounded-full border border-white/12 bg-black/55 text-white backdrop-blur-sm"
-            data-testid="profile-back"
-            onClick={() => navigate(-1)}
-            type="button"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </button>
+          <div className="pointer-events-auto flex min-w-0 items-center gap-2">
+            <button
+              aria-label="Back"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/12 bg-black/55 text-white backdrop-blur-sm"
+              data-testid="profile-back"
+              onClick={() => navigate(-1)}
+              type="button"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </button>
+            {!isOwnProfile ? (
+              <span className="max-w-[min(42vw,18rem)] truncate rounded-full border border-white/12 bg-black/55 px-3 py-2 text-lg font-semibold text-white backdrop-blur-sm">
+                {profileView.name}
+              </span>
+            ) : null}
+          </div>
 
           <div className="pointer-events-auto flex items-center gap-2">
             {isOwnProfile ? (
@@ -506,6 +578,7 @@ export default function ProfileView() {
         </div>
 
         <ProfilePhotoGallery
+          borderTone={resolveUserBorderTone({ current: isOwnProfile, mileHigh: profileView.travelling, mutual: heartTheme === 'mutual' })}
           fitViewport
           name={profileView.name}
           onExpandPhoto={setExpandedPhoto}
@@ -520,16 +593,28 @@ export default function ProfileView() {
           data-testid="profile-photo-overlay"
           className="pointer-events-none absolute inset-x-0 bottom-0 z-20 bg-gradient-to-t from-black/70 via-black/25 to-transparent px-4 pb-4 pt-10 text-white"
         >
-          <h1 className="truncate text-3xl sm:text-4xl" style={PROFILE_OVERLAY_TEXT_STYLE}>
-            {profileView.name}
-            {profileView.age ? <span>, {profileView.age}</span> : null}
+          <h1 className="flex min-w-0 items-center overflow-visible pb-1 text-3xl leading-tight sm:text-4xl" style={PROFILE_OVERLAY_TEXT_STYLE}>
+            <span className="min-w-0 truncate">{profileView.name}</span>
+            {profileView.age ? <span className="shrink-0 whitespace-nowrap pr-1">, {profileView.age}</span> : null}
+            {profileView.travelling ? (
+              <img
+                alt="Mile High Club"
+                className="ml-2 h-5 w-5 shrink-0 sm:h-6 sm:w-6"
+                src={mileHighClubWhite}
+                title={profileView.travelLabel
+                  ? `Mile High Club: ${profileView.travelLabel}`
+                  : 'Mile High Club'}
+              />
+            ) : null}
           </h1>
           <p className="mt-1 text-sm text-white" style={PROFILE_OVERLAY_TEXT_STYLE}>{profileView.pronouns}</p>
-          {profileView.distance ? (
-            <div className="mt-1 flex items-center gap-2 text-sm text-white" style={PROFILE_OVERLAY_TEXT_STYLE}>
-              <CruushIcon name="map" className="h-4 w-4" />
-              <span>{formatDistanceLabel(profileView.distance, distancePreferences.mode)} away</span>
-              {profileView.lastActive ? <span>• {profileView.lastActive}</span> : null}
+          {displayedDistance ? (
+            <div className="mt-1 flex min-w-0 items-center gap-2 overflow-hidden text-sm text-white" style={PROFILE_OVERLAY_TEXT_STYLE}>
+              {displayedDistance === 'Dark Room'
+                ? <DarkRoomMark active className="h-4 w-4 shrink-0" />
+                : <CruushIcon name="map" className="h-4 w-4 shrink-0" />}
+              <span className="min-w-0 truncate">{displayedDistance === 'Dark Room' ? displayedDistance : formatDistanceWithAway(displayedDistance, distancePreferences.mode)}</span>
+              {profileView.lastActive ? <span className="shrink-0">• {profileView.lastActive}</span> : null}
             </div>
           ) : null}
 
@@ -584,9 +669,23 @@ export default function ProfileView() {
                       : 'var(--cruush-gradient)',
                 }}
               >
-                <CruushIcon name="safety" className={`mr-2 h-4 w-4 ${cruushDisabled ? 'opacity-45 grayscale' : ''}`} variant="white" />
+                <CruushIcon name="mutual" className={`mr-2 h-4 w-4 ${cruushDisabled ? 'opacity-45 grayscale' : ''}`} variant="white" />
                 {revokingCruush ? (isAlreadyMutual ? 'removing...' : 'unsending...') : isAlreadyMutual ? 'remove mutual' : hasSentCruush ? 'unsend' : sendingCruush ? 'sending...' : 'cruush'}
               </Button>
+              {!isOwnProfile ? (
+                <Button
+                  type="button"
+                  size="icon"
+                  className="size-11 shrink-0 rounded-xl border-0 text-white transition hover:brightness-110"
+                  style={{ background: pinActionable ? 'var(--cruush-gradient)' : 'var(--cruush-gradient-soft-28), #0A0A12' }}
+                  aria-label={pinActionable ? `Center the map on ${profileView.name}` : `${profileView.name} does not share a precise location with you`}
+                  title={pinActionable ? `Center the map on ${profileView.name}` : targetInDarkRoom ? 'Dark Room' : 'Precise location unavailable'}
+                  onClick={pinActionable ? () => navigate(`/map?mode=mutuals&focusUserId=${encodeURIComponent(profileView.id)}`) : undefined}
+                  disabled={!pinActionable}
+                >
+                  <CruushIconImage src={mapIconWhite} className={`h-7 w-7 ${pinActionable ? '' : 'opacity-45'}`} />
+                </Button>
+              ) : null}
               <Button
                 className={`cruush-action-sheen flex-1 rounded-xl border border-[#6F00FF] disabled:opacity-100 ${canMessage ? 'text-white' : 'text-white/55'}`}
                 style={{ background: canMessage ? 'var(--cruush-gradient)' : '#151021' }}
@@ -599,19 +698,6 @@ export default function ProfileView() {
                 <CruushIcon name="send" className="mr-2 h-4 w-4" variant="white" />
                 {!canMessage ? 'Mutuals only' : openingMessage ? 'Opening...' : 'Message'}
               </Button>
-              {canCenterPin ? (
-                <Button
-                  type="button"
-                  size="icon"
-                  className="size-11 shrink-0 rounded-xl border-0 text-white transition hover:brightness-110"
-                  style={{ background: 'var(--cruush-gradient)' }}
-                  aria-label={`Center the map on ${profileView.name}`}
-                  title={`Center the map on ${profileView.name}`}
-                  onClick={() => navigate('/map', { state: { focusUserId: profileView.id } })}
-                >
-                  <CruushIconImage src={mapIconWhite} className="h-5 w-5" />
-                </Button>
-              ) : null}
             </div>
             </div>
           ) : null}
@@ -634,7 +720,8 @@ export default function ProfileView() {
 
           {/* A way out, and a way to report what you are looking at. */}
           <div
-            className="absolute right-3 top-[calc(0.75rem+env(safe-area-inset-top))] flex items-center gap-2"
+            className="absolute right-[calc(4rem+env(safe-area-inset-right))] top-[calc(0.75rem+env(safe-area-inset-top))] flex items-center gap-2"
+            data-testid="profile-photo-viewer-actions"
             onClick={(event) => event.stopPropagation()}
           >
             {isOwnProfile ? null : (
@@ -661,8 +748,9 @@ export default function ProfileView() {
         </div>
       ) : null}
 
-      <div className="mx-auto max-w-2xl px-4 py-5 sm:px-6 sm:py-6">
-        <div className="space-y-5">
+      <div className="mx-auto max-w-2xl px-4 pb-5 pt-2 sm:px-6 sm:pb-6 sm:pt-2">
+        <div className="space-y-3">
+          {profileView.attendingLaunchParty || (profileView.badges?.length ?? 0) > 0 ? (
           <div className="space-y-3">
             <div>
               <div className="mb-2 text-4xl">
@@ -686,9 +774,12 @@ export default function ProfileView() {
             </div>
 
           </div>
+          ) : null}
 
           <ProfileDetailsTabs
             activeTab={activeTab}
+            compact
+            hideTopOverlayDuplicates={isOwnProfile}
             onActiveTabChange={setActiveTab}
             profileView={profileView}
           />
@@ -703,11 +794,13 @@ export function ProfileDetailsTabs({
   onActiveTabChange,
   profileView,
   compact = false,
+  hideTopOverlayDuplicates = false,
 }: {
   activeTab: string;
   onActiveTabChange: (value: string) => void;
   profileView: ProfileViewModel;
   compact?: boolean;
+  hideTopOverlayDuplicates?: boolean;
 }) {
   const tabTriggerClassName = compact ? 'min-h-9' : 'min-h-11';
 
@@ -720,7 +813,7 @@ export function ProfileDetailsTabs({
       </TabsList>
 
       <TabsContent value="basics" className={`${compact ? 'mt-4 space-y-4' : 'mt-5 space-y-5'}`}>
-        {compact && profileView.signal ? (
+        {compact && !hideTopOverlayDuplicates && profileView.signal ? (
           <Section title="Signal" compact={compact}>
             <p className="text-muted-foreground">{profileView.signal}</p>
           </Section>
@@ -729,6 +822,12 @@ export function ProfileDetailsTabs({
         {profileView.bio ? (
           <Section title="About" compact={compact}>
             <p className="text-muted-foreground">{profileView.bio}</p>
+          </Section>
+        ) : null}
+
+        {profileView.tags.length > 0 ? (
+          <Section title="Tags" compact={compact}>
+            <BadgeList items={profileView.tags.map((tag) => `#${tag}`)} compact={compact} />
           </Section>
         ) : null}
 
@@ -759,9 +858,11 @@ export function ProfileDetailsTabs({
           </div>
         </Section>
 
-        <Section title="Vibes" compact={compact}>
-          <BadgeList items={profileView.vibes} variant="gradient" compact={compact} />
-        </Section>
+        {!hideTopOverlayDuplicates ? (
+          <Section title="Vibes" compact={compact}>
+            <BadgeList items={profileView.vibes} variant="gradient" compact={compact} />
+          </Section>
+        ) : null}
 
         <Section title="Hobbies" compact={compact}>
           <BadgeList items={profileView.hobbies} compact={compact} />

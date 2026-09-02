@@ -1,12 +1,18 @@
+import type { SideBadgeSelection } from './profileApi';
+
 export type MapMarkerBadge = {
-  kind: 'position';
+  kind: 'role' | 'position' | 'custom';
   label: string;
   iconName?: string;
+  badgeId?: string;
+  frame?: string;
+  intent?: SideBadgeSelection['intent'];
+  saved?: boolean;
 };
 
 export type MapMarker = {
   id: string;
-  kind?: 'person' | 'event' | 'cluster';
+  kind?: 'person' | 'event' | 'place' | 'cluster';
   displayName: string;
   userId?: string;
   signal?: string | null;
@@ -16,6 +22,8 @@ export type MapMarker = {
   lastActiveLabel?: string;
   photo?: string | null;
   photoExplicit?: boolean;
+  travelling?: boolean;
+  travelLabel?: string;
   isCurrentUser?: boolean;
   // Local UI state for the signed-in user's marker. Never populate from discovery data.
   ownerStealthActive?: boolean;
@@ -28,6 +36,7 @@ export type MapMarker = {
     id: string;
     expiresAt: string;
   } | null;
+  roleBadge?: MapMarkerBadge | null;
   badge?: MapMarkerBadge | null;
   relationship?: {
     kind: 'mutual_cruush';
@@ -41,17 +50,32 @@ export type MapMarker = {
     raUrl: string;
     iconAsset: string;
   };
+  place?: {
+    id: string;
+    facilityType: string;
+    activeCheckins: number;
+  };
   cluster?: {
     id: string;
     count: number;
     label: string;
-    kind?: 'venue' | 'people';
+    kind?: 'venue' | 'people' | 'place';
     memberIds?: string[];
     action?: 'zoom' | 'spiderfy';
   };
 };
 
 export type CruushMapInstance = {
+  getBounds?: () => {
+    getEast: () => number;
+    getNorth: () => number;
+    getSouth: () => number;
+    getWest: () => number;
+  };
+  getCenter?: () => { lat: number; lng: number };
+  getZoom?: () => number;
+  off?: (event: string, handler: () => void) => void;
+  on?: (event: string, handler: () => void) => void;
   setCenter: (center: [number, number]) => void;
   setZoom: (zoom: number) => void;
   zoomIn: () => void;
@@ -78,6 +102,18 @@ const POSITION_BADGE_ALIASES: Record<string, string> = {
   'versatile top': 'vers top',
 };
 
+const ROLE_BADGE_VALUES = new Set([
+  'dominant',
+  'submissive',
+  'switch',
+  'service',
+]);
+
+const ROLE_BADGE_ALIASES: Record<string, string> = {
+  dom: 'dominant',
+  sub: 'submissive',
+};
+
 function normalizeBadgeValue(value: string) {
   const normalizedValue = value.trim().toLowerCase().replace(/[-_]+/g, ' ').replace(/\s+/g, ' ');
   return POSITION_BADGE_ALIASES[normalizedValue] ?? normalizedValue;
@@ -101,4 +137,56 @@ export function createMapMarkerBadge(positionValues: string[] = [], _hostingTrav
   }
 
   return null;
+}
+
+export function createMapMarkerRoleBadge(roleValues: string[] = []) {
+  const roleValue = roleValues
+    .map((value) => value.trim().toLowerCase().replace(/[-_]+/g, ' ').replace(/\s+/g, ' '))
+    .map((value) => ROLE_BADGE_ALIASES[value] ?? value)
+    .find((value) => ROLE_BADGE_VALUES.has(value));
+
+  if (!roleValue) {
+    return null;
+  }
+
+  return {
+    kind: 'role',
+    label: roleValue,
+    iconName: roleValue,
+  } satisfies MapMarkerBadge;
+}
+
+export function createSavedMapMarkerBadge(
+  selection: SideBadgeSelection | null | undefined,
+  fallback: MapMarkerBadge | null,
+) {
+  if (!selection) {
+    return fallback;
+  }
+
+  const badgeId = normalizeBadgeValue(selection.badge_id);
+
+  if (!badgeId || badgeId === 'none') {
+    return null;
+  }
+
+  const kind = ROLE_BADGE_VALUES.has(badgeId)
+    ? 'role'
+    : POSITION_BADGE_VALUES.has(badgeId)
+      ? 'position'
+      : 'custom';
+  const label = badgeId
+    .replace(/^(vibes|kinks)\s+/, '')
+    .replace(/^hanky\s+/, '')
+    .trim();
+
+  return {
+    kind,
+    label,
+    iconName: badgeId,
+    badgeId,
+    frame: selection.frame,
+    intent: selection.intent,
+    saved: true,
+  } satisfies MapMarkerBadge;
 }

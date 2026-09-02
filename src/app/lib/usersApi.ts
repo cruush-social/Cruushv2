@@ -1,5 +1,6 @@
 import { requestApi } from './apiClient';
 import type { CruushBadge } from './billingApi';
+import type { SideBadges } from './profileApi';
 import {
   decryptDisplayLocationToken,
   type DisplayLocationToken,
@@ -27,13 +28,17 @@ export type DiscoveryUser = {
   position: string[];
   role: string[];
   hostingTravel: string[];
+  travelling?: boolean;
+  travelLabel?: string;
   photo: string | null;
   photoExplicit?: boolean;
   badges?: CruushBadge[];
+  sideBadges?: SideBadges;
   isDemo?: boolean;
   isCurrentUser?: boolean;
   displayMode?: DisplayMode;
   displayExpiresAtMs?: number;
+  canRevealPreciseLocation?: boolean;
   ghostRotationExpiresAtMs?: number;
   privacyRadiusMeters?: number;
   npcGhostDemo?: boolean;
@@ -56,6 +61,8 @@ type Coordinates = {
 };
 
 export type DiscoveryFilterParams = {
+  searchQuery?: string;
+  mileHighClub?: boolean;
   identities?: string[];
   presentations?: string[];
   lookingFor?: string[];
@@ -103,9 +110,12 @@ type TokenizedDiscoveryProfile = {
   position: string[];
   role: string[];
   hostingTravel: string[];
+  travelling?: boolean;
+  travelLabel?: string;
   photo: string | null;
   photoExplicit?: boolean;
   badges?: CruushBadge[];
+  sideBadges?: SideBadges;
   relationship?: DiscoveryUser['relationship'];
   activePing?: DiscoveryUser['activePing'];
 };
@@ -113,7 +123,34 @@ type TokenizedDiscoveryProfile = {
 type NearbyUsersResponse = {
   mapEpochMs: number;
   profiles: TokenizedDiscoveryProfile[];
+  /** Set when the member must use Mile High Club to enter the active service area. */
+  outsideServiceArea?: boolean;
+  /** Set when the map is pointed further than a member may browse from. */
+  outsideBrowseRadius?: boolean;
+  browseRadiusMiles?: number;
 };
+
+/**
+ * Discovery refuses to serve a view further out than someone may browse, and
+ * says so rather than returning an empty list that reads as "nobody here".
+ * Mile High Club is how you move where you browse from.
+ */
+export class OutsideBrowseRadiusError extends Error {
+  readonly browseRadiusMiles: number;
+
+  constructor(browseRadiusMiles: number) {
+    super(`Turn on Mile High Club to browse more than ${browseRadiusMiles} miles from where you are.`);
+    this.name = 'OutsideBrowseRadiusError';
+    this.browseRadiusMiles = browseRadiusMiles;
+  }
+}
+
+export class OutsideServiceAreaError extends Error {
+  constructor() {
+    super('Turn on Mile High Club to enter the active service area.');
+    this.name = 'OutsideServiceAreaError';
+  }
+}
 
 function appendListParams(params: URLSearchParams, key: string, values?: string[]) {
   for (const value of values ?? []) {
@@ -143,6 +180,14 @@ export async function getNearbyUsers(
     params.set('npcGhostDemo', '1');
   }
 
+  if (filters?.mileHighClub) {
+    params.set('mileHighClub', '1');
+  }
+
+  if (filters?.searchQuery?.trim()) {
+    params.set('q', filters.searchQuery.trim());
+  }
+
   appendListParams(params, 'identities', filters?.identities);
   appendListParams(params, 'presentations', filters?.presentations);
   appendListParams(params, 'lookingFor', filters?.lookingFor);
@@ -169,6 +214,14 @@ export async function getNearbyUsers(
     }));
   }
 
+  if (response.outsideBrowseRadius === true) {
+    throw new OutsideBrowseRadiusError(response.browseRadiusMiles ?? 50);
+  }
+
+  if (response.outsideServiceArea === true) {
+    throw new OutsideServiceAreaError();
+  }
+
   return Promise.all(response.profiles.map(async (profile): Promise<DiscoveryUser> => {
     const displayPayload = await decryptDisplayLocationToken(profile.displayLocationToken);
 
@@ -193,9 +246,12 @@ export async function getNearbyUsers(
       position: profile.position,
       role: profile.role,
       hostingTravel: profile.hostingTravel,
+      travelling: profile.travelling === true,
+      travelLabel: profile.travelLabel ?? '',
       photo: profile.photo,
       photoExplicit: profile.photoExplicit === true,
       badges: profile.badges,
+      sideBadges: profile.sideBadges,
       displayMode: displayPayload.displayMode,
       displayExpiresAtMs: profile.displayExpiresAtMs,
       // The in-memory NPC demo pins have no rotation of their own, so they stay

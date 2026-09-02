@@ -1,6 +1,6 @@
 import { requestApi } from './apiClient';
 
-export type ReportTargetType = 'user' | 'profile' | 'conversation' | 'message' | 'post' | 'profile_photo';
+export type ReportTargetType = 'user' | 'profile' | 'conversation' | 'message' | 'post' | 'profile_photo' | 'place' | 'place_message';
 
 export type ReportReason =
   | 'non_consensual_imagery'
@@ -54,6 +54,10 @@ export function createReport(payload: CreateReportPayload) {
         ? { messageId: payload.targetId }
         : payload.targetType === 'post'
           ? { postId: payload.targetId }
+          : payload.targetType === 'place'
+            ? { placeId: payload.targetId }
+            : payload.targetType === 'place_message'
+              ? { placeMessageId: payload.targetId }
           : { profilePhotoUrl: payload.targetId, targetUserId: payload.targetUserId };
 
   return requestApi<ReportRecord>('/api/reports', {

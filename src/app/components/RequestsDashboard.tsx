@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import { ArrowLeft, Clock3, Mail, RefreshCw, Search, Send } from 'lucide-react';
+import { useEffect, useState, type FormEvent } from 'react';
+import { ArrowLeft, ChevronLeft, ChevronRight, Clock3, Mail, RefreshCw, Search, Send } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
-import { ApiClientError } from '../lib/apiClient';
+import { ApiClientError, resolveMediaUrl } from '../lib/apiClient';
 import {
   getSupportRequests,
   replyToSupportRequest,
@@ -13,8 +13,12 @@ import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Textarea } from './ui/textarea';
+import LoadingCardSkeletons from './LoadingCardSkeletons';
 
 type RequestStatusFilter = 'open' | 'in_progress' | 'closed' | 'dismissed' | 'all';
+type RequestCategoryFilter = 'all' | 'suspension_appeal';
+
+const PAGE_SIZE = 25;
 
 const statusTabs: Array<{ value: RequestStatusFilter; label: string }> = [
   { value: 'open', label: 'Open' },
@@ -37,6 +41,7 @@ const sourceLabels: Record<SupportRequestSource, string> = {
   settings: 'Settings',
   policy: 'Policy',
   unknown: 'Unknown',
+  survey: 'Survey',
 };
 
 function formatDateTime(value: string) {
@@ -58,7 +63,10 @@ function isAccessDenied(error: unknown) {
 export default function RequestsDashboard() {
   const navigate = useNavigate();
   const [filter, setFilter] = useState<RequestStatusFilter>('open');
+  const [categoryFilter, setCategoryFilter] = useState<RequestCategoryFilter>('all');
+  const [offset, setOffset] = useState(0);
   const [requests, setRequests] = useState<SupportRequestAdminRecord[]>([]);
+  const [page, setPage] = useState({ limit: PAGE_SIZE, offset: 0, total: 0, hasMore: false });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
@@ -70,13 +78,14 @@ export default function RequestsDashboard() {
     setIsLoading(true);
     setError(null);
 
-    getSupportRequests({ status: filter, limit: 25, offset: 0 })
+    getSupportRequests({ status: filter, category: categoryFilter, limit: PAGE_SIZE, offset })
       .then((response) => {
         if (!active) {
           return;
         }
 
         setRequests(response.requests);
+        setPage(response.page);
       })
       .catch((fetchError) => {
         if (!active) {
@@ -89,6 +98,7 @@ export default function RequestsDashboard() {
           setError(fetchError instanceof Error ? fetchError.message : 'Failed to load bug reports.');
         }
         setRequests([]);
+        setPage({ limit: PAGE_SIZE, offset, total: 0, hasMore: false });
       })
       .finally(() => {
         if (active) {
@@ -99,10 +109,7 @@ export default function RequestsDashboard() {
     return () => {
       active = false;
     };
-  }, [filter]);
-
-  const openCount = useMemo(() => requests.filter((request) => request.status === 'open').length, [requests]);
-  const inProgressCount = useMemo(() => requests.filter((request) => request.status === 'in_progress').length, [requests]);
+  }, [categoryFilter, filter, offset]);
 
   const handleReply = async (event: FormEvent<HTMLFormElement>, request: SupportRequestAdminRecord) => {
     event.preventDefault();
@@ -148,24 +155,25 @@ export default function RequestsDashboard() {
 
   return (
     <div className="min-h-screen bg-background pb-20">
-      <header className="sticky top-0 z-10 flex items-center gap-4 border-b border-border bg-card/80 p-4 backdrop-blur-sm">
+      <header className="cruush-requests-header sticky top-0 z-10 flex items-center gap-4 border-b border-border bg-card/80 p-4 backdrop-blur-sm">
         <Button variant="ghost" size="icon" onClick={() => navigate(-1)} aria-label="Back">
           <ArrowLeft className="h-5 w-5" />
         </Button>
-        <div className="min-w-0">
-          <h2 className="truncate text-xl">Bug reports</h2>
+        <div className="cruush-requests-title min-w-0">
+          <h2 className="text-xl">Bug reports</h2>
           <p className="text-sm text-muted-foreground">
-            {openCount} open · {inProgressCount} in progress
+            {page.total} {categoryFilter === 'suspension_appeal' ? 'age suspension appeal' : 'request'}{page.total === 1 ? '' : 's'}
           </p>
         </div>
         <Button
-          className="ml-auto"
+          className="cruush-requests-refresh ml-auto"
           variant="outline"
           onClick={() => {
             setIsLoading(true);
-            getSupportRequests({ status: filter, limit: 25, offset: 0 })
+            getSupportRequests({ status: filter, category: categoryFilter, limit: PAGE_SIZE, offset })
               .then((response) => {
                 setRequests(response.requests);
+                setPage(response.page);
                 setError(null);
               })
               .catch((fetchError) => {
@@ -180,8 +188,8 @@ export default function RequestsDashboard() {
       </header>
 
       <div className="mx-auto max-w-5xl p-4">
-        <Tabs value={filter} onValueChange={(value) => setFilter(value as RequestStatusFilter)} className="w-full">
-          <TabsList className="grid w-full grid-cols-5">
+        <Tabs value={filter} onValueChange={(value) => { setOffset(0); setFilter(value as RequestStatusFilter); }} className="w-full">
+          <TabsList className="cruush-requests-tabs grid w-full grid-cols-5">
             {statusTabs.map((tab) => (
               <TabsTrigger key={tab.value} value={tab.value}>
                 {tab.label}
@@ -191,6 +199,40 @@ export default function RequestsDashboard() {
 
           <TabsContent value={filter} className="mt-0">
             <div className="mt-4 space-y-4">
+              <div className="flex items-center justify-between gap-3">
+                <select
+                  aria-label="Request type filter"
+                  className="h-10 min-w-0 flex-1 rounded-md border border-border bg-input-background px-3 text-sm sm:max-w-xs"
+                  onChange={(event) => {
+                    setOffset(0);
+                    setCategoryFilter(event.target.value as RequestCategoryFilter);
+                  }}
+                  value={categoryFilter}
+                >
+                  <option value="all">All requests</option>
+                  <option value="suspension_appeal">Age suspension appeals</option>
+                </select>
+                <div className="flex shrink-0 gap-1">
+                  <Button
+                    aria-label="Previous request page"
+                    disabled={offset === 0}
+                    onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}
+                    size="icon"
+                    variant="outline"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    aria-label="Next request page"
+                    disabled={!page.hasMore}
+                    onClick={() => setOffset(offset + PAGE_SIZE)}
+                    size="icon"
+                    variant="outline"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Search className="h-4 w-4" />
                 <span>Replies send from the support inbox and store the reply in the request history.</span>
@@ -200,15 +242,11 @@ export default function RequestsDashboard() {
                 <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
                   {error}
                 </div>
-              ) : null}
-
-              {isLoading ? (
-                <div className="rounded-lg border border-border bg-card/60 p-8 text-center text-muted-foreground">
-                  Loading bug reports...
-                </div>
+              ) : isLoading ? (
+                <LoadingCardSkeletons label="Loading bug reports" />
               ) : requests.length === 0 ? (
                 <div className="rounded-lg border border-border bg-card/60 p-8 text-center text-muted-foreground">
-                  No bug reports match this filter.
+                  {categoryFilter === 'suspension_appeal' ? 'No age suspension appeals match this filter.' : 'No requests match this filter.'}
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -228,6 +266,31 @@ export default function RequestsDashboard() {
                             <h3 className="text-lg leading-tight">{request.subject}</h3>
                             <p className="mt-1 whitespace-pre-wrap text-sm text-muted-foreground">{request.message}</p>
                           </div>
+
+                          {request.appealEvidence?.length ? (
+                            <div className="space-y-2">
+                              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Private appeal evidence</p>
+                              <div className="flex flex-wrap gap-3">
+                                {request.appealEvidence.map((evidence) => (
+                                  <a
+                                    className="block overflow-hidden rounded-md border border-border bg-muted/30"
+                                    href={resolveMediaUrl(evidence.previewUrl)}
+                                    key={evidence.type}
+                                    rel="noreferrer"
+                                    target="_blank"
+                                  >
+                                    <img
+                                      alt={evidence.type === 'id' ? 'Redacted ID showing date of birth and photo' : 'Appeal selfie'}
+                                      className="h-32 w-24 object-cover"
+                                      loading="lazy"
+                                      src={resolveMediaUrl(evidence.previewUrl)}
+                                    />
+                                    <span className="block px-2 py-1 text-center text-xs capitalize">{evidence.type}</span>
+                                  </a>
+                                ))}
+                              </div>
+                            </div>
+                          ) : null}
 
                           <div className="grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
                             <div className="flex items-center gap-2">

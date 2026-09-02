@@ -163,6 +163,7 @@ export default function ResetPassword() {
 
           <Link
             to="/"
+            reloadDocument
             className="launch-login-auth-secondary block w-full text-center text-sm text-white/40 hover:text-white/70 transition-colors"
           >
             Back to sign in

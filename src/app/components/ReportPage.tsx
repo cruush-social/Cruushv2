@@ -17,6 +17,8 @@ type ReportLocationState = {
   conversationId?: string;
   messageId?: string;
   postId?: string;
+  placeId?: string;
+  placeMessageId?: string;
   profilePhotoUrl?: string;
   targetId?: string;
   targetLabel?: string;
@@ -29,6 +31,8 @@ function getReportTarget(state: ReportLocationState, searchParams: URLSearchPara
     conversationId: state?.conversationId ?? searchParams.get('conversationId') ?? undefined,
     messageId: state?.messageId ?? searchParams.get('messageId') ?? undefined,
     postId: state?.postId ?? searchParams.get('postId') ?? undefined,
+    placeId: state?.placeId ?? searchParams.get('placeId') ?? undefined,
+    placeMessageId: state?.placeMessageId ?? searchParams.get('placeMessageId') ?? undefined,
     profilePhotoUrl: state?.profilePhotoUrl ?? searchParams.get('profilePhotoUrl') ?? undefined,
     targetId: state?.targetId ?? searchParams.get('targetId') ?? undefined,
     targetLabel: state?.targetLabel ?? searchParams.get('targetLabel') ?? undefined,
@@ -56,16 +60,25 @@ function getTargetId(target: ReturnType<typeof getReportTarget>) {
     return target.profilePhotoUrl ?? target.targetId;
   }
 
+  if (target.targetType === 'place') return target.placeId;
+  if (target.targetType === 'place_message') return target.placeMessageId;
+
   return target.postId;
 }
 
-export default function ReportPage() {
+type ReportPageProps = {
+  embedded?: boolean;
+  targetOverride?: NonNullable<ReportLocationState>;
+  onBack?: () => void;
+};
+
+export default function ReportPage({ embedded = false, targetOverride, onBack }: ReportPageProps = {}) {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const target = useMemo(
-    () => getReportTarget(location.state as ReportLocationState, searchParams),
-    [location.state, searchParams],
+    () => getReportTarget(targetOverride ?? (location.state as ReportLocationState), targetOverride ? new URLSearchParams() : searchParams),
+    [location.state, searchParams, targetOverride],
   );
   const [reason, setReason] = useState<ReportReason | ''>('');
   const [details, setDetails] = useState('');
@@ -81,11 +94,17 @@ export default function ReportPage() {
           ? 'this post'
           : target.targetType === 'profile_photo'
             ? 'this profile photo'
+          : target.targetType === 'place'
+            ? 'this spot'
+          : target.targetType === 'place_message'
+            ? 'this board post'
           : 'this profile'
   );
+  const goBack = onBack ?? (() => navigate(-1));
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
+    if (status === 'submitting') return;
 
     if (!targetId) {
       setError('This report link is missing its target.');
@@ -116,10 +135,10 @@ export default function ReportPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background pb-20">
+    <div className={embedded ? 'bg-background' : 'min-h-screen bg-background pb-20'}>
       <header className="sticky top-0 z-10 border-b border-border bg-card/90 p-4 backdrop-blur-sm">
-        <div className="mx-auto flex max-w-2xl items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)} aria-label="Back">
+        <div className={`mx-auto flex max-w-2xl items-center gap-4 ${embedded ? 'pr-10' : ''}`}>
+          <Button variant="ghost" size="icon" onClick={goBack} aria-label="Back">
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
@@ -135,7 +154,7 @@ export default function ReportPage() {
             <CheckCircle2 className="mx-auto h-10 w-10 text-primary" />
             <h1 className="mt-4 text-2xl">Report submitted</h1>
             <p className="mt-2 text-sm text-muted-foreground">Automated safety checks will use this signal for trust and enforcement decisions.</p>
-            <Button className="mt-6" onClick={() => navigate(-1)}>
+            <Button className="mt-6" onClick={goBack}>
               Done
             </Button>
           </div>

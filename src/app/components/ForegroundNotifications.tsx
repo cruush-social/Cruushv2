@@ -51,12 +51,16 @@ export function isNotificationTypeEnabled(
     return preferences.groupsEnabled;
   }
 
-  if (type === 'nearby_activity') {
+  if (type === 'nearby_activity' || type === 'place_checkin_expired') {
     return preferences.nearbyEnabled;
   }
 
   if (type === 'reward') {
     return preferences.rewardsEnabled;
+  }
+
+  if (type === 'pulse') {
+    return preferences.pulseEnabled;
   }
 
   return true;
@@ -77,7 +81,7 @@ export function notificationPopupTheme() {
 }
 
 export function notificationPopupIconName(type: NotificationRecord['type']) {
-  return type === 'mutual_cruush' ? 'safety' : 'bell';
+  return type === 'mutual_cruush' ? 'mutual' : 'bell';
 }
 
 function getAudioContextConstructor() {
@@ -232,7 +236,7 @@ export default function ForegroundNotifications() {
           style={{ background: 'var(--cruush-gradient)' }}
         >
           {notification.type === 'mutual_cruush' ? (
-            <CruushIcon name="safety" variant="white" className="h-5 w-5" />
+            <CruushIcon name="mutual" variant="white" className="h-5 w-5" />
           ) : (
             <Bell className="h-4 w-4" />
           )}

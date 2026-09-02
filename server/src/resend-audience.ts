@@ -8,137 +8,126 @@ type VerifiedMemberDb = {
   query: <T>(sql: string) => Promise<{ rows: T[] }>;
 };
 
-type AudienceLogger = {
-  warn: (context: unknown, message: string) => void;
-  info?: (context: unknown, message: string) => void;
-};
+const REQUEST_INTERVAL_MS = 1_000;
+const REQUEST_TIMEOUT_MS = 10_000;
+const MAX_PROVIDER_WAIT_MS = 60_000;
+const MAX_ATTEMPTS = 3;
+let requestQueue: Promise<void> = Promise.resolve();
+let nextRequestAt = 0;
 
-/**
- * Resend rate limits this API, and the reconciliation walks every verified
- * account on boot. Sent as fast as the loop can issue them, the whole run is
- * refused: production logged 113 members, 113 failures, every one of them
- * `lookup_429`, on every restart since the sync was added. The audience was
- * never populated.
- *
- * These two constants are what keeps the run under the limit. The pause is
- * per member rather than per request because a member costs two requests, a
- * lookup and possibly a create.
- */
-const AUDIENCE_REQUEST_PAUSE_MS = 600;
-const AUDIENCE_RETRY_LIMIT = 4;
-
-const sleep = (ms: number) => new Promise<void>((resolve) => { setTimeout(resolve, ms); });
-
-export type AudienceRuntime = {
-  /** Injectable so tests do not spend real seconds waiting. */
-  wait?: (ms: number) => Promise<void>;
-};
-
-function retryAfterMs(response: Response, attempt: number) {
-  // Honour the server's own figure when it sends one. Otherwise back off
-  // exponentially from the base pause.
-  const header = response.headers?.get?.("retry-after");
-  const seconds = header ? Number(header) : Number.NaN;
-
-  if (Number.isFinite(seconds) && seconds >= 0) {
-    return Math.min(seconds * 1000, 30_000);
+class AudienceSyncFailure extends Error {
+  constructor(message: string, readonly retryable: boolean, readonly stopSweep: boolean) {
+    super(message);
   }
-
-  return Math.min(AUDIENCE_REQUEST_PAUSE_MS * 2 ** attempt, 30_000);
 }
 
-/**
- * A 429 is a request to wait, not a failure. Treating it as one is what made
- * every member fail permanently: the error was logged and that member was
- * never revisited, because the next boot started the same losing race again.
- */
-async function fetchWithRetry(
-  url: string,
-  init: RequestInit,
-  wait: (ms: number) => Promise<void>
-): Promise<Response> {
-  let response = await fetch(url, init);
-
-  for (let attempt = 0; response.status === 429 && attempt < AUDIENCE_RETRY_LIMIT; attempt += 1) {
-    await wait(retryAfterMs(response, attempt));
-    response = await fetch(url, init);
+function retryDelayMs(response: Response) {
+  const retryAfter = response.headers.get("retry-after");
+  if (retryAfter) {
+    const seconds = Number(retryAfter);
+    if (Number.isFinite(seconds)) return Math.max(0, seconds * 1_000);
+    const date = Date.parse(retryAfter);
+    if (Number.isFinite(date)) return Math.max(0, date - Date.now());
   }
-
-  return response;
+  if (response.headers.get("ratelimit-remaining") === "0") {
+    const seconds = Number(response.headers.get("ratelimit-reset"));
+    if (Number.isFinite(seconds)) return Math.max(0, seconds * 1_000);
+  }
+  return 0;
 }
 
-export async function syncVerifiedMemberToResendAudience(input: {
-  config: AudienceConfig;
-  email: string;
-  logger: Pick<AudienceLogger, "warn">;
-} & AudienceRuntime): Promise<boolean> {
-  const { config, email, logger, wait = sleep } = input;
+function requestAudience(url: string, init: RequestInit): Promise<Response> {
+  // Startup reconciliation and individual verification events share the same
+  // local queue. Provider headers also account for traffic from other processes.
+  const request = requestQueue.then(async () => {
+    const waitMs = Math.max(0, nextRequestAt - Date.now());
+    if (waitMs > MAX_PROVIDER_WAIT_MS) {
+      throw new AudienceSyncFailure("provider_retry_deferred", false, true);
+    }
+    if (waitMs > 0) await new Promise<void>((resolve) => setTimeout(resolve, waitMs));
+    nextRequestAt = Date.now() + REQUEST_INTERVAL_MS;
+    let response: Response;
+    try {
+      response = await fetch(url, { ...init, signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
+    } catch {
+      // Fetch errors can include the contact URL. Never propagate that URL to logs.
+      throw new AudienceSyncFailure("provider_request_failed", true, true);
+    }
+    nextRequestAt = Math.max(nextRequestAt, Date.now() + retryDelayMs(response));
+    // Only status and rate headers are needed; do not retain contact payloads.
+    await response.body?.cancel().catch(() => undefined);
+    return response;
+  });
+  requestQueue = request.then(() => undefined, () => undefined);
+  return request;
+}
 
-  if (config.APP_DEPLOYMENT_STAGE !== "production" || !config.RESEND_API_KEY || !config.RESEND_CRUUSH_APP_AUDIENCE_ID) {
-    return false;
-  }
+function responseFailure(stage: "lookup" | "create", response: Response) {
+  const transient = response.status === 408 || response.status === 429 || response.status >= 500;
+  return new AudienceSyncFailure(
+    `${stage}_${response.status}`,
+    transient,
+    transient || response.status === 401 || response.status === 403,
+  );
+}
 
+export async function syncVerifiedMemberToResendAudience(input: { config: AudienceConfig; email: string; logger: { warn: (context: unknown, message: string) => void } }) {
+  const { config, email, logger } = input;
+  if (config.APP_DEPLOYMENT_STAGE !== "production" || !config.RESEND_API_KEY || !config.RESEND_CRUUSH_APP_AUDIENCE_ID) return "skipped" as const;
   const base = `https://api.resend.com/audiences/${encodeURIComponent(config.RESEND_CRUUSH_APP_AUDIENCE_ID)}/contacts`;
   const headers = { Authorization: `Bearer ${config.RESEND_API_KEY}` };
-
-  try {
-    // The lookup is deliberate. Creating a contact that already exists risks
-    // resetting whatever state it carries, including an unsubscribe, so an
-    // existing contact is left untouched.
-    const existing = await fetchWithRetry(`${base}/${encodeURIComponent(email)}`, { headers }, wait);
-    if (existing.ok) return true;
-    if (existing.status !== 404) throw new Error(`lookup_${existing.status}`);
-
-    const created = await fetchWithRetry(
-      base,
-      { method: "POST", headers: { ...headers, "Content-Type": "application/json" }, body: JSON.stringify({ email }) },
-      wait
-    );
-    if (!created.ok && created.status !== 409) throw new Error(`create_${created.status}`);
-
-    return true;
-  } catch (error) {
-    logger.warn({ email, error: error instanceof Error ? error.message : "unknown" }, "verified member audience sync failed");
-    return false;
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
+    try {
+      // Always restart with lookup, including after an ambiguous create result.
+      // Existing contacts and their unsubscribe preferences are never updated.
+      const existing = await requestAudience(`${base}/${encodeURIComponent(email)}`, { headers });
+      if (existing.ok) return "synced" as const;
+      if (existing.status !== 404) throw responseFailure("lookup", existing);
+      const created = await requestAudience(base, { method: "POST", headers: { ...headers, "Content-Type": "application/json" }, body: JSON.stringify({ email }) });
+      if (created.ok || created.status === 409) return "synced" as const;
+      throw responseFailure("create", created);
+    } catch (error) {
+      const failure = error instanceof AudienceSyncFailure
+        ? error
+        : new AudienceSyncFailure("audience_sync_failed", false, true);
+      if (failure.retryable && attempt + 1 < MAX_ATTEMPTS) {
+        nextRequestAt = Math.max(nextRequestAt, Date.now() + REQUEST_INTERVAL_MS * 2 ** attempt);
+        continue;
+      }
+      logger.warn({ error: failure.message, attempts: attempt + 1 }, "verified member audience sync failed");
+      return failure.stopSweep ? "deferred" as const : "failed" as const;
+    }
   }
+  return "failed" as const;
 }
 
 export async function syncAllVerifiedMembersToResendAudience(input: {
   config: AudienceConfig;
   db: VerifiedMemberDb;
-  logger: AudienceLogger;
-} & AudienceRuntime) {
-  const { config, db, logger, wait = sleep } = input;
-
-  if (config.APP_DEPLOYMENT_STAGE !== "production" || !config.RESEND_API_KEY || !config.RESEND_CRUUSH_APP_AUDIENCE_ID) {
-    return;
-  }
-
-  const result = await db.query<{ email: string }>(
+  logger: { warn: (context: unknown, message: string) => void; info?: (context: unknown, message: string) => void };
+}) {
+  if (input.config.APP_DEPLOYMENT_STAGE !== "production" || !input.config.RESEND_API_KEY || !input.config.RESEND_CRUUSH_APP_AUDIENCE_ID) return;
+  const result = await input.db.query<{ email: string }>(
     `select email
      from app_users
      where email_verified_at is not null
        and coalesce(account_status, 'active') <> 'deleted'
      order by created_at asc`
   );
-
   let synced = 0;
   let failed = 0;
-
-  for (const [index, row] of result.rows.entries()) {
-    if (index > 0) await wait(AUDIENCE_REQUEST_PAUSE_MS);
-
-    if (await syncVerifiedMemberToResendAudience({ config, email: row.email, logger, wait })) {
-      synced += 1;
-    } else {
-      failed += 1;
+  for (let index = 0; index < result.rows.length; index += 1) {
+    const outcome = await syncVerifiedMemberToResendAudience({ config: input.config, email: result.rows[index].email, logger: input.logger });
+    if (outcome === "deferred") {
+      input.logger.warn({ synced, failed, remaining: result.rows.length - index }, "verified member audience reconciliation deferred");
+      return;
     }
+    if (outcome === "synced") synced += 1;
+    else failed += 1;
   }
-
-  // A count of what actually landed. The previous version reported only how
-  // many rows it walked, which read as success while every one of them failed.
-  logger.info?.(
-    { count: result.rows.length, synced, failed },
-    "verified member audience reconciliation complete"
-  );
+  if (failed > 0) {
+    input.logger.warn({ synced, failed }, "verified member audience reconciliation incomplete");
+  } else {
+    input.logger.info?.({ count: synced }, "verified member audience reconciliation complete");
+  }
 }

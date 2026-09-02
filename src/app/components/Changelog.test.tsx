@@ -22,15 +22,15 @@ describe('Changelog', () => {
     getUserNoticeDismissal.mockResolvedValue({ dismissed: true, dismissedAt: '2026-08-09T12:00:00.000Z' });
   });
 
-  it('shows v1.5 before the preserved earlier history', () => {
+  it('shows v1.6 before the preserved earlier history', () => {
     render(
       <MemoryRouter>
         <Changelog />
       </MemoryRouter>,
     );
 
-    expect(screen.getByText('v1.5')).toBeInTheDocument();
     expect(screen.getAllByRole('heading', { level: 3 }).map((heading) => heading.textContent)).toEqual([
+      'cruush v1.6',
       'cruush v1.5',
       'cruush v1.4',
       'cruush v1.3',
@@ -79,7 +79,7 @@ describe('Changelog', () => {
       'fixed',
       'right-[calc(0.75rem+env(safe-area-inset-right))]',
       'top-[calc(0.75rem+env(safe-area-inset-top))]',
-      'z-[70]',
+      'z-[1500]',
     );
   });
 });

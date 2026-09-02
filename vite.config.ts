@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import fs from 'fs'
 import path from 'path'
 import tailwindcss from '@tailwindcss/vite'
@@ -51,9 +51,12 @@ function staticPageRoutes() {
 const devCertDirectory = path.resolve(__dirname, '.dev/certs')
 const devKeyPath = path.join(devCertDirectory, 'localhost-key.pem')
 const devCertPath = path.join(devCertDirectory, 'localhost-cert.pem')
-const useHttps = process.env.VITE_DEV_HTTPS !== '0' && process.env.VITE_DEV_HTTPS !== 'false'
-const configuredDevPort = Number(process.env.VITE_DEV_PORT ?? 5173)
-const configuredDevHost = process.env.VITE_DEV_HOST || undefined
+const localDevEnv = loadEnv('development', __dirname, '')
+const useHttpsValue = process.env.VITE_DEV_HTTPS ?? localDevEnv.VITE_DEV_HTTPS
+const useHttps = useHttpsValue !== '0' && useHttpsValue !== 'false'
+const configuredDevPort = Number(process.env.VITE_DEV_PORT ?? localDevEnv.VITE_DEV_PORT ?? 5173)
+const configuredDevHost = (process.env.VITE_DEV_HOST ?? localDevEnv.VITE_DEV_HOST) || undefined
+const configuredApiProxyTarget = process.env.VITE_API_PROXY_TARGET ?? localDevEnv.VITE_API_PROXY_TARGET ?? 'http://127.0.0.1:3001'
 
 const httpsConfig =
   useHttps && fs.existsSync(devKeyPath) && fs.existsSync(devCertPath)
@@ -64,6 +67,7 @@ const httpsConfig =
     : undefined
 
 export default defineConfig({
+  cacheDir: path.resolve(__dirname, '.dev/vite-cache'),
   plugins: [
     figmaAssetResolver(),
     staticPageRoutes(),
@@ -79,15 +83,15 @@ export default defineConfig({
     strictPort: Boolean(process.env.VITE_DEV_PORT),
     proxy: {
       '/api': {
-        target: 'http://127.0.0.1:3001',
+        target: configuredApiProxyTarget,
         changeOrigin: true,
       },
       '/health': {
-        target: 'http://127.0.0.1:3001',
+        target: configuredApiProxyTarget,
         changeOrigin: true,
       },
       '/media': {
-        target: 'http://127.0.0.1:3001',
+        target: configuredApiProxyTarget,
         changeOrigin: true,
       },
     },
@@ -109,6 +113,7 @@ export default defineConfig({
     },
   },
   resolve: {
+    dedupe: ['react', 'react-dom'],
     alias: {
       // Alias @ to the src directory
       '@': path.resolve(__dirname, './src'),

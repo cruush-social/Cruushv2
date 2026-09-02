@@ -8,6 +8,8 @@ import {
   deriveGhostCoordinate,
   distanceMiles,
   GHOST_MIN_OFFSET_RATIO,
+  GHOST_ROTATION_MINUTES,
+  getGhostRotationState,
   issueBrowserDisplayKey,
   loadLocationEnvelope,
   loadLocationEnvelopes,
@@ -450,6 +452,50 @@ describe("location privacy", () => {
     });
     expect(publicPrivacySettings(disabled, activatedAtMs + 15 * 60_000))
       .not.toHaveProperty("ghostRotationExpiresAtMs");
+  });
+
+  it("keeps the current rotation deadline and epoch when cadence changes", () => {
+    const start = Date.UTC(2026, 7, 30, 12);
+    const active = normalizeVisibilityPolicy(config, subjectUserId, { baseMode: "GHOST" }, null, start);
+    const changed = normalizeVisibilityPolicy(config, subjectUserId,
+      { ghostRotationMinutes: 60 }, active, start + 5 * 60_000);
+
+    expect(changed.ghostSessionVersion).toBe(active.ghostSessionVersion);
+    expect(changed.ghostActivatedAtMs).toBe(active.ghostActivatedAtMs);
+    expect(getGhostRotationState(changed, start + 6 * 60_000)).toEqual({
+      rotationEpoch: 0, expiresAtMs: start + 15 * 60_000
+    });
+    expect(getGhostRotationState(changed, start + 15 * 60_000)).toEqual({
+      rotationEpoch: 1, expiresAtMs: start + 75 * 60_000
+    });
+
+    const changedAgain = normalizeVisibilityPolicy(config, subjectUserId,
+      { ghostRotationMinutes: 30 }, changed, start + 20 * 60_000);
+    expect(getGhostRotationState(changedAgain, start + 21 * 60_000)).toEqual({
+      rotationEpoch: 1, expiresAtMs: start + 75 * 60_000
+    });
+    expect(getGhostRotationState(changedAgain, start + 75 * 60_000)).toEqual({
+      rotationEpoch: 2, expiresAtMs: start + 105 * 60_000
+    });
+    expect(publicPrivacySettings(changedAgain, start + 21 * 60_000)).not.toHaveProperty('ghostRotationSchedule');
+  });
+
+  it("supports each requested cadence on activation and retains legacy defaults", () => {
+    const start = Date.UTC(2026, 7, 30, 12);
+    const disabled = normalizeVisibilityPolicy(config, subjectUserId, { baseMode: "PUBLIC_PRECISE" }, null, start);
+    expect(GHOST_ROTATION_MINUTES).toEqual([15, 30, ...Array.from({ length: 24 }, (_, index) => (index + 1) * 60)]);
+    for (const minutes of GHOST_ROTATION_MINUTES) {
+      const active = normalizeVisibilityPolicy(config, subjectUserId,
+        { baseMode: "GHOST", ghostRotationMinutes: minutes }, disabled, start);
+      expect(getGhostRotationState(active, start + 60_000)).toEqual({
+        rotationEpoch: 0, expiresAtMs: start + minutes * 60_000
+      });
+      expect(getGhostRotationState(active, start + minutes * 60_000)).toEqual({
+        rotationEpoch: 1, expiresAtMs: start + 2 * minutes * 60_000
+      });
+      const legacy = { ...active, ghostRotationMinutes: undefined };
+      expect(getGhostRotationState(legacy, start + 60_000).expiresAtMs).toBe(start + 15 * 60_000);
+    }
   });
 
   it("keeps the shared decoy fixed for activation-relative 15-minute intervals", async () => {

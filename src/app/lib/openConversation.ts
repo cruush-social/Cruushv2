@@ -3,10 +3,25 @@ import { ApiClientError } from './apiClient';
 import { openDirectConversation } from './messagesApi';
 import { notifyMutualCruushRequired } from './cruushNotifications';
 
-export async function openConversationOrInbox(navigate: NavigateFunction, otherUserId: string) {
+export type ConversationRouteOrigin = 'profile';
+
+export async function openConversationOrInbox(
+  navigate: NavigateFunction,
+  otherUserId: string,
+  onOpenConversation?: (conversationId: string) => void,
+  routeOrigin?: ConversationRouteOrigin,
+) {
   try {
     const conversation = await openDirectConversation(otherUserId);
-    navigate(`/chat/${conversation.id}`);
+    if (onOpenConversation) {
+      onOpenConversation(conversation.id);
+    } else if (routeOrigin) {
+      navigate(`/chat/${conversation.id}`, {
+        state: { conversationOrigin: routeOrigin },
+      });
+    } else {
+      navigate(`/chat/${conversation.id}`);
+    }
     return conversation.id;
   } catch (error) {
     if (error instanceof ApiClientError && error.code === 'MUTUAL_CRUUSH_REQUIRED') {
@@ -15,7 +30,9 @@ export async function openConversationOrInbox(navigate: NavigateFunction, otherU
     }
 
     console.error('Error opening conversation:', error);
-    navigate('/messages');
+    if (!onOpenConversation) {
+      navigate('/messages');
+    }
     return null;
   }
 }

@@ -24,7 +24,7 @@ describe('Visual & Layout Invariant Validation', () => {
     // Test touchEnd event on mobile
     fireEvent.touchEnd(skipButton);
     expect(onComplete).toHaveBeenCalledTimes(1);
-    expect(window.localStorage.getItem('cruush:tutorial-v4-seen')).toBe('true');
+    expect(window.localStorage.getItem('cruush:tutorial-v5-seen')).toBe('true');
   });
 
   it('validates horizontal scrollable category tabbar layout and checkmark indicators in MultiSelect', () => {
@@ -34,7 +34,7 @@ describe('Visual & Layout Invariant Validation', () => {
       <MultiSelect
         ariaLabel="Kinks & Fetishes"
         optionGroups={KINK_GROUPS}
-        value={['anal', 'bondage']}
+        value={['biting', 'chastity']}
         onChange={onChange}
       />
     );
@@ -52,20 +52,20 @@ describe('Visual & Layout Invariant Validation', () => {
     expect(tabs[0]).toHaveTextContent('Body & Touch');
     expect(tabs[0]).toHaveAttribute('aria-selected', 'true');
 
-    // Verify active option list has Check icon indicator for selected item ('anal')
+    // Verify active option list has Check icon indicator for the selected item.
     const listbox = screen.getByRole('listbox', { name: 'Kinks & Fetishes' });
     expect(listbox).toHaveClass('flex-1', 'overflow-y-auto');
 
-    const analOption = within(listbox).getByRole('option', { name: 'anal' });
-    expect(analOption).toHaveAttribute('aria-selected', 'true');
-    expect(analOption).toHaveClass('bg-accent/80', 'font-medium');
+    const bitingOption = within(listbox).getByRole('option', { name: 'biting' });
+    expect(bitingOption).toHaveAttribute('aria-selected', 'true');
+    expect(bitingOption).toHaveClass('bg-accent/80', 'font-medium');
 
     // Switch to 'Power' category tab
     const powerTab = screen.getByRole('tab', { name: 'Power' });
     fireEvent.click(powerTab);
 
     expect(powerTab).toHaveAttribute('aria-selected', 'true');
-    const bondageOption = within(listbox).getByRole('option', { name: 'bondage' });
-    expect(bondageOption).toHaveAttribute('aria-selected', 'true');
+    const chastityOption = within(listbox).getByRole('option', { name: 'chastity' });
+    expect(chastityOption).toHaveAttribute('aria-selected', 'true');
   });
 });

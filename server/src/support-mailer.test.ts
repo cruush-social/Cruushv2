@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AppConfig } from "./config.js";
 import { sendSupportRequestInboxEmail, sendSupportRequestReplyEmail } from "./mailer.js";
 
@@ -32,6 +32,10 @@ const logger = {
   error: vi.fn(),
   info: vi.fn()
 } as any;
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 describe("support mailer", () => {
   it("sends support requests to the reports inbox with reply-to", async () => {

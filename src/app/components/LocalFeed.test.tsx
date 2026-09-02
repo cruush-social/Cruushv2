@@ -321,6 +321,96 @@ describe('LocalFeed', () => {
     expect(screen.getAllByLabelText('river preview').at(-1)?.querySelector('image')).not.toBeNull();
   });
 
+  it('masks explicit Feed attachments while keeping safe attachments actionable in DL Mode', async () => {
+    window.localStorage.setItem('cruush:dl-mode-enabled', 'true');
+    getFeedPosts.mockResolvedValue([{
+      id: 'post-with-photos',
+      content: 'two photos',
+      expiresIn: '6h',
+      expiresAt: '2026-04-28T18:00:00.000Z',
+      createdAt: '2026-04-28T12:00:00.000Z',
+      distance: 'Nearby',
+      audience: 'public',
+      photos: [{
+        id: 'explicit-photo',
+        url: '/api/media/assets/explicit-photo/display',
+        thumbnailUrl: '/api/media/assets/explicit-photo/thumbnail',
+        explicit: true,
+      }, {
+        id: 'safe-photo',
+        url: '/api/media/assets/safe-photo/display',
+        thumbnailUrl: '/api/media/assets/safe-photo/thumbnail',
+        explicit: false,
+      }],
+      user: {
+        id: 'user-2',
+        name: 'river',
+        pronouns: 'they/them',
+        photo: null,
+        photoExplicit: false,
+      },
+    }]);
+
+    render(
+      <MemoryRouter>
+        <LocalFeed />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText('two photos')).toBeInTheDocument();
+    const masked = screen.getByRole('img', { name: 'Feed photo 1 hidden by DL Mode' });
+    expect(masked.querySelector('image')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Feed photo 1 hidden by DL Mode' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Open Feed photo 2' })).toBeEnabled();
+  });
+
+  it('renders three Feed photos in one row and opens the shared full photo viewer', async () => {
+    getFeedPosts.mockResolvedValue([{
+      id: 'post-with-three-photos',
+      content: 'three photos',
+      expiresIn: '6h',
+      expiresAt: '2026-04-28T18:00:00.000Z',
+      createdAt: '2026-04-28T12:00:00.000Z',
+      distance: 'Nearby',
+      audience: 'public',
+      photos: [1, 2, 3].map((index) => ({
+        id: `photo-${index}`,
+        url: `/api/media/assets/photo-${index}/display`,
+        thumbnailUrl: `/api/media/assets/photo-${index}/thumbnail`,
+        explicit: false,
+      })),
+      user: {
+        id: 'user-2',
+        name: 'river',
+        pronouns: 'they/them',
+        photo: null,
+        photoExplicit: false,
+      },
+    }]);
+
+    render(
+      <MemoryRouter>
+        <LocalFeed />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText('three photos')).toBeInTheDocument();
+    expect(screen.getByTestId('feed-photo-preview-three')).toHaveClass('flex', 'items-center');
+    expect(screen.getAllByRole('button', { name: /Open Feed photo/ })).toHaveLength(3);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open Feed photo 3' }));
+
+    expect(screen.getByRole('dialog', { name: 'Feed photo viewer' })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'Feed photo 3 by river' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Report Feed photo' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Close Feed photo' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next Feed photo' }));
+    expect(screen.getByRole('img', { name: 'Feed photo 1 by river' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Close Feed photo' }));
+    expect(screen.queryByRole('dialog', { name: 'Feed photo viewer' })).not.toBeInTheDocument();
+  });
+
   it('lets users delete their own feed posts without showing delete for other posts', async () => {
     getFeedPosts.mockResolvedValue([{
       id: 'post-owned',
@@ -410,6 +500,7 @@ describe('LocalFeed', () => {
     await waitFor(() => expect(createReport).toHaveBeenCalledWith({
       targetType: 'post',
       targetId: 'post-other',
+      targetUserId: 'user-2',
       reason: 'spam_scam',
       details: undefined,
     }));
@@ -417,7 +508,7 @@ describe('LocalFeed', () => {
     expect(screen.getByText('suspicious link in this post')).toBeInTheDocument();
   });
 
-  it('renders feed profile previews without showing author pronouns', async () => {
+  it('renders feed profile previews with compact author metadata', async () => {
     getFeedPosts.mockResolvedValue([{
       id: 'post-other',
       content: 'hello nearby',
@@ -442,14 +533,13 @@ describe('LocalFeed', () => {
 
     const preview = await screen.findByRole('img', { name: 'River preview' });
     expect(preview.parentElement).toHaveClass('w-full');
-    // The rail holds only the avatar now; vibes moved into the post column.
-    expect(screen.getByTestId('feed-post-profile-stack-post-other')).toHaveClass('-mt-1', 'w-20', 'flex-col');
-    expect(screen.getByTestId('feed-post-author-post-other')).toHaveClass('min-w-0', 'flex-1', 'truncate');
+    // The rail holds only the avatar; the compact feed card omits profile tags.
+    expect(screen.getByTestId('feed-post-profile-stack-post-other')).toHaveClass('-mt-1', 'w-20');
+    expect(screen.getByTestId('feed-post-author-post-other')).toHaveClass('text-left');
     expect(screen.getByTestId('feed-post-author-post-other')).not.toHaveClass('max-w-[32%]');
-    expect(within(screen.getByTestId('feed-post-vibes-post-other')).getAllByTitle(/Chill|Geek|Service/).map((tag) => tag.textContent))
-      .toEqual(['Chill', 'Geek', 'Service']);
-    expect(screen.getByTestId('feed-post-meta-post-other')).toHaveClass('flex-wrap');
-    expect(screen.queryByText('he/him')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('feed-post-vibes-post-other')).not.toBeInTheDocument();
+    expect(screen.getByTestId('feed-post-meta-post-other')).toHaveClass('flex', 'h-11', 'flex-col');
+    expect(screen.getByText('he/him')).toBeInTheDocument();
   });
 
   it('blocks another feed author and removes all of their posts locally', async () => {
@@ -558,11 +648,77 @@ describe('LocalFeed', () => {
     await waitFor(() => expect(createFeedPost).toHaveBeenCalledWith({
       content: 'first post as a free member',
       expiresIn: 'never',
+      audience: 'public',
       crowdTargets: [],
+      photoMediaIds: [],
     }));
   });
 
-  it('posts to no crowds or multiple allowed crowds selected from the composer', async () => {
+  it('lets free members post to Mutuals', async () => {
+    getMyBillingStatus.mockResolvedValue({
+      cruushPlus: false,
+      expiresAt: null,
+      badges: [],
+      processor: 'fake',
+      testCheckout: true,
+    });
+    getFeedPosts.mockResolvedValue([]);
+    createFeedPost.mockResolvedValue({
+      id: 'mutual-post-1',
+      content: 'mutual post',
+      audience: 'mutuals',
+      expiresIn: 'never',
+      expiresAt: null,
+      createdAt: new Date().toISOString(),
+      distance: 'Nearby',
+      user: { id: 'me', name: 'Me', pronouns: '', photo: null },
+    });
+
+    render(<MemoryRouter><LocalFeed /></MemoryRouter>);
+    const composer = await screen.findByTestId('local-feed-composer');
+    openComposer();
+    fireEvent.change(within(composer).getByPlaceholderText('Share something with nearby people...'), {
+      target: { value: 'mutual post' },
+    });
+    const settings = await openFeedSettings();
+    fireEvent.click(within(settings).getByRole('button', { name: 'Mutuals' }));
+    fireEvent.keyDown(settings, { key: 'Escape' });
+    fireEvent.click(await within(composer).findByRole('button', { name: 'Post' }));
+
+    await waitFor(() => expect(createFeedPost).toHaveBeenCalledWith({
+      content: 'mutual post',
+      expiresIn: 'never',
+      audience: 'mutuals',
+      crowdTargets: [],
+      photoMediaIds: [],
+    }));
+  });
+
+  it('opens the cruush+ card for a free custom timer or specific Crowd', async () => {
+    getMyBillingStatus.mockResolvedValue({
+      cruushPlus: false,
+      expiresAt: null,
+      badges: [],
+      processor: 'fake',
+      testCheckout: true,
+    });
+    getFeedPosts.mockResolvedValue([]);
+
+    render(<MemoryRouter><LocalFeed /></MemoryRouter>);
+    await screen.findByTestId('local-feed-composer');
+    const settings = await openFeedSettings();
+    await waitFor(() => expect(within(settings).getByRole('button', { name: '1h +' })).toBeEnabled());
+    fireEvent.click(within(settings).getByRole('button', { name: '1h +' }));
+
+    expect(await screen.findByTestId('cruush-plus-card')).toBeInTheDocument();
+    expect(updateFeedSettings).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Not now' }));
+
+    fireEvent.click(within(settings).getByRole('button', { name: 'Specific Crowd +' }));
+    expect(await screen.findByTestId('cruush-plus-card')).toBeInTheDocument();
+  });
+
+  it('lets Feed+ post to one specific allowed Crowd', async () => {
     getFeedPosts.mockResolvedValue([]);
     createFeedPost.mockResolvedValue({
       id: 'post-crowd',
@@ -571,7 +727,9 @@ describe('LocalFeed', () => {
       expiresAt: '2026-04-28T18:00:00.000Z',
       createdAt: '2026-04-28T12:00:00.000Z',
       distance: 'Nearby',
-      crowdTargets: ['Dyke', 'Gay'],
+      audience: 'crowd',
+      crowdTargets: ['Gay'],
+      photoMediaIds: [],
       user: {
         id: 'user-1',
         name: 'me',
@@ -593,6 +751,7 @@ describe('LocalFeed', () => {
     });
 
     const crowdSettings = await openFeedSettings();
+    fireEvent.click(within(crowdSettings).getByRole('button', { name: 'Specific Crowd +' }));
     fireEvent.click(within(crowdSettings).getByRole('button', { name: 'Dyke' }));
     fireEvent.click(within(crowdSettings).getByRole('button', { name: 'Gay' }));
     expect(within(crowdSettings).queryByRole('button', { name: 'T4T' })).not.toBeInTheDocument();
@@ -603,7 +762,9 @@ describe('LocalFeed', () => {
     await waitFor(() => expect(createFeedPost).toHaveBeenCalledWith({
       content: 'hello crowd',
       expiresIn: 'never',
-      crowdTargets: ['Dyke', 'Gay'],
+      audience: 'crowd',
+      crowdTargets: ['Gay'],
+      photoMediaIds: [],
     }));
   });
 
@@ -659,7 +820,9 @@ describe('LocalFeed', () => {
     await waitFor(() => expect(createFeedPost).toHaveBeenNthCalledWith(1, {
       content: 'seven day post',
       expiresIn: '7d',
+      audience: 'public',
       crowdTargets: [],
+      photoMediaIds: [],
     }));
 
     fireEvent.change(input, { target: { value: 'never post' } });
@@ -671,7 +834,9 @@ describe('LocalFeed', () => {
     await waitFor(() => expect(createFeedPost).toHaveBeenNthCalledWith(2, {
       content: 'never post',
       expiresIn: 'never',
+      audience: 'public',
       crowdTargets: [],
+      photoMediaIds: [],
     }));
     expect(await screen.findByText('never post')).toBeInTheDocument();
     // The expiry control now lives in the settings dialog, so the only Never

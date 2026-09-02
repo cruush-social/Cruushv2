@@ -1,3 +1,4 @@
+-- Multi-asset payment intent support.
 alter table crypto_payment_intents
   drop constraint if exists crypto_payment_intents_asset_check;
 

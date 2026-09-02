@@ -13,6 +13,12 @@ import {
 } from './notificationsApi';
 
 describe('notificationsApi', () => {
+  it('opens a reward card using its server grant ID, never a duration supplied by the link', () => {
+    expect(resolveNotificationNavigationPath({
+      type: 'reward', linkUrl: '/rewards?days=99999', metadata: { grantId: 'earned/one', days: 99999 },
+    })).toBe('/rewards?rewardGrant=earned%2Fone');
+    expect(resolveNotificationNavigationPath({ type: 'reward', linkUrl: '/rewards', metadata: {} })).toBe('/rewards');
+  });
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn().mockImplementation(() => Promise.resolve(new Response(JSON.stringify({
       data: { accepted: true },

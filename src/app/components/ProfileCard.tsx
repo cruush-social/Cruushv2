@@ -6,6 +6,7 @@ import { Badge } from './ui/badge';
 import CruushBadge from './CruushBadge';
 import CruushIconImage, { CruushIcon } from './CruushIconImage';
 import mapIconWhite from '../assets/ui-icons/map-white.png';
+import mileHighClubWhite from '../assets/ui-icons/mile-high-club-white.svg';
 import HeartPhoto from './HeartPhoto';
 import { revokeMutualCruush, revokeSentCruush, sendCruush } from '../lib/cruushApi';
 import { resolveMediaUrl } from '../lib/apiClient';
@@ -22,8 +23,9 @@ import { PROFILE_CARD_COMPACT_MEDIA_STYLE, PROFILE_CARD_MEDIA_ASPECT_STYLE } fro
 import { addDlModeChangedListener, isDlModeEnabled, shouldMaskPhoto } from '../lib/dlMode';
 import { getProfileGradientCss } from '../lib/profileGradient';
 import { resolveVibeTone, vibeCapsuleStyle } from '../lib/vibeTone';
-import { formatDistanceLabel, useDistancePreferences } from '../lib/distancePreferences';
+import { formatDistanceWithAway, useDistancePreferences } from '../lib/distancePreferences';
 import { getProfileById } from '../lib/profileApi';
+import { resolveUserBorderTone } from '../lib/userBorderTone';
 
 interface ProfileCardProps {
   user: any;
@@ -288,17 +290,7 @@ export default function ProfileCard({
 
         <div className="pointer-events-none absolute inset-0 z-10 bg-gradient-to-t from-black via-transparent to-black/20" />
 
-        <div className="absolute inset-x-0 top-0 z-20 flex items-start justify-between gap-3 p-3">
-          {onBrowseAgain ? (
-            <button
-              type="button"
-              onClick={onBrowseAgain}
-              className="flex h-10 items-center gap-2 rounded-full border border-white/10 bg-black/55 px-3 text-sm text-white/90 backdrop-blur-xl transition hover:bg-black/70 hover:text-white"
-            >
-              <RefreshCw className="h-4 w-4" />
-              Browse again
-            </button>
-          ) : <span />}
+        <div className="absolute inset-x-0 top-0 z-20 flex items-start justify-end gap-3 p-3">
           <button
             type="button"
             onClick={onClose}
@@ -316,6 +308,7 @@ export default function ProfileCard({
           >
             {previewCarouselPhotos.map(({ photo, index }) => (
               <HeartPhoto
+                borderTone={resolveUserBorderTone({ mileHigh: user.travelling, mutual: isAlreadyMutual })}
                 key={photo}
                 className="pointer-events-auto h-[clamp(2.75rem,8dvh,3.6rem)] w-[clamp(2.75rem,8dvh,3.6rem)] shrink-0 drop-shadow-[0_8px_18px_rgba(0,0,0,0.55)] transition hover:scale-[1.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
                 label={`Show profile photo ${index + 1}`}
@@ -338,8 +331,16 @@ export default function ProfileCard({
             className="text-white"
           >
             <div className="min-w-0">
-              <h3 className="truncate text-2xl font-semibold" style={carouselTextOutlineStyle}>
-                {user.name}, {user.age}
+              <h3 className="flex min-w-0 items-center text-2xl font-semibold" style={carouselTextOutlineStyle}>
+                <span className="min-w-0 truncate">{user.name}, {user.age}</span>
+                {user.travelling === true ? (
+                  <img
+                    alt="Mile High Club"
+                    className="ml-2 h-5 w-5 shrink-0"
+                    src={mileHighClubWhite}
+                    title={user.travelLabel ? `Mile High Club: ${user.travelLabel}` : 'Mile High Club'}
+                  />
+                ) : null}
               </h3>
               <div className="mt-1">
                 <CruushBadge badges={user.badges} compact />
@@ -347,9 +348,9 @@ export default function ProfileCard({
               <p className="mt-1 text-sm text-white" style={carouselTextOutlineStyle}>{user.pronouns}</p>
             </div>
 
-            <div className="mt-2 flex items-center gap-2 text-sm text-white" style={carouselTextOutlineStyle}>
-              <CruushIcon name="map" className="h-4 w-4 drop-shadow-[0_1px_2px_#000]" />
-              <span>{formatDistanceLabel(user.distance, distancePreferences.mode)} away</span>
+            <div className="mt-2 flex min-w-0 items-center gap-2 overflow-hidden text-sm text-white" style={carouselTextOutlineStyle}>
+              <CruushIcon name="map" className="h-4 w-4 shrink-0 drop-shadow-[0_1px_2px_#000]" />
+              <span className="min-w-0 truncate">{formatDistanceWithAway(user.distance, distancePreferences.mode)}</span>
             </div>
 
             {visibleVibeItems.length > 0 ? (
@@ -367,7 +368,7 @@ export default function ProfileCard({
               </div>
             ) : null}
 
-            <div data-testid="carousel-profile-actions" className="mt-3 grid grid-cols-2 gap-2">
+            <div data-testid="carousel-profile-actions" className="mt-3 grid grid-cols-3 gap-2">
               <Button
                 type="button"
                 className={`${carouselActionClassName} border-0 text-white`}
@@ -382,8 +383,19 @@ export default function ProfileCard({
                 disabled={cruushDisabled}
                 aria-label={revokingCruush ? (isAlreadyMutual ? 'Removing mutual' : 'Unsending cruush') : isAlreadyMutual ? 'Remove mutual' : hasSentCruush ? 'Unsend cruush' : sendingCruush ? 'sending cruush' : 'send cruush'}
               >
-                <CruushIcon name={hasRevocableCruush ? 'safety' : 'cruush'} className="mr-2 h-4 w-4" variant="white" />
+                <CruushIcon name="mutual" className="mr-2 h-4 w-4" variant="white" />
                 {revokingCruush ? (isAlreadyMutual ? 'removing...' : 'unsending...') : isAlreadyMutual ? 'mutual' : hasSentCruush ? 'sent' : sendingCruush ? 'sending...' : 'cruush'}
+              </Button>
+              <Button
+                type="button"
+                className={`${carouselActionClassName} border-0 text-white disabled:opacity-45`}
+                style={{ background: 'var(--cruush-gradient)' }}
+                aria-label={canCenterCarouselPin ? `Center the map on ${user.name}` : `${user.name} does not share a precise location with you`}
+                disabled={!canCenterCarouselPin}
+                onClick={() => navigate('/map', { state: { focusUserId: user.id } })}
+              >
+                <CruushIconImage src={mapIconWhite} className="mr-2 h-4 w-4" />
+                Pin
               </Button>
               <Button
                 type="button"
@@ -394,30 +406,28 @@ export default function ProfileCard({
                   void handleMessage();
                 }}
               >
-                <CruushIcon name="messages" className="mr-2 h-4 w-4" variant="white" />
+                <CruushIcon name="send" className="mr-2 h-4 w-4" variant="white" />
                 {!canMessage ? 'Mutuals only' : openingMessage ? 'Opening...' : 'Message'}
               </Button>
-              {canCenterCarouselPin ? (
-                <Button
-                  type="button"
-                  className={`${carouselActionClassName} border-0 text-white`}
-                  style={{ background: 'var(--cruush-gradient)' }}
-                  aria-label={`Center the map on ${user.name}`}
-                  onClick={() => navigate('/map', { state: { focusUserId: user.id } })}
-                >
-                  <CruushIconImage src={mapIconWhite} className="mr-2 h-4 w-4" />
-                  Their pin
-                </Button>
-              ) : null}
+            </div>
+            <Button
+              type="button"
+              onClick={onViewProfile}
+              className={`${carouselActionClassName} mt-2 w-full border-0 text-white`}
+              style={{ background: 'var(--cruush-gradient)' }}
+            >
+              View Full Profile
+            </Button>
+            {onBrowseAgain ? (
               <Button
                 type="button"
-                onClick={onViewProfile}
-                className={`${carouselActionClassName} border-0 text-white ${canCenterCarouselPin ? '' : 'col-span-2'}`}
-                style={{ background: 'var(--cruush-gradient)' }}
+                onClick={onBrowseAgain}
+                className={`${carouselActionClassName} mt-2 w-full text-white`}
               >
-                View Full Profile
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Browse again
               </Button>
-            </div>
+            ) : null}
           </div>
         </div>
       </div>
@@ -460,8 +470,16 @@ export default function ProfileCard({
         </button>
 
         <div className={mediaCaptionClassName}>
-          <h3 className={titleClassName}>
-            {user.name}, {user.age}
+          <h3 className={`flex min-w-0 items-center ${titleClassName}`}>
+            <span className="min-w-0 truncate">{user.name}, {user.age}</span>
+            {user.travelling === true ? (
+              <img
+                alt="Mile High Club"
+                className="ml-2 h-5 w-5 shrink-0"
+                src={mileHighClubWhite}
+                title={user.travelLabel ? `Mile High Club: ${user.travelLabel}` : 'Mile High Club'}
+              />
+            ) : null}
           </h3>
           <CruushBadge badges={user.badges} compact />
           <p className="text-sm text-white/80">{user.pronouns}</p>
@@ -469,9 +487,9 @@ export default function ProfileCard({
       </div>
 
       <div className={contentClassName}>
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <CruushIcon name="map" className="h-4 w-4 opacity-70" />
-          <span>{formatDistanceLabel(user.distance, distancePreferences.mode)} away</span>
+        <div className="flex min-w-0 items-center gap-2 overflow-hidden text-sm text-muted-foreground">
+          <CruushIcon name="map" className="h-4 w-4 shrink-0 opacity-70" />
+          <span className="min-w-0 truncate">{formatDistanceWithAway(user.distance, distancePreferences.mode)}</span>
         </div>
 
         {!compact && lookingForItems.length > 0 ? (
@@ -532,7 +550,7 @@ export default function ProfileCard({
                   : 'var(--cruush-gradient)',
             }}
           >
-            <CruushIcon name="safety" className={`mr-2 h-4 w-4 ${cruushDisabled ? 'opacity-45 grayscale' : ''}`} variant="white" />
+            <CruushIcon name="mutual" className={`mr-2 h-4 w-4 ${cruushDisabled ? 'opacity-45 grayscale' : ''}`} variant="white" />
             {revokingCruush ? (isAlreadyMutual ? 'removing...' : 'unsending...') : isAlreadyMutual ? 'remove' : hasSentCruush ? 'unsend' : sendingCruush ? 'sending...' : 'cruush'}
           </Button>
           <Button

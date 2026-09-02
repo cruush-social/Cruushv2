@@ -8,8 +8,11 @@ import MapControlsTutorial, {
 
 const TARGET_STEP_IDS: MapControlsTutorialStepId[] = [
   'notifications',
+  'map-controls',
   'seeking',
   'visibility',
+  'places',
+  'heatmap',
   'crowds',
   'ghost',
   'dl-mode',
@@ -200,7 +203,7 @@ describe('MapControlsTutorial', () => {
 
     render(<MapControlsTutorial open onActivateStep={onActivateStep} onComplete={onComplete} />);
 
-    expect(screen.getByText('Map tutorial · Step 1 of 12')).toBeInTheDocument();
+    expect(screen.getByText('Map tutorial · Step 1 of 15')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Install cruush' })).toBeInTheDocument();
     fireEvent.click(expectHighlightedAction('install', 'Install cruush'));
     expect(onActivateStep).toHaveBeenLastCalledWith('install');
@@ -213,6 +216,11 @@ describe('MapControlsTutorial', () => {
     fireEvent.click(expectHighlightedAction('notifications', 'Turn on notifications'));
     expect(onActivateStep).toHaveBeenLastCalledWith('notifications');
 
+    expect(await screen.findByRole('heading', { name: 'Map Controls' })).toBeInTheDocument();
+    fireEvent.click(expectHighlightedAction('map-controls', 'Open Map Controls'));
+    expect(onActivateStep).toHaveBeenLastCalledWith('map-controls');
+    fireEvent.click(screen.getByTestId('tutorial-next'));
+
     expect(await screen.findByRole('heading', { name: 'Seeking' })).toBeInTheDocument();
     expect(screen.getByTestId('tutorial-spotlight')).toHaveAttribute('data-tutorial-step', 'seeking');
     expect(screen.getByTestId('tutorial-spotlight').className).not.toContain('rgba(255,0,114');
@@ -223,6 +231,14 @@ describe('MapControlsTutorial', () => {
     fireEvent.click(screen.getByTestId('tutorial-next'));
     expect(screen.getByRole('heading', { name: 'Visibility' })).toBeInTheDocument();
     expectHighlightedAction('visibility', 'Open Visibility');
+
+    fireEvent.click(screen.getByTestId('tutorial-next'));
+    expect(screen.getByRole('heading', { name: 'Spots' })).toBeInTheDocument();
+    expectHighlightedAction('places', 'Open Spots');
+
+    fireEvent.click(screen.getByTestId('tutorial-next'));
+    expect(screen.getByRole('heading', { name: 'Seven-day activity heatmap' })).toBeInTheDocument();
+    expectHighlightedAction('heatmap', 'Show heatmap');
 
     fireEvent.click(screen.getByTestId('tutorial-next'));
     expect(screen.getByRole('heading', { name: 'Crowd Mode' })).toBeInTheDocument();
@@ -237,9 +253,9 @@ describe('MapControlsTutorial', () => {
     expectHighlightedAction('dl-mode', 'Toggle DL Mode');
 
     fireEvent.click(screen.getByTestId('tutorial-next'));
-    expect(screen.getByRole('heading', { name: 'Ping' })).toBeInTheDocument();
-    expect(screen.getByText('Ping is directly below Visibility. It briefly marks your heart as active on the map and shares your signal as a normal feed post.')).toBeInTheDocument();
-    fireEvent.click(expectHighlightedAction('ping', 'Open Ping'));
+    expect(screen.getByRole('heading', { name: 'Pulse' })).toBeInTheDocument();
+    expect(screen.getByText('Pulse is inside Map Controls. It briefly marks your heart as active on the map and shares your signal as a normal feed post.')).toBeInTheDocument();
+    fireEvent.click(expectHighlightedAction('ping', 'Open Pulse'));
     expect(onActivateStep).toHaveBeenLastCalledWith('ping');
     expect(screen.getByTestId('tutorial-spotlight')).toHaveAttribute('data-tutorial-step', 'ping');
 
@@ -295,7 +311,7 @@ describe('MapControlsTutorial', () => {
     fireEvent.click(screen.getByTestId('tutorial-skip-step'));
     expect(screen.getByRole('heading', { name: 'Notifications' })).toBeInTheDocument();
     fireEvent.click(screen.getByTestId('tutorial-skip-step'));
-    expect(screen.getByRole('heading', { name: 'Seeking' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Map Controls' })).toBeInTheDocument();
     expect(screen.queryByTestId('tutorial-skip-step')).not.toBeInTheDocument();
     expect(onActivateStep).not.toHaveBeenCalled();
   });
@@ -341,6 +357,9 @@ describe('MapControlsTutorial', () => {
     fireEvent.click(screen.getByTestId('tutorial-next'));
     fireEvent.click(screen.getByTestId('tutorial-next'));
     fireEvent.click(screen.getByTestId('tutorial-next'));
+    fireEvent.click(screen.getByTestId('tutorial-next'));
+    fireEvent.click(screen.getByTestId('tutorial-next'));
+    fireEvent.click(screen.getByTestId('tutorial-next'));
     expect(screen.getByRole('heading', { name: 'Ghost Mode' })).toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId('tutorial-try-step'));
@@ -365,6 +384,6 @@ describe('MapControlsTutorial', () => {
 
     render(<MapControlsTutorial open onActivateStep={onActivateStep} onComplete={vi.fn()} />);
     expect(screen.getByRole('heading', { name: 'Feed' })).toBeInTheDocument();
-    expect(window.localStorage.getItem('cruush:tutorial-v4-progress')).toBe('feed');
+    expect(window.localStorage.getItem('cruush:tutorial-v5-progress')).toBe('feed');
   });
 });

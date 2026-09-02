@@ -5,6 +5,18 @@ import { Button } from './ui/button';
 
 const changelogReleases = [
   {
+    version: 'v1.6',
+    items: [
+      'Explore from another location with Mile High Club.',
+      'Find Spots by vibe and amenities, see who is there, and read their Pink Book while checked in.',
+      'Spot check-ins expire. Pink Book posts stay until their author deletes them.',
+      'Post text to Feed for free, search #tags, and add up to three photos with cruush+.',
+      'Complete Side Quests to earn bonus Pings and cruush+ days.',
+      'Ghost Mode keeps its familiar animation with the new 1.6 icon, while Dark Room adds a private way to browse.',
+      'Profiles, messages, map controls, loading states, and mobile layouts feel faster and clearer.',
+    ],
+  },
+  {
     version: 'v1.5',
     items: [
       'Cruise browsing now shows full 4:5 profile photos with profile details and actions layered in dark glass controls.',
@@ -23,7 +35,7 @@ const changelogReleases = [
       'Choose each notification type separately, including nearby activity and rewards.',
       'Nearby activity can reach you inside cruush whenever you have it enabled.',
       'Daily check-ins now include a bonus day for every seven-day streak.',
-      'Dark Room adds a new cruush+ privacy control, while Ghost Mode and precise-location controls are available to basic and cruush+ accounts.',
+      'Dark Room adds a cruush+ privacy control, while Ghost Mode and precise-location controls are available to basic and cruush+ accounts.',
       'Ping is easier to find, with a clear cooldown between signals.',
       'The map feels smoother, with clearer tiles, easier-to-read labels, larger controls, better tap and press interactions, steadier navigation, and a simpler mobile tutorial.',
       'Messages now have the same detailed Seeking filters as the map, without changing your map filters.',
@@ -38,7 +50,7 @@ const changelogReleases = [
       'Choose each notification type separately, including nearby activity and rewards.',
       'Nearby activity can reach you inside cruush whenever you have it enabled.',
       'Daily check-ins now include a bonus day for every seven-day streak.',
-      'Dark Room adds a new cruush+ privacy control, while Ghost Mode and precise-location controls are available to basic and cruush+ accounts.',
+      'Dark Room adds a cruush+ privacy control, while Ghost Mode and precise-location controls are available to basic and cruush+ accounts.',
       'Ping is easier to find, with a clear cooldown between signals.',
       'The map feels smoother, with clearer tiles, easier-to-read labels, larger controls, better tap and press interactions, steadier navigation, and a simpler mobile tutorial.',
       'Messages now have the same detailed Seeking filters as the map, without changing your map filters.',

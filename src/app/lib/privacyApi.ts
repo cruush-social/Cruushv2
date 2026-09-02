@@ -14,8 +14,10 @@ export type PrivacySettings = {
   ghostModeEnabled: boolean;
   ghostRadiusMeters: number;
   ghostRadiusLabel: string;
+  ghostRotationMinutes?: number;
   preciseToMutualCruushes: boolean;
   preciseToMutualCrowds: CrowdPrecisionPolicy[];
+  darkRoomDistanceLabel?: boolean;
   preciseLocationVisibility: 'none' | 'mutual_cruushes';
   updatedAtMs: number;
   ghostRotationExpiresAtMs?: number | null;
@@ -26,9 +28,11 @@ export type PrivacySettingsUpdate = Pick<
   | 'baseMode'
   | 'ghostModeEnabled'
   | 'ghostRadiusMeters'
+  | 'ghostRotationMinutes'
   | 'preciseToMutualCruushes'
   | 'preciseToMutualCrowds'
   | 'preciseLocationVisibility'
+  | 'darkRoomDistanceLabel'
 >;
 
 export const DEFAULT_PRIVACY_SETTINGS: PrivacySettings = {
@@ -36,9 +40,11 @@ export const DEFAULT_PRIVACY_SETTINGS: PrivacySettings = {
   ghostModeEnabled: false,
   ghostRadiusMeters: 1609,
   ghostRadiusLabel: '1 mi',
+  ghostRotationMinutes: 15,
   preciseToMutualCruushes: false,
   preciseToMutualCrowds: [],
   preciseLocationVisibility: 'none',
+  darkRoomDistanceLabel: false,
   updatedAtMs: 0,
 };
 
@@ -51,34 +57,50 @@ export const GHOST_RADIUS_OPTIONS = [
   { label: '5 mi', meters: 8047 },
 ] as const;
 
+export const GHOST_ROTATION_OPTIONS = [
+  { label: '15 minutes', minutes: 15 },
+  { label: '30 minutes', minutes: 30 },
+  ...Array.from({ length: 24 }, (_, index) => ({
+    label: `${index + 1} ${index === 0 ? 'hour' : 'hours'}`,
+    minutes: (index + 1) * 60,
+  })),
+];
+
 export type MapPresenceSettings = {
-  days: number;
-  minDays: number;
-  maxDays: number;
+  hours: number;
+  minHours: number;
+  maxHours: number;
 };
 
 export const DEFAULT_MAP_PRESENCE_SETTINGS: MapPresenceSettings = {
-  days: 7,
-  minDays: 1,
-  maxDays: 30,
+  hours: 168,
+  minHours: 1,
+  maxHours: 168,
 };
 
 export const MAP_PRESENCE_OPTIONS = [
-  { label: '1 day', days: 1 },
-  { label: '3 days', days: 3 },
-  { label: '7 days', days: 7 },
-  { label: '14 days', days: 14 },
-  { label: '30 days', days: 30 },
+  { label: '1h', hours: 1 },
+  { label: '3h', hours: 3 },
+  { label: '6h', hours: 6 },
+  { label: '8h', hours: 8 },
+  { label: '12h', hours: 12 },
+  { label: '24h', hours: 24 },
+  { label: '48h', hours: 48 },
+  { label: '3d', hours: 72 },
+  { label: '4d', hours: 96 },
+  { label: '5d', hours: 120 },
+  { label: '6d', hours: 144 },
+  { label: '7d', hours: 168 },
 ] as const;
 
 export function getMyMapPresenceSettings() {
   return requestApi<MapPresenceSettings>('/api/privacy/map-presence');
 }
 
-export function saveMyMapPresenceSettings(days: number) {
+export function saveMyMapPresenceSettings(hours: number) {
   return requestApi<MapPresenceSettings>('/api/privacy/map-presence', {
     method: 'PUT',
-    body: JSON.stringify({ days }),
+    body: JSON.stringify({ hours }),
   });
 }
 
@@ -130,9 +152,11 @@ function toPrivacySettingsUpdate(settings: PrivacySettings): PrivacySettingsUpda
     baseMode: settings.baseMode,
     ghostModeEnabled: settings.ghostModeEnabled,
     ghostRadiusMeters: settings.ghostRadiusMeters,
+    ghostRotationMinutes: settings.ghostRotationMinutes,
     preciseToMutualCruushes: settings.preciseToMutualCruushes,
     preciseToMutualCrowds: settings.preciseToMutualCrowds,
     preciseLocationVisibility: settings.preciseLocationVisibility,
+    darkRoomDistanceLabel: settings.darkRoomDistanceLabel,
   };
 }
 
@@ -160,17 +184,51 @@ export function revokePrivacyAccess(revokeActionToken: string) {
   });
 }
 
-export type MapPresenceSettings = {
-  days: number;
-};
-
 export function getMapPresence() {
-  return requestApi<MapPresenceSettings>('/api/privacy/map-presence');
+  return getMyMapPresenceSettings();
 }
 
-export function saveMapPresence(days: number) {
-  return requestApi<MapPresenceSettings>('/api/privacy/map-presence', {
-    method: 'PUT',
-    body: JSON.stringify({ days }),
+export function saveMapPresence(hours: number) {
+  return saveMyMapPresenceSettings(hours);
+}
+
+export type TravelPin = {
+  userId: string;
+  latitude: number;
+  longitude: number;
+  label: string;
+  setAtMs: number;
+  /** When this pin may next be moved. */
+  movableAtMs: number;
+};
+
+export const TRAVEL_PIN_MOVE_COOLDOWN_MS = 3 * 60 * 60 * 1000;
+
+export function getMyTravelPin() {
+  return requestApi<{ pin: TravelPin | null }>('/api/privacy/travel');
+}
+
+export type TravelAddressResult = {
+  latitude: number;
+  longitude: number;
+  label: string;
+  attribution: string;
+};
+
+export function geocodeTravelAddress(query: string) {
+  return requestApi<{ result: TravelAddressResult | null }>('/api/privacy/travel/geocode', {
+    method: 'POST',
+    body: JSON.stringify({ query }),
   });
+}
+
+export function saveMyTravelPin(input: { latitude: number; longitude: number; label?: string }) {
+  return requestApi<{ pin: TravelPin }>('/api/privacy/travel', {
+    method: 'PUT',
+    body: JSON.stringify(input),
+  });
+}
+
+export function clearMyTravelPin() {
+  return requestApi<{ pin: null }>('/api/privacy/travel', { method: 'DELETE' });
 }

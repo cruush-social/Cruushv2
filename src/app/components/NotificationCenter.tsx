@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft, Bell, CheckCheck } from 'lucide-react';
+import { ArrowLeft, Bell, CheckCheck, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import {
+  clearNotifications,
+  deleteNotification,
   emitNotificationsChanged,
   getNotifications,
   markAllNotificationsRead,
@@ -12,6 +14,7 @@ import {
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { CruushIcon } from './CruushIconImage';
+import { registerBugButtonSlot } from '../lib/bugButtonSlot';
 
 function formatNotificationTime(value: string) {
   try {
@@ -31,6 +34,8 @@ export default function NotificationCenter() {
   const [notifications, setNotifications] = useState<NotificationRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isMarkingAll, setIsMarkingAll] = useState(false);
+  const [isClearingAll, setIsClearingAll] = useState(false);
+  const [deletingNotificationIds, setDeletingNotificationIds] = useState<Set<string>>(() => new Set());
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -105,9 +110,43 @@ export default function NotificationCenter() {
     navigate(resolveNotificationNavigationPath(notification));
   };
 
+  const handleDeleteNotification = async (notification: NotificationRecord) => {
+    setDeletingNotificationIds((current) => new Set(current).add(notification.id));
+    try {
+      const summary = await deleteNotification(notification.id);
+      setNotifications((current) => current.filter((item) => item.id !== notification.id));
+      emitNotificationsChanged(summary);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Failed to delete notification.');
+    } finally {
+      setDeletingNotificationIds((current) => {
+        const next = new Set(current);
+        next.delete(notification.id);
+        return next;
+      });
+    }
+  };
+
+  const handleClearAll = async () => {
+    if (!window.confirm('Delete all notifications?')) {
+      return;
+    }
+
+    setIsClearingAll(true);
+    try {
+      const summary = await clearNotifications();
+      setNotifications([]);
+      emitNotificationsChanged(summary);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Failed to delete notifications.');
+    } finally {
+      setIsClearingAll(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background pb-28 text-foreground">
-      <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-border bg-background/88 px-4 py-3 backdrop-blur-md">
+      <header className="cruush-notification-header sticky top-0 z-20 flex items-center gap-3 border-b border-border bg-background/88 px-4 py-3 backdrop-blur-md">
         <Button
           variant="ghost"
           size="icon"
@@ -117,34 +156,40 @@ export default function NotificationCenter() {
         >
           <ArrowLeft className="h-5 w-5" />
         </Button>
-        <div className="min-w-0 flex-1">
-          <h1 className="text-xl text-white">Notifications</h1>
-          <p className="text-sm text-muted-foreground">
-            {unreadCount > 0 ? `${unreadCount} unread` : 'All caught up'}
-          </p>
-        </div>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          onClick={() => navigate('/settings/notifications')}
-          aria-label="Notification settings"
-          className="rounded-full text-white/88 hover:bg-white/10"
-        >
-          <CruushIcon name="settings" className="h-5 w-5" />
-        </Button>
+        <h1 className="cruush-notification-title min-w-0 flex-1 truncate text-xl text-white">Notifications</h1>
         <Button
           type="button"
           variant="outline"
           onClick={handleMarkAllRead}
           disabled={unreadCount === 0 || isMarkingAll}
           aria-label="Mark all as read"
-          className="gap-2 rounded-full"
+          className="cruush-notification-mark-all gap-2 rounded-full"
         >
           <CheckCheck className="h-4 w-4" />
           <span className="hidden sm:inline">Mark all as read</span>
         </Button>
-        
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => void handleClearAll()}
+          disabled={notifications.length === 0 || isClearingAll}
+          aria-label="Delete all notifications"
+          className="cruush-notification-delete-all gap-2 rounded-full"
+        >
+          <Trash2 className="h-4 w-4" />
+          <span className="hidden sm:inline">Delete all notifications</span>
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={() => navigate('/settings/notifications')}
+          aria-label="Notification settings"
+          className="cruush-notification-settings rounded-full text-white/88 hover:bg-white/10"
+        >
+          <CruushIcon name="settings" className="h-5 w-5" />
+        </Button>
+        <div className="cruush-notification-bug-slot h-10 w-10 shrink-0" data-testid="notification-bug-button-slot" ref={registerBugButtonSlot} />
       </header>
 
       <main className="mx-auto flex w-full max-w-2xl flex-col gap-3 px-4 py-5">
@@ -155,8 +200,21 @@ export default function NotificationCenter() {
         ) : null}
 
         {isLoading ? (
-          <div className="rounded-lg border border-border bg-card p-5 text-sm text-muted-foreground">
-            Loading notifications...
+          <div className="space-y-2" aria-label="Loading notifications">
+            {[0, 1, 2].map((index) => (
+              <div
+                key={index}
+                aria-hidden="true"
+                className="flex animate-pulse items-start gap-3 rounded-lg border border-border bg-card p-4"
+              >
+                <div className="h-9 w-9 shrink-0 rounded-full bg-white/10" />
+                <div className="min-w-0 flex-1 space-y-2 py-1">
+                  <div className="h-4 w-2/5 rounded-full bg-white/10" />
+                  <div className="h-3 w-4/5 rounded-full bg-white/[0.07]" />
+                  <div className="h-3 w-1/4 rounded-full bg-white/[0.05]" />
+                </div>
+              </div>
+            ))}
           </div>
         ) : null}
 
@@ -173,12 +231,9 @@ export default function NotificationCenter() {
               const unread = !notification.readAt;
 
               return (
-                <button
+                <article
                   key={notification.id}
-                  type="button"
-                  onClick={() => void handleOpenNotification(notification)}
-                  aria-label={notification.title}
-                  className={`flex w-full items-start gap-3 rounded-lg border p-4 text-left transition-colors ${
+                  className={`relative flex w-full items-start gap-3 rounded-lg border p-4 pr-14 text-left transition-colors ${
                     unread
                       ? 'border-primary/30 bg-primary/10 hover:bg-primary/14'
                       : 'border-border bg-card hover:bg-muted/45'
@@ -187,16 +242,21 @@ export default function NotificationCenter() {
                   <span
                     aria-hidden="true"
                     className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white shadow-[0_8px_22px_rgba(0,0,0,0.3)]"
-                    data-notification-icon={notification.type === 'mutual_cruush' ? 'safety' : 'bell'}
+                    data-notification-icon={notification.type === 'mutual_cruush' ? 'mutual' : 'bell'}
                     style={{ background: 'var(--cruush-gradient)' }}
                   >
                     {notification.type === 'mutual_cruush' ? (
-                      <CruushIcon name="safety" variant="white" className="h-5 w-5" />
+                      <CruushIcon name="mutual" variant="white" className="h-5 w-5" />
                     ) : (
                       <Bell className="h-4 w-4" />
                     )}
                   </span>
-                  <span className="min-w-0 flex-1">
+                  <button
+                    type="button"
+                    onClick={() => void handleOpenNotification(notification)}
+                    aria-label={notification.title}
+                    className="min-w-0 flex-1 text-left"
+                  >
                     <span className="flex items-start justify-between gap-3">
                       <span className="min-w-0 break-words text-base text-white">{notification.title}</span>
                       {unread ? <Badge variant="secondary">Unread</Badge> : null}
@@ -209,8 +269,20 @@ export default function NotificationCenter() {
                     <span className="mt-2 block text-xs text-muted-foreground">
                       {formatNotificationTime(notification.createdAt)}
                     </span>
-                  </span>
-                </button>
+                  </button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    aria-label={`Delete notification: ${notification.title}`}
+                    title="Delete notification"
+                    disabled={deletingNotificationIds.has(notification.id)}
+                    onClick={() => void handleDeleteNotification(notification)}
+                    className="absolute right-3 top-3 size-8 text-white/55 hover:bg-white/10 hover:text-white"
+                  >
+                    <Trash2 className="size-4" />
+                  </Button>
+                </article>
               );
             })}
           </div>

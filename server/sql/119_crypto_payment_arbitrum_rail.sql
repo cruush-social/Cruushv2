@@ -1,4 +1,4 @@
--- Adds Arbitrum as a receiving network.
+-- Adds Arbitrum One as a receiving network.
 --
 -- Arbitrum is the only chain that Cash App, Venmo, and PayPal can all send to,
 -- and its fees are a rounding error next to Ethereum mainnet. That matters more

@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   sendPasswordResetEmail,
   sendSupportRequestInboxEmail,
@@ -38,6 +38,10 @@ const logger = {
   error: vi.fn(),
   info: vi.fn()
 } as any;
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 describe("mailer", () => {
   it("sends verification emails with the current Resend template", async () => {

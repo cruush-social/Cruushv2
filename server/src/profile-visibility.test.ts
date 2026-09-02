@@ -38,14 +38,37 @@ describe("profile visibility rules", () => {
     expect(canSubjectViewProfile(rules, { crowds: ["Gay"] })).toBe(false);
   });
 
+  it("hides a profile from active Mile High Club members", () => {
+    const rules: ProfileVisibilityRules = {
+      ...emptyProfile.visibility_rules,
+      mile_high_club_members: true
+    };
+
+    expect(canSubjectViewProfile(rules, { mile_high_club_member: true })).toBe(false);
+    expect(canSubjectViewProfile(rules, { mile_high_club_member: false })).toBe(true);
+  });
+
+  it("uses the Visibility search in reverse across names, bios, and profile keywords", () => {
+    const rules: ProfileVisibilityRules = {
+      ...emptyProfile.visibility_rules,
+      search_query: "watersports"
+    };
+
+    expect(canSubjectViewProfile(rules, { display_name: "Jay", kinks: ["Watersports"] })).toBe(false);
+    expect(canSubjectViewProfile(rules, { display_name: "Watersports fan", kinks: [] })).toBe(false);
+    expect(canSubjectViewProfile(rules, { display_name: "Jay", bio: "Ask me about watersports", kinks: [] })).toBe(false);
+    expect(canSubjectViewProfile(rules, { display_name: "Jay", bio: "Leather and rope", kinks: [] })).toBe(true);
+  });
+
   it("counts only exclusion filters toward the free visibility limit", () => {
     expect(countVisibilityExclusionFilters({
       ...emptyProfile.visibility_rules,
       active_crowd_modes: ["T4T"],
       age_range: [25, 45],
       distance: 25,
+      mile_high_club_members: true,
       identities: ["nonbinary"],
       kinks: ["leather"]
-    })).toBe(4);
+    })).toBe(5);
   });
 });

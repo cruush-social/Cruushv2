@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as messagesApi from './messagesApi';
 import {
   clearConversationForEveryone,
@@ -12,6 +12,10 @@ import {
 } from './messagesApi';
 
 describe('messagesApi', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
       ok: true,
@@ -75,10 +79,12 @@ describe('messagesApi', () => {
 
   it('opens view-once attachments through the binary view endpoint', async () => {
     const objectUrl = 'blob:message-photo';
-    vi.stubGlobal('URL', {
-      ...URL,
-      createObjectURL: vi.fn().mockReturnValue(objectUrl),
+    const NativeURL = globalThis.URL;
+    class MockURL extends NativeURL {}
+    Object.defineProperty(MockURL, 'createObjectURL', {
+      value: vi.fn().mockReturnValue(objectUrl),
     });
+    vi.stubGlobal('URL', MockURL);
     vi.mocked(fetch).mockResolvedValueOnce({
       ok: true,
       headers: new Headers({ 'content-type': 'image/png' }),

@@ -9,6 +9,31 @@ import {
 import { disablePushNotifications, enablePushNotifications } from '../lib/pushNotifications';
 import { Button } from './ui/button';
 import { Switch } from './ui/switch';
+import LoadingCardSkeletons from './LoadingCardSkeletons';
+
+const MINUTES_PER_DAY = 1440;
+const QUIET_HOURS_STEP_MINUTES = 30;
+
+/** Every half hour of the day, labelled the way a clock reads. */
+const QUIET_HOUR_CHOICES = Array.from(
+  { length: MINUTES_PER_DAY / QUIET_HOURS_STEP_MINUTES },
+  (_, index) => {
+    const minute = index * QUIET_HOURS_STEP_MINUTES;
+    const hour24 = Math.floor(minute / 60);
+    const hour12 = hour24 % 12 === 0 ? 12 : hour24 % 12;
+    const minutes = String(minute % 60).padStart(2, '0');
+
+    return { minute, label: `${hour12}:${minutes} ${hour24 < 12 ? 'am' : 'pm'}` };
+  },
+);
+
+function localTimezone() {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  } catch {
+    return 'UTC';
+  }
+}
 
 function isStandaloneDisplay() {
   return window.matchMedia?.('(display-mode: standalone)').matches ||
@@ -41,6 +66,11 @@ function preferenceRows(preferences: NotificationPreferences) {
       key: 'nearbyEnabled' as const,
       label: 'Nearby people',
       checked: preferences.nearbyEnabled,
+    },
+    {
+      key: 'pulseEnabled' as const,
+      label: 'Pulse alerts',
+      checked: preferences.pulseEnabled,
     },
     {
       key: 'rewardsEnabled' as const,
@@ -221,7 +251,7 @@ export default function NotificationSettings() {
                 />
               </div>
             )) : isLoading ? (
-              <p className="text-sm text-muted-foreground">Loading settings...</p>
+              <LoadingCardSkeletons count={2} label="Loading notification settings" />
             ) : (
               <Button
                 type="button"
@@ -233,6 +263,60 @@ export default function NotificationSettings() {
               </Button>
             )}
           </div>
+        </section>
+
+        <section className="rounded-lg border border-border bg-card p-4">
+          <div className="flex min-h-14 items-center justify-between gap-4">
+            <h2 className="min-w-0 text-lg text-white">Do not disturb</h2>
+            <Switch
+              aria-label="Toggle do not disturb"
+              checked={preferences?.quietHoursEnabled ?? false}
+              disabled={isSaving || !preferences}
+              onCheckedChange={(checked) => void savePreferences({
+                quietHoursEnabled: checked,
+                quietHoursTimezone: localTimezone(),
+              })}
+            />
+          </div>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Alerts still arrive in your notifications during these hours, but your phone stays quiet.
+          </p>
+          {preferences?.quietHoursEnabled ? (
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <label className="flex min-w-0 flex-1 items-center gap-2 text-sm text-white">
+                <span className="shrink-0 text-muted-foreground">From</span>
+                <select
+                  className="min-w-0 flex-1 rounded-full border border-border bg-background px-3 py-2 text-sm text-white"
+                  disabled={isSaving}
+                  onChange={(event) => void savePreferences({
+                    quietHoursStartMinute: Number(event.target.value),
+                    quietHoursTimezone: localTimezone(),
+                  })}
+                  value={preferences.quietHoursStartMinute}
+                >
+                  {QUIET_HOUR_CHOICES.map((choice) => (
+                    <option key={choice.minute} value={choice.minute}>{choice.label}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="flex min-w-0 flex-1 items-center gap-2 text-sm text-white">
+                <span className="shrink-0 text-muted-foreground">To</span>
+                <select
+                  className="min-w-0 flex-1 rounded-full border border-border bg-background px-3 py-2 text-sm text-white"
+                  disabled={isSaving}
+                  onChange={(event) => void savePreferences({
+                    quietHoursEndMinute: Number(event.target.value),
+                    quietHoursTimezone: localTimezone(),
+                  })}
+                  value={preferences.quietHoursEndMinute}
+                >
+                  {QUIET_HOUR_CHOICES.map((choice) => (
+                    <option key={choice.minute} value={choice.minute}>{choice.label}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          ) : null}
         </section>
 
         <section className="rounded-lg border border-border bg-card p-4">

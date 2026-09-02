@@ -1,3 +1,4 @@
+-- Crypto payment intents.
 create table if not exists crypto_payment_intents (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references app_users(id) on delete cascade,

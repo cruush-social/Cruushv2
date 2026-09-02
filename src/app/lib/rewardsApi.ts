@@ -6,6 +6,7 @@ export type RewardGrant = {
   days: number;
   status: 'active' | 'reversed';
   createdAt: string;
+  sideQuestKey: SideQuestKey | null;
 };
 
 export type RewardSummary = {
@@ -59,6 +60,25 @@ export type DailyRewardCheckIn = {
   grants: RewardGrant[];
 };
 
+export type SideQuestKey = 'upload_first_photo' | 'complete_profile' | 'upload_four_photos' | 'view_profile' | 'send_cruush' | 'send_ping' | 'first_mutual_cruush' | 'send_message' | 'send_three_messages' | 'post_feed' | 'post_three_feed' | 'check_in_spot' | 'post_spot_board' | 'rate_spot' | 'save_visibility_set';
+
+export type SideQuestSummary = {
+  pingCredits: number;
+  claimingAvailable: boolean;
+  cruushPlusClaimsThisWeek: number;
+  cruushPlusWeeklyLimit: number;
+  claimedToday: boolean;
+  quests: Array<{
+    key: SideQuestKey;
+    title: string;
+    rewardKind: 'ping' | 'cruush_plus_day';
+    rewardAmount: number;
+    completed: boolean;
+    claimed: boolean;
+    claimedAt: string | null;
+  }>;
+};
+
 export type TwoFactorStatus = {
   enabled: boolean;
   enabledAt: string | null;
@@ -75,6 +95,10 @@ export function getRewardSummary() {
   return requestApi<RewardSummary>('/api/rewards/summary');
 }
 
+export function getRewardGrant(grantId: string) {
+  return requestApi<RewardGrant>(`/api/rewards/grants/${encodeURIComponent(grantId)}`);
+}
+
 export function updateRewardTimezone(timezone: string) {
   return requestApi<{ timezone: string }>('/api/rewards/timezone', {
     method: 'PUT',
@@ -84,6 +108,16 @@ export function updateRewardTimezone(timezone: string) {
 
 export function recordDailyRewardCheckIn() {
   return requestApi<DailyRewardCheckIn>('/api/rewards/check-in', {
+    method: 'POST',
+  });
+}
+
+export function getSideQuests() {
+  return requestApi<SideQuestSummary>('/api/rewards/side-quests');
+}
+
+export function claimSideQuest(questKey: SideQuestKey) {
+  return requestApi<SideQuestSummary>(`/api/rewards/side-quests/${questKey}/claim`, {
     method: 'POST',
   });
 }

@@ -35,7 +35,7 @@ export type SupportRequestAdminRecord = {
   id: string;
   requesterUserId: string | null;
   contactEmail: string | null;
-  category: SupportRequestCategory;
+  category: SupportRequestAdminCategory;
   subject: string;
   message: string;
   source: SupportRequestSource;
@@ -47,6 +47,10 @@ export type SupportRequestAdminRecord = {
   recipientEmail: string | null;
   replyCount: number;
   lastReplyAt: string | null;
+  appealEvidence?: Array<{
+    type: SuspensionAppealEvidenceType;
+    previewUrl: string;
+  }>;
 };
 
 export type SuspensionAppealEvidenceType = 'id' | 'selfie';
@@ -101,6 +105,7 @@ export function createSuspensionAppeal(payload: CreateSuspensionAppealPayload) {
 
 export function getSupportRequests(options: {
   status?: 'open' | 'in_progress' | 'closed' | 'dismissed' | 'all';
+  category?: 'all' | 'suspension_appeal';
   limit?: number;
   offset?: number;
 } = {}) {
@@ -108,6 +113,9 @@ export function getSupportRequests(options: {
 
   if (options.status) {
     searchParams.set('status', options.status);
+  }
+  if (options.category) {
+    searchParams.set('category', options.category);
   }
   searchParams.set('limit', String(options.limit ?? 25));
   searchParams.set('offset', String(options.offset ?? 0));

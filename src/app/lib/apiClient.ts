@@ -55,6 +55,17 @@ export function resolveApiUrl(pathOrUrl: string | null | undefined) {
 }
 
 export function resolveMediaUrl(pathOrUrl: string | null | undefined) {
+  if (
+    pathOrUrl?.startsWith('/api/media/')
+    && typeof window !== 'undefined'
+    && ['127.0.0.1', 'localhost', '::1'].includes(window.location.hostname)
+  ) {
+    // Keep protected local media on the Vite origin. The dev proxy forwards it
+    // with the same authenticated browser session, avoiding broken cross-port
+    // images while production still resolves media against the configured API.
+    return pathOrUrl;
+  }
+
   return resolveApiUrl(pathOrUrl);
 }
 

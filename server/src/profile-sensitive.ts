@@ -19,6 +19,7 @@ export type SensitiveProfileData = Pick<
 > & {
   health_preferences?: ProfilePayload["health_preferences"];
   birth_control?: ProfilePayload["birth_control"];
+  relationship_status?: ProfilePayload["relationship_status"];
 };
 
 export type EncryptedSensitiveProfile = {
@@ -192,6 +193,10 @@ export function decryptSensitiveProfile(
             "Rhythm method",
             "Spermicide"
           ].includes(value as ProfilePayload["birth_control"][number]))
+        : [],
+      relationship_status: Array.isArray(parsed.relationship_status)
+        ? parsed.relationship_status.filter((value): value is ProfilePayload["relationship_status"][number] =>
+            typeof value === "string")
         : []
     };
   } catch (error) {
@@ -264,7 +269,9 @@ export function decryptProfileVisibility(
     const parsed = JSON.parse(plaintext) as Partial<ProfileVisibilityRules>;
 
     return {
+      search_query: typeof parsed.search_query === "string" ? parsed.search_query.trim().slice(0, 120) : "",
       active_crowd_modes: normalizeCrowdOptions(parsed.active_crowd_modes),
+      mile_high_club_members: parsed.mile_high_club_members === true,
       age_range: Array.isArray(parsed.age_range) && parsed.age_range.length === 2 && parsed.age_range.every((value) => typeof value === "number")
         ? [parsed.age_range[0], parsed.age_range[1]]
         : null,

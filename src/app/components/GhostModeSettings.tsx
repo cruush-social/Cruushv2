@@ -2,10 +2,22 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { ArrowLeft, ChevronRight } from 'lucide-react';
 import { Button } from './ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from './ui/alert-dialog';
 import { Slider } from './ui/slider';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Switch } from './ui/switch';
 import { CruushIcon } from './CruushIconImage';
 import CruushPlusWord from './CruushPlusWord';
+import DarkRoomMark from './DarkRoomMark';
 import { CRUUSH_PLUS_CHANGED_EVENT, getMyBillingStatus } from '../lib/billingApi';
 import { DEBUG_CRUUSH_PLUS_EVENT } from '../lib/debugApi';
 import {
@@ -13,18 +25,14 @@ import {
 } from '../lib/profileOptions';
 import {
   DEFAULT_GHOST_PULSE_SETTINGS,
-  DEFAULT_MAP_PRESENCE_SETTINGS,
   DEFAULT_PRIVACY_SETTINGS,
   GHOST_RADIUS_OPTIONS,
-  MAP_PRESENCE_OPTIONS,
+  GHOST_ROTATION_OPTIONS,
   getMyGhostPulseSettings,
-  getMyMapPresenceSettings,
   getMyPrivacySettings,
   saveMyGhostPulseSettings,
-  saveMyMapPresenceSettings,
   saveMyPrivacySettings,
   type CrowdPrecisionPolicy,
-  type MapPresenceSettings,
   type PrivacySettings,
 } from '../lib/privacyApi';
 
@@ -40,13 +48,19 @@ export default function GhostModeSettings() {
   const [privacySettings, setPrivacySettings] = useState<PrivacySettings>(DEFAULT_PRIVACY_SETTINGS);
   const [privacyStatus, setPrivacyStatus] = useState<'idle' | 'loading' | 'saving'>('loading');
   const [privacyError, setPrivacyError] = useState<string | null>(null);
-  const [mapPresence, setMapPresence] = useState<MapPresenceSettings>(DEFAULT_MAP_PRESENCE_SETTINGS);
-  const [mapPresenceSaving, setMapPresenceSaving] = useState(false);
+  const [privacyJustSaved, setPrivacyJustSaved] = useState(false);
+  const [publicPreciseConfirmationOpen, setPublicPreciseConfirmationOpen] = useState(false);
+  const privacySavedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const privacySavePendingRef = useRef(false);
   const [hasCruushPlus, setHasCruushPlus] = useState(false);
   const [nowMs, setNowMs] = useState(() => Date.now());
   const refreshedRotationDeadlineRef = useRef<number | null>(null);
   const [ghostPulseEnabled, setGhostPulseEnabled] = useState(DEFAULT_GHOST_PULSE_SETTINGS.enabled);
   const [ghostPulseSaving, setGhostPulseSaving] = useState(false);
+
+  useEffect(() => () => {
+    if (privacySavedTimerRef.current) clearTimeout(privacySavedTimerRef.current);
+  }, []);
 
   const normalizePrivacySettings = (settings: Partial<PrivacySettings>): PrivacySettings => ({
     ...DEFAULT_PRIVACY_SETTINGS,
@@ -55,9 +69,11 @@ export default function GhostModeSettings() {
     ghostModeEnabled: settings.ghostModeEnabled ?? settings.baseMode === 'GHOST',
     ghostRadiusMeters: settings.ghostRadiusMeters ?? DEFAULT_PRIVACY_SETTINGS.ghostRadiusMeters,
     ghostRadiusLabel: settings.ghostRadiusLabel ?? DEFAULT_PRIVACY_SETTINGS.ghostRadiusLabel,
+    ghostRotationMinutes: settings.ghostRotationMinutes ?? 15,
     preciseToMutualCruushes: settings.preciseToMutualCruushes ?? settings.preciseLocationVisibility === 'mutual_cruushes',
     preciseLocationVisibility: settings.preciseLocationVisibility ?? (settings.preciseToMutualCruushes ? 'mutual_cruushes' : 'none'),
     preciseToMutualCrowds: settings.preciseToMutualCrowds ?? [],
+    darkRoomDistanceLabel: settings.darkRoomDistanceLabel === true,
     updatedAtMs: settings.updatedAtMs ?? 0,
     ghostRotationExpiresAtMs: settings.ghostRotationExpiresAtMs ?? null,
   });
@@ -126,18 +142,6 @@ export default function GhostModeSettings() {
     };
 
     loadPrivacySettings();
-
-    getMyMapPresenceSettings()
-      .then((settings) => {
-        if (active) {
-          setMapPresence({ ...DEFAULT_MAP_PRESENCE_SETTINGS, ...settings });
-        }
-      })
-      .catch(() => {
-        if (active) {
-          setMapPresence(DEFAULT_MAP_PRESENCE_SETTINGS);
-        }
-      });
 
     loadBillingStatus();
     window.addEventListener(DEBUG_CRUUSH_PLUS_EVENT, loadEntitlementState);
@@ -211,29 +215,15 @@ export default function GhostModeSettings() {
     }
   };
 
-  const persistMapPresenceDays = async (days: number) => {
-    const previousPresence = mapPresence;
-
-    setMapPresence({ ...mapPresence, days });
-    setMapPresenceSaving(true);
-
-    try {
-      const savedPresence = await saveMyMapPresenceSettings(days);
-      setMapPresence({ ...DEFAULT_MAP_PRESENCE_SETTINGS, ...savedPresence });
-      setPrivacyError(null);
-    } catch (error) {
-      setMapPresence(previousPresence);
-      setPrivacyError(error instanceof Error ? error.message : 'Failed to save map presence duration.');
-    } finally {
-      setMapPresenceSaving(false);
-    }
-  };
-
   const persistPrivacySettings = async (nextSettings: PrivacySettings) => {
+    if (privacySavePendingRef.current) return;
+    privacySavePendingRef.current = true;
     const previousPrivacySettings = privacySettings;
 
     setPrivacySettings(nextSettings);
     setPrivacyStatus('saving');
+    setPrivacyJustSaved(false);
+    if (privacySavedTimerRef.current) clearTimeout(privacySavedTimerRef.current);
     setPrivacyError(null);
 
     try {
@@ -241,10 +231,17 @@ export default function GhostModeSettings() {
       refreshedRotationDeadlineRef.current = null;
       setPrivacySettings(normalizePrivacySettings(savedSettings));
       setNowMs(Date.now());
+      setPrivacyJustSaved(true);
+      privacySavedTimerRef.current = setTimeout(() => {
+        setPrivacyJustSaved(false);
+        privacySavedTimerRef.current = null;
+      }, 1_800);
     } catch (error) {
       setPrivacySettings(previousPrivacySettings);
+      setPrivacyJustSaved(false);
       setPrivacyError(error instanceof Error ? error.message : 'Failed to save Ghost Mode settings.');
     } finally {
+      privacySavePendingRef.current = false;
       setPrivacyStatus('idle');
     }
   };
@@ -256,15 +253,12 @@ export default function GhostModeSettings() {
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div className="flex items-center gap-3">
-          <CruushIcon
-            name="ghost"
-            variant={privacySettings.baseMode === 'STEALTH' ? 'stealth' : privacySettings.ghostModeEnabled ? 'colored' : 'white'}
-            className="h-7 w-7"
-          />
-          <div>
-            <h2 className="text-xl">Ghost Mode</h2>
-            <p className="text-xs text-muted-foreground">Shifting public map location</p>
-          </div>
+          {privacySettings.baseMode === 'STEALTH' ? (
+            <DarkRoomMark active className="h-7 w-7 text-white" />
+          ) : (
+            <CruushIcon name="ghost" variant={privacySettings.ghostModeEnabled ? 'colored' : 'white'} className="h-7 w-7" />
+          )}
+          <h2 className="text-xl">Ghost Mode &amp; Dark Room Mode</h2>
         </div>
       </header>
 
@@ -307,7 +301,7 @@ export default function GhostModeSettings() {
           <div className="rounded-xl border border-white/10 bg-white/[0.025] p-4">
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-start gap-3">
-                <CruushIcon name="ghost" variant={privacySettings.baseMode === 'STEALTH' ? 'stealth' : 'white'} className="mt-1 h-5 w-5 opacity-80" />
+                <DarkRoomMark active={privacySettings.baseMode === 'STEALTH'} className="mt-1 h-5 w-5 text-white opacity-80" />
                 <div>
                   <p>Dark Room</p>
                   <p className="text-sm text-muted-foreground">Browse the map without appearing on it.</p>
@@ -338,6 +332,22 @@ export default function GhostModeSettings() {
                 </Button>
               )}
             </div>
+            {privacySettings.baseMode === 'STEALTH' ? (
+              <div className="mt-4 flex items-center justify-between gap-4 border-t border-white/10 pt-4">
+                <p>Show Dark Room instead of a distance label across the app</p>
+                <Switch
+                  aria-label="Show Dark Room instead of a distance label across the app"
+                  checked={privacySettings.darkRoomDistanceLabel}
+                  disabled={privacyStatus === 'loading' || privacyStatus === 'saving'}
+                  onCheckedChange={(enabled) => {
+                    void persistPrivacySettings({
+                      ...privacySettings,
+                      darkRoomDistanceLabel: enabled === true,
+                    });
+                  }}
+                />
+              </div>
+            ) : null}
           </div>
 
           <div className="space-y-3 rounded-lg border border-white/10 bg-white/[0.025] p-4">
@@ -346,8 +356,8 @@ export default function GhostModeSettings() {
                 <p>Ghost radius</p>
                 <p className="text-sm text-muted-foreground">{privacySettings.ghostRadiusLabel}</p>
               </div>
-              <span className="text-xs uppercase tracking-[0.16em] text-white/48">
-                {privacySettings.ghostModeEnabled ? 'Active' : 'Saved'}
+              <span aria-live="polite" className="min-w-16 text-right text-xs uppercase tracking-[0.16em] text-white/48">
+                {privacyStatus === 'saving' ? 'Saving…' : privacyJustSaved ? 'Saved' : null}
               </span>
             </div>
             <Slider
@@ -374,6 +384,26 @@ export default function GhostModeSettings() {
             <p className="text-sm text-muted-foreground">Larger radius gives you more cover; smaller radius keeps your public pin closer to where you are.</p>
           </div>
 
+          <div className="space-y-3 rounded-lg border border-white/10 bg-white/[0.025] p-4">
+            <p id="ghost-rotation-label">Rotation interval</p>
+            <Select
+              value={String(privacySettings.ghostRotationMinutes ?? 15)}
+              disabled={privacyStatus === 'loading' || privacyStatus === 'saving'}
+              onValueChange={(value) => {
+                void persistPrivacySettings({ ...privacySettings, ghostRotationMinutes: Number(value) });
+              }}
+            >
+              <SelectTrigger aria-labelledby="ghost-rotation-label" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {GHOST_ROTATION_OPTIONS.map((option) => (
+                  <SelectItem key={option.minutes} value={String(option.minutes)}>{option.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="space-y-3 rounded-lg border border-white/10 bg-white/[0.025] p-4" data-testid="ghost-pulse-setting">
             <div className="flex items-center justify-between gap-4">
               <div>
@@ -391,9 +421,6 @@ export default function GhostModeSettings() {
                 }}
               />
             </div>
-            <p className="text-sm text-muted-foreground">
-              Your pin beats like a heartbeat through its last minute before moving, so people know to say something before you go.
-            </p>
           </div>
 
           <button
@@ -411,34 +438,68 @@ export default function GhostModeSettings() {
             <ChevronRight className="h-5 w-5 shrink-0 text-white/60" />
           </button>
 
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-start gap-3">
-              <CruushIcon name="map" className="mt-1 h-5 w-5 opacity-65" />
-              <div>
-                <p>Precise location for mutuals</p>
-                <p className="text-sm text-muted-foreground">Off by default. When on, mutuals can see your precise live location instead of your Ghost location.</p>
-              </div>
+          <div className="space-y-3 rounded-lg border border-white/10 bg-white/[0.025] p-4">
+            <div className="flex items-center gap-3">
+              <CruushIcon name="map" className="h-5 w-5 opacity-65" />
+              <p>Who can see my precise location?</p>
             </div>
-            <Switch
-              aria-label="Toggle precise location for mutuals"
-              checked={privacySettings.preciseToMutualCruushes}
-              disabled={privacyStatus === 'loading' || privacyStatus === 'saving'}
-              onCheckedChange={(enabled) => {
-                void persistPrivacySettings({
-                  ...privacySettings,
-                  preciseToMutualCruushes: enabled,
-                  preciseLocationVisibility: enabled ? 'mutual_cruushes' : 'none',
-                });
-              }}
-            />
-          </div>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              <button
+                type="button"
+                aria-label="Public"
+                aria-pressed={privacySettings.baseMode === 'PUBLIC_PRECISE'}
+                className={[
+                  'flex items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors',
+                  privacySettings.baseMode === 'PUBLIC_PRECISE'
+                    ? 'border-white/15 text-white'
+                    : 'border-white/10 bg-white/[0.035] text-white/72 hover:bg-white/[0.065]',
+                ].join(' ')}
+                disabled={privacyStatus === 'loading' || privacyStatus === 'saving'}
+                onClick={() => {
+                  if (privacySettings.baseMode === 'GHOST') {
+                    setPublicPreciseConfirmationOpen(true);
+                    return;
+                  }
 
-          <div className="space-y-3">
-            <div>
-              <p>Precise location for mutual crowds</p>
-              <p className="text-sm text-muted-foreground">Selected mutual crowds can see your precise location. Everyone else still sees your public or Ghost location.</p>
-            </div>
-            <div className="grid gap-2 sm:grid-cols-3">
+                  if (privacySettings.baseMode !== 'PUBLIC_PRECISE') {
+                    void persistPrivacySettings({
+                      ...privacySettings,
+                      baseMode: 'PUBLIC_PRECISE',
+                      ghostModeEnabled: false,
+                    });
+                  }
+                }}
+                style={privacySettings.baseMode === 'PUBLIC_PRECISE' ? { background: 'var(--cruush-gradient)' } : undefined}
+              >
+                <span>Public</span>
+                <span className="text-xs">{privacySettings.baseMode === 'PUBLIC_PRECISE' ? 'On' : 'Off'}</span>
+              </button>
+
+              <button
+                type="button"
+                aria-label="Mutuals"
+                aria-pressed={privacySettings.preciseToMutualCruushes}
+                className={[
+                  'flex items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors',
+                  privacySettings.preciseToMutualCruushes
+                    ? 'border-white/15 text-white'
+                    : 'border-white/10 bg-white/[0.035] text-white/72 hover:bg-white/[0.065]',
+                ].join(' ')}
+                disabled={privacyStatus === 'loading' || privacyStatus === 'saving'}
+                onClick={() => {
+                  const enabled = !privacySettings.preciseToMutualCruushes;
+                  void persistPrivacySettings({
+                    ...privacySettings,
+                    preciseToMutualCruushes: enabled,
+                    preciseLocationVisibility: enabled ? 'mutual_cruushes' : 'none',
+                  });
+                }}
+                style={privacySettings.preciseToMutualCruushes ? { background: 'var(--cruush-gradient)' } : undefined}
+              >
+                <span>Mutuals</span>
+                <span className="text-xs">{privacySettings.preciseToMutualCruushes ? 'On' : 'Off'}</span>
+              </button>
+
               {CROWDS.map((crowd) => {
                 const selected = privacySettings.preciseToMutualCrowds.some((policy) => policy.crowdId === crowd && policy.precisionEnabled);
 
@@ -490,6 +551,29 @@ export default function GhostModeSettings() {
           ) : null}
         </div>
       </div>
+
+      <AlertDialog open={publicPreciseConfirmationOpen} onOpenChange={setPublicPreciseConfirmationOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Turn off Ghost Mode?</AlertDialogTitle>
+            <AlertDialogDescription>Public means your precise location appears on the public map.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep Ghost Mode</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                void persistPrivacySettings({
+                  ...privacySettings,
+                  baseMode: 'PUBLIC_PRECISE',
+                  ghostModeEnabled: false,
+                });
+              }}
+            >
+              Turn off Ghost Mode
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

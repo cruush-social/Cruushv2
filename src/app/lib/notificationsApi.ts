@@ -3,7 +3,7 @@ import { requestApi } from './apiClient';
 export type NotificationRecord = {
   id: string;
   userId: string;
-  type: 'incoming_cruush' | 'mutual_cruush' | 'direct_message' | 'group_message' | 'group_membership' | 'nearby_activity' | 'reward';
+  type: 'incoming_cruush' | 'mutual_cruush' | 'direct_message' | 'group_message' | 'group_membership' | 'nearby_activity' | 'reward' | 'announcement' | 'nearby_user' | 'pulse' | 'place_checkin_expired';
   title: string;
   body: string;
   linkUrl: string;
@@ -30,7 +30,14 @@ export type NotificationPreferences = {
   groupsEnabled: boolean;
   nearbyEnabled: boolean;
   rewardsEnabled: boolean;
+  pulseEnabled: boolean;
   soundEnabled: boolean;
+  quietHoursEnabled: boolean;
+  /** Minutes past local midnight. A start above the end wraps past midnight. */
+  quietHoursStartMinute: number;
+  quietHoursEndMinute: number;
+  /** IANA zone the window is read in. */
+  quietHoursTimezone: string;
 };
 
 export type PushSubscriptionPayload = {
@@ -64,6 +71,9 @@ export function resolveNotificationNavigationPath(
   notification: Pick<NotificationRecord, 'type' | 'linkUrl' | 'metadata'> & Partial<Pick<NotificationRecord, 'actorUserId'>>,
 ) {
   const safeLink = safeNotificationLink(notification.linkUrl);
+  if (notification.type === 'reward' && typeof notification.metadata?.grantId === 'string') {
+    return `/rewards?rewardGrant=${encodeURIComponent(notification.metadata.grantId)}`;
+  }
   const sourceUserId = typeof notification.metadata?.sourceUserId === 'string'
     ? notification.metadata.sourceUserId.trim()
     : '';
@@ -121,6 +131,12 @@ export function markAllNotificationsRead() {
 
 export function clearNotifications() {
   return requestApi<NotificationSummary>('/api/notifications', {
+    method: 'DELETE',
+  });
+}
+
+export function deleteNotification(notificationId: string) {
+  return requestApi<NotificationSummary>(`/api/notifications/${notificationId}`, {
     method: 'DELETE',
   });
 }

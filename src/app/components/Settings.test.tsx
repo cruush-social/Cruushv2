@@ -7,6 +7,7 @@ import {
   ACCESSIBILITY_PREFERENCES_STORAGE_KEY,
   saveAccessibilityPreferences,
 } from '../lib/accessibilityPreferences';
+import { DESKTOP_PAGE_LAYOUT_STORAGE_KEY } from '../lib/desktopPageLayoutPreferences';
 
 const { getMyPrivacySettings, saveMyPrivacySettings } = vi.hoisted(() => ({
   getMyPrivacySettings: vi.fn(),
@@ -150,6 +151,7 @@ describe('Settings', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     window.localStorage.removeItem(ACCESSIBILITY_PREFERENCES_STORAGE_KEY);
+    window.localStorage.removeItem(DESKTOP_PAGE_LAYOUT_STORAGE_KEY);
     document.documentElement.removeAttribute('data-cruush-high-contrast');
     document.documentElement.removeAttribute('data-cruush-larger-text');
     document.documentElement.removeAttribute('data-cruush-reduce-motion');
@@ -169,7 +171,7 @@ describe('Settings', () => {
     expect(screen.getByRole('button', { name: /Location privacy/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /DL Mode/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Two-factor authentication/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Rewards/i })).toHaveTextContent(
+    expect(screen.getByRole('button', { name: /Rewards/i })).not.toHaveTextContent(
       'Streaks, referrals, and promotional access.',
     );
   });
@@ -274,7 +276,7 @@ describe('Settings', () => {
 
     const changelogButton = await screen.findByRole('button', { name: /Changelog/i });
 
-    expect(changelogButton).toHaveTextContent('See what is new in cruush.');
+    expect(changelogButton).not.toHaveTextContent('See what is new in cruush.');
     fireEvent.click(changelogButton);
     expect(screen.getByTestId('location-probe')).toHaveTextContent('/settings/changelog');
   });
@@ -480,5 +482,38 @@ describe('Settings', () => {
 
     expect(screen.getByRole('button', { name: /Install cruush/ })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Contact support/ })).not.toBeInTheDocument();
+  });
+
+  it('keeps secondary copy out of settings menu rows', async () => {
+    render(
+      <MemoryRouter>
+        <Settings />
+      </MemoryRouter>
+    );
+
+    await screen.findByText('Edit Profile');
+    expect(screen.queryByText('Streaks, referrals, and promotional access.')).not.toBeInTheDocument();
+    expect(screen.queryByText('Ghost Mode and precise location access for mutuals.')).not.toBeInTheDocument();
+    expect(screen.queryByText('See what is new in cruush.')).not.toBeInTheDocument();
+    expect(screen.queryByText('Permanently delete your cruush account.')).not.toBeInTheDocument();
+  });
+
+  it('sets the desktop page layout without adding a secondary tagline', async () => {
+    render(
+      <MemoryRouter>
+        <Settings />
+      </MemoryRouter>
+    );
+
+    const popups = await screen.findByRole('radio', { name: 'Pop-ups' });
+    const fullscreen = screen.getByRole('radio', { name: 'Full screen' });
+
+    expect(popups).toHaveAttribute('aria-checked', 'true');
+    expect(fullscreen).toHaveAttribute('aria-checked', 'false');
+
+    fireEvent.click(fullscreen);
+
+    expect(fullscreen).toHaveAttribute('aria-checked', 'true');
+    expect(window.localStorage.getItem(DESKTOP_PAGE_LAYOUT_STORAGE_KEY)).toBe('fullscreen');
   });
 });

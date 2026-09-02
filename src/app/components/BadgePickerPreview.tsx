@@ -1,9 +1,63 @@
-import { useEffect, useState } from 'react';
-import { KeyholeEyeGlyph, LipsGlyph, PartyHatGlyph, StraightEdgeGlyph, TongueGlyph } from './BadgeGlyphs';
+import { useEffect, useRef, useState } from 'react';
+import { AnalGlyph, BondageGlyph, CyborgGlyph, GooningGlyph, HarnessGlyph, KeyholeEyeGlyph, LeatherGlyph, LipsGlyph, NeurodivergentGlyph, NippleGlyph, PartyHatGlyph, PenetrationGlyph, RaveGlyph, RimmingGlyph, RubberGlyph, SpankingGlyph, StraightEdgeGlyph } from './BadgeGlyphs';
 import {
-  ArrowDown,
+  DoubleMarsGlyph,
+  DoubleVenusGlyph,
+  IntersexGlyph,
+  MarsVenusGlyph,
+  NonbinaryGlyph,
+  PlayingCard,
+  PolyGlyph,
+  T4TGlyph,
+  TransGlyph,
+} from './CommunityGlyphs';
+import {
+  BottomEmblem,
+  DomEmblem,
+  DominantTakenEmblem,
+  SubEmblem,
+  SubmissiveTakenEmblem,
+  SwitchEmblem,
+  TakenSwitchEmblem,
+  TopEmblem,
+  TopSwitchEmblem,
+  BottomSwitchEmblem,
+} from './BdsmEmblems';
+import {
+  PillowPrincessGlyph,
+  ServiceGlyph,
+  SideGlyph,
+  StoneTopGlyph,
+  VersatileGlyph,
+} from './PositionRoleGlyphs';
+import {
   ArrowLeft,
+  BadgeCheck,
   Bed,
+  Bookmark,
+  Cable,
+  Camera,
+  Droplets,
+  Dumbbell,
+  Footprints,
+  HandMetal,
+  Medal,
+  MessageCircleQuestion,
+  Minus,
+  Moon,
+  Mountain,
+  PenTool,
+  Pin,
+  Recycle,
+  Scissors,
+  Shirt,
+  ShieldCheck,
+  Sparkles,
+  ThumbsDown,
+  Flower2,
+  HeartHandshake,
+  Pill,
+  Zap,
   Bone,
   CircleDot,
   Crown,
@@ -15,7 +69,6 @@ import {
   Grab,
   Handshake,
   Hourglass,
-  Layers,
   Link2,
   Lock,
   Maximize2,
@@ -36,11 +89,40 @@ import {
   UsersRound,
   Wand2,
   Wind,
+  X,
   type LucideIcon,
 } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import HeartPhoto from './HeartPhoto';
-import { getMyProfile } from '../lib/profileApi';
+import MapHome from './MapHome';
+import { HANKY_COLORS, HankyFrame, HankyPaisleyIcon, type HankyColor } from './HankyFrame';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from './ui/dialog';
+import {
+  emptySideBadges,
+  getMyProfile,
+  saveMySideBadges,
+  type SideBadgeSelection,
+  type SideBadges,
+} from '../lib/profileApi';
+import { DEFAULT_PRIVACY_SETTINGS, getMyPrivacySettings } from '../lib/privacyApi';
+import { DARK_ROOM_PALETTE } from '../lib/darkRoomPalette';
+import { BADGE_INTENTS, formatBadgeLabel, type BadgeIntent } from '../lib/badgeIntent';
+import { useIsMobile } from './ui/use-mobile';
+import { KINK_GROUPS, VIBE_GROUPS } from '../lib/profileOptions';
+import { Button } from './ui/button';
+import {
+  BadgeFrame,
+  BadgeHoverLabel,
+  MAP_SIDE_BADGE_PLACEMENT_CLASS,
+  mapSideBadgeStyle,
+  type BadgeFrameId,
+} from './BadgeFrames';
 
 /**
  * A place to decide what the two side badges on a heart should say. Built from
@@ -53,102 +135,431 @@ type BadgeOption = {
   label: string;
   icon: (props: { className?: string; strokeWidth?: number }) => JSX.Element;
   group: string;
+  category?: string;
+  hanky?: HankyColor;
 };
 
+const HANKY_GROUP = 'Hanky code';
+const HANKY_BADGE_OPTIONS: BadgeOption[] = HANKY_COLORS.map((hanky) => ({
+  id: `hanky-${hanky.id}`,
+  label: hanky.meaning,
+  icon: ({ className }) => <HankyFrame className={className} color={hanky.color} />,
+  group: HANKY_GROUP,
+  hanky,
+}));
+
 const BADGE_OPTIONS: BadgeOption[] = [
+  // Acts: what happens, in the plainest terms.
   { id: 'oral', label: 'Oral', icon: LipsGlyph, group: 'Acts' },
-  { id: 'penetration', label: 'Penetration', icon: ArrowDown, group: 'Acts' },
+  { id: 'rimming', label: 'Rimming', icon: RimmingGlyph, group: 'Acts' },
+  { id: 'penetration', label: 'Penetration', icon: PenetrationGlyph, group: 'Acts' },
+  { id: 'anal', label: 'Anal', icon: AnalGlyph, group: 'Acts' },
   { id: 'fisting', label: 'Fisting', icon: Grab, group: 'Acts' },
-  { id: 'rimming', label: 'Rimming', icon: CircleDot, group: 'Acts' },
+  { id: 'large-insertion', label: 'Large insertion', icon: Maximize2, group: 'Acts' },
   { id: 'hands', label: 'Hands', icon: Handshake, group: 'Acts' },
-  { id: 'frottage', label: 'Frottage', icon: Repeat2, group: 'Acts' },
-  { id: 'toys', label: 'Toys', icon: Wand2, group: 'Acts' },
+  // Retain the saved ID for compatibility, but never return the removed label.
+  { id: 'frottage', label: 'Frotting', icon: Repeat2, group: 'Acts' },
   { id: 'mutual', label: 'Mutual', icon: Users, group: 'Acts' },
-  { id: 'bondage', label: 'Bondage', icon: Link2, group: 'Kink' },
-  { id: 'impact', label: 'Impact', icon: Hammer, group: 'Kink' },
-  { id: 'service', label: 'Service', icon: Bed, group: 'Kink' },
-  { id: 'control', label: 'Control', icon: Crown, group: 'Kink' },
-  { id: 'watersports', label: 'Watersports', icon: Droplet, group: 'Kink' },
-  { id: 'edging', label: 'Edging', icon: Hourglass, group: 'Kink' },
-  { id: 'gooning', label: 'Gooning', icon: TongueGlyph, group: 'Kink' },
-  { id: 'chastity', label: 'Chastity', icon: Lock, group: 'Kink' },
-  { id: 'leather', label: 'Leather', icon: Shield, group: 'Kink' },
-  { id: 'rubber', label: 'Rubber', icon: Layers, group: 'Kink' },
-  { id: 'pup', label: 'Pup play', icon: Bone, group: 'Kink' },
-  { id: 'rope', label: 'Rope', icon: Spline, group: 'Kink' },
-  { id: 'sensation', label: 'Sensation', icon: Feather, group: 'Kink' },
-  { id: 'breath', label: 'Breath', icon: Wind, group: 'Kink' },
-  { id: 'roleplay', label: 'Roleplay', icon: Drama, group: 'Kink' },
-  { id: 'large-insertion', label: 'Large insertion', icon: Maximize2, group: 'Kink' },
-  { id: 'exhibition', label: 'Exhibition', icon: Eye, group: 'Scene' },
-  { id: 'voyeur', label: 'Voyeur', icon: KeyholeEyeGlyph, group: 'Scene' },
-  { id: 'group', label: 'Group', icon: UsersRound, group: 'Scene' },
-  { id: 'public', label: 'Public', icon: TreePine, group: 'Scene' },
-  { id: 'chems', label: 'Party', icon: PartyHatGlyph, group: 'Scene' },
-  { id: 'sober', label: 'Straight edge', icon: StraightEdgeGlyph, group: 'Scene' },
-  { id: 'cuckold', label: 'Cuckolding', icon: VenetianMask, group: 'Scene' },
-  { id: 'threesome', label: 'Threesome', icon: Users, group: 'Scene' },
-  { id: 'orgy', label: 'Orgy', icon: Flame, group: 'Scene' },
-  { id: 'gloryhole', label: 'Glory hole', icon: DoorOpen, group: 'Scene' },
-  { id: 'bathhouse', label: 'Bathhouse', icon: Waves, group: 'Scene' },
-  { id: 'cruising', label: 'Cruising', icon: Route, group: 'Scene' },
-  { id: 'hotel', label: 'Hotel', icon: Building2, group: 'Scene' },
-  { id: 'car', label: 'Car', icon: Car, group: 'Scene' },
-  { id: 'outdoors', label: 'Outdoors', icon: TreePine, group: 'Scene' },
-  { id: 'discreet', label: 'Discreet', icon: EyeOff, group: 'Scene' },
-  { id: 'none', label: 'No badge', icon: MinusCircle, group: 'Scene' },
+  { id: 'sixty-nine', label: 'Sixty-nine', icon: Recycle, group: 'Acts' },
+  { id: 'docking', label: 'Docking', icon: Link2, group: 'Acts' },
+  { id: 'nipple-play', label: 'Nipple play', icon: NippleGlyph, group: 'Acts' },
+  { id: 'toys', label: 'Toys', icon: Wand2, group: 'Acts' },
+  { id: 'edging', label: 'Edging', icon: Hourglass, group: 'Acts' },
+  { id: 'cum-play', label: 'Cum play', icon: Droplets, group: 'Acts' },
+
+  // Role: the same role axis used by the profile editor.
+  { id: 'dominant', label: 'Dominant', icon: DomEmblem, group: 'Role' },
+  { id: 'dominant-taken', label: 'Dominant, taken', icon: DominantTakenEmblem, group: 'Role' },
+  { id: 'submissive', label: 'Submissive', icon: SubEmblem, group: 'Role' },
+  { id: 'submissive-taken', label: 'Submissive, taken', icon: SubmissiveTakenEmblem, group: 'Role' },
+  { id: 'switch', label: 'Switch', icon: SwitchEmblem, group: 'Role' },
+  { id: 'switch-taken', label: 'Switch, taken', icon: TakenSwitchEmblem, group: 'Role' },
+  { id: 'service', label: 'Service', icon: ServiceGlyph, group: 'Role' },
+
+  // Kinks: reuse the established badge glyphs for the profile kink choices.
+  { id: 'bondage', label: 'Bondage', icon: BondageGlyph, group: 'Kinks' },
+  { id: 'rope', label: 'Rope', icon: Spline, group: 'Kinks' },
+  { id: 'impact', label: 'Impact', icon: Hammer, group: 'Kinks' },
+  { id: 'spanking', label: 'Spanking', icon: SpankingGlyph, group: 'Kinks' },
+  { id: 'control', label: 'Control', icon: Crown, group: 'Kinks' },
+  { id: 'chastity', label: 'Chastity', icon: Lock, group: 'Kinks' },
+  { id: 'humiliation', label: 'Humiliation', icon: ThumbsDown, group: 'Kinks' },
+  { id: 'praise', label: 'Praise', icon: Sparkles, group: 'Kinks' },
+  { id: 'cbt', label: 'Cock & ball torture', icon: Scissors, group: 'Kinks' },
+  { id: 'electro', label: 'Electro', icon: Zap, group: 'Kinks' },
+  { id: 'breath', label: 'Breath play', icon: Wind, group: 'Kinks' },
+  { id: 'gooning', label: 'Gooning', icon: GooningGlyph, group: 'Kinks' },
+  { id: 'watersports', label: 'Watersports', icon: Droplet, group: 'Kinks' },
+
+  // Position: the other axis. The emblem set says this with an arrow, because a
+  // top and a dominant are not the same thing.
+  { id: 'top', label: 'Top', icon: TopEmblem, group: 'Position' },
+  { id: 'bottom', label: 'Bottom', icon: BottomEmblem, group: 'Position' },
+  { id: 'versatile', label: 'Versatile', icon: VersatileGlyph, group: 'Position' },
+  { id: 'vers top', label: 'Vers top', icon: TopSwitchEmblem, group: 'Position' },
+  { id: 'vers bottom', label: 'Vers bottom', icon: BottomSwitchEmblem, group: 'Position' },
+  { id: 'side', label: 'Side', icon: SideGlyph, group: 'Position' },
+  { id: 'stone top', label: 'Stone top', icon: StoneTopGlyph, group: 'Position' },
+  { id: 'pillow princess', label: 'Pillow princess', icon: PillowPrincessGlyph, group: 'Position' },
+
+  // Vibes: reuse the existing visual language for choices also found in Vibes.
+  { id: 'leather', label: 'Leather', icon: LeatherGlyph, group: 'Vibes' },
+  { id: 'rubber', label: 'Rubber', icon: RubberGlyph, group: 'Vibes' },
+  { id: 'jock', label: 'Jock', icon: Medal, group: 'Vibes' },
+  { id: 'drag', label: 'Drag', icon: Drama, group: 'Vibes' },
+  { id: 'pup', label: 'Pup', icon: Bone, group: 'Vibes' },
+
+  // Kink gear remains in the shared Kinks menu.
+  { id: 'latex', label: 'Latex', icon: Droplet, group: 'Kinks' },
+  { id: 'uniforms', label: 'Uniforms', icon: BadgeCheck, group: 'Kinks' },
+  { id: 'underwear', label: 'Underwear', icon: Bookmark, group: 'Kinks' },
+  { id: 'socks', label: 'Socks', icon: Footprints, group: 'Kinks' },
+  { id: 'sneakers', label: 'Sneakers', icon: Footprints, group: 'Kinks' },
+  { id: 'harness', label: 'Harness', icon: HarnessGlyph, group: 'Kinks' },
+  { id: 'masks', label: 'Masks', icon: VenetianMask, group: 'Kinks' },
+  { id: 'pup-play', label: 'Pup play', icon: Bone, group: 'Kinks' },
+  { id: 'roleplay', label: 'Roleplay', icon: Wand2, group: 'Kinks' },
+
+  // Body: what you are drawn to.
+  { id: 'feet', label: 'Feet', icon: Footprints, group: 'Kinks' },
+  { id: 'pits', label: 'Pits', icon: Wind, group: 'Kinks' },
+  { id: 'muscle-worship', label: 'Muscle worship', icon: Dumbbell, group: 'Kinks' },
+  { id: 'sensation', label: 'Sensation', icon: Feather, group: 'Kinks' },
+  { id: 'daddy', label: 'Daddy', icon: Crown, group: 'Vibes' },
+  { id: 'bear', label: 'Bear', icon: Mountain, group: 'Vibes' },
+  { id: 'chub', label: 'Chub', icon: CircleDot, group: 'Vibes' },
+  { id: 'boy', label: 'Boy', icon: Feather, group: 'Vibes' },
+  { id: 'hairy', label: 'Hairy', icon: Waves, group: 'Vibes' },
+  { id: 'smooth', label: 'Smooth', icon: Minus, group: 'Vibes' },
+  { id: 'tattoos', label: 'Tattoos', icon: PenTool, group: 'Vibes' },
+  { id: 'piercings', label: 'Piercings', icon: Pin, group: 'Vibes' },
+
+  // Scene: where and with how many.
+  { id: 'group', label: 'Group', icon: UsersRound, group: 'Kinks' },
+  { id: 'threesome', label: 'Threesome', icon: Users, group: 'Kinks' },
+  { id: 'orgy', label: 'Orgy', icon: UsersRound, group: 'Kinks' },
+  { id: 'cuckolding', label: 'Cuckolding', icon: KeyholeEyeGlyph, group: 'Kinks' },
+  { id: 'voyeurism', label: 'Voyeurism', icon: Eye, group: 'Kinks' },
+  { id: 'exhibitionism', label: 'Exhibitionism', icon: Flame, group: 'Kinks' },
+  { id: 'public', label: 'Public', icon: Building2, group: 'Kinks' },
+  { id: 'cruising-spots', label: 'Cruising spots', icon: Route, group: 'Kinks' },
+  { id: 'glory-hole', label: 'Glory hole', icon: DoorOpen, group: 'Kinks' },
+  { id: 'bathhouse', label: 'Bathhouse', icon: Waves, group: 'Kinks' },
+  { id: 'backroom', label: 'Backroom', icon: DoorOpen, group: 'Kinks' },
+  { id: 'sling', label: 'Sling', icon: Cable, group: 'Kinks' },
+  { id: 'outdoor-scenes', label: 'Outdoor scenes', icon: TreePine, group: 'Kinks' },
+  { id: 'hotel', label: 'Hotel', icon: Bed, group: 'Kinks' },
+  { id: 'car', label: 'Car', icon: Car, group: 'Kinks' },
+  { id: 'overnight', label: 'Overnight', icon: Moon, group: 'Kinks' },
+  { id: 'camera-play', label: 'Camera play', icon: Camera, group: 'Kinks' },
+  { id: 'discreet', label: 'Discreet', icon: EyeOff, group: 'Vibes' },
+
+  // Community: who you are and who you are looking for. People flag these as
+  // loudly as anything else on this list.
+  { id: 'nonbinary', label: 'Nonbinary', icon: NonbinaryGlyph, group: 'Community' },
+  { id: 'butch', label: 'Butch', icon: HandMetal, group: 'Community' },
+  { id: 'femme', label: 'Femme', icon: Flower2, group: 'Community' },
+  { id: 'stud', label: 'Stud', icon: Medal, group: 'Community' },
+  { id: 'twink', label: 'Twink', icon: Feather, group: 'Community' },
+  { id: 'otter', label: 'Otter', icon: Waves, group: 'Community' },
+  { id: 'leather-family', label: 'Leather family', icon: Shield, group: 'Community' },
+  { id: 'poly', label: 'Poly', icon: PolyGlyph, group: 'Community' },
+  { id: 'queer', label: 'Queer', icon: Sparkles, group: 'Community' },
+  { id: 'ace-spec', label: 'Ace spectrum', icon: PlayingCard, group: 'Community' },
+  { id: 'newly-out', label: 'Newly out', icon: DoorOpen, group: 'Community' },
+  { id: 'poz-friendly', label: 'Poz friendly', icon: HeartHandshake, group: 'Community' },
+  { id: 'on-prep', label: 'On PrEP', icon: Pill, group: 'Community' },
+
+  // Pride: the interlocking gender symbols, which people read faster than any
+  // flag and which pair as easily as a hanky does.
+  { id: 'gay', label: 'Gay', icon: DoubleMarsGlyph, group: 'Pride' },
+  { id: 'lesbian', label: 'Lesbian', icon: DoubleVenusGlyph, group: 'Pride' },
+  { id: 'straight', label: 'Straight', icon: MarsVenusGlyph, group: 'Pride' },
+  { id: 't4t', label: 'T4T', icon: T4TGlyph, group: 'Pride' },
+  { id: 'trans-symbol', label: 'Trans', icon: TransGlyph, group: 'Pride' },
+  { id: 'intersex', label: 'Intersex', icon: IntersexGlyph, group: 'Pride' },
+  { id: 'enby', label: 'Nonbinary', icon: NonbinaryGlyph, group: 'Pride' },
+
+  // Boundaries: worth flagging as loudly as anything else.
+  { id: 'party', label: 'Party', icon: PartyHatGlyph, group: 'Boundaries' },
+  { id: 'sober', label: 'Sober', icon: MinusCircle, group: 'Boundaries' },
+  { id: 'straight-edge', label: 'Straight edge', icon: StraightEdgeGlyph, group: 'Boundaries' },
+  { id: 'safe-only', label: 'Safe only', icon: ShieldCheck, group: 'Boundaries' },
+  { id: 'ask-me', label: 'Ask me', icon: MessageCircleQuestion, group: 'Boundaries' },
+  { id: 'none', label: 'No badge', icon: MinusCircle, group: 'Boundaries' },
+
+  ...HANKY_BADGE_OPTIONS,
 ];
+
+type ProfileBadgeGroup = 'Vibes' | 'Kinks';
+
+const PROFILE_BADGE_GROUPS = {
+  Vibes: VIBE_GROUPS,
+  Kinks: KINK_GROUPS,
+} as const;
+
+const PROFILE_BADGE_FALLBACK_ICONS: Record<ProfileBadgeGroup, Record<string, BadgeOption['icon']>> = {
+  Vibes: {
+    'Style & Energy': Sparkles,
+    Scenes: Drama,
+    Archetypes: Crown,
+    Other: Sparkles,
+  },
+  Kinks: {
+    'Body & Touch': HeartHandshake,
+    Acts: LipsGlyph,
+    Power: Hammer,
+    'Bondage & Sensation': Feather,
+    Gear: Shirt,
+    Roleplay: Drama,
+    Group: UsersRound,
+    'Public & Watching': Eye,
+    Toys: Wand2,
+    Edge: MessageCircleQuestion,
+    Other: Sparkles,
+  },
+};
+
+const PROFILE_BADGE_VALUE_ICONS: Record<string, BadgeOption['icon']> = {
+  leather: LeatherGlyph,
+  rubber: RubberGlyph,
+  neurodivergent: NeurodivergentGlyph,
+  rave: RaveGlyph,
+  cyborg: CyborgGlyph,
+};
+
+function normalizeProfileBadgeValue(value: string) {
+  return value.trim().toLowerCase();
+}
+function profileBadgeId(group: ProfileBadgeGroup, value: string) {
+  return `${group.toLowerCase()}-${normalizeProfileBadgeValue(value).replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`;
+}
+
+function profileBadgeCategory(group: ProfileBadgeGroup, value: string) {
+  const normalized = normalizeProfileBadgeValue(value);
+  return PROFILE_BADGE_GROUPS[group].find((category) => (
+    category.options.some((option) => normalizeProfileBadgeValue(option) === normalized)
+  ))?.label ?? 'Other';
+}
+
+function buildProfileBadgeOptions(group: ProfileBadgeGroup, values: string[] = []) {
+  return [...new Set(values.map((value) => value.trim()).filter(Boolean))].map((value) => {
+    const normalized = normalizeProfileBadgeValue(value);
+    const existing = BADGE_OPTIONS.find((option) => (
+      option.group === group
+      && (normalizeProfileBadgeValue(option.id) === normalized || normalizeProfileBadgeValue(option.label) === normalized)
+    ));
+    const category = profileBadgeCategory(group, value);
+
+    return existing
+      ? { ...existing, category }
+      : {
+          id: profileBadgeId(group, value),
+          label: `${value.charAt(0).toUpperCase()}${value.slice(1)}`,
+          icon: PROFILE_BADGE_VALUE_ICONS[normalized] ?? PROFILE_BADGE_FALLBACK_ICONS[group][category] ?? Sparkles,
+          group,
+          category,
+        };
+  });
+}
+
+function groupProfileBadgeOptions(group: ProfileBadgeGroup, options: BadgeOption[]) {
+  const catalogCategories = PROFILE_BADGE_GROUPS[group].map((category) => ({
+    label: category.label,
+    options: options.filter((option) => option.category === category.label),
+  }));
+  const catalogLabels = new Set(catalogCategories.map((category) => category.label));
+  const additionalCategories = [...new Set(
+    options.map((option) => option.category).filter((category): category is string => Boolean(category) && !catalogLabels.has(category!)),
+  )].map((category) => ({
+    label: category,
+    options: options.filter((option) => option.category === category),
+  }));
+
+  return [...catalogCategories, ...additionalCategories].filter((category) => category.options.length > 0);
+}
 
 // Hanky code: the side says your role, the badge says the act. Left is what you
 // give, right is what you take. The same badge on both sides reads as versatile,
 // exactly the way wearing it on both sides always has.
 const SIDES = [
-  { id: 'left' as const, label: 'Left', hint: 'What you give' },
-  { id: 'right' as const, label: 'Right', hint: 'What you take' },
+  { id: 'left' as const, label: 'Left', hint: 'Left badge' },
+  { id: 'right' as const, label: 'Right', hint: 'Right badge' },
 ];
 
 // Copied from the map's own badge chip: same size, same 3.2px border, same
 // placement, same surface. Your pin's border colour is the indigo the map uses.
 const CURRENT_USER_BORDER = '#004BFF';
 
-function BadgeChip({ icon: Icon, side }: { icon: LucideIcon; side: 'left' | 'right' }) {
+function badgeFrameId(_value: string | null | undefined, _hanky = false): BadgeFrameId {
+  return 'circle';
+}
+
+function BadgeChip({ darkRoom = false, frame, option, side, meaning }: {
+  frame: BadgeFrameId;
+  option: BadgeOption;
+  side: 'left' | 'right';
+  /** What the badge says, shown above it on hover. */
+  meaning?: string;
+  darkRoom?: boolean;
+}) {
+  const Icon = option.icon as LucideIcon;
+  const gradientStops = darkRoom
+    ? [DARK_ROOM_PALETTE.dark, DARK_ROOM_PALETTE.middle, DARK_ROOM_PALETTE.light] as const
+    : undefined;
+
   return (
     <span
-      aria-hidden="true"
+      aria-label={meaning}
       className={[
-        'absolute flex h-[1.5625rem] w-[1.5625rem] items-center justify-center rounded-full border bg-black/85 text-white backdrop-blur-sm',
-        side === 'left' ? 'left-[-0.25rem]' : 'right-[-0.25rem]',
-        'top-[62%] z-20 -translate-y-1/2',
+        'group/badge absolute flex items-center justify-center text-white',
+        MAP_SIDE_BADGE_PLACEMENT_CLASS,
       ].join(' ')}
       role="img"
       style={{
-        backgroundColor: 'rgba(0, 0, 0, 0.85)',
-        borderColor: CURRENT_USER_BORDER,
-        borderWidth: '3.2px',
+        color: CURRENT_USER_BORDER,
+        ...mapSideBadgeStyle(side, frame),
       }}
     >
-      <Icon aria-hidden="true" className="h-[0.8125rem] w-[0.8125rem]" strokeWidth={2.6} />
+      <BadgeFrame
+        className="h-full w-full"
+        frame={frame}
+        gradientStops={gradientStops}
+        hankyColor={option.hanky?.color}
+        strokeColor={CURRENT_USER_BORDER}
+      >
+        {!option.hanky ? (
+          <span className="flex h-full w-full items-center justify-center text-white">
+            <Icon aria-hidden="true" className="h-full w-full" strokeWidth={2.6} />
+          </span>
+        ) : null}
+      </BadgeFrame>
+      {meaning ? <BadgeHoverLabel>{meaning}</BadgeHoverLabel> : null}
     </span>
   );
 }
 
-export default function BadgePickerPreview() {
+type BadgePickerPreviewProps = {
+  embedded?: boolean;
+  onClose?: () => void;
+  onDirtyChange?: (dirty: boolean) => void;
+  onExitGuardReady?: (guard: (() => Promise<boolean>) | null) => void;
+  onSaveReady?: (save: (() => Promise<boolean>) | null) => void;
+  onSaveStateChange?: (state: 'idle' | 'saving' | 'saved' | 'error') => void;
+};
+
+export default function BadgePickerPreview({
+  embedded = false,
+  onClose,
+  onDirtyChange,
+  onExitGuardReady,
+  onSaveReady,
+  onSaveStateChange,
+}: BadgePickerPreviewProps = {}) {
   const navigate = useNavigate();
-  const [leftBadge, setLeftBadge] = useState('oral');
-  const [rightBadge, setRightBadge] = useState('penetration');
+  const isMobile = useIsMobile();
+  const containedEmbedded = embedded;
+  const [leftBadge, setLeftBadge] = useState('none');
+  const [rightBadge, setRightBadge] = useState('none');
+  const [startedFromProfile, setStartedFromProfile] = useState(false);
+  const [leftIntent, setLeftIntent] = useState<BadgeIntent>('none');
+  const [rightIntent, setRightIntent] = useState<BadgeIntent>('none');
+  const [leftFrame, setLeftFrame] = useState<BadgeFrameId>('circle');
+  const [rightFrame, setRightFrame] = useState<BadgeFrameId>('circle');
+  const [darkRoomEnabled, setDarkRoomEnabled] = useState(false);
   const [activeSide, setActiveSide] = useState<'left' | 'right'>('left');
   const [profile, setProfile] = useState<Awaited<ReturnType<typeof getMyProfile>> | null>(null);
-  const groups = [...new Set(BADGE_OPTIONS.map((option) => option.group))];
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const hasChangedBadgeRef = useRef(false);
+  const sideBadgesRef = useRef<SideBadges>(emptySideBadges);
+  const saveVersionRef = useRef(0);
+  const badgeGroups = [...new Set(BADGE_OPTIONS.map((option) => option.group))];
+  const primaryGroups = ['Role', 'Position', HANKY_GROUP, 'Vibes', 'Kinks'];
+  const groups = [
+    ...primaryGroups.filter((group) => badgeGroups.includes(group)),
+    ...badgeGroups.filter((group) => !primaryGroups.includes(group)),
+  ];
   const [activeGroup, setActiveGroup] = useState(groups[0]);
+  const profileBadgeOptions = [
+    ...buildProfileBadgeOptions('Vibes', profile?.vibes ?? []),
+    ...buildProfileBadgeOptions('Kinks', profile?.kinks ?? []),
+  ];
+  const allBadgeOptions = [
+    ...BADGE_OPTIONS,
+    ...profileBadgeOptions.filter((option) => !BADGE_OPTIONS.some((existing) => existing.id === option.id)),
+  ];
+  const optionsForActiveGroup = activeGroup === 'Vibes' || activeGroup === 'Kinks'
+    ? profileBadgeOptions.filter((option) => option.group === activeGroup)
+    : BADGE_OPTIONS.filter((option) => option.group === activeGroup);
+  const activeProfileCategories = activeGroup === 'Vibes' || activeGroup === 'Kinks'
+    ? groupProfileBadgeOptions(activeGroup, optionsForActiveGroup)
+    : [];
 
   useEffect(() => {
     let isMounted = true;
 
-    void getMyProfile()
-      .then((loaded) => {
-        if (isMounted) {
-          setProfile(loaded);
+    void Promise.all([
+      getMyProfile(),
+      getMyPrivacySettings().catch(() => DEFAULT_PRIVACY_SETTINGS),
+    ])
+      .then(([loaded, privacy]) => {
+        if (!isMounted) {
+          return;
         }
+
+        setProfile(loaded);
+        setDarkRoomEnabled(privacy.baseMode === 'STEALTH');
+
+        // Left carries your role and right your position until you say
+        // otherwise, which is what a basic account already shows. Never let a
+        // late profile response overwrite a Hanky or badge the user just chose.
+        setStartedFromProfile((already) => {
+          if (already || hasChangedBadgeRef.current) {
+            return already;
+          }
+
+          const loadedProfileBadgeOptions = [
+            ...buildProfileBadgeOptions('Vibes', loaded.vibes ?? []),
+            ...buildProfileBadgeOptions('Kinks', loaded.kinks ?? []),
+          ];
+          const loadedBadgeOptions = [
+            ...BADGE_OPTIONS,
+            ...loadedProfileBadgeOptions.filter((option) => !BADGE_OPTIONS.some((existing) => existing.id === option.id)),
+          ];
+          const findOption = (value: string | undefined) => {
+            const normalized = value?.trim().toLowerCase();
+            return normalized
+              ? loadedBadgeOptions.find((option) => option.id.toLowerCase() === normalized || option.label.toLowerCase() === normalized)
+              : undefined;
+          };
+          const savedSideBadges = loaded.side_badges ?? emptySideBadges;
+          const leftSaved = savedSideBadges.left;
+          const rightSaved = savedSideBadges.right;
+          const role = findOption(leftSaved?.badge_id) ?? findOption((loaded?.role ?? [])[0]);
+          const position = findOption(rightSaved?.badge_id) ?? findOption((loaded?.position ?? [])[0]);
+
+          sideBadgesRef.current = savedSideBadges;
+
+          if (role) {
+            setLeftBadge(role.id);
+          }
+
+          if (position) {
+            setRightBadge(position.id);
+          }
+
+          if (leftSaved) {
+            setLeftIntent(leftSaved.intent);
+            setLeftFrame(badgeFrameId(leftSaved.frame, Boolean(role?.hanky)));
+          }
+
+          if (rightSaved) {
+            setRightIntent(rightSaved.intent);
+            setRightFrame(badgeFrameId(rightSaved.frame, Boolean(position?.hanky)));
+          }
+
+          return true;
+        });
       })
       .catch(() => undefined);
 
@@ -157,98 +568,257 @@ export default function BadgePickerPreview() {
     };
   }, []);
 
+  useEffect(() => {
+    if (saveState !== 'saved') {
+      return undefined;
+    }
+
+    const timeout = window.setTimeout(() => setSaveState('idle'), 2000);
+    return () => window.clearTimeout(timeout);
+  }, [saveState]);
+
+  useEffect(() => {
+    onSaveStateChange?.(saveState);
+  }, [onSaveStateChange, saveState]);
+
+  useEffect(() => {
+    const warnBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (!hasChangedBadgeRef.current) {
+        return;
+      }
+
+      event.preventDefault();
+      event.returnValue = '';
+    };
+
+    window.addEventListener('beforeunload', warnBeforeUnload);
+    return () => window.removeEventListener('beforeunload', warnBeforeUnload);
+  }, []);
+
   const chosen = { left: leftBadge, right: rightBadge };
-  const setChosen = activeSide === 'left' ? setLeftBadge : setRightBadge;
-  const leftOption = BADGE_OPTIONS.find((option) => option.id === leftBadge) ?? BADGE_OPTIONS[0];
-  const rightOption = BADGE_OPTIONS.find((option) => option.id === rightBadge) ?? BADGE_OPTIONS[0];
+  const leftOption = allBadgeOptions.find((option) => option.id === leftBadge) ?? BADGE_OPTIONS[0];
+  const rightOption = allBadgeOptions.find((option) => option.id === rightBadge) ?? BADGE_OPTIONS[0];
+  const showingHankyCode = activeGroup === HANKY_GROUP;
+  const activeOption = activeSide === 'left' ? leftOption : rightOption;
+  const activeFrame = activeSide === 'left' ? leftFrame : rightFrame;
+  const persistSideSelection = (side: 'left' | 'right', selection: SideBadgeSelection | null) => {
+    const nextSideBadges: SideBadges = {
+      ...sideBadgesRef.current,
+      [side]: selection,
+    };
+    sideBadgesRef.current = nextSideBadges;
+    setProfile((current) => current ? { ...current, side_badges: nextSideBadges } : current);
+    setSaveState('idle');
+  };
+  const chooseBadge = (id: string) => {
+    if (chosen[activeSide] === id) {
+      return;
+    }
+
+    hasChangedBadgeRef.current = true;
+    onDirtyChange?.(true);
+    if (activeSide === 'left') {
+      setLeftBadge(id);
+    } else {
+      setRightBadge(id);
+    }
+    persistSideSelection(activeSide, {
+      badge_id: id,
+      intent: activeSide === 'left' ? leftIntent : rightIntent,
+      frame: activeFrame,
+    });
+  };
+  const chooseIntent = (intent: BadgeIntent) => {
+    const badgeId = chosen[activeSide];
+    hasChangedBadgeRef.current = true;
+    onDirtyChange?.(true);
+    (activeSide === 'left' ? setLeftIntent : setRightIntent)(intent);
+    persistSideSelection(activeSide, { badge_id: badgeId, intent, frame: activeFrame });
+  };
+  const chooseGroup = (group: string) => {
+    setActiveGroup(group);
+  };
+  const confirmPendingSave = async () => {
+    if (!hasChangedBadgeRef.current) {
+      return true;
+    }
+
+    const version = saveVersionRef.current + 1;
+    saveVersionRef.current = version;
+    setSaveState('saving');
+
+    try {
+      const savedSideBadges = await saveMySideBadges(sideBadgesRef.current);
+
+      if (saveVersionRef.current !== version) {
+        return false;
+      }
+
+      sideBadgesRef.current = savedSideBadges;
+      setProfile((current) => current ? { ...current, side_badges: savedSideBadges } : current);
+      hasChangedBadgeRef.current = false;
+      onDirtyChange?.(false);
+      setSaveState('saved');
+      return true;
+    } catch {
+      if (saveVersionRef.current === version) {
+        setSaveState('error');
+      }
+      return false;
+    }
+  };
+  const leaveEditor = async (afterSave: () => void) => {
+    if (hasChangedBadgeRef.current) {
+      const shouldSave = window.confirm('Save badge changes before leaving?');
+
+      if (!shouldSave || !(await confirmPendingSave())) {
+        return;
+      }
+    }
+
+    afterSave();
+  };
+  const canLeaveEditor = async () => {
+    if (!hasChangedBadgeRef.current) {
+      return true;
+    }
+
+    const shouldSave = window.confirm('Save badge changes before leaving?');
+    return shouldSave ? confirmPendingSave() : false;
+  };
+  useEffect(() => {
+    if (!onExitGuardReady) {
+      return undefined;
+    }
+
+    onExitGuardReady(canLeaveEditor);
+    return () => onExitGuardReady(null);
+  });
+  useEffect(() => {
+    if (!onSaveReady) {
+      return undefined;
+    }
+
+    onSaveReady(confirmPendingSave);
+    return () => onSaveReady(null);
+  });
+  const editProfileGroup = (group: ProfileBadgeGroup) => {
+    void leaveEditor(() => {
+      navigate('/profile/edit', {
+        state: { profileSection: group === 'Vibes' ? 'vibes' : 'kinks' },
+      });
+    });
+  };
+  const closeEditor = () => {
+    void leaveEditor(() => {
+      if (embedded) {
+        onClose?.();
+      } else {
+        navigate(-1);
+      }
+    });
+  };
+  const renderOptionCard = (option: BadgeOption) => {
+    const selected = chosen[activeSide] === option.id;
+    const Icon = option.icon;
+
+    return (
+      <button
+        className={`flex min-h-24 min-w-0 flex-col items-center justify-center gap-2 rounded-xl border px-2 py-3 text-center text-sm leading-tight transition ${
+          selected
+            ? 'border-[#004BFF] bg-black/60 text-white'
+            : 'border-white/10 bg-black/40 text-white/70 hover:bg-white/[0.06]'
+        }`}
+        key={option.id}
+        onClick={() => chooseBadge(option.id)}
+        title={option.hanky ? option.hanky.meaning : option.label}
+        type="button"
+      >
+        {option.hanky ? (
+          <>
+            <HankyPaisleyIcon
+              className="h-[1.5625rem] w-[1.5625rem]"
+              color={option.hanky.color}
+              label={option.hanky.meaning}
+            />
+            <span className="w-full break-words">{option.hanky.meaning}</span>
+          </>
+        ) : (
+          <>
+            <Icon aria-hidden="true" className="h-6 w-6 text-white" strokeWidth={2.2} />
+            <span className="w-full break-words">{option.label}</span>
+          </>
+        )}
+      </button>
+    );
+  };
 
   return (
-    <div className="flex min-h-screen flex-col bg-background text-white">
-      <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-white/10 bg-background/95 px-4 py-3 backdrop-blur-md">
+    <>
+      {!isMobile && !containedEmbedded ? (
+        <div className="fixed inset-0 z-0">
+          <MapHome />
+        </div>
+      ) : null}
+      <div className={!containedEmbedded && isMobile
+        ? 'min-h-screen bg-background text-white'
+        : containedEmbedded
+          ? 'relative flex min-h-0 flex-col text-white'
+          : 'fixed inset-0 z-[70] flex items-center justify-center bg-black/65 p-6 text-white backdrop-blur-sm'}
+      >
+      <div
+        aria-label={!isMobile && !containedEmbedded ? 'Badges' : undefined}
+        aria-modal={!isMobile && !containedEmbedded ? true : undefined}
+        className={!containedEmbedded && isMobile
+          ? 'flex min-h-screen flex-col bg-background'
+          : containedEmbedded
+            ? 'flex min-h-0 w-full flex-col bg-transparent'
+            : 'flex h-[min(844px,calc(100vh-3rem))] w-[390px] flex-col overflow-y-auto rounded-[28px] border border-white/12 bg-background shadow-[0_24px_80px_rgba(0,0,0,0.58)]'}
+        data-state={!isMobile ? 'open' : undefined}
+        role={!isMobile && !containedEmbedded ? 'dialog' : undefined}
+      >
+      {!embedded ? <header className="sticky top-0 z-20 flex items-center gap-2 border-b border-white/10 bg-background/95 px-4 py-3 backdrop-blur-md">
         <button
           aria-label="Back"
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/12 bg-black/55"
-          onClick={() => navigate(-1)}
+          onClick={closeEditor}
           type="button"
         >
           <ArrowLeft className="h-5 w-5" />
         </button>
-        <h1 className="min-w-0 flex-1 truncate text-lg">Your side badges</h1>
-      </header>
-
-      {/* Browse by category, try one on, watch it land on the heart below. */}
-      <div className="sticky top-[3.75rem] z-10 border-b border-white/10 bg-background/95 px-4 py-2 backdrop-blur-md">
-        <div className="flex gap-2 overflow-x-auto">
-          {groups.map((group) => (
-            <button
-              className={`shrink-0 rounded-full border px-4 py-1.5 text-sm transition ${
-                activeGroup === group
-                  ? 'border-[#004BFF] bg-black/60 text-white'
-                  : 'border-white/10 bg-black/40 text-white/64 hover:bg-white/[0.06]'
-              }`}
-              key={group}
-              onClick={() => setActiveGroup(group)}
-              type="button"
-            >
-              {group}
-            </button>
-          ))}
+        <h1 className="min-w-0 truncate text-lg">Badges</h1>
+        <div className="ml-auto flex items-center gap-2">
+          <span
+            aria-live="polite"
+            className={`text-[0.68rem] uppercase tracking-[0.12em] ${saveState === 'error' ? 'text-red-400' : 'text-white/45'}`}
+          >
+            {saveState === 'saving' ? 'Saving' : saveState === 'saved' ? 'Saved' : saveState === 'error' ? 'Not saved' : ''}
+          </span>
+          <Button
+            className="bg-[var(--cruush-gradient)] text-white hover:opacity-90"
+            disabled={saveState === 'saving' || !hasChangedBadgeRef.current}
+            onClick={() => void confirmPendingSave()}
+            size="sm"
+            type="button"
+          >
+            Save
+          </Button>
+          <button
+            aria-label="Close Badges"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/12 bg-black/55 text-white transition hover:bg-white/[0.08]"
+            onClick={closeEditor}
+            type="button"
+          >
+            <X className="h-4 w-4" />
+          </button>
         </div>
-      </div>
+      </header> : null}
 
-      <section className="mx-auto w-full max-w-2xl px-4 pt-4">
-        <h2 className="text-xs uppercase tracking-[0.14em] text-white/48">Selkie Mode marks</h2>
-        <div className="mt-2 grid grid-cols-2 gap-2">
-          {[
-            { label: 'At the waterline', Glyph: SelkieGlyph },
-            { label: 'Skin hung up', Glyph: SelkiePeltGlyph },
-          ].map(({ label, Glyph }) => (
-            <div className="rounded-xl border border-white/10 bg-black/40 p-3" key={label}>
-              <div className="flex items-end justify-center gap-4">
-                <Glyph className="h-10 w-10 text-white" />
-                <Glyph className="h-6 w-6 text-white" />
-                <span
-                  className="flex h-[1.5625rem] w-[1.5625rem] items-center justify-center rounded-full bg-black/85"
-                  style={{ borderColor: '#004BFF', borderWidth: '3.2px' }}
-                >
-                  <Glyph className="h-[0.8125rem] w-[0.8125rem] text-white" strokeWidth={2.6} />
-                </span>
-              </div>
-              <p className="mt-2 text-center text-xs text-white/58">{label}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-4">
-        <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-          {BADGE_OPTIONS.filter((option) => option.group === activeGroup).map((option) => {
-            const selected = chosen[activeSide] === option.id;
-            const Icon = option.icon;
-
-            return (
-              <button
-                className={`flex min-h-24 flex-col items-center justify-center gap-2 rounded-xl border px-2 py-3 text-center text-sm leading-tight transition ${
-                  selected
-                    ? 'border-[#004BFF] bg-black/60 text-white'
-                    : 'border-white/10 bg-black/40 text-white/70 hover:bg-white/[0.06]'
-                }`}
-                key={option.id}
-                onClick={() => setChosen(option.id)}
-                type="button"
-              >
-                <Icon aria-hidden="true" className="h-6 w-6 text-white" strokeWidth={2.2} />
-                <span>{option.label}</span>
-              </button>
-            );
-          })}
-        </div>
-      </main>
-
-      {/* The fitting mirror: the unit at the size it reads on the map, big. */}
-      <div className="sticky bottom-0 z-20 border-t border-white/10 bg-background/96 px-4 pb-[calc(7.5rem+env(safe-area-inset-bottom))] pt-5 backdrop-blur-xl">
-        <div className="mx-auto flex w-full max-w-2xl flex-col items-center gap-4">
-          <span className="relative flex h-[6.5rem] w-[8rem] scale-[1.38] items-center justify-center">
+      <main className={`mx-auto flex w-full max-w-2xl flex-1 flex-col px-4 ${containedEmbedded ? 'min-h-0 pb-8 pt-0' : !containedEmbedded && isMobile ? 'pb-[calc(7rem+env(safe-area-inset-bottom))] pt-6' : 'pb-8 pt-6'}`}>
+        {/* You are the thing being dressed, so you sit in the middle. Tap a side
+            to work on it; everything under here changes that side only. */}
+        <div className="flex flex-col items-center gap-5">
+          <span className="relative flex h-[7rem] w-[9rem] items-center justify-center">
             <span className="relative flex h-20 w-[103px] items-center justify-center">
               <HeartPhoto
                 className="w-20"
@@ -258,14 +828,35 @@ export default function BadgePickerPreview() {
                 theme="current"
                 userId="badge-preview"
               />
-              <BadgeChip icon={leftOption.icon} side="left" />
-              <BadgeChip icon={rightOption.icon} side="right" />
+              <BadgeChip
+                frame={leftFrame}
+                option={leftOption}
+                meaning={leftOption.id === 'none'
+                  ? undefined
+                  : leftOption.hanky
+                    ? formatBadgeLabel(leftOption.hanky.meaning, leftIntent)
+                    : formatBadgeLabel(leftOption.label, leftIntent)}
+                side="left"
+                darkRoom={darkRoomEnabled}
+              />
+              <BadgeChip
+                frame={rightFrame}
+                option={rightOption}
+                meaning={rightOption.id === 'none'
+                  ? undefined
+                  : rightOption.hanky
+                    ? formatBadgeLabel(rightOption.hanky.meaning, rightIntent)
+                    : formatBadgeLabel(rightOption.label, rightIntent)}
+                side="right"
+                darkRoom={darkRoomEnabled}
+              />
             </span>
           </span>
 
           <div className="grid w-full grid-cols-2 gap-2">
             {SIDES.map((side) => {
               const option = side.id === 'left' ? leftOption : rightOption;
+              const intent = side.id === 'left' ? leftIntent : rightIntent;
               const active = activeSide === side.id;
 
               return (
@@ -282,13 +873,128 @@ export default function BadgePickerPreview() {
                   <span className="block text-[0.7rem] uppercase tracking-[0.12em] text-white/48">
                     {side.hint}
                   </span>
-                  <span className="mt-0.5 block truncate text-sm">{option.label}</span>
+                  <span className="mt-0.5 block truncate text-sm">
+                    {option.id === 'none'
+                      ? 'Empty'
+                      : option.hanky
+                        ? formatBadgeLabel(option.hanky.meaning, intent)
+                        : formatBadgeLabel(option.label, intent)}
+                  </span>
                 </button>
               );
             })}
           </div>
         </div>
+
+        {/* What this badge says about you, for the side you are working on. */}
+        {showingHankyCode ? (
+          <div className="mt-6 space-y-2">
+            <Dialog>
+              <DialogTrigger asChild>
+                <button
+                  className="w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-left text-sm text-white/76 transition hover:bg-white/[0.06]"
+                  type="button"
+                >
+                  How Hanky code works
+                </button>
+              </DialogTrigger>
+              <DialogContent className="scrollbar-hide max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-3xl overflow-y-auto rounded-lg border-white/10 bg-background p-5 sm:!w-[calc(100vw-4rem)] sm:!max-w-3xl">
+                <DialogHeader>
+                  <DialogTitle>cruush Hanky code</DialogTitle>
+                </DialogHeader>
+                <div className="mt-2 grid grid-cols-3 gap-2">
+                  {HANKY_COLORS.map((hanky) => (
+                    <div
+                      aria-label={hanky.meaning}
+                      className="flex min-w-0 items-center gap-2 rounded-lg bg-white/[0.045] px-3 py-2.5"
+                      key={hanky.id}
+                    >
+                      <HankyPaisleyIcon
+                        className="h-7 w-7 shrink-0"
+                        color={hanky.color}
+                        label={hanky.meaning}
+                      />
+                      <p className="min-w-0 text-xs leading-tight text-white/74">{hanky.meaning}</p>
+                    </div>
+                  ))}
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
+        ) : null}
+
+        <div className="mt-6 space-y-2">
+          <h2 className="text-xs uppercase tracking-[0.14em] text-white/48">
+            What this side says
+          </h2>
+          <div className="flex flex-wrap gap-2">
+            {BADGE_INTENTS.map((intent) => {
+              const current = activeSide === 'left' ? leftIntent : rightIntent;
+              const selected = current === intent.id;
+
+              return (
+                <button
+                  className={`rounded-full border px-3 py-1.5 text-xs transition ${
+                    selected
+                      ? 'border-[#004BFF] bg-black/60 text-white'
+                      : 'border-white/10 bg-black/40 text-white/64 hover:bg-white/[0.06]'
+                  }`}
+                  key={intent.id}
+                  onClick={() => chooseIntent(intent.id)}
+                  type="button"
+                >
+                  {intent.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="mt-6">
+          <label className="block text-xs uppercase tracking-[0.14em] text-white/48" htmlFor="badge-category">
+            Badge category
+          </label>
+          <select
+            aria-label="Badge category"
+            className="mt-2 h-11 w-full rounded-full border border-white/12 bg-black/55 px-4 text-sm text-white outline-none focus:border-[#004BFF]"
+            id="badge-category"
+            onChange={(event) => chooseGroup(event.target.value)}
+            value={activeGroup}
+          >
+            {groups.map((group) => <option key={group} value={group}>{group}</option>)}
+          </select>
+        </div>
+
+        {activeGroup === 'Vibes' || activeGroup === 'Kinks' ? (
+          <div className="mt-3 space-y-4">
+            <button
+              className="w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-left text-sm text-white/76 transition hover:bg-white/[0.06]"
+              onClick={() => editProfileGroup(activeGroup)}
+              type="button"
+            >
+              Edit profile {activeGroup.toLowerCase()}
+            </button>
+            {activeProfileCategories.length > 0 ? activeProfileCategories.map((category) => (
+              <section className="space-y-2" key={category.label}>
+                <h2 className="text-xs uppercase tracking-[0.14em] text-white/48">{category.label}</h2>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {category.options.map(renderOptionCard)}
+                </div>
+              </section>
+            )) : (
+              <p className="rounded-xl border border-white/10 bg-black/40 px-4 py-4 text-sm text-white/60">
+                Choose profile {activeGroup.toLowerCase()} to use them as badges.
+              </p>
+            )}
+          </div>
+        ) : (
+          <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {optionsForActiveGroup.map(renderOptionCard)}
+          </div>
+        )}
+      </main>
       </div>
-    </div>
+      </div>
+    </>
   );
 }

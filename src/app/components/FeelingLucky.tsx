@@ -4,6 +4,7 @@ import { ArrowLeft, RefreshCw } from 'lucide-react';
 import { Button } from './ui/button';
 import { CruushIcon } from './CruushIconImage';
 import CruiseCarouselSlot from './CruiseCarouselSlot';
+import LoadingCardSkeletons from './LoadingCardSkeletons';
 import ProfileCard from './ProfileCard';
 import { getMyBillingStatus } from '../lib/billingApi';
 import { decryptDisplayLocationToken } from '../lib/displayLocationTokens';
@@ -128,7 +129,7 @@ export default function FeelingLucky() {
   };
 
   return (
-    <div className="flex h-[100dvh] flex-col overflow-hidden bg-[#050505] pb-[calc(6rem+env(safe-area-inset-bottom))] text-foreground">
+    <div className="flex h-[100dvh] flex-col overflow-hidden bg-[#050505] pb-[calc(5rem+env(safe-area-inset-bottom))] text-foreground">
       <header className="sticky top-0 z-10 flex items-center gap-4 border-b border-white/10 bg-black/88 p-4 backdrop-blur-sm">
         <Button variant="ghost" size="icon" onClick={() => navigate(-1)} aria-label="Back">
           <ArrowLeft className="w-5 h-5" />
@@ -141,9 +142,7 @@ export default function FeelingLucky() {
 
       <main className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col gap-2 px-2 pt-0 sm:px-4 sm:pt-2">
         {status === 'checking' ? (
-          <div className="rounded-2xl border border-white/10 bg-black/72 p-5 text-center text-sm text-white/68">
-            Loading cruise carousel...
-          </div>
+          <LoadingCardSkeletons count={3} label="Loading cruise carousel" />
         ) : null}
 
         {status === 'locked' ? (
@@ -168,7 +167,7 @@ export default function FeelingLucky() {
         ) : null}
 
         {status === 'profile' && targetUser ? (
-          <div data-testid="lucky-profile-result" className="flex min-h-0 flex-1 flex-col gap-2 pb-1">
+          <div data-testid="lucky-profile-result" className="flex min-h-0 flex-1 flex-col gap-2">
             <ProfileCard
               density="compact"
               fillAvailableHeight

@@ -7,6 +7,8 @@ import { Input } from './ui/input';
 import { acceptCodeOfConduct, getAuthSession, type AuthSessionPayload } from '../lib/authApi';
 import { CODE_OF_CONDUCT_ITEMS } from '../lib/codeOfConduct';
 import { saveMyProfile, toDefaultKinkInterest, type ProfilePayload, uploadProfilePhoto } from '../lib/profileApi';
+import { ApiClientError } from '../lib/apiClient';
+import { SIGNAL_MAX_LENGTH } from '../lib/profileLimits';
 import {
   completeTwoFactorSetup,
   getRewardSummary,
@@ -17,6 +19,7 @@ import {
 import { persistCurrentUser } from '../lib/sessionUser';
 import CruushPlusWord from './CruushPlusWord';
 import MultiSelect from './MultiSelect';
+import LoadingCardSkeletons from './LoadingCardSkeletons';
 
 interface ProfileOnboardingProps {
   onComplete: (session?: AuthSessionPayload, destination?: 'map' | 'rewards') => void;
@@ -116,6 +119,39 @@ function limitToThree(values: string[]) {
   }
 
   return nextValues.slice(-3);
+}
+
+const ONBOARDING_FIELD_LABELS: Record<string, string> = {
+  display_name: 'Display name',
+  photos: 'Profile photo',
+  bio: 'Bio',
+  signal: 'Signal',
+  pronouns: 'Pronouns',
+  identities: 'Identities',
+  crowds: 'Crowds',
+  looking_for: 'Looking for',
+  vibes: 'Vibes',
+};
+
+function getOnboardingSaveError(error: unknown) {
+  if (error instanceof ApiClientError && error.code === 'VALIDATION_ERROR') {
+    const fieldErrors = (error.details as { fieldErrors?: Record<string, unknown> } | null)?.fieldErrors;
+    const firstInvalidField = fieldErrors
+      ? Object.entries(fieldErrors).find(([, messages]) => Array.isArray(messages) && messages.length > 0)
+      : null;
+
+    if (firstInvalidField) {
+      const [field] = firstInvalidField;
+      if (field === 'signal') {
+        return `Signal must be ${SIGNAL_MAX_LENGTH} characters or fewer.`;
+      }
+
+      const label = ONBOARDING_FIELD_LABELS[field] ?? field.replaceAll('_', ' ');
+      return `${label.charAt(0).toUpperCase()}${label.slice(1)} needs attention before your profile can be saved.`;
+    }
+  }
+
+  return error instanceof Error ? error.message : 'Failed to save profile.';
 }
 
 type OnboardingProfileState = {
@@ -446,6 +482,7 @@ export default function ProfileOnboarding({
         looking_for: profile.lookingFor,
         vibes: profile.vibes,
         bio,
+        tags: [],
         signal,
         photos: profile.photos,
         presentation: profile.gender_presentation,
@@ -506,7 +543,7 @@ export default function ProfileOnboarding({
       onComplete(nextSession, destination);
     } catch (error) {
       console.error('Error saving profile:', error);
-      setSaveError(error instanceof Error ? error.message : 'Failed to save profile.');
+      setSaveError(getOnboardingSaveError(error));
     } finally {
       setSaving(false);
     }
@@ -702,12 +739,12 @@ export default function ProfileOnboarding({
                   <label className="mt-4 text-sm mb-2 block">Signal</label>
                   <Input
                     type="text"
-                    maxLength={180}
+                    maxLength={SIGNAL_MAX_LENGTH}
                     placeholder="A few words people see when they hover your heart pin"
                     value={profile.signal}
                     onChange={e => setProfileField('signal', e.target.value)}
                   />
-                  <p className="mt-2 text-xs text-white/50">Your signal appears when someone hovers over your heart pin on the map.</p>
+                  <p className="mt-2 text-xs text-white/50">Your signal appears when someone hovers over your heart pin on the map. {SIGNAL_MAX_LENGTH} characters max.</p>
                 </div>
               );
             case 'oath':
@@ -847,9 +884,7 @@ export default function ProfileOnboarding({
                   </div>
 
                   {rewardSummaryLoading ? (
-                    <div className="rounded-md border border-white/10 bg-white/[0.04] p-4 text-sm text-white/58">
-                      Loading your affiliate link...
-                    </div>
+                    <LoadingCardSkeletons count={1} label="Loading your affiliate link" />
                   ) : null}
 
                   {!rewardSummaryLoading && affiliateLink ? (

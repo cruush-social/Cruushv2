@@ -14,6 +14,7 @@ import {
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
+import LoadingCardSkeletons from './LoadingCardSkeletons';
 
 export default function TwoFactorSettings() {
   const navigate = useNavigate();
@@ -139,9 +140,7 @@ export default function TwoFactorSettings() {
 
       <main className="mx-auto max-w-2xl space-y-5 p-4">
         {loading ? (
-          <div className="rounded-xl border border-border bg-card p-8 text-center text-sm text-muted-foreground">
-            Loading 2FA settings...
-          </div>
+          <LoadingCardSkeletons count={2} label="Loading 2FA settings" />
         ) : null}
 
         {error ? (

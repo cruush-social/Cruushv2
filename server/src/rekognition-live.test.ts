@@ -32,14 +32,10 @@ type RekognitionLiveClient = {
 // Credentials come from server/.env, which is gitignored. Parsed inline rather
 // than adding a dotenv dependency for one test. Real env vars win, so the same
 // test runs unchanged inside the deployed container.
-function loadLocalEnv() {
-  const envPath = path.resolve(fileURLToPath(new URL(".", import.meta.url)), "../.env");
+function parseEnvText(contents: string) {
+  const parsed: Record<string, string> = {};
 
-  if (!existsSync(envPath)) {
-    return;
-  }
-
-  for (const line of readFileSync(envPath, "utf8").split(/\r?\n/)) {
+  for (const line of contents.split(/\r?\n/)) {
     const match = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)$/);
 
     if (!match) {
@@ -49,16 +45,30 @@ function loadLocalEnv() {
     const [, key, rawValue] = match;
     const value = rawValue.trim().replace(/^["']|["']$/g, "");
 
-    if (value && !process.env[key]) {
-      process.env[key] = value;
+    if (value) {
+      parsed[key] = value;
     }
   }
+
+  return parsed;
 }
 
-loadLocalEnv();
+function readLocalEnv(): Record<string, string> {
+  const envPath = path.resolve(fileURLToPath(new URL(".", import.meta.url)), "../.env");
 
-const hasCredentials = Boolean(process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY);
-const region = process.env.PROFILE_PHOTO_REKOGNITION_REGION ?? "us-east-1";
+  if (!existsSync(envPath)) {
+    return {};
+  }
+
+  return parseEnvText(readFileSync(envPath, "utf8"));
+}
+
+const localEnv = readLocalEnv();
+const accessKeyId = process.env.AWS_ACCESS_KEY_ID || localEnv.AWS_ACCESS_KEY_ID;
+const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY || localEnv.AWS_SECRET_ACCESS_KEY;
+const sessionToken = process.env.AWS_SESSION_TOKEN || localEnv.AWS_SESSION_TOKEN;
+const hasCredentials = Boolean(accessKeyId && secretAccessKey);
+const region = process.env.PROFILE_PHOTO_REKOGNITION_REGION || localEnv.PROFILE_PHOTO_REKOGNITION_REGION || "us-east-1";
 
 // 1x1 PNG. Rekognition returns no labels for it, which is fine - we are
 // checking authorization, not detection quality. An IAM denial throws before
@@ -75,7 +85,14 @@ function isAuthorizationFailure(error: unknown) {
 }
 
 describe.skipIf(!hasCredentials)("live Rekognition authorization", () => {
-  const client = new RekognitionClient({ region }) as unknown as RekognitionLiveClient;
+  const client = new RekognitionClient({
+    region,
+    credentials: {
+      accessKeyId: accessKeyId as string,
+      secretAccessKey: secretAccessKey as string,
+      ...(sessionToken ? { sessionToken } : {})
+    }
+  }) as unknown as RekognitionLiveClient;
   const Image = { Bytes: tinyPng() };
 
   it("is authorized for DetectModerationLabels", async () => {
@@ -104,6 +121,20 @@ describe.skipIf(!hasCredentials)("live Rekognition authorization", () => {
   it("is authorized for DetectFaces", async () => {
     const result = await client.send(new DetectFacesCommand({ Image, Attributes: ["ALL"] }));
     expect(result.$metadata.httpStatusCode).toBe(200);
+  });
+});
+
+describe("live Rekognition test configuration", () => {
+  it("parses local credentials without mutating the Vitest worker environment", () => {
+    const sentinel = "CRUUSH_REKOGNITION_TEST_ENV_SENTINEL";
+    const originalValue = process.env[sentinel];
+    const parsed = parseEnvText(`${sentinel}=local-only\nAWS_ACCESS_KEY_ID=test-key`);
+
+    expect(parsed).toMatchObject({
+      [sentinel]: "local-only",
+      AWS_ACCESS_KEY_ID: "test-key"
+    });
+    expect(process.env[sentinel]).toBe(originalValue);
   });
 });
 

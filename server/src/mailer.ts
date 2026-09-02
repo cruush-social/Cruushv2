@@ -62,6 +62,8 @@ export type UserReportEmailInput = {
   messageId: string | null;
   postId: string | null;
   profilePhotoUrl: string | null;
+  placeId?: string | null;
+  placeMessageId?: string | null;
   reason: string;
   reporterUserId: string;
   targetType: string;
@@ -803,6 +805,8 @@ export async function sendUserReportInboxEmail(input: UserReportInboxEmailInput)
     ["Post ID", report.postId ?? "none"],
     ["Media object ID", report.mediaObjectId ?? "none"],
     ["Profile photo URL", report.profilePhotoUrl ?? "none"],
+    ["Spot ID", report.placeId ?? "none"],
+    ["Spot message ID", report.placeMessageId ?? "none"],
     ["Created at", report.createdAt]
   ];
   const htmlRows = fields

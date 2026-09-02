@@ -19,6 +19,7 @@ import MapControlsTutorial, {
 } from './components/MapControlsTutorial';
 import { markNoticeDismissed } from './lib/userNoticesApi';
 import AccessibilityQuickAccess from './components/AccessibilityQuickAccess';
+import LoadingCardSkeletons from './components/LoadingCardSkeletons';
 
 const MapHome = lazy(() => import('./components/MapHome'));
 const LocalFeed = lazy(() => import('./components/LocalFeed'));
@@ -47,6 +48,10 @@ const CruushMatchSettings = lazy(() => import('./components/CruushMatchSettings'
 const Settings = lazy(() => import('./components/Settings'));
 const BlockedUsersPage = lazy(() => import('./components/BlockedUsersPage'));
 const DlModeSettings = lazy(() => import('./components/DlModeSettings'));
+const HankyPreview = lazy(() => import('./components/HankyPreview'));
+const KelpieMarkPreview = lazy(() => import('./components/KelpieMarkPreview'));
+const MileHighMarkPreview = lazy(() => import('./components/MileHighMarkPreview'));
+const TravelModeSettings = lazy(() => import('./components/TravelModeSettings'));
 const MapPresenceSettings = lazy(() => import('./components/MapPresenceSettings'));
 const DlModeDefaultNotice = lazy(() => import('./components/DlModeDefaultNotice'));
 const FirstFeedPostPrompt = lazy(() => import('./components/FirstFeedPostPrompt'));
@@ -62,6 +67,8 @@ const BottomNav = lazy(() => import('./components/BottomNav'));
 const DebugCruushPlusToggle = lazy(() => import('./components/DebugCruushPlusToggle'));
 const Rewards = lazy(() => import('./components/Rewards'));
 const CruushPlusStore = lazy(() => import('./components/CruushPlusStore'));
+const EarnedCruushPlusCards = lazy(() => import('./components/EarnedCruushPlusCards'));
+const CruushPlusSuccess = lazy(() => import('./components/CruushPlusSuccess'));
 const AlphaBugButton = lazy(() => import('./components/AlphaBugButton'));
 const TwoFactorSettings = lazy(() => import('./components/TwoFactorSettings'));
 const PublicInfoPage = lazy(() => import('./components/PublicInfoPage'));
@@ -87,7 +94,7 @@ function renderPublicRoutes(includeSupport = false) {
     ...PUBLIC_INFO_ROUTES.map((route) => (
       <Route key={route.path} path={route.path} element={<PublicInfoPage page={route.page} />} />
     )),
-    <Route key="/survey" path="/survey" element={<Survey />} />,
+    <Route key="/feed/photo-preview" path="/feed/photo-preview" element={<FeedPhotoPreview />} />,
     ...(includeSupport
       ? [<Route key="/support" path="/support" element={<SupportPage publicAccess />} />]
       : []),
@@ -96,6 +103,12 @@ function renderPublicRoutes(includeSupport = false) {
 
 function redirectToMap() {
   window.history.replaceState({}, '', '/map');
+}
+
+function redirectAfterAuthentication() {
+  if (window.location.pathname !== '/survey') {
+    redirectToMap();
+  }
 }
 
 function redirectToRewards() {
@@ -145,12 +158,16 @@ function CanonicalAppAddressBar() {
   return null;
 }
 
-function RouteLoading() {
+function AppLoading({ label }: { label: string }) {
   return (
-    <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
-      <div className="text-sm text-muted-foreground">Loading...</div>
+    <div className="min-h-screen bg-background text-foreground flex items-center justify-center px-4">
+      <LoadingCardSkeletons className="w-full max-w-lg" count={3} label={label} />
     </div>
   );
+}
+
+function RouteLoading() {
+  return <AppLoading label="Loading page" />;
 }
 
 function mapTutorialRoute(step: MapControlsTutorialStepId) {
@@ -258,6 +275,7 @@ export default function App({
   const [authStatus, setAuthStatus] = useState<'loading' | 'signed_out' | 'signed_in'>('loading');
   const [session, setSession] = useState<AuthSessionPayload | null>(null);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
+  const [showOnboardingReward, setShowOnboardingReward] = useState(false);
   const authShellControlsScrolled = useAuthShellControlsScrolled(authStatus === 'signed_out');
 
   useEffect(() => {
@@ -322,7 +340,7 @@ export default function App({
   const handleAuth = (session: AuthSessionPayload) => {
     setSession(session);
     if (session.user.emailVerifiedAt) {
-      redirectToMap();
+      redirectAfterAuthentication();
     }
     setNeedsOnboarding(session.needsOnboarding);
     setAuthStatus('signed_in');
@@ -331,24 +349,28 @@ export default function App({
   const handleVerified = (nextSession: AuthSessionPayload) => {
     setSession(nextSession);
     setNeedsOnboarding(nextSession.needsOnboarding);
-    redirectToMap();
+    redirectAfterAuthentication();
     setAuthStatus('signed_in');
   };
 
   const handleSignedOut = () => {
+    setShowOnboardingReward(false);
     setSession(null);
     setNeedsOnboarding(false);
     setAuthStatus('signed_out');
   };
 
   const handleOnboardingComplete = (nextSession?: AuthSessionPayload, destination: 'map' | 'rewards' = 'map') => {
+    setShowOnboardingReward(true);
     if (nextSession) {
       setSession(nextSession);
       setNeedsOnboarding(nextSession.needsOnboarding);
     } else {
       setNeedsOnboarding(false);
     }
-    if (destination === 'rewards') {
+    if (window.location.pathname === '/survey') {
+      window.history.replaceState({}, '', '/survey');
+    } else if (destination === 'rewards') {
       redirectToRewards();
     } else {
       redirectToMap();
@@ -380,11 +402,7 @@ export default function App({
   };
 
   if (authStatus === 'loading') {
-    return (
-      <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
-        <div className="text-sm text-muted-foreground">Loading session...</div>
-      </div>
-    );
+    return <AppLoading label="Loading session" />;
   }
 
   const tokenLinkType = getTokenLinkType();
@@ -563,6 +581,7 @@ export default function App({
               <Route path="/verify-email" element={<VerifyEmail />} />
               <Route path="/reset-password" element={<ResetPassword />} />
               {renderPublicRoutes()}
+              <Route path="/survey" element={<Survey />} />
               <Route path="/groups/:groupId" element={<GroupDetail />} />
               <Route path="/events/:eventId/pass-guide" element={<EventPassGuide />} />
               <Route path="/events/:eventId" element={<EventDetail />} />
@@ -587,6 +606,10 @@ export default function App({
               <Route path="/privacy/ghost-mode" element={<GhostModeSettings />} />
               <Route path="/privacy/dl-mode" element={<DlModeSettings />} />
               <Route path="/privacy/map-presence" element={<MapPresenceSettings />} />
+              <Route path="/settings/travel" element={<TravelModeSettings />} />
+              <Route path="/settings/kelpie-marks" element={<KelpieMarkPreview />} />
+              <Route path="/settings/mile-high-marks" element={<MileHighMarkPreview />} />
+              <Route path="/settings/hankies" element={<HankyPreview />} />
               <Route path="/privacy/audit" element={<PrivacyAudit />} />
               {import.meta.env.DEV ? (
                 <Route path="/dev/onboarding-preview" element={<OnboardingPreview />} />
@@ -596,7 +619,7 @@ export default function App({
               <Route path="/store" element={<CruushPlusStore />} />
               <Route path="/upgrade" element={<Navigate to="/rewards" replace />} />
               <Route path="/rewards" element={<Rewards />} />
-              <Route path="/checkout/success" element={<Navigate to="/rewards" replace />} />
+              <Route path="/checkout/success" element={<CruushPlusSuccess />} />
               <Route path="/checkout/:sessionId" element={<Navigate to="/rewards" replace />} />
               <Route path="*" element={<Navigate to="/map" replace />} />
             </Routes>
@@ -606,6 +629,7 @@ export default function App({
             <FirstFeedPostPrompt userId={session.user.id} />
             <BottomNav />
             <ForegroundNotifications />
+            <EarnedCruushPlusCards key={session.user.id} userId={session.user.id} afterOnboarding={showOnboardingReward} />
             <DebugCruushPlusToggle />
             {alphaBugControl}
           </Suspense>

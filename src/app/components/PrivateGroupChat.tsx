@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import type { CSSProperties, ChangeEvent, RefObject } from 'react';
-import { useParams, useNavigate } from 'react-router';
-import { ArrowLeft, Eye, Image as ImageIcon, ImagePlus, MoreHorizontal, Timer, Star, Trash2, X } from 'lucide-react';
+import { useLocation, useParams, useNavigate } from 'react-router';
+import { ArrowLeft, Eye, Image as ImageIcon, ImagePlus, Timer, Star, Trash2, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Checkbox } from './ui/checkbox';
@@ -9,7 +9,8 @@ import { Input } from './ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import BlockUserAction from './BlockUserAction';
 import ReportAction from './ReportAction';
-import CruushIconImage, { CruushIcon } from './CruushIconImage';
+import { CruushIcon } from './CruushIconImage';
+import LoadingCardSkeletons from './LoadingCardSkeletons';
 import HeartPhoto from './HeartPhoto';
 import { Textarea } from './ui/textarea';
 import { getCurrentUserId } from '../lib/sessionUser';
@@ -48,7 +49,7 @@ import { ApiClientError, resolveMediaUrl } from '../lib/apiClient';
 import { addDlModeChangedListener, isDlModeEnabled, shouldMaskPhoto } from '../lib/dlMode';
 import { MESSAGE_PHOTO_UPLOAD_ACCEPT, prepareMessagePhotoForUpload } from '../lib/messagePhotoProcessing';
 import { getProfileGradientCss } from '../lib/profileGradient';
-import dlModeWhite from '../assets/ui-icons/dl-mode-white.png';
+import DlModeMark from './DlModeMark';
 
 const timerOptions: Array<{ value: ConversationTimer; label: string }> = [
   { value: 'off', label: 'Off' },
@@ -190,8 +191,8 @@ function ExplicitMessagePhotoShield({ attachmentKey }: { attachmentKey: string }
       role="img"
       style={{ background: getProfileGradientCss(attachmentKey) }}
     >
-      <CruushIconImage src={dlModeWhite} className="h-7 w-7 opacity-90" />
-      <span className="text-[11px] uppercase tracking-[0.18em] text-white/88">DL Mode</span>
+      <DlModeMark active={false} className="h-7 w-7 opacity-90" />
+      <span className="text-[11px] uppercase tracking-[0.18em] text-white/88">DL Mode Active</span>
     </div>
   );
 }
@@ -237,11 +238,28 @@ function getMessageSender(
     : null;
 }
 
-export default function PrivateGroupChat({ conversationId }: { conversationId?: string } = {}) {
+export default function PrivateGroupChat({
+  backLabel = 'Back to messages',
+  conversationId,
+  embedded = false,
+  onBack,
+  onClose,
+}: {
+  backLabel?: string;
+  conversationId?: string;
+  embedded?: boolean;
+  onBack?: () => void;
+  onClose?: () => void;
+} = {}) {
   const params = useParams();
   // The dock renders this thread without a route of its own.
   const chatId = conversationId ?? params.chatId;
   const navigate = useNavigate();
+  const location = useLocation();
+  const routeBackLabel = !embedded
+    && (location.state as { conversationOrigin?: string } | null)?.conversationOrigin === 'profile'
+    ? 'Back to profile'
+    : backLabel;
   const messagePhotoInputId = useId();
   const favoriteImageInputId = useId();
   const [message, setMessage] = useState('');
@@ -790,6 +808,7 @@ export default function PrivateGroupChat({ conversationId }: { conversationId?: 
   const handleSend = async () => {
     if (!normalizedComposerMessage || !chatId || !conversation || composerDisabled || textMessageSendingRef.current) return;
 
+    const composerDraft = message;
     textMessageSendingRef.current = true;
     setTextMessageSending(true);
 
@@ -803,6 +822,7 @@ export default function PrivateGroupChat({ conversationId }: { conversationId?: 
     };
 
     setMessages((prev) => [...prev, optimisticMessage]);
+    setMessage('');
     setComposerError(null);
     setComposerErrorCode(null);
     setError(null);
@@ -814,11 +834,11 @@ export default function PrivateGroupChat({ conversationId }: { conversationId?: 
           ? normalizeRemoteMessage(createdMessage, currentUserId ?? createdMessage.userId)
           : item
       )));
-      setMessage((currentMessage) => currentMessage === normalizedComposerMessage ? '' : currentMessage);
       setError(null);
     } catch (error) {
       console.error('Error sending message:', error);
       setMessages((prev) => prev.filter((item) => item.id !== optimisticId));
+      setMessage((currentMessage) => currentMessage ? currentMessage : composerDraft);
       if (error instanceof ApiClientError && error.code === 'FORBIDDEN') {
         setError(error.message || 'You cannot message this user.');
       } else {
@@ -907,15 +927,20 @@ export default function PrivateGroupChat({ conversationId }: { conversationId?: 
   const composerBarStyle = {
     '--chat-composer-bottom': keyboardInset > 0
       ? `calc(0.75rem + env(safe-area-inset-bottom) + ${keyboardInset}px)`
-      : 'calc(6.25rem + env(safe-area-inset-bottom))',
+      : 'calc(5.5rem + env(safe-area-inset-bottom))',
   } as CSSProperties;
 
   return (
-    <div data-testid="private-group-chat-screen" className="relative min-h-screen max-w-full overflow-x-clip bg-background pb-20">
+    <div data-testid="private-group-chat-screen" className={`relative max-w-full overflow-x-clip bg-background pb-20 ${embedded ? 'min-h-full' : 'min-h-screen'}`}>
       <header data-testid="chat-thread-header" className="sticky top-0 z-40 border-b border-border bg-background/88 px-3 py-4 backdrop-blur-md sm:px-4">
         <div className="mx-auto flex w-full max-w-2xl items-center justify-between gap-3 sm:gap-4">
           <div className="flex min-w-0 flex-1 items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => navigate(-1)} aria-label="Back to messages">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => embedded ? (onBack ?? onClose)?.() : navigate(-1)}
+              aria-label={routeBackLabel}
+            >
               <ArrowLeft className="w-5 h-5" />
             </Button>
 
@@ -972,7 +997,7 @@ export default function PrivateGroupChat({ conversationId }: { conversationId?: 
             </div>
           </div>
 
-          <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+          <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
             {conversation ? (
               <ReportAction
                 targetType="conversation"
@@ -985,14 +1010,19 @@ export default function PrivateGroupChat({ conversationId }: { conversationId?: 
               type="button"
               variant="ghost"
               size="icon"
-              aria-label="More conversation options"
+              aria-label="Conversation settings"
               aria-expanded={settingsOpen}
               aria-controls="conversation-settings"
               disabled={!conversation}
               onClick={openSettings}
             >
-              <MoreHorizontal className="w-5 h-5" />
+              <CruushIcon name="settings" className="h-5 w-5" />
             </Button>
+            {embedded ? (
+              <Button type="button" variant="ghost" size="icon" aria-label="Close messages" onClick={onClose}>
+                <X className="h-5 w-5" />
+              </Button>
+            ) : null}
           </div>
         </div>
       </header>
@@ -1146,9 +1176,7 @@ export default function PrivateGroupChat({ conversationId }: { conversationId?: 
                 <div className="space-y-2">
                   <p className="text-sm text-muted-foreground">Members</p>
                   {groupMembersLoading ? (
-                    <div className="rounded-2xl border border-border bg-background/60 p-3 text-sm text-muted-foreground">
-                      Loading members...
-                    </div>
+                    <LoadingCardSkeletons count={2} label="Loading members" />
                   ) : null}
                   {groupMembers.map((member) => (
                     <div key={member.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-background/60 p-3">
@@ -1453,7 +1481,7 @@ export default function PrivateGroupChat({ conversationId }: { conversationId?: 
         {conversation ? (
           <div
             data-testid="chat-composer-bar"
-            className="fixed bottom-[var(--chat-composer-bottom)] left-0 right-0 max-w-[100vw] overflow-x-hidden border-t border-border bg-background/90 px-3 pb-3 pt-3 backdrop-blur-md sm:px-4"
+            className={`fixed bottom-[var(--chat-composer-bottom)] left-0 right-0 max-w-[100vw] overflow-x-hidden border-t border-border bg-background/90 px-3 pt-3 backdrop-blur-md sm:px-4 ${keyboardInset > 0 ? 'pb-3' : 'pb-0'}`}
             data-keyboard-open={keyboardInset > 0 ? 'true' : undefined}
             style={composerBarStyle}
           >
@@ -1495,6 +1523,7 @@ export default function PrivateGroupChat({ conversationId }: { conversationId?: 
                   </SelectTrigger>
                   <SelectContent
                     align="start"
+                    side="top"
                     className="min-w-36 rounded-2xl border-white/12 bg-card/95 p-1 text-foreground shadow-[0_18px_52px_rgba(0,0,0,0.46)] backdrop-blur-xl"
                   >
                     {timerOptions.map((option) => (
@@ -1597,9 +1626,7 @@ export default function PrivateGroupChat({ conversationId }: { conversationId?: 
                     </div>
 
                     {favoriteImagesLoading ? (
-                      <div className="rounded-2xl border border-border bg-card/70 p-3 text-sm text-muted-foreground">
-                        Loading favorite images...
-                      </div>
+                      <LoadingCardSkeletons count={2} label="Loading favorite images" />
                     ) : null}
 
                     {!favoriteImagesLoading && favoriteImages.length === 0 ? (
@@ -1609,7 +1636,7 @@ export default function PrivateGroupChat({ conversationId }: { conversationId?: 
                     ) : null}
 
                     {favoriteImages.length > 0 ? (
-                      <div className="grid max-h-64 grid-cols-3 gap-2 overflow-y-auto pr-1 sm:grid-cols-4">
+                      <div className="scrollbar-hide grid max-h-64 grid-cols-3 gap-2 overflow-y-auto sm:grid-cols-4">
                         {favoriteImages.map((favorite) => {
                           const favoriteBusy = favoriteSendingId === favorite.id || favoriteRemovingId === favorite.id;
                           const hiddenByDlMode = shouldMaskPhoto(dlModeActive, favorite.explicit);
@@ -1624,7 +1651,7 @@ export default function PrivateGroupChat({ conversationId }: { conversationId?: 
                                     role="img"
                                     style={{ background: getProfileGradientCss(`favorite:${favorite.id}`) }}
                                   >
-                                    <CruushIconImage src={dlModeWhite} className="size-5" />
+                                    <DlModeMark active={false} className="size-5" />
                                   </div>
                                 ) : (
                                   <img

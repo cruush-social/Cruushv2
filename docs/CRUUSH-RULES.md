@@ -61,6 +61,14 @@ These are not suggestions you interpret. Run them.
   circle around an icon: is a decision. Don't.
 - **C4.** Before touching a shared token or style object, enumerate every surface it
   affects. Scope the change or state the blast radius and ask.
+- **C10.** Julien is the only person who designs cruush. You may implement exactly the UI he
+  describes, and you may build a mock or preview page when he asks to see options so he can
+  pick. You may not originate any visual element, state treatment, colour, size, border, or
+  placement he did not name, and you may not re-interpret one he already settled. This is the
+  standing form of C2 and C3, which were not enough on their own: a pink halo was added around
+  the DL Mode mask as a "lit state" nobody asked for, and the vibe capsules drifted into
+  several variations after he asked for one colour and one text. If an element needs something
+  it does not have, say so in one sentence and wait.
 - **C5.** The map vector style, label sizing, and canvas filter are off limits unless the
   request names the map.
 - **C6.** After a visual edit, measure the adjacent geometry too. The thing you did not
@@ -116,20 +124,32 @@ These are not suggestions you interpret. Run them.
 - **F3.** Never describe the product as nightlife-only. It is for the whole queer community.
 - **F4.** Public-facing copy never uses the Unicode em dash character (U+2014). Use a
   period, comma, colon, semicolon, parentheses, or a separate sentence instead.
+- **F5.** A page, popup, sheet, or settings surface may have at most one descriptive
+  tagline, placed directly below its header. Never invent a second tagline, subhead, or
+  explanatory sentence unless Julien explicitly requests it.
 
 ## G. Product invariants
 
 - **G1.** HIV status, trans status, and ethnicity are display fields only. They are never
   filters, visibility predicates, saved-set predicates, or token filter signals.
-- **G2.** NSFW is allowed in the favorites gallery and in messages. Profile photos must be
-  of the account holder.
+- **G2.** NSFW is allowed in the favorites gallery, messages, Feed photos, and profile photos
+  when it does not violate the current media policy. Feed and message photos may contain
+  multiple subjects and allowed non-human imagery. Profile photos may show the account holder,
+  any part of their body without requiring a face, or their gear. A profile photo may contain
+  no more than one person, and every person shown across that profile's photos must be the same
+  person.
 - **G3.** cruush will never be in an app store. Do not propose app-store-driven constraints.
 - **G4.** A "cruush" is one-sided; a mutual cruush is a match. Keep that distinction in copy
   and in code.
 - **G5.** Auto-moderation must reject images of people who could never be mistaken for
   adults, regardless of which provider is up. The fallback chain must always be live.
 - **G6.** Free tier: up to 3 seeking filters and up to 3 visibility controls.
-- **G7.** cruush does not offer voluntary refunds for cruush+, except where law
+- **G7.** The winged-heart icon is Feed-only. Every person-to-person cruush
+  control, including Mutual, uses the approved double-heart icon. Never
+  substitute the Feed icon for a cruush action.
+- **G8.** A completed uncruush or mutual removal immediately restores the same
+  cruush control to its bright, available gradient state.
+- **G9.** cruush does not offer voluntary refunds for cruush+, except where law
   requires a withdrawal, refund, remedy, or forced reversal. cruush+ is an
   ongoing interactive digital service. Never assume that immediate access makes
   the service fully performed or removes a statutory withdrawal right. Do not
@@ -138,7 +158,7 @@ These are not suggestions you interpret. Run them.
   outcomes truthfully. EU/EEA sales remain blocked until jurisdiction-specific
   legal review and a compliant service-withdrawal flow are complete, or those
   consumers are excluded server-side.
-- **G8.** The cruush+ benefit for browsing without appearing is **Dark Room**.
+- **G10.** The cruush+ benefit for browsing without appearing is **Dark Room**.
   Ghost Mode is a separate feature. Never label Dark Room as Stealth Mode or
   Ghost Mode.
 

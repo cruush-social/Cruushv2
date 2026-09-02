@@ -1,12 +1,17 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router';
+import { CRUUSH_PLUS_FEATURES } from '../lib/cruushPlusFeatures';
 import Rewards from './Rewards';
+import type { SideQuestKey, SideQuestSummary } from '../lib/rewardsApi';
 
 const api = vi.hoisted(() => ({
   completeTwoFactorSetup: vi.fn(),
   disableTwoFactor: vi.fn(),
   getRewardSummary: vi.fn(),
+  getSideQuests: vi.fn(),
+  claimSideQuest: vi.fn(),
+  redeemCruushPlusPromoCode: vi.fn(),
   getTwoFactorStatus: vi.fn(),
   recordDailyRewardCheckIn: vi.fn(),
   regenerateTwoFactorRecoveryCodes: vi.fn(),
@@ -59,6 +64,26 @@ const summary = {
   },
 };
 
+function questSummary(): SideQuestSummary {
+  const keys: SideQuestKey[] = ['view_profile', 'send_cruush', 'send_ping', 'post_feed', 'send_message'];
+  return {
+    pingCredits: 0,
+    claimingAvailable: true,
+    cruushPlusClaimsThisWeek: 0,
+    cruushPlusWeeklyLimit: 2,
+    claimedToday: false,
+    quests: keys.map((key, index) => ({
+      key,
+      title: `Quest ${index + 1}`,
+      rewardKind: 'ping',
+      rewardAmount: 1,
+      completed: true,
+      claimed: false,
+      claimedAt: null,
+    })),
+  };
+}
+
 function renderRewards() {
   return render(
     <MemoryRouter initialEntries={['/rewards']}>
@@ -68,6 +93,8 @@ function renderRewards() {
 }
 
 describe('Rewards', () => {
+  afterEach(() => vi.restoreAllMocks());
+
   beforeEach(() => {
     window.localStorage.clear();
     Object.values(api).forEach((mock) => mock.mockReset());
@@ -75,6 +102,7 @@ describe('Rewards', () => {
     api.updateRewardTimezone.mockResolvedValue({ timezone: 'America/Chicago' });
     api.recordDailyRewardCheckIn.mockResolvedValue({ credited: true, grants: [] });
     api.getRewardSummary.mockResolvedValue(summary);
+    api.getSideQuests.mockResolvedValue({ ...questSummary(), quests: [] });
     api.getTwoFactorStatus.mockResolvedValue({
       enabled: false,
       enabledAt: null,
@@ -128,14 +156,12 @@ describe('Rewards', () => {
     const benefitsToggle = screen.getByRole('button', { name: 'Hide cruush+ benefits' });
     expect(benefitsToggle).toHaveAttribute('aria-expanded', 'true');
     const featureList = screen.getByRole('list', { name: 'cruush+ features' });
-    expect(within(featureList).getAllByRole('listitem')).toHaveLength(6);
-    expect(within(featureList).getByText('See your full incoming cruush and profile-view lists.')).toBeInTheDocument();
-    expect(within(featureList).getByText('Send up to 3 Pings every 24 hours, with 4 hours between sends.')).toBeInTheDocument();
-    expect(within(featureList).getByText('Create posts on the local feed. Basic users can still read nearby posts.')).toBeInTheDocument();
-    expect(within(featureList).getByText('Spin through nearby profiles and browse again.')).toBeInTheDocument();
-    expect(within(featureList).getByText('Use every seeking filter and visibility control together.')).toBeInTheDocument();
-    expect(within(featureList).getByText('Browse the map without appearing on it.')).toBeInTheDocument();
-    expect(within(featureList).queryByText(/precise sharing|saved visibility sets|founder/i)).not.toBeInTheDocument();
+    expect(within(featureList).getAllByRole('listitem')).toHaveLength(CRUUSH_PLUS_FEATURES.length);
+    for (const feature of CRUUSH_PLUS_FEATURES) {
+      expect(within(featureList).getByText(feature.title)).toBeInTheDocument();
+      expect(within(featureList).getByText(feature.description)).toBeInTheDocument();
+    }
+    expect(within(featureList).queryByText(/\bPing\b|Voyeur|Create posts on the local feed/i)).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Hide cruush+ benefits' }));
     expect(window.localStorage.getItem('cruush:rewards:benefits-open')).toBe('false');
@@ -168,5 +194,62 @@ describe('Rewards', () => {
 
     expect(screen.queryByText('Two-factor authentication')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Set up authenticator app' })).not.toBeInTheDocument();
+  });
+
+  it('retains a successful claim when an older refresh returns afterwards', async () => {
+    vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible');
+    const initial = questSummary();
+    const claimed = {
+      ...initial,
+      pingCredits: 1,
+      claimedToday: true,
+      quests: initial.quests.map((quest, index) => index === 0
+        ? { ...quest, claimed: true, claimedAt: '2026-08-30T12:00:00.000Z' }
+        : quest),
+    };
+    api.getSideQuests.mockResolvedValue(initial);
+    api.claimSideQuest.mockResolvedValue(claimed);
+    renderRewards();
+    const card = await screen.findByTestId('side-quests-card');
+    await within(card).findByText('Quest 1');
+    expect(within(card).getAllByRole('listitem')).toHaveLength(4);
+    expect(within(card).queryByText('Quest 5')).not.toBeInTheDocument();
+
+    let resolveStale!: (value: SideQuestSummary) => void;
+    api.getSideQuests.mockImplementationOnce(() => new Promise((resolve) => {
+      resolveStale = resolve;
+    }));
+    fireEvent.focus(window);
+    await waitFor(() => expect(api.getSideQuests).toHaveBeenCalledTimes(2));
+    fireEvent.click(within(card).getAllByRole('button', { name: 'Claim' })[0]);
+    await screen.findByText('Side Quest: Quest 1');
+    await act(async () => resolveStale(initial));
+
+    expect(within(card).queryByText('Quest 1')).not.toBeInTheDocument();
+    expect(within(card).getByText('Quest 5')).toBeInTheDocument();
+    expect(within(card).getAllByRole('listitem')).toHaveLength(4);
+    expect(screen.getByText('Side Quest: Quest 1')).toBeInTheDocument();
+    expect(api.claimSideQuest).toHaveBeenCalledTimes(1);
+  });
+
+  it('refreshes availability on focus without creating another daily check-in', async () => {
+    vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible');
+    const initial = { ...questSummary(), claimedToday: true };
+    api.getSideQuests.mockResolvedValue(initial);
+    renderRewards();
+    const card = await screen.findByTestId('side-quests-card');
+    expect((await within(card).findAllByRole('button', { name: 'Tomorrow' }))[0]).toBeDisabled();
+
+    api.getSideQuests.mockResolvedValue({ ...initial, claimedToday: false });
+    fireEvent.focus(window);
+    expect((await within(card).findAllByRole('button', { name: 'Claim' }))[0]).toBeEnabled();
+    expect(api.recordDailyRewardCheckIn).toHaveBeenCalledTimes(1);
+    expect(api.claimSideQuest).not.toHaveBeenCalled();
+
+    api.getSideQuests.mockRejectedValue(new Error('Offline'));
+    fireEvent.focus(window);
+    await waitFor(() => expect(api.getSideQuests).toHaveBeenCalledTimes(3));
+    expect(within(card).getByText('Quest 1')).toBeInTheDocument();
+    expect(within(card).queryByRole('alert')).not.toBeInTheDocument();
   });
 });

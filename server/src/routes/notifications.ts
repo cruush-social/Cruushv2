@@ -39,7 +39,12 @@ const notificationPreferencesPayloadSchema = z.object({
   groupsEnabled: z.boolean().optional(),
   nearbyEnabled: z.boolean().optional(),
   rewardsEnabled: z.boolean().optional(),
-  soundEnabled: z.boolean().optional()
+  soundEnabled: z.boolean().optional(),
+  quietHoursEnabled: z.boolean().optional(),
+  quietHoursStartMinute: z.number().int().min(0).max(1439).optional(),
+  quietHoursEndMinute: z.number().int().min(0).max(1439).optional(),
+  quietHoursTimezone: z.string().trim().min(1).max(64).optional(),
+  pulseEnabled: z.boolean().optional()
 }).strict();
 
 export const pushSubscriptionPayloadSchema = z.object({
@@ -163,6 +168,22 @@ export function registerNotificationRoutes(app: FastifyInstance) {
       data: {
         unreadCount: 0
       }
+    });
+  });
+
+  app.delete("/api/notifications/:notificationId", async (request, reply) => {
+    const userId = await getAuthenticatedUserId(request);
+    const { notificationId } = notificationParamsSchema.parse(request.params);
+
+    await app.db.query(
+      `delete from app_notifications notification
+       where notification.id::text = $1
+         and notification.user_id = $2`,
+      [notificationId, userId]
+    );
+
+    return reply.send({
+      data: await getNotificationSummary(app, userId)
     });
   });
 

@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router';
+import { BrowserRouter, MemoryRouter } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
 import ResetPassword from './ResetPassword';
 import { resetPassword } from '../lib/authApi';
@@ -47,5 +47,26 @@ describe('ResetPassword', () => {
       password: 'password-123',
     }));
     expect(await screen.findByText('Your password has been reset. You can sign in now.')).toBeInTheDocument();
+  });
+
+  it('uses a document navigation to leave the reset-token shell', () => {
+    window.history.replaceState({}, '', '/reset-password?resetPasswordToken=reset-token');
+    const pushState = vi.spyOn(window.history, 'pushState');
+    const preventDocumentNavigation = (event: MouseEvent) => event.preventDefault();
+    window.addEventListener('click', preventDocumentNavigation);
+
+    try {
+      render(
+        <BrowserRouter>
+          <ResetPassword />
+        </BrowserRouter>,
+      );
+
+      fireEvent.click(screen.getByRole('link', { name: 'Back to sign in' }));
+      expect(pushState).not.toHaveBeenCalled();
+    } finally {
+      window.removeEventListener('click', preventDocumentNavigation);
+      pushState.mockRestore();
+    }
   });
 });

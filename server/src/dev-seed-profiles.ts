@@ -13,6 +13,8 @@ import {
 } from "./development-admin.js";
 import {
   buildEncryptedRelationshipPayload,
+  getOrderedRelationshipUserIds,
+  issueEncryptedRelationshipToken,
   upsertEncryptedRelationshipRecord
 } from "./encrypted-relationships.js";
 import {
@@ -21,6 +23,7 @@ import {
   encryptSensitiveProfile,
   type SensitiveProfileData
 } from "./profile-sensitive.js";
+import { DEFAULT_GHOST_RADIUS_METERS, saveVisibilityPolicy } from "./location-privacy.js";
 import { emptyProfile } from "./profile-schema.js";
 import { encryptMediaBytes } from "./media-encryption.js";
 import {
@@ -446,13 +449,29 @@ export function buildDevelopmentTestProfiles(now = new Date()): DevelopmentTestP
   });
 }
 
+/** Seeded visitors make Mile High Club visible on the local map and profiles. */
+const DEVELOPMENT_TRAVEL_PROFILES = new Map<number, { lat: number; lng: number; label: string }>([
+  [2, { lat: 40.733572, lng: -74.002742, label: "In from Chicago" }],
+  [7, { lat: 40.718112, lng: -73.958647, label: "In from Los Angeles" }],
+  [14, { lat: 40.81155, lng: -73.946477, label: "In from Atlanta" }]
+] as const);
+
+/** Distinct local profiles keep privacy and Pulse states visible beside MHC. */
+const DEVELOPMENT_GHOST_PROFILES = new Set([1, 6, 11]);
+const DEVELOPMENT_PULSE_PROFILES = new Set([4, 9, 16]);
+const DEVELOPMENT_MUTUAL_PROFILES = new Set([0, 1, 2, 3, 4, 5, 8, 10]);
+/** Includes Dark Room and missing-token fixtures so disabled Pin states are testable. */
+const DEVELOPMENT_PRECISE_MUTUAL_PROFILES = new Set([0, 1, 2, 3, 4, 8, 10]);
+const DEVELOPMENT_DARK_ROOM_PROFILE = 8;
+const DEVELOPMENT_MISSING_LOCATION_PROFILE = 10;
+
 export function assertDevelopmentSeedConfig(config: Pick<AppConfig, "NODE_ENV" | "DEVELOPMENT_ADMIN_ENABLED" | "DEVELOPMENT_ADMIN_PASSWORD">) {
   if (config.NODE_ENV === "production") {
     throw new Error("Refusing to seed development profiles in production.");
   }
 
-  if (!config.DEVELOPMENT_ADMIN_ENABLED || !config.DEVELOPMENT_ADMIN_PASSWORD) {
-    throw new Error("Set DEVELOPMENT_ADMIN_ENABLED=true and DEVELOPMENT_ADMIN_PASSWORD before seeding dev profiles.");
+  if (!config.DEVELOPMENT_ADMIN_PASSWORD) {
+    throw new Error("Set DEVELOPMENT_ADMIN_PASSWORD before seeding dev profiles.");
   }
 }
 
@@ -736,8 +755,65 @@ export async function seedDevelopmentProfilesWithDb(context: DevelopmentSeedCont
     );
     await upsertSensitiveTokens(context, adminUserId, adminSensitiveProfile);
 
-    for (const profile of profiles) {
+    for (const [profileIndex, profile] of profiles.entries()) {
       const profileUserId = await upsertDevelopmentProfile(context, profile);
+
+      // Visiting members show Mile High Club on the map and profiles without
+      // turning it on for the signed-in development account.
+      const travelPin = DEVELOPMENT_TRAVEL_PROFILES.get(profileIndex);
+      if (travelPin) {
+        await context.db.query(
+          `insert into user_travel_pins (user_id, latitude, longitude, label, set_at, updated_at)
+           values ($1, $2, $3, $4, now(), now())
+           on conflict (user_id) do update
+             set latitude = excluded.latitude,
+                 longitude = excluded.longitude,
+                 label = excluded.label,
+                 updated_at = now()`,
+          [profileUserId, travelPin.lat, travelPin.lng, travelPin.label]
+        );
+      } else {
+        await context.db.query(`delete from user_travel_pins where user_id = $1`, [profileUserId]);
+      }
+
+      const ghostModeEnabled = DEVELOPMENT_GHOST_PROFILES.has(profileIndex);
+      const darkRoomEnabled = profileIndex === DEVELOPMENT_DARK_ROOM_PROFILE;
+      const preciseToMutualCruushes = DEVELOPMENT_PRECISE_MUTUAL_PROFILES.has(profileIndex);
+      await saveVisibilityPolicy(context, profileUserId, {
+        baseMode: darkRoomEnabled ? "STEALTH" : ghostModeEnabled ? "GHOST" : "PUBLIC_PRECISE",
+        ghostModeEnabled,
+        ghostRadiusMeters: DEFAULT_GHOST_RADIUS_METERS,
+        preciseToMutualCruushes,
+        preciseLocationVisibility: preciseToMutualCruushes ? "mutual_cruushes" : "none"
+      });
+      await context.db.query(
+        `update user_privacy_settings
+         set ghost_mode_enabled = $2,
+             updated_at = now()
+         where user_id = $1`,
+        [profileUserId, ghostModeEnabled]
+      );
+
+      if (darkRoomEnabled) {
+        await context.db.query(
+          `insert into user_entitlements (user_id, cruush_plus_enabled, cruush_plus_expires_at)
+           values ($1, true, null)
+           on conflict (user_id) do update
+             set cruush_plus_enabled = true,
+                 cruush_plus_expires_at = null,
+                 updated_at = now()`,
+          [profileUserId]
+        );
+      }
+
+      await context.db.query(`delete from map_pings where user_id = $1`, [profileUserId]);
+      if (DEVELOPMENT_PULSE_PROFILES.has(profileIndex)) {
+        await context.db.query(
+          `insert into map_pings (user_id, radius_miles, idempotency_key, created_at, expires_at)
+           values ($1, 15, gen_random_uuid(), now(), now() + interval '10 minutes')`,
+          [profileUserId]
+        );
+      }
 
       await upsertEncryptedRelationshipRecord(context, buildEncryptedRelationshipPayload({
         type: "cruush",
@@ -753,6 +829,51 @@ export async function seedDevelopmentProfilesWithDb(context: DevelopmentSeedCont
           source: "development-seed"
         }
       }));
+
+      if (DEVELOPMENT_MUTUAL_PROFILES.has(profileIndex)) {
+        await upsertEncryptedRelationshipRecord(context, buildEncryptedRelationshipPayload({
+          type: "cruush",
+          actorUserId: adminUserId,
+          targetUserId: profileUserId,
+          createdAt: profile.updatedAt,
+          targetSnapshot: {
+            name: profile.displayName,
+            pronouns: profile.pronouns.join("/"),
+            photo: profile.photo
+          },
+          metadata: {
+            source: "development-seed"
+          }
+        }));
+
+        const [userOneId, userTwoId] = getOrderedRelationshipUserIds(adminUserId, profileUserId);
+        const mutual = await upsertEncryptedRelationshipRecord(context, buildEncryptedRelationshipPayload({
+          type: "mutual_cruush",
+          actorUserId: userOneId,
+          targetUserId: userTwoId,
+          createdAt: profile.updatedAt,
+          metadata: {
+            source: "development-seed"
+          }
+        }));
+
+        if (mutual) {
+          await issueEncryptedRelationshipToken(context, {
+            relationshipRecordId: mutual.id,
+            userOneId,
+            userTwoId,
+            purpose: "permissions",
+            expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000)
+          });
+        }
+      }
+
+      if (profileIndex === DEVELOPMENT_MISSING_LOCATION_PROFILE) {
+        await context.db.query(
+          `delete from encrypted_location_envelopes where subject_user_id = $1`,
+          [profileUserId]
+        );
+      }
     }
 
     await context.db.query("commit");

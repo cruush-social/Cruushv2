@@ -15,10 +15,11 @@ same change that adds or renames a variable: see the standing rules, I1 and I2.
 | `ALPHA_TEST_ENDS_AT` | server | no | `server/src/config.ts` | **missing from .env.example** |
 | `ALPHA_TEST_PASSWORD_HASH` | server | no | `server/src/config.ts` | **missing from .env.example** |
 | `APP_BUILD_SHA` | server | yes | `server/src/config.ts` |  |
-| `APP_DEPLOYMENT_STAGE` | server | yes | `server/src/config.ts` |  |
+| `APP_DEPLOYMENT_STAGE` | server | yes | `server/src/dev-seed-places.ts`, `server/src/config.ts` |  |
 | `APP_URL` | server | yes | `server/src/config.ts` |  |
 | `AWS_ACCESS_KEY_ID` | server | yes | `server/src/rekognition-live.test.ts` | test-only |
 | `AWS_SECRET_ACCESS_KEY` | server | yes | `server/src/rekognition-live.test.ts` | test-only |
+| `AWS_SESSION_TOKEN` | server | yes | `server/src/rekognition-live.test.ts` | test-only |
 | `BANK_PROFILE_PHOTO_MANUAL_REVIEW_ENABLED` | server | yes | `server/src/config.ts` |  |
 | `BANK_PROFILE_PHOTO_TESTER_USER_IDS` | server | yes | `server/src/config.ts` |  |
 | `BETA_ACCESS_GEOFENCE_ENABLED` | server | no | `server/src/config.ts` | **missing from .env.example** |
@@ -52,15 +53,15 @@ same change that adds or renames a variable: see the standing rules, I1 and I2.
 | `CSAM_REPORTING_ENABLED` | server | yes | `server/src/config.ts` |  |
 | `CSAM_REPORTING_MODE` | server | yes | `server/src/config.ts` |  |
 | `CSAM_REPORTING_TEST_MODE` | server | yes | `server/src/config.ts` |  |
-| `DATABASE_URL` | server | yes | `server/src/migrate.ts`, `server/src/config.ts` |  |
+| `DATABASE_URL` | server | yes | `server/src/dev-seed-places.ts`, `server/src/migrate.ts` |  |
 | `DEVELOPMENT_ADMIN_ENABLED` | server | yes | `server/src/config.ts` |  |
 | `DEVELOPMENT_ADMIN_PASSWORD` | server | yes | `server/src/config.ts` |  |
 | `DISPLAY_TOKEN_ENCRYPTION_KEY` | server | yes | `server/src/config.ts` |  |
 | `DISPLAY_TOKEN_ENCRYPTION_KEY_VERSION` | server | yes | `server/src/config.ts` |  |
 | `EMAIL_PREVIEW_ENABLED` | server | yes | `server/src/config.ts` |  |
-| `FEED_ENCRYPTION_KEY` | server | yes | `server/src/config.ts` |  |
+| `FEED_ENCRYPTION_KEY` | server | yes | `server/src/dev-seed-places.ts`, `server/src/config.ts` |  |
 | `FEED_ENCRYPTION_KEY_PREVIOUS` | server | no | `server/src/config.ts` | **missing from .env.example** |
-| `FEED_ENCRYPTION_KEY_VERSION` | server | yes | `server/src/config.ts` |  |
+| `FEED_ENCRYPTION_KEY_VERSION` | server | yes | `server/src/dev-seed-places.ts`, `server/src/config.ts` |  |
 | `GHOST_DERIVATION_KEY` | server | yes | `server/src/config.ts` |  |
 | `GHOST_DERIVATION_KEY_PREVIOUS` | server | no | `server/src/config.ts` | **missing from .env.example** |
 | `GHOST_DERIVATION_KEY_VERSION` | server | yes | `server/src/config.ts` |  |
@@ -111,7 +112,7 @@ same change that adds or renames a variable: see the standing rules, I1 and I2.
 | `MODERATION_MEDIA_BASE_URL` | server | yes | `server/src/config.ts` |  |
 | `MODERATION_PROVIDER` | server | yes | `server/src/config.ts` |  |
 | `MODERATION_TIMEOUT_MS` | server | yes | `server/src/config.ts` |  |
-| `NODE_ENV` | server | no | `server/src/config.ts` | **missing from .env.example** |
+| `NODE_ENV` | server | no | `server/src/dev-seed-places.ts`, `server/src/config.ts` | **missing from .env.example** |
 | `PHOTODNA_API_URL` | server | yes | `server/src/config.ts` |  |
 | `PHOTODNA_ENABLED` | server | yes | `server/src/config.ts` |  |
 | `PHOTODNA_OPERATION_PATH` | server | yes | `server/src/config.ts` |  |
@@ -137,7 +138,7 @@ same change that adds or renames a variable: see the standing rules, I1 and I2.
 | `RELATIONSHIP_INDEX_KEY_VERSION` | server | yes | `server/src/config.ts` |  |
 | `RESEND_API_KEY` | server | yes | `server/src/check-rekognition-health.ts`, `server/src/config.ts` |  |
 | `RESEND_CRUUSH_APP_AUDIENCE_ID` | server | yes | `server/src/config.ts` |  |
-| `SESSION_SECRET` | server | yes | `server/src/account-deletion-integrity.test.ts`, `server/src/urgent-release-real-postgres.test.ts` |  |
+| `SESSION_SECRET` | server | yes | `server/src/account-deletion-integrity.test.ts`, `server/src/dev-seed-places.ts` |  |
 | `SEVERE_ACCESS_BAN_HMAC_KEY` | server | yes | `server/src/config.ts` |  |
 | `SEVERE_ACCESS_BANS_ENABLED` | server | yes | `server/src/config.ts` |  |
 | `STREAM_API_KEY` | server | yes | `server/src/config.ts` |  |
@@ -164,11 +165,7 @@ same change that adds or renames a variable: see the standing rules, I1 and I2.
 | `WEB_PUSH_VAPID_PUBLIC_KEY` | server | yes | `server/src/config.ts` |  |
 | `VITE_API_BASE_URL` | client | no | `src/app/lib/apiClient.ts` | build-time, ships to the browser |
 | `VITE_GOOGLE_ANALYTICS_ID` | client | no | `src/app/lib/googleAnalytics.ts` | build-time, ships to the browser |
-| `VITE_MAP_ATTRIBUTION` | client | no | `src/app/components/MapView.tsx` | build-time, ships to the browser |
 | `VITE_MAP_GLYPHS_URL` | client | no | `src/app/components/MapView.tsx` | build-time, ships to the browser |
-| `VITE_MAP_STYLE_URL` | client | no | `src/app/components/MapView.tsx` | build-time, ships to the browser |
-| `VITE_MAP_TILE_URL` | client | no | `src/app/components/MapView.tsx` | build-time, ships to the browser |
-| `VITE_MAP_USE_RASTER_TILES` | client | no | `src/app/components/MapView.tsx` | build-time, ships to the browser |
 | `VITE_MAP_VECTOR_TILEJSON_URL` | client | no | `src/app/components/MapView.tsx` | build-time, ships to the browser |
 | `VITE_POSTHOG_HOST` | client | no | `src/app/lib/posthog.ts` | build-time, ships to the browser |
 | `VITE_POSTHOG_KEY` | client | no | `src/app/lib/posthog.ts` | build-time, ships to the browser |
@@ -210,7 +207,6 @@ same change that adds or renames a variable: see the standing rules, I1 and I2.
 These appear in `server/.env.example` but nothing reads them. Either they are consumed by
 infrastructure (Docker, Coolify, migrations) or they are dead and should be removed.
 
-- `AWS_SESSION_TOKEN`
 - `BANK_REVIEWER_ACCOUNT_PASSWORD`
 - `REVIEWER_TEST_ACCOUNTS_ENABLED`
 - `REVIEWER_TEST_ACCOUNT_PASSWORD`

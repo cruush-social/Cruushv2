@@ -5,6 +5,10 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import BottomNav from './BottomNav';
+import {
+  DESKTOP_PAGE_LAYOUT_STORAGE_KEY,
+  saveDesktopPageLayout,
+} from '../lib/desktopPageLayoutPreferences';
 
 const { useIsMobile } = vi.hoisted(() => ({
   useIsMobile: vi.fn(),
@@ -23,6 +27,7 @@ describe('BottomNav', () => {
   beforeEach(() => {
     useIsMobile.mockReset();
     useIsMobile.mockReturnValue(false);
+    window.localStorage.removeItem(DESKTOP_PAGE_LAYOUT_STORAGE_KEY);
   });
 
   it('keeps the supplied no-notch cruush logo as the canonical full-logo asset', () => {
@@ -100,7 +105,7 @@ describe('BottomNav', () => {
     expect(backdrop).toHaveClass('h-28', 'from-background', 'from-[68%]', 'via-background/96', 'via-[82%]', 'to-background/0');
   });
 
-  it('uses a circular active tab treatment without glow', () => {
+  it('uses icon tone alone for active tabs without a resting grey circle', () => {
     render(
       <MemoryRouter initialEntries={['/feed']}>
         <BottomNav />
@@ -110,8 +115,8 @@ describe('BottomNav', () => {
     const activeButton = screen.getByRole('button', { name: /feed/i });
     const activeIcon = activeButton.querySelector('img');
 
-    expect(activeButton).toHaveClass('rounded-full', 'bg-white/[0.10]');
-    expect(activeButton.className).toContain('hover:bg-white/[0.12]');
+    expect(activeButton).toHaveClass('rounded-full', 'bg-transparent');
+    expect(activeButton).not.toHaveClass('bg-white/[0.10]', 'hover:bg-white/[0.12]');
     expect(activeButton.className).not.toContain('shadow-[0_0');
     expect(activeIcon?.className).not.toContain('drop-shadow');
   });
@@ -124,14 +129,40 @@ describe('BottomNav', () => {
     );
 
     const activeButton = screen.getByRole('button', { name: /feed/i });
-    const mapIcon = screen.getByRole('button', { name: /map/i }).querySelector('img');
+    const mapIcon = screen.getByTestId('bottom-nav-map-icon');
     const buttons = screen.getAllByRole('button');
 
     expect(activeButton).toHaveClass('items-center', 'justify-center', 'h-[3.75rem]', 'w-[3.75rem]');
-    expect(mapIcon).toHaveClass('h-[3.6rem]', 'w-[3.6rem]', 'object-contain');
+    expect(mapIcon).toHaveClass('h-12', 'w-12');
     buttons.forEach((button) => {
       expect(button).toHaveClass('h-[3.75rem]', 'w-[3.75rem]', 'min-w-0');
     });
+  });
+
+  it('uses the linked globe as a white mask and fills it with the cruush gradient when active', () => {
+    const inactiveRender = render(
+      <MemoryRouter initialEntries={['/feed']}>
+        <BottomNav />
+      </MemoryRouter>
+    );
+
+    const inactiveIcon = screen.getByTestId('bottom-nav-map-icon');
+    expect(inactiveIcon).toHaveAttribute('data-source', 'Noun Project globe 7869983 by poernomo hasikin');
+    expect(inactiveIcon).toHaveAttribute('data-tone', 'white');
+    expect(inactiveIcon).toHaveStyle({ background: '#ffffff' });
+    expect(inactiveIcon.style.maskImage).toContain('globe-noun-project-7869983.png');
+
+    inactiveRender.unmount();
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <BottomNav />
+      </MemoryRouter>
+    );
+
+    const activeIcon = screen.getByTestId('bottom-nav-map-icon');
+    expect(activeIcon).toHaveAttribute('data-tone', 'gradient');
+    expect(activeIcon).toHaveStyle({ background: 'var(--cruush-gradient)' });
   });
 
   it('uses a larger Feed glyph without resizing its navigation button', () => {
@@ -253,7 +284,7 @@ describe('BottomNav', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /profile/i }));
 
-    expect(screen.getByTestId('location-probe')).toHaveTextContent('/profile:null');
+    expect(screen.getByTestId('location-probe')).toHaveTextContent('/map:{"openOwnProfilePanel":true}');
   });
 
   it('navigates to the full profile page at constrained desktop widths', () => {
@@ -268,6 +299,23 @@ describe('BottomNav', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /profile/i }));
 
+    expect(screen.getByTestId('location-probe')).toHaveTextContent('/map:{"openOwnProfilePanel":true}');
+  });
+
+  it('opens desktop destinations as full pages when the user selects Full screen', () => {
+    saveDesktopPageLayout('fullscreen');
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <BottomNav />
+        <LocationProbe />
+      </MemoryRouter>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /messages/i }));
+    expect(screen.getByTestId('location-probe')).toHaveTextContent('/messages:null');
+
+    fireEvent.click(screen.getByRole('button', { name: /profile/i }));
     expect(screen.getByTestId('location-probe')).toHaveTextContent('/profile:null');
   });
 });

@@ -147,7 +147,7 @@ describe('FeelingLucky', () => {
     expect(profileCard).toContainElement(browseAgainButton);
     expect(profileCard).toHaveClass('h-full', 'min-h-0', 'max-w-2xl');
     expect(profileCard).not.toHaveClass('aspect-[4/5]');
-    expect(container.firstElementChild).toHaveClass('pb-[calc(6rem+env(safe-area-inset-bottom))]');
+    expect(container.firstElementChild).toHaveClass('pb-[calc(5rem+env(safe-area-inset-bottom))]');
     expect(screen.getByTestId('lucky-profile-result')).toHaveClass('flex', 'min-h-0', 'flex-1', 'flex-col', 'gap-2');
     expect(screen.getByTestId('profile-card')).not.toHaveClass('overflow-y-auto');
     expect(screen.getByTestId('profile-card-media')).toHaveClass('absolute', 'inset-0');

@@ -817,13 +817,47 @@ export async function reverseRewardGrant(
 }
 
 function publicGrant(row: RewardGrantRow) {
+  let metadata: Record<string, unknown> = {};
+  if (typeof row.audit_metadata === "string") {
+    try {
+      metadata = JSON.parse(row.audit_metadata) as Record<string, unknown>;
+    } catch {
+      metadata = {};
+    }
+  } else if (row.audit_metadata) {
+    metadata = row.audit_metadata;
+  }
+
   return {
     id: row.id,
     source: row.source,
     days: row.days,
     status: row.reversed_at ? "reversed" as const : "active" as const,
-    createdAt: new Date(row.created_at).toISOString()
+    createdAt: new Date(row.created_at).toISOString(),
+    sideQuestKey: typeof metadata.sideQuest === "string" ? metadata.sideQuest : null
   };
+}
+
+export async function getOwnedRewardGrant(
+  app: Pick<FastifyInstance, "db">,
+  userId: string,
+  grantId: string
+) {
+  // Notification replay must not depend on the paginated recent history or
+  // activate, extend, or otherwise mutate the member's entitlement.
+  const result = await app.db.query<RewardGrantRow>(
+    `select reward.id::text, reward.user_id::text, reward.source, reward.days,
+       reward.milestone_key, reward.referral_id::text, reward.audit_metadata,
+       reward.created_at, reversal.created_at as reversed_at
+     from reward_grants reward
+     left join reward_grant_reversals reversal on reversal.grant_id = reward.id
+     where reward.user_id = $1 and reward.id = $2
+     limit 1`,
+    [userId, grantId]
+  );
+  const grant = result.rows[0];
+  if (!grant) throw new ApiError(404, "NOT_FOUND", "Reward not found.");
+  return publicGrant(grant);
 }
 
 export async function getRewardSummary(

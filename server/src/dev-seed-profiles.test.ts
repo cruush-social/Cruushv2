@@ -96,7 +96,7 @@ describe("development profile seeding", () => {
     expect(profiles[1].updatedAt.getTime()).toBeLessThan(profiles[0].updatedAt.getTime());
   });
 
-  it("refuses production or disabled dev-admin configs", () => {
+  it("refuses production or missing-password configs", () => {
     expect(() => assertDevelopmentSeedConfig({
       NODE_ENV: "production",
       DEVELOPMENT_ADMIN_ENABLED: true,
@@ -107,13 +107,13 @@ describe("development profile seeding", () => {
       NODE_ENV: "development",
       DEVELOPMENT_ADMIN_ENABLED: false,
       DEVELOPMENT_ADMIN_PASSWORD: "admin-password"
-    })).toThrow(/DEVELOPMENT_ADMIN_ENABLED/);
+    })).not.toThrow();
 
     expect(() => assertDevelopmentSeedConfig({
       NODE_ENV: "development",
       DEVELOPMENT_ADMIN_ENABLED: true,
-      DEVELOPMENT_ADMIN_PASSWORD: "admin-password"
-    })).not.toThrow();
+      DEVELOPMENT_ADMIN_PASSWORD: ""
+    })).toThrow(/DEVELOPMENT_ADMIN_PASSWORD/);
   });
 
   it("syncs the admin and all test profiles into encrypted location discovery", async () => {
@@ -145,6 +145,12 @@ describe("development profile seeding", () => {
           rows: [{
             id: `relationship-${relationshipIndex}`
           }]
+        };
+      }
+
+      if (normalizedSql.includes("insert into ghost_rotation_tokens")) {
+        return {
+          rows: [{ subject_user_id: params[0] }]
         };
       }
 
@@ -180,6 +186,9 @@ describe("development profile seeding", () => {
     const legacyPrivacyCalls = query.mock.calls.filter(([sql]) => String(sql).includes(
       "insert into user_privacy_settings (user_id, ghost_mode_enabled, precise_location_visibility)"
     ));
+    const travelPinCalls = query.mock.calls.filter(([sql]) => String(sql).includes(
+      "insert into user_travel_pins"
+    ));
     const adminDiscoveryTokens = new Set(createCoarseIndexTokens(
       config,
       DEVELOPMENT_ADMIN_LOCATION.lat,
@@ -193,8 +202,16 @@ describe("development profile seeding", () => {
     expect(result.profileCount).toBe(TEST_PROFILE_COUNT);
     expect(encryptedLocationCalls).toHaveLength(TEST_PROFILE_COUNT + 1);
     expect(seededProfileLocationCalls).toHaveLength(TEST_PROFILE_COUNT);
-    expect(encryptedPolicyCalls).toHaveLength((TEST_PROFILE_COUNT + 1) * 2);
+    expect(encryptedPolicyCalls).toHaveLength(
+      ((TEST_PROFILE_COUNT + 1) * 2) + (TEST_PROFILE_COUNT * 2)
+    );
     expect(legacyPrivacyCalls).toHaveLength(TEST_PROFILE_COUNT);
+    expect(travelPinCalls).toHaveLength(3);
+    expect(travelPinCalls.map(([, params]) => ((params ?? []) as unknown[])[3])).toEqual([
+      "In from Chicago",
+      "In from Los Angeles",
+      "In from Atlanta"
+    ]);
     // Each seeded profile carries a small gallery, so the side previews on a
     // profile have something to show locally.
     expect(mediaObjectCalls).toHaveLength((TEST_PROFILE_COUNT + 1) * 3);

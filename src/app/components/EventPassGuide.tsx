@@ -4,6 +4,7 @@ import { ArrowLeft, ShieldCheck } from 'lucide-react';
 import { getEventPassGuide, type EventPassGuide as EventPassGuidePayload } from '../lib/eventsApi';
 import { CruushIcon } from './CruushIconImage';
 import { Button } from './ui/button';
+import LoadingCardSkeletons from './LoadingCardSkeletons';
 
 function formatGuideTime(value: string) {
   return new Intl.DateTimeFormat(undefined, {
@@ -66,9 +67,7 @@ export default function EventPassGuide() {
         ) : null}
 
         {!guide && !error ? (
-          <div className="rounded-lg border border-white/10 bg-white/[0.045] p-4 text-sm text-white/60">
-            Loading door guide...
-          </div>
+          <LoadingCardSkeletons count={3} label="Loading door guide" />
         ) : null}
 
         {guide ? (

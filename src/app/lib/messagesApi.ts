@@ -1,5 +1,6 @@
 import { requestApi } from './apiClient';
 import { ApiClientError, getApiBaseUrl } from './apiClient';
+import type { SideBadges } from './profileApi';
 
 export type ConversationTimer = 'off' | '1h' | '24h' | '7d' | '30d';
 
@@ -12,6 +13,8 @@ export type ConversationThread = {
     pronouns: string;
     photo: string | null;
     photoExplicit?: boolean;
+    sideBadges?: SideBadges;
+    travelling?: boolean;
   };
   distance: string;
   updatedAt: string;

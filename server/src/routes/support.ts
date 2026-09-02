@@ -59,6 +59,7 @@ type SupportRequestListRow = {
   recipient_email: string | null;
   reply_count: number | string;
   last_reply_at: string | Date | null;
+  appeal_evidence_types: string[] | null;
 };
 
 type SupportRequestReplyTargetRow = {
@@ -80,6 +81,7 @@ type SupportRequestReplyRow = {
 
 const supportRequestListQuerySchema = z.object({
   status: z.enum(["open", "in_progress", "closed", "dismissed", "all"]).optional().default("open"),
+  category: z.enum(["all", "suspension_appeal"]).optional().default("all"),
   limit: z.coerce.number().int().min(1).max(100).optional().default(25),
   offset: z.coerce.number().int().min(0).optional().default(0)
 }).strict();
@@ -261,9 +263,9 @@ export async function registerSupportRoutes(app: FastifyInstance) {
       windowMs: 60 * 1000,
       message: "Too many support request reads. Try again later."
     });
-    const { limit, offset, status } = supportRequestListQuerySchema.parse(request.query);
-    const hasStatusFilter = status !== "all";
-    const statusParams = hasStatusFilter ? [status] : [];
+    const { category, limit, offset, status } = supportRequestListQuerySchema.parse(request.query);
+    const statusFilter = status === "all" ? null : status;
+    const categoryFilter = category === "all" ? null : category;
 
     const listQuery = await app.db.query<SupportRequestListRow>(
       `
@@ -282,7 +284,8 @@ export async function registerSupportRoutes(app: FastifyInstance) {
          sr.updated_at,
          coalesce(nullif(sr.contact_email, ''), requester.email) as recipient_email,
          coalesce(reply_stats.reply_count, 0)::int as reply_count,
-         reply_stats.last_reply_at
+         reply_stats.last_reply_at,
+         appeal_evidence.evidence_types as appeal_evidence_types
        from support_requests sr
        left join app_users requester on requester.id = sr.requester_user_id
        left join lateral (
@@ -290,20 +293,29 @@ export async function registerSupportRoutes(app: FastifyInstance) {
          from support_request_replies replies
          where replies.support_request_id = sr.id
        ) reply_stats on true
-       ${hasStatusFilter ? "where sr.status = $1" : ""}
+       left join lateral (
+         select array_agg(distinct evidence.evidence_type order by evidence.evidence_type) as evidence_types
+         from suspension_appeal_evidence evidence
+         where evidence.support_request_id = sr.id
+           and evidence.deleted_at is null
+           and evidence.expires_at > now()
+       ) appeal_evidence on true
+       where ($1::text is null or sr.status = $1)
+         and ($2::text is null or sr.category = $2)
        order by sr.created_at desc
-       limit ${hasStatusFilter ? "$2" : "$1"}
-       offset ${hasStatusFilter ? "$3" : "$2"}
+       limit $3
+       offset $4
       `,
-      hasStatusFilter ? [...statusParams, limit, offset] : [limit, offset]
+      [statusFilter, categoryFilter, limit, offset]
     );
     const countQuery = await app.db.query<{ total: string | number }>(
       `
        select count(*)::int as total
        from support_requests sr
-       ${hasStatusFilter ? "where sr.status = $1" : ""}
+       where ($1::text is null or sr.status = $1)
+         and ($2::text is null or sr.category = $2)
       `,
-      hasStatusFilter ? statusParams : []
+      [statusFilter, categoryFilter]
     );
 
     const total = Number(countQuery.rows[0]?.total ?? 0);
@@ -325,7 +337,13 @@ export async function registerSupportRoutes(app: FastifyInstance) {
           updatedAt: new Date(row.updated_at).toISOString(),
           recipientEmail: row.recipient_email,
           replyCount: Number(row.reply_count ?? 0),
-          lastReplyAt: row.last_reply_at ? new Date(row.last_reply_at).toISOString() : null
+          lastReplyAt: row.last_reply_at ? new Date(row.last_reply_at).toISOString() : null,
+          appealEvidence: (row.appeal_evidence_types ?? [])
+            .filter((type): type is "id" | "selfie" => type === "id" || type === "selfie")
+            .map((type) => ({
+              type,
+              previewUrl: `/api/admin/moderation/support-requests/${encodeURIComponent(row.id)}/appeal-evidence/${type}`
+            }))
         })),
         page: {
           limit,
@@ -479,6 +497,10 @@ export async function registerSupportRoutes(app: FastifyInstance) {
     const requesterUserId = await getOptionalAuthenticatedUserId(request);
     const payload = createSupportRequestPayloadSchema.parse(request.body);
 
+    if (!requesterUserId && payload.source === "survey") {
+      throw new ApiError(401, "AUTH_REQUIRED", "Sign in before sending survey feedback.");
+    }
+
     if (!requesterUserId && !payload.contactEmail && payload.source !== "survey") {
       throw new ApiError(400, "VALIDATION_ERROR", "Enter an email so support can reply.");
     }
@@ -520,6 +542,7 @@ export async function registerSupportRoutes(app: FastifyInstance) {
          metadata
        )
        values ($1, $2, $3, $4, $5, $6, $7, $8::jsonb)
+       ${payload.source === "survey" ? "on conflict do nothing" : ""}
        returning id::text as id, status, ai_triage_status, created_at`,
       [
         requesterUserId,
@@ -532,13 +555,29 @@ export async function registerSupportRoutes(app: FastifyInstance) {
         metadata
       ]
     );
-    const row = result.rows[0];
+    let row = result.rows[0];
+    const createdNewRequest = Boolean(row);
+
+    if (!row && payload.source === "survey" && requesterUserId) {
+      const existingResult = await app.db.query<SupportRequestRow>(
+        `select id::text as id, status, ai_triage_status, created_at
+         from support_requests
+         where requester_user_id = $1
+           and requester_account_deleted_at is null
+           and source = 'survey'
+           and status in ('open', 'in_progress')
+         order by created_at desc, id desc
+         limit 1`,
+        [requesterUserId]
+      );
+      row = existingResult.rows[0];
+    }
 
     if (!row) {
       throw new ApiError(500, "INTERNAL_ERROR", "Failed to create support request.");
     }
 
-    if (app.config.RESEND_API_KEY && app.config.MAIL_FROM) {
+    if (createdNewRequest && app.config.RESEND_API_KEY && app.config.MAIL_FROM) {
       const emailSubject = isAgeAppeal
         ? `[AGE SUSPENSION APPEAL] ${payload.subject}`
         : payload.subject;
@@ -569,7 +608,7 @@ export async function registerSupportRoutes(app: FastifyInstance) {
       });
     }
 
-    return reply.code(201).send({
+    return reply.code(createdNewRequest ? 201 : 200).send({
       data: {
         id: row.id,
         status: row.status,

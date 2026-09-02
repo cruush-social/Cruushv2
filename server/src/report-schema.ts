@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { multilineTextSchema, uuidSchema } from "./input-schema.js";
+import { databaseUuidSchema, multilineTextSchema, uuidSchema } from "./input-schema.js";
 
 export const reportReasonSchema = z.enum([
   "non_consensual_imagery",
@@ -17,12 +17,14 @@ export const reportReasonSchema = z.enum([
 ]);
 
 export const createReportPayloadSchema = z.object({
-  targetType: z.enum(["user", "profile", "conversation", "message", "post", "profile_photo"]),
+  targetType: z.enum(["user", "profile", "conversation", "message", "post", "profile_photo", "place", "place_message"]),
   targetId: uuidSchema.optional(),
   targetUserId: uuidSchema.optional(),
   conversationId: uuidSchema.optional(),
   messageId: uuidSchema.optional(),
   postId: uuidSchema.optional(),
+  placeId: databaseUuidSchema.optional(),
+  placeMessageId: uuidSchema.optional(),
   mediaObjectId: uuidSchema.optional(),
   profilePhotoUrl: z.string().trim().min(1).max(500).optional(),
   reason: reportReasonSchema,
@@ -76,6 +78,14 @@ export const createReportPayloadSchema = z.object({
         path: ["profilePhotoUrl"]
       });
     }
+  }
+
+  if (payload.targetType === "place" && !payload.placeId && !payload.targetId) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Spot reports require placeId.", path: ["placeId"] });
+  }
+
+  if (payload.targetType === "place_message" && !payload.placeMessageId && !payload.targetId) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Spot-message reports require placeMessageId.", path: ["placeMessageId"] });
   }
 });
 

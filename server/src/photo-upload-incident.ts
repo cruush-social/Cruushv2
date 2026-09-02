@@ -24,7 +24,7 @@ const USER_ACTIONABLE_CODES = new Set<ErrorCode>([
   "FORBIDDEN"
 ]);
 
-export type PhotoUploadSurface = "profile_photo" | "message_photo" | "favorite_image";
+export type PhotoUploadSurface = "profile_photo" | "message_photo" | "feed_photo" | "favorite_image";
 
 function newIncidentCode() {
   // Short enough to read over the phone or paste into an email, random enough

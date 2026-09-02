@@ -120,6 +120,65 @@ describe('MapPingSheet', () => {
       '15 miles',
     ]);
     expect(onRefresh).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('map-ping-sheet')).toHaveAttribute('data-window-mode', 'desktop-window');
+    expect(screen.getByTestId('map-ping-sheet')).toHaveClass('overflow-hidden');
+    expect(screen.getByTestId('map-ping-sheet-resize')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Send Pulse' }).closest('[data-slot="sheet-footer"]')).toHaveClass('shrink-0');
+  });
+
+  it('moves and resizes as a stable desktop window', async () => {
+    const dispatchPointer = (
+      target: Element,
+      type: 'pointerdown' | 'pointermove' | 'pointerup',
+      values: { button?: number; clientX: number; clientY: number; pointerId: number },
+    ) => {
+      const event = new Event(type, { bubbles: true, cancelable: true });
+      Object.defineProperties(event, {
+        button: { value: values.button ?? 0 },
+        clientX: { value: values.clientX },
+        clientY: { value: values.clientY },
+        pointerId: { value: values.pointerId },
+      });
+      fireEvent(target, event);
+    };
+
+    render(
+      <MapPingSheet
+        open
+        onOpenChange={vi.fn()}
+        status={availableStatus}
+        loading={false}
+        hasMapLocation
+        signal="At the park"
+        onRefresh={vi.fn().mockResolvedValue(undefined)}
+        onSend={vi.fn()}
+      />,
+    );
+
+    const sheet = await screen.findByTestId('map-ping-sheet');
+    const resizeHandle = screen.getByTestId('map-ping-sheet-resize');
+    Object.defineProperty(resizeHandle, 'setPointerCapture', { configurable: true, value: vi.fn() });
+    Object.defineProperty(resizeHandle, 'hasPointerCapture', { configurable: true, value: vi.fn().mockReturnValue(false) });
+    const startingWidth = Number.parseFloat(sheet.style.width);
+    const startingHeight = Number.parseFloat(sheet.style.height);
+    dispatchPointer(resizeHandle, 'pointerdown', { clientX: 600, clientY: 600, pointerId: 2 });
+    dispatchPointer(resizeHandle, 'pointermove', { clientX: 640, clientY: 560, pointerId: 2 });
+    dispatchPointer(resizeHandle, 'pointerup', { clientX: 640, clientY: 560, pointerId: 2 });
+
+    expect(Number.parseFloat(sheet.style.width)).toBe(startingWidth + 40);
+    expect(Number.parseFloat(sheet.style.height)).toBe(startingHeight - 40);
+
+    const moveHandle = screen.getByTestId('map-ping-sheet-handle');
+    Object.defineProperty(moveHandle, 'setPointerCapture', { configurable: true, value: vi.fn() });
+    Object.defineProperty(moveHandle, 'hasPointerCapture', { configurable: true, value: vi.fn().mockReturnValue(false) });
+    const startingLeft = Number.parseFloat(sheet.style.left);
+    const startingTop = Number.parseFloat(sheet.style.top);
+    dispatchPointer(moveHandle, 'pointerdown', { clientX: 200, clientY: 120, pointerId: 1 });
+    dispatchPointer(moveHandle, 'pointermove', { clientX: 240, clientY: 140, pointerId: 1 });
+    dispatchPointer(moveHandle, 'pointerup', { clientX: 240, clientY: 140, pointerId: 1 });
+
+    expect(Number.parseFloat(sheet.style.left)).toBe(startingLeft + 40);
+    expect(Number.parseFloat(sheet.style.top)).toBe(startingTop + 20);
   });
 
   it('links a basic member with no remaining Pings to cruush+', () => {

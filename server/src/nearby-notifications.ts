@@ -15,6 +15,7 @@ const NEARBY_NOTIFICATION_RADIUS_MILES = 5;
 const NEARBY_NOTIFICATION_RECIPIENT_WINDOW_MS = 4 * 24 * 60 * 60 * 1000;
 
 type NearbyNotificationSourceRow = {
+  tags: string[] | null;
   year_of_birth: number | null;
   identities: string[] | null;
   presentation: string[] | null;
@@ -92,6 +93,7 @@ function toVisibilitySubject(
   const sensitiveProfile = decryptSensitiveProfile(app.config, row);
 
   return {
+    tags: row.tags ?? [],
     year_of_birth: row.year_of_birth,
     identities: row.identities ?? [],
     presentations: row.presentation ?? [],
@@ -122,6 +124,7 @@ function recipientRules(app: FastifyInstance, row: NearbyNotificationRecipientRo
 async function loadSourceProfile(app: FastifyInstance, sourceUserId: string) {
   const result = await app.db.query<NearbyNotificationSourceRow>(
     `select
+       tags,
        year_of_birth,
        identities,
        presentation,

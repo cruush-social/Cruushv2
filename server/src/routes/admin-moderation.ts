@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { z } from "zod";
 import { normalizeAccountStatus, type AccountStatus } from "../account-status.js";
+import { listBetaCityRequests } from "../beta-city-requests.js";
 import { decryptTextContentOrFallback } from "../content-encryption.js";
 import type { DbClient } from "../db.js";
 import { ApiError } from "../errors.js";
@@ -16,6 +17,7 @@ import {
   getPendingProfilePhotoReviewImage,
   rejectPendingProfilePhotoReview
 } from "../profile-photo-manual-reviews.js";
+import { getTravelPin } from "../travel-pins.js";
 
 const reportParamsSchema = z.object({ reportId: uuidSchema }).strict();
 const userParamsSchema = z.object({ userId: uuidSchema }).strict();
@@ -92,6 +94,11 @@ const supportRequestStatusSchema = z.object({
 
 const adminNotificationListQuerySchema = z.object({
   filter: z.enum(["all", "unread"]).optional().default("all"),
+  limit: z.coerce.number().int().min(1).max(100).optional().default(25),
+  offset: z.coerce.number().int().min(0).optional().default(0)
+}).strict();
+
+const betaCityRequestListQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).optional().default(25),
   offset: z.coerce.number().int().min(0).optional().default(0)
 }).strict();
@@ -1339,6 +1346,21 @@ export async function registerAdminModerationRoutes(app: FastifyInstance) {
     return reply.send({ data: { request: mapSupportRequestRow(row, moderator.role) } });
   });
 
+  app.get("/api/admin/moderation/beta-city-requests", async (request, reply) => {
+    const moderator = await getModeratorUser(request);
+    if (moderator.role !== "admin") {
+      throw new ApiError(403, "FORBIDDEN", "Admin access required.");
+    }
+    const query = betaCityRequestListQuerySchema.parse(request.query);
+    await app.rateLimiter.assert({
+      key: `beta-city-request-list:${moderator.userId}`,
+      max: 30,
+      windowMs: 60 * 1000,
+      message: "Too many request-list refreshes. Try again later."
+    });
+    return reply.send({ data: await listBetaCityRequests(app, query) });
+  });
+
   app.get("/api/admin/moderation/notifications", async (request, reply) => {
     const moderator = await getModeratorUser(request);
     const query = adminNotificationListQuerySchema.parse(request.query);
@@ -1834,7 +1856,7 @@ export async function registerAdminModerationRoutes(app: FastifyInstance) {
     const row = result.rows[0];
     if (!row) throw new ApiError(404, "NOT_FOUND", "User not found.");
 
-    const [history, reports] = await Promise.all([
+    const [history, reports, travelPin] = await Promise.all([
       app.db.query<ModerationHistoryRow>(
         `select action.id::text as id, action.action, action.reason_code, action.notes,
                 action.created_at,
@@ -1851,7 +1873,8 @@ export async function registerAdminModerationRoutes(app: FastifyInstance) {
         `${reportSelectSql("where reports.target_user_id = $1")}
          order by reports.created_at desc limit 25`,
         [userId]
-      )
+      ),
+      getTravelPin(app, userId)
     ]);
 
     await recordModeratorAccess(app.db, {
@@ -1871,7 +1894,15 @@ export async function registerAdminModerationRoutes(app: FastifyInstance) {
           actorDisplayName: historyRow.actor_display_name?.trim() || "former moderator",
           createdAt: new Date(historyRow.created_at).toISOString()
         })),
-        reports: reports.rows.map(mapReportRow)
+        reports: reports.rows.map(mapReportRow),
+        mileHighClubPin: travelPin
+          ? {
+              label: travelPin.label,
+              setAt: new Date(travelPin.setAtMs).toISOString(),
+              movableAt: new Date(travelPin.movableAtMs).toISOString(),
+              expiresAt: new Date(travelPin.expiresAtMs).toISOString()
+            }
+          : null
       }
     });
   });

@@ -44,4 +44,17 @@ describe('openConversationOrInbox', () => {
 
     alertSpy.mockRestore();
   });
+
+  it('marks a conversation opened from a profile with its return origin', async () => {
+    const navigate = vi.fn();
+    openDirectConversation.mockResolvedValue({ id: 'conversation-1' });
+
+    await expect(
+      openConversationOrInbox(navigate, 'user-1', undefined, 'profile'),
+    ).resolves.toBe('conversation-1');
+
+    expect(navigate).toHaveBeenCalledWith('/chat/conversation-1', {
+      state: { conversationOrigin: 'profile' },
+    });
+  });
 });
