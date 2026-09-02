@@ -628,8 +628,8 @@
 }
 
 .launch-login-auth-consent {
-  width: min(100%, 22rem);
-  text-wrap: balance;
+  width: min(calc(100% - 1.5rem), 36rem);
+  text-wrap: pretty;
 }
 
 @media (min-width: 641px) {
