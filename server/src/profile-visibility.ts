@@ -26,6 +26,9 @@ export type VisibilitySubjectProfile = {
   roles?: string[] | null;
   kinks?: string[] | null;
   body_types?: string[] | null;
+  body_hair?: string[] | null;
+  pubic_hair?: string[] | null;
+  facial_hair?: string[] | null;
   sexuality?: string[] | null;
   substance_boundaries?: string[] | null;
   protection_boundaries?: string[] | null;
@@ -88,6 +91,9 @@ function matchesSearchQuery(searchQuery: string, subject: VisibilitySubjectProfi
     ...(subject.roles ?? []),
     ...(subject.kinks ?? []),
     ...(subject.body_types ?? []),
+    ...(subject.body_hair ?? []),
+    ...(subject.pubic_hair ?? []),
+    ...(subject.facial_hair ?? []),
     ...(subject.sexuality ?? []),
     ...(subject.substance_boundaries ?? []),
     ...(subject.protection_boundaries ?? []),
@@ -140,6 +146,9 @@ function normalizeVisibilityRules(rules: ProfileVisibilityRules): ProfileVisibil
     roles: rules.roles ?? [],
     kinks: rules.kinks ?? [],
     body_types: rules.body_types ?? [],
+    body_hair: rules.body_hair ?? [],
+    pubic_hair: rules.pubic_hair ?? [],
+    facial_hair: rules.facial_hair ?? [],
     sexuality: rules.sexuality ?? [],
     substance_boundaries: rules.substance_boundaries ?? [],
     protection_boundaries: rules.protection_boundaries ?? []
@@ -171,6 +180,9 @@ export function visibilityRulesArePublic(rules: ProfileVisibilityRules | null | 
     normalizedRules.roles.length === 0 &&
     normalizedRules.kinks.length === 0 &&
     normalizedRules.body_types.length === 0 &&
+    normalizedRules.body_hair.length === 0 &&
+    normalizedRules.pubic_hair.length === 0 &&
+    normalizedRules.facial_hair.length === 0 &&
     normalizedRules.sexuality.length === 0 &&
     normalizedRules.substance_boundaries.length === 0 &&
     normalizedRules.protection_boundaries.length === 0;
@@ -201,6 +213,9 @@ export function countVisibilityExclusionFilters(rules: ProfileVisibilityRules | 
     normalizedRules.roles.length > 0,
     normalizedRules.kinks.length > 0,
     normalizedRules.body_types.length > 0,
+    normalizedRules.body_hair.length > 0,
+    normalizedRules.pubic_hair.length > 0,
+    normalizedRules.facial_hair.length > 0,
     normalizedRules.sexuality.length > 0,
     normalizedRules.substance_boundaries.length > 0,
     normalizedRules.protection_boundaries.length > 0
@@ -266,6 +281,9 @@ export function canSubjectViewProfile(
     excludesAny(normalizedRules.roles, subject.roles) &&
     excludesAny(normalizedRules.kinks, subject.kinks) &&
     excludesAny(normalizedRules.body_types, subject.body_types) &&
+    excludesAny(normalizedRules.body_hair, subject.body_hair) &&
+    excludesAny(normalizedRules.pubic_hair, subject.pubic_hair) &&
+    excludesAny(normalizedRules.facial_hair, subject.facial_hair) &&
     excludesAny(normalizedRules.sexuality, subject.sexuality) &&
     excludesAny(normalizedRules.substance_boundaries, subject.substance_boundaries) &&
     excludesAny(normalizedRules.protection_boundaries, subject.protection_boundaries);
