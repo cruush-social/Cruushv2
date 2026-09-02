@@ -167,7 +167,10 @@ export async function getSideQuestPingBalance(db: DbClient, userId: string) {
     const row = (await db.query<{ balance: number | string }>(
       `select greatest(
          (select coalesce(sum(reward_amount), 0) from side_quest_claims where user_id = $1 and reward_kind = 'ping')
-         - (select count(*) from map_pings where user_id = $1 and coalesce((to_jsonb(map_pings)->>'bonus_credit_used')::boolean, false) = true),
+         - (
+           (select count(*) from map_pings where user_id = $1 and coalesce((to_jsonb(map_pings)->>'bonus_credit_used')::boolean, false) = true)
+           + (select count(*) from group_pulses where sender_user_id = $1 and bonus_credit_used = true)
+         ),
          0
        )::int as balance`,
       [userId]

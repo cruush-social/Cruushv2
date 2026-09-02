@@ -17,6 +17,7 @@ import { photoUploadAvailability } from "../photo-upload-availability.js";
 import { ApiError } from "../errors.js";
 import { assertCanSendNsfwMessagePhoto, assertCanStartDirectMessage, canStartDirectMessage } from "../cruush-match-settings.js";
 import { getRelationshipPermissions, type RelationshipPermissions } from "../match-relationships.js";
+import { createGroupPulse } from "../map-pings.js";
 import { createAppNotificationAndPush } from "../notification-service.js";
 import {
   conversationTimerSchema,
@@ -57,6 +58,10 @@ const updateConversationTimerPayloadSchema = z.object({
 const groupMemberParamsSchema = z.object({
   conversationId: z.uuid(),
   targetUserId: z.uuid()
+}).strict();
+
+const groupPulsePayloadSchema = z.object({
+  idempotencyKey: z.uuid()
 }).strict();
 
 const adminRoles = new Set(["owner", "admin"]);
@@ -1253,6 +1258,27 @@ export async function registerMessageRoutes(app: FastifyInstance) {
         joinedAt: new Date(row.joined_at).toISOString()
       }))
     });
+  });
+
+  app.post("/api/conversations/groups/:conversationId/pulse", async (request, reply) => {
+    const userId = await getActiveAccountUserId(request);
+    const { conversationId } = conversationParamsSchema.parse(request.params);
+    const payload = groupPulsePayloadSchema.parse(request.body);
+
+    await app.rateLimiter.assert({
+      key: `group-pulses:create:${userId}`,
+      max: 5,
+      windowMs: 60_000,
+      message: "Too many Pulse attempts. Try again shortly."
+    });
+
+    const status = await createGroupPulse(app, {
+      userId,
+      conversationId,
+      idempotencyKey: payload.idempotencyKey
+    });
+
+    return reply.code(201).send({ data: status });
   });
 
   app.get("/api/conversations", async (request, reply) => {

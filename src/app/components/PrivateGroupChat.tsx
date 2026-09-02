@@ -29,6 +29,7 @@ import {
   removeFavoriteMessageImage,
   promoteGroupAdmin,
   removeGroupMember,
+  sendGroupPulse,
   sendFavoriteMessageImage,
   setConversationDisappearingTimer,
   type ChatMessageRecord,
@@ -51,6 +52,7 @@ import { addDlModeChangedListener, isDlModeEnabled, shouldMaskPhoto } from '../l
 import { MESSAGE_PHOTO_UPLOAD_ACCEPT, prepareMessagePhotoForUpload } from '../lib/messagePhotoProcessing';
 import { getProfileGradientCss } from '../lib/profileGradient';
 import DlModeMark from './DlModeMark';
+import PulseLedIcon from './PulseLedIcon';
 
 const timerOptions: Array<{ value: ConversationTimer; label: string }> = [
   { value: 'off', label: 'Off' },
@@ -280,6 +282,8 @@ export default function PrivateGroupChat({
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [groupMembers, setGroupMembers] = useState<GroupMemberRecord[]>([]);
   const [groupMembersLoading, setGroupMembersLoading] = useState(false);
+  const [groupPulseSending, setGroupPulseSending] = useState(false);
+  const [groupPulseNotice, setGroupPulseNotice] = useState('');
   const [groupTitleDraft, setGroupTitleDraft] = useState('');
   const [mutualOptions, setMutualOptions] = useState<MutualCruushActivityItem[]>([]);
   const [addMemberId, setAddMemberId] = useState('');
@@ -720,6 +724,28 @@ export default function PrivateGroupChat({
       setError(error instanceof Error ? error.message : 'Failed to add member.');
     } finally {
       setSettingsSaving(false);
+    }
+  };
+
+  const handleGroupPulse = async () => {
+    if (!conversation || conversation.kind !== 'group' || !canManageConversation || conversation.closed) {
+      return;
+    }
+
+    setGroupPulseSending(true);
+    setGroupPulseNotice('');
+    setError(null);
+
+    try {
+      const status = await sendGroupPulse(conversation.id);
+      const remaining = status.allowance.remaining;
+      setGroupPulseNotice(typeof remaining === 'number'
+        ? `Group Pulse sent. ${remaining} of ${status.allowance.limit} Pulses remain.`
+        : 'Group Pulse sent.');
+    } catch (pulseError) {
+      setError(pulseError instanceof Error ? pulseError.message : 'Group Pulse could not be sent.');
+    } finally {
+      setGroupPulseSending(false);
     }
   };
 
@@ -1170,6 +1196,25 @@ export default function PrivateGroupChat({
                       >
                         Add
                       </Button>
+                    </div>
+
+                    <div className="rounded-2xl border border-[#c8ff31]/35 bg-black/45 p-3">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full justify-center border-[#c8ff31]/60 text-white hover:border-[#c8ff31] hover:bg-[#c8ff31]/10 hover:text-white"
+                        disabled={groupPulseSending || conversation.closed}
+                        onClick={() => void handleGroupPulse()}
+                      >
+                        <PulseLedIcon className="size-5 text-[#c8ff31]" />
+                        {groupPulseSending ? 'Sending Pulse...' : 'Pulse group'}
+                      </Button>
+                      <p className="mt-2 text-xs leading-snug text-muted-foreground">
+                        Uses one of your Pulses. Members receive it only when Pulse alerts are on and repeat limits allow it.
+                      </p>
+                      {groupPulseNotice ? (
+                        <p aria-live="polite" className="mt-2 text-xs text-[#c8ff31]">{groupPulseNotice}</p>
+                      ) : null}
                     </div>
                   </>
                 ) : null}

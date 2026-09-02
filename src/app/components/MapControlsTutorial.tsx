@@ -110,7 +110,7 @@ const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'ping',
     title: 'Pulse',
-    description: 'Pulse makes your heart beat for 30 minutes inside the radius you choose and posts your saved profile signal to Feed without moving your pin. Optional phone alerts go only to eligible mutuals. A person receives at most one Pulse alert every 4 hours and never more than one from the same sender per day. Basic includes 1 Pulse per day. cruush+ includes 5 per day.',
+    description: 'Pulse makes your heart beat for 30 minutes inside the radius you choose and posts your saved profile signal to Feed without moving your pin. Optional phone alerts go only to eligible mutuals. A person receives at most one Pulse alert every 4 hours and never more than one from the same sender per day. Basic includes 1 Pulse per day. cruush+ includes 5 per day. Group owners and admins can spend one of their own Pulses to alert their group.',
     actionLabel: 'Open Pulse',
   },
   {

@@ -11,7 +11,7 @@ const changelogReleases = [
       'Find Spots by vibe and amenities, see who is there, and read their Pink Book while checked in.',
       'Spot check-ins expire. Pink Book posts stay until their author deletes them.',
       'Post text to Feed for free, search #tags, and add up to three photos with cruush+.',
-      'cruush+ includes 5 Pulses per day, with optional alerts protected from repeats.',
+      'cruush+ includes 5 Pulses per day, with optional alerts protected from repeats; group admins can spend their own Pulse to alert the group.',
       'Complete Side Quests to earn bonus Pings and cruush+ days.',
       'Ghost Mode keeps its familiar animation with the new 1.6 icon, while Dark Room adds a private way to browse.',
       'Profiles, messages, map controls, loading states, and mobile layouts feel faster and clearer.',

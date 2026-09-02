@@ -1,6 +1,7 @@
 import { requestApi } from './apiClient';
 import { ApiClientError, getApiBaseUrl } from './apiClient';
 import type { SideBadges } from './profileApi';
+import type { MapPingStatus } from './mapPingsApi';
 
 export type ConversationTimer = 'off' | '1h' | '24h' | '7d' | '30d';
 
@@ -187,6 +188,16 @@ export function demoteGroupAdmin(conversationId: string, userId: string) {
 export function closeGroupConversation(conversationId: string) {
   return requestApi<void>(`/api/conversations/groups/${conversationId}/close`, {
     method: 'POST',
+  });
+}
+
+export function sendGroupPulse(
+  conversationId: string,
+  idempotencyKey = crypto.randomUUID(),
+) {
+  return requestApi<MapPingStatus>(`/api/conversations/groups/${conversationId}/pulse`, {
+    method: 'POST',
+    body: JSON.stringify({ idempotencyKey }),
   });
 }
 
