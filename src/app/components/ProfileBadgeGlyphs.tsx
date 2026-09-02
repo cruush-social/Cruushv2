@@ -20,7 +20,6 @@ import { KINK_GROUPS, VIBE_GROUPS } from '../lib/profileOptions';
 import {
   CyborgGlyph,
   LeatherGlyph,
-  LipsGlyph,
   NeurodivergentGlyph,
   PartyHatGlyph,
   RaveGlyph,
@@ -46,7 +45,6 @@ const PROFILE_BADGE_FALLBACK_ICONS: Record<ProfileBadgeGroup, Record<string, Pro
   },
   Kinks: {
     'Body & Touch': HeartHandshake,
-    Acts: LipsGlyph,
     Power: Hammer,
     'Bondage & Sensation': Feather,
     Gear: Shirt,

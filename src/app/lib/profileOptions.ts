@@ -350,7 +350,6 @@ export const KINK_CATALOG = [
   { id: 'knife-play', label: 'knife play', category: 'Edge' },
   { id: 'needles', label: 'needles', category: 'Edge' },
   { id: 'rope-suspension', label: 'rope suspension', category: 'Edge' },
-  { id: 'tit-torture', label: 'tit torture', category: 'Edge' },
   { id: 'small-penis-humiliation', label: 'small penis humiliation', category: 'Power' },
   { id: 'chastity-keyholding', label: 'chastity keyholding', category: 'Power' },
   { id: 'breeding', label: 'breeding', category: 'Body & Touch' },
