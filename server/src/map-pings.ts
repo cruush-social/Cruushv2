@@ -40,7 +40,8 @@ export type MapPingRadiusMiles = typeof MAP_PING_RADIUS_MILES[number];
 
 export const MAP_PING_ACTIVE_MS = 30 * 60 * 1000;
 export const MAP_PING_WINDOW_MS = 24 * 60 * 60 * 1000;
-export const MAP_PING_PLUS_COOLDOWN_MS = 3 * 60 * 60 * 1000;
+export const MAP_PING_BASIC_DAILY_LIMIT = 1;
+export const MAP_PING_PLUS_DAILY_LIMIT = 5;
 export const MAP_PING_SENDER_LOCATION_MAX_AGE_MS = 15 * 60 * 1000;
 export const MAP_PING_RECIPIENT_LOCATION_MAX_AGE_MS = 60 * 60 * 1000;
 const MAP_PING_LOCATION_FUTURE_TOLERANCE_MS = 5 * 60 * 1000;
@@ -186,8 +187,8 @@ function buildAllowance(
   now: Date
 ) {
   const nowMs = now.getTime();
-  const unlimited = entitlement.cruushPlus;
-  const limit = unlimited ? null : 1;
+  const unlimited = false;
+  const limit = entitlement.cruushPlus ? MAP_PING_PLUS_DAILY_LIMIT : MAP_PING_BASIC_DAILY_LIMIT;
   const timestamps = createdAtValues
     .map(toTimestamp)
     .filter((timestamp) => Number.isFinite(timestamp) && timestamp > nowMs - MAP_PING_WINDOW_MS)
@@ -201,13 +202,6 @@ function buildAllowance(
     if (limitingTimestamp != null) {
       nextEligibleMs = Math.max(nextEligibleMs, limitingTimestamp + MAP_PING_WINDOW_MS);
     }
-  }
-
-  if (entitlement.cruushPlus && timestamps.length > 0) {
-    nextEligibleMs = Math.max(
-      nextEligibleMs,
-      timestamps[timestamps.length - 1]! + MAP_PING_PLUS_COOLDOWN_MS
-    );
   }
 
   return {

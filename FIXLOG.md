@@ -22,3 +22,4 @@
 - 2026-09-02: Stream `Flag` no longer rejects harassment-only text. Content publishes while its sexual-harassment label remains flagged for moderator review; mixed threats still reject. Regression coverage: `server/src/policy-mapper.test.ts` and `server/src/moderation-service.test.ts`.
 - 2026-09-02: A valid suspended-account sign-in now opens a dedicated suspended screen with logout and the reason-appropriate public appeal link instead of returning the generic sign-in error.
 - 2026-09-02: Color-blind mode now remaps shared brand, relationship, Pulse, Mile High Club, Dark Room, destructive, chart, focus, badge, selected-navigation, SVG, and logo colors while leaving member photos and map tiles unchanged.
+- 2026-09-02: cruush+ Pulse allowance is now 5 per rolling day without a sender cooldown. Optional recipient alerts retain the 4-hour interruption cap and same-sender daily deduplication.

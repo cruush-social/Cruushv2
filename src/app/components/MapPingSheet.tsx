@@ -255,9 +255,6 @@ export default function MapPingSheet({
     }
 
     if (status) {
-      if (status.allowance.unlimited) {
-        return 'Unlimited Pulses with a 3-hour cooldown.';
-      }
       return `${status.allowance.remaining} of ${status.allowance.limit} Pulses available right now.`;
     }
 
@@ -451,7 +448,7 @@ export default function MapPingSheet({
             <div className="min-w-0 space-y-0.5">
               <p className="text-sm font-medium text-white">Your heart beats for 30 minutes</p>
               <p className="text-xs leading-snug text-white/62">
-                Eligible people inside your radius see it beat, your saved signal posts to Feed, and your pin does not move. Phone alerts go only to mutuals, with no repeat alert from you to the same person for 24 hours.
+                Eligible people inside your radius see it beat, your saved signal posts to Feed, and your pin does not move. Optional phone alerts go only to mutuals. A person gets at most one Pulse alert every 4 hours and never more than one from you per day.
               </p>
             </div>
           </div>

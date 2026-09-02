@@ -68,7 +68,7 @@ const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'cruush-plus',
     title: 'cruush+',
-    description: 'cruush+ unlocks full activity, unlimited Pulses with a 3-hour cooldown, Mile High Club, photo hearts and more controls in Feed+, the Cruise Carousel, all Seeking and Visibility controls, up to 10 profile tags, and Dark Room.',
+    description: 'cruush+ unlocks full activity, 5 Pulses per day, Mile High Club, photo hearts and more controls in Feed+, the Cruise Carousel, all Seeking and Visibility controls, up to 10 profile tags, and Dark Room.',
     actionLabel: 'Open cruush+',
   },
   {
@@ -110,7 +110,7 @@ const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'ping',
     title: 'Pulse',
-    description: 'Pulse makes your heart beat for 30 minutes inside the radius you choose and posts your saved profile signal to Feed without moving your pin. Phone alerts go only to eligible mutuals, and the same person will not receive another Pulse alert from you for 24 hours. Basic includes one Pulse every 24 hours. cruush+ includes unlimited Pulses with a 3-hour cooldown.',
+    description: 'Pulse makes your heart beat for 30 minutes inside the radius you choose and posts your saved profile signal to Feed without moving your pin. Optional phone alerts go only to eligible mutuals. A person receives at most one Pulse alert every 4 hours and never more than one from the same sender per day. Basic includes 1 Pulse per day. cruush+ includes 5 per day.',
     actionLabel: 'Open Pulse',
   },
   {
