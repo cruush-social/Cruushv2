@@ -33,6 +33,7 @@ import {
 } from './PrideFlagGlyphs';
 import { positionGlyphFor, roleGlyphFor } from './PositionRoleGlyphs';
 import { USER_BORDER_COLORS, type UserBorderTone } from '../lib/userBorderTone';
+import { resolveSavedProfileBadge } from './ProfileBadgeGlyphs';
 
 export type SideBadgeTone = UserBorderTone;
 
@@ -98,17 +99,18 @@ function SavedSideBadge({ badge, side, tone }: {
   side: 'left' | 'right';
   tone: SideBadgeTone;
 }) {
-  const Glyph = badge.kind === 'role'
+  const profileBadge = resolveSavedProfileBadge(badge.badgeId ?? '');
+  const Glyph = profileBadge?.icon ?? (badge.kind === 'role'
     ? roleGlyphFor(badge.iconName)
     : badge.kind === 'position'
       ? positionGlyphFor(badge.iconName)
-      : SAVED_CUSTOM_GLYPHS[badge.badgeId ?? ''] ?? Sparkles;
+      : SAVED_CUSTOM_GLYPHS[badge.badgeId ?? ''] ?? Sparkles);
   const hanky = badge.badgeId?.startsWith('hanky ')
     ? HANKY_COLORS.find((color) => `hanky ${color.id.replace(/-/g, ' ')}` === badge.badgeId)
     : undefined;
   const label = hanky
     ? formatBadgeLabel(hanky.meaning, badge.intent ?? 'none')
-    : formatBadgeLabel(badge.label, badge.intent ?? 'none');
+    : formatBadgeLabel(profileBadge?.label ?? badge.label, badge.intent ?? 'none');
   const borderColor = USER_BORDER_COLORS[tone];
 
   return (

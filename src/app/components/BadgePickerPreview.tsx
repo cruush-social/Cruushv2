@@ -78,14 +78,12 @@ import {
   Dumbbell,
   Footprints,
   Medal,
-  MessageCircleQuestion,
   Minus,
   Moon,
   PenTool,
   Pin,
   Recycle,
   Scissors,
-  Shirt,
   Sparkles,
   ThumbsDown,
   HeartHandshake,
@@ -157,6 +155,7 @@ import { BADGE_INTENTS, formatBadgeLabel, type BadgeIntent } from '../lib/badgeI
 import { useIsMobile } from './ui/use-mobile';
 import { KINK_GROUPS, VIBE_GROUPS } from '../lib/profileOptions';
 import { Button } from './ui/button';
+import { profileBadgeCategory, profileBadgeGlyph, type ProfileBadgeGroup } from './ProfileBadgeGlyphs';
 import {
   BadgeFrame,
   BadgeHoverLabel,
@@ -345,60 +344,16 @@ export const BADGE_OPTIONS: BadgeOption[] = [
   ...HANKY_BADGE_OPTIONS,
 ];
 
-type ProfileBadgeGroup = 'Vibes' | 'Kinks';
-
 const PROFILE_BADGE_GROUPS = {
   Vibes: VIBE_GROUPS,
   Kinks: KINK_GROUPS,
 } as const;
-
-const PROFILE_BADGE_FALLBACK_ICONS: Record<ProfileBadgeGroup, Record<string, BadgeOption['icon']>> = {
-  Vibes: {
-    Style: Sparkles,
-    Energy: Zap,
-    Scenes: Drama,
-    Archetypes: Crown,
-    Identity: CircleDot,
-    Other: Sparkles,
-  },
-  Kinks: {
-    'Body & Touch': HeartHandshake,
-    Acts: LipsGlyph,
-    Power: Hammer,
-    'Bondage & Sensation': Feather,
-    Gear: Shirt,
-    Roleplay: Drama,
-    Group: UsersRound,
-    'Public & Watching': Eye,
-    Toys: Wand2,
-    Edge: MessageCircleQuestion,
-    Other: Sparkles,
-  },
-};
-
-const PROFILE_BADGE_VALUE_ICONS: Record<string, BadgeOption['icon']> = {
-  leather: LeatherGlyph,
-  rubber: RubberGlyph,
-  neurodivergent: NeurodivergentGlyph,
-  raver: RaveGlyph,
-  techie: Cable,
-  cyborg: CyborgGlyph,
-  party: PartyHatGlyph,
-  'newly out': DoorOpen,
-};
 
 function normalizeProfileBadgeValue(value: string) {
   return value.trim().toLowerCase();
 }
 function profileBadgeId(group: ProfileBadgeGroup, value: string) {
   return `${group.toLowerCase()}-${normalizeProfileBadgeValue(value).replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`;
-}
-
-function profileBadgeCategory(group: ProfileBadgeGroup, value: string) {
-  const normalized = normalizeProfileBadgeValue(value);
-  return PROFILE_BADGE_GROUPS[group].find((category) => (
-    category.options.some((option) => normalizeProfileBadgeValue(option) === normalized)
-  ))?.label ?? 'Other';
 }
 
 export function buildProfileBadgeOptions(group: ProfileBadgeGroup, values: string[] = []) {
@@ -415,7 +370,7 @@ export function buildProfileBadgeOptions(group: ProfileBadgeGroup, values: strin
       : {
           id: profileBadgeId(group, value),
           label: `${value.charAt(0).toUpperCase()}${value.slice(1)}`,
-          icon: PROFILE_BADGE_VALUE_ICONS[normalized] ?? PROFILE_BADGE_FALLBACK_ICONS[group][category] ?? Sparkles,
+          icon: profileBadgeGlyph(group, value, category),
           group,
           category,
         };
