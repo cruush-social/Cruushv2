@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useId, type ReactNode } from 'react';
 
 type FlagGlyphProps = {
   className?: string;
@@ -11,18 +11,19 @@ type StripeFlagProps = FlagGlyphProps & {
 
 function StripeFlag({ children, className, colors }: StripeFlagProps) {
   const stripeHeight = 24 / colors.length;
+  const clipId = `pride-flag-rounding-${useId().replace(/:/g, '')}`;
   return (
     <svg aria-hidden="true" className={className} viewBox="0 0 24 24">
       <defs>
-        <clipPath id="pride-flag-rounding">
+        <clipPath id={clipId}>
           <circle cx="12" cy="12" r="11.5" />
         </clipPath>
       </defs>
-      <g clipPath="url(#pride-flag-rounding)">
+      <g clipPath={`url(#${clipId})`}>
         {colors.map((color, index) => (
           <rect fill={color} height={stripeHeight + 0.08} key={`${color}-${index}`} width="24" x="0" y={index * stripeHeight} />
         ))}
-        <g transform="scale(.857142857 1.2)">{children}</g>
+        {children}
       </g>
       <circle cx="12" cy="12" fill="none" r="11.5" stroke="currentColor" strokeOpacity="0.7" />
     </svg>
@@ -53,7 +54,7 @@ export const OmnisexualFlagGlyph = makeStripeFlag(['#FF9ACE', '#FF53BF', '#20004
 export function IntersexFlagGlyph({ className }: FlagGlyphProps) {
   return (
     <StripeFlag className={className} colors={['#FFD800']}>
-      <circle cx="14" cy="10" fill="none" r="4.2" stroke="#7902AA" strokeWidth="2.2" />
+      <circle cx="12" cy="12" fill="none" r="4.5" stroke="#7902AA" strokeWidth="2.2" />
     </StripeFlag>
   );
 }
@@ -61,7 +62,7 @@ export function IntersexFlagGlyph({ className }: FlagGlyphProps) {
 export function DemisexualFlagGlyph({ className }: FlagGlyphProps) {
   return (
     <StripeFlag className={className} colors={['#FFFFFF', '#FFFFFF', '#6E0071', '#A4A4A4']}>
-      <path d="M0 0 10 10 0 20Z" fill="#000000" />
+      <path d="M0 0 12 12 0 24Z" fill="#000000" />
     </StripeFlag>
   );
 }
@@ -69,7 +70,7 @@ export function DemisexualFlagGlyph({ className }: FlagGlyphProps) {
 export function DemiromanticFlagGlyph({ className }: FlagGlyphProps) {
   return (
     <StripeFlag className={className} colors={['#FFFFFF', '#FFFFFF', '#3DA542', '#A9A9A9']}>
-      <path d="M0 0 10 10 0 20Z" fill="#000000" />
+      <path d="M0 0 12 12 0 24Z" fill="#000000" />
     </StripeFlag>
   );
 }
@@ -77,11 +78,11 @@ export function DemiromanticFlagGlyph({ className }: FlagGlyphProps) {
 export function ProgressPrideFlagGlyph({ className }: FlagGlyphProps) {
   return (
     <StripeFlag className={className} colors={['#E40303', '#FF8C00', '#FFED00', '#008026', '#004DFF', '#750787']}>
-      <path d="M0 0 12 10 0 20Z" fill="#000000" />
-      <path d="M0 0 10 10 0 20Z" fill="#613915" />
-      <path d="M0 0 8 10 0 20Z" fill="#5BCEFA" />
-      <path d="M0 0 6 10 0 20Z" fill="#F5A9B8" />
-      <path d="M0 0 4 10 0 20Z" fill="#FFFFFF" />
+      <path d="M0 0 14 12 0 24Z" fill="#000000" />
+      <path d="M0 0 11.5 12 0 24Z" fill="#613915" />
+      <path d="M0 0 9 12 0 24Z" fill="#5BCEFA" />
+      <path d="M0 0 6.5 12 0 24Z" fill="#F5A9B8" />
+      <path d="M0 0 4 12 0 24Z" fill="#FFFFFF" />
     </StripeFlag>
   );
 }
@@ -123,12 +124,12 @@ export function BearPawGlyph({ className }: FlagGlyphProps) {
 export function PupFlagGlyph({ className }: FlagGlyphProps) {
   return (
     <StripeFlag className={className} colors={['#111111', '#1A2D50', '#FFFFFF', '#1A2D50', '#111111']}>
-      <g fill="#D51D2F" transform="rotate(-9 14 10)">
-        <rect height="3.8" rx="1.9" width="15" x="6.5" y="8.1" />
-        <circle cx="6.4" cy="7.5" r="2.15" />
-        <circle cx="6.4" cy="12.5" r="2.15" />
-        <circle cx="21.6" cy="7.5" r="2.15" />
-        <circle cx="21.6" cy="12.5" r="2.15" />
+      <g fill="#D51D2F" transform="rotate(-9 12 12)">
+        <rect height="3.8" rx="1.9" width="15" x="4.5" y="10.1" />
+        <circle cx="4.6" cy="9.5" r="2.15" />
+        <circle cx="4.6" cy="14.5" r="2.15" />
+        <circle cx="19.4" cy="9.5" r="2.15" />
+        <circle cx="19.4" cy="14.5" r="2.15" />
       </g>
     </StripeFlag>
   );
@@ -137,7 +138,7 @@ export function PupFlagGlyph({ className }: FlagGlyphProps) {
 export function AllyFlagGlyph({ className }: FlagGlyphProps) {
   return (
     <StripeFlag className={className} colors={['#000000', '#FFFFFF', '#000000', '#FFFFFF', '#000000', '#FFFFFF']}>
-      <path d="M6 18 14 2l8 16h-4.2L14 10.5 10.2 18Z" fill="url(#ally-rainbow)" />
+      <path d="M4 20 12 3l8 17h-4.2L12 11.2 8.2 20Z" fill="url(#ally-rainbow)" />
       <defs>
         <linearGradient id="ally-rainbow" x1="0" x2="0" y1="0" y2="1">
           <stop offset="0" stopColor="#E40303" />

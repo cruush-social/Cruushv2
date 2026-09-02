@@ -54,6 +54,7 @@ type FrameProps = {
   className?: string;
   /** The badge itself, drawn inside the frame at its own scale. */
   children?: React.ReactNode;
+  contentScalePercent?: number;
   fillColor?: string;
   gradientStops?: readonly [string, string, string];
   hankyColor?: string;
@@ -169,6 +170,7 @@ function badgeGlyphScalePercent(frame: BadgeFrameId) {
 export function BadgeFrame({
   className,
   children,
+  contentScalePercent,
   fillColor = '#05050A',
   frame = 'plain',
   gradientStops,
@@ -246,8 +248,8 @@ export function BadgeFrame({
         <span
           className="relative flex items-center justify-center"
           style={{
-            width: `${badgeGlyphScalePercent(resolvedFrame)}%`,
-            height: `${badgeGlyphScalePercent(resolvedFrame)}%`,
+            width: `${contentScalePercent ?? badgeGlyphScalePercent(resolvedFrame)}%`,
+            height: `${contentScalePercent ?? badgeGlyphScalePercent(resolvedFrame)}%`,
             transform: resolvedFrame === 'heart' ? 'translateY(10%)' : undefined,
           }}
         >

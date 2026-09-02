@@ -221,11 +221,15 @@ const SAVED_CUSTOM_GLYPHS: Record<string, SavedBadgeGlyph> = {
 
 export function resolveSavedBadgeGlyph(badgeId: string) {
   const profileBadge = resolveSavedProfileBadge(badgeId);
-  if (profileBadge) return profileBadge;
+  if (profileBadge) return { ...profileBadge, fillsFrame: false };
 
   const icon = roleGlyphFor(badgeId)
     ?? positionGlyphFor(badgeId)
     ?? SAVED_CUSTOM_GLYPHS[badgeId]
     ?? Sparkles;
-  return { icon, label: null };
+  return {
+    icon,
+    label: null,
+    fillsFrame: badgeId.trim().toLowerCase().replace(/[-_]+/g, ' ').startsWith('flag '),
+  };
 }

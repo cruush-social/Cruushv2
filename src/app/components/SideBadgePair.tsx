@@ -41,6 +41,7 @@ function SavedSideBadge({ badge, side, tone }: {
     >
       <BadgeFrame
         className="h-full w-full"
+        contentScalePercent={savedBadge.fillsFrame ? 84 : undefined}
         frame="circle"
         hankyColor={hanky?.color}
         strokeColor={borderColor}
