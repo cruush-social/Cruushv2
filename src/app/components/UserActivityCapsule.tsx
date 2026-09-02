@@ -94,7 +94,7 @@ export default function UserActivityCapsule({
         <div className="col-start-2 col-end-4 min-w-0">{identity}</div>
       )}
 
-      {metadata ? <div className="cruush-user-activity-metadata col-start-2 min-w-0 self-center">{metadata}</div> : null}
+      {metadata ? <div className="cruush-user-activity-metadata col-start-2 min-w-0 self-center overflow-hidden">{metadata}</div> : null}
       {actions ? <div className="cruush-user-activity-actions col-start-3 row-start-2 self-center">{actions}</div> : null}
 
       {content ? <div className="cruush-user-activity-content col-start-2 col-end-4 min-w-0">{content}</div> : null}

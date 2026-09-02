@@ -40,6 +40,7 @@ import {
   DialogTrigger,
 } from './ui/dialog';
 import { registerBugButtonSlot } from '../lib/bugButtonSlot';
+import { resolveUserBorderTone } from '../lib/userBorderTone';
 
 type ActivityTab = 'incoming' | 'sent' | 'mutual' | 'views';
 type CruushActionState = 'available' | 'sending' | 'sent' | 'mutual';
@@ -76,7 +77,7 @@ function ActivityMeta({ items }: { items: Array<string | null | undefined> }) {
   const visibleItems = items.filter((item): item is string => Boolean(item));
 
   return (
-    <p className="flex h-11 min-w-0 flex-col justify-center gap-0.5 overflow-hidden text-xs leading-snug text-white/62 sm:text-sm">
+    <p className="flex h-11 w-full min-w-0 flex-col justify-center gap-0.5 overflow-hidden text-xs leading-snug text-white/62 sm:text-sm">
       {visibleItems.map((item, index) => (
         <span key={`${item}-${index}`} className="block min-w-0 truncate">
           {item}
@@ -158,8 +159,14 @@ function PersonHeart({
     return <LockedHeart label={fallbackLabel} />;
   }
 
+  const borderTone = resolveUserBorderTone({
+    mileHigh: item.user.travelling,
+    mutual: 'mutual' in item && item.mutual === true,
+  });
+
   return (
     <HeartPhoto
+      borderTone={borderTone}
       className={activityHeartClassName}
       label={`${item.user.name} preview`}
       masked={shouldMaskPhoto(dlModeActive, item.user.photoExplicit)}
@@ -304,12 +311,14 @@ function SentRow({
   if (!item.user) {
     return null;
   }
+  const borderTone = resolveUserBorderTone({ mileHigh: item.user.travelling, mutual: item.mutual });
 
   return (
     <UserActivityCapsule
       testId="activity-row"
       heart={(
         <HeartPhoto
+          borderTone={borderTone}
           className={activityHeartClassName}
           label={`${item.user.name} preview`}
           masked={shouldMaskPhoto(dlModeActive, item.user.photoExplicit)}
@@ -323,7 +332,7 @@ function SentRow({
       name={item.user.name}
       pronouns={item.user.pronouns || 'Ask me'}
       sideBadges={item.user.sideBadges}
-      sideBadgeTone={item.user.travelling ? 'mile-high' : item.mutual ? 'mutual' : 'nearby'}
+      sideBadgeTone={borderTone}
       identityAdornment={<><CruushBadge badges={item.user.badges} compact />{item.mutual ? null : <ActivityBadge>Pending</ActivityBadge>}</>}
       onOpenIdentity={() => onOpenProfile(item.user!.id)}
       metadata={<button type="button" className="min-w-0 text-left" onClick={() => onOpenProfile(item.user!.id)}><ActivityMeta items={[formatRelativeTime(item.createdAt), distance]} /></button>}
@@ -364,11 +373,13 @@ function MutualRow({
   onOpenProfile: (userId: string) => void;
 }) {
   const dlModeActive = useDlMode();
+  const borderTone = resolveUserBorderTone({ mileHigh: item.user.travelling, mutual: true });
   return (
     <UserActivityCapsule
       testId="activity-row"
       heart={(
         <HeartPhoto
+          borderTone={borderTone}
           className={activityHeartClassName}
           label={`${item.user.name} preview`}
           masked={shouldMaskPhoto(dlModeActive, item.user.photoExplicit)}
@@ -382,7 +393,7 @@ function MutualRow({
       name={item.user.name}
       pronouns={item.user.pronouns || 'Ask me'}
       sideBadges={item.user.sideBadges}
-      sideBadgeTone={item.user.travelling ? 'mile-high' : 'mutual'}
+      sideBadgeTone={borderTone}
       identityAdornment={<><CruushBadge badges={item.user.badges} compact />{item.canRevealPreciseLocation ? <ActivityBadge>Precise</ActivityBadge> : null}</>}
       onOpenIdentity={() => onOpenProfile(item.user.id)}
       metadata={<button type="button" className="min-w-0 text-left" onClick={() => onOpenProfile(item.user.id)}><ActivityMeta items={[item.lastActive, distance]} /></button>}
@@ -1041,6 +1052,7 @@ function MutualDirectOverlay({
                 key={item.user.id}
                 heart={(
                   <HeartPhoto
+                    borderTone={resolveUserBorderTone({ mileHigh: item.user.travelling, mutual: true })}
                     className="w-20 shrink-0"
                     label={`${item.user.name} avatar`}
                     masked={shouldMaskPhoto(dlModeActive, item.user.photoExplicit)}
@@ -1053,7 +1065,7 @@ function MutualDirectOverlay({
                 name={item.user.name}
                 pronouns={item.user.pronouns || 'Ask me'}
                 sideBadges={item.user.sideBadges}
-                sideBadgeTone={item.user.travelling ? 'mile-high' : 'mutual'}
+                sideBadgeTone={resolveUserBorderTone({ mileHigh: item.user.travelling, mutual: true })}
                 metadata={<span className="text-xs text-white/62">{item.distance}</span>}
                 mutual
                 onOpenIdentity={() => onOpenProfile(item.user.id)}

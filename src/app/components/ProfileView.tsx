@@ -27,7 +27,8 @@ import {
 } from '../lib/cruushNotifications';
 import { addProfileChangedListener, emptyProfilePayload, getMyProfile, getProfileById, ProfileApiError, type ProfileRecord } from '../lib/profileApi';
 import { openConversationOrInbox } from '../lib/openConversation';
-import { formatDistanceLabel, useDistancePreferences } from '../lib/distancePreferences';
+import { formatDistanceWithAway, useDistancePreferences } from '../lib/distancePreferences';
+import { resolveUserBorderTone } from '../lib/userBorderTone';
 import partyHatIcon from '../assets/ui-icons/party-hat.svg';
 import mileHighClubWhite from '../assets/ui-icons/mile-high-club-white.svg';
 
@@ -577,6 +578,7 @@ export default function ProfileView() {
         </div>
 
         <ProfilePhotoGallery
+          borderTone={resolveUserBorderTone({ current: isOwnProfile, mileHigh: profileView.travelling, mutual: heartTheme === 'mutual' })}
           fitViewport
           name={profileView.name}
           onExpandPhoto={setExpandedPhoto}
@@ -607,12 +609,12 @@ export default function ProfileView() {
           </h1>
           <p className="mt-1 text-sm text-white" style={PROFILE_OVERLAY_TEXT_STYLE}>{profileView.pronouns}</p>
           {displayedDistance ? (
-            <div className="mt-1 flex items-center gap-2 text-sm text-white" style={PROFILE_OVERLAY_TEXT_STYLE}>
+            <div className="mt-1 flex min-w-0 items-center gap-2 overflow-hidden text-sm text-white" style={PROFILE_OVERLAY_TEXT_STYLE}>
               {displayedDistance === 'Dark Room'
-                ? <DarkRoomMark active className="h-4 w-4" />
-                : <CruushIcon name="map" className="h-4 w-4" />}
-              <span>{displayedDistance === 'Dark Room' ? displayedDistance : `${formatDistanceLabel(displayedDistance, distancePreferences.mode)} away`}</span>
-              {profileView.lastActive ? <span>• {profileView.lastActive}</span> : null}
+                ? <DarkRoomMark active className="h-4 w-4 shrink-0" />
+                : <CruushIcon name="map" className="h-4 w-4 shrink-0" />}
+              <span className="min-w-0 truncate">{displayedDistance === 'Dark Room' ? displayedDistance : formatDistanceWithAway(displayedDistance, distancePreferences.mode)}</span>
+              {profileView.lastActive ? <span className="shrink-0">• {profileView.lastActive}</span> : null}
             </div>
           ) : null}
 

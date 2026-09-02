@@ -23,8 +23,9 @@ import { PROFILE_CARD_COMPACT_MEDIA_STYLE, PROFILE_CARD_MEDIA_ASPECT_STYLE } fro
 import { addDlModeChangedListener, isDlModeEnabled, shouldMaskPhoto } from '../lib/dlMode';
 import { getProfileGradientCss } from '../lib/profileGradient';
 import { resolveVibeTone, vibeCapsuleStyle } from '../lib/vibeTone';
-import { formatDistanceLabel, useDistancePreferences } from '../lib/distancePreferences';
+import { formatDistanceWithAway, useDistancePreferences } from '../lib/distancePreferences';
 import { getProfileById } from '../lib/profileApi';
+import { resolveUserBorderTone } from '../lib/userBorderTone';
 
 interface ProfileCardProps {
   user: any;
@@ -307,6 +308,7 @@ export default function ProfileCard({
           >
             {previewCarouselPhotos.map(({ photo, index }) => (
               <HeartPhoto
+                borderTone={resolveUserBorderTone({ mileHigh: user.travelling, mutual: isAlreadyMutual })}
                 key={photo}
                 className="pointer-events-auto h-[clamp(2.75rem,8dvh,3.6rem)] w-[clamp(2.75rem,8dvh,3.6rem)] shrink-0 drop-shadow-[0_8px_18px_rgba(0,0,0,0.55)] transition hover:scale-[1.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
                 label={`Show profile photo ${index + 1}`}
@@ -346,9 +348,9 @@ export default function ProfileCard({
               <p className="mt-1 text-sm text-white" style={carouselTextOutlineStyle}>{user.pronouns}</p>
             </div>
 
-            <div className="mt-2 flex items-center gap-2 text-sm text-white" style={carouselTextOutlineStyle}>
-              <CruushIcon name="map" className="h-4 w-4 drop-shadow-[0_1px_2px_#000]" />
-              <span>{formatDistanceLabel(user.distance, distancePreferences.mode)} away</span>
+            <div className="mt-2 flex min-w-0 items-center gap-2 overflow-hidden text-sm text-white" style={carouselTextOutlineStyle}>
+              <CruushIcon name="map" className="h-4 w-4 shrink-0 drop-shadow-[0_1px_2px_#000]" />
+              <span className="min-w-0 truncate">{formatDistanceWithAway(user.distance, distancePreferences.mode)}</span>
             </div>
 
             {visibleVibeItems.length > 0 ? (
@@ -485,9 +487,9 @@ export default function ProfileCard({
       </div>
 
       <div className={contentClassName}>
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <CruushIcon name="map" className="h-4 w-4 opacity-70" />
-          <span>{formatDistanceLabel(user.distance, distancePreferences.mode)} away</span>
+        <div className="flex min-w-0 items-center gap-2 overflow-hidden text-sm text-muted-foreground">
+          <CruushIcon name="map" className="h-4 w-4 shrink-0 opacity-70" />
+          <span className="min-w-0 truncate">{formatDistanceWithAway(user.distance, distancePreferences.mode)}</span>
         </div>
 
         {!compact && lookingForItems.length > 0 ? (

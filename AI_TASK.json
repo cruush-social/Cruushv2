@@ -1,30 +1,25 @@
 {
   "schemaVersion": 2,
-  "taskId": "cruush-1.6-spot-clusters-plus-protection-email-20260901",
+  "taskId": "cruush-1.6-badge-heart-mhc-alignment-20260901",
   "status": "complete",
-  "objective": "Finish the named v1.6 Spot spacing and tab fixes, membership tag and Feed-photo entitlements, badge visibility, cruush+ benefit styling, separate Spot clustering, labeled protection values, and announcement screenshots.",
-  "userOutcome": "Spot pages read cleanly, basic and cruush+ limits are clear and enforced, badges remain under profile hearts, map clusters distinguish people from Spots, protection answers are understandable, and the v1.6 email shows the corrected features.",
+  "objective": "Make saved badge borders match each user's heart border, show badges on populated cruush activity cards, prevent Far far away from overlapping, and apply the approved sky border to MHC hearts and badges across app identity surfaces.",
+  "userOutcome": "Every visible badge and heart reads as one coherent identity unit, MHC identity units are sky blue everywhere, cruush activity visibly includes saved badges, and travel distance text never overlaps adjacent controls.",
   "audience": "cruush members and v1.6 announcement recipients.",
   "successCriteria": [
-    "Stonewall Inn description spacing is tighter and the Spot tab active segment fits its capsule.",
-    "Basic members can add 3 profile tags and cruush+ members can add 10.",
-    "Basic Feed posts are text-only and cruush+ Feed posts can include up to 3 photo hearts.",
-    "Saved side badges render below heart previews on Feed, Messages, and cruush activity.",
-    "Every cruush+ benefit uses the bright product gradient and the benefit copy states the new limits.",
-    "Circular numbered clusters contain only people; Spot clusters use a distinct Spot-style marker and open only Spots.",
-    "Protection answers identify Condoms, PrEP, and DoxyPEP.",
-    "The v1.6 email images and rendered email screenshot show the corrected features."
+    "Saved badge borders use the exact same resolved border color as the associated heart.",
+    "Populated cruush activity cards visibly render saved badges directly below the heart.",
+    "Far far away remains readable and never overlaps identity actions at Android mobile width.",
+    "When MHC is active, the heart and every saved badge use the approved sky color across Feed, Messages, cruush activity, Spots, and profile-card heart previews."
   ],
   "mustPreserve": [
-    "Preserve map tiles, map theme, person pin style, badge icons, Spot data, Feed heart size, and unrelated UI.",
-    "Use actual local release code and seeded data for screenshots.",
-    "Keep Feed photo previews as separate small horizontal hearts."
+    "Preserve map tiles, map theme, badge glyphs, MHC animation, relationship colors when MHC is off, heart sizes, data, and unrelated UI.",
+    "Use actual local release code and populated local data for screenshots."
   ],
   "nonGoals": [
-    "Do not add or run test suites, build, push, deploy, send email, change badge glyphs, change map tiles, or redesign adjacent surfaces."
+    "Do not add or run tests, build, push, deploy, send email, change badge glyphs, change map tiles, or redesign adjacent surfaces."
   ],
   "assumptions": [],
-  "nextVisibleMilestone": "Hand off rendered corrected surfaces, refreshed email screenshot, and a local checkpoint commit.",
+  "nextVisibleMilestone": "Hand off populated Android renders of cruush, MHC Feed, MHC Messages, and non-overlapping Far far away with a local checkpoint commit.",
   "stopConditions": [
     "Stop before any push, deployment, email send, or production-data action."
   ],
@@ -49,38 +44,34 @@
   "release": "1.6",
   "repository": "cruush-social/Cruushv2",
   "branch": "release/1.6-integration-20260901",
-  "job": "Finish the exact named Spot, entitlement, badge, cluster, protection, and email corrections.",
-  "forbiddenPaths": [
-    "src/styles/**",
-    "HANDOFF.md",
-    ".dev/**"
-  ],
+  "job": "Fix the exact named badge, heart, MHC, cruush activity, and Far far away presentation issues.",
+  "forbiddenPaths": ["HANDOFF.md", ".dev/**"],
   "allowedPaths": [
     "AI_TASK.json",
     "DESIGN_DECISIONS.md",
+    "src/app/components/HeartPhoto.tsx",
+    "src/app/components/SideBadgePair.tsx",
+    "src/app/components/UserActivityCapsule.tsx",
+    "src/app/components/CruushActivity.tsx",
+    "src/app/components/DirectMessages.tsx",
+    "src/app/components/LocalFeed.tsx",
     "src/app/components/PlaceDetail.tsx",
+    "src/app/components/ProfileCard.tsx",
+    "src/app/components/ProfilePhotoGallery.tsx",
+    "src/app/components/MapProfilePopup.tsx",
     "src/app/components/ProfileView.tsx",
-    "src/app/components/ProfileEdit.tsx",
-    "src/app/components/Rewards.tsx",
     "src/app/components/MapView.tsx",
-    "src/app/components/FeedPhotoPreview.tsx",
-    "src/app/lib/cruushPlusFeatures.ts",
-    "server/src/profile-schema.ts",
-    "server/src/routes/profiles.ts",
-    "docs/previews/cruush-1.6-update-email.html",
-    "docs/previews/cruush-1.6-update-email.jpg",
-    "public/email/cruush-v1.6-mhc-address.jpg",
-    "public/email/cruush-v1.6-spot.jpg",
-    "public/email/cruush-v1.6-badges.jpg",
-    "public/email/cruush-v1.6-feed-photos.jpg"
+    "src/app/lib/distancePreferences.ts",
+    "src/app/lib/userBorderTone.ts",
+    "src/styles/theme.css",
+    "FIXLOG.md"
   ],
-  "proofTarget": "Rendered Android-sized Spot, Profile Health, Profile Edit, cruush+ benefits, people and Spot cluster states, populated badges on Feed/Messages/cruush, and refreshed email screenshot.",
+  "proofTarget": "Rendered populated Android-sized Feed, Messages, cruush activity, Spot people, and profile-card heart states with MHC on and off, including Far far away.",
   "publicationTarget": "Local checkpoint commit only.",
   "requiredEvidence": [
-    "Rendered affected routes at Android mobile size.",
-    "Rendered separate people and Spot clusters.",
-    "Rendered Feed, Messages, and cruush cards with saved side badges under hearts.",
-    "Feature-focused email images and rendered email screenshot.",
+    "Rendered populated cruush activity card with saved badges under the heart.",
+    "Rendered matching heart and badge borders for relationship and MHC states.",
+    "Rendered Far far away without overlap at Android mobile size.",
     "Clean scoped commit."
   ]
 }

@@ -137,6 +137,15 @@ export function formatDistanceLabel(
   return `${approxText}${suffix}`;
 }
 
+export function formatDistanceWithAway(
+  distance: string | null | undefined,
+  mode: DistanceDisplayMode = getDistancePreferences().mode,
+): string | null {
+  const formatted = formatDistanceLabel(distance, mode);
+  if (!formatted || /\baway$/i.test(formatted)) return formatted;
+  return `${formatted} away`;
+}
+
 /**
  * What a viewer sees when the other person only shares a precise distance with
  * their mutuals or their crowds. The gate is named rather than hidden so the

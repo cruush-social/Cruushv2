@@ -4,9 +4,11 @@ import { resolveMediaUrl } from '../lib/apiClient';
 import { HEART_PIN_PATH, HEART_PIN_THEMES, type HeartPinTheme } from '../lib/heartPin';
 import { getProfileGradientStops } from '../lib/profileGradient';
 import MileHighContrail from './MileHighContrail';
+import { USER_BORDER_COLORS, type UserBorderTone } from '../lib/userBorderTone';
 
 interface HeartPhotoProps {
   borderColor?: string;
+  borderTone?: UserBorderTone;
   staticMileHigh?: boolean;
   className?: string;
   fallback?: ReactNode;
@@ -20,6 +22,7 @@ interface HeartPhotoProps {
 
 export default function HeartPhoto({
   borderColor,
+  borderTone,
   staticMileHigh = false,
   className = '',
   fallback = null,
@@ -36,7 +39,8 @@ export default function HeartPhoto({
   const resolvedTheme = HEART_PIN_THEMES[theme];
   const showPhoto = Boolean(photo && !masked);
   const gradientStops = userId && !showPhoto && theme !== 'current' ? getProfileGradientStops(userId) : resolvedTheme.stops;
-  const resolvedBorderColor = borderColor ?? resolvedTheme.border;
+  const resolvedBorderColor = borderColor
+    ?? (staticMileHigh ? USER_BORDER_COLORS['mile-high'] : borderTone ? USER_BORDER_COLORS[borderTone] : resolvedTheme.border);
   const resolvedPhoto = showPhoto && photo ? resolveMediaUrl(photo) : null;
   const handleClick = onClick
     ? (event: MouseEvent<HTMLDivElement>) => {
@@ -92,7 +96,7 @@ export default function HeartPhoto({
           d={HEART_PIN_PATH}
           fill={resolvedPhoto ? `url(#${patternId})` : `url(#${gradientId})`}
           stroke={resolvedBorderColor}
-          strokeOpacity={staticMileHigh ? 0 : 1}
+          strokeOpacity={1}
           strokeWidth="3.2"
         />
         {staticMileHigh ? (

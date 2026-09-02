@@ -37,6 +37,7 @@ import {
 import { shouldMaskPhoto, useDlMode } from '../lib/dlMode';
 import { registerBugButtonSlot } from '../lib/bugButtonSlot';
 import { formatDistanceLabel, useDistancePreferences } from '../lib/distancePreferences';
+import { resolveUserBorderTone } from '../lib/userBorderTone';
 import {
   handleCruushSendSuccess,
   handleMutualCruushRevokeSuccess,
@@ -904,6 +905,7 @@ export default function DirectMessages({
                     testId={`group-mutual-${item.user.id}`}
                     heart={(
                       <HeartPhoto
+                        borderTone={resolveUserBorderTone({ mileHigh: item.user.travelling, mutual: true })}
                         className="w-20 shrink-0"
                         label={`${item.user.name} avatar`}
                         masked={shouldMaskPhoto(dlModeActive, item.user.photoExplicit)}
@@ -916,7 +918,7 @@ export default function DirectMessages({
                     name={item.user.name}
                     pronouns={item.user.pronouns || 'Ask me'}
                     sideBadges={item.user.sideBadges}
-                    sideBadgeTone={item.user.travelling ? 'mile-high' : 'mutual'}
+                    sideBadgeTone={resolveUserBorderTone({ mileHigh: item.user.travelling, mutual: true })}
                     metadata={(
                       <span className="flex min-w-0 flex-col gap-0.5 text-left text-xs leading-snug text-white/62">
                         <span className="truncate">{item.lastActive}</span>
@@ -960,6 +962,10 @@ export default function DirectMessages({
                 >
                   <div className="flex items-start justify-between gap-2">
                     <HeartPhoto
+                      borderTone={resolveUserBorderTone({
+                        mileHigh: conversation.user.travelling,
+                        mutual: conversation.kind === 'group' || conversation.mutual,
+                      })}
                       className="w-[var(--cruush-profile-heart-size)] shrink-0"
                       label={`${conversation.user.name} avatar`}
                       masked={shouldMaskPhoto(dlModeActive, conversation.user.photoExplicit)}
@@ -1023,6 +1029,10 @@ export default function DirectMessages({
                 testId="conversation-preview-row"
                 heart={(
                   <HeartPhoto
+                    borderTone={resolveUserBorderTone({
+                      mileHigh: conversation.user.travelling,
+                      mutual: conversation.kind === 'group' || conversation.mutual,
+                    })}
                     className="w-20 shrink-0"
                     label={`${conversation.user.name} avatar`}
                     masked={shouldMaskPhoto(dlModeActive, conversation.user.photoExplicit)}
@@ -1038,7 +1048,10 @@ export default function DirectMessages({
                 name={conversation.user.name}
                 pronouns={conversation.user.pronouns || conversation.membersLabel}
                 sideBadges={conversation.user.sideBadges}
-                sideBadgeTone={conversation.user.travelling ? 'mile-high' : conversation.mutual ? 'mutual' : 'nearby'}
+                sideBadgeTone={resolveUserBorderTone({
+                  mileHigh: conversation.user.travelling,
+                  mutual: conversation.kind === 'group' || conversation.mutual,
+                })}
                 identityAdornment={identityAdornment}
                 onOpenIdentity={openIdentity}
                 metadata={(
@@ -1396,6 +1409,12 @@ function DirectUserOverlay({
                 testId={`message-discovery-${user.id}`}
                 heart={(
                   <HeartPhoto
+                    borderTone={resolveUserBorderTone({
+                      activePing: Boolean(user.activePing),
+                      current: user.isCurrentUser,
+                      mileHigh: user.travelling,
+                      mutual: user.relationship?.mutualCruush,
+                    })}
                     className="w-20"
                     label={`${user.name} avatar`}
                     masked={shouldMaskPhoto(dlModeActive, user.photoExplicit)}
@@ -1408,7 +1427,12 @@ function DirectUserOverlay({
                 name={user.name}
                 pronouns={user.pronouns || 'Ask me'}
                 sideBadges={user.sideBadges}
-                sideBadgeTone={user.activePing ? 'pulse' : user.travelling ? 'mile-high' : user.isCurrentUser ? 'current' : user.relationship?.mutualCruush ? 'mutual' : 'nearby'}
+                sideBadgeTone={resolveUserBorderTone({
+                  activePing: Boolean(user.activePing),
+                  current: user.isCurrentUser,
+                  mileHigh: user.travelling,
+                  mutual: user.relationship?.mutualCruush,
+                })}
                 onOpenIdentity={() => onOpenProfile(user.id)}
                 metadata={(
                   <button type="button" className="flex min-w-0 flex-col gap-0.5 text-left text-xs leading-snug text-white/62" onClick={() => onOpenProfile(user.id)}>
@@ -1441,6 +1465,7 @@ function DirectUserOverlay({
                 testId={`message-mutual-discovery-${item.user.id}`}
                 heart={(
                   <HeartPhoto
+                    borderTone={resolveUserBorderTone({ mileHigh: item.user.travelling, mutual: true })}
                     className="w-20"
                     label={`${item.user.name} avatar`}
                     masked={shouldMaskPhoto(dlModeActive, item.user.photoExplicit)}
@@ -1454,7 +1479,7 @@ function DirectUserOverlay({
                 name={item.user.name}
                 pronouns={item.user.pronouns || 'Ask me'}
                 sideBadges={item.user.sideBadges}
-                sideBadgeTone={item.user.travelling ? 'mile-high' : 'mutual'}
+                sideBadgeTone={resolveUserBorderTone({ mileHigh: item.user.travelling, mutual: true })}
                 onOpenIdentity={() => onOpenProfile(item.user.id)}
                 metadata={(
                   <button type="button" className="flex min-w-0 flex-col gap-0.5 text-left text-xs leading-snug text-white/62" onClick={() => onOpenProfile(item.user.id)}>

@@ -13,6 +13,7 @@ import UserActivityCapsule from './UserActivityCapsule';
 import LoadingCardSkeletons from './LoadingCardSkeletons';
 import { getStoredUserId } from '../lib/sessionUser';
 import { shouldMaskPhoto, useDlMode } from '../lib/dlMode';
+import { resolveUserBorderTone } from '../lib/userBorderTone';
 import {
   PLACE_AMENITY_LABELS,
   PLACE_FACILITY_LABELS,
@@ -489,13 +490,13 @@ export default function PlaceDetail({ embedded = false, placeIdOverride }: Place
                 key={post.id}
                 testId={`spot-board-post-${post.id}`}
                 className="bg-black/72 hover:bg-black/86"
-                heart={<HeartPhoto className="w-20" label={`${post.user.name} preview`} masked={shouldMaskPhoto(dlModeActive, post.user.photoExplicit)} photo={post.user.photo} theme={currentUserId === post.user.id ? 'current' : post.user.mutual ? 'mutual' : 'nearby'} userId={post.user.id} onClick={() => navigate(`/profile/${post.user.id}`)} />}
+                heart={<HeartPhoto borderTone={resolveUserBorderTone({ current: currentUserId === post.user.id, mileHigh: post.user.travelling, mutual: post.user.mutual })} className="w-20" label={`${post.user.name} preview`} masked={shouldMaskPhoto(dlModeActive, post.user.photoExplicit)} photo={post.user.photo} theme={currentUserId === post.user.id ? 'current' : post.user.mutual ? 'mutual' : 'nearby'} userId={post.user.id} onClick={() => navigate(`/profile/${post.user.id}`)} />}
                 name={post.user.name}
                 pronouns={post.user.pronouns || 'Ask me'}
                 identityAdornment={<CruushBadge badges={post.user.badges} compact />}
                 metadata={<span className="text-xs text-white/62">{relativeTime(post.createdAt)}</span>}
                 sideBadges={post.user.sideBadges}
-                sideBadgeTone={post.user.travelling ? 'mile-high' : currentUserId === post.user.id ? 'current' : post.user.mutual ? 'mutual' : 'nearby'}
+                sideBadgeTone={resolveUserBorderTone({ current: currentUserId === post.user.id, mileHigh: post.user.travelling, mutual: post.user.mutual })}
                 mutual={post.user.mutual}
                 onOpenIdentity={() => navigate(`/profile/${post.user.id}`)}
                 content={<p className="text-base">{post.content}</p>}
@@ -524,6 +525,7 @@ export default function PlaceDetail({ embedded = false, placeIdOverride }: Place
                   testId={`spot-here-person-${person.id}`}
                   heart={(
                     <HeartPhoto
+                      borderTone={resolveUserBorderTone({ current: currentUserId === person.id, mileHigh: person.travelling, mutual: person.mutual })}
                       className="w-20"
                       label={`${person.name} profile preview`}
                       masked={shouldMaskPhoto(dlModeActive, person.photoExplicit)}
@@ -536,7 +538,7 @@ export default function PlaceDetail({ embedded = false, placeIdOverride }: Place
                   pronouns={person.pronouns || 'Ask me'}
                   identityAdornment={<CruushBadge badges={person.badges} compact />}
                   sideBadges={person.sideBadges}
-                  sideBadgeTone={person.travelling ? 'mile-high' : currentUserId === person.id ? 'current' : person.mutual ? 'mutual' : 'nearby'}
+                  sideBadgeTone={resolveUserBorderTone({ current: currentUserId === person.id, mileHigh: person.travelling, mutual: person.mutual })}
                   mutual={person.mutual}
                   onSelect={() => navigate(`/profile/${person.id}`)}
                   selectLabel={`Open ${person.name} profile`}

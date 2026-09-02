@@ -74,6 +74,7 @@ import {
   createMapOutsideRadiusMask,
   mapServiceMinZoomForViewport,
 } from '../lib/mapServiceArea';
+import { USER_BORDER_COLORS } from '../lib/userBorderTone';
 
 export { createMapMarkerBadge, createMapMarkerRoleBadge };
 
@@ -976,7 +977,7 @@ function truncateMarkerPreview(value: string | null | undefined, maxCharacters =
   return `${normalizedValue.slice(0, maxCharacters).trimEnd()}...`;
 }
 
-const MILE_HIGH_SKY_BLUE = '#77B9DA';
+const MILE_HIGH_SKY_BLUE = USER_BORDER_COLORS['mile-high'];
 const OWNER_GHOST_DECOY_FADE_MASK = 'linear-gradient(to bottom, #000 0%, #000 50%, rgba(0,0,0,0.1) 100%)';
 
 function ownerGhostDecoyFadeStyle(marker: MapMarker, isCurrentUser: boolean): CSSProperties {
@@ -995,12 +996,12 @@ function ownerGhostDecoyFadeStyle(marker: MapMarker, isCurrentUser: boolean): CS
 }
 
 function getMarkerBorderColor(marker: MapMarker, isCurrentUser: boolean) {
-  if (marker.activePing) {
-    return '#C8FF31';
-  }
-
   if (marker.travelling === true) {
     return MILE_HIGH_SKY_BLUE;
+  }
+
+  if (marker.activePing) {
+    return '#C8FF31';
   }
 
   if (isCurrentUser && marker.ownerStealthActive) {
@@ -1431,8 +1432,10 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
   const pingActive = Boolean(marker.activePing);
   const theme = isCurrentUser || isNpcGhostDemo ? 'current' : isMutualCruush ? 'mutual' : 'nearby';
   const markerTheme = HEART_PIN_THEMES[theme];
-  const borderColor = pingActive
-    ? '#C8FF31'
+  const borderColor = marker.travelling === true
+    ? MILE_HIGH_SKY_BLUE
+    : pingActive
+      ? '#C8FF31'
     : isOwnStealthMarker || isOwnGhostMarker || isNpcGhostDemo
       ? '#0BA8FF'
       : markerTheme.border;
@@ -1592,7 +1595,7 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
             data-testid={`marker-ghost-border-${marker.id}`}
             fill="none"
             stroke={borderPaint}
-            strokeOpacity={hideOwnerDecoyHeartStroke || (travellerActive && !staticGhostTraveller) ? 0 : 1}
+            strokeOpacity={hideOwnerDecoyHeartStroke ? 0 : 1}
             strokeWidth={3.2}
             style={borderStyle}
           />

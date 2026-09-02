@@ -27,6 +27,7 @@ import mileHighClubWhite from '../assets/ui-icons/mile-high-club-white.svg';
 import sendIconWhite from '../assets/ui-icons/send-white.png';
 import DarkRoomMark from './DarkRoomMark';
 import LoadingCardSkeletons from './LoadingCardSkeletons';
+import { resolveUserBorderTone } from '../lib/userBorderTone';
 
 interface MapProfilePopupProps {
   user: any;
@@ -261,6 +262,7 @@ export default function MapProfilePopup({
       <div className="profile-card-scroll h-full">
         <div className="relative overflow-hidden">
           <ProfilePhotoGallery
+            borderTone={resolveUserBorderTone({ current: isOwnProfile, mileHigh: displayTravelling, mutual: isAlreadyMutual })}
             name={displayName}
             photoMetadata={displayPhotoMetadata}
             photos={displayPhotos}

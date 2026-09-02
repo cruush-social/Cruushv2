@@ -8,16 +8,9 @@ import { BadgeFrame, BadgeHoverLabel, SIDE_BADGE_SIZE_PX } from './BadgeFrames';
 import { DoubleMarsGlyph, DoubleVenusGlyph, IntersexGlyph, MarsVenusGlyph, NonbinaryGlyph, PlayingCard, PolyGlyph, T4TGlyph, TransGlyph } from './CommunityGlyphs';
 import { HANKY_COLORS } from './HankyFrame';
 import { positionGlyphFor, roleGlyphFor } from './PositionRoleGlyphs';
+import { USER_BORDER_COLORS, type UserBorderTone } from '../lib/userBorderTone';
 
-export type SideBadgeTone = 'current' | 'mutual' | 'nearby' | 'mile-high' | 'pulse';
-
-const BADGE_BORDER_COLORS: Record<SideBadgeTone, string> = {
-  current: '#004BFF',
-  mutual: '#6F00FF',
-  nearby: '#FF0072',
-  'mile-high': '#77B9DA',
-  pulse: '#C8FF31',
-};
+export type SideBadgeTone = UserBorderTone;
 
 type SavedBadgeGlyph = ComponentType<{ className?: string; strokeWidth?: number }>;
 
@@ -67,7 +60,7 @@ function SavedSideBadge({ badge, side, tone }: {
   const label = hanky
     ? formatBadgeLabel(hanky.meaning, badge.intent ?? 'none')
     : formatBadgeLabel(badge.label, badge.intent ?? 'none');
-  const borderColor = BADGE_BORDER_COLORS[tone];
+  const borderColor = USER_BORDER_COLORS[tone];
 
   return (
     <span

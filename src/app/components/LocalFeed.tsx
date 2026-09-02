@@ -55,6 +55,7 @@ import {
 } from '../lib/cruushNotifications';
 import { CROWDS, normalizeCrowdValues } from '../lib/profileOptions';
 import { getCurrentUserId } from '../lib/sessionUser';
+import { resolveUserBorderTone } from '../lib/userBorderTone';
 import partyHatIcon from '../assets/ui-icons/party-hat.svg';
 
 function formatRelativeTime(isoTimestamp: string) {
@@ -1312,6 +1313,11 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
               {posts.map((post) => {
                 const mutualAuthor = mutualUserIds.has(post.user.id);
                 const pinActionable = validPinUserIds.has(post.user.id);
+                const borderTone = resolveUserBorderTone({
+                  current: currentUserId === post.user.id,
+                  mileHigh: post.user.travelling,
+                  mutual: mutualAuthor,
+                });
                 return (
                 <UserActivityCapsule
                   key={post.id}
@@ -1320,6 +1326,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
                   heart={(
                     <div className="-mt-1 w-20" data-testid={`feed-post-profile-stack-${post.id}`}>
                       <HeartPhoto
+                        borderTone={borderTone}
                         className="w-full"
                         label={`${post.user.name} preview`}
                         masked={shouldMaskPhoto(dlModeActive, post.user.photoExplicit)}
@@ -1345,7 +1352,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
                   )}
                   pronouns={post.user.pronouns || 'Ask me'}
                   sideBadges={post.user.sideBadges}
-                  sideBadgeTone={post.user.travelling ? 'mile-high' : currentUserId && post.user.id === currentUserId ? 'current' : mutualAuthor ? 'mutual' : 'nearby'}
+                  sideBadgeTone={borderTone}
                   heartActions={currentUserId && post.user.id !== currentUserId ? (
                     <div className="mt-1 flex items-center justify-center gap-1">
                       <ReportAction
