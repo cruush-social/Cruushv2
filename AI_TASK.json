@@ -1,86 +1,86 @@
 {
   "schemaVersion": 2,
-  "taskId": "cruush-1.6-badge-ui-repair-20260901",
-  "status": "active",
-  "objective": "Repair the screenshot-reported Badge and profile-photo UI defects, make Badge categories explicit instead of hidden horizontal scrollers, improve unapproved generic Badge glyphs, and keep saved side badges beneath hearts on Feed, Messages, and Cruushes.",
-  "userOutcome": "Members can understand and use the Badge menu on mobile, crop a profile photo without a blank or clipped editor, and see their selected side badges consistently beneath heart photos across the named people surfaces.",
-  "audience": "Authenticated cruush members editing profiles and browsing Feed, Messages, and Cruushes.",
+  "taskId": "cruush-1.6-email-screenshots-20260901",
+  "status": "complete",
+  "objective": "Update the cruush v1.6 announcement email with real screenshots of Mile High Club address entry, a Spot, the Badge menu, and Feed photo options, and clearly announce that basic members can post to Feed.",
+  "userOutcome": "Julien can review a complete v1.6 email whose images show the actual release candidate and whose copy accurately explains basic Feed access.",
+  "audience": "cruush members receiving the v1.6 release announcement.",
   "successCriteria": [
-    "The embedded Badge preview never overlaps the Edit Profile header or Save button.",
-    "Badge categories use an explicit mobile selector rather than a horizontally hidden chip row.",
-    "Badge option cards fit long labels without overflow at the supplied Android width.",
-    "The profile photo cropper uses a reliable local preview URL and keeps its image, controls, and confirmation button inside the mobile viewport.",
-    "Saved side badges render directly beneath the heart photo in the shared Feed, Messages, and Cruushes capsule.",
-    "Only generic fallback Badge glyphs change; every previously selected custom, Hanky, role, position, and Pride glyph remains unchanged."
+    "Capture the running Mile High Club address input in the release candidate.",
+    "Capture a running Spot detail surface.",
+    "Capture the running Badge category menu.",
+    "Capture the running Feed photo options.",
+    "Embed all four screenshots in the v1.6 email preview.",
+    "State that basic members can post text and search tags while cruush+ adds photo posts.",
+    "Keep the existing v1.6 changelog present and accurate."
   ],
   "mustPreserve": [
-    "Preserve every user-selected Noun Project asset and supplied custom badge symbol already recorded in source and design history.",
-    "Preserve Badge save behavior, left/right meaning, Circle frame, Hanky colors, map geometry, existing profile values, and adjacent profile tabs.",
-    "Preserve the current Feed, Messages, and Cruushes card content, actions, ordering, and heart size."
+    "Use actual cruush code and local seeded data, never mock screenshots.",
+    "Preserve all product behavior, approved icons, user data, and unrelated email copy.",
+    "Preserve the Resend broadcast unsubscribe placeholder."
   ],
   "nonGoals": [
-    "Do not change map tiles, map theme, Ghost Mode, Dark Room, Crowd behavior, Feed reactions, or replies.",
-    "Do not add unlicensed Flaticon or Noun Project files or a new dependency.",
-    "Do not run tests, build, push, or deploy; Julien will test this release slice."
+    "Do not send, schedule, push, deploy, run a production migration, or change product behavior.",
+    "Do not add internal implementation, provider, moderation, security, address, radius, or migration details to public copy.",
+    "Do not run test suites."
   ],
   "assumptions": [
     {
-      "statement": "External icon libraries are research references unless the exact asset has a confirmed cruush license.",
-      "impact": "Unlicensed candidate files will not enter the repository; generic fallbacks may use original or existing library glyphs informed by the research.",
+      "statement": "The local seeded release candidate is the source for announcement screenshots.",
+      "impact": "Screenshots show representative local data without exposing production member data.",
       "reversible": true,
-      "confirmationState": "inferred"
+      "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "Commit the complete screenshot repair slice for Julien's Android test.",
+  "nextVisibleMilestone": "Render the updated email and deliver its screenshot for Julien's review.",
   "stopConditions": [
-    "Stop before push, deployment, purchasing an icon, or importing an asset whose license is not confirmed."
+    "Stop before any email send, push, deployment, or production-data capture."
   ],
   "costBudget": {"maxUsd": 0, "maxMinutes": null},
   "externalEffectDecisions": {
-    "commit": "Authorized by Julien's standing instruction to commit v1.6 work.",
+    "commit": "authorized by Julien's standing v1.6 commit instruction",
     "send": "forbidden",
     "push": "not authorized",
     "deploy": "not authorized",
-    "migration": "not required"
+    "migration": "authorized only for the isolated local preview database required to render Spots"
   },
   "externalEffects": {
     "externalMessages": "forbidden",
     "purchases": "forbidden",
-    "deployment": "forbidden",
     "publication": "forbidden",
     "deletion": "forbidden",
     "securityChanges": "forbidden",
-    "credentials": "forbidden",
-    "newDefaults": "limited to the requested Badge menu presentation",
-    "identityCreativeDecisions": "authorized for generic Badge glyph selection only; protected glyphs are forbidden"
+    "credentials": "local development credentials only",
+    "newDefaults": "forbidden",
+    "identityCreativeDecisions": "limited to the requested public email copy and screenshot selection"
   },
   "product": "cruush",
   "release": "1.6",
   "repository": "cruush-social/Cruushv2",
   "branch": "release/1.6-integration-20260901",
-  "job": "Implement the supplied four-screenshot Badge, cropper, and shared side-badge corrections.",
+  "job": "Capture and embed the four requested v1.6 feature screenshots and update the Feed-access copy.",
   "forbiddenPaths": [
+    "server/**",
+    "src/styles/**",
     "HANDOFF.md",
-    ".dev/**",
-    "src/app/assets/ui-icons/ghost-horned-mask-source.png",
-    "src/app/components/MapView.tsx"
+    ".dev/**"
   ],
   "allowedPaths": [
     "AI_TASK.json",
-    "DESIGN_DECISIONS.md",
-    "src/app/components/BadgeGlyphs.tsx",
-    "src/app/components/BadgePickerPreview.tsx",
-    "src/app/components/MultiSelect.tsx",
-    "src/app/components/ProfileEdit.tsx",
-    "src/app/components/SideBadgePair.tsx",
-    "src/app/components/UserActivityCapsule.tsx",
-    "src/styles/theme.css"
+    "docs/changelog.md",
+    "docs/previews/cruush-1.6-update-email.html",
+    "docs/previews/cruush-1.6-update-email.jpg",
+    "public/email/cruush-v1.6-mhc-address.jpg",
+    "public/email/cruush-v1.6-spot.jpg",
+    "public/email/cruush-v1.6-badges.jpg",
+    "public/email/cruush-v1.6-feed-photos.jpg",
+    "src/app/components/Changelog.tsx"
   ],
-  "proofTarget": "The supplied 598x1278 Android screenshots. Rendered verification remains with Julien under the explicit no-test and no-verify release instruction.",
-  "publicationTarget": "Local commit only; no push or deployment.",
+  "proofTarget": "Rendered 600px-wide email plus real 598x1278 mobile captures from the local release candidate.",
+  "publicationTarget": "Local checkpoint commit only.",
   "requiredEvidence": [
-    "Source diff covering every named screenshot defect and surface.",
-    "Protected icon inventory and traceable research sources.",
-    "Clean local checkpoint commit."
+    "Four real feature screenshots.",
+    "Rendered screenshot of the updated email.",
+    "Clean scoped commit."
   ]
 }
