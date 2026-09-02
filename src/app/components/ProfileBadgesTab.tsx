@@ -27,6 +27,7 @@ function BadgeChip({ side, children, meaning }: { side: 'left' | 'right'; childr
       className={`group/badge ${CHIP_CLASS} ${side === 'left' ? 'left-[-0.25rem]' : 'right-[-0.25rem]'}`}
       role="img"
       style={{ border: '3.2px solid #004BFF' }}
+      tabIndex={0}
     >
       {children}
       <BadgeHoverLabel>{meaning}</BadgeHoverLabel>
@@ -149,7 +150,7 @@ export default function ProfileBadgesTab({
         <h2 className="text-base text-white">Custom badges</h2>
         <p className="text-sm text-muted-foreground">
           {cruushPlus
-            ? 'Pick anything for either side instead of your role and position. Hover a badge anywhere in the app to read what it means.'
+            ? 'Pick anything for either side instead of your role and position. Hover, or press and hold, a badge to read what it means.'
             : 'cruush+ lets you pick anything for either side instead of your role and position, and takes the ceiling off your kinks.'}
         </p>
         <Button

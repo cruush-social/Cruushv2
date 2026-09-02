@@ -883,12 +883,28 @@ function applyPlaceMarkerClusters(markers: DisplayMapMarker[], zoom: number): Di
     return [...markers.filter((marker) => !clusteredIds.has(marker.id)), ...clusters];
   }
 
+  const points = new Map(placeMarkers.map((marker) => [marker.id, mercatorPixelPoint(marker, zoom)]));
+  const buckets = new Map<string, DisplayMapMarker[]>();
+  placeMarkers.forEach((marker) => {
+    if (clusteredIds.has(marker.id)) return;
+    const point = points.get(marker.id)!;
+    const key = `${Math.floor(point.x / PLACE_CLUSTER_RADIUS_PX)}:${Math.floor(point.y / PLACE_CLUSTER_RADIUS_PX)}`;
+    const bucket = buckets.get(key);
+    if (bucket) bucket.push(marker);
+    else buckets.set(key, [marker]);
+  });
+
   placeMarkers.forEach((seed) => {
     if (clusteredIds.has(seed.id)) return;
-    const seedPoint = mercatorPixelPoint(seed, zoom);
-    const group = placeMarkers.filter((candidate) => {
+    const seedPoint = points.get(seed.id)!;
+    const cellX = Math.floor(seedPoint.x / PLACE_CLUSTER_RADIUS_PX);
+    const cellY = Math.floor(seedPoint.y / PLACE_CLUSTER_RADIUS_PX);
+    const nearby = [-1, 0, 1].flatMap((xOffset) => (
+      [-1, 0, 1].flatMap((yOffset) => buckets.get(`${cellX + xOffset}:${cellY + yOffset}`) ?? [])
+    ));
+    const group = nearby.filter((candidate) => {
       if (clusteredIds.has(candidate.id)) return false;
-      const candidatePoint = mercatorPixelPoint(candidate, zoom);
+      const candidatePoint = points.get(candidate.id)!;
       return Math.hypot(candidatePoint.x - seedPoint.x, candidatePoint.y - seedPoint.y) <= PLACE_CLUSTER_RADIUS_PX;
     });
     if (group.length < 2) return;
@@ -1083,6 +1099,7 @@ function MarkerSideBadge({
                 : 'nearby'}
       data-testid={`marker-${side === 'left' ? 'role' : 'position'}-badge-${marker.id}`}
       role="img"
+      tabIndex={0}
       style={{
         color: badgeBorderColor,
         ...mapSideBadgeStyle(side, frame),
@@ -1679,23 +1696,25 @@ function PlaceMarker({ marker, previewed = false }: { marker: MapMarker; preview
   const Icon = config.icon ?? Shapes;
   return (
     <span
-      className={`group relative flex h-12 w-12 rotate-45 items-center justify-center rounded-[0.7rem] border-2 bg-black/94 text-white shadow-[0_0_10px_rgba(20,157,255,0.95),0_0_24px_rgba(21,79,255,0.62)] backdrop-blur-md ${active ? 'border-[#C8FF31] shadow-[0_0_28px_rgba(200,255,49,0.55)]' : 'border-[#55C8FF]'}`}
+      className="group relative flex h-12 w-12 items-center justify-center"
       data-facility-type={facilityType}
       data-testid={`place-marker-${marker.place?.id ?? marker.id}`}
     >
       <span
-        className={`pointer-events-none absolute bottom-[calc(100%+0.75rem)] left-1/2 w-max max-w-[14rem] -translate-x-1/2 -rotate-45 rounded-full border border-white/15 bg-black/92 px-3 py-1 text-center text-xs font-semibold leading-tight text-white shadow-[0_8px_24px_rgba(0,0,0,0.5)] backdrop-blur-md transition-opacity duration-150 ${previewed ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100'}`}
+        className={`pointer-events-none absolute bottom-[calc(100%+0.75rem)] left-1/2 z-20 w-max max-w-[14rem] -translate-x-1/2 rounded-full border border-white/15 bg-black/92 px-3 py-1 text-center text-xs font-semibold leading-tight text-white shadow-[0_8px_24px_rgba(0,0,0,0.5)] backdrop-blur-md transition-opacity duration-150 ${previewed ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100'}`}
         data-testid={`place-marker-title-${marker.place?.id ?? marker.id}`}
       >
         {marker.displayName}
       </span>
-      <span className="flex h-8 w-8 -rotate-45 items-center justify-center">
-        {config.special === 'beach' ? <img src={beachUmbrellaIcon} alt="" className="h-7 w-7 brightness-0 invert" /> : null}
-        {config.special === 'stairs' ? <span aria-hidden="true" className="relative block h-6 w-6"><i className="absolute bottom-1 left-0 h-[3px] w-2.5 rounded-full bg-white" /><i className="absolute bottom-2.5 left-[7px] h-[3px] w-2.5 rounded-full bg-white" /><i className="absolute bottom-4 left-3.5 h-[3px] w-2.5 rounded-full bg-white" /></span> : null}
-        {config.special === 'adult' ? <span className="cruush-logo-font text-[21px] font-normal leading-none tracking-normal">18+</span> : null}
-        {!config.special ? <Icon className="h-6 w-6" /> : null}
+      <span className={`relative flex h-12 w-12 rotate-45 items-center justify-center rounded-[0.7rem] border-2 bg-black/94 text-white shadow-[0_0_10px_rgba(20,157,255,0.95),0_0_24px_rgba(21,79,255,0.62)] backdrop-blur-md ${active ? 'border-[#C8FF31] shadow-[0_0_28px_rgba(200,255,49,0.55)]' : 'border-[#55C8FF]'}`}>
+        <span className="flex h-8 w-8 -rotate-45 items-center justify-center">
+          {config.special === 'beach' ? <img src={beachUmbrellaIcon} alt="" className="h-7 w-7 brightness-0 invert" /> : null}
+          {config.special === 'stairs' ? <span aria-hidden="true" className="relative block h-6 w-6"><i className="absolute bottom-1 left-0 h-[3px] w-2.5 rounded-full bg-white" /><i className="absolute bottom-2.5 left-[7px] h-[3px] w-2.5 rounded-full bg-white" /><i className="absolute bottom-4 left-3.5 h-[3px] w-2.5 rounded-full bg-white" /></span> : null}
+          {config.special === 'adult' ? <span className="cruush-logo-font text-[21px] font-normal leading-none tracking-normal">18+</span> : null}
+          {!config.special ? <Icon className="h-6 w-6" /> : null}
+        </span>
+        {active ? <span className="absolute -right-2 -top-2 flex h-6 min-w-6 -rotate-45 items-center justify-center rounded-full bg-[#C8FF31] px-1 text-[10px] font-bold text-black">{marker.place?.activeCheckins}</span> : null}
       </span>
-      {active ? <span className="absolute -right-2 -top-2 flex h-6 min-w-6 -rotate-45 items-center justify-center rounded-full bg-[#C8FF31] px-1 text-[10px] font-bold text-black">{marker.place?.activeCheckins}</span> : null}
     </span>
   );
 }

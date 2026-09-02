@@ -33,6 +33,14 @@ export const PLACE_FACILITY_LABELS: Record<PlaceFacilityType, string> = {
   beach: 'Beach', adult_venue: 'Adult venue', other: 'Other',
 };
 
+export const PLACE_FACILITY_SINGULAR_LABELS: Record<PlaceFacilityType, string> = {
+  clinic: 'Healthcare clinic', bar: 'Bar', nightclub: 'Nightclub', community_space: 'Community space',
+  park: 'Park', restroom: 'Bathroom', sauna: 'Sauna', gym: 'Gym', hotel: 'Hotel',
+  dungeon: 'Dungeon', venue: 'Spot', cafe: 'Café', shop: 'Shop', library: 'Library',
+  staircase: 'Staircase', trail: 'Trail', transit: 'Transit', parking: 'Parking',
+  beach: 'Beach', adult_venue: 'Adult venue', other: 'Spot',
+};
+
 export const PLACE_TAG_LABELS: Record<PlaceTag, string> = {
   lgbtq_health: 'LGBTQ health', womens_health: 'Ob/gyn health', sexual_health: 'Sexual health',
   leans_men: 'Leans men', leans_women: 'Leans women', t4t_spot: 'T4T spot', techno_club: 'Techno club',

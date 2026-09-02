@@ -13,10 +13,10 @@ import type { LocationPayload } from "./location-privacy.js";
  */
 
 export const TRAVEL_PIN_MOVE_COOLDOWN_MS = 3 * 60 * 60 * 1000;
-export const TRAVEL_PIN_MIN_DISTANCE_MILES = 50;
+export const TRAVEL_PIN_MIN_DISTANCE_MILES = 0;
 
 export function isTravelPinDistanceAllowed(distanceMiles: number) {
-  return Number.isFinite(distanceMiles) && distanceMiles > TRAVEL_PIN_MIN_DISTANCE_MILES;
+  return Number.isFinite(distanceMiles) && distanceMiles >= TRAVEL_PIN_MIN_DISTANCE_MILES;
 }
 
 /**

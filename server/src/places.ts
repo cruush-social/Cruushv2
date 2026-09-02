@@ -84,6 +84,16 @@ export const placeBoardPostSchema = z.object({
   content: multilineTextSchema({ min: 1, max: 1000 })
 }).strict();
 
+export const placeDetailsContributionSchema = z.object({
+  vibes: z.array(placeVibeSchema).max(3).optional(),
+  amenities: z.array(placeAmenitySchema).max(PLACE_AMENITIES.length).optional(),
+  accessInstructions: multilineTextSchema({ max: 1000 }).optional()
+}).strict().refine((payload) => (
+  payload.vibes !== undefined
+  || payload.amenities !== undefined
+  || Boolean(payload.accessInstructions?.trim())
+), { message: "Choose at least one Spot detail." });
+
 export const placeRatingSchema = z.object({
   category: z.enum(["overall", "gender_inclusivity", "lgbtq_friendliness", "safety", "accessibility", "cleanliness"]),
   stars: z.number().int().min(1).max(5)

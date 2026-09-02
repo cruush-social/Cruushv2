@@ -553,7 +553,7 @@ export async function registerPrivacyRoutes(app: FastifyInstance) {
       throw new ApiError(
         403,
         "FEATURE_RESTRICTED",
-        "Mile High Club locations must be more than 50 miles from your current location."
+        "That Mile High Club location is invalid."
       );
     }
 

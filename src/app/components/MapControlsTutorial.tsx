@@ -74,7 +74,7 @@ const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'mile-high-club',
     title: 'Mile High Club',
-    description: 'With cruush+, search an address or use your current location to drop your pin somewhere else and browse there. You can move the pin again after 3 hours. The sky border and plane glyph show when Mile High Club is on.',
+    description: 'With cruush+, search an address or use your current location to drop your pin anywhere in the current map area and browse there. You can move the pin again after 3 hours. The sky border and plane glyph show when Mile High Club is on.',
     actionLabel: 'Open Mile High Club',
   },
   {

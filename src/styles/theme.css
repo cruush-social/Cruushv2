@@ -313,6 +313,21 @@ html[data-cruush-high-contrast] .cruush-map .maplibregl-canvas {
   filter: brightness(1.28) contrast(1.38) saturate(0.9);
 }
 
+html[data-cruush-color-blind] {
+  --cruush-pink: #E69F00;
+  --cruush-magenta: #CC79A7;
+  --cruush-purple: #0072B2;
+  --cruush-indigo: #004D73;
+  --cruush-blue: #56B4E9;
+  --primary: #E69F00;
+  --ring: #0072B2;
+  --cruush-logo: linear-gradient(90deg, #E69F00 6.08%, #CC79A7 43.11%, #0072B2 73.81%, #56B4E9 100%);
+  --cruush-gradient: linear-gradient(90deg, #E69F00 6.08%, #CC79A7 43.11%, #0072B2 73.81%, #56B4E9 100%);
+  --cruush-heart-photo-gradient: linear-gradient(90deg, #F7C95C 0%, #E69F00 48.5577%, #A66D00 100%);
+  --cruush-heart-pin-red-gradient: linear-gradient(90deg, #F7C95C 0%, #E69F00 48.5577%, #A66D00 100%);
+  --cruush-heart-pin-blue-gradient: linear-gradient(90deg, #56B4E9 0%, #0072B2 48.5577%, #004D73 100%);
+}
+
 html[data-cruush-color-blind] [data-heart-theme='current'] > svg > path:first-of-type,
 html[data-cruush-color-blind] svg[data-marker-theme='current'][data-pulse-active='false'][data-traveller-active='false'][data-owner-stealth='false'][data-owner-ghost-decoy='false'] > path[data-testid^='marker-ghost-border'] {
   stroke: #0072B2 !important;

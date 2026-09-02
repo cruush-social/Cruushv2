@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router';
-import { ArrowLeft, Clock, Copy, ExternalLink, Flag, MapPin, Star, Trash2, Users } from 'lucide-react';
+import { ArrowLeft, Clock, Copy, ExternalLink, Flag, MapPin, Share2, Star, Trash2, Users } from 'lucide-react';
 import { Button } from './ui/button';
 import { Checkbox } from './ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
@@ -11,13 +11,14 @@ import ReportAction from './ReportAction';
 import ReportPage from './ReportPage';
 import UserActivityCapsule from './UserActivityCapsule';
 import LoadingCardSkeletons from './LoadingCardSkeletons';
+import InAppShareDialog from './InAppShareDialog';
 import { getStoredUserId } from '../lib/sessionUser';
 import { shouldMaskPhoto, useDlMode } from '../lib/dlMode';
 import { resolveUserBorderTone } from '../lib/userBorderTone';
 import {
   PLACE_AMENITY_LABELS,
   PLACE_AMENITIES,
-  PLACE_FACILITY_LABELS,
+  PLACE_FACILITY_SINGULAR_LABELS,
   PLACE_VIBES,
   PLACE_VIBE_LABELS,
   type PlaceAmenity,
@@ -26,6 +27,7 @@ import {
 import {
   checkIntoPlace,
   checkOutOfPlace,
+  contributePlaceDetails,
   deletePlaceBoardMessage,
   getPlace,
   getPlaceBoard,
@@ -78,9 +80,15 @@ export default function PlaceDetail({ embedded = false, onBack, placeIdOverride 
   const [boardHasMore, setBoardHasMore] = useState(false);
   const [loadingMoreBoard, setLoadingMoreBoard] = useState(false);
   const [message, setMessage] = useState('');
+  const [shareOpen, setShareOpen] = useState(false);
   const [checkinDurationHours, setCheckinDurationHours] = useState<1 | 3 | 6 | 12 | 24>(1);
   const [checkinVibes, setCheckinVibes] = useState<PlaceVibe[]>([]);
   const [checkinAmenities, setCheckinAmenities] = useState<PlaceAmenity[]>([]);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [detailVibes, setDetailVibes] = useState<PlaceVibe[]>([]);
+  const [detailAmenities, setDetailAmenities] = useState<PlaceAmenity[]>([]);
+  const [detailAccess, setDetailAccess] = useState('');
+  const [sendingDetails, setSendingDetails] = useState(false);
   const [visibleCheckin, setVisibleCheckin] = useState(false);
   const [postingCheckin, setPostingCheckin] = useState(false);
   const [postingBoard, setPostingBoard] = useState(false);
@@ -137,6 +145,11 @@ export default function PlaceDetail({ embedded = false, onBack, placeIdOverride 
     setMessage('');
     setCheckinVibes([]);
     setCheckinAmenities([]);
+    setDetailsOpen(false);
+    setDetailVibes([]);
+    setDetailAmenities([]);
+    setDetailAccess('');
+    setSendingDetails(false);
     setStatus(null);
     setRatingOpen(false);
     setReportTarget(null);
@@ -279,6 +292,34 @@ export default function PlaceDetail({ embedded = false, onBack, placeIdOverride 
 
   const handleCheckout = () => mutatePlace(checkOutOfPlace, 'Check-out failed.', 'Checked out.');
 
+  const handleContributeDetails = async () => {
+    if (!placeId || place?.id !== placeId || sendingDetails || (!detailVibes.length && !detailAmenities.length && !detailAccess.trim())) return;
+    const generation = loadGeneration.current;
+    const isCurrent = () => generation === loadGeneration.current && activePlaceId.current === placeId;
+    setSendingDetails(true);
+    setError(null);
+    setStatus(null);
+    try {
+      await contributePlaceDetails(placeId, {
+        ...(detailVibes.length ? { vibes: detailVibes } : {}),
+        ...(detailAmenities.length ? { amenities: detailAmenities } : {}),
+        ...(detailAccess.trim() ? { accessInstructions: detailAccess.trim() } : {}),
+      });
+      if (!isCurrent()) return;
+      setDetailVibes([]);
+      setDetailAmenities([]);
+      setDetailAccess('');
+      setDetailsOpen(false);
+      setStatus('Spot details sent.');
+      await refresh();
+    } catch (detailsError) {
+      if (!isCurrent()) return;
+      setError(detailsError instanceof Error ? detailsError.message : 'Spot details could not be sent.');
+    } finally {
+      if (isCurrent()) setSendingDetails(false);
+    }
+  };
+
   const handleCopyAddress = async () => {
     const generation = checkinGeneration.current;
     const isCurrent = () => generation === checkinGeneration.current && activePlaceId.current === placeId;
@@ -354,20 +395,23 @@ export default function PlaceDetail({ embedded = false, onBack, placeIdOverride 
         <button type="button" aria-label="Back" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/12 bg-black/70 text-white" onClick={onBack ?? (() => navigate(-1))}>
           <ArrowLeft className="h-5 w-5" />
         </button>
-        <h1 className="min-w-0 truncate text-xl">Spot</h1>
+        <h1 className="min-w-0 truncate text-xl">{PLACE_FACILITY_SINGULAR_LABELS[place.facilityType]}</h1>
       </header>
 
       <div className={`mx-auto flex flex-col gap-6 p-6 ${embedded ? 'max-w-none' : 'max-w-2xl'}`}>
         <div className={`relative ${embedded ? 'order-1' : 'order-3'}`}>
-          <p className="text-xs uppercase tracking-[0.16em] text-primary">{PLACE_FACILITY_LABELS[place.facilityType]}</p>
-          <h1 className={`mt-1 text-3xl ${embedded ? 'pr-10' : ''}`}>{place.name}</h1>
+          <h1 className={`text-3xl ${embedded ? 'pr-10' : ''}`}>{place.name}</h1>
           <div className="mt-2 flex items-start gap-2 text-sm text-muted-foreground">
             <p className="min-w-0 flex-1"><MapPin className="mr-1 inline h-4 w-4" />{place.address || `${place.latitude.toFixed(5)}, ${place.longitude.toFixed(5)}`}</p>
+            <button type="button" aria-label="Send spot in cruush" title="Send in cruush" className="shrink-0 rounded-md p-1 text-white/55 transition hover:bg-white/10 hover:text-white" onClick={() => setShareOpen(true)}><Share2 className="h-4 w-4" /></button>
             <button type="button" aria-label="Copy spot address" title="Copy address" className="shrink-0 rounded-md p-1 text-white/55 transition hover:bg-white/10 hover:text-white" onClick={() => void handleCopyAddress()}><Copy className="h-4 w-4" /></button>
           </div>
           {place.vibes?.length ? <div className="mt-3 flex flex-wrap gap-2">{place.vibes.slice(0, 2).map((vibe) => <span key={vibe} className="rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-xs text-white">{PLACE_VIBE_LABELS[vibe]}</span>)}</div> : null}
           {place.amenities?.length ? <div className="mt-2 flex flex-wrap gap-2">{place.amenities.map((amenity) => <span key={amenity} className="rounded-full border border-white/10 px-3 py-1 text-xs text-white/70">{PLACE_AMENITY_LABELS[amenity]}</span>)}</div> : null}
-          <button type="button" className="mt-3 inline-flex items-center text-xs text-white/50 hover:text-white" onClick={() => embedded ? setReportTarget({ targetType: 'place', targetId: place.id, targetLabel: place.name }) : navigate('/report', { state: { targetType: 'place', placeId: place.id, targetLabel: place.name } })}><Flag className="mr-1 h-3.5 w-3.5" />Report incorrect or unsafe spot</button>
+          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+            <button type="button" className="inline-flex items-center text-xs text-white/50 hover:text-white" onClick={() => setDetailsOpen(true)}>Add spot details</button>
+            <button type="button" className="inline-flex items-center text-xs text-white/50 hover:text-white" onClick={() => embedded ? setReportTarget({ targetType: 'place', targetId: place.id, targetLabel: place.name }) : navigate('/report', { state: { targetType: 'place', placeId: place.id, targetLabel: place.name } })}><Flag className="mr-1 h-3.5 w-3.5" />Report incorrect or unsafe spot</button>
+          </div>
         </div>
 
         {place.description || place.accessInstructions ? <div className="order-4 -mt-5 space-y-3 text-muted-foreground">
@@ -397,6 +441,39 @@ export default function PlaceDetail({ embedded = false, onBack, placeIdOverride 
             {ratingControls}
           </DialogContent>
         </Dialog> : null}
+
+        <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
+          <DialogContent className="scrollbar-hide max-h-[min(85dvh,42rem)] overflow-y-auto border-white/10 bg-background/98 sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Add spot details</DialogTitle>
+              <DialogDescription className="sr-only">Add vibes, amenities, or access details.</DialogDescription>
+            </DialogHeader>
+            <fieldset className="space-y-2">
+              <legend className="text-xs text-white/60">Vibes</legend>
+              <div className="flex flex-wrap gap-2">
+                {PLACE_VIBES.map((vibe) => {
+                  const selected = detailVibes.includes(vibe);
+                  const selectionFull = detailVibes.length >= 3 && !selected;
+                  return <button key={vibe} type="button" aria-pressed={selected} disabled={selectionFull || sendingDetails} className={`rounded-full border px-3 py-1 text-xs disabled:opacity-35 ${selected ? 'border-primary bg-primary/20 text-white' : 'border-white/10 text-white/65'}`} onClick={() => setDetailVibes((current) => selected ? current.filter((item) => item !== vibe) : [...current, vibe])}>{PLACE_VIBE_LABELS[vibe]}</button>;
+                })}
+              </div>
+            </fieldset>
+            <fieldset className="space-y-2">
+              <legend className="text-xs text-white/60">Amenities</legend>
+              <div className="flex flex-wrap gap-2">
+                {PLACE_AMENITIES.map((amenity) => {
+                  const selected = detailAmenities.includes(amenity);
+                  return <button key={amenity} type="button" aria-pressed={selected} disabled={sendingDetails} className={`rounded-full border px-3 py-1 text-xs disabled:opacity-35 ${selected ? 'border-primary bg-primary/20 text-white' : 'border-white/10 text-white/65'}`} onClick={() => setDetailAmenities((current) => selected ? current.filter((item) => item !== amenity) : [...current, amenity])}>{PLACE_AMENITY_LABELS[amenity]}</button>;
+                })}
+              </div>
+            </fieldset>
+            <label className="space-y-2 text-xs text-white/60">
+              <span>Access details</span>
+              <textarea className="min-h-24 w-full resize-none rounded-lg border border-white/10 bg-black/35 p-3 text-sm text-white outline-none focus:border-primary/45" maxLength={1000} value={detailAccess} onChange={(event) => setDetailAccess(event.target.value)} />
+            </label>
+            <Button disabled={sendingDetails || (!detailVibes.length && !detailAmenities.length && !detailAccess.trim())} onClick={() => void handleContributeDetails()}>{sendingDetails ? 'Sending...' : 'Send details'}</Button>
+          </DialogContent>
+        </Dialog>
 
         <details className="order-6 rounded-xl border border-border bg-card p-4">
           <summary className="flex cursor-pointer list-none items-center justify-between font-medium">Popular times<Clock className="h-5 w-5 text-primary" /></summary>
@@ -566,6 +643,7 @@ export default function PlaceDetail({ embedded = false, onBack, placeIdOverride 
             </div>
           </TabsContent>
         </Tabs>
+        <InAppShareDialog open={shareOpen} onOpenChange={setShareOpen} share={{ kind: 'place', id: place.id, label: place.name }} />
       </div>
     </div>
   );

@@ -77,11 +77,20 @@ alter table place_suggestions alter column supporter_token set not null;
 create table if not exists place_tags (
   place_id uuid not null references places(id) on delete cascade,
   tag text not null check (tag in (
-    'lgbtq_health', 'womens_health', 'sexual_health', 'gay_spot',
-    'dyke_spot', 'dyke_bar', 'techno_club'
+    'lgbtq_health', 'womens_health', 'sexual_health', 'leans_men',
+    'leans_women', 't4t_spot', 'techno_club'
   )),
   primary key (place_id, tag)
 );
+
+-- Older installations may still have the pre-1.6 tag constraint, while a
+-- replay after 1.6 has the new one. Keep this migration compatible with both;
+-- 104 normalizes legacy values and installs the final public taxonomy.
+alter table place_tags drop constraint if exists place_tags_tag_check;
+alter table place_tags add constraint place_tags_tag_check check (tag in (
+  'lgbtq_health', 'womens_health', 'sexual_health', 'gay_spot',
+  'dyke_spot', 'dyke_bar', 'leans_men', 'leans_women', 't4t_spot', 'techno_club'
+));
 
 create table if not exists place_board_messages (
   id uuid primary key default gen_random_uuid(),
@@ -221,12 +230,12 @@ from (values
   ('corona-sexual-health-clinic', 'sexual_health'), ('corona-sexual-health-clinic', 'womens_health'),
   ('jamaica-sexual-health-clinic', 'sexual_health'), ('jamaica-sexual-health-clinic', 'womens_health'),
   ('morrisania-sexual-health-clinic', 'sexual_health'), ('morrisania-sexual-health-clinic', 'womens_health'),
-  ('henrietta-hudson', 'dyke_spot'),
-  ('cubbyhole', 'dyke_spot'),
-  ('gingers-bar', 'dyke_spot'),
+  ('henrietta-hudson', 'leans_women'),
+  ('cubbyhole', 'leans_women'),
+  ('gingers-bar', 'leans_women'),
   ('basement-nyc', 'techno_club'), ('nowadays', 'techno_club'),
   ('knockdown-center', 'techno_club'), ('public-records', 'techno_club'),
-  ('stonewall-inn', 'gay_spot'), ('metropolitan-bar', 'gay_spot'), ('three-dollar-bill', 'gay_spot')
+  ('stonewall-inn', 'leans_men'), ('metropolitan-bar', 'leans_men'), ('three-dollar-bill', 'leans_men')
 ) as seed(slug, tag)
 join places p on p.slug = seed.slug
 on conflict do nothing;

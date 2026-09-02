@@ -40,6 +40,7 @@ import {
   type MessageSender,
   type PendingPhotoReview,
   type RemoteChatMessage,
+  parseInAppShareMessage,
   updateGroupConversation,
   uploadFavoriteMessageImage,
   viewMessageAttachment,
@@ -1275,6 +1276,7 @@ export default function PrivateGroupChat({
             const messageSender = !isOwn && conversation
               ? getMessageSender(msg, conversation, groupMembers)
               : null;
+            const inAppShare = parseInAppShareMessage(msg.content);
 
             if (isSystem) {
               return (
@@ -1416,7 +1418,16 @@ export default function PrivateGroupChat({
                       </div>
                     );
                   })}
-                  {msg.content ? (
+                  {inAppShare ? (
+                    <button
+                      className="min-w-48 rounded-[22px] border border-white/14 bg-black/38 px-4 py-3 text-left text-white transition hover:border-white/30"
+                      onClick={() => navigate(inAppShare.kind === 'place' ? `/places/${inAppShare.id}` : `/profile/${inAppShare.id}`)}
+                      type="button"
+                    >
+                      <span className="block text-[10px] uppercase tracking-[0.16em] text-white/50">{inAppShare.kind === 'place' ? 'Spot' : 'Profile'}</span>
+                      <span className="mt-1 block text-sm">{inAppShare.label}</span>
+                    </button>
+                  ) : msg.content ? (
                     <div
                       className="rounded-[22px] px-4 py-3 text-sm leading-relaxed text-white"
                       style={{

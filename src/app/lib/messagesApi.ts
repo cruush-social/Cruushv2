@@ -103,6 +103,23 @@ export type ConversationMessagesPayload = {
   messages: RemoteChatMessage[];
 };
 
+export type InAppShare = {
+  kind: 'place' | 'profile';
+  id: string;
+  label: string;
+};
+
+const IN_APP_SHARE_PATTERN = /^\[\[cruush:(place|profile):([0-9a-f-]{36})\]\]\s+(.+)$/i;
+
+export function createInAppShareMessage(share: InAppShare) {
+  return `[[cruush:${share.kind}:${share.id}]] ${share.label.trim()}`;
+}
+
+export function parseInAppShareMessage(content: string): InAppShare | null {
+  const match = content.match(IN_APP_SHARE_PATTERN);
+  return match ? { kind: match[1].toLowerCase() as InAppShare['kind'], id: match[2], label: match[3].trim() } : null;
+}
+
 export function getConversations() {
   return requestApi<ConversationThread[]>('/api/conversations');
 }

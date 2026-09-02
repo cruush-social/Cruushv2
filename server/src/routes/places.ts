@@ -17,6 +17,7 @@ import {
   listPlacesQuerySchema,
   placeBoardPostSchema,
   placeCheckinSchema,
+  placeDetailsContributionSchema,
   placeRatingSchema,
   slugifyPlaceName,
   storedPlaceSuggestionSchema,
@@ -124,6 +125,7 @@ function optionalExpiryIso(value: string | Date | null | undefined) {
 }
 
 function mapPlace(row: PlaceRow) {
+  const hidesCompetitorSource = row.source_url?.toLowerCase().includes('sniffies.com') === true;
   return {
     id: row.id,
     slug: row.slug,
@@ -136,8 +138,8 @@ function mapPlace(row: PlaceRow) {
     facilityType: row.facility_type,
     status: row.status,
     sourceKind: row.source_kind,
-    sourceUrl: row.source_url,
-    sourceAttribution: row.source_attribution,
+    sourceUrl: hidesCompetitorSource ? null : row.source_url,
+    sourceAttribution: hidesCompetitorSource ? null : row.source_attribution,
     verifiedAt: row.verified_at ? new Date(row.verified_at).toISOString() : null,
     createdAt: new Date(row.created_at).toISOString(),
     tags: row.tags ?? [],
@@ -778,6 +780,73 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
     const { placeId } = placeParamsSchema.parse(request.params);
     await app.db.query(`delete from place_checkins where user_id = $1 and place_id = $2`, [userId, placeId]);
     return reply.code(204).send();
+  });
+
+  app.put("/api/places/:placeId/details", async (request, reply) => {
+    const userId = await getActiveAccountUserId(request);
+    const { placeId } = placeParamsSchema.parse(request.params);
+    const payload = placeDetailsContributionSchema.parse(request.body);
+    await requirePublishedPlace(app, placeId);
+    await app.rateLimiter.assert({
+      key: `place-details:${userId}`,
+      max: 12,
+      windowMs: 60 * 60 * 1000,
+      message: "Too many Spot detail updates. Try again later."
+    });
+
+    const accessInstructions = payload.accessInstructions?.trim() ?? "";
+    if (accessInstructions) {
+      await moderateTextOrReject(app, {
+        userId,
+        surface: "feed",
+        text: accessInstructions,
+        contentRef: { placeId }
+      });
+    }
+
+    await runTransaction(app.db, async (db) => {
+      if (payload.vibes !== undefined) {
+        await db.query(`delete from place_vibe_reports where place_id = $1 and user_id = $2`, [placeId, userId]);
+        for (const vibe of [...new Set(payload.vibes)]) {
+          await db.query(
+            `insert into place_vibe_reports (place_id, user_id, vibe, reported_at)
+             values ($1, $2, $3, now())`,
+            [placeId, userId, vibe]
+          );
+        }
+      }
+
+      if (payload.amenities !== undefined) {
+        await db.query(`delete from place_amenity_reports where place_id = $1 and user_id = $2`, [placeId, userId]);
+        for (const amenity of [...new Set(payload.amenities)]) {
+          await db.query(
+            `insert into place_amenity_reports (place_id, user_id, amenity, reported_at)
+             values ($1, $2, $3, now())`,
+            [placeId, userId, amenity]
+          );
+        }
+      }
+
+      if (accessInstructions) {
+        const supporterToken = placeSuggestionSupporterToken(app.config, `details:${placeId}`, userId);
+        const encrypted = encryptPlaceSuggestion(app.config, { accessInstructions });
+        await db.query(
+          `insert into place_detail_suggestions (
+             place_id, supporter_token, suggestion_ciphertext, suggestion_nonce,
+             suggestion_auth_tag, suggestion_key_version, updated_at
+           ) values ($1, $2, $3, $4, $5, $6, now())
+           on conflict (place_id, supporter_token) do update set
+             suggestion_ciphertext = excluded.suggestion_ciphertext,
+             suggestion_nonce = excluded.suggestion_nonce,
+             suggestion_auth_tag = excluded.suggestion_auth_tag,
+             suggestion_key_version = excluded.suggestion_key_version,
+             status = 'pending', updated_at = now()`,
+          [placeId, supporterToken, encrypted.ciphertext, encrypted.nonce, encrypted.authTag, encrypted.keyVersion]
+        );
+      }
+    });
+
+    return reply.send({ data: { placeId } });
   });
 
   app.put("/api/places/:placeId/rating", async (request, reply) => {

@@ -969,11 +969,6 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
   };
 
   const handleTabChange = (nextTab: string) => {
-    if (nextTab === 'badges' && !cruushPlus) {
-      navigate('/cruush-plus');
-      return;
-    }
-
     if (activeTab === 'badges' && nextTab !== 'badges' && badgeExitGuardRef.current) {
       void badgeExitGuardRef.current().then((canLeave) => {
         if (canLeave) {
@@ -1084,17 +1079,16 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
         ) : null}
         <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
           <TabsList className="grid h-auto w-full grid-cols-5 rounded-full border border-white/10 bg-background/25 p-1">
-            <TabsTrigger value="photos" className="min-h-11" onClick={() => handleTabChange('photos')}>Photos</TabsTrigger>
+            <TabsTrigger value="photos" className="min-h-11">Photos</TabsTrigger>
             <TabsTrigger
               value="badges"
               className="min-h-11"
-              onClick={() => handleTabChange('badges')}
             >
               Badges
             </TabsTrigger>
-            <TabsTrigger value="basics" className="min-h-11" onClick={() => handleTabChange('basics')}>Basics</TabsTrigger>
-            <TabsTrigger value="intimacy" className="min-h-11" onClick={() => handleTabChange('intimacy')}>Intimacy</TabsTrigger>
-            <TabsTrigger value="health" className="min-h-11" onClick={() => handleTabChange('health')}>Health</TabsTrigger>
+            <TabsTrigger value="basics" className="min-h-11">Basics</TabsTrigger>
+            <TabsTrigger value="intimacy" className="min-h-11">Intimacy</TabsTrigger>
+            <TabsTrigger value="health" className="min-h-11">Health</TabsTrigger>
           </TabsList>
 
           <TabsContent forceMount value="badges" className="mt-0 data-[state=inactive]:hidden">

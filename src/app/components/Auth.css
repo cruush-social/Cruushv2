@@ -614,6 +614,11 @@
   text-shadow: 0 0.45rem 1.4rem rgba(0, 0, 0, 0.72);
 }
 
+.launch-login-auth-consent {
+  width: min(100%, 22rem);
+  text-wrap: balance;
+}
+
 @media (min-width: 641px) {
   .launch-login-auth-footer {
     display: flex;

@@ -420,6 +420,7 @@ function BadgeChip({ darkRoom = false, frame, option, side, meaning }: {
         color: CURRENT_USER_BORDER,
         ...mapSideBadgeStyle(side, frame),
       }}
+      tabIndex={0}
     >
       <BadgeFrame
         className="h-full w-full"
@@ -861,7 +862,7 @@ export default function BadgePickerPreview({
 
               return (
                 <button
-                  className={`rounded-xl border px-3 py-2 text-left transition ${
+                  className={`min-w-0 rounded-xl border px-3 py-2 text-left transition ${
                     active
                       ? 'border-[#004BFF] bg-black/60 text-white'
                       : 'border-white/10 bg-black/40 text-white/64 hover:bg-white/[0.06]'
@@ -873,7 +874,7 @@ export default function BadgePickerPreview({
                   <span className="block text-[0.7rem] uppercase tracking-[0.12em] text-white/48">
                     {side.hint}
                   </span>
-                  <span className="mt-0.5 block truncate text-sm">
+                  <span className="mt-0.5 block break-words text-sm leading-tight">
                     {option.id === 'none'
                       ? 'Empty'
                       : option.hanky
@@ -902,7 +903,7 @@ export default function BadgePickerPreview({
                 <DialogHeader>
                   <DialogTitle>cruush Hanky code</DialogTitle>
                 </DialogHeader>
-                <div className="mt-2 grid grid-cols-3 gap-2">
+                <div className="mt-2 grid grid-cols-1 gap-2 min-[390px]:grid-cols-2 sm:grid-cols-3">
                   {HANKY_COLORS.map((hanky) => (
                     <div
                       aria-label={hanky.meaning}
@@ -914,7 +915,7 @@ export default function BadgePickerPreview({
                         color={hanky.color}
                         label={hanky.meaning}
                       />
-                      <p className="min-w-0 text-xs leading-tight text-white/74">{hanky.meaning}</p>
+                      <p className="min-w-0 break-words text-xs leading-tight text-white/74">{hanky.meaning}</p>
                     </div>
                   ))}
                 </div>

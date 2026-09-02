@@ -70,6 +70,7 @@ function SavedSideBadge({ badge, side, tone }: {
       data-testid={`activity-${side}-badge`}
       role="img"
       style={{ color: borderColor, width: SIDE_BADGE_SIZE_PX, height: SIDE_BADGE_SIZE_PX }}
+      tabIndex={0}
     >
       <BadgeFrame
         className="h-full w-full"

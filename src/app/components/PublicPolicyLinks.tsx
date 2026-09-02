@@ -47,7 +47,7 @@ export default function PublicPolicyLinks({ className, variant = 'card', exclude
 
     return (
       <div aria-label="Legal and safety links" className={cn('text-center text-white/30', className)}>
-        <p className="text-[0.7rem] leading-relaxed">
+        <p className="launch-login-auth-consent mx-auto text-[0.7rem] leading-relaxed">
           By continuing, you agree to our{' '}
           {consentLinks.map((link, index) => (
             <Fragment key={link.path}>

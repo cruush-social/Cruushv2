@@ -156,6 +156,17 @@ export async function checkOutOfPlace(placeId: string) {
   return requestApi<void>(`/api/places/${placeId}/check-ins/me`, { method: 'DELETE' });
 }
 
+export async function contributePlaceDetails(placeId: string, input: {
+  vibes?: PlaceVibe[];
+  amenities?: PlaceAmenity[];
+  accessInstructions?: string;
+}) {
+  return requestApi<{ placeId: string }>(`/api/places/${placeId}/details`, {
+    method: 'PUT',
+    body: JSON.stringify(input),
+  });
+}
+
 export async function submitPlace(input: {
   name: string;
   description: string;

@@ -3,7 +3,7 @@ import type { CSSProperties, ReactNode } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { resolveMediaUrl } from '../lib/apiClient';
 import { useLocation, useNavigate, useParams } from 'react-router';
-import { ArrowLeft, X } from 'lucide-react';
+import { ArrowLeft, Share2, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import BlockUserAction from './BlockUserAction';
@@ -31,6 +31,7 @@ import { formatDistanceWithAway, useDistancePreferences } from '../lib/distanceP
 import { resolveUserBorderTone } from '../lib/userBorderTone';
 import partyHatIcon from '../assets/ui-icons/party-hat.svg';
 import mileHighClubWhite from '../assets/ui-icons/mile-high-club-white.svg';
+import InAppShareDialog from './InAppShareDialog';
 
 type ProfileLocationState = {
   distance?: string;
@@ -212,6 +213,7 @@ export default function ProfileView() {
   const [sendingCruush, setSendingCruush] = useState(false);
   const [revokingCruush, setRevokingCruush] = useState(false);
   const [openingMessage, setOpeningMessage] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('basics');
   const [expandedPhoto, setExpandedPhoto] = useState<string | null>(null);
   const [pinTokenValid, setPinTokenValid] = useState(false);
@@ -542,6 +544,16 @@ export default function ProfileView() {
           </div>
 
           <div className="pointer-events-auto flex items-center gap-2">
+            <Button
+              aria-label="Send profile in cruush"
+              className="h-10 w-10 rounded-full border border-white/12 bg-black/55 text-white backdrop-blur-sm"
+              onClick={() => setShareOpen(true)}
+              size="icon"
+              type="button"
+              variant="ghost"
+            >
+              <Share2 className="h-4 w-4" />
+            </Button>
             {isOwnProfile ? (
               <Button
                 className="h-10 rounded-full border border-white/12 bg-black/55 px-4 text-white backdrop-blur-sm"
@@ -747,6 +759,7 @@ export default function ProfileView() {
           </div>
         </div>
       ) : null}
+      <InAppShareDialog open={shareOpen} onOpenChange={setShareOpen} share={{ kind: 'profile', id: profileView.id, label: profileView.name }} />
 
       <div className="mx-auto max-w-2xl px-4 pb-5 pt-2 sm:px-6 sm:pb-6 sm:pt-2">
         <div className="space-y-3">

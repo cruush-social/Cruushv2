@@ -4,13 +4,14 @@ set facility_type = 'other', updated_at = now()
 where facility_type = 'venue';
 
 insert into place_tags (place_id, tag)
-select place_id, 'dyke_spot'
+select place_id,
+       case when tag in ('dyke_spot', 'dyke_bar') then 'leans_women' else 'leans_men' end
 from place_tags
-where tag = 'dyke_bar'
+where tag in ('gay_spot', 'dyke_spot', 'dyke_bar')
 on conflict (place_id, tag) do nothing;
 
 delete from place_tags
-where tag = 'dyke_bar';
+where tag in ('gay_spot', 'dyke_spot', 'dyke_bar');
 
 alter table places drop constraint if exists places_facility_type_check;
 alter table places add constraint places_facility_type_check check (facility_type in (
@@ -21,6 +22,6 @@ alter table places add constraint places_facility_type_check check (facility_typ
 
 alter table place_tags drop constraint if exists place_tags_tag_check;
 alter table place_tags add constraint place_tags_tag_check check (tag in (
-  'lgbtq_health', 'womens_health', 'sexual_health', 'gay_spot',
-  'dyke_spot', 't4t_spot', 'techno_club'
+  'lgbtq_health', 'womens_health', 'sexual_health', 'leans_men',
+  'leans_women', 't4t_spot', 'techno_club'
 ));
