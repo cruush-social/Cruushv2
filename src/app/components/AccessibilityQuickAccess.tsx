@@ -110,18 +110,20 @@ export default function AccessibilityQuickAccess({
                 </span>
               </AccordionTrigger>
               <AccordionContent className="px-4 pb-4 pt-0">
-                <Label className="sr-only" htmlFor="quick-accessibility-color-vision">Color vision</Label>
-                <select
-                  aria-label="Color vision"
-                  className="w-full rounded-full border border-border bg-background px-3 py-2 text-sm text-foreground"
-                  id="quick-accessibility-color-vision"
-                  onChange={(event) => updateColorVisionMode(event.target.value as ColorVisionMode)}
-                  value={preferences.colorVisionMode}
-                >
+                <div aria-label="Color vision" className="grid grid-cols-2 gap-2" role="radiogroup">
                   {COLOR_VISION_MODES.map((value) => (
-                    <option key={value} value={value}>{COLOR_VISION_LABELS[value]}</option>
+                    <button
+                      aria-checked={preferences.colorVisionMode === value}
+                      className={`min-h-10 rounded-full border px-3 py-2 text-sm ${preferences.colorVisionMode === value ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-background text-foreground'}`}
+                      key={value}
+                      onClick={() => updateColorVisionMode(value)}
+                      role="radio"
+                      type="button"
+                    >
+                      {COLOR_VISION_LABELS[value]}
+                    </button>
                   ))}
-                </select>
+                </div>
               </AccordionContent>
             </AccordionItem>
           </Accordion>

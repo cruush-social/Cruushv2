@@ -557,10 +557,20 @@ export default function Settings({ embedded = false, onBack, onClose, onOpenMile
                           </span>
                         </AccordionTrigger>
                         <AccordionContent className="px-4 pb-4 pt-0">
-                          <Label className="sr-only" htmlFor={inputId}>{item.label}</Label>
-                          <select aria-label={item.label} className="w-full rounded-full border border-border bg-background px-3 py-2 text-sm text-foreground" id={inputId} onChange={(event) => item.onValueChange(event.target.value)} value={item.value}>
-                            {item.options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-                          </select>
+                          <div aria-label={item.label} className="grid grid-cols-2 gap-2" role="radiogroup">
+                            {item.options.map((option) => (
+                              <button
+                                aria-checked={item.value === option.value}
+                                className={`min-h-10 rounded-full border px-3 py-2 text-sm ${item.value === option.value ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-background text-foreground'}`}
+                                key={option.value}
+                                onClick={() => item.onValueChange(option.value)}
+                                role="radio"
+                                type="button"
+                              >
+                                {option.label}
+                              </button>
+                            ))}
+                          </div>
                         </AccordionContent>
                       </AccordionItem>
                     </Accordion>
