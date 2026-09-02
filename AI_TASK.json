@@ -21,7 +21,7 @@
     "Spot and profile shares stay inside cruush and do not invoke external sharing.",
     "Tablet headers have a centered maximum width with deployed-mobile icon sizing; Map Controls hover uses the deployed high-legibility state.",
     "Mobile pages keep vertical scrolling but never show a side scrollbar.",
-    "Auth legal copy uses the available width cleanly, colorblind mode visibly changes the palette, the landing tagline and Open Beta capsule hover glows read as neutral white above the warm video, and the logo hover glow uses a compact radius and the approved logo colors.",
+    "Auth legal copy uses the available width cleanly, Color-blind mode remaps shared app and logo colors without altering member photos or map tiles, the landing tagline and Open Beta capsule hover glows read as neutral white above the warm video, and the logo hover glow uses a compact radius and the approved logo colors.",
     "Mobile long-press reveals badge meanings while desktop hover remains; hanky labels do not overflow.",
     "Onboarding explains that Crowd Mode affects visibility only when enabled and includes the approved profile-photo rules.",
     "Onboarding step 2 accepts an optional friend invite code and explains that invite benefits require the invited member to enable 2FA.",
@@ -41,7 +41,7 @@
     "Keep user-facing copy free of em dashes and spell cruush lowercase."
   ],
   "nonGoals": [
-    "No map tile or theme changes, no reaction or feed-reply work, no crowd-mode changes, no new Spot scrape, no heart-halo or presence-indicator implementation, no tests, no broad build, no push, and no deploy.",
+    "No map tile or theme changes, no reaction or feed-reply work, no crowd-mode changes, no new Spot scrape, no heart-halo or presence-indicator implementation, no phone verification or physical-device identity enforcement before 1.7, no tests, no broad build, no push, and no deploy.",
     "Do not import private residences, visitor identities, access codes, or covertly inferred identity attributes.",
     "Do not redesign unrelated pages or add unrelated labels, taglines, controls, or filters."
   ],
@@ -108,10 +108,14 @@
     "src/app/components/CodeOfConductGate.tsx",
     "src/app/components/OnboardingPreview.tsx",
     "src/app/components/ProfileView.tsx",
+    "src/app/components/ResetPassword.tsx",
     "src/app/components/InAppShareDialog.tsx",
     "src/app/components/PrivateGroupChat.tsx",
     "src/app/components/Auth.tsx",
     "src/app/components/Auth.css",
+    "src/app/components/BottomNav.tsx",
+    "src/app/components/CruushIconImage.tsx",
+    "src/app/components/HeartPhoto.tsx",
     "src/app/components/PublicPolicyLinks.tsx",
     "src/app/components/PublicInfoPage.tsx",
     "src/app/components/SupportPage.tsx",

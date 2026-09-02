@@ -647,7 +647,7 @@ export default function ProfileOnboarding({
     >
       <div className="mx-auto flex min-h-full w-full max-w-md flex-col justify-center px-3 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-3 sm:px-4 sm:pt-4">
         <header className="mb-4 text-center sm:mb-6">
-          <img className="mx-auto mb-2 h-auto w-36" src={cruushLogo} alt="cruush" />
+          <img className="cruush-brand-logo mx-auto mb-2 h-auto w-36" src={cruushLogo} alt="cruush" />
           <p className="mt-2 text-center text-white/58">the rites</p>
         </header>
         <div className="w-full space-y-5 rounded-lg border border-white/12 bg-black/82 p-4 shadow-[0_28px_90px_rgba(0,0,0,0.52)] backdrop-blur sm:space-y-8 sm:p-6">

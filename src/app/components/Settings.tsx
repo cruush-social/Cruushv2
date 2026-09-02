@@ -666,7 +666,7 @@ export default function Settings({ embedded = false, onBack, onClose, onOpenMile
           <div className="space-y-1 text-center">
             <img
               alt="cruush"
-              className="mx-auto h-16 w-16 object-contain"
+              className="cruush-brand-logo mx-auto h-16 w-16 object-contain"
               draggable={false}
               src={cruushLogo}
             />

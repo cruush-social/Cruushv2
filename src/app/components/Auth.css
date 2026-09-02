@@ -1205,6 +1205,24 @@ html[data-cruush-color-blind] .launch-login-strobe-pane::after {
     radial-gradient(30rem 26rem at 26% 84%, rgba(0, 114, 178, 0.4), transparent 64%);
 }
 
+html[data-cruush-color-blind] .launch-login-auth-logo-image {
+  filter:
+    hue-rotate(38deg) saturate(0.88) brightness(1.08)
+    drop-shadow(0 0.95rem 1.9rem rgba(0, 0, 0, 0.74))
+    drop-shadow(0 0 2.2rem rgba(86, 180, 233, 0.34))
+    drop-shadow(0 0 1.8rem rgba(230, 159, 0, 0.26));
+}
+
+html[data-cruush-color-blind] .launch-login-auth-logo-image:hover {
+  filter:
+    hue-rotate(38deg) saturate(0.88) brightness(1.08)
+    drop-shadow(0 0.95rem 1.9rem rgba(0, 0, 0, 0.74))
+    drop-shadow(0 0 0.16rem #E69F00)
+    drop-shadow(0 0 0.28rem #CC79A7)
+    drop-shadow(0 0 0.42rem #0072B2)
+    drop-shadow(0 0 0.58rem #56B4E9);
+}
+
 html[data-cruush-color-blind] .launch-login-auth-input,
 html[data-cruush-color-blind] .launch-login-auth-input:-webkit-autofill {
   caret-color: #e69f00;

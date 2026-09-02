@@ -1504,10 +1504,10 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
         </clipPath>
         {travellerActive ? (
           <linearGradient id={travelGradientId} x1="8" x2="56" y1="32" y2="32" gradientUnits="userSpaceOnUse">
-            <stop offset="6%" stopColor="#ff0072" />
-            <stop offset="53%" stopColor="#6f00ff" />
-            <stop offset="81%" stopColor="#3826ff" />
-            <stop offset="100%" stopColor="#1181ff" />
+            <stop data-cruush-brand-stop offset="6%" stopColor="#ff0072" />
+            <stop data-cruush-brand-stop offset="53%" stopColor="#6f00ff" />
+            <stop data-cruush-brand-stop offset="81%" stopColor="#3826ff" />
+            <stop data-cruush-brand-stop offset="100%" stopColor="#1181ff" />
           </linearGradient>
         ) : null}
         {isOwnGhostMarker ? (

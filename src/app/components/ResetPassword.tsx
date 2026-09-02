@@ -64,7 +64,7 @@ export default function ResetPassword() {
           <img
             alt=""
             aria-hidden="true"
-            className="launch-login-auth-logo-image"
+            className="cruush-brand-logo launch-login-auth-logo-image"
             data-testid="reset-password-logo"
             draggable={false}
             src={cruushLogo}

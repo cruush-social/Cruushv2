@@ -64,6 +64,7 @@ export default function HeartPhoto({
   return (
     <div
       className={`relative aspect-square ${onClick ? 'cursor-pointer' : ''} ${className}`.trim()}
+      data-border-tone={staticMileHigh ? 'mile-high' : borderTone}
       data-heart-theme={theme}
       onClick={handleClick}
       onKeyDown={handleKeyDown}

@@ -128,7 +128,7 @@ export function GhostColoredIcon({ className, ...props }: ImgHTMLAttributes<HTML
       {...props}
       alt=""
       aria-hidden="true"
-      className={`shrink-0 object-contain ${className ?? ''}`}
+      className={`cruush-colored-ui-asset shrink-0 object-contain ${className ?? ''}`}
       draggable={false}
       src={ghostColored}
     />
@@ -163,6 +163,10 @@ export function CruushIcon({
 }) {
   if (name === 'ghost' && variant === 'colored') {
     return <GhostColoredIcon className={className} />;
+  }
+
+  if (variant === 'colored') {
+    return <CruushIconImage className={`cruush-colored-ui-asset ${className}`} src={CRUUSH_ICON_SOURCES[name].colored} />;
   }
 
   if (variant === 'stealth') {

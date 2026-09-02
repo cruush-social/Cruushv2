@@ -54,7 +54,7 @@ function ProfileNavIcon({ active }: { active: boolean }) {
     <img
       alt=""
       aria-hidden="true"
-      className="h-11 w-11 object-contain"
+      className={`h-11 w-11 object-contain ${active ? 'cruush-colored-ui-asset' : ''}`}
       data-testid="bottom-nav-profile-icon"
       data-tone={active ? 'gradient' : 'white'}
       draggable={false}
@@ -196,7 +196,7 @@ export default function BottomNav() {
                 <img
                   alt=""
                   aria-hidden="true"
-                  className={`h-12 w-12 object-contain ${gradientIcon ? '' : 'brightness-0 invert'}`}
+                  className={`h-12 w-12 object-contain ${gradientIcon ? 'cruush-brand-logo' : 'brightness-0 invert'}`}
                   data-tone={gradientIcon ? 'gradient-white-wordmark' : 'white'}
                   draggable={false}
                   src={cruushLogo}
@@ -206,8 +206,8 @@ export default function BottomNav() {
                   alt=""
                   aria-hidden="true"
                   className={item.path === '/feed'
-                    ? 'h-[4.25rem] w-[4.25rem] max-w-none object-contain'
-                    : 'h-[3.6rem] w-[3.6rem] object-contain'}
+                    ? `h-[4.25rem] w-[4.25rem] max-w-none object-contain ${gradientIcon ? 'cruush-colored-ui-asset' : ''}`
+                    : `h-[3.6rem] w-[3.6rem] object-contain ${gradientIcon ? 'cruush-colored-ui-asset' : ''}`}
                   draggable={false}
                   src={gradientIcon ? item.activeIcon : item.icon}
                 />

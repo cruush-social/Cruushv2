@@ -400,7 +400,7 @@ export default function Auth({ onAuth }: AuthProps) {
           <img
             alt=""
             aria-hidden="true"
-            className="launch-login-auth-logo-image"
+            className="cruush-brand-logo launch-login-auth-logo-image"
             data-testid="launch-login-auth-logo"
             draggable={false}
             src={cruushLogo}

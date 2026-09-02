@@ -320,12 +320,171 @@ html[data-cruush-color-blind] {
   --cruush-indigo: #004D73;
   --cruush-blue: #56B4E9;
   --primary: #E69F00;
+  --destructive: #D55E00;
   --ring: #0072B2;
+  --chart-1: #E69F00;
+  --chart-2: #56B4E9;
+  --chart-3: #009E73;
+  --chart-4: #D55E00;
+  --chart-5: #CC79A7;
+  --sidebar-primary: #E69F00;
+  --sidebar-ring: #0072B2;
   --cruush-logo: linear-gradient(90deg, #E69F00 6.08%, #CC79A7 43.11%, #0072B2 73.81%, #56B4E9 100%);
   --cruush-gradient: linear-gradient(90deg, #E69F00 6.08%, #CC79A7 43.11%, #0072B2 73.81%, #56B4E9 100%);
+  --cruush-logo-gradient: var(--cruush-logo);
+  --cruush-gradient-soft-18: linear-gradient(rgba(5, 5, 6, 0.82), rgba(5, 5, 6, 0.82)), var(--cruush-gradient);
+  --cruush-gradient-soft-28: linear-gradient(rgba(5, 5, 6, 0.72), rgba(5, 5, 6, 0.72)), var(--cruush-gradient);
   --cruush-heart-photo-gradient: linear-gradient(90deg, #F7C95C 0%, #E69F00 48.5577%, #A66D00 100%);
   --cruush-heart-pin-red-gradient: linear-gradient(90deg, #F7C95C 0%, #E69F00 48.5577%, #A66D00 100%);
   --cruush-heart-pin-blue-gradient: linear-gradient(90deg, #56B4E9 0%, #0072B2 48.5577%, #004D73 100%);
+  --cruush-dark-room-dark: #003B5C;
+  --cruush-dark-room-middle: #0072B2;
+  --cruush-dark-room-light: #56B4E9;
+  --crimson-bright: #D55E00;
+  --crimson-mid: #A84700;
+  --crimson-dark: #703000;
+}
+
+html[data-cruush-color-blind] .cruush-brand-logo,
+html[data-cruush-color-blind] .cruush-colored-ui-asset,
+html[data-cruush-color-blind] [data-tone='gradient-white-wordmark'] {
+  filter: hue-rotate(38deg) saturate(0.88) brightness(1.08);
+}
+
+html[data-cruush-color-blind] :where([class*='text-[#ff0072]'], [class*='text-[#FF0072]']) {
+  color: #E69F00 !important;
+}
+
+html[data-cruush-color-blind] :where([class*='text-[#6f00ff]'], [class*='text-[#6F00FF]']) {
+  color: #CC79A7 !important;
+}
+
+html[data-cruush-color-blind] :where([class*='text-[#3826ff]'], [class*='text-[#3826FF]'], [class*='text-[#004bff]'], [class*='text-[#004BFF]']) {
+  color: #0072B2 !important;
+}
+
+html[data-cruush-color-blind] :where([class*='text-[#1181ff]'], [class*='text-[#1181FF]']) {
+  color: #56B4E9 !important;
+}
+
+html[data-cruush-color-blind] :where([class*='text-[#d11f3a]'], [class*='text-[#D11F3A]']) {
+  color: #D55E00 !important;
+}
+
+html[data-cruush-color-blind] :where([class*='text-[#0ba8ff]'], [class*='text-[#0BA8FF]'], [class*='text-[#03ecfc]'], [class*='text-[#03ECFC]'], [class*='text-[#77b9da]'], [class*='text-[#77B9DA]'], [class*='text-[#dcc7ff]'], [class*='text-[#DCC7FF]']) {
+  color: #56B4E9 !important;
+}
+
+html[data-cruush-color-blind] :where([class*='text-[#c8ff31]'], [class*='text-[#C8FF31]']) {
+  color: #009E73 !important;
+}
+
+html[data-cruush-color-blind] :where([class*='text-[#8b5cf6]'], [class*='text-[#8B5CF6]']) {
+  color: #0072B2 !important;
+}
+
+html[data-cruush-color-blind] :where([class*='border-[#ff0072]'], [class*='border-[#FF0072]']) {
+  border-color: #E69F00 !important;
+}
+
+html[data-cruush-color-blind] :where([class*='border-[#6f00ff]'], [class*='border-[#6F00FF]']) {
+  border-color: #CC79A7 !important;
+}
+
+html[data-cruush-color-blind] :where([class*='border-[#3826ff]'], [class*='border-[#3826FF]'], [class*='border-[#004bff]'], [class*='border-[#004BFF]']) {
+  border-color: #0072B2 !important;
+}
+
+html[data-cruush-color-blind] :where([class*='border-[#1181ff]'], [class*='border-[#1181FF]']) {
+  border-color: #56B4E9 !important;
+}
+
+html[data-cruush-color-blind] :where([class*='border-[#0ba8ff]'], [class*='border-[#0BA8FF]'], [class*='border-[#03ecfc]'], [class*='border-[#03ECFC]'], [class*='border-[#77b9da]'], [class*='border-[#77B9DA]']) {
+  border-color: #56B4E9 !important;
+}
+
+html[data-cruush-color-blind] :where([class*='border-[#c8ff31]'], [class*='border-[#C8FF31]']) {
+  border-color: #009E73 !important;
+}
+
+html[data-cruush-color-blind] :where([class*='border-[#8b5cf6]'], [class*='border-[#8B5CF6]']) {
+  border-color: #0072B2 !important;
+}
+
+html[data-cruush-color-blind] :where([class*='bg-[#ff0072]'], [class*='bg-[#FF0072]']) {
+  background-color: #E69F00 !important;
+}
+
+html[data-cruush-color-blind] :where([class*='bg-[#6f00ff]'], [class*='bg-[#6F00FF]']) {
+  background-color: #CC79A7 !important;
+}
+
+html[data-cruush-color-blind] :where([class*='bg-[#3826ff]'], [class*='bg-[#3826FF]'], [class*='bg-[#004bff]'], [class*='bg-[#004BFF]']) {
+  background-color: #0072B2 !important;
+}
+
+html[data-cruush-color-blind] :where([class*='bg-[#1181ff]'], [class*='bg-[#1181FF]']) {
+  background-color: #56B4E9 !important;
+}
+
+html[data-cruush-color-blind] :where([class*='bg-[#0ba8ff]'], [class*='bg-[#0BA8FF]'], [class*='bg-[#03ecfc]'], [class*='bg-[#03ECFC]'], [class*='bg-[#77b9da]'], [class*='bg-[#77B9DA]']) {
+  background-color: #56B4E9 !important;
+}
+
+html[data-cruush-color-blind] :where([class*='bg-[#c8ff31]'], [class*='bg-[#C8FF31]']) {
+  background-color: #009E73 !important;
+}
+
+html[data-cruush-color-blind] :where([class*='bg-[#8b5cf6]'], [class*='bg-[#8B5CF6]']) {
+  background-color: #0072B2 !important;
+}
+
+html[data-cruush-color-blind] svg :where([stroke='#ff0072'], [stroke='#FF0072']) {
+  stroke: #E69F00 !important;
+}
+
+html[data-cruush-color-blind] svg :where([stroke='#6f00ff'], [stroke='#6F00FF']) {
+  stroke: #CC79A7 !important;
+}
+
+html[data-cruush-color-blind] svg :where([stroke='#3826ff'], [stroke='#3826FF'], [stroke='#004bff'], [stroke='#004BFF']) {
+  stroke: #0072B2 !important;
+}
+
+html[data-cruush-color-blind] svg :where([stroke='#1181ff'], [stroke='#1181FF']) {
+  stroke: #56B4E9 !important;
+}
+
+html[data-cruush-color-blind] svg :where([fill='#ff0072'], [fill='#FF0072']) {
+  fill: #E69F00 !important;
+}
+
+html[data-cruush-color-blind] svg :where([fill='#6f00ff'], [fill='#6F00FF']) {
+  fill: #CC79A7 !important;
+}
+
+html[data-cruush-color-blind] svg :where([fill='#3826ff'], [fill='#3826FF'], [fill='#004bff'], [fill='#004BFF']) {
+  fill: #0072B2 !important;
+}
+
+html[data-cruush-color-blind] svg :where([fill='#1181ff'], [fill='#1181FF']) {
+  fill: #56B4E9 !important;
+}
+
+html[data-cruush-color-blind] svg stop:nth-child(1)[data-cruush-brand-stop] {
+  stop-color: #E69F00 !important;
+}
+
+html[data-cruush-color-blind] svg stop:nth-child(2)[data-cruush-brand-stop] {
+  stop-color: #CC79A7 !important;
+}
+
+html[data-cruush-color-blind] svg stop:nth-child(3)[data-cruush-brand-stop] {
+  stop-color: #0072B2 !important;
+}
+
+html[data-cruush-color-blind] svg stop:nth-child(4)[data-cruush-brand-stop] {
+  stop-color: #56B4E9 !important;
 }
 
 html[data-cruush-color-blind] [data-heart-theme='current'] > svg > path:first-of-type,
@@ -401,6 +560,53 @@ html[data-cruush-color-blind] [data-badge-tone='nearby'] {
 
 html[data-cruush-color-blind] [data-badge-tone='nearby'] > span > svg {
   stroke: #E69F00 !important;
+}
+
+html[data-cruush-color-blind] [data-border-tone='mile-high'] > svg > path:first-of-type,
+html[data-cruush-color-blind] svg[data-marker-theme][data-traveller-active='true'] > path[data-testid^='marker-ghost-border'] {
+  stroke: #0072B2 !important;
+}
+
+html[data-cruush-color-blind] [data-border-tone='pulse'] > svg > path:first-of-type,
+html[data-cruush-color-blind] svg[data-marker-theme][data-pulse-active='true'] > path[data-testid^='marker-ghost-border'] {
+  stroke: #009E73 !important;
+}
+
+html[data-cruush-color-blind] [data-heart-theme='ghost'] > svg > path:first-of-type,
+html[data-cruush-color-blind] svg[data-marker-theme='npc-ghost-demo'] > path[data-testid^='marker-ghost-border'],
+html[data-cruush-color-blind] svg[data-owner-ghost-decoy='true'] > path[data-testid^='marker-ghost-border'] {
+  stroke: #56B4E9 !important;
+}
+
+html[data-cruush-color-blind] [data-heart-fill-theme='ghost'] stop,
+html[data-cruush-color-blind] svg[data-marker-theme='npc-ghost-demo'] linearGradient stop {
+  stop-color: #56B4E9 !important;
+}
+
+html[data-cruush-color-blind] svg[data-owner-stealth='true'] > path[data-testid^='marker-ghost-border'] {
+  stroke: #0072B2 !important;
+}
+
+html[data-cruush-color-blind] [data-badge-tone='mile-high'],
+html[data-cruush-color-blind] [data-badge-tone='mile-high'] > span > svg {
+  color: #0072B2 !important;
+  stroke: #0072B2 !important;
+}
+
+html[data-cruush-color-blind] [data-badge-tone='pulse'],
+html[data-cruush-color-blind] [data-badge-tone='pulse'] > span > svg {
+  color: #009E73 !important;
+  stroke: #009E73 !important;
+}
+
+html[data-cruush-color-blind] [data-badge-tone='special'],
+html[data-cruush-color-blind] [data-badge-tone='special'] > span > svg {
+  color: #0072B2 !important;
+  stroke: #0072B2 !important;
+}
+
+html[data-cruush-color-blind] [data-mile-high-ink='light-blue'] {
+  stroke: #56B4E9 !important;
 }
 
 html[data-cruush-reduce-motion] *,
