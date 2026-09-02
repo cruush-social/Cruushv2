@@ -149,6 +149,51 @@ export function ServiceGlyph(props: GlyphProps) {
   return <NounProjectGlyph {...props} source={serviceRaster} />;
 }
 
+function CompoundRoleGlyph({
+  className,
+  kind,
+  role,
+}: GlyphProps & { kind: 'pleasure' | 'service'; role: 'dom' | 'sub' | 'switch' }) {
+  const RoleMark = role === 'dom' ? DomEmblem : role === 'sub' ? SubEmblem : SwitchEmblem;
+
+  return (
+    <span aria-hidden="true" className={`relative inline-flex ${className ?? ''}`}>
+      {kind === 'service' ? (
+        <ServiceGlyph className="absolute inset-[18%] h-[64%] w-[64%] opacity-90" />
+      ) : (
+        <svg className="absolute inset-[20%] h-[60%] w-[60%]" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" viewBox="0 0 24 24">
+          <path d="M12 20.4 4.5 13A5 5 0 0 1 12 6.4 5 5 0 0 1 19.5 13Z" />
+        </svg>
+      )}
+      <RoleMark className="absolute -bottom-[7%] -right-[7%] h-[54%] w-[54%] rounded-full bg-[#05050A]" />
+    </span>
+  );
+}
+
+export function ServiceDomGlyph(props: GlyphProps) {
+  return <CompoundRoleGlyph {...props} kind="service" role="dom" />;
+}
+
+export function ServiceSubGlyph(props: GlyphProps) {
+  return <CompoundRoleGlyph {...props} kind="service" role="sub" />;
+}
+
+export function ServiceSwitchGlyph(props: GlyphProps) {
+  return <CompoundRoleGlyph {...props} kind="service" role="switch" />;
+}
+
+export function PleasureDomGlyph(props: GlyphProps) {
+  return <CompoundRoleGlyph {...props} kind="pleasure" role="dom" />;
+}
+
+export function PleasureSubGlyph(props: GlyphProps) {
+  return <CompoundRoleGlyph {...props} kind="pleasure" role="sub" />;
+}
+
+export function PleasureSwitchGlyph(props: GlyphProps) {
+  return <CompoundRoleGlyph {...props} kind="pleasure" role="switch" />;
+}
+
 export const POSITION_GLYPHS: Record<string, (props: GlyphProps) => JSX.Element> = {
   top: TopGlyph,
   bottom: BottomGlyph,
@@ -165,6 +210,12 @@ export const ROLE_GLYPHS: Record<string, (props: GlyphProps) => JSX.Element> = {
   submissive: SubmissiveGlyph,
   switch: SwitchGlyph,
   service: ServiceGlyph,
+  'service dom': ServiceDomGlyph,
+  'service sub': ServiceSubGlyph,
+  'service switch': ServiceSwitchGlyph,
+  'pleasure dom': PleasureDomGlyph,
+  'pleasure sub': PleasureSubGlyph,
+  'pleasure switch': PleasureSwitchGlyph,
 };
 
 export function positionGlyphFor(value: string | null | undefined) {
