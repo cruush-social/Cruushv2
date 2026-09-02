@@ -1194,6 +1194,20 @@ html[data-cruush-larger-text] .launch-login-auth-footer [aria-label="Legal and s
   font-size: 0.975rem;
 }
 
+@media (min-width: 641px) and (max-width: 1100px) {
+  .launch-login-auth-footer [aria-label="Legal and safety links"],
+  .launch-login-auth-primary-links,
+  .launch-login-auth-footer-policies,
+  .launch-login-auth-contact {
+    font-size: 1rem;
+    line-height: 1.24;
+  }
+
+  .launch-login-auth-footer-accordion > summary {
+    font-size: 0.9rem;
+  }
+}
+
 html[data-cruush-high-contrast] .launch-login-auth-tagline,
 html[data-cruush-high-contrast] .launch-login-auth-secondary,
 html[data-cruush-high-contrast] .launch-login-auth-footer [aria-label="Legal and safety links"],
