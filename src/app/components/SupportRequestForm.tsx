@@ -256,7 +256,9 @@ export default function SupportRequestForm({
           </div> : null}
 
           {!signedIn ? <div className="space-y-2">
-            <Label htmlFor={`${idPrefix}-contact-email`}>Reply email</Label>
+            <Label htmlFor={`${idPrefix}-contact-email`}>
+              {appealMode || generalAppealMode ? 'Email associated with your account' : 'Reply email'}
+            </Label>
             <Input
               autoComplete="email"
               disabled={status === 'submitting'}

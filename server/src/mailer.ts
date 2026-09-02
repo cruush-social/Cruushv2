@@ -131,10 +131,25 @@ type EventPassEmailInput = {
 const CRUUSH_EMAIL_LOGO_URL = "https://cdn.resend.app/ff1dfa96-8b85-4552-8e56-d09cf53fb13e";
 const VERIFICATION_EMAIL_TEMPLATE_ID = "0dc8f32c-76e2-45b2-aaf7-f4649ab48ab0";
 const REPORTS_INBOX_EMAIL = "reports@cruush.app";
+const REPORTS_FROM_EMAIL = "cruush <reports@cruush.app>";
 const AGE_SUSPENSION_REASON_CODES = new Set(["minor_face_detected"]);
+
+const SUSPENSION_REASON_COPY: Record<string, string> = {
+  abuse_confirmed: "A human review confirmed abusive behavior that violated the cruush rules.",
+  credible_threat: "We detected content that may contain a credible threat of harm.",
+  drug_sales: "We detected content offering or arranging the sale of drugs.",
+  manual_review_rejected: "A human review found content or activity that violated the cruush rules.",
+  minor_face_detected: "The profile photo age check could not confirm that the person shown is an adult.",
+  reviewed_valid_report: "A human review confirmed a report about activity on your account."
+};
 
 export function isAgeRelatedSuspensionReason(reasonCode: string) {
   return AGE_SUSPENSION_REASON_CODES.has(reasonCode);
+}
+
+function suspensionReasonCopy(reasonCode: string) {
+  return SUSPENSION_REASON_COPY[reasonCode]
+    ?? `The recorded suspension reason is ${reasonCode.replace(/[_-]+/g, " ").trim()}.`;
 }
 
 function escapeHtml(value: string) {
@@ -329,12 +344,13 @@ async function sendResendEmail(input: {
   attachments?: EmailAttachment[];
   config: AppConfig;
   email: string;
+  from?: string;
   logger: FastifyBaseLogger;
   replyTo?: string | null;
   subject: string;
   failureMessage: string;
 } & ResendEmailContent) {
-  const { attachments, config, email, failureMessage, logger, replyTo, subject } = input;
+  const { attachments, config, email, failureMessage, from, logger, replyTo, subject } = input;
   const content = input.template
     ? { template: input.template }
     : { html: input.html, text: input.text };
@@ -346,7 +362,7 @@ async function sendResendEmail(input: {
       Authorization: `Bearer ${config.RESEND_API_KEY}`
     },
     body: JSON.stringify({
-      from: config.MAIL_FROM,
+      from: from ?? config.MAIL_FROM,
       to: [email],
       subject,
       ...content,
@@ -616,10 +632,11 @@ type AgeSuspensionAppealEmailInput = {
   config: AppConfig;
   email: string;
   logger: FastifyBaseLogger;
+  reasonCode?: string;
 };
 
 export async function sendAgeSuspensionAppealEmail(input: AgeSuspensionAppealEmailInput) {
-  const { appealUrl, config, email, logger } = input;
+  const { appealUrl, config, email, logger, reasonCode = "minor_face_detected" } = input;
 
   if (!config.RESEND_API_KEY || !config.MAIL_FROM) {
     logger.info({ email }, "age suspension appeal email skipped, mail is not configured");
@@ -627,15 +644,18 @@ export async function sendAgeSuspensionAppealEmail(input: AgeSuspensionAppealEma
   }
 
   const escapedAppealUrl = escapeHtml(appealUrl);
+  const escapedReason = escapeHtml(suspensionReasonCopy(reasonCode));
   const html = `
-    <p>Your cruush profile photo was suspended because our automated check could not confirm an adult.</p>
+    <p>Your cruush account was suspended.</p>
+    <p><strong>Reason:</strong> ${escapedReason}</p>
     <p>A person reviews these. Send your details and we will look at it again:</p>
     <p><a href="${escapedAppealUrl}">${escapedAppealUrl}</a></p>
     <p>You will be asked for a photo of your ID with everything except your date of birth and photo covered, plus a selfie holding a handwritten card with your account email and today's date. Both stay encrypted, expire after 24 hours, and are deleted once the review is done.</p>
     <p>You do not need to be signed in to use that page.</p>
   `;
   const text = [
-    "Your cruush profile photo was suspended because our automated check could not confirm an adult.",
+    "Your cruush account was suspended.",
+    `Reason: ${suspensionReasonCopy(reasonCode)}`,
     "",
     "A person reviews these. Send your details and we will look at it again:",
     appealUrl,
@@ -648,6 +668,7 @@ export async function sendAgeSuspensionAppealEmail(input: AgeSuspensionAppealEma
   await sendResendEmail({
     config,
     email,
+    from: REPORTS_FROM_EMAIL,
     logger,
     replyTo: REPORTS_INBOX_EMAIL,
     subject: "Appeal your cruush age-related suspension",
@@ -662,10 +683,11 @@ type GeneralSuspensionAppealEmailInput = {
   config: AppConfig;
   email: string;
   logger: FastifyBaseLogger;
+  reasonCode?: string;
 };
 
 export async function sendGeneralSuspensionAppealEmail(input: GeneralSuspensionAppealEmailInput) {
-  const { appealUrl, config, email, logger } = input;
+  const { appealUrl, config, email, logger, reasonCode = "account_suspension" } = input;
 
   if (!config.RESEND_API_KEY || !config.MAIL_FROM) {
     logger.info({ email }, "suspension appeal email skipped, mail is not configured");
@@ -673,14 +695,18 @@ export async function sendGeneralSuspensionAppealEmail(input: GeneralSuspensionA
   }
 
   const escapedAppealUrl = escapeHtml(appealUrl);
+  const reason = suspensionReasonCopy(reasonCode);
+  const escapedReason = escapeHtml(reason);
   const html = `
     <p>Your cruush account was suspended.</p>
+    <p><strong>Reason:</strong> ${escapedReason}</p>
     <p>You can ask a person to review the decision here:</p>
     <p><a href="${escapedAppealUrl}">${escapedAppealUrl}</a></p>
     <p>You do not need to be signed in to use that page.</p>
   `;
   const text = [
     "Your cruush account was suspended.",
+    `Reason: ${reason}`,
     "",
     "You can ask a person to review the decision here:",
     appealUrl,
@@ -691,6 +717,7 @@ export async function sendGeneralSuspensionAppealEmail(input: GeneralSuspensionA
   await sendResendEmail({
     config,
     email,
+    from: REPORTS_FROM_EMAIL,
     logger,
     replyTo: REPORTS_INBOX_EMAIL,
     subject: "Appeal your cruush suspension",

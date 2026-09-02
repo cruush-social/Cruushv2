@@ -731,14 +731,16 @@ async function notifySuspensionAppeal(
           appealUrl: `${app.config.APP_URL.replace(/\/$/, "")}/support?appeal=1`,
           config: app.config,
           email,
-          logger: app.log
+          logger: app.log,
+          reasonCode: enforcement.reasonCode
         });
       } else {
         await sendGeneralSuspensionAppealEmail({
           appealUrl: `${app.config.APP_URL.replace(/\/$/, "")}/support?appeal=general`,
           config: app.config,
           email,
-          logger: app.log
+          logger: app.log,
+          reasonCode: enforcement.reasonCode
         });
       }
     }

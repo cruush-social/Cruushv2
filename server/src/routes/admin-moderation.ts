@@ -1800,9 +1800,9 @@ export async function registerAdminModerationRoutes(app: FastifyInstance) {
         const ageRelated = isAgeRelatedSuspensionReason(payload.reasonCode);
         const appealUrl = `${app.config.APP_URL.replace(/\/$/, "")}/support?appeal=${ageRelated ? "1" : "general"}`;
         if (ageRelated) {
-          await sendAgeSuspensionAppealEmail({ appealUrl, config: app.config, email: result.targetEmail, logger: app.log });
+          await sendAgeSuspensionAppealEmail({ appealUrl, config: app.config, email: result.targetEmail, logger: app.log, reasonCode: payload.reasonCode });
         } else {
-          await sendGeneralSuspensionAppealEmail({ appealUrl, config: app.config, email: result.targetEmail, logger: app.log });
+          await sendGeneralSuspensionAppealEmail({ appealUrl, config: app.config, email: result.targetEmail, logger: app.log, reasonCode: payload.reasonCode });
         }
       } catch (error) {
         app.log.error({ err: error, userId }, "manual suspension appeal email failed");
