@@ -43,7 +43,7 @@ type QuestDefinition = {
 
 const QUESTS: QuestDefinition[] = [
   { key: "view_profile", title: "View a profile", rewardKind: "ping", rewardAmount: 1 },
-  { key: "send_ping", title: "Send your first Ping", rewardKind: "ping", rewardAmount: 1 },
+  { key: "send_ping", title: "Send your first Pulse", rewardKind: "ping", rewardAmount: 1 },
   { key: "send_cruush", title: "Send your first cruush", rewardKind: "ping", rewardAmount: 1 },
   { key: "send_message", title: "Send your first message", rewardKind: "cruush_plus_day", rewardAmount: 1 },
   { key: "post_feed", title: "Make your first Feed post", rewardKind: "cruush_plus_day", rewardAmount: 1 },

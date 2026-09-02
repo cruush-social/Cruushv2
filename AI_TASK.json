@@ -1,5 +1,5 @@
 {
-  "task": "Finish the production-capable watch-only crypto processor around Julien's verified local wallet. Add exact customer steps for Cash App, PayPal, and a crypto wallet; use a 60-minute server-owned order window; let members cancel an unsent order or change payment method without deleting its PostgreSQL attempt record; restore the billing-policy page and checkout-bottom disclosure with the current one-time, no-voluntary-refund policy and a real request path for legally required remedies. Set both founder offers to 1,000 real users, release the regular $1,999.99 lifetime offer only after founder lifetime sells out, and render all eight verified cruush+ benefits in two columns on checkout and the cruush+ screen. Add a separate Ping pack checkout for 3 Pings at $2.99, 10 Pings at $7.99, and 25 Pings at $14.99, linked from the Pulse menu and cruush+ store. Purchased Ping credits never expire, included daily Pings are used first, and every activated Pulse still lasts exactly 30 minutes. Keep signing material outside cruush, do not broadcast or deploy during this build, and publish only the verified branch to origin/feat/crypto-pricing.",
+  "task": "Finish the production-capable watch-only crypto processor around Julien's verified local wallet. Add exact customer steps for Cash App, PayPal, and a crypto wallet; use a 60-minute server-owned order window; let members cancel an unsent order or change payment method without deleting its PostgreSQL attempt record; restore the billing-policy page and checkout-bottom disclosure with the current one-time, no-voluntary-refund policy and a real request path for legally required remedies. Set both founder offers to 1,000 real users, release the regular $1,999.99 lifetime offer only after founder lifetime sells out, and render all eight verified cruush+ benefits in two columns on checkout and the cruush+ screen. Add a separate Pulse pack checkout for 3 Pulses at $2.99, 10 Pulses at $7.99, and 25 Pulses at $14.99, linked from the Pulse menu and cruush+ store. Explain every delivered Pulse benefit, including higher map placement and Cruise Carousel priority. Basic receives 1 Pulse and cruush+ receives 5 Pulses per rolling 24 hours with no sender cooldown; available Pulses may be used back-to-back. Purchased Pulse credits never expire, the rolling allowance is used first, and every activated Pulse still lasts exactly 30 minutes. Keep the Pulse checkout, billing policy, and refund-review pages inside desktop and mobile viewports. Keep signing material outside cruush, do not broadcast or deploy during this build, and publish only the verified branch to origin/feat/crypto-pricing.",
   "status": "validating",
   "publicationTarget": "feat/crypto-pricing",
   "baselineSha": "5a77cb504d23bea71867cf0558bd10ede40e2248",
@@ -43,9 +43,14 @@
     ,"Founder annual and founder lifetime are each limited to 1,000 real users; regular lifetime cruush+ costs $1,999.99 and remains unavailable until all 1,000 real founder lifetime spots are redeemed"
     ,"The eight verified cruush+ benefit capsules use two columns on checkout and the cruush+ screen because the benefit count is even"
     ,"Cash App checkout warns before order creation that Cash App stablecoin transfers are not available to New York residents"
-    ,"Ping packs use a separate checkout linked from the Pulse menu and cruush+ store: 3 Pings cost $2.99, 10 Pings cost $7.99, and 25 Pings cost $14.99"
-    ,"Purchased Ping credits never expire, the included daily Ping allowance is consumed first, and each activated Pulse remains visible for exactly 30 minutes"
-    ,"Each paid Ping grant is an idempotent PostgreSQL ledger row linked to its member and settled crypto payment intent"
+    ,"Pulse packs use a separate checkout linked from the Pulse menu and cruush+ store: 3 Pulses cost $2.99, 10 Pulses cost $7.99, and 25 Pulses cost $14.99"
+    ,"Basic receives 1 Pulse and cruush+ receives 5 Pulses per rolling 24 hours; there is no sender cooldown, available allowance may be used back-to-back, and each consumed slot returns exactly 24 hours after its send"
+    ,"Purchased Pulse credits never expire, the rolling base allowance is consumed first, and each activated Pulse remains visible for exactly 30 minutes"
+    ,"Each paid Pulse grant is an idempotent PostgreSQL ledger row linked to its member and settled crypto payment intent"
+    ,"Customer-facing copy calls the feature Pulse and the products Pulse packs; internal ping identifiers remain stable for database and API compatibility"
+    ,"An active Pulse keeps the profile above nearby map markers and outside clusters, and gives that profile priority in Cruise Carousel selection"
+    ,"The Pulse checkout explains every delivered benefit: map priority, the 30-minute beating-heart effect, chosen radius, Cruise Carousel priority, Feed sharing, optional mutual alerts, stationary pin behavior, and visibility enforcement"
+    ,"The Pulse checkout, billing policy, and refund-review pages use bounded responsive containers that fit desktop and small-mobile windows"
   ],
   "allowedPaths": [
     ".claude/session-intent.md",
@@ -124,6 +129,7 @@
     "server/src/routes/posts.ts",
     "server/src/routes/privacy.ts",
     "server/src/routes/profiles.ts",
+    "server/src/routes/map-pings.ts",
     "server/src/side-quests.ts",
     "src/app/App.tsx",
     "src/app/assets/ui-icons/ghost-stealth.svg",
@@ -132,6 +138,8 @@
     "src/app/components/CryptoPaymentMethods.tsx",
     "src/app/components/CruushPlusStore.test.tsx",
     "src/app/components/CruushPlusStore.tsx",
+    "src/app/components/FeelingLucky.test.tsx",
+    "src/app/components/FeelingLucky.tsx",
     "src/app/components/GhostModeSettings.test.tsx",
     "src/app/components/GhostModeSettings.tsx",
     "src/app/components/MapHome.tsx",
@@ -207,8 +215,8 @@
   ],
   "schemaVersion": 2,
   "objective": "Make feat/crypto-pricing fully merge-ready against current origin/main as a production-capable, disabled-by-default in-house crypto payment processor. Close every code, focused-proof, disposable end-to-end, environment-documentation, branch-integration, and rendered-flow gap that can be completed without exposing wallet secrets, moving funds, deploying, activating customer payments, or merging main.",
-  "userOutcome": "The feature branch can be reviewed and merged without unresolved implementation or integration defects. Customers have exact payment instructions and protected expiring orders for cruush+ and Ping packs, paid Ping credits never expire, Julien retains direct wallet custody through a watch-only server, and every remaining post-merge launch gate is explicitly operational or legal rather than unfinished code.",
-  "audience": "Julien as operator; cruush members buying cruush+ or Ping packs once the processor is enabled.",
+  "userOutcome": "The feature branch can be reviewed and merged without unresolved implementation or integration defects. Customers have exact payment instructions and protected expiring orders for cruush+ and Pulse packs, paid Pulse credits never expire, Julien retains direct wallet custody through a watch-only server, and every remaining post-merge launch gate is explicitly operational or legal rather than unfinished code.",
+  "audience": "Julien as operator; cruush members buying cruush+ or Pulse packs once the processor is enabled.",
   "nextVisibleMilestone": "Review and merge origin/feat/crypto-pricing when Julien chooses. Production activation remains a separate operator and legal decision.",
   "successCriteria": [
     "The processor stays disabled and accepts no funds until Julien enables it",
@@ -231,9 +239,12 @@
     "The active order identifies its countdown, unique order address, exact asset, exact network, exact amount, and stops exposing payable details at expiry",
     "A member can cancel an unsent order or cancel it to choose another payment method; the cancelled attempt remains recorded and a replacement is a new member-linked intent",
     "Every checkout attempt is stored against its member in crypto_payment_intents, every observed transfer is stored in crypto_payment_transfers, and every granted purchase links its entitlement back to the paying intent",
-    "The separate /ping-packs checkout offers exactly 3 Pings for $2.99, 10 Pings for $7.99, and 25 Pings for $14.99 and is linked from both the Pulse menu and cruush+ store",
-    "A settled Ping pack grants its exact count once through an idempotent member-linked PostgreSQL ledger row; purchased credits never expire and are consumed only after the included daily allowance is unavailable",
+    "The separate /pulse-packs checkout offers exactly 3 Pulses for $2.99, 10 Pulses for $7.99, and 25 Pulses for $14.99 and is linked from both the Pulse menu and cruush+ store; /ping-packs remains a compatibility alias",
+    "Basic has 1 Pulse and cruush+ has 5 Pulses per rolling 24 hours; no sender cooldown prevents back-to-back sends while allowance remains, each used slot returns exactly 24 hours after its send, and unused allowance never banks",
+    "A settled Pulse pack grants its exact count once through an idempotent member-linked PostgreSQL ledger row; purchased credits never expire and are consumed only after the rolling base allowance is unavailable",
     "Every activated Pulse remains active for exactly 30 minutes regardless of whether it used an included, purchased, or side-quest credit",
+    "The Pulse-pack checkout explains map priority, the 30-minute beating-heart effect, selectable radius, Cruise Carousel priority, Feed sharing, optional mutual alerts, stationary-pin behavior, and applicable visibility limits",
+    "Active Pulse profiles are selected ahead of non-Pulse profiles in Cruise Carousel while preserving random choice among active Pulse profiles",
     "A Billing policy disclosure appears at the bottom of checkout and links to a public /billing-policy page",
     "The billing page states that every current checkout is one-time, nothing renews automatically, and purchases are final and non-refundable except where applicable law requires a withdrawal, refund, remedy, or forced reversal",
     "Checkout and the billing policy link to a prefilled refund-review support request without promising a refund",
@@ -253,7 +264,7 @@
     ,"The complete intent-to-canonical-evidence-to-entitlement flow passes against an isolated disposable database without trusting browser state"
     ,"The branch integrates cleanly with current origin/main in an isolated merge verification and contains no conflict markers or unbuildable tree"
     ,"All crypto runtime variables read by code are documented in server/.env.example and docs/env-matrix.md"
-    ,"All changed checkout states are rendered from the actual app at desktop and small-mobile sizes with no overlap or inaccessible content"
+    ,"All changed checkout states are rendered from the actual app at desktop and small-mobile sizes with no overlap or inaccessible content; the Pulse checkout, billing policy, and refund-review pages have no horizontal overflow and their final content clears bottom navigation"
     ,"The feature branch is committed and pushed only to origin/feat/crypto-pricing with local and remote SHA equality"
   ],
   "mustPreserve": [
@@ -357,6 +368,10 @@
     "verifyPublicDescriptorWithoutSecretExposure": "completed_replacement_public_fields_only",
     "focusedSecurityAndSecretReview": "completed_no_secret_material_found",
     "commitAndPushFeatureBranchOnly": "completed_feature_branch_only_after_final_publication",
+    "renameCustomerFacingPingsToPulses": "completed_tested_rendered",
+    "explainEveryDeliveredPulseBenefit": "completed_tested_rendered",
+    "giveActivePulsesCruiseCarouselPriority": "completed_tested",
+    "fitPulseCheckoutBillingAndRefundPagesToWindow": "completed_rendered_390x844_and_1280x900_top_and_bottom",
     "mainMerge": "forbidden",
     "productionDeploy": "forbidden"
   },
@@ -453,5 +468,31 @@
     ],
     "renderedResult": "Final desktop, 390x844, and 360x740 renders show the monthly-rate hierarchy, named disabled-by-default payment sources, eight benefits in four balanced two-column rows on both surfaces, checkout billing disclosure, and responsive refund request. Geometry checks found no horizontal overflow at 360, 390, 408, or 1440 CSS pixels. The enabled local fixture previously exercised exact payment guides, the protected 60-minute order, cancellation, replacement, and terminal-address retirement.",
     "publication": "Published only to origin/feat/crypto-pricing after final proof. Main, deployment, processor activation, signing, broadcast, and funds remain untouched."
+  },
+  "pulseCheckoutEvidence20260902": {
+    "implementation": [
+      "Customer-facing surfaces call the feature Pulse and products Pulse packs while preserving internal ping identifiers for compatibility.",
+      "Basic has one Pulse and cruush+ has five Pulses per rolling 24 hours with no sender cooldown; available allowance may be used back-to-back.",
+      "Purchased Pulse credits never expire, rolling allowance is consumed first, and every Pulse remains active for 30 minutes.",
+      "The Pulse checkout explains higher map placement, cluster avoidance, the beating-heart effect, radius choices, Cruise Carousel priority, Feed sharing, optional mutual alerts, stationary-pin behavior, and applicable visibility limits.",
+      "Active Pulse profiles receive Cruise Carousel selection priority while selection remains random among active Pulse profiles.",
+      "Pulse checkout, billing policy, and refund-review roots use bounded responsive containers with horizontal overflow prevented."
+    ],
+    "focusedProof": "Final changed client slice passed 68/68 across 9 files and the client production build passed. Final changed server slice passed 65 tests across 4 files with 1 optional PostgreSQL-gated test skipped, and the server build passed. The complete processor suite passed 272/272 across 15 files against disposable PostgreSQL after all 123 migrations were applied to both isolated databases.",
+    "renderedPages": [
+      "/private/tmp/cruush-pulse-checkout-mobile-top-390x844-2026-09-02.png",
+      "/private/tmp/cruush-pulse-checkout-mobile-bottom-390x844-2026-09-02.png",
+      "/private/tmp/cruush-billing-mobile-top-390x844-2026-09-02.png",
+      "/private/tmp/cruush-billing-mobile-bottom-390x844-2026-09-02.png",
+      "/private/tmp/cruush-refund-mobile-top-390x844-2026-09-02.png",
+      "/private/tmp/cruush-refund-mobile-bottom-390x844-2026-09-02.png",
+      "/private/tmp/cruush-pulse-checkout-desktop-top-1280x900-2026-09-02.png",
+      "/private/tmp/cruush-pulse-checkout-desktop-bottom-1280x900-2026-09-02.png",
+      "/private/tmp/cruush-billing-desktop-top-1280x900-2026-09-02.png",
+      "/private/tmp/cruush-billing-desktop-bottom-1280x900-2026-09-02.png",
+      "/private/tmp/cruush-refund-desktop-top-1280x900-2026-09-02.png",
+      "/private/tmp/cruush-refund-desktop-bottom-1280x900-2026-09-02.png"
+    ],
+    "renderedResult": "Actual localhost renders at 390x844 and 1280x900 show no horizontal overflow on any of the three named pages. Final content clears the fixed bottom navigation. Pulse benefits render as three balanced two-card rows. The complete payment-method, protected-order, cancellation, billing, and legally required refund paths remain accessible."
   }
 }

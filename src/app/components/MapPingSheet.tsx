@@ -245,7 +245,7 @@ export default function MapPingSheet({
   const normalizedSignal = signal?.trim() ?? '';
   // A Pulse asks people to look at you, which is the opposite of being off the
   // map, so it stays shut while Dark Room is on.
-  const sendDisabled = loading || sending || !status || !hasMapLocation || activePing ||
+  const sendDisabled = loading || sending || !status || !hasMapLocation ||
     !normalizedSignal || status.allowance.remaining < 1 || cooldownActive || lurkerActive;
   const statusText = useMemo(() => {
     if (activePing && status?.activePing) {
@@ -564,12 +564,12 @@ export default function MapPingSheet({
           </div>
           {status && status.bonusCredits > 0 ? (
             <p className="text-xs text-white/58">
-              {status.bonusCredits} extra {status.bonusCredits === 1 ? 'Ping' : 'Pings'} ready. Included daily Pings are used first.
+              {status.bonusCredits} extra {status.bonusCredits === 1 ? 'Pulse' : 'Pulses'} ready. Your rolling allowance is used first.
             </p>
           ) : null}
           {!hasCruushPlus && status?.allowance.remaining === 0 && onUpgrade ? (
             <CruushPlusGateNotice
-              description="Basic includes 1 Pulse every 24 hours."
+              description="Basic includes 1 Pulse per rolling 24 hours."
               onUpgrade={onUpgrade}
             />
           ) : null}
@@ -579,7 +579,7 @@ export default function MapPingSheet({
               className="w-full rounded-full border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white transition hover:border-[#c8ff31]/70 hover:bg-[#c8ff31]/10"
               onClick={onBuyPingPacks}
             >
-              Buy Ping packs
+              Buy Pulse packs
             </button>
           ) : null}
           {error ? (
@@ -602,11 +602,11 @@ export default function MapPingSheet({
               ? 'Sending Pulse...'
               : lurkerActive
                 ? 'Dark Room is on'
-                : activePing
-                  ? 'Pulse active'
-                  : cooldownCountdown
+                : cooldownCountdown
                     ? `Next Pulse in ${cooldownCountdown}`
-                    : 'Send Pulse'}
+                    : activePing
+                      ? 'Send another Pulse'
+                      : 'Send Pulse'}
           </Button>
         </SheetFooter>
 

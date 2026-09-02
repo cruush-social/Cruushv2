@@ -215,23 +215,23 @@ export default function PublicInfoPage({ page }: PublicInfoPageProps) {
   const content = pageContent[page];
 
   return (
-    <div className="min-h-screen bg-background pb-20 text-foreground">
-      <header className="sticky top-0 z-10 flex items-center gap-4 border-b border-border bg-card/80 p-4 backdrop-blur-sm">
+    <div className="min-h-[100dvh] w-full max-w-full overflow-x-hidden bg-background pb-[calc(5rem+env(safe-area-inset-bottom))] text-foreground">
+      <header className="sticky top-0 z-10 flex w-full max-w-full items-center gap-3 border-b border-border bg-card/80 p-4 backdrop-blur-sm">
         <Button variant="ghost" size="icon" onClick={goBack} aria-label="Back">
           <ArrowLeft className="h-5 w-5" />
         </Button>
-        <div>
+        <div className="min-w-0">
           <p className="text-[0.65rem] font-semibold uppercase tracking-[0.25em] text-primary">{content.eyebrow}</p>
-          <h1 className="text-xl">{content.title}</h1>
+          <h1 className="break-words text-xl">{content.title}</h1>
         </div>
       </header>
 
-      <main className="mx-auto max-w-3xl space-y-5 p-6">
+      <main className="mx-auto w-full min-w-0 max-w-3xl space-y-5 px-4 py-5 sm:p-6">
         {content.updated ? (
           <p className="text-sm text-muted-foreground">Last updated: {content.updated}</p>
         ) : null}
         {content.sections.map((section) => (
-          <section key={section.title} className="rounded-lg border border-border bg-card/70 p-5">
+          <section key={section.title} className="min-w-0 overflow-hidden rounded-lg border border-border bg-card/70 p-4 sm:p-5">
             <h2 className="text-lg">{section.title}</h2>
             <div className="mt-3 space-y-3 text-sm leading-6 text-muted-foreground [&_a]:text-foreground [&_a]:underline [&_a]:underline-offset-4">
               {section.body.map((paragraph, index) => (

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { ArrowLeft, Check, Copy, Radio } from 'lucide-react';
+import { ArrowLeft, Check, Copy, Radio, Shield } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
 import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
@@ -30,9 +30,9 @@ const PAYMENT_STATUS_COPY: Record<CryptoPaymentIntent['status'], string> = {
   pending: 'Setting up your payment.',
   awaiting_payment: 'Waiting for your payment to arrive.',
   confirming: 'Payment seen. Waiting for network confirmation.',
-  paid: 'Payment confirmed. Your Pings are ready.',
+  paid: 'Payment confirmed. Your Pulses are ready.',
   expired: 'This payment window expired. Do not send another payment if you already sent funds.',
-  failed: 'Payment was not confirmed. No Pings were added.',
+  failed: 'Payment was not confirmed. No Pulses were added.',
   cancelled: 'This payment was cancelled.',
   refunded: 'This payment was refunded.',
 };
@@ -119,7 +119,7 @@ export default function PingPackStore() {
       })
       .catch((loadError) => {
         if (active) {
-          setError(loadError instanceof Error ? loadError.message : 'Unable to load Ping packs.');
+          setError(loadError instanceof Error ? loadError.message : 'Unable to load Pulse packs.');
         }
       })
       .finally(() => {
@@ -321,15 +321,15 @@ export default function PingPackStore() {
   }, [intent]);
 
   return (
-    <div className="min-h-screen bg-background pb-24 text-foreground">
-      <header className="sticky top-0 z-10 flex items-center gap-4 border-b border-border bg-card/85 p-4 backdrop-blur">
+    <div className="min-h-[100dvh] w-full max-w-full overflow-x-hidden bg-background pb-[calc(6rem+env(safe-area-inset-bottom))] text-foreground">
+      <header className="sticky top-0 z-10 flex w-full max-w-full items-center gap-3 border-b border-border bg-card/85 p-4 backdrop-blur">
         <Button variant="ghost" size="icon" onClick={() => navigate(-1)} aria-label="Back">
           <ArrowLeft className="h-5 w-5" />
         </Button>
-        <h1 className="text-xl font-semibold">Buy Ping packs</h1>
+        <h1 className="min-w-0 text-xl font-semibold">Buy Pulse packs</h1>
       </header>
 
-      <main className="mx-auto flex max-w-3xl flex-col gap-2 px-3 py-2">
+      <main className="mx-auto flex w-full min-w-0 max-w-3xl flex-col gap-2 px-3 py-2">
         {error ? (
           <div role="alert" className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
             {error}
@@ -340,25 +340,49 @@ export default function PingPackStore() {
           <CardContent className="space-y-2 p-4">
             <p className="flex items-center gap-2 text-sm font-semibold">
               <Radio className="h-4 w-4 text-primary" />
-              Keep extra Pings ready
+              Keep extra Pulses ready
             </p>
             <p className="text-xs leading-5 text-muted-foreground">
-              Purchased Pings never expire. Your included daily Pings are used first. Each activated Pulse lasts exactly 30 minutes.
+              Purchased Pulse credits never expire. Your included rolling allowance is used first. Each credit activates one 30-minute Pulse.
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="space-y-3 p-4">
+            <h2 className="text-sm font-semibold">Everything a Pulse does</h2>
+            <div className="grid min-w-0 grid-cols-2 gap-2" aria-label="Pulse benefits">
+              {[
+                ['Rise higher on the map', 'Your profile moves above nearby people, stays out of clusters, and keeps your signal visible without a tap.'],
+                ['Beat for 30 minutes', 'Your heart beats with the Pulse EKG effect for the full 30-minute visibility window.'],
+                ['Choose who is nearby', 'Pick a 1, 3, 5, 10, or 15-mile radius. Eligible people inside it can see your Pulse.'],
+                ['Get Cruise Carousel priority', 'Your profile gets priority in Cruise Carousel while your Pulse is active.'],
+                ['Share your signal to Feed', 'Sending a Pulse also posts the signal saved on your profile to Feed.'],
+                ['Alert mutual cruushes', 'Optional Pulse alerts can notify eligible mutual cruushes who have alerts turned on.'],
+              ].map(([title, description]) => (
+                <div key={title} className="min-w-0 rounded-xl border border-border bg-muted/25 p-3">
+                  <p className="text-xs font-semibold leading-4 text-foreground">{title}</p>
+                  <p className="mt-1 text-[11px] leading-4 text-muted-foreground">{description}</p>
+                </div>
+              ))}
+            </div>
+            <p className="text-[11px] leading-4 text-muted-foreground">
+              Your pin stays in place. Blocking, account restrictions, selected radius, and existing profile visibility still apply.
             </p>
           </CardContent>
         </Card>
 
         {loading ? (
           <div className="rounded-xl border border-border bg-card p-8 text-center text-sm text-muted-foreground">
-            Loading Ping packs…
+            Loading Pulse packs…
           </div>
         ) : null}
 
         {!loading && packs.length > 0 ? (
           <Card>
             <CardContent className="space-y-3 p-3">
-              <p className="text-sm font-semibold">Choose a Ping pack</p>
-              <div className="grid grid-cols-3 gap-2" aria-label="Ping pack prices">
+              <p className="text-sm font-semibold">Choose a Pulse pack</p>
+              <div className="grid min-w-0 grid-cols-3 gap-2" aria-label="Pulse pack prices">
                 {packs.map((pack) => {
                   const selected = pack.id === selectedPackId;
                   return (
@@ -376,7 +400,7 @@ export default function PingPackStore() {
                       }}
                     >
                       <span className="block text-base font-semibold">{pack.pingCount}</span>
-                      <span className="block text-xs text-muted-foreground">Pings</span>
+                      <span className="block text-xs text-muted-foreground">Pulses</span>
                       <span className="mt-1 block text-sm font-semibold">{formatPrice(pack.amountCents, pack.currency)}</span>
                       {pack.id === 'ping_10' ? (
                         <span className="mt-1 block text-[10px] uppercase tracking-wide text-primary">Popular</span>
@@ -398,7 +422,7 @@ export default function PingPackStore() {
                   {checkoutNotice}
                 </p>
               ) : null}
-              <div className="grid grid-cols-3 gap-2" aria-label="Where you are paying from">
+              <div className="grid min-w-0 grid-cols-3 gap-2" aria-label="Where you are paying from">
                 {CRYPTO_PAYMENT_SOURCES.map((source) => {
                   const sourceReady = readyRailIds.has(source.rail);
                   const sourceSelected = selectedRail === source.rail
@@ -453,12 +477,12 @@ export default function PingPackStore() {
                 {starting
                   ? 'Starting…'
                   : paymentPaid
-                    ? 'Pings added'
+                    ? 'Pulses added'
                     : paymentOpen && !locallyExpired
                       ? 'Payment started'
                       : locallyExpired
                         ? 'Start a fresh payment'
-                        : `Buy ${selectedPack.pingCount} Pings for ${formatPrice(selectedPack.amountCents, selectedPack.currency)}`}
+                        : `Buy ${selectedPack.pingCount} Pulses for ${formatPrice(selectedPack.amountCents, selectedPack.currency)}`}
               </Button>
 
               {!visibleProcessorReady ? (
@@ -519,7 +543,7 @@ export default function PingPackStore() {
                   ) : null}
                   {!locallyExpired ? (
                     <p className="text-xs leading-5 text-muted-foreground">
-                      Your Pings are added once the payment settles on the network. Leaving this page does not cancel it. Return here to see the same active payment.
+                      Your Pulses are added once the payment settles on the network. Leaving this page does not cancel it. Return here to see the same active payment.
                     </p>
                   ) : null}
                   {paymentOpen && !locallyExpired && intent.status !== 'confirming' ? (
@@ -559,10 +583,25 @@ export default function PingPackStore() {
         ) : null}
 
         <Card>
+          <CardContent className="space-y-2 p-4">
+            <p className="flex items-center gap-2 text-sm font-semibold">
+              <Shield className="h-4 w-4 text-primary" />
+              Why cruush takes crypto
+            </p>
+            <p className="text-xs leading-5 text-muted-foreground">
+              Crypto lets cruush sell one-time Pulse packs without turning them into an automatic subscription. You choose a supported payment app, receive a fresh address for that order, and pay only the exact amount shown.
+            </p>
+            <p className="text-xs leading-5 text-muted-foreground">
+              cruush never asks for your wallet recovery words, seed phrase, or private key. Payment is confirmed from the public blockchain record.
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
           <CardContent className="space-y-2 p-4 text-xs leading-5 text-muted-foreground">
             <h2 className="text-sm font-semibold text-foreground">Billing policy</h2>
             <p>
-              One-time purchase. Purchased Pings never expire, and each activated Pulse lasts 30 minutes. Purchases are final and non-refundable except where applicable law requires a withdrawal, refund, remedy, or forced reversal.
+              One-time purchase. Purchased Pulse credits never expire, and each activated Pulse lasts 30 minutes. Purchases are final and non-refundable except where applicable law requires a withdrawal, refund, remedy, or forced reversal.
             </p>
             <a className="font-medium text-foreground underline underline-offset-4" href="/billing-policy">
               Read the billing policy

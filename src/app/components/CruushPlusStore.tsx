@@ -573,9 +573,9 @@ export default function CruushPlusStore() {
           type="button"
           variant="outline"
           className="h-11 w-full rounded-full"
-          onClick={() => navigate('/ping-packs')}
+          onClick={() => navigate('/pulse-packs')}
         >
-          Buy Ping packs
+          Buy Pulse packs
         </Button>
 
         {!loading && selectedPlan ? (

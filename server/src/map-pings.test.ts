@@ -394,37 +394,45 @@ describe("map Pings", () => {
     expect(deps.moderateSignal).not.toHaveBeenCalled();
   });
 
-  it("gives cruush+ three daily Pings with a four-hour cooldown", async () => {
-    const cooldownDb = new MapPingDb([
-      storedPing({ createdAt: new Date(now.getTime() - 2 * 60 * 60 * 1000) })
+  it("gives cruush+ five Pings per rolling 24 hours with no sender cooldown", async () => {
+    const availableDb = new MapPingDb([
+      storedPing({ createdAt: new Date(now.getTime() - 2 * 60 * 1000) })
     ]);
     const plusDependencies = dependencies({ cruushPlus: true });
-    const status = await getMapPingStatus(appWithDb(cooldownDb), senderUserId, plusDependencies);
+    const status = await getMapPingStatus(appWithDb(availableDb), senderUserId, plusDependencies);
 
     expect(status.allowance).toEqual({
-      limit: 3,
+      limit: 5,
       used: 1,
-      remaining: 2,
-      nextEligibleAt: new Date(now.getTime() + 2 * 60 * 60 * 1000).toISOString()
+      remaining: 4,
+      nextEligibleAt: null
     });
-    await expect(createMapPing(appWithDb(cooldownDb), {
+    await expect(createMapPing(appWithDb(availableDb), {
       userId: senderUserId,
       radiusMiles: 15,
       idempotencyKey: "30000000-0000-4000-8000-000000000003"
-    }, plusDependencies)).rejects.toMatchObject({
-      code: "RATE_LIMITED"
+    }, plusDependencies)).resolves.toMatchObject({
+      allowance: {
+        limit: 5,
+        used: 2,
+        remaining: 3,
+        nextEligibleAt: null
+      }
     });
+    expect(availableDb.insertCount).toBe(1);
 
     const cappedDb = new MapPingDb([
       storedPing({ id: "20000000-0000-4000-8000-000000000011", createdAt: new Date(now.getTime() - 20 * 60 * 60 * 1000) }),
       storedPing({ id: "20000000-0000-4000-8000-000000000012", createdAt: new Date(now.getTime() - 12 * 60 * 60 * 1000) }),
-      storedPing({ id: "20000000-0000-4000-8000-000000000013", createdAt: new Date(now.getTime() - 5 * 60 * 60 * 1000) })
+      storedPing({ id: "20000000-0000-4000-8000-000000000013", createdAt: new Date(now.getTime() - 5 * 60 * 60 * 1000) }),
+      storedPing({ id: "20000000-0000-4000-8000-000000000014", createdAt: new Date(now.getTime() - 4 * 60 * 60 * 1000) }),
+      storedPing({ id: "20000000-0000-4000-8000-000000000015", createdAt: new Date(now.getTime() - 3 * 60 * 60 * 1000) })
     ]);
     const cappedStatus = await getMapPingStatus(appWithDb(cappedDb), senderUserId, plusDependencies);
 
     expect(cappedStatus.allowance).toEqual({
-      limit: 3,
-      used: 3,
+      limit: 5,
+      used: 5,
       remaining: 0,
       nextEligibleAt: new Date(now.getTime() + 4 * 60 * 60 * 1000).toISOString()
     });

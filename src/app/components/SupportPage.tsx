@@ -18,8 +18,8 @@ export default function SupportPage({ appealOnly = false, publicAccess = false }
   const refundMode = !appealMode && searchParams.get('refund') === '1';
 
   return (
-    <div className="min-h-screen bg-background pb-20">
-      <header className="sticky top-0 bg-card/80 backdrop-blur-sm border-b border-border p-4 flex items-center gap-4 z-10">
+    <div className="min-h-[100dvh] w-full max-w-full overflow-x-hidden bg-background pb-[calc(5rem+env(safe-area-inset-bottom))]">
+      <header className="sticky top-0 z-10 flex w-full max-w-full items-center gap-3 border-b border-border bg-card/80 p-4 backdrop-blur-sm">
         <Button
           variant="ghost"
           size="icon"
@@ -31,7 +31,7 @@ export default function SupportPage({ appealOnly = false, publicAccess = false }
         <h2 className="text-xl">Support</h2>
       </header>
 
-      <main className="box-border min-w-0 px-6 py-6">
+      <main className="box-border w-full min-w-0 max-w-full px-4 py-5 sm:px-6 sm:py-6">
         <div className="mx-auto w-full min-w-0 max-w-2xl space-y-4">
           <SupportRequestForm
             appealMode={appealMode}

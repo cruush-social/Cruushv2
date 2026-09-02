@@ -736,7 +736,7 @@ export async function createInHouseCryptoPaymentIntent(
       400,
       "VALIDATION_ERROR",
       productType === "ping_pack"
-        ? "Crypto payment amount does not match that Ping pack."
+        ? "Crypto payment amount does not match that Pulse pack."
         : "Crypto payment amount does not match that cruush+ plan."
     );
   }

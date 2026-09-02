@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import FeelingLucky from './FeelingLucky';
+import FeelingLucky, { selectCarouselUser } from './FeelingLucky';
 
 const { getMyBillingStatus, getNearbyUsers, getMyProfile, getProfileById, decryptDisplayLocationToken } = vi.hoisted(() => ({
   getMyBillingStatus: vi.fn(),
@@ -71,6 +71,15 @@ describe('FeelingLucky', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+  });
+
+  it('gives active Pulse profiles priority in Cruise Carousel', () => {
+    const users = [
+      { id: 'ordinary', isDemo: false, isCurrentUser: false },
+      { id: 'active-pulse', isDemo: false, isCurrentUser: false, activePing: { id: 'pulse-1', expiresAt: '2099-01-01T00:00:00.000Z' } },
+    ] as Parameters<typeof selectCarouselUser>[0];
+
+    expect(selectCarouselUser(users)?.id).toBe('active-pulse');
   });
 
   it('spins real profiles for free users and lands on the cruush+ frame', async () => {

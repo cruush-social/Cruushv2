@@ -16,6 +16,7 @@ describe("Ping packs", () => {
       { id: "ping_10", pingCount: 10, amountCents: 799 },
       { id: "ping_25", pingCount: 25, amountCents: 1499 }
     ]);
+    expect(PING_PACKS.map((pack) => pack.name)).toEqual(["3 Pulses", "10 Pulses", "25 Pulses"]);
     expect(() => getPingPack("ping_100")).toThrow(/not available/i);
   });
 

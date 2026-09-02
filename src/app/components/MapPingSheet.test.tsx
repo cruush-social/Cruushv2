@@ -5,9 +5,9 @@ import MapPingSheet from './MapPingSheet';
 const availableStatus = {
   bonusCredits: 0,
   allowance: {
-    limit: 3,
+    limit: 5,
     used: 1,
-    remaining: 2,
+    remaining: 4,
     nextEligibleAt: null,
   },
   activePing: null,
@@ -112,7 +112,7 @@ describe('MapPingSheet', () => {
 
     expect(await screen.findByRole('dialog')).toBeInTheDocument();
     expect(screen.getByText('At the park')).toBeInTheDocument();
-    expect(screen.getByText('2 of 3 Pulses available right now.')).toBeInTheDocument();
+    expect(screen.getByText('4 of 5 Pulses available right now.')).toBeInTheDocument();
     expect(screen.getAllByRole('radio').map((radio) => radio.getAttribute('aria-label'))).toEqual([
       '1 mile',
       '3 miles',
@@ -202,7 +202,7 @@ describe('MapPingSheet', () => {
       />,
     );
 
-    expect(screen.getByText('Basic includes 1 Pulse every 24 hours.')).toBeInTheDocument();
+    expect(screen.getByText('Basic includes 1 Pulse per rolling 24 hours.')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Get cruush+' }));
     expect(onUpgrade).toHaveBeenCalledTimes(1);
   });
@@ -223,7 +223,7 @@ describe('MapPingSheet', () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Buy Ping packs' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Buy Pulse packs' }));
     expect(onBuyPingPacks).toHaveBeenCalledTimes(1);
   });
 
@@ -241,7 +241,7 @@ describe('MapPingSheet', () => {
       />,
     );
 
-    expect(screen.getByText('10 extra Pings ready. Included daily Pings are used first.')).toBeInTheDocument();
+    expect(screen.getByText('10 extra Pulses ready. Your rolling allowance is used first.')).toBeInTheDocument();
   });
 
   it('sends the selected radius', async () => {
@@ -284,17 +284,14 @@ describe('MapPingSheet', () => {
     expect(screen.getByRole('button', { name: 'Send Pulse' })).toBeDisabled();
   });
 
-  it('prevents another Ping while one is active', () => {
+  it('allows another Pulse while one is active when rolling allowance remains', () => {
+    const onSend = vi.fn().mockResolvedValue(undefined);
     render(
       <MapPingSheet
         open
         onOpenChange={vi.fn()}
         status={{
           ...availableStatus,
-          allowance: {
-            ...availableStatus.allowance,
-            nextEligibleAt: new Date(Date.now() + 4 * 60 * 60_000).toISOString(),
-          },
           activePing: {
             id: 'ping-1',
             expiresAt: new Date(Date.now() + 60_000).toISOString(),
@@ -304,11 +301,13 @@ describe('MapPingSheet', () => {
         hasMapLocation
         signal="At the park"
         onRefresh={vi.fn().mockResolvedValue(undefined)}
-        onSend={vi.fn()}
+        onSend={onSend}
       />,
     );
 
-    expect(screen.getByRole('button', { name: 'Pulse active' })).toBeDisabled();
-    expect(screen.getByRole('timer', { name: 'Pulse cooldown' })).toBeInTheDocument();
+    const sendButton = screen.getByRole('button', { name: 'Send another Pulse' });
+    expect(sendButton).toBeEnabled();
+    fireEvent.click(sendButton);
+    expect(onSend).toHaveBeenCalledTimes(1);
   });
 });

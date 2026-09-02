@@ -1,9 +1,12 @@
 # FIXLOG
 
 - 2026-09-02: Checkout and the cruush+ screen now list eight verified cruush+ benefits in two-column capsule grids, including custom side badges.
-- 2026-09-02: Separate Ping pack checkout now sells 3 for $2.99, 10 for $7.99, or 25 for $14.99; paid credits are permanent, tied to the member and order, visible in the Pulse menu, and used only after included daily Pings.
+- 2026-09-02: Basic now receives 1 Pulse and cruush+ receives 5 Pulses per rolling 24 hours, with no sender cooldown and available Pulses usable back-to-back.
+- 2026-09-02: Customer-facing Ping and Pings labels are now Pulse and Pulses. The Pulse-pack checkout explains map priority, the 30-minute beating heart, radius reach, Cruise Carousel priority, Feed sharing, optional mutual alerts, and permanent purchased credits. Active Pulse profiles now receive Cruise Carousel selection priority.
+- 2026-09-02: The Pulse checkout, billing policy, and refund-review pages now stay inside the window. Rendered 390x844 and 1280x900 top-and-bottom checks showed no horizontal overflow, clipped controls, or final content blocked by bottom navigation.
+- 2026-09-02: Separate Pulse pack checkout now sells 3 for $2.99, 10 for $7.99, or 25 for $14.99; paid credits are permanent, tied to the member and order, visible in the Pulse menu, and used only after the rolling allowance.
 - 2026-09-02: Founder annual and founder lifetime now each cap at 1,000 real users; the $1,999.99 regular lifetime plan stays hidden and server-blocked until founder lifetime sells out.
-- 2026-09-02: The seven cruush+ benefit capsules now use three equal columns with the final capsule centered, and Cash App checkout warns that stablecoin transfers are unavailable to New York residents.
+- 2026-09-02: Cash App checkout warns that stablecoin transfers are unavailable to New York residents.
 - 2026-09-02: The refund-review page now stays within the viewport at small-mobile widths; its form and legal links use bounded responsive containers.
 - 2026-09-02: The billing policy and checkout now link to a prefilled refund-review request for legally required withdrawal, refund, price-reduction, or other billing remedies without promising voluntary refunds.
 - 2026-09-02: The seven checkout benefit capsules now fill exactly three balanced rows; no public cruush+ benefit claims saved visibility sets.

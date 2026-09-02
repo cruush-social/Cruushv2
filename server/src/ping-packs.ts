@@ -4,24 +4,24 @@ import { ApiError } from "./errors.js";
 export const PING_PACKS = [
   {
     id: "ping_3",
-    name: "3 Pings",
-    description: "3 permanent Ping credits",
+    name: "3 Pulses",
+    description: "3 permanent Pulse credits",
     pingCount: 3,
     amountCents: 299,
     currency: "USD"
   },
   {
     id: "ping_10",
-    name: "10 Pings",
-    description: "10 permanent Ping credits",
+    name: "10 Pulses",
+    description: "10 permanent Pulse credits",
     pingCount: 10,
     amountCents: 799,
     currency: "USD"
   },
   {
     id: "ping_25",
-    name: "25 Pings",
-    description: "25 permanent Ping credits",
+    name: "25 Pulses",
+    description: "25 permanent Pulse credits",
     pingCount: 25,
     amountCents: 1499,
     currency: "USD"
@@ -34,7 +34,7 @@ export type PingPackId = PingPack["id"];
 export function getPingPack(packId: string): PingPack {
   const pack = PING_PACKS.find((candidate) => candidate.id === packId);
   if (!pack) {
-    throw new ApiError(400, "VALIDATION_ERROR", "That Ping pack is not available.");
+    throw new ApiError(400, "VALIDATION_ERROR", "That Pulse pack is not available.");
   }
 
   return pack;

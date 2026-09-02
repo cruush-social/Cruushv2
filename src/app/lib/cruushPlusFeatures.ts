@@ -8,7 +8,7 @@ export const CRUUSH_PLUS_FEATURES = [
   },
   {
     title: 'More Pulses',
-    description: 'Send more Pulses throughout the day.',
+    description: 'Send up to 5 Pulses per rolling 24 hours, back-to-back when available.',
   },
   {
     title: 'Mile High Club',

@@ -13,7 +13,7 @@ import { getNearbyUsers, type DiscoveryUser } from '../lib/usersApi';
 
 type LuckyStatus = 'checking' | 'browsing' | 'profile' | 'locked' | 'empty' | 'error';
 
-function selectCarouselUser(users: DiscoveryUser[], currentTargetId?: string | null) {
+export function selectCarouselUser(users: DiscoveryUser[], currentTargetId?: string | null) {
   const eligibleUsers = users.filter((user) => !user.isDemo && !user.isCurrentUser);
 
   if (eligibleUsers.length === 0) {
@@ -21,7 +21,9 @@ function selectCarouselUser(users: DiscoveryUser[], currentTargetId?: string | n
   }
 
   const alternateUsers = eligibleUsers.filter((user) => user.id !== currentTargetId);
-  const pool = alternateUsers.length > 0 ? alternateUsers : eligibleUsers;
+  const availableUsers = alternateUsers.length > 0 ? alternateUsers : eligibleUsers;
+  const activePulseUsers = availableUsers.filter((user) => Boolean(user.activePing));
+  const pool = activePulseUsers.length > 0 ? activePulseUsers : availableUsers;
   return pool[Math.floor(Math.random() * pool.length)];
 }
 

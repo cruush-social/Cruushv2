@@ -438,7 +438,7 @@ export default function Rewards() {
                 <CardTitle>Side Quests</CardTitle>
                 {sideQuests ? (
                   <span className="inline-flex items-center gap-1 rounded-full border border-primary/35 bg-primary/10 px-3 py-1 text-sm text-white">
-                    <Zap className="h-4 w-4 text-primary" />{sideQuests.pingCredits} {sideQuests.pingCredits === 1 ? 'Ping' : 'Pings'}
+                    <Zap className="h-4 w-4 text-primary" />{sideQuests.pingCredits} {sideQuests.pingCredits === 1 ? 'Pulse' : 'Pulses'}
                   </span>
                 ) : null}
               </CardHeader>
@@ -453,7 +453,7 @@ export default function Rewards() {
                         <li key={quest.key} className="rounded-xl border border-white/12 bg-black/30 p-4">
                           <p className="font-medium text-white">{quest.title}</p>
                           <div className="mt-3 flex items-center justify-between gap-3">
-                            <span className="text-sm text-primary">{quest.rewardKind === 'ping' ? `${quest.rewardAmount} ${quest.rewardAmount === 1 ? 'Ping' : 'Pings'}` : '1 day of cruush+'}</span>
+                            <span className="text-sm text-primary">{quest.rewardKind === 'ping' ? `${quest.rewardAmount} ${quest.rewardAmount === 1 ? 'Pulse' : 'Pulses'}` : '1 day of cruush+'}</span>
                             <Button
                               size="sm"
                               variant={quest.claimed ? 'outline' : 'default'}
@@ -550,7 +550,7 @@ export default function Rewards() {
                           <p className="text-xs text-muted-foreground">{formatDate(quest.claimedAt) ?? 'Completed'}</p>
                         </div>
                         <span className="text-primary">
-                          +{quest.rewardAmount} {quest.rewardKind === 'ping' ? (quest.rewardAmount === 1 ? 'Ping' : 'Pings') : 'cruush+ day'}
+                          +{quest.rewardAmount} {quest.rewardKind === 'ping' ? (quest.rewardAmount === 1 ? 'Pulse' : 'Pulses') : 'cruush+ day'}
                         </span>
                       </li>
                     ))}

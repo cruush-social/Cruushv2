@@ -275,7 +275,7 @@ describe('CruushPlusStore', () => {
     expect(screen.getByText('Who has a cruush on you')).toBeInTheDocument();
     expect(screen.getByText('See your full incoming cruush and profile-view lists.')).toBeInTheDocument();
     expect(screen.getByText('More Pulses')).toBeInTheDocument();
-    expect(screen.getByText('Send more Pulses throughout the day.')).toBeInTheDocument();
+    expect(screen.getByText('Send up to 5 Pulses per rolling 24 hours, back-to-back when available.')).toBeInTheDocument();
     expect(screen.getByText('Mile High Club')).toBeInTheDocument();
     expect(screen.getByText('Drop a pin where you are visiting and cruise from there.')).toBeInTheDocument();
     expect(screen.getByText('Feed+')).toBeInTheDocument();
@@ -334,7 +334,7 @@ describe('CruushPlusStore', () => {
     expect(main?.children).toHaveLength(6);
     expect(main?.children[0]).toHaveTextContent('Choose your time');
     expect(main?.children[0]).toHaveTextContent('Recommended');
-    expect(main?.children[1]).toContainElement(screen.getByRole('button', { name: 'Buy Ping packs' }));
+    expect(main?.children[1]).toContainElement(screen.getByRole('button', { name: 'Buy Pulse packs' }));
     expect(main?.children[2]).toHaveTextContent('What are you paying from?');
     expect(main?.children[2]).toContainElement(screen.getByRole('button', { name: 'Cash App' }));
     expect(main?.children[2]).toContainElement(screen.getByRole('button', { name: 'PayPal' }));

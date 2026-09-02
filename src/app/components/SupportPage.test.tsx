@@ -141,7 +141,7 @@ describe('SupportPage', () => {
   it('opens a legally required refund review with the subject prefilled', async () => {
     window.history.pushState({}, '', '/support?refund=1');
 
-    render(
+    const { container } = render(
       <MemoryRouter initialEntries={['/support?refund=1']}>
         <SupportPage publicAccess />
       </MemoryRouter>,
@@ -152,7 +152,8 @@ describe('SupportPage', () => {
     expect(screen.getByLabelText('Support subject')).toHaveValue('Refund request');
     expect(screen.getByText(/does not guarantee a refund/i)).toBeInTheDocument();
     expect(screen.getByText(/Never include wallet recovery words/i)).toBeInTheDocument();
-    expect(screen.getByRole('main')).toHaveClass('box-border', 'min-w-0');
+    expect(container.firstElementChild).toHaveClass('min-h-[100dvh]', 'w-full', 'max-w-full', 'overflow-x-hidden');
+    expect(screen.getByRole('main')).toHaveClass('box-border', 'w-full', 'min-w-0', 'max-w-full');
     expect(screen.getByRole('form', { name: 'Refund request' }).closest('section')).toHaveClass('max-w-full', 'overflow-hidden');
   });
 

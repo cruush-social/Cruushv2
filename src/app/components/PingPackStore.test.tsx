@@ -35,9 +35,9 @@ const {
 } = await import('../lib/cryptoCheckoutApi');
 
 const packs = [
-  { id: 'ping_3' as const, name: '3 Pings', description: '3 permanent Ping credits', pingCount: 3, amountCents: 299, currency: 'USD' as const },
-  { id: 'ping_10' as const, name: '10 Pings', description: '10 permanent Ping credits', pingCount: 10, amountCents: 799, currency: 'USD' as const },
-  { id: 'ping_25' as const, name: '25 Pings', description: '25 permanent Ping credits', pingCount: 25, amountCents: 1499, currency: 'USD' as const },
+  { id: 'ping_3' as const, name: '3 Pulses', description: '3 permanent Pulse credits', pingCount: 3, amountCents: 299, currency: 'USD' as const },
+  { id: 'ping_10' as const, name: '10 Pulses', description: '10 permanent Pulse credits', pingCount: 10, amountCents: 799, currency: 'USD' as const },
+  { id: 'ping_25' as const, name: '25 Pulses', description: '25 permanent Pulse credits', pingCount: 25, amountCents: 1499, currency: 'USD' as const },
 ];
 
 function processorStatus(ready = true): CryptoProcessorStatus {
@@ -92,17 +92,36 @@ describe('PingPackStore', () => {
   });
 
   it('shows the approved catalog, permanent-credit rule, 30-minute duration, and legal links', async () => {
-    renderStore();
+    const { container } = renderStore();
 
-    expect(await screen.findByRole('heading', { name: 'Buy Ping packs' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Buy Pulse packs' })).toBeInTheDocument();
+    expect(container.firstElementChild).toHaveClass('min-h-[100dvh]', 'w-full', 'max-w-full', 'overflow-x-hidden');
+    expect(screen.getByRole('main')).toHaveClass('w-full', 'min-w-0', 'max-w-3xl');
     expect(screen.getByText('$2.99')).toBeInTheDocument();
     expect(screen.getByText('$7.99')).toBeInTheDocument();
     expect(screen.getByText('$14.99')).toBeInTheDocument();
-    expect(screen.getAllByText(/Purchased Pings never expire/)).toHaveLength(2);
+    expect(screen.getAllByText(/Purchased Pulse credits never expire/)).toHaveLength(2);
     expect(screen.getAllByText(/30 minutes/).length).toBeGreaterThan(0);
     expect(screen.getByRole('link', { name: 'Read the billing policy' })).toHaveAttribute('href', '/billing-policy');
     expect(screen.getByRole('link', { name: 'Request a legally required refund review' })).toHaveAttribute('href', '/support?refund=1');
     expect(screen.getByText(/not available to New York residents/)).toBeInTheDocument();
+  });
+
+  it('explains every delivered Pulse benefit and why cruush takes crypto', async () => {
+    renderStore();
+
+    await screen.findByRole('heading', { name: 'Everything a Pulse does' });
+    expect(screen.getByLabelText('Pulse benefits')).toHaveClass('grid-cols-2', 'min-w-0');
+    expect(screen.getByText('Rise higher on the map')).toBeInTheDocument();
+    expect(screen.getByText(/stays out of clusters/)).toBeInTheDocument();
+    expect(screen.getByText('Beat for 30 minutes')).toBeInTheDocument();
+    expect(screen.getByText('Choose who is nearby')).toBeInTheDocument();
+    expect(screen.getByText('Get Cruise Carousel priority')).toBeInTheDocument();
+    expect(screen.getByText('Share your signal to Feed')).toBeInTheDocument();
+    expect(screen.getByText('Alert mutual cruushes')).toBeInTheDocument();
+    expect(screen.getByText(/Your pin stays in place/)).toBeInTheDocument();
+    expect(screen.getByText('Why cruush takes crypto')).toBeInTheDocument();
+    expect(screen.getByText(/never asks for your wallet recovery words/)).toBeInTheDocument();
   });
 
   it('uses the shared exact PayPal and wallet instructions', async () => {
@@ -137,7 +156,7 @@ describe('PingPackStore', () => {
     vi.mocked(createPingPackPaymentIntent).mockResolvedValue(openIntent());
     renderStore();
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Buy 10 Pings for $7.99' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Buy 10 Pulses for $7.99' }));
     await waitFor(() => expect(createPingPackPaymentIntent).toHaveBeenCalledWith(expect.objectContaining({
       packId: 'ping_10',
       rail: 'usdc_arbitrum',
