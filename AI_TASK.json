@@ -193,6 +193,7 @@
     "server/sql/121_hide_competitor_spot_sources.sql",
     "server/sql/122_place_detail_suggestions.sql",
     "server/sql/123_group_pulses.sql",
+    "server/sql/124_profile_taxonomy.sql",
     "scripts/generate-public-spots-migration.mjs",
     "docs/previews/cruush-1.6-update-email.html",
     "docs/previews/cruush-1.6-update-email.jpg",

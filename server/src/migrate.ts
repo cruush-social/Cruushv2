@@ -129,7 +129,8 @@ const migrationFiles = [
   "120_public_spot_details.sql",
   "121_hide_competitor_spot_sources.sql",
   "122_place_detail_suggestions.sql",
-  "123_group_pulses.sql"
+  "123_group_pulses.sql",
+  "124_profile_taxonomy.sql"
 ];
 const rewardSafetyPreflightFiles = [
   "079_daily_check_in_rewards.sql",

@@ -28,7 +28,7 @@ export const BODY_TYPES = alphabetize([
 ]);
 
 export const POSITIONS = alphabetize([
-  'bottom', 'pillow princess', 'side', 'stone top', 'top', 'vers bottom', 'vers top', 'versatile'
+  'bottom', 'pillow princess', 'side', 'stone bottom', 'stone top', 'top', 'vers bottom', 'vers top', 'versatile'
 ]);
 
 export const ROLES = alphabetize([
@@ -51,20 +51,20 @@ export const VIBE_GROUPS = [
   {
     label: 'Style & Energy',
     options: [
-      'Alt', 'Artsy', 'Blue-collar', 'Chill', 'Clean-cut', 'Corporate', 'Cottagecore', 'Disabled', 'Discreet', 'Geek', 'Goth', 'Granola',
-      'Hacker', 'Homebody', 'Hippie', 'Neurodivergent', 'Punk', 'Rugged', 'Spiritual', 'Sporty', 'Techie'
+      'Academia', 'Alt', 'Artsy', 'Blue-collar', 'Chill', 'Clean-cut', 'Corporate', 'Cottagecore', 'Disabled', 'Discreet', 'Geek', 'Goth', 'Granola',
+      'Hacker', 'Homebody', 'Hippie', 'Neurodivergent', 'Punk', 'Rugged', 'Spiritual'
     ].sort((left, right) => left.localeCompare(right, undefined, { sensitivity: 'base' })),
   },
   {
     label: 'Scenes',
     options: [
-      'Ballroom', 'Burner', 'Camping', 'Circuit', 'Club Kid', 'Collegiate', 'Cosplay', 'Country', 'Drag', 'Festival', 'Furry', 'Jock', 'Leather', 'Rave', 'Rubber', 'Sober', 'Stoner', 'Thespian'
+      'Ballroom', 'Burner', 'Camping', 'Circuit', 'Club Kid', 'Collegiate', 'Cosplay', 'Country', 'Drag', 'Festival', 'Furry', 'Jock', 'Leather', 'Raver', 'Rubber', 'Sober', 'Stoner', 'Thespian'
     ].sort((left, right) => left.localeCompare(right, undefined, { sensitivity: 'base' })),
   },
   {
     label: 'Archetypes',
     options: [
-      'Angel', 'Baddie', 'Bimbo', 'Bull', 'Cuck', 'Cuckquean', 'Cyborg', 'Daddy', 'Doll', 'Goddess', 'Handler', 'Himbo', 'Hothusband', 'Hotwife', 'Incubus', 'Jester', 'King', 'Kitten', 'Masochist', 'Mommy', 'Pixie', 'Pony', 'Prince', 'Princess', 'Pup', 'Queen', 'Rigger', 'Rope Bunny', 'Sadist', 'Service', 'Succubus', 'Trade', 'Trainer', 'Unicorn', 'Vampire', 'Wolf'
+      'Angel', 'Baddie', 'Bimbo', 'Bull', 'Cuck', 'Cuckquean', 'Cyborg', 'Daddy', 'Doll', 'Goddess', 'Himbo', 'Hothusband', 'Hotwife', 'Incubus', 'Jester', 'King', 'Kitten', 'Masochist', 'Mommy', 'Pixie', 'Pony', 'Prince', 'Princess', 'Pup', 'Queen', 'Sadist', 'Succubus', 'Trade', 'Unicorn', 'Vampire', 'Wolf'
     ].sort((left, right) => left.localeCompare(right, undefined, { sensitivity: 'base' })),
   },
 ];
@@ -192,7 +192,7 @@ export const KINK_CATALOG = [
   { id: 'socks', label: 'socks', category: 'Gear' },
   { id: 'sportswear', label: 'sportswear', category: 'Gear' },
   { id: 'boss-and-worker', label: 'boss and worker', category: 'Roleplay' },
-  { id: 'bimbo', label: 'bimbo', category: 'Roleplay' },
+  { id: 'bimbofication', label: 'bimbofication', category: 'Roleplay' },
   { id: 'coach-and-athlete', label: 'coach and athlete', category: 'Roleplay' },
   { id: 'cuckholding', label: 'cuckholding', category: 'Roleplay' },
   { id: 'doctor-and-patient', label: 'doctor and patient', category: 'Roleplay' },
