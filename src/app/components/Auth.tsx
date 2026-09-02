@@ -774,7 +774,7 @@ export default function Auth({ onAuth }: AuthProps) {
 
       </div>
       <div className="launch-login-auth-footer" data-testid="launch-login-auth-footer">
-        <PublicPolicyLinks variant="compact">
+        <PublicPolicyLinks showLandingLinks variant="compact">
           <a
             className="launch-login-auth-contact"
             data-testid="launch-login-auth-contact"

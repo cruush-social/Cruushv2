@@ -637,6 +637,10 @@
   text-wrap: pretty;
 }
 
+.launch-login-auth-primary-links + .launch-login-auth-consent {
+  margin-top: 0.22rem;
+}
+
 @media (min-width: 641px) {
   .launch-login-auth-footer {
     display: flex;

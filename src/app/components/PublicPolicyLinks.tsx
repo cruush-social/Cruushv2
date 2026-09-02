@@ -29,11 +29,12 @@ type PublicPolicyLinksProps = {
   className?: string;
   variant?: 'card' | 'compact';
   excludePaths?: string[];
+  showLandingLinks?: boolean;
   /** Rendered inside the disclosure, between the consent line and the links. */
   children?: ReactNode;
 };
 
-export default function PublicPolicyLinks({ className, variant = 'card', excludePaths = [], children }: PublicPolicyLinksProps) {
+export default function PublicPolicyLinks({ className, variant = 'card', excludePaths = [], showLandingLinks = false, children }: PublicPolicyLinksProps) {
   const visiblePolicyLinks = PUBLIC_POLICY_LINKS.filter((link) => !excludePaths.includes(link.path));
 
   if (variant === 'compact') {
@@ -41,12 +42,26 @@ export default function PublicPolicyLinks({ className, variant = 'card', exclude
     // made at the point of action. Its two documents are reachable from here as
     // well as from inside the list below.
     const consentLinks = AUTH_POLICY_LINKS.filter((link) => AUTH_CONSENT_POLICY_PATHS.includes(link.path));
+    const landingLinks = showLandingLinks
+      ? AUTH_POLICY_LINKS.filter((link) => ['/about', '/help', '/blog'].includes(link.path))
+      : [];
     // Terms and Privacy are reachable from the consent line, so listing them
     // again inside the disclosure would show the same link twice in one block.
-    const secondaryLinks = AUTH_POLICY_LINKS.filter((link) => !AUTH_CONSENT_POLICY_PATHS.includes(link.path));
+    const secondaryLinks = AUTH_POLICY_LINKS.filter((link) => (
+      !AUTH_CONSENT_POLICY_PATHS.includes(link.path) && !landingLinks.some((landingLink) => landingLink.path === link.path)
+    ));
 
     return (
       <div aria-label="Legal and safety links" className={cn('text-center text-white/30', className)}>
+        {landingLinks.length > 0 ? (
+          <nav aria-label="About cruush" className="launch-login-auth-primary-links flex flex-wrap items-center justify-center gap-x-6 gap-y-1 text-[0.72rem]">
+            {landingLinks.map((link) => (
+              <a className="underline underline-offset-2 hover:text-white" href={link.path} key={link.path}>
+                {link.label}
+              </a>
+            ))}
+          </nav>
+        ) : null}
         <p className="launch-login-auth-consent mx-auto text-[0.7rem] leading-relaxed">
           By continuing, you agree to our{' '}
           {consentLinks.map((link, index) => (

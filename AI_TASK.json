@@ -28,6 +28,7 @@
     "All members can choose current custom side badges; future badge packs remain deferred.",
     "A local preview page groups every current badge icon by profile category, and the self-overlapping Gay badge icon is replaced without changing user-selected badge icons.",
     "Mobile long-press reveals badge meanings while desktop hover remains; hanky labels do not overflow.",
+    "Larger Text scales every user-visible text style across the app while preserving usable layouts.",
     "Basic members receive 1 Pulse per rolling day and cruush+ members receive 5; there is no sender cooldown, Pulse alerts remain optional, each recipient receives at most one Pulse alert every 4 hours, and the same sender cannot alert the same recipient more than once per day.",
     "Group owners and admins can spend one of their own Pulses to alert members of that group; group Pulses obey the same recipient notification preferences and repeat limits as individual Pulses.",
     "A successful Spot check-in creates one moderated public Feed post per member, Spot, and hourly check-in event while Pink Book posts remain separate and persistent.",
