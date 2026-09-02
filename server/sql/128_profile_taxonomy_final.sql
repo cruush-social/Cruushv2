@@ -39,9 +39,9 @@ set
   hobbies = case
     when exists (
       select 1 from unnest(coalesce(hobbies, '{}'::text[])) as hobby_values(value)
-      where lower(trim(value)) = 'gaming'
+      where lower(trim(value)) in ('gaming', 'video games')
     ) then hobbies
-    else array_append(coalesce(hobbies, '{}'::text[]), 'gaming')
+    else array_append(coalesce(hobbies, '{}'::text[]), 'Video games')
   end
 where exists (
   select 1 from unnest(coalesce(scenes, '{}'::text[])) as scene_values(value)
