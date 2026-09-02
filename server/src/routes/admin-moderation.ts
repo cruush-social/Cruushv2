@@ -8,6 +8,11 @@ import { ApiError } from "../errors.js";
 import { multilineTextSchema, singleLineTextSchema, uuidSchema } from "../input-schema.js";
 import { decryptMediaBytes } from "../media-encryption.js";
 import { deleteEncryptedMediaObject, readEncryptedMediaObject } from "../media-storage.js";
+import {
+  isAgeRelatedSuspensionReason,
+  sendAgeSuspensionAppealEmail,
+  sendGeneralSuspensionAppealEmail
+} from "../mailer.js";
 import { recordModeratorAccess } from "../moderation-access-log.js";
 import { getModeratorUser, type ModeratorRole } from "../moderator-auth.js";
 import { createAppNotificationAndPush } from "../notification-service.js";
@@ -1788,8 +1793,21 @@ export async function registerAdminModerationRoutes(app: FastifyInstance) {
         await revokeAllSessions(db, userId);
       }
 
-      return { updated, moderationAction };
+      return { updated, moderationAction, previousStatus, targetEmail: target.email };
     });
+    if (payload.status === "suspended" && result.previousStatus !== "suspended" && result.targetEmail) {
+      try {
+        const ageRelated = isAgeRelatedSuspensionReason(payload.reasonCode);
+        const appealUrl = `${app.config.APP_URL.replace(/\/$/, "")}/support?appeal=${ageRelated ? "1" : "general"}`;
+        if (ageRelated) {
+          await sendAgeSuspensionAppealEmail({ appealUrl, config: app.config, email: result.targetEmail, logger: app.log });
+        } else {
+          await sendGeneralSuspensionAppealEmail({ appealUrl, config: app.config, email: result.targetEmail, logger: app.log });
+        }
+      } catch (error) {
+        app.log.error({ err: error, userId }, "manual suspension appeal email failed");
+      }
+    }
     return reply.send({
       data: {
         user: {

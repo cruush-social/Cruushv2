@@ -131,6 +131,11 @@ type EventPassEmailInput = {
 const CRUUSH_EMAIL_LOGO_URL = "https://cdn.resend.app/ff1dfa96-8b85-4552-8e56-d09cf53fb13e";
 const VERIFICATION_EMAIL_TEMPLATE_ID = "0dc8f32c-76e2-45b2-aaf7-f4649ab48ab0";
 const REPORTS_INBOX_EMAIL = "reports@cruush.app";
+const AGE_SUSPENSION_REASON_CODES = new Set(["minor_face_detected"]);
+
+export function isAgeRelatedSuspensionReason(reasonCode: string) {
+  return AGE_SUSPENSION_REASON_CODES.has(reasonCode);
+}
 
 function escapeHtml(value: string) {
   return value.replace(/[&<>"']/g, (character) => {
@@ -649,6 +654,49 @@ export async function sendAgeSuspensionAppealEmail(input: AgeSuspensionAppealEma
     html,
     text,
     failureMessage: "age suspension appeal email delivery failed"
+  });
+}
+
+type GeneralSuspensionAppealEmailInput = {
+  appealUrl: string;
+  config: AppConfig;
+  email: string;
+  logger: FastifyBaseLogger;
+};
+
+export async function sendGeneralSuspensionAppealEmail(input: GeneralSuspensionAppealEmailInput) {
+  const { appealUrl, config, email, logger } = input;
+
+  if (!config.RESEND_API_KEY || !config.MAIL_FROM) {
+    logger.info({ email }, "suspension appeal email skipped, mail is not configured");
+    return;
+  }
+
+  const escapedAppealUrl = escapeHtml(appealUrl);
+  const html = `
+    <p>Your cruush account was suspended.</p>
+    <p>You can ask a person to review the decision here:</p>
+    <p><a href="${escapedAppealUrl}">${escapedAppealUrl}</a></p>
+    <p>You do not need to be signed in to use that page.</p>
+  `;
+  const text = [
+    "Your cruush account was suspended.",
+    "",
+    "You can ask a person to review the decision here:",
+    appealUrl,
+    "",
+    "You do not need to be signed in to use that page."
+  ].join("\n");
+
+  await sendResendEmail({
+    config,
+    email,
+    logger,
+    replyTo: REPORTS_INBOX_EMAIL,
+    subject: "Appeal your cruush suspension",
+    html,
+    text,
+    failureMessage: "suspension appeal email delivery failed"
   });
 }
 

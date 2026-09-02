@@ -1,6 +1,11 @@
 import { randomUUID } from "node:crypto";
 import type { FastifyInstance } from "fastify";
-import { sendAgeSuspensionAppealEmail, sendAgeSuspensionInboxEmail } from "./mailer.js";
+import {
+  isAgeRelatedSuspensionReason,
+  sendAgeSuspensionAppealEmail,
+  sendAgeSuspensionInboxEmail,
+  sendGeneralSuspensionAppealEmail
+} from "./mailer.js";
 import type { DbClient } from "./db.js";
 import { ApiError } from "./errors.js";
 import {
@@ -696,20 +701,18 @@ export function resolveProfilePhotoAdultHumanGate(
 }
 
 
-const AGE_SUSPENSION_REASON_CODES = new Set(["minor_face_detected"]);
-
 /**
- * An age-related suspension always offers a human review, so tell the person it
- * happened and where to send their details. Delivery never blocks enforcement.
+ * Appealable suspensions always offer human review. Delivery never blocks
+ * enforcement.
  */
-async function notifyAgeSuspensionAppeal(
+async function notifySuspensionAppeal(
   app: FastifyInstance,
   userId: string,
   decision: PolicyDecision
 ) {
   const enforcement = decision.enforcement_action;
 
-  if (enforcement?.type !== "suspend" || !AGE_SUSPENSION_REASON_CODES.has(enforcement.reasonCode)) {
+  if (enforcement?.type !== "suspend" || enforcement.permanent) {
     return;
   }
 
@@ -720,23 +723,36 @@ async function notifyAgeSuspensionAppeal(
     );
     const email = result.rows[0]?.email ?? null;
 
+    const ageRelated = isAgeRelatedSuspensionReason(enforcement.reasonCode);
+
     if (email) {
-      await sendAgeSuspensionAppealEmail({
-        appealUrl: `${app.config.APP_URL.replace(/\/$/, "")}/support?appeal=1`,
-        config: app.config,
-        email,
-        logger: app.log
-      });
+      if (ageRelated) {
+        await sendAgeSuspensionAppealEmail({
+          appealUrl: `${app.config.APP_URL.replace(/\/$/, "")}/support?appeal=1`,
+          config: app.config,
+          email,
+          logger: app.log
+        });
+      } else {
+        await sendGeneralSuspensionAppealEmail({
+          appealUrl: `${app.config.APP_URL.replace(/\/$/, "")}/support?appeal=general`,
+          config: app.config,
+          email,
+          logger: app.log
+        });
+      }
     }
 
-    await sendAgeSuspensionInboxEmail({
-      config: app.config,
-      logger: app.log,
-      userEmail: email,
-      userId
-    });
+    if (ageRelated) {
+      await sendAgeSuspensionInboxEmail({
+        config: app.config,
+        logger: app.log,
+        userEmail: email,
+        userId
+      });
+    }
   } catch (error) {
-    app.log.error({ err: error, userId }, "age suspension appeal email failed");
+    app.log.error({ err: error, userId }, "suspension appeal email failed");
   }
 }
 
@@ -872,7 +888,7 @@ async function handlePolicyDecision(
     }
   });
 
-  await notifyAgeSuspensionAppeal(app, userId, decision);
+  await notifySuspensionAppeal(app, userId, decision);
 
   throw new ModerationRejectedError({
     contentReviewId,
