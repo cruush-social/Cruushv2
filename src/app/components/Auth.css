@@ -235,9 +235,10 @@
   position: relative;
   z-index: 1;
   text-shadow:
-    0 0 0.06rem #ffffff,
-    0 0 0.16rem #ffffff,
-    0 0 0.34rem rgba(255, 255, 255, 0.82);
+    0 0 0.12rem #ffffff,
+    0 0 0.42rem #ffffff,
+    0 0 0.86rem #ffffff,
+    0 0 1.55rem #ffffff;
 }
 
 .launch-login-auth-tagline span {
@@ -268,7 +269,11 @@
 
 .launch-login-auth-beta-capsule:hover {
   border-color: rgba(255, 255, 255, 0.82);
-  color: #fff;
+  color: #ffffff;
+  filter: none;
+  mix-blend-mode: normal;
+  position: relative;
+  z-index: 1;
   box-shadow:
     0 0.55rem 1.25rem rgba(0, 0, 0, 0.55),
     0 0 0.75rem rgba(255, 255, 255, 0.92),

@@ -20,7 +20,7 @@
     "Spot and profile shares stay inside cruush and do not invoke external sharing.",
     "Tablet headers have a centered maximum width with deployed-mobile icon sizing; Map Controls hover uses the deployed high-legibility state.",
     "Mobile pages keep vertical scrolling but never show a side scrollbar.",
-    "Auth legal copy uses the available width cleanly, colorblind mode visibly changes the palette, the landing tagline hover glow uses a compact radius and reads as neutral white above the warm video, and the logo hover glow uses a compact radius and the approved logo colors.",
+    "Auth legal copy uses the available width cleanly, colorblind mode visibly changes the palette, the landing tagline and Open Beta capsule hover glows read as neutral white above the warm video, and the logo hover glow uses a compact radius and the approved logo colors.",
     "Mobile long-press reveals badge meanings while desktop hover remains; hanky labels do not overflow.",
     "Onboarding explains that Crowd Mode affects visibility only when enabled and includes the approved profile-photo rules.",
     "Onboarding step 2 accepts an optional friend invite code and explains that invite benefits require the invited member to enable 2FA.",
