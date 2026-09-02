@@ -1,7 +1,30 @@
 import pillowPrincessRaster from '../assets/ui-icons/pillow-princess-raster.png';
 import serviceRaster from '../assets/ui-icons/service-6745554.png';
 import stoneTopRaster from '../assets/ui-icons/stone-top-raster.png';
+import {
+  Activity,
+  Axe,
+  Baby,
+  Bone,
+  CircleArrowDown,
+  Drama,
+  Dumbbell,
+  Feather,
+  Gavel,
+  Hand,
+  HandHeart,
+  Handshake,
+  HeartHandshake,
+  HeartCrack,
+  KeyRound,
+  Megaphone,
+  PawPrint,
+  Rabbit,
+  Spline,
+  Sun,
+} from 'lucide-react';
 import { DomEmblem, SubEmblem, SwitchEmblem } from './BdsmEmblems';
+import { LipsGlyph } from './BadgeGlyphs';
 
 /**
  * Marks for the two badges a basic account carries: the role on one side of the
@@ -202,7 +225,10 @@ export const POSITION_GLYPHS: Record<string, (props: GlyphProps) => JSX.Element>
   'vers bottom': VersBottomGlyph,
   side: SideGlyph,
   'stone top': StoneTopGlyph,
+  'stone bottom': PillowPrincessGlyph,
   'pillow princess': PillowPrincessGlyph,
+  'hands only': Hand,
+  'oral only': LipsGlyph,
 };
 
 export const ROLE_GLYPHS: Record<string, (props: GlyphProps) => JSX.Element> = {
@@ -216,6 +242,26 @@ export const ROLE_GLYPHS: Record<string, (props: GlyphProps) => JSX.Element> = {
   'pleasure dom': PleasureDomGlyph,
   'pleasure sub': PleasureSubGlyph,
   'pleasure switch': PleasureSwitchGlyph,
+  worship: HeartHandshake,
+  worshipper: HeartHandshake,
+  worshipped: Sun,
+  handler: Handshake,
+  pet: Bone,
+  brat: Drama,
+  'brat tamer': Gavel,
+  caregiver: HandHeart,
+  degradee: CircleArrowDown,
+  degrader: Megaphone,
+  little: Baby,
+  masochist: HeartCrack,
+  owner: KeyRound,
+  prey: Rabbit,
+  hunter: PawPrint,
+  rigger: Spline,
+  'rope bunny': Feather,
+  sadist: Axe,
+  sadomasochist: Activity,
+  trainer: Dumbbell,
 };
 
 export function positionGlyphFor(value: string | null | undefined) {
