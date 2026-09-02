@@ -398,7 +398,7 @@ export default function PlaceDetail({ embedded = false, onBack, placeIdOverride 
         <h1 className="min-w-0 truncate text-xl">{PLACE_FACILITY_SINGULAR_LABELS[place.facilityType]}</h1>
       </header>
 
-      <div className={`mx-auto flex flex-col gap-6 p-6 ${embedded ? 'max-w-none' : 'max-w-2xl'}`}>
+      <div className={`mx-auto flex flex-col gap-4 px-4 py-4 sm:gap-6 sm:p-6 ${embedded ? 'max-w-none' : 'max-w-2xl'}`}>
         <div className={`relative ${embedded ? 'order-1' : 'order-3'}`}>
           <h1 className={`text-3xl ${embedded ? 'pr-10' : ''}`}>{place.name}</h1>
           <div className="mt-2 flex items-start gap-2 text-sm text-muted-foreground">
@@ -475,7 +475,7 @@ export default function PlaceDetail({ embedded = false, onBack, placeIdOverride 
           </DialogContent>
         </Dialog>
 
-        <details className="order-6 rounded-xl border border-border bg-card p-4">
+        <details className="order-8 rounded-xl border border-border bg-card p-4">
           <summary className="flex cursor-pointer list-none items-center justify-between font-medium">Popular times<Clock className="h-5 w-5 text-primary" /></summary>
           <div className="mt-4">
             {place.popularTimes.length === 0 ? <p className="py-6 text-center text-sm text-muted-foreground">Not enough activity yet.</p> : (
@@ -493,12 +493,12 @@ export default function PlaceDetail({ embedded = false, onBack, placeIdOverride 
           </div>
         </details>
 
-        {place.sourceUrl ? <a className="order-7 inline-flex items-center text-sm text-primary" href={place.sourceUrl} target="_blank" rel="noreferrer">Source{place.sourceAttribution ? `: ${place.sourceAttribution}` : ''}<ExternalLink className="ml-2 h-4 w-4" /></a> : null}
+        {place.sourceUrl ? <a className="order-6 inline-flex items-center text-sm text-primary" href={place.sourceUrl} target="_blank" rel="noreferrer">Source{place.sourceAttribution ? `: ${place.sourceAttribution}` : ''}<ExternalLink className="ml-2 h-4 w-4" /></a> : null}
 
         {status ? <p className="order-9 text-sm text-primary">{status}</p> : null}
         {error ? <p className="order-10 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{error}</p> : null}
 
-        <Tabs defaultValue="feed" className="order-8 w-full">
+        <Tabs defaultValue="feed" className="order-7 w-full">
           <TabsList className="grid h-10 w-full grid-cols-2 p-1">
             <TabsTrigger className="h-8 rounded-full py-0" value="feed">Pink Book</TabsTrigger>
             <TabsTrigger className="h-8 rounded-full py-0" value="here">Who's Here</TabsTrigger>
