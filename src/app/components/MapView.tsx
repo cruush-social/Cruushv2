@@ -20,13 +20,16 @@ import {
   KeyRound,
   Martini,
   MapPinned,
+  MicVocal,
   Music2,
+  PackageOpen,
   Route,
   Shapes,
   ShoppingBag,
   Toilet,
   TrainFront,
   Trees,
+  Trophy,
   User,
   Waves,
   type LucideIcon,
@@ -1691,6 +1694,9 @@ const PLACE_MARKER_CONFIG: Record<string, { icon?: LucideIcon; special?: 'stairs
   parking: { icon: CircleParking },
   beach: { special: 'beach' },
   adult_venue: { special: 'adult' },
+  adult_shop: { icon: PackageOpen },
+  music_venue: { icon: MicVocal },
+  sports_venue: { icon: Trophy },
   other: { icon: Shapes },
 };
 
@@ -1711,14 +1717,14 @@ function PlaceMarker({ marker, previewed = false }: { marker: MapMarker; preview
       >
         {marker.displayName}
       </span>
-      <span className={`relative flex h-12 w-12 rotate-45 items-center justify-center rounded-[0.7rem] border-2 bg-black/94 text-white shadow-[0_0_10px_rgba(20,157,255,0.95),0_0_24px_rgba(21,79,255,0.62)] backdrop-blur-md ${active ? 'border-[#C8FF31] shadow-[0_0_28px_rgba(200,255,49,0.55)]' : 'border-[#55C8FF]'}`}>
+      <span className={`relative flex h-12 w-12 rotate-45 items-center justify-center rounded-[0.7rem] border-2 border-[#55C8FF] bg-black/94 text-white shadow-[0_0_10px_rgba(20,157,255,0.95),0_0_24px_rgba(21,79,255,0.62)] backdrop-blur-md ${active ? 'shadow-[0_0_28px_rgba(85,200,255,0.62)]' : ''}`}>
         <span className="flex h-8 w-8 -rotate-45 items-center justify-center">
           {config.special === 'beach' ? <img src={beachUmbrellaIcon} alt="" className="h-7 w-7 brightness-0 invert" /> : null}
           {config.special === 'stairs' ? <span aria-hidden="true" className="relative block h-6 w-6"><i className="absolute bottom-1 left-0 h-[3px] w-2.5 rounded-full bg-white" /><i className="absolute bottom-2.5 left-[7px] h-[3px] w-2.5 rounded-full bg-white" /><i className="absolute bottom-4 left-3.5 h-[3px] w-2.5 rounded-full bg-white" /></span> : null}
           {config.special === 'adult' ? <span className="cruush-logo-font text-[21px] font-normal leading-none tracking-normal">18+</span> : null}
           {!config.special ? <Icon className="h-6 w-6" /> : null}
         </span>
-        {active ? <span className="absolute -right-2 -top-2 flex h-6 min-w-6 -rotate-45 items-center justify-center rounded-full bg-[#C8FF31] px-1 text-[10px] font-bold text-black">{marker.place?.activeCheckins}</span> : null}
+        {active ? <span className="absolute -right-2 -top-2 flex h-6 min-w-6 -rotate-45 items-center justify-center rounded-full bg-[#55C8FF] px-1 text-[10px] font-bold text-black">{marker.place?.activeCheckins}</span> : null}
       </span>
     </span>
   );

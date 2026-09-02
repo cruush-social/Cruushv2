@@ -139,7 +139,8 @@ const migrationFiles = [
   "130_profile_tag_reservations.sql",
   "131_profile_taxonomy_refinements.sql",
   "132_default_profile_side_badges.sql",
-  "133_profile_video_games.sql"
+  "133_profile_video_games.sql",
+  "134_full_nyc_spot_import.sql"
 ];
 const rewardSafetyPreflightFiles = [
   "079_daily_check_in_rewards.sql",

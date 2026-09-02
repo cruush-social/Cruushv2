@@ -24,6 +24,8 @@
 - 2026-09-02: Color-blind mode now remaps shared brand, relationship, Pulse, Mile High Club, Dark Room, destructive, chart, focus, badge, selected-navigation, SVG, and logo colors while leaving member photos and map tiles unchanged.
 - 2026-09-02: cruush+ Pulse allowance is now 5 per rolling day without a sender cooldown. Optional recipient alerts retain the 4-hour interruption cap and same-sender daily deduplication.
 - 2026-09-02: Group owners and admins can now spend one of their own Pulses to alert active group members. Group Pulses share the recipient opt-out, quiet-hours, mute, 4-hour interruption, and same-sender daily limits used by individual Pulses.
+- 2026-09-02: The retained public Spot dataset now imports every named geocoded public row available in the supplied workbook, excludes private residences and unnamed rows, and adds Adult shop, Music venue, and Sports venue categories without exposing the private source label.
+- 2026-09-02: Active Spot markers keep the blue Spot treatment while showing their current check-in count; Ping green is no longer reused for Spots.
 # 2026-09-02
 
 - Mobile Notifications header now keeps Back, title, Settings, and Bug visible on its first row; bulk actions sit below instead of squeezing out the title.

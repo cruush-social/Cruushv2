@@ -1,12 +1,13 @@
 export const PLACE_FACILITY_TYPES = [
   'clinic', 'bar', 'nightclub', 'community_space', 'park', 'restroom',
   'sauna', 'gym', 'hotel', 'dungeon', 'cafe', 'shop', 'library',
-  'staircase', 'trail', 'transit', 'parking', 'beach', 'adult_venue', 'other',
+  'staircase', 'trail', 'transit', 'parking', 'beach', 'adult_venue',
+  'adult_shop', 'music_venue', 'sports_venue', 'other',
 ] as const;
 
 export const PLACE_TAGS = [
   'lgbtq_health', 'womens_health', 'sexual_health', 'leans_men',
-  'leans_women', 't4t_spot', 'techno_club',
+  'leans_women', 'techno_club',
 ] as const;
 
 export const PLACE_VIBES = [
@@ -30,7 +31,8 @@ export const PLACE_FACILITY_LABELS: Record<PlaceFacilityType, string> = {
   park: 'Park', restroom: 'Bathroom', sauna: 'Sauna', gym: 'Gym', hotel: 'Hotel',
   dungeon: 'Dungeon', venue: 'Other', cafe: 'Café', shop: 'Shop', library: 'Library',
   staircase: 'Staircase', trail: 'Trail', transit: 'Transit', parking: 'Parking',
-  beach: 'Beach', adult_venue: 'Adult venue', other: 'Other',
+  beach: 'Beach', adult_venue: 'Adult venue', adult_shop: 'Adult shop',
+  music_venue: 'Music venue', sports_venue: 'Sports venue', other: 'Other',
 };
 
 export const PLACE_FACILITY_SINGULAR_LABELS: Record<PlaceFacilityType, string> = {
@@ -38,12 +40,13 @@ export const PLACE_FACILITY_SINGULAR_LABELS: Record<PlaceFacilityType, string> =
   park: 'Park', restroom: 'Bathroom', sauna: 'Sauna', gym: 'Gym', hotel: 'Hotel',
   dungeon: 'Dungeon', venue: 'Spot', cafe: 'Café', shop: 'Shop', library: 'Library',
   staircase: 'Staircase', trail: 'Trail', transit: 'Transit', parking: 'Parking',
-  beach: 'Beach', adult_venue: 'Adult venue', other: 'Spot',
+  beach: 'Beach', adult_venue: 'Adult venue', adult_shop: 'Adult shop',
+  music_venue: 'Music venue', sports_venue: 'Sports venue', other: 'Spot',
 };
 
 export const PLACE_TAG_LABELS: Record<PlaceTag, string> = {
   lgbtq_health: 'LGBTQ health', womens_health: 'Ob/gyn health', sexual_health: 'Sexual health',
-  leans_men: 'Leans men', leans_women: 'Leans women', t4t_spot: 'T4T spot', techno_club: 'Techno club',
+  leans_men: 'Leans men', leans_women: 'Leans women', techno_club: 'Techno club',
 };
 
 export const PLACE_VIBE_LABELS: Record<PlaceVibe, string> = {

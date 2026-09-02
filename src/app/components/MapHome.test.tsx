@@ -496,21 +496,19 @@ describe('Spot map loading', () => {
 });
 
 describe('Spot taxonomy', () => {
-  it('offers the 20 approved facility choices and retains legacy venue reads as Other', () => {
-    expect(PLACE_FACILITY_TYPES).toHaveLength(20);
-    expect(new Set(PLACE_FACILITY_TYPES).size).toBe(20);
+  it('offers the 23 approved facility choices and retains legacy venue reads as Other', () => {
+    expect(PLACE_FACILITY_TYPES).toHaveLength(23);
+    expect(new Set(PLACE_FACILITY_TYPES).size).toBe(23);
+    expect(PLACE_FACILITY_TYPES).toEqual(expect.arrayContaining(['adult_shop', 'music_venue', 'sports_venue']));
     expect(PLACE_FACILITY_LABELS.bar).toBe('Bars');
     expect(PLACE_FACILITY_LABELS.venue).toBe('Other');
   });
 
-  it('hides legacy Dyke spot tags and caps Spot summaries at two labels', () => {
-    expect(getVisibleSpotTags(['dyke_bar', 'dyke_spot', 'gay_spot', 't4t_spot'])).toEqual([
-      'gay_spot',
-      't4t_spot',
-    ]);
-    expect(getSpotCategoryLabels('bar', ['dyke_bar', 'gay_spot', 'techno_club'])).toEqual([
+  it('hides every removed identity tag and caps Spot summaries at two labels', () => {
+    expect(getVisibleSpotTags(['dyke_bar', 'dyke_spot', 'gay_spot', 't4t_spot'] as never[])).toEqual([]);
+    expect(getSpotCategoryLabels('bar', ['dyke_bar', 'gay_spot', 'techno_club'] as never[])).toEqual([
       'Bars',
-      'Gay spot',
+      'Techno club',
     ]);
   });
 });

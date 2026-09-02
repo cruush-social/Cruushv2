@@ -741,3 +741,10 @@ These are not preferences. Breaking one is a bug.
   and limited to one alert from the same sender per day.
 - Group owners and admins spend one of their own Pulses to alert a group. Group alerts use the same
   recipient preference and repeat limits. Parties remain deferred.
+
+### Spots
+
+- Spot markers and Spot clusters use the established blue Spot treatment. Ping green never marks a Spot.
+- People clusters remain circular. Spot clusters remain diamond-shaped and show only their count in the logo font.
+- Adult shop, Music venue, and Sports venue are first-class Spot categories alongside the existing category set.
+- Public imports exclude private residences, unnamed rows, visitor data, access codes, profile media, active visits, and user-authored sexual descriptions.

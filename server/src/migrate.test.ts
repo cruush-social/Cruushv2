@@ -178,6 +178,18 @@ describe("migration runner", () => {
     expect(videoGamesSql).not.toMatch(/\b(delete from|truncate|drop table)\b/i);
   });
 
+  it("imports the full retained public Spot workbook after the final profile migration", async () => {
+    const migrateSource = await readFile(path.join(currentDir, "migrate.ts"), "utf8");
+    const placesSql = await readFile(path.join(serverRoot, "sql", "134_full_nyc_spot_import.sql"), "utf8");
+
+    expect(migrateSource).toMatch(/"133_profile_video_games\.sql",\s*"134_full_nyc_spot_import\.sql"/);
+    expect(placesSql).toContain("Source-platform public places: 5279. OpenStreetMap venues: 5482.");
+    expect(placesSql).toContain("'adult_shop', 'music_venue', 'sports_venue'");
+    expect(placesSql).toContain("delete from place_tags where tag = 't4t_spot'");
+    expect(placesSql).not.toContain("sniffies.com");
+    expect(placesSql).not.toMatch(/tower_residential/i);
+  });
+
   it("migrates kink roles through the existing profile role column", async () => {
     const taxonomySql = await readFile(path.join(serverRoot, "sql", "128_profile_taxonomy_final.sql"), "utf8");
     const profileFieldsSql = await readFile(path.join(serverRoot, "sql", "129_profile_preferred_spots_protection.sql"), "utf8");

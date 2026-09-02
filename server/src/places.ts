@@ -4,12 +4,13 @@ import { multilineTextSchema, publicHttpsUrlSchema, singleLineTextSchema } from 
 export const PLACE_FACILITY_TYPES = [
   "clinic", "bar", "nightclub", "community_space", "park", "restroom",
   "sauna", "gym", "hotel", "dungeon", "cafe", "shop", "library",
-  "staircase", "trail", "transit", "parking", "beach", "adult_venue", "other"
+  "staircase", "trail", "transit", "parking", "beach", "adult_venue",
+  "adult_shop", "music_venue", "sports_venue", "other"
 ] as const;
 
 export const PLACE_TAGS = [
   "lgbtq_health", "womens_health", "sexual_health", "leans_men",
-  "leans_women", "t4t_spot", "techno_club"
+  "leans_women", "techno_club"
 ] as const;
 
 export const PLACE_VIBES = [

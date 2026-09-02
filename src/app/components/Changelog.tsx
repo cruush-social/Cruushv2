@@ -9,6 +9,7 @@ const changelogReleases = [
     items: [
       'Explore from another location with Mile High Club.',
       'Find Spots by vibe and amenities, see who is there, and read their Pink Book while checked in.',
+      'Browse a larger Spot directory with new Adult shop, Music venue, and Sports venue categories.',
       'Spot check-ins expire. Pink Book posts stay until their author deletes them.',
       'Checking into a Spot now shares it to the Feed.',
       'All members can customize both side badges.',
