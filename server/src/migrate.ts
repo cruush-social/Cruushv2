@@ -122,7 +122,9 @@ const migrationFiles = [
   "113_spot_vibes_amenities.sql",
   "114_place_vibe_reports.sql",
   "115_profile_tags.sql",
-  "116_tutorial_side_quest.sql"
+  "116_tutorial_side_quest.sql",
+  "117_public_spots_100mi_nyc.sql",
+  "118_women_centered_queer_venues.sql"
 ];
 const rewardSafetyPreflightFiles = [
   "079_daily_check_in_rewards.sql",

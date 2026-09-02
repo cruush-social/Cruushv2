@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, Clock3, MapPin, Plus, Search, Star, Users } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -73,6 +73,8 @@ export default function PlacesDrawer({ open, onOpenChange, coordinates, onFilter
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+  const loadMoreInFlightRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [showSubmit, setShowSubmit] = useState(false);
   const [submission, setSubmission] = useState({
@@ -119,7 +121,7 @@ export default function PlacesDrawer({ open, onOpenChange, coordinates, onFilter
     onFiltersActiveChange?.(filterCount > 0);
     onMapFiltersChange?.({ query: query.trim(), facilityTypes, tags, vibes, amenities, radiusMiles });
   }, [amenities, facilityTypes, filterCount, onFiltersActiveChange, onMapFiltersChange, query, radiusMiles, tags, vibes]);
-  const resultLabel = useMemo(() => loading ? 'Loading spots...' : `${places.length} ${places.length === 1 ? 'spot' : 'spots'}`, [loading, places.length]);
+  const resultLabel = useMemo(() => loading ? 'Loading spots...' : `${places.length}${hasMore ? '+' : ''} ${places.length === 1 ? 'spot' : 'spots'}`, [hasMore, loading, places.length]);
 
   const handleSubmit = async () => {
     setSubmissionStatus(null);
@@ -144,8 +146,9 @@ export default function PlacesDrawer({ open, onOpenChange, coordinates, onFilter
     }
   };
 
-  const handleLoadMore = async () => {
-    if (loading || loadingMore || !hasMore) return;
+  const handleLoadMore = useCallback(async () => {
+    if (loading || loadingMore || loadMoreInFlightRef.current || !hasMore) return;
+    loadMoreInFlightRef.current = true;
     setLoadingMore(true);
     setError(null);
     try {
@@ -176,9 +179,21 @@ export default function PlacesDrawer({ open, onOpenChange, coordinates, onFilter
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'More spots could not load.');
     } finally {
+      loadMoreInFlightRef.current = false;
       setLoadingMore(false);
     }
-  };
+  }, [amenities, coordinates?.latitude, coordinates?.longitude, facilityTypes, hasMore, loading, loadingMore, onPlacesChange, places, query, radiusMiles, sort, tags, vibes]);
+
+  useEffect(() => {
+    if (!open || showSubmit || loading || loadingMore || !hasMore) return;
+    const target = loadMoreRef.current;
+    if (!target) return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) void handleLoadMore();
+    }, { rootMargin: '240px 0px' });
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [handleLoadMore, hasMore, loading, loadingMore, open, showSubmit]);
 
   const pinCurrentLocation = () => {
     setSubmissionStatus(null);
@@ -364,15 +379,17 @@ export default function PlacesDrawer({ open, onOpenChange, coordinates, onFilter
                 ))}
               </div>
               {hasMore || loadingMore ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full"
-                  disabled={loadingMore}
-                  onClick={() => void handleLoadMore()}
-                >
-                  {loadingMore ? 'Loading more spots...' : 'Load more spots'}
-                </Button>
+                <div ref={loadMoreRef}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    disabled={loadingMore}
+                    onClick={() => void handleLoadMore()}
+                  >
+                    {loadingMore ? 'Loading more spots...' : 'Load more spots'}
+                  </Button>
+                </div>
               ) : null}
             </>
           )}

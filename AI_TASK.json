@@ -1,46 +1,45 @@
 {
   "schemaVersion": 2,
-  "taskId": "cruush-1.6-tutorial-pulse-cruush-mobile-20260902",
+  "taskId": "cruush-1.6-nyc-100mi-spots-20260902",
   "status": "validating",
-  "objective": "Update the existing tutorial for current cruush 1.6 features, expose a safe dev-only onboarding walkthrough without real email, award tutorial completion as a side quest, give cruush+ unlimited Pulses with a three-hour cooldown while preventing repeat same-sender Pulse delivery within 24 hours, expand Pulse copy, and repair the named mobile cruush, messages, and feed layout issues.",
-  "userOutcome": "Members understand cruush+, Mile High Club, and Pulse behavior; developers can review onboarding locally without an account; tutorial completion earns a side-quest reward; cruush+ members can Pulse again after three hours without repeatedly reaching the same person; and named mobile pages have centered controls, hidden scrollbars, and one-line headers.",
-  "audience": "cruush members and local developers reviewing onboarding.",
+  "objective": "Make every retained spot from the existing 100-mile NYC public-place workbook available on the map and through the Spots list, then add current women-centered queer venues found from current public sources under their normal spot categories without exposing a special audience label.",
+  "userOutcome": "The Spots map contains the complete retained 100-mile NYC workbook dataset, the Spots list continues beyond the first 50 results, and current women-centered queer venues appear as bars, community spaces, shops, or cafes without being called dyke spots.",
+  "audience": "cruush members browsing Spots within 100 miles of New York City.",
   "successCriteria": [
-    "The map tutorial includes current cruush+, Mile High Club, Feed, Spots, and Pulse explanations.",
-    "A dev-only public onboarding preview runs without sign-in and does not write profile, 2FA, code-of-conduct, reward, or session data.",
-    "Completing, not skipping, the map tutorial records the tutorial side quest through the existing rewards path.",
-    "cruush+ Pulse allowance has no daily limit and enforces a three-hour cooldown; Basic remains one Pulse per 24 hours.",
-    "A recipient is not selected for another Pulse from the same sender within a rolling 24 hours while existing visibility, mutuality, blocks, freshness, radius, and notification preferences remain unchanged.",
-    "Pulse copy explains duration, visibility, feed behavior, recipient limits, cooldowns, and the saved profile signal.",
-    "The mobile cruush page hides the visual vertical scrollbar and centers counts and tabs.",
-    "Cruush, messages, and feed mobile headers keep back, title, settings where present, and bug button on one line without overlap."
+    "All 3,717 retained workbook rows are represented by idempotent published place records using only factual name, coordinates, public category, and source identity fields.",
+    "Copied source descriptions, access instructions, popularity history, and visitor data are not imported.",
+    "The Spots list automatically continues past its first 50 results without forcing members to find a manual load button.",
+    "Current independently sourced women-centered queer venues inside the 100-mile radius are included under their normal facility categories.",
+    "No visible category, filter, card, or spot detail calls these venues dyke spots.",
+    "People clusters, spot clusters, map tiles, map theme, and unrelated map behavior remain unchanged."
   ],
   "mustPreserve": [
-    "Preserve map tiles and theme, Ghost Mode and Dark Room behavior, current Pulse radius/duration/eligibility/privacy behavior, current onboarding sequence, bottom navigation, badges, photos, and unrelated UI.",
-    "Keep the no-email onboarding route unavailable in production and make preview completion side-effect-free.",
-    "Keep page scrolling functional while hiding only the visible mobile cruush scrollbar."
+    "Preserve the approved custom map tiles and theme exactly.",
+    "Preserve the existing separate people and spot cluster behavior.",
+    "Preserve existing published spot records, check-ins, Pink Book posts, ratings, vibes, amenities, and unrelated 1.6 work.",
+    "Keep imported source rows limited to the prior workbook's public-access retained set."
   ],
   "nonGoals": [
-    "Do not add reactions, feed replies, crowd-mode changes, new navigation, new Pulse radii or duration, global scrollbar changes, tests, builds, email changes, or deployment.",
-    "Do not redesign adjacent desktop layouts or change headers outside Cruush, Messages, and Feed."
+    "Do not scrape Sniffies again, copy its descriptions, import access codes, import private residences, import visitor history, add a new public audience category, change spot cards, add tests, build the app, update email screenshots, push, or deploy.",
+    "Do not change map pin visuals, cluster visuals, map navigation, filters, or adjacent pages."
   ],
   "assumptions": [
     {
-      "statement": "Per day means the existing rolling 24-hour Pulse window.",
-      "impact": "Repeat Pulse alerts from the same sender remain suppressed for 24 hours.",
+      "statement": "The existing user-controlled workbook is the requested prior Sniffies-derived 100-mile NYC dataset.",
+      "impact": "The import is generated from its 3,717 retained rows without a new competitor scrape.",
       "reversible": true,
       "confirmationState": "confirmed"
     },
     {
-      "statement": "Unlimited cruush+ Pulses means no daily quota, while one active Pulse and the three-hour cooldown still apply.",
-      "impact": "cruush+ members can send another Pulse after three hours without a daily cap.",
+      "statement": "Respective categories means existing facility categories such as Bar, Community space, Shop, and Cafe, not a new public audience label.",
+      "impact": "Women-centered venues remain discoverable as ordinary Spots without the rejected label.",
       "reversible": true,
-      "confirmationState": "confirmed"
+      "confirmationState": "labeled"
     }
   ],
-  "nextVisibleMilestone": "Render the dev onboarding walkthrough, map tutorial, Pulse panel, and named mobile headers for review.",
+  "nextVisibleMilestone": "A scoped commit containing the generated place migration, sourced venue additions, and automatic list continuation.",
   "stopConditions": [
-    "Stop for an unsafe schema requirement, a conflicting dirty edit in a named file, or unavailable local rendering dependencies after checking the existing owned server."
+    "Stop if the source workbook cannot be read, a retained row lies outside 100 miles, generated SQL cannot preserve the existing place schema, or a named file has conflicting user edits."
   ],
   "costBudget": {"maxUsd": 0, "maxMinutes": null},
   "externalEffectDecisions": {
@@ -64,41 +63,28 @@
   "release": "1.6",
   "repository": "cruush-social/Cruushv2",
   "branch": "release/1.6-integration-20260901",
-  "job": "Implement the scoped tutorial, onboarding preview, side quest, Pulse rules/copy, and named mobile layout changes, then checkpoint commit.",
-  "forbiddenPaths": ["HANDOFF.md", "docs/previews/**", "public/email/**", "src/app/components/MapView.tsx"],
+  "job": "Generate the scoped spot migrations, make list pagination automatic, and checkpoint commit.",
+  "forbiddenPaths": [
+    "src/app/components/MapView.tsx",
+    "src/app/components/MapHome.tsx",
+    "src/styles/**",
+    "public/**",
+    "docs/previews/**"
+  ],
   "allowedPaths": [
     "AI_TASK.json",
-    "DESIGN_DECISIONS.md",
-    "FIXLOG.md",
-    "src/app/App.tsx",
-    "src/app/components/MapControlsTutorial.tsx",
-    "src/app/components/MapHome.tsx",
-    "src/app/components/OnboardingPreview.tsx",
-    "src/app/components/ProfileOnboarding.tsx",
-    "src/app/components/MapPingSheet.tsx",
-    "src/app/components/AlphaBugButton.tsx",
-    "src/app/components/CruushActivity.tsx",
-    "src/app/components/DirectMessages.tsx",
-    "src/app/components/LocalFeed.tsx",
-    "src/app/components/Tutorial.tsx",
-    "src/app/lib/cruushPlusFeatures.ts",
-    "src/app/lib/mapPingsApi.ts",
-    "src/app/lib/rewardsApi.ts",
-    "src/styles/theme.css",
-    "server/src/map-pings.ts",
-    "server/src/pulse-notifications.ts",
-    "server/src/rewards.ts",
-    "server/src/routes/rewards.ts",
-    "server/src/routes/map-pings.ts",
+    "src/app/components/PlacesDrawer.tsx",
+    "src/app/lib/places.ts",
     "server/src/migrate.ts",
-    "server/sql/116_tutorial_side_quest.sql"
+    "server/sql/117_public_spots_100mi_nyc.sql",
+    "server/sql/118_women_centered_queer_venues.sql",
+    "scripts/generate-public-spots-migration.mjs"
   ],
-  "proofTarget": "Rendered local dev-only onboarding preview without authentication, rendered tutorial cruush+/MHC steps, rendered Pulse copy and state, and Android-size Cruush/Messages/Feed headers and centered Cruush controls.",
+  "proofTarget": "Generated-row audit showing exactly 3,717 unique retained workbook records within 100 miles, source review for added venues, and source inspection of automatic progressive list pagination.",
   "publicationTarget": "local checkpoint commit only",
   "requiredEvidence": [
-    "The public dev preview route opens signed out and completing it does not call protected APIs.",
-    "The tutorial visibly includes cruush+ and Mile High Club and completion records its side quest.",
-    "The Pulse UI states the three-hour cruush+ cooldown and 24-hour same-sender recipient limit.",
-    "The named mobile routes show one-line headers without overlap and Cruush centers counts/tabs without a visible scrollbar."
+    "The generated migration has exactly 3,717 unique workbook-backed records and contains no copied descriptions or visit-history fields.",
+    "Each added women-centered venue has a current public source and lies within 100 miles of the NYC center.",
+    "The first 50 list results automatically request the next page when the continuation sentinel enters view."
   ]
 }
