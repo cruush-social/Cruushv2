@@ -6,6 +6,12 @@
  */
 
 import t4tLinkedSymbol from '../assets/ui-icons/t4t-pride-linked-symbol.png';
+import aceSpectrumDiamond from '../assets/ui-icons/ace-spectrum-diamond-2226685.png';
+import bdsmTriskelion from '../assets/ui-icons/bdsm-89011.png';
+import bisexualitySymbol from '../assets/ui-icons/bisexuality-2431635.png';
+import gayCoupleSymbol from '../assets/ui-icons/gay-7284797.png';
+import labrysSymbol from '../assets/ui-icons/labrys-5692573.png';
+import polyamoryInfinityHeart from '../assets/ui-icons/polyamory-2751502.png';
 
 type GlyphProps = {
   className?: string;
@@ -72,34 +78,49 @@ export function NonbinaryGlyph(props: GlyphProps) {
 }
 
 /** The labrys, the double axe. */
-export function LabrysGlyph(props: GlyphProps) {
+export function LabrysGlyph({ className }: GlyphProps) {
   return (
-    <Glyph {...props}>
-      <path d="M12 8.2v13.2" />
-      <path d="M12 8.2c-3 0-5.2-1.2-6.6-3.6 1.4-1.4 3.6-2.1 6.6-2.1s5.2.7 6.6 2.1C17.2 7 15 8.2 12 8.2Z" />
-    </Glyph>
+    <img alt="" aria-hidden="true" className={`object-contain invert ${className ?? ''}`} draggable={false} src={labrysSymbol} />
+  );
+}
+
+/** The established interlocking bisexuality symbol. */
+export function BisexualGlyph({ className }: GlyphProps) {
+  return (
+    <img alt="" aria-hidden="true" className={`object-contain invert ${className ?? ''}`} draggable={false} src={bisexualitySymbol} />
+  );
+}
+
+/** The three-part triskelion used by the BDSM community. */
+export function BdsmTriskelionGlyph({ className }: GlyphProps) {
+  return (
+    <img alt="" aria-hidden="true" className={`object-contain invert ${className ?? ''}`} draggable={false} src={bdsmTriskelion} />
   );
 }
 
 /** The polyamory infinity heart, reduced to its two loops and a point. */
 export function PolyGlyph(props: GlyphProps) {
   return (
-    <Glyph {...props}>
-      <path d="M12 9.6c1.4-2.1 3-3.1 4.8-3.1a3.6 3.6 0 0 1 0 7.2c-1.8 0-3.4-1-4.8-3.1Z" />
-      <path d="M12 9.6c-1.4-2.1-3-3.1-4.8-3.1a3.6 3.6 0 0 0 0 7.2c1.8 0 3.4-1 4.8-3.1Z" />
-      <path d="M8.4 13.7 12 20.4l3.6-6.7" />
-    </Glyph>
+    <img
+      alt=""
+      aria-hidden="true"
+      className={`object-contain invert ${props.className ?? ''}`}
+      draggable={false}
+      src={polyamoryInfinityHeart}
+    />
   );
 }
 
 /** The ace of spades, which the ace community wears. */
 export function PlayingCard(props: GlyphProps) {
   return (
-    <Glyph {...props}>
-      <rect height="18.4" rx="2.4" width="14" x="5" y="2.8" />
-      <path d="M12 7.2c1.8 2.2 3.4 3.8 3.4 5.4a2 2 0 0 1-3.4 1.4 2 2 0 0 1-3.4-1.4c0-1.6 1.6-3.2 3.4-5.4Z" />
-      <path d="M12 14v2.8" />
-    </Glyph>
+    <img
+      alt=""
+      aria-hidden="true"
+      className={`object-contain invert ${props.className ?? ''}`}
+      draggable={false}
+      src={aceSpectrumDiamond}
+    />
   );
 }
 
@@ -111,16 +132,9 @@ export function PlayingCard(props: GlyphProps) {
  */
 
 /** Mars over Mars. */
-export function DoubleMarsGlyph(props: GlyphProps) {
+export function DoubleMarsGlyph({ className }: GlyphProps) {
   return (
-    <Glyph {...props} strokeWidth={props.strokeWidth ?? 2.65}>
-      <circle cx="6.4" cy="15.8" r="3.2" />
-      <path d="m8.7 13.5 4.1-4.1" />
-      <path d="M9.8 9.4h3v3" />
-      <circle cx="14.2" cy="15.8" r="3.2" />
-      <path d="m16.5 13.5 4.1-4.1" />
-      <path d="M17.6 9.4h3v3" />
-    </Glyph>
+    <img alt="" aria-hidden="true" className={`object-contain invert ${className ?? ''}`} draggable={false} src={gayCoupleSymbol} />
   );
 }
 

@@ -132,7 +132,9 @@ const migrationFiles = [
   "123_group_pulses.sql",
   "124_profile_taxonomy.sql",
   "125_profile_body_hair.sql",
-  "126_profile_taxonomy_expansion.sql"
+  "126_profile_taxonomy_expansion.sql",
+  "128_profile_taxonomy_final.sql"
+  ,"128_profile_taxonomy_final.sql"
 ];
 const rewardSafetyPreflightFiles = [
   "079_daily_check_in_rewards.sql",

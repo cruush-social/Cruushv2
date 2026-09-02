@@ -5,7 +5,7 @@ import { createSavedMapMarkerBadge, type MapMarkerBadge } from '../lib/mapMarker
 import type { SideBadges } from '../lib/profileApi';
 import { AnalGlyph, BondageGlyph, CyborgGlyph, GooningGlyph, HarnessGlyph, KeyholeEyeGlyph, LeatherGlyph, LipsGlyph, NeurodivergentGlyph, NippleGlyph, PartyHatGlyph, PenetrationGlyph, RaveGlyph, RimmingGlyph, RubberGlyph, SpankingGlyph, StraightEdgeGlyph } from './BadgeGlyphs';
 import { BadgeFrame, BadgeHoverLabel, SIDE_BADGE_SIZE_PX } from './BadgeFrames';
-import { DoubleMarsGlyph, DoubleVenusGlyph, IntersexGlyph, MarsVenusGlyph, NonbinaryGlyph, PlayingCard, PolyGlyph, T4TGlyph, TransGlyph } from './CommunityGlyphs';
+import { BdsmTriskelionGlyph, BisexualGlyph, DoubleMarsGlyph, DoubleVenusGlyph, IntersexGlyph, LabrysGlyph, MarsVenusGlyph, NonbinaryGlyph, PlayingCard, PolyGlyph, T4TGlyph, TransGlyph } from './CommunityGlyphs';
 import { HANKY_COLORS } from './HankyFrame';
 import { positionGlyphFor, roleGlyphFor } from './PositionRoleGlyphs';
 import { USER_BORDER_COLORS, type UserBorderTone } from '../lib/userBorderTone';
@@ -31,6 +31,8 @@ const SAVED_CUSTOM_GLYPHS: Record<string, SavedBadgeGlyph> = {
   'straight edge': StraightEdgeGlyph,
   gay: DoubleMarsGlyph,
   lesbian: DoubleVenusGlyph,
+  labrys: LabrysGlyph,
+  bisexual: BisexualGlyph,
   straight: MarsVenusGlyph,
   t4t: T4TGlyph,
   'trans symbol': TransGlyph,
@@ -38,6 +40,7 @@ const SAVED_CUSTOM_GLYPHS: Record<string, SavedBadgeGlyph> = {
   enby: NonbinaryGlyph,
   nonbinary: NonbinaryGlyph,
   poly: PolyGlyph,
+  'bdsm pride': BdsmTriskelionGlyph,
   'ace spec': PlayingCard,
   'vibes neurodivergent': NeurodivergentGlyph,
   'vibes rave': RaveGlyph,
