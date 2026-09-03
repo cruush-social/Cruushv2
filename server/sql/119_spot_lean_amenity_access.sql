@@ -30,11 +30,13 @@ create table if not exists place_popular_time_baselines (
 
 alter table place_tags drop constraint if exists place_tags_tag_check;
 
+-- Only the women-centred venues carry a lean tag. The men-leaning one was
+-- applied to nearly every imported Spot and told a reader nothing, so the old
+-- gay_spot rows are simply retired below rather than renamed.
 insert into place_tags (place_id, tag)
-select place_id,
-       case when tag in ('dyke_spot', 'dyke_bar') then 'leans_women' else 'leans_men' end
+select place_id, 'leans_women'
 from place_tags
-where tag in ('gay_spot', 'dyke_spot', 'dyke_bar')
+where tag in ('dyke_spot', 'dyke_bar')
 on conflict (place_id, tag) do nothing;
 
 delete from place_tags where tag in ('gay_spot', 'dyke_spot', 'dyke_bar');

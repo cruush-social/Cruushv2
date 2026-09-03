@@ -237,10 +237,7 @@ from (values
   ('morrisania-sexual-health-clinic', 'sexual_health'), ('morrisania-sexual-health-clinic', 'womens_health'),
   ('henrietta-hudson', 'leans_women'),
   ('cubbyhole', 'leans_women'),
-  ('gingers-bar', 'leans_women'),
-  ('basement-nyc', 'techno_club'), ('nowadays', 'techno_club'),
-  ('knockdown-center', 'techno_club'), ('public-records', 'techno_club'),
-  ('stonewall-inn', 'leans_men'), ('metropolitan-bar', 'leans_men'), ('three-dollar-bill', 'leans_men')
+  ('gingers-bar', 'leans_women')
 ) as seed(slug, tag)
 join places p on p.slug = seed.slug
 on conflict do nothing;

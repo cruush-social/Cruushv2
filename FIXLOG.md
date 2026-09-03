@@ -56,3 +56,5 @@
 - The Pride badge list imported a glyph that had been deleted in the same session, so the app failed to boot with a blank root. The Gay badge keeps the double Mars and the import matches it.
 - Color-blind mode drew hearts and their side badges with dashed strokes, which read as hollow outlines rather than a colour difference. The strokes are solid again and only their colour changes.
 - The Color vision row in the accessibility menu rendered in the display serif because an accordion header is a heading element. A settings row now keeps the body face and matches the rows beside it.
+- Leans men was applied to nearly every imported Spot and Techno club never earned a tag, so both are removed from the taxonomy, the data and the migrations that created them. Leans women stays.
+- The 1.6 release email carries one screenshot instead of six, and its hearts are gradient placeholders rather than seeded profile photos.

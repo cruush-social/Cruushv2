@@ -3,11 +3,12 @@ update places
 set facility_type = 'other', updated_at = now()
 where facility_type = 'venue';
 
+-- Only the women-centred venues keep a lean tag; the men-leaning one is
+-- retired, so the old gay_spot rows are dropped below rather than renamed.
 insert into place_tags (place_id, tag)
-select place_id,
-       case when tag in ('dyke_spot', 'dyke_bar') then 'leans_women' else 'leans_men' end
+select place_id, 'leans_women'
 from place_tags
-where tag in ('gay_spot', 'dyke_spot', 'dyke_bar')
+where tag in ('dyke_spot', 'dyke_bar')
 on conflict (place_id, tag) do nothing;
 
 delete from place_tags

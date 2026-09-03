@@ -10,8 +10,7 @@ export const PLACE_FACILITY_TYPES = [
 ] as const;
 
 export const PLACE_TAGS = [
-  "lgbtq_health", "womens_health", "sexual_health", "leans_men",
-  "leans_women", "techno_club"
+  "lgbtq_health", "womens_health", "sexual_health", "leans_women"
 ] as const;
 
 export const PLACE_VIBES = [

@@ -243,8 +243,8 @@ describe("migration runner", () => {
     expect(placesSql).toContain("create index if not exists idx_place_board_messages_expires");
     expect(placesSql).toContain("create index if not exists idx_place_checkins_place_active");
     expect(taxonomySql).toContain("on conflict (place_id, tag) do nothing");
-    expect(taxonomySql).toContain("where tag in ('gay_spot', 'dyke_spot', 'dyke_bar')");
-    expect(taxonomySql).toContain("case when tag in ('dyke_spot', 'dyke_bar') then 'leans_women' else 'leans_men' end");
+    expect(taxonomySql).toContain("where tag in ('dyke_spot', 'dyke_bar')");
+    expect(taxonomySql).toContain("select place_id, 'leans_women'");
     expect(taxonomySql).toContain("set facility_type = 'other'");
     expect(taxonomySql).toContain("where facility_type = 'venue'");
     expect(placesSql).toContain("'gingers-bar', 'Ginger''s Bar'");

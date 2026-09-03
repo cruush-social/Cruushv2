@@ -529,10 +529,8 @@ describe('Spot taxonomy', () => {
 
   it('hides every removed identity tag and caps Spot summaries at two labels', () => {
     expect(getVisibleSpotTags(['dyke_bar', 'dyke_spot', 'gay_spot', 't4t_spot'] as never[])).toEqual([]);
-    expect(getSpotCategoryLabels('bar', ['dyke_bar', 'gay_spot', 'techno_club'] as never[])).toEqual([
-      'Bars',
-      'Techno club',
-    ]);
+    expect(getVisibleSpotTags(['leans_men', 'techno_club'] as never[])).toEqual([]);
+    expect(getSpotCategoryLabels('bar', ['dyke_bar', 'gay_spot', 'techno_club'] as never[])).toEqual(['Bars']);
   });
 });
 
