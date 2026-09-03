@@ -409,7 +409,6 @@ export const PROFILE_TAG_RESERVED_FIELDS: Readonly<Record<string, string>> = {
   "temperature play": "Kinks",
   "threesome": "Kinks",
   "tickling": "Kinks",
-  "tit torture": "Kinks",
   "tit worship": "Kinks",
   "toy": "Kinks",
   "training": "Kinks",

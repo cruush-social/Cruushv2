@@ -146,7 +146,8 @@ const migrationFiles = [
   "137_lgbt_community_spaces_and_ymca.sql",
   "138_alt_music_venues_only.sql",
   "139_live_music_rooms.sql",
-  "140_other_bucket_categories.sql"
+  "140_other_bucket_categories.sql",
+  "141_dedupe_spots_at_one_coordinate.sql"
 ];
 const rewardSafetyPreflightFiles = [
   "079_daily_check_in_rewards.sql",
