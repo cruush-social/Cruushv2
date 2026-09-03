@@ -58,3 +58,4 @@
 - The Color vision row in the accessibility menu rendered in the display serif because an accordion header is a heading element. A settings row now keeps the body face and matches the rows beside it.
 - Leans men was applied to nearly every imported Spot and Techno club never earned a tag, so both are removed from the taxonomy, the data and the migrations that created them. Leans women stays.
 - The 1.6 release email carries one screenshot instead of six, and its hearts are gradient placeholders rather than seeded profile photos.
+- The 1.6 release email screenshots are recaptured from the local dev server on seeded data: every heart is a gradient or placeholder, the badge menu shows no profile photo, the Mile High Club map actually renders, and the Feed image is the real Feed rather than a preview page.
