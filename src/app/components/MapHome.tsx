@@ -257,6 +257,14 @@ const MapView = lazy(() => import('./MapView'));
 export { canUseDeveloperMapToolsEmail };
 
 function getLastActiveMinutes(lastActive: string) {
+  const normalized = lastActive.trim().toLowerCase();
+
+  // "Now" and "Online" carry no digits, so parsing them as a number sorted the
+  // people who are here right now to the very end of Recently Active.
+  if (normalized === 'now' || normalized === 'online' || normalized === 'just now') {
+    return 0;
+  }
+
   const value = parseInt(lastActive, 10);
 
   if (Number.isNaN(value)) {
@@ -2778,7 +2786,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
                 <CruushIcon
                   name="ghost"
                   variant={privacySettings.ghostModeEnabled ? 'colored' : 'white'}
-                  className="h-10 w-10 scale-[1.15] object-contain max-[360px]:h-9 max-[360px]:w-9 lg:h-11 lg:w-11"
+                  className="h-10 w-10 object-contain max-[360px]:h-9 max-[360px]:w-9 lg:h-11 lg:w-11"
                 />
               )}
             </Button>

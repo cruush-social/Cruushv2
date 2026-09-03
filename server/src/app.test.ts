@@ -2692,6 +2692,71 @@ describe("server", () => {
     });
   });
 
+  it("holds the new address in a pending request until the confirmation link is opened", async () => {
+    const sessionToken = "test-session-token";
+    const passwordHash = await hashPassword("current-password");
+    query
+      .mockResolvedValueOnce({ rows: [{ user_id: userId }] })
+      .mockResolvedValueOnce({ rows: [{ id: userId, email: "old@example.com", password_hash: passwordHash }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/auth/email/change",
+      cookies: { cruush_session: sessionToken },
+      payload: { currentPassword: "current-password", newEmail: "New@Example.com" }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data.pendingEmail).toBe("new@example.com");
+    // The address on app_users must not move before the new address is proven.
+    const statements = query.mock.calls.map((call) => String(call[0]));
+    expect(statements.some((statement) => statement.includes("update app_users"))).toBe(false);
+    expect(statements.some((statement) => statement.includes("insert into email_change_requests"))).toBe(true);
+  });
+
+  it("refuses an email change when the password is wrong", async () => {
+    const sessionToken = "test-session-token";
+    const passwordHash = await hashPassword("current-password");
+    query
+      .mockResolvedValueOnce({ rows: [{ user_id: userId }] })
+      .mockResolvedValueOnce({ rows: [{ id: userId, email: "old@example.com", password_hash: passwordHash }] });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/auth/email/change",
+      cookies: { cruush_session: sessionToken },
+      payload: { currentPassword: "wrong-password", newEmail: "new@example.com" }
+    });
+
+    expect(response.statusCode).toBe(401);
+    expect(query.mock.calls.map((call) => String(call[0])).some((statement) => statement.includes("email_change_requests"))).toBe(false);
+  });
+
+  it("moves the address only when a live confirmation token is presented", async () => {
+    const confirmToken = "confirm-token-value-that-is-long-enough";
+    query
+      .mockResolvedValueOnce({ rows: [{ user_id: userId, new_email: "new@example.com" }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: userId, email: "new@example.com" }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/auth/email/change/confirm",
+      payload: { token: confirmToken }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ data: { changed: true, email: "new@example.com" } });
+    expect(query.mock.calls[0]?.[1]).toEqual([hashSessionToken(confirmToken)]);
+    const statements = query.mock.calls.map((call) => String(call[0]));
+    expect(statements.some((statement) => statement.includes("update app_users"))).toBe(true);
+    expect(statements.some((statement) => statement.includes("delete from password_reset_tokens"))).toBe(true);
+  });
+
   it("rejects password changes when the current password is wrong", async () => {
     const passwordHash = await hashPassword("current-password");
     query

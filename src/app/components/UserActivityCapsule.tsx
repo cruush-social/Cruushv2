@@ -49,8 +49,8 @@ export default function UserActivityCapsule({
   testId = 'user-activity-capsule',
 }: UserActivityCapsuleProps) {
   const identity = (
-    <div className={`cruush-user-activity-identity flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5 ${compactIdentityMeta ? '' : 'pr-9'}`}>
-      <span className="cruush-user-activity-name min-w-0 break-words text-base text-white">{name}</span>
+    <div className={`cruush-user-activity-identity flex min-w-0 flex-nowrap items-baseline gap-x-2 ${compactIdentityMeta ? '' : 'pr-9'}`}>
+      <span className="cruush-user-activity-name min-w-0 truncate text-base text-white">{name}</span>
       {pronouns ? <span className="cruush-user-activity-pronouns shrink-0 text-sm text-white/62">{pronouns}</span> : null}
       {identityAdornment}
     </div>

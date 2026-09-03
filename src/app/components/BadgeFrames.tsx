@@ -61,11 +61,14 @@ type FrameProps = {
   strokeColor?: string;
 };
 
-export function BadgeHoverLabel({ children }: { children: React.ReactNode }) {
+// `revealed` is the map's long-press state. It only opens the label where there
+// is no hover to open it with, so a touch press shows every badge label beside
+// the signal while a desktop pointer still reveals one badge at a time.
+export function BadgeHoverLabel({ children, revealed = false }: { children: React.ReactNode; revealed?: boolean }) {
   return (
     <span
       aria-hidden="true"
-      className="pointer-events-none absolute left-1/2 top-full z-50 mt-1.5 w-max max-w-[min(13rem,calc(100vw-2rem))] -translate-x-1/2 break-words whitespace-normal rounded-xl border border-white/20 bg-black/95 px-2 py-1 text-center text-[0.7rem] font-semibold leading-tight text-white opacity-0 shadow-lg transition-opacity group-active/badge:opacity-100 group-focus-within/badge:opacity-100 group-hover/badge:opacity-100"
+      className={`pointer-events-none absolute left-1/2 top-full z-50 mt-1.5 w-max max-w-[min(13rem,calc(100vw-2rem))] -translate-x-1/2 break-words whitespace-normal rounded-xl border border-white/20 bg-black/95 px-2 py-1 text-center text-[0.7rem] font-semibold leading-tight text-white opacity-0 shadow-lg transition-opacity group-active/badge:opacity-100 group-focus-within/badge:opacity-100 group-hover/badge:opacity-100 ${revealed ? '[@media(hover:none)]:opacity-100' : ''}`}
     >
       {children}
     </span>

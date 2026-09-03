@@ -1758,7 +1758,9 @@ describe('MapHome', () => {
     );
     expect(screen.queryByRole('button', { name: 'Safety Center' })).not.toBeInTheDocument();
     expect(luckyIcon).toHaveClass('h-10', 'w-10', 'scale-[1.28]', 'object-contain', 'max-[360px]:h-9', 'max-[360px]:w-9', 'lg:h-11', 'lg:w-11');
-    expect(ghostModeIcon).toHaveClass('h-10', 'w-10', 'scale-[1.15]', 'object-contain', 'max-[360px]:h-9', 'max-[360px]:w-9', 'lg:h-11', 'lg:w-11');
+    expect(ghostModeIcon).toHaveClass('h-10', 'w-10', 'object-contain', 'max-[360px]:h-9', 'max-[360px]:w-9', 'lg:h-11', 'lg:w-11');
+    // The Ghost Mode glyph sits in the same box as its neighbours, with no extra scale.
+    expect(ghostModeIcon).not.toHaveClass('scale-[1.15]');
     expect(dlModeIcon).toHaveClass('!h-10', '!w-10', 'scale-[1.18]', 'max-[360px]:!h-9', 'max-[360px]:!w-9', 'lg:!h-11', 'lg:!w-11');
     expect(settingsButton.nextElementSibling).toBe(notificationButton);
     expect(topActions.lastElementChild).toBe(notificationButton);

@@ -68,3 +68,9 @@
 - Zooming or updating one pin no longer rebuilds every map marker element; unchanged markers are kept.
 - The changelog no longer claims group Pulse alerts (there are no public groups yet) and Dark Room has its own line.
 - Spot clustering uses wider cells and merges any Spot pins or clusters closer than a pin footprint, so Spot markers never overlap each other and far fewer markers render at city zoom.
+- Members can change their email from Settings. The address only moves once the link sent to the new address is opened, the password is required to ask, and the old address is told a change was requested.
+- Recently Active sorted people who are here right now to the very end, because Now and Online carry no digits to parse.
+- The Ghost Mode glyph in the top bar carried an extra scale that made it read larger than the icons beside it.
+- A long name pushed pronouns onto a second line on activity cards; name and pronouns now share one line.
+- The 2FA setup key copy button did nothing where the clipboard API is blocked, which is most mobile in-app browsers.
+- Spot titles read slightly smaller than people signals, and a long press now opens the side badge labels beside the signal on touch while a desktop pointer still reveals one badge at a time.

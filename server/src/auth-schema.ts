@@ -83,6 +83,15 @@ export const changePasswordPayloadSchema = z.object({
   newPassword: z.string().min(8).max(200)
 }).strict();
 
+export const changeEmailPayloadSchema = z.object({
+  currentPassword: z.string().min(1).max(200),
+  newEmail: authEmailSchema
+}).strict();
+
+export const confirmEmailChangePayloadSchema = z.object({
+  token: z.string().trim().min(20).max(512)
+}).strict();
+
 export const deleteAccountPayloadSchema = z.object({
   password: z.string().min(1).max(200),
   confirmation: z.literal("DELETE")

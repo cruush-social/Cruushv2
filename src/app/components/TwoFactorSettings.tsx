@@ -45,8 +45,36 @@ export default function TwoFactorSettings() {
   }, [load]);
 
   const copy = async (value: string, label: string) => {
+    // navigator.clipboard is missing or blocked in several mobile in-app
+    // browsers, which left the copy button doing nothing at all. Fall back to a
+    // selected off-screen field so the setup key can still be copied there.
     try {
-      await navigator.clipboard.writeText(value);
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(value);
+        toast.success(`${label} copied.`);
+        return;
+      }
+    } catch {
+      // Fall through to the selection fallback below.
+    }
+
+    try {
+      const field = document.createElement('textarea');
+      field.value = value;
+      field.setAttribute('readonly', '');
+      field.style.position = 'fixed';
+      field.style.top = '0';
+      field.style.opacity = '0';
+      document.body.appendChild(field);
+      field.select();
+      field.setSelectionRange(0, value.length);
+      const copied = document.execCommand('copy');
+      document.body.removeChild(field);
+
+      if (!copied) {
+        throw new Error('copy command rejected');
+      }
+
       toast.success(`${label} copied.`);
     } catch {
       toast.error(`Unable to copy ${label.toLowerCase()}.`);

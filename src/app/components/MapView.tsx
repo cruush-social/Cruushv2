@@ -1038,11 +1038,13 @@ function MarkerSideBadge({
   marker,
   isCurrentUser,
   side,
+  revealed = false,
 }: {
   badge: MapMarkerBadge | null | undefined;
   marker: MapMarker;
   isCurrentUser: boolean;
   side: 'left' | 'right';
+  revealed?: boolean;
 }) {
   if (!badge) {
     return null;
@@ -1114,7 +1116,7 @@ function MarkerSideBadge({
           </span>
         ) : null}
       </BadgeFrame>
-      <BadgeHoverLabel>{hoverLabel}</BadgeHoverLabel>
+      <BadgeHoverLabel revealed={revealed}>{hoverLabel}</BadgeHoverLabel>
     </span>
   );
 }
@@ -1703,7 +1705,7 @@ function PlaceMarker({ marker, previewed = false }: { marker: MapMarker; preview
       data-testid={`place-marker-${marker.place?.id ?? marker.id}`}
     >
       <span
-        className={`pointer-events-none absolute bottom-[calc(100%+0.75rem)] left-1/2 z-20 w-max max-w-[16rem] -translate-x-1/2 rounded-full border border-[3.2px] border-[#55C8FF] bg-black/86 px-3 py-1 text-center text-[0.7rem] font-semibold leading-tight text-white shadow-[0_8px_24px_rgba(0,0,0,0.5)] backdrop-blur-md transition-opacity duration-150 ${previewed ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100'}`}
+        className={`pointer-events-none absolute bottom-[calc(100%+0.75rem)] left-1/2 z-20 w-max max-w-[15rem] -translate-x-1/2 rounded-full border-[2.4px] border-[#55C8FF] bg-black/86 px-2.5 py-[3px] text-center text-[0.62rem] font-semibold leading-tight text-white shadow-[0_8px_24px_rgba(0,0,0,0.5)] backdrop-blur-md transition-opacity duration-150 ${previewed ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100'}`}
         data-testid={`place-marker-title-${marker.place?.id ?? marker.id}`}
       >
         {marker.displayName}
@@ -1829,8 +1831,8 @@ export function MapMarkerPin({ marker, previewed = false }: { marker: MapMarker;
           {(exitActive, exitStyle) => <>
             <span className={exitActive ? 'cruush-ghost-rotation-heart-exit' : ''} style={exitStyle}>
               <MarkerHeart marker={marker} isCurrentUser={isCurrentUser} />
-              <MarkerSideBadge badge={marker.roleBadge} marker={marker} isCurrentUser={isCurrentUser} side="left" />
-              <MarkerSideBadge badge={marker.badge} marker={marker} isCurrentUser={isCurrentUser} side="right" />
+              <MarkerSideBadge badge={marker.roleBadge} marker={marker} isCurrentUser={isCurrentUser} side="left" revealed={previewed} />
+              <MarkerSideBadge badge={marker.badge} marker={marker} isCurrentUser={isCurrentUser} side="right" revealed={previewed} />
             </span>
             {(signalPreview || isOwnerGhostDecoy) && !exitActive ? (
               <span

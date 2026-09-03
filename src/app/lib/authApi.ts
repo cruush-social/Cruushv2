@@ -56,6 +56,17 @@ export type PasswordChangePayload = {
   changed: true;
 };
 
+export type EmailChangeRequestPayload = {
+  pendingEmail: string;
+  expiresAt: string;
+  previewUrl: string | null;
+};
+
+export type EmailChangeConfirmPayload = {
+  changed: true;
+  email: string;
+};
+
 export type ClientSecurityCheckPayload = {
   startedAt: number;
   submittedAt: number;
@@ -149,6 +160,20 @@ export function resetPassword(payload: { token: string; password: string }) {
 
 export function changePassword(payload: { currentPassword: string; newPassword: string }) {
   return requestApi<PasswordChangePayload>('/api/auth/password/change', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function changeEmail(payload: { currentPassword: string; newEmail: string }) {
+  return requestApi<EmailChangeRequestPayload>('/api/auth/email/change', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function confirmEmailChange(payload: { token: string }) {
+  return requestApi<EmailChangeConfirmPayload>('/api/auth/email/change/confirm', {
     method: 'POST',
     body: JSON.stringify(payload),
   });

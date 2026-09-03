@@ -21,10 +21,18 @@ import {
   shouldUseSecureCookies,
   verifyPassword
 } from "../auth.js";
-import { isAgeRelatedSuspensionReason, sendPasswordResetEmail, sendVerificationEmail } from "../mailer.js";
+import {
+  isAgeRelatedSuspensionReason,
+  sendEmailChangeConfirmationEmail,
+  sendEmailChangeNoticeEmail,
+  sendPasswordResetEmail,
+  sendVerificationEmail
+} from "../mailer.js";
 import {
   ageVerificationPayloadSchema,
+  changeEmailPayloadSchema,
   changePasswordPayloadSchema,
+  confirmEmailChangePayloadSchema,
   deleteAccountPayloadSchema,
   forgotPasswordPayloadSchema,
   resetPasswordPayloadSchema,
@@ -372,6 +380,10 @@ function buildPasswordResetUrl(request: FastifyRequest, token: string) {
   return buildRootTokenUrl(request, "resetPasswordToken", token);
 }
 
+function buildEmailChangeUrl(request: FastifyRequest, token: string) {
+  return buildRootTokenUrl(request, "confirmEmailToken", token);
+}
+
 function buildRootTokenUrl(request: FastifyRequest, tokenParam: string, token: string) {
   const url = new URL("/", getPublicAppUrl(request));
   url.searchParams.set(tokenParam, token);
@@ -464,6 +476,13 @@ export async function registerAuthRoutes(app: FastifyInstance) {
     return reply
       .code(302)
       .header("location", buildRootTokenUrl(request, "resetPasswordToken", getTokenQueryParam(request)))
+      .send();
+  });
+
+  app.get("/confirm-email", async (request, reply) => {
+    return reply
+      .code(302)
+      .header("location", buildRootTokenUrl(request, "confirmEmailToken", getTokenQueryParam(request)))
       .send();
   });
 
@@ -1040,6 +1059,168 @@ export async function registerAuthRoutes(app: FastifyInstance) {
     return reply.send({
       data: {
         changed: true
+      }
+    });
+  });
+
+  // Changing the address is a two-step move: the password proves the person at
+  // the keyboard owns the account, and the confirmation link proves they can
+  // read mail at the new address. Nothing on app_users changes until both hold,
+  // so a typo or a hostile request cannot lock anyone out.
+  app.post("/api/auth/email/change", async (request, reply) => {
+    const session = await resolveCurrentSession(request);
+    const payload = changeEmailPayloadSchema.parse(request.body);
+    await applyRateLimits(app, [{
+      key: `email-change:user:${session.userId}`,
+      max: AUTH_ATTEMPT_MAX,
+      windowMs: AUTH_ATTEMPT_WINDOW_MS,
+      message: "Too many email change attempts. Try again later."
+    }]);
+
+    const userResult = await app.db.query<{ id: string; email: string; password_hash: string }>(
+      `select id, email, password_hash
+       from app_users
+       where id = $1
+       limit 1`,
+      [session.userId]
+    );
+    const user = userResult.rows[0];
+
+    if (!user) {
+      throw new ApiError(401, "AUTH_REQUIRED", "Authentication required.");
+    }
+
+    if (!(await verifyPassword(payload.currentPassword, user.password_hash))) {
+      throw new ApiError(401, "AUTH_REQUIRED", "Current password is incorrect.");
+    }
+
+    if (payload.newEmail === user.email) {
+      throw new ApiError(400, "VALIDATION_ERROR", "That is already your email.");
+    }
+
+    const taken = await app.db.query(
+      "select 1 from app_users where email = $1 and id <> $2 limit 1",
+      [payload.newEmail, session.userId]
+    );
+
+    if (taken.rows[0]) {
+      throw new ApiError(409, "EMAIL_TAKEN", "That email is already in use.");
+    }
+
+    const token = generateSessionToken();
+    const tokenHash = hashSessionToken(token);
+    const expiresAt = new Date(Date.now() + 1000 * 60 * 60);
+
+    await app.db.query(
+      `insert into email_change_requests (user_id, new_email, token_hash, expires_at)
+       values ($1, $2, $3, $4)
+       on conflict (user_id) do update
+         set new_email = excluded.new_email,
+             token_hash = excluded.token_hash,
+             created_at = now(),
+             expires_at = excluded.expires_at`,
+      [session.userId, payload.newEmail, tokenHash, expiresAt.toISOString()]
+    );
+
+    const preview = await sendEmailChangeConfirmationEmail({
+      config: request.server.config,
+      email: payload.newEmail,
+      logger: request.log,
+      confirmUrl: buildEmailChangeUrl(request, token)
+    });
+
+    // The address on file hears about it too, so a member finds out even when
+    // somebody else asked. A delivery failure here must not fail the request.
+    try {
+      await sendEmailChangeNoticeEmail({
+        config: request.server.config,
+        email: user.email,
+        logger: request.log,
+        newEmail: payload.newEmail
+      });
+    } catch (error) {
+      request.log.warn({ err: error }, "email change notice delivery failed");
+    }
+
+    return reply.send({
+      data: {
+        pendingEmail: payload.newEmail,
+        expiresAt: expiresAt.toISOString(),
+        previewUrl: preview.previewUrl
+      }
+    });
+  });
+
+  app.post("/api/auth/email/change/confirm", async (request, reply) => {
+    const payload = confirmEmailChangePayloadSchema.parse(request.body);
+    const tokenHash = hashSessionToken(payload.token);
+    const requestLookup = await app.db.query<{ user_id: string; new_email: string }>(
+      `select user_id, new_email
+       from email_change_requests
+       where token_hash = $1
+         and expires_at > now()
+       limit 1`,
+      [tokenHash]
+    );
+    const changeRequest = requestLookup.rows[0];
+
+    if (!changeRequest) {
+      await applyRateLimits(app, [
+        {
+          key: `email-change-confirm:token:${tokenHash}`,
+          max: VERIFICATION_FAILURE_MAX,
+          windowMs: AUTH_ATTEMPT_WINDOW_MS,
+          message: "Too many confirmation attempts. Try again later."
+        },
+        {
+          key: `email-change-confirm:ip:${getRequestIp(request)}`,
+          max: SHARED_IP_FAILURE_MAX,
+          windowMs: AUTH_ATTEMPT_WINDOW_MS,
+          message: "Too many confirmation attempts. Try again later."
+        }
+      ]);
+
+      throw new ApiError(400, "VALIDATION_ERROR", "This confirmation link is invalid or expired.");
+    }
+
+    // Someone else can claim the address between the request and the click.
+    const taken = await app.db.query(
+      "select 1 from app_users where email = $1 and id <> $2 limit 1",
+      [changeRequest.new_email, changeRequest.user_id]
+    );
+
+    if (taken.rows[0]) {
+      await app.db.query("delete from email_change_requests where user_id = $1", [changeRequest.user_id]);
+      throw new ApiError(409, "EMAIL_TAKEN", "That email is already in use.");
+    }
+
+    const updated = await app.db.query<{ id: string; email: string }>(
+      `update app_users
+       set email = $1,
+           email_verified_at = now()
+       where id = $2
+       returning id, email`,
+      [changeRequest.new_email, changeRequest.user_id]
+    );
+
+    if (!updated.rows[0]) {
+      throw new ApiError(404, "NOT_FOUND", "Account not found.");
+    }
+
+    await app.db.query("delete from email_change_requests where user_id = $1", [changeRequest.user_id]);
+    // Reset links issued to the old address must not survive the move.
+    await app.db.query("delete from password_reset_tokens where user_id = $1", [changeRequest.user_id]);
+
+    void syncVerifiedMemberToResendAudience({
+      config: request.server.config,
+      email: updated.rows[0].email,
+      logger: request.log
+    });
+
+    return reply.send({
+      data: {
+        changed: true,
+        email: updated.rows[0].email
       }
     });
   });

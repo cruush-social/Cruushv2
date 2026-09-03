@@ -2,6 +2,7 @@ import { BrowserRouter, MemoryRouter, Routes, Route, Navigate, useLocation, useN
 import { lazy, Suspense, useEffect, useState } from 'react';
 import Auth from './components/Auth';
 import VerifyEmail from './components/VerifyEmail';
+import ConfirmEmailChange from './components/ConfirmEmailChange';
 import ResetPassword from './components/ResetPassword';
 import AppErrorBoundary from './components/AppErrorBoundary';
 import GoogleAnalyticsPageTracker from './components/GoogleAnalyticsPageTracker';
@@ -241,6 +242,10 @@ function getTokenLinkType() {
     return 'reset-password';
   }
 
+  if (searchParams.has('confirmEmailToken')) {
+    return 'confirm-email';
+  }
+
   return null;
 }
 
@@ -454,6 +459,21 @@ export default function App({
         <GoogleAnalyticsPageTracker />
         <Routes>
           <Route path="*" element={<VerifyEmail />} />
+        </Routes>
+        <Suspense fallback={null}>
+          {alphaBugControl}
+        </Suspense>
+        {accessibilityQuickAccess}
+      </BrowserRouter>
+    );
+  }
+
+  if (tokenLinkType === 'confirm-email') {
+    return (
+      <BrowserRouter key="root-confirm-email-router">
+        <GoogleAnalyticsPageTracker />
+        <Routes>
+          <Route path="*" element={<ConfirmEmailChange />} />
         </Routes>
         <Suspense fallback={null}>
           {alphaBugControl}

@@ -16,6 +16,20 @@ type PasswordResetEmailInput = {
   resetUrl: string;
 };
 
+type EmailChangeConfirmationInput = {
+  config: AppConfig;
+  email: string;
+  logger: FastifyBaseLogger;
+  confirmUrl: string;
+};
+
+type EmailChangeNoticeInput = {
+  config: AppConfig;
+  email: string;
+  logger: FastifyBaseLogger;
+  newEmail: string;
+};
+
 export type TrustSafetyAlertIncident = {
   id: string;
   userId: string;
@@ -169,7 +183,18 @@ function escapeHtml(value: string) {
   });
 }
 
-function buildVerificationEmailHtml(escapedVerificationUrl: string) {
+// One shell for every account email so verification, email change, and anything
+// else that asks a member to click a link look like the same product. The
+// verification copy below is what it has always been; only the wording moves.
+function buildAccountEmailHtml(input: {
+  title: string;
+  heading: string;
+  intro: string;
+  buttonLabel: string;
+  escapedUrl: string;
+  footnote: string;
+}) {
+  const { title, heading, intro, buttonLabel, escapedUrl, footnote } = input;
   return `<!DOCTYPE html>
 <html dir="ltr" lang="en">
   <head>
@@ -178,7 +203,7 @@ function buildVerificationEmailHtml(escapedVerificationUrl: string) {
     <meta name="x-apple-disable-message-reformatting" />
     <meta content="IE=edge" http-equiv="X-UA-Compatible" />
     <meta content="telephone=no,address=no,email=no,date=no,url=no" name="format-detection" />
-    <title>Verify your cruush email</title>
+    <title>${title}</title>
   </head>
   <body
     dir="ltr"
@@ -235,13 +260,13 @@ function buildVerificationEmailHtml(escapedVerificationUrl: string) {
                     <h1
                       style="margin:0 0 14px;padding:0;color:#ffffff;font-family:Georgia,'Times New Roman',Times,serif;font-size:34px;line-height:1.15;font-weight:700;text-align:center;"
                     >
-                      verify your email
+                      ${heading}
                     </h1>
 
                     <p
                       style="margin:0 0 20px;padding:0;color:#ffffff;font-family:Georgia,'Times New Roman',Times,serif;font-size:17px;line-height:1.55;text-align:center;"
                     >
-                      Tap the button below to confirm this address and finish setting up your cruush account.
+                      ${intro}
                     </p>
 
                     <table
@@ -260,12 +285,12 @@ function buildVerificationEmailHtml(escapedVerificationUrl: string) {
                             style="border-radius:8px;background-color:#ff0072;"
                           >
                             <a
-                              href="${escapedVerificationUrl}"
+                              href="${escapedUrl}"
                               rel="noopener noreferrer nofollow"
                               target="_blank"
                               style="display:inline-block;padding:13px 22px;color:#ffffff;font-family:Georgia,'Times New Roman',Times,serif;font-size:16px;font-weight:700;text-decoration:none;"
                             >
-                              Verify email
+                              ${buttonLabel}
                             </a>
                           </td>
                         </tr>
@@ -290,7 +315,7 @@ function buildVerificationEmailHtml(escapedVerificationUrl: string) {
                             <p
                               style="margin:0;padding:0;color:#ffffff;font-size:15px;line-height:1.55;text-align:center;"
                             >
-                              This verification link expires in 24 hours. If you did not create a cruush account, you can ignore this email.
+                              ${footnote}
                             </p>
                           </td>
                         </tr>
@@ -307,12 +332,12 @@ function buildVerificationEmailHtml(escapedVerificationUrl: string) {
                       style="margin:0;padding:0;color:#ffffff;font-family:Georgia,'Times New Roman',Times,serif;font-size:13px;line-height:1.5;text-align:center;word-break:break-all;"
                     >
                       <a
-                        href="${escapedVerificationUrl}"
+                        href="${escapedUrl}"
                         rel="noopener noreferrer nofollow"
                         target="_blank"
                         style="color:#ffffff;text-decoration:underline;"
                       >
-                        ${escapedVerificationUrl}
+                        ${escapedUrl}
                       </a>
                     </p>
 
@@ -338,6 +363,17 @@ function buildVerificationEmailHtml(escapedVerificationUrl: string) {
     </table>
   </body>
 </html>`;
+}
+
+function buildVerificationEmailHtml(escapedVerificationUrl: string) {
+  return buildAccountEmailHtml({
+    title: "Verify your cruush email",
+    heading: "verify your email",
+    intro: "Tap the button below to confirm this address and finish setting up your cruush account.",
+    buttonLabel: "Verify email",
+    escapedUrl: escapedVerificationUrl,
+    footnote: "This verification link expires in 24 hours. If you did not create a cruush account, you can ignore this email."
+  });
 }
 
 async function sendResendEmail(input: {
@@ -586,6 +622,97 @@ export async function sendPasswordResetEmail(input: PasswordResetEmailInput): Pr
   return {
     previewUrl: resetUrl
   };
+}
+
+// Sent to the address a member wants to move to. The change only happens when
+// this link is opened, which is what proves they can read mail at that address.
+function buildEmailChangeConfirmationHtml(escapedConfirmUrl: string) {
+  return buildAccountEmailHtml({
+    title: "Confirm your new cruush email",
+    heading: "confirm your new email",
+    intro: "Tap the button below to confirm this address for your cruush account.",
+    buttonLabel: "Confirm email",
+    escapedUrl: escapedConfirmUrl,
+    footnote: "This link expires in 1 hour, and your address does not change until you open it. If you did not ask for this, you can ignore this email."
+  });
+}
+
+function buildEmailChangeNoticeHtml(escapedNewEmail: string, escapedSupportUrl: string) {
+  return buildAccountEmailHtml({
+    title: "A new email was requested for your cruush account",
+    heading: "a change was requested",
+    intro: `Someone asked to move your cruush account to ${escapedNewEmail}. Nothing has changed yet, and the move only happens if that address is confirmed.`,
+    buttonLabel: "Contact cruush",
+    escapedUrl: escapedSupportUrl,
+    footnote: "If this was not you, change your password now and contact hello@cruush.app."
+  });
+}
+
+export async function sendEmailChangeConfirmationEmail(input: EmailChangeConfirmationInput): Promise<VerificationDeliveryResult> {
+  const { config, email, logger, confirmUrl } = input;
+
+  if (config.RESEND_API_KEY && config.MAIL_FROM) {
+    await sendResendEmail({
+      config,
+      email,
+      logger,
+      subject: "Confirm your new cruush email",
+      html: buildEmailChangeConfirmationHtml(escapeHtml(confirmUrl)),
+      text: [
+        "confirm your new email",
+        "",
+        "You asked to use this address for your cruush account.",
+        "Open this link to confirm it:",
+        confirmUrl,
+        "",
+        "This link expires in 1 hour. Your address does not change until you open it.",
+        "If you did not ask for this, you can ignore this email.",
+        "",
+        "A message from cruush, hello@cruush.app"
+      ].join("\n"),
+      failureMessage: "email change confirmation delivery failed"
+    });
+
+    return { previewUrl: null };
+  }
+
+  if (!config.EMAIL_PREVIEW_ENABLED) {
+    throw new ApiError(500, "INTERNAL_ERROR", "Email delivery is not configured.");
+  }
+
+  logger.info({ email, confirmUrl }, "email change confirmation preview");
+
+  return { previewUrl: confirmUrl };
+}
+
+// Sent to the address currently on the account, so a member finds out that a
+// change was requested even when someone else asked for it.
+export async function sendEmailChangeNoticeEmail(input: EmailChangeNoticeInput) {
+  const { config, email, logger, newEmail } = input;
+
+  if (!config.RESEND_API_KEY || !config.MAIL_FROM) {
+    logger.info({ email, newEmail }, "email change notice preview");
+    return;
+  }
+
+  await sendResendEmail({
+    config,
+    email,
+    logger,
+    subject: "A new email was requested for your cruush account",
+    html: buildEmailChangeNoticeHtml(escapeHtml(newEmail), "mailto:hello@cruush.app"),
+    text: [
+      "a change was requested",
+      "",
+      `Someone asked to move your cruush account to ${newEmail}.`,
+      "Nothing has changed yet. The move only happens if that address is confirmed.",
+      "",
+      "If this was not you, change your password now and contact hello@cruush.app.",
+      "",
+      "A message from cruush, hello@cruush.app"
+    ].join("\n"),
+    failureMessage: "email change notice delivery failed"
+  });
 }
 
 export async function sendTrustSafetyAlertEmail(input: TrustSafetyAlertEmailInput) {
