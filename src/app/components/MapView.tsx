@@ -202,10 +202,13 @@ const SPIDERFY_SECOND_RING_AFTER = 10;
 const PLACE_CLUSTER_MAX_ZOOM = 15.5;
 
 function placeClusterRadiusPx(zoom: number) {
-  if (zoom >= 14.5) return 58;
-  if (zoom >= 12.5) return 76;
-  return 104;
+  if (zoom >= 14.5) return 72;
+  if (zoom >= 12.5) return 96;
+  return 132;
 }
+// No two Spot pins or Spot clusters may sit closer than a pin footprint;
+// anything nearer merges into one cluster.
+const MIN_PLACE_SEPARATION_PX = 62;
 const PERSON_CLUSTER_ZOOM_STEP = 1.5;
 const ACTIVE_PING_MARKER_Z_INDEX = 100;
 const SIGNAL_PREVIEW_MARKER_Z_INDEX = ACTIVE_PING_MARKER_Z_INDEX + 10;
@@ -914,14 +917,57 @@ function applyPlaceMarkerClusters(markers: DisplayMapMarker[], zoom: number): Di
   // through a dense district chains neighbour into neighbour until a whole
   // borough answers to a single number; a fixed grid keeps the counts spread
   // across the view, which is what tells somebody where the Spots actually are.
+  const cellGroups: DisplayMapMarker[][] = [];
   buckets.forEach((group) => {
     const available = group.filter((marker) => !clusteredIds.has(marker.id));
-    if (available.length < 2) return;
+    if (available.length === 0) return;
     available.forEach((marker) => clusteredIds.add(marker.id));
-    clusters.push(buildPlaceCluster(available, clusters.length));
+    cellGroups.push(available);
   });
 
-  return [...markers.filter((marker) => !clusteredIds.has(marker.id)), ...clusters];
+  // Cell borders can still leave a single or a cluster from one cell touching
+  // its neighbour from the next. Union anything closer than a pin footprint so
+  // Spot markers never overlap each other.
+  const entities = cellGroups.map((group) => {
+    const x = group.reduce((sum, marker) => sum + points.get(marker.id)!.x, 0) / group.length;
+    const y = group.reduce((sum, marker) => sum + points.get(marker.id)!.y, 0) / group.length;
+    return { group, x, y };
+  });
+  const parents = entities.map((_, index) => index);
+  const findRoot = (index: number): number => {
+    while (parents[index] !== index) {
+      parents[index] = parents[parents[index]];
+      index = parents[index];
+    }
+    return index;
+  };
+  for (let a = 0; a < entities.length; a += 1) {
+    for (let b = a + 1; b < entities.length; b += 1) {
+      const dx = entities[a].x - entities[b].x;
+      const dy = entities[a].y - entities[b].y;
+      if ((dx * dx) + (dy * dy) < MIN_PLACE_SEPARATION_PX * MIN_PLACE_SEPARATION_PX) {
+        parents[findRoot(a)] = findRoot(b);
+      }
+    }
+  }
+  const merged = new Map<number, DisplayMapMarker[]>();
+  entities.forEach((entity, index) => {
+    const root = findRoot(index);
+    const bucket = merged.get(root);
+    if (bucket) bucket.push(...entity.group);
+    else merged.set(root, [...entity.group]);
+  });
+  const singles: DisplayMapMarker[] = [];
+  merged.forEach((group) => {
+    if (group.length >= 2) {
+      clusters.push(buildPlaceCluster(group, clusters.length));
+    } else {
+      singles.push(...group);
+    }
+  });
+  const singleIds = new Set(singles.map((marker) => marker.id));
+
+  return [...markers.filter((marker) => !clusteredIds.has(marker.id) || singleIds.has(marker.id)), ...clusters];
 }
 
 

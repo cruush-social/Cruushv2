@@ -67,3 +67,4 @@
 - Closing a Spot keeps the map where the Spot was instead of snapping back to your own location.
 - Zooming or updating one pin no longer rebuilds every map marker element; unchanged markers are kept.
 - The changelog no longer claims group Pulse alerts (there are no public groups yet) and Dark Room has its own line.
+- Spot clustering uses wider cells and merges any Spot pins or clusters closer than a pin footprint, so Spot markers never overlap each other and far fewer markers render at city zoom.
