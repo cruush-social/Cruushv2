@@ -263,7 +263,6 @@ export default function MapFiltersSurface({
               <FieldGroup label="Presentation" options={PRESENTATIONS} stateKey="presentations" value={value} onChange={onChange} />
               <FieldGroup label="Crowds" options={CROWDS} stateKey="crowds" value={value} onChange={onChange} />
               <FieldGroup label="Body Type" options={BODY_TYPES} stateKey="bodyTypes" value={value} onChange={onChange} />
-              <Accordion type="single" collapsible className="rounded-2xl border border-white/10 bg-white/[0.035]"><AccordionItem value="hair-now" className="border-0"><AccordionTrigger className="px-4 py-3 hover:no-underline"><span className="text-base">Hair now</span></AccordionTrigger><AccordionContent className="space-y-4 px-4 pb-4 pt-0"><FieldGroup label="Body hair" options={BODY_HAIR} stateKey="bodyHair" selectionMode="single" value={value} onChange={onChange} /><FieldGroup label="Pubic hair" options={PUBIC_HAIR} stateKey="pubicHair" selectionMode="single" value={value} onChange={onChange} /><FieldGroup label="Facial hair" options={FACIAL_HAIR} stateKey="facialHair" selectionMode="single" value={value} onChange={onChange} /></AccordionContent></AccordionItem></Accordion>
               <FieldGroup label="Sexuality" options={SEXUALITY} stateKey="sexuality" value={value} onChange={onChange} />
               <FieldGroup label="Zodiac" options={ZODIAC} stateKey="zodiac" selectionMode="single" value={value} onChange={onChange} />
               <FieldGroup searchable label="Vibes" optionGroups={VIBE_GROUPS} stateKey="vibes" value={value} onChange={onChange} />
@@ -288,6 +287,7 @@ export default function MapFiltersSurface({
               <FieldGroup label="Preferred spots" options={PREFERRED_SPOTS} stateKey="preferredSpots" value={value} onChange={onChange} />
               <FieldGroup label="Position" options={POSITIONS} stateKey="positions" value={value} onChange={onChange} />
               <FieldGroup label="Role" options={ROLES} stateKey="roles" value={value} onChange={onChange} />
+              <Accordion type="single" collapsible className="rounded-2xl border border-white/10 bg-white/[0.035]"><AccordionItem value="hair-now" className="border-0"><AccordionTrigger className="px-4 py-3 hover:no-underline"><span className="text-base">Hair now</span></AccordionTrigger><AccordionContent className="space-y-4 px-4 pb-4 pt-0"><FieldGroup label="Body hair" options={BODY_HAIR} stateKey="bodyHair" selectionMode="single" value={value} onChange={onChange} /><FieldGroup label="Pubic hair" options={PUBIC_HAIR} stateKey="pubicHair" selectionMode="single" value={value} onChange={onChange} /><FieldGroup label="Facial hair" options={FACIAL_HAIR} stateKey="facialHair" selectionMode="single" value={value} onChange={onChange} /></AccordionContent></AccordionItem></Accordion>
               <FieldGroup searchable label="Kinks & Fetishes" optionGroups={KINK_GROUPS} stateKey="kinks" value={value} onChange={onChange} />
             </TabsContent>
 
