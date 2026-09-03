@@ -118,7 +118,6 @@ interface MapViewProps {
   onMapClick?: () => void;
   onMapReady?: (map: MapLibreMap) => void;
   markers: MapMarker[];
-  peopleHeatmapEnabled?: boolean;
   fitToMarkers?: boolean;
   focusCoordinates?: {
     approximateLatitude: number;
@@ -159,6 +158,10 @@ const MAP_ERROR_MESSAGE = 'Map tiles could not load. Check the map style or tile
 const MAP_RENDER_READY_TIMEOUT_MS = 1200;
 const MOBILE_MARKER_LONG_PRESS_MS = 300;
 const MOBILE_MARKER_LONG_PRESS_MOVE_TOLERANCE_PX = 10;
+// Spot pins answer a press sooner and forgive more finger drift, so their
+// titles actually surface on touch.
+const PLACE_MARKER_LONG_PRESS_MS = 180;
+const PLACE_MARKER_LONG_PRESS_MOVE_TOLERANCE_PX = 16;
 const MAP_LABEL_FONT_FAMILY = 'Cormorant Garamond';
 const MAP_LABEL_FONT_REGULAR = ['Cormorant Garamond'];
 const MAP_LABEL_FONT_BOLD = ['Cormorant Garamond Bold', 'Cormorant Garamond'];
@@ -203,14 +206,6 @@ function placeClusterRadiusPx(zoom: number) {
   if (zoom >= 12.5) return 76;
   return 104;
 }
-const USER_HEATMAP_SOURCE_ID = 'cruush-user-heatmap';
-const USER_HEATMAP_LAYER_ID = 'cruush-user-heatmap-layer';
-// Broad cells plus a minimum cohort keep the activity layer from tracing one
-// current heart. At New York latitudes, 0.05 degrees spans several miles.
-const USER_HEATMAP_CELL_DEGREES = 0.05;
-const USER_HEATMAP_MIN_SAMPLES = 3;
-const USER_HEATMAP_WINDOW_MINUTES = 7 * 24 * 60;
-const MAP_DETAIL_LAYER_TYPES = new Set(['line', 'symbol']);
 const PERSON_CLUSTER_ZOOM_STEP = 1.5;
 const ACTIVE_PING_MARKER_Z_INDEX = 100;
 const SIGNAL_PREVIEW_MARKER_Z_INDEX = ACTIVE_PING_MARKER_Z_INDEX + 10;
@@ -624,6 +619,7 @@ type RenderedMapMarker = {
   marker: MapLibreMarker;
   root: Root;
   setPreviewed: (previewed: boolean) => void;
+  signature: string;
 };
 
 type SpiderfiedCluster = {
@@ -928,71 +924,8 @@ function applyPlaceMarkerClusters(markers: DisplayMapMarker[], zoom: number): Di
   return [...markers.filter((marker) => !clusteredIds.has(marker.id)), ...clusters];
 }
 
-function heatmapActivityIsWithinSevenDays(lastActiveLabel: string | null | undefined) {
-  const normalized = lastActiveLabel?.trim().toLowerCase();
-  if (!normalized) return false;
-  if (normalized === 'now' || normalized === 'online') return true;
 
-  const match = normalized.match(/^(\d+)\s*(m|h|d)/);
-  if (!match) return false;
-  const amount = Number(match[1]);
-  const minutes = match[2] === 'd' ? amount * 24 * 60 : match[2] === 'h' ? amount * 60 : amount;
-  return minutes <= USER_HEATMAP_WINDOW_MINUTES;
-}
 
-function createUserHeatmapFeatureCollection(markers: MapMarker[]) {
-  const people = markers.filter((marker) => (
-    (marker.kind ?? 'person') === 'person'
-    && marker.isCurrentUser !== true
-    && marker.npcGhostDemo !== true
-    && isMapMarker(marker)
-    && heatmapActivityIsWithinSevenDays(marker.lastActiveLabel)
-  ));
-
-  const cells = new Map<string, { count: number; latitudeIndex: number; longitudeIndex: number }>();
-
-  people.forEach((marker) => {
-    const latitudeIndex = Math.floor(marker.approximateLatitude / USER_HEATMAP_CELL_DEGREES);
-    const longitudeIndex = Math.floor(marker.approximateLongitude / USER_HEATMAP_CELL_DEGREES);
-    const key = `${latitudeIndex}:${longitudeIndex}`;
-    const current = cells.get(key);
-
-    cells.set(key, {
-      count: (current?.count ?? 0) + 1,
-      latitudeIndex,
-      longitudeIndex,
-    });
-  });
-
-  return {
-    type: 'FeatureCollection' as const,
-    features: [...cells.values()]
-      .filter((cell) => cell.count >= USER_HEATMAP_MIN_SAMPLES)
-      .sort((left, right) => (
-        left.latitudeIndex - right.latitudeIndex
-        || left.longitudeIndex - right.longitudeIndex
-      ))
-      .map((cell) => ({
-      type: 'Feature' as const,
-      properties: {
-        samples: cell.count,
-        weight: Math.min(1, cell.count / 12),
-      },
-      geometry: {
-        type: 'Point' as const,
-        coordinates: [
-          Number(((cell.longitudeIndex + 0.5) * USER_HEATMAP_CELL_DEGREES).toFixed(6)),
-          Number(((cell.latitudeIndex + 0.5) * USER_HEATMAP_CELL_DEGREES).toFixed(6)),
-        ],
-      },
-    })),
-  };
-}
-
-function getHeatmapBeforeLayerId(map: MapLibreMap) {
-  if (typeof map.getStyle !== 'function') return undefined;
-  return map.getStyle()?.layers?.find((layer) => MAP_DETAIL_LAYER_TYPES.has(layer.type))?.id;
-}
 
 // The preview spends its whole character budget. Trimming back to the last whole
 // word used to cost up to a third of the characters a signal is allowed.
@@ -1724,7 +1657,7 @@ function PlaceMarker({ marker, previewed = false }: { marker: MapMarker; preview
       data-testid={`place-marker-${marker.place?.id ?? marker.id}`}
     >
       <span
-        className={`pointer-events-none absolute bottom-[calc(100%+0.75rem)] left-1/2 z-20 w-max max-w-[14rem] -translate-x-1/2 rounded-full border border-white/15 bg-black/92 px-3 py-1 text-center text-xs font-semibold leading-tight text-white shadow-[0_8px_24px_rgba(0,0,0,0.5)] backdrop-blur-md transition-opacity duration-150 ${previewed ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100'}`}
+        className={`pointer-events-none absolute bottom-[calc(100%+0.75rem)] left-1/2 z-20 w-max max-w-[16rem] -translate-x-1/2 rounded-full border border-[3.2px] border-[#55C8FF] bg-black/86 px-3 py-1 text-center text-[0.7rem] font-semibold leading-tight text-white shadow-[0_8px_24px_rgba(0,0,0,0.5)] backdrop-blur-md transition-opacity duration-150 ${previewed ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100'}`}
         data-testid={`place-marker-title-${marker.place?.id ?? marker.id}`}
       >
         {marker.displayName}
@@ -2044,7 +1977,7 @@ function createMarkerElement(
           longPressTimer = null;
           longPressTriggered = true;
           onPinPreview(marker);
-        }, MOBILE_MARKER_LONG_PRESS_MS);
+        }, marker.kind === 'place' ? PLACE_MARKER_LONG_PRESS_MS : MOBILE_MARKER_LONG_PRESS_MS);
       }
     });
     button.addEventListener('pointermove', (event) => {
@@ -2055,7 +1988,10 @@ function createMarkerElement(
       const pointerEvent = event as PointerEvent;
       const movedX = Math.abs(pointerEvent.clientX - touchStartPoint.x);
       const movedY = Math.abs(pointerEvent.clientY - touchStartPoint.y);
-      if (movedX > MOBILE_MARKER_LONG_PRESS_MOVE_TOLERANCE_PX || movedY > MOBILE_MARKER_LONG_PRESS_MOVE_TOLERANCE_PX) {
+      const moveTolerance = marker.kind === 'place'
+        ? PLACE_MARKER_LONG_PRESS_MOVE_TOLERANCE_PX
+        : MOBILE_MARKER_LONG_PRESS_MOVE_TOLERANCE_PX;
+      if (movedX > moveTolerance || movedY > moveTolerance) {
         clearLongPressTimer();
       }
     });
@@ -2227,7 +2163,6 @@ function MapView({
   onMapClick,
   onMapReady,
   markers,
-  peopleHeatmapEnabled = false,
   fitToMarkers = false,
   focusCoordinates,
   initialViewport,
@@ -2289,10 +2224,6 @@ function MapView({
     [currentZoom, denseMarkerResult.markers, focusCoordinates, spiderfiedCluster],
   );
   const renderedMarkerSignature = useMemo(() => JSON.stringify(renderedMarkers), [renderedMarkers]);
-  const heatmapData = useMemo(() => createUserHeatmapFeatureCollection(markers), [markers]);
-  const heatmapFeatureSignature = useMemo(() => heatmapData.features.map((feature) => (
-    `${feature.geometry.coordinates.join(':')}:${feature.properties.samples}:${feature.properties.weight}`
-  )).join('|'), [heatmapData]);
   const renderedMarkersRef = useRef(renderedMarkers);
   renderedMarkersRef.current = renderedMarkers;
   const viewportMarkerSignature = useMemo(() => renderedMarkers
@@ -2838,72 +2769,26 @@ function MapView({
 
   useEffect(() => {
     const map = mapInstance ?? mapRef.current;
-    if (!hasActiveMapStyle(map) || mapLoadStatus !== 'ready') return;
-    const getLayer = typeof map.getLayer === 'function' ? map.getLayer.bind(map) : () => undefined;
-    const getSource = typeof map.getSource === 'function' ? map.getSource.bind(map) : () => undefined;
-    const removeLayer = typeof map.removeLayer === 'function' ? map.removeLayer.bind(map) : null;
-    const removeSource = typeof map.removeSource === 'function' ? map.removeSource.bind(map) : null;
-
-    if (!peopleHeatmapEnabled || heatmapData.features.length === 0) {
-      if (getLayer(USER_HEATMAP_LAYER_ID) && removeLayer) removeLayer(USER_HEATMAP_LAYER_ID);
-      if (getSource(USER_HEATMAP_SOURCE_ID) && removeSource) removeSource(USER_HEATMAP_SOURCE_ID);
-      return;
-    }
-
-    const existingSource = getSource(USER_HEATMAP_SOURCE_ID) as GeoJSONSource | undefined;
-    if (existingSource) {
-      existingSource.setData(heatmapData);
-      return;
-    }
-    if (typeof map.addSource !== 'function' || typeof map.addLayer !== 'function') return;
-    map.addSource(USER_HEATMAP_SOURCE_ID, { type: 'geojson', data: heatmapData });
-    const layer = {
-      id: USER_HEATMAP_LAYER_ID,
-      type: 'heatmap' as const,
-      source: USER_HEATMAP_SOURCE_ID,
-      maxzoom: 16.75,
-      paint: {
-        'heatmap-weight': ['interpolate', ['linear'], ['get', 'weight'], 0, 0, 1, 1.25],
-        'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 10, 1.35, 14, 2.65, 16, 3.4],
-        'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 10, 34, 14, 68, 16, 96],
-        'heatmap-opacity': ['interpolate', ['linear'], ['zoom'], 10.5, 0.34, 13, 0.58, 16.75, 0.52],
-        'heatmap-color': [
-          'interpolate',
-          ['linear'],
-          ['heatmap-density'],
-          0,
-          'rgba(255, 0, 114, 0)',
-          0.06,
-          'rgba(17, 129, 255, 0.45)',
-          0.22,
-          'rgba(0, 75, 255, 0.68)',
-          0.42,
-          'rgba(56, 38, 255, 0.78)',
-          0.62,
-          'rgba(111, 0, 255, 0.88)',
-          0.82,
-          'rgba(255, 0, 114, 0.94)',
-          1,
-          'rgba(255, 64, 163, 1)',
-        ],
-      },
-    };
-    const beforeId = getHeatmapBeforeLayerId(map);
-    if (beforeId) map.addLayer(layer, beforeId); else map.addLayer(layer);
-  }, [heatmapFeatureSignature, heatmapData, mapInstance, mapLoadStatus, peopleHeatmapEnabled]);
-
-  useEffect(() => {
-    const map = mapInstance ?? mapRef.current;
     const maplibregl = mapLibreRef.current;
 
     if (!hasActiveMapStyle(map) || !maplibregl) {
       return;
     }
 
-    markersRef.current.forEach(cleanupRenderedMarker);
-    markersRef.current = [];
-
     const visibleMarkers = renderedMarkersRef.current.filter(isMapMarker);
+    // Diff against the markers already on the map so a zoom step or one
+    // changed pin no longer tears down and rebuilds every marker element.
+    const nextSignatures = new Map(visibleMarkers.map((marker) => [marker.id, JSON.stringify(marker)]));
+    const survivors = new Map<string, RenderedMapMarker>();
+    markersRef.current.forEach((renderedMarker) => {
+      const signature = nextSignatures.get(renderedMarker.id);
+      if (signature != null && signature === renderedMarker.signature && !survivors.has(renderedMarker.id)) {
+        survivors.set(renderedMarker.id, renderedMarker);
+      } else {
+        cleanupRenderedMarker(renderedMarker);
+      }
+    });
+    markersRef.current = [...survivors.values()];
     let cancelled = false;
 
     queueMicrotask(() => {
@@ -2912,6 +2797,10 @@ function MapView({
       }
 
       markersRef.current = visibleMarkers.map((marker) => {
+        const survivor = survivors.get(marker.id);
+        if (survivor) {
+          return survivor;
+        }
         const { dispose, element, root, setPreviewed } = createMarkerElement(
           marker,
           (selectedMarker) => {
@@ -2978,7 +2867,13 @@ function MapView({
         } else if (displayMarker.spiderfy) {
           element.dataset.spiderfyIndex = String(displayMarker.spiderfy.index);
           element.dataset.spiderfyCount = String(displayMarker.spiderfy.count);
-          element.style.zIndex = String(30 + displayMarker.spiderfy.index);
+          element.style.zIndex = String(40 + displayMarker.spiderfy.index);
+        } else if (marker.kind == null || marker.kind === 'person' || isPersonCluster(marker)) {
+          // People pins and people clusters always sit above Spot pins and
+          // Spot clusters, so a person is never hidden behind a venue.
+          element.style.zIndex = '40';
+        } else {
+          element.style.zIndex = '20';
         }
 
         const mapMarker = new maplibregl.Marker({
@@ -2993,6 +2888,7 @@ function MapView({
           marker: mapMarker,
           root,
           setPreviewed,
+          signature: nextSignatures.get(marker.id) ?? JSON.stringify(marker),
         };
       });
     });

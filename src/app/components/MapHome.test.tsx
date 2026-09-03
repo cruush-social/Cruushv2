@@ -1783,7 +1783,7 @@ describe('MapHome', () => {
     expect(dlModeIcon?.querySelector('[data-dl-mode-part="halo-cutout"]')).not.toBeInTheDocument();
     expect(dlModeIcon?.querySelector('[data-dl-mode-part="wing-cutout"]')).not.toBeInTheDocument();
     expect(decodeURIComponent(ghostModeIcon?.getAttribute('src') ?? '')).toContain("fill='#ffffff'");
-    expect(locationButton).toHaveClass('rounded-full', 'bg-background/55');
+    expect(locationButton).toHaveClass('rounded-full', 'bg-background/78', 'backdrop-blur-md');
     expect(locationButton.querySelector('svg')).toHaveClass('h-4', 'w-4');
     expect(screen.queryByText('DL Mode Active')).not.toBeInTheDocument();
 

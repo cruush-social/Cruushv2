@@ -3,7 +3,7 @@
 import type { FormEvent, MouseEvent, PointerEvent, WheelEvent } from 'react';
 import { lazy, Suspense, useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router';
-import { ChevronDown, ExternalLink, Flame, Mail, MapPin, MessageCircle, X, ZoomIn, ZoomOut } from 'lucide-react';
+import { ChevronDown, ExternalLink, Mail, MapPin, MessageCircle, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { useIsMobile } from './ui/use-mobile';
@@ -879,8 +879,10 @@ export default function MapHome(_props: MapHomeProps = {}) {
   }>({ query: '', facilityTypes: [], tags: [], vibes: [], amenities: [], radiusMiles: 100 });
   const [places, setPlaces] = useState<PlaceRecord[]>([]);
   const [selectedPlace, setSelectedPlace] = useState<PlaceRecord | null>(null);
+  // Keeps the map where the Spot left it after the Spot sheet closes, instead
+  // of snapping back to the viewer's own location.
+  const [placeReturnFocus, setPlaceReturnFocus] = useState<{ approximateLatitude: number; approximateLongitude: number } | null>(null);
   const [spotBoardPlaceId, setSpotBoardPlaceId] = useState<string | null>(null);
-  const [peopleHeatmapEnabled, setPeopleHeatmapEnabled] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<DiscoveryUser | null>(null);
   const [luckySlot, setLuckySlot] = useState<LuckySlotState | null>(null);
@@ -2270,6 +2272,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
   };
 
   const handleCenterMyLocation = () => {
+    setPlaceReturnFocus(null);
     if (travelMapLocation && mapInstance) {
       setBrowserFocusCoordinates(null);
       mapInstance.setCenter([
@@ -2623,6 +2626,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
 
   const openSpot = (place: PlaceRecord) => {
     setSelectedPlace(place);
+    setPlaceReturnFocus({ approximateLatitude: place.latitude, approximateLongitude: place.longitude });
     setPlacesOpen(false);
     if (!usesFullPageProfile) {
       setSpotBoardPlaceId(place.id);
@@ -2865,7 +2869,6 @@ export default function MapHome(_props: MapHomeProps = {}) {
               center: currentUserMapLocation,
               radiusMiles: DISCOVERY_BROWSE_RADIUS_MILES,
             } : null}
-            peopleHeatmapEnabled={peopleHeatmapEnabled}
             fitToMarkers={!restoredMapViewport && !currentUserMapLocation && !isMutualMapMode && !focusUserId}
             focusCoordinates={
               (selectedPlace ? {
@@ -2874,6 +2877,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
               } : null) ??
               focusedMapLocation ??
               browserFocusCoordinates ??
+              placeReturnFocus ??
               (focusUserId ? undefined : travelMapLocation ?? (restoredMapViewport ? undefined : currentUserMapLocation))
             }
             initialViewport={!travelMapLocation && restoredMapViewport ? {
@@ -3307,21 +3311,6 @@ export default function MapHome(_props: MapHomeProps = {}) {
               >
                 <PulseLedIcon />
               </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                size="icon"
-                data-testid="map-heatmap-toggle"
-                data-tutorial-target="heatmap"
-                aria-label="Seven-day activity heatmap"
-                title="Seven-day activity heatmap"
-                aria-pressed={peopleHeatmapEnabled}
-                onClick={() => setPeopleHeatmapEnabled((enabled) => !enabled)}
-                className={`rounded-full border text-white ${peopleHeatmapEnabled ? 'border-white/15' : 'border-white/10 bg-background/55 hover:bg-white/10'}`}
-                style={peopleHeatmapEnabled ? { background: 'var(--cruush-gradient)' } : undefined}
-              >
-                <Flame className="h-4 w-4" />
-              </Button>
               <div className="flex flex-col gap-2" data-testid="map-zoom-controls">
                 <Button
                   size="icon"
@@ -3330,7 +3319,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
                   disabled={locationStatus === 'locating' || !mapInstance}
                   aria-label={locationStatus === 'locating' ? 'Finding your location' : 'Center your location'}
                   title={locationStatus === 'locating' ? 'Finding your location' : 'Center your location'}
-                  className="rounded-full border border-white/10 bg-background/55 text-white hover:bg-white/10"
+                  className="rounded-full border border-white/10 bg-background/78 text-white backdrop-blur-md hover:bg-white/10"
                 >
                   <MapPin className="h-4 w-4" />
                 </Button>
@@ -3343,7 +3332,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
                   data-tutorial-target="zoom"
                   aria-label="Zoom in on map"
                   title="Zoom in on map"
-                  className="rounded-full border border-white/10 bg-background/55 text-white hover:bg-white/10"
+                  className="rounded-full border border-white/10 bg-background/78 text-white backdrop-blur-md hover:bg-white/10"
                 >
                   <ZoomIn className="h-4 w-4" />
                 </Button>
@@ -3356,7 +3345,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
                   data-tutorial-target="zoom"
                   aria-label="Zoom out on map"
                   title="Zoom out on map"
-                  className="rounded-full border border-white/10 bg-background/55 text-white hover:bg-white/10"
+                  className="rounded-full border border-white/10 bg-background/78 text-white backdrop-blur-md hover:bg-white/10"
                 >
                   <ZoomOut className="h-4 w-4" />
                 </Button>

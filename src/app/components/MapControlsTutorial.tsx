@@ -21,7 +21,7 @@ export function notifyMapControlsTutorialCompleted() {
   }
 }
 
-export type MapControlsTutorialStepId = 'install' | 'notifications' | 'map-controls' | 'seeking' | 'visibility' | 'cruush-plus' | 'mile-high-club' | 'places' | 'heatmap' | 'crowds' | 'ghost' | 'dl-mode' | 'ping' | 'profile-pin' | 'zoom' | 'carousel' | 'feed';
+export type MapControlsTutorialStepId = 'install' | 'notifications' | 'map-controls' | 'seeking' | 'visibility' | 'cruush-plus' | 'mile-high-club' | 'places' | 'crowds' | 'ghost' | 'dl-mode' | 'ping' | 'profile-pin' | 'zoom' | 'carousel' | 'feed';
 
 type TutorialStep = {
   id: MapControlsTutorialStepId;
@@ -49,7 +49,7 @@ const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'map-controls',
     title: 'Map Controls',
-    description: 'Open Map Controls to reach Seeking, Visibility, Spots, the seven-day activity heatmap, Pulse, location, and zoom without covering the map.',
+    description: 'Open Map Controls to reach Seeking, Visibility, Spots, Pulse, location, and zoom without covering the map.',
     actionLabel: 'Open Map Controls',
   },
   {
@@ -81,12 +81,6 @@ const TUTORIAL_STEPS: TutorialStep[] = [
     title: 'Spots',
     description: 'Find queer spaces, health services, clubs, and community Spots. Anyone can see who is there. Check in to read and post in the Pink Book, report the vibe, and rate the Spot.',
     actionLabel: 'Open Spots',
-  },
-  {
-    id: 'heatmap',
-    title: 'Seven-day activity heatmap',
-    description: 'See broad activity trends from the last seven days. The view uses deidentified area totals, not individual pin locations, and stays off by default.',
-    actionLabel: 'Show heatmap',
   },
   {
     id: 'crowds',

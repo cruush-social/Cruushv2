@@ -14,7 +14,6 @@ const TARGET_STEP_IDS: MapControlsTutorialStepId[] = [
   'cruush-plus',
   'mile-high-club',
   'places',
-  'heatmap',
   'crowds',
   'ghost',
   'dl-mode',
@@ -205,7 +204,7 @@ describe('MapControlsTutorial', () => {
 
     render(<MapControlsTutorial open onActivateStep={onActivateStep} onComplete={onComplete} />);
 
-    expect(screen.getByText('Map tutorial · Step 1 of 17')).toBeInTheDocument();
+    expect(screen.getByText('Map tutorial · Step 1 of 16')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Install cruush' })).toBeInTheDocument();
     fireEvent.click(expectHighlightedAction('install', 'Install cruush'));
     expect(onActivateStep).toHaveBeenLastCalledWith('install');
@@ -245,10 +244,6 @@ describe('MapControlsTutorial', () => {
     fireEvent.click(screen.getByTestId('tutorial-next'));
     expect(screen.getByRole('heading', { name: 'Spots' })).toBeInTheDocument();
     expectHighlightedAction('places', 'Open Spots');
-
-    fireEvent.click(screen.getByTestId('tutorial-next'));
-    expect(screen.getByRole('heading', { name: 'Seven-day activity heatmap' })).toBeInTheDocument();
-    expectHighlightedAction('heatmap', 'Show heatmap');
 
     fireEvent.click(screen.getByTestId('tutorial-next'));
     expect(screen.getByRole('heading', { name: 'Crowd Mode' })).toBeInTheDocument();
@@ -364,7 +359,6 @@ describe('MapControlsTutorial', () => {
 
     fireEvent.click(screen.getByTestId('tutorial-skip-step'));
     fireEvent.click(screen.getByTestId('tutorial-skip-step'));
-    fireEvent.click(screen.getByTestId('tutorial-next'));
     fireEvent.click(screen.getByTestId('tutorial-next'));
     fireEvent.click(screen.getByTestId('tutorial-next'));
     fireEvent.click(screen.getByTestId('tutorial-next'));

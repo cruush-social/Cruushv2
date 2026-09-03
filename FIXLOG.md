@@ -59,3 +59,11 @@
 - Leans men was applied to nearly every imported Spot and Techno club never earned a tag, so both are removed from the taxonomy, the data and the migrations that created them. Leans women stays.
 - The 1.6 release email carries one screenshot instead of six, and its hearts are gradient placeholders rather than seeded profile photos.
 - The 1.6 release email screenshots are recaptured from the local dev server on seeded data: every heart is a gradient or placeholder, the badge menu shows no profile photo, the Mile High Club map actually renders, and the Feed image is the real Feed rather than a preview page.
+- Replaying the 107/108 side-quest migrations on a live database failed once a member earned a quest key that only the final 116 list allows, which killed every new API container at boot; both migrations now skip their constraint churn when the final constraint is already installed.
+- The seven-day activity heatmap was never requested for 1.6 and is removed from the map, the tutorial, and the tests.
+- Map pins glowed through the translucent Map Controls buttons, which read as pins covering the center and zoom controls; the buttons are frosted glass now.
+- People pins and people clusters now always render above Spot pins and Spot clusters.
+- Spot titles show in the same pill size as people signals, and a Spot press reveals its title faster with more finger-drift tolerance.
+- Closing a Spot keeps the map where the Spot was instead of snapping back to your own location.
+- Zooming or updating one pin no longer rebuilds every map marker element; unchanged markers are kept.
+- The changelog no longer claims group Pulse alerts (there are no public groups yet) and Dark Room has its own line.
