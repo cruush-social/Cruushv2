@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Search } from 'lucide-react';
 import { Button } from './ui/button';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
 import { Label } from './ui/label';
 import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle } from './ui/sheet';
 import { Slider } from './ui/slider';
@@ -114,6 +115,7 @@ function FieldGroup({
   onLimitReached,
   onChange,
   selectionMode = 'multiple',
+  searchable = false,
 }: {
   label: string;
   options?: string[];
@@ -124,6 +126,7 @@ function FieldGroup({
   onLimitReached: () => void;
   onChange: (value: VisibilityControlState) => void;
   selectionMode?: 'multiple' | 'single';
+  searchable?: boolean;
 }) {
   const fieldHasSelections = value[stateKey].length > 0;
 
@@ -133,6 +136,7 @@ function FieldGroup({
       {selectionMode === 'single' ? <SingleSelect ariaLabel={label} options={options ?? []} value={value[stateKey][0]} onChange={(item) => onChange(updateList(value, stateKey, item ? [item] : []))} /> : <MultiSelect
         ariaLabel={label}
         menuPortal
+        searchable={searchable}
         options={options}
         optionGroups={optionGroups}
         value={value[stateKey]}
@@ -349,10 +353,10 @@ export default function MapVisibilitySurface({
                 A crowd you select here cannot see you.
               </p>
               <FieldGroup label="Body Type" options={BODY_TYPES} stateKey="bodyTypes" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} />
-              <div className="space-y-4 rounded-2xl border border-white/10 bg-white/[0.035] p-4"><Label className="text-base">Hair now</Label><FieldGroup label="Body hair" options={BODY_HAIR} stateKey="bodyHair" selectionMode="single" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} /><FieldGroup label="Pubic hair" options={PUBIC_HAIR} stateKey="pubicHair" selectionMode="single" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} /><FieldGroup label="Facial hair" options={FACIAL_HAIR} stateKey="facialHair" selectionMode="single" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} /></div>
+              <Accordion type="single" collapsible className="rounded-2xl border border-white/10 bg-white/[0.035]"><AccordionItem value="hair-now" className="border-0"><AccordionTrigger className="px-4 py-3 hover:no-underline"><span className="text-base">Hair now</span></AccordionTrigger><AccordionContent className="space-y-4 px-4 pb-4 pt-0"><FieldGroup label="Body hair" options={BODY_HAIR} stateKey="bodyHair" selectionMode="single" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} /><FieldGroup label="Pubic hair" options={PUBIC_HAIR} stateKey="pubicHair" selectionMode="single" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} /><FieldGroup label="Facial hair" options={FACIAL_HAIR} stateKey="facialHair" selectionMode="single" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} /></AccordionContent></AccordionItem></Accordion>
               <FieldGroup label="Sexuality" options={SEXUALITY} stateKey="sexuality" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} />
               <FieldGroup label="Zodiac" options={ZODIAC} stateKey="zodiac" selectionMode="single" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} />
-              <FieldGroup label="Vibes" optionGroups={VISIBILITY_VIBE_GROUPS} stateKey="vibes" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} />
+              <FieldGroup searchable label="Vibes" optionGroups={VISIBILITY_VIBE_GROUPS} stateKey="vibes" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} />
               <FieldGroup label="Hobbies" options={HOBBIES} stateKey="hobbies" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} />
             </TabsContent>
 
@@ -374,7 +378,7 @@ export default function MapVisibilitySurface({
               <FieldGroup label="Preferred spots" options={PREFERRED_SPOTS} stateKey="preferredSpots" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} />
               <FieldGroup label="Position" options={POSITIONS} stateKey="positions" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} />
               <FieldGroup label="Role" options={ROLES} stateKey="roles" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} />
-              <FieldGroup label="Kinks & Fetishes" optionGroups={KINK_GROUPS} stateKey="kinks" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} />
+              <FieldGroup searchable label="Kinks & Fetishes" optionGroups={KINK_GROUPS} stateKey="kinks" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} />
             </TabsContent>
 
             <TabsContent value="health" className="mt-6 space-y-6">

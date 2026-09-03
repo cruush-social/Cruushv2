@@ -331,7 +331,7 @@ export default function ProfileCard({
             className="text-white"
           >
             <div className="min-w-0">
-              <h3 className="flex min-w-0 items-center text-2xl font-semibold" style={carouselTextOutlineStyle}>
+              <h3 className="flex min-w-0 items-center overflow-visible pb-1 text-3xl leading-tight sm:text-4xl" style={carouselTextOutlineStyle}>
                 <span className="min-w-0 truncate">{user.name}, {user.age}</span>
                 {user.travelling === true ? (
                   <img
@@ -348,63 +348,84 @@ export default function ProfileCard({
               <p className="mt-1 text-sm text-white" style={carouselTextOutlineStyle}>{user.pronouns}</p>
             </div>
 
-            <div className="mt-2 flex min-w-0 items-center gap-2 overflow-hidden text-sm text-white" style={carouselTextOutlineStyle}>
+            {/* Same identity block as the full profile: distance and last seen on
+                one line, then the signal, then the vibe capsules. */}
+            <div className="mt-1 flex min-w-0 items-center gap-2 overflow-hidden text-sm text-white" style={carouselTextOutlineStyle}>
               <CruushIcon name="map" className="h-4 w-4 shrink-0 drop-shadow-[0_1px_2px_#000]" />
               <span className="min-w-0 truncate">{formatDistanceWithAway(user.distance, distancePreferences.mode)}</span>
+              {user.lastActive ? <span className="shrink-0">• {user.lastActive}</span> : null}
             </div>
 
+            {user.signal ? (
+              <p
+                className="mt-2 truncate text-base leading-snug text-white sm:text-lg"
+                data-testid="carousel-profile-signal"
+                style={carouselTextOutlineStyle}
+              >
+                {user.signal}
+              </p>
+            ) : null}
+
             {visibleVibeItems.length > 0 ? (
-              <div data-testid="profile-card-vibes" className="mt-2 flex min-w-0 flex-nowrap gap-1.5 overflow-hidden">
+              <div data-testid="profile-card-vibes" className="mt-2 flex flex-wrap gap-1.5">
                 {visibleVibeItems.map((vibe: string) => (
-                  <Badge
+                  <span
                     key={vibe}
-                    variant="outline"
-                    className="min-w-0 shrink border px-2 py-0.5 text-[11px] uppercase tracking-[0.08em] backdrop-blur-sm"
+                    className="rounded-full border px-2 py-0.5 text-[11px] uppercase leading-tight tracking-[0.08em]"
                     style={vibeCapsuleStyle(resolveVibeTone({ mutual: isAlreadyMutual, isCurrentUser: user.isCurrentUser }))}
                   >
-                    <span className="block min-w-0 truncate">{vibe}</span>
-                  </Badge>
+                    {vibe}
+                  </span>
                 ))}
               </div>
             ) : null}
 
-            <div data-testid="carousel-profile-actions" className="mt-3 grid grid-cols-3 gap-2">
+            {/* Same control row as the full profile: cruush and Message take the
+                width, the map pin stays a square between them. */}
+            <div data-testid="carousel-profile-actions" className="mt-3 flex gap-2">
               <Button
                 type="button"
-                className={`${carouselActionClassName} border-0 text-white`}
+                className={`cruush-action-sheen flex-1 rounded-xl border disabled:opacity-100 ${hasRevocableCruush
+                  ? 'border-transparent text-white'
+                  : cruushDisabled
+                    ? 'border-white/25 text-white/55'
+                    : 'border-transparent text-white'}`}
                 style={{
-                  background: hasRevocableCruush
-                    ? 'var(--cruush-gradient-soft-28)'
-                    : 'var(--cruush-gradient)',
+                  background: cruushDisabled
+                    ? '#151021'
+                    : hasRevocableCruush
+                      ? 'var(--cruush-gradient-soft-28), #0A0A12'
+                      : 'var(--cruush-gradient)',
                 }}
                 onClick={() => {
                   void (hasRevocableCruush ? handleRevokeCruush() : handleCruush());
                 }}
                 disabled={cruushDisabled}
-                aria-label={revokingCruush ? (isAlreadyMutual ? 'Removing mutual' : 'Unsending cruush') : isAlreadyMutual ? 'Remove mutual' : hasSentCruush ? 'Unsend cruush' : sendingCruush ? 'sending cruush' : 'send cruush'}
+                aria-label={revokingCruush ? (isAlreadyMutual ? 'removing mutual' : 'unsending cruush') : isAlreadyMutual ? 'remove mutual' : hasSentCruush ? 'unsend cruush' : sendingCruush ? 'sending cruush' : 'send cruush'}
               >
-                <CruushIcon name="mutual" className="mr-2 h-4 w-4" variant="white" />
-                {revokingCruush ? (isAlreadyMutual ? 'removing...' : 'unsending...') : isAlreadyMutual ? 'mutual' : hasSentCruush ? 'sent' : sendingCruush ? 'sending...' : 'cruush'}
+                <CruushIcon name="mutual" className={`mr-2 h-4 w-4 ${cruushDisabled ? 'opacity-45 grayscale' : ''}`} variant="white" />
+                {revokingCruush ? (isAlreadyMutual ? 'removing...' : 'unsending...') : isAlreadyMutual ? 'remove mutual' : hasSentCruush ? 'unsend' : sendingCruush ? 'sending...' : 'cruush'}
               </Button>
               <Button
                 type="button"
-                className={`${carouselActionClassName} border-0 text-white disabled:opacity-45`}
-                style={{ background: 'var(--cruush-gradient)' }}
+                size="icon"
+                className="size-11 shrink-0 rounded-xl border-0 text-white transition hover:brightness-110"
+                style={{ background: canCenterCarouselPin ? 'var(--cruush-gradient)' : 'var(--cruush-gradient-soft-28), #0A0A12' }}
                 aria-label={canCenterCarouselPin ? `Center the map on ${user.name}` : `${user.name} does not share a precise location with you`}
                 disabled={!canCenterCarouselPin}
                 onClick={() => navigate('/map', { state: { focusUserId: user.id } })}
               >
-                <CruushIconImage src={mapIconWhite} className="mr-2 h-4 w-4" />
-                Pin
+                <CruushIconImage src={mapIconWhite} className={`h-7 w-7 ${canCenterCarouselPin ? '' : 'opacity-45'}`} />
               </Button>
               <Button
                 type="button"
-                className={`${carouselActionClassName} border-0 text-white`}
-                style={{ background: 'var(--cruush-gradient)' }}
+                className={`cruush-action-sheen flex-1 rounded-xl border border-[#6F00FF] disabled:opacity-100 ${canMessage ? 'text-white' : 'text-white/55'}`}
+                style={{ background: canMessage ? 'var(--cruush-gradient)' : '#151021' }}
                 disabled={openingMessage || !canMessage}
                 onClick={() => {
                   void handleMessage();
                 }}
+                aria-label={canMessage ? 'Message' : 'Mutuals only'}
               >
                 <CruushIcon name="send" className="mr-2 h-4 w-4" variant="white" />
                 {!canMessage ? 'Mutuals only' : openingMessage ? 'Opening...' : 'Message'}

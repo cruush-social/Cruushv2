@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Button } from './ui/button';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
 import { Label } from './ui/label';
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from './ui/sheet';
 import { Slider } from './ui/slider';
@@ -120,6 +121,7 @@ function FieldGroup({
   value,
   onChange,
   selectionMode = 'multiple',
+  searchable = false,
 }: {
   label: string;
   options?: string[];
@@ -128,6 +130,7 @@ function FieldGroup({
   value: FilterState;
   onChange: (value: FilterState) => void;
   selectionMode?: 'multiple' | 'single';
+  searchable?: boolean;
 }) {
   return (
     <div className="space-y-2">
@@ -135,6 +138,7 @@ function FieldGroup({
       {selectionMode === 'single' ? <SingleSelect ariaLabel={label} options={options ?? []} value={value[stateKey][0]} onChange={(item) => onChange(updateList(value, stateKey, item ? [item] : []))} /> : <MultiSelect
         ariaLabel={label}
         menuPortal
+        searchable={searchable}
         options={options}
         optionGroups={optionGroups}
         value={value[stateKey]}
@@ -259,10 +263,10 @@ export default function MapFiltersSurface({
               <FieldGroup label="Presentation" options={PRESENTATIONS} stateKey="presentations" value={value} onChange={onChange} />
               <FieldGroup label="Crowds" options={CROWDS} stateKey="crowds" value={value} onChange={onChange} />
               <FieldGroup label="Body Type" options={BODY_TYPES} stateKey="bodyTypes" value={value} onChange={onChange} />
-              <div className="space-y-4 rounded-2xl border border-white/10 bg-white/[0.035] p-4"><Label className="text-base">Hair now</Label><FieldGroup label="Body hair" options={BODY_HAIR} stateKey="bodyHair" selectionMode="single" value={value} onChange={onChange} /><FieldGroup label="Pubic hair" options={PUBIC_HAIR} stateKey="pubicHair" selectionMode="single" value={value} onChange={onChange} /><FieldGroup label="Facial hair" options={FACIAL_HAIR} stateKey="facialHair" selectionMode="single" value={value} onChange={onChange} /></div>
+              <Accordion type="single" collapsible className="rounded-2xl border border-white/10 bg-white/[0.035]"><AccordionItem value="hair-now" className="border-0"><AccordionTrigger className="px-4 py-3 hover:no-underline"><span className="text-base">Hair now</span></AccordionTrigger><AccordionContent className="space-y-4 px-4 pb-4 pt-0"><FieldGroup label="Body hair" options={BODY_HAIR} stateKey="bodyHair" selectionMode="single" value={value} onChange={onChange} /><FieldGroup label="Pubic hair" options={PUBIC_HAIR} stateKey="pubicHair" selectionMode="single" value={value} onChange={onChange} /><FieldGroup label="Facial hair" options={FACIAL_HAIR} stateKey="facialHair" selectionMode="single" value={value} onChange={onChange} /></AccordionContent></AccordionItem></Accordion>
               <FieldGroup label="Sexuality" options={SEXUALITY} stateKey="sexuality" value={value} onChange={onChange} />
               <FieldGroup label="Zodiac" options={ZODIAC} stateKey="zodiac" selectionMode="single" value={value} onChange={onChange} />
-              <FieldGroup label="Vibes" optionGroups={VIBE_GROUPS} stateKey="vibes" value={value} onChange={onChange} />
+              <FieldGroup searchable label="Vibes" optionGroups={VIBE_GROUPS} stateKey="vibes" value={value} onChange={onChange} />
               <FieldGroup label="Hobbies" options={HOBBIES} stateKey="hobbies" value={value} onChange={onChange} />
             </TabsContent>
 
@@ -284,7 +288,7 @@ export default function MapFiltersSurface({
               <FieldGroup label="Preferred spots" options={PREFERRED_SPOTS} stateKey="preferredSpots" value={value} onChange={onChange} />
               <FieldGroup label="Position" options={POSITIONS} stateKey="positions" value={value} onChange={onChange} />
               <FieldGroup label="Role" options={ROLES} stateKey="roles" value={value} onChange={onChange} />
-              <FieldGroup label="Kinks & Fetishes" optionGroups={KINK_GROUPS} stateKey="kinks" value={value} onChange={onChange} />
+              <FieldGroup searchable label="Kinks & Fetishes" optionGroups={KINK_GROUPS} stateKey="kinks" value={value} onChange={onChange} />
             </TabsContent>
 
             <TabsContent value="health" className="mt-6 space-y-6">

@@ -74,3 +74,7 @@
 - A long name pushed pronouns onto a second line on activity cards; name and pronouns now share one line.
 - The 2FA setup key copy button did nothing where the clipboard API is blocked, which is most mobile in-app browsers.
 - Spot titles read slightly smaller than people signals, and a long press now opens the side badge labels beside the signal on touch while a desktop pointer still reveals one badge at a time.
+- The Cruise Carousel preview now carries the same overlay as a full profile: name and age at hero size, pronouns, distance with last seen, the signal line, vibe capsules, and the cruush, map pin, and Message row. Browse again is unchanged.
+- Hair now is an accordion in Seeking Filters and Visibility Controls instead of three always-open rows.
+- The search field is back on the Vibes and Kinks menus in Seeking Filters and Visibility Controls.
+- The badge icon gallery reads on a phone: two columns at narrow widths, larger glyphs, wrapping labels, and safe-area padding.
