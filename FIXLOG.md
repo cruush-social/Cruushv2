@@ -54,3 +54,5 @@
 - The workbook and OpenStreetMap imports each carried some of the same places, so 97 Spots appeared twice within a hundred and fifty metres of themselves, splitting check-ins and Pink Book posts between two pins. The oldest row keeps the Spot; separate branches of a chain are untouched.
 -  renders all 153 badges grouped as the badge menu groups them, drawn through the same frame and geometry the app uses so the page cannot drift from what ships.
 - The Pride badge list imported a glyph that had been deleted in the same session, so the app failed to boot with a blank root. The Gay badge keeps the double Mars and the import matches it.
+- Color-blind mode drew hearts and their side badges with dashed strokes, which read as hollow outlines rather than a colour difference. The strokes are solid again and only their colour changes.
+- The Color vision row in the accessibility menu rendered in the display serif because an accordion header is a heading element. A settings row now keeps the body face and matches the rows beside it.

@@ -162,6 +162,7 @@
     "src/app/lib/pushNotifications.test.ts",
     "src/serviceWorkerUpdate.test.ts",
     ".gitignore",
+    "src/app/components/ui/accordion.tsx",
     "index.html",
     "public/sw.js",
     "public/service-worker-recovery.js",
