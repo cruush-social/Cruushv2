@@ -161,6 +161,7 @@
     "src/app/lib/profileOptions.test.ts",
     "src/app/lib/pushNotifications.test.ts",
     "src/serviceWorkerUpdate.test.ts",
+    ".gitignore",
     "index.html",
     "public/sw.js",
     "public/service-worker-recovery.js",
