@@ -289,6 +289,8 @@
     "server/sql/140_other_bucket_categories.sql",
     "server/sql/141_dedupe_spots_at_one_coordinate.sql",
     "server/sql/142_drop_leans_men_and_techno_tags.sql",
+    "server/sql/107_side_quest_first_ping.sql",
+    "server/sql/108_side_quest_catalog.sql",
     "public/email/cruush-v1.6-map.jpg",
     "badge-icon-gallery.html",
     "src/badge-icon-gallery.tsx",
