@@ -18,7 +18,7 @@ const IMPLEMENTATION_MARKERS = [
   {
     title: 'More Pulses',
     file: 'server/src/map-pings.ts',
-    marker: 'const limit = entitlement.cruushPlus ? 3 : 1;',
+    marker: 'const limit = entitlement.cruushPlus ? MAP_PING_PLUS_DAILY_LIMIT : MAP_PING_BASIC_DAILY_LIMIT;',
   },
   {
     title: 'Mile High Club',
@@ -80,6 +80,13 @@ describe('cruush+ benefits copy tracks the gates', () => {
 
     expect(readFileSync(path.join(REPOSITORY_ROOT, 'server/src/routes/posts.ts'), 'utf8'))
       .toContain('"Choosing a Feed timer is part of cruush+."');
+
+    // The "More Pulses" promise only holds while the paid limit stays above the basic one.
+    const mapPings = readFileSync(path.join(REPOSITORY_ROOT, 'server/src/map-pings.ts'), 'utf8');
+    const basicLimit = Number(mapPings.match(/MAP_PING_BASIC_DAILY_LIMIT = (\d+)/)?.[1]);
+    const plusLimit = Number(mapPings.match(/MAP_PING_PLUS_DAILY_LIMIT = (\d+)/)?.[1]);
+    expect(basicLimit).toBeGreaterThan(0);
+    expect(plusLimit).toBeGreaterThan(basicLimit);
   });
 
   it('names every current capability', () => {

@@ -289,7 +289,11 @@ export function decryptProfileVisibility(
       roles: Array.isArray(parsed.roles) ? parsed.roles.filter((value): value is string => typeof value === "string") : [],
       kinks: Array.isArray(parsed.kinks) ? parsed.kinks.filter((value): value is string => typeof value === "string") : [],
       body_types: Array.isArray(parsed.body_types) ? parsed.body_types.filter((value): value is string => typeof value === "string") : [],
+      body_hair: Array.isArray(parsed.body_hair) ? parsed.body_hair.filter((value): value is string => typeof value === "string") : [],
+      pubic_hair: Array.isArray(parsed.pubic_hair) ? parsed.pubic_hair.filter((value): value is string => typeof value === "string") : [],
+      facial_hair: Array.isArray(parsed.facial_hair) ? parsed.facial_hair.filter((value): value is string => typeof value === "string") : [],
       sexuality: Array.isArray(parsed.sexuality) ? parsed.sexuality.filter((value): value is string => typeof value === "string") : [],
+      zodiac: Array.isArray(parsed.zodiac) ? parsed.zodiac.filter((value): value is string => typeof value === "string") : [],
       substance_boundaries: Array.isArray(parsed.substance_boundaries) ? parsed.substance_boundaries.filter((value): value is string => typeof value === "string") : [],
       protection_boundaries: Array.isArray(parsed.protection_boundaries) ? parsed.protection_boundaries.filter((value): value is string => typeof value === "string") : []
     };

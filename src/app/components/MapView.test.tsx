@@ -217,7 +217,8 @@ describe('MapView', () => {
     mapInstances[0].trigger('click', { originalEvent: { target: markerInstances[1].element } });
     expect(onMapClick).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole('button', { name: 'Open You on map' })).not.toBeInTheDocument();
-    expect(screen.getByLabelText('Your approximate area')).toBeInTheDocument();
+    // Your own pin opens your own details, never another person's profile.
+    expect(screen.getByRole('button', { name: 'Show your pin details' })).toBeInTheDocument();
     expect(screen.queryByText('YOU')).not.toBeInTheDocument();
     expect(screen.queryByText('Now')).not.toBeInTheDocument();
     expect(screen.queryByText('2m ago')).not.toBeInTheDocument();
@@ -440,7 +441,12 @@ describe('MapView', () => {
     expect(screen.getByTestId('marker-role-badge-traveller').querySelector('svg')).toHaveAttribute('stroke', '#77B9DA');
     expect(screen.getByTestId('marker-position-badge-traveller').querySelector('svg')).toHaveAttribute('stroke', '#77B9DA');
     expect(screen.getByTestId('marker-signal-badge-traveller').getAttribute('style')).toContain('#77B9DA');
-    expect(screen.getByTestId('marker-heart-traveller').querySelector('[data-testid="marker-ghost-border-traveller"]')).toHaveAttribute('stroke-opacity', '0');
+    // The heart border stays visible while MHC is active and resolves to the same
+    // sky tone as the badge borders.
+    const travellerHeartBorder = screen.getByTestId('marker-heart-traveller')
+      .querySelector('[data-testid="marker-ghost-border-traveller"]');
+    expect(travellerHeartBorder).toHaveAttribute('stroke-opacity', '1');
+    expect(travellerHeartBorder).toHaveAttribute('stroke', '#77B9DA');
   });
 
   it('masks map pixels outside the circular service area without decorating the inside', async () => {
@@ -1730,7 +1736,8 @@ describe('MapView', () => {
     expect(screen.queryByRole('button', { name: 'Open A on map' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Open B on map' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Open C on map' })).toBeInTheDocument();
-    expect(screen.getByLabelText('Your approximate area')).toBeInTheDocument();
+    // Your own pin never joins a people cluster; it stays as your own pin.
+    expect(screen.getByRole('button', { name: 'Show your pin details' })).toBeInTheDocument();
 
     await act(async () => {
       fireEvent.click(cluster);

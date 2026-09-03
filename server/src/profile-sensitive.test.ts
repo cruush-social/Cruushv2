@@ -114,7 +114,11 @@ describe("profile-sensitive encryption", () => {
       roles: [],
       kinks: ["leather"],
       body_types: [],
+      body_hair: [],
+      pubic_hair: [],
+      facial_hair: [],
       sexuality: [],
+      zodiac: [],
       substance_boundaries: [],
       protection_boundaries: []
     };
@@ -156,7 +160,11 @@ describe("profile-sensitive encryption", () => {
       roles: [],
       kinks: [],
       body_types: [],
+      body_hair: [],
+      pubic_hair: [],
+      facial_hair: [],
       sexuality: [],
+      zodiac: [],
       substance_boundaries: [],
       protection_boundaries: []
     } as unknown as ProfileVisibilityRules;

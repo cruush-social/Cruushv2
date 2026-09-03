@@ -37,11 +37,15 @@ alter table places
   add column if not exists suggestion_auth_tag text,
   add column if not exists suggestion_key_version text;
 
+-- Migrations replay on every boot, so this list has to accept the facility
+-- types later migrations introduce as well. Narrowing it here would reject
+-- rows those migrations already inserted.
 alter table places drop constraint if exists places_facility_type_check;
 alter table places add constraint places_facility_type_check check (facility_type in (
   'clinic', 'bar', 'nightclub', 'community_space', 'park', 'restroom',
   'sauna', 'gym', 'hotel', 'dungeon', 'venue', 'cafe', 'shop', 'library',
-  'staircase', 'trail', 'transit', 'parking', 'beach', 'adult_venue', 'other'
+  'staircase', 'trail', 'transit', 'parking', 'beach', 'adult_venue',
+  'adult_shop', 'music_venue', 'sports_venue', 'other'
 ));
 
 create index if not exists idx_places_status_location on places (status, latitude, longitude);

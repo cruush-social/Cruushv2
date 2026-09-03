@@ -201,7 +201,7 @@ describe('MapPingSheet', () => {
       />,
     );
 
-    expect(screen.getByText('Basic includes 1 Ping every 24 hours.')).toBeInTheDocument();
+    expect(screen.getByText('Basic includes 1 Pulse every 24 hours.')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Get cruush+' }));
     expect(onUpgrade).toHaveBeenCalledTimes(1);
   });
@@ -246,8 +246,14 @@ describe('MapPingSheet', () => {
     expect(screen.getByRole('button', { name: 'Send Pulse' })).toBeDisabled();
   });
 
-  it('prevents another Ping while one is active', () => {
-    render(
+  it('prevents another Pulse while one is active and the cooldown is running', () => {
+    const activePing = {
+      id: 'ping-1',
+      expiresAt: new Date(Date.now() + 60_000).toISOString(),
+    };
+    const nextEligibleAt = new Date(Date.now() + 4 * 60 * 60_000).toISOString();
+
+    const { rerender } = render(
       <MapPingSheet
         open
         onOpenChange={vi.fn()}
@@ -255,12 +261,35 @@ describe('MapPingSheet', () => {
           ...availableStatus,
           allowance: {
             ...availableStatus.allowance,
-            nextEligibleAt: new Date(Date.now() + 4 * 60 * 60_000).toISOString(),
+            nextEligibleAt,
           },
-          activePing: {
-            id: 'ping-1',
-            expiresAt: new Date(Date.now() + 60_000).toISOString(),
+          activePing,
+        }}
+        loading={false}
+        hasMapLocation
+        signal="At the park"
+        onRefresh={vi.fn().mockResolvedValue(undefined)}
+        onSend={vi.fn()}
+      />,
+    );
+
+    // The raised allowance offers another Pulse, but the cooldown still blocks it.
+    expect(screen.getByRole('button', { name: 'Send another Pulse' })).toBeDisabled();
+    expect(screen.getByRole('timer', { name: 'Pulse cooldown' })).toBeInTheDocument();
+
+    rerender(
+      <MapPingSheet
+        open
+        onOpenChange={vi.fn()}
+        status={{
+          ...availableStatus,
+          allowance: {
+            ...availableStatus.allowance,
+            used: availableStatus.allowance.limit,
+            remaining: 0,
+            nextEligibleAt,
           },
+          activePing,
         }}
         loading={false}
         hasMapLocation

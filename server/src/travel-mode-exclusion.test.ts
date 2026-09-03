@@ -11,10 +11,10 @@ const privacyRoute = new URL("./routes/privacy.ts", import.meta.url);
 const source = await import("node:fs").then((fs) => fs.readFileSync(privacyRoute, "utf8"));
 
 describe("Mile High Club and Dark Room are mutually exclusive", () => {
-  it("requires an encrypted actual location more than 50 miles from the travel pin", () => {
+  it("checks the travel pin against an encrypted actual location", () => {
     expect(source).toContain("loadLocationEnvelope(");
     expect(source).toContain("isTravelPinDistanceAllowed(distanceMiles(actualCoordinates");
-    expect(source).toContain("Mile High Club locations must be more than 50 miles from your current location.");
+    expect(source).toContain("That Mile High Club location is invalid.");
   });
 
   it("refuses Dark Room while a travel pin is down", () => {

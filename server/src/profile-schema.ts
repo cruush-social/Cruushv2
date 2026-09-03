@@ -364,7 +364,11 @@ export const profilePayloadSchema = z.object({
     roles: [],
     kinks: [],
     body_types: [],
+    body_hair: [],
+    pubic_hair: [],
+    facial_hair: [],
     sexuality: [],
+    zodiac: [],
     substance_boundaries: [],
     protection_boundaries: []
   })
@@ -483,7 +487,11 @@ export const emptyProfile = {
     roles: [],
     kinks: [],
     body_types: [],
+    body_hair: [],
+    pubic_hair: [],
+    facial_hair: [],
     sexuality: [],
+    zodiac: [],
     substance_boundaries: [],
     protection_boundaries: []
   }

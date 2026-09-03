@@ -34,7 +34,8 @@ export function isAgeSuspensionAppeal(input: {
     return false;
   }
 
-  return AGE_APPEAL_TERMS.test(`${input.subject} ${input.message}`);
+  return input.category === "policy"
+    || AGE_APPEAL_TERMS.test(`${input.subject} ${input.message}`);
 }
 
 type SupportRequestRow = {

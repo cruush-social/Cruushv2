@@ -39,3 +39,8 @@
 - Zodiac saved in Edit Profile now appears on profiles and is available in Seeking Filters and Visibility Controls.
 - Restored deployed top-bar, popup-shell, and Close-control geometry after unrelated 1.6 edits changed shared page chrome; Profile Intimacy now renders one Hair now section instead of two. Regression coverage: `src/app/components/AlphaBugButton.test.tsx`, `src/app/components/CruushActivity.test.tsx`, `src/app/components/MapHome.test.tsx`, and `src/app/components/ProfileView.test.tsx`.
 - That sweep also reverted requested Cruushes layout. The centered stats and tab block and the small-screen tab padding that keeps all four labels readable are restored. Regression coverage: `src/app/components/CruushActivity.test.tsx`.
+- Saved visibility exclusions for body hair, pubic hair, facial hair and zodiac were dropped when the encrypted rules were decrypted, so those filters silently stopped applying to discovery, Pulse and profile access. Regression coverage: `server/src/app.test.ts`.
+- Spot check-in Feed posts read "Checked in at undefined" because the published-place lookup never selected the Spot name. Regression coverage: `server/src/app.test.ts`.
+- Support requests in the policy category stopped being triaged as age-suspension appeals. Regression coverage: `server/src/age-appeal-detection.test.ts`.
+- Migrations 103 and 104 re-added a facility-type constraint that rejects the adult shop, music venue and sports venue rows migration 134 inserts, so every replay against a populated database failed. Regression coverage: `server/src/migrate.test.ts`.
+- Map control hover darkens the control again instead of washing it lighter. Regression coverage: `src/app/components/MapHome.test.tsx`.

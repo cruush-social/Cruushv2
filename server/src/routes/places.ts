@@ -244,8 +244,8 @@ function placeOrder(sort: string) {
 }
 
 async function requirePublishedPlace(app: FastifyInstance, placeId: string) {
-  const row = (await app.db.query<{ id: string; latitude: number; longitude: number }>(
-    `select id::text, latitude, longitude from places where id = $1 and status = 'published' limit 1`,
+  const row = (await app.db.query<{ id: string; name: string; latitude: number; longitude: number }>(
+    `select id::text, name, latitude, longitude from places where id = $1 and status = 'published' limit 1`,
     [placeId]
   )).rows[0];
   if (!row) throw new ApiError(404, "NOT_FOUND", "Spot not found.");

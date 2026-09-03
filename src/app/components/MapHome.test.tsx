@@ -1749,8 +1749,10 @@ describe('MapHome', () => {
       notificationButton,
       settingsButton,
     ]) {
-      expect(button).toHaveClass('bg-transparent', 'hover:bg-white/10', 'focus-visible:bg-transparent');
+      // Hover darkens the control instead of washing it lighter.
+      expect(button).toHaveClass('bg-transparent', 'hover:bg-black/45', 'focus-visible:bg-transparent');
       expect(button).not.toHaveClass('hover:bg-transparent');
+      expect(button).not.toHaveClass('hover:bg-white/10');
     }
     expect(dlModeButton).not.toHaveClass('bg-white/[0.07]');
     expect(notificationIcon).toHaveClass('h-10', 'w-10', 'scale-[1.28]', 'object-contain', 'max-[360px]:h-9', 'max-[360px]:w-9', 'lg:h-11', 'lg:w-11');

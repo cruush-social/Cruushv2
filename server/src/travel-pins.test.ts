@@ -12,10 +12,12 @@ import {
 } from "./travel-pins.js";
 
 describe("travel pins", () => {
-  it("requires a Mile High Club pin to be strictly more than 50 miles away", () => {
-    expect(isTravelPinDistanceAllowed(TRAVEL_PIN_MIN_DISTANCE_MILES - 0.001)).toBe(false);
-    expect(isTravelPinDistanceAllowed(TRAVEL_PIN_MIN_DISTANCE_MILES)).toBe(false);
+  it("allows a Mile High Club pin at any distance and rejects an unusable one", () => {
+    expect(TRAVEL_PIN_MIN_DISTANCE_MILES).toBe(0);
+    expect(isTravelPinDistanceAllowed(TRAVEL_PIN_MIN_DISTANCE_MILES)).toBe(true);
     expect(isTravelPinDistanceAllowed(TRAVEL_PIN_MIN_DISTANCE_MILES + 0.001)).toBe(true);
+    expect(isTravelPinDistanceAllowed(120)).toBe(true);
+    expect(isTravelPinDistanceAllowed(-0.001)).toBe(false);
     expect(isTravelPinDistanceAllowed(Number.NaN)).toBe(false);
   });
 

@@ -28,9 +28,15 @@ const publicProfileRules: ProfileVisibilityRules = {
   positions: [],
   roles: [],
   kinks: [],
+  preferred_spots: [],
   body_types: [],
+  body_hair: [],
+  pubic_hair: [],
+  facial_hair: [],
   sexuality: [],
-  substance_boundaries: []
+  zodiac: [],
+  substance_boundaries: [],
+  protection_boundaries: []
 };
 
 function mapPolicy(input: Partial<VisibilityPolicyPayload> = {}): VisibilityPolicyPayload {

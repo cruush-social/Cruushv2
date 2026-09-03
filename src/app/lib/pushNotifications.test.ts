@@ -82,7 +82,8 @@ describe('pushNotifications', () => {
       },
     });
 
-    await expect(enablePushNotifications()).rejects.toThrow('Notifications are blocked for cruush');
+    await expect(enablePushNotifications()).rejects
+      .toThrow(new Error('Notifications are blocked for cruush in this browser.'));
     expect(subscribe).not.toHaveBeenCalled();
     expect(subscribeToPushNotifications).not.toHaveBeenCalled();
   });
