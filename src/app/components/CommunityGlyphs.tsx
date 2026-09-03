@@ -6,8 +6,10 @@
  */
 
 import t4tLinkedSymbol from '../assets/ui-icons/t4t-pride-linked-symbol.png';
+import aceSpectrumDiamond from '../assets/ui-icons/ace-spectrum-diamond-2226685.png';
 import bdsmTriskelion from '../assets/ui-icons/bdsm-89011.png';
 import bisexualitySymbol from '../assets/ui-icons/bisexuality-2431635.png';
+import gaySymbol from '../assets/ui-icons/gay-7284797.png';
 import labrysSymbol from '../assets/ui-icons/labrys-5692573.png';
 import polyamoryInfinityHeart from '../assets/ui-icons/polyamory-2751502.png';
 
@@ -72,6 +74,20 @@ export function NonbinaryGlyph(props: GlyphProps) {
       <path d="m9.4 2.5 5.2 5.2" />
       <path d="m14.6 2.5-5.2 5.2" />
     </Glyph>
+  );
+}
+
+/** The interlocking double Mars symbol. */
+export function DoubleMarsSymbolGlyph({ className }: GlyphProps) {
+  return (
+    <img alt="" aria-hidden="true" className={`object-contain invert ${className ?? ''}`} draggable={false} src={gaySymbol} />
+  );
+}
+
+/** The ace spectrum diamond. */
+export function AceSpectrumGlyph({ className }: GlyphProps) {
+  return (
+    <img alt="" aria-hidden="true" className={`object-contain invert ${className ?? ''}`} draggable={false} src={aceSpectrumDiamond} />
   );
 }
 

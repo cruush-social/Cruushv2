@@ -3,13 +3,13 @@ import { AnalGlyph, BondageGlyph, CyborgGlyph, GooningGlyph, HarnessGlyph, Keyho
 import {
   BdsmTriskelionGlyph,
   BisexualGlyph,
-  DoubleMarsGlyph,
+  AceSpectrumGlyph,
+  DoubleMarsSymbolGlyph,
   DoubleVenusGlyph,
   IntersexGlyph,
   LabrysGlyph,
   MarsVenusGlyph,
   NonbinaryGlyph,
-  PlayingCard,
   PolyGlyph,
   T4TGlyph,
   TransGlyph,
@@ -305,7 +305,7 @@ export const BADGE_OPTIONS: BadgeOption[] = [
   { id: 'discreet', label: 'Discreet', icon: EyeOff, group: 'Vibes' },
 
   // Pride: established community symbols sized to sit beside the hanky set.
-  { id: 'gay', label: 'Gay', icon: DoubleMarsGlyph, group: 'Pride' },
+  { id: 'gay', label: 'Gay', icon: DoubleMarsSymbolGlyph, group: 'Pride' },
   { id: 'lesbian', label: 'Lesbian', icon: DoubleVenusGlyph, group: 'Pride' },
   { id: 'labrys', label: 'Labrys', icon: LabrysGlyph, group: 'Pride' },
   { id: 'bisexual', label: 'Bisexual', icon: BisexualGlyph, group: 'Pride' },
@@ -314,7 +314,7 @@ export const BADGE_OPTIONS: BadgeOption[] = [
   { id: 'trans-symbol', label: 'Trans', icon: TransGlyph, group: 'Pride' },
   { id: 'intersex', label: 'Intersex', icon: IntersexGlyph, group: 'Pride' },
   { id: 'enby', label: 'Nonbinary', icon: NonbinaryGlyph, group: 'Pride' },
-  { id: 'ace-spec', label: 'Ace spectrum', icon: PlayingCard, group: 'Pride' },
+  { id: 'ace-spec', label: 'Ace spectrum', icon: AceSpectrumGlyph, group: 'Pride' },
   { id: 'poly', label: 'Poly', icon: PolyGlyph, group: 'Pride' },
   { id: 'queer', label: 'Queer', icon: Sparkles, group: 'Pride' },
   { id: 'poz-friendly', label: 'Poz friendly', icon: HeartHandshake, group: 'Pride' },

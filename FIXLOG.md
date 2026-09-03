@@ -44,3 +44,6 @@
 - Support requests in the policy category stopped being triaged as age-suspension appeals. Regression coverage: `server/src/age-appeal-detection.test.ts`.
 - Migrations 103 and 104 re-added a facility-type constraint that rejects the adult shop, music venue and sports venue rows migration 134 inserts, so every replay against a populated database failed. Regression coverage: `server/src/migrate.test.ts`.
 - Map control hover darkens the control again instead of washing it lighter. Regression coverage: `src/app/components/MapHome.test.tsx`.
+- Spot pins stayed unclustered at neighbourhood zooms, so the imported public Spots drew dozens of overlapping diamonds. Clustering now holds to a closer zoom over a wider radius, and the 1.6 release email carries a matching capture.
+- The Gay and Ace spectrum badges used a hand-drawn mark and a playing-card icon while their licensed community symbols sat unused in the repo. Both now render the licensed symbol.
+- Tutorial steps showed borrowed icons that read as finished artwork. Each step now carries a gradient placeholder instead.

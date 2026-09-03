@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Bell, Download, Eye, EyeOff, Flame, Ghost, MapPin, MapPinned, Plane, Radio, RefreshCw, Rss, SlidersHorizontal, Sparkles, Users, ZoomIn } from 'lucide-react';
 import { Button } from './ui/button';
 
 export const MAP_CONTROLS_TUTORIAL_STORAGE_KEY = 'cruush:tutorial-v5-seen';
@@ -137,47 +136,6 @@ const TUTORIAL_STEPS: TutorialStep[] = [
     actionLabel: 'Open Feed',
   },
 ];
-
-function StepIcon({ id }: { id: MapControlsTutorialStepId }) {
-  switch (id) {
-    case 'install':
-      return <Download className="h-5 w-5 text-primary" />;
-    case 'notifications':
-      return <Bell className="h-5 w-5 text-primary" />;
-    case 'map-controls':
-      return <SlidersHorizontal className="h-5 w-5 text-primary" />;
-    case 'seeking':
-      return <SlidersHorizontal className="h-5 w-5 text-primary" />;
-    case 'visibility':
-      return <EyeOff className="h-5 w-5 text-primary" />;
-    case 'cruush-plus':
-      return <Sparkles className="h-5 w-5 text-primary" />;
-    case 'mile-high-club':
-      return <Plane className="h-5 w-5 text-primary" />;
-    case 'places':
-      return <MapPinned className="h-5 w-5 text-primary" />;
-    case 'heatmap':
-      return <Flame className="h-5 w-5 text-primary" />;
-    case 'crowds':
-      return <Users className="h-5 w-5 text-primary" />;
-    case 'ghost':
-      return <Ghost className="h-5 w-5 text-primary animate-pulse" />;
-    case 'dl-mode':
-      return <Eye className="h-5 w-5 text-primary" />;
-    case 'ping':
-      return <Radio className="h-5 w-5 text-primary" />;
-    case 'profile-pin':
-      return <MapPin className="h-5 w-5 text-primary" />;
-    case 'zoom':
-      return <ZoomIn className="h-5 w-5 text-primary" />;
-    case 'carousel':
-      return <RefreshCw className="h-5 w-5 text-primary" />;
-    case 'feed':
-      return <Rss className="h-5 w-5 text-primary" />;
-    default:
-      return <Ghost className="h-5 w-5 text-primary" />;
-  }
-}
 
 export function getStoredMapControlsTutorialStep(): MapControlsTutorialStepId | null {
   if (typeof window === 'undefined') {
@@ -742,9 +700,14 @@ export default function MapControlsTutorial({ open, onComplete, onActivateStep, 
         </div>
 
         <div className="mt-2 flex items-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-primary/40 bg-primary/20 text-primary shadow-[0_0_15px_rgba(255,0,114,0.35)]">
-            <StepIcon id={step.id} />
-          </div>
+          {/* Gradient placeholder, not a stand-in icon: a borrowed glyph reads
+              as finished art for a step whose own mark is still to come. */}
+          <div
+            aria-hidden="true"
+            className="h-10 w-10 shrink-0 rounded-xl shadow-[0_0_15px_rgba(255,0,114,0.35)]"
+            data-testid="tutorial-step-mark"
+            style={{ background: 'var(--cruush-gradient)' }}
+          />
           <div>
             <h2 className="text-xl font-medium">{step.title}</h2>
             <p className="text-[10px] uppercase tracking-[0.15em] text-white/50">

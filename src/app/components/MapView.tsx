@@ -187,8 +187,12 @@ const SAME_LOCATION_CLUSTER_PRECISION = 6;
 const SPIDERFY_RADIUS_PX = 86;
 const SPIDERFY_SECOND_RING_RADIUS_PX = 122;
 const SPIDERFY_SECOND_RING_AFTER = 10;
-const PLACE_CLUSTER_MAX_ZOOM = 13.5;
-const PLACE_CLUSTER_RADIUS_PX = 68;
+// The public Spot set is dense enough that neighbourhood zooms drew dozens of
+// separate diamonds on top of each other. Clustering holds to a closer zoom and
+// gathers a wider pixel radius, so the map reads as counts until the spots are
+// far enough apart to stand on their own.
+const PLACE_CLUSTER_MAX_ZOOM = 15.5;
+const PLACE_CLUSTER_RADIUS_PX = 108;
 const USER_HEATMAP_SOURCE_ID = 'cruush-user-heatmap';
 const USER_HEATMAP_LAYER_ID = 'cruush-user-heatmap-layer';
 // Broad cells plus a minimum cohort keep the activity layer from tracing one
