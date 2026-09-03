@@ -4,7 +4,7 @@ import {
   BdsmTriskelionGlyph,
   BisexualGlyph,
   AceSpectrumGlyph,
-  DoubleMarsSymbolGlyph,
+  DoubleMarsGlyph,
   DoubleVenusGlyph,
   IntersexGlyph,
   LabrysGlyph,
@@ -305,7 +305,7 @@ export const BADGE_OPTIONS: BadgeOption[] = [
   { id: 'discreet', label: 'Discreet', icon: EyeOff, group: 'Vibes' },
 
   // Pride: established community symbols sized to sit beside the hanky set.
-  { id: 'gay', label: 'Gay', icon: DoubleMarsSymbolGlyph, group: 'Pride' },
+  { id: 'gay', label: 'Gay', icon: DoubleMarsGlyph, group: 'Pride' },
   { id: 'lesbian', label: 'Lesbian', icon: DoubleVenusGlyph, group: 'Pride' },
   { id: 'labrys', label: 'Labrys', icon: LabrysGlyph, group: 'Pride' },
   { id: 'bisexual', label: 'Bisexual', icon: BisexualGlyph, group: 'Pride' },

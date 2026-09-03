@@ -53,3 +53,4 @@
 - The hanky code dark-pink meaning reads nipple play, and the removed tit torture kink no longer sits in the profile tag reservations.
 - The workbook and OpenStreetMap imports each carried some of the same places, so 97 Spots appeared twice within a hundred and fifty metres of themselves, splitting check-ins and Pink Book posts between two pins. The oldest row keeps the Spot; separate branches of a chain are untouched.
 -  renders all 153 badges grouped as the badge menu groups them, drawn through the same frame and geometry the app uses so the page cannot drift from what ships.
+- The Pride badge list imported a glyph that had been deleted in the same session, so the app failed to boot with a blank root. The Gay badge keeps the double Mars and the import matches it.
