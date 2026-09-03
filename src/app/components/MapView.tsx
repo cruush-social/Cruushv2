@@ -16,6 +16,7 @@ import {
   Coffee,
   Cross,
   Dumbbell,
+  Fuel,
   HeartHandshake,
   KeyRound,
   Martini,
@@ -26,8 +27,11 @@ import {
   Route,
   Shapes,
   ShoppingBag,
+  ShoppingCart,
   Toilet,
   TrainFront,
+  TrainTrack,
+  TreeDeciduous,
   Trees,
   Trophy,
   User,
@@ -188,11 +192,17 @@ const SPIDERFY_RADIUS_PX = 86;
 const SPIDERFY_SECOND_RING_RADIUS_PX = 122;
 const SPIDERFY_SECOND_RING_AFTER = 10;
 // The public Spot set is dense enough that neighbourhood zooms drew dozens of
-// separate diamonds on top of each other. Clustering holds to a closer zoom and
-// gathers a wider pixel radius, so the map reads as counts until the spots are
-// far enough apart to stand on their own.
+// separate diamonds on top of each other, so clustering holds to a closer zoom.
+// The radius tightens as the map comes in: a wide gather reads as one useful
+// count from the city view, but the same width at street level would swallow a
+// whole district into a single number.
 const PLACE_CLUSTER_MAX_ZOOM = 15.5;
-const PLACE_CLUSTER_RADIUS_PX = 108;
+
+function placeClusterRadiusPx(zoom: number) {
+  if (zoom >= 14.5) return 58;
+  if (zoom >= 12.5) return 76;
+  return 104;
+}
 const USER_HEATMAP_SOURCE_ID = 'cruush-user-heatmap';
 const USER_HEATMAP_LAYER_ID = 'cruush-user-heatmap-layer';
 // Broad cells plus a minimum cohort keep the activity layer from tracing one
@@ -892,33 +902,27 @@ function applyPlaceMarkerClusters(markers: DisplayMapMarker[], zoom: number): Di
     return [...markers.filter((marker) => !clusteredIds.has(marker.id)), ...clusters];
   }
 
+  const radiusPx = placeClusterRadiusPx(zoom);
   const points = new Map(placeMarkers.map((marker) => [marker.id, mercatorPixelPoint(marker, zoom)]));
   const buckets = new Map<string, DisplayMapMarker[]>();
   placeMarkers.forEach((marker) => {
     if (clusteredIds.has(marker.id)) return;
     const point = points.get(marker.id)!;
-    const key = `${Math.floor(point.x / PLACE_CLUSTER_RADIUS_PX)}:${Math.floor(point.y / PLACE_CLUSTER_RADIUS_PX)}`;
+    const key = `${Math.floor(point.x / radiusPx)}:${Math.floor(point.y / radiusPx)}`;
     const bucket = buckets.get(key);
     if (bucket) bucket.push(marker);
     else buckets.set(key, [marker]);
   });
 
-  placeMarkers.forEach((seed) => {
-    if (clusteredIds.has(seed.id)) return;
-    const seedPoint = points.get(seed.id)!;
-    const cellX = Math.floor(seedPoint.x / PLACE_CLUSTER_RADIUS_PX);
-    const cellY = Math.floor(seedPoint.y / PLACE_CLUSTER_RADIUS_PX);
-    const nearby = [-1, 0, 1].flatMap((xOffset) => (
-      [-1, 0, 1].flatMap((yOffset) => buckets.get(`${cellX + xOffset}:${cellY + yOffset}`) ?? [])
-    ));
-    const group = nearby.filter((candidate) => {
-      if (clusteredIds.has(candidate.id)) return false;
-      const candidatePoint = points.get(candidate.id)!;
-      return Math.hypot(candidatePoint.x - seedPoint.x, candidatePoint.y - seedPoint.y) <= PLACE_CLUSTER_RADIUS_PX;
-    });
-    if (group.length < 2) return;
-    group.forEach((marker) => clusteredIds.add(marker.id));
-    clusters.push(buildPlaceCluster(group, clusters.length));
+  // One cluster per cell, not a radius sweep from each seed. A radius sweep
+  // through a dense district chains neighbour into neighbour until a whole
+  // borough answers to a single number; a fixed grid keeps the counts spread
+  // across the view, which is what tells somebody where the Spots actually are.
+  buckets.forEach((group) => {
+    const available = group.filter((marker) => !clusteredIds.has(marker.id));
+    if (available.length < 2) return;
+    available.forEach((marker) => clusteredIds.add(marker.id));
+    clusters.push(buildPlaceCluster(available, clusters.length));
   });
 
   return [...markers.filter((marker) => !clusteredIds.has(marker.id)), ...clusters];
@@ -1701,6 +1705,10 @@ const PLACE_MARKER_CONFIG: Record<string, { icon?: LucideIcon; special?: 'stairs
   adult_shop: { icon: PackageOpen },
   music_venue: { icon: MicVocal },
   sports_venue: { icon: Trophy },
+  retail: { icon: ShoppingCart },
+  woods: { icon: TreeDeciduous },
+  rest_stop: { icon: Fuel },
+  bridge: { icon: TrainTrack },
   other: { icon: Shapes },
 };
 

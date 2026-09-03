@@ -14,6 +14,7 @@ import MapHome, {
   canUseDeveloperMapToolsEmail,
   getAllPlacesForMap,
   isCoordinateInViewport,
+  SPOT_MAP_VIEW_LIMIT,
 } from './MapHome';
 
 const { getNearbyUsers } = vi.hoisted(() => ({
@@ -459,11 +460,13 @@ async function openMapControls() {
 }
 
 describe('Spot map loading', () => {
-  it('loads every page without duplicating a Spot returned across page boundaries', async () => {
-    const firstPage = Array.from({ length: 500 }, (_, index) => placeRecord(`spot-${index}`));
+  it('pages to the view limit without duplicating a Spot returned across page boundaries', async () => {
+    const firstPage = Array.from({ length: 100 }, (_, index) => placeRecord(`spot-${index}`));
+    const secondPage = [firstPage[99], ...Array.from({ length: 99 }, (_, index) => placeRecord(`spot-${100 + index}`))];
     getPlaces
       .mockResolvedValueOnce(firstPage)
-      .mockResolvedValueOnce([firstPage[499], placeRecord('spot-500')]);
+      .mockResolvedValueOnce(secondPage)
+      .mockResolvedValueOnce([placeRecord('spot-199')]);
 
     const places = await getAllPlacesForMap({
       latitude: 40.73,
@@ -471,10 +474,29 @@ describe('Spot map loading', () => {
       radiusMiles: 12,
     });
 
-    expect(places).toHaveLength(501);
-    expect(places.at(-1)?.id).toBe('spot-500');
-    expect(getPlaces).toHaveBeenNthCalledWith(1, expect.objectContaining({ limit: 500, offset: 0 }));
-    expect(getPlaces).toHaveBeenNthCalledWith(2, expect.objectContaining({ limit: 500, offset: 500 }));
+    // The API caps a page at 100, and the map stops at the nearest few hundred
+    // rather than paging the whole radius, so the loop is bounded twice over.
+    expect(places).toHaveLength(200);
+    expect(places.length).toBeLessThanOrEqual(SPOT_MAP_VIEW_LIMIT);
+    expect(new Set(places.map((place) => place.id)).size).toBe(places.length);
+    expect(getPlaces).toHaveBeenNthCalledWith(1, expect.objectContaining({ limit: 100, offset: 0 }));
+    expect(getPlaces).toHaveBeenNthCalledWith(2, expect.objectContaining({ limit: 100, offset: 100 }));
+  });
+
+  it('stops paging when a full page repeats Spots it has already collected', async () => {
+    const firstPage = Array.from({ length: 100 }, (_, index) => placeRecord(`spot-${index}`));
+    getPlaces.mockClear();
+    getPlaces.mockResolvedValue(firstPage);
+
+    const places = await getAllPlacesForMap({
+      latitude: 40.73,
+      longitude: -73.97,
+      radiusMiles: 12,
+    });
+
+    // A server repeating itself must not spin the loop until the tab dies.
+    expect(places).toHaveLength(100);
+    expect(getPlaces).toHaveBeenCalledTimes(2);
   });
 
   it('keeps only coordinates inside settled bounds, including a viewport crossing the antimeridian', () => {
@@ -497,10 +519,10 @@ describe('Spot map loading', () => {
 });
 
 describe('Spot taxonomy', () => {
-  it('offers the 23 approved facility choices and retains legacy venue reads as Other', () => {
-    expect(PLACE_FACILITY_TYPES).toHaveLength(23);
-    expect(new Set(PLACE_FACILITY_TYPES).size).toBe(23);
-    expect(PLACE_FACILITY_TYPES).toEqual(expect.arrayContaining(['adult_shop', 'music_venue', 'sports_venue']));
+  it('offers the 27 approved facility choices and retains legacy venue reads as Other', () => {
+    expect(PLACE_FACILITY_TYPES).toHaveLength(27);
+    expect(new Set(PLACE_FACILITY_TYPES).size).toBe(27);
+    expect(PLACE_FACILITY_TYPES).toEqual(expect.arrayContaining(['adult_shop', 'music_venue', 'sports_venue', 'retail', 'woods', 'rest_stop', 'bridge']));
     expect(PLACE_FACILITY_LABELS.bar).toBe('Bars');
     expect(PLACE_FACILITY_LABELS.venue).toBe('Other');
   });

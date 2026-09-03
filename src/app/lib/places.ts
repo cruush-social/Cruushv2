@@ -2,7 +2,8 @@ export const PLACE_FACILITY_TYPES = [
   'clinic', 'bar', 'nightclub', 'community_space', 'park', 'restroom',
   'sauna', 'gym', 'hotel', 'dungeon', 'cafe', 'shop', 'library',
   'staircase', 'trail', 'transit', 'parking', 'beach', 'adult_venue',
-  'adult_shop', 'music_venue', 'sports_venue', 'other',
+  'adult_shop', 'music_venue', 'sports_venue', 'retail', 'woods',
+  'rest_stop', 'bridge', 'other',
 ] as const;
 
 export const PLACE_TAGS = [
@@ -32,7 +33,8 @@ export const PLACE_FACILITY_LABELS: Record<PlaceFacilityType, string> = {
   dungeon: 'Dungeon', venue: 'Other', cafe: 'Café', shop: 'Shop', library: 'Library',
   staircase: 'Staircase', trail: 'Trail', transit: 'Transit', parking: 'Parking',
   beach: 'Beach', adult_venue: 'Adult venue', adult_shop: 'Adult shop',
-  music_venue: 'Music venue', sports_venue: 'Sports venue', other: 'Other',
+  music_venue: 'Music venue', sports_venue: 'Sports venue', retail: 'Stores',
+  woods: 'Woods', rest_stop: 'Rest stops', bridge: 'Bridges', other: 'Other',
 };
 
 export const PLACE_FACILITY_SINGULAR_LABELS: Record<PlaceFacilityType, string> = {
@@ -41,7 +43,8 @@ export const PLACE_FACILITY_SINGULAR_LABELS: Record<PlaceFacilityType, string> =
   dungeon: 'Dungeon', venue: 'Spot', cafe: 'Café', shop: 'Shop', library: 'Library',
   staircase: 'Staircase', trail: 'Trail', transit: 'Transit', parking: 'Parking',
   beach: 'Beach', adult_venue: 'Adult venue', adult_shop: 'Adult shop',
-  music_venue: 'Music venue', sports_venue: 'Sports venue', other: 'Spot',
+  music_venue: 'Music venue', sports_venue: 'Sports venue', retail: 'Store',
+  woods: 'Woods', rest_stop: 'Rest stop', bridge: 'Bridge', other: 'Spot',
 };
 
 export const PLACE_TAG_LABELS: Record<PlaceTag, string> = {

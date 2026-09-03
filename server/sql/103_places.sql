@@ -45,7 +45,8 @@ alter table places add constraint places_facility_type_check check (facility_typ
   'clinic', 'bar', 'nightclub', 'community_space', 'park', 'restroom',
   'sauna', 'gym', 'hotel', 'dungeon', 'venue', 'cafe', 'shop', 'library',
   'staircase', 'trail', 'transit', 'parking', 'beach', 'adult_venue',
-  'adult_shop', 'music_venue', 'sports_venue', 'other'
+  'adult_shop', 'music_venue', 'sports_venue',
+  'retail', 'woods', 'rest_stop', 'bridge', 'other'
 ));
 
 create index if not exists idx_places_status_location on places (status, latitude, longitude);

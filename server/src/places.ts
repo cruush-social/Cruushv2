@@ -5,7 +5,8 @@ export const PLACE_FACILITY_TYPES = [
   "clinic", "bar", "nightclub", "community_space", "park", "restroom",
   "sauna", "gym", "hotel", "dungeon", "cafe", "shop", "library",
   "staircase", "trail", "transit", "parking", "beach", "adult_venue",
-  "adult_shop", "music_venue", "sports_venue", "other"
+  "adult_shop", "music_venue", "sports_venue", "retail", "woods",
+  "rest_stop", "bridge", "other"
 ] as const;
 
 export const PLACE_TAGS = [

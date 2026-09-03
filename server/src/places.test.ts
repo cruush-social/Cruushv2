@@ -23,10 +23,10 @@ const privacyConfig = {
 } as AppConfig;
 
 describe("Spot taxonomy", () => {
-  it("accepts exactly the 23 approved facility categories", () => {
-    expect(PLACE_FACILITY_TYPES).toHaveLength(23);
-    expect(new Set(PLACE_FACILITY_TYPES).size).toBe(23);
-    expect(PLACE_FACILITY_TYPES).toEqual(expect.arrayContaining(["adult_shop", "music_venue", "sports_venue"]));
+  it("accepts exactly the 27 approved facility categories", () => {
+    expect(PLACE_FACILITY_TYPES).toHaveLength(27);
+    expect(new Set(PLACE_FACILITY_TYPES).size).toBe(27);
+    expect(PLACE_FACILITY_TYPES).toEqual(expect.arrayContaining(["adult_shop", "music_venue", "sports_venue", "retail", "woods", "rest_stop", "bridge"]));
     expect(PLACE_FACILITY_TYPES).not.toContain("venue");
     expect(storedPlaceSuggestionSchema.safeParse({
       name: "Legacy venue",

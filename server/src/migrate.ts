@@ -140,7 +140,13 @@ const migrationFiles = [
   "131_profile_taxonomy_refinements.sql",
   "132_default_profile_side_badges.sql",
   "133_profile_video_games.sql",
-  "134_full_nyc_spot_import.sql"
+  "134_full_nyc_spot_import.sql",
+  "135_gyms_from_source_platform_only.sql",
+  "136_major_sports_venues_only.sql",
+  "137_lgbt_community_spaces_and_ymca.sql",
+  "138_alt_music_venues_only.sql",
+  "139_live_music_rooms.sql",
+  "140_other_bucket_categories.sql"
 ];
 const rewardSafetyPreflightFiles = [
   "079_daily_check_in_rewards.sql",

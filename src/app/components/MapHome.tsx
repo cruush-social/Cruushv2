@@ -196,20 +196,28 @@ export function isCoordinateInViewport(
   return latitude >= viewport.south && latitude <= viewport.north && longitudeInBounds;
 }
 
-const SPOT_MAP_PAGE_SIZE = 500;
+// The API caps a page at 100, so asking for more only paged the whole radius
+// one hundred rows at a time. Against the imported public Spot set that meant
+// over a hundred sequential requests and ten thousand markers for one view.
+const SPOT_MAP_PAGE_SIZE = 100;
+// The map shows the nearest Spots to the current view and re-queries as the
+// view moves, so zooming in reveals the rest instead of drawing every Spot in
+// the radius at once.
+export const SPOT_MAP_VIEW_LIMIT = 300;
 
 export async function getAllPlacesForMap(options: Parameters<typeof getPlaces>[0]) {
   const collected: PlaceRecord[] = [];
   const knownIds = new Set<string>();
   let offset = 0;
 
-  while (true) {
+  while (collected.length < SPOT_MAP_VIEW_LIMIT) {
     const page = await getPlaces({
       ...options,
-      limit: SPOT_MAP_PAGE_SIZE,
+      limit: Math.min(SPOT_MAP_PAGE_SIZE, SPOT_MAP_VIEW_LIMIT - collected.length),
       offset,
     });
 
+    const sizeBeforePage = collected.length;
     page.forEach((place) => {
       if (!knownIds.has(place.id)) {
         collected.push(place);
@@ -217,12 +225,17 @@ export async function getAllPlacesForMap(options: Parameters<typeof getPlaces>[0
       }
     });
 
-    if (page.length < SPOT_MAP_PAGE_SIZE) {
+    // A short page means the radius is exhausted. A full page that adds nothing
+    // new means the server is repeating itself, and paging on would spin
+    // forever, so stop on either.
+    if (page.length < SPOT_MAP_PAGE_SIZE || collected.length === sizeBeforePage) {
       return collected;
     }
 
     offset += SPOT_MAP_PAGE_SIZE;
   }
+
+  return collected;
 }
 const CROWD_NOTICE_LABELS: Record<string, string> = {
   Dyke: 'Dyke',
