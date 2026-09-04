@@ -233,6 +233,13 @@ describe('ProfileView', () => {
 
     // The signal reads on the photo itself rather than in a card under it.
     expect(await screen.findByTestId('profile-overlay-signal')).toHaveTextContent('Looking for late-night art kids near the venue.');
+    // It reads there once. A second copy under the photo only pushed the rest
+    // of the profile down, and the same goes for the vibe capsules. The
+    // Identities check keeps the two below honest: without it they would still
+    // pass if the tab body never rendered at all.
+    expect(screen.getByRole('heading', { name: 'Identities' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Signal' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Vibes' })).not.toBeInTheDocument();
   });
 
   it('shows the Mile High Club plane beside the name for a travelling profile', async () => {

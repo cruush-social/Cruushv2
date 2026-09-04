@@ -60,6 +60,23 @@ describe("profile visibility rules", () => {
     expect(canSubjectViewProfile(rules, { display_name: "Jay", bio: "Leather and rope", kinks: [] })).toBe(true);
   });
 
+  it("reaches the tags on a profile, with or without the hash", () => {
+    const rules: ProfileVisibilityRules = {
+      ...emptyProfile.visibility_rules,
+      search_query: "leatherdaddy"
+    };
+
+    expect(canSubjectViewProfile(rules, { display_name: "Jay", tags: ["leatherdaddy"] })).toBe(false);
+    expect(canSubjectViewProfile(rules, { display_name: "Jay", tags: ["rope"] })).toBe(true);
+
+    const hashed: ProfileVisibilityRules = {
+      ...emptyProfile.visibility_rules,
+      search_query: "#leatherdaddy"
+    };
+
+    expect(canSubjectViewProfile(hashed, { display_name: "Jay", tags: ["leatherdaddy"] })).toBe(false);
+  });
+
   it("counts only exclusion filters toward the free visibility limit", () => {
     expect(countVisibilityExclusionFilters({
       ...emptyProfile.visibility_rules,

@@ -1,14 +1,14 @@
 {
   "schemaVersion": 2,
-  "taskId": "cruush-feed-settings-align-and-test-storage-20260903",
+  "taskId": "cruush-profile-overlay-duplicates-20260903",
   "status": "active",
-  "objective": "Align the Feed settings close control with the bug button on one line, and restore the jsdom Web Storage every stored-preference suite depends on.",
-  "userOutcome": "The Feed settings header close sits on the bug button line as reported in issue 203, and the suites that silently died in beforeEach run again so Feed and DL Mode regressions are caught.",
+  "objective": "Remove the signal and vibe capsules repeated under the profile photo, and cover that the Visibility Controls search reaches profile tags.",
+  "userOutcome": "A profile reads the signal and vibes once, on the photo, so the rest of the profile is not pushed down; and tag search under Visibility Controls is pinned by a test.",
   "audience": "cruush members and the 1.6 release-email audience.",
   "successCriteria": [
-    "Close control and bug button share a vertical centre at 390x844.",
-    "LocalFeed, DlModeMasking, Settings, BottomNav, MapHome suites pass.",
-    "Served build reports the new SHA and service worker v35."
+    "No Signal or Vibes section renders under the photo on any profile.",
+    "ProfileView, MapProfilePopup, MapHome, MapVisibilitySurface suites pass.",
+    "Visibility search matches a profile tag with and without the hash."
   ],
   "mustPreserve": [
     "Preserve approved custom map tiles, theme, people pins, Ghost Mode, Dark Room, Pulse, and unrelated map behavior.",
@@ -19,9 +19,9 @@
     "Keep user-facing copy free of em dashes and spell cruush lowercase."
   ],
   "nonGoals": [
-    "No change to Feed content, posting, or settings behaviour.",
-    "No new UI elements, copy, or taglines.",
-    "No fix yet for the 20 pre-existing App route failures now visible."
+    "No change to which vibes ride the photo (still the first three).",
+    "No new Tags filter in Visibility Controls.",
+    "No change to profile editing."
   ],
   "assumptions": [
     {
@@ -43,7 +43,7 @@
       "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "Feed settings close and bug button render on one line on cruush.app at 390px.",
+  "nextVisibleMilestone": "A profile on cruush.app shows no Signal or Vibes card under the photo.",
   "stopConditions": [
     "Stop the data-expansion slice if the full prior source cache cannot be recovered or if a source record is private or unsafe to publish.",
     "Stop publication because push and deployment are not authorized by this task."
@@ -75,10 +75,10 @@
   "branch": "release/1.6-integration-20260901",
   "job": "Finish the named 1.6 changes and update the release email locally.",
   "allowedPaths": [
-    "src/app/components/LocalFeed.tsx",
-    "src/app/components/LocalFeed.test.tsx",
-    "src/app/components/DlModeMasking.test.tsx",
-    "src/test/setup.ts",
+    "src/app/components/ProfileView.tsx",
+    "src/app/components/ProfileView.test.tsx",
+    "src/app/components/MapProfilePopup.tsx",
+    "server/src/profile-visibility.test.ts",
     "index.html",
     "public/sw.js",
     "public/service-worker-recovery.js",

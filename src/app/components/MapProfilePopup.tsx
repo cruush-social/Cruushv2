@@ -381,7 +381,6 @@ export default function MapProfilePopup({
             <ProfileDetailsTabs
               activeTab={activeTab}
               compact
-              hideTopOverlayDuplicates={isOwnProfile}
               onActiveTabChange={setActiveTab}
               profileView={profileView}
             />

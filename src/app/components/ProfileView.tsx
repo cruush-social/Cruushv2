@@ -800,7 +800,6 @@ export default function ProfileView() {
           <ProfileDetailsTabs
             activeTab={activeTab}
             compact
-            hideTopOverlayDuplicates={isOwnProfile}
             onActiveTabChange={setActiveTab}
             profileView={profileView}
           />
@@ -815,13 +814,11 @@ export function ProfileDetailsTabs({
   onActiveTabChange,
   profileView,
   compact = false,
-  hideTopOverlayDuplicates = false,
 }: {
   activeTab: string;
   onActiveTabChange: (value: string) => void;
   profileView: ProfileViewModel;
   compact?: boolean;
-  hideTopOverlayDuplicates?: boolean;
 }) {
   const tabTriggerClassName = compact ? 'min-h-9' : 'min-h-11';
 
@@ -833,13 +830,9 @@ export function ProfileDetailsTabs({
         <TabsTrigger value="health" className={tabTriggerClassName} onClick={() => onActiveTabChange('health')}>Health</TabsTrigger>
       </TabsList>
 
+      {/* The signal and the vibe capsules both ride the photo above these tabs,
+          so repeating them here only pushed the rest of the profile down. */}
       <TabsContent value="basics" className={`${compact ? 'mt-4 space-y-4' : 'mt-5 space-y-5'}`}>
-        {compact && !hideTopOverlayDuplicates && profileView.signal ? (
-          <Section title="Signal" compact={compact}>
-            <p className="text-muted-foreground">{profileView.signal}</p>
-          </Section>
-        ) : null}
-
         {profileView.bio ? (
           <Section title="About" compact={compact}>
             <p className="text-muted-foreground">{profileView.bio}</p>
@@ -882,12 +875,6 @@ export function ProfileDetailsTabs({
             <DetailItem label="Weight" value={profileView.weight} compact={compact} />
           </div>
         </Section>
-
-        {!hideTopOverlayDuplicates ? (
-          <Section title="Vibes" compact={compact}>
-            <BadgeList items={profileView.vibes} variant="gradient" compact={compact} />
-          </Section>
-        ) : null}
 
         <Section title="Hobbies" compact={compact}>
           <BadgeList items={profileView.hobbies} compact={compact} />
