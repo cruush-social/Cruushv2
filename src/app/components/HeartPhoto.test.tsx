@@ -55,6 +55,12 @@ describe('HeartPhoto', () => {
   it('does not resolve a masked photo URL', () => {
     render(<HeartPhoto label="Masked photo" masked photo="https://example.com/private.jpg" />);
 
-    expect(screen.getByRole('img', { name: 'Masked photo' }).querySelector('image')).not.toBeInTheDocument();
+    const heart = screen.getByRole('img', { name: 'Masked photo' });
+    // The private photo must never reach the DOM. The DL Mode mark drawn in its
+    // place is an <image> too, so the check is on the URL, not the element.
+    expect(heart.innerHTML).not.toContain('private.jpg');
+    expect([...heart.querySelectorAll('image')].map((node) => node.getAttribute('href') ?? ''))
+      .not.toContain('https://example.com/private.jpg');
+    expect(heart.querySelector('image[href*="dl-mode"]')).toBeInTheDocument();
   });
 });

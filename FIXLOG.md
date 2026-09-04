@@ -103,3 +103,5 @@
 - The bug button covered the Feed settings close button. That dialog moves its close clear of the corner the bug button always occupies.
 - The Pulse radius is a slider in the Pulse green instead of a row of chips, and it reaches 50 miles.
 - Slider labels reach the thumb, which is the element a screen reader announces; a label on the root was never read out.
+- A heart with no photo was an empty gradient. It carries the cruush mark now, and a photo hidden by DL Mode carries the DL Mode mark instead of a generic eye.
+- The no-photo and DL Mode placeholders read the same across profile hearts, profile cards, the photo gallery and the profile editor.

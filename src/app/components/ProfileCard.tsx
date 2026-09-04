@@ -21,6 +21,7 @@ import {
 import { openConversationOrInbox } from '../lib/openConversation';
 import { PROFILE_CARD_COMPACT_MEDIA_STYLE, PROFILE_CARD_MEDIA_ASPECT_STYLE } from '../lib/photoLayout';
 import { addDlModeChangedListener, isDlModeEnabled, shouldMaskPhoto } from '../lib/dlMode';
+import DlModeMark from './DlModeMark';
 import { getProfileGradientCss } from '../lib/profileGradient';
 import { resolveVibeTone, vibeCapsuleStyle } from '../lib/vibeTone';
 import { formatDistanceWithAway, useDistancePreferences } from '../lib/distancePreferences';
@@ -279,11 +280,11 @@ export default function ProfileCard({
               role="img"
               style={{ background: getProfileGradientCss(user.id) }}
             >
-              <Eye className="h-12 w-12 text-white/80" strokeWidth={2.35} />
+              <DlModeMark active className="h-12 w-12" />
             </div>
           ) : (
-            <div className="flex h-full w-full items-center justify-center">
-              <CruushIcon name="cruush" className="h-24 w-24 opacity-20" />
+            <div className="flex h-full w-full items-center justify-center" style={{ background: getProfileGradientCss(user.id) }}>
+              <CruushIcon name="cruush" className="h-24 w-24 opacity-20" variant="white" />
             </div>
           )}
         </div>
@@ -475,11 +476,11 @@ export default function ProfileCard({
             role="img"
             style={{ ...mediaStyle, background: getProfileGradientCss(user.id) }}
           >
-            <Eye className="h-12 w-12 text-white/80" strokeWidth={2.35} />
+            <DlModeMark active className="h-12 w-12" />
           </div>
         ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <CruushIcon name="cruush" className="h-24 w-24 opacity-20" />
+          <div className="w-full h-full flex items-center justify-center" style={{ background: getProfileGradientCss(user.id) }}>
+            <CruushIcon name="cruush" className="h-24 w-24 opacity-25" variant="white" />
           </div>
         )}
 

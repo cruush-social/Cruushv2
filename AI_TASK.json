@@ -353,7 +353,9 @@
     "src/app/components/GhostModeSettings.test.tsx",
     "src/app/components/ui/dialog.tsx",
     "src/app/components/ui/slider.tsx",
-    "src/app/lib/mapPingsApi.ts"
+    "src/app/lib/mapPingsApi.ts",
+    "src/app/components/HeartPhoto.test.tsx",
+    "src/app/components/ProfilePhotoGallery.tsx"
   ],
   "forbiddenPaths": [
     "src/app/assets/brand/**",

@@ -1,5 +1,7 @@
 import type { KeyboardEvent, MouseEvent, ReactNode } from 'react';
 import { useId } from 'react';
+import cruushMarkWhite from '../assets/ui-icons/cruush-white.png';
+import dlModeBalaclavaHalo from '../assets/ui-icons/dl-mode-balaclava-halo-user-supplied.png';
 import { resolveMediaUrl } from '../lib/apiClient';
 import { HEART_PIN_PATH, HEART_PIN_THEMES, type HeartPinTheme } from '../lib/heartPin';
 import { getProfileGradientStops } from '../lib/profileGradient';
@@ -100,6 +102,19 @@ export default function HeartPhoto({
           strokeOpacity={1}
           strokeWidth="3.2"
         />
+        {/* A heart with no photo carries the cruush mark rather than reading as
+            an empty gradient, and a masked one carries the DL Mode mark. */}
+        {!resolvedPhoto ? (
+          <image
+            href={masked ? dlModeBalaclavaHalo : cruushMarkWhite}
+            width="26"
+            height="26"
+            x="19"
+            y="21"
+            opacity={masked ? 0.85 : 0.2}
+            preserveAspectRatio="xMidYMid meet"
+          />
+        ) : null}
         {staticMileHigh ? (
           <MileHighContrail
             forceReducedMotion
