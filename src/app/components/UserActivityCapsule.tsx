@@ -49,11 +49,12 @@ export default function UserActivityCapsule({
   testId = 'user-activity-capsule',
 }: UserActivityCapsuleProps) {
   const identity = (
-    <div className={`cruush-user-activity-identity flex min-w-0 flex-nowrap items-baseline gap-x-2 ${compactIdentityMeta ? '' : 'pr-9'}`}>
+    <div className={`cruush-user-activity-identity flex min-w-0 flex-nowrap items-baseline gap-x-2 overflow-hidden ${compactIdentityMeta ? '' : 'pr-9'}`}>
       {/* The name keeps a floor and the pronouns give way instead. With both
           free to shrink, long pronouns plus badges squeezed the name to zero
-          width, and rows read as having no name at all. */}
-      <span className="cruush-user-activity-name min-w-[4rem] shrink-[0.25] truncate text-base text-white">{name}</span>
+          width, and rows read as having no name at all. The container clips,
+          so a long pair can never spill under the action buttons. */}
+      <span className="cruush-user-activity-name min-w-[3.5rem] shrink-[0.25] truncate text-base text-white">{name}</span>
       {pronouns ? <span className="cruush-user-activity-pronouns min-w-0 shrink truncate text-sm text-white/62">{pronouns}</span> : null}
       {identityAdornment}
     </div>

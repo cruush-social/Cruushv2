@@ -1,15 +1,14 @@
 {
   "schemaVersion": 2,
-  "taskId": "cruush-header-line-views-and-batch-20260904",
+  "taskId": "cruush-pulse-signal-staff-and-headers-20260904",
   "status": "active",
-  "objective": "One-line headers with a docked bug button, views that log under Ghost Mode, Popular times under the Spot capsules, protection boundaries on the profile Lifestyle card, carried distance labels, and a flush chat composer.",
-  "userOutcome": "Headers never wrap to two lines and the bug button sits in the header row; the Views tab moves again; Spot pages read in the asked order; profiles show protection boundaries, distance and last online; the message input sits flush on the keyboard.",
+  "objective": "Fix the Pulse signal edit, let admins and mods file unlimited bug reports, keep the ghost plus pulse animation running, and add incoming/views delete.",
+  "userOutcome": "Editing the signal from the Pulse sheet saves; staff can file bug reports without a cap; a pulsing ghost keeps both animations; incoming cruushes and views can be cleared without touching the sender.",
   "audience": "cruush members and the 1.6 release-email audience.",
   "successCriteria": [
-    "Bug button docks into registered slots and falls back to the fixed corner.",
-    "Ghost viewers log profile views; STEALTH viewers never do.",
-    "Popular times renders order-6, tabs order-7.",
-    "All touched suites pass."
+    "PUT /api/profiles/me/signal saves the signal.",
+    "Staff bypass the support-create cap; members keep it.",
+    "Pulsing ghost markers keep their rotation animation."
   ],
   "mustPreserve": [
     "Preserve approved custom map tiles, theme, people pins, Ghost Mode, Dark Room, Pulse, and unrelated map behavior.",
@@ -20,9 +19,9 @@
     "Keep user-facing copy free of em dashes and spell cruush lowercase."
   ],
   "nonGoals": [
-    "No server distance computation on the profile route.",
-    "No change to Dark Room trace suppression.",
-    "No change to the map bug button size."
+    "No change to Pulse allowances or radius rules.",
+    "No change to what a member may report.",
+    "Dismissing an incoming cruush never edits the sender history."
   ],
   "assumptions": [
     {
@@ -44,7 +43,7 @@
       "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "Headers one line on cruush.app, Views moving, composer flush.",
+  "nextVisibleMilestone": "Signal edits save from the Pulse sheet on cruush.app.",
   "stopConditions": [
     "Stop the data-expansion slice if the full prior source cache cannot be recovered or if a source record is private or unsafe to publish.",
     "Stop publication because push and deployment are not authorized by this task."
@@ -76,21 +75,19 @@
   "branch": "release/1.6-integration-20260901",
   "job": "Finish the named 1.6 changes and update the release email locally.",
   "allowedPaths": [
-    "src/styles/theme.css",
-    "src/app/components/AlphaBugButton.tsx",
-    "src/app/components/AlphaBugButton.test.tsx",
-    "src/app/components/CruushActivity.tsx",
-    "src/app/components/CruushActivity.test.tsx",
-    "src/app/components/NotificationCenter.tsx",
-    "src/app/components/PlaceDetail.tsx",
-    "src/app/components/PlaceDetail.test.tsx",
-    "src/app/components/ProfileView.tsx",
-    "src/app/components/LocalFeed.tsx",
-    "src/app/components/PrivateGroupChat.tsx",
-    "src/app/components/PrivateGroupChat.test.tsx",
+    "server/src/routes/profiles.ts",
+    "server/src/routes/support.ts",
+    "server/src/routes/cruush.ts",
     "server/src/match-relationships.ts",
     "server/src/match-relationships.test.ts",
-    "DESIGN_DECISIONS.md",
+    "src/app/lib/profileApi.ts",
+    "src/app/components/MapHome.tsx",
+    "src/app/components/MapView.tsx",
+    "src/app/components/UserActivityCapsule.tsx",
+    "index.html",
+    "public/sw.js",
+    "public/service-worker-recovery.js",
+    "src/main.tsx",
     "AI_TASK.json"
   ],
   "forbiddenPaths": [

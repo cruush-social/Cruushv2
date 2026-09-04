@@ -591,12 +591,20 @@ export async function registerSupportRoutes(app: FastifyInstance) {
 
     const resolvedContactEmail = await resolveSupportContactEmail(app, requesterUserId, payload.contactEmail);
 
-    await app.rateLimiter.assert({
-      key: requesterUserId ? `support-create:user:${requesterUserId}` : `support-create:ip:${request.ip}`,
-      max: requesterUserId ? 5 : 3,
-      windowMs: 10 * 60 * 1000,
-      message: "Too many support requests. Try again later."
-    });
+    // Admins and moderators file bug reports as part of running the app, so
+    // the anti-abuse cap does not apply to them. Everyone else keeps it.
+    const staffReporter = requesterUserId
+      ? await getModeratorUser(request).then(() => true).catch(() => false)
+      : false;
+
+    if (!staffReporter) {
+      await app.rateLimiter.assert({
+        key: requesterUserId ? `support-create:user:${requesterUserId}` : `support-create:ip:${request.ip}`,
+        max: requesterUserId ? 5 : 3,
+        windowMs: 10 * 60 * 1000,
+        message: "Too many support requests. Try again later."
+      });
+    }
 
     const isAgeAppeal = isAgeSuspensionAppeal({
       category: payload.category,

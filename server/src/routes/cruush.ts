@@ -1093,6 +1093,15 @@ async function loadCruushActivityRecords(app: FastifyInstance, userId: string) {
     listEncryptedRelationshipRecordsByActor(app, {
       actorUserId: userId,
       type: "cruush"
+    }).then(async (activeRecords) => {
+      // A recipient dismissing an incoming cruush must not edit the sender's
+      // history, so the Sent list carries dismissed records too.
+      const dismissedRecords = await listEncryptedRelationshipRecordsByActor(app, {
+        actorUserId: userId,
+        type: "cruush",
+        status: "dismissed"
+      });
+      return [...activeRecords, ...dismissedRecords];
     }),
     listEncryptedRelationshipRecordsByTarget(app, {
       targetUserId: userId,
@@ -1365,6 +1374,28 @@ export async function registerCruushRoutes(app: FastifyInstance) {
         mapEpochMs: Date.now(),
         profiles: items.filter((item): item is NonNullable<typeof item> => item !== null)
       }
+    });
+  });
+
+  app.delete("/api/cruush/incoming/:otherUserId", async (request, reply) => {
+    const authenticatedUserId = await getActiveAccountUserId(request);
+    const { otherUserId } = revokeMatchParamsSchema.parse(request.params);
+
+    const result = await dismissIncomingCruush(app, authenticatedUserId, otherUserId);
+
+    return reply.send({
+      data: result
+    });
+  });
+
+  app.delete("/api/cruush/views/:otherUserId", async (request, reply) => {
+    const authenticatedUserId = await getActiveAccountUserId(request);
+    const { otherUserId } = revokeMatchParamsSchema.parse(request.params);
+
+    const result = await removeProfileViewsFromViewer(app, authenticatedUserId, otherUserId);
+
+    return reply.send({
+      data: result
     });
   });
 

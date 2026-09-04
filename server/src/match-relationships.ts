@@ -5,6 +5,7 @@ import {
   getOrderedRelationshipUserIds,
   getProfileViewDedupeBucket,
   hasActiveEncryptedRelationshipToken,
+  listEncryptedRelationshipRecordsByTarget,
   issueEncryptedRelationshipToken,
   revokeEncryptedRelationshipTokens,
   updateEncryptedRelationshipRecordStatus,
@@ -483,6 +484,41 @@ export async function revokeOutgoingCruush(app: FastifyInstance, userId: string,
 
 export async function revokeMutualCruushMatch(app: FastifyInstance, userId: string, otherUserId: string) {
   return revokeOutgoingCruush(app, userId, otherUserId);
+}
+
+/**
+ * The recipient clears an incoming cruush from their own list. Dismissing what
+ * someone sent must not edit the sender's history, so the record is marked
+ * dismissed rather than removed and the sender's Sent list keeps carrying it.
+ */
+export async function dismissIncomingCruush(app: FastifyInstance, userId: string, otherUserId: string) {
+  const incoming = await findEncryptedRelationshipRecord(app, {
+    type: "cruush",
+    actorUserId: otherUserId,
+    targetUserId: userId
+  });
+
+  if (!incoming) {
+    return { dismissed: false };
+  }
+
+  await updateEncryptedRelationshipRecordStatus(app, incoming, "dismissed");
+  return { dismissed: true };
+}
+
+/** Clears one viewer's entries from the owner's Views list. */
+export async function removeProfileViewsFromViewer(app: FastifyInstance, userId: string, viewerUserId: string) {
+  const views = await listEncryptedRelationshipRecordsByTarget(app, {
+    targetUserId: userId,
+    type: "profile_view"
+  });
+  const fromViewer = views.filter((record) => record.payload.actorUserId === viewerUserId);
+
+  for (const record of fromViewer) {
+    await updateEncryptedRelationshipRecordStatus(app, record, "removed");
+  }
+
+  return { removed: fromViewer.length };
 }
 
 export async function getRelationshipPermissions(

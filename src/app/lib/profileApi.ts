@@ -316,6 +316,19 @@ export async function saveMyProfile(profile: ProfilePayload) {
   return savedProfile;
 }
 
+/**
+ * Narrow save for the Pulse sheet. Sending the whole profile from there meant
+ * spreading a server ProfileRecord into the strict payload schema, which the
+ * server rejected, so the edit silently never landed.
+ */
+export async function saveMySignal(signal: string) {
+  const saved = await requestApi<{ signal: string }>('/api/profiles/me/signal', {
+    method: 'PUT',
+    body: JSON.stringify({ signal }),
+  });
+  return saved.signal;
+}
+
 export async function saveMySideBadges(sideBadges: SideBadges) {
   const savedSideBadges = await requestApi<SideBadges>('/api/profiles/me/side-badges', {
     method: 'PUT',

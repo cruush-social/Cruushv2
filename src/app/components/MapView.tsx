@@ -1272,9 +1272,17 @@ function GhostRotationCountdown({ expiresAtMs }: { expiresAtMs?: number }) {
 function GhostRotationPulse({ marker, children }: { marker: MapMarker; children: (exitActive: boolean, exitStyle?: CSSProperties) => ReactNode }) {
   const expiresAtMs = marker.ghostRotationExpiresAtMs;
   const mountedAtMsRef = useRef(Date.now());
+  // A marker that mounts already inside the last minute skips that rotation's
+  // animation, so it does not start mid-way through. A pulsing marker is the
+  // exception: the map re-fetches every ten seconds and each refresh remounts
+  // the marker, so this suppression cancelled the ghost animation for the rest
+  // of the rotation and the combined effect stopped early. A Pulse and a Ghost
+  // rotation are meant to run together, the ghost taking the last minute and
+  // the pulse resuming once the decoy has moved.
   const suppressedMountDeadlineRef = useRef<number | null>(
     marker.displayMode === 'GHOST' &&
     marker.animationHint === 'FADE_LAST_MINUTE' &&
+    !marker.activePing &&
     typeof expiresAtMs === 'number' &&
     expiresAtMs > mountedAtMsRef.current &&
     expiresAtMs - mountedAtMsRef.current <= GHOST_PULSE_WINDOW_MS

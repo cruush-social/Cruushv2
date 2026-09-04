@@ -66,7 +66,7 @@ import {
   emptyProfilePayload,
   addProfileChangedListener,
   getMyProfile,
-  saveMyProfile,
+  saveMySignal,
   saveMyVisibilityRules,
   type ProfileRecord,
   type ProfileVisibilityRules,
@@ -3535,12 +3535,8 @@ export default function MapHome(_props: MapHomeProps = {}) {
           lurkerActive={privacySettings.baseMode === 'STEALTH'}
           photo={currentProfile?.photos?.[0] ?? null}
           onSaveSignal={async (signal) => {
-            const savedProfile = await saveMyProfile({
-              ...emptyProfilePayload,
-              ...(currentProfile ?? {}),
-              signal,
-            });
-            setCurrentProfile(savedProfile);
+            const savedSignal = await saveMySignal(signal);
+            setCurrentProfile((profile) => (profile ? { ...profile, signal: savedSignal } : profile));
           }}
           onRefresh={refreshMapPingStatus}
           onSend={handleSendMapPing}

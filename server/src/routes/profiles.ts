@@ -21,8 +21,10 @@ import {
   profilePayloadSchema,
   sideBadgesSchema,
   profileVisibilityRulesSchema,
+  SIGNAL_MAX_LENGTH,
   type ProfilePayload
 } from "../profile-schema.js";
+import { optionalSingleLineTextSchema } from "../input-schema.js";
 import { moderateProfileOrReject } from "../moderation-service.js";
 import {
   lockMapPingSenderInTransaction,
@@ -1539,6 +1541,30 @@ export async function registerProfileRoutes(app: FastifyInstance) {
     }
 
     return reply.send({ data: result.rows[0].side_badges });
+  });
+
+  // Editing the signal from the Pulse sheet used to PUT the whole profile,
+  // built by spreading a server ProfileRecord into the strict payload schema.
+  // The extra server-only fields failed validation, so the save never landed.
+  app.put("/api/profiles/me/signal", async (request, reply) => {
+    const userId = await getActiveAccountUserId(request);
+    const { signal } = z.object({
+      signal: optionalSingleLineTextSchema(SIGNAL_MAX_LENGTH)
+    }).strict().parse(request.body);
+    const result = await app.db.query<{ signal: string | null }>(
+      `update profiles
+       set signal = $2,
+           updated_at = now()
+       where id = $1
+       returning signal`,
+      [userId, signal ?? ""]
+    );
+
+    if (!result.rows[0]) {
+      throw new ApiError(404, "NOT_FOUND", "Profile not found");
+    }
+
+    return reply.send({ data: { signal: result.rows[0].signal ?? "" } });
   });
 
   app.get("/api/profiles/me/privacy-settings", async (request, reply) => {
