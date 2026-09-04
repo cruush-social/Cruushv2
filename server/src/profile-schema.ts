@@ -150,6 +150,20 @@ const relationshipStatusSchema = z.enum([
   "Prefer not to say"
 ]);
 
+/** One field replacing the separate condom, PrEP, DoxyPEP and vaccine answers. */
+const protectionSchema = z.enum([
+  "Condoms",
+  "Dental dams",
+  "Gloves",
+  "Masks",
+  "Birth control",
+  "PrEP",
+  "DoxyPEP",
+  "COVID vaccine",
+  "Mpox vaccine",
+  "Prefer not to say"
+]);
+
 const birthControlSchema = z.enum([
   "Arm implant",
   "Ask me",
@@ -339,6 +353,7 @@ export const profilePayloadSchema = z.object({
   custom_covid_vaccine: shortStringField,
   mpox_vaccine: singleArrayField,
   custom_mpox_vaccine: shortStringField,
+  protections: z.array(protectionSchema).max(10).optional().default([]),
   health_preferences: z.array(healthPreferenceSchema).max(2).optional().default([]),
   birth_control: z.array(birthControlSchema).max(8).optional().default([]),
   relationship_status: z.array(relationshipStatusSchema).max(3).optional().default([]),
@@ -462,6 +477,7 @@ export const emptyProfile = {
   custom_covid_vaccine: "",
   mpox_vaccine: [],
   custom_mpox_vaccine: "",
+  protections: [],
   health_preferences: [],
   birth_control: [],
   relationship_status: [],

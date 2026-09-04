@@ -13081,6 +13081,7 @@ describe("server", () => {
         custom_covid_vaccine: "",
         mpox_vaccine: ["Vaccinated"],
         custom_mpox_vaccine: "",
+        protections: [],
         substance_boundaries: ["No alcohol involved", "Let's discuss"],
         protection_boundaries: ["Condoms required"],
         lat: 40.7128,
@@ -13165,6 +13166,7 @@ describe("server", () => {
         custom_covid_vaccine: "",
         mpox_vaccine: ["Vaccinated"],
         custom_mpox_vaccine: "",
+        protections: [],
         substance_boundaries: ["No alcohol involved", "Let's discuss"],
         protection_boundaries: ["Condoms required"],
         health_preferences: [],
@@ -13861,6 +13863,7 @@ describe("server", () => {
           custom_covid_vaccine: "",
           mpox_vaccine: [],
           custom_mpox_vaccine: "",
+          protections: [],
           substance_boundaries: [],
           updated_at: "2026-04-28T12:05:00.000Z"
         }]
@@ -13944,6 +13947,7 @@ describe("server", () => {
       custom_covid_vaccine: "",
       mpox_vaccine: [],
       custom_mpox_vaccine: "",
+      protections: [],
       substance_boundaries: [],
       protection_boundaries: ["Condoms required"]
     };
@@ -14138,6 +14142,7 @@ describe("server", () => {
           custom_covid_vaccine: "",
           mpox_vaccine: [],
           custom_mpox_vaccine: "",
+          protections: [],
           substance_boundaries: [],
           updated_at: "2026-04-28T12:05:00.000Z"
         }]
@@ -14248,6 +14253,7 @@ describe("server", () => {
         custom_covid_vaccine: "",
         mpox_vaccine: [],
         custom_mpox_vaccine: "",
+        protections: [],
         substance_boundaries: [],
         profile_sensitive_ciphertext: "encrypted",
         profile_sensitive_nonce: "nonce",
@@ -14366,6 +14372,7 @@ describe("server", () => {
         custom_covid_vaccine: "",
         mpox_vaccine: [],
         custom_mpox_vaccine: "",
+        protections: [],
         substance_boundaries: [],
         profile_sensitive_ciphertext: "encrypted",
         profile_sensitive_nonce: "nonce",
@@ -14487,6 +14494,7 @@ describe("server", () => {
         custom_covid_vaccine: "",
         mpox_vaccine: [],
         custom_mpox_vaccine: "",
+        protections: [],
         substance_boundaries: [],
         profile_sensitive_ciphertext: null,
         profile_sensitive_nonce: null,
@@ -14657,6 +14665,7 @@ describe("server", () => {
       custom_covid_vaccine: "",
       mpox_vaccine: [],
       custom_mpox_vaccine: "",
+      protections: [],
       substance_boundaries: [],
       profile_sensitive_ciphertext: null,
       profile_sensitive_nonce: null,
@@ -15105,6 +15114,7 @@ describe("server", () => {
             custom_covid_vaccine: "",
             mpox_vaccine: [],
             custom_mpox_vaccine: "",
+            protections: [],
             substance_boundaries: [],
             ...encryptedSensitiveProfile,
             ...encryptedProfileVisibility,
@@ -15157,6 +15167,7 @@ describe("server", () => {
             custom_covid_vaccine: "",
             mpox_vaccine: [],
             custom_mpox_vaccine: "",
+            protections: [],
             substance_boundaries: [],
             ...encryptedSensitiveProfile,
             ...encryptedProfileVisibility,

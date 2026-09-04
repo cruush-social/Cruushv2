@@ -112,3 +112,6 @@
 - Prey is a rat and Hunter is a drawn snake, leaving the rabbit to Rope bunny.
 - The Ghost Mode icon rendered larger when inactive than active, because the two SVGs carried different viewBoxes. They share one now.
 - Domme, Dominatrix and Zaddy added to Archetypes; Musician moved from Archetypes to Scenes.
+- One Protections field replaces the separate Condoms, PrEP, DoxyPEP, COVID vaccine, Mpox vaccine and birth control questions. Existing answers are carried across; the old columns are left in place so nothing a member entered is destroyed.
+- Body options include big and tall, dad bod, disabled, fat, lean, little person, round, soft, thick and wheelchair user.
+- Eighteen imported Spot descriptions were personal ads rather than descriptions of the place, with typos and one phone number. They are rewritten as neutral venue descriptions.

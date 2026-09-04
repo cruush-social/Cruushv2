@@ -732,7 +732,7 @@ describe('ProfileEdit', () => {
     })));
   }, 10000);
 
-  it('saves only one selected value for each health status field', async () => {
+  it('keeps HIV status single-valued and saves Protections as a list', async () => {
     render(
       <MemoryRouter>
         <ProfileEdit />
@@ -746,22 +746,17 @@ describe('ProfileEdit', () => {
     fireEvent.click(screen.getByRole('button', { name: 'HIV Status' }));
     fireEvent.click(screen.getByRole('option', { name: 'positive' }));
 
-    fireEvent.click(screen.getByRole('button', { name: 'COVID Vaccine' }));
-    fireEvent.click(screen.getByRole('option', { name: 'yes' }));
-    fireEvent.click(screen.getByRole('button', { name: 'COVID Vaccine' }));
-    fireEvent.click(screen.getByRole('option', { name: 'no' }));
-
-    fireEvent.click(screen.getByRole('button', { name: 'MPOX Vaccine' }));
-    fireEvent.click(screen.getByRole('option', { name: 'yes' }));
-    fireEvent.click(screen.getByRole('button', { name: 'MPOX Vaccine' }));
-    fireEvent.click(screen.getByRole('option', { name: 'partial' }));
+    // The separate vaccine and condom questions became one Protections list,
+    // which is a multi-select rather than a single-value field.
+    fireEvent.click(screen.getByRole('button', { name: 'Protections' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Condoms' }));
+    fireEvent.click(screen.getByRole('option', { name: 'PrEP' }));
 
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
     await waitFor(() => expect(saveMyProfile).toHaveBeenCalledWith(expect.objectContaining({
       hiv_status: ['positive'],
-      covid_vaccine: ['no'],
-      mpox_vaccine: ['partial'],
+      protections: expect.arrayContaining(['Condoms', 'PrEP']),
     })));
   });
 

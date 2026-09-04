@@ -149,7 +149,9 @@ const migrationFiles = [
   "140_other_bucket_categories.sql",
   "141_dedupe_spots_at_one_coordinate.sql",
   "142_drop_leans_men_and_techno_tags.sql",
-  "143_email_change_requests.sql"
+  "143_email_change_requests.sql",
+  "144_profile_protections.sql",
+  "145_rewrite_scraped_spot_descriptions.sql"
 ];
 const rewardSafetyPreflightFiles = [
   "079_daily_check_in_rewards.sql",

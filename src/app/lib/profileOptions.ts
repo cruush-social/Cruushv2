@@ -26,7 +26,9 @@ export const MAX_PROFILE_SEXUALITIES = 3;
 export const ETHNICITIES = alphabetize(['Black', 'East Asian', 'Indigenous', 'Latino/Latina', 'Middle Eastern', 'Mixed', 'Other', 'Pacific Islander', 'South Asian', 'Southeast Asian', 'White']);
 
 export const BODY_TYPES = alphabetize([
-  'BBW', 'BBM', 'athletic', 'average', 'bear', 'chubby', 'chub', 'cub', 'curvy', 'full-figured', 'muscular', 'otter', 'petite', 'plus-size', 'slim', 'stocky', 'toned', 'twink'
+  'BBW', 'BBM', 'athletic', 'average', 'bear', 'big and tall', 'chubby', 'chub', 'cub', 'curvy', 'dad bod', 'disabled',
+  'fat', 'full-figured', 'lean', 'little person', 'muscular', 'otter', 'petite', 'plus-size', 'round', 'slim', 'soft',
+  'stocky', 'thick', 'toned', 'twink', 'wheelchair user'
 ]);
 
 export const BODY_HAIR = ['Natural', 'Hairy', 'Trimmed', 'Shaved', 'Smooth'];
@@ -156,6 +158,24 @@ export const SUBSTANCE_BOUNDARIES = alphabetize([
   'No other drugs involved',
   "Let's discuss",
 ]);
+
+/**
+ * One list replacing the separate Condoms, PrEP, DoxyPEP, COVID vaccine, Mpox
+ * vaccine and birth control fields. A member picks everything they use rather
+ * than answering six yes/no questions.
+ */
+export const PROTECTIONS = [
+  'Condoms',
+  'Dental dams',
+  'Gloves',
+  'Masks',
+  'Birth control',
+  'PrEP',
+  'DoxyPEP',
+  'COVID vaccine',
+  'Mpox vaccine',
+  'Prefer not to say',
+];
 
 export const PROTECTION_BOUNDARIES = [
   'Bareback only',

@@ -39,15 +39,10 @@ import {
   AVAILABILITY,
   BODY_HAIR,
   BODY_TYPES,
-  BIRTH_CONTROL,
-  CONDOMS,
-  COVID_VACCINE,
   CROWDS,
-  DOXYPEP,
   ETHNICITIES,
   FACIAL_HAIR,
   findStructuredProfileFieldForTag,
-  HEALTH_PREFERENCES,
   HIV_STATUS,
   HOBBY_GROUPS,
   HOSTING,
@@ -58,15 +53,14 @@ import {
   RELATIONSHIP_STATUS,
   ZODIAC,
   MAX_PROFILE_SEXUALITIES,
-  MPOX_VACCINE,
   normalizeCrowdValues,
   POSITIONS,
   PUBIC_HAIR,
-  PREP,
   PREFERRED_SPOTS,
   PRESENTATIONS,
   PROTECTION_BOUNDARIES,
   PROFILE_VISIBILITY_OPTIONS,
+  PROTECTIONS,
   PRONOUNS,
   ROLES,
   SEXUALITY,
@@ -586,6 +580,7 @@ function toProfileSavePayload(
     custom_mpox_vaccine: (profile.custom_mpox_vaccine ?? '').trim(),
     health_preferences: profile.health_preferences ?? [],
     birth_control: profile.birth_control ?? [],
+    protections: profile.protections ?? [],
     substance_boundaries: profile.substance_boundaries ?? [],
     protection_boundaries: singleValue(profile.protection_boundaries ?? []),
     visibility_rules: sanitizeVisibilityRules(profile),
@@ -1067,6 +1062,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
     mpox_vaccine: singleValue(profile.mpox_vaccine || []),
     health_preferences: profile.health_preferences || [],
     birth_control: profile.birth_control || [],
+    protections: profile.protections || [],
     substance_boundaries: profile.substance_boundaries || [],
     protection_boundaries: singleValue(profile.protection_boundaries || []),
     visibility_rules: sanitizeVisibilityRules(profile),
@@ -1569,59 +1565,14 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
               />
             </div>
             <div className="space-y-2">
-              <Label>Condoms</Label>
-              <MultiSelect {...profileMenuProps} options={CONDOMS} value={normalizedProfile.condoms} onChange={vals => handleChange('condoms', singleValue(vals))} selectionMode="single" />
-            </div>
-            <div className="space-y-2">
-              <Label>PrEP</Label>
-              <MultiSelect {...profileMenuProps} options={PREP} value={normalizedProfile.prep} onChange={vals => handleChange('prep', singleValue(vals))} selectionMode="single" />
-            </div>
-            <div className="space-y-2">
-              <Label>DoxyPEP</Label>
-              <MultiSelect {...profileMenuProps} options={DOXYPEP} value={normalizedProfile.doxypep} onChange={vals => handleChange('doxypep', singleValue(vals))} selectionMode="single" />
-            </div>
-            <div className="space-y-2">
-              <Label>COVID Vaccine</Label>
+              <Label>Protections</Label>
               <MultiSelect
                 {...profileMenuProps}
-                ariaLabel="COVID Vaccine"
-                options={COVID_VACCINE}
-                value={normalizedProfile.covid_vaccine}
-                onChange={vals => handleChange('covid_vaccine', singleValue(vals))}
-                selectionMode="single"
+                ariaLabel="Protections"
+                options={PROTECTIONS}
+                value={normalizedProfile.protections}
+                onChange={vals => handleChange('protections', vals)}
               />
-            </div>
-            <div className="space-y-2">
-              <Label>MPOX Vaccine</Label>
-              <MultiSelect
-                {...profileMenuProps}
-                ariaLabel="MPOX Vaccine"
-                options={MPOX_VACCINE}
-                value={normalizedProfile.mpox_vaccine}
-                onChange={vals => handleChange('mpox_vaccine', singleValue(vals))}
-                selectionMode="single"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Health Preferences</Label>
-              <MultiSelect
-                {...profileMenuProps}
-                ariaLabel="Health Preferences"
-                options={HEALTH_PREFERENCES}
-                value={normalizedProfile.health_preferences}
-                onChange={vals => handleChange('health_preferences', vals)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Birth control</Label>
-              <MultiSelect
-                {...profileMenuProps}
-                ariaLabel="Birth control"
-                options={BIRTH_CONTROL}
-                value={normalizedProfile.birth_control}
-                onChange={vals => handleChange('birth_control', vals)}
-              />
-              <p className="text-sm text-muted-foreground">Select any that apply.</p>
             </div>
             <div className="space-y-2">
               <Label>Substance Boundaries</Label>

@@ -179,6 +179,7 @@ type ProfileRow = {
   custom_covid_vaccine: string | null;
   mpox_vaccine: string[] | null;
   custom_mpox_vaccine: string | null;
+  protections: string[] | null;
   substance_boundaries: string[] | null;
   protection_boundaries: string[] | null;
   profile_sensitive_ciphertext: string | null;
@@ -247,6 +248,28 @@ type VisibilitySubjectRow = {
 };
 
 type ProfileVisibility = "public" | "mutual_cruushes" | "mutual_crowds";
+
+/**
+ * Birth control and the Masks preference live inside the encrypted profile
+ * blob, which the SQL backfill in 144 cannot read. Fold them in here so a
+ * member who recorded either still sees it under Protections.
+ */
+function withCarriedProtections(
+  stored: string[] | null,
+  sensitive: { birth_control?: string[] | null; health_preferences?: string[] | null } | null | undefined
+): ProfilePayload["protections"] {
+  const carried = new Set(stored ?? []);
+
+  if ((sensitive?.birth_control ?? []).some((value) => value && value !== "Prefer not to say")) {
+    carried.add("Birth control");
+  }
+
+  if ((sensitive?.health_preferences ?? []).includes("Masks")) {
+    carried.add("Masks");
+  }
+
+  return [...carried] as ProfilePayload["protections"];
+}
 
 function hasPremiumPrivacySettings(input: {
   baseMode: VisibilityBaseMode;
@@ -358,6 +381,7 @@ const PROFILE_COLUMNS = [
   "custom_covid_vaccine",
   "mpox_vaccine",
   "custom_mpox_vaccine",
+  "protections",
   "substance_boundaries",
   "protection_boundaries",
   "profile_sensitive_ciphertext",
@@ -585,6 +609,7 @@ function mapProfileRow(
     custom_covid_vaccine: row.custom_covid_vaccine ?? "",
     mpox_vaccine: row.mpox_vaccine ?? [],
     custom_mpox_vaccine: row.custom_mpox_vaccine ?? "",
+    protections: withCarriedProtections(row.protections, sensitiveProfile),
     health_preferences: sensitiveProfile?.health_preferences ?? [],
     birth_control: sensitiveProfile?.birth_control ?? [],
     relationship_status: sensitiveProfile?.relationship_status ?? [],
@@ -694,6 +719,7 @@ function profilePayloadFromRow(
     custom_covid_vaccine: row.custom_covid_vaccine ?? "",
     mpox_vaccine: row.mpox_vaccine ?? [],
     custom_mpox_vaccine: row.custom_mpox_vaccine ?? "",
+    protections: withCarriedProtections(row.protections, sensitiveProfile),
     health_preferences: sensitiveProfile.health_preferences ?? [],
     birth_control: sensitiveProfile.birth_control ?? [],
     substance_boundaries: row.substance_boundaries ?? [],

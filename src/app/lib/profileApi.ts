@@ -111,6 +111,7 @@ export type ProfilePayload = {
   custom_covid_vaccine: string;
   mpox_vaccine: string[];
   custom_mpox_vaccine: string;
+  protections: string[];
   health_preferences: string[];
   birth_control: string[];
   relationship_status: string[];
@@ -216,6 +217,7 @@ export const emptyProfilePayload: ProfilePayload = {
   covid_vaccine: [],
   custom_covid_vaccine: '',
   mpox_vaccine: [],
+  protections: [],
   custom_mpox_vaccine: '',
   health_preferences: [],
   birth_control: [],

@@ -300,11 +300,10 @@ describe('ProfileView', () => {
     expect(launchPartyButton.className).not.toContain('bg-black');
   });
 
-  it('shows HIV, COVID, and MPOX health fields while leaving unfilled values blank', async () => {
+  it('shows HIV status and the Protections a member selected', async () => {
     getProfileById.mockResolvedValue(createProfileFixture({
       hiv_status: ['Negative'],
-      covid_vaccine: ['yes'],
-      mpox_vaccine: [],
+      protections: ['Condoms', 'PrEP'],
     }));
 
     render(
@@ -323,10 +322,13 @@ describe('ProfileView', () => {
     const healthSection = healthHeading?.closest('section') as HTMLElement;
     expect(within(healthSection).getByText('HIV')).toBeInTheDocument();
     expect(within(healthSection).getByText('Negative')).toBeInTheDocument();
-    expect(within(healthSection).getByText('COVID')).toBeInTheDocument();
-    expect(within(healthSection).getByText('yes')).toBeInTheDocument();
-    expect(within(healthSection).getByText('Mpox')).toBeInTheDocument();
     expect(within(healthSection).queryByText('Not shared')).not.toBeInTheDocument();
+
+    // The vaccine and condom answers are one Protections list now.
+    const protectionsHeading = screen.getAllByText('Protections').find((node) => node.tagName.toLowerCase() === 'h2');
+    const protectionsSection = protectionsHeading?.closest('section') as HTMLElement;
+    expect(within(protectionsSection).getByText('Condoms')).toBeInTheDocument();
+    expect(within(protectionsSection).getByText('PrEP')).toBeInTheDocument();
   });
 
   it('renders heart previews and swaps the active profile photo without saving order', async () => {

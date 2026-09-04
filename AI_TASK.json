@@ -359,7 +359,9 @@
     "public/icons/notification-feed.png",
     "src/app/lib/lazyRoute.ts",
     "src/app/lib/lazyRoute.test.ts",
-    "src/app/assets/ui-icons/ghost-white.svg"
+    "src/app/assets/ui-icons/ghost-white.svg",
+    "server/sql/144_profile_protections.sql",
+    "server/sql/145_rewrite_scraped_spot_descriptions.sql"
   ],
   "forbiddenPaths": [
     "src/app/assets/brand/**",

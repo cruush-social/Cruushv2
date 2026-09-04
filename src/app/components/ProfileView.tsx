@@ -101,6 +101,7 @@ export type ProfileViewModel = {
   kinks: string[];
   hobbies: string[];
   protection: string[];
+  protections: string[];
   hivStatus: string | null;
   covidStatus: string | null;
   mpoxStatus: string | null;
@@ -192,12 +193,8 @@ export function profileRecordToProfileView(
     vibes: [...new Set([...profile.vibes, ...profile.scenes, ...profile.archetypes])],
     kinks: profile.kinks,
     hobbies: profile.hobbies,
-    protection: [
-      ...profile.protection_boundaries.map((value) => `Protection boundary: ${value}`),
-      ...profile.condoms.map((value) => `Condoms: ${value}`),
-      ...profile.prep.map((value) => `PrEP: ${value}`),
-      ...profile.doxypep.map((value) => `DoxyPEP: ${value}`),
-    ].filter(Boolean),
+    protection: profile.protection_boundaries.filter(Boolean),
+    protections: profile.protections ?? [],
     hivStatus: formatSingle(profile.hiv_status),
     covidStatus: formatSingle(profile.covid_vaccine),
     mpoxStatus: formatSingle(profile.mpox_vaccine),
@@ -940,26 +937,18 @@ export function ProfileDetailsTabs({
       </TabsContent>
 
       <TabsContent value="health" className={`${compact ? 'mt-4 space-y-4' : 'mt-5 space-y-5'}`}>
-        <Section title="Protection" compact={compact}>
+        <Section title="Protections" compact={compact}>
+          <BadgeList items={profileView.protections} compact={compact} />
+        </Section>
+
+        <Section title="Protection boundaries" compact={compact}>
           <BadgeList items={profileView.protection} compact={compact} />
         </Section>
 
         <Section title="Health" compact={compact}>
-          <div className="grid grid-cols-3 gap-3 text-sm">
+          <div className="grid grid-cols-2 gap-3 text-sm">
             <DetailItem label="HIV" value={profileView.hivStatus} compact={compact} emptyFallback="" />
-            <DetailItem label="COVID" value={profileView.covidStatus} compact={compact} emptyFallback="" />
-            <DetailItem label="Mpox" value={profileView.mpoxStatus} compact={compact} emptyFallback="" />
           </div>
-          {profileView.healthPreferences.length > 0 ? (
-            <div className="mt-3">
-              <p className="mb-2 text-sm text-muted-foreground">Preferences</p>
-              <BadgeList items={profileView.healthPreferences} compact={compact} />
-            </div>
-          ) : null}
-        </Section>
-
-        <Section title="Birth control" compact={compact}>
-          <BadgeList items={profileView.birthControl} compact={compact} />
         </Section>
 
         <Section title="Lifestyle" compact={compact}>
