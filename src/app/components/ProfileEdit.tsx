@@ -622,6 +622,17 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
   const photoPreviewRequestRef = useRef(0);
   const profileSaveRequestRef = useRef(0);
 
+  // The badge picker is embedded in this screen, so its "Edit profile vibes"
+  // link navigates to the route we are already on. Without following the
+  // requested section here the tab never moved and the button looked dead.
+  useEffect(() => {
+    if (!requestedProfileSection) {
+      return;
+    }
+
+    setActiveTab(requestedProfileSection === 'kinks' ? 'intimacy' : 'basics');
+  }, [requestedProfileSection, location.key]);
+
   useEffect(() => {
     if (loading || !requestedProfileSection) {
       return undefined;
@@ -632,7 +643,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
     });
 
     return () => window.cancelAnimationFrame(frame);
-  }, [loading, requestedProfileSection]);
+  }, [loading, requestedProfileSection, location.key]);
 
   const applySavedProfile = (savedProfile: ProfileRecord) => {
     const loadedProfile = {
@@ -1457,13 +1468,6 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
           </TabsContent>
 
           <TabsContent value="intimacy" className="space-y-6 mt-6">
-            <div className="space-y-4 rounded-2xl border border-white/10 bg-white/[0.035] p-4">
-              <Label className="text-base">Hair now</Label>
-              <div className="space-y-2"><Label>Body hair</Label><SingleSelect ariaLabel="Body hair" options={BODY_HAIR} value={normalizedProfile.body_hair[0]} onChange={(value) => handleChange('body_hair', singleValue(value ? [value] : []))} /></div>
-              <div className="space-y-2"><Label>Pubic hair</Label><SingleSelect ariaLabel="Pubic hair" options={PUBIC_HAIR} value={normalizedProfile.pubic_hair[0]} onChange={(value) => handleChange('pubic_hair', singleValue(value ? [value] : []))} /></div>
-              <div className="space-y-2"><Label>Facial hair</Label><SingleSelect ariaLabel="Facial hair" options={FACIAL_HAIR} value={normalizedProfile.facial_hair[0]} onChange={(value) => handleChange('facial_hair', singleValue(value ? [value] : []))} /></div>
-            </div>
-
             <div className="space-y-2">
               <Label>Relationship status</Label>
               <MultiSelect
@@ -1517,6 +1521,13 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
               <Label>Preferred spots</Label>
               <MultiSelect {...profileMenuProps} maxSelections={MAX_PROFILE_GROUP_SELECTIONS} options={PREFERRED_SPOTS} value={normalizedProfile.preferred_spots} onChange={vals => handleChange('preferred_spots', limitToThree(vals))} />
             </div>
+            <div className="space-y-4 rounded-2xl border border-white/10 bg-white/[0.035] p-4">
+              <Label className="text-base">Hair now</Label>
+              <div className="space-y-2"><Label>Body hair</Label><SingleSelect ariaLabel="Body hair" options={BODY_HAIR} value={normalizedProfile.body_hair[0]} onChange={(value) => handleChange('body_hair', singleValue(value ? [value] : []))} /></div>
+              <div className="space-y-2"><Label>Pubic hair</Label><SingleSelect ariaLabel="Pubic hair" options={PUBIC_HAIR} value={normalizedProfile.pubic_hair[0]} onChange={(value) => handleChange('pubic_hair', singleValue(value ? [value] : []))} /></div>
+              <div className="space-y-2"><Label>Facial hair</Label><SingleSelect ariaLabel="Facial hair" options={FACIAL_HAIR} value={normalizedProfile.facial_hair[0]} onChange={(value) => handleChange('facial_hair', singleValue(value ? [value] : []))} /></div>
+            </div>
+
             <div className="space-y-2" id="profile-kinks">
               <Label>Kinks & Fetishes</Label>
               <MultiSelect

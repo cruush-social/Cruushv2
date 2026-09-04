@@ -78,3 +78,6 @@
 - Hair now is an accordion in Seeking Filters and Visibility Controls instead of three always-open rows.
 - The search field is back on the Vibes and Kinks menus in Seeking Filters and Visibility Controls.
 - The badge icon gallery reads on a phone: two columns at narrow widths, larger glyphs, wrapping labels, and safe-area padding.
+- Hair now sits directly above Kinks in the profile editor, matching Seeking Filters and Visibility Controls.
+- The badge menu Edit profile vibes and kinks links did nothing, because the badge picker is embedded in the profile editor and navigating to the route already on screen never switched the tab.
+- Tapping some Spot clusters did nothing: the zoom padding was 140px each side on a 390px viewport, so fitBounds had no room and gave up.

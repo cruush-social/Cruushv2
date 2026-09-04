@@ -2879,9 +2879,22 @@ function MapView({
                 const lngs = coordinates.map(([lng]) => lng);
                 const lats = coordinates.map(([, lat]) => lat);
                 setSpiderfiedCluster(null);
+                // Padding wider than the map itself makes fitBounds a no-op, which
+                // is why tapping some Spot clusters did nothing on a phone: 140px
+                // each side leaves 110px of a 390px viewport.
+                const frame = containerRef.current;
+                const frameWidth = frame?.clientWidth ?? 0;
+                const frameHeight = frame?.clientHeight ?? 0;
+                const sidePadding = frameWidth > 0 ? Math.min(140, Math.floor(frameWidth * 0.18)) : 140;
+                const topPadding = frameHeight > 0 ? Math.min(180, Math.floor(frameHeight * 0.18)) : 180;
+                const bottomPadding = frameHeight > 0 ? Math.min(220, Math.floor(frameHeight * 0.22)) : 220;
                 map.fitBounds(
                   [[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]],
-                  { padding: { top: 180, right: 140, bottom: 220, left: 140 }, maxZoom: clusterMaxZoom, duration: 450 },
+                  {
+                    padding: { top: topPadding, right: sidePadding, bottom: bottomPadding, left: sidePadding },
+                    maxZoom: clusterMaxZoom,
+                    duration: 450,
+                  },
                 );
                 return;
               }
