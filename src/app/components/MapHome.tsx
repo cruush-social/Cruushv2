@@ -1095,7 +1095,19 @@ export default function MapHome(_props: MapHomeProps = {}) {
     try {
       const nextStatus = await getMapPingStatus();
       if (mapPingStatusRequestIdRef.current === requestId) {
-        setMapPingStatus(nextStatus);
+        // A Pulse runs for its full duration on the server, so nothing a
+        // refresh reports may end it early. If a response arrives without the
+        // Pulse we already know about, and that Pulse has not reached its own
+        // expiry, keep it: leaving the app, a dropped request, or a stale read
+        // must never look like the Pulse stopped.
+        setMapPingStatus((currentStatus) => {
+          const knownPing = currentStatus?.activePing;
+          const stillRunning = knownPing && Date.parse(knownPing.expiresAt) > Date.now();
+
+          return stillRunning && !nextStatus.activePing
+            ? { ...nextStatus, activePing: knownPing }
+            : nextStatus;
+        });
       }
     } finally {
       if (mapPingStatusRequestIdRef.current === requestId) {
@@ -1285,6 +1297,17 @@ export default function MapHome(_props: MapHomeProps = {}) {
     };
 
     void refresh();
+    // Coming back from the background must not leave the Pulse looking dead
+    // for up to a refresh interval, so resuming refreshes immediately rather
+    // than waiting for the next tick.
+    const refreshOnResume = () => {
+      if (document.visibilityState === 'visible') {
+        void refresh();
+      }
+    };
+
+    window.addEventListener('focus', refreshOnResume);
+    document.addEventListener('visibilitychange', refreshOnResume);
     const refreshIntervalId = window.setInterval(() => {
       if (document.visibilityState === 'visible') {
         void refresh();
@@ -1294,6 +1317,8 @@ export default function MapHome(_props: MapHomeProps = {}) {
 
     return () => {
       isMounted = false;
+      window.removeEventListener('focus', refreshOnResume);
+      document.removeEventListener('visibilitychange', refreshOnResume);
       window.clearInterval(refreshIntervalId);
       window.clearInterval(clockIntervalId);
     };
@@ -1533,11 +1558,20 @@ export default function MapHome(_props: MapHomeProps = {}) {
           setOwnerGhostMapLocation(loadedPrivacySettings.ghostModeEnabled ? ghostLocation : null);
           // A stale/missing deadline must not end the refresh loop permanently.
           // The next location still comes from the server, never a local offset.
+          //
+          // The loop reschedules whatever the read said. Rescheduling only
+          // while ghost read as enabled meant one stale or failed read ended
+          // rotation for the rest of the session, so a mode that is on until
+          // it is turned off stopped behaving like one. Ghost Mode and Dark
+          // Room live on the server and outlast leaving the app; the client
+          // must keep asking.
           if (loadedPrivacySettings.ghostModeEnabled) {
             nextRefreshAtMs = loadedPrivacySettings.ghostRotationExpiresAtMs ?? Date.now();
             scheduleRefresh(nextRefreshAtMs > Date.now()
               ? nextRefreshAtMs - Date.now() + 250
               : MAP_PRIVACY_REFRESH_INTERVAL_MS);
+          } else {
+            scheduleRefresh(MAP_PRIVACY_REFRESH_INTERVAL_MS);
           }
         }
       } catch (ghostDisplayError) {

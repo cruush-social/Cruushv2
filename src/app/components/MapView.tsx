@@ -65,6 +65,7 @@ import { formatBadgeLabel } from '../lib/badgeIntent';
 import { HEART_PIN_PATH, HEART_PIN_THEMES } from '../lib/heartPin';
 import { DARK_ROOM_PALETTE } from '../lib/darkRoomPalette';
 import { resolveSavedBadgeGlyph } from './SavedBadgeGlyphs';
+import ghostDecoyMark from '../assets/ui-icons/ghost-white.svg';
 import {
   DARK_ROOM_EYE_PATH,
   DARK_ROOM_KEYHOLE_PATH,
@@ -1467,7 +1468,10 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
       ? '#0BA8FF'
       : `url(#${gradientId})`;
   const travellerActive = marker.travelling === true && !isOwnStealthMarker && !pingActive;
-  const staticGhostTraveller = travellerActive && marker.displayMode === 'GHOST';
+  // Owner-only. Freezing a ghosted traveller's contrail for everyone told other
+  // members that Ghost Mode was on. Outside the last-minute rotation animation,
+  // a ghosted profile must look like any other profile.
+  const staticGhostTraveller = travellerActive && isCurrentUser && marker.displayMode === 'GHOST';
   const hideOwnerDecoyHeartStroke = staticGhostTraveller && isOwnGhostMarker;
   const ghostDecoyFadeStyle = isOwnGhostMarker
     ? ownerGhostDecoyFadeStyle(marker, isCurrentUser)
@@ -1599,6 +1603,18 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
             strokeWidth={3.2}
             style={borderStyle}
           />
+          {isOwnGhostMarker ? (
+            <image
+              data-testid={`marker-ghost-decoy-mark-${marker.id}`}
+              height="26"
+              href={ghostDecoyMark}
+              opacity={0.92}
+              preserveAspectRatio="xMidYMid meet"
+              width="26"
+              x="19"
+              y="17"
+            />
+          ) : null}
         </>
       ) : isCurrentUser && !isMutualCruush ? (
         <>
@@ -1612,11 +1628,24 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
             strokeWidth={3.2}
             style={borderStyle}
           />
-          <foreignObject data-testid={`marker-current-fallback-${marker.id}`} height="36" width="36" x="14" y="16">
-            <div className="flex h-9 w-9 items-center justify-center">
-              <User aria-hidden="true" className="h-7 w-7 text-white" strokeWidth={2.4} />
-            </div>
-          </foreignObject>
+          {isOwnGhostMarker ? (
+            <image
+              data-testid={`marker-ghost-decoy-mark-${marker.id}`}
+              height="26"
+              href={ghostDecoyMark}
+              opacity={0.92}
+              preserveAspectRatio="xMidYMid meet"
+              width="26"
+              x="19"
+              y="17"
+            />
+          ) : (
+            <foreignObject data-testid={`marker-current-fallback-${marker.id}`} height="36" width="36" x="14" y="16">
+              <div className="flex h-9 w-9 items-center justify-center">
+                <User aria-hidden="true" className="h-7 w-7 text-white" strokeWidth={2.4} />
+              </div>
+            </foreignObject>
+          )}
         </>
       ) : (
         <path

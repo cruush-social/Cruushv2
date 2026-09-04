@@ -1,14 +1,14 @@
 {
   "schemaVersion": 2,
-  "taskId": "cruush-pulse-signal-staff-and-headers-20260904",
+  "taskId": "cruush-pulse-ghost-persistence-20260904",
   "status": "active",
-  "objective": "Fix the Pulse signal edit, let admins and mods file unlimited bug reports, keep the ghost plus pulse animation running, and add incoming/views delete.",
-  "userOutcome": "Editing the signal from the Pulse sheet saves; staff can file bug reports without a cap; a pulsing ghost keeps both animations; incoming cruushes and views can be cleared without touching the sender.",
+  "objective": "A Pulse never ends early, Ghost Mode and Dark Room stay on until turned off, and only the owner can tell Ghost Mode is on.",
+  "userOutcome": "Leaving the app no longer stops your Pulse or your Ghost rotation; your own decoy carries the ghost mark; other members see a ghosted profile as an ordinary profile apart from the last-minute animation.",
   "audience": "cruush members and the 1.6 release-email audience.",
   "successCriteria": [
-    "PUT /api/profiles/me/signal saves the signal.",
-    "Staff bypass the support-create cap; members keep it.",
-    "Pulsing ghost markers keep their rotation animation."
+    "A known running Pulse is never dropped by a refresh.",
+    "The ghost rotation loop always reschedules.",
+    "Ghost mark renders for the owner only."
   ],
   "mustPreserve": [
     "Preserve approved custom map tiles, theme, people pins, Ghost Mode, Dark Room, Pulse, and unrelated map behavior.",
@@ -19,9 +19,8 @@
     "Keep user-facing copy free of em dashes and spell cruush lowercase."
   ],
   "nonGoals": [
-    "No change to Pulse allowances or radius rules.",
-    "No change to what a member may report.",
-    "Dismissing an incoming cruush never edits the sender history."
+    "No change to Pulse duration, allowance or radius.",
+    "No change to the last-minute rotation animation, which stays visible to everyone."
   ],
   "assumptions": [
     {
@@ -43,7 +42,7 @@
       "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "Signal edits save from the Pulse sheet on cruush.app.",
+  "nextVisibleMilestone": "Pulse survives leaving the app; owner decoy shows the ghost mark.",
   "stopConditions": [
     "Stop the data-expansion slice if the full prior source cache cannot be recovered or if a source record is private or unsafe to publish.",
     "Stop publication because push and deployment are not authorized by this task."
@@ -75,15 +74,9 @@
   "branch": "release/1.6-integration-20260901",
   "job": "Finish the named 1.6 changes and update the release email locally.",
   "allowedPaths": [
-    "server/src/routes/profiles.ts",
-    "server/src/routes/support.ts",
-    "server/src/routes/cruush.ts",
-    "server/src/match-relationships.ts",
-    "server/src/match-relationships.test.ts",
-    "src/app/lib/profileApi.ts",
     "src/app/components/MapHome.tsx",
     "src/app/components/MapView.tsx",
-    "src/app/components/UserActivityCapsule.tsx",
+    "src/app/components/MapView.test.tsx",
     "index.html",
     "public/sw.js",
     "public/service-worker-recovery.js",

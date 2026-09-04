@@ -1,5 +1,5 @@
-const CACHE_NAME = 'cruush-app-shell-v41';
-const REFRESH_ID = 'v41';
+const CACHE_NAME = 'cruush-app-shell-v42';
+const REFRESH_ID = 'v42';
 
 async function deleteCachedShells() {
   const keys = await caches.keys();
@@ -66,8 +66,8 @@ self.addEventListener('push', (event) => {
 
   event.waitUntil(self.registration.showNotification(title, {
     body,
-    icon: '/icons/notification-feed.png?v=v41',
-    badge: '/icons/notification-feed.png?v=v41',
+    icon: '/icons/notification-feed.png?v=v42',
+    badge: '/icons/notification-feed.png?v=v42',
     silent: !soundEnabled,
     sound: soundEnabled ? sound : undefined,
     data: {

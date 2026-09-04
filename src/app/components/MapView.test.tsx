@@ -798,6 +798,42 @@ describe('MapView', () => {
     expect(marker.querySelector('path[style*="transform"]')).toBeNull();
   });
 
+  it('shows the ghost mark on the owner decoy and on nobody else', async () => {
+    const { unmount } = render(
+      <MapView
+        markers={[{
+          id: 'ghost-other',
+          displayName: 'River',
+          approximateLatitude: 40.72,
+          approximateLongitude: -74.01,
+          displayMode: 'GHOST',
+        }]}
+      />,
+    );
+
+    // Outside the last-minute rotation animation, a ghosted profile must look
+    // like any other profile to everyone but its owner.
+    await screen.findByTestId('marker-heart-ghost-other');
+    expect(screen.queryByTestId('marker-ghost-decoy-mark-ghost-other')).not.toBeInTheDocument();
+    unmount();
+
+    render(
+      <MapView
+        markers={[{
+          id: 'ghost-owner',
+          displayName: 'Me',
+          approximateLatitude: 40.72,
+          approximateLongitude: -74.01,
+          displayMode: 'GHOST',
+          isCurrentUser: true,
+        }]}
+      />,
+    );
+
+    await screen.findByTestId('marker-heart-ghost-owner');
+    expect(screen.getByTestId('marker-ghost-decoy-mark-ghost-owner')).toBeInTheDocument();
+  });
+
   it('does not replay an active Ghost rotation window when the pin mounts', () => {
     render(
       <MapMarkerPin
