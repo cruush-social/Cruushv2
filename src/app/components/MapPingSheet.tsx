@@ -17,7 +17,7 @@ import {
 } from '../lib/mapPingsApi';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { RadioGroup, RadioGroupItem } from './ui/radio-group';
+import { Slider } from './ui/slider';
 import CruushPlusGateNotice from './CruushPlusGateNotice';
 import { useIsMobile } from './ui/use-mobile';
 import {
@@ -522,22 +522,26 @@ export default function MapPingSheet({
 
           <fieldset>
             <legend className="text-sm font-medium text-white">Pulse radius</legend>
-            <RadioGroup
-              aria-label="Pulse radius"
-                className="mt-1.5 grid grid-cols-5 gap-1.5"
-              onValueChange={(value) => setRadiusMiles(Number(value) as MapPingRadiusMiles)}
-              value={String(radiusMiles)}
-            >
-              {MAP_PING_RADII_MILES.map((radius) => (
-                <label
-                  className="flex min-h-10 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-lg border border-white/10 bg-white/[0.035] px-1 py-1 text-center text-xs text-white/72 has-[[data-state=checked]]:border-[#c8ff31] has-[[data-state=checked]]:text-white"
-                  key={radius}
-                >
-                  <RadioGroupItem className="border-[#c8ff31]/55 text-[#c8ff31] focus-visible:ring-[#c8ff31]/40 [&_svg]:fill-[#c8ff31]" value={String(radius)} aria-label={`${radius} ${radius === 1 ? 'mile' : 'miles'}`} />
-                  <span>{radius} mi</span>
-                </label>
-              ))}
-            </RadioGroup>
+            {/* A slider in the Pulse colour, rather than a row of radio chips
+                that could not hold the wider range. */}
+            <div className="mt-1.5 space-y-2">
+              <p aria-live="polite" className="text-sm text-white">
+                {radiusMiles} {radiusMiles === 1 ? 'mile' : 'miles'}
+              </p>
+              <Slider
+                aria-label="Pulse radius"
+                className="[&_[data-slot=slider-range]]:bg-[#c8ff31] [&_[data-slot=slider-thumb]]:border-[#c8ff31] [&_[data-slot=slider-thumb]]:bg-[#c8ff31]"
+                max={MAP_PING_RADII_MILES.length - 1}
+                min={0}
+                onValueChange={([index]) => setRadiusMiles(MAP_PING_RADII_MILES[index] ?? MAP_PING_RADII_MILES[0])}
+                step={1}
+                value={[Math.max(0, MAP_PING_RADII_MILES.indexOf(radiusMiles))]}
+              />
+              <div className="flex justify-between text-[11px] text-white/50">
+                <span>{MAP_PING_RADII_MILES[0]} mi</span>
+                <span>{MAP_PING_RADII_MILES[MAP_PING_RADII_MILES.length - 1]} mi</span>
+              </div>
+            </div>
           </fieldset>
 
           {/* How many are left and when the next one lands, on one line. */}

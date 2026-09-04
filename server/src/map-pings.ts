@@ -35,7 +35,7 @@ import { getTravelPin, type TravelPin } from "./travel-pins.js";
 import { notifyGroupPulseRecipients, notifyPulseRecipients } from "./pulse-notifications.js";
 import { getSideQuestPingBalance } from "./side-quests.js";
 
-export const MAP_PING_RADIUS_MILES = [1, 3, 5, 10, 15] as const;
+export const MAP_PING_RADIUS_MILES = [1, 3, 5, 10, 15, 25, 50] as const;
 export type MapPingRadiusMiles = typeof MAP_PING_RADIUS_MILES[number];
 
 export const MAP_PING_ACTIVE_MS = 30 * 60 * 1000;

@@ -351,7 +351,9 @@
     "src/styles/theme.css",
     "src/app/components/GhostModeSettings.tsx",
     "src/app/components/GhostModeSettings.test.tsx",
-    "src/app/components/ui/dialog.tsx"
+    "src/app/components/ui/dialog.tsx",
+    "src/app/components/ui/slider.tsx",
+    "src/app/lib/mapPingsApi.ts"
   ],
   "forbiddenPaths": [
     "src/app/assets/brand/**",

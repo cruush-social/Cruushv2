@@ -112,13 +112,13 @@ describe('MapPingSheet', () => {
     expect(await screen.findByRole('dialog')).toBeInTheDocument();
     expect(screen.getByText('At the park')).toBeInTheDocument();
     expect(screen.getByText('2 of 3 Pulses available right now.')).toBeInTheDocument();
-    expect(screen.getAllByRole('radio').map((radio) => radio.getAttribute('aria-label'))).toEqual([
-      '1 mile',
-      '3 miles',
-      '5 miles',
-      '10 miles',
-      '15 miles',
-    ]);
+    // The radius is a slider now, so the range is read off its ends.
+    const radiusSlider = screen.getByRole('slider', { name: 'Pulse radius' });
+    expect(radiusSlider).toHaveAttribute('aria-valuemin', '0');
+    expect(radiusSlider).toHaveAttribute('aria-valuemax', '6');
+    expect(screen.getByText('1 mi')).toBeInTheDocument();
+    expect(screen.getByText('50 mi')).toBeInTheDocument();
+    expect(screen.getByText('3 miles')).toBeInTheDocument();
     expect(onRefresh).toHaveBeenCalledTimes(1);
     expect(screen.getByTestId('map-ping-sheet')).toHaveAttribute('data-window-mode', 'desktop-window');
     expect(screen.getByTestId('map-ping-sheet')).toHaveClass('overflow-hidden');
@@ -222,10 +222,15 @@ describe('MapPingSheet', () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole('radio', { name: '10 miles' }));
+    const radiusSlider = screen.getByRole('slider', { name: 'Pulse radius' });
+    radiusSlider.focus();
+    // 3 miles is index 1; three steps right lands on 15 miles.
+    fireEvent.keyDown(radiusSlider, { key: 'ArrowRight' });
+    fireEvent.keyDown(radiusSlider, { key: 'ArrowRight' });
+    fireEvent.keyDown(radiusSlider, { key: 'ArrowRight' });
     fireEvent.click(screen.getByRole('button', { name: 'Send Pulse' }));
 
-    await waitFor(() => expect(onSend).toHaveBeenCalledWith(10));
+    await waitFor(() => expect(onSend).toHaveBeenCalledWith(15));
   });
 
   it('requires a profile signal before sending', () => {

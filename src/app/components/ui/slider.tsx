@@ -13,6 +13,9 @@ function Slider({
   max = 100,
   ...props
 }: React.ComponentProps<typeof SliderPrimitive.Root>) {
+  // Radix puts role="slider" on the thumb, so a label left on the root never
+  // reaches the control a screen reader actually announces.
+  const thumbLabel = props["aria-label"];
   const _values = React.useMemo(
     () =>
       Array.isArray(value)
@@ -51,6 +54,7 @@ function Slider({
       </SliderPrimitive.Track>
       {Array.from({ length: _values.length }, (_, index) => (
         <SliderPrimitive.Thumb
+          aria-label={thumbLabel}
           data-slot="slider-thumb"
           key={index}
           className="border-primary bg-background ring-ring/50 block size-4 shrink-0 rounded-full border shadow-sm transition-[color,box-shadow] hover:ring-4 focus-visible:ring-4 focus-visible:outline-hidden disabled:pointer-events-none disabled:opacity-50"

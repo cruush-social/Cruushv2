@@ -101,3 +101,5 @@
 - Rope bunny is a rabbit. Prey takes the feather rope bunny used to carry, so no two Role badges share an icon.
 - Trade moved from Archetypes to Style.
 - The bug button covered the Feed settings close button. That dialog moves its close clear of the corner the bug button always occupies.
+- The Pulse radius is a slider in the Pulse green instead of a row of chips, and it reaches 50 miles.
+- Slider labels reach the thumb, which is the element a screen reader announces; a label on the root was never read out.
