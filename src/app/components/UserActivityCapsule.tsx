@@ -88,12 +88,6 @@ export default function UserActivityCapsule({
     <div className={compactIdentityMeta ? 'min-w-0' : 'col-start-2 col-end-4 min-w-0'}>{identity}</div>
   );
 
-  const identityRow = cornerAction && (vibes?.length ?? 0) > 0 ? (
-    <div className={compactIdentityMeta ? 'flex min-w-0 items-start gap-2' : 'col-start-2 col-end-4 flex min-w-0 items-start gap-2'}>
-      <div className="min-w-0 flex-1 [&>*]:col-auto">{identityControl}</div>
-      <div className="shrink-0">{cornerAction}</div>
-    </div>
-  ) : identityControl;
 
   const vibeRow = (vibes?.length ?? 0) > 0 ? (
     /* Above the card's grid, not inside it, so the heart, name and actions
@@ -139,12 +133,12 @@ export default function UserActivityCapsule({
 
       {compactIdentityMeta ? (
         <div className="col-start-2 row-start-1 min-w-0 self-center">
-          {identityRow}
+          {identityControl}
           {metadata ? <div className="cruush-user-activity-metadata min-w-0 overflow-hidden">{metadata}</div> : null}
         </div>
       ) : (
         <>
-          {identityRow}
+          {identityControl}
           {metadata ? <div className="cruush-user-activity-metadata col-start-2 min-w-0 self-center overflow-hidden">{metadata}</div> : null}
         </>
       )}
