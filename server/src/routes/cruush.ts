@@ -18,7 +18,9 @@ import {
   getPrivacySettings,
   getRelationshipPermissions,
   revokeOutgoingCruush,
-  revokeMutualCruushMatch
+  revokeMutualCruushMatch,
+  dismissIncomingCruush,
+  removeProfileViewsFromViewer
 } from "../match-relationships.js";
 import {
   buildEncryptedRelationshipPayload,
