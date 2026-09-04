@@ -849,7 +849,7 @@ export default function CruushActivity({
           />
         ) : null}
 
-        <main className="mx-auto w-full max-w-2xl px-4 pt-4">
+        <main className="mx-auto w-full max-w-2xl px-4 pt-2">
               {error ? (
                 <div className="mb-4 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
                   {error}

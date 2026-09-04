@@ -64,11 +64,25 @@ type FrameProps = {
 // `revealed` is the map's long-press state. It only opens the label where there
 // is no hover to open it with, so a touch press shows every badge label beside
 // the signal while a desktop pointer still reveals one badge at a time.
-export function BadgeHoverLabel({ children, revealed = false }: { children: React.ReactNode; revealed?: boolean }) {
+export function BadgeHoverLabel({ children, revealed = false, align = 'center' }: {
+  children: React.ReactNode;
+  revealed?: boolean;
+  /**
+   * Two side badge labels shown at once would collide in the middle, so each
+   * one hangs off its own outer edge instead of centring on the badge.
+   */
+  align?: 'center' | 'start' | 'end';
+}) {
+  const anchor = align === 'start'
+    ? 'left-0 translate-x-0'
+    : align === 'end'
+      ? 'right-0 translate-x-0'
+      : 'left-1/2 -translate-x-1/2';
+
   return (
     <span
       aria-hidden="true"
-      className={`pointer-events-none absolute left-1/2 top-full z-50 mt-1.5 w-max max-w-[min(13rem,calc(100vw-2rem))] -translate-x-1/2 break-words whitespace-normal rounded-xl border border-white/20 bg-black/95 px-2 py-1 text-center text-[0.7rem] font-semibold leading-tight text-white opacity-0 shadow-lg transition-opacity group-active/badge:opacity-100 group-focus-within/badge:opacity-100 group-hover/badge:opacity-100 ${revealed ? '[@media(hover:none)]:opacity-100' : ''}`}
+      className={`pointer-events-none absolute top-full z-50 mt-1.5 w-max max-w-[min(13rem,calc(100vw-2rem))] break-words whitespace-normal rounded-xl border border-white/20 bg-black/95 px-2 py-1 text-center text-[0.7rem] font-semibold leading-tight text-white opacity-0 shadow-lg transition-opacity group-active/badge:opacity-100 group-focus-within/badge:opacity-100 group-hover/badge:opacity-100 ${anchor} ${revealed ? '[@media(hover:none)]:opacity-100' : ''}`}
     >
       {children}
     </span>

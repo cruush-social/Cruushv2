@@ -52,7 +52,7 @@ function SavedSideBadge({ badge, side, tone }: {
           </span>
         ) : null}
       </BadgeFrame>
-      <BadgeHoverLabel>{label}</BadgeHoverLabel>
+      <BadgeHoverLabel align={side === 'left' ? 'start' : 'end'}>{label}</BadgeHoverLabel>
     </span>
   );
 }

@@ -86,3 +86,5 @@
 - Claiming a Side Quest that pays in Pings showed nothing at all, because the scratch card only appeared for cruush+ day grants. Ping quests now scratch off too, on a card that carries no cruush+ branding or benefit list.
 - Moderation rejections said only that content violates cruush safety rules. They now say what was checked and how to appeal.
 - The Bisexual badge showed the interlocked male and female signs, which is the heterosexual union mark. It is the biangles now: two overlapping triangles.
+- The gap between the Cruushes tab menu and the first card is tighter.
+- Both side badge labels can open at once on a long press, so each now hangs off its own outer edge instead of colliding in the middle.

@@ -1116,7 +1116,7 @@ function MarkerSideBadge({
           </span>
         ) : null}
       </BadgeFrame>
-      <BadgeHoverLabel revealed={revealed}>{hoverLabel}</BadgeHoverLabel>
+      <BadgeHoverLabel align={side === 'left' ? 'start' : 'end'} revealed={revealed}>{hoverLabel}</BadgeHoverLabel>
     </span>
   );
 }
