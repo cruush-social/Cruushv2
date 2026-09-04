@@ -802,7 +802,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
               <CruushIcon name="settings" className="h-5 w-5" />
             </Button>
           </DialogTrigger>
-          <DialogContent className="scrollbar-hide max-h-[calc(100dvh-2rem)] max-w-md overflow-y-auto overscroll-contain rounded-lg border-white/10 bg-background pb-[calc(1.5rem+env(safe-area-inset-bottom))] [&_[data-slot=dialog-close-x]]:right-14">
+          <DialogContent className="scrollbar-hide top-[calc(0.75rem+env(safe-area-inset-top))] max-h-[calc(100dvh-1.5rem-env(safe-area-inset-top))] max-w-md translate-y-0 overflow-y-auto overscroll-contain rounded-lg border-white/10 bg-background pb-[calc(1.5rem+env(safe-area-inset-bottom))] [&_[data-slot=dialog-close-x]]:right-14 [&_[data-slot=dialog-close-x]]:top-2.5">
             <DialogHeader>
               <DialogTitle>Feed settings</DialogTitle>
               <DialogDescription>

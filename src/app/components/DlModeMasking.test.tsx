@@ -22,8 +22,11 @@ function setDlMode(enabled: boolean) {
   window.localStorage.setItem('cruush:dl-mode-enabled', enabled ? 'true' : 'false');
 }
 
-function photoOf(label: string) {
-  return screen.getAllByLabelText(label).at(-1)?.querySelector('image') ?? null;
+// A masked avatar still draws the DL Mode mark, so the presence of an <image>
+// no longer separates masked from visible. Ask the question that matters: does
+// the private photo reach the DOM at all?
+function referencesPhoto(label: string, file: string) {
+  return screen.getAllByLabelText(label).at(-1)?.innerHTML.includes(file) ?? false;
 }
 
 describe('DL Mode masking across list surfaces', () => {
@@ -62,8 +65,8 @@ describe('DL Mode masking across list surfaces', () => {
 
       await waitFor(() => expect(screen.getByText('river')).toBeInTheDocument());
 
-      expect(photoOf('river avatar')).toBeNull();
-      expect(photoOf('sky avatar')).not.toBeNull();
+      expect(referencesPhoto('river avatar', 'river.jpg')).toBe(false);
+      expect(referencesPhoto('sky avatar', 'sky.jpg')).toBe(true);
     });
 
     it('shows the same avatar once DL Mode is off', async () => {
@@ -74,7 +77,7 @@ describe('DL Mode masking across list surfaces', () => {
 
       await waitFor(() => expect(screen.getByText('river')).toBeInTheDocument());
 
-      expect(photoOf('river avatar')).not.toBeNull();
+      expect(referencesPhoto('river avatar', 'river.jpg')).toBe(true);
     });
   });
 });

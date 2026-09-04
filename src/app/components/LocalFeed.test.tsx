@@ -238,11 +238,14 @@ describe('LocalFeed', () => {
 
     const dialog = await screen.findByRole('dialog', { name: 'Feed settings' });
     expect(dialog).toHaveClass(
-      'max-h-[calc(100dvh-2rem)]',
+      'max-h-[calc(100dvh-1.5rem-env(safe-area-inset-top))]',
       'overflow-y-auto',
       'overscroll-contain',
       'pb-[calc(1.5rem+env(safe-area-inset-bottom))]',
     );
+    // Anchored to the top rather than centred, so the close control lands on
+    // the bug button's line instead of drifting with the dialog's height.
+    expect(dialog).toHaveClass('top-[calc(0.75rem+env(safe-area-inset-top))]', 'translate-y-0');
     expect(within(dialog).getByRole('button', { name: /off/i })).toBeEnabled();
   });
 
@@ -289,8 +292,10 @@ describe('LocalFeed', () => {
     const maskedPhoto = screen.getAllByLabelText('river preview').at(-1)!;
     const visiblePhoto = screen.getAllByLabelText('sky preview').at(-1)!;
 
-    expect(maskedPhoto.querySelector('image')).toBeNull();
-    expect(visiblePhoto.querySelector('image')).not.toBeNull();
+    // A masked heart still draws the DL Mode mark, so the invariant worth
+    // pinning is that the private photo never reaches the DOM.
+    expect(maskedPhoto.innerHTML).not.toContain('river.jpg');
+    expect(visiblePhoto.innerHTML).toContain('sky.jpg');
   });
 
   it('shows explicit author photos in the feed once DL Mode is off', async () => {
@@ -359,7 +364,9 @@ describe('LocalFeed', () => {
 
     expect(await screen.findByText('two photos')).toBeInTheDocument();
     const masked = screen.getByRole('img', { name: 'Feed photo 1 hidden by DL Mode' });
-    expect(masked.querySelector('image')).toBeNull();
+    // The placeholder carries the DL Mode mark, so pin the real invariant: the
+    // explicit asset is never referenced from the DOM.
+    expect(masked.innerHTML).not.toContain('explicit-photo');
     expect(screen.queryByRole('button', { name: 'Feed photo 1 hidden by DL Mode' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Open Feed photo 2' })).toBeEnabled();
   });
