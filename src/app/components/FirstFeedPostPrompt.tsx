@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useExclusivePopup } from '../lib/popupQueue';
 import { useNavigate } from 'react-router';
 import { MapPin } from 'lucide-react';
 import { Button } from './ui/button';
@@ -128,6 +129,10 @@ export default function FirstFeedPostPrompt({ userId }: FirstFeedPostPromptProps
     releaseOneTimeDialog(activeDialogKey);
   };
 
+  // Shares one slot with the other post-onboarding prompts, so a new account
+  // never meets several stacked at once.
+  const showing = useExclusivePopup('first-feed-post', open);
+
   const handleOpenChange = (nextOpen: boolean) => {
     setOpen(nextOpen);
 
@@ -142,7 +147,7 @@ export default function FirstFeedPostPrompt({ userId }: FirstFeedPostPromptProps
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog open={showing} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-sm rounded-lg border-white/10 bg-background" data-testid="first-feed-post-prompt">
         <DialogHeader>
           <div className="mb-2 flex h-11 w-11 items-center justify-center rounded-full border border-primary/25 bg-primary/10">

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useExclusivePopup } from '../lib/popupQueue';
 import { useNavigate } from 'react-router';
 import { Sparkles } from 'lucide-react';
 import { Button } from './ui/button';
@@ -103,6 +104,9 @@ export default function SideQuestPrompt({ userId }: SideQuestPromptProps) {
     releaseOneTimeDialog(activeDialogKey);
   };
 
+  // Shares one slot with the other post-onboarding prompts.
+  const showing = useExclusivePopup('side-quest', open);
+
   const handleOpenChange = (nextOpen: boolean) => {
     setOpen(nextOpen);
 
@@ -117,7 +121,7 @@ export default function SideQuestPrompt({ userId }: SideQuestPromptProps) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog open={showing} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-sm rounded-lg border-white/10 bg-background" data-testid="side-quest-prompt">
         <DialogHeader>
           <div className="mb-2 flex h-11 w-11 items-center justify-center rounded-full border border-primary/25 bg-primary/10">

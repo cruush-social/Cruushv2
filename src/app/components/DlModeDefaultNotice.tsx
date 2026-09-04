@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useExclusivePopup } from '../lib/popupQueue';
 import { useLocation } from 'react-router';
 import { Eye } from 'lucide-react';
 import { Button } from './ui/button';
@@ -63,6 +64,10 @@ export default function DlModeDefaultNotice() {
     };
   }, [location.pathname]);
 
+  // First in the shared post-onboarding slot: it explains a privacy default,
+  // so it should not queue behind a nudge to post.
+  const showing = useExclusivePopup('dl-mode-default', open);
+
   const closeNotice = () => {
     setOpen(false);
     markDlModeDefaultNoticeSeen();
@@ -71,7 +76,7 @@ export default function DlModeDefaultNotice() {
 
   return (
     <Dialog
-      open={open}
+      open={showing}
       onOpenChange={(nextOpen) => {
         if (!nextOpen) {
           closeNotice();
