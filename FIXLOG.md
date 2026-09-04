@@ -83,3 +83,5 @@
 - Tapping some Spot clusters did nothing: the zoom padding was 140px each side on a 390px viewport, so fitBounds had no room and gave up.
 - Map presence could never be saved: the same query parameter was read as an integer for the hours column and as numeric for the day division, so Postgres rejected every write with inconsistent types deduced for parameter $2.
 - The privacy audit said Hidden from discovery without saying Dark Room was the reason.
+- Claiming a Side Quest that pays in Pings showed nothing at all, because the scratch card only appeared for cruush+ day grants. Ping quests now scratch off too, on a card that carries no cruush+ branding or benefit list.
+- Moderation rejections said only that content violates cruush safety rules. They now say what was checked and how to appeal.

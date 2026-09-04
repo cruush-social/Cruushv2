@@ -6171,7 +6171,7 @@ describe("server", () => {
     expect(response.json()).toEqual({
       error: {
         code: "CONTENT_REJECTED",
-        message: "This photo violates cruush safety rules and cannot be saved.",
+        message: "This photo was not saved because an automated safety check rejected it. Write to reports@cruush.app if you think this is wrong.",
         details: null
       }
     });
@@ -6294,7 +6294,7 @@ describe("server", () => {
     expect(response.json()).toEqual({
       error: {
         code: "CONTENT_REJECTED",
-        message: "This content violates cruush safety rules and cannot be saved.",
+        message: "This was not saved. Automated moderation flagged it for harm, hate, threats, nudity where it is not allowed, or illegal activity. Write to reports@cruush.app if you think this is wrong.",
         details: null
       }
     });
@@ -6342,7 +6342,7 @@ describe("server", () => {
     expect(response.json()).toEqual({
       error: {
         code: "CONTENT_REJECTED",
-        message: "This content violates cruush safety rules and cannot be saved.",
+        message: "This was not saved. Automated moderation flagged it for harm, hate, threats, nudity where it is not allowed, or illegal activity. Write to reports@cruush.app if you think this is wrong.",
         details: null
       }
     });
@@ -8634,7 +8634,7 @@ describe("server", () => {
     expect(response.json()).toEqual({
       error: {
         code: "CONTENT_REJECTED",
-        message: "This photo violates cruush safety rules and cannot be saved.",
+        message: "This photo was not saved because an automated safety check rejected it. Write to reports@cruush.app if you think this is wrong.",
         details: null
       }
     });
@@ -8901,7 +8901,7 @@ describe("server", () => {
     expect(response.json()).toEqual({
       error: {
         code: "CONTENT_REJECTED",
-        message: "This content violates cruush safety rules and cannot be saved.",
+        message: "This was not saved. Automated moderation flagged it for harm, hate, threats, nudity where it is not allowed, or illegal activity. Write to reports@cruush.app if you think this is wrong.",
         details: null
       }
     });
@@ -8935,7 +8935,7 @@ describe("server", () => {
     expect(response.json()).toEqual({
       error: {
         code: "CONTENT_REJECTED",
-        message: "This content violates cruush safety rules and cannot be saved.",
+        message: "This was not saved. Automated moderation flagged it for harm, hate, threats, nudity where it is not allowed, or illegal activity. Write to reports@cruush.app if you think this is wrong.",
         details: null
       }
     });
@@ -11256,7 +11256,7 @@ describe("server", () => {
     expect(response.json()).toEqual({
       error: {
         code: "CONTENT_REJECTED",
-        message: "This content violates cruush safety rules and cannot be saved.",
+        message: "This was not saved. Automated moderation flagged it for harm, hate, threats, nudity where it is not allowed, or illegal activity. Write to reports@cruush.app if you think this is wrong.",
         details: null
       }
     });

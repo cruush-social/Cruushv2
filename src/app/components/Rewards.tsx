@@ -29,7 +29,7 @@ import {
 } from '../lib/rewardsApi';
 import { CRUUSH_PLUS_CHANGED_EVENT } from '../lib/billingApi';
 import { CRUUSH_PLUS_FEATURES } from '../lib/cruushPlusFeatures';
-import { showEarnedCruushPlusCard } from '../lib/earnedCruushPlusCard';
+import { showEarnedCruushPlusCard, showEarnedPingsCard } from '../lib/earnedCruushPlusCard';
 
 const BENEFITS_OPEN_STORAGE_KEY = 'cruush:rewards:benefits-open';
 
@@ -229,7 +229,16 @@ export default function Rewards() {
       if (mountedRef.current && nextSummary) {
         setSummary(nextSummary);
         const grant = nextSummary.recentGrants.find(item => item.sideQuestKey === questKey && item.status === 'active');
-        if (grant) showEarnedCruushPlusCard(grant);
+        if (grant) {
+          showEarnedCruushPlusCard(grant);
+        } else {
+          // A Ping quest earns no cruush+ days, so there is no grant to show.
+          // Scratch off the Pings instead of leaving the claim silent.
+          const claimed = nextSideQuests.quests.find(quest => quest.key === questKey);
+          if (claimed?.rewardKind === 'ping') {
+            showEarnedPingsCard(`${questKey}:${claimed.claimedAt ?? ''}`, claimed.rewardAmount);
+          }
+        }
       }
     } catch (claimError) {
       if (!mountedRef.current) return;

@@ -17,6 +17,7 @@ function CardPatterns({ back = false }: { back?: boolean }) {
 }
 
 function ScratchCardBody({ card, onAccept }: { card: EarnedCruushPlusCard; onAccept: () => void }) {
+  const isPingCard = card.kind === 'ping';
   const root = useRef<HTMLDivElement>(null);
   const [revealed, setRevealed] = useState(false);
   const [turns, setTurns] = useState(0);
@@ -46,7 +47,7 @@ function ScratchCardBody({ card, onAccept }: { card: EarnedCruushPlusCard; onAcc
             <div className="beta-launch-plus-card" aria-hidden={!revealed || back}>
               <CardPatterns />
               <div className="beta-launch-plus-card__label">
-                <span className="beta-launch-plus-card__label-text"><span className="cruush-logo-font">cruush+</span></span>
+                <span className="beta-launch-plus-card__label-text">{isPingCard ? <span>Pulse</span> : <span className="cruush-logo-font">cruush+</span>}</span>
               </div>
               <div className="beta-launch-plus-card__valid">
                 <b data-format={card.format}><em>{card.amount}</em><i>{card.unit}</i></b>
@@ -66,9 +67,11 @@ function ScratchCardBody({ card, onAccept }: { card: EarnedCruushPlusCard; onAcc
         <span className="scratch-hint" data-done={revealed} aria-hidden="true">Scratch to reveal</span>
       </div>
     </div>
-    <button className="flip-tab" data-shown={revealed} disabled={!revealed} type="button" onClick={turn}>
-      {back ? 'Tap to flip back' : 'Tap to see benefits'}
-    </button>
+    {isPingCard ? null : (
+      <button className="flip-tab" data-shown={revealed} disabled={!revealed} type="button" onClick={turn}>
+        {back ? 'Tap to flip back' : 'Tap to see benefits'}
+      </button>
+    )}
     <div className="beta-launch-plus-dialog__footer locked" data-shown={revealed}>
       <button className="launch-login-auth-submit" type="button" disabled={!revealed} onClick={onAccept}><span>Done</span></button>
     </div>

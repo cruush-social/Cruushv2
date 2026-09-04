@@ -317,7 +317,7 @@ export function userMessageForDecision(
   }
 
   if (decision.user_message_code === "feed_content_rejected") {
-    return "This feed post could not be published because it violates cruush safety rules.";
+    return "This feed post was not published. Automated moderation flagged it for harm, hate, threats, or illegal activity. Edit the wording and try again, or write to reports@cruush.app if you think this is wrong.";
   }
 
   if (decision.user_message_code === "nudity_private_messages_only") {
@@ -325,10 +325,12 @@ export function userMessageForDecision(
   }
 
   if (decision.user_message_code === "content_rejected_zero_tolerance") {
-    return "This content violates cruush safety rules and cannot be saved.";
+    return "This was not saved. Automated moderation flagged it under the rules cruush never bends: content involving minors, non-consent, or illegal activity. Write to reports@cruush.app if you think this is wrong.";
   }
 
-  return "This content violates cruush safety rules and cannot be saved.";
+  // The catch-all still says what was checked and where to go, because
+  // "violates cruush safety rules" told a member nothing they could act on.
+  return "This was not saved. Automated moderation flagged it for harm, hate, threats, nudity where it is not allowed, or illegal activity. Write to reports@cruush.app if you think this is wrong.";
 }
 
 const HUMAN_PROOF_CONFIDENCE = 0.7;
