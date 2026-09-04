@@ -282,6 +282,20 @@ export async function revokeMutualCruush(otherUserId: string) {
   });
 }
 
+/** Clears an incoming cruush from your own list without touching the sender. */
+export async function dismissIncomingCruush(otherUserId: string) {
+  return requestApi<{ dismissed: boolean }>(`/api/cruush/incoming/${otherUserId}`, {
+    method: 'DELETE',
+  });
+}
+
+/** Clears one viewer's entries from your Views list. */
+export async function removeProfileView(otherUserId: string) {
+  return requestApi<{ removed: number }>(`/api/cruush/views/${otherUserId}`, {
+    method: 'DELETE',
+  });
+}
+
 export async function revokeSentCruush(otherUserId: string) {
   if (!isUuid(otherUserId)) {
     throw new Error('This cruush cannot be unsent.');

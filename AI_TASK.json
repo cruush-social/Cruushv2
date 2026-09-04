@@ -1,14 +1,14 @@
 {
   "schemaVersion": 2,
-  "taskId": "cruush-pulse-ghost-persistence-20260904",
+  "taskId": "cruush-cards-clear-and-ghost-20260904",
   "status": "active",
-  "objective": "A Pulse never ends early, Ghost Mode and Dark Room stay on until turned off, and only the owner can tell Ghost Mode is on.",
-  "userOutcome": "Leaving the app no longer stops your Pulse or your Ghost rotation; your own decoy carries the ghost mark; other members see a ghosted profile as an ordinary profile apart from the last-minute animation.",
+  "objective": "Clear buttons on incoming cruushes and views, Cruushes cards reading as Feed cards, the decoy carrying the animation ghost, and Chaser removed.",
+  "userOutcome": "You can clear an incoming cruush or a view from your own list; Cruushes cards match Feed cards with the content centred; your decoy shows the same ghost the rotation animation flies; Chaser is gone from archetypes.",
   "audience": "cruush members and the 1.6 release-email audience.",
   "successCriteria": [
-    "A known running Pulse is never dropped by a refresh.",
-    "The ghost rotation loop always reschedules.",
-    "Ghost mark renders for the owner only."
+    "Clear removes the row and decrements the count.",
+    "Locked rows show no clear button.",
+    "Chaser absent from archetypes."
   ],
   "mustPreserve": [
     "Preserve approved custom map tiles, theme, people pins, Ghost Mode, Dark Room, Pulse, and unrelated map behavior.",
@@ -19,8 +19,8 @@
     "Keep user-facing copy free of em dashes and spell cruush lowercase."
   ],
   "nonGoals": [
-    "No change to Pulse duration, allowance or radius.",
-    "No change to the last-minute rotation animation, which stays visible to everyone."
+    "No new ghost artwork: the decoy uses the icon the animation already uses.",
+    "Clearing never edits the sender history."
   ],
   "assumptions": [
     {
@@ -42,7 +42,7 @@
       "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "Pulse survives leaving the app; owner decoy shows the ghost mark.",
+  "nextVisibleMilestone": "Clear buttons visible on Cruushes rows; cards read as Feed cards.",
   "stopConditions": [
     "Stop the data-expansion slice if the full prior source cache cannot be recovered or if a source record is private or unsafe to publish.",
     "Stop publication because push and deployment are not authorized by this task."
@@ -74,9 +74,10 @@
   "branch": "release/1.6-integration-20260901",
   "job": "Finish the named 1.6 changes and update the release email locally.",
   "allowedPaths": [
-    "src/app/components/MapHome.tsx",
+    "src/app/components/CruushActivity.tsx",
     "src/app/components/MapView.tsx",
-    "src/app/components/MapView.test.tsx",
+    "src/app/lib/cruushApi.ts",
+    "src/app/lib/profileOptions.ts",
     "index.html",
     "public/sw.js",
     "public/service-worker-recovery.js",

@@ -65,7 +65,6 @@ import { formatBadgeLabel } from '../lib/badgeIntent';
 import { HEART_PIN_PATH, HEART_PIN_THEMES } from '../lib/heartPin';
 import { DARK_ROOM_PALETTE } from '../lib/darkRoomPalette';
 import { resolveSavedBadgeGlyph } from './SavedBadgeGlyphs';
-import ghostDecoyMark from '../assets/ui-icons/ghost-white.svg';
 import {
   DARK_ROOM_EYE_PATH,
   DARK_ROOM_KEYHOLE_PATH,
@@ -1604,16 +1603,11 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
             style={borderStyle}
           />
           {isOwnGhostMarker ? (
-            <image
-              data-testid={`marker-ghost-decoy-mark-${marker.id}`}
-              height="26"
-              href={ghostDecoyMark}
-              opacity={0.92}
-              preserveAspectRatio="xMidYMid meet"
-              width="26"
-              x="19"
-              y="17"
-            />
+            <foreignObject data-testid={`marker-ghost-decoy-mark-${marker.id}`} height="30" width="30" x="17" y="15">
+              <div className="flex h-full w-full items-center justify-center">
+                <GhostColoredIcon className="h-full w-full" />
+              </div>
+            </foreignObject>
           ) : null}
         </>
       ) : isCurrentUser && !isMutualCruush ? (
@@ -1629,16 +1623,11 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
             style={borderStyle}
           />
           {isOwnGhostMarker ? (
-            <image
-              data-testid={`marker-ghost-decoy-mark-${marker.id}`}
-              height="26"
-              href={ghostDecoyMark}
-              opacity={0.92}
-              preserveAspectRatio="xMidYMid meet"
-              width="26"
-              x="19"
-              y="17"
-            />
+            <foreignObject data-testid={`marker-ghost-decoy-mark-${marker.id}`} height="30" width="30" x="17" y="15">
+              <div className="flex h-full w-full items-center justify-center">
+                <GhostColoredIcon className="h-full w-full" />
+              </div>
+            </foreignObject>
           ) : (
             <foreignObject data-testid={`marker-current-fallback-${marker.id}`} height="36" width="36" x="14" y="16">
               <div className="flex h-9 w-9 items-center justify-center">

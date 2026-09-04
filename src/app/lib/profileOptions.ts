@@ -100,7 +100,7 @@ export const VIBE_GROUPS = [
   {
     label: 'Archetypes',
     options: [
-      'Angel', 'Baddie', 'Bimbo', 'Bitch', 'Boss', 'Bro', 'Bull', 'Bully', 'Chaser', 'Clown', 'Cock sleeve', 'Cougar', 'Cuck', 'Cuckquean',
+      'Angel', 'Baddie', 'Bimbo', 'Bitch', 'Boss', 'Bro', 'Bull', 'Bully', 'Clown', 'Cock sleeve', 'Cougar', 'Cuck', 'Cuckquean',
       'Cum dump', 'Cyborg', 'Daddy', 'Deity', 'Demon', 'Doll', 'Dominatrix', 'Domme', 'Drone', 'Dude', 'God/Goddess', 'Gooner', 'Gremlin', 'Hedonist', 'Himbo',
       'Hothusband', 'Hotwife', 'Incubus', 'Jester', 'King', 'Kitten', 'Master', 'Minx', 'Mistress', 'Mommy', 'Nympho',
       'Object', 'Outlaw', 'Owned', 'Pervert', 'Pig', 'Pixie', 'Plaything', 'Pony', 'Pornstar', 'Prince', 'Princess', 'Pup', 'Queen',

@@ -4,6 +4,7 @@ import {
   ArrowLeft,
   Lock,
   Plus,
+  Trash2,
   X,
 } from 'lucide-react';
 import HeartPhoto from './HeartPhoto';
@@ -12,7 +13,7 @@ import { CruushIcon } from './CruushIconImage';
 import CruushPlusWord from './CruushPlusWord';
 import { Button } from './ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { getMutualCruushMap, getMyCruushActivity, revokeMutualCruush, revokeSentCruush, sendCruush, type CruushActivity, type CruushLockableActivityItem, type MutualCruushActivityItem, type ProfileViewActivityItem } from '../lib/cruushApi';
+import { dismissIncomingCruush, getMutualCruushMap, getMyCruushActivity, removeProfileView, revokeMutualCruush, revokeSentCruush, sendCruush, type CruushActivity, type CruushLockableActivityItem, type MutualCruushActivityItem, type ProfileViewActivityItem } from '../lib/cruushApi';
 import { DEBUG_CRUUSH_PLUS_EVENT } from '../lib/debugApi';
 import { CRUUSH_PLUS_CHANGED_EVENT } from '../lib/billingApi';
 import { addCruushChangedListener } from '../lib/cruushEvents';
@@ -47,11 +48,11 @@ type CruushActionState = 'available' | 'sending' | 'sent' | 'mutual';
 
 const activityHeartClassName = 'w-20 shrink-0';
 const activityActionClassName = '!gap-1 [&>button]:!size-9 [&>button]:!p-1.5 [&>button>img]:!size-5 [&>button>svg]:!size-5';
-// The capsule's own padding stands: the compressed !py-3 rows read as thin
-// strips beside the Feed's cards, with the identity pinned to the top of the
-// space a post would have filled. Full padding centres it in a card that
-// carries the same weight as a Feed post.
-const activityCardClassName = '';
+// Cruushes cards read as Feed cards: the same surface and hover, and the same
+// padding. A Feed card is taller because a post sits under the identity row;
+// with no post to carry, these centre their content in that space rather than
+// pinning it to the top and leaving the rest empty.
+const activityCardClassName = 'bg-black/72 hover:bg-black/86 min-h-[7.5rem] content-center';
 
 function formatRelativeTime(isoTimestamp: string) {
   const now = Date.now();
@@ -236,6 +237,8 @@ function IncomingRow({
   onOpenProfile,
   onMessage,
   onOpenMap,
+  onDismiss,
+  dismissing = false,
 }: {
   item: CruushLockableActivityItem;
   onCruushAction: (item: CruushLockableActivityItem) => void;
@@ -246,6 +249,8 @@ function IncomingRow({
   onOpenProfile: (userId: string, state?: { distance?: string; lastActive?: string }) => void;
   onMessage: (userId: string) => void;
   onOpenMap: (userId: string) => void;
+  onDismiss?: (item: CruushLockableActivityItem) => void;
+  dismissing?: boolean;
 }) {
   const unlocked = !item.locked && item.user;
   const actionState: CruushActionState = item.mutual
@@ -262,6 +267,22 @@ function IncomingRow({
       compactIdentityMeta
       testId="activity-row"
       heart={<PersonHeart item={item} fallbackLabel="Locked incoming cruush" onOpenProfile={onOpenProfile} />}
+      cornerAction={onDismiss && unlocked ? (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-8 text-muted-foreground hover:text-white"
+          aria-label={`Clear incoming cruush from ${item.user!.name}`}
+          title="Clear from your list"
+          disabled={dismissing}
+          onClick={(event) => {
+            event.stopPropagation();
+            onDismiss(item);
+          }}
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      ) : undefined}
       name={unlocked ? item.user.name : 'Someone new'}
       pronouns={unlocked ? item.user.pronouns || 'Ask me' : undefined}
       sideBadges={unlocked ? item.user.sideBadges : undefined}
@@ -438,6 +459,8 @@ function ViewRow({
   onOpenProfile,
   onMessage,
   onOpenMap,
+  onRemove,
+  removing = false,
 }: {
   item: ProfileViewActivityItem;
   distance: string;
@@ -446,6 +469,8 @@ function ViewRow({
   onCruush: (item: ProfileViewActivityItem) => void;
   onOpenProfile: (userId: string, state?: { distance?: string; lastActive?: string }) => void;
   onMessage: (userId: string) => void;
+  onRemove?: (item: ProfileViewActivityItem) => void;
+  removing?: boolean;
   onOpenMap: (userId: string) => void;
 }) {
   const unlocked = !item.locked && item.user;
@@ -456,6 +481,22 @@ function ViewRow({
       compactIdentityMeta
       testId="activity-row"
       heart={<PersonHeart item={item} fallbackLabel="Locked profile view" onOpenProfile={onOpenProfile} />}
+      cornerAction={onRemove && item.user ? (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-8 text-muted-foreground hover:text-white"
+          aria-label={`Clear profile view from ${item.user.name}`}
+          title="Clear from your list"
+          disabled={removing}
+          onClick={(event) => {
+            event.stopPropagation();
+            onRemove(item);
+          }}
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      ) : undefined}
       name={unlocked ? item.user.name : 'Someone new'}
       pronouns={unlocked ? item.user.pronouns || 'Ask me' : undefined}
       sideBadges={unlocked ? item.user.sideBadges : undefined}
@@ -680,6 +721,55 @@ export default function CruushActivity({
     }
   };
 
+  const [clearingUserIds, setClearingUserIds] = useState<Set<string>>(() => new Set());
+
+  const markClearing = (userId: string, clearing: boolean) => {
+    setClearingUserIds((current) => {
+      const next = new Set(current);
+      if (clearing) next.add(userId); else next.delete(userId);
+      return next;
+    });
+  };
+
+  // Clearing an incoming cruush hides it from your list only. The sender keeps
+  // it in their Sent list, so this never edits somebody else's history.
+  const handleDismissIncoming = async (item: CruushLockableActivityItem) => {
+    const targetUser = item.user;
+    if (!targetUser || clearingUserIds.has(targetUser.id)) return;
+
+    markClearing(targetUser.id, true);
+    try {
+      await dismissIncomingCruush(targetUser.id);
+      setActivity((current) => current ? {
+        ...current,
+        counts: { ...current.counts, incoming: Math.max(0, current.counts.incoming - 1) },
+        incoming: current.incoming.filter((row) => row.user?.id !== targetUser.id),
+      } : current);
+    } catch (dismissError) {
+      console.error('Error clearing incoming cruush:', dismissError);
+    } finally {
+      markClearing(targetUser.id, false);
+    }
+  };
+
+  const handleRemoveView = async (item: ProfileViewActivityItem) => {
+    if (clearingUserIds.has(item.user.id)) return;
+
+    markClearing(item.user.id, true);
+    try {
+      await removeProfileView(item.user.id);
+      setActivity((current) => current ? {
+        ...current,
+        counts: { ...current.counts, views: Math.max(0, current.counts.views - 1) },
+        views: current.views.filter((row) => row.user.id !== item.user.id),
+      } : current);
+    } catch (removeError) {
+      console.error('Error clearing profile view:', removeError);
+    } finally {
+      markClearing(item.user.id, false);
+    }
+  };
+
   const openProfile = (userId: string, state?: { distance?: string; lastActive?: string }) =>
     navigate(`/profile/${userId}`, state ? { state } : undefined);
   const openMutualOnMap = (userId: string) => navigate(`/map?mode=mutuals&focusUserId=${encodeURIComponent(userId)}`);
@@ -882,6 +972,8 @@ export default function CruushActivity({
                           onOpenProfile={openProfile}
                           onMessage={openMessage}
                           onOpenMap={openMutualOnMap}
+                          onDismiss={handleDismissIncoming}
+                          dismissing={Boolean(item.user && clearingUserIds.has(item.user.id))}
                         />
                       ))}
                     </ActivitySurface>
@@ -937,6 +1029,8 @@ export default function CruushActivity({
                           onOpenProfile={openProfile}
                           onMessage={openMessage}
                           onOpenMap={openMutualOnMap}
+                          onRemove={handleRemoveView}
+                          removing={Boolean(item.user && clearingUserIds.has(item.user.id))}
                         />
                       ))}
                     </ActivitySurface>
