@@ -185,6 +185,10 @@ function mapTutorialRoute(step: MapControlsTutorialStepId) {
     return '/lucky';
   }
 
+  if (step === 'profile-edit') {
+    return '/profile/edit';
+  }
+
   if (step === 'cruush-plus') {
     return '/rewards';
   }

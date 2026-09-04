@@ -14,6 +14,14 @@ export const MAP_CONTROLS_TUTORIAL_LEGACY_STORAGE_KEYS = [
 ];
 export const MAP_CONTROLS_TUTORIAL_PROGRESS_KEY = 'cruush:tutorial-v5-progress';
 export const MAP_CONTROLS_TUTORIAL_COMPLETED_EVENT = 'cruush:map-controls-tutorial-completed';
+export const MAP_CONTROLS_TUTORIAL_STEP_EVENT = 'cruush:map-controls-tutorial-step';
+
+/** Lets the map open the very control a step is talking about. */
+export function notifyMapControlsTutorialStep(step: MapControlsTutorialStepId) {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(MAP_CONTROLS_TUTORIAL_STEP_EVENT, { detail: step }));
+  }
+}
 
 export function notifyMapControlsTutorialCompleted() {
   if (typeof window !== 'undefined') {
@@ -21,7 +29,7 @@ export function notifyMapControlsTutorialCompleted() {
   }
 }
 
-export type MapControlsTutorialStepId = 'install' | 'notifications' | 'map-controls' | 'seeking' | 'visibility' | 'cruush-plus' | 'mile-high-club' | 'places' | 'crowds' | 'ghost' | 'dl-mode' | 'ping' | 'profile-pin' | 'zoom' | 'carousel' | 'feed';
+export type MapControlsTutorialStepId = 'install' | 'notifications' | 'map-controls' | 'seeking' | 'visibility' | 'cruush-plus' | 'mile-high-club' | 'places' | 'crowds' | 'ghost' | 'dl-mode' | 'ping' | 'profile-pin' | 'zoom' | 'carousel' | 'profile-edit' | 'feed';
 
 type TutorialStep = {
   id: MapControlsTutorialStepId;
@@ -49,7 +57,7 @@ const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'map-controls',
     title: 'Map Controls',
-    description: 'Open Map Controls to reach Seeking, Visibility, Spots, Pulse, location, and zoom without covering the map.',
+    description: 'This is Map Controls, open for you. Seeking filters who you see, Visibility controls who sees you, and Spots filters the venues on the map. Pulse, your location, and zoom sit below them.',
     actionLabel: 'Open Map Controls',
   },
   {
@@ -103,7 +111,7 @@ const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'ping',
     title: 'Pulse',
-    description: 'Pulse makes your heart beat for 30 minutes inside the radius you choose and posts your saved profile signal to Feed without moving your pin. Optional phone alerts go only to eligible mutuals. A person receives at most one Pulse alert every 4 hours and never more than one from the same sender per day. Basic includes 1 Pulse per day. cruush+ includes 5 per day. Group owners and admins can spend one of their own Pulses to alert their group.',
+    description: 'Pulse makes your heart beat for 30 minutes inside the radius you choose and posts your saved profile signal to Feed without moving your pin. Optional phone alerts go only to eligible mutuals. A person receives at most one Pulse alert every 4 hours and never more than one from the same sender per day. Basic includes 1 Pulse per day. cruush+ includes 5 per day.',
     actionLabel: 'Open Pulse',
   },
   {
@@ -122,6 +130,12 @@ const TUTORIAL_STEPS: TutorialStep[] = [
     title: 'Cruise Carousel',
     description: 'Spin the Cruise Carousel to discover someone nearby. Without cruush+, the spin previews the feature and then opens the upgrade option.',
     actionLabel: 'Open Cruise Carousel',
+  },
+  {
+    id: 'profile-edit',
+    title: 'Your profile',
+    description: 'Your photos, Badges, vibes, and kinks all live in Edit Profile. What you put here is what Seeking and Visibility match on.',
+    actionLabel: 'Open Edit Profile',
   },
   {
     id: 'feed',
@@ -578,6 +592,7 @@ export default function MapControlsTutorial({ open, onComplete, onActivateStep, 
 
     window.localStorage.setItem(MAP_CONTROLS_TUTORIAL_PROGRESS_KEY, nextStep.id);
     setStepIndex(nextIndex);
+    notifyMapControlsTutorialStep(nextStep.id);
     onStepChange?.(nextStep.id);
   };
 

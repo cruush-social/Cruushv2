@@ -21,6 +21,7 @@ const TARGET_STEP_IDS: MapControlsTutorialStepId[] = [
   'profile-pin',
   'zoom',
   'carousel',
+  'profile-edit',
   'feed',
 ];
 
@@ -204,7 +205,7 @@ describe('MapControlsTutorial', () => {
 
     render(<MapControlsTutorial open onActivateStep={onActivateStep} onComplete={onComplete} />);
 
-    expect(screen.getByText('Map tutorial · Step 1 of 16')).toBeInTheDocument();
+    expect(screen.getByText('Map tutorial · Step 1 of 17')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Install cruush' })).toBeInTheDocument();
     fireEvent.click(expectHighlightedAction('install', 'Install cruush'));
     expect(onActivateStep).toHaveBeenLastCalledWith('install');
@@ -280,6 +281,10 @@ describe('MapControlsTutorial', () => {
     expect(screen.getByText(/spin the Cruise Carousel to discover someone nearby/i)).toBeInTheDocument();
     fireEvent.click(expectHighlightedAction('carousel', 'Open Cruise Carousel'));
     expect(onActivateStep).toHaveBeenLastCalledWith('carousel');
+    fireEvent.click(screen.getByTestId('tutorial-next'));
+
+    expect(screen.getByRole('heading', { name: 'Your profile' })).toBeInTheDocument();
+    expectHighlightedAction('profile-edit', 'Open Edit Profile');
     fireEvent.click(screen.getByTestId('tutorial-next'));
 
     expect(screen.getByRole('heading', { name: 'Feed' })).toBeInTheDocument();
@@ -377,6 +382,7 @@ describe('MapControlsTutorial', () => {
     );
     expect(screen.getByRole('heading', { name: 'Ghost Mode' })).toBeInTheDocument();
 
+    fireEvent.click(screen.getByTestId('tutorial-next'));
     fireEvent.click(screen.getByTestId('tutorial-next'));
     fireEvent.click(screen.getByTestId('tutorial-next'));
     fireEvent.click(screen.getByTestId('tutorial-next'));

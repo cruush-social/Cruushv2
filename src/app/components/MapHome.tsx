@@ -23,6 +23,7 @@ import LoadingCardSkeletons from './LoadingCardSkeletons';
 import MapControlsTutorial, {
   getStoredMapControlsTutorialStep,
   MAP_CONTROLS_TUTORIAL_LEGACY_STORAGE_KEYS,
+  MAP_CONTROLS_TUTORIAL_STEP_EVENT,
   MAP_CONTROLS_TUTORIAL_STORAGE_KEY,
   notifyMapControlsTutorialCompleted,
   type MapControlsTutorialStepId,
@@ -875,6 +876,20 @@ export default function MapHome(_props: MapHomeProps = {}) {
   const [mapInstance, setMapInstance] = useState<CruushMapInstance | null>(null);
   const [mapViewport, setMapViewport] = useState<SettledMapViewport | null>(null);
   const [mapControlsOpen, setMapControlsOpen] = useState(false);
+
+  // The tour describes Seeking, Visibility and Spots while they sit behind a
+  // closed menu, so open Map Controls for the steps that talk about them.
+  useEffect(() => {
+    const followTutorialStep = (event: Event) => {
+      const step = (event as CustomEvent<MapControlsTutorialStepId>).detail;
+      if (step === 'map-controls' || step === 'seeking' || step === 'visibility' || step === 'places') {
+        setMapControlsOpen(true);
+      }
+    };
+
+    window.addEventListener(MAP_CONTROLS_TUTORIAL_STEP_EVENT, followTutorialStep);
+    return () => window.removeEventListener(MAP_CONTROLS_TUTORIAL_STEP_EVENT, followTutorialStep);
+  }, []);
   const [placesOpen, setPlacesOpen] = useState(false);
   const [spotFiltersActive, setSpotFiltersActive] = useState(false);
   const [spotMapFilters, setSpotMapFilters] = useState<{

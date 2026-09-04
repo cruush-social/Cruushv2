@@ -88,3 +88,6 @@
 - The Bisexual badge showed the interlocked male and female signs, which is the heterosexual union mark. It is the biangles now: two overlapping triangles.
 - The gap between the Cruushes tab menu and the first card is tighter.
 - Both side badge labels can open at once on a long press, so each now hangs off its own outer edge instead of colliding in the middle.
+- The tutorial now opens Map Controls on the steps that describe Seeking, Visibility and Spots, instead of pointing at a closed menu.
+- The tour has an Edit Profile step, so a new member is shown where photos, Badges, vibes and kinks are set.
+- The Pulse tutorial step no longer claims group owners can alert a group. cruush has no public groups.
