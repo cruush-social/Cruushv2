@@ -435,8 +435,11 @@ export async function registerPrivacyRoutes(app: FastifyInstance) {
     const userId = await getActiveAccountUserId(request);
     const payload = mapPresencePayloadSchema.parse(request.body);
     const result = await app.db.query<{ map_presence_hours: number | null }>(
+      // $2 was read as an integer for the hours column and as numeric for the
+      // day division in the same statement, which Postgres refuses with
+      // "inconsistent types deduced for parameter $2". Both uses are cast now.
       `insert into user_privacy_settings (user_id, map_presence_hours, map_presence_days)
-       values ($1, $2, greatest(1, ceil($2 / 24.0))::integer)
+       values ($1, $2::integer, greatest(1, ceil($2::numeric / 24.0))::integer)
        on conflict (user_id) do update
        set map_presence_hours = excluded.map_presence_hours,
            map_presence_days = excluded.map_presence_days,

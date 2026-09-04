@@ -81,3 +81,5 @@
 - Hair now sits directly above Kinks in the profile editor, matching Seeking Filters and Visibility Controls.
 - The badge menu Edit profile vibes and kinks links did nothing, because the badge picker is embedded in the profile editor and navigating to the route already on screen never switched the tab.
 - Tapping some Spot clusters did nothing: the zoom padding was 140px each side on a 390px viewport, so fitBounds had no room and gave up.
+- Map presence could never be saved: the same query parameter was read as an integer for the hours column and as numeric for the day division, so Postgres rejected every write with inconsistent types deduced for parameter $2.
+- The privacy audit said Hidden from discovery without saying Dark Room was the reason.

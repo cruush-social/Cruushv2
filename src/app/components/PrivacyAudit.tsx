@@ -82,7 +82,7 @@ export default function PrivacyAudit() {
   };
 
   const visibleWhere = privacySettings.baseMode === 'STEALTH'
-    ? 'Hidden from discovery'
+    ? 'Hidden from discovery while Dark Room is on'
     : privacySettings.ghostModeEnabled || privacySettings.baseMode === 'GHOST'
       ? `Ghost radius: ${privacySettings.ghostRadiusLabel}`
       : 'Live map location';

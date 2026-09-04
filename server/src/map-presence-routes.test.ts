@@ -87,6 +87,29 @@ describe("map presence routes", () => {
     await app.close();
   });
 
+  it("casts both uses of the hours parameter so Postgres can deduce its type", async () => {
+    // A mocked query cannot reject the statement, so the shape is pinned here:
+    // using $2 as an integer column and as numeric in the same statement made
+    // Postgres refuse every save with "inconsistent types deduced for
+    // parameter $2", so map presence could never be changed.
+    const query = vi.fn().mockResolvedValue({ rows: [{ map_presence_hours: 3 }] });
+    const { app } = buildTestApp(query);
+
+    await app.inject({
+      method: "PUT",
+      url: "/api/privacy/map-presence",
+      headers: { "x-user-id": userId },
+      payload: { hours: 3 }
+    });
+
+    const statement = String(query.mock.calls.at(-1)?.[0]);
+    expect(statement).toContain("$2::integer");
+    expect(statement).toContain("$2::numeric");
+    expect(statement).not.toMatch(/ceil\(\$2 \//);
+
+    await app.close();
+  });
+
   it("upserts a new map presence duration for the signed-in account", async () => {
     const query = vi.fn().mockResolvedValue({ rows: [{ map_presence_hours: 3 }] });
     const { app } = buildTestApp(query);

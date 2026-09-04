@@ -292,6 +292,8 @@
     "server/sql/107_side_quest_first_ping.sql",
     "server/sql/108_side_quest_catalog.sql",
     "server/sql/143_email_change_requests.sql",
+    "server/src/map-presence-routes.test.ts",
+    "src/app/components/PrivacyAudit.tsx",
     "src/app/components/ProfileCard.tsx",
     "src/app/components/BadgeGalleryLocal.tsx",
     "server/src/auth-schema.ts",
