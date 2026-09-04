@@ -91,7 +91,8 @@
     "src/main.tsx",
     "AI_TASK.json",
     "src/styles/theme.css",
-    "src/app/components/DirectMessages.test.tsx"
+    "src/app/components/DirectMessages.test.tsx",
+    "src/app/components/PositionRoleGlyphs.tsx"
   ],
   "forbiddenPaths": [
     "src/app/assets/brand/**",

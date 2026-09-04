@@ -24,7 +24,7 @@ import {
   Spline,
   Sun,
 } from 'lucide-react';
-import { DomEmblem, SubEmblem, SwitchEmblem } from './BdsmEmblems';
+import { BottomSwitchEmblem, DomEmblem, SubEmblem, SwitchEmblem, TopSwitchEmblem } from './BdsmEmblems';
 import { LipsGlyph } from './BadgeGlyphs';
 
 /**
@@ -240,10 +240,14 @@ export const POSITION_GLYPHS: Record<string, (props: GlyphProps) => JSX.Element>
   // the same mark, so nobody's badge shows a different vers icon because of
   // when they picked it.
   vers: VersatileGlyph,
-  'vers top': VersTopGlyph,
-  'versatile top': VersTopGlyph,
-  'vers bottom': VersBottomGlyph,
-  'versatile bottom': VersBottomGlyph,
+  // The badge menu has drawn vers top and vers bottom as the switch hexagon
+  // with a top or bottom mark inside it since they were added. The map and the
+  // cards were drawing their own arrow glyphs for the same values, which is why
+  // the same position showed a different icon depending on the surface.
+  'vers top': TopSwitchEmblem,
+  'versatile top': TopSwitchEmblem,
+  'vers bottom': BottomSwitchEmblem,
+  'versatile bottom': BottomSwitchEmblem,
   side: SideGlyph,
   'stone top': StoneTopGlyph,
   'stone bottom': PillowPrincessGlyph,
