@@ -105,3 +105,4 @@
 - Slider labels reach the thumb, which is the element a screen reader announces; a label on the root was never read out.
 - A heart with no photo was an empty gradient. It carries the cruush mark now, and a photo hidden by DL Mode carries the DL Mode mark instead of a generic eye.
 - The no-photo and DL Mode placeholders read the same across profile hearts, profile cards, the photo gallery and the profile editor.
+- Phone notifications carry the Feed mark instead of the app icon.

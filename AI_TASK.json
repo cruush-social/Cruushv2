@@ -355,7 +355,8 @@
     "src/app/components/ui/slider.tsx",
     "src/app/lib/mapPingsApi.ts",
     "src/app/components/HeartPhoto.test.tsx",
-    "src/app/components/ProfilePhotoGallery.tsx"
+    "src/app/components/ProfilePhotoGallery.tsx",
+    "public/icons/notification-feed.png"
   ],
   "forbiddenPaths": [
     "src/app/assets/brand/**",
