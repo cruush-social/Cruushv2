@@ -106,3 +106,4 @@
 - A heart with no photo was an empty gradient. It carries the cruush mark now, and a photo hidden by DL Mode carries the DL Mode mark instead of a generic eye.
 - The no-photo and DL Mode placeholders read the same across profile hearts, profile cards, the photo gallery and the profile editor.
 - Phone notifications carry the Feed mark instead of the app icon.
+- The Community and care tag filter is gone from the Spots filter.

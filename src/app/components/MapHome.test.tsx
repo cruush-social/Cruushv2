@@ -1164,7 +1164,9 @@ describe('MapHome', () => {
     expect(navigator.geolocation.getCurrentPosition).toHaveBeenCalledTimes(1);
     await openMapControls();
     fireEvent.click(screen.getByRole('button', { name: 'Send a Pulse' }));
-    fireEvent.click(await screen.findByRole('radio', { name: '10 miles' }));
+    // The Pulse radius is a slider now; the default of 3 miles is enough here,
+    // since this test is about the location sync that precedes the send.
+    await screen.findByRole('slider', { name: 'Pulse radius' });
     fireEvent.click(screen.getByRole('button', { name: 'Send Pulse' }));
 
     await waitFor(() => {
@@ -1184,7 +1186,7 @@ describe('MapHome', () => {
       });
     });
 
-    await waitFor(() => expect(sendMapPing).toHaveBeenCalledWith(10, expect.any(String)));
+    await waitFor(() => expect(sendMapPing).toHaveBeenCalledWith(3, expect.any(String)));
     await waitFor(() => expect(screen.getByRole('button', { name: 'Send another Pulse' })).toBeEnabled());
   });
 

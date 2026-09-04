@@ -10,7 +10,6 @@ import {
   PLACE_AMENITIES,
   PLACE_AMENITY_LABELS,
   PLACE_TAG_LABELS,
-  PLACE_TAGS,
   PLACE_VIBES,
   PLACE_VIBE_LABELS,
   getSpotCategoryLabels,
@@ -49,7 +48,6 @@ const SORT_OPTIONS: Array<{ value: PlaceSort; label: string }> = [
 
 const PLACE_PAGE_SIZE = 50;
 const DISTANCE_OPTIONS = [1, 5, 10, 25, 50, 100] as const;
-const FILTERABLE_PLACE_TAGS = PLACE_TAGS;
 
 function toggleValue<T extends string>(values: T[], value: T) {
   return values.includes(value) ? values.filter((item) => item !== value) : [...values, value];
@@ -334,12 +332,6 @@ export default function PlacesDrawer({ open, onOpenChange, coordinates, onFilter
                     <legend className="text-sm text-white">Place type</legend>
                     <div className="flex flex-wrap gap-2">
                       {PLACE_FACILITY_TYPES.map((type) => <button key={type} type="button" aria-pressed={draftFacilityTypes.includes(type)} className={`rounded-full border px-3 py-1 text-xs ${draftFacilityTypes.includes(type) ? 'border-primary bg-primary/20 text-white' : 'border-white/10 text-white/65'}`} onClick={() => setDraftFacilityTypes(toggleValue(draftFacilityTypes, type))}>{PLACE_FACILITY_LABELS[type]}</button>)}
-                    </div>
-                  </fieldset>
-                  <fieldset className="space-y-2">
-                    <legend className="text-sm text-white">Community and care</legend>
-                    <div className="flex flex-wrap gap-2">
-                      {FILTERABLE_PLACE_TAGS.map((tag) => <button key={tag} type="button" aria-pressed={draftTags.includes(tag)} className={`rounded-full border px-3 py-1 text-xs ${draftTags.includes(tag) ? 'border-primary bg-primary/20 text-white' : 'border-white/10 text-white/65'}`} onClick={() => setDraftTags(toggleValue(draftTags, tag))}>{PLACE_TAG_LABELS[tag]}</button>)}
                     </div>
                   </fieldset>
                   <fieldset className="space-y-2">
