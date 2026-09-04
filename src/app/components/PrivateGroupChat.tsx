@@ -953,8 +953,11 @@ export default function PrivateGroupChat({
   const canSendMessage = normalizedComposerMessage.length > 0;
   const favoriteUploadControlDisabled = favoriteUploading || composerDisabled;
   const composerBarStyle = {
+    // With the keyboard up the composer sits flush on it: no rem gap and no
+    // safe-area either, since the keyboard already covers that zone. The gap
+    // used to reveal a strip of the thread underneath the input.
     '--chat-composer-bottom': keyboardInset > 0
-      ? `calc(0.75rem + env(safe-area-inset-bottom) + ${keyboardInset}px)`
+      ? `${keyboardInset}px`
       : 'calc(5.5rem + env(safe-area-inset-bottom))',
   } as CSSProperties;
 

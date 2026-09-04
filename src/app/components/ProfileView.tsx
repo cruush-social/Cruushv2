@@ -108,6 +108,7 @@ export type ProfileViewModel = {
   healthPreferences: string[];
   birthControl: string[];
   substanceBoundaries: string | null;
+  protectionBoundaries: string | null;
   relationship: ProfileRecord['viewer_relationship'] | null;
 };
 
@@ -201,6 +202,7 @@ export function profileRecordToProfileView(
     healthPreferences: profile.health_preferences ?? [],
     birthControl: profile.birth_control ?? [],
     substanceBoundaries: formatJoined(profile.substance_boundaries),
+    protectionBoundaries: formatJoined(profile.protection_boundaries),
     relationship: profile.viewer_relationship ?? null,
   };
 }
@@ -941,6 +943,7 @@ export function ProfileDetailsTabs({
         <Section title="Lifestyle" compact={compact}>
           <div className="grid gap-3 text-sm">
             <DetailItem label="Substance Boundaries" value={profileView.substanceBoundaries} compact={compact} />
+            <DetailItem label="Protection boundaries" value={profileView.protectionBoundaries} compact={compact} />
           </div>
         </Section>
       </TabsContent>

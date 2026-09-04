@@ -243,7 +243,7 @@ function IncomingRow({
   sentCruush?: boolean;
   pendingCruush?: boolean;
   pinActionable: boolean;
-  onOpenProfile: (userId: string) => void;
+  onOpenProfile: (userId: string, state?: { distance?: string; lastActive?: string }) => void;
   onMessage: (userId: string) => void;
   onOpenMap: (userId: string) => void;
 }) {
@@ -268,9 +268,9 @@ function IncomingRow({
       sideBadgeTone={unlocked && item.user.travelling ? 'mile-high' : item.mutual ? 'mutual' : 'nearby'}
       identityAdornment={unlocked ? <CruushBadge badges={item.user.badges} compact /> : null}
       identityDisabled={!unlocked}
-      onOpenIdentity={unlocked ? () => onOpenProfile(item.user!.id) : undefined}
+      onOpenIdentity={unlocked ? () => onOpenProfile(item.user!.id, { distance }) : undefined}
       metadata={(
-        <button type="button" className="min-w-0 text-left" disabled={!unlocked} onClick={() => unlocked && onOpenProfile(item.user!.id)}>
+        <button type="button" className="min-w-0 text-left" disabled={!unlocked} onClick={() => unlocked && onOpenProfile(item.user!.id, { distance })}>
           <ActivityMeta items={unlocked
             ? [formatRelativeTime(item.createdAt), distance]
             : ['Has a cruush on you', formatRelativeTime(item.createdAt)]}
@@ -311,7 +311,7 @@ function SentRow({
   distance: string;
   pendingRevoke: boolean;
   pinActionable: boolean;
-  onOpenProfile: (userId: string) => void;
+  onOpenProfile: (userId: string, state?: { distance?: string; lastActive?: string }) => void;
   onRevoke: (item: CruushLockableActivityItem) => void;
   onMessage: (userId: string) => void;
   onOpenMap: (userId: string) => void;
@@ -345,8 +345,8 @@ function SentRow({
       sideBadges={item.user.sideBadges}
       sideBadgeTone={borderTone}
       identityAdornment={<><CruushBadge badges={item.user.badges} compact />{item.mutual ? null : <ActivityBadge>Pending</ActivityBadge>}</>}
-      onOpenIdentity={() => onOpenProfile(item.user!.id)}
-      metadata={<button type="button" className="min-w-0 text-left" onClick={() => onOpenProfile(item.user!.id)}><ActivityMeta items={[formatRelativeTime(item.createdAt), distance]} /></button>}
+      onOpenIdentity={() => onOpenProfile(item.user!.id, { distance })}
+      metadata={<button type="button" className="min-w-0 text-left" onClick={() => onOpenProfile(item.user!.id, { distance })}><ActivityMeta items={[formatRelativeTime(item.createdAt), distance]} /></button>}
       actions={(
         <ProfileActionTrio
           className={activityActionClassName}
@@ -382,7 +382,7 @@ function MutualRow({
   onRevoke: (item: MutualCruushActivityItem) => void;
   onOpenMap: (userId: string) => void;
   onMessage: (userId: string) => void;
-  onOpenProfile: (userId: string) => void;
+  onOpenProfile: (userId: string, state?: { distance?: string; lastActive?: string }) => void;
 }) {
   const dlModeActive = useDlMode();
   const borderTone = resolveUserBorderTone({ mileHigh: item.user.travelling, mutual: true });
@@ -409,8 +409,8 @@ function MutualRow({
       sideBadges={item.user.sideBadges}
       sideBadgeTone={borderTone}
       identityAdornment={<><CruushBadge badges={item.user.badges} compact />{item.canRevealPreciseLocation ? <ActivityBadge>Precise</ActivityBadge> : null}</>}
-      onOpenIdentity={() => onOpenProfile(item.user.id)}
-      metadata={<button type="button" className="min-w-0 text-left" onClick={() => onOpenProfile(item.user.id)}><ActivityMeta items={[item.lastActive, distance]} /></button>}
+      onOpenIdentity={() => onOpenProfile(item.user.id, { distance, lastActive: item.lastActive })}
+      metadata={<button type="button" className="min-w-0 text-left" onClick={() => onOpenProfile(item.user.id, { distance, lastActive: item.lastActive })}><ActivityMeta items={[item.lastActive, distance]} /></button>}
       actions={(
         <ProfileActionTrio
           className={activityActionClassName}
@@ -444,7 +444,7 @@ function ViewRow({
   actionState: CruushActionState;
   pinActionable: boolean;
   onCruush: (item: ProfileViewActivityItem) => void;
-  onOpenProfile: (userId: string) => void;
+  onOpenProfile: (userId: string, state?: { distance?: string; lastActive?: string }) => void;
   onMessage: (userId: string) => void;
   onOpenMap: (userId: string) => void;
 }) {
@@ -462,9 +462,9 @@ function ViewRow({
       sideBadgeTone={unlocked && item.user.travelling ? 'mile-high' : item.mutual ? 'mutual' : 'nearby'}
       identityAdornment={unlocked ? <CruushBadge badges={item.user.badges} compact /> : null}
       identityDisabled={!unlocked}
-      onOpenIdentity={unlocked ? () => onOpenProfile(item.user!.id) : undefined}
+      onOpenIdentity={unlocked ? () => onOpenProfile(item.user!.id, { distance }) : undefined}
       metadata={(
-        <button type="button" className="min-w-0 text-left" disabled={!unlocked} onClick={() => unlocked && onOpenProfile(item.user!.id)}>
+        <button type="button" className="min-w-0 text-left" disabled={!unlocked} onClick={() => unlocked && onOpenProfile(item.user!.id, { distance })}>
           <ActivityMeta items={unlocked
             ? [formatRelativeTime(item.viewedAt), distance]
             : ['Viewed your profile', formatRelativeTime(item.viewedAt)]}
@@ -680,7 +680,8 @@ export default function CruushActivity({
     }
   };
 
-  const openProfile = (userId: string) => navigate(`/profile/${userId}`);
+  const openProfile = (userId: string, state?: { distance?: string; lastActive?: string }) =>
+    navigate(`/profile/${userId}`, state ? { state } : undefined);
   const openMutualOnMap = (userId: string) => navigate(`/map?mode=mutuals&focusUserId=${encodeURIComponent(userId)}`);
   const openMessage = (userId: string) => {
     setDirectComposerOpen(false);
@@ -1043,7 +1044,7 @@ function MutualDirectOverlay({
   mutuals: MutualCruushActivityItem[];
   onClose: () => void;
   onMessage: (userId: string) => void;
-  onOpenProfile: (userId: string) => void;
+  onOpenProfile: (userId: string, state?: { distance?: string; lastActive?: string }) => void;
 }) {
   const dlModeActive = useDlMode();
   return (

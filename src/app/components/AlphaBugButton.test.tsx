@@ -170,28 +170,31 @@ describe('AlphaBugButton', () => {
     );
   });
 
-  it('keeps the fixed upper-right placement outside the map chrome slot', () => {
+  it('docks into a registered header slot so it shares the header line', () => {
+    // Design rule: the title, back button, header actions and the bug button
+    // always share one line. A screen that registers a slot gets the button
+    // docked inside it, never floating over the header on its own row.
     const slot = document.createElement('div');
-    slot.dataset.bugButtonSize = 'large';
     document.body.appendChild(slot);
     registerBugButtonSlot(slot);
 
     renderAlphaBugButton();
 
     const reportButton = screen.getByRole('button', { name: 'Report alpha bug' });
-    expect(slot).not.toContainElement(reportButton);
+    expect(slot).toContainElement(reportButton);
+    expect(reportButton).toHaveClass('h-full', 'w-full');
+    expect(reportButton).not.toHaveClass('fixed');
+  });
+
+  it('falls back to the fixed upper-right corner when no slot is registered', () => {
+    renderAlphaBugButton();
+
+    const reportButton = screen.getByRole('button', { name: 'Report alpha bug' });
     expect(reportButton).toHaveClass(
       'fixed',
-      'h-12',
-      'w-12',
-      'sm:h-10',
-      'sm:w-10',
-      'lg:h-11',
-      'lg:w-11',
       'right-[calc(0.75rem+env(safe-area-inset-right))]',
       'top-[calc(0.75rem+env(safe-area-inset-top))]',
     );
-    expect(reportButton.querySelector('svg')).toHaveClass('h-7', 'w-7', 'sm:h-5', 'sm:w-5', 'lg:h-7', 'lg:w-7');
   });
 
   it('remains available on the signed-out support flow', () => {

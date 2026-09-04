@@ -1296,7 +1296,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
                         staticMileHigh={post.user.id === currentUserId && post.user.travelling === true}
                         theme={currentUserId && post.user.id === currentUserId ? 'current' : mutualAuthor ? 'mutual' : 'nearby'}
                         userId={post.user.id}
-                        onClick={() => navigate(`/profile/${post.user.id}`)}
+                        onClick={() => navigate(`/profile/${post.user.id}`, { state: { distance: post.distance } })}
                         fallback={<CruushIcon name="cruush" className="h-5 w-5 opacity-20" />}
                       />
                     </div>
@@ -1305,7 +1305,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
                     <button
                       className="text-left"
                       data-testid={`feed-post-author-${post.id}`}
-                      onClick={() => navigate(`/profile/${post.user.id}`)}
+                      onClick={() => navigate(`/profile/${post.user.id}`, { state: { distance: post.distance } })}
                       title={post.user.name}
                       type="button"
                     >
@@ -1335,7 +1335,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
                     </>
                   )}
                   metadata={(
-                    <button type="button" className="flex h-11 min-w-0 flex-col justify-center gap-0.5 text-left text-xs leading-snug text-white/62 sm:text-sm" onClick={() => navigate(`/profile/${post.user.id}`)} data-testid={`feed-post-meta-${post.id}`}>
+                    <button type="button" className="flex h-11 min-w-0 flex-col justify-center gap-0.5 text-left text-xs leading-snug text-white/62 sm:text-sm" onClick={() => navigate(`/profile/${post.user.id}`, { state: { distance: post.distance } })} data-testid={`feed-post-meta-${post.id}`}>
                       <span className="truncate">{formatRelativeTime(post.createdAt)}</span>
                       {feedSettings.showDistanceLabels !== false ? <span className="truncate">{post.distance}</span> : null}
                     </button>

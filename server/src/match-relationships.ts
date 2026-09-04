@@ -571,7 +571,10 @@ export async function getRelationshipPermissions(
     canMessage: !blocked,
     canRevealMutualProtectedFields: !blocked && isMutualCruush,
     canRevealPreciseLocation: !blocked && canRevealPreciseLocation,
-    shouldLogProfileView: !blocked && !viewerGhostMode && !targetGhostMode,
+    // Dark Room browsing leaves no trace. Ghost Mode does not: it hides
+    // precise location behind a decoy, not interest, so a ghosted viewer
+    // still lands in Views and a ghosted target still sees who looked.
+    shouldLogProfileView: !blocked && viewerSettings.baseMode !== "STEALTH",
     viewerGhostMode,
     targetGhostMode,
     targetBaseMode: targetSettings.baseMode ?? "GHOST",

@@ -477,7 +477,7 @@ export default function PlaceDetail({ embedded = false, onBack, placeIdOverride 
           </DialogContent>
         </Dialog>
 
-        <details className="order-8 rounded-xl border border-border bg-card p-4">
+        <details className="order-6 rounded-xl border border-border bg-card p-4">
           <summary className="flex cursor-pointer list-none items-center justify-between font-medium">Popular times<Clock className="h-5 w-5 text-primary" /></summary>
           <div className="mt-4">
             {place.popularTimes.length === 0 ? <p className="py-6 text-center text-sm text-muted-foreground">Not enough activity yet.</p> : (
@@ -495,7 +495,7 @@ export default function PlaceDetail({ embedded = false, onBack, placeIdOverride 
           </div>
         </details>
 
-        {place.sourceUrl ? <a className="order-6 inline-flex items-center text-sm text-primary" href={place.sourceUrl} target="_blank" rel="noreferrer">Source{place.sourceAttribution ? `: ${place.sourceAttribution}` : ''}<ExternalLink className="ml-2 h-4 w-4" /></a> : null}
+        {place.sourceUrl ? <a className="order-8 inline-flex items-center text-sm text-primary" href={place.sourceUrl} target="_blank" rel="noreferrer">Source{place.sourceAttribution ? `: ${place.sourceAttribution}` : ''}<ExternalLink className="ml-2 h-4 w-4" /></a> : null}
 
         {status ? <p className="order-9 text-sm text-primary">{status}</p> : null}
         {error ? <p className="order-10 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{error}</p> : null}

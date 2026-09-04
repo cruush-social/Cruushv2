@@ -1666,7 +1666,9 @@ describe('PrivateGroupChat', () => {
       const composerBar = screen.getByTestId('chat-composer-bar');
 
       await waitFor(() => expect(composerBar).toHaveAttribute('data-keyboard-open', 'true'));
-      expect(composerBar.style.getPropertyValue('--chat-composer-bottom')).toBe('calc(0.75rem + env(safe-area-inset-bottom) + 380px)');
+      // Flush on the keyboard: no rem gap and no safe-area on top, since the
+      // keyboard already covers that zone.
+      expect(composerBar.style.getPropertyValue('--chat-composer-bottom')).toBe('380px');
       expect(composerBar).toHaveClass('pb-3');
 
       visualViewport.viewport.height = 900;

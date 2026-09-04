@@ -156,15 +156,15 @@ describe('PlaceDetail request isolation', () => {
     expect(screen.queryByText('Spot A')).not.toBeInTheDocument();
   });
 
-  it('shows the Pink Book before Popular times on the compact Spot page', async () => {
+  it('shows Popular times under the Here now and rating capsules, before the Pink Book', async () => {
     getPlace.mockResolvedValue(makePlace('spot-a', 'Spot A'));
     getPlaceBoard.mockResolvedValue([]);
 
     render(placeDetail('spot-a'));
 
     expect(await screen.findByRole('heading', { name: 'Spot A' })).toBeInTheDocument();
+    expect(screen.getByText('Popular times').closest('details')).toHaveClass('order-6');
     expect(screen.getByRole('tab', { name: 'Pink Book' }).closest('[data-slot="tabs"]')).toHaveClass('order-7');
-    expect(screen.getByText('Popular times').closest('details')).toHaveClass('order-8');
   });
 
   it('does not append an old Spot board page after switching Spots', async () => {

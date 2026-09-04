@@ -176,7 +176,10 @@ describe('CruushActivity', () => {
     getUserNoticeDismissal.mockResolvedValue({ dismissed: true, dismissedAt: null });
   });
 
-  it('keeps the fixed alpha bug reporter outside the Activity header', async () => {
+  it('docks the alpha bug reporter into the Activity header line', async () => {
+    // Design rule: title, back button, header actions and the bug button
+    // always share one line. The header registers a slot and the button sits
+    // inside it, after the settings control.
     render(
       <MemoryRouter initialEntries={['/cruush']}>
         <CruushActivity />
@@ -190,17 +193,10 @@ describe('CruushActivity', () => {
     const slot = screen.getByTestId('cruush-activity-bug-button-slot');
     const reportButton = screen.getByRole('button', { name: 'Report alpha bug' });
 
-    expect(header).not.toContainElement(reportButton);
-    expect(slot).not.toContainElement(reportButton);
+    expect(header).toContainElement(reportButton);
+    expect(slot).toContainElement(reportButton);
     expect(slot.parentElement?.lastElementChild).toBe(slot);
-    expect(screen.getByRole('button', { name: 'Open cruush match settings' }).getBoundingClientRect().right)
-      .toBeLessThanOrEqual(slot.getBoundingClientRect().left);
-    expect(reportButton).toHaveClass(
-      'fixed',
-      'right-[calc(0.75rem+env(safe-area-inset-right))]',
-      'top-[calc(0.75rem+env(safe-area-inset-top))]',
-      'z-[1500]',
-    );
+    expect(reportButton).not.toHaveClass('fixed');
     expect(screen.getByTestId('cruush-count-grid')).not.toContainElement(reportButton);
     expect(screen.getByTestId('cruush-tab-grid')).not.toContainElement(reportButton);
   });
