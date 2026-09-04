@@ -96,3 +96,4 @@
 - A daily prompt offers to claim Side Quests already finished, naming the exact Pings and cruush+ days waiting, and stays quiet when nothing is claimable.
 - Ghost Mode copy said the radius was where you are visible. The radius is where the decoy pin moves; you stay visible, and who can find, message, or get your precise location is set by Visibility Controls.
 - Recently Active follows the Seeking Filter radius instead of whatever the camera happens to frame, so panning the map no longer changes who it lists.
+- The bug button sat on top of the Seeking Filter, Visibility Controls and Spots headers on a phone. Those headers reserve its corner now.
