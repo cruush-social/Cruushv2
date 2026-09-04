@@ -2006,9 +2006,15 @@ export default function MapHome(_props: MapHomeProps = {}) {
     () => displayedUsers.filter((user) => isCoordinateInViewport(user.lat, user.lng, mapViewport)),
     [displayedUsers, mapViewport?.signature],
   );
-  const recentlyActiveUsers = useMemo(() => [...displayedUsersInViewport]
+  // Recently Active follows the Seeking Filter radius rather than whatever the
+  // camera happens to frame, so panning the map does not change who it lists.
+  const recentlyActiveUsers = useMemo(() => [...displayedUsers]
+    .filter((user) => {
+      const distanceMiles = Number.parseFloat(user.distance);
+      return !Number.isFinite(distanceMiles) || distanceMiles <= filters.distance;
+    })
     .sort((a, b) => getLastActiveMinutes(a.lastActive) - getLastActiveMinutes(b.lastActive))
-    .slice(0, 10), [displayedUsersInViewport]);
+    .slice(0, 10), [displayedUsers, filters.distance]);
   const recentlyActiveScrollable = recentlyActiveUsers.length > 5;
   const recentlyActiveVisibleCount = Math.min(recentlyActiveUsers.length, 5);
   const recentlyActiveTrayWidth = isMobile

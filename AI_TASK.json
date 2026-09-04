@@ -348,7 +348,9 @@
     "docs/changelog.md",
     "docs/**/*.md",
     "docs/worktrees.md",
-    "src/styles/theme.css"
+    "src/styles/theme.css",
+    "src/app/components/GhostModeSettings.tsx",
+    "src/app/components/GhostModeSettings.test.tsx"
   ],
   "forbiddenPaths": [
     "src/app/assets/brand/**",

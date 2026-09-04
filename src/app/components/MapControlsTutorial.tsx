@@ -99,7 +99,7 @@ const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'ghost',
     title: 'Ghost Mode',
-    description: 'Ghost Mode shifts your public map location to protect your privacy. Open its settings to choose how your presence appears.',
+    description: 'Ghost Mode does not hide you. It puts a decoy pin on the map that hops around inside a radius you choose, so people see you nearby without seeing where you are. By default the public can see you, and only mutuals can message you or get your precise location. Visibility Controls change that.',
     actionLabel: 'Open Ghost Mode',
   },
   {
