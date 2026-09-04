@@ -93,3 +93,4 @@
 - The Pulse tutorial step no longer claims group owners can alert a group. cruush has no public groups.
 - Feed post tags are a cruush+ feature now: basic accounts get none, cruush+ gets ten per post, and the server rejects a tag from a basic account rather than trusting the client.
 - Feed search accepts up to ten tags at once and returns posts carrying any of them.
+- A daily prompt offers to claim Side Quests already finished, naming the exact Pings and cruush+ days waiting, and stays quiet when nothing is claimable.
