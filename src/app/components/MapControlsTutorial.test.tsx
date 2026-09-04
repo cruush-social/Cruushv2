@@ -288,7 +288,7 @@ describe('MapControlsTutorial', () => {
     fireEvent.click(screen.getByTestId('tutorial-next'));
 
     expect(screen.getByRole('heading', { name: 'Feed' })).toBeInTheDocument();
-    expect(screen.getByText(/Basic members can share text posts and searchable tags/i)).toBeInTheDocument();
+    expect(screen.getByText(/search the Feed by tag/i)).toBeInTheDocument();
     expectHighlightedAction('feed', 'Open Feed');
     fireEvent.click(screen.getByTestId('tutorial-next'));
 

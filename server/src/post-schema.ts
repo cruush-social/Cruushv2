@@ -38,9 +38,12 @@ const crowdTargetsSchema = z.array(z.string()).optional().default([])
     return normalizedValues;
   });
 
+/** Tags are a cruush+ feature; the route rejects any tag from a basic account. */
+export const MAX_FEED_POST_TAGS = 10;
+
 const feedPostTagsSchema = z.array(
   z.string().trim().regex(/^#?[a-zA-Z0-9_]{1,24}$/, "Tags can use letters, numbers, and underscores."),
-).max(5).optional().default([]).transform((values) => (
+).max(MAX_FEED_POST_TAGS).optional().default([]).transform((values) => (
   [...new Set(values.map((value) => value.replace(/^#/, "").toLowerCase()))]
 ));
 

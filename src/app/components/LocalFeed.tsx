@@ -144,6 +144,9 @@ function normalizeFeedTag(value: string) {
     .slice(0, 24);
 }
 
+/** Matches the server ceiling in post-schema.ts. */
+const MAX_FEED_POST_TAGS = 10;
+
 export default function LocalFeed({ embedded = false, onClose }: { embedded?: boolean; onClose?: () => void; onOpenSettings?: () => void } = {}) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -480,8 +483,12 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
       setNewTag('');
       return;
     }
-    if (postTags.length >= 5) {
-      setError('Feed posts can include up to five tags.');
+    if (!hasCruushPlus) {
+      setError('Tagging a Feed post is part of cruush+.');
+      return;
+    }
+    if (postTags.length >= MAX_FEED_POST_TAGS) {
+      setError('Feed posts can include up to ten tags.');
       return;
     }
     setPostTags((currentTags) => [...currentTags, tag]);
@@ -1197,16 +1204,16 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
               <input
                 aria-label="Add Feed tag"
                 className="h-10 min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-white/45"
-                disabled={postTags.length >= 5}
+                disabled={!hasCruushPlus || postTags.length >= MAX_FEED_POST_TAGS}
                 maxLength={25}
                 onChange={(event) => setNewTag(event.target.value)}
                 onKeyDown={handleTagKeyDown}
-                placeholder="#tag"
+                placeholder={hasCruushPlus ? '#tag' : 'Tags are part of cruush+'}
                 value={newTag}
               />
               <button
                 className="text-sm font-semibold text-white/72 disabled:opacity-35"
-                disabled={!normalizeFeedTag(newTag) || postTags.length >= 5}
+                disabled={!hasCruushPlus || !normalizeFeedTag(newTag) || postTags.length >= MAX_FEED_POST_TAGS}
                 onClick={addPostTag}
                 type="button"
               >

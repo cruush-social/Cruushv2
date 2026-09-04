@@ -14,7 +14,7 @@ const changelogReleases = [
       'Checking into a Spot now shares it to the Feed.',
       'All members can customize both side badges.',
       'Basic profiles can add 3 kinks; cruush+ removes the profile kink limit.',
-      'Post text to Feed for free, search #tags, and add up to three photos with cruush+.',
+      'Post text to Feed for free and search #tags. cruush+ adds up to ten tags on a post and up to three photos.',
       'cruush+ includes 5 Pulses per day, with optional alerts protected from repeats.',
       'Complete Side Quests to earn bonus Pings and cruush+ days.',
       'Ghost Mode keeps its familiar animation with the new 1.6 icon.',

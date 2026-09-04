@@ -140,7 +140,7 @@ const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'feed',
     title: 'Feed',
-    description: 'Basic members can share text posts and searchable tags with people nearby. Feed+ adds up to three photo hearts in a row, specific Crowd audiences, and custom expiration times.',
+    description: 'Share a text post with people nearby, and search the Feed by tag. cruush+ adds up to ten tags on a post, three photo hearts in a row, specific Crowd audiences, and custom expiration times. Make your first post from here.',
     actionLabel: 'Open Feed',
   },
 ];

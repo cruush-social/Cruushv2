@@ -423,7 +423,7 @@ const feedPostQuerySchema = z.object({
   before: z.string().datetime().optional(),
   lat: z.coerce.number().min(-90).max(90).optional(),
   lng: z.coerce.number().min(-180).max(180).optional(),
-  q: z.string().trim().min(1).max(120).optional(),
+  q: z.string().trim().min(1).max(320).optional(),
   mileHighClub: feedBooleanQueryFlag,
   minAge: z.coerce.number().int().min(18).max(99).optional(),
   maxAge: z.coerce.number().int().min(18).max(99).optional(),
@@ -532,28 +532,38 @@ function addFeedSensitiveTokenFilter(
   )`);
 }
 
+/** A search can name up to ten tags at once; a post matching any of them counts. */
+export const MAX_FEED_TAG_SEARCH_TERMS = 10;
+
+export function parseFeedTagSearchTerms(searchQuery: string | undefined) {
+  return [...new Set((searchQuery ?? '')
+    .toLowerCase()
+    .split(/[\s,]+/)
+    .map((term) => term.replace(/^#+/, "").trim())
+    .filter(Boolean))]
+    .slice(0, MAX_FEED_TAG_SEARCH_TERMS);
+}
+
 function addFeedTagSearchFilter(
   where: string[],
   values: unknown[],
   searchQuery: string | undefined
 ) {
-  const rawQuery = searchQuery?.trim().toLowerCase();
-  if (!rawQuery) {
+  const terms = parseFeedTagSearchTerms(searchQuery);
+  if (terms.length === 0) {
     return;
   }
 
-  const normalizedQuery = rawQuery.replace(/^#+/, "").trim();
-  if (!normalizedQuery) {
-    return;
-  }
+  const placeholders = terms.map((term) => {
+    values.push(`%${term}%`);
+    return `lower(search_tag.tag) like $${values.length}`;
+  });
 
-  values.push(`%${normalizedQuery}%`);
-  const searchPlaceholder = `$${values.length}`;
   where.push(`exists (
     select 1
     from feed_post_tags search_tag
     where search_tag.post_id = p.id
-      and lower(search_tag.tag) like ${searchPlaceholder}
+      and (${placeholders.join(" or ")})
   )`);
 }
 
@@ -771,6 +781,9 @@ export async function registerPostRoutes(app: FastifyInstance) {
     }
     if (payload.photoMediaIds.length > 0 && !entitlement.cruushPlus) {
       throw new ApiError(402, "CRUUSH_PLUS_REQUIRED", "Photo posts are part of cruush+.");
+    }
+    if (payload.tags.length > 0 && !entitlement.cruushPlus) {
+      throw new ApiError(402, "CRUUSH_PLUS_REQUIRED", "Tagging a Feed post is part of cruush+.");
     }
     if (payload.photoMediaIds.length > 0) {
       const photoCount = (await app.db.query<{ count: number }>(
