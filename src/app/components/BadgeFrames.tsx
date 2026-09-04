@@ -78,11 +78,15 @@ export function BadgeHoverLabel({ children, revealed = false, align = 'center' }
     : align === 'end'
       ? 'right-0 translate-x-0'
       : 'left-1/2 -translate-x-1/2';
+  // A long press opens both side labels at once, and two of them are wider than
+  // the heart they sit either side of. The right-hand one drops a row so they
+  // stack instead of colliding. A pointer only ever opens one, so it stays put.
+  const stacked = revealed && align === 'end' ? '[@media(hover:none)]:mt-9' : '';
 
   return (
     <span
       aria-hidden="true"
-      className={`pointer-events-none absolute top-full z-50 mt-1.5 w-max max-w-[min(13rem,calc(100vw-2rem))] break-words whitespace-normal rounded-xl border border-white/20 bg-black/95 px-2 py-1 text-center text-[0.7rem] font-semibold leading-tight text-white opacity-0 shadow-lg transition-opacity group-active/badge:opacity-100 group-focus-within/badge:opacity-100 group-hover/badge:opacity-100 ${anchor} ${revealed ? '[@media(hover:none)]:opacity-100' : ''}`}
+      className={`pointer-events-none absolute top-full z-50 mt-1.5 w-max max-w-[min(13rem,calc(100vw-2rem))] break-words whitespace-normal rounded-xl border border-white/20 bg-black/95 px-2 py-1 text-center text-[0.7rem] font-semibold leading-tight text-white opacity-0 shadow-lg transition-opacity group-active/badge:opacity-100 group-focus-within/badge:opacity-100 group-hover/badge:opacity-100 ${anchor} ${stacked} ${revealed ? '[@media(hover:none)]:opacity-100' : ''}`}
     >
       {children}
     </span>

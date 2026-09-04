@@ -356,7 +356,10 @@
     "src/app/lib/mapPingsApi.ts",
     "src/app/components/HeartPhoto.test.tsx",
     "src/app/components/ProfilePhotoGallery.tsx",
-    "public/icons/notification-feed.png"
+    "public/icons/notification-feed.png",
+    "src/app/lib/lazyRoute.ts",
+    "src/app/lib/lazyRoute.test.ts",
+    "src/app/assets/ui-icons/ghost-white.svg"
   ],
   "forbiddenPaths": [
     "src/app/assets/brand/**",

@@ -20,6 +20,7 @@ import {
   Megaphone,
   PawPrint,
   Rabbit,
+  Rat,
   Spline,
   Sun,
 } from 'lucide-react';
@@ -168,6 +169,16 @@ export function SwitchGlyph(props: GlyphProps) {
   return <SwitchEmblem className={props.className} />;
 }
 
+/** A snake, coiled from tail to raised head, for the Hunter role. */
+export function SnakeGlyph({ className, strokeWidth = 2 }: GlyphProps) {
+  return (
+    <Glyph className={className} strokeWidth={strokeWidth}>
+      <path d="M4.4 18.8c3.4 0 3.4-3.4 6.8-3.4s3.4 3.4 6.8 3.4c2 0 2.6-1.2 2.6-2.6 0-2-1.8-2.8-3.6-3.4-2.6-.9-4.6-1.7-4.6-4 0-2 1.7-3.6 3.9-3.6 1.8 0 3 .9 3.6 2" />
+      <circle cx="19.1" cy="6.6" r="0.9" fill="currentColor" stroke="none" />
+    </Glyph>
+  );
+}
+
 export function ServiceGlyph(props: GlyphProps) {
   return <NounProjectGlyph {...props} source={serviceRaster} />;
 }
@@ -257,8 +268,8 @@ export const ROLE_GLYPHS: Record<string, (props: GlyphProps) => JSX.Element> = {
   little: Baby,
   masochist: HeartCrack,
   owner: KeyRound,
-  prey: Feather,
-  hunter: PawPrint,
+  prey: Rat,
+  hunter: SnakeGlyph,
   rigger: Spline,
   'rope bunny': Rabbit,
   sadist: Axe,

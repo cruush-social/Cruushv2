@@ -107,3 +107,8 @@
 - The no-photo and DL Mode placeholders read the same across profile hearts, profile cards, the photo gallery and the profile editor.
 - Phone notifications carry the Feed mark instead of the app icon.
 - The Community and care tag filter is gone from the Spots filter.
+- A route whose chunk no longer exists reloads the app once instead of failing to open. A deploy renames every chunk, so a tab holding the previous page could not open a lazily loaded screen at all.
+- Both side badge labels open together on a long press, so the right one drops a row rather than colliding with the left.
+- Prey is a rat and Hunter is a drawn snake, leaving the rabbit to Rope bunny.
+- The Ghost Mode icon rendered larger when inactive than active, because the two SVGs carried different viewBoxes. They share one now.
+- Domme, Dominatrix and Zaddy added to Archetypes; Musician moved from Archetypes to Scenes.

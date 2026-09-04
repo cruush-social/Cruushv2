@@ -63,6 +63,7 @@ import {
   SideGlyph,
   StoneTopGlyph,
   VersatileGlyph,
+  SnakeGlyph,
 } from './PositionRoleGlyphs';
 import {
   Activity,
@@ -111,6 +112,7 @@ import {
   Megaphone,
   PawPrint,
   Rabbit,
+  Rat,
   Repeat2,
   Spline,
   Building2,
@@ -217,8 +219,8 @@ export const BADGE_OPTIONS: BadgeOption[] = [
   { id: 'little', label: 'Little', icon: Baby, group: 'Role' },
   { id: 'masochist', label: 'Masochist', icon: HeartCrack, group: 'Role' },
   { id: 'owner', label: 'Owner', icon: KeyRound, group: 'Role' },
-  { id: 'prey', label: 'Prey', icon: Feather, group: 'Role' },
-  { id: 'hunter', label: 'Hunter', icon: PawPrint, group: 'Role' },
+  { id: 'prey', label: 'Prey', icon: Rat, group: 'Role' },
+  { id: 'hunter', label: 'Hunter', icon: SnakeGlyph, group: 'Role' },
   { id: 'rigger', label: 'Rigger', icon: Spline, group: 'Role' },
   { id: 'rope-bunny', label: 'Rope bunny', icon: Rabbit, group: 'Role' },
   { id: 'sadist', label: 'Sadist', icon: Axe, group: 'Role' },

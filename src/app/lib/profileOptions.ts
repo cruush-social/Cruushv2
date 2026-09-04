@@ -88,7 +88,7 @@ export const VIBE_GROUPS = [
     label: 'Scenes',
     options: [
       'ABDL', 'Art scene', 'Ballroom', 'Beach', 'Burlesque', 'Burner', 'Cabaret', 'Camping', 'Circuit', 'Club Kid', 'Collegiate',
-      'Cosplay', 'Country', 'Disco', 'Drag', 'Fashion', 'Festival', 'Furry', 'Goth', 'Horror', 'House', 'Hyperpop',
+      'Cosplay', 'Country', 'Disco', 'Drag', 'Fashion', 'Festival', 'Furry', 'Goth', 'Horror', 'House', 'Hyperpop', 'Musician',
       'Footwork', 'Hardcore', 'Indie', 'Industrial', 'Jock', 'Karaoke', 'Kiki', 'LARPing', 'Leather', 'Maker', 'Metal', 'Nature', 'Nudist',
       'Organizer', 'Party', 'Producer', 'Punk', 'Queer arts', 'Queer nightlife', 'Raver', 'Rubber', 'Sci-fi', 'Sex-positive', 'Skate', 'Sober',
       'Stoner', 'Techno', 'Thespian',
@@ -99,11 +99,11 @@ export const VIBE_GROUPS = [
     label: 'Archetypes',
     options: [
       'Angel', 'Baddie', 'Bimbo', 'Bitch', 'Boss', 'Bro', 'Bull', 'Bully', 'Chaser', 'Clown', 'Cock sleeve', 'Cougar', 'Cuck', 'Cuckquean',
-      'Cum dump', 'Cyborg', 'Daddy', 'Deity', 'Demon', 'Doll', 'Drone', 'Dude', 'God/Goddess', 'Gooner', 'Gremlin', 'Hedonist', 'Himbo',
-      'Hothusband', 'Hotwife', 'Incubus', 'Jester', 'King', 'Kitten', 'Master', 'Minx', 'Mistress', 'Mommy', 'Musician', 'Nympho',
+      'Cum dump', 'Cyborg', 'Daddy', 'Deity', 'Demon', 'Doll', 'Dominatrix', 'Domme', 'Drone', 'Dude', 'God/Goddess', 'Gooner', 'Gremlin', 'Hedonist', 'Himbo',
+      'Hothusband', 'Hotwife', 'Incubus', 'Jester', 'King', 'Kitten', 'Master', 'Minx', 'Mistress', 'Mommy', 'Nympho',
       'Object', 'Outlaw', 'Owned', 'Pervert', 'Pig', 'Pixie', 'Plaything', 'Pony', 'Pornstar', 'Prince', 'Princess', 'Pup', 'Queen',
       'Sensualist', 'Servant', 'Side piece', 'Silver fox', 'Siren', 'Sis', 'Sissy', 'Size royalty', 'Slut', 'Succubus', 'Swinger', 'Thembo',
-      'Toilet', 'Unicorn', 'Vampire', 'Werewolf', 'Whore', 'Wolf'
+      'Toilet', 'Unicorn', 'Vampire', 'Werewolf', 'Whore', 'Wolf', 'Zaddy'
     ].sort((left, right) => left.localeCompare(right, undefined, { sensitivity: 'base' })),
   },
   {
