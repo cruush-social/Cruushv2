@@ -95,6 +95,27 @@ export default function UserActivityCapsule({
     </div>
   ) : identityControl;
 
+  const vibeRow = (vibes?.length ?? 0) > 0 ? (
+    /* Above the card's grid, not inside it, so the heart, name and actions
+       keep the layout they already had. Full width for the tags, one line
+       always: each tag keeps its own width so the ones that show stay
+       readable, and the row clips at the card edge rather than wrapping. */
+    <div className="flex min-w-0 flex-nowrap items-center gap-1.5 overflow-hidden" data-testid="activity-vibes">
+      {vibes?.slice(0, 3).map((vibe) => (
+        <span
+          className="max-w-full flex-shrink-0 truncate rounded-full border px-2 py-0.5 text-[11px] uppercase leading-tight tracking-[0.08em]"
+          key={vibe}
+          style={vibeCapsuleStyle(resolveVibeTone({
+            mutual: vibeTone === 'mutual',
+            isCurrentUser: vibeTone === 'current',
+          }))}
+        >
+          {vibe}
+        </span>
+      ))}
+    </div>
+  ) : null;
+
   return (
     <div className="cruush-user-activity-shell w-full">
       <article
@@ -107,28 +128,9 @@ export default function UserActivityCapsule({
         role={onSelect ? 'button' : undefined}
         tabIndex={onSelect ? 0 : undefined}
       >
-      {(vibes?.length ?? 0) > 0 ? (
-        /* Its own full-width row at the top of the card, so the tags get the
-           whole width rather than the narrow body column. One line, always:
-           each tag keeps its own width so the ones that show stay readable,
-           and the row clips at the card edge rather than wrapping. */
-        <div className="col-start-1 col-end-4 row-start-1 flex min-w-0 flex-nowrap items-center gap-1.5 overflow-hidden" data-testid="activity-vibes">
-          {vibes?.slice(0, 3).map((vibe) => (
-            <span
-              className="max-w-full flex-shrink-0 truncate rounded-full border px-2 py-0.5 text-[11px] uppercase leading-tight tracking-[0.08em]"
-              key={vibe}
-              style={vibeCapsuleStyle(resolveVibeTone({
-                mutual: vibeTone === 'mutual',
-                isCurrentUser: vibeTone === 'current',
-              }))}
-            >
-              {vibe}
-            </span>
-          ))}
-        </div>
-      ) : null}
+      {vibeRow ? <div className="col-start-1 col-end-4 mb-2 min-w-0">{vibeRow}</div> : null}
 
-      <div className={`cruush-user-activity-heart flex flex-col items-center ${compactIdentityMeta ? 'row-start-1 self-center' : 'self-start'} ${(vibes?.length ?? 0) > 0 ? 'row-start-2 row-span-3' : 'row-span-4'}`}>
+      <div className={`cruush-user-activity-heart flex flex-col items-center ${compactIdentityMeta ? 'row-start-1 self-center' : 'row-span-4 self-start'}`}>
         {heart}
         <SideBadgePair badges={sideBadges} tone={sideBadgeTone} />
         {heartActions}
