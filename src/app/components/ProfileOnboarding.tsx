@@ -17,6 +17,7 @@ import {
   type TwoFactorSetup,
 } from '../lib/rewardsApi';
 import { clearOnboardingDraft, readOnboardingDraft, writeOnboardingDraft } from '../lib/onboardingDraft';
+import { extractReferralCode } from '../lib/referralCode';
 import { persistCurrentUser } from '../lib/sessionUser';
 import CruushPlusWord from './CruushPlusWord';
 import MultiSelect from './MultiSelect';
@@ -425,7 +426,8 @@ export default function ProfileOnboarding({
 
     try {
       if (!previewMode) {
-        await attachReferralCode(inviteCode.trim());
+        // The link is the only thing the app hands out, so pasting it works.
+        await attachReferralCode(extractReferralCode(inviteCode));
       }
       setInviteCodeAttached(true);
       setStep((current) => current + 1);
@@ -756,7 +758,7 @@ export default function ProfileOnboarding({
                       }}
                     />
                     <p className="text-xs leading-5 text-white/58">
-                      If a friend invited you, enter their code here. You must enable 2FA before they can redeem their benefit.
+                      If a friend invited you, paste their invite link or code here. You must enable 2FA before they can redeem their benefit.
                     </p>
                     {inviteCodeAttached ? <p className="text-xs text-primary">Invite code attached.</p> : null}
                     {inviteCodeError ? <p className="text-xs text-destructive" role="alert">{inviteCodeError}</p> : null}

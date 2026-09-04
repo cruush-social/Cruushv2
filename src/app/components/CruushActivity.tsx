@@ -47,7 +47,11 @@ type CruushActionState = 'available' | 'sending' | 'sent' | 'mutual';
 
 const activityHeartClassName = 'w-20 shrink-0';
 const activityActionClassName = '!gap-1 [&>button]:!size-9 [&>button]:!p-1.5 [&>button>img]:!size-5 [&>button>svg]:!size-5';
-const activityCardClassName = '!py-3';
+// The capsule's own padding stands: the compressed !py-3 rows read as thin
+// strips beside the Feed's cards, with the identity pinned to the top of the
+// space a post would have filled. Full padding centres it in a card that
+// carries the same weight as a Feed post.
+const activityCardClassName = '';
 
 function formatRelativeTime(isoTimestamp: string) {
   const now = Date.now();

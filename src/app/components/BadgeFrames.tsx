@@ -73,20 +73,23 @@ export function BadgeHoverLabel({ children, revealed = false, align = 'center' }
    */
   align?: 'center' | 'start' | 'end';
 }) {
+  // A pointer only ever opens one label, so hover keeps the outer-edge anchor
+  // that stops two from meeting in the middle. The long-press reveal centres
+  // each label tight under its own badge instead; the old answer, dropping the
+  // right-hand one a full row, read as the label floating far below the pin.
   const anchor = align === 'start'
-    ? 'left-0 translate-x-0'
+    ? `left-0 translate-x-0 ${revealed ? '[@media(hover:none)]:left-1/2 [@media(hover:none)]:-translate-x-1/2' : ''}`
     : align === 'end'
-      ? 'right-0 translate-x-0'
+      ? `right-0 translate-x-0 ${revealed ? '[@media(hover:none)]:left-1/2 [@media(hover:none)]:right-auto [@media(hover:none)]:-translate-x-1/2' : ''}`
       : 'left-1/2 -translate-x-1/2';
-  // A long press opens both side labels at once, and two of them are wider than
-  // the heart they sit either side of. The right-hand one drops a row so they
-  // stack instead of colliding. A pointer only ever opens one, so it stays put.
-  const stacked = revealed && align === 'end' ? '[@media(hover:none)]:mt-9' : '';
+  // Centred pairs sit close, so the revealed label stays narrow enough that
+  // the two sides do not cross under the heart between them.
+  const revealedWidth = revealed ? '[@media(hover:none)]:max-w-[5.5rem]' : '';
 
   return (
     <span
       aria-hidden="true"
-      className={`pointer-events-none absolute top-full z-50 mt-1.5 w-max max-w-[min(13rem,calc(100vw-2rem))] break-words whitespace-normal rounded-xl border border-white/20 bg-black/95 px-2 py-1 text-center text-[0.7rem] font-semibold leading-tight text-white opacity-0 shadow-lg transition-opacity group-active/badge:opacity-100 group-focus-within/badge:opacity-100 group-hover/badge:opacity-100 ${anchor} ${stacked} ${revealed ? '[@media(hover:none)]:opacity-100' : ''}`}
+      className={`pointer-events-none absolute top-full z-50 mt-1.5 w-max max-w-[min(13rem,calc(100vw-2rem))] break-words whitespace-normal rounded-xl border border-white/20 bg-black/95 px-2 py-1 text-center text-[0.7rem] font-semibold leading-tight text-white opacity-0 shadow-lg transition-opacity group-active/badge:opacity-100 group-focus-within/badge:opacity-100 group-hover/badge:opacity-100 ${anchor} ${revealedWidth} ${revealed ? '[@media(hover:none)]:opacity-100' : ''}`}
     >
       {children}
     </span>

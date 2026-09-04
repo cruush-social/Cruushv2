@@ -1,14 +1,15 @@
 {
   "schemaVersion": 2,
-  "taskId": "cruush-pulse-copy-and-feed-report-20260904",
+  "taskId": "cruush-pulse-radius-and-issue-batch-20260904",
   "status": "active",
-  "objective": "Call the reward Pulse everywhere in Side Quests, simplify the claim card, and move Report onto the feed post action row while dropping per-post Block.",
-  "userOutcome": "Side Quests say Pulse rather than Ping, the claim card names the reward plainly, and a feed post offers Report beside the other buttons with blocking left on the profile.",
+  "objective": "Fix the Pulse 25/50 mile validation failure, the badge and icon batch (#207-#213), Cruushes card names and weight (#208), the PWA icon delivery, and let onboarding accept a pasted affiliate link.",
+  "userOutcome": "A 50 mile Pulse sends; badge labels sit under their badges; one vers mark family; tighter compound role icons; Raver is a smiley; flag badges carry the usual border; Cruushes rows always show a name in feed-weight cards; homescreen icons update and mask correctly; a pasted invite link attaches.",
   "audience": "cruush members and the 1.6 release-email audience.",
   "successCriteria": [
-    "No user-facing Ping wording in Side Quests, Rewards or the reference doc.",
-    "Report renders after the post date in the DOM.",
-    "Block is absent from feed posts and still present on the profile."
+    "mapPingPayloadSchema accepts every slider radius and rejects 20.",
+    "Migration 146 registered and replay safe.",
+    "Suites for every touched surface pass.",
+    "Manifest serves split any/maskable icons at v=20260904."
   ],
   "mustPreserve": [
     "Preserve approved custom map tiles, theme, people pins, Ghost Mode, Dark Room, Pulse, and unrelated map behavior.",
@@ -19,9 +20,9 @@
     "Keep user-facing copy free of em dashes and spell cruush lowercase."
   ],
   "nonGoals": [
-    "No rename of the internal ping keys or reward kinds.",
-    "No rewrite of historical changelog entries.",
-    "No change to blocking on the profile or popup."
+    "No rename of internal ping keys.",
+    "No new icon artwork: maskable icons are the approved art padded on its own background.",
+    "No change to who may attach a referral."
   ],
   "assumptions": [
     {
@@ -43,7 +44,7 @@
       "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "Side Quest card reads cruush+ with the Pulse count under it; feed posts show Report and no Block.",
+  "nextVisibleMilestone": "A 50 mile Pulse sends on cruush.app and the new badge treatments render.",
   "stopConditions": [
     "Stop the data-expansion slice if the full prior source cache cannot be recovered or if a source record is private or unsafe to publish.",
     "Stop publication because push and deployment are not authorized by this task."
@@ -75,20 +76,29 @@
   "branch": "release/1.6-integration-20260901",
   "job": "Finish the named 1.6 changes and update the release email locally.",
   "allowedPaths": [
-    "src/app/components/SideQuestPrompt.tsx",
-    "src/app/components/SideQuestPrompt.test.tsx",
-    "src/app/components/Rewards.tsx",
-    "src/app/components/Changelog.tsx",
-    "src/app/lib/earnedCruushPlusCard.ts",
-    "server/src/side-quests.ts",
-    "docs/SIDE_QUESTS.md",
-    "src/app/components/LocalFeed.tsx",
-    "src/app/components/LocalFeed.test.tsx",
-    "AI_TASK.json",
+    "server/src/routes/map-pings.ts",
+    "server/sql/146_pulse_radius_25_50.sql",
+    "server/src/migrate.ts",
+    "server/src/map-pings.test.ts",
+    "src/app/components/BadgeFrames.tsx",
+    "src/app/components/PositionRoleGlyphs.tsx",
+    "src/app/components/PrideFlagGlyphs.tsx",
+    "src/app/components/ProfileBadgeGlyphs.tsx",
+    "src/app/components/SavedBadgeGlyphs.tsx",
+    "src/app/components/BadgePickerPreview.tsx",
+    "src/app/components/UserActivityCapsule.tsx",
+    "src/app/components/CruushActivity.tsx",
+    "src/app/components/ProfileOnboarding.tsx",
+    "src/app/lib/referralCode.ts",
+    "src/app/lib/referralCode.test.ts",
+    "public/manifest.webmanifest",
+    "public/icons/maskable-192.png",
+    "public/icons/maskable-512.png",
     "index.html",
     "public/sw.js",
     "public/service-worker-recovery.js",
-    "src/main.tsx"
+    "src/main.tsx",
+    "AI_TASK.json"
   ],
   "forbiddenPaths": [
     "src/app/assets/brand/**",

@@ -35,6 +35,7 @@ import {
   TreePine,
   Users,
   UsersRound,
+  Smile,
   VenetianMask,
   Wand2,
   Waves,
@@ -54,7 +55,6 @@ import {
   NippleGlyph,
   PartyHatGlyph,
   PenetrationGlyph,
-  RaveGlyph,
   RimmingGlyph,
   RubberGlyph,
   SpankingGlyph,
@@ -215,7 +215,7 @@ const SAVED_CUSTOM_GLYPHS: Record<string, SavedBadgeGlyph> = {
   'flag pup': PupFlagGlyph,
   'flag ally': AllyFlagGlyph,
   'vibes neurodivergent': NeurodivergentGlyph,
-  'vibes rave': RaveGlyph,
+  'vibes rave': Smile,
   'vibes cyborg': CyborgGlyph,
 };
 

@@ -192,16 +192,18 @@ function CompoundRoleGlyph({
 
   return (
     <span aria-hidden="true" className={`relative inline-flex ${className ?? ''}`}>
-      {/* The two marks sit corner to corner. They used to overlap, so the role
-          emblem covered part of the service or pleasure mark underneath it. */}
+      {/* The two marks sit corner to corner, drawn large enough that their
+          boxes meet in the middle. The drawn shapes stay clear of their own
+          corners, so nothing covers anything: the role emblem must never hide
+          part of the service or pleasure mark underneath it. */}
       {kind === 'service' ? (
-        <ServiceGlyph className="absolute left-0 top-0 h-[54%] w-[54%] opacity-90" />
+        <ServiceGlyph className="absolute left-0 top-0 h-[56%] w-[56%] opacity-90" />
       ) : (
-        <svg className="absolute left-0 top-0 h-[54%] w-[54%]" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" viewBox="0 0 24 24">
+        <svg className="absolute left-0 top-0 h-[56%] w-[56%]" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" viewBox="0 0 24 24">
           <path d="M12 20.4 4.5 13A5 5 0 0 1 12 6.4 5 5 0 0 1 19.5 13Z" />
         </svg>
       )}
-      <RoleMark className="absolute bottom-0 right-0 h-[46%] w-[46%] rounded-full bg-[#05050A]" />
+      <RoleMark className="absolute bottom-0 right-0 h-[50%] w-[50%] rounded-full bg-[#05050A]" />
     </span>
   );
 }
@@ -234,8 +236,14 @@ export const POSITION_GLYPHS: Record<string, (props: GlyphProps) => JSX.Element>
   top: TopGlyph,
   bottom: BottomGlyph,
   versatile: VersatileGlyph,
+  // Saved profiles carry every spelling this value has had. All of them draw
+  // the same mark, so nobody's badge shows a different vers icon because of
+  // when they picked it.
+  vers: VersatileGlyph,
   'vers top': VersTopGlyph,
+  'versatile top': VersTopGlyph,
   'vers bottom': VersBottomGlyph,
+  'versatile bottom': VersBottomGlyph,
   side: SideGlyph,
   'stone top': StoneTopGlyph,
   'stone bottom': PillowPrincessGlyph,

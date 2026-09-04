@@ -151,7 +151,8 @@ const migrationFiles = [
   "142_drop_leans_men_and_techno_tags.sql",
   "143_email_change_requests.sql",
   "144_profile_protections.sql",
-  "145_rewrite_scraped_spot_descriptions.sql"
+  "145_rewrite_scraped_spot_descriptions.sql",
+  "146_pulse_radius_25_50.sql"
 ];
 const rewardSafetyPreflightFiles = [
   "079_daily_check_in_rewards.sql",

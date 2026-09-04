@@ -4,6 +4,7 @@ import type { AppConfig } from "./config.js";
 import type { DbClient, DbQueryResult } from "./db.js";
 import {
   MAP_PING_ACTIVE_MS,
+  MAP_PING_RADIUS_MILES,
   MAP_PING_RECIPIENT_LOCATION_MAX_AGE_MS,
   MAP_PING_WINDOW_MS,
   createMapPing,
@@ -910,5 +911,23 @@ describe("map Pings", () => {
     const source = createMapPing.toString();
 
     expect(source).not.toMatch(/input\.(lat|lng|latitude|longitude|signal)/);
+  });
+});
+
+describe("mapPingPayloadSchema", () => {
+  it("accepts every radius the slider offers, including 25 and 50", async () => {
+    const { mapPingPayloadSchema } = await import("./routes/map-pings.js");
+
+    for (const radiusMiles of MAP_PING_RADIUS_MILES) {
+      expect(mapPingPayloadSchema.safeParse({
+        radiusMiles,
+        idempotencyKey: "6b3a3f9e-2c41-4e83-9f6e-0d4dbb6a8a01"
+      }).success).toBe(true);
+    }
+
+    expect(mapPingPayloadSchema.safeParse({
+      radiusMiles: 20,
+      idempotencyKey: "6b3a3f9e-2c41-4e83-9f6e-0d4dbb6a8a01"
+    }).success).toBe(false);
   });
 });

@@ -11,6 +11,7 @@ import {
   HeartHandshake,
   MessageCircleQuestion,
   Shirt,
+  Smile,
   Sparkles,
   UsersRound,
   Wand2,
@@ -61,7 +62,8 @@ const PROFILE_BADGE_VALUE_ICONS: Record<string, ProfileBadgeGlyph> = {
   leather: LeatherGlyph,
   rubber: RubberGlyph,
   neurodivergent: NeurodivergentGlyph,
-  raver: RaveGlyph,
+  // The rave smiley, not glow sticks: the mark the scene actually uses.
+  raver: Smile,
   techie: Cable,
   cyborg: CyborgGlyph,
   party: PartyHatGlyph,
