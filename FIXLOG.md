@@ -100,3 +100,4 @@
 - The role emblem on the Service and Pleasure compound badges sat on top of the mark underneath it. The two now sit corner to corner and no longer overlap.
 - Rope bunny is a rabbit. Prey takes the feather rope bunny used to carry, so no two Role badges share an icon.
 - Trade moved from Archetypes to Style.
+- The bug button covered the Feed settings close button. That dialog moves its close clear of the corner the bug button always occupies.

@@ -736,7 +736,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
       data-testid="local-feed-screen"
     >
       <header
-        className="sticky top-0 z-40 flex shrink-0 items-center gap-2 border-b border-white/10 bg-black/88 px-4 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top))] shadow-[0_20px_55px_rgba(0,0,0,0.34)] backdrop-blur-xl"
+        className="sticky top-0 z-40 flex shrink-0 items-center gap-2 border-b border-white/10 bg-black/88 pb-3 pl-4 pr-[3.75rem] pt-[calc(0.75rem+env(safe-area-inset-top))] shadow-[0_20px_55px_rgba(0,0,0,0.34)] backdrop-blur-xl"
         data-testid="local-feed-header"
       >
         <Button
@@ -802,7 +802,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
               <CruushIcon name="settings" className="h-5 w-5" />
             </Button>
           </DialogTrigger>
-          <DialogContent className="scrollbar-hide max-h-[calc(100dvh-2rem)] max-w-md overflow-y-auto overscroll-contain rounded-lg border-white/10 bg-background pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
+          <DialogContent className="scrollbar-hide max-h-[calc(100dvh-2rem)] max-w-md overflow-y-auto overscroll-contain rounded-lg border-white/10 bg-background pb-[calc(1.5rem+env(safe-area-inset-bottom))] [&_[data-slot=dialog-close-x]]:right-14">
             <DialogHeader>
               <DialogTitle>Feed settings</DialogTitle>
               <DialogDescription>
