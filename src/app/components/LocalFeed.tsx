@@ -100,6 +100,7 @@ const FEED_WINDOW_OPTIONS: Array<{ value: FeedPostWindow; label: string }> = [
 ];
 const FEED_EXPIRY_OPTIONS: Array<{ value: FeedPostExpiry; label: string }> = [
   { value: '1h', label: '1h' },
+  { value: '3h', label: '3h' },
   { value: '6h', label: '6h' },
   { value: '24h', label: '24h' },
   { value: '7d', label: '7d' },
@@ -780,7 +781,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
             <div className="space-y-4">
               <section className="rounded-lg border border-white/10 bg-black/42 p-3">
                 <p className="mb-2 text-sm font-semibold text-white">Posted within</p>
-                <div className="grid grid-cols-5 gap-2">
+                <div className="grid grid-cols-6 gap-1.5">
                   {FEED_WINDOW_OPTIONS.map((option) => (
                     <button
                       key={option.value}
@@ -951,7 +952,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
 
             <section className="rounded-lg border border-white/10 bg-black/42 p-3">
               <p className="mb-2 text-sm font-semibold text-white">Posted within</p>
-              <div className="grid grid-cols-5 gap-2">
+              <div className="grid grid-cols-6 gap-1.5">
                 {FEED_WINDOW_OPTIONS.map((option) => (
                   <button
                     key={option.value}
@@ -1145,7 +1146,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
                 applied to everything. Every composer starts at Never. */}
             <section className="rounded-lg border border-white/10 bg-black/42 p-3">
               <p className="mb-2 text-sm font-semibold text-white">This post expires</p>
-              <div className="grid grid-cols-5 gap-2">
+              <div className="grid grid-cols-6 gap-1.5">
                 {FEED_EXPIRY_OPTIONS.map((option) => {
                   const selected = expiresIn === option.value;
                   return (
@@ -1460,7 +1461,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
       onUpgrade={() => setPlusCardOpen(true)}
       open={seekingOpen}
       searchPlaceholder="Search #tags"
-      title="Seeking Filter"
+      title="Feed Filter"
       value={feedSeekingDraft}
     />
     {pendingFeedPhotoUrl ? (

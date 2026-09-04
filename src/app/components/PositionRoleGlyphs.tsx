@@ -4,7 +4,6 @@ import stoneTopRaster from '../assets/ui-icons/stone-top-raster.png';
 import {
   Activity,
   Axe,
-  Baby,
   Bone,
   CircleArrowDown,
   Drama,
@@ -179,6 +178,18 @@ export function SnakeGlyph({ className, strokeWidth = 2 }: GlyphProps) {
   );
 }
 
+/** A baby rattle for the Little role. */
+export function RattleGlyph({ className, strokeWidth = 2 }: GlyphProps) {
+  return (
+    <Glyph className={className} strokeWidth={strokeWidth}>
+      <circle cx="9" cy="8" r="5" />
+      <circle cx="9" cy="8" r="1.6" fill="currentColor" stroke="none" />
+      <path d="m12.7 11.6 4.4 4.4" />
+      <circle cx="18.6" cy="17.5" r="2.4" />
+    </Glyph>
+  );
+}
+
 export function ServiceGlyph(props: GlyphProps) {
   return <NounProjectGlyph {...props} source={serviceRaster} />;
 }
@@ -277,7 +288,7 @@ export const ROLE_GLYPHS: Record<string, (props: GlyphProps) => JSX.Element> = {
   caregiver: HandHeart,
   degradee: CircleArrowDown,
   degrader: Megaphone,
-  little: Baby,
+  little: RattleGlyph,
   masochist: HeartCrack,
   owner: KeyRound,
   prey: Rat,

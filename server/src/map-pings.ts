@@ -47,6 +47,7 @@ export const MAP_PING_RECIPIENT_LOCATION_MAX_AGE_MS = 60 * 60 * 1000;
 const MAP_PING_LOCATION_FUTURE_TOLERANCE_MS = 5 * 60 * 1000;
 const FEED_POST_EXPIRY_MS: Record<Exclude<PostExpiry, "never">, number> = {
   "1h": 60 * 60 * 1000,
+  "3h": 3 * 60 * 60 * 1000,
   "6h": 6 * 60 * 60 * 1000,
   "24h": 24 * 60 * 60 * 1000,
   "7d": 7 * 24 * 60 * 60 * 1000

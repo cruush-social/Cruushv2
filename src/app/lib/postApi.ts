@@ -2,7 +2,7 @@ import { requestApi } from './apiClient';
 import type { CruushBadge } from './billingApi';
 import type { SideBadges } from './profileApi';
 
-export type FeedPostExpiry = '1h' | '6h' | '24h' | '7d' | 'never';
+export type FeedPostExpiry = '1h' | '3h' | '6h' | '24h' | '7d' | 'never';
 export type FeedPostWindow = '1h' | '3h' | '6h' | '24h' | '7d';
 export type FeedLocationPinVisibility = 'off' | 'mutuals' | 'same_crowd' | 'public';
 export type FeedPostAudience = 'public' | 'mutuals' | 'crowd';

@@ -1,14 +1,14 @@
 {
   "schemaVersion": 2,
-  "taskId": "cruush-shared-cards-vibes-20260904",
+  "taskId": "cruush-admin-batch-20260904b",
   "status": "active",
-  "objective": "One card layout across Feed, Cruushes and Messages, with vibe tags above the body on all three.",
-  "userOutcome": "Cruushes and Messages cards match Feed cards. Vibes sit above the body everywhere and never overhang or overlay. Feed has post text below, Messages has the preview, Cruushes has nothing.",
+  "objective": "Baby rattle for Little, one vers icon per position, redundant profile name removed, 3h feed expiry, Feed Filter naming.",
+  "userOutcome": "Little draws a rattle; vers top and bottom use the badge menu emblems everywhere; the profile header no longer repeats the name; posts can expire in 3 hours; the Feed filter is called Feed Filter.",
   "audience": "cruush members and the 1.6 release-email audience.",
   "successCriteria": [
-    "Vibes render from the shared capsule on all three surfaces.",
-    "Capsules clip to the card width and wrap.",
-    "Client and server builds clean."
+    "Migration 147 registered and replay safe.",
+    "Server build clean.",
+    "All card suites pass."
   ],
   "mustPreserve": [
     "Preserve approved custom map tiles, theme, people pins, Ghost Mode, Dark Room, Pulse, and unrelated map behavior.",
@@ -19,8 +19,8 @@
     "Keep user-facing copy free of em dashes and spell cruush lowercase."
   ],
   "nonGoals": [
-    "No change to what a card links to.",
-    "No new vibe artwork."
+    "No new badge artwork beyond the rattle.",
+    "No change to existing expiry options."
   ],
   "assumptions": [
     {
@@ -42,7 +42,7 @@
       "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "All three card types read the same with vibes above the body.",
+  "nextVisibleMilestone": "3h appears in the composer; Little shows a rattle.",
   "stopConditions": [
     "Stop the data-expansion slice if the full prior source cache cannot be recovered or if a source record is private or unsafe to publish.",
     "Stop publication because push and deployment are not authorized by this task."
@@ -74,25 +74,20 @@
   "branch": "release/1.6-integration-20260901",
   "job": "Finish the named 1.6 changes and update the release email locally.",
   "allowedPaths": [
-    "src/app/components/UserActivityCapsule.tsx",
+    "src/app/components/PositionRoleGlyphs.tsx",
+    "src/app/components/ProfileView.tsx",
     "src/app/components/LocalFeed.tsx",
-    "src/app/components/LocalFeed.test.tsx",
-    "src/app/components/CruushActivity.tsx",
-    "src/app/components/CruushActivity.test.tsx",
-    "src/app/components/DirectMessages.tsx",
-    "src/app/lib/messagesApi.ts",
-    "src/app/lib/cruushApi.ts",
-    "src/app/lib/profileOptions.ts",
-    "src/app/components/MapView.tsx",
-    "server/src/routes/messages.ts",
+    "src/app/lib/postApi.ts",
+    "server/src/post-schema.ts",
+    "server/src/routes/posts.ts",
+    "server/src/map-pings.ts",
+    "server/src/migrate.ts",
+    "server/sql/147_feed_post_expiry_3h.sql",
     "index.html",
     "public/sw.js",
     "public/service-worker-recovery.js",
     "src/main.tsx",
-    "AI_TASK.json",
-    "src/styles/theme.css",
-    "src/app/components/DirectMessages.test.tsx",
-    "src/app/components/PositionRoleGlyphs.tsx"
+    "AI_TASK.json"
   ],
   "forbiddenPaths": [
     "src/app/assets/brand/**",
