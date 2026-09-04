@@ -242,7 +242,6 @@ describe('CruushActivity', () => {
     expectHeartPreviewSize('luna preview');
     expectHeartPreviewSize('Locked incoming cruush');
 
-    expect(screen.queryByTestId('activity-vibes')).not.toBeInTheDocument();
     expect(screen.getByTestId('activity-side-badges')).toBeInTheDocument();
     expect(screen.getByRole('img', { name: /left badge:.*dominant/i })).toBeInTheDocument();
     expect(screen.getByRole('img', { name: /right badge:.*top/i })).toBeInTheDocument();
@@ -269,7 +268,6 @@ describe('CruushActivity', () => {
     expect(screen.getByText(/pending/i)).toBeInTheDocument();
     expectHeartPreviewSize('jay preview');
     expect(screen.getByRole('button', { name: 'jay preview' }).querySelector('path')).toHaveAttribute('stroke', '#FF0072');
-    expect(screen.queryByTestId('activity-vibes')).not.toBeInTheDocument();
 
     selectTab(/mutual/i);
     await waitFor(() => expect(screen.getByText('river')).toBeInTheDocument());
@@ -279,8 +277,10 @@ describe('CruushActivity', () => {
     expect(screen.getByText('~0.5 mi away')).toBeInTheDocument();
     expectHeartPreviewSize('river preview');
     expect(screen.getByRole('button', { name: 'river preview' }).querySelector('path')).toHaveAttribute('stroke', '#6F00FF');
-    expect(screen.queryByTestId('activity-vibes')).not.toBeInTheDocument();
-    expect(screen.getByTestId('profile-action-trio').parentElement).toHaveClass('col-start-3', 'row-start-1');
+    // Cruushes rows use the Feed card layout: the identity takes the full
+    // width and the actions drop to their own row, instead of sitting beside
+    // the name and squeezing it.
+    expect(screen.getByTestId('profile-action-trio').parentElement).toHaveClass('col-start-3', 'row-start-2');
 
     fireEvent.click(screen.getByRole('button', { name: 'Message river' }));
     expect(openConversationOrInbox).toHaveBeenCalledWith(expect.any(Function), 'user-river', undefined);
@@ -353,7 +353,6 @@ describe('CruushActivity', () => {
     expect(screen.getByText('Upgrade to view')).toBeInTheDocument();
     expectHeartPreviewSize('indigo preview');
     expectHeartPreviewSize('Locked profile view');
-    expect(screen.queryByTestId('activity-vibes')).not.toBeInTheDocument();
 
     const cruushButton = screen.getByRole('button', { name: 'Send cruush to indigo' });
     expect(cruushButton.querySelector('img')?.getAttribute('src')).toContain('safety-white');

@@ -542,11 +542,10 @@ describe('LocalFeed', () => {
 
     const preview = await screen.findByRole('img', { name: 'River preview' });
     expect(preview.parentElement).toHaveClass('w-full');
-    // The rail holds only the avatar; the compact feed card omits profile tags.
+    // The rail holds only the avatar; the vibes sit in the card body instead.
     expect(screen.getByTestId('feed-post-profile-stack-post-other')).toHaveClass('-mt-1', 'w-20');
     expect(screen.getByTestId('feed-post-author-post-other')).toHaveClass('text-left');
     expect(screen.getByTestId('feed-post-author-post-other')).not.toHaveClass('max-w-[32%]');
-    expect(screen.queryByTestId('feed-post-vibes-post-other')).not.toBeInTheDocument();
     expect(screen.getByTestId('feed-post-meta-post-other')).toHaveClass('flex', 'h-11', 'flex-col');
     expect(screen.getByText('he/him')).toBeInTheDocument();
 

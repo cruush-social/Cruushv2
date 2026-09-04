@@ -16,6 +16,7 @@ export type ConversationThread = {
     photoExplicit?: boolean;
     sideBadges?: SideBadges;
     travelling?: boolean;
+    vibes?: string[];
   };
   distance: string;
   updatedAt: string;

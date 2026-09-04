@@ -1,4 +1,5 @@
 import type { KeyboardEvent, ReactNode } from 'react';
+import { resolveVibeTone, vibeCapsuleStyle } from '../lib/vibeTone';
 import type { SideBadges } from '../lib/profileApi';
 import SideBadgePair, { type SideBadgeTone } from './SideBadgePair';
 
@@ -13,6 +14,9 @@ export type UserActivityCapsuleProps = {
   metadata?: ReactNode;
   actions?: ReactNode;
   mutual?: boolean;
+  /** Vibe capsules, shown above the card body on every surface. */
+  vibes?: string[];
+  vibeTone?: 'current' | 'mutual' | 'nearby';
   content?: ReactNode;
   cornerAction?: ReactNode;
   onOpenIdentity?: () => void;
@@ -37,6 +41,8 @@ export default function UserActivityCapsule({
   actions,
   mutual = false,
   sideBadgeTone = mutual ? 'mutual' : 'nearby',
+  vibes,
+  vibeTone = 'nearby',
   content,
   cornerAction,
   onOpenIdentity,
@@ -114,7 +120,30 @@ export default function UserActivityCapsule({
 
       {actions ? <div className={`cruush-user-activity-actions col-start-3 self-center ${compactIdentityMeta ? 'row-start-1' : 'row-start-2'}`}>{actions}</div> : null}
 
-      {content ? <div className="cruush-user-activity-content col-start-2 col-end-4 min-w-0">{content}</div> : null}
+      {(vibes?.length ?? 0) > 0 || content ? (
+        <div className="cruush-user-activity-content col-start-2 col-end-4 min-w-0 space-y-1.5">
+          {(vibes?.length ?? 0) > 0 ? (
+            /* In normal flow above the body, wrapping onto their own lines and
+               each capsule clipping to the card width, so a vibe can never
+               overhang the card or sit on top of anything. */
+            <div className="flex min-w-0 flex-wrap gap-1.5" data-testid="activity-vibes">
+              {vibes?.slice(0, 3).map((vibe) => (
+                <span
+                  className="max-w-full truncate rounded-full border px-2 py-0.5 text-[11px] uppercase leading-tight tracking-[0.08em]"
+                  key={vibe}
+                  style={vibeCapsuleStyle(resolveVibeTone({
+                    mutual: vibeTone === 'mutual',
+                    isCurrentUser: vibeTone === 'current',
+                  }))}
+                >
+                  {vibe}
+                </span>
+              ))}
+            </div>
+          ) : null}
+          {content}
+        </div>
+      ) : null}
       {cornerAction ? <div className="absolute right-3 top-3">{cornerAction}</div> : null}
       </article>
     </div>

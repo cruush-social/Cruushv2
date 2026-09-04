@@ -1378,6 +1378,8 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
                     </div>
                   )}
                   mutual={mutualAuthor}
+                  vibes={post.user.vibes}
+                  vibeTone={post.user.id === currentUserId ? 'current' : mutualAuthor ? 'mutual' : 'nearby'}
                   content={(
                     <div className="space-y-1.5">
                       <p className="text-base">{post.content}</p>

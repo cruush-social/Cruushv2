@@ -1049,6 +1049,8 @@ export default function DirectMessages({
                 )}
                 name={conversation.user.name}
                 pronouns={conversation.user.pronouns || conversation.membersLabel}
+                vibes={conversation.user.vibes}
+                vibeTone={conversation.mutual ? 'mutual' : 'nearby'}
                 sideBadges={conversation.user.sideBadges}
                 sideBadgeTone={resolveUserBorderTone({
                   mileHigh: conversation.user.travelling,

@@ -264,7 +264,6 @@ function IncomingRow({
   return (
     <UserActivityCapsule
       className={activityCardClassName}
-      compactIdentityMeta
       testId="activity-row"
       heart={<PersonHeart item={item} fallbackLabel="Locked incoming cruush" onOpenProfile={onOpenProfile} />}
       cornerAction={onDismiss && unlocked ? (
@@ -314,6 +313,8 @@ function IncomingRow({
         />
       ) : null}
       mutual={item.mutual === true}
+      vibes={item.user?.vibes}
+      vibeTone={item.mutual === true ? 'mutual' : 'nearby'}
     />
   );
 }
@@ -346,7 +347,6 @@ function SentRow({
   return (
     <UserActivityCapsule
       className={activityCardClassName}
-      compactIdentityMeta
       testId="activity-row"
       heart={(
         <HeartPhoto
@@ -382,6 +382,8 @@ function SentRow({
         />
       )}
       mutual={item.mutual === true}
+      vibes={item.user?.vibes}
+      vibeTone={item.mutual === true ? 'mutual' : 'nearby'}
     />
   );
 }
@@ -410,7 +412,6 @@ function MutualRow({
   return (
     <UserActivityCapsule
       className={activityCardClassName}
-      compactIdentityMeta
       testId="activity-row"
       heart={(
         <HeartPhoto
@@ -446,6 +447,8 @@ function MutualRow({
         />
       )}
       mutual
+      vibes={item.user.vibes}
+      vibeTone="mutual"
     />
   );
 }
@@ -478,7 +481,6 @@ function ViewRow({
   return (
     <UserActivityCapsule
       className={activityCardClassName}
-      compactIdentityMeta
       testId="activity-row"
       heart={<PersonHeart item={item} fallbackLabel="Locked profile view" onOpenProfile={onOpenProfile} />}
       cornerAction={onRemove && item.user ? (
@@ -527,6 +529,8 @@ function ViewRow({
         />
       ) : null}
       mutual={actionState === 'mutual'}
+      vibes={item.user?.vibes}
+      vibeTone={actionState === 'mutual' ? 'mutual' : 'nearby'}
     />
   );
 }

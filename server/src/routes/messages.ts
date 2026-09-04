@@ -90,6 +90,7 @@ type ConversationRow = {
   other_user_photo: string | null;
   other_user_photo_explicit?: boolean | null;
   other_user_side_badges?: unknown;
+  other_user_vibes?: string[] | null;
   other_user_travelling?: boolean;
   member_count: number;
 };
@@ -395,6 +396,7 @@ function mapConversationRow(app: FastifyInstance, row: ConversationRow, options:
       photo: isGroup ? null : row.other_user_photo ?? null,
       ...(isGroup ? {} : { photoExplicit: row.other_user_photo_explicit === true }),
       ...(isGroup || !row.other_user_side_badges ? {} : { sideBadges: row.other_user_side_badges }),
+      ...(isGroup || !row.other_user_vibes?.length ? {} : { vibes: row.other_user_vibes.slice(0, 3) }),
       ...(isGroup ? {} : { travelling: row.other_user_travelling === true })
     },
     distance: "Nearby",
@@ -664,6 +666,7 @@ const CONVERSATION_SELECT = `
     other_profile.pronouns as other_user_pronouns,
     case when c.kind = 'dm' then other_profile.photos[1] else null end as other_user_photo,
     case when c.kind = 'dm' then to_jsonb(other_profile)->'side_badges' else null end as other_user_side_badges,
+    case when c.kind = 'dm' then other_profile.vibes else null end as other_user_vibes,
     case when c.kind = 'dm' then exists (
       select 1 from user_travel_pins travel
       where travel.user_id = other_member.user_id
