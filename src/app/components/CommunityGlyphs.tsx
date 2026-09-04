@@ -8,7 +8,6 @@
 import t4tLinkedSymbol from '../assets/ui-icons/t4t-pride-linked-symbol.png';
 import aceSpectrumDiamond from '../assets/ui-icons/ace-spectrum-diamond-2226685.png';
 import bdsmTriskelion from '../assets/ui-icons/bdsm-89011.png';
-import bisexualitySymbol from '../assets/ui-icons/bisexuality-2431635.png';
 import labrysSymbol from '../assets/ui-icons/labrys-5692573.png';
 import polyamoryInfinityHeart from '../assets/ui-icons/polyamory-2751502.png';
 
@@ -91,9 +90,17 @@ export function LabrysGlyph({ className }: GlyphProps) {
 }
 
 /** The established interlocking bisexuality symbol. */
-export function BisexualGlyph({ className }: GlyphProps) {
+/**
+ * The biangles: two overlapping triangles, the oldest bisexual symbol. The
+ * interlocked male and female signs that stood here are the heterosexual union
+ * mark, not a bisexual one.
+ */
+export function BisexualGlyph({ className, strokeWidth = 2 }: GlyphProps) {
   return (
-    <img alt="" aria-hidden="true" className={`object-contain invert ${className ?? ''}`} draggable={false} src={bisexualitySymbol} />
+    <Glyph className={className} strokeWidth={strokeWidth}>
+      <path d="M2.6 4.2 L14.6 4.2 L8.6 14.6 Z" />
+      <path d="M9.4 9.4 L21.4 9.4 L15.4 19.8 Z" />
+    </Glyph>
   );
 }
 
