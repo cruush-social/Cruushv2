@@ -123,13 +123,13 @@ export default function UserActivityCapsule({
       {(vibes?.length ?? 0) > 0 || content ? (
         <div className="cruush-user-activity-content col-start-2 col-end-4 min-w-0 space-y-1.5">
           {(vibes?.length ?? 0) > 0 ? (
-            /* One line, always. The row never wraps and clips to the card
-               width; each pill shrinks and truncates rather than pushing the
-               next one onto a second line or past the card edge. */
+            /* One line, always. Each tag keeps its own width so the ones that
+               show stay readable; the row clips at the card edge rather than
+               wrapping or shrinking every tag into an unreadable stub. */
             <div className="flex min-w-0 flex-nowrap items-center gap-1.5 overflow-hidden" data-testid="activity-vibes">
               {vibes?.slice(0, 3).map((vibe) => (
                 <span
-                  className="min-w-0 flex-shrink truncate rounded-full border px-2 py-0.5 text-[11px] uppercase leading-tight tracking-[0.08em]"
+                  className="max-w-full flex-shrink-0 truncate rounded-full border px-2 py-0.5 text-[11px] uppercase leading-tight tracking-[0.08em]"
                   key={vibe}
                   style={vibeCapsuleStyle(resolveVibeTone({
                     mutual: vibeTone === 'mutual',
