@@ -73,7 +73,7 @@ export const VIBE_GROUPS = [
     options: [
       'Academia', 'Alt', 'Artsy', 'Blue-collar', 'Camp', 'Clean-cut', 'Corporate', 'Cottagecore', 'DIY', 'Discreet', 'Earthy', 'Eclectic',
       'Elegant', 'Futurist', 'Geek', 'Glam', 'Granola', 'Hippie', 'Maximalist', 'Minimalist', 'Polished', 'Primitivist', 'Rugged', 'Techie',
-      'Newly out', 'Vagabond', 'Vintage', 'Witchy'
+      'Newly out', 'Trade', 'Vagabond', 'Vintage', 'Witchy'
     ].sort((left, right) => left.localeCompare(right, undefined, { sensitivity: 'base' })),
   },
   {
@@ -103,7 +103,7 @@ export const VIBE_GROUPS = [
       'Hothusband', 'Hotwife', 'Incubus', 'Jester', 'King', 'Kitten', 'Master', 'Minx', 'Mistress', 'Mommy', 'Musician', 'Nympho',
       'Object', 'Outlaw', 'Owned', 'Pervert', 'Pig', 'Pixie', 'Plaything', 'Pony', 'Pornstar', 'Prince', 'Princess', 'Pup', 'Queen',
       'Sensualist', 'Servant', 'Side piece', 'Silver fox', 'Siren', 'Sis', 'Sissy', 'Size royalty', 'Slut', 'Succubus', 'Swinger', 'Thembo',
-      'Toilet', 'Trade', 'Unicorn', 'Vampire', 'Werewolf', 'Whore', 'Wolf'
+      'Toilet', 'Unicorn', 'Vampire', 'Werewolf', 'Whore', 'Wolf'
     ].sort((left, right) => left.localeCompare(right, undefined, { sensitivity: 'base' })),
   },
   {

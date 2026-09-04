@@ -181,14 +181,16 @@ function CompoundRoleGlyph({
 
   return (
     <span aria-hidden="true" className={`relative inline-flex ${className ?? ''}`}>
+      {/* The two marks sit corner to corner. They used to overlap, so the role
+          emblem covered part of the service or pleasure mark underneath it. */}
       {kind === 'service' ? (
-        <ServiceGlyph className="absolute inset-[18%] h-[64%] w-[64%] opacity-90" />
+        <ServiceGlyph className="absolute left-0 top-0 h-[54%] w-[54%] opacity-90" />
       ) : (
-        <svg className="absolute inset-[20%] h-[60%] w-[60%]" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" viewBox="0 0 24 24">
+        <svg className="absolute left-0 top-0 h-[54%] w-[54%]" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" viewBox="0 0 24 24">
           <path d="M12 20.4 4.5 13A5 5 0 0 1 12 6.4 5 5 0 0 1 19.5 13Z" />
         </svg>
       )}
-      <RoleMark className="absolute -bottom-[7%] -right-[7%] h-[54%] w-[54%] rounded-full bg-[#05050A]" />
+      <RoleMark className="absolute bottom-0 right-0 h-[46%] w-[46%] rounded-full bg-[#05050A]" />
     </span>
   );
 }
@@ -255,10 +257,10 @@ export const ROLE_GLYPHS: Record<string, (props: GlyphProps) => JSX.Element> = {
   little: Baby,
   masochist: HeartCrack,
   owner: KeyRound,
-  prey: Rabbit,
+  prey: Feather,
   hunter: PawPrint,
   rigger: Spline,
-  'rope bunny': Feather,
+  'rope bunny': Rabbit,
   sadist: Axe,
   sadomasochist: Activity,
   trainer: Dumbbell,
