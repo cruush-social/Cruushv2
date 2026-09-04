@@ -324,10 +324,10 @@ describe('ProfileView', () => {
     const healthTab = await screen.findByRole('tab', { name: 'Health' });
     fireEvent.click(healthTab);
 
-    const healthHeading = screen.getAllByText('Health').find((node) => node.tagName.toLowerCase() === 'h2');
+    // The card held one value, so the status stands on its own now.
+    const healthHeading = screen.getAllByText('HIV Status').find((node) => node.tagName.toLowerCase() === 'h2');
     expect(healthHeading).toBeDefined();
     const healthSection = healthHeading?.closest('section') as HTMLElement;
-    expect(within(healthSection).getByText('HIV')).toBeInTheDocument();
     expect(within(healthSection).getByText('Negative')).toBeInTheDocument();
     expect(within(healthSection).queryByText('Not shared')).not.toBeInTheDocument();
 

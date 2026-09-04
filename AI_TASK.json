@@ -87,7 +87,12 @@
     "public/sw.js",
     "public/service-worker-recovery.js",
     "src/main.tsx",
-    "AI_TASK.json"
+    "AI_TASK.json",
+    "src/app/components/ui/dialog.tsx",
+    "src/app/components/Changelog.test.tsx",
+    "src/app/components/ProfileView.test.tsx",
+    "src/app/components/Rewards.tsx",
+    "src/app/components/UserActivityCapsule.tsx"
   ],
   "forbiddenPaths": [
     "src/app/assets/brand/**",

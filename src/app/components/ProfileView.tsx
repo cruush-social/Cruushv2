@@ -931,10 +931,9 @@ export function ProfileDetailsTabs({
           <BadgeList items={profileView.protection} compact={compact} />
         </Section>
 
-        <Section title="Health" compact={compact}>
-          <div className="grid grid-cols-2 gap-3 text-sm">
-            <DetailItem label="HIV" value={profileView.hivStatus} compact={compact} emptyFallback="" />
-          </div>
+        {/* A card holding one value is just the value with extra chrome. */}
+        <Section title="HIV Status" compact={compact}>
+          <BadgeList items={profileView.hivStatus ? [profileView.hivStatus] : []} compact={compact} />
         </Section>
 
         <Section title="Lifestyle" compact={compact}>

@@ -435,11 +435,6 @@ export default function Rewards() {
             <Card data-testid="side-quests-card">
               <CardHeader className="flex-row items-center justify-between gap-3">
                 <CardTitle>Side Quests</CardTitle>
-                {sideQuests ? (
-                  <span className="inline-flex items-center gap-1 rounded-full border border-primary/35 bg-primary/10 px-3 py-1 text-sm text-white">
-                    <Zap className="h-4 w-4 text-primary" />{sideQuests.pingCredits} {sideQuests.pingCredits === 1 ? 'Pulse' : 'Pulses'}
-                  </span>
-                ) : null}
               </CardHeader>
               <CardContent>
                 {sideQuests ? (
