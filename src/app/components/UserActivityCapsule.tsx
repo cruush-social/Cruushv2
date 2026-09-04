@@ -121,15 +121,16 @@ export default function UserActivityCapsule({
       <article
         aria-label={onSelect ? selectLabel : undefined}
         aria-pressed={onSelect ? selected : undefined}
-        className={`cruush-user-activity-capsule relative grid w-full items-center border bg-card/70 text-left shadow-[0_12px_32px_rgba(0,0,0,0.24)] transition-colors ${selected ? 'border-[#8B5CF6] bg-[#8B5CF6]/18' : 'border-white/10 hover:bg-white/[0.06]'} ${onSelect ? 'cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8B5CF6]/70' : ''} ${className ?? ''}`}
+        className={`cruush-user-activity-capsule relative flex w-full flex-col border bg-card/70 text-left shadow-[0_12px_32px_rgba(0,0,0,0.24)] transition-colors ${selected ? 'border-[#8B5CF6] bg-[#8B5CF6]/18' : 'border-white/10 hover:bg-white/[0.06]'} ${onSelect ? 'cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8B5CF6]/70' : ''} ${className ?? ''}`}
         data-testid={testId}
         onClick={onSelect}
         onKeyDown={handleSelectKeyDown}
         role={onSelect ? 'button' : undefined}
         tabIndex={onSelect ? 0 : undefined}
       >
-      {vibeRow ? <div className="col-start-1 col-end-4 mb-2 min-w-0">{vibeRow}</div> : null}
+      {vibeRow ? <div className="mb-2 min-w-0">{vibeRow}</div> : null}
 
+      <div className="cruush-user-activity-grid grid w-full items-center">
       <div className={`cruush-user-activity-heart flex flex-col items-center ${compactIdentityMeta ? 'row-start-1 self-center' : 'row-span-4 self-start'}`}>
         {heart}
         <SideBadgePair badges={sideBadges} tone={sideBadgeTone} />
@@ -151,9 +152,8 @@ export default function UserActivityCapsule({
       {actions ? <div className={`cruush-user-activity-actions col-start-3 self-center ${compactIdentityMeta ? 'row-start-1' : 'row-start-2'}`}>{actions}</div> : null}
 
       {content ? <div className="cruush-user-activity-content col-start-2 col-end-4 min-w-0">{content}</div> : null}
-      {cornerAction && (vibes?.length ?? 0) === 0
-        ? <div className="absolute right-3 top-3">{cornerAction}</div>
-        : null}
+      </div>
+      {cornerAction ? <div className="absolute right-3 top-3">{cornerAction}</div> : null}
       </article>
     </div>
   );

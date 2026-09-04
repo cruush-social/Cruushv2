@@ -90,7 +90,8 @@
     "public/service-worker-recovery.js",
     "src/main.tsx",
     "AI_TASK.json",
-    "src/styles/theme.css"
+    "src/styles/theme.css",
+    "src/app/components/DirectMessages.test.tsx"
   ],
   "forbiddenPaths": [
     "src/app/assets/brand/**",

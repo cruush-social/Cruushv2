@@ -1747,14 +1747,20 @@ html[data-cruush-alpha-bug-corner='top-right'] [data-testid='accessibility-quick
     container-type: inline-size;
   }
 
+  /* The card carries the surface; the grid lives in a child, so anything the
+     card wants above the grid (the vibe tags) cannot become a grid row and
+     push the heart, name and actions onto rows they were not designed for. */
   .cruush-user-activity-capsule {
+    border-radius: clamp(1rem, 4cqw, 1.75rem);
+    padding: clamp(0.75rem, 5.3cqw, 2.2rem);
+  }
+
+  .cruush-user-activity-grid {
     grid-template-columns: var(--cruush-profile-heart-size) minmax(0, 1fr) auto;
     /* The gap grew with the card, so on a phone the action column pushed into
        the identity column and clipped the distance line. */
     column-gap: clamp(0.5rem, 2.4cqw, 1rem);
     row-gap: clamp(0.5rem, 1.8cqw, 0.85rem);
-    border-radius: clamp(1rem, 4cqw, 1.75rem);
-    padding: clamp(0.75rem, 5.3cqw, 2.2rem);
   }
 
   .cruush-user-activity-heart {
