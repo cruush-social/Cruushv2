@@ -41,7 +41,10 @@ describe('SideQuestPrompt', () => {
     expect(await screen.findByTestId('side-quest-prompt')).toBeInTheDocument();
     expect(screen.getByText('2 Side Quests are ready to claim')).toBeInTheDocument();
     // The unfinished 5-Ping quest must not be counted into the promise.
-    expect(screen.getByText('Claim to scratch off 2 Pings and 1 day of cruush+.')).toBeInTheDocument();
+    // The card names the reward itself rather than describing it in a
+    // sentence: cruush+ on its own line, with the Pulses under it.
+    expect(screen.getByText('cruush+')).toBeInTheDocument();
+    expect(screen.getByText('2 Pulses')).toBeInTheDocument();
   });
 
   it('stays quiet when nothing is waiting to be claimed', async () => {

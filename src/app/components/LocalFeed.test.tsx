@@ -549,81 +549,13 @@ describe('LocalFeed', () => {
     expect(screen.queryByTestId('feed-post-vibes-post-other')).not.toBeInTheDocument();
     expect(screen.getByTestId('feed-post-meta-post-other')).toHaveClass('flex', 'h-11', 'flex-col');
     expect(screen.getByText('he/him')).toBeInTheDocument();
-  });
 
-  it('blocks another feed author and removes all of their posts locally', async () => {
-    getFeedPosts.mockResolvedValue([{
-      id: 'post-owned',
-      content: 'mine to keep',
-      expiresIn: '6h',
-      expiresAt: '2026-04-28T18:00:00.000Z',
-      createdAt: '2026-04-28T12:00:00.000Z',
-      distance: 'Nearby',
-      user: {
-        id: 'user-1',
-        name: 'me',
-        pronouns: 'they/them',
-        photo: null,
-      },
-    }, {
-      id: 'post-river-1',
-      content: 'river first post',
-      expiresIn: '6h',
-      expiresAt: '2026-04-28T18:00:00.000Z',
-      createdAt: '2026-04-28T12:00:00.000Z',
-      distance: 'Nearby',
-      user: {
-        id: 'user-2',
-        name: 'River',
-        pronouns: 'he/him',
-        photo: null,
-      },
-    }, {
-      id: 'post-river-2',
-      content: 'river second post',
-      expiresIn: '6h',
-      expiresAt: '2026-04-28T18:00:00.000Z',
-      createdAt: '2026-04-28T12:00:00.000Z',
-      distance: 'Nearby',
-      user: {
-        id: 'user-2',
-        name: 'River',
-        pronouns: 'he/him',
-        photo: null,
-      },
-    }, {
-      id: 'post-sam',
-      content: 'sam stays visible',
-      expiresIn: '6h',
-      expiresAt: '2026-04-28T18:00:00.000Z',
-      createdAt: '2026-04-28T12:00:00.000Z',
-      distance: 'Nearby',
-      user: {
-        id: 'user-3',
-        name: 'Sam',
-        pronouns: 'they/them',
-        photo: null,
-      },
-    }]);
-
-    render(
-      <MemoryRouter>
-        <LocalFeed />
-      </MemoryRouter>,
-    );
-
-    expect(await screen.findByText('river first post')).toBeInTheDocument();
-
-    fireEvent.click(screen.getAllByRole('button', { name: 'Block River' })[0]);
-    fireEvent.click(screen.getByRole('button', { name: 'Block' }));
-
-    await waitFor(() => expect(blockUser).toHaveBeenCalledWith('user-2'));
-    await waitFor(() => expect(screen.queryByText('river first post')).not.toBeInTheDocument());
-    expect(screen.queryByText('river second post')).not.toBeInTheDocument();
-    expect(screen.getByText('mine to keep')).toBeInTheDocument();
-    expect(screen.getByText('sam stays visible')).toBeInTheDocument();
-    expect(toastSuccess).toHaveBeenCalledWith('River blocked.');
-    expect(screen.queryByRole('button', { name: 'Block me' })).not.toBeInTheDocument();
+    // Report sits on the action row between the date and the other buttons.
+    // Blocking is not offered per post: it lives on the profile.
+    const report = screen.getByRole('button', { name: 'Report post by River' });
+    const meta = screen.getByTestId('feed-post-meta-post-other');
+    expect(meta.compareDocumentPosition(report) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Block River' })).not.toBeInTheDocument();
   });
 
   it('lets free members post to the local feed without cruush+', async () => {

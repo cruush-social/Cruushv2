@@ -1,14 +1,14 @@
 {
   "schemaVersion": 2,
-  "taskId": "cruush-tutorial-shares-popup-slot-20260904",
+  "taskId": "cruush-pulse-copy-and-feed-report-20260904",
   "status": "active",
-  "objective": "Stop the map tutorial and the dialog prompts running at the same time, so tutorial buttons respond.",
-  "userOutcome": "Tutorial buttons work after onboarding because the tutorial no longer sits inside an open dialog's outside-click layer.",
+  "objective": "Call the reward Pulse everywhere in Side Quests, simplify the claim card, and move Report onto the feed post action row while dropping per-post Block.",
+  "userOutcome": "Side Quests say Pulse rather than Ping, the claim card names the reward plainly, and a feed post offers Report beside the other buttons with blocking left on the profile.",
   "audience": "cruush members and the 1.6 release-email audience.",
   "successCriteria": [
-    "Tutorial holds the shared slot ahead of every dialog prompt.",
-    "MapControlsTutorial and MapHome suites pass.",
-    "Release id guard passes at v39."
+    "No user-facing Ping wording in Side Quests, Rewards or the reference doc.",
+    "Report renders after the post date in the DOM.",
+    "Block is absent from feed posts and still present on the profile."
   ],
   "mustPreserve": [
     "Preserve approved custom map tiles, theme, people pins, Ghost Mode, Dark Room, Pulse, and unrelated map behavior.",
@@ -19,8 +19,9 @@
     "Keep user-facing copy free of em dashes and spell cruush lowercase."
   ],
   "nonGoals": [
-    "No change to tutorial steps or copy.",
-    "No change to when the tutorial decides to open."
+    "No rename of the internal ping keys or reward kinds.",
+    "No rewrite of historical changelog entries.",
+    "No change to blocking on the profile or popup."
   ],
   "assumptions": [
     {
@@ -42,7 +43,7 @@
       "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "Tutorial and prompts never overlap on cruush.app.",
+  "nextVisibleMilestone": "Side Quest card reads cruush+ with the Pulse count under it; feed posts show Report and no Block.",
   "stopConditions": [
     "Stop the data-expansion slice if the full prior source cache cannot be recovered or if a source record is private or unsafe to publish.",
     "Stop publication because push and deployment are not authorized by this task."
@@ -74,13 +75,15 @@
   "branch": "release/1.6-integration-20260901",
   "job": "Finish the named 1.6 changes and update the release email locally.",
   "allowedPaths": [
-    "src/app/lib/popupQueue.ts",
-    "src/app/lib/popupQueue.test.tsx",
-    "src/app/components/MapControlsTutorial.tsx",
-    "index.html",
-    "public/sw.js",
-    "public/service-worker-recovery.js",
-    "src/main.tsx",
+    "src/app/components/SideQuestPrompt.tsx",
+    "src/app/components/SideQuestPrompt.test.tsx",
+    "src/app/components/Rewards.tsx",
+    "src/app/components/Changelog.tsx",
+    "src/app/lib/earnedCruushPlusCard.ts",
+    "server/src/side-quests.ts",
+    "docs/SIDE_QUESTS.md",
+    "src/app/components/LocalFeed.tsx",
+    "src/app/components/LocalFeed.test.tsx",
     "AI_TASK.json"
   ],
   "forbiddenPaths": [

@@ -3,7 +3,6 @@ import { useLocation, useNavigate } from 'react-router';
 import { ArrowLeft, Clock, Hash, SlidersHorizontal, Trash2, X } from 'lucide-react';
 import { Button } from './ui/button';
 import CruushPlusCardDialog from './CruushPlusCardDialog';
-import BlockUserAction from './BlockUserAction';
 import ReportAction from './ReportAction';
 import CruushBadge from './CruushBadge';
 import { CruushIcon } from './CruushIconImage';
@@ -636,10 +635,6 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
   const handleFeedDistanceChange = (nextDistanceMiles: number) => {
     setFeedDistanceMiles(nextDistanceMiles);
     void fetchPosts({ before: null, distanceMiles: nextDistanceMiles });
-  };
-
-  const handleBlockedUser = (blockedUserId: string) => {
-    setPosts((currentPosts) => currentPosts.filter((post) => post.user.id !== blockedUserId));
   };
 
   const handleFeedCruush = async (post: FeedPost) => {
@@ -1320,23 +1315,6 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
                   pronouns={post.user.pronouns || 'Ask me'}
                   sideBadges={post.user.sideBadges}
                   sideBadgeTone={borderTone}
-                  heartActions={currentUserId && post.user.id !== currentUserId ? (
-                    <div className="mt-1 flex items-center justify-center gap-1">
-                      <ReportAction
-                        targetType="post"
-                        targetId={post.id}
-                        targetLabel={`post by ${post.user.name}`}
-                        targetUserId={post.user.id}
-                        className="h-7 w-7 text-muted-foreground hover:text-white"
-                      />
-                      <BlockUserAction
-                        userId={post.user.id}
-                        displayName={post.user.name}
-                        className="h-7 w-7 text-muted-foreground hover:text-white"
-                        onBlocked={handleBlockedUser}
-                      />
-                    </div>
-                  ) : null}
                   identityAdornment={(
                     <>
                       <CruushBadge badges={post.user.badges} compact />
@@ -1364,6 +1342,15 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
                   )}
                   actions={(
                     <div className="flex w-full items-center justify-end gap-2">
+                      {currentUserId && post.user.id !== currentUserId ? (
+                        <ReportAction
+                          targetType="post"
+                          targetId={post.id}
+                          targetLabel={`post by ${post.user.name}`}
+                          targetUserId={post.user.id}
+                          className="h-7 w-7 shrink-0 text-muted-foreground hover:text-white"
+                        />
+                      ) : null}
                       {currentUserId && post.user.id !== currentUserId ? (
                         <ProfileActionTrio
                           canCenterPin={pinActionable}

@@ -34,7 +34,7 @@ export function cardForPings(claimId: string, pings: number): EarnedCruushPlusCa
   return {
     id: `pings:${claimId}`,
     amount: String(pings),
-    unit: pings === 1 ? 'Ping' : 'Pings',
+    unit: pings === 1 ? 'Pulse' : 'Pulses',
     format: pings >= 10 ? 'compact' : 'default',
     kind: 'ping',
   };
