@@ -1749,7 +1749,9 @@ html[data-cruush-alpha-bug-corner='top-right'] [data-testid='accessibility-quick
 
   .cruush-user-activity-capsule {
     grid-template-columns: var(--cruush-profile-heart-size) minmax(0, 1fr) auto;
-    column-gap: clamp(0.75rem, 5.3cqw, 2.2rem);
+    /* The gap grew with the card, so on a phone the action column pushed into
+       the identity column and clipped the distance line. */
+    column-gap: clamp(0.5rem, 2.4cqw, 1rem);
     row-gap: clamp(0.5rem, 1.8cqw, 0.85rem);
     border-radius: clamp(1rem, 4cqw, 1.75rem);
     padding: clamp(0.75rem, 5.3cqw, 2.2rem);

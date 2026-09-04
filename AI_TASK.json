@@ -89,7 +89,8 @@
     "public/sw.js",
     "public/service-worker-recovery.js",
     "src/main.tsx",
-    "AI_TASK.json"
+    "AI_TASK.json",
+    "src/styles/theme.css"
   ],
   "forbiddenPaths": [
     "src/app/assets/brand/**",

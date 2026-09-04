@@ -123,13 +123,13 @@ export default function UserActivityCapsule({
       {(vibes?.length ?? 0) > 0 || content ? (
         <div className="cruush-user-activity-content col-start-2 col-end-4 min-w-0 space-y-1.5">
           {(vibes?.length ?? 0) > 0 ? (
-            /* In normal flow above the body, wrapping onto their own lines and
-               each capsule clipping to the card width, so a vibe can never
-               overhang the card or sit on top of anything. */
-            <div className="flex min-w-0 flex-wrap gap-1.5" data-testid="activity-vibes">
+            /* One line, always. The row never wraps and clips to the card
+               width; each pill shrinks and truncates rather than pushing the
+               next one onto a second line or past the card edge. */
+            <div className="flex min-w-0 flex-nowrap items-center gap-1.5 overflow-hidden" data-testid="activity-vibes">
               {vibes?.slice(0, 3).map((vibe) => (
                 <span
-                  className="max-w-full truncate rounded-full border px-2 py-0.5 text-[11px] uppercase leading-tight tracking-[0.08em]"
+                  className="min-w-0 flex-shrink truncate rounded-full border px-2 py-0.5 text-[11px] uppercase leading-tight tracking-[0.08em]"
                   key={vibe}
                   style={vibeCapsuleStyle(resolveVibeTone({
                     mutual: vibeTone === 'mutual',
