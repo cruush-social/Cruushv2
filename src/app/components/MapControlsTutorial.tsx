@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useExclusivePopup } from '../lib/popupQueue';
 import { Button } from './ui/button';
 
 export const MAP_CONTROLS_TUTORIAL_STORAGE_KEY = 'cruush:tutorial-v5-seen';
@@ -458,6 +459,10 @@ function readBottomBoundary(viewportHeight: number) {
 
 export default function MapControlsTutorial({ open, onComplete, onActivateStep, onStepChange }: MapControlsTutorialProps) {
   const cardRef = useRef<HTMLElement | null>(null);
+  // Holds the shared prompt slot while it runs. The tutorial portals above the
+  // dialogs rather than being one, so while a dialog was open its buttons sat
+  // inside that dialog's outside-click layer and did nothing when tapped.
+  const showing = useExclusivePopup('map-tutorial', open);
   const [stepIndex, setStepIndex] = useState(readTutorialProgressIndex);
   const [targetRects, setTargetRects] = useState<TutorialPlacementRect[]>([]);
   const [measurements, setMeasurements] = useState<TutorialMeasurements | null>(null);
@@ -617,7 +622,7 @@ export default function MapControlsTutorial({ open, onComplete, onActivateStep, 
     }
   };
 
-  if (!open) {
+  if (!showing) {
     return null;
   }
 

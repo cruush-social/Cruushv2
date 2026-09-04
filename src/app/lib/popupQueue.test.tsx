@@ -47,6 +47,21 @@ describe('useExclusivePopup', () => {
     expect(screen.getByTestId('side-quest')).toBeInTheDocument();
   });
 
+  it('keeps the map tutorial and a dialog prompt from running together', () => {
+    // The tutorial portals above the dialogs rather than being one, so while a
+    // dialog was open its buttons sat inside that dialog's outside-click layer
+    // and did nothing when tapped.
+    render(
+      <>
+        <Prompt id="first-feed-post" wants />
+        <Prompt id="map-tutorial" wants />
+      </>,
+    );
+
+    expect(screen.getByTestId('map-tutorial')).toBeInTheDocument();
+    expect(screen.queryByTestId('first-feed-post')).not.toBeInTheDocument();
+  });
+
   it('releases the screen when the holder unmounts', () => {
     const view = render(
       <>

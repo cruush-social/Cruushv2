@@ -8,8 +8,13 @@ import { useEffect, useState } from 'react';
  *
  * The order runs from the notice a member most needs to read to the one that
  * can wait longest.
+ *
+ * The map tutorial leads it for a different reason than the rest. It portals
+ * to the body above the dialogs rather than being one, so while a dialog was
+ * open its buttons sat inside that dialog's outside-click layer and did
+ * nothing when tapped. Holding the slot keeps the two from ever overlapping.
  */
-const PRIORITY = ['dl-mode-default', 'first-feed-post', 'side-quest', 'mobile-install'] as const;
+const PRIORITY = ['map-tutorial', 'dl-mode-default', 'first-feed-post', 'side-quest', 'mobile-install'] as const;
 
 export type ExclusivePopupId = (typeof PRIORITY)[number];
 
