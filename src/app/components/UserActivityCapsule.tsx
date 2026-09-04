@@ -88,6 +88,13 @@ export default function UserActivityCapsule({
     <div className={compactIdentityMeta ? 'min-w-0' : 'col-start-2 col-end-4 min-w-0'}>{identity}</div>
   );
 
+  const identityRow = cornerAction && (vibes?.length ?? 0) > 0 ? (
+    <div className={compactIdentityMeta ? 'flex min-w-0 items-start gap-2' : 'col-start-2 col-end-4 flex min-w-0 items-start gap-2'}>
+      <div className="min-w-0 flex-1 [&>*]:col-auto">{identityControl}</div>
+      <div className="shrink-0">{cornerAction}</div>
+    </div>
+  ) : identityControl;
+
   return (
     <div className="cruush-user-activity-shell w-full">
       <article
@@ -100,7 +107,28 @@ export default function UserActivityCapsule({
         role={onSelect ? 'button' : undefined}
         tabIndex={onSelect ? 0 : undefined}
       >
-      <div className={`cruush-user-activity-heart flex flex-col items-center ${compactIdentityMeta ? 'row-start-1 self-center' : 'row-span-4 self-start'}`}>
+      {(vibes?.length ?? 0) > 0 ? (
+        /* Its own full-width row at the top of the card, so the tags get the
+           whole width rather than the narrow body column. One line, always:
+           each tag keeps its own width so the ones that show stay readable,
+           and the row clips at the card edge rather than wrapping. */
+        <div className="col-start-1 col-end-4 row-start-1 flex min-w-0 flex-nowrap items-center gap-1.5 overflow-hidden" data-testid="activity-vibes">
+          {vibes?.slice(0, 3).map((vibe) => (
+            <span
+              className="max-w-full flex-shrink-0 truncate rounded-full border px-2 py-0.5 text-[11px] uppercase leading-tight tracking-[0.08em]"
+              key={vibe}
+              style={vibeCapsuleStyle(resolveVibeTone({
+                mutual: vibeTone === 'mutual',
+                isCurrentUser: vibeTone === 'current',
+              }))}
+            >
+              {vibe}
+            </span>
+          ))}
+        </div>
+      ) : null}
+
+      <div className={`cruush-user-activity-heart flex flex-col items-center ${compactIdentityMeta ? 'row-start-1 self-center' : 'self-start'} ${(vibes?.length ?? 0) > 0 ? 'row-start-2 row-span-3' : 'row-span-4'}`}>
         {heart}
         <SideBadgePair badges={sideBadges} tone={sideBadgeTone} />
         {heartActions}
@@ -108,43 +136,22 @@ export default function UserActivityCapsule({
 
       {compactIdentityMeta ? (
         <div className="col-start-2 row-start-1 min-w-0 self-center">
-          {identityControl}
+          {identityRow}
           {metadata ? <div className="cruush-user-activity-metadata min-w-0 overflow-hidden">{metadata}</div> : null}
         </div>
       ) : (
         <>
-          {identityControl}
+          {identityRow}
           {metadata ? <div className="cruush-user-activity-metadata col-start-2 min-w-0 self-center overflow-hidden">{metadata}</div> : null}
         </>
       )}
 
       {actions ? <div className={`cruush-user-activity-actions col-start-3 self-center ${compactIdentityMeta ? 'row-start-1' : 'row-start-2'}`}>{actions}</div> : null}
 
-      {(vibes?.length ?? 0) > 0 || content ? (
-        <div className="cruush-user-activity-content col-start-2 col-end-4 min-w-0 space-y-1.5">
-          {(vibes?.length ?? 0) > 0 ? (
-            /* One line, always. Each tag keeps its own width so the ones that
-               show stay readable; the row clips at the card edge rather than
-               wrapping or shrinking every tag into an unreadable stub. */
-            <div className="flex min-w-0 flex-nowrap items-center gap-1.5 overflow-hidden" data-testid="activity-vibes">
-              {vibes?.slice(0, 3).map((vibe) => (
-                <span
-                  className="max-w-full flex-shrink-0 truncate rounded-full border px-2 py-0.5 text-[11px] uppercase leading-tight tracking-[0.08em]"
-                  key={vibe}
-                  style={vibeCapsuleStyle(resolveVibeTone({
-                    mutual: vibeTone === 'mutual',
-                    isCurrentUser: vibeTone === 'current',
-                  }))}
-                >
-                  {vibe}
-                </span>
-              ))}
-            </div>
-          ) : null}
-          {content}
-        </div>
-      ) : null}
-      {cornerAction ? <div className="absolute right-3 top-3">{cornerAction}</div> : null}
+      {content ? <div className="cruush-user-activity-content col-start-2 col-end-4 min-w-0">{content}</div> : null}
+      {cornerAction && (vibes?.length ?? 0) === 0
+        ? <div className="absolute right-3 top-3">{cornerAction}</div>
+        : null}
       </article>
     </div>
   );
