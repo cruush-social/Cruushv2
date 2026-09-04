@@ -1,14 +1,14 @@
 {
   "schemaVersion": 2,
-  "taskId": "cruush-onboarding-draft-20260904",
+  "taskId": "cruush-per-post-feed-expiry-20260904",
   "status": "active",
-  "objective": "Keep onboarding progress across a reload so the 2FA step cannot cost someone their answers.",
-  "userOutcome": "Onboarding saves the step and the answers as they are given, resumes where it left off, and clears the draft once the profile is saved or the account signs out.",
+  "objective": "Move Feed post expiry out of settings and onto the post being written, defaulting to Never.",
+  "userOutcome": "Each Feed post carries its own expiry chosen in the composer, and every new post starts at Never instead of inheriting a saved default.",
   "audience": "cruush members and the 1.6 release-email audience.",
   "successCriteria": [
-    "A remount restores the step and the typed name.",
-    "Draft cleared on completion and on sign-out.",
-    "ProfileOnboarding and Auth suites pass."
+    "Composer starts at Never even when a stored default says otherwise.",
+    "Choosing a timer writes no settings.",
+    "LocalFeed suite passes."
   ],
   "mustPreserve": [
     "Preserve approved custom map tiles, theme, people pins, Ghost Mode, Dark Room, Pulse, and unrelated map behavior.",
@@ -19,9 +19,9 @@
     "Keep user-facing copy free of em dashes and spell cruush lowercase."
   ],
   "nonGoals": [
-    "No change to the onboarding steps or their copy.",
-    "No server-side draft storage.",
-    "No change to the 2FA flow itself."
+    "No change to who can see a post.",
+    "No change to the Feed window filter.",
+    "No server schema change."
   ],
   "assumptions": [
     {
@@ -43,7 +43,7 @@
       "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "Reloading mid-onboarding on cruush.app resumes the same step with answers intact.",
+  "nextVisibleMilestone": "The composer on cruush.app offers This post expires, and Feed settings no longer does.",
   "stopConditions": [
     "Stop the data-expansion slice if the full prior source cache cannot be recovered or if a source record is private or unsafe to publish.",
     "Stop publication because push and deployment are not authorized by this task."
@@ -75,14 +75,8 @@
   "branch": "release/1.6-integration-20260901",
   "job": "Finish the named 1.6 changes and update the release email locally.",
   "allowedPaths": [
-    "src/app/lib/onboardingDraft.ts",
-    "src/app/components/ProfileOnboarding.tsx",
-    "src/app/components/ProfileOnboarding.test.tsx",
-    "src/app/lib/authApi.ts",
-    "index.html",
-    "public/sw.js",
-    "public/service-worker-recovery.js",
-    "src/main.tsx",
+    "src/app/components/LocalFeed.tsx",
+    "src/app/components/LocalFeed.test.tsx",
     "AI_TASK.json"
   ],
   "forbiddenPaths": [

@@ -116,7 +116,9 @@ function openComposer() {
 }
 
 function expirySection(dialog: HTMLElement) {
-  const heading = within(dialog).getByText('Your posts expire');
+  // Expiry is a per-post choice in the composer now, not one setting applied
+  // to everything you write.
+  const heading = within(dialog).getByText('This post expires');
   return heading.parentElement as HTMLElement;
 }
 
@@ -714,15 +716,19 @@ describe('LocalFeed', () => {
     getFeedPosts.mockResolvedValue([]);
 
     render(<MemoryRouter><LocalFeed /></MemoryRouter>);
-    await screen.findByTestId('local-feed-composer');
-    const settings = await openFeedSettings();
-    await waitFor(() => expect(within(settings).getByRole('button', { name: '1h +' })).toBeEnabled());
-    fireEvent.click(within(settings).getByRole('button', { name: '1h +' }));
+    const composer = await screen.findByTestId('local-feed-composer');
+    openComposer();
+
+    // Both gates now sit on the post being written, not in settings.
+    await waitFor(() => expect(within(composer).getByRole('button', { name: '1h +' })).toBeEnabled());
+    fireEvent.click(within(composer).getByRole('button', { name: '1h +' }));
 
     expect(await screen.findByTestId('cruush-plus-card')).toBeInTheDocument();
     expect(updateFeedSettings).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Not now' }));
 
+    // The audience picker still lives in settings.
+    const settings = await openFeedSettings();
     fireEvent.click(within(settings).getByRole('button', { name: 'Specific Crowd +' }));
     expect(await screen.findByTestId('cruush-plus-card')).toBeInTheDocument();
   });
@@ -820,12 +826,10 @@ describe('LocalFeed', () => {
     const composer = await screen.findByTestId('local-feed-composer');
     openComposer();
     const input = within(composer).getByPlaceholderText('Share something with nearby people...');
-    const feedSettings = await openFeedSettings();
-    await waitFor(() => expect(within(expirySection(feedSettings)).getByRole('button', { name: '7d' })).toBeEnabled());
+    await waitFor(() => expect(within(expirySection(composer)).getByRole('button', { name: '7d' })).toBeEnabled());
 
     fireEvent.change(input, { target: { value: 'seven day post' } });
-    fireEvent.click(within(expirySection(feedSettings)).getByRole('button', { name: '7d' }));
-    fireEvent.keyDown(feedSettings, { key: 'Escape' });
+    fireEvent.click(within(expirySection(composer)).getByRole('button', { name: '7d' }));
     fireEvent.click(await within(composer).findByRole('button', { name: 'Post' }));
 
     await waitFor(() => expect(createFeedPost).toHaveBeenNthCalledWith(1, {
@@ -837,10 +841,9 @@ describe('LocalFeed', () => {
       tags: [],
     }));
 
+    // The choice belongs to the post that was just sent, so the next one starts
+    // at Never again rather than inheriting 7d.
     fireEvent.change(input, { target: { value: 'never post' } });
-    const neverSettings = await openFeedSettings();
-    fireEvent.click(within(expirySection(neverSettings)).getByRole('button', { name: 'Never' }));
-    fireEvent.keyDown(neverSettings, { key: 'Escape' });
     fireEvent.click(await within(composer).findByRole('button', { name: 'Post' }));
 
     await waitFor(() => expect(createFeedPost).toHaveBeenNthCalledWith(2, {
@@ -852,13 +855,12 @@ describe('LocalFeed', () => {
       tags: [],
     }));
     expect(await screen.findByText('never post')).toBeInTheDocument();
-    // The expiry control now lives in the settings dialog, so the only Never
-    // on screen is the one on the post itself.
-    await waitFor(() => expect(screen.getAllByText('Never')).toHaveLength(1));
   });
 
-  it('loads and saves the feed expiry choice used by future Pings', async () => {
+  it('starts every post at Never, whatever expiry a previous post used', async () => {
     getFeedPosts.mockResolvedValue([]);
+    // A stored default from before expiry became per-post must not preselect
+    // anything: the choice belongs to the post being written.
     getFeedSettings.mockResolvedValue({
       locationPinVisibility: 'mutuals',
       showDistanceLabels: true,
@@ -873,82 +875,14 @@ describe('LocalFeed', () => {
 
     const composer = await screen.findByTestId('local-feed-composer');
     openComposer();
-    const expirySettings = await openFeedSettings();
-    await waitFor(() => expect(within(expirySection(expirySettings)).getByRole('button', { name: '24h' })).toHaveAttribute('aria-pressed', 'true'));
 
-    fireEvent.click(within(expirySection(await openFeedSettings())).getByRole('button', { name: '7d' }));
+    const never = within(expirySection(composer)).getByRole('button', { name: 'Never' });
+    await waitFor(() => expect(never).toHaveAttribute('aria-pressed', 'true'));
+    expect(within(expirySection(composer)).getByRole('button', { name: '24h' })).toHaveAttribute('aria-pressed', 'false');
 
-    await waitFor(() => expect(updateFeedSettings).toHaveBeenCalledWith({
-      locationPinVisibility: 'mutuals',
-      showDistanceLabels: true,
-      postExpiryDefault: '7d',
-      feedWindow: '7d',
-    }));
-    expect(within(expirySection(await openFeedSettings())).getByRole('button', { name: '7d' })).toHaveAttribute('aria-pressed', 'true');
-  });
-
-  it('serializes rapid feed expiry saves so the last selection wins', async () => {
-    getFeedPosts.mockResolvedValue([]);
-    getFeedSettings.mockResolvedValue({
-      locationPinVisibility: 'mutuals',
-      showDistanceLabels: true,
-      postExpiryDefault: '24h',
-    });
-    let resolveFirst!: (settings: FeedSettings) => void;
-    let resolveSecond!: (settings: FeedSettings) => void;
-    updateFeedSettings
-      .mockImplementationOnce(() => new Promise<FeedSettings>((resolve) => {
-        resolveFirst = resolve;
-      }))
-      .mockImplementationOnce(() => new Promise<FeedSettings>((resolve) => {
-        resolveSecond = resolve;
-      }));
-
-    render(
-      <MemoryRouter>
-        <LocalFeed />
-      </MemoryRouter>,
-    );
-
-    const composer = await screen.findByTestId('local-feed-composer');
-    openComposer();
-    const sixHourButton = within(expirySection(await openFeedSettings())).getByRole('button', { name: '6h' });
-    const sevenDayButton = within(expirySection(await openFeedSettings())).getByRole('button', { name: '7d' });
-    await waitFor(() => expect(sixHourButton).toBeEnabled());
-
-    fireEvent.click(sixHourButton);
-    fireEvent.click(sevenDayButton);
-
-    await waitFor(() => expect(updateFeedSettings).toHaveBeenCalledTimes(1));
-    expect(updateFeedSettings).toHaveBeenNthCalledWith(1, {
-      locationPinVisibility: 'mutuals',
-      showDistanceLabels: true,
-      postExpiryDefault: '6h',
-      feedWindow: '7d',
-    });
-    expect(sevenDayButton).toHaveAttribute('aria-pressed', 'true');
-
-    resolveFirst({
-      locationPinVisibility: 'mutuals',
-      showDistanceLabels: true,
-      postExpiryDefault: '6h',
-    });
-
-    await waitFor(() => expect(updateFeedSettings).toHaveBeenCalledTimes(2));
-    expect(updateFeedSettings).toHaveBeenNthCalledWith(2, {
-      locationPinVisibility: 'mutuals',
-      showDistanceLabels: true,
-      postExpiryDefault: '7d',
-    });
-    expect(sevenDayButton).toHaveAttribute('aria-pressed', 'true');
-
-    resolveSecond({
-      locationPinVisibility: 'mutuals',
-      showDistanceLabels: true,
-      postExpiryDefault: '7d',
-    });
-
-    await waitFor(() => expect(sevenDayButton).toHaveAttribute('aria-pressed', 'true'));
+    // Choosing a timer is no longer a saved setting.
+    fireEvent.click(within(expirySection(composer)).getByRole('button', { name: '7d' }));
+    expect(updateFeedSettings).not.toHaveBeenCalled();
   });
 
   it('shows the party hat beside party member names without a venue tag', async () => {

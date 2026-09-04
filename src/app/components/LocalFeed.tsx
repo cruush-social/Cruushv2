@@ -195,7 +195,6 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
   const hasCruushPlusRef = useRef<boolean | null>(null);
   const feedSettingsRef = useRef<FeedSettings>(DEFAULT_FEED_SETTINGS);
   const feedSettingsSaveChainRef = useRef<Promise<void>>(Promise.resolve());
-  const latestFeedExpiryChoiceRef = useRef(0);
   const applyFeedSettings = (nextSettings: FeedSettings) => {
     feedSettingsRef.current = nextSettings;
     setFeedSettings(nextSettings);
@@ -366,13 +365,13 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
           nextSettings.postExpiryDefault = 'never';
         }
         applyFeedSettings(nextSettings);
-        setExpiresIn(nextSettings.postExpiryDefault);
+        // Expiry is a per-post choice, so every composer starts at Never
+        // rather than inheriting whatever the last post used.
         setFeedWindow(nextSettings.feedWindow);
         setFeedSettingsLoaded(true);
       })
       .catch(() => {
         applyFeedSettings(DEFAULT_FEED_SETTINGS);
-        setExpiresIn(DEFAULT_FEED_SETTINGS.postExpiryDefault);
         setFeedWindow(DEFAULT_FEED_SETTINGS.feedWindow);
         setFeedSettingsLoaded(false);
       });
@@ -467,6 +466,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
       setPostTags([]);
       setStagedPhotos([]);
       setPostAudience('public');
+      setExpiresIn('never');
       setSelectedCrowdTargets([]);
       setPosts((prev) => [createdPost, ...prev]);
     } catch (error) {
@@ -620,33 +620,6 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
       setError(error instanceof Error ? error.message : 'Failed to save feed settings.');
     } finally {
       setSettingsSaving(false);
-    }
-  };
-
-  const handleFeedExpiryChange = async (postExpiryDefault: FeedPostExpiry) => {
-    if (postExpiryDefault !== 'never' && hasCruushPlus !== true) {
-      setPlusCardOpen(true);
-      return;
-    }
-
-    const choiceSequence = latestFeedExpiryChoiceRef.current + 1;
-    latestFeedExpiryChoiceRef.current = choiceSequence;
-    setExpiresIn(postExpiryDefault);
-    setError(null);
-
-    try {
-      const nextSettings = await enqueueFeedSettingsUpdate({
-        postExpiryDefault,
-      });
-      if (choiceSequence === latestFeedExpiryChoiceRef.current) {
-        setExpiresIn(nextSettings.postExpiryDefault);
-      }
-    } catch (error) {
-      if (choiceSequence === latestFeedExpiryChoiceRef.current) {
-        setExpiresIn(feedSettingsRef.current.postExpiryDefault);
-        console.error('Error saving feed expiry:', error);
-        setError(error instanceof Error ? error.message : 'Failed to save feed expiry.');
-      }
     }
   };
 
@@ -833,31 +806,8 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
                 </div>
               </section>
 
-              <section className="rounded-lg border border-white/10 bg-black/42 p-3">
-                <p className="mb-2 text-sm font-semibold text-white">Your posts expire</p>
-                <div className="grid grid-cols-5 gap-2">
-                  {FEED_EXPIRY_OPTIONS.map((option) => (
-                    <button
-                      key={option.value}
-                      type="button"
-                      className={[
-                        'h-10 rounded-full border text-sm font-semibold transition',
-                        expiresIn === option.value
-                          ? 'border-white/15 text-white'
-                          : 'border-white/10 bg-black/40 text-white/72 hover:bg-white/8',
-                      ].join(' ')}
-                      style={expiresIn === option.value ? { background: 'var(--cruush-gradient)' } : undefined}
-                      aria-pressed={expiresIn === option.value}
-                      disabled={!feedSettingsLoaded}
-                      onClick={() => void handleFeedExpiryChange(option.value)}
-                    >
-                      {option.label}{option.value !== 'never' && hasCruushPlus !== true ? ' +' : ''}
-                    </button>
-                  ))}
-                </div>
-                <p className="mt-2 text-xs text-white/58">Never expire is free. Custom timers are part of Feed+.</p>
-              </section>
-
+              {/* Expiry is chosen per post in the composer now, so it is not a
+                  single setting applied to everything you write. */}
               <section className="rounded-lg border border-white/10 bg-black/42 p-3">
                 <p className="text-sm font-semibold text-white">Who can see this post</p>
                 <p className="mb-2 mt-1 text-xs text-white/58">Public and Mutuals are free. A specific Crowd is part of Feed+.</p>
@@ -1022,30 +972,6 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
                     onClick={() => void handleFeedWindowChange(option.value)}
                   >
                     {option.label}
-                  </button>
-                ))}
-              </div>
-            </section>
-
-            <section className="rounded-lg border border-white/10 bg-black/42 p-3">
-              <p className="mb-2 text-sm font-semibold text-white">Your posts expire</p>
-              <div className="grid grid-cols-5 gap-2">
-                {FEED_EXPIRY_OPTIONS.map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    className={[
-                      'h-10 rounded-full border text-sm font-semibold transition',
-                      expiresIn === option.value
-                        ? 'border-white/15 text-white'
-                        : 'border-white/10 bg-black/40 text-white/72 hover:bg-white/8',
-                    ].join(' ')}
-                    style={expiresIn === option.value ? { background: 'var(--cruush-gradient)' } : undefined}
-                    aria-pressed={expiresIn === option.value}
-                    disabled={!feedSettingsLoaded}
-                    onClick={() => void handleFeedExpiryChange(option.value)}
-                  >
-                    {option.label}{option.value !== 'never' && hasCruushPlus !== true ? ' +' : ''}
                   </button>
                 ))}
               </div>
@@ -1220,6 +1146,40 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
                 Add
               </button>
             </div>
+            {/* Expiry belongs to the post being written, not to a setting
+                applied to everything. Every composer starts at Never. */}
+            <section className="rounded-lg border border-white/10 bg-black/42 p-3">
+              <p className="mb-2 text-sm font-semibold text-white">This post expires</p>
+              <div className="grid grid-cols-5 gap-2">
+                {FEED_EXPIRY_OPTIONS.map((option) => {
+                  const selected = expiresIn === option.value;
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      className={[
+                        'h-10 rounded-full border text-sm font-semibold transition',
+                        selected
+                          ? 'border-white/15 text-white'
+                          : 'border-white/10 bg-black/40 text-white/72 hover:bg-white/8',
+                      ].join(' ')}
+                      style={selected ? { background: 'var(--cruush-gradient)' } : undefined}
+                      aria-pressed={selected}
+                      onClick={() => {
+                        if (option.value !== 'never' && hasCruushPlus !== true) {
+                          setPlusCardOpen(true);
+                          return;
+                        }
+                        setExpiresIn(option.value);
+                      }}
+                    >
+                      {option.label}{option.value !== 'never' && hasCruushPlus !== true ? ' +' : ''}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="mt-2 text-xs text-white/58">Never expire is free. Custom timers are part of Feed+.</p>
+            </section>
             {postTags.length > 0 ? (
               <div className="flex flex-wrap gap-2" data-testid="feed-post-tags-draft">
                 {postTags.map((tag) => (
