@@ -1,14 +1,14 @@
 {
   "schemaVersion": 2,
-  "taskId": "cruush-profile-overlay-duplicates-20260903",
+  "taskId": "cruush-onboarding-draft-20260904",
   "status": "active",
-  "objective": "Remove the signal and vibe capsules repeated under the profile photo, and cover that the Visibility Controls search reaches profile tags.",
-  "userOutcome": "A profile reads the signal and vibes once, on the photo, so the rest of the profile is not pushed down; and tag search under Visibility Controls is pinned by a test.",
+  "objective": "Keep onboarding progress across a reload so the 2FA step cannot cost someone their answers.",
+  "userOutcome": "Onboarding saves the step and the answers as they are given, resumes where it left off, and clears the draft once the profile is saved or the account signs out.",
   "audience": "cruush members and the 1.6 release-email audience.",
   "successCriteria": [
-    "No Signal or Vibes section renders under the photo on any profile.",
-    "ProfileView, MapProfilePopup, MapHome, MapVisibilitySurface suites pass.",
-    "Visibility search matches a profile tag with and without the hash."
+    "A remount restores the step and the typed name.",
+    "Draft cleared on completion and on sign-out.",
+    "ProfileOnboarding and Auth suites pass."
   ],
   "mustPreserve": [
     "Preserve approved custom map tiles, theme, people pins, Ghost Mode, Dark Room, Pulse, and unrelated map behavior.",
@@ -19,9 +19,9 @@
     "Keep user-facing copy free of em dashes and spell cruush lowercase."
   ],
   "nonGoals": [
-    "No change to which vibes ride the photo (still the first three).",
-    "No new Tags filter in Visibility Controls.",
-    "No change to profile editing."
+    "No change to the onboarding steps or their copy.",
+    "No server-side draft storage.",
+    "No change to the 2FA flow itself."
   ],
   "assumptions": [
     {
@@ -43,7 +43,7 @@
       "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "A profile on cruush.app shows no Signal or Vibes card under the photo.",
+  "nextVisibleMilestone": "Reloading mid-onboarding on cruush.app resumes the same step with answers intact.",
   "stopConditions": [
     "Stop the data-expansion slice if the full prior source cache cannot be recovered or if a source record is private or unsafe to publish.",
     "Stop publication because push and deployment are not authorized by this task."
@@ -75,10 +75,10 @@
   "branch": "release/1.6-integration-20260901",
   "job": "Finish the named 1.6 changes and update the release email locally.",
   "allowedPaths": [
-    "src/app/components/ProfileView.tsx",
-    "src/app/components/ProfileView.test.tsx",
-    "src/app/components/MapProfilePopup.tsx",
-    "server/src/profile-visibility.test.ts",
+    "src/app/lib/onboardingDraft.ts",
+    "src/app/components/ProfileOnboarding.tsx",
+    "src/app/components/ProfileOnboarding.test.tsx",
+    "src/app/lib/authApi.ts",
     "index.html",
     "public/sw.js",
     "public/service-worker-recovery.js",

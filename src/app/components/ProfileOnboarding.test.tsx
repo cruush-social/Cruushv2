@@ -166,6 +166,9 @@ async function skipTwoFactorAndEnter() {
 
 describe('ProfileOnboarding', () => {
   beforeEach(() => {
+    // Onboarding now keeps a draft, so each test has to start as a new arrival
+    // rather than resuming the previous test's answers.
+    window.localStorage.removeItem('cruush:onboarding-draft');
     Object.defineProperty(HTMLElement.prototype, 'scrollTo', {
       configurable: true,
       value: vi.fn(),
@@ -490,5 +493,22 @@ describe('ProfileOnboarding', () => {
     expect(screen.queryByLabelText('Birth month')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Birth day')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Birth year')).not.toBeInTheDocument();
+  });
+
+  it('keeps the step and the answers when onboarding is remounted', () => {
+    const first = render(<MemoryRouter><ProfileOnboarding onComplete={vi.fn()} /></MemoryRouter>);
+
+    fireEvent.change(screen.getByPlaceholderText('Your name'), { target: { value: 'River' } });
+    fireEvent.click(screen.getByRole('button', { name: /next/i }));
+    expect(screen.getByText('choose your invocation')).toBeInTheDocument();
+
+    // A reload during onboarding used to drop people back to the first step
+    // with an empty name.
+    first.unmount();
+    render(<MemoryRouter><ProfileOnboarding onComplete={vi.fn()} /></MemoryRouter>);
+
+    expect(screen.getByText('choose your invocation')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /back/i }));
+    expect(screen.getByPlaceholderText('Your name')).toHaveValue('River');
   });
 });

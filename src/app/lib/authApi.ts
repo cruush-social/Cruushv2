@@ -1,4 +1,5 @@
 import { requestApi } from './apiClient';
+import { clearOnboardingDraft } from './onboardingDraft';
 
 export type AuthSessionPayload = {
   user: {
@@ -105,6 +106,9 @@ export function signIn(payload: { email: string; password: string; captchaToken?
 }
 
 export function signOut() {
+  // A half-finished onboarding draft must not reappear inside the next
+  // person's session on a shared browser.
+  clearOnboardingDraft();
   return requestApi<void>('/api/auth/logout', {
     method: 'POST',
   });

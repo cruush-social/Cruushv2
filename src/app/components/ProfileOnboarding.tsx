@@ -16,6 +16,7 @@ import {
   type RewardSummary,
   type TwoFactorSetup,
 } from '../lib/rewardsApi';
+import { clearOnboardingDraft, readOnboardingDraft, writeOnboardingDraft } from '../lib/onboardingDraft';
 import { persistCurrentUser } from '../lib/sessionUser';
 import CruushPlusWord from './CruushPlusWord';
 import MultiSelect from './MultiSelect';
@@ -231,7 +232,10 @@ export default function ProfileOnboarding({
   const steps: OnboardingStep[] = needsCodeOfConduct
     ? [...PROFILE_STEPS, 'twoFactor', 'affiliateShare', 'oath']
     : [...PROFILE_STEPS, 'twoFactor', 'affiliateShare'];
-  const [step, setStep] = useState(0);
+  // A preview renders the flow for inspection, so it never reads or writes the
+  // real draft.
+  const restoredDraft = previewMode ? null : readOnboardingDraft<OnboardingProfileState>();
+  const [step, setStep] = useState(() => Math.min(Math.max(restoredDraft?.step ?? 0, 0), steps.length - 1));
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [profile, setProfile] = useState<OnboardingProfileState>({
     name: '',
@@ -280,6 +284,7 @@ export default function ProfileOnboarding({
     custom_mpox_vaccine: '',
     sexuality: [],
     sideBadges: emptySideBadges,
+    ...(restoredDraft?.profile ?? {}),
   });
   const [oathAccepted, setOathAccepted] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -303,6 +308,15 @@ export default function ProfileOnboarding({
   const [inviteCodeSaving, setInviteCodeSaving] = useState(false);
   const [inviteCodeError, setInviteCodeError] = useState<string | null>(null);
   const currentStep = steps[step];
+
+  // Save on every step and every answer, so a reload resumes where it left off.
+  useEffect(() => {
+    if (previewMode) {
+      return;
+    }
+
+    writeOnboardingDraft({ step, profile });
+  }, [previewMode, step, profile]);
   const affiliateLink = previewMode ? 'https://cruush.app/join/preview' : rewardSummary?.referrals.link ?? '';
   const canUseNativeShare = typeof navigator !== 'undefined' && 'share' in navigator;
 
@@ -626,6 +640,9 @@ export default function ProfileOnboarding({
         throw new Error("We couldn't finish setting up your profile. Try again.");
       }
 
+      // The profile is saved server side now, so the draft has nothing left to
+      // protect and would otherwise reopen a finished flow.
+      clearOnboardingDraft();
       onComplete(nextSession, destination, twoFactorPromoDaysGranted > 0);
     } catch (error) {
       console.error('Error saving profile:', error);
