@@ -84,7 +84,11 @@
     "docs/SIDE_QUESTS.md",
     "src/app/components/LocalFeed.tsx",
     "src/app/components/LocalFeed.test.tsx",
-    "AI_TASK.json"
+    "AI_TASK.json",
+    "index.html",
+    "public/sw.js",
+    "public/service-worker-recovery.js",
+    "src/main.tsx"
   ],
   "forbiddenPaths": [
     "src/app/assets/brand/**",
