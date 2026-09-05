@@ -114,7 +114,8 @@
     "src/app/components/DirectMessages.tsx",
     "server/sql/150_feed_post_expiry_30m.sql",
     "src/app/components/LocalFeed.test.tsx",
-    "src/app/components/TravelModeSettings.tsx"
+    "src/app/components/TravelModeSettings.tsx",
+    "server/src/conversation-vibes.test.ts"
   ],
   "forbiddenPaths": [
     "src/app/assets/brand/**",

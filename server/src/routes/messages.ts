@@ -372,7 +372,7 @@ async function refreshCreatedMessageAttachments(app: FastifyInstance, row: Messa
   return row;
 }
 
-function mapConversationRow(app: FastifyInstance, row: ConversationRow, options: {
+export function mapConversationRow(app: FastifyInstance, row: ConversationRow, options: {
   canMessage?: boolean;
   mutual?: boolean;
 } = {}) {
