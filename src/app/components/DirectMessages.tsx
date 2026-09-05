@@ -95,6 +95,9 @@ function normalizeConversation(raw: any): ConversationThread {
       photo: raw?.user?.photo ?? null,
       photoExplicit: raw?.user?.photoExplicit,
       sideBadges: raw?.user?.sideBadges,
+      // Rebuilt field by field, so anything not named here is dropped: the
+      // server was sending vibes and this discarded them before the card saw.
+      vibes: Array.isArray(raw?.user?.vibes) ? raw.user.vibes : undefined,
       travelling: raw?.user?.travelling === true,
     },
     distance: raw?.distance ?? 'Nearby',
