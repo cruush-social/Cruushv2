@@ -118,7 +118,9 @@
     "server/src/conversation-vibes.test.ts",
     "src/app/lib/messagePhotoProcessing.ts",
     "src/app/lib/saveMySignal.test.ts",
-    "src/app/components/placeClusterScale.test.ts"
+    "src/app/components/placeClusterScale.test.ts",
+    "src/app/lib/pulseHold.ts",
+    "src/app/lib/pulseHold.test.ts"
   ],
   "forbiddenPaths": [
     "src/app/assets/brand/**",

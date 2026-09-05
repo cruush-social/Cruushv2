@@ -79,6 +79,7 @@ import {
 import { decryptDisplayLocationToken } from '../lib/displayLocationTokens';
 import { canUseDeveloperMapToolsEmail } from '../lib/developerMapTools';
 import { registerBugButtonSlot } from '../lib/bugButtonSlot';
+import { holdRunningPulse } from '../lib/pulseHold';
 import {
   createMapMarkerBadge,
   createMapMarkerRoleBadge,
@@ -1103,19 +1104,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
     try {
       const nextStatus = await getMapPingStatus();
       if (mapPingStatusRequestIdRef.current === requestId) {
-        // A Pulse runs for its full duration on the server, so nothing a
-        // refresh reports may end it early. If a response arrives without the
-        // Pulse we already know about, and that Pulse has not reached its own
-        // expiry, keep it: leaving the app, a dropped request, or a stale read
-        // must never look like the Pulse stopped.
-        setMapPingStatus((currentStatus) => {
-          const knownPing = currentStatus?.activePing;
-          const stillRunning = knownPing && Date.parse(knownPing.expiresAt) > Date.now();
-
-          return stillRunning && !nextStatus.activePing
-            ? { ...nextStatus, activePing: knownPing }
-            : nextStatus;
-        });
+        setMapPingStatus((currentStatus) => holdRunningPulse(currentStatus, nextStatus));
       }
     } finally {
       if (mapPingStatusRequestIdRef.current === requestId) {
