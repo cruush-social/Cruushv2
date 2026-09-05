@@ -431,7 +431,7 @@ function TravelModeSection({ onTravelPinChange }: { onTravelPinChange?: (pin: Tr
   };
 
   const canMove = pin ? nowMs >= pin.movableAtMs : true;
-  const pickerOpen = (!pin && showTerms) || Boolean(pin && canMove && showPicker);
+  const pickerOpen = !pin || Boolean(pin && canMove && showPicker);
 
   return (
     <>
@@ -470,7 +470,9 @@ function TravelModeSection({ onTravelPinChange }: { onTravelPinChange?: (pin: Tr
             type="button"
             variant="outline"
           >
-            {showTerms ? 'Close' : 'Turn on'}
+            {/* Basic accounts need cruush+ for this, so the button says so
+                rather than opening a panel that cannot be used. */}
+            {hasCruushPlus !== true ? 'Get cruush+' : showTerms ? 'Close' : 'Turn on'}
           </Button>
         )}
       </div>
@@ -486,9 +488,9 @@ function TravelModeSection({ onTravelPinChange }: { onTravelPinChange?: (pin: Tr
         </div>
       ) : null}
 
-      {!pin && showTerms ? (
+      {!pin ? (
         <div className="cruush-travel-mode-open-panel flex min-h-0 flex-1 flex-col gap-3">
-          <ul className="cruush-travel-mode-terms max-h-32 space-y-2 overflow-y-auto pr-1 text-sm text-muted-foreground">
+          <ul className="cruush-travel-mode-terms space-y-2 pr-1 text-sm text-muted-foreground">
             {TRAVEL_MODE_TERMS.map((term) => (
               <li className="flex gap-2" key={term}>
                 <span aria-hidden="true" className="text-white/40">-</span>
