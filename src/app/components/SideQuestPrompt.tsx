@@ -36,7 +36,6 @@ export default function SideQuestPrompt({ userId }: SideQuestPromptProps) {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [readyCount, setReadyCount] = useState(0);
-  const [pulseReward, setPulseReward] = useState(0);
   const [plusDaysReward, setPlusDaysReward] = useState(0);
   const activeDialogKey = dialogKey(userId);
 
@@ -73,14 +72,10 @@ export default function SideQuestPrompt({ userId }: SideQuestPromptProps) {
             return;
           }
 
-          const pings = claimable
-            .filter((quest) => quest.rewardKind === 'ping')
-            .reduce((total, quest) => total + quest.rewardAmount, 0);
           const plusDays = claimable
             .filter((quest) => quest.rewardKind === 'cruush_plus_day')
             .reduce((total, quest) => total + quest.rewardAmount, 0);
           setReadyCount(claimable.length);
-          setPulseReward(pings);
           setPlusDaysReward(plusDays);
           openWhenFree();
         })
@@ -127,22 +122,13 @@ export default function SideQuestPrompt({ userId }: SideQuestPromptProps) {
           <DialogTitle>
             {readyCount === 1 ? 'A Side Quest is ready to claim' : `${readyCount} Side Quests are ready to claim`}
           </DialogTitle>
-          {/* The reward reads as the thing earned, not a sentence about it:
-              cruush+ on its own line with the Pulses under it. */}
-          <DialogDescription asChild>
-            <div className="space-y-0.5">
-              {plusDaysReward > 0 ? (
-                <p className="text-base font-semibold text-white">
-                  {plusDaysReward > 1 ? `${plusDaysReward} days of cruush+` : 'cruush+'}
-                </p>
-              ) : null}
-              {pulseReward > 0 ? (
-                <p className="text-base font-semibold text-white">
-                  {pulseReward} {pulseReward === 1 ? 'Pulse' : 'Pulses'}
-                </p>
-              ) : null}
-            </div>
-          </DialogDescription>
+          {plusDaysReward > 0 ? (
+            <DialogDescription asChild>
+              <p className="text-base font-semibold text-white">
+                {plusDaysReward > 1 ? `${plusDaysReward} days of cruush+` : 'cruush+'}
+              </p>
+            </DialogDescription>
+          ) : null}
         </DialogHeader>
         <DialogFooter className="gap-2 sm:gap-2">
           <Button variant="ghost" onClick={close}>

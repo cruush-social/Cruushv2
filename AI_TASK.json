@@ -1,15 +1,14 @@
 {
   "schemaVersion": 2,
-  "taskId": "cruush-card-corner-actions-and-pulse-feed-20260905",
+  "taskId": "cruush-admin-batch-glyph-and-capsules-20260905",
   "status": "active",
-  "objective": "Move the card trash, expiry, and report controls to the lower-right corner of the card, and stop a Pulse posting the sender signal to the feed twice.",
-  "userOutcome": "On Feed, Cruushes, Messages, and Pink Book cards the destructive and report controls sit in the lower-right corner without covering anything, and a new Pulse replaces the previous Pulse post on the feed instead of stacking beside it.",
+  "objective": "Redraw the Hunter snake so it reads as a snake, drop the HIV status capsule, and remove the Pulses line from the Side Quest prompt.",
+  "userOutcome": "The Hunter badge shows a recognisable snake, HIV status appears without a card around it, and the Side Quest prompt no longer names a Pulse count.",
   "audience": "cruush members and the 1.6 release-email audience.",
   "successCriteria": [
-    "Feed post expiry, delete, and report render in the lower-right corner of the card.",
-    "Cruushes and Messages cards render their trash control in the lower-right corner of the card.",
-    "No control overlaps the name, pronouns, metadata, vibe tags, or post text.",
-    "Sending a Pulse retires the sender previous still-live Pulse feed post."
+    "The Hunter glyph reads as a snake at badge size and at 24px, on light and dark.",
+    "HIV status renders with its heading and value and no capsule.",
+    "The Side Quest prompt shows the cruush+ reward only."
   ],
   "mustPreserve": [
     "Preserve approved custom map tiles, theme, people pins, Ghost Mode, Dark Room, Pulse, and unrelated map behavior.",
@@ -20,8 +19,7 @@
     "Keep user-facing copy free of em dashes and spell cruush lowercase."
   ],
   "nonGoals": [
-    "No change to which controls exist on a card, only where they sit.",
-    "No change to Pulse allowance, radius, or duration."
+    "No change to which roles exist or to Side Quest rewards themselves."
   ],
   "assumptions": [
     {
@@ -43,7 +41,7 @@
       "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "Cards on cruush.app show the corner controls in the lower-right and a repeat Pulse leaves one feed post.",
+  "nextVisibleMilestone": "Hunter badge, profile Health tab, and the Side Quest prompt on cruush.app show the three changes.",
   "stopConditions": [
     "Stop the data-expansion slice if the full prior source cache cannot be recovered or if a source record is private or unsafe to publish.",
     "Stop publication because push and deployment are not authorized by this task."
@@ -80,13 +78,11 @@
     "public/sw.js",
     "public/service-worker-recovery.js",
     "src/main.tsx",
-    "src/app/components/UserActivityCapsule.tsx",
-    "src/app/components/LocalFeed.tsx",
-    "src/app/components/PlaceDetail.tsx",
-    "src/app/components/FeedPhotoPreview.tsx",
-    "server/src/map-pings.ts",
-    "server/src/map-pings.test.ts",
-    "server/src/app.test.ts"
+    "src/app/components/PositionRoleGlyphs.tsx",
+    "src/app/components/ProfileView.tsx",
+    "src/app/components/ProfileView.test.tsx",
+    "src/app/components/SideQuestPrompt.tsx",
+    "src/app/components/SideQuestPrompt.test.tsx"
   ],
   "forbiddenPaths": [
     "src/app/assets/brand/**",

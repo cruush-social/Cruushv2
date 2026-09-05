@@ -168,12 +168,17 @@ export function SwitchGlyph(props: GlyphProps) {
   return <SwitchEmblem className={props.className} />;
 }
 
-/** A snake, coiled from tail to raised head, for the Hunter role. */
+/**
+ * A snake for the Hunter role: a body that tapers from a pointed tail through
+ * an S coil into a wedge head, with the eye punched out of the same path so it
+ * reads on any surface, and a forked tongue. The previous drawing was a bare
+ * stroke with no head or tongue, which read as a squiggle.
+ */
 export function SnakeGlyph({ className, strokeWidth = 2 }: GlyphProps) {
   return (
     <Glyph className={className} strokeWidth={strokeWidth}>
-      <path d="M4.4 18.8c3.4 0 3.4-3.4 6.8-3.4s3.4 3.4 6.8 3.4c2 0 2.6-1.2 2.6-2.6 0-2-1.8-2.8-3.6-3.4-2.6-.9-4.6-1.7-4.6-4 0-2 1.7-3.6 3.9-3.6 1.8 0 3 .9 3.6 2" />
-      <circle cx="19.1" cy="6.6" r="0.9" fill="currentColor" stroke="none" />
+      <path d="M3.2 20.7L3.8 21.0L4.3 21.1L4.9 21.1L5.5 21.1L6.1 21.0L6.7 20.9L7.3 20.8L7.9 20.6L8.4 20.3L8.9 20.1L9.4 19.7L9.9 19.3L10.3 18.9L10.7 18.4L11.1 17.9L11.3 17.4L11.5 16.7L11.6 16.1L11.6 15.5L11.5 14.9L11.3 14.4L11.1 13.9L10.9 13.5L10.6 13.1L10.3 12.7L10.1 12.4L9.9 12.0L9.7 11.7L9.5 11.4L9.4 11.1L9.4 10.8L9.3 10.5L9.3 10.2L9.4 10.0L9.5 9.7L9.6 9.5L9.8 9.3L10.0 9.0L10.3 8.8L10.6 8.6L10.9 8.4L11.3 8.3L11.7 8.1L12.1 8.0L12.6 7.9L13.0 7.8L13.5 7.8L14.1 7.8L17.6 8.9L20.9 6.2L17.6 3.5L13.9 4.6L13.3 4.7L12.6 4.8L11.9 4.9L11.3 5.1L10.6 5.3L10.0 5.6L9.4 5.9L8.9 6.2L8.4 6.6L7.9 7.1L7.5 7.6L7.2 8.1L6.9 8.7L6.7 9.4L6.7 10.0L6.7 10.7L6.8 11.4L7.0 12.0L7.2 12.5L7.5 13.0L7.8 13.4L8.1 13.8L8.4 14.2L8.7 14.5L8.9 14.8L9.1 15.1L9.3 15.4L9.4 15.6L9.5 15.8L9.5 16.1L9.5 16.3L9.5 16.6L9.3 17.0L9.1 17.4L8.9 17.7L8.6 18.1L8.3 18.4L8.0 18.7L7.6 18.9L7.2 19.2L6.8 19.4L6.3 19.6L5.9 19.8L5.4 19.9L4.8 20.1L4.3 20.2L3.8 20.3L3.2 20.5ZM18.6 5.4a.7.7 0 1 1-1.4 0 .7.7 0 0 1 1.4 0Z" fill="currentColor" fillRule="evenodd" stroke="none" />
+      <path d="M20.9 6.2 23.5 5.2M20.9 6.2 23.4 7.4" strokeWidth={0.95} />
     </Glyph>
   );
 }

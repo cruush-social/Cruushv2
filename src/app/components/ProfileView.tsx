@@ -931,10 +931,12 @@ export function ProfileDetailsTabs({
           <BadgeList items={profileView.protection} compact={compact} />
         </Section>
 
-        {/* A card holding one value is just the value with extra chrome. */}
-        <Section title="HIV Status" compact={compact}>
+        {/* A card holding one value is just the value with extra chrome, so
+            the status stands on its own without a capsule around it. */}
+        <div className={`space-y-3 ${compact ? 'px-3' : 'px-4'}`}>
+          <h2 className={compact ? 'text-base' : 'text-lg'}>HIV Status</h2>
           <BadgeList items={profileView.hivStatus ? [profileView.hivStatus] : []} compact={compact} />
-        </Section>
+        </div>
 
         <Section title="Lifestyle" compact={compact}>
           <div className="grid gap-3 text-sm">

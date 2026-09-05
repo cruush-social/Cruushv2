@@ -42,9 +42,9 @@ describe('SideQuestPrompt', () => {
     expect(screen.getByText('2 Side Quests are ready to claim')).toBeInTheDocument();
     // The unfinished 5-Ping quest must not be counted into the promise.
     // The card names the reward itself rather than describing it in a
-    // sentence: cruush+ on its own line, with the Pulses under it.
+    // sentence: cruush+ on its own line, and no Pulse count beside it.
     expect(screen.getByText('cruush+')).toBeInTheDocument();
-    expect(screen.getByText('2 Pulses')).toBeInTheDocument();
+    expect(screen.queryByText('2 Pulses')).not.toBeInTheDocument();
   });
 
   it('stays quiet when nothing is waiting to be claimed', async () => {
