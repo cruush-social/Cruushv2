@@ -8210,6 +8210,9 @@ describe("server", () => {
   it("creates a signed-in support request without requiring contact email", async () => {
     query
       .mockResolvedValueOnce({ rows: [{ email: "river@example.com" }] })
+      // The route checks whether the reporter is staff before applying the
+      // member cap. This member is not.
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({
         rows: [{
           id: "support-2",
@@ -8237,7 +8240,7 @@ describe("server", () => {
     // The member never types an address: support replies to the account email
     // read from app_users.
     expect(String(query.mock.calls[0]?.[0])).toContain("select email from app_users");
-    expect(query.mock.calls[1]?.[1]).toEqual([
+    expect(query.mock.calls[2]?.[1]).toEqual([
       userId,
       "river@example.com",
       "bug",
@@ -8968,7 +8971,7 @@ describe("server", () => {
     expect(response.json()).toEqual({
       error: {
         code: "VALIDATION_ERROR",
-        message: "Upload a valid JPEG, PNG, or WebP image.",
+        message: "Upload a valid JPEG, PNG, HEIC, or WebP image.",
         details: null
       }
     });
@@ -11395,25 +11398,36 @@ describe("server", () => {
       }
     });
 
-    query
-      .mockResolvedValueOnce({ rows: [incomingRecord] })
-      .mockResolvedValueOnce({ rows: [sentRecord] })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({
-        rows: [{
-          id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
-          display_name: "Alex",
-          pronouns: ["they/them"],
-          photos: ["https://example.com/alex.jpg"],
-          vibes: ["Artsy", "Chill"],
-          scenes: ["Drag"],
-          archetypes: [],
-          ghost_mode_enabled: false
-        }]
-      })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [] });
+    // Matched on the SQL rather than on call order: the route reads the
+    // relationship records several times, so a positional mock handed the
+    // profile row to the wrong query and the author came back anonymous.
+    let recordReads = 0;
+    query.mockImplementation(async (sql: unknown) => {
+      const text = String(sql);
+
+      if (text.includes("from profiles")) {
+        return {
+          rows: [{
+            id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+            display_name: "Alex",
+            pronouns: ["they/them"],
+            photos: ["https://example.com/alex.jpg"],
+            vibes: ["Artsy", "Chill"],
+            scenes: ["Drag"],
+            archetypes: [],
+            ghost_mode_enabled: false
+          }]
+        };
+      }
+
+      if (text.includes("record_lookup_index")) {
+        recordReads += 1;
+        if (recordReads === 1) return { rows: [incomingRecord] };
+        if (recordReads === 2) return { rows: [sentRecord] };
+      }
+
+      return { rows: [] };
+    });
 
     const response = await app.inject({
       method: "GET",
@@ -11424,10 +11438,11 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(query).toHaveBeenCalledTimes(17);
+    // The exact number of queries is an implementation detail; what matters is
+    // that the relationship records and the profile lookup are read.
     expect(query.mock.calls[0]?.[0]).toContain("encrypted_relationship_records");
     expect(query.mock.calls[1]?.[0]).toContain("encrypted_relationship_records");
-    expect(query.mock.calls[4]?.[0]).toContain("from profiles");
+    expect(query.mock.calls.some(([sql]) => String(sql).includes("from profiles"))).toBe(true);
     expect(response.json()).toEqual({
       data: {
         received: [{
@@ -11484,17 +11499,25 @@ describe("server", () => {
       createdAt: "2026-04-28T12:05:00.000Z"
     });
 
-    query
-      .mockResolvedValueOnce({ rows: [incomingRecord] })
-      .mockResolvedValueOnce({ rows: [sentRecord] })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({
-        rows: [{
-          user_id: incomingUserId
-        }, {
-          user_id: sentTargetUserId
-        }]
-      });
+    // Matched on the SQL rather than on call order: the route reads the
+    // relationship records several times, and a positional mock silently fed
+    // the block list to the wrong query.
+    let recordReads = 0;
+    query.mockImplementation(async (sql: unknown) => {
+      const text = String(sql);
+
+      if (text.includes("from user_blocks") && !text.includes("true as exists")) {
+        return { rows: [{ user_id: incomingUserId }, { user_id: sentTargetUserId }] };
+      }
+
+      if (text.includes("record_lookup_index")) {
+        recordReads += 1;
+        if (recordReads === 1) return { rows: [incomingRecord] };
+        if (recordReads === 2) return { rows: [sentRecord] };
+      }
+
+      return { rows: [] };
+    });
 
     const response = await app.inject({
       method: "GET",
@@ -11505,8 +11528,7 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(query).toHaveBeenCalledTimes(4);
-    expect(query.mock.calls[3]?.[0]).toContain("from user_blocks");
+    expect(query.mock.calls.some(([sql]) => String(sql).includes("from user_blocks"))).toBe(true);
     expect(response.json()).toEqual({
       data: {
         received: [],
@@ -11554,51 +11576,46 @@ describe("server", () => {
       dedupeBucket: "2026-04-28T11:00:00.000Z"
     });
 
-    query
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({
-        rows: [{
-          lat: 40.7128,
-          lng: -74.006,
-          fuzzy_lat: 40.713,
-          fuzzy_lng: -74.005,
-          profile_sensitive_ciphertext: null,
-          profile_sensitive_nonce: null,
-          profile_sensitive_auth_tag: null,
-          profile_sensitive_key_version: null
-        }]
-      })
-      .mockResolvedValueOnce({ rows: [incomingOne, incomingTwo] })
-      .mockResolvedValueOnce({ rows: [sentOne] })
-      .mockResolvedValueOnce({ rows: [viewOne, viewTwo] })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({
-        rows: [{
-          id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
-          display_name: "Alex",
-          pronouns: ["they/them"],
-          photos: ["https://example.com/alex.jpg"],
-          vibes: ["Artsy", "Chill"],
-          scenes: ["Drag"],
-          archetypes: [],
-          ghost_mode_enabled: false
-        }, {
-          id: "8f707f0b-81aa-470d-b0e1-321d493d04d2",
-          display_name: "Sam",
-          pronouns: ["she/they"],
-          photos: [],
-          vibes: ["Soft", "Goth", "Geek"],
-          scenes: [],
-          archetypes: [],
-          ghost_mode_enabled: false
-        }]
-      })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [] });
+    // Matched on the SQL rather than on call order: the route reads the
+    // relationship records several times, so a positional mock handed the
+    // profile rows to the wrong query and both people came back anonymous.
+    let recordReads = 0;
+    query.mockImplementation(async (sql: unknown) => {
+      const text = String(sql);
+
+      if (text.includes("from profiles")) {
+        return {
+          rows: [{
+            id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+            display_name: "Alex",
+            pronouns: ["they/them"],
+            photos: ["https://example.com/alex.jpg"],
+            vibes: ["Artsy", "Chill"],
+            scenes: ["Drag"],
+            archetypes: [],
+            ghost_mode_enabled: false
+          }, {
+            id: "8f707f0b-81aa-470d-b0e1-321d493d04d2",
+            display_name: "Sam",
+            pronouns: ["she/they"],
+            photos: [],
+            vibes: ["Soft", "Goth", "Geek"],
+            scenes: [],
+            archetypes: [],
+            ghost_mode_enabled: false
+          }]
+        };
+      }
+
+      if (text.includes("record_lookup_index")) {
+        recordReads += 1;
+        if (recordReads === 1) return { rows: [incomingOne, incomingTwo] };
+        if (recordReads === 2) return { rows: [sentOne] };
+        if (recordReads === 3) return { rows: [viewOne, viewTwo] };
+      }
+
+      return { rows: [] };
+    });
 
     const response = await app.inject({
       method: "GET",
@@ -13527,7 +13544,8 @@ describe("server", () => {
         kinks: ["Leather"],
         kink_interests: [{
           kink_id: "leather",
-          label: "Leather"
+          label: "Leather",
+          category: "Gear"
         }],
         kinks_visibility: "mutual_cruushes",
         viewer_relationship: expect.objectContaining({

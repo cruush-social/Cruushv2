@@ -1,14 +1,15 @@
 {
   "schemaVersion": 2,
-  "taskId": "cruush-photo-upload-mime-aliases-20260905",
+  "taskId": "cruush-card-corner-actions-and-pulse-feed-20260905",
   "status": "active",
-  "objective": "Accept the mime labels browsers really put on photos so uploads stop failing as invalid formats.",
-  "userOutcome": "A JPEG or PNG straight off a phone uploads, whatever label the browser attaches.",
+  "objective": "Move the card trash, expiry, and report controls to the lower-right corner of the card, and stop a Pulse posting the sender signal to the feed twice.",
+  "userOutcome": "On Feed, Cruushes, Messages, and Pink Book cards the destructive and report controls sit in the lower-right corner without covering anything, and a new Pulse replaces the previous Pulse post on the feed instead of stacking beside it.",
   "audience": "cruush members and the 1.6 release-email audience.",
   "successCriteria": [
-    "image/jpg and image/pjpeg accepted for JPEG bytes.",
-    "image/x-png accepted for PNG bytes.",
-    "A JPEG declared as image/png is still rejected."
+    "Feed post expiry, delete, and report render in the lower-right corner of the card.",
+    "Cruushes and Messages cards render their trash control in the lower-right corner of the card.",
+    "No control overlaps the name, pronouns, metadata, vibe tags, or post text.",
+    "Sending a Pulse retires the sender previous still-live Pulse feed post."
   ],
   "mustPreserve": [
     "Preserve approved custom map tiles, theme, people pins, Ghost Mode, Dark Room, Pulse, and unrelated map behavior.",
@@ -19,7 +20,8 @@
     "Keep user-facing copy free of em dashes and spell cruush lowercase."
   ],
   "nonGoals": [
-    "No loosening of the content check itself: bytes that are genuinely another format are still rejected."
+    "No change to which controls exist on a card, only where they sit.",
+    "No change to Pulse allowance, radius, or duration."
   ],
   "assumptions": [
     {
@@ -41,7 +43,7 @@
       "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "Profile photo upload succeeds on cruush.app.",
+  "nextVisibleMilestone": "Cards on cruush.app show the corner controls in the lower-right and a repeat Pulse leaves one feed post.",
   "stopConditions": [
     "Stop the data-expansion slice if the full prior source cache cannot be recovered or if a source record is private or unsafe to publish.",
     "Stop publication because push and deployment are not authorized by this task."
@@ -73,13 +75,18 @@
   "branch": "release/1.6-integration-20260901",
   "job": "Finish the named 1.6 changes and update the release email locally.",
   "allowedPaths": [
-    "server/src/media-image.ts",
-    "server/src/media-image.test.ts",
+    "AI_TASK.json",
     "index.html",
     "public/sw.js",
     "public/service-worker-recovery.js",
     "src/main.tsx",
-    "AI_TASK.json"
+    "src/app/components/UserActivityCapsule.tsx",
+    "src/app/components/LocalFeed.tsx",
+    "src/app/components/PlaceDetail.tsx",
+    "src/app/components/FeedPhotoPreview.tsx",
+    "server/src/map-pings.ts",
+    "server/src/map-pings.test.ts",
+    "server/src/app.test.ts"
   ],
   "forbiddenPaths": [
     "src/app/assets/brand/**",

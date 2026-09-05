@@ -227,6 +227,10 @@ class MapPingDb implements DbClient {
       return { rows: [] as T[] };
     }
 
+    if (sql.includes("update posts") && sql.includes("map_ping_id is not null")) {
+      return { rows: [] as T[] };
+    }
+
     if (sql.includes("insert into posts")) {
       this.postInsertCount += 1;
       return { rows: [] as T[] };
@@ -520,6 +524,23 @@ describe("map Pings", () => {
     expect(db.insertCount).toBe(0);
     expect(db.postInsertCount).toBe(0);
     expect(db.queries.some(({ sql }) => /app_notifications|push_subscriptions|notification_preferences/.test(sql))).toBe(false);
+  });
+
+  it("retires the previous Pulse feed post so the signal is not posted twice", async () => {
+    const db = new MapPingDb();
+    db.profile = senderProfile(publicRules, "Coffee now", "24h");
+
+    await createMapPing(appWithDb(db), {
+      userId: senderUserId,
+      radiusMiles: 3,
+      idempotencyKey: "30000000-0000-4000-8000-000000000031"
+    }, dependencies());
+
+    const retire = db.queries.find(({ sql }) => sql.includes("update posts")
+      && sql.includes("map_ping_id is not null"));
+
+    expect(retire).toBeDefined();
+    expect(retire?.params).toEqual([senderUserId, now.toISOString()]);
   });
 
   it("creates one encrypted feed post using the sender's last saved feed expiry", async () => {

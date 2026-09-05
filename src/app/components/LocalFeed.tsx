@@ -1348,18 +1348,6 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
                   actions={(
                     <div className="flex w-full items-center justify-end gap-2">
                       {currentUserId && post.user.id !== currentUserId ? (
-                        <ReportAction
-                          targetType="post"
-                          targetId={post.id}
-                          targetLabel={`post by ${post.user.name}`}
-                          targetUserId={post.user.id}
-                          // size-9 from the icon variant wins over a plain
-                          // h-7/w-7, so the button kept a hit area wider than
-                          // the flag and pushed into the metadata beside it.
-                          className="size-7 shrink-0 p-0 text-muted-foreground hover:text-white"
-                        />
-                      ) : null}
-                      {currentUserId && post.user.id !== currentUserId ? (
                         <ProfileActionTrio
                           canCenterPin={pinActionable}
                           canMessage={post.user.canMessage === true}
@@ -1404,8 +1392,20 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
                     </div>
                   )}
                   cornerAction={(
-                    <div className="flex flex-col items-end gap-1">
+                    <>
                       <span className="flex items-center gap-1 text-[11px] text-white/52"><Clock className="h-3 w-3" />{formatFeedExpiry(post.expiresIn)}</span>
+                      {currentUserId && post.user.id !== currentUserId ? (
+                        <ReportAction
+                          targetType="post"
+                          targetId={post.id}
+                          targetLabel={`post by ${post.user.name}`}
+                          targetUserId={post.user.id}
+                          // size-9 from the icon variant wins over a plain
+                          // h-7/w-7, so the button kept a hit area wider than
+                          // the flag and pushed into the metadata beside it.
+                          className="size-7 shrink-0 p-0 text-muted-foreground hover:text-white"
+                        />
+                      ) : null}
                       {currentUserId && post.user.id === currentUserId ? (
                         <Button
                           variant="ghost"
@@ -1419,7 +1419,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       ) : null}
-                    </div>
+                    </>
                   )}
                 />
                 );

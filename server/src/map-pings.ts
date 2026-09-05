@@ -1075,6 +1075,19 @@ export async function createMapPing(
       ]
     );
 
+    // A Pulse posts the sender's signal to the feed. Sending another Pulse
+    // while the previous one's post was still live stacked a second copy of
+    // the same signal, so the feed showed the post twice. Retire the earlier
+    // one and the feed carries only the Pulse that is running now.
+    await db.query(
+      `update posts
+          set expires_at = $2::timestamptz
+        where user_id = $1
+          and map_ping_id is not null
+          and expires_at > $2::timestamptz`,
+      [input.userId, now.toISOString()]
+    );
+
     await db.query(
       `insert into posts (
          id,

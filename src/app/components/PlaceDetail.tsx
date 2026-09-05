@@ -599,13 +599,13 @@ export default function PlaceDetail({ embedded = false, onBack, placeIdOverride 
                 onOpenIdentity={() => navigate(`/profile/${post.user.id}`)}
                 content={<p className="text-base">{post.content}</p>}
                 cornerAction={(
-                  <div className="flex flex-col items-end gap-1">
+                  <>
                     {post.canDelete ? (
                       <button type="button" aria-label="Delete Pink Book post" disabled={mutating || postingCheckin || postingBoard} className="rounded-md p-1.5 text-white/48 hover:text-white disabled:opacity-50" onClick={() => void mutatePlace((id) => deletePlaceBoardMessage(id, post.id), 'Pink Book post could not be deleted.')}><Trash2 className="h-4 w-4" /></button>
                     ) : (
                       <ReportAction targetType="place_message" targetId={post.id} targetLabel={`Pink Book post by ${post.user.name}`} className="h-8 w-8 text-muted-foreground hover:text-white" onRequestReport={embedded ? () => setReportTarget({ targetType: 'place_message', targetId: post.id, targetLabel: `Pink Book post by ${post.user.name}` }) : undefined} />
                     )}
-                  </div>
+                  </>
                 )}
               />
             ))}

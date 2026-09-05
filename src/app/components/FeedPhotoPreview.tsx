@@ -119,8 +119,8 @@ function PostChrome({ post, children, heartSize }: {
         </div>
       )}
       cornerAction={(
-        <div className="flex items-center gap-1 text-white/58">
-          <span className="text-xs">{post.expiry}</span>
+        <>
+          <span className="text-xs text-white/58">{post.expiry}</span>
           {post.owner ? (
             <button aria-label="Delete feed post" className="flex h-8 w-8 items-center justify-center rounded-full border-0 bg-transparent p-0 text-white/52 transition hover:bg-white/10 hover:text-white" type="button">
               <Trash2 className="h-4 w-4" />
@@ -130,7 +130,7 @@ function PostChrome({ post, children, heartSize }: {
               <Flag className="h-4 w-4" />
             </button>
           )}
-        </div>
+        </>
       )}
     />
   );

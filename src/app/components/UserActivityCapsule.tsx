@@ -55,7 +55,7 @@ export default function UserActivityCapsule({
   testId = 'user-activity-capsule',
 }: UserActivityCapsuleProps) {
   const identity = (
-    <div className={`cruush-user-activity-identity flex min-w-0 flex-nowrap items-baseline gap-x-2 overflow-hidden ${compactIdentityMeta ? '' : 'pr-9'}`}>
+    <div className="cruush-user-activity-identity flex min-w-0 flex-nowrap items-baseline gap-x-2 overflow-hidden">
       {/* The name keeps a floor and the pronouns give way instead. With both
           free to shrink, long pronouns plus badges squeezed the name to zero
           width, and rows read as having no name at all. The container clips,
@@ -147,7 +147,14 @@ export default function UserActivityCapsule({
 
       {content ? <div className="cruush-user-activity-content col-start-2 col-end-4 min-w-0">{content}</div> : null}
       </div>
-      {cornerAction ? <div className="absolute right-3 top-3">{cornerAction}</div> : null}
+      {/* A footer row in the card's own flow rather than a pinned overlay, so
+          the trash, expiry, and report controls sit in the lower-right corner
+          without ever covering the name, metadata, or post text. */}
+      {cornerAction ? (
+        <div className="cruush-user-activity-corner mt-1 flex w-full items-center justify-end gap-1" data-testid="activity-corner-action">
+          {cornerAction}
+        </div>
+      ) : null}
       </article>
     </div>
   );
