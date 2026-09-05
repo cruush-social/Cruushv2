@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react';
+import { registerBugButtonSlot } from '../lib/bugButtonSlot';
 import type { CSSProperties, ChangeEvent, RefObject } from 'react';
 import { useLocation, useParams, useNavigate } from 'react-router';
 import { ArrowLeft, Eye, Image as ImageIcon, ImagePlus, Timer, Star, Trash2, X } from 'lucide-react';
@@ -998,17 +999,13 @@ export default function PrivateGroupChat({
               {conversation ? (
                 <>
                   <div className="flex items-center gap-2">
-                    <h2 className="truncate text-lg">{conversation.user.name}</h2>
+                    <h2 className="min-w-0 flex-1 truncate text-lg">{conversation.user.name}</h2>
                     {conversation.kind === 'group' ? (
                       <Badge variant="outline" className="border-border/80 bg-card/60 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
                         Group
                       </Badge>
                     ) : null}
-                    {conversation.mutual ? (
-                      <Badge variant="outline" className="border-[#8B5CF6]/45 bg-[#8B5CF6]/15 text-[10px] uppercase tracking-[0.18em] text-[#DCC7FF]">
-                        Mutual
-                      </Badge>
-                    ) : null}
+
                   </div>
                   <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                     {conversation.user.pronouns ? <span>{conversation.user.pronouns}</span> : null}
@@ -1049,6 +1046,8 @@ export default function PrivateGroupChat({
             >
               <CruushIcon name="settings" className="h-5 w-5" />
             </Button>
+            {/* Back, settings, report and the bug button share one line. */}
+            <div className="h-9 w-9 shrink-0" data-testid="chat-bug-button-slot" ref={registerBugButtonSlot} />
             {embedded ? (
               <Button type="button" variant="ghost" size="icon" aria-label="Close messages" onClick={onClose}>
                 <X className="h-5 w-5" />
