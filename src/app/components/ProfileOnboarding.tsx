@@ -8,6 +8,9 @@ import { acceptCodeOfConduct, attachReferralCode, getAuthSession, type AuthSessi
 import { CODE_OF_CONDUCT_ITEMS } from '../lib/codeOfConduct';
 import { emptyProfilePayload, emptySideBadges, saveMyProfile, toDefaultKinkInterest, type ProfilePayload, type SideBadges, uploadProfilePhoto } from '../lib/profileApi';
 import { ApiClientError } from '../lib/apiClient';
+import HeartPhoto from './HeartPhoto';
+import SignalBadge from './SignalBadge';
+import { HEART_PIN_THEMES } from '../lib/heartPin';
 import {
   getPhotoUploadRejectedMessage,
   ProfilePhotoCropper,
@@ -895,7 +898,29 @@ export default function ProfileOnboarding({
                     value={profile.bio}
                     onChange={e => setProfileField('bio', e.target.value)}
                   />
-                  <label className="mt-4 text-sm mb-2 block">Signal</label>
+                  <div className="mt-4 flex items-baseline justify-between gap-3">
+                    <label className="text-sm">Signal</label>
+                    <span className="shrink-0 text-xs text-white/50">{profile.signal.length}/{SIGNAL_MAX_LENGTH}</span>
+                  </div>
+                  {/* The same badge the map draws, over the same heart, so the
+                      words are read at the size they will actually be read at.
+                      The explanatory line under the field was wrapping off the
+                      bottom on a narrow phone; the example says it instead. */}
+                  <div className="mb-3 mt-2 flex w-full min-w-0 flex-col items-center gap-1 overflow-hidden rounded-2xl border border-white/10 bg-black/35 px-3 py-4">
+                    <SignalBadge
+                      borderColor={HEART_PIN_THEMES.current.border}
+                      className="max-w-full"
+                    >
+                      {profile.signal.trim() || 'A few words on your pin'}
+                    </SignalBadge>
+                    <HeartPhoto
+                      className="w-16"
+                      label="Your heart pin"
+                      masked={false}
+                      photo={profile.photos[0] ?? null}
+                      theme="current"
+                    />
+                  </div>
                   <Input
                     type="text"
                     maxLength={SIGNAL_MAX_LENGTH}
@@ -903,7 +928,6 @@ export default function ProfileOnboarding({
                     value={profile.signal}
                     onChange={e => setProfileField('signal', e.target.value)}
                   />
-                  <p className="mt-2 text-xs text-white/50">Your signal appears when someone hovers over your heart pin on the map. {SIGNAL_MAX_LENGTH} characters max.</p>
                 </div>
               );
             case 'rolePosition':

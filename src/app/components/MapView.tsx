@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import SignalBadge from './SignalBadge';
 import MileHighContrail from './MileHighContrail';
 import { flushSync } from 'react-dom';
 import { createRoot, type Root } from 'react-dom/client';
@@ -1894,14 +1895,10 @@ export function MapMarkerPin({ marker, previewed = false }: { marker: MapMarker;
                 data-signal-position="v2-frame-top"
                 data-testid={`marker-signal-stack-${marker.id}`}
               >
-                <span
-                  className={`relative overflow-hidden rounded-full border border-[3.2px] bg-black/86 px-3 py-1 text-center text-[0.7rem] font-semibold leading-tight text-white backdrop-blur-md ${getMileHighRingClass(marker)}`}
-                  data-testid={`marker-signal-badge-${marker.id}`}
-                  style={{
-                    backgroundColor: 'rgba(0, 0, 0, var(--cruush-ghost-surface-alpha, 0.86))',
-                    borderColor: `var(--cruush-ghost-flash-border-color, ${signalBorderColor})`,
-                    borderWidth: '3.2px',
-                  } as CSSProperties}
+                <SignalBadge
+                  borderColor={signalBorderColor}
+                  className={getMileHighRingClass(marker)}
+                  testId={`marker-signal-badge-${marker.id}`}
                 >
                   {pingActive ? <PulseEkgSignalTrace /> : null}
                   <span className="cruush-ghost-rotation-signal-symbol relative">
@@ -1909,7 +1906,7 @@ export function MapMarkerPin({ marker, previewed = false }: { marker: MapMarker;
                       ? <GhostRotationCountdown expiresAtMs={marker.ghostRotationExpiresAtMs} />
                       : signalPreview}
                   </span>
-                </span>
+                </SignalBadge>
               </span>
             ) : null}
           </>}
