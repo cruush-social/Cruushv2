@@ -120,7 +120,8 @@
     "src/app/lib/saveMySignal.test.ts",
     "src/app/components/placeClusterScale.test.ts",
     "src/app/lib/pulseHold.ts",
-    "src/app/lib/pulseHold.test.ts"
+    "src/app/lib/pulseHold.test.ts",
+    "src/app/components/MapProfilePopup.tsx"
   ],
   "forbiddenPaths": [
     "src/app/assets/brand/**",

@@ -334,15 +334,15 @@ export default function MapProfilePopup({
                 <p className="mt-1 text-sm text-white/80">{displayPronouns}</p>
               </div>
               {displayLastActive ? (
-                <div className="rounded-full bg-white/10 px-2.5 py-1 text-xs text-white/80 backdrop-blur-sm">
+                <div className="shrink-0 whitespace-nowrap rounded-full bg-white/10 px-2.5 py-1 text-xs text-white/80 backdrop-blur-sm">
                   {displayLastActive}
                 </div>
               ) : null}
             </div>
 
-            <div className="mt-3 flex items-center gap-2 text-sm text-white/80">
-              <CruushIconImage src={mapIconWhite} className="h-4 w-4" />
-              <span>{displayDistance || 'Nearby'}</span>
+            <div className="mt-3 flex min-w-0 items-center gap-2 overflow-hidden text-sm text-white/80">
+              <CruushIconImage src={mapIconWhite} className="h-4 w-4 shrink-0" />
+              <span className="min-w-0 truncate">{displayDistance || 'Nearby'}</span>
             </div>
 
             {/* The photo carries the signal and the vibes here too, the way it
