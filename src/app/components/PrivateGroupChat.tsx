@@ -301,6 +301,7 @@ export default function PrivateGroupChat({
   const [favoriteRemovingId, setFavoriteRemovingId] = useState<string | null>(null);
   const [deletingMessageId, setDeletingMessageId] = useState<string | null>(null);
   const [keyboardInset, setKeyboardInset] = useState(0);
+  const [composerFocused, setComposerFocused] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const favoriteFileInputRef = useRef<HTMLInputElement | null>(null);
   const settingsPanelRef = useRef<HTMLElement | null>(null);
@@ -372,10 +373,17 @@ export default function PrivateGroupChat({
     updateKeyboardInset();
     visualViewport.addEventListener('resize', updateKeyboardInset);
     visualViewport.addEventListener('scroll', updateKeyboardInset);
+    // Some Android browsers resize the layout viewport for the keyboard rather
+    // than reporting it on the visual viewport. Missing that left the inset at
+    // zero with the keyboard up, so the composer kept its 5.5rem resting gap
+    // and a strip of the thread showed through between the input and the
+    // keyboard.
+    window.addEventListener('resize', updateKeyboardInset);
 
     return () => {
       visualViewport.removeEventListener('resize', updateKeyboardInset);
       visualViewport.removeEventListener('scroll', updateKeyboardInset);
+      window.removeEventListener('resize', updateKeyboardInset);
     };
   }, []);
 
@@ -953,13 +961,20 @@ export default function PrivateGroupChat({
   const normalizedComposerMessage = normalizeMessageForSend(message);
   const canSendMessage = normalizedComposerMessage.length > 0;
   const favoriteUploadControlDisabled = favoriteUploading || composerDisabled;
+  // Focus is the one signal every browser gives when the keyboard opens. Some
+  // resize the layout viewport instead of reporting an inset, which measures as
+  // zero, and the resting gap then showed a strip of the thread between the
+  // input and the keyboard.
+  const keyboardOpen = keyboardInset > 0 || composerFocused;
   const composerBarStyle = {
     // With the keyboard up the composer sits flush on it: no rem gap and no
     // safe-area either, since the keyboard already covers that zone. The gap
     // used to reveal a strip of the thread underneath the input.
     '--chat-composer-bottom': keyboardInset > 0
       ? `${keyboardInset}px`
-      : 'calc(5.5rem + env(safe-area-inset-bottom))',
+      : keyboardOpen
+        ? '0px'
+        : 'calc(5.5rem + env(safe-area-inset-bottom))',
   } as CSSProperties;
 
   return (
@@ -1541,7 +1556,7 @@ export default function PrivateGroupChat({
         {conversation ? (
           <div
             data-testid="chat-composer-bar"
-            className={`fixed bottom-[var(--chat-composer-bottom)] left-0 right-0 z-[70] max-w-[100vw] overflow-x-hidden border-t border-border bg-background px-3 pt-3 backdrop-blur-md sm:px-4 ${keyboardInset > 0 ? 'pb-3' : 'pb-0'}`}
+            className={`fixed bottom-[var(--chat-composer-bottom)] left-0 right-0 z-[70] max-w-[100vw] overflow-x-hidden border-t border-border bg-background px-3 pt-3 backdrop-blur-md sm:px-4 ${keyboardOpen ? 'pb-3' : 'pb-0'}`}
             data-keyboard-open={keyboardInset > 0 ? 'true' : undefined}
             style={composerBarStyle}
           >
@@ -1763,6 +1778,8 @@ export default function PrivateGroupChat({
                         void handleSend();
                       }
                     }}
+                    onFocus={() => setComposerFocused(true)}
+                    onBlur={() => setComposerFocused(false)}
                     disabled={composerDisabled}
                     placeholder={composerDisabled ? 'Group closed' : conversation.kind === 'group' ? 'Drop the plan...' : 'Say what you want...'}
                     className="min-h-[60px] min-w-0 flex-1 border-0 bg-transparent px-0 py-1 focus-visible:ring-0"

@@ -108,7 +108,7 @@ export type ProfileViewModel = {
   healthPreferences: string[];
   birthControl: string[];
   substanceBoundaries: string | null;
-  protectionBoundaries: string | null;
+  substanceBoundariesList: string[];
   relationshipStatus: string[];
   relationship: ProfileRecord['viewer_relationship'] | null;
 };
@@ -206,7 +206,7 @@ export function profileRecordToProfileView(
     healthPreferences: profile.health_preferences ?? [],
     birthControl: profile.birth_control ?? [],
     substanceBoundaries: formatJoined(profile.substance_boundaries),
-    protectionBoundaries: formatJoined(profile.protection_boundaries),
+    substanceBoundariesList: profile.substance_boundaries.filter(Boolean),
     relationshipStatus: profile.relationship_status ?? [],
     relationship: profile.viewer_relationship ?? null,
   };
@@ -951,11 +951,11 @@ export function ProfileDetailsTabs({
           <BadgeList items={profileView.hivStatus ? [profileView.hivStatus] : []} compact={compact} />
         </div>
 
-        <Section title="Lifestyle" compact={compact}>
-          <div className="grid gap-3 text-sm">
-            <DetailItem label="Substance Boundaries" value={profileView.substanceBoundaries} compact={compact} />
-            <DetailItem label="Protection boundaries" value={profileView.protectionBoundaries} compact={compact} />
-          </div>
+        {/* Protection boundaries had its own card above and a second copy in
+            here reading the same field, so editing it looked like only one of
+            them moved. One field, one place. */}
+        <Section title="Substance boundaries" compact={compact}>
+          <BadgeList items={profileView.substanceBoundariesList} compact={compact} />
         </Section>
       </TabsContent>
     </Tabs>

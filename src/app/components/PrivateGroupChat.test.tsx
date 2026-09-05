@@ -1624,6 +1624,51 @@ describe('PrivateGroupChat', () => {
     expect(screen.getByRole('button', { name: 'Send message' })).toHaveClass('size-9', 'rounded-full');
   });
 
+  it('drops the composer gap when the input is focused and no inset is reported', async () => {
+    const conversationId = '7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2';
+    getConversationMessages.mockResolvedValue({
+      conversation: {
+        id: conversationId,
+        kind: 'dm',
+        user: { id: 'user-2', name: 'River', pronouns: '', photo: null },
+        distance: 'Nearby',
+        updatedAt: '2026-04-29T12:00:00.000Z',
+        lastMessage: '',
+        unreadCount: 0,
+        pinned: false,
+        tags: [],
+        mutual: true,
+        disappearingTimer: 'off',
+      },
+      messages: [],
+    });
+
+    render(
+      <MemoryRouter initialEntries={[`/chat/${conversationId}`]}>
+        <Routes>
+          <Route path="/chat/:chatId" element={<PrivateGroupChat />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText('No messages yet.')).toBeInTheDocument();
+
+    const composerBar = screen.getByTestId('chat-composer-bar');
+    expect(composerBar.style.getPropertyValue('--chat-composer-bottom')).toBe('calc(5.5rem + env(safe-area-inset-bottom))');
+
+    // Some Android browsers resize the layout viewport instead of reporting a
+    // visual viewport inset, so the keyboard measures as zero. Focus is the one
+    // signal every browser gives, and the resting gap has to go or a strip of
+    // the thread shows between the input and the keyboard.
+    fireEvent.focus(screen.getByPlaceholderText('Say what you want...'));
+
+    await waitFor(() => expect(composerBar.style.getPropertyValue('--chat-composer-bottom')).toBe('0px'));
+
+    fireEvent.blur(screen.getByPlaceholderText('Say what you want...'));
+
+    await waitFor(() => expect(composerBar.style.getPropertyValue('--chat-composer-bottom')).toBe('calc(5.5rem + env(safe-area-inset-bottom))'));
+  });
+
   it('moves the mobile composer above Android in-app browser keyboards', async () => {
     const visualViewport = mockVisualViewport({
       height: 520,

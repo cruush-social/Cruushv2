@@ -8,6 +8,12 @@ import { acceptCodeOfConduct, attachReferralCode, getAuthSession, type AuthSessi
 import { CODE_OF_CONDUCT_ITEMS } from '../lib/codeOfConduct';
 import { emptyProfilePayload, emptySideBadges, saveMyProfile, toDefaultKinkInterest, type ProfilePayload, type SideBadges, uploadProfilePhoto } from '../lib/profileApi';
 import { ApiClientError } from '../lib/apiClient';
+import {
+  getPhotoUploadRejectedMessage,
+  ProfilePhotoCropper,
+  readProfilePhotoPreviewUrl,
+  type PendingProfilePhoto,
+} from './ProfileEdit';
 import { SIGNAL_MAX_LENGTH } from '../lib/profileLimits';
 import {
   completeTwoFactorSetup,
@@ -291,6 +297,7 @@ export default function ProfileOnboarding({
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [photoUploading, setPhotoUploading] = useState(false);
+  const [pendingPhoto, setPendingPhoto] = useState<PendingProfilePhoto | null>(null);
   const [photoUploadError, setPhotoUploadError] = useState<string | null>(null);
   const [photoUploadNotice, setPhotoUploadNotice] = useState<string | null>(null);
   const [twoFactorPassword, setTwoFactorPassword] = useState('');
@@ -329,6 +336,10 @@ export default function ProfileOnboarding({
     setProfile((prev) => ({ ...prev, [field]: value }));
   };
 
+  // Onboarding uploaded the raw file straight from the picker while Edit
+  // Profile framed it first, so the one photo people set up front was the one
+  // they had no say over. Both go through the same cropper now, and the same
+  // uploader with it, which is what accepts the formats a phone camera makes.
   const handleOnboardingPhotoUpload = async (event: ChangeEvent<HTMLInputElement>) => {
     const photo = event.target.files?.[0];
     event.target.value = '';
@@ -337,19 +348,39 @@ export default function ProfileOnboarding({
       return;
     }
 
+    setPhotoUploadError(null);
+    setPhotoUploadNotice(null);
+
+    try {
+      setPendingPhoto(await readProfilePhotoPreviewUrl(photo));
+    } catch (previewError) {
+      setPhotoUploadError(previewError instanceof Error ? previewError.message : 'Failed to read that photo.');
+    }
+  };
+
+  const handleCancelOnboardingCrop = () => {
+    if (pendingPhoto?.objectUrl) {
+      URL.revokeObjectURL(pendingPhoto.objectUrl);
+    }
+
+    setPendingPhoto(null);
+  };
+
+  const handleConfirmOnboardingCrop = async (croppedPhoto: File) => {
     setPhotoUploading(true);
     setPhotoUploadError(null);
     setPhotoUploadNotice(null);
 
     if (previewMode) {
-      setProfileField('photos', [...profile.photos, URL.createObjectURL(photo)].slice(0, 4));
+      setProfileField('photos', [...profile.photos, URL.createObjectURL(croppedPhoto)].slice(0, 4));
       setPhotoUploadNotice('Photo added to this preview only.');
       setPhotoUploading(false);
+      setPendingPhoto(null);
       return;
     }
 
     try {
-      const uploaded = await uploadProfilePhoto(photo);
+      const uploaded = await uploadProfilePhoto(croppedPhoto);
 
       if (uploaded.status === 'pending_review') {
         setPhotoUploadNotice('Photo submitted for review. You can continue onboarding.');
@@ -359,9 +390,10 @@ export default function ProfileOnboarding({
       setProfileField('photos', (uploaded.photos ?? [...profile.photos, uploaded.url]).slice(0, 4));
       setPhotoUploadNotice('Photo added. You can change it later in Edit Profile.');
     } catch (error) {
-      setPhotoUploadError(error instanceof Error ? error.message : 'Failed to upload profile photo.');
+      setPhotoUploadError(getPhotoUploadRejectedMessage(error));
     } finally {
       setPhotoUploading(false);
+      setPendingPhoto(null);
     }
   };
 
@@ -1124,6 +1156,14 @@ export default function ProfileOnboarding({
         </div>
         </div>
       </div>
+      {pendingPhoto ? (
+        <ProfilePhotoCropper
+          onCancel={handleCancelOnboardingCrop}
+          onConfirm={handleConfirmOnboardingCrop}
+          processing={photoUploading}
+          sourceUrl={pendingPhoto.url}
+        />
+      ) : null}
     </div>
   );
 }

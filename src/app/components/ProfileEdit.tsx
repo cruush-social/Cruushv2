@@ -85,7 +85,7 @@ const PROFILE_PHOTO_SAVE_PATH_PATTERN = /^\/api\/media\/(?:profile-photos\/[0-9a
 const VISIBILITY_OPTION_LABELS = PROFILE_VISIBILITY_OPTIONS.map((option) => option.label);
 const FIXED_PRIVATE_PROFILE_VISIBILITY: ProfileVisibility = 'mutual_cruushes';
 
-type PendingProfilePhoto = {
+export type PendingProfilePhoto = {
   url: string;
   objectUrl?: string;
 };
@@ -206,7 +206,7 @@ function canvasToJpegFile(canvas: HTMLCanvasElement) {
   });
 }
 
-function readProfilePhotoPreviewUrl(file: File): Promise<PendingProfilePhoto> {
+export function readProfilePhotoPreviewUrl(file: File): Promise<PendingProfilePhoto> {
   try {
     const objectUrl = URL.createObjectURL(file);
     return Promise.resolve({ url: objectUrl, objectUrl });

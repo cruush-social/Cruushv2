@@ -1,14 +1,14 @@
 {
   "schemaVersion": 2,
-  "taskId": "cruush-discovery-refresh-rate-20260905",
+  "taskId": "cruush-profile-composer-onboarding-20260905",
   "status": "active",
-  "objective": "Cut how often the map refetches the discovery list.",
-  "userOutcome": "The map costs a fraction of the requests it did, and pins are still current within a minute.",
+  "objective": "Remove the duplicated protection boundaries field, close the composer gap above the keyboard, and put the crop step in onboarding photo upload.",
+  "userOutcome": "Editing protection boundaries moves the one place it appears, the message input sits flush on the keyboard, and the first profile photo can be framed like any other.",
   "audience": "cruush members and the 1.6 release-email audience.",
   "successCriteria": [
-    "The privacy refresh interval is one minute rather than ten seconds.",
-    "A pan sends one discovery query after the map settles rather than several mid-gesture.",
-    "Coming back to the foreground still refreshes immediately."
+    "Protection boundaries renders once on the Health tab.",
+    "Focusing the message input drops the resting composer gap even when no keyboard inset is reported.",
+    "Onboarding photo upload opens the same cropper Edit Profile uses."
   ],
   "mustPreserve": [
     "Preserve approved custom map tiles, theme, people pins, Ghost Mode, Dark Room, Pulse, and unrelated map behavior.",
@@ -20,7 +20,7 @@
     "Never delete a Spot that carries a check-in, a rating, or a Pink Book post."
   ],
   "nonGoals": [
-    "No change to what discovery returns or to Ghost Mode rotation."
+    "No change to what the uploader accepts or to the crop controls themselves."
   ],
   "assumptions": [
     {
@@ -42,7 +42,7 @@
       "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "The map on cruush.app issues six times fewer discovery queries while open.",
+  "nextVisibleMilestone": "All three land on cruush.app.",
   "stopConditions": [
     "Stop the data-expansion slice if the full prior source cache cannot be recovered or if a source record is private or unsafe to publish.",
     "Stop publication because push and deployment are not authorized by this task."
@@ -75,8 +75,12 @@
   "job": "Finish the named 1.6 changes and update the release email locally.",
   "allowedPaths": [
     "AI_TASK.json",
-    "src/app/components/MapHome.tsx",
-    "src/app/components/MapHome.test.tsx"
+    "src/app/components/ProfileView.tsx",
+    "src/app/components/ProfileView.test.tsx",
+    "src/app/components/PrivateGroupChat.tsx",
+    "src/app/components/PrivateGroupChat.test.tsx",
+    "src/app/components/ProfileOnboarding.tsx",
+    "src/app/components/ProfileEdit.tsx"
   ],
   "forbiddenPaths": [
     "src/app/assets/brand/**",
