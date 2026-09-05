@@ -3,8 +3,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useNavigate } from 'react-router';
 import App, { getInitialAppEntries } from './App';
 
-const { getRewardSummary, loadCurrentSession, persistSessionUser, recordDailyRewardCheckIn, routeModuleLoads, updateRewardTimezone } = vi.hoisted(() => ({
+const { getRewardSummary, getSideQuests, loadCurrentSession, persistSessionUser, recordDailyRewardCheckIn, routeModuleLoads, updateRewardTimezone } = vi.hoisted(() => ({
   getRewardSummary: vi.fn(),
+  // The Side Quest prompt mounts inside the authenticated shell and reads this
+  // on every route. Leaving it off the mock threw during the first effect and
+  // the error boundary replaced the whole tree, which failed every route test
+  // at once for a reason that had nothing to do with routing.
+  getSideQuests: vi.fn(),
   loadCurrentSession: vi.fn(),
   persistSessionUser: vi.fn(),
   recordDailyRewardCheckIn: vi.fn(),
@@ -19,6 +24,7 @@ vi.mock('./lib/sessionUser', () => ({
 
 vi.mock('./lib/rewardsApi', () => ({
   getRewardSummary,
+  getSideQuests,
   recordDailyRewardCheckIn,
   updateRewardTimezone,
 }));
@@ -278,6 +284,7 @@ describe('App', () => {
 
   beforeEach(() => {
     getRewardSummary.mockReset().mockResolvedValue({ recentGrants: [] });
+    getSideQuests.mockReset().mockResolvedValue({ quests: [], claimingAvailable: false });
     localStorage.clear();
     window.history.replaceState({}, '', '/');
     loadCurrentSession.mockReset();
