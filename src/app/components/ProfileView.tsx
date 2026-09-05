@@ -109,6 +109,7 @@ export type ProfileViewModel = {
   birthControl: string[];
   substanceBoundaries: string | null;
   protectionBoundaries: string | null;
+  relationshipStatus: string[];
   relationship: ProfileRecord['viewer_relationship'] | null;
 };
 
@@ -206,6 +207,7 @@ export function profileRecordToProfileView(
     birthControl: profile.birth_control ?? [],
     substanceBoundaries: formatJoined(profile.substance_boundaries),
     protectionBoundaries: formatJoined(profile.protection_boundaries),
+    relationshipStatus: profile.relationship_status ?? [],
     relationship: profile.viewer_relationship ?? null,
   };
 }
@@ -885,6 +887,14 @@ export function ProfileDetailsTabs({
 
       <TabsContent value="intimacy" className={`${compact ? 'mt-4 space-y-4' : 'mt-5 space-y-5'}`}>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {/* The editor has taken this under Intimacy for a while and the
+              profile never showed it back. */}
+          {profileView.relationshipStatus.length > 0 ? (
+            <Section title="Relationship status" compact={compact}>
+              <BadgeList items={profileView.relationshipStatus} compact={compact} />
+            </Section>
+          ) : null}
+
           <Section title="Role" compact={compact}>
             <BadgeList items={profileView.role} compact={compact} />
           </Section>

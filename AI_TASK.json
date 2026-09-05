@@ -1,14 +1,13 @@
 {
   "schemaVersion": 2,
-  "taskId": "cruush-profile-presence-line-20260905",
+  "taskId": "cruush-relationship-status-on-profile-20260905",
   "status": "active",
-  "objective": "Show the distance and last-online line on a profile opened from anywhere, not only from the map.",
-  "userOutcome": "A profile reached from a deep link, a search result, or a Pink Book post carries the same distance and last-online line the map hands over.",
+  "objective": "Show relationship status on the profile, where the editor has been taking it all along.",
+  "userOutcome": "A member who set a relationship status sees it on their profile under Intimacy, and so does anyone viewing them.",
   "audience": "cruush members and the 1.6 release-email audience.",
   "successCriteria": [
-    "The profile payload carries a distance label and a last-active label for a viewer who is not the owner.",
-    "Ghost Mode collapses the distance to Nearby and Dark Room keeps its own label.",
-    "A profile with no route state still shows both."
+    "Relationship status renders under Intimacy when set.",
+    "Nothing renders when it is empty."
   ],
   "mustPreserve": [
     "Preserve approved custom map tiles, theme, people pins, Ghost Mode, Dark Room, Pulse, and unrelated map behavior.",
@@ -20,7 +19,7 @@
     "Never delete a Spot that carries a check-in, a rating, or a Pink Book post."
   ],
   "nonGoals": [
-    "No new precision: the label is computed from the same fuzzed coordinates discovery already uses."
+    "No change to the options, the limit of three, or where the editor keeps the field."
   ],
   "assumptions": [
     {
@@ -42,7 +41,7 @@
       "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "A profile opened by deep link on cruush.app shows distance and last online.",
+  "nextVisibleMilestone": "Relationship status appears on a profile on cruush.app.",
   "stopConditions": [
     "Stop the data-expansion slice if the full prior source cache cannot be recovered or if a source record is private or unsafe to publish.",
     "Stop publication because push and deployment are not authorized by this task."
@@ -75,8 +74,6 @@
   "job": "Finish the named 1.6 changes and update the release email locally.",
   "allowedPaths": [
     "AI_TASK.json",
-    "server/src/routes/profiles.ts",
-    "src/app/lib/profileApi.ts",
     "src/app/components/ProfileView.tsx",
     "src/app/components/ProfileView.test.tsx"
   ],

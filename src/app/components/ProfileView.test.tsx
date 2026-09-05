@@ -217,6 +217,27 @@ describe('ProfileView', () => {
     expect(screen.getByText(/10m ago/)).toBeInTheDocument();
   });
 
+  it('shows the relationship status the editor already saved', async () => {
+    getProfileById.mockResolvedValue(createProfileFixture({
+      relationship_status: ['Partnered', 'Open'],
+    }));
+
+    render(
+      <MemoryRouter initialEntries={['/profile/user-1']}>
+        <Routes>
+          <Route path="/profile/:userId" element={<ProfileView />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    // The editor takes it under Intimacy, so the profile shows it back there.
+    fireEvent.click(await screen.findByRole('tab', { name: 'Intimacy' }));
+
+    expect(await screen.findByText('Relationship status')).toBeInTheDocument();
+    expect(screen.getByText('Partnered')).toBeInTheDocument();
+    expect(screen.getByText('Open')).toBeInTheDocument();
+  });
+
   it('keeps the age outside the clipped name span', async () => {
     getProfileById.mockResolvedValue(createProfileFixture({
       display_name: 'A very long profile name that needs truncation',
