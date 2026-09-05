@@ -1,13 +1,13 @@
 {
   "schemaVersion": 2,
-  "taskId": "cruush-relationship-status-on-profile-20260905",
+  "taskId": "cruush-activity-refresh-on-resume-20260905",
   "status": "active",
-  "objective": "Show relationship status on the profile, where the editor has been taking it all along.",
-  "userOutcome": "A member who set a relationship status sees it on their profile under Intimacy, and so does anyone viewing them.",
+  "objective": "Refresh cruushes and views when the app comes back to the foreground.",
+  "userOutcome": "Views and incoming cruushes are current when the app is reopened, instead of frozen at whatever they were on the last open.",
   "audience": "cruush members and the 1.6 release-email audience.",
   "successCriteria": [
-    "Relationship status renders under Intimacy when set.",
-    "Nothing renders when it is empty."
+    "A resume more than a minute after the last read fetches the activity again.",
+    "A resume moments after the last read does not."
   ],
   "mustPreserve": [
     "Preserve approved custom map tiles, theme, people pins, Ghost Mode, Dark Room, Pulse, and unrelated map behavior.",
@@ -19,7 +19,7 @@
     "Never delete a Spot that carries a check-in, a rating, or a Pink Book post."
   ],
   "nonGoals": [
-    "No change to the options, the limit of three, or where the editor keeps the field."
+    "No polling while the app is open."
   ],
   "assumptions": [
     {
@@ -41,7 +41,7 @@
       "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "Relationship status appears on a profile on cruush.app.",
+  "nextVisibleMilestone": "Reopening cruush.app shows current views.",
   "stopConditions": [
     "Stop the data-expansion slice if the full prior source cache cannot be recovered or if a source record is private or unsafe to publish.",
     "Stop publication because push and deployment are not authorized by this task."
@@ -74,8 +74,8 @@
   "job": "Finish the named 1.6 changes and update the release email locally.",
   "allowedPaths": [
     "AI_TASK.json",
-    "src/app/components/ProfileView.tsx",
-    "src/app/components/ProfileView.test.tsx"
+    "src/app/components/CruushActivity.tsx",
+    "src/app/components/CruushActivity.test.tsx"
   ],
   "forbiddenPaths": [
     "src/app/assets/brand/**",

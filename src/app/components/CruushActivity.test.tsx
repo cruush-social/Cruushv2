@@ -201,6 +201,46 @@ describe('CruushActivity', () => {
     expect(screen.getByTestId('cruush-tab-grid')).not.toContainElement(reportButton);
   });
 
+  it('reads the activity again when the app comes back to the foreground', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+
+    try {
+      render(
+        <MemoryRouter initialEntries={['/cruush']}>
+          <CruushActivity />
+        </MemoryRouter>,
+      );
+
+      await screen.findByText('luna');
+      expect(getMyCruushActivity).toHaveBeenCalledTimes(1);
+
+      // The panel stays mounted while the phone is in a pocket, so views and
+      // incoming cruushes sat frozen at whatever they were on the last open.
+      await vi.advanceTimersByTimeAsync(61_000);
+      document.dispatchEvent(new Event('visibilitychange'));
+
+      await waitFor(() => expect(getMyCruushActivity).toHaveBeenCalledTimes(2));
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('does not read the activity again on a resume moments after the last read', async () => {
+    render(
+      <MemoryRouter initialEntries={['/cruush']}>
+        <CruushActivity />
+      </MemoryRouter>,
+    );
+
+    await screen.findByText('luna');
+    expect(getMyCruushActivity).toHaveBeenCalledTimes(1);
+
+    document.dispatchEvent(new Event('visibilitychange'));
+    window.dispatchEvent(new Event('focus'));
+
+    expect(getMyCruushActivity).toHaveBeenCalledTimes(1);
+  });
+
   it('renders locked free rows, mutual actions, and list-only mutuals', async () => {
     const { container } = render(
       <MemoryRouter initialEntries={['/cruush']}>

@@ -604,6 +604,31 @@ export default function CruushActivity({
     });
   }, []);
 
+  // The panel stays mounted while the phone is in a pocket, and it only ever
+  // fetched on mount, so incoming cruushes and views sat frozen at whatever
+  // they were when the app was last opened. Coming back to the foreground
+  // reads them again, no more than once a minute.
+  useEffect(() => {
+    let lastRefreshedAtMs = Date.now();
+
+    const refreshAfterResume = () => {
+      if (document.visibilityState !== 'visible') return;
+      if (Date.now() - lastRefreshedAtMs < 60_000) return;
+      lastRefreshedAtMs = Date.now();
+      void fetchCruushActivity();
+    };
+
+    window.addEventListener('focus', refreshAfterResume);
+    window.addEventListener('online', refreshAfterResume);
+    document.addEventListener('visibilitychange', refreshAfterResume);
+
+    return () => {
+      window.removeEventListener('focus', refreshAfterResume);
+      window.removeEventListener('online', refreshAfterResume);
+      document.removeEventListener('visibilitychange', refreshAfterResume);
+    };
+  }, []);
+
   const handleCruushBack = async (item: CruushLockableActivityItem) => {
     if (!item.user) {
       return;
