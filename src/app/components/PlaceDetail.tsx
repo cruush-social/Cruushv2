@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router';
 import { ArrowLeft, Clock, Copy, ExternalLink, Flag, MapPin, Share2, Star, Trash2, Users } from 'lucide-react';
 import { Button } from './ui/button';
 import { Checkbox } from './ui/checkbox';
+import { Slider } from './ui/slider';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import HeartPhoto from './HeartPhoto';
@@ -562,18 +563,30 @@ export default function PlaceDetail({ embedded = false, onBack, placeIdOverride 
                     })}
                   </div>
                 </fieldset>
+                {/* An ordered scale from one hour to a day, so it slides like
+                    distance does rather than opening a menu of five items. */}
+                <div className="w-full">
+                  <div className="flex items-center justify-between text-xs text-white/60">
+                    <span>Check-in expires in</span>
+                    <span className="font-semibold text-white" data-testid="checkin-duration-value">
+                      {CHECKIN_DURATION_OPTIONS.find((option) => option.value === checkinDurationHours)?.label ?? '1h'}
+                    </span>
+                  </div>
+                  <Slider
+                    aria-label="Check-in duration"
+                    className="mt-2"
+                    data-testid="checkin-duration-slider"
+                    max={CHECKIN_DURATION_OPTIONS.length - 1}
+                    min={0}
+                    step={1}
+                    value={[Math.max(0, CHECKIN_DURATION_OPTIONS.findIndex((option) => option.value === checkinDurationHours))]}
+                    onValueChange={([index]) => {
+                      const option = CHECKIN_DURATION_OPTIONS[index] ?? CHECKIN_DURATION_OPTIONS[0];
+                      setCheckinDurationHours(option.value as 1 | 3 | 6 | 12 | 24);
+                    }}
+                  />
+                </div>
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                  <label className="flex items-center gap-2 text-xs text-white/60">
-                    Check-in expires in
-                    <select
-                      aria-label="Check-in duration"
-                      className="rounded-md border border-white/15 bg-black px-2 py-1 text-xs text-white"
-                      value={checkinDurationHours}
-                      onChange={(event) => setCheckinDurationHours(Number(event.target.value) as 1 | 3 | 6 | 12 | 24)}
-                    >
-                      {CHECKIN_DURATION_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-                    </select>
-                  </label>
                 <label className="flex items-center gap-2 text-xs text-white/70">
                   <Checkbox checked={visibleCheckin} onCheckedChange={(checked) => setVisibleCheckin(checked === true)} />
                   Show me in Who's Here

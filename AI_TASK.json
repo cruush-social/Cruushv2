@@ -1,13 +1,12 @@
 {
   "schemaVersion": 2,
-  "taskId": "cruush-popup-and-tutorial-reach-20260905",
+  "taskId": "cruush-checkin-duration-slider-20260905",
   "status": "active",
-  "objective": "Make popup close buttons a real tap target and stop the map tutorial placing itself outside the visible screen.",
-  "userOutcome": "A popup can be closed with a thumb, and the tutorial card and its buttons stay where they can be reached on a phone browser with a URL bar.",
+  "objective": "Make the check-in duration a slider like distance rather than a dropdown.",
+  "userOutcome": "Check-in length is set by sliding along an ordered scale from 1h to 24h.",
   "audience": "cruush members and the 1.6 release-email audience.",
   "successCriteria": [
-    "The dialog close control is a 44px target rather than a 16px glyph.",
-    "The tutorial measures the visible viewport rather than the layout viewport."
+    "The check-in duration renders as a slider with the selected value beside the label."
   ],
   "mustPreserve": [
     "Preserve approved custom map tiles, theme, people pins, Ghost Mode, Dark Room, Pulse, and unrelated map behavior.",
@@ -19,7 +18,7 @@
     "Never delete a Spot that carries a check-in, a rating, or a Pink Book post."
   ],
   "nonGoals": [
-    "No change to where the close sits or to the tutorial steps."
+    "No change to the durations offered."
   ],
   "assumptions": [
     {
@@ -41,7 +40,7 @@
       "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "Both land on cruush.app.",
+  "nextVisibleMilestone": "The Spot check-in form on cruush.app uses the slider.",
   "stopConditions": [
     "Stop the data-expansion slice if the full prior source cache cannot be recovered or if a source record is private or unsafe to publish.",
     "Stop publication because push and deployment are not authorized by this task."
@@ -74,8 +73,7 @@
   "job": "Finish the named 1.6 changes and update the release email locally.",
   "allowedPaths": [
     "AI_TASK.json",
-    "src/app/components/ui/dialog.tsx",
-    "src/app/components/MapControlsTutorial.tsx"
+    "src/app/components/PlaceDetail.tsx"
   ],
   "forbiddenPaths": [
     "src/app/assets/brand/**",
