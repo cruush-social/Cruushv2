@@ -117,7 +117,8 @@
     "src/app/components/TravelModeSettings.tsx",
     "server/src/conversation-vibes.test.ts",
     "src/app/lib/messagePhotoProcessing.ts",
-    "src/app/lib/saveMySignal.test.ts"
+    "src/app/lib/saveMySignal.test.ts",
+    "src/app/components/placeClusterScale.test.ts"
   ],
   "forbiddenPaths": [
     "src/app/assets/brand/**",

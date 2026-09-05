@@ -883,7 +883,7 @@ function buildPlaceCluster(
   };
 }
 
-function applyPlaceMarkerClusters(markers: DisplayMapMarker[], zoom: number): DisplayMapMarker[] {
+export function applyPlaceMarkerClusters(markers: DisplayMapMarker[], zoom: number): DisplayMapMarker[] {
   const placeMarkers = markers.filter((marker) => marker.kind === 'place' && !marker.spiderfy);
   const clusteredIds = new Set<string>();
   const clusters: MapMarker[] = [];
@@ -941,15 +941,43 @@ function applyPlaceMarkerClusters(markers: DisplayMapMarker[], zoom: number): Di
     }
     return index;
   };
-  for (let a = 0; a < entities.length; a += 1) {
-    for (let b = a + 1; b < entities.length; b += 1) {
-      const dx = entities[a].x - entities[b].x;
-      const dy = entities[a].y - entities[b].y;
-      if ((dx * dx) + (dy * dy) < MIN_PLACE_SEPARATION_PX * MIN_PLACE_SEPARATION_PX) {
-        parents[findRoot(a)] = findRoot(b);
+  // Every Spot used to be compared against every other Spot, which is fine for
+  // a handful and quadratic for the thousands a wide viewport can hold: that is
+  // what made the map crawl. Entities go into a grid of cells the size of the
+  // separation distance instead, so each one only checks the nine cells it
+  // could possibly be close to. Same clusters, linear work.
+  const cellSize = MIN_PLACE_SEPARATION_PX;
+  const grid = new Map<string, number[]>();
+  const cellKey = (x: number, y: number) => `${Math.floor(x / cellSize)}:${Math.floor(y / cellSize)}`;
+
+  entities.forEach((entity, index) => {
+    const key = cellKey(entity.x, entity.y);
+    const bucket = grid.get(key);
+    if (bucket) bucket.push(index);
+    else grid.set(key, [index]);
+  });
+
+  entities.forEach((entity, a) => {
+    const cellX = Math.floor(entity.x / cellSize);
+    const cellY = Math.floor(entity.y / cellSize);
+
+    for (let offsetX = -1; offsetX <= 1; offsetX += 1) {
+      for (let offsetY = -1; offsetY <= 1; offsetY += 1) {
+        const neighbours = grid.get(`${cellX + offsetX}:${cellY + offsetY}`);
+        if (!neighbours) continue;
+
+        for (const b of neighbours) {
+          if (b <= a) continue;
+
+          const dx = entity.x - entities[b].x;
+          const dy = entity.y - entities[b].y;
+          if ((dx * dx) + (dy * dy) < MIN_PLACE_SEPARATION_PX * MIN_PLACE_SEPARATION_PX) {
+            parents[findRoot(a)] = findRoot(b);
+          }
+        }
       }
     }
-  }
+  });
   const merged = new Map<number, DisplayMapMarker[]>();
   entities.forEach((entity, index) => {
     const root = findRoot(index);
