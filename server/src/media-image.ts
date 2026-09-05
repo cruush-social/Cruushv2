@@ -6,12 +6,17 @@ export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 export const MAX_IMAGE_PIXELS = 40_000_000;
 const MAX_IMAGE_DIMENSION = 12_000;
 
-const supportedFormats = new Set(["jpeg", "png", "webp"]);
+// HEIC is what an iPhone camera produces by default, so a photo straight off
+// the phone was rejected. Everything is re-encoded to WebP for delivery, so
+// accepting the format costs nothing downstream. Verified that the production
+// image build reads HEIF before adding it.
+const supportedFormats = new Set(["jpeg", "png", "webp", "heif"]);
 
 const mimeTypes = {
   jpeg: "image/jpeg",
   png: "image/png",
-  webp: "image/webp"
+  webp: "image/webp",
+  heif: "image/heic"
 } as const;
 
 export type ProcessedImageVariant = {
@@ -23,14 +28,14 @@ export type ProcessedImageVariant = {
 };
 
 export type ProcessedImage = {
-  detectedMimeType: "image/jpeg" | "image/png" | "image/webp";
+  detectedMimeType: "image/jpeg" | "image/png" | "image/webp" | "image/heic";
   canonicalBytes: Buffer;
   width: number;
   height: number;
   variants: ProcessedImageVariant[];
 };
 
-function invalidImage(message = "Upload a valid JPEG, PNG, or WebP image.") {
+function invalidImage(message = "Upload a valid JPEG, PNG, HEIC, or WebP image.") {
   return new ApiError(400, "VALIDATION_ERROR", message);
 }
 

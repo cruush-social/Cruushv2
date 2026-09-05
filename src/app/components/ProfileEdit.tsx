@@ -1241,7 +1241,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
                   <Upload className="h-7 w-7 text-muted-foreground" />
                   <span className="text-sm text-muted-foreground">{uploadingPhoto ? 'Uploading...' : 'Upload photo'}</span>
                   <input
-                    accept="image/jpeg,image/png,image/webp"
+                    accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif"
                     className="sr-only"
                     disabled={uploadingPhoto || profilePhotoUploadsAvailable === false}
                     onChange={handlePhotoUpload}

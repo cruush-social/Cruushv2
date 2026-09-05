@@ -102,7 +102,11 @@
     "src/app/lib/bugButtonSlot.ts",
     "src/app/lib/bugButtonSlot.test.ts",
     "src/app/components/AlphaBugButton.test.tsx",
-    "src/app/components/PlacesDrawer.tsx"
+    "src/app/components/PlacesDrawer.tsx",
+    "server/src/media-image.ts",
+    "server/src/image-sanitization.ts",
+    "server/src/image-sanitization.test.ts",
+    "src/app/components/ProfileEdit.tsx"
   ],
   "forbiddenPaths": [
     "src/app/assets/brand/**",

@@ -1225,7 +1225,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
           <div className="flex items-center justify-between gap-3">
             <div>
               <input
-                accept="image/jpeg,image/png,image/webp"
+                accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif"
                 aria-label="Choose Feed photo"
                 className="sr-only"
                 onChange={handleFeedPhotoSelection}
