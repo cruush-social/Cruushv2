@@ -1,14 +1,14 @@
 {
   "schemaVersion": 2,
-  "taskId": "cruush-admin-batch-20260904b",
+  "taskId": "cruush-photo-upload-mime-aliases-20260905",
   "status": "active",
-  "objective": "Baby rattle for Little, one vers icon per position, redundant profile name removed, 3h feed expiry, Feed Filter naming.",
-  "userOutcome": "Little draws a rattle; vers top and bottom use the badge menu emblems everywhere; the profile header no longer repeats the name; posts can expire in 3 hours; the Feed filter is called Feed Filter.",
+  "objective": "Accept the mime labels browsers really put on photos so uploads stop failing as invalid formats.",
+  "userOutcome": "A JPEG or PNG straight off a phone uploads, whatever label the browser attaches.",
   "audience": "cruush members and the 1.6 release-email audience.",
   "successCriteria": [
-    "Migration 147 registered and replay safe.",
-    "Server build clean.",
-    "All card suites pass."
+    "image/jpg and image/pjpeg accepted for JPEG bytes.",
+    "image/x-png accepted for PNG bytes.",
+    "A JPEG declared as image/png is still rejected."
   ],
   "mustPreserve": [
     "Preserve approved custom map tiles, theme, people pins, Ghost Mode, Dark Room, Pulse, and unrelated map behavior.",
@@ -19,8 +19,7 @@
     "Keep user-facing copy free of em dashes and spell cruush lowercase."
   ],
   "nonGoals": [
-    "No new badge artwork beyond the rattle.",
-    "No change to existing expiry options."
+    "No loosening of the content check itself: bytes that are genuinely another format are still rejected."
   ],
   "assumptions": [
     {
@@ -42,7 +41,7 @@
       "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "3h appears in the composer; Little shows a rattle.",
+  "nextVisibleMilestone": "Profile photo upload succeeds on cruush.app.",
   "stopConditions": [
     "Stop the data-expansion slice if the full prior source cache cannot be recovered or if a source record is private or unsafe to publish.",
     "Stop publication because push and deployment are not authorized by this task."
@@ -74,54 +73,13 @@
   "branch": "release/1.6-integration-20260901",
   "job": "Finish the named 1.6 changes and update the release email locally.",
   "allowedPaths": [
-    "src/app/components/PositionRoleGlyphs.tsx",
-    "src/app/components/ProfileView.tsx",
-    "src/app/components/LocalFeed.tsx",
-    "src/app/lib/postApi.ts",
-    "server/src/post-schema.ts",
-    "server/src/routes/posts.ts",
-    "server/src/map-pings.ts",
-    "server/src/migrate.ts",
-    "server/sql/147_feed_post_expiry_3h.sql",
+    "server/src/media-image.ts",
+    "server/src/media-image.test.ts",
     "index.html",
     "public/sw.js",
     "public/service-worker-recovery.js",
     "src/main.tsx",
-    "AI_TASK.json",
-    "src/app/components/ui/dialog.tsx",
-    "src/app/components/Changelog.test.tsx",
-    "src/app/components/ProfileView.test.tsx",
-    "src/app/components/Rewards.tsx",
-    "src/app/components/UserActivityCapsule.tsx",
-    "src/app/components/MapHome.tsx",
-    "src/app/components/MapHome.test.tsx",
-    "src/app/components/MapView.tsx",
-    "src/app/components/PrivateGroupChat.tsx",
-    "src/app/components/MapPingSheet.tsx",
-    "src/app/components/SideBadgePair.tsx",
-    "src/app/lib/bugButtonSlot.ts",
-    "src/app/lib/bugButtonSlot.test.ts",
-    "src/app/components/AlphaBugButton.test.tsx",
-    "src/app/components/PlacesDrawer.tsx",
-    "server/src/media-image.ts",
-    "server/src/image-sanitization.ts",
-    "server/src/image-sanitization.test.ts",
-    "src/app/components/ProfileEdit.tsx",
-    "server/sql/148_name_unnamed_spots.sql",
-    "server/sql/149_merge_bathroom_subspots.sql",
-    "server/src/message-schema.ts",
-    "server/src/routes/messages.ts",
-    "src/app/components/DirectMessages.tsx",
-    "server/sql/150_feed_post_expiry_30m.sql",
-    "src/app/components/LocalFeed.test.tsx",
-    "src/app/components/TravelModeSettings.tsx",
-    "server/src/conversation-vibes.test.ts",
-    "src/app/lib/messagePhotoProcessing.ts",
-    "src/app/lib/saveMySignal.test.ts",
-    "src/app/components/placeClusterScale.test.ts",
-    "src/app/lib/pulseHold.ts",
-    "src/app/lib/pulseHold.test.ts",
-    "src/app/components/MapProfilePopup.tsx"
+    "AI_TASK.json"
   ],
   "forbiddenPaths": [
     "src/app/assets/brand/**",

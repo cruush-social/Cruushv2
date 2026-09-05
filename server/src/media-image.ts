@@ -35,6 +35,20 @@ export type ProcessedImage = {
   variants: ProcessedImageVariant[];
 };
 
+/** Every label a browser might legitimately put on this format's bytes. */
+function mimeTypeAliases(detectedMimeType: string) {
+  switch (detectedMimeType) {
+    case "image/jpeg":
+      return new Set(["image/jpeg", "image/jpg", "image/pjpeg"]);
+    case "image/heic":
+      return new Set(["image/heic", "image/heif", "image/heic-sequence", "image/heif-sequence"]);
+    case "image/png":
+      return new Set(["image/png", "image/x-png"]);
+    default:
+      return new Set([detectedMimeType]);
+  }
+}
+
 function invalidImage(message = "Upload a valid JPEG, PNG, HEIC, or WebP image.") {
   return new ApiError(400, "VALIDATION_ERROR", message);
 }
@@ -104,7 +118,12 @@ export async function processUploadedImage(bytes: Buffer, declaredMimeType?: str
 
     const detectedMimeType = mimeTypes[format as keyof typeof mimeTypes];
 
-    if (declaredMimeType && declaredMimeType !== detectedMimeType) {
+    // Browsers and phones label the same bytes several ways: image/jpg for a
+    // JPEG, image/heif for a HEIC. Comparing against one exact string rejected
+    // real photos whose content was perfectly valid, which is what made "tried
+    // png and jpg" fail. The check still catches content that is genuinely a
+    // different format from what was claimed.
+    if (declaredMimeType && !mimeTypeAliases(detectedMimeType).has(declaredMimeType.trim().toLowerCase())) {
       throw invalidImage("Image content does not match its declared type.");
     }
 
