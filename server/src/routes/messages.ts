@@ -806,10 +806,14 @@ function assertCanManageConversation(conversation: ConversationRow, action: "tim
 
 function expirationSql(timerParam: string) {
   return `case
+             when ${timerParam} = '5m' then now() + interval '5 minutes'
              when ${timerParam} = '1h' then now() + interval '1 hour'
+             when ${timerParam} = '8h' then now() + interval '8 hours'
              when ${timerParam} = '24h' then now() + interval '24 hours'
+             when ${timerParam} = '3d' then now() + interval '3 days'
              when ${timerParam} = '7d' then now() + interval '7 days'
              when ${timerParam} = '30d' then now() + interval '30 days'
+             when ${timerParam} = '90d' then now() + interval '90 days'
              else null
            end`;
 }

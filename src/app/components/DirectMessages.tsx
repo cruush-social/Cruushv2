@@ -51,10 +51,14 @@ const messageCardActionClassName = '!gap-1 [&>button]:!size-9 [&>button]:!p-1.5 
 
 const timerOptions: Array<{ value: ConversationTimer; label: string }> = [
   { value: 'off', label: 'Off' },
+  { value: '5m', label: '5 minutes' },
   { value: '1h', label: '1 hour' },
+  { value: '8h', label: '8 hours' },
   { value: '24h', label: '24 hours' },
+  { value: '3d', label: '3 days' },
   { value: '7d', label: '7 days' },
   { value: '30d', label: '30 days' },
+  { value: '90d', label: '90 days' },
 ];
 
 function formatRelativeTime(isoTimestamp: string) {
@@ -102,7 +106,7 @@ function normalizeConversation(raw: any): ConversationThread {
     mutual: typeof raw?.mutual === 'boolean' ? raw.mutual : false,
     membersLabel: raw?.membersLabel ?? undefined,
     currentUserRole: ['owner', 'admin', 'member'].includes(raw?.currentUserRole) ? raw.currentUserRole : undefined,
-    disappearingTimer: ['off', '1h', '24h', '7d', '30d'].includes(raw?.disappearingTimer) ? raw.disappearingTimer : undefined,
+    disappearingTimer: ['off', '5m', '1h', '8h', '24h', '3d', '7d', '30d', '90d'].includes(raw?.disappearingTimer) ? raw.disappearingTimer : undefined,
     closed: typeof raw?.closed === 'boolean' ? raw.closed : undefined,
     tags: Array.isArray(raw?.tags) ? raw.tags : [],
   };

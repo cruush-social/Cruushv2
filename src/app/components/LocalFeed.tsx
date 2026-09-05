@@ -14,6 +14,7 @@ import FeedAttachmentPreview from './FeedAttachmentPreview';
 import FeedPhotoViewer from './FeedPhotoViewer';
 import MapFiltersSurface, { DEFAULT_FILTER_STATE, type FilterState } from './MapFiltersSurface';
 import { ProfilePhotoCropper } from './ProfileEdit';
+import { Slider } from './ui/slider';
 import { Switch } from './ui/switch';
 import {
   Dialog,
@@ -99,6 +100,7 @@ const FEED_WINDOW_OPTIONS: Array<{ value: FeedPostWindow; label: string }> = [
   { value: '1h', label: '1h' },
 ];
 const FEED_EXPIRY_OPTIONS: Array<{ value: FeedPostExpiry; label: string }> = [
+  { value: '30m', label: '30m' },
   { value: '1h', label: '1h' },
   { value: '3h', label: '3h' },
   { value: '6h', label: '6h' },
@@ -1146,33 +1148,32 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
                 applied to everything. Every composer starts at Never. */}
             <section className="rounded-lg border border-white/10 bg-black/42 p-3">
               <p className="mb-2 text-sm font-semibold text-white">This post expires</p>
-              <div className="grid grid-cols-6 gap-1.5">
-                {FEED_EXPIRY_OPTIONS.map((option) => {
-                  const selected = expiresIn === option.value;
-                  return (
-                    <button
-                      key={option.value}
-                      type="button"
-                      className={[
-                        'h-10 rounded-full border text-sm font-semibold transition',
-                        selected
-                          ? 'border-white/15 text-white'
-                          : 'border-white/10 bg-black/40 text-white/72 hover:bg-white/8',
-                      ].join(' ')}
-                      style={selected ? { background: 'var(--cruush-gradient)' } : undefined}
-                      aria-pressed={selected}
-                      onClick={() => {
-                        if (option.value !== 'never' && hasCruushPlus !== true) {
-                          setPlusCardOpen(true);
-                          return;
-                        }
-                        setExpiresIn(option.value);
-                      }}
-                    >
-                      {option.label}{option.value !== 'never' && hasCruushPlus !== true ? ' +' : ''}
-                    </button>
-                  );
-                })}
+              {/* A slider rather than a row of buttons: the options are an
+                  ordered scale from 30 minutes to never, so sliding along it
+                  reads better than picking one of six pills. */}
+              <Slider
+                aria-label="This post expires"
+                className="mt-1"
+                data-testid="feed-expiry-slider"
+                max={FEED_EXPIRY_OPTIONS.length - 1}
+                min={0}
+                step={1}
+                value={[Math.max(0, FEED_EXPIRY_OPTIONS.findIndex((option) => option.value === expiresIn))]}
+                onValueChange={([index]) => {
+                  const option = FEED_EXPIRY_OPTIONS[index] ?? FEED_EXPIRY_OPTIONS[FEED_EXPIRY_OPTIONS.length - 1];
+                  if (option.value !== 'never' && hasCruushPlus !== true) {
+                    setPlusCardOpen(true);
+                    return;
+                  }
+                  setExpiresIn(option.value);
+                }}
+              />
+              <div className="mt-2 flex items-center justify-between text-xs text-white/58">
+                <span>{FEED_EXPIRY_OPTIONS[0].label}</span>
+                <span className="font-semibold text-white" data-testid="feed-expiry-value">
+                  {FEED_EXPIRY_OPTIONS.find((option) => option.value === expiresIn)?.label ?? 'Never'}
+                </span>
+                <span>{FEED_EXPIRY_OPTIONS[FEED_EXPIRY_OPTIONS.length - 1].label}</span>
               </div>
               <p className="mt-2 text-xs text-white/58">Never expire is free. Custom timers are part of Feed+.</p>
             </section>

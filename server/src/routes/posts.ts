@@ -29,7 +29,7 @@ type PostRow = {
   id: string;
   user_id: string;
   content: string;
-  expires_in: "1h" | "3h" | "6h" | "24h" | "7d" | "never";
+  expires_in: "30m" | "1h" | "3h" | "6h" | "24h" | "7d" | "never";
   expires_at: string | Date;
   created_at: string | Date;
   content_ciphertext?: string | null;

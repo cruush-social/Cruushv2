@@ -122,6 +122,19 @@ function expirySection(dialog: HTMLElement) {
   return heading.parentElement as HTMLElement;
 }
 
+/** The expiry control is a slider over an ordered scale, not a row of pills. */
+function setExpiry(composer: HTMLElement, label: string) {
+  const slider = within(composer).getByTestId('feed-expiry-slider').querySelector('[role="slider"]') as HTMLElement;
+  slider.focus();
+  const order = ['30m', '1h', '3h', '6h', '24h', '7d', 'Never'];
+  const target = order.indexOf(label);
+  const current = order.indexOf(within(composer).getByTestId('feed-expiry-value').textContent ?? 'Never');
+  const key = target > current ? 'ArrowRight' : 'ArrowLeft';
+  for (let step = 0; step < Math.abs(target - current); step += 1) {
+    fireEvent.keyDown(slider, { key });
+  }
+}
+
 describe('LocalFeed', () => {
   beforeEach(() => {
     createFeedPost.mockReset();
@@ -651,8 +664,8 @@ describe('LocalFeed', () => {
     openComposer();
 
     // Both gates now sit on the post being written, not in settings.
-    await waitFor(() => expect(within(composer).getByRole('button', { name: '1h +' })).toBeEnabled());
-    fireEvent.click(within(composer).getByRole('button', { name: '1h +' }));
+    await waitFor(() => expect(within(composer).getByTestId('feed-expiry-slider')).toBeInTheDocument());
+    setExpiry(composer, '1h');
 
     expect(await screen.findByTestId('cruush-plus-card')).toBeInTheDocument();
     expect(updateFeedSettings).not.toHaveBeenCalled();
@@ -757,10 +770,10 @@ describe('LocalFeed', () => {
     const composer = await screen.findByTestId('local-feed-composer');
     openComposer();
     const input = within(composer).getByPlaceholderText('Share something with nearby people...');
-    await waitFor(() => expect(within(expirySection(composer)).getByRole('button', { name: '7d' })).toBeEnabled());
+    await waitFor(() => expect(within(composer).getByTestId('feed-expiry-slider')).toBeInTheDocument());
 
     fireEvent.change(input, { target: { value: 'seven day post' } });
-    fireEvent.click(within(expirySection(composer)).getByRole('button', { name: '7d' }));
+    setExpiry(composer, '7d');
     fireEvent.click(await within(composer).findByRole('button', { name: 'Post' }));
 
     await waitFor(() => expect(createFeedPost).toHaveBeenNthCalledWith(1, {
@@ -807,12 +820,10 @@ describe('LocalFeed', () => {
     const composer = await screen.findByTestId('local-feed-composer');
     openComposer();
 
-    const never = within(expirySection(composer)).getByRole('button', { name: 'Never' });
-    await waitFor(() => expect(never).toHaveAttribute('aria-pressed', 'true'));
-    expect(within(expirySection(composer)).getByRole('button', { name: '24h' })).toHaveAttribute('aria-pressed', 'false');
+    await waitFor(() => expect(within(composer).getByTestId('feed-expiry-value')).toHaveTextContent('Never'));
 
     // Choosing a timer is no longer a saved setting.
-    fireEvent.click(within(expirySection(composer)).getByRole('button', { name: '7d' }));
+    setExpiry(composer, '7d');
     expect(updateFeedSettings).not.toHaveBeenCalled();
   });
 

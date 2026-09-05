@@ -108,7 +108,12 @@
     "server/src/image-sanitization.test.ts",
     "src/app/components/ProfileEdit.tsx",
     "server/sql/148_name_unnamed_spots.sql",
-    "server/sql/149_merge_bathroom_subspots.sql"
+    "server/sql/149_merge_bathroom_subspots.sql",
+    "server/src/message-schema.ts",
+    "server/src/routes/messages.ts",
+    "src/app/components/DirectMessages.tsx",
+    "server/sql/150_feed_post_expiry_30m.sql",
+    "src/app/components/LocalFeed.test.tsx"
   ],
   "forbiddenPaths": [
     "src/app/assets/brand/**",
