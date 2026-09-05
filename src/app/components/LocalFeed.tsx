@@ -1349,7 +1349,10 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
                           targetId={post.id}
                           targetLabel={`post by ${post.user.name}`}
                           targetUserId={post.user.id}
-                          className="h-7 w-7 shrink-0 text-muted-foreground hover:text-white"
+                          // size-9 from the icon variant wins over a plain
+                          // h-7/w-7, so the button kept a hit area wider than
+                          // the flag and pushed into the metadata beside it.
+                          className="size-7 shrink-0 p-0 text-muted-foreground hover:text-white"
                         />
                       ) : null}
                       {currentUserId && post.user.id !== currentUserId ? (

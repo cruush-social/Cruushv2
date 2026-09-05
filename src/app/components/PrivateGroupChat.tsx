@@ -1542,7 +1542,7 @@ export default function PrivateGroupChat({
         {conversation ? (
           <div
             data-testid="chat-composer-bar"
-            className={`fixed bottom-[var(--chat-composer-bottom)] left-0 right-0 max-w-[100vw] overflow-x-hidden border-t border-border bg-background/90 px-3 pt-3 backdrop-blur-md sm:px-4 ${keyboardInset > 0 ? 'pb-3' : 'pb-0'}`}
+            className={`fixed bottom-[var(--chat-composer-bottom)] left-0 right-0 z-[70] max-w-[100vw] overflow-x-hidden border-t border-border bg-background px-3 pt-3 backdrop-blur-md sm:px-4 ${keyboardInset > 0 ? 'pb-3' : 'pb-0'}`}
             data-keyboard-open={keyboardInset > 0 ? 'true' : undefined}
             style={composerBarStyle}
           >

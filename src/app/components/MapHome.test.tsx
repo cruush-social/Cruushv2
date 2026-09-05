@@ -3065,7 +3065,7 @@ describe('MapHome', () => {
     expect(recentToggle).toHaveTextContent('Recently Active');
     expect(recentToggle.parentElement).toHaveClass('justify-center');
     expect(recentToggle).toHaveStyle({ background: 'var(--cruush-gradient)' });
-    expect(recentPanel.parentElement).toHaveClass('bottom-[calc(6.25rem+env(safe-area-inset-bottom))]', 'left-0', 'right-0', 'z-[39]');
+    expect(recentPanel.parentElement).toHaveClass('bottom-[calc(6.25rem+env(safe-area-inset-bottom))]', 'left-0', 'right-0', 'z-[130]');
     expect(recentPanel).toHaveClass('max-w-[35.75rem]', 'rounded-2xl', 'bg-background/68', 'backdrop-blur-md', 'p-3');
     expect(screen.getByTestId('recently-active-tray')).toHaveClass('justify-center', 'overflow-hidden');
     expect(screen.getByTestId('recently-active-tray')).not.toHaveClass('scrollbar-subtle', 'pb-2');

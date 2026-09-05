@@ -92,7 +92,11 @@
     "src/app/components/Changelog.test.tsx",
     "src/app/components/ProfileView.test.tsx",
     "src/app/components/Rewards.tsx",
-    "src/app/components/UserActivityCapsule.tsx"
+    "src/app/components/UserActivityCapsule.tsx",
+    "src/app/components/MapHome.tsx",
+    "src/app/components/MapHome.test.tsx",
+    "src/app/components/MapView.tsx",
+    "src/app/components/PrivateGroupChat.tsx"
   ],
   "forbiddenPaths": [
     "src/app/assets/brand/**",
