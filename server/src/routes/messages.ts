@@ -666,7 +666,13 @@ const CONVERSATION_SELECT = `
     other_profile.pronouns as other_user_pronouns,
     case when c.kind = 'dm' then other_profile.photos[1] else null end as other_user_photo,
     case when c.kind = 'dm' then to_jsonb(other_profile)->'side_badges' else null end as other_user_side_badges,
-    case when c.kind = 'dm' then other_profile.vibes else null end as other_user_vibes,
+    -- Cruushes cards read vibes, scenes and archetypes as one set, so a
+    -- message card shows the same three a profile card would.
+    case when c.kind = 'dm' then (
+      coalesce(other_profile.vibes, '{}'::text[])
+      || coalesce(other_profile.scenes, '{}'::text[])
+      || coalesce(other_profile.archetypes, '{}'::text[])
+    ) else null end as other_user_vibes,
     case when c.kind = 'dm' then exists (
       select 1 from user_travel_pins travel
       where travel.user_id = other_member.user_id
