@@ -1,7 +1,10 @@
 export const MESSAGE_PHOTO_MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
 export const MESSAGE_PHOTO_UPLOAD_ACCEPT = 'image/jpeg,image/png,image/webp,image/heic,image/heif';
 
-const SERVER_SUPPORTED_MESSAGE_PHOTO_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+// The server decodes HEIC now, so a photo straight off an iPhone goes up as it
+// is. It used to be transcoded in the browser first, which fails outright where
+// the browser cannot decode HEIC at all.
+const SERVER_SUPPORTED_MESSAGE_PHOTO_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif']);
 const PREVIEWABLE_MESSAGE_PHOTO_TYPES = new Set([
   ...SERVER_SUPPORTED_MESSAGE_PHOTO_TYPES,
   'image/heic',
