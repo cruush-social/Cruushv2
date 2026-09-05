@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import AlphaBugButton, { ALPHA_BUG_TIP_STORAGE_KEY } from './AlphaBugButton';
-import { registerBugButtonSlot } from '../lib/bugButtonSlot';
+import { registerBugButtonSlot, resetBugButtonSlotsForTest } from '../lib/bugButtonSlot';
 import { clearPersistentNoticeFlag } from '../lib/persistentNotice';
 
 const { createSupportRequest } = vi.hoisted(() => ({
@@ -37,7 +37,7 @@ function renderAlphaBugButton(
 
 describe('AlphaBugButton', () => {
   afterEach(() => {
-    registerBugButtonSlot(null);
+    resetBugButtonSlotsForTest();
     Object.defineProperty(navigator, 'userAgentData', { configurable: true, value: undefined });
   });
 

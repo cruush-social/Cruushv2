@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { registerBugButtonSlot } from '../lib/bugButtonSlot';
 import { ArrowLeft, Clock3, MapPin, Plus, Search, Star, Users } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -399,8 +400,14 @@ export default function PlacesDrawer({ open, onOpenChange, coordinates, onFilter
         data-testid="places-drawer"
       >
         <SheetHeader className="shrink-0 border-b border-white/10 py-4 pl-14 pr-[4.5rem]">
-          <SheetTitle className="text-xl text-white">Spots</SheetTitle>
-          <SheetDescription>Public cruising spaces, healthcare clinics, and community spots.</SheetDescription>
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <SheetTitle className="text-xl text-white">Spots</SheetTitle>
+              <SheetDescription>Public cruising spaces, healthcare clinics, and community spots.</SheetDescription>
+            </div>
+            {/* The drawer covers the map, and its own bug button with it. */}
+            <div className="h-9 w-9 shrink-0" data-testid="places-bug-button-slot" ref={registerBugButtonSlot} />
+          </div>
         </SheetHeader>
         {drawerBody}
         {!showSubmit ? (

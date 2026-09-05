@@ -98,7 +98,11 @@
     "src/app/components/MapView.tsx",
     "src/app/components/PrivateGroupChat.tsx",
     "src/app/components/MapPingSheet.tsx",
-    "src/app/components/SideBadgePair.tsx"
+    "src/app/components/SideBadgePair.tsx",
+    "src/app/lib/bugButtonSlot.ts",
+    "src/app/lib/bugButtonSlot.test.ts",
+    "src/app/components/AlphaBugButton.test.tsx",
+    "src/app/components/PlacesDrawer.tsx"
   ],
   "forbiddenPaths": [
     "src/app/assets/brand/**",
