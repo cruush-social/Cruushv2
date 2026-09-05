@@ -153,7 +153,9 @@ const migrationFiles = [
   "144_profile_protections.sql",
   "145_rewrite_scraped_spot_descriptions.sql",
   "146_pulse_radius_25_50.sql",
-  "147_feed_post_expiry_3h.sql"
+  "147_feed_post_expiry_3h.sql",
+  "148_name_unnamed_spots.sql",
+  "149_merge_bathroom_subspots.sql"
 ];
 const rewardSafetyPreflightFiles = [
   "079_daily_check_in_rewards.sql",

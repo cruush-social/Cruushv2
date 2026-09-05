@@ -106,7 +106,9 @@
     "server/src/media-image.ts",
     "server/src/image-sanitization.ts",
     "server/src/image-sanitization.test.ts",
-    "src/app/components/ProfileEdit.tsx"
+    "src/app/components/ProfileEdit.tsx",
+    "server/sql/148_name_unnamed_spots.sql",
+    "server/sql/149_merge_bathroom_subspots.sql"
   ],
   "forbiddenPaths": [
     "src/app/assets/brand/**",
