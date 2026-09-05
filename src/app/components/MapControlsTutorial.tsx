@@ -493,8 +493,16 @@ export default function MapControlsTutorial({ open, onComplete, onActivateStep, 
     let animationFrame = 0;
     let measureUntil = 0;
     const measure = () => {
+      // The card is fixed, so it positions against the layout viewport, but on
+      // iOS Chrome the URL bar makes the visible window a shorter slice of
+      // that. Measuring the layout viewport put the card, and its buttons,
+      // below the part of the screen anyone can reach.
+      const visual = window.visualViewport;
       const viewportWidth = window.innerWidth || DEFAULT_VIEWPORT_WIDTH_PX;
-      const viewportHeight = window.innerHeight || DEFAULT_VIEWPORT_HEIGHT_PX;
+      const visibleBottom = visual
+        ? Math.round(visual.offsetTop + visual.height)
+        : 0;
+      const viewportHeight = (visibleBottom || window.innerHeight) || DEFAULT_VIEWPORT_HEIGHT_PX;
       const cardElement = cardRef.current;
       const cardRect = cardElement?.getBoundingClientRect();
       const nextRects = readTargetRects(step.id);
@@ -533,6 +541,8 @@ export default function MapControlsTutorial({ open, onComplete, onActivateStep, 
     scheduleMeasurementBurst();
     window.addEventListener('resize', measure);
     window.addEventListener('scroll', measure, true);
+    window.visualViewport?.addEventListener('resize', measure);
+    window.visualViewport?.addEventListener('scroll', measure);
 
     const resizeObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure);
     const mutationObserver = typeof MutationObserver === 'undefined' ? null : new MutationObserver(scheduleMeasurementBurst);
@@ -552,6 +562,8 @@ export default function MapControlsTutorial({ open, onComplete, onActivateStep, 
       window.cancelAnimationFrame(animationFrame);
       window.removeEventListener('resize', measure);
       window.removeEventListener('scroll', measure, true);
+      window.visualViewport?.removeEventListener('resize', measure);
+      window.visualViewport?.removeEventListener('scroll', measure);
       resizeObserver?.disconnect();
       mutationObserver?.disconnect();
     };

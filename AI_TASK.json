@@ -1,14 +1,13 @@
 {
   "schemaVersion": 2,
-  "taskId": "cruush-onboarding-signal-example-20260905",
+  "taskId": "cruush-popup-and-tutorial-reach-20260905",
   "status": "active",
-  "objective": "Stop the onboarding signal copy being cut off and show the signal as it will appear above a heart.",
-  "userOutcome": "Someone writing their signal sees it in the real badge over their own heart, with a character count, and nothing clipped at phone width.",
+  "objective": "Make popup close buttons a real tap target and stop the map tutorial placing itself outside the visible screen.",
+  "userOutcome": "A popup can be closed with a thumb, and the tutorial card and its buttons stay where they can be reached on a phone browser with a URL bar.",
   "audience": "cruush members and the 1.6 release-email audience.",
   "successCriteria": [
-    "The example uses the same badge component the map draws.",
-    "A 35 character signal wraps inside the card rather than clipping or overhanging at 393px.",
-    "The character count replaces the explanatory line that was wrapping off."
+    "The dialog close control is a 44px target rather than a 16px glyph.",
+    "The tutorial measures the visible viewport rather than the layout viewport."
   ],
   "mustPreserve": [
     "Preserve approved custom map tiles, theme, people pins, Ghost Mode, Dark Room, Pulse, and unrelated map behavior.",
@@ -20,7 +19,7 @@
     "Never delete a Spot that carries a check-in, a rating, or a Pink Book post."
   ],
   "nonGoals": [
-    "No change to the signal limit or to how the map renders a signal."
+    "No change to where the close sits or to the tutorial steps."
   ],
   "assumptions": [
     {
@@ -42,7 +41,7 @@
       "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "The signal rite on cruush.app shows the live example.",
+  "nextVisibleMilestone": "Both land on cruush.app.",
   "stopConditions": [
     "Stop the data-expansion slice if the full prior source cache cannot be recovered or if a source record is private or unsafe to publish.",
     "Stop publication because push and deployment are not authorized by this task."
@@ -75,9 +74,8 @@
   "job": "Finish the named 1.6 changes and update the release email locally.",
   "allowedPaths": [
     "AI_TASK.json",
-    "src/app/components/SignalBadge.tsx",
-    "src/app/components/MapView.tsx",
-    "src/app/components/ProfileOnboarding.tsx"
+    "src/app/components/ui/dialog.tsx",
+    "src/app/components/MapControlsTutorial.tsx"
   ],
   "forbiddenPaths": [
     "src/app/assets/brand/**",
