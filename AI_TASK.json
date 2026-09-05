@@ -1,14 +1,13 @@
 {
   "schemaVersion": 2,
-  "taskId": "cruush-spot-duplicates-share-preview-20260905",
+  "taskId": "cruush-prefix-duplicate-spots-20260905",
   "status": "active",
-  "objective": "Merge duplicate Spots that carry nothing, give the Spot description room under the report line, and enlarge the share sheet profile previews.",
-  "userOutcome": "One venue is one Spot on the map, a Spot description no longer crowds the report line, and the share menus show a readable profile picture.",
+  "objective": "Merge Spots imported twice under a short name and a fuller one.",
+  "userOutcome": "Sunset no longer sits beside Sunset Adult, and Bossa Nova no longer sits beside Bossa Nova Civic Club.",
   "audience": "cruush members and the 1.6 release-email audience.",
   "successCriteria": [
-    "A same-named Spot within 150m of another is removed only when it holds no check-ins, ratings, or Pink Book posts.",
-    "The Spot description sits clear of the report line.",
-    "The share sheet heart is larger than it was."
+    "A Spot whose name starts another Spot name on a word boundary, within roughly 150m, is removed.",
+    "Only the shorter name goes, and only when it holds no check-ins, ratings, or Pink Book posts."
   ],
   "mustPreserve": [
     "Preserve approved custom map tiles, theme, people pins, Ghost Mode, Dark Room, Pulse, and unrelated map behavior.",
@@ -20,7 +19,7 @@
     "Never delete a Spot that carries a check-in, a rating, or a Pink Book post."
   ],
   "nonGoals": [
-    "No merging of nearby Spots that are genuinely different venues."
+    "No merging of a short name that only coincidentally begins another venue name elsewhere in the city."
   ],
   "assumptions": [
     {
@@ -42,7 +41,7 @@
       "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "Duplicate Spots are gone from the map on cruush.app.",
+  "nextVisibleMilestone": "The short duplicate names are gone from the map on cruush.app.",
   "stopConditions": [
     "Stop the data-expansion slice if the full prior source cache cannot be recovered or if a source record is private or unsafe to publish.",
     "Stop publication because push and deployment are not authorized by this task."
@@ -75,13 +74,7 @@
   "job": "Finish the named 1.6 changes and update the release email locally.",
   "allowedPaths": [
     "AI_TASK.json",
-    "index.html",
-    "public/sw.js",
-    "public/service-worker-recovery.js",
-    "src/main.tsx",
-    "src/app/components/PlaceDetail.tsx",
-    "src/app/components/InAppShareDialog.tsx",
-    "server/sql/151_merge_duplicate_named_spots.sql",
+    "server/sql/152_merge_prefix_duplicate_spots.sql",
     "server/src/migrate.ts"
   ],
   "forbiddenPaths": [
