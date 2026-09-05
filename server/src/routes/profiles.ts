@@ -58,11 +58,13 @@ import {
 } from "../profile-sensitive.js";
 import { getActiveAccountUserId, getAuthenticatedUserId } from "../request-auth.js";
 import { assertUsersNotBlocked } from "../user-blocks.js";
+import { formatLastActiveFromDate } from "../discovery-users.js";
 import { getTravelPin, locationPayloadAtTravelPin } from "../travel-pins.js";
 import {
   DEFAULT_GHOST_RADIUS_METERS,
   GHOST_RADIUS_OPTIONS,
   GHOST_ROTATION_MINUTES,
+  formatDistanceLabel,
   loadLocationEnvelope,
   loadVisibilityPolicy,
   makeDisplayLocationToken,
@@ -1459,18 +1461,87 @@ async function loadProfileData(
     ? { ...mappedProfile, travelling: true, travelLabel: travelPin.label }
     : mappedProfile;
 
+  // Discovery carried these two lines and the profile did not, so a profile
+  // opened from anywhere other than the map showed neither. They are read from
+  // the same fuzzed coordinates and the same clock discovery already uses, so
+  // nothing new is revealed.
+  const withPresence = !options.includePrivateSensitive && options.viewerUserId && options.viewerUserId !== userId
+    ? {
+        ...withTravel,
+        last_active: formatLastActiveFromDate(row.location_updated_at ?? row.updated_at),
+        distance_label: await loadViewerDistanceLabel(app, options.viewerUserId, userId, row, relationship)
+      }
+    : withTravel;
+
   if (options.includePrivateSensitive && options.request) {
     const location = await buildOwnerLocationDisplay(app, options.request, userId);
 
     if (location) {
       return {
-        ...withTravel,
+        ...withPresence,
         location
       };
     }
   }
 
-  return withTravel;
+  return withPresence;
+}
+
+/**
+ * The distance the viewer should see for this profile, or null when either
+ * side has no usable coordinates. Ghost Mode collapses it to Nearby exactly as
+ * it does on the map, and Dark Room is left to the client, which already
+ * substitutes its own label.
+ */
+async function loadViewerDistanceLabel(
+  app: FastifyInstance,
+  viewerUserId: string,
+  targetUserId: string,
+  row: ProfileRow,
+  relationship: RelationshipPermissions | null
+) {
+  const targetLat = row.fuzzy_lat ?? row.lat;
+  const targetLng = row.fuzzy_lng ?? row.lng;
+
+  if (targetLat == null || targetLng == null) {
+    return null;
+  }
+
+  const viewerResult = await app.db.query<{ lat: number | null; lng: number | null; fuzzy_lat: number | null; fuzzy_lng: number | null }>(
+    "select lat, lng, fuzzy_lat, fuzzy_lng from profiles where id = $1",
+    [viewerUserId]
+  );
+  const viewer = viewerResult.rows[0];
+  const viewerLat = viewer?.fuzzy_lat ?? viewer?.lat;
+  const viewerLng = viewer?.fuzzy_lng ?? viewer?.lng;
+
+  if (viewerLat == null || viewerLng == null) {
+    return null;
+  }
+
+  const policy = await getEffectiveVisibilityPolicy(app, targetUserId).catch((error: unknown) => {
+    if (isSchemaCompatibilityError(error)) {
+      return null;
+    }
+
+    throw error;
+  });
+
+  if (policy?.baseMode === "STEALTH") {
+    return null;
+  }
+
+  const displayMode = relationship?.canRevealPreciseLocation === true
+    ? "PRECISE" as const
+    : policy?.baseMode === "GHOST" ? "GHOST" as const : "PRECISE" as const;
+
+  return formatDistanceLabel({
+    displayMode,
+    viewerLat,
+    viewerLng,
+    targetLat,
+    targetLng
+  });
 }
 
 async function assertProfileRowVisibleToViewer(

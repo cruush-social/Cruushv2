@@ -160,8 +160,11 @@ export function profileRecordToProfileView(
     name: profile.display_name || 'cruush user',
     age: deriveAge(profile.year_of_birth),
     pronouns: formatJoined(profile.pronouns) ?? 'Ask me',
-    distance: previewState?.distance ?? null,
-    lastActive: previewState?.lastActive ?? null,
+    // The map hands these over in route state; everywhere else the profile
+    // itself carries them, so the line reads the same from a deep link, a
+    // search result, or a Pink Book post.
+    distance: previewState?.distance ?? profile.distance_label ?? null,
+    lastActive: previewState?.lastActive ?? profile.last_active ?? null,
     photos: profile.photos,
     photoMetadata: profile.photo_metadata ?? profile.photos.map((photo) => ({ url: photo, explicit: false })),
     badges: profile.badges ?? [],

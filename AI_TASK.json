@@ -1,14 +1,14 @@
 {
   "schemaVersion": 2,
-  "taskId": "cruush-narrow-phone-chrome-20260905",
+  "taskId": "cruush-profile-presence-line-20260905",
   "status": "active",
-  "objective": "Stop the top bar icons and the bottom bar overflowing their own bars on a narrow phone, and keep the map shell sized to the viewport it is actually in.",
-  "userOutcome": "On a narrow phone the top bar icons stay inside the bar and the bottom bar stays on screen, including after a rotation.",
+  "objective": "Show the distance and last-online line on a profile opened from anywhere, not only from the map.",
+  "userOutcome": "A profile reached from a deep link, a search result, or a Pink Book post carries the same distance and last-online line the map hands over.",
   "audience": "cruush members and the 1.6 release-email audience.",
   "successCriteria": [
-    "At 360px the top action capsule holds all five icons inside its padding.",
-    "At 320px the five bottom nav items sit inside the pill.",
-    "A resize or rotation re-measures the pinned map shell instead of leaving it at the previous size."
+    "The profile payload carries a distance label and a last-active label for a viewer who is not the owner.",
+    "Ghost Mode collapses the distance to Nearby and Dark Room keeps its own label.",
+    "A profile with no route state still shows both."
   ],
   "mustPreserve": [
     "Preserve approved custom map tiles, theme, people pins, Ghost Mode, Dark Room, Pulse, and unrelated map behavior.",
@@ -20,7 +20,7 @@
     "Never delete a Spot that carries a check-in, a rating, or a Pink Book post."
   ],
   "nonGoals": [
-    "No change to which controls are in either bar, or to their order."
+    "No new precision: the label is computed from the same fuzzed coordinates discovery already uses."
   ],
   "assumptions": [
     {
@@ -42,7 +42,7 @@
       "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "The bars hold their icons on a narrow phone on cruush.app.",
+  "nextVisibleMilestone": "A profile opened by deep link on cruush.app shows distance and last online.",
   "stopConditions": [
     "Stop the data-expansion slice if the full prior source cache cannot be recovered or if a source record is private or unsafe to publish.",
     "Stop publication because push and deployment are not authorized by this task."
@@ -75,10 +75,10 @@
   "job": "Finish the named 1.6 changes and update the release email locally.",
   "allowedPaths": [
     "AI_TASK.json",
-    "src/app/components/MapHome.tsx",
-    "src/app/components/MapHome.test.tsx",
-    "src/app/components/BottomNav.tsx",
-    "src/app/App.test.tsx"
+    "server/src/routes/profiles.ts",
+    "src/app/lib/profileApi.ts",
+    "src/app/components/ProfileView.tsx",
+    "src/app/components/ProfileView.test.tsx"
   ],
   "forbiddenPaths": [
     "src/app/assets/brand/**",

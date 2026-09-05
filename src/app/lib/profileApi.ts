@@ -130,6 +130,9 @@ export type ProfileRecord = ProfilePayload & {
   attendingLaunchParty?: boolean;
   travelling?: boolean;
   travelLabel?: string;
+  /** Present on someone else's profile, so it reads the same wherever it is opened. */
+  distance_label?: string | null;
+  last_active?: string | null;
   location?: {
     id: string;
     display_location_token?: DisplayLocationToken;

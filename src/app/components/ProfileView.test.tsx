@@ -196,6 +196,27 @@ describe('ProfileView', () => {
     expect(getProfileById).toHaveBeenCalledWith('user-1');
   });
 
+  it('shows the distance and last online the profile carries, with no route state', async () => {
+    getProfileById.mockResolvedValue(createProfileFixture({
+      distance_label: '2.4 mi',
+      last_active: '10m ago',
+    }));
+
+    render(
+      <MemoryRouter initialEntries={['/profile/user-1']}>
+        <Routes>
+          <Route path="/profile/:userId" element={<ProfileView />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    // Opened from a deep link rather than the map, so nothing was handed over
+    // in route state and the line has to come from the profile itself.
+    // The default distance display is approximate, so 2.4 mi reads as ~2 mi.
+    expect(await screen.findByText(/~2 mi away/)).toBeInTheDocument();
+    expect(screen.getByText(/10m ago/)).toBeInTheDocument();
+  });
+
   it('keeps the age outside the clipped name span', async () => {
     getProfileById.mockResolvedValue(createProfileFixture({
       display_name: 'A very long profile name that needs truncation',
