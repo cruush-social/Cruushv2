@@ -107,7 +107,12 @@ import DlModeMark from './DlModeMark';
 
 const DISCOVERY_MAP_LIMIT = 500;
 const DISCOVERY_BROWSE_RADIUS_MILES = 50;
-const MAP_PRIVACY_REFRESH_INTERVAL_MS = 10_000;
+// Ghost Mode rotates at fifteen minutes at its fastest and the owner's own
+// decoy has a timer scheduled against its exact deadline, so polling the whole
+// discovery list every ten seconds was ninety times more often than anything it
+// could catch. A minute keeps other people's pins fresh without the traffic,
+// and coming back to the foreground still refreshes immediately.
+const MAP_PRIVACY_REFRESH_INTERVAL_MS = 60_000;
 const CROWD_NOTICE_ORDER = ['Dyke', 'Gay', 'T4T'];
 
 type SettledMapViewport = {
@@ -1686,13 +1691,15 @@ export default function MapHome(_props: MapHomeProps = {}) {
       return undefined;
     }
 
+    // A quarter second fires mid-gesture, so a single pan across the city sent
+    // several full discovery queries. Waiting for the map to settle sends one.
     const refreshTimeoutId = window.setTimeout(() => {
       void fetchUsers(
         { lat: mapViewport.center.latitude, lng: mapViewport.center.longitude },
         hasActiveSeekingFilters(filters) ? filters : undefined,
         { background: true },
       );
-    }, 250);
+    }, 600);
 
     return () => window.clearTimeout(refreshTimeoutId);
   }, [filters, isMutualMapMode, mapViewport?.signature]);

@@ -1366,7 +1366,7 @@ describe('MapHome', () => {
 
     await screen.findByRole('button', { name: 'Pin Jordan' });
     const callsBeforeRefresh = getNearbyUsers.mock.calls.length;
-    const privacyRefresh = setIntervalSpy.mock.calls.find(([, delay]) => delay === 10_000)?.[0];
+    const privacyRefresh = setIntervalSpy.mock.calls.find(([, delay]) => delay === 60_000)?.[0];
 
     expect(privacyRefresh).toEqual(expect.any(Function));
     act(() => {

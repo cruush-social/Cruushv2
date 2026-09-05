@@ -1,13 +1,14 @@
 {
   "schemaVersion": 2,
-  "taskId": "cruush-activity-refresh-on-resume-20260905",
+  "taskId": "cruush-discovery-refresh-rate-20260905",
   "status": "active",
-  "objective": "Refresh cruushes and views when the app comes back to the foreground.",
-  "userOutcome": "Views and incoming cruushes are current when the app is reopened, instead of frozen at whatever they were on the last open.",
+  "objective": "Cut how often the map refetches the discovery list.",
+  "userOutcome": "The map costs a fraction of the requests it did, and pins are still current within a minute.",
   "audience": "cruush members and the 1.6 release-email audience.",
   "successCriteria": [
-    "A resume more than a minute after the last read fetches the activity again.",
-    "A resume moments after the last read does not."
+    "The privacy refresh interval is one minute rather than ten seconds.",
+    "A pan sends one discovery query after the map settles rather than several mid-gesture.",
+    "Coming back to the foreground still refreshes immediately."
   ],
   "mustPreserve": [
     "Preserve approved custom map tiles, theme, people pins, Ghost Mode, Dark Room, Pulse, and unrelated map behavior.",
@@ -19,7 +20,7 @@
     "Never delete a Spot that carries a check-in, a rating, or a Pink Book post."
   ],
   "nonGoals": [
-    "No polling while the app is open."
+    "No change to what discovery returns or to Ghost Mode rotation."
   ],
   "assumptions": [
     {
@@ -41,7 +42,7 @@
       "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "Reopening cruush.app shows current views.",
+  "nextVisibleMilestone": "The map on cruush.app issues six times fewer discovery queries while open.",
   "stopConditions": [
     "Stop the data-expansion slice if the full prior source cache cannot be recovered or if a source record is private or unsafe to publish.",
     "Stop publication because push and deployment are not authorized by this task."
@@ -74,8 +75,8 @@
   "job": "Finish the named 1.6 changes and update the release email locally.",
   "allowedPaths": [
     "AI_TASK.json",
-    "src/app/components/CruushActivity.tsx",
-    "src/app/components/CruushActivity.test.tsx"
+    "src/app/components/MapHome.tsx",
+    "src/app/components/MapHome.test.tsx"
   ],
   "forbiddenPaths": [
     "src/app/assets/brand/**",
