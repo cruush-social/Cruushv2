@@ -810,17 +810,15 @@ export default function DirectMessages({
           style={{ WebkitOverflowScrolling: 'touch' }}
         >
           <div className="mx-auto max-w-2xl space-y-5">
-            <div className={`flex items-center justify-between gap-3 ${embedded ? '' : 'pr-14'}`}>
-              <div>
-                <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Group chat</p>
-                <h3 className="text-2xl">New group</h3>
-              </div>
-              <div className="flex items-center gap-2">
-                {!embedded ? <div data-testid="direct-messages-group-bug-button-slot" ref={registerBugButtonSlot} /> : null}
-                <Button type="button" variant="ghost" size="icon" aria-label="Close group composer" onClick={resetGroupComposer}>
-                  <X className="size-4" />
-                </Button>
-              </div>
+            <div className="flex items-center gap-2">
+              <Button type="button" variant="ghost" size="icon" className="shrink-0" aria-label="Back from new group" onClick={resetGroupComposer}>
+                <ChevronLeft className="size-4" />
+              </Button>
+              <h3 className="min-w-0 flex-1 truncate text-xl">New group</h3>
+              <Button type="button" variant="ghost" size="icon" className="shrink-0" aria-label="Close group composer" onClick={resetGroupComposer}>
+                <X className="size-4" />
+              </Button>
+              <div className="h-9 w-9 shrink-0" data-testid="direct-messages-group-bug-button-slot" ref={registerBugButtonSlot} />
             </div>
 
             {groupError ? (
@@ -1247,7 +1245,9 @@ function DirectUserOverlay({
   onOpenProfile: (userId: string) => void;
 }) {
   const dlModeActive = useDlMode();
-  const [activeComposerTab, setActiveComposerTab] = useState<'public' | 'mutuals'>('public');
+  // The compose page lists everyone you may message. Mutuals has its own
+  // surface, so there is nothing here to switch between.
+  const activeComposerTab = 'public' as const;
   const [sortMode, setSortMode] = useState<DirectSortMode>('lastOnline');
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTER_STATE);
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -1319,24 +1319,16 @@ function DirectUserOverlay({
       style={{ WebkitOverflowScrolling: 'touch' }}
     >
       <div className="mx-auto min-h-full max-w-2xl space-y-5 pb-8">
-        <div className={`flex items-center justify-between gap-3 ${embedded ? '' : 'pr-14'}`}>
-          <div className="flex min-w-0 items-center gap-1">
-            <Button type="button" variant="ghost" size="icon" aria-label="Back to message options" onClick={onBack}>
-              <ChevronLeft className="size-4" />
-            </Button>
-            <h3 className="text-2xl">Choose someone to message</h3>
-          </div>
-          <Button type="button" variant="ghost" size="icon" aria-label="Close mutual picker" onClick={onClose}>
+        <div className="flex items-center gap-2">
+          <Button type="button" variant="ghost" size="icon" className="shrink-0" aria-label="Back to message options" onClick={onBack}>
+            <ChevronLeft className="size-4" />
+          </Button>
+          <h3 className="min-w-0 flex-1 truncate text-xl">Choose someone to message</h3>
+          <Button type="button" variant="ghost" size="icon" className="shrink-0" aria-label="Close mutual picker" onClick={onClose}>
             <X className="size-4" />
           </Button>
+          <div className="h-9 w-9 shrink-0" data-testid="message-picker-bug-button-slot" ref={registerBugButtonSlot} />
         </div>
-
-        <Tabs value={activeComposerTab} onValueChange={(value) => setActiveComposerTab(value as 'public' | 'mutuals')}>
-          <TabsList className="grid h-auto w-full grid-cols-2 rounded-lg border border-white/10 bg-background/25 p-1">
-            <TabsTrigger value="public" className="h-10 rounded-md text-sm text-white/72">Public</TabsTrigger>
-            <TabsTrigger value="mutuals" className="h-10 rounded-md text-sm text-white/72">Mutuals</TabsTrigger>
-          </TabsList>
-        </Tabs>
 
         {activeComposerTab === 'public' ? (
           <div className="rounded-2xl border border-white/10 bg-card/58 p-3">
