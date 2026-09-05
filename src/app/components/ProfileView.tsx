@@ -882,6 +882,14 @@ export function ProfileDetailsTabs({
 
       <TabsContent value="intimacy" className={`${compact ? 'mt-4 space-y-4' : 'mt-5 space-y-5'}`}>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Section title="Role" compact={compact}>
+            <BadgeList items={profileView.role} compact={compact} />
+          </Section>
+
+          <Section title="Position" compact={compact}>
+            <BadgeList items={profileView.position} compact={compact} />
+          </Section>
+
           <Section title="Looking For" compact={compact}>
             <BadgeList items={profileView.lookingFor} compact={compact} />
             {profileView.timing ? (
@@ -897,14 +905,6 @@ export function ProfileDetailsTabs({
 
           <Section title="Preferred spots" compact={compact}>
             <BadgeList items={profileView.preferredSpots} compact={compact} />
-          </Section>
-
-          <Section title="Position" compact={compact}>
-            <BadgeList items={profileView.position} compact={compact} />
-          </Section>
-
-          <Section title="Role" compact={compact}>
-            <BadgeList items={profileView.role} compact={compact} />
           </Section>
 
         </div>

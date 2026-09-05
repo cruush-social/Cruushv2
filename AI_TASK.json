@@ -96,7 +96,9 @@
     "src/app/components/MapHome.tsx",
     "src/app/components/MapHome.test.tsx",
     "src/app/components/MapView.tsx",
-    "src/app/components/PrivateGroupChat.tsx"
+    "src/app/components/PrivateGroupChat.tsx",
+    "src/app/components/MapPingSheet.tsx",
+    "src/app/components/SideBadgePair.tsx"
   ],
   "forbiddenPaths": [
     "src/app/assets/brand/**",

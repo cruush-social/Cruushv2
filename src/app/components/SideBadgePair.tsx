@@ -52,7 +52,11 @@ function SavedSideBadge({ badge, side, tone }: {
           </span>
         ) : null}
       </BadgeFrame>
-      <BadgeHoverLabel align={side === 'left' ? 'start' : 'end'}>{label}</BadgeHoverLabel>
+      {/* On a card the label centres under its own badge, the way the map
+          does it. The outer-edge anchor is for the map's paired badges, where
+          two labels either side of a heart would otherwise meet in the middle;
+          a card has the room. */}
+      <BadgeHoverLabel>{label}</BadgeHoverLabel>
     </span>
   );
 }

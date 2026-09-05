@@ -451,15 +451,15 @@ export default function MapPingSheet({
             <div className="min-w-0 space-y-0.5">
               <p className="text-sm font-medium text-white">Your heart beats for 30 minutes</p>
               <p className="text-xs leading-snug text-white/62">
-                Eligible people inside your radius see it beat, your saved signal posts to Feed, and your pin does not move. Optional phone alerts go only to mutuals. A person gets at most one Pulse alert every 4 hours and never more than one from you per day.
+                People in your radius see it beat and your signal posts to Feed. Your pin does not move. Alerts go to mutuals only, at most one every 4 hours.
               </p>
             </div>
           </div>
 
           <div className="rounded-xl border border-white/10 bg-white/[0.045] p-2.5">
             <div className="flex items-center justify-between gap-3">
-              <p className="text-xs uppercase tracking-[0.14em] text-white/48">
-                Your signal <span className="text-white/32">{SIGNAL_MAX_LENGTH} characters max</span>
+              <p className="min-w-0 truncate text-xs uppercase tracking-[0.14em] text-white/48">
+                Your signal <span className="text-white/32">{SIGNAL_MAX_LENGTH} max</span>
               </p>
               {onSaveSignal && !editingSignal ? (
                 <button

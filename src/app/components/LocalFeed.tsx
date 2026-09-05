@@ -1176,6 +1176,9 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
               </div>
               <p className="mt-2 text-xs text-white/58">Never expire is free. Custom timers are part of Feed+.</p>
             </section>
+            {hasCruushPlus ? (
+              <p className="text-xs text-white/58">Up to {MAX_FEED_POST_TAGS} tags.</p>
+            ) : null}
             {postTags.length > 0 ? (
               <div className="flex flex-wrap gap-2" data-testid="feed-post-tags-draft">
                 {postTags.map((tag) => (

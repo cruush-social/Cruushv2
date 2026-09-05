@@ -2841,7 +2841,10 @@ export default function MapHome(_props: MapHomeProps = {}) {
                 <CruushIcon
                   name="ghost"
                   variant={privacySettings.ghostModeEnabled ? 'colored' : 'white'}
-                  className="h-10 w-10 object-contain max-[360px]:h-9 max-[360px]:w-9 lg:h-11 lg:w-11"
+                  // The ghost art carries padding inside its own viewBox, so
+                  // at the shared box size it drew smaller than its neighbours.
+                  // Scaled to match, the way the lucky and DL Mode marks are.
+                  className="h-10 w-10 scale-[1.22] object-contain max-[360px]:h-9 max-[360px]:w-9 lg:h-11 lg:w-11"
                 />
               )}
             </Button>
