@@ -66,6 +66,8 @@ import {
   GHOST_ROTATION_MINUTES,
   formatDistanceLabel,
   loadLocationEnvelope,
+  loadLocationEnvelopes,
+  locationPayloadToCoordinates,
   loadVisibilityPolicy,
   makeDisplayLocationToken,
   normalizeVisibilityPolicy,
@@ -74,6 +76,7 @@ import {
   saveVisibilityPolicy,
   storeLocationEnvelope,
   type CrowdPrecisionPolicy,
+  type LocationPayload,
   type VisibilityBaseMode
 } from "../location-privacy.js";
 
@@ -1500,22 +1503,35 @@ async function loadViewerDistanceLabel(
   row: ProfileRow,
   relationship: RelationshipPermissions | null
 ) {
-  const targetLat = row.fuzzy_lat ?? row.lat;
-  const targetLng = row.fuzzy_lng ?? row.lng;
-
-  if (targetLat == null || targetLng == null) {
-    return null;
-  }
-
   const viewerResult = await app.db.query<{ lat: number | null; lng: number | null; fuzzy_lat: number | null; fuzzy_lng: number | null }>(
     "select lat, lng, fuzzy_lat, fuzzy_lng from profiles where id = $1",
     [viewerUserId]
   );
   const viewer = viewerResult.rows[0];
-  const viewerLat = viewer?.fuzzy_lat ?? viewer?.lat;
-  const viewerLng = viewer?.fuzzy_lng ?? viewer?.lng;
 
-  if (viewerLat == null || viewerLng == null) {
+  // Most people have no lat on their profile row at all: the map reads their
+  // position out of the encrypted location envelope. Reading the envelope here
+  // too is what makes the line appear for the same people it appears for on
+  // the map, rather than only for the few with a stored column.
+  const envelopes = await loadLocationEnvelopes(app, [viewerUserId, targetUserId]).catch((error: unknown) => {
+    if (isSchemaCompatibilityError(error)) {
+      return new Map<string, LocationPayload>();
+    }
+
+    throw error;
+  });
+
+  const targetEnvelope = envelopes.get(targetUserId);
+  const viewerEnvelope = envelopes.get(viewerUserId);
+  const targetCoordinates = targetEnvelope ? locationPayloadToCoordinates(targetEnvelope) : null;
+  const viewerCoordinates = viewerEnvelope ? locationPayloadToCoordinates(viewerEnvelope) : null;
+
+  const targetLat = targetCoordinates?.lat ?? row.fuzzy_lat ?? row.lat;
+  const targetLng = targetCoordinates?.lng ?? row.fuzzy_lng ?? row.lng;
+  const viewerLat = viewerCoordinates?.lat ?? viewer?.fuzzy_lat ?? viewer?.lat;
+  const viewerLng = viewerCoordinates?.lng ?? viewer?.fuzzy_lng ?? viewer?.lng;
+
+  if (targetLat == null || targetLng == null || viewerLat == null || viewerLng == null) {
     return null;
   }
 
