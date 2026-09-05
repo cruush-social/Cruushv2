@@ -272,6 +272,7 @@ export function decryptProfileVisibility(
       search_query: typeof parsed.search_query === "string" ? parsed.search_query.trim().slice(0, 120) : "",
       active_crowd_modes: normalizeCrowdOptions(parsed.active_crowd_modes),
       mile_high_club_members: parsed.mile_high_club_members === true,
+      members_without_photos: parsed.members_without_photos === true,
       age_range: Array.isArray(parsed.age_range) && parsed.age_range.length === 2 && parsed.age_range.every((value) => typeof value === "number")
         ? [parsed.age_range[0], parsed.age_range[1]]
         : null,

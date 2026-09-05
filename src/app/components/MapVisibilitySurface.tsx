@@ -64,7 +64,7 @@ interface MapVisibilitySurfaceProps {
   onUpgrade?: () => void;
 }
 
-type VisibilityListKey = Exclude<keyof VisibilityControlState, 'searchQuery' | 'ageRange' | 'distance' | 'mileHighClub' | 'activeCrowdModes' | 'restrictAge' | 'restrictDistance'>;
+type VisibilityListKey = Exclude<keyof VisibilityControlState, 'searchQuery' | 'ageRange' | 'distance' | 'hasPhoto' | 'mileHighClub' | 'activeCrowdModes' | 'restrictAge' | 'restrictDistance'>;
 const VISIBILITY_LIST_KEYS: VisibilityListKey[] = [
   'identities',
   'presentations',
@@ -300,6 +300,15 @@ export default function MapVisibilitySurface({
             </TabsList>
 
             <TabsContent value="basics" className="mt-6 space-y-6">
+              <div className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-white/[0.035] p-4">
+                <Label htmlFor="visibility-has-photo">Hide me from people with no profile picture</Label>
+                <Switch
+                  id="visibility-has-photo"
+                  checked={value.hasPhoto}
+                  onCheckedChange={(hasPhoto) => handleLimitedChange({ ...value, hasPhoto })}
+                />
+              </div>
+
               <div className="space-y-4">
                 <div className="flex items-center justify-between gap-4">
                   <Label htmlFor="visibility-distance">Distance</Label>

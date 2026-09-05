@@ -114,7 +114,7 @@ const NPC_GHOST_DEMO_EMAILS = new Set([
   CODEVELOPER_NYC_EMAIL
 ]);
 
-type DiscoveryViewerRow = Omit<DiscoveryProfileRow, "id" | "email" | "photos" | "updated_at">;
+type DiscoveryViewerRow = Omit<DiscoveryProfileRow, "id" | "email" | "updated_at">;
 
 type DiscoveryToolUserRow = {
   email: string | null;
@@ -207,6 +207,7 @@ const discoveryQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(500).default(500),
   npcGhostDemo: booleanQueryFlag,
   mileHighClub: booleanQueryFlag,
+  hasPhoto: booleanQueryFlag,
   identities: queryArrayField,
   presentations: queryArrayField,
   lookingFor: queryArrayField,
@@ -482,6 +483,7 @@ function toVisibilitySubject(app: FastifyInstance, row: DiscoveryProfileRow | Di
     display_name: row.display_name,
     bio: row.bio,
     tags: row.tags ?? [],
+    has_photo: (row.photos?.length ?? 0) > 0,
     year_of_birth: row.year_of_birth,
     identities: row.identities ?? [],
     presentations: row.presentation ?? [],
@@ -513,6 +515,7 @@ async function loadDiscoveryViewer(app: FastifyInstance, currentUserId: string) 
          display_name,
          bio,
          tags,
+         photos,
          year_of_birth,
          pronouns,
          looking_for,
@@ -687,6 +690,12 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, fi
         )
       )`
     ];
+
+    // A profile with no photo has an empty photos array, so the check is on
+    // the array itself rather than on any stored flag.
+    if (filters.hasPhoto) {
+      where.push("coalesce(array_length(profiles.photos, 1), 0) > 0");
+    }
 
     if (filters.mileHighClub) {
       where.push(`exists (

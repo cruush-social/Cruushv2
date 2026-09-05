@@ -10,6 +10,8 @@ export type VisibilitySubjectProfile = {
   bio?: string | null;
   tags?: string[] | null;
   mile_high_club_member?: boolean;
+  /** Undefined where the caller cannot tell, which never hides anyone. */
+  has_photo?: boolean;
   year_of_birth?: number | null;
   identities?: string[] | null;
   presentations?: string[] | null;
@@ -133,6 +135,7 @@ function normalizeVisibilityRules(rules: ProfileVisibilityRules): ProfileVisibil
     search_query: rules.search_query ?? "",
     active_crowd_modes: rules.active_crowd_modes ?? [],
     mile_high_club_members: rules.mile_high_club_members ?? false,
+    members_without_photos: rules.members_without_photos ?? false,
     age_range: rules.age_range ?? null,
     distance: rules.distance ?? null,
     identities: rules.identities ?? [],
@@ -168,6 +171,7 @@ export function visibilityRulesArePublic(rules: ProfileVisibilityRules | null | 
   return normalizedRules.search_query.length === 0 &&
     normalizedRules.active_crowd_modes.length === 0 &&
     normalizedRules.mile_high_club_members === false &&
+    normalizedRules.members_without_photos === false &&
     normalizedRules.age_range === null &&
     normalizedRules.distance === null &&
     normalizedRules.identities.length === 0 &&
@@ -204,6 +208,7 @@ export function countVisibilityExclusionFilters(rules: ProfileVisibilityRules | 
     normalizedRules.age_range !== null,
     normalizedRules.distance !== null,
     normalizedRules.mile_high_club_members,
+    normalizedRules.members_without_photos,
     normalizedRules.identities.length > 0,
     normalizedRules.presentations.length > 0,
     normalizedRules.looking_for.length > 0,
@@ -243,6 +248,12 @@ export function canSubjectViewProfile(
   }
 
   if (normalizedRules.mile_high_club_members && subject.mile_high_club_member === true) {
+    return false;
+  }
+
+  // Only an explicit false hides anyone: a caller that cannot tell whether the
+  // viewer has a photo must not hide the profile from them.
+  if (normalizedRules.members_without_photos && subject.has_photo === false) {
     return false;
   }
 

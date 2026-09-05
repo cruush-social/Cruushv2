@@ -354,6 +354,7 @@ function useMobileVisualViewportBounds(enabled: boolean) {
 
 function hasActiveSeekingFilters(filters: FilterState) {
   return filters.searchQuery.trim().length > 0 ||
+    filters.hasPhoto ||
     filters.mileHighClub ||
     filters.ageRange[0] !== DEFAULT_FILTER_STATE.ageRange[0] ||
     filters.ageRange[1] !== DEFAULT_FILTER_STATE.ageRange[1] ||
@@ -388,6 +389,7 @@ function normalizeVisibilityRules(rules?: ProfileVisibilityRules): ProfileVisibi
     search_query: rules?.search_query ?? defaults.search_query,
     active_crowd_modes: normalizeCrowdValues(rules?.active_crowd_modes ?? defaults.active_crowd_modes),
     mile_high_club_members: rules?.mile_high_club_members === true,
+    members_without_photos: rules?.members_without_photos === true,
     identities: uniqueValues(rules?.identities ?? defaults.identities),
     presentations: uniqueValues(rules?.presentations ?? defaults.presentations),
     looking_for: uniqueValues(rules?.looking_for ?? defaults.looking_for),
@@ -418,6 +420,7 @@ function visibilityRulesToState(rules?: ProfileVisibilityRules): VisibilityContr
     searchQuery: normalizedRules.search_query,
     activeCrowdModes: normalizedRules.active_crowd_modes,
     mileHighClub: normalizedRules.mile_high_club_members,
+    hasPhoto: normalizedRules.members_without_photos,
     ageRange: normalizedRules.age_range ?? DEFAULT_FILTER_STATE.ageRange,
     distance: normalizedRules.distance ?? DEFAULT_FILTER_STATE.distance,
     restrictAge: Boolean(normalizedRules.age_range),
@@ -447,6 +450,7 @@ function visibilityStateToRules(state: VisibilityControlState): ProfileVisibilit
     search_query: state.searchQuery.trim(),
     active_crowd_modes: normalizeCrowdValues(state.activeCrowdModes),
     mile_high_club_members: state.mileHighClub,
+    members_without_photos: state.hasPhoto,
     age_range: state.restrictAge ? state.ageRange : null,
     distance: state.restrictDistance ? state.distance : null,
     identities: uniqueValues(state.identities),

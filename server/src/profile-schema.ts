@@ -197,6 +197,7 @@ export const profileVisibilityRulesSchema = z.object({
   search_query: optionalSingleLineTextSchema(120),
   active_crowd_modes: z.array(crowdSchema).max(3).optional().default([]),
   mile_high_club_members: z.boolean().optional().default(false),
+  members_without_photos: z.boolean().optional().default(false),
   age_range: z.tuple([
     z.number().int().min(18).max(99),
     z.number().int().min(18).max(99)
@@ -364,6 +365,7 @@ export const profilePayloadSchema = z.object({
     search_query: "",
     active_crowd_modes: [],
     mile_high_club_members: false,
+    members_without_photos: false,
     age_range: null,
     distance: null,
     identities: [],
@@ -488,6 +490,7 @@ export const emptyProfile = {
     search_query: "",
     active_crowd_modes: [],
     mile_high_club_members: false,
+    members_without_photos: false,
     age_range: null,
     distance: null,
     identities: [],

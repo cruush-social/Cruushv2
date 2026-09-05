@@ -8,6 +8,7 @@ export type ProfileVisibilityRules = {
   search_query: string;
   active_crowd_modes: string[];
   mile_high_club_members: boolean;
+  members_without_photos: boolean;
   age_range: [number, number] | null;
   distance: number | null;
   identities: string[];
@@ -229,6 +230,7 @@ export const emptyProfilePayload: ProfilePayload = {
     search_query: '',
     active_crowd_modes: [],
     mile_high_club_members: false,
+    members_without_photos: false,
     age_range: null,
     distance: null,
     identities: [],

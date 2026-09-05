@@ -48,6 +48,18 @@ describe("profile visibility rules", () => {
     expect(canSubjectViewProfile(rules, { mile_high_club_member: false })).toBe(true);
   });
 
+  it("hides a profile from people with no profile picture", () => {
+    const rules: ProfileVisibilityRules = {
+      ...emptyProfile.visibility_rules,
+      members_without_photos: true
+    };
+
+    expect(canSubjectViewProfile(rules, { has_photo: false })).toBe(false);
+    expect(canSubjectViewProfile(rules, { has_photo: true })).toBe(true);
+    // A caller that cannot tell must not hide anyone.
+    expect(canSubjectViewProfile(rules, {})).toBe(true);
+  });
+
   it("uses the Visibility search in reverse across names, bios, and profile keywords", () => {
     const rules: ProfileVisibilityRules = {
       ...emptyProfile.visibility_rules,

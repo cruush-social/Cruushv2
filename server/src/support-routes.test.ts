@@ -251,6 +251,9 @@ describe("support routes", () => {
     const app = buildSupportApp();
     query
       .mockResolvedValueOnce({ rows: [{ email: "member@example.com" }] })
+      // The route checks whether the reporter is staff before applying the
+      // member cap. This member is not.
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({
         rows: [{
           id: "survey-response-1",
@@ -275,8 +278,8 @@ describe("support routes", () => {
     await app.close();
 
     expect(response.statusCode).toBe(201);
-    expect(query.mock.calls[1]?.[0]).toContain("on conflict do nothing");
-    expect(query.mock.calls[1]?.[1]).toEqual([
+    expect(query.mock.calls[2]?.[0]).toContain("on conflict do nothing");
+    expect(query.mock.calls[2]?.[1]).toEqual([
       userId,
       "member@example.com",
       "comment",
@@ -294,6 +297,9 @@ describe("support routes", () => {
     const app = buildSupportApp();
     query
       .mockResolvedValueOnce({ rows: [{ email: "member@example.com" }] })
+      // The route checks whether the reporter is staff before applying the
+      // member cap. This member is not.
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({
         rows: [{
@@ -319,8 +325,8 @@ describe("support routes", () => {
     await app.close();
 
     expect(response.statusCode).toBe(200);
-    expect(query).toHaveBeenCalledTimes(3);
-    expect(query.mock.calls[2]?.[0]).toContain("status in ('open', 'in_progress')");
+    expect(query).toHaveBeenCalledTimes(4);
+    expect(query.mock.calls[3]?.[0]).toContain("status in ('open', 'in_progress')");
     expect(response.json().data.id).toBe("survey-response-1");
   }, 10000);
 
@@ -354,6 +360,9 @@ describe("support routes", () => {
     const app = buildSupportApp();
     query
       .mockResolvedValueOnce({ rows: [{ email: "member@example.com" }] })
+      // The route checks whether the reporter is staff before applying the
+      // member cap. This member is not.
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({
         rows: [{
           id: "support-2",
@@ -386,7 +395,7 @@ describe("support routes", () => {
     await app.close();
 
     expect(response.statusCode).toBe(201);
-    expect(query.mock.calls[1]?.[1]).toEqual([
+    expect(query.mock.calls[2]?.[1]).toEqual([
       userId,
       "member@example.com",
       "bug",

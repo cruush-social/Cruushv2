@@ -63,6 +63,7 @@ type Coordinates = {
 export type DiscoveryFilterParams = {
   searchQuery?: string;
   mileHighClub?: boolean;
+  hasPhoto?: boolean;
   identities?: string[];
   presentations?: string[];
   lookingFor?: string[];
@@ -181,6 +182,10 @@ export async function getNearbyUsers(
 
   if (options?.npcGhostDemo) {
     params.set('npcGhostDemo', '1');
+  }
+
+  if (filters?.hasPhoto) {
+    params.set('hasPhoto', '1');
   }
 
   if (filters?.mileHighClub) {

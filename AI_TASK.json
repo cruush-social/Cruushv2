@@ -1,14 +1,14 @@
 {
   "schemaVersion": 2,
-  "taskId": "cruush-admin-batch-glyph-and-capsules-20260905",
+  "taskId": "cruush-has-profile-picture-filter-20260905",
   "status": "active",
-  "objective": "Redraw the Hunter snake so it reads as a snake, drop the HIV status capsule, and remove the Pulses line from the Side Quest prompt.",
-  "userOutcome": "The Hunter badge shows a recognisable snake, HIV status appears without a card around it, and the Side Quest prompt no longer names a Pulse count.",
+  "objective": "Add a has-a-profile-picture control to the Seeking filter and a matching hide rule to Visibility controls.",
+  "userOutcome": "Seeking can show only people who have a profile picture, and a member can hide themselves from people who have none.",
   "audience": "cruush members and the 1.6 release-email audience.",
   "successCriteria": [
-    "The Hunter glyph reads as a snake at badge size and at 24px, on light and dark.",
-    "HIV status renders with its heading and value and no capsule.",
-    "The Side Quest prompt shows the cruush+ reward only."
+    "The Seeking filter has a Has a profile picture toggle that narrows the map to profiles with a photo.",
+    "Visibility controls have a Hide me from people with no profile picture toggle that persists with the other rules.",
+    "A viewer whose photo status is unknown is never hidden."
   ],
   "mustPreserve": [
     "Preserve approved custom map tiles, theme, people pins, Ghost Mode, Dark Room, Pulse, and unrelated map behavior.",
@@ -19,7 +19,7 @@
     "Keep user-facing copy free of em dashes and spell cruush lowercase."
   ],
   "nonGoals": [
-    "No change to which roles exist or to Side Quest rewards themselves."
+    "No change to what counts as a profile photo, and no new profile field."
   ],
   "assumptions": [
     {
@@ -41,7 +41,7 @@
       "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "Hunter badge, profile Health tab, and the Side Quest prompt on cruush.app show the three changes.",
+  "nextVisibleMilestone": "Both toggles appear on cruush.app and the Seeking one changes who shows on the map.",
   "stopConditions": [
     "Stop the data-expansion slice if the full prior source cache cannot be recovered or if a source record is private or unsafe to publish.",
     "Stop publication because push and deployment are not authorized by this task."
@@ -78,11 +78,20 @@
     "public/sw.js",
     "public/service-worker-recovery.js",
     "src/main.tsx",
-    "src/app/components/PositionRoleGlyphs.tsx",
-    "src/app/components/ProfileView.tsx",
-    "src/app/components/ProfileView.test.tsx",
-    "src/app/components/SideQuestPrompt.tsx",
-    "src/app/components/SideQuestPrompt.test.tsx"
+    "src/app/lib/usersApi.ts",
+    "src/app/lib/profileApi.ts",
+    "src/app/components/MapFiltersSurface.tsx",
+    "src/app/components/MapVisibilitySurface.tsx",
+    "src/app/components/MapHome.tsx",
+    "server/src/routes/users.ts",
+    "server/src/profile-schema.ts",
+    "server/src/profile-sensitive.ts",
+    "server/src/profile-visibility.ts",
+    "server/src/profile-visibility.test.ts",
+    "server/src/profile-sensitive.test.ts",
+    "server/src/map-pings.test.ts",
+    "server/src/map-ping-revocation.test.ts",
+    "server/src/support-routes.test.ts"
   ],
   "forbiddenPaths": [
     "src/app/assets/brand/**",

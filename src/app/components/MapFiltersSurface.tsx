@@ -37,6 +37,7 @@ export interface FilterState {
   searchQuery: string;
   ageRange: [number, number];
   distance: number;
+  hasPhoto: boolean;
   mileHighClub: boolean;
   identities: string[];
   presentations: string[];
@@ -64,6 +65,7 @@ export const DEFAULT_FILTER_STATE: FilterState = {
   searchQuery: '',
   ageRange: [18, 99],
   distance: 100,
+  hasPhoto: false,
   mileHighClub: false,
   identities: [],
   presentations: [],
@@ -104,7 +106,7 @@ interface MapFiltersSurfaceProps {
   searchPlaceholder?: string;
 }
 
-type MultiSelectKey = Exclude<keyof FilterState, 'searchQuery' | 'ageRange' | 'distance' | 'mileHighClub'>;
+type MultiSelectKey = Exclude<keyof FilterState, 'searchQuery' | 'ageRange' | 'distance' | 'hasPhoto' | 'mileHighClub'>;
 
 function updateList(value: FilterState, key: MultiSelectKey, items: string[]): FilterState {
   return {
@@ -231,6 +233,15 @@ export default function MapFiltersSurface({
             </TabsList>
 
             <TabsContent value="basics" className="mt-6 space-y-6">
+              <div className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-white/[0.035] p-4">
+                <Label htmlFor="seeking-has-photo">Has a profile picture</Label>
+                <Switch
+                  id="seeking-has-photo"
+                  checked={value.hasPhoto}
+                  onCheckedChange={(hasPhoto) => onChange({ ...value, hasPhoto })}
+                />
+              </div>
+
               <div className="space-y-4">
                 <Label>Distance</Label>
                 <Slider
