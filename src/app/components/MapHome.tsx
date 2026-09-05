@@ -901,6 +901,14 @@ export default function MapHome(_props: MapHomeProps = {}) {
     radiusMiles: number;
   }>({ query: '', facilityTypes: [], tags: [], vibes: [], amenities: [], radiusMiles: 100 });
   const [places, setPlaces] = useState<PlaceRecord[]>([]);
+  // Hiding Spots is a view preference, so it survives a reload.
+  const [spotsVisible, setSpotsVisible] = useState(() => {
+    try {
+      return window.localStorage.getItem('cruush:map-spots-hidden') !== 'true';
+    } catch {
+      return true;
+    }
+  });
   const [selectedPlace, setSelectedPlace] = useState<PlaceRecord | null>(null);
   // Keeps the map where the Spot left it after the Spot sheet closes, instead
   // of snapping back to the viewer's own location.
@@ -2559,7 +2567,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
       },
     }));
 
-    const placeMarkers: MapMarker[] = places
+    const placeMarkers: MapMarker[] = (spotsVisible ? places : [])
       .filter((place) => isCoordinateInViewport(place.latitude, place.longitude, mapViewport))
       .map((place) => ({
       id: `place-${place.id}`,
@@ -2646,7 +2654,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
       ...eventMarkers,
       ...placeMarkers,
     ];
-  }, [activeEvents, currentProfile, currentUserMapLocation, displayedUsersInViewport, mapPingClock, mapPingStatus, mapViewport?.signature, ownerGhostMapLocation, places, privacySettings, travelPin]);
+  }, [activeEvents, currentProfile, currentUserMapLocation, displayedUsersInViewport, mapPingClock, mapPingStatus, mapViewport?.signature, ownerGhostMapLocation, places, privacySettings, spotsVisible, travelPin]);
   const browseVisibleMapMarkers = useMemo(() => {
     if (!currentUserMapLocation) {
       return mapMarkers;
@@ -3509,6 +3517,15 @@ export default function MapHome(_props: MapHomeProps = {}) {
           }
           onFiltersActiveChange={setSpotFiltersActive}
           onMapFiltersChange={setSpotMapFilters}
+          spotsVisible={spotsVisible}
+          onSpotsVisibleChange={(visible) => {
+            setSpotsVisible(visible);
+            try {
+              window.localStorage.setItem('cruush:map-spots-hidden', visible ? 'false' : 'true');
+            } catch {
+              // The preference is a convenience; hiding still works this session.
+            }
+          }}
           onSelect={(place) => {
             openSpot(place);
             mapInstance?.setCenter([place.longitude, place.latitude]);

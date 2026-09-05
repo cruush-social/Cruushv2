@@ -3445,4 +3445,32 @@ describe('MapHome', () => {
     expect(screen.queryByRole('button', { name: 'Pin Jordan' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Pin Mika Demo' })).not.toBeInTheDocument();
   });
+
+  it('keeps Spot pins off the map when Spots are hidden', async () => {
+    // The preference lives in storage so it survives a reload.
+    window.localStorage.setItem('cruush:map-spots-hidden', 'true');
+    useIsMobile.mockReturnValue(false);
+    getNearbyUsers.mockResolvedValue([]);
+    getPlaces.mockResolvedValue([{
+      id: 'place-1',
+      name: 'Sunset Park',
+      latitude: 40.73,
+      longitude: -73.99,
+      facilityType: 'park',
+      distanceMiles: 0.2,
+    } as unknown as PlaceRecord]);
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<MapHome />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => expect(getPlaces).toHaveBeenCalled());
+    await waitFor(() => expect(screen.queryByTestId('marker-place-place-1')).not.toBeInTheDocument());
+
+    window.localStorage.removeItem('cruush:map-spots-hidden');
+  });
 });

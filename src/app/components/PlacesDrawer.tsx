@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Switch } from './ui/switch';
 import { registerBugButtonSlot } from '../lib/bugButtonSlot';
 import { ArrowLeft, Clock3, MapPin, Plus, Search, Star, Users } from 'lucide-react';
 import { Button } from './ui/button';
@@ -28,6 +29,8 @@ type PlacesDrawerProps = {
   coordinates: { latitude: number; longitude: number } | null;
   onPlacesChange?: (places: PlaceRecord[]) => void;
   onFiltersActiveChange?: (active: boolean) => void;
+  spotsVisible?: boolean;
+  onSpotsVisibleChange?: (visible: boolean) => void;
   onMapFiltersChange?: (filters: {
     query: string;
     facilityTypes: PlaceFacilityType[];
@@ -54,7 +57,7 @@ function toggleValue<T extends string>(values: T[], value: T) {
   return values.includes(value) ? values.filter((item) => item !== value) : [...values, value];
 }
 
-export default function PlacesDrawer({ open, onOpenChange, coordinates, onFiltersActiveChange, onMapFiltersChange, onPlacesChange, onSelect }: PlacesDrawerProps) {
+export default function PlacesDrawer({ open, onOpenChange, coordinates, onFiltersActiveChange, onMapFiltersChange, onPlacesChange, onSelect, spotsVisible = true, onSpotsVisibleChange }: PlacesDrawerProps) {
   const [places, setPlaces] = useState<PlaceRecord[]>([]);
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<PlaceSort>('nearest');
@@ -408,6 +411,17 @@ export default function PlacesDrawer({ open, onOpenChange, coordinates, onFilter
             {/* The drawer covers the map, and its own bug button with it. */}
             <div className="h-9 w-9 shrink-0" data-testid="places-bug-button-slot" ref={registerBugButtonSlot} />
           </div>
+          {onSpotsVisibleChange ? (
+            <div className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2">
+              <span className="text-sm text-white">Show Spots on the map</span>
+              <Switch
+                aria-label="Show Spots on the map"
+                checked={spotsVisible}
+                data-testid="places-visible-toggle"
+                onCheckedChange={onSpotsVisibleChange}
+              />
+            </div>
+          ) : null}
         </SheetHeader>
         {drawerBody}
         {!showSubmit ? (
