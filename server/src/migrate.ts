@@ -156,7 +156,8 @@ const migrationFiles = [
   "147_feed_post_expiry_3h.sql",
   "148_name_unnamed_spots.sql",
   "149_merge_bathroom_subspots.sql",
-  "150_feed_post_expiry_30m.sql"
+  "150_feed_post_expiry_30m.sql",
+  "151_merge_duplicate_named_spots.sql"
 ];
 const rewardSafetyPreflightFiles = [
   "079_daily_check_in_rewards.sql",

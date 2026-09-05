@@ -1,14 +1,14 @@
 {
   "schemaVersion": 2,
-  "taskId": "cruush-has-profile-picture-filter-20260905",
+  "taskId": "cruush-spot-duplicates-share-preview-20260905",
   "status": "active",
-  "objective": "Add a has-a-profile-picture control to the Seeking filter and a matching hide rule to Visibility controls.",
-  "userOutcome": "Seeking can show only people who have a profile picture, and a member can hide themselves from people who have none.",
+  "objective": "Merge duplicate Spots that carry nothing, give the Spot description room under the report line, and enlarge the share sheet profile previews.",
+  "userOutcome": "One venue is one Spot on the map, a Spot description no longer crowds the report line, and the share menus show a readable profile picture.",
   "audience": "cruush members and the 1.6 release-email audience.",
   "successCriteria": [
-    "The Seeking filter has a Has a profile picture toggle that narrows the map to profiles with a photo.",
-    "Visibility controls have a Hide me from people with no profile picture toggle that persists with the other rules.",
-    "A viewer whose photo status is unknown is never hidden."
+    "A same-named Spot within 150m of another is removed only when it holds no check-ins, ratings, or Pink Book posts.",
+    "The Spot description sits clear of the report line.",
+    "The share sheet heart is larger than it was."
   ],
   "mustPreserve": [
     "Preserve approved custom map tiles, theme, people pins, Ghost Mode, Dark Room, Pulse, and unrelated map behavior.",
@@ -16,10 +16,11 @@
     "Never display gay spot, dyke spot, or dyke bar as a public label.",
     "Do not infer trans or nonbinary presence from profiles or scraped visitor data.",
     "Harassment-only Stream results must publish with flagged moderator review, while mixed unsafe labels and non-harassment flags retain their existing enforcement.",
-    "Keep user-facing copy free of em dashes and spell cruush lowercase."
+    "Keep user-facing copy free of em dashes and spell cruush lowercase.",
+    "Never delete a Spot that carries a check-in, a rating, or a Pink Book post."
   ],
   "nonGoals": [
-    "No change to what counts as a profile photo, and no new profile field."
+    "No merging of nearby Spots that are genuinely different venues."
   ],
   "assumptions": [
     {
@@ -41,7 +42,7 @@
       "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "Both toggles appear on cruush.app and the Seeking one changes who shows on the map.",
+  "nextVisibleMilestone": "Duplicate Spots are gone from the map on cruush.app.",
   "stopConditions": [
     "Stop the data-expansion slice if the full prior source cache cannot be recovered or if a source record is private or unsafe to publish.",
     "Stop publication because push and deployment are not authorized by this task."
@@ -78,20 +79,10 @@
     "public/sw.js",
     "public/service-worker-recovery.js",
     "src/main.tsx",
-    "src/app/lib/usersApi.ts",
-    "src/app/lib/profileApi.ts",
-    "src/app/components/MapFiltersSurface.tsx",
-    "src/app/components/MapVisibilitySurface.tsx",
-    "src/app/components/MapHome.tsx",
-    "server/src/routes/users.ts",
-    "server/src/profile-schema.ts",
-    "server/src/profile-sensitive.ts",
-    "server/src/profile-visibility.ts",
-    "server/src/profile-visibility.test.ts",
-    "server/src/profile-sensitive.test.ts",
-    "server/src/map-pings.test.ts",
-    "server/src/map-ping-revocation.test.ts",
-    "server/src/support-routes.test.ts"
+    "src/app/components/PlaceDetail.tsx",
+    "src/app/components/InAppShareDialog.tsx",
+    "server/sql/151_merge_duplicate_named_spots.sql",
+    "server/src/migrate.ts"
   ],
   "forbiddenPaths": [
     "src/app/assets/brand/**",

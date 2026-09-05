@@ -67,7 +67,7 @@ export default function InAppShareDialog({ open, onOpenChange, share }: InAppSha
               type="button"
               variant="ghost"
             >
-              <HeartPhoto className="w-10" label={`${conversation.user.name} avatar`} masked={false} photo={conversation.user.photo} theme={conversation.mutual ? 'mutual' : 'nearby'} userId={conversation.user.id} />
+              <HeartPhoto className="w-16" label={`${conversation.user.name} avatar`} masked={false} photo={conversation.user.photo} theme={conversation.mutual ? 'mutual' : 'nearby'} userId={conversation.user.id} />
               <span className="min-w-0 flex-1 truncate">{conversation.user.name}</span>
               <Send className="h-4 w-4 shrink-0" />
             </Button>

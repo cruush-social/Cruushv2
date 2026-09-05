@@ -416,7 +416,7 @@ export default function PlaceDetail({ embedded = false, onBack, placeIdOverride 
           </div>
         </div>
 
-        {place.description || place.accessInstructions ? <div className="order-4 -mt-5 space-y-3 text-muted-foreground">
+        {place.description || place.accessInstructions ? <div className="order-4 -mt-1 space-y-3 text-muted-foreground">
           {place.description ? <p>{place.description}</p> : null}
           {place.accessInstructions ? <div><p className="text-xs uppercase tracking-[0.14em] text-white/55">Access</p><p className="mt-1">{place.accessInstructions}</p></div> : null}
         </div> : null}
