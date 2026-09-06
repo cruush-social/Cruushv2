@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useId, useRef, useState, type PointerEvent } from 'react';
+import { DROPDOWN_TRIGGER_CLASS } from '../lib/controlStyles';
 import { CheckCircle2 } from 'lucide-react';
 import { createGeneralSuspensionAppeal, createSuspensionAppeal, createSupportRequest, type SupportRequestCategory, type SupportRequestSource } from '../lib/supportApi';
 import { Button } from './ui/button';
@@ -241,7 +242,7 @@ export default function SupportRequestForm({
           {!appealMode && !generalAppealMode && !contentRemovalMode ? <div className="space-y-2">
             <Label htmlFor={`${idPrefix}-category`}>Support type</Label>
             <select
-              className="h-11 w-full rounded-md border border-input bg-input-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+              className={DROPDOWN_TRIGGER_CLASS}
               disabled={status === 'submitting'}
               id={`${idPrefix}-category`}
               onChange={(event) => setCategory(event.target.value as SupportRequestCategory)}

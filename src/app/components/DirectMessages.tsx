@@ -1,4 +1,5 @@
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
+import { DROPDOWN_TRIGGER_CLASS } from '../lib/controlStyles';
 import { useNavigate, useSearchParams } from 'react-router';
 import { ChevronLeft, ChevronRight, Clock3, MapPin, Pin, Plus, Search, Settings2, Trash2, X, ArrowLeft } from 'lucide-react';
 import CruushIconImage, { CruushIcon } from './CruushIconImage';
@@ -846,7 +847,7 @@ export default function DirectMessages({
                 aria-label="Disappearing timer"
                 value={groupTimer}
                 onChange={(event) => setGroupTimer(event.target.value as ConversationTimer)}
-                className="h-11 w-full rounded-md border border-border bg-input-background px-3 text-sm"
+                className={DROPDOWN_TRIGGER_CLASS}
               >
                 {timerOptions.map((option) => (
                   <option key={option.value} value={option.value}>{option.label}</option>

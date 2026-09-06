@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react';
+import { DROPDOWN_TRIGGER_CLASS } from '../lib/controlStyles';
 import { registerBugButtonSlot } from '../lib/bugButtonSlot';
 import type { CSSProperties, ChangeEvent, RefObject } from 'react';
 import { useLocation, useParams, useNavigate } from 'react-router';
@@ -1197,7 +1198,7 @@ export default function PrivateGroupChat({
                         aria-label="Add mutual"
                         value={addMemberId}
                         onChange={(event) => setAddMemberId(event.target.value)}
-                        className="h-11 w-full rounded-md border border-border bg-input-background px-3 text-sm"
+                        className={DROPDOWN_TRIGGER_CLASS}
                       >
                         <option value="">Add a mutual</option>
                         {availableAddOptions.map((item) => (

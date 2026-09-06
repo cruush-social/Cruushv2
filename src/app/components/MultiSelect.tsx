@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react';
+import { DROPDOWN_TRIGGER_CLASS } from '../lib/controlStyles';
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Badge } from './ui/badge';
@@ -460,7 +461,7 @@ export default function MultiSelect({
           aria-haspopup="listbox"
           aria-expanded={isOpen}
           onClick={toggleMenu}
-          className="w-full h-10 px-3 text-left rounded-md bg-input-background border border-input hover:border-primary transition-colors"
+          className={DROPDOWN_TRIGGER_CLASS}
         >
           {selected.length > 0 ? `${selected.length} selected` : placeholder}
         </button>

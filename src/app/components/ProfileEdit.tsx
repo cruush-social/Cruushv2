@@ -1,4 +1,5 @@
 import type { ChangeEvent, PointerEvent } from 'react';
+import { DROPDOWN_TRIGGER_CLASS } from '../lib/controlStyles';
 import { PHOTO_UPLOAD_ACCEPT } from '../lib/photoUploadFormats';
 import { SIGNAL_MAX_LENGTH } from '../lib/profileLimits';
 import { lazy, Suspense, useState, useEffect, useRef } from 'react';
@@ -1373,7 +1374,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
               </div>
               <div className="space-y-2">
                 <Label htmlFor="ethnicity">Ethnicity</Label>
-                <select className="w-full h-10 px-3 rounded-md bg-input-background border border-input" value={normalizedProfile.ethnicity} onChange={e => handleChange('ethnicity', e.target.value)}>
+                <select className={DROPDOWN_TRIGGER_CLASS} value={normalizedProfile.ethnicity} onChange={e => handleChange('ethnicity', e.target.value)}>
                   <option value="">Select...</option>
                   {ETHNICITIES.map((e) => (
                     <option key={e} value={e}>{e}</option>

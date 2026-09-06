@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { DROPDOWN_TRIGGER_CLASS } from '../lib/controlStyles';
 import { Switch } from './ui/switch';
 import { registerBugButtonSlot } from '../lib/bugButtonSlot';
 import { ArrowLeft, Clock3, MapPin, Plus, Search, Star, Users } from 'lucide-react';
@@ -325,7 +326,7 @@ export default function PlacesDrawer({ open, onOpenChange, coordinates, onFilter
                     <span>Distance</span>
                     <select
                       aria-label="Spot distance"
-                      className="h-10 w-full rounded-md border border-white/15 bg-black px-3 text-sm text-white"
+                      className={DROPDOWN_TRIGGER_CLASS}
                       value={draftRadiusMiles}
                       onChange={(event) => setDraftRadiusMiles(Number(event.target.value))}
                     >

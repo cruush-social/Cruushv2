@@ -1,4 +1,5 @@
 import { useId, useState, type FormEvent } from 'react';
+import { DROPDOWN_TRIGGER_CLASS } from '../lib/controlStyles';
 import { Flag } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -147,7 +148,7 @@ export default function ReportAction({
                 setReason(event.target.value as ReportReason | '');
                 setValidationError(null);
               }}
-              className="h-11 w-full rounded-md border border-border bg-input-background px-3 text-sm"
+              className={DROPDOWN_TRIGGER_CLASS}
               disabled={submitting}
               aria-required="true"
             >
