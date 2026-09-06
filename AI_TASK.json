@@ -1,20 +1,19 @@
 {
   "schemaVersion": 2,
-  "taskId": "cruush-owner-ghost-decoy-signal-20260906",
+  "taskId": "cruush-one-dl-mode-cover-20260906",
   "status": "active",
-  "objective": "Show the member's own profile signal on their Ghost Mode decoy, the way everyone else already sees it.",
-  "userOutcome": "With Ghost Mode on, your decoy pin reads the way other people read it: the decoy spot, your real signal.",
+  "objective": "Use one DL Mode cover everywhere a masked photo is hidden.",
+  "userOutcome": "A photo hidden by DL Mode shows the same gradient balaclava mark on a heart as it does on the profile gallery and the top bar.",
   "audience": "cruush members and the 1.6 release-email audience.",
   "successCriteria": [
-    "The owner's decoy marker carries the profile signal rather than the literal string Ghost Mode decoy.",
-    "The decoy still shows the Peppers ghost mark and the decoy location."
+    "A masked heart renders DlModeMark rather than a flat copy of the artwork.",
+    "An unmasked photoless heart still carries the faint cruush mark."
   ],
   "mustPreserve": [
-    "Ghost Mode still moves where people see you.",
-    "The decoy keeps its own name label so it can be told apart from your real pin."
+    "DL Mode still hides the photo itself; only the cover artwork changes."
   ],
   "nonGoals": [
-    "No change to Ghost rotation, radius, or who can see the decoy."
+    "No change to what counts as explicit or to when DL Mode masks."
   ],
   "assumptions": [
     {
@@ -36,7 +35,7 @@
       "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "Your Ghost decoy on cruush.app shows your signal.",
+  "nextVisibleMilestone": "Masked hearts on cruush.app carry the gradient mark.",
   "stopConditions": [
     "Stop the data-expansion slice if the full prior source cache cannot be recovered or if a source record is private or unsafe to publish.",
     "Stop publication because push and deployment are not authorized by this task."
@@ -69,8 +68,8 @@
   "job": "Finish the named 1.6 changes and update the release email locally.",
   "allowedPaths": [
     "AI_TASK.json",
-    "src/app/components/MapHome.tsx",
-    "src/app/components/MapHome.test.tsx"
+    "src/app/components/HeartPhoto.tsx",
+    "src/app/components/HeartPhoto.test.tsx"
   ],
   "forbiddenPaths": [
     "src/app/assets/brand/**",

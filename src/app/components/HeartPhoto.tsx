@@ -1,7 +1,7 @@
 import type { KeyboardEvent, MouseEvent, ReactNode } from 'react';
+import DlModeMark from './DlModeMark';
 import { useId } from 'react';
 import cruushMarkWhite from '../assets/ui-icons/cruush-white.png';
-import dlModeBalaclavaHalo from '../assets/ui-icons/dl-mode-balaclava-halo-user-supplied.png';
 import { resolveMediaUrl } from '../lib/apiClient';
 import { HEART_PIN_PATH, HEART_PIN_THEMES, type HeartPinTheme } from '../lib/heartPin';
 import { getProfileGradientStops } from '../lib/profileGradient';
@@ -103,17 +103,28 @@ export default function HeartPhoto({
           strokeWidth="3.2"
         />
         {/* A heart with no photo carries the cruush mark rather than reading as
-            an empty gradient, and a masked one carries the DL Mode mark. */}
+            an empty gradient, and a masked one carries the DL Mode mark. The
+            masked case draws the same DlModeMark the profile gallery and the
+            top bar use, so the cover is one thing everywhere it appears rather
+            than a flat copy of the artwork here and the gradient mark there. */}
         {!resolvedPhoto ? (
-          <image
-            href={masked ? dlModeBalaclavaHalo : cruushMarkWhite}
-            width="26"
-            height="26"
-            x="19"
-            y="21"
-            opacity={masked ? 0.85 : 0.2}
-            preserveAspectRatio="xMidYMid meet"
-          />
+          masked ? (
+            <foreignObject x="19" y="21" width="26" height="26">
+              <div className="flex h-full w-full items-center justify-center">
+                <DlModeMark active className="h-full w-full" />
+              </div>
+            </foreignObject>
+          ) : (
+            <image
+              href={cruushMarkWhite}
+              width="26"
+              height="26"
+              x="19"
+              y="21"
+              opacity={0.2}
+              preserveAspectRatio="xMidYMid meet"
+            />
+          )
         ) : null}
         {staticMileHigh ? (
           <MileHighContrail
