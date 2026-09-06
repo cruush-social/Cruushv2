@@ -8971,7 +8971,7 @@ describe("server", () => {
     expect(response.json()).toEqual({
       error: {
         code: "VALIDATION_ERROR",
-        message: "Upload a photo your phone or camera made: JPEG, PNG, HEIC, AVIF, WebP, GIF, or TIFF.",
+        message: "Upload a still photo your phone or camera made: JPEG, PNG, HEIC, AVIF, WebP, or TIFF.",
         details: null
       }
     });

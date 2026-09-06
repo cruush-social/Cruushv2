@@ -2,14 +2,15 @@
  * What a phone camera actually produces, in one place so the pickers cannot
  * drift apart from each other or from the server.
  *
- * HEIC is the iPhone default, including Portrait mode and Live Photos, whose
- * bursts arrive labelled as sequences. AVIF turns up from Android. GIF and TIFF
- * come out of messaging and the odd camera app. The server decodes all of them
- * and re-encodes to WebP for delivery, so the browser never has to transcode
- * a format it cannot even open.
+ * HEIC is the iPhone default, including Portrait mode. AVIF turns up from
+ * Android. TIFF comes out of the odd camera app. The server decodes all of them
+ * and re-encodes to WebP for delivery, so the browser never has to transcode a
+ * format it cannot even open.
  *
- * SVG and camera raw are deliberately absent: SVG carries script, and raw is
- * not something anyone shares from a phone.
+ * A photo is a still, so animated formats are out: GIF entirely, and an
+ * animated WebP or APNG is rejected rather than frozen to its first frame.
+ * SVG and camera raw are absent too: SVG carries script, and raw is not
+ * something anyone shares from a phone.
  */
 export const PHOTO_UPLOAD_TYPES = [
   'image/jpeg',
@@ -18,12 +19,11 @@ export const PHOTO_UPLOAD_TYPES = [
   'image/heic',
   'image/heif',
   'image/avif',
-  'image/gif',
   'image/tiff',
 ] as const;
 
 /** Some pickers only match on extension, so name the common ones too. */
-const PHOTO_UPLOAD_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.heic', '.heif', '.avif', '.gif', '.tif', '.tiff'];
+const PHOTO_UPLOAD_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.heic', '.heif', '.avif', '.tif', '.tiff'];
 
 export const PHOTO_UPLOAD_ACCEPT = [...PHOTO_UPLOAD_TYPES, ...PHOTO_UPLOAD_EXTENSIONS].join(',');
 
@@ -48,9 +48,8 @@ export const PHOTO_UPLOAD_EXTENSION_TYPES = new Map<string, string>([
   ['heic', 'image/heic'],
   ['heif', 'image/heif'],
   ['avif', 'image/avif'],
-  ['gif', 'image/gif'],
   ['tif', 'image/tiff'],
   ['tiff', 'image/tiff'],
 ]);
 
-export const PHOTO_UPLOAD_FORMAT_MESSAGE = 'Choose a photo your phone or camera made: JPEG, PNG, HEIC, AVIF, WebP, GIF, or TIFF.';
+export const PHOTO_UPLOAD_FORMAT_MESSAGE = 'Choose a still photo your phone or camera made: JPEG, PNG, HEIC, AVIF, WebP, or TIFF.';

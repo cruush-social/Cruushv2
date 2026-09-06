@@ -10,7 +10,6 @@ describe("photo formats a phone actually produces", () => {
     ["png", "image/png"],
     ["webp", "image/webp"],
     ["avif", "image/avif"],
-    ["gif", "image/gif"],
     ["tiff", "image/tiff"],
   ])("accepts %s declared as %s", async (format, declared) => {
     const bytes = await swatch().toFormat(format as never).toBuffer();
@@ -18,6 +17,11 @@ describe("photo formats a phone actually produces", () => {
     expect(processed.width).toBe(80);
     expect(processed.height).toBe(120);
     expect(processed.variants.every((v) => v.mimeType === "image/webp")).toBe(true);
+  });
+
+  it("rejects an animated GIF and a still one alike: a photo is a still", async () => {
+    const gif = await swatch().toFormat("gif").toBuffer();
+    await expect(processUploadedImage(gif, "image/gif")).rejects.toThrow();
   });
 
   it("still rejects a JPEG that claims to be a PNG", async () => {

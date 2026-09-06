@@ -8,22 +8,23 @@ const MAX_IMAGE_DIMENSION = 12_000;
 
 // What a phone camera actually produces. HEIC is the iPhone default and AVIF
 // is turning up from Android; libvips reports both as heif, so AVIF passes the
-// format check already and only ever failed on its declared type. GIF and TIFF
-// come out of messaging apps and the odd camera app. Everything is re-encoded
-// to WebP for delivery, so accepting a format costs nothing downstream.
+// format check already and only ever failed on its declared type. TIFF comes
+// out of the odd camera app. Everything is re-encoded to WebP for delivery, so
+// accepting a format costs nothing downstream.
 //
+// A photo is a still. Animated formats are out: GIF entirely, and an animated
+// WebP or APNG is rejected rather than silently frozen to its first frame.
 // SVG and raw are deliberately absent even though this build decodes them: SVG
 // carries script, and raw is not a photo anyone is uploading from a phone.
 // Verified against the running production image that jpeg, png, webp, heif,
-// avif, gif and tiff all decode there.
-const supportedFormats = new Set(["jpeg", "png", "webp", "heif", "gif", "tiff"]);
+// avif and tiff all decode there.
+const supportedFormats = new Set(["jpeg", "png", "webp", "heif", "tiff"]);
 
 const mimeTypes = {
   jpeg: "image/jpeg",
   png: "image/png",
   webp: "image/webp",
   heif: "image/heic",
-  gif: "image/gif",
   tiff: "image/tiff"
 } as const;
 
@@ -36,7 +37,7 @@ export type ProcessedImageVariant = {
 };
 
 export type ProcessedImage = {
-  detectedMimeType: "image/jpeg" | "image/png" | "image/webp" | "image/heic" | "image/gif" | "image/tiff";
+  detectedMimeType: "image/jpeg" | "image/png" | "image/webp" | "image/heic" | "image/tiff";
   canonicalBytes: Buffer;
   width: number;
   height: number;
@@ -61,8 +62,6 @@ function mimeTypeAliases(detectedMimeType: string) {
       ]);
     case "image/png":
       return new Set(["image/png", "image/x-png", "image/apng"]);
-    case "image/gif":
-      return new Set(["image/gif"]);
     case "image/tiff":
       return new Set(["image/tiff", "image/x-tiff", "image/tif"]);
     default:
@@ -70,7 +69,7 @@ function mimeTypeAliases(detectedMimeType: string) {
   }
 }
 
-function invalidImage(message = "Upload a photo your phone or camera made: JPEG, PNG, HEIC, AVIF, WebP, GIF, or TIFF.") {
+function invalidImage(message = "Upload a still photo your phone or camera made: JPEG, PNG, HEIC, AVIF, WebP, or TIFF.") {
   return new ApiError(400, "VALIDATION_ERROR", message);
 }
 

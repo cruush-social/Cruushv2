@@ -1,19 +1,21 @@
 {
   "schemaVersion": 2,
-  "taskId": "cruush-shell-v73-20260905",
+  "taskId": "cruush-still-photos-carousel-card-20260906",
   "status": "active",
-  "objective": "Retire the v72 app shell so the new build reaches people.",
-  "userOutcome": "Reopening cruush.app serves the build just deployed rather than a cached shell.",
+  "objective": "Keep photo uploads to still formats, and make the featured carousel card read like the profile card with the browse again button.",
+  "userOutcome": "No animated uploads, and the carousel shows a profile card: name, pronouns, distance and last online, signal, and vibe tags over the photo.",
   "audience": "cruush members and the 1.6 release-email audience.",
   "successCriteria": [
-    "All five copies of the shell id read v73."
+    "GIF is rejected and the accepted list is JPEG, PNG, WebP, HEIC, AVIF and TIFF.",
+    "The featured carousel card carries the profile overlay and nothing is clipped or overhanging.",
+    "The Browse again button sits under the card."
   ],
   "mustPreserve": [
-    "SVG and camera raw stay rejected even though this build decodes them.",
-    "A file whose bytes do not match its declared type is still rejected."
+    "Animated images stay rejected.",
+    "SVG and camera raw stay rejected."
   ],
   "nonGoals": [
-    "No other change in this commit."
+    "No change to the carousel neighbours or to the profile page itself."
   ],
   "assumptions": [
     {
@@ -35,7 +37,7 @@
       "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "v73 serves on cruush.app.",
+  "nextVisibleMilestone": "The carousel card and the still-only upload list land on cruush.app.",
   "stopConditions": [
     "Stop the data-expansion slice if the full prior source cache cannot be recovered or if a source record is private or unsafe to publish.",
     "Stop publication because push and deployment are not authorized by this task."
@@ -68,10 +70,13 @@
   "job": "Finish the named 1.6 changes and update the release email locally.",
   "allowedPaths": [
     "AI_TASK.json",
-    "index.html",
-    "public/sw.js",
-    "public/service-worker-recovery.js",
-    "src/main.tsx"
+    "server/src/media-image.ts",
+    "server/src/media-image.test.ts",
+    "server/src/image-sanitization.ts",
+    "server/src/photo-formats.test.ts",
+    "server/src/app.test.ts",
+    "src/app/lib/photoUploadFormats.ts",
+    "src/app/components/CruiseCarouselSlot.tsx"
   ],
   "forbiddenPaths": [
     "src/app/assets/brand/**",
