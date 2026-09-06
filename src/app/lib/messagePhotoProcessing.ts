@@ -1,27 +1,20 @@
-export const MESSAGE_PHOTO_MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
-export const MESSAGE_PHOTO_UPLOAD_ACCEPT = 'image/jpeg,image/png,image/webp,image/heic,image/heif';
+import {
+  PHOTO_UPLOAD_ACCEPT,
+  PHOTO_UPLOAD_EXTENSION_TYPES,
+  PHOTO_UPLOAD_TYPE_ALIASES,
+  PHOTO_UPLOAD_TYPES,
+} from './photoUploadFormats';
 
-// The server decodes HEIC now, so a photo straight off an iPhone goes up as it
-// is. It used to be transcoded in the browser first, which fails outright where
-// the browser cannot decode HEIC at all.
-const SERVER_SUPPORTED_MESSAGE_PHOTO_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif']);
-const PREVIEWABLE_MESSAGE_PHOTO_TYPES = new Set([
-  ...SERVER_SUPPORTED_MESSAGE_PHOTO_TYPES,
-  'image/heic',
-  'image/heif',
-]);
-const MESSAGE_PHOTO_TYPE_ALIASES = new Map([
-  ['image/jpg', 'image/jpeg'],
-  ['image/pjpeg', 'image/jpeg'],
-]);
-const MESSAGE_PHOTO_EXTENSION_TYPES = new Map([
-  ['jpg', 'image/jpeg'],
-  ['jpeg', 'image/jpeg'],
-  ['png', 'image/png'],
-  ['webp', 'image/webp'],
-  ['heic', 'image/heic'],
-  ['heif', 'image/heif'],
-]);
+export const MESSAGE_PHOTO_MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
+export const MESSAGE_PHOTO_UPLOAD_ACCEPT = PHOTO_UPLOAD_ACCEPT;
+
+// The server decodes every one of these and re-encodes to WebP, so a photo
+// straight off a phone goes up as it is. It used to be transcoded in the
+// browser first, which fails outright where the browser cannot decode HEIC.
+const SERVER_SUPPORTED_MESSAGE_PHOTO_TYPES = new Set<string>(PHOTO_UPLOAD_TYPES);
+const PREVIEWABLE_MESSAGE_PHOTO_TYPES = new Set<string>(PHOTO_UPLOAD_TYPES);
+const MESSAGE_PHOTO_TYPE_ALIASES = PHOTO_UPLOAD_TYPE_ALIASES;
+const MESSAGE_PHOTO_EXTENSION_TYPES = PHOTO_UPLOAD_EXTENSION_TYPES;
 const JPEG_QUALITY_STEPS = [0.88, 0.78, 0.68];
 const MAX_DIMENSION_STEPS = [1600, 1280, 960];
 

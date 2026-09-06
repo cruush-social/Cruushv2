@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ChangeEvent, type KeyboardEvent } from 'react';
+import { PHOTO_UPLOAD_ACCEPT, PHOTO_UPLOAD_FORMAT_MESSAGE } from '../lib/photoUploadFormats';
 import { useLocation, useNavigate } from 'react-router';
 import { ArrowLeft, Clock, Hash, SlidersHorizontal, Trash2, X } from 'lucide-react';
 import { Button } from './ui/button';
@@ -522,7 +523,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
       return;
     }
     if (!file.type.startsWith('image/')) {
-      setError('Choose a JPEG, PNG, or WebP photo.');
+      setError(PHOTO_UPLOAD_FORMAT_MESSAGE);
       return;
     }
 
@@ -1226,7 +1227,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
           <div className="flex items-center justify-between gap-3">
             <div>
               <input
-                accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif"
+                accept={PHOTO_UPLOAD_ACCEPT}
                 aria-label="Choose Feed photo"
                 className="sr-only"
                 onChange={handleFeedPhotoSelection}

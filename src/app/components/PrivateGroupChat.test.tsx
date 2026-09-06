@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { PHOTO_UPLOAD_ACCEPT } from '../lib/photoUploadFormats';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import PrivateGroupChat from './PrivateGroupChat';
@@ -1050,7 +1051,7 @@ describe('PrivateGroupChat', () => {
     const attachPhotoControl = screen.getByRole('button', { name: 'Attach photo' });
     expect(photoInput).toHaveAttribute(
       'accept',
-      'image/jpeg,image/png,image/webp,image/heic,image/heif',
+      PHOTO_UPLOAD_ACCEPT,
     );
     expect(photoInput).toHaveAttribute('id');
     const inputClickSpy = vi.spyOn(photoInput as HTMLInputElement, 'click').mockImplementation(() => undefined);

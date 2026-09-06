@@ -1,4 +1,5 @@
 import { useState, type ChangeEvent, type ReactNode } from 'react';
+import { PHOTO_UPLOAD_ACCEPT } from '../lib/photoUploadFormats';
 import { ArrowLeft, Flag, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import type { FeedPhoto } from '../lib/postApi';
@@ -181,7 +182,7 @@ function FeedPhotoUploadPreview() {
           <CruushIcon name="camera" className="h-4 w-4" />
           Choose photo
           <input
-            accept="image/jpeg,image/png,image/webp"
+            accept={PHOTO_UPLOAD_ACCEPT}
             aria-label="Choose feed photo"
             className="sr-only"
             onChange={(event) => void handleFileChange(event)}

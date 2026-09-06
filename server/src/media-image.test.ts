@@ -68,15 +68,10 @@ describe("media image processing", () => {
       code: "VALIDATION_ERROR"
     });
 
-    const gif = await sharp({
-      create: {
-        width: 10,
-        height: 10,
-        channels: 3,
-        background: { r: 1, g: 2, b: 3 }
-      }
-    }).gif().toBuffer();
-    await expect(processUploadedImage(gif, "image/gif")).rejects.toMatchObject({
+    // SVG is decodable by this build and stays out on purpose: it carries
+    // script, and nobody uploads one from a phone camera.
+    const svg = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><rect width="10" height="10"/></svg>');
+    await expect(processUploadedImage(svg, "image/svg+xml")).rejects.toMatchObject({
       code: "VALIDATION_ERROR"
     });
   });

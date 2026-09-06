@@ -828,7 +828,7 @@ export function ProfileDetailsTabs({
 
   return (
     <Tabs value={activeTab} onValueChange={onActiveTabChange} className="w-full">
-      <TabsList className={`grid h-auto w-full grid-cols-3 rounded-full border border-white/10 bg-background/25 p-1 ${compact ? 'text-xs' : ''}`}>
+      <TabsList className={`sticky top-0 z-20 grid h-auto w-full grid-cols-3 rounded-full border border-white/10 bg-background/92 p-1 backdrop-blur-md ${compact ? 'text-xs' : ''}`}>
         <TabsTrigger value="basics" className={tabTriggerClassName} onClick={() => onActiveTabChange('basics')}>Basics</TabsTrigger>
         <TabsTrigger value="intimacy" className={tabTriggerClassName} onClick={() => onActiveTabChange('intimacy')}>Intimacy</TabsTrigger>
         <TabsTrigger value="health" className={tabTriggerClassName} onClick={() => onActiveTabChange('health')}>Health</TabsTrigger>

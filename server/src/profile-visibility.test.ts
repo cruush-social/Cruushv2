@@ -48,6 +48,29 @@ describe("profile visibility rules", () => {
     expect(canSubjectViewProfile(rules, { mile_high_club_member: false })).toBe(true);
   });
 
+  it("does not hide a distance-limited profile when the distance is unknown", () => {
+    const rules: ProfileVisibilityRules = {
+      ...emptyProfile.visibility_rules,
+      distance: 10
+    };
+
+    // Only eight of two hundred and sixteen accounts carry coordinates on the
+    // profile row, so a viewer with none used to be treated as too far and the
+    // profile came back as unavailable. Hide only someone measurably farther.
+    expect(canSubjectViewProfile(rules, {}, null)).toBe(true);
+    expect(canSubjectViewProfile(rules, { coordinates: { lat: 40.7128, lng: -74.006 } }, null)).toBe(true);
+    expect(canSubjectViewProfile(
+      rules,
+      { coordinates: { lat: 40.7128, lng: -74.006 } },
+      { lat: 40.72, lng: -74.0 }
+    )).toBe(true);
+    expect(canSubjectViewProfile(
+      rules,
+      { coordinates: { lat: 40.7128, lng: -74.006 } },
+      { lat: 42.5, lng: -74.0 }
+    )).toBe(false);
+  });
+
   it("hides a profile from people with no profile picture", () => {
     const rules: ProfileVisibilityRules = {
       ...emptyProfile.visibility_rules,

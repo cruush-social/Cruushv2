@@ -1,4 +1,5 @@
 import type { ChangeEvent, PointerEvent } from 'react';
+import { PHOTO_UPLOAD_ACCEPT } from '../lib/photoUploadFormats';
 import { SIGNAL_MAX_LENGTH } from '../lib/profileLimits';
 import { lazy, Suspense, useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router';
@@ -1128,7 +1129,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
           </div>
         ) : null}
         <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-          <TabsList className="grid h-auto w-full grid-cols-5 rounded-full border border-white/10 bg-background/25 p-1">
+          <TabsList className="sticky top-0 z-20 grid h-auto w-full grid-cols-5 rounded-full border border-white/10 bg-background/92 p-1 backdrop-blur-md">
             <TabsTrigger value="photos" className="min-h-11">Photos</TabsTrigger>
             <TabsTrigger
               value="badges"
@@ -1241,7 +1242,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
                   <Upload className="h-7 w-7 text-muted-foreground" />
                   <span className="text-sm text-muted-foreground">{uploadingPhoto ? 'Uploading...' : 'Upload photo'}</span>
                   <input
-                    accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif"
+                    accept={PHOTO_UPLOAD_ACCEPT}
                     className="sr-only"
                     disabled={uploadingPhoto || profilePhotoUploadsAvailable === false}
                     onChange={handlePhotoUpload}

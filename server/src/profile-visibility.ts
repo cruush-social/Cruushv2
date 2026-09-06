@@ -274,7 +274,11 @@ export function canSubjectViewProfile(
       ? distanceMiles(subject.coordinates, targetCoordinates)
       : null;
 
-    if (distance == null || distance > normalizedRules.distance) {
+    // The rule is "hide me from people farther than X". An unknown distance is
+    // not a person farther than X, and hiding on it turned this into "hide me
+    // from almost everyone": most accounts carry no coordinates on the profile
+    // row, so the check had nothing to measure and denied the profile outright.
+    if (distance != null && distance > normalizedRules.distance) {
       return false;
     }
   }

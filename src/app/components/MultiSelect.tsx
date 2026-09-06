@@ -333,12 +333,17 @@ export default function MultiSelect({
         </div>
       ) : (
         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden sm:flex-row">
-          {/* Horizontal Category Tabstrip for Mobile, Vertical Sidebar for Desktop */}
+          {/* Horizontal category strip on mobile, vertical sidebar on desktop.
+              The sidebar stretches and is allowed to shrink rather than taking
+              h-full: Safari does not resolve a percentage height against a flex
+              parent that has no definite height of its own, so the sidebar grew
+              to fit every category, its own overflow never engaged, and the
+              list was cut off part way down the alphabet. */}
           <div
             ref={tablistRef}
             role="tablist"
             aria-label={`${ariaLabel ?? 'Options'} categories`}
-            className="scrollbar-subtle flex w-full min-w-0 max-w-full shrink-0 gap-1 overflow-x-auto overscroll-x-contain border-b border-border p-2 sm:h-full sm:w-44 sm:flex-none sm:flex-col sm:overflow-y-auto sm:border-b-0 sm:border-r"
+            className="scrollbar-subtle flex w-full min-w-0 max-w-full shrink-0 gap-1 overflow-x-auto overscroll-x-contain border-b border-border p-2 sm:w-44 sm:min-h-0 sm:flex-none sm:flex-col sm:self-stretch sm:overflow-y-auto sm:border-b-0 sm:border-r"
             style={HORIZONTAL_TOUCH_SCROLL_STYLE}
             onTouchStart={handleTablistTouchStart}
             onTouchMove={handleTablistTouchMove}

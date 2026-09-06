@@ -2,16 +2,19 @@ import sharp from "sharp";
 
 const MAX_PROFILE_PHOTO_DIMENSION = 2048;
 
-export type SupportedProfilePhotoMimeType = "image/jpeg" | "image/png" | "image/webp" | "image/heic";
+export type SupportedProfilePhotoMimeType = "image/jpeg" | "image/png" | "image/webp" | "image/heic" | "image/gif" | "image/tiff";
 
-// A HEIC upload leaves as WebP. Keeping the input format would hand browsers a
-// picture most of them cannot display, and everything downstream is WebP
-// anyway.
+// Anything a browser cannot reliably display leaves as WebP. Keeping the input
+// format would hand browsers a picture most of them cannot open, and everything
+// downstream is WebP anyway. GIF becomes a still WebP: an animation is not a
+// profile photo, and the first frame is the picture someone chose.
 const outputByMimeType = {
   "image/jpeg": { extension: "jpg", mimeType: "image/jpeg" },
   "image/png": { extension: "png", mimeType: "image/png" },
   "image/webp": { extension: "webp", mimeType: "image/webp" },
-  "image/heic": { extension: "webp", mimeType: "image/webp" }
+  "image/heic": { extension: "webp", mimeType: "image/webp" },
+  "image/gif": { extension: "webp", mimeType: "image/webp" },
+  "image/tiff": { extension: "webp", mimeType: "image/webp" }
 } as const;
 
 export async function sanitizeProfilePhoto(bytes: Buffer, mimeType: SupportedProfilePhotoMimeType) {

@@ -461,27 +461,41 @@ export default function CruiseCarouselSlot({
 
         <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-center" aria-live="polite">
           <p className="text-sm text-white/78">{settled ? description : 'Browsing nearby profiles...'}</p>
+          {/* The round button the profile surfaces use, centred, with its word
+              under it rather than wrapped around it in a pill. */}
           {settled && mode === 'locked' ? (
-            <Button
-              type="button"
-              className="mt-4 h-11 rounded-xl text-white"
-              style={{ background: 'var(--cruush-gradient)' }}
-              onClick={onUpgrade}
-            >
-              <Lock className="h-4 w-4" />
-              Get <CruushPlusWord />
-            </Button>
+            <div className="mt-4 flex flex-col items-center gap-1.5">
+              <Button
+                type="button"
+                size="icon"
+                variant="secondary"
+                aria-label="Get cruush+"
+                title="Get cruush+"
+                className="cruush-action-sheen size-12 shrink-0 rounded-full border-0 text-white disabled:opacity-100"
+                style={{ background: 'var(--cruush-gradient)' }}
+                onClick={onUpgrade}
+              >
+                <Lock className="h-5 w-5" />
+              </Button>
+              <span className="text-xs text-white/78">Get <CruushPlusWord /></span>
+            </div>
           ) : null}
           {settled && (mode === 'empty' || mode === 'profile') && onRetry ? (
-            <Button
-              type="button"
-              variant="outline"
-              className="mt-4 h-11 rounded-xl border-white/18 text-white"
-              onClick={onRetry}
-            >
-              <RefreshCw className="h-4 w-4" />
-              Browse again
-            </Button>
+            <div className="mt-4 flex flex-col items-center gap-1.5">
+              <Button
+                type="button"
+                size="icon"
+                variant="secondary"
+                aria-label="Browse again"
+                title="Browse again"
+                className="cruush-action-sheen size-12 shrink-0 rounded-full border-0 text-white disabled:opacity-100"
+                style={{ background: 'var(--cruush-gradient-soft-28)' }}
+                onClick={onRetry}
+              >
+                <RefreshCw className="h-5 w-5" />
+              </Button>
+              <span className="text-xs text-white/78">Browse again</span>
+            </div>
           ) : null}
         </div>
       </div>

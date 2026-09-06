@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
+import { PHOTO_UPLOAD_ACCEPT } from '../lib/photoUploadFormats';
 import { CROWDS, IDENTITIES, LOOKING_FOR, MAX_PROFILE_SEXUALITIES, POSITIONS, PRONOUNS, ROLES, SEXUALITY, VIBE_GROUPS } from '../lib/profileOptions';
 import { ArrowRight, Check, Clipboard, Gift, Share2, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
@@ -753,7 +754,7 @@ export default function ProfileOnboarding({
                       id="onboarding-profile-photo"
                       aria-label="Profile photo"
                       type="file"
-                      accept="image/jpeg,image/png,image/webp"
+                      accept={PHOTO_UPLOAD_ACCEPT}
                       disabled={photoUploading}
                       onChange={(event) => void handleOnboardingPhotoUpload(event)}
                     />

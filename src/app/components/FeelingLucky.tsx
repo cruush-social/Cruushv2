@@ -195,17 +195,23 @@ export default function FeelingLucky() {
         {status === 'error' ? (
           <div className="rounded-2xl border border-destructive/30 bg-destructive/10 p-5 text-center">
             <p className="text-sm text-destructive">{error ?? 'Unable to load cruise carousel.'}</p>
-            <Button
-              type="button"
-              className="mt-4 h-11 rounded-xl text-white"
-              style={{ background: 'var(--cruush-gradient)' }}
-              onClick={() => {
-                void loadCarousel();
-              }}
-            >
-              <RefreshCw className="h-4 w-4" />
-              Try again
-            </Button>
+            <div className="mt-4 flex flex-col items-center gap-1.5">
+              <Button
+                type="button"
+                size="icon"
+                variant="secondary"
+                aria-label="Try again"
+                title="Try again"
+                className="cruush-action-sheen size-12 shrink-0 rounded-full border-0 text-white disabled:opacity-100"
+                style={{ background: 'var(--cruush-gradient)' }}
+                onClick={() => {
+                  void loadCarousel();
+                }}
+              >
+                <RefreshCw className="h-5 w-5" />
+              </Button>
+              <span className="text-xs text-white/78">Try again</span>
+            </div>
           </div>
         ) : null}
       </main>

@@ -6,17 +6,25 @@ export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 export const MAX_IMAGE_PIXELS = 40_000_000;
 const MAX_IMAGE_DIMENSION = 12_000;
 
-// HEIC is what an iPhone camera produces by default, so a photo straight off
-// the phone was rejected. Everything is re-encoded to WebP for delivery, so
-// accepting the format costs nothing downstream. Verified that the production
-// image build reads HEIF before adding it.
-const supportedFormats = new Set(["jpeg", "png", "webp", "heif"]);
+// What a phone camera actually produces. HEIC is the iPhone default and AVIF
+// is turning up from Android; libvips reports both as heif, so AVIF passes the
+// format check already and only ever failed on its declared type. GIF and TIFF
+// come out of messaging apps and the odd camera app. Everything is re-encoded
+// to WebP for delivery, so accepting a format costs nothing downstream.
+//
+// SVG and raw are deliberately absent even though this build decodes them: SVG
+// carries script, and raw is not a photo anyone is uploading from a phone.
+// Verified against the running production image that jpeg, png, webp, heif,
+// avif, gif and tiff all decode there.
+const supportedFormats = new Set(["jpeg", "png", "webp", "heif", "gif", "tiff"]);
 
 const mimeTypes = {
   jpeg: "image/jpeg",
   png: "image/png",
   webp: "image/webp",
-  heif: "image/heic"
+  heif: "image/heic",
+  gif: "image/gif",
+  tiff: "image/tiff"
 } as const;
 
 export type ProcessedImageVariant = {
@@ -28,7 +36,7 @@ export type ProcessedImageVariant = {
 };
 
 export type ProcessedImage = {
-  detectedMimeType: "image/jpeg" | "image/png" | "image/webp" | "image/heic";
+  detectedMimeType: "image/jpeg" | "image/png" | "image/webp" | "image/heic" | "image/gif" | "image/tiff";
   canonicalBytes: Buffer;
   width: number;
   height: number;
@@ -41,15 +49,28 @@ function mimeTypeAliases(detectedMimeType: string) {
     case "image/jpeg":
       return new Set(["image/jpeg", "image/jpg", "image/pjpeg"]);
     case "image/heic":
-      return new Set(["image/heic", "image/heif", "image/heic-sequence", "image/heif-sequence"]);
+      // libvips reports AVIF as heif too, and a Live Photo or burst arrives as
+      // a sequence, so every label in the family belongs to the same bytes.
+      return new Set([
+        "image/heic",
+        "image/heif",
+        "image/heic-sequence",
+        "image/heif-sequence",
+        "image/avif",
+        "image/avif-sequence",
+      ]);
     case "image/png":
-      return new Set(["image/png", "image/x-png"]);
+      return new Set(["image/png", "image/x-png", "image/apng"]);
+    case "image/gif":
+      return new Set(["image/gif"]);
+    case "image/tiff":
+      return new Set(["image/tiff", "image/x-tiff", "image/tif"]);
     default:
       return new Set([detectedMimeType]);
   }
 }
 
-function invalidImage(message = "Upload a valid JPEG, PNG, HEIC, or WebP image.") {
+function invalidImage(message = "Upload a photo your phone or camera made: JPEG, PNG, HEIC, AVIF, WebP, GIF, or TIFF.") {
   return new ApiError(400, "VALIDATION_ERROR", message);
 }
 

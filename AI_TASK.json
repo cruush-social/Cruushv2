@@ -1,24 +1,22 @@
 {
   "schemaVersion": 2,
-  "taskId": "cruush-checkin-duration-slider-20260905",
+  "taskId": "cruush-user-reported-bugs-20260905",
   "status": "active",
-  "objective": "Make the check-in duration a slider like distance rather than a dropdown.",
-  "userOutcome": "Check-in length is set by sliding along an ordered scale from 1h to 24h.",
+  "objective": "Accept every photo format a phone makes, stop profiles reading as unavailable, let the category sidebar scroll in Safari, give the carousel the round profile button, and pin the tab strips.",
+  "userOutcome": "Photos from any phone upload, a mutual cruush can be opened, the archetypes list scrolls past C in Safari, and a tab strip stays put while its content scrolls.",
   "audience": "cruush members and the 1.6 release-email audience.",
   "successCriteria": [
-    "The check-in duration renders as a slider with the selected value beside the label."
+    "JPEG, PNG, WebP, HEIC, AVIF, GIF and TIFF all round trip through the upload pipeline.",
+    "A distance visibility rule no longer hides a profile whose distance cannot be measured.",
+    "The MultiSelect category sidebar scrolls where a percentage height does not resolve.",
+    "The carousel controls use the round profile button, and tab strips stay pinned."
   ],
   "mustPreserve": [
-    "Preserve approved custom map tiles, theme, people pins, Ghost Mode, Dark Room, Pulse, and unrelated map behavior.",
-    "Preserve existing published spots, check-ins, Pink Book posts, ratings, and unrelated 1.6 work.",
-    "Never display gay spot, dyke spot, or dyke bar as a public label.",
-    "Do not infer trans or nonbinary presence from profiles or scraped visitor data.",
-    "Harassment-only Stream results must publish with flagged moderator review, while mixed unsafe labels and non-harassment flags retain their existing enforcement.",
-    "Keep user-facing copy free of em dashes and spell cruush lowercase.",
-    "Never delete a Spot that carries a check-in, a rating, or a Pink Book post."
+    "SVG and camera raw stay rejected even though this build decodes them.",
+    "A file whose bytes do not match its declared type is still rejected."
   ],
   "nonGoals": [
-    "No change to the durations offered."
+    "No change to the upload size limit or to what visibility rules can express."
   ],
   "assumptions": [
     {
@@ -40,7 +38,7 @@
       "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "The Spot check-in form on cruush.app uses the slider.",
+  "nextVisibleMilestone": "All of it lands on cruush.app.",
   "stopConditions": [
     "Stop the data-expansion slice if the full prior source cache cannot be recovered or if a source record is private or unsafe to publish.",
     "Stop publication because push and deployment are not authorized by this task."
@@ -73,7 +71,28 @@
   "job": "Finish the named 1.6 changes and update the release email locally.",
   "allowedPaths": [
     "AI_TASK.json",
-    "src/app/components/PlaceDetail.tsx"
+    "server/src/media-image.ts",
+    "server/src/media-image.test.ts",
+    "server/src/image-sanitization.ts",
+    "server/src/photo-formats.test.ts",
+    "server/src/app.test.ts",
+    "server/src/profile-visibility.ts",
+    "server/src/profile-visibility.test.ts",
+    "server/src/routes/profiles.ts",
+    "src/app/lib/photoUploadFormats.ts",
+    "src/app/lib/messagePhotoProcessing.ts",
+    "src/app/components/ProfileEdit.tsx",
+    "src/app/components/LocalFeed.tsx",
+    "src/app/components/ProfileOnboarding.tsx",
+    "src/app/components/FeedPhotoPreview.tsx",
+    "src/app/components/PrivateGroupChat.test.tsx",
+    "src/app/components/CruiseCarouselSlot.tsx",
+    "src/app/components/CruiseCarouselSlot.test.tsx",
+    "src/app/components/FeelingLucky.tsx",
+    "src/app/components/MultiSelect.tsx",
+    "src/app/components/MapFiltersSurface.tsx",
+    "src/app/components/MapVisibilitySurface.tsx",
+    "src/app/components/ProfileView.tsx"
   ],
   "forbiddenPaths": [
     "src/app/assets/brand/**",

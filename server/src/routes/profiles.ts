@@ -1578,9 +1578,50 @@ async function assertProfileRowVisibleToViewer(
     ? await loadVisibilitySubjectProfile(app, viewerUserId)
     : null;
 
-  if (!viewerProfile || !canSubjectViewProfile(visibilityRules, viewerProfile, getProfileCoordinates(row))) {
+  // Both sides' positions live in the encrypted location envelope: only a
+  // handful of accounts carry coordinates on the profile row at all. Reading
+  // only the row meant a distance rule had nothing to measure, so people who
+  // set one vanished from the profile route while still showing on the map.
+  const coordinates = viewerUserId
+    ? await loadVisibilityCoordinates(app, viewerUserId, row)
+    : { viewer: null, target: getProfileCoordinates(row) };
+
+  const viewerSubject = viewerProfile && coordinates.viewer
+    ? { ...viewerProfile, coordinates: coordinates.viewer }
+    : viewerProfile;
+
+  if (!viewerSubject || !canSubjectViewProfile(visibilityRules, viewerSubject, coordinates.target)) {
     throw new ApiError(404, "NOT_FOUND", "Profile not found");
   }
+}
+
+/**
+ * Where the viewer and the profile actually are, read the way the map reads
+ * them: the encrypted location envelope first, the profile row only as a
+ * fallback for the few accounts that still carry one.
+ */
+async function loadVisibilityCoordinates(app: FastifyInstance, viewerUserId: string, row: ProfileRow) {
+  const envelopes = await loadLocationEnvelopes(app, [viewerUserId, row.id]).catch((error: unknown) => {
+    if (isSchemaCompatibilityError(error)) {
+      return new Map<string, LocationPayload>();
+    }
+
+    throw error;
+  });
+  const viewerEnvelope = envelopes.get(viewerUserId);
+  const targetEnvelope = envelopes.get(row.id);
+  const viewerFromEnvelope = viewerEnvelope ? locationPayloadToCoordinates(viewerEnvelope) : null;
+  const targetFromEnvelope = targetEnvelope ? locationPayloadToCoordinates(targetEnvelope) : null;
+  const viewerRow = (await app.db.query<{ lat: number | null; lng: number | null; fuzzy_lat: number | null; fuzzy_lng: number | null }>(
+    "select lat, lng, fuzzy_lat, fuzzy_lng from profiles where id = $1",
+    [viewerUserId]
+  )).rows[0];
+  const rowTarget = getProfileCoordinates(row);
+
+  return {
+    viewer: viewerFromEnvelope ?? (viewerRow ? getProfileCoordinates(viewerRow as unknown as ProfileRow) : null),
+    target: targetFromEnvelope ?? rowTarget
+  };
 }
 
 export async function assertProfileVisibleToViewer(app: FastifyInstance, viewerUserId: string, targetUserId: string) {
