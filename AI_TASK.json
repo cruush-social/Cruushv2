@@ -1,22 +1,19 @@
 {
   "schemaVersion": 2,
-  "taskId": "cruush-user-reported-bugs-20260905",
+  "taskId": "cruush-shell-v73-20260905",
   "status": "active",
-  "objective": "Accept every photo format a phone makes, stop profiles reading as unavailable, let the category sidebar scroll in Safari, give the carousel the round profile button, and pin the tab strips.",
-  "userOutcome": "Photos from any phone upload, a mutual cruush can be opened, the archetypes list scrolls past C in Safari, and a tab strip stays put while its content scrolls.",
+  "objective": "Retire the v72 app shell so the new build reaches people.",
+  "userOutcome": "Reopening cruush.app serves the build just deployed rather than a cached shell.",
   "audience": "cruush members and the 1.6 release-email audience.",
   "successCriteria": [
-    "JPEG, PNG, WebP, HEIC, AVIF, GIF and TIFF all round trip through the upload pipeline.",
-    "A distance visibility rule no longer hides a profile whose distance cannot be measured.",
-    "The MultiSelect category sidebar scrolls where a percentage height does not resolve.",
-    "The carousel controls use the round profile button, and tab strips stay pinned."
+    "All five copies of the shell id read v73."
   ],
   "mustPreserve": [
     "SVG and camera raw stay rejected even though this build decodes them.",
     "A file whose bytes do not match its declared type is still rejected."
   ],
   "nonGoals": [
-    "No change to the upload size limit or to what visibility rules can express."
+    "No other change in this commit."
   ],
   "assumptions": [
     {
@@ -38,7 +35,7 @@
       "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "All of it lands on cruush.app.",
+  "nextVisibleMilestone": "v73 serves on cruush.app.",
   "stopConditions": [
     "Stop the data-expansion slice if the full prior source cache cannot be recovered or if a source record is private or unsafe to publish.",
     "Stop publication because push and deployment are not authorized by this task."
@@ -71,28 +68,10 @@
   "job": "Finish the named 1.6 changes and update the release email locally.",
   "allowedPaths": [
     "AI_TASK.json",
-    "server/src/media-image.ts",
-    "server/src/media-image.test.ts",
-    "server/src/image-sanitization.ts",
-    "server/src/photo-formats.test.ts",
-    "server/src/app.test.ts",
-    "server/src/profile-visibility.ts",
-    "server/src/profile-visibility.test.ts",
-    "server/src/routes/profiles.ts",
-    "src/app/lib/photoUploadFormats.ts",
-    "src/app/lib/messagePhotoProcessing.ts",
-    "src/app/components/ProfileEdit.tsx",
-    "src/app/components/LocalFeed.tsx",
-    "src/app/components/ProfileOnboarding.tsx",
-    "src/app/components/FeedPhotoPreview.tsx",
-    "src/app/components/PrivateGroupChat.test.tsx",
-    "src/app/components/CruiseCarouselSlot.tsx",
-    "src/app/components/CruiseCarouselSlot.test.tsx",
-    "src/app/components/FeelingLucky.tsx",
-    "src/app/components/MultiSelect.tsx",
-    "src/app/components/MapFiltersSurface.tsx",
-    "src/app/components/MapVisibilitySurface.tsx",
-    "src/app/components/ProfileView.tsx"
+    "index.html",
+    "public/sw.js",
+    "public/service-worker-recovery.js",
+    "src/main.tsx"
   ],
   "forbiddenPaths": [
     "src/app/assets/brand/**",
