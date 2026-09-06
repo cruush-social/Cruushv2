@@ -1,21 +1,20 @@
 {
   "schemaVersion": 2,
-  "taskId": "cruush-still-photos-carousel-card-20260906",
+  "taskId": "cruush-checkbox-matches-app-20260906",
   "status": "active",
-  "objective": "Keep photo uploads to still formats, and make the featured carousel card read like the profile card with the browse again button.",
-  "userOutcome": "No animated uploads, and the carousel shows a profile card: name, pronouns, distance and last online, signal, and vibe tags over the photo.",
+  "objective": "Make the checkbox look like a cruush control instead of a stock one.",
+  "userOutcome": "A checkbox reads as part of the app: glass surface, white border, the gradient when it is on, and a size a thumb can hit.",
   "audience": "cruush members and the 1.6 release-email audience.",
   "successCriteria": [
-    "GIF is rejected and the accepted list is JPEG, PNG, WebP, HEIC, AVIF and TIFF.",
-    "The featured carousel card carries the profile overlay and nothing is clipped or overhanging.",
-    "The Browse again button sits under the card."
+    "The checked state uses the cruush gradient.",
+    "The control is 20px rather than 16px."
   ],
   "mustPreserve": [
     "Animated images stay rejected.",
     "SVG and camera raw stay rejected."
   ],
   "nonGoals": [
-    "No change to the carousel neighbours or to the profile page itself."
+    "No change to where checkboxes are used or to what they control."
   ],
   "assumptions": [
     {
@@ -37,7 +36,7 @@
       "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "The carousel card and the still-only upload list land on cruush.app.",
+  "nextVisibleMilestone": "Checkboxes on cruush.app match the rest of the controls.",
   "stopConditions": [
     "Stop the data-expansion slice if the full prior source cache cannot be recovered or if a source record is private or unsafe to publish.",
     "Stop publication because push and deployment are not authorized by this task."
@@ -70,13 +69,7 @@
   "job": "Finish the named 1.6 changes and update the release email locally.",
   "allowedPaths": [
     "AI_TASK.json",
-    "server/src/media-image.ts",
-    "server/src/media-image.test.ts",
-    "server/src/image-sanitization.ts",
-    "server/src/photo-formats.test.ts",
-    "server/src/app.test.ts",
-    "src/app/lib/photoUploadFormats.ts",
-    "src/app/components/CruiseCarouselSlot.tsx"
+    "src/app/components/ui/checkbox.tsx"
   ],
   "forbiddenPaths": [
     "src/app/assets/brand/**",
