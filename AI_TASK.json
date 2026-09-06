@@ -1,21 +1,20 @@
 {
   "schemaVersion": 2,
-  "taskId": "cruush-one-dropdown-style-20260906",
+  "taskId": "cruush-owner-ghost-decoy-signal-20260906",
   "status": "active",
-  "objective": "Give every member-facing dropdown the same appearance, using Gender Identity and Body Type as the reference.",
-  "userOutcome": "Dropdowns look like one control across the app instead of five different ones.",
+  "objective": "Show the member's own profile signal on their Ghost Mode decoy, the way everyone else already sees it.",
+  "userOutcome": "With Ghost Mode on, your decoy pin reads the way other people read it: the decoy spot, your real signal.",
   "audience": "cruush members and the 1.6 release-email audience.",
   "successCriteria": [
-    "MultiSelect, SingleSelect and every raw select on a member surface share one class.",
-    "Measured height, radius, surface, border, font and padding match across them."
+    "The owner's decoy marker carries the profile signal rather than the literal string Ghost Mode decoy.",
+    "The decoy still shows the Peppers ghost mark and the decoy location."
   ],
   "mustPreserve": [
-    "Animated images stay rejected.",
-    "SVG and camera raw stay rejected."
+    "Ghost Mode still moves where people see you.",
+    "The decoy keeps its own name label so it can be told apart from your real pin."
   ],
   "nonGoals": [
-    "No change to what any dropdown contains or controls.",
-    "Moderator and admin surfaces are not in scope."
+    "No change to Ghost rotation, radius, or who can see the decoy."
   ],
   "assumptions": [
     {
@@ -37,7 +36,7 @@
       "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "Dropdowns match across cruush.app.",
+  "nextVisibleMilestone": "Your Ghost decoy on cruush.app shows your signal.",
   "stopConditions": [
     "Stop the data-expansion slice if the full prior source cache cannot be recovered or if a source record is private or unsafe to publish.",
     "Stop publication because push and deployment are not authorized by this task."
@@ -70,16 +69,8 @@
   "job": "Finish the named 1.6 changes and update the release email locally.",
   "allowedPaths": [
     "AI_TASK.json",
-    "src/app/lib/controlStyles.ts",
-    "src/app/components/SingleSelect.tsx",
-    "src/app/components/MultiSelect.tsx",
-    "src/app/components/SupportRequestForm.tsx",
-    "src/app/components/PrivateGroupChat.tsx",
-    "src/app/components/ReportAction.tsx",
-    "src/app/components/DirectMessages.tsx",
-    "src/app/components/PlacesDrawer.tsx",
-    "src/app/components/ProfileEdit.tsx",
-    "src/app/components/NotificationSettings.tsx"
+    "src/app/components/MapHome.tsx",
+    "src/app/components/MapHome.test.tsx"
   ],
   "forbiddenPaths": [
     "src/app/assets/brand/**",

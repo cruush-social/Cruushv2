@@ -2624,7 +2624,12 @@ export default function MapHome(_props: MapHomeProps = {}) {
           id: 'me-ghost-decoy',
           userId: currentProfile?.id ?? 'me',
           displayName: 'Your Ghost pin',
-          signal: 'Ghost Mode decoy',
+          // Ghost Mode moves where people see you, not who you are. Everyone
+          // else reads your real signal on the decoy, so this preview showed
+          // you something nobody else was seeing while it said "Ghost Mode
+          // decoy". The name stays as it is: that is how you tell your decoy
+          // from your own pin, and only you see this marker.
+          signal: currentProfile?.signal ?? '',
           approximateLatitude: ownerGhostMapLocation.approximateLatitude,
           approximateLongitude: ownerGhostMapLocation.approximateLongitude,
           lastActiveLabel: 'Now',

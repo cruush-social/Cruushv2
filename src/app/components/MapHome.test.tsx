@@ -317,6 +317,7 @@ vi.mock('./MapView', async () => {
               data-can-message={String(marker.relationship?.canMessage ?? '')}
               data-precision={marker.relationship?.precision ?? ''}
               data-display-mode={marker.displayMode ?? ''}
+              data-signal={marker.signal ?? ''}
               data-npc-ghost-demo={String(Boolean(marker.npcGhostDemo))}
               data-active-ping={marker.activePing?.id ?? ''}
               key={`marker-data-${marker.id}`}
@@ -2871,6 +2872,7 @@ describe('MapHome', () => {
       ...((await import('../lib/profileApi')).emptyProfilePayload),
       id: 'me',
       display_name: 'Me',
+      signal: 'Come say hi',
       photos: ['https://example.com/me.jpg'],
       updated_at: '2026-08-12T19:00:00.000Z',
       location: {
@@ -2957,6 +2959,10 @@ describe('MapHome', () => {
     expect(ghostMarker).toHaveAttribute('data-lat', '40.716');
     expect(ghostMarker).toHaveAttribute('data-lng', '-74.002');
     expect(ghostMarker).toHaveAttribute('data-photo', 'https://example.com/me.jpg');
+    // Ghost Mode moves where people see you, not who you are. Everyone else
+    // reads the real signal on the decoy, so this preview has to as well.
+    expect(ghostMarker).toHaveAttribute('data-signal', 'Come say hi');
+    expect(ghostMarker).not.toHaveAttribute('data-signal', 'Ghost Mode decoy');
     expect(mapFocus).toHaveAttribute('data-radius-circle', '1609');
     expect(mapFocus).toHaveAttribute('data-radius-lat', '40.7128');
     expect(mapFocus).toHaveAttribute('data-radius-lng', '-74.006');
