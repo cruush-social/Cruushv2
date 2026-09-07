@@ -1,20 +1,19 @@
 {
   "schemaVersion": 2,
-  "taskId": "cruush-zodiac-badges-20260906",
+  "taskId": "cruush-client-server-payload-contract-20260906",
   "status": "active",
-  "objective": "Add the twelve zodiac signs as badges, using sourced Noun Project icons rather than invented glyphs.",
-  "userOutcome": "A member can pick their sign as a badge, and it renders in the same family as the other badges.",
+  "objective": "Catch client and server payload drift in the test suite instead of as a validation error in someone's face.",
+  "userOutcome": "A field added on one side and not the other fails a test rather than showing \"Request validation failed\".",
   "audience": "cruush members and the 1.6 release-email audience.",
   "successCriteria": [
-    "Twelve signs appear in the badge picker under a Zodiac group.",
-    "Each stored badge id resolves to its own mark.",
-    "Each raster ships with a LICENSE.md recording source, credit, terms, date and checksum."
+    "The client's own payload parses against the server's strict schema.",
+    "An unknown field still fails, so the check has teeth."
   ],
   "mustPreserve": [
     "Every existing badge keeps its own mark."
   ],
   "nonGoals": [
-    "No change to the Zodiac profile field itself."
+    "No change to the schemas themselves or to how strict they are."
   ],
   "assumptions": [
     {
@@ -36,7 +35,7 @@
       "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "Zodiac badges are pickable on cruush.app.",
+  "nextVisibleMilestone": "Drift is caught before it ships.",
   "stopConditions": [
     "Stop the data-expansion slice if the full prior source cache cannot be recovered or if a source record is private or unsafe to publish.",
     "Stop publication because push and deployment are not authorized by this task."
@@ -69,33 +68,7 @@
   "job": "Finish the named 1.6 changes and update the release email locally.",
   "allowedPaths": [
     "AI_TASK.json",
-    "src/app/assets/ui-icons/zodiac-aquarius-4756906.LICENSE.md",
-    "src/app/assets/ui-icons/zodiac-aquarius-4756906.png",
-    "src/app/assets/ui-icons/zodiac-aries-4756914.LICENSE.md",
-    "src/app/assets/ui-icons/zodiac-aries-4756914.png",
-    "src/app/assets/ui-icons/zodiac-cancer-4756908.LICENSE.md",
-    "src/app/assets/ui-icons/zodiac-cancer-4756908.png",
-    "src/app/assets/ui-icons/zodiac-capricorn-4756913.LICENSE.md",
-    "src/app/assets/ui-icons/zodiac-capricorn-4756913.png",
-    "src/app/assets/ui-icons/zodiac-gemini-4756912.LICENSE.md",
-    "src/app/assets/ui-icons/zodiac-gemini-4756912.png",
-    "src/app/assets/ui-icons/zodiac-leo-4756909.LICENSE.md",
-    "src/app/assets/ui-icons/zodiac-leo-4756909.png",
-    "src/app/assets/ui-icons/zodiac-libra-4756911.LICENSE.md",
-    "src/app/assets/ui-icons/zodiac-libra-4756911.png",
-    "src/app/assets/ui-icons/zodiac-pisces-4756905.LICENSE.md",
-    "src/app/assets/ui-icons/zodiac-pisces-4756905.png",
-    "src/app/assets/ui-icons/zodiac-sagittarius-4756915.LICENSE.md",
-    "src/app/assets/ui-icons/zodiac-sagittarius-4756915.png",
-    "src/app/assets/ui-icons/zodiac-scorpio-4756910.LICENSE.md",
-    "src/app/assets/ui-icons/zodiac-scorpio-4756910.png",
-    "src/app/assets/ui-icons/zodiac-taurus-4756904.LICENSE.md",
-    "src/app/assets/ui-icons/zodiac-taurus-4756904.png",
-    "src/app/assets/ui-icons/zodiac-virgo-4756907.LICENSE.md",
-    "src/app/assets/ui-icons/zodiac-virgo-4756907.png",
-    "src/app/components/BadgePickerPreview.tsx",
-    "src/app/components/SavedBadgeGlyphs.tsx",
-    "src/app/components/ZodiacGlyphs.tsx"
+    "server/src/client-payload-contract.test.ts"
   ],
   "forbiddenPaths": [
     "src/app/assets/brand/**",
