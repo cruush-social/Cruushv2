@@ -1,4 +1,5 @@
 import cors from "@fastify/cors";
+import { ZodError } from "zod";
 import multipart from "@fastify/multipart";
 import Fastify, { type FastifyServerOptions } from "fastify";
 import { getAlphaTestState } from "./alpha-test.js";
@@ -171,11 +172,36 @@ export function buildServer(config: AppConfig, deps: BuildServerDeps = {}) {
     }
   });
 
-  app.setErrorHandler((error, _request, reply) => {
+  app.setErrorHandler((error, request, reply) => {
     const apiError = toApiError(error);
 
     if (apiError.statusCode >= 500) {
       app.log.error({ err: error }, "request failed");
+    }
+
+    // A rejected request used to leave nothing behind, so a member reporting
+    // "Request validation failed" was unreproducible: the route and the field
+    // that failed were only ever in the reply they had already dismissed. The
+    // field names are logged, never their values, so nothing a member typed
+    // reaches the log.
+    if (error instanceof ZodError) {
+      app.log.warn(
+        {
+          method: request.method,
+          // The route pattern, so no id or query value is recorded. The
+          // fallback drops the query string for the same reason.
+          url: request.routeOptions?.url ?? request.url.split("?")[0],
+          // Field names only, never their values, so nothing a member typed
+          // reaches the log. A key a strict schema rejected outright carries
+          // no path, so its name is read off the issue itself.
+          issues: error.issues.map((issue) => ({
+            code: issue.code,
+            path: issue.path.join("."),
+            keys: "keys" in issue ? issue.keys : undefined
+          }))
+        },
+        "request validation failed"
+      );
     }
 
     void reply.code(apiError.statusCode).send(formatError(apiError));

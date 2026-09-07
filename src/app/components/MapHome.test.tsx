@@ -1699,7 +1699,7 @@ describe('MapHome', () => {
       notificationButton,
       settingsButton,
     ]) {
-      expect(button).toHaveClass('size-11', 'max-[400px]:size-10', 'sm:size-12');
+      expect(button).toHaveClass('size-11', 'max-[360px]:size-10', 'sm:size-12');
     }
     expect(topActions).not.toHaveClass('sm:max-w-[34rem]');
     // The pill sits in a centring wrapper inside the full-width chrome row.
@@ -1760,8 +1760,8 @@ describe('MapHome', () => {
       'lg:text-xl',
     );
     expect(screen.queryByRole('button', { name: 'Safety Center' })).not.toBeInTheDocument();
-    expect(luckyIcon).toHaveClass('h-10', 'w-10', 'scale-[1.28]', 'object-contain', 'max-[400px]:h-9', 'max-[400px]:w-9', 'lg:h-11', 'lg:w-11');
-    expect(ghostModeIcon).toHaveClass('h-10', 'w-10', 'object-contain', 'max-[400px]:h-9', 'max-[400px]:w-9', 'lg:h-11', 'lg:w-11');
+    expect(luckyIcon).toHaveClass('h-10', 'w-10', 'scale-[1.28]', 'object-contain', 'max-[360px]:h-9', 'max-[360px]:w-9', 'lg:h-11', 'lg:w-11');
+    expect(ghostModeIcon).toHaveClass('h-10', 'w-10', 'object-contain', 'max-[360px]:h-9', 'max-[360px]:w-9', 'lg:h-11', 'lg:w-11');
     // The Ghost Mode glyph sits in the same box as its neighbours, with no extra scale.
     expect(ghostModeIcon).not.toHaveClass('scale-[1.15]');
     expect(dlModeIcon).toHaveClass('!h-10', '!w-10', 'scale-[1.18]', 'max-[360px]:!h-9', 'max-[360px]:!w-9', 'lg:!h-11', 'lg:!w-11');
@@ -1780,8 +1780,8 @@ describe('MapHome', () => {
       expect(button).not.toHaveClass('hover:bg-white/10');
     }
     expect(dlModeButton).not.toHaveClass('bg-white/[0.07]');
-    expect(notificationIcon).toHaveClass('h-10', 'w-10', 'scale-[1.28]', 'object-contain', 'max-[400px]:h-9', 'max-[400px]:w-9', 'lg:h-11', 'lg:w-11');
-    expect(settingsIcon).toHaveClass('h-10', 'w-10', 'object-contain', 'max-[400px]:h-9', 'max-[400px]:w-9', 'lg:h-11', 'lg:w-11');
+    expect(notificationIcon).toHaveClass('h-10', 'w-10', 'scale-[1.28]', 'object-contain', 'max-[360px]:h-9', 'max-[360px]:w-9', 'lg:h-11', 'lg:w-11');
+    expect(settingsIcon).toHaveClass('h-10', 'w-10', 'object-contain', 'max-[360px]:h-9', 'max-[360px]:w-9', 'lg:h-11', 'lg:w-11');
     expect(dlModeIcon).toHaveAttribute('data-source', 'Julien supplied balaclava halo DL Mode icon');
     expect(dlModeIcon).toHaveAttribute('data-tone', 'gradient');
     expect(dlModeIcon?.querySelector('[data-dl-mode-part="balaclava-halo"]')).toHaveAttribute('href', expect.stringContaining('dl-mode-balaclava-halo-user-supplied.png'));

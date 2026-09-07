@@ -2843,9 +2843,9 @@ export default function MapHome(_props: MapHomeProps = {}) {
               data-tutorial-target="carousel"
               aria-label="Cruise Carousel"
               title="Cruise Carousel"
-              className="size-11 rounded-full bg-transparent text-white/90 hover:bg-black/45 focus:bg-transparent focus-visible:bg-transparent max-[400px]:size-10 sm:size-12 lg:size-[3.25rem]"
+              className="size-11 rounded-full bg-transparent text-white/90 hover:bg-black/45 focus:bg-transparent focus-visible:bg-transparent max-[360px]:size-10 sm:size-12 lg:size-[3.25rem]"
             >
-              <CruushIconImage src={luckyIconWhite} className="h-10 w-10 scale-[1.28] object-contain max-[400px]:h-9 max-[400px]:w-9 lg:h-11 lg:w-11" />
+              <CruushIconImage src={luckyIconWhite} className="h-10 w-10 scale-[1.28] object-contain max-[360px]:h-9 max-[360px]:w-9 lg:h-11 lg:w-11" />
             </Button>
             <Button
               variant="ghost"
@@ -2854,7 +2854,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
               data-tutorial-target="ghost"
               aria-label="Ghost Mode Settings"
               title="Ghost Mode Settings"
-              className="size-11 rounded-full bg-transparent text-white/90 hover:bg-black/45 focus:bg-transparent focus-visible:bg-transparent max-[400px]:size-10 sm:size-12 lg:size-[3.25rem]"
+              className="size-11 rounded-full bg-transparent text-white/90 hover:bg-black/45 focus:bg-transparent focus-visible:bg-transparent max-[360px]:size-10 sm:size-12 lg:size-[3.25rem]"
             >
               {privacySettings.baseMode === 'STEALTH' ? (
                 <DarkRoomMark active className="!h-10 !w-10 text-white max-[360px]:!h-9 max-[360px]:!w-9 lg:!h-11 lg:!w-11" />
@@ -2865,7 +2865,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
                   // The ghost art carries padding inside its own viewBox, so
                   // at the shared box size it drew smaller than its neighbours.
                   // Scaled to match, the way the lucky and DL Mode marks are.
-                  className="h-10 w-10 scale-[1.22] object-contain max-[400px]:h-9 max-[400px]:w-9 lg:h-11 lg:w-11"
+                  className="h-10 w-10 scale-[1.22] object-contain max-[360px]:h-9 max-[360px]:w-9 lg:h-11 lg:w-11"
                 />
               )}
             </Button>
@@ -2876,7 +2876,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
               data-tutorial-target="dl-mode"
               aria-label={dlModeActive ? 'Turn DL Mode off' : 'Turn DL Mode on'}
               title={dlModeActive ? 'Turn DL Mode off' : 'Turn DL Mode on'}
-              className="size-11 overflow-visible rounded-full bg-transparent text-white/90 hover:bg-black/45 focus:bg-transparent focus-visible:bg-transparent max-[400px]:size-10 sm:size-12 lg:size-[3.25rem] [&_img]:!overflow-visible"
+              className="size-11 overflow-visible rounded-full bg-transparent text-white/90 hover:bg-black/45 focus:bg-transparent focus-visible:bg-transparent max-[360px]:size-10 sm:size-12 lg:size-[3.25rem] [&_img]:!overflow-visible"
             >
               {/* The gradient mark is the active state. Nothing is drawn around it unless the button is hovered. */}
               <DlModeMark active={dlModeActive} className="!h-10 !w-10 scale-[1.18] overflow-visible max-[360px]:!h-9 max-[360px]:!w-9 lg:!h-11 lg:!w-11" />
@@ -2895,9 +2895,9 @@ export default function MapHome(_props: MapHomeProps = {}) {
                 }}
                 aria-label="Settings"
                 title="Settings"
-                className="size-11 rounded-full bg-transparent text-white/90 hover:bg-black/45 focus:bg-transparent focus-visible:bg-transparent max-[400px]:size-10 sm:size-12 lg:size-[3.25rem]"
+                className="size-11 rounded-full bg-transparent text-white/90 hover:bg-black/45 focus:bg-transparent focus-visible:bg-transparent max-[360px]:size-10 sm:size-12 lg:size-[3.25rem]"
               >
-                <CruushIconImage src={settingsIconWhite} className="h-10 w-10 object-contain max-[400px]:h-9 max-[400px]:w-9 lg:h-11 lg:w-11" />
+                <CruushIconImage src={settingsIconWhite} className="h-10 w-10 object-contain max-[360px]:h-9 max-[360px]:w-9 lg:h-11 lg:w-11" />
             </Button>
             <Button
               variant="ghost"
@@ -2906,9 +2906,9 @@ export default function MapHome(_props: MapHomeProps = {}) {
               data-tutorial-target="notifications"
               aria-label="Notifications"
               title="Notifications"
-              className="relative size-11 rounded-full bg-transparent text-white/90 hover:bg-black/45 focus:bg-transparent focus-visible:bg-transparent max-[400px]:size-10 sm:size-12 lg:size-[3.25rem]"
+              className="relative size-11 rounded-full bg-transparent text-white/90 hover:bg-black/45 focus:bg-transparent focus-visible:bg-transparent max-[360px]:size-10 sm:size-12 lg:size-[3.25rem]"
             >
-              <CruushIconImage src={notificationsIconWhite} className="h-10 w-10 scale-[1.28] object-contain max-[400px]:h-9 max-[400px]:w-9 lg:h-11 lg:w-11" />
+              <CruushIconImage src={notificationsIconWhite} className="h-10 w-10 scale-[1.28] object-contain max-[360px]:h-9 max-[360px]:w-9 lg:h-11 lg:w-11" />
               {notificationUnreadCount > 0 ? (
                 <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[0.62rem] font-semibold leading-none text-primary-foreground">
                   {notificationUnreadCount > 9 ? '9+' : notificationUnreadCount}

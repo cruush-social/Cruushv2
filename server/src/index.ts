@@ -43,7 +43,6 @@ import { startAccountDeletionMediaCleanupScheduler } from "./account-deletion-me
 import { startPendingPhotoModerationRetryScheduler } from "./recheck-pending-photo-moderations.js";
 import { startMapPingCleanupScheduler } from "./map-ping-cleanup.js";
 import { startPlaceCheckinExpiryScheduler } from "./place-checkin-expiry.js";
-import { startSideQuestNotificationScheduler } from "./side-quest-notifications.js";
 import { syncAllVerifiedMembersToResendAudience } from "./resend-audience.js";
 
 const config = loadConfig();
@@ -54,7 +53,6 @@ let stopAccountDeletionMediaCleanupScheduler: (() => void) | null = null;
 let stopPendingPhotoModerationRetryScheduler: (() => void) | null = null;
 let stopMapPingCleanupScheduler: (() => void) | null = null;
 let stopPlaceCheckinExpiryScheduler: (() => void) | null = null;
-let stopSideQuestNotificationScheduler: (() => void) | null = null;
 
 const shutdown = async () => {
   stopReferralScheduler?.();
@@ -63,7 +61,6 @@ const shutdown = async () => {
   stopPendingPhotoModerationRetryScheduler?.();
   stopMapPingCleanupScheduler?.();
   stopPlaceCheckinExpiryScheduler?.();
-  stopSideQuestNotificationScheduler?.();
   await app.close();
 };
 
@@ -86,7 +83,10 @@ stopAccountDeletionMediaCleanupScheduler = startAccountDeletionMediaCleanupSched
 stopPendingPhotoModerationRetryScheduler = startPendingPhotoModerationRetryScheduler(app);
 stopMapPingCleanupScheduler = startMapPingCleanupScheduler(app);
 stopPlaceCheckinExpiryScheduler = startPlaceCheckinExpiryScheduler(app);
-stopSideQuestNotificationScheduler = startSideQuestNotificationScheduler(app);
+// Side Quest nudges are off for now at Julien's request: no prompt, and no
+// notification standing in for one. The sweep is left in place, so turning
+// them back on is this one line.
+// stopSideQuestNotificationScheduler = startSideQuestNotificationScheduler(app);
 void syncAllVerifiedMembersToResendAudience({
   config,
   db: app.db,
