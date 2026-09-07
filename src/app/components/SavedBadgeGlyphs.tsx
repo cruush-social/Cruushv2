@@ -106,6 +106,7 @@ import {
 } from './PrideFlagGlyphs';
 import { resolveSavedProfileBadge } from './ProfileBadgeGlyphs';
 import { positionGlyphFor, roleGlyphFor } from './PositionRoleGlyphs';
+import { zodiacGlyphFor } from './ZodiacGlyphs';
 
 type SavedBadgeGlyph = ComponentType<{ className?: string; strokeWidth?: number }>;
 
@@ -225,6 +226,7 @@ export function resolveSavedBadgeGlyph(badgeId: string) {
 
   const icon = roleGlyphFor(badgeId)
     ?? positionGlyphFor(badgeId)
+    ?? zodiacGlyphFor(badgeId)
     ?? SAVED_CUSTOM_GLYPHS[badgeId]
     ?? Sparkles;
   return {

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { ZODIAC_SIGNS, ZodiacGlyph } from './ZodiacGlyphs';
 import { AnalGlyph, BondageGlyph, CyborgGlyph, GooningGlyph, HarnessGlyph, KeyholeEyeGlyph, LeatherGlyph, LipsGlyph, NeurodivergentGlyph, NippleGlyph, PartyHatGlyph, PenetrationGlyph, RimmingGlyph, RubberGlyph, SpankingGlyph, StraightEdgeGlyph } from './BadgeGlyphs';
 import {
   BdsmTriskelionGlyph,
@@ -192,6 +193,13 @@ const HANKY_BADGE_OPTIONS: BadgeOption[] = HANKY_COLORS.map((hanky) => ({
   hanky,
 }));
 
+const ZODIAC_BADGE_OPTIONS: BadgeOption[] = ZODIAC_SIGNS.map((sign) => ({
+  id: `zodiac-${sign}`,
+  label: `${sign.charAt(0).toUpperCase()}${sign.slice(1)}`,
+  icon: ({ className }) => <ZodiacGlyph className={className} sign={sign} />,
+  group: 'Zodiac',
+}));
+
 export const BADGE_OPTIONS: BadgeOption[] = [
   // Role: the same role axis used by the profile editor.
   { id: 'dominant', label: 'Dominant', icon: DomEmblem, group: 'Role' },
@@ -345,6 +353,7 @@ export const BADGE_OPTIONS: BadgeOption[] = [
   { id: 'flag-pup', label: 'Pup flag', icon: PupFlagGlyph, group: 'Pride' },
   { id: 'flag-ally', label: 'Ally flag', icon: AllyFlagGlyph, group: 'Pride' },
 
+  ...ZODIAC_BADGE_OPTIONS,
   ...HANKY_BADGE_OPTIONS,
 ];
 

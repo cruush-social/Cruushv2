@@ -1,20 +1,20 @@
 {
   "schemaVersion": 2,
-  "taskId": "cruush-remove-abdl-scene-20260906",
+  "taskId": "cruush-zodiac-badges-20260906",
   "status": "active",
-  "objective": "Remove ABDL from Scenes and refuse it as a tag, so cruush carries no age-roleplay signal anywhere.",
-  "userOutcome": "ABDL is not offered as a scene and cannot be added as a free tag instead.",
+  "objective": "Add the twelve zodiac signs as badges, using sourced Noun Project icons rather than invented glyphs.",
+  "userOutcome": "A member can pick their sign as a badge, and it renders in the same family as the other badges.",
   "audience": "cruush members and the 1.6 release-email audience.",
   "successCriteria": [
-    "ABDL is gone from the Scenes options.",
-    "The abdl tag is refused with a message that does not point at a field.",
-    "Any profile still holding it is cleared."
+    "Twelve signs appear in the badge picker under a Zodiac group.",
+    "Each stored badge id resolves to its own mark.",
+    "Each raster ships with a LICENSE.md recording source, credit, terms, date and checksum."
   ],
   "mustPreserve": [
-    "Every other scene and every genuine reserved tag keeps its existing behaviour."
+    "Every existing badge keeps its own mark."
   ],
   "nonGoals": [
-    "No change to any other option list."
+    "No change to the Zodiac profile field itself."
   ],
   "assumptions": [
     {
@@ -36,7 +36,7 @@
       "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "ABDL is absent from Scenes on cruush.app.",
+  "nextVisibleMilestone": "Zodiac badges are pickable on cruush.app.",
   "stopConditions": [
     "Stop the data-expansion slice if the full prior source cache cannot be recovered or if a source record is private or unsafe to publish.",
     "Stop publication because push and deployment are not authorized by this task."
@@ -69,12 +69,33 @@
   "job": "Finish the named 1.6 changes and update the release email locally.",
   "allowedPaths": [
     "AI_TASK.json",
-    "src/app/lib/profileOptions.ts",
-    "server/src/profile-tag-reservations.ts",
-    "server/src/profile-schema.ts",
-    "server/src/abdl-not-offered.test.ts",
-    "server/sql/153_remove_abdl_scene.sql",
-    "server/src/migrate.ts"
+    "src/app/assets/ui-icons/zodiac-aquarius-4756906.LICENSE.md",
+    "src/app/assets/ui-icons/zodiac-aquarius-4756906.png",
+    "src/app/assets/ui-icons/zodiac-aries-4756914.LICENSE.md",
+    "src/app/assets/ui-icons/zodiac-aries-4756914.png",
+    "src/app/assets/ui-icons/zodiac-cancer-4756908.LICENSE.md",
+    "src/app/assets/ui-icons/zodiac-cancer-4756908.png",
+    "src/app/assets/ui-icons/zodiac-capricorn-4756913.LICENSE.md",
+    "src/app/assets/ui-icons/zodiac-capricorn-4756913.png",
+    "src/app/assets/ui-icons/zodiac-gemini-4756912.LICENSE.md",
+    "src/app/assets/ui-icons/zodiac-gemini-4756912.png",
+    "src/app/assets/ui-icons/zodiac-leo-4756909.LICENSE.md",
+    "src/app/assets/ui-icons/zodiac-leo-4756909.png",
+    "src/app/assets/ui-icons/zodiac-libra-4756911.LICENSE.md",
+    "src/app/assets/ui-icons/zodiac-libra-4756911.png",
+    "src/app/assets/ui-icons/zodiac-pisces-4756905.LICENSE.md",
+    "src/app/assets/ui-icons/zodiac-pisces-4756905.png",
+    "src/app/assets/ui-icons/zodiac-sagittarius-4756915.LICENSE.md",
+    "src/app/assets/ui-icons/zodiac-sagittarius-4756915.png",
+    "src/app/assets/ui-icons/zodiac-scorpio-4756910.LICENSE.md",
+    "src/app/assets/ui-icons/zodiac-scorpio-4756910.png",
+    "src/app/assets/ui-icons/zodiac-taurus-4756904.LICENSE.md",
+    "src/app/assets/ui-icons/zodiac-taurus-4756904.png",
+    "src/app/assets/ui-icons/zodiac-virgo-4756907.LICENSE.md",
+    "src/app/assets/ui-icons/zodiac-virgo-4756907.png",
+    "src/app/components/BadgePickerPreview.tsx",
+    "src/app/components/SavedBadgeGlyphs.tsx",
+    "src/app/components/ZodiacGlyphs.tsx"
   ],
   "forbiddenPaths": [
     "src/app/assets/brand/**",
