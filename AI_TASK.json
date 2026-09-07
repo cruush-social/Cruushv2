@@ -68,6 +68,7 @@
   "job": "Finish the named 1.6 changes and update the release email locally.",
   "allowedPaths": [
     "AI_TASK.json",
+    "src/app/lib/clientPayloadContract.test.ts",
     "server/src/client-payload-contract.test.ts"
   ],
   "forbiddenPaths": [
