@@ -1,6 +1,10 @@
 import { z } from "zod";
 import { multilineTextSchema, optionalSingleLineTextSchema, singleLineTextSchema } from "./input-schema.js";
-import { findStructuredProfileFieldForTag } from "./profile-tag-reservations.js";
+import {
+  findStructuredProfileFieldForTag,
+  normalizeStructuredProfileOption,
+  PROFILE_TAG_NOT_OFFERED
+} from "./profile-tag-reservations.js";
 
 // The map preview, the profile overlay, and the editor all hold to this.
 export const SIGNAL_MAX_LENGTH = 35;
@@ -261,6 +265,15 @@ const profileTagsSchema = z.array(
   [...new Set(values.map((value) => value.replace(/^#/, "").toLowerCase()))]
 )).superRefine((values, ctx) => {
   values.forEach((value, index) => {
+    if (PROFILE_TAG_NOT_OFFERED.has(normalizeStructuredProfileOption(value))) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "cruush does not carry that tag.",
+        path: [index]
+      });
+      return;
+    }
+
     const structuredField = findStructuredProfileFieldForTag(value);
 
     if (structuredField) {

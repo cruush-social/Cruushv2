@@ -1,19 +1,20 @@
 {
   "schemaVersion": 2,
-  "taskId": "cruush-one-dl-mode-cover-20260906",
+  "taskId": "cruush-remove-abdl-scene-20260906",
   "status": "active",
-  "objective": "Use one DL Mode cover everywhere a masked photo is hidden.",
-  "userOutcome": "A photo hidden by DL Mode shows the same gradient balaclava mark on a heart as it does on the profile gallery and the top bar.",
+  "objective": "Remove ABDL from Scenes and refuse it as a tag, so cruush carries no age-roleplay signal anywhere.",
+  "userOutcome": "ABDL is not offered as a scene and cannot be added as a free tag instead.",
   "audience": "cruush members and the 1.6 release-email audience.",
   "successCriteria": [
-    "A masked heart renders DlModeMark rather than a flat copy of the artwork.",
-    "An unmasked photoless heart still carries the faint cruush mark."
+    "ABDL is gone from the Scenes options.",
+    "The abdl tag is refused with a message that does not point at a field.",
+    "Any profile still holding it is cleared."
   ],
   "mustPreserve": [
-    "DL Mode still hides the photo itself; only the cover artwork changes."
+    "Every other scene and every genuine reserved tag keeps its existing behaviour."
   ],
   "nonGoals": [
-    "No change to what counts as explicit or to when DL Mode masks."
+    "No change to any other option list."
   ],
   "assumptions": [
     {
@@ -35,7 +36,7 @@
       "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "Masked hearts on cruush.app carry the gradient mark.",
+  "nextVisibleMilestone": "ABDL is absent from Scenes on cruush.app.",
   "stopConditions": [
     "Stop the data-expansion slice if the full prior source cache cannot be recovered or if a source record is private or unsafe to publish.",
     "Stop publication because push and deployment are not authorized by this task."
@@ -68,8 +69,12 @@
   "job": "Finish the named 1.6 changes and update the release email locally.",
   "allowedPaths": [
     "AI_TASK.json",
-    "src/app/components/HeartPhoto.tsx",
-    "src/app/components/HeartPhoto.test.tsx"
+    "src/app/lib/profileOptions.ts",
+    "server/src/profile-tag-reservations.ts",
+    "server/src/profile-schema.ts",
+    "server/src/abdl-not-offered.test.ts",
+    "server/sql/153_remove_abdl_scene.sql",
+    "server/src/migrate.ts"
   ],
   "forbiddenPaths": [
     "src/app/assets/brand/**",

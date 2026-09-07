@@ -421,7 +421,6 @@ export const PROFILE_TAG_RESERVED_FIELDS: Readonly<Record<string, string>> = {
   "wax": "Kinks",
   "window": "Kinks",
   "worship": "Kinks",
-  "abdl": "Vibes",
   "academia": "Vibes",
   "adventurou": "Vibes",
   "affectionate": "Vibes",
@@ -735,3 +734,10 @@ export function normalizeStructuredProfileOption(value: string) {
 export function findStructuredProfileFieldForTag(value: string) {
   return PROFILE_TAG_RESERVED_FIELDS[normalizeStructuredProfileOption(value)] ?? null;
 }
+
+/**
+ * Not a structured option and not a free tag either. cruush does not carry
+ * age-roleplay signals anywhere, so the tag is refused rather than redirected
+ * to a field that no longer offers it.
+ */
+export const PROFILE_TAG_NOT_OFFERED: ReadonlySet<string> = new Set(["abdl"]);

@@ -89,7 +89,7 @@ export const VIBE_GROUPS = [
   {
     label: 'Scenes',
     options: [
-      'ABDL', 'Art scene', 'Ballroom', 'Beach', 'Burlesque', 'Burner', 'Cabaret', 'Camping', 'Circuit', 'Club Kid', 'Collegiate',
+      'Art scene', 'Ballroom', 'Beach', 'Burlesque', 'Burner', 'Cabaret', 'Camping', 'Circuit', 'Club Kid', 'Collegiate',
       'Cosplay', 'Country', 'Disco', 'Drag', 'Fashion', 'Festival', 'Furry', 'Goth', 'Horror', 'House', 'Hyperpop', 'Musician',
       'Footwork', 'Hardcore', 'Indie', 'Industrial', 'Jock', 'Karaoke', 'Kiki', 'LARPing', 'Leather', 'Maker', 'Metal', 'Nature', 'Nudist',
       'Organizer', 'Party', 'Producer', 'Punk', 'Queer arts', 'Queer nightlife', 'Raver', 'Rubber', 'Sci-fi', 'Sex-positive', 'Skate', 'Sober',
