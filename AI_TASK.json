@@ -1,19 +1,19 @@
 {
   "schemaVersion": 2,
-  "taskId": "cruush-client-server-payload-contract-20260906",
+  "taskId": "cruush-mask-glyph-sizing-20260907",
   "status": "active",
-  "objective": "Catch client and server payload drift in the test suite instead of as a validation error in someone's face.",
-  "userOutcome": "A field added on one side and not the other fails a test rather than showing \"Request validation failed\".",
+  "objective": "Stop mask-based badge glyphs rendering at no size when a caller passes only sizing classes.",
+  "userOutcome": "Service, Stone top, Pillow princess and the zodiac signs show their mark wherever they are used.",
   "audience": "cruush members and the 1.6 release-email audience.",
   "successCriteria": [
-    "The client's own payload parses against the server's strict schema.",
-    "An unknown field still fails, so the check has teeth."
+    "Each mask glyph lays out as inline-block rather than inline.",
+    "A caller passing only h-11 w-11 gets a 44px mark."
   ],
   "mustPreserve": [
     "Every existing badge keeps its own mark."
   ],
   "nonGoals": [
-    "No change to the schemas themselves or to how strict they are."
+    "No change to the artwork or to which glyph any badge uses."
   ],
   "assumptions": [
     {
@@ -35,7 +35,7 @@
       "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "Drift is caught before it ships.",
+  "nextVisibleMilestone": "The affected badges show their marks on cruush.app.",
   "stopConditions": [
     "Stop the data-expansion slice if the full prior source cache cannot be recovered or if a source record is private or unsafe to publish.",
     "Stop publication because push and deployment are not authorized by this task."
@@ -68,8 +68,9 @@
   "job": "Finish the named 1.6 changes and update the release email locally.",
   "allowedPaths": [
     "AI_TASK.json",
-    "src/app/lib/clientPayloadContract.test.ts",
-    "server/src/client-payload-contract.test.ts"
+    "src/app/components/PositionRoleGlyphs.tsx",
+    "src/app/components/BadgeGlyphs.tsx",
+    "src/app/components/MaskGlyphSizing.test.tsx"
   ],
   "forbiddenPaths": [
     "src/app/assets/brand/**",
