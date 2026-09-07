@@ -57,7 +57,6 @@ const TravelModeSettings = lazyRoute(() => import('./components/TravelModeSettin
 const MapPresenceSettings = lazyRoute(() => import('./components/MapPresenceSettings'));
 const DlModeDefaultNotice = lazyRoute(() => import('./components/DlModeDefaultNotice'));
 const FirstFeedPostPrompt = lazyRoute(() => import('./components/FirstFeedPostPrompt'));
-const SideQuestPrompt = lazyRoute(() => import('./components/SideQuestPrompt'));
 const OnboardingPreview = lazyRoute(() => import('./components/OnboardingPreview'));
 const SupportPage = lazyRoute(() => import('./components/SupportPage'));
 const GhostModeSettings = lazyRoute(() => import('./components/GhostModeSettings'));
@@ -683,7 +682,6 @@ export default function App({
             <MobileInstallPrompt />
             <DlModeDefaultNotice />
             <FirstFeedPostPrompt userId={session.user.id} />
-            <SideQuestPrompt userId={session.user.id} />
             <BottomNav />
             <ForegroundNotifications showLatestRewardOnFirstPoll={showOnboardingReward} />
             <EarnedCruushPlusCards key={session.user.id} userId={session.user.id} />

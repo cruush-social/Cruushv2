@@ -15,14 +15,14 @@ describe('useExclusivePopup', () => {
   it('shows only the highest priority prompt when several want the screen', () => {
     render(
       <>
-        <Prompt id="side-quest" wants />
+        <Prompt id="first-feed-post" wants />
         <Prompt id="dl-mode-default" wants />
         <Prompt id="mobile-install" wants />
       </>,
     );
 
     expect(screen.getByTestId('dl-mode-default')).toBeInTheDocument();
-    expect(screen.queryByTestId('side-quest')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('first-feed-post')).not.toBeInTheDocument();
     expect(screen.queryByTestId('mobile-install')).not.toBeInTheDocument();
   });
 
@@ -30,7 +30,7 @@ describe('useExclusivePopup', () => {
     const view = render(
       <>
         <Prompt id="dl-mode-default" wants />
-        <Prompt id="side-quest" wants />
+        <Prompt id="first-feed-post" wants />
       </>,
     );
 
@@ -39,12 +39,12 @@ describe('useExclusivePopup', () => {
     view.rerender(
       <>
         <Prompt id="dl-mode-default" wants={false} />
-        <Prompt id="side-quest" wants />
+        <Prompt id="first-feed-post" wants />
       </>,
     );
 
     expect(screen.queryByTestId('dl-mode-default')).not.toBeInTheDocument();
-    expect(screen.getByTestId('side-quest')).toBeInTheDocument();
+    expect(screen.getByTestId('first-feed-post')).toBeInTheDocument();
   });
 
   it('keeps the map tutorial and a dialog prompt from running together', () => {

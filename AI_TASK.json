@@ -1,33 +1,34 @@
 {
   "schemaVersion": 2,
-  "taskId": "notification-dead-links-20260907",
+  "taskId": "side-quest-optional-notification-20260907",
   "status": "active",
-  "objective": "Notification links that point at no route stop dumping members on the map.",
-  "userOutcome": "Tapping a changelog announcement opens the changelog instead of silently landing on the map.",
+  "objective": "Side Quests stop interrupting with a dialog and arrive as a notification a member can switch off.",
+  "userOutcome": "Turning off Reward updates in Notification settings stops Side Quest nudges for good.",
   "audience": "cruush members.",
   "successCriteria": [
-    "Stored notifications with link_url '/changelog' are rewritten to '/settings/changelog'.",
-    "Any that survive are redirected client side, so an old row still opens the right page.",
-    "The SideQuestPrompt tests no longer leak their seen-flag cookie between cases."
+    "The Side Quest dialog no longer opens on the map.",
+    "A claimable Side Quest arrives as a reward notification linking to /rewards.",
+    "Reward updates in Notification settings suppresses it, push and in-app alike.",
+    "At most one Side Quest notification a day per member."
   ],
   "mustPreserve": [
-    "Every other notification link.",
-    "The empty side quest prompt body requested in issue #254.",
-    "Existing notification read state."
+    "Every other notification and its preference.",
+    "The Rewards page and how quests are claimed there.",
+    "The existing notification preference defaults."
   ],
   "nonGoals": [
-    "No change to which prompts open or what they say.",
-    "No loosening of request validation."
+    "No new notification type and no new preference toggle.",
+    "No change to which quests exist or what they pay."
   ],
   "assumptions": [
     {
-      "statement": "'/settings/changelog' is the only route serving the changelog.",
-      "impact": "Rewriting the stored path sends members to the page they expected.",
+      "statement": "A Side Quest nudge is a reward notification, so the existing rewardsEnabled toggle is the switch for it.",
+      "impact": "Members get the requested off switch without a new default being invented.",
       "reversible": true,
-      "confirmationState": "confirmed"
+      "confirmationState": "labeled"
     }
   ],
-  "nextVisibleMilestone": "A changelog announcement opens the changelog on cruush.app.",
+  "nextVisibleMilestone": "No Side Quest dialog on cruush.app, and the nudge arrives in notifications instead.",
   "stopConditions": [
     "Stop at a password form.",
     "Stop if the server build fails."
@@ -57,28 +58,26 @@
   "release": "1.6",
   "repository": "cruush-social/Cruushv2",
   "branch": "main",
-  "job": "Fix notification links that resolve to no route.",
+  "job": "Replace the Side Quest dialog with an optional notification.",
   "allowedPaths": [
     "AI_TASK.json",
-    "server/sql/154_fix_changelog_notification_links.sql",
-    "server/src/migrate.ts",
-    "src/app/lib/notificationsApi.ts",
-    "src/app/lib/notificationsApi.test.ts",
-    "src/app/components/SideQuestPrompt.test.tsx",
+    "server/src/side-quest-notifications.ts",
+    "server/src/side-quest-notifications.test.ts",
+    "server/src/index.ts",
+    "src/app/App.tsx",
     "src/app/components/SideQuestPrompt.tsx",
-    "index.html",
-    "public/sw.js",
-    "public/service-worker-recovery.js",
-    "src/main.tsx"
+    "src/app/components/SideQuestPrompt.test.tsx",
+    "src/app/lib/popupQueue.ts",
+    "src/app/lib/popupQueue.test.tsx"
   ],
   "forbiddenPaths": [
     "src/app/assets/brand/**",
     "server/src/routes/users.ts"
   ],
-  "proofTarget": "A changelog notification opened from the notification centre on cruush.app.",
+  "proofTarget": "The map on cruush.app with no Side Quest dialog, and a Side Quest notification in the notification centre.",
   "publicationTarget": "origin/main and the production deploy",
   "requiredEvidence": [
-    "Production count of app_notifications rows still carrying '/changelog' after the migration.",
-    "The served sha at https://api.cruush.app/api/build matching the pushed commit."
+    "The served sha at https://api.cruush.app/api/build matching the pushed commit.",
+    "The rendered map showing no Side Quest dialog."
   ]
 }
