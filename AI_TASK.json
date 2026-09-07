@@ -1,60 +1,52 @@
 {
   "schemaVersion": 2,
-  "taskId": "cruush-mask-glyph-sizing-20260907",
+  "taskId": "notification-dead-links-20260907",
   "status": "active",
-  "objective": "Stop mask-based badge glyphs rendering at no size when a caller passes only sizing classes.",
-  "userOutcome": "Service, Stone top, Pillow princess and the zodiac signs show their mark wherever they are used.",
-  "audience": "cruush members and the 1.6 release-email audience.",
+  "objective": "Notification links that point at no route stop dumping members on the map.",
+  "userOutcome": "Tapping a changelog announcement opens the changelog instead of silently landing on the map.",
+  "audience": "cruush members.",
   "successCriteria": [
-    "Each mask glyph lays out as inline-block rather than inline.",
-    "A caller passing only h-11 w-11 gets a 44px mark."
+    "Stored notifications with link_url '/changelog' are rewritten to '/settings/changelog'.",
+    "Any that survive are redirected client side, so an old row still opens the right page.",
+    "The SideQuestPrompt tests no longer leak their seen-flag cookie between cases."
   ],
   "mustPreserve": [
-    "Every existing badge keeps its own mark."
+    "Every other notification link.",
+    "The empty side quest prompt body requested in issue #254.",
+    "Existing notification read state."
   ],
   "nonGoals": [
-    "No change to the artwork or to which glyph any badge uses."
+    "No change to which prompts open or what they say.",
+    "No loosening of request validation."
   ],
   "assumptions": [
     {
-      "statement": "The prior user-controlled Sniffies extraction may be reused if its full source cache can be recovered locally.",
-      "impact": "The complete public source set can be imported without a new competitor scrape.",
-      "reversible": true,
-      "confirmationState": "confirmed"
-    },
-    {
-      "statement": "Source-platform places can initially use Leans men, and independently sourced women-centered venues can use Leans women, while future crowd composition comes from cruush aggregate data.",
-      "impact": "Search has useful initial lean labels without gay or dyke labels or trans/nonbinary inference.",
-      "reversible": true,
-      "confirmationState": "confirmed"
-    },
-    {
-      "statement": "Public venue descriptions, non-sensitive access directions, and aggregate popular-time history are acceptable imports; private access details are not.",
-      "impact": "Spot details can be useful without exposing sensitive information.",
+      "statement": "'/settings/changelog' is the only route serving the changelog.",
+      "impact": "Rewriting the stored path sends members to the page they expected.",
       "reversible": true,
       "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "The affected badges show their marks on cruush.app.",
+  "nextVisibleMilestone": "A changelog announcement opens the changelog on cruush.app.",
   "stopConditions": [
-    "Stop the data-expansion slice if the full prior source cache cannot be recovered or if a source record is private or unsafe to publish.",
-    "Stop publication because push and deployment are not authorized by this task."
+    "Stop at a password form.",
+    "Stop if the server build fails."
   ],
   "costBudget": {
     "maxUsd": 0,
     "maxMinutes": null
   },
   "externalEffectDecisions": {
-    "commit": "authorized by the standing request to commit while completing the 1.6 todo",
+    "commit": "authorized by the standing request to keep fixing bugs",
     "send": "forbidden",
-    "push": "not authorized by this task",
-    "deploy": "not authorized by this task"
+    "push": "authorized by the standing request to deploy fixes",
+    "deploy": "authorized by the standing request to deploy fixes"
   },
   "externalEffects": {
     "externalMessages": "forbidden",
     "purchases": "forbidden",
-    "deployment": "forbidden",
-    "publication": "forbidden",
+    "deployment": "auto",
+    "publication": "auto",
     "deletion": "forbidden",
     "securityChanges": "forbidden",
     "credentials": "forbidden",
@@ -64,27 +56,29 @@
   "product": "cruush",
   "release": "1.6",
   "repository": "cruush-social/Cruushv2",
-  "branch": "release/1.6-integration-20260901",
-  "job": "Finish the named 1.6 changes and update the release email locally.",
+  "branch": "main",
+  "job": "Fix notification links that resolve to no route.",
   "allowedPaths": [
     "AI_TASK.json",
-    "src/app/components/PositionRoleGlyphs.tsx",
-    "src/app/components/BadgeGlyphs.tsx",
-    "src/app/components/MaskGlyphSizing.test.tsx"
+    "server/sql/154_fix_changelog_notification_links.sql",
+    "server/src/migrate.ts",
+    "src/app/lib/notificationsApi.ts",
+    "src/app/lib/notificationsApi.test.ts",
+    "src/app/components/SideQuestPrompt.test.tsx",
+    "src/app/components/SideQuestPrompt.tsx",
+    "index.html",
+    "public/sw.js",
+    "public/service-worker-recovery.js",
+    "src/main.tsx"
   ],
   "forbiddenPaths": [
     "src/app/assets/brand/**",
-    "src/app/components/GhostMode*.tsx",
-    "src/app/components/DarkRoom*.tsx",
-    "src/app/components/Pulse*.tsx"
+    "server/src/routes/users.ts"
   ],
-  "proofTarget": "Actual rendered mobile Spot detail, spot clusters, and badge menu plus refreshed release-email screenshot.",
-  "publicationTarget": "local checkpoint commit only",
+  "proofTarget": "A changelog notification opened from the notification centre on cruush.app.",
+  "publicationTarget": "origin/main and the production deploy",
   "requiredEvidence": [
-    "Source-count accounting for the recovered 100-mile dataset and independently sourced women-friendly venues.",
-    "Rendered Spot detail showing header, top two vibes, amenities, and compact Pink Book/Who's Here access.",
-    "Rendered map showing separate icon-free spot cluster counts and unchanged map theme.",
-    "Rendered mobile badge menu showing the heart preview below the top bar.",
-    "Rendered 1.6 email using refreshed feature crops."
+    "Production count of app_notifications rows still carrying '/changelog' after the migration.",
+    "The served sha at https://api.cruush.app/api/build matching the pushed commit."
   ]
 }

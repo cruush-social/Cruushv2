@@ -59,12 +59,24 @@ export type NotificationsChangedPayload = {
   unreadCount: number;
 };
 
+/**
+ * Announcements went out linking to /changelog, which is not a route, so the
+ * catch-all dropped people on the map instead of the page the announcement was
+ * about. The stored links are corrected, but one already delivered to a phone
+ * or sitting in a push payload still carries the old path.
+ */
+const LEGACY_NOTIFICATION_PATHS: Readonly<Record<string, string>> = {
+  '/changelog': '/settings/changelog',
+};
+
 function safeNotificationLink(linkUrl: string | null | undefined) {
   if (!linkUrl || !linkUrl.startsWith('/') || linkUrl.startsWith('//')) {
     return '/notifications';
   }
 
-  return linkUrl;
+  const [path, rest] = [linkUrl.split(/[?#]/)[0], linkUrl.slice(linkUrl.split(/[?#]/)[0].length)];
+
+  return LEGACY_NOTIFICATION_PATHS[path] ? `${LEGACY_NOTIFICATION_PATHS[path]}${rest}` : linkUrl;
 }
 
 export function resolveNotificationNavigationPath(
