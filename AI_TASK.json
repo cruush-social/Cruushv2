@@ -69,7 +69,8 @@
     "index.html",
     "public/sw.js",
     "public/service-worker-recovery.js",
-    "src/main.tsx"
+    "src/main.tsx",
+    "DESIGN_DECISIONS.md"
   ],
   "forbiddenPaths": [
     "src/app/assets/brand/**",
