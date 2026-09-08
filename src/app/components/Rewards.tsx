@@ -8,7 +8,7 @@ import {
   Sparkles,
   Zap,
 } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '../lib/toast';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';

@@ -35,6 +35,7 @@ describe('AccessibilityQuickAccess', () => {
     expect(JSON.parse(window.localStorage.getItem(ACCESSIBILITY_PREFERENCES_STORAGE_KEY) ?? '{}')).toEqual({
       colorBlindMode: false,
       colorVisionMode: 'off',
+      hapticFeedback: true,
       highContrast: true,
       largerText: true,
       reduceMotion: true,

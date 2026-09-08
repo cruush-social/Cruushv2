@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router';
-import { toast } from 'sonner';
+import { toast } from '../lib/toast';
 import { getMapPresence, saveMapPresence } from '../lib/privacyApi';
 import { Button } from './ui/button';
 import { Label } from './ui/label';

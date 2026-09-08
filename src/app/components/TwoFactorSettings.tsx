@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { ArrowLeft, Check, Clipboard, KeyRound, RefreshCw, ShieldCheck } from 'lucide-react';
 import { useNavigate } from 'react-router';
-import { toast } from 'sonner';
+import { toast } from '../lib/toast';
 import {
   completeTwoFactorSetup,
   disableTwoFactor,

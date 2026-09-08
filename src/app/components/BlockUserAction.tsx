@@ -1,7 +1,7 @@
 import type { MouseEvent } from 'react';
 import { useState } from 'react';
 import { Ban } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '../lib/toast';
 import { blockUser } from '../lib/blockApi';
 import { buttonVariants } from './ui/button';
 import {

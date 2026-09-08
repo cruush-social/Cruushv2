@@ -18,6 +18,7 @@ export type AccessibilityPreferences = {
   /** Kept while stored preferences from the original toggle migrate. */
   colorBlindMode?: boolean;
   colorVisionMode: ColorVisionMode;
+  hapticFeedback: boolean;
   highContrast: boolean;
   largerText: boolean;
   reduceMotion: boolean;
@@ -28,6 +29,7 @@ export type AccessibilityPreferencesListener = (preferences: AccessibilityPrefer
 const DEFAULT_ACCESSIBILITY_PREFERENCES: AccessibilityPreferences = {
   colorBlindMode: false,
   colorVisionMode: 'off',
+  hapticFeedback: true,
   highContrast: false,
   largerText: false,
   reduceMotion: false,
@@ -49,6 +51,9 @@ export function getAccessibilityPreferences(): AccessibilityPreferences {
     return {
       colorBlindMode: storedColorVisionMode !== 'off',
       colorVisionMode: storedColorVisionMode,
+      // On unless it was turned off, so the feedback is there without anyone
+      // having to go looking for the switch.
+      hapticFeedback: stored.hapticFeedback !== false,
       highContrast: stored.highContrast === true,
       largerText: stored.largerText === true,
       reduceMotion: stored.reduceMotion === true,
@@ -75,6 +80,7 @@ export function applyAccessibilityPreferences(preferences = getAccessibilityPref
   root.toggleAttribute('data-cruush-high-contrast', preferences.highContrast);
   root.toggleAttribute('data-cruush-larger-text', preferences.largerText);
   root.toggleAttribute('data-cruush-reduce-motion', preferences.reduceMotion);
+  root.toggleAttribute('data-cruush-haptics', preferences.hapticFeedback !== false);
 }
 
 export function saveAccessibilityPreferences(preferences: AccessibilityPreferences) {

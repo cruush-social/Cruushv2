@@ -1,30 +1,33 @@
 {
   "schemaVersion": 2,
-  "taskId": "checkbox-back-to-pink-20260907",
+  "taskId": "haptic-feedback-20260907",
   "status": "active",
-  "objective": "A checked checkbox is the solid primary pink again, not the pink-to-blue gradient.",
-  "userOutcome": "The app stops looking bluer than the version Julien approved.",
+  "objective": "Haptic feedback across cruush, behind one switch a member can turn off.",
+  "userOutcome": "A press, a success, and a failure are felt in the hand; Haptic feedback in Settings turns all of it off.",
   "audience": "cruush members.",
   "successCriteria": [
-    "ui/checkbox.tsx is byte-identical to its state before commit 2949141.",
-    "The service worker retires the cached shell so every phone gets the pink checkbox."
+    "Any touch on any control pulses once.",
+    "Success toasts pulse firmer; error and warning toasts pulse twice.",
+    "Haptic feedback off silences every pulse.",
+    "No effect on mouse, stylus, disabled controls, or browsers without the Vibration API."
   ],
   "mustPreserve": [
-    "Every other control.",
-    "The uncommitted haptics work, which stays out of this commit."
+    "Every existing accessibility preference and its stored shape.",
+    "Every toast still raises exactly as before."
   ],
   "nonGoals": [
-    "No other visual change. The carousel gradient wash from 49c4251 is left for Julien to rule on."
+    "No change to the pre-sign-in accessibility quick panel.",
+    "No change to the Browse again button."
   ],
   "assumptions": [
     {
-      "statement": "Restoring a control to its previously deployed, approved state is removing a rejected effect, not a new UI change.",
-      "impact": "The checkbox goes back to pink without a separate approval round.",
+      "statement": "\"go ahead\" approves shipping the haptics work as presented, including the new Settings switch.",
+      "impact": "One new row in Settings > Accessibility.",
       "reversible": true,
-      "confirmationState": "labeled"
+      "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "Pink checked checkboxes on cruush.app.",
+  "nextVisibleMilestone": "Haptic feedback switch on cruush.app Settings, pulses on Android.",
   "stopConditions": [
     "Stop at a password form.",
     "Stop if the server build fails."
@@ -54,23 +57,43 @@
   "release": "1.6",
   "repository": "cruush-social/Cruushv2",
   "branch": "main",
-  "job": "Revert the unrequested checkbox restyle.",
+  "job": "Ship haptic feedback with its switch.",
   "allowedPaths": [
     "AI_TASK.json",
-    "src/app/components/ui/checkbox.tsx",
+    "src/app/lib/haptics.ts",
+    "src/app/lib/haptics.test.ts",
+    "src/app/lib/toast.ts",
+    "src/app/lib/toast.test.ts",
+    "src/app/lib/accessibilityPreferences.ts",
+    "src/app/lib/accessibilityPreferences.test.ts",
+    "src/app/lib/cruushNotifications.ts",
+    "src/app/components/Settings.tsx",
+    "src/app/components/AccessibilityQuickAccess.test.tsx",
+    "src/app/components/Rewards.tsx",
+    "src/app/components/TwoFactorSettings.tsx",
+    "src/app/components/RequestsDashboard.tsx",
+    "src/app/components/BlockedUsersPage.tsx",
+    "src/app/components/ModeratorReview.tsx",
+    "src/app/components/TravelModeSettings.tsx",
+    "src/app/components/ReportAction.tsx",
+    "src/app/components/BlockUserAction.tsx",
+    "src/app/components/ProfileOnboarding.tsx",
+    "src/app/components/MapPresenceSettings.tsx",
+    "src/app/components/ForegroundNotifications.tsx",
+    "src/main.tsx",
     "index.html",
     "public/sw.js",
-    "public/service-worker-recovery.js",
-    "src/main.tsx"
+    "public/service-worker-recovery.js"
   ],
   "forbiddenPaths": [
     "src/app/assets/brand/**",
     "server/src/routes/users.ts"
   ],
-  "proofTarget": "Served bundle on cruush.app carrying data-[state=checked]:bg-primary on the checkbox, worker v76.",
+  "proofTarget": "Served bundle on cruush.app carrying the Haptic feedback switch and navigator.vibrate, worker v77.",
   "publicationTarget": "origin/main and the production deploy",
   "requiredEvidence": [
     "Both containers on the pushed sha.",
-    "Served sw.js at v76."
+    "Served sw.js at v77.",
+    "Served bundle contains the haptics code."
   ]
 }

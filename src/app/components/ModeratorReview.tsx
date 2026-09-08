@@ -14,7 +14,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import { useNavigate } from 'react-router';
-import { toast } from 'sonner';
+import { toast } from '../lib/toast';
 import { ApiClientError, resolveMediaUrl } from '../lib/apiClient';
 import {
   changeModeratedAccountStatus,

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'r
 import { PHOTO_UPLOAD_ACCEPT } from '../lib/photoUploadFormats';
 import { CROWDS, IDENTITIES, LOOKING_FOR, MAX_PROFILE_SEXUALITIES, POSITIONS, PRONOUNS, ROLES, SEXUALITY, VIBE_GROUPS } from '../lib/profileOptions';
 import { ArrowRight, Check, Clipboard, Gift, Share2, ShieldCheck } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '../lib/toast';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { acceptCodeOfConduct, attachReferralCode, getAuthSession, type AuthSessionPayload } from '../lib/authApi';

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { ArrowLeft, Search, X } from 'lucide-react';
 import { useNavigate } from 'react-router';
-import { toast } from 'sonner';
+import { toast } from '../lib/toast';
 import {
   clearMyTravelPin,
   geocodeTravelAddress,

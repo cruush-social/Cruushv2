@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { ArrowLeft, ChevronLeft, ChevronRight, Clock3, Mail, RefreshCw, Search, Send } from 'lucide-react';
 import { useNavigate } from 'react-router';
-import { toast } from 'sonner';
+import { toast } from '../lib/toast';
 import { ApiClientError, resolveMediaUrl } from '../lib/apiClient';
 import {
   getSupportRequests,

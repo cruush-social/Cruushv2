@@ -9,6 +9,7 @@ import {
 
 const ALL_PREFERENCES_ON = {
   colorVisionMode: 'deuteranopia' as const,
+  hapticFeedback: true,
   highContrast: true,
   largerText: true,
   reduceMotion: true,
@@ -28,6 +29,7 @@ function resetAccessibilityState() {
   document.documentElement.removeAttribute('data-cruush-high-contrast');
   document.documentElement.removeAttribute('data-cruush-larger-text');
   document.documentElement.removeAttribute('data-cruush-reduce-motion');
+  document.documentElement.removeAttribute('data-cruush-haptics');
 }
 
 describe('accessibility preferences', () => {

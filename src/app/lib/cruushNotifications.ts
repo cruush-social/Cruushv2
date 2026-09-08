@@ -1,4 +1,4 @@
-import { toast } from 'sonner';
+import { toast } from './toast';
 import type { CruushRecord } from './cruushApi';
 import { emitCruushChanged } from './cruushEvents';
 

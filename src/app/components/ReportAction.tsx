@@ -1,7 +1,7 @@
 import { useId, useState, type FormEvent } from 'react';
 import { DROPDOWN_TRIGGER_CLASS } from '../lib/controlStyles';
 import { Flag } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '../lib/toast';
 import {
   createReport,
   REPORT_REASON_OPTIONS,

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { ArrowLeft } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '../lib/toast';
 import { Button } from './ui/button';
 import { CruushIcon } from './CruushIconImage';
 import HeartPhoto from './HeartPhoto';

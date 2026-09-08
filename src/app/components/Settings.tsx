@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router';
 import profileNavIcon from '../assets/nav-icons/profile-white.png';
 import { useEffect, useMemo, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react';
-import { Accessibility, ArrowLeft, BookOpen, ChevronRight, Contrast, ExternalLink, Gift, History, KeyRound, LifeBuoy, LogOut, Mail, MapPin, MessageCircle, MessageSquareReply, Palette, ShieldAlert, ShieldCheck, Trash2, Type, UserX, X, type LucideIcon, Download,
+import { Accessibility, ArrowLeft, BookOpen, ChevronRight, Contrast, ExternalLink, Gift, History, KeyRound, LifeBuoy, LogOut, Mail, MapPin, MessageCircle, MessageSquareReply, Palette, ShieldAlert, ShieldCheck, Trash2, Type, UserX, Vibrate, X, type LucideIcon, Download,
 } from 'lucide-react';
 import { Button } from './ui/button';
 import CruushPlusWord from './CruushPlusWord';
@@ -396,6 +396,12 @@ export default function Settings({ embedded = false, onBack, onClose, onOpenMile
           label: 'Increase contrast',
           checked: accessibilityPreferences.highContrast,
           onCheckedChange: (checked: boolean) => updateAccessibilityPreference('highContrast', checked),
+        },
+        {
+          icon: Vibrate,
+          label: 'Haptic feedback',
+          checked: accessibilityPreferences.hapticFeedback,
+          onCheckedChange: (checked: boolean) => updateAccessibilityPreference('hapticFeedback', checked),
         },
       ],
     },

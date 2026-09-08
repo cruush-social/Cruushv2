@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, type MutableRefObject } from 'react';
 import { Bell, X } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router';
-import { toast } from 'sonner';
+import { toast } from '../lib/toast';
 import { CruushIcon } from './CruushIconImage';
 import {
   emitNotificationsChanged,
