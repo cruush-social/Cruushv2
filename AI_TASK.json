@@ -1,34 +1,35 @@
 {
   "schemaVersion": 2,
-  "taskId": "ghost-drift-015-20260908",
+  "taskId": "mobile-overlay-and-open-bugs-20260908",
   "status": "active",
-  "objective": "Ghost rotation animation reaches other viewers: a ghost pin that mounts within the first refetch cycle of its last minute animates; then widen the Ghost v2 drift so each rotation visibly moves (separate commit, deploy on Julien's yes).",
-  "userOutcome": "Members watching someone's Ghost pin see the last-minute flash and fly-off; each rotation lands somewhere visibly different.",
+  "objective": "Repair mobile Bug Report access and heart stacking over Bug Report and Pulse, then work through issues 265, 263, 145 and 140 using the persistent bug queue.",
+  "userOutcome": "Members can reach the named menus and their controls; remaining reported defects are resolved or have a specific evidence-backed blocker.",
   "audience": "cruush members.",
   "successCriteria": [
-    "Ghost v2 drift ratio is 0.15, allowing consecutive decoys to land up to 0.30R apart.",
-    "The annulus remains within the existing 0.5R to 1.0R privacy boundary.",
-    "The focused Ghost averaging assertions and server TypeScript build pass.",
+    "At 412 px, Bug Report controls remain inside the viewport and above navigation and map hearts.",
+    "Pulse remains above map hearts with its last action reachable and its existing geometry preserved.",
+    "Every queued report has rendered evidence of resolution or a specific unresolved condition.",
+    "Focused assertions, casing, client and server builds pass.",
     "Both production containers report the deployed commit."
   ],
   "mustPreserve": [
-    "Ghost radius options, anchor ratio, minimum offset, display accuracy, and derivation key behavior.",
+    "Existing layouts, control sizes, breakpoints, map tiles, identity assets, and privacy restrictions.",
     "All unrelated dirty work, including .octo-continue.md."
   ],
   "nonGoals": [
-    "No UI change.",
+    "No visual changes beyond the named overlay corrections and concrete user-approved defects.",
     "No change to Ghost radius options, anchor ratio, minimum offset, display accuracy, or derivation keys.",
     "No database migration, account-status change, or unrelated deployment."
   ],
   "assumptions": [
     {
-      "statement": "Julien selected drift ratio 0.15 after the smaller anchor-cell privacy trade-off was explicitly stated in the recovered Claude session.",
-      "impact": "A Ghost decoy can visibly jump farther, while its anchoring cell shrinks from about 0.18R to about 0.11R.",
+      "statement": "The latest request adds landing accessibility options to the queue without interrupting the two overlay corrections.",
+      "impact": "The current overlay repair remains first; no unrelated visual changes are authorized.",
       "reversible": true,
       "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "Both containers report the pushed drift commit.",
+  "nextVisibleMilestone": "Bug Report and Pulse controls are reachable on the deployed mobile app.",
   "stopConditions": [
     "Stop at a password form.",
     "Stop if the server build fails."
@@ -58,13 +59,16 @@
   "release": "1.6",
   "repository": "cruush-social/Cruushv2",
   "branch": "main",
-  "job": "Ship the approved Ghost 0.15 drift widening.",
+  "job": "Correct the two reported overlays and continue through the persistent bug queue.",
   "allowedPaths": [
+    "docs/bug-queue-20260908.md",
+    "src/app/components/AlphaBugButton.tsx",
+    "src/app/components/AlphaBugButton.test.tsx",
+    "src/app/components/MapPingSheet.tsx",
+    "src/app/components/MapPingSheet.test.tsx",
+    "src/app/components/ui/dialog.tsx",
+    "src/styles/theme.css",
     "AI_TASK.json",
-    "src/app/components/MapView.tsx",
-    "src/app/components/MapView.test.tsx",
-    "server/src/location-privacy.ts",
-    "server/src/ghost-rotation-averaging.test.ts",
     "FIXLOG.md",
     "index.html",
     "public/sw.js",
@@ -74,10 +78,10 @@
   "forbiddenPaths": [
     "src/app/assets/brand/**"
   ],
-  "proofTarget": "Focused Ghost geometry assertions and server TypeScript build; production API and frontend container commit identity.",
+  "proofTarget": "Rendered 412 px Bug Report and Pulse menus, last-action hit testing, focused assertions, both builds, and production container identity.",
   "publicationTarget": "origin/main and the production deploy",
   "requiredEvidence": [
-    "Focused Ghost geometry output.",
+    "Focused overlay assertion output and named mobile screenshots.",
     "Server TypeScript build output.",
     "Both containers on the pushed sha."
   ]

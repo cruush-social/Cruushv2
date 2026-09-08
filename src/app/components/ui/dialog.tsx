@@ -58,8 +58,9 @@ function DialogContent({
   className,
   children,
   floating = false,
+  overlayClassName,
   ...props
-}: React.ComponentProps<typeof DialogPrimitive.Content> & { floating?: boolean }) {
+}: React.ComponentProps<typeof DialogPrimitive.Content> & { floating?: boolean; overlayClassName?: string }) {
   const framing = floating
     ? "fixed top-[50%] left-[50%] max-h-[calc(100dvh-2rem)] w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] rounded-lg border sm:max-w-lg"
     : [
@@ -71,7 +72,7 @@ function DialogContent({
 
   return (
     <DialogPortal data-slot="dialog-portal">
-      <DialogOverlay />
+      <DialogOverlay className={overlayClassName} />
       <DialogPrimitive.Content
         data-slot="dialog-content"
         data-dialog-framing={floating ? "floating" : "sheet"}

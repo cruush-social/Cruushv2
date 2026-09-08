@@ -73,6 +73,8 @@ describe('AlphaBugButton', () => {
     );
 
     fireEvent.click(reportButton);
+    expect(screen.getByRole('dialog', { name: 'Report alpha bug' })).toHaveAttribute('data-testid', 'alpha-bug-dialog');
+    expect(document.querySelector('[data-slot="dialog-overlay"]')).toHaveClass('alpha-bug-overlay', '!z-[1602]');
     expect(screen.getByText('/map?layer=nearby')).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('What broke?'), {
       target: { value: 'Map pins disappeared after I changed filters.' },

@@ -400,7 +400,7 @@ export default function AlphaBugButton({
         </div>
       ) : null}
       {trigger}
-      <DialogContent className="max-w-md rounded-lg border-white/10 bg-background">
+      <DialogContent data-testid="alpha-bug-dialog" overlayClassName="alpha-bug-overlay !z-[1602]" className="!z-[1603] max-w-md rounded-lg border-white/10 bg-background">
         <DialogHeader>
           <DialogTitle>Report alpha bug</DialogTitle>
           <DialogDescription>

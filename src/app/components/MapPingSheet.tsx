@@ -402,8 +402,8 @@ export default function MapPingSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="bottom"
-        overlayClassName="!z-[24]"
-        className="!z-[25] flex flex-col overflow-hidden rounded-2xl border border-white/10 bg-background/96 pb-3 backdrop-blur-xl sm:max-w-lg lg:max-w-none"
+        overlayClassName="!z-[1600]"
+        className="!z-[1601] flex flex-col overflow-hidden rounded-2xl border border-white/10 bg-background/96 pb-3 backdrop-blur-xl sm:max-w-lg lg:max-w-none"
         data-testid="map-ping-sheet"
         data-window-mode={isMobile ? 'mobile-sheet' : 'desktop-window'}
         style={sheetStyle}

@@ -780,6 +780,23 @@ html[data-cruush-map-route='open'] [data-slot='dialog-content'] {
   z-index: 40 !important;
 }
 
+/* Reporting stays above map markers, navigation, and the Pulse window. */
+html[data-cruush-map-route='open'] [data-slot='dialog-overlay'].alpha-bug-overlay {
+  top: 0 !important;
+  z-index: 1602 !important;
+}
+
+html[data-cruush-map-route='open'] [data-testid='alpha-bug-dialog'] {
+  z-index: 1603 !important;
+}
+
+@media (max-width: 639px) {
+  html[data-cruush-map-route='open'] [data-testid='alpha-bug-dialog'] {
+    top: 0 !important;
+    max-height: 100dvh !important;
+  }
+}
+
 html[data-cruush-alpha-bug-corner='top-right'] [data-testid='accessibility-quick-access'] {
   right: calc(4.25rem + env(safe-area-inset-right));
 }

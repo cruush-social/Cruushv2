@@ -48,6 +48,8 @@ describe('MapPingSheet', () => {
     );
 
     expect(screen.getByRole('timer', { name: 'Pulse cooldown' })).toHaveTextContent('04:00:00');
+    expect(screen.getByTestId('map-ping-sheet')).toHaveClass('!z-[1601]');
+    expect(document.querySelector('[data-slot="sheet-overlay"]')).toHaveClass('!z-[1600]');
     expect(screen.getByRole('button', { name: /next pulse in/i })).toBeDisabled();
 
     act(() => {

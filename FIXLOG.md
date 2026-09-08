@@ -1,5 +1,8 @@
 # FIXLOG
 
+- 2026-09-08: Mobile Bug Report overrides the map's dialog offset so its controls stay inside the phone viewport, above navigation. Focused assertion: `AlphaBugButton.test.tsx`; 412 px diagnostic render confirmed the Send button is reachable; deployed verification pending.
+- 2026-09-08: Bug Report and Pulse use explicit modal layers above map heart units; their existing controls and styling are unchanged. Focused assertions: `AlphaBugButton.test.tsx` and `MapPingSheet.test.tsx`; deployed verification pending.
+
 - 2026-09-01: GitHub #140. Visibility Controls Apply no longer returns `Request validation failed`
   for profiles using canonical app-owned `/api/media/profile-photos/<uuid>.<ext>` photos. Regression
   coverage: `server/src/profile-schema.test.ts` and `server/src/app.test.ts`.
