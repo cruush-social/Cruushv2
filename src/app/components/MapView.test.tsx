@@ -831,7 +831,10 @@ describe('MapView', () => {
     );
 
     await screen.findByTestId('marker-heart-ghost-owner');
-    expect(screen.getByTestId('marker-ghost-decoy-mark-ghost-owner')).toBeInTheDocument();
+    // The decoy is the Pepper's ghost from the rotation animation: the
+    // apparition behind the electric-blue border, with no mark drawn over it.
+    expect(screen.queryByTestId('marker-ghost-decoy-mark-ghost-owner')).not.toBeInTheDocument();
+    expect(screen.getByTestId('marker-ghost-border-ghost-owner')).toHaveAttribute('stroke', '#0BA8FF');
   });
 
   it('does not replay an active Ghost rotation window when the pin mounts', () => {

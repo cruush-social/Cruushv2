@@ -1,33 +1,32 @@
 {
   "schemaVersion": 2,
-  "taskId": "haptic-feedback-20260907",
+  "taskId": "ghost-decoy-peppers-ghost-20260907",
   "status": "active",
-  "objective": "Haptic feedback across cruush, behind one switch a member can turn off.",
-  "userOutcome": "A press, a success, and a failure are felt in the hand; Haptic feedback in Settings turns all of it off.",
+  "objective": "Your Ghost Mode decoy shows the Pepper's ghost from the rotation animation, with no icon over it.",
+  "userOutcome": "The decoy reads as the translucent apparition Julien asked for, not a ghost mark over the photo.",
   "audience": "cruush members.",
   "successCriteria": [
-    "Any touch on any control pulses once.",
-    "Success toasts pulse firmer; error and warning toasts pulse twice.",
-    "Haptic feedback off silences every pulse.",
-    "No effect on mouse, stylus, disabled controls, or browsers without the Vibration API."
+    "No GhostColoredIcon is drawn over the owner decoy heart.",
+    "The decoy border stays #0BA8FF, unchanged.",
+    "The photo keeps its 0.62 apparition opacity."
   ],
   "mustPreserve": [
-    "Every existing accessibility preference and its stored shape.",
-    "Every toast still raises exactly as before."
+    "The decoy border colour and width.",
+    "The rotation flash and fly-away animation.",
+    "Every other member's ghost marker, which must look like any other profile outside the last minute."
   ],
   "nonGoals": [
-    "No change to the pre-sign-in accessibility quick panel.",
-    "No change to the Browse again button."
+    "No surface-alpha or badge/signal changes; a prior pepper effect on those changed the border and was reverted."
   ],
   "assumptions": [
     {
-      "statement": "\"go ahead\" approves shipping the haptics work as presented, including the new Settings switch.",
-      "impact": "One new row in Settings > Accessibility.",
+      "statement": "\"the peppers ghost \u2026 the one that matches the animation\" is the translucent photo apparition with the electric-blue border, and \"i dont want ghost marks\" removes the icon over it.",
+      "impact": "The icon overlay is removed; nothing else changes.",
       "reversible": true,
       "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "Haptic feedback switch on cruush.app Settings, pulses on Android.",
+  "nextVisibleMilestone": "The owner decoy rendered with no icon over the photo.",
   "stopConditions": [
     "Stop at a password form.",
     "Stop if the server build fails."
@@ -57,43 +56,24 @@
   "release": "1.6",
   "repository": "cruush-social/Cruushv2",
   "branch": "main",
-  "job": "Ship haptic feedback with its switch.",
+  "job": "Remove the ghost mark from the owner decoy so it is the Pepper's ghost.",
   "allowedPaths": [
     "AI_TASK.json",
-    "src/app/lib/haptics.ts",
-    "src/app/lib/haptics.test.ts",
-    "src/app/lib/toast.ts",
-    "src/app/lib/toast.test.ts",
-    "src/app/lib/accessibilityPreferences.ts",
-    "src/app/lib/accessibilityPreferences.test.ts",
-    "src/app/lib/cruushNotifications.ts",
-    "src/app/components/Settings.tsx",
-    "src/app/components/AccessibilityQuickAccess.test.tsx",
-    "src/app/components/Rewards.tsx",
-    "src/app/components/TwoFactorSettings.tsx",
-    "src/app/components/RequestsDashboard.tsx",
-    "src/app/components/BlockedUsersPage.tsx",
-    "src/app/components/ModeratorReview.tsx",
-    "src/app/components/TravelModeSettings.tsx",
-    "src/app/components/ReportAction.tsx",
-    "src/app/components/BlockUserAction.tsx",
-    "src/app/components/ProfileOnboarding.tsx",
-    "src/app/components/MapPresenceSettings.tsx",
-    "src/app/components/ForegroundNotifications.tsx",
-    "src/main.tsx",
+    "src/app/components/MapView.tsx",
+    "src/app/components/MapView.test.tsx",
     "index.html",
     "public/sw.js",
-    "public/service-worker-recovery.js"
+    "public/service-worker-recovery.js",
+    "src/main.tsx"
   ],
   "forbiddenPaths": [
     "src/app/assets/brand/**",
     "server/src/routes/users.ts"
   ],
-  "proofTarget": "Served bundle on cruush.app carrying the Haptic feedback switch and navigator.vibrate, worker v77.",
+  "proofTarget": "Rendered owner Ghost decoy at 412px on the local stack, and the served map chunk without marker-ghost-decoy-mark.",
   "publicationTarget": "origin/main and the production deploy",
   "requiredEvidence": [
-    "Both containers on the pushed sha.",
-    "Served sw.js at v77.",
-    "Served bundle contains the haptics code."
+    "Rendered decoy screenshot with no icon over the photo and the blue border intact.",
+    "Both containers on the pushed sha, worker v78."
   ]
 }

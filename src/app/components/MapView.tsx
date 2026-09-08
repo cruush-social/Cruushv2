@@ -1631,13 +1631,6 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
             strokeWidth={3.2}
             style={borderStyle}
           />
-          {isOwnGhostMarker ? (
-            <foreignObject data-testid={`marker-ghost-decoy-mark-${marker.id}`} height="30" width="30" x="17" y="15">
-              <div className="flex h-full w-full items-center justify-center">
-                <GhostColoredIcon className="h-full w-full" />
-              </div>
-            </foreignObject>
-          ) : null}
         </>
       ) : isCurrentUser && !isMutualCruush ? (
         <>
@@ -1651,13 +1644,10 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
             strokeWidth={3.2}
             style={borderStyle}
           />
-          {isOwnGhostMarker ? (
-            <foreignObject data-testid={`marker-ghost-decoy-mark-${marker.id}`} height="30" width="30" x="17" y="15">
-              <div className="flex h-full w-full items-center justify-center">
-                <GhostColoredIcon className="h-full w-full" />
-              </div>
-            </foreignObject>
-          ) : (
+          {/* Your Ghost decoy is the apparition from the rotation animation:
+              the translucent photo behind the electric-blue border, and
+              nothing drawn over it. */}
+          {isOwnGhostMarker ? null : (
             <foreignObject data-testid={`marker-current-fallback-${marker.id}`} height="36" width="36" x="14" y="16">
               <div className="flex h-9 w-9 items-center justify-center">
                 <User aria-hidden="true" className="h-7 w-7 text-white" strokeWidth={2.4} />
