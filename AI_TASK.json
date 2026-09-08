@@ -1,37 +1,39 @@
 {
   "schemaVersion": 2,
-  "taskId": "publish-safety-blog-20260908",
+  "taskId": "mobile-overlay-and-open-bugs-20260908",
   "status": "active",
-  "objective": "Publish a code-accurate cruush safety article on the existing static blog.",
-  "userOutcome": "Visitors can read the safety article from the cruush blog, including current server-side encryption, privacy-preserving location discovery, Ghost Mode, mutual cruush protections, and the positive E2EE roadmap.",
-  "audience": "cruush visitors and members.",
+  "objective": "Restore the approved Ghost animation from bff0498, including the original blue badge-border flash, while using the new Ghost Mode exit icon and preserving current badge shapes and other completed fixes.",
+  "userOutcome": "Members can reach the named menus and their controls; remaining reported defects are resolved or have a specific evidence-backed blocker.",
+  "audience": "cruush members.",
   "successCriteria": [
-    "The existing /blog page links to the new safety article.",
-    "The article accurately distinguishes live server-side encryption and privacy controls from planned E2EE.",
-    "The article does not claim member-facing NSFW photo permission settings that are not currently reachable.",
-    "The new article and blog index render at mobile and desktop widths with no layout regressions.",
-    "The frontend and server builds, security checks, casing checks, and diff checks pass.",
-    "The pushed commit is deployed and the live blog route serves the new article."
+    "Desktop badge hover labels are centered under their own badges, without changing touch behavior or badge positions.",
+    "Map profile popup tabs scroll normally with profile content and never cover the fixed bottom actions; the prior fixed-tab proposal is superseded.",
+    "Both side badges flash with the heart during the existing Ghost countdown, with no change to geometry, timing, or exit artwork.",
+    "A Ghost rotation fetches the new position in the background and retains the existing pin and document.",
+    "At 412 px, Bug Report controls remain inside the viewport and above navigation and map hearts.",
+    "Pulse remains above map hearts with its last action reachable and its existing geometry preserved.",
+    "Every queued report has rendered evidence of resolution or a specific unresolved condition.",
+    "Focused assertions, casing, client and server builds pass.",
+    "Both production containers report the deployed commit."
   ],
   "mustPreserve": [
-    "The existing static blog architecture, pages.css styling, navigation, privacy restrictions, and service-worker behavior.",
-    "The dirty release checkout at /Volumes/good/Cruushv2-release-1.6-20260828."
+    "Existing layouts, control sizes, breakpoints, map tiles, identity assets, and privacy restrictions.",
+    "All unrelated dirty work, including .octo-continue.md."
   ],
   "nonGoals": [
-    "No E2EE implementation or backend rollout.",
-    "No NSFW photo permission UI or settings change.",
-    "No database migration, account-status change, map change, or unrelated product UI change.",
-    "No internal secrets, provider details, key names, or task evidence in public copy."
+    "No visual changes beyond the named overlay corrections and concrete user-approved defects.",
+    "No change to Ghost radius options, anchor ratio, minimum offset, display accuracy, or derivation keys.",
+    "No database migration, account-status change, or unrelated deployment."
   ],
   "assumptions": [
     {
-      "statement": "The existing static blog on cruush.app is the publication target, and the new article uses the current public safety model plus a clearly future E2EE roadmap.",
-      "impact": "Only public static blog files and their indexing headers are changed.",
+      "statement": "Julien superseded the pending Ghost implementation with an explicit request to revert to the approved animation. Commit bff0498 records that approved treatment.",
+      "impact": "Restore that animation source literally except for the exit icon, which Julien explicitly wants to keep as the new Ghost Mode icon. Do not publish the pending marker-reconciliation rewrite; retain the earlier relocation work separately until verified.",
       "reversible": true,
       "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "The article is visible at /blog/safety-on-cruush.html in the live cruush site.",
+  "nextVisibleMilestone": "See both side badges flash with the heart and verify the Ghost release on production.",
   "stopConditions": [
     "Stop at a password form.",
     "Stop if the server build fails."
@@ -41,10 +43,10 @@
     "maxMinutes": null
   },
   "externalEffectDecisions": {
-    "commit": "authorized by the direct request to publish this article",
+    "commit": "authorized by the standing request to keep fixing bugs",
     "send": "forbidden",
-    "push": "authorized by the direct request to publish this article",
-    "deploy": "authorized by the direct request to publish this article"
+    "push": "authorized by the standing request to deploy fixes",
+    "deploy": "authorized by the standing request to deploy fixes"
   },
   "externalEffects": {
     "externalMessages": "forbidden",
@@ -61,27 +63,43 @@
   "release": "1.6",
   "repository": "cruush-social/Cruushv2",
   "branch": "main",
-  "job": "Publish the requested safety article from a clean branch and isolated worktree.",
+  "job": "Correct the two reported overlays and continue through the persistent bug queue.",
   "allowedPaths": [
-    "public/blog/index.html",
-    "public/blog/safety-on-cruush.html",
-    "public/sitemap.xml",
-    "nginx.conf",
-    "docs/worktrees.md",
+    "src/app/components/BadgeFrames.tsx",
+    "src/app/components/BadgeFrames.test.tsx",
+    "src/app/components/MapView.tsx",
+    "src/app/components/MapView.test.tsx",
+    "src/app/components/MapHome.tsx",
+    "src/app/components/MapHome.test.tsx",
+    "DESIGN_DECISIONS.md",
+    "src/app/components/MapProfilePopup.tsx",
+    "src/app/components/MapProfilePopup.test.tsx",
+    "src/app/components/LocalFeed.tsx",
+    "src/app/components/DirectMessages.tsx",
+    "src/app/components/CruushActivity.tsx",
+    "src/app/components/PrivateGroupChat.tsx",
+    "docs/bug-queue-20260908.md",
+    "src/app/components/AlphaBugButton.tsx",
+    "src/app/components/AlphaBugButton.test.tsx",
+    "src/app/components/MapPingSheet.tsx",
+    "src/app/components/MapPingSheet.test.tsx",
+    "src/app/components/ui/dialog.tsx",
+    "src/styles/theme.css",
     "AI_TASK.json",
-    "public/pages.css"
+    "FIXLOG.md",
+    "index.html",
+    "public/sw.js",
+    "public/service-worker-recovery.js",
+    "src/main.tsx"
   ],
   "forbiddenPaths": [
-    "server/**",
-    "src/app/**",
-    "src/styles/**",
-    ".env*"
+    "src/app/assets/brand/**"
   ],
-  "proofTarget": "Rendered /blog and /blog/safety-on-cruush.html at 375 px and desktop, focused checks, both builds, remote SHA, and live article content.",
+  "proofTarget": "Rendered 412 px Bug Report and Pulse menus, last-action hit testing, focused assertions, both builds, and production container identity.",
   "publicationTarget": "origin/main and the production deploy",
   "requiredEvidence": [
-    "Rendered blog index and article screenshots at mobile and desktop widths.",
+    "Focused overlay assertion output and named mobile screenshots.",
     "Server TypeScript build output.",
-    "Both containers on the pushed SHA and the live article route."
+    "Both containers on the pushed sha."
   ]
 }

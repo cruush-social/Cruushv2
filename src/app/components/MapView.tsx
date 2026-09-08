@@ -1137,7 +1137,7 @@ function MarkerSideBadge({
         frame={frame}
         gradientStops={badgeGradientStops}
         hankyColor={hanky?.color}
-        strokeColor={badgeBorderColor}
+        strokeColor={marker.displayMode === 'GHOST' ? `var(--cruush-ghost-flash-border-color, ${badgeBorderColor})` : badgeBorderColor}
       >
         {!hanky ? (
           <span className={`flex h-full w-full items-center justify-center text-white ${isCurrentUser && marker.displayMode === 'GHOST' ? 'overflow-hidden rounded-full' : ''}`}>
@@ -1150,14 +1150,37 @@ function MarkerSideBadge({
   );
 }
 
+function formatGhostRotationCountdown(expiresAtMs: number, nowMs: number) {
+  const secondsRemaining = Math.max(0, Math.ceil((expiresAtMs - nowMs) / 1_000));
+  const minutes = Math.floor(secondsRemaining / 60);
+  const seconds = secondsRemaining % 60;
+
+  return `${minutes}:${String(seconds).padStart(2, '0')}`;
+}
+
+function GhostRotationCountdown({ expiresAtMs }: { expiresAtMs?: number }) {
+  const [nowMs, setNowMs] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (typeof expiresAtMs !== 'number') return undefined;
+    const interval = window.setInterval(() => setNowMs(Date.now()), 1_000);
+    return () => window.clearInterval(interval);
+  }, [expiresAtMs]);
+
+  return (
+    <span data-testid="owner-ghost-rotation-countdown">
+      {typeof expiresAtMs === 'number'
+        ? `Rotates in ${formatGhostRotationCountdown(expiresAtMs, nowMs)}`
+        : 'Ghost Mode decoy'}
+    </span>
+  );
+}
+
 // Ghost pins rotate to a new spot inside their radius every 15 minutes. Through
 // the last minute the heart border flashes electric blue at an accelerating
 // rate so a viewer can tell this profile is about to move.
 const GHOST_PULSE_WINDOW_MS = 60_000;
 const GHOST_ROTATION_EXIT_MS = 2_000;
-// How far into the last minute a ghost pin may first appear and still animate:
-// one map refetch cycle, with a little room for a slow response.
-const GHOST_ROTATION_MOUNT_GRACE_MS = 12_000;
 
 function ghostPulseBeatSchedule() {
   const beats: { t: number; amplitude: number }[] = [];
@@ -1180,6 +1203,10 @@ function ghostPulseBeatSchedule() {
 }
 
 const GHOST_PULSE_BEATS = ghostPulseBeatSchedule();
+
+// Pepper's ghost: the lit parts of the pin turn spectral electric blue while
+// the dark parts stay dark, the way a reflected stage apparition reads.
+const GHOST_PEPPER_FILTER = 'grayscale(1) sepia(1) saturate(2.6) hue-rotate(155deg) brightness(1.04) contrast(0.9)';
 
 // The border flash is gated to a fixed on-window per beat rather than to the
 // summed contraction, so the pin keeps alternating purple and electric blue
@@ -1275,59 +1302,11 @@ function GhostRotationPuff({ id, style }: { id: string; style?: CSSProperties })
   );
 }
 
-function formatGhostRotationCountdown(expiresAtMs: number, nowMs: number) {
-  const secondsRemaining = Math.max(0, Math.ceil((expiresAtMs - nowMs) / 1_000));
-  const minutes = Math.floor(secondsRemaining / 60);
-  const seconds = secondsRemaining % 60;
-
-  return `${minutes}:${String(seconds).padStart(2, '0')}`;
-}
-
-function GhostRotationCountdown({ expiresAtMs }: { expiresAtMs?: number }) {
-  const [nowMs, setNowMs] = useState(() => Date.now());
-
-  useEffect(() => {
-    if (typeof expiresAtMs !== 'number') return undefined;
-    const interval = window.setInterval(() => setNowMs(Date.now()), 1_000);
-    return () => window.clearInterval(interval);
-  }, [expiresAtMs]);
-
-  return (
-    <span data-testid="owner-ghost-rotation-countdown">
-      {typeof expiresAtMs === 'number'
-        ? `Rotates in ${formatGhostRotationCountdown(expiresAtMs, nowMs)}`
-        : 'Ghost Mode decoy'}
-    </span>
-  );
-}
-
 function GhostRotationPulse({ marker, children }: { marker: MapMarker; children: (exitActive: boolean, exitStyle?: CSSProperties) => ReactNode }) {
   const expiresAtMs = marker.ghostRotationExpiresAtMs;
-  const mountedAtMsRef = useRef(Date.now());
-  // A marker that mounts deep inside the last minute skips that rotation's
-  // animation, so a page opened at the deadline does not start it mid-way.
-  // The first refetch cycle is exempt: the server only serves the deadline
-  // once the last minute has begun, that new field remounts the marker, and
-  // the map re-fetches every ten seconds, so every viewer's copy of someone
-  // else's ghost pin first appears a few seconds into the window. Skipping
-  // those meant nobody but the owner ever saw the animation. A pulsing marker
-  // is never skipped: a Pulse and a Ghost rotation are meant to run together,
-  // the ghost taking the last minute and the pulse resuming once the decoy has
-  // moved.
-  const suppressedMountDeadlineRef = useRef<number | null>(
-    marker.displayMode === 'GHOST' &&
-    marker.animationHint === 'FADE_LAST_MINUTE' &&
-    !marker.activePing &&
-    typeof expiresAtMs === 'number' &&
-    expiresAtMs > mountedAtMsRef.current &&
-    expiresAtMs - mountedAtMsRef.current <= GHOST_PULSE_WINDOW_MS - GHOST_ROTATION_MOUNT_GRACE_MS
-      ? expiresAtMs
-      : null,
-  );
   const canAnimate = marker.displayMode === 'GHOST' &&
     marker.animationHint === 'FADE_LAST_MINUTE' &&
     typeof expiresAtMs === 'number' &&
-    expiresAtMs !== suppressedMountDeadlineRef.current &&
     !shouldReduceMotion();
   const [exitElapsedMs, setExitElapsedMs] = useState<number | null>(null);
   const pulseRef = useRef<HTMLSpanElement | null>(null);
@@ -1339,17 +1318,10 @@ function GhostRotationPulse({ marker, children }: { marker: MapMarker; children:
     if (exitStartMs <= 0 && remainingMs > 0) {
       setExitElapsedMs(Math.min(GHOST_ROTATION_EXIT_MS, -exitStartMs));
     }
-    // A page load inside the exit window already resumed the animation part way
-    // through above. Scheduling this with a clamped delay fired it immediately
-    // and restarted the poof from zero, so the exit replayed on every load.
-    const exitTimer = exitStartMs > 0
-      ? window.setTimeout(() => setExitElapsedMs(0), exitStartMs)
-      : null;
+    const exitTimer = window.setTimeout(() => setExitElapsedMs(0), Math.max(0, exitStartMs));
     const endTimer = window.setTimeout(() => setExitElapsedMs(null), Math.max(0, remainingMs));
     return () => {
-      if (exitTimer !== null) {
-        window.clearTimeout(exitTimer);
-      }
+      window.clearTimeout(exitTimer);
       window.clearTimeout(endTimer);
     };
   }, [canAnimate, expiresAtMs]);
@@ -1400,14 +1372,24 @@ function GhostRotationPulse({ marker, children }: { marker: MapMarker; children:
         effectHost.style.setProperty('--cruush-ghost-photo-opacity', visibleFlash ? '0.62' : '1');
         effectHost.style.setProperty('--cruush-ghost-photo-echo-opacity', '0');
         effectHost.style.setProperty('--cruush-ghost-badge-opacity', '1');
-        effectHost.style.setProperty('--cruush-ghost-pepper-opacity', '1');
+        effectHost.style.setProperty('--cruush-ghost-pepper-opacity', visibleFlash ? '0.72' : '1');
         if (visibleFlash) {
           effectHost.style.setProperty('--cruush-ghost-surface-alpha', '0.34');
         } else {
           effectHost.style.removeProperty('--cruush-ghost-surface-alpha');
         }
-        effectHost.style.setProperty('--cruush-ghost-photo-filter', 'none');
-        effectHost.style.setProperty('--cruush-ghost-pepper-filter', 'none');
+        effectHost.style.setProperty(
+          '--cruush-ghost-photo-filter',
+          visibleFlash >= 0.5
+            ? GHOST_PEPPER_FILTER
+            : 'none',
+        );
+        effectHost.style.setProperty(
+          '--cruush-ghost-pepper-filter',
+          visibleFlash >= 0.5
+            ? GHOST_PEPPER_FILTER
+            : 'none',
+        );
       } else {
         effectHost.style.setProperty('--cruush-ghost-border-opacity', '0');
         effectHost.style.removeProperty('--cruush-ghost-flash-border-color');

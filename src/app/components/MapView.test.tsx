@@ -768,6 +768,19 @@ describe('MapView', () => {
     }));
   });
 
+  it('connects both Ghost badge frames to the heart flash color without changing their base color', () => {
+    render(<MapMarkerPin marker={{
+      id: 'ghost-badges', displayName: 'River', displayMode: 'GHOST',
+      approximateLatitude: 40.72, approximateLongitude: -74.01,
+      roleBadge: { kind: 'role', iconName: 'switch', label: 'Switch' },
+      badge: createMapMarkerBadge(['Versatile']),
+    }} />);
+    for (const side of ['role', 'position']) {
+      expect(screen.getByTestId(`marker-${side}-badge-ghost-badges`).querySelector('svg[stroke]'))
+        .toHaveAttribute('stroke', 'var(--cruush-ghost-flash-border-color, #FF0072)');
+    }
+  });
+
   it('keeps Ghost markers static without changing the normal no-photo heart treatment', async () => {
     render(
       <MapView
@@ -837,7 +850,7 @@ describe('MapView', () => {
     expect(screen.getByTestId('marker-ghost-border-ghost-owner')).toHaveAttribute('stroke', '#0BA8FF');
   });
 
-  it('does not replay an active Ghost rotation window when the pin mounts', () => {
+  it('uses the approved deadline-driven Ghost animation when a pin mounts inside the last minute', () => {
     render(
       <MapMarkerPin
         marker={{
@@ -852,7 +865,7 @@ describe('MapView', () => {
       />,
     );
 
-    expect(screen.queryByTestId('marker-ghost-pulse-ghost-load-window')).not.toBeInTheDocument();
+    expect(screen.getByTestId('marker-ghost-pulse-ghost-load-window')).toBeInTheDocument();
     expect(screen.queryByTestId('marker-ghost-fly-icon-ghost-load-window')).not.toBeInTheDocument();
     expect(screen.queryByTestId('marker-ghost-puff-ghost-load-window')).not.toBeInTheDocument();
   });

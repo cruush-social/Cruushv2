@@ -1441,13 +1441,11 @@ html[data-cruush-alpha-bug-corner='top-right'] [data-testid='accessibility-quick
     opacity: var(--cruush-ghost-unit-opacity, 1);
   }
 
-  /* The white parts of the apparition stay pure white at full opacity through
-     the whole countdown. Only the photograph and the surface react to it. */
   .cruush-ghost-rotation-badge-symbol,
   .cruush-ghost-rotation-signal-symbol {
     color: #FFFFFF;
-    filter: none;
-    opacity: 1;
+    filter: var(--cruush-ghost-pepper-filter, none);
+    opacity: var(--cruush-ghost-pepper-opacity, 1);
   }
 
   .cruush-ghost-rotation-heart-photo {
