@@ -202,7 +202,9 @@ export const GHOST_MIN_OFFSET_RATIO = 0.5;
 // twice here, so a zero-margin budget would breach the annulus at some
 // latitudes. GHOST_GEOMETRY_SLACK_RATIO reserves that headroom.
 export const GHOST_ANCHOR_RATIO = 0.75;
-export const GHOST_DRIFT_RATIO = 0.1;
+// 0.15 rather than the original 0.1: at a tenth of the radius a rotation read
+// as the pin coming back to the same spot. The cell shrinks to pay for it.
+export const GHOST_DRIFT_RATIO = 0.15;
 export const GHOST_GEOMETRY_SLACK_RATIO = 0.02;
 // The drift never collapses to the anchor, and each epoch turns by the golden
 // angle, so a rotation is visible on the map rather than a step sideways.
