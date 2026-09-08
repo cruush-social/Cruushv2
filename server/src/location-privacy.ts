@@ -12,6 +12,7 @@ import { resolveSecretForVersion } from "./crypto-keys.js";
 import type { DbClient } from "./db.js";
 import { getSessionTokenFromRequest, hashSessionToken } from "./auth.js";
 import { normalizeCrowdOption, type CrowdOption } from "./profile-sensitive.js";
+import { GhostLandUnavailableError, isGhostLand } from "./ghost-land.js";
 
 export type VisibilityBaseMode = "PUBLIC_PRECISE" | "GHOST" | "STEALTH";
 export type DisplayMode = "PRECISE" | "GHOST";
@@ -190,30 +191,23 @@ export const DEFAULT_GHOST_RADIUS_METERS = 1609;
 export const GHOST_MIN_OFFSET_RATIO = 0.5;
 // Ghost v2 geometry, as fractions of the configured radius R.
 //
-// The decoy sits at GHOST_ANCHOR_RATIO * R from the centroid of the subject's
-// cell, then drifts by up to GHOST_DRIFT_RATIO * R. A point anywhere in the
-// cell is at most (cell diagonal / 2) from the centroid, so the decoy's
-// distance from the true point stays inside
-//   ANCHOR +/- (halfCellDiagonal + DRIFT)
-// and that budget must land inside [0.5R, R].
+// The decoy moves tangentially around an offset anchor. Keeping radial drift
+// narrow makes room for much larger sideways movement without shrinking the
+// privacy cell or breaching the [0.5R, R] true-position offset bounds.
 //
 // The budget is deliberately NOT tight: offsetCoordinate uses a fixed
 // metres-per-degree constant that is off by up to ~0.7%, and it is applied
 // twice here, so a zero-margin budget would breach the annulus at some
 // latitudes. GHOST_GEOMETRY_SLACK_RATIO reserves that headroom.
 export const GHOST_ANCHOR_RATIO = 0.75;
-// 0.15 rather than the original 0.1: at a tenth of the radius a rotation read
-// as the pin coming back to the same spot. The cell shrinks to pay for it.
-export const GHOST_DRIFT_RATIO = 0.15;
+export const GHOST_DRIFT_RATIO = 0.395;
+export const GHOST_DRIFT_MIN_TANGENT_RATIO = 0.155;
+export const GHOST_DRIFT_RADIAL_RATIO = 0.04;
 export const GHOST_GEOMETRY_SLACK_RATIO = 0.02;
-// The drift never collapses to the anchor, and each epoch turns by the golden
-// angle, so a rotation is visible on the map rather than a step sideways.
-export const GHOST_DRIFT_INNER_RATIO = 0.7;
-export const GHOST_DRIFT_GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
-// halfCellDiagonal = cellMeters * sqrt(2) / 2, and we need
-// halfCellDiagonal + DRIFT + SLACK <= 0.25R.
+// Preserve the existing cell verbatim in size. More visible movement must not
+// silently improve an observer's within-cell resolution.
 export const GHOST_CELL_RATIO =
-  (0.25 - GHOST_DRIFT_RATIO - GHOST_GEOMETRY_SLACK_RATIO) * 2 / Math.SQRT2;
+  (0.25 - 0.15 - GHOST_GEOMETRY_SLACK_RATIO) * 2 / Math.SQRT2;
 // Reported to viewers for every Ghost subject regardless of the radius they
 // chose, so the display token cannot be used to recover it.
 export const GHOST_DISPLAY_ACCURACY_METERS = DEFAULT_GHOST_RADIUS_METERS;
@@ -1286,6 +1280,7 @@ export function deriveGhostCoordinate(input: {
   derivationSalt: string;
   radiusMeters: number;
   policyVersion: number;
+  anchorAttempt?: number;
 }) {
   // A derivation, not a decrypt of anything stored: the coordinate is recomputed
   // from the current key every time, so it always resolves to the current secret.
@@ -1346,7 +1341,8 @@ export function deriveGhostCoordinate(input: {
     cellColumn,
     input.policyVersion
   );
-  const anchorTheta = 2 * Math.PI * randomFloatFromSeed(anchorSeed.subarray(0, 8));
+  const anchorTheta = 2 * Math.PI * randomFloatFromSeed(anchorSeed.subarray(0, 8)) +
+    (input.anchorAttempt ?? 0) * Math.PI * (3 - Math.sqrt(5));
   const anchorMeters = input.radiusMeters * GHOST_ANCHOR_RATIO;
   const anchor = offsetCoordinate(
     centroidLat,
@@ -1365,28 +1361,72 @@ export function deriveGhostCoordinate(input: {
     input.derivationSalt,
     input.policyVersion
   );
-  const driftAmplitude = input.radiusMeters * GHOST_DRIFT_RATIO;
-  // A uniform disc put consecutive decoys next to each other often enough that a
-  // rotation looked like the pin had barely moved. The radius now sits in an
-  // annulus and the angle advances by the golden angle each epoch, so every
-  // rotation lands on a visibly different side of the anchor. The maximum drift
-  // is unchanged, so the geometry budget above still holds and the drift still
-  // depends only on the subject and the epoch, never on the true position.
-  const radius = driftAmplitude * (
-    GHOST_DRIFT_INNER_RATIO +
-    (1 - GHOST_DRIFT_INNER_RATIO) * randomFloatFromSeed(driftSeed.subarray(0, 8))
+  // Random positions in opposite tangential bands guarantee a meaningful jump
+  // without depending on a viewer, the exact position, or process-local history.
+  // Consecutive samples move 0.31R..0.795R before geodesic rounding; this leaves
+  // headroom inside the approved 0.30R..0.80R range. A random full-circle phase
+  // each epoch would cancel a scheduled angle and allow near-identical spots.
+  const side = (input.rotationEpoch + (anchorSeed[8] & 1)) % 2 === 0 ? 1 : -1;
+  const tangent = side * input.radiusMeters * (
+    GHOST_DRIFT_MIN_TANGENT_RATIO +
+    (GHOST_DRIFT_RATIO - GHOST_DRIFT_MIN_TANGENT_RATIO) * randomFloatFromSeed(driftSeed.subarray(0, 8))
   );
-  const theta = (
-    2 * Math.PI * randomFloatFromSeed(driftSeed.subarray(8, 16)) +
-    input.rotationEpoch * GHOST_DRIFT_GOLDEN_ANGLE
-  ) % (2 * Math.PI);
+  const radial = input.radiusMeters * GHOST_DRIFT_RADIAL_RATIO *
+    (2 * randomFloatFromSeed(driftSeed.subarray(8, 16)) - 1);
 
   return offsetCoordinate(
     anchor.lat,
     anchor.lng,
-    radius * Math.cos(theta),
-    radius * Math.sin(theta)
+    radial * Math.cos(anchorTheta) - tangent * Math.sin(anchorTheta),
+    radial * Math.sin(anchorTheta) + tangent * Math.cos(anchorTheta)
   );
+}
+
+type GhostPoint = { lat: number; lng: number };
+const landPools = new Map<string, Promise<[GhostPoint[], GhostPoint[]]>>();
+
+export async function deriveGhostLandCoordinate(input: Parameters<typeof deriveGhostCoordinate>[0]) {
+  // Key the cache by cell-derived coordinates, never by the exact point or viewer.
+  const stable = { ...input, rotationEpoch: 0, derivationSalt: "land-pool-v1" };
+  const identity = deriveGhostCoordinate(stable);
+  const cacheKey = `${identity.lat}:${identity.lng}:${input.radiusMeters}`;
+  let pending = landPools.get(cacheKey);
+  if (!pending) {
+    pending = (async (): Promise<[GhostPoint[], GhostPoint[]]> => {
+      let coastalFallback: [GhostPoint[], GhostPoint[]] | undefined;
+      for (let anchorAttempt = 0; anchorAttempt < 16; anchorAttempt++) {
+        const groups: [GhostPoint[], GhostPoint[]] = [[], []];
+        for (const side of [0, 1] as const) {
+          const candidates = Array.from({ length: 16 }, (_, i) => deriveGhostCoordinate({
+            ...stable, rotationEpoch: side, derivationSalt: `land-pool-v1:${i}`, anchorAttempt
+          }));
+          const valid = await Promise.all(candidates.map(isGhostLand));
+          groups[side] = candidates.filter((_, i) => valid[i]);
+        }
+        if (groups[0].length && groups[1].length) return groups;
+        const available = groups.flat();
+        if (available.length >= 2 && !coastalFallback) {
+          // Approved coastal fallback: disjoint land-only pools permit smaller
+          // jumps, never a water candidate, radius expansion, or exact fallback.
+          const middle = Math.ceil(available.length / 2);
+          coastalFallback = [available.slice(0, middle), available.slice(middle)];
+        }
+      }
+      if (coastalFallback) return coastalFallback;
+      throw new GhostLandUnavailableError();
+    })().catch(error => { landPools.delete(cacheKey); throw error; });
+    if (landPools.size >= 512) landPools.delete(landPools.keys().next().value!);
+    landPools.set(cacheKey, pending);
+  }
+  const pools = await pending;
+  const keyVersion = getGhostDerivationKeyVersion(input.config);
+  const key = deriveKey(getGhostDerivationSecret(input.config, keyVersion, keyVersion), "ghost-coordinate", keyVersion);
+  const selection = createHmac("sha256", key).update([
+    "ghost-land-selection-v1", input.subjectUserId, input.policyVersion,
+    input.rotationEpoch, input.derivationSalt
+  ].join(":")).digest();
+  const pool = pools[((input.rotationEpoch % 2) + 2) % 2];
+  return pool[Math.floor(randomFloatFromSeed(selection.subarray(0, 8)) * pool.length)];
 }
 
 export async function resolveViewerGhostCoordinate(context: LocationPrivacyContext, input: {
@@ -1406,7 +1446,7 @@ export async function resolveViewerGhostCoordinate(context: LocationPrivacyConte
   });
 
   return {
-    coordinate: deriveGhostCoordinate({
+    coordinate: await deriveGhostLandCoordinate({
       config: context.config,
       subjectUserId: input.subjectUserId,
       centerLat: center.lat,

@@ -1,4 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
+vi.mock("./ghost-land.js", async importOriginal => ({
+  ...await importOriginal<typeof import("./ghost-land.js")>(),
+  isGhostLand: vi.fn(async () => true)
+}));
 import type { FastifyRequest } from "fastify";
 import type { AppConfig } from "./config.js";
 import type { DbClient } from "./db.js";

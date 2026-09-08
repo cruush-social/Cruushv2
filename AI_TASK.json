@@ -2,10 +2,13 @@
   "schemaVersion": 2,
   "taskId": "mobile-overlay-and-open-bugs-20260908",
   "status": "active",
-  "objective": "Make precise live location sharing to confirmed mutual cruushes the default for new accounts and repair mobile tutorial dismissal and control placement.",
-  "userOutcome": "New members share precisely with confirmed mutual cruushes by default, while tutorial controls dismiss in place on every route and reveal the relevant Map Controls action.",
+  "objective": "Implement the approved middle-option Ghost placement: broader random movement around a hidden anchor, targeting jumps of 30–80% of the selected radius on land.",
+  "userOutcome": "Ghost rotations visibly move the existing pin without changing the approved animation, disclosing the real position, or exceeding the chosen radius.",
   "audience": "cruush members.",
   "successCriteria": [
+    "Consecutive epochs within the same privacy cell move 30–80% of the selected radius before land filtering.",
+    "Retain the current privacy cell size and minimum true-position offset; averaging must not converge on the true position.",
+    "Land filtering must be verified before publishing; shorter coastal jumps are approved, but no real-coordinate or unchecked-water fallback.",
     "New accounts default precise live location sharing to confirmed mutual cruushes only.",
     "Existing members' saved visibility policies remain unchanged.",
     "Skip tutorial and Done dismiss the mobile tutorial in place on Map and replay routes.",
@@ -18,7 +21,7 @@
     "All unrelated dirty work, including .octo-continue.md."
   ],
   "nonGoals": [
-    "No change to Ghost Mode, badge geometry, marker placement, actual approved profile photos, or existing members' settings.",
+    "No change to Ghost animation, badge geometry, actual approved profile photos, existing members' settings, or unrelated queued UI work.",
     "No database migration, account-status change, or unrelated deployment."
   ],
   "assumptions": [
@@ -29,7 +32,7 @@
       "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "Verify a new default policy has precise mutual-cruush sharing on production.",
+  "nextVisibleMilestone": "Verify broader random Ghost placement and coastal behavior before release.",
   "stopConditions": [
     "Stop at a password form.",
     "Stop if the server build fails."
@@ -59,8 +62,13 @@
   "release": "1.6",
   "repository": "cruush-social/Cruushv2",
   "branch": "main",
-  "job": "Publish the confirmed new-account precise-location default for mutual cruushes.",
+  "job": "Publish approved broader land-only Ghost placement with shorter coastal jumps.",
   "allowedPaths": [
+    "server/src/ghost-land.ts",
+    "server/src/ghost-land.test.ts",
+    "server/package.json",
+    "server/package-lock.json",
+    "server/src/routes/users.ts",
     "src/app/components/BadgeFrames.tsx",
     "src/app/components/BadgeFrames.test.tsx",
     "src/app/components/MapView.tsx",
@@ -83,6 +91,7 @@
     "src/app/components/MapPingSheet.test.tsx",
     "server/src/location-privacy.ts",
     "server/src/location-privacy.test.ts",
+    "server/src/ghost-rotation-averaging.test.ts",
     "src/app/components/ui/dialog.tsx",
     "src/styles/theme.css",
     "AI_TASK.json",
@@ -95,7 +104,7 @@
   "forbiddenPaths": [
     "src/app/assets/brand/**"
   ],
-  "proofTarget": "Focused server assertion, server TypeScript build, deployed SHA in both containers, and authenticated production privacy-settings response for a newly created policy.",
+  "proofTarget": "Focused placement and water-rejection assertions, server and client builds, deployed SHA in both containers, fresh worker, and authenticated rendered Ghost decoy on land.",
   "publicationTarget": "origin/main and the production deploy",
   "requiredEvidence": [
     "Focused server assertion and server TypeScript build output.",

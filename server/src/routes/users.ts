@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { hasPremiumDiscoveryFilters, requireCruushPlus } from "../billing.js";
 import { decryptTextContentOrFallback } from "../content-encryption.js";
+import { GhostLandUnavailableError } from "../ghost-land.js";
 import {
   formatDistanceMiles,
   formatLastActiveFromDate,
@@ -1009,8 +1010,12 @@ async function mapModernDiscoveryRow(
         viewerUserId,
         policy,
         location
+      }).catch(error => {
+        if (error instanceof GhostLandUnavailableError) return null;
+        throw error;
       })
     : null;
+  if (displayMode === "GHOST" && !resolvedGhost) return null;
   const displayLocationToken = await makeDisplayLocationToken(app, request, {
     subjectUserId: row.id,
     viewerUserId,
@@ -1331,8 +1336,12 @@ export async function registerUserRoutes(app: FastifyInstance) {
                 viewerUserId: currentUserId,
                 policy,
                 location
+              }).catch(error => {
+                if (error instanceof GhostLandUnavailableError) return null;
+                throw error;
               })
             : null;
+          if (displayMode === "GHOST" && !resolvedGhost) return null;
           const displayLocationToken = await makeDisplayLocationToken(app, request, {
             subjectUserId: legacy.id,
             viewerUserId: currentUserId,

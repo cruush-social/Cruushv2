@@ -24,4 +24,6 @@
 
 ## Ghost animation preservation, September 8, 2026
 
+Ghost placement approval, September 8: Julien selected a middle option rather than unrestricted random offsets centered on the true location. Randomize over a broader area around a stable hidden anchor, targeting jumps of 30–80% of the selected radius while remaining on land and within that radius. Preserve the existing privacy cell and approved animation. Julien approved a shorter land-only jump when the minimum jump is geometrically impossible near the coast. Never use water or expand the selected radius as a fallback.
+
 Julien reaffirmed that other members' Ghost pins retain the approved animation: both side-badge borders flash with the heart, and relocation updates the pin in place without requiring a page refresh. The visible disappearance, Ghost effect, and reappearance at the new position must remain; retaining the underlying marker is not permission to remove the visible replacement. A badge implementation change must preserve its connection to the existing flash color. His latest instruction explicitly restores the animation code from the approved `bff0498` treatment while keeping the new Ghost Mode exit icon. Preserve current badge shapes and adjacent geometry. This supersedes preserving the more recent, changed animation implementation.
