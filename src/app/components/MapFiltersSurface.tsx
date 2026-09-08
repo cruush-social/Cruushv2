@@ -13,9 +13,6 @@ import { Search } from 'lucide-react';
 import {
   AVAILABILITY,
   BODY_TYPES,
-  BODY_HAIR,
-  PUBIC_HAIR,
-  FACIAL_HAIR,
   CROWDS,
   HOBBIES,
   HOSTING,
@@ -52,9 +49,6 @@ export interface FilterState {
   roles: string[];
   kinks: string[];
   bodyTypes: string[];
-  bodyHair: string[];
-  pubicHair: string[];
-  facialHair: string[];
   sexuality: string[];
   zodiac: string[];
   substanceBoundaries: string[];
@@ -80,9 +74,6 @@ export const DEFAULT_FILTER_STATE: FilterState = {
   roles: [],
   kinks: [],
   bodyTypes: [],
-  bodyHair: [],
-  pubicHair: [],
-  facialHair: [],
   sexuality: [],
   zodiac: [],
   substanceBoundaries: [],
@@ -298,7 +289,6 @@ export default function MapFiltersSurface({
               <FieldGroup label="Preferred spots" options={PREFERRED_SPOTS} stateKey="preferredSpots" value={value} onChange={onChange} />
               <FieldGroup label="Position" options={POSITIONS} stateKey="positions" value={value} onChange={onChange} />
               <FieldGroup label="Role" options={ROLES} stateKey="roles" value={value} onChange={onChange} />
-              <Accordion type="single" collapsible className="rounded-2xl border border-white/10 bg-white/[0.035]"><AccordionItem value="hair-now" className="border-0"><AccordionTrigger className="px-4 py-3 hover:no-underline"><span className="text-base">Hair now</span></AccordionTrigger><AccordionContent className="space-y-4 px-4 pb-4 pt-0"><FieldGroup label="Body hair" options={BODY_HAIR} stateKey="bodyHair" selectionMode="single" value={value} onChange={onChange} /><FieldGroup label="Pubic hair" options={PUBIC_HAIR} stateKey="pubicHair" selectionMode="single" value={value} onChange={onChange} /><FieldGroup label="Facial hair" options={FACIAL_HAIR} stateKey="facialHair" selectionMode="single" value={value} onChange={onChange} /></AccordionContent></AccordionItem></Accordion>
               <FieldGroup searchable label="Kinks & Fetishes" optionGroups={KINK_GROUPS} stateKey="kinks" value={value} onChange={onChange} />
             </TabsContent>
 

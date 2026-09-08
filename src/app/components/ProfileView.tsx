@@ -85,9 +85,6 @@ export type ProfileViewModel = {
   zodiac: string[];
   ethnicity: string | null;
   bodyType: string | null;
-  bodyHair: string | null;
-  pubicHair: string | null;
-  facialHair: string | null;
   height: string | null;
   weight: string | null;
   isTrans: boolean | null;
@@ -183,9 +180,6 @@ export function profileRecordToProfileView(
     zodiac: profile.zodiac,
     ethnicity: profile.ethnicity || null,
     bodyType: formatJoined(profile.body_type),
-    bodyHair: formatSingle(profile.body_hair),
-    pubicHair: formatSingle(profile.pubic_hair),
-    facialHair: formatSingle(profile.facial_hair),
     height: profile.height || null,
     weight: profile.weight || null,
     isTrans: profile.is_trans,
@@ -937,14 +931,6 @@ export function ProfileDetailsTabs({
           </Section>
 
         </div>
-
-        <Section title="Hair now" compact={compact}>
-          <div className="grid gap-3 sm:grid-cols-3">
-            <DetailItem label="Body hair" value={profileView.bodyHair} compact={compact} />
-            <DetailItem label="Pubic hair" value={profileView.pubicHair} compact={compact} />
-            <DetailItem label="Facial hair" value={profileView.facialHair} compact={compact} />
-          </div>
-        </Section>
 
         <Section title="Kinks & Fetishes" compact={compact}>
           <BadgeList items={profileView.kinks} compact={compact} />

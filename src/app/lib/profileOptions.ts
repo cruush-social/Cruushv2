@@ -31,9 +31,6 @@ export const BODY_TYPES = alphabetize([
   'stocky', 'thick', 'toned', 'twink', 'wheelchair user'
 ]);
 
-export const BODY_HAIR = ['Natural', 'Hairy', 'Trimmed', 'Shaved', 'Smooth'];
-export const PUBIC_HAIR = ['Smooth', 'Stubble', 'Trimmed', 'Shaped', 'Full/bush', 'Mixed', 'Varies'];
-export const FACIAL_HAIR = ['Smooth', 'Clean-shaven', 'Stubble', 'Mustache', 'Goatee', 'Short beard', 'Full beard', 'Sideburns', 'Mixed', 'Varies'];
 
 export const POSITIONS = alphabetize([
   'bottom', 'hands only', 'oral only', 'side', 'stone bottom', 'stone top', 'top', 'vers bottom', 'vers top', 'versatile'
@@ -508,7 +505,6 @@ export const STRUCTURED_PROFILE_OPTION_FIELDS: StructuredProfileOptionField[] = 
   { label: 'Sexuality', options: SEXUALITY },
   { label: 'Ethnicity', options: ETHNICITIES },
   { label: 'Body type', options: BODY_TYPES },
-  { label: 'Body hair', options: BODY_HAIR },
   { label: 'Position', options: POSITIONS },
   { label: 'Role', options: ROLES },
   { label: 'Availability', options: AVAILABILITY },

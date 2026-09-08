@@ -1,30 +1,32 @@
 {
   "schemaVersion": 2,
-  "taskId": "dock-bug-button-embedded-sheets-20260908",
+  "taskId": "remove-hair-fields-20260908",
   "status": "active",
-  "objective": "Cruushes and Messages dock the bug button in their own row when they open as sheets over the map.",
-  "userOutcome": "Every screen shows the bug button in its own header row beside the other header controls, on a phone and on desktop.",
+  "objective": "Body hair, pubic hair and facial hair are gone from profiles, Visibility Controls and Seeking.",
+  "userOutcome": "No member sees or sets a hair field anywhere; no filter or visibility rule offers one.",
   "audience": "cruush members.",
   "successCriteria": [
-    "Both sheets register their slot on every layout, immediately left of Close.",
-    "Renders at 412px show the button in the sheet row, not in the map chrome behind it."
+    "Edit Profile has no Hair now block.",
+    "Profile view has no Hair now section.",
+    "Seeking and Visibility have no hair accordion or rule keys.",
+    "Zero references to the three fields remain in the client."
   ],
   "mustPreserve": [
-    "Every header's existing controls and their order, apart from the added slot.",
-    "Screens that already docked the button."
+    "Every other profile field, filter and rule.",
+    "Stored hair values on the server, untouched: nothing is deleted from the database."
   ],
   "nonGoals": [
-    "No other visual change to any header."
+    "No server schema change; the fields stay optional with empty defaults so old clients and stored rules still parse."
   ],
   "assumptions": [
     {
-      "statement": "The Sep 4 rule (every header one line, bug button in that row, screens register a slot) and \"a designer wouldnt float shit randomly\" authorize docking on every header in one pass.",
-      "impact": "One slot added to 36 headers; the global corner reservation removed.",
+      "statement": "\"remove the hair stuff from profiles, and from vc and sf\" means the client stops showing, editing, filtering or ruling on hair; the database keeps what it has.",
+      "impact": "Client-only removal; server untouched.",
       "reversible": true,
       "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "Both containers on the pushed sha, worker v85.",
+  "nextVisibleMilestone": "Both containers on the pushed sha, worker v86; hair gone on cruush.app.",
   "stopConditions": [
     "Stop at a password form.",
     "Stop if the server build fails."
@@ -54,61 +56,27 @@
   "release": "1.6",
   "repository": "cruush-social/Cruushv2",
   "branch": "main",
-  "job": "Dock the bug button in every header.",
+  "job": "Remove hair fields from profiles, Visibility Controls and Seeking.",
   "allowedPaths": [
     "AI_TASK.json",
-    "index.html",
-    "public/service-worker-recovery.js",
-    "public/sw.js",
-    "src/app/components/BadgePickerPreview.tsx",
-    "src/app/components/BlockedUsersPage.tsx",
-    "src/app/components/BugButtonSlot.tsx",
-    "src/app/components/CruushMatchSettings.tsx",
-    "src/app/components/DlModeSettings.tsx",
-    "src/app/components/EventDetail.tsx",
-    "src/app/components/EventPassGuide.tsx",
-    "src/app/components/FeedPhotoPreview.tsx",
-    "src/app/components/FeelingLucky.tsx",
-    "src/app/components/FiltersPanel.tsx",
-    "src/app/components/GhostModeSettings.tsx",
-    "src/app/components/HankyPreview.tsx",
-    "src/app/components/KelpieMarkPreview.tsx",
-    "src/app/components/LocalFeed.tsx",
-    "src/app/components/MapPresenceSettings.tsx",
-    "src/app/components/MapProfilePopup.tsx",
-    "src/app/components/MileHighMarkPreview.tsx",
-    "src/app/components/ModeratorReview.tsx",
-    "src/app/components/NotificationSettings.tsx",
-    "src/app/components/OnboardingPreview.tsx",
-    "src/app/components/PrivacyAudit.tsx",
+    "src/app/lib/profileOptions.ts",
+    "src/app/lib/profileApi.ts",
     "src/app/components/ProfileEdit.tsx",
     "src/app/components/ProfileView.tsx",
-    "src/app/components/PublicInfoPage.tsx",
-    "src/app/components/PulseEffectPreview.tsx",
-    "src/app/components/ReportPage.tsx",
-    "src/app/components/RequestsDashboard.tsx",
-    "src/app/components/Rewards.tsx",
-    "src/app/components/SafetyCenter.tsx",
-    "src/app/components/Settings.tsx",
-    "src/app/components/SupportPage.tsx",
-    "src/app/components/Survey.tsx",
-    "src/app/components/TravelModeSettings.tsx",
-    "src/app/components/Tutorial.tsx",
-    "src/app/components/TwoFactorSettings.tsx",
-    "src/main.tsx",
-    "src/styles/theme.css",
-    "src/app/components/MapHome.tsx",
-    "src/app/components/CruushActivity.tsx",
-    "src/app/components/DirectMessages.tsx"
+    "src/app/components/MapFiltersSurface.tsx",
+    "src/app/components/MapVisibilitySurface.tsx",
+    "index.html",
+    "public/sw.js",
+    "public/service-worker-recovery.js",
+    "src/main.tsx"
   ],
   "forbiddenPaths": [
     "src/app/assets/brand/**"
   ],
-  "proofTarget": "Rendered headers at 412px, sent before deploy; then the served build.",
+  "proofTarget": "Rendered Edit Profile, profile view, Seeking and Visibility at 412px with no hair text; served build on both containers.",
   "publicationTarget": "origin/main and the production deploy",
   "requiredEvidence": [
-    "Renders sent to Julien before deploy.",
-    "Full client suite green.",
-    "Both containers on the pushed sha after approval."
+    "Four renders with hairMentioned=false.",
+    "Both containers on the pushed sha."
   ]
 }
