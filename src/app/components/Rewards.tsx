@@ -16,6 +16,7 @@ import CruushPlusWord from './CruushPlusWord';
 import LoadingCardSkeletons from './LoadingCardSkeletons';
 import { Input } from './ui/input';
 import { Progress } from './ui/progress';
+import BugButtonSlot from './BugButtonSlot';
 import {
   getRewardSummary,
   getSideQuests,
@@ -274,6 +275,8 @@ export default function Rewards() {
           <div>
             <h1 className="text-xl font-semibold">Rewards & <CruushPlusWord /></h1>
           </div>
+        
+          <BugButtonSlot testId="rewards-bug-button-slot" />
         </div>
       </header>
 

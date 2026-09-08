@@ -1,6 +1,7 @@
 import { ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { HANKY_COLORS, HankyFrame } from './HankyFrame';
+import BugButtonSlot from './BugButtonSlot';
 
 /**
  * Every hanky colour at the sizes a badge actually renders, so the choice is
@@ -21,6 +22,8 @@ export default function HankyPreview() {
           <ArrowLeft className="h-5 w-5" />
         </button>
         <h1 className="min-w-0 flex-1 truncate text-lg">Hankies</h1>
+      
+        <BugButtonSlot testId="hanky-preview-bug-button-slot" />
       </header>
 
       <main className="mx-auto w-full max-w-2xl space-y-4 px-4 py-4">

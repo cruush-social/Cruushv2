@@ -3,6 +3,7 @@ import { ArrowLeft, Calendar } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { CruushIcon } from './CruushIconImage';
+import BugButtonSlot from './BugButtonSlot';
 
 export default function EventDetail() {
   const { eventId } = useParams();
@@ -27,6 +28,8 @@ export default function EventDetail() {
           <ArrowLeft className="w-5 h-5" />
         </Button>
         <h2 className="text-xl">Event</h2>
+      
+        <BugButtonSlot testId="event-detail-bug-button-slot" />
       </header>
 
       <div className="max-w-2xl mx-auto p-6 space-y-6">

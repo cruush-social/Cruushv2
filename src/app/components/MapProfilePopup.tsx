@@ -28,6 +28,7 @@ import mileHighClubWhite from '../assets/ui-icons/mile-high-club-white.svg';
 import sendIconWhite from '../assets/ui-icons/send-white.png';
 import DarkRoomMark from './DarkRoomMark';
 import LoadingCardSkeletons from './LoadingCardSkeletons';
+import BugButtonSlot from './BugButtonSlot';
 import { resolveUserBorderTone } from '../lib/userBorderTone';
 
 interface MapProfilePopupProps {
@@ -310,6 +311,9 @@ export default function MapProfilePopup({
                   />
                 </>
               ) : null}
+              {/* The bug button rides this row like the other controls; Close
+                  stays last. */}
+              <BugButtonSlot className="ml-0 h-9 w-9" testId="map-profile-popup-bug-button-slot" />
               <button
                 type="button"
                 onClick={onClose}

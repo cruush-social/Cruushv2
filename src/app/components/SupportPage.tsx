@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router';
 import { Button } from './ui/button';
 import PublicPolicyLinks from './PublicPolicyLinks';
 import SupportRequestForm from './SupportRequestForm';
+import BugButtonSlot from './BugButtonSlot';
 import { useBackOrFallback } from '../lib/useBackOrFallback';
 
 type SupportPageProps = {
@@ -31,6 +32,8 @@ export default function SupportPage({ appealOnly = false, publicAccess = false, 
           <ArrowLeft className="w-5 h-5" />
         </Button>
         <h2 className="text-xl">Support</h2>
+      
+        <BugButtonSlot testId="support-page-bug-button-slot" />
       </header>
 
       <main className="w-full p-6">

@@ -33,6 +33,7 @@ import { resolveUserBorderTone } from '../lib/userBorderTone';
 import partyHatIcon from '../assets/ui-icons/party-hat.svg';
 import mileHighClubWhite from '../assets/ui-icons/mile-high-club-white.svg';
 import InAppShareDialog from './InAppShareDialog';
+import BugButtonSlot from './BugButtonSlot';
 
 type ProfileLocationState = {
   distance?: string;
@@ -510,6 +511,8 @@ export default function ProfileView() {
               <ArrowLeft className="w-5 h-5" />
             </Button>
             <h1 className="text-xl">Profile</h1>
+          
+            <BugButtonSlot testId="profile-view-bug-button-slot" />
           </div>
         </header>
         <div className="mx-auto max-w-2xl px-4 py-8">
@@ -528,6 +531,8 @@ export default function ProfileView() {
               <ArrowLeft className="w-5 h-5" />
             </Button>
             <h1 className="text-xl">Profile</h1>
+          
+            <BugButtonSlot testId="profile-view-bug-button-slot" />
           </div>
         </header>
         <div className="mx-auto max-w-2xl px-4 py-8">
@@ -548,7 +553,7 @@ export default function ProfileView() {
       >
         {/* The page chrome rides on the photo instead of a bar above it, each
             control in its own circle so it stays legible over any picture. */}
-        <div className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-start justify-between p-3 pr-[calc(3.75rem+env(safe-area-inset-right))] lg:pr-[calc(4.25rem+env(safe-area-inset-right))]">
+        <div className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-start justify-between p-3 pr-3 lg:pr-[calc(4.25rem+env(safe-area-inset-right))]">
           <div className="pointer-events-auto flex min-w-0 items-center gap-2">
             <button
               aria-label="Back"
@@ -606,6 +611,9 @@ export default function ProfileView() {
                 ) : null}
               </>
             )}
+            {/* The chrome rides on the photo, and the bug button rides with it
+                instead of floating in a corner the row had to leave empty. */}
+            <BugButtonSlot className="ml-0" testId="profile-view-bug-button-slot" />
           </div>
         </div>
 

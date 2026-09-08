@@ -159,6 +159,7 @@ import { useIsMobile } from './ui/use-mobile';
 import { KINK_GROUPS, VIBE_GROUPS } from '../lib/profileOptions';
 import { Button } from './ui/button';
 import { profileBadgeCategory, profileBadgeGlyph, type ProfileBadgeGroup } from './ProfileBadgeGlyphs';
+import BugButtonSlot from './BugButtonSlot';
 import {
   BadgeFrame,
   BADGE_INTERACTION_CLASS,
@@ -867,6 +868,8 @@ export default function BadgePickerPreview({
             <X className="h-4 w-4" />
           </button>
         </div>
+      
+        <BugButtonSlot testId="badge-picker-preview-bug-button-slot" />
       </header> : null}
 
       <main className={`mx-auto flex w-full max-w-2xl flex-1 flex-col px-4 ${containedEmbedded ? 'min-h-0 pb-8 pt-0' : !containedEmbedded && isMobile ? 'pb-[calc(7rem+env(safe-area-inset-bottom))] pt-6' : 'pb-8 pt-6'}`}>

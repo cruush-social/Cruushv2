@@ -2,6 +2,7 @@ import { ArrowLeft, MessageCircle, ShieldCheck } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { Button } from './ui/button';
 import { CruushIcon } from './CruushIconImage';
+import BugButtonSlot from './BugButtonSlot';
 
 export default function Tutorial() {
   const navigate = useNavigate();
@@ -15,6 +16,8 @@ export default function Tutorial() {
         <div>
           <h2 className="text-xl">Tutorial</h2>
         </div>
+      
+        <BugButtonSlot testId="tutorial-bug-button-slot" />
       </header>
 
       <main className="mx-auto max-w-2xl space-y-4 p-4">

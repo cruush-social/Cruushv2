@@ -1116,14 +1116,15 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
           >
             {activeTab === 'badges' && badgeSaveState === 'saving' || activeTab !== 'badges' && saving ? 'Saving...' : 'Save'}
           </Button>
+          {/* The bug button docks into this row like every other header, so
+              it is on this screen whether or not the map is behind it. Close
+              stays the last thing on the right. */}
+          <div className="h-10 w-10 shrink-0" data-testid="profile-edit-bug-button-slot" ref={registerBugButtonSlot} />
           {embedded ? (
             <Button variant="ghost" size="icon" onClick={() => void handleCancel()} aria-label="Close Edit Profile">
               <X className="h-5 w-5" />
             </Button>
           ) : null}
-          {/* The bug button docks into this row like every other header, so
-              it is on this screen whether or not the map is behind it. */}
-          <div className="h-10 w-10 shrink-0" data-testid="profile-edit-bug-button-slot" ref={registerBugButtonSlot} />
         </div>
       </header>
 

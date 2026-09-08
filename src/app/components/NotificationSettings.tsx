@@ -11,6 +11,7 @@ import { disablePushNotifications, enablePushNotifications } from '../lib/pushNo
 import { Button } from './ui/button';
 import { Switch } from './ui/switch';
 import LoadingCardSkeletons from './LoadingCardSkeletons';
+import BugButtonSlot from './BugButtonSlot';
 
 const MINUTES_PER_DAY = 1440;
 const QUIET_HOURS_STEP_MINUTES = 30;
@@ -192,6 +193,8 @@ export default function NotificationSettings() {
           <h1 className="text-xl text-white">Notification settings</h1>
           <p className="text-sm text-muted-foreground">Push alerts stay private on your lock screen.</p>
         </div>
+      
+        <BugButtonSlot testId="notification-settings-bug-button-slot" />
       </header>
 
       <main className="mx-auto flex w-full max-w-2xl flex-col gap-4 px-4 py-5">

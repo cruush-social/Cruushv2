@@ -744,17 +744,8 @@ html[data-cruush-reduce-motion] [data-testid='map-ping-preview-heart'] {
   animation-iteration-count: infinite !important;
 }
 
-html[data-cruush-alpha-bug-corner='top-right'] header.sticky.top-0 {
-  padding-right: calc(4.5rem + env(safe-area-inset-right)) !important;
-}
-
-html[data-cruush-alpha-bug-corner='top-right'] header.sticky.top-0[data-testid='cruush-activity-header'] {
-  padding-right: 1rem !important;
-}
-
-html[data-cruush-alpha-bug-corner='top-right'] header.sticky.top-0[data-testid='direct-messages-header'] {
-  padding-right: 0 !important;
-}
+/* Every screen header docks the bug button in its own row, so no header
+   reserves a corner for it any more. */
 
 /* Docked popups own their complete header. The global Bug Fix button stays
    outside them and must not create an empty header slot. */

@@ -18,6 +18,7 @@ import {
 import { MAX_DISCOVERY_ZOOM, MIN_DISCOVERY_ZOOM, getMapStyle } from './MapView';
 import { Button } from './ui/button';
 import CruushPlusCardDialog from './CruushPlusCardDialog';
+import BugButtonSlot from './BugButtonSlot';
 import { CRUUSH_PLUS_CHANGED_EVENT, getMyBillingStatus } from '../lib/billingApi';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import mileHighClubWhite from '../assets/ui-icons/mile-high-club-white.svg';
@@ -585,6 +586,8 @@ export default function TravelModeSettings({ embedded = false, onBack, onClose, 
             <X className="h-5 w-5" />
           </button>
         ) : null}
+      
+        <BugButtonSlot testId="travel-mode-settings-bug-button-slot" />
       </header>
 
       <main className="cruush-travel-mode-main mx-auto flex min-h-0 w-full max-w-2xl flex-1 flex-col px-4 py-4">

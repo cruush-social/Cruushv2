@@ -26,6 +26,7 @@ import {
   DialogTrigger,
 } from './ui/dialog';
 import { Textarea } from './ui/textarea';
+import BugButtonSlot from './BugButtonSlot';
 import { addDlModeChangedListener, isDlModeEnabled, shouldMaskPhoto } from '../lib/dlMode';
 import {
   createFeedPost,
@@ -708,7 +709,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
       data-testid="local-feed-screen"
     >
       <header
-        className="sticky top-0 z-40 flex shrink-0 items-center gap-2 border-b border-white/10 bg-black/88 pb-3 pl-4 pr-[3.75rem] pt-[calc(0.75rem+env(safe-area-inset-top))] shadow-[0_20px_55px_rgba(0,0,0,0.34)] backdrop-blur-xl"
+        className="sticky top-0 z-40 flex shrink-0 items-center gap-2 border-b border-white/10 bg-black/88 pb-3 pl-4 pr-4 pt-[calc(0.75rem+env(safe-area-inset-top))] shadow-[0_20px_55px_rgba(0,0,0,0.34)] backdrop-blur-xl"
         data-testid="local-feed-header"
       >
         <Button
@@ -936,6 +937,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
           </DialogContent>
         </Dialog>}
         </> : null}
+        <BugButtonSlot testId="local-feed-bug-button-slot" />
         {embedded && onClose ? (
           <Button type="button" variant="secondary" size="icon" className="rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10" aria-label="Close Feed" onClick={onClose}>
             <X className="h-4 w-4" />

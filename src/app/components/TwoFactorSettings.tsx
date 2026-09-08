@@ -15,6 +15,7 @@ import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
 import LoadingCardSkeletons from './LoadingCardSkeletons';
+import BugButtonSlot from './BugButtonSlot';
 
 export default function TwoFactorSettings() {
   const navigate = useNavigate();
@@ -163,6 +164,8 @@ export default function TwoFactorSettings() {
           <div>
             <h1 className="text-xl font-semibold">Two-factor authentication</h1>
           </div>
+        
+          <BugButtonSlot testId="two-factor-settings-bug-button-slot" />
         </div>
       </header>
 

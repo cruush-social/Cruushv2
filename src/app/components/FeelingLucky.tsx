@@ -6,6 +6,7 @@ import { CruushIcon } from './CruushIconImage';
 import CruiseCarouselSlot from './CruiseCarouselSlot';
 import LoadingCardSkeletons from './LoadingCardSkeletons';
 import ProfileCard from './ProfileCard';
+import BugButtonSlot from './BugButtonSlot';
 import { getMyBillingStatus } from '../lib/billingApi';
 import { decryptDisplayLocationToken } from '../lib/displayLocationTokens';
 import { getMyProfile, type ProfileRecord } from '../lib/profileApi';
@@ -138,6 +139,8 @@ export default function FeelingLucky() {
           <CruushIcon name="lucky" className="h-5 w-5" variant="colored" />
           <h1 className="text-xl">cruise carousel</h1>
         </div>
+      
+        <BugButtonSlot testId="feeling-lucky-bug-button-slot" />
       </header>
 
       <main className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col gap-2 px-2 pt-0 sm:px-4 sm:pt-2">

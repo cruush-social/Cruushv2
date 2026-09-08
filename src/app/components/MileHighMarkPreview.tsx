@@ -1,5 +1,6 @@
 import { ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router';
+import BugButtonSlot from './BugButtonSlot';
 
 /**
  * Marks for the Mile High Club, side by side. The feature moves your pin
@@ -121,6 +122,8 @@ export default function MileHighMarkPreview() {
           <ArrowLeft className="h-5 w-5" />
         </button>
         <h1 className="min-w-0 flex-1 truncate text-lg">Mile High Club marks</h1>
+      
+        <BugButtonSlot testId="mile-high-mark-preview-bug-button-slot" />
       </header>
 
       <main className="mx-auto w-full max-w-2xl space-y-4 px-4 py-4">

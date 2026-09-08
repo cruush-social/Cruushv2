@@ -65,6 +65,7 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import LoadingCardSkeletons from './LoadingCardSkeletons';
+import BugButtonSlot from './BugButtonSlot';
 
 type AccessState = 'checking' | 'ready' | 'denied' | 'error';
 type ModeratorView = 'queue' | 'users' | 'notifications' | 'system-errors' | 'email';
@@ -856,6 +857,8 @@ export default function ModeratorReview() {
               {refreshing || usersLoading || notificationsLoading || systemErrorsLoading || supportLoading || betaCityLoading ? 'Refreshing...' : 'Refresh'}
             </Button>
           </div>
+        
+          <BugButtonSlot testId="moderator-review-bug-button-slot" />
         </div>
       </header>
 

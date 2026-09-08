@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router';
 import { ArrowLeft, MapPin, MessageCircle } from 'lucide-react';
 import { Button } from './ui/button';
 import { Switch } from './ui/switch';
+import BugButtonSlot from './BugButtonSlot';
 import {
   DEFAULT_CRUUSH_MATCH_SETTINGS,
   getCruushMatchSettings,
@@ -147,6 +148,7 @@ export default function CruushMatchSettings({ embedded = false }: { embedded?: b
         <div>
           <h2 className="text-xl">message settings</h2>
         </div>
+        <BugButtonSlot testId="cruush-match-settings-bug-button-slot" />
       </header>
 
       <main className="mx-auto max-w-2xl space-y-5 p-4">

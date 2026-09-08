@@ -14,6 +14,7 @@ import { Button } from './ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Textarea } from './ui/textarea';
 import LoadingCardSkeletons from './LoadingCardSkeletons';
+import BugButtonSlot from './BugButtonSlot';
 
 type RequestStatusFilter = 'open' | 'in_progress' | 'closed' | 'dismissed' | 'all';
 type RequestCategoryFilter = 'all' | 'suspension_appeal';
@@ -185,6 +186,8 @@ export default function RequestsDashboard() {
           <RefreshCw className="mr-2 h-4 w-4" />
           Refresh
         </Button>
+      
+        <BugButtonSlot testId="requests-dashboard-bug-button-slot" />
       </header>
 
       <div className="mx-auto max-w-5xl p-4">

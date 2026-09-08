@@ -5,6 +5,7 @@ import { Label } from './ui/label';
 import { Slider } from './ui/slider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import MultiSelect from './MultiSelect';
+import BugButtonSlot from './BugButtonSlot';
 import {
   AVAILABILITY,
   BODY_TYPES,
@@ -37,6 +38,8 @@ export default function FiltersPanel() {
           <X className="w-4 h-4 mr-1" />
           Clear
         </Button>
+      
+        <BugButtonSlot testId="filters-panel-bug-button-slot" />
       </header>
 
       <div className="max-w-2xl mx-auto p-6">

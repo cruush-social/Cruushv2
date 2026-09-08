@@ -11,6 +11,7 @@ import { CruushIcon } from './CruushIconImage';
 import ProfileActionTrio from './ProfileActionTrio';
 import { ProfilePhotoCropper } from './ProfileEdit';
 import UserActivityCapsule from './UserActivityCapsule';
+import BugButtonSlot from './BugButtonSlot';
 
 /**
  * A side-by-side of the ways feed photos could read, built out of the same
@@ -272,6 +273,8 @@ export default function FeedPhotoPreview() {
           <ArrowLeft className="h-5 w-5" />
         </button>
         <h1 className="text-lg">Feed posts</h1>
+      
+        <BugButtonSlot testId="feed-photo-preview-bug-button-slot" />
       </header>
 
       <main className="mx-auto w-full space-y-8 px-4 py-6">

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router';
 import { ArrowLeft, RotateCcw } from 'lucide-react';
 import { Button } from './ui/button';
 import ProfileOnboarding from './ProfileOnboarding';
+import BugButtonSlot from './BugButtonSlot';
 import { previewableNotices, resetPreviewableNotices } from '../lib/onboardingPreview';
 import { getStoredUserId } from '../lib/sessionUser';
 
@@ -69,6 +70,8 @@ export default function OnboardingPreview() {
           <h2 className="text-xl">Onboarding preview</h2>
           <p className="text-xs text-muted-foreground">Dev-only harness for onboarding and explainer dialogs</p>
         </div>
+      
+        <BugButtonSlot testId="onboarding-preview-bug-button-slot" />
       </header>
 
       <div className="mx-auto max-w-2xl space-y-6 p-6">

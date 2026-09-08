@@ -18,6 +18,7 @@ import { Switch } from './ui/switch';
 import { CruushIcon } from './CruushIconImage';
 import CruushPlusWord from './CruushPlusWord';
 import DarkRoomMark from './DarkRoomMark';
+import BugButtonSlot from './BugButtonSlot';
 import { CRUUSH_PLUS_CHANGED_EVENT, getMyBillingStatus } from '../lib/billingApi';
 import { DEBUG_CRUUSH_PLUS_EVENT } from '../lib/debugApi';
 import {
@@ -252,14 +253,16 @@ export default function GhostModeSettings() {
         <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
-        <div className="flex items-center gap-3">
+        <div className="flex min-w-0 items-center gap-3">
           {privacySettings.baseMode === 'STEALTH' ? (
-            <DarkRoomMark active className="h-7 w-7 text-white" />
+            <DarkRoomMark active className="h-7 w-7 shrink-0 text-white" />
           ) : (
-            <CruushIcon name="ghost" variant={privacySettings.ghostModeEnabled ? 'colored' : 'white'} className="h-7 w-7" />
+            <CruushIcon name="ghost" variant={privacySettings.ghostModeEnabled ? 'colored' : 'white'} className="h-7 w-7 shrink-0" />
           )}
-          <h2 className="text-xl">Ghost Mode &amp; Dark Room Mode</h2>
+          <h2 className="truncate text-xl">Ghost Mode &amp; Dark Room Mode</h2>
         </div>
+      
+        <BugButtonSlot testId="ghost-mode-settings-bug-button-slot" />
       </header>
 
       <div className="mx-auto max-w-2xl space-y-6 p-6">

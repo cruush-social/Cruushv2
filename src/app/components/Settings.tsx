@@ -31,6 +31,7 @@ import DlModeMark from './DlModeMark';
 import PublicPolicyLinks from './PublicPolicyLinks';
 import { changeEmail, changePassword, deleteAccount, sendVerificationEmail, signOut } from '../lib/authApi';
 import SupportRequestForm from './SupportRequestForm';
+import BugButtonSlot from './BugButtonSlot';
 import {
   clearCurrentUser,
   getStoredCurrentUser,
@@ -433,6 +434,7 @@ export default function Settings({ embedded = false, onBack, onClose, onOpenMile
           <ArrowLeft className="w-5 h-5" />
         </Button>
         <h2 className="flex-1 text-xl">Settings</h2>
+        <BugButtonSlot testId="settings-bug-button-slot" />
         {embedded && onClose ? (
           <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close Settings">
             <X className="h-5 w-5" />

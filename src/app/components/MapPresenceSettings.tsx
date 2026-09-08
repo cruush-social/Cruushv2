@@ -9,6 +9,7 @@ import { Slider } from './ui/slider';
 import { saveDistancePreferences, useDistancePreferences, type DistanceDisplayMode } from '../lib/distancePreferences';
 import { MAP_PRESENCE_OPTIONS } from '../lib/privacyApi';
 import LoadingCardSkeletons from './LoadingCardSkeletons';
+import BugButtonSlot from './BugButtonSlot';
 
 export const DEFAULT_MAP_PRESENCE_HOURS = 168;
 
@@ -93,6 +94,8 @@ export default function MapPresenceSettings() {
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <h1 className="text-xl">Map presence</h1>
+      
+        <BugButtonSlot testId="map-presence-settings-bug-button-slot" />
       </header>
 
       <main className="mx-auto max-w-xl space-y-6 px-4 py-6">

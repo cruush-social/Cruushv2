@@ -4,6 +4,7 @@ import { ArrowLeft, ShieldCheck } from 'lucide-react';
 import { Button } from './ui/button';
 import { CruushIcon } from './CruushIconImage';
 import LoadingCardSkeletons from './LoadingCardSkeletons';
+import BugButtonSlot from './BugButtonSlot';
 import { resolveMediaUrl } from '../lib/apiClient';
 import { shouldMaskPhoto, useDlMode } from '../lib/dlMode';
 import { getCruushMatchSettings, type CruushMatchSettings } from '../lib/cruushSettingsApi';
@@ -105,6 +106,8 @@ export default function PrivacyAudit() {
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <h2 className="text-xl">Privacy Audit</h2>
+      
+        <BugButtonSlot testId="privacy-audit-bug-button-slot" />
       </header>
 
       <main className="mx-auto max-w-2xl space-y-5 p-6">

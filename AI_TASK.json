@@ -1,30 +1,32 @@
 {
   "schemaVersion": 2,
-  "taskId": "edit-profile-bug-button-20260908",
+  "taskId": "dock-bug-button-every-header-20260908",
   "status": "active",
-  "objective": "The bug button sits in the Edit Profile header row, as on every other screen header.",
-  "userOutcome": "Edit Profile has a bug button on a phone, docked beside Save and Close.",
+  "objective": "The bug button docks in every screen header, never floats, and Close is always the last control on the right.",
+  "userOutcome": "Every screen shows the bug button in its own header row beside the other header controls, on a phone and on desktop.",
   "audience": "cruush members.",
   "successCriteria": [
-    "Edit Profile registers a bug-button slot in its header.",
-    "At 412px the button renders in that slot, on the Save row, on top."
+    "Every component with a header row registers a bug-button slot at the right end of the row, before Close where the row has one.",
+    "No header reserves an empty corner for a floating button.",
+    "Header titles stay on one line; a long title truncates.",
+    "Renders at 412px of Settings, Feed, Rewards, Ghost Mode, Edit Profile and the profile panel show the button docked, on top, right-aligned."
   ],
   "mustPreserve": [
-    "Back, title, Save and Close in one row, unmoved.",
-    "Every other screen's slot."
+    "Every header's existing controls and their order, apart from the added slot.",
+    "Screens that already docked the button."
   ],
   "nonGoals": [
-    "No change to the header's other controls."
+    "No other visual change to any header."
   ],
   "assumptions": [
     {
-      "statement": "The Sep 4 design decision that every header docks the bug button authorizes adding the slot to this header.",
-      "impact": "One 40px slot at the end of the header's right group.",
+      "statement": "The Sep 4 rule (every header one line, bug button in that row, screens register a slot) and \"a designer wouldnt float shit randomly\" authorize docking on every header in one pass.",
+      "impact": "One slot added to 36 headers; the global corner reservation removed.",
       "reversible": true,
       "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "Bug button visible in Edit Profile on cruush.app.",
+  "nextVisibleMilestone": "Julien approves the renders; then both containers on the pushed sha, worker v84.",
   "stopConditions": [
     "Stop at a password form.",
     "Stop if the server build fails."
@@ -54,23 +56,58 @@
   "release": "1.6",
   "repository": "cruush-social/Cruushv2",
   "branch": "main",
-  "job": "Dock the bug button in the Edit Profile header.",
+  "job": "Dock the bug button in every header.",
   "allowedPaths": [
     "AI_TASK.json",
-    "src/app/components/ProfileEdit.tsx",
-    "src/app/components/ProfileEdit.test.tsx",
     "index.html",
-    "public/sw.js",
     "public/service-worker-recovery.js",
-    "src/main.tsx"
+    "public/sw.js",
+    "src/app/components/BadgePickerPreview.tsx",
+    "src/app/components/BlockedUsersPage.tsx",
+    "src/app/components/BugButtonSlot.tsx",
+    "src/app/components/CruushMatchSettings.tsx",
+    "src/app/components/DlModeSettings.tsx",
+    "src/app/components/EventDetail.tsx",
+    "src/app/components/EventPassGuide.tsx",
+    "src/app/components/FeedPhotoPreview.tsx",
+    "src/app/components/FeelingLucky.tsx",
+    "src/app/components/FiltersPanel.tsx",
+    "src/app/components/GhostModeSettings.tsx",
+    "src/app/components/HankyPreview.tsx",
+    "src/app/components/KelpieMarkPreview.tsx",
+    "src/app/components/LocalFeed.tsx",
+    "src/app/components/MapPresenceSettings.tsx",
+    "src/app/components/MapProfilePopup.tsx",
+    "src/app/components/MileHighMarkPreview.tsx",
+    "src/app/components/ModeratorReview.tsx",
+    "src/app/components/NotificationSettings.tsx",
+    "src/app/components/OnboardingPreview.tsx",
+    "src/app/components/PrivacyAudit.tsx",
+    "src/app/components/ProfileEdit.tsx",
+    "src/app/components/ProfileView.tsx",
+    "src/app/components/PublicInfoPage.tsx",
+    "src/app/components/PulseEffectPreview.tsx",
+    "src/app/components/ReportPage.tsx",
+    "src/app/components/RequestsDashboard.tsx",
+    "src/app/components/Rewards.tsx",
+    "src/app/components/SafetyCenter.tsx",
+    "src/app/components/Settings.tsx",
+    "src/app/components/SupportPage.tsx",
+    "src/app/components/Survey.tsx",
+    "src/app/components/TravelModeSettings.tsx",
+    "src/app/components/Tutorial.tsx",
+    "src/app/components/TwoFactorSettings.tsx",
+    "src/main.tsx",
+    "src/styles/theme.css"
   ],
   "forbiddenPaths": [
     "src/app/assets/brand/**"
   ],
-  "proofTarget": "Rendered Edit Profile at 412px with the button on the Save row; both containers on the pushed sha, worker v83.",
+  "proofTarget": "Rendered headers at 412px, sent before deploy; then the served build.",
   "publicationTarget": "origin/main and the production deploy",
   "requiredEvidence": [
-    "Local render: slot profile-edit-bug-button-slot, same row as Save, on top.",
-    "Both containers on the pushed sha."
+    "Renders sent to Julien before deploy.",
+    "Full client suite green.",
+    "Both containers on the pushed sha after approval."
   ]
 }

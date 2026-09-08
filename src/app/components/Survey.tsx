@@ -3,6 +3,7 @@ import { ArrowLeft, Star } from 'lucide-react';
 import { Button } from './ui/button';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
+import BugButtonSlot from './BugButtonSlot';
 import { createSupportRequest } from '../lib/supportApi';
 import { useBackOrFallback } from '../lib/useBackOrFallback';
 
@@ -74,6 +75,8 @@ export default function Survey() {
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <h1 className="text-xl">Tell us what you think</h1>
+      
+        <BugButtonSlot testId="survey-bug-button-slot" />
       </header>
       <main className="mx-auto max-w-2xl space-y-6 p-6">
         <p className="text-muted-foreground">

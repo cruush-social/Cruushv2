@@ -2,6 +2,7 @@ import { ArrowLeft } from 'lucide-react';
 import { Button } from './ui/button';
 import { useBackOrFallback } from '../lib/useBackOrFallback';
 import SupportRequestForm from './SupportRequestForm';
+import BugButtonSlot from './BugButtonSlot';
 import {
   legalUpdated,
   privacySections,
@@ -216,6 +217,8 @@ export default function PublicInfoPage({ page, signedIn = false }: PublicInfoPag
           <p className="text-[0.65rem] font-semibold uppercase tracking-[0.25em] text-primary">{content.eyebrow}</p>
           <h1 className="text-xl">{content.title}</h1>
         </div>
+      
+        <BugButtonSlot testId="public-info-page-bug-button-slot" />
       </header>
 
       <main className="mx-auto max-w-3xl space-y-5 p-6">
