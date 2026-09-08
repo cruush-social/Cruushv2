@@ -115,3 +115,4 @@
 - One Protections field replaces the separate Condoms, PrEP, DoxyPEP, COVID vaccine, Mpox vaccine and birth control questions. Existing answers are carried across; the old columns are left in place so nothing a member entered is destroyed.
 - Body options include big and tall, dad bod, disabled, fat, lean, little person, round, soft, thick and wheelchair user.
 - Eighteen imported Spot descriptions were personal ads rather than descriptions of the place, with typos and one phone number. They are rewritten as neutral venue descriptions.
+- A profile whose name had been replaced with "User deleted profile" by an older removal flow still sat in Recently Active and opened as an empty card. Discovery and the profile route now apply the same tombstone check as the Feed: it is never listed and returns 404 when opened.

@@ -62,7 +62,8 @@
     "server/src/profile-tombstone.test.ts",
     "server/src/routes/posts.ts",
     "server/src/routes/users.ts",
-    "server/src/routes/profiles.ts"
+    "server/src/routes/profiles.ts",
+    "FIXLOG.md"
   ],
   "forbiddenPaths": [
     "src/app/assets/brand/**"
