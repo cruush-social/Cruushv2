@@ -2,38 +2,34 @@
   "schemaVersion": 2,
   "taskId": "mobile-overlay-and-open-bugs-20260908",
   "status": "active",
-  "objective": "Restore the approved Ghost animation from bff0498, including the original blue badge-border flash, while using the new Ghost Mode exit icon and preserving current badge shapes and other completed fixes.",
-  "userOutcome": "Members can reach the named menus and their controls; remaining reported defects are resolved or have a specific evidence-backed blocker.",
+  "objective": "Make precise live location sharing to confirmed mutual cruushes the default for new accounts and repair mobile tutorial dismissal and control placement.",
+  "userOutcome": "New members share precisely with confirmed mutual cruushes by default, while tutorial controls dismiss in place on every route and reveal the relevant Map Controls action.",
   "audience": "cruush members.",
   "successCriteria": [
-    "Desktop badge hover labels are centered under their own badges, without changing touch behavior or badge positions.",
-    "Map profile popup tabs scroll normally with profile content and never cover the fixed bottom actions; the prior fixed-tab proposal is superseded.",
-    "Both side badges flash with the heart during the existing Ghost countdown, with no change to geometry, timing, or exit artwork.",
-    "A Ghost rotation fetches the new position in the background and retains the existing pin and document.",
-    "At 412 px, Bug Report controls remain inside the viewport and above navigation and map hearts.",
-    "Pulse remains above map hearts with its last action reachable and its existing geometry preserved.",
-    "Every queued report has rendered evidence of resolution or a specific unresolved condition.",
-    "Focused assertions, casing, client and server builds pass.",
+    "New accounts default precise live location sharing to confirmed mutual cruushes only.",
+    "Existing members' saved visibility policies remain unchanged.",
+    "Skip tutorial and Done dismiss the mobile tutorial in place on Map and replay routes.",
+    "Tutorial uses a progress bar without numeric step copy and opens Map Controls for its child actions.",
+    "The focused server assertion and server build pass.",
     "Both production containers report the deployed commit."
   ],
   "mustPreserve": [
-    "Existing layouts, control sizes, breakpoints, map tiles, identity assets, and privacy restrictions.",
+    "Existing layouts, control sizes, breakpoints, map tiles, identity assets, all existing members' saved privacy settings, and all no-photo gradient fallbacks.",
     "All unrelated dirty work, including .octo-continue.md."
   ],
   "nonGoals": [
-    "No visual changes beyond the named overlay corrections and concrete user-approved defects.",
-    "No change to Ghost radius options, anchor ratio, minimum offset, display accuracy, or derivation keys.",
+    "No change to Ghost Mode, badge geometry, marker placement, actual approved profile photos, or existing members' settings.",
     "No database migration, account-status change, or unrelated deployment."
   ],
   "assumptions": [
     {
-      "statement": "Julien superseded the pending Ghost implementation with an explicit request to revert to the approved animation. Commit bff0498 records that approved treatment.",
-      "impact": "Restore that animation source literally except for the exit icon, which Julien explicitly wants to keep as the new Ghost Mode icon. Do not publish the pending marker-reconciliation rewrite; retain the earlier relocation work separately until verified.",
+      "statement": "Julien explicitly confirmed the new privacy default after being told it makes new members visible precisely only to confirmed mutual cruushes.",
+      "impact": "Change the server's new-policy default only. Existing stored visibility policies remain unchanged.",
       "reversible": true,
       "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "See both side badges flash with the heart and verify the Ghost release on production.",
+  "nextVisibleMilestone": "Verify a new default policy has precise mutual-cruush sharing on production.",
   "stopConditions": [
     "Stop at a password form.",
     "Stop if the server build fails."
@@ -63,7 +59,7 @@
   "release": "1.6",
   "repository": "cruush-social/Cruushv2",
   "branch": "main",
-  "job": "Correct the two reported overlays and continue through the persistent bug queue.",
+  "job": "Publish the confirmed new-account precise-location default for mutual cruushes.",
   "allowedPaths": [
     "src/app/components/BadgeFrames.tsx",
     "src/app/components/BadgeFrames.test.tsx",
@@ -71,6 +67,8 @@
     "src/app/components/MapView.test.tsx",
     "src/app/components/MapHome.tsx",
     "src/app/components/MapHome.test.tsx",
+    "src/app/components/MapControlsTutorial.tsx",
+    "src/app/components/MapControlsTutorial.test.tsx",
     "DESIGN_DECISIONS.md",
     "src/app/components/MapProfilePopup.tsx",
     "src/app/components/MapProfilePopup.test.tsx",
@@ -83,6 +81,8 @@
     "src/app/components/AlphaBugButton.test.tsx",
     "src/app/components/MapPingSheet.tsx",
     "src/app/components/MapPingSheet.test.tsx",
+    "server/src/location-privacy.ts",
+    "server/src/location-privacy.test.ts",
     "src/app/components/ui/dialog.tsx",
     "src/styles/theme.css",
     "AI_TASK.json",
@@ -95,11 +95,10 @@
   "forbiddenPaths": [
     "src/app/assets/brand/**"
   ],
-  "proofTarget": "Rendered 412 px Bug Report and Pulse menus, last-action hit testing, focused assertions, both builds, and production container identity.",
+  "proofTarget": "Focused server assertion, server TypeScript build, deployed SHA in both containers, and authenticated production privacy-settings response for a newly created policy.",
   "publicationTarget": "origin/main and the production deploy",
   "requiredEvidence": [
-    "Focused overlay assertion output and named mobile screenshots.",
-    "Server TypeScript build output.",
-    "Both containers on the pushed sha."
+    "Focused server assertion and server TypeScript build output.",
+    "Both production containers on the pushed SHA."
   ]
 }

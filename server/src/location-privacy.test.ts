@@ -227,7 +227,8 @@ describe("location privacy", () => {
         subjectUserId,
         baseMode: "GHOST",
         ghostActivatedAtMs: nowMs,
-        ghostSessionVersion: 1
+        ghostSessionVersion: 1,
+        preciseToMutualCruushes: true
       });
       expect(publicPrivacySettings(defaultPolicy, nowMs)).toMatchObject({
         ghostModeEnabled: true,

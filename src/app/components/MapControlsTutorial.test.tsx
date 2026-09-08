@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { createEvent, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import MapControlsTutorial, {
   calculateTutorialCardPlacement,
@@ -221,7 +221,7 @@ describe('MapControlsTutorial', () => {
 
     render(<MapControlsTutorial open onActivateStep={onActivateStep} onComplete={onComplete} />);
 
-    expect(screen.getByText('Map tutorial · Step 1 of 17')).toBeInTheDocument();
+    expect(screen.getByLabelText('Tutorial progress')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Install cruush' })).toBeInTheDocument();
     fireEvent.click(expectHighlightedAction('install', 'Install cruush'));
     expect(onActivateStep).toHaveBeenLastCalledWith('install');
@@ -370,6 +370,30 @@ describe('MapControlsTutorial', () => {
 
     expect(onComplete).toHaveBeenCalledTimes(1);
     expect(onActivateStep).not.toHaveBeenCalled();
+  });
+
+  it('dismisses Skip tutorial and Done from a mobile touch', () => {
+    const skipComplete = vi.fn();
+    const { unmount } = render(<MapControlsTutorial open onActivateStep={vi.fn()} onComplete={skipComplete} />);
+
+    const skipTouch = createEvent.pointerUp(screen.getByTestId('skip-map-controls-tutorial'));
+    Object.defineProperty(skipTouch, 'pointerType', { value: 'touch' });
+    fireEvent(screen.getByTestId('skip-map-controls-tutorial'), skipTouch);
+    expect(skipComplete).toHaveBeenCalledWith(false);
+    expect(screen.queryByTestId('map-controls-tutorial')).not.toBeInTheDocument();
+    unmount();
+
+    const doneComplete = vi.fn();
+    render(<MapControlsTutorial open onActivateStep={vi.fn()} onComplete={doneComplete} />);
+    for (let index = 0; index < TARGET_STEP_IDS.length; index += 1) {
+      fireEvent.click(screen.queryByTestId('tutorial-skip-step') ?? screen.getByTestId('tutorial-next'));
+    }
+
+    const doneTouch = createEvent.pointerUp(screen.getByTestId('tutorial-next'));
+    Object.defineProperty(doneTouch, 'pointerType', { value: 'touch' });
+    fireEvent(screen.getByTestId('tutorial-next'), doneTouch);
+    expect(doneComplete).toHaveBeenCalledWith(true);
+    expect(screen.queryByTestId('map-controls-tutorial')).not.toBeInTheDocument();
   });
 
   it('resumes routed Ghost and Feed steps after the tutorial remounts', async () => {

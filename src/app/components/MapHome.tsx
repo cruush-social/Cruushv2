@@ -1213,6 +1213,10 @@ export default function MapHome(_props: MapHomeProps = {}) {
   };
 
   const followMapTutorialStep = (step: MapControlsTutorialStepId) => {
+    if (step === 'seeking' || step === 'visibility' || step === 'places' || step === 'ping' || step === 'zoom') {
+      setMapControlsOpen(true);
+    }
+
     if (step === 'ghost') {
       navigate('/privacy/ghost-mode');
       return;

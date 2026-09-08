@@ -491,10 +491,12 @@ function useAnotherDialogOpen() {
 export default function MapControlsTutorial({ open, onComplete, onActivateStep, onStepChange }: MapControlsTutorialProps) {
   const anotherDialogOpen = useAnotherDialogOpen();
   const cardRef = useRef<HTMLElement | null>(null);
+  const completionTriggeredRef = useRef(false);
+  const [dismissed, setDismissed] = useState(false);
   // Holds the shared prompt slot while it runs. The tutorial portals above the
   // dialogs rather than being one, so while a dialog was open its buttons sat
   // inside that dialog's outside-click layer and did nothing when tapped.
-  const showing = useExclusivePopup('map-tutorial', open);
+  const showing = useExclusivePopup('map-tutorial', open && !dismissed);
   const [stepIndex, setStepIndex] = useState(readTutorialProgressIndex);
   const [targetRects, setTargetRects] = useState<TutorialPlacementRect[]>([]);
   const [measurements, setMeasurements] = useState<TutorialMeasurements | null>(null);
@@ -510,6 +512,13 @@ export default function MapControlsTutorial({ open, onComplete, onActivateStep, 
       window.localStorage.setItem(MAP_CONTROLS_TUTORIAL_PROGRESS_KEY, step.id);
     }
   }, [open, step.id]);
+
+  useEffect(() => {
+    if (!open) {
+      completionTriggeredRef.current = false;
+      setDismissed(false);
+    }
+  }, [open]);
 
   useEffect(() => {
     setActionPending(false);
@@ -626,9 +635,23 @@ export default function MapControlsTutorial({ open, onComplete, onActivateStep, 
     if (event) {
       event.stopPropagation();
     }
+    if (completionTriggeredRef.current) {
+      return;
+    }
+    completionTriggeredRef.current = true;
     window.localStorage.setItem(MAP_CONTROLS_TUTORIAL_STORAGE_KEY, 'true');
     window.localStorage.removeItem(MAP_CONTROLS_TUTORIAL_PROGRESS_KEY);
+    setDismissed(true);
     void onComplete(completed);
+  };
+
+  const activateOnTouch = (action: () => void) => (event: React.PointerEvent<HTMLButtonElement>) => {
+    if (event.pointerType !== 'touch') {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    action();
   };
 
   const moveToStep = (nextIndex: number) => {
@@ -733,29 +756,18 @@ export default function MapControlsTutorial({ open, onComplete, onActivateStep, 
         style={cardStyle}
       >
         <div className="mb-3 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-1.5" aria-label={`Step ${stepIndex + 1} of ${TUTORIAL_STEPS.length}`}>
-            {TUTORIAL_STEPS.map((s, idx) => (
-              <span
-                key={s.id}
-                className={`h-1.5 rounded-full transition-all duration-300 ${
-                  idx === stepIndex
-                    ? 'w-4 bg-primary shadow-[0_0_8px_rgba(255,0,114,0.8)]'
-                    : idx < stepIndex
-                    ? 'w-1.5 bg-white/60'
-                    : 'w-1.5 bg-white/20'
-                }`}
-              />
-            ))}
+          <div aria-label="Tutorial progress" className="h-1.5 w-24 overflow-hidden rounded-full bg-white/20">
+            <div
+              className="h-full rounded-full bg-primary transition-[width] duration-300 shadow-[0_0_8px_rgba(255,0,114,0.8)]"
+              style={{ width: `${((stepIndex + 1) / TUTORIAL_STEPS.length) * 100}%` }}
+            />
           </div>
           <button
             type="button"
             className="flex items-center gap-1 px-2.5 py-1 rounded-full border border-white/15 bg-white/10 text-xs font-medium text-white/80 hover:bg-white/20 hover:text-white active:scale-95 transition-all shadow-sm cursor-pointer"
             data-testid="skip-map-controls-tutorial"
             onClick={(event) => completeTutorial(false, event)}
-            onTouchEnd={(event) => {
-              event.preventDefault();
-              completeTutorial(false, event);
-            }}
+            onPointerUp={activateOnTouch(() => completeTutorial(false))}
           >
             <span>Skip tutorial</span>
           </button>
@@ -772,9 +784,6 @@ export default function MapControlsTutorial({ open, onComplete, onActivateStep, 
           />
           <div>
             <h2 className="text-xl font-medium">{step.title}</h2>
-            <p className="text-[10px] uppercase tracking-[0.15em] text-white/50">
-              Map tutorial · Step {stepIndex + 1} of {TUTORIAL_STEPS.length}
-            </p>
           </div>
         </div>
 
@@ -793,6 +802,7 @@ export default function MapControlsTutorial({ open, onComplete, onActivateStep, 
               data-testid="tutorial-try-step"
               disabled={actionPending}
               onClick={() => void activateCurrentStep()}
+              onPointerUp={activateOnTouch(() => void activateCurrentStep())}
               style={{ background: 'var(--cruush-gradient)' }}
             >
               {actionPending ? 'Working...' : step.actionLabel}
@@ -806,6 +816,7 @@ export default function MapControlsTutorial({ open, onComplete, onActivateStep, 
                 className="rounded-lg text-white/70 hover:text-white"
                 data-testid="tutorial-back"
                 onClick={() => moveToStep(stepIndex - 1)}
+                onPointerUp={activateOnTouch(() => moveToStep(stepIndex - 1))}
               >
                 Back
               </Button>
@@ -817,6 +828,7 @@ export default function MapControlsTutorial({ open, onComplete, onActivateStep, 
                 className="rounded-lg border-white/15 bg-white/[0.04] text-white hover:bg-white/[0.1]"
                 data-testid="tutorial-skip-step"
                 onClick={advanceStep}
+                onPointerUp={activateOnTouch(advanceStep)}
               >
                 {step.id === 'install' && actionCompleted ? 'Next' : 'Skip step'}
               </Button>
@@ -827,6 +839,7 @@ export default function MapControlsTutorial({ open, onComplete, onActivateStep, 
                 className="rounded-lg border-white/15 bg-white/[0.04] text-white hover:bg-white/[0.1]"
                 data-testid="tutorial-next"
                 onClick={advanceStep}
+                onPointerUp={activateOnTouch(advanceStep)}
               >
                 {isLastStep ? 'Done' : 'Next'}
               </Button>

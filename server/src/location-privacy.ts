@@ -452,7 +452,7 @@ export function buildDefaultVisibilityPolicy(
     ghostSessionVersion: 1,
     ghostRotationMinutes: 15,
     ghostRadiusMeters: DEFAULT_GHOST_RADIUS_METERS,
-    preciseToMutualCruushes: false,
+    preciseToMutualCruushes: true,
     preciseToMutualCrowds: [],
     darkRoomDistanceLabel: false,
     auditRequired: false,
