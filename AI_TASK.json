@@ -2,8 +2,8 @@
   "schemaVersion": 2,
   "taskId": "tombstoned-profiles-never-surface-20260908",
   "status": "active",
-  "objective": "A profile an old removal flow renamed \"User deleted profile\" is never listed, never opens, and never posts.",
-  "userOutcome": "Recently Active, the map and the profile route stop showing a deleted member's tombstone; the Feed already did.",
+  "objective": "Ghost rotation animation reaches other viewers: a ghost pin that mounts within the first refetch cycle of its last minute animates; then widen the Ghost v2 drift so each rotation visibly moves (separate commit, deploy on Julien's yes).",
+  "userOutcome": "Members watching someone's Ghost pin see the last-minute flash and fly-off; each rotation lands somewhere visibly different.",
   "audience": "cruush members.",
   "successCriteria": [
     "One shared predicate for the tombstone name, used by the Feed, discovery and the profile route.",
@@ -15,7 +15,9 @@
     "Migration 091 and its cleanup."
   ],
   "nonGoals": [
-    "No change to account_status; no deletion of any row."
+    "No change to the ghost radius options, anchor ratio, min offset, or display accuracy",
+    "No UI change beyond the animation firing",
+    "Drift widening is not deployed without Julien's explicit yes (privacy trade-off named to him first)"
   ],
   "assumptions": [
     {
@@ -58,12 +60,15 @@
   "job": "Stop tombstoned profiles from surfacing.",
   "allowedPaths": [
     "AI_TASK.json",
-    "server/src/profile-tombstone.ts",
-    "server/src/profile-tombstone.test.ts",
-    "server/src/routes/posts.ts",
-    "server/src/routes/users.ts",
-    "server/src/routes/profiles.ts",
-    "FIXLOG.md"
+    "src/app/components/MapView.tsx",
+    "src/app/components/MapView.test.tsx",
+    "server/src/location-privacy.ts",
+    "server/src/ghost-rotation-averaging.test.ts",
+    "FIXLOG.md",
+    "index.html",
+    "public/sw.js",
+    "public/service-worker-recovery.js",
+    "src/main.tsx"
   ],
   "forbiddenPaths": [
     "src/app/assets/brand/**"

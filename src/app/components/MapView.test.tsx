@@ -857,6 +857,26 @@ describe('MapView', () => {
     expect(screen.queryByTestId('marker-ghost-puff-ghost-load-window')).not.toBeInTheDocument();
   });
 
+  it('animates a Ghost pin that first appears within the first refetch of its last minute', () => {
+    // Other viewers only receive the deadline once the last minute has begun,
+    // and that remounts the pin a few seconds in. That copy must still animate.
+    render(
+      <MapMarkerPin
+        marker={{
+          id: 'ghost-fresh-window',
+          displayName: 'River',
+          approximateLatitude: 40.72,
+          approximateLongitude: -74.01,
+          displayMode: 'GHOST',
+          animationHint: 'FADE_LAST_MINUTE',
+          ghostRotationExpiresAtMs: Date.now() + 52_000,
+        }}
+      />,
+    );
+
+    expect(screen.getByTestId('marker-ghost-pulse-ghost-fresh-window')).toBeInTheDocument();
+  });
+
   it('still animates a Ghost rotation window entered after the pin mounts', () => {
     const ghostRotationExpiresAtMs = Date.now() + 30_000;
     const marker = {
