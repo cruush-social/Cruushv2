@@ -3458,7 +3458,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
           <div
             className={`pointer-events-none absolute ${
               isMobile
-                ? 'bottom-[calc(5.75rem+env(safe-area-inset-bottom))] left-3 right-3 z-40 px-0'
+                ? 'bottom-[calc(5.75rem+env(safe-area-inset-bottom))] left-3 right-3 z-[130] px-0'
                 : 'bottom-[calc(6.25rem+env(safe-area-inset-bottom))] left-0 right-0 z-[130] px-4'
             }`}
           >
