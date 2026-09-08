@@ -718,12 +718,14 @@ export default function DirectMessages({
                   <CruushMatchSettings embedded />
                 </DialogContent>
               </Dialog>}
+              {/* Docked here on every layout; Close stays last. */}
+              <div className="h-11 w-11 shrink-0" data-testid="direct-messages-bug-button-slot" ref={registerBugButtonSlot} />
               {embedded && onClose ? (
                 <Button type="button" size="icon" variant="secondary" className="h-11 w-11 rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10" aria-label="Close Messages" onClick={onClose}>
                   <X className="h-4 w-4" />
                 </Button>
               ) : null}
-              {!embedded ? <div className="h-11 w-11 shrink-0" data-testid="direct-messages-bug-button-slot" ref={registerBugButtonSlot} /> : null}
+
             </div>
           </div>
 

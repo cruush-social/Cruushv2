@@ -1,16 +1,13 @@
 {
   "schemaVersion": 2,
-  "taskId": "dock-bug-button-every-header-20260908",
+  "taskId": "dock-bug-button-embedded-sheets-20260908",
   "status": "active",
-  "objective": "The bug button docks in every screen header, never floats, and Close is always the last control on the right.",
+  "objective": "Cruushes and Messages dock the bug button in their own row when they open as sheets over the map.",
   "userOutcome": "Every screen shows the bug button in its own header row beside the other header controls, on a phone and on desktop.",
   "audience": "cruush members.",
   "successCriteria": [
-    "Every component with a header row registers a bug-button slot at the right end of the row, before Close where the row has one.",
-    "No header reserves an empty corner for a floating button.",
-    "Header titles stay on one line; a long title truncates.",
-    "Renders at 412px of Settings, Feed, Rewards, Ghost Mode, Edit Profile and the profile panel show the button docked, on top, right-aligned.",
-    "The map's top action capsule hugs its five icons at every width; no stretch, no empty ends."
+    "Both sheets register their slot on every layout, immediately left of Close.",
+    "Renders at 412px show the button in the sheet row, not in the map chrome behind it."
   ],
   "mustPreserve": [
     "Every header's existing controls and their order, apart from the added slot.",
@@ -27,7 +24,7 @@
       "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "Julien approves the renders; then both containers on the pushed sha, worker v84.",
+  "nextVisibleMilestone": "Both containers on the pushed sha, worker v85.",
   "stopConditions": [
     "Stop at a password form.",
     "Stop if the server build fails."
@@ -100,7 +97,9 @@
     "src/app/components/TwoFactorSettings.tsx",
     "src/main.tsx",
     "src/styles/theme.css",
-    "src/app/components/MapHome.tsx"
+    "src/app/components/MapHome.tsx",
+    "src/app/components/CruushActivity.tsx",
+    "src/app/components/DirectMessages.tsx"
   ],
   "forbiddenPaths": [
     "src/app/assets/brand/**"
