@@ -1,32 +1,32 @@
 {
   "schemaVersion": 2,
-  "taskId": "remove-hair-fields-20260908",
+  "taskId": "tutorial-under-dialogs-20260908",
   "status": "active",
-  "objective": "Body hair, pubic hair and facial hair are gone from profiles, Visibility Controls and Seeking.",
-  "userOutcome": "No member sees or sets a hair field anywhere; no filter or visibility rule offers one.",
+  "objective": "A member can always press a dialog's confirm: the tutorial card no longer covers dialogs, and the photo cropper portals to the body.",
+  "userOutcome": "Profile photo uploads work again for every member, including anyone still on the map tour; Send Pulse and every other dialog are reachable with the tour up.",
   "audience": "cruush members.",
   "successCriteria": [
-    "Edit Profile has no Hair now block.",
-    "Profile view has no Hair now section.",
-    "Seeking and Visibility have no hair accordion or rule keys.",
-    "Zero references to the three fields remain in the client."
+    "Tutorial overlay at z-[40], below body-portaled dialogs at z-[80].",
+    "The tour card hides while any other dialog is open and returns when it closes.",
+    "ProfilePhotoCropper renders through a body portal.",
+    "With the tour up at 412px: cropper confirm reachable, upload 202, Send Pulse reachable, card back after each dialog closes."
   ],
   "mustPreserve": [
-    "Every other profile field, filter and rule.",
-    "Stored hair values on the server, untouched: nothing is deleted from the database."
+    "The tutorial card visible over the map, sheets and bottom nav.",
+    "Every dialog exactly as it was."
   ],
   "nonGoals": [
-    "No server schema change; the fields stay optional with empty defaults so old clients and stored rules still parse."
+    "No change to the upload code or formats; they were never the cause."
   ],
   "assumptions": [
     {
-      "statement": "\"remove the hair stuff from profiles, and from vc and sf\" means the client stops showing, editing, filtering or ruling on hair; the database keeps what it has.",
-      "impact": "Client-only removal; server untouched.",
+      "statement": "The last profile photo landing on Sep 5 09:33 UTC and none since, with message photos still landing, plus the local reproduction, prove the overlay was the cause.",
+      "impact": "Fix is stacking only.",
       "reversible": true,
       "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "Both containers on the pushed sha, worker v86; hair gone on cruush.app.",
+  "nextVisibleMilestone": "Both containers on the pushed sha, worker v87; a member on the tour uploads a photo.",
   "stopConditions": [
     "Stop at a password form.",
     "Stop if the server build fails."
@@ -56,27 +56,24 @@
   "release": "1.6",
   "repository": "cruush-social/Cruushv2",
   "branch": "main",
-  "job": "Remove hair fields from profiles, Visibility Controls and Seeking.",
+  "job": "Put the tutorial card under dialogs and portal the cropper.",
   "allowedPaths": [
     "AI_TASK.json",
-    "src/app/lib/profileOptions.ts",
-    "src/app/lib/profileApi.ts",
+    "src/app/components/MapControlsTutorial.tsx",
     "src/app/components/ProfileEdit.tsx",
-    "src/app/components/ProfileView.tsx",
-    "src/app/components/MapFiltersSurface.tsx",
-    "src/app/components/MapVisibilitySurface.tsx",
     "index.html",
     "public/sw.js",
     "public/service-worker-recovery.js",
-    "src/main.tsx"
+    "src/main.tsx",
+    "src/app/components/MapControlsTutorial.test.tsx"
   ],
   "forbiddenPaths": [
     "src/app/assets/brand/**"
   ],
-  "proofTarget": "Rendered Edit Profile, profile view, Seeking and Visibility at 412px with no hair text; served build on both containers.",
+  "proofTarget": "Local run at 412px with the tour up: cropper confirm reachable, upload 202, Send Pulse reachable; served build on both containers.",
   "publicationTarget": "origin/main and the production deploy",
   "requiredEvidence": [
-    "Four renders with hairMentioned=false.",
+    "Verification run output.",
     "Both containers on the pushed sha."
   ]
 }

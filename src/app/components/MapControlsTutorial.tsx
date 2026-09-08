@@ -457,7 +457,39 @@ function readBottomBoundary(viewportHeight: number) {
   return Math.max(0, viewportHeight - DEFAULT_BOTTOM_NAV_CLEARANCE_PX);
 }
 
+/**
+ * True while a dialog other than the tour card is open anywhere on the page.
+ * Sheets and dialogs live in several stacking contexts, so no single z-index
+ * keeps the card under all of them; instead the card steps aside while one is
+ * open and comes back when it closes. Nothing a dialog asks for is ever hidden
+ * behind the tour.
+ */
+function useAnotherDialogOpen() {
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (typeof document === 'undefined' || typeof MutationObserver === 'undefined') {
+      return;
+    }
+
+    const check = () => {
+      const dialogs = [...document.querySelectorAll('[role="dialog"]')]
+        .filter((node) => !node.closest('[data-testid="map-controls-tutorial"]'));
+      setOpen(dialogs.length > 0);
+    };
+
+    const observer = new MutationObserver(check);
+    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['role', 'hidden', 'data-state'] });
+    check();
+
+    return () => observer.disconnect();
+  }, []);
+
+  return open;
+}
+
 export default function MapControlsTutorial({ open, onComplete, onActivateStep, onStepChange }: MapControlsTutorialProps) {
+  const anotherDialogOpen = useAnotherDialogOpen();
   const cardRef = useRef<HTMLElement | null>(null);
   // Holds the shared prompt slot while it runs. The tutorial portals above the
   // dialogs rather than being one, so while a dialog was open its buttons sat
@@ -638,8 +670,12 @@ export default function MapControlsTutorial({ open, onComplete, onActivateStep, 
     return null;
   }
 
+  // Below every dialog (they portal to the body at z-[80]) and above the map
+  // shell. The card used to sit at z-[100] and covered the lower half of any
+  // dialog a member opened mid-tour, including the photo cropper's confirm,
+  // which is how "cannot upload any photo" reached the inbox.
   return createPortal((
-    <div className="pointer-events-none fixed inset-0 z-[100]" data-testid="map-controls-tutorial">
+    <div className="pointer-events-none fixed inset-0 z-[40]" data-testid="map-controls-tutorial" hidden={anotherDialogOpen}>
       {targetRects.length > 0 ? (
         <svg
           aria-hidden="true"

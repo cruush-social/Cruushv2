@@ -68,6 +68,22 @@ function expectHighlightedAction(id: MapControlsTutorialStepId, name: string) {
 }
 
 describe('calculateTutorialCardPlacement', () => {
+  it('steps aside while another dialog is open and returns when it closes', async () => {
+    // Sheets and dialogs live in different stacking contexts, so the card
+    // cannot sit under all of them by z-index. It hides while one is open.
+    render(<MapControlsTutorial open onActivateStep={() => undefined} onComplete={() => undefined} />);
+    const overlay = await screen.findByTestId('map-controls-tutorial');
+    expect(overlay).not.toHaveAttribute('hidden');
+
+    const dialog = document.createElement('div');
+    dialog.setAttribute('role', 'dialog');
+    document.body.appendChild(dialog);
+    await waitFor(() => expect(overlay).toHaveAttribute('hidden'));
+
+    dialog.remove();
+    await waitFor(() => expect(overlay).not.toHaveAttribute('hidden'));
+  });
+
   it('keeps the card inside the viewport and above the bottom navigation boundary', () => {
     const placement = calculateTutorialCardPlacement({
       viewportWidth: 375,

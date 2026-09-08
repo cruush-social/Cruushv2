@@ -1,4 +1,5 @@
 import type { ChangeEvent, PointerEvent } from 'react';
+import { createPortal } from 'react-dom';
 import { DROPDOWN_TRIGGER_CLASS } from '../lib/controlStyles';
 import { registerBugButtonSlot } from '../lib/bugButtonSlot';
 import { PHOTO_UPLOAD_ACCEPT } from '../lib/photoUploadFormats';
@@ -337,7 +338,10 @@ export function ProfilePhotoCropper({
     }
   };
 
-  return (
+  // The sheet this cropper lives in is its own stacking context, so its
+  // z-index never reached the root and anything fixed at the root could paint
+  // over its buttons. Portaled to the body, it competes where dialogs do.
+  return createPortal(
     <div
       aria-label={subjectLabel ? `Crop ${subjectLabel}` : 'Crop profile photo'}
       aria-modal="true"
@@ -440,7 +444,8 @@ export function ProfilePhotoCropper({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
