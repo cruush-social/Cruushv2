@@ -73,6 +73,7 @@ const TwoFactorSettings = lazy(() => import('./components/TwoFactorSettings'));
 const PublicInfoPage = lazy(() => import('./components/PublicInfoPage'));
 const Tutorial = lazy(() => import('./components/Tutorial'));
 const Changelog = lazy(() => import('./components/Changelog'));
+const CruushPlusStore = lazy(() => import('./components/CruushPlusStore'));
 const Survey = lazy(() => import('./components/Survey'));
 
 const PUBLIC_INFO_ROUTES = [
@@ -81,6 +82,7 @@ const PUBLIC_INFO_ROUTES = [
   { path: '/privacy', page: 'privacy' },
   { path: '/safety', page: 'safety' },
   { path: '/security', page: 'security' },
+  { path: '/billing-policy', page: 'billing' },
   { path: '/content-removal', page: 'content-removal' },
   { path: '/human-trafficking-policy', page: 'human-trafficking' },
   { path: '/takedown-policy', page: 'takedown' },
@@ -614,6 +616,7 @@ export default function App({
               ) : null}
               <Route path="/lucky" element={<FeelingLucky />} />
               <Route path="/requests" element={<RequestsDashboard />} />
+              <Route path="/store" element={<CruushPlusStore />} />
               <Route path="/upgrade" element={<Navigate to="/rewards" replace />} />
               <Route path="/rewards" element={<Rewards />} />
               <Route path="/checkout/success" element={<CruushPlusSuccess />} />

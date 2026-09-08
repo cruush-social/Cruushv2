@@ -10,6 +10,7 @@ import { registerBetaAccessRoutes } from "./routes/beta-access.js";
 import { registerBlockRoutes } from "./routes/blocks.js";
 import { registerBillingRoutes } from "./routes/billing.js";
 import { registerCruushRoutes } from "./routes/cruush.js";
+import { registerCryptoPaymentRoutes } from "./routes/crypto-payments.js";
 import { registerEventRoutes } from "./routes/events.js";
 import { ApiError, formatError, toApiError } from "./errors.js";
 import { registerMediaRoutes } from "./routes/media.js";
@@ -30,11 +31,19 @@ import { registerDevRoutes } from "./routes/dev.js";
 import { registerRewardRoutes } from "./routes/rewards.js";
 import { photoUploadAvailability } from "./photo-upload-availability.js";
 import { createPostgresRateLimiter, type RateLimiter } from "./rate-limit.js";
+import {
+  createCryptoReceiptSource,
+  type CryptoPaymentRailHeadReader
+} from "./crypto-watcher-runtime.js";
+import { ingestCryptoPaymentReceipt } from "./crypto-watcher.js";
 
 type BuildServerDeps = {
   db?: DbClient;
   rateLimiter?: RateLimiter;
   logger?: FastifyServerOptions["logger"];
+  cryptoPaymentRailHeadReader?: CryptoPaymentRailHeadReader;
+  cryptoReceiptSourceFactory?: typeof createCryptoReceiptSource;
+  cryptoReceiptIngestor?: typeof ingestCryptoPaymentReceipt;
 };
 
 const stateChangingMethods = new Set(["POST", "PUT", "PATCH", "DELETE"]);
@@ -230,6 +239,11 @@ export function buildServer(config: AppConfig, deps: BuildServerDeps = {}) {
   void registerUserNoticeRoutes(app);
   void registerUserRoutes(app);
   void registerCruushRoutes(app);
+  void registerCryptoPaymentRoutes(app, {
+    readRailHead: deps.cryptoPaymentRailHeadReader,
+    createReceiptSource: deps.cryptoReceiptSourceFactory,
+    ingestReceipt: deps.cryptoReceiptIngestor
+  });
   void registerEventRoutes(app);
   void registerPostRoutes(app);
   void registerPlaceRoutes(app);

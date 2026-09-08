@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { getCryptoWalletXpubValidationError } from "./crypto-wallet.js";
 
 const booleanEnvSchema = z.union([
   z.boolean(),
@@ -202,8 +203,96 @@ const configSchema = z.object({
   WEB_PUSH_ENABLED: booleanEnvSchema,
   WEB_PUSH_VAPID_PUBLIC_KEY: z.string().optional().default(""),
   WEB_PUSH_VAPID_PRIVATE_KEY: z.string().optional().default(""),
-  WEB_PUSH_SUBJECT: z.string().trim().min(1).optional().default("mailto:hello@cruush.app")
+  WEB_PUSH_SUBJECT: z.string().trim().min(1).optional().default("mailto:hello@cruush.app"),
+  CRYPTO_PROCESSOR_ENABLED: booleanEnvSchema,
+  CRYPTO_PROCESSOR_WALLET_XPUB: z.string().trim().optional().default(""),
+  CRYPTO_PROCESSOR_CONFIRMATION_TARGET: z.coerce.number().int().min(1).max(10_000).optional().default(1),
+  CRYPTO_PROCESSOR_INTENT_TTL_MINUTES: z.coerce.number().int().min(5).max(180).optional().default(60),
+  // Read-only JSON-RPC endpoints for the settlement watcher. Empty means the
+  // watcher for that chain never runs. These may carry an API key, so they are
+  // server-only and must never be logged or returned to a client.
+  CRYPTO_PROCESSOR_BASE_RPC_URL: z.string().trim().optional().default(""),
+  CRYPTO_PROCESSOR_ETHEREUM_RPC_URL: z.string().trim().optional().default(""),
+  CRYPTO_PROCESSOR_ARBITRUM_RPC_URL: z.string().trim().optional().default(""),
+  CRYPTO_PROCESSOR_BASE_SEPOLIA_RPC_URL: z.string().trim().optional().default(""),
+  // Offers the Base Sepolia rail, whose tokens are worthless, so settlement can
+  // be proven without spending money. Refused in production: a testnet payment
+  // there would buy real cruush+ for nothing.
+  CRYPTO_PROCESSOR_TESTNET_ENABLED: booleanEnvSchema,
+  // The watcher polls only when this is on AND an endpoint is configured.
+  CRYPTO_PROCESSOR_WATCHER_ENABLED: booleanEnvSchema,
+  // 60 seconds, not 30: the dominant wait is the confirmation target anyway
+  // (about 60s on Base, about 2.4 minutes on Ethereum), so polling twice as
+  // often would halve nothing a member would notice while doubling requests.
+  CRYPTO_PROCESSOR_WATCHER_INTERVAL_SECONDS: z.coerce.number().int().min(5).max(3600).optional().default(60)
 }).superRefine((config, ctx) => {
+  if (config.CRYPTO_PROCESSOR_ENABLED) {
+    const walletError = getCryptoWalletXpubValidationError(config.CRYPTO_PROCESSOR_WALLET_XPUB);
+    if (walletError) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: walletError,
+        path: ["CRYPTO_PROCESSOR_WALLET_XPUB"]
+      });
+    }
+  }
+
+  // The watcher grants real entitlements from what it reads, so it must never
+  // run against an endpoint that was not deliberately configured.
+  if (config.CRYPTO_PROCESSOR_WATCHER_ENABLED) {
+    if (!config.CRYPTO_PROCESSOR_ENABLED) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "The crypto watcher cannot run while the crypto processor is disabled.",
+        path: ["CRYPTO_PROCESSOR_WATCHER_ENABLED"]
+      });
+    }
+
+    if (
+      !config.CRYPTO_PROCESSOR_BASE_RPC_URL &&
+      !config.CRYPTO_PROCESSOR_ETHEREUM_RPC_URL &&
+      !config.CRYPTO_PROCESSOR_ARBITRUM_RPC_URL
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "The crypto watcher needs at least one chain RPC endpoint configured.",
+        path: ["CRYPTO_PROCESSOR_WATCHER_ENABLED"]
+      });
+    }
+  }
+
+  for (const key of [
+    "CRYPTO_PROCESSOR_BASE_RPC_URL",
+    "CRYPTO_PROCESSOR_ETHEREUM_RPC_URL",
+    "CRYPTO_PROCESSOR_ARBITRUM_RPC_URL",
+    "CRYPTO_PROCESSOR_BASE_SEPOLIA_RPC_URL"
+  ] as const) {
+    const value = config[key];
+    if (!value) {
+      continue;
+    }
+
+    let parsed: URL;
+    try {
+      parsed = new URL(value);
+    } catch {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Chain RPC endpoint must be a valid URL.",
+        path: [key]
+      });
+      continue;
+    }
+
+    if (parsed.protocol !== "https:" && parsed.hostname !== "localhost" && parsed.hostname !== "127.0.0.1") {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Chain RPC endpoint must use https outside local development.",
+        path: [key]
+      });
+    }
+  }
+
   if (config.ALPHA_TEST_ENABLED && !config.BETA_ACCESS_GEOFENCE_ENABLED) {
     if (!config.ALPHA_TEST_PASSWORD_HASH.startsWith("scrypt$")) {
       ctx.addIssue({
@@ -464,6 +553,14 @@ const configSchema = z.object({
       code: z.ZodIssueCode.custom,
       message: "BILLING_TEST_CHECKOUT_ENABLED must be disabled in production. It grants cruush+ with no payment.",
       path: ["BILLING_TEST_CHECKOUT_ENABLED"]
+    });
+  }
+
+  if (config.CRYPTO_PROCESSOR_TESTNET_ENABLED) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "CRYPTO_PROCESSOR_TESTNET_ENABLED must be disabled in production. Testnet tokens are worthless, so it grants cruush+ with no payment.",
+      path: ["CRYPTO_PROCESSOR_TESTNET_ENABLED"]
     });
   }
 
@@ -750,16 +847,28 @@ type BuildInfoConfigKey =
   | "APP_BUILD_SHA";
 type AudienceConfigKey =
   | "RESEND_CRUUSH_APP_AUDIENCE_ID";
+type CryptoProcessorConfigKey =
+  | "CRYPTO_PROCESSOR_ENABLED"
+  | "CRYPTO_PROCESSOR_WALLET_XPUB"
+  | "CRYPTO_PROCESSOR_CONFIRMATION_TARGET"
+  | "CRYPTO_PROCESSOR_INTENT_TTL_MINUTES"
+  | "CRYPTO_PROCESSOR_BASE_RPC_URL"
+  | "CRYPTO_PROCESSOR_ETHEREUM_RPC_URL"
+  | "CRYPTO_PROCESSOR_ARBITRUM_RPC_URL"
+  | "CRYPTO_PROCESSOR_BASE_SEPOLIA_RPC_URL"
+  | "CRYPTO_PROCESSOR_TESTNET_ENABLED"
+  | "CRYPTO_PROCESSOR_WATCHER_ENABLED"
+  | "CRYPTO_PROCESSOR_WATCHER_INTERVAL_SECONDS";
 
 type TestCheckoutConfigKey =
   | "BILLING_TEST_CHECKOUT_ENABLED";
 
 export type AppConfig = Omit<
   ParsedAppConfig,
-  GhostModeConfigKey | ModerationConfigKey | WebPushConfigKey | TwoFactorConfigKey | AlphaTestConfigKey | LaunchPartyConfigKey | BetaAccessConfigKey | BugTriageConfigKey | BuildInfoConfigKey | AudienceConfigKey | TestCheckoutConfigKey
+  GhostModeConfigKey | ModerationConfigKey | WebPushConfigKey | TwoFactorConfigKey | AlphaTestConfigKey | LaunchPartyConfigKey | BetaAccessConfigKey | BugTriageConfigKey | BuildInfoConfigKey | AudienceConfigKey | TestCheckoutConfigKey | CryptoProcessorConfigKey
 > & Partial<Pick<
   ParsedAppConfig,
-  GhostModeConfigKey | ModerationConfigKey | WebPushConfigKey | TwoFactorConfigKey | AlphaTestConfigKey | LaunchPartyConfigKey | BetaAccessConfigKey | BugTriageConfigKey | BuildInfoConfigKey | AudienceConfigKey | TestCheckoutConfigKey
+  GhostModeConfigKey | ModerationConfigKey | WebPushConfigKey | TwoFactorConfigKey | AlphaTestConfigKey | LaunchPartyConfigKey | BetaAccessConfigKey | BugTriageConfigKey | BuildInfoConfigKey | AudienceConfigKey | TestCheckoutConfigKey | CryptoProcessorConfigKey
 >>;
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {

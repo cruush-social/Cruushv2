@@ -1,118 +1,123 @@
-# Handoff: feat/free-feed-board
+# Handoff: feat/crypto-only
 
-Worktree: `/Volumes/good/Cruushv2-free-feed-20260822`
-Branch: `feat/free-feed-board`
-Commit: `2bff9f9`, one commit, branched from `origin/main` at `f00fb48`
+Worktree: `/Volumes/good/Cruushv2-crypto-release`
+Branch: `feat/crypto-only`, five commits, branched from `origin/main` at `cad6048f`
 Task contract: `AI_TASK.json`, status `active`
 
-**Read this first: the branch is 14 commits behind `origin/main`, which is now `4fec73e`. It must be rebased before anything ships. Conflict points are listed at the bottom.**
+Nothing has been pushed. The branch does not exist on the remote, and no deployment
+has been run. Crypto work must not reach production main.
 
-Nothing has been pushed. `feat/free-feed-board` does not exist on the remote. No deployment was run.
-
----
-
-## What changed
-
-### 1. The local feed is free to post
-
-The cruush+ entitlement gate is gone from both sides.
-
-`server/src/routes/posts.ts` — `POST /api/posts` called `requireCruushPlus`, which threw a 402 entitlement error reading "Upgrade to cruush+ to post on the local feed." It now calls `getCruushEntitlement` instead. The entitlement record is still read, because `ownerFullAccess` comes from it and is passed to the insert as `$16`.
-
-`src/app/components/LocalFeed.tsx` — removed `canPost`, the `billingStatus` state, the billing loader, the plus-changed window event listener, and the upsell card, plus the imports that only served them. The composer, the crowd target chips, the Post button, and the `?compose=1` deep link are all unconditional now. 70 lines net removal.
-
-Deliberately unchanged: the trust gate inside the insert CTE (`trust_score > 20`, no active suspension, no `feature_restrictions` row for `feed_posting`) and `moderateTextOrReject` on every post body.
-
-### 2. Nude and faceless photos are allowed
-
-`server/src/policy-mapper.ts` — the `adult_nudity` / `adult_explicit` branch rejected at confidence >= 0.85 on any surface except profile photos and private messages, with reason `nudity_outside_private_messages`. That rejection and its helper `adultExplicitProfilePhotosAllowed` are deleted. The branch now always allows, with reason `adult_nudity_allowed` outside profile photos and private messages.
-
-`server/src/profile-photo-human-detection.ts` — `HUMAN_LABELS` was `human`, `people`, `person`. A close crop of a torso or a body part could miss all three, fail `hasHuman`, and get rejected as `profile_photo_not_adult_human`. It now includes body part labels: torso, back, chest, abdomen, thigh, hand, foot, skin, muscle, undressed, and the rest. Nobody has to show a face.
-
-`server/src/policy-mapper.ts` — `profile_photo_not_adult_human` now allows on the `feed` surface with reason `non_human_feed_photo_allowed`, so object photos, gear, and toys post fine. It still rejects on `profile_photo`, so profile photos remain photos of the account holder.
-
-`server/src/profile-photo-human-detection.ts` — the detector previously folded animals into the `profile_photo_not_adult_human` label. It now emits a separate `animal` label as well, so allowing non-human photos on the feed does not accidentally allow animals. Animals keep rejecting through the existing `animal` branch.
-
-Untouched on purpose: `minor_present`, `minor_age_ambiguous`, `underage_sexual`, and the child face gate in `childFaceLabels`. None of them share a code path with the change above.
-
-### 3. Desktop dock panel fixes
-
-All in `src/app/components/DesktopDockPanel.tsx`.
-
-- **Second resize grip.** There is now a grip on the top right as well as the bottom right. The drag mode is a union: `'move' | 'resize-top-right' | 'resize-bottom-right'`. The top right grip grows the panel right and upward, holding the bottom edge, so `y` moves by the height delta. Test ids are `desktop-dock-{slot}-resize-top` and `desktop-dock-{slot}-resize`.
-- **Overlapping panels are clickable.** Both panels rendered with a hardcoded `z-50`, so whichever painted last always swallowed the clicks. Stacking is now per panel, from a module level counter, and `onPointerDownCapture` raises the pressed panel to the front.
-- **More transparent.** `bg-black/80` to `bg-black/45`, `backdrop-blur-xl` to `backdrop-blur-2xl`, so the map reads through.
-- **A panel can nearly fill the window.** `EDGE_GAP` 24px to 10px.
-
-`src/app/components/MapSidePanel.tsx` — the header row was `pt-9 px-4 pb-3`, which wasted 36px above the content. Now `pt-2 px-3 pb-2`.
-
-### 4. Reopening a closed side panel
-
-`src/app/components/MapHome.tsx` around line 675. Real bug, reported and reproduced from the code.
-
-The side panel opens from router history state `openSidePanel`. Closing it set the local state to `null` but left `openSidePanel: 'messages'` sitting in history. Navigating to the map again with the same intent produced an identical `requestedSidePanelView`, the effect's dependency never changed, so the panel never reopened. Visiting another page first changed the state object, which is why that path appeared to work.
-
-The effect now consumes the request with a `replace` navigation that clears `openSidePanel`.
-
-### 5. Edit Profile icon
-
-`src/app/components/Settings.tsx` line 37. The Edit Profile row masked `humanity-profile-selected-winged-heart-symmetric.png`. It now masks `cruush-white.png`, the heart-with-a-heart-inside glyph. The mask is still filled with `var(--cruush-gradient)`, so the gradient is unchanged.
+This branch carries the in-house crypto payment processor and nothing else. The Pulse
+pack interface, the map Pulse changes, and unrelated page edits that had been committed
+alongside it on `feat/crypto-pricing` are deliberately excluded, so the processor can be
+reviewed on its own.
 
 ---
 
-## Verification
+## What actually works
 
-Green:
+Settlement is **proven end to end on a live chain**, which is the thing that had never
+been true before. On Base Sepolia, a real faucet transfer was matched and granted:
 
-- `vitest src/app/components/LocalFeed.test.tsx` — 15 passed
-- `vitest src/app/components/Settings.test.tsx` — 17 passed
-- `vitest src/app/components/MapHome.test.tsx` — 70 passed
-- `vitest src/app/components/BottomNav.test.tsx` — 15 passed
-- `server: vitest src/policy-mapper.test.ts` — 34 passed
-- `server: vitest src/moderation-service.test.ts src/profile-photo-human-detection.test.ts src/moderation-provider.test.ts` — 72 passed
-- `server: vitest src/app.test.ts -t "POST /api/posts"` — 2 passed
-- `vite build` — succeeded
+| | |
+|---|---|
+| transfer | `confirmed`, 20000000 atomic, chain 84532, block 46318066 |
+| tx | `0xf0e6bca084b5407d…` |
+| intent | `896c8580-0c60-48e2-b9da-103d5d23cc60`, moved to `paid` |
+| grant | `ping_3`, 3 pings, 299¢, granted 2026-09-02 23:02:59 |
 
-Tests updated to match the new behaviour, none deleted:
+That exercised the whole path: derive a watch-only address, quote the exact atomic
+amount, read a real ERC-20 `Transfer` log, confirm it, settle idempotently, grant the
+entitlement. It also covered the overpayment branch, since 20 USDC against a 2.99 order
+settles as `settled_overpaid` and grants.
 
-- `LocalFeed.test.tsx` — the two paywall tests became one test that a member without cruush+ can post.
-- `server/src/app.test.ts` — the 402 test is gone; the creation test now runs with `cruush_plus_enabled: false`, so the success path itself proves free posting.
-- `policy-mapper.test.ts` — the nudity rejection test asserts allow, plus new tests for object-allowed-on-feed, animal-still-rejected, and non-human-profile-photo-still-rejected.
-- `MapHome.test.tsx` — the dock assertion moved from a `z-50` class to the inline z-index, and asserts the new top grip exists.
+All five rail token addresses were verified against their live chains: correct symbol
+and 6 decimals each, which matters because `quoteUsdCentsAsStablecoinAtomic` assumes 6.
+The mainnet watcher is live and advancing (Arbitrum cursor moved 727467 to 729226 in 70
+seconds).
 
-Pre-existing failures on `f00fb48`, not caused by this branch. Confirmed by stashing the whole diff and re-running:
+## What is still unproven
 
-- `server: app.test.ts > returns the authenticated profile on GET /api/profiles/me`
-- `server: app.test.ts > upserts the authenticated profile on PUT /api/profiles/me`
+**No mainnet transfer has ever been matched.** Everything upstream of that is verified,
+and the settlement code that ran on Base Sepolia is the same code, but the final mainnet
+step needs about $1 of USDC on Arbitrum. It lands in the treasury, so only gas is spent.
 
-Both differ by a `custom_condoms` profile field, 50 keys against an expected 49.
+## Two bugs the test suite could not see
 
-**Not verified: none of this has been rendered in a running app.** `npm run dev:local:seeded` exits immediately with "Cannot connect to local Postgres at localhost:5433/cruush", and Docker is not running on this machine, so the bundled Postgres could not be started. The free feed, the panel fixes, and the moderation policy have never been exercised against a live server. Per the standing rules that is not proof, and it is the main gap in this handoff.
+Both were found by running a real order against a real database and a real chain. The
+suite was green throughout, before and after. This is the strongest argument for testing
+this component live rather than trusting the tests.
 
----
+1. **`41bc32d2`** — the watcher back-fills its own watch positions when it sweeps a
+   chain, inserting a row for every open intent regardless of rail. Scoping the watch set
+   at intent creation did not close the hole because the watcher rewrote it. It was
+   symmetric, so a real mainnet order would have been watched on Base Sepolia, where USDC
+   is free from a faucet. Anyone who noticed could have paid a genuine order with
+   worthless tokens.
 
-## Before this ships
+2. **`59dfe7f2`** — the watcher's chain list is a hardcoded array of the three mainnet
+   rails. The new testnet rail advertised itself as ready and accepted a real order with a
+   real address, but nothing ever read that chain, so the order could never settle. An
+   offered rail must be a watched rail; there is now a test pinning that.
 
-1. **Rebase onto `origin/main` `4fec73e`.** Four files conflict:
+## Safety posture
 
-   - `src/app/components/LocalFeed.tsx` — upstream `e86ae30` "land the feed layout pass with its tests green" rewrote roughly 197 lines of this file. This is the real merge. Keep the upstream layout and reapply the paywall removal on top of it.
-   - `src/app/components/MapSidePanel.tsx` — upstream `845e85f` deleted the view tabs and the `onViewChange` prop entirely. Take upstream's version and reapply only the `pt-9` to `pt-2` padding fix to the simpler row it leaves behind.
-   - `src/app/components/DesktopDockPanel.tsx` — upstream `64ef8cd` already narrowed the grab strip for the same reason, to `left-1/2 top-0 h-8 w-24 -translate-x-1/2`. Prefer upstream's centred strip over the `left-0 right-20 h-6` version here, and keep the two grips, the per panel z-index, the transparency, and `EDGE_GAP`.
-   - `src/app/components/MapHome.tsx` — five upstream commits touch it. The reopen fix is a small isolated effect and should reapply cleanly.
+The processor is off unless `CRYPTO_PROCESSOR_ENABLED` is set. Enabling it without a
+valid xpub fails configuration validation at boot, and the watcher refuses to start
+without a deliberately configured RPC endpoint.
 
-   `Settings.tsx` and all four server files have no upstream changes and should rebase clean.
+The Base Sepolia rail is gated behind `CRYPTO_PROCESSOR_TESTNET_ENABLED`, which
+configuration validation **refuses in production**, exactly as it already refuses
+`BILLING_TEST_CHECKOUT_ENABLED`. With the flag off the rail is not advertised by the
+status endpoint and both intent routes reject it. Testnet and mainnet watch sets are kept
+strictly apart in both directions.
 
-2. **Start Docker and run `npm run dev:local:seeded`**, then actually click: post to the feed as an account without cruush+, drag and resize a panel from both corners, click an overlapped panel, close and reopen the messages panel without leaving the page.
+## Running it locally
 
-3. **Amend the standing rules doc under `docs/`.** Invariant **G2** still reads "NSFW is allowed in the favorites gallery and in messages." The code now allows it everywhere. The doc and the code disagree until someone fixes the doc, and the file has an "Amending this file" procedure at the bottom.
+```bash
+npm run dev:local           # or: cd server && PORT=3022 npm run dev
+cd server && DATABASE_URL="$(grep -hE '^DATABASE_URL=' .env.local | cut -d= -f2-)" npm run migrate:dev
+```
 
-4. **Environment variables:** none added, removed, or changed by this branch.
+The frontend expects the API at the port in `.env.local` (`VITE_API_BASE_URL`). Note that
+`server/.env.local` sets `PORT=3031` while the frontend calls `3022`, so `dev:local`
+starts the API on a port the frontend does not use. Start the API on 3022 with
+`CORS_ORIGIN` set to the frontend origin, or reconcile the two values.
 
----
+Sign in locally as `admin@cruush.local` / `admin-password`. The store is at `/store`.
 
-## Open questions the next session should ask
+To exercise settlement again, set `CRYPTO_PROCESSOR_TESTNET_ENABLED=true` and
+`CRYPTO_PROCESSOR_BASE_SEPOLIA_RPC_URL=https://sepolia.base.org`, create a `ping_3` order
+on rail `usdc_base_sepolia`, and fund the address from `faucet.circle.com` (Base Sepolia,
+no account needed, 20 USDC per address per 2 hours).
 
-- **Which icon goes where.** The instruction landed as "use the heart-in-heart for cruushes only" and "the winged icon is for the feed and nothing else". Edit Profile currently uses the heart-in-heart, which may be wrong if that glyph is reserved for cruush actions. `BottomNav.tsx` lines 9 and 10 still use the winged heart for the Profile tab, which contradicts "nothing else", but the replacement was never named, so it was left alone rather than guessed at. `Changelog.tsx` line 59 also still describes the winged heart as the Profile icon.
-- **Crowd targeting and the feed pin setting behind cruush+.** Agreed as the replacement for the removed paywall, never implemented. Crowd targeting would gate on `payload.crowdTargets.length > 0` in `POST /api/posts`; the pin setting would gate `locationPinVisibility` in `PUT /api/feed/settings`. Free members would stay on the current `mutuals` default.
-- **Photo posts, reactions, and replies.** Designed, not built. The agreed layout is small square tiles welded into one 3.4rem block beside the body copy, tapping opens a full screen viewer, DL Mode masks them the same way it already masks explicit author avatars. Measured at 380px card width, that layout costs 29px of card height against a 143px text-only post.
-- **Stream Feeds.** Investigated and recommended against. Stream is already a dependency but only as the moderation provider. Feeds is a separately priced product; a moderation plan does not include it. The feed's encryption, hashed crowd tokens, geo queries, trust gating, and expiry do not port to their follow-graph model.
+## What is needed from Julien
+
+- **The treasury xpub is software-generated.** `server/.env.local` holds an xpub created
+  by `tools/cruush-wallet` on this Mac, not by a hardware device. The tool never wrote the
+  seed to disk and cleared it from memory, but the words passed through this machine.
+  Fine for testing; regenerate on the hardware device and swap
+  `CRYPTO_PROCESSOR_WALLET_XPUB` before the address holds real money. It is a
+  one-variable change and `configure-server-xpub` exists for it.
+- **The mainnet proof**, if wanted: about $1 of USDC on Arbitrum, recoverable.
+- Verotel credentials and reply, EU consent copy, and settlement policy sign-off remain
+  outstanding from earlier and are unchanged by this branch.
+
+## Test baseline
+
+`tsc` clean. Server suite 1138 passing, 16 failing. Those 16 also fail on `origin/main`,
+which is the commit production runs: they sit in `places.ts` and `routes/places.ts`, both
+byte-identical to main here, and this branch's only `app.ts` change is crypto route
+registration. The frontend suite has 79 pre-existing failures on the same basis. This
+branch adds no new failure and fixes none of main's.
+
+## Environment variables
+
+New on this branch, both server-only:
+
+| variable | default | note |
+|---|---|---|
+| `CRYPTO_PROCESSOR_BASE_SEPOLIA_RPC_URL` | empty | read-only JSON-RPC; may carry a key, never log it |
+| `CRYPTO_PROCESSOR_TESTNET_ENABLED` | `false` | **refused in production** |
+
+Both are documented in `server/.env.example`. Nothing was changed in any live service.

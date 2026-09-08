@@ -1,90 +1,336 @@
 {
   "schemaVersion": 2,
-  "taskId": "cruush-sh-review-only-20260902",
+  "taskId": "crypto-processor-security-handoff-20260908",
   "status": "validating",
-  "objective": "Make Stream sexual-harassment-only results publishable while preserving the provider label for moderator review.",
-  "userOutcome": "Consensual explicit queer content is not blocked solely because Stream applies SEXUAL_HARASSMENT, including Feed posts and profile bios.",
-  "audience": "Adult cruush members and cruush moderators.",
+  "objective": "Prepare a processor-only local security review branch with validated code, database evidence and explicit remaining launch blockers.",
+  "userOutcome": "A processor-only local security review branch and an evidence-honest reviewer handoff.",
+  "audience": "Julien and the reviewing developer",
   "successCriteria": [
-    "A harassment-only Stream result maps to allow even when Stream recommends Flag.",
-    "Allowed harassment-only results retain normalized labels, policy evidence, and flagged moderator-review status.",
-    "Feed posts, messages, profiles, and other text surfaces can publish harassment-only results.",
-    "Threat, hate-speech, scam, mixed unsafe-label, provider-outage, and all image behavior remains unchanged.",
-    "Focused regression tests, server build, copy checks, and scope checks pass.",
-    "The verified commit reaches origin/main and production reports the same build SHA.",
-    "The allowed sample persists after reload on live Feed and Bio, then the test post is deleted and the original Bio is restored."
+    "The branch changes only crypto files and the modules the processor imports.",
+    "Server typecheck and both builds pass.",
+    "Every crypto test file passes.",
+    "The branch adds no test failure that origin/main does not already have.",
+    "The processor stays disabled unless CRYPTO_PROCESSOR_ENABLED is set."
   ],
   "mustPreserve": [
-    "Preserve every non-harassment moderation decision, trust penalty, account restriction, provider fallback, image rule, environment variable, UI surface, and unrelated user work.",
-    "Keep Stream's configured SEXUAL_HARASSMENT label available to moderators as review evidence."
+    "The Pulse allowance behaviour that origin/main implements.",
+    "Existing cruush+ entitlements and plan identifiers.",
+    "Disabled-by-default configuration for the processor and the watcher."
   ],
   "nonGoals": [
-    "Do not change the Stream dashboard policy, add UI, change database schema, add migrations, or tune any non-harassment label.",
-    "Do not send external messages or alter unrelated application behavior."
+    "Merging to main.",
+    "Deploying anything.",
+    "Creating or funding a real wallet.",
+    "Bringing over the Pulse pack interface, the map Pulse changes, or unrelated page and documentation edits.",
+    "Fixing test failures that already exist on origin/main."
   ],
   "assumptions": [
     {
-      "statement": "Stream SEXUAL_HARASSMENT normalizes to harassment.",
-      "impact": "The review-only exception matches only the intended Stream label.",
+      "statement": "Ping packs belong on this branch because the processor sells them as a product type and its routes and tests import them.",
+      "impact": "The branch carries ping-packs.ts, its migration, and the catalog route. Excluding them breaks the crypto build.",
       "reversible": true,
-      "confirmationState": "confirmed"
-    },
-    {
-      "statement": "Threats and hate speech continue arriving as their existing separate normalized labels.",
-      "impact": "Threat and hate enforcement remains outside the harassment-only exception.",
-      "reversible": true,
-      "confirmationState": "confirmed"
+      "confirmationState": "labeled"
     }
   ],
-  "nextVisibleMilestone": "Production Feed and Bio accept the allowed sample after the deployed build SHA matches origin/main.",
+  "nextVisibleMilestone": "Independent security review of this committed snapshot.",
   "stopConditions": [
-    "Stop only for a password form, user browser takeover, non-fast-forward main, failed safety check, or production build mismatch."
+    "Julien says stop.",
+    "A change would require enabling payments or touching production."
   ],
-  "costBudget": {"maxUsd": 0, "maxMinutes": null},
-  "externalEffectDecisions": {
-    "commit": "authorized by Julien's current instruction",
-    "send": "forbidden",
-    "push": "authorized to origin/main by Julien's current instruction",
-    "deploy": "authorized to production by Julien's current instruction"
+  "costBudget": {
+    "maxUsd": 0,
+    "maxMinutes": 240,
+    "notes": "Local work only. No paid API calls."
   },
+  "externalEffectDecisions": [],
   "externalEffects": {
     "externalMessages": "forbidden",
     "purchases": "forbidden",
-    "deployment": "auto",
+    "deployment": "forbidden",
     "publication": "auto",
-    "deletion": "auto",
-    "securityChanges": "forbidden",
-    "credentials": "forbidden",
-    "newDefaults": "forbidden",
+    "deletion": "forbidden",
+    "securityChanges": "confirm",
+    "credentials": "auto",
+    "newDefaults": "confirm",
     "identityCreativeDecisions": "forbidden"
   },
   "product": "cruush",
-  "release": "1.6",
-  "repository": "cruush-social/Cruushv2",
-  "branch": "codex/sh-review-only-20260902",
-  "job": "Implement, verify, push, deploy, and live-test harassment-only review behavior.",
-  "forbiddenPaths": ["HANDOFF.md", ".dev/**"],
+  "release": "v1.6",
+  "repository": "cruush",
+  "branch": "security/crypto-processor-review-20260908",
+  "job": "Isolate and validate the processor security handoff.",
+  "forbiddenPaths": [
+    "src/app/components/PingPackStore.tsx",
+    "src/app/components/MapPingSheet.tsx",
+    "src/app/lib/pingPackApi.ts",
+    "server/src/routes/map-pings.ts",
+    "server/src/map-pings.ts"
+  ],
   "allowedPaths": [
     "AI_TASK.json",
-    "server/src/policy-mapper.ts",
-    "server/src/policy-mapper.test.ts",
-    "server/src/moderation-service.ts",
-    "server/src/moderation-service.test.ts",
-    "server/src/routes/posts.ts",
-    "server/src/routes/messages.ts",
+    "EUROPEAN_PROCESSOR_HANDOFF.md",
+    "FABLE_HANDOFF.md",
+    "HANDOFF.md",
+    "cruush-wallet-instructions.txt",
+    "cruush-wallet-next-steps.txt",
+    "cruush-wallet-setup.sh",
+    "docs/plans/v2-crypto-processor.md",
+    "server/.env.example",
+    "server/package-lock.json",
+    "server/package.json",
+    "server/sql/116_crypto_payment_intents.sql",
+    "server/sql/117_crypto_payment_intents_multi_asset.sql",
+    "server/sql/118_crypto_payment_settlement.sql",
+    "server/sql/119_crypto_payment_arbitrum_rail.sql",
+    "server/sql/120_crypto_payment_watch_start.sql",
+    "server/sql/121_crypto_payment_chain_positions.sql",
+    "server/sql/122_crypto_payment_intent_window.sql",
+    "server/sql/123_ping_pack_purchases.sql",
+    "server/sql/124_crypto_payment_base_sepolia_rail.sql",
+    "server/src/app.test.ts",
+    "server/src/app.ts",
+    "server/src/billing.ts",
+    "server/src/config.test.ts",
+    "server/src/config.ts",
+    "server/src/crypto-chain-source.test.ts",
+    "server/src/crypto-chain-source.ts",
+    "server/src/crypto-payment-routes.test.ts",
+    "server/src/crypto-payments.test.ts",
+    "server/src/crypto-payments.ts",
+    "server/src/crypto-purchase-atomicity.test.ts",
+    "server/src/crypto-reconciliation.test.ts",
+    "server/src/crypto-reconciliation.ts",
+    "server/src/crypto-settlement-policy.test.ts",
+    "server/src/crypto-settlement-policy.ts",
+    "server/src/crypto-wallet.test.ts",
+    "server/src/crypto-wallet.ts",
+    "server/src/crypto-watcher-runtime.test.ts",
+    "server/src/crypto-watcher-runtime.ts",
+    "server/src/crypto-watcher.test.ts",
+    "server/src/crypto-watcher.ts",
+    "server/src/errors.ts",
+    "server/src/index.ts",
+    "server/src/migrate.test.ts",
+    "server/src/migrate.ts",
+    "server/src/ping-packs.test.ts",
+    "server/src/ping-packs.ts",
+    "server/src/routes/billing.ts",
+    "server/src/routes/crypto-payments.ts",
+    "server/src/side-quests.ts",
+    "src/app/App.tsx",
+    "src/app/components/CruushPlusStore.test.tsx",
+    "src/app/components/CruushPlusStore.tsx",
+    "src/app/components/CryptoPaymentMethods.tsx",
+    "src/app/components/PublicInfoPage.tsx",
+    "src/app/lib/billingApi.test.ts",
+    "src/app/lib/billingApi.ts",
+    "src/app/lib/cruushPlusFeatures.test.ts",
+    "src/app/lib/cruushPlusFeatures.ts",
+    "src/app/lib/cryptoCheckoutApi.test.ts",
+    "src/app/lib/cryptoCheckoutApi.ts",
+    "src/app/lib/publicLegalContent.tsx",
+    "tools/cruush-wallet/.gitignore",
+    "tools/cruush-wallet/README.md",
+    "tools/cruush-wallet/package-lock.json",
+    "tools/cruush-wallet/package.json",
+    "tools/cruush-wallet/src/cli.ts",
+    "tools/cruush-wallet/src/constants.ts",
+    "tools/cruush-wallet/src/interactive.test.ts",
+    "tools/cruush-wallet/src/interactive.ts",
+    "tools/cruush-wallet/src/networks.test.ts",
+    "tools/cruush-wallet/src/networks.ts",
+    "tools/cruush-wallet/src/public-descriptor-file.test.ts",
+    "tools/cruush-wallet/src/public-descriptor-file.ts",
+    "tools/cruush-wallet/src/signing.test.ts",
+    "tools/cruush-wallet/src/signing.ts",
+    "tools/cruush-wallet/src/wallet-rpc.test.ts",
+    "tools/cruush-wallet/src/wallet-rpc.ts",
+    "tools/cruush-wallet/src/wallet.test.ts",
+    "tools/cruush-wallet/src/wallet.ts",
+    "tools/cruush-wallet/tsconfig.json",
+    "tools/cruush-wallet/vitest.config.ts",
+    "SECURITY_REVIEW.md",
+    "CODEX_HANDOFF.md",
     "FIXLOG.md",
-    "docs/worktrees.md",
-    "public/sw.js",
-    "public/service-worker-recovery.js"
+    "server/src/crypto-collection-fee.ts",
+    "server/src/crypto-collection-fee.test.ts",
+    "THREAT_MODEL.md",
+    "PROCESSOR_WHITE_PAPER.md"
   ],
-  "proofTarget": "Focused mapper and service assertions, scoped diff, server build, origin/main SHA, production /api/build SHA, and restored live Feed/Bio smoke actions.",
-  "publicationTarget": "origin/main and cruush production through Coolify.",
+  "proofTarget": "Server and frontend builds, the crypto test files, and the cruush+ store tests.",
+  "publicationTarget": "none",
   "requiredEvidence": [
-    "Focused test proves harassment-only Flag allows and remains flagged for review.",
-    "Focused test proves a mixed harassment plus threat result still rejects.",
-    "Server build and cruush casing/copy checks pass.",
-    "Clean scoped commit and matching origin/main SHA.",
-    "Production /api/build SHA matches origin/main.",
-    "Live Feed and Bio accept the allowed sample after reload; temporary content is removed and the original Bio restored."
-  ]
+    "Server typecheck clean.",
+    "Frontend build and server build succeed.",
+    "All crypto test files pass.",
+    "Failure counts match the origin/main baseline."
+  ],
+  "currentWalletRepair": {
+    "objective": "Expose sanitized RPC rejection details for the failed Base Sepolia sweep; prepare a sweep-only retry without re-signing or rebroadcasting mined funding transactions.",
+    "allowedPaths": [
+      "tools/cruush-wallet/src/wallet-rpc.ts",
+      "tools/cruush-wallet/src/wallet-rpc.test.ts",
+      "FIXLOG.md"
+    ],
+    "preserve": [
+      "All signing and broadcasting guards",
+      "Existing wallet keys and signed transaction bytes",
+      "No production or mainnet changes"
+    ],
+    "publicationTarget": "none",
+    "verification": "Focused RPC error test and wallet TypeScript build; user performs broadcast."
+  },
+  "currentWalletDestinationTask": {
+    "objective": "Add explicitly selected pinned ELLIPAL sweep destination, preserving default treasury sweeps.",
+    "allowedPaths": [
+      "tools/cruush-wallet/src/constants.ts",
+      "tools/cruush-wallet/src/signing.ts",
+      "tools/cruush-wallet/src/wallet-rpc.ts",
+      "tools/cruush-wallet/src/cli.ts",
+      "tools/cruush-wallet/src/signing.test.ts",
+      "tools/cruush-wallet/src/wallet-rpc.test.ts",
+      "tools/cruush-wallet/README.md",
+      "FIXLOG.md"
+    ],
+    "nonGoals": [
+      "No real-wallet signing",
+      "No transfers",
+      "No deployment or commits",
+      "No guard changes"
+    ],
+    "proof": "Wallet build and targeted signing/planning tests with public test mnemonic",
+    "status": "completed_locally",
+    "evidence": [
+      "Wallet TypeScript build passed",
+      "25 focused signing, planning and interactive-guard tests passed",
+      "Actual Base Sepolia CLI preview created without signing or broadcasting"
+    ]
+  },
+  "processorContinuation": {
+    "objective": "Make operator sweep retries resume after confirmed partial completion, preserving guards and existing signed bytes.",
+    "status": "completed_locally",
+    "allowedPaths": [
+      "tools/cruush-wallet/src/wallet-rpc.ts",
+      "tools/cruush-wallet/src/wallet-rpc.test.ts",
+      "CODEX_HANDOFF.md",
+      "FIXLOG.md"
+    ],
+    "nonGoals": [
+      "No signing or broadcasting",
+      "No mainnet activation",
+      "No UI edits or deployment"
+    ],
+    "checklist": {
+      "receipt-aware retries": "completed",
+      "focused tests and build": "completed: 26 tests and wallet TypeScript build",
+      "current handoff and remaining gates": "completed"
+    },
+    "evidence": [
+      "Three known Base Sepolia receipts returned successful through the new read-only checker",
+      "No real-wallet signing or broadcasting performed"
+    ]
+  },
+  "launchHardening": {
+    "objective": "Improve real-money launch readiness through network-aware fee reserves and verification of existing receipt recovery.",
+    "status": "completed_locally",
+    "allowedPaths": [
+      "tools/cruush-wallet/src/wallet-rpc.ts",
+      "tools/cruush-wallet/src/wallet-rpc.test.ts",
+      "tools/cruush-wallet/src/cli.ts",
+      "tools/cruush-wallet/README.md",
+      "CODEX_HANDOFF.md",
+      "FIXLOG.md",
+      "server/src/crypto-collection-fee.ts",
+      "server/src/crypto-collection-fee.test.ts",
+      "server/src/crypto-payments.ts",
+      "server/src/crypto-payments.test.ts",
+      "server/src/crypto-watcher.ts",
+      "server/src/crypto-reconciliation.ts",
+      "server/src/crypto-watcher.test.ts",
+      "src/app/lib/cryptoCheckoutApi.ts",
+      "src/app/components/CruushPlusStore.tsx",
+      "server/src/crypto-payment-routes.test.ts",
+      "src/app/components/CruushPlusStore.test.tsx"
+    ],
+    "nonGoals": [
+      "No production activation or deployment",
+      "No real-wallet signing or broadcasts",
+      "No unrelated UI changes",
+      "No policy loosening"
+    ],
+    "checklist": {
+      "fee planning": "completed: Base Layer 1 and operator reserves for both legs",
+      "recovery source and focused validation": "completed: existing receipt ingestion verified; no policy change",
+      "server build and review handoff": "completed: server, client, wallet builds and casing pass",
+      "mandatory live collection fee": "completed: live Base Sepolia and Arbitrum quotes, database persistence and reuse verified",
+      "circled info explanation on hover focus tap": "completed: actual browser hover, focus and click checks",
+      "fee UI render and persistence": "completed: 412px and 1114px authenticated renders; local quote retained amount on reload",
+      "accessibility landing menu": "explicitly deferred to another agent by Julien"
+    },
+    "validation": [
+      "107 server tests passed, 3 integration tests skipped",
+      "26 checkout tests passed",
+      "28 wallet signing, RPC and interactive tests passed",
+      "Server, client and wallet builds passed",
+      "No real funds moved; local review quotes cancelled; spawned servers stopped"
+    ]
+  },
+  "securityReviewHandoff": {
+    "objective": "Isolate processor-only work on a new local branch, validate payment persistence/concurrency and deliver security review scope and known blockers.",
+    "status": "completed_locally",
+    "branch": "security/crypto-processor-review-20260908",
+    "base": "cad6048f",
+    "checklist": {
+      "isolated branch": "completed; original dirty worktree preserved",
+      "processor focused tests and real database checks": "completed: 197 processor tests, 47 wallet tests, 31 checkout/API-client tests; config/migration/pack checks passed including pack PostgreSQL integration",
+      "reviewer brief and sensitive-file check": "completed: SECURITY_REVIEW.md; 85 scoped files, no runtime env/private-key/signed-wallet files staged",
+      "commit reviewed slice": "local review snapshot; no remote push or deployment"
+    },
+    "nonGoals": [
+      "No accessibility work",
+      "No deployment or remote push",
+      "No signing or broadcasting",
+      "No weakening payment or privacy rules"
+    ],
+    "evidence": {
+      "database": "13 real PostgreSQL integration cases across watcher, purchase atomicity and pack tests; schema-only disposable databases",
+      "builds": "server, client and wallet builds passed",
+      "scopeExclusions": [
+        "Accessibility",
+        "Shared benefit-copy additions",
+        "Unrelated side-quest and privacy-test renames"
+      ],
+      "remaining": [
+        "Independent security review",
+        "Fresh install/migration rehearsal",
+        "Live fee-inclusive payment rehearsal",
+        "Mainnet custody and launch approval"
+      ]
+    }
+  },
+  "documentationQueue": {
+    "status": "completed_locally",
+    "items": [
+      {
+        "request": "Write threat model and add it to the security branch",
+        "status": "completed_locally"
+      },
+      {
+        "request": "Write a technical white paper explaining implementation and rationale",
+        "status": "completed_locally"
+      },
+      {
+        "request": "Write a fresh handoff for the new branch on the good-volume repository",
+        "status": "completed_locally"
+      }
+    ],
+    "repository": "/Volumes/good/Cruushv2-1",
+    "nonGoals": [
+      "No runtime or UI changes",
+      "No deployment",
+      "No signing or broadcasting"
+    ],
+    "worktree": "/Volumes/good/cruush-processor-security-handoff",
+    "verification": "Documentation checked against source and local links; recovered source snapshot compared byte-for-byte before commit. Historical test evidence remains labeled."
+  }
 }

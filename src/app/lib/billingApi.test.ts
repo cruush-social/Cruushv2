@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   completeTestCheckoutSession,
   createCheckoutSession,
@@ -8,7 +8,12 @@ import {
 } from './billingApi';
 
 describe('billingApi', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   beforeEach(() => {
+    vi.stubEnv('VITE_API_BASE_URL', '');
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
       ok: true,
       text: vi.fn().mockResolvedValue(JSON.stringify({ data: {} })),
