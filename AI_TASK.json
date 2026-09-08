@@ -29,7 +29,7 @@
       "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "The map profile preview follows the shared approximate or precise label preference without changing privacy disclosure.",
+  "nextVisibleMilestone": "Identify the action that reproduces the remaining generic validation report #140; concrete fixes and current UI checks are recorded in the bug queue.",
   "stopConditions": [
     "Stop at a password form.",
     "Stop if the server build fails."
