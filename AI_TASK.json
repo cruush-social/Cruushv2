@@ -1,30 +1,30 @@
 {
   "schemaVersion": 2,
-  "taskId": "visibility-distance-fails-closed-20260907",
+  "taskId": "checkbox-back-to-pink-20260907",
   "status": "active",
-  "objective": "The distance visibility rule hides anyone it cannot measure, as a privacy rule must.",
-  "userOutcome": "A member who hides from people farther than X miles is never shown to a viewer on a guess.",
+  "objective": "A checked checkbox is the solid primary pink again, not the pink-to-blue gradient.",
+  "userOutcome": "The app stops looking bluer than the version Julien approved.",
   "audience": "cruush members.",
   "successCriteria": [
-    "An unmeasurable viewer is refused by the distance rule.",
-    "A measurable viewer inside the radius still sees the profile."
+    "ui/checkbox.tsx is byte-identical to its state before commit 2949141.",
+    "The service worker retires the cached shell so every phone gets the pink checkbox."
   ],
   "mustPreserve": [
-    "The encrypted-envelope distance measurement in the profile route.",
-    "Every other visibility rule."
+    "Every other control.",
+    "The uncommitted haptics work, which stays out of this commit."
   ],
   "nonGoals": [
-    "No change to the haptics work, which is left uncommitted."
+    "No other visual change. The carousel gradient wash from 49c4251 is left for Julien to rule on."
   ],
   "assumptions": [
     {
-      "statement": "Fail closed is the only acceptable default for a privacy rule.",
-      "impact": "Some viewers with no location will be refused; that is the rule working.",
+      "statement": "Restoring a control to its previously deployed, approved state is removing a rejected effect, not a new UI change.",
+      "impact": "The checkbox goes back to pink without a separate approval round.",
       "reversible": true,
-      "confirmationState": "confirmed"
+      "confirmationState": "labeled"
     }
   ],
-  "nextVisibleMilestone": "Production serves the fail-closed rule.",
+  "nextVisibleMilestone": "Pink checked checkboxes on cruush.app.",
   "stopConditions": [
     "Stop at a password form.",
     "Stop if the server build fails."
@@ -54,19 +54,23 @@
   "release": "1.6",
   "repository": "cruush-social/Cruushv2",
   "branch": "main",
-  "job": "Restore the fail-closed distance visibility rule.",
+  "job": "Revert the unrequested checkbox restyle.",
   "allowedPaths": [
     "AI_TASK.json",
-    "server/src/profile-visibility.ts",
-    "server/src/profile-visibility.test.ts"
+    "src/app/components/ui/checkbox.tsx",
+    "index.html",
+    "public/sw.js",
+    "public/service-worker-recovery.js",
+    "src/main.tsx"
   ],
   "forbiddenPaths": [
     "src/app/assets/brand/**",
     "server/src/routes/users.ts"
   ],
-  "proofTarget": "Served API sha at https://api.cruush.app/api/build matching the pushed commit.",
+  "proofTarget": "Served bundle on cruush.app carrying data-[state=checked]:bg-primary on the checkbox, worker v76.",
   "publicationTarget": "origin/main and the production deploy",
   "requiredEvidence": [
-    "The served sha matching the pushed commit on both containers."
+    "Both containers on the pushed sha.",
+    "Served sw.js at v76."
   ]
 }
