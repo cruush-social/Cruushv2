@@ -1254,6 +1254,7 @@ function DirectUserOverlay({
   // The compose page lists everyone you may message. Mutuals has its own
   // surface, so there is nothing here to switch between.
   const activeComposerTab = 'public' as const;
+  const distancePreferences = useDistancePreferences();
   const [sortMode, setSortMode] = useState<DirectSortMode>('lastOnline');
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTER_STATE);
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -1444,7 +1445,7 @@ function DirectUserOverlay({
                 metadata={(
                   <button type="button" className="flex min-w-0 flex-col gap-0.5 text-left text-xs leading-snug text-white/62" onClick={() => onOpenProfile(user.id)}>
                     {describeDiscoveryUser(user) ? <span className="truncate">{describeDiscoveryUser(user)}</span> : null}
-                    <span className="truncate">{user.distance}</span>
+                    <span className="truncate">{formatDistanceLabel(user.distance, distancePreferences.mode)}</span>
                   </button>
                 )}
                 actions={<ProfileActionTrio
@@ -1492,7 +1493,7 @@ function DirectUserOverlay({
                 metadata={(
                   <button type="button" className="flex min-w-0 flex-col gap-0.5 text-left text-xs leading-snug text-white/62" onClick={() => onOpenProfile(item.user.id)}>
                     <span className="truncate">{item.lastActive}</span>
-                    <span className="truncate">{item.distance}</span>
+                    <span className="truncate">{formatDistanceLabel(item.distance, distancePreferences.mode)}</span>
                   </button>
                 )}
                 actions={<ProfileActionTrio

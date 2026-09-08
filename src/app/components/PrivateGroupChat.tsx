@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { DROPDOWN_TRIGGER_CLASS } from '../lib/controlStyles';
+import { formatDistanceLabel, useDistancePreferences } from '../lib/distancePreferences';
 import { registerBugButtonSlot } from '../lib/bugButtonSlot';
 import type { CSSProperties, ChangeEvent, RefObject } from 'react';
 import { useLocation, useParams, useNavigate } from 'react-router';
@@ -258,6 +259,7 @@ export default function PrivateGroupChat({
   onClose?: () => void;
 } = {}) {
   const params = useParams();
+  const distancePreferences = useDistancePreferences();
   // The dock renders this thread without a route of its own.
   const chatId = conversationId ?? params.chatId;
   const navigate = useNavigate();
@@ -1028,7 +1030,7 @@ export default function PrivateGroupChat({
                     {conversation.membersLabel ? <span>{conversation.membersLabel}</span> : null}
                     <span className="inline-flex items-center gap-1">
                       <CruushIcon name="map" className="size-3 opacity-70" />
-                      {conversation.distance}
+                      {formatDistanceLabel(conversation.distance, distancePreferences.mode)}
                     </span>
                   </div>
                 </>

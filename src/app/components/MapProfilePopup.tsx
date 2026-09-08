@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
+import { formatDistanceLabel, useDistancePreferences } from '../lib/distancePreferences';
 import { X } from 'lucide-react';
 import { Button } from './ui/button';
 import BlockUserAction from './BlockUserAction';
@@ -51,6 +52,7 @@ export default function MapProfilePopup({
   onOpenMessages,
   onProfileSaved,
 }: MapProfilePopupProps) {
+  const distancePreferences = useDistancePreferences();
   const navigate = useNavigate();
   const [cruushed, setCruushed] = useState(false);
   const [cruushBecameMutual, setCruushBecameMutual] = useState(false);
@@ -354,7 +356,7 @@ export default function MapProfilePopup({
 
             <div className="mt-3 flex min-w-0 items-center gap-2 overflow-hidden text-sm text-white/80">
               <CruushIconImage src={mapIconWhite} className="h-4 w-4 shrink-0" />
-              <span className="min-w-0 truncate">{displayDistance || 'Nearby'}</span>
+              <span className="min-w-0 truncate">{formatDistanceLabel(displayDistance, distancePreferences.mode) || 'Nearby'}</span>
             </div>
 
             {/* The photo carries the signal and the vibes here too, the way it

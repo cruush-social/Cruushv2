@@ -29,7 +29,7 @@
       "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "Bug Report and Pulse controls are reachable on the deployed mobile app.",
+  "nextVisibleMilestone": "The map profile preview follows the shared approximate or precise label preference without changing privacy disclosure.",
   "stopConditions": [
     "Stop at a password form.",
     "Stop if the server build fails."
@@ -61,6 +61,12 @@
   "branch": "main",
   "job": "Correct the two reported overlays and continue through the persistent bug queue.",
   "allowedPaths": [
+    "src/app/components/MapProfilePopup.tsx",
+    "src/app/components/MapProfilePopup.test.tsx",
+    "src/app/components/LocalFeed.tsx",
+    "src/app/components/DirectMessages.tsx",
+    "src/app/components/CruushActivity.tsx",
+    "src/app/components/PrivateGroupChat.tsx",
     "docs/bug-queue-20260908.md",
     "src/app/components/AlphaBugButton.tsx",
     "src/app/components/AlphaBugButton.test.tsx",

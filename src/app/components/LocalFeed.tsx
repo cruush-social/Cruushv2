@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ChangeEvent, type KeyboardEvent } from 'react';
 import { PHOTO_UPLOAD_ACCEPT, PHOTO_UPLOAD_FORMAT_MESSAGE } from '../lib/photoUploadFormats';
 import { useLocation, useNavigate } from 'react-router';
+import { formatDistanceLabel, useDistancePreferences } from '../lib/distancePreferences';
 import { ArrowLeft, Clock, Hash, SlidersHorizontal, Trash2, X } from 'lucide-react';
 import { Button } from './ui/button';
 import CruushPlusCardDialog from './CruushPlusCardDialog';
@@ -152,6 +153,7 @@ function normalizeFeedTag(value: string) {
 const MAX_FEED_POST_TAGS = 10;
 
 export default function LocalFeed({ embedded = false, onClose }: { embedded?: boolean; onClose?: () => void; onOpenSettings?: () => void } = {}) {
+  const distancePreferences = useDistancePreferences();
   const navigate = useNavigate();
   const location = useLocation();
   const [newPost, setNewPost] = useState('');
@@ -1345,7 +1347,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
                   metadata={(
                     <button type="button" className="flex h-11 min-w-0 flex-col justify-center gap-0.5 text-left text-xs leading-snug text-white/62 sm:text-sm" onClick={() => navigate(`/profile/${post.user.id}`, { state: { distance: post.distance } })} data-testid={`feed-post-meta-${post.id}`}>
                       <span className="truncate">{formatRelativeTime(post.createdAt)}</span>
-                      {feedSettings.showDistanceLabels !== false ? <span className="truncate">{post.distance}</span> : null}
+                      {feedSettings.showDistanceLabels !== false ? <span className="truncate">{formatDistanceLabel(post.distance, distancePreferences.mode)}</span> : null}
                     </button>
                   )}
                   actions={(

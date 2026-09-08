@@ -1,7 +1,9 @@
 # FIXLOG
 
-- 2026-09-08: Mobile Bug Report overrides the map's dialog offset so its controls stay inside the phone viewport, above navigation. Focused assertion: `AlphaBugButton.test.tsx`; 412 px diagnostic render confirmed the Send button is reachable; deployed verification pending.
-- 2026-09-08: Bug Report and Pulse use explicit modal layers above map heart units; their existing controls and styling are unchanged. Focused assertions: `AlphaBugButton.test.tsx` and `MapPingSheet.test.tsx`; deployed verification pending.
+- 2026-09-08: GitHub #265. Map profile popups, Feed, direct-message discovery, mutual pickers, and chat headers now apply the shared distance formatter and subscribe to preference changes. Server-masked distance labels remain unchanged. Focused assertion: `MapProfilePopup.test.tsx` switches 0.4 mi to ~0.5 mi and back; deployed acceptance pending.
+
+- 2026-09-08: Mobile Bug Report overrides the map's dialog offset so its controls stay inside the phone viewport, above navigation. Focused assertion: `AlphaBugButton.test.tsx`; live v90 at 412 × 915 shows the Send button ending at y=716 with a successful hit test.
+- 2026-09-08: Bug Report and Pulse use explicit modal layers above map heart units; their existing controls and styling are unchanged. Focused assertions: `AlphaBugButton.test.tsx` and `MapPingSheet.test.tsx`; live v90 screenshots confirm both menus above hearts, with Pulse Send ending at y=802 and passing hit testing.
 
 - 2026-09-01: GitHub #140. Visibility Controls Apply no longer returns `Request validation failed`
   for profiles using canonical app-owned `/api/media/profile-photos/<uuid>.<ext>` photos. Regression

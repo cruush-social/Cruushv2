@@ -1172,6 +1172,7 @@ function MutualDirectOverlay({
   onOpenProfile: (userId: string, state?: { distance?: string; lastActive?: string }) => void;
 }) {
   const dlModeActive = useDlMode();
+  const distancePreferences = useDistancePreferences();
   return (
     <div className="fixed inset-0 z-40 bg-background/95 px-4 py-6 text-white backdrop-blur-md">
       <div className="mx-auto max-w-2xl space-y-5">
@@ -1210,7 +1211,7 @@ function MutualDirectOverlay({
                 pronouns={item.user.pronouns || 'Ask me'}
                 sideBadges={item.user.sideBadges}
                 sideBadgeTone={resolveUserBorderTone({ mileHigh: item.user.travelling, mutual: true })}
-                metadata={<span className="text-xs text-white/62">{item.distance}</span>}
+                metadata={<span className="text-xs text-white/62">{formatUserDistanceLabel(item.distance, distancePreferences.mode)}</span>}
                 mutual
                 onOpenIdentity={() => onOpenProfile(item.user.id)}
                 onSelect={() => onMessage(item.user.id)}

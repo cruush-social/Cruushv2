@@ -1,7 +1,8 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import MapProfilePopup from './MapProfilePopup';
+import { saveDistancePreferences } from '../lib/distancePreferences';
 
 const { embeddedSavedProfile } = vi.hoisted(() => ({
   embeddedSavedProfile: {
@@ -55,6 +56,7 @@ vi.mock('./ProfileEdit', () => ({
 
 describe('MapProfilePopup', () => {
   beforeEach(() => {
+    window.localStorage.removeItem('cruush:distance-preference');
     getMyProfile.mockReset();
     getProfileById.mockReset();
     sendCruush.mockReset();
@@ -124,6 +126,11 @@ describe('MapProfilePopup', () => {
     );
 
     expect(screen.queryByRole('button', { name: 'View profile' })).not.toBeInTheDocument();
+    expect(screen.getByText('~0.5 mi')).toBeInTheDocument();
+    act(() => saveDistancePreferences({ mode: 'precise' }));
+    expect(screen.getByText('0.4 mi')).toBeInTheDocument();
+    act(() => saveDistancePreferences({ mode: 'approximate' }));
+    expect(screen.getByText('~0.5 mi')).toBeInTheDocument();
   });
 
   it('updates the desktop own-profile preview immediately after an embedded save', async () => {
