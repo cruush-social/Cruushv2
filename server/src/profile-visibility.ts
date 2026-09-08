@@ -274,11 +274,12 @@ export function canSubjectViewProfile(
       ? distanceMiles(subject.coordinates, targetCoordinates)
       : null;
 
-    // The rule is "hide me from people farther than X". An unknown distance is
-    // not a person farther than X, and hiding on it turned this into "hide me
-    // from almost everyone": most accounts carry no coordinates on the profile
-    // row, so the check had nothing to measure and denied the profile outright.
-    if (distance != null && distance > normalizedRules.distance) {
+    // A privacy rule fails closed. "Hide me from people farther than X" hides
+    // anyone whose distance cannot be measured, because showing the profile on
+    // a guess is the one outcome the member asked not to have. The route
+    // measures against the encrypted location envelope, so a viewer with a
+    // location is measurable and only a viewer with none is refused.
+    if (distance == null || distance > normalizedRules.distance) {
       return false;
     }
   }

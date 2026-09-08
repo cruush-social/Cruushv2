@@ -1,33 +1,30 @@
 {
   "schemaVersion": 2,
-  "taskId": "top-bar-size-and-quiet-side-quests-20260907",
+  "taskId": "visibility-distance-fails-closed-20260907",
   "status": "active",
-  "objective": "Restore the bigger mobile top bar icons, stop Side Quest nudges entirely, and make a rejected request diagnosable.",
-  "userOutcome": "The map top bar icons are back to the size he preferred, no Side Quest popup or notification appears, and the next \"Request validation failed\" report names its route and field.",
+  "objective": "The distance visibility rule hides anyone it cannot measure, as a privacy rule must.",
+  "userOutcome": "A member who hides from people farther than X miles is never shown to a viewer on a guess.",
   "audience": "cruush members.",
   "successCriteria": [
-    "Top bar icons are 44px from 361px upward, as before the narrow-phone fix.",
-    "No Side Quest prompt and no Side Quest notification is produced.",
-    "A rejected request logs its route and failing field names, never their values."
+    "An unmeasurable viewer is refused by the distance rule.",
+    "A measurable viewer inside the radius still sees the profile."
   ],
   "mustPreserve": [
-    "The 360px overflow fix reported in issue #206.",
-    "The bottom nav sizing, which he did not name.",
-    "Every existing validation rule; nothing is loosened."
+    "The encrypted-envelope distance measurement in the profile route.",
+    "Every other visibility rule."
   ],
   "nonGoals": [
-    "No change to request validation behaviour.",
-    "No new notification type or preference."
+    "No change to the haptics work, which is left uncommitted."
   ],
   "assumptions": [
     {
-      "statement": "Leaving the Side Quest sweep in place but unregistered is the reversible way to turn the nudges off.",
-      "impact": "They can be switched back on with one line if he wants them later.",
+      "statement": "Fail closed is the only acceptable default for a privacy rule.",
+      "impact": "Some viewers with no location will be refused; that is the rule working.",
       "reversible": true,
-      "confirmationState": "labeled"
+      "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "The bigger top bar rendered on cruush.app at his phone width.",
+  "nextVisibleMilestone": "Production serves the fail-closed rule.",
   "stopConditions": [
     "Stop at a password form.",
     "Stop if the server build fails."
@@ -57,29 +54,19 @@
   "release": "1.6",
   "repository": "cruush-social/Cruushv2",
   "branch": "main",
-  "job": "Restore the top bar size, silence Side Quest nudges, log validation failures.",
+  "job": "Restore the fail-closed distance visibility rule.",
   "allowedPaths": [
     "AI_TASK.json",
-    "server/src/app.ts",
-    "server/src/index.ts",
-    "server/src/validation-logging.test.ts",
-    "server/src/side-quest-notifications.ts",
-    "src/app/components/MapHome.tsx",
-    "src/app/components/MapHome.test.tsx",
-    "index.html",
-    "public/sw.js",
-    "public/service-worker-recovery.js",
-    "src/main.tsx",
-    "DESIGN_DECISIONS.md"
+    "server/src/profile-visibility.ts",
+    "server/src/profile-visibility.test.ts"
   ],
   "forbiddenPaths": [
     "src/app/assets/brand/**",
     "server/src/routes/users.ts"
   ],
-  "proofTarget": "cruush.app map rendered at 412px showing the larger top bar icons.",
+  "proofTarget": "Served API sha at https://api.cruush.app/api/build matching the pushed commit.",
   "publicationTarget": "origin/main and the production deploy",
   "requiredEvidence": [
-    "The served sha at https://api.cruush.app/api/build matching the pushed commit.",
-    "A rendered capture of the map top bar at his phone width."
+    "The served sha matching the pushed commit on both containers."
   ]
 }
