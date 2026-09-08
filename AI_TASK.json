@@ -9,7 +9,8 @@
     "Every component with a header row registers a bug-button slot at the right end of the row, before Close where the row has one.",
     "No header reserves an empty corner for a floating button.",
     "Header titles stay on one line; a long title truncates.",
-    "Renders at 412px of Settings, Feed, Rewards, Ghost Mode, Edit Profile and the profile panel show the button docked, on top, right-aligned."
+    "Renders at 412px of Settings, Feed, Rewards, Ghost Mode, Edit Profile and the profile panel show the button docked, on top, right-aligned.",
+    "The map's top action capsule hugs its five icons at every width; no stretch, no empty ends."
   ],
   "mustPreserve": [
     "Every header's existing controls and their order, apart from the added slot.",
@@ -98,7 +99,8 @@
     "src/app/components/Tutorial.tsx",
     "src/app/components/TwoFactorSettings.tsx",
     "src/main.tsx",
-    "src/styles/theme.css"
+    "src/styles/theme.css",
+    "src/app/components/MapHome.tsx"
   ],
   "forbiddenPaths": [
     "src/app/assets/brand/**"
