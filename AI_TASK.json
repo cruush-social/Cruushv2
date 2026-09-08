@@ -1,31 +1,31 @@
 {
   "schemaVersion": 2,
-  "taskId": "badge-duos-closer-20260908",
+  "taskId": "tombstoned-profiles-never-surface-20260908",
   "status": "active",
-  "objective": "In the Service and Pleasure badge duos, the two marks sit closer together inside the badge.",
-  "userOutcome": "Each duo badge reads as one emblem: the service or pleasure mark and the role emblem nearly touching, not two marks in opposite corners.",
+  "objective": "A profile an old removal flow renamed \"User deleted profile\" is never listed, never opens, and never posts.",
+  "userOutcome": "Recently Active, the map and the profile route stop showing a deleted member's tombstone; the Feed already did.",
   "audience": "cruush members.",
   "successCriteria": [
-    "CompoundRoleGlyph pulls both marks toward the centre of the badge.",
-    "Rendered before/after at 412px in the badge picker sent to Julien.",
-    "Every surface that draws the duos (picker, profile badges, marker side badges) uses the same composite, so the change follows everywhere."
+    "One shared predicate for the tombstone name, used by the Feed, discovery and the profile route.",
+    "Discovery excludes tombstoned rows; the profile route returns 404 for them.",
+    "Nothing is deleted or changed in the database."
   ],
   "mustPreserve": [
-    "The marks themselves: the same artwork, the same role emblems.",
-    "Every other badge."
+    "The account row and its status: changing a member's account status is Julien's decision.",
+    "Migration 091 and its cleanup."
   ],
   "nonGoals": [
-    "No change to badge size, frames, or the picker layout."
+    "No change to account_status; no deletion of any row."
   ],
   "assumptions": [
     {
-      "statement": "\"closer in the badge\" means the two marks move toward each other; the amount is a first proposal Julien can adjust by number.",
-      "impact": "Offsets change in one composite component.",
+      "statement": "The tombstone name is a reliable marker of the old removal flow, as migration 091 and the Feed filter already assume.",
+      "impact": "Discovery and the profile route apply the same rule.",
       "reversible": true,
-      "confirmationState": "labeled"
+      "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "Both containers on the pushed sha, worker v88; duos rendered closer.",
+  "nextVisibleMilestone": "Both containers on the pushed sha; the tombstone gone from Recently Active.",
   "stopConditions": [
     "Stop at a password form.",
     "Stop if the server build fails."
@@ -55,22 +55,22 @@
   "release": "1.6",
   "repository": "cruush-social/Cruushv2",
   "branch": "main",
-  "job": "Bring the pleasure/service duo marks closer together.",
+  "job": "Stop tombstoned profiles from surfacing.",
   "allowedPaths": [
     "AI_TASK.json",
-    "src/app/components/PositionRoleGlyphs.tsx",
-    "index.html",
-    "public/sw.js",
-    "public/service-worker-recovery.js",
-    "src/main.tsx"
+    "server/src/profile-tombstone.ts",
+    "server/src/profile-tombstone.test.ts",
+    "server/src/routes/posts.ts",
+    "server/src/routes/users.ts",
+    "server/src/routes/profiles.ts"
   ],
   "forbiddenPaths": [
     "src/app/assets/brand/**"
   ],
-  "proofTarget": "Badge picker at 412px before and after; served build on both containers.",
+  "proofTarget": "Local API: a profile renamed to the tombstone vanishes from /api/users and its /api/profiles/:id returns 404; served API on the pushed sha.",
   "publicationTarget": "origin/main and the production deploy",
   "requiredEvidence": [
-    "duos-before.png and duos-after.png sent.",
+    "Local reproduction output.",
     "Both containers on the pushed sha."
   ]
 }

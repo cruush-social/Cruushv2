@@ -24,6 +24,7 @@ import { getCruushEntitlement, getRelationshipPermissions } from "../match-relat
 import { canStartDirectMessage } from "../cruush-match-settings.js";
 import { handleFeedPhotoUpload } from "../feed-photo-upload.js";
 import { removeOwnedNonPublicMediaAsset } from "../media-assets.js";
+import { notTombstonedSql } from "../profile-tombstone.js";
 
 type PostRow = {
   id: string;
@@ -591,7 +592,7 @@ export async function registerPostRoutes(app: FastifyInstance) {
     const where = [
       "p.expires_at > now()",
       "coalesce(author.account_status, 'active') <> 'deleted'",
-      "lower(trim(coalesce(pr.display_name, ''))) <> 'user deleted profile'",
+      notTombstonedSql("pr"),
       `p.created_at >= now() - case
         when $2 = '1h' then interval '1 hour'
         when $2 = '3h' then interval '3 hours'

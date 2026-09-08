@@ -39,6 +39,7 @@ import { isWithinServiceArea, NYC_SERVICE_AREA } from "../service-area.js";
 const DISCOVERY_BROWSE_RADIUS_MILES = 50;
 import { type TravelPin, loadTravelPins, locationPayloadAtTravelPin } from "../travel-pins.js";
 import { primaryPhotoExplicitSelect } from "../profile-photo-explicit.js";
+import { notTombstonedSql } from "../profile-tombstone.js";
 import {
   DEFAULT_GHOST_RADIUS_METERS,
   createCoarseIndexTokens,
@@ -667,6 +668,10 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, fi
       // A deleted, suspended or banned account keeps its row for audit, so it
       // must never surface in discovery.
       "coalesce(app_users.account_status, 'active') = 'active'",
+      // Older removal flows only renamed the profile and left the account
+      // active; one such phone still pinged its location today and turned up
+      // in Recently Active as "User deleted profile, 42".
+      notTombstonedSql("profiles"),
       `(
         profiles.location_updated_at >= now() - make_interval(hours => ${MAP_PRESENCE_HOURS_SQL})
         or location_envelopes.expires_at_ms > ${activeLocationWindow}

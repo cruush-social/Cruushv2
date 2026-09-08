@@ -60,6 +60,7 @@ import { getActiveAccountUserId, getAuthenticatedUserId } from "../request-auth.
 import { assertUsersNotBlocked } from "../user-blocks.js";
 import { formatLastActiveFromDate } from "../discovery-users.js";
 import { getTravelPin, locationPayloadAtTravelPin } from "../travel-pins.js";
+import { isTombstonedProfileName } from "../profile-tombstone.js";
 import {
   DEFAULT_GHOST_RADIUS_METERS,
   GHOST_RADIUS_OPTIONS,
@@ -1398,6 +1399,11 @@ async function loadProfileData(
     throw new ApiError(404, "NOT_FOUND", "Profile not found");
   }
 
+  // A profile an older removal flow renamed and left behind never opens.
+  if (isTombstonedProfileName(result.rows[0].display_name)) {
+    throw new ApiError(404, "NOT_FOUND", "Profile not found");
+  }
+
   const row = result.rows[0];
   const relationship = !options.includePrivateSensitive && options.viewerUserId
     ? await getRelationshipPermissions(app, options.viewerUserId, userId)
@@ -1639,7 +1645,7 @@ export async function assertProfileVisibleToViewer(app: FastifyInstance, viewerU
   );
   const row = result.rows[0];
 
-  if (!row) {
+  if (!row || isTombstonedProfileName(row.display_name)) {
     throw new ApiError(404, "NOT_FOUND", "Profile not found");
   }
 
