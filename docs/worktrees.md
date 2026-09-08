@@ -9,6 +9,7 @@ the branch name.
 
 | Branch | Worktree path | Last commit | State | Ahead/behind main | Purpose |
 | --- | --- | --- | --- | --- | --- |
+| `codex/publish-safety-blog-20260908` | `/Volumes/good/cruush-safety-blog` | 2026-09-08 2dc16c2 fix: keep Bug Report and Pulse above mobile map layers | dirty (6 files) | +0/-0 | Publish the code-accurate safety article to the existing cruush static blog; Codex; in progress. |
 | `feature/moderation-dashboard-full-access` | `/Volumes/good/Cruushv2-1` | 2026-08-06 f2055305 Restore the notchless spinning logo loop on the landing page | dirty (114 files) | +31/-146 |  |
 | `codex/sh-review-only-20260902` | `/Volumes/good/Cruushv2-sh-review-only` | 2026-09-02 a69841f4 fix: clarify onboarding validation | dirty (9 files) | +0/-0 | Stream sexual-harassment-only results publish with moderator review; Codex; deploying. |
 | `(detached)` | `/private/tmp/cruush-baseline-20260809` | 2026-08-08 d9a1776a fix: clarify moderation errors and normalize chat sends | dirty (2 files) | +0/-1 |  |

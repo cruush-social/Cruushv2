@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="How cruush protects sensitive data, gives members control over map visibility, and makes mutual interest meaningful." />
+    <link rel="canonical" href="https://cruush.app/blog/safety-on-cruush.html" />
+    <meta name="theme-color" content="#ff006e" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="cruush" />
+    <meta property="og:title" content="Safety on cruush: privacy starts with control" />
+    <meta property="og:description" content="How cruush protects sensitive data, gives members control over map visibility, and makes mutual interest meaningful." />
+    <meta property="og:url" content="https://cruush.app/blog/safety-on-cruush.html" />
+    <meta property="og:image" content="https://cruush.app/icons/icon-512.png" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="Safety on cruush: privacy starts with control" />
+    <meta name="twitter:description" content="How cruush protects sensitive data, gives members control over map visibility, and makes mutual interest meaningful." />
+    <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=UnifrakturMaguntia&family=Spectral:ital,wght@0,300;0,400;0,600;1,400&display=swap" />
+    <link rel="stylesheet" href="/pages.css" />
+    <title>Safety on cruush: privacy starts with control</title>
+  </head>
+  <body>
+    <header class="site">
+      <a class="wordmark" href="/">cruush</a>
+      <p class="eyebrow">blog</p>
+      <nav class="site">
+        <a href="/">Home</a>
+        <a href="/about">About</a>
+        <a href="/help">Help</a>
+        <a href="/blog" aria-current="page">Blog</a>
+      </nav>
+    </header>
+
+    <main>
+      <p><a href="/blog">&larr; cruush blog</a></p>
+      <h1>Safety on cruush: privacy starts with control</h1>
+      <p class="lede">Meeting people nearby should not mean giving up control of your information. cruush is built around a simple idea: privacy settings should shape what people can see and how they can reach you.</p>
+      <p>Here is how that works today.</p>
+      <p>Written by Julien Lenaz, admin and lead developer of cruush. <time datetime="2026-09-08">September 8, 2026</time></p>
+
+      <section class="card">
+        <h2>Sensitive information is encrypted at rest</h2>
+        <p>cruush encrypts sensitive profile data, relationship records, stored location data, messages, feed content, and media while it is stored on the server. That protection includes the privacy policy behind Ghost Mode and the relationship record created when a cruush becomes mutual. Encryption is paired with integrity checks, versioned keys, and access controls, helping protect stored information from unauthorized access or tampering.</p>
+        <p>This secure server-side foundation lets cruush run core features such as matching, visibility controls, account recovery, moderation, and abuse prevention while protecting stored information. E2EE is the next privacy layer we are evaluating after launch.</p>
+      </section>
+
+      <section class="card">
+        <h2>Building the next privacy layer</h2>
+        <p>We are approaching end-to-end encryption as a focused post-launch engineering track. It would change more than the way messages are stored. It would touch account recovery, multiple devices, key changes, abuse reporting, moderation, search, matching, and visibility controls.</p>
+        <p>Our next phase is to define the threat model and identify which cruush surfaces can support E2EE while keeping those protections strong. We then plan to prototype the key and recovery flows, test migration from the beta architecture, and review the design independently before rollout.</p>
+        <p>We will publish the user-facing protections and limits as the work advances. Until rollout, cruush continues to protect stored data with server-side encryption at rest.</p>
+      </section>
+
+      <section class="card">
+        <h2>Your map presence is not a public trail</h2>
+        <p>cruush uses location permission from your device to power nearby discovery. Your stored location is encrypted. For nearby discovery, cruush derives privacy-preserving coarse location index tokens and searches nearby cells, rather than publishing your exact coordinates for everyone to query.</p>
+        <p>When the app shows another member's location, it creates a protected display value for that specific viewer and session. Your actual location is not simply passed around as an open map coordinate.</p>
+        <p>You decide how your presence appears. Precise sharing is an opt-in setting for mutual cruushes. You can also choose Ghost Mode when you want nearby discovery without showing your precise pin.</p>
+      </section>
+
+      <section class="card">
+        <h2>Ghost Mode shifts your public pin</h2>
+        <p>Ghost Mode replaces your public map position with a decoy position inside the privacy radius you choose. That decoy changes over the course of your Ghost Mode session, so it does not become a fixed stand-in for your actual location.</p>
+        <p>Ghost Mode is protected at rest as well. The privacy policy that stores its state and sharing choices receives the same encryption protection as other sensitive data.</p>
+        <p>Ghost Mode keeps location privacy focused. It does not silently change messaging permissions or erase profile-view activity. Those rules stay separate, with blocking remaining a hard boundary across the app. You can turn Ghost Mode on or off in your privacy controls.</p>
+        <p>Ghost Mode reduces what other members can infer from the map. It does not make anyone anonymous to cruush, its service providers, or legal requests where disclosure is required. It also cannot undo information someone may have already seen.</p>
+      </section>
+
+      <section class="card">
+        <h2>A match is mutual, not assumed</h2>
+        <p>A cruush is an expression of interest. A mutual cruush happens only when both people choose each other. cruush creates and protects that relationship as a separate encrypted record.</p>
+        <p>The match relationship itself is encrypted at rest, not only the messages or profile information around it.</p>
+        <p>Mutuality can unlock settings a member has chosen to reserve for matches, including protected profile information and precise location sharing. Precise location is never unlocked by mutual interest alone. The member must opt in, and they can revoke that access. Blocking is a hard boundary across the app.</p>
+        <p>The mutual-cruush model gives cruush a clear foundation for consent-based sharing. Ghost Mode adds a further safeguard by keeping precise location behind a decoy, while messaging and blocking rules remain explicit.</p>
+      </section>
+
+      <section class="card">
+        <h2>Safety is a set of layers</h2>
+        <p>Encryption matters, but it is only one part of safety. cruush also uses secure session handling, password hashing, rate limits, access controls, reporting, blocking, moderation, and protections against unsafe links and spam.</p>
+        <p>No tool can guarantee a perfect outcome. The goal is to give members meaningful control, reduce unnecessary exposure, and make consent part of how connection works on cruush.</p>
+      </section>
+    </main>
+
+    <footer class="site">
+      <p>
+        <a href="/">cruush</a> &middot;
+        <a href="/about">About</a> &middot;
+        <a href="/help">Help</a> &middot;
+        <a href="/blog">Blog</a>
+      </p>
+      <p>Adults only. An account requires age verification.</p>
+    </footer>
+
+    <script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Safety on cruush: privacy starts with control",
+  "description": "How cruush protects sensitive data, gives members control over map visibility, and makes mutual interest meaningful.",
+  "datePublished": "2026-09-08",
+  "dateModified": "2026-09-08",
+  "url": "https://cruush.app/blog/safety-on-cruush.html",
+  "author": {
+    "@type": "Person",
+    "name": "Julien Lenaz",
+    "jobTitle": "Admin and lead developer of cruush"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "cruush",
+    "url": "https://cruush.app/",
+    "logo": "https://cruush.app/icons/icon-512.png"
+  }
+}</script>
+  </body>
+</html>
