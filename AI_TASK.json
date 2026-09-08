@@ -1,32 +1,31 @@
 {
   "schemaVersion": 2,
-  "taskId": "tutorial-under-dialogs-20260908",
+  "taskId": "badge-duos-closer-20260908",
   "status": "active",
-  "objective": "A member can always press a dialog's confirm: the tutorial card no longer covers dialogs, and the photo cropper portals to the body.",
-  "userOutcome": "Profile photo uploads work again for every member, including anyone still on the map tour; Send Pulse and every other dialog are reachable with the tour up.",
+  "objective": "In the Service and Pleasure badge duos, the two marks sit closer together inside the badge.",
+  "userOutcome": "Each duo badge reads as one emblem: the service or pleasure mark and the role emblem nearly touching, not two marks in opposite corners.",
   "audience": "cruush members.",
   "successCriteria": [
-    "Tutorial overlay at z-[40], below body-portaled dialogs at z-[80].",
-    "The tour card hides while any other dialog is open and returns when it closes.",
-    "ProfilePhotoCropper renders through a body portal.",
-    "With the tour up at 412px: cropper confirm reachable, upload 202, Send Pulse reachable, card back after each dialog closes."
+    "CompoundRoleGlyph pulls both marks toward the centre of the badge.",
+    "Rendered before/after at 412px in the badge picker sent to Julien.",
+    "Every surface that draws the duos (picker, profile badges, marker side badges) uses the same composite, so the change follows everywhere."
   ],
   "mustPreserve": [
-    "The tutorial card visible over the map, sheets and bottom nav.",
-    "Every dialog exactly as it was."
+    "The marks themselves: the same artwork, the same role emblems.",
+    "Every other badge."
   ],
   "nonGoals": [
-    "No change to the upload code or formats; they were never the cause."
+    "No change to badge size, frames, or the picker layout."
   ],
   "assumptions": [
     {
-      "statement": "The last profile photo landing on Sep 5 09:33 UTC and none since, with message photos still landing, plus the local reproduction, prove the overlay was the cause.",
-      "impact": "Fix is stacking only.",
+      "statement": "\"closer in the badge\" means the two marks move toward each other; the amount is a first proposal Julien can adjust by number.",
+      "impact": "Offsets change in one composite component.",
       "reversible": true,
-      "confirmationState": "confirmed"
+      "confirmationState": "labeled"
     }
   ],
-  "nextVisibleMilestone": "Both containers on the pushed sha, worker v87; a member on the tour uploads a photo.",
+  "nextVisibleMilestone": "Both containers on the pushed sha, worker v88; duos rendered closer.",
   "stopConditions": [
     "Stop at a password form.",
     "Stop if the server build fails."
@@ -56,24 +55,22 @@
   "release": "1.6",
   "repository": "cruush-social/Cruushv2",
   "branch": "main",
-  "job": "Put the tutorial card under dialogs and portal the cropper.",
+  "job": "Bring the pleasure/service duo marks closer together.",
   "allowedPaths": [
     "AI_TASK.json",
-    "src/app/components/MapControlsTutorial.tsx",
-    "src/app/components/ProfileEdit.tsx",
+    "src/app/components/PositionRoleGlyphs.tsx",
     "index.html",
     "public/sw.js",
     "public/service-worker-recovery.js",
-    "src/main.tsx",
-    "src/app/components/MapControlsTutorial.test.tsx"
+    "src/main.tsx"
   ],
   "forbiddenPaths": [
     "src/app/assets/brand/**"
   ],
-  "proofTarget": "Local run at 412px with the tour up: cropper confirm reachable, upload 202, Send Pulse reachable; served build on both containers.",
+  "proofTarget": "Badge picker at 412px before and after; served build on both containers.",
   "publicationTarget": "origin/main and the production deploy",
   "requiredEvidence": [
-    "Verification run output.",
+    "duos-before.png and duos-after.png sent.",
     "Both containers on the pushed sha."
   ]
 }
