@@ -1,32 +1,30 @@
 {
   "schemaVersion": 2,
-  "taskId": "bug-button-on-every-page-20260908",
+  "taskId": "edit-profile-bug-button-20260908",
   "status": "active",
-  "objective": "The bug button is on every screen, including full pages that unmount the map.",
-  "userOutcome": "A member can report a bug from Rewards, Profile edit, Spot detail and every other full page on mobile, not only from screens that sit over the map.",
+  "objective": "The bug button sits in the Edit Profile header row, as on every other screen header.",
+  "userOutcome": "Edit Profile has a bug button on a phone, docked beside Save and Close.",
   "audience": "cruush members.",
   "successCriteria": [
-    "A slot whose screen has unmounted is dropped from the registry and the button is told.",
-    "The button re-reads its slot on every route change.",
-    "On /rewards at 412px the button is in the document, in the fixed corner, visible."
+    "Edit Profile registers a bug-button slot in its header.",
+    "At 412px the button renders in that slot, on the Save row, on top."
   ],
   "mustPreserve": [
-    "The docked placement on screens that register a slot.",
-    "The fixed top-right corner everywhere else.",
-    "The button's size and look on every screen."
+    "Back, title, Save and Close in one row, unmoved.",
+    "Every other screen's slot."
   ],
   "nonGoals": [
-    "No change to which screens register a slot."
+    "No change to the header's other controls."
   ],
   "assumptions": [
     {
-      "statement": "React handing the ref null is the moment a slot's screen tears down; sweeping detached slots one tick later is correct.",
-      "impact": "The button leaves a dead node within a tick of the screen going.",
+      "statement": "The Sep 4 design decision that every header docks the bug button authorizes adding the slot to this header.",
+      "impact": "One 40px slot at the end of the header's right group.",
       "reversible": true,
       "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "Bug button visible on Rewards on cruush.app.",
+  "nextVisibleMilestone": "Bug button visible in Edit Profile on cruush.app.",
   "stopConditions": [
     "Stop at a password form.",
     "Stop if the server build fails."
@@ -56,12 +54,11 @@
   "release": "1.6",
   "repository": "cruush-social/Cruushv2",
   "branch": "main",
-  "job": "Keep the bug button on full pages that unmount the map.",
+  "job": "Dock the bug button in the Edit Profile header.",
   "allowedPaths": [
     "AI_TASK.json",
-    "src/app/lib/bugButtonSlot.ts",
-    "src/app/components/AlphaBugButton.tsx",
-    "src/app/components/AlphaBugButton.test.tsx",
+    "src/app/components/ProfileEdit.tsx",
+    "src/app/components/ProfileEdit.test.tsx",
     "index.html",
     "public/sw.js",
     "public/service-worker-recovery.js",
@@ -70,10 +67,10 @@
   "forbiddenPaths": [
     "src/app/assets/brand/**"
   ],
-  "proofTarget": "Rendered /rewards at 412px with the button in the fixed corner; both containers on the pushed sha, worker v82.",
+  "proofTarget": "Rendered Edit Profile at 412px with the button on the Save row; both containers on the pushed sha, worker v83.",
   "publicationTarget": "origin/main and the production deploy",
   "requiredEvidence": [
-    "Local probe: rewards present, visible, fixed corner.",
+    "Local render: slot profile-edit-bug-button-slot, same row as Save, on top.",
     "Both containers on the pushed sha."
   ]
 }

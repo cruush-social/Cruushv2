@@ -39,6 +39,21 @@ async function selectProfileEditTab(name: 'Photos' | 'Badges' | 'Basics' | 'Inti
 }
 
 describe('ProfileEdit', () => {
+  it('docks the bug button into its own header row', async () => {
+    // Every screen header is one line with the bug button in it. Edit Profile
+    // never registered a slot, so on a phone it had no bug button at all.
+    render(
+      <MemoryRouter initialEntries={['/profile/edit']}>
+        <ProfileEdit onSaved={vi.fn()} />
+      </MemoryRouter>,
+    );
+
+    const slot = await screen.findByTestId('profile-edit-bug-button-slot');
+    expect(slot.closest('header')).not.toBeNull();
+    expect(slot.closest('header')).toContainElement(screen.getByRole('button', { name: 'Save' }));
+  });
+
+
   afterEach(() => {
     vi.unstubAllGlobals();
   });

@@ -1,5 +1,6 @@
 import type { ChangeEvent, PointerEvent } from 'react';
 import { DROPDOWN_TRIGGER_CLASS } from '../lib/controlStyles';
+import { registerBugButtonSlot } from '../lib/bugButtonSlot';
 import { PHOTO_UPLOAD_ACCEPT } from '../lib/photoUploadFormats';
 import { SIGNAL_MAX_LENGTH } from '../lib/profileLimits';
 import { lazy, Suspense, useState, useEffect, useRef } from 'react';
@@ -1120,6 +1121,9 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
               <X className="h-5 w-5" />
             </Button>
           ) : null}
+          {/* The bug button docks into this row like every other header, so
+              it is on this screen whether or not the map is behind it. */}
+          <div className="h-10 w-10 shrink-0" data-testid="profile-edit-bug-button-slot" ref={registerBugButtonSlot} />
         </div>
       </header>
 
