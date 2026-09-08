@@ -1,33 +1,34 @@
 {
   "schemaVersion": 2,
-  "taskId": "tombstoned-profiles-never-surface-20260908",
+  "taskId": "ghost-drift-015-20260908",
   "status": "active",
   "objective": "Ghost rotation animation reaches other viewers: a ghost pin that mounts within the first refetch cycle of its last minute animates; then widen the Ghost v2 drift so each rotation visibly moves (separate commit, deploy on Julien's yes).",
   "userOutcome": "Members watching someone's Ghost pin see the last-minute flash and fly-off; each rotation lands somewhere visibly different.",
   "audience": "cruush members.",
   "successCriteria": [
-    "One shared predicate for the tombstone name, used by the Feed, discovery and the profile route.",
-    "Discovery excludes tombstoned rows; the profile route returns 404 for them.",
-    "Nothing is deleted or changed in the database."
+    "Ghost v2 drift ratio is 0.15, allowing consecutive decoys to land up to 0.30R apart.",
+    "The annulus remains within the existing 0.5R to 1.0R privacy boundary.",
+    "The focused Ghost averaging assertions and server TypeScript build pass.",
+    "Both production containers report the deployed commit."
   ],
   "mustPreserve": [
-    "The account row and its status: changing a member's account status is Julien's decision.",
-    "Migration 091 and its cleanup."
+    "Ghost radius options, anchor ratio, minimum offset, display accuracy, and derivation key behavior.",
+    "All unrelated dirty work, including .octo-continue.md."
   ],
   "nonGoals": [
-    "No change to the ghost radius options, anchor ratio, min offset, or display accuracy",
-    "No UI change beyond the animation firing",
-    "Drift widening is not deployed without Julien's explicit yes (privacy trade-off named to him first)"
+    "No UI change.",
+    "No change to Ghost radius options, anchor ratio, minimum offset, display accuracy, or derivation keys.",
+    "No database migration, account-status change, or unrelated deployment."
   ],
   "assumptions": [
     {
-      "statement": "The tombstone name is a reliable marker of the old removal flow, as migration 091 and the Feed filter already assume.",
-      "impact": "Discovery and the profile route apply the same rule.",
+      "statement": "Julien selected drift ratio 0.15 after the smaller anchor-cell privacy trade-off was explicitly stated in the recovered Claude session.",
+      "impact": "A Ghost decoy can visibly jump farther, while its anchoring cell shrinks from about 0.18R to about 0.11R.",
       "reversible": true,
       "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "Both containers on the pushed sha; the tombstone gone from Recently Active.",
+  "nextVisibleMilestone": "Both containers report the pushed drift commit.",
   "stopConditions": [
     "Stop at a password form.",
     "Stop if the server build fails."
@@ -57,7 +58,7 @@
   "release": "1.6",
   "repository": "cruush-social/Cruushv2",
   "branch": "main",
-  "job": "Stop tombstoned profiles from surfacing.",
+  "job": "Ship the approved Ghost 0.15 drift widening.",
   "allowedPaths": [
     "AI_TASK.json",
     "src/app/components/MapView.tsx",
@@ -73,10 +74,11 @@
   "forbiddenPaths": [
     "src/app/assets/brand/**"
   ],
-  "proofTarget": "Local API: a profile renamed to the tombstone vanishes from /api/users and its /api/profiles/:id returns 404; served API on the pushed sha.",
+  "proofTarget": "Focused Ghost geometry assertions and server TypeScript build; production API and frontend container commit identity.",
   "publicationTarget": "origin/main and the production deploy",
   "requiredEvidence": [
-    "Local reproduction output.",
+    "Focused Ghost geometry output.",
+    "Server TypeScript build output.",
     "Both containers on the pushed sha."
   ]
 }
