@@ -21,7 +21,8 @@ import {
   notifySentCruushRevokeError,
 } from '../lib/cruushNotifications';
 import { openConversationOrInbox } from '../lib/openConversation';
-import { emptyProfilePayload, getMyProfile, getProfileById, type ProfileRecord } from '../lib/profileApi';
+import { emptyProfilePayload, getMyProfile, getProfileById, ProfileApiError, type ProfileRecord } from '../lib/profileApi';
+import { notifyProfileUnavailable } from '../lib/profileUnavailable';
 import mapIconWhite from '../assets/ui-icons/map-white.png';
 import mileHighClubWhite from '../assets/ui-icons/mile-high-club-white.svg';
 import sendIconWhite from '../assets/ui-icons/send-white.png';
@@ -99,6 +100,13 @@ export default function MapProfilePopup({
       })
       .catch((error) => {
         if (!isMounted) {
+          return;
+        }
+
+        if (error instanceof ProfileApiError && error.status === 404) {
+          // Refused by the server: nothing to show, and the map drops the pin.
+          notifyProfileUnavailable(user.id);
+          onClose();
           return;
         }
 

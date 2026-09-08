@@ -3,6 +3,7 @@ import type { CSSProperties, ReactNode } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { resolveMediaUrl } from '../lib/apiClient';
 import { useLocation, useNavigate, useParams } from 'react-router';
+import { notifyProfileUnavailable } from '../lib/profileUnavailable';
 import { ArrowLeft, Share2, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
@@ -277,7 +278,14 @@ export default function ProfileView() {
         }
 
         if (loadError instanceof ProfileApiError && loadError.status === 404) {
-          setError(isOwnProfile ? 'Profile not found.' : 'That profile is unavailable.');
+          if (!isOwnProfile && userId) {
+            // Nothing to show and nothing to tap: the map drops this person
+            // and the member lands back where they were.
+            notifyProfileUnavailable(userId);
+            navigate(-1);
+            return;
+          }
+          setError('Profile not found.');
         } else {
           setError(loadError instanceof Error ? loadError.message : 'Failed to load profile.');
         }

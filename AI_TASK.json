@@ -1,30 +1,30 @@
 {
   "schemaVersion": 2,
-  "taskId": "pulse-example-gradient-20260908",
+  "taskId": "no-tappable-refused-profiles-20260908",
   "status": "active",
-  "objective": "The Send a Pulse demonstration heart is the same for everyone: the gradient pin, never your own photo.",
-  "userOutcome": "Every member sees one identical Pulse example.",
+  "objective": "Nobody the profile route refuses is ever offered on the map or in Recently Active.",
+  "userOutcome": "Tapping a person always opens a profile; a refused one is dropped before it can be tapped, and never shows an empty card.",
   "audience": "cruush members.",
   "successCriteria": [
-    "The preview marker in the Pulse sheet is rendered with no photo.",
-    "Nothing else about the sheet changes."
+    "Discovery measures the viewer from the encrypted envelope, as the profile route does, so the two agree on who is in range.",
+    "A 404 from the profile route removes that person from the map and Recently Active and never renders a card."
   ],
   "mustPreserve": [
-    "The real map pins, which keep the member's photo.",
-    "The sheet copy, radius options and send flow."
+    "Every visibility rule, fail-closed.",
+    "Block behaviour, which the drop reuses."
   ],
   "nonGoals": [
-    "No new marker variant. The photo-less pin draws its standard person mark; removing that is Julien's call and is not made here."
+    "No change to what a visibility rule means."
   ],
   "assumptions": [
     {
-      "statement": "\"make the example photo a gradient\" and \"everyone sees the same\" mean the sheet preview drops the member photo and shows the standard photo-less pin.",
-      "impact": "One prop changes from the member photo to null.",
+      "statement": "\"That profile is unavailable.\" is the copy behind the report; the app has no deleted-profile copy.",
+      "impact": "The fix targets the list/route disagreement and the tap-on-refusal, not account deletion.",
       "reversible": true,
       "confirmationState": "labeled"
     }
   ],
-  "nextVisibleMilestone": "The gradient example live on cruush.app in the Pulse sheet.",
+  "nextVisibleMilestone": "No tappable refused profile on cruush.app.",
   "stopConditions": [
     "Stop at a password form.",
     "Stop if the server build fails."
@@ -54,23 +54,28 @@
   "release": "1.6",
   "repository": "cruush-social/Cruushv2",
   "branch": "main",
-  "job": "Make the Pulse example heart the same gradient pin for everyone.",
+  "job": "Stop the map from offering profiles the route refuses.",
   "allowedPaths": [
     "AI_TASK.json",
+    "server/src/routes/users.ts",
+    "src/app/lib/profileUnavailable.ts",
+    "src/app/lib/profileUnavailable.test.ts",
+    "src/app/components/ProfileView.tsx",
+    "src/app/components/MapProfilePopup.tsx",
     "src/app/components/MapHome.tsx",
+    "src/app/components/MapHome.test.tsx",
     "index.html",
     "public/sw.js",
     "public/service-worker-recovery.js",
     "src/main.tsx"
   ],
   "forbiddenPaths": [
-    "src/app/assets/brand/**",
-    "server/src/routes/users.ts"
+    "src/app/assets/brand/**"
   ],
-  "proofTarget": "Rendered Pulse sheet at 412px with the photo-less preview heart, and the served MapHome chunk.",
+  "proofTarget": "Both containers on the pushed sha, worker v81; unit tests for the drop.",
   "publicationTarget": "origin/main and the production deploy",
   "requiredEvidence": [
-    "Rendered capture of the sheet preview with data-has-photo=false.",
-    "Both containers on the pushed sha, worker v80."
+    "Both containers on the pushed sha.",
+    "MapHome test: a refused id leaves the marker list."
   ]
 }

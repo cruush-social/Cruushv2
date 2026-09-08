@@ -552,9 +552,31 @@ describe('MileHighClubBrowseLimit', () => {
 });
 
 describe('MapHome', () => {
-  afterEach(() => {
-    vi.useRealTimers();
-    restoreVisualViewport();
+  it('drops a person the profile route refused, so there is nothing left to tap', async () => {
+    const { notifyProfileUnavailable } = await import('../lib/profileUnavailable');
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<MapHome />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await screen.findByTestId('map-home-shell');
+    const markers = await waitFor(() => {
+      const found = document.querySelectorAll('[data-testid^="marker-"]:not([data-testid="marker-me"])');
+      expect(found.length).toBeGreaterThan(0);
+      return found;
+    });
+    const droppedId = markers[0].getAttribute('data-testid')!.replace('marker-', '');
+
+    await act(async () => {
+      notifyProfileUnavailable(droppedId);
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByTestId(`marker-${droppedId}`)).not.toBeInTheDocument();
+    });
   });
 
   it('allows the codeveloper NYC account to use developer-only map tools without bank reviewer access', () => {

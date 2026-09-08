@@ -79,6 +79,7 @@ import {
 import { decryptDisplayLocationToken } from '../lib/displayLocationTokens';
 import { canUseDeveloperMapToolsEmail } from '../lib/developerMapTools';
 import { registerBugButtonSlot } from '../lib/bugButtonSlot';
+import { addProfileUnavailableListener } from '../lib/profileUnavailable';
 import { holdRunningPulse } from '../lib/pulseHold';
 import {
   createMapMarkerBadge,
@@ -1447,6 +1448,10 @@ export default function MapHome(_props: MapHomeProps = {}) {
     setUsers((currentUsers) => currentUsers.filter((user) => user.id !== blockedUserId));
     setSelectedUser((currentUser) => currentUser?.id === blockedUserId ? null : currentUser);
   };
+
+  // A profile the server refused leaves the map the same way a blocked one
+  // does, so there is never a tile or a pin that opens an empty card.
+  useEffect(() => addProfileUnavailableListener(handleBlockedUser), []);
 
   useEffect(() => {
     if (usesFullPageProfile && selectedUser) {

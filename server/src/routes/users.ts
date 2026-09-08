@@ -1217,6 +1217,14 @@ export async function registerUserRoutes(app: FastifyInstance) {
           throw error;
         })
       : new Map<string, LocationPayload>();
+    // The viewer's own position comes from the envelope too, the way the
+    // profile route reads it. Measured from the profile row, which most
+    // accounts leave empty, discovery and the profile route disagreed about
+    // who was in range: the list offered people the profile then refused.
+    const viewerEnvelope = encryptedLocations.get(currentUserId);
+    if (discoveryViewer.subject && viewerEnvelope) {
+      discoveryViewer.subject.coordinates = locationPayloadToCoordinates(viewerEnvelope);
+    }
     // Mile High Club replaces the device location with the pin the member dropped,
     // for the viewer's own position as well as everyone they are shown.
     const travelPins = await loadTravelPins(app, [
