@@ -1,31 +1,30 @@
 {
   "schemaVersion": 2,
-  "taskId": "regression-gate-green-20260908",
+  "taskId": "pulse-example-gradient-20260908",
   "status": "active",
-  "objective": "The GitHub Regression gates workflow passes again.",
-  "userOutcome": "Every push to main gets a real verdict from the mobile browser suite instead of a red badge nobody reads.",
+  "objective": "The Send a Pulse demonstration heart is the same for everyone: the gradient pin, never your own photo.",
+  "userOutcome": "Every member sees one identical Pulse example.",
   "audience": "cruush members.",
   "successCriteria": [
-    "All ten mobile-chromium regressions pass locally and in the GitHub run for the pushed commit.",
-    "The bug button on /map receives taps."
+    "The preview marker in the Pulse sheet is rendered with no photo.",
+    "Nothing else about the sheet changes."
   ],
   "mustPreserve": [
-    "Every approved layout: the bar geometry, Map Controls, the Dark Room mark, the tile-to-profile flow, the seventeen-step tutorial.",
-    "Every product behaviour; only the bug button slot changes, and only to accept pointer input."
+    "The real map pins, which keep the member's photo.",
+    "The sheet copy, radius options and send flow."
   ],
   "nonGoals": [
-    "No layout change to satisfy a test. Where a test described the pre-September app, the test moved.",
-    "The 24px desktop offset of the top bar from the viewport centre is reported, not changed."
+    "No new marker variant. The photo-less pin draws its standard person mark; removing that is Julien's call and is not made here."
   ],
   "assumptions": [
     {
-      "statement": "The deployed, approved app is the reference and the tests follow it, not the other way round.",
-      "impact": "Six stale assertions were rewritten to the current layout and copy.",
+      "statement": "\"make the example photo a gradient\" and \"everyone sees the same\" mean the sheet preview drops the member photo and shows the standard photo-less pin.",
+      "impact": "One prop changes from the member photo to null.",
       "reversible": true,
       "confirmationState": "labeled"
     }
   ],
-  "nextVisibleMilestone": "A green Regression gates run on the pushed sha.",
+  "nextVisibleMilestone": "The gradient example live on cruush.app in the Pulse sheet.",
   "stopConditions": [
     "Stop at a password form.",
     "Stop if the server build fails."
@@ -55,10 +54,9 @@
   "release": "1.6",
   "repository": "cruush-social/Cruushv2",
   "branch": "main",
-  "job": "Make the Regression gates workflow pass.",
+  "job": "Make the Pulse example heart the same gradient pin for everyone.",
   "allowedPaths": [
     "AI_TASK.json",
-    "e2e/regression/session-interactions.spec.ts",
     "src/app/components/MapHome.tsx",
     "index.html",
     "public/sw.js",
@@ -69,9 +67,10 @@
     "src/app/assets/brand/**",
     "server/src/routes/users.ts"
   ],
-  "proofTarget": "The GitHub Actions run for the pushed commit, all three jobs green.",
+  "proofTarget": "Rendered Pulse sheet at 412px with the photo-less preview heart, and the served MapHome chunk.",
   "publicationTarget": "origin/main and the production deploy",
   "requiredEvidence": [
-    "gh run view showing success for the pushed sha."
+    "Rendered capture of the sheet preview with data-has-photo=false.",
+    "Both containers on the pushed sha, worker v80."
   ]
 }

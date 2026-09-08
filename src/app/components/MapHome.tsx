@@ -3604,7 +3604,9 @@ export default function MapHome(_props: MapHomeProps = {}) {
           hasMapLocation={Boolean(currentUserMapLocation)}
           signal={currentProfile?.signal}
           lurkerActive={privacySettings.baseMode === 'STEALTH'}
-          photo={currentProfile?.photos?.[0] ?? null}
+          // The demonstration is the same for everyone: the gradient heart,
+          // never your own photo.
+          photo={null}
           onSaveSignal={async (signal) => {
             const savedSignal = await saveMySignal(signal);
             setCurrentProfile((profile) => (profile ? { ...profile, signal: savedSignal } : profile));
