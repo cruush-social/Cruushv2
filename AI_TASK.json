@@ -1,32 +1,31 @@
 {
   "schemaVersion": 2,
-  "taskId": "ghost-decoy-peppers-ghost-20260907",
+  "taskId": "regression-gate-green-20260908",
   "status": "active",
-  "objective": "Your Ghost Mode decoy shows the Pepper's ghost from the rotation animation, with no icon over it.",
-  "userOutcome": "The decoy reads as the translucent apparition Julien asked for, not a ghost mark over the photo.",
+  "objective": "The GitHub Regression gates workflow passes again.",
+  "userOutcome": "Every push to main gets a real verdict from the mobile browser suite instead of a red badge nobody reads.",
   "audience": "cruush members.",
   "successCriteria": [
-    "No GhostColoredIcon is drawn over the owner decoy heart.",
-    "The decoy border stays #0BA8FF, unchanged.",
-    "The photo keeps its 0.62 apparition opacity."
+    "All ten mobile-chromium regressions pass locally and in the GitHub run for the pushed commit.",
+    "The bug button on /map receives taps."
   ],
   "mustPreserve": [
-    "The decoy border colour and width.",
-    "The rotation flash and fly-away animation.",
-    "Every other member's ghost marker, which must look like any other profile outside the last minute."
+    "Every approved layout: the bar geometry, Map Controls, the Dark Room mark, the tile-to-profile flow, the seventeen-step tutorial.",
+    "Every product behaviour; only the bug button slot changes, and only to accept pointer input."
   ],
   "nonGoals": [
-    "No surface-alpha or badge/signal changes; a prior pepper effect on those changed the border and was reverted."
+    "No layout change to satisfy a test. Where a test described the pre-September app, the test moved.",
+    "The 24px desktop offset of the top bar from the viewport centre is reported, not changed."
   ],
   "assumptions": [
     {
-      "statement": "\"the peppers ghost \u2026 the one that matches the animation\" is the translucent photo apparition with the electric-blue border, and \"i dont want ghost marks\" removes the icon over it.",
-      "impact": "The icon overlay is removed; nothing else changes.",
+      "statement": "The deployed, approved app is the reference and the tests follow it, not the other way round.",
+      "impact": "Six stale assertions were rewritten to the current layout and copy.",
       "reversible": true,
-      "confirmationState": "confirmed"
+      "confirmationState": "labeled"
     }
   ],
-  "nextVisibleMilestone": "The owner decoy rendered with no icon over the photo.",
+  "nextVisibleMilestone": "A green Regression gates run on the pushed sha.",
   "stopConditions": [
     "Stop at a password form.",
     "Stop if the server build fails."
@@ -56,11 +55,11 @@
   "release": "1.6",
   "repository": "cruush-social/Cruushv2",
   "branch": "main",
-  "job": "Remove the ghost mark from the owner decoy so it is the Pepper's ghost.",
+  "job": "Make the Regression gates workflow pass.",
   "allowedPaths": [
     "AI_TASK.json",
-    "src/app/components/MapView.tsx",
-    "src/app/components/MapView.test.tsx",
+    "e2e/regression/session-interactions.spec.ts",
+    "src/app/components/MapHome.tsx",
     "index.html",
     "public/sw.js",
     "public/service-worker-recovery.js",
@@ -70,10 +69,9 @@
     "src/app/assets/brand/**",
     "server/src/routes/users.ts"
   ],
-  "proofTarget": "Rendered owner Ghost decoy at 412px on the local stack, and the served map chunk without marker-ghost-decoy-mark.",
+  "proofTarget": "The GitHub Actions run for the pushed commit, all three jobs green.",
   "publicationTarget": "origin/main and the production deploy",
   "requiredEvidence": [
-    "Rendered decoy screenshot with no icon over the photo and the blue border intact.",
-    "Both containers on the pushed sha, worker v78."
+    "gh run view showing success for the pushed sha."
   ]
 }
