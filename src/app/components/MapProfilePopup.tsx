@@ -390,7 +390,7 @@ export default function MapProfilePopup({
           </div>
         </div>
 
-        <div className="space-y-5 px-5 py-5 text-white">
+        <div className="space-y-5 px-5 py-5 text-white [&_[role=tablist]]:static [&_[role=tablist]]:z-auto">
           {profileView ? (
             <ProfileDetailsTabs
               activeTab={activeTab}

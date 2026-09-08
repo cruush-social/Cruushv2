@@ -103,7 +103,7 @@ describe('MapProfilePopup', () => {
     });
   });
 
-  it('does not render a redundant full-profile button on desktop previews', () => {
+  it('keeps desktop profile tabs in normal flow without a redundant full-profile button', async () => {
     render(
       <MemoryRouter initialEntries={['/map']}>
         <MapProfilePopup
@@ -126,6 +126,8 @@ describe('MapProfilePopup', () => {
     );
 
     expect(screen.queryByRole('button', { name: 'View profile' })).not.toBeInTheDocument();
+    const tabs = await screen.findByRole('tablist');
+    expect(tabs.parentElement?.parentElement).toHaveClass('[&_[role=tablist]]:static', '[&_[role=tablist]]:z-auto');
     expect(screen.getByText('~0.5 mi')).toBeInTheDocument();
     act(() => saveDistancePreferences({ mode: 'precise' }));
     expect(screen.getByText('0.4 mi')).toBeInTheDocument();

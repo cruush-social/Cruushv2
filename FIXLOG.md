@@ -1,5 +1,8 @@
 # FIXLOG
 
+- 2026-09-08: Desktop map badge labels center beneath their own badges using hover-only alignment rules; touch rules are unchanged. Compiled-CSS browser preview: left midpoint error 0 px, right error below 0.001 px. Focused assertion: `BadgeFrames.test.tsx`. Test workers timed out before execution; deployment verification pending.
+- 2026-09-08: Map profile popup tabs use normal scrolling and stacking instead of covering bottom actions. Compiled-CSS browser preview at 1280 × 1120: tab y=719 becomes -81 after scrolling 800 px; footer stays y=711 and the cruush button passes hit testing. Focused assertion: `MapProfilePopup.test.tsx`. Deployment verification pending.
+
 - 2026-09-08: GitHub #265. Map profile popups, Feed, direct-message discovery, mutual pickers, and chat headers now apply the shared distance formatter and subscribe to preference changes. Server-masked distance labels remain unchanged. Focused assertion: `MapProfilePopup.test.tsx` switches 0.4 mi to ~0.5 mi and back. Live v91 at 412 px: the same mutual-map popup shows ~2 mi in Approximate and 2.1 mi after selecting Precise in Map presence; the original preference was restored.
 
 - 2026-09-08: Mobile Bug Report overrides the map's dialog offset so its controls stay inside the phone viewport, above navigation. Focused assertion: `AlphaBugButton.test.tsx`; live v90 at 412 × 915 shows the Send button ending at y=716 with a successful hit test.

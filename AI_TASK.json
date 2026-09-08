@@ -2,10 +2,14 @@
   "schemaVersion": 2,
   "taskId": "mobile-overlay-and-open-bugs-20260908",
   "status": "active",
-  "objective": "Repair mobile Bug Report access and heart stacking over Bug Report and Pulse, then work through issues 265, 263, 145 and 140 using the persistent bug queue.",
+  "objective": "Correct desktop badge-label centering and map profile tabs covering bottom actions. Continue the queued Ghost fixes without changing the approved animation or completed bug fixes.",
   "userOutcome": "Members can reach the named menus and their controls; remaining reported defects are resolved or have a specific evidence-backed blocker.",
   "audience": "cruush members.",
   "successCriteria": [
+    "Desktop badge hover labels are centered under their own badges, without changing touch behavior or badge positions.",
+    "Map profile popup tabs scroll normally with profile content and never cover the fixed bottom actions; the prior fixed-tab proposal is superseded.",
+    "Both side badges flash with the heart during the existing Ghost countdown, with no change to geometry, timing, or exit artwork.",
+    "A Ghost rotation fetches the new position in the background and retains the existing pin and document.",
     "At 412 px, Bug Report controls remain inside the viewport and above navigation and map hearts.",
     "Pulse remains above map hearts with its last action reachable and its existing geometry preserved.",
     "Every queued report has rendered evidence of resolution or a specific unresolved condition.",
@@ -23,13 +27,13 @@
   ],
   "assumptions": [
     {
-      "statement": "The latest request adds landing accessibility options to the queue without interrupting the two overlay corrections.",
-      "impact": "The current overlay repair remains first; no unrelated visual changes are authorized.",
+      "statement": "Julien explicitly wants centered desktop badge labels and profile tabs that scroll normally without covering bottom actions, superseding the unapproved fixed-tab proposal.",
+      "impact": "Publish only the verified label and popup corrections. Keep the unverified Ghost patch uncommitted and out of this release.",
       "reversible": true,
       "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "Identify the action that reproduces the remaining generic validation report #140; concrete fixes and current UI checks are recorded in the bug queue.",
+  "nextVisibleMilestone": "Verify the centered labels and scrolling profile tabs on the deployed desktop app. Ghost rendering remains pending.",
   "stopConditions": [
     "Stop at a password form.",
     "Stop if the server build fails."
@@ -61,6 +65,13 @@
   "branch": "main",
   "job": "Correct the two reported overlays and continue through the persistent bug queue.",
   "allowedPaths": [
+    "src/app/components/BadgeFrames.tsx",
+    "src/app/components/BadgeFrames.test.tsx",
+    "src/app/components/MapView.tsx",
+    "src/app/components/MapView.test.tsx",
+    "src/app/components/MapHome.tsx",
+    "src/app/components/MapHome.test.tsx",
+    "DESIGN_DECISIONS.md",
     "src/app/components/MapProfilePopup.tsx",
     "src/app/components/MapProfilePopup.test.tsx",
     "src/app/components/LocalFeed.tsx",

@@ -68,19 +68,16 @@ export function BadgeHoverLabel({ children, revealed = false, align = 'center' }
   children: React.ReactNode;
   revealed?: boolean;
   /**
-   * Two side badge labels shown at once would collide in the middle, so each
-   * one hangs off its own outer edge instead of centring on the badge.
+   * Touch-side anchoring; desktop hover always centers beneath the badge.
    */
   align?: 'center' | 'start' | 'end';
 }) {
-  // A pointer only ever opens one label, so hover keeps the outer-edge anchor
-  // that stops two from meeting in the middle. The long-press reveal centres
-  // each label tight under its own badge instead; the old answer, dropping the
-  // right-hand one a full row, read as the label floating far below the pin.
+  // Desktop hover reveals one label centered beneath its own badge. Preserve
+  // the existing touch anchors and simultaneous long-press reveal behavior.
   const anchor = align === 'start'
-    ? `left-0 translate-x-0 ${revealed ? '[@media(hover:none)]:left-1/2 [@media(hover:none)]:-translate-x-1/2' : ''}`
+    ? `left-0 translate-x-0 [@media(hover:hover)]:left-1/2 [@media(hover:hover)]:-translate-x-1/2 ${revealed ? '[@media(hover:none)]:left-1/2 [@media(hover:none)]:-translate-x-1/2' : ''}`
     : align === 'end'
-      ? `right-0 translate-x-0 ${revealed ? '[@media(hover:none)]:left-1/2 [@media(hover:none)]:right-auto [@media(hover:none)]:-translate-x-1/2' : ''}`
+      ? `right-0 translate-x-0 [@media(hover:hover)]:left-1/2 [@media(hover:hover)]:right-auto [@media(hover:hover)]:-translate-x-1/2 ${revealed ? '[@media(hover:none)]:left-1/2 [@media(hover:none)]:right-auto [@media(hover:none)]:-translate-x-1/2' : ''}`
       : 'left-1/2 -translate-x-1/2';
   // Centred pairs sit close, so the revealed label stays narrow enough that
   // the two sides do not cross under the heart between them.
