@@ -335,6 +335,13 @@ export default function AlphaBugButton({
 
   useEffect(() => subscribeToBugButtonSlot(() => setSlot(getBugButtonSlot())), []);
 
+  // A route change can unmount the screen that held the slot. The registry
+  // sweeps a tick later, but the button must never sit in a node that has
+  // left the document, so it re-reads the slot on every route as well.
+  useEffect(() => {
+    setSlot(getBugButtonSlot());
+  }, [location.pathname]);
+
   const triggerButton = (
     <button
       aria-label="Report alpha bug"

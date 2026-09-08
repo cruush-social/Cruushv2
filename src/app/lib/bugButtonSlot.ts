@@ -21,6 +21,11 @@ function notify() {
 
 export function registerBugButtonSlot(element: HTMLElement | null) {
   if (!element) {
+    // React hands the ref null as the screen tears down. The node is still in
+    // the tree at that instant, so the sweep runs a tick later, when it has
+    // gone; any slot no longer in the document is dropped and the button is
+    // told, so it leaves the dead node instead of vanishing with it.
+    queueMicrotask(pruneDetachedSlots);
     return;
   }
 
@@ -35,6 +40,20 @@ export function registerBugButtonSlot(element: HTMLElement | null) {
 
   slots.push(element);
   notify();
+}
+
+function pruneDetachedSlots() {
+  let removed = false;
+  for (let index = slots.length - 1; index >= 0; index -= 1) {
+    if (!slots[index].isConnected) {
+      slots.splice(index, 1);
+      removed = true;
+    }
+  }
+
+  if (removed) {
+    notify();
+  }
 }
 
 /** Called when a screen tears down, so its slot stops holding the button. */

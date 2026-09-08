@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import AlphaBugButton, { ALPHA_BUG_TIP_STORAGE_KEY } from './AlphaBugButton';
@@ -184,6 +184,30 @@ describe('AlphaBugButton', () => {
     expect(slot).toContainElement(reportButton);
     expect(reportButton).toHaveClass('h-full', 'w-full');
     expect(reportButton).not.toHaveClass('fixed');
+  });
+
+  it('leaves a slot whose screen has gone and floats again, so no page is without it', async () => {
+    // The map registers a slot; a full page that unmounts the map does not.
+    // The button used to stay portaled into the dead node and vanish from
+    // every such page.
+    const slot = document.createElement('div');
+    document.body.appendChild(slot);
+    registerBugButtonSlot(slot);
+
+    renderAlphaBugButton();
+    expect(slot).toContainElement(screen.getByRole('button', { name: 'Report alpha bug' }));
+
+    // What React does as the screen tears down: the ref is handed null, then
+    // the node leaves the document.
+    registerBugButtonSlot(null);
+    slot.remove();
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    const reportButton = await screen.findByRole('button', { name: 'Report alpha bug' });
+    expect(document.body).toContainElement(reportButton);
+    expect(reportButton).toHaveClass('fixed');
   });
 
   it('falls back to the fixed upper-right corner when no slot is registered', () => {
