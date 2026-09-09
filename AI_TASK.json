@@ -8,10 +8,16 @@
     "preserve": "Keep real user-source references, staged/outgoing source verification and independent review mandatory. Do not fabricate pre-edit evidence or add bypass flags.",
     "coordination": "The Add UI scope improvement plan task owns the global hook files and is applying the repair; this task preserves the staged product patch and verifies the release."
   },
-  "objective": "Center the existing white DL icon horizontally and vertically inside heart previews, preserving its size, opacity, no-text treatment and all non-heart covers.",
-  "userOutcome": "The DL icon is centered in heart previews without text, while non-heart covers retain DL MODE ON beneath the same white translucent icon. Toggles, layouts and masking rules remain unchanged.",
+  "objective": "Correct onboarding optional and Crowd Mode copy, require name, gender identity, sexuality and crowd under Julien's latest explicit list, and remove the Looking for onboarding step. Other profile fields, badge selection, photo upload and 2FA remain skippable.",
+  "userOutcome": "The current onboarding and named-admin replay agree about required information, do not offer Looking for as a step, and preserve existing profile values and privacy settings.",
   "audience": "cruush members.",
   "successCriteria": [
+    "Crowd copy explains social spaces rather than identity labels, the Map Controls > Visibility location, the show-only behavior when enabled and that choosing crowds does not enable it.",
+    "Only name, gender identity, sexuality and crowd are mandatory profile information under Julien's latest explicit list. Pronouns, Vibes, Bio, Signal and Role/Position remain optional. Preserve conduct acceptance and account/age safeguards.",
+    "Badge selection, photo upload and 2FA remain skippable. Invite codes and identity checkboxes are not forced.",
+    "Remove inaccurate optional copy from the information-step descriptions without introducing unrelated copy or layout changes.",
+    "Remove Looking for from the onboarding sequence only, preserve saved values and migrate existing numeric draft positions so later steps are not skipped.",
+    "The same ProfileOnboarding component passes the named-admin replay without account-save requests.",
     "The visible DL mark is centered horizontally and vertically inside both heart implementations, preserving its actual 20 by 26 size in the 64-unit heart coordinate system.",
     "Non-heart photo covers retain their existing icon, opacity and DL MODE ON label.",
     "The repaired publication hook validates the actual user instruction and genuine independent review without fabricating before-edit evidence.",
@@ -43,7 +49,7 @@
       "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "Publish v101 and verify the centered DL icon in live heart previews, with the existing labeled Recently Active cover unchanged.",
+  "nextVisibleMilestone": "Render and deploy the corrected mandatory onboarding flow with the requested Looking for step removed.",
   "stopConditions": [
     "Stop at a password form.",
     "Stop if the server build fails."
@@ -73,8 +79,10 @@
   "release": "1.6",
   "repository": "cruush-social/Cruushv2",
   "branch": "main",
-  "job": "Center the existing DL icon in heart previews only; preserve its size, opacity, no-heart-text treatment, all non-heart labels and masking rules.",
+  "job": "Apply the latest onboarding copy, required-step and Looking for removal instructions; preserve profile editing, saved answers, privacy defaults, layouts and all unrelated behavior.",
   "allowedPaths": [
+    "src/app/components/ProfileOnboarding.tsx",
+    "src/app/lib/onboardingDraft.ts",
     "src/app/components/DlModePhotoPlaceholder.tsx",
     "src/app/components/DlModePhotoPlaceholder.test.tsx",
     "src/app/components/HeartPhoto.tsx",
@@ -280,6 +288,56 @@
           "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T21-34-14-01a083cd-25b6-7222-b0a9-9db8fd15a419.jsonl",
           "line": 165,
           "sha256": "f95a58fe1644be986283f6e4241b3295b107a5c0dfe9e6bdf54ca35f2dc8b912"
+        }
+      },
+      {
+        "file": "src/app/components/ProfileOnboarding.tsx",
+        "property": "copy",
+        "target": "jsx:div[1]/div[1]/div[1]/div[6]/div[1]/p[1]",
+        "before": "text: [\"Optional · select up to 3, or leave empty\"]",
+        "after": "text: [\"Select up to 3\"]",
+        "surface": "onboarding",
+        "statement": "fix the optional copy asap in onboarding its not true add this as the next que item",
+        "viewport": "All onboarding widths and the same named-admin replay; rendered at 412px and desktop.",
+        "preserve": [
+          "Keep existing layouts, controls, style, profile/edit fields, saved answers and privacy defaults unchanged.",
+          "Keep photo upload, badge selection and 2FA skippable; do not force invite codes or identity checkboxes.",
+          "Only remove inaccurate optional wording; all remaining copy stays unchanged."
+        ],
+        "source": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T15-32-27-01a08281-ec99-7630-b7a1-fbbcb8575d5e.jsonl",
+          "line": 8708,
+          "sha256": "2b0ae6f274f0e57ab17b464df5af7f02192a83d21635dc1b3ae21a3c31fbd85d"
+        },
+        "review": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T21-34-14-01a083cd-25b6-7222-b0a9-9db8fd15a419.jsonl",
+          "line": 363,
+          "sha256": "8413146403167f0a3a791678f99afdc06436f6947709dcea4820249fb935d8d1"
+        }
+      },
+      {
+        "file": "src/app/components/ProfileOnboarding.tsx",
+        "property": "copy",
+        "target": "jsx:div[1]/div[1]/div[1]/div[6]/div[2]/p[1]",
+        "before": "text: [\"Optional · select up to\"]",
+        "after": "text: [\"Select up to\"]",
+        "surface": "onboarding",
+        "statement": "fix the optional copy asap in onboarding its not true add this as the next que item",
+        "viewport": "All onboarding widths and the same named-admin replay; rendered at 412px and desktop.",
+        "preserve": [
+          "Keep existing layouts, controls, style, profile/edit fields, saved answers and privacy defaults unchanged.",
+          "Keep photo upload, badge selection and 2FA skippable; do not force invite codes or identity checkboxes.",
+          "Only remove inaccurate optional wording; all remaining copy stays unchanged."
+        ],
+        "source": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T15-32-27-01a08281-ec99-7630-b7a1-fbbcb8575d5e.jsonl",
+          "line": 8708,
+          "sha256": "2b0ae6f274f0e57ab17b464df5af7f02192a83d21635dc1b3ae21a3c31fbd85d"
+        },
+        "review": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T21-34-14-01a083cd-25b6-7222-b0a9-9db8fd15a419.jsonl",
+          "line": 363,
+          "sha256": "8413146403167f0a3a791678f99afdc06436f6947709dcea4820249fb935d8d1"
         }
       }
     ]

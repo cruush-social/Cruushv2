@@ -1,5 +1,8 @@
 # cruush design decisions
 
+- Onboarding requires name, gender identity, sexuality and crowd. Julien's latest explicit list supersedes the earlier instruction to require all information steps and the intermediate Sexuality-and-Signal answer. Signal, pronouns, Vibes, Bio, Role/Position, photo upload, badge selection and 2FA remain optional. Invite codes and the trans checkbox are not forced; conduct agreement and account/age safeguards remain unchanged. Remove Looking for from the onboarding sequence only, preserving profile/edit fields and saved answers. The admin replay must use this same flow without account writes. (2026-09-08)
+- Onboarding Crowd copy describes crowds as shared social spaces like gay or dyke bars, not identity labels, and points to Map Controls > Visibility. Selecting crowds does not enable Crowd Mode or change visibility settings. (2026-09-08)
+
 - Censored photos across the app use the supplied DL icon in white at 75% opacity. Non-heart covers keep the exact text `DL MODE ON` beneath it. Heart previews, including map hearts, omit that visible line and center the icon horizontally and vertically in the heart while preserving its size. This supersedes the earlier all-surfaces text requirement and the intermediate instruction to retain the old icon position; DL toggles and ordinary missing-photo fallbacks are unchanged. (September 8, 2026)
 
 - Feed photo previews are 64px hearts, matching the approved sample page. One photo uses one heart. Two or three photos use separate equal-size hearts in one horizontal row with visible gaps. They never weld, overlap, cluster, or grow to the 80px map-heart size.

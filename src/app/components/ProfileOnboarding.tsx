@@ -62,7 +62,6 @@ const PROFILE_STEPS: OnboardingStep[] = [
   'pronouns',
   'identities',
   'crowds',
-  'lookingFor',
   'vibes',
   'bio',
   'rolePosition',
@@ -88,7 +87,7 @@ const STEP_COPY: Record<OnboardingStep, { rite: string; title: string; detail: s
   crowds: {
     rite: 'find your crowd',
     title: 'Choose your crowds.',
-    detail: 'Choose up to three optional crowds. Your visibility changes only when you turn Crowd Mode on.',
+    detail: 'Think of crowds like gay or dyke bars: shared social spaces, not identity labels. Choose up to three. Find Crowd Mode in Map Controls > Visibility. Turn it on to be seen only by people in your selected crowds. Choosing crowds here does not turn it on.',
   },
   lookingFor: {
     rite: 'declare your hunger',
@@ -246,7 +245,17 @@ export default function ProfileOnboarding({
   // A preview renders the flow for inspection, so it never reads or writes the
   // real draft.
   const restoredDraft = previewMode ? null : readOnboardingDraft<OnboardingProfileState>();
-  const [step, setStep] = useState(() => Math.min(Math.max(restoredDraft?.step ?? 0, 0), steps.length - 1));
+  const [step, setStep] = useState(() => {
+    const savedStep = Math.min(Math.max(restoredDraft?.step ?? 0, 0), steps.length - 1);
+    if (!restoredDraft) return savedStep;
+    // Older drafts could pass Identity or Crowds without the now-required
+    // answers. Return to the first missing field without discarding the draft.
+    const saved = restoredDraft.profile;
+    if (!(typeof saved.name === 'string' && saved.name.trim().length > 1)) return 0;
+    if (savedStep > 2 && (!saved.identities?.length || !saved.sexuality?.length)) return 2;
+    if (savedStep > 3 && !saved.crowds?.some((crowd) => crowd !== 'T4T' || saved.is_trans === true)) return 3;
+    return savedStep;
+  });
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [profile, setProfile] = useState<OnboardingProfileState>({
     name: '',
@@ -426,17 +435,17 @@ export default function ProfileOnboarding({
       case 'name':
         return profile.name.trim().length > 1;
       case 'pronouns':
-        return profile.pronouns.length > 0;
-      case 'identities':
-        return profile.identities.length > 0;
-      case 'crowds':
         return true;
+      case 'identities':
+        return profile.identities.length > 0 && profile.sexuality.length > 0;
+      case 'crowds':
+        return profile.crowds.some((crowd) => crowd !== 'T4T' || profile.is_trans === true);
       case 'lookingFor':
         return profile.lookingFor.length > 0;
       case 'vibes':
-        return profile.vibes.length > 0;
+        return true;
       case 'bio':
-        return profile.bio.trim().length > 0;
+        return true;
       case 'rolePosition':
       case 'badges':
         return true;
@@ -814,7 +823,7 @@ export default function ProfileOnboarding({
                       value={profile.identities}
                       onChange={(values) => setProfileField('identities', limitToThree(values))}
                     />
-                    <p className="text-xs text-white/58 mt-1">Optional · select up to 3, or leave empty</p>
+                    <p className="text-xs text-white/58 mt-1">Select up to 3</p>
                   </div>
                   <label className="flex cursor-pointer items-center gap-3 rounded-md border border-white/12 bg-white/[0.04] p-3 text-sm text-white/82">
                     <input
@@ -840,7 +849,7 @@ export default function ProfileOnboarding({
                       value={profile.sexuality}
                       onChange={(values) => setProfileField('sexuality', limitToThree(values))}
                     />
-                    <p className="text-xs text-white/58 mt-1">Optional · select up to {MAX_PROFILE_SEXUALITIES}</p>
+                    <p className="text-xs text-white/58 mt-1">Select up to {MAX_PROFILE_SEXUALITIES}</p>
                   </div>
                 </div>
               );

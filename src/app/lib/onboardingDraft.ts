@@ -9,6 +9,7 @@
  * private window or a full quota costs the restore and nothing else.
  */
 const ONBOARDING_DRAFT_KEY = 'cruush:onboarding-draft';
+const ONBOARDING_DRAFT_VERSION = 2;
 
 export type OnboardingDraft<TProfile> = { step: number; profile: Partial<TProfile> };
 
@@ -19,12 +20,18 @@ export function readOnboardingDraft<TProfile>(): OnboardingDraft<TProfile> | nul
       return null;
     }
 
-    const parsed = JSON.parse(raw) as Partial<OnboardingDraft<TProfile>>;
+    const parsed = JSON.parse(raw) as Partial<OnboardingDraft<TProfile>> & { version?: number };
     if (!parsed || typeof parsed !== 'object' || typeof parsed.profile !== 'object' || !parsed.profile) {
       return null;
     }
 
-    return { step: typeof parsed.step === 'number' ? parsed.step : 0, profile: parsed.profile };
+    const savedStep = typeof parsed.step === 'number' ? parsed.step : 0;
+    // Version 1 included Looking for at index 4. Preserve the current rite
+    // after removing it; a draft on that removed rite continues with Vibes.
+    const step = parsed.version === ONBOARDING_DRAFT_VERSION || savedStep <= 4
+      ? savedStep
+      : savedStep - 1;
+    return { step, profile: parsed.profile };
   } catch {
     return null;
   }
@@ -32,7 +39,7 @@ export function readOnboardingDraft<TProfile>(): OnboardingDraft<TProfile> | nul
 
 export function writeOnboardingDraft<TProfile>(draft: OnboardingDraft<TProfile>) {
   try {
-    window.localStorage.setItem(ONBOARDING_DRAFT_KEY, JSON.stringify(draft));
+    window.localStorage.setItem(ONBOARDING_DRAFT_KEY, JSON.stringify({ ...draft, version: ONBOARDING_DRAFT_VERSION }));
   } catch {
     // Onboarding still works without a draft.
   }
