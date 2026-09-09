@@ -240,6 +240,24 @@ describe('LocalFeed', () => {
     await waitFor(() => expect(input).toHaveFocus());
   });
 
+  it('collapses from the top without losing its draft and returns focus to the opener', async () => {
+    getFeedPosts.mockResolvedValue([]);
+    render(<MemoryRouter><LocalFeed /></MemoryRouter>);
+    await screen.findByTestId('local-feed-composer-open');
+    openComposer();
+    const input = screen.getByPlaceholderText('Share something with nearby people...');
+    fireEvent.change(input, { target: { value: 'Keep this draft' } });
+    const collapse = screen.getByRole('button', { name: 'Collapse Feed input' });
+    expect(document.getElementById(collapse.getAttribute('aria-controls')!)).toContainElement(input);
+    fireEvent.click(collapse);
+    expect(input.parentElement).toHaveClass('hidden');
+    await waitFor(() => expect(screen.getByTestId('local-feed-composer-open')).toHaveFocus());
+    openComposer();
+    expect(input.parentElement).not.toHaveClass('hidden');
+    expect(input).toHaveValue('Keep this draft');
+    expect(createFeedPost).not.toHaveBeenCalled();
+  });
+
   it('keeps the feed settings menu scrollable and tappable on mobile', async () => {
     getFeedPosts.mockResolvedValue([]);
 

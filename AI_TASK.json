@@ -143,6 +143,7 @@
     "src/app/components/MapProfilePopup.tsx",
     "src/app/components/MapProfilePopup.test.tsx",
     "src/app/components/LocalFeed.tsx",
+    "src/app/components/LocalFeed.test.tsx",
     "src/app/components/DirectMessages.tsx",
     "src/app/components/CruushActivity.tsx",
     "src/app/components/PrivateGroupChat.tsx",
@@ -757,6 +758,276 @@
           "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T22-08-05-01a083ec-2358-75a2-92d4-9bff8f80ed6e.jsonl",
           "line": 1272,
           "sha256": "e17a7a8ff2feb044222cd7faee3acee6b3dd72c617cfc168582ecda98a524d3b"
+        }
+      },
+      {
+        "file": "src/app/components/LocalFeed.tsx",
+        "property": "structure",
+        "target": "jsx:Fragment[1]/div[1]/div[2]/div[1]/div[2]",
+        "before": "element: div\nchildren: [\"Textarea\",\"div\",\"#expression\",\"div[data-testid=\\\"feed-photo-staging\\\"]\",\"div\"]",
+        "after": "element: div\nchildren: [\"Accordion\",\"Textarea\",\"div\",\"#expression\",\"div[data-testid=\\\"feed-photo-staging\\\"]\",\"div\"]\nid: useId()",
+        "requestedProperty": "structure",
+        "surface": "input accordian",
+        "statement": "Like mosf accordians on the app it should be on top imo of fhe input accordian",
+        "viewport": "Existing Feed composer at mobile 375x812 and 412x915 and desktop 1440x1000. No responsive breakpoint changes.",
+        "preserve": [
+          "Keep the existing collapsed opener, textarea, tags, staged photos, expiry controls, Photo and Post in their existing containers and order; add only the requested top arrow row.",
+          "Preserve all draft values, upload and posting behavior. Collapse changes composerOpen only and returns focus to the existing opener.",
+          "Reuse the existing shared Accordion, AccordionItem and AccordionTrigger implementations unchanged. The only new accessible copy is Collapse Feed input; add no visible label, icon substitute or unrelated decoration.",
+          "Keep existing map, navigation, other panels and shared accordion consumers unchanged."
+        ],
+        "source": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T15-32-27-01a08281-ec99-7630-b7a1-fbbcb8575d5e.jsonl",
+          "line": 13975,
+          "sha256": "2110d8ba450336fc2269e60700caf55b7195d88d84bc703da16204143e0a5f3d"
+        },
+        "review": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T22-08-05-01a083ec-2358-75a2-92d4-9bff8f80ed6e.jsonl",
+          "line": 1492,
+          "sha256": "34768372ccb4b41f372c2283838b7a3bbc18e3d5bf1e32f443b5b249a9260300"
+        }
+      },
+      {
+        "file": "src/app/components/LocalFeed.tsx",
+        "property": "structure",
+        "target": "jsx:Fragment[1]/div[1]/div[2]/div[1]/div[2]/Accordion[1]",
+        "before": "",
+        "after": "element: Accordion\nchildren: [\"AccordionItem\"]\ntype: single",
+        "requestedProperty": "structure",
+        "surface": "input accordian",
+        "statement": "Like mosf accordians on the app it should be on top imo of fhe input accordian",
+        "viewport": "Existing Feed composer at mobile 375x812 and 412x915 and desktop 1440x1000. No responsive breakpoint changes.",
+        "preserve": [
+          "Keep the existing collapsed opener, textarea, tags, staged photos, expiry controls, Photo and Post in their existing containers and order; add only the requested top arrow row.",
+          "Preserve all draft values, upload and posting behavior. Collapse changes composerOpen only and returns focus to the existing opener.",
+          "Reuse the existing shared Accordion, AccordionItem and AccordionTrigger implementations unchanged. The only new accessible copy is Collapse Feed input; add no visible label, icon substitute or unrelated decoration.",
+          "Keep existing map, navigation, other panels and shared accordion consumers unchanged."
+        ],
+        "source": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T15-32-27-01a08281-ec99-7630-b7a1-fbbcb8575d5e.jsonl",
+          "line": 13975,
+          "sha256": "2110d8ba450336fc2269e60700caf55b7195d88d84bc703da16204143e0a5f3d"
+        },
+        "review": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T22-08-05-01a083ec-2358-75a2-92d4-9bff8f80ed6e.jsonl",
+          "line": 1492,
+          "sha256": "34768372ccb4b41f372c2283838b7a3bbc18e3d5bf1e32f443b5b249a9260300"
+        }
+      },
+      {
+        "file": "src/app/components/LocalFeed.tsx",
+        "property": "unknown",
+        "target": "jsx:Fragment[1]/div[1]/div[2]/div[1]/div[2]/Accordion[1]",
+        "before": "",
+        "after": "value: composerOpen ? 'composer' : ''",
+        "requestedProperty": "structure",
+        "surface": "input accordian",
+        "statement": "Like mosf accordians on the app it should be on top imo of fhe input accordian",
+        "viewport": "Existing Feed composer at mobile 375x812 and 412x915 and desktop 1440x1000. No responsive breakpoint changes.",
+        "preserve": [
+          "Keep the existing collapsed opener, textarea, tags, staged photos, expiry controls, Photo and Post in their existing containers and order; add only the requested top arrow row.",
+          "Preserve all draft values, upload and posting behavior. Collapse changes composerOpen only and returns focus to the existing opener.",
+          "Reuse the existing shared Accordion, AccordionItem and AccordionTrigger implementations unchanged. The only new accessible copy is Collapse Feed input; add no visible label, icon substitute or unrelated decoration.",
+          "Keep existing map, navigation, other panels and shared accordion consumers unchanged."
+        ],
+        "source": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T15-32-27-01a08281-ec99-7630-b7a1-fbbcb8575d5e.jsonl",
+          "line": 13975,
+          "sha256": "2110d8ba450336fc2269e60700caf55b7195d88d84bc703da16204143e0a5f3d"
+        },
+        "review": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T22-08-05-01a083ec-2358-75a2-92d4-9bff8f80ed6e.jsonl",
+          "line": 1492,
+          "sha256": "34768372ccb4b41f372c2283838b7a3bbc18e3d5bf1e32f443b5b249a9260300"
+        }
+      },
+      {
+        "file": "src/app/components/LocalFeed.tsx",
+        "property": "unknown",
+        "target": "jsx:Fragment[1]/div[1]/div[2]/div[1]/div[2]/Accordion[1]/AccordionItem[1]",
+        "before": "",
+        "after": "value: composer",
+        "requestedProperty": "structure",
+        "surface": "input accordian",
+        "statement": "Like mosf accordians on the app it should be on top imo of fhe input accordian",
+        "viewport": "Existing Feed composer at mobile 375x812 and 412x915 and desktop 1440x1000. No responsive breakpoint changes.",
+        "preserve": [
+          "Keep the existing collapsed opener, textarea, tags, staged photos, expiry controls, Photo and Post in their existing containers and order; add only the requested top arrow row.",
+          "Preserve all draft values, upload and posting behavior. Collapse changes composerOpen only and returns focus to the existing opener.",
+          "Reuse the existing shared Accordion, AccordionItem and AccordionTrigger implementations unchanged. The only new accessible copy is Collapse Feed input; add no visible label, icon substitute or unrelated decoration.",
+          "Keep existing map, navigation, other panels and shared accordion consumers unchanged."
+        ],
+        "source": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T15-32-27-01a08281-ec99-7630-b7a1-fbbcb8575d5e.jsonl",
+          "line": 13975,
+          "sha256": "2110d8ba450336fc2269e60700caf55b7195d88d84bc703da16204143e0a5f3d"
+        },
+        "review": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T22-08-05-01a083ec-2358-75a2-92d4-9bff8f80ed6e.jsonl",
+          "line": 1492,
+          "sha256": "34768372ccb4b41f372c2283838b7a3bbc18e3d5bf1e32f443b5b249a9260300"
+        }
+      },
+      {
+        "file": "src/app/components/LocalFeed.tsx",
+        "property": "size",
+        "target": "jsx:Fragment[1]/div[1]/div[2]/div[1]/div[2]/Accordion[1]/AccordionItem[1]",
+        "before": "",
+        "after": "class: border-0",
+        "requestedProperty": "size",
+        "surface": "input accordian",
+        "statement": "Like mosf accordians on the app it should be on top imo of fhe input accordian",
+        "viewport": "Existing Feed composer at mobile 375x812 and 412x915 and desktop 1440x1000. No responsive breakpoint changes.",
+        "preserve": [
+          "Keep the existing collapsed opener, textarea, tags, staged photos, expiry controls, Photo and Post in their existing containers and order; add only the requested top arrow row.",
+          "Preserve all draft values, upload and posting behavior. Collapse changes composerOpen only and returns focus to the existing opener.",
+          "Reuse the existing shared Accordion, AccordionItem and AccordionTrigger implementations unchanged. The only new accessible copy is Collapse Feed input; add no visible label, icon substitute or unrelated decoration.",
+          "Keep existing map, navigation, other panels and shared accordion consumers unchanged."
+        ],
+        "source": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T15-32-27-01a08281-ec99-7630-b7a1-fbbcb8575d5e.jsonl",
+          "line": 13975,
+          "sha256": "2110d8ba450336fc2269e60700caf55b7195d88d84bc703da16204143e0a5f3d"
+        },
+        "review": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T22-08-05-01a083ec-2358-75a2-92d4-9bff8f80ed6e.jsonl",
+          "line": 1492,
+          "sha256": "34768372ccb4b41f372c2283838b7a3bbc18e3d5bf1e32f443b5b249a9260300"
+        }
+      },
+      {
+        "file": "src/app/components/LocalFeed.tsx",
+        "property": "structure",
+        "target": "jsx:Fragment[1]/div[1]/div[2]/div[1]/div[2]/Accordion[1]/AccordionItem[1]",
+        "before": "",
+        "after": "element: AccordionItem\nchildren: [\"AccordionTrigger\"]",
+        "requestedProperty": "structure",
+        "surface": "input accordian",
+        "statement": "Like mosf accordians on the app it should be on top imo of fhe input accordian",
+        "viewport": "Existing Feed composer at mobile 375x812 and 412x915 and desktop 1440x1000. No responsive breakpoint changes.",
+        "preserve": [
+          "Keep the existing collapsed opener, textarea, tags, staged photos, expiry controls, Photo and Post in their existing containers and order; add only the requested top arrow row.",
+          "Preserve all draft values, upload and posting behavior. Collapse changes composerOpen only and returns focus to the existing opener.",
+          "Reuse the existing shared Accordion, AccordionItem and AccordionTrigger implementations unchanged. The only new accessible copy is Collapse Feed input; add no visible label, icon substitute or unrelated decoration.",
+          "Keep existing map, navigation, other panels and shared accordion consumers unchanged."
+        ],
+        "source": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T15-32-27-01a08281-ec99-7630-b7a1-fbbcb8575d5e.jsonl",
+          "line": 13975,
+          "sha256": "2110d8ba450336fc2269e60700caf55b7195d88d84bc703da16204143e0a5f3d"
+        },
+        "review": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T22-08-05-01a083ec-2358-75a2-92d4-9bff8f80ed6e.jsonl",
+          "line": 1492,
+          "sha256": "34768372ccb4b41f372c2283838b7a3bbc18e3d5bf1e32f443b5b249a9260300"
+        }
+      },
+      {
+        "file": "src/app/components/LocalFeed.tsx",
+        "property": "alignment",
+        "target": "jsx:Fragment[1]/div[1]/div[2]/div[1]/div[2]/Accordion[1]/AccordionItem[1]/AccordionTrigger[1]",
+        "before": "",
+        "after": "class: justify-end",
+        "requestedProperty": "alignment",
+        "surface": "input accordian",
+        "statement": "Like mosf accordians on the app it should be on top imo of fhe input accordian",
+        "viewport": "Existing Feed composer at mobile 375x812 and 412x915 and desktop 1440x1000. No responsive breakpoint changes.",
+        "preserve": [
+          "Keep the existing collapsed opener, textarea, tags, staged photos, expiry controls, Photo and Post in their existing containers and order; add only the requested top arrow row.",
+          "Preserve all draft values, upload and posting behavior. Collapse changes composerOpen only and returns focus to the existing opener.",
+          "Reuse the existing shared Accordion, AccordionItem and AccordionTrigger implementations unchanged. The only new accessible copy is Collapse Feed input; add no visible label, icon substitute or unrelated decoration.",
+          "Keep existing map, navigation, other panels and shared accordion consumers unchanged."
+        ],
+        "source": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T15-32-27-01a08281-ec99-7630-b7a1-fbbcb8575d5e.jsonl",
+          "line": 13975,
+          "sha256": "2110d8ba450336fc2269e60700caf55b7195d88d84bc703da16204143e0a5f3d"
+        },
+        "review": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T22-08-05-01a083ec-2358-75a2-92d4-9bff8f80ed6e.jsonl",
+          "line": 1492,
+          "sha256": "34768372ccb4b41f372c2283838b7a3bbc18e3d5bf1e32f443b5b249a9260300"
+        }
+      },
+      {
+        "file": "src/app/components/LocalFeed.tsx",
+        "property": "copy",
+        "target": "jsx:Fragment[1]/div[1]/div[2]/div[1]/div[2]/Accordion[1]/AccordionItem[1]/AccordionTrigger[1]",
+        "before": "",
+        "after": "aria-label: Collapse Feed input",
+        "requestedProperty": "copy",
+        "surface": "input accordian",
+        "statement": "Like mosf accordians on the app it should be on top imo of fhe input accordian",
+        "viewport": "Existing Feed composer at mobile 375x812 and 412x915 and desktop 1440x1000. No responsive breakpoint changes.",
+        "preserve": [
+          "Keep the existing collapsed opener, textarea, tags, staged photos, expiry controls, Photo and Post in their existing containers and order; add only the requested top arrow row.",
+          "Preserve all draft values, upload and posting behavior. Collapse changes composerOpen only and returns focus to the existing opener.",
+          "Reuse the existing shared Accordion, AccordionItem and AccordionTrigger implementations unchanged. The only new accessible copy is Collapse Feed input; add no visible label, icon substitute or unrelated decoration.",
+          "Keep existing map, navigation, other panels and shared accordion consumers unchanged."
+        ],
+        "source": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T15-32-27-01a08281-ec99-7630-b7a1-fbbcb8575d5e.jsonl",
+          "line": 13975,
+          "sha256": "2110d8ba450336fc2269e60700caf55b7195d88d84bc703da16204143e0a5f3d"
+        },
+        "review": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T22-08-05-01a083ec-2358-75a2-92d4-9bff8f80ed6e.jsonl",
+          "line": 1492,
+          "sha256": "34768372ccb4b41f372c2283838b7a3bbc18e3d5bf1e32f443b5b249a9260300"
+        }
+      },
+      {
+        "file": "src/app/components/LocalFeed.tsx",
+        "property": "spacing",
+        "target": "jsx:Fragment[1]/div[1]/div[2]/div[1]/div[2]/Accordion[1]/AccordionItem[1]/AccordionTrigger[1]",
+        "before": "",
+        "after": "class: mb-3\nclass: py-0",
+        "requestedProperty": "spacing",
+        "surface": "input accordian",
+        "statement": "Like mosf accordians on the app it should be on top imo of fhe input accordian",
+        "viewport": "Existing Feed composer at mobile 375x812 and 412x915 and desktop 1440x1000. No responsive breakpoint changes.",
+        "preserve": [
+          "Keep the existing collapsed opener, textarea, tags, staged photos, expiry controls, Photo and Post in their existing containers and order; add only the requested top arrow row.",
+          "Preserve all draft values, upload and posting behavior. Collapse changes composerOpen only and returns focus to the existing opener.",
+          "Reuse the existing shared Accordion, AccordionItem and AccordionTrigger implementations unchanged. The only new accessible copy is Collapse Feed input; add no visible label, icon substitute or unrelated decoration.",
+          "Keep existing map, navigation, other panels and shared accordion consumers unchanged."
+        ],
+        "source": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T15-32-27-01a08281-ec99-7630-b7a1-fbbcb8575d5e.jsonl",
+          "line": 13975,
+          "sha256": "2110d8ba450336fc2269e60700caf55b7195d88d84bc703da16204143e0a5f3d"
+        },
+        "review": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T22-08-05-01a083ec-2358-75a2-92d4-9bff8f80ed6e.jsonl",
+          "line": 1492,
+          "sha256": "34768372ccb4b41f372c2283838b7a3bbc18e3d5bf1e32f443b5b249a9260300"
+        }
+      },
+      {
+        "file": "src/app/components/LocalFeed.tsx",
+        "property": "structure",
+        "target": "jsx:Fragment[1]/div[1]/div[2]/div[1]/div[2]/Accordion[1]/AccordionItem[1]/AccordionTrigger[1]",
+        "before": "",
+        "after": "element: AccordionTrigger",
+        "requestedProperty": "structure",
+        "surface": "input accordian",
+        "statement": "Like mosf accordians on the app it should be on top imo of fhe input accordian",
+        "viewport": "Existing Feed composer at mobile 375x812 and 412x915 and desktop 1440x1000. No responsive breakpoint changes.",
+        "preserve": [
+          "Keep the existing collapsed opener, textarea, tags, staged photos, expiry controls, Photo and Post in their existing containers and order; add only the requested top arrow row.",
+          "Preserve all draft values, upload and posting behavior. Collapse changes composerOpen only and returns focus to the existing opener.",
+          "Reuse the existing shared Accordion, AccordionItem and AccordionTrigger implementations unchanged. The only new accessible copy is Collapse Feed input; add no visible label, icon substitute or unrelated decoration.",
+          "Keep existing map, navigation, other panels and shared accordion consumers unchanged."
+        ],
+        "source": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T15-32-27-01a08281-ec99-7630-b7a1-fbbcb8575d5e.jsonl",
+          "line": 13975,
+          "sha256": "2110d8ba450336fc2269e60700caf55b7195d88d84bc703da16204143e0a5f3d"
+        },
+        "review": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T22-08-05-01a083ec-2358-75a2-92d4-9bff8f80ed6e.jsonl",
+          "line": 1492,
+          "sha256": "34768372ccb4b41f372c2283838b7a3bbc18e3d5bf1e32f443b5b249a9260300"
         }
       }
     ]

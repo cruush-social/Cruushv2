@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useRef, useState, type ChangeEvent, type KeyboardEvent } from 'react';
+import { useCallback, useEffect, useId, useRef, useState, type ChangeEvent, type KeyboardEvent } from 'react';
 import { PHOTO_UPLOAD_ACCEPT, PHOTO_UPLOAD_FORMAT_MESSAGE } from '../lib/photoUploadFormats';
 import { useLocation, useNavigate } from 'react-router';
 import { formatDistanceLabel, useDistancePreferences } from '../lib/distancePreferences';
 import { ArrowLeft, Clock, Hash, SlidersHorizontal, Trash2, X } from 'lucide-react';
 import { Button } from './ui/button';
+import { Accordion, AccordionItem, AccordionTrigger } from './ui/accordion';
 import CruushPlusCardDialog from './CruushPlusCardDialog';
 import ReportAction from './ReportAction';
 import CruushBadge from './CruushBadge';
@@ -162,6 +163,8 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
   // The composer stays a single row until it is opened. Expanded it takes a
   // third of a phone screen, which pushed the first post below the fold.
   const [composerOpen, setComposerOpen] = useState(false);
+  const composerPanelId = useId();
+  const composerOpenButtonRef = useRef<HTMLButtonElement | null>(null);
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [expiresIn, setExpiresIn] = useState<FeedPostExpiry>('never');
   const [postAudience, setPostAudience] = useState<FeedPostAudience>('public');
@@ -1110,6 +1113,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
               type="button"
               className="bg-input-background flex w-full items-center gap-3 rounded-md border border-white/10 px-3 py-2 text-left text-sm text-muted-foreground transition-colors hover:bg-white/5"
               data-testid="local-feed-composer-open"
+              ref={composerOpenButtonRef}
               onClick={() => {
                 setComposerOpen(true);
                 requestAnimationFrame(() => composerInputRef.current?.focus());
@@ -1119,7 +1123,21 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
               <span className="min-w-0 flex-1 truncate">Share something with nearby people...</span>
             </button>
           ) : null}
-          <div className={composerOpen ? undefined : 'hidden'}>
+          <div id={composerPanelId} className={composerOpen ? undefined : 'hidden'}>
+          <Accordion
+            collapsible
+            type="single"
+            value={composerOpen ? 'composer' : ''}
+            onValueChange={(value) => {
+              const open = value === 'composer';
+              setComposerOpen(open);
+              if (!open) requestAnimationFrame(() => composerOpenButtonRef.current?.focus());
+            }}
+          >
+            <AccordionItem className="border-0" value="composer">
+              <AccordionTrigger aria-controls={composerPanelId} aria-label="Collapse Feed input" className="mb-3 justify-end py-0" />
+            </AccordionItem>
+          </Accordion>
           <Textarea
             ref={composerInputRef}
             value={newPost}
