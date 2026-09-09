@@ -17,7 +17,7 @@ import {
   Wand2,
   Zap,
 } from 'lucide-react';
-import { KINK_GROUPS, VIBE_GROUPS } from '../lib/profileOptions';
+import { KINK_CATALOG, KINK_GROUPS, VIBE_GROUPS } from '../lib/profileOptions';
 import {
   CyborgGlyph,
   LeatherGlyph,
@@ -80,6 +80,9 @@ function slugValue(value: string) {
 
 export function profileBadgeCategory(group: ProfileBadgeGroup, value: string) {
   const slug = slugValue(value);
+  if (group === 'Kinks') {
+    return KINK_CATALOG.find((kink) => slugValue(kink.label) === slug)?.category ?? 'Other';
+  }
   return PROFILE_BADGE_GROUPS[group].find((category) => (
     category.options.some((option) => slugValue(option) === slug)
   ))?.label ?? 'Other';
@@ -98,9 +101,10 @@ export function resolveSavedProfileBadge(badgeId: string) {
 
   const group: ProfileBadgeGroup = match[1] === 'vibes' ? 'Vibes' : 'Kinks';
   const savedSlug = slugValue(match[2]);
-  const value = PROFILE_BADGE_GROUPS[group]
-    .flatMap((category) => category.options)
-    .find((option) => slugValue(option) === savedSlug);
+  const options = group === 'Kinks'
+    ? KINK_CATALOG.map((kink) => kink.label)
+    : PROFILE_BADGE_GROUPS[group].flatMap((category) => category.options);
+  const value = options.find((option) => slugValue(option) === savedSlug);
   if (!value) return null;
 
   const category = profileBadgeCategory(group, value);

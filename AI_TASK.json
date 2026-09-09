@@ -8,7 +8,7 @@
     "preserve": "Keep real user-source references, staged/outgoing source verification and independent review mandatory. Do not fabricate pre-edit evidence or add bypass flags.",
     "coordination": "The Add UI scope improvement plan task owns the global hook files and is applying the repair; this task preserves the staged product patch and verifies the release."
   },
-  "objective": "Spots first under Julien's latest priority override: remove all clearly low-quality user-submitted Sniffies imports, duplicate Spots and imported personal descriptions, and prevent startup replay from restoring them. Preserve legitimate distinct venues and all underlying member data. Park the staged MHC/kink release and pending RA patch without discarding or publishing them.",
+  "objective": "Continue the authorized queue quickly in scoped batches. Spots cleanup is deployed at 89f8060: all 855 reviewed targets are absent from public discovery, all 5288 imported records are backed up, and 2018 descriptions were cleared. Complete the requested MHC copy removals, kink choices, Hobbies search, exact older Ace icon, Blog introduction removal and Visibility tab scrolling. Preserve the unshipped RA guard pending its separate overlap decision, all privacy rules, saved selections and unrelated work.",
   "userOutcome": "Low-quality imported Spots and imported personal descriptions disappear from discovery without returning on restart. Valid venues, moderator edits and underlying member records remain preserved.",
   "audience": "cruush members.",
   "successCriteria": [
@@ -83,8 +83,12 @@
   "release": "1.6",
   "repository": "cruush-social/Cruushv2",
   "branch": "main",
-  "job": "SPOT-QUALITY, SPOT-DESCRIPTIONS and SPOT-DEDUP replay repair first. Preserve the staged MHC/kink source, unshipped RA guard and all deployed fixes. KINK-BODY-ADDITIONS joins the later queue without interrupting Spots.",
+  "job": "Publish the exact requested copy, option, icon and menu fixes as one verified batch, then continue the remaining authorized queue. Preserve the RA patch without publishing its unresolved overlapping layout. No speculative future features are authorized.",
   "allowedPaths": [
+    "src/app/components/MapVisibilitySurface.test.tsx",
+    "public/blog/index.html",
+    "src/app/components/BadgePickerPreview.tsx",
+    "src/app/components/SavedBadgeGlyphs.tsx",
     "server/sql/134_full_nyc_spot_import.sql",
     "server/sql/120_public_spot_details.sql",
     "server/sql/149_merge_bathroom_subspots.sql",
@@ -1353,6 +1357,162 @@
           "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T21-34-14-01a083cd-25b6-7222-b0a9-9db8fd15a419.jsonl",
           "line": 1195,
           "sha256": "1761d43e4c9f6d1f5f0f7c3f777c47bc959b6c7bf08c0e14f05ab6b4cabcd9d9"
+        }
+      },
+      {
+        "property": "structure",
+        "target": "jsx:html[1]/body[1]/main[1]",
+        "before": "element: main\nchildren: [\"h1\",\"p\",\"section\"]",
+        "after": "element: main\nchildren: [\"h1\",\"section\"]",
+        "file": "public/blog/index.html",
+        "source": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T15-32-27-01a08281-ec99-7630-b7a1-fbbcb8575d5e.jsonl",
+          "line": 15944,
+          "sha256": "6613d957fc969f081e40797a79aad1082ef1d3ff257669d5f70056c04fd4c9f9"
+        },
+        "executionSource": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T15-32-27-01a08281-ec99-7630-b7a1-fbbcb8575d5e.jsonl",
+          "line": 16132,
+          "sha256": "280d2cffe14dad45fd447b1302a37b9b72a0f3f762a1ad41b0b9169478c8f849"
+        },
+        "surface": "blog",
+        "statement": "Remove the blog tagline add to que",
+        "viewport": "412x915 mobile and 1440x1000 desktop",
+        "preserve": [
+          "Blog heading",
+          "navigation",
+          "article cards",
+          "article summaries and dates"
+        ],
+        "review": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T21-34-14-01a083cd-25b6-7222-b0a9-9db8fd15a419.jsonl",
+          "line": 1485,
+          "sha256": "b3e9280f324357e73e29f55430b3c9ee6346daa2b9d4711ecdb63de7ce955cd7"
+        }
+      },
+      {
+        "property": "copy",
+        "target": "jsx:html[1]/body[1]/main[1]/p[1]",
+        "before": "text: [\"Notes from the three queers in a trenchcoat who build cruush. Mostly about what we are shipping, and about the parts of building a queer app that are worth writing down: privacy decisions, moderation, and the things location apps usually get wrong.\"]",
+        "after": "",
+        "file": "public/blog/index.html",
+        "source": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T15-32-27-01a08281-ec99-7630-b7a1-fbbcb8575d5e.jsonl",
+          "line": 15944,
+          "sha256": "6613d957fc969f081e40797a79aad1082ef1d3ff257669d5f70056c04fd4c9f9"
+        },
+        "executionSource": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T15-32-27-01a08281-ec99-7630-b7a1-fbbcb8575d5e.jsonl",
+          "line": 16132,
+          "sha256": "280d2cffe14dad45fd447b1302a37b9b72a0f3f762a1ad41b0b9169478c8f849"
+        },
+        "surface": "blog",
+        "statement": "Remove the blog tagline add to que",
+        "viewport": "412x915 mobile and 1440x1000 desktop",
+        "preserve": [
+          "Blog heading",
+          "navigation",
+          "article cards",
+          "article summaries and dates"
+        ],
+        "review": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T21-34-14-01a083cd-25b6-7222-b0a9-9db8fd15a419.jsonl",
+          "line": 1485,
+          "sha256": "b3e9280f324357e73e29f55430b3c9ee6346daa2b9d4711ecdb63de7ce955cd7"
+        }
+      },
+      {
+        "property": "structure",
+        "target": "jsx:html[1]/body[1]/main[1]/p[1]",
+        "before": "element: p\nchildren: [\"#text\"]",
+        "after": "",
+        "file": "public/blog/index.html",
+        "source": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T15-32-27-01a08281-ec99-7630-b7a1-fbbcb8575d5e.jsonl",
+          "line": 15944,
+          "sha256": "6613d957fc969f081e40797a79aad1082ef1d3ff257669d5f70056c04fd4c9f9"
+        },
+        "executionSource": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T15-32-27-01a08281-ec99-7630-b7a1-fbbcb8575d5e.jsonl",
+          "line": 16132,
+          "sha256": "280d2cffe14dad45fd447b1302a37b9b72a0f3f762a1ad41b0b9169478c8f849"
+        },
+        "surface": "blog",
+        "statement": "Remove the blog tagline add to que",
+        "viewport": "412x915 mobile and 1440x1000 desktop",
+        "preserve": [
+          "Blog heading",
+          "navigation",
+          "article cards",
+          "article summaries and dates"
+        ],
+        "review": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T21-34-14-01a083cd-25b6-7222-b0a9-9db8fd15a419.jsonl",
+          "line": 1485,
+          "sha256": "b3e9280f324357e73e29f55430b3c9ee6346daa2b9d4711ecdb63de7ce955cd7"
+        }
+      },
+      {
+        "property": "unknown",
+        "target": "jsx:html[1]/body[1]/main[1]/p[1]",
+        "before": "class: lede",
+        "after": "",
+        "file": "public/blog/index.html",
+        "source": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T15-32-27-01a08281-ec99-7630-b7a1-fbbcb8575d5e.jsonl",
+          "line": 15944,
+          "sha256": "6613d957fc969f081e40797a79aad1082ef1d3ff257669d5f70056c04fd4c9f9"
+        },
+        "executionSource": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T15-32-27-01a08281-ec99-7630-b7a1-fbbcb8575d5e.jsonl",
+          "line": 16132,
+          "sha256": "280d2cffe14dad45fd447b1302a37b9b72a0f3f762a1ad41b0b9169478c8f849"
+        },
+        "surface": "blog",
+        "statement": "Remove the blog tagline add to que",
+        "viewport": "412x915 mobile and 1440x1000 desktop",
+        "preserve": [
+          "Blog heading",
+          "navigation",
+          "article cards",
+          "article summaries and dates"
+        ],
+        "requestedProperty": "copy",
+        "review": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T21-34-14-01a083cd-25b6-7222-b0a9-9db8fd15a419.jsonl",
+          "line": 1485,
+          "sha256": "b3e9280f324357e73e29f55430b3c9ee6346daa2b9d4711ecdb63de7ce955cd7"
+        }
+      },
+      {
+        "property": "position",
+        "target": "jsx:Sheet[1]/SheetContent[1]/div[1]/Tabs[1]/TabsList[1]",
+        "before": "class: sticky\nclass: top-0\nclass: z-20",
+        "after": "",
+        "file": "src/app/components/MapVisibilitySurface.tsx",
+        "source": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T15-32-27-01a08281-ec99-7630-b7a1-fbbcb8575d5e.jsonl",
+          "line": 15530,
+          "sha256": "fa137d52aff60731f4822e6aad088822783a28186ada4a008182cac8935d4a2b"
+        },
+        "executionSource": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T15-32-27-01a08281-ec99-7630-b7a1-fbbcb8575d5e.jsonl",
+          "line": 16132,
+          "sha256": "280d2cffe14dad45fd447b1302a37b9b72a0f3f762a1ad41b0b9169478c8f849"
+        },
+        "surface": "tab menu",
+        "statement": "Bruh the menu scroll??? When did fhis change? Does that tab menu floating wifh shit behind it look right to you? Add to que",
+        "viewport": "412x915 mobile scroll; preserve desktop tab arrangement",
+        "preserve": [
+          "tab order and arrangement",
+          "tab sizes and colors",
+          "all controls and privacy values",
+          "existing scroll container"
+        ],
+        "review": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T21-34-14-01a083cd-25b6-7222-b0a9-9db8fd15a419.jsonl",
+          "line": 1485,
+          "sha256": "b3e9280f324357e73e29f55430b3c9ee6346daa2b9d4711ecdb63de7ce955cd7"
         }
       }
     ]

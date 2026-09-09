@@ -1470,7 +1470,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
 
             <div className="space-y-2">
               <Label>Hobbies</Label>
-              <MultiSelect {...profileMenuProps} ariaLabel="Hobbies" maxSelections={MAX_PROFILE_HOBBIES} optionGroups={HOBBY_GROUPS} value={normalizedProfile.hobbies} onChange={(vals) => handleChange('hobbies', limitToThree(vals))} />
+              <MultiSelect {...profileMenuProps} ariaLabel="Hobbies" searchable maxSelections={MAX_PROFILE_HOBBIES} optionGroups={HOBBY_GROUPS} value={normalizedProfile.hobbies} onChange={(vals) => handleChange('hobbies', limitToThree(vals))} />
             </div>
           </TabsContent>
 

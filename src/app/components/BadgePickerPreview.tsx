@@ -4,7 +4,7 @@ import { AnalGlyph, BondageGlyph, CyborgGlyph, GooningGlyph, HarnessGlyph, Keyho
 import {
   BdsmTriskelionGlyph,
   BisexualGlyph,
-  AceSpectrumGlyph,
+  PlayingCard,
   DoubleMarsGlyph,
   DoubleVenusGlyph,
   IntersexGlyph,
@@ -325,7 +325,7 @@ export const BADGE_OPTIONS: BadgeOption[] = [
   { id: 'trans-symbol', label: 'Trans', icon: TransGlyph, group: 'Pride' },
   { id: 'intersex', label: 'Intersex', icon: IntersexGlyph, group: 'Pride' },
   { id: 'enby', label: 'Nonbinary', icon: NonbinaryGlyph, group: 'Pride' },
-  { id: 'ace-spec', label: 'Ace spectrum', icon: AceSpectrumGlyph, group: 'Pride' },
+  { id: 'ace-spec', label: 'Ace spectrum', icon: PlayingCard, group: 'Pride' },
   { id: 'poly', label: 'Poly', icon: PolyGlyph, group: 'Pride' },
   { id: 'queer', label: 'Queer', icon: Sparkles, group: 'Pride' },
   { id: 'poz-friendly', label: 'Poz friendly', icon: HeartHandshake, group: 'Pride' },

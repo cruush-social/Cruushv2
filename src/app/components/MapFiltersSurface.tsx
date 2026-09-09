@@ -275,7 +275,6 @@ export default function MapFiltersSurface({
               <div className="flex items-start justify-between gap-4 rounded-2xl border border-white/10 bg-white/[0.035] p-4">
                 <div className="space-y-0.5">
                   <Label htmlFor="seeking-mile-high-club">Mile High Club members only</Label>
-                  <p className="text-xs text-muted-foreground">Show only members currently using Mile High Club.</p>
                 </div>
                 <Switch
                   id="seeking-mile-high-club"

@@ -287,7 +287,7 @@ export default function MapVisibilitySurface({
           </div>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="sticky top-0 z-20 grid h-auto w-full grid-cols-3 rounded-full border border-white/10 bg-background/92 p-1 backdrop-blur-md">
+            <TabsList className="grid h-auto w-full grid-cols-3 rounded-full border border-white/10 bg-background/92 p-1 backdrop-blur-md">
               <TabsTrigger value="basics" className="min-h-11" onClick={() => setActiveTab('basics')}>Basics</TabsTrigger>
               <TabsTrigger value="intimacy" className="min-h-11" onClick={() => setActiveTab('intimacy')}>Intimacy</TabsTrigger>
               <TabsTrigger value="health" className="min-h-11" onClick={() => setActiveTab('health')}>Health</TabsTrigger>
@@ -366,7 +366,6 @@ export default function MapVisibilitySurface({
               <div className="flex items-start justify-between gap-4 rounded-2xl border border-white/10 bg-white/[0.035] p-4">
                 <div className="space-y-0.5">
                   <Label htmlFor="visibility-mile-high-club">Hide me from Mile High Club members</Label>
-                  <p className="text-xs text-muted-foreground">Hide me from members currently using Mile High Club.</p>
                 </div>
                 <Switch
                   id="visibility-mile-high-club"

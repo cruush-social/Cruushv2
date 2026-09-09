@@ -193,6 +193,7 @@ export const KINK_CATALOG = [
   { id: 'anal', label: 'anal', category: 'Body & Touch' },
   { id: 'massage', label: 'massage', category: 'Bondage & Sensation' },
   { id: 'fingering', label: 'fingering', category: 'Body & Touch' },
+  { id: 'fisting', label: 'fisting', category: 'Body & Touch' },
   { id: 'frotting', label: 'frotting', category: 'Body & Touch' },
   { id: 'hand-jobs', label: 'hand jobs', category: 'Body & Touch' },
   { id: 'pegging', label: 'pegging', category: 'Body & Touch' },
@@ -200,6 +201,7 @@ export const KINK_CATALOG = [
   { id: 'feet', label: 'feet', category: 'Body & Touch' },
   { id: 'rimming', label: 'rimming', category: 'Body & Touch' },
   { id: 'bondage', label: 'bondage', category: 'Bondage & Sensation' },
+  { id: 'heavy-bondage', label: 'heavy bondage', category: 'Bondage & Sensation' },
   { id: 'chastity', label: 'chastity', category: 'Power' },
   { id: 'edging', label: 'edging', category: 'Power' },
   { id: 'humiliation', label: 'humiliation', category: 'Power' },
@@ -236,6 +238,7 @@ export const KINK_CATALOG = [
   { id: 'facials', label: 'facials', category: 'Body & Touch' },
   { id: 'grinding', label: 'grinding', category: 'Body & Touch' },
   { id: 'hands', label: 'hands', category: 'Body & Touch' },
+  { id: 'humping', label: 'humping', category: 'Body & Touch' },
   { id: 'hair-pulling', label: 'hair pulling', category: 'Body & Touch' },
   { id: 'making-out', label: 'making out', category: 'Body & Touch' },
   { id: 'marking', label: 'marking', category: 'Body & Touch' },
@@ -246,6 +249,7 @@ export const KINK_CATALOG = [
   { id: 'piercings', label: 'piercings', category: 'Body & Touch' },
   { id: 'scratching', label: 'scratching', category: 'Body & Touch' },
   { id: 'sixty-nine', label: 'sixty-nine', category: 'Body & Touch' },
+  { id: 'spooning', label: 'spooning', category: 'Body & Touch' },
   { id: 'squirting', label: 'squirting', category: 'Body & Touch' },
   { id: 'sweat', label: 'sweat', category: 'Body & Touch' },
   { id: 'tattoos', label: 'tattoos', category: 'Body & Touch' },
@@ -435,7 +439,12 @@ export const ZODIAC = [
   'Libra', 'Scorpio', 'Sagittarius', 'Capricorn', 'Aquarius', 'Pisces',
 ];
 
-export const KINKS = KINK_CATALOG.map((kink) => kink.label);
+// Retired choices remain canonical so existing saved interests and badges keep their identity.
+const SELECTABLE_KINK_CATALOG = KINK_CATALOG.filter((kink) => (
+  kink.id !== 'fantasy-roleplay' && kink.id !== 'fantasy-scenes'
+));
+
+export const KINKS = SELECTABLE_KINK_CATALOG.map((kink) => kink.label);
 
 export const KINK_GROUPS = [
   'Body & Touch',
@@ -450,7 +459,7 @@ export const KINK_GROUPS = [
   'Other',
 ].map((category) => ({
   label: category,
-  options: KINK_CATALOG
+  options: SELECTABLE_KINK_CATALOG
     .filter((kink) => kink.category === category)
     .map((kink) => kink.label)
     .sort((a, b) => a.localeCompare(b)),
@@ -512,7 +521,8 @@ export const STRUCTURED_PROFILE_OPTION_FIELDS: StructuredProfileOptionField[] = 
   { label: 'Preferred spots', options: PREFERRED_SPOTS },
   { label: 'Relationship status', options: RELATIONSHIP_STATUS },
   { label: 'Zodiac', options: ZODIAC },
-  { label: 'Kinks', options: KINKS },
+  // Catalog choices do not change existing free-text tag reservations.
+  { label: 'Kinks', options: KINK_CATALOG.filter((kink) => !['fisting', 'heavy-bondage', 'humping', 'spooning'].includes(kink.id)).map((kink) => kink.label) },
   { label: 'Vibes', options: VIBES },
   { label: 'Hobbies', options: HOBBIES },
   { label: 'Looking for', options: LOOKING_FOR },

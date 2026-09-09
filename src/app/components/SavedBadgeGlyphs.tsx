@@ -63,7 +63,7 @@ import {
 import {
   BdsmTriskelionGlyph,
   BisexualGlyph,
-  AceSpectrumGlyph,
+  PlayingCard,
   DoubleMarsGlyph,
   DoubleVenusGlyph,
   IntersexGlyph,
@@ -192,7 +192,7 @@ const SAVED_CUSTOM_GLYPHS: Record<string, SavedBadgeGlyph> = {
   'poz friendly': HeartHandshake,
   'bear pride': BearPawGlyph,
   'bdsm pride': BdsmTriskelionGlyph,
-  'ace spec': AceSpectrumGlyph,
+  'ace spec': PlayingCard,
   'flag rainbow': RainbowFlagGlyph,
   'flag progress': ProgressPrideFlagGlyph,
   'flag gay men': GayMenFlagGlyph,

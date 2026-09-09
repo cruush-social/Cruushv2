@@ -1,11 +1,33 @@
 import { describe, expect, it } from 'vitest';
-import { BODY_TYPES, HOBBIES, KINK_CATALOG, LOOKING_FOR, ROLES, VIBE_GROUPS } from './profileOptions';
+import { BODY_TYPES, HOBBIES, KINK_CATALOG, KINK_GROUPS, KINKS, LOOKING_FOR, ROLES, STRUCTURED_PROFILE_OPTION_FIELDS, VIBE_GROUPS } from './profileOptions';
+import { profileBadgeCategory, resolveSavedProfileBadge } from '../components/ProfileBadgeGlyphs';
+import { Drama } from 'lucide-react';
 
 function optionsFor(groupLabel: string) {
   return VIBE_GROUPS.find((group) => group.label === groupLabel)?.options ?? [];
 }
 
 describe('profileOptions', () => {
+  it('updates selectable kinks without losing legacy interests, badges or tag reservations', () => {
+    expect(KINKS).toContain('roleplay');
+    expect(KINKS).not.toContain('fantasy roleplay');
+    expect(KINKS).not.toContain('fantasy scenes');
+    const bodyOptions = KINK_GROUPS.find((group) => group.label === 'Body & Touch')?.options ?? [];
+    for (const label of ['fisting', 'cuddling', 'making out', 'humping', 'spooning']) {
+      expect(bodyOptions.filter((option) => option === label)).toHaveLength(1);
+    }
+    expect(KINK_GROUPS.find((group) => group.label === 'Bondage & Sensation')?.options).toEqual(expect.arrayContaining(['bondage', 'heavy bondage']));
+    for (const id of ['fantasy-roleplay', 'fantasy-scenes']) {
+      const legacy = KINK_CATALOG.find((kink) => kink.id === id)!;
+      expect(legacy).toBeDefined();
+      expect(profileBadgeCategory('Kinks', legacy.label)).toBe('Roleplay');
+      expect(resolveSavedProfileBadge(`kinks-${id}`)).toEqual({ icon: Drama, label: legacy.label });
+    }
+    const reserved = STRUCTURED_PROFILE_OPTION_FIELDS.find((field) => field.label === 'Kinks')?.options;
+    expect(reserved).toEqual(expect.arrayContaining(['fantasy roleplay', 'fantasy scenes']));
+    expect(reserved).not.toContain('fisting');
+    expect(reserved).not.toContain('heavy bondage');
+  });
   it('keeps vibe choices grouped without redundant or non-local options', () => {
     expect(optionsFor('Energy')).toContain('Chill');
     expect(optionsFor('Style')).not.toContain('Raver');
