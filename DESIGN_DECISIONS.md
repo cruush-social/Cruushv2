@@ -1,5 +1,7 @@
 # cruush design decisions
 
+- Feed input accordion: use the existing cruush+ benefits accordion's shared top control and toggle pattern. Do not add a full-size Close text button or a bottom handle. Closing preserves the draft and staged input. Preserve unrelated Feed controls and copy; do not import benefit-card styling. Sources: task 01a08281-ec99-7630-b7a1-fbbcb8575d5e, user messages 13963 and 13975; exact reference selected in task 01a083a6-a456-7850-8780-49fa5b354e3c, genuine user message 3772, September 9, 2026 at 06:35:00.045Z. This supersedes the earlier alternatives. (2026-09-09)
+
 - Hunter uses the rounded-outline snake Julien selected with "i like proposed snake" on September 8, 2026. Copy the two complete paths from the approved `/tmp/cruush-ra-dl-proof.m6qcI2/snake-preview.tsx` candidate, shown in `snake-style-preview.png`; preserve the existing 24x24 viewBox, rounded stroke defaults, mouse, other glyphs, badge frames, colors, placements and role mapping.
 
 - Desktop map profile popups show Intimacy field cards one per row, matching mobile. Preserve the existing field order, card styling, chip arrangement, scrolling tabs and footer actions. This does not change standalone profile or edit layouts. (2026-09-08)

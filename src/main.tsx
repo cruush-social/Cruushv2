@@ -26,7 +26,7 @@ createRoot(document.getElementById("root")!).render(<App />);
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
-    const APP_SHELL_REFRESH_ID = "v110";
+    const APP_SHELL_REFRESH_ID = "v111";
     const SERVICE_WORKER_SCRIPT_URL = `/sw.js?release=${APP_SHELL_REFRESH_ID}`;
     let hasController = Boolean(navigator.serviceWorker.controller);
     let reloadStarted = false;

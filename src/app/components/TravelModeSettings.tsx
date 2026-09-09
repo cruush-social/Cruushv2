@@ -289,10 +289,10 @@ function TravelPinPicker({
       </form>
       {actions}
       {mapError ? <p className="text-sm text-destructive">{mapError}</p> : null}
-      <div className="cruush-travel-mode-picker-map relative min-h-64 flex-1 overflow-hidden rounded-lg border border-white/10">
+      <div className="cruush-travel-mode-picker-map relative min-h-0 lg:min-h-64 flex-1 overflow-hidden rounded-lg border border-white/10">
         <div
           aria-label="Pick where your travel pin goes"
-          className="h-full min-h-64 w-full"
+          className="h-full min-h-0 w-full lg:min-h-64"
           ref={containerRef}
           role="application"
           style={{ inset: 0, position: 'absolute' }}

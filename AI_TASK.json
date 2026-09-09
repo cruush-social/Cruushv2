@@ -51,7 +51,7 @@
       "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "Render the desktop map with a profile opened from Recently Active and the original bar still visible, without changing mobile hiding behavior.",
+  "nextVisibleMilestone": "Publish the authorized mobile MHC fit after rendered review. Feed next uses the existing cruush+ benefits accordion top control, preserving drafts; the old Close text button and bottom handle are superseded. The exact RA guard remains unshipped pending Julien's decision about narrow-desktop overlap.",
   "stopConditions": [
     "Stop at a password form.",
     "Stop if the server build fails."
@@ -82,8 +82,9 @@
   "release": "1.6",
   "repository": "cruush-social/Cruushv2",
   "branch": "main",
-  "job": "Repair only the desktop Recently Active selected-profile visibility guard and remove automatic screen-capture requests from bug submission (owner report #270), preserving the deployed photo and distance fixes and all existing layouts.",
+  "job": "Continue FEED-CLOSE and MHC-FIT while RA-KEEP-DESKTOP awaits the owner's overlap decision. Preserve the unshipped RA guard and all deployed photo, distance and bug-report fixes. Follow the exact current status ledger and remaining order in docs/bug-queue-20260908.md.",
   "allowedPaths": [
+    "src/app/components/TravelModeSettings.tsx",
     "server/Dockerfile",
     "server/src/photo-formats.test.ts",
     "server/src/routes/media.ts",
@@ -620,6 +621,142 @@
           "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T15-32-27-01a08281-ec99-7630-b7a1-fbbcb8575d5e.jsonl",
           "line": 10997,
           "sha256": "2b033a834c05a8f0a202404a774e1046f6fd4df70f213944eee48af675f0c8fc"
+        }
+      },
+      {
+        "property": "unknown",
+        "target": "jsx:div[3]/div[2]/div[7]/div[3]",
+        "before": "children: [\"selectedEvent.joined ? ( <jsx> ) : ( <jsx> )} {selectedEvent.joined && selectedEvent.conversationId ? ( <jsx> ) : null} </div> <jsx> </div> ) : null} <jsx> {displayedUsers.length > 0 && !selectedEvent && !selectedPlace && !sidePanelView && !selectedUser && ( <jsx> )} <jsx> <jsx> <jsx> <jsx> <jsx> <jsx> </div> </div> ); [displayedUsers=useMemo(() => { if (!focusUserId) { return filteredUsers; } const focusedUser = users.find((user) => user.id === focusUserId); if (!focusedUser || filteredUsers.some((user) => user.id === focusUserId)) { return filteredUsers; } return [focusedUser, ...filteredUsers]; }, [filteredUsers, focusUserId, users]); selectedEvent=useMemo( () => activeEvents.find((event) => event.slug === selectedEventSlug) ?? null, [activeEvents, selectedEventSlug], )]\"]",
+        "after": "children: [\"selectedEvent.joined ? ( <jsx> ) : ( <jsx> )} {selectedEvent.joined && selectedEvent.conversationId ? ( <jsx> ) : null} </div> <jsx> </div> ) : null} <jsx> {displayedUsers.length > 0 && !selectedEvent && !selectedPlace && !sidePanelView && (!isMobile || !selectedUser) && ( <jsx> )} <jsx> <jsx> <jsx> <jsx> <jsx> <jsx> </div> </div> ); [displayedUsers=useMemo(() => { if (!focusUserId) { return filteredUsers; } const focusedUser = users.find((user) => user.id === focusUserId); if (!focusedUser || filteredUsers.some((user) => user.id === focusUserId)) { return filteredUsers; } return [focusedUser, ...filteredUsers]; }, [filteredUsers, focusUserId, users]); isMobile=useIsMobile(); selectedEvent=useMemo( () => activeEvents.find((event) => event.slug === selectedEventSlug) ?? null, [activeEvents, selectedEventSlug], )]\"]",
+        "file": "src/app/components/MapHome.tsx",
+        "requestedProperty": "visibility",
+        "surface": "RA bar",
+        "statement": "bug on desktop: i press on a profile from RA bar and the RA bar disappears, stop changing shit i didnt ask oyu to change like this asshole make a note for yourself add to que",
+        "viewport": "Desktop 1440x1000; mobile visibility remains unchanged",
+        "preserve": [
+          "All Recently Active dimensions, styling, position, open/closed state and scrolling",
+          "Existing mobile hiding behavior while a profile is open",
+          "Profile popup geometry, map controls, markers, and bottom navigation",
+          "Existing hiding while Events, Places or side panels are open"
+        ],
+        "source": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T15-32-27-01a08281-ec99-7630-b7a1-fbbcb8575d5e.jsonl",
+          "line": 11719,
+          "sha256": "0e392a36f32c3cd89a26cc5eb55806e0bec944b5e64637ae08ea0d06f3839fcd"
+        },
+        "executionSource": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T15-32-27-01a08281-ec99-7630-b7a1-fbbcb8575d5e.jsonl",
+          "line": 11932,
+          "sha256": "1702a2f0631a2c862640b3e6c460e8b1b9e6da93979b8f3ea25bc93f005f38c0"
+        },
+        "review": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T22-08-05-01a083ec-2358-75a2-92d4-9bff8f80ed6e.jsonl",
+          "line": 1011,
+          "sha256": "ca6d8035901cd5b065ff29c914a7443d9d0b93bb583b0c3b2c43af75a9786ca6"
+        }
+      },
+      {
+        "file": "src/app/components/TravelModeSettings.tsx",
+        "property": "breakpoint",
+        "target": "jsx:div[1]/div[1]",
+        "before": "",
+        "after": "class breakpoint[1]: lg",
+        "requestedProperty": "breakpoint",
+        "surface": "MHC page",
+        "statement": "MHC page doesnt scroll down properly on mobile but that shit should all fit without scorlling on mobile",
+        "viewport": "Mobile widths below the existing 1024px breakpoint; post-edit rendered verification required at 412x915. Desktop widths 1024px and above must keep the existing 256px map minimum.",
+        "preserve": [
+          "All copy, controls, values, map tiles, map behavior and permissions remain unchanged.",
+          "Existing desktop minimum height and all other screen layouts remain unchanged.",
+          "Only the existing map picker and its inner application may shrink within remaining mobile panel height."
+        ],
+        "source": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T15-32-27-01a08281-ec99-7630-b7a1-fbbcb8575d5e.jsonl",
+          "line": 11809,
+          "sha256": "61222ac2b99b7f6b92198aed1d5e3567bd4326598db96b658b5d746c44af12cc"
+        },
+        "review": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T22-08-05-01a083ec-2358-75a2-92d4-9bff8f80ed6e.jsonl",
+          "line": 1272,
+          "sha256": "e17a7a8ff2feb044222cd7faee3acee6b3dd72c617cfc168582ecda98a524d3b"
+        }
+      },
+      {
+        "file": "src/app/components/TravelModeSettings.tsx",
+        "property": "size",
+        "target": "jsx:div[1]/div[1]",
+        "before": "class: min-h-64\nclass: rounded-lg",
+        "after": "class: min-h-0\nclass: @breakpoint[1]:min-h-64\nclass: rounded-lg",
+        "requestedProperty": "size",
+        "surface": "MHC page",
+        "statement": "MHC page doesnt scroll down properly on mobile but that shit should all fit without scorlling on mobile",
+        "viewport": "Mobile widths below the existing 1024px breakpoint; post-edit rendered verification required at 412x915. Desktop widths 1024px and above must keep the existing 256px map minimum.",
+        "preserve": [
+          "All copy, controls, values, map tiles, map behavior and permissions remain unchanged.",
+          "Existing desktop minimum height and all other screen layouts remain unchanged.",
+          "Only the existing map picker and its inner application may shrink within remaining mobile panel height."
+        ],
+        "source": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T15-32-27-01a08281-ec99-7630-b7a1-fbbcb8575d5e.jsonl",
+          "line": 11809,
+          "sha256": "61222ac2b99b7f6b92198aed1d5e3567bd4326598db96b658b5d746c44af12cc"
+        },
+        "review": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T22-08-05-01a083ec-2358-75a2-92d4-9bff8f80ed6e.jsonl",
+          "line": 1272,
+          "sha256": "e17a7a8ff2feb044222cd7faee3acee6b3dd72c617cfc168582ecda98a524d3b"
+        }
+      },
+      {
+        "file": "src/app/components/TravelModeSettings.tsx",
+        "property": "breakpoint",
+        "target": "jsx:div[role=\"application\"]",
+        "before": "",
+        "after": "class breakpoint[1]: lg",
+        "requestedProperty": "breakpoint",
+        "surface": "MHC page",
+        "statement": "MHC page doesnt scroll down properly on mobile but that shit should all fit without scorlling on mobile",
+        "viewport": "Mobile widths below the existing 1024px breakpoint; post-edit rendered verification required at 412x915. Desktop widths 1024px and above must keep the existing 256px map minimum.",
+        "preserve": [
+          "All copy, controls, values, map tiles, map behavior and permissions remain unchanged.",
+          "Existing desktop minimum height and all other screen layouts remain unchanged.",
+          "Only the existing map picker and its inner application may shrink within remaining mobile panel height."
+        ],
+        "source": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T15-32-27-01a08281-ec99-7630-b7a1-fbbcb8575d5e.jsonl",
+          "line": 11809,
+          "sha256": "61222ac2b99b7f6b92198aed1d5e3567bd4326598db96b658b5d746c44af12cc"
+        },
+        "review": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T22-08-05-01a083ec-2358-75a2-92d4-9bff8f80ed6e.jsonl",
+          "line": 1272,
+          "sha256": "e17a7a8ff2feb044222cd7faee3acee6b3dd72c617cfc168582ecda98a524d3b"
+        }
+      },
+      {
+        "file": "src/app/components/TravelModeSettings.tsx",
+        "property": "size",
+        "target": "jsx:div[role=\"application\"]",
+        "before": "class: h-full\nclass: min-h-64\nclass: w-full",
+        "after": "class: h-full\nclass: min-h-0\nclass: w-full\nclass: @breakpoint[1]:min-h-64",
+        "requestedProperty": "size",
+        "surface": "MHC page",
+        "statement": "MHC page doesnt scroll down properly on mobile but that shit should all fit without scorlling on mobile",
+        "viewport": "Mobile widths below the existing 1024px breakpoint; post-edit rendered verification required at 412x915. Desktop widths 1024px and above must keep the existing 256px map minimum.",
+        "preserve": [
+          "All copy, controls, values, map tiles, map behavior and permissions remain unchanged.",
+          "Existing desktop minimum height and all other screen layouts remain unchanged.",
+          "Only the existing map picker and its inner application may shrink within remaining mobile panel height."
+        ],
+        "source": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T15-32-27-01a08281-ec99-7630-b7a1-fbbcb8575d5e.jsonl",
+          "line": 11809,
+          "sha256": "61222ac2b99b7f6b92198aed1d5e3567bd4326598db96b658b5d746c44af12cc"
+        },
+        "review": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T22-08-05-01a083ec-2358-75a2-92d4-9bff8f80ed6e.jsonl",
+          "line": 1272,
+          "sha256": "e17a7a8ff2feb044222cd7faee3acee6b3dd72c617cfc168582ecda98a524d3b"
         }
       }
     ]
