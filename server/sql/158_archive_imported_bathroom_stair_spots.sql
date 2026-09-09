@@ -17,6 +17,7 @@ with eligible as (
     and (
       p.facility_type = 'staircase'
       or p.name ~* $pattern$\m(bathrooms?|restrooms?|washrooms?|toilets?|urinals?|staircases?|stairs|stairwells?|understall|wc|rstrms?|bthrms?)\M|\m(men['’]?s?|mens)\s+room\M$pattern$
+      or p.name ~* $pattern$bathro+ms?\M|\mcampground\s+bathhouse\M$pattern$
     )
 ), backed_up as (
   insert into place_bathroom_stair_cleanup_20260909 (place_id, original_record, reason)
