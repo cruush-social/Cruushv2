@@ -2,8 +2,8 @@
   "schemaVersion": 2,
   "taskId": "mobile-overlay-and-open-bugs-20260908",
   "status": "active",
-  "objective": "Prioritize other members' Ghost relocation from their last decoy location; preserve the owner's working drift and approved animation.",
-  "userOutcome": "Other members' expired Ghost pins do not reappear at stale coordinates while waiting for the next server position.",
+  "objective": "Show the existing DL Mode icon on Recently Active photos hidden by DL Mode.",
+  "userOutcome": "Recently Active distinguishes a DL-masked photo from an ordinary missing-photo fallback without changing the bar layout or masking rules.",
   "audience": "cruush members.",
   "successCriteria": [
     "Test onboarding appears only for the authenticated named admin account and renders the existing ProfileOnboarding component in previewMode.",
@@ -34,7 +34,7 @@
       "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "Verify another member's pin stays hidden after its approved exit and reappears only with the new server position, without page reload.",
+  "nextVisibleMilestone": "Verify the existing DL icon on a masked Recently Active tile and publish this scoped correction.",
   "stopConditions": [
     "Stop at a password form.",
     "Stop if the server build fails."
@@ -64,7 +64,7 @@
   "release": "1.6",
   "repository": "cruush-social/Cruushv2",
   "branch": "main",
-  "job": "Fix other-member Ghost rotation timing without changing placement distances or animation code.",
+  "job": "Fix the missing DL icon in Recently Active without changing photo classification or layout.",
   "allowedPaths": [
     "src/app/components/PrideFlagGlyphs.tsx",
     "src/app/components/BadgePickerPreview.test.tsx",

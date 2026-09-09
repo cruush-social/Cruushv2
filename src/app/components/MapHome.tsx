@@ -835,6 +835,7 @@ function RecentlyActivePhoto({
   user: DiscoveryUser;
 }) {
   const [photoFailed, setPhotoFailed] = useState(false);
+  const photoMasked = Boolean(user.photo && shouldMaskPhoto(dlModeActive, user.photoExplicit));
   const photoVisible = Boolean(
     user.photo
     && !photoFailed
@@ -865,7 +866,7 @@ function RecentlyActivePhoto({
       data-testid={`recently-active-fallback-${user.id}`}
       style={{ background: getProfileGradientCss(user.id) }}
     >
-      <CruushIconImage src={cruushIconWhite} className="h-10 w-10 opacity-75" />
+      {photoMasked ? <DlModeMark active className="h-10 w-10" /> : <CruushIconImage src={cruushIconWhite} className="h-10 w-10 opacity-75" />}
     </div>
   );
 }

@@ -3326,6 +3326,18 @@ describe('MapHome', () => {
     expect(sendCruush).not.toHaveBeenCalled();
   });
 
+  it('shows the existing DL icon for masked Recently Active photos', async () => {
+    const [base] = await getNearbyUsers();
+    getNearbyUsers.mockResolvedValue([{ ...base, photo: 'https://example.com/photo.jpg', photoExplicit: true }]);
+    window.localStorage.setItem('cruush:dl-mode-enabled', 'true');
+    render(<MemoryRouter initialEntries={['/map']}><MapHome /></MemoryRouter>);
+    await screen.findByRole('button', { name: 'Pin Jordan' });
+    fireEvent.click(screen.getByRole('button', { name: 'Show recently active bar' }));
+    const fallback = screen.getByTestId('recently-active-fallback-user-1');
+    expect(fallback.querySelector('[data-testid="dl-mode-mark"]')).toHaveAttribute('data-tone', 'gradient');
+    expect(fallback.querySelector('img')).toBeNull();
+  });
+
   it('loads mutual-only map pins from the mutuals query mode', async () => {
     useIsMobile.mockReturnValue(false);
     getMutualCruushMap.mockResolvedValue([{
