@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiClientError } from '../lib/apiClient';
-import ProfileEdit, { getPhotoUploadRejectedMessage } from './ProfileEdit';
+import ProfileEdit, { getPhotoUploadRejectedMessage, readProfilePhotoPreviewUrl } from './ProfileEdit';
 
 const { getAppMeta, getMyProfile, saveMyProfile, uploadProfilePhoto } = vi.hoisted(() => ({
   getAppMeta: vi.fn(),
@@ -39,6 +39,19 @@ async function selectProfileEditTab(name: 'Photos' | 'Badges' | 'Basics' | 'Inti
 }
 
 describe('ProfileEdit', () => {
+  it('converts camera formats before cropping without saving a profile photo', async () => {
+    const fetchPreview = vi.fn().mockImplementation(async () => new Response(JSON.stringify({
+      data: { url: 'data:image/webp;base64,cHJldmlldw==' },
+    }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchPreview);
+    for (const [name, type] of [['camera.heic', 'image/heic'], ['camera.tiff', 'image/tiff'], ['camera.avif', 'image/avif'], ['camera.heic', '']]) {
+      const file = new File(['camera bytes'], name, { type });
+      expect(await readProfilePhotoPreviewUrl(file)).toEqual({ url: 'data:image/webp;base64,cHJldmlldw==' });
+      expect(fetchPreview).toHaveBeenLastCalledWith(expect.stringContaining('/api/profile-photos/preview'), expect.objectContaining({ method: 'POST', credentials: 'include' }));
+    }
+    expect(uploadProfilePhoto).not.toHaveBeenCalled();
+  });
+
   it('docks the bug button into its own header row', async () => {
     // Every screen header is one line with the bug button in it. Edit Profile
     // never registered a slot, so on a phone it had no bug button at all.

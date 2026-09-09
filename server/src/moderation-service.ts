@@ -316,6 +316,38 @@ export function userMessageForDecision(
     return "Nothing was saved because we could not check this photo for harmful content. Try again in a few minutes, or contact reports@cruush.app if it keeps happening.";
   }
 
+  if (contentType === "image" && decision.decision !== "allow") {
+    const reasons: Partial<Record<NonNullable<PolicyDecision["category"]>, string>> = {
+      multiple_people: "more than one person in a profile photo",
+      minor_present: "a person who may be under 18",
+      minor_age_ambiguous: "a person whose adult age could not be confirmed",
+      underage_sexual: "sexual content that may involve a minor",
+      animal: "an animal",
+      bestiality: "sexual content involving an animal",
+      scat: "fecal content",
+      gore: "graphic injury or gore",
+      hate_symbol: "a hate symbol",
+      hate_speech: "hate speech",
+      harassment: "harassment",
+      threat: "a threat",
+      doxxing: "someone's private identifying information",
+      location_privacy: "someone's private location information",
+      revenge_porn: "potentially non-consensual intimate content",
+      drug_sales: "drug sales",
+      commercial_sex: "commercial sexual solicitation",
+      scam: "a suspected scam",
+      spam: "spam",
+      screenshot_or_interface: "a screenshot or app interface",
+      text_on_image: "text that is not allowed in this photo",
+      url_on_image: "a website link in the photo",
+      chaser_fetishization: "targeted fetishization",
+    };
+    const reason = decision.category ? reasons[decision.category] : undefined;
+    if (reason) {
+      return `Photo not saved: automated moderation flagged ${reason}. Contact reports@cruush.app if this is wrong.`;
+    }
+  }
+
   if (decision.user_message_code === "feed_content_rejected") {
     return "This feed post was not published. Automated moderation flagged it for harm, hate, threats, or illegal activity. Edit the wording and try again, or write to reports@cruush.app if you think this is wrong.";
   }

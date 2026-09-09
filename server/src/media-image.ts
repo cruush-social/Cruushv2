@@ -166,6 +166,6 @@ export async function processUploadedImage(bytes: Buffer, declaredMimeType?: str
       throw error;
     }
 
-    throw invalidImage();
+    throw invalidImage("This photo could not be decoded. It may be damaged or use an unsupported encoding. Export it as JPEG or PNG and try again.");
   }
 }

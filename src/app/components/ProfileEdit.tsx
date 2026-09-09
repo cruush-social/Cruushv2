@@ -2,7 +2,7 @@ import type { ChangeEvent, PointerEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { DROPDOWN_TRIGGER_CLASS } from '../lib/controlStyles';
 import { registerBugButtonSlot } from '../lib/bugButtonSlot';
-import { PHOTO_UPLOAD_ACCEPT } from '../lib/photoUploadFormats';
+import { PHOTO_UPLOAD_ACCEPT, PHOTO_UPLOAD_EXTENSION_TYPES } from '../lib/photoUploadFormats';
 import { SIGNAL_MAX_LENGTH } from '../lib/profileLimits';
 import { lazy, Suspense, useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router';
@@ -32,7 +32,7 @@ import {
   type ProfilePayload,
   type ProfileVisibilityRules,
 } from '../lib/profileApi';
-import { ApiClientError, resolveMediaUrl } from '../lib/apiClient';
+import { ApiClientError, requestApi, resolveMediaUrl } from '../lib/apiClient';
 import { getAppMeta } from '../lib/metaApi';
 import { getStoredCurrentUser, persistCurrentUser } from '../lib/sessionUser';
 import { addDlModeChangedListener, isDlModeEnabled, shouldMaskPhoto } from '../lib/dlMode';
@@ -207,7 +207,17 @@ function canvasToJpegFile(canvas: HTMLCanvasElement) {
   });
 }
 
-export function readProfilePhotoPreviewUrl(file: File): Promise<PendingProfilePhoto> {
+export async function readProfilePhotoPreviewUrl(file: File): Promise<PendingProfilePhoto> {
+  // Picker support does not imply browser decoding support. Convert these
+  // camera formats without saving a photo before opening the existing cropper.
+  if (/\.(heic|heif|avif|tif|tiff)$/i.test(file.name) || /^image\/(heic|heif|avif|tiff|x-tiff|tif)(-sequence)?$/i.test(file.type)) {
+    const body = new FormData();
+    const inferredType = PHOTO_UPLOAD_EXTENSION_TYPES.get(file.name.split('.').pop()?.toLowerCase() ?? '');
+    body.set('photo', (!file.type || file.type === 'application/octet-stream') && inferredType
+      ? new File([file], file.name, { type: inferredType }) : file);
+    const preview = await requestApi<{ url: string }>('/api/profile-photos/preview', { method: 'POST', body });
+    return { url: preview.url };
+  }
   try {
     const objectUrl = URL.createObjectURL(file);
     return Promise.resolve({ url: objectUrl, objectUrl });

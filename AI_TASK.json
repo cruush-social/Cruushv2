@@ -8,8 +8,8 @@
     "preserve": "Keep real user-source references, staged/outgoing source verification and independent review mandatory. Do not fabricate pre-edit evidence or add bypass flags.",
     "coordination": "The Add UI scope improvement plan task owns the global hook files and is applying the repair; this task preserves the staged product patch and verifies the release."
   },
-  "objective": "Fix the reopened desktop tutorial highlight layering defect and verify desktop Map Controls expansion for child steps. Preserve the v105 fixes and all map geometry. Current user source: transcript 01a08281-ec99-7630-b7a1-fbbcb8575d5e line 10997.",
-  "userOutcome": "The Hunter badge uses Julien's exact approved rounded-outline snake, while the verified tutorial, Ghost rotation, onboarding and desktop profile fixes remain live and unchanged.",
+  "objective": "Prioritize photo upload failures after expanded file types, including issue #271, and explain actual photo rejection reasons in the existing error surface. Preserve saved reciprocal distance work and continue the authorized queue afterward.",
+  "userOutcome": "Members can upload supported still photos through the existing crop flow and receive an accurate reason when a photo cannot be accepted, without weakening moderation or changing layout.",
   "audience": "cruush members.",
   "successCriteria": [
     "Hunter uses the exact two paths approved in snake-preview.tsx, with the existing Glyph viewBox, rounded stroke defaults and role mapping. Mouse, all other glyphs, badge frames, colors, placements and sizes remain unchanged.",
@@ -51,7 +51,7 @@
       "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "Verify the unobscured Notifications tutorial ring and expanded Crowd/Pulse controls on desktop, then deploy the scoped fix. Preserve mobile dismissal and dialog access.",
+  "nextVisibleMilestone": "Reproduce the supported-format photo upload failure, repair the responsible decoding or upload path, and verify the existing crop control and accurate rejection message on mobile.",
   "stopConditions": [
     "Stop at a password form.",
     "Stop if the server build fails."
@@ -82,8 +82,22 @@
   "release": "1.6",
   "repository": "cruush-social/Cruushv2",
   "branch": "main",
-  "job": "Repair desktop tutorial highlight stacking only, verify existing child-menu expansion, and ship with unchanged map layout and mobile behavior.",
+  "job": "Repair photo preview decoding for accepted camera formats and show specific photo rejection reasons; preserve all moderation decisions and existing UI. Ship this urgent slice before resuming saved distance-label work.",
   "allowedPaths": [
+    "server/src/routes/media.ts",
+    "server/src/media-image.ts",
+    "server/src/moderation-service.ts",
+    "server/src/moderation-service.test.ts",
+    "src/app/components/ProfileEdit.test.tsx",
+    "src/app/lib/distancePreferences.ts",
+    "src/app/lib/distancePreferences.test.ts",
+    "src/app/lib/privacyApi.ts",
+    "src/app/components/MapPresenceSettings.tsx",
+    "server/src/routes/privacy.ts",
+    "server/src/routes/profiles.ts",
+    "server/src/routes/cruush.ts",
+    "server/src/routes/posts.ts",
+    "server/src/match-relationships.ts",
     "src/app/components/PositionRoleGlyphs.tsx",
     "docs/spot-dedup-20260908.json",
     "src/app/components/ProfileOnboarding.tsx",
