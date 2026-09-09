@@ -8,8 +8,8 @@
     "preserve": "Keep real user-source references, staged/outgoing source verification and independent review mandatory. Do not fabricate pre-edit evidence or add bypass flags.",
     "coordination": "The Add UI scope improvement plan task owns the global hook files and is applying the repair; this task preserves the staged product patch and verifies the release."
   },
-  "objective": "Make desktop map profile popup Intimacy field cards one per row, as requested, preserving tabs, footer actions, fields, mobile layout and all standalone profile surfaces.",
-  "userOutcome": "Desktop profile popup Intimacy fields use the same one-field-per-row arrangement as mobile. The published onboarding requirements and copy remain unchanged.",
+  "objective": "Finish the authorized tutorial fixes: open existing Map Controls when a saved menu step returns from another route, then verify Skip and Done on mobile without redirecting the member. Preserve the verified v103 layout and completed Spot cleanup.",
+  "userOutcome": "Desktop Intimacy fields appear one per row. Duplicate venue spellings and bathroom sub-locations no longer produce redundant Spots; distinct facilities and all stored data remain preserved.",
   "audience": "cruush members.",
   "successCriteria": [
     "In the desktop map profile popup, Intimacy field cards form one column in the same order, with their existing labels, values, chips, gaps and styling. Mobile, Basics, Health, standalone ProfileView and ProfileEdit remain unchanged.",
@@ -40,7 +40,7 @@
   ],
   "nonGoals": [
     "No change to Ghost animation, badge geometry, actual approved profile photos, existing members' settings, or unrelated queued UI work.",
-    "No database migration, account-status change, or unrelated deployment."
+    "No database migration, account-status change, record deletion, data reassignment, unrelated deployment or public copy edits during Spot cleanup."
   ],
   "assumptions": [
     {
@@ -50,7 +50,7 @@
       "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "Render and deploy the desktop popup Intimacy single-column change while preserving its scrolling tabs and footer actions.",
+  "nextVisibleMilestone": "Verify the mobile replay's Spots return step opens Map Controls, and Skip or Done closes the tutorial on the current screen.",
   "stopConditions": [
     "Stop at a password form.",
     "Stop if the server build fails."
@@ -63,7 +63,8 @@
     "commit": "authorized by the standing request to keep fixing bugs",
     "send": "forbidden",
     "push": "authorized by the standing request to deploy fixes",
-    "deploy": "authorized by the standing request to deploy fixes"
+    "deploy": "authorized by the standing request to deploy fixes",
+    "spotArchive": "Julien explicitly requested removal of repeat Spots and bathroom sub-locations. Archive only the exact prechecked targets in docs/spot-dedup-20260908.json; preserve all rows and associated data."
   },
   "externalEffects": {
     "externalMessages": "forbidden",
@@ -80,8 +81,9 @@
   "release": "1.6",
   "repository": "cruush-social/Cruushv2",
   "branch": "main",
-  "job": "Change only the desktop map profile popup Intimacy field grid to one column. Preserve current onboarding, all fields and all adjacent layouts.",
+  "job": "Repair the missed tutorial-menu event when MapHome remounts on a saved menu step. Preserve all layout, tutorial copy, dismissal behavior and unrelated product behavior.",
   "allowedPaths": [
+    "docs/spot-dedup-20260908.json",
     "src/app/components/ProfileOnboarding.tsx",
     "src/app/lib/onboardingDraft.ts",
     "src/app/components/DlModePhotoPlaceholder.tsx",

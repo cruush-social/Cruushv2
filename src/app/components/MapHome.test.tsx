@@ -2139,6 +2139,18 @@ describe('MapHome', () => {
     expect(screen.getByTestId('map-controls-tutorial')).toBeInTheDocument();
   });
 
+  it('opens Map Controls when a mobile tutorial menu step returns from another route', async () => {
+    useIsMobile.mockReturnValue(true);
+    window.localStorage.setItem('cruush:tutorial-v5-seen', 'true');
+    window.localStorage.setItem('cruush:tutorial-v5-progress', 'places');
+    resolveNoticeDismissal.mockResolvedValue({ dismissed: true, offline: false });
+
+    render(<MemoryRouter initialEntries={['/map']}><MapHome /></MemoryRouter>);
+
+    expect(await screen.findByTestId('map-controls-trigger')).toHaveAttribute('aria-expanded', 'true');
+    expect(await screen.findByRole('heading', { name: 'Spots' })).toBeInTheDocument();
+  });
+
   it('ignores malformed saved tutorial progress when the tutorial is dismissed', async () => {
     useIsMobile.mockReturnValue(false);
     window.localStorage.setItem('cruush:tutorial-v5-seen', 'true');

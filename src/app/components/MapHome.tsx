@@ -898,16 +898,19 @@ export default function MapHome(_props: MapHomeProps = {}) {
   const [mapViewport, setMapViewport] = useState<SettledMapViewport | null>(null);
   const [mapControlsOpen, setMapControlsOpen] = useState(false);
 
-  // The tour describes Seeking, Visibility and Spots while they sit behind a
-  // closed menu, so open Map Controls for the steps that talk about them.
+  // Resume the menu state too: a return from another route can emit the step
+  // event before this map mounts and installs its listener.
   useEffect(() => {
-    const followTutorialStep = (event: Event) => {
-      const step = (event as CustomEvent<MapControlsTutorialStepId>).detail;
-      if (step === 'map-controls' || step === 'seeking' || step === 'visibility' || step === 'places') {
+    const openTutorialMenu = (step: MapControlsTutorialStepId | null) => {
+      if (step === 'map-controls' || step === 'seeking' || step === 'visibility' || step === 'places' || step === 'crowds' || step === 'ping' || step === 'zoom') {
         setMapControlsOpen(true);
       }
     };
+    const followTutorialStep = (event: Event) => {
+      openTutorialMenu((event as CustomEvent<MapControlsTutorialStepId>).detail);
+    };
 
+    openTutorialMenu(getStoredMapControlsTutorialStep());
     window.addEventListener(MAP_CONTROLS_TUTORIAL_STEP_EVENT, followTutorialStep);
     return () => window.removeEventListener(MAP_CONTROLS_TUTORIAL_STEP_EVENT, followTutorialStep);
   }, []);
