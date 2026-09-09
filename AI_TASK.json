@@ -51,7 +51,7 @@
       "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "Reported personal-ad and misspelled Spots disappear from live discovery, imported descriptions are removed, and the same records remain archived after migration replay. Exact before-state backups preserve recovery. No adjacent UI change.",
+  "nextVisibleMilestone": "Remove only the redundant Nearby now capsule from other members' map profile popups. Preserve the owner's Your profile label and the exact positions of Report, Block, Bug and Close, along with photos, fields, tabs and footer. The v115 batch is live; the separate RA guard remains unshipped.",
   "stopConditions": [
     "Stop at a password form.",
     "Stop if the server build fails."
@@ -1513,6 +1513,164 @@
           "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T21-34-14-01a083cd-25b6-7222-b0a9-9db8fd15a419.jsonl",
           "line": 1485,
           "sha256": "b3e9280f324357e73e29f55430b3c9ee6346daa2b9d4711ecdb63de7ce955cd7"
+        }
+      },
+      {
+        "property": "structure",
+        "target": "jsx:DesktopDockPanel[2]/div[1]/div[1]/div[1]",
+        "before": "element: div\nchildren: [\"div\",\"div\"]",
+        "after": "element: div\nchildren: [\"#expression\",\"div\",\"div\"]",
+        "file": "src/app/components/MapProfilePopup.tsx",
+        "source": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T15-32-27-01a08281-ec99-7630-b7a1-fbbcb8575d5e.jsonl",
+          "line": 17077,
+          "sha256": "65eb9ed3bd867a47d71d95fa1ec6ad730d9bc7fc97f677cfc3b7976a938d1094"
+        },
+        "surface": "nearby now",
+        "statement": "\"nearby now\" label at the top left is redunant, remove it",
+        "viewport": "Desktop map profile popup, 1440x1000; same shared popup elsewhere",
+        "preserve": [
+          "Own-profile Your profile label",
+          "Exact right-side action positions and dimensions",
+          "Photo, profile data, tabs and footer",
+          "Every other app surface"
+        ],
+        "review": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T21-34-14-01a083cd-25b6-7222-b0a9-9db8fd15a419.jsonl",
+          "line": 1592,
+          "sha256": "b5d3d6177f9529646d33475cc5e5375638e4727debd15bfdbd09fad12801643e"
+        }
+      },
+      {
+        "property": "unknown",
+        "target": "jsx:DesktopDockPanel[2]/div[1]/div[1]/div[1]",
+        "before": "",
+        "after": "children: [\"isOwnProfile ? ( <jsx> ) : null\"]",
+        "file": "src/app/components/MapProfilePopup.tsx",
+        "source": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T15-32-27-01a08281-ec99-7630-b7a1-fbbcb8575d5e.jsonl",
+          "line": 17077,
+          "sha256": "65eb9ed3bd867a47d71d95fa1ec6ad730d9bc7fc97f677cfc3b7976a938d1094"
+        },
+        "surface": "nearby now",
+        "statement": "\"nearby now\" label at the top left is redunant, remove it",
+        "viewport": "Desktop map profile popup, 1440x1000; same shared popup elsewhere",
+        "preserve": [
+          "Own-profile Your profile label",
+          "Exact right-side action positions and dimensions",
+          "Photo, profile data, tabs and footer",
+          "Every other app surface"
+        ],
+        "requestedProperty": "visibility",
+        "review": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T21-34-14-01a083cd-25b6-7222-b0a9-9db8fd15a419.jsonl",
+          "line": 1592,
+          "sha256": "b5d3d6177f9529646d33475cc5e5375638e4727debd15bfdbd09fad12801643e"
+        }
+      },
+      {
+        "property": "copy",
+        "target": "jsx:DesktopDockPanel[2]/div[1]/div[1]/div[1]/div[1]",
+        "before": "",
+        "after": "text: [\"Your profile\"]",
+        "file": "src/app/components/MapProfilePopup.tsx",
+        "source": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T15-32-27-01a08281-ec99-7630-b7a1-fbbcb8575d5e.jsonl",
+          "line": 17077,
+          "sha256": "65eb9ed3bd867a47d71d95fa1ec6ad730d9bc7fc97f677cfc3b7976a938d1094"
+        },
+        "surface": "nearby now",
+        "statement": "\"nearby now\" label at the top left is redunant, remove it",
+        "viewport": "Desktop map profile popup, 1440x1000; same shared popup elsewhere",
+        "preserve": [
+          "Own-profile Your profile label",
+          "Exact right-side action positions and dimensions",
+          "Photo, profile data, tabs and footer",
+          "Every other app surface"
+        ],
+        "review": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T21-34-14-01a083cd-25b6-7222-b0a9-9db8fd15a419.jsonl",
+          "line": 1592,
+          "sha256": "b5d3d6177f9529646d33475cc5e5375638e4727debd15bfdbd09fad12801643e"
+        }
+      },
+      {
+        "property": "structure",
+        "target": "jsx:DesktopDockPanel[2]/div[1]/div[1]/div[1]/div[1]",
+        "before": "element: div\nchildren: [\"#expression\"]",
+        "after": "element: div\nchildren: [\"#text\"]",
+        "file": "src/app/components/MapProfilePopup.tsx",
+        "source": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T15-32-27-01a08281-ec99-7630-b7a1-fbbcb8575d5e.jsonl",
+          "line": 17077,
+          "sha256": "65eb9ed3bd867a47d71d95fa1ec6ad730d9bc7fc97f677cfc3b7976a938d1094"
+        },
+        "surface": "nearby now",
+        "statement": "\"nearby now\" label at the top left is redunant, remove it",
+        "viewport": "Desktop map profile popup, 1440x1000; same shared popup elsewhere",
+        "preserve": [
+          "Own-profile Your profile label",
+          "Exact right-side action positions and dimensions",
+          "Photo, profile data, tabs and footer",
+          "Every other app surface"
+        ],
+        "review": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T21-34-14-01a083cd-25b6-7222-b0a9-9db8fd15a419.jsonl",
+          "line": 1592,
+          "sha256": "b5d3d6177f9529646d33475cc5e5375638e4727debd15bfdbd09fad12801643e"
+        }
+      },
+      {
+        "property": "unknown",
+        "target": "jsx:DesktopDockPanel[2]/div[1]/div[1]/div[1]/div[1]",
+        "before": "children: [\"isOwnProfile ? 'Your profile' : 'Nearby now'\"]",
+        "after": "",
+        "file": "src/app/components/MapProfilePopup.tsx",
+        "source": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T15-32-27-01a08281-ec99-7630-b7a1-fbbcb8575d5e.jsonl",
+          "line": 17077,
+          "sha256": "65eb9ed3bd867a47d71d95fa1ec6ad730d9bc7fc97f677cfc3b7976a938d1094"
+        },
+        "surface": "nearby now",
+        "statement": "\"nearby now\" label at the top left is redunant, remove it",
+        "viewport": "Desktop map profile popup, 1440x1000; same shared popup elsewhere",
+        "preserve": [
+          "Own-profile Your profile label",
+          "Exact right-side action positions and dimensions",
+          "Photo, profile data, tabs and footer",
+          "Every other app surface"
+        ],
+        "requestedProperty": "visibility",
+        "review": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T21-34-14-01a083cd-25b6-7222-b0a9-9db8fd15a419.jsonl",
+          "line": 1592,
+          "sha256": "b5d3d6177f9529646d33475cc5e5375638e4727debd15bfdbd09fad12801643e"
+        }
+      },
+      {
+        "property": "alignment",
+        "target": "jsx:DesktopDockPanel[2]/div[1]/div[1]/div[1]/div[2]",
+        "before": "class: items-center",
+        "after": "class: ml-auto\nclass: items-center",
+        "file": "src/app/components/MapProfilePopup.tsx",
+        "source": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T15-32-27-01a08281-ec99-7630-b7a1-fbbcb8575d5e.jsonl",
+          "line": 17077,
+          "sha256": "65eb9ed3bd867a47d71d95fa1ec6ad730d9bc7fc97f677cfc3b7976a938d1094"
+        },
+        "surface": "nearby now",
+        "statement": "\"nearby now\" label at the top left is redunant, remove it",
+        "viewport": "Desktop map profile popup, 1440x1000; same shared popup elsewhere",
+        "preserve": [
+          "Own-profile Your profile label",
+          "Exact right-side action positions and dimensions",
+          "Photo, profile data, tabs and footer",
+          "Every other app surface"
+        ],
+        "review": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T21-34-14-01a083cd-25b6-7222-b0a9-9db8fd15a419.jsonl",
+          "line": 1592,
+          "sha256": "b5d3d6177f9529646d33475cc5e5375638e4727debd15bfdbd09fad12801643e"
         }
       }
     ]
