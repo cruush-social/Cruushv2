@@ -2,8 +2,8 @@
   "schemaVersion": 2,
   "taskId": "mobile-overlay-and-open-bugs-20260908",
   "status": "active",
-  "objective": "Continue the approved queue, starting with a current-onboarding replay restricted to Julien's named admin account.",
-  "userOutcome": "Only julienlenazny@gmail.com with an authenticated admin role can test the current onboarding in-app without changing account data.",
+  "objective": "Continue the approved queue: failed map photos use existing gradients and flags omit the unwanted grey inner ring.",
+  "userOutcome": "Broken photos never show Chromium's clouds graphic, and Pride flag details are not obscured by the extra grey ring.",
   "audience": "cruush members.",
   "successCriteria": [
     "Test onboarding appears only for the authenticated named admin account and renders the existing ProfileOnboarding component in previewMode.",
@@ -34,7 +34,7 @@
       "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "Verify broader random Ghost placement and coastal behavior before release.",
+  "nextVisibleMilestone": "Render the existing photo fallback and flag components, then publish this scoped batch.",
   "stopConditions": [
     "Stop at a password form.",
     "Stop if the server build fails."
@@ -64,8 +64,10 @@
   "release": "1.6",
   "repository": "cruush-social/Cruushv2",
   "branch": "main",
-  "job": "Publish approved broader land-only Ghost placement with shorter coastal jumps.",
+  "job": "Publish approved failed-photo fallback and flag inner-ring fixes.",
   "allowedPaths": [
+    "src/app/components/PrideFlagGlyphs.tsx",
+    "src/app/components/BadgePickerPreview.test.tsx",
     "src/app/components/AccessibilityQuickAccess.tsx",
     "src/app/components/AccessibilityQuickAccess.test.tsx",
     "src/app/components/ProfileOnboarding.test.tsx",

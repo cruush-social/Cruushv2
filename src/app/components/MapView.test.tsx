@@ -1086,6 +1086,17 @@ describe('MapView', () => {
     expect(screen.queryByText('12m ago')).not.toBeInTheDocument();
   });
 
+  it('replaces failed map photos with the existing gradient and accepts a changed photo', async () => {
+    const marker = { id: 'failed-photo', displayName: 'River', approximateLatitude: 40.72, approximateLongitude: -74.01, photo: 'https://example.com/broken.jpg', photoExplicit: false };
+    const { rerender } = render(<MapView onPinClick={vi.fn()} markers={[marker]} />);
+    fireEvent.error(await screen.findByTestId('marker-photo-fill-failed-photo'));
+    expect(screen.queryByTestId('marker-photo-fill-failed-photo')).not.toBeInTheDocument();
+    expect(screen.getByTestId('marker-heart-failed-photo')).toHaveAttribute('data-has-photo', 'false');
+    expect(screen.getByTestId('marker-heart-failed-photo').querySelector('path[fill="url(#marker-fill-failed-photo)"]')).not.toBeNull();
+    rerender(<MapView onPinClick={vi.fn()} markers={[{ ...marker, photo: 'https://example.com/replacement.jpg' }]} />);
+    expect(await screen.findByTestId('marker-photo-fill-failed-photo')).toHaveAttribute('href', 'https://example.com/replacement.jpg');
+  });
+
   it('keeps an allowed Ghost Mode profile photo and regular pink map styling', async () => {
     render(
       <MapView

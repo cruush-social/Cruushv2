@@ -1434,11 +1434,12 @@ function GhostRotationPulse({ marker, children }: { marker: MapMarker; children:
 
 
 function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUser: boolean }) {
+  const [failedPhoto, setFailedPhoto] = useState<string | null>(null);
   const [dlModeActive, setDlModeActive] = useState(() => isDlModeEnabled());
   useEffect(() => addDlModeChangedListener(setDlModeActive), []);
 
   const isOwnStealthMarker = isCurrentUser && marker.ownerStealthActive === true;
-  const visiblePhoto = marker.photo && !shouldMaskPhoto(dlModeActive, marker.photoExplicit)
+  const visiblePhoto = marker.photo && marker.photo !== failedPhoto && !shouldMaskPhoto(dlModeActive, marker.photoExplicit)
     ? resolveMediaUrl(marker.photo)
     : null;
   const resolvedPhoto = !isOwnStealthMarker ? visiblePhoto : null;
@@ -1593,6 +1594,7 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
               data-testid={`marker-dark-room-photo-${marker.id}`}
               height="64"
               href={darkRoomPhoto}
+              onError={() => setFailedPhoto(marker.photo ?? null)}
               preserveAspectRatio="xMidYMid slice"
               width="64"
             />
@@ -1606,6 +1608,7 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
             data-testid={`marker-photo-fill-${marker.id}`}
             height="64"
             href={resolvedPhoto}
+            onError={() => setFailedPhoto(marker.photo ?? null)}
             preserveAspectRatio="xMidYMid slice"
             style={isOwnGhostMarker ? ({ '--cruush-ghost-photo-opacity': 0.62 } as CSSProperties) : undefined}
             width="64"

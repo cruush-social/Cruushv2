@@ -25,10 +25,6 @@ function StripeFlag({ children, className, colors }: StripeFlagProps) {
         ))}
         {children}
       </g>
-      {/* The ring weighs the same as the badge frame ring (6/64 of the badge,
-          drawn here on a 24 viewBox at 84% content scale), so a flag badge on
-          the map carries the usual badge border rather than a hairline. */}
-      <circle cx="12" cy="12" fill="none" r="10.6" stroke="currentColor" strokeOpacity="0.7" strokeWidth="2.7" />
     </svg>
   );
 }

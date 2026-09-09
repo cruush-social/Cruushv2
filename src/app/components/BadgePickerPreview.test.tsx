@@ -57,5 +57,11 @@ describe('BadgePickerPreview', () => {
 
     expect(flagIds.length).toBeGreaterThan(10);
     flagIds.forEach((flagId) => expect(resolveSavedBadgeGlyph(flagId).fillsFrame).toBe(true));
+    for (const flagId of flagIds) {
+      const Glyph = resolveSavedBadgeGlyph(flagId).icon;
+      const { container, unmount } = render(<Glyph />);
+      expect(container.querySelector('circle[stroke="currentColor"]')).toBeNull();
+      unmount();
+    }
   });
 });
