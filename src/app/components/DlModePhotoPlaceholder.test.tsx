@@ -1,14 +1,19 @@
 import { render, screen } from '@testing-library/react';
 import { expect, it } from 'vitest';
 import HeartPhoto from './HeartPhoto';
+import DlModePhotoPlaceholder from './DlModePhotoPlaceholder';
 
-it('keeps the white translucent DL cover and its label together without a competing fallback', () => {
+it('omits the label only from heart previews while retaining the white translucent DL icon', () => {
   render(<HeartPhoto label="Censored photo" masked photo="/explicit.jpg" fallback={<span>Camera fallback</span>} />);
   const cover = screen.getByTestId('dl-mode-photo-placeholder');
   expect(cover).toHaveClass('opacity-75');
   expect(cover.querySelector('[data-testid="dl-mode-mark"]')).toHaveAttribute('data-tone', 'white');
-  expect(cover.querySelector('text')).toHaveTextContent('DL MODE ON');
-  expect(Number(cover.querySelector('text')?.getAttribute('y'))).toBeGreaterThan(52);
+  expect(cover.querySelector('text')).toBeNull();
   expect(screen.queryByText('Camera fallback')).not.toBeInTheDocument();
   expect(document.querySelector('image[href="/explicit.jpg"]')).toBeNull();
+});
+
+it('keeps DL MODE ON beneath the icon on non-heart covers', () => {
+  render(<DlModePhotoPlaceholder />);
+  expect(screen.getByTestId('dl-mode-photo-placeholder').querySelector('text')).toHaveTextContent('DL MODE ON');
 });

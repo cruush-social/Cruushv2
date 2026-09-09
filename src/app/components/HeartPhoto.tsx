@@ -102,12 +102,12 @@ export default function HeartPhoto({
           strokeOpacity={1}
           strokeWidth="3.2"
         />
-        {/* Censored photos use the shared labeled DL cover. Missing photos keep
-            their existing cruush mark, and never cover the DL label with a fallback. */}
+        {/* Heart previews omit the DL text line. Missing photos keep their
+            existing cruush mark; masked photos never get a competing fallback. */}
         {!resolvedPhoto ? (
           masked ? (
             <foreignObject x="12" y="10" width="40" height="38">
-              <DlModePhotoPlaceholder className="h-full w-full" />
+              <DlModePhotoPlaceholder className="h-full w-full" showLabel={false} />
             </foreignObject>
           ) : (
             <image

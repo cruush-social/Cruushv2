@@ -1662,7 +1662,7 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
       )}
       {photoMasked ? (
         <foreignObject x="12" y="10" width="40" height="38">
-          <DlModePhotoPlaceholder className="h-full w-full" />
+          <DlModePhotoPlaceholder className="h-full w-full" showLabel={false} />
         </foreignObject>
       ) : null}
       {travellerActive ? (

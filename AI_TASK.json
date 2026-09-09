@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "taskId": "mobile-overlay-and-open-bugs-20260908",
   "status": "active",
-  "objective": "Unify censored-photo covers across the app with the existing white DL icon at 75% opacity and DL MODE ON beneath it.",
+  "objective": "Remove the visible DL MODE ON line from heart previews only, retaining the existing white icon and labels on non-heart covers.",
   "userOutcome": "Every DL-masked photo has the same labeled cover, including Recently Active; toggles, layouts and masking rules remain unchanged.",
   "audience": "cruush members.",
   "successCriteria": [
