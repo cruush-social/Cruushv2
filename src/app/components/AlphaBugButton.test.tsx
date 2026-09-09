@@ -93,6 +93,26 @@ describe('AlphaBugButton', () => {
     expect(screen.queryByText(/attaches a screenshot/i)).not.toBeInTheDocument();
   });
 
+  it('submits without requesting screen sharing', async () => {
+    const descriptor = Object.getOwnPropertyDescriptor(navigator, 'mediaDevices');
+    const getDisplayMedia = vi.fn().mockRejectedValue(new Error('Screen sharing must not be requested.'));
+    Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { getDisplayMedia } });
+    try {
+      renderAlphaBugButton();
+      fireEvent.click(screen.getByRole('button', { name: 'Report alpha bug' }));
+      fireEvent.change(screen.getByLabelText('What broke?'), {
+        target: { value: 'The report should not open a screen-sharing prompt.' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'Send bug report' }));
+      expect(await screen.findByText('Bug report sent')).toBeInTheDocument();
+      expect(getDisplayMedia).not.toHaveBeenCalled();
+      expect(createSupportRequest.mock.calls[0][0]).not.toHaveProperty('screenshot');
+    } finally {
+      if (descriptor) Object.defineProperty(navigator, 'mediaDevices', descriptor);
+      else Reflect.deleteProperty(navigator, 'mediaDevices');
+    }
+  });
+
   it('includes a required reply email in signed-out bug reports', async () => {
     window.history.replaceState({}, '', '/support?appeal=1');
     renderAlphaBugButton(true, '/support?appeal=1', true);

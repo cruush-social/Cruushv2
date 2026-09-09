@@ -8,8 +8,8 @@
     "preserve": "Keep real user-source references, staged/outgoing source verification and independent review mandatory. Do not fabricate pre-edit evidence or add bypass flags.",
     "coordination": "The Add UI scope improvement plan task owns the global hook files and is applying the repair; this task preserves the staged product patch and verifies the release."
   },
-  "objective": "Resume app-wide reciprocal approximate distance labels after the verified v108 photo upload repair. Either member's approximate setting must remove numeric distance on every shared surface, including Recently Active. Continue the remaining authorized queue.",
-  "userOutcome": "Approximate distance remains nonnumeric across the app and applies in both directions, without changing location-sharing permissions or existing layouts.",
+  "objective": "Keep desktop Recently Active visible when opening a profile, following the verified v108 photo repair and v109 reciprocal distance release. Continue the remaining authorized queue.",
+  "userOutcome": "Opening a desktop Recently Active profile no longer removes the bar. Preserve its geometry and mobile behavior.",
   "audience": "cruush members.",
   "successCriteria": [
     "Hunter uses the exact two paths approved in snake-preview.tsx, with the existing Glyph viewBox, rounded stroke defaults and role mapping. Mouse, all other glyphs, badge frames, colors, placements and sizes remain unchanged.",
@@ -51,7 +51,7 @@
       "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "Profiles opened from Recently Active show Nearby, never rounded miles, when either member selected approximate distance. Preserve existing saved preferences during server migration.",
+  "nextVisibleMilestone": "Render the desktop map with a profile opened from Recently Active and the original bar still visible, without changing mobile hiding behavior.",
   "stopConditions": [
     "Stop at a password form.",
     "Stop if the server build fails."
@@ -82,7 +82,7 @@
   "release": "1.6",
   "repository": "cruush-social/Cruushv2",
   "branch": "main",
-  "job": "Finish reciprocal approximate distance labels and their preference migration, preserving the deployed photo fix and all existing privacy grants.",
+  "job": "Repair only the desktop Recently Active selected-profile visibility guard and remove automatic screen-capture requests from bug submission (owner report #270), preserving the deployed photo and distance fixes and all existing layouts.",
   "allowedPaths": [
     "server/Dockerfile",
     "server/src/photo-formats.test.ts",

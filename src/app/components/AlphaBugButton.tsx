@@ -303,10 +303,7 @@ export default function AlphaBugButton({
     setErrorCode('');
 
     try {
-      const [screenshot, device] = await Promise.all([
-        captureBugScreenshot(),
-        getBugDeviceContext(),
-      ]);
+      const device = await getBugDeviceContext();
       await createSupportRequest({
         category: 'bug',
         subject: `Alpha bug: ${pageUrl}`,
@@ -315,7 +312,6 @@ export default function AlphaBugButton({
         source: 'unknown',
         pageUrl,
         ...(device ? { device } : {}),
-        ...(screenshot ? { screenshot } : {}),
       });
       setStatus('success');
       setContactEmail('');
