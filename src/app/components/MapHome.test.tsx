@@ -1115,6 +1115,7 @@ describe('MapHome', () => {
     await openMapControls();
     const pingControl = await screen.findByRole('button', { name: 'Send a Pulse' });
     const rightActions = screen.getByTestId('map-right-actions');
+    expect(rightActions).toHaveClass('lg:top-16', 'lg:right-3');
     const mapControls = screen.getByTestId('map-zoom-controls');
     const visibilityControl = screen.getByTestId('map-visibility-button');
     expect(pingControl).toHaveAttribute('data-tutorial-target', 'ping');
@@ -1760,9 +1761,8 @@ describe('MapHome', () => {
       '[&_svg]:!w-full',
     );
     expect(pingButton).not.toHaveClass('absolute', 'mt-2');
-    // The offsets keep an 8px gap under the top-actions bar at every breakpoint,
-    // matching the gap-2 the stack uses between its own controls.
-    expect(rightActions).toHaveClass('right-3', 'top-[4.625rem]', 'sm:right-4', 'sm:top-[5.375rem]', 'lg:top-[5.625rem]');
+    // Desktop controls sit 8px below the bug button; mobile offsets are unchanged.
+    expect(rightActions).toHaveClass('right-3', 'top-[4.625rem]', 'sm:right-4', 'sm:top-[5.375rem]', 'lg:right-3', 'lg:top-16');
     expect(cruushPlusButton).toHaveClass(
       'cruush-plus-shimmer-button',
       'cruush-logo-font',

@@ -25,6 +25,7 @@ describe('AccessibilityQuickAccess', () => {
     render(<AccessibilityQuickAccess />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Accessibility options' }));
+    expect(document.querySelector('[data-slot="dialog-content"]')).toHaveClass('content-start');
     fireEvent.click(screen.getByRole('switch', { name: 'Reduce motion' }));
     fireEvent.click(screen.getByRole('switch', { name: 'Larger text' }));
     fireEvent.click(screen.getByRole('switch', { name: 'Increase contrast' }));

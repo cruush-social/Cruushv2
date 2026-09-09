@@ -165,6 +165,21 @@ async function skipTwoFactorAndEnter() {
 }
 
 describe('ProfileOnboarding', () => {
+  it('completes the current rites in preview mode without saving account data', async () => {
+    const onComplete = vi.fn();
+    render(<MemoryRouter><ProfileOnboarding onComplete={onComplete} needsCodeOfConduct codeOfConductVersion="2026-07-07" previewMode /></MemoryRouter>);
+    await fillProfileRites();
+    await reachFinalOath();
+    fireEvent.click(screen.getByRole('checkbox', { name: /i have read and agree to the cruush code of conduct/i }));
+    fireEvent.click(screen.getByRole('button', { name: /enter cruush/i }));
+    await waitFor(() => expect(onComplete).toHaveBeenCalledTimes(1));
+    expect(saveMyProfile).not.toHaveBeenCalled();
+    expect(uploadProfilePhoto).not.toHaveBeenCalled();
+    expect(acceptCodeOfConduct).not.toHaveBeenCalled();
+    expect(startTwoFactorSetup).not.toHaveBeenCalled();
+    expect(completeTwoFactorSetup).not.toHaveBeenCalled();
+    expect(persistCurrentUser).not.toHaveBeenCalled();
+  });
   beforeEach(() => {
     // Onboarding now keeps a draft, so each test has to start as a new arrival
     // rather than resuming the previous test's answers.

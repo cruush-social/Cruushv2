@@ -93,7 +93,7 @@ export default function AccessibilityQuickAccess({
         </button>
       </DialogTrigger>
 
-      <DialogContent className="w-[calc(100%-2rem)] max-w-sm border-white/12 bg-background sm:max-w-sm">
+      <DialogContent className="content-start w-[calc(100%-2rem)] max-w-sm border-white/12 bg-background sm:max-w-sm">
         <DialogHeader>
           <DialogTitle>Accessibility</DialogTitle>
           <DialogDescription className="sr-only">Accessibility options</DialogDescription>

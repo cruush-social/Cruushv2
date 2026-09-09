@@ -14,9 +14,10 @@ const { getMyPrivacySettings, saveMyPrivacySettings } = vi.hoisted(() => ({
   saveMyPrivacySettings: vi.fn(),
 }));
 
-const { changePassword, deleteAccount, sendVerificationEmail, signOut } = vi.hoisted(() => ({
+const { changePassword, deleteAccount, getAuthSession, sendVerificationEmail, signOut } = vi.hoisted(() => ({
   changePassword: vi.fn(),
   deleteAccount: vi.fn(),
+  getAuthSession: vi.fn(),
   sendVerificationEmail: vi.fn(),
   signOut: vi.fn(),
 }));
@@ -67,6 +68,7 @@ vi.mock('sonner', () => ({
 vi.mock('../lib/authApi', () => ({
   changePassword,
   deleteAccount,
+  getAuthSession,
   sendVerificationEmail,
   signOut,
 }));
@@ -264,6 +266,16 @@ describe('Settings', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: /Moderator dashboard/i }));
     expect(screen.getByTestId('location-probe')).toHaveTextContent('/admin/moderation');
+  });
+
+  it('shows the onboarding test entry only after the named admin is authenticated', async () => {
+    getStoredCurrentUser.mockReturnValue({ moderator_role: 'admin' });
+    getAuthSession.mockResolvedValue({ user: {
+      email: 'julienlenazny@gmail.com', moderatorRole: 'admin', emailVerifiedAt: '2026-09-08',
+    } });
+    render(<MemoryRouter initialEntries={['/settings']}><Settings /><LocationProbe /></MemoryRouter>);
+    fireEvent.click(await screen.findByRole('button', { name: 'Test onboarding' }));
+    expect(screen.getByTestId('location-probe')).toHaveTextContent('/settings/onboarding-test');
   });
 
   it('opens the current changelog without version-coupled settings copy', async () => {

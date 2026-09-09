@@ -10,6 +10,7 @@ import GoogleAnalyticsPageTracker from './components/GoogleAnalyticsPageTracker'
 import { Toaster } from './components/ui/sonner';
 import { loadCurrentSession } from './lib/sessionUser';
 import { canUseDeveloperMapToolsEmail } from './lib/developerMapTools';
+import { canTestOnboarding } from './lib/adminOnboarding';
 import { recordDailyRewardCheckIn, recordTutorialCompletion, updateRewardTimezone } from './lib/rewardsApi';
 import type { AuthSessionPayload } from './lib/authApi';
 import type { ProfileRecord } from './lib/profileApi';
@@ -58,6 +59,7 @@ const MapPresenceSettings = lazyRoute(() => import('./components/MapPresenceSett
 const DlModeDefaultNotice = lazyRoute(() => import('./components/DlModeDefaultNotice'));
 const FirstFeedPostPrompt = lazyRoute(() => import('./components/FirstFeedPostPrompt'));
 const OnboardingPreview = lazyRoute(() => import('./components/OnboardingPreview'));
+const AdminOnboardingReplay = lazyRoute(() => import('./components/AdminOnboardingReplay'));
 const SupportPage = lazyRoute(() => import('./components/SupportPage'));
 const GhostModeSettings = lazyRoute(() => import('./components/GhostModeSettings'));
 const PrivacyAudit = lazyRoute(() => import('./components/PrivacyAudit'));
@@ -206,7 +208,7 @@ function MapTutorialRouteFollower() {
   const navigate = useNavigate();
   const savedStep = getStoredMapControlsTutorialStep();
 
-  if (!savedStep || location.pathname === '/map') {
+  if (!savedStep || location.pathname === '/map' || location.pathname === '/settings/onboarding-test') {
     return null;
   }
 
@@ -660,6 +662,9 @@ export default function App({
               <Route path="/settings/notifications" element={<NotificationSettings />} />
               <Route path="/settings/2fa" element={<TwoFactorSettings />} />
               <Route path="/settings/tutorial" element={<Tutorial />} />
+              <Route path="/settings/onboarding-test" element={canTestOnboarding(session.user)
+                ? <AdminOnboardingReplay codeOfConductVersion={session.codeOfConductVersion} />
+                : <Navigate to="/settings" replace />} />
               <Route path="/settings/changelog" element={<Changelog />} />
               <Route path="/support" element={<SupportPage signedIn />} />
               <Route path="/privacy/ghost-mode" element={<GhostModeSettings />} />

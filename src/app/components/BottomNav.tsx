@@ -155,7 +155,7 @@ export default function BottomNav() {
   };
 
   return (
-    <nav className="pointer-events-none fixed bottom-0 left-0 right-0 z-[60] px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-2">
+    <nav hidden={location.pathname === '/settings/onboarding-test'} className="pointer-events-none fixed bottom-0 left-0 right-0 z-[60] px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-2">
       {!isMapRoute && !isCruiseCarouselRoute ? (
         <div
           aria-hidden="true"

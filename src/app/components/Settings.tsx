@@ -29,7 +29,8 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './
 import { CruushIcon, type CruushIconName, type CruushIconVariant } from './CruushIconImage';
 import DlModeMark from './DlModeMark';
 import PublicPolicyLinks from './PublicPolicyLinks';
-import { changeEmail, changePassword, deleteAccount, sendVerificationEmail, signOut } from '../lib/authApi';
+import { changeEmail, changePassword, deleteAccount, getAuthSession, sendVerificationEmail, signOut } from '../lib/authApi';
+import { canTestOnboarding } from '../lib/adminOnboarding';
 import SupportRequestForm from './SupportRequestForm';
 import BugButtonSlot from './BugButtonSlot';
 import {
@@ -145,6 +146,16 @@ export default function Settings({ embedded = false, onBack, onClose, onOpenMile
   const [desktopPageLayout, setDesktopPageLayout] = useState(getDesktopPageLayout);
   const isEmailVerified = Boolean(storedUser?.email_verified_at);
   const moderatorRole = storedUser?.moderator_role ?? null;
+  const [onboardingTestEnabled, setOnboardingTestEnabled] = useState(false);
+
+  useEffect(() => {
+    if (moderatorRole !== 'admin') return;
+    let cancelled = false;
+    void getAuthSession().then(session => {
+      if (!cancelled) setOnboardingTestEnabled(canTestOnboarding(session.user));
+    }).catch(() => { if (!cancelled) setOnboardingTestEnabled(false); });
+    return () => { cancelled = true; };
+  }, [moderatorRole]);
 
   useEffect(() => addAccessibilityPreferencesChangedListener(setAccessibilityPreferences), []);
   useEffect(() => addDesktopPageLayoutChangedListener(setDesktopPageLayout), []);
@@ -285,7 +296,11 @@ export default function Settings({ embedded = false, onBack, onClose, onOpenMile
         label: 'Bug reports',
         description: 'Read and reply to support and bug reports.',
         action: () => navigate('/requests'),
-      }],
+      }, ...(onboardingTestEnabled ? [{
+        icon: History,
+        label: 'Test onboarding',
+        action: () => navigate('/settings/onboarding-test'),
+      }] : [])],
     }] : []),
     {
       title: 'Account',
