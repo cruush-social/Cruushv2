@@ -1,5 +1,7 @@
 # cruush design decisions
 
+- Hunter uses the rounded-outline snake Julien selected with "i like proposed snake" on September 8, 2026. Copy the two complete paths from the approved `/tmp/cruush-ra-dl-proof.m6qcI2/snake-preview.tsx` candidate, shown in `snake-style-preview.png`; preserve the existing 24x24 viewBox, rounded stroke defaults, mouse, other glyphs, badge frames, colors, placements and role mapping.
+
 - Desktop map profile popups show Intimacy field cards one per row, matching mobile. Preserve the existing field order, card styling, chip arrangement, scrolling tabs and footer actions. This does not change standalone profile or edit layouts. (2026-09-08)
 
 - Onboarding requires name, gender identity, sexuality and crowd. Julien's latest explicit list supersedes the earlier instruction to require all information steps and the intermediate Sexuality-and-Signal answer. Signal, pronouns, Vibes, Bio, Role/Position, photo upload, badge selection and 2FA remain optional. Invite codes and the trans checkbox are not forced; conduct agreement and account/age safeguards remain unchanged. Remove Looking for from the onboarding sequence only, preserving profile/edit fields and saved answers. The admin replay must use this same flow without account writes. (2026-09-08)
