@@ -2,8 +2,8 @@
   "schemaVersion": 2,
   "taskId": "mobile-overlay-and-open-bugs-20260908",
   "status": "active",
-  "objective": "Continue the approved queue: failed map photos use existing gradients and flags omit the unwanted grey inner ring.",
-  "userOutcome": "Broken photos never show Chromium's clouds graphic, and Pride flag details are not obscured by the extra grey ring.",
+  "objective": "Prioritize other members' Ghost relocation from their last decoy location; preserve the owner's working drift and approved animation.",
+  "userOutcome": "Other members' expired Ghost pins do not reappear at stale coordinates while waiting for the next server position.",
   "audience": "cruush members.",
   "successCriteria": [
     "Test onboarding appears only for the authenticated named admin account and renders the existing ProfileOnboarding component in previewMode.",
@@ -34,7 +34,7 @@
       "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "Render the existing photo fallback and flag components, then publish this scoped batch.",
+  "nextVisibleMilestone": "Verify another member's pin stays hidden after its approved exit and reappears only with the new server position, without page reload.",
   "stopConditions": [
     "Stop at a password form.",
     "Stop if the server build fails."
@@ -64,7 +64,7 @@
   "release": "1.6",
   "repository": "cruush-social/Cruushv2",
   "branch": "main",
-  "job": "Publish approved failed-photo fallback and flag inner-ring fixes.",
+  "job": "Fix other-member Ghost rotation timing without changing placement distances or animation code.",
   "allowedPaths": [
     "src/app/components/PrideFlagGlyphs.tsx",
     "src/app/components/BadgePickerPreview.test.tsx",

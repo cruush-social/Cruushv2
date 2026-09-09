@@ -1086,6 +1086,20 @@ describe('MapView', () => {
     expect(screen.queryByText('12m ago')).not.toBeInTheDocument();
   });
 
+  it('keeps another expired Ghost pin hidden until its fresh position arrives without hiding the owner', () => {
+    vi.useFakeTimers();
+    const deadline = Date.now() + 1_000;
+    const marker = { id: 'other-ghost', displayName: 'River', displayMode: 'GHOST' as const, approximateLatitude: 40.72, approximateLongitude: -74.01, ghostRotationExpiresAtMs: deadline };
+    const { rerender } = render(<MapMarkerPin marker={marker} />);
+    act(() => vi.advanceTimersByTime(1_000));
+    expect(screen.getByTestId('marker-pin-unit-other-ghost')).toHaveStyle({ visibility: 'hidden' });
+    rerender(<MapMarkerPin marker={{ ...marker, approximateLatitude: 40.725, ghostRotationExpiresAtMs: deadline + 60_000 }} />);
+    expect(screen.getByTestId('marker-pin-unit-other-ghost')).not.toHaveStyle({ visibility: 'hidden' });
+    rerender(<MapMarkerPin marker={{ ...marker, isCurrentUser: true }} />);
+    expect(screen.getByTestId('marker-pin-unit-other-ghost')).not.toHaveStyle({ visibility: 'hidden' });
+    vi.useRealTimers();
+  });
+
   it('replaces failed map photos with the existing gradient and accepts a changed photo', async () => {
     const marker = { id: 'failed-photo', displayName: 'River', approximateLatitude: 40.72, approximateLongitude: -74.01, photo: 'https://example.com/broken.jpg', photoExplicit: false };
     const { rerender } = render(<MapView onPinClick={vi.fn()} markers={[marker]} />);

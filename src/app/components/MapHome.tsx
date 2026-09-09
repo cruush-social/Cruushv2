@@ -1713,6 +1713,13 @@ export default function MapHome(_props: MapHomeProps = {}) {
     return () => window.clearTimeout(refreshTimeoutId);
   }, [filters, isMutualMapMode, mapViewport?.signature]);
 
+  const nextGhostRotationAtMs = useMemo(() => users.reduce<number | null>((next, user) => {
+    const deadline = user.ghostRotationExpiresAtMs;
+    return user.displayMode === 'GHOST' && typeof deadline === 'number' && Number.isFinite(deadline)
+      ? Math.min(next ?? deadline, deadline)
+      : next;
+  }, null), [users]);
+
   useEffect(() => {
     let refreshInFlight = false;
 
@@ -1741,16 +1748,21 @@ export default function MapHome(_props: MapHomeProps = {}) {
       () => void refreshPrivacySensitivePins(),
       MAP_PRIVACY_REFRESH_INTERVAL_MS,
     );
+    const rotationTimeoutId = nextGhostRotationAtMs == null ? null : window.setTimeout(
+      () => void refreshPrivacySensitivePins(),
+      Math.max(0, nextGhostRotationAtMs - Date.now()) + 250,
+    );
 
     window.addEventListener('focus', refreshWhenVisible);
     document.addEventListener('visibilitychange', refreshWhenVisible);
 
     return () => {
       window.clearInterval(intervalId);
+      if (rotationTimeoutId != null) window.clearTimeout(rotationTimeoutId);
       window.removeEventListener('focus', refreshWhenVisible);
       document.removeEventListener('visibilitychange', refreshWhenVisible);
     };
-  }, [filters, isMutualMapMode, mapViewport?.signature, userApproximateLocation]);
+  }, [filters, isMutualMapMode, mapViewport?.signature, userApproximateLocation, nextGhostRotationAtMs]);
 
   useEffect(() => {
     return addCruushChangedListener((payload) => {

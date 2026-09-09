@@ -1403,6 +1403,22 @@ describe('MapHome', () => {
     setIntervalSpy.mockRestore();
   });
 
+  it('fetches another member new Ghost position at the deadline without replacing the map page', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const [base] = await getNearbyUsers();
+    const deadline = Date.now() + 3_000;
+    getNearbyUsers.mockResolvedValue([{ ...base, displayMode: 'GHOST', animationHint: 'FADE_LAST_MINUTE', ghostRotationExpiresAtMs: deadline }]);
+    render(<MemoryRouter initialEntries={['/map']}><MapHome /></MemoryRouter>);
+    const map = await screen.findByTestId('map-focus');
+    await screen.findByRole('button', { name: 'Pin Jordan' });
+    const calls = getNearbyUsers.mock.calls.length;
+    getNearbyUsers.mockResolvedValue([{ ...base, displayMode: 'GHOST', animationHint: 'NONE', lat: 40.71, lng: -73.91 }]);
+    await act(async () => vi.advanceTimersByTimeAsync(3_300));
+    await waitFor(() => expect(getNearbyUsers.mock.calls.length).toBeGreaterThan(calls));
+    expect(screen.getByTestId('marker-user-1')).toHaveAttribute('data-lat', '40.71');
+    expect(screen.getByTestId('map-focus')).toBe(map);
+  });
+
   it('navigates directly to the full profile on a short mobile tap', async () => {
     useIsMobile.mockReturnValue(true);
     window.localStorage.setItem('cruush.desktopPageLayout', 'fullscreen');

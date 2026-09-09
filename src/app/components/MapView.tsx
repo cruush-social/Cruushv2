@@ -1829,6 +1829,17 @@ function PulseEkgSignalTrace() {
 
 export function MapMarkerPin({ marker, previewed = false }: { marker: MapMarker; previewed?: boolean }) {
   const isCurrentUser = marker.isCurrentUser === true;
+  const otherGhostDeadline = !isCurrentUser && marker.displayMode === 'GHOST'
+    && typeof marker.ghostRotationExpiresAtMs === 'number'
+    ? marker.ghostRotationExpiresAtMs : null;
+  const [expiredGhostDeadline, setExpiredGhostDeadline] = useState<number | null>(null);
+  useEffect(() => {
+    if (otherGhostDeadline == null) return;
+    const timer = window.setTimeout(() => setExpiredGhostDeadline(otherGhostDeadline), Math.max(0, otherGhostDeadline - Date.now()));
+    return () => window.clearTimeout(timer);
+  }, [otherGhostDeadline]);
+  const awaitingGhostPosition = otherGhostDeadline != null
+    && (expiredGhostDeadline === otherGhostDeadline || otherGhostDeadline <= Date.now());
   const isOwnerGhostDecoy = isCurrentUser && marker.displayMode === 'GHOST';
   const isPerson = marker.kind == null || marker.kind === 'person';
   const signalPreview = isPerson ? truncateMarkerPreview(marker.signal) : '';
@@ -1858,6 +1869,8 @@ export function MapMarkerPin({ marker, previewed = false }: { marker: MapMarker;
       className="group pointer-events-auto relative flex h-[88px] w-[103px] origin-bottom scale-100 items-start justify-center overflow-visible"
       data-testid={`marker-pin-unit-${marker.id}`}
       data-active-ping={pingActive ? 'true' : 'false'}
+      data-awaiting-ghost-position={awaitingGhostPosition ? 'true' : undefined}
+      style={awaitingGhostPosition ? { visibility: 'hidden', pointerEvents: 'none' } : undefined}
     >
       <span
         className={`cruush-ghost-rotation-unit-material relative flex h-20 w-[103px] origin-bottom items-center justify-center transition-transform duration-150 group-hover:scale-[1.38] group-focus-within:scale-[1.38] ${previewed ? 'scale-[1.38]' : ''} ${pingActive && !travellerActive ? 'cruush-map-ping-heart' : ''}`}
