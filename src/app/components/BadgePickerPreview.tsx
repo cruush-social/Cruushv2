@@ -453,7 +453,6 @@ function BadgeChip({ darkRoom = false, frame, option, side, meaning }: {
     >
       <BadgeFrame
         className="h-full w-full"
-        contentScalePercent={option.id.startsWith('flag-') ? 84 : undefined}
         frame={frame}
         gradientStops={gradientStops}
         hankyColor={option.hanky?.color}
