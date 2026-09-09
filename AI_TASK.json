@@ -8,10 +8,11 @@
     "preserve": "Keep real user-source references, staged/outgoing source verification and independent review mandatory. Do not fabricate pre-edit evidence or add bypass flags.",
     "coordination": "The Add UI scope improvement plan task owns the global hook files and is applying the repair; this task preserves the staged product patch and verifies the release."
   },
-  "objective": "Correct onboarding optional and Crowd Mode copy, require name, gender identity, sexuality and crowd under Julien's latest explicit list, and remove the Looking for onboarding step. Other profile fields, badge selection, photo upload and 2FA remain skippable.",
-  "userOutcome": "The current onboarding and named-admin replay agree about required information, do not offer Looking for as a step, and preserve existing profile values and privacy settings.",
+  "objective": "Make desktop map profile popup Intimacy field cards one per row, as requested, preserving tabs, footer actions, fields, mobile layout and all standalone profile surfaces.",
+  "userOutcome": "Desktop profile popup Intimacy fields use the same one-field-per-row arrangement as mobile. The published onboarding requirements and copy remain unchanged.",
   "audience": "cruush members.",
   "successCriteria": [
+    "In the desktop map profile popup, Intimacy field cards form one column in the same order, with their existing labels, values, chips, gaps and styling. Mobile, Basics, Health, standalone ProfileView and ProfileEdit remain unchanged.",
     "Crowd copy explains social spaces rather than identity labels, the Map Controls > Visibility location, the show-only behavior when enabled and that choosing crowds does not enable it.",
     "Only name, gender identity, sexuality and crowd are mandatory profile information under Julien's latest explicit list. Pronouns, Vibes, Bio, Signal and Role/Position remain optional. Preserve conduct acceptance and account/age safeguards.",
     "Badge selection, photo upload and 2FA remain skippable. Invite codes and identity checkboxes are not forced.",
@@ -49,7 +50,7 @@
       "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "Render and deploy the corrected mandatory onboarding flow with the requested Looking for step removed.",
+  "nextVisibleMilestone": "Render and deploy the desktop popup Intimacy single-column change while preserving its scrolling tabs and footer actions.",
   "stopConditions": [
     "Stop at a password form.",
     "Stop if the server build fails."
@@ -79,7 +80,7 @@
   "release": "1.6",
   "repository": "cruush-social/Cruushv2",
   "branch": "main",
-  "job": "Apply the latest onboarding copy, required-step and Looking for removal instructions; preserve profile editing, saved answers, privacy defaults, layouts and all unrelated behavior.",
+  "job": "Change only the desktop map profile popup Intimacy field grid to one column. Preserve current onboarding, all fields and all adjacent layouts.",
   "allowedPaths": [
     "src/app/components/ProfileOnboarding.tsx",
     "src/app/lib/onboardingDraft.ts",
@@ -338,6 +339,31 @@
           "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T21-34-14-01a083cd-25b6-7222-b0a9-9db8fd15a419.jsonl",
           "line": 363,
           "sha256": "8413146403167f0a3a791678f99afdc06436f6947709dcea4820249fb935d8d1"
+        }
+      },
+      {
+        "file": "src/app/components/MapProfilePopup.tsx",
+        "property": "layout",
+        "target": "jsx:DesktopDockPanel[2]/div[1]/div[2]",
+        "before": "",
+        "after": "class: [&_[id$=-content-intimacy]>.grid]:grid-cols-1",
+        "surface": "intimacy fields",
+        "statement": "add to que i prefer in the mobile version the intimacy fields are lsited one per row do that to the pop ups for desktop",
+        "viewport": "Map profile popup at desktop widths: retain one card per row at all widths. Existing mobile single-column layout stays unchanged.",
+        "preserve": [
+          "Keep field order, values, labels, card styling and chips within each card unchanged.",
+          "Keep tab layout, scrolling, footer actions, popup geometry, Basics and Health unchanged.",
+          "Do not change the standalone ProfileView or ProfileEdit layouts or any responsive breakpoint."
+        ],
+        "review": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T21-34-14-01a083cd-25b6-7222-b0a9-9db8fd15a419.jsonl",
+          "line": 463,
+          "sha256": "327cd938777642aa0380889480a513ea01cb786477a4196f3dd4dff1eed6d6e2"
+        },
+        "source": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T15-32-27-01a08281-ec99-7630-b7a1-fbbcb8575d5e.jsonl",
+          "line": 8036,
+          "sha256": "72c628cdd2e4c56035429f7c8093d714f507d04e4f1f2412db88c28e8c67c999"
         }
       }
     ]

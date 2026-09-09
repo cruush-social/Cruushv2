@@ -128,6 +128,7 @@ describe('MapProfilePopup', () => {
     expect(screen.queryByRole('button', { name: 'View profile' })).not.toBeInTheDocument();
     const tabs = await screen.findByRole('tablist');
     expect(tabs.parentElement?.parentElement).toHaveClass('[&_[role=tablist]]:static', '[&_[role=tablist]]:z-auto');
+    expect(tabs.parentElement?.parentElement).toHaveClass('[&_[id$=-content-intimacy]>.grid]:grid-cols-1');
     expect(screen.getByText('~0.5 mi')).toBeInTheDocument();
     act(() => saveDistancePreferences({ mode: 'precise' }));
     expect(screen.getByText('0.4 mi')).toBeInTheDocument();

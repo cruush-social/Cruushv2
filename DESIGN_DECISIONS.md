@@ -1,5 +1,7 @@
 # cruush design decisions
 
+- Desktop map profile popups show Intimacy field cards one per row, matching mobile. Preserve the existing field order, card styling, chip arrangement, scrolling tabs and footer actions. This does not change standalone profile or edit layouts. (2026-09-08)
+
 - Onboarding requires name, gender identity, sexuality and crowd. Julien's latest explicit list supersedes the earlier instruction to require all information steps and the intermediate Sexuality-and-Signal answer. Signal, pronouns, Vibes, Bio, Role/Position, photo upload, badge selection and 2FA remain optional. Invite codes and the trans checkbox are not forced; conduct agreement and account/age safeguards remain unchanged. Remove Looking for from the onboarding sequence only, preserving profile/edit fields and saved answers. The admin replay must use this same flow without account writes. (2026-09-08)
 - Onboarding Crowd copy describes crowds as shared social spaces like gay or dyke bars, not identity labels, and points to Map Controls > Visibility. Selecting crowds does not enable Crowd Mode or change visibility settings. (2026-09-08)
 
