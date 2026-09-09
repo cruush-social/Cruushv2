@@ -21,7 +21,7 @@ import {
 import { openConversationOrInbox } from '../lib/openConversation';
 import { PROFILE_CARD_COMPACT_MEDIA_STYLE, PROFILE_CARD_MEDIA_ASPECT_STYLE } from '../lib/photoLayout';
 import { addDlModeChangedListener, isDlModeEnabled, shouldMaskPhoto } from '../lib/dlMode';
-import DlModeMark from './DlModeMark';
+import DlModePhotoPlaceholder from './DlModePhotoPlaceholder';
 import { getProfileGradientCss } from '../lib/profileGradient';
 import { resolveVibeTone, vibeCapsuleStyle } from '../lib/vibeTone';
 import { formatDistanceWithAway, useDistancePreferences } from '../lib/distancePreferences';
@@ -280,7 +280,7 @@ export default function ProfileCard({
               role="img"
               style={{ background: getProfileGradientCss(user.id) }}
             >
-              <DlModeMark active className="h-12 w-12" />
+              <DlModePhotoPlaceholder />
             </div>
           ) : (
             <div className="flex h-full w-full items-center justify-center" style={{ background: getProfileGradientCss(user.id) }}>
@@ -476,7 +476,7 @@ export default function ProfileCard({
             role="img"
             style={{ ...mediaStyle, background: getProfileGradientCss(user.id) }}
           >
-            <DlModeMark active className="h-12 w-12" />
+            <DlModePhotoPlaceholder />
           </div>
         ) : (
           <div className="w-full h-full flex items-center justify-center" style={{ background: getProfileGradientCss(user.id) }}>

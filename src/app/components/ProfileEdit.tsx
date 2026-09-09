@@ -36,7 +36,7 @@ import { ApiClientError, resolveMediaUrl } from '../lib/apiClient';
 import { getAppMeta } from '../lib/metaApi';
 import { getStoredCurrentUser, persistCurrentUser } from '../lib/sessionUser';
 import { addDlModeChangedListener, isDlModeEnabled, shouldMaskPhoto } from '../lib/dlMode';
-import DlModeMark from './DlModeMark';
+import DlModePhotoPlaceholder from './DlModePhotoPlaceholder';
 import { getProfileGradientCss } from '../lib/profileGradient';
 import { saveDistancePreferences, useDistancePreferences } from '../lib/distancePreferences';
 import {
@@ -1196,7 +1196,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
                         role="img"
                         style={{ background: getProfileGradientCss(`${(profile as ProfileRecord).id ?? 'profile'}:${index}`) }}
                       >
-                        <DlModeMark active className="h-10 w-10" />
+                        <DlModePhotoPlaceholder />
                       </div>
                     ) : (
                       <img

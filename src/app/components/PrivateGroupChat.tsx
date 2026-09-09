@@ -54,7 +54,7 @@ import { ApiClientError, resolveMediaUrl } from '../lib/apiClient';
 import { addDlModeChangedListener, isDlModeEnabled, shouldMaskPhoto } from '../lib/dlMode';
 import { MESSAGE_PHOTO_UPLOAD_ACCEPT, prepareMessagePhotoForUpload } from '../lib/messagePhotoProcessing';
 import { getProfileGradientCss } from '../lib/profileGradient';
-import DlModeMark from './DlModeMark';
+import DlModePhotoPlaceholder from './DlModePhotoPlaceholder';
 import PulseLedIcon from './PulseLedIcon';
 
 const timerOptions: Array<{ value: ConversationTimer; label: string }> = [
@@ -198,8 +198,7 @@ function ExplicitMessagePhotoShield({ attachmentKey }: { attachmentKey: string }
       role="img"
       style={{ background: getProfileGradientCss(attachmentKey) }}
     >
-      <DlModeMark active={false} className="h-7 w-7 opacity-90" />
-      <span className="text-[11px] uppercase tracking-[0.18em] text-white/88">DL Mode Active</span>
+      <DlModePhotoPlaceholder />
     </div>
   );
 }
@@ -1729,7 +1728,7 @@ export default function PrivateGroupChat({
                                     role="img"
                                     style={{ background: getProfileGradientCss(`favorite:${favorite.id}`) }}
                                   >
-                                    <DlModeMark active={false} className="size-5" />
+                                    <DlModePhotoPlaceholder className="w-14" />
                                   </div>
                                 ) : (
                                   <img

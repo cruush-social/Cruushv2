@@ -1,5 +1,5 @@
 import type { KeyboardEvent, MouseEvent, ReactNode } from 'react';
-import DlModeMark from './DlModeMark';
+import DlModePhotoPlaceholder from './DlModePhotoPlaceholder';
 import { useId } from 'react';
 import cruushMarkWhite from '../assets/ui-icons/cruush-white.png';
 import { resolveMediaUrl } from '../lib/apiClient';
@@ -102,17 +102,12 @@ export default function HeartPhoto({
           strokeOpacity={1}
           strokeWidth="3.2"
         />
-        {/* A heart with no photo carries the cruush mark rather than reading as
-            an empty gradient, and a masked one carries the DL Mode mark. The
-            masked case draws the same DlModeMark the profile gallery and the
-            top bar use, so the cover is one thing everywhere it appears rather
-            than a flat copy of the artwork here and the gradient mark there. */}
+        {/* Censored photos use the shared labeled DL cover. Missing photos keep
+            their existing cruush mark, and never cover the DL label with a fallback. */}
         {!resolvedPhoto ? (
           masked ? (
-            <foreignObject x="19" y="21" width="26" height="26">
-              <div className="flex h-full w-full items-center justify-center">
-                <DlModeMark active className="h-full w-full" />
-              </div>
+            <foreignObject x="12" y="10" width="40" height="38">
+              <DlModePhotoPlaceholder className="h-full w-full" />
             </foreignObject>
           ) : (
             <image
@@ -135,7 +130,7 @@ export default function HeartPhoto({
         ) : null}
       </svg>
 
-      {!resolvedPhoto && fallback ? (
+      {!resolvedPhoto && !masked && fallback ? (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
           {fallback}
         </div>

@@ -4,6 +4,7 @@ import { Button } from './ui/button';
 import { CruushIcon, type CruushIconName } from './CruushIconImage';
 import CruushPlusWord from './CruushPlusWord';
 import HeartPhoto from './HeartPhoto';
+import DlModePhotoPlaceholder from './DlModePhotoPlaceholder';
 import { resolveMediaUrl } from '../lib/apiClient';
 import { addDlModeChangedListener, isDlModeEnabled, shouldMaskPhoto } from '../lib/dlMode';
 import type { DiscoveryUser } from '../lib/usersApi';
@@ -277,7 +278,7 @@ function CarouselTile({ item, featured, itemIndex, spinning, activePhotoIndex, o
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-2xl sm:text-4xl font-bold text-white" style={{ background: 'var(--cruush-gradient)' }}>
-            {initial}
+            {photoUrl && shouldMaskPhoto(dlModeActive, item.user.photoExplicit) ? <DlModePhotoPlaceholder className="w-14" /> : initial}
           </div>
         )}
 

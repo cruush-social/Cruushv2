@@ -1,5 +1,7 @@
 # cruush design decisions
 
+- Censored photos across the app use the supplied DL icon in white at 75% opacity, with the exact text `DL MODE ON` always beneath it. Scale this shared cover to the existing photo area. This supersedes colored or unlabeled censored-photo covers; DL toggles and ordinary missing-photo fallbacks are unchanged. (September 8, 2026)
+
 - Feed photo previews are 64px hearts, matching the approved sample page. One photo uses one heart. Two or three photos use separate equal-size hearts in one horizontal row with visible gaps. They never weld, overlap, cluster, or grow to the 80px map-heart size.
 - Color-blind mode is an Accessibility toggle. Navigation-size and map-pin-size controls are not part of 1.6.
 - Feed search searches Feed post tags only. It does not search member names, profiles, or post text.

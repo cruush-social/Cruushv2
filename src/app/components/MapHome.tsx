@@ -105,6 +105,7 @@ import seekingIcon from '../assets/ui-icons/seeking-magnifying-glass-8149381.svg
 import visibilityIcon from '../assets/ui-icons/visibility-hidden-234738.svg';
 import crowdIconColored from '../assets/ui-icons/crowds-colored.svg';
 import DlModeMark from './DlModeMark';
+import DlModePhotoPlaceholder from './DlModePhotoPlaceholder';
 
 const DISCOVERY_MAP_LIMIT = 500;
 const DISCOVERY_BROWSE_RADIUS_MILES = 50;
@@ -866,7 +867,7 @@ function RecentlyActivePhoto({
       data-testid={`recently-active-fallback-${user.id}`}
       style={{ background: getProfileGradientCss(user.id) }}
     >
-      {photoMasked ? <DlModeMark active className="h-10 w-10" /> : <CruushIconImage src={cruushIconWhite} className="h-10 w-10 opacity-75" />}
+      {photoMasked ? <DlModePhotoPlaceholder className="w-14" /> : <CruushIconImage src={cruushIconWhite} className="h-10 w-10 opacity-75" />}
     </div>
   );
 }

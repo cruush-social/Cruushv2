@@ -3334,7 +3334,9 @@ describe('MapHome', () => {
     await screen.findByRole('button', { name: 'Pin Jordan' });
     fireEvent.click(screen.getByRole('button', { name: 'Show recently active bar' }));
     const fallback = screen.getByTestId('recently-active-fallback-user-1');
-    expect(fallback.querySelector('[data-testid="dl-mode-mark"]')).toHaveAttribute('data-tone', 'gradient');
+    expect(fallback.querySelector('[data-testid="dl-mode-mark"]')).toHaveAttribute('data-tone', 'white');
+    expect(fallback.querySelector('[data-testid="dl-mode-photo-placeholder"]')).toHaveClass('opacity-75');
+    expect(fallback).toHaveTextContent('DL MODE ON');
     expect(fallback.querySelector('img')).toBeNull();
   });
 

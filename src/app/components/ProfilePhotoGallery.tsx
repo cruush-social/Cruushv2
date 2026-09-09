@@ -9,7 +9,7 @@ import { getProfileGradientCss } from '../lib/profileGradient';
 import type { ProfilePhotoMetadata } from '../lib/profileApi';
 import type { HeartPinTheme } from '../lib/heartPin';
 import cruushIconWhite from '../assets/ui-icons/cruush-white.png';
-import DlModeMark from './DlModeMark';
+import DlModePhotoPlaceholder from './DlModePhotoPlaceholder';
 import type { UserBorderTone } from '../lib/userBorderTone';
 
 interface ProfilePhotoGalleryProps {
@@ -101,7 +101,7 @@ export default function ProfilePhotoGallery({
           role="img"
           style={{ ...PROFILE_HERO_ASPECT_STYLE, background: getProfileGradientCss(userId ?? activePhoto) }}
         >
-          <DlModeMark active className="h-12 w-12" />
+          <DlModePhotoPlaceholder />
         </div>
       ) : (
         <div className="flex h-full w-full items-center justify-center">

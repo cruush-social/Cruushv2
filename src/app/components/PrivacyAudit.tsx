@@ -5,6 +5,7 @@ import { Button } from './ui/button';
 import { CruushIcon } from './CruushIconImage';
 import LoadingCardSkeletons from './LoadingCardSkeletons';
 import BugButtonSlot from './BugButtonSlot';
+import DlModePhotoPlaceholder from './DlModePhotoPlaceholder';
 import { resolveMediaUrl } from '../lib/apiClient';
 import { shouldMaskPhoto, useDlMode } from '../lib/dlMode';
 import { getCruushMatchSettings, type CruushMatchSettings } from '../lib/cruushSettingsApi';
@@ -164,7 +165,9 @@ export default function PrivacyAudit() {
                   <img alt="" className="h-12 w-12 rounded-full object-cover" src={resolveMediaUrl(item.viewer.photo)} />
                 ) : (
                   <div className="flex h-12 w-12 items-center justify-center rounded-full" style={{ background: 'var(--cruush-gradient)' }}>
-                    <CruushIcon name="profile" className="h-6 w-6" variant="white" />
+                    {item.viewer.photo && shouldMaskPhoto(dlModeActive, item.viewer.photoExplicit)
+                      ? <DlModePhotoPlaceholder className="w-9" />
+                      : <CruushIcon name="profile" className="h-6 w-6" variant="white" />}
                   </div>
                 )}
                 <div className="min-w-0 flex-1">

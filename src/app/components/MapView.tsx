@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import SignalBadge from './SignalBadge';
+import DlModePhotoPlaceholder from './DlModePhotoPlaceholder';
 import MileHighContrail from './MileHighContrail';
 import { flushSync } from 'react-dom';
 import { createRoot, type Root } from 'react-dom/client';
@@ -1439,6 +1440,7 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
   useEffect(() => addDlModeChangedListener(setDlModeActive), []);
 
   const isOwnStealthMarker = isCurrentUser && marker.ownerStealthActive === true;
+  const photoMasked = Boolean(marker.photo && shouldMaskPhoto(dlModeActive, marker.photoExplicit));
   const visiblePhoto = marker.photo && marker.photo !== failedPhoto && !shouldMaskPhoto(dlModeActive, marker.photoExplicit)
     ? resolveMediaUrl(marker.photo)
     : null;
@@ -1638,7 +1640,7 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
           {/* Your Ghost decoy is the apparition from the rotation animation:
               the translucent photo behind the electric-blue border, and
               nothing drawn over it. */}
-          {isOwnGhostMarker ? null : (
+          {isOwnGhostMarker || photoMasked ? null : (
             <foreignObject data-testid={`marker-current-fallback-${marker.id}`} height="36" width="36" x="14" y="16">
               <div className="flex h-9 w-9 items-center justify-center">
                 <User aria-hidden="true" className="h-7 w-7 text-white" strokeWidth={2.4} />
@@ -1658,6 +1660,11 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
           style={borderStyle}
         />
       )}
+      {photoMasked ? (
+        <foreignObject x="12" y="10" width="40" height="38">
+          <DlModePhotoPlaceholder className="h-full w-full" />
+        </foreignObject>
+      ) : null}
       {travellerActive ? (
         <MileHighContrail
           forceReducedMotion={staticGhostTraveller}

@@ -2,8 +2,8 @@
   "schemaVersion": 2,
   "taskId": "mobile-overlay-and-open-bugs-20260908",
   "status": "active",
-  "objective": "Show the existing DL Mode icon on Recently Active photos hidden by DL Mode.",
-  "userOutcome": "Recently Active distinguishes a DL-masked photo from an ordinary missing-photo fallback without changing the bar layout or masking rules.",
+  "objective": "Unify censored-photo covers across the app with the existing white DL icon at 75% opacity and DL MODE ON beneath it.",
+  "userOutcome": "Every DL-masked photo has the same labeled cover, including Recently Active; toggles, layouts and masking rules remain unchanged.",
   "audience": "cruush members.",
   "successCriteria": [
     "Test onboarding appears only for the authenticated named admin account and renders the existing ProfileOnboarding component in previewMode.",
@@ -34,7 +34,7 @@
       "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "Verify the existing DL icon on a masked Recently Active tile and publish this scoped correction.",
+  "nextVisibleMilestone": "Publish and verify the white, translucent DL MODE ON photo cover in Recently Active and affected photo surfaces.",
   "stopConditions": [
     "Stop at a password form.",
     "Stop if the server build fails."
@@ -64,8 +64,16 @@
   "release": "1.6",
   "repository": "cruush-social/Cruushv2",
   "branch": "main",
-  "job": "Fix the missing DL icon in Recently Active without changing photo classification or layout.",
+  "job": "Use one labeled white DL cover for censored photos across the app without changing photo classification or layout.",
   "allowedPaths": [
+    "src/app/components/DlModePhotoPlaceholder.tsx",
+    "src/app/components/DlModePhotoPlaceholder.test.tsx",
+    "src/app/components/HeartPhoto.tsx",
+    "src/app/components/ProfileCard.tsx",
+    "src/app/components/ProfilePhotoGallery.tsx",
+    "src/app/components/ProfileEdit.tsx",
+    "src/app/components/CruiseCarouselSlot.tsx",
+    "src/app/components/PrivacyAudit.tsx",
     "src/app/components/PrideFlagGlyphs.tsx",
     "src/app/components/BadgePickerPreview.test.tsx",
     "src/app/components/AccessibilityQuickAccess.tsx",
@@ -120,7 +128,7 @@
   "forbiddenPaths": [
     "src/app/assets/brand/**"
   ],
-  "proofTarget": "Focused placement and water-rejection assertions, server and client builds, deployed SHA in both containers, fresh worker, and authenticated rendered Ghost decoy on land.",
+  "proofTarget": "Focused cover and RA assertions, server/client builds, exact real-component rendering at 412px, deployed SHA in both containers, fresh worker and live censored-photo covers.",
   "publicationTarget": "origin/main and the production deploy",
   "requiredEvidence": [
     "Focused server assertion and server TypeScript build output.",
