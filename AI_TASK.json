@@ -110,6 +110,7 @@
     "src/app/components/ui/dialog.tsx",
     "src/styles/theme.css",
     "AI_TASK.json",
+    "public/blog/safety-on-cruush.html",
     "FIXLOG.md",
     "index.html",
     "public/sw.js",
