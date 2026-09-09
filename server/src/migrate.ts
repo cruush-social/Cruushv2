@@ -161,7 +161,8 @@ const migrationFiles = [
   "152_merge_prefix_duplicate_spots.sql",
   "153_remove_abdl_scene.sql",
   "154_fix_changelog_notification_links.sql",
-  "155_preserve_spot_cleanup.sql"
+  "155_preserve_spot_cleanup.sql",
+  "156_archive_remaining_spot_duplicates.sql"
 ];
 const rewardSafetyPreflightFiles = [
   "079_daily_check_in_rewards.sql",

@@ -1,5 +1,9 @@
 # FIXLOG
 
+- September 9 Spot follow-up: exact imported Access prose is backed up and cleared without touching cruush-authored replacement text; startup no longer restores it. Forty-seven reviewed imported bathroom/parent and spelling duplicates are archived with original-record backups and retained member rows. A real PostgreSQL transaction passed three replays, retained the parent/member data and owned copy, and removed a reintroduced imported value again. Live delivery is pending.
+
+- 2026-09-09: Ghost epoch-binding repair deployed as `e8d07b0`; both healthy containers/API match, worker117 active without waiting worker or caches. Actual https://cruush.app/ map rendered at1440x1000 (`/tmp/cruush-ghost-live-v117.png`, browser print capture). Both builds and 55 focused/existing checks passed. The separately reported near-zero jump remains unverified pending the affected profile; the observed 623m/39% frame pair predates this patch and is not post-fix race proof.
+
 - 2026-09-09: Reproduced the Ghost epoch-boundary race: an old decoy could be paired with the next epoch's cleared animation hint after asynchronous placement. Discovery and mutual maps now bind the hint to the coordinate's resolution time, retaining the old hidden deadline until replacement coordinates arrive. The focused assertion failed before and passes after; 27 privacy/land/drift checks pass. The approved artwork, random 30–80% geometry, selected radius and land-only rules are unchanged. Deployment and post-deploy live evidence pending.
 
 - 2026-09-09: Nearby now removal is live at `05c2b9c`, both healthy services and API, activated worker116 without a waiting worker or caches. The actual desktop profile popup at https://cruush.app/, 1440x1000, omits the capsule and retains all four action rectangles exactly. Both builds and independent source/render review passed. Evidence: `/tmp/cruush-nearby-label-live-v116-desktop.png` (browser print render).

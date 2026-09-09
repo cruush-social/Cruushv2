@@ -1,12 +1,18 @@
--- Redacted access directions, aggregate popular-time history, and initial lean tags
+-- Aggregate popular-time history and initial lean tags
 -- recovered from Julien's retained 2026-08-22 public-place workbook. No visitor identities are present.
 -- Do not restore source-platform descriptions. Migration 155 removes that text
--- with a recoverable backup; a later startup must leave it removed.
+-- with a recoverable backup; a later startup must leave it removed. Access prose
+-- is also imported user text. Back up and remove only exact imported values,
+-- preserving any cruush-authored replacement rather than rewriting it on startup.
 
-update places as place
-set access_instructions = seed.access_instructions,
-    updated_at = now()
-from (values
+create table if not exists place_import_access_cleanup_20260909 (
+  place_id uuid primary key,
+  original_access_instructions text not null,
+  recorded_at timestamptz not null default now()
+);
+
+with source_text as (
+select * from (values
   ('676d50c6-d6b0-5e70-9d01-5316755e7f8a'::uuid, '', 'Cruisy platform late night - back of uptown / front of downtown'),
   ('17ff1ddb-84b7-5a0e-ad1e-c7e973dd734d'::uuid, 'Quiet fucking only', 'Family bathroom'),
   ('d582aaf6-6bf9-58cc-aefd-c1fa3fe6434f'::uuid, '', 'take elevator to 1st floor. men’s restroom to the left up two stairs. door code [redacted]. private stalls quiet restroom.'),
@@ -4003,7 +4009,23 @@ $20', ''),
   ('856a5e17-da51-5916-a8d8-b73c2b222a1c'::uuid, '', 'Hiking trail on WCU South Campus. Bunch of trails to walk and hiding spots in the brush to get off.'),
   ('c3f43e55-57cf-5cf3-a5c8-af4241e65dd7'::uuid, 'Very discrete at night. Park up and play.', '')
 ) as seed(id, description, access_instructions)
-where place.id = seed.id;
+), matched_imports as (
+  select place.id, place.access_instructions
+  from places place join source_text seed on place.id = seed.id
+  where place.source_kind = 'community'
+    and place.slug ~ '^public-place-[a-f0-9]{24}$'
+    and place.access_instructions <> ''
+    and place.access_instructions = seed.access_instructions
+), backed_up as (
+  insert into place_import_access_cleanup_20260909 (place_id, original_access_instructions)
+  select id, access_instructions from matched_imports
+  on conflict (place_id) do nothing
+  returning place_id
+)
+update places place
+set access_instructions = '', updated_at = now()
+from matched_imports imported
+where place.id = imported.id and place.access_instructions = imported.access_instructions;
 
 insert into place_popular_time_baselines (place_id, weekday, hour, visit_count, source_attribution)
 values
