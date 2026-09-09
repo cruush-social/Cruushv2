@@ -948,8 +948,25 @@ describe('MapView', () => {
     expect(pulse).toHaveAttribute('data-ghost-rotation-exit', 'true');
     expect(plane.outerHTML).toBe(initialPlane);
     await act(async () => { await vi.advanceTimersByTimeAsync(2_000); });
-    expect(screen.queryByTestId('marker-ghost-fly-icon-owner-mhc-rotation')).not.toBeInTheDocument();
+    expect(pulse).toHaveAttribute('data-ghost-rotation-exit', 'true');
     expect(pulse.style.transform).toBe('');
+  });
+
+  it('does not reveal an expired other-member decoy while its replacement is loading', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-09-09T06:00:00Z'));
+    vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() })));
+    const marker = {
+      id: 'ghost-replacement', displayName: 'River', displayMode: 'GHOST' as const,
+      animationHint: 'FADE_LAST_MINUTE' as const,
+      approximateLatitude: 40.72, approximateLongitude: -74.01,
+      ghostRotationExpiresAtMs: Date.now() + 5_000,
+    };
+    const { rerender } = render(<MapMarkerPin marker={marker} />);
+    await act(async () => { await vi.advanceTimersByTimeAsync(5_500); });
+    expect(screen.getByTestId('marker-ghost-pulse-ghost-replacement')).toHaveAttribute('data-ghost-rotation-exit', 'true');
+    rerender(<MapMarkerPin marker={{ ...marker, approximateLatitude: 40.73, ghostRotationExpiresAtMs: Date.now() + 900_000 }} />);
+    expect(screen.getByTestId('marker-ghost-pulse-ghost-replacement')).toHaveAttribute('data-ghost-rotation-exit', 'false');
   });
 
   it('draws the owner Ghost Mode radius around true location and a leash to the decoy', async () => {

@@ -1313,18 +1313,21 @@ function GhostRotationPulse({ marker, children }: { marker: MapMarker; children:
   const pulseRef = useRef<HTMLSpanElement | null>(null);
 
   useEffect(() => {
-    if (!canAnimate || typeof expiresAtMs !== 'number') return;
+    if (!canAnimate || typeof expiresAtMs !== 'number') {
+      setExitElapsedMs(null);
+      return;
+    }
     const remainingMs = expiresAtMs - Date.now();
     const exitStartMs = remainingMs - GHOST_ROTATION_EXIT_MS;
-    if (exitStartMs <= 0 && remainingMs > 0) {
-      setExitElapsedMs(Math.min(GHOST_ROTATION_EXIT_MS, -exitStartMs));
+    if (exitStartMs <= 0) {
+      setExitElapsedMs(-exitStartMs);
+      return;
     }
-    const exitTimer = window.setTimeout(() => setExitElapsedMs(0), Math.max(0, exitStartMs));
-    const endTimer = window.setTimeout(() => setExitElapsedMs(null), Math.max(0, remainingMs));
-    return () => {
-      window.clearTimeout(exitTimer);
-      window.clearTimeout(endTimer);
-    };
+    // Keep the completed exit hidden until a fresh rotation arrives. Ending it
+    // at the deadline briefly revealed the old location during the fetch.
+    setExitElapsedMs(null);
+    const exitTimer = window.setTimeout(() => setExitElapsedMs(0), exitStartMs);
+    return () => window.clearTimeout(exitTimer);
   }, [canAnimate, expiresAtMs]);
 
   useEffect(() => {
