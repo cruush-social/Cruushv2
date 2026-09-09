@@ -2817,7 +2817,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
 
   return (
     <div
-      className={`cruush-map-shell ${isFiltersOpen || isVisibilityOpen ? 'cruush-map-surface-open' : ''} ${isMobile ? `fixed${mobileVisualViewportBounds ? '' : ' inset-0'}` : 'relative'} overflow-hidden overscroll-none bg-background select-none`}
+      className={`cruush-map-shell ${isFiltersOpen || isVisibilityOpen ? 'cruush-map-surface-open' : ''} ${isMobile ? `fixed${mobileVisualViewportBounds ? '' : ' inset-0'}` : 'relative isolate'} overflow-hidden overscroll-none bg-background select-none`}
       data-testid="map-home-shell"
       style={mobileVisualViewportBounds ? {
         height: `${mobileVisualViewportBounds.height}px`,

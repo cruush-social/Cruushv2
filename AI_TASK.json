@@ -8,7 +8,7 @@
     "preserve": "Keep real user-source references, staged/outgoing source verification and independent review mandatory. Do not fabricate pre-edit evidence or add bypass flags.",
     "coordination": "The Add UI scope improvement plan task owns the global hook files and is applying the repair; this task preserves the staged product patch and verifies the release."
   },
-  "objective": "Verify the deployed v104 tutorial handoff, then replace only the Hunter SnakeGlyph with the exact rounded-outline snake Julien approved in the displayed preview. Preserve all other icons and presentation.",
+  "objective": "Fix the reopened desktop tutorial highlight layering defect and verify desktop Map Controls expansion for child steps. Preserve the v105 fixes and all map geometry. Current user source: transcript 01a08281-ec99-7630-b7a1-fbbcb8575d5e line 10997.",
   "userOutcome": "The Hunter badge uses Julien's exact approved rounded-outline snake, while the verified tutorial, Ghost rotation, onboarding and desktop profile fixes remain live and unchanged.",
   "audience": "cruush members.",
   "successCriteria": [
@@ -51,7 +51,7 @@
       "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "Confirm the live mobile tutorial handoff and render the exact approved snake in its existing badge slot before deployment.",
+  "nextVisibleMilestone": "Verify the unobscured Notifications tutorial ring and expanded Crowd/Pulse controls on desktop, then deploy the scoped fix. Preserve mobile dismissal and dialog access.",
   "stopConditions": [
     "Stop at a password form.",
     "Stop if the server build fails."
@@ -82,7 +82,7 @@
   "release": "1.6",
   "repository": "cruush-social/Cruushv2",
   "branch": "main",
-  "job": "Complete v104 tutorial live verification, then copy the exact approved snake preview paths into SnakeGlyph only. Preserve all neighboring presentation and product behavior.",
+  "job": "Repair desktop tutorial highlight stacking only, verify existing child-menu expansion, and ship with unchanged map layout and mobile behavior.",
   "allowedPaths": [
     "src/app/components/PositionRoleGlyphs.tsx",
     "docs/spot-dedup-20260908.json",
@@ -580,6 +580,30 @@
           "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T22-07-53-01a083eb-f47a-7691-95b4-2e358e8f5b79.jsonl",
           "line": 491,
           "sha256": "42c44519c98b98ed104a9c4cf2c806e26330383f39e794eda24d26185a072c2f"
+        }
+      },
+      {
+        "file": "src/app/components/MapHome.tsx",
+        "property": "unknown",
+        "target": "jsx:div[data-testid=\"map-home-shell\"]",
+        "before": "className: `cruush-map-shell ${isFiltersOpen || isVisibilityOpen ? 'cruush-map-surface-open' : ''} ${isMobile ? `fixed${mobileVisualViewportBounds ? '' : ' inset-0'}` : 'relative'} overflow-hidden overscroll-none bg-background select-none` [isMobile=useIsMobile(); mobileVisualViewportBounds=useMobileVisualViewportBounds(isMobile)]\nstyle: mobileVisualViewportBounds ? { height: `${mobileVisualViewportBounds.height}px`, left: `${mobileVisualViewportBounds.left}px`, maxHeight: `${mobileVisualViewportBounds.height}px`, minHeight: `${mobileVisualViewportBounds.height}px`, top: `${mobileVisualViewportBounds.top}px`, width: `${mobileVisualViewportBounds.width}px`, } : undefined [mobileVisualViewportBounds=useMobileVisualViewportBounds(isMobile)]",
+        "after": "className: `cruush-map-shell ${isFiltersOpen || isVisibilityOpen ? 'cruush-map-surface-open' : ''} ${isMobile ? `fixed${mobileVisualViewportBounds ? '' : ' inset-0'}` : 'relative isolate'} overflow-hidden overscroll-none bg-background select-none` [isMobile=useIsMobile(); mobileVisualViewportBounds=useMobileVisualViewportBounds(isMobile)]\nstyle: mobileVisualViewportBounds ? { height: `${mobileVisualViewportBounds.height}px`, left: `${mobileVisualViewportBounds.left}px`, maxHeight: `${mobileVisualViewportBounds.height}px`, minHeight: `${mobileVisualViewportBounds.height}px`, top: `${mobileVisualViewportBounds.top}px`, width: `${mobileVisualViewportBounds.width}px`, } : undefined [mobileVisualViewportBounds=useMobileVisualViewportBounds(isMobile)]",
+        "requestedProperty": "position",
+        "review": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T21-34-14-01a083cd-25b6-7222-b0a9-9db8fd15a419.jsonl",
+          "line": 636,
+          "sha256": "6f8d231982c3c5e69a5e8ffc878e66de0a6b57c17d17da254bb4e0bb549490b3"
+        },
+        "surface": "tutorial",
+        "statement": "tutorial still doesnt lower the map controls to show options that require opening the map control, highlight over , broken highlight on desktop",
+        "viewport": "Desktop map tutorial; mobile fixed shell unchanged",
+        "preserve": [
+          "Keep the top capsule, icons, controls and map geometry, colors, sizes and spacing unchanged. Preserve mobile fixed shell and tutorial below dialogs. Isolate desktop map descendants only so the existing tutorial highlight paints above them."
+        ],
+        "source": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T15-32-27-01a08281-ec99-7630-b7a1-fbbcb8575d5e.jsonl",
+          "line": 10997,
+          "sha256": "2b033a834c05a8f0a202404a774e1046f6fd4df70f213944eee48af675f0c8fc"
         }
       }
     ]
