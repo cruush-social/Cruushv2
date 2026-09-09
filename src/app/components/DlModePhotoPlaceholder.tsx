@@ -8,7 +8,7 @@ export default function DlModePhotoPlaceholder({ className = 'w-20', showLabel =
       role="img"
       data-testid="dl-mode-photo-placeholder"
       className={`shrink-0 text-white opacity-75 ${className}`}
-      viewBox="0 0 80 76"
+      viewBox={showLabel ? '0 0 80 76' : '20 0 40 52'}
       xmlns="http://www.w3.org/2000/svg"
     >
       <foreignObject x="20" y="0" width="40" height="52">

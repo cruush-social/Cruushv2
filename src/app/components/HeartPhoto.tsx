@@ -106,7 +106,7 @@ export default function HeartPhoto({
             existing cruush mark; masked photos never get a competing fallback. */}
         {!resolvedPhoto ? (
           masked ? (
-            <foreignObject x="12" y="10" width="40" height="38">
+            <foreignObject x="22" y="19" width="20" height="26">
               <DlModePhotoPlaceholder className="h-full w-full" showLabel={false} />
             </foreignObject>
           ) : (

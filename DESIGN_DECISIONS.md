@@ -1,6 +1,6 @@
 # cruush design decisions
 
-- Censored photos across the app use the supplied DL icon in white at 75% opacity. Non-heart covers keep the exact text `DL MODE ON` beneath it. Heart previews, including map hearts, omit that visible line because it overlaps the small heart outline. Preserve the icon's size and position. This supersedes the earlier all-surfaces text requirement; DL toggles and ordinary missing-photo fallbacks are unchanged. (September 8, 2026)
+- Censored photos across the app use the supplied DL icon in white at 75% opacity. Non-heart covers keep the exact text `DL MODE ON` beneath it. Heart previews, including map hearts, omit that visible line and center the icon horizontally and vertically in the heart while preserving its size. This supersedes the earlier all-surfaces text requirement and the intermediate instruction to retain the old icon position; DL toggles and ordinary missing-photo fallbacks are unchanged. (September 8, 2026)
 
 - Feed photo previews are 64px hearts, matching the approved sample page. One photo uses one heart. Two or three photos use separate equal-size hearts in one horizontal row with visible gaps. They never weld, overlap, cluster, or grow to the 80px map-heart size.
 - Color-blind mode is an Accessibility toggle. Navigation-size and map-pin-size controls are not part of 1.6.

@@ -2,10 +2,19 @@
   "schemaVersion": 2,
   "taskId": "mobile-overlay-and-open-bugs-20260908",
   "status": "active",
-  "objective": "Remove the visible DL MODE ON line from heart previews only, retaining the existing white icon and labels on non-heart covers.",
-  "userOutcome": "Every DL-masked photo has the same labeled cover, including Recently Active; toggles, layouts and masking rules remain unchanged.",
+  "hookRepair": {
+    "authority": "Julien authorized repairing the hook without weakening approval checks: so fix it i guess ?",
+    "scope": "Narrow compatibility repairs for a pre-installation dirty session, the explicit should be centered instruction, SVG positioning detection and actual detached-HEAD push refs.",
+    "preserve": "Keep real user-source references, staged/outgoing source verification and independent review mandatory. Do not fabricate pre-edit evidence or add bypass flags.",
+    "coordination": "The Add UI scope improvement plan task owns the global hook files and is applying the repair; this task preserves the staged product patch and verifies the release."
+  },
+  "objective": "Center the existing white DL icon horizontally and vertically inside heart previews, preserving its size, opacity, no-text treatment and all non-heart covers.",
+  "userOutcome": "The DL icon is centered in heart previews without text, while non-heart covers retain DL MODE ON beneath the same white translucent icon. Toggles, layouts and masking rules remain unchanged.",
   "audience": "cruush members.",
   "successCriteria": [
+    "The visible DL mark is centered horizontally and vertically inside both heart implementations, preserving its actual 20 by 26 size in the 64-unit heart coordinate system.",
+    "Non-heart photo covers retain their existing icon, opacity and DL MODE ON label.",
+    "The repaired publication hook validates the actual user instruction and genuine independent review without fabricating before-edit evidence.",
     "Test onboarding appears only for the authenticated named admin account and renders the existing ProfileOnboarding component in previewMode.",
     "Replay cannot save photos, profile data, referrals, 2FA changes, or onboarding completion to the real account.",
     "Consecutive epochs within the same privacy cell move 30–80% of the selected radius before land filtering.",
@@ -34,7 +43,7 @@
       "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "Publish and verify the white, translucent DL MODE ON photo cover in Recently Active and affected photo surfaces.",
+  "nextVisibleMilestone": "Publish v101 and verify the centered DL icon in live heart previews, with the existing labeled Recently Active cover unchanged.",
   "stopConditions": [
     "Stop at a password form.",
     "Stop if the server build fails."
@@ -64,7 +73,7 @@
   "release": "1.6",
   "repository": "cruush-social/Cruushv2",
   "branch": "main",
-  "job": "Use one labeled white DL cover for censored photos across the app without changing photo classification or layout.",
+  "job": "Center the existing DL icon in heart previews only; preserve its size, opacity, no-heart-text treatment, all non-heart labels and masking rules.",
   "allowedPaths": [
     "src/app/components/DlModePhotoPlaceholder.tsx",
     "src/app/components/DlModePhotoPlaceholder.test.tsx",
@@ -133,5 +142,146 @@
   "requiredEvidence": [
     "Focused server assertion and server TypeScript build output.",
     "Both production containers on the pushed SHA."
-  ]
+  ],
+  "uiScope": {
+    "version": 1,
+    "source": {
+      "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T15-32-27-01a08281-ec99-7630-b7a1-fbbcb8575d5e.jsonl",
+      "line": 7907,
+      "sha256": "f8c457cc7facffe440278a2cb4b378f4e005d158ab23fe6957ab5bfc2e9c0985"
+    },
+    "baselineId": "e6ee95465a9cc0b9bb0cd7cd907309d90dc8e6097f601f0407836cd58ad122de",
+    "grants": [
+      {
+        "file": "src/app/components/DlModePhotoPlaceholder.tsx",
+        "property": "asset",
+        "requestedProperty": "alignment",
+        "target": "jsx:svg[data-testid=\"dl-mode-photo-placeholder\"]",
+        "before": "viewBox: 0 0 80 76",
+        "after": "viewBox: showLabel ? '0 0 80 76' : '20 0 40 52'",
+        "surface": "heart preview",
+        "statement": "the dl mode icon on heart preview sshould be centered",
+        "viewport": "DL-masked heart previews at all responsive widths; rendered at 412px with 36px, 64px and 80px hearts.",
+        "preserve": [
+          "Keep the actual icon size, approved asset, white color and 75% opacity unchanged.",
+          "Keep heart previews without visible text and retain the DL MODE ON label on every non-heart cover.",
+          "Preserve heart outline, relationship colors and all adjacent layout."
+        ],
+        "source": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T15-32-27-01a08281-ec99-7630-b7a1-fbbcb8575d5e.jsonl",
+          "line": 7907,
+          "sha256": "f8c457cc7facffe440278a2cb4b378f4e005d158ab23fe6957ab5bfc2e9c0985"
+        },
+        "review": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T21-34-14-01a083cd-25b6-7222-b0a9-9db8fd15a419.jsonl",
+          "line": 165,
+          "sha256": "f95a58fe1644be986283f6e4241b3295b107a5c0dfe9e6bdf54ca35f2dc8b912"
+        }
+      },
+      {
+        "file": "src/app/components/HeartPhoto.tsx",
+        "property": "asset",
+        "requestedProperty": "alignment",
+        "target": "jsx:div[1]/svg[1]/foreignObject[1]",
+        "before": "x: 12\ny: 10",
+        "after": "x: 22\ny: 19",
+        "surface": "heart preview",
+        "statement": "the dl mode icon on heart preview sshould be centered",
+        "viewport": "DL-masked heart previews at all responsive widths; rendered at 412px with 36px, 64px and 80px hearts.",
+        "preserve": [
+          "Keep the actual icon size, approved asset, white color and 75% opacity unchanged.",
+          "Keep heart previews without visible text and retain the DL MODE ON label on every non-heart cover.",
+          "Preserve heart outline, relationship colors and all adjacent layout."
+        ],
+        "source": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T15-32-27-01a08281-ec99-7630-b7a1-fbbcb8575d5e.jsonl",
+          "line": 7907,
+          "sha256": "f8c457cc7facffe440278a2cb4b378f4e005d158ab23fe6957ab5bfc2e9c0985"
+        },
+        "review": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T21-34-14-01a083cd-25b6-7222-b0a9-9db8fd15a419.jsonl",
+          "line": 165,
+          "sha256": "f95a58fe1644be986283f6e4241b3295b107a5c0dfe9e6bdf54ca35f2dc8b912"
+        }
+      },
+      {
+        "file": "src/app/components/HeartPhoto.tsx",
+        "property": "size",
+        "requestedProperty": "alignment",
+        "target": "jsx:div[1]/svg[1]/foreignObject[1]",
+        "before": "width: 40\nheight: 38",
+        "after": "width: 20\nheight: 26",
+        "surface": "heart preview",
+        "statement": "the dl mode icon on heart preview sshould be centered",
+        "viewport": "DL-masked heart previews at all responsive widths; rendered at 412px with 36px, 64px and 80px hearts.",
+        "preserve": [
+          "Keep the actual icon size, approved asset, white color and 75% opacity unchanged.",
+          "Keep heart previews without visible text and retain the DL MODE ON label on every non-heart cover.",
+          "Preserve heart outline, relationship colors and all adjacent layout."
+        ],
+        "source": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T15-32-27-01a08281-ec99-7630-b7a1-fbbcb8575d5e.jsonl",
+          "line": 7907,
+          "sha256": "f8c457cc7facffe440278a2cb4b378f4e005d158ab23fe6957ab5bfc2e9c0985"
+        },
+        "review": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T21-34-14-01a083cd-25b6-7222-b0a9-9db8fd15a419.jsonl",
+          "line": 165,
+          "sha256": "f95a58fe1644be986283f6e4241b3295b107a5c0dfe9e6bdf54ca35f2dc8b912"
+        }
+      },
+      {
+        "file": "src/app/components/MapView.tsx",
+        "property": "asset",
+        "requestedProperty": "alignment",
+        "target": "jsx:svg[1]/foreignObject[1]",
+        "before": "x: 12\ny: 10",
+        "after": "x: 22\ny: 19",
+        "surface": "heart preview",
+        "statement": "the dl mode icon on heart preview sshould be centered",
+        "viewport": "DL-masked heart previews at all responsive widths; rendered at 412px with 36px, 64px and 80px hearts.",
+        "preserve": [
+          "Keep the actual icon size, approved asset, white color and 75% opacity unchanged.",
+          "Keep heart previews without visible text and retain the DL MODE ON label on every non-heart cover.",
+          "Preserve heart outline, relationship colors and all adjacent layout."
+        ],
+        "source": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T15-32-27-01a08281-ec99-7630-b7a1-fbbcb8575d5e.jsonl",
+          "line": 7907,
+          "sha256": "f8c457cc7facffe440278a2cb4b378f4e005d158ab23fe6957ab5bfc2e9c0985"
+        },
+        "review": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T21-34-14-01a083cd-25b6-7222-b0a9-9db8fd15a419.jsonl",
+          "line": 165,
+          "sha256": "f95a58fe1644be986283f6e4241b3295b107a5c0dfe9e6bdf54ca35f2dc8b912"
+        }
+      },
+      {
+        "file": "src/app/components/MapView.tsx",
+        "property": "size",
+        "requestedProperty": "alignment",
+        "target": "jsx:svg[1]/foreignObject[1]",
+        "before": "width: 40\nheight: 38",
+        "after": "width: 20\nheight: 26",
+        "surface": "heart preview",
+        "statement": "the dl mode icon on heart preview sshould be centered",
+        "viewport": "DL-masked heart previews at all responsive widths; rendered at 412px with 36px, 64px and 80px hearts.",
+        "preserve": [
+          "Keep the actual icon size, approved asset, white color and 75% opacity unchanged.",
+          "Keep heart previews without visible text and retain the DL MODE ON label on every non-heart cover.",
+          "Preserve heart outline, relationship colors and all adjacent layout."
+        ],
+        "source": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T15-32-27-01a08281-ec99-7630-b7a1-fbbcb8575d5e.jsonl",
+          "line": 7907,
+          "sha256": "f8c457cc7facffe440278a2cb4b378f4e005d158ab23fe6957ab5bfc2e9c0985"
+        },
+        "review": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T21-34-14-01a083cd-25b6-7222-b0a9-9db8fd15a419.jsonl",
+          "line": 165,
+          "sha256": "f95a58fe1644be986283f6e4241b3295b107a5c0dfe9e6bdf54ca35f2dc8b912"
+        }
+      }
+    ]
+  }
 }
