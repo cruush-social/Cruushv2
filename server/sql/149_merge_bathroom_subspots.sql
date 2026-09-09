@@ -7,11 +7,9 @@
 -- and is left alone; only "AMC RESTROOM" beside "AMC" is treated as the same
 -- place.
 --
--- The bathroom is not silently lost: the parent's description gains a line
--- saying the restrooms there are cruised, which is the part worth keeping.
---
--- Replay-safe: the note is only appended when it is not already present, and
--- the delete is a no-op once the rows are gone.
+-- Archive the imported sub-Spot recoverably. Do not delete its member data or
+-- invent a description for its parent. Archived/rejected rows remain untouched
+-- when migrations replay.
 do $$
 declare
   pair record;
@@ -20,7 +18,6 @@ begin
     with pairs as (
       select b.id as bathroom_id,
              p.id as parent_id,
-             p.description as parent_desc,
              row_number() over (
                partition by b.id
                order by abs(b.latitude - p.latitude) + abs(b.longitude - p.longitude)
@@ -31,20 +28,17 @@ begin
        and abs(b.latitude - p.latitude) < 0.0018
        and abs(b.longitude - p.longitude) < 0.0018
        and p.name !~* '(bathroom|restroom|toilet)'
+       and p.status = 'published'
        and length(p.name) >= 4
        and b.name ilike '%' || p.name || '%'
       where b.name ~* '(bathroom|restroom|toilet)'
+        and b.status = 'published'
+        and b.slug like 'public-place-%'
     )
-    select bathroom_id, parent_id, parent_desc from pairs where rn = 1
+    select bathroom_id, parent_id from pairs where rn = 1
   loop
     update places
-    set description = case
-      when coalesce(pair.parent_desc, '') = '' then 'Restrooms here see cruising traffic.'
-      when pair.parent_desc ilike '%restrooms here see cruising traffic%' then pair.parent_desc
-      else pair.parent_desc || ' Restrooms here see cruising traffic.'
-    end
-    where id = pair.parent_id;
-
-    delete from places where id = pair.bathroom_id;
+    set status = 'archived', updated_at = now()
+    where id = pair.bathroom_id and status = 'published';
   end loop;
 end $$;

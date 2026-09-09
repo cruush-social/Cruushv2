@@ -190,6 +190,34 @@ describe("migration runner", () => {
     expect(placesSql).not.toMatch(/tower_residential/i);
   });
 
+  it("preserves archived Spots, removed import descriptions and member data during replay", async () => {
+    const readSql = (file: string) => readFile(path.join(serverRoot, "sql", file), "utf8");
+    const [importSql, detailsSql, cleanupSql, bathroomSql, duplicateSql, prefixSql, migrateSource] = await Promise.all([
+      readSql("134_full_nyc_spot_import.sql"),
+      readSql("120_public_spot_details.sql"),
+      readSql("155_preserve_spot_cleanup.sql"),
+      readSql("149_merge_bathroom_subspots.sql"),
+      readSql("151_merge_duplicate_named_spots.sql"),
+      readSql("152_merge_prefix_duplicate_spots.sql"),
+      readFile(path.join(currentDir, "migrate.ts"), "utf8")
+    ]);
+    expect(importSql.match(/on conflict \(slug\) do nothing;/g)).toHaveLength(28);
+    expect(importSql).not.toContain("on conflict (slug) do update");
+    expect(detailsSql).not.toContain("description = seed.description");
+    expect(cleanupSql).toContain("original_description");
+    expect(cleanupSql).toContain("on conflict (place_id) do nothing");
+    expect(cleanupSql).toContain("from backed_up saved");
+    expect(cleanupSql).toContain("p.source_kind = 'community'");
+    expect(cleanupSql).toContain("public-place-6a2e454d808e887c3edaf873");
+    expect(migrateSource).toContain('"155_preserve_spot_cleanup.sql"');
+    for (const sql of [bathroomSql, duplicateSql, prefixSql]) {
+      expect(sql).not.toMatch(/delete\s+from\s+places/i);
+      expect(sql).toContain("status = 'published'");
+      expect(sql).toContain("status = 'archived'");
+      expect(sql).toContain("slug like 'public-place-%'");
+    }
+  });
+
   it("migrates kink roles through the existing profile role column", async () => {
     const taxonomySql = await readFile(path.join(serverRoot, "sql", "128_profile_taxonomy_final.sql"), "utf8");
     const profileFieldsSql = await readFile(path.join(serverRoot, "sql", "129_profile_preferred_spots_protection.sql"), "utf8");

@@ -8,8 +8,8 @@
     "preserve": "Keep real user-source references, staged/outgoing source verification and independent review mandatory. Do not fabricate pre-edit evidence or add bypass flags.",
     "coordination": "The Add UI scope improvement plan task owns the global hook files and is applying the repair; this task preserves the staged product patch and verifies the release."
   },
-  "objective": "Finish the authorized Feed top-collapse control and investigate the reopened other-member Ghost decoy report after the verified v111 mobile MHC release. Preserve the pending desktop Recently Active patch and its unanswered layout decision.",
-  "userOutcome": "Feed input can collapse from its top without losing drafts. A Ghost pin must not reappear at its expired decoy while the replacement is loading. Preserve the approved animation, radius, land filtering and privacy protections.",
+  "objective": "Spots first under Julien's latest priority override: remove all clearly low-quality user-submitted Sniffies imports, duplicate Spots and imported personal descriptions, and prevent startup replay from restoring them. Preserve legitimate distinct venues and all underlying member data. Park the staged MHC/kink release and pending RA patch without discarding or publishing them.",
+  "userOutcome": "Low-quality imported Spots and imported personal descriptions disappear from discovery without returning on restart. Valid venues, moderator edits and underlying member records remain preserved.",
   "audience": "cruush members.",
   "successCriteria": [
     "Hunter uses the exact two paths approved in snake-preview.tsx, with the existing Glyph viewBox, rounded stroke defaults and role mapping. Mouse, all other glyphs, badge frames, colors, placements and sizes remain unchanged.",
@@ -41,7 +41,7 @@
   ],
   "nonGoals": [
     "No change to Ghost animation, badge geometry, actual approved profile photos, existing members' settings, or unrelated queued UI work.",
-    "No database migration, account-status change, record deletion, data reassignment, unrelated deployment or public copy edits during Spot cleanup."
+    "No permanent place-row deletion, account-status change, data reassignment, invented replacement descriptions or unrelated UI publication during Spot cleanup. A narrowly scoped, reversible data migration and import replay repair are necessary to make the requested cleanup persist."
   ],
   "assumptions": [
     {
@@ -51,7 +51,7 @@
       "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "Feed uses the existing cruush+ benefits accordion top control after the exact source-parser blocker is repaired by its tooling owner. Meanwhile verify the Ghost animation's expired-pin reappearance path. The exact RA guard remains unshipped pending Julien's decision about narrow-desktop overlap.",
+  "nextVisibleMilestone": "Reported personal-ad and misspelled Spots disappear from live discovery, imported descriptions are removed, and the same records remain archived after migration replay. Exact before-state backups preserve recovery. No adjacent UI change.",
   "stopConditions": [
     "Stop at a password form.",
     "Stop if the server build fails."
@@ -65,7 +65,8 @@
     "send": "forbidden",
     "push": "authorized by the standing request to deploy fixes",
     "deploy": "authorized by the standing request to deploy fixes",
-    "spotArchive": "Julien explicitly requested removal of repeat Spots and bathroom sub-locations. Archive only the exact prechecked targets in docs/spot-dedup-20260908.json; preserve all rows and associated data."
+    "spotArchive": "Julien expanded removal to all obviously low-quality user-submitted Sniffies locations, including bad or misspelled titles and duplicates, then prioritized Spots first. Resolve exact imported-source targets, retain original-record backups, archive recoverably and preserve legitimate venues and all associated data. The previous 31-row manifest is historical evidence, not the scope limit.",
+    "spotDescriptions": "Julien explicitly requested removal of imported Sniffies descriptions and inappropriate personal-ad descriptions. Clear only the qualifying imported descriptions with recoverable backups; do not invent venue claims or delete Pink Book/member content."
   },
   "externalEffects": {
     "externalMessages": "forbidden",
@@ -82,8 +83,22 @@
   "release": "1.6",
   "repository": "cruush-social/Cruushv2",
   "branch": "main",
-  "job": "Continue FEED-CLOSE and MHC-FIT while RA-KEEP-DESKTOP awaits the owner's overlap decision. Preserve the unshipped RA guard and all deployed photo, distance and bug-report fixes. Follow the exact current status ledger and remaining order in docs/bug-queue-20260908.md.",
+  "job": "SPOT-QUALITY, SPOT-DESCRIPTIONS and SPOT-DEDUP replay repair first. Preserve the staged MHC/kink source, unshipped RA guard and all deployed fixes. KINK-BODY-ADDITIONS joins the later queue without interrupting Spots.",
   "allowedPaths": [
+    "server/sql/134_full_nyc_spot_import.sql",
+    "server/sql/120_public_spot_details.sql",
+    "server/sql/149_merge_bathroom_subspots.sql",
+    "server/sql/151_merge_duplicate_named_spots.sql",
+    "server/sql/152_merge_prefix_duplicate_spots.sql",
+    "server/sql/155_preserve_spot_cleanup.sql",
+    "server/src/migrate.ts",
+    "server/src/migrate.test.ts",
+    "src/app/lib/profileOptions.test.ts",
+    "src/app/components/ProfileBadgeGlyphs.tsx",
+    "src/app/components/MapFiltersSurface.tsx",
+    "src/app/components/MapVisibilitySurface.tsx",
+    "src/app/lib/profileOptions.ts",
+    "src/app/lib/profileApi.ts",
     "src/app/components/TravelModeSettings.tsx",
     "server/Dockerfile",
     "server/src/photo-formats.test.ts",
@@ -168,7 +183,7 @@
   "forbiddenPaths": [
     "src/app/assets/brand/**"
   ],
-  "proofTarget": "Focused cover and RA assertions, server/client builds, exact real-component rendering at 412px, deployed SHA in both containers, fresh worker and live censored-photo covers.",
+  "proofTarget": "Real PostgreSQL import and cleanup replay with recoverable backups and zero row/member-data deletion, focused migration assertion, both builds, both running production SHAs and fresh worker. Live 412px Spot detail and fresh discovery prove rejected examples absent and retained venue descriptions cleaned.",
   "publicationTarget": "origin/main and the production deploy",
   "requiredEvidence": [
     "Focused server assertion and server TypeScript build output.",
@@ -1028,6 +1043,316 @@
           "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T22-08-05-01a083ec-2358-75a2-92d4-9bff8f80ed6e.jsonl",
           "line": 1492,
           "sha256": "34768372ccb4b41f372c2283838b7a3bbc18e3d5bf1e32f443b5b249a9260300"
+        }
+      },
+      {
+        "file": "src/app/components/MapFiltersSurface.tsx",
+        "property": "structure",
+        "target": "jsx:Sheet[1]/SheetContent[1]/div[1]/Tabs[1]/TabsContent[2]/div[1]/div[1]",
+        "before": "element: div\nchildren: [\"Label\",\"p\"]",
+        "after": "element: div\nchildren: [\"Label\"]",
+        "requestedProperty": "structure",
+        "surface": "MHC",
+        "statement": "redunant tagline for MHC in seeking tiler and visibility",
+        "viewport": "Seeking Filter and Visibility Intimacy tabs at mobile 412x915 and desktop 1440x1000. No breakpoint changes.",
+        "preserve": [
+          "Keep the labels Mile High Club members only and Hide me from Mile High Club members unchanged.",
+          "Keep the existing card and label wrappers, styling, switch controls, checked values, defaults, permissions and change handlers unchanged.",
+          "Remove only the named paragraph in each card. Add no replacement copy, decoration or changes to neighboring controls."
+        ],
+        "source": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T15-32-27-01a08281-ec99-7630-b7a1-fbbcb8575d5e.jsonl",
+          "line": 11845,
+          "sha256": "0c077071676c6ccec4d5dc6b5fe40358348c7567f624bdd406c593f1fb9a269c"
+        },
+        "executionSource": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T15-32-27-01a08281-ec99-7630-b7a1-fbbcb8575d5e.jsonl",
+          "line": 11932,
+          "sha256": "1702a2f0631a2c862640b3e6c460e8b1b9e6da93979b8f3ea25bc93f005f38c0"
+        },
+        "review": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T21-34-14-01a083cd-25b6-7222-b0a9-9db8fd15a419.jsonl",
+          "line": 1195,
+          "sha256": "1761d43e4c9f6d1f5f0f7c3f777c47bc959b6c7bf08c0e14f05ab6b4cabcd9d9"
+        }
+      },
+      {
+        "file": "src/app/components/MapFiltersSurface.tsx",
+        "property": "color",
+        "target": "jsx:Sheet[1]/SheetContent[1]/div[1]/Tabs[1]/TabsContent[2]/div[1]/div[1]/p[1]",
+        "before": "class: text-muted-foreground",
+        "after": "",
+        "requestedProperty": "color",
+        "surface": "MHC",
+        "statement": "redunant tagline for MHC in seeking tiler and visibility",
+        "viewport": "Seeking Filter and Visibility Intimacy tabs at mobile 412x915 and desktop 1440x1000. No breakpoint changes.",
+        "preserve": [
+          "Keep the labels Mile High Club members only and Hide me from Mile High Club members unchanged.",
+          "Keep the existing card and label wrappers, styling, switch controls, checked values, defaults, permissions and change handlers unchanged.",
+          "Remove only the named paragraph in each card. Add no replacement copy, decoration or changes to neighboring controls."
+        ],
+        "source": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T15-32-27-01a08281-ec99-7630-b7a1-fbbcb8575d5e.jsonl",
+          "line": 11845,
+          "sha256": "0c077071676c6ccec4d5dc6b5fe40358348c7567f624bdd406c593f1fb9a269c"
+        },
+        "executionSource": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T15-32-27-01a08281-ec99-7630-b7a1-fbbcb8575d5e.jsonl",
+          "line": 11932,
+          "sha256": "1702a2f0631a2c862640b3e6c460e8b1b9e6da93979b8f3ea25bc93f005f38c0"
+        },
+        "review": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T21-34-14-01a083cd-25b6-7222-b0a9-9db8fd15a419.jsonl",
+          "line": 1195,
+          "sha256": "1761d43e4c9f6d1f5f0f7c3f777c47bc959b6c7bf08c0e14f05ab6b4cabcd9d9"
+        }
+      },
+      {
+        "file": "src/app/components/MapFiltersSurface.tsx",
+        "property": "copy",
+        "target": "jsx:Sheet[1]/SheetContent[1]/div[1]/Tabs[1]/TabsContent[2]/div[1]/div[1]/p[1]",
+        "before": "text: [\"Show only members currently using Mile High Club.\"]",
+        "after": "",
+        "requestedProperty": "copy",
+        "surface": "MHC",
+        "statement": "redunant tagline for MHC in seeking tiler and visibility",
+        "viewport": "Seeking Filter and Visibility Intimacy tabs at mobile 412x915 and desktop 1440x1000. No breakpoint changes.",
+        "preserve": [
+          "Keep the labels Mile High Club members only and Hide me from Mile High Club members unchanged.",
+          "Keep the existing card and label wrappers, styling, switch controls, checked values, defaults, permissions and change handlers unchanged.",
+          "Remove only the named paragraph in each card. Add no replacement copy, decoration or changes to neighboring controls."
+        ],
+        "source": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T15-32-27-01a08281-ec99-7630-b7a1-fbbcb8575d5e.jsonl",
+          "line": 11845,
+          "sha256": "0c077071676c6ccec4d5dc6b5fe40358348c7567f624bdd406c593f1fb9a269c"
+        },
+        "executionSource": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T15-32-27-01a08281-ec99-7630-b7a1-fbbcb8575d5e.jsonl",
+          "line": 11932,
+          "sha256": "1702a2f0631a2c862640b3e6c460e8b1b9e6da93979b8f3ea25bc93f005f38c0"
+        },
+        "review": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T21-34-14-01a083cd-25b6-7222-b0a9-9db8fd15a419.jsonl",
+          "line": 1195,
+          "sha256": "1761d43e4c9f6d1f5f0f7c3f777c47bc959b6c7bf08c0e14f05ab6b4cabcd9d9"
+        }
+      },
+      {
+        "file": "src/app/components/MapFiltersSurface.tsx",
+        "property": "structure",
+        "target": "jsx:Sheet[1]/SheetContent[1]/div[1]/Tabs[1]/TabsContent[2]/div[1]/div[1]/p[1]",
+        "before": "element: p\nchildren: [\"#text\"]",
+        "after": "",
+        "requestedProperty": "structure",
+        "surface": "MHC",
+        "statement": "redunant tagline for MHC in seeking tiler and visibility",
+        "viewport": "Seeking Filter and Visibility Intimacy tabs at mobile 412x915 and desktop 1440x1000. No breakpoint changes.",
+        "preserve": [
+          "Keep the labels Mile High Club members only and Hide me from Mile High Club members unchanged.",
+          "Keep the existing card and label wrappers, styling, switch controls, checked values, defaults, permissions and change handlers unchanged.",
+          "Remove only the named paragraph in each card. Add no replacement copy, decoration or changes to neighboring controls."
+        ],
+        "source": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T15-32-27-01a08281-ec99-7630-b7a1-fbbcb8575d5e.jsonl",
+          "line": 11845,
+          "sha256": "0c077071676c6ccec4d5dc6b5fe40358348c7567f624bdd406c593f1fb9a269c"
+        },
+        "executionSource": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T15-32-27-01a08281-ec99-7630-b7a1-fbbcb8575d5e.jsonl",
+          "line": 11932,
+          "sha256": "1702a2f0631a2c862640b3e6c460e8b1b9e6da93979b8f3ea25bc93f005f38c0"
+        },
+        "review": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T21-34-14-01a083cd-25b6-7222-b0a9-9db8fd15a419.jsonl",
+          "line": 1195,
+          "sha256": "1761d43e4c9f6d1f5f0f7c3f777c47bc959b6c7bf08c0e14f05ab6b4cabcd9d9"
+        }
+      },
+      {
+        "file": "src/app/components/MapFiltersSurface.tsx",
+        "property": "typography",
+        "target": "jsx:Sheet[1]/SheetContent[1]/div[1]/Tabs[1]/TabsContent[2]/div[1]/div[1]/p[1]",
+        "before": "class: text-xs",
+        "after": "",
+        "requestedProperty": "typography",
+        "surface": "MHC",
+        "statement": "redunant tagline for MHC in seeking tiler and visibility",
+        "viewport": "Seeking Filter and Visibility Intimacy tabs at mobile 412x915 and desktop 1440x1000. No breakpoint changes.",
+        "preserve": [
+          "Keep the labels Mile High Club members only and Hide me from Mile High Club members unchanged.",
+          "Keep the existing card and label wrappers, styling, switch controls, checked values, defaults, permissions and change handlers unchanged.",
+          "Remove only the named paragraph in each card. Add no replacement copy, decoration or changes to neighboring controls."
+        ],
+        "source": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T15-32-27-01a08281-ec99-7630-b7a1-fbbcb8575d5e.jsonl",
+          "line": 11845,
+          "sha256": "0c077071676c6ccec4d5dc6b5fe40358348c7567f624bdd406c593f1fb9a269c"
+        },
+        "executionSource": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T15-32-27-01a08281-ec99-7630-b7a1-fbbcb8575d5e.jsonl",
+          "line": 11932,
+          "sha256": "1702a2f0631a2c862640b3e6c460e8b1b9e6da93979b8f3ea25bc93f005f38c0"
+        },
+        "review": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T21-34-14-01a083cd-25b6-7222-b0a9-9db8fd15a419.jsonl",
+          "line": 1195,
+          "sha256": "1761d43e4c9f6d1f5f0f7c3f777c47bc959b6c7bf08c0e14f05ab6b4cabcd9d9"
+        }
+      },
+      {
+        "file": "src/app/components/MapVisibilitySurface.tsx",
+        "property": "structure",
+        "target": "jsx:Sheet[1]/SheetContent[1]/div[1]/Tabs[1]/TabsContent[2]/div[1]/div[1]",
+        "before": "element: div\nchildren: [\"Label\",\"p\"]",
+        "after": "element: div\nchildren: [\"Label\"]",
+        "requestedProperty": "structure",
+        "surface": "MHC",
+        "statement": "redunant tagline for MHC in seeking tiler and visibility",
+        "viewport": "Seeking Filter and Visibility Intimacy tabs at mobile 412x915 and desktop 1440x1000. No breakpoint changes.",
+        "preserve": [
+          "Keep the labels Mile High Club members only and Hide me from Mile High Club members unchanged.",
+          "Keep the existing card and label wrappers, styling, switch controls, checked values, defaults, permissions and change handlers unchanged.",
+          "Remove only the named paragraph in each card. Add no replacement copy, decoration or changes to neighboring controls."
+        ],
+        "source": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T15-32-27-01a08281-ec99-7630-b7a1-fbbcb8575d5e.jsonl",
+          "line": 11845,
+          "sha256": "0c077071676c6ccec4d5dc6b5fe40358348c7567f624bdd406c593f1fb9a269c"
+        },
+        "executionSource": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T15-32-27-01a08281-ec99-7630-b7a1-fbbcb8575d5e.jsonl",
+          "line": 11932,
+          "sha256": "1702a2f0631a2c862640b3e6c460e8b1b9e6da93979b8f3ea25bc93f005f38c0"
+        },
+        "review": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T21-34-14-01a083cd-25b6-7222-b0a9-9db8fd15a419.jsonl",
+          "line": 1195,
+          "sha256": "1761d43e4c9f6d1f5f0f7c3f777c47bc959b6c7bf08c0e14f05ab6b4cabcd9d9"
+        }
+      },
+      {
+        "file": "src/app/components/MapVisibilitySurface.tsx",
+        "property": "color",
+        "target": "jsx:Sheet[1]/SheetContent[1]/div[1]/Tabs[1]/TabsContent[2]/div[1]/div[1]/p[1]",
+        "before": "class: text-muted-foreground",
+        "after": "",
+        "requestedProperty": "color",
+        "surface": "MHC",
+        "statement": "redunant tagline for MHC in seeking tiler and visibility",
+        "viewport": "Seeking Filter and Visibility Intimacy tabs at mobile 412x915 and desktop 1440x1000. No breakpoint changes.",
+        "preserve": [
+          "Keep the labels Mile High Club members only and Hide me from Mile High Club members unchanged.",
+          "Keep the existing card and label wrappers, styling, switch controls, checked values, defaults, permissions and change handlers unchanged.",
+          "Remove only the named paragraph in each card. Add no replacement copy, decoration or changes to neighboring controls."
+        ],
+        "source": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T15-32-27-01a08281-ec99-7630-b7a1-fbbcb8575d5e.jsonl",
+          "line": 11845,
+          "sha256": "0c077071676c6ccec4d5dc6b5fe40358348c7567f624bdd406c593f1fb9a269c"
+        },
+        "executionSource": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T15-32-27-01a08281-ec99-7630-b7a1-fbbcb8575d5e.jsonl",
+          "line": 11932,
+          "sha256": "1702a2f0631a2c862640b3e6c460e8b1b9e6da93979b8f3ea25bc93f005f38c0"
+        },
+        "review": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T21-34-14-01a083cd-25b6-7222-b0a9-9db8fd15a419.jsonl",
+          "line": 1195,
+          "sha256": "1761d43e4c9f6d1f5f0f7c3f777c47bc959b6c7bf08c0e14f05ab6b4cabcd9d9"
+        }
+      },
+      {
+        "file": "src/app/components/MapVisibilitySurface.tsx",
+        "property": "copy",
+        "target": "jsx:Sheet[1]/SheetContent[1]/div[1]/Tabs[1]/TabsContent[2]/div[1]/div[1]/p[1]",
+        "before": "text: [\"Hide me from members currently using Mile High Club.\"]",
+        "after": "",
+        "requestedProperty": "copy",
+        "surface": "MHC",
+        "statement": "redunant tagline for MHC in seeking tiler and visibility",
+        "viewport": "Seeking Filter and Visibility Intimacy tabs at mobile 412x915 and desktop 1440x1000. No breakpoint changes.",
+        "preserve": [
+          "Keep the labels Mile High Club members only and Hide me from Mile High Club members unchanged.",
+          "Keep the existing card and label wrappers, styling, switch controls, checked values, defaults, permissions and change handlers unchanged.",
+          "Remove only the named paragraph in each card. Add no replacement copy, decoration or changes to neighboring controls."
+        ],
+        "source": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T15-32-27-01a08281-ec99-7630-b7a1-fbbcb8575d5e.jsonl",
+          "line": 11845,
+          "sha256": "0c077071676c6ccec4d5dc6b5fe40358348c7567f624bdd406c593f1fb9a269c"
+        },
+        "executionSource": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T15-32-27-01a08281-ec99-7630-b7a1-fbbcb8575d5e.jsonl",
+          "line": 11932,
+          "sha256": "1702a2f0631a2c862640b3e6c460e8b1b9e6da93979b8f3ea25bc93f005f38c0"
+        },
+        "review": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T21-34-14-01a083cd-25b6-7222-b0a9-9db8fd15a419.jsonl",
+          "line": 1195,
+          "sha256": "1761d43e4c9f6d1f5f0f7c3f777c47bc959b6c7bf08c0e14f05ab6b4cabcd9d9"
+        }
+      },
+      {
+        "file": "src/app/components/MapVisibilitySurface.tsx",
+        "property": "structure",
+        "target": "jsx:Sheet[1]/SheetContent[1]/div[1]/Tabs[1]/TabsContent[2]/div[1]/div[1]/p[1]",
+        "before": "element: p\nchildren: [\"#text\"]",
+        "after": "",
+        "requestedProperty": "structure",
+        "surface": "MHC",
+        "statement": "redunant tagline for MHC in seeking tiler and visibility",
+        "viewport": "Seeking Filter and Visibility Intimacy tabs at mobile 412x915 and desktop 1440x1000. No breakpoint changes.",
+        "preserve": [
+          "Keep the labels Mile High Club members only and Hide me from Mile High Club members unchanged.",
+          "Keep the existing card and label wrappers, styling, switch controls, checked values, defaults, permissions and change handlers unchanged.",
+          "Remove only the named paragraph in each card. Add no replacement copy, decoration or changes to neighboring controls."
+        ],
+        "source": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T15-32-27-01a08281-ec99-7630-b7a1-fbbcb8575d5e.jsonl",
+          "line": 11845,
+          "sha256": "0c077071676c6ccec4d5dc6b5fe40358348c7567f624bdd406c593f1fb9a269c"
+        },
+        "executionSource": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T15-32-27-01a08281-ec99-7630-b7a1-fbbcb8575d5e.jsonl",
+          "line": 11932,
+          "sha256": "1702a2f0631a2c862640b3e6c460e8b1b9e6da93979b8f3ea25bc93f005f38c0"
+        },
+        "review": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T21-34-14-01a083cd-25b6-7222-b0a9-9db8fd15a419.jsonl",
+          "line": 1195,
+          "sha256": "1761d43e4c9f6d1f5f0f7c3f777c47bc959b6c7bf08c0e14f05ab6b4cabcd9d9"
+        }
+      },
+      {
+        "file": "src/app/components/MapVisibilitySurface.tsx",
+        "property": "typography",
+        "target": "jsx:Sheet[1]/SheetContent[1]/div[1]/Tabs[1]/TabsContent[2]/div[1]/div[1]/p[1]",
+        "before": "class: text-xs",
+        "after": "",
+        "requestedProperty": "typography",
+        "surface": "MHC",
+        "statement": "redunant tagline for MHC in seeking tiler and visibility",
+        "viewport": "Seeking Filter and Visibility Intimacy tabs at mobile 412x915 and desktop 1440x1000. No breakpoint changes.",
+        "preserve": [
+          "Keep the labels Mile High Club members only and Hide me from Mile High Club members unchanged.",
+          "Keep the existing card and label wrappers, styling, switch controls, checked values, defaults, permissions and change handlers unchanged.",
+          "Remove only the named paragraph in each card. Add no replacement copy, decoration or changes to neighboring controls."
+        ],
+        "source": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T15-32-27-01a08281-ec99-7630-b7a1-fbbcb8575d5e.jsonl",
+          "line": 11845,
+          "sha256": "0c077071676c6ccec4d5dc6b5fe40358348c7567f624bdd406c593f1fb9a269c"
+        },
+        "executionSource": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T15-32-27-01a08281-ec99-7630-b7a1-fbbcb8575d5e.jsonl",
+          "line": 11932,
+          "sha256": "1702a2f0631a2c862640b3e6c460e8b1b9e6da93979b8f3ea25bc93f005f38c0"
+        },
+        "review": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T21-34-14-01a083cd-25b6-7222-b0a9-9db8fd15a419.jsonl",
+          "line": 1195,
+          "sha256": "1761d43e4c9f6d1f5f0f7c3f777c47bc959b6c7bf08c0e14f05ab6b4cabcd9d9"
         }
       }
     ]

@@ -8,13 +8,14 @@
 -- begins another venue's name across town is far away and is left alone, and
 -- names under four characters are skipped entirely.
 --
--- The fuller name is the one worth keeping, so the short one goes, and only
+-- The fuller name stays; the short imported copy is archived recoverably, and only
 -- when it holds no check-ins, no ratings and no Pink Book posts. A Spot
 -- carrying anything anyone wrote is never deleted.
 --
--- Replay-safe: once the short duplicates are gone the delete matches nothing.
+-- Replay-safe: archived/rejected records are excluded. No place row is deleted.
 with normalized as (
   select id,
+         slug,
          latitude,
          longitude,
          regexp_replace(lower(trim(name)), '[^a-z0-9]+', ' ', 'g') as key,
@@ -23,6 +24,7 @@ with normalized as (
          coalesce((select count(*) from place_board_messages b where b.place_id = places.id), 0) as posts
   from places
   where coalesce(trim(name), '') <> ''
+    and status = 'published'
 ),
 duplicates as (
   select distinct shorter.id
@@ -34,8 +36,10 @@ duplicates as (
    and abs(shorter.latitude - longer.latitude) < 0.0014
    and abs(shorter.longitude - longer.longitude) < 0.0014
   where shorter.ratings = 0
+    and shorter.slug like 'public-place-%'
     and shorter.checkins = 0
     and shorter.posts = 0
     and length(shorter.key) >= 4
 )
-delete from places where id in (select id from duplicates);
+update places set status = 'archived', updated_at = now()
+where id in (select id from duplicates) and status = 'published';

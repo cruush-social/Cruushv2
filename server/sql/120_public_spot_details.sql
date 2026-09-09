@@ -1,9 +1,10 @@
--- Descriptions, redacted access directions, aggregate popular-time history, and initial lean tags
+-- Redacted access directions, aggregate popular-time history, and initial lean tags
 -- recovered from Julien's retained 2026-08-22 public-place workbook. No visitor identities are present.
+-- Do not restore source-platform descriptions. Migration 155 removes that text
+-- with a recoverable backup; a later startup must leave it removed.
 
 update places as place
-set description = seed.description,
-    access_instructions = seed.access_instructions,
+set access_instructions = seed.access_instructions,
     updated_at = now()
 from (values
   ('676d50c6-d6b0-5e70-9d01-5316755e7f8a'::uuid, '', 'Cruisy platform late night - back of uptown / front of downtown'),

@@ -1,6 +1,8 @@
 -- Generated from Julien's retained 2026-09-02 NYC 100-mile place workbook.
--- Imports public place metadata only. Private residences, visitor data, profile media,
--- active visits, access codes, and user-authored sexual descriptions are excluded.
+-- This retained import contains unreviewed source-platform names/descriptions.
+-- Migration 155 backs up and removes rejected source content. Existing rows must
+-- never be overwritten during replay, including archived status and cleared text.
+-- No visitor data, profile media or active visits are imported.
 -- Source-platform public places: 5279. OpenStreetMap venues: 5482.
 
 alter table places drop constraint if exists places_facility_type_check;
@@ -416,18 +418,7 @@ insert into places (
   ('public-place-66dde1be838e50eac34cbce2', 'Downing Park', '', 41.5066766, -74.0172928, null, 'park', 'published', 'community', null, null, null),
   ('public-place-683a1f0ae687bc308c42ee42', 'Red Fox Ravine', '', 41.9105612, -74.0051528, null, 'park', 'published', 'community', null, null, null),
   ('public-place-63caf84defaf94001d1a12b3', 'Rhinecliff-Kingston', '', 41.9213543756, -73.9514453471, null, 'transit', 'published', 'community', null, null, null)
-on conflict (slug) do update set
-  name = excluded.name,
-  description = case when places.description = '' then excluded.description else places.description end,
-  latitude = excluded.latitude,
-  longitude = excluded.longitude,
-  address = coalesce(excluded.address, places.address),
-  facility_type = excluded.facility_type,
-  status = 'published',
-  source_kind = excluded.source_kind,
-  source_url = excluded.source_url,
-  source_attribution = excluded.source_attribution,
-  updated_at = now();
+on conflict (slug) do nothing;
 
 insert into places (
   slug, name, description, latitude, longitude, address, facility_type,
@@ -833,18 +824,7 @@ insert into places (
   ('public-place-687b504d625e0f42340015b3', 'Clifton park', '', 41.3082939294, -72.8803357669, null, 'park', 'published', 'community', null, null, null),
   ('public-place-687d49569cdbf6dc5201bee0', 'Little league fields and old school', '', 41.310433127, -72.8812540097, null, 'park', 'published', 'community', null, null, null),
   ('public-place-664649b3e52072bfc61c05de', 'Port Jeff Station Side Lot', '', 40.9340878061, -73.0508832726, null, 'other', 'published', 'community', null, null, null)
-on conflict (slug) do update set
-  name = excluded.name,
-  description = case when places.description = '' then excluded.description else places.description end,
-  latitude = excluded.latitude,
-  longitude = excluded.longitude,
-  address = coalesce(excluded.address, places.address),
-  facility_type = excluded.facility_type,
-  status = 'published',
-  source_kind = excluded.source_kind,
-  source_url = excluded.source_url,
-  source_attribution = excluded.source_attribution,
-  updated_at = now();
+on conflict (slug) do nothing;
 
 insert into places (
   slug, name, description, latitude, longitude, address, facility_type,
@@ -1250,18 +1230,7 @@ insert into places (
   ('public-place-69b215b0c31609cd356a0bf6', 'Orange terrace park', '', 40.71083582, -74.0043132969, null, 'park', 'published', 'community', null, null, null),
   ('public-place-6a9580533a84e0a25c169d35', 'Strand Market', '', 40.4958766394, -74.4464959108, null, 'cafe', 'published', 'community', null, null, null),
   ('public-place-63cb0056efaf94001d1dd284', 'New Brunswick', '', 40.496801149, -74.4459619465, null, 'transit', 'published', 'community', null, null, null)
-on conflict (slug) do update set
-  name = excluded.name,
-  description = case when places.description = '' then excluded.description else places.description end,
-  latitude = excluded.latitude,
-  longitude = excluded.longitude,
-  address = coalesce(excluded.address, places.address),
-  facility_type = excluded.facility_type,
-  status = 'published',
-  source_kind = excluded.source_kind,
-  source_url = excluded.source_url,
-  source_attribution = excluded.source_attribution,
-  updated_at = now();
+on conflict (slug) do nothing;
 
 insert into places (
   slug, name, description, latitude, longitude, address, facility_type,
@@ -1667,18 +1636,7 @@ insert into places (
   ('public-place-62e14f879f54b0002bea7c52', 'Jackson outlets', '', 40.1600761273, -74.4157647511, null, 'restroom', 'published', 'community', null, null, null),
   ('public-place-688ce55f116e34dfd06b7767', 'Jackson outlets bathroom', '', 40.1600934684, -74.4158602003, null, 'restroom', 'published', 'community', null, null, null),
   ('public-place-66a56fd48faf994b08cc3339', 'Jake branch park', '', 39.9295657077, -74.2143233523, null, 'park', 'published', 'community', null, null, null)
-on conflict (slug) do update set
-  name = excluded.name,
-  description = case when places.description = '' then excluded.description else places.description end,
-  latitude = excluded.latitude,
-  longitude = excluded.longitude,
-  address = coalesce(excluded.address, places.address),
-  facility_type = excluded.facility_type,
-  status = 'published',
-  source_kind = excluded.source_kind,
-  source_url = excluded.source_url,
-  source_attribution = excluded.source_attribution,
-  updated_at = now();
+on conflict (slug) do nothing;
 
 insert into places (
   slug, name, description, latitude, longitude, address, facility_type,
@@ -2084,18 +2042,7 @@ insert into places (
   ('public-place-66ed8f961561d420f6808698', 'Fasola Park', '', 39.8108655, -75.1159421, null, 'park', 'published', 'community', null, null, null),
   ('public-place-643ddb545a83aff4bd350236', 'Terminal A East Restroom', '', 39.8733780488, -75.2472978601, null, 'restroom', 'published', 'community', null, null, null),
   ('public-place-63f7ae316d8d0e001eb7b131', 'B9', '', 39.8740760922, -75.2437322726, null, 'restroom', 'published', 'community', null, null, null)
-on conflict (slug) do update set
-  name = excluded.name,
-  description = case when places.description = '' then excluded.description else places.description end,
-  latitude = excluded.latitude,
-  longitude = excluded.longitude,
-  address = coalesce(excluded.address, places.address),
-  facility_type = excluded.facility_type,
-  status = 'published',
-  source_kind = excluded.source_kind,
-  source_url = excluded.source_url,
-  source_attribution = excluded.source_attribution,
-  updated_at = now();
+on conflict (slug) do nothing;
 
 insert into places (
   slug, name, description, latitude, longitude, address, facility_type,
@@ -2501,18 +2448,7 @@ insert into places (
   ('public-place-639a5331e1da7b001c3efda9', 'Drexel University', '', 39.9574, -75.1902665634, null, 'community_space', 'published', 'community', null, null, null),
   ('public-place-6881a11f53549e4fa38150b5', 'Fernhill Park', '', 40.0160676266, -75.1704345772, null, 'park', 'published', 'community', null, null, null),
   ('public-place-6515b9b5655e59b989617a8b', 'University of Pennsylvania', '', 39.9546628639, -75.192693585, null, 'other', 'published', 'community', null, null, null)
-on conflict (slug) do update set
-  name = excluded.name,
-  description = case when places.description = '' then excluded.description else places.description end,
-  latitude = excluded.latitude,
-  longitude = excluded.longitude,
-  address = coalesce(excluded.address, places.address),
-  facility_type = excluded.facility_type,
-  status = 'published',
-  source_kind = excluded.source_kind,
-  source_url = excluded.source_url,
-  source_attribution = excluded.source_attribution,
-  updated_at = now();
+on conflict (slug) do nothing;
 
 insert into places (
   slug, name, description, latitude, longitude, address, facility_type,
@@ -2918,18 +2854,7 @@ insert into places (
   ('public-place-68755f44f43642f03d2788f2', 'Tremont Ave', '', 40.1385259702, -74.9750062574, null, 'other', 'published', 'community', null, null, null),
   ('public-place-5fbc37c418dda579c81d498f', 'Lowe’s Lincoln Highway', '', 40.1701059474, -74.8951146014, null, 'restroom', 'published', 'community', null, null, null),
   ('public-place-62d209ec4a9e820498a5898f', 'Multilevel Parking Garage', '', 40.1403055671, -74.9632822784, null, 'other', 'published', 'community', null, null, null)
-on conflict (slug) do update set
-  name = excluded.name,
-  description = case when places.description = '' then excluded.description else places.description end,
-  latitude = excluded.latitude,
-  longitude = excluded.longitude,
-  address = coalesce(excluded.address, places.address),
-  facility_type = excluded.facility_type,
-  status = 'published',
-  source_kind = excluded.source_kind,
-  source_url = excluded.source_url,
-  source_attribution = excluded.source_attribution,
-  updated_at = now();
+on conflict (slug) do nothing;
 
 insert into places (
   slug, name, description, latitude, longitude, address, facility_type,
@@ -3335,18 +3260,7 @@ insert into places (
   ('public-place-663644d4df0503b38c4b725b', 'Scenic overlook', '', 40.920253, -74.804913, null, 'parking', 'published', 'community', null, null, null),
   ('public-place-5c3ecc4f98da5b3aad47ae35', 'Rt 80 eastbound  Scenic Overlook just after exit 19', '', 40.9217007516, -74.7991357202, null, 'other', 'published', 'community', null, null, null),
   ('public-place-649a1ecb5fbe2eee67dee380', 'Truck rest area', '', 40.9241481, -74.789626, null, 'parking', 'published', 'community', null, null, null)
-on conflict (slug) do update set
-  name = excluded.name,
-  description = case when places.description = '' then excluded.description else places.description end,
-  latitude = excluded.latitude,
-  longitude = excluded.longitude,
-  address = coalesce(excluded.address, places.address),
-  facility_type = excluded.facility_type,
-  status = 'published',
-  source_kind = excluded.source_kind,
-  source_url = excluded.source_url,
-  source_attribution = excluded.source_attribution,
-  updated_at = now();
+on conflict (slug) do nothing;
 
 insert into places (
   slug, name, description, latitude, longitude, address, facility_type,
@@ -3752,18 +3666,7 @@ insert into places (
   ('public-place-68df27a742705b508c34a3de', 'Corona Park Field 3', '', 40.7499780612, -73.8396752257, null, 'other', 'published', 'community', null, null, null),
   ('public-place-622cfe21d77dbf4d947be101', 'BJs bathroom', '', 40.7831211342, -73.8304712624, null, 'restroom', 'published', 'community', null, null, null),
   ('public-place-6531cf98140b87d3dc06bcb9', 'Flushing corona Park ( Meadow Lake )', '', 40.740228463, -73.8407297899, null, 'park', 'published', 'community', null, null, null)
-on conflict (slug) do update set
-  name = excluded.name,
-  description = case when places.description = '' then excluded.description else places.description end,
-  latitude = excluded.latitude,
-  longitude = excluded.longitude,
-  address = coalesce(excluded.address, places.address),
-  facility_type = excluded.facility_type,
-  status = 'published',
-  source_kind = excluded.source_kind,
-  source_url = excluded.source_url,
-  source_attribution = excluded.source_attribution,
-  updated_at = now();
+on conflict (slug) do nothing;
 
 insert into places (
   slug, name, description, latitude, longitude, address, facility_type,
@@ -4169,18 +4072,7 @@ insert into places (
   ('public-place-69385bdf54200ec1166b075f', 'P. Fit', '', 41.5183002, -74.0716437, null, 'gym', 'published', 'community', null, null, null),
   ('public-place-612819ac227e3e12fc8290c4', 'Abandoned parking lot next to Home Depot in Fishkill', '', 41.5169900749, -73.8911964745, null, 'other', 'published', 'community', null, null, null),
   ('public-place-6841cbf4f89d2ca176a9820d', 'Small parking lot', '', 41.4558622965, -73.7188100319, null, 'park', 'published', 'community', null, null, null)
-on conflict (slug) do update set
-  name = excluded.name,
-  description = case when places.description = '' then excluded.description else places.description end,
-  latitude = excluded.latitude,
-  longitude = excluded.longitude,
-  address = coalesce(excluded.address, places.address),
-  facility_type = excluded.facility_type,
-  status = 'published',
-  source_kind = excluded.source_kind,
-  source_url = excluded.source_url,
-  source_attribution = excluded.source_attribution,
-  updated_at = now();
+on conflict (slug) do nothing;
 
 insert into places (
   slug, name, description, latitude, longitude, address, facility_type,
@@ -4586,18 +4478,7 @@ insert into places (
   ('public-place-631cde33095c190365deb7ea', 'Acme parking lot', '', 40.7100623731, -74.1017515939, null, 'other', 'published', 'community', null, null, null),
   ('public-place-642212c52e49a54957cd95c8', 'Acme Restroom', '', 40.7101328639, -74.1019278908, null, 'restroom', 'published', 'community', null, null, null),
   ('public-place-643dee96d8d5e3c5db43d823', 'Home Depot', '', 40.7104098191, -74.0970929208, null, 'restroom', 'published', 'community', null, null, null)
-on conflict (slug) do update set
-  name = excluded.name,
-  description = case when places.description = '' then excluded.description else places.description end,
-  latitude = excluded.latitude,
-  longitude = excluded.longitude,
-  address = coalesce(excluded.address, places.address),
-  facility_type = excluded.facility_type,
-  status = 'published',
-  source_kind = excluded.source_kind,
-  source_url = excluded.source_url,
-  source_attribution = excluded.source_attribution,
-  updated_at = now();
+on conflict (slug) do nothing;
 
 insert into places (
   slug, name, description, latitude, longitude, address, facility_type,
@@ -5003,18 +4884,7 @@ insert into places (
   ('public-place-69b8cbb3408a48fa2d3b8a7f', 'Soundview park', '', 40.8111053065, -73.8587022698, null, 'park', 'published', 'community', null, null, null),
   ('public-place-6136827e86b12505845999b8', 'Soundview Park Trails', '', 40.8113370479, -73.8659812534, null, 'other', 'published', 'community', null, null, null),
   ('public-place-683880357e0d1a71a95a585a', 'Raymond Bush Bathroom', '', 40.6865467266, -73.9394393616, null, 'restroom', 'published', 'community', null, null, null)
-on conflict (slug) do update set
-  name = excluded.name,
-  description = case when places.description = '' then excluded.description else places.description end,
-  latitude = excluded.latitude,
-  longitude = excluded.longitude,
-  address = coalesce(excluded.address, places.address),
-  facility_type = excluded.facility_type,
-  status = 'published',
-  source_kind = excluded.source_kind,
-  source_url = excluded.source_url,
-  source_attribution = excluded.source_attribution,
-  updated_at = now();
+on conflict (slug) do nothing;
 
 insert into places (
   slug, name, description, latitude, longitude, address, facility_type,
@@ -5420,18 +5290,7 @@ insert into places (
   ('public-place-627496a879fcdd51a2f04434', 'Pieces Bar', '', 40.7338931887, -74.0000139438, null, 'bar', 'published', 'community', null, null, null),
   ('public-place-6a7e45784bdd839d379b7b7f', 'Duplex Bar', '', 40.7337738952, -74.0026110591, null, 'bar', 'published', 'community', null, null, null),
   ('public-place-6676c3f714793f29e6be1195', 'TMPL WV', '', 40.7341426875, -74.0023905992, null, 'gym', 'published', 'community', null, null, null)
-on conflict (slug) do update set
-  name = excluded.name,
-  description = case when places.description = '' then excluded.description else places.description end,
-  latitude = excluded.latitude,
-  longitude = excluded.longitude,
-  address = coalesce(excluded.address, places.address),
-  facility_type = excluded.facility_type,
-  status = 'published',
-  source_kind = excluded.source_kind,
-  source_url = excluded.source_url,
-  source_attribution = excluded.source_attribution,
-  updated_at = now();
+on conflict (slug) do nothing;
 
 insert into places (
   slug, name, description, latitude, longitude, address, facility_type,
@@ -5516,18 +5375,7 @@ insert into places (
   ('public-place-6a980a472a52085c1e6ee760', 'Pumd and dump', '', 40.8755571866, -73.9097181038, null, 'other', 'published', 'community', null, null, null),
   ('public-place-6a98118f36a9a96f0ac9736d', 'COSTA CREEK TRAILOR PARK', '', 40.8774645, -74.0778853, null, 'park', 'published', 'community', null, null, null),
   ('public-place-6a982148f72c31a65c288656', 'Shell station', '', 40.8430626654, -73.3146760732, null, 'restroom', 'published', 'community', null, null, null)
-on conflict (slug) do update set
-  name = excluded.name,
-  description = case when places.description = '' then excluded.description else places.description end,
-  latitude = excluded.latitude,
-  longitude = excluded.longitude,
-  address = coalesce(excluded.address, places.address),
-  facility_type = excluded.facility_type,
-  status = 'published',
-  source_kind = excluded.source_kind,
-  source_url = excluded.source_url,
-  source_attribution = excluded.source_attribution,
-  updated_at = now();
+on conflict (slug) do nothing;
 
 insert into places (
   slug, name, description, latitude, longitude, address, facility_type,
@@ -5933,18 +5781,7 @@ insert into places (
   ('osm-node-5418692470', 'The Base', 'The Base is an anarchist political center in Bushwick, Brooklyn, committed to the dissemination of revolutionary left and anarchist ideas and organizing.', 40.6980143, -73.9245418, '1286, Myrtle Avenue', 'community_space', 'published', 'open_data', 'https://www.openstreetmap.org/node/5418692470', 'OpenStreetMap contributors', null),
   ('osm-node-5425887870', 'Studio Bar & Lounge', '', 40.7622678, -73.8313448, '36-41, Main Street', 'nightclub', 'published', 'open_data', 'https://www.openstreetmap.org/node/5425887870', 'OpenStreetMap contributors', null),
   ('osm-node-5446397521', 'La Boom', '', 40.7538299, -73.9044551, null, 'nightclub', 'published', 'open_data', 'https://www.openstreetmap.org/node/5446397521', 'OpenStreetMap contributors', null)
-on conflict (slug) do update set
-  name = excluded.name,
-  description = case when places.description = '' then excluded.description else places.description end,
-  latitude = excluded.latitude,
-  longitude = excluded.longitude,
-  address = coalesce(excluded.address, places.address),
-  facility_type = excluded.facility_type,
-  status = 'published',
-  source_kind = excluded.source_kind,
-  source_url = excluded.source_url,
-  source_attribution = excluded.source_attribution,
-  updated_at = now();
+on conflict (slug) do nothing;
 
 insert into places (
   slug, name, description, latitude, longitude, address, facility_type,
@@ -6350,18 +6187,7 @@ insert into places (
   ('osm-node-12125196506', 'Bell Theater at Bell Works', '', 40.364925, -74.1676828, '101, Crawfords Corner Road, Holmdel, NJ, 07733', 'music_venue', 'published', 'open_data', 'https://www.openstreetmap.org/node/12125196506', 'OpenStreetMap contributors', null),
   ('osm-node-12125446311', 'EmblemHealth Neighborhood Care', '', 40.528683, -74.1659661, null, 'community_space', 'published', 'open_data', 'https://www.openstreetmap.org/node/12125446311', 'OpenStreetMap contributors', null),
   ('osm-node-12126165483', 'Leonard Nimoy Thalia', '', 40.7941015, -73.9728744, '2537, Broadway, New York, NY, 10025', 'music_venue', 'published', 'open_data', 'https://www.openstreetmap.org/node/12126165483', 'OpenStreetMap contributors', null)
-on conflict (slug) do update set
-  name = excluded.name,
-  description = case when places.description = '' then excluded.description else places.description end,
-  latitude = excluded.latitude,
-  longitude = excluded.longitude,
-  address = coalesce(excluded.address, places.address),
-  facility_type = excluded.facility_type,
-  status = 'published',
-  source_kind = excluded.source_kind,
-  source_url = excluded.source_url,
-  source_attribution = excluded.source_attribution,
-  updated_at = now();
+on conflict (slug) do nothing;
 
 insert into places (
   slug, name, description, latitude, longitude, address, facility_type,
@@ -6767,18 +6593,7 @@ insert into places (
   ('osm-way-266859389', 'Malandra Hall', '', 39.9024906, -75.1036397, '1200, South Merrimac Road, Camden, NJ, 08104', 'community_space', 'published', 'open_data', 'https://www.openstreetmap.org/way/266859389', 'OpenStreetMap contributors', null),
   ('osm-way-266908239', 'Stanley M. Isaacs Neighborhood Center', '', 40.7812763, -73.945134, '415, East 93rd Street, 10128', 'community_space', 'published', 'open_data', 'https://www.openstreetmap.org/way/266908239', 'OpenStreetMap contributors', null),
   ('osm-way-266910048', 'Hungarian House of New York', '', 40.7761132, -73.9549562, '213, East 82nd Street, 10028', 'community_space', 'published', 'open_data', 'https://www.openstreetmap.org/way/266910048', 'OpenStreetMap contributors', null)
-on conflict (slug) do update set
-  name = excluded.name,
-  description = case when places.description = '' then excluded.description else places.description end,
-  latitude = excluded.latitude,
-  longitude = excluded.longitude,
-  address = coalesce(excluded.address, places.address),
-  facility_type = excluded.facility_type,
-  status = 'published',
-  source_kind = excluded.source_kind,
-  source_url = excluded.source_url,
-  source_attribution = excluded.source_attribution,
-  updated_at = now();
+on conflict (slug) do nothing;
 
 insert into places (
   slug, name, description, latitude, longitude, address, facility_type,
@@ -7184,18 +6999,7 @@ insert into places (
   ('osm-way-649325637', 'Purpl', '', 40.9939931, -73.8800452, '52, Main Street, Hastings on Hudson, NY, 10706', 'community_space', 'published', 'open_data', 'https://www.openstreetmap.org/way/649325637', 'OpenStreetMap contributors', null),
   ('osm-way-650692263', 'Leonia Recreation Center', '', 40.8634736, -73.9870427, '370, Broad Avenue, Leonia, NJ, 07605', 'community_space', 'published', 'open_data', 'https://www.openstreetmap.org/way/650692263', 'OpenStreetMap contributors', null),
   ('osm-way-650692301', 'American Legion Post #1', '', 40.8638182, -73.9860514, '399, Broad Avenue, Leonia, NJ, 07605', 'community_space', 'published', 'open_data', 'https://www.openstreetmap.org/way/650692301', 'OpenStreetMap contributors', null)
-on conflict (slug) do update set
-  name = excluded.name,
-  description = case when places.description = '' then excluded.description else places.description end,
-  latitude = excluded.latitude,
-  longitude = excluded.longitude,
-  address = coalesce(excluded.address, places.address),
-  facility_type = excluded.facility_type,
-  status = 'published',
-  source_kind = excluded.source_kind,
-  source_url = excluded.source_url,
-  source_attribution = excluded.source_attribution,
-  updated_at = now();
+on conflict (slug) do nothing;
 
 insert into places (
   slug, name, description, latitude, longitude, address, facility_type,
@@ -7601,18 +7405,7 @@ insert into places (
   ('osm-way-1360348641', 'Civic Theatre of Allentown', '', 40.6032252, -75.4998013, '527, North 19th Street, Allentown, PA, 18104', 'music_venue', 'published', 'open_data', 'https://www.openstreetmap.org/way/1360348641', 'OpenStreetMap contributors', null),
   ('osm-way-1362648279', 'American Legion Hall Post 299', '', 40.7784126, -74.1831482, '118, Belmont Avenue, Belleville, NJ, 07109', 'community_space', 'published', 'open_data', 'https://www.openstreetmap.org/way/1362648279', 'OpenStreetMap contributors', null),
   ('osm-way-1367398916', 'Bungalow Park Civic Association', '', 39.3737704, -74.4249526, '600, North New Jersey Avenue, Atlantic City, NJ, 08401', 'community_space', 'published', 'open_data', 'https://www.openstreetmap.org/way/1367398916', 'OpenStreetMap contributors', null)
-on conflict (slug) do update set
-  name = excluded.name,
-  description = case when places.description = '' then excluded.description else places.description end,
-  latitude = excluded.latitude,
-  longitude = excluded.longitude,
-  address = coalesce(excluded.address, places.address),
-  facility_type = excluded.facility_type,
-  status = 'published',
-  source_kind = excluded.source_kind,
-  source_url = excluded.source_url,
-  source_attribution = excluded.source_attribution,
-  updated_at = now();
+on conflict (slug) do nothing;
 
 insert into places (
   slug, name, description, latitude, longitude, address, facility_type,
@@ -8018,18 +7811,7 @@ insert into places (
   ('osm-node-3953010647', 'Core Fitness Studios, Inc.', '', 40.8523882, -73.6196733, '74, Cedar Swamp Road, Glen Cove, NY, 11542', 'gym', 'published', 'open_data', 'https://www.openstreetmap.org/node/3953010647', 'OpenStreetMap contributors', null),
   ('osm-node-3958246946', 'PopPhysique', '', 40.7443775, -73.9901207, null, 'gym', 'published', 'open_data', 'https://www.openstreetmap.org/node/3958246946', 'OpenStreetMap contributors', null),
   ('osm-node-3985517789', 'Exhale Stamford', '', 41.0415363, -73.5426562, '150, Washington Boulevard, Stamford, CT, 06902', 'sports_venue', 'published', 'open_data', 'https://www.openstreetmap.org/node/3985517789', 'OpenStreetMap contributors', null)
-on conflict (slug) do update set
-  name = excluded.name,
-  description = case when places.description = '' then excluded.description else places.description end,
-  latitude = excluded.latitude,
-  longitude = excluded.longitude,
-  address = coalesce(excluded.address, places.address),
-  facility_type = excluded.facility_type,
-  status = 'published',
-  source_kind = excluded.source_kind,
-  source_url = excluded.source_url,
-  source_attribution = excluded.source_attribution,
-  updated_at = now();
+on conflict (slug) do nothing;
 
 insert into places (
   slug, name, description, latitude, longitude, address, facility_type,
@@ -8435,18 +8217,7 @@ insert into places (
   ('osm-node-5929427924', 'Pure Barre', '', 40.6514336, -75.2950841, '4773, Freemansburg Avenue, Bethlehem Township, PA, 18045', 'gym', 'published', 'open_data', 'https://www.openstreetmap.org/node/5929427924', 'OpenStreetMap contributors', null),
   ('osm-node-5933965972', 'Tennis Courts', '', 41.011624, -73.9802063, null, 'sports_venue', 'published', 'open_data', 'https://www.openstreetmap.org/node/5933965972', 'OpenStreetMap contributors', null),
   ('osm-node-5940720883', 'Core Awareness Pilates Studio', '', 40.9292704, -75.3167152, null, 'gym', 'published', 'open_data', 'https://www.openstreetmap.org/node/5940720883', 'OpenStreetMap contributors', null)
-on conflict (slug) do update set
-  name = excluded.name,
-  description = case when places.description = '' then excluded.description else places.description end,
-  latitude = excluded.latitude,
-  longitude = excluded.longitude,
-  address = coalesce(excluded.address, places.address),
-  facility_type = excluded.facility_type,
-  status = 'published',
-  source_kind = excluded.source_kind,
-  source_url = excluded.source_url,
-  source_attribution = excluded.source_attribution,
-  updated_at = now();
+on conflict (slug) do nothing;
 
 insert into places (
   slug, name, description, latitude, longitude, address, facility_type,
@@ -8852,18 +8623,7 @@ insert into places (
   ('osm-node-7747851028', 'R3', '', 41.3708562, -72.9212074, null, 'gym', 'published', 'open_data', 'https://www.openstreetmap.org/node/7747851028', 'OpenStreetMap contributors', null),
   ('osm-node-7747853913', 'The Edge', '', 41.3716336, -72.9199516, null, 'gym', 'published', 'open_data', 'https://www.openstreetmap.org/node/7747853913', 'OpenStreetMap contributors', null),
   ('osm-node-7757039182', 'Planet Fitness', '', 41.3382375, -72.9807876, null, 'gym', 'published', 'open_data', 'https://www.openstreetmap.org/node/7757039182', 'OpenStreetMap contributors', null)
-on conflict (slug) do update set
-  name = excluded.name,
-  description = case when places.description = '' then excluded.description else places.description end,
-  latitude = excluded.latitude,
-  longitude = excluded.longitude,
-  address = coalesce(excluded.address, places.address),
-  facility_type = excluded.facility_type,
-  status = 'published',
-  source_kind = excluded.source_kind,
-  source_url = excluded.source_url,
-  source_attribution = excluded.source_attribution,
-  updated_at = now();
+on conflict (slug) do nothing;
 
 insert into places (
   slug, name, description, latitude, longitude, address, facility_type,
@@ -9269,18 +9029,7 @@ insert into places (
   ('osm-node-10962574045', 'Planet Fitness', '', 40.507154, -74.3952293, '561, US Highway 1, Edison, NJ, 08817', 'gym', 'published', 'open_data', 'https://www.openstreetmap.org/node/10962574045', 'OpenStreetMap contributors', null),
   ('osm-node-10969041005', 'Planet Fitness', '', 40.8644663, -73.9261411, '177, Dyckman Street, 10040', 'gym', 'published', 'open_data', 'https://www.openstreetmap.org/node/10969041005', 'OpenStreetMap contributors', null),
   ('osm-node-10969153510', 'Practice', '', 40.6757295, -74.014983, '424, Van Brunt Street, 11231', 'gym', 'published', 'open_data', 'https://www.openstreetmap.org/node/10969153510', 'OpenStreetMap contributors', null)
-on conflict (slug) do update set
-  name = excluded.name,
-  description = case when places.description = '' then excluded.description else places.description end,
-  latitude = excluded.latitude,
-  longitude = excluded.longitude,
-  address = coalesce(excluded.address, places.address),
-  facility_type = excluded.facility_type,
-  status = 'published',
-  source_kind = excluded.source_kind,
-  source_url = excluded.source_url,
-  source_attribution = excluded.source_attribution,
-  updated_at = now();
+on conflict (slug) do nothing;
 
 insert into places (
   slug, name, description, latitude, longitude, address, facility_type,
@@ -9686,18 +9435,7 @@ insert into places (
   ('osm-node-13062290352', 'Vital Climbing', '', 40.7176003, -73.9863546, '182, Broome Street, New York, NY, 10002', 'sports_venue', 'published', 'open_data', 'https://www.openstreetmap.org/node/13062290352', 'OpenStreetMap contributors', null),
   ('osm-node-13069514157', 'Anytime Fitness', '', 40.741492, -74.1555953, '600, Frank E. Rodgers Boulevard South, Harrison, NJ, 07029', 'gym', 'published', 'open_data', 'https://www.openstreetmap.org/node/13069514157', 'OpenStreetMap contributors', null),
   ('osm-node-13071037079', 'Planet Fitness', '', 40.7353831, -73.9925647, null, 'gym', 'published', 'open_data', 'https://www.openstreetmap.org/node/13071037079', 'OpenStreetMap contributors', null)
-on conflict (slug) do update set
-  name = excluded.name,
-  description = case when places.description = '' then excluded.description else places.description end,
-  latitude = excluded.latitude,
-  longitude = excluded.longitude,
-  address = coalesce(excluded.address, places.address),
-  facility_type = excluded.facility_type,
-  status = 'published',
-  source_kind = excluded.source_kind,
-  source_url = excluded.source_url,
-  source_attribution = excluded.source_attribution,
-  updated_at = now();
+on conflict (slug) do nothing;
 
 insert into places (
   slug, name, description, latitude, longitude, address, facility_type,
@@ -10103,18 +9841,7 @@ insert into places (
   ('osm-way-232827722', 'Puttin'' Plus', '', 42.0944412, -73.9500453, null, 'sports_venue', 'published', 'open_data', 'https://www.openstreetmap.org/way/232827722', 'OpenStreetMap contributors', null),
   ('osm-way-233324747', 'MSU Softball Stadium', '', 40.8671703, -74.1974566, null, 'sports_venue', 'published', 'open_data', 'https://www.openstreetmap.org/way/233324747', 'OpenStreetMap contributors', null),
   ('osm-way-233812916', 'Elting Gymnasium', '', 41.7402977, -74.0863425, '67, Southside Loop Road, New Paltz, NY, 12561', 'sports_venue', 'published', 'open_data', 'https://www.openstreetmap.org/way/233812916', 'OpenStreetMap contributors', null)
-on conflict (slug) do update set
-  name = excluded.name,
-  description = case when places.description = '' then excluded.description else places.description end,
-  latitude = excluded.latitude,
-  longitude = excluded.longitude,
-  address = coalesce(excluded.address, places.address),
-  facility_type = excluded.facility_type,
-  status = 'published',
-  source_kind = excluded.source_kind,
-  source_url = excluded.source_url,
-  source_attribution = excluded.source_attribution,
-  updated_at = now();
+on conflict (slug) do nothing;
 
 insert into places (
   slug, name, description, latitude, longitude, address, facility_type,
@@ -10520,18 +10247,7 @@ insert into places (
   ('osm-way-516397369', 'ILoveKickboxing', '', 40.0949449, -75.1259296, null, 'gym', 'published', 'open_data', 'https://www.openstreetmap.org/way/516397369', 'OpenStreetMap contributors', null),
   ('osm-way-516713301', 'Kent Ice Rink', '', 41.7273266, -73.486055, '44, Macedonia Road, Kent, CT, 06757', 'sports_venue', 'published', 'open_data', 'https://www.openstreetmap.org/way/516713301', 'OpenStreetMap contributors', null),
   ('osm-way-524491433', 'Crestmont Pool', '', 40.1387811, -75.1285963, null, 'sports_venue', 'published', 'open_data', 'https://www.openstreetmap.org/way/524491433', 'OpenStreetMap contributors', null)
-on conflict (slug) do update set
-  name = excluded.name,
-  description = case when places.description = '' then excluded.description else places.description end,
-  latitude = excluded.latitude,
-  longitude = excluded.longitude,
-  address = coalesce(excluded.address, places.address),
-  facility_type = excluded.facility_type,
-  status = 'published',
-  source_kind = excluded.source_kind,
-  source_url = excluded.source_url,
-  source_attribution = excluded.source_attribution,
-  updated_at = now();
+on conflict (slug) do nothing;
 
 insert into places (
   slug, name, description, latitude, longitude, address, facility_type,
@@ -10937,18 +10653,7 @@ insert into places (
   ('osm-way-965689202', 'Winchester Swim Club', '', 40.0584597, -75.0278222, null, 'gym', 'published', 'open_data', 'https://www.openstreetmap.org/way/965689202', 'OpenStreetMap contributors', null),
   ('osm-way-969961754', 'Windsor Tennis Club', '', 40.2967735, -74.6591946, null, 'sports_venue', 'published', 'open_data', 'https://www.openstreetmap.org/way/969961754', 'OpenStreetMap contributors', null),
   ('osm-way-970495354', 'Cenerreach pools', '', 40.8806373, -73.074861, '286, Hawkins Road, Centereach, NY, 11720', 'sports_venue', 'published', 'open_data', 'https://www.openstreetmap.org/way/970495354', 'OpenStreetMap contributors', null)
-on conflict (slug) do update set
-  name = excluded.name,
-  description = case when places.description = '' then excluded.description else places.description end,
-  latitude = excluded.latitude,
-  longitude = excluded.longitude,
-  address = coalesce(excluded.address, places.address),
-  facility_type = excluded.facility_type,
-  status = 'published',
-  source_kind = excluded.source_kind,
-  source_url = excluded.source_url,
-  source_attribution = excluded.source_attribution,
-  updated_at = now();
+on conflict (slug) do nothing;
 
 insert into places (
   slug, name, description, latitude, longitude, address, facility_type,
@@ -11236,18 +10941,7 @@ insert into places (
   ('osm-node-5364903172', 'Trans-Pecos', '', 40.696986, -73.906323, '915, Wyckoff Avenue, Ridgewood, NY, 11385', 'music_venue', 'published', 'open_data', 'https://www.openstreetmap.org/node/5364903172', 'OpenStreetMap contributors', null),
   ('osm-node-9148457461', 'Brooklyn Made', '', 40.7071909, -73.9219994, '428, Troutman Street', 'music_venue', 'published', 'open_data', 'https://www.openstreetmap.org/node/9148457461', 'OpenStreetMap contributors', null),
   ('osm-node-9421771764', 'The Falcon', 'Live jazz, blues, and rock venue with bar, food service, indoor/outdoor seating, and waterfall views.', 41.6061923, -73.9708823, '1348, US 9W', 'music_venue', 'published', 'open_data', 'https://www.openstreetmap.org/node/9421771764', 'OpenStreetMap contributors', null)
-on conflict (slug) do update set
-  name = excluded.name,
-  description = case when places.description = '' then excluded.description else places.description end,
-  latitude = excluded.latitude,
-  longitude = excluded.longitude,
-  address = coalesce(excluded.address, places.address),
-  facility_type = excluded.facility_type,
-  status = 'published',
-  source_kind = excluded.source_kind,
-  source_url = excluded.source_url,
-  source_attribution = excluded.source_attribution,
-  updated_at = now();
+on conflict (slug) do nothing;
 
 delete from place_tags where tag = 't4t_spot';
 alter table place_tags drop constraint if exists place_tags_tag_check;
