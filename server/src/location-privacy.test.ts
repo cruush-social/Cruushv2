@@ -10,6 +10,7 @@ import {
   decryptDisplayLocationTokenForTest,
   createCoarseIndexTokens,
   deriveGhostCoordinate,
+  describeGhostRotation,
   distanceMiles,
   formatDistanceLabel,
   resolveSharedDistanceLabelMode,
@@ -574,6 +575,16 @@ describe("location privacy", () => {
     expect(lastA.rotationEpoch).toBe(0);
     expect(firstA.coordinate).toEqual(lastA.coordinate);
     expect(lastA.coordinate).toEqual(lastB.coordinate);
+    // A land lookup can finish after the epoch boundary. Its old coordinate
+    // must retain the old deadline, rather than resetting the completed exit.
+    const clock = vi.spyOn(Date, "now").mockReturnValue(activatedAtMs + 15 * 60_000 + 100);
+    try {
+      const hint = await describeGhostRotation({ config, db }, subjectUserId, policy, lastA.resolvedAtMs);
+      expect(hint).toMatchObject({
+        animationHint: "FADE_LAST_MINUTE",
+        rotationExpiresAtMs: activatedAtMs + 15 * 60_000
+      });
+    } finally { clock.mockRestore(); }
     expect(nextA.rotationEpoch).toBe(1);
     expect(nextB.rotationEpoch).toBe(1);
     expect(nextA.coordinate).not.toEqual(lastA.coordinate);

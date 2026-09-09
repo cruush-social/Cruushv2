@@ -357,6 +357,7 @@ function dependencies(input: {
           lat: request.location.latE7 / 10_000_000,
           lng: request.location.lonE7 / 10_000_000
         },
+        resolvedAtMs: request.nowMs ?? Date.now(),
         rotationEpoch: 1,
         radiusMeters: request.policy.ghostRadiusMeters ?? 1609
       })
@@ -696,6 +697,7 @@ describe("map Pings", () => {
     db.recipients = [recipientProfile(senderUserId)];
     const resolveGhostCoordinate = vi.fn<MapPingDependencies["resolveGhostCoordinate"]>(async () => ({
       coordinate: { lat: 40.72, lng: -73.9521325 },
+      resolvedAtMs: now.getTime(),
       rotationEpoch: 1,
       radiusMeters: 1609
     }));
@@ -832,6 +834,7 @@ describe("map Pings", () => {
     db.recipients = [recipientProfile(senderUserId)];
     const resolveGhostCoordinate = vi.fn<MapPingDependencies["resolveGhostCoordinate"]>(async () => ({
       coordinate: { lat: 40.72, lng: -73.9521325 },
+      resolvedAtMs: now.getTime(),
       rotationEpoch: 1,
       radiusMeters: 1609
     }));

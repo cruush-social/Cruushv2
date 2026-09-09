@@ -1459,6 +1459,9 @@ export async function resolveViewerGhostCoordinate(context: LocationPrivacyConte
       radiusMeters: rotation.radiusMeters,
       policyVersion: rotation.policyVersion
     }),
+    // Keep the animation metadata on the same side of the epoch boundary as
+    // these coordinates, even when land lookup finishes after the deadline.
+    resolvedAtMs: nowMs,
     rotationEpoch: rotation.rotationEpoch,
     radiusMeters: rotation.radiusMeters
   };

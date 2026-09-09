@@ -8,7 +8,7 @@
     "preserve": "Keep real user-source references, staged/outgoing source verification and independent review mandatory. Do not fabricate pre-edit evidence or add bypass flags.",
     "coordination": "The Add UI scope improvement plan task owns the global hook files and is applying the repair; this task preserves the staged product patch and verifies the release."
   },
-  "objective": "Continue the authorized queue quickly in scoped batches. Spots cleanup is deployed at 89f8060: all 855 reviewed targets are absent from public discovery, all 5288 imported records are backed up, and 2018 descriptions were cleared. Complete the requested MHC copy removals, kink choices, Hobbies search, exact older Ace icon, Blog introduction removal and Visibility tab scrolling. Preserve the unshipped RA guard pending its separate overlap decision, all privacy rules, saved selections and unrelated work.",
+  "objective": "Prioritize the reopened Ghost last-decoy complaint: repair any path revealing an old decoy after its completed rotation and demonstrate other members moving within the approved 30–80% target. Bind each resolved coordinate and animation hint to the same epoch. Preserve the approved animation/icon, selected radius, privacy cell and land-only placement, all member settings and the unrelated unshipped RA guard. Prior Spots cleanup and the v115/v116 UI batches are deployed.",
   "userOutcome": "Low-quality imported Spots and imported personal descriptions disappear from discovery without returning on restart. Valid venues, moderator edits and underlying member records remain preserved.",
   "audience": "cruush members.",
   "successCriteria": [
@@ -51,7 +51,7 @@
       "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "Remove only the redundant Nearby now capsule from other members' map profile popups. Preserve the owner's Your profile label and the exact positions of Report, Block, Bug and Close, along with photos, fields, tabs and footer. The v115 batch is live; the separate RA guard remains unshipped.",
+  "nextVisibleMilestone": "Reproduce other members disappearing and reappearing at nearly the same decoy position, then repair the responsible path and show measured live displacement. The September 9 correction reiterates random movement of 30–80% of selected radius from the last decoy. Preserve the approved animation and icon, privacy cell, selected radius and land-only placement; shorter coastal jumps remain allowed only when the target is geometrically impossible. Nearby now removal is deployed v116. Preserve the unrelated unshipped RA guard.",
   "stopConditions": [
     "Stop at a password form.",
     "Stop if the server build fails."
@@ -85,6 +85,7 @@
   "branch": "main",
   "job": "Publish the exact requested copy, option, icon and menu fixes as one verified batch, then continue the remaining authorized queue. Preserve the RA patch without publishing its unresolved overlapping layout. No speculative future features are authorized.",
   "allowedPaths": [
+    "server/src/map-pings.test.ts",
     "src/app/components/MapVisibilitySurface.test.tsx",
     "public/blog/index.html",
     "src/app/components/BadgePickerPreview.tsx",

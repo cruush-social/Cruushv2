@@ -52,6 +52,7 @@ import {
   loadLocationEnvelope,
   locationPayloadToCoordinates,
   describeGhostRotation,
+  resolveViewerGhostCoordinate,
   makeDisplayLocationToken,
   type DisplayMode,
   type VisibilityBaseMode
@@ -960,16 +961,25 @@ async function mapTokenizedMutualCruushRow(
     : policy.baseMode === "GHOST"
       ? "GHOST"
       : "PRECISE";
+  const resolvedGhost = displayMode === "GHOST"
+    ? await resolveViewerGhostCoordinate(app, {
+        subjectUserId: row.other_user_id,
+        viewerUserId,
+        policy,
+        location
+      })
+    : null;
   const token = await makeDisplayLocationToken(app, request, {
     subjectUserId: row.other_user_id,
     viewerUserId,
     policy,
     location,
     displayMode,
+    ...(resolvedGhost ? { resolvedGhost } : {}),
     relationshipGrantVersion: relationship.isMutualCruush ? 1 : 0
   });
   const ghostRotation = displayMode === "GHOST"
-    ? await describeGhostRotation(app, row.other_user_id, policy)
+    ? await describeGhostRotation(app, row.other_user_id, policy, resolvedGhost!.resolvedAtMs)
     : null;
   const currentCrowds = new Set(options.currentCrowds.map((crowd) => crowd.toLowerCase()));
   const sharedCrowds = otherCrowds.filter((crowd) => currentCrowds.has(crowd.toLowerCase()));

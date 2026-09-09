@@ -1026,7 +1026,7 @@ async function mapModernDiscoveryRow(
     relationshipGrantVersion: relationship?.isMutualCruush || canRevealSameCrowdPreciseLocation ? 1 : 0
   });
   const ghostRotation = displayMode === "GHOST"
-    ? await describeGhostRotation(app, row.id, policy)
+    ? await describeGhostRotation(app, row.id, policy, resolvedGhost!.resolvedAtMs)
     : null;
   const shownCoordinates = resolvedGhost?.coordinate ?? preciseCoordinates;
   const latestFeedPostPreview = canViewLatestFeedPreview(row, viewerUserId, relationship)
