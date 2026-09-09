@@ -5,6 +5,15 @@ import { processUploadedImage } from "./media-image.js";
 const swatch = () => sharp({ create: { width: 80, height: 120, channels: 3, background: { r: 210, g: 70, b: 130 } } });
 
 describe("photo formats a phone actually produces", () => {
+  it("decodes HEVC pixels, not just HEIC metadata", async () => {
+    // Synthetic 80 by 120 solid-color still, encoded by macOS sips as HEVC.
+    const bytes = Buffer.from("AAAAJGZ0eXBoZWljAAAAAG1pZjFNaVBybWlhZk1pSEJoZWljAAABw21ldGEAAAAAAAAAIWhkbHIAAAAAAAAAAHBpY3QAAAAAAAAAAAAAAAAAAAAAJGRpbmYAAAAcZHJlZgAAAAAAAAABAAAADHVybCAAAAABAAAADnBpdG0AAAAAAAEAAAA4aWluZgAAAAAAAgAAABVpbmZlAgAAAAABAABodmMxAAAAABVpbmZlAgAAAQACAABFeGlmAAAAABppcmVmAAAAAAAAAA5jZHNjAAIAAQABAAAA5mlwcnAAAADFaXBjbwAAABNjb2xybmNseAACAAIABoAAAAAMY2xsaQDLAEAAAAAUaXNwZQAAAAAAAABQAAAAeAAAAAlpcm90AAAAABBwaXhpAAAAAAMICAgAAABxaHZjQwEDcAAAALAAAAAAAB7wAPz9+PgAAAsDoAABABdAAQwB//8DcAAAAwCwAAADAAADAB5wJKEAAQAjQgEBA3AAAAMAsAAAAwAAAwAeoBQgIHBTLiHuRZVNwICBgCCiAAEACUQBwGFyyERTZAAAABlpcG1hAAAAAAAAAAEAAQaBAgMFhoQAAAAsaWxvYwAAAABEAAACAAEAAAABAAACWwAAAD0AAgAAAAEAAAH3AAAAZAAAAAFtZGF0AAAAAAAAALEAAAAGRXhpZgAATU0AKgAAAAgABQEGAAMAAAABAAYAAAESAAMAAAABAAEAAAEaAAUAAAABAAAASgEbAAUAAAABAAAAUgEoAAMAAAABAAIAAAAAAAAAAAB/AAAABQAAAH8AAAAFAAAAOSgBr5C7OaBGgXz/8CPr99/svhL0+xb8xlEzFH/lZ//xlyP9Pm3GCDU3WfoisWLia7yKCq9rQU5HgA==", "base64");
+    const processed = await processUploadedImage(bytes, "image/heic");
+    expect(processed.width).toBe(80);
+    expect(processed.height).toBe(120);
+    expect((await sharp(processed.canonicalBytes).metadata()).format).toBe("webp");
+  });
+
   it.each([
     ["jpeg", "image/jpeg"],
     ["png", "image/png"],

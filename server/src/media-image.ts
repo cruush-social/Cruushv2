@@ -1,4 +1,9 @@
 import sharp from "sharp";
+import { execFile } from "node:child_process";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { promisify } from "node:util";
 import { ApiError } from "./errors.js";
 import { sanitizeProfilePhoto } from "./image-sanitization.js";
 
@@ -16,9 +21,28 @@ const MAX_IMAGE_DIMENSION = 12_000;
 // WebP or APNG is rejected rather than silently frozen to its first frame.
 // SVG and raw are deliberately absent even though this build decodes them: SVG
 // carries script, and raw is not a photo anyone is uploading from a phone.
-// Verified against the running production image that jpeg, png, webp, heif,
-// avif and tiff all decode there.
+// Sharp's bundled libvips reads HEIC metadata but omits HEVC decoding.
+// The runtime's libheif tool supplies that decoder after the same validation.
 const supportedFormats = new Set(["jpeg", "png", "webp", "heif", "tiff"]);
+
+const runImageDecoder = promisify(execFile);
+
+async function decodeHeic(bytes: Buffer) {
+  const directory = await mkdtemp(join(tmpdir(), "cruush-heic-"));
+  try {
+    const input = join(directory, "input.heic");
+    const output = join(directory, "output.png");
+    await writeFile(input, bytes, { mode: 0o600 });
+    await runImageDecoder("heif-convert", [input, output], {
+      timeout: 15_000,
+      killSignal: "SIGKILL",
+      maxBuffer: 64 * 1024,
+    });
+    return await readFile(output);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+}
 
 const mimeTypes = {
   jpeg: "image/jpeg",
@@ -147,7 +171,9 @@ export async function processUploadedImage(bytes: Buffer, declaredMimeType?: str
       throw invalidImage("Image content does not match its declared type.");
     }
 
-    const canonical = await sanitizeProfilePhoto(bytes, detectedMimeType);
+    const decodableBytes = format === "heif" && metadata.compression === "hevc"
+      ? await decodeHeic(bytes) : bytes;
+    const canonical = await sanitizeProfilePhoto(decodableBytes, detectedMimeType);
     const canonicalMetadata = await sharp(canonical.bytes).metadata();
     const variants = await Promise.all([
       makeVariant(canonical.bytes, "thumbnail", 320, 400),

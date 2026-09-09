@@ -84,6 +84,8 @@
   "branch": "main",
   "job": "Repair photo preview decoding for accepted camera formats and show specific photo rejection reasons; preserve all moderation decisions and existing UI. Ship this urgent slice before resuming saved distance-label work.",
   "allowedPaths": [
+    "server/Dockerfile",
+    "server/src/photo-formats.test.ts",
     "server/src/routes/media.ts",
     "server/src/media-image.ts",
     "server/src/moderation-service.ts",

@@ -11,6 +11,7 @@ RUN npm run build
 
 FROM node:22-alpine AS runner
 WORKDIR /app
+RUN apk add --no-cache libheif-tools
 ARG SOURCE_COMMIT=""
 ENV NODE_ENV=production
 ENV APP_BUILD_SHA=$SOURCE_COMMIT
