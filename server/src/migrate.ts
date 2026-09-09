@@ -163,7 +163,8 @@ const migrationFiles = [
   "154_fix_changelog_notification_links.sql",
   "155_preserve_spot_cleanup.sql",
   "156_archive_remaining_spot_duplicates.sql",
-  "157_archive_reviewed_spot_sublocations.sql"
+  "157_archive_reviewed_spot_sublocations.sql",
+  "158_archive_imported_bathroom_stair_spots.sql"
 ];
 const rewardSafetyPreflightFiles = [
   "079_daily_check_in_rewards.sql",
