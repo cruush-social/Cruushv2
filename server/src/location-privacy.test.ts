@@ -11,6 +11,8 @@ import {
   createCoarseIndexTokens,
   deriveGhostCoordinate,
   distanceMiles,
+  formatDistanceLabel,
+  resolveSharedDistanceLabelMode,
   GHOST_MIN_OFFSET_RATIO,
   GHOST_ROTATION_MINUTES,
   getGhostRotationState,
@@ -26,6 +28,26 @@ import {
   saveVisibilityPolicy,
   storeLocationEnvelope
 } from "./location-privacy.js";
+
+it('distance labels are reciprocal and fail closed without both precise preferences', () => {
+  const original = normalizeVisibilityPolicy(config, 'distance-owner', {
+    baseMode: 'GHOST', ghostRadiusMeters: 2500, ghostRotationMinutes: 15,
+    preciseToMutualCruushes: true, darkRoomDistanceLabel: false,
+  }, undefined, 100000);
+  const updated = normalizeVisibilityPolicy(config, 'distance-owner', { distanceLabelMode: 'approximate' }, original, 120000);
+  for (const key of ['baseMode', 'ghostRadiusMeters', 'ghostRotationMinutes', 'ghostActivatedAtMs', 'ghostSessionVersion', 'ghostRotationSchedule', 'preciseToMutualCruushes', 'preciseToMutualCrowds', 'darkRoomDistanceLabel'] as const) {
+    expect(updated[key]).toEqual(original[key]);
+  }
+  for (const viewer of [undefined, 'approximate', 'precise']) {
+    for (const subject of [undefined, 'approximate', 'precise']) {
+      const mode = resolveSharedDistanceLabelMode(viewer, subject);
+      expect(mode).toBe(resolveSharedDistanceLabelMode(subject, viewer));
+      const input = { displayMode: 'PRECISE' as const, distanceLabelMode: mode, viewerLat: 40.7, viewerLng: -74, targetLat: 40.72, targetLng: -74 };
+      expect(formatDistanceLabel(input)).toBe(viewer === 'precise' && subject === 'precise' ? '1.4 mi' : 'Nearby');
+      expect(formatDistanceLabel({ ...input, displayMode: 'GHOST' })).toBe('Nearby');
+    }
+  }
+});
 
 const config: AppConfig = {
   NODE_ENV: "test",

@@ -41,6 +41,7 @@ export type VisibilityPolicyPayload = {
   preciseToMutualCruushes: boolean;
   preciseToMutualCrowds: CrowdPrecisionPolicy[];
   darkRoomDistanceLabel?: boolean;
+  distanceLabelMode?: "approximate" | "precise";
   auditRequired: boolean;
   updatedAtMs: number;
   expiresAtMs: number | null;
@@ -548,6 +549,7 @@ export function normalizeVisibilityPolicy(
     preciseToMutualCruushes,
     preciseToMutualCrowds: normalizeCrowdPrecisionPolicies(input.preciseToMutualCrowds ?? previous.preciseToMutualCrowds),
     darkRoomDistanceLabel: input.darkRoomDistanceLabel ?? previous.darkRoomDistanceLabel === true,
+    distanceLabelMode: input.distanceLabelMode ?? previous.distanceLabelMode,
     auditRequired: input.auditRequired ?? previous.auditRequired,
     updatedAtMs: nowMs,
     expiresAtMs: input.expiresAtMs ?? previous.expiresAtMs,
@@ -570,6 +572,7 @@ export function publicPrivacySettings(policy: VisibilityPolicyPayload, nowMs = D
     preciseToMutualCruushes: policy.preciseToMutualCruushes,
     preciseToMutualCrowds: normalizeCrowdPrecisionPolicies(policy.preciseToMutualCrowds),
     darkRoomDistanceLabel: policy.darkRoomDistanceLabel === true,
+    distanceLabelMode: policy.distanceLabelMode ?? "approximate",
     preciseLocationVisibility: policy.preciseToMutualCruushes ? "mutual_cruushes" as const : "none" as const,
     updatedAtMs: policy.updatedAtMs
   };
@@ -1616,14 +1619,19 @@ export function distanceMiles(fromLat: number, fromLng: number, toLat: number, t
   return earthRadiusMiles * c;
 }
 
+export function resolveSharedDistanceLabelMode(viewer?: string, subject?: string): "approximate" | "precise" {
+  return viewer === "precise" && subject === "precise" ? "precise" : "approximate";
+}
+
 export function formatDistanceLabel(input: {
   displayMode: DisplayMode;
+  distanceLabelMode?: "approximate" | "precise";
   viewerLat: number;
   viewerLng: number;
   targetLat: number;
   targetLng: number;
 }) {
-  if (input.displayMode === "GHOST") {
+  if (input.displayMode === "GHOST" || input.distanceLabelMode !== "precise") {
     return "Nearby";
   }
 

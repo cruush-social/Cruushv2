@@ -114,7 +114,10 @@ export default function MapPresenceSettings() {
                       : 'border-white/10 bg-white/[0.035] text-white/72 hover:bg-white/[0.06]'
                   }`}
                   key={option.value}
-                  onClick={() => saveDistancePreferences({ mode: option.value })}
+                  onClick={() => {
+                    setError(null);
+                    void saveDistancePreferences({ mode: option.value }).catch(() => setError('Could not save your map presence setting.'));
+                  }}
                   style={selected ? { background: 'var(--cruush-gradient-soft-18)' } : undefined}
                   type="button"
                 >

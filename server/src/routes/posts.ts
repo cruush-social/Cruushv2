@@ -20,7 +20,7 @@ import {
 import { normalizeSingleLineText } from "../input-schema.js";
 import { getActiveAccountUserId, getAuthenticatedUserId } from "../request-auth.js";
 import { recordMeaningfulActivitySafely } from "../rewards-service.js";
-import { getCruushEntitlement, getRelationshipPermissions } from "../match-relationships.js";
+import { getCruushEntitlement, getRelationshipPermissions, getSharedDistanceLabelMode } from "../match-relationships.js";
 import { canStartDirectMessage } from "../cruush-match-settings.js";
 import { handleFeedPhotoUpload } from "../feed-photo-upload.js";
 import { removeOwnedNonPublicMediaAsset } from "../media-assets.js";
@@ -184,14 +184,15 @@ async function mapPostRow(app: FastifyInstance, row: PostRow, viewerUserId: stri
   const partyStatus = normalizePartyStatus(row.party_status);
   const crowdTargets = row.crowd_targets ?? [];
   const vibeTags = topVibeTags(row);
-  const [locationPinVisible, canMessage] = await Promise.all([
+  const [locationPinVisible, canMessage, distanceLabelMode] = await Promise.all([
     canViewLocationPin(app, viewerUserId, row),
     viewerUserId === row.user_id
       ? false
       : canStartDirectMessage(app, viewerUserId, row.user_id).catch((error) => {
           app.log.warn({ err: error, viewerUserId, authorUserId: row.user_id }, "feed message permission check failed");
           return false;
-        })
+        }),
+    getSharedDistanceLabelMode(app, viewerUserId, row.user_id)
   ]);
   const photos = normalizeFeedPhotos(row.feed_photos);
 
@@ -208,7 +209,7 @@ async function mapPostRow(app: FastifyInstance, row: PostRow, viewerUserId: stri
     createdAt: new Date(row.created_at).toISOString(),
     audience: row.audience ?? (crowdTargets.length > 0 ? "crowd" : "public"),
     tags: row.feed_tags ?? [],
-    distance: typeof row.distance_miles === "number"
+    distance: distanceLabelMode === "precise" && typeof row.distance_miles === "number"
       ? formatCoarseDistance(row.distance_miles)
       : "Nearby",
     ...(crowdTargets.length > 0 ? { crowdTargets } : {}),

@@ -17,6 +17,7 @@ import {
   getEffectiveVisibilityPolicy,
   getPrivacySettings,
   getRelationshipPermissions,
+  getSharedDistanceLabelMode,
   revokeOutgoingCruush,
   revokeMutualCruushMatch,
   dismissIncomingCruush,
@@ -1001,6 +1002,7 @@ async function mapTokenizedMutualCruushRow(
       : options.currentCoordinates?.lat != null && options.currentCoordinates.lng != null
         ? formatDistanceLabel({
             displayMode,
+            distanceLabelMode: relationship.distanceLabelMode,
             viewerLat: options.currentCoordinates.lat,
             viewerLng: options.currentCoordinates.lng,
             targetLat: preciseCoordinates.lat,
@@ -1034,6 +1036,7 @@ function mapMutualCruushRow(
     currentCoordinates: { lat: number | null; lng: number | null } | null;
     currentCrowds: string[];
     viewerGhostMode: boolean;
+    distanceLabelMode: "approximate" | "precise";
   }
 ) {
   const preciseAllowed = row.can_reveal_precise_location === true
@@ -1072,7 +1075,7 @@ function mapMutualCruushRow(
       ? "Dark Room"
       : row.travelling && !preciseAllowed
         ? "Far far away"
-        : formatMaybeDistance(options.currentCoordinates, coordinates),
+        : options.distanceLabelMode === "precise" ? formatMaybeDistance(options.currentCoordinates, coordinates) : "Nearby",
     lastActive: formatLastActiveFromDate(row.updated_at),
     canMessage: row.can_message === true,
     canRevealPreciseLocation: preciseAllowed,
@@ -1288,11 +1291,12 @@ export async function registerCruushRoutes(app: FastifyInstance) {
     const viewRows = mapProfileViewRecords(viewRecords, profilesById);
     const incoming = lockable(incomingRows, isCruushPlus);
     const sent = sentRows;
-    const mutual = mutualRows.map((row) => mapMutualCruushRow(app, row, {
+    const mutual = await Promise.all(mutualRows.map(async (row) => mapMutualCruushRow(app, row, {
       currentCoordinates,
       currentCrowds: currentSensitiveProfile?.crowds ?? [],
-      viewerGhostMode: viewerPrivacy.ghostModeEnabled
-    }));
+      viewerGhostMode: viewerPrivacy.ghostModeEnabled,
+      distanceLabelMode: await getSharedDistanceLabelMode(app, authenticatedUserId, row.other_user_id)
+    })));
     const views = lockable(viewRows, isCruushPlus);
 
     return reply.send({

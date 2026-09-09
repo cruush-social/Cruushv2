@@ -8,8 +8,8 @@
     "preserve": "Keep real user-source references, staged/outgoing source verification and independent review mandatory. Do not fabricate pre-edit evidence or add bypass flags.",
     "coordination": "The Add UI scope improvement plan task owns the global hook files and is applying the repair; this task preserves the staged product patch and verifies the release."
   },
-  "objective": "Prioritize photo upload failures after expanded file types, including issue #271, and explain actual photo rejection reasons in the existing error surface. Preserve saved reciprocal distance work and continue the authorized queue afterward.",
-  "userOutcome": "Members can upload supported still photos through the existing crop flow and receive an accurate reason when a photo cannot be accepted, without weakening moderation or changing layout.",
+  "objective": "Resume app-wide reciprocal approximate distance labels after the verified v108 photo upload repair. Either member's approximate setting must remove numeric distance on every shared surface, including Recently Active. Continue the remaining authorized queue.",
+  "userOutcome": "Approximate distance remains nonnumeric across the app and applies in both directions, without changing location-sharing permissions or existing layouts.",
   "audience": "cruush members.",
   "successCriteria": [
     "Hunter uses the exact two paths approved in snake-preview.tsx, with the existing Glyph viewBox, rounded stroke defaults and role mapping. Mouse, all other glyphs, badge frames, colors, placements and sizes remain unchanged.",
@@ -51,7 +51,7 @@
       "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "Reproduce the supported-format photo upload failure, repair the responsible decoding or upload path, and verify the existing crop control and accurate rejection message on mobile.",
+  "nextVisibleMilestone": "Profiles opened from Recently Active show Nearby, never rounded miles, when either member selected approximate distance. Preserve existing saved preferences during server migration.",
   "stopConditions": [
     "Stop at a password form.",
     "Stop if the server build fails."
@@ -82,7 +82,7 @@
   "release": "1.6",
   "repository": "cruush-social/Cruushv2",
   "branch": "main",
-  "job": "Repair photo preview decoding for accepted camera formats and show specific photo rejection reasons; preserve all moderation decisions and existing UI. Ship this urgent slice before resuming saved distance-label work.",
+  "job": "Finish reciprocal approximate distance labels and their preference migration, preserving the deployed photo fix and all existing privacy grants.",
   "allowedPaths": [
     "server/Dockerfile",
     "server/src/photo-formats.test.ts",

@@ -1559,6 +1559,7 @@ async function loadViewerDistanceLabel(
 
   return formatDistanceLabel({
     displayMode,
+    distanceLabelMode: relationship?.distanceLabelMode,
     viewerLat,
     viewerLng,
     targetLat,

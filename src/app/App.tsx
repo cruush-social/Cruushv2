@@ -1,6 +1,7 @@
 import { BrowserRouter, MemoryRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router';
 import { Suspense, useEffect, useState } from 'react';
 import { lazyRoute } from './lib/lazyRoute';
+import { useSyncDistancePreferences } from './lib/distancePreferences';
 import Auth from './components/Auth';
 import VerifyEmail from './components/VerifyEmail';
 import ConfirmEmailChange from './components/ConfirmEmailChange';
@@ -298,6 +299,7 @@ export default function App({
 }: AppProps = {}) {
   const [authStatus, setAuthStatus] = useState<'loading' | 'signed_out' | 'signed_in'>('loading');
   const [session, setSession] = useState<AuthSessionPayload | null>(null);
+  useSyncDistancePreferences(authStatus === 'signed_in' ? session?.user.id : null);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
   const [showOnboardingReward, setShowOnboardingReward] = useState(false);
   const devOnboardingPreview = import.meta.env.DEV && window.location.pathname === '/dev/onboarding-preview';

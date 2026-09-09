@@ -1051,6 +1051,7 @@ async function mapModernDiscoveryRow(
       ? "Far far away"
       : formatDistanceLabel({
           displayMode,
+          distanceLabelMode: relationship?.distanceLabelMode,
           viewerLat: centerLat,
           viewerLng: centerLng,
           targetLat: preciseCoordinates.lat,

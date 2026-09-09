@@ -15,6 +15,7 @@ import {
   DEFAULT_GHOST_RADIUS_METERS,
   loadVisibilityPolicy,
   publicPrivacySettings,
+  resolveSharedDistanceLabelMode,
   saveVisibilityPolicy,
   isPreciseLocationRevoked,
   type CrowdPrecisionPolicy,
@@ -35,6 +36,7 @@ export type PrivacySettings = {
   preciseToMutualCruushes: boolean;
   preciseToMutualCrowds: CrowdPrecisionPolicy[];
   darkRoomDistanceLabel: boolean;
+  distanceLabelMode?: "approximate" | "precise";
   preciseLocationVisibility: PreciseLocationVisibility;
   updatedAtMs: number;
 };
@@ -58,6 +60,7 @@ export type RelationshipPermissions = {
   targetGhostMode: boolean;
   targetBaseMode?: VisibilityBaseMode;
   targetDarkRoomDistanceLabel?: boolean;
+  distanceLabelMode?: "approximate" | "precise";
   targetPreciseLocationVisibility: PreciseLocationVisibility;
 };
 
@@ -204,6 +207,14 @@ async function getRelationshipPrivacySettings(app: FastifyInstance, userId: stri
     app.log.warn({ err: error, userId }, "relationship privacy settings unavailable");
     return conservativePrivacySettingsFallback();
   }
+}
+
+export async function getSharedDistanceLabelMode(app: FastifyInstance, viewerUserId: string, targetUserId: string) {
+  const [viewer, subject] = await Promise.all([
+    getRelationshipPrivacySettings(app, viewerUserId),
+    getRelationshipPrivacySettings(app, targetUserId)
+  ]);
+  return resolveSharedDistanceLabelMode(viewer.distanceLabelMode, subject.distanceLabelMode);
 }
 
 export async function savePrivacySettings(
@@ -542,6 +553,7 @@ export async function getRelationshipPermissions(
       targetGhostMode: viewerSettings.ghostModeEnabled,
       targetBaseMode: viewerSettings.baseMode ?? "GHOST",
       targetDarkRoomDistanceLabel: viewerSettings.darkRoomDistanceLabel === true,
+      distanceLabelMode: viewerSettings.distanceLabelMode ?? "approximate",
       targetPreciseLocationVisibility: viewerSettings.preciseLocationVisibility
     };
   }
@@ -615,6 +627,7 @@ export async function getRelationshipPermissions(
     targetGhostMode,
     targetBaseMode: targetSettings.baseMode ?? "GHOST",
     targetDarkRoomDistanceLabel: targetSettings.darkRoomDistanceLabel === true,
+    distanceLabelMode: resolveSharedDistanceLabelMode(viewerSettings.distanceLabelMode, targetSettings.distanceLabelMode),
     targetPreciseLocationVisibility
   };
 }

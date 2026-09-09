@@ -315,6 +315,22 @@ async function loadMutualPreciseCandidates(app: FastifyInstance, subjectUserId: 
 }
 
 export async function registerPrivacyRoutes(app: FastifyInstance) {
+  app.get("/api/privacy/distance-labels", async (request, reply) => {
+    const userId = await getAuthenticatedUserId(request);
+    const policy = await loadVisibilityPolicy(app, userId);
+    return reply.send({ data: { mode: policy.distanceLabelMode ?? "approximate", configured: policy.distanceLabelMode !== undefined } });
+  });
+
+  app.put("/api/privacy/distance-labels", async (request, reply) => {
+    const userId = await getActiveAccountUserId(request);
+    const { mode } = z.object({ mode: z.enum(["approximate", "precise"]) }).strict().parse(request.body);
+    const policy = await runTransaction(app.db, async (db) => {
+      await lockMapPingSenderInTransaction(db, userId);
+      return saveVisibilityPolicy({ config: app.config, db }, userId, { distanceLabelMode: mode });
+    });
+    return reply.send({ data: { mode: policy.distanceLabelMode ?? "approximate" } });
+  });
+
   app.get("/api/location/display-key", async (request, reply) => {
     const userId = await getAuthenticatedUserId(request);
 
