@@ -2,14 +2,18 @@
   "schemaVersion": 2,
   "taskId": "ONBOARDING-STEPS-20260910",
   "status": "validating",
-  "objective": "Deploy the approved onboarding, heart overlap, discovery refresh, mobile Recently Active offset and HIV capsule fixes to cruush production.",
-  "userOutcome": "The previously reviewed fixes are available in the live application.",
+  "objective": "Finish live verification of the approved release, then fix jumping people and Spot pins during map browsing and zoom.",
+  "userOutcome": "The shipped fixes render correctly, and map pins remain stable near their intended display locations while zooming and panning.",
   "audience": "cruush members",
   "successCriteria": [
     "Pronouns appears on the gender step and remains optional.",
     "Friend invite code capsule appears on 2FA and attaches before setup confirmation or continuing.",
     "Existing drafts resume the same remaining step after index migration.",
-    "Render and exercise the shorter flow at mobile and desktop widths."
+    "Render and exercise the shorter flow at mobile and desktop widths.",
+    "Fixed Spot coordinates retain cluster membership across fractional zoom changes without crossing geometric thresholds.",
+    "People pin offsets remain stable through the reproduced one-pixel pan sequence; same-location clusters remain selectable.",
+    "The Crowd step permits no selection and no longer displays its Select up to 3 helper.",
+    "Both production containers and public worker identify the pushed release."
   ],
   "mustPreserve": [
     "Existing capsule, field labels, options and visual styles.",
@@ -30,7 +34,7 @@
       "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "Integrate the exact five reviewed patches, verify scope and builds, publish and verify both live container revisions.",
+  "nextVisibleMilestone": "Ship v127 and verify both running containers, public assets, and actual mobile Crowd/map routes.",
   "stopConditions": [
     "Stop at user takeover or actual password boundary."
   ],
@@ -41,7 +45,7 @@
   "externalEffectDecisions": {
     "commit": "Authorized by Deploy fixes at user source line 3085.",
     "push": "Authorized to origin/main by Deploy fixes.",
-    "deploy": "Authorized production release of the five reviewed patches.",
+    "deploy": "Authorized continuous bug-fix release by Deploy fixes/Ship the bug fixes and approval at line 4797",
     "send": "forbidden"
   },
   "externalEffects": {
@@ -79,7 +83,8 @@
     "public/service-worker-recovery.js",
     "src/main.tsx",
     "index.html",
-    "src/serviceWorkerUpdate.test.ts"
+    "src/serviceWorkerUpdate.test.ts",
+    "src/app/components/MapView.test.tsx"
   ],
   "forbiddenPaths": [
     "server/**",
@@ -25953,6 +25958,179 @@
           "line": 232,
           "sha256": "77639285be45cd2fb6cc4ea80307154f955eeb448e61474114aae66156fbbde4"
         }
+      },
+      {
+        "file": "src/app/components/ProfileOnboarding.tsx",
+        "property": "structure",
+        "target": "jsx:div[1]/div[1]/div[1]/div[6]",
+        "before": "element: div\nchildren: [\"label\",\"MultiSelect\",\"p\"]",
+        "after": "element: div\nchildren: [\"label\",\"MultiSelect\"]",
+        "surface": "crowd step",
+        "statement": "Remove select up to 3 line for crowd step",
+        "viewport": "All existing ProfileOnboarding viewport widths while the Crowds step is visible.",
+        "preserve": [
+          "Keep Crowds label, selector, options, maxSelections={3}, limitToThree and saved selections.",
+          "Keep every other step helper line, title, detail copy, control, visual style and visibility rule."
+        ],
+        "source": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
+          "line": 4351,
+          "sha256": "aeec89bde64a6fcb7e89a7082665b13e92570323ab35b9d3c450ba31003eec8f"
+        },
+        "review": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T17-36-18-01a08d40-04af-7300-9d2a-e8b58cd08bac.jsonl",
+          "line": 723,
+          "sha256": "81b4a648a20db30c4ac8d5830279356ebee6114f9d027fea2ce15da7952aba5b"
+        }
+      },
+      {
+        "file": "src/app/components/ProfileOnboarding.tsx",
+        "property": "color",
+        "target": "jsx:div[1]/div[1]/div[1]/div[6]/p[1]",
+        "before": "class: text-white/58",
+        "after": "",
+        "surface": "crowd step",
+        "statement": "Remove select up to 3 line for crowd step",
+        "viewport": "All existing ProfileOnboarding viewport widths while the Crowds step is visible.",
+        "preserve": [
+          "Keep Crowds label, selector, options, maxSelections={3}, limitToThree and saved selections.",
+          "Keep every other step helper line, title, detail copy, control, visual style and visibility rule."
+        ],
+        "source": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
+          "line": 4351,
+          "sha256": "aeec89bde64a6fcb7e89a7082665b13e92570323ab35b9d3c450ba31003eec8f"
+        },
+        "review": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T17-36-18-01a08d40-04af-7300-9d2a-e8b58cd08bac.jsonl",
+          "line": 723,
+          "sha256": "81b4a648a20db30c4ac8d5830279356ebee6114f9d027fea2ce15da7952aba5b"
+        }
+      },
+      {
+        "file": "src/app/components/ProfileOnboarding.tsx",
+        "property": "copy",
+        "target": "jsx:div[1]/div[1]/div[1]/div[6]/p[1]",
+        "before": "text: [\"Select up to 3\"]",
+        "after": "",
+        "surface": "crowd step",
+        "statement": "Remove select up to 3 line for crowd step",
+        "viewport": "All existing ProfileOnboarding viewport widths while the Crowds step is visible.",
+        "preserve": [
+          "Keep Crowds label, selector, options, maxSelections={3}, limitToThree and saved selections.",
+          "Keep every other step helper line, title, detail copy, control, visual style and visibility rule."
+        ],
+        "source": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
+          "line": 4351,
+          "sha256": "aeec89bde64a6fcb7e89a7082665b13e92570323ab35b9d3c450ba31003eec8f"
+        },
+        "review": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T17-36-18-01a08d40-04af-7300-9d2a-e8b58cd08bac.jsonl",
+          "line": 723,
+          "sha256": "81b4a648a20db30c4ac8d5830279356ebee6114f9d027fea2ce15da7952aba5b"
+        }
+      },
+      {
+        "file": "src/app/components/ProfileOnboarding.tsx",
+        "property": "spacing",
+        "target": "jsx:div[1]/div[1]/div[1]/div[6]/p[1]",
+        "before": "class: mt-1",
+        "after": "",
+        "surface": "crowd step",
+        "statement": "Remove select up to 3 line for crowd step",
+        "viewport": "All existing ProfileOnboarding viewport widths while the Crowds step is visible.",
+        "preserve": [
+          "Keep Crowds label, selector, options, maxSelections={3}, limitToThree and saved selections.",
+          "Keep every other step helper line, title, detail copy, control, visual style and visibility rule."
+        ],
+        "source": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
+          "line": 4351,
+          "sha256": "aeec89bde64a6fcb7e89a7082665b13e92570323ab35b9d3c450ba31003eec8f"
+        },
+        "review": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T17-36-18-01a08d40-04af-7300-9d2a-e8b58cd08bac.jsonl",
+          "line": 723,
+          "sha256": "81b4a648a20db30c4ac8d5830279356ebee6114f9d027fea2ce15da7952aba5b"
+        }
+      },
+      {
+        "file": "src/app/components/ProfileOnboarding.tsx",
+        "property": "structure",
+        "target": "jsx:div[1]/div[1]/div[1]/div[6]/p[1]",
+        "before": "element: p\nchildren: [\"#text\"]",
+        "after": "",
+        "surface": "crowd step",
+        "statement": "Remove select up to 3 line for crowd step",
+        "viewport": "All existing ProfileOnboarding viewport widths while the Crowds step is visible.",
+        "preserve": [
+          "Keep Crowds label, selector, options, maxSelections={3}, limitToThree and saved selections.",
+          "Keep every other step helper line, title, detail copy, control, visual style and visibility rule."
+        ],
+        "source": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
+          "line": 4351,
+          "sha256": "aeec89bde64a6fcb7e89a7082665b13e92570323ab35b9d3c450ba31003eec8f"
+        },
+        "review": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T17-36-18-01a08d40-04af-7300-9d2a-e8b58cd08bac.jsonl",
+          "line": 723,
+          "sha256": "81b4a648a20db30c4ac8d5830279356ebee6114f9d027fea2ce15da7952aba5b"
+        }
+      },
+      {
+        "file": "src/app/components/ProfileOnboarding.tsx",
+        "property": "typography",
+        "target": "jsx:div[1]/div[1]/div[1]/div[6]/p[1]",
+        "before": "class: text-xs",
+        "after": "",
+        "surface": "crowd step",
+        "statement": "Remove select up to 3 line for crowd step",
+        "viewport": "All existing ProfileOnboarding viewport widths while the Crowds step is visible.",
+        "preserve": [
+          "Keep Crowds label, selector, options, maxSelections={3}, limitToThree and saved selections.",
+          "Keep every other step helper line, title, detail copy, control, visual style and visibility rule."
+        ],
+        "source": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
+          "line": 4351,
+          "sha256": "aeec89bde64a6fcb7e89a7082665b13e92570323ab35b9d3c450ba31003eec8f"
+        },
+        "review": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T17-36-18-01a08d40-04af-7300-9d2a-e8b58cd08bac.jsonl",
+          "line": 723,
+          "sha256": "81b4a648a20db30c4ac8d5830279356ebee6114f9d027fea2ce15da7952aba5b"
+        }
+      },
+      {
+        "file": "src/app/components/MapView.tsx",
+        "property": "position",
+        "target": "jsx:span[5]",
+        "before": "class: relative\nclass: left-8\nclass: top-6\nclass: rotate-45",
+        "after": "class: relative\nclass: rotate-45",
+        "surface": "spots pins",
+        "statement": "Same with spots pins",
+        "viewport": "Every map viewport while a Spot cluster is displayed, during pan and zoom.",
+        "preserve": [
+          "Keep VenueClusterMarker artwork size, rotation, border, glow, colors and all other classes.",
+          "Keep Spot coordinates, privacy coordinates, cluster grouping, count and pointer behavior."
+        ],
+        "source": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
+          "line": 3929,
+          "sha256": "bd2bc9f3b3f83d97ec33818845fef8650a2db950c9a2f56846341a9a62f8c8f4"
+        },
+        "reportSource": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
+          "line": 3920,
+          "sha256": "8fcd15040c5c9703bc035e4105266e950ee58b993a37da4ecb6939d99e8dd287"
+        },
+        "review": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T17-36-18-01a08d40-04af-7300-9d2a-e8b58cd08bac.jsonl",
+          "line": 792,
+          "sha256": "2466f892c92f64ba95c0539da523079050e62f2ad46e1e8c06c724caf85c14e1"
+        }
       }
     ]
   },
@@ -26006,7 +26184,22 @@
     ],
     "behaviorClientBuild": "passed exact staged snapshot",
     "behaviorServerBuild": "passed exact staged snapshot",
-    "finalBuild": "v126 client/server builds, existing worker4tests and casing passed; all five feature source hashes unchanged."
+    "finalBuild": "v126 client/server builds, existing worker4tests and casing passed; all five feature source hashes unchanged.",
+    "phase1Runtime": "Both healthy containers and API10d4410, worker125; actual mobilemaprendered6hearts; controlled429 retriedexactly8000ms then real200, noerror,5hearts.",
+    "finalCommit": "b2577024fb7dd4625bb8803760b1d7f36ae66170",
+    "finalPublication": "Pushed; both deployments started, runtime verification active.",
+    "liveRendered": {
+      "build": "b2577024fb7dd4625bb8803760b1d7f36ae66170",
+      "worker": "v126",
+      "ra": "360x650 at1.04scale:4px gap; screenshot release-live-ra-v126-360.png",
+      "health": "412x800: HIV capsule matches all neighbors,1px border/16px radius/12px padding; screenshot release-live-health-v126-412.png",
+      "onboarding": "Actual safe admin replay: Pronouns on Gender, invite capsule on2FA at412/1440,10rites; preview attachment precedes continuation and remains locked after Back; final Enter cruush returns to Settings surface. No real account writes.",
+      "limits": [
+        "Physical GalaxyS22 not tested",
+        "New account persistence and real referral/2FA writes not tested",
+        "Pin-jump regression remains active separately"
+      ]
+    }
   },
   "releasePhase": "Ship remaining three presentation patches after authorized checker repair.",
   "toolingApproval": {
@@ -26031,5 +26224,99 @@
         "statement": "Same with spots pins"
       }
     ]
+  },
+  "currentItem": {
+    "id": "PIN-JUMP-20260910",
+    "status": "validated_pending_deployment",
+    "request": "Strange shuffling of locations of pins as i zoom in and out, cluster and user pins appearing far away from where rhey should, appearing to jump aroubs a si browse the map/zoom in and out add to top of que",
+    "additionalRequest": "Same with spots pins",
+    "sourceLines": [
+      3920,
+      3929
+    ],
+    "baselineCommit": "b2577024fb7dd4625bb8803760b1d7f36ae66170",
+    "scope": [
+      "Stable people and Spot cluster membership and display positions during zoom and pan",
+      "Preserve non-overlap, privacy coordinates, visibility eligibility, map tiles, styles and owner anchor"
+    ],
+    "proof": [
+      "Focused fractional zoom and pan regression checks",
+      "Rendered populated people and Spot zoom/pan/cluster transitions"
+    ],
+    "priorRelease": "b257702 is live in both healthy containers; final authenticated layout checks in progress.",
+    "evidence": [
+      "evidence/pin-jump-baseline-rendered.json",
+      "evidence/pin-jump-baseline-pan-rendered.json",
+      "evidence/pin-jump-candidate-rendered.json",
+      "evidence/pin-jump-candidate-scenarios.json",
+      "evidence/pin-jump-candidate-selection.json"
+    ]
+  },
+  "newRequests": [
+    {
+      "id": "CROWD-OPTIONAL-20260910",
+      "status": "validated_pending_deployment",
+      "request": "Make crowd step optional",
+      "source": {
+        "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
+        "line": 4338
+      },
+      "scope": "Allow the existing onboarding Crowd step to continue without a selected crowd; preserve chosen crowds and all unrelated steps, layout and defaults. Supersedes prior required-crowd rule only.",
+      "evidence": [
+        "evidence/crowd-final-onboarding-tests.log",
+        "evidence/crowd-after-rendered.json"
+      ]
+    },
+    {
+      "id": "CROWD-COPY-20260910",
+      "status": "validated_pending_deployment",
+      "request": "Remove select up to 3 line for crowd step",
+      "source": {
+        "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
+        "line": 4351
+      },
+      "scope": "Remove only the Select up to 3 helper beneath the onboarding Crowds selector; preserve maximum selection of three and every other step/copy/layout.",
+      "evidence": [
+        "evidence/crowd-final-onboarding-tests.log",
+        "evidence/crowd-after-rendered.json"
+      ]
+    }
+  ],
+  "pendingToolingRepair": {
+    "status": "applied_verified",
+    "patch": "evidence/crowd-spot-checker-candidate/checker.patch",
+    "sha256": "f4c76dfae04e773b22465e753a329d3f1d98fa8dee3ecf75a9aa99bf7c8745a4",
+    "scope": "Exact six-tuple Crowd helper deletion and one Spot cluster anchor position tuple, current root and real source references only",
+    "review": "evidence/crowd-spot-checker-independent-review.json",
+    "rejection": [
+      "property-not-requested:color",
+      "source-is-not-an-instruction-for-this-change"
+    ],
+    "installedFilesChanged": true,
+    "approvalReason": "Global C45 requires authority for this separate installed checker update; product edits already directly authorized.",
+    "approval": {
+      "text": "Approve the bug fix",
+      "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
+      "line": 4797,
+      "context": "Direct response to the one pending async question asking to apply exact reviewed checker patch f4c76dfae04e773b22465e753a329d3f1d98fa8dee3ecf75a9aa99bf7c8745a4."
+    },
+    "receipt": "evidence/crowd-spot-checker-install-receipt.json"
+  },
+  "releaseCandidate": {
+    "version": "v127",
+    "buildEvidence": "evidence/pin-crowd-release-build.json",
+    "clientBuild": "passed",
+    "serverBuild": "passed via pnpm --dir server build; requested package filter matched no projects",
+    "workerChecks": "4/4",
+    "onboardingChecks": "14/14",
+    "mapChecks": "focused cluster and coordinate tests passed",
+    "sourceReview": "evidence/pin-jump-final-source-review.json",
+    "renderedEvidence": [
+      "evidence/pin-jump-candidate-rendered.json",
+      "evidence/pin-jump-candidate-scenarios.json",
+      "evidence/pin-jump-candidate-selection.json",
+      "evidence/crowd-after-rendered.json"
+    ],
+    "publication": "ready; not yet pushed"
   }
 }

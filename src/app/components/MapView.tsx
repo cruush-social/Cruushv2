@@ -769,22 +769,23 @@ function canClusterMarker(marker: MapMarker, focusCoordinates: MapViewProps['foc
   );
 }
 
-function buildPeopleCluster(group: MapMarker[], index: number, action: 'zoom' | 'spiderfy' = 'zoom'): MapMarker {
-  const sortedIds = group.map((marker) => marker.id).sort();
+function buildPeopleCluster(group: MapMarker[], action: 'zoom' | 'spiderfy' = 'zoom'): MapMarker {
+  const members = [...group].sort((a, b) => a.id.localeCompare(b.id));
+  const sortedIds = members.map((marker) => marker.id);
   const count = group.length;
   const label = getClusterLabel(count);
   const clusterHash = hashString(sortedIds.join('|'));
-  const averageLatitude = group.reduce((sum, marker) => sum + marker.approximateLatitude, 0) / count;
-  const averageLongitude = group.reduce((sum, marker) => sum + marker.approximateLongitude, 0) / count;
+  const averageLatitude = members.reduce((sum, marker) => sum + marker.approximateLatitude, 0) / count;
+  const averageLongitude = members.reduce((sum, marker) => sum + marker.approximateLongitude, 0) / count;
 
   return {
-    id: `people-cluster-${index}-${clusterHash}`,
+    id: `people-cluster-${clusterHash}`,
     kind: 'cluster',
     displayName: label,
     approximateLatitude: averageLatitude,
     approximateLongitude: averageLongitude,
     cluster: {
-      id: `people-${index}`,
+      id: `people-${clusterHash}`,
       count,
       label,
       kind: 'people',
@@ -806,7 +807,8 @@ function applyPersonMarkerClusters(
   const clusteredIds = new Set<string>();
   const clusterableMarkers = markers
     .filter((marker) => canClusterMarker(marker, focusCoordinates))
-    .filter((marker) => !spiderfiedIds.has(marker.id));
+    .filter((marker) => !spiderfiedIds.has(marker.id))
+    .sort((a, b) => a.id.localeCompare(b.id));
   const clusters: MapMarker[] = [];
 
   // People standing on the exact same spot never separate by zooming, so they
@@ -815,7 +817,7 @@ function applyPersonMarkerClusters(
     .filter((group) => group.length >= 2)
     .forEach((group) => {
       group.forEach((marker) => clusteredIds.add(marker.id));
-      clusters.push(buildPeopleCluster(group, clusters.length, 'spiderfy'));
+      clusters.push(buildPeopleCluster(group, 'spiderfy'));
     });
 
   if (zoom >= PERSON_CLUSTER_MAX_ZOOM) {
@@ -847,7 +849,7 @@ function applyPersonMarkerClusters(
     }
 
     group.forEach((marker) => clusteredIds.add(marker.id));
-    clusters.push(buildPeopleCluster(group, clusters.length));
+    clusters.push(buildPeopleCluster(group));
   });
 
   return [
@@ -860,22 +862,23 @@ function applyPersonMarkerClusters(
 
 function buildPlaceCluster(
   group: DisplayMapMarker[],
-  index: number,
   action: 'zoom' | 'spiderfy' = 'zoom',
 ): MapMarker {
   const count = group.length;
-  const sortedIds = group.map((marker) => marker.id).sort();
-  const averageLatitude = group.reduce((sum, marker) => sum + marker.approximateLatitude, 0) / count;
-  const averageLongitude = group.reduce((sum, marker) => sum + marker.approximateLongitude, 0) / count;
+  const members = [...group].sort((a, b) => a.id.localeCompare(b.id));
+  const sortedIds = members.map((marker) => marker.id);
+  const clusterHash = hashString(sortedIds.join('|'));
+  const averageLatitude = members.reduce((sum, marker) => sum + marker.approximateLatitude, 0) / count;
+  const averageLongitude = members.reduce((sum, marker) => sum + marker.approximateLongitude, 0) / count;
 
   return {
-    id: `place-cluster-${index}-${hashString(sortedIds.join('|'))}`,
+    id: `place-cluster-${clusterHash}`,
     kind: 'cluster',
     displayName: `${count} spots`,
     approximateLatitude: averageLatitude,
     approximateLongitude: averageLongitude,
     cluster: {
-      id: `places-${index}`,
+      id: `places-${clusterHash}`,
       count,
       label: `${count} spots`,
       kind: 'place',
@@ -886,7 +889,9 @@ function buildPlaceCluster(
 }
 
 export function applyPlaceMarkerClusters(markers: DisplayMapMarker[], zoom: number): DisplayMapMarker[] {
-  const placeMarkers = markers.filter((marker) => marker.kind === 'place' && !marker.spiderfy);
+  const placeMarkers = markers
+    .filter((marker) => marker.kind === 'place' && !marker.spiderfy)
+    .sort((a, b) => a.id.localeCompare(b.id));
   const clusteredIds = new Set<string>();
   const clusters: MapMarker[] = [];
 
@@ -896,7 +901,7 @@ export function applyPlaceMarkerClusters(markers: DisplayMapMarker[], zoom: numb
     .filter((group) => group.length >= 2)
     .forEach((group) => {
       group.forEach((marker) => clusteredIds.add(marker.id));
-      clusters.push(buildPlaceCluster(group, clusters.length, 'spiderfy'));
+      clusters.push(buildPlaceCluster(group, 'spiderfy'));
     });
 
   if (zoom >= PLACE_CLUSTER_MAX_ZOOM) {
@@ -915,20 +920,47 @@ export function applyPlaceMarkerClusters(markers: DisplayMapMarker[], zoom: numb
     else buckets.set(key, [marker]);
   });
 
-  // One cluster per cell, not a radius sweep from each seed. A radius sweep
-  // through a dense district chains neighbour into neighbour until a whole
-  // borough answers to a single number; a fixed grid keeps the counts spread
-  // across the view, which is what tells somebody where the Spots actually are.
+  // Cells are only a lookup. Their absolute boundaries slide under fractional
+  // zoom, so membership depends on relative distances in deterministic ID order.
+  // Bound each group by the existing cell footprint instead of chaining a
+  // radius sweep through neighboring members across a whole district.
   const cellGroups: DisplayMapMarker[][] = [];
-  buckets.forEach((group) => {
-    const available = group.filter((marker) => !clusteredIds.has(marker.id));
-    if (available.length === 0) return;
-    available.forEach((marker) => clusteredIds.add(marker.id));
-    cellGroups.push(available);
+  placeMarkers.forEach((seed) => {
+    if (clusteredIds.has(seed.id)) return;
+    const seedPoint = points.get(seed.id)!;
+    const cellX = Math.floor(seedPoint.x / radiusPx);
+    const cellY = Math.floor(seedPoint.y / radiusPx);
+    const candidates: DisplayMapMarker[] = [];
+    for (let offsetX = -1; offsetX <= 1; offsetX += 1) {
+      for (let offsetY = -1; offsetY <= 1; offsetY += 1) {
+        candidates.push(...(buckets.get(`${cellX + offsetX}:${cellY + offsetY}`) ?? []));
+      }
+    }
+    let left = seedPoint.x;
+    let right = seedPoint.x;
+    let top = seedPoint.y;
+    let bottom = seedPoint.y;
+    const group: DisplayMapMarker[] = [];
+    candidates.sort((a, b) => a.id.localeCompare(b.id)).forEach((candidate) => {
+      if (clusteredIds.has(candidate.id)) return;
+      const point = points.get(candidate.id)!;
+      const nextLeft = Math.min(left, point.x);
+      const nextRight = Math.max(right, point.x);
+      const nextTop = Math.min(top, point.y);
+      const nextBottom = Math.max(bottom, point.y);
+      if (nextRight - nextLeft > radiusPx || nextBottom - nextTop > radiusPx) return;
+      left = nextLeft;
+      right = nextRight;
+      top = nextTop;
+      bottom = nextBottom;
+      clusteredIds.add(candidate.id);
+      group.push(candidate);
+    });
+    cellGroups.push(group);
   });
 
-  // Cell borders can still leave a single or a cluster from one cell touching
-  // its neighbour from the next. Union anything closer than a pin footprint so
+  // Separate bounded groups can still leave a single or cluster touching
+  // its neighbor. Union anything closer than a pin footprint so
   // Spot markers never overlap each other.
   const entities = cellGroups.map((group) => {
     const x = group.reduce((sum, marker) => sum + points.get(marker.id)!.x, 0) / group.length;
@@ -990,7 +1022,7 @@ export function applyPlaceMarkerClusters(markers: DisplayMapMarker[], zoom: numb
   const singles: DisplayMapMarker[] = [];
   merged.forEach((group) => {
     if (group.length >= 2) {
-      clusters.push(buildPlaceCluster(group, clusters.length));
+      clusters.push(buildPlaceCluster(group));
     } else {
       singles.push(...group);
     }
@@ -1684,7 +1716,7 @@ function VenueClusterMarker({ marker }: { marker: MapMarker }) {
 
   return (
     <span
-      className="relative left-8 top-6 flex h-12 w-12 rotate-45 items-center justify-center rounded-[0.7rem] border-2 border-[#55C8FF] bg-black/94 text-white shadow-[0_0_10px_rgba(20,157,255,0.95),0_0_24px_rgba(21,79,255,0.62)] backdrop-blur-md"
+      className="relative flex h-12 w-12 rotate-45 items-center justify-center rounded-[0.7rem] border-2 border-[#55C8FF] bg-black/94 text-white shadow-[0_0_10px_rgba(20,157,255,0.95),0_0_24px_rgba(21,79,255,0.62)] backdrop-blur-md"
       data-testid={`venue-cluster-marker-${marker.cluster?.id ?? marker.id}`}
     >
       <span className="cruush-logo-font flex -rotate-45 items-center text-xl font-normal leading-none tracking-normal">
@@ -2333,13 +2365,17 @@ function clearPersonPinOverlaps(map: MapLibreMap, rendered: RenderedMapMarker[],
       top: Math.min(...parts.map((box) => box.top)) - anchor.y - currentOffset.y,
       bottom: Math.max(...parts.map((box) => box.bottom)) - anchor.y - currentOffset.y,
     };
-    return [{ item, owner, previewed, offset, box: shifted(relative, anchor.x + offset[0], anchor.y + offset[1]) }];
+    return [{ item, owner, previewed, offset,
+      previousOffset: [currentOffset.x - offset[0], currentOffset.y - offset[1]],
+      box: shifted(relative, anchor.x + offset[0], anchor.y + offset[1]),
+    }];
   }).sort((a, b) => Number(b.owner) - Number(a.owner) || Number(b.previewed) - Number(a.previewed)
     || a.item.id.localeCompare(b.item.id));
 
   const placed: PersonPinFootprint[] = [];
-  // Merging forbidden intervals finds the closest clear position on either axis,
-  // without a repeated push loop or changing any member's map coordinates.
+  // At each obstacle edge, merge forbidden vertical intervals and inspect the
+  // nearest gap. This finds a compact two-axis placement instead of sending dense
+  // neighbors down an ever-longer horizontal or vertical chain.
   const nearestClearAxis = (intervals: Array<[number, number]>): number[] => {
     intervals.sort((a, b) => a[0] - b[0]);
     let start = Infinity;
@@ -2359,19 +2395,49 @@ function clearPersonPinOverlaps(map: MapLibreMap, rendered: RenderedMapMarker[],
     let dx = 0;
     let dy = 0;
     if (!person.owner && placed.some((box) => intersects(person.box, box))) {
-      const horizontal = nearestClearAxis(placed.filter((box) =>
-        person.box.top < box.bottom + gap && person.box.bottom + gap > box.top)
-        .map((box): [number, number] => [box.left - person.box.right - gap, box.right - person.box.left + gap]));
-      const vertical = nearestClearAxis(placed.filter((box) =>
-        person.box.left < box.right + gap && person.box.right + gap > box.left)
-        .map((box): [number, number] => [box.top - person.box.bottom - gap, box.bottom - person.box.top + gap]));
-      const candidates = [...horizontal.map((x) => [x, 0]), ...vertical.map((y) => [0, y])];
-      const insideFrame = ([x, y]: number[]) => {
-        const box = shifted(person.box, x, y);
-        return box.left >= frame.left && box.right <= frame.right && box.top >= frame.top && box.bottom <= frame.bottom;
-      };
-      const onScreen = candidates.filter(insideFrame);
-      [dx, dy] = (onScreen.length ? onScreen : candidates).sort((a, b) => Math.hypot(...a) - Math.hypot(...b))[0];
+      if (person.previewed) {
+        const horizontal = nearestClearAxis(placed.filter((box) =>
+          person.box.top < box.bottom + gap && person.box.bottom + gap > box.top)
+          .map((box): [number, number] => [box.left - person.box.right - gap, box.right - person.box.left + gap]));
+        const vertical = nearestClearAxis(placed.filter((box) =>
+          person.box.left < box.right + gap && person.box.right + gap > box.left)
+          .map((box): [number, number] => [box.top - person.box.bottom - gap, box.bottom - person.box.top + gap]));
+        const candidates = [...horizontal.map((x) => [x, 0]), ...vertical.map((y) => [0, y])];
+        const insideFrame = ([x, y]: number[]) => {
+          const box = shifted(person.box, x, y);
+          return box.left >= frame.left && box.right <= frame.right && box.top >= frame.top && box.bottom <= frame.bottom;
+        };
+        const onScreen = candidates.filter(insideFrame);
+        [dx, dy] = (onScreen.length ? onScreen : candidates).sort((a, b) => Math.hypot(...a) - Math.hypot(...b))[0];
+      } else {
+        // Ordinary pins solve from their anchor; previous offsets only break ties.
+        const obstacles = placed.map((box) => ({
+          left: box.left - person.box.right - gap,
+          right: box.right - person.box.left + gap,
+          top: box.top - person.box.bottom - gap,
+          bottom: box.bottom - person.box.top + gap,
+        }));
+        const candidatesX = [...new Set([0, ...obstacles.flatMap((box) => [box.left, box.right])])]
+          .sort((a, b) => Math.abs(a) - Math.abs(b) || a - b);
+        let bestDistance = Infinity;
+        let bestPreviousDistance = Infinity;
+        for (const x of candidatesX) {
+          if (x * x > bestDistance + 0.0001) continue;
+          const candidatesY = nearestClearAxis(obstacles
+            .filter((box) => x > box.left && x < box.right)
+            .map((box): [number, number] => [box.top, box.bottom]));
+          for (const y of candidatesY) {
+            const distance = x * x + y * y;
+            const previousDistance = (x - person.previousOffset[0]) ** 2 + (y - person.previousOffset[1]) ** 2;
+            if (distance < bestDistance - 0.0001
+              || (Math.abs(distance - bestDistance) <= 0.0001 && previousDistance < bestPreviousDistance - 0.0001)) {
+              [dx, dy] = [x, y];
+              bestDistance = distance;
+              bestPreviousDistance = previousDistance;
+            }
+          }
+        }
+      }
     }
     const offset: [number, number] = [person.offset[0] + dx, person.offset[1] + dy];
     const currentOffset = person.item.marker.getOffset();
@@ -2571,6 +2637,9 @@ function MapView({
           attributionControl: false,
         });
         mapRef.current = map;
+        // A restored camera can start above or below the default zoom. Cluster
+        // against its actual scale before the first user zoom event.
+        setCurrentZoom(map.getZoom());
         setMapInstance(map);
 
         const clearRenderReadyTimeout = () => {

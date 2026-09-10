@@ -241,12 +241,11 @@ export default function ProfileOnboarding({
   const [step, setStep] = useState(() => {
     const savedStep = Math.min(Math.max(restoredDraft?.step ?? 0, 0), steps.length - 1);
     if (!restoredDraft) return savedStep;
-    // Older drafts could pass Identity or Crowds without the now-required
-    // answers. Return to the first missing field without discarding the draft.
+    // Older drafts could pass Identity without the required answers. Return
+    // to the first missing field without discarding the draft.
     const saved = restoredDraft.profile;
     if (!(typeof saved.name === 'string' && saved.name.trim().length > 1)) return 0;
     if (savedStep > 1 && (!saved.identities?.length || !saved.sexuality?.length)) return 1;
-    if (savedStep > 2 && !saved.crowds?.some((crowd) => crowd !== 'T4T' || saved.is_trans === true)) return 2;
     return savedStep;
   });
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -430,7 +429,7 @@ export default function ProfileOnboarding({
       case 'identities':
         return profile.identities.length > 0 && profile.sexuality.length > 0;
       case 'crowds':
-        return profile.crowds.some((crowd) => crowd !== 'T4T' || profile.is_trans === true);
+        return true;
       case 'lookingFor':
         return profile.lookingFor.length > 0;
       case 'vibes':
@@ -841,7 +840,6 @@ export default function ProfileOnboarding({
                     value={profile.crowds}
                     onChange={(values) => setProfileField('crowds', limitToThree(values))}
                   />
-                  <p className="text-xs text-white/58 mt-1">Select up to 3</p>
                 </div>
               );
             case 'lookingFor':

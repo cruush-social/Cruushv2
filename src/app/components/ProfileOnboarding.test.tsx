@@ -582,7 +582,7 @@ describe('ProfileOnboarding', () => {
     expect(screen.getByPlaceholderText('Your name')).toHaveValue('River');
   });
 
-  it('requires only name, gender, sexuality and crowd as profile information', async () => {
+  it('requires only name, gender and sexuality as profile information', async () => {
     const onComplete = vi.fn();
     render(<MemoryRouter><ProfileOnboarding onComplete={onComplete} previewMode needsCodeOfConduct /></MemoryRouter>);
     const next = () => screen.getByRole('button', { name: /next rite/i });
@@ -597,9 +597,8 @@ describe('ProfileOnboarding', () => {
     expect(screen.queryByText('Optional · select up to 3')).not.toBeInTheDocument();
     expect(next()).not.toBeDisabled();
     fireEvent.click(next()); // Pronouns and trans checkbox remain empty.
-    expect(next()).toBeDisabled();
-    await chooseMultiSelect('Crowds', 'Dyke');
-    fireEvent.click(next());
+    expect(next()).not.toBeDisabled();
+    fireEvent.click(next()); // No Crowds.
     expect(screen.getByText('reveal your aura')).toBeInTheDocument();
     fireEvent.click(next()); // No Vibes.
     expect(screen.getByText('leave your confession')).toBeInTheDocument();
@@ -648,9 +647,8 @@ describe('ProfileOnboarding', () => {
     expect(screen.getByText('name your form')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /next rite/i })).toBeDisabled();
     second.unmount();
-    writeOnboardingDraft({ step: 7, profile: { ...profile, crowds: ['T4T'], is_trans: false } });
+    writeOnboardingDraft({ step: 7, profile: { ...profile, crowds: [], is_trans: false } });
     render(<MemoryRouter><ProfileOnboarding onComplete={vi.fn()} /></MemoryRouter>);
-    expect(screen.getByText('find your crowd')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /next rite/i })).toBeDisabled();
+    expect(screen.getByText('protect your key')).toBeInTheDocument();
   });
 });

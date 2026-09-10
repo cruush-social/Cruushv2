@@ -13,6 +13,7 @@ import MapView, {
   MIN_DISCOVERY_ZOOM,
   MapMarkerPin,
   PULSE_EKG_PIN_PATH,
+  applyPlaceMarkerClusters,
   createCruushVectorStyle,
   createMapMarkerBadge,
   getMapStyle,
@@ -26,6 +27,7 @@ import {
   createMapOutsideRadiusMask,
 } from '../lib/mapServiceArea';
 import { DARK_ROOM_EYE_PATH, DARK_ROOM_KEYHOLE_PATH } from './DarkRoomMark';
+import type { MapMarker } from '../lib/mapMarkers';
 
 const { MockMap, MockMarker, mapInstances, markerInstances } = vi.hoisted(() => {
   const mapInstances: MockMapInstance[] = [];
@@ -1816,7 +1818,7 @@ describe('MapView', () => {
     );
 
     const cluster = await screen.findByRole('button', { name: 'Zoom into 2 nearby people on map' });
-    expect(screen.getByTestId('people-cluster-marker-people-0')).toHaveTextContent('2');
+    expect(cluster.querySelector('[data-testid^="people-cluster-marker-"]')).toHaveTextContent('2');
     expect(screen.queryByRole('button', { name: 'Open A on map' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Open B on map' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Open C on map' })).toBeInTheDocument();
@@ -1836,6 +1838,26 @@ describe('MapView', () => {
     );
     expect(mapInstances[0].setCenter).not.toHaveBeenCalled();
     expect(screen.getByRole('button', { name: 'Zoom into 2 nearby people on map' })).toBeInTheDocument();
+  });
+
+  it('keeps a people cluster mounted when input order and unrelated clusters change', async () => {
+    const onPinClick = vi.fn();
+    const markers: MapMarker[] = [
+      { id: 'user-a', displayName: 'A', approximateLatitude: 40.7128, approximateLongitude: -73.99 },
+      { id: 'user-b', displayName: 'B', approximateLatitude: 40.713, approximateLongitude: -73.9902 },
+    ];
+    const view = render(<MapView onPinClick={onPinClick} markers={markers} />);
+    const cluster = await screen.findByRole('button', { name: 'Zoom into 2 nearby people on map' });
+    const artworkId = cluster.querySelector('[data-testid]')!.getAttribute('data-testid')!;
+
+    view.rerender(<MapView onPinClick={onPinClick} markers={[
+      { id: '0-far-a', displayName: 'Far A', approximateLatitude: 40.76, approximateLongitude: -73.95 },
+      { id: '0-far-b', displayName: 'Far B', approximateLatitude: 40.7602, approximateLongitude: -73.9502 },
+      ...[...markers].reverse(),
+    ]} />);
+
+    await waitFor(() => expect(screen.getAllByRole('button', { name: 'Zoom into 2 nearby people on map' })).toHaveLength(2));
+    expect(screen.getByTestId(artworkId).closest('button')).toBe(cluster);
   });
 
   it('keeps active Ping hearts above ordinary people clusters during zoom-out', async () => {
@@ -2135,6 +2157,46 @@ describe('spiderfy clusters', () => {
       .filter((offset: number[] | undefined) => Boolean(offset));
     expect(spotOffsets).toHaveLength(2);
     expect(new Set(spotOffsets.map((offset: number[]) => offset.join(','))).size).toBe(2);
+  });
+});
+
+describe('stable Spot clusters', () => {
+  const markerAtOffset = (id: string, offsetX: number, zoom: number): MapMarker => ({
+    id,
+    kind: 'place',
+    displayName: id,
+    approximateLatitude: 40.68,
+    approximateLongitude: -73.95 + offsetX / (512 * 2 ** zoom) * 360,
+  });
+  const normalized = (markers: MapMarker[]) => [...markers].sort((a, b) => a.id.localeCompare(b.id));
+
+  it('keeps fixed Spot membership and coordinates through tiny zoom changes and reordered results', () => {
+    const zoom = 14.01;
+    const markers = Array.from({ length: 7 }, (_, index) => markerAtOffset(`spot-${index}`, index * 63, zoom));
+    const before = normalized(applyPlaceMarkerClusters(markers, zoom));
+    const after = normalized(applyPlaceMarkerClusters([...markers].reverse(), zoom + 0.0001));
+
+    expect(before.filter((marker) => marker.cluster)).toHaveLength(3);
+    expect(after).toEqual(before);
+    expect(normalized(applyPlaceMarkerClusters(markers, zoom))).toEqual(before);
+    expect(before.flatMap((marker) => marker.cluster?.memberIds ?? [marker.id]).sort())
+      .toEqual(markers.map((marker) => marker.id));
+    const centers = before.map((marker) => marker.approximateLongitude / 360 * (512 * 2 ** zoom)).sort((a, b) => a - b);
+    expect(centers.every((x, index) => index === 0 || x - centers[index - 1] >= 62)).toBe(true);
+  });
+
+  it('preserves Spot radius thresholds, maximum zoom and same-coordinate spiderfy', () => {
+    const radiusPair = [markerAtOffset('a', 0, 14.5), markerAtOffset('b', 80, 14.5)];
+    expect(applyPlaceMarkerClusters(radiusPair, 14.49)).toHaveLength(1);
+    expect(applyPlaceMarkerClusters(radiusPair, 14.5)).toEqual(radiusPair);
+
+    const maxZoomPair = [markerAtOffset('a', 0, 15.5), markerAtOffset('b', 65, 15.5)];
+    expect(applyPlaceMarkerClusters(maxZoomPair, 15.49)).toHaveLength(1);
+    expect(applyPlaceMarkerClusters(maxZoomPair, 15.5)).toEqual(maxZoomPair);
+
+    const sameCoordinate = [markerAtOffset('a', 0, 16), markerAtOffset('b', 0, 16)];
+    expect(applyPlaceMarkerClusters(sameCoordinate, 16)[0].cluster)
+      .toMatchObject({ action: 'spiderfy', memberIds: ['a', 'b'], count: 2 });
   });
 });
 

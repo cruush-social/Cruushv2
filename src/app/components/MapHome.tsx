@@ -2167,10 +2167,6 @@ export default function MapHome(_props: MapHomeProps = {}) {
 
     return [focusedUser, ...filteredUsers];
   }, [filteredUsers, focusUserId, users]);
-  const displayedUsersInViewport = useMemo(
-    () => displayedUsers.filter((user) => isCoordinateInViewport(user.lat, user.lng, mapViewport)),
-    [displayedUsers, mapViewport?.signature],
-  );
   // Recently Active follows the Seeking Filter radius rather than whatever the
   // camera happens to frame, so panning the map does not change who it lists.
   const recentlyActiveUsers = useMemo(() => [...displayedUsers]
@@ -2292,7 +2288,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
       radiusMiles: Math.min(mapViewport?.radiusMiles ?? spotMapFilters.radiusMiles, spotMapFilters.radiusMiles),
     }).then((nextPlaces) => {
       if (!cancelled) {
-        setPlaces(nextPlaces.filter((place) => isCoordinateInViewport(place.latitude, place.longitude, mapViewport)));
+        setPlaces(nextPlaces);
       }
     }).catch((placesError: unknown) => {
       console.warn('Error loading default Spots layer:', placesError);
@@ -2624,14 +2620,19 @@ export default function MapHome(_props: MapHomeProps = {}) {
     }
   };
 
+  const fitToMapMarkers = !restoredMapViewport && !currentUserMapLocation && !isMutualMapMode && !focusUserId;
   const mapMarkers = useMemo<MapMarker[]>(() => {
     const activeReceivedPings = new Map(
       (mapPingStatus?.receivedPings ?? [])
         .filter((ping) => Date.parse(ping.expiresAt) > mapPingClock)
         .map((ping) => [ping.sourceUserId, { id: ping.id, expiresAt: ping.expiresAt }]),
     );
-    const nearbyMarkers = displayedUsersInViewport
+    // Clusters need the already-eligible neighbors just beyond the camera edge
+    // so panning does not change their membership or center. Preserve the
+    // existing clipped input only for the initial camera-fit behavior.
+    const nearbyMarkers = displayedUsers
       .filter((user) => !user.isCurrentUser && user.id !== currentProfile?.id && user.id !== 'me')
+      .filter((user) => !fitToMapMarkers || isCoordinateInViewport(user.lat, user.lng, mapViewport))
       .map((user) => {
       const loadedProfilePing = user.activePing && Date.parse(user.activePing.expiresAt) > mapPingClock
         ? user.activePing
@@ -2691,7 +2692,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
     }));
 
     const placeMarkers: MapMarker[] = (spotsVisible ? places : [])
-      .filter((place) => isCoordinateInViewport(place.latitude, place.longitude, mapViewport))
+      .filter((place) => !fitToMapMarkers || isCoordinateInViewport(place.latitude, place.longitude, mapViewport))
       .map((place) => ({
       id: `place-${place.id}`,
       kind: 'place',
@@ -2782,7 +2783,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
       ...eventMarkers,
       ...placeMarkers,
     ];
-  }, [activeEvents, currentProfile, currentUserMapLocation, displayedUsersInViewport, mapPingClock, mapPingStatus, mapViewport?.signature, ownerGhostMapLocation, places, privacySettings, spotsVisible, travelPin]);
+  }, [activeEvents, currentProfile, currentUserMapLocation, displayedUsers, fitToMapMarkers, mapPingClock, mapPingStatus, mapViewport?.signature, ownerGhostMapLocation, places, privacySettings, spotsVisible, travelPin]);
   const browseVisibleMapMarkers = useMemo(() => {
     if (!currentUserMapLocation) {
       return mapMarkers;
@@ -3075,7 +3076,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
               center: currentUserMapLocation,
               radiusMiles: DISCOVERY_BROWSE_RADIUS_MILES,
             } : null}
-            fitToMarkers={!restoredMapViewport && !currentUserMapLocation && !isMutualMapMode && !focusUserId}
+            fitToMarkers={fitToMapMarkers}
             focusCoordinates={
               (selectedPlace ? {
                 approximateLatitude: selectedPlace.latitude,
