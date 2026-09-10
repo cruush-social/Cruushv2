@@ -9,6 +9,7 @@ the branch name.
 
 | Branch | Worktree path | Last commit | State | Ahead/behind main | Purpose |
 | --- | --- | --- | --- | --- | --- |
+| `fix/onboarding-step-consolidation-20260910` | `/Volumes/good/cruush-onboarding-steps-20260910` | `00bd751` (base) | dirty, Codex thread 01a08cc1 | +0/-0 at creation | Combined release of five approved fixes; source integrated, validating before production deployment. |
 | `codex/publish-safety-blog-20260908` | `/Users/julienlenaz/Documents/Codex/cruush-safety-blog-ssd` | 2026-09-08 7f743ca docs: publish cruush safety blog article | dirty (1 files) | +1/-0 | Publish the code-accurate safety article to the existing cruush static blog; Codex; in progress. |
 | `feature/moderation-dashboard-full-access` | `/Volumes/good/Cruushv2-1` | 2026-08-06 f2055305 Restore the notchless spinning logo loop on the landing page | dirty (114 files) | +31/-146 |  |
 | `codex/sh-review-only-20260902` | `/Volumes/good/Cruushv2-sh-review-only` | 2026-09-02 a69841f4 fix: clarify onboarding validation | dirty (9 files) | +0/-0 | Stream sexual-harassment-only results publish with moderator review; Codex; deploying. |

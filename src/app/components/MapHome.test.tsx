@@ -1378,9 +1378,10 @@ describe('MapHome', () => {
 
   it('silently refreshes an already-open map so Ghost Mode changes replace stale pins', async () => {
     useIsMobile.mockReturnValue(false);
+    vi.useFakeTimers({ shouldAdvanceTime: true });
     const setIntervalSpy = vi.spyOn(window, 'setInterval');
 
-    render(
+    const view = render(
       <MemoryRouter initialEntries={['/map']}>
         <Routes>
           <Route path="/map" element={<MapHome />} />
@@ -1388,19 +1389,21 @@ describe('MapHome', () => {
       </MemoryRouter>
     );
 
-    await screen.findByRole('button', { name: 'Pin Jordan' });
-    const callsBeforeRefresh = getNearbyUsers.mock.calls.length;
-    const privacyRefresh = setIntervalSpy.mock.calls.find(([, delay]) => delay === 60_000)?.[0];
+    try {
+      await screen.findByRole('button', { name: 'Pin Jordan' });
+      const callsBeforeRefresh = getNearbyUsers.mock.calls.length;
+      const privacyRefresh = setIntervalSpy.mock.calls.find(([, delay]) => delay === 60_000)?.[0];
 
-    expect(privacyRefresh).toEqual(expect.any(Function));
-    act(() => {
-      (privacyRefresh as () => void)();
-    });
+      expect(privacyRefresh).toEqual(expect.any(Function));
+      await act(async () => vi.advanceTimersByTimeAsync(60_000));
 
-    await waitFor(() => expect(getNearbyUsers.mock.calls.length).toBeGreaterThan(callsBeforeRefresh));
-    expect(screen.getByRole('button', { name: 'Pin Jordan' })).toBeInTheDocument();
-
-    setIntervalSpy.mockRestore();
+      await waitFor(() => expect(getNearbyUsers.mock.calls.length).toBeGreaterThan(callsBeforeRefresh));
+      expect(screen.getByRole('button', { name: 'Pin Jordan' })).toBeInTheDocument();
+    } finally {
+      view.unmount();
+      setIntervalSpy.mockRestore();
+      vi.useRealTimers();
+    }
   });
 
   it('fetches another member new Ghost position at the deadline without replacing the map page', async () => {
@@ -1417,6 +1420,144 @@ describe('MapHome', () => {
     await waitFor(() => expect(getNearbyUsers.mock.calls.length).toBeGreaterThan(calls));
     expect(screen.getByTestId('marker-user-1')).toHaveAttribute('data-lat', '40.71');
     expect(screen.getByTestId('map-focus')).toBe(map);
+  });
+
+  it('clears a discovery rate-limit error after a successful background refresh', async () => {
+    const recoveredUsers = await getNearbyUsers();
+    getNearbyUsers.mockClear();
+    getNearbyUsers.mockRejectedValueOnce(new ApiClientError(429, 'RATE_LIMITED', 'Too many discovery refreshes. Try again later.', { retryAfterSeconds: 1 }));
+    navigator.geolocation.getCurrentPosition = vi.fn();
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const view = render(<MemoryRouter initialEntries={['/map']}><MapHome /></MemoryRouter>);
+    try {
+      expect(await screen.findByText('Too many discovery refreshes. Try again later.')).toBeInTheDocument();
+      getNearbyUsers.mockResolvedValue(recoveredUsers);
+      await act(async () => vi.advanceTimersByTimeAsync(60_000));
+      expect(screen.getByRole('button', { name: 'Pin Jordan' })).toBeInTheDocument();
+      expect(screen.queryByText('Too many discovery refreshes. Try again later.')).not.toBeInTheDocument();
+    } finally {
+      view.unmount();
+      vi.useRealTimers();
+    }
+  });
+
+  it('coalesces overlapping discovery refreshes and loads the latest settled viewport', async () => {
+    const recoveredUsers = await getNearbyUsers();
+    getNearbyUsers.mockClear();
+    navigator.geolocation.getCurrentPosition = vi.fn();
+    const handlers = new Map<string, Set<() => void>>();
+    const eventfulMap = mapControls as typeof mapControls & {
+      on?: (event: string, handler: () => void) => void;
+      off?: (event: string, handler: () => void) => void;
+      getBounds?: () => { getNorth(): number; getSouth(): number; getEast(): number; getWest(): number };
+    };
+    eventfulMap.on = (event, handler) => {
+      if (!handlers.has(event)) handlers.set(event, new Set());
+      handlers.get(event)!.add(handler);
+    };
+    eventfulMap.off = (event, handler) => { handlers.get(event)?.delete(handler); };
+    eventfulMap.getBounds = () => ({ getNorth: () => 40.9, getSouth: () => 40.5, getEast: () => -73.5, getWest: () => -74.3 });
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const starts: number[] = [];
+    getNearbyUsers.mockImplementation(async () => { starts.push(Date.now()); return recoveredUsers; });
+    const view = render(<MemoryRouter initialEntries={['/map']}><MapHome /></MemoryRouter>);
+    try {
+      await screen.findByRole('button', { name: 'Pin Jordan' });
+      await act(async () => vi.advanceTimersByTimeAsync(3_000));
+      const inFlight = deferred<typeof recoveredUsers>();
+      getNearbyUsers.mockImplementationOnce(() => { starts.push(Date.now()); return inFlight.promise; });
+      const beforeRefresh = getNearbyUsers.mock.calls.length;
+      await act(async () => { window.dispatchEvent(new Event('focus')); });
+      await act(async () => vi.advanceTimersByTimeAsync(2_500));
+      expect(getNearbyUsers).toHaveBeenCalledTimes(beforeRefresh + 1);
+      await act(async () => {
+        window.dispatchEvent(new Event('focus'));
+        document.dispatchEvent(new Event('visibilitychange'));
+        mapControls.getCenter.mockReturnValue({ lat: 40.74, lng: -73.96 });
+        handlers.get('moveend')?.forEach((handler) => handler());
+      });
+      await act(async () => vi.advanceTimersByTimeAsync(700));
+      await act(async () => {
+        mapControls.getCenter.mockReturnValue({ lat: 40.75, lng: -73.95 });
+        handlers.get('moveend')?.forEach((handler) => handler());
+      });
+      await act(async () => vi.advanceTimersByTimeAsync(700));
+      expect(getNearbyUsers).toHaveBeenCalledTimes(beforeRefresh + 1);
+      await act(async () => { inFlight.resolve(recoveredUsers); });
+      await act(async () => vi.advanceTimersByTimeAsync(2_500));
+      expect(getNearbyUsers).toHaveBeenCalledTimes(beforeRefresh + 2);
+      expect(getNearbyUsers.mock.calls.at(-1)?.[0]).toEqual({ lat: 40.75, lng: -73.95 });
+      expect(starts.slice(1).every((start, index) => start - starts[index] >= 2_500)).toBe(true);
+      await act(async () => { window.dispatchEvent(new Event('focus')); });
+      await openMapControls();
+      fireEvent.click(screen.getByTestId('map-seeking-button'));
+      const beforeApply = getNearbyUsers.mock.calls.length;
+      const lastBackgroundStart = starts.at(-1)!;
+      await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Apply', exact: true })); });
+      expect(getNearbyUsers).toHaveBeenCalledTimes(beforeApply + 1);
+      expect(starts.at(-1)! - lastBackgroundStart).toBeLessThan(2_500);
+
+      const olderRequest = deferred<typeof recoveredUsers>();
+      getNearbyUsers.mockImplementationOnce(() => { starts.push(Date.now()); return olderRequest.promise; });
+      await act(async () => { window.dispatchEvent(new Event('focus')); });
+      await act(async () => vi.advanceTimersByTimeAsync(2_500));
+      const whileOlderRequestRuns = getNearbyUsers.mock.calls.length;
+      const olderRequestStart = starts.at(-1)!;
+      await openMapControls();
+      fireEvent.click(screen.getByTestId('map-seeking-button'));
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: 'Apply', exact: true }));
+        window.dispatchEvent(new Event('focus'));
+      });
+      expect(getNearbyUsers).toHaveBeenCalledTimes(whileOlderRequestRuns);
+      await act(async () => { olderRequest.resolve(recoveredUsers); });
+      expect(getNearbyUsers).toHaveBeenCalledTimes(whileOlderRequestRuns + 1);
+      expect(getNearbyUsers.mock.calls.at(-1)?.[0]).toEqual({ lat: 40.75, lng: -73.95 });
+      expect(starts.at(-1)! - olderRequestStart).toBeLessThan(2_500);
+    } finally {
+      view.unmount();
+      vi.useRealTimers();
+      delete eventfulMap.on;
+      delete eventfulMap.off;
+      delete eventfulMap.getBounds;
+    }
+  });
+
+  it('waits for discovery retryAfterSeconds while removing expired pins, then recovers automatically', async () => {
+    const [baseUser] = await getNearbyUsers();
+    getNearbyUsers.mockClear();
+    navigator.geolocation.getCurrentPosition = vi.fn();
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    getNearbyUsers.mockResolvedValue([{ ...baseUser, displayExpiresAtMs: Date.now() + 5_000 }]);
+    const view = render(<MemoryRouter initialEntries={['/map?focusUserId=user-1']}><MapHome /></MemoryRouter>);
+    try {
+      await screen.findByRole('button', { name: 'Pin Jordan' });
+      await act(async () => vi.advanceTimersByTimeAsync(2_500));
+      const beforeLimit = getNearbyUsers.mock.calls.length;
+      let rejectedAt = 0;
+      getNearbyUsers.mockImplementationOnce(async () => {
+        rejectedAt = Date.now();
+        throw new ApiClientError(429, 'RATE_LIMITED', 'Too many discovery refreshes. Try again later.', { retryAfterSeconds: 10 });
+      });
+      await act(async () => { window.dispatchEvent(new Event('focus')); });
+      expect(getNearbyUsers).toHaveBeenCalledTimes(beforeLimit + 1);
+      getNearbyUsers.mockResolvedValue([{ ...baseUser, displayExpiresAtMs: Date.now() + 60_000 }]);
+      await act(async () => vi.advanceTimersByTimeAsync(3_000));
+      await act(async () => {
+        window.dispatchEvent(new Event('focus'));
+        document.dispatchEvent(new Event('visibilitychange'));
+      });
+      expect(screen.queryByRole('button', { name: 'Pin Jordan' })).not.toBeInTheDocument();
+      await act(async () => vi.advanceTimersByTimeAsync(Math.max(0, rejectedAt + 9_900 - Date.now())));
+      expect(getNearbyUsers).toHaveBeenCalledTimes(beforeLimit + 1);
+      await act(async () => vi.advanceTimersByTimeAsync(200));
+      expect(getNearbyUsers).toHaveBeenCalledTimes(beforeLimit + 2);
+      expect(screen.getByRole('button', { name: 'Pin Jordan' })).toBeInTheDocument();
+      expect(screen.queryByText('Too many discovery refreshes. Try again later.')).not.toBeInTheDocument();
+    } finally {
+      view.unmount();
+      vi.useRealTimers();
+    }
   });
 
   it('navigates directly to the full profile on a short mobile tap', async () => {

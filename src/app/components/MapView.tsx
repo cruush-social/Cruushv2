@@ -743,10 +743,10 @@ function mercatorPixelPoint(marker: MapMarker, zoom: number) {
 }
 
 /**
- * Member coordinates are authoritative display locations. Zoom may replace
- * nearby members with a cluster, but it must never move an individual member.
- * Same-location members can still fan out with pixel-only offsets after the
- * user opens their cluster.
+ * Member coordinates are authoritative geographic display locations. Clustering
+ * may replace nearby members; separate screen offsets prevent surviving heart
+ * units from overlapping without rewriting those coordinates. Same-location
+ * members still fan out with pixel-only offsets when their cluster opens.
  */
 export function separateOverlappingMarkers(markers: MapMarker[], _zoom: number) {
   return markers;
@@ -1940,6 +1940,7 @@ function createMarkerElement(
   onPinClick: (marker: MapMarker) => void,
   onPinPreview: (marker: MapMarker) => void,
   onMarkerInteraction: () => void,
+  onFootprintChanged: () => void,
 ) {
   const isCurrentUser = marker.id === 'me' || marker.isCurrentUser;
   const isInteractive = true;
@@ -2006,6 +2007,7 @@ function createMarkerElement(
       element.setAttribute('aria-pressed', nextPreviewed ? 'true' : 'false');
     }
     renderMarker();
+    onFootprintChanged();
   };
 
   if (!isInteractive) {
@@ -2254,6 +2256,132 @@ export function ghostLeashCameraPadding(containerWidth: number) {
     : { top: 120, right: 160, bottom: 140, left: 120 };
 }
 
+type PersonPinFootprint = { left: number; top: number; right: number; bottom: number };
+
+function clearPersonPinOverlaps(map: MapLibreMap, rendered: RenderedMapMarker[], markers: MapMarker[]) {
+  if (typeof map.project !== 'function' || typeof map.getContainer !== 'function') return;
+  const frame = map.getContainer().getBoundingClientRect();
+  if (!frame.width || !frame.height) return;
+  const markersById = new Map(markers.map((marker) => [marker.id, marker]));
+  const gap = 4;
+  const intersects = (a: PersonPinFootprint, b: PersonPinFootprint) =>
+    a.left < b.right + gap && a.right + gap > b.left && a.top < b.bottom + gap && a.bottom + gap > b.top;
+  const shifted = (box: PersonPinFootprint, x: number, y: number): PersonPinFootprint => ({
+    left: box.left + x, right: box.right + x, top: box.top + y, bottom: box.bottom + y,
+  });
+  const people = rendered.flatMap((item) => {
+    const marker = markersById.get(item.id) as DisplayMapMarker | undefined;
+    if (!marker || ((marker.kind ?? 'person') !== 'person' && !isPersonCluster(marker))
+      || typeof item.marker.getElement !== 'function' || typeof item.marker.getOffset !== 'function'
+      || typeof item.marker.setOffset !== 'function') return [];
+    const originalOffset: [number, number] = marker.spiderfy?.offset ?? [0, 0];
+    const point = map.project([marker.approximateLongitude, marker.approximateLatitude]);
+    // Offscreen markers cannot collide with this view; avoid measuring their DOM.
+    if (point.x < -SIGNAL_CLEARANCE_PX || point.y < -SIGNAL_CLEARANCE_PX
+      || point.x > frame.width + SIGNAL_CLEARANCE_PX || point.y > frame.height + SIGNAL_CLEARANCE_PX) {
+      const offset = item.marker.getOffset();
+      if (offset.x !== originalOffset[0] || offset.y !== originalOffset[1]) item.marker.setOffset(originalOffset);
+      return [];
+    }
+    const element = item.marker.getElement();
+    // A people cluster must not cover the owner's heart while it is collapsed.
+    const layer = element.querySelector<HTMLElement>(isPersonCluster(marker)
+      ? '[data-testid^="people-cluster-marker-"]' : '[data-testid^="marker-heart-layer-"]');
+    if (!layer) return [];
+    const previewed = element.dataset.markerPreviewed === 'true';
+    const layerStyle = getComputedStyle(layer);
+    const layerBox = layer.getBoundingClientRect();
+    const currentScale = Number.parseFloat(layerStyle.scale) || 1;
+    // Reserve the existing preview/heartbeat peak even while idle, so entering
+    // hover does not move the heart out from under the pointer or offscreen.
+    const growthFactor = isPersonCluster(marker) ? 1 : 1.38 / currentScale;
+    const [originX, originY] = layerStyle.transformOrigin.split(' ').map(Number.parseFloat);
+    const growthOrigin = {
+      x: layerBox.left + layerBox.width * (Number.isFinite(originX) && layer.offsetWidth ? originX / layer.offsetWidth : 0.5),
+      y: layerBox.top + layerBox.height * (Number.isFinite(originY) && layer.offsetHeight ? originY / layer.offsetHeight : 1),
+    };
+    // The transparent button is taller than its artwork and remains a hit target.
+    const parts = [element, layer, ...element.querySelectorAll<HTMLElement>(
+      '[data-testid^="marker-role-badge-"], [data-testid^="marker-position-badge-"], '
+      + '[data-testid^="marker-signal-stack-"], [data-testid^="marker-post-preview-"], '
+      + '[data-testid^="marker-role-badge-"] > [aria-hidden="true"], '
+      + '[data-testid^="marker-position-badge-"] > [aria-hidden="true"]',
+    )].filter((part) => {
+      const style = getComputedStyle(part);
+      return style.visibility !== 'hidden' && style.display !== 'none' && (previewed || Number(style.opacity) > 0);
+    }).flatMap((part): PersonPinFootprint[] => {
+      const box = part.getBoundingClientRect();
+      if (!box.width || !box.height) return [];
+      if (growthFactor === 1 || (part !== layer && !layer.contains(part))) return [box];
+      return [{
+        left: growthOrigin.x + (box.left - growthOrigin.x) * growthFactor,
+        right: growthOrigin.x + (box.right - growthOrigin.x) * growthFactor,
+        top: growthOrigin.y + (box.top - growthOrigin.y) * growthFactor,
+        bottom: growthOrigin.y + (box.bottom - growthOrigin.y) * growthFactor,
+      }];
+    });
+    if (!parts.length) return [];
+    const currentOffset = item.marker.getOffset();
+    const owner = marker.isCurrentUser === true || marker.id === 'me';
+    // Keep the active preview where the pointer found it; move its neighbors first.
+    const offset: [number, number] = owner ? [0, 0] : previewed
+      ? [currentOffset.x, currentOffset.y] : [originalOffset[0], originalOffset[1]];
+    const anchor = { x: frame.left + point.x, y: frame.top + point.y };
+    const relative = {
+      left: Math.min(...parts.map((box) => box.left)) - anchor.x - currentOffset.x,
+      right: Math.max(...parts.map((box) => box.right)) - anchor.x - currentOffset.x,
+      top: Math.min(...parts.map((box) => box.top)) - anchor.y - currentOffset.y,
+      bottom: Math.max(...parts.map((box) => box.bottom)) - anchor.y - currentOffset.y,
+    };
+    return [{ item, owner, previewed, offset, box: shifted(relative, anchor.x + offset[0], anchor.y + offset[1]) }];
+  }).sort((a, b) => Number(b.owner) - Number(a.owner) || Number(b.previewed) - Number(a.previewed)
+    || a.item.id.localeCompare(b.item.id));
+
+  const placed: PersonPinFootprint[] = [];
+  // Merging forbidden intervals finds the closest clear position on either axis,
+  // without a repeated push loop or changing any member's map coordinates.
+  const nearestClearAxis = (intervals: Array<[number, number]>): number[] => {
+    intervals.sort((a, b) => a[0] - b[0]);
+    let start = Infinity;
+    let end = -Infinity;
+    for (const [nextStart, nextEnd] of intervals) {
+      if (nextStart > end) {
+        if (start < 0 && end > 0) return [start, end];
+        start = nextStart;
+        end = nextEnd;
+      } else {
+        end = Math.max(end, nextEnd);
+      }
+    }
+    return start < 0 && end > 0 ? [start, end] : [0];
+  };
+  for (const person of people) {
+    let dx = 0;
+    let dy = 0;
+    if (!person.owner && placed.some((box) => intersects(person.box, box))) {
+      const horizontal = nearestClearAxis(placed.filter((box) =>
+        person.box.top < box.bottom + gap && person.box.bottom + gap > box.top)
+        .map((box): [number, number] => [box.left - person.box.right - gap, box.right - person.box.left + gap]));
+      const vertical = nearestClearAxis(placed.filter((box) =>
+        person.box.left < box.right + gap && person.box.right + gap > box.left)
+        .map((box): [number, number] => [box.top - person.box.bottom - gap, box.bottom - person.box.top + gap]));
+      const candidates = [...horizontal.map((x) => [x, 0]), ...vertical.map((y) => [0, y])];
+      const insideFrame = ([x, y]: number[]) => {
+        const box = shifted(person.box, x, y);
+        return box.left >= frame.left && box.right <= frame.right && box.top >= frame.top && box.bottom <= frame.bottom;
+      };
+      const onScreen = candidates.filter(insideFrame);
+      [dx, dy] = (onScreen.length ? onScreen : candidates).sort((a, b) => Math.hypot(...a) - Math.hypot(...b))[0];
+    }
+    const offset: [number, number] = [person.offset[0] + dx, person.offset[1] + dy];
+    const currentOffset = person.item.marker.getOffset();
+    if (Math.abs(currentOffset.x - offset[0]) > 0.01 || Math.abs(currentOffset.y - offset[1]) > 0.01) {
+      person.item.marker.setOffset(offset);
+    }
+    placed.push(shifted(person.box, dx, dy));
+  }
+}
+
 function cleanupRenderedMarker({ dispose, marker, root }: RenderedMapMarker) {
   dispose();
   marker.remove();
@@ -2277,6 +2405,7 @@ function MapView({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const markersRef = useRef<RenderedMapMarker[]>([]);
+  const schedulePersonLayoutRef = useRef<(previewChanged?: boolean) => void>(() => {});
   const viewportMarkersRef = useRef<MapMarker[]>([]);
   const demoRadiusCirclesRef = useRef<RadiusCircle[]>([]);
   const mapLibreRef = useRef<MapLibreExport | null>(null);
@@ -2328,6 +2457,32 @@ function MapView({
   const renderedMarkerSignature = useMemo(() => JSON.stringify(renderedMarkers), [renderedMarkers]);
   const renderedMarkersRef = useRef(renderedMarkers);
   renderedMarkersRef.current = renderedMarkers;
+  useEffect(() => {
+    if (!mapInstance || typeof mapInstance.on !== 'function' || typeof mapInstance.off !== 'function') return;
+    let frame: number | null = null;
+    let previewUntil = 0;
+    const layout = () => {
+      frame = null;
+      clearPersonPinOverlaps(mapInstance, markersRef.current, renderedMarkersRef.current);
+      if (performance.now() < previewUntil) frame = requestAnimationFrame(layout);
+    };
+    const schedule = (previewChanged = false) => {
+      // Existing preview transforms last 150ms. Track only that bounded transition.
+      if (previewChanged) previewUntil = performance.now() + 200;
+      if (frame === null) frame = requestAnimationFrame(layout);
+    };
+    const cameraChanged = () => schedule();
+    schedulePersonLayoutRef.current = schedule;
+    mapInstance.on('move', cameraChanged);
+    mapInstance.on('resize', cameraChanged);
+    schedule();
+    return () => {
+      schedulePersonLayoutRef.current = () => {};
+      mapInstance.off('move', cameraChanged);
+      mapInstance.off('resize', cameraChanged);
+      if (frame !== null) cancelAnimationFrame(frame);
+    };
+  }, [mapInstance]);
   const viewportMarkerSignature = useMemo(() => renderedMarkers
     .filter(isMapMarker)
     .map((marker) => [
@@ -2974,6 +3129,7 @@ function MapView({
           () => {
             lastMarkerInteractionAtRef.current = Date.now();
           },
+          () => schedulePersonLayoutRef.current(true),
         );
         const displayMarker = marker as DisplayMapMarker;
 
@@ -3006,6 +3162,7 @@ function MapView({
           signature: nextSignatures.get(marker.id) ?? JSON.stringify(marker),
         };
       });
+      schedulePersonLayoutRef.current();
     });
 
     return () => {

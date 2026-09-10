@@ -115,7 +115,17 @@ const DISCOVERY_BROWSE_RADIUS_MILES = 50;
 // could catch. A minute keeps other people's pins fresh without the traffic,
 // and coming back to the foreground still refreshes immediately.
 const MAP_PRIVACY_REFRESH_INTERVAL_MS = 60_000;
+// Keep automatic map refreshes below the shared 30-per-minute discovery limit.
+const MAP_BACKGROUND_REFRESH_MIN_INTERVAL_MS = 2_500;
 const CROWD_NOTICE_ORDER = ['Dyke', 'Gay', 'T4T'];
+
+type MapDiscoveryRequest = {
+  coordinates: { lat: number; lng: number } | null;
+  filters?: FilterState;
+  background: boolean;
+  mutual: boolean;
+  key: string;
+};
 
 type SettledMapViewport = {
   center: { latitude: number; longitude: number };
@@ -1000,6 +1010,31 @@ export default function MapHome(_props: MapHomeProps = {}) {
   }, []);
   useEffect(() => addDesktopPageLayoutChangedListener(setDesktopPageLayout), []);
   const hasFetchedInitialUsersRef = useRef(false);
+  // Waiting for a rate-limit window must not retain expired location tokens,
+  // including those used by a focused profile or its Ghost rotation timer.
+  useEffect(() => {
+    setUsers((currentUsers) => currentUsers.some((user) =>
+      user.displayExpiresAtMs != null && user.displayExpiresAtMs <= mapPingClock)
+      ? currentUsers.filter((user) => user.displayExpiresAtMs == null || user.displayExpiresAtMs > mapPingClock)
+      : currentUsers);
+  }, [mapPingClock]);
+  const discoveryRefreshRef = useRef<{
+    inFlight: MapDiscoveryRequest | null;
+    pending: MapDiscoveryRequest | null;
+    timer: number | null;
+    lastStartedAtMs: number;
+    retryAtMs: number;
+    disposed: boolean;
+  }>({ inFlight: null, pending: null, timer: null, lastStartedAtMs: 0, retryAtMs: 0, disposed: false });
+  useEffect(() => {
+    const refresh = discoveryRefreshRef.current;
+    refresh.disposed = false;
+    return () => {
+      refresh.disposed = true;
+      refresh.pending = null;
+      if (refresh.timer !== null) window.clearTimeout(refresh.timer);
+    };
+  }, []);
   const hasRequestedInitialLocationRef = useRef(false);
   const lastOwnProfilePanelRequestKeyRef = useRef<string | null>(null);
   const lastEventCenterRequestKeyRef = useRef<string | null>(null);
@@ -1644,30 +1679,60 @@ export default function MapHome(_props: MapHomeProps = {}) {
     limit: DISCOVERY_MAP_LIMIT,
   });
 
-  const fetchUsers = async (
-    coordinates: { lat: number; lng: number } | null,
-    filterParams?: FilterState,
-    options: { background?: boolean } = {},
-  ) => {
-    if (!options.background) {
+  const flushDiscoveryRefresh = async () => {
+    const refresh = discoveryRefreshRef.current;
+    const request = refresh.pending;
+    if (refresh.disposed || refresh.inFlight || !request) return;
+
+    if (refresh.timer !== null) {
+      window.clearTimeout(refresh.timer);
+      refresh.timer = null;
+    }
+    const nextStartAtMs = Math.max(
+      refresh.retryAtMs,
+      request.background ? refresh.lastStartedAtMs + MAP_BACKGROUND_REFRESH_MIN_INTERVAL_MS : 0,
+    );
+    if (nextStartAtMs > Date.now()) {
+      refresh.timer = window.setTimeout(() => void flushDiscoveryRefresh(), nextStartAtMs - Date.now());
+      return;
+    }
+
+    refresh.pending = null;
+    refresh.inFlight = request;
+    refresh.lastStartedAtMs = Date.now();
+    const isCurrentRequest = () => !refresh.disposed
+      && (!refresh.pending || refresh.pending.key === request.key);
+    if (!request.background) {
       setLoading(true);
       setError(null);
     }
     try {
-      if (isMutualMapMode) {
-        const mutualMapItems = await getMutualCruushMap(filterParams);
+      if (request.mutual) {
+        const mutualMapItems = await getMutualCruushMap(request.filters);
+        if (!isCurrentRequest()) return;
         setOutsideServiceArea(false);
         setUsers(mutualMapItems
           .filter((item) => item.coordinates)
           .map(mutualMapItemToDiscoveryUser));
       } else {
-        const nearbyUsers = filterParams
-          ? await getNearbyUsers(coordinates, filterParams, discoveryRequestOptions())
-          : await getNearbyUsers(coordinates, undefined, discoveryRequestOptions());
+        const nearbyUsers = await getNearbyUsers(request.coordinates, request.filters, discoveryRequestOptions());
+        if (!isCurrentRequest()) return;
         setOutsideServiceArea(false);
         setUsers(nearbyUsers);
       }
+      setError(null);
     } catch (fetchError) {
+      if (refresh.disposed) return;
+      if (fetchError instanceof ApiClientError && fetchError.status === 429) {
+        const details = fetchError.details as { retryAfterSeconds?: unknown } | null;
+        const retryAfterSeconds = Number(details?.retryAfterSeconds);
+        refresh.retryAtMs = Date.now() + (
+          Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0 ? retryAfterSeconds : 60
+        ) * 1000;
+        // Retry the newest requested view once the server's window reopens.
+        refresh.pending ??= { ...request, background: true };
+      }
+      if (!isCurrentRequest()) return;
       if (fetchError instanceof OutsideServiceAreaError) {
         setOutsideServiceArea(true);
         setUsers([]);
@@ -1684,20 +1749,44 @@ export default function MapHome(_props: MapHomeProps = {}) {
       }
 
       console.error('Error fetching users:', fetchError);
-      if (options.background) {
+      if (request.background) {
         // Never keep rendering an expired location token when a privacy refresh
         // cannot reach the server. A foreground retry can restore valid pins.
         setUsers((currentUsers) => currentUsers.filter((user) =>
           user.displayExpiresAtMs == null || user.displayExpiresAtMs > Date.now()));
       } else {
         setUsers([]);
-        setError(fetchError instanceof Error ? fetchError.message : isMutualMapMode ? 'Failed to load mutuals.' : 'Failed to load nearby people.');
+        setError(fetchError instanceof Error ? fetchError.message : request.mutual ? 'Failed to load mutuals.' : 'Failed to load nearby people.');
       }
     } finally {
-      if (!options.background) {
+      refresh.inFlight = null;
+      if (!refresh.disposed && !request.background) {
         setLoading(false);
       }
+      if (refresh.pending && !refresh.disposed) void flushDiscoveryRefresh();
     }
+  };
+
+  const fetchUsers = async (
+    coordinates: { lat: number; lng: number } | null,
+    filterParams?: FilterState,
+    options: { background?: boolean } = {},
+  ) => {
+    const refresh = discoveryRefreshRef.current;
+    const key = JSON.stringify([isMutualMapMode, coordinates, filterParams ?? null]);
+    if (options.background && refresh.inFlight?.key === key) {
+      if (refresh.pending?.background) refresh.pending = null;
+      return;
+    }
+    // Coalesce map, focus and filter events into the latest requested view.
+    refresh.pending = {
+      coordinates,
+      filters: filterParams,
+      mutual: isMutualMapMode,
+      background: Boolean(options.background) && refresh.pending?.background !== false,
+      key,
+    };
+    await flushDiscoveryRefresh();
   };
 
   useEffect(() => {

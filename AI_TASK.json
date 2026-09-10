@@ -1,53 +1,47 @@
 {
   "schemaVersion": 2,
-  "taskId": "SPOT-ALIASES-20260910",
-  "status": "active",
-  "hookRepair": {
-    "authority": "Julien authorized repairing the hook without weakening approval checks: so fix it i guess ?",
-    "scope": "Narrow compatibility repairs for a pre-installation dirty session, the explicit should be centered instruction, SVG positioning detection and actual detached-HEAD push refs.",
-    "preserve": "Keep real user-source references, staged/outgoing source verification and independent review mandatory. Do not fabricate pre-edit evidence or add bypass flags.",
-    "coordination": "The Add UI scope improvement plan task owns the global hook files and is applying the repair; this task preserves the staged product patch and verifies the release."
-  },
-  "objective": "Archive the 11 confirmed same-venue imported aliases from the reported duplicate cleanup.",
-  "userOutcome": "One retained Spot represents each confirmed same-venue alias pair.",
+  "taskId": "ONBOARDING-STEPS-20260910",
+  "status": "validating",
+  "objective": "Deploy the approved onboarding, heart overlap, discovery refresh, mobile Recently Active offset and HIV capsule fixes to cruush production.",
+  "userOutcome": "The previously reviewed fixes are available in the live application.",
   "audience": "cruush members",
   "successCriteria": [
-    "Confirm the screenshot pair in fresh production data.",
-    "Archive only independently reviewed imported duplicate rows with original-record backup and replay protection.",
-    "Preserve every other venue field and all member records.",
-    "Verify fresh production discovery and retained/archived routes after reload."
+    "Pronouns appears on the gender step and remains optional.",
+    "Friend invite code capsule appears on 2FA and attaches before setup confirmation or continuing.",
+    "Existing drafts resume the same remaining step after index migration.",
+    "Render and exercise the shorter flow at mobile and desktop widths."
   ],
   "mustPreserve": [
-    "All unrelated user work and queued tasks.",
-    "Public parks, gyms and distinct venues.",
-    "Names, geometry, styling, member data and all other fields of retained records."
+    "Existing capsule, field labels, options and visual styles.",
+    "Required name, gender, sexuality, crowd and conduct checks.",
+    "Optional 2FA, existing referral validation and reward qualification.",
+    "Preserve unrelated work, map tiles/theme, profile visibility, server quotas and existing field styling."
   ],
   "nonGoals": [
-    "No blanket broader proximity deduplication.",
-    "No deletion of place rows or member data.",
-    "No adjacent UI changes."
+    "No other onboarding reordering, copy or layout changes.",
+    "No backend, reward, privacy or authentication policy changes.",
+    "No deployment without explicit approval."
   ],
   "assumptions": [
     {
-      "statement": "Inherited uiScope and hookRepair metadata are retained as historical records only. This task grants no new presentation changes.",
-      "impact": "Only the current allowedPaths and explicit alias cleanup source authorize this task.",
+      "statement": "Pronouns and friend invite code currently share one step; moving both removes one step.",
+      "impact": "Nine steps without the conduct oath, ten with it.",
       "reversible": true,
       "confirmationState": "confirmed"
     }
   ],
-  "nextVisibleMilestone": "Verify production contains only the retained Lincoln Terrace Spot and no reviewed duplicate IDs.",
+  "nextVisibleMilestone": "Integrate the exact five reviewed patches, verify scope and builds, publish and verify both live container revisions.",
   "stopConditions": [
-    "Stop for changed or ambiguous target identity.",
-    "Stop at user takeover or password boundary."
+    "Stop at user takeover or actual password boundary."
   ],
   "costBudget": {
     "maxUsd": 0,
     "maxMinutes": null
   },
   "externalEffectDecisions": {
-    "commit": "authorized in-scope repair",
-    "push": "Prior explicit Spot cleanup Deploy at source transcript line 18891, current continued duplicate report, and repository A1/A4.",
-    "deploy": "Same bounded repair continuation of the deployed duplicate cleanup.",
+    "commit": "Authorized by Deploy fixes at user source line 3085.",
+    "push": "Authorized to origin/main by Deploy fixes.",
+    "deploy": "Authorized production release of the five reviewed patches.",
     "send": "forbidden"
   },
   "externalEffects": {
@@ -64,33 +58,40 @@
   "product": "cruush",
   "release": "1.6",
   "repository": "cruush-social/Cruushv2",
-  "branch": "fix/spot-alias-duplicates-20260910",
-  "job": "Archive the 11 confirmed same-venue imported aliases from the reported duplicate cleanup.",
+  "branch": "fix/onboarding-step-consolidation-20260910",
+  "job": "Consolidate the two named onboarding fields into their requested existing steps.",
   "allowedPaths": [
     "AI_TASK.json",
-    "server/sql/159_archive_reviewed_spot_aliases.sql",
+    "src/app/components/ProfileOnboarding.tsx",
+    "src/app/components/ProfileOnboarding.test.tsx",
+    "src/app/lib/onboardingDraft.ts",
     "FIXLOG.md",
     "DESIGN_DECISIONS.md",
     "docs/bug-queue-20260908.md",
     "docs/worktrees.md",
-    "docs/spot-alias-repair-20260910.md",
-    "index.html",
+    "docs/onboarding-steps-20260910.md",
+    "src/app/components/MapHome.tsx",
+    "src/app/components/MapHome.test.tsx",
+    "src/app/components/MapView.tsx",
+    "src/app/components/ProfileView.tsx",
+    "src/app/components/ProfileView.test.tsx",
     "public/sw.js",
     "public/service-worker-recovery.js",
-    "server/src/migrate.ts"
+    "src/main.tsx",
+    "index.html",
+    "src/serviceWorkerUpdate.test.ts"
   ],
   "forbiddenPaths": [
-    "src/app/**"
+    "server/**",
+    "src/styles/**"
   ],
-  "proofTarget": "Fresh production discovery and actual mobile retained/archived Spot pages.",
-  "publicationTarget": "origin/main and production",
+  "proofTarget": "Actual ProfileOnboarding flow at375/412px mobile and1440px desktop.",
+  "publicationTarget": "origin/main; https://cruush.app and https://api.cruush.app",
   "requiredEvidence": [
-    "Confirm the screenshot pair in fresh production data.",
-    "Archive only independently reviewed imported duplicate rows with original-record backup and replay protection.",
-    "Preserve every other venue field and all member records.",
-    "Verify fresh production discovery and retained/archived routes after reload."
+    "Rendered before/after field placements and step count.",
+    "Focused existing flow checks plus referral ordering and draft preservation."
   ],
-  "uiScope": {
+  "historicalUiScope": {
     "version": 1,
     "source": {
       "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/08/rollout-2026-09-08T15-32-27-01a08281-ec99-7630-b7a1-fbbcb8575d5e.jsonl",
@@ -1571,5 +1572,100 @@
         }
       }
     ]
-  }
+  },
+  "historicalTask": {
+    "taskId": "SPOT-ALIASES-20260910",
+    "status": "Completed in production at 00bd751; inherited checkpoint was stale.",
+    "objective": "Archive the 11 confirmed same-venue imported aliases from the reported duplicate cleanup.",
+    "externalEffectDecisions": {
+      "commit": "authorized in-scope repair",
+      "push": "Prior explicit Spot cleanup Deploy at source transcript line 18891, current continued duplicate report, and repository A1/A4.",
+      "deploy": "Same bounded repair continuation of the deployed duplicate cleanup.",
+      "send": "forbidden"
+    }
+  },
+  "currentRequest": {
+    "source": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl:2696",
+    "clause": "Put the \"friend invite code\" capsule on the  2fa step, put pronouns on gender step to reduce steps",
+    "status": "locally_verified_unshipped"
+  },
+  "previousWork": {
+    "taskId": "RA-MOBILE-OFFSET-20260910",
+    "status": "awaiting_publication",
+    "worktree": "/Volumes/good/cruush-ra-mobile-offset-20260910",
+    "handoff": "/Volumes/good/cruush-ra-mobile-offset-20260910/docs/ra-mobile-offset-20260910.md",
+    "blockedOn": [
+      "Global UI scope parser does not recognize the real report wording; no authority to edit global hooks in this task.",
+      "No explicit deployment instruction for this new repair."
+    ]
+  },
+  "historicalHookRepair": {
+    "authority": "Julien authorized repairing the hook without weakening approval checks: so fix it i guess ?",
+    "scope": "Narrow compatibility repairs for a pre-installation dirty session, the explicit should be centered instruction, SVG positioning detection and actual detached-HEAD push refs.",
+    "preserve": "Keep real user-source references, staged/outgoing source verification and independent review mandatory. Do not fabricate pre-edit evidence or add bypass flags.",
+    "coordination": "The Add UI scope improvement plan task owns the global hook files and is applying the repair; this task preserves the staged product patch and verifies the release."
+  },
+  "previousDiscoveryWork": {
+    "taskId": "DISCOVERY-REFRESH-20260910",
+    "status": "locally_verified_unshipped",
+    "worktree": "/Volumes/good/cruush-discovery-refresh-20260910",
+    "handoff": "/Volumes/good/cruush-discovery-refresh-20260910/docs/discovery-refresh-20260910.md",
+    "blockedOn": "Explicit deployment approval not provided."
+  },
+  "previousOverlapWork": {
+    "taskId": "HEART-OVERLAP-20260910",
+    "status": "locally_verified_unshipped",
+    "worktree": "/Volumes/good/cruush-heart-overlap-20260910",
+    "handoff": "/Volumes/good/cruush-heart-overlap-20260910/docs/nearby-heart-overlap-20260910.md"
+  },
+  "uiScope": {
+    "version": 1,
+    "source": {
+      "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
+      "line": 2696,
+      "sha256": "3ec10cfd89dc961d28211bbd0775efeaa84a4c9e508f96bf4786c579f3e56c4f"
+    },
+    "baselineId": "fef416e2a5e10f35e8182083d2f266bf4681a828755c4236424dfb47126ad052",
+    "grants": []
+  },
+  "sourceReview": "evidence/independent-source-review.json",
+  "uiScopeMapping": "The detector emitted735 ordinal path differences after removing one switch case. Independent semantic source review verifies two exact field moves, not735 visual edits. Installed publication binding is not claimed.",
+  "verification": {
+    "tests": "14/14 ProfileOnboarding checks passed; one new referral retry check and existing assertions adapted for the requested combined flow.",
+    "builds": "Client, server TypeScript and casing passed.",
+    "rendered": "Actual ProfileOnboarding preview mode at375x800,412x800,1440x1000. Combined gender and2FA screens inspected;mobile lower controls reachable;preview completionCount1 atRite10of10.",
+    "proof": "evidence/rendered-onboarding.json",
+    "review": "Independent source and rendered review accepted: evidence/independent-source-review.json",
+    "unverified": [
+      "Real account referral attachment and 2FA writes were not performed in browser; focused mocks/source establish ordering.",
+      "Production deployment and physical-device behavior.",
+      "Installed publication grant mapping."
+    ],
+    "sourceSha256": "a44ffea2e1ec15007ae631089a6be24c8d93e2a6fd96ba59c26d40c3f9dd7d53",
+    "browserCleanup": "TaskSpace41 finished; no pages retained."
+  },
+  "releaseAuthorization": {
+    "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
+    "line": 3085,
+    "statement": "Deploy fixes",
+    "sha256": "0ffe40b304abb33f7b5e79385c916cb67842d5cb0766528037701b6247f5bb9c"
+  },
+  "releaseItems": [
+    "ONBOARDING-STEPS-20260910",
+    "HEART-OVERLAP-20260910",
+    "DISCOVERY-REFRESH-20260910",
+    "RA-MOBILE-OFFSET-20260910",
+    "HIV-CAPSULE-20260910"
+  ],
+  "releaseVerification": {
+    "focusedTests": 29,
+    "clientBuild": "passed",
+    "serverBuild": "passed",
+    "casing": "passed",
+    "sourceHashManifest": "evidence/release-validation-source-sha256.json",
+    "uiPublication": "blocked by installed parser; exact candidate repair being prepared without installation",
+    "browser": "TaskSpace43 recovered by navigation; authenticated live Profile Health route reached. Mobile capture pending.",
+    "stagedPhase": "Discovery, heart overlap and worker v125 only; combined UI patches remain in working tree and exact checkpoints."
+  },
+  "releasePhase": "Publish discovery and heart overlap now; preserve the three presentation patches locally pending the requested installed-checker repair approval."
 }
