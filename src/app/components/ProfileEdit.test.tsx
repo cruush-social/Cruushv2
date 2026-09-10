@@ -39,11 +39,34 @@ async function selectProfileEditTab(name: 'Photos' | 'Badges' | 'Basics' | 'Inti
 }
 
 describe('ProfileEdit', () => {
+  it('crops native-decodable camera originals before applying final-upload limits', async () => {
+    const fetchPreview = vi.fn();
+    vi.stubGlobal('fetch', fetchPreview);
+    vi.stubGlobal('Image', class {
+      src = '';
+      naturalWidth = 8064;
+      naturalHeight = 6048;
+      decode = vi.fn().mockResolvedValue(undefined);
+    });
+    const file = new File([new Uint8Array(5 * 1024 * 1024 + 1)], 'camera.heic', { type: 'image/heic' });
+
+    const preview = await readProfilePhotoPreviewUrl(file);
+    expect(preview.url.startsWith('data:image/heic;base64,')).toBe(true);
+    expect(preview.objectUrl).toBeUndefined();
+    expect(fetchPreview).not.toHaveBeenCalled();
+    expect(URL.revokeObjectURL).not.toHaveBeenCalled();
+    expect(uploadProfilePhoto).not.toHaveBeenCalled();
+  });
+
   it('converts camera formats before cropping without saving a profile photo', async () => {
     const fetchPreview = vi.fn().mockImplementation(async () => new Response(JSON.stringify({
       data: { url: 'data:image/webp;base64,cHJldmlldw==' },
     }), { status: 200 }));
     vi.stubGlobal('fetch', fetchPreview);
+    vi.stubGlobal('Image', class {
+      src = '';
+      decode = vi.fn().mockRejectedValue(new Error('Unsupported image encoding'));
+    });
     for (const [name, type] of [['camera.heic', 'image/heic'], ['camera.tiff', 'image/tiff'], ['camera.avif', 'image/avif'], ['camera.heic', '']]) {
       const file = new File(['camera bytes'], name, { type });
       expect(await readProfilePhotoPreviewUrl(file)).toEqual({ url: 'data:image/webp;base64,cHJldmlldw==' });
@@ -516,7 +539,7 @@ describe('ProfileEdit', () => {
     expect(screen.queryByText(/^Photo rejected:/)).not.toBeInTheDocument();
   });
 
-  it('previews selected profile photos with a local object URL before cropping', async () => {
+  it('previews selected profile photos with a data URL allowed by the existing Safari CSP', async () => {
     render(
       <MemoryRouter>
         <ProfileEdit />
@@ -536,8 +559,8 @@ describe('ProfileEdit', () => {
     });
 
     const preview = await screen.findByAltText('Profile crop preview');
-    expect(URL.createObjectURL).toHaveBeenCalledWith(selectedFile);
-    expect(preview).toHaveAttribute('src', 'blob:profile-crop-preview');
+    expect(URL.createObjectURL).not.toHaveBeenCalled();
+    expect(preview).toHaveAttribute('src', 'data:image/png;base64,AQID');
 
     fireEvent.load(preview);
     fireEvent.click(screen.getByRole('button', { name: 'Use cropped photo' }));

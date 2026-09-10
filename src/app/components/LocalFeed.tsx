@@ -16,7 +16,7 @@ import ProfileActionTrio from './ProfileActionTrio';
 import FeedAttachmentPreview from './FeedAttachmentPreview';
 import FeedPhotoViewer from './FeedPhotoViewer';
 import MapFiltersSurface, { DEFAULT_FILTER_STATE, type FilterState } from './MapFiltersSurface';
-import { ProfilePhotoCropper } from './ProfileEdit';
+import { ProfilePhotoCropper, readProfilePhotoPreviewUrl } from './ProfileEdit';
 import { Slider } from './ui/slider';
 import { Switch } from './ui/switch';
 import {
@@ -174,6 +174,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
   const [posting, setPosting] = useState(false);
   const [uploadingFeedPhoto, setUploadingFeedPhoto] = useState(false);
   const [pendingFeedPhotoUrl, setPendingFeedPhotoUrl] = useState<string | null>(null);
+  const feedPhotoPreviewRequestRef = useRef(0);
   const [stagedPhotos, setStagedPhotos] = useState<FeedPhoto[]>([]);
   const [photoViewer, setPhotoViewer] = useState<{ post: FeedPost; index: number } | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -513,7 +514,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
     addPostTag();
   };
 
-  const handleFeedPhotoSelection = (event: ChangeEvent<HTMLInputElement>) => {
+  const handleFeedPhotoSelection = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = '';
     if (!file) {
@@ -533,8 +534,18 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
       return;
     }
 
+    const requestId = ++feedPhotoPreviewRequestRef.current;
     setError(null);
-    setPendingFeedPhotoUrl(URL.createObjectURL(file));
+    try {
+      const preview = await readProfilePhotoPreviewUrl(file);
+      if (feedPhotoPreviewRequestRef.current === requestId) {
+        setPendingFeedPhotoUrl(preview.url);
+      }
+    } catch (previewError) {
+      if (feedPhotoPreviewRequestRef.current === requestId) {
+        setError(previewError instanceof Error ? previewError.message : 'Failed to upload Feed photo.');
+      }
+    }
   };
 
   const handleConfirmFeedPhotoCrop = async (file: File) => {

@@ -208,9 +208,29 @@ function canvasToJpegFile(canvas: HTMLCanvasElement) {
 }
 
 export async function readProfilePhotoPreviewUrl(file: File): Promise<PendingProfilePhoto> {
-  // Picker support does not imply browser decoding support. Convert these
-  // camera formats without saving a photo before opening the existing cropper.
+  // Safari excludes blob URLs from CSP 'self'. Data URLs are explicitly
+  // permitted by the app's image policy and keep this preview on the device.
+  const url = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => typeof reader.result === 'string'
+      ? resolve(reader.result) : reject(new Error(PROFILE_PHOTO_LOAD_ERROR));
+    reader.onerror = reader.onabort = () => reject(new Error(PROFILE_PHOTO_LOAD_ERROR));
+    reader.readAsDataURL(file);
+  });
   if (/\.(heic|heif|avif|tif|tiff)$/i.test(file.name) || /^image\/(heic|heif|avif|tiff|x-tiff|tif)(-sequence)?$/i.test(file.type)) {
+    // Native decoding lets camera originals reach the same cropper as JPEGs
+    // before final-upload size limits apply. Unsupported browsers still use
+    // the private server conversion without saving a photo.
+    try {
+      const image = new Image();
+      image.src = url;
+      await image.decode();
+      if (image.naturalWidth > 0 && image.naturalHeight > 0) {
+        return { url };
+      }
+    } catch {
+      // Picker acceptance alone does not establish native decoding support.
+    }
     const body = new FormData();
     const inferredType = PHOTO_UPLOAD_EXTENSION_TYPES.get(file.name.split('.').pop()?.toLowerCase() ?? '');
     body.set('photo', (!file.type || file.type === 'application/octet-stream') && inferredType
@@ -218,12 +238,7 @@ export async function readProfilePhotoPreviewUrl(file: File): Promise<PendingPro
     const preview = await requestApi<{ url: string }>('/api/profile-photos/preview', { method: 'POST', body });
     return { url: preview.url };
   }
-  try {
-    const objectUrl = URL.createObjectURL(file);
-    return Promise.resolve({ url: objectUrl, objectUrl });
-  } catch {
-    return Promise.reject(new Error(PROFILE_PHOTO_LOAD_ERROR));
-  }
+  return { url };
 }
 
 export function getPhotoUploadRejectedMessage(uploadError: unknown) {
