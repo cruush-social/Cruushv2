@@ -1,5 +1,7 @@
 # cruush design decisions
 
+- September 10 Spot duplicate report: Lincoln Terrace and Lincoln Terrace aka Arthur Somers Park are the same park despite pins about 389 metres apart. Retain the fuller existing record and archive only the reviewed redundant import with a before-state backup. Preserve distinct venues, survivor fields and all member data; do not widen global proximity deletion rules. Source: thread 01a08cc1-59ca-7ae1-b080-d59c8761f139, supplied Photo 1 and Photo 2.
+
 - Mobile Visibility Controls tabs must not float over scrolling fields or reveal field text behind the tab strip. Reproduce the reported Basics scroll state before changing its responsible scrolling layer; preserve tab order, sizes and privacy controls. Source: September9,2026,03:37 screenshot, task01a08281. This is separate from the map profile popup tab requirement.
 
 - Spot descriptions must not retain imported Sniffies descriptions or user-submitted personal solicitations. Remove those descriptions through the requested queue item, preserving venue records and unrelated member content. The reported example is “10620 building down low fun”; do not treat its description as venue information. Source: task01a08281-ec99-7630-b7a1-fbbcb8575d5e user15264, September9,2026. (2026-09-09)

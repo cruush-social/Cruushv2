@@ -32,3 +32,5 @@ the branch name.
 - **J3** — never abandon uncommitted work. A row showing `dirty` with no owner is a
   liability; commit it as WIP with a message naming the next step.
 - **J4** — never revert or overwrite work you did not create without saying so first.
+
+- `/Volumes/good/cruush-spot-alias-duplicates-20260910`: `fix/spot-alias-duplicates-20260910`, Codex thread 01a08cc1, guarded Lincoln Terrace alias repair; active, not yet merged.
