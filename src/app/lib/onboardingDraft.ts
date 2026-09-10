@@ -9,7 +9,7 @@
  * private window or a full quota costs the restore and nothing else.
  */
 const ONBOARDING_DRAFT_KEY = 'cruush:onboarding-draft';
-const ONBOARDING_DRAFT_VERSION = 2;
+const ONBOARDING_DRAFT_VERSION = 3;
 
 export type OnboardingDraft<TProfile> = { step: number; profile: Partial<TProfile> };
 
@@ -28,9 +28,14 @@ export function readOnboardingDraft<TProfile>(): OnboardingDraft<TProfile> | nul
     const savedStep = typeof parsed.step === 'number' ? parsed.step : 0;
     // Version 1 included Looking for at index 4. Preserve the current rite
     // after removing it; a draft on that removed rite continues with Vibes.
-    const step = parsed.version === ONBOARDING_DRAFT_VERSION || savedStep <= 4
+    const previousStep = (parsed.version != null && parsed.version >= 2) || savedStep <= 4
       ? savedStep
       : savedStep - 1;
+    // Version 3 moves Pronouns into Gender. Resume that combined step for
+    // either old step, and shift each later rite back by one.
+    const step = parsed.version === ONBOARDING_DRAFT_VERSION || previousStep <= 1
+      ? previousStep
+      : previousStep - 1;
     return { step, profile: parsed.profile };
   } catch {
     return null;

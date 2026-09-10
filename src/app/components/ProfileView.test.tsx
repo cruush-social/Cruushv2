@@ -366,12 +366,11 @@ describe('ProfileView', () => {
     const healthTab = await screen.findByRole('tab', { name: 'Health' });
     fireEvent.click(healthTab);
 
-    // The card held one value, so the status stands on its own now, with no
-    // capsule around it.
+    // HIV Status has its own capsule, matching the other health fields.
     const healthHeading = screen.getAllByText('HIV Status').find((node) => node.tagName.toLowerCase() === 'h2');
     expect(healthHeading).toBeDefined();
-    expect(healthHeading?.closest('section')).toBeNull();
     const healthGroup = healthHeading?.parentElement as HTMLElement;
+    expect(healthGroup).toHaveClass('rounded-2xl', 'border', 'border-border', 'bg-card/60', 'p-3');
     expect(within(healthGroup).getByText('Negative')).toBeInTheDocument();
     expect(within(healthGroup).queryByText('Not shared')).not.toBeInTheDocument();
 

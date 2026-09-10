@@ -1,12 +1,13 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { ComponentType } from 'react';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import ProfileOnboarding from './ProfileOnboarding';
 import { readOnboardingDraft, writeOnboardingDraft } from '../lib/onboardingDraft';
 
-const { acceptCodeOfConduct, getAuthSession, persistCurrentUser, saveMyProfile, uploadProfilePhoto } = vi.hoisted(() => ({
+const { acceptCodeOfConduct, attachReferralCode, getAuthSession, persistCurrentUser, saveMyProfile, uploadProfilePhoto } = vi.hoisted(() => ({
   acceptCodeOfConduct: vi.fn(),
+  attachReferralCode: vi.fn(),
   getAuthSession: vi.fn(),
   persistCurrentUser: vi.fn(),
   saveMyProfile: vi.fn(),
@@ -23,6 +24,7 @@ const toastSuccess = vi.hoisted(() => vi.fn());
 
 vi.mock('../lib/authApi', () => ({
   acceptCodeOfConduct,
+  attachReferralCode,
   getAuthSession,
 }));
 
@@ -129,7 +131,6 @@ async function fillProfileRites() {
   fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
   await chooseMultiSelect('Pronouns', 'they/them');
-  fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
   await chooseMultiSelect('Gender Identity', 'nonbinary');
   await chooseMultiSelect('Sexuality', 'queer');
@@ -168,6 +169,7 @@ describe('ProfileOnboarding', () => {
     const onComplete = vi.fn();
     render(<MemoryRouter><ProfileOnboarding onComplete={onComplete} needsCodeOfConduct codeOfConductVersion="2026-07-07" previewMode /></MemoryRouter>);
     await fillProfileRites();
+    fireEvent.change(screen.getByLabelText('Friend invite code'), { target: { value: 'abcdefghijklmnop' } });
     await reachFinalOath();
     fireEvent.click(screen.getByRole('checkbox', { name: /i have read and agree to the cruush code of conduct/i }));
     fireEvent.click(screen.getByRole('button', { name: /enter cruush/i }));
@@ -175,6 +177,7 @@ describe('ProfileOnboarding', () => {
     expect(saveMyProfile).not.toHaveBeenCalled();
     expect(uploadProfilePhoto).not.toHaveBeenCalled();
     expect(acceptCodeOfConduct).not.toHaveBeenCalled();
+    expect(attachReferralCode).not.toHaveBeenCalled();
     expect(startTwoFactorSetup).not.toHaveBeenCalled();
     expect(completeTwoFactorSetup).not.toHaveBeenCalled();
     expect(persistCurrentUser).not.toHaveBeenCalled();
@@ -188,6 +191,8 @@ describe('ProfileOnboarding', () => {
       value: vi.fn(),
     });
     acceptCodeOfConduct.mockReset();
+    attachReferralCode.mockReset();
+    attachReferralCode.mockResolvedValue({ attached: true });
     getAuthSession.mockReset();
     completeTwoFactorSetup.mockReset();
     getRewardSummary.mockReset();
@@ -256,11 +261,10 @@ describe('ProfileOnboarding', () => {
     fireEvent.change(screen.getByPlaceholderText('Your name'), { target: { value: 'River' } });
     fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
-    expect(screen.getByText('choose your invocation')).toBeInTheDocument();
-    await chooseMultiSelect('Pronouns', 'they/them');
-    fireEvent.click(screen.getByRole('button', { name: /next/i }));
-
     expect(screen.getByText('name your form')).toBeInTheDocument();
+    expect(screen.getByText('Rite 2 of 10')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Friend invite code')).not.toBeInTheDocument();
+    await chooseMultiSelect('Pronouns', 'they/them');
     await chooseMultiSelect('Gender Identity', 'nonbinary');
     await chooseMultiSelect('Sexuality', 'queer');
     expect(screen.getByRole('checkbox', { name: /^I am trans/ })).toBeInTheDocument();
@@ -296,7 +300,6 @@ describe('ProfileOnboarding', () => {
     fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
     await chooseMultiSelect('Pronouns', 'they/them');
-    fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
     fireEvent.click(screen.getByRole('button', { name: 'Gender Identity' }));
     expect(await screen.findByRole('option', { name: 'trans man' })).toBeInTheDocument();
@@ -341,7 +344,6 @@ describe('ProfileOnboarding', () => {
     fireEvent.change(screen.getByPlaceholderText('Your name'), { target: { value: 'River' } });
     fireEvent.click(screen.getByRole('button', { name: /next/i }));
     await chooseMultiSelect('Pronouns', 'they/them');
-    fireEvent.click(screen.getByRole('button', { name: /next/i }));
     await chooseMultiSelect('Gender Identity', 'nonbinary');
     await chooseMultiSelect('Sexuality', 'queer');
     fireEvent.click(screen.getByRole('button', { name: /next/i }));
@@ -444,6 +446,10 @@ describe('ProfileOnboarding', () => {
   });
 
   it('lets users enable 2FA directly during onboarding before entering the map', async () => {
+    let resolveInvite!: (value: { attached: true }) => void;
+    attachReferralCode.mockReturnValueOnce(new Promise<{ attached: true }>((resolve) => {
+      resolveInvite = resolve;
+    }));
     completeTwoFactorSetup.mockResolvedValueOnce({
       enabled: true,
       recoveryCodes: ['alpha-111', 'beta-222'],
@@ -457,12 +463,24 @@ describe('ProfileOnboarding', () => {
     expect(screen.getByText('protect your key')).toBeInTheDocument();
     expect(screen.getByText('Optional. New accounts can receive one free day of cruush+ when 2FA is enabled.')).toBeInTheDocument();
     expect(screen.getByText('Use the same password you use to sign in. This is not a separate 2FA password.')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Friend invite code'), {
+      target: { value: 'https://cruush.test/join/abcdefghijklmnop' },
+    });
     fireEvent.change(screen.getByLabelText(/cruush login password/i), {
       target: { value: 'current-password' },
     });
     fireEvent.click(screen.getByRole('button', { name: /start 2fa setup/i }));
 
+    expect(attachReferralCode).toHaveBeenCalledWith('abcdefghijklmnop');
+    expect(startTwoFactorSetup).not.toHaveBeenCalled();
+    expect(completeTwoFactorSetup).not.toHaveBeenCalled();
+    expect(screen.getByLabelText('Friend invite code')).toBeDisabled();
+    expect(screen.getByRole('button', { name: /skip 2fa for now/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /back/i })).toBeDisabled();
+    await act(async () => resolveInvite({ attached: true }));
+
     await waitFor(() => expect(startTwoFactorSetup).toHaveBeenCalledWith('current-password'));
+    expect(attachReferralCode.mock.invocationCallOrder[0]).toBeLessThan(startTwoFactorSetup.mock.invocationCallOrder[0]);
     expect(await screen.findByAltText('2FA QR code')).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText('Authenticator code'), {
@@ -471,6 +489,8 @@ describe('ProfileOnboarding', () => {
     fireEvent.click(screen.getByRole('button', { name: /confirm and enable 2fa/i }));
 
     await waitFor(() => expect(completeTwoFactorSetup).toHaveBeenCalledWith('123456'));
+    expect(attachReferralCode).toHaveBeenCalledTimes(1);
+    expect(attachReferralCode.mock.invocationCallOrder[0]).toBeLessThan(completeTwoFactorSetup.mock.invocationCallOrder[0]);
     expect(await screen.findByText('2FA is active.')).toBeInTheDocument();
     expect(screen.getByText('One free day of cruush+ has been added to your account.')).toBeInTheDocument();
     expect(screen.getByText('alpha-111')).toBeInTheDocument();
@@ -481,6 +501,43 @@ describe('ProfileOnboarding', () => {
 
     await waitFor(() => expect(saveMyProfile).toHaveBeenCalledTimes(1));
     expect(onComplete).toHaveBeenCalledWith(expect.objectContaining({ needsOnboarding: false }), 'map', true);
+  });
+
+  it('keeps an invalid invite on the 2FA step and attaches a corrected code once before continuing', async () => {
+    attachReferralCode
+      .mockRejectedValueOnce(new Error('Referral code is invalid.'))
+      .mockRejectedValueOnce(new Error('Referral code is invalid.'));
+    const onComplete = vi.fn();
+    render(<MemoryRouter><ProfileOnboarding onComplete={onComplete} /></MemoryRouter>);
+    await fillProfileRites();
+
+    fireEvent.change(screen.getByLabelText('Friend invite code'), { target: { value: 'invalid-code' } });
+    fireEvent.change(screen.getByLabelText(/cruush login password/i), { target: { value: 'current-password' } });
+    fireEvent.click(screen.getByRole('button', { name: /skip 2fa for now/i }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Referral code is invalid.');
+    expect(screen.getByText('protect your key')).toBeInTheDocument();
+    expect(screen.queryByText('summon your circle')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /start 2fa setup/i }));
+    await waitFor(() => expect(attachReferralCode).toHaveBeenCalledTimes(2));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Referral code is invalid.');
+    expect(startTwoFactorSetup).not.toHaveBeenCalled();
+    expect(completeTwoFactorSetup).not.toHaveBeenCalled();
+    expect(onComplete).not.toHaveBeenCalled();
+
+    fireEvent.change(screen.getByLabelText('Friend invite code'), { target: { value: 'abcdefghijklmnop' } });
+    fireEvent.click(screen.getByRole('button', { name: /start 2fa setup/i }));
+    expect(await screen.findByAltText('2FA QR code')).toBeInTheDocument();
+    expect(screen.getByText('Invite code attached.')).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(attachReferralCode).toHaveBeenCalledTimes(3);
+    expect(attachReferralCode).toHaveBeenLastCalledWith('abcdefghijklmnop');
+    expect(startTwoFactorSetup).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole('button', { name: /skip 2fa for now/i }));
+    expect(await screen.findByText('summon your circle')).toBeInTheDocument();
+    expect(attachReferralCode).toHaveBeenCalledTimes(3);
+    expect(completeTwoFactorSetup).not.toHaveBeenCalled();
   });
 
   it('keeps the user in onboarding when the server still requires a profile', async () => {
@@ -501,7 +558,7 @@ describe('ProfileOnboarding', () => {
     fireEvent.change(screen.getByPlaceholderText('Your name'), { target: { value: 'River' } });
     fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
-    expect(screen.getByText('choose your invocation')).toBeInTheDocument();
+    expect(screen.getByText('name your form')).toBeInTheDocument();
     expect(screen.queryByText('prove you may enter')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Birth month')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Birth day')).not.toBeInTheDocument();
@@ -513,14 +570,14 @@ describe('ProfileOnboarding', () => {
 
     fireEvent.change(screen.getByPlaceholderText('Your name'), { target: { value: 'River' } });
     fireEvent.click(screen.getByRole('button', { name: /next/i }));
-    expect(screen.getByText('choose your invocation')).toBeInTheDocument();
+    expect(screen.getByText('name your form')).toBeInTheDocument();
 
     // A reload during onboarding used to drop people back to the first step
     // with an empty name.
     first.unmount();
     render(<MemoryRouter><ProfileOnboarding onComplete={vi.fn()} /></MemoryRouter>);
 
-    expect(screen.getByText('choose your invocation')).toBeInTheDocument();
+    expect(screen.getByText('name your form')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /back/i }));
     expect(screen.getByPlaceholderText('Your name')).toHaveValue('River');
   });
@@ -532,15 +589,14 @@ describe('ProfileOnboarding', () => {
     expect(next()).toBeDisabled();
     fireEvent.change(screen.getByPlaceholderText('Your name'), { target: { value: 'River' } });
     fireEvent.click(next()); // No photo.
-    expect(next()).not.toBeDisabled();
-    fireEvent.click(next()); // No pronouns or invite code.
     expect(next()).toBeDisabled();
     await chooseMultiSelect('Gender Identity', 'nonbinary');
     expect(next()).toBeDisabled();
     await chooseMultiSelect('Sexuality', 'queer');
     expect(screen.queryByText('Optional · select up to 3, or leave empty')).not.toBeInTheDocument();
     expect(screen.queryByText('Optional · select up to 3')).not.toBeInTheDocument();
-    fireEvent.click(next()); // Trans checkbox remains unchecked.
+    expect(next()).not.toBeDisabled();
+    fireEvent.click(next()); // Pronouns and trans checkbox remain empty.
     expect(next()).toBeDisabled();
     await chooseMultiSelect('Crowds', 'Dyke');
     fireEvent.click(next());
@@ -553,7 +609,7 @@ describe('ProfileOnboarding', () => {
     fireEvent.click(next()); // No Role or Position.
     expect(screen.getByText('dress your heart')).toBeInTheDocument();
     fireEvent.click(next()); // No badge selection.
-    await reachFinalOath(); // Skip 2FA.
+    await reachFinalOath(); // Skip 2FA without an invite code.
     const enter = screen.getByRole('button', { name: /enter cruush/i });
     expect(enter).toBeDisabled();
     fireEvent.click(screen.getByRole('checkbox', { name: /i have read and agree to the cruush code of conduct/i }));
@@ -564,22 +620,35 @@ describe('ProfileOnboarding', () => {
   });
 
   it('migrates old draft steps once, preserves Looking for answers and revisits missing required fields', () => {
-    const profile = { name: 'River', identities: ['nonbinary'], sexuality: ['queer'], crowds: ['Dyke'], lookingFor: ['cruise'] };
+    const profile = { name: 'River', pronouns: ['they/them'], identities: ['nonbinary'], sexuality: ['queer'], crowds: ['Dyke'], lookingFor: ['cruise'] };
     window.localStorage.setItem('cruush:onboarding-draft', JSON.stringify({ step: 5, profile }));
     const migrated = readOnboardingDraft<typeof profile>();
-    expect(migrated).toEqual({ step: 4, profile });
+    expect(migrated).toEqual({ step: 3, profile });
     writeOnboardingDraft(migrated!);
     expect(readOnboardingDraft()).toEqual(migrated);
     const first = render(<MemoryRouter><ProfileOnboarding onComplete={vi.fn()} /></MemoryRouter>);
     expect(screen.getByText('reveal your aura')).toBeInTheDocument();
     expect(readOnboardingDraft<typeof profile>()?.profile.lookingFor).toEqual(['cruise']);
     first.unmount();
-    writeOnboardingDraft({ step: 8, profile: { ...profile, sexuality: [] } });
+    for (const [version, savedStep, expectedStep] of [
+      [1, 4, 3], // Removed Looking for resumes Vibes after both migrations.
+      [1, 1, 1], // Removed Pronouns resumes the combined Gender step.
+      [2, 1, 1],
+      [2, 2, 1],
+      [2, 8, 7], // Existing 2FA drafts stay on 2FA.
+      [3, 7, 7], // Current drafts are not migrated again.
+    ]) {
+      window.localStorage.setItem('cruush:onboarding-draft', JSON.stringify({ version, step: savedStep, profile }));
+      expect(readOnboardingDraft()).toEqual({ step: expectedStep, profile });
+      writeOnboardingDraft(readOnboardingDraft<typeof profile>()!);
+      expect(readOnboardingDraft()).toEqual({ step: expectedStep, profile });
+    }
+    writeOnboardingDraft({ step: 7, profile: { ...profile, sexuality: [] } });
     const second = render(<MemoryRouter><ProfileOnboarding onComplete={vi.fn()} /></MemoryRouter>);
     expect(screen.getByText('name your form')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /next rite/i })).toBeDisabled();
     second.unmount();
-    writeOnboardingDraft({ step: 8, profile: { ...profile, crowds: ['T4T'], is_trans: false } });
+    writeOnboardingDraft({ step: 7, profile: { ...profile, crowds: ['T4T'], is_trans: false } });
     render(<MemoryRouter><ProfileOnboarding onComplete={vi.fn()} /></MemoryRouter>);
     expect(screen.getByText('find your crowd')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /next rite/i })).toBeDisabled();

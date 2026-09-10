@@ -45,7 +45,6 @@ interface ProfileOnboardingProps {
 
 type OnboardingStep =
   | 'name'
-  | 'pronouns'
   | 'identities'
   | 'crowds'
   | 'lookingFor'
@@ -59,7 +58,6 @@ type OnboardingStep =
 
 const PROFILE_STEPS: OnboardingStep[] = [
   'name',
-  'pronouns',
   'identities',
   'crowds',
   'vibes',
@@ -73,11 +71,6 @@ const STEP_COPY: Record<OnboardingStep, { rite: string; title: string; detail: s
     rite: 'speak your name',
     title: 'What should the room call you?',
     detail: 'This is the name other members see first.',
-  },
-  pronouns: {
-    rite: 'choose your invocation',
-    title: 'How should people refer to you?',
-    detail: 'Pick up to three.',
   },
   identities: {
     rite: 'name your form',
@@ -252,8 +245,8 @@ export default function ProfileOnboarding({
     // answers. Return to the first missing field without discarding the draft.
     const saved = restoredDraft.profile;
     if (!(typeof saved.name === 'string' && saved.name.trim().length > 1)) return 0;
-    if (savedStep > 2 && (!saved.identities?.length || !saved.sexuality?.length)) return 2;
-    if (savedStep > 3 && !saved.crowds?.some((crowd) => crowd !== 'T4T' || saved.is_trans === true)) return 3;
+    if (savedStep > 1 && (!saved.identities?.length || !saved.sexuality?.length)) return 1;
+    if (savedStep > 2 && !saved.crowds?.some((crowd) => crowd !== 'T4T' || saved.is_trans === true)) return 2;
     return savedStep;
   });
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -434,8 +427,6 @@ export default function ProfileOnboarding({
     switch (field) {
       case 'name':
         return profile.name.trim().length > 1;
-      case 'pronouns':
-        return true;
       case 'identities':
         return profile.identities.length > 0 && profile.sexuality.length > 0;
       case 'crowds':
@@ -460,10 +451,9 @@ export default function ProfileOnboarding({
     }
   };
 
-  const handleNextRite = async () => {
-    if (currentStep !== 'pronouns' || !inviteCode.trim() || inviteCodeAttached) {
-      setStep((current) => current + 1);
-      return;
+  const ensureInviteCodeAttached = async () => {
+    if (!inviteCode.trim() || inviteCodeAttached) {
+      return true;
     }
 
     setInviteCodeSaving(true);
@@ -475,12 +465,19 @@ export default function ProfileOnboarding({
         await attachReferralCode(extractReferralCode(inviteCode));
       }
       setInviteCodeAttached(true);
-      setStep((current) => current + 1);
+      return true;
     } catch (error) {
       setInviteCodeError(error instanceof Error ? error.message : 'Unable to attach this invite code.');
+      return false;
     } finally {
       setInviteCodeSaving(false);
     }
+  };
+
+  const handleNextRite = async () => {
+    if (currentStep === 'twoFactor' && inviteCode.trim() && !inviteCodeAttached
+      && !(await ensureInviteCodeAttached())) return;
+    setStep((current) => current + 1);
   };
 
   const retryRewardSummary = () => {
@@ -538,6 +535,8 @@ export default function ProfileOnboarding({
       return;
     }
 
+    if (!(await ensureInviteCodeAttached())) return;
+
     setTwoFactorSaving(true);
     setTwoFactorError(null);
 
@@ -567,6 +566,8 @@ export default function ProfileOnboarding({
       setTwoFactorError('Enter the code from your authenticator app.');
       return;
     }
+
+    if (!(await ensureInviteCodeAttached())) return;
 
     setTwoFactorSaving(true);
     setTwoFactorError(null);
@@ -773,43 +774,6 @@ export default function ProfileOnboarding({
                   </div>
                 </div>
               );
-            case 'pronouns':
-              return (
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-sm mb-2 block text-white/82">Pronouns</label>
-                    <MultiSelect
-                      menuPortal
-                      ariaLabel="Pronouns"
-                      maxSelections={3}
-                      options={PRONOUNS}
-                      value={profile.pronouns}
-                      onChange={(values) => setProfileField('pronouns', limitToThree(values))}
-                    />
-                    <p className="text-xs text-white/58 mt-1">Select up to 3</p>
-                  </div>
-                  <div className="space-y-2 rounded-lg border border-white/10 bg-white/[0.04] p-3">
-                    <label className="text-sm block text-white/82" htmlFor="onboarding-invite-code">Friend invite code</label>
-                    <Input
-                      id="onboarding-invite-code"
-                      autoCapitalize="none"
-                      autoCorrect="off"
-                      disabled={inviteCodeAttached || inviteCodeSaving}
-                      placeholder="Optional"
-                      value={inviteCode}
-                      onChange={(event) => {
-                        setInviteCode(event.target.value);
-                        setInviteCodeError(null);
-                      }}
-                    />
-                    <p className="text-xs leading-5 text-white/58">
-                      If a friend invited you, paste their invite link or code here. You must enable 2FA before they can redeem their benefit.
-                    </p>
-                    {inviteCodeAttached ? <p className="text-xs text-primary">Invite code attached.</p> : null}
-                    {inviteCodeError ? <p className="text-xs text-destructive" role="alert">{inviteCodeError}</p> : null}
-                  </div>
-                </div>
-              );
             case 'identities':
               return (
                 <div className="space-y-4">
@@ -850,6 +814,18 @@ export default function ProfileOnboarding({
                       onChange={(values) => setProfileField('sexuality', limitToThree(values))}
                     />
                     <p className="text-xs text-white/58 mt-1">Select up to {MAX_PROFILE_SEXUALITIES}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm mb-2 block text-white/82">Pronouns</label>
+                    <MultiSelect
+                      menuPortal
+                      ariaLabel="Pronouns"
+                      maxSelections={3}
+                      options={PRONOUNS}
+                      value={profile.pronouns}
+                      onChange={(values) => setProfileField('pronouns', limitToThree(values))}
+                    />
+                    <p className="text-xs text-white/58 mt-1">Select up to 3</p>
                   </div>
                 </div>
               );
@@ -1066,7 +1042,7 @@ export default function ProfileOnboarding({
                           Use the same password you use to sign in. This is not a separate 2FA password.
                         </span>
                       </label>
-                      <Button type="submit" className="w-full" disabled={twoFactorSaving}>
+                      <Button type="submit" className="w-full" disabled={twoFactorSaving || inviteCodeSaving}>
                         {twoFactorSaving ? 'Starting...' : 'Start 2FA setup'}
                       </Button>
                     </form>
@@ -1095,11 +1071,31 @@ export default function ProfileOnboarding({
                           onChange={(event) => setTwoFactorToken(event.target.value)}
                         />
                       </label>
-                      <Button type="submit" className="w-full" disabled={twoFactorSaving}>
+                      <Button type="submit" className="w-full" disabled={twoFactorSaving || inviteCodeSaving}>
                         {twoFactorSaving ? 'Confirming...' : 'Confirm and enable 2FA'}
                       </Button>
                     </form>
                   ) : null}
+                  <div className="space-y-2 rounded-lg border border-white/10 bg-white/[0.04] p-3">
+                    <label className="text-sm block text-white/82" htmlFor="onboarding-invite-code">Friend invite code</label>
+                    <Input
+                      id="onboarding-invite-code"
+                      autoCapitalize="none"
+                      autoCorrect="off"
+                      disabled={inviteCodeAttached || inviteCodeSaving || twoFactorSaving}
+                      placeholder="Optional"
+                      value={inviteCode}
+                      onChange={(event) => {
+                        setInviteCode(event.target.value);
+                        setInviteCodeError(null);
+                      }}
+                    />
+                    <p className="text-xs leading-5 text-white/58">
+                      If a friend invited you, paste their invite link or code here. You must enable 2FA before they can redeem their benefit.
+                    </p>
+                    {inviteCodeAttached ? <p className="text-xs text-primary">Invite code attached.</p> : null}
+                    {inviteCodeError ? <p className="text-xs text-destructive" role="alert">{inviteCodeError}</p> : null}
+                  </div>
                 </div>
               );
             case 'affiliateShare':
@@ -1157,7 +1153,7 @@ export default function ProfileOnboarding({
           }
         })()}
         <div className="mt-6 flex flex-wrap items-center justify-between gap-3 sm:mt-8">
-          <Button variant="outline" onClick={() => setStep((s) => Math.max(0, s - 1))} disabled={step === 0}>
+          <Button variant="outline" onClick={() => setStep((s) => Math.max(0, s - 1))} disabled={step === 0 || inviteCodeSaving}>
             Back
           </Button>
           {currentStep === 'twoFactor' && !isFinalStep ? (
@@ -1165,13 +1161,13 @@ export default function ProfileOnboarding({
               {!twoFactorEnabled ? (
                 <Button
                   variant="outline"
-                  onClick={() => setStep((s) => s + 1)}
-                  disabled={!canProceed() || twoFactorSaving}
+                  onClick={() => void handleNextRite()}
+                  disabled={!canProceed() || twoFactorSaving || inviteCodeSaving}
                 >
                   Skip 2FA for now <ArrowRight className="ml-2 w-4 h-4" />
                 </Button>
               ) : (
-                <Button onClick={() => setStep((s) => s + 1)} disabled={!canProceed() || twoFactorSaving}>
+                <Button onClick={() => void handleNextRite()} disabled={!canProceed() || twoFactorSaving || inviteCodeSaving}>
                   Continue <ShieldCheck className="ml-2 w-4 h-4" />
                 </Button>
               )}

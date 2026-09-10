@@ -946,9 +946,7 @@ export function ProfileDetailsTabs({
           <BadgeList items={profileView.protection} compact={compact} />
         </Section>
 
-        {/* A card holding one value is just the value with extra chrome, so
-            the status stands on its own without a capsule around it. */}
-        <div className={`space-y-3 ${compact ? 'px-3' : 'px-4'}`}>
+        <div className={`space-y-3 rounded-2xl border border-border bg-card/60 ${compact ? 'p-3' : 'p-4'}`}>
           <h2 className={compact ? 'text-base' : 'text-lg'}>HIV Status</h2>
           <BadgeList items={profileView.hivStatus ? [profileView.hivStatus] : []} compact={compact} />
         </div>
