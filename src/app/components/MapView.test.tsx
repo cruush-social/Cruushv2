@@ -1533,14 +1533,9 @@ describe('MapView', () => {
     const pinUnit = screen.getByTestId('marker-pin-unit-user-pinging');
     const signalBadge = screen.getByTestId('marker-signal-badge-user-pinging');
     const positionBadge = screen.getByTestId('marker-position-badge-user-pinging');
-    const postPreview = screen.getByTestId('marker-post-preview-user-pinging');
     expect(signalStack).toHaveClass('opacity-100');
     expect(signalStack).not.toHaveClass('opacity-0');
-    expect(postPreview).toHaveClass(
-      'opacity-0',
-      'group-hover:opacity-100',
-      'group-focus-within:opacity-100',
-    );
+    expect(screen.queryByTestId('marker-post-preview-user-pinging')).not.toBeInTheDocument();
     expect(heart).toHaveClass('z-10');
     expect(heart).not.toHaveClass('cruush-map-ping-heart');
     expect(heartLayer).toHaveClass('cruush-map-ping-heart');
@@ -1551,7 +1546,6 @@ describe('MapView', () => {
     expect(signalBadge).not.toHaveClass('shadow-[0_12px_30px_rgba(0,0,0,0.45)]');
     expect(positionBadge).toHaveStyle({ color: '#C8FF31' });
     expect(heartLayer).toContainElement(positionBadge);
-    expect(heartLayer).not.toContainElement(postPreview);
     expect(heartLayer).toContainElement(signalStack);
     expect(markerInstances[0].element).toHaveAttribute('data-active-ping', 'true');
     expect(screen.queryByTestId('marker-ping-rings-user-pinging')).not.toBeInTheDocument();
@@ -1791,7 +1785,7 @@ describe('MapView', () => {
       approximateLatitude: 40.7128, approximateLongitude: -73.99,
     };
     const nearby: MapMarker = {
-      id: 'nearby', displayName: 'Nearby', approximateLatitude: owner.approximateLatitude,
+      id: 'nearby', displayName: 'Nearby', approximateLatitude: owner.approximateLatitude + 0.0008,
       approximateLongitude: owner.approximateLongitude,
     };
     render(<MapView onPinClick={onPinClick} markers={[owner, nearby]} />);
@@ -1895,7 +1889,7 @@ describe('MapView', () => {
           {
             id: 'user-b',
             displayName: 'B',
-            approximateLatitude: 40.713,
+            approximateLatitude: 40.716,
             approximateLongitude: -73.9902,
           },
           {
@@ -1924,7 +1918,7 @@ describe('MapView', () => {
 
     expect(onPinClick).not.toHaveBeenCalled();
     expect(mapInstances[0].fitBounds).toHaveBeenCalledWith(
-      [[-73.9902, 40.7128], [-73.99, 40.713]],
+      [[-73.9902, 40.7128], [-73.99, 40.716]],
       expect.objectContaining({ maxZoom: 15.25 }),
     );
     expect(mapInstances[0].setCenter).not.toHaveBeenCalled();
@@ -1938,7 +1932,7 @@ describe('MapView', () => {
       { id: 'user-b', displayName: 'B', approximateLatitude: 40.713, approximateLongitude: -73.9902 },
     ];
     const view = render(<MapView onPinClick={onPinClick} markers={markers} />);
-    const cluster = await screen.findByRole('button', { name: 'Zoom into 2 nearby people on map' });
+    const cluster = await screen.findByRole('button', { name: 'Open 2 nearby people sharing this map spot' });
     const artworkId = cluster.querySelector('[data-testid]')!.getAttribute('data-testid')!;
 
     view.rerender(<MapView onPinClick={onPinClick} markers={[
@@ -1947,7 +1941,7 @@ describe('MapView', () => {
       ...[...markers].reverse(),
     ]} />);
 
-    await waitFor(() => expect(screen.getAllByRole('button', { name: 'Zoom into 2 nearby people on map' })).toHaveLength(2));
+    await waitFor(() => expect(screen.getAllByRole('button', { name: 'Open 2 nearby people sharing this map spot' })).toHaveLength(2));
     expect(screen.getByTestId(artworkId).closest('button')).toBe(cluster);
   });
 
@@ -2173,7 +2167,7 @@ describe('spiderfy clusters', () => {
         onPinClick={onPinClick}
         markers={[
           { id: 'a', displayName: 'A', approximateLatitude: 40.7128, approximateLongitude: -73.99 },
-          { id: 'b', displayName: 'B', approximateLatitude: 40.7128, approximateLongitude: -73.99 },
+          { id: 'b', displayName: 'B', approximateLatitude: 40.7136, approximateLongitude: -73.99 },
         ]}
       />
     );
@@ -2185,6 +2179,41 @@ describe('spiderfy clusters', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Open B on map' }));
     const pinnedMember = await screen.findByRole('button', { name: 'Open B on map' });
     fireEvent.pointerLeave(pinnedMember, { pointerType: 'mouse', relatedTarget: document.body });
+
+    expect(screen.getByRole('button', { name: 'Open A on map' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Open B on map' })).toBeInTheDocument();
+    expect(onPinClick).not.toHaveBeenCalled();
+  });
+
+  it('opens a same-building people fan on a mobile long press and keeps it open after a tap', async () => {
+    const onPinClick = vi.fn();
+    render(
+      <MapView
+        onPinClick={onPinClick}
+        markers={[
+          { id: 'a', displayName: 'A', approximateLatitude: 40.7128, approximateLongitude: -73.99 },
+          { id: 'b', displayName: 'B', approximateLatitude: 40.7136, approximateLongitude: -73.99 },
+        ]}
+      />,
+    );
+
+    const cluster = await screen.findByRole('button', { name: 'Open 2 nearby people sharing this map spot' });
+    const pointerDown = new Event('pointerdown', { bubbles: true });
+    Object.defineProperty(pointerDown, 'pointerType', { value: 'touch' });
+    fireEvent(cluster, pointerDown);
+    await new Promise((resolve) => window.setTimeout(resolve, 320));
+
+    const member = await screen.findByRole('button', { name: 'Open A on map' });
+    fireEvent.pointerUp(cluster, { pointerType: 'touch' });
+    const memberPointerDown = new Event('pointerdown', { bubbles: true });
+    Object.defineProperty(memberPointerDown, 'pointerType', { value: 'touch' });
+    await act(async () => {
+      fireEvent(member, memberPointerDown);
+      fireEvent.pointerUp(member, { pointerType: 'touch' });
+      fireEvent.click(member, { detail: 1 });
+      await Promise.resolve();
+    });
+    fireEvent.pointerLeave(member, { pointerType: 'mouse', relatedTarget: document.body });
 
     expect(screen.getByRole('button', { name: 'Open A on map' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Open B on map' })).toBeInTheDocument();

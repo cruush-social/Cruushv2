@@ -190,9 +190,10 @@ export const MARKER_CLEARANCE_PX = Math.round(112 * MAP_PIN_UNIT_SCALE);
 // A pin whose signal is always on screen, which is what a Pulse does, needs the
 // caption's own width to itself.
 export const SIGNAL_CLEARANCE_PX = Math.round(268 * MAP_PIN_UNIT_SCALE);
-// Markers sharing a spot to this many decimal places are treated as one place
-// and collapsed into a cluster that fans out on tap rather than stacking.
+// Spot markers sharing a coordinate to this many decimal places collapse into
+// one cluster that fans out on tap rather than stacking.
 const SAME_LOCATION_CLUSTER_PRECISION = 6;
+const SAME_BUILDING_PROXIMITY_METERS = 250;
 const SPIDERFY_RADIUS_PX = 86;
 const SPIDERFY_SECOND_RING_RADIUS_PX = 122;
 const SPIDERFY_SECOND_RING_AFTER = 10;
@@ -649,6 +650,17 @@ function coordinateKey(marker: Pick<MapMarker, 'approximateLatitude' | 'approxim
   return `${marker.approximateLatitude.toFixed(SAME_LOCATION_CLUSTER_PRECISION)}:${marker.approximateLongitude.toFixed(SAME_LOCATION_CLUSTER_PRECISION)}`;
 }
 
+function areInSameBuildingDisplayArea(group: Pick<MapMarker, 'approximateLatitude' | 'approximateLongitude'>[]) {
+  if (group.length < 2) return false;
+  const anchor = group[0];
+  return group.every((marker) => {
+    const latitudeMeters = (marker.approximateLatitude - anchor.approximateLatitude) * 111_320;
+    const longitudeScale = Math.max(0.01, Math.cos(anchor.approximateLatitude * Math.PI / 180));
+    const longitudeMeters = (marker.approximateLongitude - anchor.approximateLongitude) * 111_320 * longitudeScale;
+    return Math.hypot(latitudeMeters, longitudeMeters) <= SAME_BUILDING_PROXIMITY_METERS;
+  });
+}
+
 function groupMarkersByCoordinate(markers: MapMarker[]) {
   return markers.reduce((groups, marker) => {
     const key = coordinateKey(marker);
@@ -942,10 +954,10 @@ function applyPersonMarkerClusters(
     true,
   ).filter((group) => group.length >= 2).forEach((group) => {
     group.forEach((marker) => clusteredIds.add(marker.id));
-    const sameLocation = new Set(group.map(coordinateKey)).size === 1;
-    // Only people at the same stored building/location coordinate spiderfy.
-    // Nearby people remain a normal cluster and zoom in without moving pins.
-    clusters.push(buildPeopleCluster(group, sameLocation ? 'spiderfy' : 'zoom'));
+    const sameBuildingDisplayArea = areInSameBuildingDisplayArea(group);
+    // Same-building display areas spiderfy on hover or click. Other nearby
+    // people remain a normal cluster and zoom in without moving their pins.
+    clusters.push(buildPeopleCluster(group, sameBuildingDisplayArea ? 'spiderfy' : 'zoom'));
   });
 
   return [
@@ -1992,7 +2004,7 @@ function createMarkerElement(
   const root = createRoot(element);
   const hasSignalPreview = Boolean(truncateMarkerPreview(marker.signal))
     || (isCurrentUser && marker.displayMode === 'GHOST');
-  const supportsHoldPreview = marker.kind == null || marker.kind === 'person' || marker.kind === 'place';
+  const supportsHoldPreview = marker.kind == null || marker.kind === 'person' || marker.kind === 'place' || isSpiderfyCluster(marker);
   let previewed = false;
   let restingZIndex: string | null = null;
   let lastPointerType = '';
@@ -2075,7 +2087,7 @@ function createMarkerElement(
         return;
       }
       const pointerEvent = event as PointerEvent;
-      if (marker.kind !== 'place' || pointerEvent.pointerType !== 'touch') {
+      if (pointerEvent.pointerType !== 'touch') {
         onPinPreview(marker);
       }
     });
@@ -3042,15 +3054,15 @@ function MapView({
             });
           },
           (previewedMarker, relatedTarget) => {
-            if (spiderfiedCluster?.pinned || !spiderfiedCluster?.memberIds.includes(previewedMarker.id)) {
-              return;
-            }
             const nextMarker = relatedTarget instanceof Element
               ? relatedTarget.closest('[data-map-marker-id]')?.getAttribute('data-map-marker-id')
               : null;
-            if (!nextMarker || !spiderfiedCluster.memberIds.includes(nextMarker)) {
-              setSpiderfiedCluster(null);
-            }
+            setSpiderfiedCluster((currentCluster) => {
+              if (currentCluster?.pinned || !currentCluster?.memberIds.includes(previewedMarker.id)) {
+                return currentCluster;
+              }
+              return nextMarker && currentCluster.memberIds.includes(nextMarker) ? currentCluster : null;
+            });
           },
           () => {
             lastMarkerInteractionAtRef.current = Date.now();
