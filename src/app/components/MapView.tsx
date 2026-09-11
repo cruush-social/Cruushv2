@@ -650,14 +650,23 @@ function coordinateKey(marker: Pick<MapMarker, 'approximateLatitude' | 'approxim
   return `${marker.approximateLatitude.toFixed(SAME_LOCATION_CLUSTER_PRECISION)}:${marker.approximateLongitude.toFixed(SAME_LOCATION_CLUSTER_PRECISION)}`;
 }
 
-function areInSameBuildingDisplayArea(group: Pick<MapMarker, 'approximateLatitude' | 'approximateLongitude'>[]) {
+function areInSameBuildingDisplayArea(group: Pick<MapMarker, 'approximateLatitude' | 'approximateLongitude' | 'privacyRadiusMeters'>[]) {
   if (group.length < 2) return false;
   const anchor = group[0];
   return group.every((marker) => {
     const latitudeMeters = (marker.approximateLatitude - anchor.approximateLatitude) * 111_320;
     const longitudeScale = Math.max(0.01, Math.cos(anchor.approximateLatitude * Math.PI / 180));
     const longitudeMeters = (marker.approximateLongitude - anchor.approximateLongitude) * 111_320 * longitudeScale;
-    return Math.hypot(latitudeMeters, longitudeMeters) <= SAME_BUILDING_PROXIMITY_METERS;
+    // Each discovery pin represents an area, rather than an exact point. A
+    // shared building may therefore land in adjacent displayed privacy cells.
+    // Use only those already-disclosed radii to recognize overlapping display
+    // areas; never send or compare the underlying precise coordinates.
+    const sharedDisplayRadius = Math.max(
+      SAME_BUILDING_PROXIMITY_METERS,
+      (anchor.privacyRadiusMeters ?? SAME_BUILDING_PROXIMITY_METERS)
+        + (marker.privacyRadiusMeters ?? SAME_BUILDING_PROXIMITY_METERS),
+    );
+    return Math.hypot(latitudeMeters, longitudeMeters) <= sharedDisplayRadius;
   });
 }
 

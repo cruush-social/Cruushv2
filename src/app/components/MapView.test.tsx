@@ -2178,6 +2178,31 @@ describe('MapView', () => {
 });
 
 describe('spiderfy clusters', () => {
+  it('spiderfies people whose disclosed privacy areas overlap across adjacent cells', async () => {
+    render(
+      <MapView
+        onPinClick={vi.fn()}
+        markers={[
+          {
+            id: 'a', displayName: 'A', approximateLatitude: 40.7128, approximateLongitude: -73.99,
+            privacyRadiusMeters: 250,
+          },
+          {
+            id: 'b', displayName: 'B', approximateLatitude: 40.7159, approximateLongitude: -73.99,
+            privacyRadiusMeters: 250,
+          },
+        ]}
+      />,
+    );
+
+    const cluster = await screen.findByRole('button', { name: 'Open 2 nearby people sharing this map spot' });
+    fireEvent.click(cluster);
+
+    expect(await screen.findByRole('button', { name: 'Open A on map' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Open B on map' })).toBeInTheDocument();
+    expect(mapInstances[0].setZoom).not.toHaveBeenCalled();
+  });
+
   it('opens a same-building people fan on hover and pins it open with a click', async () => {
     const onPinClick = vi.fn();
     render(
