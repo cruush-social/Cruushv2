@@ -213,6 +213,7 @@ describe('MapView', () => {
     mapInstances[0].trigger('click');
     expect(onMapClick).toHaveBeenCalledTimes(1);
 
+    act(() => { mapInstances[0].getZoom.mockReturnValue(16); mapInstances[0].trigger('zoomend'); });
     fireEvent.click(await screen.findByRole('button', { name: 'Open Jordan on map' }));
     expect(onPinClick).toHaveBeenCalledWith(expect.objectContaining({ id: 'user-1' }));
     expect(markerInstances[1].element).toHaveAttribute('data-map-marker-pin', 'true');
@@ -1092,6 +1093,8 @@ describe('MapView', () => {
       />
     );
 
+    await waitFor(() => expect(mapInstances).toHaveLength(1));
+    act(() => { mapInstances[0].getZoom.mockReturnValue(16); mapInstances[0].trigger('zoomend'); });
     expect(await screen.findByTestId('marker-photo-fill-me')).toHaveAttribute('href', 'https://example.com/me.jpg');
     expect(screen.getByTestId('marker-heart-me')).toHaveAttribute('data-has-photo', 'true');
     expect(screen.getByTestId('marker-heart-me')).toHaveAttribute('data-marker-theme', 'current');
@@ -1781,6 +1784,94 @@ describe('MapView', () => {
     expect(onPinClick).toHaveBeenCalledWith(expect.objectContaining({ kind: 'event' }));
   });
 
+  it('clusters a same-building person with the owner and fans out only on tap without changing their anchors', async () => {
+    const onPinClick = vi.fn();
+    const owner: MapMarker = {
+      id: 'me', displayName: 'You', isCurrentUser: true,
+      approximateLatitude: 40.7128, approximateLongitude: -73.99,
+    };
+    const nearby: MapMarker = {
+      id: 'nearby', displayName: 'Nearby', approximateLatitude: owner.approximateLatitude,
+      approximateLongitude: owner.approximateLongitude,
+    };
+    render(<MapView onPinClick={onPinClick} markers={[owner, nearby]} />);
+    await waitFor(() => expect(mapInstances).toHaveLength(1));
+    act(() => {
+      mapInstances[0].getZoom.mockReturnValue(16);
+      mapInstances[0].trigger('zoomend');
+    });
+
+    const cluster = await screen.findByRole('button', { name: 'Open 2 nearby people sharing this map spot' });
+    const collapsed = markerInstances.filter((marker) => marker.element.isConnected);
+    expect(collapsed).toHaveLength(1);
+    expect(collapsed[0].coordinates).toEqual([owner.approximateLongitude, owner.approximateLatitude]);
+    expect(collapsed[0].offset).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Open Nearby on map' })).not.toBeInTheDocument();
+
+    fireEvent.click(cluster);
+    const nearbyButton = await screen.findByRole('button', { name: 'Open Nearby on map' });
+    const expanded = markerInstances.filter((marker) => marker.element.isConnected);
+    expect(expanded).toHaveLength(2);
+    for (const original of [owner, nearby]) {
+      const marker = expanded.find((candidate) => candidate.element.querySelector(`[data-testid="marker-pin-unit-${original.id}"]`));
+      expect(marker?.coordinates).toEqual([original.approximateLongitude, original.approximateLatitude]);
+      if (original.isCurrentUser) expect(marker?.offset ?? [0, 0]).toEqual([0, 0]);
+      else expect(Math.hypot(...(marker?.offset ?? [0, 0]))).toBeGreaterThan(0);
+    }
+    expect(mapInstances[0].fitBounds).not.toHaveBeenCalled();
+    expect(mapInstances[0].setZoom).not.toHaveBeenCalled();
+    expect(onPinClick).not.toHaveBeenCalled();
+    fireEvent.click(nearbyButton);
+    expect(onPinClick).toHaveBeenCalledWith(expect.objectContaining(nearby));
+  });
+
+  it('removes an expired other Ghost from a people cluster at its visibility deadline', async () => {
+    vi.useFakeTimers();
+    try {
+      const deadline = Date.now() + 1_000;
+      await act(async () => {
+        render(<MapView onPinClick={vi.fn()} markers={[
+          { id: 'me', displayName: 'You', isCurrentUser: true, approximateLatitude: 40.7128, approximateLongitude: -73.99 },
+          { id: 'other-ghost', displayName: 'River', displayMode: 'GHOST', ghostRotationExpiresAtMs: deadline, approximateLatitude: 40.7128, approximateLongitude: -73.99 },
+        ]} />);
+      });
+      expect(screen.getByRole('button', { name: 'Open 2 nearby people sharing this map spot' })).toBeInTheDocument();
+      await act(async () => { vi.advanceTimersByTime(1_000); });
+      expect(screen.queryByRole('button', { name: 'Open 2 nearby people sharing this map spot' })).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Show your pin details' })).toBeInTheDocument();
+      expect(screen.getByTestId('marker-pin-unit-other-ghost')).toHaveStyle({ visibility: 'hidden' });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('keeps unclustered people at their anchors through zoom and metadata changes', async () => {
+    const markers: MapMarker[] = [
+      { id: 'me', displayName: 'You', isCurrentUser: true, approximateLatitude: 40.7128, approximateLongitude: -73.99 },
+      { id: 'far-person', displayName: 'Far person', approximateLatitude: 40.73, approximateLongitude: -73.96 },
+    ];
+    const view = render(<MapView onPinClick={vi.fn()} markers={markers} />);
+    await screen.findByRole('button', { name: 'Open Far person on map' });
+    for (const zoom of [16, 18.9, 20, 18.9, 16]) {
+      act(() => {
+        mapInstances[0].getZoom.mockReturnValue(zoom);
+        mapInstances[0].trigger('zoomend');
+      });
+      await waitFor(() => {
+        const visible = markerInstances.filter((marker) => marker.element.isConnected);
+        expect(visible).toHaveLength(2);
+        for (const original of markers) {
+          const marker = visible.find((candidate) => candidate.element.querySelector(`[data-testid="marker-pin-unit-${original.id}"]`));
+          expect(marker?.coordinates).toEqual([original.approximateLongitude, original.approximateLatitude]);
+          expect(marker?.offset).toBeNull();
+        }
+      });
+    }
+    view.rerender(<MapView onPinClick={vi.fn()} markers={markers.map((marker) => ({ ...marker, displayName: `${marker.displayName} refreshed` }))} />);
+    await screen.findByRole('button', { name: 'Open Far person refreshed on map' });
+    expect(markerInstances.filter((marker) => marker.element.isConnected).every((marker) => marker.offset === null)).toBe(true);
+  });
+
   it('clusters overlapping people pins into a zoomable count marker', async () => {
     const onPinClick = vi.fn();
 
@@ -1817,13 +1908,13 @@ describe('MapView', () => {
       />
     );
 
-    const cluster = await screen.findByRole('button', { name: 'Zoom into 2 nearby people on map' });
-    expect(cluster.querySelector('[data-testid^="people-cluster-marker-"]')).toHaveTextContent('2');
+    const cluster = await screen.findByRole('button', { name: 'Zoom into 3 nearby people on map' });
+    expect(cluster.querySelector('[data-testid^="people-cluster-marker-"]')).toHaveTextContent('3');
     expect(screen.queryByRole('button', { name: 'Open A on map' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Open B on map' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Open C on map' })).toBeInTheDocument();
-    // Your own pin never joins a people cluster; it stays as your own pin.
-    expect(screen.getByRole('button', { name: 'Show your pin details' })).toBeInTheDocument();
+    // An overlapping owner is represented by this cluster at the owner's anchor.
+    expect(screen.queryByRole('button', { name: 'Show your pin details' })).not.toBeInTheDocument();
 
     await act(async () => {
       fireEvent.click(cluster);
@@ -1837,7 +1928,7 @@ describe('MapView', () => {
       expect.objectContaining({ maxZoom: 15.25 }),
     );
     expect(mapInstances[0].setCenter).not.toHaveBeenCalled();
-    expect(screen.getByRole('button', { name: 'Zoom into 2 nearby people on map' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Zoom into 3 nearby people on map' })).toBeInTheDocument();
   });
 
   it('keeps a people cluster mounted when input order and unrelated clusters change', async () => {
@@ -1860,7 +1951,7 @@ describe('MapView', () => {
     expect(screen.getByTestId(artworkId).closest('button')).toBe(cluster);
   });
 
-  it('keeps active Ping hearts above ordinary people clusters during zoom-out', async () => {
+  it('preserves active Ping artwork after opening a same-building people cluster', async () => {
     render(
       <MapView
         onPinClick={vi.fn()}
@@ -1875,30 +1966,30 @@ describe('MapView', () => {
           {
             id: 'user-a',
             displayName: 'A',
-            approximateLatitude: 40.7129,
-            approximateLongitude: -73.9901,
+            approximateLatitude: 40.7128,
+            approximateLongitude: -73.99,
           },
           {
             id: 'user-b',
             displayName: 'B',
-            approximateLatitude: 40.713,
-            approximateLongitude: -73.9902,
+            approximateLatitude: 40.7128,
+            approximateLongitude: -73.99,
           },
         ]}
       />,
     );
 
+    fireEvent.click(await screen.findByRole('button', { name: 'Open 3 nearby people sharing this map spot' }));
     expect(await screen.findByRole('button', { name: 'Open Pinging on map' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Zoom into 2 nearby people on map' })).toBeInTheDocument();
 
     const pingMarker = markerInstances.find((instance: any) => instance.element.dataset.activePing === 'true');
-    const clusterMarker = markerInstances.find((instance: any) => instance.element.dataset.mapMarkerKind === 'cluster');
+    const clusterMarker = markerInstances.find((instance: any) => instance.element.isConnected && instance.element.dataset.activePing === 'false');
     expect(pingMarker?.element.style.zIndex).not.toBe('');
     expect(Number(pingMarker?.element.style.zIndex)).toBeGreaterThan(Number(clusterMarker?.element.style.zIndex || 0));
     expect(screen.getByTestId('pulse-ekg-pin')).toHaveAttribute('clip-path', 'url(#marker-photo-clip-user-pinging)');
   });
 
-  it('keeps a focused person pin visible instead of hiding it in a nearby cluster', async () => {
+  it('keeps a focused person selectable through the same-building people cluster', async () => {
     render(
       <MapView
         onPinClick={vi.fn()}
@@ -1916,13 +2007,16 @@ describe('MapView', () => {
           {
             id: 'user-nearby',
             displayName: 'Nearby',
-            approximateLatitude: 40.713,
-            approximateLongitude: -73.9902,
+            approximateLatitude: 40.7128,
+            approximateLongitude: -73.99,
           },
         ]}
       />
     );
 
+    await waitFor(() => expect(mapInstances).toHaveLength(1));
+    act(() => { mapInstances[0].getZoom.mockReturnValue(16); mapInstances[0].trigger('zoomend'); });
+    fireEvent.click(await screen.findByRole('button', { name: 'Open 2 nearby people sharing this map spot' }));
     expect(await screen.findByRole('button', { name: 'Open Focused on map' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Open Nearby on map' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Zoom into .* nearby people on map/ })).not.toBeInTheDocument();
@@ -2072,6 +2166,31 @@ describe('MapView', () => {
 });
 
 describe('spiderfy clusters', () => {
+  it('opens a same-building people fan on hover and pins it open with a click', async () => {
+    const onPinClick = vi.fn();
+    render(
+      <MapView
+        onPinClick={onPinClick}
+        markers={[
+          { id: 'a', displayName: 'A', approximateLatitude: 40.7128, approximateLongitude: -73.99 },
+          { id: 'b', displayName: 'B', approximateLatitude: 40.7128, approximateLongitude: -73.99 },
+        ]}
+      />
+    );
+
+    const cluster = await screen.findByRole('button', { name: 'Open 2 nearby people sharing this map spot' });
+    fireEvent.pointerEnter(cluster, { pointerType: 'mouse' });
+    expect(await screen.findByRole('button', { name: 'Open A on map' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open B on map' }));
+    const pinnedMember = await screen.findByRole('button', { name: 'Open B on map' });
+    fireEvent.pointerLeave(pinnedMember, { pointerType: 'mouse', relatedTarget: document.body });
+
+    expect(screen.getByRole('button', { name: 'Open A on map' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Open B on map' })).toBeInTheDocument();
+    expect(onPinClick).not.toHaveBeenCalled();
+  });
+
   it('fans same-spot people out on tap instead of zooming', async () => {
     render(
       <MapView
@@ -2098,7 +2217,7 @@ describe('spiderfy clusters', () => {
     expect(screen.getByRole('button', { name: 'Open B on map' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Open C on map' })).toBeInTheDocument();
 
-    const offsets = markerInstances.map((m: any) => m.offset).filter(Boolean);
+    const offsets = markerInstances.filter((m: any) => m.element.isConnected).map((m: any) => m.offset).filter(Boolean);
     expect(offsets).toHaveLength(3);
     // Every member gets a distinct offset so none of them stack.
     expect(new Set(offsets.map((o: number[]) => o.join(','))).size).toBe(3);
@@ -2183,6 +2302,54 @@ describe('stable Spot clusters', () => {
       .toEqual(markers.map((marker) => marker.id));
     const centers = before.map((marker) => marker.approximateLongitude / 360 * (512 * 2 ** zoom)).sort((a, b) => a - b);
     expect(centers.every((x, index) => index === 0 || x - centers[index - 1] >= 62)).toBe(true);
+  });
+
+  it('keeps dense Spot groups nested and clear across meaningful zoom changes', () => {
+    const referenceZoom = 14.6;
+    const world = 512 * 2 ** referenceZoom;
+    const baseX = (-73.95 + 180) / 360 * world;
+    const baseY = (0.5 - Math.log((1 + Math.sin(40.68 * Math.PI / 180))
+      / (1 - Math.sin(40.68 * Math.PI / 180))) / (4 * Math.PI)) * world;
+    let state = 3;
+    const random = () => ((state = (Math.imul(state, 1664525) + 1013904223) >>> 0) / 4294967296);
+    const markers: MapMarker[] = Array.from({ length: 300 }, (_, index) => ({
+      id: `spot-${String(index).padStart(3, '0')}`,
+      kind: 'place',
+      displayName: `Spot ${index}`,
+      approximateLongitude: (baseX + random() * 720) / world * 360 - 180,
+      approximateLatitude: Math.atan(Math.sinh(Math.PI * (1 - 2 * (baseY + random() * 480) / world))) * 180 / Math.PI,
+    }));
+    const members = (marker: MapMarker) => marker.cluster?.memberIds ?? [marker.id];
+    const project = (marker: MapMarker, zoom: number) => {
+      const size = 512 * 2 ** zoom;
+      const sin = Math.sin(marker.approximateLatitude * Math.PI / 180);
+      return [(marker.approximateLongitude + 180) / 360 * size,
+        (0.5 - Math.log((1 + sin) / (1 - sin)) / (4 * Math.PI)) * size];
+    };
+    let previous = applyPlaceMarkerClusters(markers, 14.4);
+    for (const zoom of [14.5, 14.6, 14.61, 14.8, 15, 15.2]) {
+      const next = applyPlaceMarkerClusters(markers, zoom);
+      for (const marker of next) {
+        expect(previous.some((parent) => members(marker).every((id) => members(parent).includes(id)))).toBe(true);
+      }
+      const centers = next.map((marker) => project(marker, zoom));
+      centers.forEach((center, index) => centers.slice(index + 1).forEach((other) => {
+        expect(Math.hypot(center[0] - other[0], center[1] - other[1])).toBeGreaterThanOrEqual(62);
+      }));
+      expect(next.flatMap(members).sort()).toEqual(markers.map((marker) => marker.id).sort());
+      previous = next;
+    }
+    const initial = normalized(applyPlaceMarkerClusters(markers, 14.6));
+    expect(normalized(applyPlaceMarkerClusters(markers, 14.61))).toEqual(initial);
+    expect(normalized(applyPlaceMarkerClusters([...markers].reverse(), 14.6))).toEqual(initial);
+    const byId = new Map(markers.map((marker) => [marker.id, marker]));
+    initial.forEach((marker) => {
+      const center = project(marker, 14.6);
+      members(marker).forEach((id) => {
+        const point = project(byId.get(id)!, 14.6);
+        expect(Math.hypot(point[0] - center[0], point[1] - center[1])).toBeLessThan(100);
+      });
+    });
   });
 
   it('preserves Spot radius thresholds, maximum zoom and same-coordinate spiderfy', () => {

@@ -176,7 +176,7 @@ const MARKER_INTERACTION_SUPPRESS_MS = 350;
 // Keep dense map pins grouped while zoomed out. These values match the
 // approved map handoff and prevent nearby profile hearts from stacking.
 const PERSON_CLUSTER_MAX_ZOOM = 15.25;
-const PERSON_CLUSTER_RADIUS_PX = 84;
+const PERSON_CLUSTER_RADIUS_PX = 164;
 export const MAP_SERVICE_MASK_SOURCE_ID = 'cruush-map-service-mask';
 export const MAP_SERVICE_MASK_LAYER_ID = 'cruush-map-service-mask';
 export const MAP_BROWSE_MASK_SOURCE_ID = 'cruush-map-browse-mask';
@@ -633,6 +633,7 @@ type SpiderfiedCluster = {
     approximateLongitude: number;
   };
   memberIds: string[];
+  pinned: boolean;
 };
 
 type DisplayMapMarker = MapMarker & {
@@ -640,6 +641,7 @@ type DisplayMapMarker = MapMarker & {
     offset: [number, number];
     index: number;
     count: number;
+    pinned: boolean;
   };
 };
 
@@ -657,12 +659,18 @@ function groupMarkersByCoordinate(markers: MapMarker[]) {
   }, new Map<string, MapMarker[]>());
 }
 
-function getSpiderfyOffsets(count: number): Array<[number, number]> {
+function getSpiderfyOffsets(count: number, clearancePx = 0, minimumRadius = 0): Array<[number, number]> {
+  const firstRingCount = Math.min(count, SPIDERFY_SECOND_RING_AFTER);
+  const firstRingRadius = Math.max(SPIDERFY_RADIUS_PX, minimumRadius,
+    clearancePx / (2 * Math.sin(Math.PI / Math.max(2, firstRingCount))));
   return Array.from({ length: count }, (_, index) => {
     const isSecondRing = count > SPIDERFY_SECOND_RING_AFTER && index >= SPIDERFY_SECOND_RING_AFTER;
     const ringIndex = isSecondRing ? index - SPIDERFY_SECOND_RING_AFTER : index;
     const ringCount = isSecondRing ? count - SPIDERFY_SECOND_RING_AFTER : Math.min(count, SPIDERFY_SECOND_RING_AFTER);
-    const radius = isSecondRing ? SPIDERFY_SECOND_RING_RADIUS_PX : SPIDERFY_RADIUS_PX;
+    const radius = isSecondRing
+      ? Math.max(SPIDERFY_SECOND_RING_RADIUS_PX, clearancePx ? firstRingRadius + clearancePx : 0,
+        clearancePx / (2 * Math.sin(Math.PI / Math.max(2, ringCount))))
+      : firstRingRadius;
     const angle = -Math.PI / 2 + (ringIndex / Math.max(1, ringCount)) * Math.PI * 2;
 
     return [
@@ -672,7 +680,7 @@ function getSpiderfyOffsets(count: number): Array<[number, number]> {
   });
 }
 
-function getSpiderfiedMarkerMap(markers: MapMarker[], spiderfiedCluster: SpiderfiedCluster | null) {
+function getSpiderfiedMarkerMap(markers: MapMarker[], spiderfiedCluster: SpiderfiedCluster | null, zoom: number, map?: MapLibreMap | null) {
   if (!spiderfiedCluster || spiderfiedCluster.memberIds.length < 2) {
     return new Map<string, DisplayMapMarker>();
   }
@@ -682,17 +690,37 @@ function getSpiderfiedMarkerMap(markers: MapMarker[], spiderfiedCluster: Spiderf
     .map((memberId) => markersById.get(memberId))
     .filter((marker): marker is MapMarker => Boolean(marker));
 
-  if (members.length < 2 || new Set(members.map(coordinateKey)).size !== 1) {
+  const peopleOnly = members.every((marker) => (marker.kind ?? 'person') === 'person');
+  if (members.length < 2 || (!peopleOnly && new Set(members.map(coordinateKey)).size !== 1)) {
     return new Map<string, DisplayMapMarker>();
   }
 
-  const offsets = getSpiderfyOffsets(members.length);
+  const owner = peopleOnly ? members.find((marker) => marker.isCurrentUser || marker.id === 'me') : undefined;
+  const fannedMembers = members.filter((marker) => marker !== owner);
+  // The full heart unit includes its badges and hover peak. The diagonal
+  // clearance keeps adjacent rings and neighboring heart rectangles separate.
+  const clearance = peopleOnly ? Math.hypot(164, 164) : 0;
+  const offsets = getSpiderfyOffsets(fannedMembers.length, clearance, owner ? clearance : 0);
+  const project = (marker: MapMarker) => map && typeof map.project === 'function'
+    ? map.project([marker.approximateLongitude, marker.approximateLatitude])
+    : mercatorPixelPoint(marker, zoom);
+  const center = peopleOnly ? project({ ...members[0], ...spiderfiedCluster.center }) : null;
 
   return new Map(members.map((marker, index) => [
     marker.id,
     {
       ...marker,
-      spiderfy: { offset: offsets[index], index, count: members.length },
+      spiderfy: {
+        offset: marker === owner ? [0, 0] as [number, number] : (() => {
+          const offset = offsets[fannedMembers.indexOf(marker)];
+          if (!center) return offset;
+          const point = project(marker);
+          return [center.x - point.x + offset[0], center.y - point.y + offset[1]] as [number, number];
+        })(),
+        index,
+        count: members.length,
+        pinned: spiderfiedCluster.pinned,
+      },
     },
   ]));
 }
@@ -744,29 +772,122 @@ function mercatorPixelPoint(marker: MapMarker, zoom: number) {
 
 /**
  * Member coordinates are authoritative geographic display locations. Clustering
- * may replace nearby members; separate screen offsets prevent surviving heart
- * units from overlapping without rewriting those coordinates. Same-location
- * members still fan out with pixel-only offsets when their cluster opens.
+ * may replace nearby members, but individual pins never move to avoid overlap.
+ * Members fan out with temporary screen offsets only after opening a cluster.
  */
 export function separateOverlappingMarkers(markers: MapMarker[], _zoom: number) {
   return markers;
 }
 
 function canClusterMarker(marker: MapMarker, focusCoordinates: MapViewProps['focusCoordinates']) {
-  // An active Pulse is a short-lived visibility signal. Keep its heart
-  // independent from nearby clusters so it stays discoverable while zoomed out.
-  if ((marker.kind ?? 'person') !== 'person' || marker.isCurrentUser === true || marker.activePing) {
-    return false;
-  }
+  if ((marker.kind ?? 'person') !== 'person') return false;
+  // An expired decoy is hidden by its individual artwork. It must not remain
+  // discoverable through a cluster count after that same visibility deadline.
+  return marker.isCurrentUser === true || marker.id === 'me' || marker.displayMode !== 'GHOST'
+    || typeof marker.ghostRotationExpiresAtMs !== 'number' || marker.ghostRotationExpiresAtMs > Date.now();
+}
 
-  if (!focusCoordinates) {
-    return true;
+function groupNearbyMarkers(markers: DisplayMapMarker[], zoom: number, radiusPx: number, includeBoundary = false, peopleGeometry = false): DisplayMapMarker[][] {
+  const radius = radiusPx / (2 ** zoom);
+  const seeds = [...markers].sort((a, b) => a.id.localeCompare(b.id)).map((marker, id) => ({
+    id, group: [marker], ...mercatorPixelPoint(marker, 0),
+    owner: peopleGeometry && (marker.isCurrentUser === true || marker.id === 'me'),
+  }));
+  if (seeds.length < 2) return seeds.map((entity) => entity.group);
+  const bounds = seeds.reduce((box, entity) => ({
+    left: Math.min(box.left, entity.x), right: Math.max(box.right, entity.x),
+    top: Math.min(box.top, entity.y), bottom: Math.max(box.bottom, entity.y),
+  }), { left: Infinity, right: -Infinity, top: Infinity, bottom: -Infinity });
+  // Every aggregate center stays inside these bounds. If even the diagonal
+  // clears the merge radius, the hierarchy can only end in this one group.
+  if (Math.hypot(bounds.right - bounds.left, bounds.bottom - bounds.top) < radius) {
+    return [seeds.flatMap((entity) => entity.group)];
   }
-
-  return (
-    Math.abs(marker.approximateLatitude - focusCoordinates.approximateLatitude) > 0.000001 ||
-    Math.abs(marker.approximateLongitude - focusCoordinates.approximateLongitude) > 0.000001
-  );
+  type Entity = typeof seeds[number];
+  type Pair = { distance: number; a: number; b: number };
+  const entities = new Map(seeds.map((entity) => [entity.id, entity]));
+  const cells = new Map<string, Set<number>>();
+  const cellKey = (x: number, y: number) => `${Math.floor(x / radius)}:${Math.floor(y / radius)}`;
+  const addToCell = (entity: Entity) => {
+    const key = cellKey(entity.x, entity.y);
+    const cell = cells.get(key) ?? new Set<number>();
+    cell.add(entity.id);
+    cells.set(key, cell);
+  };
+  const removeFromCell = (entity: Entity) => {
+    const key = cellKey(entity.x, entity.y);
+    const cell = cells.get(key);
+    cell?.delete(entity.id);
+    if (cell?.size === 0) cells.delete(key);
+  };
+  // Fixed-scale distances and a total tie order define one hierarchy at every
+  // zoom. Each active center retains only its nearest pair, so dense views do
+  // not allocate a quadratic heap of pairs that become stale after merging.
+  const nearest = new Map<number, Pair>();
+  const comparePairs = (first: Pair, second: Pair) => first.distance - second.distance || first.a - second.a || first.b - second.b;
+  const considerPair = (entity: Entity, other: Entity) => {
+    if (entity.id === other.id) return;
+    const dx = entity.x - other.x;
+    const dy = entity.y - other.y;
+    const distance = peopleGeometry ? Math.max(dx * dx, dy * dy) : dx * dx + dy * dy;
+    if (includeBoundary ? distance > radius * radius : distance >= radius * radius) return;
+    const previous = nearest.get(entity.id);
+    if (previous && distance > previous.distance) return;
+    const a = entity.id < other.id ? entity.id : other.id;
+    const b = entity.id > other.id ? entity.id : other.id;
+    if (!previous || distance < previous.distance || a < previous.a || (a === previous.a && b < previous.b)) {
+      nearest.set(entity.id, { distance, a, b });
+    }
+  };
+  const findNearest = (entity: Entity) => {
+    nearest.delete(entity.id);
+    const cellX = Math.floor(entity.x / radius);
+    const cellY = Math.floor(entity.y / radius);
+    for (let x = -1; x <= 1; x += 1) {
+      for (let y = -1; y <= 1; y += 1) {
+        for (const id of cells.get(`${cellX + x}:${cellY + y}`) ?? []) {
+          considerPair(entity, entities.get(id)!);
+        }
+      }
+    }
+  };
+  seeds.forEach(addToCell);
+  seeds.forEach(findNearest);
+  let nextId = seeds.length;
+  while (nearest.size) {
+    let pair: Pair | undefined;
+    for (const candidate of nearest.values()) {
+      if (!pair || comparePairs(candidate, pair) < 0) pair = candidate;
+    }
+    if (!pair) break;
+    const first = entities.get(pair.a)!;
+    const second = entities.get(pair.b)!;
+    const count = first.group.length + second.group.length;
+    const owner = first.owner ? first : second.owner ? second : null;
+    const merged: Entity = {
+      id: nextId++, group: [...first.group, ...second.group],
+      owner: Boolean(owner),
+      x: owner?.x ?? (first.x * first.group.length + second.x * second.group.length) / count,
+      y: owner?.y ?? (first.y * first.group.length + second.y * second.group.length) / count,
+    };
+    removeFromCell(first);
+    removeFromCell(second);
+    entities.delete(first.id);
+    entities.delete(second.id);
+    nearest.delete(first.id);
+    nearest.delete(second.id);
+    entities.set(merged.id, merged);
+    addToCell(merged);
+    for (const entity of entities.values()) {
+      const previous = nearest.get(entity.id);
+      if (entity.id === merged.id || (previous && (!entities.has(previous.a) || !entities.has(previous.b)))) {
+        findNearest(entity);
+      } else {
+        considerPair(entity, merged);
+      }
+    }
+  }
+  return [...entities.values()].map((entity) => entity.group);
 }
 
 function buildPeopleCluster(group: MapMarker[], action: 'zoom' | 'spiderfy' = 'zoom'): MapMarker {
@@ -777,13 +898,14 @@ function buildPeopleCluster(group: MapMarker[], action: 'zoom' | 'spiderfy' = 'z
   const clusterHash = hashString(sortedIds.join('|'));
   const averageLatitude = members.reduce((sum, marker) => sum + marker.approximateLatitude, 0) / count;
   const averageLongitude = members.reduce((sum, marker) => sum + marker.approximateLongitude, 0) / count;
+  const owner = members.find((marker) => marker.isCurrentUser || marker.id === 'me');
 
   return {
     id: `people-cluster-${clusterHash}`,
     kind: 'cluster',
     displayName: label,
-    approximateLatitude: averageLatitude,
-    approximateLongitude: averageLongitude,
+    approximateLatitude: owner?.approximateLatitude ?? averageLatitude,
+    approximateLongitude: owner?.approximateLongitude ?? averageLongitude,
     cluster: {
       id: `people-${clusterHash}`,
       count,
@@ -800,8 +922,9 @@ function applyPersonMarkerClusters(
   zoom: number,
   focusCoordinates: MapViewProps['focusCoordinates'],
   spiderfiedCluster: SpiderfiedCluster | null = null,
+  map?: MapLibreMap | null,
 ): DisplayMapMarker[] {
-  const spiderfiedMarkersById = getSpiderfiedMarkerMap(markers, spiderfiedCluster);
+  const spiderfiedMarkersById = getSpiderfiedMarkerMap(markers, spiderfiedCluster, zoom, map);
   const spiderfiedIds = new Set(spiderfiedMarkersById.keys());
 
   const clusteredIds = new Set<string>();
@@ -811,45 +934,18 @@ function applyPersonMarkerClusters(
     .sort((a, b) => a.id.localeCompare(b.id));
   const clusters: MapMarker[] = [];
 
-  // People standing on the exact same spot never separate by zooming, so they
-  // collapse into a cluster that fans its members out on tap instead.
-  Array.from(groupMarkersByCoordinate(clusterableMarkers).values())
-    .filter((group) => group.length >= 2)
-    .forEach((group) => {
-      group.forEach((marker) => clusteredIds.add(marker.id));
-      clusters.push(buildPeopleCluster(group, 'spiderfy'));
-    });
-
-  if (zoom >= PERSON_CLUSTER_MAX_ZOOM) {
-    return [
-      ...markers
-        .filter((marker) => !clusteredIds.has(marker.id))
-        .map((marker) => spiderfiedMarkersById.get(marker.id) ?? marker),
-      ...clusters,
-    ];
-  }
-
-  clusterableMarkers.forEach((seed) => {
-    if (clusteredIds.has(seed.id)) {
-      return;
-    }
-
-    const seedPoint = mercatorPixelPoint(seed, zoom);
-    const group = clusterableMarkers.filter((candidate) => {
-      if (clusteredIds.has(candidate.id)) {
-        return false;
-      }
-
-      const candidatePoint = mercatorPixelPoint(candidate, zoom);
-      return Math.hypot(candidatePoint.x - seedPoint.x, candidatePoint.y - seedPoint.y) <= PERSON_CLUSTER_RADIUS_PX;
-    });
-
-    if (group.length < 2) {
-      return;
-    }
-
+  groupNearbyMarkers(
+    clusterableMarkers.filter((marker) => !clusteredIds.has(marker.id)),
+    zoom,
+    PERSON_CLUSTER_RADIUS_PX,
+    true,
+    true,
+  ).filter((group) => group.length >= 2).forEach((group) => {
     group.forEach((marker) => clusteredIds.add(marker.id));
-    clusters.push(buildPeopleCluster(group));
+    const sameLocation = new Set(group.map(coordinateKey)).size === 1;
+    // Only people at the same stored building/location coordinate spiderfy.
+    // Nearby people remain a normal cluster and zoom in without moving pins.
+    clusters.push(buildPeopleCluster(group, sameLocation ? 'spiderfy' : 'zoom'));
   });
 
   return [
@@ -908,120 +1004,15 @@ export function applyPlaceMarkerClusters(markers: DisplayMapMarker[], zoom: numb
     return [...markers.filter((marker) => !clusteredIds.has(marker.id)), ...clusters];
   }
 
-  const radiusPx = placeClusterRadiusPx(zoom);
-  const points = new Map(placeMarkers.map((marker) => [marker.id, mercatorPixelPoint(marker, zoom)]));
-  const buckets = new Map<string, DisplayMapMarker[]>();
-  placeMarkers.forEach((marker) => {
-    if (clusteredIds.has(marker.id)) return;
-    const point = points.get(marker.id)!;
-    const key = `${Math.floor(point.x / radiusPx)}:${Math.floor(point.y / radiusPx)}`;
-    const bucket = buckets.get(key);
-    if (bucket) bucket.push(marker);
-    else buckets.set(key, [marker]);
-  });
-
-  // Cells are only a lookup. Their absolute boundaries slide under fractional
-  // zoom, so membership depends on relative distances in deterministic ID order.
-  // Bound each group by the existing cell footprint instead of chaining a
-  // radius sweep through neighboring members across a whole district.
-  const cellGroups: DisplayMapMarker[][] = [];
-  placeMarkers.forEach((seed) => {
-    if (clusteredIds.has(seed.id)) return;
-    const seedPoint = points.get(seed.id)!;
-    const cellX = Math.floor(seedPoint.x / radiusPx);
-    const cellY = Math.floor(seedPoint.y / radiusPx);
-    const candidates: DisplayMapMarker[] = [];
-    for (let offsetX = -1; offsetX <= 1; offsetX += 1) {
-      for (let offsetY = -1; offsetY <= 1; offsetY += 1) {
-        candidates.push(...(buckets.get(`${cellX + offsetX}:${cellY + offsetY}`) ?? []));
-      }
-    }
-    let left = seedPoint.x;
-    let right = seedPoint.x;
-    let top = seedPoint.y;
-    let bottom = seedPoint.y;
-    const group: DisplayMapMarker[] = [];
-    candidates.sort((a, b) => a.id.localeCompare(b.id)).forEach((candidate) => {
-      if (clusteredIds.has(candidate.id)) return;
-      const point = points.get(candidate.id)!;
-      const nextLeft = Math.min(left, point.x);
-      const nextRight = Math.max(right, point.x);
-      const nextTop = Math.min(top, point.y);
-      const nextBottom = Math.max(bottom, point.y);
-      if (nextRight - nextLeft > radiusPx || nextBottom - nextTop > radiusPx) return;
-      left = nextLeft;
-      right = nextRight;
-      top = nextTop;
-      bottom = nextBottom;
-      clusteredIds.add(candidate.id);
-      group.push(candidate);
-    });
-    cellGroups.push(group);
-  });
-
-  // Separate bounded groups can still leave a single or cluster touching
-  // its neighbor. Union anything closer than a pin footprint so
-  // Spot markers never overlap each other.
-  const entities = cellGroups.map((group) => {
-    const x = group.reduce((sum, marker) => sum + points.get(marker.id)!.x, 0) / group.length;
-    const y = group.reduce((sum, marker) => sum + points.get(marker.id)!.y, 0) / group.length;
-    return { group, x, y };
-  });
-  const parents = entities.map((_, index) => index);
-  const findRoot = (index: number): number => {
-    while (parents[index] !== index) {
-      parents[index] = parents[parents[index]];
-      index = parents[index];
-    }
-    return index;
-  };
-  // Every Spot used to be compared against every other Spot, which is fine for
-  // a handful and quadratic for the thousands a wide viewport can hold: that is
-  // what made the map crawl. Entities go into a grid of cells the size of the
-  // separation distance instead, so each one only checks the nine cells it
-  // could possibly be close to. Same clusters, linear work.
-  const cellSize = MIN_PLACE_SEPARATION_PX;
-  const grid = new Map<string, number[]>();
-  const cellKey = (x: number, y: number) => `${Math.floor(x / cellSize)}:${Math.floor(y / cellSize)}`;
-
-  entities.forEach((entity, index) => {
-    const key = cellKey(entity.x, entity.y);
-    const bucket = grid.get(key);
-    if (bucket) bucket.push(index);
-    else grid.set(key, [index]);
-  });
-
-  entities.forEach((entity, a) => {
-    const cellX = Math.floor(entity.x / cellSize);
-    const cellY = Math.floor(entity.y / cellSize);
-
-    for (let offsetX = -1; offsetX <= 1; offsetX += 1) {
-      for (let offsetY = -1; offsetY <= 1; offsetY += 1) {
-        const neighbours = grid.get(`${cellX + offsetX}:${cellY + offsetY}`);
-        if (!neighbours) continue;
-
-        for (const b of neighbours) {
-          if (b <= a) continue;
-
-          const dx = entity.x - entities[b].x;
-          const dy = entity.y - entities[b].y;
-          if ((dx * dx) + (dy * dy) < MIN_PLACE_SEPARATION_PX * MIN_PLACE_SEPARATION_PX) {
-            parents[findRoot(a)] = findRoot(b);
-          }
-        }
-      }
-    }
-  });
-  const merged = new Map<number, DisplayMapMarker[]>();
-  entities.forEach((entity, index) => {
-    const root = findRoot(index);
-    const bucket = merged.get(root);
-    if (bucket) bucket.push(...entity.group);
-    else merged.set(root, [...entity.group]);
-  });
+  const merged = groupNearbyMarkers(
+    placeMarkers.filter((marker) => !clusteredIds.has(marker.id)),
+    zoom,
+    Math.max(MIN_PLACE_SEPARATION_PX, placeClusterRadiusPx(zoom)),
+  );
   const singles: DisplayMapMarker[] = [];
   merged.forEach((group) => {
     if (group.length >= 2) {
+      group.forEach((marker) => clusteredIds.add(marker.id));
       clusters.push(buildPlaceCluster(group));
     } else {
       singles.push(...group);
@@ -1971,8 +1962,8 @@ function createMarkerElement(
   marker: MapMarker,
   onPinClick: (marker: MapMarker) => void,
   onPinPreview: (marker: MapMarker) => void,
+  onPinPreviewEnd: (marker: MapMarker, relatedTarget: EventTarget | null) => void,
   onMarkerInteraction: () => void,
-  onFootprintChanged: () => void,
 ) {
   const isCurrentUser = marker.id === 'me' || marker.isCurrentUser;
   const isInteractive = true;
@@ -2039,7 +2030,6 @@ function createMarkerElement(
       element.setAttribute('aria-pressed', nextPreviewed ? 'true' : 'false');
     }
     renderMarker();
-    onFootprintChanged();
   };
 
   if (!isInteractive) {
@@ -2153,6 +2143,10 @@ function createMarkerElement(
       event.stopImmediatePropagation();
       onMarkerInteraction();
       if (isCurrentUser) {
+        if ((marker as DisplayMapMarker).spiderfy) {
+          onPinClick(marker);
+          return;
+        }
         if (lastPointerType === 'touch') {
           if (previewed) {
             setPreviewed(false);
@@ -2216,6 +2210,7 @@ function createMarkerElement(
       const pointerEvent = event as PointerEvent;
       if (pointerEvent.pointerType !== 'touch') {
         setPreviewed(false);
+        onPinPreviewEnd(marker, pointerEvent.relatedTarget);
       }
     });
   }
@@ -2288,166 +2283,6 @@ export function ghostLeashCameraPadding(containerWidth: number) {
     : { top: 120, right: 160, bottom: 140, left: 120 };
 }
 
-type PersonPinFootprint = { left: number; top: number; right: number; bottom: number };
-
-function clearPersonPinOverlaps(map: MapLibreMap, rendered: RenderedMapMarker[], markers: MapMarker[]) {
-  if (typeof map.project !== 'function' || typeof map.getContainer !== 'function') return;
-  const frame = map.getContainer().getBoundingClientRect();
-  if (!frame.width || !frame.height) return;
-  const markersById = new Map(markers.map((marker) => [marker.id, marker]));
-  const gap = 4;
-  const intersects = (a: PersonPinFootprint, b: PersonPinFootprint) =>
-    a.left < b.right + gap && a.right + gap > b.left && a.top < b.bottom + gap && a.bottom + gap > b.top;
-  const shifted = (box: PersonPinFootprint, x: number, y: number): PersonPinFootprint => ({
-    left: box.left + x, right: box.right + x, top: box.top + y, bottom: box.bottom + y,
-  });
-  const people = rendered.flatMap((item) => {
-    const marker = markersById.get(item.id) as DisplayMapMarker | undefined;
-    if (!marker || ((marker.kind ?? 'person') !== 'person' && !isPersonCluster(marker))
-      || typeof item.marker.getElement !== 'function' || typeof item.marker.getOffset !== 'function'
-      || typeof item.marker.setOffset !== 'function') return [];
-    const originalOffset: [number, number] = marker.spiderfy?.offset ?? [0, 0];
-    const point = map.project([marker.approximateLongitude, marker.approximateLatitude]);
-    // Offscreen markers cannot collide with this view; avoid measuring their DOM.
-    if (point.x < -SIGNAL_CLEARANCE_PX || point.y < -SIGNAL_CLEARANCE_PX
-      || point.x > frame.width + SIGNAL_CLEARANCE_PX || point.y > frame.height + SIGNAL_CLEARANCE_PX) {
-      const offset = item.marker.getOffset();
-      if (offset.x !== originalOffset[0] || offset.y !== originalOffset[1]) item.marker.setOffset(originalOffset);
-      return [];
-    }
-    const element = item.marker.getElement();
-    // A people cluster must not cover the owner's heart while it is collapsed.
-    const layer = element.querySelector<HTMLElement>(isPersonCluster(marker)
-      ? '[data-testid^="people-cluster-marker-"]' : '[data-testid^="marker-heart-layer-"]');
-    if (!layer) return [];
-    const previewed = element.dataset.markerPreviewed === 'true';
-    const layerStyle = getComputedStyle(layer);
-    const layerBox = layer.getBoundingClientRect();
-    const currentScale = Number.parseFloat(layerStyle.scale) || 1;
-    // Reserve the existing preview/heartbeat peak even while idle, so entering
-    // hover does not move the heart out from under the pointer or offscreen.
-    const growthFactor = isPersonCluster(marker) ? 1 : 1.38 / currentScale;
-    const [originX, originY] = layerStyle.transformOrigin.split(' ').map(Number.parseFloat);
-    const growthOrigin = {
-      x: layerBox.left + layerBox.width * (Number.isFinite(originX) && layer.offsetWidth ? originX / layer.offsetWidth : 0.5),
-      y: layerBox.top + layerBox.height * (Number.isFinite(originY) && layer.offsetHeight ? originY / layer.offsetHeight : 1),
-    };
-    // The transparent button is taller than its artwork and remains a hit target.
-    const parts = [element, layer, ...element.querySelectorAll<HTMLElement>(
-      '[data-testid^="marker-role-badge-"], [data-testid^="marker-position-badge-"], '
-      + '[data-testid^="marker-signal-stack-"], [data-testid^="marker-post-preview-"], '
-      + '[data-testid^="marker-role-badge-"] > [aria-hidden="true"], '
-      + '[data-testid^="marker-position-badge-"] > [aria-hidden="true"]',
-    )].filter((part) => {
-      const style = getComputedStyle(part);
-      return style.visibility !== 'hidden' && style.display !== 'none' && (previewed || Number(style.opacity) > 0);
-    }).flatMap((part): PersonPinFootprint[] => {
-      const box = part.getBoundingClientRect();
-      if (!box.width || !box.height) return [];
-      if (growthFactor === 1 || (part !== layer && !layer.contains(part))) return [box];
-      return [{
-        left: growthOrigin.x + (box.left - growthOrigin.x) * growthFactor,
-        right: growthOrigin.x + (box.right - growthOrigin.x) * growthFactor,
-        top: growthOrigin.y + (box.top - growthOrigin.y) * growthFactor,
-        bottom: growthOrigin.y + (box.bottom - growthOrigin.y) * growthFactor,
-      }];
-    });
-    if (!parts.length) return [];
-    const currentOffset = item.marker.getOffset();
-    const owner = marker.isCurrentUser === true || marker.id === 'me';
-    // Keep the active preview where the pointer found it; move its neighbors first.
-    const offset: [number, number] = owner ? [0, 0] : previewed
-      ? [currentOffset.x, currentOffset.y] : [originalOffset[0], originalOffset[1]];
-    const anchor = { x: frame.left + point.x, y: frame.top + point.y };
-    const relative = {
-      left: Math.min(...parts.map((box) => box.left)) - anchor.x - currentOffset.x,
-      right: Math.max(...parts.map((box) => box.right)) - anchor.x - currentOffset.x,
-      top: Math.min(...parts.map((box) => box.top)) - anchor.y - currentOffset.y,
-      bottom: Math.max(...parts.map((box) => box.bottom)) - anchor.y - currentOffset.y,
-    };
-    return [{ item, owner, previewed, offset,
-      previousOffset: [currentOffset.x - offset[0], currentOffset.y - offset[1]],
-      box: shifted(relative, anchor.x + offset[0], anchor.y + offset[1]),
-    }];
-  }).sort((a, b) => Number(b.owner) - Number(a.owner) || Number(b.previewed) - Number(a.previewed)
-    || a.item.id.localeCompare(b.item.id));
-
-  const placed: PersonPinFootprint[] = [];
-  // At each obstacle edge, merge forbidden vertical intervals and inspect the
-  // nearest gap. This finds a compact two-axis placement instead of sending dense
-  // neighbors down an ever-longer horizontal or vertical chain.
-  const nearestClearAxis = (intervals: Array<[number, number]>): number[] => {
-    intervals.sort((a, b) => a[0] - b[0]);
-    let start = Infinity;
-    let end = -Infinity;
-    for (const [nextStart, nextEnd] of intervals) {
-      if (nextStart > end) {
-        if (start < 0 && end > 0) return [start, end];
-        start = nextStart;
-        end = nextEnd;
-      } else {
-        end = Math.max(end, nextEnd);
-      }
-    }
-    return start < 0 && end > 0 ? [start, end] : [0];
-  };
-  for (const person of people) {
-    let dx = 0;
-    let dy = 0;
-    if (!person.owner && placed.some((box) => intersects(person.box, box))) {
-      if (person.previewed) {
-        const horizontal = nearestClearAxis(placed.filter((box) =>
-          person.box.top < box.bottom + gap && person.box.bottom + gap > box.top)
-          .map((box): [number, number] => [box.left - person.box.right - gap, box.right - person.box.left + gap]));
-        const vertical = nearestClearAxis(placed.filter((box) =>
-          person.box.left < box.right + gap && person.box.right + gap > box.left)
-          .map((box): [number, number] => [box.top - person.box.bottom - gap, box.bottom - person.box.top + gap]));
-        const candidates = [...horizontal.map((x) => [x, 0]), ...vertical.map((y) => [0, y])];
-        const insideFrame = ([x, y]: number[]) => {
-          const box = shifted(person.box, x, y);
-          return box.left >= frame.left && box.right <= frame.right && box.top >= frame.top && box.bottom <= frame.bottom;
-        };
-        const onScreen = candidates.filter(insideFrame);
-        [dx, dy] = (onScreen.length ? onScreen : candidates).sort((a, b) => Math.hypot(...a) - Math.hypot(...b))[0];
-      } else {
-        // Ordinary pins solve from their anchor; previous offsets only break ties.
-        const obstacles = placed.map((box) => ({
-          left: box.left - person.box.right - gap,
-          right: box.right - person.box.left + gap,
-          top: box.top - person.box.bottom - gap,
-          bottom: box.bottom - person.box.top + gap,
-        }));
-        const candidatesX = [...new Set([0, ...obstacles.flatMap((box) => [box.left, box.right])])]
-          .sort((a, b) => Math.abs(a) - Math.abs(b) || a - b);
-        let bestDistance = Infinity;
-        let bestPreviousDistance = Infinity;
-        for (const x of candidatesX) {
-          if (x * x > bestDistance + 0.0001) continue;
-          const candidatesY = nearestClearAxis(obstacles
-            .filter((box) => x > box.left && x < box.right)
-            .map((box): [number, number] => [box.top, box.bottom]));
-          for (const y of candidatesY) {
-            const distance = x * x + y * y;
-            const previousDistance = (x - person.previousOffset[0]) ** 2 + (y - person.previousOffset[1]) ** 2;
-            if (distance < bestDistance - 0.0001
-              || (Math.abs(distance - bestDistance) <= 0.0001 && previousDistance < bestPreviousDistance - 0.0001)) {
-              [dx, dy] = [x, y];
-              bestDistance = distance;
-              bestPreviousDistance = previousDistance;
-            }
-          }
-        }
-      }
-    }
-    const offset: [number, number] = [person.offset[0] + dx, person.offset[1] + dy];
-    const currentOffset = person.item.marker.getOffset();
-    if (Math.abs(currentOffset.x - offset[0]) > 0.01 || Math.abs(currentOffset.y - offset[1]) > 0.01) {
-      person.item.marker.setOffset(offset);
-    }
-    placed.push(shifted(person.box, dx, dy));
-  }
-}
-
 function cleanupRenderedMarker({ dispose, marker, root }: RenderedMapMarker) {
   dispose();
   marker.remove();
@@ -2471,7 +2306,6 @@ function MapView({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const markersRef = useRef<RenderedMapMarker[]>([]);
-  const schedulePersonLayoutRef = useRef<(previewChanged?: boolean) => void>(() => {});
   const viewportMarkersRef = useRef<MapMarker[]>([]);
   const demoRadiusCirclesRef = useRef<RadiusCircle[]>([]);
   const mapLibreRef = useRef<MapLibreExport | null>(null);
@@ -2498,6 +2332,17 @@ function MapView({
     () => getAccessibilityPreferences().largerText,
   );
   const [spiderfiedCluster, setSpiderfiedCluster] = useState<SpiderfiedCluster | null>(null);
+  const [ghostClusterVisibilityTick, setGhostClusterVisibilityTick] = useState(0);
+  useEffect(() => {
+    const now = Date.now();
+    const deadline = markers.reduce((next, marker) => marker.displayMode === 'GHOST'
+      && marker.isCurrentUser !== true && marker.id !== 'me'
+      && typeof marker.ghostRotationExpiresAtMs === 'number' && marker.ghostRotationExpiresAtMs > now
+      ? Math.min(next, marker.ghostRotationExpiresAtMs) : next, Infinity);
+    if (!Number.isFinite(deadline)) return;
+    const timer = window.setTimeout(() => setGhostClusterVisibilityTick((tick) => tick + 1), Math.max(0, deadline - now));
+    return () => window.clearTimeout(timer);
+  }, [markers, ghostClusterVisibilityTick]);
   const mapStyle = useMemo(() => getMapStyle(), []);
   const denseMarkerResult = useMemo(
     () => applyDenseVenueMarkers(markers, denseVenue, currentZoom),
@@ -2512,43 +2357,18 @@ function MapView({
         currentZoom,
         focusCoordinates,
         spiderfiedCluster,
+        mapInstance,
       );
       // Clustering can collapse nearby members, but individual member
       // coordinates stay exactly where the API placed them at every zoom.
       const withPlaceClusters = applyPlaceMarkerClusters(clusteredMarkers, currentZoom);
       return separateOverlappingMarkers(withPlaceClusters, currentZoom);
     },
-    [currentZoom, denseMarkerResult.markers, focusCoordinates, spiderfiedCluster],
+    [currentZoom, denseMarkerResult.markers, focusCoordinates, spiderfiedCluster, mapInstance, ghostClusterVisibilityTick],
   );
   const renderedMarkerSignature = useMemo(() => JSON.stringify(renderedMarkers), [renderedMarkers]);
   const renderedMarkersRef = useRef(renderedMarkers);
   renderedMarkersRef.current = renderedMarkers;
-  useEffect(() => {
-    if (!mapInstance || typeof mapInstance.on !== 'function' || typeof mapInstance.off !== 'function') return;
-    let frame: number | null = null;
-    let previewUntil = 0;
-    const layout = () => {
-      frame = null;
-      clearPersonPinOverlaps(mapInstance, markersRef.current, renderedMarkersRef.current);
-      if (performance.now() < previewUntil) frame = requestAnimationFrame(layout);
-    };
-    const schedule = (previewChanged = false) => {
-      // Existing preview transforms last 150ms. Track only that bounded transition.
-      if (previewChanged) previewUntil = performance.now() + 200;
-      if (frame === null) frame = requestAnimationFrame(layout);
-    };
-    const cameraChanged = () => schedule();
-    schedulePersonLayoutRef.current = schedule;
-    mapInstance.on('move', cameraChanged);
-    mapInstance.on('resize', cameraChanged);
-    schedule();
-    return () => {
-      schedulePersonLayoutRef.current = () => {};
-      mapInstance.off('move', cameraChanged);
-      mapInstance.off('resize', cameraChanged);
-      if (frame !== null) cancelAnimationFrame(frame);
-    };
-  }, [mapInstance]);
   const viewportMarkerSignature = useMemo(() => renderedMarkers
     .filter(isMapMarker)
     .map((marker) => [
@@ -2701,8 +2521,10 @@ function MapView({
           }
 
           markersRef.current.forEach((renderedMarker) => renderedMarker.setPreviewed(false));
+          setSpiderfiedCluster(null);
           onMapClickRef.current?.();
         });
+        map.on('zoomstart', () => setSpiderfiedCluster(null));
         map.on('zoomend', () => {
           if (typeof map.getZoom === 'function') {
             setCurrentZoom(map.getZoom());
@@ -2818,7 +2640,11 @@ function MapView({
       return;
     }
 
-    const visibleMarkers = viewportMarkersRef.current;
+    const visibleMarkers = viewportMarkersRef.current.flatMap((marker) => {
+      if (!marker.cluster?.memberIds.length) return [marker];
+      const members = new Set(marker.cluster.memberIds);
+      return markers.filter((candidate) => members.has(candidate.id));
+    });
     const focusKey = `${focusLatitude.toFixed(6)}:${focusLongitude.toFixed(6)}`;
 
     if (fitToMarkers) {
@@ -3140,8 +2966,14 @@ function MapView({
                     approximateLongitude: selectedMarker.approximateLongitude,
                   },
                   memberIds,
+                  pinned: true,
                 });
               }
+              return;
+            }
+
+            if (!spiderfiedCluster?.pinned && spiderfiedCluster?.memberIds.includes(selectedMarker.id)) {
+              setSpiderfiedCluster({ ...spiderfiedCluster, pinned: true });
               return;
             }
 
@@ -3191,16 +3023,41 @@ function MapView({
             onPinClickRef.current(selectedMarker);
           },
           (previewedMarker) => {
+            if (isSpiderfyCluster(previewedMarker)) {
+              const memberIds = previewedMarker.cluster?.memberIds ?? [];
+              if (memberIds.length >= 2) {
+                setSpiderfiedCluster({
+                  center: {
+                    approximateLatitude: previewedMarker.approximateLatitude,
+                    approximateLongitude: previewedMarker.approximateLongitude,
+                  },
+                  memberIds,
+                  pinned: false,
+                });
+              }
+              return;
+            }
             markersRef.current.forEach((renderedMarker) => {
               renderedMarker.setPreviewed(renderedMarker.id === previewedMarker.id);
             });
           },
+          (previewedMarker, relatedTarget) => {
+            if (spiderfiedCluster?.pinned || !spiderfiedCluster?.memberIds.includes(previewedMarker.id)) {
+              return;
+            }
+            const nextMarker = relatedTarget instanceof Element
+              ? relatedTarget.closest('[data-map-marker-id]')?.getAttribute('data-map-marker-id')
+              : null;
+            if (!nextMarker || !spiderfiedCluster.memberIds.includes(nextMarker)) {
+              setSpiderfiedCluster(null);
+            }
+          },
           () => {
             lastMarkerInteractionAtRef.current = Date.now();
           },
-          () => schedulePersonLayoutRef.current(true),
         );
         const displayMarker = marker as DisplayMapMarker;
+        element.dataset.mapMarkerId = marker.id;
 
         if (marker.activePing) {
           element.style.zIndex = String(ACTIVE_PING_MARKER_Z_INDEX);
@@ -3218,11 +3075,12 @@ function MapView({
 
         const mapMarker = new maplibregl.Marker({
           element,
+          subpixelPositioning: true,
           ...(displayMarker.spiderfy ? { offset: displayMarker.spiderfy.offset } : {}),
         })
           .setLngLat([marker.approximateLongitude, marker.approximateLatitude])
           .addTo(map);
-        return {
+        const renderedMarker: RenderedMapMarker = {
           dispose,
           id: marker.id,
           marker: mapMarker,
@@ -3230,8 +3088,8 @@ function MapView({
           setPreviewed,
           signature: nextSignatures.get(marker.id) ?? JSON.stringify(marker),
         };
+        return renderedMarker;
       });
-      schedulePersonLayoutRef.current();
     });
 
     return () => {
