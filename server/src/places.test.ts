@@ -40,7 +40,7 @@ describe("Spot taxonomy", () => {
   });
 
   it("keeps current stored tags and validates facility filters through the shared taxonomy", () => {
-    expect(PLACE_TAGS).not.toEqual(expect.arrayContaining(["dyke_bar", "dyke_spot", "gay_spot", "t4t_spot"]));
+    expect(PLACE_TAGS).not.toEqual(expect.arrayContaining(["dyke_bar", "dyke_spot", "gay_spot", "t4t_spot", "leans_women"]));
     expect(listPlacesQuerySchema.parse({ facilityTypes: "bar,clinic" }).facilityTypes).toBe("bar,clinic");
   });
 

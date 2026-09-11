@@ -7,7 +7,7 @@ export const PLACE_FACILITY_TYPES = [
 ] as const;
 
 export const PLACE_TAGS = [
-  'lgbtq_health', 'womens_health', 'sexual_health', 'leans_women',
+  'lgbtq_health', 'womens_health', 'sexual_health',
 ] as const;
 
 export const PLACE_VIBES = [
@@ -48,7 +48,6 @@ export const PLACE_FACILITY_SINGULAR_LABELS: Record<PlaceFacilityType, string> =
 
 export const PLACE_TAG_LABELS: Record<PlaceTag, string> = {
   lgbtq_health: 'LGBTQ health', womens_health: 'Ob/gyn health', sexual_health: 'Sexual health',
-  leans_women: 'Leans women',
 };
 
 export const PLACE_VIBE_LABELS: Record<PlaceVibe, string> = {

@@ -166,7 +166,8 @@ const migrationFiles = [
   "157_archive_reviewed_spot_sublocations.sql",
   "158_archive_imported_bathroom_stair_spots.sql",
   "159_archive_reviewed_spot_aliases.sql",
-  "160_archive_sniffies_retail_pins.sql"
+  "160_archive_sniffies_retail_pins.sql",
+  "161_drop_leans_women_spot_tag.sql"
 ];
 const rewardSafetyPreflightFiles = [
   "079_daily_check_in_rewards.sql",
