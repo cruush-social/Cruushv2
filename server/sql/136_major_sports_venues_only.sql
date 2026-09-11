@@ -7,6 +7,8 @@ update places
 set status = 'archived',
     updated_at = now()
 where facility_type = 'sports_venue'
+  and source_kind = 'open_data'
+  and slug ~ '^osm-(node|way|relation)-[0-9]+$'
   and status = 'published'
   and name not in (
     'Aqueduct Racetrack',

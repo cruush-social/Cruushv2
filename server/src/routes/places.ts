@@ -40,6 +40,10 @@ const adminListSchema = z.object({
   offset: z.coerce.number().int().min(0).max(5000).default(0)
 }).strict();
 
+function normalizedPlaceName(name: string): string {
+  return name.normalize("NFKC").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");
+}
+
 type PlaceRow = {
   id: string;
   slug: string;
@@ -496,18 +500,18 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
       throw new ApiError(400, "OUTSIDE_SERVICE_AREA", "Spots must be within 100 miles of NYC.");
     }
     await moderateTextOrReject(app, { userId, surface: "feed", text: `${payload.name}\n${payload.description}\n${payload.accessInstructions}` });
-    const publishedDuplicate = (await app.db.query<{ id: string }>(
-      `select id::text, status from places
+    const submittedName = normalizedPlaceName(payload.name);
+    const publishedNearbyPlaces = await app.db.query<{ id: string; name: string }>(
+      `select id::text, name, status from places
        where status = 'published'
          and 3958.7613 * 2 * asin(sqrt(
            power(sin(radians((latitude - $1::double precision) / 2)), 2)
            + cos(radians($1::double precision)) * cos(radians(latitude))
              * power(sin(radians((longitude - $2::double precision) / 2)), 2)
-         )) <= 0.0621371
-       limit 1`,
+         )) <= 0.0621371`,
       [payload.latitude, payload.longitude]
-    )).rows[0];
-    if (publishedDuplicate) {
+    );
+    if (submittedName && publishedNearbyPlaces.rows.some((row) => normalizedPlaceName(row.name) === submittedName)) {
       throw new ApiError(409, "DUPLICATE_PLACE", "A place already exists at this location.");
     }
     const pendingSuggestions = await app.db.query<PlaceRow>(
@@ -516,7 +520,7 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
     );
     const duplicate = pendingSuggestions.rows.find((row) => {
       const suggestion = readEncryptedSuggestion(app, row);
-      return distanceMiles(
+      return submittedName.length > 0 && normalizedPlaceName(suggestion.name) === submittedName && distanceMiles(
         { lat: payload.latitude, lng: payload.longitude },
         { lat: suggestion.latitude, lng: suggestion.longitude }
       ) <= 0.0621371;

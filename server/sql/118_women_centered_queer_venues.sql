@@ -22,3 +22,11 @@ values
   ('11800000-0000-4000-8000-000000000015', 'marshas-south-street', 'Marsha''s South Street', 'Queer women''s sports bar.', 39.9416796, -75.1503534, '430 South Street, Philadelphia, PA 19147', 'bar', 'published', 'official', 'https://www.marshassouthstreet.com/contact', 'Marsha''s South Street; coordinates © OpenStreetMap contributors', now()),
   ('11800000-0000-4000-8000-000000000016', 'troupe429', 'Troupe429', 'Queer bar and performance venue.', 41.1087040, -73.3961110, '41 North Bridge Street, Norwalk, CT 06854', 'nightclub', 'published', 'official', 'https://www.troupe429.com/siren', 'Troupe429; coordinates © OpenStreetMap contributors', now())
 on conflict (id) do nothing;
+
+-- Use the venue's public name; cooperative describes its ownership.
+-- Official source: https://www.boyfriend.coop/about/ (verified 2026-09-10).
+-- Preserve later edits by changing only the original seeded display name.
+update places
+set name = 'Boyfriend'
+where id = '11800000-0000-4000-8000-000000000001'
+  and name = 'Boyfriend Cooperative';

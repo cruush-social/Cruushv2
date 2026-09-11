@@ -1551,7 +1551,7 @@ describe("server", () => {
     }
   });
 
-  it("stores a new Spot suggestion only in an encrypted envelope", async () => {
+  it("stores a distinct nearby Spot suggestion only in an encrypted envelope", async () => {
     const payload = {
       name: "Private proposed Spot",
       description: "Private review detail",
@@ -1564,6 +1564,24 @@ describe("server", () => {
       vibes: ["cruisy"],
       amenities: ["restrooms"]
     };
+    const nearbyPlaceId = "10000000-0000-4000-8000-000000000099";
+    const nearbySuggestion = encryptPlaceSuggestion(app.config, { ...payload, name: "Another proposed Spot" });
+    query.mockImplementation((sql: string) => {
+      const text = String(sql);
+      if (text.includes("where status = 'published'")) {
+        return Promise.resolve({ rows: [{ id: nearbyPlaceId, name: "Existing neighboring Spot" }] });
+      }
+      if (text.includes("p.status = 'pending'")) {
+        return Promise.resolve({ rows: [{
+          id: nearbyPlaceId,
+          suggestion_ciphertext: nearbySuggestion.ciphertext,
+          suggestion_nonce: nearbySuggestion.nonce,
+          suggestion_auth_tag: nearbySuggestion.authTag,
+          suggestion_key_version: nearbySuggestion.keyVersion
+        }] });
+      }
+      return Promise.resolve({ rows: [] });
+    });
 
     const response = await app.inject({
       method: "POST",
@@ -1577,6 +1595,9 @@ describe("server", () => {
 
     expect(response.statusCode).toBe(201);
     expect(response.json().data).toMatchObject({ status: "pending", suggestionCount: 1, autoShortlisted: false });
+    expect(response.json().data.id).not.toBe(nearbyPlaceId);
+    const supportCall = query.mock.calls.find(([sql]) => String(sql).includes("insert into place_suggestions"));
+    expect(supportCall?.[1]?.[0]).toBe(response.json().data.id);
     expect(insertSql).toContain("'[encrypted suggestion]', '', 0, 0, null, 'other'");
     expect(insertSql).toContain("submitted_by");
     expect(insertParams).not.toContain(payload.name);
@@ -1596,7 +1617,7 @@ describe("server", () => {
   it("adds anonymous duplicate support and shortlists at three supporters", async () => {
     const placeId = "10000000-0000-4000-8000-000000000099";
     const payload = {
-      name: "Supported proposed Spot",
+      name: "Supporter's proposed Spot",
       description: "Private review detail",
       latitude: 40.72,
       longitude: -73.98,
@@ -1604,7 +1625,7 @@ describe("server", () => {
       facilityType: "bar",
       tags: []
     };
-    const encrypted = encryptPlaceSuggestion(app.config, payload);
+    const encrypted = encryptPlaceSuggestion(app.config, { ...payload, name: "SUPPORTER’S PROPOSED SPOT" });
 
     query.mockImplementation((sql: string) => {
       const text = String(sql);
@@ -1638,6 +1659,36 @@ describe("server", () => {
     expect(String(supportCall?.[0])).toContain("on conflict do nothing");
     expect(supportCall?.[1]?.[1]).not.toBe(userId);
     expect(String(supportCall?.[1]?.[1])).not.toContain(userId);
+  });
+
+  it("rejects a same-name published Spot among distinct nearby venues", async () => {
+    query.mockImplementation((sql: string) => {
+      if (String(sql).includes("where status = 'published'")) {
+        return Promise.resolve({ rows: [
+          { id: "10000000-0000-4000-8000-000000000098", name: "Neighboring Spot" },
+          { id: "10000000-0000-4000-8000-000000000099", name: "MEMBER’S SPOT" }
+        ] });
+      }
+      return Promise.resolve({ rows: [] });
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/places",
+      headers: { "x-user-id": userId },
+      payload: {
+        name: "Member's Spot",
+        description: "Private review detail",
+        latitude: 40.72,
+        longitude: -73.98,
+        facilityType: "bar",
+        tags: []
+      }
+    });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json().error.code).toBe("DUPLICATE_PLACE");
+    expect(query.mock.calls.some(([sql]) => String(sql).includes("insert into place"))).toBe(false);
   });
 
   it("denies Spot publication before any moderator update", async () => {
