@@ -26,7 +26,7 @@ createRoot(document.getElementById("root")!).render(<App />);
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
-    const APP_SHELL_REFRESH_ID = "v127";
+    const APP_SHELL_REFRESH_ID = "v128";
     const SERVICE_WORKER_SCRIPT_URL = `/sw.js?release=${APP_SHELL_REFRESH_ID}`;
     let hasController = Boolean(navigator.serviceWorker.controller);
     let reloadStarted = false;
@@ -35,14 +35,6 @@ if ("serviceWorker" in navigator) {
       registration?.waiting?.postMessage({ type: "SKIP_WAITING" });
       registration?.active?.postMessage({ type: "CLIENT_REFRESH_REQUESTED", refreshId: APP_SHELL_REFRESH_ID });
       void registration?.update().catch(() => {});
-    };
-
-    const refreshAllWorkers = () => {
-      void navigator.serviceWorker.getRegistrations()
-        .then((registrations) => {
-          registrations.forEach(requestWorkerRefresh);
-        })
-        .catch(() => {});
     };
 
     navigator.serviceWorker.addEventListener("controllerchange", () => {
@@ -73,27 +65,6 @@ if ("serviceWorker" in navigator) {
           });
         });
 
-        const refreshOnVisible = () => {
-          if (document.visibilityState === "visible") {
-            requestWorkerRefresh(registration);
-            refreshAllWorkers();
-          }
-        };
-
-        window.addEventListener("focus", refreshOnVisible);
-        window.addEventListener("online", refreshOnVisible);
-        document.addEventListener("visibilitychange", refreshOnVisible);
-        window.setTimeout(refreshOnVisible, 2500);
-
-        let refreshAttempts = 0;
-        const refreshInterval = window.setInterval(() => {
-          refreshAttempts += 1;
-          refreshOnVisible();
-
-          if (refreshAttempts >= 8) {
-            window.clearInterval(refreshInterval);
-          }
-        }, 30000);
       })
       .catch(() => {});
   });

@@ -28,7 +28,7 @@ describe('service worker update delivery', () => {
     expect(serviceWorkerSource).toContain("fetch(request, { cache: 'no-store' })");
     expect(serviceWorkerSource).toContain("event.data?.type === 'SKIP_WAITING'");
     expect(serviceWorkerSource).toContain("event.data?.type === 'CLIENT_REFRESH_REQUESTED'");
-    expect(serviceWorkerSource).toContain('client.navigate(client.url)');
+    expect(serviceWorkerSource).not.toContain('client.navigate(client.url)');
     expect(serviceWorkerSource).not.toContain('url.searchParams.set');
     expect(serviceWorkerSource).not.toContain('cruush-sw-refresh');
     expect(serviceWorkerSource).not.toContain('caches.match');
@@ -36,15 +36,13 @@ describe('service worker update delivery', () => {
     expect(serviceWorkerSource).not.toContain('cache.addAll');
   });
 
-  it('registers the worker without HTTP cache reuse and reloads controlled clients', () => {
+  it('registers the worker without HTTP cache reuse and reloads once after control changes', () => {
     expect(appEntrySource).toContain(`const APP_SHELL_REFRESH_ID = "${releaseId}";`);
     expect(appEntrySource).toContain('const SERVICE_WORKER_SCRIPT_URL = `/sw.js?release=${APP_SHELL_REFRESH_ID}`;');
     expect(appEntrySource).toContain('navigator.serviceWorker.register(SERVICE_WORKER_SCRIPT_URL, { updateViaCache: "none" })');
     expect(appEntrySource).toContain('navigator.serviceWorker.addEventListener("controllerchange"');
-    expect(appEntrySource).toContain('navigator.serviceWorker.getRegistrations()');
-    expect(appEntrySource).toContain('window.addEventListener("focus", refreshOnVisible)');
-    expect(appEntrySource).toContain('document.addEventListener("visibilitychange", refreshOnVisible)');
     expect(appEntrySource).toContain('window.location.reload()');
+    expect(appEntrySource).toContain('let reloadStarted = false;');
     expect(appEntrySource).toContain('window.addEventListener("beforeinstallprompt", captureInstallPrompt)');
     expect(appEntrySource).toContain('registration?.waiting?.postMessage({ type: "SKIP_WAITING" })');
     expect(appEntrySource).toContain('registration?.active?.postMessage({ type: "CLIENT_REFRESH_REQUESTED", refreshId: APP_SHELL_REFRESH_ID })');
