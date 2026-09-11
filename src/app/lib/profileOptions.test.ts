@@ -53,8 +53,8 @@ describe('profileOptions', () => {
 
   it('keeps looking-for choices focused on immediate local intent', () => {
     expect(LOOKING_FOR).toEqual([
-      'chat', 'cruise', 'dating', 'dynamic', 'friends', 'group', 'hookup', 'networking',
-      'play partner', 'right now', 'sex parties', 'sneaky link', 'threesome'
+      'chat', 'cruise', 'cyber sex', 'dating', 'dynamic', 'friends', 'group', 'hookup', 'networking',
+      'play partner', 'right now', 'role play partner', 'sex parties', 'sneaky link', 'threesome'
     ]);
     expect(LOOKING_FOR).not.toContain('relationship');
   });

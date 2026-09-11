@@ -44,7 +44,7 @@ export const ROLES = alphabetize([
 ]);
 
 export const LOOKING_FOR = alphabetize([
-  'chat', 'cruise', 'dating', 'dynamic', 'friends', 'group', 'hookup', 'networking', 'play partner', 'right now', 'sex parties', 'sneaky link', 'threesome'
+  'chat', 'cruise', 'cyber sex', 'dating', 'dynamic', 'friends', 'group', 'hookup', 'networking', 'play partner', 'right now', 'role play partner', 'sex parties', 'sneaky link', 'threesome'
 ]);
 
 export const AVAILABILITY = alphabetize([
