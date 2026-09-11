@@ -35,3 +35,5 @@ the branch name.
 - **J4** — never revert or overwrite work you did not create without saying so first.
 
 - `/Volumes/good/cruush-spot-alias-duplicates-20260910`: `fix/spot-alias-duplicates-20260910`, Codex thread 01a08cc1, guarded Lincoln Terrace alias repair; active, not yet merged.
+
+- `fix/owner-ghost-pins-20260910` at `/Volumes/good/cruush-owner-ghost-pins-20260910`: Codex task `01a08e63-fb72-7070-886b-c162d77b31d9`; excludes owner/decoy from people clusters and protects their tap targets; local tests/build/render verified; not merged or published.

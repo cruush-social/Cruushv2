@@ -1778,38 +1778,56 @@ describe('MapView', () => {
     expect(onPinClick).toHaveBeenCalledWith(expect.objectContaining({ kind: 'event' }));
   });
 
-  it('clusters a same-building person with the owner and fans out only on tap without changing their anchors', async () => {
+  it('keeps the owner and owner Ghost decoy out of clusters through zoom and same-building spiderfy', async () => {
     const onPinClick = vi.fn();
     const owner: MapMarker = {
-      id: 'me', displayName: 'You', isCurrentUser: true,
+      id: 'me', displayName: 'You',
       approximateLatitude: 40.7128, approximateLongitude: -73.99,
+    };
+    const decoy: MapMarker = {
+      id: 'me-ghost-decoy', displayName: 'Your Ghost pin', isCurrentUser: true,
+      displayMode: 'GHOST', ghostRotationExpiresAtMs: Date.now() + 60_000,
+      approximateLatitude: 40.7148, approximateLongitude: -73.99,
     };
     const nearby: MapMarker = {
       id: 'nearby', displayName: 'Nearby', approximateLatitude: owner.approximateLatitude + 0.0008,
       approximateLongitude: owner.approximateLongitude,
     };
-    render(<MapView onPinClick={onPinClick} markers={[owner, nearby]} />);
+    const neighbor: MapMarker = { ...nearby, id: 'neighbor', displayName: 'Neighbor' };
+    render(<MapView onPinClick={onPinClick} markers={[owner, decoy, nearby, neighbor]} />);
     await waitFor(() => expect(mapInstances).toHaveLength(1));
-    act(() => {
-      mapInstances[0].getZoom.mockReturnValue(16);
-      mapInstances[0].trigger('zoomend');
-    });
+    for (const zoom of [10, 12, 16, 20, 12]) {
+      act(() => {
+        mapInstances[0].getZoom.mockReturnValue(zoom);
+        mapInstances[0].trigger('zoomend');
+      });
+      await screen.findByRole('button', { name: 'Open 2 nearby people sharing this map spot' });
+      expect(screen.getByRole('button', { name: 'Show your pin details' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Show your Ghost Mode decoy details' })).toBeInTheDocument();
+      const visible = markerInstances.filter((marker) => marker.element.isConnected);
+      expect(visible).toHaveLength(3);
+      const clusterMarker = visible.find((candidate) => candidate.element.querySelector('[data-testid^="people-cluster-marker-"]'));
+      for (const original of [owner, decoy]) {
+        const marker = visible.find((candidate) => candidate.element.querySelector(`[data-testid="marker-pin-unit-${original.id}"]`));
+        expect(marker?.coordinates).toEqual([original.approximateLongitude, original.approximateLatitude]);
+        expect(marker?.offset).toBeNull();
+        expect(Number(marker?.element.style.zIndex)).toBeGreaterThan(Number(clusterMarker?.element.style.zIndex));
+      }
+    }
 
     const cluster = await screen.findByRole('button', { name: 'Open 2 nearby people sharing this map spot' });
     const collapsed = markerInstances.filter((marker) => marker.element.isConnected);
-    expect(collapsed).toHaveLength(1);
-    expect(collapsed[0].coordinates).toEqual([owner.approximateLongitude, owner.approximateLatitude]);
-    expect(collapsed[0].offset).toBeNull();
+    expect(collapsed).toHaveLength(3);
     expect(screen.queryByRole('button', { name: 'Open Nearby on map' })).not.toBeInTheDocument();
 
     fireEvent.click(cluster);
     const nearbyButton = await screen.findByRole('button', { name: 'Open Nearby on map' });
     const expanded = markerInstances.filter((marker) => marker.element.isConnected);
-    expect(expanded).toHaveLength(2);
-    for (const original of [owner, nearby]) {
+    expect(expanded).toHaveLength(4);
+    for (const original of [owner, decoy, nearby, neighbor]) {
       const marker = expanded.find((candidate) => candidate.element.querySelector(`[data-testid="marker-pin-unit-${original.id}"]`));
       expect(marker?.coordinates).toEqual([original.approximateLongitude, original.approximateLatitude]);
-      if (original.isCurrentUser) expect(marker?.offset ?? [0, 0]).toEqual([0, 0]);
+      if (original === owner || original === decoy) expect(marker?.offset).toBeNull();
       else expect(Math.hypot(...(marker?.offset ?? [0, 0]))).toBeGreaterThan(0);
     }
     expect(mapInstances[0].fitBounds).not.toHaveBeenCalled();
@@ -1826,6 +1844,7 @@ describe('MapView', () => {
       await act(async () => {
         render(<MapView onPinClick={vi.fn()} markers={[
           { id: 'me', displayName: 'You', isCurrentUser: true, approximateLatitude: 40.7128, approximateLongitude: -73.99 },
+          { id: 'other-person', displayName: 'Nearby', approximateLatitude: 40.7128, approximateLongitude: -73.99 },
           { id: 'other-ghost', displayName: 'River', displayMode: 'GHOST', ghostRotationExpiresAtMs: deadline, approximateLatitude: 40.7128, approximateLongitude: -73.99 },
         ]} />);
       });
@@ -1902,13 +1921,12 @@ describe('MapView', () => {
       />
     );
 
-    const cluster = await screen.findByRole('button', { name: 'Zoom into 3 nearby people on map' });
-    expect(cluster.querySelector('[data-testid^="people-cluster-marker-"]')).toHaveTextContent('3');
+    const cluster = await screen.findByRole('button', { name: 'Zoom into 2 nearby people on map' });
+    expect(cluster.querySelector('[data-testid^="people-cluster-marker-"]')).toHaveTextContent('2');
     expect(screen.queryByRole('button', { name: 'Open A on map' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Open B on map' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Open C on map' })).toBeInTheDocument();
-    // An overlapping owner is represented by this cluster at the owner's anchor.
-    expect(screen.queryByRole('button', { name: 'Show your pin details' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Show your pin details' })).toBeInTheDocument();
 
     await act(async () => {
       fireEvent.click(cluster);
@@ -1922,7 +1940,7 @@ describe('MapView', () => {
       expect.objectContaining({ maxZoom: 15.25 }),
     );
     expect(mapInstances[0].setCenter).not.toHaveBeenCalled();
-    expect(screen.getByRole('button', { name: 'Zoom into 3 nearby people on map' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Zoom into 2 nearby people on map' })).toBeInTheDocument();
   });
 
   it('keeps a people cluster mounted when input order and unrelated clusters change', async () => {

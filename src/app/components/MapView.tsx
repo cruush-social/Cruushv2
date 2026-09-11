@@ -792,10 +792,11 @@ export function separateOverlappingMarkers(markers: MapMarker[], _zoom: number) 
 }
 
 function canClusterMarker(marker: MapMarker, focusCoordinates: MapViewProps['focusCoordinates']) {
-  if ((marker.kind ?? 'person') !== 'person') return false;
+  // Both owner markers must stay visible at their own geographic anchors.
+  if ((marker.kind ?? 'person') !== 'person' || marker.isCurrentUser === true || marker.id === 'me') return false;
   // An expired decoy is hidden by its individual artwork. It must not remain
   // discoverable through a cluster count after that same visibility deadline.
-  return marker.isCurrentUser === true || marker.id === 'me' || marker.displayMode !== 'GHOST'
+  return marker.displayMode !== 'GHOST'
     || typeof marker.ghostRotationExpiresAtMs !== 'number' || marker.ghostRotationExpiresAtMs > Date.now();
 }
 
@@ -3080,7 +3081,8 @@ function MapView({
         } else if (marker.kind == null || marker.kind === 'person' || isPersonCluster(marker)) {
           // People pins and people clusters always sit above Spot pins and
           // Spot clusters, so a person is never hidden behind a venue.
-          element.style.zIndex = '40';
+          // Keep owner artwork and its tap target above nearby cluster counts.
+          element.style.zIndex = marker.isCurrentUser === true || marker.id === 'me' ? '41' : '40';
         } else {
           element.style.zIndex = '20';
         }

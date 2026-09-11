@@ -1,3 +1,33 @@
+# Authorized production release, September 10, 2026
+
+User source: current task transcript line 411, “Deploy this fix ASAP”. Release only the verified owner pin/decoy fix, its tests and required worker-cache version update to v129. Both frontend and server builds, independent review, scoped commit/push, runtime identity and authenticated live mobile verification are required. No environment variables or provider settings change. Status: release in progress. Independent review by `/root/owner_pin_review` approved the exact owner-marker source and rendered evidence; server build, client build and four worker-version checks pass.
+
+The preceding Stop hook incorrectly reported a missing correction write. C30 was written by Python in this turn, all three loaded files contain task01a08e63, and the sync receipt matches. The hook requires `noteIndex >= 0` from changed-file metadata or an apply_patch first target, so it missed that completed Python write. This is a tooling detection limit; no global hook was edited and no duplicate correction was added.
+
+---
+
+# Pre-release verification checkpoint (historical)
+
+- Item: `OWNER-GHOST-CLUSTER-20260910`, local repair verified; production publication awaits explicit authority.
+- Worktree: `/Volumes/good/cruush-owner-ghost-pins-20260910`; branch `fix/owner-ghost-pins-20260910`; base `031ab2d5b774a57db1d69e21fc78a2d96583f7ad`.
+- Source: `/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T22-55-12-01a08e63-fb72-7070-886b-c162d77b31d9.jsonl:9`: “Now my icon an ghost mode decoy for signsd in user ar egone what did you do why would you put cluster pins there”. The attached photo shows counts at the owner/decoy link endpoints.
+- Responsible change: `17d5b30bc90348283aabbeb5e6faf439dcde8210` removed the owner exclusion in `canClusterMarker` and replaced it with an unconditional inclusion. `MapHome` creates both `me` and `me-ghost-decoy` with `isCurrentUser: true`.
+- Scope: exclude only the owner markers from people clustering. Preserve coordinates, artwork, gradients, photos, badges, animation, Ghost visibility deadlines, other-member clustering/spiderfy, Spot behavior and all running servers.
+- Source repair is applied. Three existing cluster tests now require owner/decoy preservation, correct other-member counts and unchanged other-member Ghost expiry. No new test suite or product controls.
+- Proof directory: `/Volumes/good/cruush-owner-ghost-pins-20260910-proof`. Includes immutable starting source snapshots, inherited unrelated contract and production mobile baseline.
+- Production baseline: owner missing on desktop; both owner and decoy missing after changing the page to 412x915. The corrected-owner test fails on the unmodified baseline. Client build passes. The initial MapView run had 68 passes and one unrelated Ping-preview expectation failure; final findings below supersede that checkpoint.
+- Final evidence: `final-focused-tests.log` has 8/8 focused checks passed; `final-client-build.log` passes. The broader initial MapView run had 68 passes and one Ping-preview failure; `baseline-ping-test.log` reproduces that same failure on the unchanged baseline. No unrelated test or Ping behavior was changed.
+- Final render: browser-local compiled candidate on the authenticated `https://cruush.app/` route, 375x915, 412x915 and 1440x1000. Both owner hearts render individually at their original coordinates with `z-index: 41`; ordinary people clusters retain 40. `elementFromPoint` at each heart center returns that owner marker, and clicking each reveals its own preview. Real Zoom in/out controls increased zoom by more than 0.9 and returned within 0.01 of the initial zoom. All screenshots were opened and inspected. This is a local asset override, not production deployment; app writes and worker registration were suppressed inside that preview page only. Native Android remains unverified.
+- A rendered check of the first exclusion-only patch showed a remaining count covering the real pin's click target. The added owner-only stacking condition fixes that demonstrated part of the same symptom without offsets, asset edits, or changes to other-member cluster behavior.
+- Scope: only `MapView.tsx`, its existing tests, and required task/decision/worktree/FIXLOG records changed. C30 was updated in `/Users/julienlenaz/.ai/CORRECTIONS.md` and verified synchronized to both Codex and Gemini loaders. No server, asset, style-sheet, dependency, provider, or dev-server changes.
+- Final next action: obtain explicit production release authority for this prepared fix. Before any authorized publication, complete the required publication review/server build and live version verification. No publication is authorized by this new report.
+- Queue: this task has one item; earlier queues remain with their owning sessions. The inherited handoff below is historical, not this task’s active queue.
+- User effort: one direct corrective episode, one reopened user-visible regression. Other episode metrics not reviewed.
+
+---
+
+# Historical inherited handoff
+
 # Handoff: feat/free-feed-board
 
 Worktree: `/Volumes/good/Cruushv2-free-feed-20260822`

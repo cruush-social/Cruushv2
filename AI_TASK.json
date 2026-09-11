@@ -1,63 +1,47 @@
 {
   "schemaVersion": 2,
-  "taskId": "map-zoom-hiv-capsule-20260910",
+  "taskId": "owner-ghost-pins-20260910",
   "status": "active",
-  "hookRepair": {
-    "authority": "Julien authorized repairing the hook without weakening approval checks: so fix it i guess ?",
-    "scope": "Narrow compatibility repairs for a pre-installation dirty session, the explicit should be centered instruction, SVG positioning detection and actual detached-HEAD push refs.",
-    "preserve": "Keep real user-source references, staged/outgoing source verification and independent review mandatory. Do not fabricate pre-edit evidence or add bypass flags.",
-    "coordination": "The Add UI scope improvement plan task owns the global hook files and is applying the repair; this task preserves the staged product patch and verifies the release."
-  },
-  "objective": "Repair map zoom enlarging the whole screen, add the requested capsule around HIV Status, and investigate whether Ginger's and the previously collected women-centered venues are in live Spots. Verify the 19 collected venue names against official public sources and correct confirmed name mismatches only. Remove remaining low-quality Sniffies imports and duplicate venue/sublocation pins while preserving real public venues; verify collection of member-submitted Spots.",
-  "userOutcome": "Pinching the map changes its zoom while the app stays at the same scale; HIV Status uses the existing health-field capsule.",
-  "audience": "cruush members",
+  "objective": "Keep the signed-in owner pin and owner Ghost decoy visible as individual markers instead of replacing them with people clusters. Explain the responsible regression.",
+  "userOutcome": "Your own pin and Ghost decoy remain visible at their existing coordinates at every zoom, while other members retain current clustering and spiderfy.",
+  "audience": "cruush signed-in owner",
   "successCriteria": [
-    "Reproduce map pinch gesture and verify map zoom changes without viewport scale change.",
-    "Render HIV Status capsule on mobile and desktop and preserve neighboring fields.",
-    "Run affected existing tests and required build checks."
+    "Reproduce the owner/decoy clustering failure.",
+    "Verify both owner markers remain rendered through zoom and ordinary people cluster expansion.",
+    "Preserve other-member Ghost expiry and existing people/Spot clustering.",
+    "Run focused MapView tests and client build; inspect populated rendered map."
   ],
   "mustPreserve": [
-    "Map style, tiles, markers, controls and page layout.",
-    "HIV values, visibility, privacy, labels and every other health field.",
-    "Other worktrees and canonical queue items.",
-    "Do not start, stop or restart dev servers.",
-    "Venue names correction preserves all IDs, slugs, addresses, statuses, categories, tags, descriptions and member data; a later custom name must not be overwritten.",
-    "Keep identifiable parks, gyms, parking lots and comparable real venues, non-Sniffies records and all member data. For venue/bathroom pairs retain venue; for true duplicate/misspelled variants retain correct distinct venue record.",
-    "Latest clarification: retain hotels and actual transit stations, including bus, train and shuttle stations.",
-    "Latest source refinement: verify real venues against OpenStreetMap, retain dungeons/adult venues and named hotel/transit venues; remove random staircase, office, retail-bathroom and retail-parking pins. Retail parking exception supersedes broad parking preservation."
+    "All marker artwork, photos, gradients, colors, badges and animation.",
+    "Owner-only location and decoy preview privacy; no server/data changes.",
+    "Other-member clustering, spiderfy and Ghost visibility deadlines.",
+    "Map coordinates, tiles, camera and page layout.",
+    "All other worktrees and running servers.",
+    "Owner pin and Ghost decoy remain above overlapping people cluster counts without changing any geographic coordinate."
   ],
   "nonGoals": [
-    "No account changes, new UI copy, map redesign, global accessibility zoom restriction or unrelated repairs."
+    "No map redesign, automatic displacement, new controls, unrelated fixes or account changes."
   ],
-  "assumptions": [
-    {
-      "statement": "The exact reported whole-screen zoom is reproduced when a pinch begins in transparent map-control-menu space at 412px.",
-      "impact": "Repair is limited to hit testing of those transparent gaps; actual buttons retain their existing interactions.",
-      "reversible": true,
-      "confirmationState": "labeled"
-    }
-  ],
-  "nextVisibleMilestone": "Review the complete current published Spot list, produce exact archival candidates and retained parents, then perform authorized recoverable removal and verify submission storage.",
+  "assumptions": [],
+  "nextVisibleMilestone": "Both production services run the owner-pin fix and live mobile owner/decoy markers remain visible.",
   "stopConditions": [
-    "Stop on user cancellation.",
-    "Do not publish without explicit release authority."
+    "Stop on explicit user cancellation.",
+    "Block unsafe or out-of-scope release differences."
   ],
   "costBudget": {
     "maxUsd": 0,
     "maxMinutes": null
   },
   "externalEffectDecisions": {
-    "commit": "Scoped local commit permitted; no publication authorized in current request.",
-    "push": "Requires release authority.",
-    "deploy": "Requires release authority.",
-    "send": "forbidden",
-    "spotArchive": "User explicitly authorizes removing qualifying Sniffies imported Spots, including duplicates. Use recoverable archival only; no hard deletion or unrelated data writes."
+    "publication": "authorized to origin/main by user line 411",
+    "deployment": "authorized production release of this fix by user line 411",
+    "messages": "forbidden"
   },
   "externalEffects": {
     "externalMessages": "forbidden",
     "purchases": "forbidden",
-    "deployment": "confirm",
-    "publication": "confirm",
+    "deployment": "auto",
+    "publication": "auto",
     "deletion": "forbidden",
     "securityChanges": "forbidden",
     "credentials": "forbidden",
@@ -65,149 +49,99 @@
     "identityCreativeDecisions": "forbidden"
   },
   "product": "cruush",
-  "release": "1.6",
   "repository": "cruush-social/Cruushv2",
-  "branch": "fix/map-zoom-hiv-capsule-20260910",
-  "job": "Two reported bugs only.",
+  "branch": "fix/owner-ghost-pins-20260910",
   "allowedPaths": [
     "src/app/components/MapView.tsx",
     "src/app/components/MapView.test.tsx",
-    "src/app/components/ProfileView.tsx",
-    "src/app/components/ProfileView.test.tsx",
+    "AI_TASK.json",
+    "HANDOFF.md",
     "DESIGN_DECISIONS.md",
     "FIXLOG.md",
-    "docs/bug-queue-20260908.md",
     "docs/worktrees.md",
-    "AI_TASK.json",
-    "src/app/components/MapHome.tsx",
-    "src/app/components/MapHome.test.tsx",
-    "server/sql/118_women_centered_queer_venues.sql",
-    "server/src/routes/places.ts",
-    "server/src/places.ts",
-    "server/src/places.test.ts",
-    "server/src/app.test.ts",
-    "server/src/migrate.test.ts",
-    "server/sql/137_lgbt_community_spaces_and_ymca.sql",
-    "server/sql/136_major_sports_venues_only.sql",
-    "server/sql/138_alt_music_venues_only.sql",
-    "server/sql/159_archive_reviewed_random_spots.sql",
-    "server/sql/160_archive_sniffies_retail_pins.sql",
-    "server/src/migrate.ts"
+    "public/sw.js",
+    "public/service-worker-recovery.js",
+    "src/main.tsx",
+    "index.html"
   ],
   "forbiddenPaths": [
-    "src/app/assets/brand/**"
-  ],
-  "proofTarget": "Actual populated map and profile Health tab at 375/412 mobile and desktop.",
-  "publicationTarget": "local pending explicit release authority",
-  "requiredEvidence": [
-    "Gesture reproduction and paired result",
-    "Rendered capsule geometry",
-    "Focused tests and build"
+    "server/**",
+    "src/app/assets/**"
   ],
   "source": {
-    "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T14-25-49-01a08c91-a340-7b92-95aa-f137c8bf7b16.jsonl",
+    "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T22-55-12-01a08e63-fb72-7070-886b-c162d77b31d9.jsonl",
     "line": 9,
-    "text": "cruush has a bug where if you try to zoom it enlarges the entjrs screen not the map, and also you didng put a capsule around hiv status like i asked"
+    "text": "Now my icon an ghost mode decoy for signsd in user ar egone what did you do why would you put cluster pins there"
   },
   "baseline": {
-    "sha": "d29a1cfff5275ce4bf3c4dbb162f0db60c49d760",
-    "productDiff": "New isolated worktree, no preexisting product differences.",
-    "inheritedContract": "/Volumes/good/cruush-map-zoom-hiv-proof-20260910/inherited-AI_TASK.json",
-    "inheritedContractSha256": "d50b302ac4683d9607c3ddd8d745e62824865cd70b834d242bfdf4a7e22eaef7"
+    "sha": "031ab2d5b774a57db1d69e21fc78a2d96583f7ad",
+    "inheritedContract": "/Volumes/good/cruush-owner-ghost-pins-20260910-proof/inherited-AI_TASK.json",
+    "productState": "Clean new worktree; existing other-task contract preserved as evidence."
   },
-  "handoff": "/Volumes/good/cruush-ghost-release-verify.dGvmWd/docs/bug-queue-20260908.md",
+  "handoff": "/Volumes/good/cruush-owner-ghost-pins-20260910/HANDOFF.md",
+  "currentItem": "OWNER-GHOST-CLUSTER-20260910",
+  "queue": [
+    {
+      "id": "OWNER-GHOST-CLUSTER-20260910",
+      "status": "release-in-progress",
+      "source": {
+        "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T22-55-12-01a08e63-fb72-7070-886b-c162d77b31d9.jsonl",
+        "line": 9,
+        "text": "Now my icon an ghost mode decoy for signsd in user ar egone what did you do why would you put cluster pins there"
+      }
+    }
+  ],
+  "proofTarget": "Populated mobile map at 412x915 and desktop, owner real pin plus Ghost decoy alongside other-member clusters.",
+  "publicationTarget": "origin/main and production https://cruush.app with https://api.cruush.app",
   "uiScope": {
     "version": 1,
     "source": {
-      "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T14-25-49-01a08c91-a340-7b92-95aa-f137c8bf7b16.jsonl",
+      "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T22-55-12-01a08e63-fb72-7070-886b-c162d77b31d9.jsonl",
       "line": 9,
-      "sha256": "f31c134eeac1a93a21b4c2d6aae77088e2d8b6f97a1ff24885d0160fc1d11088"
+      "sha256": "fd250db3f6f43c1ca4001ef3ef6cbdd63e281008305d11467ca9ab85c09bffa2"
     },
-    "baselineId": "79c586cf9f34b9ef996cc3bc2c9ef4d75a10f737e33d0dd7284c480b20acc721",
-    "grants": [
-      {
-        "property": "unknown",
-        "target": "jsx:Tabs[1]/TabsContent[3]/div[1]",
-        "before": "className: `space-y-3 ${compact ? 'px-3' : 'px-4'}`",
-        "after": "className: `space-y-3 rounded-2xl border border-border bg-card/60 ${compact ? 'p-3' : 'p-4'}`",
-        "file": "src/app/components/ProfileView.tsx",
-        "requestedProperty": "structure",
-        "surface": "hiv status",
-        "statement": "cruush has a bug where if you try to zoom it enlarges the entjrs screen not the map, and also you didng put a capsule around hiv status like i asked",
-        "viewport": "Mobile and desktop, compact and full profile Health tab",
-        "preserve": [
-          "HIV Status label and value",
-          "All neighboring fields, tabs, privacy and visibility",
-          "Existing field position and horizontal inset"
-        ],
-        "source": {
-          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T14-25-49-01a08c91-a340-7b92-95aa-f137c8bf7b16.jsonl",
-          "line": 9,
-          "sha256": "f31c134eeac1a93a21b4c2d6aae77088e2d8b6f97a1ff24885d0160fc1d11088"
-        },
-        "review": {
-          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T14-26-32-01a08c92-4a05-7480-9bb6-d119b86e9b48.jsonl",
-          "line": 145,
-          "sha256": "7efd560d9056519ef94700c3027dd385739f1016d4547a20a18c46ec4a3852b1"
-        }
-      }
-    ]
-  },
-  "toolingAuthorization": {
-    "sourceLines": [
-      226,
-      228
-    ],
-    "action": "Repair the UI-scope parser for this exact two-part request, preserving scope and independent review."
+    "baselineId": "1697ff89c768ece64caf7ae1dfcd3fc1bdb64bbf18111e02e265eb5b7772cf23",
+    "grants": []
   },
   "outcomes": {
-    "MAP-ZOOM-SCREEN": "implemented; exact final class and built-CSS paired browser proof passed; not deployed",
-    "HIV-STATUS-CAPSULE": "implemented; actual compiled Health tab and exact-style render proof passed; not deployed",
-    "verification": "Two focused existing tests, client and direct server builds, casing, diff, independent review passed",
-    "limits": "Original physical device unspecified; native iOS and noncompact branch unverified; browser screen capture unavailable, print render used",
-    "SPOTS-GINGERS-WOMEN": "investigation complete; all19 core venues published, Ginger's rendered; raw punctuation search bug reproduced, no product changes",
-    "SPOTS-VENUE-NAMES": "audit complete:17 verified names/official variants; Boyfriend Cooperative -> Boyfriend guarded source correction and375/1440 text preview prepared, not deployed; Misfit conflicting branding retained with explicit uncertainty",
-    "SPOTS-SLIM-20260910": "active: complete current import review and scoped recoverable archival",
-    "SPOTS-SUBMISSIONS-20260910": "source review found overbroad100m duplicate rejection and legacy category archival can affect approved member submissions; narrow repairs in progress, review UI expansion not authorized"
+    "diagnosis": "Confirmed 17d5b30 removed owner exclusion; both owner markers share isCurrentUser.",
+    "source": "Owner markers excluded from clusters and kept above nearby counts; no coordinate or artwork changes.",
+    "tests": "8 focused tests pass. Initial MapView run: 68 pass, 1 unrelated Ping-preview failure reproduced on unmodified baseline.",
+    "clientBuild": "Passed final build.",
+    "render": "Authenticated browser-local candidate at 375x915, 412x915 and 1440x1000; both markers visible and correctly hit-tested, preview clicks and actual zoom controls verified. Screenshots inspected.",
+    "publication": "Authorized by Deploy this fix ASAP, source line 411; release in progress.",
+    "device": "Physical Android behavior remains unverified.",
+    "scope": "UI source detector: zero structural/style/asset deltas; imperative owner-only stacking change reviewed locally against the reported occlusion. Casing and diff checks pass."
   },
-  "publicationStatus": "awaiting explicit deployment approval",
-  "renderedEvidence": [
-    "/Volumes/good/cruush-map-zoom-hiv-proof-20260910/hiv-capsule-mobile-final-page-1.png",
-    "/Volumes/good/cruush-map-zoom-hiv-proof-20260910/hiv-capsule-desktop-final-page-1.png",
-    "/Volumes/good/cruush-map-zoom-hiv-proof-20260910/map-final-built-css-pinch.json",
-    "/Volumes/good/cruush-map-zoom-hiv-proof-20260910/boyfriend-name-preview-375-page-1.png",
-    "/Volumes/good/cruush-map-zoom-hiv-proof-20260910/boyfriend-name-preview-1440-page-1.png"
+  "evidence": [
+    "/Volumes/good/cruush-owner-ghost-pins-20260910-proof/final-focused-tests.log",
+    "/Volumes/good/cruush-owner-ghost-pins-20260910-proof/final-client-build.log",
+    "/Volumes/good/cruush-owner-ghost-pins-20260910-proof/final-interactions.json",
+    "/Volumes/good/cruush-owner-ghost-pins-20260910-proof/candidate-served.json",
+    "/Volumes/good/cruush-owner-ghost-pins-20260910-proof/final-source-sha256.json",
+    "/Volumes/good/cruush-owner-ghost-pins-20260910-proof/final-375.png",
+    "/Volumes/good/cruush-owner-ghost-pins-20260910-proof/final-412.png",
+    "/Volumes/good/cruush-owner-ghost-pins-20260910-proof/final-1440.png"
   ],
-  "spotCleanupSources": [
-    {
-      "line": 1110,
-      "id": "msg_01a08dbf-68ba-7131-9af3-885594958e2a",
-      "text": "we need to slim down the spots stil i want oyu to remov emore sniffies user spots like starcases and random spots keep things like parks gyms parking lots places like that remove them we need to keep it more gende rinclusive so well aggregate our own status btw be sure we are collecgitng spots people submit"
-    },
-    {
-      "line": 1128,
-      "id": "msg_01a08dc0-04fa-7173-bf10-97d4f4ec626a",
-      "text": "and look at duplicates like \"venue\" \"venue bathroom\" or the venue twice but the other one is mispelled"
-    },
-    {
-      "line": 1138,
-      "id": "msg_01a08dc0-4d6a-75d0-b291-2cce7b02d0e4",
-      "text": "we gotta really slim this list down"
-    },
-    {
-      "line": 1140,
-      "id": "msg_01a08dc0-4d71-72b2-ac48-5c2f8559988a",
-      "text": "its way too much"
-    },
-    {
-      "line": 1326,
-      "id": "msg_01a08dc7-41a2-7c41-9d27-3ac489b65eb9",
-      "text": "keep hotels and transit stops like bus stations and train stations shuttle stations"
-    },
-    {
-      "line": 1352,
-      "id": "msg_01a08dc7-f8a5-7ed2-aa64-c40d4c0a92c7",
-      "text": "basically keep anything thats also on open map and is something like a dungeon or an adult venue random cruising spots in staircases, in offic ebuildings, and in retail bathrooms /parking lots should be removed"
-    }
-  ]
+  "lastUserMessageReconciled": {
+    "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T22-55-12-01a08e63-fb72-7070-886b-c162d77b31d9.jsonl",
+    "line": 9
+  },
+  "deploymentAuthorization": {
+    "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T22-55-12-01a08e63-fb72-7070-886b-c162d77b31d9.jsonl",
+    "line": 411,
+    "text": "Deploy this fix ASAP"
+  },
+  "releaseMaintenance": "Advance the existing app-shell and recovery versions consistently to v129 so the corrected owner pins reach cached clients; no environment or service configuration changes.",
+  "requiredEvidence": [
+    "Focused owner-marker and Ghost expiry tests.",
+    "Client and server TypeScript builds.",
+    "Independent scope review and rendered owner/decoy hit targets.",
+    "Both production service SHAs and actual live mobile marker verification."
+  ],
+  "independentReview": {
+    "reviewer": "/root/owner_pin_review",
+    "result": "Approved bounded owner-marker fix; no blocking source findings. Reviewed exact source/tests and 412/1440 screenshots, with production and physical Android still unverified.",
+    "evidence": "/Volumes/good/cruush-owner-ghost-pins-20260910-proof/independent-review.md"
+  }
 }
