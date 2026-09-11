@@ -801,8 +801,10 @@ export function separateOverlappingMarkers(markers: MapMarker[], _zoom: number) 
 }
 
 function canClusterMarker(marker: MapMarker, focusCoordinates: MapViewProps['focusCoordinates']) {
-  // Both owner markers must stay visible at their own geographic anchors.
-  if ((marker.kind ?? 'person') !== 'person' || marker.isCurrentUser === true || marker.id === 'me') return false;
+  if ((marker.kind ?? 'person') !== 'person') return false;
+  // The signed-in member and their owner-only Ghost decoy are map anchors.
+  // They remain individual and never contribute to another cluster's count.
+  if (marker.isCurrentUser === true || marker.id === 'me' || marker.id === 'me-ghost-decoy') return false;
   // An expired decoy is hidden by its individual artwork. It must not remain
   // discoverable through a cluster count after that same visibility deadline.
   return marker.displayMode !== 'GHOST'
@@ -963,10 +965,13 @@ function applyPersonMarkerClusters(
     true,
     true,
   ).filter((group) => group.length >= 2).forEach((group) => {
-    group.forEach((marker) => clusteredIds.add(marker.id));
     const sameBuildingDisplayArea = areInSameBuildingDisplayArea(group);
-    // Same-building display areas spiderfy on hover or click. Other nearby
-    // people remain a normal cluster and zoom in without moving their pins.
+    // A shared building remains one intentional spiderfy target at every zoom.
+    // Ordinary nearby people separate once the map is close enough to show
+    // their independent locations.
+    if (!sameBuildingDisplayArea && zoom >= PERSON_CLUSTER_MAX_ZOOM) return;
+
+    group.forEach((marker) => clusteredIds.add(marker.id));
     clusters.push(buildPeopleCluster(group, sameBuildingDisplayArea ? 'spiderfy' : 'zoom'));
   });
 

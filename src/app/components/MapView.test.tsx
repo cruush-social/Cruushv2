@@ -1904,12 +1904,14 @@ describe('MapView', () => {
             displayName: 'A',
             approximateLatitude: 40.7128,
             approximateLongitude: -73.99,
+            privacyRadiusMeters: 10,
           },
           {
             id: 'user-b',
             displayName: 'B',
             approximateLatitude: 40.716,
             approximateLongitude: -73.9902,
+            privacyRadiusMeters: 10,
           },
           {
             id: 'user-c',
@@ -1941,6 +1943,30 @@ describe('MapView', () => {
     );
     expect(mapInstances[0].setCenter).not.toHaveBeenCalled();
     expect(screen.getByRole('button', { name: 'Zoom into 2 nearby people on map' })).toBeInTheDocument();
+  });
+
+  it('separates ordinary nearby people at close zoom while same-building clusters remain available to spiderfy', async () => {
+    render(
+      <MapView
+        onPinClick={vi.fn()}
+        markers={[
+          { id: 'person-a', displayName: 'Person A', approximateLatitude: 40.7128, approximateLongitude: -73.99, privacyRadiusMeters: 10 },
+          { id: 'person-b', displayName: 'Person B', approximateLatitude: 40.7158, approximateLongitude: -73.99, privacyRadiusMeters: 10 },
+        ]}
+      />,
+    );
+
+    expect(await screen.findByRole('button', { name: 'Zoom into 2 nearby people on map' })).toBeInTheDocument();
+    act(() => {
+      mapInstances[0].getZoom.mockReturnValue(16);
+      mapInstances[0].trigger('zoomend');
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: 'Zoom into 2 nearby people on map' })).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Open Person A on map' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Open Person B on map' })).toBeInTheDocument();
+    });
   });
 
   it('keeps a people cluster mounted when input order and unrelated clusters change', async () => {

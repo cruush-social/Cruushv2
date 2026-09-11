@@ -1,40 +1,38 @@
 {
   "schemaVersion": 2,
-  "taskId": "owner-ghost-pins-20260910",
+  "taskId": "map-close-spiderfy-release-20260911",
   "status": "active",
-  "objective": "Keep the signed-in owner pin and owner Ghost decoy visible as individual markers instead of replacing them with people clusters. Explain the responsible regression.",
-  "userOutcome": "Your own pin and Ghost decoy remain visible at their existing coordinates at every zoom, while other members retain current clustering and spiderfy.",
-  "audience": "cruush signed-in owner",
+  "objective": "Stop people pins from jumping, keep same-building members clustered for spiderfy, and separate ordinary nearby members at close zoom.",
+  "userOutcome": "People stay at stable geographic anchors; same-building clusters preview on desktop hover or mobile long press and stay open on click or tap; ordinary clusters split at close zoom.",
+  "audience": "cruush map members",
   "successCriteria": [
-    "Reproduce the owner/decoy clustering failure.",
-    "Verify both owner markers remain rendered through zoom and ordinary people cluster expansion.",
-    "Preserve other-member Ghost expiry and existing people/Spot clustering.",
-    "Run focused MapView tests and client build; inspect populated rendered map."
+    "Same-building people remain a cluster at close zoom and spiderfy through existing desktop and mobile interactions.",
+    "Ordinary nearby people split into individual pins at zoom 15.25 and above.",
+    "The signed-in member and owner Ghost decoy never enter people clusters.",
+    "Focused MapView tests, client build, server build, rendered map checks, production SHAs, and live version verification pass."
   ],
   "mustPreserve": [
-    "All marker artwork, photos, gradients, colors, badges and animation.",
-    "Owner-only location and decoy preview privacy; no server/data changes.",
-    "Other-member clustering, spiderfy and Ghost visibility deadlines.",
-    "Map coordinates, tiles, camera and page layout.",
-    "All other worktrees and running servers.",
-    "Owner pin and Ghost decoy remain above overlapping people cluster counts without changing any geographic coordinate."
+    "Geographic coordinates, map tiles, theme, camera controls, privacy radii, real photos, heart artwork, borders, badges, DL masking, signal previews, and accessible names.",
+    "Existing desktop hover and click plus mobile long-press and tap spiderfy handlers.",
+    "All unrelated worktrees, dirty work, and the running localhost:5187 server.",
+    "No DL Mode settings, hover-copy removal, or app-wide placeholder work in this release."
   ],
   "nonGoals": [
-    "No map redesign, automatic displacement, new controls, unrelated fixes or account changes."
+    "No Spot cleanup, map redesign, coordinate displacement, new controls, hover-copy removal, placeholder redesign, DL Mode release, or unrelated queue work in this release."
   ],
   "assumptions": [],
-  "nextVisibleMilestone": "Both production services run the owner-pin fix and live mobile owner/decoy markers remain visible.",
+  "nextVisibleMilestone": "Production map renders stable close-zoom people pins and working same-building spiderfy.",
   "stopConditions": [
     "Stop on explicit user cancellation.",
-    "Block unsafe or out-of-scope release differences."
+    "Block any unrelated staged or outgoing difference."
   ],
   "costBudget": {
     "maxUsd": 0,
     "maxMinutes": null
   },
   "externalEffectDecisions": {
-    "publication": "authorized to origin/main by user line 411",
-    "deployment": "authorized production release of this fix by user line 411",
+    "publication": "authorized to origin/main by user line 9276",
+    "deployment": "authorized production release by user lines 8952 and 9276",
     "messages": "forbidden"
   },
   "externalEffects": {
@@ -50,15 +48,12 @@
   },
   "product": "cruush",
   "repository": "cruush-social/Cruushv2",
-  "branch": "fix/owner-ghost-pins-20260910",
+  "branch": "fix/map-close-spiderfy-release-20260911",
   "allowedPaths": [
     "src/app/components/MapView.tsx",
     "src/app/components/MapView.test.tsx",
     "AI_TASK.json",
-    "HANDOFF.md",
-    "DESIGN_DECISIONS.md",
     "FIXLOG.md",
-    "docs/worktrees.md",
     "public/sw.js",
     "public/service-worker-recovery.js",
     "src/main.tsx",
@@ -69,79 +64,74 @@
     "src/app/assets/**"
   ],
   "source": {
-    "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T22-55-12-01a08e63-fb72-7070-886b-c162d77b31d9.jsonl",
-    "line": 9,
-    "text": "Now my icon an ghost mode decoy for signsd in user ar egone what did you do why would you put cluster pins there"
+    "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
+    "line": 13531,
+    "sha256": "74686da28e255fdd23c1df1d5c284dcd67af181899afeca057f9f70dd62816c8",
+    "text": "More duplicates to remove as well as clustering too strong on user pins now im zoomed in close i should see them. Add to que"
   },
   "baseline": {
-    "sha": "031ab2d5b774a57db1d69e21fc78a2d96583f7ad",
-    "inheritedContract": "/Volumes/good/cruush-owner-ghost-pins-20260910-proof/inherited-AI_TASK.json",
-    "productState": "Clean new worktree; existing other-task contract preserved as evidence."
+    "sha": "69eb63aa8875ce178317868fcaf212ba3ceb1058",
+    "inheritedTaskId": "owner-ghost-pins-20260910",
+    "productState": "Clean isolated worktree from current origin/main; prior task contract remains in immutable git history."
   },
-  "handoff": "/Volumes/good/cruush-owner-ghost-pins-20260910/HANDOFF.md",
-  "currentItem": "OWNER-GHOST-CLUSTER-20260910",
+  "currentItem": "MAP-CLOSE-ZOOM-SPIDERFY-20260911",
   "queue": [
     {
-      "id": "OWNER-GHOST-CLUSTER-20260910",
+      "id": "MAP-CLOSE-ZOOM-SPIDERFY-20260911",
+      "status": "queued-separate-release",
+      "source": {
+        "line": 13531,
+        "text": "clustering too strong on user pins now im zoomed in close i should see them"
+      }
+    },
+    {
+      "id": "MAP-HOVER-COPY-REMOVAL-20260910",
+      "status": "queued-separate-release",
+      "source": {
+        "line": 7980,
+        "text": "make sure this isnt in this commit or deploy add to que"
+      }
+    },
+    {
+      "id": "MAP-GRADIENT-PLACEHOLDER-20260910",
       "status": "release-in-progress",
       "source": {
-        "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T22-55-12-01a08e63-fb72-7070-886b-c162d77b31d9.jsonl",
-        "line": 9,
-        "text": "Now my icon an ghost mode decoy for signsd in user ar egone what did you do why would you put cluster pins there"
+        "line": 7693,
+        "text": "no icon guys for preview pics ever gradients only for profile pic placeholders for cruush"
       }
     }
   ],
-  "proofTarget": "Populated mobile map at 412x915 and desktop, owner real pin plus Ghost decoy alongside other-member clusters.",
+  "proofTarget": "Populated map at desktop 1114x963 and mobile 412x915 with close zoom, same-building cluster, hover/click, and long-press/tap states.",
   "publicationTarget": "origin/main and production https://cruush.app with https://api.cruush.app",
+  "deploymentAuthorization": {
+    "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
+    "line": 9276,
+    "sha256": "4c68f25618bdf3735c7003f7fc861521d4a855283807f5bf9913b9be0d31e5f0",
+    "text": "deploy both"
+  },
+  "outcomes": {
+    "source": "Prepared in isolated release worktree.",
+    "tests": "Five focused close-zoom, owner-exclusion, adjacent-cell and desktop/mobile spiderfy checks pass. Full MapView run is 70/71; the sole Ping post-preview assertion is the unchanged origin/main baseline failure.",
+    "clientBuild": "Passed final release-tree build.",
+    "serverBuild": "Passed final release-tree TypeScript build.",
+    "render": "Existing seeded localhost:5187 at 1114x963 rendered a two-person same-building cluster; clicking it replaced the count with two separated heart pins and kept the fan open. Exact production render pending deployment.",
+    "publication": "Authorized; pending.",
+    "device": "Physical Android remains unverified."
+  },
+  "requiredEvidence": [
+    "Focused MapView tests.",
+    "Client and server builds.",
+    "Independent UI scope review and rendered desktop/mobile interaction checks.",
+    "Both production service SHAs and live web version."
+  ],
   "uiScope": {
     "version": 1,
     "source": {
-      "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T22-55-12-01a08e63-fb72-7070-886b-c162d77b31d9.jsonl",
-      "line": 9,
-      "sha256": "fd250db3f6f43c1ca4001ef3ef6cbdd63e281008305d11467ca9ab85c09bffa2"
+      "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
+      "line": 13531,
+      "sha256": "74686da28e255fdd23c1df1d5c284dcd67af181899afeca057f9f70dd62816c8"
     },
-    "baselineId": "1697ff89c768ece64caf7ae1dfcd3fc1bdb64bbf18111e02e265eb5b7772cf23",
+    "baselineId": "84625f9b423cfc9ff89692af79d3a966b842739732a72f61109344864bc8b0d0",
     "grants": []
-  },
-  "outcomes": {
-    "diagnosis": "Confirmed 17d5b30 removed owner exclusion; both owner markers share isCurrentUser.",
-    "source": "Owner markers excluded from clusters and kept above nearby counts; no coordinate or artwork changes.",
-    "tests": "8 focused tests pass. Initial MapView run: 68 pass, 1 unrelated Ping-preview failure reproduced on unmodified baseline.",
-    "clientBuild": "Passed final build.",
-    "render": "Authenticated browser-local candidate at 375x915, 412x915 and 1440x1000; both markers visible and correctly hit-tested, preview clicks and actual zoom controls verified. Screenshots inspected.",
-    "publication": "Authorized by Deploy this fix ASAP, source line 411; release in progress.",
-    "device": "Physical Android behavior remains unverified.",
-    "scope": "UI source detector: zero structural/style/asset deltas; imperative owner-only stacking change reviewed locally against the reported occlusion. Casing and diff checks pass."
-  },
-  "evidence": [
-    "/Volumes/good/cruush-owner-ghost-pins-20260910-proof/final-focused-tests.log",
-    "/Volumes/good/cruush-owner-ghost-pins-20260910-proof/final-client-build.log",
-    "/Volumes/good/cruush-owner-ghost-pins-20260910-proof/final-interactions.json",
-    "/Volumes/good/cruush-owner-ghost-pins-20260910-proof/candidate-served.json",
-    "/Volumes/good/cruush-owner-ghost-pins-20260910-proof/final-source-sha256.json",
-    "/Volumes/good/cruush-owner-ghost-pins-20260910-proof/final-375.png",
-    "/Volumes/good/cruush-owner-ghost-pins-20260910-proof/final-412.png",
-    "/Volumes/good/cruush-owner-ghost-pins-20260910-proof/final-1440.png"
-  ],
-  "lastUserMessageReconciled": {
-    "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T22-55-12-01a08e63-fb72-7070-886b-c162d77b31d9.jsonl",
-    "line": 9
-  },
-  "deploymentAuthorization": {
-    "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T22-55-12-01a08e63-fb72-7070-886b-c162d77b31d9.jsonl",
-    "line": 411,
-    "text": "Deploy this fix ASAP"
-  },
-  "releaseMaintenance": "Advance the existing app-shell and recovery versions consistently to v129 so the corrected owner pins reach cached clients; no environment or service configuration changes.",
-  "requiredEvidence": [
-    "Focused owner-marker and Ghost expiry tests.",
-    "Client and server TypeScript builds.",
-    "Independent scope review and rendered owner/decoy hit targets.",
-    "Both production service SHAs and actual live mobile marker verification."
-  ],
-  "independentReview": {
-    "reviewer": "/root/owner_pin_review",
-    "result": "Approved bounded owner-marker fix; no blocking source findings. Reviewed exact source/tests and 412/1440 screenshots, with production and physical Android still unverified.",
-    "evidence": "/Volumes/good/cruush-owner-ghost-pins-20260910-proof/independent-review.md"
   }
 }
