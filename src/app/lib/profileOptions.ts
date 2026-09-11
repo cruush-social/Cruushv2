@@ -90,7 +90,7 @@ export const VIBE_GROUPS = [
       'Cosplay', 'Country', 'Disco', 'Drag', 'Fashion', 'Festival', 'Furry', 'Goth', 'Horror', 'House', 'Hyperpop', 'Musician',
       'Footwork', 'Hardcore', 'Indie', 'Industrial', 'Jock', 'Karaoke', 'Kiki', 'LARPing', 'Leather', 'Maker', 'Metal', 'Nature', 'Nudist',
       'Organizer', 'Party', 'Producer', 'Punk', 'Queer arts', 'Queer nightlife', 'Raver', 'Rubber', 'Sci-fi', 'Sex-positive', 'Skate', 'Sober',
-      'Stoner', 'Techno', 'Thespian',
+      'Stoner', 'Techno', 'Thespian', 'Vocalist',
       'Underground'
     ].sort((left, right) => left.localeCompare(right, undefined, { sensitivity: 'base' })),
   },
@@ -483,6 +483,10 @@ export const HOBBY_GROUPS = [
   {
     label: 'Music & Nightlife',
     options: alphabetize(['dancing', 'djing', 'karaoke', 'music', 'singing']),
+  },
+  {
+    label: 'Music',
+    options: alphabetize(['bass', 'drums', 'guitar', 'keyboard', 'producing', 'songwriting']),
   },
   {
     label: 'Outdoors & Nature',

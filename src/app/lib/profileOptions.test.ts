@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BODY_TYPES, HOBBIES, KINK_CATALOG, KINK_GROUPS, KINKS, LOOKING_FOR, ROLES, STRUCTURED_PROFILE_OPTION_FIELDS, VIBE_GROUPS } from './profileOptions';
+import { BODY_TYPES, HOBBY_GROUPS, HOBBIES, KINK_CATALOG, KINK_GROUPS, KINKS, LOOKING_FOR, ROLES, STRUCTURED_PROFILE_OPTION_FIELDS, VIBE_GROUPS } from './profileOptions';
 import { profileBadgeCategory, resolveSavedProfileBadge } from '../components/ProfileBadgeGlyphs';
 import { Drama } from 'lucide-react';
 
@@ -62,6 +62,11 @@ describe('profileOptions', () => {
   it('keeps drag as a scene instead of a hobby', () => {
     expect(optionsFor('Scenes')).toContain('Drag');
     expect(HOBBIES).not.toContain('drag');
+  });
+
+  it('groups requested music hobbies and vocalist scene', () => {
+    expect(HOBBY_GROUPS.find((group) => group.label === 'Music')?.options).toEqual(['bass', 'drums', 'guitar', 'keyboard', 'producing', 'songwriting']);
+    expect(optionsFor('Scenes')).toContain('Vocalist');
   });
 
   it('keeps body descriptors in body type instead of vibes', () => {
