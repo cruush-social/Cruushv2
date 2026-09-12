@@ -65,8 +65,8 @@ export default function FiltersPanel() {
             </div>
 
             <div className="space-y-2">
-              <Label>Gender Identities</Label>
-              <MultiSelect menuPortal searchable ariaLabel="Gender Identities" options={IDENTITIES} />
+              <Label>Gender Identity</Label>
+              <MultiSelect menuPortal searchable ariaLabel="Gender Identity" options={IDENTITIES} />
             </div>
 
             <div className="space-y-2">

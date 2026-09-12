@@ -1628,7 +1628,7 @@ describe('MapHome', () => {
     await openMapControls();
     const seekingButton = await screen.findByRole('button', { name: /^seeking$/i });
     fireEvent.click(seekingButton);
-    fireEvent.click(screen.getByRole('button', { name: 'Gender Identities' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Gender Identity' }));
     fireEvent.click(screen.getByRole('option', { name: 'man' }));
     fireEvent.click(screen.getByRole('button', { name: /^apply$/i }));
 
@@ -2413,7 +2413,7 @@ describe('MapHome', () => {
     expect(inactiveVisibilityButton.style.background).toBe('');
 
     fireEvent.click(inactiveSeekingButton);
-    fireEvent.click(screen.getByRole('button', { name: 'Gender Identities' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Gender Identity' }));
     fireEvent.click(screen.getByRole('option', { name: 'man' }));
     fireEvent.click(screen.getByRole('button', { name: /^apply$/i }));
 

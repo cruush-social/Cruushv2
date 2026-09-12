@@ -279,7 +279,7 @@ describe('ProfileView', () => {
     // of the profile down, and the same goes for the vibe capsules. The
     // Identities check keeps the two below honest: without it they would still
     // pass if the tab body never rendered at all.
-    expect(screen.getByRole('heading', { name: 'Identities' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Gender Identity' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Signal' })).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Vibes' })).not.toBeInTheDocument();
   });
@@ -481,9 +481,9 @@ describe('ProfileView', () => {
       </MemoryRouter>
     );
 
-    await screen.findByText('Identities');
+    await screen.findByText('Gender Identity');
 
-    const identitiesSection = screen.getByText('Identities').closest('section');
+    const identitiesSection = screen.getByText('Gender Identity').closest('section');
     expect(identitiesSection).not.toBeNull();
     expect(within(identitiesSection as HTMLElement).getByText('Non-binary')).toBeInTheDocument();
     expect(within(identitiesSection as HTMLElement).getAllByText('trans')).toHaveLength(1);

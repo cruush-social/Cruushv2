@@ -1419,10 +1419,10 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
             </div>
 
             <div className="space-y-2">
-              <Label>Gender Identities</Label>
+              <Label>Gender Identity</Label>
               <MultiSelect
                 {...profileMenuProps}
-                ariaLabel="Gender Identities"
+                ariaLabel="Gender Identity"
                 searchable
                 maxSelections={MAX_GENDER_IDENTITIES}
                 options={IDENTITIES}

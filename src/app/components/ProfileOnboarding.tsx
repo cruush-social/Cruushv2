@@ -148,7 +148,7 @@ const ONBOARDING_FIELD_LABELS: Record<string, string> = {
   bio: 'Bio',
   signal: 'Signal',
   pronouns: 'Pronouns',
-  identities: 'Identities',
+  identities: 'Gender Identity',
   crowds: 'Crowds',
   looking_for: 'Looking for',
   vibes: 'Vibes',

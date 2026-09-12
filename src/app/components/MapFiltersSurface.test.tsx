@@ -78,7 +78,7 @@ describe('MapFiltersSurface', () => {
   it('keeps a portalled Seeking option inside the modal touch boundary and applies it', () => {
     render(<SeekingHarness />);
 
-    const trigger = screen.getByRole('button', { name: 'Gender Identities' });
+    const trigger = screen.getByRole('button', { name: 'Gender Identity' });
     fireEvent.click(trigger);
 
     const option = screen.getByRole('option', { name: 'man', exact: true });

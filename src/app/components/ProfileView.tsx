@@ -859,7 +859,7 @@ export function ProfileDetailsTabs({
           </Section>
         ) : null}
 
-        <Section title="Identities" compact={compact}>
+        <Section title="Gender Identity" compact={compact}>
           <BadgeList items={profileIdentityItems(profileView)} compact={compact} />
         </Section>
 

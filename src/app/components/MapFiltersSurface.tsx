@@ -261,7 +261,7 @@ export default function MapFiltersSurface({
                 </p>
               </div>
 
-              <FieldGroup searchable label="Gender Identities" options={IDENTITIES} stateKey="identities" value={value} onChange={onChange} />
+              <FieldGroup searchable label="Gender Identity" options={IDENTITIES} stateKey="identities" value={value} onChange={onChange} />
               <FieldGroup label="Presentation" options={PRESENTATIONS} stateKey="presentations" value={value} onChange={onChange} />
               <FieldGroup label="Crowds" options={CROWDS} stateKey="crowds" value={value} onChange={onChange} />
               <FieldGroup label="Body Type" options={BODY_TYPES} stateKey="bodyTypes" value={value} onChange={onChange} />

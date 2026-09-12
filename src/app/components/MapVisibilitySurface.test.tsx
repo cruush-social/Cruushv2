@@ -58,7 +58,7 @@ describe('MapVisibilitySurface', () => {
     expect(screen.getByText('Pick who should not see you.')).toBeInTheDocument();
     expect(screen.getByTestId('crowd-mode-tutorial-target')).toHaveAttribute('data-tutorial-target', 'crowds');
 
-    selectVisibilityOption('Gender Identities', 'man');
+    selectVisibilityOption('Gender Identity', 'man');
     selectVisibilityOption('Presentation', 'masc');
     selectVisibilityOption('Crowds', 'Gay');
 
@@ -73,7 +73,7 @@ describe('MapVisibilitySurface', () => {
   it('lets cruush+ users use more than three hidden audiences', () => {
     render(<VisibilityHarness hasCruushPlus />);
 
-    selectVisibilityOption('Gender Identities', 'man');
+    selectVisibilityOption('Gender Identity', 'man');
     selectVisibilityOption('Presentation', 'masc');
     selectVisibilityOption('Crowds', 'Gay');
     selectVisibilityOption('Body Type', 'athletic');
@@ -102,7 +102,7 @@ describe('MapVisibilitySurface', () => {
   it('keeps a portalled Visibility option inside the modal touch boundary', () => {
     render(<VisibilityHarness hasCruushPlus />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Gender Identities' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Gender Identity' }));
 
     const option = screen.getByRole('option', { name: 'man', exact: true });
     const menu = option.parentElement?.parentElement;
@@ -114,7 +114,7 @@ describe('MapVisibilitySurface', () => {
     fireEvent.pointerUp(option, { isPrimary: true, pointerType: 'touch' });
     fireEvent.click(option);
 
-    expect(screen.getByRole('button', { name: 'Gender Identities' })).toHaveTextContent('1 selected');
+    expect(screen.getByRole('button', { name: 'Gender Identity' })).toHaveTextContent('1 selected');
     expect(screen.getByRole('dialog', { name: 'Visibility Controls' })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
