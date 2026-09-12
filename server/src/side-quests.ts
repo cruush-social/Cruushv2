@@ -43,15 +43,15 @@ type QuestDefinition = {
 };
 
 const QUESTS: QuestDefinition[] = [
+  { key: "post_feed", title: "Make your first Feed post", rewardKind: "cruush_plus_day", rewardAmount: 1 },
+  { key: "complete_profile", title: "Finish your profile", rewardKind: "cruush_plus_day", rewardAmount: 1 },
+  { key: "upload_first_photo", title: "Upload your first profile photo", rewardKind: "ping", rewardAmount: 1 },
+  { key: "upload_four_photos", title: "Upload four profile photos", rewardKind: "ping", rewardAmount: 3 },
   { key: "complete_tutorial", title: "Complete the tutorial", rewardKind: "ping", rewardAmount: 1 },
   { key: "view_profile", title: "View a profile", rewardKind: "ping", rewardAmount: 1 },
   { key: "send_ping", title: "Send your first Pulse", rewardKind: "ping", rewardAmount: 1 },
   { key: "send_cruush", title: "Send your first cruush", rewardKind: "ping", rewardAmount: 1 },
   { key: "send_message", title: "Send your first message", rewardKind: "cruush_plus_day", rewardAmount: 1 },
-  { key: "post_feed", title: "Make your first Feed post", rewardKind: "cruush_plus_day", rewardAmount: 1 },
-  { key: "upload_first_photo", title: "Upload your first profile photo", rewardKind: "ping", rewardAmount: 1 },
-  { key: "complete_profile", title: "Finish your profile", rewardKind: "ping", rewardAmount: 2 },
-  { key: "upload_four_photos", title: "Upload four profile photos", rewardKind: "ping", rewardAmount: 3 },
   { key: "first_mutual_cruush", title: "Make your first mutual cruush", rewardKind: "cruush_plus_day", rewardAmount: 1 },
   { key: "send_three_messages", title: "Send three messages", rewardKind: "ping", rewardAmount: 2 },
   { key: "post_three_feed", title: "Make three Feed posts", rewardKind: "ping", rewardAmount: 2 },
@@ -188,11 +188,11 @@ export async function getSideQuests(app: Pick<FastifyInstance, "config" | "db">,
   const completion = await loadCompletions(app, userId);
   const claimDate = calendarDateInTimeZone(new Date(), normalizeTimeZone(completion.timezone));
   let claimingAvailable = true;
-  let claimRows: Array<{ quest_key: SideQuestKey; reward_kind: SideQuestRewardKind; claim_date: string | Date; claimed_at: string | Date }> = [];
+  let claimRows: Array<{ quest_key: SideQuestKey; reward_kind: SideQuestRewardKind; reward_amount: number; claim_date: string | Date; claimed_at: string | Date }> = [];
 
   try {
-    claimRows = (await app.db.query<{ quest_key: SideQuestKey; reward_kind: SideQuestRewardKind; claim_date: string | Date; claimed_at: string | Date }>(
-      `select quest_key, reward_kind, claim_date, claimed_at from side_quest_claims where user_id = $1`,
+    claimRows = (await app.db.query<{ quest_key: SideQuestKey; reward_kind: SideQuestRewardKind; reward_amount: number; claim_date: string | Date; claimed_at: string | Date }>(
+      `select quest_key, reward_kind, reward_amount, claim_date, claimed_at from side_quest_claims where user_id = $1`,
       [userId]
     )).rows;
   } catch (error) {
@@ -218,6 +218,8 @@ export async function getSideQuests(app: Pick<FastifyInstance, "config" | "db">,
     claimedToday: claimRows.some((row) => dateKey(row.claim_date) === claimDate),
     quests: QUESTS.map((quest) => ({
       ...quest,
+      rewardKind: claimsByKey.get(quest.key)?.reward_kind ?? quest.rewardKind,
+      rewardAmount: claimsByKey.get(quest.key)?.reward_amount ?? quest.rewardAmount,
       completed: completion[quest.key] === true,
       claimed: claimsByKey.has(quest.key),
       claimedAt: claimsByKey.get(quest.key)?.claimed_at ?? null
