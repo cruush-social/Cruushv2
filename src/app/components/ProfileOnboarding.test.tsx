@@ -273,7 +273,7 @@ describe('ProfileOnboarding', () => {
     expect(screen.getByText('find your crowd')).toBeInTheDocument();
     expect(screen.getByText('Choose your crowds.')).toBeInTheDocument();
     expect(screen.getByText(/Choosing crowds here does not turn it on/i)).toHaveTextContent(
-      'Think of crowds like gay or dyke bars: shared social spaces, not identity labels. Choose up to three. Find Crowd Mode in Map Controls > Visibility. Turn it on to be seen only by people in your selected crowds. Choosing crowds here does not turn it on.',
+      'Think of crowds like gay or dyke bars: shared social spaces, not identity labels. Pick up to 3. Find Crowd Mode in Map Controls > Visibility. Turn it on to be seen only by people in your selected crowds. Choosing crowds here does not turn it on.',
     );
     await chooseMultiSelect('Crowds', 'Gay');
     fireEvent.click(screen.getByRole('button', { name: /next/i }));

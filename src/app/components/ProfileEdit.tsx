@@ -1303,6 +1303,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
 
             <div className="space-y-2">
               <Label htmlFor="profile-tags">Tags</Label>
+              <p className="text-xs text-muted-foreground">Pick up to {profileTagLimit}</p>
               <div className="flex items-center gap-2 rounded-md border border-white/10 bg-input-background px-3">
                 <Hash aria-hidden="true" className="h-4 w-4 shrink-0 text-white/55" />
                 <input
@@ -1376,11 +1377,13 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
                 value={normalizedProfile.vibes}
                 onChange={(vals) => handleChange('vibes', limitToThree(vals))}
               />
+              <p className="text-xs text-muted-foreground">Pick up to {MAX_PROFILE_VIBES}</p>
             </div>
 
             <div className="space-y-2">
               <Label>Pronouns</Label>
               <MultiSelect {...profileMenuProps} maxSelections={MAX_PROFILE_GROUP_SELECTIONS} options={PRONOUNS} value={normalizedProfile.pronouns} onChange={(vals) => handleChange('pronouns', limitToThree(vals))} />
+              <p className="text-xs text-muted-foreground">Pick up to {MAX_PROFILE_GROUP_SELECTIONS}</p>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -1429,20 +1432,20 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
                 value={normalizedProfile.identities}
                 onChange={(vals) => handleChange('identities', limitGenderIdentities(vals))}
               />
-              <p className="text-xs text-muted-foreground">Select up to 3</p>
+              <p className="text-xs text-muted-foreground">Pick up to 3</p>
             </div>
 
 
             <div className="space-y-2">
               <Label>Presentation</Label>
               <MultiSelect {...profileMenuProps} maxSelections={MAX_PROFILE_GROUP_SELECTIONS} options={PRESENTATIONS} value={normalizedProfile.presentation} onChange={(vals) => handleChange('presentation', limitToThree(vals))} />
-              <p className="text-xs text-muted-foreground">Select up to 3</p>
+              <p className="text-xs text-muted-foreground">Pick up to 3</p>
             </div>
 
             <div className="space-y-2">
               <Label>Sexuality</Label>
               <MultiSelect {...profileMenuProps} maxSelections={MAX_PROFILE_SEXUALITIES} options={SEXUALITY} value={normalizedProfile.sexuality} onChange={(vals) => handleChange('sexuality', limitToThree(vals))} />
-              <p className="text-xs text-muted-foreground">Select up to {MAX_PROFILE_SEXUALITIES}</p>
+              <p className="text-xs text-muted-foreground">Pick up to {MAX_PROFILE_SEXUALITIES}</p>
             </div>
 
             <div className="space-y-3 rounded-md border border-border bg-card/40 p-4">
@@ -1465,12 +1468,14 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
                   value={normalizedProfile.crowds}
                   onChange={handleCrowdsChange}
                 />
+                <p className="text-xs text-muted-foreground">Pick up to {MAX_PROFILE_GROUP_SELECTIONS}</p>
               </div>
             </div>
 
             <div className="space-y-2">
               <Label>Body Type</Label>
               <MultiSelect {...profileMenuProps} ariaLabel="Body Type" maxSelections={MAX_PROFILE_GROUP_SELECTIONS} options={BODY_TYPES} value={normalizedProfile.body_type} onChange={(vals) => handleChange('body_type', limitToThree(vals))} />
+              <p className="text-xs text-muted-foreground">Pick up to {MAX_PROFILE_GROUP_SELECTIONS}</p>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -1487,6 +1492,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
             <div className="space-y-2">
               <Label>Hobbies</Label>
               <MultiSelect {...profileMenuProps} ariaLabel="Hobbies" searchable maxSelections={MAX_PROFILE_HOBBIES} optionGroups={HOBBY_GROUPS} value={normalizedProfile.hobbies} onChange={(vals) => handleChange('hobbies', limitToThree(vals))} />
+              <p className="text-xs text-muted-foreground">Pick up to {MAX_PROFILE_HOBBIES}</p>
             </div>
           </TabsContent>
 
@@ -1501,11 +1507,13 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
                 value={normalizedProfile.relationship_status}
                 onChange={(vals) => handleChange('relationship_status', limitToThree(vals))}
               />
+              <p className="text-xs text-muted-foreground">Pick up to {MAX_PROFILE_GROUP_SELECTIONS}</p>
             </div>
 
             <div className="!order-1 space-y-2">
               <Label>Looking For</Label>
               <MultiSelect {...profileMenuProps} maxSelections={MAX_PROFILE_GROUP_SELECTIONS} options={LOOKING_FOR} value={normalizedProfile.looking_for} onChange={(vals) => handleChange('looking_for', limitToThree(vals))} />
+              <p className="text-xs text-muted-foreground">Pick up to {MAX_PROFILE_GROUP_SELECTIONS}</p>
             </div>
 
             <div className="!order-2 grid gap-4 sm:grid-cols-2">
@@ -1519,6 +1527,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
                   value={normalizedProfile.position}
                   onChange={(vals) => handleChange('position', limitToThree(vals))}
                 />
+                <p className="text-xs text-muted-foreground">Pick up to {MAX_PROFILE_GROUP_SELECTIONS}</p>
               </div>
               <div className="space-y-2">
                 <Label>Role</Label>
@@ -1530,19 +1539,23 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
                   value={normalizedProfile.role}
                   onChange={(vals) => handleChange('role', limitToThree(vals))}
                 />
+                <p className="text-xs text-muted-foreground">Pick up to {MAX_PROFILE_GROUP_SELECTIONS}</p>
               </div>
             </div>
             <div className="space-y-2">
               <Label>Availability</Label>
               <MultiSelect {...profileMenuProps} maxSelections={MAX_PROFILE_GROUP_SELECTIONS} options={AVAILABILITY} value={normalizedProfile.availability} onChange={vals => handleChange('availability', limitToThree(vals))} />
+              <p className="text-xs text-muted-foreground">Pick up to {MAX_PROFILE_GROUP_SELECTIONS}</p>
             </div>
             <div className="space-y-2">
               <Label>Hosting/Travel</Label>
               <MultiSelect {...profileMenuProps} maxSelections={MAX_PROFILE_GROUP_SELECTIONS} options={HOSTING} value={normalizedProfile.hosting_travel} onChange={vals => handleChange('hosting_travel', limitToThree(vals))} />
+              <p className="text-xs text-muted-foreground">Pick up to {MAX_PROFILE_GROUP_SELECTIONS}</p>
             </div>
             <div className="space-y-2">
               <Label>Preferred spots</Label>
               <MultiSelect {...profileMenuProps} maxSelections={MAX_PROFILE_GROUP_SELECTIONS} options={PREFERRED_SPOTS} value={normalizedProfile.preferred_spots} onChange={vals => handleChange('preferred_spots', limitToThree(vals))} />
+              <p className="text-xs text-muted-foreground">Pick up to {MAX_PROFILE_GROUP_SELECTIONS}</p>
             </div>
 
             <div className="space-y-2" id="profile-kinks">
@@ -1556,7 +1569,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
                 value={normalizedProfile.kinks}
                 onChange={handleKinksChange}
               />
-              <p className="text-xs text-muted-foreground">Basic includes 3. cruush+ has no profile kink limit.</p>
+              <p className="text-xs text-muted-foreground">Pick up to 3 on Basic. cruush+ has no profile kink limit.</p>
             </div>
             <div className="space-y-2">
               <Label>Kinks & Fetishes visibility</Label>
@@ -1586,6 +1599,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
             </div>
             <div className="space-y-2">
               <Label>Protections</Label>
+              <p className="text-xs text-muted-foreground">Pick all that apply.</p>
               <MultiSelect
                 {...profileMenuProps}
                 ariaLabel="Protections"
@@ -1596,7 +1610,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
             </div>
             <div className="space-y-2">
               <Label>Substance Boundaries</Label>
-              <p className="text-sm text-muted-foreground">Select anything you do not want involved when meeting.</p>
+              <p className="text-sm text-muted-foreground">Pick all that apply to what you do not want involved when meeting.</p>
               <MultiSelect
                 {...profileMenuProps}
                 ariaLabel="Substance Boundaries"

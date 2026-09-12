@@ -75,22 +75,22 @@ const STEP_COPY: Record<OnboardingStep, { rite: string; title: string; detail: s
   identities: {
     rite: 'name your form',
     title: 'Choose the words that fit.',
-    detail: 'Pick up to three.',
+    detail: 'Pick up to 3.',
   },
   crowds: {
     rite: 'find your crowd',
     title: 'Choose your crowds.',
-    detail: 'Think of crowds like gay or dyke bars: shared social spaces, not identity labels. Choose up to three. Find Crowd Mode in Map Controls > Visibility. Turn it on to be seen only by people in your selected crowds. Choosing crowds here does not turn it on.',
+    detail: 'Think of crowds like gay or dyke bars: shared social spaces, not identity labels. Pick up to 3. Find Crowd Mode in Map Controls > Visibility. Turn it on to be seen only by people in your selected crowds. Choosing crowds here does not turn it on.',
   },
   lookingFor: {
     rite: 'declare your hunger',
     title: 'What are you seeking tonight?',
-    detail: 'Pick up to three.',
+    detail: 'Pick up to 3.',
   },
   vibes: {
     rite: 'reveal your aura',
     title: 'Set the signal around you.',
-    detail: 'Pick up to three.',
+    detail: 'Pick up to 3.',
   },
   bio: {
     rite: 'leave your confession',
@@ -848,7 +848,7 @@ export default function ProfileOnboarding({
                       value={profile.identities}
                       onChange={(values) => setProfileField('identities', limitToThree(values))}
                     />
-                    <p className="text-xs text-white/58 mt-1">Select up to 3</p>
+                    <p className="text-xs text-white/58 mt-1">Pick up to 3</p>
                   </div>
                   <label className="flex cursor-pointer items-center gap-3 rounded-md border border-white/12 bg-white/[0.04] p-3 text-sm text-white/82">
                     <input
@@ -874,7 +874,7 @@ export default function ProfileOnboarding({
                       value={profile.sexuality}
                       onChange={(values) => setProfileField('sexuality', limitToThree(values))}
                     />
-                    <p className="text-xs text-white/58 mt-1">Select up to {MAX_PROFILE_SEXUALITIES}</p>
+                    <p className="text-xs text-white/58 mt-1">Pick up to {MAX_PROFILE_SEXUALITIES}</p>
                   </div>
                   <div>
                     <label className="text-sm mb-2 block text-white/82">Pronouns</label>
@@ -886,7 +886,7 @@ export default function ProfileOnboarding({
                       value={profile.pronouns}
                       onChange={(values) => setProfileField('pronouns', limitToThree(values))}
                     />
-                    <p className="text-xs text-white/58 mt-1">Select up to 3</p>
+                    <p className="text-xs text-white/58 mt-1">Pick up to 3</p>
                   </div>
                 </div>
               );
@@ -902,6 +902,7 @@ export default function ProfileOnboarding({
                     value={profile.crowds}
                     onChange={(values) => setProfileField('crowds', limitToThree(values))}
                   />
+                  <p className="text-xs text-white/58 mt-1">Pick up to 3</p>
                 </div>
               );
             case 'lookingFor':
@@ -916,7 +917,7 @@ export default function ProfileOnboarding({
                     value={profile.lookingFor}
                     onChange={(values) => setProfileField('lookingFor', limitToThree(values))}
                   />
-                  <p className="text-xs text-white/58 mt-1">Select up to 3</p>
+                  <p className="text-xs text-white/58 mt-1">Pick up to 3</p>
                 </div>
               );
             case 'vibes':
@@ -931,7 +932,7 @@ export default function ProfileOnboarding({
                     value={profile.vibes}
                     onChange={(values) => setProfileField('vibes', limitToThree(values))}
                   />
-                  <p className="text-xs text-white/58 mt-1">Select up to 3</p>
+                  <p className="text-xs text-white/58 mt-1">Pick up to 3</p>
                 </div>
               );
             case 'bio':
