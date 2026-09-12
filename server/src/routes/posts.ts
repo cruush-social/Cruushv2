@@ -982,7 +982,7 @@ export async function registerPostRoutes(app: FastifyInstance) {
            (requested.ordinality - 1)::smallint
          from inserted
          cross join unnest($19::text[]) with ordinality as requested(tag, ordinality)
-         returning post_id, tag
+         returning post_id, tag, position
        )
        select
          i.id,
@@ -1009,7 +1009,7 @@ export async function registerPostRoutes(app: FastifyInstance) {
          ), '[]'::jsonb) as feed_photos,
          coalesce((
            select array_agg(inserted_tag.tag order by inserted_tag.position)
-           from feed_post_tags inserted_tag
+           from inserted_tags inserted_tag
            where inserted_tag.post_id = i.id
          ), '{}'::text[]) as feed_tags,
          pr.display_name,

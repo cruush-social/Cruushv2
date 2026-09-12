@@ -831,12 +831,19 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
     setSaving(true);
     setError(null);
     try {
-      const savedProfile = await saveMyProfile(toProfileSavePayload(profile, kinkLimit, profileTagLimit));
+      const pendingTag = normalizeProfileTag(profileTagDraft);
+      const profileToSave = pendingTag && !findStructuredProfileFieldForTag(pendingTag)
+        ? { ...profile, tags: uniqueValues([...(profile.tags ?? []), pendingTag]) }
+        : profile;
+      const savedProfile = await saveMyProfile(toProfileSavePayload(profileToSave, kinkLimit, profileTagLimit));
       if (profileSaveRequestRef.current !== requestId) {
         return;
       }
 
       applySavedProfile(savedProfile);
+      if (pendingTag && savedProfile.tags?.includes(pendingTag)) {
+        setProfileTagDraft((current) => current === profileTagDraft ? '' : current);
+      }
       if (embedded) {
         return;
       } else {

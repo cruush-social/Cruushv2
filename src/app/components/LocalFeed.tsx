@@ -476,7 +476,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
         audience: postAudience,
         crowdTargets: postAudience === 'crowd' ? selectedCrowdTargets : [],
         photoMediaIds: stagedPhotos.map((photo) => photo.id),
-        tags: postTags,
+        tags: [...new Set([...postTags, normalizeFeedTag(newTag)].filter(Boolean))],
       });
       setNewPost('');
       setNewTag('');
@@ -1432,11 +1432,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
                   content={(
                     <div className="space-y-1.5">
                       <p className="text-base">{post.content}</p>
-                      {(post.tags?.length ?? 0) > 0 ? (
-                        <div className="flex flex-wrap gap-x-2 gap-y-1 text-sm text-white/62">
-                          {post.tags?.map((tag) => <span key={tag}>#{tag}</span>)}
-                        </div>
-                      ) : null}
+
                       <FeedAttachmentPreview
                         dlModeActive={dlModeActive}
                         relationship={{ ...post.user.photoRelationship, isMutualCruush: mutualAuthor, sharesCrowd: post.user.sharesCrowd }}
@@ -1447,6 +1443,11 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
                   )}
                   cornerAction={(
                     <>
+                      {(post.tags?.length ?? 0) > 0 ? (
+                        <div className="mr-auto flex min-w-0 flex-1 flex-wrap gap-x-2 gap-y-1 text-sm text-white/62">
+                          {post.tags?.map((tag) => <span key={tag}>#{tag}</span>)}
+                        </div>
+                      ) : null}
                       <span className="flex items-center gap-1 text-[11px] text-white/52"><Clock className="h-3 w-3" />{formatFeedExpiry(post.expiresIn)}</span>
                       {currentUserId && post.user.id !== currentUserId ? (
                         <ReportAction
