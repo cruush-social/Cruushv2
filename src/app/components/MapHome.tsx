@@ -3,12 +3,14 @@
 import type { FormEvent, MouseEvent, PointerEvent, WheelEvent } from 'react';
 import { lazy, Suspense, useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router';
-import { ChevronDown, ExternalLink, Mail, MapPin, MessageCircle, X, ZoomIn, ZoomOut } from 'lucide-react';
+import { ExternalLink, Mail, MapPin, MessageCircle, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { useIsMobile } from './ui/use-mobile';
 import CruushIconImage, { CruushIcon } from './CruushIconImage';
-import CruushPlusWord from './CruushPlusWord';
+import CruushPlusButton from './CruushPlusButton';
+import MapTopBar from './MapTopBar';
+import MapControls from './MapControls';
 import DarkRoomMark from './DarkRoomMark';
 import MapProfilePopup from './MapProfilePopup';
 import CruiseCarouselSlot from './CruiseCarouselSlot';
@@ -96,14 +98,7 @@ import {
   isDesktopPageLayoutDevice,
 } from '../lib/desktopPageLayoutPreferences';
 import cruushIconWhite from '../assets/ui-icons/cruush-white.png';
-import luckyIconWhite from '../assets/ui-icons/lucky-white.png';
-import notificationsIconWhite from '../assets/ui-icons/notifications-white.png';
-import settingsIconWhite from '../assets/ui-icons/settings-white.png';
 import mileHighClubWhite from '../assets/ui-icons/mile-high-club-white.svg';
-import placesGhostSource from '../assets/ui-icons/places-ghost-source.png';
-import seekingIcon from '../assets/ui-icons/seeking-magnifying-glass-8149381.svg';
-import visibilityIcon from '../assets/ui-icons/visibility-hidden-234738.svg';
-import crowdIconColored from '../assets/ui-icons/crowds-colored.svg';
 import DlModeMark from './DlModeMark';
 import DlModePhotoPlaceholder from './DlModePhotoPlaceholder';
 
@@ -2933,106 +2928,20 @@ export default function MapHome(_props: MapHomeProps = {}) {
             onPointerEnter={() => setMapControlsHovered(true)}
             onPointerLeave={() => setMapControlsHovered(false)}
           >
-            <Button
-              type="button"
-              onClick={() => navigate('/rewards')}
-              aria-label="cruush+ rewards"
-              title="cruush+ rewards"
-              className="cruush-plus-shimmer-button cruush-logo-font pointer-events-auto h-12 rounded-full px-3 text-base font-normal leading-none tracking-normal normal-case text-white max-[360px]:h-11 max-[360px]:px-1.5 max-[360px]:text-xs sm:h-20 sm:px-7 sm:text-4xl lg:h-[5.5rem] lg:px-8 lg:text-[2.5rem]"
-              style={{ background: 'var(--cruush-gradient)' }}
-            >
-              <CruushPlusWord />
-            </Button>
+            <CruushPlusButton onClick={() => navigate('/rewards')} />
           </div>
-          <div className="flex min-w-0 flex-1 justify-center">
-            <div
-              className="cruush-map-top-actions pointer-events-auto mt-0 flex w-auto min-w-0 max-w-full items-center justify-center gap-0.5 rounded-full border border-white/10 bg-background/25 px-1 py-1 backdrop-blur-md transition-[width,margin,transform] max-[430px]:gap-0 max-[430px]:px-0.5 sm:gap-1 sm:px-2.5 sm:py-2"
-              data-map-control-hit-layer="true"
-              data-testid="map-top-actions"
-              onPointerEnter={() => setMapControlsHovered(true)}
-              onPointerLeave={() => setMapControlsHovered(false)}
-            >
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleFeelingLucky}
-              data-tutorial-target="carousel"
-              aria-label="Cruise Carousel"
-              title="Cruise Carousel"
-              className="size-11 rounded-full bg-transparent text-white/90 hover:bg-transparent focus:bg-transparent focus-visible:bg-transparent max-[360px]:size-10 sm:size-12 lg:size-[3.25rem]"
-            >
-              <CruushIconImage src={luckyIconWhite} className="h-10 w-10 scale-[1.28] object-contain max-[360px]:h-9 max-[360px]:w-9 lg:h-11 lg:w-11" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate('/privacy/ghost-mode')}
-              data-tutorial-target="ghost"
-              aria-label="Ghost Mode Settings"
-              title="Ghost Mode Settings"
-              className="size-11 rounded-full bg-transparent text-white/90 hover:bg-transparent focus:bg-transparent focus-visible:bg-transparent max-[360px]:size-10 sm:size-12 lg:size-[3.25rem]"
-            >
-              {privacySettings.baseMode === 'STEALTH' ? (
-                <DarkRoomMark active className="!h-10 !w-10 text-white max-[360px]:!h-9 max-[360px]:!w-9 lg:!h-11 lg:!w-11" />
-              ) : (
-                <CruushIcon
-                  name="ghost"
-                  variant={privacySettings.ghostModeEnabled ? 'colored' : 'white'}
-                  // The ghost art carries padding inside its own viewBox, so
-                  // at the shared box size it drew smaller than its neighbours.
-                  // Scaled to match, the way the lucky and DL Mode marks are.
-                  className="h-10 w-10 scale-[1.22] object-contain max-[360px]:h-9 max-[360px]:w-9 lg:h-11 lg:w-11"
-                />
-              )}
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleToggleDlMode}
-              data-tutorial-target="dl-mode"
-              aria-label={dlModeActive ? 'Turn DL Mode off' : 'Turn DL Mode on'}
-              title={dlModeActive ? 'Turn DL Mode off' : 'Turn DL Mode on'}
-              className="size-11 overflow-visible rounded-full bg-transparent text-white/90 hover:bg-transparent focus:bg-transparent focus-visible:bg-transparent max-[360px]:size-10 sm:size-12 lg:size-[3.25rem] [&_img]:!overflow-visible"
-            >
-              {/* The gradient mark is the active state. Hover does not add a circle around it. */}
-              <DlModeMark active={dlModeActive} className="!h-10 !w-10 scale-[1.18] overflow-visible max-[360px]:!h-9 max-[360px]:!w-9 lg:!h-11 lg:!w-11" />
-            </Button>
-            <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => {
-                  if (usesFullPageProfile) {
-                    navigate('/settings');
-                    return;
-                  }
-
-                  setSidePanelReturnView(sidePanelView && sidePanelView !== 'settings' ? sidePanelView : null);
-                  setSidePanelView('settings');
-                }}
-                aria-label="Settings"
-                title="Settings"
-                className="size-11 rounded-full bg-transparent text-white/90 hover:bg-transparent focus:bg-transparent focus-visible:bg-transparent max-[360px]:size-10 sm:size-12 lg:size-[3.25rem]"
-              >
-                <CruushIconImage src={settingsIconWhite} className="h-10 w-10 object-contain max-[360px]:h-9 max-[360px]:w-9 lg:h-11 lg:w-11" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate('/notifications')}
-              data-tutorial-target="notifications"
-              aria-label="Notifications"
-              title="Notifications"
-              className="relative size-11 rounded-full bg-transparent text-white/90 hover:bg-transparent focus:bg-transparent focus-visible:bg-transparent max-[360px]:size-10 sm:size-12 lg:size-[3.25rem]"
-            >
-              <CruushIconImage src={notificationsIconWhite} className="h-10 w-10 scale-[1.28] object-contain max-[360px]:h-9 max-[360px]:w-9 lg:h-11 lg:w-11" />
-              {notificationUnreadCount > 0 ? (
-                <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[0.62rem] font-semibold leading-none text-primary-foreground">
-                  {notificationUnreadCount > 9 ? '9+' : notificationUnreadCount}
-                </span>
-              ) : null}
-            </Button>
-            </div>
-          </div>
+          <MapTopBar
+            setMapControlsHovered={setMapControlsHovered}
+            handleFeelingLucky={handleFeelingLucky}
+            navigate={navigate}
+            privacySettings={privacySettings}
+            dlModeActive={dlModeActive}
+            usesFullPageProfile={usesFullPageProfile}
+            sidePanelView={sidePanelView}
+            setSidePanelReturnView={setSidePanelReturnView}
+            setSidePanelView={setSidePanelView}
+            notificationUnreadCount={notificationUnreadCount}
+          />
 
           {/* The bug control is fixed to the corner like cruush+ is, so the bar
               ends before it instead of running underneath it. */}
@@ -3428,138 +3337,28 @@ export default function MapHome(_props: MapHomeProps = {}) {
           </div>
         ) : null}
 
-        <div
-          className={`pointer-events-none [&_button]:pointer-events-auto absolute right-3 top-[4.625rem] z-[900] flex flex-col items-end gap-2 sm:right-4 sm:top-[5.375rem] lg:right-3 lg:top-16 ${isMobile && (sidePanelView || selectedPlace || selectedUser) ? 'hidden' : ''}`}
-          data-map-control-hit-layer="true"
-          data-testid="map-right-actions"
-          onPointerEnter={() => setMapControlsHovered(true)}
-          onPointerLeave={() => setMapControlsHovered(false)}
-        >
-          {activeCrowdNotice ? (
-            <button
-              type="button"
-              className="inline-flex h-8 items-center gap-2 rounded-full border border-white/15 px-3 text-[11px] uppercase tracking-[0.16em] text-white shadow-[0_12px_35px_rgba(0,0,0,0.25)] backdrop-blur-md transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/65"
-              style={{ background: 'var(--cruush-gradient)' }}
-              onClick={() => {
-                setVisibilityError(null);
-                setIsVisibilityOpen(true);
-              }}
-            >
-              <CruushIconImage src={crowdIconColored} className="h-4 w-4" />
-              {activeCrowdNotice}
-            </button>
-          ) : null}
-
-          <Button
-            type="button"
-            aria-controls="map-controls-menu"
-            aria-expanded={mapControlsOpen}
-            data-testid="map-controls-trigger"
-            data-tutorial-target="map-controls"
-            className="h-9 rounded-full border border-white/10 bg-background/68 px-4 text-[11px] uppercase tracking-[0.18em] text-white shadow-[0_12px_35px_rgba(0,0,0,0.25)] backdrop-blur-md hover:bg-white/10"
-            onClick={() => setMapControlsOpen((open) => !open)}
-          >
-            Map Controls <ChevronDown className={`ml-2 h-4 w-4 transition-transform ${mapControlsOpen ? 'rotate-180' : ''}`} />
-          </Button>
-
-          {mapControlsOpen ? (
-            <div
-              id="map-controls-menu"
-              className="flex max-h-[calc(100dvh-9rem)] flex-col items-end gap-2 overflow-y-auto p-2"
-              data-testid="map-controls-menu"
-            >
-              <Button
-                className={`h-8 rounded-full border px-4 text-[11px] uppercase tracking-[0.18em] transition-[filter,border-color,background-color] hover:border-white/30 hover:brightness-125 ${hasActiveFilters ? 'border-white/15 text-white' : 'border-white/10 bg-background/68 text-white hover:bg-white/10'}`}
-                style={hasActiveFilters ? { background: 'var(--cruush-gradient)' } : undefined}
-                data-testid="map-seeking-button"
-                data-tutorial-target="seeking"
-                onClick={() => setIsFiltersOpen(true)}
-              >
-                <CruushIconImage src={seekingIcon} className="mr-2 h-4 w-4 brightness-0 invert" />
-                SEEKING
-              </Button>
-              <Button
-                type="button"
-                data-testid="map-visibility-button"
-                data-tutorial-target="visibility"
-                onClick={() => {
-                  setVisibilityError(null);
-                  setIsVisibilityOpen(true);
-                }}
-                className={`h-8 rounded-full border px-4 text-[11px] uppercase tracking-[0.18em] text-white transition-[filter,border-color,background-color] hover:border-white/30 hover:brightness-125 has-[>img]:px-3 ${hasActiveVisibility ? 'border-white/15' : 'border-white/10 bg-background/68 hover:bg-white/10'}`}
-                style={hasActiveVisibility ? { background: 'var(--cruush-gradient)' } : undefined}
-              >
-                <CruushIconImage src={visibilityIcon} className="mr-2 h-4 w-4 brightness-0 invert" />
-                VISIBILITY
-              </Button>
-              <Button
-                type="button"
-                data-testid="map-places-button"
-                data-tutorial-target="places"
-                aria-pressed={spotFiltersActive}
-                onClick={() => {
-                  setPlacesOpen(true);
-                }}
-                className={`h-8 rounded-full border px-4 text-[11px] uppercase tracking-[0.18em] text-white transition-[filter,border-color,background-color] hover:border-white/30 hover:brightness-125 has-[>img]:px-3 ${spotFiltersActive ? 'border-white/15' : 'border-white/10 bg-background/68 hover:bg-white/10'}`}
-                style={spotFiltersActive ? { background: 'var(--cruush-gradient)' } : undefined}
-              >
-                <CruushIconImage src={placesGhostSource} className="mr-2 h-4 w-4 brightness-0 invert" />
-                SPOTS
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setMapPingSheetOpen(true)}
-                data-testid="map-ping-button"
-                data-tutorial-target="ping"
-                aria-label="Send a Pulse"
-                title="Send a Pulse"
-                className={`size-11 shrink-0 rounded-full border border-white/10 bg-background text-[#c8ff31] hover:brightness-125 sm:size-12 lg:size-[3.25rem] [&_svg]:!h-full [&_svg]:!w-full ${mapPingStatus?.activePing ? 'shadow-[0_0_0_2px_rgba(200,255,49,0.16)]' : ''}`}
-              >
-                <PulseLedIcon />
-              </Button>
-              <div className="flex flex-col gap-2" data-testid="map-zoom-controls">
-                <Button
-                  size="icon"
-                  variant="secondary"
-                  onClick={handleCenterMyLocation}
-                  disabled={locationStatus === 'locating' || !mapInstance}
-                  aria-label={locationStatus === 'locating' ? 'Finding your location' : 'Center your location'}
-                  title={locationStatus === 'locating' ? 'Finding your location' : 'Center your location'}
-                  className="rounded-full border border-white/10 bg-background/78 text-white backdrop-blur-md hover:bg-white/10"
-                >
-                  <MapPin className="h-4 w-4" />
-                </Button>
-                <Button
-                  type="button"
-                  size="icon"
-                  variant="secondary"
-                  onClick={() => mapInstance?.zoomIn()}
-                  disabled={!mapInstance}
-                  data-tutorial-target="zoom"
-                  aria-label="Zoom in on map"
-                  title="Zoom in on map"
-                  className="rounded-full border border-white/10 bg-background/78 text-white backdrop-blur-md hover:bg-white/10"
-                >
-                  <ZoomIn className="h-4 w-4" />
-                </Button>
-                <Button
-                  type="button"
-                  size="icon"
-                  variant="secondary"
-                  onClick={() => mapInstance?.zoomOut()}
-                  disabled={!mapInstance}
-                  data-tutorial-target="zoom"
-                  aria-label="Zoom out on map"
-                  title="Zoom out on map"
-                  className="rounded-full border border-white/10 bg-background/78 text-white backdrop-blur-md hover:bg-white/10"
-                >
-                  <ZoomOut className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          ) : null}
-        </div>
+        <MapControls
+          isMobile={isMobile}
+          sidePanelView={sidePanelView}
+          selectedPlace={selectedPlace}
+          selectedUser={selectedUser}
+          setMapControlsHovered={setMapControlsHovered}
+          activeCrowdNotice={activeCrowdNotice}
+          setVisibilityError={setVisibilityError}
+          setIsVisibilityOpen={setIsVisibilityOpen}
+          mapControlsOpen={mapControlsOpen}
+          setMapControlsOpen={setMapControlsOpen}
+          hasActiveFilters={hasActiveFilters}
+          setIsFiltersOpen={setIsFiltersOpen}
+          hasActiveVisibility={hasActiveVisibility}
+          spotFiltersActive={spotFiltersActive}
+          setPlacesOpen={setPlacesOpen}
+          setMapPingSheetOpen={setMapPingSheetOpen}
+          mapPingStatus={mapPingStatus}
+          handleCenterMyLocation={handleCenterMyLocation}
+          locationStatus={locationStatus}
+          mapInstance={mapInstance}
+        />
 
         {displayedUsers.length > 0 && !selectedEvent && !selectedPlace && !sidePanelView && !selectedUser && (
           <div
