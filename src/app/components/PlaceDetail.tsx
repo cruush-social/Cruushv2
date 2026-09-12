@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { ArrowLeft, Clock, Copy, ExternalLink, Flag, MapPin, Share2, Star, Trash2, Users, X } from 'lucide-react';
 import { Button } from './ui/button';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
 import { Checkbox } from './ui/checkbox';
 import { Slider } from './ui/slider';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
@@ -514,6 +515,10 @@ export default function PlaceDetail({ embedded = false, onBack, onClose, placeId
           </TabsList>
 
           <TabsContent value="feed" className="space-y-4 mt-4">
+            <Accordion type="single" collapsible key={place.id}>
+              <AccordionItem value="pink-book-composer">
+                <AccordionTrigger>{place.viewerCheckin ? 'Post to Pink Book' : 'Check in'}</AccordionTrigger>
+                <AccordionContent className="pb-0">
             {place.viewerCheckin ? (
               <div className="rounded-lg border border-border bg-card p-3">
                 <textarea aria-label="Write a Pink Book post" className="min-h-20 w-full resize-none bg-transparent text-sm text-white outline-none" placeholder="Write a Pink Book post" value={message} onChange={(event) => setMessage(event.target.value)} maxLength={1000} />
@@ -601,6 +606,9 @@ export default function PlaceDetail({ embedded = false, onBack, onClose, placeId
                 </div>
               </div>
             )}
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
             {place.viewerCheckin && messages.length === 0 ? <p className="py-8 text-center text-sm text-muted-foreground">No Pink Book posts yet.</p> : null}
             {messages.map((post) => (
               <UserActivityCapsule
