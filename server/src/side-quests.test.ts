@@ -10,7 +10,7 @@ vi.mock("./rewards-service.js", async (importOriginal) => ({
 
 type Claim = { quest_key: string; reward_kind: string; reward_amount: number; claim_date: string; claimed_at: string };
 function fixture(claims: Claim[] = []) {
-  const completion = { ...Object.fromEntries(SIDE_QUEST_KEYS.map((key) => [key, true])), complete_profile: true, timezone: "UTC" };
+  const completion = { ...Object.fromEntries(SIDE_QUEST_KEYS.map((key) => [key, true])), complete_profile: true, upload_four_photos: true, timezone: "UTC" };
   const query = vi.fn(async (sql: string, params: unknown[] = []) => {
     if (sql.includes("as complete_tutorial")) return { rows: [completion] };
     if (sql.includes("as balance")) return { rows: [{ balance: 0 }] };
@@ -32,15 +32,21 @@ function fixture(claims: Claim[] = []) {
 describe("initial Side Quests", () => {
   beforeEach(() => { vi.clearAllMocks(); grant.mockResolvedValue({ id: "grant-1", days: 1 }); });
 
-  it("starts with Feed, profile and both photo quests, with one day for each of the first two", async () => {
+  it("starts with Feed, profile and both photo quests, with one day for each", async () => {
     const { app } = fixture();
     const { quests } = await getSideQuests(app, "member-1");
     expect(quests.slice(0, 4).map(({ key, rewardKind, rewardAmount }) => ({ key, rewardKind, rewardAmount }))).toEqual([
       { key: "post_feed", rewardKind: "cruush_plus_day", rewardAmount: 1 },
       { key: "complete_profile", rewardKind: "cruush_plus_day", rewardAmount: 1 },
-      { key: "upload_first_photo", rewardKind: "ping", rewardAmount: 1 },
-      { key: "upload_four_photos", rewardKind: "ping", rewardAmount: 3 }
+      { key: "upload_first_photo", rewardKind: "cruush_plus_day", rewardAmount: 1 },
+      { key: "upload_four_photos", rewardKind: "cruush_plus_day", rewardAmount: 1 }
     ]);
+    for (const key of ['send_ping', 'send_cruush', 'send_message', 'first_mutual_cruush', 'rate_spot']) {
+      expect(quests.find(quest => quest.key === key)).toMatchObject({ rewardKind: 'cruush_plus_day', rewardAmount: 1 });
+    }
+    for (const key of ['send_three_messages', 'post_three_feed']) {
+      expect(quests.find(quest => quest.key === key)).toMatchObject({ rewardKind: 'ping', rewardAmount: 2 });
+    }
   });
 
   it("keeps the actual reward on a previously claimed profile quest", async () => {
@@ -50,17 +56,17 @@ describe("initial Side Quests", () => {
     expect(grant).not.toHaveBeenCalled();
   });
 
-  it("requires profile completion and grants its day once through the existing claim path", async () => {
+  it.each(["complete_profile", "upload_four_photos"] as const)("requires %s completion and grants its day once through the existing claim path", async (questKey) => {
     const { app, completion, claims } = fixture();
-    completion.complete_profile = false;
-    await expect(claimSideQuest(app, "member-1", "complete_profile")).rejects.toMatchObject({ code: "QUEST_INCOMPLETE" });
+    completion[questKey] = false;
+    await expect(claimSideQuest(app, "member-1", questKey)).rejects.toMatchObject({ code: "QUEST_INCOMPLETE" });
     expect(grant).not.toHaveBeenCalled();
-    completion.complete_profile = true;
-    await claimSideQuest(app, "member-1", "complete_profile");
-    expect(grant).toHaveBeenCalledWith(app.db, expect.objectContaining({ userId: "member-1", days: 1, idempotencyKey: "side-quest:complete_profile:member-1" }), {});
+    completion[questKey] = true;
+    await claimSideQuest(app, "member-1", questKey);
+    expect(grant).toHaveBeenCalledWith(app.db, expect.objectContaining({ userId: "member-1", days: 1, idempotencyKey: `side-quest:${questKey}:member-1` }), {});
     expect(claims).toHaveLength(1);
     expect(claims[0]).toMatchObject({ reward_kind: "cruush_plus_day", reward_amount: 1 });
-    await expect(claimSideQuest(app, "member-1", "complete_profile")).rejects.toMatchObject({ code: "DAILY_QUEST_LIMIT" });
+    await expect(claimSideQuest(app, "member-1", questKey)).rejects.toMatchObject({ code: "DAILY_QUEST_LIMIT" });
     expect(grant).toHaveBeenCalledTimes(1);
   });
 });

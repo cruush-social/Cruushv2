@@ -45,19 +45,19 @@ type QuestDefinition = {
 const QUESTS: QuestDefinition[] = [
   { key: "post_feed", title: "Make your first Feed post", rewardKind: "cruush_plus_day", rewardAmount: 1 },
   { key: "complete_profile", title: "Finish your profile", rewardKind: "cruush_plus_day", rewardAmount: 1 },
-  { key: "upload_first_photo", title: "Upload your first profile photo", rewardKind: "ping", rewardAmount: 1 },
-  { key: "upload_four_photos", title: "Upload four profile photos", rewardKind: "ping", rewardAmount: 3 },
+  { key: "upload_first_photo", title: "Upload your first profile photo", rewardKind: "cruush_plus_day", rewardAmount: 1 },
+  { key: "upload_four_photos", title: "Upload four profile photos", rewardKind: "cruush_plus_day", rewardAmount: 1 },
   { key: "complete_tutorial", title: "Complete the tutorial", rewardKind: "ping", rewardAmount: 1 },
   { key: "view_profile", title: "View a profile", rewardKind: "ping", rewardAmount: 1 },
-  { key: "send_ping", title: "Send your first Pulse", rewardKind: "ping", rewardAmount: 1 },
-  { key: "send_cruush", title: "Send your first cruush", rewardKind: "ping", rewardAmount: 1 },
+  { key: "send_ping", title: "Send your first Pulse", rewardKind: "cruush_plus_day", rewardAmount: 1 },
+  { key: "send_cruush", title: "Send your first cruush", rewardKind: "cruush_plus_day", rewardAmount: 1 },
   { key: "send_message", title: "Send your first message", rewardKind: "cruush_plus_day", rewardAmount: 1 },
   { key: "first_mutual_cruush", title: "Make your first mutual cruush", rewardKind: "cruush_plus_day", rewardAmount: 1 },
   { key: "send_three_messages", title: "Send three messages", rewardKind: "ping", rewardAmount: 2 },
   { key: "post_three_feed", title: "Make three Feed posts", rewardKind: "ping", rewardAmount: 2 },
   { key: "check_in_spot", title: "Check in at a Spot", rewardKind: "ping", rewardAmount: 1 },
   { key: "post_spot_board", title: "Post on a Spot board", rewardKind: "cruush_plus_day", rewardAmount: 1 },
-  { key: "rate_spot", title: "Rate your first Spot", rewardKind: "ping", rewardAmount: 1 },
+  { key: "rate_spot", title: "Rate your first Spot", rewardKind: "cruush_plus_day", rewardAmount: 1 },
   { key: "save_visibility_set", title: "Save a Visibility set", rewardKind: "ping", rewardAmount: 2 }
 ];
 
