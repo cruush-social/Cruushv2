@@ -1,3 +1,4 @@
+import { ghostSettingsBodyClassName, ghostSettingsCardClassName, ghostSettingsChoiceClassName, ghostSettingsSelectedChoiceClassName, ghostSettingsIdleChoiceClassName } from './ghostSettingsStyles';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { ArrowLeft, ChevronRight } from 'lucide-react';
@@ -265,8 +266,8 @@ export default function GhostModeSettings() {
         <BugButtonSlot testId="ghost-mode-settings-bug-button-slot" />
       </header>
 
-      <div className="mx-auto max-w-2xl space-y-6 p-6">
-        <div className="rounded-2xl border border-border bg-card p-4 space-y-5">
+      <div className={ghostSettingsBodyClassName}>
+        <div className={ghostSettingsCardClassName}>
           {privacyError ? (
             <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
               {privacyError}
@@ -452,10 +453,10 @@ export default function GhostModeSettings() {
                 aria-label="Public"
                 aria-pressed={privacySettings.baseMode === 'PUBLIC_PRECISE'}
                 className={[
-                  'flex items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors',
+                  ghostSettingsChoiceClassName,
                   privacySettings.baseMode === 'PUBLIC_PRECISE'
-                    ? 'border-white/15 text-white'
-                    : 'border-white/10 bg-white/[0.035] text-white/72 hover:bg-white/[0.065]',
+                    ? ghostSettingsSelectedChoiceClassName
+                    : ghostSettingsIdleChoiceClassName,
                 ].join(' ')}
                 disabled={privacyStatus === 'loading' || privacyStatus === 'saving'}
                 onClick={() => {
@@ -483,10 +484,10 @@ export default function GhostModeSettings() {
                 aria-label="Mutuals"
                 aria-pressed={privacySettings.preciseToMutualCruushes}
                 className={[
-                  'flex items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors',
+                  ghostSettingsChoiceClassName,
                   privacySettings.preciseToMutualCruushes
-                    ? 'border-white/15 text-white'
-                    : 'border-white/10 bg-white/[0.035] text-white/72 hover:bg-white/[0.065]',
+                    ? ghostSettingsSelectedChoiceClassName
+                    : ghostSettingsIdleChoiceClassName,
                 ].join(' ')}
                 disabled={privacyStatus === 'loading' || privacyStatus === 'saving'}
                 onClick={() => {
@@ -512,10 +513,10 @@ export default function GhostModeSettings() {
                     type="button"
                     aria-pressed={selected}
                     className={[
-                      'flex items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors',
+                      ghostSettingsChoiceClassName,
                       selected
-                        ? 'border-white/15 text-white'
-                        : 'border-white/10 bg-white/[0.035] text-white/72 hover:bg-white/[0.065]',
+                        ? ghostSettingsSelectedChoiceClassName
+                        : ghostSettingsIdleChoiceClassName,
                     ].join(' ')}
                     disabled={privacyStatus === 'loading' || privacyStatus === 'saving'}
                     onClick={() => {

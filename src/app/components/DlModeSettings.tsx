@@ -1,3 +1,4 @@
+import { ghostSettingsBodyClassName, ghostSettingsCardClassName, ghostSettingsChoiceClassName, ghostSettingsSelectedChoiceClassName, ghostSettingsIdleChoiceClassName } from './ghostSettingsStyles';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { ArrowLeft, Image as ImageIcon, MessageCircle } from 'lucide-react';
@@ -20,25 +21,22 @@ export default function DlModeSettings() {
 
   return (
     <div className="min-h-screen bg-background pb-20">
-      <header className="sticky top-0 z-10 flex items-center gap-4 border-b border-border bg-card/80 p-4 backdrop-blur-sm">
-        <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <div className="flex items-center gap-3">
-          <span className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/[0.045]">
-            <DlModeMark active={enabled} className="h-6 w-6" />
-          </span>
-          <div>
-            <h2 className="text-xl">DL Mode</h2>
-            <p className="text-xs text-muted-foreground">Explicit media privacy display</p>
+      <header className="sticky top-0 z-10 border-b border-border bg-card/80 p-4 backdrop-blur-sm">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div className="flex min-w-0 items-center gap-3">
+            <DlModeMark active={enabled} className="h-7 w-7 shrink-0" />
+            <h2 className="truncate text-xl">DL Mode</h2>
           </div>
+          <BugButtonSlot testId="dl-mode-settings-bug-button-slot" />
         </div>
-      
-        <BugButtonSlot testId="dl-mode-settings-bug-button-slot" />
+        <p className="mt-1.5 text-sm text-muted-foreground">Explicit photo controls.</p>
       </header>
 
-      <div className="mx-auto max-w-2xl space-y-6 p-6">
-        <div className="rounded-lg border border-border bg-card p-4">
+      <div className={ghostSettingsBodyClassName}>
+        <div className={ghostSettingsCardClassName}>
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-start gap-3">
               <DlModeMark active={enabled} className="mt-1 h-5 w-5" />
@@ -55,7 +53,7 @@ export default function DlModeSettings() {
           </div>
         </div>
 
-        <div className="space-y-3 rounded-lg border border-white/10 bg-card p-4">
+        <div className={ghostSettingsCardClassName}>
           <div className="flex items-start gap-3">
             <MessageCircle className="mt-1 h-5 w-5 text-primary" />
             <div>
