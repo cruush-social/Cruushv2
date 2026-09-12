@@ -1,3 +1,5 @@
+import { useTrustRestrictions } from '../lib/trustRestrictions';
+import TrustRestrictionNotice from './TrustRestrictionNotice';
 import { useEffect, useLayoutEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import PhotoUploadSpinner from './PhotoUploadSpinner';
 import { PHOTO_UPLOAD_ACCEPT, PHOTO_UPLOAD_FORMAT_MESSAGE } from '../lib/photoUploadFormats';
@@ -232,6 +234,7 @@ export default function ProfileOnboarding({
   constrainedViewport = false,
   previewMode = false,
 }: ProfileOnboardingProps) {
+  const trust = useTrustRestrictions(!previewMode);
   // Minimal onboarding steps, but state includes all schema fields for upsert
   const steps: OnboardingStep[] = needsCodeOfConduct
     ? [...PROFILE_STEPS, 'twoFactor', 'affiliateShare', 'oath']
@@ -412,7 +415,7 @@ export default function ProfileOnboarding({
     const photo = event.target.files?.[0];
     event.target.value = '';
 
-    if (!photo) {
+    if (!photo || trust.restricted('photo_uploads')) {
       return;
     }
 
@@ -829,10 +832,11 @@ export default function ProfileOnboarding({
                       aria-label="Profile photo"
                       type="file"
                       accept={PHOTO_UPLOAD_ACCEPT}
-                      disabled={photoUploading}
+                      disabled={photoUploading || trust.restricted('photo_uploads')}
                       onChange={(event) => void handleOnboardingPhotoUpload(event)}
                     />
                     {photoUploading ? <PhotoUploadSpinner /> : null}
+                    <TrustRestrictionNotice message={trust.message('photo_uploads', 'Photo uploading')} />
                     <p className="text-xs text-white/58">{PHOTO_UPLOAD_FORMAT_MESSAGE}</p>
                     {photoUploadNotice ? <p className="text-xs text-primary">{photoUploadNotice}</p> : null}
                     {photoUploadError ? <p role="alert" className="text-xs text-destructive">{photoUploadError}</p> : null}

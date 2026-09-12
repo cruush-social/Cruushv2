@@ -83,6 +83,30 @@ export function calculateTrustScore(
   return maxFutureTrust == null ? uncapped : Math.min(uncapped, maxFutureTrust);
 }
 
+/** Estimate recovery under the existing policy, without adding events or changing a score. */
+export function estimateTrustRecoveryAt(
+  events: TrustEventForCalculation[],
+  maxFutureTrust?: number | null,
+  asOf = new Date()
+): Date | null {
+  const now = asOf.getTime();
+  if (calculateTrustScore(events, maxFutureTrust, asOf) > 20) return asOf;
+  const decayEnds = events
+    .filter((event) => event.value < 0 && event.decays !== false && event.permanent !== true && event.createdAt)
+    .map((event) => event.createdAt!.getTime() + TRUST_EVENT_DECAY_WINDOW_MS)
+    .filter((end) => Number.isFinite(end) && end > now);
+  let high = Math.max(now, ...decayEnds);
+  if (calculateTrustScore(events, maxFutureTrust, new Date(high)) <= 20) return null;
+  let low = now;
+  // Eligible negative events only move upward with time, so this predicate is monotone.
+  while (low < high) {
+    const middle = low + Math.floor((high - low) / 2);
+    if (calculateTrustScore(events, maxFutureTrust, new Date(middle)) > 20) high = middle;
+    else low = middle + 1;
+  }
+  return new Date(low);
+}
+
 async function ensureTrustProfile(db: DbClient, userId: string) {
   await db.query(
     `insert into user_trust_profiles (user_id)

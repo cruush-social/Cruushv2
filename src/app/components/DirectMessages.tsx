@@ -1,3 +1,5 @@
+import { useTrustRestrictions } from '../lib/trustRestrictions';
+import TrustRestrictionNotice from './TrustRestrictionNotice';
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { DROPDOWN_TRIGGER_CLASS } from '../lib/controlStyles';
 import { useNavigate, useSearchParams } from 'react-router';
@@ -253,6 +255,7 @@ export default function DirectMessages({
   onOpenConversation?: (conversationId: string) => void;
 } = {}) {
   const navigate = useNavigate();
+  const trust = useTrustRestrictions();
   const [searchParams, setSearchParams] = useSearchParams();
   const [conversations, setConversations] = useState<ConversationThread[]>([]);
   const [validPinUserIds, setValidPinUserIds] = useState<Set<string>>(() => new Set());
@@ -532,7 +535,7 @@ export default function DirectMessages({
   };
 
   const handleCreateGroup = async () => {
-    if (!groupName.trim() || selectedMemberIds.length === 0 || groupCreating) {
+    if (!groupName.trim() || selectedMemberIds.length === 0 || groupCreating || trust.restricted('group_creation')) {
       return;
     }
 
@@ -679,10 +682,11 @@ export default function DirectMessages({
               <Button
                 type="button"
                 size="icon"
+                disabled={trust.restricted('direct_messages') && trust.restricted('group_creation')}
                 aria-label="New message"
                 title="New message"
                 onClick={() => setComposeChooserOpen(true)}
-                className="h-11 w-11 rounded-full text-white"
+                className="h-11 w-11 rounded-full text-white disabled:grayscale"
                 style={{ background: 'var(--cruush-gradient)' }}
               >
                 <Plus className="size-4" />
@@ -944,10 +948,12 @@ export default function DirectMessages({
               </div>
             </div>
 
+            <TrustRestrictionNotice message={trust.message('group_creation', 'Group creation')} />
+
             <Button
               type="button"
               className="w-full"
-              disabled={!groupName.trim() || selectedMemberIds.length === 0 || groupCreating}
+              disabled={!groupName.trim() || selectedMemberIds.length === 0 || groupCreating || trust.restricted('group_creation')}
               onClick={() => void handleCreateGroup()}
             >
               Create group
@@ -957,6 +963,7 @@ export default function DirectMessages({
       ) : null}
 
       <div className="relative mx-auto max-w-2xl px-4 pb-8 pt-4">
+        <TrustRestrictionNotice message={trust.message('direct_messages', 'Messaging')} />
         {pinnedConversations.length > 0 ? (
           <section className="mb-6">
             <div className="mb-3 flex items-center gap-2">

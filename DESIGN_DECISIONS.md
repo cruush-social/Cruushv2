@@ -94,3 +94,12 @@ Any requested adaptation of supplied icon artwork preserves the source icon's or
 ## Side badge geometry, September 11, 2026
 
 Hanky choices use the same icon size and badge border geometry as ordinary choices. Map-pin side badges use the same 35px size as profile-card side badges. Every non-flag icon stays fully inside the border with visible clearance and never overlaps the border; the shared 60% glyph inset enforces this. Pride flags remain the sole edge-to-edge badge fill and follow the no-border rule above. Preserve badge placement, hover labels, heart size and all non-badge pin geometry.
+
+
+## Restricted feature controls and recovery notices, September 12, 2026
+
+When the current trust or feature policy restricts an operation, grey and disable its existing input or action and show a persistent, brief notice on that feature surface. Preserve existing controls, layout, navigation and Bug access. Do not redesign the Messages page or other affected pages. Reading conversations, managing their existing settings, viewing/removing saved images and checking in without an optional Pink Book post keep their actual independent eligibility rules.
+
+Approved wording: “Messaging is temporarily restricted because of your trust score. Access is expected to return in {days} days, provided you follow the Code of Conduct.” Use the relevant feature name for the affected operation. Use “1 day” or “later today” where accurate. A restriction unrelated to a low trust score must not claim that cause. Calculate the expected date from the existing eligibility policy, eligible event dates, caps and other active restrictions; do not promise a universal14-day unlock or invent a date for an indefinite restriction. Mentioning trust score is approved, but exposing raw points or private moderation evidence is not.
+
+Sources: linked task01a094aa user3124 approves the exact countdown draft; user3126 requests screenshots; the later narrow-scope correction explicitly preserves existing elements except greying/disabling and the persistent countdown statement. The current task01a09549 explicitly continues that linked queue. The separate trust-explanation page/post remains a pending destination/copy decision.

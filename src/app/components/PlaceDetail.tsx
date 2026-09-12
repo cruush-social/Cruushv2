@@ -1,3 +1,5 @@
+import { useTrustRestrictions } from '../lib/trustRestrictions';
+import TrustRestrictionNotice from './TrustRestrictionNotice';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { ArrowLeft, Clock, Copy, ExternalLink, Flag, MapPin, Share2, Star, Trash2, Users, X } from 'lucide-react';
@@ -76,6 +78,7 @@ type PlaceDetailProps = {
 };
 
 export default function PlaceDetail({ embedded = false, onBack, onClose, placeIdOverride }: PlaceDetailProps = {}) {
+  const trust = useTrustRestrictions();
   const { placeId: routePlaceId } = useParams();
   const placeId = placeIdOverride ?? routePlaceId;
   const navigate = useNavigate();
@@ -186,7 +189,7 @@ export default function PlaceDetail({ embedded = false, onBack, onClose, placeId
   }, [place]);
 
   const handlePostCheckin = () => {
-    if (!placeId || place?.id !== placeId || checkinVibes.length === 0 || postingCheckin || postingBoard || mutationRef.current) return;
+    if (!placeId || place?.id !== placeId || checkinVibes.length === 0 || (Boolean(message.trim()) && trust.restricted('pink_book')) || postingCheckin || postingBoard || mutationRef.current) return;
     const generation = ++checkinGeneration.current;
     const isCurrent = () => generation === checkinGeneration.current && activePlaceId.current === placeId;
     if (!navigator.geolocation) {
@@ -226,7 +229,7 @@ export default function PlaceDetail({ embedded = false, onBack, onClose, placeId
   };
 
   const handlePostBoard = async () => {
-    if (!placeId || place?.id !== placeId || !place.viewerCheckin || !message.trim() || postingBoard || postingCheckin || mutationRef.current) return;
+    if (!placeId || place?.id !== placeId || !place.viewerCheckin || !message.trim() || trust.restricted('pink_book') || postingBoard || postingCheckin || mutationRef.current) return;
     const generation = loadGeneration.current;
     const isCurrent = () => generation === loadGeneration.current && activePlaceId.current === placeId;
     setPostingBoard(true);
@@ -515,25 +518,26 @@ export default function PlaceDetail({ embedded = false, onBack, onClose, placeId
           </TabsList>
 
           <TabsContent value="feed" className="space-y-4 mt-4">
+            <TrustRestrictionNotice message={trust.message('pink_book', 'Pink Book posting')} />
             <Accordion type="single" collapsible key={place.id}>
               <AccordionItem value="pink-book-composer">
                 <AccordionTrigger>{place.viewerCheckin ? 'Post to Pink Book' : 'Check in'}</AccordionTrigger>
                 <AccordionContent className="pb-0">
             {place.viewerCheckin ? (
               <div className="rounded-lg border border-border bg-card p-3">
-                <textarea aria-label="Write a Pink Book post" className="min-h-20 w-full resize-none bg-transparent text-sm text-white outline-none" placeholder="Write a Pink Book post" value={message} onChange={(event) => setMessage(event.target.value)} maxLength={1000} />
+                <textarea disabled={trust.restricted('pink_book')} aria-label="Write a Pink Book post" className="min-h-20 w-full resize-none bg-transparent text-sm text-white outline-none disabled:opacity-50" placeholder="Write a Pink Book post" value={message} onChange={(event) => setMessage(event.target.value)} maxLength={1000} />
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <p className="text-xs text-white/55">Checked in until {new Date(place.viewerCheckin.expiresAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</p>
                   <div className="flex items-center gap-3">
                     <button type="button" disabled={mutating || postingCheckin || postingBoard} className="text-xs text-white/65 hover:text-white disabled:opacity-50" onClick={() => void handleCheckout()}>Check out</button>
-                    <Button size="sm" disabled={!message.trim() || postingBoard || postingCheckin || mutating} onClick={() => void handlePostBoard()}>{postingBoard ? 'Posting...' : 'Post to Pink Book'}</Button>
+                    <Button size="sm" disabled={trust.restricted('pink_book') || !message.trim() || postingBoard || postingCheckin || mutating} onClick={() => void handlePostBoard()}>{postingBoard ? 'Posting...' : 'Post to Pink Book'}</Button>
                   </div>
                 </div>
               </div>
             ) : (
               <div className="rounded-lg border border-border bg-card p-3">
                 <p className="mb-3 text-sm text-white/70">Check in to read other members' Pink Book posts. Your posts stay until you delete them.</p>
-                <textarea aria-label="Pink Book post for check-in" className="mb-4 min-h-20 w-full resize-none rounded-md border border-white/10 bg-black/30 p-3 text-sm text-white outline-none focus:border-primary/45" placeholder="Write a Pink Book post (optional)" value={message} onChange={(event) => setMessage(event.target.value)} maxLength={1000} />
+                <textarea disabled={trust.restricted('pink_book')} aria-label="Pink Book post for check-in" className="mb-4 min-h-20 w-full resize-none rounded-md border border-white/10 bg-black/30 p-3 text-sm text-white outline-none focus:border-primary/45 disabled:opacity-50" placeholder="Write a Pink Book post (optional)" value={message} onChange={(event) => setMessage(event.target.value)} maxLength={1000} />
                 <fieldset className="mb-4 space-y-2">
                   <legend className="text-xs text-white/60">Spot vibes</legend>
                   <div className="flex flex-wrap gap-2">
@@ -602,7 +606,7 @@ export default function PlaceDetail({ embedded = false, onBack, onClose, placeId
                   <Checkbox checked={visibleCheckin} onCheckedChange={(checked) => setVisibleCheckin(checked === true)} />
                   Show me in Who's Here
                 </label>
-                  <Button size="sm" disabled={checkinVibes.length === 0 || postingCheckin || postingBoard || mutating} onClick={handlePostCheckin}>{postingCheckin ? 'Checking in...' : 'Check in'}</Button>
+                  <Button size="sm" disabled={checkinVibes.length === 0 || (Boolean(message.trim()) && trust.restricted('pink_book')) || postingCheckin || postingBoard || mutating} onClick={handlePostCheckin}>{postingCheckin ? 'Checking in...' : 'Check in'}</Button>
                 </div>
               </div>
             )}

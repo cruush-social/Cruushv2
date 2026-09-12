@@ -1,3 +1,5 @@
+import { useTrustRestrictions } from '../lib/trustRestrictions';
+import TrustRestrictionNotice from './TrustRestrictionNotice';
 import {
   useEffect,
   useMemo,
@@ -196,6 +198,7 @@ export default function MapPingSheet({
   onUpgrade,
 }: MapPingSheetProps) {
   const isMobile = useIsMobile();
+  const trust = useTrustRestrictions(open);
   const [radiusMiles, setRadiusMiles] = useState<MapPingRadiusMiles>(3);
   const [sending, setSending] = useState(false);
   const [editingSignal, setEditingSignal] = useState(false);
@@ -243,7 +246,7 @@ export default function MapPingSheet({
   const normalizedSignal = signal?.trim() ?? '';
   // A Pulse asks people to look at you, which is the opposite of being off the
   // map, so it stays shut while Dark Room is on.
-  const sendDisabled = loading || sending || !status || !hasMapLocation ||
+  const sendDisabled = trust.restricted('map_pings') || loading || sending || !status || !hasMapLocation ||
     !normalizedSignal || status.allowance.remaining === 0 || cooldownActive || lurkerActive;
   const statusText = useMemo(() => {
     if (activePing && status?.activePing) {
@@ -366,6 +369,7 @@ export default function MapPingSheet({
   };
 
   const handleSend = async () => {
+    if (trust.restricted('map_pings')) return;
     setSending(true);
     setError(null);
 
@@ -581,9 +585,10 @@ export default function MapPingSheet({
         </div>
 
         <SheetFooter className="shrink-0 bg-background/96 pb-[env(safe-area-inset-bottom)] pt-2">
+          <TrustRestrictionNotice message={trust.message('map_pings', 'Pulse')} />
           <Button
             type="button"
-            className="cruush-action-sheen h-11 rounded-full font-semibold text-[#0B1200] disabled:text-white/45"
+            className={`cruush-action-sheen h-11 rounded-full font-semibold text-[#0B1200] disabled:text-white/45 ${trust.restricted('map_pings') ? 'grayscale' : ''}`}
             disabled={sendDisabled}
             onClick={() => void handleSend()}
             style={{ background: sendDisabled ? '#151a0b' : '#c8ff31' }}

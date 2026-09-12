@@ -24,6 +24,7 @@ import {
   type VisibilitySubjectProfile
 } from "../profile-visibility.js";
 import { getAuthenticatedUserId } from "../request-auth.js";
+import { getTrustRestrictions } from "../trust-restrictions.js";
 import { normalizeSingleLineText } from "../input-schema.js";
 import { getEffectiveVisibilityPolicy, getRelationshipPermissions } from "../match-relationships.js";
 import { canStartDirectMessage } from "../cruush-match-settings.js";
@@ -1193,6 +1194,12 @@ async function loadActiveDiscoveryMapPings(app: FastifyInstance, profileIds: str
 }
 
 export async function registerUserRoutes(app: FastifyInstance) {
+  app.get("/api/me/trust-restrictions", async (request, reply) => {
+    const userId = await getAuthenticatedUserId(request);
+    reply.header("Cache-Control", "no-store");
+    return { data: await getTrustRestrictions(app.db, userId) };
+  });
+
   app.get("/api/users", async (request, reply) => {
     const currentUserId = await getAuthenticatedUserId(request);
     const parsedQuery = discoveryQuerySchema.parse(request.query);

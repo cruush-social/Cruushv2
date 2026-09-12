@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, within, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import PlaceDetail from './PlaceDetail';
@@ -221,11 +221,12 @@ describe('PlaceDetail request isolation', () => {
     getPlaceBoard.mockResolvedValue([]);
 
     const view = render(placeDetail('spot-a'));
+    fireEvent.click(await screen.findByRole('button', { name: 'Check in' }));
     fireEvent.change(await screen.findByRole('textbox', { name: 'Pink Book post for check-in' }), {
       target: { value: 'Checking in' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Chill' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Check in' }));
+    fireEvent.click(within(screen.getByRole('textbox', { name: 'Pink Book post for check-in' }).parentElement!).getByRole('button', { name: 'Check in' }));
     expect(getCurrentPosition).toHaveBeenCalledTimes(1);
 
     view.rerender(placeDetail('spot-b'));

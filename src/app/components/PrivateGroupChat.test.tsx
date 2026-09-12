@@ -3,6 +3,7 @@ import { PHOTO_UPLOAD_ACCEPT } from '../lib/photoUploadFormats';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import PrivateGroupChat from './PrivateGroupChat';
+import * as trustRestrictions from '../lib/trustRestrictions';
 import { ApiClientError } from '../lib/apiClient';
 
 const {
@@ -188,6 +189,41 @@ describe('PrivateGroupChat', () => {
       status: 'open',
       createdAt: '2026-07-11T12:00:00.000Z',
     });
+  });
+
+  it('blocks restricted sends while keeping conversation settings and gallery viewing available', async () => {
+    const mock = vi.spyOn(trustRestrictions, 'useTrustRestrictions').mockReturnValue({
+      restricted: () => true,
+      message: () => 'Messaging is temporarily restricted because of your trust score.',
+    });
+    getConversationMessages.mockResolvedValue({
+      conversation: {
+        id: 'trust-chat', kind: 'group', user: { id: 'group-1', name: 'Local group', pronouns: '', photo: null },
+        distance: 'Nearby', updatedAt: '2026-09-12T12:00:00Z', lastMessage: '', unreadCount: 0,
+        pinned: false, tags: [], membersLabel: '1 person', currentUserRole: 'owner', disappearingTimer: 'off',
+      }, messages: [],
+    });
+    const view = render(<MemoryRouter initialEntries={['/chat/trust-chat']}>
+      <Routes><Route path="/chat/:chatId" element={<PrivateGroupChat />} /></Routes>
+    </MemoryRouter>);
+    try {
+      expect(await screen.findByText('Messaging is temporarily restricted because of your trust score.')).toBeVisible();
+      const input = screen.getByPlaceholderText('Drop the plan...');
+      expect(input).toBeDisabled();
+      expect(screen.getByRole('button', { name: 'Attach photo' })).toBeDisabled();
+      expect(screen.getByRole('button', { name: 'Send message' })).toBeDisabled();
+      expect(screen.getByRole('combobox', { name: 'Message disappearing timer' })).toBeEnabled();
+      const gallery = screen.getByRole('button', { name: 'Quick access gallery' });
+      expect(gallery).toBeEnabled();
+      fireEvent.click(gallery);
+      expect(await screen.findByLabelText('Choose favorite image')).toBeDisabled();
+      fireEvent.change(input, { target: { value: 'Existing draft' } });
+      fireEvent.keyDown(input, { key: 'Enter' });
+      expect(createMessage).not.toHaveBeenCalled();
+    } finally {
+      view.unmount();
+      mock.mockRestore();
+    }
   });
 
   it('shows an empty live chat without preview messages', async () => {
@@ -1186,9 +1222,7 @@ describe('PrivateGroupChat', () => {
       target: { files: [new File(['image-bytes'], 'favorite.png', { type: 'image/png' })] },
     });
 
-    expect(await screen.findByRole('status')).toHaveTextContent(
-      'Photo submitted for review. It will appear in your quick access gallery automatically.',
-    );
+    expect(await screen.findByText('Photo submitted for review. It will appear in your quick access gallery automatically.')).toHaveAttribute('role', 'status');
     expect(screen.queryByAltText('favorite')).not.toBeInTheDocument();
   });
 
@@ -1227,9 +1261,7 @@ describe('PrivateGroupChat', () => {
       target: { files: [new File(['image-bytes'], 'photo.png', { type: 'image/png' })] },
     });
 
-    expect(await screen.findByRole('status')).toHaveTextContent(
-      'Photo submitted for review. It will send automatically after safety checks complete.',
-    );
+    expect(await screen.findByText('Photo submitted for review. It will send automatically after safety checks complete.')).toHaveAttribute('role', 'status');
     expect(screen.getByPlaceholderText('Drop the plan...')).toHaveValue('');
     expect(screen.queryByAltText('Message photo')).not.toBeInTheDocument();
   });

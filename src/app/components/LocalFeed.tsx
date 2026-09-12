@@ -1,3 +1,5 @@
+import { useTrustRestrictions } from '../lib/trustRestrictions';
+import TrustRestrictionNotice from './TrustRestrictionNotice';
 import PhotoUploadSpinner from './PhotoUploadSpinner';
 import { useCallback, useEffect, useId, useRef, useState, type ChangeEvent, type KeyboardEvent } from 'react';
 import { PHOTO_UPLOAD_ACCEPT, PHOTO_UPLOAD_FORMAT_MESSAGE, PHOTO_UPLOAD_EXTENSION_TYPES } from '../lib/photoUploadFormats';
@@ -155,6 +157,7 @@ function normalizeFeedTag(value: string) {
 const MAX_FEED_POST_TAGS = 10;
 
 export default function LocalFeed({ embedded = false, onClose }: { embedded?: boolean; onClose?: () => void; onOpenSettings?: () => void } = {}) {
+  const trust = useTrustRestrictions();
   const distancePreferences = useDistancePreferences();
   const navigate = useNavigate();
   const location = useLocation();
@@ -459,7 +462,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
   }, [hasMorePosts, loadMorePosts]);
 
   const handlePost = async () => {
-    if (!newPost.trim() || posting || uploadingFeedPhoto) return;
+    if (!newPost.trim() || posting || uploadingFeedPhoto || trust.restricted('feed_posting')) return;
 
     setPosting(true);
     setError(null);
@@ -518,7 +521,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
   const handleFeedPhotoSelection = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = '';
-    if (!file) {
+    if (!file || trust.restricted('feed_posting') || trust.restricted('photo_uploads')) {
       return;
     }
 
@@ -1123,10 +1126,12 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
               {error}
             </div>
           ) : null}
+          <TrustRestrictionNotice message={trust.message('feed_posting', 'Feed posting')} />
           {!composerOpen ? (
             <button
               type="button"
-              className="bg-input-background flex w-full items-center gap-3 rounded-md border border-white/10 px-3 py-2 text-left text-sm text-muted-foreground transition-colors hover:bg-white/5"
+              className="bg-input-background flex w-full items-center gap-3 rounded-md border border-white/10 px-3 py-2 text-left text-sm text-muted-foreground transition-colors hover:bg-white/5 disabled:opacity-50"
+              disabled={trust.restricted('feed_posting')}
               data-testid="local-feed-composer-open"
               ref={composerOpenButtonRef}
               onClick={() => {
@@ -1154,6 +1159,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
             </AccordionItem>
           </Accordion>
           <Textarea
+            disabled={trust.restricted('feed_posting')}
             ref={composerInputRef}
             value={newPost}
             onChange={(e) => setNewPost(e.target.value)}
@@ -1166,7 +1172,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
               <input
                 aria-label="Add Feed tag"
                 className="h-10 min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-white/45"
-                disabled={!hasCruushPlus || postTags.length >= MAX_FEED_POST_TAGS}
+                disabled={trust.restricted('feed_posting') || !hasCruushPlus || postTags.length >= MAX_FEED_POST_TAGS}
                 maxLength={25}
                 onChange={(event) => setNewTag(event.target.value)}
                 onKeyDown={handleTagKeyDown}
@@ -1175,7 +1181,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
               />
               <button
                 className="text-sm font-semibold text-white/72 disabled:opacity-35"
-                disabled={!hasCruushPlus || !normalizeFeedTag(newTag) || postTags.length >= MAX_FEED_POST_TAGS}
+                disabled={trust.restricted('feed_posting') || !hasCruushPlus || !normalizeFeedTag(newTag) || postTags.length >= MAX_FEED_POST_TAGS}
                 onClick={addPostTag}
                 type="button"
               >
@@ -1190,6 +1196,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
                   ordered scale from 30 minutes to never, so sliding along it
                   reads better than picking one of six pills. */}
               <Slider
+                disabled={trust.restricted('feed_posting')}
                 aria-label="This post expires"
                 className="mt-1"
                 data-testid="feed-expiry-slider"
@@ -1265,6 +1272,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
             <div>
               <input
                 accept={PHOTO_UPLOAD_ACCEPT}
+                disabled={trust.restricted('feed_posting') || trust.restricted('photo_uploads')}
                 aria-label="Choose Feed photo"
                 className="sr-only"
                 onChange={handleFeedPhotoSelection}
@@ -1273,7 +1281,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
               />
               <Button
                 aria-label={hasCruushPlus === true ? 'Add Feed photo' : 'Feed photos require cruush+'}
-                disabled={uploadingFeedPhoto || stagedPhotos.length >= 3}
+                disabled={uploadingFeedPhoto || stagedPhotos.length >= 3 || trust.restricted('feed_posting') || trust.restricted('photo_uploads')}
                 onClick={() => {
                   if (hasCruushPlus !== true) {
                     setPlusCardOpen(true);
@@ -1287,11 +1295,13 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
                 {uploadingFeedPhoto ? <PhotoUploadSpinner className="mr-2 h-4 w-4" /> : <CruushIcon name="camera" className="mr-2 h-4 w-4" />}
                 {`Photo${hasCruushPlus === true ? ` ${stagedPhotos.length}/3` : ' +'}`}
               </Button>
+              <TrustRestrictionNotice message={!trust.restricted('feed_posting') ? trust.message('photo_uploads', 'Photo uploading') : null} />
               <p className="mt-1 text-xs text-muted-foreground">{PHOTO_UPLOAD_FORMAT_MESSAGE}</p>
             </div>
             <Button
+              className={trust.restricted('feed_posting') ? 'grayscale' : undefined}
               onClick={handlePost}
-              disabled={!newPost.trim() || posting || uploadingFeedPhoto}
+              disabled={!newPost.trim() || posting || uploadingFeedPhoto || trust.restricted('feed_posting')}
               style={{
                 background: newPost.trim()
                   ? 'var(--cruush-gradient)'

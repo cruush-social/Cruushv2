@@ -1,3 +1,5 @@
+import { useTrustRestrictions } from '../lib/trustRestrictions';
+import TrustRestrictionNotice from './TrustRestrictionNotice';
 import type { ChangeEvent, PointerEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { DROPDOWN_TRIGGER_CLASS } from '../lib/controlStyles';
@@ -634,6 +636,7 @@ interface ProfileEditProps {
 
 export default function ProfileEdit({ embedded = false, onCancel, onSaved }: ProfileEditProps = {}) {
   const navigate = useNavigate();
+  const trust = useTrustRestrictions();
   const location = useLocation();
   const requestedProfileSection = (location.state as { profileSection?: 'vibes' | 'kinks' } | null)?.profileSection;
   const distancePreferences = useDistancePreferences();
@@ -892,7 +895,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
     const file = event.target.files?.[0];
     event.target.value = '';
 
-    if (!file) {
+    if (!file || trust.restricted('photo_uploads')) {
       return;
     }
 
@@ -1282,7 +1285,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
               })}
 
               {normalizedProfile.photos.length < MAX_PROFILE_PHOTOS ? (
-                <label className={`flex aspect-[4/5] flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-border bg-card/60 p-4 text-center transition-colors ${profilePhotoUploadsAvailable === false ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:bg-accent/50'}`}>
+                <label className={`flex aspect-[4/5] flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-border bg-card/60 p-4 text-center transition-colors ${profilePhotoUploadsAvailable === false || trust.restricted('photo_uploads') ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:bg-accent/50'}`}>
                   <span className="flex h-7 w-7 items-center justify-center text-muted-foreground">
                     {uploadingPhoto ? <PhotoUploadSpinner /> : <Upload className="h-7 w-7" />}
                   </span>
@@ -1290,13 +1293,14 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
                   <input
                     accept={PHOTO_UPLOAD_ACCEPT}
                     className="sr-only"
-                    disabled={uploadingPhoto || profilePhotoUploadsAvailable === false}
+                    disabled={uploadingPhoto || profilePhotoUploadsAvailable === false || trust.restricted('photo_uploads')}
                     onChange={handlePhotoUpload}
                     type="file"
                   />
                 </label>
               ) : null}
             </div>
+            <TrustRestrictionNotice message={trust.message('photo_uploads', 'Photo uploading')} />
             <p className="text-xs text-muted-foreground">{PHOTO_UPLOAD_FORMAT_MESSAGE}</p>
           </TabsContent>
 

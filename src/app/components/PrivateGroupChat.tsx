@@ -1,3 +1,5 @@
+import { useTrustRestrictions } from '../lib/trustRestrictions';
+import TrustRestrictionNotice from './TrustRestrictionNotice';
 import PhotoUploadSpinner from './PhotoUploadSpinner';
 import { PHOTO_UPLOAD_FORMAT_MESSAGE } from '../lib/photoUploadFormats';
 import { useEffect, useId, useRef, useState } from 'react';
@@ -461,6 +463,10 @@ export default function PrivateGroupChat({
     mutualRequiredConversationId === conversation.id
   );
   const composerDisabled = Boolean(conversation?.closed) || dmMessagingBlocked;
+  const trust = useTrustRestrictions();
+  const messageFeature = conversation?.kind === 'group' ? 'group_messages' : 'direct_messages';
+  const messagePhotoFeature = conversation?.kind === 'group' ? 'group_message_photos' : 'direct_message_photos';
+  const messageSendDisabled = composerDisabled || trust.restricted(messageFeature);
 
   const loadGroupSettingsData = async (conversationId: string) => {
     setGroupMembersLoading(true);
@@ -535,7 +541,7 @@ export default function PrivateGroupChat({
     const file = event.currentTarget.files?.[0];
     event.currentTarget.value = '';
 
-    if (!file || favoriteUploading || composerDisabled) {
+    if (!file || favoriteUploading || composerDisabled || trust.restricted('favorite_images')) {
       return;
     }
 
@@ -571,7 +577,7 @@ export default function PrivateGroupChat({
   };
 
   const handleSendFavoriteImage = async (favorite: FavoriteMessageImage) => {
-    if (!chatId || !conversation || composerDisabled || favoriteSendingId) {
+    if (!chatId || !conversation || messageSendDisabled || favoriteSendingId) {
       return;
     }
 
@@ -847,7 +853,7 @@ export default function PrivateGroupChat({
   };
 
   const handleSend = async () => {
-    if (!normalizedComposerMessage || !chatId || !conversation || composerDisabled || textMessageSendingRef.current) return;
+    if (!normalizedComposerMessage || !chatId || !conversation || messageSendDisabled || textMessageSendingRef.current) return;
 
     const composerDraft = message;
     textMessageSendingRef.current = true;
@@ -898,7 +904,7 @@ export default function PrivateGroupChat({
     const file = event.currentTarget.files?.[0];
     event.currentTarget.value = '';
 
-    if (!file || !chatId || !conversation || photoUploading || composerDisabled) {
+    if (!file || !chatId || !conversation || photoUploading || composerDisabled || trust.restricted(messagePhotoFeature)) {
       return;
     }
 
@@ -961,10 +967,10 @@ export default function PrivateGroupChat({
   };
   const groupMemberIds = new Set(groupMembers.map((member) => member.id));
   const availableAddOptions = mutualOptions.filter((item) => !groupMemberIds.has(item.user.id));
-  const messagePhotoControlDisabled = photoUploading || composerDisabled;
+  const messagePhotoControlDisabled = photoUploading || composerDisabled || trust.restricted(messagePhotoFeature);
   const normalizedComposerMessage = normalizeMessageForSend(message);
   const canSendMessage = normalizedComposerMessage.length > 0;
-  const favoriteUploadControlDisabled = favoriteUploading || composerDisabled;
+  const favoriteUploadControlDisabled = favoriteUploading || composerDisabled || trust.restricted('favorite_images');
   // Focus is the one signal every browser gives when the keyboard opens. Some
   // resize the layout viewport instead of reporting an inset, which measures as
   // zero, and the resting gap then showed a strip of the thread between the
@@ -1580,6 +1586,8 @@ export default function PrivateGroupChat({
                 </div>
               ) : null}
 
+              <TrustRestrictionNotice message={trust.message(messageFeature, 'Messaging') || trust.message(messagePhotoFeature, 'Photo messaging')} />
+
               {composerDisabled ? (
                 <div className="rounded-2xl border border-border bg-card/80 px-4 py-3 text-sm text-muted-foreground">
                   {dmMessagingBlocked ? 'Messaging is unavailable for this conversation.' : 'This group is closed.'}
@@ -1620,13 +1628,13 @@ export default function PrivateGroupChat({
                   className={[
                     'inline-flex h-8 items-center gap-1.5 rounded-full border border-border bg-card/72 px-2.5 text-xs text-muted-foreground transition-colors',
                     photoViewOnce ? 'border-primary/40 bg-primary/10 text-primary' : '',
-                    composerDisabled || photoUploading ? 'opacity-60' : '',
+                    messagePhotoControlDisabled ? 'opacity-60' : '',
                   ].join(' ')}
                 >
                   <Checkbox
                     aria-label="Send photo view once"
                     checked={photoViewOnce}
-                    disabled={composerDisabled || photoUploading}
+                    disabled={messagePhotoControlDisabled}
                     className="size-4 rounded-full"
                     onCheckedChange={(checked) => {
                       const next = checked === true;
@@ -1638,15 +1646,15 @@ export default function PrivateGroupChat({
                   />
                   <span
                     role="button"
-                    tabIndex={composerDisabled || photoUploading ? -1 : 0}
+                    tabIndex={messagePhotoControlDisabled ? -1 : 0}
                     onClick={(event) => {
                       event.preventDefault();
-                      setPhotoViewOnce((current) => !current);
+                      if (!messagePhotoControlDisabled) setPhotoViewOnce((current) => !current);
                     }}
                     onKeyDown={(event) => {
                       if (event.key === 'Enter' || event.key === ' ') {
                         event.preventDefault();
-                        setPhotoViewOnce((current) => !current);
+                        if (!messagePhotoControlDisabled) setPhotoViewOnce((current) => !current);
                       }
                     }}
                   >once</span>
@@ -1747,7 +1755,7 @@ export default function PrivateGroupChat({
                                   size="icon"
                                   className="size-8 rounded-full"
                                   aria-label="Send favorite image"
-                                  disabled={composerDisabled || favoriteBusy}
+                                  disabled={messageSendDisabled || favoriteBusy}
                                   onClick={() => void handleSendFavoriteImage(favorite)}
                                 >
                                   <CruushIcon name="send" className="size-4" />
@@ -1777,14 +1785,14 @@ export default function PrivateGroupChat({
                     value={message}
                     onChange={(event) => setMessage(event.target.value)}
                     onKeyDown={(event) => {
-                      if (event.key === 'Enter' && !event.shiftKey && !composerDisabled && !textMessageSending) {
+                      if (event.key === 'Enter' && !event.shiftKey && !messageSendDisabled && !textMessageSending) {
                         event.preventDefault();
                         void handleSend();
                       }
                     }}
                     onFocus={() => setComposerFocused(true)}
                     onBlur={() => setComposerFocused(false)}
-                    disabled={composerDisabled}
+                    disabled={messageSendDisabled}
                     placeholder={composerDisabled ? 'Group closed' : conversation.kind === 'group' ? 'Drop the plan...' : 'Say what you want...'}
                     className="min-h-[60px] min-w-0 flex-1 border-0 bg-transparent px-0 py-1 focus-visible:ring-0"
                   />
@@ -1812,9 +1820,9 @@ export default function PrivateGroupChat({
                     </Button>
                     <Button
                       onClick={() => void handleSend()}
-                      disabled={!canSendMessage || composerDisabled || textMessageSending}
+                      disabled={!canSendMessage || messageSendDisabled || textMessageSending}
                       size="icon"
-                      className="rounded-full"
+                      className={`rounded-full ${trust.restricted(messageFeature) ? 'grayscale' : ''}`}
                       aria-label="Send message"
                       style={{
                         background: canSendMessage

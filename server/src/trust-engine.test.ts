@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   calculateTrustScore,
+  estimateTrustRecoveryAt,
   clampTrustScore,
   recalculateDecayingTrustProfiles,
   recalculateTrustProfile,
@@ -10,6 +11,25 @@ import {
 import type { DbClient } from "./db.js";
 
 describe("trust engine calculations", () => {
+  it("finds the first eligible instant using actual staggered decays and rounding", () => {
+    const now = new Date("2026-09-12T00:00:00Z");
+    const events = [
+      { value: -40, decays: true, permanent: false, createdAt: now },
+      { value: -20, decays: true, permanent: false, createdAt: new Date("2026-09-05T00:00:00Z") },
+    ];
+    const recovery = estimateTrustRecoveryAt(events, null, now)!;
+    expect(recovery.getTime()).toBeGreaterThan(now.getTime());
+    expect(recovery.getTime()).toBeLessThan(now.getTime() + 14 * 86_400_000);
+    expect(calculateTrustScore(events, null, recovery)).toBe(21);
+    expect(calculateTrustScore(events, null, new Date(recovery.getTime() - 1))).toBe(20);
+  });
+
+  it("does not promise recovery through a permanent penalty or restrictive cap", () => {
+    const now = new Date("2026-09-12T00:00:00Z");
+    expect(estimateTrustRecoveryAt([{ value: -40, permanent: true, createdAt: now }], null, now)).toBeNull();
+    expect(estimateTrustRecoveryAt([{ value: -40, decays: true, createdAt: now }], 20, now)).toBeNull();
+  });
+
   it("clamps trust scores to the 0-100 range", () => {
     expect(clampTrustScore(-50)).toBe(0);
     expect(clampTrustScore(42.4)).toBe(42);
