@@ -240,3 +240,5 @@
 - Relationship status was omitted from encrypted profile writes, so selections disappeared after saving. It now persists and appears below Position and Role in profile menus and profiles.
 - The desktop Spot popup's bug control could cover its close control. Its header now places a dedicated Close button immediately after the bug control while the mobile dialog keeps its existing Close behavior.
 - Desktop map profile popups stopped too high above the bottom navigation. Profile and Edit Profile panels can now extend 34px farther down while other docked panels retain their existing clearance.
+
+- 2026-09-12: Fit every onboarding step to the available viewport, keeping the full logo, conduct agreement and navigation visible. Rendered all seven steps at 375x812, 768x800 and 1280x800; Gender Identity menu scrolls without page/step scrolling. Client build and 14 existing onboarding tests passed. Physical mobile keyboard panning remains unverified.

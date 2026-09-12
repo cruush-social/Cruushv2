@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { PHOTO_UPLOAD_ACCEPT } from '../lib/photoUploadFormats';
 import { CROWDS, IDENTITIES, LOOKING_FOR, MAX_PROFILE_SEXUALITIES, POSITIONS, PRONOUNS, ROLES, SEXUALITY, VIBE_GROUPS } from '../lib/profileOptions';
 import { ArrowRight, Check, Clipboard, Gift, Share2, ShieldCheck } from 'lucide-react';
@@ -249,6 +249,7 @@ export default function ProfileOnboarding({
     return savedStep;
   });
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const stepContentRef = useRef<HTMLDivElement>(null);
   const [profile, setProfile] = useState<OnboardingProfileState>({
     name: '',
     bio: '',
@@ -336,6 +337,67 @@ export default function ProfileOnboarding({
   useEffect(() => {
     scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'auto' });
   }, [step]);
+
+  useLayoutEffect(() => {
+    const viewport = scrollContainerRef.current;
+    const content = stepContentRef.current;
+    if (!viewport || !content) return;
+
+    let frame = 0;
+    const fitStep = () => {
+      const visualViewport = window.visualViewport;
+      const visibleBottom = visualViewport
+        ? visualViewport.offsetTop + visualViewport.height
+        : window.innerHeight;
+      const viewportTop = viewport.getBoundingClientRect().top;
+      const visibleTop = visualViewport?.offsetTop ?? 0;
+      viewport.style.setProperty('--onboarding-pan-offset', `${Math.max(0, visibleTop - viewportTop)}px`);
+      viewport.style.maxHeight = `${Math.max(0, visibleBottom - viewportTop)}px`;
+      const style = getComputedStyle(viewport);
+      const horizontalPadding = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight);
+      const availableHeight = viewport.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
+      const availableWidth = Math.min(viewport.clientWidth, 28 * parseFloat(getComputedStyle(document.documentElement).fontSize)) - horizontalPadding;
+      if (availableHeight <= 0 || availableWidth <= 0) return;
+
+      // Keep the full available width while sizing the existing step as a unit.
+      // Reflowing at that width avoids shrinking a long conduct page into a
+      // narrow column. Menus already portal outside this fitted content.
+      const applyScale = (scale: number) => {
+        content.style.zoom = String(scale);
+        content.style.width = `${availableWidth / scale}px`;
+      };
+      applyScale(1);
+      if (content.getBoundingClientRect().height > availableHeight) {
+        let low = 0;
+        let high = 1;
+        for (let attempt = 0; attempt < 12; attempt += 1) {
+          const scale = (low + high) / 2;
+          applyScale(scale);
+          if (content.getBoundingClientRect().height <= availableHeight) low = scale;
+          else high = scale;
+        }
+        applyScale(low);
+      }
+    };
+    const scheduleFit = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(fitStep);
+    };
+    fitStep();
+    const observer = new ResizeObserver(scheduleFit);
+    observer.observe(viewport);
+    observer.observe(content);
+    window.addEventListener('resize', scheduleFit);
+    window.visualViewport?.addEventListener('resize', scheduleFit);
+    window.visualViewport?.addEventListener('scroll', scheduleFit);
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+      window.removeEventListener('resize', scheduleFit);
+      window.visualViewport?.removeEventListener('resize', scheduleFit);
+      window.visualViewport?.removeEventListener('scroll', scheduleFit);
+    };
+  }, [currentStep]);
 
   const setProfileField = <K extends keyof OnboardingProfileState>(field: K, value: OnboardingProfileState[K]) => {
     setProfile((prev) => ({ ...prev, [field]: value }));
@@ -712,10 +774,9 @@ export default function ProfileOnboarding({
   return (
     <div
       ref={scrollContainerRef}
-      className={`${constrainedViewport ? 'h-full' : 'h-[100dvh]'} scrollbar-hide max-w-full overflow-x-hidden overflow-y-auto overscroll-contain bg-[#050505] text-foreground`}
-      style={{ WebkitOverflowScrolling: 'touch' }}
+      className={`${constrainedViewport ? 'h-full' : 'h-[100dvh]'} flex max-w-full flex-col items-center justify-center overflow-hidden bg-[#050505] px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-[calc(max(0.75rem,env(safe-area-inset-top))+var(--onboarding-pan-offset,0px))] text-foreground sm:px-4`}
     >
-      <div className="mx-auto flex min-h-full w-full max-w-md flex-col justify-center px-3 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-3 sm:px-4 sm:pt-4">
+      <div ref={stepContentRef} className="flex w-full shrink-0 flex-col">
         <header className="mb-4 text-center sm:mb-6">
           <img className="cruush-brand-logo mx-auto mb-2 h-auto w-36" src={cruushLogo} alt="cruush" />
           <p className="mt-2 text-center text-white/58">the rites</p>
