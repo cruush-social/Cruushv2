@@ -62,7 +62,7 @@ export default function MapControls({ isMobile, sidePanelView, selectedPlace, se
             aria-expanded={mapControlsOpen}
             data-testid="map-controls-trigger"
             data-tutorial-target="map-controls"
-            className="h-9 rounded-full border border-white/10 bg-background/68 px-4 text-[11px] uppercase tracking-[0.18em] text-white shadow-[0_12px_35px_rgba(0,0,0,0.25)] backdrop-blur-md hover:bg-background"
+            className="h-9 rounded-full border border-white/10 bg-[color:var(--cruush-black-glass)] px-4 text-[11px] uppercase tracking-[0.18em] text-white shadow-[0_12px_35px_rgba(0,0,0,0.25)] backdrop-blur-[var(--cruush-black-glass-blur)] hover:bg-background"
             onClick={() => setMapControlsOpen((open) => !open)}
           >
             Map Controls <ChevronDown className={`ml-2 h-4 w-4 transition-transform ${mapControlsOpen ? 'rotate-180' : ''}`} />
@@ -75,7 +75,7 @@ export default function MapControls({ isMobile, sidePanelView, selectedPlace, se
               data-testid="map-controls-menu"
             >
               <Button
-                className={`h-8 rounded-full border px-4 text-[11px] uppercase tracking-[0.18em] transition-[filter,border-color,background-color] hover:border-white/30 hover:brightness-125 ${hasActiveFilters ? 'border-white/15 text-white' : 'border-white/10 bg-background/68 text-white hover:bg-white/10'}`}
+                className={`h-8 rounded-full border px-4 text-[11px] uppercase tracking-[0.18em] transition-[filter,border-color,background-color] hover:border-white/30 hover:brightness-125 ${hasActiveFilters ? 'border-white/15 text-white' : 'border-white/10 bg-[color:var(--cruush-black-glass)] backdrop-blur-[var(--cruush-black-glass-blur)] text-white hover:bg-white/10'}`}
                 style={hasActiveFilters ? { background: 'var(--cruush-gradient)' } : undefined}
                 data-testid="map-seeking-button"
                 data-tutorial-target="seeking"
@@ -92,7 +92,7 @@ export default function MapControls({ isMobile, sidePanelView, selectedPlace, se
                   setVisibilityError(null);
                   setIsVisibilityOpen(true);
                 }}
-                className={`h-8 rounded-full border px-4 text-[11px] uppercase tracking-[0.18em] text-white transition-[filter,border-color,background-color] hover:border-white/30 hover:brightness-125 has-[>img]:px-3 ${hasActiveVisibility ? 'border-white/15' : 'border-white/10 bg-background/68 hover:bg-white/10'}`}
+                className={`h-8 rounded-full border px-4 text-[11px] uppercase tracking-[0.18em] text-white transition-[filter,border-color,background-color] hover:border-white/30 hover:brightness-125 has-[>img]:px-3 ${hasActiveVisibility ? 'border-white/15' : 'border-white/10 bg-[color:var(--cruush-black-glass)] backdrop-blur-[var(--cruush-black-glass-blur)] hover:bg-white/10'}`}
                 style={hasActiveVisibility ? { background: 'var(--cruush-gradient)' } : undefined}
               >
                 <CruushIconImage src={visibilityIcon} className="mr-2 h-4 w-4 brightness-0 invert" />
@@ -106,7 +106,7 @@ export default function MapControls({ isMobile, sidePanelView, selectedPlace, se
                 onClick={() => {
                   setPlacesOpen(true);
                 }}
-                className={`h-8 rounded-full border px-4 text-[11px] uppercase tracking-[0.18em] text-white transition-[filter,border-color,background-color] hover:border-white/30 hover:brightness-125 has-[>img]:px-3 ${spotFiltersActive ? 'border-white/15' : 'border-white/10 bg-background/68 hover:bg-white/10'}`}
+                className={`h-8 rounded-full border px-4 text-[11px] uppercase tracking-[0.18em] text-white transition-[filter,border-color,background-color] hover:border-white/30 hover:brightness-125 has-[>img]:px-3 ${spotFiltersActive ? 'border-white/15' : 'border-white/10 bg-[color:var(--cruush-black-glass)] backdrop-blur-[var(--cruush-black-glass-blur)] hover:bg-white/10'}`}
                 style={spotFiltersActive ? { background: 'var(--cruush-gradient)' } : undefined}
               >
                 <CruushIconImage src={placesGhostSource} className="mr-2 h-4 w-4 brightness-0 invert" />
@@ -120,7 +120,7 @@ export default function MapControls({ isMobile, sidePanelView, selectedPlace, se
                 data-tutorial-target="ping"
                 aria-label="Send a Pulse"
                 title="Send a Pulse"
-                className={`size-11 shrink-0 rounded-full border border-white/10 bg-background text-[#c8ff31] hover:brightness-125 sm:size-12 lg:size-[3.25rem] [&_svg]:!h-full [&_svg]:!w-full ${mapPingStatus?.activePing ? 'shadow-[0_0_0_2px_rgba(200,255,49,0.16)]' : ''}`}
+                className={`size-11 shrink-0 rounded-full border border-white/10 bg-[color:var(--cruush-black-glass)] backdrop-blur-[var(--cruush-black-glass-blur)] text-[#c8ff31] hover:brightness-125 sm:size-12 lg:size-[3.25rem] [&_svg]:!h-full [&_svg]:!w-full ${mapPingStatus?.activePing ? 'shadow-[0_0_0_2px_rgba(200,255,49,0.16)]' : ''}`}
               >
                 <PulseLedIcon />
               </Button>
@@ -132,7 +132,7 @@ export default function MapControls({ isMobile, sidePanelView, selectedPlace, se
                   disabled={locationStatus === 'locating' || !mapInstance}
                   aria-label={locationStatus === 'locating' ? 'Finding your location' : 'Center your location'}
                   title={locationStatus === 'locating' ? 'Finding your location' : 'Center your location'}
-                  className="rounded-full border border-white/10 bg-background/78 text-white backdrop-blur-md hover:bg-white/10"
+                  className="rounded-full border border-white/10 bg-[color:var(--cruush-black-glass)] text-white backdrop-blur-[var(--cruush-black-glass-blur)] hover:bg-white/10"
                 >
                   <MapPin className="h-4 w-4" />
                 </Button>
@@ -145,7 +145,7 @@ export default function MapControls({ isMobile, sidePanelView, selectedPlace, se
                   data-tutorial-target="zoom"
                   aria-label="Zoom in on map"
                   title="Zoom in on map"
-                  className="rounded-full border border-white/10 bg-background/78 text-white backdrop-blur-md hover:bg-white/10"
+                  className="rounded-full border border-white/10 bg-[color:var(--cruush-black-glass)] text-white backdrop-blur-[var(--cruush-black-glass-blur)] hover:bg-white/10"
                 >
                   <ZoomIn className="h-4 w-4" />
                 </Button>
@@ -158,7 +158,7 @@ export default function MapControls({ isMobile, sidePanelView, selectedPlace, se
                   data-tutorial-target="zoom"
                   aria-label="Zoom out on map"
                   title="Zoom out on map"
-                  className="rounded-full border border-white/10 bg-background/78 text-white backdrop-blur-md hover:bg-white/10"
+                  className="rounded-full border border-white/10 bg-[color:var(--cruush-black-glass)] text-white backdrop-blur-[var(--cruush-black-glass-blur)] hover:bg-white/10"
                 >
                   <ZoomOut className="h-4 w-4" />
                 </Button>
