@@ -3675,7 +3675,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
           open={isFiltersOpen}
           onOpenChange={setIsFiltersOpen}
           title="Seeking Filter"
-            description="Refine who appears nearby by distance, profile details, and vibe."
+            description="Choose who you see."
           value={filters}
           onChange={setFilters}
           onMutualCruushesOnlyChange={(enabled) => {

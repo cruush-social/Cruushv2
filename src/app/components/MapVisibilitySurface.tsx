@@ -3,7 +3,7 @@ import { Search } from 'lucide-react';
 import { Button } from './ui/button';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
 import { Label } from './ui/label';
-import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle } from './ui/sheet';
+import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from './ui/sheet';
 import { Slider } from './ui/slider';
 import { Switch } from './ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
@@ -201,6 +201,7 @@ export default function MapVisibilitySurface({
       >
         <SheetHeader className="shrink-0 border-b border-white/10 py-4 pl-14 pr-[4.5rem]">
           <SheetTitle>Visibility Controls</SheetTitle>
+          <SheetDescription>Choose who sees you.</SheetDescription>
         </SheetHeader>
 
         <div className="scrollbar-hide min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-4 overscroll-contain">
@@ -209,12 +210,6 @@ export default function MapVisibilitySurface({
               {error}
             </div>
           ) : null}
-
-          <div className="space-y-1">
-            <p className="text-sm text-muted-foreground">
-              Pick who should not see you.
-            </p>
-          </div>
 
           <div className="space-y-2">
             <Label htmlFor="visibility-profile-search">Search</Label>

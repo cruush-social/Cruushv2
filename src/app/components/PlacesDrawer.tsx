@@ -407,7 +407,6 @@ export default function PlacesDrawer({ open, onOpenChange, coordinates, onFilter
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <SheetTitle className="text-xl text-white">Spots</SheetTitle>
-              <SheetDescription>Public cruising spaces, healthcare clinics, and community spots.</SheetDescription>
             </div>
             {/* The drawer covers the map, and its own bug button with it. */}
             <div className="h-9 w-9 shrink-0" data-testid="places-bug-button-slot" ref={registerBugButtonSlot} />
