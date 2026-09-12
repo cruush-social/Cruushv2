@@ -977,6 +977,9 @@ export default function ProfileOnboarding({
                       ))}
                     </ul>
                   </div>
+                  <p className="text-2xl font-bold leading-7 text-destructive">
+                    By agreeing, you acknowledge that violating any Code of Conduct rule may result in a ban, suspension, or restrictions on app features, without warning or appeal.
+                  </p>
                   <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-white/10 bg-black/55 p-4 text-sm leading-6 text-white/80">
                     <input
                       type="checkbox"
