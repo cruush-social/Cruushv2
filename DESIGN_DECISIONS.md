@@ -103,3 +103,10 @@ When the current trust or feature policy restricts an operation, grey and disabl
 Approved wording: “Messaging is temporarily restricted because of your trust score. Access is expected to return in {days} days, provided you follow the Code of Conduct.” Use the relevant feature name for the affected operation. Use “1 day” or “later today” where accurate. A restriction unrelated to a low trust score must not claim that cause. Calculate the expected date from the existing eligibility policy, eligible event dates, caps and other active restrictions; do not promise a universal14-day unlock or invent a date for an indefinite restriction. Mentioning trust score is approved, but exposing raw points or private moderation evidence is not.
 
 Sources: linked task01a094aa user3124 approves the exact countdown draft; user3126 requests screenshots; the later narrow-scope correction explicitly preserves existing elements except greying/disabling and the persistent countdown statement. The current task01a09549 explicitly continues that linked queue. The separate trust-explanation page/post remains a pending destination/copy decision.
+
+
+## Anonymous nearby notification navigation, September 12, 2026
+
+Opening “Someone within your radar” frames a general area with a 1-mile radius. The triggering member's viewer-authorized displayed pin lies inside that area and never defines its center. Do not name, select, highlight or otherwise identify the triggering member. Reuse current map discovery eligibility, Ghost coordinates and per-viewer precise-location permissions; the notification does not grant visibility. Public notification metadata and navigation contain no source profile ID. Preserve other notification behavior and the existing map presentation.
+
+Source: task01a08cc1 user24265; task01a09549 September12 clarification: “it should open to the general area but not ceenter on the person liek i asked”.

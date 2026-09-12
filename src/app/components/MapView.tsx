@@ -125,6 +125,11 @@ interface MapViewProps {
     approximateLatitude: number;
     approximateLongitude: number;
   } | null;
+  focusArea?: {
+    approximateLatitude: number;
+    approximateLongitude: number;
+    radiusMiles: number;
+  } | null;
   initialViewport?: InitialViewport;
   radiusCircle?: RadiusCircle | null;
   browseArea?: BrowseArea | null;
@@ -2363,6 +2368,7 @@ function MapView({
   markers,
   fitToMarkers = false,
   focusCoordinates,
+  focusArea,
   initialViewport,
   radiusCircle,
   browseArea,
@@ -2376,6 +2382,7 @@ function MapView({
   const viewportMarkersRef = useRef<MapMarker[]>([]);
   const demoRadiusCirclesRef = useRef<RadiusCircle[]>([]);
   const mapLibreRef = useRef<MapLibreExport | null>(null);
+  const appliedAreaRef = useRef<{ map: MapLibreMap; key: string } | null>(null);
   const initialViewportRef = useRef(initialViewport);
   const browseAreaRef = useRef(browseArea);
   const autoFitFocusKeyRef = useRef<string | null>(null);
@@ -2702,6 +2709,30 @@ function MapView({
   useEffect(() => {
     const map = mapInstance ?? mapRef.current;
 
+    const areaKey = focusArea ? `area:${focusArea.approximateLatitude}:${focusArea.approximateLongitude}:${focusArea.radiusMiles}` : null;
+    if (focusArea && !(appliedAreaRef.current?.map === map && appliedAreaRef.current.key === areaKey)) {
+      const maplibregl = mapLibreRef.current;
+      if (!map || !maplibregl || mapLoadStatus !== 'ready') return;
+      const bounds = maplibregl.LngLatBounds.fromLngLat(
+        new maplibregl.LngLat(focusArea.approximateLongitude, focusArea.approximateLatitude),
+        focusArea.radiusMiles * 1609.344
+      );
+      // Fit the whole anonymous area above the existing bottom controls.
+      const canvas = map.getCanvas();
+      const edge = Math.min(120, Math.floor(canvas.clientWidth / 8));
+      map.fitBounds(bounds, {
+        padding: { top: Math.min(140, Math.floor(canvas.clientHeight / 4)),
+          bottom: Math.min(170, Math.floor(canvas.clientHeight / 3)), left: edge, right: edge },
+        maxZoom: MAX_DISCOVERY_ZOOM,
+        duration: 500
+      });
+      appliedAreaRef.current = { map, key: areaKey! };
+      directFocusRef.current = focusLatitude != null && focusLongitude != null
+        ? { map, key: `${focusLatitude.toFixed(6)}:${focusLongitude.toFixed(6)}` }
+        : null;
+      return;
+    }
+
     if (!map || focusLatitude == null || focusLongitude == null) {
       directFocusRef.current = null;
       return;
@@ -2766,7 +2797,7 @@ function MapView({
     map.setCenter([focusLongitude, focusLatitude]);
     map.setZoom(FOCUSED_ZOOM);
     directFocusRef.current = { map, key: focusKey };
-  }, [fitToMarkers, focusLatitude, focusLongitude, mapInstance, viewportMarkerSignature]);
+  }, [fitToMarkers, focusLatitude, focusLongitude, focusArea, mapInstance, mapLoadStatus, viewportMarkerSignature]);
 
   useEffect(() => {
     const map = mapInstance ?? mapRef.current;

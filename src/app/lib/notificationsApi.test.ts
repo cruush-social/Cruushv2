@@ -109,14 +109,18 @@ describe('notificationsApi', () => {
     expect(listener).toHaveBeenCalledTimes(1);
   });
 
-  it('focuses nearby notifications on the source pin while preserving current navigation', () => {
+  it('opens nearby notifications anonymously while preserving other navigation', () => {
     const sourceUserId = '00000000-0000-4000-8000-000000000002';
 
     expect(resolveNotificationNavigationPath({
       type: 'nearby_activity',
-      linkUrl: '/map?layer=nearby',
+      linkUrl: '/map?layer=nearby&nearbyNotification=notification-1',
       metadata: { sourceUserId },
-    })).toBe(`/map?layer=nearby&focusUserId=${sourceUserId}`);
+    })).toBe('/map?layer=nearby&nearbyNotification=notification-1');
+    expect(resolveNotificationNavigationPath({
+      type: 'nearby_user', linkUrl: `/map?focusUserId=${sourceUserId}`,
+      actorUserId: sourceUserId, metadata: { sourceUserId },
+    })).toBe('/map?layer=nearby');
     expect(resolveNotificationNavigationPath({
       type: 'incoming_cruush',
       linkUrl: '/map',

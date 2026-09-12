@@ -24,6 +24,7 @@ import {
   type VisibilitySubjectProfile
 } from "../profile-visibility.js";
 import { getAuthenticatedUserId } from "../request-auth.js";
+import { anonymousNearbyArea } from "../nearby-area.js";
 import { getTrustRestrictions } from "../trust-restrictions.js";
 import { normalizeSingleLineText } from "../input-schema.js";
 import { getEffectiveVisibilityPolicy, getRelationshipPermissions } from "../match-relationships.js";
@@ -656,7 +657,7 @@ function canViewLatestFeedPreview(
   return relationship?.isMutualCruush === true;
 }
 
-async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, filters: DiscoveryQuery) {
+async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, filters: DiscoveryQuery, onlyUserId?: string) {
   try {
     const centerLat = filters.lat ?? DEFAULT_CENTER.lat;
     const centerLng = filters.lng ?? DEFAULT_CENTER.lng;
@@ -697,6 +698,11 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, fi
         )
       )`
     ];
+
+    if (onlyUserId) {
+      values.push(onlyUserId);
+      where.push(`profiles.id::text = $${values.length}`);
+    }
 
     // A profile with no photo has an empty photos array, so the check is on
     // the array itself rather than on any stored flag.
@@ -877,9 +883,10 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, fi
          fuzzy_lng
        from profiles
        where last_active >= now() - interval '4 days'
+       ${onlyUserId ? 'and id::text = $2' : ''}
        order by last_active desc nulls last
        limit $1`,
-      [filters.limit]
+      onlyUserId ? [filters.limit, onlyUserId] : [filters.limit]
     );
 
     const blockedUserIds = await loadBlockedRelationshipUserIds(app, currentUserId);
@@ -1193,7 +1200,239 @@ async function loadActiveDiscoveryMapPings(app: FastifyInstance, profileIds: str
   ]));
 }
 
+// Reuse the map's actual visibility and displayed-location pipeline for nearby navigation.
+async function loadDiscoveryState(
+  app: FastifyInstance,
+  request: FastifyRequest,
+  currentUserId: string,
+  parsedQuery: DiscoveryQuery,
+  onlyUserId?: string
+) {
+  const centerLat = parsedQuery.lat ?? DEFAULT_CENTER.lat;
+  const centerLng = parsedQuery.lng ?? DEFAULT_CENTER.lng;
+  const npcGhostDemoEnabled = await canUseNpcGhostDemo(app, currentUserId, parsedQuery.npcGhostDemo);
+
+  const usedIds = new Set<string>();
+  const discoveryViewer = await loadDiscoveryViewer(app, currentUserId);
+  const discoveryRows = await loadDiscoveryRows(app, currentUserId, parsedQuery, onlyUserId);
+  const viewerGhostRadiusMeters = npcGhostDemoEnabled
+    ? (await loadPolicyOrDefault(app, currentUserId)).ghostRadiusMeters ?? DEFAULT_GHOST_RADIUS_METERS
+    : DEFAULT_GHOST_RADIUS_METERS;
+  const encryptedLocations = discoveryRows.mode === "modern"
+    ? await loadLocationEnvelopes(app, [
+        currentUserId,
+        ...discoveryRows.rows.map((row) => row.id)
+      ]).catch((error) => {
+        if (isSchemaCompatibilityError(error)) {
+          return new Map<string, LocationPayload>();
+        }
+
+        throw error;
+      })
+    : new Map<string, LocationPayload>();
+  // The viewer's own position comes from the envelope too, the way the
+  // profile route reads it. Measured from the profile row, which most
+  // accounts leave empty, discovery and the profile route disagreed about
+  // who was in range: the list offered people the profile then refused.
+  const viewerEnvelope = encryptedLocations.get(currentUserId);
+  if (discoveryViewer.subject && viewerEnvelope) {
+    discoveryViewer.subject.coordinates = locationPayloadToCoordinates(viewerEnvelope);
+  }
+  // Mile High Club replaces the device location with the pin the member dropped,
+  // for the viewer's own position as well as everyone they are shown.
+  const travelPins = await loadTravelPins(app, [
+    currentUserId,
+    ...(discoveryRows.mode === "modern" ? discoveryRows.rows.map((row) => row.id) : [])
+  ]).catch((error) => {
+    if (isSchemaCompatibilityError(error)) {
+      return new Map<string, TravelPin>();
+    }
+
+    throw error;
+  });
+
+  if (discoveryViewer.subject) {
+    discoveryViewer.subject.mile_high_club_member = travelPins.has(currentUserId);
+  }
+
+  travelPins.forEach((pin, userId) => {
+    const savedLocation = encryptedLocations.get(userId);
+    if (savedLocation) {
+      encryptedLocations.set(userId, locationPayloadAtTravelPin(savedLocation, pin));
+    }
+  });
+
+  const viewerLocation = encryptedLocations.get(currentUserId);
+  const viewerCoordinates = viewerLocation ? locationPayloadToCoordinates(viewerLocation) : null;
+  if (viewerLocation && discoveryViewer.subject) {
+    discoveryViewer.subject.coordinates = viewerCoordinates;
+  }
+
+  if (viewerCoordinates && !isWithinServiceArea(viewerCoordinates)) {
+    return { visibleProfiles: [], viewerCoordinates, travelPins,
+      outsideServiceArea: true, outsideBrowseRadius: false };
+  }
+
+  const realUsers = discoveryRows.mode === "modern"
+    ? (await Promise.all(discoveryRows.rows
+        .filter((row) => {
+          const targetLocation = encryptedLocations.get(row.id);
+          return discoveryRowIsVisibleToViewer(
+            app,
+            row,
+            discoveryViewer,
+            targetLocation ? locationPayloadToCoordinates(targetLocation) : getCoordinates(row)
+          );
+        })
+        .map(async (row) => {
+          usedIds.add(row.id);
+          const relationship = await getRelationshipPermissions(app, currentUserId, row.id);
+          return mapModernDiscoveryRow(
+            app,
+            request,
+            currentUserId,
+            row,
+            centerLat,
+            centerLng,
+            relationship,
+            encryptedLocations.get(row.id) ?? null,
+            {
+              npcGhostDemoRadiusMeters: shouldApplyNpcGhostDemo(app, row, npcGhostDemoEnabled)
+                ? viewerGhostRadiusMeters
+                : null,
+              targetTravelling: travelPins.has(row.id),
+              viewerCrowds: discoveryViewer.subject?.crowds ?? []
+            }
+          );
+        })))
+        .filter((row): row is NonNullable<typeof row> => row !== null)
+    : await Promise.all(discoveryRows.rows.map(async (row, index) => {
+        usedIds.add(row.id);
+        const storedLatitude = row.fuzzy_lat ?? row.lat;
+        const storedLongitude = row.fuzzy_lng ?? row.lng;
+        if (storedLatitude == null || storedLongitude == null) {
+          return null;
+        }
+        const legacy = mapLegacyDiscoveryRow(row, centerLat, centerLng, index);
+        if (!isWithinBetaLaunchArea({ lat: legacy.lat, lng: legacy.lng })) {
+          return null;
+        }
+        const location = locationPayloadFromCoordinates({
+          subjectUserId: legacy.id,
+          lat: legacy.lat,
+          lng: legacy.lng,
+          updatedAt: row.last_active ?? new Date()
+        });
+        const policy = await loadPolicyOrDefault(app, legacy.id);
+        if (policy.baseMode === "STEALTH") {
+          return null;
+        }
+        const displayMode: DisplayMode = policy.baseMode === "GHOST" ? "GHOST" : "PRECISE";
+        const resolvedGhost = displayMode === "GHOST"
+          ? await resolveViewerGhostCoordinate(app, {
+              subjectUserId: legacy.id,
+              viewerUserId: currentUserId,
+              policy,
+              location
+            }).catch(error => {
+              if (error instanceof GhostLandUnavailableError) return null;
+              throw error;
+            })
+          : null;
+        if (displayMode === "GHOST" && !resolvedGhost) return null;
+        const displayLocationToken = await makeDisplayLocationToken(app, request, {
+          subjectUserId: legacy.id,
+          viewerUserId: currentUserId,
+          policy,
+          location,
+          displayMode,
+          ...(resolvedGhost ? { resolvedGhost } : {})
+        });
+        const shownCoordinates = resolvedGhost?.coordinate ?? { lat: legacy.lat, lng: legacy.lng };
+
+        return {
+          profileToken: legacy.id,
+          name: legacy.name,
+          display_name: legacy.display_name,
+          age: legacy.age,
+          pronouns: legacy.pronouns,
+          lastActive: legacy.lastActive,
+          distanceLabel: travelPins.has(legacy.id)
+            ? "Far far away"
+            : formatDistanceLabel({
+                displayMode,
+                viewerLat: centerLat,
+                viewerLng: centerLng,
+                targetLat: legacy.lat,
+                targetLng: legacy.lng
+              }),
+          displayLocationToken,
+          displayExpiresAtMs: displayLocationToken.expiresAtMs,
+          __pulseLat: shownCoordinates.lat,
+          __pulseLng: shownCoordinates.lng,
+          animationHint: "NONE",
+          relationshipContext: "PUBLIC",
+          lookingFor: legacy.lookingFor,
+          vibes: legacy.vibes,
+          scenes: legacy.scenes,
+          archetypes: legacy.archetypes,
+          position: legacy.position,
+          role: legacy.role,
+          hostingTravel: legacy.hostingTravel,
+          photo: legacy.photo,
+          relationship: null
+        };
+      })).then((rows) => rows.filter((row): row is NonNullable<typeof row> => row !== null));
+
+  const visibleProfiles = realUsers.slice(0, parsedQuery.limit);
+  // The radius is measured from where this viewer actually is, never from the
+  // map centre they asked for. Panning across the city must not put anyone
+  // inside someone else's Pulse.
+  // You browse the fifty miles around wherever you are. Looking further than
+  // that is what Mile High Club is for, and Mile High Club works by moving where
+  // you are, so this one rule covers both.
+  return {
+    visibleProfiles,
+    viewerCoordinates,
+    travelPins,
+    outsideServiceArea: false,
+    outsideBrowseRadius: Boolean(viewerCoordinates &&
+      distanceMiles(viewerCoordinates, { lat: centerLat, lng: centerLng }) > DISCOVERY_BROWSE_RADIUS_MILES)
+  };
+}
+
 export async function registerUserRoutes(app: FastifyInstance) {
+  app.get("/api/notifications/:notificationId/area", async (request, reply) => {
+    const currentUserId = await getAuthenticatedUserId(request);
+    const { notificationId } = z.object({ notificationId: z.uuid() }).parse(request.params);
+    z.object({}).strict().parse(request.query);
+    const notification = await app.db.query<{ source_user_id: string | null }>(
+      `select coalesce(metadata->>'sourceUserId', actor_user_id::text) as source_user_id
+       from app_notifications
+       where id = $1 and user_id = $2 and type in ('nearby_activity', 'nearby_user')`,
+      [notificationId, currentUserId]
+    );
+    reply.header("Cache-Control", "no-store");
+    const sourceUserId = notification.rows[0]?.source_user_id;
+    if (!sourceUserId || !z.uuid().safeParse(sourceUserId).success || sourceUserId === currentUserId) {
+      return { data: { area: null } };
+    }
+    await app.rateLimiter.assert({ key: `nearby-area:${currentUserId}`, max: 30,
+      windowMs: 60 * 1000, message: "Too many discovery refreshes. Try again later." });
+    const state = await loadDiscoveryState(app, request, currentUserId,
+      discoveryQuerySchema.parse({}), sourceUserId);
+    if (state.outsideServiceArea || state.outsideBrowseRadius) return { data: { area: null } };
+    const profile = state.visibleProfiles.find((candidate) => candidate.profileToken === sourceUserId);
+    if (!profile || !Number.isFinite(profile.__pulseLat) || !Number.isFinite(profile.__pulseLng)) {
+      return { data: { area: null } };
+    }
+    return { data: { area: anonymousNearbyArea(
+      app.config.LOCATION_INDEX_KEY || app.config.SESSION_SECRET,
+      notificationId,
+      { lat: profile.__pulseLat, lng: profile.__pulseLng }
+    ) } };
+  });
+
   app.get("/api/me/trust-restrictions", async (request, reply) => {
     const userId = await getAuthenticatedUserId(request);
     reply.header("Cache-Control", "no-store");
@@ -1213,206 +1452,17 @@ export async function registerUserRoutes(app: FastifyInstance) {
       windowMs: 60 * 1000,
       message: "Too many discovery refreshes. Try again later."
     });
-    const centerLat = parsedQuery.lat ?? DEFAULT_CENTER.lat;
-    const centerLng = parsedQuery.lng ?? DEFAULT_CENTER.lng;
-    const npcGhostDemoEnabled = await canUseNpcGhostDemo(app, currentUserId, parsedQuery.npcGhostDemo);
-
-    const usedIds = new Set<string>();
-    const discoveryViewer = await loadDiscoveryViewer(app, currentUserId);
-    const discoveryRows = await loadDiscoveryRows(app, currentUserId, parsedQuery);
-    const viewerGhostRadiusMeters = npcGhostDemoEnabled
-      ? (await loadPolicyOrDefault(app, currentUserId)).ghostRadiusMeters ?? DEFAULT_GHOST_RADIUS_METERS
-      : DEFAULT_GHOST_RADIUS_METERS;
-    const encryptedLocations = discoveryRows.mode === "modern"
-      ? await loadLocationEnvelopes(app, [
-          currentUserId,
-          ...discoveryRows.rows.map((row) => row.id)
-        ]).catch((error) => {
-          if (isSchemaCompatibilityError(error)) {
-            return new Map<string, LocationPayload>();
-          }
-
-          throw error;
-        })
-      : new Map<string, LocationPayload>();
-    // The viewer's own position comes from the envelope too, the way the
-    // profile route reads it. Measured from the profile row, which most
-    // accounts leave empty, discovery and the profile route disagreed about
-    // who was in range: the list offered people the profile then refused.
-    const viewerEnvelope = encryptedLocations.get(currentUserId);
-    if (discoveryViewer.subject && viewerEnvelope) {
-      discoveryViewer.subject.coordinates = locationPayloadToCoordinates(viewerEnvelope);
-    }
-    // Mile High Club replaces the device location with the pin the member dropped,
-    // for the viewer's own position as well as everyone they are shown.
-    const travelPins = await loadTravelPins(app, [
-      currentUserId,
-      ...(discoveryRows.mode === "modern" ? discoveryRows.rows.map((row) => row.id) : [])
-    ]).catch((error) => {
-      if (isSchemaCompatibilityError(error)) {
-        return new Map<string, TravelPin>();
-      }
-
-      throw error;
-    });
-
-    if (discoveryViewer.subject) {
-      discoveryViewer.subject.mile_high_club_member = travelPins.has(currentUserId);
-    }
-
-    travelPins.forEach((pin, userId) => {
-      const savedLocation = encryptedLocations.get(userId);
-      if (savedLocation) {
-        encryptedLocations.set(userId, locationPayloadAtTravelPin(savedLocation, pin));
-      }
-    });
-
-    const viewerLocation = encryptedLocations.get(currentUserId);
-    const viewerCoordinates = viewerLocation ? locationPayloadToCoordinates(viewerLocation) : null;
-    if (viewerLocation && discoveryViewer.subject) {
-      discoveryViewer.subject.coordinates = viewerCoordinates;
-    }
-
-    if (viewerCoordinates && !isWithinServiceArea(viewerCoordinates)) {
-      return reply.send({
-        data: {
-          mapEpochMs: Date.now(),
-          profiles: [],
-          outsideServiceArea: true
-        }
-      });
-    }
-
-    const realUsers = discoveryRows.mode === "modern"
-      ? (await Promise.all(discoveryRows.rows
-          .filter((row) => {
-            const targetLocation = encryptedLocations.get(row.id);
-            return discoveryRowIsVisibleToViewer(
-              app,
-              row,
-              discoveryViewer,
-              targetLocation ? locationPayloadToCoordinates(targetLocation) : getCoordinates(row)
-            );
-          })
-          .map(async (row) => {
-            usedIds.add(row.id);
-            const relationship = await getRelationshipPermissions(app, currentUserId, row.id);
-            return mapModernDiscoveryRow(
-              app,
-              request,
-              currentUserId,
-              row,
-              centerLat,
-              centerLng,
-              relationship,
-              encryptedLocations.get(row.id) ?? null,
-              {
-                npcGhostDemoRadiusMeters: shouldApplyNpcGhostDemo(app, row, npcGhostDemoEnabled)
-                  ? viewerGhostRadiusMeters
-                  : null,
-                targetTravelling: travelPins.has(row.id),
-                viewerCrowds: discoveryViewer.subject?.crowds ?? []
-              }
-            );
-          })))
-          .filter((row): row is NonNullable<typeof row> => row !== null)
-      : await Promise.all(discoveryRows.rows.map(async (row, index) => {
-          usedIds.add(row.id);
-          const storedLatitude = row.fuzzy_lat ?? row.lat;
-          const storedLongitude = row.fuzzy_lng ?? row.lng;
-          if (storedLatitude == null || storedLongitude == null) {
-            return null;
-          }
-          const legacy = mapLegacyDiscoveryRow(row, centerLat, centerLng, index);
-          if (!isWithinBetaLaunchArea({ lat: legacy.lat, lng: legacy.lng })) {
-            return null;
-          }
-          const location = locationPayloadFromCoordinates({
-            subjectUserId: legacy.id,
-            lat: legacy.lat,
-            lng: legacy.lng,
-            updatedAt: row.last_active ?? new Date()
-          });
-          const policy = await loadPolicyOrDefault(app, legacy.id);
-          if (policy.baseMode === "STEALTH") {
-            return null;
-          }
-          const displayMode: DisplayMode = policy.baseMode === "GHOST" ? "GHOST" : "PRECISE";
-          const resolvedGhost = displayMode === "GHOST"
-            ? await resolveViewerGhostCoordinate(app, {
-                subjectUserId: legacy.id,
-                viewerUserId: currentUserId,
-                policy,
-                location
-              }).catch(error => {
-                if (error instanceof GhostLandUnavailableError) return null;
-                throw error;
-              })
-            : null;
-          if (displayMode === "GHOST" && !resolvedGhost) return null;
-          const displayLocationToken = await makeDisplayLocationToken(app, request, {
-            subjectUserId: legacy.id,
-            viewerUserId: currentUserId,
-            policy,
-            location,
-            displayMode,
-            ...(resolvedGhost ? { resolvedGhost } : {})
-          });
-          const shownCoordinates = resolvedGhost?.coordinate ?? { lat: legacy.lat, lng: legacy.lng };
-
-          return {
-            profileToken: legacy.id,
-            name: legacy.name,
-            display_name: legacy.display_name,
-            age: legacy.age,
-            pronouns: legacy.pronouns,
-            lastActive: legacy.lastActive,
-            distanceLabel: travelPins.has(legacy.id)
-              ? "Far far away"
-              : formatDistanceLabel({
-                  displayMode,
-                  viewerLat: centerLat,
-                  viewerLng: centerLng,
-                  targetLat: legacy.lat,
-                  targetLng: legacy.lng
-                }),
-            displayLocationToken,
-            displayExpiresAtMs: displayLocationToken.expiresAtMs,
-            __pulseLat: shownCoordinates.lat,
-            __pulseLng: shownCoordinates.lng,
-            animationHint: "NONE",
-            relationshipContext: "PUBLIC",
-            lookingFor: legacy.lookingFor,
-            vibes: legacy.vibes,
-            scenes: legacy.scenes,
-            archetypes: legacy.archetypes,
-            position: legacy.position,
-            role: legacy.role,
-            hostingTravel: legacy.hostingTravel,
-            photo: legacy.photo,
-            relationship: null
-          };
-        })).then((rows) => rows.filter((row): row is NonNullable<typeof row> => row !== null));
-
-    const visibleProfiles = realUsers.slice(0, parsedQuery.limit);
-    // The radius is measured from where this viewer actually is, never from the
-    // map centre they asked for. Panning across the city must not put anyone
-    // inside someone else's Pulse.
-    // You browse the fifty miles around wherever you are. Looking further than
-    // that is what Mile High Club is for, and Mile High Club works by moving where
-    // you are, so this one rule covers both.
-    if (
-      viewerCoordinates &&
-      distanceMiles(viewerCoordinates, { lat: centerLat, lng: centerLng }) > DISCOVERY_BROWSE_RADIUS_MILES
-    ) {
-      return reply.send({
-        data: {
-          mapEpochMs: Date.now(),
-          profiles: [],
+    const { visibleProfiles, viewerCoordinates, travelPins, outsideServiceArea, outsideBrowseRadius } =
+      await loadDiscoveryState(app, request, currentUserId, parsedQuery);
+    if (outsideServiceArea || outsideBrowseRadius) {
+      return reply.send({ data: {
+        mapEpochMs: Date.now(),
+        profiles: [],
+        ...(outsideServiceArea ? { outsideServiceArea: true } : {
           browseRadiusMiles: DISCOVERY_BROWSE_RADIUS_MILES,
           outsideBrowseRadius: true
-        }
-      });
+        })
+      } });
     }
     const activePings = await loadActiveDiscoveryMapPings(
       app,

@@ -87,16 +87,17 @@ function normalizeMetadata(value: AppNotificationRow["metadata"]) {
 }
 
 export function mapNotificationRow(row: AppNotificationRow): AppNotificationRecord {
+  const nearby = row.type === "nearby_activity" || row.type === "nearby_user";
   return {
     id: row.id,
     userId: row.user_id,
     type: row.type,
-    title: row.title,
-    body: row.body,
-    linkUrl: row.link_url,
-    actorUserId: row.actor_user_id,
+    title: nearby ? "Someone nearby" : row.title,
+    body: nearby ? "Someone within your radar may be in your area." : row.body,
+    linkUrl: nearby ? `/map?layer=nearby&nearbyNotification=${encodeURIComponent(row.id)}` : row.link_url,
+    actorUserId: nearby ? null : row.actor_user_id,
     conversationId: row.conversation_id,
-    metadata: normalizeMetadata(row.metadata),
+    metadata: nearby ? {} : normalizeMetadata(row.metadata),
     readAt: row.read_at ? new Date(row.read_at).toISOString() : null,
     createdAt: new Date(row.created_at).toISOString()
   };

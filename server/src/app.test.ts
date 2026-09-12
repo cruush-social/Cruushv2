@@ -1,6 +1,7 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { RekognitionClient } from "@aws-sdk/client-rekognition";
 import sharp from "sharp";
+import { anonymousNearbyArea } from "./nearby-area.js";
 import { buildServer } from "./app.js";
 import { createSessionCookie, generateSessionToken, hashPassword, hashSessionToken } from "./auth.js";
 import type { AppConfig } from "./config.js";
@@ -9201,6 +9202,136 @@ describe("server", () => {
         details: null
       }
     });
+  });
+
+  it("requires authentication and an owned nearby notification before resolving an area", async () => {
+    const url = "/api/notifications/10000000-0000-4000-8000-000000000009/area";
+    const anonymous = await app.inject({ method: "GET", url });
+    expect(anonymous.statusCode).toBe(401);
+    query.mockClear();
+    query.mockResolvedValue({ rows: [] });
+    const missing = await app.inject({ method: "GET", url, headers: { "x-user-id": userId } });
+    expect(missing.statusCode).toBe(200);
+    expect(missing.json()).toEqual({ data: { area: null } });
+    expect(query).toHaveBeenCalledTimes(1);
+    expect(query.mock.calls[0]?.[0]).toContain("id = $1 and user_id = $2");
+    expect(query.mock.calls[0]?.[1]?.[1]).toBe(userId);
+  });
+
+  it("opens a nearby notification around the authorized Ghost display without returning identity", async () => {
+    const targetUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+    const activePingId = "10000000-0000-4000-8000-000000000001";
+    const targetLocation = await encryptedLocationEnvelopeRow({
+      subjectUserId: targetUserId,
+      lat: 40.711,
+      lng: -74.002,
+      accuracyM: 50
+    });
+    const viewerLocation = await encryptedLocationEnvelopeRow({
+      subjectUserId: userId,
+      lat: 40.711,
+      lng: -74.002,
+      accuracyM: 50
+    });
+    const targetPolicy = await encryptedVisibilityPolicyRow({
+      subjectUserId: targetUserId,
+      baseMode: "GHOST"
+    });
+
+    query.mockImplementation((sql: string) => {
+      const normalizedSql = sql.toLowerCase();
+
+      if (normalizedSql.includes("from app_notifications")) {
+        return Promise.resolve({ rows: [{ source_user_id: targetUserId }] });
+      }
+      if (normalizedSql.includes("from profiles") && normalizedSql.includes("join app_users")) {
+        return Promise.resolve({ rows: [{
+          id: targetUserId,
+          display_name: "Alex",
+          year_of_birth: 1998,
+          pronouns: ["they/them"],
+          photos: ["https://example.com/alex.jpg"],
+          lat: 40.711,
+          lng: -74.002,
+          fuzzy_lat: 40.7115,
+          fuzzy_lng: -74.0025,
+          updated_at: "2026-04-28T12:00:00.000Z"
+        }] });
+      }
+
+      if (normalizedSql.includes("from encrypted_location_envelopes")) {
+        return Promise.resolve({ rows: [targetLocation, viewerLocation] });
+      }
+
+      if (normalizedSql.includes("from encrypted_visibility_tokens")) {
+        return Promise.resolve({ rows: [targetPolicy] });
+      }
+
+      if (normalizedSql.includes("insert into ghost_rotation_tokens")) {
+        return Promise.resolve({ rows: [{ subject_user_id: targetUserId }] });
+      }
+
+      if (normalizedSql.includes("from map_pings")) {
+        return Promise.resolve({
+          rows: [{
+            id: activePingId,
+            user_id: targetUserId,
+            expires_at: "2099-04-30T12:00:00.000Z",
+            radius_miles: 0.01
+          }]
+        });
+      }
+
+      return Promise.resolve({ rows: [] });
+    });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/users?lat=40.7128&lng=-74.006",
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    const displayKeyResponse = await app.inject({
+      method: "GET",
+      url: "/api/location/display-key",
+      headers: {
+        "x-user-id": userId
+      }
+    });
+    const profile = response.json().data.profiles[0];
+    const payload = decryptDisplayLocationTokenForTest({
+      key: displayKeyResponse.json().data.key,
+      token: profile.displayLocationToken
+    });
+
+    expect(profile.profileToken).toBe(targetUserId);
+    expect(profile).not.toHaveProperty("lat");
+    expect(profile).not.toHaveProperty("lng");
+    expect(profile).not.toHaveProperty("ghostRadiusMeters");
+    expect(profile.activePing).toBeNull();
+    expect(payload.displayMode).toBe("GHOST");
+    expect({ lat: payload.latE7 / 10_000_000, lng: payload.lonE7 / 10_000_000 })
+      .not.toEqual({ lat: 40.711, lng: -74.002 });
+    const notificationId = "10000000-0000-4000-8000-000000000009";
+    const areaResponse = await app.inject({ method: "GET",
+      url: `/api/notifications/${notificationId}/area`,
+      headers: { "x-user-id": userId } });
+    expect(areaResponse.statusCode).toBe(200);
+    expect(areaResponse.headers["cache-control"]).toBe("no-store");
+    const expectedArea = anonymousNearbyArea(
+      app.config.LOCATION_INDEX_KEY || app.config.SESSION_SECRET,
+      notificationId, { lat: payload.latE7 / 10_000_000, lng: payload.lonE7 / 10_000_000 }
+    );
+    expect(areaResponse.json().data.area.radiusMiles).toBe(1);
+    expect(areaResponse.json().data.area.approximateLatitude).toBeCloseTo(expectedArea.approximateLatitude, 5);
+    expect(areaResponse.json().data.area.approximateLongitude).toBeCloseTo(expectedArea.approximateLongitude, 5);
+    expect(areaResponse.body).not.toContain(targetUserId);
+    const sourceQuery = query.mock.calls.find(([sql]) => String(sql).includes("profiles.id::text = $3"));
+    expect(sourceQuery?.[0]).toContain("from user_blocks");
+    expect(sourceQuery?.[1]?.[2]).toBe(targetUserId);
   });
 
   it("returns nearby users from GET /api/users", async () => {

@@ -48,7 +48,7 @@ import {
 } from '../lib/privacyApi';
 import { CRUUSH_PLUS_CHANGED_EVENT, getMyBillingStatus, type BillingStatus } from '../lib/billingApi';
 import { addCruushChangedListener } from '../lib/cruushEvents';
-import { addNotificationsChangedListener, getNotificationSummary } from '../lib/notificationsApi';
+import { addNotificationsChangedListener, getNotificationSummary, getNearbyNotificationArea, type NearbyNotificationArea } from '../lib/notificationsApi';
 import { enablePushNotifications } from '../lib/pushNotifications';
 import { ApiClientError, resolveMediaUrl } from '../lib/apiClient';
 import { emailEventPass, getActiveEvents, joinEventChat, revealEventPass, type EventPassReveal, type LaunchEvent } from '../lib/eventsApi';
@@ -1049,6 +1049,18 @@ export default function MapHome(_props: MapHomeProps = {}) {
   const lastMutualMapModeRef = useRef(isMutualMapMode);
   const shouldReplayTutorial = searchParams.get('replayTutorial') === '1';
   const focusUserId = searchParams.get('focusUserId') ?? routeState?.focusUserId ?? null;
+  const nearbyNotificationId = searchParams.get('nearbyNotification');
+  const [nearbyArea, setNearbyArea] = useState<NearbyNotificationArea | null>(null);
+  useEffect(() => {
+    let disposed = false;
+    setNearbyArea(null);
+    if (nearbyNotificationId) {
+      getNearbyNotificationArea(nearbyNotificationId).then(({ area }) => {
+        if (!disposed) setNearbyArea(area);
+      }).catch(() => { /* Keep the existing map if this area is no longer available. */ });
+    }
+    return () => { disposed = true; };
+  }, [nearbyNotificationId]);
   const shouldOpenOwnProfilePanel = !usesFullPageProfile && routeState?.openOwnProfilePanel === true;
   const requestedSidePanelView = usesFullPageProfile ? null : routeState?.openSidePanel ?? null;
 
@@ -2821,6 +2833,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
   }, [displayedUsers, focusUserId, isMutualMapMode]);
 
   const openSpot = (place: PlaceRecord) => {
+    setNearbyArea(null);
     setSelectedPlace(place);
     setPlaceReturnFocus({ approximateLatitude: place.latitude, approximateLongitude: place.longitude });
     setPlacesOpen(false);
@@ -2986,13 +2999,15 @@ export default function MapHome(_props: MapHomeProps = {}) {
               center: currentUserMapLocation,
               radiusMiles: DISCOVERY_BROWSE_RADIUS_MILES,
             } : null}
-            fitToMarkers={fitToMapMarkers}
+            fitToMarkers={fitToMapMarkers && !nearbyArea}
+            focusArea={nearbyArea}
             focusCoordinates={
               (selectedPlace ? {
                 approximateLatitude: selectedPlace.latitude,
                 approximateLongitude: selectedPlace.longitude,
               } : null) ??
               focusedMapLocation ??
+              nearbyArea ??
               browserFocusCoordinates ??
               placeReturnFocus ??
               (focusUserId ? undefined : travelMapLocation ?? (restoredMapViewport ? undefined : currentUserMapLocation))

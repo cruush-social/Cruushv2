@@ -363,7 +363,7 @@ describe("nearby notifications", () => {
           type: "nearby_activity",
           title: "Someone nearby",
           body: "Someone within your radar may be in your area.",
-          link_url: `/map?layer=nearby&focusUserId=${encodeURIComponent(sourceUserId)}`,
+          link_url: "/map?layer=nearby",
           actor_user_id: null,
           conversation_id: null,
           metadata: { sourceUserId, distanceMiles: 0.87 },
@@ -406,7 +406,7 @@ describe("nearby notifications", () => {
     expect(query.mock.calls.some(([sql, params]) => String(sql).includes("insert into app_notifications") && params?.[0] === recipientAllowedId)).toBe(true);
     expect(query.mock.calls.some(([sql, params]) => String(sql).includes("insert into app_notifications") && params?.[0] === recipientFilteredId)).toBe(false);
     const allowedNotification = query.mock.calls.find(([sql, params]) => String(sql).includes("insert into app_notifications") && params?.[0] === recipientAllowedId);
-    expect(allowedNotification?.[1]?.[4]).toBe(`/map?layer=nearby&focusUserId=${encodeURIComponent(sourceUserId)}`);
+    expect(allowedNotification?.[1]?.[4]).toBe("/map?layer=nearby");
     expect(allowedNotification?.[1]?.[5]).toBe(`nearby:${recipientAllowedId}:${Math.floor(nearbyLocation.collectedAtMs / (4 * 24 * 60 * 60 * 1000))}`);
     expect(String(allowedNotification?.[1]?.[5])).not.toContain(sourceUserId);
 

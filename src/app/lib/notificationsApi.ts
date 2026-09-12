@@ -86,22 +86,16 @@ export function resolveNotificationNavigationPath(
   if (notification.type === 'reward' && typeof notification.metadata?.grantId === 'string') {
     return `/rewards?rewardGrant=${encodeURIComponent(notification.metadata.grantId)}`;
   }
-  const sourceUserId = typeof notification.metadata?.sourceUserId === 'string'
-    ? notification.metadata.sourceUserId.trim()
-    : '';
-
-  if (notification.type === 'nearby_activity' && sourceUserId) {
-    const safeDestination = new URL(safeLink, 'https://cruush.app');
-    const destination = safeDestination.pathname === '/map'
-      ? safeDestination
-      : new URL('/map?layer=nearby', 'https://cruush.app');
-    destination.searchParams.set('focusUserId', sourceUserId);
-    return `${destination.pathname}${destination.search}${destination.hash}`;
+  if (notification.type === 'nearby_activity' || notification.type === 'nearby_user') {
+    const destination = new URL(safeLink, 'https://cruush.app');
+    const notificationId = destination.searchParams.get('nearbyNotification');
+    return notificationId
+      ? `/map?layer=nearby&nearbyNotification=${encodeURIComponent(notificationId)}`
+      : '/map?layer=nearby';
   }
 
   const actorUserId = notification.actorUserId?.trim() ?? '';
-  const legacyNearbyType = (notification.type as string) === 'nearby_user';
-  if (actorUserId && (legacyNearbyType || notification.type === 'incoming_cruush' || !notification.linkUrl || notification.linkUrl === '/map')) {
+  if (actorUserId && (notification.type === 'incoming_cruush' || !notification.linkUrl || notification.linkUrl === '/map')) {
     return `/map?focusUserId=${encodeURIComponent(actorUserId)}`;
   }
 
@@ -206,4 +200,16 @@ export function addNotificationsChangedListener(listener: (payload: Notification
   return () => {
     window.removeEventListener(NOTIFICATIONS_CHANGED_EVENT, handleNotificationsChanged);
   };
+}
+
+export type NearbyNotificationArea = {
+  approximateLatitude: number;
+  approximateLongitude: number;
+  radiusMiles: number;
+};
+
+export function getNearbyNotificationArea(notificationId: string) {
+  return requestApi<{ area: NearbyNotificationArea | null }>(
+    `/api/notifications/${encodeURIComponent(notificationId)}/area`
+  );
 }
