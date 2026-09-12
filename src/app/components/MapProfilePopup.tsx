@@ -280,11 +280,6 @@ export default function MapProfilePopup({
             userId={profileView?.id ?? user.id}
           />
           <div className="absolute inset-x-0 top-0 flex items-start justify-between gap-3 py-4 pl-4 pr-1">
-            {isOwnProfile ? (
-              <div className="rounded-full border border-white/10 bg-black/45 px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-white/80 backdrop-blur-sm">
-                Your profile
-              </div>
-            ) : null}
             <div className="ml-auto flex items-center gap-2">
               {isOwnProfile ? (
                 <button
