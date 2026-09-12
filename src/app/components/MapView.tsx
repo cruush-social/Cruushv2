@@ -1801,10 +1801,15 @@ function PlaceMarker({ marker, previewed = false }: { marker: MapMarker; preview
       data-testid={`place-marker-${marker.place?.id ?? marker.id}`}
     >
       <span
-        className={`pointer-events-none absolute bottom-[calc(100%+0.75rem)] left-1/2 z-20 w-max max-w-[15rem] -translate-x-1/2 rounded-full border-[2.4px] border-[#55C8FF] bg-black/86 px-2.5 py-[3px] text-center text-[0.62rem] font-semibold leading-tight text-white shadow-[0_8px_24px_rgba(0,0,0,0.5)] backdrop-blur-md transition-opacity duration-150 ${previewed ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100'}`}
-        data-testid={`place-marker-title-${marker.place?.id ?? marker.id}`}
+        className={`pointer-events-none absolute bottom-[calc(100%+0.75rem)] left-1/2 z-20 w-max max-w-[15rem] -translate-x-1/2 transition-opacity duration-150 ${previewed ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100'}`}
       >
-        {marker.displayName}
+        <SignalBadge
+          borderColor="#55C8FF"
+          className="block shadow-[0_8px_24px_rgba(0,0,0,0.5)]"
+          testId={`place-marker-title-${marker.place?.id ?? marker.id}`}
+        >
+          {marker.displayName}
+        </SignalBadge>
       </span>
       <span className={`relative flex h-12 w-12 rotate-45 items-center justify-center rounded-[0.7rem] border-2 border-[#55C8FF] bg-black/94 text-white shadow-[0_0_10px_rgba(20,157,255,0.95),0_0_24px_rgba(21,79,255,0.62)] backdrop-blur-md ${active ? 'shadow-[0_0_28px_rgba(85,200,255,0.62)]' : ''}`}>
         <span className="flex h-8 w-8 -rotate-45 items-center justify-center">
