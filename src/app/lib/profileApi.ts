@@ -117,6 +117,7 @@ export type ProfilePayload = {
 };
 
 export type ProfileRecord = ProfilePayload & {
+  photo_relationship?: import('./dlMode').DlModePhotoRelationship;
   id: string;
   updated_at: string;
   photo_metadata?: ProfilePhotoMetadata[];

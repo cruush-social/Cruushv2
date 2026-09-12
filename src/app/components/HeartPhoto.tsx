@@ -1,3 +1,4 @@
+import type { NsfwPhotoRestriction } from '../lib/dlMode';
 import type { KeyboardEvent, MouseEvent, ReactNode } from 'react';
 import DlModePhotoPlaceholder from './DlModePhotoPlaceholder';
 import { useId } from 'react';
@@ -16,6 +17,7 @@ interface HeartPhotoProps {
   fallback?: ReactNode;
   label: string;
   masked: boolean;
+  restriction?: NsfwPhotoRestriction;
   photo?: string | null;
   theme?: HeartPinTheme;
   userId?: string | null;
@@ -29,13 +31,15 @@ export default function HeartPhoto({
   className = '',
   fallback = null,
   label,
-  masked,
+  masked: dlMasked,
+  restriction,
   photo = null,
   theme = 'nearby',
   userId = null,
   onClick,
 }: HeartPhotoProps) {
   const id = useId();
+  const masked = dlMasked || Boolean(restriction);
   const patternId = `heart-photo-${id}`;
   const gradientId = `heart-gradient-${id}`;
   const resolvedTheme = HEART_PIN_THEMES[theme];
@@ -107,7 +111,7 @@ export default function HeartPhoto({
         {!resolvedPhoto ? (
           masked ? (
             <foreignObject x="22" y="19" width="20" height="26">
-              <DlModePhotoPlaceholder className="h-full w-full" showLabel={false} />
+              <DlModePhotoPlaceholder className="h-full w-full" showLabel={false} restriction={restriction} />
             </foreignObject>
           ) : (
             <image

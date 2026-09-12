@@ -1,3 +1,4 @@
+import type { DlModePhotoRelationship } from './dlMode';
 import { requestApi } from './apiClient';
 import type { CruushBadge } from './billingApi';
 import type { SideBadges } from './profileApi';
@@ -32,6 +33,7 @@ export type DiscoveryUser = {
   travelLabel?: string;
   photo: string | null;
   photoExplicit?: boolean;
+  photoRelationship?: DlModePhotoRelationship;
   badges?: CruushBadge[];
   sideBadges?: SideBadges;
   isDemo?: boolean;
@@ -118,6 +120,7 @@ type TokenizedDiscoveryProfile = {
   travelLabel?: string;
   photo: string | null;
   photoExplicit?: boolean;
+  photoRelationship?: DlModePhotoRelationship;
   badges?: CruushBadge[];
   sideBadges?: SideBadges;
   relationship?: DiscoveryUser['relationship'];
@@ -261,6 +264,7 @@ export async function getNearbyUsers(
       travelLabel: profile.travelLabel ?? '',
       photo: profile.photo,
       photoExplicit: profile.photoExplicit === true,
+      photoRelationship: profile.photoRelationship,
       badges: profile.badges,
       sideBadges: profile.sideBadges,
       displayMode: displayPayload.displayMode,

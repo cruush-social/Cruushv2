@@ -20,7 +20,7 @@ import {
 } from '../lib/cruushNotifications';
 import { openConversationOrInbox } from '../lib/openConversation';
 import { PROFILE_CARD_COMPACT_MEDIA_STYLE, PROFILE_CARD_MEDIA_ASPECT_STYLE } from '../lib/photoLayout';
-import { addDlModeChangedListener, isDlModeEnabled, shouldMaskPhoto } from '../lib/dlMode';
+import { useDlMode, shouldMaskPhoto, getNsfwPhotoRestriction, type DlModePhotoRelationship } from '../lib/dlMode';
 import DlModePhotoPlaceholder from './DlModePhotoPlaceholder';
 import { getProfileGradientCss } from '../lib/profileGradient';
 import { resolveVibeTone, vibeCapsuleStyle } from '../lib/vibeTone';
@@ -79,18 +79,23 @@ export default function ProfileCard({
   const [mutualRevoked, setMutualRevoked] = useState(false);
   const [outgoingRevoked, setOutgoingRevoked] = useState(false);
   const [openingMessage, setOpeningMessage] = useState(false);
-  const [dlModeActive, setDlModeActive] = useState(() => isDlModeEnabled());
+  const dlModeActive = useDlMode();
   const [carouselPhotos, setCarouselPhotos] = useState<string[]>(() => getCarouselPhotos(user));
   const [carouselPhotoExplicit, setCarouselPhotoExplicit] = useState<Record<string, boolean>>(
     () => getPhotoExplicitMap(user.photo_metadata),
   );
+  const [carouselPhotoRelationship, setCarouselPhotoRelationship] = useState<DlModePhotoRelationship | undefined>(user.photoRelationship ?? user.photo_relationship);
   const [activeCarouselPhotoIndex, setActiveCarouselPhotoIndex] = useState(0);
   const isAlreadyMutual = !mutualRevoked && (cruushBecameMutual || user.relationship?.mutualCruush === true);
   const hasSentCruush = !isAlreadyMutual && !outgoingRevoked && (cruushed || user.relationship?.outgoingCruush === true);
   const hasRevocableCruush = isAlreadyMutual || hasSentCruush;
   const canMessage = !mutualRevoked && user.relationship?.canMessage !== false;
   const cruushDisabled = sendingCruush || revokingCruush;
-  const maskPhoto = shouldMaskPhoto(dlModeActive, user.photoExplicit);
+  const maskPhoto = shouldMaskPhoto(dlModeActive, user.photoExplicit, {
+    ...(user.photoRelationship ?? user.photo_relationship),
+    isMutualCruush: isAlreadyMutual,
+    sharesCrowd: (user.photoRelationship ?? user.photo_relationship)?.sharesCrowd ?? (user.hasSharedCrowd === true || user.relationshipContext === 'MUTUAL_CROWD'),
+  });
   const carouselPresentation = presentation === 'carousel';
   const compact = placement === 'inline' && density === 'compact';
   const mediaStyle = fillAvailableHeight
@@ -112,8 +117,6 @@ export default function ProfileCard({
     ? 'absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-3'
     : 'absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4';
 
-  useEffect(() => addDlModeChangedListener(setDlModeActive), []);
-
   useEffect(() => {
     if (!carouselPresentation) {
       return undefined;
@@ -122,6 +125,7 @@ export default function ProfileCard({
     const suppliedPhotos = getCarouselPhotos(user);
     setCarouselPhotos(suppliedPhotos);
     setCarouselPhotoExplicit(getPhotoExplicitMap(user.photo_metadata));
+    setCarouselPhotoRelationship(user.photoRelationship ?? user.photo_relationship);
     setActiveCarouselPhotoIndex(0);
 
     if (Array.isArray(user.photos) || !user.id) {
@@ -141,6 +145,7 @@ export default function ProfileCard({
         });
         setCarouselPhotos(profilePhotos);
         setCarouselPhotoExplicit(getPhotoExplicitMap(profile.photo_metadata));
+        setCarouselPhotoRelationship(profile.photo_relationship);
         setActiveCarouselPhotoIndex(0);
       })
       .catch(() => {
@@ -252,6 +257,11 @@ export default function ProfileCard({
     const activeCarouselPhotoMasked = Boolean(activeCarouselPhoto && shouldMaskPhoto(
       dlModeActive,
       carouselPhotoExplicit[activeCarouselPhoto] ?? (activeCarouselPhoto === user.photo ? user.photoExplicit : false),
+      {
+        ...carouselPhotoRelationship,
+        isMutualCruush: isAlreadyMutual,
+        sharesCrowd: carouselPhotoRelationship?.sharesCrowd ?? (user.hasSharedCrowd === true || user.relationshipContext === 'MUTUAL_CROWD'),
+      },
     ));
     const previewCarouselPhotos = carouselPhotos
       .map((photo, index) => ({ photo, index }))
@@ -280,7 +290,7 @@ export default function ProfileCard({
               role="img"
               style={{ background: getProfileGradientCss(user.id) }}
             >
-              <DlModePhotoPlaceholder />
+              <DlModePhotoPlaceholder restriction={getNsfwPhotoRestriction(carouselPhotoExplicit[activeCarouselPhoto] ?? (activeCarouselPhoto === user.photo ? user.photoExplicit : false), carouselPhotoRelationship)} />
             </div>
           ) : (
             <div className="flex h-full w-full items-center justify-center" style={{ background: getProfileGradientCss(user.id) }}>
@@ -313,9 +323,19 @@ export default function ProfileCard({
                 key={photo}
                 className="pointer-events-auto h-[clamp(2.75rem,8dvh,3.6rem)] w-[clamp(2.75rem,8dvh,3.6rem)] shrink-0 drop-shadow-[0_8px_18px_rgba(0,0,0,0.55)] transition hover:scale-[1.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
                 label={`Show profile photo ${index + 1}`}
+                restriction={getNsfwPhotoRestriction(carouselPhotoExplicit[photo] ?? (photo === user.photo ? user.photoExplicit : false), {
+                    ...carouselPhotoRelationship,
+                    isMutualCruush: isAlreadyMutual,
+                    sharesCrowd: carouselPhotoRelationship?.sharesCrowd ?? (user.hasSharedCrowd === true || user.relationshipContext === 'MUTUAL_CROWD'),
+                  })}
                 masked={shouldMaskPhoto(
                   dlModeActive,
                   carouselPhotoExplicit[photo] ?? (photo === user.photo ? user.photoExplicit : false),
+                  {
+                    ...carouselPhotoRelationship,
+                    isMutualCruush: isAlreadyMutual,
+                    sharesCrowd: carouselPhotoRelationship?.sharesCrowd ?? (user.hasSharedCrowd === true || user.relationshipContext === 'MUTUAL_CROWD'),
+                  },
                 )}
                 onClick={() => setActiveCarouselPhotoIndex(index)}
                 photo={photo}
@@ -476,7 +496,7 @@ export default function ProfileCard({
             role="img"
             style={{ ...mediaStyle, background: getProfileGradientCss(user.id) }}
           >
-            <DlModePhotoPlaceholder />
+            <DlModePhotoPlaceholder restriction={getNsfwPhotoRestriction(user.photoExplicit, user.photoRelationship ?? user.photo_relationship)} />
           </div>
         ) : (
           <div className="w-full h-full flex items-center justify-center" style={{ background: getProfileGradientCss(user.id) }}>

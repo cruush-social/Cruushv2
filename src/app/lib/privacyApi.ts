@@ -1,4 +1,5 @@
 import { requestApi } from './apiClient';
+import type { DlModePhotoRelationship } from './dlMode';
 
 export type CrowdPrecisionPolicy = {
   crowdId: 'T4T' | 'Gay' | 'Dyke';
@@ -131,6 +132,7 @@ export type PrivacyAuditAccess = {
     pronouns: string;
     photo: string | null;
     photoExplicit?: boolean;
+    photoRelationship?: DlModePhotoRelationship;
   };
   reason: string;
   permission_type: 'mutual_cruush' | 'mutual_crowd';

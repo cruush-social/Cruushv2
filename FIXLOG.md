@@ -250,3 +250,5 @@
 - 2026-09-12 PEOPLE-CLUSTER-OVERLAP: Other members group only on displayed footprint overlap; groups within0.1mile maximum spread spiderfy, wider groups zoom. Owner pins remain outside counts. Fixed the obsolete14.5 click cap after an actual180m fixture zoomed out from15; it now zooms to18.33 and separates. All77MapView checks pass; actual close-group hover/click and owner exclusion at five zooms verified locally. No deployment.
 
 - 2026-09-12: Nearby notifications open an anonymous 1-mile area around the viewer-authorized displayed pin, without centering on or identifying the source. Local desktop/mobile notification clicks, Ghost/ownership/discovery checks and builds passed.
+
+- 2026-09-12: Apply the requested DL photo audience and viewer exceptions across photo callers; retain owner-restricted covers with the exact mutual labels. Local profile/chat desktop and mobile renders, encrypted media access and unconsumed view-once checks pass.

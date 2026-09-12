@@ -28,6 +28,7 @@ import { getActiveAccountUserId, getAuthenticatedUserId } from "../request-auth.
 import { recordMediaRead } from "../media-read-budget.js";
 import { assertUsersNotBlocked } from "../user-blocks.js";
 import { getRelationshipPermissions } from "../match-relationships.js";
+import { canViewNsfwPhoto } from "../nsfw-photo-audience.js";
 
 const MAX_PROFILE_PHOTOS = 4;
 const mediaUuidPattern = "[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}";
@@ -52,6 +53,7 @@ const ownedMediaQuerySchema = z.object({
 
 type EncryptedMediaRow = {
   owner_user_id: string;
+  explicit_classification?: string | null;
   surface: "profile_photo" | "message_photo" | "feed_photo";
   object_key: string;
   mime_type: string;
@@ -128,6 +130,11 @@ async function sendEncryptedMedia(
   mediaObject: EncryptedMediaRow,
   viewerUserId: string
 ) {
+  if (mediaObject.owner_user_id !== viewerUserId
+      && mediaObject.explicit_classification !== "non_explicit"
+      && !await canViewNsfwPhoto(app, mediaObject.owner_user_id, viewerUserId)) {
+    throw new ApiError(404, "NOT_FOUND", "Media not found.");
+  }
   const entityTag = buildMediaEntityTag(mediaObject);
 
   // "no-cache" tells the client to revalidate on every view rather than to skip
@@ -392,6 +399,7 @@ export async function registerMediaRoutes(app: FastifyInstance) {
       `select
          owner_user_id::text,
          surface,
+         explicit_classification,
          object_key,
          mime_type,
          encrypted_data_key,
@@ -430,6 +438,7 @@ export async function registerMediaRoutes(app: FastifyInstance) {
       `select
          media.owner_user_id::text,
          media.surface,
+         media.explicit_classification,
          media.object_key,
          media.mime_type,
          media.encrypted_data_key,
@@ -472,6 +481,7 @@ export async function registerMediaRoutes(app: FastifyInstance) {
       `select
          media.owner_user_id::text,
          media.surface,
+         media.explicit_classification,
          variant.object_key,
          variant.mime_type,
          variant.encrypted_data_key,

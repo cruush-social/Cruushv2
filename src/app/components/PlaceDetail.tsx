@@ -1,3 +1,4 @@
+import { getNsfwPhotoRestriction } from '../lib/dlMode';
 import { useTrustRestrictions } from '../lib/trustRestrictions';
 import TrustRestrictionNotice from './TrustRestrictionNotice';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -619,7 +620,8 @@ export default function PlaceDetail({ embedded = false, onBack, onClose, placeId
                 key={post.id}
                 testId={`spot-board-post-${post.id}`}
                 className="bg-black/72 hover:bg-black/86"
-                heart={<HeartPhoto borderTone={resolveUserBorderTone({ current: currentUserId === post.user.id, mileHigh: post.user.travelling, mutual: post.user.mutual })} className="w-20" label={`${post.user.name} preview`} masked={shouldMaskPhoto(dlModeActive, post.user.photoExplicit)} photo={post.user.photo} theme={currentUserId === post.user.id ? 'current' : post.user.mutual ? 'mutual' : 'nearby'} userId={post.user.id} onClick={() => navigate(`/profile/${post.user.id}`)} />}
+                heart={<HeartPhoto borderTone={resolveUserBorderTone({ current: currentUserId === post.user.id, mileHigh: post.user.travelling, mutual: post.user.mutual })} className="w-20" label={`${post.user.name} preview`} restriction={getNsfwPhotoRestriction(post.user.photoExplicit, { ...post.user.photoRelationship, isMutualCruush: post.user.mutual, sharesCrowd: post.user.sharesCrowd })}
+masked={shouldMaskPhoto(dlModeActive, post.user.photoExplicit, { ...post.user.photoRelationship, isMutualCruush: post.user.mutual, sharesCrowd: post.user.sharesCrowd })} photo={post.user.photo} theme={currentUserId === post.user.id ? 'current' : post.user.mutual ? 'mutual' : 'nearby'} userId={post.user.id} onClick={() => navigate(`/profile/${post.user.id}`)} />}
                 name={post.user.name}
                 pronouns={post.user.pronouns || 'Ask me'}
                 identityAdornment={<CruushBadge badges={post.user.badges} compact />}
@@ -657,7 +659,8 @@ export default function PlaceDetail({ embedded = false, onBack, onClose, placeId
                       borderTone={resolveUserBorderTone({ current: currentUserId === person.id, mileHigh: person.travelling, mutual: person.mutual })}
                       className="w-20"
                       label={`${person.name} profile preview`}
-                      masked={shouldMaskPhoto(dlModeActive, person.photoExplicit)}
+                      restriction={getNsfwPhotoRestriction(person.photoExplicit, { ...person.photoRelationship, isMutualCruush: person.mutual, sharesCrowd: person.sharesCrowd })}
+                      masked={shouldMaskPhoto(dlModeActive, person.photoExplicit, { ...person.photoRelationship, isMutualCruush: person.mutual, sharesCrowd: person.sharesCrowd })}
                       photo={person.photo}
                       theme={currentUserId === person.id ? 'current' : person.mutual ? 'mutual' : 'nearby'}
                       userId={person.id}

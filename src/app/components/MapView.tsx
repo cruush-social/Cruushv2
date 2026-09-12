@@ -72,7 +72,7 @@ import {
   DARK_ROOM_KEYHOLE_PATH,
   DarkRoomKeyholeEyeGraphic,
 } from './DarkRoomMark';
-import { addDlModeChangedListener, isDlModeEnabled, shouldMaskPhoto } from '../lib/dlMode';
+import { useDlMode, shouldMaskPhoto, getNsfwPhotoRestriction } from '../lib/dlMode';
 import {
   addAccessibilityPreferencesChangedListener,
   getAccessibilityPreferences,
@@ -1528,12 +1528,19 @@ function GhostRotationPulse({ marker, children }: { marker: MapMarker; children:
 
 function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUser: boolean }) {
   const [failedPhoto, setFailedPhoto] = useState<string | null>(null);
-  const [dlModeActive, setDlModeActive] = useState(() => isDlModeEnabled());
-  useEffect(() => addDlModeChangedListener(setDlModeActive), []);
+  const dlModeActive = useDlMode();
 
   const isOwnStealthMarker = isCurrentUser && marker.ownerStealthActive === true;
-  const photoMasked = Boolean(marker.photo && shouldMaskPhoto(dlModeActive, marker.photoExplicit));
-  const visiblePhoto = marker.photo && marker.photo !== failedPhoto && !shouldMaskPhoto(dlModeActive, marker.photoExplicit)
+  const photoMasked = Boolean(marker.photo && shouldMaskPhoto(dlModeActive, marker.photoExplicit, {
+    ...marker.photoRelationship,
+    isMutualCruush: marker.relationship?.kind === 'mutual_cruush',
+    sharesCrowd: marker.photoRelationship?.sharesCrowd ?? marker.hasSharedCrowd === true,
+  }));
+  const visiblePhoto = marker.photo && marker.photo !== failedPhoto && !shouldMaskPhoto(dlModeActive, marker.photoExplicit, {
+    ...marker.photoRelationship,
+    isMutualCruush: marker.relationship?.kind === 'mutual_cruush',
+    sharesCrowd: marker.photoRelationship?.sharesCrowd ?? marker.hasSharedCrowd === true,
+  })
     ? resolveMediaUrl(marker.photo)
     : null;
   const resolvedPhoto = !isOwnStealthMarker ? visiblePhoto : null;
@@ -1754,7 +1761,7 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
       )}
       {photoMasked ? (
         <foreignObject x="22" y="19" width="20" height="26">
-          <DlModePhotoPlaceholder className="h-full w-full" showLabel={false} />
+          <DlModePhotoPlaceholder className="h-full w-full" showLabel={false} restriction={getNsfwPhotoRestriction(marker.photoExplicit, marker.photoRelationship)} />
         </foreignObject>
       ) : null}
       {travellerActive ? (

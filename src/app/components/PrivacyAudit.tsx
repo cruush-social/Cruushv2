@@ -7,7 +7,7 @@ import LoadingCardSkeletons from './LoadingCardSkeletons';
 import BugButtonSlot from './BugButtonSlot';
 import DlModePhotoPlaceholder from './DlModePhotoPlaceholder';
 import { resolveMediaUrl } from '../lib/apiClient';
-import { shouldMaskPhoto, useDlMode } from '../lib/dlMode';
+import { shouldMaskPhoto, useDlMode, getNsfwPhotoRestriction } from '../lib/dlMode';
 import { getCruushMatchSettings, type CruushMatchSettings } from '../lib/cruushSettingsApi';
 import {
   DEFAULT_PRIVACY_SETTINGS,
@@ -161,12 +161,12 @@ export default function PrivacyAudit() {
           {items.map((item) => (
             <div key={item.revoke_action_token} className="rounded-lg border border-white/10 bg-card p-4">
               <div className="flex items-start gap-3">
-                {item.viewer.photo && !shouldMaskPhoto(dlModeActive, item.viewer.photoExplicit) ? (
+                {item.viewer.photo && !shouldMaskPhoto(dlModeActive, item.viewer.photoExplicit, item.viewer.photoRelationship) ? (
                   <img alt="" className="h-12 w-12 rounded-full object-cover" src={resolveMediaUrl(item.viewer.photo)} />
                 ) : (
                   <div className="flex h-12 w-12 items-center justify-center rounded-full" style={{ background: 'var(--cruush-gradient)' }}>
-                    {item.viewer.photo && shouldMaskPhoto(dlModeActive, item.viewer.photoExplicit)
-                      ? <DlModePhotoPlaceholder className="w-9" />
+                    {item.viewer.photo && shouldMaskPhoto(dlModeActive, item.viewer.photoExplicit, item.viewer.photoRelationship)
+                      ? <DlModePhotoPlaceholder className="w-9" restriction={getNsfwPhotoRestriction(item.viewer.photoExplicit, item.viewer.photoRelationship)} />
                       : <CruushIcon name="profile" className="h-6 w-6" variant="white" />}
                   </div>
                 )}

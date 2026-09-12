@@ -54,7 +54,7 @@ import { ApiClientError, resolveMediaUrl } from '../lib/apiClient';
 import { emailEventPass, getActiveEvents, joinEventChat, revealEventPass, type EventPassReveal, type LaunchEvent } from '../lib/eventsApi';
 import type { DenseVenueConfig } from '../lib/denseVenueMarkers';
 import { getProfileGradientCss } from '../lib/profileGradient';
-import { addDlModeChangedListener, isDlModeEnabled, shouldMaskPhoto, setDlModeEnabled } from '../lib/dlMode';
+import { useDlMode, shouldMaskPhoto, setDlModeEnabled, getNsfwPhotoRestriction } from '../lib/dlMode';
 import { markNoticeDismissed, resolveAnyNoticeDismissal } from '../lib/userNoticesApi';
 import { syncMyLocation, type ProfileLocationPayload, type ProfileLocationRecord } from '../lib/locationApi';
 import {
@@ -841,11 +841,19 @@ function RecentlyActivePhoto({
   user: DiscoveryUser;
 }) {
   const [photoFailed, setPhotoFailed] = useState(false);
-  const photoMasked = Boolean(user.photo && shouldMaskPhoto(dlModeActive, user.photoExplicit));
+  const photoMasked = Boolean(user.photo && shouldMaskPhoto(dlModeActive, user.photoExplicit, {
+      ...user.photoRelationship,
+    isMutualCruush: user.relationship?.mutualCruush === true,
+      sharesCrowd: user.photoRelationship?.sharesCrowd ?? (user.hasSharedCrowd === true || user.relationshipContext === 'MUTUAL_CROWD'),
+    }));
   const photoVisible = Boolean(
     user.photo
     && !photoFailed
-    && !shouldMaskPhoto(dlModeActive, user.photoExplicit),
+    && !shouldMaskPhoto(dlModeActive, user.photoExplicit, {
+      ...user.photoRelationship,
+    isMutualCruush: user.relationship?.mutualCruush === true,
+      sharesCrowd: user.photoRelationship?.sharesCrowd ?? (user.hasSharedCrowd === true || user.relationshipContext === 'MUTUAL_CROWD'),
+    }),
   );
 
   useEffect(() => {
@@ -872,7 +880,7 @@ function RecentlyActivePhoto({
       data-testid={`recently-active-fallback-${user.id}`}
       style={{ background: getProfileGradientCss(user.id) }}
     >
-      {photoMasked ? <DlModePhotoPlaceholder className="w-14" /> : <CruushIconImage src={cruushIconWhite} className="h-10 w-10 opacity-75" />}
+      {photoMasked ? <DlModePhotoPlaceholder className="w-14" restriction={getNsfwPhotoRestriction(user.photoExplicit, user.photoRelationship)} /> : <CruushIconImage src={cruushIconWhite} className="h-10 w-10 opacity-75" />}
     </div>
   );
 }
@@ -982,7 +990,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
   const [revealingEventPass, setRevealingEventPass] = useState(false);
   const [emailingEventPass, setEmailingEventPass] = useState(false);
   const [joiningEventChat, setJoiningEventChat] = useState(false);
-  const [dlModeActive, setDlModeActive] = useState(() => isDlModeEnabled());
+  const dlModeActive = useDlMode();
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [mapControlsIntroOpen, setMapControlsIntroOpen] = useState(false);
   const [mapControlsNoticeOffline, setMapControlsNoticeOffline] = useState(false);
@@ -1342,8 +1350,6 @@ export default function MapHome(_props: MapHomeProps = {}) {
       isMounted = false;
     };
   }, [currentProfile?.id, profileLoaded, shouldReplayTutorial]);
-
-  useEffect(() => addDlModeChangedListener(setDlModeActive), []);
 
   useEffect(() => addProfileChangedListener((savedProfile) => {
     setCurrentProfile((currentProfile) => mergeSavedCurrentProfile(currentProfile, savedProfile));
@@ -2657,6 +2663,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
         lastActiveLabel: user.lastActive,
         photo: user.photo,
         photoExplicit: user.photoExplicit,
+        photoRelationship: user.photoRelationship,
         travelling: user.travelling === true,
         travelLabel: user.travelLabel,
         roleBadge: createSavedMapMarkerBadge(
@@ -2672,6 +2679,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
         displayMode: user.displayMode,
         privacyRadiusMeters: user.privacyRadiusMeters,
         npcGhostDemo: user.npcGhostDemo,
+        hasSharedCrowd: user.hasSharedCrowd === true || user.relationshipContext === 'MUTUAL_CROWD',
         activePing: loadedProfilePing ?? activeReceivedPings.get(user.id) ?? null,
         relationship: (user.relationship?.mutualCruush || user.relationshipContext === 'MUTUAL_CRUUSH')
           ? {

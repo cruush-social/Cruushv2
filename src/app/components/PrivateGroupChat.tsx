@@ -55,7 +55,7 @@ import {
 } from '../lib/messagesApi';
 import { getMyCruushActivity, type MutualCruushActivityItem } from '../lib/cruushApi';
 import { ApiClientError, resolveMediaUrl } from '../lib/apiClient';
-import { addDlModeChangedListener, isDlModeEnabled, shouldMaskPhoto } from '../lib/dlMode';
+import { useDlMode, shouldMaskPhoto, getNsfwPhotoRestriction, getNsfwPhotoRestrictionLabel, type NsfwPhotoRestriction } from '../lib/dlMode';
 import { MESSAGE_PHOTO_UPLOAD_ACCEPT, prepareMessagePhotoForUpload } from '../lib/messagePhotoProcessing';
 import { getProfileGradientCss } from '../lib/profileGradient';
 import DlModePhotoPlaceholder from './DlModePhotoPlaceholder';
@@ -193,16 +193,16 @@ function isPendingPhotoReview(value: unknown): value is PendingPhotoReview {
     && typeof value.assetId === 'string';
 }
 
-function ExplicitMessagePhotoShield({ attachmentKey }: { attachmentKey: string }) {
+function ExplicitMessagePhotoShield({ attachmentKey, restriction }: { attachmentKey: string; restriction?: NsfwPhotoRestriction }) {
   return (
     <div
-      aria-label="Explicit message photo hidden by DL Mode"
+      aria-label={getNsfwPhotoRestrictionLabel(restriction) ?? 'Explicit message photo hidden by DL Mode'}
       className="flex aspect-[4/5] max-h-80 w-full max-w-xs min-w-[12rem] flex-col items-center justify-center gap-2 rounded-[22px] border border-white/10 p-4 text-center text-white shadow-[0_18px_45px_rgba(0,0,0,0.28)]"
       data-testid={`explicit-message-gradient-${attachmentKey}`}
       role="img"
       style={{ background: getProfileGradientCss(attachmentKey) }}
     >
-      <DlModePhotoPlaceholder />
+      <DlModePhotoPlaceholder restriction={restriction} />
     </div>
   );
 }
@@ -240,6 +240,7 @@ function getMessageSender(
       pronouns: groupMember.pronouns,
       photo: groupMember.photo,
       photoExplicit: groupMember.photoExplicit,
+      photoRelationship: groupMember.photoRelationship,
     };
   }
 
@@ -298,7 +299,7 @@ export default function PrivateGroupChat({
   const [viewedAttachmentUrls, setViewedAttachmentUrls] = useState<Record<string, string>>({});
   const [viewingAttachmentIds, setViewingAttachmentIds] = useState<Record<string, boolean>>({});
   const [mutualRequiredConversationId, setMutualRequiredConversationId] = useState<string | null>(null);
-  const [dlModeActive, setDlModeActive] = useState(() => isDlModeEnabled());
+  const dlModeActive = useDlMode();
   const [favoriteGalleryOpen, setFavoriteGalleryOpen] = useState(false);
   const [favoriteImages, setFavoriteImages] = useState<FavoriteMessageImage[]>([]);
   const [favoriteImagesLoading, setFavoriteImagesLoading] = useState(false);
@@ -312,8 +313,6 @@ export default function PrivateGroupChat({
   const favoriteFileInputRef = useRef<HTMLInputElement | null>(null);
   const settingsPanelRef = useRef<HTMLElement | null>(null);
   const textMessageSendingRef = useRef(false);
-
-  useEffect(() => addDlModeChangedListener(setDlModeActive), []);
 
   useEffect(() => {
     const reevaluateExpiredMessages = () => {
@@ -817,7 +816,12 @@ export default function PrivateGroupChat({
   const handleViewOnceAttachment = async (messageId: string, attachment: MessageAttachment) => {
     const attachmentKey = `${messageId}:${attachment.id}`;
 
-    if (shouldMaskPhoto(dlModeActive, attachment.explicit)) {
+    const restriction = getNsfwPhotoRestriction(attachment.explicit, attachment.photoRelationship);
+    if (restriction) {
+      setError(getNsfwPhotoRestrictionLabel(restriction)!);
+      return;
+    }
+    if (shouldMaskPhoto(dlModeActive, attachment.explicit, attachment.photoRelationship)) {
       setError('Turn off DL Mode to open this explicit view-once photo. It has not been consumed.');
       return;
     }
@@ -1005,7 +1009,8 @@ export default function PrivateGroupChat({
               <HeartPhoto
                 className="w-16 shrink-0 sm:w-20"
                 label={`${conversation.user.name} avatar`}
-                masked={shouldMaskPhoto(dlModeActive, conversation.user.photoExplicit)}
+                restriction={getNsfwPhotoRestriction(conversation.user.photoExplicit, { ...conversation.user.photoRelationship, isMutualCruush: conversation.mutual === true })}
+                masked={shouldMaskPhoto(dlModeActive, conversation.user.photoExplicit, { ...conversation.user.photoRelationship, isMutualCruush: conversation.mutual === true })}
                 photo={conversation.user.photo}
                 theme={conversation.kind === 'group' || conversation.mutual ? 'mutual' : 'nearby'}
                 userId={conversation.user.id}
@@ -1376,7 +1381,8 @@ export default function PrivateGroupChat({
                     <HeartPhoto
                       className="w-9"
                       label={`${messageSender.name} avatar`}
-                      masked={shouldMaskPhoto(dlModeActive, messageSender.photoExplicit)}
+                      restriction={getNsfwPhotoRestriction(messageSender.photoExplicit, messageSender.photoRelationship)}
+                      masked={shouldMaskPhoto(dlModeActive, messageSender.photoExplicit, messageSender.photoRelationship)}
                       photo={messageSender.photo}
                       theme={conversation?.kind === 'dm' && conversation.mutual ? 'mutual' : 'nearby'}
                       userId={messageSender.id}
@@ -1391,8 +1397,8 @@ export default function PrivateGroupChat({
                     const openedViewOnceUrl = viewedAttachmentUrls[attachmentKey];
                     if (attachment.viewOnce) {
                       if (isOwn && !openedViewOnceUrl) {
-                        return shouldMaskPhoto(dlModeActive, attachment.explicit) ? (
-                          <ExplicitMessagePhotoShield key={attachment.id} attachmentKey={attachmentKey} />
+                        return shouldMaskPhoto(dlModeActive, attachment.explicit, attachment.photoRelationship) ? (
+                          <ExplicitMessagePhotoShield key={attachment.id} attachmentKey={attachmentKey} restriction={getNsfwPhotoRestriction(attachment.explicit, attachment.photoRelationship)} />
                         ) : (
                           <div
                             key={attachment.id}
@@ -1416,8 +1422,8 @@ export default function PrivateGroupChat({
                       }
 
                       if (openedViewOnceUrl) {
-                        if (shouldMaskPhoto(dlModeActive, attachment.explicit)) {
-                          return <ExplicitMessagePhotoShield key={attachment.id} attachmentKey={attachmentKey} />;
+                        if (shouldMaskPhoto(dlModeActive, attachment.explicit, attachment.photoRelationship)) {
+                          return <ExplicitMessagePhotoShield key={attachment.id} attachmentKey={attachmentKey} restriction={getNsfwPhotoRestriction(attachment.explicit, attachment.photoRelationship)} />;
                         }
 
                         return (
@@ -1450,6 +1456,11 @@ export default function PrivateGroupChat({
                         );
                       }
 
+                      const restriction = getNsfwPhotoRestriction(attachment.explicit, attachment.photoRelationship);
+                      if (restriction) {
+                        return <ExplicitMessagePhotoShield key={attachment.id} attachmentKey={attachmentKey} restriction={restriction} />;
+                      }
+
                       return (
                         <button
                           key={attachment.id}
@@ -1479,8 +1490,8 @@ export default function PrivateGroupChat({
                           isOwn ? 'border-primary/30 bg-primary/10' : 'border-border bg-card'
                         }`}
                       >
-                        {shouldMaskPhoto(dlModeActive, attachment.explicit) ? (
-                          <ExplicitMessagePhotoShield attachmentKey={attachmentKey} />
+                        {shouldMaskPhoto(dlModeActive, attachment.explicit, attachment.photoRelationship) ? (
+                          <ExplicitMessagePhotoShield attachmentKey={attachmentKey} restriction={getNsfwPhotoRestriction(attachment.explicit, attachment.photoRelationship)} />
                         ) : (
                           <img
                             alt="Message photo"

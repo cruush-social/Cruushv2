@@ -1,5 +1,6 @@
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { z } from "zod";
+import { canViewNsfwPhoto, loadSharedCrowdUserIds, loadPhotoViewerRelationships, getNsfwPhotoAudience, resolveNsfwPhotoRestriction, type PhotoViewerRelationship } from "../nsfw-photo-audience.js";
 import { recordMeaningfulActivitySafely } from "../rewards-service.js";
 import { decryptTextContentOrFallback, encryptTextContent } from "../content-encryption.js";
 import { runTransaction } from "../db.js";
@@ -124,6 +125,7 @@ type ExistingUserRow = {
 
 type MessageAttachment = {
   id: string;
+  ownerUserId?: string;
   url: string;
   mediaType: string;
   mimeType: string;
@@ -375,6 +377,8 @@ async function refreshCreatedMessageAttachments(app: FastifyInstance, row: Messa
 export function mapConversationRow(app: FastifyInstance, row: ConversationRow, options: {
   canMessage?: boolean;
   mutual?: boolean;
+  sharesCrowd?: boolean;
+  nsfwPhotoRestriction?: PhotoViewerRelationship["nsfwPhotoRestriction"];
 } = {}) {
   const isGroup = row.kind === "group";
   const lastMessage = decryptTextContentOrFallback(app.config, "message", {
@@ -395,6 +399,7 @@ export function mapConversationRow(app: FastifyInstance, row: ConversationRow, o
       pronouns: isGroup ? "" : row.other_user_pronouns?.join(", ") ?? "",
       photo: isGroup ? null : row.other_user_photo ?? null,
       ...(isGroup ? {} : { photoExplicit: row.other_user_photo_explicit === true }),
+      ...(isGroup ? {} : { photoRelationship: { isMutualCruush: options.mutual === true, sharesCrowd: options.sharesCrowd === true, nsfwPhotoRestriction: options.nsfwPhotoRestriction } }),
       ...(isGroup || !row.other_user_side_badges ? {} : { sideBadges: row.other_user_side_badges }),
       ...(isGroup || !row.other_user_vibes?.length ? {} : { vibes: row.other_user_vibes.slice(0, 3) }),
       ...(isGroup ? {} : { travelling: row.other_user_travelling === true })
@@ -470,9 +475,13 @@ async function getDirectConversationOptions(
     ? await canStartDirectMessage(app, userId, row.other_user_id, relationship)
     : false;
 
+  const sharesCrowd = !relationship.isBlocked && (await loadSharedCrowdUserIds(app, userId, [row.other_user_id])).has(row.other_user_id);
+  const audience = await getNsfwPhotoAudience(app, row.other_user_id);
   return {
     canMessage,
-    mutual: relationship.isMutualCruush
+    mutual: relationship.isMutualCruush,
+    sharesCrowd,
+    nsfwPhotoRestriction: resolveNsfwPhotoRestriction(audience, { isMutualCruush: relationship.isMutualCruush, sharesCrowd })
   };
 }
 
@@ -505,8 +514,11 @@ async function filterReadableConversationRows(
   return rows.filter((_, index) => readable[index]);
 }
 
-function mapMessageRow(app: FastifyInstance, row: MessageRow) {
-  const attachments = normalizeMessageAttachments(row.attachments);
+function mapMessageRow(app: FastifyInstance, row: MessageRow, relationships: Map<string, PhotoViewerRelationship>) {
+  const attachments = normalizeMessageAttachments(row.attachments).map(({ ownerUserId, ...attachment }) => ({
+    ...attachment,
+    photoRelationship: ownerUserId ? relationships.get(ownerUserId) : undefined
+  }));
   const hasSender = row.sender_name !== undefined ||
     row.sender_pronouns !== undefined ||
     row.sender_photo !== undefined;
@@ -529,11 +541,18 @@ function mapMessageRow(app: FastifyInstance, row: MessageRow) {
         name: row.sender_name?.trim() || "cruush user",
         pronouns: row.sender_pronouns?.join(", ") ?? "",
         photo: row.sender_photo ?? null,
-        photoExplicit: row.sender_photo_explicit === true
+        photoExplicit: row.sender_photo_explicit === true,
+        photoRelationship: relationships.get(row.user_id)
       }
     } : {}),
     ...(attachments.length > 0 ? { attachments } : {})
   };
+}
+
+async function mapMessageRows(app: FastifyInstance, viewerUserId: string, rows: MessageRow[]) {
+  const ownerIds = rows.flatMap((row) => [row.user_id, ...normalizeMessageAttachments(row.attachments).flatMap((attachment) => attachment.ownerUserId ? [attachment.ownerUserId] : [])]);
+  const relationships = await loadPhotoViewerRelationships(app, viewerUserId, ownerIds);
+  return rows.map((row) => mapMessageRow(app, row, relationships));
 }
 
 function mapFavoriteMessageImage(row: FavoriteMessageImageRow) {
@@ -1262,6 +1281,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
       [conversationId]
     );
 
+    const photoRelationships = await loadPhotoViewerRelationships(app, userId, result.rows.map((row) => row.id));
     return reply.send({
       data: result.rows.map((row) => ({
         id: row.id,
@@ -1269,6 +1289,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
         pronouns: row.pronouns?.join(", ") ?? "",
         photo: row.photo ?? null,
         photoExplicit: row.photo_explicit === true,
+        photoRelationship: photoRelationships.get(row.id),
         role: row.role,
         joinedAt: new Date(row.joined_at).toISOString()
       }))
@@ -1889,7 +1910,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
     });
 
     return reply.code(201).send({
-      data: mapMessageRow(app, created)
+      data: (await mapMessageRows(app, userId, [created]))[0]
     });
   });
 
@@ -1958,6 +1979,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
        left join lateral (
          select jsonb_agg(jsonb_build_object(
            'id', media.id::text,
+           'ownerUserId', media.owner_user_id::text,
            'url', media.public_url,
            'mediaType', media.media_type,
            'mimeType', coalesce(display_variant.mime_type, media.mime_type),
@@ -2005,7 +2027,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
           last_message_key_version: null,
           unread_count: 0
         }, await getDirectConversationOptions(app, userId, conversation, relationship)),
-        messages: messagesResult.rows.map((row) => mapMessageRow(app, row))
+        messages: await mapMessageRows(app, userId, messagesResult.rows)
       }
     });
   });
@@ -2082,6 +2104,23 @@ export async function registerMessageRoutes(app: FastifyInstance) {
   app.post("/api/messages/:messageId/attachments/:mediaObjectId/view", async (request, reply) => {
     const userId = await getActiveAccountUserId(request);
     const { messageId, mediaObjectId } = messageAttachmentViewParamsSchema.parse(request.params);
+    const audienceResult = await app.db.query<{ owner_user_id: string; explicit_classification: string | null }>(
+      `select media.owner_user_id::text, media.explicit_classification
+       from message_media_attachments attachment
+       join media_objects media on media.id = attachment.media_object_id
+       join messages message on message.id = attachment.message_id
+       join conversation_members member on member.conversation_id = message.conversation_id and member.user_id = $3
+       where attachment.message_id = $1 and attachment.media_object_id = $2
+         and attachment.view_once = true and media.deleted_at is null
+         and media.moderation_status = 'approved'
+       limit 1`,
+      [messageId, mediaObjectId, userId]
+    );
+    const audienceMedia = audienceResult.rows[0];
+    if (!audienceMedia || (audienceMedia.explicit_classification !== "non_explicit"
+        && !await canViewNsfwPhoto(app, audienceMedia.owner_user_id, userId))) {
+      throw new ApiError(404, "NOT_FOUND", "Media not found.");
+    }
     const result = await app.db.query<EncryptedMessageMediaRow>(
       `with target as (
          select
@@ -2304,7 +2343,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
       });
 
       return reply.code(201).send({
-        data: mapMessageRow(app, created)
+        data: (await mapMessageRows(app, userId, [created]))[0]
       });
     } catch (error) {
       if (isPhotoModerationUnavailable(error)) {
@@ -2510,7 +2549,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
     });
 
     return reply.code(201).send({
-      data: mapMessageRow(app, created)
+      data: (await mapMessageRows(app, userId, [created]))[0]
     });
   });
 }

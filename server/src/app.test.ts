@@ -4088,6 +4088,7 @@ describe("server", () => {
           pronouns: "they/them",
           photo: "https://example.com/alex.jpg",
           photoExplicit: false,
+          photoRelationship: { isMutualCruush: true, sharesCrowd: false },
           travelling: false
         },
         distance: "Nearby",
@@ -5016,9 +5017,8 @@ describe("server", () => {
       userTwoId: dmPartnerId
     });
 
-    query
-      .mockResolvedValueOnce({
-        rows: [{
+    query.mockImplementation(async (sql: string) => {
+      if (sql.includes("from conversation_members cm") && sql.includes("join conversations c")) return { rows: [{
           id: conversationId,
           kind: "dm",
           title: null,
@@ -5031,15 +5031,8 @@ describe("server", () => {
           other_user_pronouns: ["they/them"],
           other_user_photo: "https://example.com/alex.jpg",
           member_count: 2
-        }]
-      })
-      .mockResolvedValueOnce({ rows: [matchRecord] })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [matchToken] })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({
-        rows: [{
+        }] };
+      if (sql.includes("from messages m")) return { rows: [{
           id: "msg-1",
           user_id: dmPartnerId,
           sender_name: "Alex",
@@ -5055,8 +5048,11 @@ describe("server", () => {
           sender_photo: "https://example.com/jordan.jpg",
           content: "yeah nearby",
           created_at: "2026-04-29T12:06:00.000Z"
-        }]
-      });
+        }] };
+      if (sql.includes("from encrypted_relationship_records")) return { rows: [matchRecord] };
+      if (sql.includes("from encrypted_relationship_tokens")) return { rows: [matchToken] };
+      return { rows: [] };
+    });
 
     const response = await app.inject({
       method: "GET",
@@ -5085,6 +5081,7 @@ describe("server", () => {
             name: "Alex",
             pronouns: "they/them",
             photo: "https://example.com/alex.jpg",
+            photoRelationship: { isMutualCruush: true, sharesCrowd: false },
             photoExplicit: false,
             travelling: false
           },
@@ -5108,6 +5105,7 @@ describe("server", () => {
             name: "Alex",
             pronouns: "they/them",
             photo: "https://example.com/alex.jpg",
+            photoRelationship: { isMutualCruush: true, sharesCrowd: false },
             photoExplicit: false
           }
         }, {
@@ -6244,6 +6242,7 @@ describe("server", () => {
 
     await writeEncryptedMediaObject(app.config, objectKey, encrypted.ciphertext);
 
+    query.mockResolvedValueOnce({ rows: [{ owner_user_id: userId, explicit_classification: "non_explicit" }] });
     query.mockResolvedValueOnce({
       rows: [{
         object_key: objectKey,
@@ -6266,14 +6265,34 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(query.mock.calls[0]?.[0]).toContain("insert into message_media_views");
+    expect(query.mock.calls.some(([sql]) => String(sql).includes("insert into message_media_views"))).toBe(true);
     expect(response.headers["content-type"]).toContain("image/png");
     expect(response.body).toBe(plaintext.toString());
+  });
+
+  it("does not consume a view-once photo when its owner's audience excludes the viewer", async () => {
+    query.mockImplementation(async (sql: string) => {
+      if (sql.includes("select media.owner_user_id::text, media.explicit_classification")) {
+        return { rows: [{ owner_user_id: "cd521c13-35e5-4a6c-88f7-e90cb4b4cad1", explicit_classification: "explicit" }] };
+      }
+      if (sql.includes("select nsfw_photo_visibility")) {
+        return { rows: [{ nsfw_photo_visibility: "mutual_cruushes" }] };
+      }
+      return { rows: [] };
+    });
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/messages/28bbd9a5-e48e-46ea-8a43-9ef80ed9473d/attachments/cb4dc89b-8732-4c22-9452-bb2d06159355/view",
+      headers: { "x-user-id": userId }
+    });
+    expect(response.statusCode).toBe(404);
+    expect(query.mock.calls.some(([sql]) => String(sql).includes("insert into message_media_views"))).toBe(false);
   });
 
   it("denies a view-once photo after it has already been viewed", async () => {
     const messageId = "28bbd9a5-e48e-46ea-8a43-9ef80ed9473d";
     const mediaObjectId = "cb4dc89b-8732-4c22-9452-bb2d06159355";
+    query.mockResolvedValueOnce({ rows: [{ owner_user_id: userId, explicit_classification: "non_explicit" }] });
     query.mockResolvedValueOnce({ rows: [] });
 
     const response = await app.inject({
@@ -10830,6 +10849,7 @@ describe("server", () => {
           pronouns: "they/them",
           photo: "https://example.com/photo.jpg",
           photoExplicit: false,
+          sharesCrowd: false,
           canMessage: false
         }
       }]

@@ -1,3 +1,4 @@
+import { getNsfwPhotoRestriction } from '../lib/dlMode';
 import { useEffect, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import {
@@ -176,7 +177,8 @@ function PersonHeart({
       borderTone={borderTone}
       className={activityHeartClassName}
       label={`${item.user.name} preview`}
-      masked={shouldMaskPhoto(dlModeActive, item.user.photoExplicit)}
+      restriction={getNsfwPhotoRestriction(item.user.photoExplicit, item.user.photoRelationship)}
+      masked={shouldMaskPhoto(dlModeActive, item.user.photoExplicit, item.user.photoRelationship)}
       photo={item.user.photo}
       userId={item.user.id}
       theme={'mutual' in item && item.mutual ? 'mutual' : 'nearby'}
@@ -353,7 +355,8 @@ function SentRow({
           borderTone={borderTone}
           className={activityHeartClassName}
           label={`${item.user.name} preview`}
-          masked={shouldMaskPhoto(dlModeActive, item.user.photoExplicit)}
+          restriction={getNsfwPhotoRestriction(item.user.photoExplicit, item.user.photoRelationship)}
+          masked={shouldMaskPhoto(dlModeActive, item.user.photoExplicit, item.user.photoRelationship)}
           photo={item.user.photo}
           userId={item.user.id}
           theme={item.mutual ? 'mutual' : 'nearby'}
@@ -418,7 +421,8 @@ function MutualRow({
           borderTone={borderTone}
           className={activityHeartClassName}
           label={`${item.user.name} preview`}
-          masked={shouldMaskPhoto(dlModeActive, item.user.photoExplicit)}
+          restriction={getNsfwPhotoRestriction(item.user.photoExplicit, item.user.photoRelationship)}
+          masked={shouldMaskPhoto(dlModeActive, item.user.photoExplicit, item.user.photoRelationship)}
           photo={item.user.photo}
           userId={item.user.id}
           theme="mutual"
@@ -1200,7 +1204,8 @@ function MutualDirectOverlay({
                     borderTone={resolveUserBorderTone({ mileHigh: item.user.travelling, mutual: true })}
                     className="w-20 shrink-0"
                     label={`${item.user.name} avatar`}
-                    masked={shouldMaskPhoto(dlModeActive, item.user.photoExplicit)}
+                    restriction={getNsfwPhotoRestriction(item.user.photoExplicit, item.user.photoRelationship)}
+                    masked={shouldMaskPhoto(dlModeActive, item.user.photoExplicit, item.user.photoRelationship)}
                     photo={item.user.photo}
                     theme="mutual"
                     userId={item.user.id}

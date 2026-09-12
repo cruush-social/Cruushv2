@@ -1,5 +1,6 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
+import { loadPhotoViewerRelationships, type PhotoViewerRelationship } from "../nsfw-photo-audience.js";
 import { requireCruushPlus } from "../billing.js";
 import { canStartDirectMessage } from "../cruush-match-settings.js";
 import { runTransaction, type DbClient } from "../db.js";
@@ -564,6 +565,7 @@ function mapProfileRow(
     display_name: row.display_name ?? "",
     photos,
     photo_metadata: photoMetadata,
+    photo_relationship: undefined as PhotoViewerRelationship | undefined,
     bio: row.bio ?? "",
     tags: row.tags ?? [],
     signal: row.signal ?? "",
@@ -1463,6 +1465,18 @@ async function loadProfileData(
     visibleCrowds,
     canMessage
   });
+
+  if (!options.includePrivateSensitive && options.viewerUserId) {
+    mappedProfile.photo_relationship = (await loadPhotoViewerRelationships(app, options.viewerUserId, [userId])).get(userId);
+    if (mappedProfile.photo_relationship?.nsfwPhotoRestriction) {
+      // Retain the gallery slot for its restriction cover. The media route still
+      // denies bytes, including unclassified photos, for an excluded viewer.
+      mappedProfile.photo_metadata = mappedProfile.photo_metadata.map((photo) => ({
+        ...photo,
+        explicit: !(row.photo_metadata ?? []).some((metadata) => metadata.url === photo.url && metadata.explicit === false)
+      }));
+    }
+  }
 
   // Mile High Club is worth reading before you cross a city for someone, so it is
   // stated on the profile itself.

@@ -1,3 +1,4 @@
+import { useDlMode, shouldMaskPhoto, getNsfwPhotoRestriction } from '../lib/dlMode';
 import { useEffect, useState } from 'react';
 import { Send } from 'lucide-react';
 import { Button } from './ui/button';
@@ -18,6 +19,7 @@ type InAppShareDialogProps = {
 };
 
 export default function InAppShareDialog({ open, onOpenChange, share }: InAppShareDialogProps) {
+  const dlModeActive = useDlMode();
   const [conversations, setConversations] = useState<ConversationThread[]>([]);
   const [loading, setLoading] = useState(false);
   const [sendingId, setSendingId] = useState<string | null>(null);
@@ -67,7 +69,7 @@ export default function InAppShareDialog({ open, onOpenChange, share }: InAppSha
               type="button"
               variant="ghost"
             >
-              <HeartPhoto className="w-16" label={`${conversation.user.name} avatar`} masked={false} photo={conversation.user.photo} theme={conversation.mutual ? 'mutual' : 'nearby'} userId={conversation.user.id} />
+              <HeartPhoto className="w-16" label={`${conversation.user.name} avatar`} restriction={getNsfwPhotoRestriction(conversation.user.photoExplicit, { ...conversation.user.photoRelationship, isMutualCruush: conversation.mutual === true })} masked={shouldMaskPhoto(dlModeActive, conversation.user.photoExplicit, { ...conversation.user.photoRelationship, isMutualCruush: conversation.mutual === true })} photo={conversation.user.photo} theme={conversation.mutual ? 'mutual' : 'nearby'} userId={conversation.user.id} />
               <span className="min-w-0 flex-1 truncate">{conversation.user.name}</span>
               <Send className="h-4 w-4 shrink-0" />
             </Button>

@@ -2,6 +2,7 @@ import { requestApi } from './apiClient';
 import { ApiClientError, getApiBaseUrl } from './apiClient';
 import type { SideBadges } from './profileApi';
 import type { MapPingStatus } from './mapPingsApi';
+import type { DlModePhotoRelationship } from './dlMode';
 
 export type ConversationTimer = 'off' | '1h' | '24h' | '7d' | '30d';
 
@@ -14,6 +15,7 @@ export type ConversationThread = {
     pronouns: string;
     photo: string | null;
     photoExplicit?: boolean;
+    photoRelationship?: DlModePhotoRelationship;
     sideBadges?: SideBadges;
     travelling?: boolean;
     vibes?: string[];
@@ -51,6 +53,7 @@ export type MessageSender = {
   pronouns: string;
   photo: string | null;
   photoExplicit?: boolean;
+  photoRelationship?: DlModePhotoRelationship;
 };
 
 export type RemoteChatMessage = {
@@ -77,6 +80,7 @@ export type MessageAttachment = {
   viewOnce?: boolean;
   viewedAt?: string | null;
   explicit?: boolean;
+  photoRelationship?: DlModePhotoRelationship;
 };
 
 export type FavoriteMessageImage = {
@@ -98,6 +102,7 @@ export type GroupMemberRecord = {
   pronouns: string;
   photo: string | null;
   photoExplicit?: boolean;
+  photoRelationship?: DlModePhotoRelationship;
   role: 'owner' | 'admin' | 'member';
   joinedAt: string;
 };

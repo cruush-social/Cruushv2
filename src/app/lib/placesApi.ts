@@ -1,3 +1,4 @@
+import type { DlModePhotoRelationship } from './dlMode';
 import { requestApi } from './apiClient';
 import type { CruushBadge } from './billingApi';
 import type { SideBadges } from './profileApi';
@@ -39,6 +40,8 @@ export type PlaceDetailRecord = PlaceRecord & {
     name: string;
     photo: string | null;
     photoExplicit?: boolean;
+    sharesCrowd?: boolean;
+    photoRelationship?: DlModePhotoRelationship;
     pronouns?: string;
     badges?: CruushBadge[];
     sideBadges?: SideBadges;
@@ -68,6 +71,8 @@ export type PlaceBoardMessage = {
     pronouns: string;
     photo: string | null;
     photoExplicit?: boolean;
+    sharesCrowd?: boolean;
+    photoRelationship?: DlModePhotoRelationship;
     badges?: CruushBadge[];
     sideBadges?: SideBadges;
     vibes: string[];

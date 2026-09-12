@@ -4,7 +4,7 @@ import CruushIconImage from './CruushIconImage';
 import HeartPhoto from './HeartPhoto';
 import { resolveMediaUrl } from '../lib/apiClient';
 import { PROFILE_HERO_ASPECT_STYLE, PROFILE_HERO_MEDIA_STYLE, PROFILE_HERO_VIEWPORT_STYLE } from '../lib/photoLayout';
-import { addDlModeChangedListener, isDlModeEnabled, shouldMaskPhoto } from '../lib/dlMode';
+import { useDlMode, shouldMaskPhoto, getNsfwPhotoRestriction, type DlModePhotoRelationship } from '../lib/dlMode';
 import { getProfileGradientCss } from '../lib/profileGradient';
 import type { ProfilePhotoMetadata } from '../lib/profileApi';
 import type { HeartPinTheme } from '../lib/heartPin';
@@ -14,6 +14,7 @@ import type { UserBorderTone } from '../lib/userBorderTone';
 
 interface ProfilePhotoGalleryProps {
   fitViewport?: boolean;
+  relationship?: DlModePhotoRelationship;
   fallbackLabel?: string;
   name: string;
   onExpandPhoto?: (photo: string) => void;
@@ -27,6 +28,7 @@ interface ProfilePhotoGalleryProps {
 
 export default function ProfilePhotoGallery({
   fitViewport = false,
+  relationship,
   fallbackLabel = 'Profile photo',
   name,
   onExpandPhoto,
@@ -39,7 +41,7 @@ export default function ProfilePhotoGallery({
 }: ProfilePhotoGalleryProps) {
   const visiblePhotos = useMemo(() => photos.slice(0, 4), [photos]);
   const [activeIndex, setActiveIndex] = useState(0);
-  const [dlModeActive, setDlModeActive] = useState(() => isDlModeEnabled());
+  const dlModeActive = useDlMode();
   const photoMetadataByUrl = useMemo(() => new Map(
     photoMetadata.map((metadata) => [metadata.url, metadata.explicit]),
   ), [photoMetadata]);
@@ -49,10 +51,9 @@ export default function ProfilePhotoGallery({
       setActiveIndex(0);
     }
   }, [activeIndex, visiblePhotos.length]);
-  useEffect(() => addDlModeChangedListener(setDlModeActive), []);
 
   const activePhoto = visiblePhotos[activeIndex] ?? null;
-  const activePhotoMasked = Boolean(activePhoto && shouldMaskPhoto(dlModeActive, photoMetadataByUrl.get(activePhoto)));
+  const activePhotoMasked = Boolean(activePhoto && shouldMaskPhoto(dlModeActive, photoMetadataByUrl.get(activePhoto), relationship));
   const previewPhotos = visiblePhotos
     .map((photo, index) => ({
       index,
@@ -101,7 +102,7 @@ export default function ProfilePhotoGallery({
           role="img"
           style={{ ...PROFILE_HERO_ASPECT_STYLE, background: getProfileGradientCss(userId ?? activePhoto) }}
         >
-          <DlModePhotoPlaceholder />
+          <DlModePhotoPlaceholder restriction={getNsfwPhotoRestriction(activePhoto ? photoMetadataByUrl.get(activePhoto) : false, relationship)} />
         </div>
       ) : (
         <div className="flex h-full w-full items-center justify-center">
@@ -129,7 +130,8 @@ export default function ProfilePhotoGallery({
               <HeartPhoto
                 borderTone={borderTone}
                 label={`${fallbackLabel} ${index + 1}`}
-                masked={shouldMaskPhoto(dlModeActive, photoMetadataByUrl.get(photo))}
+                restriction={getNsfwPhotoRestriction(photoMetadataByUrl.get(photo), relationship)}
+                masked={shouldMaskPhoto(dlModeActive, photoMetadataByUrl.get(photo), relationship)}
                 photo={photo}
                 className="h-full w-full"
                 theme={theme}

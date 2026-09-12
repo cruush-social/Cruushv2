@@ -1,3 +1,4 @@
+import type { DlModePhotoRelationship } from './dlMode';
 import type { SideBadgeSelection } from './profileApi';
 
 export type MapMarkerBadge = {
@@ -22,6 +23,7 @@ export type MapMarker = {
   lastActiveLabel?: string;
   photo?: string | null;
   photoExplicit?: boolean;
+  photoRelationship?: DlModePhotoRelationship;
   travelling?: boolean;
   travelLabel?: string;
   isCurrentUser?: boolean;
@@ -32,6 +34,7 @@ export type MapMarker = {
   ghostRotationExpiresAtMs?: number;
   privacyRadiusMeters?: number;
   npcGhostDemo?: boolean;
+  hasSharedCrowd?: boolean;
   activePing?: {
     id: string;
     expiresAt: string;

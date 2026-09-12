@@ -6,7 +6,7 @@ import CruushPlusWord from './CruushPlusWord';
 import HeartPhoto from './HeartPhoto';
 import DlModePhotoPlaceholder from './DlModePhotoPlaceholder';
 import { resolveMediaUrl } from '../lib/apiClient';
-import { addDlModeChangedListener, isDlModeEnabled, shouldMaskPhoto } from '../lib/dlMode';
+import { useDlMode, shouldMaskPhoto, getNsfwPhotoRestriction } from '../lib/dlMode';
 import type { DiscoveryUser } from '../lib/usersApi';
 import { PROFILE_OVERLAY_TEXT_STYLE } from './ProfileView';
 import { formatDistanceWithAway, useDistancePreferences } from '../lib/distancePreferences';
@@ -215,7 +215,7 @@ function CarouselTile({ item, featured, itemIndex, spinning, activePhotoIndex, o
   activePhotoIndex?: number;
   onSelectPhoto?: (index: number) => void;
 }) {
-  const [dlModeActive, setDlModeActive] = useState(() => isDlModeEnabled());
+  const dlModeActive = useDlMode();
   const distanceMode = useDistancePreferences().mode;
   // The featured card carries a profile overlay, so it needs the room a
   // profile card has rather than a thumbnail's.
@@ -232,8 +232,6 @@ function CarouselTile({ item, featured, itemIndex, spinning, activePhotoIndex, o
     ? `${featuredScaleClass} rotate-0 opacity-100 z-20`
     : 'scale-90 rotate-0 opacity-85 hover:opacity-100 z-10';
   const cycleClass = spinning ? 'cruise-carousel-profile-spinning' : '';
-
-  useEffect(() => addDlModeChangedListener(setDlModeActive), []);
 
   if (item.kind === 'plus-ad') {
     return (
@@ -258,7 +256,7 @@ function CarouselTile({ item, featured, itemIndex, spinning, activePhotoIndex, o
       ? [item.user.photo]
       : [];
     const photoUrl = featured ? (allPhotos[activePhotoIndex ?? 0] ?? item.user.photo) : item.user.photo;
-    const photo = photoUrl && !shouldMaskPhoto(dlModeActive, item.user.photoExplicit)
+    const photo = photoUrl && !shouldMaskPhoto(dlModeActive, item.user.photoExplicit, { ...item.user.photoRelationship, isMutualCruush: item.user.relationship?.mutualCruush === true, sharesCrowd: item.user.photoRelationship?.sharesCrowd ?? item.user.hasSharedCrowd === true })
       ? resolveMediaUrl(photoUrl)
       : null;
     const initial = item.user.name.trim().charAt(0).toUpperCase() || '?';
@@ -278,7 +276,7 @@ function CarouselTile({ item, featured, itemIndex, spinning, activePhotoIndex, o
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-2xl sm:text-4xl font-bold text-white" style={{ background: 'var(--cruush-gradient)' }}>
-            {photoUrl && shouldMaskPhoto(dlModeActive, item.user.photoExplicit) ? <DlModePhotoPlaceholder className="w-14" /> : initial}
+            {photoUrl && shouldMaskPhoto(dlModeActive, item.user.photoExplicit, { ...item.user.photoRelationship, isMutualCruush: item.user.relationship?.mutualCruush === true, sharesCrowd: item.user.photoRelationship?.sharesCrowd ?? item.user.hasSharedCrowd === true }) ? <DlModePhotoPlaceholder className="w-14" restriction={getNsfwPhotoRestriction(item.user.photoExplicit, item.user.photoRelationship)} /> : initial}
           </div>
         )}
 

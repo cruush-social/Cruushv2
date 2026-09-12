@@ -32,7 +32,7 @@ import {
 } from './ui/dialog';
 import { Textarea } from './ui/textarea';
 import BugButtonSlot from './BugButtonSlot';
-import { addDlModeChangedListener, isDlModeEnabled, shouldMaskPhoto } from '../lib/dlMode';
+import { useDlMode, shouldMaskPhoto, getDlModeShowOnlyException, getNsfwPhotoRestriction } from '../lib/dlMode';
 import {
   createFeedPost,
   deleteStagedFeedPhoto,
@@ -202,7 +202,8 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [feedSettingsLoaded, setFeedSettingsLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [dlModeActive, setDlModeActive] = useState(() => isDlModeEnabled());
+  const dlModeActive = useDlMode();
+  const dlModeException = getDlModeShowOnlyException();
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const composerInputRef = useRef<HTMLTextAreaElement | null>(null);
   const feedPhotoInputRef = useRef<HTMLInputElement | null>(null);
@@ -308,17 +309,19 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
     }
   }, [feedCoordinates, feedDistanceMiles, feedSeekingFilters, feedWindow]);
 
-  useEffect(() => addDlModeChangedListener(setDlModeActive), []);
-
   useEffect(() => {
     if (!photoViewer) {
       return;
     }
     const activePhoto = photoViewer.post.photos?.[photoViewer.index];
-    if (shouldMaskPhoto(dlModeActive, activePhoto?.explicit)) {
+    if (shouldMaskPhoto(dlModeActive, activePhoto?.explicit, {
+      ...photoViewer.post.user.photoRelationship,
+      isMutualCruush: mutualUserIds.has(photoViewer.post.user.id),
+      sharesCrowd: photoViewer.post.user.sharesCrowd,
+    })) {
       setPhotoViewer(null);
     }
-  }, [dlModeActive, photoViewer]);
+  }, [dlModeActive, dlModeException, mutualUserIds, photoViewer]);
 
   useEffect(() => () => {
     if (pendingFeedPhotoUrl?.startsWith('blob:')) {
@@ -1345,7 +1348,8 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
                         borderTone={borderTone}
                         className="w-full"
                         label={`${post.user.name} preview`}
-                        masked={shouldMaskPhoto(dlModeActive, post.user.photoExplicit)}
+                        masked={shouldMaskPhoto(dlModeActive, post.user.photoExplicit, { ...post.user.photoRelationship, isMutualCruush: mutualAuthor, sharesCrowd: post.user.sharesCrowd })}
+                        restriction={getNsfwPhotoRestriction(post.user.photoExplicit, post.user.photoRelationship)}
                         photo={post.user?.photo}
                         staticMileHigh={post.user.id === currentUserId && post.user.travelling === true}
                         theme={currentUserId && post.user.id === currentUserId ? 'current' : mutualAuthor ? 'mutual' : 'nearby'}
@@ -1435,6 +1439,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
                       ) : null}
                       <FeedAttachmentPreview
                         dlModeActive={dlModeActive}
+                        relationship={{ ...post.user.photoRelationship, isMutualCruush: mutualAuthor, sharesCrowd: post.user.sharesCrowd }}
                         onOpen={(index) => setPhotoViewer({ post, index })}
                         photos={post.photos ?? []}
                       />

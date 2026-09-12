@@ -1,3 +1,4 @@
+import { shouldMaskPhoto, useDlMode } from '../lib/dlMode';
 import { IDENTITIES } from '../lib/profileOptions';
 import type { CSSProperties, ReactNode } from 'react';
 import { useEffect, useMemo, useState } from 'react';
@@ -71,6 +72,7 @@ export type ProfileViewModel = {
   lastActive: string | null;
   photos: string[];
   photoMetadata: NonNullable<ProfileRecord['photo_metadata']>;
+  photoRelationship?: ProfileRecord['photo_relationship'];
   badges: ProfileRecord['badges'];
   attendingLaunchParty: boolean;
   /** Reading from a travel pin rather than a live location. */
@@ -167,6 +169,7 @@ export function profileRecordToProfileView(
     lastActive: previewState?.lastActive ?? profile.last_active ?? null,
     photos: profile.photos,
     photoMetadata: profile.photo_metadata ?? profile.photos.map((photo) => ({ url: photo, explicit: false })),
+    photoRelationship: profile.photo_relationship,
     badges: profile.badges ?? [],
     attendingLaunchParty: profile.attendingLaunchParty === true,
     travelling: profile.travelling === true,
@@ -226,6 +229,7 @@ export default function ProfileView() {
   const [openingMessage, setOpeningMessage] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('basics');
+  const dlModeActive = useDlMode();
   const [expandedPhoto, setExpandedPhoto] = useState<string | null>(null);
   const [pinTokenValid, setPinTokenValid] = useState(false);
 
@@ -614,6 +618,7 @@ export default function ProfileView() {
         <ProfilePhotoGallery
           borderTone={resolveUserBorderTone({ current: isOwnProfile, mileHigh: profileView.travelling, mutual: heartTheme === 'mutual' })}
           fitViewport
+          relationship={{ ...profileView.photoRelationship, isMutualCruush: isAlreadyMutual, sharesCrowd: profileView.photoRelationship?.sharesCrowd ?? (!isOwnProfile && profileView.crowds.length > 0) }}
           name={profileView.name}
           onExpandPhoto={setExpandedPhoto}
           photoMetadata={profileView.photoMetadata}
@@ -738,7 +743,7 @@ export default function ProfileView() {
         </div>
       </div>
 
-      {expandedPhoto ? (
+      {expandedPhoto && !shouldMaskPhoto(dlModeActive, profileView.photoMetadata.find((photo) => photo.url === expandedPhoto)?.explicit, { ...profileView.photoRelationship, isMutualCruush: isAlreadyMutual, sharesCrowd: profileView.photoRelationship?.sharesCrowd ?? (!isOwnProfile && profileView.crowds.length > 0) }) ? (
         <div
           aria-label="Profile photo"
           className="fixed inset-0 z-[80] flex items-center justify-center bg-black"

@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
+import { loadPhotoViewerRelationships, type PhotoViewerRelationship } from "../nsfw-photo-audience.js";
 import { hasPremiumDiscoveryFilters, requireCruushPlus } from "../billing.js";
 import { decryptTextContentOrFallback, encryptTextContent } from "../content-encryption.js";
 import { ApiError } from "../errors.js";
@@ -180,7 +181,7 @@ async function canViewLocationPin(app: FastifyInstance, viewerUserId: string, ro
   }
 }
 
-async function mapPostRow(app: FastifyInstance, row: PostRow, viewerUserId: string) {
+async function mapPostRow(app: FastifyInstance, row: PostRow, viewerUserId: string, photoRelationship?: PhotoViewerRelationship) {
   const partyStatus = normalizePartyStatus(row.party_status);
   const crowdTargets = row.crowd_targets ?? [];
   const vibeTags = topVibeTags(row);
@@ -227,6 +228,8 @@ async function mapPostRow(app: FastifyInstance, row: PostRow, viewerUserId: stri
       pronouns: row.pronouns?.join(", ") ?? "",
       photo: row.photos?.[0] ?? null,
       photoExplicit: row.photo_explicit === true,
+      sharesCrowd: photoRelationship?.sharesCrowd === true,
+      photoRelationship,
       canMessage,
       ...(vibeTags.length > 0 ? { vibes: vibeTags } : {}),
       ...(row.attending_launch_party === true ? { attendingLaunchParty: true } : {}),
@@ -699,8 +702,10 @@ export async function registerPostRoutes(app: FastifyInstance) {
     );
     const visibleRows = audienceVisibility.filter(({ visible }) => visible).map(({ row }) => row);
 
+    const pageRows = visibleRows.slice(0, query.limit);
+    const photoRelationships = await loadPhotoViewerRelationships(app, userId, pageRows.map((row) => row.user_id));
     return reply.send({
-      data: await Promise.all(visibleRows.slice(0, query.limit).map((row) => mapPostRow(app, row, userId)))
+      data: await Promise.all(pageRows.map((row) => mapPostRow(app, row, userId, photoRelationships.get(row.user_id))))
     });
   });
 

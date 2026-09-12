@@ -1,3 +1,4 @@
+import { getNsfwPhotoRestriction } from '../lib/dlMode';
 import { useTrustRestrictions } from '../lib/trustRestrictions';
 import TrustRestrictionNotice from './TrustRestrictionNotice';
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
@@ -922,7 +923,8 @@ export default function DirectMessages({
                         borderTone={resolveUserBorderTone({ mileHigh: item.user.travelling, mutual: true })}
                         className="w-20 shrink-0"
                         label={`${item.user.name} avatar`}
-                        masked={shouldMaskPhoto(dlModeActive, item.user.photoExplicit)}
+                        restriction={getNsfwPhotoRestriction(item.user.photoExplicit, { ...item.user.photoRelationship, isMutualCruush: true, sharesCrowd: (item.mutualCrowds?.length ?? 0) > 0 })}
+                        masked={shouldMaskPhoto(dlModeActive, item.user.photoExplicit, { ...item.user.photoRelationship, isMutualCruush: true, sharesCrowd: (item.mutualCrowds?.length ?? 0) > 0 })}
                         photo={item.user.photo}
                         userId={item.user.id}
                         theme="mutual"
@@ -985,7 +987,8 @@ export default function DirectMessages({
                       })}
                       className="w-[var(--cruush-profile-heart-size)] shrink-0"
                       label={`${conversation.user.name} avatar`}
-                      masked={shouldMaskPhoto(dlModeActive, conversation.user.photoExplicit)}
+                      restriction={getNsfwPhotoRestriction(conversation.user.photoExplicit, { ...conversation.user.photoRelationship, isMutualCruush: conversation.mutual === true })}
+                      masked={shouldMaskPhoto(dlModeActive, conversation.user.photoExplicit, { ...conversation.user.photoRelationship, isMutualCruush: conversation.mutual === true })}
                       photo={conversation.user.photo}
                       userId={conversation.user.id}
                       theme={getConversationHeartTheme(conversation)}
@@ -1052,7 +1055,8 @@ export default function DirectMessages({
                     })}
                     className="w-20 shrink-0"
                     label={`${conversation.user.name} avatar`}
-                    masked={shouldMaskPhoto(dlModeActive, conversation.user.photoExplicit)}
+                    restriction={getNsfwPhotoRestriction(conversation.user.photoExplicit, { ...conversation.user.photoRelationship, isMutualCruush: conversation.mutual === true })}
+                    masked={shouldMaskPhoto(dlModeActive, conversation.user.photoExplicit, { ...conversation.user.photoRelationship, isMutualCruush: conversation.mutual === true })}
                     photo={conversation.user.photo}
                     userId={conversation.user.id}
                     theme={getConversationHeartTheme(conversation)}
@@ -1432,7 +1436,8 @@ function DirectUserOverlay({
                     })}
                     className="w-20"
                     label={`${user.name} avatar`}
-                    masked={shouldMaskPhoto(dlModeActive, user.photoExplicit)}
+                    restriction={getNsfwPhotoRestriction(user.photoExplicit, { ...user.photoRelationship, isMutualCruush: user.relationship?.mutualCruush, sharesCrowd: user.photoRelationship?.sharesCrowd ?? (user.hasSharedCrowd === true || user.relationshipContext === 'MUTUAL_CROWD') })}
+                    masked={shouldMaskPhoto(dlModeActive, user.photoExplicit, { ...user.photoRelationship, isMutualCruush: user.relationship?.mutualCruush, sharesCrowd: user.photoRelationship?.sharesCrowd ?? (user.hasSharedCrowd === true || user.relationshipContext === 'MUTUAL_CROWD') })}
                     photo={user.photo}
                     userId={user.id}
                     onClick={() => onOpenProfile(user.id)}
@@ -1484,7 +1489,8 @@ function DirectUserOverlay({
                     borderTone={resolveUserBorderTone({ mileHigh: item.user.travelling, mutual: true })}
                     className="w-20"
                     label={`${item.user.name} avatar`}
-                    masked={shouldMaskPhoto(dlModeActive, item.user.photoExplicit)}
+                    restriction={getNsfwPhotoRestriction(item.user.photoExplicit, { ...item.user.photoRelationship, isMutualCruush: true, sharesCrowd: (item.mutualCrowds?.length ?? 0) > 0 })}
+                    masked={shouldMaskPhoto(dlModeActive, item.user.photoExplicit, { ...item.user.photoRelationship, isMutualCruush: true, sharesCrowd: (item.mutualCrowds?.length ?? 0) > 0 })}
                     photo={item.user.photo}
                     theme="mutual"
                     userId={item.user.id}

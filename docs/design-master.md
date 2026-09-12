@@ -748,3 +748,7 @@ These are not preferences. Breaking one is a bug.
 - People clusters remain circular. Spot clusters remain diamond-shaped and show only their count in the logo font.
 - Adult shop, Music venue, and Sports venue are first-class Spot categories alongside the existing category set.
 - Public imports exclude private residences, unnamed rows, visitor data, access codes, profile media, active visits, and user-authored sexual descriptions.
+
+## Owner-restricted NSFW photo covers, September 12, 2026
+
+When an owner's explicit-photo sharing policy excludes the viewer, show the existing translucent white DL icon and replace the non-heart cover's “DL MODE ON” line with exactly “MUTUAL CRUUSHES ONLY” or “MUTUAL CROWDS ONLY”, according to the actual server-enforced restriction. A viewer's DL setting or show-only exception cannot bypass that owner policy. Preserve the icon, photo geometry, non-explicit photos and independent authorization rules. Whether the previously icon-only heart covers also gain this text is pending the owner's clarification; no extra heart text is approved yet. Source: task01a09549, September12 latest “if you encounter a picture” request.

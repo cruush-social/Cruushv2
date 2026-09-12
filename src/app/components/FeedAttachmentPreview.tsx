@@ -1,27 +1,31 @@
 import { CruushIcon } from './CruushIconImage';
 import HeartPhoto from './HeartPhoto';
 import type { FeedPhoto } from '../lib/postApi';
+import { shouldMaskPhoto, getNsfwPhotoRestriction, type DlModePhotoRelationship } from '../lib/dlMode';
 
 type FeedAttachmentPreviewProps = {
   photos: readonly FeedPhoto[];
   dlModeActive: boolean;
+  relationship?: DlModePhotoRelationship;
   onOpen: (index: number) => void;
 };
 
-function PhotoHeart({ photo, index, dlModeActive, className, onOpen }: {
+function PhotoHeart({ photo, index, dlModeActive, relationship, className, onOpen }: {
   photo: FeedPhoto;
   index: number;
   dlModeActive: boolean;
+  relationship?: DlModePhotoRelationship;
   className: string;
   onOpen: (index: number) => void;
 }) {
-  const masked = dlModeActive && photo.explicit;
+  const masked = shouldMaskPhoto(dlModeActive, photo.explicit, relationship);
   return (
     <HeartPhoto
       className={className}
       fallback={<CruushIcon name="camera" className="h-3.5 w-3.5 opacity-35" />}
       label={masked ? `Feed photo ${index + 1} hidden by DL Mode` : `Open Feed photo ${index + 1}`}
       masked={masked}
+      restriction={getNsfwPhotoRestriction(photo.explicit, relationship)}
       onClick={masked ? undefined : () => onOpen(index)}
       photo={photo.thumbnailUrl || photo.url}
       theme="nearby"
@@ -30,7 +34,7 @@ function PhotoHeart({ photo, index, dlModeActive, className, onOpen }: {
   );
 }
 
-export default function FeedAttachmentPreview({ photos, dlModeActive, onOpen }: FeedAttachmentPreviewProps) {
+export default function FeedAttachmentPreview({ photos, dlModeActive, relationship, onOpen }: FeedAttachmentPreviewProps) {
   const visiblePhotos = photos.slice(0, 3);
   if (visiblePhotos.length === 0) {
     return null;
@@ -45,6 +49,7 @@ export default function FeedAttachmentPreview({ photos, dlModeActive, onOpen }: 
         <PhotoHeart
           className="h-16 w-16 shrink-0"
           dlModeActive={dlModeActive}
+          relationship={relationship}
           index={index}
           key={photo.id}
           onOpen={onOpen}

@@ -5,6 +5,7 @@ import { decryptTextContentOrFallback, encryptTextContent } from "../content-enc
 import { runTransaction } from "../db.js";
 import { ApiError } from "../errors.js";
 import { listEncryptedRelationshipRecordsByParticipant } from "../encrypted-relationships.js";
+import { loadPhotoViewerRelationships } from "../nsfw-photo-audience.js";
 import { databaseUuidSchema, uuidSchema } from "../input-schema.js";
 import { getModeratorUser } from "../moderator-auth.js";
 import { approvedContentReviewCte, moderateTextOrReject } from "../moderation-service.js";
@@ -457,6 +458,7 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
       ),
       loadActiveMutualUserIds(app, userId)
     ]);
+    const photoRelationships = await loadPhotoViewerRelationships(app, userId, visiblePeople.rows.map((person) => person.id));
     return reply.send({
       data: {
         ...mapPlace(place),
@@ -470,6 +472,8 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
           badges: person.badges ?? [],
           ...(person.side_badges ? { sideBadges: person.side_badges } : {}),
           mutual: mutualUserIds.has(person.id),
+          sharesCrowd: photoRelationships.get(person.id)?.sharesCrowd === true,
+          photoRelationship: photoRelationships.get(person.id),
           travelling: person.travelling
         })),
         viewerCheckin: viewerCheckin.rows[0] ? {
@@ -617,6 +621,7 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
       ),
       loadActiveMutualUserIds(app, userId)
     ]);
+    const photoRelationships = await loadPhotoViewerRelationships(app, userId, result.rows.map((row) => row.user_id));
     return reply.send({
       data: result.rows.map((row) => ({
         id: row.id,
@@ -637,6 +642,8 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
           ...(row.side_badges ? { sideBadges: row.side_badges } : {}),
           vibes: topVibeTags(row),
           mutual: mutualUserIds.has(row.user_id),
+          sharesCrowd: photoRelationships.get(row.user_id)?.sharesCrowd === true,
+          photoRelationship: photoRelationships.get(row.user_id),
           travelling: row.travelling
         }
       })),

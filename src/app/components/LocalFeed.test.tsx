@@ -1,9 +1,10 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import LocalFeed from './LocalFeed';
 import { HEART_PIN_THEMES } from '../lib/heartPin';
 import type { FeedSettings } from '../lib/postApi';
+import { setDlModeShowOnlyException } from '../lib/dlMode';
 
 const {
   createFeedPost,
@@ -149,6 +150,7 @@ describe('LocalFeed', () => {
     toastSuccess.mockReset();
     toastError.mockReset();
     window.localStorage.removeItem('cruush:dl-mode-enabled');
+    window.localStorage.removeItem('cruush:dl-mode-show-only-exception');
     getCurrentUserId.mockResolvedValue('user-1');
     getFeedSettings.mockResolvedValue({
       locationPinVisibility: 'mutuals',
@@ -359,7 +361,7 @@ describe('LocalFeed', () => {
     expect(screen.getAllByLabelText('river preview').at(-1)?.querySelector('image')).not.toBeNull();
   });
 
-  it('masks explicit Feed attachments while keeping safe attachments actionable in DL Mode', async () => {
+  it('masks explicit Feed attachments by default and updates the viewer when a shared-Crowd exception changes', async () => {
     window.localStorage.setItem('cruush:dl-mode-enabled', 'true');
     getFeedPosts.mockResolvedValue([{
       id: 'post-with-photos',
@@ -386,6 +388,7 @@ describe('LocalFeed', () => {
         pronouns: 'they/them',
         photo: null,
         photoExplicit: false,
+        sharesCrowd: true,
       },
     }]);
 
@@ -402,6 +405,14 @@ describe('LocalFeed', () => {
     expect(masked.innerHTML).not.toContain('explicit-photo');
     expect(screen.queryByRole('button', { name: 'Feed photo 1 hidden by DL Mode' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Open Feed photo 2' })).toBeEnabled();
+
+    act(() => setDlModeShowOnlyException('mutual_crowds'));
+    fireEvent.click(screen.getByRole('button', { name: 'Open Feed photo 1' }));
+    expect(screen.getByRole('dialog', { name: 'Feed photo viewer' })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'Feed photo 1 by river' })).toBeInTheDocument();
+    act(() => setDlModeShowOnlyException('none'));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Feed photo viewer' })).not.toBeInTheDocument());
+    expect(screen.queryByRole('button', { name: 'Open Feed photo 1' })).not.toBeInTheDocument();
   });
 
   it('renders three Feed photos in one row and opens the shared full photo viewer', async () => {

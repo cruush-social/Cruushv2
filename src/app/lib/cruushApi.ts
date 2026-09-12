@@ -1,5 +1,6 @@
 import { getCurrentUserId } from './sessionUser';
 import { requestApi } from './apiClient';
+import type { DlModePhotoRelationship } from './dlMode';
 import type { CruushBadge } from './billingApi';
 import type { SideBadges } from './profileApi';
 import {
@@ -46,6 +47,7 @@ export type CruushActivityPerson = {
   pronouns: string;
   photo: string | null;
   photoExplicit?: boolean;
+  photoRelationship?: DlModePhotoRelationship;
   badges?: CruushBadge[];
   sideBadges?: SideBadges;
   travelling?: boolean;

@@ -1,4 +1,5 @@
 import type { FastifyInstance, FastifyRequest } from "fastify";
+import { loadPhotoViewerRelationships } from "../nsfw-photo-audience.js";
 import { z } from "zod";
 import { hasPremiumDiscoveryFilters, requireCruushPlus } from "../billing.js";
 import { decryptTextContentOrFallback } from "../content-encryption.js";
@@ -1468,6 +1469,7 @@ export async function registerUserRoutes(app: FastifyInstance) {
       app,
       visibleProfiles.map((profile) => profile.profileToken)
     );
+    const photoRelationships = await loadPhotoViewerRelationships(app, currentUserId, visibleProfiles.map((profile) => profile.profileToken));
 
     return reply.send({
       data: {
@@ -1491,6 +1493,7 @@ export async function registerUserRoutes(app: FastifyInstance) {
 
           return {
             ...visibleProfile,
+            photoRelationship: photoRelationships.get(profile.profileToken),
             travelling: travelPins.has(profile.profileToken),
             travelLabel: travelPins.get(profile.profileToken)?.label ?? "",
             activePing

@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
+import { getNsfwPhotoAudience, saveNsfwPhotoAudience, nsfwPhotoAudienceSchema, loadPhotoViewerRelationships } from "../nsfw-photo-audience.js";
 import { isWithinBetaLaunchArea } from "../beta-access.js";
 import { requireCruushPlus } from "../billing.js";
 import { runTransaction } from "../db.js";
@@ -315,6 +316,19 @@ async function loadMutualPreciseCandidates(app: FastifyInstance, subjectUserId: 
 }
 
 export async function registerPrivacyRoutes(app: FastifyInstance) {
+  app.get("/api/privacy/nsfw-photo-audience", async (request, reply) => {
+    const userId = await getAuthenticatedUserId(request);
+    reply.header("cache-control", "private, no-store");
+    return { data: { audience: await getNsfwPhotoAudience(app, userId) } };
+  });
+
+  app.put("/api/privacy/nsfw-photo-audience", async (request, reply) => {
+    const userId = await getAuthenticatedUserId(request);
+    const { audience } = z.object({ audience: nsfwPhotoAudienceSchema }).strict().parse(request.body);
+    reply.header("cache-control", "private, no-store");
+    return { data: { audience: await saveNsfwPhotoAudience(app, userId, audience) } };
+  });
+
   app.get("/api/privacy/distance-labels", async (request, reply) => {
     const userId = await getAuthenticatedUserId(request);
     const policy = await loadVisibilityPolicy(app, userId);
@@ -619,11 +633,12 @@ export async function registerPrivacyRoutes(app: FastifyInstance) {
       throw error;
     });
 
+    const photoRelationships = await loadPhotoViewerRelationships(app, subjectUserId, candidates.map((candidate) => candidate.viewerUserId));
     return reply.send({
       data: {
         exact_location_access: candidates.map((candidate) => ({
           viewer_profile_token: candidate.viewerUserId,
-          viewer: mapAuditProfile(profiles.get(candidate.viewerUserId), candidate.viewerUserId),
+          viewer: { ...mapAuditProfile(profiles.get(candidate.viewerUserId), candidate.viewerUserId), photoRelationship: photoRelationships.get(candidate.viewerUserId) },
           reason: candidate.reason,
           permission_type: candidate.permissionType,
           granted_at_ms: candidate.grantedAtMs,

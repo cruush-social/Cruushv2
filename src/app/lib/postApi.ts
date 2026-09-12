@@ -1,6 +1,7 @@
 import { requestApi } from './apiClient';
 import type { CruushBadge } from './billingApi';
 import type { SideBadges } from './profileApi';
+import type { DlModePhotoRelationship } from './dlMode';
 
 export type FeedPostExpiry = '30m' | '1h' | '3h' | '6h' | '24h' | '7d' | 'never';
 export type FeedPostWindow = '1h' | '3h' | '6h' | '24h' | '7d';
@@ -39,6 +40,8 @@ export type FeedPost = {
     pronouns: string;
     photo: string | null;
     photoExplicit?: boolean;
+    sharesCrowd?: boolean;
+    photoRelationship?: DlModePhotoRelationship;
     canMessage?: boolean;
     badges?: CruushBadge[];
     sideBadges?: SideBadges;

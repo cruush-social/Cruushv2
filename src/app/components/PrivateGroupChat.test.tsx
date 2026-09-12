@@ -3,6 +3,7 @@ import { PHOTO_UPLOAD_ACCEPT } from '../lib/photoUploadFormats';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import PrivateGroupChat from './PrivateGroupChat';
+import { setDlModeEnabled, setDlModeShowOnlyException, type NsfwPhotoRestriction } from '../lib/dlMode';
 import * as trustRestrictions from '../lib/trustRestrictions';
 import { ApiClientError } from '../lib/apiClient';
 
@@ -160,6 +161,7 @@ function mockVisualViewport({
 
 describe('PrivateGroupChat', () => {
   beforeEach(() => {
+    window.localStorage.removeItem('cruush:dl-mode-show-only-exception');
     clearConversationForEveryone.mockReset();
     createMessage.mockReset();
     createMessagePhoto.mockReset();
@@ -1012,6 +1014,7 @@ describe('PrivateGroupChat', () => {
           mediaType: 'message_photo',
           mimeType: 'image/png',
           explicit: true,
+          photoRelationship: { isMutualCruush: true, sharesCrowd: false },
         }],
       }],
     });
@@ -1028,6 +1031,10 @@ describe('PrivateGroupChat', () => {
     expect(shield.querySelector('[data-testid="dl-mode-mark"]')).toHaveAttribute('data-source', 'Julien supplied balaclava halo DL Mode icon');
     expect(shield.querySelector('[data-testid="dl-mode-mark"]')).toHaveAttribute('data-tone', 'white');
     expect(shield.querySelector('[data-testid="dl-mode-mark"]')).toHaveAttribute('viewBox', '0 0 1100 1430');
+    act(() => setDlModeShowOnlyException('mutual_cruushes'));
+    expect(screen.getByAltText('Message photo')).toBeInTheDocument();
+    act(() => setDlModeShowOnlyException('mutual_crowds'));
+    expect(screen.queryByAltText('Message photo')).not.toBeInTheDocument();
   });
 
   it('sends a selected message photo with the current caption', async () => {
@@ -1760,7 +1767,8 @@ describe('PrivateGroupChat', () => {
     }
   });
 
-  it('opens a view-once photo only after the user taps it', async () => {
+  it.each([undefined, 'mutual_cruushes', 'mutual_crowds'] as Array<NsfwPhotoRestriction | undefined>)('opens an eligible view-once photo only after tapping; owner restriction=%s', async (restriction) => {
+    setDlModeEnabled(false);
     const conversationId = '7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2';
     getConversationMessages.mockResolvedValue({
       conversation: {
@@ -1793,7 +1801,8 @@ describe('PrivateGroupChat', () => {
           mediaType: 'image',
           mimeType: 'image/png',
           viewOnce: true,
-          explicit: false,
+          explicit: Boolean(restriction),
+          photoRelationship: restriction ? { isMutualCruush: false, sharesCrowd: false, nsfwPhotoRestriction: restriction } : undefined,
         }],
       }],
     });
@@ -1807,6 +1816,13 @@ describe('PrivateGroupChat', () => {
       </MemoryRouter>,
     );
 
+    if (restriction) {
+      await screen.findByTestId('explicit-message-gradient-msg-photo:media-1');
+      expect(screen.queryByRole('button', { name: 'Open view-once photo' })).not.toBeInTheDocument();
+      expect(viewMessageAttachment).not.toHaveBeenCalled();
+      expect(screen.queryByAltText('View-once photo')).not.toBeInTheDocument();
+      return;
+    }
     expect(await screen.findByRole('button', { name: 'Open view-once photo' })).toBeInTheDocument();
     expect(screen.queryByAltText('View-once photo')).not.toBeInTheDocument();
 

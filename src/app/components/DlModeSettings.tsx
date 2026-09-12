@@ -1,23 +1,86 @@
 import { ghostSettingsBodyClassName, ghostSettingsCardClassName, ghostSettingsChoiceClassName, ghostSettingsSelectedChoiceClassName, ghostSettingsIdleChoiceClassName } from './ghostSettingsStyles';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { ArrowLeft, Image as ImageIcon, MessageCircle } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { Button } from './ui/button';
 import { Switch } from './ui/switch';
 import DlModeMark from './DlModeMark';
 import BugButtonSlot from './BugButtonSlot';
-import { addDlModeChangedListener, isDlModeEnabled, setDlModeEnabled } from '../lib/dlMode';
+import {
+  addDlModeChangedListener,
+  getDlModeShowOnlyException,
+  isDlModeEnabled,
+  setDlModeEnabled,
+  setDlModeShowOnlyException,
+  type DlModeShowOnlyException,
+} from '../lib/dlMode';
+import { requestApi } from '../lib/apiClient';
+
+type NsfwPhotoAudience = 'public' | 'mutual_cruushes' | 'mutual_crowds';
 
 export default function DlModeSettings() {
   const navigate = useNavigate();
   const [enabled, setEnabled] = useState(() => isDlModeEnabled());
+  const [matchSettings, setMatchSettings] = useState<{ audience: NsfwPhotoAudience }>({ audience: 'public' });
+  const [audienceReady, setAudienceReady] = useState(false);
+  const [savingAudience, setSavingAudience] = useState(false);
+  const [showOnlyException, setShowOnlyException] = useState<DlModeShowOnlyException>(() => getDlModeShowOnlyException());
 
-  useEffect(() => addDlModeChangedListener(setEnabled), []);
+  useEffect(() => addDlModeChangedListener((nextEnabled) => {
+    setEnabled(nextEnabled);
+    setShowOnlyException(getDlModeShowOnlyException());
+  }), []);
+
+  useEffect(() => {
+    let active = true;
+
+    void requestApi<{ audience: NsfwPhotoAudience }>('/api/privacy/nsfw-photo-audience')
+      .then((settings) => {
+        if (!active) return;
+        setMatchSettings(settings);
+        setAudienceReady(true);
+      })
+      .catch(() => {
+        if (active) setAudienceReady(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const setDlMode = (nextEnabled: boolean) => {
     setDlModeEnabled(nextEnabled);
     setEnabled(nextEnabled);
   };
+
+  const setNsfwAudience = async (nsfwSendVisibility: NsfwPhotoAudience) => {
+    if (!audienceReady) return;
+
+    setSavingAudience(true);
+
+    try {
+      setMatchSettings(await requestApi<{ audience: NsfwPhotoAudience }>('/api/privacy/nsfw-photo-audience', {
+        method: 'PUT',
+        body: JSON.stringify({ audience: nsfwSendVisibility }),
+      }));
+    } catch {
+      // Keep the last server-confirmed policy selected after a failed save.
+    } finally {
+      setSavingAudience(false);
+    }
+  };
+
+  const nsfwAudience = matchSettings.audience;
+
+  const nsfwAudienceOptions: Array<{
+    value: NsfwPhotoAudience;
+    label: string;
+  }> = [
+    { value: 'public', label: 'Public' },
+    { value: 'mutual_cruushes', label: 'mutual cruushes only' },
+    { value: 'mutual_crowds', label: 'mutual Crowds only' },
+  ];
 
   return (
     <div className="min-h-screen bg-background pb-20">
@@ -40,10 +103,7 @@ export default function DlModeSettings() {
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-start gap-3">
               <DlModeMark active={enabled} className="mt-1 h-5 w-5" />
-              <div>
-                <p>DL Mode</p>
-                <p className="text-sm text-muted-foreground">Hide explicit images behind deterministic gradients while you browse.</p>
-              </div>
+              <p>DL Mode</p>
             </div>
             <Switch
               aria-label="Toggle DL Mode"
@@ -53,22 +113,57 @@ export default function DlModeSettings() {
           </div>
         </div>
 
-        <div className={ghostSettingsCardClassName}>
-          <div className="flex items-start gap-3">
-            <MessageCircle className="mt-1 h-5 w-5 text-primary" />
-            <div>
-              <p>Messages</p>
-              <p className="mt-1 text-sm text-muted-foreground">Explicit message uploads and favorite images render as gradients when DL Mode is active.</p>
-            </div>
+        <section aria-label="Share explicit images with" className={ghostSettingsCardClassName}>
+          <p>Share explicit images with</p>
+          <div className="mt-3 grid gap-2">
+            {nsfwAudienceOptions.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                aria-pressed={nsfwAudience === option.value}
+                disabled={!audienceReady || savingAudience}
+                onClick={() => void setNsfwAudience(option.value)}
+                className={`${ghostSettingsChoiceClassName} ${nsfwAudience === option.value
+                  ? ghostSettingsSelectedChoiceClassName
+                  : ghostSettingsIdleChoiceClassName}`}
+                style={nsfwAudience === option.value ? { background: 'var(--cruush-gradient-soft-18)' } : undefined}
+              >
+                {option.label}
+              </button>
+            ))}
           </div>
-          <div className="flex items-start gap-3">
-            <ImageIcon className="mt-1 h-5 w-5 text-primary" />
-            <div>
-              <p>Favorite image gallery</p>
-              <p className="mt-1 text-sm text-muted-foreground">Explicit favorites stay available for sending, but their previews are masked while DL Mode is on.</p>
+        </section>
+
+        {enabled ? (
+          <section aria-label="Show only exception" className={ghostSettingsCardClassName}>
+            <p>Show only exception</p>
+            <div className="mt-3 grid gap-2">
+              {[
+                { value: 'none', label: 'No show only exceptions' },
+                { value: 'mutual_cruushes', label: 'mutual cruushes only' },
+                { value: 'mutual_crowds', label: 'mutual Crowds only' },
+              ].map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  aria-pressed={showOnlyException === option.value}
+                  onClick={() => {
+                    const next = option.value as DlModeShowOnlyException;
+                    setDlModeShowOnlyException(next);
+                    setShowOnlyException(next);
+                  }}
+                  className={`${ghostSettingsChoiceClassName} ${showOnlyException === option.value
+                    ? ghostSettingsSelectedChoiceClassName
+                    : ghostSettingsIdleChoiceClassName}`}
+                  style={showOnlyException === option.value ? { background: 'var(--cruush-gradient-soft-18)' } : undefined}
+                >
+                  {option.label}
+                </button>
+              ))}
             </div>
-          </div>
-        </div>
+          </section>
+        ) : null}
+
       </div>
     </div>
   );

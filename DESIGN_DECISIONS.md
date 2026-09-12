@@ -110,3 +110,7 @@ Sources: linked task01a094aa user3124 approves the exact countdown draft; user31
 Opening “Someone within your radar” frames a general area with a 1-mile radius. The triggering member's viewer-authorized displayed pin lies inside that area and never defines its center. Do not name, select, highlight or otherwise identify the triggering member. Reuse current map discovery eligibility, Ghost coordinates and per-viewer precise-location permissions; the notification does not grant visibility. Public notification metadata and navigation contain no source profile ID. Preserve other notification behavior and the existing map presentation.
 
 Source: task01a08cc1 user24265; task01a09549 September12 clarification: “it should open to the general area but not ceenter on the person liek i asked”.
+
+## Owner-restricted NSFW photo covers, September 12, 2026
+
+When an owner's explicit-photo sharing policy excludes the viewer, show the existing translucent white DL icon and replace the non-heart cover's “DL MODE ON” line with exactly “MUTUAL CRUUSHES ONLY” or “MUTUAL CROWDS ONLY”, according to the actual server-enforced restriction. A viewer's DL setting or show-only exception cannot bypass that owner policy. Preserve the icon, photo geometry, non-explicit photos and independent authorization rules. Whether the previously icon-only heart covers also gain this text is pending the owner's clarification; no extra heart text is approved yet. Source: task01a09549, September12 latest “if you encounter a picture” request.

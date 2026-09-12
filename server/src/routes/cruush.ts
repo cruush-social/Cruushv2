@@ -1,4 +1,5 @@
 import type { FastifyInstance, FastifyRequest } from "fastify";
+import { loadPhotoViewerRelationships } from "../nsfw-photo-audience.js";
 import { z } from "zod";
 import { ApiError } from "../errors.js";
 import {
@@ -1308,6 +1309,12 @@ export async function registerCruushRoutes(app: FastifyInstance) {
       distanceLabelMode: await getSharedDistanceLabelMode(app, authenticatedUserId, row.other_user_id)
     })));
     const views = lockable(viewRows, isCruushPlus);
+    const photoRelationships = await loadPhotoViewerRelationships(app, authenticatedUserId,
+      [...incoming, ...sent, ...mutual, ...views].flatMap((item) => item.user ? [item.user.id] : []));
+    const withPhotoRelationship = <T extends { user: { id: string } | null }>(item: T) => ({
+      ...item,
+      user: item.user ? { ...item.user, photoRelationship: photoRelationships.get(item.user.id) } : null
+    });
 
     return reply.send({
       data: {
@@ -1318,10 +1325,10 @@ export async function registerCruushRoutes(app: FastifyInstance) {
           mutual: mutualRows.length,
           views: viewRows.length
         },
-        incoming,
-        sent,
-        mutual,
-        views
+        incoming: incoming.map(withPhotoRelationship),
+        sent: sent.map(withPhotoRelationship),
+        mutual: mutual.map(withPhotoRelationship),
+        views: views.map(withPhotoRelationship)
       }
     });
   });
@@ -1385,10 +1392,12 @@ export async function registerCruushRoutes(app: FastifyInstance) {
       filters
     })));
 
+    const visibleItems = items.filter((item): item is NonNullable<typeof item> => item !== null);
+    const photoRelationships = await loadPhotoViewerRelationships(app, authenticatedUserId, visibleItems.map((item) => item.user.id));
     return reply.send({
       data: {
         mapEpochMs: Date.now(),
-        profiles: items.filter((item): item is NonNullable<typeof item> => item !== null)
+        profiles: visibleItems.map((item) => ({ ...item, user: { ...item.user, photoRelationship: photoRelationships.get(item.user.id) } }))
       }
     });
   });
