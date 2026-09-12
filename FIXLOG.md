@@ -237,3 +237,4 @@
 - Eighteen imported Spot descriptions were personal ads rather than descriptions of the place, with typos and one phone number. They are rewritten as neutral venue descriptions.
 - A profile whose name had been replaced with "User deleted profile" by an older removal flow still sat in Recently Active and opened as an empty card. Discovery and the profile route now apply the same tombstone check as the Feed: it is never listed and returns 404 when opened.
 - Nobody but the owner ever saw a Ghost pin's last-minute animation: the deadline only arrives once the last minute has begun, that remounts the pin, and a pin that mounted inside the window skipped the animation. A pin that appears within the first refetch cycle of its window now animates.
+- Relationship status was omitted from encrypted profile writes, so selections disappeared after saving. It now persists and appears below Position and Role in profile menus and profiles.

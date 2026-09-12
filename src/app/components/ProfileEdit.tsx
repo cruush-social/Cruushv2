@@ -1489,8 +1489,8 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
             </div>
           </TabsContent>
 
-          <TabsContent value="intimacy" className="space-y-6 mt-6">
-            <div className="space-y-2">
+          <TabsContent value="intimacy" className="mt-6 flex flex-col gap-6 [&>*]:order-4">
+            <div className="!order-3 space-y-2">
               <Label>Relationship status</Label>
               <MultiSelect
                 {...profileMenuProps}
@@ -1502,12 +1502,12 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
               />
             </div>
 
-            <div className="space-y-2">
+            <div className="!order-1 space-y-2">
               <Label>Looking For</Label>
               <MultiSelect {...profileMenuProps} maxSelections={MAX_PROFILE_GROUP_SELECTIONS} options={LOOKING_FOR} value={normalizedProfile.looking_for} onChange={(vals) => handleChange('looking_for', limitToThree(vals))} />
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="!order-2 grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label>Position</Label>
                 <MultiSelect

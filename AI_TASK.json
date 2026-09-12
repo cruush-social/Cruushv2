@@ -1,27 +1,27 @@
 {
   "schemaVersion": 2,
-  "taskId": "map-center-user-closer-release-20260911",
+  "taskId": "relationship-status-save-profile-release-20260911",
   "status": "validating",
-  "objective": "Make the map Center pin button recenter closer on the signed-in member.",
-  "userOutcome": "Center location moves the camera to the signed-in member at close neighborhood zoom instead of zooming too far out.",
-  "audience": "cruush map members",
+  "objective": "Persist relationship status and show it immediately below Position and Role in profile menus and profiles.",
+  "userOutcome": "A selected relationship status saves, reloads, and appears below Position and Role in Edit Profile and Profile view.",
+  "audience": "cruush members",
   "successCriteria": [
-    "Fresh browser-location recenter uses zoom 16.",
-    "Travel-location recenter uses zoom 16.",
-    "Coordinates, location sync, privacy, controls, and other camera actions remain unchanged.",
-    "Focused MapHome test, both builds, production SHA, and live version verification pass."
+    "Relationship status is included in encrypted sensitive-profile writes.",
+    "Edit Profile and Profile view place Relationship status immediately below Position and Role.",
+    "Existing options, other profile fields, tabs, and layout remain unchanged.",
+    "Focused persistence and render checks, both builds, production SHA, and live version verification pass."
   ],
   "mustPreserve": [
-    "Geographic coordinates, map tiles, theme, privacy radii, markers, and control presentation.",
-    "Existing location permission, sync, travel-mode, error, and fetch behavior.",
+    "Existing relationship-status options and encrypted sensitive-profile behavior.",
+    "All other profile fields, menus, profile sections, tabs, and presentation.",
     "All unrelated worktrees, dirty work, and the running localhost:5187 server.",
-    "No DL Mode settings, hover-copy removal, relationship-status work, or app-wide placeholder work in this release."
+    "No DL Mode settings, hover-copy removal, sticky-tab change, map change, or app-wide placeholder work in this release."
   ],
   "nonGoals": [
-    "No Spot cleanup, map redesign, coordinate changes, new controls, placeholder redesign, DL Mode release, or unrelated queue work in this release."
+    "No Spot cleanup, map work, new controls, placeholder redesign, DL Mode release, or unrelated queue work in this release."
   ],
   "assumptions": [],
-  "nextVisibleMilestone": "Seeded Center location action recenters at zoom 16.",
+  "nextVisibleMilestone": "Seeded Edit Profile and Profile view show Relationship status below Position and Role.",
   "stopConditions": [
     "Stop on explicit user cancellation.",
     "Block any unrelated staged or outgoing difference."
@@ -48,10 +48,14 @@
   },
   "product": "cruush",
   "repository": "cruush-social/Cruushv2",
-  "branch": "fix/map-center-user-closer-20260911",
+  "branch": "fix/relationship-status-save-profile-20260911",
   "allowedPaths": [
-    "src/app/components/MapHome.tsx",
-    "src/app/components/MapHome.test.tsx",
+    "src/app/components/ProfileEdit.tsx",
+    "src/app/components/ProfileEdit.test.tsx",
+    "src/app/components/ProfileView.tsx",
+    "src/app/components/ProfileView.test.tsx",
+    "server/src/routes/profiles.ts",
+    "server/src/app.test.ts",
     "AI_TASK.json",
     "FIXLOG.md",
     "public/sw.js",
@@ -60,21 +64,20 @@
     "index.html"
   ],
   "forbiddenPaths": [
-    "server/**",
     "src/app/assets/**"
   ],
   "source": {
     "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
-    "line": 11679,
-    "sha256": "2101f325e2142e1350be86972392e7d4273c2684effa487194caf3cab36d525b",
-    "text": "Add to que center pin button zooms out too much make it center on signed in user closer"
+    "line": 12071,
+    "sha256": "0682f6f4aaaa5fc529f4d913d6d516be7d6409d6aea8af6d16e5f13b14ee2b41",
+    "text": "Add to que relationship status not saving and not appearing in profiles put it under position and role in menus and profiles"
   },
   "baseline": {
-    "sha": "e941adc235e3b80bd02c775fa58b42e94a2b6637",
-    "inheritedTaskId": "map-close-spiderfy-release-20260911",
+    "sha": "bcad5880fb0c4b38571d7ff5fa8d62c6b8f533f9",
+    "inheritedTaskId": "map-center-user-closer-release-20260911",
     "productState": "Clean isolated worktree from current origin/main; prior task contract remains in immutable git history."
   },
-  "currentItem": "MAP-CENTER-PIN-CLOSE-ZOOM-20260911",
+  "currentItem": "RELATIONSHIP-STATUS-SAVE-AND-PLACEMENT-20260911",
   "queue": [
     {
       "id": "MAP-CLOSE-ZOOM-SPIDERFY-20260911",
@@ -86,22 +89,22 @@
     },
     {
       "id": "MAP-CENTER-PIN-CLOSE-ZOOM-20260911",
-      "status": "ready-to-release",
+      "status": "completed-production-bcad588",
       "source": {
         "line": 11679,
         "text": "center pin button zooms out too much make it center on signed in user closer"
       }
     },
     {
-      "id": "MAP-GRADIENT-PLACEHOLDER-20260910",
-      "status": "release-in-progress",
+      "id": "RELATIONSHIP-STATUS-SAVE-AND-PLACEMENT-20260911",
+      "status": "validating",
       "source": {
-        "line": 7693,
-        "text": "no icon guys for preview pics ever gradients only for profile pic placeholders for cruush"
+        "line": 12071,
+        "text": "relationship status not saving and not appearing in profiles put it under position and role in menus and profiles"
       }
     }
   ],
-  "proofTarget": "Seeded populated map with Center location action and resulting zoom 16 camera state.",
+  "proofTarget": "Seeded Edit Profile save and reloaded Profile view with Relationship status below Position and Role.",
   "publicationTarget": "origin/main and production https://cruush.app with https://api.cruush.app",
   "deploymentAuthorization": {
     "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
@@ -110,18 +113,359 @@
     "text": "deploy both"
   },
   "outcomes": {
-    "source": "Clean isolated worktree from deployed e941adc; only the two Center-location zoom calls changed from 14 to 16.",
-    "tests": "Focused fresh browser-location Center action check passes (1 passed, 84 skipped).",
+    "source": "Clean isolated worktree from deployed bcad588; relationship-status persistence and requested field placement only.",
+    "tests": "ProfileEdit save test passes 28/28; focused ProfileView relationship-status display test passes 1/1; focused server PUT persistence test passes 1/1.",
     "clientBuild": "Passed production Vite build.",
-    "serverBuild": "Passed server TypeScript build.",
-    "render": "Seeded localhost:5187 at 1114x963 accepted Center location and moved toward the signed-in location, but browser geolocation remained in Finding your location; final camera state is not render-confirmed in that replay.",
+    "serverBuild": "Passed server TypeScript build with pnpm --dir server build; this workspace does not register an @cruush/server filter.",
+    "render": "Seeded localhost:5187 at 1114x963 shows Looking For, Position and Role, then Relationship status in Edit Profile; Save returns to Profile, and Relationship status remains visible after reload.",
     "publication": "Authorized; pending.",
     "device": "Physical Android remains unverified."
   },
   "requiredEvidence": [
-    "Focused MapView tests.",
+    "Focused ProfileEdit, ProfileView, and server persistence tests.",
     "Client and server builds.",
-    "Rendered Center location interaction check.",
+    "Rendered Edit Profile and Profile view placement and save/reload check.",
     "Both production service SHAs and live web version."
-  ]
+  ],
+  "uiScope": {
+    "version": 1,
+    "source": {
+      "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
+      "line": 14345,
+      "sha256": "5ed03f22466442e65d352cf6701151c831d588a4fabc5785451531a2a1778bee"
+    },
+    "baselineId": "44fdaa609d3ab1e10b27d694279a7708374725582decde96e1eb1c7e5c2ef7eb",
+    "grants": [
+      {
+        "file": "src/app/components/ProfileEdit.tsx",
+        "property": "layout",
+        "target": "jsx:div[2]/div[1]/Tabs[1]/TabsContent[4]",
+        "before": "",
+        "after": "class: flex\nclass: flex-col\nclass: [&>*]:order-4",
+        "requestedProperty": "position",
+        "surface": "menus",
+        "statement": "Add to que relationship status not saving and not appearing in profiles put it under position and role in menus and profiles",
+        "viewport": "all supported viewports",
+        "preserve": [
+          "Existing labels and field values",
+          "Existing 24px Edit Profile field spacing",
+          "Existing Profile grid and breakpoints",
+          "Every other field order",
+          "Tabs, colors, typography, and behavior"
+        ],
+        "source": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
+          "line": 12071,
+          "sha256": "0682f6f4aaaa5fc529f4d913d6d516be7d6409d6aea8af6d16e5f13b14ee2b41"
+        },
+        "executionSource": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
+          "line": 14345,
+          "sha256": "5ed03f22466442e65d352cf6701151c831d588a4fabc5785451531a2a1778bee"
+        },
+        "review": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T17-36-18-01a08d40-04af-7300-9d2a-e8b58cd08bac.jsonl",
+          "line": 2440,
+          "sha256": "7f0c65b50ba9a443d8a5a6f68020af3258c956658938d20f2d5c0eff145a343c"
+        }
+      },
+      {
+        "file": "src/app/components/ProfileEdit.tsx",
+        "property": "spacing",
+        "target": "jsx:div[2]/div[1]/Tabs[1]/TabsContent[4]",
+        "before": "class: space-y-6\nclass: mt-6",
+        "after": "class: mt-6\nclass: gap-6",
+        "requestedProperty": "position",
+        "surface": "menus",
+        "statement": "Add to que relationship status not saving and not appearing in profiles put it under position and role in menus and profiles",
+        "viewport": "all supported viewports",
+        "preserve": [
+          "Existing labels and field values",
+          "Existing 24px Edit Profile field spacing",
+          "Existing Profile grid and breakpoints",
+          "Every other field order",
+          "Tabs, colors, typography, and behavior"
+        ],
+        "source": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
+          "line": 12071,
+          "sha256": "0682f6f4aaaa5fc529f4d913d6d516be7d6409d6aea8af6d16e5f13b14ee2b41"
+        },
+        "executionSource": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
+          "line": 14345,
+          "sha256": "5ed03f22466442e65d352cf6701151c831d588a4fabc5785451531a2a1778bee"
+        },
+        "review": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T17-36-18-01a08d40-04af-7300-9d2a-e8b58cd08bac.jsonl",
+          "line": 2440,
+          "sha256": "7f0c65b50ba9a443d8a5a6f68020af3258c956658938d20f2d5c0eff145a343c"
+        }
+      },
+      {
+        "file": "src/app/components/ProfileEdit.tsx",
+        "property": "layout",
+        "target": "jsx:div[2]/div[1]/Tabs[1]/TabsContent[4]/div[1]",
+        "before": "",
+        "after": "class: !order-3",
+        "requestedProperty": "position",
+        "surface": "menus",
+        "statement": "Add to que relationship status not saving and not appearing in profiles put it under position and role in menus and profiles",
+        "viewport": "all supported viewports",
+        "preserve": [
+          "Existing labels and field values",
+          "Existing 24px Edit Profile field spacing",
+          "Existing Profile grid and breakpoints",
+          "Every other field order",
+          "Tabs, colors, typography, and behavior"
+        ],
+        "source": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
+          "line": 12071,
+          "sha256": "0682f6f4aaaa5fc529f4d913d6d516be7d6409d6aea8af6d16e5f13b14ee2b41"
+        },
+        "executionSource": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
+          "line": 14345,
+          "sha256": "5ed03f22466442e65d352cf6701151c831d588a4fabc5785451531a2a1778bee"
+        },
+        "review": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T17-36-18-01a08d40-04af-7300-9d2a-e8b58cd08bac.jsonl",
+          "line": 2440,
+          "sha256": "7f0c65b50ba9a443d8a5a6f68020af3258c956658938d20f2d5c0eff145a343c"
+        }
+      },
+      {
+        "file": "src/app/components/ProfileEdit.tsx",
+        "property": "layout",
+        "target": "jsx:div[2]/div[1]/Tabs[1]/TabsContent[4]/div[2]",
+        "before": "",
+        "after": "class: !order-1",
+        "requestedProperty": "position",
+        "surface": "menus",
+        "statement": "Add to que relationship status not saving and not appearing in profiles put it under position and role in menus and profiles",
+        "viewport": "all supported viewports",
+        "preserve": [
+          "Existing labels and field values",
+          "Existing 24px Edit Profile field spacing",
+          "Existing Profile grid and breakpoints",
+          "Every other field order",
+          "Tabs, colors, typography, and behavior"
+        ],
+        "source": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
+          "line": 12071,
+          "sha256": "0682f6f4aaaa5fc529f4d913d6d516be7d6409d6aea8af6d16e5f13b14ee2b41"
+        },
+        "executionSource": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
+          "line": 14345,
+          "sha256": "5ed03f22466442e65d352cf6701151c831d588a4fabc5785451531a2a1778bee"
+        },
+        "review": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T17-36-18-01a08d40-04af-7300-9d2a-e8b58cd08bac.jsonl",
+          "line": 2440,
+          "sha256": "7f0c65b50ba9a443d8a5a6f68020af3258c956658938d20f2d5c0eff145a343c"
+        }
+      },
+      {
+        "file": "src/app/components/ProfileEdit.tsx",
+        "property": "layout",
+        "target": "jsx:div[2]/div[1]/Tabs[1]/TabsContent[4]/div[3]",
+        "before": "class: grid\nclass: @breakpoint[1]:grid-cols-2",
+        "after": "class: !order-2\nclass: grid\nclass: @breakpoint[1]:grid-cols-2",
+        "requestedProperty": "position",
+        "surface": "menus",
+        "statement": "Add to que relationship status not saving and not appearing in profiles put it under position and role in menus and profiles",
+        "viewport": "all supported viewports",
+        "preserve": [
+          "Existing labels and field values",
+          "Existing 24px Edit Profile field spacing",
+          "Existing Profile grid and breakpoints",
+          "Every other field order",
+          "Tabs, colors, typography, and behavior"
+        ],
+        "source": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
+          "line": 12071,
+          "sha256": "0682f6f4aaaa5fc529f4d913d6d516be7d6409d6aea8af6d16e5f13b14ee2b41"
+        },
+        "executionSource": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
+          "line": 14345,
+          "sha256": "5ed03f22466442e65d352cf6701151c831d588a4fabc5785451531a2a1778bee"
+        },
+        "review": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T17-36-18-01a08d40-04af-7300-9d2a-e8b58cd08bac.jsonl",
+          "line": 2440,
+          "sha256": "7f0c65b50ba9a443d8a5a6f68020af3258c956658938d20f2d5c0eff145a343c"
+        }
+      },
+      {
+        "file": "src/app/components/ProfileView.tsx",
+        "property": "unknown",
+        "target": "jsx:section[1]",
+        "before": "className: `space-y-3 rounded-2xl border border-border bg-card/60 ${compact ? 'p-3' : 'p-4'}`\nchildren: [\"children\"]",
+        "after": "className: `space-y-3 rounded-2xl border border-border bg-card/60 ${compact ? 'p-3' : 'p-4'} ${className}`\nchildren: [\"children\"]",
+        "requestedProperty": "position",
+        "surface": "profiles",
+        "statement": "Add to que relationship status not saving and not appearing in profiles put it under position and role in menus and profiles",
+        "viewport": "all supported viewports",
+        "preserve": [
+          "Existing labels and field values",
+          "Existing 24px Edit Profile field spacing",
+          "Existing Profile grid and breakpoints",
+          "Every other field order",
+          "Tabs, colors, typography, and behavior"
+        ],
+        "source": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
+          "line": 12071,
+          "sha256": "0682f6f4aaaa5fc529f4d913d6d516be7d6409d6aea8af6d16e5f13b14ee2b41"
+        },
+        "executionSource": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
+          "line": 14345,
+          "sha256": "5ed03f22466442e65d352cf6701151c831d588a4fabc5785451531a2a1778bee"
+        },
+        "review": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T17-36-18-01a08d40-04af-7300-9d2a-e8b58cd08bac.jsonl",
+          "line": 2440,
+          "sha256": "7f0c65b50ba9a443d8a5a6f68020af3258c956658938d20f2d5c0eff145a343c"
+        }
+      },
+      {
+        "file": "src/app/components/ProfileView.tsx",
+        "property": "layout",
+        "target": "jsx:Tabs[1]/TabsContent[2]/div[1]",
+        "before": "class: grid\nclass: grid-cols-1\nclass: @breakpoint[1]:grid-cols-2",
+        "after": "class: grid\nclass: grid-cols-1\nclass: @breakpoint[1]:grid-cols-2\nclass: [&>*]:order-4",
+        "requestedProperty": "position",
+        "surface": "profiles",
+        "statement": "Add to que relationship status not saving and not appearing in profiles put it under position and role in menus and profiles",
+        "viewport": "all supported viewports",
+        "preserve": [
+          "Existing labels and field values",
+          "Existing 24px Edit Profile field spacing",
+          "Existing Profile grid and breakpoints",
+          "Every other field order",
+          "Tabs, colors, typography, and behavior"
+        ],
+        "source": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
+          "line": 12071,
+          "sha256": "0682f6f4aaaa5fc529f4d913d6d516be7d6409d6aea8af6d16e5f13b14ee2b41"
+        },
+        "executionSource": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
+          "line": 14345,
+          "sha256": "5ed03f22466442e65d352cf6701151c831d588a4fabc5785451531a2a1778bee"
+        },
+        "review": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T17-36-18-01a08d40-04af-7300-9d2a-e8b58cd08bac.jsonl",
+          "line": 2440,
+          "sha256": "7f0c65b50ba9a443d8a5a6f68020af3258c956658938d20f2d5c0eff145a343c"
+        }
+      },
+      {
+        "file": "src/app/components/ProfileView.tsx",
+        "property": "layout",
+        "target": "jsx:Tabs[1]/TabsContent[2]/div[1]/Section[1]",
+        "before": "",
+        "after": "class: !order-3",
+        "requestedProperty": "position",
+        "surface": "profiles",
+        "statement": "Add to que relationship status not saving and not appearing in profiles put it under position and role in menus and profiles",
+        "viewport": "all supported viewports",
+        "preserve": [
+          "Existing labels and field values",
+          "Existing 24px Edit Profile field spacing",
+          "Existing Profile grid and breakpoints",
+          "Every other field order",
+          "Tabs, colors, typography, and behavior"
+        ],
+        "source": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
+          "line": 12071,
+          "sha256": "0682f6f4aaaa5fc529f4d913d6d516be7d6409d6aea8af6d16e5f13b14ee2b41"
+        },
+        "executionSource": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
+          "line": 14345,
+          "sha256": "5ed03f22466442e65d352cf6701151c831d588a4fabc5785451531a2a1778bee"
+        },
+        "review": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T17-36-18-01a08d40-04af-7300-9d2a-e8b58cd08bac.jsonl",
+          "line": 2440,
+          "sha256": "7f0c65b50ba9a443d8a5a6f68020af3258c956658938d20f2d5c0eff145a343c"
+        }
+      },
+      {
+        "file": "src/app/components/ProfileView.tsx",
+        "property": "layout",
+        "target": "jsx:Tabs[1]/TabsContent[2]/div[1]/Section[2]",
+        "before": "",
+        "after": "class: !order-1",
+        "requestedProperty": "position",
+        "surface": "profiles",
+        "statement": "Add to que relationship status not saving and not appearing in profiles put it under position and role in menus and profiles",
+        "viewport": "all supported viewports",
+        "preserve": [
+          "Existing labels and field values",
+          "Existing 24px Edit Profile field spacing",
+          "Existing Profile grid and breakpoints",
+          "Every other field order",
+          "Tabs, colors, typography, and behavior"
+        ],
+        "source": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
+          "line": 12071,
+          "sha256": "0682f6f4aaaa5fc529f4d913d6d516be7d6409d6aea8af6d16e5f13b14ee2b41"
+        },
+        "executionSource": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
+          "line": 14345,
+          "sha256": "5ed03f22466442e65d352cf6701151c831d588a4fabc5785451531a2a1778bee"
+        },
+        "review": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T17-36-18-01a08d40-04af-7300-9d2a-e8b58cd08bac.jsonl",
+          "line": 2440,
+          "sha256": "7f0c65b50ba9a443d8a5a6f68020af3258c956658938d20f2d5c0eff145a343c"
+        }
+      },
+      {
+        "file": "src/app/components/ProfileView.tsx",
+        "property": "layout",
+        "target": "jsx:Tabs[1]/TabsContent[2]/div[1]/Section[3]",
+        "before": "",
+        "after": "class: !order-2",
+        "requestedProperty": "position",
+        "surface": "profiles",
+        "statement": "Add to que relationship status not saving and not appearing in profiles put it under position and role in menus and profiles",
+        "viewport": "all supported viewports",
+        "preserve": [
+          "Existing labels and field values",
+          "Existing 24px Edit Profile field spacing",
+          "Existing Profile grid and breakpoints",
+          "Every other field order",
+          "Tabs, colors, typography, and behavior"
+        ],
+        "source": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
+          "line": 12071,
+          "sha256": "0682f6f4aaaa5fc529f4d913d6d516be7d6409d6aea8af6d16e5f13b14ee2b41"
+        },
+        "executionSource": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
+          "line": 14345,
+          "sha256": "5ed03f22466442e65d352cf6701151c831d588a4fabc5785451531a2a1778bee"
+        },
+        "review": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T17-36-18-01a08d40-04af-7300-9d2a-e8b58cd08bac.jsonl",
+          "line": 2440,
+          "sha256": "7f0c65b50ba9a443d8a5a6f68020af3258c956658938d20f2d5c0eff145a343c"
+        }
+      }
+    ]
+  }
 }

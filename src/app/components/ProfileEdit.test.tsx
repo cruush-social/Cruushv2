@@ -205,6 +205,9 @@ describe('ProfileEdit', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Role' }));
     fireEvent.click(screen.getByRole('option', { name: 'service' }));
 
+    fireEvent.click(screen.getByRole('button', { name: 'Relationship status' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Partnered' }));
+
     fireEvent.click(screen.getByRole('button', { name: 'Kinks & Fetishes' }));
     expect(screen.getByRole('tablist', { name: 'Kinks & Fetishes categories' })).toBeInTheDocument();
     expect(screen.getByRole('group', { name: 'Body & Touch' })).toBeInTheDocument();
@@ -221,6 +224,7 @@ describe('ProfileEdit', () => {
     await waitFor(() => expect(saveMyProfile).toHaveBeenCalledWith(expect.objectContaining({
       position: ['vers top'],
       role: ['service'],
+      relationship_status: ['Partnered'],
       kinks_visibility: 'mutual_crowds',
       kink_interests: [expect.objectContaining({
         kink_id: 'leather',

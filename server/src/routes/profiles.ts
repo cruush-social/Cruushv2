@@ -1162,7 +1162,8 @@ function buildSensitiveProfile(payload: ProfilePayload, kinkInterests: ProfileKi
     hiv_status: payload.hiv_status,
     custom_hiv_status: payload.custom_hiv_status,
     health_preferences: payload.health_preferences,
-    birth_control: payload.birth_control
+    birth_control: payload.birth_control,
+    relationship_status: payload.relationship_status
   };
 }
 

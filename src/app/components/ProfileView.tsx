@@ -896,20 +896,20 @@ export function ProfileDetailsTabs({
       </TabsContent>
 
       <TabsContent value="intimacy" className={`${compact ? 'mt-4 space-y-4' : 'mt-5 space-y-5'}`}>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 [&>*]:order-4">
           {/* The editor has taken this under Intimacy for a while and the
               profile never showed it back. */}
           {profileView.relationshipStatus.length > 0 ? (
-            <Section title="Relationship status" compact={compact}>
+            <Section title="Relationship status" compact={compact} className="!order-3">
               <BadgeList items={profileView.relationshipStatus} compact={compact} />
             </Section>
           ) : null}
 
-          <Section title="Role" compact={compact}>
+          <Section title="Role" compact={compact} className="!order-1">
             <BadgeList items={profileView.role} compact={compact} />
           </Section>
 
-          <Section title="Position" compact={compact}>
+          <Section title="Position" compact={compact} className="!order-2">
             <BadgeList items={profileView.position} compact={compact} />
           </Section>
 
@@ -962,9 +962,9 @@ export function ProfileDetailsTabs({
   );
 }
 
-function Section({ title, children, compact = false }: { title: string; children: ReactNode; compact?: boolean }) {
+function Section({ title, children, compact = false, className = '' }: { title: string; children: ReactNode; compact?: boolean; className?: string }) {
   return (
-    <section className={`space-y-3 rounded-2xl border border-border bg-card/60 ${compact ? 'p-3' : 'p-4'}`}>
+    <section className={`space-y-3 rounded-2xl border border-border bg-card/60 ${compact ? 'p-3' : 'p-4'} ${className}`}>
       <h2 className={compact ? 'text-base' : 'text-lg'}>{title}</h2>
       {children}
     </section>

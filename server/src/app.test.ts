@@ -14018,7 +14018,8 @@ describe("server", () => {
       custom_mpox_vaccine: "",
       protections: [],
       substance_boundaries: [],
-      protection_boundaries: ["Condoms required"]
+      protection_boundaries: ["Condoms required"],
+      relationship_status: ["Partnered"]
     };
 
     const response = await app.inject({
@@ -14048,7 +14049,7 @@ describe("server", () => {
         id: userId,
         ...payload,
         birth_control: [],
-        relationship_status: [],
+        relationship_status: ["Partnered"],
         zodiac: [],
         health_preferences: [],
         year_of_birth: 1994,
