@@ -4,6 +4,7 @@ import { buildServer } from "./app.js";
 import { loadConfig } from "./config.js";
 import { createMemoryRateLimiter } from "./rate-limit.js";
 import { sendEmailChangeConfirmationEmail, sendPasswordResetEmail, sendVerificationEmail } from "./mailer.js";
+import { verifyTurnstileToken } from "./turnstile.js";
 
 const config = loadConfig({
   NODE_ENV: "test",
@@ -45,6 +46,7 @@ describe("secret-free logging", () => {
         expect((await app.inject(`/?${key}=${secret}`)).statusCode).toBe(404);
       }
       expect((await app.inject(`/log-error?token=${secret}`)).statusCode).toBe(500);
+      expect((await app.inject(`/unknown/${secret}`)).statusCode).toBe(404);
       expect((await app.inject({ method: "POST", url: "/api/auth/password/reset", payload: { token: secret, password: secret } })).statusCode).toBe(400);
       const lines = capture.lines.join("");
       expect(lines).not.toContain(secret);
@@ -75,6 +77,8 @@ describe("secret-free logging", () => {
     try {
       await expect(sendPasswordResetEmail({ config: { ...config, RESEND_API_KEY: "synthetic-key", MAIL_FROM: "test@example.invalid" }, email: "test@example.invalid", logger, resetUrl: `https://cruush.test/?token=${secret}` })).rejects.toThrow("Failed to send email.");
       expect(logger.error).toHaveBeenCalledWith({ email: "test@example.invalid", statusCode: 422 }, expect.any(String));
+      expect(JSON.stringify(logger.error.mock.calls)).not.toContain(secret);
+      await expect(verifyTurnstileToken({ server: { config: { TURNSTILE_SECRET_KEY: secret } }, log: logger } as any, secret)).rejects.toThrow("Captcha verification failed.");
       expect(JSON.stringify(logger.error.mock.calls)).not.toContain(secret);
     } finally { vi.unstubAllGlobals(); }
   });

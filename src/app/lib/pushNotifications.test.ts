@@ -1,18 +1,21 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { disablePushNotifications, enablePushNotifications } from './pushNotifications';
+import { disablePushNotifications, enablePushNotifications, refreshExistingPushSubscription } from './pushNotifications';
 
 const {
   getVapidPublicKey,
+  getNotificationPreferences,
   subscribeToPushNotifications,
   unsubscribeFromPushNotifications,
 } = vi.hoisted(() => ({
   getVapidPublicKey: vi.fn(),
+  getNotificationPreferences: vi.fn(),
   subscribeToPushNotifications: vi.fn(),
   unsubscribeFromPushNotifications: vi.fn(),
 }));
 
 vi.mock('./notificationsApi', () => ({
   getVapidPublicKey,
+  getNotificationPreferences,
   subscribeToPushNotifications,
   unsubscribeFromPushNotifications,
 }));
@@ -24,12 +27,14 @@ describe('pushNotifications', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     getVapidPublicKey.mockReset();
+    getNotificationPreferences.mockReset();
     subscribeToPushNotifications.mockReset();
     unsubscribeFromPushNotifications.mockReset();
     getSubscription.mockReset();
     subscribe.mockReset();
 
     getVapidPublicKey.mockResolvedValue({ enabled: true, publicKey: 'AQID' });
+    getNotificationPreferences.mockResolvedValue({ pushEnabled: true });
     subscribeToPushNotifications.mockResolvedValue({ pushEnabled: true });
     unsubscribeFromPushNotifications.mockResolvedValue({ pushEnabled: false });
 
@@ -86,6 +91,38 @@ describe('pushNotifications', () => {
       .toThrow(new Error('Notifications are blocked for cruush in this browser.'));
     expect(subscribe).not.toHaveBeenCalled();
     expect(subscribeToPushNotifications).not.toHaveBeenCalled();
+  });
+
+  it('replaces an existing subscription after signing-key rotation without requesting permission', async () => {
+    const unsubscribe = vi.fn().mockResolvedValue(true);
+    getSubscription.mockResolvedValue({ options: { applicationServerKey: Uint8Array.from([4, 5, 6]).buffer }, unsubscribe });
+    subscribe.mockResolvedValue({ endpoint: 'https://push.example/new', getKey: () => new ArrayBuffer(0) });
+
+    await refreshExistingPushSubscription();
+
+    expect(unsubscribe).toHaveBeenCalledOnce();
+    expect(subscribe).toHaveBeenCalledWith({ userVisibleOnly: true, applicationServerKey: Uint8Array.from([1, 2, 3]) });
+    expect(subscribeToPushNotifications).toHaveBeenCalledWith(expect.objectContaining({ endpoint: 'https://push.example/new' }));
+    expect(Notification.requestPermission).not.toHaveBeenCalled();
+  });
+
+  it('preserves a subscription already using the current signing key', async () => {
+    const unsubscribe = vi.fn();
+    getSubscription.mockResolvedValue({ options: { applicationServerKey: Uint8Array.from([1, 2, 3]).buffer }, unsubscribe, endpoint: 'https://push.example/current', getKey: () => new ArrayBuffer(0) });
+    await refreshExistingPushSubscription();
+    expect(unsubscribe).not.toHaveBeenCalled();
+    expect(subscribe).not.toHaveBeenCalled();
+  });
+
+  it('never opts a disabled account or unsubscribed browser into push', async () => {
+    getNotificationPreferences.mockResolvedValueOnce({ pushEnabled: false });
+    await refreshExistingPushSubscription();
+    expect(getSubscription).not.toHaveBeenCalled();
+    getSubscription.mockResolvedValue(null);
+    await refreshExistingPushSubscription();
+    expect(subscribe).not.toHaveBeenCalled();
+    expect(subscribeToPushNotifications).not.toHaveBeenCalled();
+    expect(Notification.requestPermission).not.toHaveBeenCalled();
   });
 
   it('unsubscribes the browser endpoint and server record', async () => {

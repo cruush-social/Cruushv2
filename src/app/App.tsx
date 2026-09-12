@@ -14,6 +14,7 @@ import { canUseDeveloperMapToolsEmail } from './lib/developerMapTools';
 import { canTestOnboarding } from './lib/adminOnboarding';
 import { recordDailyRewardCheckIn, recordTutorialCompletion, updateRewardTimezone } from './lib/rewardsApi';
 import type { AuthSessionPayload } from './lib/authApi';
+import { refreshExistingPushSubscription } from './lib/pushNotifications';
 import type { ProfileRecord } from './lib/profileApi';
 import MapControlsTutorial, {
   getStoredMapControlsTutorialStep,
@@ -300,6 +301,11 @@ export default function App({
   const [authStatus, setAuthStatus] = useState<'loading' | 'signed_out' | 'signed_in'>('loading');
   const [session, setSession] = useState<AuthSessionPayload | null>(null);
   useSyncDistancePreferences(authStatus === 'signed_in' ? session?.user.id : null);
+  useEffect(() => {
+    if (authStatus === 'signed_in') {
+      void refreshExistingPushSubscription().catch(() => undefined);
+    }
+  }, [authStatus, session?.user.id]);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
   const [showOnboardingReward, setShowOnboardingReward] = useState(false);
   const devOnboardingPreview = import.meta.env.DEV && window.location.pathname === '/dev/onboarding-preview';
