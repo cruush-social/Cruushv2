@@ -1,4 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
+import { DROPDOWN_TRIGGER_CLASS } from '../lib/controlStyles';
+import { formatDistanceLabel, useDistancePreferences } from '../lib/distancePreferences';
+import { registerBugButtonSlot } from '../lib/bugButtonSlot';
 import type { CSSProperties, ChangeEvent, RefObject } from 'react';
 import { useLocation, useParams, useNavigate } from 'react-router';
 import { ArrowLeft, Eye, Image as ImageIcon, ImagePlus, Timer, Star, Trash2, X } from 'lucide-react';
@@ -29,6 +32,7 @@ import {
   removeFavoriteMessageImage,
   promoteGroupAdmin,
   removeGroupMember,
+  sendGroupPulse,
   sendFavoriteMessageImage,
   setConversationDisappearingTimer,
   type ChatMessageRecord,
@@ -40,6 +44,7 @@ import {
   type MessageSender,
   type PendingPhotoReview,
   type RemoteChatMessage,
+  parseInAppShareMessage,
   updateGroupConversation,
   uploadFavoriteMessageImage,
   viewMessageAttachment,
@@ -49,7 +54,8 @@ import { ApiClientError, resolveMediaUrl } from '../lib/apiClient';
 import { addDlModeChangedListener, isDlModeEnabled, shouldMaskPhoto } from '../lib/dlMode';
 import { MESSAGE_PHOTO_UPLOAD_ACCEPT, prepareMessagePhotoForUpload } from '../lib/messagePhotoProcessing';
 import { getProfileGradientCss } from '../lib/profileGradient';
-import DlModeMark from './DlModeMark';
+import DlModePhotoPlaceholder from './DlModePhotoPlaceholder';
+import PulseLedIcon from './PulseLedIcon';
 
 const timerOptions: Array<{ value: ConversationTimer; label: string }> = [
   { value: 'off', label: 'Off' },
@@ -155,6 +161,7 @@ function normalizeRemoteMessage(message: RemoteChatMessage, activeUserId: string
     author: message.userId === activeUserId ? 'self' : 'other',
     content: String(message.content ?? ''),
     timestamp: String(message.timestamp ?? new Date().toISOString()),
+    readAt: message.readAt ? String(message.readAt) : undefined,
     expiresAt: message.expiresAt ? String(message.expiresAt) : undefined,
     attachments: Array.isArray(message.attachments) ? message.attachments : undefined,
     user: message.user
@@ -191,8 +198,7 @@ function ExplicitMessagePhotoShield({ attachmentKey }: { attachmentKey: string }
       role="img"
       style={{ background: getProfileGradientCss(attachmentKey) }}
     >
-      <DlModeMark active={false} className="h-7 w-7 opacity-90" />
-      <span className="text-[11px] uppercase tracking-[0.18em] text-white/88">DL Mode Active</span>
+      <DlModePhotoPlaceholder />
     </div>
   );
 }
@@ -252,6 +258,7 @@ export default function PrivateGroupChat({
   onClose?: () => void;
 } = {}) {
   const params = useParams();
+  const distancePreferences = useDistancePreferences();
   // The dock renders this thread without a route of its own.
   const chatId = conversationId ?? params.chatId;
   const navigate = useNavigate();
@@ -279,6 +286,8 @@ export default function PrivateGroupChat({
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [groupMembers, setGroupMembers] = useState<GroupMemberRecord[]>([]);
   const [groupMembersLoading, setGroupMembersLoading] = useState(false);
+  const [groupPulseSending, setGroupPulseSending] = useState(false);
+  const [groupPulseNotice, setGroupPulseNotice] = useState('');
   const [groupTitleDraft, setGroupTitleDraft] = useState('');
   const [mutualOptions, setMutualOptions] = useState<MutualCruushActivityItem[]>([]);
   const [addMemberId, setAddMemberId] = useState('');
@@ -294,6 +303,7 @@ export default function PrivateGroupChat({
   const [favoriteRemovingId, setFavoriteRemovingId] = useState<string | null>(null);
   const [deletingMessageId, setDeletingMessageId] = useState<string | null>(null);
   const [keyboardInset, setKeyboardInset] = useState(0);
+  const [composerFocused, setComposerFocused] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const favoriteFileInputRef = useRef<HTMLInputElement | null>(null);
   const settingsPanelRef = useRef<HTMLElement | null>(null);
@@ -365,10 +375,17 @@ export default function PrivateGroupChat({
     updateKeyboardInset();
     visualViewport.addEventListener('resize', updateKeyboardInset);
     visualViewport.addEventListener('scroll', updateKeyboardInset);
+    // Some Android browsers resize the layout viewport for the keyboard rather
+    // than reporting it on the visual viewport. Missing that left the inset at
+    // zero with the keyboard up, so the composer kept its 5.5rem resting gap
+    // and a strip of the thread showed through between the input and the
+    // keyboard.
+    window.addEventListener('resize', updateKeyboardInset);
 
     return () => {
       visualViewport.removeEventListener('resize', updateKeyboardInset);
       visualViewport.removeEventListener('scroll', updateKeyboardInset);
+      window.removeEventListener('resize', updateKeyboardInset);
     };
   }, []);
 
@@ -722,6 +739,28 @@ export default function PrivateGroupChat({
     }
   };
 
+  const handleGroupPulse = async () => {
+    if (!conversation || conversation.kind !== 'group' || !canManageConversation || conversation.closed) {
+      return;
+    }
+
+    setGroupPulseSending(true);
+    setGroupPulseNotice('');
+    setError(null);
+
+    try {
+      const status = await sendGroupPulse(conversation.id);
+      const remaining = status.allowance.remaining;
+      setGroupPulseNotice(typeof remaining === 'number'
+        ? `Group Pulse sent. ${remaining} of ${status.allowance.limit} Pulses remain.`
+        : 'Group Pulse sent.');
+    } catch (pulseError) {
+      setError(pulseError instanceof Error ? pulseError.message : 'Group Pulse could not be sent.');
+    } finally {
+      setGroupPulseSending(false);
+    }
+  };
+
   const handleGroupMemberAction = async (member: GroupMemberRecord, action: 'promote' | 'demote' | 'remove') => {
     if (!conversation || conversation.kind !== 'group' || !canManageConversation) {
       return;
@@ -924,10 +963,20 @@ export default function PrivateGroupChat({
   const normalizedComposerMessage = normalizeMessageForSend(message);
   const canSendMessage = normalizedComposerMessage.length > 0;
   const favoriteUploadControlDisabled = favoriteUploading || composerDisabled;
+  // Focus is the one signal every browser gives when the keyboard opens. Some
+  // resize the layout viewport instead of reporting an inset, which measures as
+  // zero, and the resting gap then showed a strip of the thread between the
+  // input and the keyboard.
+  const keyboardOpen = keyboardInset > 0 || composerFocused;
   const composerBarStyle = {
+    // With the keyboard up the composer sits flush on it: no rem gap and no
+    // safe-area either, since the keyboard already covers that zone. The gap
+    // used to reveal a strip of the thread underneath the input.
     '--chat-composer-bottom': keyboardInset > 0
-      ? `calc(0.75rem + env(safe-area-inset-bottom) + ${keyboardInset}px)`
-      : 'calc(5.5rem + env(safe-area-inset-bottom))',
+      ? `${keyboardInset}px`
+      : keyboardOpen
+        ? '0px'
+        : 'calc(5.5rem + env(safe-area-inset-bottom))',
   } as CSSProperties;
 
   return (
@@ -967,24 +1016,20 @@ export default function PrivateGroupChat({
               {conversation ? (
                 <>
                   <div className="flex items-center gap-2">
-                    <h2 className="truncate text-lg">{conversation.user.name}</h2>
+                    <h2 className="min-w-0 flex-1 truncate text-lg">{conversation.user.name}</h2>
                     {conversation.kind === 'group' ? (
                       <Badge variant="outline" className="border-border/80 bg-card/60 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
                         Group
                       </Badge>
                     ) : null}
-                    {conversation.mutual ? (
-                      <Badge variant="outline" className="border-[#8B5CF6]/45 bg-[#8B5CF6]/15 text-[10px] uppercase tracking-[0.18em] text-[#DCC7FF]">
-                        Mutual
-                      </Badge>
-                    ) : null}
+
                   </div>
                   <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                     {conversation.user.pronouns ? <span>{conversation.user.pronouns}</span> : null}
                     {conversation.membersLabel ? <span>{conversation.membersLabel}</span> : null}
                     <span className="inline-flex items-center gap-1">
                       <CruushIcon name="map" className="size-3 opacity-70" />
-                      {conversation.distance}
+                      {formatDistanceLabel(conversation.distance, distancePreferences.mode)}
                     </span>
                   </div>
                 </>
@@ -1018,6 +1063,8 @@ export default function PrivateGroupChat({
             >
               <CruushIcon name="settings" className="h-5 w-5" />
             </Button>
+            {/* Back, settings, report and the bug button share one line. */}
+            <div className="h-9 w-9 shrink-0" data-testid="chat-bug-button-slot" ref={registerBugButtonSlot} />
             {embedded ? (
               <Button type="button" variant="ghost" size="icon" aria-label="Close messages" onClick={onClose}>
                 <X className="h-5 w-5" />
@@ -1152,7 +1199,7 @@ export default function PrivateGroupChat({
                         aria-label="Add mutual"
                         value={addMemberId}
                         onChange={(event) => setAddMemberId(event.target.value)}
-                        className="h-11 w-full rounded-md border border-border bg-input-background px-3 text-sm"
+                        className={DROPDOWN_TRIGGER_CLASS}
                       >
                         <option value="">Add a mutual</option>
                         {availableAddOptions.map((item) => (
@@ -1169,6 +1216,25 @@ export default function PrivateGroupChat({
                       >
                         Add
                       </Button>
+                    </div>
+
+                    <div className="rounded-2xl border border-[#c8ff31]/35 bg-black/45 p-3">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full justify-center border-[#c8ff31]/60 text-white hover:border-[#c8ff31] hover:bg-[#c8ff31]/10 hover:text-white"
+                        disabled={groupPulseSending || conversation.closed}
+                        onClick={() => void handleGroupPulse()}
+                      >
+                        <PulseLedIcon className="size-5 text-[#c8ff31]" />
+                        {groupPulseSending ? 'Sending Pulse...' : 'Pulse group'}
+                      </Button>
+                      <p className="mt-2 text-xs leading-snug text-muted-foreground">
+                        Uses one of your Pulses. Members receive it only when Pulse alerts are on and repeat limits allow it.
+                      </p>
+                      {groupPulseNotice ? (
+                        <p aria-live="polite" className="mt-2 text-xs text-[#c8ff31]">{groupPulseNotice}</p>
+                      ) : null}
                     </div>
                   </>
                 ) : null}
@@ -1275,6 +1341,7 @@ export default function PrivateGroupChat({
             const messageSender = !isOwn && conversation
               ? getMessageSender(msg, conversation, groupMembers)
               : null;
+            const inAppShare = parseInAppShareMessage(msg.content);
 
             if (isSystem) {
               return (
@@ -1416,7 +1483,16 @@ export default function PrivateGroupChat({
                       </div>
                     );
                   })}
-                  {msg.content ? (
+                  {inAppShare ? (
+                    <button
+                      className="min-w-48 rounded-[22px] border border-white/14 bg-black/38 px-4 py-3 text-left text-white transition hover:border-white/30"
+                      onClick={() => navigate(inAppShare.kind === 'place' ? `/places/${inAppShare.id}` : `/profile/${inAppShare.id}`)}
+                      type="button"
+                    >
+                      <span className="block text-[10px] uppercase tracking-[0.16em] text-white/50">{inAppShare.kind === 'place' ? 'Spot' : 'Profile'}</span>
+                      <span className="mt-1 block text-sm">{inAppShare.label}</span>
+                    </button>
+                  ) : msg.content ? (
                     <div
                       className="rounded-[22px] px-4 py-3 text-sm leading-relaxed text-white"
                       style={{
@@ -1448,6 +1524,7 @@ export default function PrivateGroupChat({
                     <span className="text-[11px] text-muted-foreground">
                       {formatMessageTime(msg.timestamp)}
                       {!isOwn && msg.expiresAt ? ` · ${formatExpirationTime(msg.expiresAt)}` : ''}
+                      {isOwn && msg.readAt ? ' · Read' : ''}
                     </span>
                     {(isOwn || (conversation?.kind === 'group' && canManageConversation)) ? (
                       <Button
@@ -1481,7 +1558,7 @@ export default function PrivateGroupChat({
         {conversation ? (
           <div
             data-testid="chat-composer-bar"
-            className={`fixed bottom-[var(--chat-composer-bottom)] left-0 right-0 max-w-[100vw] overflow-x-hidden border-t border-border bg-background/90 px-3 pt-3 backdrop-blur-md sm:px-4 ${keyboardInset > 0 ? 'pb-3' : 'pb-0'}`}
+            className={`fixed bottom-[var(--chat-composer-bottom)] left-0 right-0 z-[70] max-w-[100vw] overflow-x-hidden border-t border-border bg-background px-3 pt-3 backdrop-blur-md sm:px-4 ${keyboardOpen ? 'pb-3' : 'pb-0'}`}
             data-keyboard-open={keyboardInset > 0 ? 'true' : undefined}
             style={composerBarStyle}
           >
@@ -1651,7 +1728,7 @@ export default function PrivateGroupChat({
                                     role="img"
                                     style={{ background: getProfileGradientCss(`favorite:${favorite.id}`) }}
                                   >
-                                    <DlModeMark active={false} className="size-5" />
+                                    <DlModePhotoPlaceholder className="w-14" />
                                   </div>
                                 ) : (
                                   <img
@@ -1703,6 +1780,8 @@ export default function PrivateGroupChat({
                         void handleSend();
                       }
                     }}
+                    onFocus={() => setComposerFocused(true)}
+                    onBlur={() => setComposerFocused(false)}
                     disabled={composerDisabled}
                     placeholder={composerDisabled ? 'Group closed' : conversation.kind === 'group' ? 'Drop the plan...' : 'Say what you want...'}
                     className="min-h-[60px] min-w-0 flex-1 border-0 bg-transparent px-0 py-1 focus-visible:ring-0"

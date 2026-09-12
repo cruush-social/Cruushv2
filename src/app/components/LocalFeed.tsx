@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useRef, useState, type ChangeEvent, type KeyboardEvent } from 'react';
+import { useCallback, useEffect, useId, useRef, useState, type ChangeEvent, type KeyboardEvent } from 'react';
+import { PHOTO_UPLOAD_ACCEPT, PHOTO_UPLOAD_FORMAT_MESSAGE } from '../lib/photoUploadFormats';
 import { useLocation, useNavigate } from 'react-router';
+import { formatDistanceLabel, useDistancePreferences } from '../lib/distancePreferences';
 import { ArrowLeft, Clock, Hash, SlidersHorizontal, Trash2, X } from 'lucide-react';
 import { Button } from './ui/button';
+import { Accordion, AccordionItem, AccordionTrigger } from './ui/accordion';
 import CruushPlusCardDialog from './CruushPlusCardDialog';
-import BlockUserAction from './BlockUserAction';
 import ReportAction from './ReportAction';
 import CruushBadge from './CruushBadge';
 import { CruushIcon } from './CruushIconImage';
@@ -14,7 +16,8 @@ import ProfileActionTrio from './ProfileActionTrio';
 import FeedAttachmentPreview from './FeedAttachmentPreview';
 import FeedPhotoViewer from './FeedPhotoViewer';
 import MapFiltersSurface, { DEFAULT_FILTER_STATE, type FilterState } from './MapFiltersSurface';
-import { ProfilePhotoCropper } from './ProfileEdit';
+import { ProfilePhotoCropper, readProfilePhotoPreviewUrl } from './ProfileEdit';
+import { Slider } from './ui/slider';
 import { Switch } from './ui/switch';
 import {
   Dialog,
@@ -25,6 +28,7 @@ import {
   DialogTrigger,
 } from './ui/dialog';
 import { Textarea } from './ui/textarea';
+import BugButtonSlot from './BugButtonSlot';
 import { addDlModeChangedListener, isDlModeEnabled, shouldMaskPhoto } from '../lib/dlMode';
 import {
   createFeedPost,
@@ -100,7 +104,9 @@ const FEED_WINDOW_OPTIONS: Array<{ value: FeedPostWindow; label: string }> = [
   { value: '1h', label: '1h' },
 ];
 const FEED_EXPIRY_OPTIONS: Array<{ value: FeedPostExpiry; label: string }> = [
+  { value: '30m', label: '30m' },
   { value: '1h', label: '1h' },
+  { value: '3h', label: '3h' },
   { value: '6h', label: '6h' },
   { value: '24h', label: '24h' },
   { value: '7d', label: '7d' },
@@ -144,7 +150,11 @@ function normalizeFeedTag(value: string) {
     .slice(0, 24);
 }
 
+/** Matches the server ceiling in post-schema.ts. */
+const MAX_FEED_POST_TAGS = 10;
+
 export default function LocalFeed({ embedded = false, onClose }: { embedded?: boolean; onClose?: () => void; onOpenSettings?: () => void } = {}) {
+  const distancePreferences = useDistancePreferences();
   const navigate = useNavigate();
   const location = useLocation();
   const [newPost, setNewPost] = useState('');
@@ -153,6 +163,8 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
   // The composer stays a single row until it is opened. Expanded it takes a
   // third of a phone screen, which pushed the first post below the fold.
   const [composerOpen, setComposerOpen] = useState(false);
+  const composerPanelId = useId();
+  const composerOpenButtonRef = useRef<HTMLButtonElement | null>(null);
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [expiresIn, setExpiresIn] = useState<FeedPostExpiry>('never');
   const [postAudience, setPostAudience] = useState<FeedPostAudience>('public');
@@ -162,6 +174,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
   const [posting, setPosting] = useState(false);
   const [uploadingFeedPhoto, setUploadingFeedPhoto] = useState(false);
   const [pendingFeedPhotoUrl, setPendingFeedPhotoUrl] = useState<string | null>(null);
+  const feedPhotoPreviewRequestRef = useRef(0);
   const [stagedPhotos, setStagedPhotos] = useState<FeedPhoto[]>([]);
   const [photoViewer, setPhotoViewer] = useState<{ post: FeedPost; index: number } | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -192,7 +205,6 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
   const hasCruushPlusRef = useRef<boolean | null>(null);
   const feedSettingsRef = useRef<FeedSettings>(DEFAULT_FEED_SETTINGS);
   const feedSettingsSaveChainRef = useRef<Promise<void>>(Promise.resolve());
-  const latestFeedExpiryChoiceRef = useRef(0);
   const applyFeedSettings = (nextSettings: FeedSettings) => {
     feedSettingsRef.current = nextSettings;
     setFeedSettings(nextSettings);
@@ -363,13 +375,13 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
           nextSettings.postExpiryDefault = 'never';
         }
         applyFeedSettings(nextSettings);
-        setExpiresIn(nextSettings.postExpiryDefault);
+        // Expiry is a per-post choice, so every composer starts at Never
+        // rather than inheriting whatever the last post used.
         setFeedWindow(nextSettings.feedWindow);
         setFeedSettingsLoaded(true);
       })
       .catch(() => {
         applyFeedSettings(DEFAULT_FEED_SETTINGS);
-        setExpiresIn(DEFAULT_FEED_SETTINGS.postExpiryDefault);
         setFeedWindow(DEFAULT_FEED_SETTINGS.feedWindow);
         setFeedSettingsLoaded(false);
       });
@@ -464,6 +476,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
       setPostTags([]);
       setStagedPhotos([]);
       setPostAudience('public');
+      setExpiresIn('never');
       setSelectedCrowdTargets([]);
       setPosts((prev) => [createdPost, ...prev]);
     } catch (error) {
@@ -480,8 +493,12 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
       setNewTag('');
       return;
     }
-    if (postTags.length >= 5) {
-      setError('Feed posts can include up to five tags.');
+    if (!hasCruushPlus) {
+      setError('Tagging a Feed post is part of cruush+.');
+      return;
+    }
+    if (postTags.length >= MAX_FEED_POST_TAGS) {
+      setError('Feed posts can include up to ten tags.');
       return;
     }
     setPostTags((currentTags) => [...currentTags, tag]);
@@ -497,7 +514,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
     addPostTag();
   };
 
-  const handleFeedPhotoSelection = (event: ChangeEvent<HTMLInputElement>) => {
+  const handleFeedPhotoSelection = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = '';
     if (!file) {
@@ -513,12 +530,22 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
       return;
     }
     if (!file.type.startsWith('image/')) {
-      setError('Choose a JPEG, PNG, or WebP photo.');
+      setError(PHOTO_UPLOAD_FORMAT_MESSAGE);
       return;
     }
 
+    const requestId = ++feedPhotoPreviewRequestRef.current;
     setError(null);
-    setPendingFeedPhotoUrl(URL.createObjectURL(file));
+    try {
+      const preview = await readProfilePhotoPreviewUrl(file);
+      if (feedPhotoPreviewRequestRef.current === requestId) {
+        setPendingFeedPhotoUrl(preview.url);
+      }
+    } catch (previewError) {
+      if (feedPhotoPreviewRequestRef.current === requestId) {
+        setError(previewError instanceof Error ? previewError.message : 'Failed to upload Feed photo.');
+      }
+    }
   };
 
   const handleConfirmFeedPhotoCrop = async (file: File) => {
@@ -616,33 +643,6 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
     }
   };
 
-  const handleFeedExpiryChange = async (postExpiryDefault: FeedPostExpiry) => {
-    if (postExpiryDefault !== 'never' && hasCruushPlus !== true) {
-      setPlusCardOpen(true);
-      return;
-    }
-
-    const choiceSequence = latestFeedExpiryChoiceRef.current + 1;
-    latestFeedExpiryChoiceRef.current = choiceSequence;
-    setExpiresIn(postExpiryDefault);
-    setError(null);
-
-    try {
-      const nextSettings = await enqueueFeedSettingsUpdate({
-        postExpiryDefault,
-      });
-      if (choiceSequence === latestFeedExpiryChoiceRef.current) {
-        setExpiresIn(nextSettings.postExpiryDefault);
-      }
-    } catch (error) {
-      if (choiceSequence === latestFeedExpiryChoiceRef.current) {
-        setExpiresIn(feedSettingsRef.current.postExpiryDefault);
-        console.error('Error saving feed expiry:', error);
-        setError(error instanceof Error ? error.message : 'Failed to save feed expiry.');
-      }
-    }
-  };
-
   const handleFeedWindowChange = async (nextWindow: FeedPostWindow) => {
     setFeedWindow(nextWindow);
     try {
@@ -656,10 +656,6 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
   const handleFeedDistanceChange = (nextDistanceMiles: number) => {
     setFeedDistanceMiles(nextDistanceMiles);
     void fetchPosts({ before: null, distanceMiles: nextDistanceMiles });
-  };
-
-  const handleBlockedUser = (blockedUserId: string) => {
-    setPosts((currentPosts) => currentPosts.filter((post) => post.user.id !== blockedUserId));
   };
 
   const handleFeedCruush = async (post: FeedPost) => {
@@ -729,7 +725,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
       data-testid="local-feed-screen"
     >
       <header
-        className="sticky top-0 z-40 flex shrink-0 items-center gap-2 border-b border-white/10 bg-black/88 px-4 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top))] shadow-[0_20px_55px_rgba(0,0,0,0.34)] backdrop-blur-xl"
+        className="sticky top-0 z-40 flex shrink-0 items-center gap-2 border-b border-white/10 bg-black/88 pb-3 pl-4 pr-4 pt-[calc(0.75rem+env(safe-area-inset-top))] shadow-[0_20px_55px_rgba(0,0,0,0.34)] backdrop-blur-xl"
         data-testid="local-feed-header"
       >
         <Button
@@ -795,7 +791,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
               <CruushIcon name="settings" className="h-5 w-5" />
             </Button>
           </DialogTrigger>
-          <DialogContent className="scrollbar-hide max-h-[calc(100dvh-2rem)] max-w-md overflow-y-auto overscroll-contain rounded-lg border-white/10 bg-background pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
+          <DialogContent className="scrollbar-hide top-[calc(0.75rem+env(safe-area-inset-top))] max-h-[calc(100dvh-1.5rem-env(safe-area-inset-top))] max-w-md translate-y-0 overflow-y-auto overscroll-contain rounded-lg border-white/10 bg-background pb-[calc(1.5rem+env(safe-area-inset-bottom))] [&_[data-slot=dialog-close-x]]:right-14 [&_[data-slot=dialog-close-x]]:top-2.5">
             <DialogHeader>
               <DialogTitle>Feed settings</DialogTitle>
               <DialogDescription>
@@ -805,7 +801,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
             <div className="space-y-4">
               <section className="rounded-lg border border-white/10 bg-black/42 p-3">
                 <p className="mb-2 text-sm font-semibold text-white">Posted within</p>
-                <div className="grid grid-cols-5 gap-2">
+                <div className="grid grid-cols-6 gap-1.5">
                   {FEED_WINDOW_OPTIONS.map((option) => (
                     <button
                       key={option.value}
@@ -826,31 +822,8 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
                 </div>
               </section>
 
-              <section className="rounded-lg border border-white/10 bg-black/42 p-3">
-                <p className="mb-2 text-sm font-semibold text-white">Your posts expire</p>
-                <div className="grid grid-cols-5 gap-2">
-                  {FEED_EXPIRY_OPTIONS.map((option) => (
-                    <button
-                      key={option.value}
-                      type="button"
-                      className={[
-                        'h-10 rounded-full border text-sm font-semibold transition',
-                        expiresIn === option.value
-                          ? 'border-white/15 text-white'
-                          : 'border-white/10 bg-black/40 text-white/72 hover:bg-white/8',
-                      ].join(' ')}
-                      style={expiresIn === option.value ? { background: 'var(--cruush-gradient)' } : undefined}
-                      aria-pressed={expiresIn === option.value}
-                      disabled={!feedSettingsLoaded}
-                      onClick={() => void handleFeedExpiryChange(option.value)}
-                    >
-                      {option.label}{option.value !== 'never' && hasCruushPlus !== true ? ' +' : ''}
-                    </button>
-                  ))}
-                </div>
-                <p className="mt-2 text-xs text-white/58">Never expire is free. Custom timers are part of Feed+.</p>
-              </section>
-
+              {/* Expiry is chosen per post in the composer now, so it is not a
+                  single setting applied to everything you write. */}
               <section className="rounded-lg border border-white/10 bg-black/42 p-3">
                 <p className="text-sm font-semibold text-white">Who can see this post</p>
                 <p className="mb-2 mt-1 text-xs text-white/58">Public and Mutuals are free. A specific Crowd is part of Feed+.</p>
@@ -980,6 +953,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
           </DialogContent>
         </Dialog>}
         </> : null}
+        <BugButtonSlot testId="local-feed-bug-button-slot" />
         {embedded && onClose ? (
           <Button type="button" variant="secondary" size="icon" className="rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10" aria-label="Close Feed" onClick={onClose}>
             <X className="h-4 w-4" />
@@ -999,7 +973,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
 
             <section className="rounded-lg border border-white/10 bg-black/42 p-3">
               <p className="mb-2 text-sm font-semibold text-white">Posted within</p>
-              <div className="grid grid-cols-5 gap-2">
+              <div className="grid grid-cols-6 gap-1.5">
                 {FEED_WINDOW_OPTIONS.map((option) => (
                   <button
                     key={option.value}
@@ -1015,30 +989,6 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
                     onClick={() => void handleFeedWindowChange(option.value)}
                   >
                     {option.label}
-                  </button>
-                ))}
-              </div>
-            </section>
-
-            <section className="rounded-lg border border-white/10 bg-black/42 p-3">
-              <p className="mb-2 text-sm font-semibold text-white">Your posts expire</p>
-              <div className="grid grid-cols-5 gap-2">
-                {FEED_EXPIRY_OPTIONS.map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    className={[
-                      'h-10 rounded-full border text-sm font-semibold transition',
-                      expiresIn === option.value
-                        ? 'border-white/15 text-white'
-                        : 'border-white/10 bg-black/40 text-white/72 hover:bg-white/8',
-                    ].join(' ')}
-                    style={expiresIn === option.value ? { background: 'var(--cruush-gradient)' } : undefined}
-                    aria-pressed={expiresIn === option.value}
-                    disabled={!feedSettingsLoaded}
-                    onClick={() => void handleFeedExpiryChange(option.value)}
-                  >
-                    {option.label}{option.value !== 'never' && hasCruushPlus !== true ? ' +' : ''}
                   </button>
                 ))}
               </div>
@@ -1174,6 +1124,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
               type="button"
               className="bg-input-background flex w-full items-center gap-3 rounded-md border border-white/10 px-3 py-2 text-left text-sm text-muted-foreground transition-colors hover:bg-white/5"
               data-testid="local-feed-composer-open"
+              ref={composerOpenButtonRef}
               onClick={() => {
                 setComposerOpen(true);
                 requestAnimationFrame(() => composerInputRef.current?.focus());
@@ -1183,7 +1134,21 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
               <span className="min-w-0 flex-1 truncate">Share something with nearby people...</span>
             </button>
           ) : null}
-          <div className={composerOpen ? undefined : 'hidden'}>
+          <div id={composerPanelId} className={composerOpen ? undefined : 'hidden'}>
+          <Accordion
+            collapsible
+            type="single"
+            value={composerOpen ? 'composer' : ''}
+            onValueChange={(value) => {
+              const open = value === 'composer';
+              setComposerOpen(open);
+              if (!open) requestAnimationFrame(() => composerOpenButtonRef.current?.focus());
+            }}
+          >
+            <AccordionItem className="border-0" value="composer">
+              <AccordionTrigger aria-controls={composerPanelId} aria-label="Collapse Feed input" className="mb-3 justify-end py-0" />
+            </AccordionItem>
+          </Accordion>
           <Textarea
             ref={composerInputRef}
             value={newPost}
@@ -1197,22 +1162,58 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
               <input
                 aria-label="Add Feed tag"
                 className="h-10 min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-white/45"
-                disabled={postTags.length >= 5}
+                disabled={!hasCruushPlus || postTags.length >= MAX_FEED_POST_TAGS}
                 maxLength={25}
                 onChange={(event) => setNewTag(event.target.value)}
                 onKeyDown={handleTagKeyDown}
-                placeholder="#tag"
+                placeholder={hasCruushPlus ? '#tag' : 'Tags are part of cruush+'}
                 value={newTag}
               />
               <button
                 className="text-sm font-semibold text-white/72 disabled:opacity-35"
-                disabled={!normalizeFeedTag(newTag) || postTags.length >= 5}
+                disabled={!hasCruushPlus || !normalizeFeedTag(newTag) || postTags.length >= MAX_FEED_POST_TAGS}
                 onClick={addPostTag}
                 type="button"
               >
                 Add
               </button>
             </div>
+            {/* Expiry belongs to the post being written, not to a setting
+                applied to everything. Every composer starts at Never. */}
+            <section className="rounded-lg border border-white/10 bg-black/42 p-3">
+              <p className="mb-2 text-sm font-semibold text-white">This post expires</p>
+              {/* A slider rather than a row of buttons: the options are an
+                  ordered scale from 30 minutes to never, so sliding along it
+                  reads better than picking one of six pills. */}
+              <Slider
+                aria-label="This post expires"
+                className="mt-1"
+                data-testid="feed-expiry-slider"
+                max={FEED_EXPIRY_OPTIONS.length - 1}
+                min={0}
+                step={1}
+                value={[Math.max(0, FEED_EXPIRY_OPTIONS.findIndex((option) => option.value === expiresIn))]}
+                onValueChange={([index]) => {
+                  const option = FEED_EXPIRY_OPTIONS[index] ?? FEED_EXPIRY_OPTIONS[FEED_EXPIRY_OPTIONS.length - 1];
+                  if (option.value !== 'never' && hasCruushPlus !== true) {
+                    setPlusCardOpen(true);
+                    return;
+                  }
+                  setExpiresIn(option.value);
+                }}
+              />
+              <div className="mt-2 flex items-center justify-between text-xs text-white/58">
+                <span>{FEED_EXPIRY_OPTIONS[0].label}</span>
+                <span className="font-semibold text-white" data-testid="feed-expiry-value">
+                  {FEED_EXPIRY_OPTIONS.find((option) => option.value === expiresIn)?.label ?? 'Never'}
+                </span>
+                <span>{FEED_EXPIRY_OPTIONS[FEED_EXPIRY_OPTIONS.length - 1].label}</span>
+              </div>
+              <p className="mt-2 text-xs text-white/58">Never expire is free. Custom timers are part of Feed+.</p>
+            </section>
+            {hasCruushPlus ? (
+              <p className="text-xs text-white/58">Up to {MAX_FEED_POST_TAGS} tags.</p>
+            ) : null}
             {postTags.length > 0 ? (
               <div className="flex flex-wrap gap-2" data-testid="feed-post-tags-draft">
                 {postTags.map((tag) => (
@@ -1259,7 +1260,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
           <div className="flex items-center justify-between gap-3">
             <div>
               <input
-                accept="image/jpeg,image/png,image/webp"
+                accept={PHOTO_UPLOAD_ACCEPT}
                 aria-label="Choose Feed photo"
                 className="sr-only"
                 onChange={handleFeedPhotoSelection}
@@ -1334,7 +1335,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
                         staticMileHigh={post.user.id === currentUserId && post.user.travelling === true}
                         theme={currentUserId && post.user.id === currentUserId ? 'current' : mutualAuthor ? 'mutual' : 'nearby'}
                         userId={post.user.id}
-                        onClick={() => navigate(`/profile/${post.user.id}`)}
+                        onClick={() => navigate(`/profile/${post.user.id}`, { state: { distance: post.distance } })}
                         fallback={<CruushIcon name="cruush" className="h-5 w-5 opacity-20" />}
                       />
                     </div>
@@ -1343,7 +1344,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
                     <button
                       className="text-left"
                       data-testid={`feed-post-author-${post.id}`}
-                      onClick={() => navigate(`/profile/${post.user.id}`)}
+                      onClick={() => navigate(`/profile/${post.user.id}`, { state: { distance: post.distance } })}
                       title={post.user.name}
                       type="button"
                     >
@@ -1353,23 +1354,6 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
                   pronouns={post.user.pronouns || 'Ask me'}
                   sideBadges={post.user.sideBadges}
                   sideBadgeTone={borderTone}
-                  heartActions={currentUserId && post.user.id !== currentUserId ? (
-                    <div className="mt-1 flex items-center justify-center gap-1">
-                      <ReportAction
-                        targetType="post"
-                        targetId={post.id}
-                        targetLabel={`post by ${post.user.name}`}
-                        targetUserId={post.user.id}
-                        className="h-7 w-7 text-muted-foreground hover:text-white"
-                      />
-                      <BlockUserAction
-                        userId={post.user.id}
-                        displayName={post.user.name}
-                        className="h-7 w-7 text-muted-foreground hover:text-white"
-                        onBlocked={handleBlockedUser}
-                      />
-                    </div>
-                  ) : null}
                   identityAdornment={(
                     <>
                       <CruushBadge badges={post.user.badges} compact />
@@ -1390,9 +1374,9 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
                     </>
                   )}
                   metadata={(
-                    <button type="button" className="flex h-11 min-w-0 flex-col justify-center gap-0.5 text-left text-xs leading-snug text-white/62 sm:text-sm" onClick={() => navigate(`/profile/${post.user.id}`)} data-testid={`feed-post-meta-${post.id}`}>
+                    <button type="button" className="flex h-11 min-w-0 flex-col justify-center gap-0.5 text-left text-xs leading-snug text-white/62 sm:text-sm" onClick={() => navigate(`/profile/${post.user.id}`, { state: { distance: post.distance } })} data-testid={`feed-post-meta-${post.id}`}>
                       <span className="truncate">{formatRelativeTime(post.createdAt)}</span>
-                      {feedSettings.showDistanceLabels !== false ? <span className="truncate">{post.distance}</span> : null}
+                      {feedSettings.showDistanceLabels !== false ? <span className="truncate">{formatDistanceLabel(post.distance, distancePreferences.mode)}</span> : null}
                     </button>
                   )}
                   actions={(
@@ -1424,6 +1408,8 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
                     </div>
                   )}
                   mutual={mutualAuthor}
+                  vibes={post.user.vibes}
+                  vibeTone={post.user.id === currentUserId ? 'current' : mutualAuthor ? 'mutual' : 'nearby'}
                   content={(
                     <div className="space-y-1.5">
                       <p className="text-base">{post.content}</p>
@@ -1440,8 +1426,20 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
                     </div>
                   )}
                   cornerAction={(
-                    <div className="flex flex-col items-end gap-1">
+                    <>
                       <span className="flex items-center gap-1 text-[11px] text-white/52"><Clock className="h-3 w-3" />{formatFeedExpiry(post.expiresIn)}</span>
+                      {currentUserId && post.user.id !== currentUserId ? (
+                        <ReportAction
+                          targetType="post"
+                          targetId={post.id}
+                          targetLabel={`post by ${post.user.name}`}
+                          targetUserId={post.user.id}
+                          // size-9 from the icon variant wins over a plain
+                          // h-7/w-7, so the button kept a hit area wider than
+                          // the flag and pushed into the metadata beside it.
+                          className="size-7 shrink-0 p-0 text-muted-foreground hover:text-white"
+                        />
+                      ) : null}
                       {currentUserId && post.user.id === currentUserId ? (
                         <Button
                           variant="ghost"
@@ -1455,7 +1453,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       ) : null}
-                    </div>
+                    </>
                   )}
                 />
                 );
@@ -1475,7 +1473,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
           {!loading && posts.length === 0 && (
             <div className="rounded-2xl border border-white/10 bg-black/72 p-12 text-center">
               <p className="text-white/68">{feedSeekingFilters.searchQuery.trim() ? 'No posts match that search.' : 'No posts nearby yet.'}</p>
-              <p className="text-sm text-white/50 mt-2">{feedSeekingFilters.searchQuery.trim() ? 'Try another word, #tag, or clear the search.' : 'Be the first to share something!'}</p>
+              <p className="text-sm text-white/50 mt-2">{feedSeekingFilters.searchQuery.trim() ? 'Try another #tag or clear the search.' : 'Be the first to share something!'}</p>
             </div>
           )}
         </div>
@@ -1504,7 +1502,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
       onUpgrade={() => setPlusCardOpen(true)}
       open={seekingOpen}
       searchPlaceholder="Search #tags"
-      title="Seeking Filter"
+      title="Feed Filter"
       value={feedSeekingDraft}
     />
     {pendingFeedPhotoUrl ? (

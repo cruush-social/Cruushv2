@@ -25,6 +25,7 @@ describe('AccessibilityQuickAccess', () => {
     render(<AccessibilityQuickAccess />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Accessibility options' }));
+    expect(document.querySelector('[data-slot="dialog-content"]')).toHaveClass('content-start');
     fireEvent.click(screen.getByRole('switch', { name: 'Reduce motion' }));
     fireEvent.click(screen.getByRole('switch', { name: 'Larger text' }));
     fireEvent.click(screen.getByRole('switch', { name: 'Increase contrast' }));
@@ -33,6 +34,9 @@ describe('AccessibilityQuickAccess', () => {
     expect(document.documentElement).toHaveAttribute('data-cruush-larger-text');
     expect(document.documentElement).toHaveAttribute('data-cruush-high-contrast');
     expect(JSON.parse(window.localStorage.getItem(ACCESSIBILITY_PREFERENCES_STORAGE_KEY) ?? '{}')).toEqual({
+      colorBlindMode: false,
+      colorVisionMode: 'off',
+      hapticFeedback: true,
       highContrast: true,
       largerText: true,
       reduceMotion: true,

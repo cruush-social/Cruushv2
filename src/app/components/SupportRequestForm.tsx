@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useId, useRef, useState, type PointerEvent } from 'react';
+import { DROPDOWN_TRIGGER_CLASS } from '../lib/controlStyles';
 import { CheckCircle2 } from 'lucide-react';
-import { createSuspensionAppeal, createSupportRequest, type SupportRequestCategory, type SupportRequestSource } from '../lib/supportApi';
+import { createGeneralSuspensionAppeal, createSuspensionAppeal, createSupportRequest, type SupportRequestCategory, type SupportRequestSource } from '../lib/supportApi';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -17,7 +18,10 @@ const SUPPORT_CATEGORIES: Array<{ value: SupportRequestCategory; label: string }
 type SupportRequestFormProps = {
   className?: string;
   appealMode?: boolean;
+  contentRemovalMode?: boolean;
+  generalAppealMode?: boolean;
   requireContactEmail?: boolean;
+  signedIn?: boolean;
   source: SupportRequestSource;
 };
 
@@ -32,7 +36,10 @@ function getCurrentPageUrl() {
 export default function SupportRequestForm({
   appealMode = false,
   className,
+  contentRemovalMode = false,
+  generalAppealMode = false,
   requireContactEmail = false,
+  signedIn = false,
   source,
 }: SupportRequestFormProps) {
   const idPrefix = useId();
@@ -164,16 +171,21 @@ export default function SupportRequestForm({
           idDocument: await canvasFile(),
           selfie,
         });
+      } else if (generalAppealMode) {
+        await createGeneralSuspensionAppeal({
+          ...(contactEmail.trim() ? { contactEmail: contactEmail.trim() } : {}),
+          message: message.trim(),
+        });
       } else {
-      const trimmedEmail = contactEmail.trim();
-      await createSupportRequest({
-        category,
-        subject: subject.trim(),
-        message: message.trim(),
-        ...(trimmedEmail ? { contactEmail: trimmedEmail } : {}),
-        source,
-        pageUrl: getCurrentPageUrl(),
-      });
+        const trimmedEmail = contactEmail.trim();
+        await createSupportRequest({
+          category: contentRemovalMode ? 'policy' : category,
+          subject: subject.trim(),
+          message: message.trim(),
+          ...(trimmedEmail ? { contactEmail: trimmedEmail } : {}),
+          source,
+          pageUrl: getCurrentPageUrl(),
+        });
       }
       setStatus('success');
       setSubject('');
@@ -195,7 +207,13 @@ export default function SupportRequestForm({
   return (
     <section className={cn('rounded-lg border border-border bg-card/70 p-4', className)}>
       <div className="mb-4">
-        <h3 className="text-lg">{appealMode ? 'Appeal a suspension' : 'Contact support'}</h3>
+        <h3 className="text-lg">
+          {appealMode || generalAppealMode
+            ? 'Appeal a suspension'
+            : contentRemovalMode
+              ? 'Submit a removal request'
+              : 'Contact support'}
+        </h3>
         {appealMode ? (
           <p className="mt-2 text-sm text-muted-foreground">
             A human reviews age-related photo suspensions. Take a photo of your ID, then mark over everything except your date of birth and photo. Add a selfie holding a handwritten card with your account email and today’s date. Evidence stays private, expires after 24 hours, and is deleted when the review is closed.
@@ -214,17 +232,17 @@ export default function SupportRequestForm({
           </Button>
         </div>
       ) : (
-        <form aria-label={appealMode ? 'Suspension appeal' : 'Contact support'} className="space-y-4" onSubmit={handleSubmit}>
+        <form aria-label={appealMode || generalAppealMode ? 'Suspension appeal' : contentRemovalMode ? 'Content removal request' : 'Contact support'} className="space-y-4" onSubmit={handleSubmit}>
           {error ? (
             <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
               {error}
             </div>
           ) : null}
 
-          {!appealMode ? <div className="space-y-2">
+          {!appealMode && !generalAppealMode && !contentRemovalMode ? <div className="space-y-2">
             <Label htmlFor={`${idPrefix}-category`}>Support type</Label>
             <select
-              className="h-11 w-full rounded-md border border-input bg-input-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+              className={DROPDOWN_TRIGGER_CLASS}
               disabled={status === 'submitting'}
               id={`${idPrefix}-category`}
               onChange={(event) => setCategory(event.target.value as SupportRequestCategory)}
@@ -238,8 +256,10 @@ export default function SupportRequestForm({
             </select>
           </div> : null}
 
-          <div className="space-y-2">
-            <Label htmlFor={`${idPrefix}-contact-email`}>Reply email</Label>
+          {!signedIn ? <div className="space-y-2">
+            <Label htmlFor={`${idPrefix}-contact-email`}>
+              {appealMode || generalAppealMode ? 'Email associated with your account' : 'Reply email'}
+            </Label>
             <Input
               autoComplete="email"
               disabled={status === 'submitting'}
@@ -251,7 +271,7 @@ export default function SupportRequestForm({
               type="email"
               value={contactEmail}
             />
-          </div>
+          </div> : null}
 
           {appealMode ? (
             <div className="space-y-4 rounded-md border border-border bg-muted/20 p-3">
@@ -296,8 +316,8 @@ export default function SupportRequestForm({
             </div>
           ) : null}
 
-          {!appealMode ? <div className="space-y-2">
-            <Label htmlFor={`${idPrefix}-subject`}>Support subject</Label>
+          {!appealMode && !generalAppealMode ? <div className="space-y-2">
+            <Label htmlFor={`${idPrefix}-subject`}>{contentRemovalMode ? 'Content or account' : 'Support subject'}</Label>
             <Input
               disabled={status === 'submitting'}
               id={`${idPrefix}-subject`}
@@ -310,7 +330,13 @@ export default function SupportRequestForm({
           </div> : null}
 
           {!appealMode ? <div className="space-y-2">
-            <Label htmlFor={`${idPrefix}-message`}>Support message</Label>
+            <Label htmlFor={`${idPrefix}-message`}>
+              {generalAppealMode
+                ? 'What should we review?'
+                : contentRemovalMode
+                  ? 'What should be removed and why?'
+                  : 'Support message'}
+            </Label>
             <Textarea
               className="min-h-[120px] bg-input-background"
               disabled={status === 'submitting'}
@@ -330,7 +356,13 @@ export default function SupportRequestForm({
             style={{ background: 'var(--cruush-gradient)' }}
             type="submit"
           >
-            {status === 'submitting' ? 'Sending...' : appealMode ? 'Submit appeal' : 'Send to support'}
+            {status === 'submitting'
+              ? 'Sending...'
+              : appealMode || generalAppealMode
+                ? 'Submit appeal'
+                : contentRemovalMode
+                  ? 'Submit removal request'
+                  : 'Send to support'}
           </Button>
         </form>
       )}

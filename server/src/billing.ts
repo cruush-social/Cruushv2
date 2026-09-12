@@ -169,6 +169,7 @@ export const PREMIUM_DISCOVERY_FILTER_KEYS = [
   "lookingFor",
   "timing",
   "hosting",
+  "preferredSpots",
   "vibes",
   "scenes",
   "archetypes",
@@ -179,7 +180,9 @@ export const PREMIUM_DISCOVERY_FILTER_KEYS = [
   "kinks",
   "bodyTypes",
   "sexuality",
-  "substanceBoundaries"
+  "zodiac",
+  "substanceBoundaries",
+  "protectionBoundaries"
 ] as const;
 
 export const FREE_DISCOVERY_FILTER_LIMIT = 3;

@@ -15,6 +15,7 @@ const publicProfileRules: ProfileVisibilityRules = {
   search_query: "",
   active_crowd_modes: [],
   mile_high_club_members: false,
+      members_without_photos: false,
   age_range: null,
   distance: null,
   identities: [],
@@ -28,9 +29,15 @@ const publicProfileRules: ProfileVisibilityRules = {
   positions: [],
   roles: [],
   kinks: [],
+  preferred_spots: [],
   body_types: [],
+  body_hair: [],
+  pubic_hair: [],
+  facial_hair: [],
   sexuality: [],
-  substance_boundaries: []
+  zodiac: [],
+  substance_boundaries: [],
+  protection_boundaries: []
 };
 
 function mapPolicy(input: Partial<VisibilityPolicyPayload> = {}): VisibilityPolicyPayload {

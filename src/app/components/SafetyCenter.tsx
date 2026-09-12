@@ -7,6 +7,7 @@ import { Label } from './ui/label';
 import { Switch } from './ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { CruushIcon } from './CruushIconImage';
+import BugButtonSlot from './BugButtonSlot';
 
 export default function SafetyCenter() {
   const navigate = useNavigate();
@@ -41,6 +42,8 @@ export default function SafetyCenter() {
           <h2 className="text-xl">Safety Center</h2>
           <p className="text-xs text-muted-foreground">Your safety is our priority</p>
         </div>
+      
+        <BugButtonSlot testId="safety-center-bug-button-slot" />
       </header>
 
       <div className="max-w-2xl mx-auto p-6">

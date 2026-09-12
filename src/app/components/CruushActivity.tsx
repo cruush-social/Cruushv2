@@ -4,6 +4,7 @@ import {
   ArrowLeft,
   Lock,
   Plus,
+  Trash2,
   X,
 } from 'lucide-react';
 import HeartPhoto from './HeartPhoto';
@@ -12,7 +13,7 @@ import { CruushIcon } from './CruushIconImage';
 import CruushPlusWord from './CruushPlusWord';
 import { Button } from './ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { getMutualCruushMap, getMyCruushActivity, revokeMutualCruush, revokeSentCruush, sendCruush, type CruushActivity, type CruushLockableActivityItem, type MutualCruushActivityItem, type ProfileViewActivityItem } from '../lib/cruushApi';
+import { dismissIncomingCruush, getMutualCruushMap, getMyCruushActivity, removeProfileView, revokeMutualCruush, revokeSentCruush, sendCruush, type CruushActivity, type CruushLockableActivityItem, type MutualCruushActivityItem, type ProfileViewActivityItem } from '../lib/cruushApi';
 import { DEBUG_CRUUSH_PLUS_EVENT } from '../lib/debugApi';
 import { CRUUSH_PLUS_CHANGED_EVENT } from '../lib/billingApi';
 import { addCruushChangedListener } from '../lib/cruushEvents';
@@ -47,7 +48,11 @@ type CruushActionState = 'available' | 'sending' | 'sent' | 'mutual';
 
 const activityHeartClassName = 'w-20 shrink-0';
 const activityActionClassName = '!gap-1 [&>button]:!size-9 [&>button]:!p-1.5 [&>button>img]:!size-5 [&>button>svg]:!size-5';
-const activityCardClassName = '!py-3';
+// Cruushes cards read as Feed cards: the same surface and hover, and the same
+// padding. A Feed card is taller because a post sits under the identity row;
+// with no post to carry, these centre their content in that space rather than
+// pinning it to the top and leaving the rest empty.
+const activityCardClassName = 'bg-black/72 hover:bg-black/86 min-h-[7.5rem] content-center';
 
 function formatRelativeTime(isoTimestamp: string) {
   const now = Date.now();
@@ -232,6 +237,8 @@ function IncomingRow({
   onOpenProfile,
   onMessage,
   onOpenMap,
+  onDismiss,
+  dismissing = false,
 }: {
   item: CruushLockableActivityItem;
   onCruushAction: (item: CruushLockableActivityItem) => void;
@@ -239,9 +246,11 @@ function IncomingRow({
   sentCruush?: boolean;
   pendingCruush?: boolean;
   pinActionable: boolean;
-  onOpenProfile: (userId: string) => void;
+  onOpenProfile: (userId: string, state?: { distance?: string; lastActive?: string }) => void;
   onMessage: (userId: string) => void;
   onOpenMap: (userId: string) => void;
+  onDismiss?: (item: CruushLockableActivityItem) => void;
+  dismissing?: boolean;
 }) {
   const unlocked = !item.locked && item.user;
   const actionState: CruushActionState = item.mutual
@@ -255,18 +264,33 @@ function IncomingRow({
   return (
     <UserActivityCapsule
       className={activityCardClassName}
-      compactIdentityMeta
       testId="activity-row"
       heart={<PersonHeart item={item} fallbackLabel="Locked incoming cruush" onOpenProfile={onOpenProfile} />}
+      cornerAction={onDismiss && unlocked ? (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-8 text-muted-foreground hover:text-white"
+          aria-label={`Clear incoming cruush from ${item.user!.name}`}
+          title="Clear from your list"
+          disabled={dismissing}
+          onClick={(event) => {
+            event.stopPropagation();
+            onDismiss(item);
+          }}
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      ) : undefined}
       name={unlocked ? item.user.name : 'Someone new'}
       pronouns={unlocked ? item.user.pronouns || 'Ask me' : undefined}
       sideBadges={unlocked ? item.user.sideBadges : undefined}
       sideBadgeTone={unlocked && item.user.travelling ? 'mile-high' : item.mutual ? 'mutual' : 'nearby'}
       identityAdornment={unlocked ? <CruushBadge badges={item.user.badges} compact /> : null}
       identityDisabled={!unlocked}
-      onOpenIdentity={unlocked ? () => onOpenProfile(item.user!.id) : undefined}
+      onOpenIdentity={unlocked ? () => onOpenProfile(item.user!.id, { distance }) : undefined}
       metadata={(
-        <button type="button" className="min-w-0 text-left" disabled={!unlocked} onClick={() => unlocked && onOpenProfile(item.user!.id)}>
+        <button type="button" className="min-w-0 text-left" disabled={!unlocked} onClick={() => unlocked && onOpenProfile(item.user!.id, { distance })}>
           <ActivityMeta items={unlocked
             ? [formatRelativeTime(item.createdAt), distance]
             : ['Has a cruush on you', formatRelativeTime(item.createdAt)]}
@@ -289,6 +313,8 @@ function IncomingRow({
         />
       ) : null}
       mutual={item.mutual === true}
+      vibes={item.user?.vibes}
+      vibeTone={item.mutual === true ? 'mutual' : 'nearby'}
     />
   );
 }
@@ -307,7 +333,7 @@ function SentRow({
   distance: string;
   pendingRevoke: boolean;
   pinActionable: boolean;
-  onOpenProfile: (userId: string) => void;
+  onOpenProfile: (userId: string, state?: { distance?: string; lastActive?: string }) => void;
   onRevoke: (item: CruushLockableActivityItem) => void;
   onMessage: (userId: string) => void;
   onOpenMap: (userId: string) => void;
@@ -321,7 +347,6 @@ function SentRow({
   return (
     <UserActivityCapsule
       className={activityCardClassName}
-      compactIdentityMeta
       testId="activity-row"
       heart={(
         <HeartPhoto
@@ -341,8 +366,8 @@ function SentRow({
       sideBadges={item.user.sideBadges}
       sideBadgeTone={borderTone}
       identityAdornment={<><CruushBadge badges={item.user.badges} compact />{item.mutual ? null : <ActivityBadge>Pending</ActivityBadge>}</>}
-      onOpenIdentity={() => onOpenProfile(item.user!.id)}
-      metadata={<button type="button" className="min-w-0 text-left" onClick={() => onOpenProfile(item.user!.id)}><ActivityMeta items={[formatRelativeTime(item.createdAt), distance]} /></button>}
+      onOpenIdentity={() => onOpenProfile(item.user!.id, { distance })}
+      metadata={<button type="button" className="min-w-0 text-left" onClick={() => onOpenProfile(item.user!.id, { distance })}><ActivityMeta items={[formatRelativeTime(item.createdAt), distance]} /></button>}
       actions={(
         <ProfileActionTrio
           className={activityActionClassName}
@@ -357,6 +382,8 @@ function SentRow({
         />
       )}
       mutual={item.mutual === true}
+      vibes={item.user?.vibes}
+      vibeTone={item.mutual === true ? 'mutual' : 'nearby'}
     />
   );
 }
@@ -378,14 +405,13 @@ function MutualRow({
   onRevoke: (item: MutualCruushActivityItem) => void;
   onOpenMap: (userId: string) => void;
   onMessage: (userId: string) => void;
-  onOpenProfile: (userId: string) => void;
+  onOpenProfile: (userId: string, state?: { distance?: string; lastActive?: string }) => void;
 }) {
   const dlModeActive = useDlMode();
   const borderTone = resolveUserBorderTone({ mileHigh: item.user.travelling, mutual: true });
   return (
     <UserActivityCapsule
       className={activityCardClassName}
-      compactIdentityMeta
       testId="activity-row"
       heart={(
         <HeartPhoto
@@ -405,8 +431,8 @@ function MutualRow({
       sideBadges={item.user.sideBadges}
       sideBadgeTone={borderTone}
       identityAdornment={<><CruushBadge badges={item.user.badges} compact />{item.canRevealPreciseLocation ? <ActivityBadge>Precise</ActivityBadge> : null}</>}
-      onOpenIdentity={() => onOpenProfile(item.user.id)}
-      metadata={<button type="button" className="min-w-0 text-left" onClick={() => onOpenProfile(item.user.id)}><ActivityMeta items={[item.lastActive, distance]} /></button>}
+      onOpenIdentity={() => onOpenProfile(item.user.id, { distance, lastActive: item.lastActive })}
+      metadata={<button type="button" className="min-w-0 text-left" onClick={() => onOpenProfile(item.user.id, { distance, lastActive: item.lastActive })}><ActivityMeta items={[item.lastActive, distance]} /></button>}
       actions={(
         <ProfileActionTrio
           className={activityActionClassName}
@@ -421,6 +447,8 @@ function MutualRow({
         />
       )}
       mutual
+      vibes={item.user.vibes}
+      vibeTone="mutual"
     />
   );
 }
@@ -434,14 +462,18 @@ function ViewRow({
   onOpenProfile,
   onMessage,
   onOpenMap,
+  onRemove,
+  removing = false,
 }: {
   item: ProfileViewActivityItem;
   distance: string;
   actionState: CruushActionState;
   pinActionable: boolean;
   onCruush: (item: ProfileViewActivityItem) => void;
-  onOpenProfile: (userId: string) => void;
+  onOpenProfile: (userId: string, state?: { distance?: string; lastActive?: string }) => void;
   onMessage: (userId: string) => void;
+  onRemove?: (item: ProfileViewActivityItem) => void;
+  removing?: boolean;
   onOpenMap: (userId: string) => void;
 }) {
   const unlocked = !item.locked && item.user;
@@ -449,18 +481,33 @@ function ViewRow({
   return (
     <UserActivityCapsule
       className={activityCardClassName}
-      compactIdentityMeta
       testId="activity-row"
       heart={<PersonHeart item={item} fallbackLabel="Locked profile view" onOpenProfile={onOpenProfile} />}
+      cornerAction={onRemove && item.user ? (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-8 text-muted-foreground hover:text-white"
+          aria-label={`Clear profile view from ${item.user.name}`}
+          title="Clear from your list"
+          disabled={removing}
+          onClick={(event) => {
+            event.stopPropagation();
+            onRemove(item);
+          }}
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      ) : undefined}
       name={unlocked ? item.user.name : 'Someone new'}
       pronouns={unlocked ? item.user.pronouns || 'Ask me' : undefined}
       sideBadges={unlocked ? item.user.sideBadges : undefined}
       sideBadgeTone={unlocked && item.user.travelling ? 'mile-high' : item.mutual ? 'mutual' : 'nearby'}
       identityAdornment={unlocked ? <CruushBadge badges={item.user.badges} compact /> : null}
       identityDisabled={!unlocked}
-      onOpenIdentity={unlocked ? () => onOpenProfile(item.user!.id) : undefined}
+      onOpenIdentity={unlocked ? () => onOpenProfile(item.user!.id, { distance }) : undefined}
       metadata={(
-        <button type="button" className="min-w-0 text-left" disabled={!unlocked} onClick={() => unlocked && onOpenProfile(item.user!.id)}>
+        <button type="button" className="min-w-0 text-left" disabled={!unlocked} onClick={() => unlocked && onOpenProfile(item.user!.id, { distance })}>
           <ActivityMeta items={unlocked
             ? [formatRelativeTime(item.viewedAt), distance]
             : ['Viewed your profile', formatRelativeTime(item.viewedAt)]}
@@ -482,6 +529,8 @@ function ViewRow({
         />
       ) : null}
       mutual={actionState === 'mutual'}
+      vibes={item.user?.vibes}
+      vibeTone={actionState === 'mutual' ? 'mutual' : 'nearby'}
     />
   );
 }
@@ -553,6 +602,31 @@ export default function CruushActivity({
     return addCruushChangedListener(() => {
       void fetchCruushActivity();
     });
+  }, []);
+
+  // The panel stays mounted while the phone is in a pocket, and it only ever
+  // fetched on mount, so incoming cruushes and views sat frozen at whatever
+  // they were when the app was last opened. Coming back to the foreground
+  // reads them again, no more than once a minute.
+  useEffect(() => {
+    let lastRefreshedAtMs = Date.now();
+
+    const refreshAfterResume = () => {
+      if (document.visibilityState !== 'visible') return;
+      if (Date.now() - lastRefreshedAtMs < 60_000) return;
+      lastRefreshedAtMs = Date.now();
+      void fetchCruushActivity();
+    };
+
+    window.addEventListener('focus', refreshAfterResume);
+    window.addEventListener('online', refreshAfterResume);
+    document.addEventListener('visibilitychange', refreshAfterResume);
+
+    return () => {
+      window.removeEventListener('focus', refreshAfterResume);
+      window.removeEventListener('online', refreshAfterResume);
+      document.removeEventListener('visibilitychange', refreshAfterResume);
+    };
   }, []);
 
   const handleCruushBack = async (item: CruushLockableActivityItem) => {
@@ -676,7 +750,57 @@ export default function CruushActivity({
     }
   };
 
-  const openProfile = (userId: string) => navigate(`/profile/${userId}`);
+  const [clearingUserIds, setClearingUserIds] = useState<Set<string>>(() => new Set());
+
+  const markClearing = (userId: string, clearing: boolean) => {
+    setClearingUserIds((current) => {
+      const next = new Set(current);
+      if (clearing) next.add(userId); else next.delete(userId);
+      return next;
+    });
+  };
+
+  // Clearing an incoming cruush hides it from your list only. The sender keeps
+  // it in their Sent list, so this never edits somebody else's history.
+  const handleDismissIncoming = async (item: CruushLockableActivityItem) => {
+    const targetUser = item.user;
+    if (!targetUser || clearingUserIds.has(targetUser.id)) return;
+
+    markClearing(targetUser.id, true);
+    try {
+      await dismissIncomingCruush(targetUser.id);
+      setActivity((current) => current ? {
+        ...current,
+        counts: { ...current.counts, incoming: Math.max(0, current.counts.incoming - 1) },
+        incoming: current.incoming.filter((row) => row.user?.id !== targetUser.id),
+      } : current);
+    } catch (dismissError) {
+      console.error('Error clearing incoming cruush:', dismissError);
+    } finally {
+      markClearing(targetUser.id, false);
+    }
+  };
+
+  const handleRemoveView = async (item: ProfileViewActivityItem) => {
+    if (clearingUserIds.has(item.user.id)) return;
+
+    markClearing(item.user.id, true);
+    try {
+      await removeProfileView(item.user.id);
+      setActivity((current) => current ? {
+        ...current,
+        counts: { ...current.counts, views: Math.max(0, current.counts.views - 1) },
+        views: current.views.filter((row) => row.user.id !== item.user.id),
+      } : current);
+    } catch (removeError) {
+      console.error('Error clearing profile view:', removeError);
+    } finally {
+      markClearing(item.user.id, false);
+    }
+  };
+
+  const openProfile = (userId: string, state?: { distance?: string; lastActive?: string }) =>
+    navigate(`/profile/${userId}`, state ? { state } : undefined);
   const openMutualOnMap = (userId: string) => navigate(`/map?mode=mutuals&focusUserId=${encodeURIComponent(userId)}`);
   const openMessage = (userId: string) => {
     setDirectComposerOpen(false);
@@ -743,7 +867,7 @@ export default function CruushActivity({
             data-testid="cruush-activity-header-content"
             className={embedded
               ? 'mx-auto w-full space-y-4 px-4'
-              : 'mx-auto w-[min(42rem,calc(100dvw-2rem))] space-y-4'}
+              : 'mx-auto w-full max-w-2xl space-y-4 px-4'}
           >
             <div className="flex min-w-0 items-center gap-2">
               <div className="flex shrink-0 items-center justify-start">
@@ -794,22 +918,24 @@ export default function CruushActivity({
                     <CruushMatchSettings embedded />
                   </DialogContent>
                 </Dialog>}
+                {/* Docked here on every layout; Close stays last. */}
+                <div className="h-11 w-11 shrink-0" data-testid="cruush-activity-bug-button-slot" ref={registerBugButtonSlot} />
                 {embedded && onClose ? (
                   <Button type="button" variant="secondary" size="icon" className="rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10" aria-label="Close Cruushes" onClick={onClose}>
                     <X className="h-4 w-4" />
                   </Button>
                 ) : null}
-                {!embedded ? <div className="h-11 w-11 shrink-0" data-testid="cruush-activity-bug-button-slot" ref={registerBugButtonSlot} /> : null}
+
               </div>
             </div>
 
             <div
-              className="mx-auto w-[min(38rem,100%)] space-y-3"
+              className="mx-auto flex w-full max-w-[38rem] flex-col items-center space-y-3 text-center"
               data-testid="cruush-stats-tabs"
             >
               <div data-testid="cruush-count-grid" className="cruush-activity-count-grid grid w-full grid-cols-[repeat(4,minmax(0,1fr))] gap-2">
                 {(['incoming', 'sent', 'mutual', 'views'] as ActivityTab[]).map((tab) => (
-                  <div key={tab} className="min-w-0 rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1.5 text-center">
+                  <div key={tab} className="min-w-0 rounded-lg border border-white/10 bg-white/[0.04] px-1 py-1.5 text-center sm:px-2">
                     <p className="truncate text-[9px] uppercase tracking-[0.08em] text-white/46 sm:text-[10px]">{tab}</p>
                     <p className="truncate text-sm tabular-nums text-white">{activity?.counts[tab] ?? 0}</p>
                   </div>
@@ -849,7 +975,7 @@ export default function CruushActivity({
           />
         ) : null}
 
-        <main className="mx-auto w-full max-w-2xl px-4 pt-4">
+        <main className="mx-auto w-full max-w-2xl px-4 pt-2">
               {error ? (
                 <div className="mb-4 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
                   {error}
@@ -877,6 +1003,8 @@ export default function CruushActivity({
                           onOpenProfile={openProfile}
                           onMessage={openMessage}
                           onOpenMap={openMutualOnMap}
+                          onDismiss={handleDismissIncoming}
+                          dismissing={Boolean(item.user && clearingUserIds.has(item.user.id))}
                         />
                       ))}
                     </ActivitySurface>
@@ -932,6 +1060,8 @@ export default function CruushActivity({
                           onOpenProfile={openProfile}
                           onMessage={openMessage}
                           onOpenMap={openMutualOnMap}
+                          onRemove={handleRemoveView}
+                          removing={Boolean(item.user && clearingUserIds.has(item.user.id))}
                         />
                       ))}
                     </ActivitySurface>
@@ -954,7 +1084,7 @@ function ActivityTabButton({
   return (
     <TabsTrigger
       value={value}
-      className="h-10 min-w-0 rounded-md px-2 text-sm text-white/72"
+      className="h-10 min-w-0 rounded-md px-0.5 text-sm text-white/72 sm:px-2"
     >
       <span className="block min-w-0 truncate">{label}</span>
     </TabsTrigger>
@@ -1039,9 +1169,10 @@ function MutualDirectOverlay({
   mutuals: MutualCruushActivityItem[];
   onClose: () => void;
   onMessage: (userId: string) => void;
-  onOpenProfile: (userId: string) => void;
+  onOpenProfile: (userId: string, state?: { distance?: string; lastActive?: string }) => void;
 }) {
   const dlModeActive = useDlMode();
+  const distancePreferences = useDistancePreferences();
   return (
     <div className="fixed inset-0 z-40 bg-background/95 px-4 py-6 text-white backdrop-blur-md">
       <div className="mx-auto max-w-2xl space-y-5">
@@ -1080,7 +1211,7 @@ function MutualDirectOverlay({
                 pronouns={item.user.pronouns || 'Ask me'}
                 sideBadges={item.user.sideBadges}
                 sideBadgeTone={resolveUserBorderTone({ mileHigh: item.user.travelling, mutual: true })}
-                metadata={<span className="text-xs text-white/62">{item.distance}</span>}
+                metadata={<span className="text-xs text-white/62">{formatUserDistanceLabel(item.distance, distancePreferences.mode)}</span>}
                 mutual
                 onOpenIdentity={() => onOpenProfile(item.user.id)}
                 onSelect={() => onMessage(item.user.id)}

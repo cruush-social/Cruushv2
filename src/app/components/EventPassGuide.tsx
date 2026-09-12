@@ -5,6 +5,7 @@ import { getEventPassGuide, type EventPassGuide as EventPassGuidePayload } from 
 import { CruushIcon } from './CruushIconImage';
 import { Button } from './ui/button';
 import LoadingCardSkeletons from './LoadingCardSkeletons';
+import BugButtonSlot from './BugButtonSlot';
 
 function formatGuideTime(value: string) {
   return new Intl.DateTimeFormat(undefined, {
@@ -56,6 +57,8 @@ export default function EventPassGuide() {
             <h1 className="text-xl text-white">Door pass guide</h1>
             <p className="text-sm text-white/50">Hourly icon schedule for event staff.</p>
           </div>
+        
+          <BugButtonSlot testId="event-pass-guide-bug-button-slot" />
         </div>
       </header>
 

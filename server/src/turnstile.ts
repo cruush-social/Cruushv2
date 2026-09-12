@@ -40,8 +40,7 @@ export async function verifyTurnstileToken(request: FastifyRequest, token: strin
   }
 
   if (!response.ok) {
-    const responseBody = await response.text();
-    request.log.error({ responseBody, statusCode: response.status }, "turnstile verification failed");
+    request.log.error({ statusCode: response.status }, "turnstile verification failed");
     throw new ApiError(502, "INTERNAL_ERROR", "Captcha verification failed.");
   }
 

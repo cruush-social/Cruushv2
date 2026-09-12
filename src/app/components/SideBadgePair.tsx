@@ -1,77 +1,46 @@
-import type { ComponentType } from 'react';
-import { Sparkles } from 'lucide-react';
 import { formatBadgeLabel } from '../lib/badgeIntent';
 import { createSavedMapMarkerBadge, type MapMarkerBadge } from '../lib/mapMarkers';
 import type { SideBadges } from '../lib/profileApi';
-import { AnalGlyph, BondageGlyph, CyborgGlyph, GooningGlyph, HarnessGlyph, KeyholeEyeGlyph, LeatherGlyph, LipsGlyph, NeurodivergentGlyph, NippleGlyph, PartyHatGlyph, PenetrationGlyph, RaveGlyph, RimmingGlyph, RubberGlyph, SpankingGlyph, StraightEdgeGlyph } from './BadgeGlyphs';
-import { BadgeFrame, BadgeHoverLabel, SIDE_BADGE_SIZE_PX } from './BadgeFrames';
-import { DoubleMarsGlyph, DoubleVenusGlyph, IntersexGlyph, MarsVenusGlyph, NonbinaryGlyph, PlayingCard, PolyGlyph, T4TGlyph, TransGlyph } from './CommunityGlyphs';
+import { BADGE_INTERACTION_CLASS, BadgeFrame, BadgeHoverLabel, preventBadgeContextMenu, SIDE_BADGE_SIZE_PX } from './BadgeFrames';
 import { HANKY_COLORS } from './HankyFrame';
 import { positionGlyphFor, roleGlyphFor } from './PositionRoleGlyphs';
 import { USER_BORDER_COLORS, type UserBorderTone } from '../lib/userBorderTone';
+import { resolveSavedBadgeGlyph } from './SavedBadgeGlyphs';
 
 export type SideBadgeTone = UserBorderTone;
-
-type SavedBadgeGlyph = ComponentType<{ className?: string; strokeWidth?: number }>;
-
-const SAVED_CUSTOM_GLYPHS: Record<string, SavedBadgeGlyph> = {
-  oral: LipsGlyph,
-  rimming: RimmingGlyph,
-  penetration: PenetrationGlyph,
-  anal: AnalGlyph,
-  'nipple play': NippleGlyph,
-  gooning: GooningGlyph,
-  leather: LeatherGlyph,
-  rubber: RubberGlyph,
-  bondage: BondageGlyph,
-  spanking: SpankingGlyph,
-  harness: HarnessGlyph,
-  cuckolding: KeyholeEyeGlyph,
-  party: PartyHatGlyph,
-  'straight edge': StraightEdgeGlyph,
-  gay: DoubleMarsGlyph,
-  lesbian: DoubleVenusGlyph,
-  straight: MarsVenusGlyph,
-  t4t: T4TGlyph,
-  'trans symbol': TransGlyph,
-  intersex: IntersexGlyph,
-  enby: NonbinaryGlyph,
-  nonbinary: NonbinaryGlyph,
-  poly: PolyGlyph,
-  'ace spec': PlayingCard,
-  'vibes neurodivergent': NeurodivergentGlyph,
-  'vibes rave': RaveGlyph,
-  'vibes cyborg': CyborgGlyph,
-};
 
 function SavedSideBadge({ badge, side, tone }: {
   badge: MapMarkerBadge;
   side: 'left' | 'right';
   tone: SideBadgeTone;
 }) {
+  const savedBadge = resolveSavedBadgeGlyph(badge.badgeId ?? '');
   const Glyph = badge.kind === 'role'
     ? roleGlyphFor(badge.iconName)
     : badge.kind === 'position'
       ? positionGlyphFor(badge.iconName)
-      : SAVED_CUSTOM_GLYPHS[badge.badgeId ?? ''] ?? Sparkles;
+      : savedBadge.icon;
   const hanky = badge.badgeId?.startsWith('hanky ')
     ? HANKY_COLORS.find((color) => `hanky ${color.id.replace(/-/g, ' ')}` === badge.badgeId)
     : undefined;
   const label = hanky
     ? formatBadgeLabel(hanky.meaning, badge.intent ?? 'none')
-    : formatBadgeLabel(badge.label, badge.intent ?? 'none');
+    : formatBadgeLabel(savedBadge.label ?? badge.label, badge.intent ?? 'none');
   const borderColor = USER_BORDER_COLORS[tone];
 
   return (
     <span
       aria-label={`${side} badge: ${label}`}
-      className="group/badge relative inline-flex shrink-0 items-center justify-center text-white"
+      className={`group/badge relative inline-flex shrink-0 items-center justify-center text-white ${BADGE_INTERACTION_CLASS}`}
       data-badge-tone={tone}
       data-testid={`activity-${side}-badge`}
       role="img"
+      onContextMenu={preventBadgeContextMenu}
       style={{ color: borderColor, width: SIDE_BADGE_SIZE_PX, height: SIDE_BADGE_SIZE_PX }}
+      tabIndex={0}
     >
       <BadgeFrame
+        fillWithGlyph={savedBadge.fillsFrame}
         className="h-full w-full"
         frame="circle"
         hankyColor={hanky?.color}
@@ -83,6 +52,10 @@ function SavedSideBadge({ badge, side, tone }: {
           </span>
         ) : null}
       </BadgeFrame>
+      {/* On a card the label centres under its own badge, the way the map
+          does it. The outer-edge anchor is for the map's paired badges, where
+          two labels either side of a heart would otherwise meet in the middle;
+          a card has the room. */}
       <BadgeHoverLabel>{label}</BadgeHoverLabel>
     </span>
   );

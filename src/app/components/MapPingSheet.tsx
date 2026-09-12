@@ -17,7 +17,7 @@ import {
 } from '../lib/mapPingsApi';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { RadioGroup, RadioGroupItem } from './ui/radio-group';
+import { Slider } from './ui/slider';
 import CruushPlusGateNotice from './CruushPlusGateNotice';
 import { useIsMobile } from './ui/use-mobile';
 import {
@@ -243,11 +243,14 @@ export default function MapPingSheet({
   const normalizedSignal = signal?.trim() ?? '';
   // A Pulse asks people to look at you, which is the opposite of being off the
   // map, so it stays shut while Dark Room is on.
-  const sendDisabled = loading || sending || !status || !hasMapLocation || activePing ||
-    !normalizedSignal || status.allowance.remaining < 1 || cooldownActive || lurkerActive;
+  const sendDisabled = loading || sending || !status || !hasMapLocation ||
+    !normalizedSignal || status.allowance.remaining === 0 || cooldownActive || lurkerActive;
   const statusText = useMemo(() => {
     if (activePing && status?.activePing) {
-      return `Your Pulse is active until ${formatTime(status.activePing.expiresAt)}.`;
+      const remaining = status.allowance.remaining;
+      return remaining != null && remaining > 0
+        ? `Pulse active until ${formatTime(status.activePing.expiresAt)}. ${remaining} of ${status.allowance.limit} still available.`
+        : `Your Pulse is active until ${formatTime(status.activePing.expiresAt)}.`;
     }
 
     if (cooldownActive && status?.allowance.nextEligibleAt) {
@@ -399,8 +402,8 @@ export default function MapPingSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="bottom"
-        overlayClassName="!z-[24]"
-        className="!z-[25] flex flex-col overflow-hidden rounded-2xl border border-white/10 bg-background/96 pb-3 backdrop-blur-xl sm:max-w-lg lg:max-w-none"
+        overlayClassName="!z-[1600]"
+        className="!z-[1601] flex flex-col overflow-hidden rounded-2xl border border-white/10 bg-background/96 pb-3 backdrop-blur-xl sm:max-w-lg lg:max-w-none"
         data-testid="map-ping-sheet"
         data-window-mode={isMobile ? 'mobile-sheet' : 'desktop-window'}
         style={sheetStyle}
@@ -448,15 +451,15 @@ export default function MapPingSheet({
             <div className="min-w-0 space-y-0.5">
               <p className="text-sm font-medium text-white">Your heart beats for 30 minutes</p>
               <p className="text-xs leading-snug text-white/62">
-                People inside your radius see it beat, and your signal posts to the feed. Your pin does not move.
+                People in your radius see it beat and your signal posts to Feed. Your pin does not move. Alerts go to mutuals only, at most one every 4 hours.
               </p>
             </div>
           </div>
 
           <div className="rounded-xl border border-white/10 bg-white/[0.045] p-2.5">
             <div className="flex items-center justify-between gap-3">
-              <p className="text-xs uppercase tracking-[0.14em] text-white/48">
-                Your signal <span className="text-white/32">{SIGNAL_MAX_LENGTH} characters max</span>
+              <p className="min-w-0 truncate text-xs uppercase tracking-[0.14em] text-white/48">
+                Your signal <span className="text-white/32">{SIGNAL_MAX_LENGTH} max</span>
               </p>
               {onSaveSignal && !editingSignal ? (
                 <button
@@ -519,22 +522,26 @@ export default function MapPingSheet({
 
           <fieldset>
             <legend className="text-sm font-medium text-white">Pulse radius</legend>
-            <RadioGroup
-              aria-label="Pulse radius"
-                className="mt-1.5 grid grid-cols-5 gap-1.5"
-              onValueChange={(value) => setRadiusMiles(Number(value) as MapPingRadiusMiles)}
-              value={String(radiusMiles)}
-            >
-              {MAP_PING_RADII_MILES.map((radius) => (
-                <label
-                  className="flex min-h-10 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-lg border border-white/10 bg-white/[0.035] px-1 py-1 text-center text-xs text-white/72 has-[[data-state=checked]]:border-[#c8ff31] has-[[data-state=checked]]:text-white"
-                  key={radius}
-                >
-                  <RadioGroupItem className="border-[#c8ff31]/55 text-[#c8ff31] focus-visible:ring-[#c8ff31]/40 [&_svg]:fill-[#c8ff31]" value={String(radius)} aria-label={`${radius} ${radius === 1 ? 'mile' : 'miles'}`} />
-                  <span>{radius} mi</span>
-                </label>
-              ))}
-            </RadioGroup>
+            {/* A slider in the Pulse colour, rather than a row of radio chips
+                that could not hold the wider range. */}
+            <div className="mt-1.5 space-y-2">
+              <p aria-live="polite" className="text-sm text-white">
+                {radiusMiles} {radiusMiles === 1 ? 'mile' : 'miles'}
+              </p>
+              <Slider
+                aria-label="Pulse radius"
+                className="[&_[data-slot=slider-range]]:bg-[#c8ff31] [&_[data-slot=slider-thumb]]:border-[#c8ff31] [&_[data-slot=slider-thumb]]:bg-[#c8ff31]"
+                max={MAP_PING_RADII_MILES.length - 1}
+                min={0}
+                onValueChange={([index]) => setRadiusMiles(MAP_PING_RADII_MILES[index] ?? MAP_PING_RADII_MILES[0])}
+                step={1}
+                value={[Math.max(0, MAP_PING_RADII_MILES.indexOf(radiusMiles))]}
+              />
+              <div className="flex justify-between text-[11px] text-white/50">
+                <span>{MAP_PING_RADII_MILES[0]} mi</span>
+                <span>{MAP_PING_RADII_MILES[MAP_PING_RADII_MILES.length - 1]} mi</span>
+              </div>
+            </div>
           </fieldset>
 
           {/* How many are left and when the next one lands, on one line. */}
@@ -586,8 +593,10 @@ export default function MapPingSheet({
               ? 'Sending Pulse...'
               : lurkerActive
                 ? 'Dark Room is on'
-                : activePing
+                : activePing && status?.allowance.remaining === 0
                   ? 'Pulse active'
+                  : activePing
+                    ? 'Send another Pulse'
                   : cooldownCountdown
                     ? `Next Pulse in ${cooldownCountdown}`
                     : 'Send Pulse'}

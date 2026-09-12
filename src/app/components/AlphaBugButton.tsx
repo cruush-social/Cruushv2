@@ -1,6 +1,8 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useLocation } from 'react-router';
 import { Bug, CheckCircle2 } from 'lucide-react';
+import { getBugButtonSlot, subscribeToBugButtonSlot } from '../lib/bugButtonSlot';
 import { createSupportRequest } from '../lib/supportApi';
 import { hasPersistentNoticeFlag, setPersistentNoticeFlag } from '../lib/persistentNotice';
 import { dismissUserNotice, getUserNoticeDismissal } from '../lib/userNoticesApi';
@@ -301,10 +303,7 @@ export default function AlphaBugButton({
     setErrorCode('');
 
     try {
-      const [screenshot, device] = await Promise.all([
-        captureBugScreenshot(),
-        getBugDeviceContext(),
-      ]);
+      const device = await getBugDeviceContext();
       await createSupportRequest({
         category: 'bug',
         subject: `Alpha bug: ${pageUrl}`,
@@ -313,7 +312,6 @@ export default function AlphaBugButton({
         source: 'unknown',
         pageUrl,
         ...(device ? { device } : {}),
-        ...(screenshot ? { screenshot } : {}),
       });
       setStatus('success');
       setContactEmail('');
@@ -325,19 +323,40 @@ export default function AlphaBugButton({
     }
   };
 
-  const trigger = (
-    <DialogTrigger asChild>
-      <button
-        aria-label="Report alpha bug"
-        data-testid="alpha-bug-button"
-        className={`cruush-alpha-bug-button fixed right-[calc(0.75rem+env(safe-area-inset-right))] top-[calc(0.75rem+env(safe-area-inset-top))] z-[1500] inline-flex items-center justify-center rounded-full border border-destructive/45 bg-destructive text-white shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-md transition-[background-color,opacity] duration-150 hover:bg-destructive/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-destructive ${mapRoute ? 'h-12 w-12 sm:h-10 sm:w-10 lg:h-11 lg:w-11' : 'h-9 w-9 sm:h-10 sm:w-10 lg:h-11 lg:w-11'}`}
-        title="Report a bug"
-        type="button"
-      >
-        <Bug className={mapRoute ? 'h-7 w-7 sm:h-5 sm:w-5 lg:h-7 lg:w-7' : 'h-5 w-5 lg:h-7 lg:w-7'} />
-      </button>
-    </DialogTrigger>
+  // A screen that registers a slot gets the button docked inside its own
+  // header row, sitting in line with the controls beside it. The slots were
+  // registered for exactly this and the button never used them, so it floated
+  // at a fixed corner over whatever each header happened to put there.
+  const [slot, setSlot] = useState<HTMLElement | null>(() => getBugButtonSlot());
+
+  useEffect(() => subscribeToBugButtonSlot(() => setSlot(getBugButtonSlot())), []);
+
+  // A route change can unmount the screen that held the slot. The registry
+  // sweeps a tick later, but the button must never sit in a node that has
+  // left the document, so it re-reads the slot on every route as well.
+  useEffect(() => {
+    setSlot(getBugButtonSlot());
+  }, [location.pathname]);
+
+  const triggerButton = (
+    <button
+      aria-label="Report alpha bug"
+      data-testid="alpha-bug-button"
+      className={`cruush-alpha-bug-button inline-flex items-center justify-center rounded-full border border-destructive/45 bg-destructive text-white shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-md transition-[background-color,opacity] duration-150 hover:bg-destructive/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-destructive ${slot
+        ? 'h-full w-full'
+        : `fixed right-[calc(0.75rem+env(safe-area-inset-right))] top-[calc(0.75rem+env(safe-area-inset-top))] z-[1500] ${mapRoute ? 'h-12 w-12 sm:h-10 sm:w-10 lg:h-11 lg:w-11' : 'h-9 w-9 sm:h-10 sm:w-10 lg:h-11 lg:w-11'}`}`}
+      title="Report a bug"
+      type="button"
+    >
+      <Bug className={mapRoute ? 'h-7 w-7 sm:h-5 sm:w-5 lg:h-7 lg:w-7' : 'h-5 w-5 lg:h-7 lg:w-7'} />
+    </button>
   );
+
+  // Radix context flows through portals, so the trigger works from inside the
+  // slot exactly as it does floating free.
+  const trigger = slot
+    ? createPortal(<DialogTrigger asChild>{triggerButton}</DialogTrigger>, slot)
+    : <DialogTrigger asChild>{triggerButton}</DialogTrigger>;
 
   return (
     <Dialog
@@ -377,7 +396,7 @@ export default function AlphaBugButton({
         </div>
       ) : null}
       {trigger}
-      <DialogContent className="max-w-md rounded-lg border-white/10 bg-background">
+      <DialogContent data-testid="alpha-bug-dialog" overlayClassName="alpha-bug-overlay !z-[1602]" className="!z-[1603] max-w-md rounded-lg border-white/10 bg-background">
         <DialogHeader>
           <DialogTitle>Report alpha bug</DialogTitle>
           <DialogDescription>

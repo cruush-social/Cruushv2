@@ -1,6 +1,7 @@
 import { ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import HeartPhoto from './HeartPhoto';
+import BugButtonSlot from './BugButtonSlot';
 import { HEART_PIN_PATH } from '../lib/heartPin';
 
 /**
@@ -316,6 +317,8 @@ export default function PulseEffectPreview() {
           <ArrowLeft className="h-5 w-5" />
         </button>
         <h1 className="min-w-0 flex-1 truncate text-lg">Pulse effects</h1>
+      
+        <BugButtonSlot testId="pulse-effect-preview-bug-button-slot" />
       </header>
 
       <main className="mx-auto w-full max-w-2xl space-y-4 px-4 py-4">

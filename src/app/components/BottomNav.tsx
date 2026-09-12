@@ -30,7 +30,7 @@ function MapNavIcon({ active }: { active: boolean }) {
   return (
     <span
       aria-hidden="true"
-      className="block h-12 w-12 shrink-0"
+      className="block h-12 w-12 shrink-0 max-[360px]:h-10 max-[360px]:w-10"
       data-source="Noun Project globe 7869983 by poernomo hasikin"
       data-testid="bottom-nav-map-icon"
       data-tone={active ? 'gradient' : 'white'}
@@ -54,7 +54,7 @@ function ProfileNavIcon({ active }: { active: boolean }) {
     <img
       alt=""
       aria-hidden="true"
-      className="h-11 w-11 object-contain"
+      className={`h-11 w-11 object-contain max-[360px]:h-9 max-[360px]:w-9 ${active ? 'cruush-colored-ui-asset' : ''}`}
       data-testid="bottom-nav-profile-icon"
       data-tone={active ? 'gradient' : 'white'}
       draggable={false}
@@ -155,7 +155,7 @@ export default function BottomNav() {
   };
 
   return (
-    <nav className="pointer-events-none fixed bottom-0 left-0 right-0 z-[60] px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-2">
+    <nav hidden={location.pathname === '/settings/onboarding-test'} className="pointer-events-none fixed bottom-0 left-0 right-0 z-[60] px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-2">
       {!isMapRoute && !isCruiseCarouselRoute ? (
         <div
           aria-hidden="true"
@@ -182,7 +182,7 @@ export default function BottomNav() {
               aria-description={hasUnread ? (item.path === '/messages' ? 'Unread messages' : 'New incoming cruushes') : undefined}
               data-tutorial-target={item.path === '/feed' ? 'feed' : undefined}
               onClick={() => handleNavClick(item.path)}
-              className={`relative flex h-[3.75rem] w-[3.75rem] min-w-0 shrink-0 items-center justify-center rounded-full bg-transparent transition-colors ${
+              className={`relative flex h-[3.75rem] w-[3.75rem] min-w-0 shrink-0 items-center justify-center rounded-full bg-transparent transition-colors max-[360px]:h-12 max-[360px]:w-12 ${
                 active
                   ? 'text-primary'
                   : 'text-white/52 hover:text-white/78'
@@ -196,7 +196,7 @@ export default function BottomNav() {
                 <img
                   alt=""
                   aria-hidden="true"
-                  className={`h-12 w-12 object-contain ${gradientIcon ? '' : 'brightness-0 invert'}`}
+                  className={`h-12 w-12 object-contain max-[360px]:h-10 max-[360px]:w-10 ${gradientIcon ? 'cruush-brand-logo' : 'brightness-0 invert'}`}
                   data-tone={gradientIcon ? 'gradient-white-wordmark' : 'white'}
                   draggable={false}
                   src={cruushLogo}
@@ -206,8 +206,8 @@ export default function BottomNav() {
                   alt=""
                   aria-hidden="true"
                   className={item.path === '/feed'
-                    ? 'h-[4.25rem] w-[4.25rem] max-w-none object-contain'
-                    : 'h-[3.6rem] w-[3.6rem] object-contain'}
+                    ? `h-[4.25rem] w-[4.25rem] max-w-none object-contain max-[360px]:h-[3.4rem] max-[360px]:w-[3.4rem] ${gradientIcon ? 'cruush-colored-ui-asset' : ''}`
+                    : `h-[3.6rem] w-[3.6rem] object-contain max-[360px]:h-[2.9rem] max-[360px]:w-[2.9rem] ${gradientIcon ? 'cruush-colored-ui-asset' : ''}`}
                   draggable={false}
                   src={gradientIcon ? item.activeIcon : item.icon}
                 />

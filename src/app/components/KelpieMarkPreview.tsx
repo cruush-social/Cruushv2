@@ -1,5 +1,6 @@
 import { ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router';
+import BugButtonSlot from './BugButtonSlot';
 
 /**
  * Marks for Kelpie Mode, side by side. A kelpie is a water horse: it waits
@@ -141,6 +142,8 @@ export default function KelpieMarkPreview() {
           <ArrowLeft className="h-5 w-5" />
         </button>
         <h1 className="min-w-0 flex-1 truncate text-lg">Kelpie marks</h1>
+      
+        <BugButtonSlot testId="kelpie-mark-preview-bug-button-slot" />
       </header>
 
       <main className="mx-auto w-full max-w-2xl space-y-4 px-4 py-4">

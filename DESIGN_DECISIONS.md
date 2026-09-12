@@ -1,5 +1,26 @@
 # cruush design decisions
 
+- The signed-in owner’s real map pin and owner-only Ghost decoy always remain individual markers at their existing coordinates, at every zoom. Never replace either with a numbered people cluster or include either in its count. Owner artwork and tap targets remain above nearby cluster counts without automatic position offsets. Other members retain existing clustering, same-building spiderfy and Ghost expiry. This corrects the owner inclusion introduced by the September 10 spiderfy repair. Source: task `01a08e63-fb72-7070-886b-c162d77b31d9`, user message at transcript line 9, September 10, 2026.
+
+- September 10 Spot curation: substantially reduce remaining Sniffies user pins, including random micro-locations, stair/bathroom sublocations, office-building cruising pins, retail bathrooms and retail parking lots, and duplicate or misspelled versions of the same venue. Verify real venues against OpenStreetMap; retain dungeons and adult venues, identifiable parks, gyms, public parking facilities, hotels and actual bus/train/shuttle stations, comparable real venues and distinct chain branches. Explicit retail-parking removal supersedes earlier broad parking-lot preservation. For venue/venue-bathroom pairs retain the actual venue. Preserve all non-Sniffies records and member data; use recoverable archival. Continue collecting cruush member submissions privately for review, and do not merge a different nearby venue solely by proximity. Sources: task `01a08c91-a340-7b92-95aa-f137c8bf7b16`, user lines1110,1128,1138,1140,1326,1352.
+
+- Mobile Visibility Controls tabs must not float over scrolling fields or reveal field text behind the tab strip. Reproduce the reported Basics scroll state before changing its responsible scrolling layer; preserve tab order, sizes and privacy controls. Source: September9,2026,03:37 screenshot, task01a08281. This is separate from the map profile popup tab requirement.
+
+- Spot descriptions must not retain imported Sniffies descriptions or user-submitted personal solicitations. Remove those descriptions through the requested queue item, preserving venue records and unrelated member content. The reported example is “10620 building down low fun”; do not treat its description as venue information. Source: task01a08281-ec99-7630-b7a1-fbbcb8575d5e user15264, September9,2026. (2026-09-09)
+- The later September9 instruction expands Spot cleanup to recoverable archiving of obviously user-submitted, low-quality Sniffies imports, using misspelled/bad titles and duplicate evidence to identify candidates. “Train trackd” is a supplied example. Confirm provenance and exact targets; preserve legitimate distinct venues and all underlying member data. The earlier31-record duplicate batch is not completion of this broader cleanup.
+- “Roof Top Jerking” is another explicitly rejected imported Spot. Sexual solicitation titles like this qualify for removal of the Spot itself, not merely a description rewrite. Preserve a recoverable record and unrelated venue/member data. Source: September 9, 03:53 mobile screenshot in the active task.
+
+- Feed input accordion: use the existing cruush+ benefits accordion's shared top control and toggle pattern. Do not add a full-size Close text button or a bottom handle. Closing preserves the draft and staged input. Preserve unrelated Feed controls and copy; do not import benefit-card styling. Sources: task 01a08281-ec99-7630-b7a1-fbbcb8575d5e, user messages 13963 and 13975; exact reference selected in task 01a083a6-a456-7850-8780-49fa5b354e3c, genuine user message 3772, September 9, 2026 at 06:35:00.045Z. This supersedes the earlier alternatives. (2026-09-09)
+
+- Hunter uses the rounded-outline snake Julien selected with "i like proposed snake" on September 8, 2026. Copy the two complete paths from the approved `/tmp/cruush-ra-dl-proof.m6qcI2/snake-preview.tsx` candidate, shown in `snake-style-preview.png`; preserve the existing 24x24 viewBox, rounded stroke defaults, mouse, other glyphs, badge frames, colors, placements and role mapping.
+
+- Desktop map profile popups show Intimacy field cards one per row, matching mobile. Preserve the existing field order, card styling, chip arrangement, scrolling tabs and footer actions. This does not change standalone profile or edit layouts. (2026-09-08)
+
+- Onboarding requires name, gender identity, sexuality and crowd. Julien's latest explicit list supersedes the earlier instruction to require all information steps and the intermediate Sexuality-and-Signal answer. Signal, pronouns, Vibes, Bio, Role/Position, photo upload, badge selection and 2FA remain optional. Invite codes and the trans checkbox are not forced; conduct agreement and account/age safeguards remain unchanged. Remove Looking for from the onboarding sequence only, preserving profile/edit fields and saved answers. The admin replay must use this same flow without account writes. (2026-09-08)
+- Onboarding Crowd copy describes crowds as shared social spaces like gay or dyke bars, not identity labels, and points to Map Controls > Visibility. Selecting crowds does not enable Crowd Mode or change visibility settings. (2026-09-08)
+
+- Censored photos across the app use the supplied DL icon in white at 75% opacity. Non-heart covers keep the exact text `DL MODE ON` beneath it. Heart previews, including map hearts, omit that visible line and center the icon horizontally and vertically in the heart while preserving its size. This supersedes the earlier all-surfaces text requirement and the intermediate instruction to retain the old icon position; DL toggles and ordinary missing-photo fallbacks are unchanged. (September 8, 2026)
+
 - Feed photo previews are 64px hearts, matching the approved sample page. One photo uses one heart. Two or three photos use separate equal-size hearts in one horizontal row with visible gaps. They never weld, overlap, cluster, or grow to the 80px map-heart size.
 - Color-blind mode is an Accessibility toggle. Navigation-size and map-pin-size controls are not part of 1.6.
 - Feed search searches Feed post tags only. It does not search member names, profiles, or post text.
@@ -47,3 +68,60 @@ Source: Julien's session `01a095c7-d9c8-7d51-980b-24acbc0daf99`, including “ok
 - Generic wallets have no sender-fee estimate; users determine and cover that fee in their wallet. No MoonPay or new customer signup flow.
 - Apply the shared processor to `/store` and `/store/pulse`. Add Pulse checkout links from the cruush+ information page and cruush+ checkout, and a cruush+ checkout link from Pulse. Preserve unrelated controls and styles. No group-Pulse work.
 - Fixed-term subscriptions never auto-renew; Pulse credits are a one-time purchase. Blog work is deferred by Julien; preserve its draft.
+- The tutorial covers cruush+, Mile High Club, current Spots/Pink Book, Basic and Feed+ posting, and full Pulse behavior. Completing the full tutorial is a Side Quest; skipping it is not completion. The local dev onboarding preview requires no account and never writes onboarding data.
+- Basic includes one Pulse per rolling 24 hours. cruush+ includes five per rolling 24 hours. Neither tier has a cooldown between Pulses. Earned bonus credits extend the allowance; buying extra Pulses is a later release, not 1.6. Existing Pulse duration, radius, mutual-only alerts, privacy checks, and same-sender 24-hour alert suppression remain unchanged.
+- Cruushes, Messages, and Feed keep back, title, settings where present, and the bug button in one mobile header row. cruush counts and tabs remain centered, and mobile page scrolling never shows a vertical bar.
+- Every screen header is one line, everywhere: back button, title, any header actions such as settings, and the bug button share a single row. Nothing header-related ever wraps to or is placed on a second line. Screens register a bug-button slot so the reporter docks into that same row instead of floating over it. (2026-09-04)
+- Side Quests do not interrupt. There is no Side Quest prompt on the map, and no notification standing in for one. Members find claimable quests on the Rewards page when they go looking. The sweep in `server/src/side-quest-notifications.ts` is kept but not started, so turning nudges back on is one line in `server/src/index.ts`. (2026-09-07)
+
+## Ghost animation preservation, September 8, 2026
+
+September 9 clarification: judge the approved 30–80% drift against the previous displayed decoy of other members, not the owner's decoy or a pre-land-filter sample alone. A tiny coastal fallback is allowed only when a target-sized land-only jump is geometrically unavailable. Preserve the approved animation and icon; demonstrate the actual visible displacement before reporting this recurring issue fixed.
+
+Ghost placement approval, September 8: Julien selected a middle option rather than unrestricted random offsets centered on the true location. Randomize over a broader area around a stable hidden anchor, targeting jumps of 30–80% of the selected radius while remaining on land and within that radius. Preserve the existing privacy cell and approved animation. Julien approved a shorter land-only jump when the minimum jump is geometrically impossible near the coast. Never use water or expand the selected radius as a fallback.
+
+Julien reaffirmed that other members' Ghost pins retain the approved animation: both side-badge borders flash with the heart, and relocation updates the pin in place without requiring a page refresh. The visible disappearance, Ghost effect, and reappearance at the new position must remain; retaining the underlying marker is not permission to remove the visible replacement. A badge implementation change must preserve its connection to the existing flash color. His latest instruction explicitly restores the animation code from the approved `bff0498` treatment while keeping the new Ghost Mode exit icon. Preserve current badge shapes and adjacent geometry. This supersedes preserving the more recent, changed animation implementation.
+
+- HIV Status in the profile Health tab has its own capsule, matching the other health fields. Preserve its label, value, visibility and field order. This supersedes the historical issue #231 capsule-removal interpretation. Sources: task `01a08c91-a340-7b92-95aa-f137c8bf7b16`, user lines 9 and 228, September 10, 2026.
+
+## Zodiac badge artwork, September 10, 2026
+
+Use the corresponding twelve sign icons from monkik’s Astrology - Solid collection: https://thenounproject.com/browse/collection-icon/astrology-solid-104001/. Julien specified white artwork and explicitly required the appropriate icon for each Zodiac sign (task 01a08d63-deff-7082-8ac8-8327605f3900, transcript user messages at lines 240 and 252). Preserve the current circle, border thickness, content scale, sign IDs, and mask rendering. The interactive test picker is local at `/Volumes/good/output/cruush-badge-icons-20260910/zodiac-badge-picker.html`. Publication was not requested.
+
+Julien approved this exact test-picker version with “looks good” at transcript line 376 (2026-09-10T22:45:07.432Z). The immutable preview, images, source hashes, and twelve asset hashes are recorded in `/Volumes/good/output/cruush-badge-icons-20260910/zodiac-approval.json`. This approval covers the shown Zodiac artwork and white treatment; it does not approve publication or other badge replacements.
+
+## Little badge artwork, September 10, 2026
+
+Little uses the exact pacifier icon 483101 by Those Icons from https://www.flaticon.com/free-icon/pacifier_483101, rendered in white. Julien requested “use a pacifer for little not baby”, then supplied this asset and specified “in white” (task 01a08d63-deff-7082-8ac8-8327605f3900, transcript user lines 410, 449 and 451). Use the same PacifierGlyph in the picker and shared saved-role resolver. Preserve the Little label and ID, all role behavior, the current badge circle, border thickness, inset and neighboring artwork. This is the sole newly requested role-icon exception to the earlier gallery exclusion; it does not change any age safeguards or authorize other labels. The approved Zodiac set remains unchanged. Publication was not requested.
+
+## Bimbo and Brat badge artwork, September 10, 2026
+
+Bimbo uses the exact Girl icon 11431890 by Leremy from https://www.flaticon.com/free-icon/girl_11431890, with a white body and explicitly black bikini. Use the same BimboGlyph for the Bimbo archetype and the taxonomy-migrated Bimbofication kink so picker, profile, saved and map badges share this artwork. The original PNG remains unchanged; its transparent bikini regions receive a black underlay to preserve the requested color on picker backgrounds. Brat uses the exact Heart icon 3638961 by Smashicons from https://www.flaticon.com/free-icon/heart_3638961 in white, shared by the picker and role resolver. Source: task 01a08d63-deff-7082-8ac8-8327605f3900, genuine user message at transcript line 867, September 10, 2026, 23:29:20.734Z.
+
+Preserve all labels, saved IDs, behavior, badge frames, border colors, inset and other artwork, including Brat tamer and Drag. This selection supersedes the unselected Brat proposal in the local Noun Project comparison. Other comparison choices remain pending. Publication was not requested.
+
+## Cuckolding-related badge artwork, September 10, 2026
+
+Use the exact Cheating icon 27256 by Luis Prado from https://thenounproject.com/icon/cheating-27256/ in white for Cuckolding, Cuckholding, Cuck, Cuckquean, Bull, Hotwife, Hothusband and Side piece. The same CheatingGlyph serves current profile badges and the legacy Cuckolding picker/saved badge. User source: task 01a08d63-deff-7082-8ac8-8327605f3900, transcript line 1141. Preserve spelling, labels, IDs, badge geometry and unrelated meanings such as Mistress or Swinger. No publication is requested.
+
+## Flag badge fill, September 10, 2026
+
+Flags fill the existing badge circle edge to edge, just like the Hanky code fill, with no black border, ring, underlay, stroke, or gap on any badge surface. Preserve the exact badge footprint and remove the frame stroke for flags only. User source: task 01a08d63-deff-7082-8ac8-8327605f3900, transcript lines 1321, 1323, 4127, 6009, and the latest September 11 correction after more than ten repetitions. This explicit instruction supersedes the older rule to shrink flag artwork within the circle or retain a flag border. Preserve flag colors, artwork, all non-flag icons, Hanky rendering, placements, hover labels and behavior.
+
+## Gloves badge artwork, September 11, 2026
+
+The `gloves` profile and saved badge use the exact Noun Project `rubber-gloves-4891935` source by Amethyst Studio, rendered in white. Preserve the existing badge geometry, border color, size and placement. Source: https://thenounproject.com/icon/rubber-gloves-4891935/. Publication was not requested.
+
+## Individually assigned badge artwork, September 11, 2026
+
+Implement only exact assets Julien assigned through direct prompts. Doll uses Flaticon `beautiful-16458752`. Fuck machine uses Flaticon `machine-4648539`. Masturbator uses Flaticon `stroker-16012048`. Mutual masturbation uses Flaticon `nipple-9463796`. Strap-ons, pegging and harness toys use Flaticon `toy-16011932`. Small penis humiliation uses Noun Project `penis-3883876`. Camera play, filming, photos and streaming use Noun Project `dating-app-3817923`. Latex uses Noun Project `fetish-mask-3574195`. Tribbing uses scissors. All render white except Bimbo's separately approved black bikini. Preserve labels, IDs, badge frames and unrelated artwork. Do not install picker candidates, filled interpretations or bold-silhouette variants that Julien has not selected.
+
+Any requested adaptation of supplied icon artwork preserves the source icon's original line weight, proportions, pose language, and negative-space style. Change only the named figure or action detail. Julien withdrew the Spit roast strap-on adaptation after rejecting its generated variants, so Spit roast uses the selected original Noun Project `threesome-759966` unchanged. Exhibitionism likewise uses the already selected original Noun Project `strip-tease-970491` unchanged. Exclude every generated variant of either source from implementation and commits.
+
+## Side badge geometry, September 11, 2026
+
+Hanky choices use the same icon size and badge border geometry as ordinary choices. Map-pin side badges use the same 35px size as profile-card side badges. Every non-flag icon stays fully inside the border with visible clearance and never overlaps the border; the shared 60% glyph inset enforces this. Pride flags remain the sole edge-to-edge badge fill and follow the no-border rule above. Preserve badge placement, hover labels, heart size and all non-badge pin geometry.
+
+## Secret-free operational logging, September 12, 2026
+
+Never record passwords, authentication tokens, session cookies, authorization headers, API keys or token-bearing URLs in application, proxy, error, preview or operational logs. Log only necessary route, method, status and timing metadata. Strip query values and omit raw request/response bodies and headers; provider errors and development previews must not echo secret values. Test these paths with synthetic tokens when verification is permitted. Julien explicitly requested stopping token logging, deleting accessible leaked copies, invalidating exposed tokens, and updating the loaded contract (task `01a09564-f771-7b91-b1db-319f81d01954`).

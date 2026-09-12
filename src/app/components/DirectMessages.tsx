@@ -1,4 +1,5 @@
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
+import { DROPDOWN_TRIGGER_CLASS } from '../lib/controlStyles';
 import { useNavigate, useSearchParams } from 'react-router';
 import { ChevronLeft, ChevronRight, Clock3, MapPin, Pin, Plus, Search, Settings2, Trash2, X, ArrowLeft } from 'lucide-react';
 import CruushIconImage, { CruushIcon } from './CruushIconImage';
@@ -51,10 +52,14 @@ const messageCardActionClassName = '!gap-1 [&>button]:!size-9 [&>button]:!p-1.5 
 
 const timerOptions: Array<{ value: ConversationTimer; label: string }> = [
   { value: 'off', label: 'Off' },
+  { value: '5m', label: '5 minutes' },
   { value: '1h', label: '1 hour' },
+  { value: '8h', label: '8 hours' },
   { value: '24h', label: '24 hours' },
+  { value: '3d', label: '3 days' },
   { value: '7d', label: '7 days' },
   { value: '30d', label: '30 days' },
+  { value: '90d', label: '90 days' },
 ];
 
 function formatRelativeTime(isoTimestamp: string) {
@@ -91,6 +96,9 @@ function normalizeConversation(raw: any): ConversationThread {
       photo: raw?.user?.photo ?? null,
       photoExplicit: raw?.user?.photoExplicit,
       sideBadges: raw?.user?.sideBadges,
+      // Rebuilt field by field, so anything not named here is dropped: the
+      // server was sending vibes and this discarded them before the card saw.
+      vibes: Array.isArray(raw?.user?.vibes) ? raw.user.vibes : undefined,
       travelling: raw?.user?.travelling === true,
     },
     distance: raw?.distance ?? 'Nearby',
@@ -102,7 +110,7 @@ function normalizeConversation(raw: any): ConversationThread {
     mutual: typeof raw?.mutual === 'boolean' ? raw.mutual : false,
     membersLabel: raw?.membersLabel ?? undefined,
     currentUserRole: ['owner', 'admin', 'member'].includes(raw?.currentUserRole) ? raw.currentUserRole : undefined,
-    disappearingTimer: ['off', '1h', '24h', '7d', '30d'].includes(raw?.disappearingTimer) ? raw.disappearingTimer : undefined,
+    disappearingTimer: ['off', '5m', '1h', '8h', '24h', '3d', '7d', '30d', '90d'].includes(raw?.disappearingTimer) ? raw.disappearingTimer : undefined,
     closed: typeof raw?.closed === 'boolean' ? raw.closed : undefined,
     tags: Array.isArray(raw?.tags) ? raw.tags : [],
   };
@@ -411,7 +419,7 @@ export default function DirectMessages({
     });
   };
 
-  const loadDirectMessageOptions = async (_filters: FilterState = DEFAULT_FILTER_STATE) => {
+  const loadDirectMessageOptions = async (filters: FilterState = DEFAULT_FILTER_STATE) => {
     setDirectError(null);
     setDirectLoading(true);
 
@@ -442,7 +450,7 @@ export default function DirectMessages({
         // They must never remove every otherwise-messageable profile at the API boundary.
         const nearbyUsers = await getNearbyUsers(
           typeof coordinates?.lat === 'number' && typeof coordinates?.lng === 'number' ? coordinates : null,
-          undefined,
+          filters,
           { limit: DIRECT_MESSAGE_DISCOVERY_LIMIT },
         );
         setDirectOptions(nearbyUsers);
@@ -710,12 +718,14 @@ export default function DirectMessages({
                   <CruushMatchSettings embedded />
                 </DialogContent>
               </Dialog>}
+              {/* Docked here on every layout; Close stays last. */}
+              <div className="h-11 w-11 shrink-0" data-testid="direct-messages-bug-button-slot" ref={registerBugButtonSlot} />
               {embedded && onClose ? (
                 <Button type="button" size="icon" variant="secondary" className="h-11 w-11 rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10" aria-label="Close Messages" onClick={onClose}>
                   <X className="h-4 w-4" />
                 </Button>
               ) : null}
-              {!embedded ? <div className="h-11 w-11 shrink-0" data-testid="direct-messages-bug-button-slot" ref={registerBugButtonSlot} /> : null}
+
             </div>
           </div>
 
@@ -806,17 +816,15 @@ export default function DirectMessages({
           style={{ WebkitOverflowScrolling: 'touch' }}
         >
           <div className="mx-auto max-w-2xl space-y-5">
-            <div className={`flex items-center justify-between gap-3 ${embedded ? '' : 'pr-14'}`}>
-              <div>
-                <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Group chat</p>
-                <h3 className="text-2xl">New group</h3>
-              </div>
-              <div className="flex items-center gap-2">
-                {!embedded ? <div data-testid="direct-messages-group-bug-button-slot" ref={registerBugButtonSlot} /> : null}
-                <Button type="button" variant="ghost" size="icon" aria-label="Close group composer" onClick={resetGroupComposer}>
-                  <X className="size-4" />
-                </Button>
-              </div>
+            <div className="flex items-center gap-2">
+              <Button type="button" variant="ghost" size="icon" className="shrink-0" aria-label="Back from new group" onClick={resetGroupComposer}>
+                <ChevronLeft className="size-4" />
+              </Button>
+              <h3 className="min-w-0 flex-1 truncate text-xl">New group</h3>
+              <Button type="button" variant="ghost" size="icon" className="shrink-0" aria-label="Close group composer" onClick={resetGroupComposer}>
+                <X className="size-4" />
+              </Button>
+              <div className="h-9 w-9 shrink-0" data-testid="direct-messages-group-bug-button-slot" ref={registerBugButtonSlot} />
             </div>
 
             {groupError ? (
@@ -841,7 +849,7 @@ export default function DirectMessages({
                 aria-label="Disappearing timer"
                 value={groupTimer}
                 onChange={(event) => setGroupTimer(event.target.value as ConversationTimer)}
-                className="h-11 w-full rounded-md border border-border bg-input-background px-3 text-sm"
+                className={DROPDOWN_TRIGGER_CLASS}
               >
                 {timerOptions.map((option) => (
                   <option key={option.value} value={option.value}>{option.label}</option>
@@ -1049,6 +1057,8 @@ export default function DirectMessages({
                 )}
                 name={conversation.user.name}
                 pronouns={conversation.user.pronouns || conversation.membersLabel}
+                vibes={conversation.user.vibes}
+                vibeTone={conversation.mutual ? 'mutual' : 'nearby'}
                 sideBadges={conversation.user.sideBadges}
                 sideBadgeTone={resolveUserBorderTone({
                   mileHigh: conversation.user.travelling,
@@ -1241,7 +1251,10 @@ function DirectUserOverlay({
   onOpenProfile: (userId: string) => void;
 }) {
   const dlModeActive = useDlMode();
-  const [activeComposerTab, setActiveComposerTab] = useState<'public' | 'mutuals'>('public');
+  // The compose page lists everyone you may message. Mutuals has its own
+  // surface, so there is nothing here to switch between.
+  const activeComposerTab = 'public' as const;
+  const distancePreferences = useDistancePreferences();
   const [sortMode, setSortMode] = useState<DirectSortMode>('lastOnline');
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTER_STATE);
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -1313,24 +1326,16 @@ function DirectUserOverlay({
       style={{ WebkitOverflowScrolling: 'touch' }}
     >
       <div className="mx-auto min-h-full max-w-2xl space-y-5 pb-8">
-        <div className={`flex items-center justify-between gap-3 ${embedded ? '' : 'pr-14'}`}>
-          <div className="flex min-w-0 items-center gap-1">
-            <Button type="button" variant="ghost" size="icon" aria-label="Back to message options" onClick={onBack}>
-              <ChevronLeft className="size-4" />
-            </Button>
-            <h3 className="text-2xl">Choose someone to message</h3>
-          </div>
-          <Button type="button" variant="ghost" size="icon" aria-label="Close mutual picker" onClick={onClose}>
+        <div className="flex items-center gap-2">
+          <Button type="button" variant="ghost" size="icon" className="shrink-0" aria-label="Back to message options" onClick={onBack}>
+            <ChevronLeft className="size-4" />
+          </Button>
+          <h3 className="min-w-0 flex-1 truncate text-xl">Choose someone to message</h3>
+          <Button type="button" variant="ghost" size="icon" className="shrink-0" aria-label="Close mutual picker" onClick={onClose}>
             <X className="size-4" />
           </Button>
+          <div className="h-9 w-9 shrink-0" data-testid="message-picker-bug-button-slot" ref={registerBugButtonSlot} />
         </div>
-
-        <Tabs value={activeComposerTab} onValueChange={(value) => setActiveComposerTab(value as 'public' | 'mutuals')}>
-          <TabsList className="grid h-auto w-full grid-cols-2 rounded-lg border border-white/10 bg-background/25 p-1">
-            <TabsTrigger value="public" className="h-10 rounded-md text-sm text-white/72">Public</TabsTrigger>
-            <TabsTrigger value="mutuals" className="h-10 rounded-md text-sm text-white/72">Mutuals</TabsTrigger>
-          </TabsList>
-        </Tabs>
 
         {activeComposerTab === 'public' ? (
           <div className="rounded-2xl border border-white/10 bg-card/58 p-3">
@@ -1440,7 +1445,7 @@ function DirectUserOverlay({
                 metadata={(
                   <button type="button" className="flex min-w-0 flex-col gap-0.5 text-left text-xs leading-snug text-white/62" onClick={() => onOpenProfile(user.id)}>
                     {describeDiscoveryUser(user) ? <span className="truncate">{describeDiscoveryUser(user)}</span> : null}
-                    <span className="truncate">{user.distance}</span>
+                    <span className="truncate">{formatDistanceLabel(user.distance, distancePreferences.mode)}</span>
                   </button>
                 )}
                 actions={<ProfileActionTrio
@@ -1488,7 +1493,7 @@ function DirectUserOverlay({
                 metadata={(
                   <button type="button" className="flex min-w-0 flex-col gap-0.5 text-left text-xs leading-snug text-white/62" onClick={() => onOpenProfile(item.user.id)}>
                     <span className="truncate">{item.lastActive}</span>
-                    <span className="truncate">{item.distance}</span>
+                    <span className="truncate">{formatDistanceLabel(item.distance, distancePreferences.mode)}</span>
                   </button>
                 )}
                 actions={<ProfileActionTrio

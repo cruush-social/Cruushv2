@@ -1,7 +1,30 @@
 import pillowPrincessRaster from '../assets/ui-icons/pillow-princess-raster.png';
 import serviceRaster from '../assets/ui-icons/service-6745554.png';
 import stoneTopRaster from '../assets/ui-icons/stone-top-raster.png';
-import { DomEmblem, SubEmblem, SwitchEmblem } from './BdsmEmblems';
+import {
+  Activity,
+  Axe,
+  Bone,
+  CircleArrowDown,
+  Dumbbell,
+  Feather,
+  Gavel,
+  Hand,
+  HandHeart,
+  Handshake,
+  HeartHandshake,
+  HeartCrack,
+  KeyRound,
+  Megaphone,
+  PawPrint,
+  Rabbit,
+  Rat,
+  Spline,
+  Sun,
+} from 'lucide-react';
+import { BottomSwitchEmblem, DomEmblem, SubEmblem, SwitchEmblem, TopSwitchEmblem } from './BdsmEmblems';
+import { LipsGlyph } from './BadgeGlyphs';
+import { BratGlyph, PacifierGlyph } from './RequestedRasterGlyphs';
 
 /**
  * Marks for the two badges a basic account carries: the role on one side of the
@@ -45,6 +68,9 @@ function NounProjectGlyph({ className, source }: GlyphProps & { source: string }
       aria-hidden="true"
       className={className}
       style={{
+        // An inline span ignores width and height, so a caller passing only
+        // sizing classes rendered nothing at all.
+        display: 'inline-block',
         backgroundColor: 'currentColor',
         maskImage,
         maskPosition: 'center',
@@ -145,19 +171,104 @@ export function SwitchGlyph(props: GlyphProps) {
   return <SwitchEmblem className={props.className} />;
 }
 
+/** The approved rounded-outline snake for the Hunter role. */
+export function SnakeGlyph({ className, strokeWidth = 2 }: GlyphProps) {
+  return (
+    <Glyph className={className} strokeWidth={strokeWidth}>
+    <path d="M15 3c-3 0-5 2-5 5 0 4 7 4 7 8 0 2-2 3-5 3H4a1.5 1.5 0 0 0 0 3h8c6 0 9-3 9-6 0-6-7-6-7-8h3c2 0 3-1 3-2.5S18 3 15 3Z" />
+    <path d="M17 5.5h.01M20 5.5l2.5-1M20 5.5l2.5 1" />
+    </Glyph>
+  );
+}
+
+/** A baby rattle for the Little role. */
+export function RattleGlyph({ className, strokeWidth = 2 }: GlyphProps) {
+  return (
+    <Glyph className={className} strokeWidth={strokeWidth}>
+      <circle cx="9" cy="8" r="5" />
+      <circle cx="9" cy="8" r="1.6" fill="currentColor" stroke="none" />
+      <path d="m12.7 11.6 4.4 4.4" />
+      <circle cx="18.6" cy="17.5" r="2.4" />
+    </Glyph>
+  );
+}
+
 export function ServiceGlyph(props: GlyphProps) {
   return <NounProjectGlyph {...props} source={serviceRaster} />;
+}
+
+function CompoundRoleGlyph({
+  className,
+  kind,
+  role,
+}: GlyphProps & { kind: 'pleasure' | 'service'; role: 'dom' | 'sub' | 'switch' }) {
+  const RoleMark = role === 'dom' ? DomEmblem : role === 'sub' ? SubEmblem : SwitchEmblem;
+
+  return (
+    <span aria-hidden="true" className={`relative inline-flex ${className ?? ''}`}>
+      {/* The two marks sit close, each pulled in from its corner and drawn a
+          little larger, so the pair reads as one emblem rather than two marks
+          in opposite corners. The drawn shapes stay clear of their own corners,
+          so nothing covers anything: the role emblem must never hide part of
+          the service or pleasure mark underneath it. */}
+      {kind === 'service' ? (
+        <ServiceGlyph className="absolute left-[6%] top-[4%] h-[58%] w-[58%] opacity-90" />
+      ) : (
+        <svg className="absolute left-[6%] top-[4%] h-[58%] w-[58%]" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" viewBox="0 0 24 24">
+          <path d="M12 20.4 4.5 13A5 5 0 0 1 12 6.4 5 5 0 0 1 19.5 13Z" />
+        </svg>
+      )}
+      <RoleMark className="absolute bottom-[4%] right-[6%] h-[52%] w-[52%] rounded-full bg-[#05050A]" />
+    </span>
+  );
+}
+
+export function ServiceDomGlyph(props: GlyphProps) {
+  return <CompoundRoleGlyph {...props} kind="service" role="dom" />;
+}
+
+export function ServiceSubGlyph(props: GlyphProps) {
+  return <CompoundRoleGlyph {...props} kind="service" role="sub" />;
+}
+
+export function ServiceSwitchGlyph(props: GlyphProps) {
+  return <CompoundRoleGlyph {...props} kind="service" role="switch" />;
+}
+
+export function PleasureDomGlyph(props: GlyphProps) {
+  return <CompoundRoleGlyph {...props} kind="pleasure" role="dom" />;
+}
+
+export function PleasureSubGlyph(props: GlyphProps) {
+  return <CompoundRoleGlyph {...props} kind="pleasure" role="sub" />;
+}
+
+export function PleasureSwitchGlyph(props: GlyphProps) {
+  return <CompoundRoleGlyph {...props} kind="pleasure" role="switch" />;
 }
 
 export const POSITION_GLYPHS: Record<string, (props: GlyphProps) => JSX.Element> = {
   top: TopGlyph,
   bottom: BottomGlyph,
   versatile: VersatileGlyph,
-  'vers top': VersTopGlyph,
-  'vers bottom': VersBottomGlyph,
+  // Saved profiles carry every spelling this value has had. All of them draw
+  // the same mark, so nobody's badge shows a different vers icon because of
+  // when they picked it.
+  vers: VersatileGlyph,
+  // The badge menu has drawn vers top and vers bottom as the switch hexagon
+  // with a top or bottom mark inside it since they were added. The map and the
+  // cards were drawing their own arrow glyphs for the same values, which is why
+  // the same position showed a different icon depending on the surface.
+  'vers top': TopSwitchEmblem,
+  'versatile top': TopSwitchEmblem,
+  'vers bottom': BottomSwitchEmblem,
+  'versatile bottom': BottomSwitchEmblem,
   side: SideGlyph,
   'stone top': StoneTopGlyph,
+  'stone bottom': PillowPrincessGlyph,
   'pillow princess': PillowPrincessGlyph,
+  'hands only': Hand,
+  'oral only': LipsGlyph,
 };
 
 export const ROLE_GLYPHS: Record<string, (props: GlyphProps) => JSX.Element> = {
@@ -165,6 +276,32 @@ export const ROLE_GLYPHS: Record<string, (props: GlyphProps) => JSX.Element> = {
   submissive: SubmissiveGlyph,
   switch: SwitchGlyph,
   service: ServiceGlyph,
+  'service dom': ServiceDomGlyph,
+  'service sub': ServiceSubGlyph,
+  'service switch': ServiceSwitchGlyph,
+  'pleasure dom': PleasureDomGlyph,
+  'pleasure sub': PleasureSubGlyph,
+  'pleasure switch': PleasureSwitchGlyph,
+  worship: HeartHandshake,
+  worshipper: HeartHandshake,
+  worshipped: Sun,
+  handler: Handshake,
+  pet: Bone,
+  brat: BratGlyph,
+  'brat tamer': Gavel,
+  caregiver: HandHeart,
+  degradee: CircleArrowDown,
+  degrader: Megaphone,
+  little: PacifierGlyph,
+  masochist: HeartCrack,
+  owner: KeyRound,
+  prey: Rat,
+  hunter: SnakeGlyph,
+  rigger: Spline,
+  'rope bunny': Rabbit,
+  sadist: Axe,
+  sadomasochist: Activity,
+  trainer: Dumbbell,
 };
 
 export function positionGlyphFor(value: string | null | undefined) {

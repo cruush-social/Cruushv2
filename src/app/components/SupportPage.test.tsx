@@ -66,7 +66,7 @@ describe('SupportPage', () => {
     );
 
     expect(await screen.findByRole('form', { name: 'Suspension appeal' })).toBeInTheDocument();
-    expect(screen.getByLabelText('Reply email')).toBeRequired();
+    expect(screen.getByLabelText('Email associated with your account')).toBeRequired();
     expect(screen.getByLabelText('ID photo')).toHaveAttribute('accept', 'image/jpeg,image/png,image/webp');
     expect(screen.getByLabelText('ID photo')).not.toHaveAttribute('capture');
     expect(screen.getByLabelText('Selfie with handwritten card')).toHaveAttribute('accept', 'image/jpeg,image/png,image/webp');

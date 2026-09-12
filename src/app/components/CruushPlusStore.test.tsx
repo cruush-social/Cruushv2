@@ -279,7 +279,7 @@ describe('CruushPlusStore', () => {
     expect(screen.getByText('Who has a cruush on you')).toBeInTheDocument();
     expect(screen.getByText('See your full incoming cruush and profile-view lists.')).toBeInTheDocument();
     expect(screen.getByText('More Pulses')).toBeInTheDocument();
-    expect(screen.getByText('Send more Pulses throughout the day.')).toBeInTheDocument();
+    expect(screen.getByText('Send up to 5 Pulses per day.')).toBeInTheDocument();
     expect(screen.getByText('Mile High Club')).toBeInTheDocument();
     expect(screen.getByText('Drop a pin where you are visiting and cruise from there.')).toBeInTheDocument();
     expect(screen.getByText('Feed+')).toBeInTheDocument();
@@ -287,7 +287,7 @@ describe('CruushPlusStore', () => {
     expect(screen.getByText('Cruise carousel')).toBeInTheDocument();
     expect(screen.getByText('Spin through nearby profiles and browse again.')).toBeInTheDocument();
     expect(screen.getByText('All seeking and visibility controls')).toBeInTheDocument();
-    expect(screen.getByText('Use all seeking filters, combine more visibility controls, save visibility sets, and add up to 10 searchable profile tags. Basic includes 3.')).toBeInTheDocument();
+    expect(screen.getByText('Use all seeking filters, combine more visibility controls, save visibility sets, add up to 10 searchable profile tags, and add as many profile kinks as fit you. Basic includes 3 tags and 3 kinks.')).toBeInTheDocument();
     expect(screen.getByText('Dark Room')).toBeInTheDocument();
     expect(screen.getByText('Browse the map without appearing on it.')).toBeInTheDocument();
     const benefits = screen.getByRole('list', { name: 'cruush+ benefits' });

@@ -60,7 +60,7 @@ export type DailyRewardCheckIn = {
   grants: RewardGrant[];
 };
 
-export type SideQuestKey = 'upload_first_photo' | 'complete_profile' | 'upload_four_photos' | 'view_profile' | 'send_cruush' | 'send_ping' | 'first_mutual_cruush' | 'send_message' | 'send_three_messages' | 'post_feed' | 'post_three_feed' | 'check_in_spot' | 'post_spot_board' | 'rate_spot' | 'save_visibility_set';
+export type SideQuestKey = 'complete_tutorial' | 'upload_first_photo' | 'complete_profile' | 'upload_four_photos' | 'view_profile' | 'send_cruush' | 'send_ping' | 'first_mutual_cruush' | 'send_message' | 'send_three_messages' | 'post_feed' | 'post_three_feed' | 'check_in_spot' | 'post_spot_board' | 'rate_spot' | 'save_visibility_set';
 
 export type SideQuestSummary = {
   pingCredits: number;
@@ -114,6 +114,12 @@ export function recordDailyRewardCheckIn() {
 
 export function getSideQuests() {
   return requestApi<SideQuestSummary>('/api/rewards/side-quests');
+}
+
+export function recordTutorialCompletion() {
+  return requestApi<{ completed: true }>('/api/rewards/tutorial-completion', {
+    method: 'POST',
+  });
 }
 
 export function claimSideQuest(questKey: SideQuestKey) {

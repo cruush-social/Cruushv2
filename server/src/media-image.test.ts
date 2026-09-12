@@ -68,16 +68,42 @@ describe("media image processing", () => {
       code: "VALIDATION_ERROR"
     });
 
-    const gif = await sharp({
-      create: {
-        width: 10,
-        height: 10,
-        channels: 3,
-        background: { r: 1, g: 2, b: 3 }
-      }
-    }).gif().toBuffer();
-    await expect(processUploadedImage(gif, "image/gif")).rejects.toMatchObject({
+    // SVG is decodable by this build and stays out on purpose: it carries
+    // script, and nobody uploads one from a phone camera.
+    const svg = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><rect width="10" height="10"/></svg>');
+    await expect(processUploadedImage(svg, "image/svg+xml")).rejects.toMatchObject({
       code: "VALIDATION_ERROR"
     });
+  });
+
+  it("accepts the labels browsers really put on a JPEG or a PNG", async () => {
+    // Photos were rejected as invalid formats because the declared type had to
+    // match one exact string. A phone or a browser may say image/jpg for a
+    // JPEG, and the bytes are still a perfectly good JPEG.
+    const jpeg = await sharp({ create: { width: 40, height: 40, channels: 3, background: "#123456" } })
+      .jpeg()
+      .toBuffer();
+
+    for (const declared of ["image/jpeg", "image/jpg", "image/pjpeg"]) {
+      const processed = await processUploadedImage(jpeg, declared);
+      expect(processed.detectedMimeType).toBe("image/jpeg");
+    }
+
+    const png = await sharp({ create: { width: 40, height: 40, channels: 3, background: "#123456" } })
+      .png()
+      .toBuffer();
+
+    for (const declared of ["image/png", "image/x-png"]) {
+      const processed = await processUploadedImage(png, declared);
+      expect(processed.detectedMimeType).toBe("image/png");
+    }
+  });
+
+  it("still rejects bytes that are genuinely a different format", async () => {
+    const jpeg = await sharp({ create: { width: 40, height: 40, channels: 3, background: "#123456" } })
+      .jpeg()
+      .toBuffer();
+
+    await expect(processUploadedImage(jpeg, "image/png")).rejects.toThrow(/declared type/);
   });
 });

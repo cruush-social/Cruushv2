@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { effectiveVisibilityPolicyForEntitlement } from "./match-relationships.js";
 import type { VisibilityPolicyPayload } from "./location-privacy.js";
@@ -30,5 +31,19 @@ describe("effective visibility entitlement", () => {
       ...storedStealthPolicy,
       auditRequired: true
     }, false).baseMode).toBe("STEALTH");
+  });
+});
+
+describe("profile view logging", () => {
+  it("suppresses views for Dark Room browsing only, never for Ghost Mode", () => {
+    // Ghost Mode hides precise location behind a decoy, not interest. When it
+    // also suppressed view logging, most of the app browsed invisibly and the
+    // Views tab stopped moving.
+    const source = readFileSync(new URL("./match-relationships.ts", import.meta.url), "utf8");
+    const logLine = source.split("\n").filter((line) => line.includes("shouldLogProfileView:")).pop() ?? "";
+
+    expect(logLine).toContain('viewerSettings.baseMode !== "STEALTH"');
+    expect(logLine).not.toContain("viewerGhostMode");
+    expect(logLine).not.toContain("targetGhostMode");
   });
 });

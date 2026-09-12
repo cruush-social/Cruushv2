@@ -19,6 +19,24 @@ describe('notificationsApi', () => {
     })).toBe('/rewards?rewardGrant=earned%2Fone');
     expect(resolveNotificationNavigationPath({ type: 'reward', linkUrl: '/rewards', metadata: {} })).toBe('/rewards');
   });
+  it('sends an announcement to the changelog page, not through the catch-all', () => {
+    // 415 announcements went out linking to /changelog, which is not a route,
+    // so the catch-all dropped people on the map instead of the page the
+    // announcement was about.
+    expect(resolveNotificationNavigationPath({
+      type: 'announcement', linkUrl: '/changelog', metadata: {},
+    })).toBe('/settings/changelog');
+    expect(resolveNotificationNavigationPath({
+      type: 'announcement', linkUrl: '/changelog?entry=1.6', metadata: {},
+    })).toBe('/settings/changelog?entry=1.6');
+  });
+
+  it('leaves a link that already points at a real route alone', () => {
+    expect(resolveNotificationNavigationPath({
+      type: 'announcement', linkUrl: '/survey', metadata: {},
+    })).toBe('/survey');
+  });
+
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn().mockImplementation(() => Promise.resolve(new Response(JSON.stringify({
       data: { accepted: true },

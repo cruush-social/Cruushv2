@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useExclusivePopup } from '../lib/popupQueue';
 import { Download, X } from 'lucide-react';
 import { Button } from './ui/button';
 import {
@@ -28,6 +29,7 @@ function isIosBrowser() {
 export default function MobileInstallPrompt() {
   const [installEvent, setInstallEvent] = useState<BeforeInstallPromptEvent | null>(() => getInstallPrompt());
   const [visible, setVisible] = useState(false);
+  const showing = useExclusivePopup('mobile-install', visible);
   const [showManualInstructions, setShowManualInstructions] = useState(false);
   const manualInstallOnly = showManualInstructions && !installEvent;
 
@@ -114,7 +116,9 @@ export default function MobileInstallPrompt() {
     }
   };
 
-  if (!visible) {
+  // Last in the shared post-onboarding slot: installing can wait until the
+  // notices that change how the app behaves have been read.
+  if (!showing) {
     return null;
   }
 

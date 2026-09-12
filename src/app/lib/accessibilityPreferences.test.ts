@@ -8,16 +8,28 @@ import {
 } from './accessibilityPreferences';
 
 const ALL_PREFERENCES_ON = {
+  colorVisionMode: 'deuteranopia' as const,
+  hapticFeedback: true,
   highContrast: true,
   largerText: true,
   reduceMotion: true,
 };
 
+// Stored and broadcast preferences carry the migrated colorBlindMode flag
+// alongside the colour-vision selection.
+const ALL_PREFERENCES_ON_NORMALIZED = {
+  ...ALL_PREFERENCES_ON,
+  colorBlindMode: true,
+};
+
 function resetAccessibilityState() {
   window.localStorage.removeItem(ACCESSIBILITY_PREFERENCES_STORAGE_KEY);
+  document.documentElement.removeAttribute('data-cruush-color-blind');
+  document.documentElement.removeAttribute('data-cruush-color-vision');
   document.documentElement.removeAttribute('data-cruush-high-contrast');
   document.documentElement.removeAttribute('data-cruush-larger-text');
   document.documentElement.removeAttribute('data-cruush-reduce-motion');
+  document.documentElement.removeAttribute('data-cruush-haptics');
 }
 
 describe('accessibility preferences', () => {
@@ -27,6 +39,8 @@ describe('accessibility preferences', () => {
   it('applies every saved preference from the document root', () => {
     saveAccessibilityPreferences(ALL_PREFERENCES_ON);
 
+    expect(document.documentElement).toHaveAttribute('data-cruush-color-blind');
+    expect(document.documentElement).toHaveAttribute('data-cruush-color-vision', 'deuteranopia');
     expect(document.documentElement).toHaveAttribute('data-cruush-high-contrast');
     expect(document.documentElement).toHaveAttribute('data-cruush-larger-text');
     expect(document.documentElement).toHaveAttribute('data-cruush-reduce-motion');
@@ -46,7 +60,9 @@ describe('accessibility preferences', () => {
       newValue: JSON.stringify(ALL_PREFERENCES_ON),
     }));
 
-    expect(listener).toHaveBeenCalledWith(ALL_PREFERENCES_ON);
+    expect(listener).toHaveBeenCalledWith(ALL_PREFERENCES_ON_NORMALIZED);
+    expect(document.documentElement).toHaveAttribute('data-cruush-color-blind');
+    expect(document.documentElement).toHaveAttribute('data-cruush-color-vision', 'deuteranopia');
     expect(document.documentElement).toHaveAttribute('data-cruush-high-contrast');
     expect(document.documentElement).toHaveAttribute('data-cruush-larger-text');
     expect(document.documentElement).toHaveAttribute('data-cruush-reduce-motion');
@@ -61,7 +77,7 @@ describe('accessibility preferences', () => {
 
     saveAccessibilityPreferences(ALL_PREFERENCES_ON);
 
-    expect(listener).toHaveBeenCalledWith(ALL_PREFERENCES_ON);
+    expect(listener).toHaveBeenCalledWith(ALL_PREFERENCES_ON_NORMALIZED);
     expect(listener).toHaveBeenCalledTimes(1);
     expect(new CustomEvent(ACCESSIBILITY_PREFERENCES_CHANGED_EVENT).type)
       .toBe(ACCESSIBILITY_PREFERENCES_CHANGED_EVENT);

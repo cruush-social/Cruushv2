@@ -25,6 +25,9 @@ function NounProjectGlyph({ className, source }: GlyphProps & { source: string }
       aria-hidden="true"
       className={className}
       style={{
+        // An inline span ignores width and height, so a caller passing only
+        // sizing classes rendered nothing at all.
+        display: 'inline-block',
         backgroundColor: 'currentColor',
         maskImage,
         maskPosition: 'center',

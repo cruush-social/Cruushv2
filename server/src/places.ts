@@ -4,12 +4,13 @@ import { multilineTextSchema, publicHttpsUrlSchema, singleLineTextSchema } from 
 export const PLACE_FACILITY_TYPES = [
   "clinic", "bar", "nightclub", "community_space", "park", "restroom",
   "sauna", "gym", "hotel", "dungeon", "cafe", "shop", "library",
-  "staircase", "trail", "transit", "parking", "beach", "adult_venue", "other"
+  "staircase", "trail", "transit", "parking", "beach", "adult_venue",
+  "adult_shop", "music_venue", "sports_venue", "retail", "woods",
+  "rest_stop", "bridge", "other"
 ] as const;
 
 export const PLACE_TAGS = [
-  "lgbtq_health", "womens_health", "sexual_health", "gay_spot",
-  "dyke_spot", "t4t_spot", "techno_club"
+  "lgbtq_health", "womens_health", "sexual_health"
 ] as const;
 
 export const PLACE_VIBES = [
@@ -50,6 +51,7 @@ export const listPlacesQuerySchema = z.object({
 export const submitPlaceSchema = z.object({
   name: singleLineTextSchema({ min: 2, max: 120 }),
   description: multilineTextSchema({ max: 1000 }).default(""),
+  accessInstructions: multilineTextSchema({ max: 1000 }).default(""),
   ...coordinatesSchema,
   address: singleLineTextSchema({ max: 300 }).optional().default(""),
   facilityType: placeFacilityTypeSchema,
@@ -68,6 +70,7 @@ export const storedPlaceSuggestionSchema = submitPlaceSchema.extend({
 export const placeCheckinSchema = z.object({
   content: multilineTextSchema({ min: 1, max: 1000 }).optional(),
   vibes: z.array(placeVibeSchema).max(3).default([]),
+  amenities: z.array(placeAmenitySchema).max(PLACE_AMENITIES.length).default([]),
   durationHours: z.union([z.literal(1), z.literal(3), z.literal(6), z.literal(12), z.literal(24)]),
   boardDurationHours: z.union([
     z.literal(1), z.literal(3), z.literal(6), z.literal(12), z.literal(24), z.literal(168), z.null()
@@ -81,6 +84,16 @@ export const placeCheckinSchema = z.object({
 export const placeBoardPostSchema = z.object({
   content: multilineTextSchema({ min: 1, max: 1000 })
 }).strict();
+
+export const placeDetailsContributionSchema = z.object({
+  vibes: z.array(placeVibeSchema).max(3).optional(),
+  amenities: z.array(placeAmenitySchema).max(PLACE_AMENITIES.length).optional(),
+  accessInstructions: multilineTextSchema({ max: 1000 }).optional()
+}).strict().refine((payload) => (
+  payload.vibes !== undefined
+  || payload.amenities !== undefined
+  || Boolean(payload.accessInstructions?.trim())
+), { message: "Choose at least one Spot detail." });
 
 export const placeRatingSchema = z.object({
   category: z.enum(["overall", "gender_inclusivity", "lgbtq_friendliness", "safety", "accessibility", "cleanliness"]),

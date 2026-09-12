@@ -20,7 +20,7 @@ export const HANKY_COLORS: HankyColor[] = [
   { id: 'yellow', label: 'yellow', meaning: 'watersports', color: '#F2C230' },
   { id: 'purple', label: 'purple', meaning: 'toys', color: '#7A3CB8' },
   { id: 'pink', label: 'light pink', meaning: 'mommy', color: '#F06AA8' },
-  { id: 'fuchsia', label: 'dark pink', meaning: 'nipples/tits', color: '#C2185B' },
+  { id: 'fuchsia', label: 'dark pink', meaning: 'nipple play', color: '#C2185B' },
   { id: 'teal', label: 'teal', meaning: 'tribbing/frotting', color: '#00C2B8' },
   { id: 'tan', label: 'tan', meaning: 'heavy petting', color: '#D2B48C' },
   { id: 'lavender', label: 'lavender', meaning: 'crossdressing', color: '#B57EDC' },

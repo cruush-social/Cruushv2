@@ -2,7 +2,7 @@ import { requestApi } from './apiClient';
 import type { CruushBadge } from './billingApi';
 import type { SideBadges } from './profileApi';
 
-export type FeedPostExpiry = '1h' | '6h' | '24h' | '7d' | 'never';
+export type FeedPostExpiry = '30m' | '1h' | '3h' | '6h' | '24h' | '7d' | 'never';
 export type FeedPostWindow = '1h' | '3h' | '6h' | '24h' | '7d';
 export type FeedLocationPinVisibility = 'off' | 'mutuals' | 'same_crowd' | 'public';
 export type FeedPostAudience = 'public' | 'mutuals' | 'crowd';
@@ -73,6 +73,7 @@ export type FeedPostFilters = {
     lookingFor?: string[];
     timing?: string[];
     hosting?: string[];
+    preferredSpots?: string[];
     vibes?: string[];
     crowds?: string[];
     hobbies?: string[];
@@ -81,7 +82,9 @@ export type FeedPostFilters = {
     kinks?: string[];
     bodyTypes?: string[];
     sexuality?: string[];
+    zodiac?: string[];
     substanceBoundaries?: string[];
+    protectionBoundaries?: string[];
   };
 };
 
@@ -142,6 +145,7 @@ export async function getFeedPosts(filters: FeedPostFilters = {}) {
   appendSeekingValues('lookingFor', filters.seeking?.lookingFor);
   appendSeekingValues('timing', filters.seeking?.timing);
   appendSeekingValues('hosting', filters.seeking?.hosting);
+  appendSeekingValues('preferredSpots', filters.seeking?.preferredSpots);
   appendSeekingValues('vibes', filters.seeking?.vibes);
   appendSeekingValues('crowds', filters.seeking?.crowds);
   appendSeekingValues('hobbies', filters.seeking?.hobbies);
@@ -150,7 +154,9 @@ export async function getFeedPosts(filters: FeedPostFilters = {}) {
   appendSeekingValues('kinks', filters.seeking?.kinks);
   appendSeekingValues('bodyTypes', filters.seeking?.bodyTypes);
   appendSeekingValues('sexuality', filters.seeking?.sexuality);
+  appendSeekingValues('zodiac', filters.seeking?.zodiac);
   appendSeekingValues('substanceBoundaries', filters.seeking?.substanceBoundaries);
+  appendSeekingValues('protectionBoundaries', filters.seeking?.protectionBoundaries);
 
   const query = params.toString();
   return requestApi<FeedPost[]>(query ? `/api/posts?${query}` : '/api/posts');

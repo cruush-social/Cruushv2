@@ -48,6 +48,8 @@ describe('MapPingSheet', () => {
     );
 
     expect(screen.getByRole('timer', { name: 'Pulse cooldown' })).toHaveTextContent('04:00:00');
+    expect(screen.getByTestId('map-ping-sheet')).toHaveClass('!z-[1601]');
+    expect(document.querySelector('[data-slot="sheet-overlay"]')).toHaveClass('!z-[1600]');
     expect(screen.getByRole('button', { name: /next pulse in/i })).toBeDisabled();
 
     act(() => {
@@ -112,13 +114,13 @@ describe('MapPingSheet', () => {
     expect(await screen.findByRole('dialog')).toBeInTheDocument();
     expect(screen.getByText('At the park')).toBeInTheDocument();
     expect(screen.getByText('2 of 3 Pulses available right now.')).toBeInTheDocument();
-    expect(screen.getAllByRole('radio').map((radio) => radio.getAttribute('aria-label'))).toEqual([
-      '1 mile',
-      '3 miles',
-      '5 miles',
-      '10 miles',
-      '15 miles',
-    ]);
+    // The radius is a slider now, so the range is read off its ends.
+    const radiusSlider = screen.getByRole('slider', { name: 'Pulse radius' });
+    expect(radiusSlider).toHaveAttribute('aria-valuemin', '0');
+    expect(radiusSlider).toHaveAttribute('aria-valuemax', '6');
+    expect(screen.getByText('1 mi')).toBeInTheDocument();
+    expect(screen.getByText('50 mi')).toBeInTheDocument();
+    expect(screen.getByText('3 miles')).toBeInTheDocument();
     expect(onRefresh).toHaveBeenCalledTimes(1);
     expect(screen.getByTestId('map-ping-sheet')).toHaveAttribute('data-window-mode', 'desktop-window');
     expect(screen.getByTestId('map-ping-sheet')).toHaveClass('overflow-hidden');
@@ -201,7 +203,7 @@ describe('MapPingSheet', () => {
       />,
     );
 
-    expect(screen.getByText('Basic includes 1 Ping every 24 hours.')).toBeInTheDocument();
+    expect(screen.getByText('Basic includes 1 Pulse every 24 hours.')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Get cruush+' }));
     expect(onUpgrade).toHaveBeenCalledTimes(1);
   });
@@ -222,10 +224,15 @@ describe('MapPingSheet', () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole('radio', { name: '10 miles' }));
+    const radiusSlider = screen.getByRole('slider', { name: 'Pulse radius' });
+    radiusSlider.focus();
+    // 3 miles is index 1; three steps right lands on 15 miles.
+    fireEvent.keyDown(radiusSlider, { key: 'ArrowRight' });
+    fireEvent.keyDown(radiusSlider, { key: 'ArrowRight' });
+    fireEvent.keyDown(radiusSlider, { key: 'ArrowRight' });
     fireEvent.click(screen.getByRole('button', { name: 'Send Pulse' }));
 
-    await waitFor(() => expect(onSend).toHaveBeenCalledWith(10));
+    await waitFor(() => expect(onSend).toHaveBeenCalledWith(15));
   });
 
   it('requires a profile signal before sending', () => {
@@ -246,8 +253,14 @@ describe('MapPingSheet', () => {
     expect(screen.getByRole('button', { name: 'Send Pulse' })).toBeDisabled();
   });
 
-  it('prevents another Ping while one is active', () => {
-    render(
+  it('prevents another Pulse while one is active and the cooldown is running', () => {
+    const activePing = {
+      id: 'ping-1',
+      expiresAt: new Date(Date.now() + 60_000).toISOString(),
+    };
+    const nextEligibleAt = new Date(Date.now() + 4 * 60 * 60_000).toISOString();
+
+    const { rerender } = render(
       <MapPingSheet
         open
         onOpenChange={vi.fn()}
@@ -255,12 +268,35 @@ describe('MapPingSheet', () => {
           ...availableStatus,
           allowance: {
             ...availableStatus.allowance,
-            nextEligibleAt: new Date(Date.now() + 4 * 60 * 60_000).toISOString(),
+            nextEligibleAt,
           },
-          activePing: {
-            id: 'ping-1',
-            expiresAt: new Date(Date.now() + 60_000).toISOString(),
+          activePing,
+        }}
+        loading={false}
+        hasMapLocation
+        signal="At the park"
+        onRefresh={vi.fn().mockResolvedValue(undefined)}
+        onSend={vi.fn()}
+      />,
+    );
+
+    // The raised allowance offers another Pulse, but the cooldown still blocks it.
+    expect(screen.getByRole('button', { name: 'Send another Pulse' })).toBeDisabled();
+    expect(screen.getByRole('timer', { name: 'Pulse cooldown' })).toBeInTheDocument();
+
+    rerender(
+      <MapPingSheet
+        open
+        onOpenChange={vi.fn()}
+        status={{
+          ...availableStatus,
+          allowance: {
+            ...availableStatus.allowance,
+            used: availableStatus.allowance.limit,
+            remaining: 0,
+            nextEligibleAt,
           },
+          activePing,
         }}
         loading={false}
         hasMapLocation

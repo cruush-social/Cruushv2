@@ -4,6 +4,7 @@ import { ArrowLeft, Image as ImageIcon, MessageCircle } from 'lucide-react';
 import { Button } from './ui/button';
 import { Switch } from './ui/switch';
 import DlModeMark from './DlModeMark';
+import BugButtonSlot from './BugButtonSlot';
 import { addDlModeChangedListener, isDlModeEnabled, setDlModeEnabled } from '../lib/dlMode';
 
 export default function DlModeSettings() {
@@ -32,6 +33,8 @@ export default function DlModeSettings() {
             <p className="text-xs text-muted-foreground">Explicit media privacy display</p>
           </div>
         </div>
+      
+        <BugButtonSlot testId="dl-mode-settings-bug-button-slot" />
       </header>
 
       <div className="mx-auto max-w-2xl space-y-6 p-6">

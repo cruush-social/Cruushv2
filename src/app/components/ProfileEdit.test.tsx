@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiClientError } from '../lib/apiClient';
-import ProfileEdit, { getPhotoUploadRejectedMessage } from './ProfileEdit';
+import ProfileEdit, { getPhotoUploadRejectedMessage, readProfilePhotoPreviewUrl } from './ProfileEdit';
 
 const { getAppMeta, getMyProfile, saveMyProfile, uploadProfilePhoto } = vi.hoisted(() => ({
   getAppMeta: vi.fn(),
@@ -29,7 +29,67 @@ vi.mock('../lib/profileApi', async () => {
 const existingProfilePhoto = '/api/media/assets/11111111-1111-4111-8111-111111111111/display';
 const uploadedProfilePhoto = '/api/media/assets/d271f6da-c51d-4d73-a322-d9c56f45d4fa/display';
 
+async function selectProfileEditTab(name: 'Photos' | 'Badges' | 'Basics' | 'Intimacy' | 'Health') {
+  const tab = await screen.findByRole('tab', { name });
+  fireEvent.pointerDown(tab, { button: 0, ctrlKey: false });
+  fireEvent.click(tab);
+  fireEvent.keyDown(tab, { key: 'Enter', code: 'Enter' });
+  await waitFor(() => expect(tab).toHaveAttribute('aria-selected', 'true'));
+  return tab;
+}
+
 describe('ProfileEdit', () => {
+  it('crops native-decodable camera originals before applying final-upload limits', async () => {
+    const fetchPreview = vi.fn();
+    vi.stubGlobal('fetch', fetchPreview);
+    vi.stubGlobal('Image', class {
+      src = '';
+      naturalWidth = 8064;
+      naturalHeight = 6048;
+      decode = vi.fn().mockResolvedValue(undefined);
+    });
+    const file = new File([new Uint8Array(5 * 1024 * 1024 + 1)], 'camera.heic', { type: 'image/heic' });
+
+    const preview = await readProfilePhotoPreviewUrl(file);
+    expect(preview.url.startsWith('data:image/heic;base64,')).toBe(true);
+    expect(preview.objectUrl).toBeUndefined();
+    expect(fetchPreview).not.toHaveBeenCalled();
+    expect(URL.revokeObjectURL).not.toHaveBeenCalled();
+    expect(uploadProfilePhoto).not.toHaveBeenCalled();
+  });
+
+  it('converts camera formats before cropping without saving a profile photo', async () => {
+    const fetchPreview = vi.fn().mockImplementation(async () => new Response(JSON.stringify({
+      data: { url: 'data:image/webp;base64,cHJldmlldw==' },
+    }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchPreview);
+    vi.stubGlobal('Image', class {
+      src = '';
+      decode = vi.fn().mockRejectedValue(new Error('Unsupported image encoding'));
+    });
+    for (const [name, type] of [['camera.heic', 'image/heic'], ['camera.tiff', 'image/tiff'], ['camera.avif', 'image/avif'], ['camera.heic', '']]) {
+      const file = new File(['camera bytes'], name, { type });
+      expect(await readProfilePhotoPreviewUrl(file)).toEqual({ url: 'data:image/webp;base64,cHJldmlldw==' });
+      expect(fetchPreview).toHaveBeenLastCalledWith(expect.stringContaining('/api/profile-photos/preview'), expect.objectContaining({ method: 'POST', credentials: 'include' }));
+    }
+    expect(uploadProfilePhoto).not.toHaveBeenCalled();
+  });
+
+  it('docks the bug button into its own header row', async () => {
+    // Every screen header is one line with the bug button in it. Edit Profile
+    // never registered a slot, so on a phone it had no bug button at all.
+    render(
+      <MemoryRouter initialEntries={['/profile/edit']}>
+        <ProfileEdit onSaved={vi.fn()} />
+      </MemoryRouter>,
+    );
+
+    const slot = await screen.findByTestId('profile-edit-bug-button-slot');
+    expect(slot.closest('header')).not.toBeNull();
+    expect(slot.closest('header')).toContainElement(screen.getByRole('button', { name: 'Save' }));
+  });
+
+
   afterEach(() => {
     vi.unstubAllGlobals();
   });
@@ -127,11 +187,7 @@ describe('ProfileEdit', () => {
       </MemoryRouter>
     );
 
-    const intimacyTab = await screen.findByRole('tab', { name: 'Intimacy' });
-    fireEvent.pointerDown(intimacyTab, { button: 0, ctrlKey: false });
-    fireEvent.click(intimacyTab);
-
-    await waitFor(() => expect(intimacyTab).toHaveAttribute('aria-selected', 'true'));
+    await selectProfileEditTab('Intimacy');
 
     expect(await screen.findAllByText('leather')).not.toHaveLength(0);
     expect(screen.queryByLabelText('leather seeking')).not.toBeInTheDocument();
@@ -141,13 +197,16 @@ describe('ProfileEdit', () => {
     const positionListbox = await screen.findByRole('listbox', { name: 'Position' });
     expect(positionListbox.parentElement).toHaveClass('overflow-hidden', 'overscroll-contain', 'rounded-md');
     expect(positionListbox).toHaveClass('scrollbar-subtle', 'overflow-y-auto');
-    expect(screen.getByRole('option', { name: 'pillow princess' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'stone bottom' })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: 'stone top' })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: 'vers bottom' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('option', { name: 'vers top' }));
 
     fireEvent.click(screen.getByRole('button', { name: 'Role' }));
     fireEvent.click(screen.getByRole('option', { name: 'service' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Relationship status' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Partnered' }));
 
     fireEvent.click(screen.getByRole('button', { name: 'Kinks & Fetishes' }));
     expect(screen.getByRole('tablist', { name: 'Kinks & Fetishes categories' })).toBeInTheDocument();
@@ -165,6 +224,7 @@ describe('ProfileEdit', () => {
     await waitFor(() => expect(saveMyProfile).toHaveBeenCalledWith(expect.objectContaining({
       position: ['vers top'],
       role: ['service'],
+      relationship_status: ['Partnered'],
       kinks_visibility: 'mutual_crowds',
       kink_interests: [expect.objectContaining({
         kink_id: 'leather',
@@ -226,8 +286,7 @@ describe('ProfileEdit', () => {
       </MemoryRouter>
     );
 
-    const photosTab = await screen.findByRole('tab', { name: 'Photos' });
-    fireEvent.click(photosTab);
+    await selectProfileEditTab('Photos');
 
     const uploadInput = screen.getByText('Upload photo').closest('label')?.querySelector('input[type="file"]');
     expect(uploadInput).toBeTruthy();
@@ -326,8 +385,7 @@ describe('ProfileEdit', () => {
       </MemoryRouter>
     );
 
-    const photosTab = await screen.findByRole('tab', { name: 'Photos' });
-    fireEvent.click(photosTab);
+    await selectProfileEditTab('Photos');
 
     const uploadInput = screen.getByText('Upload photo').closest('label')?.querySelector('input[type="file"]');
     expect(uploadInput).toBeTruthy();
@@ -343,11 +401,9 @@ describe('ProfileEdit', () => {
     const uploadedImage = await screen.findByAltText('Primary profile photo');
     expect(uploadedImage).toHaveAttribute('src', expect.stringContaining(uploadedPhoto));
 
-    const profileTab = screen.getByRole('tab', { name: 'Basics' });
-    fireEvent.click(profileTab);
-    expect(profileTab).toHaveAttribute('aria-selected', 'true');
+    await selectProfileEditTab('Basics');
 
-    fireEvent.click(photosTab);
+    await selectProfileEditTab('Photos');
     expect(screen.getByAltText('Primary profile photo')).toHaveAttribute('src', expect.stringContaining(uploadedPhoto));
   });
 
@@ -373,7 +429,7 @@ describe('ProfileEdit', () => {
       </MemoryRouter>,
     );
 
-    fireEvent.click(await screen.findByRole('tab', { name: 'Photos' }));
+    await selectProfileEditTab('Photos');
     const uploadInput = screen.getByText('Upload photo').closest('label')?.querySelector('input[type="file"]');
     fireEvent.change(uploadInput as HTMLInputElement, {
       target: { files: [new File([new Uint8Array([1, 2, 3])], 'profile.png', { type: 'image/png' })] },
@@ -411,7 +467,7 @@ describe('ProfileEdit', () => {
       </MemoryRouter>,
     );
 
-    fireEvent.click(await screen.findByRole('tab', { name: 'Photos' }));
+    await selectProfileEditTab('Photos');
     expect(await screen.findByAltText('Profile photo 2')).toHaveAttribute('src', expect.stringContaining(safePhoto));
     expect(screen.queryByAltText('Primary profile photo')).not.toBeInTheDocument();
     expect(screen.getByAltText('Profile photo 3')).toHaveAttribute('src', expect.stringContaining(unknownPhoto));
@@ -431,7 +487,7 @@ describe('ProfileEdit', () => {
       </MemoryRouter>
     );
 
-    fireEvent.click(await screen.findByRole('tab', { name: 'Photos' }));
+    await selectProfileEditTab('Photos');
 
     const uploadInput = screen.getByText('Upload photo').closest('label')?.querySelector('input[type="file"]');
     expect(uploadInput).toBeTruthy();
@@ -464,7 +520,7 @@ describe('ProfileEdit', () => {
       </MemoryRouter>,
     );
 
-    fireEvent.click(await screen.findByRole('tab', { name: 'Photos' }));
+    await selectProfileEditTab('Photos');
 
     const uploadInput = screen.getByText('Upload photo').closest('label')?.querySelector('input[type="file"]');
     expect(uploadInput).toBeTruthy();
@@ -487,31 +543,14 @@ describe('ProfileEdit', () => {
     expect(screen.queryByText(/^Photo rejected:/)).not.toBeInTheDocument();
   });
 
-  it('previews selected profile photos as data URLs before cropping', async () => {
-    const previewDataUrl = 'data:image/png;base64,cHJvZmlsZQ==';
-    const readAsDataURL = vi.fn();
-
-    class MockFileReader {
-      result: FileReader['result'] = null;
-      onload: FileReader['onload'] = null;
-      onerror: FileReader['onerror'] = null;
-
-      readAsDataURL(file: Blob) {
-        readAsDataURL(file);
-        this.result = previewDataUrl;
-        this.onload?.call(this as unknown as FileReader, new ProgressEvent('load') as ProgressEvent<FileReader>);
-      }
-    }
-
-    vi.stubGlobal('FileReader', MockFileReader);
-
+  it('previews selected profile photos with a data URL allowed by the existing Safari CSP', async () => {
     render(
       <MemoryRouter>
         <ProfileEdit />
       </MemoryRouter>
     );
 
-    fireEvent.click(await screen.findByRole('tab', { name: 'Photos' }));
+    await selectProfileEditTab('Photos');
 
     const uploadInput = screen.getByText('Upload photo').closest('label')?.querySelector('input[type="file"]');
     expect(uploadInput).toBeTruthy();
@@ -524,9 +563,8 @@ describe('ProfileEdit', () => {
     });
 
     const preview = await screen.findByAltText('Profile crop preview');
-    expect(readAsDataURL).toHaveBeenCalledWith(selectedFile);
     expect(URL.createObjectURL).not.toHaveBeenCalled();
-    expect(preview).toHaveAttribute('src', previewDataUrl);
+    expect(preview).toHaveAttribute('src', 'data:image/png;base64,AQID');
 
     fireEvent.load(preview);
     fireEvent.click(screen.getByRole('button', { name: 'Use cropped photo' }));
@@ -544,7 +582,7 @@ describe('ProfileEdit', () => {
         </MemoryRouter>
       );
 
-      fireEvent.click(await screen.findByRole('tab', { name: 'Photos' }));
+      await selectProfileEditTab('Photos');
 
       const uploadInput = screen.getByText('Upload photo').closest('label')?.querySelector('input[type="file"]');
       expect(uploadInput).toBeTruthy();
@@ -583,7 +621,7 @@ describe('ProfileEdit', () => {
       </MemoryRouter>
     );
 
-    fireEvent.click(await screen.findByRole('tab', { name: 'Photos' }));
+    await selectProfileEditTab('Photos');
 
     expect(screen.queryByText('Upload photo')).not.toBeInTheDocument();
     expect(screen.queryByText('Add up to 4 photos of yourself. Your first photo will be your profile picture. SFW photos are suggested, not required.')).not.toBeInTheDocument();
@@ -613,7 +651,7 @@ describe('ProfileEdit', () => {
       </MemoryRouter>
     );
 
-    fireEvent.click(await screen.findByRole('tab', { name: 'Photos' }));
+    await selectProfileEditTab('Photos');
 
     expect(await screen.findByText('Profile photo uploads are temporarily unavailable.')).toBeInTheDocument();
     const uploadInput = screen.getByText('Upload photo').closest('label')?.querySelector('input[type="file"]');
@@ -627,7 +665,7 @@ describe('ProfileEdit', () => {
       </MemoryRouter>
     );
 
-    fireEvent.click(await screen.findByRole('tab', { name: 'Photos' }));
+    await selectProfileEditTab('Photos');
 
     expect(screen.getByText('Profile photos may be SFW or NSFW.')).toBeInTheDocument();
     expect(screen.getByText('Use a photo of you or your gear.')).toBeInTheDocument();
@@ -660,7 +698,7 @@ describe('ProfileEdit', () => {
       </MemoryRouter>
     );
 
-    fireEvent.click(await screen.findByRole('tab', { name: 'Photos' }));
+    await selectProfileEditTab('Photos');
 
     const uploadInput = screen.getByText('Upload photo').closest('label')?.querySelector('input[type="file"]');
     expect(uploadInput).toBeTruthy();
@@ -691,15 +729,15 @@ describe('ProfileEdit', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Vibes' }));
     expect(screen.getByRole('tablist', { name: 'Vibes categories' })).toBeInTheDocument();
-    expect(screen.getByRole('group', { name: 'Style & Energy' })).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Style' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('tab', { name: 'Scenes' }));
     const scenesGroup = screen.getByRole('group', { name: 'Scenes' });
     expect(within(scenesGroup).queryByRole('option', { name: 'Bear' })).not.toBeInTheDocument();
     for (const scene of ['Jock', 'Circuit', 'Club Kid', 'Camping', 'Cosplay', 'Country', 'Festival', 'Rubber', 'Leather', 'Burner', 'Sober', 'Stoner']) {
       expect(within(scenesGroup).getByRole('option', { name: scene })).toBeInTheDocument();
     }
-    fireEvent.click(screen.getByRole('tab', { name: 'Style & Energy' }));
-    const styleGroup = screen.getByRole('group', { name: 'Style & Energy' });
+    fireEvent.click(screen.getByRole('tab', { name: 'Style' }));
+    const styleGroup = screen.getByRole('group', { name: 'Style' });
     expect(within(styleGroup).queryByRole('option', { name: 'Sober' })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('tab', { name: 'Archetypes' }));
@@ -707,7 +745,7 @@ describe('ProfileEdit', () => {
 
     fireEvent.click(within(archetypesGroup).getByRole('option', { name: 'Daddy' }));
     fireEvent.click(within(archetypesGroup).getByRole('option', { name: 'Doll' }));
-    fireEvent.click(within(archetypesGroup).getByRole('option', { name: 'Goddess' }));
+    fireEvent.click(within(archetypesGroup).getByRole('option', { name: 'God/Goddess' }));
     fireEvent.click(within(archetypesGroup).getByRole('option', { name: 'Kitten' }));
 
     fireEvent.click(basicsTab);
@@ -730,8 +768,7 @@ describe('ProfileEdit', () => {
     fireEvent.click(screen.getByRole('option', { name: 'T4T' }));
     fireEvent.click(screen.getByRole('option', { name: 'Dyke' }));
 
-    const healthTab = screen.getByRole('tab', { name: 'Health' });
-    fireEvent.click(healthTab);
+    await selectProfileEditTab('Health');
 
     fireEvent.click(screen.getByRole('button', { name: 'HIV Status' }));
     fireEvent.click(screen.getByRole('option', { name: 'undetectable' }));
@@ -743,44 +780,38 @@ describe('ProfileEdit', () => {
     await waitFor(() => expect(saveMyProfile).toHaveBeenCalledWith(expect.objectContaining({
       is_trans: true,
       trans_status_visibility: 'mutual_cruushes',
-      vibes: ['Doll', 'Goddess', 'Kitten'],
+      vibes: ['Doll', 'God/Goddess', 'Kitten'],
       scenes: [],
       hiv_status: ['undetectable'],
       hiv_status_visibility: 'mutual_cruushes',
     })));
   }, 10000);
 
-  it('saves only one selected value for each health status field', async () => {
+  it('keeps HIV status single-valued and saves Protections as a list', async () => {
     render(
       <MemoryRouter>
         <ProfileEdit />
       </MemoryRouter>
     );
 
-    const healthTab = await screen.findByRole('tab', { name: 'Health' });
-    fireEvent.click(healthTab);
+    await selectProfileEditTab('Health');
 
     fireEvent.click(screen.getByRole('button', { name: 'HIV Status' }));
     fireEvent.click(screen.getByRole('option', { name: 'negative' }));
     fireEvent.click(screen.getByRole('button', { name: 'HIV Status' }));
     fireEvent.click(screen.getByRole('option', { name: 'positive' }));
 
-    fireEvent.click(screen.getByRole('button', { name: 'COVID Vaccine' }));
-    fireEvent.click(screen.getByRole('option', { name: 'yes' }));
-    fireEvent.click(screen.getByRole('button', { name: 'COVID Vaccine' }));
-    fireEvent.click(screen.getByRole('option', { name: 'no' }));
-
-    fireEvent.click(screen.getByRole('button', { name: 'MPOX Vaccine' }));
-    fireEvent.click(screen.getByRole('option', { name: 'yes' }));
-    fireEvent.click(screen.getByRole('button', { name: 'MPOX Vaccine' }));
-    fireEvent.click(screen.getByRole('option', { name: 'partial' }));
+    // The separate vaccine and condom questions became one Protections list,
+    // which is a multi-select rather than a single-value field.
+    fireEvent.click(screen.getByRole('button', { name: 'Protections' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Condoms' }));
+    fireEvent.click(screen.getByRole('option', { name: 'PrEP' }));
 
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
     await waitFor(() => expect(saveMyProfile).toHaveBeenCalledWith(expect.objectContaining({
       hiv_status: ['positive'],
-      covid_vaccine: ['no'],
-      mpox_vaccine: ['partial'],
+      protections: expect.arrayContaining(['Condoms', 'PrEP']),
     })));
   });
 
@@ -953,8 +984,7 @@ describe('ProfileEdit', () => {
       </MemoryRouter>
     );
 
-    const healthTab = await screen.findByRole('tab', { name: 'Health' });
-    fireEvent.click(healthTab);
+    await selectProfileEditTab('Health');
 
     fireEvent.click(screen.getByRole('button', { name: 'Substance Boundaries' }));
     const menu = screen.getByRole('listbox', { name: 'Substance Boundaries' });

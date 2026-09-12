@@ -18,6 +18,7 @@ import { Switch } from './ui/switch';
 import { CruushIcon } from './CruushIconImage';
 import CruushPlusWord from './CruushPlusWord';
 import DarkRoomMark from './DarkRoomMark';
+import BugButtonSlot from './BugButtonSlot';
 import { CRUUSH_PLUS_CHANGED_EVENT, getMyBillingStatus } from '../lib/billingApi';
 import { DEBUG_CRUUSH_PLUS_EVENT } from '../lib/debugApi';
 import {
@@ -252,14 +253,16 @@ export default function GhostModeSettings() {
         <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
-        <div className="flex items-center gap-3">
+        <div className="flex min-w-0 items-center gap-3">
           {privacySettings.baseMode === 'STEALTH' ? (
-            <DarkRoomMark active className="h-7 w-7 text-white" />
+            <DarkRoomMark active className="h-7 w-7 shrink-0 text-white" />
           ) : (
-            <CruushIcon name="ghost" variant={privacySettings.ghostModeEnabled ? 'colored' : 'white'} className="h-7 w-7" />
+            <CruushIcon name="ghost" variant={privacySettings.ghostModeEnabled ? 'colored' : 'white'} className="h-7 w-7 shrink-0" />
           )}
-          <h2 className="text-xl">Ghost Mode &amp; Dark Room Mode</h2>
+          <h2 className="truncate text-xl">Ghost Mode &amp; Dark Room Mode</h2>
         </div>
+      
+        <BugButtonSlot testId="ghost-mode-settings-bug-button-slot" />
       </header>
 
       <div className="mx-auto max-w-2xl space-y-6 p-6">
@@ -275,7 +278,7 @@ export default function GhostModeSettings() {
               <CruushIcon name="ghost" variant={privacySettings.ghostModeEnabled ? 'colored' : 'white'} className="mt-1 h-5 w-5 opacity-80" />
               <div>
                 <p>Ghost Mode</p>
-                <p className="text-sm text-muted-foreground">Other people see a shifting location inside your selected radius. You still see your own current map position.</p>
+                <p className="text-sm text-muted-foreground">You stay visible. What moves is a decoy pin, which hops around inside the radius you choose, while you still see your own real position. Who can find, message, or get your precise location is set by Visibility Controls, not by this.</p>
                 {privacySettings.baseMode === 'GHOST' && privacySettings.ghostRotationExpiresAtMs ? (
                   <p className="mt-1 text-xs text-muted-foreground">
                     Location rotates in {formatCountdown(privacySettings.ghostRotationExpiresAtMs - nowMs)}
@@ -381,7 +384,7 @@ export default function GhostModeSettings() {
                 <span key={option.label}>{option.label}</span>
               ))}
             </div>
-            <p className="text-sm text-muted-foreground">Larger radius gives you more cover; smaller radius keeps your public pin closer to where you are.</p>
+            <p className="text-sm text-muted-foreground">This is the area your decoy pin moves around in, not the area you are visible in. A larger radius puts the decoy further from you.</p>
           </div>
 
           <div className="space-y-3 rounded-lg border border-white/10 bg-white/[0.025] p-4">

@@ -14,6 +14,7 @@ import MapHome, {
   canUseDeveloperMapToolsEmail,
   getAllPlacesForMap,
   isCoordinateInViewport,
+  SPOT_MAP_VIEW_LIMIT,
 } from './MapHome';
 
 const { getNearbyUsers } = vi.hoisted(() => ({
@@ -144,6 +145,7 @@ vi.mock('../lib/usersApi', () => ({
   // The component narrows on this class, so the mock has to carry it or the
   // instanceof check throws inside the catch it was meant to guard.
   OutsideBrowseRadiusError: class OutsideBrowseRadiusError extends Error {},
+  OutsideServiceAreaError: class OutsideServiceAreaError extends Error {},
 }));
 
 vi.mock('../lib/placesApi', async () => {
@@ -315,6 +317,7 @@ vi.mock('./MapView', async () => {
               data-can-message={String(marker.relationship?.canMessage ?? '')}
               data-precision={marker.relationship?.precision ?? ''}
               data-display-mode={marker.displayMode ?? ''}
+              data-signal={marker.signal ?? ''}
               data-npc-ghost-demo={String(Boolean(marker.npcGhostDemo))}
               data-active-ping={marker.activePing?.id ?? ''}
               key={`marker-data-${marker.id}`}
@@ -458,11 +461,13 @@ async function openMapControls() {
 }
 
 describe('Spot map loading', () => {
-  it('loads every page without duplicating a Spot returned across page boundaries', async () => {
-    const firstPage = Array.from({ length: 500 }, (_, index) => placeRecord(`spot-${index}`));
+  it('pages to the view limit without duplicating a Spot returned across page boundaries', async () => {
+    const firstPage = Array.from({ length: 100 }, (_, index) => placeRecord(`spot-${index}`));
+    const secondPage = [firstPage[99], ...Array.from({ length: 99 }, (_, index) => placeRecord(`spot-${100 + index}`))];
     getPlaces
       .mockResolvedValueOnce(firstPage)
-      .mockResolvedValueOnce([firstPage[499], placeRecord('spot-500')]);
+      .mockResolvedValueOnce(secondPage)
+      .mockResolvedValueOnce([placeRecord('spot-199')]);
 
     const places = await getAllPlacesForMap({
       latitude: 40.73,
@@ -470,10 +475,29 @@ describe('Spot map loading', () => {
       radiusMiles: 12,
     });
 
-    expect(places).toHaveLength(501);
-    expect(places.at(-1)?.id).toBe('spot-500');
-    expect(getPlaces).toHaveBeenNthCalledWith(1, expect.objectContaining({ limit: 500, offset: 0 }));
-    expect(getPlaces).toHaveBeenNthCalledWith(2, expect.objectContaining({ limit: 500, offset: 500 }));
+    // The API caps a page at 100, and the map stops at the nearest few hundred
+    // rather than paging the whole radius, so the loop is bounded twice over.
+    expect(places).toHaveLength(200);
+    expect(places.length).toBeLessThanOrEqual(SPOT_MAP_VIEW_LIMIT);
+    expect(new Set(places.map((place) => place.id)).size).toBe(places.length);
+    expect(getPlaces).toHaveBeenNthCalledWith(1, expect.objectContaining({ limit: 100, offset: 0 }));
+    expect(getPlaces).toHaveBeenNthCalledWith(2, expect.objectContaining({ limit: 100, offset: 100 }));
+  });
+
+  it('stops paging when a full page repeats Spots it has already collected', async () => {
+    const firstPage = Array.from({ length: 100 }, (_, index) => placeRecord(`spot-${index}`));
+    getPlaces.mockClear();
+    getPlaces.mockResolvedValue(firstPage);
+
+    const places = await getAllPlacesForMap({
+      latitude: 40.73,
+      longitude: -73.97,
+      radiusMiles: 12,
+    });
+
+    // A server repeating itself must not spin the loop until the tab dies.
+    expect(places).toHaveLength(100);
+    expect(getPlaces).toHaveBeenCalledTimes(2);
   });
 
   it('keeps only coordinates inside settled bounds, including a viewport crossing the antimeridian', () => {
@@ -496,22 +520,18 @@ describe('Spot map loading', () => {
 });
 
 describe('Spot taxonomy', () => {
-  it('offers the 20 approved facility choices and retains legacy venue reads as Other', () => {
-    expect(PLACE_FACILITY_TYPES).toHaveLength(20);
-    expect(new Set(PLACE_FACILITY_TYPES).size).toBe(20);
+  it('offers the 27 approved facility choices and retains legacy venue reads as Other', () => {
+    expect(PLACE_FACILITY_TYPES).toHaveLength(27);
+    expect(new Set(PLACE_FACILITY_TYPES).size).toBe(27);
+    expect(PLACE_FACILITY_TYPES).toEqual(expect.arrayContaining(['adult_shop', 'music_venue', 'sports_venue', 'retail', 'woods', 'rest_stop', 'bridge']));
     expect(PLACE_FACILITY_LABELS.bar).toBe('Bars');
     expect(PLACE_FACILITY_LABELS.venue).toBe('Other');
   });
 
-  it('hides legacy Dyke spot tags and caps Spot summaries at two labels', () => {
-    expect(getVisibleSpotTags(['dyke_bar', 'dyke_spot', 'gay_spot', 't4t_spot'])).toEqual([
-      'gay_spot',
-      't4t_spot',
-    ]);
-    expect(getSpotCategoryLabels('bar', ['dyke_bar', 'gay_spot', 'techno_club'])).toEqual([
-      'Bars',
-      'Gay spot',
-    ]);
+  it('hides every removed identity tag and caps Spot summaries at two labels', () => {
+    expect(getVisibleSpotTags(['dyke_bar', 'dyke_spot', 'gay_spot', 't4t_spot'] as never[])).toEqual([]);
+    expect(getVisibleSpotTags(['leans_men', 'techno_club'] as never[])).toEqual([]);
+    expect(getSpotCategoryLabels('bar', ['dyke_bar', 'gay_spot', 'techno_club'] as never[])).toEqual(['Bars']);
   });
 });
 
@@ -532,9 +552,31 @@ describe('MileHighClubBrowseLimit', () => {
 });
 
 describe('MapHome', () => {
-  afterEach(() => {
-    vi.useRealTimers();
-    restoreVisualViewport();
+  it('drops a person the profile route refused, so there is nothing left to tap', async () => {
+    const { notifyProfileUnavailable } = await import('../lib/profileUnavailable');
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<MapHome />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await screen.findByTestId('map-home-shell');
+    const markers = await waitFor(() => {
+      const found = document.querySelectorAll('[data-testid^="marker-"]:not([data-testid="marker-me"])');
+      expect(found.length).toBeGreaterThan(0);
+      return found;
+    });
+    const droppedId = markers[0].getAttribute('data-testid')!.replace('marker-', '');
+
+    await act(async () => {
+      notifyProfileUnavailable(droppedId);
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByTestId(`marker-${droppedId}`)).not.toBeInTheDocument();
+    });
   });
 
   it('allows the codeveloper NYC account to use developer-only map tools without bank reviewer access', () => {
@@ -1073,6 +1115,7 @@ describe('MapHome', () => {
     await openMapControls();
     const pingControl = await screen.findByRole('button', { name: 'Send a Pulse' });
     const rightActions = screen.getByTestId('map-right-actions');
+    expect(rightActions).toHaveClass('lg:top-16', 'lg:right-3');
     const mapControls = screen.getByTestId('map-zoom-controls');
     const visibilityControl = screen.getByTestId('map-visibility-button');
     expect(pingControl).toHaveAttribute('data-tutorial-target', 'ping');
@@ -1145,7 +1188,9 @@ describe('MapHome', () => {
     expect(navigator.geolocation.getCurrentPosition).toHaveBeenCalledTimes(1);
     await openMapControls();
     fireEvent.click(screen.getByRole('button', { name: 'Send a Pulse' }));
-    fireEvent.click(await screen.findByRole('radio', { name: '10 miles' }));
+    // The Pulse radius is a slider now; the default of 3 miles is enough here,
+    // since this test is about the location sync that precedes the send.
+    await screen.findByRole('slider', { name: 'Pulse radius' });
     fireEvent.click(screen.getByRole('button', { name: 'Send Pulse' }));
 
     await waitFor(() => {
@@ -1165,8 +1210,8 @@ describe('MapHome', () => {
       });
     });
 
-    await waitFor(() => expect(sendMapPing).toHaveBeenCalledWith(10, expect.any(String)));
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Pulse active' })).toBeDisabled());
+    await waitFor(() => expect(sendMapPing).toHaveBeenCalledWith(3, expect.any(String)));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Send another Pulse' })).toBeEnabled());
   });
 
   it('does not send a Ping when the fresh map-location update fails', async () => {
@@ -1239,7 +1284,7 @@ describe('MapHome', () => {
     const retryIdempotencyKey = sendMapPing.mock.calls[1]?.[1];
     expect(firstIdempotencyKey).toEqual(expect.any(String));
     expect(retryIdempotencyKey).toBe(firstIdempotencyKey);
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Pulse active' })).toBeDisabled());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Send another Pulse' })).toBeEnabled());
   });
 
   it('does not let a stale status refresh erase a newly sent Ping', async () => {
@@ -1286,7 +1331,7 @@ describe('MapHome', () => {
       sentStatus.resolve(activeStatus);
       await sentStatus.promise;
     });
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Pulse active' })).toBeDisabled());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Send another Pulse' })).toBeEnabled());
 
     await act(async () => {
       staleRefresh.resolve({
@@ -1302,7 +1347,7 @@ describe('MapHome', () => {
       await staleRefresh.promise;
     });
 
-    expect(screen.getByRole('button', { name: 'Pulse active' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Send another Pulse' })).toBeEnabled();
   });
 
   it('wires the visible zoom controls to the live map instance', async () => {
@@ -1333,9 +1378,10 @@ describe('MapHome', () => {
 
   it('silently refreshes an already-open map so Ghost Mode changes replace stale pins', async () => {
     useIsMobile.mockReturnValue(false);
+    vi.useFakeTimers({ shouldAdvanceTime: true });
     const setIntervalSpy = vi.spyOn(window, 'setInterval');
 
-    render(
+    const view = render(
       <MemoryRouter initialEntries={['/map']}>
         <Routes>
           <Route path="/map" element={<MapHome />} />
@@ -1343,19 +1389,175 @@ describe('MapHome', () => {
       </MemoryRouter>
     );
 
+    try {
+      await screen.findByRole('button', { name: 'Pin Jordan' });
+      const callsBeforeRefresh = getNearbyUsers.mock.calls.length;
+      const privacyRefresh = setIntervalSpy.mock.calls.find(([, delay]) => delay === 60_000)?.[0];
+
+      expect(privacyRefresh).toEqual(expect.any(Function));
+      await act(async () => vi.advanceTimersByTimeAsync(60_000));
+
+      await waitFor(() => expect(getNearbyUsers.mock.calls.length).toBeGreaterThan(callsBeforeRefresh));
+      expect(screen.getByRole('button', { name: 'Pin Jordan' })).toBeInTheDocument();
+    } finally {
+      view.unmount();
+      setIntervalSpy.mockRestore();
+      vi.useRealTimers();
+    }
+  });
+
+  it('fetches another member new Ghost position at the deadline without replacing the map page', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const [base] = await getNearbyUsers();
+    const deadline = Date.now() + 3_000;
+    getNearbyUsers.mockResolvedValue([{ ...base, displayMode: 'GHOST', animationHint: 'FADE_LAST_MINUTE', ghostRotationExpiresAtMs: deadline }]);
+    render(<MemoryRouter initialEntries={['/map']}><MapHome /></MemoryRouter>);
+    const map = await screen.findByTestId('map-focus');
     await screen.findByRole('button', { name: 'Pin Jordan' });
-    const callsBeforeRefresh = getNearbyUsers.mock.calls.length;
-    const privacyRefresh = setIntervalSpy.mock.calls.find(([, delay]) => delay === 10_000)?.[0];
+    const calls = getNearbyUsers.mock.calls.length;
+    getNearbyUsers.mockResolvedValue([{ ...base, displayMode: 'GHOST', animationHint: 'NONE', lat: 40.71, lng: -73.91 }]);
+    await act(async () => vi.advanceTimersByTimeAsync(3_300));
+    await waitFor(() => expect(getNearbyUsers.mock.calls.length).toBeGreaterThan(calls));
+    expect(screen.getByTestId('marker-user-1')).toHaveAttribute('data-lat', '40.71');
+    expect(screen.getByTestId('map-focus')).toBe(map);
+  });
 
-    expect(privacyRefresh).toEqual(expect.any(Function));
-    act(() => {
-      (privacyRefresh as () => void)();
-    });
+  it('clears a discovery rate-limit error after a successful background refresh', async () => {
+    const recoveredUsers = await getNearbyUsers();
+    getNearbyUsers.mockClear();
+    getNearbyUsers.mockRejectedValueOnce(new ApiClientError(429, 'RATE_LIMITED', 'Too many discovery refreshes. Try again later.', { retryAfterSeconds: 1 }));
+    navigator.geolocation.getCurrentPosition = vi.fn();
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const view = render(<MemoryRouter initialEntries={['/map']}><MapHome /></MemoryRouter>);
+    try {
+      expect(await screen.findByText('Too many discovery refreshes. Try again later.')).toBeInTheDocument();
+      getNearbyUsers.mockResolvedValue(recoveredUsers);
+      await act(async () => vi.advanceTimersByTimeAsync(60_000));
+      expect(screen.getByRole('button', { name: 'Pin Jordan' })).toBeInTheDocument();
+      expect(screen.queryByText('Too many discovery refreshes. Try again later.')).not.toBeInTheDocument();
+    } finally {
+      view.unmount();
+      vi.useRealTimers();
+    }
+  });
 
-    await waitFor(() => expect(getNearbyUsers.mock.calls.length).toBeGreaterThan(callsBeforeRefresh));
-    expect(screen.getByRole('button', { name: 'Pin Jordan' })).toBeInTheDocument();
+  it('coalesces overlapping discovery refreshes and loads the latest settled viewport', async () => {
+    const recoveredUsers = await getNearbyUsers();
+    getNearbyUsers.mockClear();
+    navigator.geolocation.getCurrentPosition = vi.fn();
+    const handlers = new Map<string, Set<() => void>>();
+    const eventfulMap = mapControls as typeof mapControls & {
+      on?: (event: string, handler: () => void) => void;
+      off?: (event: string, handler: () => void) => void;
+      getBounds?: () => { getNorth(): number; getSouth(): number; getEast(): number; getWest(): number };
+    };
+    eventfulMap.on = (event, handler) => {
+      if (!handlers.has(event)) handlers.set(event, new Set());
+      handlers.get(event)!.add(handler);
+    };
+    eventfulMap.off = (event, handler) => { handlers.get(event)?.delete(handler); };
+    eventfulMap.getBounds = () => ({ getNorth: () => 40.9, getSouth: () => 40.5, getEast: () => -73.5, getWest: () => -74.3 });
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const starts: number[] = [];
+    getNearbyUsers.mockImplementation(async () => { starts.push(Date.now()); return recoveredUsers; });
+    const view = render(<MemoryRouter initialEntries={['/map']}><MapHome /></MemoryRouter>);
+    try {
+      await screen.findByRole('button', { name: 'Pin Jordan' });
+      await act(async () => vi.advanceTimersByTimeAsync(3_000));
+      const inFlight = deferred<typeof recoveredUsers>();
+      getNearbyUsers.mockImplementationOnce(() => { starts.push(Date.now()); return inFlight.promise; });
+      const beforeRefresh = getNearbyUsers.mock.calls.length;
+      await act(async () => { window.dispatchEvent(new Event('focus')); });
+      await act(async () => vi.advanceTimersByTimeAsync(2_500));
+      expect(getNearbyUsers).toHaveBeenCalledTimes(beforeRefresh + 1);
+      await act(async () => {
+        window.dispatchEvent(new Event('focus'));
+        document.dispatchEvent(new Event('visibilitychange'));
+        mapControls.getCenter.mockReturnValue({ lat: 40.74, lng: -73.96 });
+        handlers.get('moveend')?.forEach((handler) => handler());
+      });
+      await act(async () => vi.advanceTimersByTimeAsync(700));
+      await act(async () => {
+        mapControls.getCenter.mockReturnValue({ lat: 40.75, lng: -73.95 });
+        handlers.get('moveend')?.forEach((handler) => handler());
+      });
+      await act(async () => vi.advanceTimersByTimeAsync(700));
+      expect(getNearbyUsers).toHaveBeenCalledTimes(beforeRefresh + 1);
+      await act(async () => { inFlight.resolve(recoveredUsers); });
+      await act(async () => vi.advanceTimersByTimeAsync(2_500));
+      expect(getNearbyUsers).toHaveBeenCalledTimes(beforeRefresh + 2);
+      expect(getNearbyUsers.mock.calls.at(-1)?.[0]).toEqual({ lat: 40.75, lng: -73.95 });
+      expect(starts.slice(1).every((start, index) => start - starts[index] >= 2_500)).toBe(true);
+      await act(async () => { window.dispatchEvent(new Event('focus')); });
+      await openMapControls();
+      fireEvent.click(screen.getByTestId('map-seeking-button'));
+      const beforeApply = getNearbyUsers.mock.calls.length;
+      const lastBackgroundStart = starts.at(-1)!;
+      await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Apply', exact: true })); });
+      expect(getNearbyUsers).toHaveBeenCalledTimes(beforeApply + 1);
+      expect(starts.at(-1)! - lastBackgroundStart).toBeLessThan(2_500);
 
-    setIntervalSpy.mockRestore();
+      const olderRequest = deferred<typeof recoveredUsers>();
+      getNearbyUsers.mockImplementationOnce(() => { starts.push(Date.now()); return olderRequest.promise; });
+      await act(async () => { window.dispatchEvent(new Event('focus')); });
+      await act(async () => vi.advanceTimersByTimeAsync(2_500));
+      const whileOlderRequestRuns = getNearbyUsers.mock.calls.length;
+      const olderRequestStart = starts.at(-1)!;
+      await openMapControls();
+      fireEvent.click(screen.getByTestId('map-seeking-button'));
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: 'Apply', exact: true }));
+        window.dispatchEvent(new Event('focus'));
+      });
+      expect(getNearbyUsers).toHaveBeenCalledTimes(whileOlderRequestRuns);
+      await act(async () => { olderRequest.resolve(recoveredUsers); });
+      expect(getNearbyUsers).toHaveBeenCalledTimes(whileOlderRequestRuns + 1);
+      expect(getNearbyUsers.mock.calls.at(-1)?.[0]).toEqual({ lat: 40.75, lng: -73.95 });
+      expect(starts.at(-1)! - olderRequestStart).toBeLessThan(2_500);
+    } finally {
+      view.unmount();
+      vi.useRealTimers();
+      delete eventfulMap.on;
+      delete eventfulMap.off;
+      delete eventfulMap.getBounds;
+    }
+  });
+
+  it('waits for discovery retryAfterSeconds while removing expired pins, then recovers automatically', async () => {
+    const [baseUser] = await getNearbyUsers();
+    getNearbyUsers.mockClear();
+    navigator.geolocation.getCurrentPosition = vi.fn();
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    getNearbyUsers.mockResolvedValue([{ ...baseUser, displayExpiresAtMs: Date.now() + 5_000 }]);
+    const view = render(<MemoryRouter initialEntries={['/map?focusUserId=user-1']}><MapHome /></MemoryRouter>);
+    try {
+      await screen.findByRole('button', { name: 'Pin Jordan' });
+      await act(async () => vi.advanceTimersByTimeAsync(2_500));
+      const beforeLimit = getNearbyUsers.mock.calls.length;
+      let rejectedAt = 0;
+      getNearbyUsers.mockImplementationOnce(async () => {
+        rejectedAt = Date.now();
+        throw new ApiClientError(429, 'RATE_LIMITED', 'Too many discovery refreshes. Try again later.', { retryAfterSeconds: 10 });
+      });
+      await act(async () => { window.dispatchEvent(new Event('focus')); });
+      expect(getNearbyUsers).toHaveBeenCalledTimes(beforeLimit + 1);
+      getNearbyUsers.mockResolvedValue([{ ...baseUser, displayExpiresAtMs: Date.now() + 60_000 }]);
+      await act(async () => vi.advanceTimersByTimeAsync(3_000));
+      await act(async () => {
+        window.dispatchEvent(new Event('focus'));
+        document.dispatchEvent(new Event('visibilitychange'));
+      });
+      expect(screen.queryByRole('button', { name: 'Pin Jordan' })).not.toBeInTheDocument();
+      await act(async () => vi.advanceTimersByTimeAsync(Math.max(0, rejectedAt + 9_900 - Date.now())));
+      expect(getNearbyUsers).toHaveBeenCalledTimes(beforeLimit + 1);
+      await act(async () => vi.advanceTimersByTimeAsync(200));
+      expect(getNearbyUsers).toHaveBeenCalledTimes(beforeLimit + 2);
+      expect(screen.getByRole('button', { name: 'Pin Jordan' })).toBeInTheDocument();
+      expect(screen.queryByText('Too many discovery refreshes. Try again later.')).not.toBeInTheDocument();
+    } finally {
+      view.unmount();
+      vi.useRealTimers();
+    }
   });
 
   it('navigates directly to the full profile on a short mobile tap', async () => {
@@ -1467,7 +1669,7 @@ describe('MapHome', () => {
     const recentPanel = screen.getByTestId('recently-active-panel');
     const recentToggle = screen.getByRole('button', { name: 'Show recently active bar' });
 
-    expect(recentPanel.parentElement).toHaveClass('bottom-[calc(5.75rem+env(safe-area-inset-bottom))]', 'left-3', 'right-3', 'z-40');
+    expect(recentPanel.parentElement).toHaveClass('bottom-[calc(5.75rem+env(safe-area-inset-bottom))]', 'left-3', 'right-3', 'z-[130]');
     expect(recentPanel).toHaveClass('max-w-max', 'p-0');
     expect(recentToggle).toHaveAttribute('aria-expanded', 'false');
     expect(screen.queryByTestId('recently-active-tray')).not.toBeInTheDocument();
@@ -1661,9 +1863,10 @@ describe('MapHome', () => {
       'min-w-0',
       'justify-center',
       'gap-0.5',
-      'px-2',
-      'py-1.5',
+      'px-1',
+      'py-1',
       'bg-background/25',
+      'max-[430px]:px-0.5',
       'sm:gap-1',
       'sm:px-2.5',
     );
@@ -1676,17 +1879,18 @@ describe('MapHome', () => {
       notificationButton,
       settingsButton,
     ]) {
-      expect(button).toHaveClass('size-11', 'sm:size-12');
+      expect(button).toHaveClass('size-11', 'max-[360px]:size-10', 'sm:size-12');
     }
     expect(topActions).not.toHaveClass('sm:max-w-[34rem]');
     // The pill sits in a centring wrapper inside the full-width chrome row.
     expect(topActions.parentElement).toHaveClass('flex-1', 'justify-center');
     expect(topActions.parentElement?.parentElement).toHaveClass('w-full');
+    expect(topActions.parentElement?.parentElement).not.toHaveClass('mx-auto', 'max-w-[42rem]');
     expect(topActions).not.toHaveClass('mt-11');
     expect(plusStack).toHaveClass('relative', 'shrink-0');
     // The slot now holds the corner open at the button's own size at every
     // width, so the bar never runs underneath the bug control.
-    expect(bugButtonSlot).toHaveClass('h-9', 'w-9', 'sm:h-10', 'sm:w-10', 'lg:h-11', 'lg:w-11');
+    expect(bugButtonSlot).toHaveClass('h-12', 'w-12', 'sm:h-10', 'sm:w-10', 'lg:h-11', 'lg:w-11');
     expect(plusStack).toContainElement(cruushPlusButton);
     expect(plusStack).not.toContainElement(pingButton);
     expect(topActions).not.toContainElement(cruushPlusButton);
@@ -1714,17 +1918,19 @@ describe('MapHome', () => {
       '[&_svg]:!w-full',
     );
     expect(pingButton).not.toHaveClass('absolute', 'mt-2');
-    // The offsets keep an 8px gap under the top-actions bar at every breakpoint,
-    // matching the gap-2 the stack uses between its own controls.
-    expect(rightActions).toHaveClass('right-3', 'top-[4.625rem]', 'sm:right-4', 'sm:top-[5.375rem]', 'lg:top-[5.625rem]');
+    // Desktop controls sit 8px below the bug button; mobile offsets are unchanged.
+    expect(rightActions).toHaveClass('right-3', 'top-[4.625rem]', 'sm:right-4', 'sm:top-[5.375rem]', 'lg:right-3', 'lg:top-16');
     expect(cruushPlusButton).toHaveClass(
       'cruush-plus-shimmer-button',
       'cruush-logo-font',
       'normal-case',
       'tracking-normal',
-      'h-9',
+      'h-12',
       'px-3',
       'text-base',
+      'max-[360px]:h-11',
+      'max-[360px]:px-1.5',
+      'max-[360px]:text-xs',
       'sm:h-10',
       'sm:px-3.5',
       'sm:text-lg',
@@ -1733,9 +1939,11 @@ describe('MapHome', () => {
       'lg:text-xl',
     );
     expect(screen.queryByRole('button', { name: 'Safety Center' })).not.toBeInTheDocument();
-    expect(luckyIcon).toHaveClass('h-10', 'w-10', 'scale-[1.28]', 'object-contain', 'lg:h-11', 'lg:w-11');
-    expect(ghostModeIcon).toHaveClass('h-10', 'w-10', 'scale-[1.15]', 'object-contain', 'lg:h-11', 'lg:w-11');
-    expect(dlModeIcon).toHaveClass('!h-10', '!w-10', 'scale-[1.18]', 'lg:!h-11', 'lg:!w-11');
+    expect(luckyIcon).toHaveClass('h-10', 'w-10', 'scale-[1.28]', 'object-contain', 'max-[360px]:h-9', 'max-[360px]:w-9', 'lg:h-11', 'lg:w-11');
+    expect(ghostModeIcon).toHaveClass('h-10', 'w-10', 'object-contain', 'max-[360px]:h-9', 'max-[360px]:w-9', 'lg:h-11', 'lg:w-11');
+    // The Ghost Mode glyph sits in the same box as its neighbours, with no extra scale.
+    expect(ghostModeIcon).not.toHaveClass('scale-[1.15]');
+    expect(dlModeIcon).toHaveClass('!h-10', '!w-10', 'scale-[1.18]', 'max-[360px]:!h-9', 'max-[360px]:!w-9', 'lg:!h-11', 'lg:!w-11');
     expect(settingsButton.nextElementSibling).toBe(notificationButton);
     expect(topActions.lastElementChild).toBe(notificationButton);
     for (const button of [
@@ -1745,19 +1953,21 @@ describe('MapHome', () => {
       notificationButton,
       settingsButton,
     ]) {
-      expect(button).toHaveClass('bg-transparent', 'hover:bg-transparent', 'focus-visible:bg-transparent');
+      // Hover darkens the control instead of washing it lighter.
+      expect(button).toHaveClass('bg-transparent', 'hover:bg-black/45', 'focus-visible:bg-transparent');
+      expect(button).not.toHaveClass('hover:bg-transparent');
       expect(button).not.toHaveClass('hover:bg-white/10');
     }
     expect(dlModeButton).not.toHaveClass('bg-white/[0.07]');
-    expect(notificationIcon).toHaveClass('h-10', 'w-10', 'scale-[1.28]', 'object-contain', 'lg:h-11', 'lg:w-11');
-    expect(settingsIcon).toHaveClass('h-10', 'w-10', 'object-contain', 'lg:h-11', 'lg:w-11');
+    expect(notificationIcon).toHaveClass('h-10', 'w-10', 'scale-[1.28]', 'object-contain', 'max-[360px]:h-9', 'max-[360px]:w-9', 'lg:h-11', 'lg:w-11');
+    expect(settingsIcon).toHaveClass('h-10', 'w-10', 'object-contain', 'max-[360px]:h-9', 'max-[360px]:w-9', 'lg:h-11', 'lg:w-11');
     expect(dlModeIcon).toHaveAttribute('data-source', 'Julien supplied balaclava halo DL Mode icon');
     expect(dlModeIcon).toHaveAttribute('data-tone', 'gradient');
     expect(dlModeIcon?.querySelector('[data-dl-mode-part="balaclava-halo"]')).toHaveAttribute('href', expect.stringContaining('dl-mode-balaclava-halo-user-supplied.png'));
     expect(dlModeIcon?.querySelector('[data-dl-mode-part="halo-cutout"]')).not.toBeInTheDocument();
     expect(dlModeIcon?.querySelector('[data-dl-mode-part="wing-cutout"]')).not.toBeInTheDocument();
     expect(decodeURIComponent(ghostModeIcon?.getAttribute('src') ?? '')).toContain("fill='#ffffff'");
-    expect(locationButton).toHaveClass('rounded-full', 'bg-background/55');
+    expect(locationButton).toHaveClass('rounded-full', 'bg-background/78', 'backdrop-blur-md');
     expect(locationButton.querySelector('svg')).toHaveClass('h-4', 'w-4');
     expect(screen.queryByText('DL Mode Active')).not.toBeInTheDocument();
 
@@ -2070,6 +2280,18 @@ describe('MapHome', () => {
     expect(screen.getByTestId('map-controls-tutorial')).toBeInTheDocument();
   });
 
+  it('opens Map Controls when a mobile tutorial menu step returns from another route', async () => {
+    useIsMobile.mockReturnValue(true);
+    window.localStorage.setItem('cruush:tutorial-v5-seen', 'true');
+    window.localStorage.setItem('cruush:tutorial-v5-progress', 'places');
+    resolveNoticeDismissal.mockResolvedValue({ dismissed: true, offline: false });
+
+    render(<MemoryRouter initialEntries={['/map']}><MapHome /></MemoryRouter>);
+
+    expect(await screen.findByTestId('map-controls-trigger')).toHaveAttribute('aria-expanded', 'true');
+    expect(await screen.findByRole('heading', { name: 'Spots' })).toBeInTheDocument();
+  });
+
   it('ignores malformed saved tutorial progress when the tutorial is dismissed', async () => {
     useIsMobile.mockReturnValue(false);
     window.localStorage.setItem('cruush:tutorial-v5-seen', 'true');
@@ -2251,9 +2473,7 @@ describe('MapHome', () => {
     expect(screen.getByTestId('desktop-dock-left-resize-top')).toBeInTheDocument();
     expect(screen.getByRole('complementary').querySelector('.profile-card-scroll')).toBeInTheDocument();
     expect(screen.getByRole('complementary').querySelector('.scrollbar-hide')).not.toBeInTheDocument();
-    expect(screen.getByTestId('recently-active-panel').parentElement).toHaveClass('left-0', 'right-0', 'px-4');
-    expect(screen.getByTestId('recently-active-panel').parentElement).not.toHaveClass('left-[calc(26rem+3rem)]');
-    expect(screen.getByTestId('recently-active-panel')).toHaveClass('w-fit', 'max-w-[35.75rem]', 'mx-auto');
+    expect(screen.queryByTestId('recently-active-panel')).not.toBeInTheDocument();
     expect(await screen.findByRole('tab', { name: 'Basics' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('tab', { name: 'Intimacy' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Health' })).toBeInTheDocument();
@@ -2453,7 +2673,7 @@ describe('MapHome', () => {
     );
 
     const darkRoomMark = (await screen.findByRole('button', { name: 'Ghost Mode Settings' })).querySelector('svg');
-    expect(darkRoomMark).toHaveClass('!h-10', '!w-10', 'lg:!h-11', 'lg:!w-11');
+    expect(darkRoomMark).toHaveClass('!h-10', '!w-10', 'max-[360px]:!h-9', 'max-[360px]:!w-9', 'lg:!h-11', 'lg:!w-11');
     expect(darkRoomMark).not.toHaveClass('scale-[1.12]');
     expect(darkRoomMark?.querySelector('[data-dark-room-part="housing"]')).toHaveAttribute('fill-rule', 'evenodd');
     expect(darkRoomMark?.querySelector('[data-dark-room-part="keyhole"]')).not.toBeInTheDocument();
@@ -2554,7 +2774,7 @@ describe('MapHome', () => {
     );
     await waitFor(() => {
       expect(mapControls.setCenter).toHaveBeenCalledWith([-73.901, 40.701]);
-      expect(mapControls.setZoom).toHaveBeenCalledWith(14);
+      expect(mapControls.setZoom).toHaveBeenCalledWith(16);
       expect(screen.getByTestId('map-focus')).toHaveAttribute('data-lat', '40.701');
       expect(screen.getByTestId('map-focus')).toHaveAttribute('data-lng', '-73.901');
     });
@@ -2843,6 +3063,7 @@ describe('MapHome', () => {
       ...((await import('../lib/profileApi')).emptyProfilePayload),
       id: 'me',
       display_name: 'Me',
+      signal: 'Come say hi',
       photos: ['https://example.com/me.jpg'],
       updated_at: '2026-08-12T19:00:00.000Z',
       location: {
@@ -2929,6 +3150,10 @@ describe('MapHome', () => {
     expect(ghostMarker).toHaveAttribute('data-lat', '40.716');
     expect(ghostMarker).toHaveAttribute('data-lng', '-74.002');
     expect(ghostMarker).toHaveAttribute('data-photo', 'https://example.com/me.jpg');
+    // Ghost Mode moves where people see you, not who you are. Everyone else
+    // reads the real signal on the decoy, so this preview has to as well.
+    expect(ghostMarker).toHaveAttribute('data-signal', 'Come say hi');
+    expect(ghostMarker).not.toHaveAttribute('data-signal', 'Ghost Mode decoy');
     expect(mapFocus).toHaveAttribute('data-radius-circle', '1609');
     expect(mapFocus).toHaveAttribute('data-radius-lat', '40.7128');
     expect(mapFocus).toHaveAttribute('data-radius-lng', '-74.006');
@@ -3037,7 +3262,7 @@ describe('MapHome', () => {
     expect(recentToggle).toHaveTextContent('Recently Active');
     expect(recentToggle.parentElement).toHaveClass('justify-center');
     expect(recentToggle).toHaveStyle({ background: 'var(--cruush-gradient)' });
-    expect(recentPanel.parentElement).toHaveClass('bottom-[calc(6.25rem+env(safe-area-inset-bottom))]', 'left-0', 'right-0', 'z-[39]');
+    expect(recentPanel.parentElement).toHaveClass('bottom-[calc(6.25rem+env(safe-area-inset-bottom))]', 'left-0', 'right-0', 'z-[130]');
     expect(recentPanel).toHaveClass('max-w-[35.75rem]', 'rounded-2xl', 'bg-background/68', 'backdrop-blur-md', 'p-3');
     expect(screen.getByTestId('recently-active-tray')).toHaveClass('justify-center', 'overflow-hidden');
     expect(screen.getByTestId('recently-active-tray')).not.toHaveClass('scrollbar-subtle', 'pb-2');
@@ -3054,27 +3279,7 @@ describe('MapHome', () => {
     expect(await screen.findByRole('button', { name: /message now/i })).toBeInTheDocument();
     expect(screen.getByRole('complementary')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Close profile preview' }));
-    fireEvent.wheel(recentTray, { deltaY: 96 });
-    expect(recentTray.scrollLeft).toBe(0);
-    const pointerDown = new Event('pointerdown', { bubbles: true });
-    Object.defineProperties(pointerDown, {
-      clientX: { value: 140 },
-      pointerId: { value: 1 },
-    });
-    const pointerMove = new Event('pointermove', { bubbles: true });
-    Object.defineProperties(pointerMove, {
-      clientX: { value: 90 },
-      pointerId: { value: 1 },
-    });
-    const pointerUp = new Event('pointerup', { bubbles: true });
-    Object.defineProperties(pointerUp, {
-      clientX: { value: 90 },
-      pointerId: { value: 1 },
-    });
-    fireEvent(recentTray, pointerDown);
-    fireEvent(recentTray, pointerMove);
-    fireEvent(recentTray, pointerUp);
-    expect(recentTray.scrollLeft).toBe(50);
+    expect(recentTray).toHaveAttribute('data-scrollable', 'false');
     expect(screen.queryByText('Last Active')).not.toBeInTheDocument();
     expect(screen.queryByText('2m ago')).not.toBeInTheDocument();
     expect(screen.queryByText('Jordan')).not.toBeInTheDocument();
@@ -3083,22 +3288,24 @@ describe('MapHome', () => {
     expect(recentMedia?.className).toContain('aspect-[4/5]');
     expect(within(recentTray).queryByText(/./)).not.toBeInTheDocument();
 
-    fireEvent.click(recentToggle);
+    const restoredRecentToggle = screen.getByRole('button', { name: 'Hide recently active bar' });
+    fireEvent.click(restoredRecentToggle);
 
-    expect(recentToggle).toHaveAttribute('aria-expanded', 'false');
-    expect(recentToggle).toHaveAccessibleName('Show recently active bar');
-    expect(recentToggle).toHaveTextContent('Recently Active');
-    expect(recentToggle).toHaveClass('bg-background/68', 'backdrop-blur-md');
-    expect(recentPanel).toHaveClass('max-w-max', 'p-0');
-    expect(recentPanel).not.toHaveClass('rounded-2xl', 'bg-background/40', 'p-3');
+    expect(restoredRecentToggle).toHaveAttribute('aria-expanded', 'false');
+    expect(restoredRecentToggle).toHaveAccessibleName('Show recently active bar');
+    expect(restoredRecentToggle).toHaveTextContent('Recently Active');
+    expect(restoredRecentToggle).toHaveClass('bg-background/68', 'backdrop-blur-md');
+    const restoredRecentPanel = screen.getByTestId('recently-active-panel');
+    expect(restoredRecentPanel).toHaveClass('max-w-max', 'p-0');
+    expect(restoredRecentPanel).not.toHaveClass('rounded-2xl', 'bg-background/40', 'p-3');
     expect(screen.queryByTestId('recently-active-tray')).not.toBeInTheDocument();
 
-    fireEvent.click(recentToggle);
+    fireEvent.click(restoredRecentToggle);
 
-    expect(recentToggle).toHaveAttribute('aria-expanded', 'true');
-    expect(recentToggle).toHaveAccessibleName('Hide recently active bar');
-    expect(recentToggle).toHaveTextContent('Recently Active');
-    expect(recentPanel).toHaveClass('max-w-[35.75rem]', 'rounded-2xl', 'bg-background/68', 'backdrop-blur-md', 'p-3');
+    expect(restoredRecentToggle).toHaveAttribute('aria-expanded', 'true');
+    expect(restoredRecentToggle).toHaveAccessibleName('Hide recently active bar');
+    expect(restoredRecentToggle).toHaveTextContent('Recently Active');
+    expect(restoredRecentPanel).toHaveClass('max-w-[35.75rem]', 'rounded-2xl', 'bg-background/68', 'backdrop-blur-md', 'p-3');
     expect(screen.getByTestId('recently-active-tray')).toBeInTheDocument();
   });
 
@@ -3272,6 +3479,20 @@ describe('MapHome', () => {
     expect(sendCruush).not.toHaveBeenCalled();
   });
 
+  it('shows the existing DL icon for masked Recently Active photos', async () => {
+    const [base] = await getNearbyUsers();
+    getNearbyUsers.mockResolvedValue([{ ...base, photo: 'https://example.com/photo.jpg', photoExplicit: true }]);
+    window.localStorage.setItem('cruush:dl-mode-enabled', 'true');
+    render(<MemoryRouter initialEntries={['/map']}><MapHome /></MemoryRouter>);
+    await screen.findByRole('button', { name: 'Pin Jordan' });
+    fireEvent.click(screen.getByRole('button', { name: 'Show recently active bar' }));
+    const fallback = screen.getByTestId('recently-active-fallback-user-1');
+    expect(fallback.querySelector('[data-testid="dl-mode-mark"]')).toHaveAttribute('data-tone', 'white');
+    expect(fallback.querySelector('[data-testid="dl-mode-photo-placeholder"]')).toHaveClass('opacity-75');
+    expect(fallback).toHaveTextContent('DL MODE ON');
+    expect(fallback.querySelector('img')).toBeNull();
+  });
+
   it('loads mutual-only map pins from the mutuals query mode', async () => {
     useIsMobile.mockReturnValue(false);
     getMutualCruushMap.mockResolvedValue([{
@@ -3434,5 +3655,33 @@ describe('MapHome', () => {
     expect(screen.queryByText(/Demo NYC pin/i)).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Pin Jordan' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Pin Mika Demo' })).not.toBeInTheDocument();
+  });
+
+  it('keeps Spot pins off the map when Spots are hidden', async () => {
+    // The preference lives in storage so it survives a reload.
+    window.localStorage.setItem('cruush:map-spots-hidden', 'true');
+    useIsMobile.mockReturnValue(false);
+    getNearbyUsers.mockResolvedValue([]);
+    getPlaces.mockResolvedValue([{
+      id: 'place-1',
+      name: 'Sunset Park',
+      latitude: 40.73,
+      longitude: -73.99,
+      facilityType: 'park',
+      distanceMiles: 0.2,
+    } as unknown as PlaceRecord]);
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<MapHome />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => expect(getPlaces).toHaveBeenCalled());
+    await waitFor(() => expect(screen.queryByTestId('marker-place-place-1')).not.toBeInTheDocument());
+
+    window.localStorage.removeItem('cruush:map-spots-hidden');
   });
 });

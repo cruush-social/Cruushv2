@@ -113,8 +113,9 @@ describe('GhostModeSettings', () => {
     );
 
     expect(await screen.findByRole('heading', { name: 'Ghost Mode & Dark Room Mode' })).toBeInTheDocument();
-    expect(screen.getByText('Other people see a shifting location inside your selected radius. You still see your own current map position.')).toBeInTheDocument();
-    expect(screen.getByText('Larger radius gives you more cover; smaller radius keeps your public pin closer to where you are.')).toBeInTheDocument();
+    // Ghost Mode moves a decoy, it does not hide you, and the copy has to say so.
+    expect(screen.getByText(/You stay visible\. What moves is a decoy pin/)).toBeInTheDocument();
+    expect(screen.getByText(/the area your decoy pin moves around in, not the area you are visible in/)).toBeInTheDocument();
 
     expect(screen.getByText('Who can see my precise location?')).toBeInTheDocument();
     expect(screen.queryByText('Precise location for mutual crowds')).not.toBeInTheDocument();

@@ -14,8 +14,6 @@ export const BADGE_INTENTS: Array<{ id: BadgeIntent; label: string }> = [
   { id: 'give', label: 'Give' },
   { id: 'receive', label: 'Receive' },
   { id: 'switch', label: 'Switch' },
-  { id: 'service', label: 'Service' },
-  { id: 'stone', label: 'Stone' },
 ];
 
 /** Always lower case, because it reads as a note rather than a heading. */

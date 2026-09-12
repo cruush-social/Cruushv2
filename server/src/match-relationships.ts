@@ -5,6 +5,7 @@ import {
   getOrderedRelationshipUserIds,
   getProfileViewDedupeBucket,
   hasActiveEncryptedRelationshipToken,
+  listEncryptedRelationshipRecordsByTarget,
   issueEncryptedRelationshipToken,
   revokeEncryptedRelationshipTokens,
   updateEncryptedRelationshipRecordStatus,
@@ -14,6 +15,7 @@ import {
   DEFAULT_GHOST_RADIUS_METERS,
   loadVisibilityPolicy,
   publicPrivacySettings,
+  resolveSharedDistanceLabelMode,
   saveVisibilityPolicy,
   isPreciseLocationRevoked,
   type CrowdPrecisionPolicy,
@@ -34,6 +36,7 @@ export type PrivacySettings = {
   preciseToMutualCruushes: boolean;
   preciseToMutualCrowds: CrowdPrecisionPolicy[];
   darkRoomDistanceLabel: boolean;
+  distanceLabelMode?: "approximate" | "precise";
   preciseLocationVisibility: PreciseLocationVisibility;
   updatedAtMs: number;
 };
@@ -57,6 +60,7 @@ export type RelationshipPermissions = {
   targetGhostMode: boolean;
   targetBaseMode?: VisibilityBaseMode;
   targetDarkRoomDistanceLabel?: boolean;
+  distanceLabelMode?: "approximate" | "precise";
   targetPreciseLocationVisibility: PreciseLocationVisibility;
 };
 
@@ -203,6 +207,14 @@ async function getRelationshipPrivacySettings(app: FastifyInstance, userId: stri
     app.log.warn({ err: error, userId }, "relationship privacy settings unavailable");
     return conservativePrivacySettingsFallback();
   }
+}
+
+export async function getSharedDistanceLabelMode(app: FastifyInstance, viewerUserId: string, targetUserId: string) {
+  const [viewer, subject] = await Promise.all([
+    getRelationshipPrivacySettings(app, viewerUserId),
+    getRelationshipPrivacySettings(app, targetUserId)
+  ]);
+  return resolveSharedDistanceLabelMode(viewer.distanceLabelMode, subject.distanceLabelMode);
 }
 
 export async function savePrivacySettings(
@@ -485,6 +497,41 @@ export async function revokeMutualCruushMatch(app: FastifyInstance, userId: stri
   return revokeOutgoingCruush(app, userId, otherUserId);
 }
 
+/**
+ * The recipient clears an incoming cruush from their own list. Dismissing what
+ * someone sent must not edit the sender's history, so the record is marked
+ * dismissed rather than removed and the sender's Sent list keeps carrying it.
+ */
+export async function dismissIncomingCruush(app: FastifyInstance, userId: string, otherUserId: string) {
+  const incoming = await findEncryptedRelationshipRecord(app, {
+    type: "cruush",
+    actorUserId: otherUserId,
+    targetUserId: userId
+  });
+
+  if (!incoming) {
+    return { dismissed: false };
+  }
+
+  await updateEncryptedRelationshipRecordStatus(app, incoming, "dismissed");
+  return { dismissed: true };
+}
+
+/** Clears one viewer's entries from the owner's Views list. */
+export async function removeProfileViewsFromViewer(app: FastifyInstance, userId: string, viewerUserId: string) {
+  const views = await listEncryptedRelationshipRecordsByTarget(app, {
+    targetUserId: userId,
+    type: "profile_view"
+  });
+  const fromViewer = views.filter((record) => record.payload.actorUserId === viewerUserId);
+
+  for (const record of fromViewer) {
+    await updateEncryptedRelationshipRecordStatus(app, record, "removed");
+  }
+
+  return { removed: fromViewer.length };
+}
+
 export async function getRelationshipPermissions(
   app: FastifyInstance,
   viewerUserId: string,
@@ -506,6 +553,7 @@ export async function getRelationshipPermissions(
       targetGhostMode: viewerSettings.ghostModeEnabled,
       targetBaseMode: viewerSettings.baseMode ?? "GHOST",
       targetDarkRoomDistanceLabel: viewerSettings.darkRoomDistanceLabel === true,
+      distanceLabelMode: viewerSettings.distanceLabelMode ?? "approximate",
       targetPreciseLocationVisibility: viewerSettings.preciseLocationVisibility
     };
   }
@@ -571,11 +619,15 @@ export async function getRelationshipPermissions(
     canMessage: !blocked,
     canRevealMutualProtectedFields: !blocked && isMutualCruush,
     canRevealPreciseLocation: !blocked && canRevealPreciseLocation,
-    shouldLogProfileView: !blocked && !viewerGhostMode && !targetGhostMode,
+    // Dark Room browsing leaves no trace. Ghost Mode does not: it hides
+    // precise location behind a decoy, not interest, so a ghosted viewer
+    // still lands in Views and a ghosted target still sees who looked.
+    shouldLogProfileView: !blocked && viewerSettings.baseMode !== "STEALTH",
     viewerGhostMode,
     targetGhostMode,
     targetBaseMode: targetSettings.baseMode ?? "GHOST",
     targetDarkRoomDistanceLabel: targetSettings.darkRoomDistanceLabel === true,
+    distanceLabelMode: resolveSharedDistanceLabelMode(viewerSettings.distanceLabelMode, targetSettings.distanceLabelMode),
     targetPreciseLocationVisibility
   };
 }

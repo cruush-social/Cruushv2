@@ -52,6 +52,11 @@ export const createSupportRequestPayloadSchema = z.object({
   screenshot: supportScreenshotSchema.optional()
 }).strict();
 
+export const generalSuspensionAppealPayloadSchema = z.object({
+  contactEmail: optionalEmailSchema,
+  message: multilineTextSchema({ min: 10, max: 4000 })
+}).strict();
+
 export const replySupportRequestPayloadSchema = z.object({
   message: multilineTextSchema({ min: 1, max: 4000 })
 }).strict();

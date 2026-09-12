@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { ArrowLeft, ChevronLeft, ChevronRight, Clock3, Mail, RefreshCw, Search, Send } from 'lucide-react';
 import { useNavigate } from 'react-router';
-import { toast } from 'sonner';
+import { toast } from '../lib/toast';
 import { ApiClientError, resolveMediaUrl } from '../lib/apiClient';
 import {
   getSupportRequests,
@@ -14,6 +14,7 @@ import { Button } from './ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Textarea } from './ui/textarea';
 import LoadingCardSkeletons from './LoadingCardSkeletons';
+import BugButtonSlot from './BugButtonSlot';
 
 type RequestStatusFilter = 'open' | 'in_progress' | 'closed' | 'dismissed' | 'all';
 type RequestCategoryFilter = 'all' | 'suspension_appeal';
@@ -185,6 +186,8 @@ export default function RequestsDashboard() {
           <RefreshCw className="mr-2 h-4 w-4" />
           Refresh
         </Button>
+      
+        <BugButtonSlot testId="requests-dashboard-bug-button-slot" />
       </header>
 
       <div className="mx-auto max-w-5xl p-4">

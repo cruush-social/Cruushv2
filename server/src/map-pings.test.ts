@@ -4,6 +4,7 @@ import type { AppConfig } from "./config.js";
 import type { DbClient, DbQueryResult } from "./db.js";
 import {
   MAP_PING_ACTIVE_MS,
+  MAP_PING_RADIUS_MILES,
   MAP_PING_RECIPIENT_LOCATION_MAX_AGE_MS,
   MAP_PING_WINDOW_MS,
   createMapPing,
@@ -68,6 +69,7 @@ const publicRules: ProfileVisibilityRules = {
   search_query: "",
   active_crowd_modes: [],
   mile_high_club_members: false,
+      members_without_photos: false,
   age_range: null,
   distance: null,
   identities: [],
@@ -81,9 +83,15 @@ const publicRules: ProfileVisibilityRules = {
   positions: [],
   roles: [],
   kinks: [],
+  preferred_spots: [],
   body_types: [],
+  body_hair: [],
+  pubic_hair: [],
+  facial_hair: [],
   sexuality: [],
-  substance_boundaries: []
+  zodiac: [],
+  substance_boundaries: [],
+  protection_boundaries: []
 };
 
 type StoredPing = {
@@ -220,6 +228,10 @@ class MapPingDb implements DbClient {
       return { rows: [] as T[] };
     }
 
+    if (sql.includes("update posts") && sql.includes("map_ping_id is not null")) {
+      return { rows: [] as T[] };
+    }
+
     if (sql.includes("insert into posts")) {
       this.postInsertCount += 1;
       return { rows: [] as T[] };
@@ -345,6 +357,7 @@ function dependencies(input: {
           lat: request.location.latE7 / 10_000_000,
           lng: request.location.lonE7 / 10_000_000
         },
+        resolvedAtMs: request.nowMs ?? Date.now(),
         rotationEpoch: 1,
         radiusMeters: request.policy.ghostRadiusMeters ?? 1609
       })
@@ -394,37 +407,50 @@ describe("map Pings", () => {
     expect(deps.moderateSignal).not.toHaveBeenCalled();
   });
 
-  it("gives cruush+ three daily Pings with a four-hour cooldown", async () => {
-    const cooldownDb = new MapPingDb([
+  it("gives cruush+ five Pings per rolling 24 hours without a cooldown", async () => {
+    const belowCapDb = new MapPingDb([
       storedPing({ createdAt: new Date(now.getTime() - 2 * 60 * 60 * 1000) })
     ]);
     const plusDependencies = dependencies({ cruushPlus: true });
-    const status = await getMapPingStatus(appWithDb(cooldownDb), senderUserId, plusDependencies);
+    const status = await getMapPingStatus(appWithDb(belowCapDb), senderUserId, plusDependencies);
 
     expect(status.allowance).toEqual({
-      limit: 3,
+      unlimited: false,
+      limit: 5,
       used: 1,
-      remaining: 2,
-      nextEligibleAt: new Date(now.getTime() + 2 * 60 * 60 * 1000).toISOString()
+      remaining: 4,
+      nextEligibleAt: null
     });
-    await expect(createMapPing(appWithDb(cooldownDb), {
+
+    const created = await createMapPing(appWithDb(belowCapDb), {
       userId: senderUserId,
       radiusMiles: 15,
       idempotencyKey: "30000000-0000-4000-8000-000000000003"
-    }, plusDependencies)).rejects.toMatchObject({
-      code: "RATE_LIMITED"
+    }, plusDependencies);
+
+    expect(created.activePing).not.toBeNull();
+    expect(created.allowance).toEqual({
+      unlimited: false,
+      limit: 5,
+      used: 2,
+      remaining: 3,
+      nextEligibleAt: null
     });
+    expect(belowCapDb.insertCount).toBe(1);
 
     const cappedDb = new MapPingDb([
       storedPing({ id: "20000000-0000-4000-8000-000000000011", createdAt: new Date(now.getTime() - 20 * 60 * 60 * 1000) }),
       storedPing({ id: "20000000-0000-4000-8000-000000000012", createdAt: new Date(now.getTime() - 12 * 60 * 60 * 1000) }),
-      storedPing({ id: "20000000-0000-4000-8000-000000000013", createdAt: new Date(now.getTime() - 5 * 60 * 60 * 1000) })
+      storedPing({ id: "20000000-0000-4000-8000-000000000013", createdAt: new Date(now.getTime() - 5 * 60 * 60 * 1000) }),
+      storedPing({ id: "20000000-0000-4000-8000-000000000014", createdAt: new Date(now.getTime() - 3 * 60 * 60 * 1000) }),
+      storedPing({ id: "20000000-0000-4000-8000-000000000015", createdAt: new Date(now.getTime() - 60 * 60 * 1000) })
     ]);
     const cappedStatus = await getMapPingStatus(appWithDb(cappedDb), senderUserId, plusDependencies);
 
     expect(cappedStatus.allowance).toEqual({
-      limit: 3,
-      used: 3,
+      unlimited: false,
+      limit: 5,
+      used: 5,
       remaining: 0,
       nextEligibleAt: new Date(now.getTime() + 4 * 60 * 60 * 1000).toISOString()
     });
@@ -500,6 +526,23 @@ describe("map Pings", () => {
     expect(db.insertCount).toBe(0);
     expect(db.postInsertCount).toBe(0);
     expect(db.queries.some(({ sql }) => /app_notifications|push_subscriptions|notification_preferences/.test(sql))).toBe(false);
+  });
+
+  it("retires the previous Pulse feed post so the signal is not posted twice", async () => {
+    const db = new MapPingDb();
+    db.profile = senderProfile(publicRules, "Coffee now", "24h");
+
+    await createMapPing(appWithDb(db), {
+      userId: senderUserId,
+      radiusMiles: 3,
+      idempotencyKey: "30000000-0000-4000-8000-000000000031"
+    }, dependencies());
+
+    const retire = db.queries.find(({ sql }) => sql.includes("update posts")
+      && sql.includes("map_ping_id is not null"));
+
+    expect(retire).toBeDefined();
+    expect(retire?.params).toEqual([senderUserId, now.toISOString()]);
   });
 
   it("creates one encrypted feed post using the sender's last saved feed expiry", async () => {
@@ -654,6 +697,7 @@ describe("map Pings", () => {
     db.recipients = [recipientProfile(senderUserId)];
     const resolveGhostCoordinate = vi.fn<MapPingDependencies["resolveGhostCoordinate"]>(async () => ({
       coordinate: { lat: 40.72, lng: -73.9521325 },
+      resolvedAtMs: now.getTime(),
       rotationEpoch: 1,
       radiusMeters: 1609
     }));
@@ -790,6 +834,7 @@ describe("map Pings", () => {
     db.recipients = [recipientProfile(senderUserId)];
     const resolveGhostCoordinate = vi.fn<MapPingDependencies["resolveGhostCoordinate"]>(async () => ({
       coordinate: { lat: 40.72, lng: -73.9521325 },
+      resolvedAtMs: now.getTime(),
       rotationEpoch: 1,
       radiusMeters: 1609
     }));
@@ -891,5 +936,23 @@ describe("map Pings", () => {
     const source = createMapPing.toString();
 
     expect(source).not.toMatch(/input\.(lat|lng|latitude|longitude|signal)/);
+  });
+});
+
+describe("mapPingPayloadSchema", () => {
+  it("accepts every radius the slider offers, including 25 and 50", async () => {
+    const { mapPingPayloadSchema } = await import("./routes/map-pings.js");
+
+    for (const radiusMiles of MAP_PING_RADIUS_MILES) {
+      expect(mapPingPayloadSchema.safeParse({
+        radiusMiles,
+        idempotencyKey: "6b3a3f9e-2c41-4e83-9f6e-0d4dbb6a8a01"
+      }).success).toBe(true);
+    }
+
+    expect(mapPingPayloadSchema.safeParse({
+      radiusMiles: 20,
+      idempotencyKey: "6b3a3f9e-2c41-4e83-9f6e-0d4dbb6a8a01"
+    }).success).toBe(false);
   });
 });

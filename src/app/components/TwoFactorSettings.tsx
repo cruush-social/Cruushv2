@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { ArrowLeft, Check, Clipboard, KeyRound, RefreshCw, ShieldCheck } from 'lucide-react';
 import { useNavigate } from 'react-router';
-import { toast } from 'sonner';
+import { toast } from '../lib/toast';
 import {
   completeTwoFactorSetup,
   disableTwoFactor,
@@ -15,6 +15,7 @@ import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
 import LoadingCardSkeletons from './LoadingCardSkeletons';
+import BugButtonSlot from './BugButtonSlot';
 
 export default function TwoFactorSettings() {
   const navigate = useNavigate();
@@ -45,8 +46,36 @@ export default function TwoFactorSettings() {
   }, [load]);
 
   const copy = async (value: string, label: string) => {
+    // navigator.clipboard is missing or blocked in several mobile in-app
+    // browsers, which left the copy button doing nothing at all. Fall back to a
+    // selected off-screen field so the setup key can still be copied there.
     try {
-      await navigator.clipboard.writeText(value);
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(value);
+        toast.success(`${label} copied.`);
+        return;
+      }
+    } catch {
+      // Fall through to the selection fallback below.
+    }
+
+    try {
+      const field = document.createElement('textarea');
+      field.value = value;
+      field.setAttribute('readonly', '');
+      field.style.position = 'fixed';
+      field.style.top = '0';
+      field.style.opacity = '0';
+      document.body.appendChild(field);
+      field.select();
+      field.setSelectionRange(0, value.length);
+      const copied = document.execCommand('copy');
+      document.body.removeChild(field);
+
+      if (!copied) {
+        throw new Error('copy command rejected');
+      }
+
       toast.success(`${label} copied.`);
     } catch {
       toast.error(`Unable to copy ${label.toLowerCase()}.`);
@@ -135,6 +164,8 @@ export default function TwoFactorSettings() {
           <div>
             <h1 className="text-xl font-semibold">Two-factor authentication</h1>
           </div>
+        
+          <BugButtonSlot testId="two-factor-settings-bug-button-slot" />
         </div>
       </header>
 

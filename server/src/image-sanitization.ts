@@ -2,12 +2,17 @@ import sharp from "sharp";
 
 const MAX_PROFILE_PHOTO_DIMENSION = 2048;
 
-export type SupportedProfilePhotoMimeType = "image/jpeg" | "image/png" | "image/webp";
+export type SupportedProfilePhotoMimeType = "image/jpeg" | "image/png" | "image/webp" | "image/heic" | "image/tiff";
 
+// Anything a browser cannot reliably display leaves as WebP. Keeping the input
+// format would hand browsers a picture most of them cannot open, and everything
+// downstream is WebP anyway.
 const outputByMimeType = {
-  "image/jpeg": { extension: "jpg" },
-  "image/png": { extension: "png" },
-  "image/webp": { extension: "webp" }
+  "image/jpeg": { extension: "jpg", mimeType: "image/jpeg" },
+  "image/png": { extension: "png", mimeType: "image/png" },
+  "image/webp": { extension: "webp", mimeType: "image/webp" },
+  "image/heic": { extension: "webp", mimeType: "image/webp" },
+  "image/tiff": { extension: "webp", mimeType: "image/webp" }
 } as const;
 
 export async function sanitizeProfilePhoto(bytes: Buffer, mimeType: SupportedProfilePhotoMimeType) {
@@ -28,7 +33,7 @@ export async function sanitizeProfilePhoto(bytes: Buffer, mimeType: SupportedPro
 
     return {
       bytes: sanitized,
-      mimeType,
+      mimeType: outputByMimeType[mimeType].mimeType,
       extension: outputByMimeType[mimeType].extension
     };
   } catch {

@@ -1,4 +1,5 @@
 import { requestApi } from './apiClient';
+import { clearOnboardingDraft } from './onboardingDraft';
 
 export type AuthSessionPayload = {
   user: {
@@ -56,6 +57,17 @@ export type PasswordChangePayload = {
   changed: true;
 };
 
+export type EmailChangeRequestPayload = {
+  pendingEmail: string;
+  expiresAt: string;
+  previewUrl: string | null;
+};
+
+export type EmailChangeConfirmPayload = {
+  changed: true;
+  email: string;
+};
+
 export type ClientSecurityCheckPayload = {
   startedAt: number;
   submittedAt: number;
@@ -94,6 +106,9 @@ export function signIn(payload: { email: string; password: string; captchaToken?
 }
 
 export function signOut() {
+  // A half-finished onboarding draft must not reappear inside the next
+  // person's session on a shared browser.
+  clearOnboardingDraft();
   return requestApi<void>('/api/auth/logout', {
     method: 'POST',
   });
@@ -103,6 +118,13 @@ export function acceptCodeOfConduct(version: string) {
   return requestApi<AuthSessionPayload>('/api/auth/code-of-conduct/accept', {
     method: 'POST',
     body: JSON.stringify({ version }),
+  });
+}
+
+export function attachReferralCode(referralCode: string) {
+  return requestApi<{ attached: true }>('/api/auth/referral', {
+    method: 'POST',
+    body: JSON.stringify({ referralCode }),
   });
 }
 
@@ -142,6 +164,20 @@ export function resetPassword(payload: { token: string; password: string }) {
 
 export function changePassword(payload: { currentPassword: string; newPassword: string }) {
   return requestApi<PasswordChangePayload>('/api/auth/password/change', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function changeEmail(payload: { currentPassword: string; newEmail: string }) {
+  return requestApi<EmailChangeRequestPayload>('/api/auth/email/change', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function confirmEmailChange(payload: { token: string }) {
+  return requestApi<EmailChangeConfirmPayload>('/api/auth/email/change/confirm', {
     method: 'POST',
     body: JSON.stringify(payload),
   });

@@ -4,6 +4,8 @@ import { ArrowLeft, ShieldCheck } from 'lucide-react';
 import { Button } from './ui/button';
 import { CruushIcon } from './CruushIconImage';
 import LoadingCardSkeletons from './LoadingCardSkeletons';
+import BugButtonSlot from './BugButtonSlot';
+import DlModePhotoPlaceholder from './DlModePhotoPlaceholder';
 import { resolveMediaUrl } from '../lib/apiClient';
 import { shouldMaskPhoto, useDlMode } from '../lib/dlMode';
 import { getCruushMatchSettings, type CruushMatchSettings } from '../lib/cruushSettingsApi';
@@ -82,9 +84,9 @@ export default function PrivacyAudit() {
   };
 
   const visibleWhere = privacySettings.baseMode === 'STEALTH'
-    ? 'Hidden from discovery'
+    ? 'Hidden from discovery while Dark Room is on'
     : privacySettings.ghostModeEnabled || privacySettings.baseMode === 'GHOST'
-      ? `Ghost radius: ${privacySettings.ghostRadiusLabel}`
+      ? `Visible, with a decoy pin moving inside ${privacySettings.ghostRadiusLabel}`
       : 'Live map location';
   const whoCanMessage = messageVisibility === 'public'
     ? 'Public'
@@ -105,6 +107,8 @@ export default function PrivacyAudit() {
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <h2 className="text-xl">Privacy Audit</h2>
+      
+        <BugButtonSlot testId="privacy-audit-bug-button-slot" />
       </header>
 
       <main className="mx-auto max-w-2xl space-y-5 p-6">
@@ -161,7 +165,9 @@ export default function PrivacyAudit() {
                   <img alt="" className="h-12 w-12 rounded-full object-cover" src={resolveMediaUrl(item.viewer.photo)} />
                 ) : (
                   <div className="flex h-12 w-12 items-center justify-center rounded-full" style={{ background: 'var(--cruush-gradient)' }}>
-                    <CruushIcon name="profile" className="h-6 w-6" variant="white" />
+                    {item.viewer.photo && shouldMaskPhoto(dlModeActive, item.viewer.photoExplicit)
+                      ? <DlModePhotoPlaceholder className="w-9" />
+                      : <CruushIcon name="profile" className="h-6 w-6" variant="white" />}
                   </div>
                 )}
                 <div className="min-w-0 flex-1">

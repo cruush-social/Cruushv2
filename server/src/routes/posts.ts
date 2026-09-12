@@ -20,16 +20,17 @@ import {
 import { normalizeSingleLineText } from "../input-schema.js";
 import { getActiveAccountUserId, getAuthenticatedUserId } from "../request-auth.js";
 import { recordMeaningfulActivitySafely } from "../rewards-service.js";
-import { getCruushEntitlement, getRelationshipPermissions } from "../match-relationships.js";
+import { getCruushEntitlement, getRelationshipPermissions, getSharedDistanceLabelMode } from "../match-relationships.js";
 import { canStartDirectMessage } from "../cruush-match-settings.js";
 import { handleFeedPhotoUpload } from "../feed-photo-upload.js";
 import { removeOwnedNonPublicMediaAsset } from "../media-assets.js";
+import { notTombstonedSql } from "../profile-tombstone.js";
 
 type PostRow = {
   id: string;
   user_id: string;
   content: string;
-  expires_in: "1h" | "6h" | "24h" | "7d" | "never";
+  expires_in: "30m" | "1h" | "3h" | "6h" | "24h" | "7d" | "never";
   expires_at: string | Date;
   created_at: string | Date;
   content_ciphertext?: string | null;
@@ -183,14 +184,15 @@ async function mapPostRow(app: FastifyInstance, row: PostRow, viewerUserId: stri
   const partyStatus = normalizePartyStatus(row.party_status);
   const crowdTargets = row.crowd_targets ?? [];
   const vibeTags = topVibeTags(row);
-  const [locationPinVisible, canMessage] = await Promise.all([
+  const [locationPinVisible, canMessage, distanceLabelMode] = await Promise.all([
     canViewLocationPin(app, viewerUserId, row),
     viewerUserId === row.user_id
       ? false
       : canStartDirectMessage(app, viewerUserId, row.user_id).catch((error) => {
           app.log.warn({ err: error, viewerUserId, authorUserId: row.user_id }, "feed message permission check failed");
           return false;
-        })
+        }),
+    getSharedDistanceLabelMode(app, viewerUserId, row.user_id)
   ]);
   const photos = normalizeFeedPhotos(row.feed_photos);
 
@@ -207,7 +209,7 @@ async function mapPostRow(app: FastifyInstance, row: PostRow, viewerUserId: stri
     createdAt: new Date(row.created_at).toISOString(),
     audience: row.audience ?? (crowdTargets.length > 0 ? "crowd" : "public"),
     tags: row.feed_tags ?? [],
-    distance: typeof row.distance_miles === "number"
+    distance: distanceLabelMode === "precise" && typeof row.distance_miles === "number"
       ? formatCoarseDistance(row.distance_miles)
       : "Nearby",
     ...(crowdTargets.length > 0 ? { crowdTargets } : {}),
@@ -423,7 +425,7 @@ const feedPostQuerySchema = z.object({
   before: z.string().datetime().optional(),
   lat: z.coerce.number().min(-90).max(90).optional(),
   lng: z.coerce.number().min(-180).max(180).optional(),
-  q: z.string().trim().min(1).max(120).optional(),
+  q: z.string().trim().min(1).max(320).optional(),
   mileHighClub: feedBooleanQueryFlag,
   minAge: z.coerce.number().int().min(18).max(99).optional(),
   maxAge: z.coerce.number().int().min(18).max(99).optional(),
@@ -432,6 +434,7 @@ const feedPostQuerySchema = z.object({
   lookingFor: feedQueryArrayField,
   timing: feedQueryArrayField,
   hosting: feedQueryArrayField,
+  preferredSpots: feedQueryArrayField,
   vibes: feedQueryArrayField,
   crowds: feedCrowdQueryArrayField,
   hobbies: feedQueryArrayField,
@@ -440,7 +443,9 @@ const feedPostQuerySchema = z.object({
   kinks: feedQueryArrayField,
   bodyTypes: feedQueryArrayField,
   sexuality: feedQueryArrayField,
-  substanceBoundaries: feedQueryArrayField
+  zodiac: feedQueryArrayField,
+  substanceBoundaries: feedQueryArrayField,
+  protectionBoundaries: feedQueryArrayField
 }).strict().superRefine((query, context) => {
   if (query.minAge != null && query.maxAge != null && query.minAge > query.maxAge) {
     context.addIssue({
@@ -529,28 +534,38 @@ function addFeedSensitiveTokenFilter(
   )`);
 }
 
+/** A search can name up to ten tags at once; a post matching any of them counts. */
+export const MAX_FEED_TAG_SEARCH_TERMS = 10;
+
+export function parseFeedTagSearchTerms(searchQuery: string | undefined) {
+  return [...new Set((searchQuery ?? '')
+    .toLowerCase()
+    .split(/[\s,]+/)
+    .map((term) => term.replace(/^#+/, "").trim())
+    .filter(Boolean))]
+    .slice(0, MAX_FEED_TAG_SEARCH_TERMS);
+}
+
 function addFeedTagSearchFilter(
   where: string[],
   values: unknown[],
   searchQuery: string | undefined
 ) {
-  const rawQuery = searchQuery?.trim().toLowerCase();
-  if (!rawQuery) {
+  const terms = parseFeedTagSearchTerms(searchQuery);
+  if (terms.length === 0) {
     return;
   }
 
-  const normalizedQuery = rawQuery.replace(/^#+/, "").trim();
-  if (!normalizedQuery) {
-    return;
-  }
+  const placeholders = terms.map((term) => {
+    values.push(`%${term}%`);
+    return `lower(search_tag.tag) like $${values.length}`;
+  });
 
-  values.push(`%${normalizedQuery}%`);
-  const searchPlaceholder = `$${values.length}`;
   where.push(`exists (
     select 1
     from feed_post_tags search_tag
     where search_tag.post_id = p.id
-      and lower(search_tag.tag) like ${searchPlaceholder}
+      and (${placeholders.join(" or ")})
   )`);
 }
 
@@ -578,7 +593,7 @@ export async function registerPostRoutes(app: FastifyInstance) {
     const where = [
       "p.expires_at > now()",
       "coalesce(author.account_status, 'active') <> 'deleted'",
-      "lower(trim(coalesce(pr.display_name, ''))) <> 'user deleted profile'",
+      notTombstonedSql("pr"),
       `p.created_at >= now() - case
         when $2 = '1h' then interval '1 hour'
         when $2 = '3h' then interval '3 hours'
@@ -647,13 +662,16 @@ export async function registerPostRoutes(app: FastifyInstance) {
     addFeedTextArrayFilter(where, values, "pr.looking_for", query.lookingFor);
     addFeedTextArrayFilter(where, values, "pr.availability", query.timing);
     addFeedTextArrayFilter(where, values, "pr.hosting_travel", query.hosting);
+    addFeedTextArrayFilter(where, values, "pr.preferred_spots", query.preferredSpots);
     addFeedVibeFilter(where, values, query.vibes);
     addFeedTextArrayFilter(where, values, "pr.hobbies", query.hobbies);
     addFeedTextArrayFilter(where, values, "pr.position", query.positions);
     addFeedTextArrayFilter(where, values, "pr.role", query.roles);
     addFeedTextArrayFilter(where, values, "pr.body_type", query.bodyTypes);
     addFeedTextArrayFilter(where, values, "pr.sexuality", query.sexuality);
+    addFeedTextArrayFilter(where, values, "pr.zodiac", query.zodiac);
     addFeedTextArrayFilter(where, values, "pr.substance_boundaries", query.substanceBoundaries);
+    addFeedTextArrayFilter(where, values, "pr.protection_boundaries", query.protectionBoundaries);
     addFeedSensitiveTokenFilter(app, where, values, "crowd", query.crowds);
     addFeedSensitiveTokenFilter(app, where, values, "kink", query.kinks);
     values.push(query.limit);
@@ -765,6 +783,9 @@ export async function registerPostRoutes(app: FastifyInstance) {
     }
     if (payload.photoMediaIds.length > 0 && !entitlement.cruushPlus) {
       throw new ApiError(402, "CRUUSH_PLUS_REQUIRED", "Photo posts are part of cruush+.");
+    }
+    if (payload.tags.length > 0 && !entitlement.cruushPlus) {
+      throw new ApiError(402, "CRUUSH_PLUS_REQUIRED", "Tagging a Feed post is part of cruush+.");
     }
     if (payload.photoMediaIds.length > 0) {
       const photoCount = (await app.db.query<{ count: number }>(

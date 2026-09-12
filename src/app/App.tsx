@@ -1,15 +1,20 @@
 import { BrowserRouter, MemoryRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router';
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
+import { lazyRoute } from './lib/lazyRoute';
+import { useSyncDistancePreferences } from './lib/distancePreferences';
 import Auth from './components/Auth';
 import VerifyEmail from './components/VerifyEmail';
+import ConfirmEmailChange from './components/ConfirmEmailChange';
 import ResetPassword from './components/ResetPassword';
 import AppErrorBoundary from './components/AppErrorBoundary';
 import GoogleAnalyticsPageTracker from './components/GoogleAnalyticsPageTracker';
 import { Toaster } from './components/ui/sonner';
 import { loadCurrentSession } from './lib/sessionUser';
 import { canUseDeveloperMapToolsEmail } from './lib/developerMapTools';
-import { recordDailyRewardCheckIn, updateRewardTimezone } from './lib/rewardsApi';
+import { canTestOnboarding } from './lib/adminOnboarding';
+import { recordDailyRewardCheckIn, recordTutorialCompletion, updateRewardTimezone } from './lib/rewardsApi';
 import type { AuthSessionPayload } from './lib/authApi';
+import { refreshExistingPushSubscription } from './lib/pushNotifications';
 import type { ProfileRecord } from './lib/profileApi';
 import MapControlsTutorial, {
   getStoredMapControlsTutorialStep,
@@ -21,60 +26,61 @@ import { markNoticeDismissed } from './lib/userNoticesApi';
 import AccessibilityQuickAccess from './components/AccessibilityQuickAccess';
 import LoadingCardSkeletons from './components/LoadingCardSkeletons';
 
-const MapHome = lazy(() => import('./components/MapHome'));
-const LocalFeed = lazy(() => import('./components/LocalFeed'));
-const FeedPhotoPreview = lazy(() => import('./components/FeedPhotoPreview'));
-const BadgePickerPreview = lazy(() => import('./components/BadgePickerPreview'));
-const PulseEffectPreview = lazy(() => import('./components/PulseEffectPreview'));
-const ProfileView = lazy(() => import('./components/ProfileView'));
-const ProfileEdit = lazy(() => import('./components/ProfileEdit'));
-const ProfileOnboarding = lazy(() => import('./components/ProfileOnboarding'));
-const AgeVerification = lazy(() => import('./components/AgeVerification'));
-const FiltersPanel = lazy(() => import('./components/FiltersPanel'));
-const GroupDetail = lazy(() => import('./components/GroupDetail'));
-const EventDetail = lazy(() => import('./components/EventDetail'));
-const EventPassGuide = lazy(() => import('./components/EventPassGuide'));
-const PlaceDetail = lazy(() => import('./components/PlaceDetail'));
-const PrivateGroupChat = lazy(() => import('./components/PrivateGroupChat'));
-const DirectMessages = lazy(() => import('./components/DirectMessages'));
-const NotificationCenter = lazy(() => import('./components/NotificationCenter'));
-const NotificationSettings = lazy(() => import('./components/NotificationSettings'));
-const ForegroundNotifications = lazy(() => import('./components/ForegroundNotifications'));
-const MobileInstallPrompt = lazy(() => import('./components/MobileInstallPrompt'));
-const ReportPage = lazy(() => import('./components/ReportPage'));
-const ModeratorReview = lazy(() => import('./components/ModeratorReview'));
-const CruushActivity = lazy(() => import('./components/CruushActivity'));
-const CruushMatchSettings = lazy(() => import('./components/CruushMatchSettings'));
-const Settings = lazy(() => import('./components/Settings'));
-const BlockedUsersPage = lazy(() => import('./components/BlockedUsersPage'));
-const DlModeSettings = lazy(() => import('./components/DlModeSettings'));
-const HankyPreview = lazy(() => import('./components/HankyPreview'));
-const KelpieMarkPreview = lazy(() => import('./components/KelpieMarkPreview'));
-const MileHighMarkPreview = lazy(() => import('./components/MileHighMarkPreview'));
-const TravelModeSettings = lazy(() => import('./components/TravelModeSettings'));
-const MapPresenceSettings = lazy(() => import('./components/MapPresenceSettings'));
-const DlModeDefaultNotice = lazy(() => import('./components/DlModeDefaultNotice'));
-const FirstFeedPostPrompt = lazy(() => import('./components/FirstFeedPostPrompt'));
-const OnboardingPreview = lazy(() => import('./components/OnboardingPreview'));
-const SupportPage = lazy(() => import('./components/SupportPage'));
-const GhostModeSettings = lazy(() => import('./components/GhostModeSettings'));
-const PrivacyAudit = lazy(() => import('./components/PrivacyAudit'));
-const FeelingLucky = lazy(() => import('./components/FeelingLucky'));
-const RequestsDashboard = lazy(() => import('./components/RequestsDashboard'));
-const CodeOfConductGate = lazy(() => import('./components/CodeOfConductGate'));
-const EmailVerificationGate = lazy(() => import('./components/EmailVerificationGate'));
-const BottomNav = lazy(() => import('./components/BottomNav'));
-const DebugCruushPlusToggle = lazy(() => import('./components/DebugCruushPlusToggle'));
-const Rewards = lazy(() => import('./components/Rewards'));
-const EarnedCruushPlusCards = lazy(() => import('./components/EarnedCruushPlusCards'));
-const CruushPlusSuccess = lazy(() => import('./components/CruushPlusSuccess'));
-const AlphaBugButton = lazy(() => import('./components/AlphaBugButton'));
-const TwoFactorSettings = lazy(() => import('./components/TwoFactorSettings'));
-const PublicInfoPage = lazy(() => import('./components/PublicInfoPage'));
-const Tutorial = lazy(() => import('./components/Tutorial'));
-const Changelog = lazy(() => import('./components/Changelog'));
-const CruushPlusStore = lazy(() => import('./components/CruushPlusStore'));
-const Survey = lazy(() => import('./components/Survey'));
+const MapHome = lazyRoute(() => import('./components/MapHome'));
+const LocalFeed = lazyRoute(() => import('./components/LocalFeed'));
+const FeedPhotoPreview = lazyRoute(() => import('./components/FeedPhotoPreview'));
+const BadgePickerPreview = lazyRoute(() => import('./components/BadgePickerPreview'));
+const PulseEffectPreview = lazyRoute(() => import('./components/PulseEffectPreview'));
+const ProfileView = lazyRoute(() => import('./components/ProfileView'));
+const ProfileEdit = lazyRoute(() => import('./components/ProfileEdit'));
+const ProfileOnboarding = lazyRoute(() => import('./components/ProfileOnboarding'));
+const AgeVerification = lazyRoute(() => import('./components/AgeVerification'));
+const FiltersPanel = lazyRoute(() => import('./components/FiltersPanel'));
+const GroupDetail = lazyRoute(() => import('./components/GroupDetail'));
+const EventDetail = lazyRoute(() => import('./components/EventDetail'));
+const EventPassGuide = lazyRoute(() => import('./components/EventPassGuide'));
+const PlaceDetail = lazyRoute(() => import('./components/PlaceDetail'));
+const PrivateGroupChat = lazyRoute(() => import('./components/PrivateGroupChat'));
+const DirectMessages = lazyRoute(() => import('./components/DirectMessages'));
+const NotificationCenter = lazyRoute(() => import('./components/NotificationCenter'));
+const NotificationSettings = lazyRoute(() => import('./components/NotificationSettings'));
+const ForegroundNotifications = lazyRoute(() => import('./components/ForegroundNotifications'));
+const MobileInstallPrompt = lazyRoute(() => import('./components/MobileInstallPrompt'));
+const ReportPage = lazyRoute(() => import('./components/ReportPage'));
+const ModeratorReview = lazyRoute(() => import('./components/ModeratorReview'));
+const CruushActivity = lazyRoute(() => import('./components/CruushActivity'));
+const CruushMatchSettings = lazyRoute(() => import('./components/CruushMatchSettings'));
+const Settings = lazyRoute(() => import('./components/Settings'));
+const BlockedUsersPage = lazyRoute(() => import('./components/BlockedUsersPage'));
+const DlModeSettings = lazyRoute(() => import('./components/DlModeSettings'));
+const HankyPreview = lazyRoute(() => import('./components/HankyPreview'));
+const KelpieMarkPreview = lazyRoute(() => import('./components/KelpieMarkPreview'));
+const MileHighMarkPreview = lazyRoute(() => import('./components/MileHighMarkPreview'));
+const TravelModeSettings = lazyRoute(() => import('./components/TravelModeSettings'));
+const MapPresenceSettings = lazyRoute(() => import('./components/MapPresenceSettings'));
+const DlModeDefaultNotice = lazyRoute(() => import('./components/DlModeDefaultNotice'));
+const FirstFeedPostPrompt = lazyRoute(() => import('./components/FirstFeedPostPrompt'));
+const OnboardingPreview = lazyRoute(() => import('./components/OnboardingPreview'));
+const AdminOnboardingReplay = lazyRoute(() => import('./components/AdminOnboardingReplay'));
+const SupportPage = lazyRoute(() => import('./components/SupportPage'));
+const GhostModeSettings = lazyRoute(() => import('./components/GhostModeSettings'));
+const PrivacyAudit = lazyRoute(() => import('./components/PrivacyAudit'));
+const FeelingLucky = lazyRoute(() => import('./components/FeelingLucky'));
+const RequestsDashboard = lazyRoute(() => import('./components/RequestsDashboard'));
+const CodeOfConductGate = lazyRoute(() => import('./components/CodeOfConductGate'));
+const EmailVerificationGate = lazyRoute(() => import('./components/EmailVerificationGate'));
+const BottomNav = lazyRoute(() => import('./components/BottomNav'));
+const DebugCruushPlusToggle = lazyRoute(() => import('./components/DebugCruushPlusToggle'));
+const Rewards = lazyRoute(() => import('./components/Rewards'));
+const EarnedCruushPlusCards = lazyRoute(() => import('./components/EarnedCruushPlusCards'));
+const CruushPlusSuccess = lazyRoute(() => import('./components/CruushPlusSuccess'));
+const AlphaBugButton = lazyRoute(() => import('./components/AlphaBugButton'));
+const TwoFactorSettings = lazyRoute(() => import('./components/TwoFactorSettings'));
+const PublicInfoPage = lazyRoute(() => import('./components/PublicInfoPage'));
+const Tutorial = lazyRoute(() => import('./components/Tutorial'));
+const Changelog = lazyRoute(() => import('./components/Changelog'));
+const Survey = lazyRoute(() => import('./components/Survey'));
+const CruushPlusStore = lazyRoute(() => import('./components/CruushPlusStore'));
 
 const PUBLIC_INFO_ROUTES = [
   { path: '/about', page: 'about' },
@@ -89,14 +95,17 @@ const PUBLIC_INFO_ROUTES = [
   { path: '/2257', page: '2257' },
 ] as const;
 
-function renderPublicRoutes(includeSupport = false) {
+function renderPublicRoutes(includeSupport = false, signedIn = false) {
   return [
     ...PUBLIC_INFO_ROUTES.map((route) => (
-      <Route key={route.path} path={route.path} element={<PublicInfoPage page={route.page} />} />
+      <Route key={route.path} path={route.path} element={<PublicInfoPage page={route.page} signedIn={signedIn} />} />
     )),
     <Route key="/feed/photo-preview" path="/feed/photo-preview" element={<FeedPhotoPreview />} />,
+    ...(import.meta.env.DEV
+      ? [<Route key="/dev/onboarding-preview" path="/dev/onboarding-preview" element={<OnboardingPreview />} />]
+      : []),
     ...(includeSupport
-      ? [<Route key="/support" path="/support" element={<SupportPage publicAccess />} />]
+      ? [<Route key="/support" path="/support" element={<SupportPage publicAccess signedIn={signedIn} />} />]
       : []),
   ];
 }
@@ -183,6 +192,18 @@ function mapTutorialRoute(step: MapControlsTutorialStepId) {
     return '/lucky';
   }
 
+  if (step === 'profile-edit') {
+    return '/profile/edit';
+  }
+
+  if (step === 'cruush-plus') {
+    return '/rewards';
+  }
+
+  if (step === 'mile-high-club') {
+    return '/settings/travel';
+  }
+
   return '/map';
 }
 
@@ -191,7 +212,7 @@ function MapTutorialRouteFollower() {
   const navigate = useNavigate();
   const savedStep = getStoredMapControlsTutorialStep();
 
-  if (!savedStep || location.pathname === '/map') {
+  if (!savedStep || location.pathname === '/map' || location.pathname === '/settings/onboarding-test') {
     return null;
   }
 
@@ -203,9 +224,12 @@ function MapTutorialRouteFollower() {
     }
   };
 
-  const completeTutorial = () => {
+  const completeTutorial = (completed: boolean) => {
     markNoticeDismissed(MAP_CONTROLS_TUTORIAL_STORAGE_KEY);
     notifyMapControlsTutorialCompleted();
+    if (completed) {
+      void recordTutorialCompletion().catch(() => undefined);
+    }
   };
 
   return (
@@ -227,6 +251,10 @@ function getTokenLinkType() {
 
   if (searchParams.has('resetPasswordToken')) {
     return 'reset-password';
+  }
+
+  if (searchParams.has('confirmEmailToken')) {
+    return 'confirm-email';
   }
 
   return null;
@@ -274,11 +302,23 @@ export default function App({
 }: AppProps = {}) {
   const [authStatus, setAuthStatus] = useState<'loading' | 'signed_out' | 'signed_in'>('loading');
   const [session, setSession] = useState<AuthSessionPayload | null>(null);
+  useSyncDistancePreferences(authStatus === 'signed_in' ? session?.user.id : null);
+  useEffect(() => {
+    if (authStatus === 'signed_in') {
+      void refreshExistingPushSubscription().catch(() => undefined);
+    }
+  }, [authStatus, session?.user.id]);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
   const [showOnboardingReward, setShowOnboardingReward] = useState(false);
+  const devOnboardingPreview = import.meta.env.DEV && window.location.pathname === '/dev/onboarding-preview';
   const authShellControlsScrolled = useAuthShellControlsScrolled(authStatus === 'signed_out');
 
   useEffect(() => {
+    if (devOnboardingPreview) {
+      setAuthStatus('signed_out');
+      return undefined;
+    }
+
     let isActive = true;
 
     const bootstrap = async () => {
@@ -314,7 +354,7 @@ export default function App({
     return () => {
       isActive = false;
     };
-  }, []);
+  }, [devOnboardingPreview]);
 
   useEffect(() => {
     if (authStatus !== 'signed_in' || !session?.user.emailVerifiedAt) {
@@ -360,8 +400,12 @@ export default function App({
     setAuthStatus('signed_out');
   };
 
-  const handleOnboardingComplete = (nextSession?: AuthSessionPayload, destination: 'map' | 'rewards' = 'map') => {
-    setShowOnboardingReward(true);
+  const handleOnboardingComplete = (
+    nextSession?: AuthSessionPayload,
+    destination: 'map' | 'rewards' = 'map',
+    rewardGranted = false,
+  ) => {
+    setShowOnboardingReward(rewardGranted);
     if (nextSession) {
       setSession(nextSession);
       setNeedsOnboarding(nextSession.needsOnboarding);
@@ -401,6 +445,18 @@ export default function App({
     } : currentSession);
   };
 
+  if (devOnboardingPreview) {
+    return (
+      <BrowserRouter key="dev-onboarding-preview-router">
+        <Suspense fallback={<RouteLoading />}>
+          <Routes>
+            <Route path="*" element={<OnboardingPreview />} />
+          </Routes>
+        </Suspense>
+      </BrowserRouter>
+    );
+  }
+
   if (authStatus === 'loading') {
     return <AppLoading label="Loading session" />;
   }
@@ -420,6 +476,21 @@ export default function App({
         <GoogleAnalyticsPageTracker />
         <Routes>
           <Route path="*" element={<VerifyEmail />} />
+        </Routes>
+        <Suspense fallback={null}>
+          {alphaBugControl}
+        </Suspense>
+        {accessibilityQuickAccess}
+      </BrowserRouter>
+    );
+  }
+
+  if (tokenLinkType === 'confirm-email') {
+    return (
+      <BrowserRouter key="root-confirm-email-router">
+        <GoogleAnalyticsPageTracker />
+        <Routes>
+          <Route path="*" element={<ConfirmEmailChange />} />
         </Routes>
         <Suspense fallback={null}>
           {alphaBugControl}
@@ -470,7 +541,7 @@ export default function App({
           <Routes>
             <Route path="/verify-email" element={<VerifyEmail />} />
             <Route path="/reset-password" element={<ResetPassword />} />
-            {renderPublicRoutes(true)}
+            {renderPublicRoutes(true, true)}
             <Route
               path="*"
               element={(
@@ -497,7 +568,7 @@ export default function App({
           <Routes>
             <Route path="/verify-email" element={<VerifyEmail />} />
             <Route path="/reset-password" element={<ResetPassword />} />
-            {renderPublicRoutes(true)}
+            {renderPublicRoutes(true, true)}
             <Route path="*" element={<AgeVerification onVerified={handleAgeVerified} />} />
           </Routes>
           {alphaBugControl}
@@ -515,7 +586,7 @@ export default function App({
           <Routes>
             <Route path="/verify-email" element={<VerifyEmail />} />
             <Route path="/reset-password" element={<ResetPassword />} />
-            {renderPublicRoutes(true)}
+            {renderPublicRoutes(true, true)}
             <Route
               path="*"
               element={(
@@ -542,7 +613,7 @@ export default function App({
           <Routes>
             <Route path="/verify-email" element={<VerifyEmail />} />
             <Route path="/reset-password" element={<ResetPassword />} />
-            {renderPublicRoutes(true)}
+            {renderPublicRoutes(true, true)}
             <Route
               path="*"
               element={(
@@ -580,7 +651,7 @@ export default function App({
               <Route path="/filters" element={<FiltersPanel />} />
               <Route path="/verify-email" element={<VerifyEmail />} />
               <Route path="/reset-password" element={<ResetPassword />} />
-              {renderPublicRoutes()}
+              {renderPublicRoutes(false, true)}
               <Route path="/survey" element={<Survey />} />
               <Route path="/groups/:groupId" element={<GroupDetail />} />
               <Route path="/events/:eventId/pass-guide" element={<EventPassGuide />} />
@@ -601,8 +672,11 @@ export default function App({
               <Route path="/settings/notifications" element={<NotificationSettings />} />
               <Route path="/settings/2fa" element={<TwoFactorSettings />} />
               <Route path="/settings/tutorial" element={<Tutorial />} />
+              <Route path="/settings/onboarding-test" element={canTestOnboarding(session.user)
+                ? <AdminOnboardingReplay codeOfConductVersion={session.codeOfConductVersion} />
+                : <Navigate to="/settings" replace />} />
               <Route path="/settings/changelog" element={<Changelog />} />
-              <Route path="/support" element={<SupportPage />} />
+              <Route path="/support" element={<SupportPage signedIn />} />
               <Route path="/privacy/ghost-mode" element={<GhostModeSettings />} />
               <Route path="/privacy/dl-mode" element={<DlModeSettings />} />
               <Route path="/privacy/map-presence" element={<MapPresenceSettings />} />
@@ -611,9 +685,6 @@ export default function App({
               <Route path="/settings/mile-high-marks" element={<MileHighMarkPreview />} />
               <Route path="/settings/hankies" element={<HankyPreview />} />
               <Route path="/privacy/audit" element={<PrivacyAudit />} />
-              {import.meta.env.DEV ? (
-                <Route path="/dev/onboarding-preview" element={<OnboardingPreview />} />
-              ) : null}
               <Route path="/lucky" element={<FeelingLucky />} />
               <Route path="/requests" element={<RequestsDashboard />} />
               <Route path="/store" element={<CruushPlusStore key="plus" />} />
@@ -629,8 +700,8 @@ export default function App({
             <DlModeDefaultNotice />
             <FirstFeedPostPrompt userId={session.user.id} />
             <BottomNav />
-            <ForegroundNotifications />
-            <EarnedCruushPlusCards key={session.user.id} userId={session.user.id} afterOnboarding={showOnboardingReward} />
+            <ForegroundNotifications showLatestRewardOnFirstPoll={showOnboardingReward} />
+            <EarnedCruushPlusCards key={session.user.id} userId={session.user.id} />
             <DebugCruushPlusToggle />
             {alphaBugControl}
           </Suspense>

@@ -1,4 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
+vi.mock("./ghost-land.js", async importOriginal => ({
+  ...await importOriginal<typeof import("./ghost-land.js")>(),
+  isGhostLand: vi.fn(async () => true)
+}));
 import type { FastifyRequest } from "fastify";
 import type { AppConfig } from "./config.js";
 import type { DbClient } from "./db.js";
@@ -6,7 +10,10 @@ import {
   decryptDisplayLocationTokenForTest,
   createCoarseIndexTokens,
   deriveGhostCoordinate,
+  describeGhostRotation,
   distanceMiles,
+  formatDistanceLabel,
+  resolveSharedDistanceLabelMode,
   GHOST_MIN_OFFSET_RATIO,
   GHOST_ROTATION_MINUTES,
   getGhostRotationState,
@@ -22,6 +29,26 @@ import {
   saveVisibilityPolicy,
   storeLocationEnvelope
 } from "./location-privacy.js";
+
+it('distance labels are reciprocal and fail closed without both precise preferences', () => {
+  const original = normalizeVisibilityPolicy(config, 'distance-owner', {
+    baseMode: 'GHOST', ghostRadiusMeters: 2500, ghostRotationMinutes: 15,
+    preciseToMutualCruushes: true, darkRoomDistanceLabel: false,
+  }, undefined, 100000);
+  const updated = normalizeVisibilityPolicy(config, 'distance-owner', { distanceLabelMode: 'approximate' }, original, 120000);
+  for (const key of ['baseMode', 'ghostRadiusMeters', 'ghostRotationMinutes', 'ghostActivatedAtMs', 'ghostSessionVersion', 'ghostRotationSchedule', 'preciseToMutualCruushes', 'preciseToMutualCrowds', 'darkRoomDistanceLabel'] as const) {
+    expect(updated[key]).toEqual(original[key]);
+  }
+  for (const viewer of [undefined, 'approximate', 'precise']) {
+    for (const subject of [undefined, 'approximate', 'precise']) {
+      const mode = resolveSharedDistanceLabelMode(viewer, subject);
+      expect(mode).toBe(resolveSharedDistanceLabelMode(subject, viewer));
+      const input = { displayMode: 'PRECISE' as const, distanceLabelMode: mode, viewerLat: 40.7, viewerLng: -74, targetLat: 40.72, targetLng: -74 };
+      expect(formatDistanceLabel(input)).toBe(viewer === 'precise' && subject === 'precise' ? '1.4 mi' : 'Nearby');
+      expect(formatDistanceLabel({ ...input, displayMode: 'GHOST' })).toBe('Nearby');
+    }
+  }
+});
 
 const config: AppConfig = {
   NODE_ENV: "test",
@@ -227,7 +254,8 @@ describe("location privacy", () => {
         subjectUserId,
         baseMode: "GHOST",
         ghostActivatedAtMs: nowMs,
-        ghostSessionVersion: 1
+        ghostSessionVersion: 1,
+        preciseToMutualCruushes: true
       });
       expect(publicPrivacySettings(defaultPolicy, nowMs)).toMatchObject({
         ghostModeEnabled: true,
@@ -547,6 +575,16 @@ describe("location privacy", () => {
     expect(lastA.rotationEpoch).toBe(0);
     expect(firstA.coordinate).toEqual(lastA.coordinate);
     expect(lastA.coordinate).toEqual(lastB.coordinate);
+    // A land lookup can finish after the epoch boundary. Its old coordinate
+    // must retain the old deadline, rather than resetting the completed exit.
+    const clock = vi.spyOn(Date, "now").mockReturnValue(activatedAtMs + 15 * 60_000 + 100);
+    try {
+      const hint = await describeGhostRotation({ config, db }, subjectUserId, policy, lastA.resolvedAtMs);
+      expect(hint).toMatchObject({
+        animationHint: "FADE_LAST_MINUTE",
+        rotationExpiresAtMs: activatedAtMs + 15 * 60_000
+      });
+    } finally { clock.mockRestore(); }
     expect(nextA.rotationEpoch).toBe(1);
     expect(nextB.rotationEpoch).toBe(1);
     expect(nextA.coordinate).not.toEqual(lastA.coordinate);

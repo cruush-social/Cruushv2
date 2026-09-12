@@ -1,24 +1,9 @@
-const CACHE_NAME = 'cruush-app-shell-v31';
-const REFRESH_ID = 'v31';
+const CACHE_NAME = 'cruush-app-shell-v137';
+const REFRESH_ID = 'v137';
 
 async function deleteCachedShells() {
   const keys = await caches.keys();
   await Promise.all(keys.map((key) => caches.delete(key)));
-}
-
-async function refreshOpenClients() {
-  const clients = await self.clients.matchAll({
-    type: 'window',
-    includeUncontrolled: true
-  });
-
-  await Promise.all(clients.map((client) => {
-    if (!client.url.startsWith(self.location.origin) || !('navigate' in client)) {
-      return undefined;
-    }
-
-    return client.navigate(client.url);
-  }));
 }
 
 self.addEventListener('install', (event) => {
@@ -32,7 +17,6 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     deleteCachedShells()
       .then(() => self.clients.claim())
-      .then(refreshOpenClients)
   );
 });
 
@@ -66,8 +50,8 @@ self.addEventListener('push', (event) => {
 
   event.waitUntil(self.registration.showNotification(title, {
     body,
-    icon: '/icons/icon-192.png?v=20260817-no-notch',
-    badge: '/icons/icon-192.png?v=20260817-no-notch',
+    icon: '/icons/notification-feed.png?v=v135',
+    badge: '/icons/notification-feed.png?v=v135',
     silent: !soundEnabled,
     sound: soundEnabled ? sound : undefined,
     data: {

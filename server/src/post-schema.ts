@@ -2,7 +2,7 @@ import { z } from "zod";
 import { multilineTextSchema } from "./input-schema.js";
 import { normalizeCrowdOption } from "./profile-sensitive.js";
 
-export const postExpirySchema = z.enum(["1h", "6h", "24h", "7d", "never"]);
+export const postExpirySchema = z.enum(["30m", "1h", "3h", "6h", "24h", "7d", "never"]);
 export const feedPostAudienceSchema = z.enum(["public", "mutuals", "crowd"]);
 export const feedLocationPinVisibilitySchema = z.enum(["off", "mutuals", "same_crowd", "public"]);
 export const feedWindowSchema = z.enum(["1h", "3h", "6h", "24h", "7d"]);
@@ -38,9 +38,12 @@ const crowdTargetsSchema = z.array(z.string()).optional().default([])
     return normalizedValues;
   });
 
+/** Tags are a cruush+ feature; the route rejects any tag from a basic account. */
+export const MAX_FEED_POST_TAGS = 10;
+
 const feedPostTagsSchema = z.array(
   z.string().trim().regex(/^#?[a-zA-Z0-9_]{1,24}$/, "Tags can use letters, numbers, and underscores."),
-).max(5).optional().default([]).transform((values) => (
+).max(MAX_FEED_POST_TAGS).optional().default([]).transform((values) => (
   [...new Set(values.map((value) => value.replace(/^#/, "").toLowerCase()))]
 ));
 

@@ -1,6 +1,11 @@
 import { randomUUID } from "node:crypto";
 import type { FastifyInstance } from "fastify";
-import { sendAgeSuspensionAppealEmail, sendAgeSuspensionInboxEmail } from "./mailer.js";
+import {
+  isAgeRelatedSuspensionReason,
+  sendAgeSuspensionAppealEmail,
+  sendAgeSuspensionInboxEmail,
+  sendGeneralSuspensionAppealEmail
+} from "./mailer.js";
 import type { DbClient } from "./db.js";
 import { ApiError } from "./errors.js";
 import {
@@ -311,8 +316,40 @@ export function userMessageForDecision(
     return "Nothing was saved because we could not check this photo for harmful content. Try again in a few minutes, or contact reports@cruush.app if it keeps happening.";
   }
 
+  if (contentType === "image" && decision.decision !== "allow") {
+    const reasons: Partial<Record<NonNullable<PolicyDecision["category"]>, string>> = {
+      multiple_people: "more than one person in a profile photo",
+      minor_present: "a person who may be under 18",
+      minor_age_ambiguous: "a person whose adult age could not be confirmed",
+      underage_sexual: "sexual content that may involve a minor",
+      animal: "an animal",
+      bestiality: "sexual content involving an animal",
+      scat: "fecal content",
+      gore: "graphic injury or gore",
+      hate_symbol: "a hate symbol",
+      hate_speech: "hate speech",
+      harassment: "harassment",
+      threat: "a threat",
+      doxxing: "someone's private identifying information",
+      location_privacy: "someone's private location information",
+      revenge_porn: "potentially non-consensual intimate content",
+      drug_sales: "drug sales",
+      commercial_sex: "commercial sexual solicitation",
+      scam: "a suspected scam",
+      spam: "spam",
+      screenshot_or_interface: "a screenshot or app interface",
+      text_on_image: "text that is not allowed in this photo",
+      url_on_image: "a website link in the photo",
+      chaser_fetishization: "targeted fetishization",
+    };
+    const reason = decision.category ? reasons[decision.category] : undefined;
+    if (reason) {
+      return `Photo not saved: automated moderation flagged ${reason}. Contact reports@cruush.app if this is wrong.`;
+    }
+  }
+
   if (decision.user_message_code === "feed_content_rejected") {
-    return "This feed post could not be published because it violates cruush safety rules.";
+    return "This feed post was not published. Automated moderation flagged it for harm, hate, threats, or illegal activity. Edit the wording and try again, or write to reports@cruush.app if you think this is wrong.";
   }
 
   if (decision.user_message_code === "nudity_private_messages_only") {
@@ -320,10 +357,12 @@ export function userMessageForDecision(
   }
 
   if (decision.user_message_code === "content_rejected_zero_tolerance") {
-    return "This content violates cruush safety rules and cannot be saved.";
+    return "This was not saved. Automated moderation flagged it under the rules cruush never bends: content involving minors, non-consent, or illegal activity. Write to reports@cruush.app if you think this is wrong.";
   }
 
-  return "This content violates cruush safety rules and cannot be saved.";
+  // The catch-all still says what was checked and where to go, because
+  // "violates cruush safety rules" told a member nothing they could act on.
+  return "This was not saved. Automated moderation flagged it for harm, hate, threats, nudity where it is not allowed, or illegal activity. Write to reports@cruush.app if you think this is wrong.";
 }
 
 const HUMAN_PROOF_CONFIDENCE = 0.7;
@@ -696,20 +735,18 @@ export function resolveProfilePhotoAdultHumanGate(
 }
 
 
-const AGE_SUSPENSION_REASON_CODES = new Set(["minor_face_detected"]);
-
 /**
- * An age-related suspension always offers a human review, so tell the person it
- * happened and where to send their details. Delivery never blocks enforcement.
+ * Appealable suspensions always offer human review. Delivery never blocks
+ * enforcement.
  */
-async function notifyAgeSuspensionAppeal(
+async function notifySuspensionAppeal(
   app: FastifyInstance,
   userId: string,
   decision: PolicyDecision
 ) {
   const enforcement = decision.enforcement_action;
 
-  if (enforcement?.type !== "suspend" || !AGE_SUSPENSION_REASON_CODES.has(enforcement.reasonCode)) {
+  if (enforcement?.type !== "suspend" || enforcement.permanent) {
     return;
   }
 
@@ -720,23 +757,38 @@ async function notifyAgeSuspensionAppeal(
     );
     const email = result.rows[0]?.email ?? null;
 
+    const ageRelated = isAgeRelatedSuspensionReason(enforcement.reasonCode);
+
     if (email) {
-      await sendAgeSuspensionAppealEmail({
-        appealUrl: `${app.config.APP_URL.replace(/\/$/, "")}/support?appeal=1`,
-        config: app.config,
-        email,
-        logger: app.log
-      });
+      if (ageRelated) {
+        await sendAgeSuspensionAppealEmail({
+          appealUrl: `${app.config.APP_URL.replace(/\/$/, "")}/support?appeal=1`,
+          config: app.config,
+          email,
+          logger: app.log,
+          reasonCode: enforcement.reasonCode
+        });
+      } else {
+        await sendGeneralSuspensionAppealEmail({
+          appealUrl: `${app.config.APP_URL.replace(/\/$/, "")}/support?appeal=general`,
+          config: app.config,
+          email,
+          logger: app.log,
+          reasonCode: enforcement.reasonCode
+        });
+      }
     }
 
-    await sendAgeSuspensionInboxEmail({
-      config: app.config,
-      logger: app.log,
-      userEmail: email,
-      userId
-    });
+    if (ageRelated) {
+      await sendAgeSuspensionInboxEmail({
+        config: app.config,
+        logger: app.log,
+        userEmail: email,
+        userId
+      });
+    }
   } catch (error) {
-    app.log.error({ err: error, userId }, "age suspension appeal email failed");
+    app.log.error({ err: error, userId }, "suspension appeal email failed");
   }
 }
 
@@ -872,7 +924,7 @@ async function handlePolicyDecision(
     }
   });
 
-  await notifyAgeSuspensionAppeal(app, userId, decision);
+  await notifySuspensionAppeal(app, userId, decision);
 
   throw new ModerationRejectedError({
     contentReviewId,

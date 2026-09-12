@@ -1,15 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useLocation } from 'react-router';
 import CruushPlusScratchCard from './CruushPlusScratchCard';
-import { getRewardGrant, getRewardSummary } from '../lib/rewardsApi';
+import { getRewardGrant } from '../lib/rewardsApi';
 import { getCheckoutSession } from '../lib/billingApi';
 import { cardForReward, EARNED_CRUUSH_PLUS_CARD_EVENT, type EarnedCruushPlusCard } from '../lib/earnedCruushPlusCard';
 import { hasPersistentNoticeFlag, setPersistentNoticeFlag } from '../lib/persistentNotice';
 import { acquireOneTimeDialog, onOneTimeDialogReleased, releaseOneTimeDialog } from '../lib/oneTimeDialogQueue';
 
-export default function EarnedCruushPlusCards({ userId, afterOnboarding = false }: {
+export default function EarnedCruushPlusCards({ userId }: {
   userId: string;
-  afterOnboarding?: boolean;
 }) {
   const location = useLocation();
   const [queue, setQueue] = useState<EarnedCruushPlusCard[]>([]);
@@ -29,19 +28,6 @@ export default function EarnedCruushPlusCards({ userId, afterOnboarding = false 
     window.addEventListener(EARNED_CRUUSH_PLUS_CARD_EVENT, receive);
     return () => window.removeEventListener(EARNED_CRUUSH_PLUS_CARD_EVENT, receive);
   }, [enqueue]);
-
-  useEffect(() => {
-    if (!afterOnboarding) return;
-    let active = true;
-    void getRewardSummary().then(summary => {
-      if (!active) return;
-      for (const grant of summary.recentGrants) {
-        const card = grant.status === 'active' ? cardForReward(grant) : null;
-        if (card) enqueue(card);
-      }
-    }).catch(() => {});
-    return () => { active = false; };
-  }, [afterOnboarding, enqueue]);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);

@@ -1,10 +1,11 @@
 import { ArrowLeft } from 'lucide-react';
 import { Button } from './ui/button';
 import { useBackOrFallback } from '../lib/useBackOrFallback';
+import SupportRequestForm from './SupportRequestForm';
+import BugButtonSlot from './BugButtonSlot';
 import {
   billingSections,
   billingUpdated,
-  legalContact,
   legalUpdated,
   privacySections,
   privacyUpdated,
@@ -69,9 +70,9 @@ const contentRemovalSections: PolicySection[] = [
     title: 'Where this request goes',
     body: [
       <>
-        Send removal requests to <a href={`mailto:${legalContact}`}>{legalContact}</a>. cruush may use the
-        information you provide to review the content, contact you, remove or restrict content, preserve evidence,
-        enforce policies, or report serious safety or legal issues.
+        Use the removal request form below. cruush may use the information you provide to review the content,
+        contact you, remove or restrict content, preserve evidence, enforce policies, or report serious safety or
+        legal issues.
       </>,
     ],
   },
@@ -208,9 +209,10 @@ const pageContent: Record<PublicInfoPageId, PublicInfoPageContent> = {
 
 type PublicInfoPageProps = {
   page: PublicInfoPageId;
+  signedIn?: boolean;
 };
 
-export default function PublicInfoPage({ page }: PublicInfoPageProps) {
+export default function PublicInfoPage({ page, signedIn = false }: PublicInfoPageProps) {
   const goBack = useBackOrFallback('/');
   const content = pageContent[page];
 
@@ -224,6 +226,8 @@ export default function PublicInfoPage({ page }: PublicInfoPageProps) {
           <p className="text-[0.65rem] font-semibold uppercase tracking-[0.25em] text-primary">{content.eyebrow}</p>
           <h1 className="text-xl">{content.title}</h1>
         </div>
+      
+        <BugButtonSlot testId="public-info-page-bug-button-slot" />
       </header>
 
       <main className="mx-auto max-w-3xl space-y-5 p-6">
@@ -240,6 +244,14 @@ export default function PublicInfoPage({ page }: PublicInfoPageProps) {
             </div>
           </section>
         ))}
+        {page === 'content-removal' ? (
+          <SupportRequestForm
+            contentRemovalMode
+            requireContactEmail
+            signedIn={signedIn}
+            source="policy"
+          />
+        ) : null}
       </main>
     </div>
   );

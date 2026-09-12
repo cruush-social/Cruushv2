@@ -4,9 +4,13 @@ import { Button } from './ui/button';
 import { CruushIcon, type CruushIconName } from './CruushIconImage';
 import CruushPlusWord from './CruushPlusWord';
 import HeartPhoto from './HeartPhoto';
+import DlModePhotoPlaceholder from './DlModePhotoPlaceholder';
 import { resolveMediaUrl } from '../lib/apiClient';
 import { addDlModeChangedListener, isDlModeEnabled, shouldMaskPhoto } from '../lib/dlMode';
 import type { DiscoveryUser } from '../lib/usersApi';
+import { PROFILE_OVERLAY_TEXT_STYLE } from './ProfileView';
+import { formatDistanceWithAway, useDistancePreferences } from '../lib/distancePreferences';
+import { resolveVibeTone, vibeCapsuleStyle } from '../lib/vibeTone';
 import { ACCESSIBILITY_PREFERENCES_CHANGED_EVENT, shouldReduceMotion } from '../lib/accessibilityPreferences';
 
 export type CruiseCarouselSlotMode = 'profile' | 'locked' | 'empty';
@@ -212,13 +216,20 @@ function CarouselTile({ item, featured, itemIndex, spinning, activePhotoIndex, o
   onSelectPhoto?: (index: number) => void;
 }) {
   const [dlModeActive, setDlModeActive] = useState(() => isDlModeEnabled());
-  const profileSizeClass = featured ? 'aspect-[4/5] w-[9rem] sm:w-[11.5rem]' : 'aspect-[4/5] w-[4.8rem] sm:w-[5.6rem]';
+  const distanceMode = useDistancePreferences().mode;
+  // The featured card carries a profile overlay, so it needs the room a
+  // profile card has rather than a thumbnail's.
+  const profileSizeClass = featured ? 'aspect-[4/5] w-[15rem] sm:w-[17rem]' : 'aspect-[4/5] w-[4.8rem] sm:w-[5.6rem]';
   const iconSizeClass = featured ? 'h-[7.5rem] w-[7.5rem]' : 'h-[5rem] w-[5rem]';
   const tileFrameClass = featured
     ? 'border-white/34 bg-white/[0.12] shadow-[0_0_34px_rgba(255,0,114,0.32)] rounded-[1.375rem]'
     : 'border-white/24 bg-white/[0.08] shadow-[0_4px_16px_rgba(0,0,0,0.3)] rounded-[1rem] sm:rounded-[1.25rem]';
+  // A profile card is already much larger than its neighbours, and scaling it
+  // up on top of that pushed its own overlay past the row, which clips: the
+  // signal was cut in half and the vibe tags disappeared entirely.
+  const featuredScaleClass = item.kind === 'profile' ? 'scale-100' : 'scale-110';
   const positionClass = featured
-    ? 'scale-110 rotate-0 opacity-100 z-20'
+    ? `${featuredScaleClass} rotate-0 opacity-100 z-20`
     : 'scale-90 rotate-0 opacity-85 hover:opacity-100 z-10';
   const cycleClass = spinning ? 'cruise-carousel-profile-spinning' : '';
 
@@ -267,9 +278,51 @@ function CarouselTile({ item, featured, itemIndex, spinning, activePhotoIndex, o
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-2xl sm:text-4xl font-bold text-white" style={{ background: 'var(--cruush-gradient)' }}>
-            {initial}
+            {photoUrl && shouldMaskPhoto(dlModeActive, item.user.photoExplicit) ? <DlModePhotoPlaceholder className="w-14" /> : initial}
           </div>
         )}
+
+        {/* The featured card reads like the profile card: the same overlay,
+            the same text treatment, the same vibe pills, over the photo. */}
+        {featured ? (
+          <div
+            data-testid="cruise-carousel-profile-overlay"
+            className="pointer-events-none absolute inset-x-0 bottom-0 z-20 bg-gradient-to-t from-black/70 via-black/25 to-transparent px-3 pb-3 pt-8 text-left text-white"
+          >
+            <p className="flex min-w-0 items-center text-xl leading-tight" style={PROFILE_OVERLAY_TEXT_STYLE}>
+              <span className="min-w-0 truncate">{item.user.name}</span>
+              {item.user.age ? <span className="shrink-0 whitespace-nowrap">, {item.user.age}</span> : null}
+            </p>
+            {item.user.pronouns ? (
+              <p className="truncate text-[13px] text-white" style={PROFILE_OVERLAY_TEXT_STYLE}>{item.user.pronouns}</p>
+            ) : null}
+            {item.user.distance ? (
+              <div className="mt-0.5 flex min-w-0 items-center gap-1.5 overflow-hidden text-[13px] text-white" style={PROFILE_OVERLAY_TEXT_STYLE}>
+                <CruushIcon name="map" className="h-3.5 w-3.5 shrink-0" variant="white" />
+                <span className="min-w-0 truncate">{formatDistanceWithAway(item.user.distance, distanceMode)}</span>
+                {item.user.lastActive ? <span className="shrink-0">• {item.user.lastActive}</span> : null}
+              </div>
+            ) : null}
+            {item.user.signal ? (
+              <p className="mt-1 truncate text-[15px] leading-snug text-white" style={PROFILE_OVERLAY_TEXT_STYLE}>
+                {item.user.signal}
+              </p>
+            ) : null}
+            {(item.user.vibes?.length ?? 0) > 0 ? (
+              <div className="mt-1.5 flex flex-nowrap gap-1 overflow-hidden">
+                {item.user.vibes.slice(0, 3).map((vibe) => (
+                  <span
+                    className="shrink-0 truncate rounded-full border px-2 py-0.5 text-[11px] uppercase leading-tight tracking-[0.08em]"
+                    key={vibe}
+                    style={vibeCapsuleStyle(resolveVibeTone({ mutual: item.user.relationship?.mutualCruush === true }))}
+                  >
+                    {vibe}
+                  </span>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
 
         {featured && allPhotos.length > 1 ? (
           <>
@@ -399,7 +452,7 @@ export default function CruiseCarouselSlot({
   );
   const featuredFrameClass = browseItems[FEATURED_ITEM_INDEX]?.kind === 'icon'
     ? 'h-[7rem] w-[7rem] sm:h-[10rem] sm:w-[10rem]'
-    : 'aspect-[4/5] w-[9.6rem] sm:w-[12.2rem]';
+    : 'aspect-[4/5] w-[15.9rem] sm:w-[18rem]';
 
   const title = mode === 'profile'
     ? 'browsing nearby profiles'
@@ -439,7 +492,7 @@ export default function CruiseCarouselSlot({
           <div data-testid="cruise-carousel-featured-frame" className={`pointer-events-none absolute left-1/2 top-1/2 z-10 ${featuredFrameClass} -translate-x-1/2 -translate-y-1/2 rounded-[1.65rem] border border-white/18 bg-white/[0.035] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] ${settled ? '' : 'cruise-carousel-frame-spinning'}`} />
           <span aria-hidden="true" className="pointer-events-none absolute left-1/2 top-2 z-20 h-2.5 w-2.5 -translate-x-1/2 rotate-45 bg-primary shadow-[0_0_14px_rgba(255,0,114,0.9)]" />
           <span aria-hidden="true" className="pointer-events-none absolute bottom-2 left-1/2 z-20 h-2.5 w-2.5 -translate-x-1/2 rotate-45 bg-primary shadow-[0_0_14px_rgba(255,0,114,0.9)]" />
-          <div className="relative flex h-[13.5rem] sm:h-[16rem] items-center justify-center overflow-hidden" aria-hidden="true">
+          <div className="relative flex h-[19rem] sm:h-[22rem] items-center justify-center overflow-hidden" aria-hidden="true">
             <div
               key={settled ? 'settled' : `reel-${cycleStep}`}
               className={`flex items-center gap-3 sm:gap-5 ${settled ? 'cruise-carousel-reel-lock' : 'cruise-carousel-reel-step'}`}
@@ -461,27 +514,41 @@ export default function CruiseCarouselSlot({
 
         <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-center" aria-live="polite">
           <p className="text-sm text-white/78">{settled ? description : 'Browsing nearby profiles...'}</p>
+          {/* The round button the profile surfaces use, centred, with its word
+              under it rather than wrapped around it in a pill. */}
           {settled && mode === 'locked' ? (
-            <Button
-              type="button"
-              className="mt-4 h-11 rounded-xl text-white"
-              style={{ background: 'var(--cruush-gradient)' }}
-              onClick={onUpgrade}
-            >
-              <Lock className="h-4 w-4" />
-              Get <CruushPlusWord />
-            </Button>
+            <div className="mt-4 flex flex-col items-center gap-1.5">
+              <Button
+                type="button"
+                size="icon"
+                variant="secondary"
+                aria-label="Get cruush+"
+                title="Get cruush+"
+                className="cruush-action-sheen size-12 shrink-0 rounded-full border-0 text-white disabled:opacity-100"
+                style={{ background: 'var(--cruush-gradient)' }}
+                onClick={onUpgrade}
+              >
+                <Lock className="h-5 w-5" />
+              </Button>
+              <span className="text-xs text-white/78">Get <CruushPlusWord /></span>
+            </div>
           ) : null}
           {settled && (mode === 'empty' || mode === 'profile') && onRetry ? (
-            <Button
-              type="button"
-              variant="outline"
-              className="mt-4 h-11 rounded-xl border-white/18 text-white"
-              onClick={onRetry}
-            >
-              <RefreshCw className="h-4 w-4" />
-              Browse again
-            </Button>
+            <div className="mt-4 flex flex-col items-center gap-1.5">
+              <Button
+                type="button"
+                size="icon"
+                variant="secondary"
+                aria-label="Browse again"
+                title="Browse again"
+                className="cruush-action-sheen size-12 shrink-0 rounded-full border-0 text-white disabled:opacity-100"
+                style={{ background: 'var(--cruush-gradient-soft-28)' }}
+                onClick={onRetry}
+              >
+                <RefreshCw className="h-5 w-5" />
+              </Button>
+              <span className="text-xs text-white/78">Browse again</span>
+            </div>
           ) : null}
         </div>
       </div>

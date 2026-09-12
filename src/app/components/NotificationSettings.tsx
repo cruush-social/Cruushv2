@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { DROPDOWN_TRIGGER_CLASS } from '../lib/controlStyles';
 import { ArrowLeft, Bell, Download, Smartphone } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import {
@@ -10,6 +11,7 @@ import { disablePushNotifications, enablePushNotifications } from '../lib/pushNo
 import { Button } from './ui/button';
 import { Switch } from './ui/switch';
 import LoadingCardSkeletons from './LoadingCardSkeletons';
+import BugButtonSlot from './BugButtonSlot';
 
 const MINUTES_PER_DAY = 1440;
 const QUIET_HOURS_STEP_MINUTES = 30;
@@ -191,6 +193,8 @@ export default function NotificationSettings() {
           <h1 className="text-xl text-white">Notification settings</h1>
           <p className="text-sm text-muted-foreground">Push alerts stay private on your lock screen.</p>
         </div>
+      
+        <BugButtonSlot testId="notification-settings-bug-button-slot" />
       </header>
 
       <main className="mx-auto flex w-full max-w-2xl flex-col gap-4 px-4 py-5">
@@ -286,7 +290,7 @@ export default function NotificationSettings() {
               <label className="flex min-w-0 flex-1 items-center gap-2 text-sm text-white">
                 <span className="shrink-0 text-muted-foreground">From</span>
                 <select
-                  className="min-w-0 flex-1 rounded-full border border-border bg-background px-3 py-2 text-sm text-white"
+                  className={`min-w-0 flex-1 ${DROPDOWN_TRIGGER_CLASS}`}
                   disabled={isSaving}
                   onChange={(event) => void savePreferences({
                     quietHoursStartMinute: Number(event.target.value),
@@ -302,7 +306,7 @@ export default function NotificationSettings() {
               <label className="flex min-w-0 flex-1 items-center gap-2 text-sm text-white">
                 <span className="shrink-0 text-muted-foreground">To</span>
                 <select
-                  className="min-w-0 flex-1 rounded-full border border-border bg-background px-3 py-2 text-sm text-white"
+                  className={`min-w-0 flex-1 ${DROPDOWN_TRIGGER_CLASS}`}
                   disabled={isSaving}
                   onChange={(event) => void savePreferences({
                     quietHoursEndMinute: Number(event.target.value),

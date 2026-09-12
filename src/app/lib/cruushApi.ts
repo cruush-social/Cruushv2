@@ -114,6 +114,7 @@ export type MutualCruushMapFilters = {
   lookingFor?: string[];
   timing?: string[];
   hosting?: string[];
+  preferredSpots?: string[];
   vibes?: string[];
   crowds?: string[];
   hobbies?: string[];
@@ -122,7 +123,9 @@ export type MutualCruushMapFilters = {
   kinks?: string[];
   bodyTypes?: string[];
   sexuality?: string[];
+  zodiac?: string[];
   substanceBoundaries?: string[];
+  protectionBoundaries?: string[];
 };
 
 export type ProfileViewActivityItem = CruushLockableActivityItem & {
@@ -221,6 +224,7 @@ export async function getMutualCruushMap(filters?: MutualCruushMapFilters) {
   appendMutualMapListParams(params, 'lookingFor', filters?.lookingFor);
   appendMutualMapListParams(params, 'timing', filters?.timing);
   appendMutualMapListParams(params, 'hosting', filters?.hosting);
+  appendMutualMapListParams(params, 'preferredSpots', filters?.preferredSpots);
   appendMutualMapListParams(params, 'vibes', filters?.vibes);
   appendMutualMapListParams(params, 'crowds', filters?.crowds);
   appendMutualMapListParams(params, 'hobbies', filters?.hobbies);
@@ -229,7 +233,9 @@ export async function getMutualCruushMap(filters?: MutualCruushMapFilters) {
   appendMutualMapListParams(params, 'kinks', filters?.kinks);
   appendMutualMapListParams(params, 'bodyTypes', filters?.bodyTypes);
   appendMutualMapListParams(params, 'sexuality', filters?.sexuality);
+  appendMutualMapListParams(params, 'zodiac', filters?.zodiac);
   appendMutualMapListParams(params, 'substanceBoundaries', filters?.substanceBoundaries);
+  appendMutualMapListParams(params, 'protectionBoundaries', filters?.protectionBoundaries);
   const query = params.toString();
   const response = await requestApi<MutualMapResponse | MutualCruushActivityItem[]>(
     query ? `/api/cruush/mutual-map?${query}` : '/api/cruush/mutual-map',
@@ -272,6 +278,20 @@ export async function getMutualCruushMap(filters?: MutualCruushMapFilters) {
 
 export async function revokeMutualCruush(otherUserId: string) {
   return requestApi<{ revoked: boolean }>(`/api/cruush/matches/${otherUserId}`, {
+    method: 'DELETE',
+  });
+}
+
+/** Clears an incoming cruush from your own list without touching the sender. */
+export async function dismissIncomingCruush(otherUserId: string) {
+  return requestApi<{ dismissed: boolean }>(`/api/cruush/incoming/${otherUserId}`, {
+    method: 'DELETE',
+  });
+}
+
+/** Clears one viewer's entries from your Views list. */
+export async function removeProfileView(otherUserId: string) {
+  return requestApi<{ removed: number }>(`/api/cruush/views/${otherUserId}`, {
     method: 'DELETE',
   });
 }

@@ -10,12 +10,15 @@ export type VisibilitySubjectProfile = {
   bio?: string | null;
   tags?: string[] | null;
   mile_high_club_member?: boolean;
+  /** Undefined where the caller cannot tell, which never hides anyone. */
+  has_photo?: boolean;
   year_of_birth?: number | null;
   identities?: string[] | null;
   presentations?: string[] | null;
   looking_for?: string[] | null;
   timing?: string[] | null;
   hosting?: string[] | null;
+  preferred_spots?: string[] | null;
   vibes?: string[] | null;
   scenes?: string[] | null;
   archetypes?: string[] | null;
@@ -25,8 +28,13 @@ export type VisibilitySubjectProfile = {
   roles?: string[] | null;
   kinks?: string[] | null;
   body_types?: string[] | null;
+  body_hair?: string[] | null;
+  pubic_hair?: string[] | null;
+  facial_hair?: string[] | null;
   sexuality?: string[] | null;
+  zodiac?: string[] | null;
   substance_boundaries?: string[] | null;
+  protection_boundaries?: string[] | null;
   coordinates?: VisibilityCoordinates | null;
 };
 
@@ -76,6 +84,7 @@ function matchesSearchQuery(searchQuery: string, subject: VisibilitySubjectProfi
     ...(subject.looking_for ?? []),
     ...(subject.timing ?? []),
     ...(subject.hosting ?? []),
+    ...(subject.preferred_spots ?? []),
     ...(subject.vibes ?? []),
     ...(subject.scenes ?? []),
     ...(subject.archetypes ?? []),
@@ -85,8 +94,13 @@ function matchesSearchQuery(searchQuery: string, subject: VisibilitySubjectProfi
     ...(subject.roles ?? []),
     ...(subject.kinks ?? []),
     ...(subject.body_types ?? []),
+    ...(subject.body_hair ?? []),
+    ...(subject.pubic_hair ?? []),
+    ...(subject.facial_hair ?? []),
     ...(subject.sexuality ?? []),
+    ...(subject.zodiac ?? []),
     ...(subject.substance_boundaries ?? []),
+    ...(subject.protection_boundaries ?? []),
   ].some((value) => normalize(value).includes(normalizedQuery));
   const normalizedTagQuery = normalizedQuery.replace(/^#+/, "");
 
@@ -121,6 +135,7 @@ function normalizeVisibilityRules(rules: ProfileVisibilityRules): ProfileVisibil
     search_query: rules.search_query ?? "",
     active_crowd_modes: rules.active_crowd_modes ?? [],
     mile_high_club_members: rules.mile_high_club_members ?? false,
+    members_without_photos: rules.members_without_photos ?? false,
     age_range: rules.age_range ?? null,
     distance: rules.distance ?? null,
     identities: rules.identities ?? [],
@@ -128,6 +143,7 @@ function normalizeVisibilityRules(rules: ProfileVisibilityRules): ProfileVisibil
     looking_for: rules.looking_for ?? [],
     timing: rules.timing ?? [],
     hosting: rules.hosting ?? [],
+    preferred_spots: rules.preferred_spots ?? [],
     vibes: rules.vibes ?? [],
     crowds: rules.crowds ?? [],
     hobbies: rules.hobbies ?? [],
@@ -135,8 +151,13 @@ function normalizeVisibilityRules(rules: ProfileVisibilityRules): ProfileVisibil
     roles: rules.roles ?? [],
     kinks: rules.kinks ?? [],
     body_types: rules.body_types ?? [],
+    body_hair: rules.body_hair ?? [],
+    pubic_hair: rules.pubic_hair ?? [],
+    facial_hair: rules.facial_hair ?? [],
     sexuality: rules.sexuality ?? [],
-    substance_boundaries: rules.substance_boundaries ?? []
+    zodiac: rules.zodiac ?? [],
+    substance_boundaries: rules.substance_boundaries ?? [],
+    protection_boundaries: rules.protection_boundaries ?? []
   };
 }
 
@@ -150,6 +171,7 @@ export function visibilityRulesArePublic(rules: ProfileVisibilityRules | null | 
   return normalizedRules.search_query.length === 0 &&
     normalizedRules.active_crowd_modes.length === 0 &&
     normalizedRules.mile_high_club_members === false &&
+    normalizedRules.members_without_photos === false &&
     normalizedRules.age_range === null &&
     normalizedRules.distance === null &&
     normalizedRules.identities.length === 0 &&
@@ -157,6 +179,7 @@ export function visibilityRulesArePublic(rules: ProfileVisibilityRules | null | 
     normalizedRules.looking_for.length === 0 &&
     normalizedRules.timing.length === 0 &&
     normalizedRules.hosting.length === 0 &&
+    normalizedRules.preferred_spots.length === 0 &&
     normalizedRules.vibes.length === 0 &&
     normalizedRules.crowds.length === 0 &&
     normalizedRules.hobbies.length === 0 &&
@@ -164,8 +187,13 @@ export function visibilityRulesArePublic(rules: ProfileVisibilityRules | null | 
     normalizedRules.roles.length === 0 &&
     normalizedRules.kinks.length === 0 &&
     normalizedRules.body_types.length === 0 &&
+    normalizedRules.body_hair.length === 0 &&
+    normalizedRules.pubic_hair.length === 0 &&
+    normalizedRules.facial_hair.length === 0 &&
     normalizedRules.sexuality.length === 0 &&
-    normalizedRules.substance_boundaries.length === 0;
+    normalizedRules.zodiac.length === 0 &&
+    normalizedRules.substance_boundaries.length === 0 &&
+    normalizedRules.protection_boundaries.length === 0;
 }
 
 export function countVisibilityExclusionFilters(rules: ProfileVisibilityRules | null | undefined) {
@@ -180,11 +208,13 @@ export function countVisibilityExclusionFilters(rules: ProfileVisibilityRules | 
     normalizedRules.age_range !== null,
     normalizedRules.distance !== null,
     normalizedRules.mile_high_club_members,
+    normalizedRules.members_without_photos,
     normalizedRules.identities.length > 0,
     normalizedRules.presentations.length > 0,
     normalizedRules.looking_for.length > 0,
     normalizedRules.timing.length > 0,
     normalizedRules.hosting.length > 0,
+    normalizedRules.preferred_spots.length > 0,
     normalizedRules.vibes.length > 0,
     normalizedRules.crowds.length > 0,
     normalizedRules.hobbies.length > 0,
@@ -192,8 +222,13 @@ export function countVisibilityExclusionFilters(rules: ProfileVisibilityRules | 
     normalizedRules.roles.length > 0,
     normalizedRules.kinks.length > 0,
     normalizedRules.body_types.length > 0,
+    normalizedRules.body_hair.length > 0,
+    normalizedRules.pubic_hair.length > 0,
+    normalizedRules.facial_hair.length > 0,
     normalizedRules.sexuality.length > 0,
-    normalizedRules.substance_boundaries.length > 0
+    normalizedRules.zodiac.length > 0,
+    normalizedRules.substance_boundaries.length > 0,
+    normalizedRules.protection_boundaries.length > 0
   ].filter(Boolean).length;
 }
 
@@ -216,6 +251,12 @@ export function canSubjectViewProfile(
     return false;
   }
 
+  // Only an explicit false hides anyone: a caller that cannot tell whether the
+  // viewer has a photo must not hide the profile from them.
+  if (normalizedRules.members_without_photos && subject.has_photo === false) {
+    return false;
+  }
+
   if (matchesSearchQuery(normalizedRules.search_query, subject)) {
     return false;
   }
@@ -233,6 +274,11 @@ export function canSubjectViewProfile(
       ? distanceMiles(subject.coordinates, targetCoordinates)
       : null;
 
+    // A privacy rule fails closed. "Hide me from people farther than X" hides
+    // anyone whose distance cannot be measured, because showing the profile on
+    // a guess is the one outcome the member asked not to have. The route
+    // measures against the encrypted location envelope, so a viewer with a
+    // location is measurable and only a viewer with none is refused.
     if (distance == null || distance > normalizedRules.distance) {
       return false;
     }
@@ -244,6 +290,7 @@ export function canSubjectViewProfile(
     excludesAny(normalizedRules.looking_for, subject.looking_for) &&
     excludesAny(normalizedRules.timing, subject.timing) &&
     excludesAny(normalizedRules.hosting, subject.hosting) &&
+    excludesAny(normalizedRules.preferred_spots, subject.preferred_spots) &&
     excludesAny(normalizedRules.vibes, [
       ...(subject.vibes ?? []),
       ...(subject.scenes ?? []),
@@ -255,6 +302,11 @@ export function canSubjectViewProfile(
     excludesAny(normalizedRules.roles, subject.roles) &&
     excludesAny(normalizedRules.kinks, subject.kinks) &&
     excludesAny(normalizedRules.body_types, subject.body_types) &&
+    excludesAny(normalizedRules.body_hair, subject.body_hair) &&
+    excludesAny(normalizedRules.pubic_hair, subject.pubic_hair) &&
+    excludesAny(normalizedRules.facial_hair, subject.facial_hair) &&
     excludesAny(normalizedRules.sexuality, subject.sexuality) &&
-    excludesAny(normalizedRules.substance_boundaries, subject.substance_boundaries);
+    excludesAny(normalizedRules.zodiac, subject.zodiac) &&
+    excludesAny(normalizedRules.substance_boundaries, subject.substance_boundaries) &&
+    excludesAny(normalizedRules.protection_boundaries, subject.protection_boundaries);
 }

@@ -61,7 +61,9 @@ describe('Changelog', () => {
     expect(screen.getByText(/Messages now default to Mutuals/i)).toBeInTheDocument();
   });
 
-  it('keeps the fixed alpha bug button outside the changelog header slot', () => {
+  it('docks the alpha bug button into the changelog header slot', () => {
+    // Design rule: back button, title, header actions and the bug button all
+    // share one line, so a registered slot takes the button.
     render(
       <MemoryRouter>
         <Changelog />
@@ -72,12 +74,7 @@ describe('Changelog', () => {
     const slot = screen.getByTestId('changelog-bug-button-slot');
     const reportButton = screen.getByRole('button', { name: 'Report alpha bug' });
 
-    expect(slot).not.toContainElement(reportButton);
-    expect(reportButton).toHaveClass(
-      'fixed',
-      'right-[calc(0.75rem+env(safe-area-inset-right))]',
-      'top-[calc(0.75rem+env(safe-area-inset-top))]',
-      'z-[1500]',
-    );
+    expect(slot).toContainElement(reportButton);
+    expect(reportButton).not.toHaveClass('fixed');
   });
 });

@@ -4,6 +4,7 @@ import { ArrowLeft, CheckCircle2, Flag } from 'lucide-react';
 import { Button } from './ui/button';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
+import BugButtonSlot from './BugButtonSlot';
 import {
   createReport,
   REPORT_REASON_OPTIONS,
@@ -137,7 +138,7 @@ export default function ReportPage({ embedded = false, targetOverride, onBack }:
   return (
     <div className={embedded ? 'bg-background' : 'min-h-screen bg-background pb-20'}>
       <header className="sticky top-0 z-10 border-b border-border bg-card/90 p-4 backdrop-blur-sm">
-        <div className={`mx-auto flex max-w-2xl items-center gap-4 ${embedded ? 'pr-10' : ''}`}>
+        <div className="mx-auto flex max-w-2xl items-center gap-4">
           <Button variant="ghost" size="icon" onClick={goBack} aria-label="Back">
             <ArrowLeft className="h-5 w-5" />
           </Button>
@@ -145,6 +146,7 @@ export default function ReportPage({ embedded = false, targetOverride, onBack }:
             <h2 className="text-xl">Report</h2>
             <p className="text-xs text-muted-foreground">Send this to automated safety checks</p>
           </div>
+          <BugButtonSlot testId="report-page-bug-button-slot" />
         </div>
       </header>
 

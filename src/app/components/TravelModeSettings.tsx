@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { ArrowLeft, Search, X } from 'lucide-react';
 import { useNavigate } from 'react-router';
-import { toast } from 'sonner';
+import { toast } from '../lib/toast';
 import {
   clearMyTravelPin,
   geocodeTravelAddress,
@@ -18,6 +18,7 @@ import {
 import { MAX_DISCOVERY_ZOOM, MIN_DISCOVERY_ZOOM, getMapStyle } from './MapView';
 import { Button } from './ui/button';
 import CruushPlusCardDialog from './CruushPlusCardDialog';
+import BugButtonSlot from './BugButtonSlot';
 import { CRUUSH_PLUS_CHANGED_EVENT, getMyBillingStatus } from '../lib/billingApi';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import mileHighClubWhite from '../assets/ui-icons/mile-high-club-white.svg';
@@ -25,11 +26,8 @@ import { HEART_PIN_PATH, HEART_PIN_THEMES } from '../lib/heartPin';
 
 /** What Mile High Club does and does not allow, stated before it is turned on. */
 const TRAVEL_MODE_TERMS = [
-  'Your pin sits where you drop it, and the map shows you there instead of your device location.',
-  'The pin can be moved once every 3 hours, so it cannot be swept across a city.',
-  'You can browse, cruush, and message the same as anywhere else.',
-  'Pulse works from your travel pin, the same as it works from home.',
-  'Ghost Mode still works, and it fuzzes the travel pin the same way it fuzzes home.',
+  'Your pin shows where you drop it instead of your device location, and it can move once every 3 hours.',
+  'Browse, cruush, message, and Pulse from your travel pin. Ghost Mode still fuzzes it.',
   'Dark Room is off while you are travelling. A borrowed location and an unseen viewer is the one pair we do not allow.',
 ];
 
@@ -291,10 +289,10 @@ function TravelPinPicker({
       </form>
       {actions}
       {mapError ? <p className="text-sm text-destructive">{mapError}</p> : null}
-      <div className="cruush-travel-mode-picker-map relative min-h-64 flex-1 overflow-hidden rounded-lg border border-white/10">
+      <div className="cruush-travel-mode-picker-map relative min-h-0 lg:min-h-64 flex-1 overflow-hidden rounded-lg border border-white/10">
         <div
           aria-label="Pick where your travel pin goes"
-          className="h-full min-h-64 w-full"
+          className="h-full min-h-0 w-full lg:min-h-64"
           ref={containerRef}
           role="application"
           style={{ inset: 0, position: 'absolute' }}
@@ -434,7 +432,7 @@ function TravelModeSection({ onTravelPinChange }: { onTravelPinChange?: (pin: Tr
   };
 
   const canMove = pin ? nowMs >= pin.movableAtMs : true;
-  const pickerOpen = (!pin && showTerms) || Boolean(pin && canMove && showPicker);
+  const pickerOpen = !pin || Boolean(pin && canMove && showPicker);
 
   return (
     <>
@@ -473,7 +471,9 @@ function TravelModeSection({ onTravelPinChange }: { onTravelPinChange?: (pin: Tr
             type="button"
             variant="outline"
           >
-            {showTerms ? 'Close' : 'Turn on'}
+            {/* Basic accounts need cruush+ for this, so the button says so
+                rather than opening a panel that cannot be used. */}
+            {hasCruushPlus !== true ? 'Get cruush+' : showTerms ? 'Close' : 'Turn on'}
           </Button>
         )}
       </div>
@@ -489,9 +489,9 @@ function TravelModeSection({ onTravelPinChange }: { onTravelPinChange?: (pin: Tr
         </div>
       ) : null}
 
-      {!pin && showTerms ? (
+      {!pin ? (
         <div className="cruush-travel-mode-open-panel flex min-h-0 flex-1 flex-col gap-3">
-          <ul className="cruush-travel-mode-terms max-h-32 space-y-2 overflow-y-auto pr-1 text-sm text-muted-foreground">
+          <ul className="cruush-travel-mode-terms space-y-2 pr-1 text-sm text-muted-foreground">
             {TRAVEL_MODE_TERMS.map((term) => (
               <li className="flex gap-2" key={term}>
                 <span aria-hidden="true" className="text-white/40">-</span>
@@ -586,10 +586,12 @@ export default function TravelModeSettings({ embedded = false, onBack, onClose, 
             <X className="h-5 w-5" />
           </button>
         ) : null}
+      
+        <BugButtonSlot testId="travel-mode-settings-bug-button-slot" />
       </header>
 
       <main className="cruush-travel-mode-main mx-auto flex min-h-0 w-full max-w-2xl flex-1 flex-col px-4 py-4">
-        <p className="cruush-travel-mode-intro mb-3 text-sm text-muted-foreground">Drop your pin somewhere else to explore and connect with people there.</p>
+        <p className="cruush-travel-mode-intro mb-3 text-sm text-muted-foreground">Drop your pin anywhere in the current map area to explore and connect with people there.</p>
         <TravelModeSection onTravelPinChange={onTravelPinChange} />
       </main>
     </div>

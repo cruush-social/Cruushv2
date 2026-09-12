@@ -32,20 +32,23 @@ import {
 } from "./profile-visibility.js";
 import { postExpirySchema, type PostExpiry } from "./post-schema.js";
 import { getTravelPin, type TravelPin } from "./travel-pins.js";
-import { notifyPulseRecipients } from "./pulse-notifications.js";
+import { notifyGroupPulseRecipients, notifyPulseRecipients } from "./pulse-notifications.js";
 import { getSideQuestPingBalance } from "./side-quests.js";
 
-export const MAP_PING_RADIUS_MILES = [1, 3, 5, 10, 15] as const;
+export const MAP_PING_RADIUS_MILES = [1, 3, 5, 10, 15, 25, 50] as const;
 export type MapPingRadiusMiles = typeof MAP_PING_RADIUS_MILES[number];
 
 export const MAP_PING_ACTIVE_MS = 30 * 60 * 1000;
 export const MAP_PING_WINDOW_MS = 24 * 60 * 60 * 1000;
-export const MAP_PING_PLUS_COOLDOWN_MS = 4 * 60 * 60 * 1000;
+export const MAP_PING_BASIC_DAILY_LIMIT = 1;
+export const MAP_PING_PLUS_DAILY_LIMIT = 5;
 export const MAP_PING_SENDER_LOCATION_MAX_AGE_MS = 15 * 60 * 1000;
 export const MAP_PING_RECIPIENT_LOCATION_MAX_AGE_MS = 60 * 60 * 1000;
 const MAP_PING_LOCATION_FUTURE_TOLERANCE_MS = 5 * 60 * 1000;
 const FEED_POST_EXPIRY_MS: Record<Exclude<PostExpiry, "never">, number> = {
+  "30m": 30 * 60 * 1000,
   "1h": 60 * 60 * 1000,
+  "3h": 3 * 60 * 60 * 1000,
   "6h": 6 * 60 * 60 * 1000,
   "24h": 24 * 60 * 60 * 1000,
   "7d": 7 * 24 * 60 * 60 * 1000
@@ -60,6 +63,13 @@ type MapPingRow = {
 };
 
 type MapPingTimestampRow = {
+  created_at: string | Date;
+};
+
+type GroupPulseRow = {
+  id: string;
+  conversation_id: string;
+  sender_user_id: string;
   created_at: string | Date;
 };
 
@@ -80,6 +90,7 @@ type RecipientProfileRow = {
   looking_for: string[] | null;
   availability: string[] | null;
   hosting_travel: string[] | null;
+  preferred_spots: string[] | null;
   vibes: string[] | null;
   scenes: string[] | null;
   archetypes: string[] | null;
@@ -89,6 +100,7 @@ type RecipientProfileRow = {
   body_type: string[] | null;
   sexuality: string[] | null;
   substance_boundaries: string[] | null;
+  protection_boundaries: string[] | null;
   profile_sensitive_ciphertext: string | null;
   profile_sensitive_nonce: string | null;
   profile_sensitive_auth_tag: string | null;
@@ -138,9 +150,10 @@ function locationPayloadFromMileHighClubPin(userId: string, pin: TravelPin): Loc
 export type MapPingStatus = {
   bonusCredits: number;
   allowance: {
-    limit: number;
+    unlimited: boolean;
+    limit: number | null;
     used: number;
-    remaining: number;
+    remaining: number | null;
     nextEligibleAt: string | null;
   };
   activePing: {
@@ -185,7 +198,8 @@ function buildAllowance(
   now: Date
 ) {
   const nowMs = now.getTime();
-  const limit = entitlement.cruushPlus ? 3 : 1;
+  const unlimited = false;
+  const limit = entitlement.cruushPlus ? MAP_PING_PLUS_DAILY_LIMIT : MAP_PING_BASIC_DAILY_LIMIT;
   const timestamps = createdAtValues
     .map(toTimestamp)
     .filter((timestamp) => Number.isFinite(timestamp) && timestamp > nowMs - MAP_PING_WINDOW_MS)
@@ -193,7 +207,7 @@ function buildAllowance(
   const used = timestamps.length;
   let nextEligibleMs = nowMs;
 
-  if (used >= limit) {
+  if (limit !== null && used >= limit) {
     const limitingTimestamp = timestamps[used - limit];
 
     if (limitingTimestamp != null) {
@@ -201,25 +215,23 @@ function buildAllowance(
     }
   }
 
-  if (entitlement.cruushPlus && timestamps.length > 0) {
-    nextEligibleMs = Math.max(
-      nextEligibleMs,
-      timestamps[timestamps.length - 1]! + MAP_PING_PLUS_COOLDOWN_MS
-    );
-  }
-
   return {
+    unlimited,
     limit,
     used,
-    remaining: Math.max(0, limit - used),
+    remaining: limit === null ? null : Math.max(0, limit - used),
     nextEligibleAt: nextEligibleMs > nowMs ? new Date(nextEligibleMs).toISOString() : null
   };
 }
 
 function withBonusCredits(allowance: MapPingStatus["allowance"], bonusCredits: number) {
+  if (allowance.unlimited || allowance.limit === null || allowance.remaining === null) {
+    return allowance;
+  }
+
   return {
+    ...allowance,
     limit: allowance.limit + bonusCredits,
-    used: allowance.used,
     remaining: allowance.remaining + bonusCredits,
     nextEligibleAt: bonusCredits > 0 ? null : allowance.nextEligibleAt
   };
@@ -263,6 +275,7 @@ function recipientVisibilitySubject(
     looking_for: row.looking_for ?? [],
     timing: row.availability ?? [],
     hosting: row.hosting_travel ?? [],
+    preferred_spots: row.preferred_spots ?? [],
     vibes: row.vibes ?? [],
     scenes: row.scenes ?? [],
     archetypes: row.archetypes ?? [],
@@ -276,6 +289,7 @@ function recipientVisibilitySubject(
     body_types: row.body_type ?? [],
     sexuality: row.sexuality ?? [],
     substance_boundaries: row.substance_boundaries ?? [],
+    protection_boundaries: row.protection_boundaries ?? [],
     coordinates
   };
 }
@@ -482,6 +496,7 @@ async function loadEligibleRecipients(
        profile.looking_for,
        profile.availability,
        profile.hosting_travel,
+       profile.preferred_spots,
        profile.vibes,
        profile.scenes,
        profile.archetypes,
@@ -491,6 +506,7 @@ async function loadEligibleRecipients(
        profile.body_type,
        profile.sexuality,
        profile.substance_boundaries,
+       profile.protection_boundaries,
        profile.profile_sensitive_ciphertext,
        profile.profile_sensitive_nonce,
        profile.profile_sensitive_auth_tag,
@@ -600,16 +616,140 @@ async function recipientCanReceiveMapPing(
 
 async function loadRecentPingRows(db: DbClient, userId: string, now: Date) {
   const result = await db.query<MapPingTimestampRow>(
-    `select created_at
-     from map_pings
-     where user_id = $1
-       and coalesce((to_jsonb(map_pings)->>'bonus_credit_used')::boolean, false) = false
-       and created_at > $2::timestamptz
+    `select recent.created_at
+     from (
+       select created_at
+       from map_pings
+       where user_id = $1
+         and coalesce((to_jsonb(map_pings)->>'bonus_credit_used')::boolean, false) = false
+       union all
+       select created_at
+       from group_pulses
+       where sender_user_id = $1
+         and bonus_credit_used = false
+     ) recent
+     where recent.created_at > $2::timestamptz
      order by created_at asc`,
     [userId, new Date(now.getTime() - MAP_PING_WINDOW_MS).toISOString()]
   );
 
   return result.rows;
+}
+
+export async function createGroupPulse(
+  app: FastifyInstance,
+  input: {
+    userId: string;
+    conversationId: string;
+    idempotencyKey: string;
+  },
+  overrides: Partial<MapPingDependencies> = {}
+) {
+  const dependencies = resolveDependencies(overrides);
+  const now = dependencies.now();
+  const entitlement = await dependencies.getEntitlement(app, input.userId);
+  const result = await runTransaction(app.db, async (db) => {
+    const account = await db.query<{ id: string }>(
+      `select id::text as id
+       from app_users
+       where id = $1
+         and coalesce(account_status, 'active') = 'active'
+       for update`,
+      [input.userId]
+    );
+
+    if (!account.rows[0]) {
+      throw new ApiError(403, "FEATURE_RESTRICTED", "Pulse is unavailable for this account.");
+    }
+
+    const existing = (await db.query<GroupPulseRow>(
+      `select
+         pulse.id::text as id,
+         pulse.conversation_id::text as conversation_id,
+         pulse.sender_user_id::text as sender_user_id,
+         pulse.created_at
+       from group_pulses pulse
+       where pulse.sender_user_id = $1
+         and pulse.idempotency_key = $2::uuid
+       limit 1`,
+      [input.userId, input.idempotencyKey]
+    )).rows[0];
+
+    if (existing) {
+      return { pulse: existing, created: false, title: "Group chat" };
+    }
+
+    const group = (await db.query<{ title: string | null }>(
+      `select conversation.title
+       from conversations conversation
+       join conversation_members member
+         on member.conversation_id = conversation.id
+        and member.user_id = $2
+       where conversation.id::text = $1
+         and conversation.kind = 'group'
+         and conversation.closed_at is null
+         and member.role in ('owner', 'admin')
+       limit 1`,
+      [input.conversationId, input.userId]
+    )).rows[0];
+
+    if (!group) {
+      throw new ApiError(403, "FORBIDDEN", "Only group admins can send a group Pulse.");
+    }
+
+    const recentRows = await loadRecentPingRows(db, input.userId, now);
+    const allowance = buildAllowance(recentRows.map((row) => row.created_at), entitlement, now);
+    const bonusCredits = await getSideQuestPingBalance(db, input.userId);
+    const useBonusCredit = Boolean(allowance.nextEligibleAt && bonusCredits > 0);
+
+    if (allowance.nextEligibleAt && !useBonusCredit) {
+      throw new ApiError(
+        429,
+        "RATE_LIMITED",
+        "Your next Pulse is not available yet.",
+        { nextEligibleAt: allowance.nextEligibleAt }
+      );
+    }
+
+    const inserted = (await db.query<GroupPulseRow>(
+      `insert into group_pulses (
+         conversation_id,
+         sender_user_id,
+         idempotency_key,
+         bonus_credit_used,
+         created_at
+       )
+       values ($1::uuid, $2, $3::uuid, $4, $5::timestamptz)
+       returning
+         id::text as id,
+         conversation_id::text as conversation_id,
+         sender_user_id::text as sender_user_id,
+         created_at`,
+      [input.conversationId, input.userId, input.idempotencyKey, useBonusCredit, now.toISOString()]
+    )).rows[0];
+
+    if (!inserted) {
+      throw new ApiError(500, "INTERNAL_ERROR", "Group Pulse could not be sent.");
+    }
+
+    return { pulse: inserted, created: true, title: group.title?.trim() || "Group chat" };
+  });
+
+  if (result.created) {
+    void notifyGroupPulseRecipients(app, {
+      groupPulseId: result.pulse.id,
+      conversationId: result.pulse.conversation_id,
+      senderUserId: result.pulse.sender_user_id,
+      groupTitle: result.title
+    }, now.getTime()).catch((error) => {
+      app.log.warn({ err: error, groupPulseId: result.pulse.id }, "group Pulse notification dispatch failed");
+    });
+  }
+
+  return getMapPingStatus(app, input.userId, {
+    ...overrides,
+    now: () => now
+  });
 }
 
 export async function getMapPingStatus(
@@ -758,7 +898,7 @@ export async function createMapPing(
   );
   const preflightBonusCredits = await getSideQuestPingBalance(app.db, input.userId);
 
-  if (preflightAllowance.nextEligibleAt && preflightBonusCredits < 1) {
+  if (preflightAllowance.nextEligibleAt && (preflightAllowance.unlimited || preflightBonusCredits < 1)) {
     throw new ApiError(
       429,
       "RATE_LIMITED",
@@ -828,7 +968,7 @@ export async function createMapPing(
     const recentRows = await loadRecentPingRows(db, input.userId, now);
     const allowance = buildAllowance(recentRows.map((row) => row.created_at), entitlement, now);
     const bonusCredits = await getSideQuestPingBalance(db, input.userId);
-    const useBonusCredit = Boolean(allowance.nextEligibleAt && bonusCredits > 0);
+    const useBonusCredit = Boolean(!allowance.unlimited && allowance.nextEligibleAt && bonusCredits > 0);
 
     if (allowance.nextEligibleAt && !useBonusCredit) {
       throw new ApiError(
@@ -933,6 +1073,19 @@ export async function createMapPing(
         JSON.stringify(moderation.providerResult.raw_result ?? {}),
         now.toISOString()
       ]
+    );
+
+    // A Pulse posts the sender's signal to the feed. Sending another Pulse
+    // while the previous one's post was still live stacked a second copy of
+    // the same signal, so the feed showed the post twice. Retire the earlier
+    // one and the feed carries only the Pulse that is running now.
+    await db.query(
+      `update posts
+          set expires_at = $2::timestamptz
+        where user_id = $1
+          and map_ping_id is not null
+          and expires_at > $2::timestamptz`,
+      [input.userId, now.toISOString()]
     );
 
     await db.query(

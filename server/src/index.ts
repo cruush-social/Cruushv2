@@ -89,6 +89,10 @@ stopMapPingCleanupScheduler = startMapPingCleanupScheduler(app);
 // endpoint are all explicitly configured.
 stopCryptoWatcher = startCryptoWatcher(app)?.stop ?? null;
 stopPlaceCheckinExpiryScheduler = startPlaceCheckinExpiryScheduler(app);
+// Side Quest nudges are off for now at Julien's request: no prompt, and no
+// notification standing in for one. The sweep is left in place, so turning
+// them back on is this one line.
+// stopSideQuestNotificationScheduler = startSideQuestNotificationScheduler(app);
 void syncAllVerifiedMembersToResendAudience({
   config,
   db: app.db,

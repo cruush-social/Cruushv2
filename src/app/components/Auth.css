@@ -179,16 +179,22 @@
   mix-blend-mode: screen;
 }
 
+.launch-login-auth-logo-wrap {
+  position: relative;
+  display: inline-flex;
+  max-width: 100%;
+  isolation: isolate;
+}
+
 .launch-login-auth-logo-image {
   display: block;
+  position: relative;
+  z-index: 1;
   width: clamp(10rem, 21dvh, 14.25rem);
   max-width: 100%;
   height: auto;
   opacity: 0.98;
-  filter:
-    drop-shadow(0 0.95rem 1.9rem rgba(0, 0, 0, 0.74))
-    drop-shadow(0 0 2.2rem rgba(17, 129, 255, 0.34))
-    drop-shadow(0 0 1.8rem rgba(255, 0, 114, 0.26));
+  filter: drop-shadow(0 0.95rem 1.9rem rgba(0, 0, 0, 0.74));
 }
 
 .launch-login-auth-tagline-stack {
@@ -203,7 +209,7 @@
   width: 100%;
   max-width: 100%;
   margin: 0;
-  color: rgba(255, 255, 255, 0.9);
+  color: #ffffff;
   font-size: clamp(1.38rem, 3.25dvh, 2.18rem);
   font-weight: 700;
   line-height: 1.08;
@@ -211,20 +217,7 @@
   white-space: nowrap;
   text-wrap: balance;
   text-shadow:
-    0 0.6rem 1.35rem rgba(0, 0, 0, 0.9),
-    0 0 0.95rem rgba(255, 0, 114, 0.16),
-    0 0 1.1rem rgba(17, 129, 255, 0.14);
-  transition: color 180ms ease, text-shadow 180ms ease;
-}
-
-.launch-login-auth-tagline:hover {
-  animation: none;
-  color: #fff;
-  text-shadow:
-    0 0.6rem 1.35rem rgba(0, 0, 0, 0.9),
-    0 0 0.75rem rgba(255, 255, 255, 0.98),
-    0 0 1.55rem rgba(255, 255, 255, 0.72),
-    0 0 2.8rem rgba(255, 255, 255, 0.42);
+    0 0.6rem 1.35rem rgba(0, 0, 0, 0.9);
 }
 
 .launch-login-auth-tagline span {
@@ -237,7 +230,7 @@
   border-radius: 999px;
   background: rgba(5, 9, 20, 0.48);
   padding: 0.22rem 0.68rem;
-  color: rgba(246, 248, 255, 0.82);
+  color: #ffffff;
   font-size: clamp(0.72rem, 1.58dvh, 0.88rem);
   font-weight: 700;
   letter-spacing: 0.12em;
@@ -245,24 +238,9 @@
   text-align: center;
   text-transform: uppercase;
   box-shadow:
-    0 0.55rem 1.25rem rgba(0, 0, 0, 0.55),
-    0 0 1.1rem rgba(255, 0, 114, 0.13),
-    0 0 1.2rem rgba(17, 129, 255, 0.12);
+    0 0.55rem 1.25rem rgba(0, 0, 0, 0.55);
   text-shadow: 0 0.35rem 0.85rem rgba(0, 0, 0, 0.88);
-  transition: border-color 180ms ease, box-shadow 180ms ease, color 180ms ease, text-shadow 180ms ease;
   white-space: nowrap;
-}
-
-.launch-login-auth-beta-capsule:hover {
-  border-color: rgba(255, 255, 255, 0.82);
-  color: #fff;
-  box-shadow:
-    0 0.55rem 1.25rem rgba(0, 0, 0, 0.55),
-    0 0 0.75rem rgba(255, 255, 255, 0.92),
-    0 0 1.7rem rgba(255, 255, 255, 0.52);
-  text-shadow:
-    0 0 0.55rem rgba(255, 255, 255, 0.95),
-    0 0 1.2rem rgba(255, 255, 255, 0.62);
 }
 
 .launch-login-auth-form {
@@ -612,6 +590,15 @@
   font-size: 0.86rem;
   line-height: 1.16;
   text-shadow: 0 0.45rem 1.4rem rgba(0, 0, 0, 0.72);
+}
+
+.launch-login-auth-consent {
+  width: min(calc(100% - 1.5rem), 36rem);
+  text-wrap: pretty;
+}
+
+.launch-login-auth-primary-links + .launch-login-auth-consent {
+  margin-top: 0.22rem;
 }
 
 @media (min-width: 641px) {
@@ -1131,16 +1118,16 @@ html[data-cruush-larger-text] .launch-login-auth-card {
 
 html[data-cruush-larger-text] .launch-login-auth-tagline {
   overflow: visible;
-  font-size: clamp(1.2rem, 2.55dvh, 1.45rem);
+  font-size: clamp(1.725rem, 4.0625dvh, 2.725rem);
   white-space: normal;
 }
 
 html[data-cruush-larger-text] .launch-login-auth-input {
-  font-size: 0.975rem;
+  font-size: 1.25rem;
 }
 
 html[data-cruush-larger-text] .launch-login-auth-submit {
-  font-size: 1.025rem;
+  font-size: 1.25rem;
 }
 
 html[data-cruush-larger-text] .launch-login-auth-secondary,
@@ -1149,7 +1136,44 @@ html[data-cruush-larger-text] .launch-login-auth-contact {
 }
 
 html[data-cruush-larger-text] .launch-login-auth-footer [aria-label="Legal and safety links"] {
-  font-size: 0.975rem;
+  font-size: 1.075rem;
+}
+
+html[data-cruush-larger-text] .launch-login-auth-beta-capsule,
+html[data-cruush-larger-text] .launch-login-auth-primary-links,
+html[data-cruush-larger-text] .launch-login-auth-consent,
+html[data-cruush-larger-text] .launch-login-auth-footer-policies,
+html[data-cruush-larger-text] .launch-login-auth-footer-accordion > summary {
+  font-size: 1rem;
+}
+
+@media (max-width: 640px) {
+  html[data-cruush-larger-text] .launch-login-auth-tagline {
+    font-size: clamp(1.2rem, 3.1875dvh, 1.45rem);
+  }
+
+  html[data-cruush-larger-text] .launch-login-auth-input {
+    font-size: 0.975rem;
+  }
+
+  html[data-cruush-larger-text] .launch-login-auth-submit {
+    font-size: 1.025rem;
+  }
+}
+
+@media (min-width: 641px) {
+  .launch-login-auth-footer [aria-label="Legal and safety links"],
+  .launch-login-auth-primary-links,
+  .launch-login-auth-consent,
+  .launch-login-auth-footer-policies,
+  .launch-login-auth-contact {
+    font-size: 1rem;
+    line-height: 1.24;
+  }
+
+  .launch-login-auth-more-policies {
+    font-size: 1rem;
+  }
 }
 
 html[data-cruush-high-contrast] .launch-login-auth-tagline,
@@ -1168,6 +1192,49 @@ html[data-cruush-high-contrast] .launch-login-auth-input {
 
 html[data-cruush-high-contrast] .launch-login-auth-input::placeholder {
   color: rgba(255, 255, 255, 0.88);
+}
+
+html[data-cruush-color-blind] .launch-login-strobe-pane::before {
+  background:
+    radial-gradient(38rem 30rem at 18% 22%, color-mix(in srgb, var(--cruush-cv-primary) 50%, transparent), transparent 68%),
+    radial-gradient(34rem 28rem at 82% 30%, color-mix(in srgb, var(--cruush-cv-current-light) 44%, transparent), transparent 66%);
+}
+
+html[data-cruush-color-blind] .launch-login-strobe-pane::after {
+  background:
+    radial-gradient(36rem 30rem at 72% 78%, color-mix(in srgb, var(--cruush-cv-secondary) 48%, transparent), transparent 66%),
+    radial-gradient(30rem 26rem at 26% 84%, color-mix(in srgb, var(--cruush-cv-current) 40%, transparent), transparent 64%);
+}
+
+html[data-cruush-color-blind] .launch-login-auth-logo-image {
+  filter:
+    var(--cruush-cv-logo-filter)
+    drop-shadow(0 0.95rem 1.9rem rgba(0, 0, 0, 0.74));
+}
+
+html[data-cruush-color-blind] .launch-login-auth-input,
+html[data-cruush-color-blind] .launch-login-auth-input:-webkit-autofill {
+  caret-color: var(--cruush-cv-primary);
+}
+
+html[data-cruush-color-blind] .launch-login-auth-input:focus {
+  border-color: color-mix(in srgb, var(--cruush-cv-primary) 95%, transparent);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    0 0 0 1px color-mix(in srgb, var(--cruush-cv-primary) 48%, transparent),
+    0 0 1.9rem color-mix(in srgb, var(--cruush-cv-primary) 26%, transparent),
+    0 0 1.7rem color-mix(in srgb, var(--cruush-cv-current-light) 20%, transparent),
+    0 1rem 2.2rem rgba(0, 0, 0, 0.42);
+}
+
+html[data-cruush-color-blind] .launch-login-auth-checkbox {
+  accent-color: var(--cruush-cv-primary);
+}
+
+html[data-cruush-color-blind] .launch-login-auth-checkbox:focus-visible {
+  box-shadow:
+    0 0 0 4px color-mix(in srgb, var(--cruush-cv-primary) 30%, transparent),
+    0 0 18px color-mix(in srgb, var(--cruush-cv-current) 45%, transparent);
 }
 
 .launch-login-auth-checkbox {
@@ -1236,6 +1303,13 @@ html[data-cruush-high-contrast] .launch-login-auth-input::placeholder {
       inset 0 1px 0 rgba(255, 255, 255, 0.12),
       0 0 10px rgba(255, 0, 114, 0.3),
       0 0 16px rgba(56, 38, 255, 0.26);
+  }
+
+  html[data-cruush-color-blind] .launch-login-auth-checkbox:not(:checked):not(:disabled):hover {
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.12),
+      0 0 10px color-mix(in srgb, var(--cruush-cv-primary) 30%, transparent),
+      0 0 16px color-mix(in srgb, var(--cruush-cv-current) 26%, transparent);
   }
 }
 

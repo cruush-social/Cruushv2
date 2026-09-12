@@ -21,10 +21,18 @@ import {
   shouldUseSecureCookies,
   verifyPassword
 } from "../auth.js";
-import { sendPasswordResetEmail, sendVerificationEmail } from "../mailer.js";
+import {
+  isAgeRelatedSuspensionReason,
+  sendEmailChangeConfirmationEmail,
+  sendEmailChangeNoticeEmail,
+  sendPasswordResetEmail,
+  sendVerificationEmail
+} from "../mailer.js";
 import {
   ageVerificationPayloadSchema,
+  changeEmailPayloadSchema,
   changePasswordPayloadSchema,
+  confirmEmailChangePayloadSchema,
   deleteAccountPayloadSchema,
   forgotPasswordPayloadSchema,
   resetPasswordPayloadSchema,
@@ -81,6 +89,7 @@ type CreatedUserRow = {
 type PasswordUserRow = CreatedUserRow & {
   password_hash: string;
   account_status?: string | null;
+  suspension_reason_code?: string | null;
   two_factor_enabled?: boolean | null;
 };
 
@@ -139,6 +148,10 @@ function isPostgresDeadlock(error: unknown) {
 
 const acceptCodeOfConductPayloadSchema = z.object({
   version: z.string().min(1)
+}).strict();
+
+const attachReferralPayloadSchema = z.object({
+  referralCode: z.string().trim().regex(/^[A-Za-z0-9_-]{16,64}$/)
 }).strict();
 
 function mapSessionRow(row: AuthUserRow) {
@@ -367,6 +380,10 @@ function buildPasswordResetUrl(request: FastifyRequest, token: string) {
   return buildRootTokenUrl(request, "resetPasswordToken", token);
 }
 
+function buildEmailChangeUrl(request: FastifyRequest, token: string) {
+  return buildRootTokenUrl(request, "confirmEmailToken", token);
+}
+
 function buildRootTokenUrl(request: FastifyRequest, tokenParam: string, token: string) {
   const url = new URL("/", getPublicAppUrl(request));
   url.searchParams.set(tokenParam, token);
@@ -459,6 +476,13 @@ export async function registerAuthRoutes(app: FastifyInstance) {
     return reply
       .code(302)
       .header("location", buildRootTokenUrl(request, "resetPasswordToken", getTokenQueryParam(request)))
+      .send();
+  });
+
+  app.get("/confirm-email", async (request, reply) => {
+    return reply
+      .code(302)
+      .header("location", buildRootTokenUrl(request, "confirmEmailToken", getTokenQueryParam(request)))
       .send();
   });
 
@@ -657,6 +681,84 @@ export async function registerAuthRoutes(app: FastifyInstance) {
     });
   });
 
+  app.post("/api/auth/referral", async (request, reply) => {
+    await assertRequestNotSeverelyBanned(app, request);
+    const userId = await resolveSessionUserId(request);
+    const payload = attachReferralPayloadSchema.parse(request.body);
+    const existing = await app.db.query<{ referral_code: string }>(
+      `select referral_code
+       from referrals
+       where referred_user_id = $1
+       limit 1`,
+      [userId]
+    );
+
+    if (existing.rows[0]) {
+      if (existing.rows[0].referral_code === payload.referralCode) {
+        return reply.send({ data: { attached: true } });
+      }
+
+      throw new ApiError(409, "VALIDATION_ERROR", "An invite code is already attached to this account.");
+    }
+
+    const referral = await prepareSignupReferral(app, request, payload.referralCode);
+
+    if (!referral) {
+      throw new ApiError(400, "VALIDATION_ERROR", "Referral code is invalid.");
+    }
+
+    if (referral.referrerUserId === userId) {
+      throw new ApiError(400, "VALIDATION_ERROR", "You cannot use your own invite code.");
+    }
+
+    const privacy = encryptReferralSignupPrivacy(app.config, referral);
+
+    try {
+      await app.db.query(
+        `insert into referrals (
+           referrer_user_id,
+           referred_user_id,
+           referral_code,
+           status,
+           risk_score,
+           review_flags,
+           signup_ip_hash,
+           signup_device_hash,
+           signup_privacy_ciphertext,
+           signup_privacy_nonce,
+           signup_privacy_auth_tag,
+           signup_privacy_key_version
+         ) values ($1, $2, $3, $4, $5, $6::jsonb, $7, $8, $9, $10, $11, $12)`,
+        [
+          referral.referrerUserId,
+          userId,
+          referral.code,
+          referral.status,
+          referral.riskScore,
+          JSON.stringify(referral.reviewFlags),
+          referral.ipHash,
+          referral.deviceHash,
+          privacy.ciphertext,
+          privacy.nonce,
+          privacy.authTag,
+          privacy.keyVersion
+        ]
+      );
+    } catch (error) {
+      const code = typeof error === "object" && error !== null && "code" in error
+        ? String((error as { code?: string }).code)
+        : "";
+
+      if (code === "23505") {
+        throw new ApiError(409, "VALIDATION_ERROR", "An invite code is already attached to this account.");
+      }
+
+      throw error;
+    }
+
+    return reply.code(201).send({ data: { attached: true } });
+  });
+
   app.post("/api/auth/login", async (request, reply) => {
     await assertRequestNotSeverelyBanned(app, request);
     const payload = signInPayloadSchema.parse(request.body);
@@ -684,6 +786,22 @@ export async function registerAuthRoutes(app: FastifyInstance) {
          email_verified_at,
          created_at,
          coalesce(account_status, 'active') as account_status,
+         (
+           select suspension_reason.reason_code
+           from (
+             select suspension.reason_code, suspension.created_at
+             from suspensions suspension
+             where suspension.user_id = app_users.id
+               and (suspension.permanent or suspension.ends_at is null or suspension.ends_at > now())
+             union all
+             select action.reason_code, action.created_at
+             from moderation_actions action
+             where action.target_user_id = app_users.id
+               and action.action = 'suspend_user'
+           ) suspension_reason
+           order by suspension_reason.created_at desc
+           limit 1
+         ) as suspension_reason_code,
          exists (
            select 1 from user_two_factor_auth two_factor
            where two_factor.user_id = app_users.id
@@ -718,6 +836,16 @@ export async function registerAuthRoutes(app: FastifyInstance) {
     const accountStatus = normalizeAccountStatus(user.account_status);
 
     if (!accountCanAuthenticate(accountStatus) && !ownerCanBypassAccountStatus(user.email, accountStatus)) {
+      ensureDeviceCookie(reply, request);
+      if (accountStatus === "suspended") {
+        const ageRelated = isAgeRelatedSuspensionReason(user.suspension_reason_code ?? "");
+        throw new ApiError(
+          403,
+          "ACCOUNT_SUSPENDED",
+          "Your cruush account is suspended.",
+          { appealUrl: `/support?appeal=${ageRelated ? "1" : "general"}` }
+        );
+      }
       throw new ApiError(401, "AUTH_REQUIRED", "Invalid email or password.");
     }
 
@@ -931,6 +1059,168 @@ export async function registerAuthRoutes(app: FastifyInstance) {
     return reply.send({
       data: {
         changed: true
+      }
+    });
+  });
+
+  // Changing the address is a two-step move: the password proves the person at
+  // the keyboard owns the account, and the confirmation link proves they can
+  // read mail at the new address. Nothing on app_users changes until both hold,
+  // so a typo or a hostile request cannot lock anyone out.
+  app.post("/api/auth/email/change", async (request, reply) => {
+    const session = await resolveCurrentSession(request);
+    const payload = changeEmailPayloadSchema.parse(request.body);
+    await applyRateLimits(app, [{
+      key: `email-change:user:${session.userId}`,
+      max: AUTH_ATTEMPT_MAX,
+      windowMs: AUTH_ATTEMPT_WINDOW_MS,
+      message: "Too many email change attempts. Try again later."
+    }]);
+
+    const userResult = await app.db.query<{ id: string; email: string; password_hash: string }>(
+      `select id, email, password_hash
+       from app_users
+       where id = $1
+       limit 1`,
+      [session.userId]
+    );
+    const user = userResult.rows[0];
+
+    if (!user) {
+      throw new ApiError(401, "AUTH_REQUIRED", "Authentication required.");
+    }
+
+    if (!(await verifyPassword(payload.currentPassword, user.password_hash))) {
+      throw new ApiError(401, "AUTH_REQUIRED", "Current password is incorrect.");
+    }
+
+    if (payload.newEmail === user.email) {
+      throw new ApiError(400, "VALIDATION_ERROR", "That is already your email.");
+    }
+
+    const taken = await app.db.query(
+      "select 1 from app_users where email = $1 and id <> $2 limit 1",
+      [payload.newEmail, session.userId]
+    );
+
+    if (taken.rows[0]) {
+      throw new ApiError(409, "EMAIL_TAKEN", "That email is already in use.");
+    }
+
+    const token = generateSessionToken();
+    const tokenHash = hashSessionToken(token);
+    const expiresAt = new Date(Date.now() + 1000 * 60 * 60);
+
+    await app.db.query(
+      `insert into email_change_requests (user_id, new_email, token_hash, expires_at)
+       values ($1, $2, $3, $4)
+       on conflict (user_id) do update
+         set new_email = excluded.new_email,
+             token_hash = excluded.token_hash,
+             created_at = now(),
+             expires_at = excluded.expires_at`,
+      [session.userId, payload.newEmail, tokenHash, expiresAt.toISOString()]
+    );
+
+    const preview = await sendEmailChangeConfirmationEmail({
+      config: request.server.config,
+      email: payload.newEmail,
+      logger: request.log,
+      confirmUrl: buildEmailChangeUrl(request, token)
+    });
+
+    // The address on file hears about it too, so a member finds out even when
+    // somebody else asked. A delivery failure here must not fail the request.
+    try {
+      await sendEmailChangeNoticeEmail({
+        config: request.server.config,
+        email: user.email,
+        logger: request.log,
+        newEmail: payload.newEmail
+      });
+    } catch (error) {
+      request.log.warn({ err: error }, "email change notice delivery failed");
+    }
+
+    return reply.send({
+      data: {
+        pendingEmail: payload.newEmail,
+        expiresAt: expiresAt.toISOString(),
+        previewUrl: preview.previewUrl
+      }
+    });
+  });
+
+  app.post("/api/auth/email/change/confirm", async (request, reply) => {
+    const payload = confirmEmailChangePayloadSchema.parse(request.body);
+    const tokenHash = hashSessionToken(payload.token);
+    const requestLookup = await app.db.query<{ user_id: string; new_email: string }>(
+      `select user_id, new_email
+       from email_change_requests
+       where token_hash = $1
+         and expires_at > now()
+       limit 1`,
+      [tokenHash]
+    );
+    const changeRequest = requestLookup.rows[0];
+
+    if (!changeRequest) {
+      await applyRateLimits(app, [
+        {
+          key: `email-change-confirm:token:${tokenHash}`,
+          max: VERIFICATION_FAILURE_MAX,
+          windowMs: AUTH_ATTEMPT_WINDOW_MS,
+          message: "Too many confirmation attempts. Try again later."
+        },
+        {
+          key: `email-change-confirm:ip:${getRequestIp(request)}`,
+          max: SHARED_IP_FAILURE_MAX,
+          windowMs: AUTH_ATTEMPT_WINDOW_MS,
+          message: "Too many confirmation attempts. Try again later."
+        }
+      ]);
+
+      throw new ApiError(400, "VALIDATION_ERROR", "This confirmation link is invalid or expired.");
+    }
+
+    // Someone else can claim the address between the request and the click.
+    const taken = await app.db.query(
+      "select 1 from app_users where email = $1 and id <> $2 limit 1",
+      [changeRequest.new_email, changeRequest.user_id]
+    );
+
+    if (taken.rows[0]) {
+      await app.db.query("delete from email_change_requests where user_id = $1", [changeRequest.user_id]);
+      throw new ApiError(409, "EMAIL_TAKEN", "That email is already in use.");
+    }
+
+    const updated = await app.db.query<{ id: string; email: string }>(
+      `update app_users
+       set email = $1,
+           email_verified_at = now()
+       where id = $2
+       returning id, email`,
+      [changeRequest.new_email, changeRequest.user_id]
+    );
+
+    if (!updated.rows[0]) {
+      throw new ApiError(404, "NOT_FOUND", "Account not found.");
+    }
+
+    await app.db.query("delete from email_change_requests where user_id = $1", [changeRequest.user_id]);
+    // Reset links issued to the old address must not survive the move.
+    await app.db.query("delete from password_reset_tokens where user_id = $1", [changeRequest.user_id]);
+
+    void syncVerifiedMemberToResendAudience({
+      config: request.server.config,
+      email: updated.rows[0].email,
+      logger: request.log
+    });
+
+    return reply.send({
+      data: {
+        changed: true,
+        email: updated.rows[0].email
       }
     });
   });

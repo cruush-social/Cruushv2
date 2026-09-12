@@ -38,6 +38,7 @@ describe('MapVisibilitySurface', () => {
     render(<VisibilityHarness />);
 
     expect(screen.getByRole('dialog', { name: 'Visibility Controls' })).toHaveClass('z-[1100]');
+    expect(screen.getByRole('tablist')).not.toHaveClass('sticky', 'top-0', 'z-20');
   });
 
   it('keeps the close control on the left away from the fixed bug button', () => {

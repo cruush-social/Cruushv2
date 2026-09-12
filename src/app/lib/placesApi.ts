@@ -8,6 +8,7 @@ export type PlaceRecord = {
   slug: string;
   name: string;
   description: string;
+  accessInstructions: string;
   latitude: number;
   longitude: number;
   address: string | null;
@@ -140,6 +141,7 @@ export async function removePlaceRating(placeId: string) {
 export async function checkIntoPlace(placeId: string, input: {
   content?: string;
   vibes: PlaceVibe[];
+  amenities: PlaceAmenity[];
   durationHours: 1 | 3 | 6 | 12 | 24;
   visible: boolean;
   latitude: number;
@@ -154,9 +156,21 @@ export async function checkOutOfPlace(placeId: string) {
   return requestApi<void>(`/api/places/${placeId}/check-ins/me`, { method: 'DELETE' });
 }
 
+export async function contributePlaceDetails(placeId: string, input: {
+  vibes?: PlaceVibe[];
+  amenities?: PlaceAmenity[];
+  accessInstructions?: string;
+}) {
+  return requestApi<{ placeId: string }>(`/api/places/${placeId}/details`, {
+    method: 'PUT',
+    body: JSON.stringify(input),
+  });
+}
+
 export async function submitPlace(input: {
   name: string;
   description: string;
+  accessInstructions: string;
   latitude: number;
   longitude: number;
   address?: string;

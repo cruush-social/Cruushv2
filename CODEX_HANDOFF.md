@@ -1,6 +1,6 @@
 # Current processor handoff: September 12, 2026
 
-Worktree: `/Volumes/good/cruush-processor-security-handoff`. Branch: `security/crypto-processor-review-20260908`. This section supersedes the historical records below. Current scope is processor code for cruush+ and Pulse, native Bitcoin, six-confirmation progress, two-amount checkout guidance and automatic forwarding to ELLIPAL. Blog work is deferred. Julien explicitly requested code completion first and his Bitcoin setup afterward; no production deployment has occurred.
+Worktree: `/Volumes/good/cruush-processor-security-handoff`. Branch: `security/crypto-processor-review-20260908`. This section supersedes the historical records below. Current scope is processor code for cruush+ and Pulse, native Bitcoin, six-confirmation progress, two-amount checkout guidance and automatic forwarding to ELLIPAL. Blog work is deferred. Julien explicitly requested code completion first and his Bitcoin setup afterward. His latest instruction authorizes committing and pushing this processor to main; publication is in progress, with owner wallet provisioning still deferred.
 
 ## Delivered implementation
 
@@ -13,6 +13,8 @@ Worktree: `/Volumes/good/cruush-processor-security-handoff`. Branch: `security/c
 - Migrations 126 and 127 add native Bitcoin evidence and durable collection jobs. The API uses public derivation keys; private receive-chain keys remain with the forwarding service.
 
 ## Validation
+
+Publication integration: merged current main `6a53037`, preserving its logging fixes and product changes. Client and API production builds pass. All 64 focused server and 34 frontend checks pass after updating fixtures for the confirmation lookup and current main benefit copy. The merged migration inventory ran successfully through migration 161 on the owned local database. App cache marker is v137.
 
 - Server and wallet TypeScript builds pass; the current client production build passes. The forwarding Docker image also builds successfully.
 - Focused server suites passed 101 existing assertions covering watcher, atomicity, Bitcoin helpers and reconciliation. Twelve formerly skipped PostgreSQL cases ran against disposable databases. The added native PostgreSQL suite passed both product cases plus four helper cases, including five-confirmation waiting, reorganization evidence removal, six-confirmation grant-once behavior and confirmation after expiry for an on-time payment.

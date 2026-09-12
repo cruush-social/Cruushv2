@@ -3,13 +3,18 @@ import { z } from "zod";
 import { createMapPing, getMapPingStatus } from "../map-pings.js";
 import { getActiveAccountUserId, getAuthenticatedUserId } from "../request-auth.js";
 
-const mapPingPayloadSchema = z.object({
+export const mapPingPayloadSchema = z.object({
+  // Must accept every radius the slider offers (MAP_PING_RADIUS_MILES); the
+  // widest two were added to the slider without widening this, so a 25 or 50
+  // mile Pulse failed validation.
   radiusMiles: z.union([
     z.literal(1),
     z.literal(3),
     z.literal(5),
     z.literal(10),
-    z.literal(15)
+    z.literal(15),
+    z.literal(25),
+    z.literal(50)
   ]),
   idempotencyKey: z.uuid()
 }).strict();

@@ -13,6 +13,7 @@ import {
 } from "./rewards-service.js";
 
 export const SIDE_QUEST_KEYS = [
+  "complete_tutorial",
   "upload_first_photo",
   "complete_profile",
   "upload_four_photos",
@@ -42,8 +43,9 @@ type QuestDefinition = {
 };
 
 const QUESTS: QuestDefinition[] = [
+  { key: "complete_tutorial", title: "Complete the tutorial", rewardKind: "ping", rewardAmount: 1 },
   { key: "view_profile", title: "View a profile", rewardKind: "ping", rewardAmount: 1 },
-  { key: "send_ping", title: "Send your first Ping", rewardKind: "ping", rewardAmount: 1 },
+  { key: "send_ping", title: "Send your first Pulse", rewardKind: "ping", rewardAmount: 1 },
   { key: "send_cruush", title: "Send your first cruush", rewardKind: "ping", rewardAmount: 1 },
   { key: "send_message", title: "Send your first message", rewardKind: "cruush_plus_day", rewardAmount: 1 },
   { key: "post_feed", title: "Make your first Feed post", rewardKind: "cruush_plus_day", rewardAmount: 1 },
@@ -79,6 +81,7 @@ async function loadCompletions(
   const row = (await app.db.query<CompletionRow>(
     `select
        coalesce(u.timezone, 'UTC') as timezone,
+       exists (select 1 from tutorial_completions tutorial where tutorial.user_id = $1) as complete_tutorial,
        exists (
          select 1 from profiles p where p.id = $1
            and nullif(trim(p.display_name), '') is not null
@@ -165,7 +168,10 @@ export async function getSideQuestPingBalance(db: DbClient, userId: string) {
       `select greatest(
          (select coalesce(sum(reward_amount), 0) from side_quest_claims where user_id = $1 and reward_kind = 'ping')
          + (select coalesce(sum(ping_count), 0) from ping_pack_purchases where user_id = $1)
-         - (select count(*) from map_pings where user_id = $1 and coalesce((to_jsonb(map_pings)->>'bonus_credit_used')::boolean, false) = true),
+         - (
+           (select count(*) from map_pings where user_id = $1 and coalesce((to_jsonb(map_pings)->>'bonus_credit_used')::boolean, false) = true)
+           + (select count(*) from group_pulses where sender_user_id = $1 and bonus_credit_used = true)
+         ),
          0
        )::int as balance`,
       [userId]

@@ -37,6 +37,7 @@ type PulseProfileRow = {
   looking_for: string[] | null;
   availability: string[] | null;
   hosting_travel: string[] | null;
+  preferred_spots: string[] | null;
   vibes: string[] | null;
   scenes: string[] | null;
   archetypes: string[] | null;
@@ -46,6 +47,7 @@ type PulseProfileRow = {
   body_type: string[] | null;
   sexuality: string[] | null;
   substance_boundaries: string[] | null;
+  protection_boundaries: string[] | null;
   profile_sensitive_ciphertext: string | null;
   profile_sensitive_nonce: string | null;
   profile_sensitive_auth_tag: string | null;
@@ -68,6 +70,13 @@ export type PulseNotificationInput = {
   pingId: string;
   senderUserId: string;
   radiusMiles: number;
+};
+
+export type GroupPulseNotificationInput = {
+  groupPulseId: string;
+  conversationId: string;
+  senderUserId: string;
+  groupTitle: string;
 };
 
 type SenderRow = PulseProfileRow & {
@@ -96,6 +105,7 @@ function toPulseVisibilitySubject(
     looking_for: row.looking_for ?? [],
     timing: row.availability ?? [],
     hosting: row.hosting_travel ?? [],
+    preferred_spots: row.preferred_spots ?? [],
     vibes: row.vibes ?? [],
     scenes: row.scenes ?? [],
     archetypes: row.archetypes ?? [],
@@ -107,6 +117,7 @@ function toPulseVisibilitySubject(
     body_types: row.body_type ?? [],
     sexuality: row.sexuality ?? [],
     substance_boundaries: row.substance_boundaries ?? [],
+    protection_boundaries: row.protection_boundaries ?? [],
     coordinates
   };
 }
@@ -137,6 +148,7 @@ async function loadSender(app: FastifyInstance, userId: string) {
             looking_for,
             availability,
             hosting_travel,
+            preferred_spots,
             vibes,
             scenes,
             archetypes,
@@ -146,6 +158,7 @@ async function loadSender(app: FastifyInstance, userId: string) {
             body_type,
             sexuality,
             substance_boundaries,
+            protection_boundaries,
             profile_sensitive_ciphertext,
             profile_sensitive_nonce,
             profile_sensitive_auth_tag,
@@ -196,6 +209,7 @@ async function loadNearbyCandidates(
             profiles.looking_for,
             profiles.availability,
             profiles.hosting_travel,
+            profiles.preferred_spots,
             profiles.vibes,
             profiles.scenes,
             profiles.archetypes,
@@ -205,6 +219,7 @@ async function loadNearbyCandidates(
             profiles.body_type,
             profiles.sexuality,
             profiles.substance_boundaries,
+            profiles.protection_boundaries,
             profiles.profile_sensitive_ciphertext,
             profiles.profile_sensitive_nonce,
             profiles.profile_sensitive_auth_tag,
@@ -396,6 +411,90 @@ export async function notifyPulseRecipients(
     // Quiet hours silence the phone, not the notification. It is already
     // written; it simply does not ring.
     if (preferences && isWithinQuietHours(preferences, nowMs)) {
+      continue;
+    }
+
+    void sendPushForNotification(app, notification).catch(() => undefined);
+  }
+
+  return { notified };
+}
+
+export async function notifyGroupPulseRecipients(
+  app: FastifyInstance,
+  input: GroupPulseNotificationInput,
+  nowMs = Date.now()
+) {
+  const recipients = await app.db.query<{ user_id: string; muted: boolean }>(
+    `select member.user_id::text as user_id, member.muted
+     from conversation_members member
+     join conversations conversation on conversation.id = member.conversation_id
+     join app_users recipient on recipient.id = member.user_id
+     where member.conversation_id::text = $1
+       and member.user_id <> $2
+       and conversation.kind = 'group'
+       and conversation.closed_at is null
+       and coalesce(recipient.account_status, 'active') = 'active'`,
+    [input.conversationId, input.senderUserId]
+  );
+
+  const alreadyReached = await loadRecentlyReached(app, input.senderUserId, nowMs);
+  const recentlyInterrupted = await loadRecentlyInterrupted(
+    app,
+    recipients.rows.map((recipient) => recipient.user_id),
+    nowMs
+  );
+  let notified = 0;
+
+  for (const recipient of recipients.rows) {
+    if (alreadyReached.has(recipient.user_id) || recentlyInterrupted.has(recipient.user_id)) {
+      continue;
+    }
+
+    const preferences = await getNotificationPreferences(app, recipient.user_id).catch(() => null);
+    if (preferences && preferences.pulseEnabled === false) {
+      continue;
+    }
+
+    const claim = await app.db.query(
+      `insert into map_ping_notifications (
+         ping_id,
+         group_pulse_id,
+         sender_user_id,
+         recipient_user_id
+       )
+       values (null, $1, $2, $3)
+       on conflict do nothing
+       returning id`,
+      [input.groupPulseId, input.senderUserId, recipient.user_id]
+    );
+
+    if (claim.rows.length === 0) {
+      continue;
+    }
+
+    const notification = await createAppNotification(app, {
+      userId: recipient.user_id,
+      actorUserId: input.senderUserId,
+      type: "pulse",
+      title: `${input.groupTitle} sent a Pulse`,
+      body: "Open the group to see it.",
+      linkUrl: `/chat/group/${input.conversationId}`,
+      conversationId: input.conversationId,
+      dedupeKey: `group-pulse:${input.groupPulseId}:${recipient.user_id}`,
+      metadata: {
+        groupPulseId: input.groupPulseId,
+        conversationKind: "group"
+      }
+    }).catch(() => null);
+
+    if (!notification) {
+      continue;
+    }
+
+    notified += 1;
+
+    if (recipient.muted || (preferences && isWithinQuietHours(preferences, nowMs))) {
       continue;
     }
 

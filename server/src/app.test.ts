@@ -13,7 +13,7 @@ import {
   upsertEncryptedRelationshipRecord,
   type EncryptedRelationshipRecordRow
 } from "./encrypted-relationships.js";
-import { emptyProfile } from "./profile-schema.js";
+import { emptyProfile, profileVisibilityRulesSchema } from "./profile-schema.js";
 import { createCrowdTokens, encryptProfileVisibility, encryptSensitiveProfile, type ProfileVisibilityRules } from "./profile-sensitive.js";
 import { createMemoryRateLimiter } from "./rate-limit.js";
 import {
@@ -39,6 +39,10 @@ vi.mock("./nearby-notifications.js", () => ({
 const query = vi.fn();
 const end = vi.fn().mockResolvedValue(undefined);
 const rateLimiter = createMemoryRateLimiter();
+
+// The stored `emptyProfile` literal predates the 1.6 discovery filters, so the
+// API answers with the schema's own defaults for the newer ones.
+const emptyVisibilityRules = profileVisibilityRulesSchema.parse(emptyProfile.visibility_rules);
 
 type MockQueryResult = { rows: unknown[] };
 type MockQueryImplementation = (sql: string, params?: unknown[]) => MockQueryResult | Promise<MockQueryResult>;
@@ -1577,16 +1581,37 @@ describe("server", () => {
     }
   });
 
-  it("stores a new Spot suggestion only in an encrypted envelope", async () => {
+  it("stores a distinct nearby Spot suggestion only in an encrypted envelope", async () => {
     const payload = {
       name: "Private proposed Spot",
       description: "Private review detail",
+      accessInstructions: "Private entry detail",
       latitude: 40.72,
       longitude: -73.98,
       address: "Private review address",
       facilityType: "bar",
-      tags: []
+      tags: [],
+      vibes: ["cruisy"],
+      amenities: ["restrooms"]
     };
+    const nearbyPlaceId = "10000000-0000-4000-8000-000000000099";
+    const nearbySuggestion = encryptPlaceSuggestion(app.config, { ...payload, name: "Another proposed Spot" });
+    query.mockImplementation((sql: string) => {
+      const text = String(sql);
+      if (text.includes("where status = 'published'")) {
+        return Promise.resolve({ rows: [{ id: nearbyPlaceId, name: "Existing neighboring Spot" }] });
+      }
+      if (text.includes("p.status = 'pending'")) {
+        return Promise.resolve({ rows: [{
+          id: nearbyPlaceId,
+          suggestion_ciphertext: nearbySuggestion.ciphertext,
+          suggestion_nonce: nearbySuggestion.nonce,
+          suggestion_auth_tag: nearbySuggestion.authTag,
+          suggestion_key_version: nearbySuggestion.keyVersion
+        }] });
+      }
+      return Promise.resolve({ rows: [] });
+    });
 
     const response = await app.inject({
       method: "POST",
@@ -1600,10 +1625,14 @@ describe("server", () => {
 
     expect(response.statusCode).toBe(201);
     expect(response.json().data).toMatchObject({ status: "pending", suggestionCount: 1, autoShortlisted: false });
+    expect(response.json().data.id).not.toBe(nearbyPlaceId);
+    const supportCall = query.mock.calls.find(([sql]) => String(sql).includes("insert into place_suggestions"));
+    expect(supportCall?.[1]?.[0]).toBe(response.json().data.id);
     expect(insertSql).toContain("'[encrypted suggestion]', '', 0, 0, null, 'other'");
     expect(insertSql).toContain("submitted_by");
     expect(insertParams).not.toContain(payload.name);
     expect(insertParams).not.toContain(payload.description);
+    expect(insertParams).not.toContain(payload.accessInstructions);
     expect(insertParams).not.toContain(payload.address);
     expect(insertParams).not.toContain(payload.latitude);
     expect(insertParams).not.toContain(payload.longitude);
@@ -1618,7 +1647,7 @@ describe("server", () => {
   it("adds anonymous duplicate support and shortlists at three supporters", async () => {
     const placeId = "10000000-0000-4000-8000-000000000099";
     const payload = {
-      name: "Supported proposed Spot",
+      name: "Supporter's proposed Spot",
       description: "Private review detail",
       latitude: 40.72,
       longitude: -73.98,
@@ -1626,7 +1655,7 @@ describe("server", () => {
       facilityType: "bar",
       tags: []
     };
-    const encrypted = encryptPlaceSuggestion(app.config, payload);
+    const encrypted = encryptPlaceSuggestion(app.config, { ...payload, name: "SUPPORTER’S PROPOSED SPOT" });
 
     query.mockImplementation((sql: string) => {
       const text = String(sql);
@@ -1660,6 +1689,36 @@ describe("server", () => {
     expect(String(supportCall?.[0])).toContain("on conflict do nothing");
     expect(supportCall?.[1]?.[1]).not.toBe(userId);
     expect(String(supportCall?.[1]?.[1])).not.toContain(userId);
+  });
+
+  it("rejects a same-name published Spot among distinct nearby venues", async () => {
+    query.mockImplementation((sql: string) => {
+      if (String(sql).includes("where status = 'published'")) {
+        return Promise.resolve({ rows: [
+          { id: "10000000-0000-4000-8000-000000000098", name: "Neighboring Spot" },
+          { id: "10000000-0000-4000-8000-000000000099", name: "MEMBER’S SPOT" }
+        ] });
+      }
+      return Promise.resolve({ rows: [] });
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/places",
+      headers: { "x-user-id": userId },
+      payload: {
+        name: "Member's Spot",
+        description: "Private review detail",
+        latitude: 40.72,
+        longitude: -73.98,
+        facilityType: "bar",
+        tags: []
+      }
+    });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json().error.code).toBe("DUPLICATE_PLACE");
+    expect(query.mock.calls.some(([sql]) => String(sql).includes("insert into place"))).toBe(false);
   });
 
   it("denies Spot publication before any moderator update", async () => {
@@ -2219,7 +2278,7 @@ describe("server", () => {
     expect(query.mock.calls[0]?.[0]).toContain("from app_users");
   });
 
-  it("rejects login for suspended accounts without revealing account state", async () => {
+  it("blocks a suspended account at login and returns only the appeal path", async () => {
     const passwordHash = await hashPassword("password-123");
     query.mockResolvedValueOnce({
       rows: [{
@@ -2229,7 +2288,8 @@ describe("server", () => {
         display_name: "River",
         email_verified_at: "2026-04-28T12:00:00.000Z",
         created_at: "2026-04-28T12:00:00.000Z",
-        account_status: "suspended"
+        account_status: "suspended",
+        suspension_reason_code: "harassment"
       }]
     });
 
@@ -2242,13 +2302,17 @@ describe("server", () => {
       }
     });
 
-    expect(response.statusCode).toBe(401);
+    // The suspended screen needs the appeal link, and nothing else: no session
+    // cookie, no account fields, no suspension reason.
+    expect(response.statusCode).toBe(403);
     expect(query).toHaveBeenCalledTimes(1);
+    expect(String(response.headers["set-cookie"] ?? "")).not.toContain("cruush_session=");
+    expect(JSON.stringify(response.json())).not.toContain("harassment");
     expect(response.json()).toEqual({
       error: {
-        code: "AUTH_REQUIRED",
-        message: "Invalid email or password.",
-        details: null
+        code: "ACCOUNT_SUSPENDED",
+        message: "Your cruush account is suspended.",
+        details: { appealUrl: "/support?appeal=general" }
       }
     });
   });
@@ -2707,6 +2771,71 @@ describe("server", () => {
         changed: true
       }
     });
+  });
+
+  it("holds the new address in a pending request until the confirmation link is opened", async () => {
+    const sessionToken = "test-session-token";
+    const passwordHash = await hashPassword("current-password");
+    query
+      .mockResolvedValueOnce({ rows: [{ user_id: userId }] })
+      .mockResolvedValueOnce({ rows: [{ id: userId, email: "old@example.com", password_hash: passwordHash }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/auth/email/change",
+      cookies: { cruush_session: sessionToken },
+      payload: { currentPassword: "current-password", newEmail: "New@Example.com" }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data.pendingEmail).toBe("new@example.com");
+    // The address on app_users must not move before the new address is proven.
+    const statements = query.mock.calls.map((call) => String(call[0]));
+    expect(statements.some((statement) => statement.includes("update app_users"))).toBe(false);
+    expect(statements.some((statement) => statement.includes("insert into email_change_requests"))).toBe(true);
+  });
+
+  it("refuses an email change when the password is wrong", async () => {
+    const sessionToken = "test-session-token";
+    const passwordHash = await hashPassword("current-password");
+    query
+      .mockResolvedValueOnce({ rows: [{ user_id: userId }] })
+      .mockResolvedValueOnce({ rows: [{ id: userId, email: "old@example.com", password_hash: passwordHash }] });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/auth/email/change",
+      cookies: { cruush_session: sessionToken },
+      payload: { currentPassword: "wrong-password", newEmail: "new@example.com" }
+    });
+
+    expect(response.statusCode).toBe(401);
+    expect(query.mock.calls.map((call) => String(call[0])).some((statement) => statement.includes("email_change_requests"))).toBe(false);
+  });
+
+  it("moves the address only when a live confirmation token is presented", async () => {
+    const confirmToken = "confirm-token-value-that-is-long-enough";
+    query
+      .mockResolvedValueOnce({ rows: [{ user_id: userId, new_email: "new@example.com" }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: userId, email: "new@example.com" }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/auth/email/change/confirm",
+      payload: { token: confirmToken }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ data: { changed: true, email: "new@example.com" } });
+    expect(query.mock.calls[0]?.[1]).toEqual([hashSessionToken(confirmToken)]);
+    const statements = query.mock.calls.map((call) => String(call[0]));
+    expect(statements.some((statement) => statement.includes("update app_users"))).toBe(true);
+    expect(statements.some((statement) => statement.includes("delete from password_reset_tokens"))).toBe(true);
   });
 
   it("rejects password changes when the current password is wrong", async () => {
@@ -6123,7 +6252,7 @@ describe("server", () => {
     expect(response.json()).toEqual({
       error: {
         code: "CONTENT_REJECTED",
-        message: "This photo violates cruush safety rules and cannot be saved.",
+        message: "This photo was not saved because an automated safety check rejected it. Write to reports@cruush.app if you think this is wrong.",
         details: null
       }
     });
@@ -6246,7 +6375,7 @@ describe("server", () => {
     expect(response.json()).toEqual({
       error: {
         code: "CONTENT_REJECTED",
-        message: "This content violates cruush safety rules and cannot be saved.",
+        message: "This was not saved. Automated moderation flagged it for harm, hate, threats, nudity where it is not allowed, or illegal activity. Write to reports@cruush.app if you think this is wrong.",
         details: null
       }
     });
@@ -6294,7 +6423,7 @@ describe("server", () => {
     expect(response.json()).toEqual({
       error: {
         code: "CONTENT_REJECTED",
-        message: "This content violates cruush safety rules and cannot be saved.",
+        message: "This was not saved. Automated moderation flagged it for harm, hate, threats, nudity where it is not allowed, or illegal activity. Write to reports@cruush.app if you think this is wrong.",
         details: null
       }
     });
@@ -8160,14 +8289,19 @@ describe("server", () => {
   });
 
   it("creates a signed-in support request without requiring contact email", async () => {
-    query.mockResolvedValueOnce({
-      rows: [{
-        id: "support-2",
-        status: "open",
-        ai_triage_status: "pending",
-        created_at: "2026-07-07T12:05:00.000Z"
-      }]
-    });
+    query
+      .mockResolvedValueOnce({ rows: [{ email: "river@example.com" }] })
+      // The route checks whether the reporter is staff before applying the
+      // member cap. This member is not.
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "support-2",
+          status: "open",
+          ai_triage_status: "pending",
+          created_at: "2026-07-07T12:05:00.000Z"
+        }]
+      });
 
     const response = await app.inject({
       method: "POST",
@@ -8184,9 +8318,12 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(201);
-    expect(query.mock.calls[0]?.[1]).toEqual([
+    // The member never types an address: support replies to the account email
+    // read from app_users.
+    expect(String(query.mock.calls[0]?.[0])).toContain("select email from app_users");
+    expect(query.mock.calls[2]?.[1]).toEqual([
       userId,
-      null,
+      "river@example.com",
       "bug",
       "Settings bug",
       "The settings screen got stuck after opening support.",
@@ -8581,7 +8718,7 @@ describe("server", () => {
     expect(response.json()).toEqual({
       error: {
         code: "CONTENT_REJECTED",
-        message: "This photo violates cruush safety rules and cannot be saved.",
+        message: "This photo was not saved because an automated safety check rejected it. Write to reports@cruush.app if you think this is wrong.",
         details: null
       }
     });
@@ -8848,7 +8985,7 @@ describe("server", () => {
     expect(response.json()).toEqual({
       error: {
         code: "CONTENT_REJECTED",
-        message: "This content violates cruush safety rules and cannot be saved.",
+        message: "This was not saved. Automated moderation flagged it for harm, hate, threats, nudity where it is not allowed, or illegal activity. Write to reports@cruush.app if you think this is wrong.",
         details: null
       }
     });
@@ -8882,7 +9019,7 @@ describe("server", () => {
     expect(response.json()).toEqual({
       error: {
         code: "CONTENT_REJECTED",
-        message: "This content violates cruush safety rules and cannot be saved.",
+        message: "This was not saved. Automated moderation flagged it for harm, hate, threats, nudity where it is not allowed, or illegal activity. Write to reports@cruush.app if you think this is wrong.",
         details: null
       }
     });
@@ -8915,7 +9052,7 @@ describe("server", () => {
     expect(response.json()).toEqual({
       error: {
         code: "VALIDATION_ERROR",
-        message: "Upload a valid JPEG, PNG, or WebP image.",
+        message: "Upload a still photo your phone or camera made: JPEG, PNG, HEIC, AVIF, WebP, or TIFF.",
         details: null
       }
     });
@@ -10467,7 +10604,8 @@ describe("server", () => {
           created_at: "2026-04-28T12:00:00.000Z",
           display_name: "Cruusher",
           pronouns: ["they/them"],
-          photos: ["https://example.com/photo.jpg"]
+          photos: ["https://example.com/photo.jpg"],
+          feed_tags: ["hosting"]
         }]
       });
 
@@ -10494,6 +10632,7 @@ describe("server", () => {
         createdAt: "2026-04-28T12:00:00.000Z",
         audience: "public",
         distance: "Nearby",
+        tags: ["hosting"],
         user: {
           id: userId,
           name: "Cruusher",
@@ -10555,6 +10694,7 @@ describe("server", () => {
           userId: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
           visibility: "public"
         },
+        tags: [],
         user: {
           id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
           name: "Nearby person",
@@ -10795,6 +10935,7 @@ describe("server", () => {
         createdAt: "2026-04-28T12:10:00.000Z",
         audience: "public",
         distance: "Nearby",
+        tags: [],
         user: {
           id: userId,
           name: "Cruusher",
@@ -11199,7 +11340,7 @@ describe("server", () => {
     expect(response.json()).toEqual({
       error: {
         code: "CONTENT_REJECTED",
-        message: "This content violates cruush safety rules and cannot be saved.",
+        message: "This was not saved. Automated moderation flagged it for harm, hate, threats, nudity where it is not allowed, or illegal activity. Write to reports@cruush.app if you think this is wrong.",
         details: null
       }
     });
@@ -11338,25 +11479,36 @@ describe("server", () => {
       }
     });
 
-    query
-      .mockResolvedValueOnce({ rows: [incomingRecord] })
-      .mockResolvedValueOnce({ rows: [sentRecord] })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({
-        rows: [{
-          id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
-          display_name: "Alex",
-          pronouns: ["they/them"],
-          photos: ["https://example.com/alex.jpg"],
-          vibes: ["Artsy", "Chill"],
-          scenes: ["Drag"],
-          archetypes: [],
-          ghost_mode_enabled: false
-        }]
-      })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [] });
+    // Matched on the SQL rather than on call order: the route reads the
+    // relationship records several times, so a positional mock handed the
+    // profile row to the wrong query and the author came back anonymous.
+    let recordReads = 0;
+    query.mockImplementation(async (sql: unknown) => {
+      const text = String(sql);
+
+      if (text.includes("from profiles")) {
+        return {
+          rows: [{
+            id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+            display_name: "Alex",
+            pronouns: ["they/them"],
+            photos: ["https://example.com/alex.jpg"],
+            vibes: ["Artsy", "Chill"],
+            scenes: ["Drag"],
+            archetypes: [],
+            ghost_mode_enabled: false
+          }]
+        };
+      }
+
+      if (text.includes("record_lookup_index")) {
+        recordReads += 1;
+        if (recordReads === 1) return { rows: [incomingRecord] };
+        if (recordReads === 2) return { rows: [sentRecord] };
+      }
+
+      return { rows: [] };
+    });
 
     const response = await app.inject({
       method: "GET",
@@ -11367,10 +11519,11 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(query).toHaveBeenCalledTimes(17);
+    // The exact number of queries is an implementation detail; what matters is
+    // that the relationship records and the profile lookup are read.
     expect(query.mock.calls[0]?.[0]).toContain("encrypted_relationship_records");
     expect(query.mock.calls[1]?.[0]).toContain("encrypted_relationship_records");
-    expect(query.mock.calls[4]?.[0]).toContain("from profiles");
+    expect(query.mock.calls.some(([sql]) => String(sql).includes("from profiles"))).toBe(true);
     expect(response.json()).toEqual({
       data: {
         received: [{
@@ -11427,17 +11580,25 @@ describe("server", () => {
       createdAt: "2026-04-28T12:05:00.000Z"
     });
 
-    query
-      .mockResolvedValueOnce({ rows: [incomingRecord] })
-      .mockResolvedValueOnce({ rows: [sentRecord] })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({
-        rows: [{
-          user_id: incomingUserId
-        }, {
-          user_id: sentTargetUserId
-        }]
-      });
+    // Matched on the SQL rather than on call order: the route reads the
+    // relationship records several times, and a positional mock silently fed
+    // the block list to the wrong query.
+    let recordReads = 0;
+    query.mockImplementation(async (sql: unknown) => {
+      const text = String(sql);
+
+      if (text.includes("from user_blocks") && !text.includes("true as exists")) {
+        return { rows: [{ user_id: incomingUserId }, { user_id: sentTargetUserId }] };
+      }
+
+      if (text.includes("record_lookup_index")) {
+        recordReads += 1;
+        if (recordReads === 1) return { rows: [incomingRecord] };
+        if (recordReads === 2) return { rows: [sentRecord] };
+      }
+
+      return { rows: [] };
+    });
 
     const response = await app.inject({
       method: "GET",
@@ -11448,8 +11609,7 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(query).toHaveBeenCalledTimes(4);
-    expect(query.mock.calls[3]?.[0]).toContain("from user_blocks");
+    expect(query.mock.calls.some(([sql]) => String(sql).includes("from user_blocks"))).toBe(true);
     expect(response.json()).toEqual({
       data: {
         received: [],
@@ -11497,51 +11657,46 @@ describe("server", () => {
       dedupeBucket: "2026-04-28T11:00:00.000Z"
     });
 
-    query
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({
-        rows: [{
-          lat: 40.7128,
-          lng: -74.006,
-          fuzzy_lat: 40.713,
-          fuzzy_lng: -74.005,
-          profile_sensitive_ciphertext: null,
-          profile_sensitive_nonce: null,
-          profile_sensitive_auth_tag: null,
-          profile_sensitive_key_version: null
-        }]
-      })
-      .mockResolvedValueOnce({ rows: [incomingOne, incomingTwo] })
-      .mockResolvedValueOnce({ rows: [sentOne] })
-      .mockResolvedValueOnce({ rows: [viewOne, viewTwo] })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({
-        rows: [{
-          id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
-          display_name: "Alex",
-          pronouns: ["they/them"],
-          photos: ["https://example.com/alex.jpg"],
-          vibes: ["Artsy", "Chill"],
-          scenes: ["Drag"],
-          archetypes: [],
-          ghost_mode_enabled: false
-        }, {
-          id: "8f707f0b-81aa-470d-b0e1-321d493d04d2",
-          display_name: "Sam",
-          pronouns: ["she/they"],
-          photos: [],
-          vibes: ["Soft", "Goth", "Geek"],
-          scenes: [],
-          archetypes: [],
-          ghost_mode_enabled: false
-        }]
-      })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [] });
+    // Matched on the SQL rather than on call order: the route reads the
+    // relationship records several times, so a positional mock handed the
+    // profile rows to the wrong query and both people came back anonymous.
+    let recordReads = 0;
+    query.mockImplementation(async (sql: unknown) => {
+      const text = String(sql);
+
+      if (text.includes("from profiles")) {
+        return {
+          rows: [{
+            id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+            display_name: "Alex",
+            pronouns: ["they/them"],
+            photos: ["https://example.com/alex.jpg"],
+            vibes: ["Artsy", "Chill"],
+            scenes: ["Drag"],
+            archetypes: [],
+            ghost_mode_enabled: false
+          }, {
+            id: "8f707f0b-81aa-470d-b0e1-321d493d04d2",
+            display_name: "Sam",
+            pronouns: ["she/they"],
+            photos: [],
+            vibes: ["Soft", "Goth", "Geek"],
+            scenes: [],
+            archetypes: [],
+            ghost_mode_enabled: false
+          }]
+        };
+      }
+
+      if (text.includes("record_lookup_index")) {
+        recordReads += 1;
+        if (recordReads === 1) return { rows: [incomingOne, incomingTwo] };
+        if (recordReads === 2) return { rows: [sentOne] };
+        if (recordReads === 3) return { rows: [viewOne, viewTwo] };
+      }
+
+      return { rows: [] };
+    });
 
     const response = await app.inject({
       method: "GET",
@@ -12973,6 +13128,7 @@ describe("server", () => {
           right: null
         },
         bio: "Hello",
+        tags: ["leatherdaddy"],
         signal: "",
         pronouns: ["they/them"],
         custom_pronouns: "",
@@ -12982,6 +13138,9 @@ describe("server", () => {
         presentation: ["Femme"],
         sexuality: ["Queer"],
         body_type: ["Athletic"],
+        body_hair: ["Smooth"],
+        pubic_hair: ["Trimmed"],
+        facial_hair: ["Beard"],
         height: "5'8\"",
         weight: "155 lbs",
         position: ["Vers"],
@@ -12991,6 +13150,7 @@ describe("server", () => {
         crowds: [],
         availability: ["Tonight"],
         hosting_travel: ["Hosting"],
+        preferred_spots: ["Bars"],
         birth_control: [],
         relationship_status: [],
         zodiac: [],
@@ -13019,7 +13179,9 @@ describe("server", () => {
         custom_covid_vaccine: "",
         mpox_vaccine: ["Vaccinated"],
         custom_mpox_vaccine: "",
+        protections: [],
         substance_boundaries: ["No alcohol involved", "Let's discuss"],
+        protection_boundaries: ["Condoms required"],
         lat: 40.7128,
         lng: -74.006,
         fuzzy_lat: 40.713,
@@ -13051,6 +13213,7 @@ describe("server", () => {
           right: null
         },
         bio: "Hello",
+        tags: ["leatherdaddy"],
         signal: "",
         pronouns: ["they/them"],
         custom_pronouns: "",
@@ -13060,6 +13223,9 @@ describe("server", () => {
         presentation: ["Femme"],
         sexuality: ["Queer"],
         body_type: ["Athletic"],
+        body_hair: ["Smooth"],
+        pubic_hair: ["Trimmed"],
+        facial_hair: ["Beard"],
         height: "5'8\"",
         weight: "155 lbs",
         position: ["Vers"],
@@ -13069,6 +13235,7 @@ describe("server", () => {
         crowds: [],
         availability: ["Tonight"],
         hosting_travel: ["Hosting"],
+        preferred_spots: ["Bars"],
         birth_control: [],
         relationship_status: [],
         zodiac: [],
@@ -13097,7 +13264,9 @@ describe("server", () => {
         custom_covid_vaccine: "",
         mpox_vaccine: ["Vaccinated"],
         custom_mpox_vaccine: "",
+        protections: [],
         substance_boundaries: ["No alcohol involved", "Let's discuss"],
+        protection_boundaries: ["Condoms required"],
         health_preferences: [],
         visibility_rules: emptyProfile.visibility_rules,
         updated_at: "2026-04-28T12:00:00.000Z"
@@ -13456,7 +13625,8 @@ describe("server", () => {
         kinks: ["Leather"],
         kink_interests: [{
           kink_id: "leather",
-          label: "Leather"
+          label: "Leather",
+          category: "Gear"
         }],
         kinks_visibility: "mutual_cruushes",
         viewer_relationship: expect.objectContaining({
@@ -13738,6 +13908,17 @@ describe("server", () => {
     });
   });
 
+  // The profile insert column list grows with the taxonomy, so read each value
+  // back by column name instead of pinning a positional index that shifts every
+  // time a field is added.
+  function profileInsertValue(call: unknown[] | undefined, column: string) {
+    const sql = String(call?.[0] ?? "");
+    const columnList = sql.slice(sql.indexOf("(") + 1, sql.indexOf(")"));
+    const columnIndex = columnList.split(",").map((name) => name.trim()).indexOf(column);
+    expect(columnIndex).toBeGreaterThan(-1);
+    return (call?.[1] as unknown[] | undefined)?.[columnIndex];
+  }
+
   it("upserts the authenticated profile on PUT /api/profiles/me", async () => {
     query
       .mockResolvedValue({ rows: [] })
@@ -13781,6 +13962,7 @@ describe("server", () => {
           custom_covid_vaccine: "",
           mpox_vaccine: [],
           custom_mpox_vaccine: "",
+          protections: [],
           substance_boundaries: [],
           updated_at: "2026-04-28T12:05:00.000Z"
         }]
@@ -13825,6 +14007,7 @@ describe("server", () => {
       display_name: "Cruusher",
       photos: [],
       bio: "Updated bio",
+      tags: [],
       signal: "",
       pronouns: ["they/them"],
       custom_pronouns: "",
@@ -13834,12 +14017,16 @@ describe("server", () => {
       presentation: [],
       sexuality: [],
       body_type: [],
+      body_hair: ["Smooth"],
+      pubic_hair: ["Trimmed"],
+      facial_hair: ["Beard"],
       height: "",
       weight: "",
       position: [],
       role: ["submissive"],
       availability: [],
       hosting_travel: [],
+      preferred_spots: ["Bars"],
       kinks: [],
       kink_interests: [],
       kinks_visibility: "public",
@@ -13859,7 +14046,10 @@ describe("server", () => {
       custom_covid_vaccine: "",
       mpox_vaccine: [],
       custom_mpox_vaccine: "",
-      substance_boundaries: []
+      protections: [],
+      substance_boundaries: [],
+      protection_boundaries: ["Condoms required"],
+      relationship_status: ["Partnered"]
     };
 
     const response = await app.inject({
@@ -13880,8 +14070,8 @@ describe("server", () => {
     const appUserDisplayNameUpdateCall = query.mock.calls.find((call) => String(call[0]).includes("update app_users") && String(call[0]).includes("display_name"));
     expect(profileInsertCall?.[0]).toContain("insert into profiles");
     expect(profileInsertCall?.[1]?.[0]).toBe(userId);
-    expect(profileInsertCall?.[1]?.[7]).toBe(1994);
-    expect(profileInsertCall?.[1]?.[8]).toEqual(["Latinx"]);
+    expect(profileInsertValue(profileInsertCall, "year_of_birth")).toBe(1994);
+    expect(profileInsertValue(profileInsertCall, "ethnicity")).toEqual(["Latinx"]);
     expect(profileInsertCall?.[0]).not.toContain("updated_at)");
     expect(appUserDisplayNameUpdateCall?.[1]).toEqual([userId, "Cruusher"]);
     expect(response.json()).toEqual({
@@ -13889,7 +14079,7 @@ describe("server", () => {
         id: userId,
         ...payload,
         birth_control: [],
-        relationship_status: [],
+        relationship_status: ["Partnered"],
         zodiac: [],
         health_preferences: [],
         year_of_birth: 1994,
@@ -13941,7 +14131,7 @@ describe("server", () => {
 
     expect(response.statusCode).toBe(200);
     const profileInsertCall = query.mock.calls.find((call) => String(call[0]).includes("insert into profiles"));
-    expect(profileInsertCall?.[1]?.[7]).toBeNull();
+    expect(profileInsertValue(profileInsertCall, "year_of_birth")).toBeNull();
   });
 
   it("uses the account signup birth year when creating a profile", async () => {
@@ -13982,7 +14172,7 @@ describe("server", () => {
       [userId]
     );
     const profileInsertCall = query.mock.calls.find((call) => String(call[0]).includes("insert into profiles"));
-    expect(profileInsertCall?.[1]?.[7]).toBe(1994);
+    expect(profileInsertValue(profileInsertCall, "year_of_birth")).toBe(1994);
   });
 
   it("rejects an under-18 date of birth when creating a profile", async () => {
@@ -14052,6 +14242,7 @@ describe("server", () => {
           custom_covid_vaccine: "",
           mpox_vaccine: [],
           custom_mpox_vaccine: "",
+          protections: [],
           substance_boundaries: [],
           updated_at: "2026-04-28T12:05:00.000Z"
         }]
@@ -14162,6 +14353,7 @@ describe("server", () => {
         custom_covid_vaccine: "",
         mpox_vaccine: [],
         custom_mpox_vaccine: "",
+        protections: [],
         substance_boundaries: [],
         profile_sensitive_ciphertext: "encrypted",
         profile_sensitive_nonce: "nonce",
@@ -14280,6 +14472,7 @@ describe("server", () => {
         custom_covid_vaccine: "",
         mpox_vaccine: [],
         custom_mpox_vaccine: "",
+        protections: [],
         substance_boundaries: [],
         profile_sensitive_ciphertext: "encrypted",
         profile_sensitive_nonce: "nonce",
@@ -14349,6 +14542,7 @@ describe("server", () => {
     expect(response.json()).toEqual({
       data: expect.objectContaining({
         visibility_rules: {
+          ...emptyVisibilityRules,
           ...payload.visibility_rules,
           search_query: "",
           mile_high_club_members: false
@@ -14400,6 +14594,7 @@ describe("server", () => {
         custom_covid_vaccine: "",
         mpox_vaccine: [],
         custom_mpox_vaccine: "",
+        protections: [],
         substance_boundaries: [],
         profile_sensitive_ciphertext: null,
         profile_sensitive_nonce: null,
@@ -14417,7 +14612,7 @@ describe("server", () => {
     });
 
     const visibilityRules = {
-      ...emptyProfile.visibility_rules,
+      ...emptyVisibilityRules,
       distance: 25,
       identities: ["nonbinary"],
       looking_for: ["hookup"]
@@ -14523,7 +14718,7 @@ describe("server", () => {
 
   it("updates manual visibility rules and revokes active Pings when the rules narrow", async () => {
     const visibilityRules: ProfileVisibilityRules = {
-      ...emptyProfile.visibility_rules,
+      ...emptyVisibilityRules,
       distance: 25,
       identities: ["nonbinary"],
       looking_for: ["hookup"]
@@ -14570,6 +14765,7 @@ describe("server", () => {
       custom_covid_vaccine: "",
       mpox_vaccine: [],
       custom_mpox_vaccine: "",
+      protections: [],
       substance_boundaries: [],
       profile_sensitive_ciphertext: null,
       profile_sensitive_nonce: null,
@@ -14782,13 +14978,13 @@ describe("server", () => {
   it("lets cruush+ users create, list, update, and delete saved visibility sets", async () => {
     const savedSetId = "9a58ce18-7b9c-4da0-b6ef-183414c41ed8";
     const savedRules = {
-      ...emptyProfile.visibility_rules,
+      ...emptyVisibilityRules,
       distance: 25,
       looking_for: ["hookup"],
       kinks: ["leather"]
     };
     const updatedRules = {
-      ...emptyProfile.visibility_rules,
+      ...emptyVisibilityRules,
       active_crowd_modes: ["T4T"],
       distance: 10
     };
@@ -15018,6 +15214,7 @@ describe("server", () => {
             custom_covid_vaccine: "",
             mpox_vaccine: [],
             custom_mpox_vaccine: "",
+            protections: [],
             substance_boundaries: [],
             ...encryptedSensitiveProfile,
             ...encryptedProfileVisibility,
@@ -15070,6 +15267,7 @@ describe("server", () => {
             custom_covid_vaccine: "",
             mpox_vaccine: [],
             custom_mpox_vaccine: "",
+            protections: [],
             substance_boundaries: [],
             ...encryptedSensitiveProfile,
             ...encryptedProfileVisibility,
@@ -15452,10 +15650,14 @@ describe("server", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json().page).toEqual({ limit: 23, offset: 46, hasMore: false });
     expect(listSql).toContain(`order by ${expectedOrder}`);
-    expect(listSql).toContain("limit $8 offset $9");
+    expect(listSql).toContain("limit $10 offset $11");
     expect(listCall?.[1]).toEqual(expect.arrayContaining([100, 23, 46]));
-    expect(listCall?.[1]?.[6]).toBe(100);
-    expect(listCall?.[1]?.[11]).toBe(100);
+    // The page stays bounded, and both radius limits still apply: the viewport
+    // radius and the independent NYC service-area radius.
+    expect(listCall?.[1]?.[8]).toBe(100);
+    expect(listCall?.[1]?.[9]).toBe(23);
+    expect(listCall?.[1]?.[10]).toBe(46);
+    expect(listCall?.[1]?.[13]).toBe(100);
   });
 
   it("rejects a published Spot search radius above 100 miles before database access", async () => {
@@ -15536,7 +15738,13 @@ describe("server", () => {
     }));
     expect(boardSql).toContain("b.blocker_user_id = $2 and b.blocked_user_id = m.user_id");
     expect(boardSql).toContain("b.blocker_user_id = m.user_id and b.blocked_user_id = $2");
-    expect(boardSql).toContain("m.expires_at > now()");
+    // Pink Book posts persist until deleted, so the read is gated on an active
+    // check-in instead of a message expiry: without one a viewer sees only
+    // their own posts.
+    expect(boardSql).toContain("($5::boolean or m.user_id = $2)");
+    expect(boardSql).not.toContain("m.expires_at >");
+    expect(queries.some((sql) => sql.includes("from place_checkins")
+      && sql.includes("expires_at > now()"))).toBe(true);
     expect(queries.some((sql) => sql.includes("encrypted_relationship_records"))).toBe(true);
     expect(queries.every((sql) => !sql.includes("cruush_matches"))).toBe(true);
   });
@@ -15596,9 +15804,14 @@ describe("server", () => {
 
     expect(response.statusCode).toBe(201);
     expect(boardInsertSql).toContain("'[encrypted]'");
-    expect(boardInsertSql).toContain("now() + ($7::int * interval '1 hour')");
+    // The Pink Book post outlives the check-in that carried it: it is stored
+    // with no expiry and removed only when its author deletes it.
+    expect(boardInsertSql).toContain("expires_at");
+    expect(boardInsertSql).toContain(", null)");
+    expect(boardInsertSql).not.toContain("interval '1 hour'");
     expect(boardInsertParams).not.toContain(content);
-    expect(boardInsertParams[6]).toBe(3);
+    expect(boardInsertParams).toHaveLength(6);
+    // The check-in itself still expires on the requested schedule.
     expect(checkinInsertSql).toContain("now() + ($4::int * interval '1 hour')");
     expect(checkinInsertParams).toEqual([userId, placeId, true, 3]);
     expect(decryptTextContent(app.config, "feed", {
@@ -15697,7 +15910,11 @@ describe("server", () => {
     expect(queries.some((sql) => sql.includes("encrypted_relationship_records"))).toBe(true);
     expect(queries.every((sql) => !sql.includes("cruush_matches"))).toBe(true);
     expect(popularTimesSql).toContain("bucket_start >= now() - interval '90 days'");
-    expect(popularTimesSql).toContain("having sum(checkin_count) >= 3");
+    // Imported venue baselines sit beside member check-ins, and a bucket is
+    // still withheld below three visits.
+    expect(popularTimesSql).toContain("sum(checkin_count)::int as count");
+    expect(popularTimesSql).toContain("from place_popular_time_baselines");
+    expect(popularTimesSql).toContain("having sum(count) >= 3");
     expect(ratingsSql).toContain("'overall', 'gender_inclusivity', 'lgbtq_friendliness', 'safety', 'accessibility', 'cleanliness'");
   });
 
@@ -15707,6 +15924,10 @@ describe("server", () => {
     const otherUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
 
     query.mockImplementation((sql: string, params: unknown[] = []) => {
+      if (sql.toLowerCase().includes("from places where id")) {
+        return Promise.resolve({ rows: [{ id: placeId, latitude: 40.7, longitude: -74 }] });
+      }
+
       if (sql.toLowerCase().includes("delete from place_board_messages")) {
         return Promise.resolve({ rows: [], rowCount: params[2] === userId ? 1 : 0 });
       }

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { createEvent, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import MapControlsTutorial, {
   calculateTutorialCardPlacement,
@@ -11,8 +11,9 @@ const TARGET_STEP_IDS: MapControlsTutorialStepId[] = [
   'map-controls',
   'seeking',
   'visibility',
+  'cruush-plus',
+  'mile-high-club',
   'places',
-  'heatmap',
   'crowds',
   'ghost',
   'dl-mode',
@@ -20,6 +21,7 @@ const TARGET_STEP_IDS: MapControlsTutorialStepId[] = [
   'profile-pin',
   'zoom',
   'carousel',
+  'profile-edit',
   'feed',
 ];
 
@@ -66,6 +68,22 @@ function expectHighlightedAction(id: MapControlsTutorialStepId, name: string) {
 }
 
 describe('calculateTutorialCardPlacement', () => {
+  it('steps aside while another dialog is open and returns when it closes', async () => {
+    // Sheets and dialogs live in different stacking contexts, so the card
+    // cannot sit under all of them by z-index. It hides while one is open.
+    render(<MapControlsTutorial open onActivateStep={() => undefined} onComplete={() => undefined} />);
+    const overlay = await screen.findByTestId('map-controls-tutorial');
+    expect(overlay).not.toHaveAttribute('hidden');
+
+    const dialog = document.createElement('div');
+    dialog.setAttribute('role', 'dialog');
+    document.body.appendChild(dialog);
+    await waitFor(() => expect(overlay).toHaveAttribute('hidden'));
+
+    dialog.remove();
+    await waitFor(() => expect(overlay).not.toHaveAttribute('hidden'));
+  });
+
   it('keeps the card inside the viewport and above the bottom navigation boundary', () => {
     const placement = calculateTutorialCardPlacement({
       viewportWidth: 375,
@@ -203,7 +221,7 @@ describe('MapControlsTutorial', () => {
 
     render(<MapControlsTutorial open onActivateStep={onActivateStep} onComplete={onComplete} />);
 
-    expect(screen.getByText('Map tutorial · Step 1 of 15')).toBeInTheDocument();
+    expect(screen.getByLabelText('Tutorial progress')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Install cruush' })).toBeInTheDocument();
     fireEvent.click(expectHighlightedAction('install', 'Install cruush'));
     expect(onActivateStep).toHaveBeenLastCalledWith('install');
@@ -233,12 +251,16 @@ describe('MapControlsTutorial', () => {
     expectHighlightedAction('visibility', 'Open Visibility');
 
     fireEvent.click(screen.getByTestId('tutorial-next'));
-    expect(screen.getByRole('heading', { name: 'Spots' })).toBeInTheDocument();
-    expectHighlightedAction('places', 'Open Spots');
+    expect(screen.getByRole('heading', { name: 'cruush+' })).toBeInTheDocument();
+    expectHighlightedAction('cruush-plus', 'Open cruush+');
 
     fireEvent.click(screen.getByTestId('tutorial-next'));
-    expect(screen.getByRole('heading', { name: 'Seven-day activity heatmap' })).toBeInTheDocument();
-    expectHighlightedAction('heatmap', 'Show heatmap');
+    expect(screen.getByRole('heading', { name: 'Mile High Club' })).toBeInTheDocument();
+    expectHighlightedAction('mile-high-club', 'Open Mile High Club');
+
+    fireEvent.click(screen.getByTestId('tutorial-next'));
+    expect(screen.getByRole('heading', { name: 'Spots' })).toBeInTheDocument();
+    expectHighlightedAction('places', 'Open Spots');
 
     fireEvent.click(screen.getByTestId('tutorial-next'));
     expect(screen.getByRole('heading', { name: 'Crowd Mode' })).toBeInTheDocument();
@@ -254,7 +276,7 @@ describe('MapControlsTutorial', () => {
 
     fireEvent.click(screen.getByTestId('tutorial-next'));
     expect(screen.getByRole('heading', { name: 'Pulse' })).toBeInTheDocument();
-    expect(screen.getByText('Pulse is inside Map Controls. It briefly marks your heart as active on the map and shares your signal as a normal feed post.')).toBeInTheDocument();
+    expect(screen.getByText(/Pulse makes your heart beat for 30 minutes/i)).toBeInTheDocument();
     fireEvent.click(expectHighlightedAction('ping', 'Open Pulse'));
     expect(onActivateStep).toHaveBeenLastCalledWith('ping');
     expect(screen.getByTestId('tutorial-spotlight')).toHaveAttribute('data-tutorial-step', 'ping');
@@ -277,8 +299,12 @@ describe('MapControlsTutorial', () => {
     expect(onActivateStep).toHaveBeenLastCalledWith('carousel');
     fireEvent.click(screen.getByTestId('tutorial-next'));
 
+    expect(screen.getByRole('heading', { name: 'Your profile' })).toBeInTheDocument();
+    expectHighlightedAction('profile-edit', 'Open Edit Profile');
+    fireEvent.click(screen.getByTestId('tutorial-next'));
+
     expect(screen.getByRole('heading', { name: 'Feed' })).toBeInTheDocument();
-    expect(screen.getByText(/start with a short signal, question, or invitation/i)).toBeInTheDocument();
+    expect(screen.getByText(/search the Feed by tag/i)).toBeInTheDocument();
     expectHighlightedAction('feed', 'Open Feed');
     fireEvent.click(screen.getByTestId('tutorial-next'));
 
@@ -346,6 +372,30 @@ describe('MapControlsTutorial', () => {
     expect(onActivateStep).not.toHaveBeenCalled();
   });
 
+  it('dismisses Skip tutorial and Done from a mobile touch', () => {
+    const skipComplete = vi.fn();
+    const { unmount } = render(<MapControlsTutorial open onActivateStep={vi.fn()} onComplete={skipComplete} />);
+
+    const skipTouch = createEvent.pointerUp(screen.getByTestId('skip-map-controls-tutorial'));
+    Object.defineProperty(skipTouch, 'pointerType', { value: 'touch' });
+    fireEvent(screen.getByTestId('skip-map-controls-tutorial'), skipTouch);
+    expect(skipComplete).toHaveBeenCalledWith(false);
+    expect(screen.queryByTestId('map-controls-tutorial')).not.toBeInTheDocument();
+    unmount();
+
+    const doneComplete = vi.fn();
+    render(<MapControlsTutorial open onActivateStep={vi.fn()} onComplete={doneComplete} />);
+    for (let index = 0; index < TARGET_STEP_IDS.length; index += 1) {
+      fireEvent.click(screen.queryByTestId('tutorial-skip-step') ?? screen.getByTestId('tutorial-next'));
+    }
+
+    const doneTouch = createEvent.pointerUp(screen.getByTestId('tutorial-next'));
+    Object.defineProperty(doneTouch, 'pointerType', { value: 'touch' });
+    fireEvent(screen.getByTestId('tutorial-next'), doneTouch);
+    expect(doneComplete).toHaveBeenCalledWith(true);
+    expect(screen.queryByTestId('map-controls-tutorial')).not.toBeInTheDocument();
+  });
+
   it('resumes routed Ghost and Feed steps after the tutorial remounts', async () => {
     const onActivateStep = vi.fn();
     const firstRender = render(
@@ -354,6 +404,7 @@ describe('MapControlsTutorial', () => {
 
     fireEvent.click(screen.getByTestId('tutorial-skip-step'));
     fireEvent.click(screen.getByTestId('tutorial-skip-step'));
+    fireEvent.click(screen.getByTestId('tutorial-next'));
     fireEvent.click(screen.getByTestId('tutorial-next'));
     fireEvent.click(screen.getByTestId('tutorial-next'));
     fireEvent.click(screen.getByTestId('tutorial-next'));
@@ -371,6 +422,7 @@ describe('MapControlsTutorial', () => {
     );
     expect(screen.getByRole('heading', { name: 'Ghost Mode' })).toBeInTheDocument();
 
+    fireEvent.click(screen.getByTestId('tutorial-next'));
     fireEvent.click(screen.getByTestId('tutorial-next'));
     fireEvent.click(screen.getByTestId('tutorial-next'));
     fireEvent.click(screen.getByTestId('tutorial-next'));

@@ -3,8 +3,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useNavigate } from 'react-router';
 import App, { getInitialAppEntries } from './App';
 
-const { getRewardSummary, loadCurrentSession, persistSessionUser, recordDailyRewardCheckIn, routeModuleLoads, updateRewardTimezone } = vi.hoisted(() => ({
+const { getRewardSummary, getSideQuests, loadCurrentSession, persistSessionUser, recordDailyRewardCheckIn, routeModuleLoads, updateRewardTimezone } = vi.hoisted(() => ({
   getRewardSummary: vi.fn(),
+  // The Side Quest prompt mounts inside the authenticated shell and reads this
+  // on every route. Leaving it off the mock threw during the first effect and
+  // the error boundary replaced the whole tree, which failed every route test
+  // at once for a reason that had nothing to do with routing.
+  getSideQuests: vi.fn(),
   loadCurrentSession: vi.fn(),
   persistSessionUser: vi.fn(),
   recordDailyRewardCheckIn: vi.fn(),
@@ -19,6 +24,7 @@ vi.mock('./lib/sessionUser', () => ({
 
 vi.mock('./lib/rewardsApi', () => ({
   getRewardSummary,
+  getSideQuests,
   recordDailyRewardCheckIn,
   updateRewardTimezone,
 }));
@@ -94,6 +100,9 @@ vi.mock('./components/FirstFeedPostPrompt', () => ({
 
 vi.mock('./components/OnboardingPreview', () => ({
   default: () => <div>Mock Onboarding Preview</div>
+}));
+vi.mock('./components/AdminOnboardingReplay', () => ({
+  default: () => <div>Mock Admin Onboarding Replay</div>,
 }));
 
 vi.mock('./components/MobileInstallPrompt', () => ({
@@ -278,6 +287,7 @@ describe('App', () => {
 
   beforeEach(() => {
     getRewardSummary.mockReset().mockResolvedValue({ recentGrants: [] });
+    getSideQuests.mockReset().mockResolvedValue({ quests: [], claimingAvailable: false });
     localStorage.clear();
     window.history.replaceState({}, '', '/');
     loadCurrentSession.mockReset();
@@ -701,6 +711,21 @@ describe('App', () => {
     render(<App />);
 
     expect(await screen.findByText('Mock Moderator Review')).toBeInTheDocument();
+  });
+
+  it.each([
+    ['julienlenazny@gmail.com', 'admin', true],
+    ['other@example.com', 'admin', false],
+    ['julienlenazny@gmail.com', 'moderator', false],
+  ])('gates onboarding replay for %s with role %s', async (email, moderatorRole, allowed) => {
+    loadCurrentSession.mockResolvedValue({
+      user: { id: 'user-1', email, moderatorRole, displayName: 'Test', emailVerifiedAt: '2026-09-08', createdAt: '2026-09-08' },
+      profile: { displayName: 'Test', yearOfBirth: 1990 }, needsOnboarding: false, ...acceptedConductSession,
+    });
+    window.history.replaceState({}, '', '/settings/onboarding-test');
+    render(<App />);
+    expect(await screen.findByText(allowed ? 'Mock Admin Onboarding Replay' : 'Mock Settings')).toBeInTheDocument();
+    if (!allowed) expect(screen.queryByText('Mock Admin Onboarding Replay')).not.toBeInTheDocument();
   });
 
   it('renders Ghost Mode settings as the dedicated privacy route', async () => {

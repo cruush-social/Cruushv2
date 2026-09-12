@@ -1,44 +1,21 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { ArrowLeft, RotateCcw } from 'lucide-react';
 import { Button } from './ui/button';
 import ProfileOnboarding from './ProfileOnboarding';
+import BugButtonSlot from './BugButtonSlot';
 import { previewableNotices, resetPreviewableNotices } from '../lib/onboardingPreview';
-import { getCurrentUserId } from '../lib/sessionUser';
+import { getStoredUserId } from '../lib/sessionUser';
 
 // DEV ONLY: a harness for reviewing onboarding and the one-time explainer
 // dialogs without deleting the account they are attached to.
 export default function OnboardingPreview() {
   const navigate = useNavigate();
   const previewEnabled = import.meta.env.DEV;
-  const [userId, setUserId] = useState<string | null>(null);
+  const [userId] = useState<string | null>(() => getStoredUserId());
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [resetting, setResetting] = useState(false);
-
-  useEffect(() => {
-    if (!previewEnabled) {
-      return undefined;
-    }
-
-    let active = true;
-
-    void getCurrentUserId()
-      .then((id) => {
-        if (active) {
-          setUserId(id ?? '');
-        }
-      })
-      .catch(() => {
-        if (active) {
-          setUserId('');
-        }
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [previewEnabled]);
 
   if (!previewEnabled) {
     return null;
@@ -76,6 +53,7 @@ export default function OnboardingPreview() {
             needsCodeOfConduct
             codeOfConductVersion="preview"
             constrainedViewport
+            previewMode
           />
         </div>
       </div>
@@ -92,6 +70,8 @@ export default function OnboardingPreview() {
           <h2 className="text-xl">Onboarding preview</h2>
           <p className="text-xs text-muted-foreground">Dev-only harness for onboarding and explainer dialogs</p>
         </div>
+      
+        <BugButtonSlot testId="onboarding-preview-bug-button-slot" />
       </header>
 
       <div className="mx-auto max-w-2xl space-y-6 p-6">
@@ -105,8 +85,8 @@ export default function OnboardingPreview() {
           <div>
             <p>Run onboarding</p>
             <p className="text-sm text-muted-foreground">
-              Steps through the full rite list including the code of conduct, Signal broadcast, 2FA, and affiliate share.
-              Finishing returns you here instead of writing a new session.
+              Steps through the full rite list including the optional invite code, role, position, badges, 2FA, affiliate share, and final code of conduct.
+              No email or account is needed. Photos, invite codes, 2FA, profile details, and completion stay inside this preview and are not saved.
             </p>
           </div>
           <Button onClick={() => setShowOnboarding(true)} style={{ background: 'var(--cruush-gradient)' }}>
@@ -114,7 +94,7 @@ export default function OnboardingPreview() {
           </Button>
         </div>
 
-        <div className="space-y-3 rounded-2xl border border-border bg-card p-4">
+        {userId ? <div className="space-y-3 rounded-2xl border border-border bg-card p-4">
           <div className="flex items-center justify-between gap-4">
             <div>
               <p>Explainer dialogs</p>
@@ -152,7 +132,7 @@ export default function OnboardingPreview() {
               </div>
             ))}
           </div>
-        </div>
+        </div> : null}
       </div>
     </div>
   );

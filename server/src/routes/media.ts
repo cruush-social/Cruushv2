@@ -518,6 +518,38 @@ export async function registerMediaRoutes(app: FastifyInstance) {
     return reply.code(204).send();
   });
 
+  app.post("/api/profile-photos/preview", async (request, reply) => {
+    const userId = await getActiveAccountUserId(request);
+    await app.rateLimiter.assert({
+      key: `profile-photo-preview:${userId}`,
+      max: 10,
+      windowMs: 60 * 1000,
+      message: "Too many photo previews. Try again in a minute."
+    });
+    let upload;
+    let bytes: Buffer;
+    try {
+      upload = await request.file({ limits: { fileSize: MAX_IMAGE_BYTES, files: 1 } });
+      if (!upload || upload.fieldname !== "photo") {
+        throw new ApiError(400, "VALIDATION_ERROR", "Choose a photo to preview.");
+      }
+      bytes = await upload.toBuffer();
+    } catch (error) {
+      throw toUploadError(error);
+    }
+    if (upload.file.truncated) {
+      throw new ApiError(400, "VALIDATION_ERROR", "Photo must be 5 MB or smaller.");
+    }
+    const processed = await processUploadedImage(bytes, upload.mimetype);
+    const mimeType = processed.detectedMimeType === "image/heic" || processed.detectedMimeType === "image/tiff"
+      ? "image/webp" : processed.detectedMimeType;
+    // Private, transient response only. Final upload still runs all moderation
+    // and account checks; no media object or profile data is created here.
+    return reply.header("Cache-Control", "no-store").send({
+      data: { url: `data:${mimeType};base64,${processed.canonicalBytes.toString("base64")}` }
+    });
+  });
+
   app.post("/api/profile-photos", async (request, reply) => {
     const userId = await getActiveAccountUserId(request);
     const ownerFullAccess = await userHasOwnerFullAccess(app, userId);

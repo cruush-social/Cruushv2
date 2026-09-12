@@ -22,6 +22,7 @@ type NearbyNotificationSourceRow = {
   looking_for: string[] | null;
   availability: string[] | null;
   hosting_travel: string[] | null;
+  preferred_spots: string[] | null;
   vibes: string[] | null;
   scenes: string[] | null;
   archetypes: string[] | null;
@@ -32,6 +33,7 @@ type NearbyNotificationSourceRow = {
   body_type: string[] | null;
   sexuality: string[] | null;
   substance_boundaries: string[] | null;
+  protection_boundaries: string[] | null;
   lat: number | null;
   lng: number | null;
   fuzzy_lat: number | null;
@@ -50,6 +52,7 @@ type NearbyNotificationRecipientRow = {
   looking_for: string[] | null;
   availability: string[] | null;
   hosting_travel: string[] | null;
+  preferred_spots: string[] | null;
   vibes: string[] | null;
   scenes: string[] | null;
   archetypes: string[] | null;
@@ -60,6 +63,7 @@ type NearbyNotificationRecipientRow = {
   body_type: string[] | null;
   sexuality: string[] | null;
   substance_boundaries: string[] | null;
+  protection_boundaries: string[] | null;
   lat: number | null;
   lng: number | null;
   fuzzy_lat: number | null;
@@ -100,6 +104,7 @@ function toVisibilitySubject(
     looking_for: row.looking_for ?? [],
     timing: row.availability ?? [],
     hosting: row.hosting_travel ?? [],
+    preferred_spots: row.preferred_spots ?? [],
     vibes: row.vibes ?? [],
     scenes: row.scenes ?? [],
     archetypes: row.archetypes ?? [],
@@ -113,6 +118,7 @@ function toVisibilitySubject(
     body_types: row.body_type ?? [],
     sexuality: row.sexuality ?? [],
     substance_boundaries: row.substance_boundaries ?? [],
+    protection_boundaries: row.protection_boundaries ?? [],
     coordinates
   };
 }
@@ -131,6 +137,7 @@ async function loadSourceProfile(app: FastifyInstance, sourceUserId: string) {
        looking_for,
        availability,
        hosting_travel,
+       preferred_spots,
        vibes,
        scenes,
        archetypes,
@@ -141,6 +148,7 @@ async function loadSourceProfile(app: FastifyInstance, sourceUserId: string) {
        body_type,
        sexuality,
        substance_boundaries,
+       protection_boundaries,
        lat,
        lng,
        fuzzy_lat,
@@ -167,6 +175,7 @@ async function loadNearbyNotificationRecipients(app: FastifyInstance, sourceUser
        p.looking_for,
        p.availability,
        p.hosting_travel,
+       p.preferred_spots,
        p.vibes,
        p.scenes,
        p.archetypes,
@@ -177,6 +186,7 @@ async function loadNearbyNotificationRecipients(app: FastifyInstance, sourceUser
        p.body_type,
        p.sexuality,
        p.substance_boundaries,
+       p.protection_boundaries,
        p.lat,
        p.lng,
        p.fuzzy_lat,

@@ -83,6 +83,10 @@ describe("crypto payment routes", () => {
         confirmationTarget: 1,
         rails: [
           {
+            id: "btc_bitcoin", asset: "BTC", network: "bitcoin", chainId: 0,
+            tokenAddress: "", decimals: 8, confirmationTarget: 6, ready: false
+          },
+          {
             id: "usdc_arbitrum",
             asset: "USDC",
             network: "arbitrum",
@@ -385,6 +389,7 @@ describe("crypto payment routes", () => {
     const query = vi.fn()
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [openIntent] })
+      .mockResolvedValueOnce({ rows: [] }) // Confirmation-progress lookup.
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] });
     const app = buildServer(baseConfig(), {
@@ -456,6 +461,7 @@ describe("crypto payment routes", () => {
       updated_at: "2099-08-22T17:01:00Z"
     };
     const query = vi.fn(async (sql: string) => {
+      if (sql.includes("from crypto_payment_transfers")) return { rows: [] };
       if (sql.includes("pg_advisory_xact_lock")) return { rows: [] };
       if (sql.includes("for update")) return { rows: [openIntent] };
       if (sql.includes("set status = 'cancelled'")) return { rows: [cancelledIntent] };
@@ -528,6 +534,7 @@ describe("crypto payment routes", () => {
     };
     const query = vi.fn(async (sql: string, _values: unknown[] = []) => {
       if (sql.includes("from crypto_chain_watch_cursors")) return { rows: [] };
+      if (sql.includes("from crypto_payment_transfers")) return { rows: [] };
       if (sql.includes("pg_advisory_xact_lock")) return { rows: [] };
       if (sql.includes("set status = 'expired'")) return { rows: [] };
       if (sql.includes("idempotency_key = $2")) return { rows: [] };
@@ -755,7 +762,8 @@ describe("crypto payment routes", () => {
         created_at: "2026-08-22T17:30:00Z",
         updated_at: "2026-08-22T18:00:01Z",
         paid_at: null
-      }] });
+      }] })
+      .mockResolvedValueOnce({ rows: [] }); // Confirmation-progress lookup.
     const app = buildServer(baseConfig(), {
       db: databaseWithTransaction(query),
       rateLimiter: createMemoryRateLimiter()

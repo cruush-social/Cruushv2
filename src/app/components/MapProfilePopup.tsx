@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
+import { formatDistanceLabel, useDistancePreferences } from '../lib/distancePreferences';
 import { X } from 'lucide-react';
 import { Button } from './ui/button';
 import BlockUserAction from './BlockUserAction';
@@ -21,12 +22,14 @@ import {
   notifySentCruushRevokeError,
 } from '../lib/cruushNotifications';
 import { openConversationOrInbox } from '../lib/openConversation';
-import { emptyProfilePayload, getMyProfile, getProfileById, type ProfileRecord } from '../lib/profileApi';
+import { emptyProfilePayload, getMyProfile, getProfileById, ProfileApiError, type ProfileRecord } from '../lib/profileApi';
+import { notifyProfileUnavailable } from '../lib/profileUnavailable';
 import mapIconWhite from '../assets/ui-icons/map-white.png';
 import mileHighClubWhite from '../assets/ui-icons/mile-high-club-white.svg';
 import sendIconWhite from '../assets/ui-icons/send-white.png';
 import DarkRoomMark from './DarkRoomMark';
 import LoadingCardSkeletons from './LoadingCardSkeletons';
+import BugButtonSlot from './BugButtonSlot';
 import { resolveUserBorderTone } from '../lib/userBorderTone';
 
 interface MapProfilePopupProps {
@@ -49,6 +52,7 @@ export default function MapProfilePopup({
   onOpenMessages,
   onProfileSaved,
 }: MapProfilePopupProps) {
+  const distancePreferences = useDistancePreferences();
   const navigate = useNavigate();
   const [cruushed, setCruushed] = useState(false);
   const [cruushBecameMutual, setCruushBecameMutual] = useState(false);
@@ -99,6 +103,13 @@ export default function MapProfilePopup({
       })
       .catch((error) => {
         if (!isMounted) {
+          return;
+        }
+
+        if (error instanceof ProfileApiError && error.status === 404) {
+          // Refused by the server: nothing to show, and the map drops the pin.
+          notifyProfileUnavailable(user.id);
+          onClose();
           return;
         }
 
@@ -236,7 +247,7 @@ export default function MapProfilePopup({
 
   if (isOwnProfile && ownProfileMode === 'edit') {
     return (
-      <DesktopDockPanel slot="left" ariaLabel="Edit profile preview">
+      <DesktopDockPanel slot="left" ariaLabel="Edit profile preview" bottomClearance={112}>
         <div className="profile-card-scroll h-full">
           <ProfileEdit
             embedded
@@ -258,7 +269,7 @@ export default function MapProfilePopup({
   }
 
   return (
-    <DesktopDockPanel slot="left" ariaLabel={isOwnProfile ? 'Your profile' : `${displayName} profile`}>
+    <DesktopDockPanel slot="left" ariaLabel={isOwnProfile ? 'Your profile' : `${displayName} profile`} bottomClearance={112}>
       <div className="profile-card-scroll h-full">
         <div className="relative overflow-hidden">
           <ProfilePhotoGallery
@@ -269,10 +280,12 @@ export default function MapProfilePopup({
             userId={profileView?.id ?? user.id}
           />
           <div className="absolute inset-x-0 top-0 flex items-start justify-between gap-3 py-4 pl-4 pr-1">
-            <div className="rounded-full border border-white/10 bg-black/45 px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-white/80 backdrop-blur-sm">
-              {isOwnProfile ? 'Your profile' : 'Nearby now'}
-            </div>
-            <div className="flex items-center gap-2">
+            {isOwnProfile ? (
+              <div className="rounded-full border border-white/10 bg-black/45 px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-white/80 backdrop-blur-sm">
+                Your profile
+              </div>
+            ) : null}
+            <div className="ml-auto flex items-center gap-2">
               {isOwnProfile ? (
                 <button
                   type="button"
@@ -302,6 +315,9 @@ export default function MapProfilePopup({
                   />
                 </>
               ) : null}
+              {/* The bug button rides this row like the other controls; Close
+                  stays last. */}
+              <BugButtonSlot className="ml-0 h-9 w-9" testId="map-profile-popup-bug-button-slot" />
               <button
                 type="button"
                 onClick={onClose}
@@ -334,15 +350,15 @@ export default function MapProfilePopup({
                 <p className="mt-1 text-sm text-white/80">{displayPronouns}</p>
               </div>
               {displayLastActive ? (
-                <div className="rounded-full bg-white/10 px-2.5 py-1 text-xs text-white/80 backdrop-blur-sm">
+                <div className="shrink-0 whitespace-nowrap rounded-full bg-white/10 px-2.5 py-1 text-xs text-white/80 backdrop-blur-sm">
                   {displayLastActive}
                 </div>
               ) : null}
             </div>
 
-            <div className="mt-3 flex items-center gap-2 text-sm text-white/80">
-              <CruushIconImage src={mapIconWhite} className="h-4 w-4" />
-              <span>{displayDistance || 'Nearby'}</span>
+            <div className="mt-3 flex min-w-0 items-center gap-2 overflow-hidden text-sm text-white/80">
+              <CruushIconImage src={mapIconWhite} className="h-4 w-4 shrink-0" />
+              <span className="min-w-0 truncate">{formatDistanceLabel(displayDistance, distancePreferences.mode) || 'Nearby'}</span>
             </div>
 
             {/* The photo carries the signal and the vibes here too, the way it
@@ -376,12 +392,11 @@ export default function MapProfilePopup({
           </div>
         </div>
 
-        <div className="space-y-5 px-5 py-5 text-white">
+        <div className="space-y-5 px-5 py-5 text-white [&_[role=tablist]]:static [&_[role=tablist]]:z-auto [&_[id$=-content-intimacy]>.grid]:grid-cols-1">
           {profileView ? (
             <ProfileDetailsTabs
               activeTab={activeTab}
               compact
-              hideTopOverlayDuplicates={isOwnProfile}
               onActiveTabChange={setActiveTab}
               profileView={profileView}
             />

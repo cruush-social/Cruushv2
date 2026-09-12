@@ -3,7 +3,8 @@ import type { CSSProperties, ReactNode } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { resolveMediaUrl } from '../lib/apiClient';
 import { useLocation, useNavigate, useParams } from 'react-router';
-import { ArrowLeft, X } from 'lucide-react';
+import { notifyProfileUnavailable } from '../lib/profileUnavailable';
+import { ArrowLeft, Share2, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import BlockUserAction from './BlockUserAction';
@@ -31,6 +32,8 @@ import { formatDistanceWithAway, useDistancePreferences } from '../lib/distanceP
 import { resolveUserBorderTone } from '../lib/userBorderTone';
 import partyHatIcon from '../assets/ui-icons/party-hat.svg';
 import mileHighClubWhite from '../assets/ui-icons/mile-high-club-white.svg';
+import InAppShareDialog from './InAppShareDialog';
+import BugButtonSlot from './BugButtonSlot';
 
 type ProfileLocationState = {
   distance?: string;
@@ -79,6 +82,7 @@ export type ProfileViewModel = {
   identities: string[];
   presentation: string[];
   sexuality: string[];
+  zodiac: string[];
   ethnicity: string | null;
   bodyType: string | null;
   height: string | null;
@@ -91,16 +95,20 @@ export type ProfileViewModel = {
   availability: string[];
   timing: string | null;
   hosting: string[];
+  preferredSpots: string[];
   vibes: string[];
   kinks: string[];
   hobbies: string[];
   protection: string[];
+  protections: string[];
   hivStatus: string | null;
   covidStatus: string | null;
   mpoxStatus: string | null;
   healthPreferences: string[];
   birthControl: string[];
   substanceBoundaries: string | null;
+  substanceBoundariesList: string[];
+  relationshipStatus: string[];
   relationship: ProfileRecord['viewer_relationship'] | null;
 };
 
@@ -152,8 +160,11 @@ export function profileRecordToProfileView(
     name: profile.display_name || 'cruush user',
     age: deriveAge(profile.year_of_birth),
     pronouns: formatJoined(profile.pronouns) ?? 'Ask me',
-    distance: previewState?.distance ?? null,
-    lastActive: previewState?.lastActive ?? null,
+    // The map hands these over in route state; everywhere else the profile
+    // itself carries them, so the line reads the same from a deep link, a
+    // search result, or a Pink Book post.
+    distance: previewState?.distance ?? profile.distance_label ?? null,
+    lastActive: previewState?.lastActive ?? profile.last_active ?? null,
     photos: profile.photos,
     photoMetadata: profile.photo_metadata ?? profile.photos.map((photo) => ({ url: photo, explicit: false })),
     badges: profile.badges ?? [],
@@ -166,6 +177,7 @@ export function profileRecordToProfileView(
     identities: profile.identities,
     presentation: profile.presentation,
     sexuality: profile.sexuality,
+    zodiac: profile.zodiac,
     ethnicity: profile.ethnicity || null,
     bodyType: formatJoined(profile.body_type),
     height: profile.height || null,
@@ -178,20 +190,20 @@ export function profileRecordToProfileView(
     availability: profile.availability,
     timing: formatJoined(profile.availability),
     hosting: profile.hosting_travel,
+    preferredSpots: profile.preferred_spots,
     vibes: [...new Set([...profile.vibes, ...profile.scenes, ...profile.archetypes])],
     kinks: profile.kinks,
     hobbies: profile.hobbies,
-    protection: [
-      ...profile.condoms.map((value) => `Condoms: ${value}`),
-      ...profile.prep.map((value) => `PrEP: ${value}`),
-      ...profile.doxypep.map((value) => `DoxyPEP: ${value}`),
-    ].filter(Boolean),
+    protection: profile.protection_boundaries.filter(Boolean),
+    protections: profile.protections ?? [],
     hivStatus: formatSingle(profile.hiv_status),
     covidStatus: formatSingle(profile.covid_vaccine),
     mpoxStatus: formatSingle(profile.mpox_vaccine),
     healthPreferences: profile.health_preferences ?? [],
     birthControl: profile.birth_control ?? [],
     substanceBoundaries: formatJoined(profile.substance_boundaries),
+    substanceBoundariesList: profile.substance_boundaries.filter(Boolean),
+    relationshipStatus: profile.relationship_status ?? [],
     relationship: profile.viewer_relationship ?? null,
   };
 }
@@ -212,6 +224,7 @@ export default function ProfileView() {
   const [sendingCruush, setSendingCruush] = useState(false);
   const [revokingCruush, setRevokingCruush] = useState(false);
   const [openingMessage, setOpeningMessage] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('basics');
   const [expandedPhoto, setExpandedPhoto] = useState<string | null>(null);
   const [pinTokenValid, setPinTokenValid] = useState(false);
@@ -260,7 +273,14 @@ export default function ProfileView() {
         }
 
         if (loadError instanceof ProfileApiError && loadError.status === 404) {
-          setError(isOwnProfile ? 'Profile not found.' : 'That profile is unavailable.');
+          if (!isOwnProfile && userId) {
+            // Nothing to show and nothing to tap: the map drops this person
+            // and the member lands back where they were.
+            notifyProfileUnavailable(userId);
+            navigate(-1);
+            return;
+          }
+          setError('Profile not found.');
         } else {
           setError(loadError instanceof Error ? loadError.message : 'Failed to load profile.');
         }
@@ -485,6 +505,8 @@ export default function ProfileView() {
               <ArrowLeft className="w-5 h-5" />
             </Button>
             <h1 className="text-xl">Profile</h1>
+          
+            <BugButtonSlot testId="profile-view-bug-button-slot" />
           </div>
         </header>
         <div className="mx-auto max-w-2xl px-4 py-8">
@@ -503,6 +525,8 @@ export default function ProfileView() {
               <ArrowLeft className="w-5 h-5" />
             </Button>
             <h1 className="text-xl">Profile</h1>
+          
+            <BugButtonSlot testId="profile-view-bug-button-slot" />
           </div>
         </header>
         <div className="mx-auto max-w-2xl px-4 py-8">
@@ -523,7 +547,7 @@ export default function ProfileView() {
       >
         {/* The page chrome rides on the photo instead of a bar above it, each
             control in its own circle so it stays legible over any picture. */}
-        <div className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-start justify-between p-3 pr-[calc(3.75rem+env(safe-area-inset-right))] lg:pr-[calc(4.25rem+env(safe-area-inset-right))]">
+        <div className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-start justify-between p-3 pr-3 lg:pr-[calc(4.25rem+env(safe-area-inset-right))]">
           <div className="pointer-events-auto flex min-w-0 items-center gap-2">
             <button
               aria-label="Back"
@@ -534,14 +558,21 @@ export default function ProfileView() {
             >
               <ArrowLeft className="h-5 w-5" />
             </button>
-            {!isOwnProfile ? (
-              <span className="max-w-[min(42vw,18rem)] truncate rounded-full border border-white/12 bg-black/55 px-3 py-2 text-lg font-semibold text-white backdrop-blur-sm">
-                {profileView.name}
-              </span>
-            ) : null}
+            {/* The name is already on the photo below; a second copy beside
+                the back button only repeated it. */}
           </div>
 
           <div className="pointer-events-auto flex items-center gap-2">
+            <Button
+              aria-label="Send profile in cruush"
+              className="h-10 w-10 rounded-full border border-white/12 bg-black/55 text-white backdrop-blur-sm"
+              onClick={() => setShareOpen(true)}
+              size="icon"
+              type="button"
+              variant="ghost"
+            >
+              <Share2 className="h-4 w-4" />
+            </Button>
             {isOwnProfile ? (
               <Button
                 className="h-10 rounded-full border border-white/12 bg-black/55 px-4 text-white backdrop-blur-sm"
@@ -574,6 +605,9 @@ export default function ProfileView() {
                 ) : null}
               </>
             )}
+            {/* The chrome rides on the photo, and the bug button rides with it
+                instead of floating in a corner the row had to leave empty. */}
+            <BugButtonSlot className="ml-0" testId="profile-view-bug-button-slot" />
           </div>
         </div>
 
@@ -747,6 +781,7 @@ export default function ProfileView() {
           </div>
         </div>
       ) : null}
+      <InAppShareDialog open={shareOpen} onOpenChange={setShareOpen} share={{ kind: 'profile', id: profileView.id, label: profileView.name }} />
 
       <div className="mx-auto max-w-2xl px-4 pb-5 pt-2 sm:px-6 sm:pb-6 sm:pt-2">
         <div className="space-y-3">
@@ -779,7 +814,6 @@ export default function ProfileView() {
           <ProfileDetailsTabs
             activeTab={activeTab}
             compact
-            hideTopOverlayDuplicates={isOwnProfile}
             onActiveTabChange={setActiveTab}
             profileView={profileView}
           />
@@ -794,31 +828,25 @@ export function ProfileDetailsTabs({
   onActiveTabChange,
   profileView,
   compact = false,
-  hideTopOverlayDuplicates = false,
 }: {
   activeTab: string;
   onActiveTabChange: (value: string) => void;
   profileView: ProfileViewModel;
   compact?: boolean;
-  hideTopOverlayDuplicates?: boolean;
 }) {
   const tabTriggerClassName = compact ? 'min-h-9' : 'min-h-11';
 
   return (
     <Tabs value={activeTab} onValueChange={onActiveTabChange} className="w-full">
-      <TabsList className={`grid h-auto w-full grid-cols-3 rounded-full border border-white/10 bg-background/25 p-1 ${compact ? 'text-xs' : ''}`}>
+      <TabsList className={`sticky top-0 z-20 grid h-auto w-full grid-cols-3 rounded-full border border-white/10 bg-background/92 p-1 backdrop-blur-md ${compact ? 'text-xs' : ''}`}>
         <TabsTrigger value="basics" className={tabTriggerClassName} onClick={() => onActiveTabChange('basics')}>Basics</TabsTrigger>
         <TabsTrigger value="intimacy" className={tabTriggerClassName} onClick={() => onActiveTabChange('intimacy')}>Intimacy</TabsTrigger>
         <TabsTrigger value="health" className={tabTriggerClassName} onClick={() => onActiveTabChange('health')}>Health</TabsTrigger>
       </TabsList>
 
+      {/* The signal and the vibe capsules both ride the photo above these tabs,
+          so repeating them here only pushed the rest of the profile down. */}
       <TabsContent value="basics" className={`${compact ? 'mt-4 space-y-4' : 'mt-5 space-y-5'}`}>
-        {compact && !hideTopOverlayDuplicates && profileView.signal ? (
-          <Section title="Signal" compact={compact}>
-            <p className="text-muted-foreground">{profileView.signal}</p>
-          </Section>
-        ) : null}
-
         {profileView.bio ? (
           <Section title="About" compact={compact}>
             <p className="text-muted-foreground">{profileView.bio}</p>
@@ -843,6 +871,10 @@ export function ProfileDetailsTabs({
           <BadgeList items={profileView.sexuality} compact={compact} />
         </Section>
 
+        <Section title="Zodiac" compact={compact}>
+          <BadgeList items={profileView.zodiac} compact={compact} />
+        </Section>
+
         {profileView.crowds.length > 0 ? (
           <Section title="Crowds" compact={compact}>
             <BadgeList items={profileView.crowds} compact={compact} />
@@ -858,19 +890,29 @@ export function ProfileDetailsTabs({
           </div>
         </Section>
 
-        {!hideTopOverlayDuplicates ? (
-          <Section title="Vibes" compact={compact}>
-            <BadgeList items={profileView.vibes} variant="gradient" compact={compact} />
-          </Section>
-        ) : null}
-
         <Section title="Hobbies" compact={compact}>
           <BadgeList items={profileView.hobbies} compact={compact} />
         </Section>
       </TabsContent>
 
       <TabsContent value="intimacy" className={`${compact ? 'mt-4 space-y-4' : 'mt-5 space-y-5'}`}>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 [&>*]:order-4">
+          {/* The editor has taken this under Intimacy for a while and the
+              profile never showed it back. */}
+          {profileView.relationshipStatus.length > 0 ? (
+            <Section title="Relationship status" compact={compact} className="!order-3">
+              <BadgeList items={profileView.relationshipStatus} compact={compact} />
+            </Section>
+          ) : null}
+
+          <Section title="Role" compact={compact} className="!order-1">
+            <BadgeList items={profileView.role} compact={compact} />
+          </Section>
+
+          <Section title="Position" compact={compact} className="!order-2">
+            <BadgeList items={profileView.position} compact={compact} />
+          </Section>
+
           <Section title="Looking For" compact={compact}>
             <BadgeList items={profileView.lookingFor} compact={compact} />
             {profileView.timing ? (
@@ -884,13 +926,10 @@ export function ProfileDetailsTabs({
             <BadgeList items={profileView.hosting} compact={compact} />
           </Section>
 
-          <Section title="Position" compact={compact}>
-            <BadgeList items={profileView.position} compact={compact} />
+          <Section title="Preferred spots" compact={compact}>
+            <BadgeList items={profileView.preferredSpots} compact={compact} />
           </Section>
 
-          <Section title="Role" compact={compact}>
-            <BadgeList items={profileView.role} compact={compact} />
-          </Section>
         </div>
 
         <Section title="Kinks & Fetishes" compact={compact}>
@@ -899,41 +938,33 @@ export function ProfileDetailsTabs({
       </TabsContent>
 
       <TabsContent value="health" className={`${compact ? 'mt-4 space-y-4' : 'mt-5 space-y-5'}`}>
-        <Section title="Protection" compact={compact}>
+        <Section title="Protections" compact={compact}>
+          <BadgeList items={profileView.protections} compact={compact} />
+        </Section>
+
+        <Section title="Protection boundaries" compact={compact}>
           <BadgeList items={profileView.protection} compact={compact} />
         </Section>
 
-        <Section title="Health" compact={compact}>
-          <div className="grid grid-cols-3 gap-3 text-sm">
-            <DetailItem label="HIV" value={profileView.hivStatus} compact={compact} emptyFallback="" />
-            <DetailItem label="COVID" value={profileView.covidStatus} compact={compact} emptyFallback="" />
-            <DetailItem label="Mpox" value={profileView.mpoxStatus} compact={compact} emptyFallback="" />
-          </div>
-          {profileView.healthPreferences.length > 0 ? (
-            <div className="mt-3">
-              <p className="mb-2 text-sm text-muted-foreground">Preferences</p>
-              <BadgeList items={profileView.healthPreferences} compact={compact} />
-            </div>
-          ) : null}
-        </Section>
+        <div className={`space-y-3 rounded-2xl border border-border bg-card/60 ${compact ? 'p-3' : 'p-4'}`}>
+          <h2 className={compact ? 'text-base' : 'text-lg'}>HIV Status</h2>
+          <BadgeList items={profileView.hivStatus ? [profileView.hivStatus] : []} compact={compact} />
+        </div>
 
-        <Section title="Birth control" compact={compact}>
-          <BadgeList items={profileView.birthControl} compact={compact} />
-        </Section>
-
-        <Section title="Lifestyle" compact={compact}>
-          <div className="grid gap-3 text-sm">
-            <DetailItem label="Substance Boundaries" value={profileView.substanceBoundaries} compact={compact} />
-          </div>
+        {/* Protection boundaries had its own card above and a second copy in
+            here reading the same field, so editing it looked like only one of
+            them moved. One field, one place. */}
+        <Section title="Substance boundaries" compact={compact}>
+          <BadgeList items={profileView.substanceBoundariesList} compact={compact} />
         </Section>
       </TabsContent>
     </Tabs>
   );
 }
 
-function Section({ title, children, compact = false }: { title: string; children: ReactNode; compact?: boolean }) {
+function Section({ title, children, compact = false, className = '' }: { title: string; children: ReactNode; compact?: boolean; className?: string }) {
   return (
-    <section className={`space-y-3 rounded-2xl border border-border bg-card/60 ${compact ? 'p-3' : 'p-4'}`}>
+    <section className={`space-y-3 rounded-2xl border border-border bg-card/60 ${compact ? 'p-3' : 'p-4'} ${className}`}>
       <h2 className={compact ? 'text-base' : 'text-lg'}>{title}</h2>
       {children}
     </section>

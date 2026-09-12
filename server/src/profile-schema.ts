@@ -1,5 +1,10 @@
 import { z } from "zod";
 import { multilineTextSchema, optionalSingleLineTextSchema, singleLineTextSchema } from "./input-schema.js";
+import {
+  findStructuredProfileFieldForTag,
+  normalizeStructuredProfileOption,
+  PROFILE_TAG_NOT_OFFERED
+} from "./profile-tag-reservations.js";
 
 // The map preview, the profile overlay, and the editor all hold to this.
 export const SIGNAL_MAX_LENGTH = 35;
@@ -107,7 +112,7 @@ const cappedArrayField = (max: number) =>
     });
 const upToThreeArrayField = cappedArrayField(3);
 const singleArrayField = cappedArrayField(1);
-const kinkArrayField = upToThreeArrayField;
+const kinkArrayField = cappedArrayField(200);
 
 const profileVisibilitySchema = z.enum(["public", "mutual_cruushes", "mutual_crowds"]);
 const healthPreferenceSchema = z.enum(["COVID tested", "Masks"]);
@@ -149,6 +154,20 @@ const relationshipStatusSchema = z.enum([
   "Prefer not to say"
 ]);
 
+/** One field replacing the separate condom, PrEP, DoxyPEP and vaccine answers. */
+const protectionSchema = z.enum([
+  "Condoms",
+  "Dental dams",
+  "Gloves",
+  "Masks",
+  "Birth control",
+  "PrEP",
+  "DoxyPEP",
+  "COVID vaccine",
+  "Mpox vaccine",
+  "Prefer not to say"
+]);
+
 const birthControlSchema = z.enum([
   "Arm implant",
   "Ask me",
@@ -182,6 +201,7 @@ export const profileVisibilityRulesSchema = z.object({
   search_query: optionalSingleLineTextSchema(120),
   active_crowd_modes: z.array(crowdSchema).max(3).optional().default([]),
   mile_high_club_members: z.boolean().optional().default(false),
+  members_without_photos: z.boolean().optional().default(false),
   age_range: z.tuple([
     z.number().int().min(18).max(99),
     z.number().int().min(18).max(99)
@@ -192,6 +212,7 @@ export const profileVisibilityRulesSchema = z.object({
   looking_for: visibilityArrayField,
   timing: visibilityArrayField,
   hosting: visibilityArrayField,
+  preferred_spots: visibilityArrayField,
   vibes: visibilityArrayField,
   crowds: z.array(crowdSchema).max(3).optional().default([]),
   hobbies: visibilityArrayField,
@@ -199,8 +220,13 @@ export const profileVisibilityRulesSchema = z.object({
   roles: visibilityArrayField,
   kinks: visibilityArrayField,
   body_types: visibilityArrayField,
+  body_hair: visibilityArrayField,
+  pubic_hair: visibilityArrayField,
+  facial_hair: visibilityArrayField,
   sexuality: visibilityArrayField,
-  substance_boundaries: visibilityArrayField
+  zodiac: visibilityArrayField,
+  substance_boundaries: visibilityArrayField,
+  protection_boundaries: visibilityArrayField
 }).strict().superRefine((rules, ctx) => {
   if (rules.age_range && rules.age_range[0] > rules.age_range[1]) {
     ctx.addIssue({
@@ -237,7 +263,28 @@ const profileTagsSchema = z.array(
   z.string().trim().regex(/^#?[a-zA-Z0-9_]{1,24}$/, "Tags can use letters, numbers, and underscores."),
 ).max(10).optional().default([]).transform((values) => (
   [...new Set(values.map((value) => value.replace(/^#/, "").toLowerCase()))]
-));
+)).superRefine((values, ctx) => {
+  values.forEach((value, index) => {
+    if (PROFILE_TAG_NOT_OFFERED.has(normalizeStructuredProfileOption(value))) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "cruush does not carry that tag.",
+        path: [index]
+      });
+      return;
+    }
+
+    const structuredField = findStructuredProfileFieldForTag(value);
+
+    if (structuredField) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `That tag is already a profile option. Add it under ${structuredField}.`,
+        path: [index]
+      });
+    }
+  });
+});
 
 export type SideBadges = z.infer<typeof sideBadgesSchema>;
 
@@ -245,6 +292,27 @@ export const emptySideBadges: SideBadges = {
   left: null,
   right: null
 };
+
+function withDefaultSideBadges<T extends {
+  role: string[];
+  position: string[];
+  side_badges: SideBadges;
+}>(payload: T): T {
+  const leftRole = payload.role[0]?.trim();
+  const rightPosition = payload.position[0]?.trim();
+
+  return {
+    ...payload,
+    side_badges: {
+      left: payload.side_badges.left ?? (leftRole
+        ? { badge_id: leftRole, intent: "none", frame: "circle" }
+        : null),
+      right: payload.side_badges.right ?? (rightPosition
+        ? { badge_id: rightPosition, intent: "none", frame: "circle" }
+        : null)
+    }
+  };
+}
 
 export const profilePayloadSchema = z.object({
   display_name: singleLineTextSchema({ min: 2, max: 80 }),
@@ -263,6 +331,9 @@ export const profilePayloadSchema = z.object({
   presentation: upToThreeArrayField,
   sexuality: upToThreeArrayField,
   body_type: upToThreeArrayField,
+  body_hair: singleArrayField,
+  pubic_hair: singleArrayField,
+  facial_hair: singleArrayField,
   height: shortStringField,
   weight: shortStringField,
   position: upToThreeArrayField,
@@ -273,8 +344,9 @@ export const profilePayloadSchema = z.object({
   crowds: z.array(crowdSchema).max(3).optional().default([]),
   availability: upToThreeArrayField,
   hosting_travel: upToThreeArrayField,
+  preferred_spots: upToThreeArrayField,
   kinks: kinkArrayField,
-  kink_interests: z.array(profileKinkInterestSchema).max(3).optional().default([]),
+  kink_interests: z.array(profileKinkInterestSchema).max(200).optional().default([]),
   kinks_visibility: profileVisibilitySchema.optional().default("public"),
   vibes: upToThreeArrayField,
   scenes: arrayField,
@@ -295,15 +367,18 @@ export const profilePayloadSchema = z.object({
   custom_covid_vaccine: shortStringField,
   mpox_vaccine: singleArrayField,
   custom_mpox_vaccine: shortStringField,
+  protections: z.array(protectionSchema).max(10).optional().default([]),
   health_preferences: z.array(healthPreferenceSchema).max(2).optional().default([]),
   birth_control: z.array(birthControlSchema).max(8).optional().default([]),
   relationship_status: z.array(relationshipStatusSchema).max(3).optional().default([]),
   zodiac: arrayField,
   substance_boundaries: arrayField,
+  protection_boundaries: singleArrayField,
   visibility_rules: profileVisibilityRulesSchema.optional().default({
     search_query: "",
     active_crowd_modes: [],
     mile_high_club_members: false,
+    members_without_photos: false,
     age_range: null,
     distance: null,
     identities: [],
@@ -311,6 +386,7 @@ export const profilePayloadSchema = z.object({
     looking_for: [],
     timing: [],
     hosting: [],
+    preferred_spots: [],
     vibes: [],
     crowds: [],
     hobbies: [],
@@ -318,8 +394,13 @@ export const profilePayloadSchema = z.object({
     roles: [],
     kinks: [],
     body_types: [],
+    body_hair: [],
+    pubic_hair: [],
+    facial_hair: [],
     sexuality: [],
-    substance_boundaries: []
+    zodiac: [],
+    substance_boundaries: [],
+    protection_boundaries: []
   })
 }).strict().superRefine((payload, ctx) => {
   if (payload.crowds.includes("T4T") && payload.is_trans !== true) {
@@ -348,7 +429,7 @@ export const profilePayloadSchema = z.object({
       break;
     }
   }
-});
+}).transform(withDefaultSideBadges);
 
 export type ProfilePayload = z.infer<typeof profilePayloadSchema>;
 
@@ -375,6 +456,9 @@ export const emptyProfile = {
   presentation: [],
   sexuality: [],
   body_type: [],
+  body_hair: [],
+  pubic_hair: [],
+  facial_hair: [],
   height: "",
   weight: "",
   position: [],
@@ -385,6 +469,7 @@ export const emptyProfile = {
   crowds: [],
   availability: [],
   hosting_travel: [],
+  preferred_spots: [],
   kinks: [],
   kink_interests: [],
   kinks_visibility: "public",
@@ -407,15 +492,18 @@ export const emptyProfile = {
   custom_covid_vaccine: "",
   mpox_vaccine: [],
   custom_mpox_vaccine: "",
+  protections: [],
   health_preferences: [],
   birth_control: [],
   relationship_status: [],
   zodiac: [],
   substance_boundaries: [],
+  protection_boundaries: [],
   visibility_rules: {
     search_query: "",
     active_crowd_modes: [],
     mile_high_club_members: false,
+    members_without_photos: false,
     age_range: null,
     distance: null,
     identities: [],
@@ -423,6 +511,7 @@ export const emptyProfile = {
     looking_for: [],
     timing: [],
     hosting: [],
+    preferred_spots: [],
     vibes: [],
     crowds: [],
     hobbies: [],
@@ -430,7 +519,12 @@ export const emptyProfile = {
     roles: [],
     kinks: [],
     body_types: [],
+    body_hair: [],
+    pubic_hair: [],
+    facial_hair: [],
     sexuality: [],
-    substance_boundaries: []
+    zodiac: [],
+    substance_boundaries: [],
+    protection_boundaries: []
   }
 } satisfies ProfilePayload;

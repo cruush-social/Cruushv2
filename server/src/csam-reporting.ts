@@ -11,7 +11,9 @@ import {
   type SevereAccessBanIdentity
 } from "./severe-access-bans.js";
 
-const PHOTO_REJECTED_MESSAGE = "This photo violates cruush safety rules and cannot be saved.";
+// Deliberately does not say what matched. It does give a way to appeal, which
+// a member with a false positive otherwise had no route to.
+const PHOTO_REJECTED_MESSAGE = "This photo was not saved because an automated safety check rejected it. Write to reports@cruush.app if you think this is wrong.";
 const PHOTODNA_UNAVAILABLE_MESSAGE = "Automated photo safety checks are temporarily unavailable. Try again later.";
 
 export type PhotoDnaUploadInput = {

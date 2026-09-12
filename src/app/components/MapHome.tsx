@@ -3,7 +3,7 @@
 import type { FormEvent, MouseEvent, PointerEvent, WheelEvent } from 'react';
 import { lazy, Suspense, useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router';
-import { ChevronDown, ExternalLink, Flame, Mail, MapPin, MessageCircle, X, ZoomIn, ZoomOut } from 'lucide-react';
+import { ChevronDown, ExternalLink, Mail, MapPin, MessageCircle, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { useIsMobile } from './ui/use-mobile';
@@ -23,6 +23,7 @@ import LoadingCardSkeletons from './LoadingCardSkeletons';
 import MapControlsTutorial, {
   getStoredMapControlsTutorialStep,
   MAP_CONTROLS_TUTORIAL_LEGACY_STORAGE_KEYS,
+  MAP_CONTROLS_TUTORIAL_STEP_EVENT,
   MAP_CONTROLS_TUTORIAL_STORAGE_KEY,
   notifyMapControlsTutorialCompleted,
   type MapControlsTutorialStepId,
@@ -60,11 +61,12 @@ import {
   type MapPingRadiusMiles,
   type MapPingStatus,
 } from '../lib/mapPingsApi';
+import { recordTutorialCompletion } from '../lib/rewardsApi';
 import {
   emptyProfilePayload,
   addProfileChangedListener,
   getMyProfile,
-  saveMyProfile,
+  saveMySignal,
   saveMyVisibilityRules,
   type ProfileRecord,
   type ProfileVisibilityRules,
@@ -77,6 +79,8 @@ import {
 import { decryptDisplayLocationToken } from '../lib/displayLocationTokens';
 import { canUseDeveloperMapToolsEmail } from '../lib/developerMapTools';
 import { registerBugButtonSlot } from '../lib/bugButtonSlot';
+import { addProfileUnavailableListener } from '../lib/profileUnavailable';
+import { holdRunningPulse } from '../lib/pulseHold';
 import {
   createMapMarkerBadge,
   createMapMarkerRoleBadge,
@@ -101,11 +105,27 @@ import seekingIcon from '../assets/ui-icons/seeking-magnifying-glass-8149381.svg
 import visibilityIcon from '../assets/ui-icons/visibility-hidden-234738.svg';
 import crowdIconColored from '../assets/ui-icons/crowds-colored.svg';
 import DlModeMark from './DlModeMark';
+import DlModePhotoPlaceholder from './DlModePhotoPlaceholder';
 
 const DISCOVERY_MAP_LIMIT = 500;
 const DISCOVERY_BROWSE_RADIUS_MILES = 50;
-const MAP_PRIVACY_REFRESH_INTERVAL_MS = 10_000;
+// Ghost Mode rotates at fifteen minutes at its fastest and the owner's own
+// decoy has a timer scheduled against its exact deadline, so polling the whole
+// discovery list every ten seconds was ninety times more often than anything it
+// could catch. A minute keeps other people's pins fresh without the traffic,
+// and coming back to the foreground still refreshes immediately.
+const MAP_PRIVACY_REFRESH_INTERVAL_MS = 60_000;
+// Keep automatic map refreshes below the shared 30-per-minute discovery limit.
+const MAP_BACKGROUND_REFRESH_MIN_INTERVAL_MS = 2_500;
 const CROWD_NOTICE_ORDER = ['Dyke', 'Gay', 'T4T'];
+
+type MapDiscoveryRequest = {
+  coordinates: { lat: number; lng: number } | null;
+  filters?: FilterState;
+  background: boolean;
+  mutual: boolean;
+  key: string;
+};
 
 type SettledMapViewport = {
   center: { latitude: number; longitude: number };
@@ -195,20 +215,28 @@ export function isCoordinateInViewport(
   return latitude >= viewport.south && latitude <= viewport.north && longitudeInBounds;
 }
 
-const SPOT_MAP_PAGE_SIZE = 500;
+// The API caps a page at 100, so asking for more only paged the whole radius
+// one hundred rows at a time. Against the imported public Spot set that meant
+// over a hundred sequential requests and ten thousand markers for one view.
+const SPOT_MAP_PAGE_SIZE = 100;
+// The map shows the nearest Spots to the current view and re-queries as the
+// view moves, so zooming in reveals the rest instead of drawing every Spot in
+// the radius at once.
+export const SPOT_MAP_VIEW_LIMIT = 300;
 
 export async function getAllPlacesForMap(options: Parameters<typeof getPlaces>[0]) {
   const collected: PlaceRecord[] = [];
   const knownIds = new Set<string>();
   let offset = 0;
 
-  while (true) {
+  while (collected.length < SPOT_MAP_VIEW_LIMIT) {
     const page = await getPlaces({
       ...options,
-      limit: SPOT_MAP_PAGE_SIZE,
+      limit: Math.min(SPOT_MAP_PAGE_SIZE, SPOT_MAP_VIEW_LIMIT - collected.length),
       offset,
     });
 
+    const sizeBeforePage = collected.length;
     page.forEach((place) => {
       if (!knownIds.has(place.id)) {
         collected.push(place);
@@ -216,12 +244,17 @@ export async function getAllPlacesForMap(options: Parameters<typeof getPlaces>[0
       }
     });
 
-    if (page.length < SPOT_MAP_PAGE_SIZE) {
+    // A short page means the radius is exhausted. A full page that adds nothing
+    // new means the server is repeating itself, and paging on would spin
+    // forever, so stop on either.
+    if (page.length < SPOT_MAP_PAGE_SIZE || collected.length === sizeBeforePage) {
       return collected;
     }
 
     offset += SPOT_MAP_PAGE_SIZE;
   }
+
+  return collected;
 }
 const CROWD_NOTICE_LABELS: Record<string, string> = {
   Dyke: 'Dyke',
@@ -243,6 +276,14 @@ const MapView = lazy(() => import('./MapView'));
 export { canUseDeveloperMapToolsEmail };
 
 function getLastActiveMinutes(lastActive: string) {
+  const normalized = lastActive.trim().toLowerCase();
+
+  // "Now" and "Online" carry no digits, so parsing them as a number sorted the
+  // people who are here right now to the very end of Recently Active.
+  if (normalized === 'now' || normalized === 'online' || normalized === 'just now') {
+    return 0;
+  }
+
   const value = parseInt(lastActive, 10);
 
   if (Number.isNaN(value)) {
@@ -318,10 +359,18 @@ function useMobileVisualViewportBounds(enabled: boolean) {
     updateBounds();
     viewport.addEventListener('resize', updateBounds);
     viewport.addEventListener('scroll', updateBounds);
+    // The shell is pinned to these numbers, so a size change the visual
+    // viewport does not report leaves it the wrong size: the top bar icons
+    // spill outside their capsule and the bottom bar sits below the screen.
+    // A rotation or a plain window resize has to update them too.
+    window.addEventListener('resize', updateBounds);
+    window.addEventListener('orientationchange', updateBounds);
 
     return () => {
       viewport.removeEventListener('resize', updateBounds);
       viewport.removeEventListener('scroll', updateBounds);
+      window.removeEventListener('resize', updateBounds);
+      window.removeEventListener('orientationchange', updateBounds);
     };
   }, [enabled]);
 
@@ -330,6 +379,7 @@ function useMobileVisualViewportBounds(enabled: boolean) {
 
 function hasActiveSeekingFilters(filters: FilterState) {
   return filters.searchQuery.trim().length > 0 ||
+    filters.hasPhoto ||
     filters.mileHighClub ||
     filters.ageRange[0] !== DEFAULT_FILTER_STATE.ageRange[0] ||
     filters.ageRange[1] !== DEFAULT_FILTER_STATE.ageRange[1] ||
@@ -340,6 +390,7 @@ function hasActiveSeekingFilters(filters: FilterState) {
       filters.lookingFor,
       filters.timing,
       filters.hosting,
+      filters.preferredSpots,
       filters.vibes,
       filters.crowds,
       filters.hobbies,
@@ -348,7 +399,9 @@ function hasActiveSeekingFilters(filters: FilterState) {
       filters.kinks,
       filters.bodyTypes,
       filters.sexuality,
+      filters.zodiac,
       filters.substanceBoundaries,
+      filters.protectionBoundaries,
     ].some((items) => items.length > 0);
 }
 
@@ -361,11 +414,13 @@ function normalizeVisibilityRules(rules?: ProfileVisibilityRules): ProfileVisibi
     search_query: rules?.search_query ?? defaults.search_query,
     active_crowd_modes: normalizeCrowdValues(rules?.active_crowd_modes ?? defaults.active_crowd_modes),
     mile_high_club_members: rules?.mile_high_club_members === true,
+    members_without_photos: rules?.members_without_photos === true,
     identities: uniqueValues(rules?.identities ?? defaults.identities),
     presentations: uniqueValues(rules?.presentations ?? defaults.presentations),
     looking_for: uniqueValues(rules?.looking_for ?? defaults.looking_for),
     timing: uniqueValues(rules?.timing ?? defaults.timing),
     hosting: uniqueValues(rules?.hosting ?? defaults.hosting),
+    preferred_spots: uniqueValues(rules?.preferred_spots ?? defaults.preferred_spots),
     vibes: uniqueValues(rules?.vibes ?? defaults.vibes),
     crowds: normalizeCrowdValues(rules?.crowds ?? defaults.crowds),
     hobbies: uniqueValues(rules?.hobbies ?? defaults.hobbies),
@@ -374,7 +429,9 @@ function normalizeVisibilityRules(rules?: ProfileVisibilityRules): ProfileVisibi
     kinks: uniqueValues(rules?.kinks ?? defaults.kinks),
     body_types: uniqueValues(rules?.body_types ?? defaults.body_types),
     sexuality: uniqueValues(rules?.sexuality ?? defaults.sexuality),
+    zodiac: uniqueValues(rules?.zodiac ?? defaults.zodiac),
     substance_boundaries: uniqueValues(rules?.substance_boundaries ?? defaults.substance_boundaries),
+    protection_boundaries: uniqueValues(rules?.protection_boundaries ?? defaults.protection_boundaries),
     age_range: rules?.age_range ?? null,
     distance: rules?.distance ?? null,
   };
@@ -388,6 +445,7 @@ function visibilityRulesToState(rules?: ProfileVisibilityRules): VisibilityContr
     searchQuery: normalizedRules.search_query,
     activeCrowdModes: normalizedRules.active_crowd_modes,
     mileHighClub: normalizedRules.mile_high_club_members,
+    hasPhoto: normalizedRules.members_without_photos,
     ageRange: normalizedRules.age_range ?? DEFAULT_FILTER_STATE.ageRange,
     distance: normalizedRules.distance ?? DEFAULT_FILTER_STATE.distance,
     restrictAge: Boolean(normalizedRules.age_range),
@@ -397,6 +455,7 @@ function visibilityRulesToState(rules?: ProfileVisibilityRules): VisibilityContr
     lookingFor: normalizedRules.looking_for,
     timing: normalizedRules.timing,
     hosting: normalizedRules.hosting,
+    preferredSpots: normalizedRules.preferred_spots,
     vibes: normalizedRules.vibes,
     crowds: normalizedRules.crowds,
     hobbies: normalizedRules.hobbies,
@@ -405,7 +464,9 @@ function visibilityRulesToState(rules?: ProfileVisibilityRules): VisibilityContr
     kinks: normalizedRules.kinks,
     bodyTypes: normalizedRules.body_types,
     sexuality: normalizedRules.sexuality,
+    zodiac: normalizedRules.zodiac,
     substanceBoundaries: normalizedRules.substance_boundaries,
+    protectionBoundaries: normalizedRules.protection_boundaries,
   };
 }
 
@@ -414,6 +475,7 @@ function visibilityStateToRules(state: VisibilityControlState): ProfileVisibilit
     search_query: state.searchQuery.trim(),
     active_crowd_modes: normalizeCrowdValues(state.activeCrowdModes),
     mile_high_club_members: state.mileHighClub,
+    members_without_photos: state.hasPhoto,
     age_range: state.restrictAge ? state.ageRange : null,
     distance: state.restrictDistance ? state.distance : null,
     identities: uniqueValues(state.identities),
@@ -421,6 +483,7 @@ function visibilityStateToRules(state: VisibilityControlState): ProfileVisibilit
     looking_for: uniqueValues(state.lookingFor),
     timing: uniqueValues(state.timing),
     hosting: uniqueValues(state.hosting),
+    preferred_spots: uniqueValues(state.preferredSpots),
     vibes: uniqueValues(state.vibes),
     crowds: normalizeCrowdValues(state.crowds),
     hobbies: uniqueValues(state.hobbies),
@@ -429,7 +492,9 @@ function visibilityStateToRules(state: VisibilityControlState): ProfileVisibilit
     kinks: uniqueValues(state.kinks),
     body_types: uniqueValues(state.bodyTypes),
     sexuality: uniqueValues(state.sexuality),
+    zodiac: uniqueValues(state.zodiac),
     substance_boundaries: uniqueValues(state.substanceBoundaries),
+    protection_boundaries: uniqueValues(state.protectionBoundaries),
   };
 }
 
@@ -553,6 +618,7 @@ function hasActiveVisibilityControls(visibility: VisibilityControlState) {
       visibility.lookingFor,
       visibility.timing,
       visibility.hosting,
+      visibility.preferredSpots,
       visibility.vibes,
       visibility.crowds,
       visibility.hobbies,
@@ -561,7 +627,9 @@ function hasActiveVisibilityControls(visibility: VisibilityControlState) {
       visibility.kinks,
       visibility.bodyTypes,
       visibility.sexuality,
+      visibility.zodiac,
       visibility.substanceBoundaries,
+      visibility.protectionBoundaries,
     ].some((items) => items.length > 0);
 }
 
@@ -778,6 +846,7 @@ function RecentlyActivePhoto({
   user: DiscoveryUser;
 }) {
   const [photoFailed, setPhotoFailed] = useState(false);
+  const photoMasked = Boolean(user.photo && shouldMaskPhoto(dlModeActive, user.photoExplicit));
   const photoVisible = Boolean(
     user.photo
     && !photoFailed
@@ -808,7 +877,7 @@ function RecentlyActivePhoto({
       data-testid={`recently-active-fallback-${user.id}`}
       style={{ background: getProfileGradientCss(user.id) }}
     >
-      <CruushIconImage src={cruushIconWhite} className="h-10 w-10 opacity-75" />
+      {photoMasked ? <DlModePhotoPlaceholder className="w-14" /> : <CruushIconImage src={cruushIconWhite} className="h-10 w-10 opacity-75" />}
     </div>
   );
 }
@@ -838,6 +907,23 @@ export default function MapHome(_props: MapHomeProps = {}) {
   const [mapInstance, setMapInstance] = useState<CruushMapInstance | null>(null);
   const [mapViewport, setMapViewport] = useState<SettledMapViewport | null>(null);
   const [mapControlsOpen, setMapControlsOpen] = useState(false);
+
+  // Resume the menu state too: a return from another route can emit the step
+  // event before this map mounts and installs its listener.
+  useEffect(() => {
+    const openTutorialMenu = (step: MapControlsTutorialStepId | null) => {
+      if (step === 'map-controls' || step === 'seeking' || step === 'visibility' || step === 'places' || step === 'crowds' || step === 'ping' || step === 'zoom') {
+        setMapControlsOpen(true);
+      }
+    };
+    const followTutorialStep = (event: Event) => {
+      openTutorialMenu((event as CustomEvent<MapControlsTutorialStepId>).detail);
+    };
+
+    openTutorialMenu(getStoredMapControlsTutorialStep());
+    window.addEventListener(MAP_CONTROLS_TUTORIAL_STEP_EVENT, followTutorialStep);
+    return () => window.removeEventListener(MAP_CONTROLS_TUTORIAL_STEP_EVENT, followTutorialStep);
+  }, []);
   const [placesOpen, setPlacesOpen] = useState(false);
   const [spotFiltersActive, setSpotFiltersActive] = useState(false);
   const [spotMapFilters, setSpotMapFilters] = useState<{
@@ -849,9 +935,19 @@ export default function MapHome(_props: MapHomeProps = {}) {
     radiusMiles: number;
   }>({ query: '', facilityTypes: [], tags: [], vibes: [], amenities: [], radiusMiles: 100 });
   const [places, setPlaces] = useState<PlaceRecord[]>([]);
+  // Hiding Spots is a view preference, so it survives a reload.
+  const [spotsVisible, setSpotsVisible] = useState(() => {
+    try {
+      return window.localStorage.getItem('cruush:map-spots-hidden') !== 'true';
+    } catch {
+      return true;
+    }
+  });
   const [selectedPlace, setSelectedPlace] = useState<PlaceRecord | null>(null);
+  // Keeps the map where the Spot left it after the Spot sheet closes, instead
+  // of snapping back to the viewer's own location.
+  const [placeReturnFocus, setPlaceReturnFocus] = useState<{ approximateLatitude: number; approximateLongitude: number } | null>(null);
   const [spotBoardPlaceId, setSpotBoardPlaceId] = useState<string | null>(null);
-  const [peopleHeatmapEnabled, setPeopleHeatmapEnabled] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<DiscoveryUser | null>(null);
   const [luckySlot, setLuckySlot] = useState<LuckySlotState | null>(null);
@@ -914,6 +1010,31 @@ export default function MapHome(_props: MapHomeProps = {}) {
   }, []);
   useEffect(() => addDesktopPageLayoutChangedListener(setDesktopPageLayout), []);
   const hasFetchedInitialUsersRef = useRef(false);
+  // Waiting for a rate-limit window must not retain expired location tokens,
+  // including those used by a focused profile or its Ghost rotation timer.
+  useEffect(() => {
+    setUsers((currentUsers) => currentUsers.some((user) =>
+      user.displayExpiresAtMs != null && user.displayExpiresAtMs <= mapPingClock)
+      ? currentUsers.filter((user) => user.displayExpiresAtMs == null || user.displayExpiresAtMs > mapPingClock)
+      : currentUsers);
+  }, [mapPingClock]);
+  const discoveryRefreshRef = useRef<{
+    inFlight: MapDiscoveryRequest | null;
+    pending: MapDiscoveryRequest | null;
+    timer: number | null;
+    lastStartedAtMs: number;
+    retryAtMs: number;
+    disposed: boolean;
+  }>({ inFlight: null, pending: null, timer: null, lastStartedAtMs: 0, retryAtMs: 0, disposed: false });
+  useEffect(() => {
+    const refresh = discoveryRefreshRef.current;
+    refresh.disposed = false;
+    return () => {
+      refresh.disposed = true;
+      refresh.pending = null;
+      if (refresh.timer !== null) window.clearTimeout(refresh.timer);
+    };
+  }, []);
   const hasRequestedInitialLocationRef = useRef(false);
   const lastOwnProfilePanelRequestKeyRef = useRef<string | null>(null);
   const lastEventCenterRequestKeyRef = useRef<string | null>(null);
@@ -1041,7 +1162,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
     try {
       const nextStatus = await getMapPingStatus();
       if (mapPingStatusRequestIdRef.current === requestId) {
-        setMapPingStatus(nextStatus);
+        setMapPingStatus((currentStatus) => holdRunningPulse(currentStatus, nextStatus));
       }
     } finally {
       if (mapPingStatusRequestIdRef.current === requestId) {
@@ -1050,10 +1171,13 @@ export default function MapHome(_props: MapHomeProps = {}) {
     }
   }, []);
 
-  const dismissMapControlsIntro = () => {
+  const dismissMapControlsIntro = (completed: boolean) => {
     setMapControlsIntroOpen(false);
     markNoticeDismissed(MAP_CONTROLS_INTRO_STORAGE_KEY, { offline: mapControlsNoticeOffline });
     notifyMapControlsTutorialCompleted();
+    if (completed) {
+      void recordTutorialCompletion().catch(() => undefined);
+    }
 
     if (shouldReplayTutorial) {
       navigate('/map', { replace: true });
@@ -1098,6 +1222,16 @@ export default function MapHome(_props: MapHomeProps = {}) {
       return;
     }
 
+    if (step === 'cruush-plus') {
+      navigate('/rewards');
+      return;
+    }
+
+    if (step === 'mile-high-club') {
+      navigate('/settings/travel');
+      return;
+    }
+
     if (step === 'dl-mode') {
       handleToggleDlMode();
       return;
@@ -1119,8 +1253,22 @@ export default function MapHome(_props: MapHomeProps = {}) {
   };
 
   const followMapTutorialStep = (step: MapControlsTutorialStepId) => {
+    if (step === 'seeking' || step === 'visibility' || step === 'places' || step === 'ping' || step === 'zoom') {
+      setMapControlsOpen(true);
+    }
+
     if (step === 'ghost') {
       navigate('/privacy/ghost-mode');
+      return;
+    }
+
+    if (step === 'cruush-plus') {
+      navigate('/rewards');
+      return;
+    }
+
+    if (step === 'mile-high-club') {
+      navigate('/settings/travel');
       return;
     }
 
@@ -1208,6 +1356,17 @@ export default function MapHome(_props: MapHomeProps = {}) {
     };
 
     void refresh();
+    // Coming back from the background must not leave the Pulse looking dead
+    // for up to a refresh interval, so resuming refreshes immediately rather
+    // than waiting for the next tick.
+    const refreshOnResume = () => {
+      if (document.visibilityState === 'visible') {
+        void refresh();
+      }
+    };
+
+    window.addEventListener('focus', refreshOnResume);
+    document.addEventListener('visibilitychange', refreshOnResume);
     const refreshIntervalId = window.setInterval(() => {
       if (document.visibilityState === 'visible') {
         void refresh();
@@ -1217,6 +1376,8 @@ export default function MapHome(_props: MapHomeProps = {}) {
 
     return () => {
       isMounted = false;
+      window.removeEventListener('focus', refreshOnResume);
+      document.removeEventListener('visibilitychange', refreshOnResume);
       window.clearInterval(refreshIntervalId);
       window.clearInterval(clockIntervalId);
     };
@@ -1331,6 +1492,10 @@ export default function MapHome(_props: MapHomeProps = {}) {
     setUsers((currentUsers) => currentUsers.filter((user) => user.id !== blockedUserId));
     setSelectedUser((currentUser) => currentUser?.id === blockedUserId ? null : currentUser);
   };
+
+  // A profile the server refused leaves the map the same way a blocked one
+  // does, so there is never a tile or a pin that opens an empty card.
+  useEffect(() => addProfileUnavailableListener(handleBlockedUser), []);
 
   useEffect(() => {
     if (usesFullPageProfile && selectedUser) {
@@ -1456,11 +1621,20 @@ export default function MapHome(_props: MapHomeProps = {}) {
           setOwnerGhostMapLocation(loadedPrivacySettings.ghostModeEnabled ? ghostLocation : null);
           // A stale/missing deadline must not end the refresh loop permanently.
           // The next location still comes from the server, never a local offset.
+          //
+          // The loop reschedules whatever the read said. Rescheduling only
+          // while ghost read as enabled meant one stale or failed read ended
+          // rotation for the rest of the session, so a mode that is on until
+          // it is turned off stopped behaving like one. Ghost Mode and Dark
+          // Room live on the server and outlast leaving the app; the client
+          // must keep asking.
           if (loadedPrivacySettings.ghostModeEnabled) {
             nextRefreshAtMs = loadedPrivacySettings.ghostRotationExpiresAtMs ?? Date.now();
             scheduleRefresh(nextRefreshAtMs > Date.now()
               ? nextRefreshAtMs - Date.now() + 250
               : MAP_PRIVACY_REFRESH_INTERVAL_MS);
+          } else {
+            scheduleRefresh(MAP_PRIVACY_REFRESH_INTERVAL_MS);
           }
         }
       } catch (ghostDisplayError) {
@@ -1505,30 +1679,60 @@ export default function MapHome(_props: MapHomeProps = {}) {
     limit: DISCOVERY_MAP_LIMIT,
   });
 
-  const fetchUsers = async (
-    coordinates: { lat: number; lng: number } | null,
-    filterParams?: FilterState,
-    options: { background?: boolean } = {},
-  ) => {
-    if (!options.background) {
+  const flushDiscoveryRefresh = async () => {
+    const refresh = discoveryRefreshRef.current;
+    const request = refresh.pending;
+    if (refresh.disposed || refresh.inFlight || !request) return;
+
+    if (refresh.timer !== null) {
+      window.clearTimeout(refresh.timer);
+      refresh.timer = null;
+    }
+    const nextStartAtMs = Math.max(
+      refresh.retryAtMs,
+      request.background ? refresh.lastStartedAtMs + MAP_BACKGROUND_REFRESH_MIN_INTERVAL_MS : 0,
+    );
+    if (nextStartAtMs > Date.now()) {
+      refresh.timer = window.setTimeout(() => void flushDiscoveryRefresh(), nextStartAtMs - Date.now());
+      return;
+    }
+
+    refresh.pending = null;
+    refresh.inFlight = request;
+    refresh.lastStartedAtMs = Date.now();
+    const isCurrentRequest = () => !refresh.disposed
+      && (!refresh.pending || refresh.pending.key === request.key);
+    if (!request.background) {
       setLoading(true);
       setError(null);
     }
     try {
-      if (isMutualMapMode) {
-        const mutualMapItems = await getMutualCruushMap(filterParams);
+      if (request.mutual) {
+        const mutualMapItems = await getMutualCruushMap(request.filters);
+        if (!isCurrentRequest()) return;
         setOutsideServiceArea(false);
         setUsers(mutualMapItems
           .filter((item) => item.coordinates)
           .map(mutualMapItemToDiscoveryUser));
       } else {
-        const nearbyUsers = filterParams
-          ? await getNearbyUsers(coordinates, filterParams, discoveryRequestOptions())
-          : await getNearbyUsers(coordinates, undefined, discoveryRequestOptions());
+        const nearbyUsers = await getNearbyUsers(request.coordinates, request.filters, discoveryRequestOptions());
+        if (!isCurrentRequest()) return;
         setOutsideServiceArea(false);
         setUsers(nearbyUsers);
       }
+      setError(null);
     } catch (fetchError) {
+      if (refresh.disposed) return;
+      if (fetchError instanceof ApiClientError && fetchError.status === 429) {
+        const details = fetchError.details as { retryAfterSeconds?: unknown } | null;
+        const retryAfterSeconds = Number(details?.retryAfterSeconds);
+        refresh.retryAtMs = Date.now() + (
+          Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0 ? retryAfterSeconds : 60
+        ) * 1000;
+        // Retry the newest requested view once the server's window reopens.
+        refresh.pending ??= { ...request, background: true };
+      }
+      if (!isCurrentRequest()) return;
       if (fetchError instanceof OutsideServiceAreaError) {
         setOutsideServiceArea(true);
         setUsers([]);
@@ -1545,20 +1749,44 @@ export default function MapHome(_props: MapHomeProps = {}) {
       }
 
       console.error('Error fetching users:', fetchError);
-      if (options.background) {
+      if (request.background) {
         // Never keep rendering an expired location token when a privacy refresh
         // cannot reach the server. A foreground retry can restore valid pins.
         setUsers((currentUsers) => currentUsers.filter((user) =>
           user.displayExpiresAtMs == null || user.displayExpiresAtMs > Date.now()));
       } else {
         setUsers([]);
-        setError(fetchError instanceof Error ? fetchError.message : isMutualMapMode ? 'Failed to load mutuals.' : 'Failed to load nearby people.');
+        setError(fetchError instanceof Error ? fetchError.message : request.mutual ? 'Failed to load mutuals.' : 'Failed to load nearby people.');
       }
     } finally {
-      if (!options.background) {
+      refresh.inFlight = null;
+      if (!refresh.disposed && !request.background) {
         setLoading(false);
       }
+      if (refresh.pending && !refresh.disposed) void flushDiscoveryRefresh();
     }
+  };
+
+  const fetchUsers = async (
+    coordinates: { lat: number; lng: number } | null,
+    filterParams?: FilterState,
+    options: { background?: boolean } = {},
+  ) => {
+    const refresh = discoveryRefreshRef.current;
+    const key = JSON.stringify([isMutualMapMode, coordinates, filterParams ?? null]);
+    if (options.background && refresh.inFlight?.key === key) {
+      if (refresh.pending?.background) refresh.pending = null;
+      return;
+    }
+    // Coalesce map, focus and filter events into the latest requested view.
+    refresh.pending = {
+      coordinates,
+      filters: filterParams,
+      mutual: isMutualMapMode,
+      background: Boolean(options.background) && refresh.pending?.background !== false,
+      key,
+    };
+    await flushDiscoveryRefresh();
   };
 
   useEffect(() => {
@@ -1566,16 +1794,25 @@ export default function MapHome(_props: MapHomeProps = {}) {
       return undefined;
     }
 
+    // A quarter second fires mid-gesture, so a single pan across the city sent
+    // several full discovery queries. Waiting for the map to settle sends one.
     const refreshTimeoutId = window.setTimeout(() => {
       void fetchUsers(
         { lat: mapViewport.center.latitude, lng: mapViewport.center.longitude },
         hasActiveSeekingFilters(filters) ? filters : undefined,
         { background: true },
       );
-    }, 250);
+    }, 600);
 
     return () => window.clearTimeout(refreshTimeoutId);
   }, [filters, isMutualMapMode, mapViewport?.signature]);
+
+  const nextGhostRotationAtMs = useMemo(() => users.reduce<number | null>((next, user) => {
+    const deadline = user.ghostRotationExpiresAtMs;
+    return user.displayMode === 'GHOST' && typeof deadline === 'number' && Number.isFinite(deadline)
+      ? Math.min(next ?? deadline, deadline)
+      : next;
+  }, null), [users]);
 
   useEffect(() => {
     let refreshInFlight = false;
@@ -1605,16 +1842,21 @@ export default function MapHome(_props: MapHomeProps = {}) {
       () => void refreshPrivacySensitivePins(),
       MAP_PRIVACY_REFRESH_INTERVAL_MS,
     );
+    const rotationTimeoutId = nextGhostRotationAtMs == null ? null : window.setTimeout(
+      () => void refreshPrivacySensitivePins(),
+      Math.max(0, nextGhostRotationAtMs - Date.now()) + 250,
+    );
 
     window.addEventListener('focus', refreshWhenVisible);
     document.addEventListener('visibilitychange', refreshWhenVisible);
 
     return () => {
       window.clearInterval(intervalId);
+      if (rotationTimeoutId != null) window.clearTimeout(rotationTimeoutId);
       window.removeEventListener('focus', refreshWhenVisible);
       document.removeEventListener('visibilitychange', refreshWhenVisible);
     };
-  }, [filters, isMutualMapMode, mapViewport?.signature, userApproximateLocation]);
+  }, [filters, isMutualMapMode, mapViewport?.signature, userApproximateLocation, nextGhostRotationAtMs]);
 
   useEffect(() => {
     return addCruushChangedListener((payload) => {
@@ -1668,7 +1910,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
         browserCoordinates.longitude,
         browserCoordinates.latitude,
       ]);
-      mapInstance?.setZoom(14);
+      mapInstance?.setZoom(16);
     }
     void fetchUsers(fetchCoordinates, hasActiveSeekingFilters(filters) ? filters : undefined);
 
@@ -1925,13 +2167,15 @@ export default function MapHome(_props: MapHomeProps = {}) {
 
     return [focusedUser, ...filteredUsers];
   }, [filteredUsers, focusUserId, users]);
-  const displayedUsersInViewport = useMemo(
-    () => displayedUsers.filter((user) => isCoordinateInViewport(user.lat, user.lng, mapViewport)),
-    [displayedUsers, mapViewport?.signature],
-  );
-  const recentlyActiveUsers = useMemo(() => [...displayedUsersInViewport]
+  // Recently Active follows the Seeking Filter radius rather than whatever the
+  // camera happens to frame, so panning the map does not change who it lists.
+  const recentlyActiveUsers = useMemo(() => [...displayedUsers]
+    .filter((user) => {
+      const distanceMiles = Number.parseFloat(user.distance);
+      return !Number.isFinite(distanceMiles) || distanceMiles <= filters.distance;
+    })
     .sort((a, b) => getLastActiveMinutes(a.lastActive) - getLastActiveMinutes(b.lastActive))
-    .slice(0, 10), [displayedUsersInViewport]);
+    .slice(0, 10), [displayedUsers, filters.distance]);
   const recentlyActiveScrollable = recentlyActiveUsers.length > 5;
   const recentlyActiveVisibleCount = Math.min(recentlyActiveUsers.length, 5);
   const recentlyActiveTrayWidth = isMobile
@@ -2044,7 +2288,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
       radiusMiles: Math.min(mapViewport?.radiusMiles ?? spotMapFilters.radiusMiles, spotMapFilters.radiusMiles),
     }).then((nextPlaces) => {
       if (!cancelled) {
-        setPlaces(nextPlaces.filter((place) => isCoordinateInViewport(place.latitude, place.longitude, mapViewport)));
+        setPlaces(nextPlaces);
       }
     }).catch((placesError: unknown) => {
       console.warn('Error loading default Spots layer:', placesError);
@@ -2218,13 +2462,14 @@ export default function MapHome(_props: MapHomeProps = {}) {
   };
 
   const handleCenterMyLocation = () => {
+    setPlaceReturnFocus(null);
     if (travelMapLocation && mapInstance) {
       setBrowserFocusCoordinates(null);
       mapInstance.setCenter([
         travelMapLocation.approximateLongitude,
         travelMapLocation.approximateLatitude,
       ]);
-      mapInstance.setZoom(14);
+      mapInstance.setZoom(16);
       return;
     }
 
@@ -2375,14 +2620,19 @@ export default function MapHome(_props: MapHomeProps = {}) {
     }
   };
 
+  const fitToMapMarkers = !restoredMapViewport && !currentUserMapLocation && !isMutualMapMode && !focusUserId;
   const mapMarkers = useMemo<MapMarker[]>(() => {
     const activeReceivedPings = new Map(
       (mapPingStatus?.receivedPings ?? [])
         .filter((ping) => Date.parse(ping.expiresAt) > mapPingClock)
         .map((ping) => [ping.sourceUserId, { id: ping.id, expiresAt: ping.expiresAt }]),
     );
-    const nearbyMarkers = displayedUsersInViewport
+    // Clusters need the already-eligible neighbors just beyond the camera edge
+    // so panning does not change their membership or center. Preserve the
+    // existing clipped input only for the initial camera-fit behavior.
+    const nearbyMarkers = displayedUsers
       .filter((user) => !user.isCurrentUser && user.id !== currentProfile?.id && user.id !== 'me')
+      .filter((user) => !fitToMapMarkers || isCoordinateInViewport(user.lat, user.lng, mapViewport))
       .map((user) => {
       const loadedProfilePing = user.activePing && Date.parse(user.activePing.expiresAt) > mapPingClock
         ? user.activePing
@@ -2441,8 +2691,8 @@ export default function MapHome(_props: MapHomeProps = {}) {
       },
     }));
 
-    const placeMarkers: MapMarker[] = places
-      .filter((place) => isCoordinateInViewport(place.latitude, place.longitude, mapViewport))
+    const placeMarkers: MapMarker[] = (spotsVisible ? places : [])
+      .filter((place) => !fitToMapMarkers || isCoordinateInViewport(place.latitude, place.longitude, mapViewport))
       .map((place) => ({
       id: `place-${place.id}`,
       kind: 'place',
@@ -2490,7 +2740,12 @@ export default function MapHome(_props: MapHomeProps = {}) {
           id: 'me-ghost-decoy',
           userId: currentProfile?.id ?? 'me',
           displayName: 'Your Ghost pin',
-          signal: 'Ghost Mode decoy',
+          // Ghost Mode moves where people see you, not who you are. Everyone
+          // else reads your real signal on the decoy, so this preview showed
+          // you something nobody else was seeing while it said "Ghost Mode
+          // decoy". The name stays as it is: that is how you tell your decoy
+          // from your own pin, and only you see this marker.
+          signal: currentProfile?.signal ?? '',
           approximateLatitude: ownerGhostMapLocation.approximateLatitude,
           approximateLongitude: ownerGhostMapLocation.approximateLongitude,
           lastActiveLabel: 'Now',
@@ -2528,7 +2783,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
       ...eventMarkers,
       ...placeMarkers,
     ];
-  }, [activeEvents, currentProfile, currentUserMapLocation, displayedUsersInViewport, mapPingClock, mapPingStatus, mapViewport?.signature, ownerGhostMapLocation, places, privacySettings, travelPin]);
+  }, [activeEvents, currentProfile, currentUserMapLocation, displayedUsers, fitToMapMarkers, mapPingClock, mapPingStatus, mapViewport?.signature, ownerGhostMapLocation, places, privacySettings, spotsVisible, travelPin]);
   const browseVisibleMapMarkers = useMemo(() => {
     if (!currentUserMapLocation) {
       return mapMarkers;
@@ -2571,6 +2826,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
 
   const openSpot = (place: PlaceRecord) => {
     setSelectedPlace(place);
+    setPlaceReturnFocus({ approximateLatitude: place.latitude, approximateLongitude: place.longitude });
     setPlacesOpen(false);
     if (!usesFullPageProfile) {
       setSpotBoardPlaceId(place.id);
@@ -2651,7 +2907,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
 
   return (
     <div
-      className={`cruush-map-shell ${isFiltersOpen || isVisibilityOpen ? 'cruush-map-surface-open' : ''} ${isMobile ? `fixed${mobileVisualViewportBounds ? '' : ' inset-0'}` : 'relative'} overflow-hidden overscroll-none bg-background select-none`}
+      className={`cruush-map-shell ${isFiltersOpen || isVisibilityOpen ? 'cruush-map-surface-open' : ''} ${isMobile ? `fixed${mobileVisualViewportBounds ? '' : ' inset-0'}` : 'relative isolate'} overflow-hidden overscroll-none bg-background select-none`}
       data-testid="map-home-shell"
       style={mobileVisualViewportBounds ? {
         height: `${mobileVisualViewportBounds.height}px`,
@@ -2690,7 +2946,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
           </div>
           <div className="flex min-w-0 flex-1 justify-center">
             <div
-              className="cruush-map-top-actions pointer-events-auto mt-0 flex w-full min-w-0 max-w-full items-center justify-center gap-0.5 rounded-full border border-white/10 bg-background/25 px-1 py-1 backdrop-blur-md transition-[width,margin,transform] max-[430px]:gap-0 max-[430px]:px-0.5 sm:w-auto sm:gap-1 sm:px-2.5 sm:py-2"
+              className="cruush-map-top-actions pointer-events-auto mt-0 flex w-auto min-w-0 max-w-full items-center justify-center gap-0.5 rounded-full border border-white/10 bg-background/25 px-1 py-1 backdrop-blur-md transition-[width,margin,transform] max-[430px]:gap-0 max-[430px]:px-0.5 sm:gap-1 sm:px-2.5 sm:py-2"
               data-map-control-hit-layer="true"
               data-testid="map-top-actions"
               onPointerEnter={() => setMapControlsHovered(true)}
@@ -2703,7 +2959,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
               data-tutorial-target="carousel"
               aria-label="Cruise Carousel"
               title="Cruise Carousel"
-              className="size-11 rounded-full bg-transparent text-white/90 hover:bg-white/10 focus:bg-transparent focus-visible:bg-transparent max-[360px]:size-10 sm:size-12 lg:size-[3.25rem]"
+              className="size-11 rounded-full bg-transparent text-white/90 hover:bg-black/45 focus:bg-transparent focus-visible:bg-transparent max-[360px]:size-10 sm:size-12 lg:size-[3.25rem]"
             >
               <CruushIconImage src={luckyIconWhite} className="h-10 w-10 scale-[1.28] object-contain max-[360px]:h-9 max-[360px]:w-9 lg:h-11 lg:w-11" />
             </Button>
@@ -2714,7 +2970,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
               data-tutorial-target="ghost"
               aria-label="Ghost Mode Settings"
               title="Ghost Mode Settings"
-              className="size-11 rounded-full bg-transparent text-white/90 hover:bg-white/10 focus:bg-transparent focus-visible:bg-transparent max-[360px]:size-10 sm:size-12 lg:size-[3.25rem]"
+              className="size-11 rounded-full bg-transparent text-white/90 hover:bg-black/45 focus:bg-transparent focus-visible:bg-transparent max-[360px]:size-10 sm:size-12 lg:size-[3.25rem]"
             >
               {privacySettings.baseMode === 'STEALTH' ? (
                 <DarkRoomMark active className="!h-10 !w-10 text-white max-[360px]:!h-9 max-[360px]:!w-9 lg:!h-11 lg:!w-11" />
@@ -2722,7 +2978,10 @@ export default function MapHome(_props: MapHomeProps = {}) {
                 <CruushIcon
                   name="ghost"
                   variant={privacySettings.ghostModeEnabled ? 'colored' : 'white'}
-                  className="h-10 w-10 scale-[1.15] object-contain max-[360px]:h-9 max-[360px]:w-9 lg:h-11 lg:w-11"
+                  // The ghost art carries padding inside its own viewBox, so
+                  // at the shared box size it drew smaller than its neighbours.
+                  // Scaled to match, the way the lucky and DL Mode marks are.
+                  className="h-10 w-10 scale-[1.22] object-contain max-[360px]:h-9 max-[360px]:w-9 lg:h-11 lg:w-11"
                 />
               )}
             </Button>
@@ -2733,7 +2992,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
               data-tutorial-target="dl-mode"
               aria-label={dlModeActive ? 'Turn DL Mode off' : 'Turn DL Mode on'}
               title={dlModeActive ? 'Turn DL Mode off' : 'Turn DL Mode on'}
-              className="size-11 overflow-visible rounded-full bg-transparent text-white/90 hover:bg-white/10 focus:bg-transparent focus-visible:bg-transparent max-[360px]:size-10 sm:size-12 lg:size-[3.25rem] [&_img]:!overflow-visible"
+              className="size-11 overflow-visible rounded-full bg-transparent text-white/90 hover:bg-black/45 focus:bg-transparent focus-visible:bg-transparent max-[360px]:size-10 sm:size-12 lg:size-[3.25rem] [&_img]:!overflow-visible"
             >
               {/* The gradient mark is the active state. Nothing is drawn around it unless the button is hovered. */}
               <DlModeMark active={dlModeActive} className="!h-10 !w-10 scale-[1.18] overflow-visible max-[360px]:!h-9 max-[360px]:!w-9 lg:!h-11 lg:!w-11" />
@@ -2752,7 +3011,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
                 }}
                 aria-label="Settings"
                 title="Settings"
-                className="size-11 rounded-full bg-transparent text-white/90 hover:bg-white/10 focus:bg-transparent focus-visible:bg-transparent max-[360px]:size-10 sm:size-12 lg:size-[3.25rem]"
+                className="size-11 rounded-full bg-transparent text-white/90 hover:bg-black/45 focus:bg-transparent focus-visible:bg-transparent max-[360px]:size-10 sm:size-12 lg:size-[3.25rem]"
               >
                 <CruushIconImage src={settingsIconWhite} className="h-10 w-10 object-contain max-[360px]:h-9 max-[360px]:w-9 lg:h-11 lg:w-11" />
             </Button>
@@ -2763,7 +3022,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
               data-tutorial-target="notifications"
               aria-label="Notifications"
               title="Notifications"
-              className="relative size-11 rounded-full bg-transparent text-white/90 hover:bg-white/10 focus:bg-transparent focus-visible:bg-transparent max-[360px]:size-10 sm:size-12 lg:size-[3.25rem]"
+              className="relative size-11 rounded-full bg-transparent text-white/90 hover:bg-black/45 focus:bg-transparent focus-visible:bg-transparent max-[360px]:size-10 sm:size-12 lg:size-[3.25rem]"
             >
               <CruushIconImage src={notificationsIconWhite} className="h-10 w-10 scale-[1.28] object-contain max-[360px]:h-9 max-[360px]:w-9 lg:h-11 lg:w-11" />
               {notificationUnreadCount > 0 ? (
@@ -2778,7 +3037,11 @@ export default function MapHome(_props: MapHomeProps = {}) {
           {/* The bug control is fixed to the corner like cruush+ is, so the bar
               ends before it instead of running underneath it. */}
             <div
-              className="h-12 w-12 shrink-0 sm:h-10 sm:w-10 lg:h-11 lg:w-11"
+              // The whole top layer is pointer-events-none so the map underneath
+              // stays draggable; every control in it opts back in. The slot had
+              // not, so the bug button it holds looked tappable and was not:
+              // the map canvas took every tap.
+              className="pointer-events-auto h-12 w-12 shrink-0 sm:h-10 sm:w-10 lg:h-11 lg:w-11"
               data-bug-button-size="large"
               data-map-control-hit-layer="true"
               data-testid="map-bug-button-slot"
@@ -2813,8 +3076,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
               center: currentUserMapLocation,
               radiusMiles: DISCOVERY_BROWSE_RADIUS_MILES,
             } : null}
-            peopleHeatmapEnabled={peopleHeatmapEnabled}
-            fitToMarkers={!restoredMapViewport && !currentUserMapLocation && !isMutualMapMode && !focusUserId}
+            fitToMarkers={fitToMapMarkers}
             focusCoordinates={
               (selectedPlace ? {
                 approximateLatitude: selectedPlace.latitude,
@@ -2822,6 +3084,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
               } : null) ??
               focusedMapLocation ??
               browserFocusCoordinates ??
+              placeReturnFocus ??
               (focusUserId ? undefined : travelMapLocation ?? (restoredMapViewport ? undefined : currentUserMapLocation))
             }
             initialViewport={!travelMapLocation && restoredMapViewport ? {
@@ -3166,7 +3429,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
         ) : null}
 
         <div
-          className="pointer-events-auto absolute right-3 top-[4.625rem] z-[900] flex flex-col items-end gap-2 sm:right-4 sm:top-[5.375rem] lg:top-[5.625rem]"
+          className={`pointer-events-none [&_button]:pointer-events-auto absolute right-3 top-[4.625rem] z-[900] flex flex-col items-end gap-2 sm:right-4 sm:top-[5.375rem] lg:right-3 lg:top-16 ${isMobile && (sidePanelView || selectedPlace || selectedUser) ? 'hidden' : ''}`}
           data-map-control-hit-layer="true"
           data-testid="map-right-actions"
           onPointerEnter={() => setMapControlsHovered(true)}
@@ -3255,21 +3518,6 @@ export default function MapHome(_props: MapHomeProps = {}) {
               >
                 <PulseLedIcon />
               </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                size="icon"
-                data-testid="map-heatmap-toggle"
-                data-tutorial-target="heatmap"
-                aria-label="Seven-day activity heatmap"
-                title="Seven-day activity heatmap"
-                aria-pressed={peopleHeatmapEnabled}
-                onClick={() => setPeopleHeatmapEnabled((enabled) => !enabled)}
-                className={`rounded-full border text-white ${peopleHeatmapEnabled ? 'border-white/15' : 'border-white/10 bg-background/55 hover:bg-white/10'}`}
-                style={peopleHeatmapEnabled ? { background: 'var(--cruush-gradient)' } : undefined}
-              >
-                <Flame className="h-4 w-4" />
-              </Button>
               <div className="flex flex-col gap-2" data-testid="map-zoom-controls">
                 <Button
                   size="icon"
@@ -3278,7 +3526,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
                   disabled={locationStatus === 'locating' || !mapInstance}
                   aria-label={locationStatus === 'locating' ? 'Finding your location' : 'Center your location'}
                   title={locationStatus === 'locating' ? 'Finding your location' : 'Center your location'}
-                  className="rounded-full border border-white/10 bg-background/55 text-white hover:bg-white/10"
+                  className="rounded-full border border-white/10 bg-background/78 text-white backdrop-blur-md hover:bg-white/10"
                 >
                   <MapPin className="h-4 w-4" />
                 </Button>
@@ -3291,7 +3539,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
                   data-tutorial-target="zoom"
                   aria-label="Zoom in on map"
                   title="Zoom in on map"
-                  className="rounded-full border border-white/10 bg-background/55 text-white hover:bg-white/10"
+                  className="rounded-full border border-white/10 bg-background/78 text-white backdrop-blur-md hover:bg-white/10"
                 >
                   <ZoomIn className="h-4 w-4" />
                 </Button>
@@ -3304,7 +3552,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
                   data-tutorial-target="zoom"
                   aria-label="Zoom out on map"
                   title="Zoom out on map"
-                  className="rounded-full border border-white/10 bg-background/55 text-white hover:bg-white/10"
+                  className="rounded-full border border-white/10 bg-background/78 text-white backdrop-blur-md hover:bg-white/10"
                 >
                   <ZoomOut className="h-4 w-4" />
                 </Button>
@@ -3313,13 +3561,16 @@ export default function MapHome(_props: MapHomeProps = {}) {
           ) : null}
         </div>
 
-        {displayedUsers.length > 0 && !selectedEvent && !selectedPlace && (
+        {displayedUsers.length > 0 && !selectedEvent && !selectedPlace && !sidePanelView && !selectedUser && (
           <div
             className={`pointer-events-none absolute ${
               isMobile
-                ? 'bottom-[calc(5.75rem+env(safe-area-inset-bottom))] left-3 right-3 z-40 px-0'
-                : 'bottom-[calc(6.25rem+env(safe-area-inset-bottom))] left-0 right-0 z-[39] px-4'
+                ? 'bottom-[calc(5.75rem+env(safe-area-inset-bottom))] left-3 right-3 z-[130] px-0'
+                : 'bottom-[calc(6.25rem+env(safe-area-inset-bottom))] left-0 right-0 z-[130] px-4'
             }`}
+            style={isMobile && mobileVisualViewportBounds ? {
+              bottom: `calc(5.75rem + env(safe-area-inset-bottom) - (100dvh - ${mobileVisualViewportBounds.height + mobileVisualViewportBounds.top}px))`,
+            } : undefined}
           >
             <div
               className={`mx-auto ${
@@ -3402,6 +3653,15 @@ export default function MapHome(_props: MapHomeProps = {}) {
           }
           onFiltersActiveChange={setSpotFiltersActive}
           onMapFiltersChange={setSpotMapFilters}
+          spotsVisible={spotsVisible}
+          onSpotsVisibleChange={(visible) => {
+            setSpotsVisible(visible);
+            try {
+              window.localStorage.setItem('cruush:map-spots-hidden', visible ? 'false' : 'true');
+            } catch {
+              // The preference is a convenience; hiding still works this session.
+            }
+          }}
           onSelect={(place) => {
             openSpot(place);
             mapInstance?.setCenter([place.longitude, place.latitude]);
@@ -3463,14 +3723,12 @@ export default function MapHome(_props: MapHomeProps = {}) {
           hasMapLocation={Boolean(currentUserMapLocation)}
           signal={currentProfile?.signal}
           lurkerActive={privacySettings.baseMode === 'STEALTH'}
-          photo={currentProfile?.photos?.[0] ?? null}
+          // The demonstration is the same for everyone: the gradient heart,
+          // never your own photo.
+          photo={null}
           onSaveSignal={async (signal) => {
-            const savedProfile = await saveMyProfile({
-              ...emptyProfilePayload,
-              ...(currentProfile ?? {}),
-              signal,
-            });
-            setCurrentProfile(savedProfile);
+            const savedSignal = await saveMySignal(signal);
+            setCurrentProfile((profile) => (profile ? { ...profile, signal: savedSignal } : profile));
           }}
           onRefresh={refreshMapPingStatus}
           onSend={handleSendMapPing}

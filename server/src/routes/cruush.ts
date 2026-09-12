@@ -17,8 +17,11 @@ import {
   getEffectiveVisibilityPolicy,
   getPrivacySettings,
   getRelationshipPermissions,
+  getSharedDistanceLabelMode,
   revokeOutgoingCruush,
-  revokeMutualCruushMatch
+  revokeMutualCruushMatch,
+  dismissIncomingCruush,
+  removeProfileViewsFromViewer
 } from "../match-relationships.js";
 import {
   buildEncryptedRelationshipPayload,
@@ -49,6 +52,7 @@ import {
   loadLocationEnvelope,
   locationPayloadToCoordinates,
   describeGhostRotation,
+  resolveViewerGhostCoordinate,
   makeDisplayLocationToken,
   type DisplayMode,
   type VisibilityBaseMode
@@ -111,6 +115,7 @@ const mutualMapQuerySchema = z.object({
   lookingFor: mutualMapQueryArrayField,
   timing: mutualMapQueryArrayField,
   hosting: mutualMapQueryArrayField,
+  preferredSpots: mutualMapQueryArrayField,
   vibes: mutualMapQueryArrayField,
   crowds: mutualMapCrowdQueryArrayField,
   hobbies: mutualMapQueryArrayField,
@@ -119,7 +124,9 @@ const mutualMapQuerySchema = z.object({
   kinks: mutualMapQueryArrayField,
   bodyTypes: mutualMapQueryArrayField,
   sexuality: mutualMapQueryArrayField,
-  substanceBoundaries: mutualMapQueryArrayField
+  zodiac: mutualMapQueryArrayField,
+  substanceBoundaries: mutualMapQueryArrayField,
+  protectionBoundaries: mutualMapQueryArrayField
 }).strict().superRefine((query, context) => {
   if (query.minAge != null && query.maxAge != null && query.minAge > query.maxAge) {
     context.addIssue({
@@ -219,13 +226,16 @@ type MutualCruushRow = {
   identities: string[] | null;
   presentation: string[] | null;
   sexuality: string[] | null;
+  zodiac: string[] | null;
   body_type: string[] | null;
   availability: string[] | null;
   hobbies: string[] | null;
   position: string[] | null;
   role: string[] | null;
   hosting_travel: string[] | null;
+  preferred_spots: string[] | null;
   substance_boundaries: string[] | null;
+  protection_boundaries: string[] | null;
   profile_sensitive_ciphertext: string | null;
   profile_sensitive_nonce: string | null;
   profile_sensitive_auth_tag: string | null;
@@ -254,13 +264,16 @@ type CurrentProfileLocationRow = {
   identities: string[] | null;
   presentation: string[] | null;
   sexuality: string[] | null;
+  zodiac: string[] | null;
   body_type: string[] | null;
   availability: string[] | null;
   hobbies: string[] | null;
   position: string[] | null;
   role: string[] | null;
   hosting_travel: string[] | null;
+  preferred_spots: string[] | null;
   substance_boundaries: string[] | null;
+  protection_boundaries: string[] | null;
   lat: number | null;
   lng: number | null;
   fuzzy_lat: number | null;
@@ -299,13 +312,16 @@ type ActivityProfileRow = {
   identities: string[] | null;
   presentation: string[] | null;
   sexuality: string[] | null;
+  zodiac: string[] | null;
   body_type: string[] | null;
   availability: string[] | null;
   hobbies: string[] | null;
   position: string[] | null;
   role: string[] | null;
   hosting_travel: string[] | null;
+  preferred_spots: string[] | null;
   substance_boundaries: string[] | null;
+  protection_boundaries: string[] | null;
   profile_sensitive_ciphertext: string | null;
   profile_sensitive_nonce: string | null;
   profile_sensitive_auth_tag: string | null;
@@ -576,6 +592,8 @@ function matchesMutualMapSeeking(
     ...(target.body_types ?? []),
     ...(target.sexuality ?? []),
     ...(target.substance_boundaries ?? []),
+    ...(target.preferred_spots ?? []),
+    ...(target.protection_boundaries ?? []),
   ].some((value) => value.trim().toLowerCase().includes(searchQuery)) : true;
   const tagMatch = searchTagQuery
     ? (target.tags ?? []).some((value) => value.trim().toLowerCase().includes(searchTagQuery))
@@ -603,6 +621,7 @@ function matchesMutualMapSeeking(
     matchesAnySelected(filters.lookingFor, target.looking_for) &&
     matchesAnySelected(filters.timing, target.timing) &&
     matchesAnySelected(filters.hosting, target.hosting) &&
+    matchesAnySelected(filters.preferredSpots, target.preferred_spots) &&
     matchesAnySelected(filters.vibes, [
       ...(target.vibes ?? []),
       ...(target.scenes ?? []),
@@ -615,7 +634,9 @@ function matchesMutualMapSeeking(
     matchesAnySelected(filters.kinks, target.kinks) &&
     matchesAnySelected(filters.bodyTypes, target.body_types) &&
     matchesAnySelected(filters.sexuality, target.sexuality) &&
-    matchesAnySelected(filters.substanceBoundaries, target.substance_boundaries);
+    matchesAnySelected(filters.zodiac, target.zodiac) &&
+    matchesAnySelected(filters.substanceBoundaries, target.substance_boundaries) &&
+    matchesAnySelected(filters.protectionBoundaries, target.protection_boundaries);
 }
 
 function toMapVisibilitySubject(
@@ -638,6 +659,7 @@ function toMapVisibilitySubject(
     looking_for: row.looking_for ?? [],
     timing: row.availability ?? [],
     hosting: row.hosting_travel ?? [],
+    preferred_spots: row.preferred_spots ?? [],
     vibes: row.vibes ?? [],
     scenes: row.scenes ?? [],
     archetypes: row.archetypes ?? [],
@@ -648,7 +670,9 @@ function toMapVisibilitySubject(
     kinks,
     body_types: row.body_type ?? [],
     sexuality: row.sexuality ?? [],
+    zodiac: row.zodiac ?? [],
     substance_boundaries: row.substance_boundaries ?? [],
+    protection_boundaries: row.protection_boundaries ?? [],
     coordinates
   };
 }
@@ -668,13 +692,16 @@ async function loadCurrentProfileLocation(app: FastifyInstance, userId: string) 
        identities,
        presentation,
        sexuality,
+       zodiac,
        body_type,
        availability,
        hobbies,
        position,
        role,
        hosting_travel,
+       preferred_spots,
        substance_boundaries,
+       protection_boundaries,
        null::double precision as lat,
        null::double precision as lng,
        null::double precision as fuzzy_lat,
@@ -738,13 +765,16 @@ async function loadActivityProfiles(app: FastifyInstance, userIds: string[]) {
        profiles.identities,
        profiles.presentation,
        profiles.sexuality,
+       profiles.zodiac,
        profiles.body_type,
        profiles.availability,
        profiles.hobbies,
        profiles.position,
        profiles.role,
        profiles.hosting_travel,
+       profiles.preferred_spots,
        profiles.substance_boundaries,
+       profiles.protection_boundaries,
        profiles.profile_sensitive_ciphertext,
        profiles.profile_sensitive_nonce,
        profiles.profile_sensitive_auth_tag,
@@ -830,13 +860,16 @@ async function loadMutualCruushRows(app: FastifyInstance, userId: string) {
       identities: profile.identities,
       presentation: profile.presentation,
       sexuality: profile.sexuality,
+      zodiac: profile.zodiac,
       body_type: profile.body_type,
       availability: profile.availability,
       hobbies: profile.hobbies,
       position: profile.position,
       role: profile.role,
       hosting_travel: profile.hosting_travel,
+      preferred_spots: profile.preferred_spots,
       substance_boundaries: profile.substance_boundaries,
+      protection_boundaries: profile.protection_boundaries,
       profile_sensitive_ciphertext: profile.profile_sensitive_ciphertext,
       profile_sensitive_nonce: profile.profile_sensitive_nonce,
       profile_sensitive_auth_tag: profile.profile_sensitive_auth_tag,
@@ -928,16 +961,25 @@ async function mapTokenizedMutualCruushRow(
     : policy.baseMode === "GHOST"
       ? "GHOST"
       : "PRECISE";
+  const resolvedGhost = displayMode === "GHOST"
+    ? await resolveViewerGhostCoordinate(app, {
+        subjectUserId: row.other_user_id,
+        viewerUserId,
+        policy,
+        location
+      })
+    : null;
   const token = await makeDisplayLocationToken(app, request, {
     subjectUserId: row.other_user_id,
     viewerUserId,
     policy,
     location,
     displayMode,
+    ...(resolvedGhost ? { resolvedGhost } : {}),
     relationshipGrantVersion: relationship.isMutualCruush ? 1 : 0
   });
   const ghostRotation = displayMode === "GHOST"
-    ? await describeGhostRotation(app, row.other_user_id, policy)
+    ? await describeGhostRotation(app, row.other_user_id, policy, resolvedGhost!.resolvedAtMs)
     : null;
   const currentCrowds = new Set(options.currentCrowds.map((crowd) => crowd.toLowerCase()));
   const sharedCrowds = otherCrowds.filter((crowd) => currentCrowds.has(crowd.toLowerCase()));
@@ -970,6 +1012,7 @@ async function mapTokenizedMutualCruushRow(
       : options.currentCoordinates?.lat != null && options.currentCoordinates.lng != null
         ? formatDistanceLabel({
             displayMode,
+            distanceLabelMode: relationship.distanceLabelMode,
             viewerLat: options.currentCoordinates.lat,
             viewerLng: options.currentCoordinates.lng,
             targetLat: preciseCoordinates.lat,
@@ -1003,6 +1046,7 @@ function mapMutualCruushRow(
     currentCoordinates: { lat: number | null; lng: number | null } | null;
     currentCrowds: string[];
     viewerGhostMode: boolean;
+    distanceLabelMode: "approximate" | "precise";
   }
 ) {
   const preciseAllowed = row.can_reveal_precise_location === true
@@ -1041,7 +1085,7 @@ function mapMutualCruushRow(
       ? "Dark Room"
       : row.travelling && !preciseAllowed
         ? "Far far away"
-        : formatMaybeDistance(options.currentCoordinates, coordinates),
+        : options.distanceLabelMode === "precise" ? formatMaybeDistance(options.currentCoordinates, coordinates) : "Nearby",
     lastActive: formatLastActiveFromDate(row.updated_at),
     canMessage: row.can_message === true,
     canRevealPreciseLocation: preciseAllowed,
@@ -1064,6 +1108,15 @@ async function loadCruushActivityRecords(app: FastifyInstance, userId: string) {
     listEncryptedRelationshipRecordsByActor(app, {
       actorUserId: userId,
       type: "cruush"
+    }).then(async (activeRecords) => {
+      // A recipient dismissing an incoming cruush must not edit the sender's
+      // history, so the Sent list carries dismissed records too.
+      const dismissedRecords = await listEncryptedRelationshipRecordsByActor(app, {
+        actorUserId: userId,
+        type: "cruush",
+        status: "dismissed"
+      });
+      return [...activeRecords, ...dismissedRecords];
     }),
     listEncryptedRelationshipRecordsByTarget(app, {
       targetUserId: userId,
@@ -1248,11 +1301,12 @@ export async function registerCruushRoutes(app: FastifyInstance) {
     const viewRows = mapProfileViewRecords(viewRecords, profilesById);
     const incoming = lockable(incomingRows, isCruushPlus);
     const sent = sentRows;
-    const mutual = mutualRows.map((row) => mapMutualCruushRow(app, row, {
+    const mutual = await Promise.all(mutualRows.map(async (row) => mapMutualCruushRow(app, row, {
       currentCoordinates,
       currentCrowds: currentSensitiveProfile?.crowds ?? [],
-      viewerGhostMode: viewerPrivacy.ghostModeEnabled
-    }));
+      viewerGhostMode: viewerPrivacy.ghostModeEnabled,
+      distanceLabelMode: await getSharedDistanceLabelMode(app, authenticatedUserId, row.other_user_id)
+    })));
     const views = lockable(viewRows, isCruushPlus);
 
     return reply.send({
@@ -1336,6 +1390,28 @@ export async function registerCruushRoutes(app: FastifyInstance) {
         mapEpochMs: Date.now(),
         profiles: items.filter((item): item is NonNullable<typeof item> => item !== null)
       }
+    });
+  });
+
+  app.delete("/api/cruush/incoming/:otherUserId", async (request, reply) => {
+    const authenticatedUserId = await getActiveAccountUserId(request);
+    const { otherUserId } = revokeMatchParamsSchema.parse(request.params);
+
+    const result = await dismissIncomingCruush(app, authenticatedUserId, otherUserId);
+
+    return reply.send({
+      data: result
+    });
+  });
+
+  app.delete("/api/cruush/views/:otherUserId", async (request, reply) => {
+    const authenticatedUserId = await getActiveAccountUserId(request);
+    const { otherUserId } = revokeMatchParamsSchema.parse(request.params);
+
+    const result = await removeProfileViewsFromViewer(app, authenticatedUserId, otherUserId);
+
+    return reply.send({
+      data: result
     });
   });
 

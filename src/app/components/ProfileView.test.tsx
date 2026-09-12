@@ -80,6 +80,7 @@ function createProfileFixture(overrides: Record<string, unknown> = {}) {
     identities: ['Non-binary'],
     presentation: ['Femme'],
     sexuality: ['Queer'],
+    zodiac: ['Leo'],
     body_type: ['Athletic'],
     height: "5'8\"",
     weight: '155 lbs',
@@ -183,6 +184,8 @@ describe('ProfileView', () => {
     expect(screen.getByRole('tab', { name: 'Intimacy' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Health' })).toBeInTheDocument();
     expect(screen.getByText('About')).toBeInTheDocument();
+    expect(screen.getByText('Zodiac')).toBeInTheDocument();
+    expect(screen.getByText('Leo')).toBeInTheDocument();
     expect(screen.queryByText('Crowds')).not.toBeInTheDocument();
     const intimacyTab = screen.getByRole('tab', { name: 'Intimacy' });
     fireEvent.pointerDown(intimacyTab, { button: 0, ctrlKey: false });
@@ -191,6 +194,48 @@ describe('ProfileView', () => {
     expect(screen.getByText('Role')).toBeInTheDocument();
     expect(screen.getByText('Switch')).toBeInTheDocument();
     expect(getProfileById).toHaveBeenCalledWith('user-1');
+  });
+
+  it('shows the distance and last online the profile carries, with no route state', async () => {
+    getProfileById.mockResolvedValue(createProfileFixture({
+      distance_label: '2.4 mi',
+      last_active: '10m ago',
+    }));
+
+    render(
+      <MemoryRouter initialEntries={['/profile/user-1']}>
+        <Routes>
+          <Route path="/profile/:userId" element={<ProfileView />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    // Opened from a deep link rather than the map, so nothing was handed over
+    // in route state and the line has to come from the profile itself.
+    // The default distance display is approximate, so 2.4 mi reads as ~2 mi.
+    expect(await screen.findByText(/~2 mi away/)).toBeInTheDocument();
+    expect(screen.getByText(/10m ago/)).toBeInTheDocument();
+  });
+
+  it('shows the relationship status the editor already saved', async () => {
+    getProfileById.mockResolvedValue(createProfileFixture({
+      relationship_status: ['Partnered', 'Open'],
+    }));
+
+    render(
+      <MemoryRouter initialEntries={['/profile/user-1']}>
+        <Routes>
+          <Route path="/profile/:userId" element={<ProfileView />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    // The editor takes it under Intimacy, so the profile shows it back there.
+    fireEvent.click(await screen.findByRole('tab', { name: 'Intimacy' }));
+
+    expect(await screen.findByText('Relationship status')).toBeInTheDocument();
+    expect(screen.getByText('Partnered')).toBeInTheDocument();
+    expect(screen.getByText('Open')).toBeInTheDocument();
   });
 
   it('keeps the age outside the clipped name span', async () => {
@@ -230,6 +275,13 @@ describe('ProfileView', () => {
 
     // The signal reads on the photo itself rather than in a card under it.
     expect(await screen.findByTestId('profile-overlay-signal')).toHaveTextContent('Looking for late-night art kids near the venue.');
+    // It reads there once. A second copy under the photo only pushed the rest
+    // of the profile down, and the same goes for the vibe capsules. The
+    // Identities check keeps the two below honest: without it they would still
+    // pass if the tab body never rendered at all.
+    expect(screen.getByRole('heading', { name: 'Identities' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Signal' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Vibes' })).not.toBeInTheDocument();
   });
 
   it('shows the Mile High Club plane beside the name for a travelling profile', async () => {
@@ -297,11 +349,10 @@ describe('ProfileView', () => {
     expect(launchPartyButton.className).not.toContain('bg-black');
   });
 
-  it('shows HIV, COVID, and MPOX health fields while leaving unfilled values blank', async () => {
+  it('shows HIV status and the Protections a member selected', async () => {
     getProfileById.mockResolvedValue(createProfileFixture({
       hiv_status: ['Negative'],
-      covid_vaccine: ['yes'],
-      mpox_vaccine: [],
+      protections: ['Condoms', 'PrEP'],
     }));
 
     render(
@@ -315,15 +366,19 @@ describe('ProfileView', () => {
     const healthTab = await screen.findByRole('tab', { name: 'Health' });
     fireEvent.click(healthTab);
 
-    const healthHeading = screen.getAllByText('Health').find((node) => node.tagName.toLowerCase() === 'h2');
+    // HIV Status has its own capsule, matching the other health fields.
+    const healthHeading = screen.getAllByText('HIV Status').find((node) => node.tagName.toLowerCase() === 'h2');
     expect(healthHeading).toBeDefined();
-    const healthSection = healthHeading?.closest('section') as HTMLElement;
-    expect(within(healthSection).getByText('HIV')).toBeInTheDocument();
-    expect(within(healthSection).getByText('Negative')).toBeInTheDocument();
-    expect(within(healthSection).getByText('COVID')).toBeInTheDocument();
-    expect(within(healthSection).getByText('yes')).toBeInTheDocument();
-    expect(within(healthSection).getByText('Mpox')).toBeInTheDocument();
-    expect(within(healthSection).queryByText('Not shared')).not.toBeInTheDocument();
+    const healthGroup = healthHeading?.parentElement as HTMLElement;
+    expect(healthGroup).toHaveClass('rounded-2xl', 'border', 'border-border', 'bg-card/60', 'p-3');
+    expect(within(healthGroup).getByText('Negative')).toBeInTheDocument();
+    expect(within(healthGroup).queryByText('Not shared')).not.toBeInTheDocument();
+
+    // The vaccine and condom answers are one Protections list now.
+    const protectionsHeading = screen.getAllByText('Protections').find((node) => node.tagName.toLowerCase() === 'h2');
+    const protectionsSection = protectionsHeading?.closest('section') as HTMLElement;
+    expect(within(protectionsSection).getByText('Condoms')).toBeInTheDocument();
+    expect(within(protectionsSection).getByText('PrEP')).toBeInTheDocument();
   });
 
   it('renders heart previews and swaps the active profile photo without saving order', async () => {

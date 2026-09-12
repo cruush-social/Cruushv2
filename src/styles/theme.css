@@ -119,48 +119,82 @@ html[data-cruush-larger-text] :where([class~="text-[0.65rem]"]) {
   font-size: 0.8125rem !important;
 }
 
+html[data-cruush-larger-text] :where([class~="text-[0.68rem]"]) {
+  font-size: 0.85rem !important;
+}
+
 html[data-cruush-larger-text] :where([class~="text-[0.7rem]"]) {
   font-size: 0.875rem !important;
+}
+
+html[data-cruush-larger-text] :where([class~="text-[0.72rem]"]) {
+  font-size: 0.9rem !important;
 }
 
 html[data-cruush-larger-text] :where([class~="text-[0.8rem]"]) {
   font-size: 1rem !important;
 }
 
-@media (max-width: 640px) and (max-height: 900px) {
-  html[data-cruush-larger-text] .cruush-notification-header {
+html[data-cruush-larger-text] :where([class~="text-[21px]"]) {
+  font-size: 26.25px !important;
+}
+
+@media (max-width: 640px) {
+  /* One row: every control sits in line with the title and the bug button.
+     The actions used to drop to a second row, which left them floating under
+     the header on phones. */
+  .cruush-notification-header {
     display: grid;
-    grid-template-columns: 2.5rem minmax(0, 1fr) 2.5rem 2.5rem 2.5rem;
+    grid-template-columns: 2.25rem minmax(0, 1fr) 2.25rem 2.25rem 2.25rem 2.25rem;
+    align-items: center;
     gap: 0.375rem;
     padding: 0.5rem 0.75rem;
   }
 
-  html[data-cruush-larger-text] .cruush-notification-title {
-    grid-column: 2 / 5;
+  .cruush-notification-back {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .cruush-notification-title {
+    grid-column: 2;
+    grid-row: 1;
     overflow: visible;
     text-overflow: clip;
-    white-space: normal;
+    white-space: nowrap;
+    /* Six controls share the row now, so the title trims to keep the word
+       whole on a 390px screen. */
+    font-size: 1.0625rem;
   }
 
-  html[data-cruush-larger-text] .cruush-notification-mark-all {
+  .cruush-notification-mark-all {
     grid-column: 3;
-    grid-row: 2;
+    grid-row: 1;
+    width: 2.25rem;
+    min-width: 2.25rem;
+    padding: 0;
   }
 
-  html[data-cruush-larger-text] .cruush-notification-delete-all {
+  .cruush-notification-delete-all {
     grid-column: 4;
-    grid-row: 2;
+    grid-row: 1;
+    width: 2.25rem;
+    min-width: 2.25rem;
+    padding: 0;
   }
 
-  html[data-cruush-larger-text] .cruush-notification-settings {
-    grid-column: 5;
-    grid-row: 2;
-  }
-
-  html[data-cruush-larger-text] .cruush-notification-bug-slot {
+  .cruush-notification-settings {
     grid-column: 5;
     grid-row: 1;
   }
+
+  .cruush-notification-bug-slot {
+    grid-column: 6;
+    grid-row: 1;
+  }
+}
+
+@media (max-width: 640px) and (max-height: 900px) {
 
   html[data-cruush-larger-text] .cruush-requests-header {
     display: grid;
@@ -193,13 +227,17 @@ html[data-cruush-larger-text] :where([class~="text-[0.8rem]"]) {
     grid-column: 1 / -1;
   }
 
-  html[data-cruush-larger-text] .cruush-activity-count-grid,
-  html[data-cruush-larger-text] .cruush-activity-tab-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
   html[data-cruush-larger-text] .cruush-carousel-heading {
     padding: 0.625rem 0.75rem;
+  }
+
+  html[data-cruush-larger-text] .cruush-activity-count-grid > div > p:first-child {
+    font-size: 10px !important;
+    letter-spacing: 0.04em !important;
+  }
+
+  html[data-cruush-larger-text] .cruush-activity-tab-grid [role="tab"] {
+    font-size: 0.875rem !important;
   }
 
   html[data-cruush-larger-text] .cruush-carousel-title {
@@ -313,79 +351,378 @@ html[data-cruush-high-contrast] .cruush-map .maplibregl-canvas {
   filter: brightness(1.28) contrast(1.38) saturate(0.9);
 }
 
+html[data-cruush-color-blind] {
+  --cruush-cv-primary: #E69F00;
+  --cruush-cv-secondary: #CC79A7;
+  --cruush-cv-current: #0072B2;
+  --cruush-cv-current-dark: #004D73;
+  --cruush-cv-current-light: #56B4E9;
+  --cruush-cv-positive: #009E73;
+  --cruush-cv-destructive: #D55E00;
+  --cruush-cv-nearby-light: #F7C95C;
+  --cruush-cv-nearby-dark: #A66D00;
+  --cruush-cv-mutual-light: #E5A5C6;
+  --cruush-cv-mutual-dark: #8E416C;
+  --cruush-cv-logo-filter: hue-rotate(38deg) saturate(0.88) brightness(1.08);
+  --cruush-pink: var(--cruush-cv-primary);
+  --cruush-magenta: var(--cruush-cv-secondary);
+  --cruush-purple: var(--cruush-cv-current);
+  --cruush-indigo: var(--cruush-cv-current-dark);
+  --cruush-blue: var(--cruush-cv-current-light);
+  --primary: var(--cruush-cv-primary);
+  --destructive: var(--cruush-cv-destructive);
+  --ring: var(--cruush-cv-current);
+  --chart-1: var(--cruush-cv-primary);
+  --chart-2: var(--cruush-cv-current-light);
+  --chart-3: var(--cruush-cv-positive);
+  --chart-4: var(--cruush-cv-destructive);
+  --chart-5: var(--cruush-cv-secondary);
+  --sidebar-primary: var(--cruush-cv-primary);
+  --sidebar-ring: var(--cruush-cv-current);
+  --cruush-logo: linear-gradient(90deg, var(--cruush-cv-primary) 6.08%, var(--cruush-cv-secondary) 43.11%, var(--cruush-cv-current) 73.81%, var(--cruush-cv-current-light) 100%);
+  --cruush-gradient: linear-gradient(90deg, var(--cruush-cv-primary) 6.08%, var(--cruush-cv-secondary) 43.11%, var(--cruush-cv-current) 73.81%, var(--cruush-cv-current-light) 100%);
+  --cruush-logo-gradient: var(--cruush-logo);
+  --cruush-gradient-soft-18: linear-gradient(rgba(5, 5, 6, 0.82), rgba(5, 5, 6, 0.82)), var(--cruush-gradient);
+  --cruush-gradient-soft-28: linear-gradient(rgba(5, 5, 6, 0.72), rgba(5, 5, 6, 0.72)), var(--cruush-gradient);
+  --cruush-heart-photo-gradient: linear-gradient(90deg, var(--cruush-cv-nearby-light) 0%, var(--cruush-cv-primary) 48.5577%, var(--cruush-cv-nearby-dark) 100%);
+  --cruush-heart-pin-red-gradient: var(--cruush-heart-photo-gradient);
+  --cruush-heart-pin-blue-gradient: linear-gradient(90deg, var(--cruush-cv-current-light) 0%, var(--cruush-cv-current) 48.5577%, var(--cruush-cv-current-dark) 100%);
+  --cruush-dark-room-dark: var(--cruush-cv-current-dark);
+  --cruush-dark-room-middle: var(--cruush-cv-current);
+  --cruush-dark-room-light: var(--cruush-cv-current-light);
+  --crimson-bright: var(--cruush-cv-destructive);
+  --crimson-mid: color-mix(in srgb, var(--cruush-cv-destructive) 72%, black);
+  --crimson-dark: color-mix(in srgb, var(--cruush-cv-destructive) 48%, black);
+}
+
+html[data-cruush-color-vision='deuteranomaly'] {
+  --cruush-cv-primary: #F0B43C;
+  --cruush-cv-secondary: #D98FB8;
+  --cruush-cv-logo-filter: hue-rotate(28deg) saturate(0.92) brightness(1.06);
+}
+
+html[data-cruush-color-vision='protanomaly'] {
+  --cruush-cv-primary: #F0E442;
+  --cruush-cv-secondary: #9AD9F5;
+  --cruush-cv-mutual-light: #D7F1FC;
+  --cruush-cv-mutual-dark: #3B83A5;
+  --cruush-cv-logo-filter: hue-rotate(92deg) saturate(0.92) brightness(1.08);
+}
+
+html[data-cruush-color-vision='protanopia'] {
+  --cruush-cv-primary: #F0E442;
+  --cruush-cv-secondary: #FFFFFF;
+  --cruush-cv-current: #0072B2;
+  --cruush-cv-current-dark: #003B5C;
+  --cruush-cv-current-light: #8DD3FF;
+  --cruush-cv-positive: #56B4E9;
+  --cruush-cv-mutual-light: #FFFFFF;
+  --cruush-cv-mutual-dark: #949494;
+  --cruush-cv-logo-filter: hue-rotate(108deg) saturate(0.8) brightness(1.12);
+}
+
+html[data-cruush-color-vision='tritanomaly'] {
+  --cruush-cv-primary: #FF4F8B;
+  --cruush-cv-secondary: #F39B36;
+  --cruush-cv-current: #3F6FFF;
+  --cruush-cv-current-dark: #183A9E;
+  --cruush-cv-current-light: #8EA8FF;
+  --cruush-cv-positive: #FFCF56;
+  --cruush-cv-logo-filter: hue-rotate(-18deg) saturate(1.04) brightness(1.06);
+}
+
+html[data-cruush-color-vision='tritanopia'] {
+  --cruush-cv-primary: #D55E00;
+  --cruush-cv-secondary: #FFFFFF;
+  --cruush-cv-current: #005AB5;
+  --cruush-cv-current-dark: #002F63;
+  --cruush-cv-current-light: #7AB8FF;
+  --cruush-cv-positive: #F0E442;
+  --cruush-cv-nearby-light: #FFD29B;
+  --cruush-cv-nearby-dark: #874000;
+  --cruush-cv-mutual-light: #FFFFFF;
+  --cruush-cv-mutual-dark: #8A8A8A;
+  --cruush-cv-logo-filter: hue-rotate(-42deg) saturate(0.92) brightness(1.08);
+}
+
+html[data-cruush-color-vision='monochromacy'] {
+  --cruush-cv-primary: #FFFFFF;
+  --cruush-cv-secondary: #C7C7C7;
+  --cruush-cv-current: #FFFFFF;
+  --cruush-cv-current-dark: #777777;
+  --cruush-cv-current-light: #E1E1E1;
+  --cruush-cv-positive: #D8D8D8;
+  --cruush-cv-destructive: #FFFFFF;
+  --cruush-cv-nearby-light: #B8B8B8;
+  --cruush-cv-nearby-dark: #555555;
+  --cruush-cv-mutual-light: #E8E8E8;
+  --cruush-cv-mutual-dark: #858585;
+  --cruush-cv-logo-filter: grayscale(1) contrast(1.2) brightness(1.08);
+  --primary-foreground: #000000;
+}
+
+html[data-cruush-color-blind] .cruush-brand-logo,
+html[data-cruush-color-blind] .cruush-colored-ui-asset,
+html[data-cruush-color-blind] [data-tone='gradient-white-wordmark'] {
+  filter: var(--cruush-cv-logo-filter);
+}
+
+html[data-cruush-color-blind] :where([class*='text-[#ff0072]'], [class*='text-[#FF0072]']) {
+  color: var(--cruush-cv-primary) !important;
+}
+
+html[data-cruush-color-blind] :where([class*='text-[#6f00ff]'], [class*='text-[#6F00FF]']) {
+  color: var(--cruush-cv-secondary) !important;
+}
+
+html[data-cruush-color-blind] :where([class*='text-[#3826ff]'], [class*='text-[#3826FF]'], [class*='text-[#004bff]'], [class*='text-[#004BFF]']) {
+  color: var(--cruush-cv-current) !important;
+}
+
+html[data-cruush-color-blind] :where([class*='text-[#1181ff]'], [class*='text-[#1181FF]']) {
+  color: var(--cruush-cv-current-light) !important;
+}
+
+html[data-cruush-color-blind] :where([class*='text-[#d11f3a]'], [class*='text-[#D11F3A]']) {
+  color: var(--cruush-cv-destructive) !important;
+}
+
+html[data-cruush-color-blind] :where([class*='text-[#0ba8ff]'], [class*='text-[#0BA8FF]'], [class*='text-[#03ecfc]'], [class*='text-[#03ECFC]'], [class*='text-[#77b9da]'], [class*='text-[#77B9DA]'], [class*='text-[#dcc7ff]'], [class*='text-[#DCC7FF]']) {
+  color: var(--cruush-cv-current-light) !important;
+}
+
+html[data-cruush-color-blind] :where([class*='text-[#c8ff31]'], [class*='text-[#C8FF31]']) {
+  color: var(--cruush-cv-positive) !important;
+}
+
+html[data-cruush-color-blind] :where([class*='text-[#8b5cf6]'], [class*='text-[#8B5CF6]']) {
+  color: var(--cruush-cv-current) !important;
+}
+
+html[data-cruush-color-blind] :where([class*='border-[#ff0072]'], [class*='border-[#FF0072]']) {
+  border-color: var(--cruush-cv-primary) !important;
+}
+
+html[data-cruush-color-blind] :where([class*='border-[#6f00ff]'], [class*='border-[#6F00FF]']) {
+  border-color: var(--cruush-cv-secondary) !important;
+}
+
+html[data-cruush-color-blind] :where([class*='border-[#3826ff]'], [class*='border-[#3826FF]'], [class*='border-[#004bff]'], [class*='border-[#004BFF]']) {
+  border-color: var(--cruush-cv-current) !important;
+}
+
+html[data-cruush-color-blind] :where([class*='border-[#1181ff]'], [class*='border-[#1181FF]']) {
+  border-color: var(--cruush-cv-current-light) !important;
+}
+
+html[data-cruush-color-blind] :where([class*='border-[#0ba8ff]'], [class*='border-[#0BA8FF]'], [class*='border-[#03ecfc]'], [class*='border-[#03ECFC]'], [class*='border-[#77b9da]'], [class*='border-[#77B9DA]']) {
+  border-color: var(--cruush-cv-current-light) !important;
+}
+
+html[data-cruush-color-blind] :where([class*='border-[#c8ff31]'], [class*='border-[#C8FF31]']) {
+  border-color: var(--cruush-cv-positive) !important;
+}
+
+html[data-cruush-color-blind] :where([class*='border-[#8b5cf6]'], [class*='border-[#8B5CF6]']) {
+  border-color: var(--cruush-cv-current) !important;
+}
+
+html[data-cruush-color-blind] :where([class*='bg-[#ff0072]'], [class*='bg-[#FF0072]']) {
+  background-color: var(--cruush-cv-primary) !important;
+}
+
+html[data-cruush-color-blind] :where([class*='bg-[#6f00ff]'], [class*='bg-[#6F00FF]']) {
+  background-color: var(--cruush-cv-secondary) !important;
+}
+
+html[data-cruush-color-blind] :where([class*='bg-[#3826ff]'], [class*='bg-[#3826FF]'], [class*='bg-[#004bff]'], [class*='bg-[#004BFF]']) {
+  background-color: var(--cruush-cv-current) !important;
+}
+
+html[data-cruush-color-blind] :where([class*='bg-[#1181ff]'], [class*='bg-[#1181FF]']) {
+  background-color: var(--cruush-cv-current-light) !important;
+}
+
+html[data-cruush-color-blind] :where([class*='bg-[#0ba8ff]'], [class*='bg-[#0BA8FF]'], [class*='bg-[#03ecfc]'], [class*='bg-[#03ECFC]'], [class*='bg-[#77b9da]'], [class*='bg-[#77B9DA]']) {
+  background-color: var(--cruush-cv-current-light) !important;
+}
+
+html[data-cruush-color-blind] :where([class*='bg-[#c8ff31]'], [class*='bg-[#C8FF31]']) {
+  background-color: var(--cruush-cv-positive) !important;
+}
+
+html[data-cruush-color-blind] :where([class*='bg-[#8b5cf6]'], [class*='bg-[#8B5CF6]']) {
+  background-color: var(--cruush-cv-current) !important;
+}
+
+html[data-cruush-color-blind] svg :where([stroke='#ff0072'], [stroke='#FF0072']) {
+  stroke: var(--cruush-cv-primary) !important;
+}
+
+html[data-cruush-color-blind] svg :where([stroke='#6f00ff'], [stroke='#6F00FF']) {
+  stroke: var(--cruush-cv-secondary) !important;
+}
+
+html[data-cruush-color-blind] svg :where([stroke='#3826ff'], [stroke='#3826FF'], [stroke='#004bff'], [stroke='#004BFF']) {
+  stroke: var(--cruush-cv-current) !important;
+}
+
+html[data-cruush-color-blind] svg :where([stroke='#1181ff'], [stroke='#1181FF']) {
+  stroke: var(--cruush-cv-current-light) !important;
+}
+
+html[data-cruush-color-blind] svg :where([fill='#ff0072'], [fill='#FF0072']) {
+  fill: var(--cruush-cv-primary) !important;
+}
+
+html[data-cruush-color-blind] svg :where([fill='#6f00ff'], [fill='#6F00FF']) {
+  fill: var(--cruush-cv-secondary) !important;
+}
+
+html[data-cruush-color-blind] svg :where([fill='#3826ff'], [fill='#3826FF'], [fill='#004bff'], [fill='#004BFF']) {
+  fill: var(--cruush-cv-current) !important;
+}
+
+html[data-cruush-color-blind] svg :where([fill='#1181ff'], [fill='#1181FF']) {
+  fill: var(--cruush-cv-current-light) !important;
+}
+
+html[data-cruush-color-blind] svg stop:nth-child(1)[data-cruush-brand-stop] {
+  stop-color: var(--cruush-cv-primary) !important;
+}
+
+html[data-cruush-color-blind] svg stop:nth-child(2)[data-cruush-brand-stop] {
+  stop-color: var(--cruush-cv-secondary) !important;
+}
+
+html[data-cruush-color-blind] svg stop:nth-child(3)[data-cruush-brand-stop] {
+  stop-color: var(--cruush-cv-current) !important;
+}
+
+html[data-cruush-color-blind] svg stop:nth-child(4)[data-cruush-brand-stop] {
+  stop-color: var(--cruush-cv-current-light) !important;
+}
+
 html[data-cruush-color-blind] [data-heart-theme='current'] > svg > path:first-of-type,
 html[data-cruush-color-blind] svg[data-marker-theme='current'][data-pulse-active='false'][data-traveller-active='false'][data-owner-stealth='false'][data-owner-ghost-decoy='false'] > path[data-testid^='marker-ghost-border'] {
-  stroke: #0072B2 !important;
+  stroke: var(--cruush-cv-current) !important;
 }
 
 html[data-cruush-color-blind] [data-heart-theme='mutual'] > svg > path:first-of-type,
 html[data-cruush-color-blind] svg[data-marker-theme='mutual'][data-pulse-active='false'][data-traveller-active='false'] > path[data-testid^='marker-ghost-border'] {
-  stroke: #CC79A7 !important;
+  stroke: var(--cruush-cv-secondary) !important;
 }
 
 html[data-cruush-color-blind] [data-heart-theme='nearby'] > svg > path:first-of-type,
 html[data-cruush-color-blind] svg[data-marker-theme='nearby'][data-pulse-active='false'][data-traveller-active='false'] > path[data-testid^='marker-ghost-border'] {
-  stroke: #E69F00 !important;
+  stroke: var(--cruush-cv-primary) !important;
 }
 
 html[data-cruush-color-blind] [data-heart-fill-theme='current'] stop:nth-child(1) {
-  stop-color: #56B4E9 !important;
+  stop-color: var(--cruush-cv-current-light) !important;
 }
 
 html[data-cruush-color-blind] [data-heart-fill-theme='current'] stop:nth-child(2) {
-  stop-color: #0072B2 !important;
+  stop-color: var(--cruush-cv-current) !important;
 }
 
 html[data-cruush-color-blind] [data-heart-fill-theme='current'] stop:nth-child(3) {
-  stop-color: #004D73 !important;
+  stop-color: var(--cruush-cv-current-dark) !important;
 }
 
 html[data-cruush-color-blind] [data-heart-fill-theme='mutual'] stop:nth-child(1) {
-  stop-color: #E5A5C6 !important;
+  stop-color: var(--cruush-cv-mutual-light) !important;
 }
 
 html[data-cruush-color-blind] [data-heart-fill-theme='mutual'] stop:nth-child(2) {
-  stop-color: #CC79A7 !important;
+  stop-color: var(--cruush-cv-secondary) !important;
 }
 
 html[data-cruush-color-blind] [data-heart-fill-theme='mutual'] stop:nth-child(3) {
-  stop-color: #8E416C !important;
+  stop-color: var(--cruush-cv-mutual-dark) !important;
 }
 
 html[data-cruush-color-blind] [data-heart-fill-theme='nearby'] stop:nth-child(1) {
-  stop-color: #F7C95C !important;
+  stop-color: var(--cruush-cv-nearby-light) !important;
 }
 
 html[data-cruush-color-blind] [data-heart-fill-theme='nearby'] stop:nth-child(2) {
-  stop-color: #E69F00 !important;
+  stop-color: var(--cruush-cv-primary) !important;
 }
 
 html[data-cruush-color-blind] [data-heart-fill-theme='nearby'] stop:nth-child(3) {
-  stop-color: #A66D00 !important;
+  stop-color: var(--cruush-cv-nearby-dark) !important;
 }
 
 html[data-cruush-color-blind] [data-badge-tone='current'] {
-  color: #0072B2 !important;
+  color: var(--cruush-cv-current) !important;
 }
 
 html[data-cruush-color-blind] [data-badge-tone='current'] > span > svg {
-  stroke: #0072B2 !important;
+  stroke: var(--cruush-cv-current) !important;
 }
 
 html[data-cruush-color-blind] [data-badge-tone='mutual'] {
-  color: #CC79A7 !important;
+  color: var(--cruush-cv-secondary) !important;
 }
 
 html[data-cruush-color-blind] [data-badge-tone='mutual'] > span > svg {
-  stroke: #CC79A7 !important;
+  stroke: var(--cruush-cv-secondary) !important;
 }
 
 html[data-cruush-color-blind] [data-badge-tone='nearby'] {
-  color: #E69F00 !important;
+  color: var(--cruush-cv-primary) !important;
 }
 
 html[data-cruush-color-blind] [data-badge-tone='nearby'] > span > svg {
-  stroke: #E69F00 !important;
+  stroke: var(--cruush-cv-primary) !important;
+}
+
+html[data-cruush-color-blind] [data-border-tone='mile-high'] > svg > path:first-of-type,
+html[data-cruush-color-blind] svg[data-marker-theme][data-traveller-active='true'] > path[data-testid^='marker-ghost-border'] {
+  stroke: var(--cruush-cv-current) !important;
+}
+
+html[data-cruush-color-blind] [data-border-tone='pulse'] > svg > path:first-of-type,
+html[data-cruush-color-blind] svg[data-marker-theme][data-pulse-active='true'] > path[data-testid^='marker-ghost-border'] {
+  stroke: var(--cruush-cv-positive) !important;
+}
+
+html[data-cruush-color-blind] [data-heart-theme='ghost'] > svg > path:first-of-type,
+html[data-cruush-color-blind] svg[data-marker-theme='npc-ghost-demo'] > path[data-testid^='marker-ghost-border'],
+html[data-cruush-color-blind] svg[data-owner-ghost-decoy='true'] > path[data-testid^='marker-ghost-border'] {
+  stroke: var(--cruush-cv-current-light) !important;
+}
+
+html[data-cruush-color-blind] [data-heart-fill-theme='ghost'] stop,
+html[data-cruush-color-blind] svg[data-marker-theme='npc-ghost-demo'] linearGradient stop {
+  stop-color: var(--cruush-cv-current-light) !important;
+}
+
+html[data-cruush-color-blind] svg[data-owner-stealth='true'] > path[data-testid^='marker-ghost-border'] {
+  stroke: var(--cruush-cv-current) !important;
+}
+
+html[data-cruush-color-blind] [data-badge-tone='mile-high'],
+html[data-cruush-color-blind] [data-badge-tone='mile-high'] > span > svg {
+  color: var(--cruush-cv-current) !important;
+  stroke: var(--cruush-cv-current) !important;
+}
+
+html[data-cruush-color-blind] [data-badge-tone='pulse'],
+html[data-cruush-color-blind] [data-badge-tone='pulse'] > span > svg {
+  color: var(--cruush-cv-positive) !important;
+  stroke: var(--cruush-cv-positive) !important;
+}
+
+html[data-cruush-color-blind] [data-badge-tone='special'],
+html[data-cruush-color-blind] [data-badge-tone='special'] > span > svg {
+  color: var(--cruush-cv-current) !important;
+  stroke: var(--cruush-cv-current) !important;
+}
+
+html[data-cruush-color-blind] [data-mile-high-ink='light-blue'] {
+  stroke: var(--cruush-cv-current-light) !important;
 }
 
 html[data-cruush-reduce-motion] *,
@@ -407,17 +744,8 @@ html[data-cruush-reduce-motion] [data-testid='map-ping-preview-heart'] {
   animation-iteration-count: infinite !important;
 }
 
-html[data-cruush-alpha-bug-corner='top-right'] header.sticky.top-0 {
-  padding-right: calc(4.5rem + env(safe-area-inset-right)) !important;
-}
-
-html[data-cruush-alpha-bug-corner='top-right'] header.sticky.top-0[data-testid='cruush-activity-header'] {
-  padding-right: 1rem !important;
-}
-
-html[data-cruush-alpha-bug-corner='top-right'] header.sticky.top-0[data-testid='direct-messages-header'] {
-  padding-right: 0 !important;
-}
+/* Every screen header docks the bug button in its own row, so no header
+   reserves a corner for it any more. */
 
 /* Docked popups own their complete header. The global Bug Fix button stays
    outside them and must not create an empty header slot. */
@@ -450,6 +778,23 @@ html[data-cruush-map-route='open'] [data-slot='dialog-content'] {
   top: calc(var(--cruush-map-top-clearance) + ((100dvh - var(--cruush-map-top-clearance)) / 2)) !important;
   max-height: calc(100dvh - var(--cruush-map-top-clearance) - 0.75rem) !important;
   z-index: 40 !important;
+}
+
+/* Reporting stays above map markers, navigation, and the Pulse window. */
+html[data-cruush-map-route='open'] [data-slot='dialog-overlay'].alpha-bug-overlay {
+  top: 0 !important;
+  z-index: 1602 !important;
+}
+
+html[data-cruush-map-route='open'] [data-testid='alpha-bug-dialog'] {
+  z-index: 1603 !important;
+}
+
+@media (max-width: 639px) {
+  html[data-cruush-map-route='open'] [data-testid='alpha-bug-dialog'] {
+    top: 0 !important;
+    max-height: 100dvh !important;
+  }
 }
 
 html[data-cruush-alpha-bug-corner='top-right'] [data-testid='accessibility-quick-access'] {
@@ -654,7 +999,9 @@ html[data-cruush-alpha-bug-corner='top-right'] [data-testid='accessibility-quick
     line-height: 1.5;
   }
 
-  input {
+  input,
+  textarea,
+  select {
     font-size: var(--text-base);
     font-weight: var(--font-weight-normal);
     line-height: 1.5;
@@ -738,6 +1085,19 @@ html[data-cruush-alpha-bug-corner='top-right'] [data-testid='accessibility-quick
     width: 0;
     height: 0;
     display: none;
+  }
+
+  @media (hover: none) and (pointer: coarse) {
+    * {
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+
+    *::-webkit-scrollbar {
+      width: 0;
+      height: 0;
+      display: none;
+    }
   }
 
   .profile-card-scroll {
@@ -1081,13 +1441,11 @@ html[data-cruush-alpha-bug-corner='top-right'] [data-testid='accessibility-quick
     opacity: var(--cruush-ghost-unit-opacity, 1);
   }
 
-  /* The white parts of the apparition stay pure white at full opacity through
-     the whole countdown. Only the photograph and the surface react to it. */
   .cruush-ghost-rotation-badge-symbol,
   .cruush-ghost-rotation-signal-symbol {
     color: #FFFFFF;
-    filter: none;
-    opacity: 1;
+    filter: var(--cruush-ghost-pepper-filter, none);
+    opacity: var(--cruush-ghost-pepper-opacity, 1);
   }
 
   .cruush-ghost-rotation-heart-photo {
@@ -1395,12 +1753,20 @@ html[data-cruush-alpha-bug-corner='top-right'] [data-testid='accessibility-quick
     container-type: inline-size;
   }
 
+  /* The card carries the surface; the grid lives in a child, so anything the
+     card wants above the grid (the vibe tags) cannot become a grid row and
+     push the heart, name and actions onto rows they were not designed for. */
   .cruush-user-activity-capsule {
-    grid-template-columns: var(--cruush-profile-heart-size) minmax(0, 1fr) auto;
-    column-gap: clamp(0.75rem, 5.3cqw, 2.2rem);
-    row-gap: clamp(0.5rem, 1.8cqw, 0.85rem);
     border-radius: clamp(1rem, 4cqw, 1.75rem);
     padding: clamp(0.75rem, 5.3cqw, 2.2rem);
+  }
+
+  .cruush-user-activity-grid {
+    grid-template-columns: var(--cruush-profile-heart-size) minmax(0, 1fr) auto;
+    /* The gap grew with the card, so on a phone the action column pushed into
+       the identity column and clipped the distance line. */
+    column-gap: clamp(0.5rem, 2.4cqw, 1rem);
+    row-gap: clamp(0.5rem, 1.8cqw, 0.85rem);
   }
 
   .cruush-user-activity-heart {
@@ -1441,6 +1807,22 @@ html[data-cruush-alpha-bug-corner='top-right'] [data-testid='accessibility-quick
   .cruush-user-activity-content > div > button {
     font-size: inherit;
     line-height: inherit;
+  }
+
+  html[data-cruush-larger-text] .cruush-user-activity-name {
+    font-size: clamp(1.25rem, 5.375cqw, 2.1875rem);
+  }
+
+  html[data-cruush-larger-text] .cruush-user-activity-pronouns {
+    font-size: clamp(1.09375rem, 4cqw, 1.6875rem);
+  }
+
+  html[data-cruush-larger-text] .cruush-user-activity-metadata {
+    font-size: clamp(0.9375rem, 4cqw, 1.6875rem);
+  }
+
+  html[data-cruush-larger-text] .cruush-user-activity-content {
+    font-size: clamp(1.25rem, 5.375cqw, 2.1875rem);
   }
 
   .cruush-user-activity-actions [data-testid='profile-action-trio'] {

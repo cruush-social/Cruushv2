@@ -1,4 +1,5 @@
 import { useState, type ChangeEvent, type ReactNode } from 'react';
+import { PHOTO_UPLOAD_ACCEPT } from '../lib/photoUploadFormats';
 import { ArrowLeft, Flag, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import type { FeedPhoto } from '../lib/postApi';
@@ -10,6 +11,7 @@ import { CruushIcon } from './CruushIconImage';
 import ProfileActionTrio from './ProfileActionTrio';
 import { ProfilePhotoCropper } from './ProfileEdit';
 import UserActivityCapsule from './UserActivityCapsule';
+import BugButtonSlot from './BugButtonSlot';
 
 /**
  * A side-by-side of the ways feed photos could read, built out of the same
@@ -119,8 +121,8 @@ function PostChrome({ post, children, heartSize }: {
         </div>
       )}
       cornerAction={(
-        <div className="flex items-center gap-1 text-white/58">
-          <span className="text-xs">{post.expiry}</span>
+        <>
+          <span className="text-xs text-white/58">{post.expiry}</span>
           {post.owner ? (
             <button aria-label="Delete feed post" className="flex h-8 w-8 items-center justify-center rounded-full border-0 bg-transparent p-0 text-white/52 transition hover:bg-white/10 hover:text-white" type="button">
               <Trash2 className="h-4 w-4" />
@@ -130,7 +132,7 @@ function PostChrome({ post, children, heartSize }: {
               <Flag className="h-4 w-4" />
             </button>
           )}
-        </div>
+        </>
       )}
     />
   );
@@ -181,7 +183,7 @@ function FeedPhotoUploadPreview() {
           <CruushIcon name="camera" className="h-4 w-4" />
           Choose photo
           <input
-            accept="image/jpeg,image/png,image/webp"
+            accept={PHOTO_UPLOAD_ACCEPT}
             aria-label="Choose feed photo"
             className="sr-only"
             onChange={(event) => void handleFileChange(event)}
@@ -271,6 +273,8 @@ export default function FeedPhotoPreview() {
           <ArrowLeft className="h-5 w-5" />
         </button>
         <h1 className="text-lg">Feed posts</h1>
+      
+        <BugButtonSlot testId="feed-photo-preview-bug-button-slot" />
       </header>
 
       <main className="mx-auto w-full space-y-8 px-4 py-6">

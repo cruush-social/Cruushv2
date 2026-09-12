@@ -17,6 +17,7 @@ import { photoUploadAvailability } from "../photo-upload-availability.js";
 import { ApiError } from "../errors.js";
 import { assertCanSendNsfwMessagePhoto, assertCanStartDirectMessage, canStartDirectMessage } from "../cruush-match-settings.js";
 import { getRelationshipPermissions, type RelationshipPermissions } from "../match-relationships.js";
+import { createGroupPulse } from "../map-pings.js";
 import { createAppNotificationAndPush } from "../notification-service.js";
 import {
   conversationTimerSchema,
@@ -59,6 +60,10 @@ const groupMemberParamsSchema = z.object({
   targetUserId: z.uuid()
 }).strict();
 
+const groupPulsePayloadSchema = z.object({
+  idempotencyKey: z.uuid()
+}).strict();
+
 const adminRoles = new Set(["owner", "admin"]);
 
 type ConversationRow = {
@@ -85,6 +90,7 @@ type ConversationRow = {
   other_user_photo: string | null;
   other_user_photo_explicit?: boolean | null;
   other_user_side_badges?: unknown;
+  other_user_vibes?: string[] | null;
   other_user_travelling?: boolean;
   member_count: number;
 };
@@ -107,6 +113,7 @@ type MessageRow = {
   content_auth_tag?: string | null;
   content_key_version?: string | null;
   created_at: string | Date;
+  read_at?: string | Date | null;
   expires_at?: string | Date | null;
   attachments?: MessageAttachment[] | string | null;
 };
@@ -365,7 +372,7 @@ async function refreshCreatedMessageAttachments(app: FastifyInstance, row: Messa
   return row;
 }
 
-function mapConversationRow(app: FastifyInstance, row: ConversationRow, options: {
+export function mapConversationRow(app: FastifyInstance, row: ConversationRow, options: {
   canMessage?: boolean;
   mutual?: boolean;
 } = {}) {
@@ -389,6 +396,7 @@ function mapConversationRow(app: FastifyInstance, row: ConversationRow, options:
       photo: isGroup ? null : row.other_user_photo ?? null,
       ...(isGroup ? {} : { photoExplicit: row.other_user_photo_explicit === true }),
       ...(isGroup || !row.other_user_side_badges ? {} : { sideBadges: row.other_user_side_badges }),
+      ...(isGroup || !row.other_user_vibes?.length ? {} : { vibes: row.other_user_vibes.slice(0, 3) }),
       ...(isGroup ? {} : { travelling: row.other_user_travelling === true })
     },
     distance: "Nearby",
@@ -513,6 +521,7 @@ function mapMessageRow(app: FastifyInstance, row: MessageRow) {
       keyVersion: row.content_key_version ?? undefined
     }, row.content),
     timestamp: new Date(row.created_at).toISOString(),
+    ...(row.read_at ? { readAt: new Date(row.read_at).toISOString() } : {}),
     ...(row.expires_at ? { expiresAt: new Date(row.expires_at).toISOString() } : {}),
     ...(hasSender ? {
       user: {
@@ -657,6 +666,13 @@ const CONVERSATION_SELECT = `
     other_profile.pronouns as other_user_pronouns,
     case when c.kind = 'dm' then other_profile.photos[1] else null end as other_user_photo,
     case when c.kind = 'dm' then to_jsonb(other_profile)->'side_badges' else null end as other_user_side_badges,
+    -- Cruushes cards read vibes, scenes and archetypes as one set, so a
+    -- message card shows the same three a profile card would.
+    case when c.kind = 'dm' then (
+      coalesce(other_profile.vibes, '{}'::text[])
+      || coalesce(other_profile.scenes, '{}'::text[])
+      || coalesce(other_profile.archetypes, '{}'::text[])
+    ) else null end as other_user_vibes,
     case when c.kind = 'dm' then exists (
       select 1 from user_travel_pins travel
       where travel.user_id = other_member.user_id
@@ -796,10 +812,14 @@ function assertCanManageConversation(conversation: ConversationRow, action: "tim
 
 function expirationSql(timerParam: string) {
   return `case
+             when ${timerParam} = '5m' then now() + interval '5 minutes'
              when ${timerParam} = '1h' then now() + interval '1 hour'
+             when ${timerParam} = '8h' then now() + interval '8 hours'
              when ${timerParam} = '24h' then now() + interval '24 hours'
+             when ${timerParam} = '3d' then now() + interval '3 days'
              when ${timerParam} = '7d' then now() + interval '7 days'
              when ${timerParam} = '30d' then now() + interval '30 days'
+             when ${timerParam} = '90d' then now() + interval '90 days'
              else null
            end`;
 }
@@ -1253,6 +1273,27 @@ export async function registerMessageRoutes(app: FastifyInstance) {
         joinedAt: new Date(row.joined_at).toISOString()
       }))
     });
+  });
+
+  app.post("/api/conversations/groups/:conversationId/pulse", async (request, reply) => {
+    const userId = await getActiveAccountUserId(request);
+    const { conversationId } = conversationParamsSchema.parse(request.params);
+    const payload = groupPulsePayloadSchema.parse(request.body);
+
+    await app.rateLimiter.assert({
+      key: `group-pulses:create:${userId}`,
+      max: 5,
+      windowMs: 60_000,
+      message: "Too many Pulse attempts. Try again shortly."
+    });
+
+    const status = await createGroupPulse(app, {
+      userId,
+      conversationId,
+      idempotencyKey: payload.idempotencyKey
+    });
+
+    return reply.code(201).send({ data: status });
   });
 
   app.get("/api/conversations", async (request, reply) => {
@@ -1886,6 +1927,10 @@ export async function registerMessageRoutes(app: FastifyInstance) {
          m.content_key_version,
          m.created_at,
          m.expires_at,
+         case
+           when c.kind = 'dm' and m.user_id = $2 then recipient_read.last_read_at
+           else null
+         end as read_at,
          coalesce(sender_profile.display_name, sender_user.display_name, sender_user.email) as sender_name,
          sender_profile.pronouns as sender_pronouns,
          sender_profile.photos[1] as sender_photo,
@@ -1903,6 +1948,13 @@ export async function registerMessageRoutes(app: FastifyInstance) {
        join conversations c on c.id = m.conversation_id
        join app_users sender_user on sender_user.id = m.user_id
        left join profiles sender_profile on sender_profile.id = m.user_id
+       left join lateral (
+         select max(recipient_member.last_read_at) as last_read_at
+         from conversation_members recipient_member
+         where recipient_member.conversation_id = m.conversation_id
+           and recipient_member.user_id <> $2
+           and recipient_member.last_read_at >= m.created_at
+       ) as recipient_read on true
        left join lateral (
          select jsonb_agg(jsonb_build_object(
            'id', media.id::text,

@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react';
 import { Accessibility, Contrast, Palette, Type } from 'lucide-react';
 import {
   addAccessibilityPreferencesChangedListener,
+  COLOR_VISION_MODES,
   getAccessibilityPreferences,
   saveAccessibilityPreferences,
   type AccessibilityPreferences,
+  type ColorVisionMode,
 } from '../lib/accessibilityPreferences';
 import {
   Dialog,
@@ -16,13 +18,24 @@ import {
 } from './ui/dialog';
 import { Label } from './ui/label';
 import { Switch } from './ui/switch';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
 
 const ACCESSIBILITY_OPTIONS = [
-  { icon: Palette, key: 'colorBlindMode', label: 'Color-blind mode' },
   { icon: Accessibility, key: 'reduceMotion', label: 'Reduce motion' },
   { icon: Type, key: 'largerText', label: 'Larger text' },
   { icon: Contrast, key: 'highContrast', label: 'Increase contrast' },
 ] as const;
+
+const COLOR_VISION_LABELS: Record<ColorVisionMode, string> = {
+  off: 'Off',
+  deuteranomaly: 'Deuteranomaly',
+  deuteranopia: 'Deuteranopia',
+  protanomaly: 'Protanomaly',
+  protanopia: 'Protanopia',
+  tritanomaly: 'Tritanomaly',
+  tritanopia: 'Tritanopia',
+  monochromacy: 'Monochromacy',
+};
 
 type AccessibilityQuickAccessProps = {
   authShellScrolled?: boolean;
@@ -35,11 +48,27 @@ export default function AccessibilityQuickAccess({
 
   useEffect(() => addAccessibilityPreferencesChangedListener(setPreferences), []);
 
-  const updatePreference = (key: keyof AccessibilityPreferences, checked: boolean) => {
+  const updatePreference = (
+    key: Exclude<keyof AccessibilityPreferences, 'colorVisionMode'>,
+    checked: boolean,
+  ) => {
     setPreferences((currentPreferences) => {
       const nextPreferences = {
         ...currentPreferences,
         [key]: checked,
+      };
+
+      saveAccessibilityPreferences(nextPreferences);
+      return nextPreferences;
+    });
+  };
+
+  const updateColorVisionMode = (colorVisionMode: ColorVisionMode) => {
+    setPreferences((currentPreferences) => {
+      const nextPreferences = {
+        ...currentPreferences,
+        colorBlindMode: colorVisionMode !== 'off',
+        colorVisionMode,
       };
 
       saveAccessibilityPreferences(nextPreferences);
@@ -64,13 +93,40 @@ export default function AccessibilityQuickAccess({
         </button>
       </DialogTrigger>
 
-      <DialogContent className="w-[calc(100%-2rem)] max-w-sm border-white/12 bg-background sm:max-w-sm">
+      <DialogContent className="content-start w-[calc(100%-2rem)] max-w-sm border-white/12 bg-background sm:max-w-sm">
         <DialogHeader>
           <DialogTitle>Accessibility</DialogTitle>
           <DialogDescription className="sr-only">Accessibility options</DialogDescription>
         </DialogHeader>
 
         <div className="overflow-hidden rounded-lg border border-border bg-card">
+          <Accordion type="single" collapsible className="border-b border-border">
+            <AccordionItem value="color-vision" className="border-0">
+              <AccordionTrigger className="min-h-14 px-4 py-3 hover:no-underline">
+                <span className="flex min-w-0 flex-1 items-center gap-3 text-left">
+                  <Palette aria-hidden="true" className="h-5 w-5 shrink-0 text-muted-foreground" />
+                  <span className="min-w-0 flex-1">Color vision</span>
+                  <span className="truncate text-sm text-muted-foreground">{COLOR_VISION_LABELS[preferences.colorVisionMode]}</span>
+                </span>
+              </AccordionTrigger>
+              <AccordionContent className="px-4 pb-4 pt-0">
+                <div aria-label="Color vision" className="grid grid-cols-2 gap-2" role="radiogroup">
+                  {COLOR_VISION_MODES.map((value) => (
+                    <button
+                      aria-checked={preferences.colorVisionMode === value}
+                      className={`min-h-10 rounded-full border px-3 py-2 text-sm ${preferences.colorVisionMode === value ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-background text-foreground'}`}
+                      key={value}
+                      onClick={() => updateColorVisionMode(value)}
+                      role="radio"
+                      type="button"
+                    >
+                      {COLOR_VISION_LABELS[value]}
+                    </button>
+                  ))}
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
           {ACCESSIBILITY_OPTIONS.map((option, index) => {
             const Icon = option.icon;
             const inputId = `quick-accessibility-${option.key}`;

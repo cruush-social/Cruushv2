@@ -144,6 +144,17 @@ export async function registerRewardRoutes(app: FastifyInstance) {
     return reply.send({ data: await getSideQuests(app, userId) });
   });
 
+  app.post("/api/rewards/tutorial-completion", async (request, reply) => {
+    const userId = await getActiveAccountUserId(request);
+    await app.db.query(
+      `insert into tutorial_completions (user_id)
+       values ($1)
+       on conflict (user_id) do nothing`,
+      [userId]
+    );
+    return reply.send({ data: { completed: true } });
+  });
+
   app.post("/api/rewards/side-quests/:questKey/claim", async (request, reply) => {
     const userId = await getActiveAccountUserId(request);
     const { questKey } = sideQuestParamsSchema.parse(request.params);

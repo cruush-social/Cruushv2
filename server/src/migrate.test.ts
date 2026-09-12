@@ -191,6 +191,68 @@ describe("migration runner", () => {
     expect(surveySql).not.toMatch(/\b(delete from|truncate|drop table)\b/i);
   });
 
+  it("normalizes saved Gaming hobbies to Video games in a replay-safe migration", async () => {
+    const migrateSource = await readFile(path.join(currentDir, "migrate.ts"), "utf8");
+    const videoGamesSql = await readFile(path.join(serverRoot, "sql", "133_profile_video_games.sql"), "utf8");
+
+    expect(migrateSource).toMatch(/"132_default_profile_side_badges\.sql",\s*"133_profile_video_games\.sql"/);
+    expect(videoGamesSql).toContain("when 'gaming' then 'Video games'");
+    expect(videoGamesSql).toContain("when 'video games' then 'Video games'");
+    expect(videoGamesSql).toContain("where lower(trim(value)) in ('gaming', 'video games')");
+    expect(videoGamesSql).not.toMatch(/\b(delete from|truncate|drop table)\b/i);
+  });
+
+  it("imports the full retained public Spot workbook after the final profile migration", async () => {
+    const migrateSource = await readFile(path.join(currentDir, "migrate.ts"), "utf8");
+    const placesSql = await readFile(path.join(serverRoot, "sql", "134_full_nyc_spot_import.sql"), "utf8");
+
+    expect(migrateSource).toMatch(/"133_profile_video_games\.sql",\s*"134_full_nyc_spot_import\.sql"/);
+    expect(placesSql).toContain("Source-platform public places: 5279. OpenStreetMap venues: 5482.");
+    expect(placesSql).toContain("'adult_shop', 'music_venue', 'sports_venue'");
+    expect(placesSql).toContain("delete from place_tags where tag = 't4t_spot'");
+    expect(placesSql).not.toContain("sniffies.com");
+    expect(placesSql).not.toMatch(/tower_residential/i);
+  });
+
+  it("preserves archived Spots, removed import descriptions and member data during replay", async () => {
+    const readSql = (file: string) => readFile(path.join(serverRoot, "sql", file), "utf8");
+    const [importSql, detailsSql, cleanupSql, bathroomSql, duplicateSql, prefixSql, migrateSource] = await Promise.all([
+      readSql("134_full_nyc_spot_import.sql"),
+      readSql("120_public_spot_details.sql"),
+      readSql("155_preserve_spot_cleanup.sql"),
+      readSql("149_merge_bathroom_subspots.sql"),
+      readSql("151_merge_duplicate_named_spots.sql"),
+      readSql("152_merge_prefix_duplicate_spots.sql"),
+      readFile(path.join(currentDir, "migrate.ts"), "utf8")
+    ]);
+    expect(importSql.match(/on conflict \(slug\) do nothing;/g)).toHaveLength(28);
+    expect(importSql).not.toContain("on conflict (slug) do update");
+    expect(detailsSql).not.toContain("description = seed.description");
+    expect(cleanupSql).toContain("original_description");
+    expect(cleanupSql).toContain("on conflict (place_id) do nothing");
+    expect(cleanupSql).toContain("from backed_up saved");
+    expect(cleanupSql).toContain("p.source_kind = 'community'");
+    expect(cleanupSql).toContain("public-place-6a2e454d808e887c3edaf873");
+    expect(migrateSource).toContain('"155_preserve_spot_cleanup.sql"');
+    for (const sql of [bathroomSql, duplicateSql, prefixSql]) {
+      expect(sql).not.toMatch(/delete\s+from\s+places/i);
+      expect(sql).toContain("status = 'published'");
+      expect(sql).toContain("status = 'archived'");
+      expect(sql).toContain("slug like 'public-place-%'");
+    }
+  });
+
+  it("migrates kink roles through the existing profile role column", async () => {
+    const taxonomySql = await readFile(path.join(serverRoot, "sql", "128_profile_taxonomy_final.sql"), "utf8");
+    const profileFieldsSql = await readFile(path.join(serverRoot, "sql", "129_profile_preferred_spots_protection.sql"), "utf8");
+
+    expect(taxonomySql).toContain("role = pg_temp.cruush_profile_roles_v16(role, kinks)");
+    expect(taxonomySql).not.toMatch(/\broles\s*=/);
+    expect(profileFieldsSql).toContain("set role = array(");
+    expect(profileFieldsSql).toContain("archetypes = owned_profiles.archetypes_with_owned");
+    expect(profileFieldsSql).not.toMatch(/\broles\s*=/);
+  });
+
   it("keeps the late 1.6 migrations replay-safe and dependency ordered", async () => {
     const [
       feedAudienceSql,
@@ -233,7 +295,8 @@ describe("migration runner", () => {
     expect(placesSql).toContain("create index if not exists idx_place_board_messages_expires");
     expect(placesSql).toContain("create index if not exists idx_place_checkins_place_active");
     expect(taxonomySql).toContain("on conflict (place_id, tag) do nothing");
-    expect(taxonomySql).toContain("where tag = 'dyke_bar'");
+    expect(taxonomySql).toContain("where tag in ('dyke_spot', 'dyke_bar')");
+    expect(taxonomySql).toContain("select place_id, 'leans_women'");
     expect(taxonomySql).toContain("set facility_type = 'other'");
     expect(taxonomySql).toContain("where facility_type = 'venue'");
     expect(placesSql).toContain("'gingers-bar', 'Ginger''s Bar'");

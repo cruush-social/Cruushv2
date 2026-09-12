@@ -215,7 +215,9 @@ describe("DL Mode end to end", () => {
     expect(rekognitionState.detectModerationLabelsCalls).toBeGreaterThan(0);
 
     await cleanup(app, query);
-  });
+    // The first upload in this file pays for the image pipeline warm-up, which
+    // runs past the 5s default when the whole suite shares the machine.
+  }, 30_000);
 
   it("leaves an ordinary profile photo unclassified so DL Mode does not over-mask", async () => {
     rekognitionState.moderationLabels = [];

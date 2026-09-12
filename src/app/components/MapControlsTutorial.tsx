@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Bell, Download, Eye, EyeOff, Flame, Ghost, MapPin, MapPinned, Radio, RefreshCw, Rss, SlidersHorizontal, Users, ZoomIn } from 'lucide-react';
+import { useExclusivePopup } from '../lib/popupQueue';
 import { Button } from './ui/button';
 
 export const MAP_CONTROLS_TUTORIAL_STORAGE_KEY = 'cruush:tutorial-v5-seen';
@@ -15,6 +15,14 @@ export const MAP_CONTROLS_TUTORIAL_LEGACY_STORAGE_KEYS = [
 ];
 export const MAP_CONTROLS_TUTORIAL_PROGRESS_KEY = 'cruush:tutorial-v5-progress';
 export const MAP_CONTROLS_TUTORIAL_COMPLETED_EVENT = 'cruush:map-controls-tutorial-completed';
+export const MAP_CONTROLS_TUTORIAL_STEP_EVENT = 'cruush:map-controls-tutorial-step';
+
+/** Lets the map open the very control a step is talking about. */
+export function notifyMapControlsTutorialStep(step: MapControlsTutorialStepId) {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(MAP_CONTROLS_TUTORIAL_STEP_EVENT, { detail: step }));
+  }
+}
 
 export function notifyMapControlsTutorialCompleted() {
   if (typeof window !== 'undefined') {
@@ -22,7 +30,7 @@ export function notifyMapControlsTutorialCompleted() {
   }
 }
 
-export type MapControlsTutorialStepId = 'install' | 'notifications' | 'map-controls' | 'seeking' | 'visibility' | 'places' | 'heatmap' | 'crowds' | 'ghost' | 'dl-mode' | 'ping' | 'profile-pin' | 'zoom' | 'carousel' | 'feed';
+export type MapControlsTutorialStepId = 'install' | 'notifications' | 'map-controls' | 'seeking' | 'visibility' | 'cruush-plus' | 'mile-high-club' | 'places' | 'crowds' | 'ghost' | 'dl-mode' | 'ping' | 'profile-pin' | 'zoom' | 'carousel' | 'profile-edit' | 'feed';
 
 type TutorialStep = {
   id: MapControlsTutorialStepId;
@@ -50,7 +58,7 @@ const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'map-controls',
     title: 'Map Controls',
-    description: 'Open Map Controls to reach Seeking, Visibility, Spots, the seven-day activity heatmap, Pulse, location, and zoom without covering the map.',
+    description: 'This is Map Controls, open for you. Seeking filters who you see, Visibility controls who sees you, and Spots filters the venues on the map. Pulse, your location, and zoom sit below them.',
     actionLabel: 'Open Map Controls',
   },
   {
@@ -66,27 +74,33 @@ const TUTORIAL_STEPS: TutorialStep[] = [
     actionLabel: 'Open Visibility',
   },
   {
-    id: 'places',
-    title: 'Spots',
-    description: 'Find public queer spaces, health services, clubs, and community spots. You can rate, check in, and leave a board message.',
-    actionLabel: 'Open Spots',
+    id: 'cruush-plus',
+    title: 'cruush+',
+    description: 'cruush+ unlocks full activity, 5 Pulses per day, Mile High Club, photo hearts and more controls in Feed+, the Cruise Carousel, all Seeking and Visibility controls, up to 10 profile tags, unlimited profile kinks, and Dark Room.',
+    actionLabel: 'Open cruush+',
   },
   {
-    id: 'heatmap',
-    title: 'Seven-day activity heatmap',
-    description: 'See broad activity trends from the last seven days. The view uses deidentified area totals, not individual pin locations, and stays off by default.',
-    actionLabel: 'Show heatmap',
+    id: 'mile-high-club',
+    title: 'Mile High Club',
+    description: 'With cruush+, search an address or use your current location to drop your pin anywhere in the current map area and browse there. You can move the pin again after 3 hours. The sky border and plane glyph show when Mile High Club is on.',
+    actionLabel: 'Open Mile High Club',
+  },
+  {
+    id: 'places',
+    title: 'Spots',
+    description: 'Find queer spaces, health services, clubs, and community Spots. Anyone can see who is there. Check in to read and post in the Pink Book, report the vibe, and rate the Spot.',
+    actionLabel: 'Open Spots',
   },
   {
     id: 'crowds',
     title: 'Crowd Mode',
-    description: 'Crowd Mode is part of Visibility. Choose active crowds when you want only people in those crowds to see you.',
+    description: 'Choosing crowds alone does not change who can see you. Turn Crowd Mode on when you want only people in your selected crowds to see you, then turn it off to return to your normal visibility.',
     actionLabel: 'Open Crowd Mode',
   },
   {
     id: 'ghost',
     title: 'Ghost Mode',
-    description: 'Ghost Mode shifts your public map location to protect your privacy. Open its settings to choose how your presence appears.',
+    description: 'Ghost Mode does not hide you. It puts a decoy pin on the map that hops around inside a radius you choose, so people see you nearby without seeing where you are. By default the public can see you, and only mutuals can message you or get your precise location. Visibility Controls change that.',
     actionLabel: 'Open Ghost Mode',
   },
   {
@@ -98,7 +112,7 @@ const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'ping',
     title: 'Pulse',
-    description: 'Pulse is inside Map Controls. It briefly marks your heart as active on the map and shares your signal as a normal feed post.',
+    description: 'Pulse makes your heart beat for 30 minutes inside the radius you choose and posts your saved profile signal to Feed without moving your pin. Optional phone alerts go only to eligible mutuals. A person receives at most one Pulse alert every 4 hours and never more than one from the same sender per day. Basic includes 1 Pulse per day. cruush+ includes 5 per day.',
     actionLabel: 'Open Pulse',
   },
   {
@@ -119,49 +133,18 @@ const TUTORIAL_STEPS: TutorialStep[] = [
     actionLabel: 'Open Cruise Carousel',
   },
   {
+    id: 'profile-edit',
+    title: 'Your profile',
+    description: 'Your photos, Badges, vibes, and kinks all live in Edit Profile. What you put here is what Seeking and Visibility match on.',
+    actionLabel: 'Open Edit Profile',
+  },
+  {
     id: 'feed',
     title: 'Feed',
-    description: 'With cruush+, use Feed to share a post with people nearby. Start with a short signal, question, or invitation.',
+    description: 'Share a text post with people nearby, and search the Feed by tag. cruush+ adds up to ten tags on a post, three photo hearts in a row, specific Crowd audiences, and custom expiration times. Make your first post from here.',
     actionLabel: 'Open Feed',
   },
 ];
-
-function StepIcon({ id }: { id: MapControlsTutorialStepId }) {
-  switch (id) {
-    case 'install':
-      return <Download className="h-5 w-5 text-primary" />;
-    case 'notifications':
-      return <Bell className="h-5 w-5 text-primary" />;
-    case 'map-controls':
-      return <SlidersHorizontal className="h-5 w-5 text-primary" />;
-    case 'seeking':
-      return <SlidersHorizontal className="h-5 w-5 text-primary" />;
-    case 'visibility':
-      return <EyeOff className="h-5 w-5 text-primary" />;
-    case 'places':
-      return <MapPinned className="h-5 w-5 text-primary" />;
-    case 'heatmap':
-      return <Flame className="h-5 w-5 text-primary" />;
-    case 'crowds':
-      return <Users className="h-5 w-5 text-primary" />;
-    case 'ghost':
-      return <Ghost className="h-5 w-5 text-primary animate-pulse" />;
-    case 'dl-mode':
-      return <Eye className="h-5 w-5 text-primary" />;
-    case 'ping':
-      return <Radio className="h-5 w-5 text-primary" />;
-    case 'profile-pin':
-      return <MapPin className="h-5 w-5 text-primary" />;
-    case 'zoom':
-      return <ZoomIn className="h-5 w-5 text-primary" />;
-    case 'carousel':
-      return <RefreshCw className="h-5 w-5 text-primary" />;
-    case 'feed':
-      return <Rss className="h-5 w-5 text-primary" />;
-    default:
-      return <Ghost className="h-5 w-5 text-primary" />;
-  }
-}
 
 export function getStoredMapControlsTutorialStep(): MapControlsTutorialStepId | null {
   if (typeof window === 'undefined') {
@@ -182,7 +165,7 @@ function readTutorialProgressIndex() {
 
 type MapControlsTutorialProps = {
   open: boolean;
-  onComplete: () => void;
+  onComplete: (completed: boolean) => void | Promise<void>;
   onActivateStep: (step: MapControlsTutorialStepId) => void | Promise<void>;
   onStepChange?: (step: MapControlsTutorialStepId) => void;
 };
@@ -474,8 +457,46 @@ function readBottomBoundary(viewportHeight: number) {
   return Math.max(0, viewportHeight - DEFAULT_BOTTOM_NAV_CLEARANCE_PX);
 }
 
+/**
+ * True while a dialog other than the tour card is open anywhere on the page.
+ * Sheets and dialogs live in several stacking contexts, so no single z-index
+ * keeps the card under all of them; instead the card steps aside while one is
+ * open and comes back when it closes. Nothing a dialog asks for is ever hidden
+ * behind the tour.
+ */
+function useAnotherDialogOpen() {
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (typeof document === 'undefined' || typeof MutationObserver === 'undefined') {
+      return;
+    }
+
+    const check = () => {
+      const dialogs = [...document.querySelectorAll('[role="dialog"]')]
+        .filter((node) => !node.closest('[data-testid="map-controls-tutorial"]'));
+      setOpen(dialogs.length > 0);
+    };
+
+    const observer = new MutationObserver(check);
+    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['role', 'hidden', 'data-state'] });
+    check();
+
+    return () => observer.disconnect();
+  }, []);
+
+  return open;
+}
+
 export default function MapControlsTutorial({ open, onComplete, onActivateStep, onStepChange }: MapControlsTutorialProps) {
+  const anotherDialogOpen = useAnotherDialogOpen();
   const cardRef = useRef<HTMLElement | null>(null);
+  const completionTriggeredRef = useRef(false);
+  const [dismissed, setDismissed] = useState(false);
+  // Holds the shared prompt slot while it runs. The tutorial portals above the
+  // dialogs rather than being one, so while a dialog was open its buttons sat
+  // inside that dialog's outside-click layer and did nothing when tapped.
+  const showing = useExclusivePopup('map-tutorial', open && !dismissed);
   const [stepIndex, setStepIndex] = useState(readTutorialProgressIndex);
   const [targetRects, setTargetRects] = useState<TutorialPlacementRect[]>([]);
   const [measurements, setMeasurements] = useState<TutorialMeasurements | null>(null);
@@ -493,6 +514,13 @@ export default function MapControlsTutorial({ open, onComplete, onActivateStep, 
   }, [open, step.id]);
 
   useEffect(() => {
+    if (!open) {
+      completionTriggeredRef.current = false;
+      setDismissed(false);
+    }
+  }, [open]);
+
+  useEffect(() => {
     setActionPending(false);
     setActionError('');
     setActionCompleted(false);
@@ -506,8 +534,16 @@ export default function MapControlsTutorial({ open, onComplete, onActivateStep, 
     let animationFrame = 0;
     let measureUntil = 0;
     const measure = () => {
+      // The card is fixed, so it positions against the layout viewport, but on
+      // iOS Chrome the URL bar makes the visible window a shorter slice of
+      // that. Measuring the layout viewport put the card, and its buttons,
+      // below the part of the screen anyone can reach.
+      const visual = window.visualViewport;
       const viewportWidth = window.innerWidth || DEFAULT_VIEWPORT_WIDTH_PX;
-      const viewportHeight = window.innerHeight || DEFAULT_VIEWPORT_HEIGHT_PX;
+      const visibleBottom = visual
+        ? Math.round(visual.offsetTop + visual.height)
+        : 0;
+      const viewportHeight = (visibleBottom || window.innerHeight) || DEFAULT_VIEWPORT_HEIGHT_PX;
       const cardElement = cardRef.current;
       const cardRect = cardElement?.getBoundingClientRect();
       const nextRects = readTargetRects(step.id);
@@ -546,6 +582,8 @@ export default function MapControlsTutorial({ open, onComplete, onActivateStep, 
     scheduleMeasurementBurst();
     window.addEventListener('resize', measure);
     window.addEventListener('scroll', measure, true);
+    window.visualViewport?.addEventListener('resize', measure);
+    window.visualViewport?.addEventListener('scroll', measure);
 
     const resizeObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure);
     const mutationObserver = typeof MutationObserver === 'undefined' ? null : new MutationObserver(scheduleMeasurementBurst);
@@ -565,6 +603,8 @@ export default function MapControlsTutorial({ open, onComplete, onActivateStep, 
       window.cancelAnimationFrame(animationFrame);
       window.removeEventListener('resize', measure);
       window.removeEventListener('scroll', measure, true);
+      window.visualViewport?.removeEventListener('resize', measure);
+      window.visualViewport?.removeEventListener('scroll', measure);
       resizeObserver?.disconnect();
       mutationObserver?.disconnect();
     };
@@ -591,25 +631,40 @@ export default function MapControlsTutorial({ open, onComplete, onActivateStep, 
     };
   }, [measurements, targetBounds]);
 
-  const completeTutorial = (event?: React.SyntheticEvent) => {
+  const completeTutorial = (completed: boolean, event?: React.SyntheticEvent) => {
     if (event) {
       event.stopPropagation();
     }
+    if (completionTriggeredRef.current) {
+      return;
+    }
+    completionTriggeredRef.current = true;
     window.localStorage.setItem(MAP_CONTROLS_TUTORIAL_STORAGE_KEY, 'true');
     window.localStorage.removeItem(MAP_CONTROLS_TUTORIAL_PROGRESS_KEY);
-    onComplete();
+    setDismissed(true);
+    void onComplete(completed);
+  };
+
+  const activateOnTouch = (action: () => void) => (event: React.PointerEvent<HTMLButtonElement>) => {
+    if (event.pointerType !== 'touch') {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    action();
   };
 
   const moveToStep = (nextIndex: number) => {
     const nextStep = TUTORIAL_STEPS[nextIndex];
 
     if (!nextStep) {
-      completeTutorial();
+      completeTutorial(true);
       return;
     }
 
     window.localStorage.setItem(MAP_CONTROLS_TUTORIAL_PROGRESS_KEY, nextStep.id);
     setStepIndex(nextIndex);
+    notifyMapControlsTutorialStep(nextStep.id);
     onStepChange?.(nextStep.id);
   };
 
@@ -634,12 +689,16 @@ export default function MapControlsTutorial({ open, onComplete, onActivateStep, 
     }
   };
 
-  if (!open) {
+  if (!showing) {
     return null;
   }
 
+  // Below every dialog (they portal to the body at z-[80]) and above the map
+  // shell. The card used to sit at z-[100] and covered the lower half of any
+  // dialog a member opened mid-tour, including the photo cropper's confirm,
+  // which is how "cannot upload any photo" reached the inbox.
   return createPortal((
-    <div className="pointer-events-none fixed inset-0 z-[100]" data-testid="map-controls-tutorial">
+    <div className="pointer-events-none fixed inset-0 z-[40]" data-testid="map-controls-tutorial" hidden={anotherDialogOpen}>
       {targetRects.length > 0 ? (
         <svg
           aria-hidden="true"
@@ -697,43 +756,34 @@ export default function MapControlsTutorial({ open, onComplete, onActivateStep, 
         style={cardStyle}
       >
         <div className="mb-3 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-1.5" aria-label={`Step ${stepIndex + 1} of ${TUTORIAL_STEPS.length}`}>
-            {TUTORIAL_STEPS.map((s, idx) => (
-              <span
-                key={s.id}
-                className={`h-1.5 rounded-full transition-all duration-300 ${
-                  idx === stepIndex
-                    ? 'w-4 bg-primary shadow-[0_0_8px_rgba(255,0,114,0.8)]'
-                    : idx < stepIndex
-                    ? 'w-1.5 bg-white/60'
-                    : 'w-1.5 bg-white/20'
-                }`}
-              />
-            ))}
+          <div aria-label="Tutorial progress" className="h-1.5 w-24 overflow-hidden rounded-full bg-white/20">
+            <div
+              className="h-full rounded-full bg-primary transition-[width] duration-300 shadow-[0_0_8px_rgba(255,0,114,0.8)]"
+              style={{ width: `${((stepIndex + 1) / TUTORIAL_STEPS.length) * 100}%` }}
+            />
           </div>
           <button
             type="button"
             className="flex items-center gap-1 px-2.5 py-1 rounded-full border border-white/15 bg-white/10 text-xs font-medium text-white/80 hover:bg-white/20 hover:text-white active:scale-95 transition-all shadow-sm cursor-pointer"
             data-testid="skip-map-controls-tutorial"
-            onClick={completeTutorial}
-            onTouchEnd={(event) => {
-              event.preventDefault();
-              completeTutorial(event);
-            }}
+            onClick={(event) => completeTutorial(false, event)}
+            onPointerUp={activateOnTouch(() => completeTutorial(false))}
           >
             <span>Skip tutorial</span>
           </button>
         </div>
 
         <div className="mt-2 flex items-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-primary/40 bg-primary/20 text-primary shadow-[0_0_15px_rgba(255,0,114,0.35)]">
-            <StepIcon id={step.id} />
-          </div>
+          {/* Gradient placeholder, not a stand-in icon: a borrowed glyph reads
+              as finished art for a step whose own mark is still to come. */}
+          <div
+            aria-hidden="true"
+            className="h-10 w-10 shrink-0 rounded-xl shadow-[0_0_15px_rgba(255,0,114,0.35)]"
+            data-testid="tutorial-step-mark"
+            style={{ background: 'var(--cruush-gradient)' }}
+          />
           <div>
             <h2 className="text-xl font-medium">{step.title}</h2>
-            <p className="text-[10px] uppercase tracking-[0.15em] text-white/50">
-              Map tutorial · Step {stepIndex + 1} of {TUTORIAL_STEPS.length}
-            </p>
           </div>
         </div>
 
@@ -752,6 +802,7 @@ export default function MapControlsTutorial({ open, onComplete, onActivateStep, 
               data-testid="tutorial-try-step"
               disabled={actionPending}
               onClick={() => void activateCurrentStep()}
+              onPointerUp={activateOnTouch(() => void activateCurrentStep())}
               style={{ background: 'var(--cruush-gradient)' }}
             >
               {actionPending ? 'Working...' : step.actionLabel}
@@ -765,6 +816,7 @@ export default function MapControlsTutorial({ open, onComplete, onActivateStep, 
                 className="rounded-lg text-white/70 hover:text-white"
                 data-testid="tutorial-back"
                 onClick={() => moveToStep(stepIndex - 1)}
+                onPointerUp={activateOnTouch(() => moveToStep(stepIndex - 1))}
               >
                 Back
               </Button>
@@ -776,6 +828,7 @@ export default function MapControlsTutorial({ open, onComplete, onActivateStep, 
                 className="rounded-lg border-white/15 bg-white/[0.04] text-white hover:bg-white/[0.1]"
                 data-testid="tutorial-skip-step"
                 onClick={advanceStep}
+                onPointerUp={activateOnTouch(advanceStep)}
               >
                 {step.id === 'install' && actionCompleted ? 'Next' : 'Skip step'}
               </Button>
@@ -786,6 +839,7 @@ export default function MapControlsTutorial({ open, onComplete, onActivateStep, 
                 className="rounded-lg border-white/15 bg-white/[0.04] text-white hover:bg-white/[0.1]"
                 data-testid="tutorial-next"
                 onClick={advanceStep}
+                onPointerUp={activateOnTouch(advanceStep)}
               >
                 {isLastStep ? 'Done' : 'Next'}
               </Button>

@@ -63,11 +63,13 @@ type Coordinates = {
 export type DiscoveryFilterParams = {
   searchQuery?: string;
   mileHighClub?: boolean;
+  hasPhoto?: boolean;
   identities?: string[];
   presentations?: string[];
   lookingFor?: string[];
   timing?: string[];
   hosting?: string[];
+  preferredSpots?: string[];
   vibes?: string[];
   crowds?: string[];
   hobbies?: string[];
@@ -76,7 +78,9 @@ export type DiscoveryFilterParams = {
   kinks?: string[];
   bodyTypes?: string[];
   sexuality?: string[];
+  zodiac?: string[];
   substanceBoundaries?: string[];
+  protectionBoundaries?: string[];
 };
 
 type DiscoveryRequestOptions = {
@@ -180,6 +184,10 @@ export async function getNearbyUsers(
     params.set('npcGhostDemo', '1');
   }
 
+  if (filters?.hasPhoto) {
+    params.set('hasPhoto', '1');
+  }
+
   if (filters?.mileHighClub) {
     params.set('mileHighClub', '1');
   }
@@ -193,6 +201,7 @@ export async function getNearbyUsers(
   appendListParams(params, 'lookingFor', filters?.lookingFor);
   appendListParams(params, 'timing', filters?.timing);
   appendListParams(params, 'hosting', filters?.hosting);
+  appendListParams(params, 'preferredSpots', filters?.preferredSpots);
   appendListParams(params, 'vibes', filters?.vibes);
   appendListParams(params, 'crowds', filters?.crowds);
   appendListParams(params, 'hobbies', filters?.hobbies);
@@ -201,7 +210,9 @@ export async function getNearbyUsers(
   appendListParams(params, 'kinks', filters?.kinks);
   appendListParams(params, 'bodyTypes', filters?.bodyTypes);
   appendListParams(params, 'sexuality', filters?.sexuality);
+  appendListParams(params, 'zodiac', filters?.zodiac);
   appendListParams(params, 'substanceBoundaries', filters?.substanceBoundaries);
+  appendListParams(params, 'protectionBoundaries', filters?.protectionBoundaries);
 
   const query = params.toString();
   const path = query ? `/api/users?${query}` : '/api/users';

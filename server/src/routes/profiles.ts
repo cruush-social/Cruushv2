@@ -21,8 +21,10 @@ import {
   profilePayloadSchema,
   sideBadgesSchema,
   profileVisibilityRulesSchema,
+  SIGNAL_MAX_LENGTH,
   type ProfilePayload
 } from "../profile-schema.js";
+import { optionalSingleLineTextSchema } from "../input-schema.js";
 import { moderateProfileOrReject } from "../moderation-service.js";
 import {
   lockMapPingSenderInTransaction,
@@ -56,12 +58,17 @@ import {
 } from "../profile-sensitive.js";
 import { getActiveAccountUserId, getAuthenticatedUserId } from "../request-auth.js";
 import { assertUsersNotBlocked } from "../user-blocks.js";
+import { formatLastActiveFromDate } from "../discovery-users.js";
 import { getTravelPin, locationPayloadAtTravelPin } from "../travel-pins.js";
+import { isTombstonedProfileName } from "../profile-tombstone.js";
 import {
   DEFAULT_GHOST_RADIUS_METERS,
   GHOST_RADIUS_OPTIONS,
   GHOST_ROTATION_MINUTES,
+  formatDistanceLabel,
   loadLocationEnvelope,
+  loadLocationEnvelopes,
+  locationPayloadToCoordinates,
   loadVisibilityPolicy,
   makeDisplayLocationToken,
   normalizeVisibilityPolicy,
@@ -70,6 +77,7 @@ import {
   saveVisibilityPolicy,
   storeLocationEnvelope,
   type CrowdPrecisionPolicy,
+  type LocationPayload,
   type VisibilityBaseMode
 } from "../location-privacy.js";
 
@@ -145,6 +153,9 @@ type ProfileRow = {
   presentation: string[] | null;
   sexuality: string[] | null;
   body_type: string[] | null;
+  body_hair: string[] | null;
+  pubic_hair: string[] | null;
+  facial_hair: string[] | null;
   height: string | null;
   weight: string | null;
   position: string[] | null;
@@ -153,6 +164,7 @@ type ProfileRow = {
   trans_status_visibility: ProfileVisibility | null;
   availability: string[] | null;
   hosting_travel: string[] | null;
+  preferred_spots: string[] | null;
   kinks: string[] | null;
   kinks_visibility: ProfileVisibility | null;
   vibes: string[] | null;
@@ -175,7 +187,9 @@ type ProfileRow = {
   custom_covid_vaccine: string | null;
   mpox_vaccine: string[] | null;
   custom_mpox_vaccine: string | null;
+  protections: string[] | null;
   substance_boundaries: string[] | null;
+  protection_boundaries: string[] | null;
   profile_sensitive_ciphertext: string | null;
   profile_sensitive_nonce: string | null;
   profile_sensitive_auth_tag: string | null;
@@ -214,9 +228,13 @@ type VisibilitySubjectRow = {
   presentation: string[] | null;
   sexuality: string[] | null;
   body_type: string[] | null;
+  body_hair: string[] | null;
+  pubic_hair: string[] | null;
+  facial_hair: string[] | null;
   looking_for: string[] | null;
   availability: string[] | null;
   hosting_travel: string[] | null;
+  preferred_spots: string[] | null;
   vibes: string[] | null;
   zodiac: string[] | null;
   scenes: string[] | null;
@@ -226,6 +244,7 @@ type VisibilitySubjectRow = {
   role: string[] | null;
   kinks: string[] | null;
   substance_boundaries: string[] | null;
+  protection_boundaries: string[] | null;
   lat: number | null;
   lng: number | null;
   fuzzy_lat: number | null;
@@ -237,6 +256,28 @@ type VisibilitySubjectRow = {
 };
 
 type ProfileVisibility = "public" | "mutual_cruushes" | "mutual_crowds";
+
+/**
+ * Birth control and the Masks preference live inside the encrypted profile
+ * blob, which the SQL backfill in 144 cannot read. Fold them in here so a
+ * member who recorded either still sees it under Protections.
+ */
+function withCarriedProtections(
+  stored: string[] | null,
+  sensitive: { birth_control?: string[] | null; health_preferences?: string[] | null } | null | undefined
+): ProfilePayload["protections"] {
+  const carried = new Set(stored ?? []);
+
+  if ((sensitive?.birth_control ?? []).some((value) => value && value !== "Prefer not to say")) {
+    carried.add("Birth control");
+  }
+
+  if ((sensitive?.health_preferences ?? []).includes("Masks")) {
+    carried.add("Masks");
+  }
+
+  return [...carried] as ProfilePayload["protections"];
+}
 
 function hasPremiumPrivacySettings(input: {
   baseMode: VisibilityBaseMode;
@@ -315,6 +356,9 @@ const PROFILE_COLUMNS = [
   "presentation",
   "sexuality",
   "body_type",
+  "body_hair",
+  "pubic_hair",
+  "facial_hair",
   "height",
   "weight",
   "position",
@@ -322,6 +366,7 @@ const PROFILE_COLUMNS = [
   "trans_status_visibility",
   "availability",
   "hosting_travel",
+  "preferred_spots",
   "kinks",
   "kinks_visibility",
   "vibes",
@@ -344,7 +389,9 @@ const PROFILE_COLUMNS = [
   "custom_covid_vaccine",
   "mpox_vaccine",
   "custom_mpox_vaccine",
+  "protections",
   "substance_boundaries",
+  "protection_boundaries",
   "profile_sensitive_ciphertext",
   "profile_sensitive_nonce",
   "profile_sensitive_auth_tag",
@@ -529,6 +576,9 @@ function mapProfileRow(
     presentation: row.presentation ?? [],
     sexuality: row.sexuality ?? [],
     body_type: row.body_type ?? [],
+    body_hair: row.body_hair ?? [],
+    pubic_hair: row.pubic_hair ?? [],
+    facial_hair: row.facial_hair ?? [],
     height: row.height ?? "",
     weight: row.weight ?? "",
     position: row.position ?? [],
@@ -539,6 +589,7 @@ function mapProfileRow(
     crowds: visibleCrowds,
     availability: row.availability ?? [],
     hosting_travel: row.hosting_travel ?? [],
+    preferred_spots: row.preferred_spots ?? [],
     kinks: resolvedKinkInterests.length > 0
       ? resolvedKinkInterests.map((interest) => interest.label ?? interest.kink_id)
       : sensitiveKinks.length > 0
@@ -566,10 +617,12 @@ function mapProfileRow(
     custom_covid_vaccine: row.custom_covid_vaccine ?? "",
     mpox_vaccine: row.mpox_vaccine ?? [],
     custom_mpox_vaccine: row.custom_mpox_vaccine ?? "",
+    protections: withCarriedProtections(row.protections, sensitiveProfile),
     health_preferences: sensitiveProfile?.health_preferences ?? [],
     birth_control: sensitiveProfile?.birth_control ?? [],
     relationship_status: sensitiveProfile?.relationship_status ?? [],
     substance_boundaries: row.substance_boundaries ?? [],
+    protection_boundaries: row.protection_boundaries ?? [],
     ...((row.badges?.length ?? 0) > 0 ? { badges: row.badges } : {}),
     visibility_rules: includePrivateSensitive ? visibilityRules ?? emptyProfile.visibility_rules : emptyProfile.visibility_rules,
     updated_at: new Date(row.updated_at).toISOString(),
@@ -638,6 +691,9 @@ function profilePayloadFromRow(
     presentation: row.presentation ?? [],
     sexuality: row.sexuality ?? [],
     body_type: row.body_type ?? [],
+    body_hair: row.body_hair ?? [],
+    pubic_hair: row.pubic_hair ?? [],
+    facial_hair: row.facial_hair ?? [],
     height: row.height ?? "",
     weight: row.weight ?? "",
     position: row.position ?? [],
@@ -648,6 +704,7 @@ function profilePayloadFromRow(
     crowds: sensitiveProfile.crowds,
     availability: row.availability ?? [],
     hosting_travel: row.hosting_travel ?? [],
+    preferred_spots: row.preferred_spots ?? [],
     kinks: sensitiveProfile.kinks,
     kink_interests: kinkInterests.length > 0 ? kinkInterests : sensitiveProfile.kink_interests,
     kinks_visibility: row.kinks_visibility ?? "public",
@@ -670,9 +727,11 @@ function profilePayloadFromRow(
     custom_covid_vaccine: row.custom_covid_vaccine ?? "",
     mpox_vaccine: row.mpox_vaccine ?? [],
     custom_mpox_vaccine: row.custom_mpox_vaccine ?? "",
+    protections: withCarriedProtections(row.protections, sensitiveProfile),
     health_preferences: sensitiveProfile.health_preferences ?? [],
     birth_control: sensitiveProfile.birth_control ?? [],
     substance_boundaries: row.substance_boundaries ?? [],
+    protection_boundaries: row.protection_boundaries ?? [],
     visibility_rules: visibilityRules
   };
 }
@@ -805,9 +864,13 @@ async function loadVisibilitySubjectProfile(app: FastifyInstance, userId: string
          presentation,
          sexuality,
          body_type,
+         body_hair,
+         pubic_hair,
+         facial_hair,
          looking_for,
          availability,
          hosting_travel,
+         preferred_spots,
          vibes,
          scenes,
          archetypes,
@@ -816,6 +879,7 @@ async function loadVisibilitySubjectProfile(app: FastifyInstance, userId: string
          role,
          kinks,
          substance_boundaries,
+         protection_boundaries,
          lat,
          lng,
          fuzzy_lat,
@@ -844,6 +908,7 @@ async function loadVisibilitySubjectProfile(app: FastifyInstance, userId: string
       looking_for: row.looking_for ?? [],
       timing: row.availability ?? [],
       hosting: row.hosting_travel ?? [],
+      preferred_spots: row.preferred_spots ?? [],
       vibes: row.vibes ?? [],
       scenes: row.scenes ?? [],
       archetypes: row.archetypes ?? [],
@@ -853,8 +918,12 @@ async function loadVisibilitySubjectProfile(app: FastifyInstance, userId: string
       roles: row.role ?? [],
       kinks: sensitiveKinksForVisibility(sensitiveProfile, row.kinks),
       body_types: row.body_type ?? [],
+      body_hair: row.body_hair ?? [],
+      pubic_hair: row.pubic_hair ?? [],
+      facial_hair: row.facial_hair ?? [],
       sexuality: row.sexuality ?? [],
       substance_boundaries: row.substance_boundaries ?? [],
+      protection_boundaries: row.protection_boundaries ?? [],
       coordinates: getProfileCoordinates(row)
     };
   } catch (error) {
@@ -1093,7 +1162,8 @@ function buildSensitiveProfile(payload: ProfilePayload, kinkInterests: ProfileKi
     hiv_status: payload.hiv_status,
     custom_hiv_status: payload.custom_hiv_status,
     health_preferences: payload.health_preferences,
-    birth_control: payload.birth_control
+    birth_control: payload.birth_control,
+    relationship_status: payload.relationship_status
   };
 }
 
@@ -1330,6 +1400,11 @@ async function loadProfileData(
     throw new ApiError(404, "NOT_FOUND", "Profile not found");
   }
 
+  // A profile an older removal flow renamed and left behind never opens.
+  if (isTombstonedProfileName(result.rows[0].display_name)) {
+    throw new ApiError(404, "NOT_FOUND", "Profile not found");
+  }
+
   const row = result.rows[0];
   const relationship = !options.includePrivateSensitive && options.viewerUserId
     ? await getRelationshipPermissions(app, options.viewerUserId, userId)
@@ -1396,18 +1471,101 @@ async function loadProfileData(
     ? { ...mappedProfile, travelling: true, travelLabel: travelPin.label }
     : mappedProfile;
 
+  // Discovery carried these two lines and the profile did not, so a profile
+  // opened from anywhere other than the map showed neither. They are read from
+  // the same fuzzed coordinates and the same clock discovery already uses, so
+  // nothing new is revealed.
+  const withPresence = !options.includePrivateSensitive && options.viewerUserId && options.viewerUserId !== userId
+    ? {
+        ...withTravel,
+        last_active: formatLastActiveFromDate(row.location_updated_at ?? row.updated_at),
+        distance_label: await loadViewerDistanceLabel(app, options.viewerUserId, userId, row, relationship)
+      }
+    : withTravel;
+
   if (options.includePrivateSensitive && options.request) {
     const location = await buildOwnerLocationDisplay(app, options.request, userId);
 
     if (location) {
       return {
-        ...withTravel,
+        ...withPresence,
         location
       };
     }
   }
 
-  return withTravel;
+  return withPresence;
+}
+
+/**
+ * The distance the viewer should see for this profile, or null when either
+ * side has no usable coordinates. Ghost Mode collapses it to Nearby exactly as
+ * it does on the map, and Dark Room is left to the client, which already
+ * substitutes its own label.
+ */
+async function loadViewerDistanceLabel(
+  app: FastifyInstance,
+  viewerUserId: string,
+  targetUserId: string,
+  row: ProfileRow,
+  relationship: RelationshipPermissions | null
+) {
+  const viewerResult = await app.db.query<{ lat: number | null; lng: number | null; fuzzy_lat: number | null; fuzzy_lng: number | null }>(
+    "select lat, lng, fuzzy_lat, fuzzy_lng from profiles where id = $1",
+    [viewerUserId]
+  );
+  const viewer = viewerResult.rows[0];
+
+  // Most people have no lat on their profile row at all: the map reads their
+  // position out of the encrypted location envelope. Reading the envelope here
+  // too is what makes the line appear for the same people it appears for on
+  // the map, rather than only for the few with a stored column.
+  const envelopes = await loadLocationEnvelopes(app, [viewerUserId, targetUserId]).catch((error: unknown) => {
+    if (isSchemaCompatibilityError(error)) {
+      return new Map<string, LocationPayload>();
+    }
+
+    throw error;
+  });
+
+  const targetEnvelope = envelopes.get(targetUserId);
+  const viewerEnvelope = envelopes.get(viewerUserId);
+  const targetCoordinates = targetEnvelope ? locationPayloadToCoordinates(targetEnvelope) : null;
+  const viewerCoordinates = viewerEnvelope ? locationPayloadToCoordinates(viewerEnvelope) : null;
+
+  const targetLat = targetCoordinates?.lat ?? row.fuzzy_lat ?? row.lat;
+  const targetLng = targetCoordinates?.lng ?? row.fuzzy_lng ?? row.lng;
+  const viewerLat = viewerCoordinates?.lat ?? viewer?.fuzzy_lat ?? viewer?.lat;
+  const viewerLng = viewerCoordinates?.lng ?? viewer?.fuzzy_lng ?? viewer?.lng;
+
+  if (targetLat == null || targetLng == null || viewerLat == null || viewerLng == null) {
+    return null;
+  }
+
+  const policy = await getEffectiveVisibilityPolicy(app, targetUserId).catch((error: unknown) => {
+    if (isSchemaCompatibilityError(error)) {
+      return null;
+    }
+
+    throw error;
+  });
+
+  if (policy?.baseMode === "STEALTH") {
+    return null;
+  }
+
+  const displayMode = relationship?.canRevealPreciseLocation === true
+    ? "PRECISE" as const
+    : policy?.baseMode === "GHOST" ? "GHOST" as const : "PRECISE" as const;
+
+  return formatDistanceLabel({
+    displayMode,
+    distanceLabelMode: relationship?.distanceLabelMode,
+    viewerLat,
+    viewerLng,
+    targetLat,
+    targetLng
+  });
 }
 
 async function assertProfileRowVisibleToViewer(
@@ -1428,9 +1586,50 @@ async function assertProfileRowVisibleToViewer(
     ? await loadVisibilitySubjectProfile(app, viewerUserId)
     : null;
 
-  if (!viewerProfile || !canSubjectViewProfile(visibilityRules, viewerProfile, getProfileCoordinates(row))) {
+  // Both sides' positions live in the encrypted location envelope: only a
+  // handful of accounts carry coordinates on the profile row at all. Reading
+  // only the row meant a distance rule had nothing to measure, so people who
+  // set one vanished from the profile route while still showing on the map.
+  const coordinates = viewerUserId
+    ? await loadVisibilityCoordinates(app, viewerUserId, row)
+    : { viewer: null, target: getProfileCoordinates(row) };
+
+  const viewerSubject = viewerProfile && coordinates.viewer
+    ? { ...viewerProfile, coordinates: coordinates.viewer }
+    : viewerProfile;
+
+  if (!viewerSubject || !canSubjectViewProfile(visibilityRules, viewerSubject, coordinates.target)) {
     throw new ApiError(404, "NOT_FOUND", "Profile not found");
   }
+}
+
+/**
+ * Where the viewer and the profile actually are, read the way the map reads
+ * them: the encrypted location envelope first, the profile row only as a
+ * fallback for the few accounts that still carry one.
+ */
+async function loadVisibilityCoordinates(app: FastifyInstance, viewerUserId: string, row: ProfileRow) {
+  const envelopes = await loadLocationEnvelopes(app, [viewerUserId, row.id]).catch((error: unknown) => {
+    if (isSchemaCompatibilityError(error)) {
+      return new Map<string, LocationPayload>();
+    }
+
+    throw error;
+  });
+  const viewerEnvelope = envelopes.get(viewerUserId);
+  const targetEnvelope = envelopes.get(row.id);
+  const viewerFromEnvelope = viewerEnvelope ? locationPayloadToCoordinates(viewerEnvelope) : null;
+  const targetFromEnvelope = targetEnvelope ? locationPayloadToCoordinates(targetEnvelope) : null;
+  const viewerRow = (await app.db.query<{ lat: number | null; lng: number | null; fuzzy_lat: number | null; fuzzy_lng: number | null }>(
+    "select lat, lng, fuzzy_lat, fuzzy_lng from profiles where id = $1",
+    [viewerUserId]
+  )).rows[0];
+  const rowTarget = getProfileCoordinates(row);
+
+  return {
+    viewer: viewerFromEnvelope ?? (viewerRow ? getProfileCoordinates(viewerRow as unknown as ProfileRow) : null),
+    target: targetFromEnvelope ?? rowTarget
+  };
 }
 
 export async function assertProfileVisibleToViewer(app: FastifyInstance, viewerUserId: string, targetUserId: string) {
@@ -1448,7 +1647,7 @@ export async function assertProfileVisibleToViewer(app: FastifyInstance, viewerU
   );
   const row = result.rows[0];
 
-  if (!row) {
+  if (!row || isTombstonedProfileName(row.display_name)) {
     throw new ApiError(404, "NOT_FOUND", "Profile not found");
   }
 
@@ -1464,7 +1663,6 @@ export async function registerProfileRoutes(app: FastifyInstance) {
   app.put("/api/profiles/me/side-badges", async (request, reply) => {
     const userId = await getActiveAccountUserId(request);
     const sideBadges = sideBadgesSchema.parse(request.body);
-    await requireCruushPlus(app, userId, "Upgrade to cruush+ to choose custom side badges.");
     const result = await app.db.query<{ side_badges: ProfilePayload["side_badges"] }>(
       `update profiles
        set side_badges = $2::jsonb,
@@ -1479,6 +1677,30 @@ export async function registerProfileRoutes(app: FastifyInstance) {
     }
 
     return reply.send({ data: result.rows[0].side_badges });
+  });
+
+  // Editing the signal from the Pulse sheet used to PUT the whole profile,
+  // built by spreading a server ProfileRecord into the strict payload schema.
+  // The extra server-only fields failed validation, so the save never landed.
+  app.put("/api/profiles/me/signal", async (request, reply) => {
+    const userId = await getActiveAccountUserId(request);
+    const { signal } = z.object({
+      signal: optionalSingleLineTextSchema(SIGNAL_MAX_LENGTH)
+    }).strict().parse(request.body);
+    const result = await app.db.query<{ signal: string | null }>(
+      `update profiles
+       set signal = $2,
+           updated_at = now()
+       where id = $1
+       returning signal`,
+      [userId, signal ?? ""]
+    );
+
+    if (!result.rows[0]) {
+      throw new ApiError(404, "NOT_FOUND", "Profile not found");
+    }
+
+    return reply.send({ data: { signal: result.rows[0].signal ?? "" } });
   });
 
   app.get("/api/profiles/me/privacy-settings", async (request, reply) => {
@@ -1739,12 +1961,19 @@ export async function registerProfileRoutes(app: FastifyInstance) {
   app.put("/api/profiles/me", async (request, reply) => {
     const userId = await getActiveAccountUserId(request);
     const parsedPayload = profilePayloadSchema.parse(request.body);
+    const kinkInterests = normalizeKinkInterests(parsedPayload);
+    const entitlement = parsedPayload.tags.length > 3 || kinkInterests.length > 3
+      ? await getCruushEntitlement(app, userId)
+      : null;
 
     if (parsedPayload.tags.length > 3) {
-      const entitlement = await getCruushEntitlement(app, userId);
-      if (!entitlement.cruushPlus) {
+      if (!entitlement?.cruushPlus) {
         throw new ApiError(402, "CRUUSH_PLUS_REQUIRED", "Upgrade to cruush+ to add up to 10 profile tags.");
       }
+    }
+
+    if (kinkInterests.length > 3 && !entitlement?.cruushPlus) {
+      throw new ApiError(402, "CRUUSH_PLUS_REQUIRED", "Upgrade to cruush+ to add more than 3 kinks.");
     }
 
     if (countVisibilityExclusionFilters(parsedPayload.visibility_rules) > FREE_VISIBILITY_EXCLUSION_LIMIT) {
@@ -1772,7 +2001,6 @@ export async function registerProfileRoutes(app: FastifyInstance) {
       hiv_status_visibility: FIXED_PRIVATE_HEALTH_VISIBILITY
     };
 
-    const kinkInterests = normalizeKinkInterests(payload);
     const sensitiveProfile = buildSensitiveProfile(payload, kinkInterests);
     assertIdentityGateChangeAllowed(
       existingIdentityState,

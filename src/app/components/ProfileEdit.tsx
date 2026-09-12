@@ -1,4 +1,8 @@
 import type { ChangeEvent, PointerEvent } from 'react';
+import { createPortal } from 'react-dom';
+import { DROPDOWN_TRIGGER_CLASS } from '../lib/controlStyles';
+import { registerBugButtonSlot } from '../lib/bugButtonSlot';
+import { PHOTO_UPLOAD_ACCEPT, PHOTO_UPLOAD_EXTENSION_TYPES } from '../lib/photoUploadFormats';
 import { SIGNAL_MAX_LENGTH } from '../lib/profileLimits';
 import { lazy, Suspense, useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router';
@@ -13,6 +17,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import LoadingCardSkeletons from './LoadingCardSkeletons';
 import { getMyBillingStatus } from '../lib/billingApi';
 import MultiSelect from './MultiSelect';
+import SingleSelect from './SingleSelect';
 import {
   emptyProfilePayload,
   getMyProfile,
@@ -27,37 +32,36 @@ import {
   type ProfilePayload,
   type ProfileVisibilityRules,
 } from '../lib/profileApi';
-import { ApiClientError, resolveMediaUrl } from '../lib/apiClient';
+import { ApiClientError, requestApi, resolveMediaUrl } from '../lib/apiClient';
 import { getAppMeta } from '../lib/metaApi';
 import { getStoredCurrentUser, persistCurrentUser } from '../lib/sessionUser';
 import { addDlModeChangedListener, isDlModeEnabled, shouldMaskPhoto } from '../lib/dlMode';
+import DlModePhotoPlaceholder from './DlModePhotoPlaceholder';
 import { getProfileGradientCss } from '../lib/profileGradient';
 import { saveDistancePreferences, useDistancePreferences } from '../lib/distancePreferences';
 import {
   AVAILABILITY,
   BODY_TYPES,
-  BIRTH_CONTROL,
-  CONDOMS,
-  COVID_VACCINE,
   CROWDS,
-  DOXYPEP,
   ETHNICITIES,
-  HEALTH_PREFERENCES,
+  findStructuredProfileFieldForTag,
   HIV_STATUS,
   HOBBY_GROUPS,
   HOSTING,
   IDENTITIES,
+  KINK_CATALOG,
   KINK_GROUPS,
   LOOKING_FOR,
   RELATIONSHIP_STATUS,
   ZODIAC,
   MAX_PROFILE_SEXUALITIES,
-  MPOX_VACCINE,
   normalizeCrowdValues,
   POSITIONS,
-  PREP,
+  PREFERRED_SPOTS,
   PRESENTATIONS,
+  PROTECTION_BOUNDARIES,
   PROFILE_VISIBILITY_OPTIONS,
+  PROTECTIONS,
   PRONOUNS,
   ROLES,
   SEXUALITY,
@@ -70,7 +74,7 @@ const BadgePickerPreview = lazy(() => import('./BadgePickerPreview'));
 const MAX_PROFILE_GROUP_SELECTIONS = 3;
 const MAX_PROFILE_VIBES = 3;
 const MAX_PROFILE_HOBBIES = 3;
-const MAX_PROFILE_KINKS = 5;
+const MAX_PROFILE_KINKS = 3;
 const BASIC_PROFILE_TAGS = 3;
 const CRUUSH_PLUS_PROFILE_TAGS = 10;
 /** cruush+ lifts the ceiling rather than raising it. */
@@ -82,7 +86,7 @@ const PROFILE_PHOTO_SAVE_PATH_PATTERN = /^\/api\/media\/(?:profile-photos\/[0-9a
 const VISIBILITY_OPTION_LABELS = PROFILE_VISIBILITY_OPTIONS.map((option) => option.label);
 const FIXED_PRIVATE_PROFILE_VISIBILITY: ProfileVisibility = 'mutual_cruushes';
 
-type PendingProfilePhoto = {
+export type PendingProfilePhoto = {
   url: string;
   objectUrl?: string;
 };
@@ -203,13 +207,38 @@ function canvasToJpegFile(canvas: HTMLCanvasElement) {
   });
 }
 
-function readProfilePhotoPreviewUrl(file: File): Promise<PendingProfilePhoto> {
-  try {
-    const objectUrl = URL.createObjectURL(file);
-    return Promise.resolve({ url: objectUrl, objectUrl });
-  } catch {
-    return Promise.reject(new Error(PROFILE_PHOTO_LOAD_ERROR));
+export async function readProfilePhotoPreviewUrl(file: File): Promise<PendingProfilePhoto> {
+  // Safari excludes blob URLs from CSP 'self'. Data URLs are explicitly
+  // permitted by the app's image policy and keep this preview on the device.
+  const url = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => typeof reader.result === 'string'
+      ? resolve(reader.result) : reject(new Error(PROFILE_PHOTO_LOAD_ERROR));
+    reader.onerror = reader.onabort = () => reject(new Error(PROFILE_PHOTO_LOAD_ERROR));
+    reader.readAsDataURL(file);
+  });
+  if (/\.(heic|heif|avif|tif|tiff)$/i.test(file.name) || /^image\/(heic|heif|avif|tiff|x-tiff|tif)(-sequence)?$/i.test(file.type)) {
+    // Native decoding lets camera originals reach the same cropper as JPEGs
+    // before final-upload size limits apply. Unsupported browsers still use
+    // the private server conversion without saving a photo.
+    try {
+      const image = new Image();
+      image.src = url;
+      await image.decode();
+      if (image.naturalWidth > 0 && image.naturalHeight > 0) {
+        return { url };
+      }
+    } catch {
+      // Picker acceptance alone does not establish native decoding support.
+    }
+    const body = new FormData();
+    const inferredType = PHOTO_UPLOAD_EXTENSION_TYPES.get(file.name.split('.').pop()?.toLowerCase() ?? '');
+    body.set('photo', (!file.type || file.type === 'application/octet-stream') && inferredType
+      ? new File([file], file.name, { type: inferredType }) : file);
+    const preview = await requestApi<{ url: string }>('/api/profile-photos/preview', { method: 'POST', body });
+    return { url: preview.url };
   }
+  return { url };
 }
 
 export function getPhotoUploadRejectedMessage(uploadError: unknown) {
@@ -334,7 +363,10 @@ export function ProfilePhotoCropper({
     }
   };
 
-  return (
+  // The sheet this cropper lives in is its own stacking context, so its
+  // z-index never reached the root and anything fixed at the root could paint
+  // over its buttons. Portaled to the body, it competes where dialogs do.
+  return createPortal(
     <div
       aria-label={subjectLabel ? `Crop ${subjectLabel}` : 'Crop profile photo'}
       aria-modal="true"
@@ -437,7 +469,8 @@ export function ProfilePhotoCropper({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -460,12 +493,13 @@ function sanitizeKinkInterests(profile: ProfilePayload): ProfilePayload['kink_in
     ? profile.kink_interests ?? []
     : (profile.kinks ?? []).map(toDefaultKinkInterest);
   const seen = new Set<string>();
+  const allowedKinkIds = new Set(KINK_CATALOG.map((kink) => kink.id));
 
   return sourceInterests
     .map((interest) => {
       const kinkId = toKinkId(interest.kink_id || interest.label || '');
 
-      if (!kinkId || seen.has(kinkId)) {
+      if (!kinkId || seen.has(kinkId) || !allowedKinkIds.has(kinkId)) {
         return null;
       }
 
@@ -478,6 +512,10 @@ function sanitizeKinkInterests(profile: ProfilePayload): ProfilePayload['kink_in
       };
     })
     .filter((interest): interest is ProfilePayload['kink_interests'][number] => Boolean(interest));
+}
+
+function normalizeProfileHobbies(values: string[]) {
+  return limitToThree(uniqueValues(values).map((value) => value.trim().toLowerCase() === 'gaming' ? 'video games' : value));
 }
 
 function sanitizeVisibilityRules(profile: ProfilePayload): ProfileVisibilityRules {
@@ -493,6 +531,7 @@ function sanitizeVisibilityRules(profile: ProfilePayload): ProfileVisibilityRule
     looking_for: uniqueValues(rules.looking_for ?? []),
     timing: uniqueValues(rules.timing ?? []),
     hosting: uniqueValues(rules.hosting ?? []),
+    preferred_spots: uniqueValues(rules.preferred_spots ?? []),
     vibes: uniqueValues(rules.vibes ?? []),
     crowds: normalizeCrowdValues(rules.crowds ?? []).slice(0, MAX_PROFILE_GROUP_SELECTIONS),
     hobbies: uniqueValues(rules.hobbies ?? []),
@@ -502,6 +541,7 @@ function sanitizeVisibilityRules(profile: ProfilePayload): ProfileVisibilityRule
     body_types: uniqueValues(rules.body_types ?? []),
     sexuality: uniqueValues(rules.sexuality ?? []),
     substance_boundaries: uniqueValues(rules.substance_boundaries ?? []),
+    protection_boundaries: uniqueValues(rules.protection_boundaries ?? []),
     age_range: rules.age_range ?? null,
     distance: rules.distance ?? null,
   };
@@ -516,7 +556,7 @@ function toProfileSavePayload(
     display_name: getSaveDisplayName(profile),
     photos: sanitizeProfilePhotos(profile.photos ?? []),
     bio: (profile.bio ?? '').trim(),
-    tags: uniqueValues(profile.tags ?? []).map(normalizeProfileTag).filter(Boolean).slice(0, profileTagLimit),
+    tags: uniqueValues(profile.tags ?? []).map(normalizeProfileTag).filter((tag) => Boolean(tag) && !findStructuredProfileFieldForTag(tag)).slice(0, profileTagLimit),
     signal: (profile.signal ?? '').trim(),
     pronouns: limitToThree(profile.pronouns ?? []),
     custom_pronouns: (profile.custom_pronouns ?? '').trim(),
@@ -535,6 +575,7 @@ function toProfileSavePayload(
     crowds: sanitizeCrowds(profile),
     availability: limitToThree(profile.availability ?? []),
     hosting_travel: limitToThree(profile.hosting_travel ?? []),
+    preferred_spots: limitToThree(profile.preferred_spots ?? []),
     relationship_status: limitToThree(profile.relationship_status ?? []),
     zodiac: (profile.zodiac ?? []).slice(-1),
     kinks: limitKinks(profile.kinks ?? [], kinkLimit),
@@ -545,7 +586,7 @@ function toProfileSavePayload(
     vibes: limitToThree(mergeCategorizedVibes(profile)),
     scenes: [],
     archetypes: [],
-    hobbies: limitToThree(profile.hobbies ?? []),
+    hobbies: normalizeProfileHobbies(profile.hobbies ?? []),
     custom_hobby: (profile.custom_hobby ?? '').trim(),
     looking_for: limitToThree(profile.looking_for ?? []),
     hiv_status: singleValue(profile.hiv_status ?? []),
@@ -563,7 +604,9 @@ function toProfileSavePayload(
     custom_mpox_vaccine: (profile.custom_mpox_vaccine ?? '').trim(),
     health_preferences: profile.health_preferences ?? [],
     birth_control: profile.birth_control ?? [],
+    protections: profile.protections ?? [],
     substance_boundaries: profile.substance_boundaries ?? [],
+    protection_boundaries: singleValue(profile.protection_boundaries ?? []),
     visibility_rules: sanitizeVisibilityRules(profile),
   };
 }
@@ -587,6 +630,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
   const [photoUploadError, setPhotoUploadError] = useState<string | null>(null);
   const [photoUploadNotice, setPhotoUploadNotice] = useState<string | null>(null);
   const [profileTagDraft, setProfileTagDraft] = useState('');
+  const [profileTagError, setProfileTagError] = useState<string | null>(null);
   const [profilePhotoUploadsAvailable, setProfilePhotoUploadsAvailable] = useState<boolean | null>(null);
   const [activeTab, setActiveTab] = useState(requestedProfileSection === 'kinks' ? 'intimacy' : 'basics');
   const badgeExitGuardRef = useRef<(() => Promise<boolean>) | null>(null);
@@ -598,6 +642,17 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
   const photoPreviewRequestRef = useRef(0);
   const profileSaveRequestRef = useRef(0);
 
+  // The badge picker is embedded in this screen, so its "Edit profile vibes"
+  // link navigates to the route we are already on. Without following the
+  // requested section here the tab never moved and the button looked dead.
+  useEffect(() => {
+    if (!requestedProfileSection) {
+      return;
+    }
+
+    setActiveTab(requestedProfileSection === 'kinks' ? 'intimacy' : 'basics');
+  }, [requestedProfileSection, location.key]);
+
   useEffect(() => {
     if (loading || !requestedProfileSection) {
       return undefined;
@@ -608,7 +663,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
     });
 
     return () => window.cancelAnimationFrame(frame);
-  }, [loading, requestedProfileSection]);
+  }, [loading, requestedProfileSection, location.key]);
 
   const applySavedProfile = (savedProfile: ProfileRecord) => {
     const loadedProfile = {
@@ -713,8 +768,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
     }));
   };
 
-  // A basic account carries five kinks and the two badges its profile already
-  // implies. cruush+ lifts the ceiling and opens the badge slots to choose from.
+  // Basic profiles carry three kinks. cruush+ can use the full catalog.
   const [cruushPlus, setCruushPlus] = useState(false);
 
   useEffect(() => {
@@ -969,11 +1023,6 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
   };
 
   const handleTabChange = (nextTab: string) => {
-    if (nextTab === 'badges' && !cruushPlus) {
-      navigate('/cruush-plus');
-      return;
-    }
-
     if (activeTab === 'badges' && nextTab !== 'badges' && badgeExitGuardRef.current) {
       void badgeExitGuardRef.current().then((canLeave) => {
         if (canLeave) {
@@ -1002,7 +1051,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
   const normalizedProfile: ProfilePayload = {
     ...profile,
     photos: sanitizeProfilePhotos(profile.photos || []),
-    tags: uniqueValues(profile.tags || []).map(normalizeProfileTag).filter(Boolean).slice(0, profileTagLimit),
+    tags: uniqueValues(profile.tags || []).map(normalizeProfileTag).filter((tag) => Boolean(tag) && !findStructuredProfileFieldForTag(tag)).slice(0, profileTagLimit),
     signal: profile.signal ?? '',
     pronouns: profile.pronouns || [],
     identities: limitGenderIdentities(profile.identities || []),
@@ -1016,13 +1065,14 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
     crowds: sanitizeCrowds(profile),
     availability: limitToThree(profile.availability || []),
     hosting_travel: limitToThree(profile.hosting_travel || []),
+    preferred_spots: limitToThree(profile.preferred_spots || []),
     kinks: profile.kinks || [],
     kink_interests: profile.kink_interests || [],
     kinks_visibility: profile.kinks_visibility || 'public',
     vibes: limitToThree(mergeCategorizedVibes(profile)),
     scenes: [],
     archetypes: [],
-    hobbies: limitToThree(profile.hobbies || []),
+    hobbies: normalizeProfileHobbies(profile.hobbies || []),
     looking_for: limitToThree(profile.looking_for || []),
     hiv_status: singleValue(profile.hiv_status || []),
     hiv_status_visibility: FIXED_PRIVATE_PROFILE_VISIBILITY,
@@ -1033,7 +1083,9 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
     mpox_vaccine: singleValue(profile.mpox_vaccine || []),
     health_preferences: profile.health_preferences || [],
     birth_control: profile.birth_control || [],
+    protections: profile.protections || [],
     substance_boundaries: profile.substance_boundaries || [],
+    protection_boundaries: singleValue(profile.protection_boundaries || []),
     visibility_rules: sanitizeVisibilityRules(profile),
     year_of_birth: profile.year_of_birth,
   };
@@ -1048,9 +1100,23 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
   const profileMenuProps = {
     menuPortal: true,
   };
+  const addProfileTag = () => {
+    const tag = normalizeProfileTag(profileTagDraft);
+    const structuredField = findStructuredProfileFieldForTag(profileTagDraft);
+
+    if (structuredField) {
+      setProfileTagError(`That is already a profile option. Add it under ${structuredField}.`);
+      return;
+    }
+    if (!tag || normalizedProfile.tags.includes(tag) || normalizedProfile.tags.length >= profileTagLimit) return;
+
+    handleChange('tags', [...normalizedProfile.tags, tag]);
+    setProfileTagDraft('');
+    setProfileTagError(null);
+  };
   return (
     <div className={embedded ? 'bg-transparent pb-0' : 'min-h-screen bg-background pb-20'}>
-      <header className={`${embedded ? 'top-0 border-white/10 bg-black/85 text-white' : 'top-0 border-border bg-card/80'} sticky z-30 flex items-center justify-between border-b p-4 backdrop-blur-sm`}>
+      <header className={`${embedded ? 'top-0 border-white/10 bg-black text-white' : 'top-0 border-border bg-card/80'} sticky z-30 flex items-center justify-between border-b p-4 backdrop-blur-sm`}>
         <div className="flex min-w-0 items-center gap-2">
           <Button variant="ghost" size="icon" onClick={() => void handleCancel()} aria-label={embedded ? 'Back to profile preview' : 'Back'}>
             <ArrowLeft className="w-5 h-5" />
@@ -1068,6 +1134,10 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
           >
             {activeTab === 'badges' && badgeSaveState === 'saving' || activeTab !== 'badges' && saving ? 'Saving...' : 'Save'}
           </Button>
+          {/* The bug button docks into this row like every other header, so
+              it is on this screen whether or not the map is behind it. Close
+              stays the last thing on the right. */}
+          <div className="h-10 w-10 shrink-0" data-testid="profile-edit-bug-button-slot" ref={registerBugButtonSlot} />
           {embedded ? (
             <Button variant="ghost" size="icon" onClick={() => void handleCancel()} aria-label="Close Edit Profile">
               <X className="h-5 w-5" />
@@ -1083,18 +1153,17 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
           </div>
         ) : null}
         <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-          <TabsList className="grid h-auto w-full grid-cols-5 rounded-full border border-white/10 bg-background/25 p-1">
-            <TabsTrigger value="photos" className="min-h-11" onClick={() => handleTabChange('photos')}>Photos</TabsTrigger>
+          <TabsList className="sticky top-0 z-20 grid h-auto w-full grid-cols-5 rounded-full border border-white/10 bg-background/92 p-1 backdrop-blur-md">
+            <TabsTrigger value="photos" className="min-h-11">Photos</TabsTrigger>
             <TabsTrigger
               value="badges"
               className="min-h-11"
-              onClick={() => handleTabChange('badges')}
             >
               Badges
             </TabsTrigger>
-            <TabsTrigger value="basics" className="min-h-11" onClick={() => handleTabChange('basics')}>Basics</TabsTrigger>
-            <TabsTrigger value="intimacy" className="min-h-11" onClick={() => handleTabChange('intimacy')}>Intimacy</TabsTrigger>
-            <TabsTrigger value="health" className="min-h-11" onClick={() => handleTabChange('health')}>Health</TabsTrigger>
+            <TabsTrigger value="basics" className="min-h-11">Basics</TabsTrigger>
+            <TabsTrigger value="intimacy" className="min-h-11">Intimacy</TabsTrigger>
+            <TabsTrigger value="health" className="min-h-11">Health</TabsTrigger>
           </TabsList>
 
           <TabsContent forceMount value="badges" className="mt-0 data-[state=inactive]:hidden">
@@ -1152,7 +1221,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
                         role="img"
                         style={{ background: getProfileGradientCss(`${(profile as ProfileRecord).id ?? 'profile'}:${index}`) }}
                       >
-                        <Eye className="h-10 w-10 text-white/80" strokeWidth={2.35} />
+                        <DlModePhotoPlaceholder />
                       </div>
                     ) : (
                       <img
@@ -1197,7 +1266,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
                   <Upload className="h-7 w-7 text-muted-foreground" />
                   <span className="text-sm text-muted-foreground">{uploadingPhoto ? 'Uploading...' : 'Upload photo'}</span>
                   <input
-                    accept="image/jpeg,image/png,image/webp"
+                    accept={PHOTO_UPLOAD_ACCEPT}
                     className="sr-only"
                     disabled={uploadingPhoto || profilePhotoUploadsAvailable === false}
                     onChange={handlePhotoUpload}
@@ -1242,14 +1311,14 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
                   disabled={normalizedProfile.tags.length >= profileTagLimit}
                   id="profile-tags"
                   maxLength={25}
-                  onChange={(event) => setProfileTagDraft(event.target.value)}
+                  onChange={(event) => {
+                    setProfileTagDraft(event.target.value);
+                    setProfileTagError(null);
+                  }}
                   onKeyDown={(event) => {
                     if (event.key !== 'Enter') return;
                     event.preventDefault();
-                    const tag = normalizeProfileTag(profileTagDraft);
-                    if (!tag || normalizedProfile.tags.includes(tag) || normalizedProfile.tags.length >= profileTagLimit) return;
-                    handleChange('tags', [...normalizedProfile.tags, tag]);
-                    setProfileTagDraft('');
+                    addProfileTag();
                   }}
                   placeholder="#tag"
                   value={profileTagDraft}
@@ -1257,17 +1326,13 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
                 <button
                   className="text-sm font-semibold text-white/72 disabled:opacity-35"
                   disabled={!normalizeProfileTag(profileTagDraft) || normalizedProfile.tags.includes(normalizeProfileTag(profileTagDraft)) || normalizedProfile.tags.length >= profileTagLimit}
-                  onClick={() => {
-                    const tag = normalizeProfileTag(profileTagDraft);
-                    if (!tag || normalizedProfile.tags.includes(tag) || normalizedProfile.tags.length >= profileTagLimit) return;
-                    handleChange('tags', [...normalizedProfile.tags, tag]);
-                    setProfileTagDraft('');
-                  }}
+                  onClick={addProfileTag}
                   type="button"
                 >
                   Add
                 </button>
               </div>
+              {profileTagError ? <p className="text-sm text-destructive">{profileTagError}</p> : null}
               {normalizedProfile.tags.length > 0 ? (
                 <div className="flex flex-wrap gap-2" data-testid="profile-tags-draft">
                   {normalizedProfile.tags.map((tag) => (
@@ -1332,7 +1397,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
               </div>
               <div className="space-y-2">
                 <Label htmlFor="ethnicity">Ethnicity</Label>
-                <select className="w-full h-10 px-3 rounded-md bg-input-background border border-input" value={normalizedProfile.ethnicity} onChange={e => handleChange('ethnicity', e.target.value)}>
+                <select className={DROPDOWN_TRIGGER_CLASS} value={normalizedProfile.ethnicity} onChange={e => handleChange('ethnicity', e.target.value)}>
                   <option value="">Select...</option>
                   {ETHNICITIES.map((e) => (
                     <option key={e} value={e}>{e}</option>
@@ -1420,12 +1485,12 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
 
             <div className="space-y-2">
               <Label>Hobbies</Label>
-              <MultiSelect {...profileMenuProps} ariaLabel="Hobbies" maxSelections={MAX_PROFILE_HOBBIES} optionGroups={HOBBY_GROUPS} value={normalizedProfile.hobbies} onChange={(vals) => handleChange('hobbies', limitToThree(vals))} />
+              <MultiSelect {...profileMenuProps} ariaLabel="Hobbies" searchable maxSelections={MAX_PROFILE_HOBBIES} optionGroups={HOBBY_GROUPS} value={normalizedProfile.hobbies} onChange={(vals) => handleChange('hobbies', limitToThree(vals))} />
             </div>
           </TabsContent>
 
-          <TabsContent value="intimacy" className="space-y-6 mt-6">
-            <div className="space-y-2">
+          <TabsContent value="intimacy" className="mt-6 flex flex-col gap-6 [&>*]:order-4">
+            <div className="!order-3 space-y-2">
               <Label>Relationship status</Label>
               <MultiSelect
                 {...profileMenuProps}
@@ -1437,12 +1502,12 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
               />
             </div>
 
-            <div className="space-y-2">
+            <div className="!order-1 space-y-2">
               <Label>Looking For</Label>
               <MultiSelect {...profileMenuProps} maxSelections={MAX_PROFILE_GROUP_SELECTIONS} options={LOOKING_FOR} value={normalizedProfile.looking_for} onChange={(vals) => handleChange('looking_for', limitToThree(vals))} />
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="!order-2 grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label>Position</Label>
                 <MultiSelect
@@ -1474,17 +1539,23 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
               <Label>Hosting/Travel</Label>
               <MultiSelect {...profileMenuProps} maxSelections={MAX_PROFILE_GROUP_SELECTIONS} options={HOSTING} value={normalizedProfile.hosting_travel} onChange={vals => handleChange('hosting_travel', limitToThree(vals))} />
             </div>
+            <div className="space-y-2">
+              <Label>Preferred spots</Label>
+              <MultiSelect {...profileMenuProps} maxSelections={MAX_PROFILE_GROUP_SELECTIONS} options={PREFERRED_SPOTS} value={normalizedProfile.preferred_spots} onChange={vals => handleChange('preferred_spots', limitToThree(vals))} />
+            </div>
+
             <div className="space-y-2" id="profile-kinks">
               <Label>Kinks & Fetishes</Label>
               <MultiSelect
                 {...profileMenuProps}
                 ariaLabel="Kinks & Fetishes"
-                maxSelections={MAX_PROFILE_KINKS}
+                maxSelections={Number.isFinite(kinkLimit) ? kinkLimit : undefined}
                 optionGroups={KINK_GROUPS}
                 searchable
                 value={normalizedProfile.kinks}
                 onChange={handleKinksChange}
               />
+              <p className="text-xs text-muted-foreground">Basic includes 3. cruush+ has no profile kink limit.</p>
             </div>
             <div className="space-y-2">
               <Label>Kinks & Fetishes visibility</Label>
@@ -1513,59 +1584,14 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
               />
             </div>
             <div className="space-y-2">
-              <Label>Condoms</Label>
-              <MultiSelect {...profileMenuProps} options={CONDOMS} value={normalizedProfile.condoms} onChange={vals => handleChange('condoms', singleValue(vals))} selectionMode="single" />
-            </div>
-            <div className="space-y-2">
-              <Label>PrEP</Label>
-              <MultiSelect {...profileMenuProps} options={PREP} value={normalizedProfile.prep} onChange={vals => handleChange('prep', singleValue(vals))} selectionMode="single" />
-            </div>
-            <div className="space-y-2">
-              <Label>DoxyPEP</Label>
-              <MultiSelect {...profileMenuProps} options={DOXYPEP} value={normalizedProfile.doxypep} onChange={vals => handleChange('doxypep', singleValue(vals))} selectionMode="single" />
-            </div>
-            <div className="space-y-2">
-              <Label>COVID Vaccine</Label>
+              <Label>Protections</Label>
               <MultiSelect
                 {...profileMenuProps}
-                ariaLabel="COVID Vaccine"
-                options={COVID_VACCINE}
-                value={normalizedProfile.covid_vaccine}
-                onChange={vals => handleChange('covid_vaccine', singleValue(vals))}
-                selectionMode="single"
+                ariaLabel="Protections"
+                options={PROTECTIONS}
+                value={normalizedProfile.protections}
+                onChange={vals => handleChange('protections', vals)}
               />
-            </div>
-            <div className="space-y-2">
-              <Label>MPOX Vaccine</Label>
-              <MultiSelect
-                {...profileMenuProps}
-                ariaLabel="MPOX Vaccine"
-                options={MPOX_VACCINE}
-                value={normalizedProfile.mpox_vaccine}
-                onChange={vals => handleChange('mpox_vaccine', singleValue(vals))}
-                selectionMode="single"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Health Preferences</Label>
-              <MultiSelect
-                {...profileMenuProps}
-                ariaLabel="Health Preferences"
-                options={HEALTH_PREFERENCES}
-                value={normalizedProfile.health_preferences}
-                onChange={vals => handleChange('health_preferences', vals)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Birth control</Label>
-              <MultiSelect
-                {...profileMenuProps}
-                ariaLabel="Birth control"
-                options={BIRTH_CONTROL}
-                value={normalizedProfile.birth_control}
-                onChange={vals => handleChange('birth_control', vals)}
-              />
-              <p className="text-sm text-muted-foreground">Select any that apply.</p>
             </div>
             <div className="space-y-2">
               <Label>Substance Boundaries</Label>
@@ -1576,6 +1602,17 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
                 options={SUBSTANCE_BOUNDARIES}
                 value={normalizedProfile.substance_boundaries}
                 onChange={vals => handleChange('substance_boundaries', vals)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Protection boundaries</Label>
+              <MultiSelect
+                {...profileMenuProps}
+                ariaLabel="Protection boundaries"
+                options={PROTECTION_BOUNDARIES}
+                value={normalizedProfile.protection_boundaries}
+                onChange={vals => handleChange('protection_boundaries', singleValue(vals))}
+                selectionMode="single"
               />
             </div>
           </TabsContent>

@@ -86,6 +86,7 @@ const POSITION_BADGE_VALUES = new Set([
   'bottom',
   'side',
   'pillow princess',
+  'stone bottom',
   'stone top',
   'top',
   'vers bottom',
@@ -93,6 +94,8 @@ const POSITION_BADGE_VALUES = new Set([
   'versatile',
   'none',
   'oral',
+  'oral only',
+  'hands only',
   'gooner',
 ]);
 
@@ -103,10 +106,36 @@ const POSITION_BADGE_ALIASES: Record<string, string> = {
 };
 
 const ROLE_BADGE_VALUES = new Set([
+  'brat',
+  'brat tamer',
+  'caregiver',
+  'degradee',
+  'degrader',
   'dominant',
+  'handler',
+  'hunter',
+  'little',
+  'masochist',
+  'owner',
+  'pet',
+  'pleasure dom',
+  'pleasure sub',
+  'pleasure switch',
+  'prey',
+  'rigger',
+  'rope bunny',
+  'sadist',
+  'sadomasochist',
   'submissive',
   'switch',
   'service',
+  'service dom',
+  'service sub',
+  'service switch',
+  'trainer',
+  'worship',
+  'worshipper',
+  'worshipped',
 ]);
 
 const ROLE_BADGE_ALIASES: Record<string, string> = {

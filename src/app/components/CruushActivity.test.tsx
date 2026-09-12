@@ -176,7 +176,10 @@ describe('CruushActivity', () => {
     getUserNoticeDismissal.mockResolvedValue({ dismissed: true, dismissedAt: null });
   });
 
-  it('keeps the fixed alpha bug reporter outside the Activity header', async () => {
+  it('docks the alpha bug reporter into the Activity header line', async () => {
+    // Design rule: title, back button, header actions and the bug button
+    // always share one line. The header registers a slot and the button sits
+    // inside it, after the settings control.
     render(
       <MemoryRouter initialEntries={['/cruush']}>
         <CruushActivity />
@@ -190,19 +193,52 @@ describe('CruushActivity', () => {
     const slot = screen.getByTestId('cruush-activity-bug-button-slot');
     const reportButton = screen.getByRole('button', { name: 'Report alpha bug' });
 
-    expect(header).not.toContainElement(reportButton);
-    expect(slot).not.toContainElement(reportButton);
+    expect(header).toContainElement(reportButton);
+    expect(slot).toContainElement(reportButton);
     expect(slot.parentElement?.lastElementChild).toBe(slot);
-    expect(screen.getByRole('button', { name: 'Open cruush match settings' }).getBoundingClientRect().right)
-      .toBeLessThanOrEqual(slot.getBoundingClientRect().left);
-    expect(reportButton).toHaveClass(
-      'fixed',
-      'right-[calc(0.75rem+env(safe-area-inset-right))]',
-      'top-[calc(0.75rem+env(safe-area-inset-top))]',
-      'z-[1500]',
-    );
+    expect(reportButton).not.toHaveClass('fixed');
     expect(screen.getByTestId('cruush-count-grid')).not.toContainElement(reportButton);
     expect(screen.getByTestId('cruush-tab-grid')).not.toContainElement(reportButton);
+  });
+
+  it('reads the activity again when the app comes back to the foreground', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+
+    try {
+      render(
+        <MemoryRouter initialEntries={['/cruush']}>
+          <CruushActivity />
+        </MemoryRouter>,
+      );
+
+      await screen.findByText('luna');
+      expect(getMyCruushActivity).toHaveBeenCalledTimes(1);
+
+      // The panel stays mounted while the phone is in a pocket, so views and
+      // incoming cruushes sat frozen at whatever they were on the last open.
+      await vi.advanceTimersByTimeAsync(61_000);
+      document.dispatchEvent(new Event('visibilitychange'));
+
+      await waitFor(() => expect(getMyCruushActivity).toHaveBeenCalledTimes(2));
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('does not read the activity again on a resume moments after the last read', async () => {
+    render(
+      <MemoryRouter initialEntries={['/cruush']}>
+        <CruushActivity />
+      </MemoryRouter>,
+    );
+
+    await screen.findByText('luna');
+    expect(getMyCruushActivity).toHaveBeenCalledTimes(1);
+
+    document.dispatchEvent(new Event('visibilitychange'));
+    window.dispatchEvent(new Event('focus'));
+
+    expect(getMyCruushActivity).toHaveBeenCalledTimes(1);
   });
 
   it('renders locked free rows, mutual actions, and list-only mutuals', async () => {
@@ -221,8 +257,8 @@ describe('CruushActivity', () => {
     expect(container.firstElementChild).not.toHaveClass('overflow-y-scroll');
     expect(container.firstElementChild).not.toHaveClass('[scrollbar-gutter:stable]');
     expect(screen.getByTestId('cruush-activity-header')).toHaveClass('sticky', 'top-0');
-    expect(screen.getByTestId('cruush-activity-header-content')).toHaveClass('w-[min(42rem,calc(100dvw-2rem))]');
-    expect(screen.getByTestId('cruush-stats-tabs')).toHaveClass('mx-auto', 'w-[min(38rem,100%)]');
+    expect(screen.getByTestId('cruush-activity-header-content')).toHaveClass('max-w-2xl', 'px-4');
+    expect(screen.getByTestId('cruush-stats-tabs')).toHaveClass('mx-auto', 'max-w-[38rem]', 'flex-col', 'items-center', 'text-center');
     expect(screen.getByTestId('cruush-count-grid')).toHaveClass('w-full');
     expect(container.querySelector('main')).toHaveClass('mx-auto', 'max-w-2xl');
     expect(screen.getByRole('heading', { name: 'Cruushes' })).toBeInTheDocument();
@@ -246,18 +282,17 @@ describe('CruushActivity', () => {
     expectHeartPreviewSize('luna preview');
     expectHeartPreviewSize('Locked incoming cruush');
 
-    expect(screen.queryByTestId('activity-vibes')).not.toBeInTheDocument();
     expect(screen.getByTestId('activity-side-badges')).toBeInTheDocument();
     expect(screen.getByRole('img', { name: /left badge:.*dominant/i })).toBeInTheDocument();
     expect(screen.getByRole('img', { name: /right badge:.*top/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'luna preview' }).querySelector('path')).toHaveAttribute('stroke', '#FF0072');
     const incomingIdentity = screen.getByText('luna').closest('button');
-    expect(incomingIdentity).toHaveClass('col-start-2', 'col-end-4');
+    expect(incomingIdentity).toHaveClass('min-w-0', 'text-left');
     expect(screen.getByText('luna').parentElement).toHaveTextContent('lunathey/them');
     const incomingMeta = screen.getByText('Nearby').closest('p');
     expect(incomingMeta).toHaveClass('flex', 'h-11', 'flex-col', 'justify-center');
     expect(incomingMeta).not.toHaveClass('sm:flex-row');
-    expect(incomingMeta?.closest('button')?.parentElement).toHaveClass('col-start-2');
+    expect(incomingMeta?.closest('button')).toHaveClass('min-w-0', 'text-left');
     expect(within(incomingMeta!).getByText('Nearby')).toHaveClass('block');
     expect(within(incomingMeta!).getByText('Nearby')).not.toHaveClass('sm:inline');
     const incomingCruushButton = screen.getByRole('button', { name: 'Send cruush to luna' });
@@ -273,7 +308,6 @@ describe('CruushActivity', () => {
     expect(screen.getByText(/pending/i)).toBeInTheDocument();
     expectHeartPreviewSize('jay preview');
     expect(screen.getByRole('button', { name: 'jay preview' }).querySelector('path')).toHaveAttribute('stroke', '#FF0072');
-    expect(screen.queryByTestId('activity-vibes')).not.toBeInTheDocument();
 
     selectTab(/mutual/i);
     await waitFor(() => expect(screen.getByText('river')).toBeInTheDocument());
@@ -282,8 +316,10 @@ describe('CruushActivity', () => {
     expect(screen.getByText('river')).toBeInTheDocument();
     expect(screen.getByText('~0.5 mi away')).toBeInTheDocument();
     expectHeartPreviewSize('river preview');
-    expect(screen.getByRole('button', { name: 'river preview' }).querySelector('path')).toHaveAttribute('stroke', '#6f00ff');
-    expect(screen.queryByTestId('activity-vibes')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'river preview' }).querySelector('path')).toHaveAttribute('stroke', '#6F00FF');
+    // Cruushes rows use the Feed card layout: the identity takes the full
+    // width and the actions drop to their own row, instead of sitting beside
+    // the name and squeezing it.
     expect(screen.getByTestId('profile-action-trio').parentElement).toHaveClass('col-start-3', 'row-start-2');
 
     fireEvent.click(screen.getByRole('button', { name: 'Message river' }));
@@ -357,7 +393,6 @@ describe('CruushActivity', () => {
     expect(screen.getByText('Upgrade to view')).toBeInTheDocument();
     expectHeartPreviewSize('indigo preview');
     expectHeartPreviewSize('Locked profile view');
-    expect(screen.queryByTestId('activity-vibes')).not.toBeInTheDocument();
 
     const cruushButton = screen.getByRole('button', { name: 'Send cruush to indigo' });
     expect(cruushButton.querySelector('img')?.getAttribute('src')).toContain('safety-white');

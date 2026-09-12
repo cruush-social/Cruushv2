@@ -46,4 +46,21 @@ describe("profile photo sanitization", () => {
       "image/png"
     )).rejects.toThrow(/decode/i);
   });
+
+  it('sends a HEIC upload out as WebP', async () => {
+    // An iPhone camera produces HEIC by default. Most browsers cannot display
+    // it, so the sanitizer re-encodes rather than handing the format back.
+    //
+    // The bytes here are WebP: this build of sharp decodes HEIF but cannot
+    // encode it, so a real HEIC fixture cannot be made here. What is under test
+    // is the output mapping, which is what changed.
+    const bytes = await sharp({
+      create: { width: 32, height: 32, channels: 3, background: { r: 10, g: 200, b: 120 } },
+    }).webp().toBuffer();
+
+    const sanitized = await sanitizeProfilePhoto(bytes, 'image/heic');
+
+    expect(sanitized.mimeType).toBe('image/webp');
+    expect(sanitized.extension).toBe('webp');
+  });
 });

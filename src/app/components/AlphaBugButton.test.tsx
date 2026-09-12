@@ -1,8 +1,8 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import AlphaBugButton, { ALPHA_BUG_TIP_STORAGE_KEY } from './AlphaBugButton';
-import { registerBugButtonSlot } from '../lib/bugButtonSlot';
+import { registerBugButtonSlot, resetBugButtonSlotsForTest } from '../lib/bugButtonSlot';
 import { clearPersistentNoticeFlag } from '../lib/persistentNotice';
 
 const { createSupportRequest } = vi.hoisted(() => ({
@@ -37,7 +37,7 @@ function renderAlphaBugButton(
 
 describe('AlphaBugButton', () => {
   afterEach(() => {
-    registerBugButtonSlot(null);
+    resetBugButtonSlotsForTest();
     Object.defineProperty(navigator, 'userAgentData', { configurable: true, value: undefined });
   });
 
@@ -73,6 +73,8 @@ describe('AlphaBugButton', () => {
     );
 
     fireEvent.click(reportButton);
+    expect(screen.getByRole('dialog', { name: 'Report alpha bug' })).toHaveAttribute('data-testid', 'alpha-bug-dialog');
+    expect(document.querySelector('[data-slot="dialog-overlay"]')).toHaveClass('alpha-bug-overlay', '!z-[1602]');
     expect(screen.getByText('/map?layer=nearby')).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('What broke?'), {
       target: { value: 'Map pins disappeared after I changed filters.' },
@@ -89,6 +91,26 @@ describe('AlphaBugButton', () => {
     expect(await screen.findByText('Bug report sent')).toBeInTheDocument();
     expect(screen.getByText('Describe what broke and how support can reproduce it.')).toBeInTheDocument();
     expect(screen.queryByText(/attaches a screenshot/i)).not.toBeInTheDocument();
+  });
+
+  it('submits without requesting screen sharing', async () => {
+    const descriptor = Object.getOwnPropertyDescriptor(navigator, 'mediaDevices');
+    const getDisplayMedia = vi.fn().mockRejectedValue(new Error('Screen sharing must not be requested.'));
+    Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { getDisplayMedia } });
+    try {
+      renderAlphaBugButton();
+      fireEvent.click(screen.getByRole('button', { name: 'Report alpha bug' }));
+      fireEvent.change(screen.getByLabelText('What broke?'), {
+        target: { value: 'The report should not open a screen-sharing prompt.' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'Send bug report' }));
+      expect(await screen.findByText('Bug report sent')).toBeInTheDocument();
+      expect(getDisplayMedia).not.toHaveBeenCalled();
+      expect(createSupportRequest.mock.calls[0][0]).not.toHaveProperty('screenshot');
+    } finally {
+      if (descriptor) Object.defineProperty(navigator, 'mediaDevices', descriptor);
+      else Reflect.deleteProperty(navigator, 'mediaDevices');
+    }
   });
 
   it('includes a required reply email in signed-out bug reports', async () => {
@@ -170,28 +192,55 @@ describe('AlphaBugButton', () => {
     );
   });
 
-  it('keeps the fixed upper-right placement outside the map chrome slot', () => {
+  it('docks into a registered header slot so it shares the header line', () => {
+    // Design rule: the title, back button, header actions and the bug button
+    // always share one line. A screen that registers a slot gets the button
+    // docked inside it, never floating over the header on its own row.
     const slot = document.createElement('div');
-    slot.dataset.bugButtonSize = 'large';
     document.body.appendChild(slot);
     registerBugButtonSlot(slot);
 
     renderAlphaBugButton();
 
     const reportButton = screen.getByRole('button', { name: 'Report alpha bug' });
-    expect(slot).not.toContainElement(reportButton);
+    expect(slot).toContainElement(reportButton);
+    expect(reportButton).toHaveClass('h-full', 'w-full');
+    expect(reportButton).not.toHaveClass('fixed');
+  });
+
+  it('leaves a slot whose screen has gone and floats again, so no page is without it', async () => {
+    // The map registers a slot; a full page that unmounts the map does not.
+    // The button used to stay portaled into the dead node and vanish from
+    // every such page.
+    const slot = document.createElement('div');
+    document.body.appendChild(slot);
+    registerBugButtonSlot(slot);
+
+    renderAlphaBugButton();
+    expect(slot).toContainElement(screen.getByRole('button', { name: 'Report alpha bug' }));
+
+    // What React does as the screen tears down: the ref is handed null, then
+    // the node leaves the document.
+    registerBugButtonSlot(null);
+    slot.remove();
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    const reportButton = await screen.findByRole('button', { name: 'Report alpha bug' });
+    expect(document.body).toContainElement(reportButton);
+    expect(reportButton).toHaveClass('fixed');
+  });
+
+  it('falls back to the fixed upper-right corner when no slot is registered', () => {
+    renderAlphaBugButton();
+
+    const reportButton = screen.getByRole('button', { name: 'Report alpha bug' });
     expect(reportButton).toHaveClass(
       'fixed',
-      'h-9',
-      'w-9',
-      'sm:h-10',
-      'sm:w-10',
-      'lg:h-11',
-      'lg:w-11',
       'right-[calc(0.75rem+env(safe-area-inset-right))]',
       'top-[calc(0.75rem+env(safe-area-inset-top))]',
     );
-    expect(reportButton.querySelector('svg')).toHaveClass('h-5', 'w-5', 'lg:h-7', 'lg:w-7');
   });
 
   it('remains available on the signed-out support flow', () => {

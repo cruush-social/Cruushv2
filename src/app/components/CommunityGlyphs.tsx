@@ -6,6 +6,10 @@
  */
 
 import t4tLinkedSymbol from '../assets/ui-icons/t4t-pride-linked-symbol.png';
+import aceSpectrumDiamond from '../assets/ui-icons/ace-spectrum-diamond-2226685.png';
+import bdsmTriskelion from '../assets/ui-icons/bdsm-89011.png';
+import labrysSymbol from '../assets/ui-icons/labrys-5692573.png';
+import polyamoryInfinityHeart from '../assets/ui-icons/polyamory-2751502.png';
 
 type GlyphProps = {
   className?: string;
@@ -71,24 +75,52 @@ export function NonbinaryGlyph(props: GlyphProps) {
   );
 }
 
-/** The labrys, the double axe. */
-export function LabrysGlyph(props: GlyphProps) {
+/** The ace spectrum diamond. */
+export function AceSpectrumGlyph({ className }: GlyphProps) {
   return (
-    <Glyph {...props}>
-      <path d="M12 8.2v13.2" />
-      <path d="M12 8.2c-3 0-5.2-1.2-6.6-3.6 1.4-1.4 3.6-2.1 6.6-2.1s5.2.7 6.6 2.1C17.2 7 15 8.2 12 8.2Z" />
+    <img alt="" aria-hidden="true" className={`object-contain invert ${className ?? ''}`} draggable={false} src={aceSpectrumDiamond} />
+  );
+}
+
+/** The labrys, the double axe. */
+export function LabrysGlyph({ className }: GlyphProps) {
+  return (
+    <img alt="" aria-hidden="true" className={`object-contain invert ${className ?? ''}`} draggable={false} src={labrysSymbol} />
+  );
+}
+
+/** The established interlocking bisexuality symbol. */
+/**
+ * The biangles: two overlapping triangles, the oldest bisexual symbol. The
+ * interlocked male and female signs that stood here are the heterosexual union
+ * mark, not a bisexual one.
+ */
+export function BisexualGlyph({ className, strokeWidth = 2 }: GlyphProps) {
+  return (
+    <Glyph className={className} strokeWidth={strokeWidth}>
+      <path d="M2.6 4.2 L14.6 4.2 L8.6 14.6 Z" />
+      <path d="M9.4 9.4 L21.4 9.4 L15.4 19.8 Z" />
     </Glyph>
+  );
+}
+
+/** The three-part triskelion used by the BDSM community. */
+export function BdsmTriskelionGlyph({ className }: GlyphProps) {
+  return (
+    <img alt="" aria-hidden="true" className={`object-contain invert ${className ?? ''}`} draggable={false} src={bdsmTriskelion} />
   );
 }
 
 /** The polyamory infinity heart, reduced to its two loops and a point. */
 export function PolyGlyph(props: GlyphProps) {
   return (
-    <Glyph {...props}>
-      <path d="M12 9.6c1.4-2.1 3-3.1 4.8-3.1a3.6 3.6 0 0 1 0 7.2c-1.8 0-3.4-1-4.8-3.1Z" />
-      <path d="M12 9.6c-1.4-2.1-3-3.1-4.8-3.1a3.6 3.6 0 0 0 0 7.2c1.8 0 3.4-1 4.8-3.1Z" />
-      <path d="M8.4 13.7 12 20.4l3.6-6.7" />
-    </Glyph>
+    <img
+      alt=""
+      aria-hidden="true"
+      className={`object-contain invert ${props.className ?? ''}`}
+      draggable={false}
+      src={polyamoryInfinityHeart}
+    />
   );
 }
 

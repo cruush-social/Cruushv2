@@ -16,6 +16,20 @@ type PasswordResetEmailInput = {
   resetUrl: string;
 };
 
+type EmailChangeConfirmationInput = {
+  config: AppConfig;
+  email: string;
+  logger: FastifyBaseLogger;
+  confirmUrl: string;
+};
+
+type EmailChangeNoticeInput = {
+  config: AppConfig;
+  email: string;
+  logger: FastifyBaseLogger;
+  newEmail: string;
+};
+
 export type TrustSafetyAlertIncident = {
   id: string;
   userId: string;
@@ -131,6 +145,26 @@ type EventPassEmailInput = {
 const CRUUSH_EMAIL_LOGO_URL = "https://cdn.resend.app/ff1dfa96-8b85-4552-8e56-d09cf53fb13e";
 const VERIFICATION_EMAIL_TEMPLATE_ID = "0dc8f32c-76e2-45b2-aaf7-f4649ab48ab0";
 const REPORTS_INBOX_EMAIL = "reports@cruush.app";
+const REPORTS_FROM_EMAIL = "cruush <reports@cruush.app>";
+const AGE_SUSPENSION_REASON_CODES = new Set(["minor_face_detected"]);
+
+const SUSPENSION_REASON_COPY: Record<string, string> = {
+  abuse_confirmed: "A human review confirmed abusive behavior that violated the cruush rules.",
+  credible_threat: "We detected content that may contain a credible threat of harm.",
+  drug_sales: "We detected content offering or arranging the sale of drugs.",
+  manual_review_rejected: "A human review found content or activity that violated the cruush rules.",
+  minor_face_detected: "The profile photo age check could not confirm that the person shown is an adult.",
+  reviewed_valid_report: "A human review confirmed a report about activity on your account."
+};
+
+export function isAgeRelatedSuspensionReason(reasonCode: string) {
+  return AGE_SUSPENSION_REASON_CODES.has(reasonCode);
+}
+
+function suspensionReasonCopy(reasonCode: string) {
+  return SUSPENSION_REASON_COPY[reasonCode]
+    ?? `The recorded suspension reason is ${reasonCode.replace(/[_-]+/g, " ").trim()}.`;
+}
 
 function escapeHtml(value: string) {
   return value.replace(/[&<>"']/g, (character) => {
@@ -149,7 +183,18 @@ function escapeHtml(value: string) {
   });
 }
 
-function buildVerificationEmailHtml(escapedVerificationUrl: string) {
+// One shell for every account email so verification, email change, and anything
+// else that asks a member to click a link look like the same product. The
+// verification copy below is what it has always been; only the wording moves.
+function buildAccountEmailHtml(input: {
+  title: string;
+  heading: string;
+  intro: string;
+  buttonLabel: string;
+  escapedUrl: string;
+  footnote: string;
+}) {
+  const { title, heading, intro, buttonLabel, escapedUrl, footnote } = input;
   return `<!DOCTYPE html>
 <html dir="ltr" lang="en">
   <head>
@@ -158,7 +203,7 @@ function buildVerificationEmailHtml(escapedVerificationUrl: string) {
     <meta name="x-apple-disable-message-reformatting" />
     <meta content="IE=edge" http-equiv="X-UA-Compatible" />
     <meta content="telephone=no,address=no,email=no,date=no,url=no" name="format-detection" />
-    <title>Verify your cruush email</title>
+    <title>${title}</title>
   </head>
   <body
     dir="ltr"
@@ -215,13 +260,13 @@ function buildVerificationEmailHtml(escapedVerificationUrl: string) {
                     <h1
                       style="margin:0 0 14px;padding:0;color:#ffffff;font-family:Georgia,'Times New Roman',Times,serif;font-size:34px;line-height:1.15;font-weight:700;text-align:center;"
                     >
-                      verify your email
+                      ${heading}
                     </h1>
 
                     <p
                       style="margin:0 0 20px;padding:0;color:#ffffff;font-family:Georgia,'Times New Roman',Times,serif;font-size:17px;line-height:1.55;text-align:center;"
                     >
-                      Tap the button below to confirm this address and finish setting up your cruush account.
+                      ${intro}
                     </p>
 
                     <table
@@ -240,12 +285,12 @@ function buildVerificationEmailHtml(escapedVerificationUrl: string) {
                             style="border-radius:8px;background-color:#ff0072;"
                           >
                             <a
-                              href="${escapedVerificationUrl}"
+                              href="${escapedUrl}"
                               rel="noopener noreferrer nofollow"
                               target="_blank"
                               style="display:inline-block;padding:13px 22px;color:#ffffff;font-family:Georgia,'Times New Roman',Times,serif;font-size:16px;font-weight:700;text-decoration:none;"
                             >
-                              Verify email
+                              ${buttonLabel}
                             </a>
                           </td>
                         </tr>
@@ -270,7 +315,7 @@ function buildVerificationEmailHtml(escapedVerificationUrl: string) {
                             <p
                               style="margin:0;padding:0;color:#ffffff;font-size:15px;line-height:1.55;text-align:center;"
                             >
-                              This verification link expires in 24 hours. If you did not create a cruush account, you can ignore this email.
+                              ${footnote}
                             </p>
                           </td>
                         </tr>
@@ -287,12 +332,12 @@ function buildVerificationEmailHtml(escapedVerificationUrl: string) {
                       style="margin:0;padding:0;color:#ffffff;font-family:Georgia,'Times New Roman',Times,serif;font-size:13px;line-height:1.5;text-align:center;word-break:break-all;"
                     >
                       <a
-                        href="${escapedVerificationUrl}"
+                        href="${escapedUrl}"
                         rel="noopener noreferrer nofollow"
                         target="_blank"
                         style="color:#ffffff;text-decoration:underline;"
                       >
-                        ${escapedVerificationUrl}
+                        ${escapedUrl}
                       </a>
                     </p>
 
@@ -320,16 +365,28 @@ function buildVerificationEmailHtml(escapedVerificationUrl: string) {
 </html>`;
 }
 
+function buildVerificationEmailHtml(escapedVerificationUrl: string) {
+  return buildAccountEmailHtml({
+    title: "Verify your cruush email",
+    heading: "verify your email",
+    intro: "Tap the button below to confirm this address and finish setting up your cruush account.",
+    buttonLabel: "Verify email",
+    escapedUrl: escapedVerificationUrl,
+    footnote: "This verification link expires in 24 hours. If you did not create a cruush account, you can ignore this email."
+  });
+}
+
 async function sendResendEmail(input: {
   attachments?: EmailAttachment[];
   config: AppConfig;
   email: string;
+  from?: string;
   logger: FastifyBaseLogger;
   replyTo?: string | null;
   subject: string;
   failureMessage: string;
 } & ResendEmailContent) {
-  const { attachments, config, email, failureMessage, logger, replyTo, subject } = input;
+  const { attachments, config, email, failureMessage, from, logger, replyTo, subject } = input;
   const content = input.template
     ? { template: input.template }
     : { html: input.html, text: input.text };
@@ -341,7 +398,7 @@ async function sendResendEmail(input: {
       Authorization: `Bearer ${config.RESEND_API_KEY}`
     },
     body: JSON.stringify({
-      from: config.MAIL_FROM,
+      from: from ?? config.MAIL_FROM,
       to: [email],
       subject,
       ...content,
@@ -351,8 +408,8 @@ async function sendResendEmail(input: {
   });
 
   if (!response.ok) {
-    const responseBody = await response.text();
-    logger.error({ email, responseBody, statusCode: response.status }, failureMessage);
+    // Provider responses may echo the email content, including token URLs.
+    logger.error({ email, statusCode: response.status }, failureMessage);
     throw new ApiError(502, "INTERNAL_ERROR", "Failed to send email.");
   }
 }
@@ -426,7 +483,7 @@ export async function sendVerificationEmail(input: VerificationEmailInput): Prom
     throw new ApiError(500, "INTERNAL_ERROR", "Email delivery is not configured.");
   }
 
-  logger.info({ email, verificationUrl }, "verification email preview");
+  logger.info({ email }, "verification email preview");
 
   return {
     previewUrl: verificationUrl
@@ -560,11 +617,102 @@ export async function sendPasswordResetEmail(input: PasswordResetEmailInput): Pr
     throw new ApiError(500, "INTERNAL_ERROR", "Email delivery is not configured.");
   }
 
-  logger.info({ email, resetUrl }, "password reset email preview");
+  logger.info({ email }, "password reset email preview");
 
   return {
     previewUrl: resetUrl
   };
+}
+
+// Sent to the address a member wants to move to. The change only happens when
+// this link is opened, which is what proves they can read mail at that address.
+function buildEmailChangeConfirmationHtml(escapedConfirmUrl: string) {
+  return buildAccountEmailHtml({
+    title: "Confirm your new cruush email",
+    heading: "confirm your new email",
+    intro: "Tap the button below to confirm this address for your cruush account.",
+    buttonLabel: "Confirm email",
+    escapedUrl: escapedConfirmUrl,
+    footnote: "This link expires in 1 hour, and your address does not change until you open it. If you did not ask for this, you can ignore this email."
+  });
+}
+
+function buildEmailChangeNoticeHtml(escapedNewEmail: string, escapedSupportUrl: string) {
+  return buildAccountEmailHtml({
+    title: "A new email was requested for your cruush account",
+    heading: "a change was requested",
+    intro: `Someone asked to move your cruush account to ${escapedNewEmail}. Nothing has changed yet, and the move only happens if that address is confirmed.`,
+    buttonLabel: "Contact cruush",
+    escapedUrl: escapedSupportUrl,
+    footnote: "If this was not you, change your password now and contact hello@cruush.app."
+  });
+}
+
+export async function sendEmailChangeConfirmationEmail(input: EmailChangeConfirmationInput): Promise<VerificationDeliveryResult> {
+  const { config, email, logger, confirmUrl } = input;
+
+  if (config.RESEND_API_KEY && config.MAIL_FROM) {
+    await sendResendEmail({
+      config,
+      email,
+      logger,
+      subject: "Confirm your new cruush email",
+      html: buildEmailChangeConfirmationHtml(escapeHtml(confirmUrl)),
+      text: [
+        "confirm your new email",
+        "",
+        "You asked to use this address for your cruush account.",
+        "Open this link to confirm it:",
+        confirmUrl,
+        "",
+        "This link expires in 1 hour. Your address does not change until you open it.",
+        "If you did not ask for this, you can ignore this email.",
+        "",
+        "A message from cruush, hello@cruush.app"
+      ].join("\n"),
+      failureMessage: "email change confirmation delivery failed"
+    });
+
+    return { previewUrl: null };
+  }
+
+  if (!config.EMAIL_PREVIEW_ENABLED) {
+    throw new ApiError(500, "INTERNAL_ERROR", "Email delivery is not configured.");
+  }
+
+  logger.info({ email }, "email change confirmation preview");
+
+  return { previewUrl: confirmUrl };
+}
+
+// Sent to the address currently on the account, so a member finds out that a
+// change was requested even when someone else asked for it.
+export async function sendEmailChangeNoticeEmail(input: EmailChangeNoticeInput) {
+  const { config, email, logger, newEmail } = input;
+
+  if (!config.RESEND_API_KEY || !config.MAIL_FROM) {
+    logger.info({ email, newEmail }, "email change notice preview");
+    return;
+  }
+
+  await sendResendEmail({
+    config,
+    email,
+    logger,
+    subject: "A new email was requested for your cruush account",
+    html: buildEmailChangeNoticeHtml(escapeHtml(newEmail), "mailto:hello@cruush.app"),
+    text: [
+      "a change was requested",
+      "",
+      `Someone asked to move your cruush account to ${newEmail}.`,
+      "Nothing has changed yet. The move only happens if that address is confirmed.",
+      "",
+      "If this was not you, change your password now and contact hello@cruush.app.",
+      "",
+      "A message from cruush, hello@cruush.app"
+    ].join("\n"),
+    failureMessage: "email change notice delivery failed"
+  });
 }
 
 export async function sendTrustSafetyAlertEmail(input: TrustSafetyAlertEmailInput) {
@@ -611,10 +759,11 @@ type AgeSuspensionAppealEmailInput = {
   config: AppConfig;
   email: string;
   logger: FastifyBaseLogger;
+  reasonCode?: string;
 };
 
 export async function sendAgeSuspensionAppealEmail(input: AgeSuspensionAppealEmailInput) {
-  const { appealUrl, config, email, logger } = input;
+  const { appealUrl, config, email, logger, reasonCode = "minor_face_detected" } = input;
 
   if (!config.RESEND_API_KEY || !config.MAIL_FROM) {
     logger.info({ email }, "age suspension appeal email skipped, mail is not configured");
@@ -622,15 +771,18 @@ export async function sendAgeSuspensionAppealEmail(input: AgeSuspensionAppealEma
   }
 
   const escapedAppealUrl = escapeHtml(appealUrl);
+  const escapedReason = escapeHtml(suspensionReasonCopy(reasonCode));
   const html = `
-    <p>Your cruush profile photo was suspended because our automated check could not confirm an adult.</p>
+    <p>Your cruush account was suspended.</p>
+    <p><strong>Reason:</strong> ${escapedReason}</p>
     <p>A person reviews these. Send your details and we will look at it again:</p>
     <p><a href="${escapedAppealUrl}">${escapedAppealUrl}</a></p>
     <p>You will be asked for a photo of your ID with everything except your date of birth and photo covered, plus a selfie holding a handwritten card with your account email and today's date. Both stay encrypted, expire after 24 hours, and are deleted once the review is done.</p>
     <p>You do not need to be signed in to use that page.</p>
   `;
   const text = [
-    "Your cruush profile photo was suspended because our automated check could not confirm an adult.",
+    "Your cruush account was suspended.",
+    `Reason: ${suspensionReasonCopy(reasonCode)}`,
     "",
     "A person reviews these. Send your details and we will look at it again:",
     appealUrl,
@@ -643,12 +795,62 @@ export async function sendAgeSuspensionAppealEmail(input: AgeSuspensionAppealEma
   await sendResendEmail({
     config,
     email,
+    from: REPORTS_FROM_EMAIL,
     logger,
     replyTo: REPORTS_INBOX_EMAIL,
     subject: "Appeal your cruush age-related suspension",
     html,
     text,
     failureMessage: "age suspension appeal email delivery failed"
+  });
+}
+
+type GeneralSuspensionAppealEmailInput = {
+  appealUrl: string;
+  config: AppConfig;
+  email: string;
+  logger: FastifyBaseLogger;
+  reasonCode?: string;
+};
+
+export async function sendGeneralSuspensionAppealEmail(input: GeneralSuspensionAppealEmailInput) {
+  const { appealUrl, config, email, logger, reasonCode = "account_suspension" } = input;
+
+  if (!config.RESEND_API_KEY || !config.MAIL_FROM) {
+    logger.info({ email }, "suspension appeal email skipped, mail is not configured");
+    return;
+  }
+
+  const escapedAppealUrl = escapeHtml(appealUrl);
+  const reason = suspensionReasonCopy(reasonCode);
+  const escapedReason = escapeHtml(reason);
+  const html = `
+    <p>Your cruush account was suspended.</p>
+    <p><strong>Reason:</strong> ${escapedReason}</p>
+    <p>You can ask a person to review the decision here:</p>
+    <p><a href="${escapedAppealUrl}">${escapedAppealUrl}</a></p>
+    <p>You do not need to be signed in to use that page.</p>
+  `;
+  const text = [
+    "Your cruush account was suspended.",
+    `Reason: ${reason}`,
+    "",
+    "You can ask a person to review the decision here:",
+    appealUrl,
+    "",
+    "You do not need to be signed in to use that page."
+  ].join("\n");
+
+  await sendResendEmail({
+    config,
+    email,
+    from: REPORTS_FROM_EMAIL,
+    logger,
+    replyTo: REPORTS_INBOX_EMAIL,
+    subject: "Appeal your cruush suspension",
+    html,
+    text,
+    failureMessage: "suspension appeal email delivery failed"
   });
 }
 

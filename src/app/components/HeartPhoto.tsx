@@ -1,5 +1,7 @@
 import type { KeyboardEvent, MouseEvent, ReactNode } from 'react';
+import DlModePhotoPlaceholder from './DlModePhotoPlaceholder';
 import { useId } from 'react';
+import cruushMarkWhite from '../assets/ui-icons/cruush-white.png';
 import { resolveMediaUrl } from '../lib/apiClient';
 import { HEART_PIN_PATH, HEART_PIN_THEMES, type HeartPinTheme } from '../lib/heartPin';
 import { getProfileGradientStops } from '../lib/profileGradient';
@@ -64,6 +66,7 @@ export default function HeartPhoto({
   return (
     <div
       className={`relative aspect-square ${onClick ? 'cursor-pointer' : ''} ${className}`.trim()}
+      data-border-tone={staticMileHigh ? 'mile-high' : borderTone}
       data-heart-theme={theme}
       onClick={handleClick}
       onKeyDown={handleKeyDown}
@@ -99,6 +102,25 @@ export default function HeartPhoto({
           strokeOpacity={1}
           strokeWidth="3.2"
         />
+        {/* Heart previews omit the DL text line. Missing photos keep their
+            existing cruush mark; masked photos never get a competing fallback. */}
+        {!resolvedPhoto ? (
+          masked ? (
+            <foreignObject x="22" y="19" width="20" height="26">
+              <DlModePhotoPlaceholder className="h-full w-full" showLabel={false} />
+            </foreignObject>
+          ) : (
+            <image
+              href={cruushMarkWhite}
+              width="26"
+              height="26"
+              x="19"
+              y="21"
+              opacity={0.2}
+              preserveAspectRatio="xMidYMid meet"
+            />
+          )
+        ) : null}
         {staticMileHigh ? (
           <MileHighContrail
             forceReducedMotion
@@ -108,7 +130,7 @@ export default function HeartPhoto({
         ) : null}
       </svg>
 
-      {!resolvedPhoto && fallback ? (
+      {!resolvedPhoto && !masked && fallback ? (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
           {fallback}
         </div>

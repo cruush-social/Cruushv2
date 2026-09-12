@@ -163,6 +163,19 @@ beforeEach(() => {
 });
 
 describe("moderation error messages", () => {
+  it("names the actual photo rejection category without changing the decision", () => {
+    const decision: PolicyDecision = {
+      ...ALLOW_POLICY_DECISION,
+      decision: "reject",
+      category: "multiple_people",
+      user_message_code: "content_rejected",
+    };
+    const message = userMessageForDecision(decision, "image");
+    expect(message).toContain("more than one person");
+    expect(message).not.toContain("hate");
+    expect(decision.decision).toBe("reject");
+  });
+
   it("never describes a text moderation outage as a photo failure", () => {
     const decision: PolicyDecision = {
       ...ALLOW_POLICY_DECISION,

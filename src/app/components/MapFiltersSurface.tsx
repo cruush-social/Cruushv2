@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { Button } from './ui/button';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
 import { Label } from './ui/label';
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from './ui/sheet';
 import { Slider } from './ui/slider';
 import { Switch } from './ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import MultiSelect, { type MultiSelectOptionGroup } from './MultiSelect';
+import SingleSelect from './SingleSelect';
 import CruushPlusGateNotice from './CruushPlusGateNotice';
 import { Search } from 'lucide-react';
 import {
@@ -18,23 +20,28 @@ import {
   KINK_GROUPS,
   LOOKING_FOR,
   POSITIONS,
+  PREFERRED_SPOTS,
   PRESENTATIONS,
+  PROTECTION_BOUNDARIES,
   ROLES,
   SEXUALITY,
   SUBSTANCE_BOUNDARIES,
   VIBE_GROUPS,
+  ZODIAC,
 } from '../lib/profileOptions';
 
 export interface FilterState {
   searchQuery: string;
   ageRange: [number, number];
   distance: number;
+  hasPhoto: boolean;
   mileHighClub: boolean;
   identities: string[];
   presentations: string[];
   lookingFor: string[];
   timing: string[];
   hosting: string[];
+  preferredSpots: string[];
   vibes: string[];
   crowds: string[];
   hobbies: string[];
@@ -43,19 +50,23 @@ export interface FilterState {
   kinks: string[];
   bodyTypes: string[];
   sexuality: string[];
+  zodiac: string[];
   substanceBoundaries: string[];
+  protectionBoundaries: string[];
 }
 
 export const DEFAULT_FILTER_STATE: FilterState = {
   searchQuery: '',
   ageRange: [18, 99],
   distance: 100,
+  hasPhoto: false,
   mileHighClub: false,
   identities: [],
   presentations: [],
   lookingFor: [],
   timing: [],
   hosting: [],
+  preferredSpots: [],
   vibes: [],
   crowds: [],
   hobbies: [],
@@ -64,7 +75,9 @@ export const DEFAULT_FILTER_STATE: FilterState = {
   kinks: [],
   bodyTypes: [],
   sexuality: [],
+  zodiac: [],
   substanceBoundaries: [],
+  protectionBoundaries: [],
 };
 
 interface MapFiltersSurfaceProps {
@@ -84,7 +97,7 @@ interface MapFiltersSurfaceProps {
   searchPlaceholder?: string;
 }
 
-type MultiSelectKey = Exclude<keyof FilterState, 'searchQuery' | 'ageRange' | 'distance' | 'mileHighClub'>;
+type MultiSelectKey = Exclude<keyof FilterState, 'searchQuery' | 'ageRange' | 'distance' | 'hasPhoto' | 'mileHighClub'>;
 
 function updateList(value: FilterState, key: MultiSelectKey, items: string[]): FilterState {
   return {
@@ -100,6 +113,8 @@ function FieldGroup({
   stateKey,
   value,
   onChange,
+  selectionMode = 'multiple',
+  searchable = false,
 }: {
   label: string;
   options?: string[];
@@ -107,18 +122,21 @@ function FieldGroup({
   stateKey: MultiSelectKey;
   value: FilterState;
   onChange: (value: FilterState) => void;
+  selectionMode?: 'multiple' | 'single';
+  searchable?: boolean;
 }) {
   return (
     <div className="space-y-2">
       <Label>{label}</Label>
-      <MultiSelect
+      {selectionMode === 'single' ? <SingleSelect ariaLabel={label} options={options ?? []} value={value[stateKey][0]} onChange={(item) => onChange(updateList(value, stateKey, item ? [item] : []))} /> : <MultiSelect
         ariaLabel={label}
         menuPortal
+        searchable={searchable}
         options={options}
         optionGroups={optionGroups}
         value={value[stateKey]}
         onChange={(items) => onChange(updateList(value, stateKey, items))}
-      />
+      />}
     </div>
   );
 }
@@ -147,7 +165,7 @@ export default function MapFiltersSurface({
         overlayClassName="z-[1090]"
         className="z-[1100] w-full flex h-full max-h-[100dvh] flex-col gap-0 overflow-hidden border-white/10 bg-background/95 p-0 sm:max-w-xl"
       >
-        <SheetHeader className="shrink-0 border-b border-white/10 py-4 pl-14 pr-5">
+        <SheetHeader className="shrink-0 border-b border-white/10 py-4 pl-14 pr-[4.5rem]">
           <SheetTitle>{title}</SheetTitle>
           {description ? <SheetDescription>{description}</SheetDescription> : null}
         </SheetHeader>
@@ -199,13 +217,22 @@ export default function MapFiltersSurface({
           ) : null}
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid h-auto w-full grid-cols-3 rounded-full border border-white/10 bg-background/25 p-1">
+            <TabsList className="sticky top-0 z-20 grid h-auto w-full grid-cols-3 rounded-full border border-white/10 bg-background/92 p-1 backdrop-blur-md">
               <TabsTrigger value="basics" className="min-h-11" onClick={() => setActiveTab('basics')}>Basics</TabsTrigger>
               <TabsTrigger value="intimacy" className="min-h-11" onClick={() => setActiveTab('intimacy')}>Intimacy</TabsTrigger>
               <TabsTrigger value="health" className="min-h-11" onClick={() => setActiveTab('health')}>Health</TabsTrigger>
             </TabsList>
 
             <TabsContent value="basics" className="mt-6 space-y-6">
+              <div className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-white/[0.035] p-4">
+                <Label htmlFor="seeking-has-photo">Has a profile picture</Label>
+                <Switch
+                  id="seeking-has-photo"
+                  checked={value.hasPhoto}
+                  onCheckedChange={(hasPhoto) => onChange({ ...value, hasPhoto })}
+                />
+              </div>
+
               <div className="space-y-4">
                 <Label>Distance</Label>
                 <Slider
@@ -239,7 +266,8 @@ export default function MapFiltersSurface({
               <FieldGroup label="Crowds" options={CROWDS} stateKey="crowds" value={value} onChange={onChange} />
               <FieldGroup label="Body Type" options={BODY_TYPES} stateKey="bodyTypes" value={value} onChange={onChange} />
               <FieldGroup label="Sexuality" options={SEXUALITY} stateKey="sexuality" value={value} onChange={onChange} />
-              <FieldGroup label="Vibes" optionGroups={VIBE_GROUPS} stateKey="vibes" value={value} onChange={onChange} />
+              <FieldGroup label="Zodiac" options={ZODIAC} stateKey="zodiac" selectionMode="single" value={value} onChange={onChange} />
+              <FieldGroup searchable label="Vibes" optionGroups={VIBE_GROUPS} stateKey="vibes" value={value} onChange={onChange} />
               <FieldGroup label="Hobbies" options={HOBBIES} stateKey="hobbies" value={value} onChange={onChange} />
             </TabsContent>
 
@@ -247,7 +275,6 @@ export default function MapFiltersSurface({
               <div className="flex items-start justify-between gap-4 rounded-2xl border border-white/10 bg-white/[0.035] p-4">
                 <div className="space-y-0.5">
                   <Label htmlFor="seeking-mile-high-club">Mile High Club members only</Label>
-                  <p className="text-xs text-muted-foreground">Show only members currently using Mile High Club.</p>
                 </div>
                 <Switch
                   id="seeking-mile-high-club"
@@ -258,9 +285,10 @@ export default function MapFiltersSurface({
               <FieldGroup label="Looking For" options={LOOKING_FOR} stateKey="lookingFor" value={value} onChange={onChange} />
               <FieldGroup label="Timing" options={AVAILABILITY} stateKey="timing" value={value} onChange={onChange} />
               <FieldGroup label="Hosting/Travel" options={HOSTING} stateKey="hosting" value={value} onChange={onChange} />
+              <FieldGroup label="Preferred spots" options={PREFERRED_SPOTS} stateKey="preferredSpots" value={value} onChange={onChange} />
               <FieldGroup label="Position" options={POSITIONS} stateKey="positions" value={value} onChange={onChange} />
               <FieldGroup label="Role" options={ROLES} stateKey="roles" value={value} onChange={onChange} />
-              <FieldGroup label="Kinks & Fetishes" optionGroups={KINK_GROUPS} stateKey="kinks" value={value} onChange={onChange} />
+              <FieldGroup searchable label="Kinks & Fetishes" optionGroups={KINK_GROUPS} stateKey="kinks" value={value} onChange={onChange} />
             </TabsContent>
 
             <TabsContent value="health" className="mt-6 space-y-6">
@@ -268,6 +296,13 @@ export default function MapFiltersSurface({
                 label="Substance Boundaries"
                 options={SUBSTANCE_BOUNDARIES}
                 stateKey="substanceBoundaries"
+                value={value}
+                onChange={onChange}
+              />
+              <FieldGroup
+                label="Protection boundaries"
+                options={PROTECTION_BOUNDARIES}
+                stateKey="protectionBoundaries"
                 value={value}
                 onChange={onChange}
               />

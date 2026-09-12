@@ -24,10 +24,13 @@ describe('CruiseCarouselSlot', () => {
       />,
     );
 
+    // The control is the round button the profile surfaces use, with its word
+    // under it rather than inside it.
     const upgradeButton = await screen.findByRole('button', { name: 'Get cruush+' });
-    const cruushPlusWord = upgradeButton.querySelector('.cruush-logo-font');
+    const cruushPlusWord = upgradeButton.parentElement?.querySelector('.cruush-logo-font');
 
     expect(upgradeButton).toBeInTheDocument();
+    expect(upgradeButton).toHaveClass('rounded-full', 'size-12');
     expect(cruushPlusWord).toHaveTextContent('cruush+');
     expect(screen.getByLabelText('cruise carousel')).toBeInTheDocument();
     expect(screen.getByText((_, element) => (

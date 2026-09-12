@@ -272,6 +272,7 @@ export function decryptProfileVisibility(
       search_query: typeof parsed.search_query === "string" ? parsed.search_query.trim().slice(0, 120) : "",
       active_crowd_modes: normalizeCrowdOptions(parsed.active_crowd_modes),
       mile_high_club_members: parsed.mile_high_club_members === true,
+      members_without_photos: parsed.members_without_photos === true,
       age_range: Array.isArray(parsed.age_range) && parsed.age_range.length === 2 && parsed.age_range.every((value) => typeof value === "number")
         ? [parsed.age_range[0], parsed.age_range[1]]
         : null,
@@ -281,6 +282,7 @@ export function decryptProfileVisibility(
       looking_for: Array.isArray(parsed.looking_for) ? parsed.looking_for.filter((value): value is string => typeof value === "string") : [],
       timing: Array.isArray(parsed.timing) ? parsed.timing.filter((value): value is string => typeof value === "string") : [],
       hosting: Array.isArray(parsed.hosting) ? parsed.hosting.filter((value): value is string => typeof value === "string") : [],
+      preferred_spots: Array.isArray(parsed.preferred_spots) ? parsed.preferred_spots.filter((value): value is string => typeof value === "string") : [],
       vibes: Array.isArray(parsed.vibes) ? parsed.vibes.filter((value): value is string => typeof value === "string") : [],
       crowds: normalizeCrowdOptions(parsed.crowds),
       hobbies: Array.isArray(parsed.hobbies) ? parsed.hobbies.filter((value): value is string => typeof value === "string") : [],
@@ -288,8 +290,13 @@ export function decryptProfileVisibility(
       roles: Array.isArray(parsed.roles) ? parsed.roles.filter((value): value is string => typeof value === "string") : [],
       kinks: Array.isArray(parsed.kinks) ? parsed.kinks.filter((value): value is string => typeof value === "string") : [],
       body_types: Array.isArray(parsed.body_types) ? parsed.body_types.filter((value): value is string => typeof value === "string") : [],
+      body_hair: Array.isArray(parsed.body_hair) ? parsed.body_hair.filter((value): value is string => typeof value === "string") : [],
+      pubic_hair: Array.isArray(parsed.pubic_hair) ? parsed.pubic_hair.filter((value): value is string => typeof value === "string") : [],
+      facial_hair: Array.isArray(parsed.facial_hair) ? parsed.facial_hair.filter((value): value is string => typeof value === "string") : [],
       sexuality: Array.isArray(parsed.sexuality) ? parsed.sexuality.filter((value): value is string => typeof value === "string") : [],
-      substance_boundaries: Array.isArray(parsed.substance_boundaries) ? parsed.substance_boundaries.filter((value): value is string => typeof value === "string") : []
+      zodiac: Array.isArray(parsed.zodiac) ? parsed.zodiac.filter((value): value is string => typeof value === "string") : [],
+      substance_boundaries: Array.isArray(parsed.substance_boundaries) ? parsed.substance_boundaries.filter((value): value is string => typeof value === "string") : [],
+      protection_boundaries: Array.isArray(parsed.protection_boundaries) ? parsed.protection_boundaries.filter((value): value is string => typeof value === "string") : []
     };
   } catch (error) {
     return null;

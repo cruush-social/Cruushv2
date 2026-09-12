@@ -20,7 +20,10 @@ Thumbs.db
 
 # Vite
 .vite
-.dev/certs/
+# Local-only tooling: dev certificates, capture scripts, generated catalogs and
+# runtime backups. The release script requires a clean worktree, and none of
+# this belongs in the repository.
+.dev/
 
 # VSCode
 .vscode/

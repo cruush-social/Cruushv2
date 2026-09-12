@@ -384,6 +384,14 @@ async function installAppMocks(page: Page, options: MockOptions = {}) {
       },
     };
     else if (url.pathname === '/api/rewards/timezone') data = { timezone: 'America/New_York' };
+    else if (url.pathname === '/api/rewards/side-quests') data = {
+      pingCredits: 0,
+      claimingAvailable: true,
+      cruushPlusClaimsThisWeek: 0,
+      cruushPlusWeeklyLimit: 2,
+      claimedToday: false,
+      quests: [],
+    };
     else if (url.pathname.startsWith('/api/admin/support-requests')) data = {
       requests: [],
       page: { limit: 25, offset: 0, total: 0, hasMore: false },
@@ -422,6 +430,15 @@ async function openMap(page: Page) {
   await expect(page.getByRole('button', { name: 'Open Nearby Ghost on map' })).toBeVisible();
 }
 
+// Seeking and Visibility sit inside Map Controls, collapsed until it is opened.
+async function openMapControls(page: Page) {
+  const trigger = page.getByTestId('map-controls-trigger');
+  if ((await trigger.getAttribute('aria-expanded')) !== 'true') {
+    await trigger.tap();
+  }
+  await expect(page.getByTestId('map-seeking-button')).toBeVisible();
+}
+
 async function expectTopActionSizing(
   page: Page,
   minimumBarHeight: number,
@@ -438,22 +455,37 @@ async function expectTopActionSizing(
   const viewportWidth = await page.evaluate(() => window.innerWidth);
   expect(barBox!.x + barBox!.width).toBeLessThanOrEqual(viewportWidth);
   if (widthMode === 'mobile-full') {
-    expect(barBox!.width).toBeGreaterThanOrEqual(viewportWidth - 20);
+    // The bar shares the row with the cruush+ pill and the bug button, so it
+    // fills what is left rather than the viewport, and never spills past it.
+    expect(barBox!.width).toBeGreaterThanOrEqual(minimumButtonSize * 5);
   } else {
-    expect(barBox!.width).toBeGreaterThanOrEqual(700);
+    // On desktop the bar hugs its five icons and sits centred, rather than
+    // stretching to a fixed width.
+    expect(barBox!.width).toBeGreaterThanOrEqual(minimumButtonSize * 5);
     expect(barBox!.width).toBeLessThanOrEqual(832);
-    expect(Math.abs(barBox!.x + barBox!.width / 2 - viewportWidth / 2)).toBeLessThanOrEqual(2);
+    // Centred in the space the cruush+ pill and the bug button leave it, which
+    // sits a little left of the viewport centre because the pill is the wider
+    // of the two.
+    const pill = await page.getByRole('button', { name: 'cruush+ rewards' }).boundingBox();
+    const bug = await page.getByRole('button', { name: 'Report alpha bug' }).boundingBox();
+    expect(pill).not.toBeNull();
+    expect(bug).not.toBeNull();
+    const rowCentre = ((pill!.x + pill!.width) + bug!.x) / 2;
+    expect(Math.abs(barBox!.x + barBox!.width / 2 - rowCentre)).toBeLessThanOrEqual(2);
   }
 
   const cruushPlusBox = await page.getByRole('button', { name: 'cruush+ rewards' }).boundingBox();
+  await openMapControls(page);
   const pingBox = await page.getByRole('button', { name: 'Send a Pulse' }).boundingBox();
   expect(cruushPlusBox).not.toBeNull();
   expect(pingBox).not.toBeNull();
   expect(cruushPlusBox!.height).toBeGreaterThanOrEqual(minimumButtonSize);
-  expect(cruushPlusBox!.x).toBeGreaterThanOrEqual(barBox!.x);
-  expect(cruushPlusBox!.x + cruushPlusBox!.width).toBeLessThanOrEqual(barBox!.x + barBox!.width);
-  expect(cruushPlusBox!.y).toBeGreaterThanOrEqual(barBox!.y);
-  expect(cruushPlusBox!.y + cruushPlusBox!.height).toBeLessThanOrEqual(barBox!.y + barBox!.height);
+  // The cruush+ pill leads the row and the bar follows it, so the two share a
+  // row without either running under the other.
+  expect(cruushPlusBox!.x).toBeGreaterThanOrEqual(0);
+  expect(cruushPlusBox!.x + cruushPlusBox!.width).toBeLessThanOrEqual(barBox!.x);
+  expect(cruushPlusBox!.y).toBeLessThan(barBox!.y + barBox!.height);
+  expect(cruushPlusBox!.y + cruushPlusBox!.height).toBeGreaterThan(barBox!.y);
   expect(pingBox!.y).toBeGreaterThanOrEqual(cruushPlusBox!.y + cruushPlusBox!.height);
   expect(pingBox!.x).toBeGreaterThanOrEqual(0);
   expect(pingBox!.x + pingBox!.width).toBeLessThanOrEqual(await page.evaluate(() => window.innerWidth));
@@ -515,10 +547,14 @@ async function expectTopActionSizing(
   }
   const bugButtonBox = controlBoxes.find(({ label }) => label === 'Report alpha bug');
   expect(bugButtonBox).toBeDefined();
-  expect(bugButtonBox!.height).toBe(cruushPlusBox!.height);
+  // The cruush+ pill steps down to 44px on a phone 360px wide or narrower; the
+  // bug button holds 48px there. Above that the two match.
+  const narrowPhone = (await page.evaluate(() => window.innerWidth)) <= 360;
+  expect(Math.abs(bugButtonBox!.height - cruushPlusBox!.height)).toBeLessThanOrEqual(narrowPhone ? 4 : 0);
 }
 
 async function expectSeekingTopSpacing(page: Page) {
+  await openMapControls(page);
   const topActionsBox = await page.getByTestId('map-top-actions').boundingBox();
   const seekingBox = await page.getByTestId('map-seeking-button').boundingBox();
   const visibilityBox = await page.getByTestId('map-visibility-button').boundingBox();
@@ -526,12 +562,15 @@ async function expectSeekingTopSpacing(page: Page) {
   expect(seekingBox).not.toBeNull();
   expect(visibilityBox).not.toBeNull();
 
-  const topToSeekingGap = seekingBox!.y - (topActionsBox!.y + topActionsBox!.height);
+  const triggerBox = await page.getByTestId('map-controls-trigger').boundingBox();
+  expect(triggerBox).not.toBeNull();
+  // The menu hangs under its trigger, below the top bar, and its rows keep one
+  // even rhythm.
+  expect(triggerBox!.y).toBeGreaterThanOrEqual(topActionsBox!.y + topActionsBox!.height);
+  expect(seekingBox!.y).toBeGreaterThanOrEqual(triggerBox!.y + triggerBox!.height);
   const seekingToVisibilityGap = visibilityBox!.y - (seekingBox!.y + seekingBox!.height);
-  expect(
-    Math.abs(topToSeekingGap - seekingToVisibilityGap),
-    `top-to-Seeking gap ${topToSeekingGap}px should match Seeking-to-Visibility gap ${seekingToVisibilityGap}px`,
-  ).toBeLessThanOrEqual(1);
+  expect(seekingToVisibilityGap, `Seeking-to-Visibility gap ${seekingToVisibilityGap}px`).toBeGreaterThanOrEqual(4);
+  expect(seekingToVisibilityGap, `Seeking-to-Visibility gap ${seekingToVisibilityGap}px`).toBeLessThanOrEqual(16);
 }
 
 async function expectViewportControlsToReceivePointerInput(page: Page, route: string) {
@@ -561,9 +600,11 @@ async function expectViewportControlsToReceivePointerInput(page: Page, route: st
     try {
       await control.click({ trial: true, timeout: 3_000 });
     } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const intercept = message.split('\n').find((line) => /intercepts pointer events|not visible|outside of the viewport/.test(line));
       failures.push({
         label,
-        reason: error instanceof Error ? error.message.split('\n')[0] : String(error),
+        reason: [message.split('\n')[0], intercept?.trim()].filter(Boolean).join(' | '),
       });
     }
   }
@@ -622,7 +663,7 @@ test('keeps the 1.6 mobile map, Pulse, Feed+, and Mile High Club controls in vie
   await page.keyboard.press('Escape');
   await page.goto('/feed');
   await page.getByRole('button', { name: 'Feed settings' }).tap();
-  await page.getByRole('button', { name: '1h +' }).tap();
+  await page.getByRole('button', { name: 'Specific Crowd +' }).tap();
   await expect(page.getByTestId('cruush-plus-card')).toBeVisible();
   await page.waitForTimeout(250);
   await page.screenshot({ path: '/tmp/cruush-1.6-feed-plus-360x650.png' });
@@ -632,7 +673,8 @@ test('keeps the 1.6 mobile map, Pulse, Feed+, and Mile High Club controls in vie
   await expect(page.getByRole('heading', { name: 'Mile High Club', level: 1 })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Mile High Club', level: 2 }).locator('xpath=..').locator('img'))
     .toHaveAttribute('src', /Mile%20High%20Club%20White/);
-  await page.getByRole('button', { name: 'Turn on' }).tap();
+  // A free member is offered cruush+ here; a member who has it is offered the switch.
+  await page.getByRole('button', { name: /^(Turn on|Get cruush\+)$/ }).tap();
   const mileHighDialog = page.getByRole('dialog');
   await expect(mileHighDialog.getByRole('heading', { name: 'Mile High Club' })).toBeVisible();
   await expect(mileHighDialog.getByTestId('cruush-plus-card')).toBeVisible();
@@ -646,10 +688,12 @@ test('uses the approved Dark Room name and icon', async ({ page }) => {
   await openMap(page);
 
   const privacyButton = page.getByRole('button', { name: 'Ghost Mode Settings' });
-  await expect(privacyButton.locator('svg image')).toHaveAttribute('href', /dl-mode-colored/);
+  // The Dark Room mark is drawn, not loaded: an inline svg with no image asset.
+  await expect(privacyButton.locator('svg')).toHaveCount(1);
+  await expect(privacyButton.locator('img')).toHaveCount(0);
   await privacyButton.tap();
   await expect(page.getByRole('heading', { name: 'Dark Room' })).toBeVisible();
-  await expect(page.getByText('Hidden from the map', { exact: true })).toBeVisible();
+  await expect(page.getByText('Browse the map without appearing on it.', { exact: true })).toBeVisible();
   await expect(page.getByRole('switch', { name: 'Toggle Dark Room' })).toBeChecked();
   await expect(page.getByText('Stealth Mode', { exact: true })).toHaveCount(0);
   await expect(page.getByText('Lurker Mode', { exact: true })).toHaveCount(0);
@@ -718,8 +762,11 @@ test('previews four enlarged recently active profiles before horizontal scrollin
   expect(fifthTileBox!.x + fifthTileBox!.width).toBeGreaterThan(trayBox!.x + trayBox!.width);
   await expect(tiles.nth(3)).toBeInViewport();
   await tiles.nth(3).click();
-  await expect(page.getByRole('button', { name: 'Close profile preview' })).toBeVisible();
-  await page.getByRole('button', { name: 'Close profile preview' }).click();
+  await expect(page.getByRole('heading', { name: /^Recent Four/ })).toBeVisible();
+  await page.getByRole('button', { name: 'Back' }).first().click();
+  await expect(page.getByTestId('map-home-shell')).toBeVisible();
+  await page.getByRole('button', { name: 'Show recently active bar' }).click();
+  await expect(tray).toBeVisible();
 
   const scrollMetrics = await tray.evaluate((element) => ({
     clientWidth: element.clientWidth,
@@ -740,6 +787,7 @@ test('selects Seeking and Visibility menu options with real mobile taps', async 
   const requests = await installAppMocks(page);
   await openMap(page);
 
+  await openMapControls(page);
   await page.getByTestId('map-seeking-button').tap();
   const seeking = page.getByRole('dialog', { name: 'Seeking' });
   await expect(seeking).toBeVisible();
@@ -754,6 +802,7 @@ test('selects Seeking and Visibility menu options with real mobile taps', async 
     return entry.method === 'GET' && url.pathname === '/api/users' && url.searchParams.getAll('identities').includes('man');
   })).toBe(true);
 
+  await openMapControls(page);
   await page.getByTestId('map-visibility-button').tap();
   const visibility = page.getByRole('dialog', { name: 'Visibility' });
   await expect(visibility).toBeVisible();
@@ -790,6 +839,14 @@ test('short tap opens the profile and press-and-hold reveals the signal', async 
   expect(requests.some((entry) => new URL(entry.url).pathname === '/api/profiles/nearby-ghost-no-photo')).toBe(true);
 
   await page.goto('/map');
+  await expect(page.getByTestId('map-home-shell')).toBeVisible();
+  await expect(page.locator('canvas.maplibregl-canvas')).toBeVisible();
+  // The map comes back at the last zoom, where the three neighbours sit in one
+  // cluster. Opening it is what a member does to reach the pin.
+  const cluster = page.getByRole('button', { name: /^Zoom into .* on map$/ });
+  if (await cluster.isVisible({ timeout: 5000 }).catch(() => false)) {
+    await cluster.tap();
+  }
   await expect(marker).toBeVisible();
   const box = await marker.boundingBox();
   expect(box).not.toBeNull();
@@ -851,25 +908,25 @@ test('resumes the map tutorial after Ghost and Feed route actions', async ({ pag
   await expect(page.getByRole('dialog', { name: 'Map controls tutorial' })).toBeVisible();
   const tutorial = page.getByTestId('map-controls-tutorial-card');
 
+  // install, notifications, map controls, seeking, visibility, cruush+,
+  // mile high club, spots, crowd mode, then ghost.
   await page.getByTestId('tutorial-skip-step').tap();
   await page.getByTestId('tutorial-skip-step').tap();
-  await page.getByTestId('tutorial-next').tap();
-  await page.getByTestId('tutorial-next').tap();
-  await page.getByTestId('tutorial-next').tap();
+  for (let step = 0; step < 7; step += 1) {
+    await page.getByTestId('tutorial-next').tap();
+  }
   await expect(tutorial.getByRole('heading', { name: 'Ghost Mode' })).toBeVisible();
 
   await page.getByTestId('tutorial-try-step').tap();
-  await expect(page.getByText('Shifting public map location')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Ghost Mode & Dark Room Mode' })).toBeVisible();
   await page.getByRole('button', { name: 'Map', exact: true }).tap();
   await expect(tutorial.getByRole('heading', { name: 'Ghost Mode' })).toBeVisible();
 
-  // ghost, then dl mode, ping, profile pin, zoom, cruise carousel, feed
-  await page.getByTestId('tutorial-next').tap();
-  await page.getByTestId('tutorial-next').tap();
-  await page.getByTestId('tutorial-next').tap();
-  await page.getByTestId('tutorial-next').tap();
-  await page.getByTestId('tutorial-next').tap();
-  await page.getByTestId('tutorial-next').tap();
+  // ghost, then dl mode, pulse, profile pins, zoom, cruise carousel, your
+  // profile, feed.
+  for (let step = 0; step < 7; step += 1) {
+    await page.getByTestId('tutorial-next').tap();
+  }
   await expect(tutorial.getByRole('heading', { name: 'Feed' })).toBeVisible();
 
   await page.getByTestId('tutorial-try-step').tap();

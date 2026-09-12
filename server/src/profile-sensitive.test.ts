@@ -99,6 +99,7 @@ describe("profile-sensitive encryption", () => {
       search_query: "",
       active_crowd_modes: ["T4T"],
       mile_high_club_members: false,
+      members_without_photos: false,
       age_range: [25, 45] as [number, number],
       distance: 25,
       identities: ["nonbinary"],
@@ -106,6 +107,7 @@ describe("profile-sensitive encryption", () => {
       looking_for: [],
       timing: [],
       hosting: [],
+      preferred_spots: [],
       vibes: [],
       crowds: [],
       hobbies: [],
@@ -113,8 +115,13 @@ describe("profile-sensitive encryption", () => {
       roles: [],
       kinks: ["leather"],
       body_types: [],
+      body_hair: [],
+      pubic_hair: [],
+      facial_hair: [],
       sexuality: [],
-      substance_boundaries: []
+      zodiac: [],
+      substance_boundaries: [],
+      protection_boundaries: []
     };
     const first = encryptProfileVisibility(config, visibilityRules);
     const second = encryptProfileVisibility(config, visibilityRules);
@@ -146,6 +153,7 @@ describe("profile-sensitive encryption", () => {
       looking_for: [],
       timing: [],
       hosting: [],
+      preferred_spots: [],
       vibes: [],
       crowds: ["Sapphic"],
       hobbies: [],
@@ -153,8 +161,13 @@ describe("profile-sensitive encryption", () => {
       roles: [],
       kinks: [],
       body_types: [],
+      body_hair: [],
+      pubic_hair: [],
+      facial_hair: [],
       sexuality: [],
-      substance_boundaries: []
+      zodiac: [],
+      substance_boundaries: [],
+      protection_boundaries: []
     } as unknown as ProfileVisibilityRules;
 
     expect(decryptSensitiveProfile(config, encryptSensitiveProfile(config, legacySensitiveProfile))?.crowds).toEqual(["Dyke"]);
@@ -163,6 +176,7 @@ describe("profile-sensitive encryption", () => {
       search_query: "",
       active_crowd_modes: ["Dyke"],
       mile_high_club_members: false,
+      members_without_photos: false,
       crowds: ["Dyke"]
     });
 

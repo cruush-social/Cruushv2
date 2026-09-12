@@ -8,7 +8,7 @@ import {
   Sparkles,
   Zap,
 } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '../lib/toast';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
@@ -16,6 +16,7 @@ import CruushPlusWord from './CruushPlusWord';
 import LoadingCardSkeletons from './LoadingCardSkeletons';
 import { Input } from './ui/input';
 import { Progress } from './ui/progress';
+import BugButtonSlot from './BugButtonSlot';
 import {
   getRewardSummary,
   getSideQuests,
@@ -29,7 +30,7 @@ import {
 } from '../lib/rewardsApi';
 import { CRUUSH_PLUS_CHANGED_EVENT } from '../lib/billingApi';
 import { CRUUSH_PLUS_FEATURES } from '../lib/cruushPlusFeatures';
-import { showEarnedCruushPlusCard } from '../lib/earnedCruushPlusCard';
+import { showEarnedCruushPlusCard, showEarnedPingsCard } from '../lib/earnedCruushPlusCard';
 
 const BENEFITS_OPEN_STORAGE_KEY = 'cruush:rewards:benefits-open';
 
@@ -229,7 +230,16 @@ export default function Rewards() {
       if (mountedRef.current && nextSummary) {
         setSummary(nextSummary);
         const grant = nextSummary.recentGrants.find(item => item.sideQuestKey === questKey && item.status === 'active');
-        if (grant) showEarnedCruushPlusCard(grant);
+        if (grant) {
+          showEarnedCruushPlusCard(grant);
+        } else {
+          // A Ping quest earns no cruush+ days, so there is no grant to show.
+          // Scratch off the Pings instead of leaving the claim silent.
+          const claimed = nextSideQuests.quests.find(quest => quest.key === questKey);
+          if (claimed?.rewardKind === 'ping') {
+            showEarnedPingsCard(`${questKey}:${claimed.claimedAt ?? ''}`, claimed.rewardAmount);
+          }
+        }
       }
     } catch (claimError) {
       if (!mountedRef.current) return;
@@ -265,6 +275,8 @@ export default function Rewards() {
           <div>
             <h1 className="text-xl font-semibold">Rewards & <CruushPlusWord /></h1>
           </div>
+        
+          <BugButtonSlot testId="rewards-bug-button-slot" />
         </div>
       </header>
 
@@ -427,11 +439,6 @@ export default function Rewards() {
             <Card data-testid="side-quests-card">
               <CardHeader className="flex-row items-center justify-between gap-3">
                 <CardTitle>Side Quests</CardTitle>
-                {sideQuests ? (
-                  <span className="inline-flex items-center gap-1 rounded-full border border-primary/35 bg-primary/10 px-3 py-1 text-sm text-white">
-                    <Zap className="h-4 w-4 text-primary" />{sideQuests.pingCredits} {sideQuests.pingCredits === 1 ? 'Ping' : 'Pings'}
-                  </span>
-                ) : null}
               </CardHeader>
               <CardContent>
                 {sideQuests ? (
@@ -444,7 +451,7 @@ export default function Rewards() {
                         <li key={quest.key} className="rounded-xl border border-white/12 bg-black/30 p-4">
                           <p className="font-medium text-white">{quest.title}</p>
                           <div className="mt-3 flex items-center justify-between gap-3">
-                            <span className="text-sm text-primary">{quest.rewardKind === 'ping' ? `${quest.rewardAmount} ${quest.rewardAmount === 1 ? 'Ping' : 'Pings'}` : '1 day of cruush+'}</span>
+                            <span className="text-sm text-primary">{quest.rewardKind === 'ping' ? `${quest.rewardAmount} ${quest.rewardAmount === 1 ? 'Pulse' : 'Pulses'}` : '1 day of cruush+'}</span>
                             <Button
                               size="sm"
                               variant={quest.claimed ? 'outline' : 'default'}
@@ -541,7 +548,7 @@ export default function Rewards() {
                           <p className="text-xs text-muted-foreground">{formatDate(quest.claimedAt) ?? 'Completed'}</p>
                         </div>
                         <span className="text-primary">
-                          +{quest.rewardAmount} {quest.rewardKind === 'ping' ? (quest.rewardAmount === 1 ? 'Ping' : 'Pings') : 'cruush+ day'}
+                          +{quest.rewardAmount} {quest.rewardKind === 'ping' ? (quest.rewardAmount === 1 ? 'Pulse' : 'Pulses') : 'cruush+ day'}
                         </span>
                       </li>
                     ))}

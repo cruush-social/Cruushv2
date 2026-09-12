@@ -8,6 +8,7 @@ export type ProfileVisibilityRules = {
   search_query: string;
   active_crowd_modes: string[];
   mile_high_club_members: boolean;
+  members_without_photos: boolean;
   age_range: [number, number] | null;
   distance: number | null;
   identities: string[];
@@ -15,6 +16,7 @@ export type ProfileVisibilityRules = {
   looking_for: string[];
   timing: string[];
   hosting: string[];
+  preferred_spots: string[];
   vibes: string[];
   crowds: string[];
   hobbies: string[];
@@ -23,7 +25,9 @@ export type ProfileVisibilityRules = {
   kinks: string[];
   body_types: string[];
   sexuality: string[];
+  zodiac: string[];
   substance_boundaries: string[];
+  protection_boundaries: string[];
 };
 
 export type KinkInterest = {
@@ -79,6 +83,7 @@ export type ProfilePayload = {
   crowds: string[];
   availability: string[];
   hosting_travel: string[];
+  preferred_spots: string[];
   kinks: string[];
   kink_interests: KinkInterest[];
   kinks_visibility: ProfileVisibility;
@@ -101,11 +106,13 @@ export type ProfilePayload = {
   custom_covid_vaccine: string;
   mpox_vaccine: string[];
   custom_mpox_vaccine: string;
+  protections: string[];
   health_preferences: string[];
   birth_control: string[];
   relationship_status: string[];
   zodiac: string[];
   substance_boundaries: string[];
+  protection_boundaries: string[];
   visibility_rules: ProfileVisibilityRules;
 };
 
@@ -117,6 +124,9 @@ export type ProfileRecord = ProfilePayload & {
   attendingLaunchParty?: boolean;
   travelling?: boolean;
   travelLabel?: string;
+  /** Present on someone else's profile, so it reads the same wherever it is opened. */
+  distance_label?: string | null;
+  last_active?: string | null;
   location?: {
     id: string;
     display_location_token?: DisplayLocationToken;
@@ -180,6 +190,7 @@ export const emptyProfilePayload: ProfilePayload = {
   crowds: [],
   availability: [],
   hosting_travel: [],
+  preferred_spots: [],
   kinks: [],
   kink_interests: [],
   kinks_visibility: 'public',
@@ -201,16 +212,19 @@ export const emptyProfilePayload: ProfilePayload = {
   covid_vaccine: [],
   custom_covid_vaccine: '',
   mpox_vaccine: [],
+  protections: [],
   custom_mpox_vaccine: '',
   health_preferences: [],
   birth_control: [],
   relationship_status: [],
   zodiac: [],
   substance_boundaries: [],
+  protection_boundaries: [],
   visibility_rules: {
     search_query: '',
     active_crowd_modes: [],
     mile_high_club_members: false,
+    members_without_photos: false,
     age_range: null,
     distance: null,
     identities: [],
@@ -218,6 +232,7 @@ export const emptyProfilePayload: ProfilePayload = {
     looking_for: [],
     timing: [],
     hosting: [],
+    preferred_spots: [],
     vibes: [],
     crowds: [],
     hobbies: [],
@@ -226,7 +241,9 @@ export const emptyProfilePayload: ProfilePayload = {
     kinks: [],
     body_types: [],
     sexuality: [],
+    zodiac: [],
     substance_boundaries: [],
+    protection_boundaries: [],
   },
 };
 
@@ -290,6 +307,19 @@ export async function saveMyProfile(profile: ProfilePayload) {
   });
   notifyProfileChanged(savedProfile);
   return savedProfile;
+}
+
+/**
+ * Narrow save for the Pulse sheet. Sending the whole profile from there meant
+ * spreading a server ProfileRecord into the strict payload schema, which the
+ * server rejected, so the edit silently never landed.
+ */
+export async function saveMySignal(signal: string) {
+  const saved = await requestApi<{ signal: string }>('/api/profiles/me/signal', {
+    method: 'PUT',
+    body: JSON.stringify({ signal }),
+  });
+  return saved.signal;
 }
 
 export async function saveMySideBadges(sideBadges: SideBadges) {

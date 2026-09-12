@@ -192,7 +192,10 @@ describe('DirectMessages', () => {
     );
 
     const row = await screen.findByTestId('conversation-preview-row');
-    expect(row).toHaveClass('cruush-user-activity-capsule', 'grid', 'bg-card/70');
+    // The card carries the surface and the grid lives in a child, so the vibe
+    // row above it cannot become a grid row.
+    expect(row).toHaveClass('cruush-user-activity-capsule', 'flex', 'bg-card/70');
+    expect(row.querySelector('.cruush-user-activity-grid')).toHaveClass('grid');
     expect(screen.queryByTestId('activity-vibes')).not.toBeInTheDocument();
     expect(screen.getByText('meet by the door')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Delete River chat for everyone' })).toBeInTheDocument();
@@ -514,7 +517,12 @@ describe('DirectMessages', () => {
     await waitFor(() => {
       expect(getNearbyUsers).toHaveBeenCalledWith(
         { lat: 40.75, lng: -73.98 },
-        undefined,
+        expect.objectContaining({
+          preferredSpots: [],
+          protectionBoundaries: [],
+          searchQuery: '',
+          zodiac: [],
+        }),
         { limit: 500 },
       );
     });

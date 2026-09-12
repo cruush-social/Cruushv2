@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { requestApi } from './apiClient';
 
 export const DISTANCE_PREFERENCES_CHANGED_EVENT = 'cruush:distance-preferences-changed';
 export const DISTANCE_PREFERENCES_STORAGE_KEY = 'cruush:distance-preference';
@@ -26,7 +27,14 @@ const DEFAULT_DISTANCE_PREFERENCES: DistancePreferences = {
   mode: 'approximate',
 };
 
+let transientPreferences: DistancePreferences | null = null;
+
 export function getDistancePreferences(): DistancePreferences {
+  if (transientPreferences) return transientPreferences;
+  return readStoredDistancePreferences();
+}
+
+function readStoredDistancePreferences(): DistancePreferences {
   if (typeof window === 'undefined') {
     return DEFAULT_DISTANCE_PREFERENCES;
   }
@@ -54,10 +62,12 @@ export function getDistancePreferences(): DistancePreferences {
   }
 }
 
-export function saveDistancePreferences(preferences: DistancePreferences) {
+function cacheDistancePreferences(preferences: DistancePreferences) {
   if (typeof window === 'undefined') {
     return;
   }
+
+  transientPreferences = null;
 
   try {
     window.localStorage.setItem(DISTANCE_PREFERENCES_STORAGE_KEY, JSON.stringify(preferences));
@@ -66,6 +76,83 @@ export function saveDistancePreferences(preferences: DistancePreferences) {
   }
 
   window.dispatchEvent(new CustomEvent(DISTANCE_PREFERENCES_CHANGED_EVENT, { detail: preferences }));
+}
+
+function displayApproximateWhileSyncing() {
+  transientPreferences = { mode: 'approximate' };
+  window.dispatchEvent(new CustomEvent(DISTANCE_PREFERENCES_CHANGED_EVENT, { detail: transientPreferences }));
+}
+
+let preferenceUserId: string | null = null;
+let preferenceRevision = 0;
+let pendingSave: Promise<unknown> = Promise.resolve();
+
+export async function saveDistancePreferences(preferences: DistancePreferences) {
+  const revision = ++preferenceRevision;
+  const userId = preferenceUserId;
+  // Approximate applies immediately; numeric labels wait for server acceptance.
+  if (preferences.mode === 'approximate') cacheDistancePreferences(preferences);
+  try {
+    const request = pendingSave.catch(() => undefined).then(() => {
+      if (userId !== preferenceUserId) throw new Error('Account changed before saving.');
+      return requestApi<DistancePreferences>('/api/privacy/distance-labels', {
+        method: 'PUT', body: JSON.stringify(preferences),
+      });
+    });
+    pendingSave = request;
+    const saved = await request;
+    if (revision === preferenceRevision && userId === preferenceUserId) cacheDistancePreferences(saved);
+  } catch (error) {
+    if (revision === preferenceRevision && userId === preferenceUserId) displayApproximateWhileSyncing();
+    throw error;
+  }
+}
+
+export function useSyncDistancePreferences(userId: string | null | undefined) {
+  useEffect(() => {
+    if (preferenceUserId !== (userId ?? null)) preferenceRevision += 1;
+    if (!userId) {
+      preferenceUserId = null;
+      return;
+    }
+    preferenceUserId = userId;
+    const revision = preferenceRevision;
+    let active = true;
+    const ownerKey = `${DISTANCE_PREFERENCES_STORAGE_KEY}:owner`;
+    let legacy = readStoredDistancePreferences();
+    let hasLegacyPreference = false;
+    try {
+      const previousOwner = window.localStorage.getItem(ownerKey);
+      if (previousOwner && previousOwner !== userId) legacy = { mode: 'approximate' };
+      hasLegacyPreference = window.localStorage.getItem(DISTANCE_PREFERENCES_STORAGE_KEY) !== null;
+    } catch { /* Unavailable storage leaves the server's default in control. */ }
+    displayApproximateWhileSyncing();
+    void (async () => {
+      try {
+        let saved = await requestApi<DistancePreferences & { configured: boolean }>('/api/privacy/distance-labels');
+        if (!active || preferenceUserId !== userId || revision !== preferenceRevision) return;
+        if (!saved.configured && hasLegacyPreference) {
+          const migration = pendingSave.catch(() => undefined).then(() => {
+            if (!active || preferenceUserId !== userId || revision !== preferenceRevision) return null;
+            return requestApi<DistancePreferences>('/api/privacy/distance-labels', {
+              method: 'PUT', body: JSON.stringify(legacy),
+            });
+          });
+          pendingSave = migration;
+          const migrated = await migration;
+          if (!migrated) return;
+          saved = { ...migrated, configured: true };
+        }
+        if (!active || preferenceUserId !== userId || revision !== preferenceRevision) return;
+        try { window.localStorage.setItem(ownerKey, userId); } catch { /* Optional local cache. */ }
+        cacheDistancePreferences(saved);
+      } catch {
+        // Missing policy must never restore numeric labels on a guess.
+        if (active && revision === preferenceRevision) displayApproximateWhileSyncing();
+      }
+    })();
+    return () => { active = false; };
+  }, [userId]);
 }
 
 export function addDistancePreferencesChangedListener(listener: DistancePreferencesListener) {
@@ -96,7 +183,7 @@ export function useDistancePreferences() {
 
 /**
  * Formats a distance string for the shared display mode: miles when precise,
- * a rough band when approximate.
+ * the existing Nearby label when approximate.
  */
 export function formatDistanceLabel(
   distance: string | null | undefined,
@@ -110,31 +197,12 @@ export function formatDistanceLabel(
   }
 
   const trimmed = distance.trim();
-  const match = /^~?\s*([\d.]+)\s*(mi|miles?)(.*)$/i.exec(trimmed);
+  const match = /^(?:~|<|>)?\s*[\d.]+(?:\s*[-–]\s*[\d.]+)?\s*(?:mi|miles?|km|kilometers?|ft|feet)\b/i.exec(trimmed);
   if (!match) {
     return distance;
   }
 
-  const numericMiles = Number.parseFloat(match[1]);
-  const suffix = match[3] ?? '';
-
-  if (!Number.isFinite(numericMiles)) {
-    return distance;
-  }
-
-  let approxText: string;
-  if (numericMiles < 0.25) {
-    approxText = '< 0.25 mi';
-  } else if (numericMiles < 0.5) {
-    approxText = '~0.5 mi';
-  } else if (numericMiles < 1) {
-    approxText = '~1 mi';
-  } else {
-    const rounded = Math.round(numericMiles);
-    approxText = `~${rounded} mi`;
-  }
-
-  return `${approxText}${suffix}`;
+  return 'Nearby';
 }
 
 export function formatDistanceWithAway(
@@ -142,7 +210,7 @@ export function formatDistanceWithAway(
   mode: DistanceDisplayMode = getDistancePreferences().mode,
 ): string | null {
   const formatted = formatDistanceLabel(distance, mode);
-  if (!formatted || /\baway$/i.test(formatted)) return formatted;
+  if (!formatted || formatted === 'Nearby' || /\baway$/i.test(formatted)) return formatted;
   return `${formatted} away`;
 }
 

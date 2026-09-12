@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { hasPremiumDiscoveryFilters, requireCruushPlus } from "../billing.js";
 import { decryptTextContentOrFallback } from "../content-encryption.js";
+import { GhostLandUnavailableError } from "../ghost-land.js";
 import {
   formatDistanceMiles,
   formatLastActiveFromDate,
@@ -39,6 +40,7 @@ import { isWithinServiceArea, NYC_SERVICE_AREA } from "../service-area.js";
 const DISCOVERY_BROWSE_RADIUS_MILES = 50;
 import { type TravelPin, loadTravelPins, locationPayloadAtTravelPin } from "../travel-pins.js";
 import { primaryPhotoExplicitSelect } from "../profile-photo-explicit.js";
+import { notTombstonedSql } from "../profile-tombstone.js";
 import {
   DEFAULT_GHOST_RADIUS_METERS,
   createCoarseIndexTokens,
@@ -70,15 +72,18 @@ type DiscoveryProfileRow = {
   position: string[] | null;
   role: string[] | null;
   hosting_travel: string[] | null;
+  preferred_spots: string[] | null;
   photos: string[] | null;
   primary_photo_explicit?: boolean | null;
   identities: string[] | null;
   presentation: string[] | null;
   sexuality: string[] | null;
+  zodiac: string[] | null;
   body_type: string[] | null;
   availability: string[] | null;
   hobbies: string[] | null;
   substance_boundaries: string[] | null;
+  protection_boundaries: string[] | null;
   profile_sensitive_ciphertext: string | null;
   profile_sensitive_nonce: string | null;
   profile_sensitive_auth_tag: string | null;
@@ -111,7 +116,7 @@ const NPC_GHOST_DEMO_EMAILS = new Set([
   CODEVELOPER_NYC_EMAIL
 ]);
 
-type DiscoveryViewerRow = Omit<DiscoveryProfileRow, "id" | "email" | "photos" | "updated_at">;
+type DiscoveryViewerRow = Omit<DiscoveryProfileRow, "id" | "email" | "updated_at">;
 
 type DiscoveryToolUserRow = {
   email: string | null;
@@ -204,11 +209,13 @@ const discoveryQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(500).default(500),
   npcGhostDemo: booleanQueryFlag,
   mileHighClub: booleanQueryFlag,
+  hasPhoto: booleanQueryFlag,
   identities: queryArrayField,
   presentations: queryArrayField,
   lookingFor: queryArrayField,
   timing: queryArrayField,
   hosting: queryArrayField,
+  preferredSpots: queryArrayField,
   vibes: queryArrayField,
   scenes: queryArrayField,
   archetypes: queryArrayField,
@@ -219,7 +226,9 @@ const discoveryQuerySchema = z.object({
   kinks: queryArrayField,
   bodyTypes: queryArrayField,
   sexuality: queryArrayField,
-  substanceBoundaries: queryArrayField
+  zodiac: queryArrayField,
+  substanceBoundaries: queryArrayField,
+  protectionBoundaries: queryArrayField
 }).strict();
 
 type DiscoveryQuery = z.infer<typeof discoveryQuerySchema>;
@@ -410,6 +419,7 @@ function addProfileSearchFilter(
                || coalesce(profiles.body_type, '{}'::text[])
                || coalesce(profiles.availability, '{}'::text[])
                || coalesce(profiles.hosting_travel, '{}'::text[])
+               || coalesce(profiles.preferred_spots, '{}'::text[])
                || coalesce(profiles.looking_for, '{}'::text[])
                || coalesce(profiles.vibes, '{}'::text[])
                || coalesce(profiles.scenes, '{}'::text[])
@@ -418,6 +428,7 @@ function addProfileSearchFilter(
                || coalesce(profiles.position, '{}'::text[])
                || coalesce(profiles.role, '{}'::text[])
                || coalesce(profiles.substance_boundaries, '{}'::text[])
+               || coalesce(profiles.protection_boundaries, '{}'::text[])
              ) as searchable(value)
              where lower(searchable.value) like ${searchPlaceholder}
            )
@@ -474,12 +485,14 @@ function toVisibilitySubject(app: FastifyInstance, row: DiscoveryProfileRow | Di
     display_name: row.display_name,
     bio: row.bio,
     tags: row.tags ?? [],
+    has_photo: (row.photos?.length ?? 0) > 0,
     year_of_birth: row.year_of_birth,
     identities: row.identities ?? [],
     presentations: row.presentation ?? [],
     looking_for: row.looking_for ?? [],
     timing: row.availability ?? [],
     hosting: row.hosting_travel ?? [],
+    preferred_spots: row.preferred_spots ?? [],
     vibes: row.vibes ?? [],
     scenes: row.scenes ?? [],
     archetypes: row.archetypes ?? [],
@@ -490,7 +503,9 @@ function toVisibilitySubject(app: FastifyInstance, row: DiscoveryProfileRow | Di
     kinks: sensitiveKinksForVisibility(sensitiveProfile, null),
     body_types: row.body_type ?? [],
     sexuality: row.sexuality ?? [],
+    zodiac: row.zodiac ?? [],
     substance_boundaries: row.substance_boundaries ?? [],
+    protection_boundaries: row.protection_boundaries ?? [],
     coordinates: getCoordinates(row)
   };
 }
@@ -502,6 +517,7 @@ async function loadDiscoveryViewer(app: FastifyInstance, currentUserId: string) 
          display_name,
          bio,
          tags,
+         photos,
          year_of_birth,
          pronouns,
          looking_for,
@@ -511,13 +527,16 @@ async function loadDiscoveryViewer(app: FastifyInstance, currentUserId: string) 
          position,
          role,
          hosting_travel,
+         preferred_spots,
          identities,
          presentation,
          sexuality,
+         zodiac,
          body_type,
          availability,
          hobbies,
          substance_boundaries,
+         protection_boundaries,
          profile_sensitive_ciphertext,
          profile_sensitive_nonce,
          profile_sensitive_auth_tag,
@@ -650,6 +669,10 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, fi
       // A deleted, suspended or banned account keeps its row for audit, so it
       // must never surface in discovery.
       "coalesce(app_users.account_status, 'active') = 'active'",
+      // Older removal flows only renamed the profile and left the account
+      // active; one such phone still pinged its location today and turned up
+      // in Recently Active as "User deleted profile, 42".
+      notTombstonedSql("profiles"),
       `(
         profiles.location_updated_at >= now() - make_interval(hours => ${MAP_PRESENCE_HOURS_SQL})
         or location_envelopes.expires_at_ms > ${activeLocationWindow}
@@ -674,6 +697,12 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, fi
       )`
     ];
 
+    // A profile with no photo has an empty photos array, so the check is on
+    // the array itself rather than on any stored flag.
+    if (filters.hasPhoto) {
+      where.push("coalesce(array_length(profiles.photos, 1), 0) > 0");
+    }
+
     if (filters.mileHighClub) {
       where.push(`exists (
         select 1
@@ -688,6 +717,7 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, fi
     addTextArrayFilter(where, values, "looking_for", filters.lookingFor);
     addTextArrayFilter(where, values, "availability", filters.timing);
     addTextArrayFilter(where, values, "hosting_travel", filters.hosting);
+    addTextArrayFilter(where, values, "preferred_spots", filters.preferredSpots);
     addVibeFilter(where, values, filters.vibes);
     addTextArrayFilter(where, values, "scenes", filters.scenes);
     addTextArrayFilter(where, values, "archetypes", filters.archetypes);
@@ -696,7 +726,9 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, fi
     addTextArrayFilter(where, values, "role", filters.roles);
     addTextArrayFilter(where, values, "body_type", filters.bodyTypes);
     addTextArrayFilter(where, values, "sexuality", filters.sexuality);
+    addTextArrayFilter(where, values, "zodiac", filters.zodiac);
     addTextArrayFilter(where, values, "substance_boundaries", filters.substanceBoundaries);
+    addTextArrayFilter(where, values, "protection_boundaries", filters.protectionBoundaries);
     addSensitiveTokenFilter(app, where, values, "crowd", filters.crowds);
     addSensitiveTokenFilter(app, where, values, "kink", filters.kinks);
     addProfileSearchFilter(app, where, values, filters.q);
@@ -720,15 +752,18 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, fi
          position,
          role,
          hosting_travel,
+         preferred_spots,
          photos,
          ${primaryPhotoExplicitSelect("profiles", "primary_photo_explicit")},
          identities,
          presentation,
          sexuality,
+         zodiac,
          body_type,
          availability,
          hobbies,
          substance_boundaries,
+         protection_boundaries,
          profile_sensitive_ciphertext,
          profile_sensitive_nonce,
          profile_sensitive_auth_tag,
@@ -975,8 +1010,12 @@ async function mapModernDiscoveryRow(
         viewerUserId,
         policy,
         location
+      }).catch(error => {
+        if (error instanceof GhostLandUnavailableError) return null;
+        throw error;
       })
     : null;
+  if (displayMode === "GHOST" && !resolvedGhost) return null;
   const displayLocationToken = await makeDisplayLocationToken(app, request, {
     subjectUserId: row.id,
     viewerUserId,
@@ -987,7 +1026,7 @@ async function mapModernDiscoveryRow(
     relationshipGrantVersion: relationship?.isMutualCruush || canRevealSameCrowdPreciseLocation ? 1 : 0
   });
   const ghostRotation = displayMode === "GHOST"
-    ? await describeGhostRotation(app, row.id, policy)
+    ? await describeGhostRotation(app, row.id, policy, resolvedGhost!.resolvedAtMs)
     : null;
   const shownCoordinates = resolvedGhost?.coordinate ?? preciseCoordinates;
   const latestFeedPostPreview = canViewLatestFeedPreview(row, viewerUserId, relationship)
@@ -1012,6 +1051,7 @@ async function mapModernDiscoveryRow(
       ? "Far far away"
       : formatDistanceLabel({
           displayMode,
+          distanceLabelMode: relationship?.distanceLabelMode,
           viewerLat: centerLat,
           viewerLng: centerLng,
           targetLat: preciseCoordinates.lat,
@@ -1188,6 +1228,14 @@ export async function registerUserRoutes(app: FastifyInstance) {
           throw error;
         })
       : new Map<string, LocationPayload>();
+    // The viewer's own position comes from the envelope too, the way the
+    // profile route reads it. Measured from the profile row, which most
+    // accounts leave empty, discovery and the profile route disagreed about
+    // who was in range: the list offered people the profile then refused.
+    const viewerEnvelope = encryptedLocations.get(currentUserId);
+    if (discoveryViewer.subject && viewerEnvelope) {
+      discoveryViewer.subject.coordinates = locationPayloadToCoordinates(viewerEnvelope);
+    }
     // Mile High Club replaces the device location with the pin the member dropped,
     // for the viewer's own position as well as everyone they are shown.
     const travelPins = await loadTravelPins(app, [
@@ -1289,8 +1337,12 @@ export async function registerUserRoutes(app: FastifyInstance) {
                 viewerUserId: currentUserId,
                 policy,
                 location
+              }).catch(error => {
+                if (error instanceof GhostLandUnavailableError) return null;
+                throw error;
               })
             : null;
+          if (displayMode === "GHOST" && !resolvedGhost) return null;
           const displayLocationToken = await makeDisplayLocationToken(app, request, {
             subjectUserId: legacy.id,
             viewerUserId: currentUserId,

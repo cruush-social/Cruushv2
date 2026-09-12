@@ -1,4 +1,9 @@
 import sharp from "sharp";
+import { execFile } from "node:child_process";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { promisify } from "node:util";
 import { ApiError } from "./errors.js";
 import { sanitizeProfilePhoto } from "./image-sanitization.js";
 
@@ -6,12 +11,45 @@ export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 export const MAX_IMAGE_PIXELS = 40_000_000;
 const MAX_IMAGE_DIMENSION = 12_000;
 
-const supportedFormats = new Set(["jpeg", "png", "webp"]);
+// What a phone camera actually produces. HEIC is the iPhone default and AVIF
+// is turning up from Android; libvips reports both as heif, so AVIF passes the
+// format check already and only ever failed on its declared type. TIFF comes
+// out of the odd camera app. Everything is re-encoded to WebP for delivery, so
+// accepting a format costs nothing downstream.
+//
+// A photo is a still. Animated formats are out: GIF entirely, and an animated
+// WebP or APNG is rejected rather than silently frozen to its first frame.
+// SVG and raw are deliberately absent even though this build decodes them: SVG
+// carries script, and raw is not a photo anyone is uploading from a phone.
+// Sharp's bundled libvips reads HEIC metadata but omits HEVC decoding.
+// The runtime's libheif tool supplies that decoder after the same validation.
+const supportedFormats = new Set(["jpeg", "png", "webp", "heif", "tiff"]);
+
+const runImageDecoder = promisify(execFile);
+
+async function decodeHeic(bytes: Buffer) {
+  const directory = await mkdtemp(join(tmpdir(), "cruush-heic-"));
+  try {
+    const input = join(directory, "input.heic");
+    const output = join(directory, "output.png");
+    await writeFile(input, bytes, { mode: 0o600 });
+    await runImageDecoder("heif-convert", [input, output], {
+      timeout: 15_000,
+      killSignal: "SIGKILL",
+      maxBuffer: 64 * 1024,
+    });
+    return await readFile(output);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+}
 
 const mimeTypes = {
   jpeg: "image/jpeg",
   png: "image/png",
-  webp: "image/webp"
+  webp: "image/webp",
+  heif: "image/heic",
+  tiff: "image/tiff"
 } as const;
 
 export type ProcessedImageVariant = {
@@ -23,14 +61,39 @@ export type ProcessedImageVariant = {
 };
 
 export type ProcessedImage = {
-  detectedMimeType: "image/jpeg" | "image/png" | "image/webp";
+  detectedMimeType: "image/jpeg" | "image/png" | "image/webp" | "image/heic" | "image/tiff";
   canonicalBytes: Buffer;
   width: number;
   height: number;
   variants: ProcessedImageVariant[];
 };
 
-function invalidImage(message = "Upload a valid JPEG, PNG, or WebP image.") {
+/** Every label a browser might legitimately put on this format's bytes. */
+function mimeTypeAliases(detectedMimeType: string) {
+  switch (detectedMimeType) {
+    case "image/jpeg":
+      return new Set(["image/jpeg", "image/jpg", "image/pjpeg"]);
+    case "image/heic":
+      // libvips reports AVIF as heif too, and a Live Photo or burst arrives as
+      // a sequence, so every label in the family belongs to the same bytes.
+      return new Set([
+        "image/heic",
+        "image/heif",
+        "image/heic-sequence",
+        "image/heif-sequence",
+        "image/avif",
+        "image/avif-sequence",
+      ]);
+    case "image/png":
+      return new Set(["image/png", "image/x-png", "image/apng"]);
+    case "image/tiff":
+      return new Set(["image/tiff", "image/x-tiff", "image/tif"]);
+    default:
+      return new Set([detectedMimeType]);
+  }
+}
+
+function invalidImage(message = "Upload a still photo your phone or camera made: JPEG, PNG, HEIC, AVIF, WebP, or TIFF.") {
   return new ApiError(400, "VALIDATION_ERROR", message);
 }
 
@@ -99,11 +162,18 @@ export async function processUploadedImage(bytes: Buffer, declaredMimeType?: str
 
     const detectedMimeType = mimeTypes[format as keyof typeof mimeTypes];
 
-    if (declaredMimeType && declaredMimeType !== detectedMimeType) {
+    // Browsers and phones label the same bytes several ways: image/jpg for a
+    // JPEG, image/heif for a HEIC. Comparing against one exact string rejected
+    // real photos whose content was perfectly valid, which is what made "tried
+    // png and jpg" fail. The check still catches content that is genuinely a
+    // different format from what was claimed.
+    if (declaredMimeType && !mimeTypeAliases(detectedMimeType).has(declaredMimeType.trim().toLowerCase())) {
       throw invalidImage("Image content does not match its declared type.");
     }
 
-    const canonical = await sanitizeProfilePhoto(bytes, detectedMimeType);
+    const decodableBytes = format === "heif" && metadata.compression === "hevc"
+      ? await decodeHeic(bytes) : bytes;
+    const canonical = await sanitizeProfilePhoto(decodableBytes, detectedMimeType);
     const canonicalMetadata = await sharp(canonical.bytes).metadata();
     const variants = await Promise.all([
       makeVariant(canonical.bytes, "thumbnail", 320, 400),
@@ -122,6 +192,6 @@ export async function processUploadedImage(bytes: Buffer, declaredMimeType?: str
       throw error;
     }
 
-    throw invalidImage();
+    throw invalidImage("This photo could not be decoded. It may be damaged or use an unsupported encoding. Export it as JPEG or PNG and try again.");
   }
 }

@@ -7,7 +7,8 @@ import { ApiError } from "../errors.js";
 import { listEncryptedRelationshipRecordsByParticipant } from "../encrypted-relationships.js";
 import { databaseUuidSchema, uuidSchema } from "../input-schema.js";
 import { getModeratorUser } from "../moderator-auth.js";
-import { moderateTextOrReject } from "../moderation-service.js";
+import { approvedContentReviewCte, moderateTextOrReject } from "../moderation-service.js";
+import { userHasOwnerFullAccess } from "../owner-access.js";
 import {
   decryptPlaceSuggestion,
   encryptPlaceSuggestion,
@@ -17,6 +18,7 @@ import {
   listPlacesQuerySchema,
   placeBoardPostSchema,
   placeCheckinSchema,
+  placeDetailsContributionSchema,
   placeRatingSchema,
   slugifyPlaceName,
   storedPlaceSuggestionSchema,
@@ -38,11 +40,16 @@ const adminListSchema = z.object({
   offset: z.coerce.number().int().min(0).max(5000).default(0)
 }).strict();
 
+function normalizedPlaceName(name: string): string {
+  return name.normalize("NFKC").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");
+}
+
 type PlaceRow = {
   id: string;
   slug: string;
   name: string;
   description: string;
+  access_instructions: string;
   latitude: number;
   longitude: number;
   address: string | null;
@@ -123,19 +130,21 @@ function optionalExpiryIso(value: string | Date | null | undefined) {
 }
 
 function mapPlace(row: PlaceRow) {
+  const hidesCompetitorSource = row.source_url?.toLowerCase().includes('sniffies.com') === true;
   return {
     id: row.id,
     slug: row.slug,
     name: row.name,
     description: row.description,
+    accessInstructions: row.access_instructions,
     latitude: Number(row.latitude),
     longitude: Number(row.longitude),
     address: row.address,
     facilityType: row.facility_type,
     status: row.status,
     sourceKind: row.source_kind,
-    sourceUrl: row.source_url,
-    sourceAttribution: row.source_attribution,
+    sourceUrl: hidesCompetitorSource ? null : row.source_url,
+    sourceAttribution: hidesCompetitorSource ? null : row.source_attribution,
     verifiedAt: row.verified_at ? new Date(row.verified_at).toISOString() : null,
     createdAt: new Date(row.created_at).toISOString(),
     tags: row.tags ?? [],
@@ -171,6 +180,7 @@ function mapPlaceForModerator(app: FastifyInstance, row: PlaceRow) {
     ...mapPlace(row),
     name: suggestion.name,
     description: suggestion.description,
+    accessInstructions: suggestion.accessInstructions,
     latitude: suggestion.latitude,
     longitude: suggestion.longitude,
     address: suggestion.address || null,
@@ -184,7 +194,7 @@ function mapPlaceForModerator(app: FastifyInstance, row: PlaceRow) {
 
 function basePlaceSelect(viewerParam: string, latParam: string, lngParam: string) {
   return `
-    p.id::text, p.slug, p.name, p.description, p.latitude, p.longitude, p.address,
+    p.id::text, p.slug, p.name, p.description, p.access_instructions, p.latitude, p.longitude, p.address,
     p.facility_type, p.status, p.source_kind, p.source_url, p.source_attribution,
     p.verified_at, p.created_at, p.suggestion_count, p.auto_shortlisted_at,
     p.suggestion_ciphertext, p.suggestion_nonce, p.suggestion_auth_tag, p.suggestion_key_version,
@@ -203,7 +213,19 @@ function basePlaceSelect(viewerParam: string, latParam: string, lngParam: string
       (select (array_agg(v.vibe order by v.vibe))[1:2] from place_vibes v where v.place_id = p.id),
       '{}'
     ) as vibes,
-    coalesce((select array_agg(a.amenity order by a.amenity) from place_amenities a where a.place_id = p.id), '{}') as amenities,
+    coalesce(
+      (select array_agg(ranked.amenity order by ranked.report_count desc, ranked.last_reported_at desc, ranked.amenity)
+       from (
+         select report.amenity, count(distinct report.user_id)::int as report_count,
+                max(report.reported_at) as last_reported_at
+         from place_amenity_reports report
+         where report.place_id = p.id
+         group by report.amenity
+         order by report_count desc, last_reported_at desc, report.amenity
+       ) ranked),
+      (select array_agg(a.amenity order by a.amenity) from place_amenities a where a.place_id = p.id),
+      '{}'
+    ) as amenities,
     case when ${latParam}::double precision is null or ${lngParam}::double precision is null then null else
       3958.7613 * 2 * asin(sqrt(
         power(sin(radians((p.latitude - ${latParam}::double precision) / 2)), 2)
@@ -226,8 +248,8 @@ function placeOrder(sort: string) {
 }
 
 async function requirePublishedPlace(app: FastifyInstance, placeId: string) {
-  const row = (await app.db.query<{ id: string; latitude: number; longitude: number }>(
-    `select id::text, latitude, longitude from places where id = $1 and status = 'published' limit 1`,
+  const row = (await app.db.query<{ id: string; name: string; latitude: number; longitude: number }>(
+    `select id::text, name, latitude, longitude from places where id = $1 and status = 'published' limit 1`,
     [placeId]
   )).rows[0];
   if (!row) throw new ApiError(404, "NOT_FOUND", "Spot not found.");
@@ -303,7 +325,9 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
            and ($4::text = '' or p.name ilike '%' || $4 || '%' or p.description ilike '%' || $4 || '%')
            and (cardinality($5::text[]) = 0 or p.facility_type = any($5::text[]))
            and (cardinality($6::text[]) = 0 or exists (select 1 from place_tags filter_tag where filter_tag.place_id = p.id and filter_tag.tag = any($6::text[])))
-           and (cardinality($8::text[]) = 0 or exists (select 1 from place_amenities filter_amenity where filter_amenity.place_id = p.id and filter_amenity.amenity = any($8::text[])))
+           and (cardinality($8::text[]) = 0
+             or exists (select 1 from place_amenities filter_amenity where filter_amenity.place_id = p.id and filter_amenity.amenity = any($8::text[]))
+             or exists (select 1 from place_amenity_reports filter_report where filter_report.place_id = p.id and filter_report.amenity = any($8::text[])))
            -- Follow the settled map center as the viewport changes.
            and 3958.7613 * 2 * asin(sqrt(
              power(sin(radians((p.latitude - $2::double precision) / 2)), 2)
@@ -356,13 +380,21 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
     if (!place) throw new ApiError(404, "NOT_FOUND", "Spot not found.");
     const [popularTimes, visiblePeople, ratingBreakdown, viewerCheckin, mutualUserIds] = await Promise.all([
       app.db.query<{ weekday: number; hour: number; count: number }>(
-        `select extract(isodow from bucket_start)::int as weekday,
-                extract(hour from bucket_start)::int as hour,
-                sum(checkin_count)::int as count
-         from place_activity_hourly
-         where place_id = $1 and bucket_start >= now() - interval '90 days'
+        `select weekday, hour, sum(count)::int as count
+         from (
+           select extract(isodow from bucket_start)::int as weekday,
+                  extract(hour from bucket_start)::int as hour,
+                  sum(checkin_count)::int as count
+           from place_activity_hourly
+           where place_id = $1 and bucket_start >= now() - interval '90 days'
+           group by weekday, hour
+           union all
+           select weekday, hour, visit_count::int as count
+           from place_popular_time_baselines
+           where place_id = $1
+         ) activity
          group by weekday, hour
-         having sum(checkin_count) >= 3
+         having sum(count) >= 3
          order by weekday, hour`,
         [placeId]
       ),
@@ -467,19 +499,19 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
     if (!isWithinServiceArea({ lat: payload.latitude, lng: payload.longitude })) {
       throw new ApiError(400, "OUTSIDE_SERVICE_AREA", "Spots must be within 100 miles of NYC.");
     }
-    await moderateTextOrReject(app, { userId, surface: "feed", text: `${payload.name}\n${payload.description}` });
-    const publishedDuplicate = (await app.db.query<{ id: string }>(
-      `select id::text, status from places
+    await moderateTextOrReject(app, { userId, surface: "feed", text: `${payload.name}\n${payload.description}\n${payload.accessInstructions}` });
+    const submittedName = normalizedPlaceName(payload.name);
+    const publishedNearbyPlaces = await app.db.query<{ id: string; name: string }>(
+      `select id::text, name, status from places
        where status = 'published'
          and 3958.7613 * 2 * asin(sqrt(
            power(sin(radians((latitude - $1::double precision) / 2)), 2)
            + cos(radians($1::double precision)) * cos(radians(latitude))
              * power(sin(radians((longitude - $2::double precision) / 2)), 2)
-         )) <= 0.0621371
-       limit 1`,
+         )) <= 0.0621371`,
       [payload.latitude, payload.longitude]
-    )).rows[0];
-    if (publishedDuplicate) {
+    );
+    if (submittedName && publishedNearbyPlaces.rows.some((row) => normalizedPlaceName(row.name) === submittedName)) {
       throw new ApiError(409, "DUPLICATE_PLACE", "A place already exists at this location.");
     }
     const pendingSuggestions = await app.db.query<PlaceRow>(
@@ -488,7 +520,7 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
     );
     const duplicate = pendingSuggestions.rows.find((row) => {
       const suggestion = readEncryptedSuggestion(app, row);
-      return distanceMiles(
+      return submittedName.length > 0 && normalizedPlaceName(suggestion.name) === submittedName && distanceMiles(
         { lat: payload.latitude, lng: payload.longitude },
         { lat: suggestion.latitude, lng: suggestion.longitude }
       ) <= 0.0621371;
@@ -663,6 +695,17 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
     const place = await requirePublishedPlace(app, placeId);
     const distance = distanceMiles({ lat: payload.latitude, lng: payload.longitude }, { lat: Number(place.latitude), lng: Number(place.longitude) });
     if (distance > 0.25) throw new ApiError(403, "CHECKIN_TOO_FAR", "Move within 0.25 miles of this place to check in.");
+    const feedPostContent = `Checked in at ${place.name}.`;
+    const feedModeration = await moderateTextOrReject(app, {
+      userId,
+      surface: "feed",
+      text: feedPostContent,
+      contentRef: { source: "place_checkin", placeId },
+      persistAllowedReview: false
+    });
+    const encryptedFeedPost = encryptTextContent(app.config, "feed", feedPostContent);
+    const feedPostId = randomUUID();
+    const ownerFullAccess = await userHasOwnerFullAccess(app, userId);
     let legacyBoardPost: ReturnType<typeof encryptTextContent> | null = null;
     if (payload.content) {
       await app.rateLimiter.assert({
@@ -701,6 +744,16 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
           );
         }
       }
+      if (payload.amenities.length > 0) {
+        await db.query(`delete from place_amenity_reports where place_id = $1 and user_id = $2`, [placeId, userId]);
+        for (const amenity of [...new Set(payload.amenities)]) {
+          await db.query(
+            `insert into place_amenity_reports (place_id, user_id, amenity, reported_at)
+             values ($1, $2, $3, now())`,
+            [placeId, userId, amenity]
+          );
+        }
+      }
       let boardPostId: string | null = null;
       if (legacyBoardPost) {
         const boardPost = await db.query<{ id: string }>(
@@ -727,6 +780,103 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
            on conflict (place_id, bucket_start) do update set checkin_count = place_activity_hourly.checkin_count + 1`,
           [placeId, bucketStart]
         );
+        await db.query(
+          `with eligible_user as (
+             select account.id
+             from app_users account
+             left join user_trust_profiles trust on trust.user_id = account.id
+             where account.id = $1
+               and (
+                 $15::boolean
+                 or (
+                   coalesce(trust.is_suspended, false) = false
+                   and coalesce(trust.trust_score, 50) > 20
+                   and not exists (
+                     select 1
+                     from suspensions suspension
+                     where suspension.user_id = account.id
+                       and (suspension.permanent or suspension.ends_at is null or suspension.ends_at > now())
+                   )
+                   and not exists (
+                     select 1
+                     from feature_restrictions restriction
+                     where restriction.user_id = account.id
+                       and restriction.feature = 'feed_posting'
+                       and (restriction.ends_at is null or restriction.ends_at > now())
+                   )
+                 )
+               )
+           ), feed_preferences as (
+             select coalesce(
+               (select settings.feed_post_expiry_default from user_privacy_settings settings where settings.user_id = $1),
+               'never'
+             ) as expires_in
+           ),
+           ${approvedContentReviewCte({
+             userIdParam: "$1",
+             surface: "feed",
+             contentType: "text",
+             fromCte: "eligible_user",
+             providerParam: "$7",
+             providerRequestIdParam: "$8",
+             normalizedLabelsParam: "$9",
+             policyDecisionParam: "$10",
+             moderationStatusParam: "$11",
+             flaggedReasonParam: "$12",
+             moderationRawResultParam: "$13",
+             contentIdParam: "$2::uuid",
+             contentRefParam: "$14"
+           })}
+           insert into posts (
+             id,
+             user_id,
+             content,
+             content_ciphertext,
+             content_nonce,
+             content_auth_tag,
+             content_key_version,
+             audience,
+             expires_in,
+             expires_at
+           )
+           select
+             $2::uuid,
+             eligible_user.id,
+             '[encrypted]',
+             $3,
+             $4,
+             $5,
+             $6,
+             'public',
+             feed_preferences.expires_in,
+             case feed_preferences.expires_in
+               when '1h' then now() + interval '1 hour'
+               when '6h' then now() + interval '6 hours'
+               when '24h' then now() + interval '24 hours'
+               when '7d' then now() + interval '7 days'
+               else 'infinity'::timestamptz
+             end
+           from eligible_user
+           join moderation_review on true
+           cross join feed_preferences`,
+          [
+            userId,
+            feedPostId,
+            encryptedFeedPost.ciphertext,
+            encryptedFeedPost.nonce,
+            encryptedFeedPost.authTag,
+            encryptedFeedPost.keyVersion,
+            feedModeration.providerResult.provider,
+            feedModeration.providerResult.provider_request_id,
+            JSON.stringify(feedModeration.providerResult.labels),
+            JSON.stringify(feedModeration.decision),
+            feedModeration.moderationStatus ?? "allowed",
+            feedModeration.flaggedReason ?? null,
+            JSON.stringify(feedModeration.providerResult.raw_result ?? {}),
+            JSON.stringify({ source: "place_checkin", placeId }),
+            ownerFullAccess
+          ]
+        );
       }
       await db.query(`delete from place_checkin_events where expires_at <= now()`);
       await db.query(`delete from place_activity_hourly where bucket_start < now() - interval '90 days'`);
@@ -743,6 +893,73 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
     const { placeId } = placeParamsSchema.parse(request.params);
     await app.db.query(`delete from place_checkins where user_id = $1 and place_id = $2`, [userId, placeId]);
     return reply.code(204).send();
+  });
+
+  app.put("/api/places/:placeId/details", async (request, reply) => {
+    const userId = await getActiveAccountUserId(request);
+    const { placeId } = placeParamsSchema.parse(request.params);
+    const payload = placeDetailsContributionSchema.parse(request.body);
+    await requirePublishedPlace(app, placeId);
+    await app.rateLimiter.assert({
+      key: `place-details:${userId}`,
+      max: 12,
+      windowMs: 60 * 60 * 1000,
+      message: "Too many Spot detail updates. Try again later."
+    });
+
+    const accessInstructions = payload.accessInstructions?.trim() ?? "";
+    if (accessInstructions) {
+      await moderateTextOrReject(app, {
+        userId,
+        surface: "feed",
+        text: accessInstructions,
+        contentRef: { placeId }
+      });
+    }
+
+    await runTransaction(app.db, async (db) => {
+      if (payload.vibes !== undefined) {
+        await db.query(`delete from place_vibe_reports where place_id = $1 and user_id = $2`, [placeId, userId]);
+        for (const vibe of [...new Set(payload.vibes)]) {
+          await db.query(
+            `insert into place_vibe_reports (place_id, user_id, vibe, reported_at)
+             values ($1, $2, $3, now())`,
+            [placeId, userId, vibe]
+          );
+        }
+      }
+
+      if (payload.amenities !== undefined) {
+        await db.query(`delete from place_amenity_reports where place_id = $1 and user_id = $2`, [placeId, userId]);
+        for (const amenity of [...new Set(payload.amenities)]) {
+          await db.query(
+            `insert into place_amenity_reports (place_id, user_id, amenity, reported_at)
+             values ($1, $2, $3, now())`,
+            [placeId, userId, amenity]
+          );
+        }
+      }
+
+      if (accessInstructions) {
+        const supporterToken = placeSuggestionSupporterToken(app.config, `details:${placeId}`, userId);
+        const encrypted = encryptPlaceSuggestion(app.config, { accessInstructions });
+        await db.query(
+          `insert into place_detail_suggestions (
+             place_id, supporter_token, suggestion_ciphertext, suggestion_nonce,
+             suggestion_auth_tag, suggestion_key_version, updated_at
+           ) values ($1, $2, $3, $4, $5, $6, now())
+           on conflict (place_id, supporter_token) do update set
+             suggestion_ciphertext = excluded.suggestion_ciphertext,
+             suggestion_nonce = excluded.suggestion_nonce,
+             suggestion_auth_tag = excluded.suggestion_auth_tag,
+             suggestion_key_version = excluded.suggestion_key_version,
+             status = 'pending', updated_at = now()`,
+          [placeId, supporterToken, encrypted.ciphertext, encrypted.nonce, encrypted.authTag, encrypted.keyVersion]
+        );
+      }
+    });
+
+    return reply.send({ data: { placeId } });
   });
 
   app.put("/api/places/:placeId/rating", async (request, reply) => {
@@ -804,17 +1021,18 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
       await runTransaction(app.db, async (db) => {
         await db.query(
           `update places set
-             slug = $1, name = $2, description = $3, latitude = $4, longitude = $5,
-             address = nullif($6, ''), facility_type = $7, source_url = $8,
+             slug = $1, name = $2, description = $3, access_instructions = $4,
+             latitude = $5, longitude = $6, address = nullif($7, ''), facility_type = $8, source_url = $9,
              source_attribution = 'Anonymous community suggestion', submitted_by = null,
-             status = 'published', reviewed_by = $9, reviewed_at = now(), verified_at = now(),
+             status = 'published', reviewed_by = $10, reviewed_at = now(), verified_at = now(),
              suggestion_ciphertext = null, suggestion_nonce = null,
              suggestion_auth_tag = null, suggestion_key_version = null, updated_at = now()
-           where id = $10`,
+           where id = $11`,
           [
             `${slugifyPlaceName(suggestion.name)}-${placeId.slice(0, 8)}`,
             suggestion.name,
             suggestion.description,
+            suggestion.accessInstructions,
             suggestion.latitude,
             suggestion.longitude,
             suggestion.address,

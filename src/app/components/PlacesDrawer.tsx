@@ -1,4 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { DROPDOWN_TRIGGER_CLASS } from '../lib/controlStyles';
+import { Switch } from './ui/switch';
+import { registerBugButtonSlot } from '../lib/bugButtonSlot';
 import { ArrowLeft, Clock3, MapPin, Plus, Search, Star, Users } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -10,7 +13,6 @@ import {
   PLACE_AMENITIES,
   PLACE_AMENITY_LABELS,
   PLACE_TAG_LABELS,
-  PLACE_TAGS,
   PLACE_VIBES,
   PLACE_VIBE_LABELS,
   getSpotCategoryLabels,
@@ -28,6 +30,8 @@ type PlacesDrawerProps = {
   coordinates: { latitude: number; longitude: number } | null;
   onPlacesChange?: (places: PlaceRecord[]) => void;
   onFiltersActiveChange?: (active: boolean) => void;
+  spotsVisible?: boolean;
+  onSpotsVisibleChange?: (visible: boolean) => void;
   onMapFiltersChange?: (filters: {
     query: string;
     facilityTypes: PlaceFacilityType[];
@@ -49,13 +53,12 @@ const SORT_OPTIONS: Array<{ value: PlaceSort; label: string }> = [
 
 const PLACE_PAGE_SIZE = 50;
 const DISTANCE_OPTIONS = [1, 5, 10, 25, 50, 100] as const;
-const FILTERABLE_PLACE_TAGS = PLACE_TAGS.filter((tag) => tag !== 'dyke_spot');
 
 function toggleValue<T extends string>(values: T[], value: T) {
   return values.includes(value) ? values.filter((item) => item !== value) : [...values, value];
 }
 
-export default function PlacesDrawer({ open, onOpenChange, coordinates, onFiltersActiveChange, onMapFiltersChange, onPlacesChange, onSelect }: PlacesDrawerProps) {
+export default function PlacesDrawer({ open, onOpenChange, coordinates, onFiltersActiveChange, onMapFiltersChange, onPlacesChange, onSelect, spotsVisible = true, onSpotsVisibleChange }: PlacesDrawerProps) {
   const [places, setPlaces] = useState<PlaceRecord[]>([]);
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<PlaceSort>('nearest');
@@ -73,10 +76,12 @@ export default function PlacesDrawer({ open, onOpenChange, coordinates, onFilter
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+  const loadMoreInFlightRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [showSubmit, setShowSubmit] = useState(false);
   const [submission, setSubmission] = useState({
-    name: '', description: '', address: '', sourceUrl: '', facilityType: 'other' as PlaceFacilityType,
+    name: '', description: '', accessInstructions: '', address: '', sourceUrl: '', facilityType: 'other' as PlaceFacilityType,
     tags: [] as PlaceTag[], vibes: [] as PlaceVibe[], amenities: [] as PlaceAmenity[],
     latitude: coordinates?.latitude ?? null as number | null, longitude: coordinates?.longitude ?? null as number | null,
   });
@@ -119,7 +124,7 @@ export default function PlacesDrawer({ open, onOpenChange, coordinates, onFilter
     onFiltersActiveChange?.(filterCount > 0);
     onMapFiltersChange?.({ query: query.trim(), facilityTypes, tags, vibes, amenities, radiusMiles });
   }, [amenities, facilityTypes, filterCount, onFiltersActiveChange, onMapFiltersChange, query, radiusMiles, tags, vibes]);
-  const resultLabel = useMemo(() => loading ? 'Loading spots...' : `${places.length} ${places.length === 1 ? 'spot' : 'spots'}`, [loading, places.length]);
+  const resultLabel = useMemo(() => loading ? 'Loading spots...' : `${places.length}${hasMore ? '+' : ''} ${places.length === 1 ? 'spot' : 'spots'}`, [hasMore, loading, places.length]);
 
   const handleSubmit = async () => {
     setSubmissionStatus(null);
@@ -138,14 +143,15 @@ export default function PlacesDrawer({ open, onOpenChange, coordinates, onFilter
       setSubmissionStatus(result.autoShortlisted
         ? `Supported by ${result.suggestionCount} people and shortlisted for moderator review.`
         : `Suggested for review. ${result.suggestionCount} ${result.suggestionCount === 1 ? 'person supports' : 'people support'} this spot.`);
-      setSubmission((value) => ({ ...value, name: '', description: '', address: '', sourceUrl: '', tags: [], vibes: [], amenities: [] }));
+      setSubmission((value) => ({ ...value, name: '', description: '', accessInstructions: '', address: '', sourceUrl: '', tags: [], vibes: [], amenities: [] }));
     } catch (submitError) {
       setSubmissionStatus(submitError instanceof Error ? submitError.message : 'Spot could not be submitted.');
     }
   };
 
-  const handleLoadMore = async () => {
-    if (loading || loadingMore || !hasMore) return;
+  const handleLoadMore = useCallback(async () => {
+    if (loading || loadingMore || loadMoreInFlightRef.current || !hasMore) return;
+    loadMoreInFlightRef.current = true;
     setLoadingMore(true);
     setError(null);
     try {
@@ -176,9 +182,21 @@ export default function PlacesDrawer({ open, onOpenChange, coordinates, onFilter
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'More spots could not load.');
     } finally {
+      loadMoreInFlightRef.current = false;
       setLoadingMore(false);
     }
-  };
+  }, [amenities, coordinates?.latitude, coordinates?.longitude, facilityTypes, hasMore, loading, loadingMore, onPlacesChange, places, query, radiusMiles, sort, tags, vibes]);
+
+  useEffect(() => {
+    if (!open || showSubmit || loading || loadingMore || !hasMore) return;
+    const target = loadMoreRef.current;
+    if (!target) return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) void handleLoadMore();
+    }, { rootMargin: '240px 0px' });
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [handleLoadMore, hasMore, loading, loadingMore, open, showSubmit]);
 
   const pinCurrentLocation = () => {
     setSubmissionStatus(null);
@@ -210,6 +228,7 @@ export default function PlacesDrawer({ open, onOpenChange, coordinates, onFilter
             <div className="space-y-3" data-testid="place-submission-form">
               <Input aria-label="Spot name" placeholder="Spot name" value={submission.name} onChange={(event) => setSubmission((value) => ({ ...value, name: event.target.value }))} />
               <textarea aria-label="Spot description" className="min-h-24 w-full rounded-md border border-white/10 bg-white/[0.05] p-3 text-sm text-white outline-none" placeholder="Short public description" value={submission.description} onChange={(event) => setSubmission((value) => ({ ...value, description: event.target.value }))} />
+              <textarea aria-label="Access instructions" className="min-h-20 w-full rounded-md border border-white/10 bg-white/[0.05] p-3 text-sm text-white outline-none" placeholder="Access instructions (optional)" value={submission.accessInstructions} onChange={(event) => setSubmission((value) => ({ ...value, accessInstructions: event.target.value }))} />
               <Input aria-label="Public address" placeholder="Public address (optional)" value={submission.address} onChange={(event) => setSubmission((value) => ({ ...value, address: event.target.value }))} />
               <Input aria-label="Source URL" placeholder="Official source URL (optional)" value={submission.sourceUrl} onChange={(event) => setSubmission((value) => ({ ...value, sourceUrl: event.target.value }))} />
               <Button type="button" variant="secondary" className="w-full border border-primary/25" onClick={pinCurrentLocation}>
@@ -307,7 +326,7 @@ export default function PlacesDrawer({ open, onOpenChange, coordinates, onFilter
                     <span>Distance</span>
                     <select
                       aria-label="Spot distance"
-                      className="h-10 w-full rounded-md border border-white/15 bg-black px-3 text-sm text-white"
+                      className={DROPDOWN_TRIGGER_CLASS}
                       value={draftRadiusMiles}
                       onChange={(event) => setDraftRadiusMiles(Number(event.target.value))}
                     >
@@ -318,12 +337,6 @@ export default function PlacesDrawer({ open, onOpenChange, coordinates, onFilter
                     <legend className="text-sm text-white">Place type</legend>
                     <div className="flex flex-wrap gap-2">
                       {PLACE_FACILITY_TYPES.map((type) => <button key={type} type="button" aria-pressed={draftFacilityTypes.includes(type)} className={`rounded-full border px-3 py-1 text-xs ${draftFacilityTypes.includes(type) ? 'border-primary bg-primary/20 text-white' : 'border-white/10 text-white/65'}`} onClick={() => setDraftFacilityTypes(toggleValue(draftFacilityTypes, type))}>{PLACE_FACILITY_LABELS[type]}</button>)}
-                    </div>
-                  </fieldset>
-                  <fieldset className="space-y-2">
-                    <legend className="text-sm text-white">Community and care</legend>
-                    <div className="flex flex-wrap gap-2">
-                      {FILTERABLE_PLACE_TAGS.map((tag) => <button key={tag} type="button" aria-pressed={draftTags.includes(tag)} className={`rounded-full border px-3 py-1 text-xs ${draftTags.includes(tag) ? 'border-primary bg-primary/20 text-white' : 'border-white/10 text-white/65'}`} onClick={() => setDraftTags(toggleValue(draftTags, tag))}>{PLACE_TAG_LABELS[tag]}</button>)}
                     </div>
                   </fieldset>
                   <fieldset className="space-y-2">
@@ -364,15 +377,17 @@ export default function PlacesDrawer({ open, onOpenChange, coordinates, onFilter
                 ))}
               </div>
               {hasMore || loadingMore ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full"
-                  disabled={loadingMore}
-                  onClick={() => void handleLoadMore()}
-                >
-                  {loadingMore ? 'Loading more spots...' : 'Load more spots'}
-                </Button>
+                <div ref={loadMoreRef}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    disabled={loadingMore}
+                    onClick={() => void handleLoadMore()}
+                  >
+                    {loadingMore ? 'Loading more spots...' : 'Load more spots'}
+                  </Button>
+                </div>
               ) : null}
             </>
           )}
@@ -388,9 +403,26 @@ export default function PlacesDrawer({ open, onOpenChange, coordinates, onFilter
         className="z-[1700] flex h-full max-h-[100dvh] w-full flex-col gap-0 overflow-hidden border-white/10 bg-background/95 p-0 sm:max-w-xl"
         data-testid="places-drawer"
       >
-        <SheetHeader className="shrink-0 border-b border-white/10 py-4 pl-14 pr-5">
-          <SheetTitle className="text-xl text-white">Spots</SheetTitle>
-          <SheetDescription>Public cruising spaces, healthcare clinics, and community spots.</SheetDescription>
+        <SheetHeader className="shrink-0 border-b border-white/10 py-4 pl-14 pr-[4.5rem]">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <SheetTitle className="text-xl text-white">Spots</SheetTitle>
+              <SheetDescription>Public cruising spaces, healthcare clinics, and community spots.</SheetDescription>
+            </div>
+            {/* The drawer covers the map, and its own bug button with it. */}
+            <div className="h-9 w-9 shrink-0" data-testid="places-bug-button-slot" ref={registerBugButtonSlot} />
+          </div>
+          {onSpotsVisibleChange ? (
+            <div className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2">
+              <span className="text-sm text-white">Show Spots on the map</span>
+              <Switch
+                aria-label="Show Spots on the map"
+                checked={spotsVisible}
+                data-testid="places-visible-toggle"
+                onCheckedChange={onSpotsVisibleChange}
+              />
+            </div>
+          ) : null}
         </SheetHeader>
         {drawerBody}
         {!showSubmit ? (

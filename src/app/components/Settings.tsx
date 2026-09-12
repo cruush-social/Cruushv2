@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router';
 import profileNavIcon from '../assets/nav-icons/profile-white.png';
 import { useEffect, useMemo, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react';
-import { Accessibility, ArrowLeft, BookOpen, ChevronRight, Contrast, ExternalLink, Gift, History, KeyRound, LifeBuoy, LogOut, MapPin, MessageCircle, MessageSquareReply, Palette, ShieldAlert, ShieldCheck, Trash2, Type, UserX, X, type LucideIcon, Download,
+import { Accessibility, ArrowLeft, BookOpen, ChevronRight, Contrast, ExternalLink, Gift, History, KeyRound, LifeBuoy, LogOut, Mail, MapPin, MessageCircle, MessageSquareReply, Palette, ShieldAlert, ShieldCheck, Trash2, Type, UserX, Vibrate, X, type LucideIcon, Download,
 } from 'lucide-react';
 import { Button } from './ui/button';
 import CruushPlusWord from './CruushPlusWord';
@@ -25,11 +25,14 @@ import {
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Switch } from './ui/switch';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
 import { CruushIcon, type CruushIconName, type CruushIconVariant } from './CruushIconImage';
 import DlModeMark from './DlModeMark';
 import PublicPolicyLinks from './PublicPolicyLinks';
-import { changePassword, deleteAccount, sendVerificationEmail, signOut } from '../lib/authApi';
+import { changeEmail, changePassword, deleteAccount, getAuthSession, sendVerificationEmail, signOut } from '../lib/authApi';
+import { canTestOnboarding } from '../lib/adminOnboarding';
 import SupportRequestForm from './SupportRequestForm';
+import BugButtonSlot from './BugButtonSlot';
 import {
   clearCurrentUser,
   getStoredCurrentUser,
@@ -40,9 +43,11 @@ import cruushLogo from '../assets/brand/cruush-logo.svg';
 import cruushHeartIcon from '../assets/ui-icons/cruush-white.png';
 import {
   addAccessibilityPreferencesChangedListener,
+  COLOR_VISION_MODES,
   getAccessibilityPreferences,
   saveAccessibilityPreferences,
   type AccessibilityPreferences,
+  type ColorVisionMode,
 } from '../lib/accessibilityPreferences';
 import mileHighClubWhite from '../assets/ui-icons/mile-high-club-white.svg';
 import {
@@ -71,7 +76,26 @@ type SettingsToggleItem = {
   onCheckedChange: (checked: boolean) => void;
 };
 
-type SettingsItem = SettingsActionItem | SettingsToggleItem;
+type SettingsChoiceItem = {
+  icon: LucideIcon;
+  label: string;
+  onValueChange: (value: string) => void;
+  options: Array<{ label: string; value: string }>;
+  value: string;
+};
+
+type SettingsItem = SettingsActionItem | SettingsToggleItem | SettingsChoiceItem;
+
+const COLOR_VISION_LABELS: Record<ColorVisionMode, string> = {
+  off: 'Off',
+  deuteranomaly: 'Deuteranomaly',
+  deuteranopia: 'Deuteranopia',
+  protanomaly: 'Protanomaly',
+  protanopia: 'Protanopia',
+  tritanomaly: 'Tritanomaly',
+  tritanopia: 'Tritanopia',
+  monochromacy: 'Monochromacy',
+};
 
 const editProfileIconStyle: CSSProperties = {
   background: 'var(--cruush-gradient)',
@@ -105,6 +129,12 @@ export default function Settings({ embedded = false, onBack, onClose, onOpenMile
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [passwordNotice, setPasswordNotice] = useState<string | null>(null);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [isEmailDialogOpen, setIsEmailDialogOpen] = useState(false);
+  const [emailPassword, setEmailPassword] = useState('');
+  const [newEmail, setNewEmail] = useState('');
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [emailNotice, setEmailNotice] = useState<string | null>(null);
+  const [isChangingEmail, setIsChangingEmail] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [deletePassword, setDeletePassword] = useState('');
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
@@ -116,6 +146,16 @@ export default function Settings({ embedded = false, onBack, onClose, onOpenMile
   const [desktopPageLayout, setDesktopPageLayout] = useState(getDesktopPageLayout);
   const isEmailVerified = Boolean(storedUser?.email_verified_at);
   const moderatorRole = storedUser?.moderator_role ?? null;
+  const [onboardingTestEnabled, setOnboardingTestEnabled] = useState(false);
+
+  useEffect(() => {
+    if (moderatorRole !== 'admin') return;
+    let cancelled = false;
+    void getAuthSession().then(session => {
+      if (!cancelled) setOnboardingTestEnabled(canTestOnboarding(session.user));
+    }).catch(() => { if (!cancelled) setOnboardingTestEnabled(false); });
+    return () => { cancelled = true; };
+  }, [moderatorRole]);
 
   useEffect(() => addAccessibilityPreferencesChangedListener(setAccessibilityPreferences), []);
   useEffect(() => addDesktopPageLayoutChangedListener(setDesktopPageLayout), []);
@@ -126,12 +166,22 @@ export default function Settings({ embedded = false, onBack, onClose, onOpenMile
   };
 
   const updateAccessibilityPreference = (
-    preference: keyof AccessibilityPreferences,
+    preference: Exclude<keyof AccessibilityPreferences, 'colorVisionMode'>,
     checked: boolean,
   ) => {
     const nextPreferences = {
       ...accessibilityPreferences,
       [preference]: checked,
+    };
+    setAccessibilityPreferences(nextPreferences);
+    saveAccessibilityPreferences(nextPreferences);
+  };
+
+  const updateColorVisionMode = (colorVisionMode: ColorVisionMode) => {
+    const nextPreferences = {
+      ...accessibilityPreferences,
+      colorBlindMode: colorVisionMode !== 'off',
+      colorVisionMode,
     };
     setAccessibilityPreferences(nextPreferences);
     saveAccessibilityPreferences(nextPreferences);
@@ -143,6 +193,30 @@ export default function Settings({ embedded = false, onBack, onClose, onOpenMile
     setConfirmNewPassword('');
     setPasswordError(null);
     setPasswordNotice(null);
+  };
+
+  const resetEmailDialog = () => {
+    setEmailPassword('');
+    setNewEmail('');
+    setEmailError(null);
+    setEmailNotice(null);
+  };
+
+  const handleChangeEmail = async (event: FormEvent) => {
+    event.preventDefault();
+    setEmailError(null);
+    setEmailNotice(null);
+    setIsChangingEmail(true);
+
+    try {
+      const result = await changeEmail({ currentPassword: emailPassword, newEmail });
+      setEmailPassword('');
+      setEmailNotice(`Confirm the link sent to ${result.pendingEmail}. Your address changes when you open it.`);
+    } catch (error) {
+      setEmailError(error instanceof Error ? error.message : 'Failed to change email.');
+    } finally {
+      setIsChangingEmail(false);
+    }
   };
 
   const resetDeleteDialog = () => {
@@ -222,7 +296,11 @@ export default function Settings({ embedded = false, onBack, onClose, onOpenMile
         label: 'Bug reports',
         description: 'Read and reply to support and bug reports.',
         action: () => navigate('/requests'),
-      }],
+      }, ...(onboardingTestEnabled ? [{
+        icon: History,
+        label: 'Test onboarding',
+        action: () => navigate('/settings/onboarding-test'),
+      }] : [])],
     }] : []),
     {
       title: 'Account',
@@ -234,6 +312,7 @@ export default function Settings({ embedded = false, onBack, onClose, onOpenMile
           description: 'Streaks, referrals, and promotional access.',
           action: () => navigate('/rewards'),
         },
+        { icon: Mail, label: 'Change email', action: () => setIsEmailDialogOpen(true) },
         { icon: KeyRound, label: 'Change password', action: () => setIsPasswordDialogOpen(true) },
         {
           icon: ShieldCheck,
@@ -311,9 +390,10 @@ export default function Settings({ embedded = false, onBack, onClose, onOpenMile
       items: [
         {
           icon: Palette,
-          label: 'Color-blind mode',
-          checked: accessibilityPreferences.colorBlindMode === true,
-          onCheckedChange: (checked: boolean) => updateAccessibilityPreference('colorBlindMode', checked),
+          label: 'Color vision',
+          value: accessibilityPreferences.colorVisionMode,
+          options: COLOR_VISION_MODES.map((value) => ({ value, label: COLOR_VISION_LABELS[value] })),
+          onValueChange: (value: string) => updateColorVisionMode(value as ColorVisionMode),
         },
         {
           icon: Accessibility,
@@ -332,6 +412,12 @@ export default function Settings({ embedded = false, onBack, onClose, onOpenMile
           label: 'Increase contrast',
           checked: accessibilityPreferences.highContrast,
           onCheckedChange: (checked: boolean) => updateAccessibilityPreference('highContrast', checked),
+        },
+        {
+          icon: Vibrate,
+          label: 'Haptic feedback',
+          checked: accessibilityPreferences.hapticFeedback,
+          onCheckedChange: (checked: boolean) => updateAccessibilityPreference('hapticFeedback', checked),
         },
       ],
     },
@@ -363,6 +449,7 @@ export default function Settings({ embedded = false, onBack, onClose, onOpenMile
           <ArrowLeft className="w-5 h-5" />
         </Button>
         <h2 className="flex-1 text-xl">Settings</h2>
+        <BugButtonSlot testId="settings-bug-button-slot" />
         {embedded && onClose ? (
           <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close Settings">
             <X className="h-5 w-5" />
@@ -508,6 +595,41 @@ export default function Settings({ embedded = false, onBack, onClose, onOpenMile
             <div className="bg-card rounded-2xl border border-border overflow-hidden">
               {section.items.map((item, index) => {
                 const dividerClass = index !== section.items.length - 1 ? 'border-b border-border' : '';
+
+                if ('options' in item) {
+                  const Icon = item.icon;
+                  const inputId = `accessibility-${item.label.toLowerCase().replace(/\s+/g, '-')}`;
+
+                  return (
+                    <Accordion key={`${section.title}-${item.label}`} type="single" collapsible className={dividerClass}>
+                      <AccordionItem value={inputId} className="border-0">
+                        <AccordionTrigger className="min-h-14 px-4 py-3 hover:no-underline">
+                          <span className="flex min-w-0 flex-1 items-center gap-3 text-left">
+                            <Icon className="h-5 w-5 shrink-0 text-muted-foreground" />
+                            <span className="min-w-0 flex-1">{item.label}</span>
+                            <span className="truncate text-sm text-muted-foreground">{item.options.find((option) => option.value === item.value)?.label ?? item.value}</span>
+                          </span>
+                        </AccordionTrigger>
+                        <AccordionContent className="px-4 pb-4 pt-0">
+                          <div aria-label={item.label} className="grid grid-cols-2 gap-2" role="radiogroup">
+                            {item.options.map((option) => (
+                              <button
+                                aria-checked={item.value === option.value}
+                                className={`min-h-10 rounded-full border px-3 py-2 text-sm ${item.value === option.value ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-background text-foreground'}`}
+                                key={option.value}
+                                onClick={() => item.onValueChange(option.value)}
+                                role="radio"
+                                type="button"
+                              >
+                                {option.label}
+                              </button>
+                            ))}
+                          </div>
+                        </AccordionContent>
+                      </AccordionItem>
+                    </Accordion>
+                  );
+                }
 
                 if ('checked' in item) {
                   const Icon = item.icon;
@@ -666,7 +788,7 @@ export default function Settings({ embedded = false, onBack, onClose, onOpenMile
           <div className="space-y-1 text-center">
             <img
               alt="cruush"
-              className="mx-auto h-16 w-16 object-contain"
+              className="cruush-brand-logo mx-auto h-16 w-16 object-contain"
               draggable={false}
               src={cruushLogo}
             />
@@ -750,6 +872,69 @@ export default function Settings({ embedded = false, onBack, onClose, onOpenMile
             <DialogFooter>
               <Button disabled={isChangingPassword} type="submit">
                 {isChangingPassword ? 'Saving...' : 'Save password'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={isEmailDialogOpen}
+        onOpenChange={(open) => {
+          setIsEmailDialogOpen(open);
+          if (!open) {
+            resetEmailDialog();
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Change email</DialogTitle>
+            <DialogDescription>Your address changes only after you confirm the link sent to the new one.</DialogDescription>
+          </DialogHeader>
+
+          <form className="space-y-4" onSubmit={handleChangeEmail}>
+            {emailError ? (
+              <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+                {emailError}
+              </div>
+            ) : null}
+
+            {emailNotice ? (
+              <div className="rounded-md border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-300">
+                {emailNotice}
+              </div>
+            ) : null}
+
+            <div className="space-y-2">
+              <Label htmlFor="settings-new-email">New email</Label>
+              <Input
+                autoComplete="email"
+                disabled={isChangingEmail}
+                id="settings-new-email"
+                onChange={(event) => setNewEmail(event.target.value)}
+                required
+                type="email"
+                value={newEmail}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="settings-email-password">Current password</Label>
+              <Input
+                autoComplete="current-password"
+                disabled={isChangingEmail}
+                id="settings-email-password"
+                onChange={(event) => setEmailPassword(event.target.value)}
+                required
+                type="password"
+                value={emailPassword}
+              />
+            </div>
+
+            <DialogFooter>
+              <Button disabled={isChangingEmail} type="submit">
+                {isChangingEmail ? 'Sending...' : 'Send confirmation'}
               </Button>
             </DialogFooter>
           </form>

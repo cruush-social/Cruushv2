@@ -1,6 +1,7 @@
 import { requestApi } from './apiClient';
 import { ApiClientError, getApiBaseUrl } from './apiClient';
 import type { SideBadges } from './profileApi';
+import type { MapPingStatus } from './mapPingsApi';
 
 export type ConversationTimer = 'off' | '1h' | '24h' | '7d' | '30d';
 
@@ -15,6 +16,7 @@ export type ConversationThread = {
     photoExplicit?: boolean;
     sideBadges?: SideBadges;
     travelling?: boolean;
+    vibes?: string[];
   };
   distance: string;
   updatedAt: string;
@@ -37,6 +39,7 @@ export type ChatMessageRecord = {
   author: 'self' | 'other' | 'system';
   content: string;
   timestamp: string;
+  readAt?: string;
   expiresAt?: string;
   attachments?: MessageAttachment[];
   user?: MessageSender;
@@ -55,6 +58,7 @@ export type RemoteChatMessage = {
   userId: string;
   content: string;
   timestamp: string;
+  readAt?: string;
   expiresAt?: string;
   attachments?: MessageAttachment[];
   user?: MessageSender;
@@ -102,6 +106,23 @@ export type ConversationMessagesPayload = {
   conversation: ConversationThread;
   messages: RemoteChatMessage[];
 };
+
+export type InAppShare = {
+  kind: 'place' | 'profile';
+  id: string;
+  label: string;
+};
+
+const IN_APP_SHARE_PATTERN = /^\[\[cruush:(place|profile):([0-9a-f-]{36})\]\]\s+(.+)$/i;
+
+export function createInAppShareMessage(share: InAppShare) {
+  return `[[cruush:${share.kind}:${share.id}]] ${share.label.trim()}`;
+}
+
+export function parseInAppShareMessage(content: string): InAppShare | null {
+  const match = content.match(IN_APP_SHARE_PATTERN);
+  return match ? { kind: match[1].toLowerCase() as InAppShare['kind'], id: match[2], label: match[3].trim() } : null;
+}
 
 export function getConversations() {
   return requestApi<ConversationThread[]>('/api/conversations');
@@ -170,6 +191,16 @@ export function demoteGroupAdmin(conversationId: string, userId: string) {
 export function closeGroupConversation(conversationId: string) {
   return requestApi<void>(`/api/conversations/groups/${conversationId}/close`, {
     method: 'POST',
+  });
+}
+
+export function sendGroupPulse(
+  conversationId: string,
+  idempotencyKey = crypto.randomUUID(),
+) {
+  return requestApi<MapPingStatus>(`/api/conversations/groups/${conversationId}/pulse`, {
+    method: 'POST',
+    body: JSON.stringify({ idempotencyKey }),
   });
 }
 

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { multilineTextSchema, uuidSchema } from "./input-schema.js";
 
-export const conversationTimerSchema = z.enum(["off", "1h", "24h", "7d", "30d"]);
+export const conversationTimerSchema = z.enum(["off", "5m", "1h", "8h", "24h", "3d", "7d", "30d", "90d"]);
 export const MAX_GROUP_CONVERSATION_MEMBERS = 500;
 
 const booleanishSchema = z.preprocess((value) => {

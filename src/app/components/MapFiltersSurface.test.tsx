@@ -20,6 +20,7 @@ function SeekingHarness({ hasCruushPlus = false, onUpgrade = vi.fn() }: { hasCru
       />
       <output data-testid="applied-identities">{applied?.identities.join(',') ?? ''}</output>
       <output data-testid="applied-mile-high-club">{String(applied?.mileHighClub ?? false)}</output>
+      <output data-testid="applied-zodiac">{applied?.zodiac.join(',') ?? ''}</output>
     </>
   );
 }
@@ -63,6 +64,15 @@ describe('MapFiltersSurface', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
 
     expect(screen.getByTestId('applied-mile-high-club')).toHaveTextContent('true');
+  });
+
+  it('applies the Zodiac profile filter', () => {
+    render(<SeekingHarness />);
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'Zodiac' }), { target: { value: 'Leo' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+
+    expect(screen.getByTestId('applied-zodiac')).toHaveTextContent('Leo');
   });
 
   it('keeps a portalled Seeking option inside the modal touch boundary and applies it', () => {

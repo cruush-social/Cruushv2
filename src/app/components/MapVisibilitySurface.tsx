@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { Search } from 'lucide-react';
 import { Button } from './ui/button';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
 import { Label } from './ui/label';
 import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle } from './ui/sheet';
 import { Slider } from './ui/slider';
 import { Switch } from './ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import MultiSelect, { type MultiSelectOptionGroup } from './MultiSelect';
+import SingleSelect from './SingleSelect';
 import {
   AVAILABILITY,
   BODY_TYPES,
@@ -17,11 +19,14 @@ import {
   KINK_GROUPS,
   LOOKING_FOR,
   POSITIONS,
+  PREFERRED_SPOTS,
   PRESENTATIONS,
+  PROTECTION_BOUNDARIES,
   ROLES,
   SEXUALITY,
   SUBSTANCE_BOUNDARIES,
-  VIBE_GROUPS,
+  VISIBILITY_VIBE_GROUPS,
+  ZODIAC,
 } from '../lib/profileOptions';
 import { DEFAULT_FILTER_STATE, type FilterState } from './MapFiltersSurface';
 import CruushPlusGateNotice from './CruushPlusGateNotice';
@@ -56,13 +61,14 @@ interface MapVisibilitySurfaceProps {
   onUpgrade?: () => void;
 }
 
-type VisibilityListKey = Exclude<keyof VisibilityControlState, 'searchQuery' | 'ageRange' | 'distance' | 'mileHighClub' | 'activeCrowdModes' | 'restrictAge' | 'restrictDistance'>;
+type VisibilityListKey = Exclude<keyof VisibilityControlState, 'searchQuery' | 'ageRange' | 'distance' | 'hasPhoto' | 'mileHighClub' | 'activeCrowdModes' | 'restrictAge' | 'restrictDistance'>;
 const VISIBILITY_LIST_KEYS: VisibilityListKey[] = [
   'identities',
   'presentations',
   'lookingFor',
   'timing',
   'hosting',
+  'preferredSpots',
   'vibes',
   'crowds',
   'hobbies',
@@ -71,7 +77,9 @@ const VISIBILITY_LIST_KEYS: VisibilityListKey[] = [
   'kinks',
   'bodyTypes',
   'sexuality',
+  'zodiac',
   'substanceBoundaries',
+  'protectionBoundaries',
 ];
 
 function updateList(value: VisibilityControlState, key: VisibilityListKey, items: string[]): VisibilityControlState {
@@ -100,6 +108,8 @@ function FieldGroup({
   limitReached,
   onLimitReached,
   onChange,
+  selectionMode = 'multiple',
+  searchable = false,
 }: {
   label: string;
   options?: string[];
@@ -109,22 +119,25 @@ function FieldGroup({
   limitReached: boolean;
   onLimitReached: () => void;
   onChange: (value: VisibilityControlState) => void;
+  selectionMode?: 'multiple' | 'single';
+  searchable?: boolean;
 }) {
   const fieldHasSelections = value[stateKey].length > 0;
 
   return (
     <div className="space-y-2">
       <Label>{label}</Label>
-      <MultiSelect
+      {selectionMode === 'single' ? <SingleSelect ariaLabel={label} options={options ?? []} value={value[stateKey][0]} onChange={(item) => onChange(updateList(value, stateKey, item ? [item] : []))} /> : <MultiSelect
         ariaLabel={label}
         menuPortal
+        searchable={searchable}
         options={options}
         optionGroups={optionGroups}
         value={value[stateKey]}
         disableAddingOptions={limitReached && !fieldHasSelections}
         onAddingDisabled={onLimitReached}
         onChange={(items) => onChange(updateList(value, stateKey, items))}
-      />
+      />}
     </div>
   );
 }
@@ -186,7 +199,7 @@ export default function MapVisibilitySurface({
         overlayClassName="z-[1090]"
         className="z-[1100] w-full flex h-full max-h-[100dvh] flex-col gap-0 overflow-hidden border-white/10 bg-background/95 p-0 sm:max-w-xl"
       >
-        <SheetHeader className="shrink-0 border-b border-white/10 py-4 pl-14 pr-5">
+        <SheetHeader className="shrink-0 border-b border-white/10 py-4 pl-14 pr-[4.5rem]">
           <SheetTitle>Visibility Controls</SheetTitle>
         </SheetHeader>
 
@@ -274,13 +287,22 @@ export default function MapVisibilitySurface({
           </div>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid h-auto w-full grid-cols-3 rounded-full border border-white/10 bg-background/25 p-1">
+            <TabsList className="grid h-auto w-full grid-cols-3 rounded-full border border-white/10 bg-background/92 p-1 backdrop-blur-md">
               <TabsTrigger value="basics" className="min-h-11" onClick={() => setActiveTab('basics')}>Basics</TabsTrigger>
               <TabsTrigger value="intimacy" className="min-h-11" onClick={() => setActiveTab('intimacy')}>Intimacy</TabsTrigger>
               <TabsTrigger value="health" className="min-h-11" onClick={() => setActiveTab('health')}>Health</TabsTrigger>
             </TabsList>
 
             <TabsContent value="basics" className="mt-6 space-y-6">
+              <div className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-white/[0.035] p-4">
+                <Label htmlFor="visibility-has-photo">Hide me from people with no profile picture</Label>
+                <Switch
+                  id="visibility-has-photo"
+                  checked={value.hasPhoto}
+                  onCheckedChange={(hasPhoto) => handleLimitedChange({ ...value, hasPhoto })}
+                />
+              </div>
+
               <div className="space-y-4">
                 <div className="flex items-center justify-between gap-4">
                   <Label htmlFor="visibility-distance">Distance</Label>
@@ -335,7 +357,8 @@ export default function MapVisibilitySurface({
               </p>
               <FieldGroup label="Body Type" options={BODY_TYPES} stateKey="bodyTypes" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} />
               <FieldGroup label="Sexuality" options={SEXUALITY} stateKey="sexuality" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} />
-              <FieldGroup label="Vibes" optionGroups={VIBE_GROUPS} stateKey="vibes" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} />
+              <FieldGroup label="Zodiac" options={ZODIAC} stateKey="zodiac" selectionMode="single" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} />
+              <FieldGroup searchable label="Vibes" optionGroups={VISIBILITY_VIBE_GROUPS} stateKey="vibes" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} />
               <FieldGroup label="Hobbies" options={HOBBIES} stateKey="hobbies" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} />
             </TabsContent>
 
@@ -343,7 +366,6 @@ export default function MapVisibilitySurface({
               <div className="flex items-start justify-between gap-4 rounded-2xl border border-white/10 bg-white/[0.035] p-4">
                 <div className="space-y-0.5">
                   <Label htmlFor="visibility-mile-high-club">Hide me from Mile High Club members</Label>
-                  <p className="text-xs text-muted-foreground">Hide me from members currently using Mile High Club.</p>
                 </div>
                 <Switch
                   id="visibility-mile-high-club"
@@ -354,9 +376,10 @@ export default function MapVisibilitySurface({
               <FieldGroup label="Looking For" options={LOOKING_FOR} stateKey="lookingFor" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} />
               <FieldGroup label="Timing" options={AVAILABILITY} stateKey="timing" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} />
               <FieldGroup label="Hosting/Travel" options={HOSTING} stateKey="hosting" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} />
+              <FieldGroup label="Preferred spots" options={PREFERRED_SPOTS} stateKey="preferredSpots" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} />
               <FieldGroup label="Position" options={POSITIONS} stateKey="positions" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} />
               <FieldGroup label="Role" options={ROLES} stateKey="roles" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} />
-              <FieldGroup label="Kinks & Fetishes" optionGroups={KINK_GROUPS} stateKey="kinks" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} />
+              <FieldGroup searchable label="Kinks & Fetishes" optionGroups={KINK_GROUPS} stateKey="kinks" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} />
             </TabsContent>
 
             <TabsContent value="health" className="mt-6 space-y-6">
@@ -364,6 +387,15 @@ export default function MapVisibilitySurface({
                 label="Substance Boundaries"
                 options={SUBSTANCE_BOUNDARIES}
                 stateKey="substanceBoundaries"
+                value={value}
+                limitReached={freeLimitReached}
+                onLimitReached={showLimitNotice}
+                onChange={handleLimitedChange}
+              />
+              <FieldGroup
+                label="Protection boundaries"
+                options={PROTECTION_BOUNDARIES}
+                stateKey="protectionBoundaries"
                 value={value}
                 limitReached={freeLimitReached}
                 onLimitReached={showLimitNotice}

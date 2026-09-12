@@ -13,6 +13,7 @@ import MapView, {
   MIN_DISCOVERY_ZOOM,
   MapMarkerPin,
   PULSE_EKG_PIN_PATH,
+  applyPlaceMarkerClusters,
   createCruushVectorStyle,
   createMapMarkerBadge,
   getMapStyle,
@@ -26,6 +27,7 @@ import {
   createMapOutsideRadiusMask,
 } from '../lib/mapServiceArea';
 import { DARK_ROOM_EYE_PATH, DARK_ROOM_KEYHOLE_PATH } from './DarkRoomMark';
+import type { MapMarker } from '../lib/mapMarkers';
 
 const { MockMap, MockMarker, mapInstances, markerInstances } = vi.hoisted(() => {
   const mapInstances: MockMapInstance[] = [];
@@ -211,13 +213,15 @@ describe('MapView', () => {
     mapInstances[0].trigger('click');
     expect(onMapClick).toHaveBeenCalledTimes(1);
 
+    act(() => { mapInstances[0].getZoom.mockReturnValue(16); mapInstances[0].trigger('zoomend'); });
     fireEvent.click(await screen.findByRole('button', { name: 'Open Jordan on map' }));
     expect(onPinClick).toHaveBeenCalledWith(expect.objectContaining({ id: 'user-1' }));
     expect(markerInstances[1].element).toHaveAttribute('data-map-marker-pin', 'true');
     mapInstances[0].trigger('click', { originalEvent: { target: markerInstances[1].element } });
     expect(onMapClick).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole('button', { name: 'Open You on map' })).not.toBeInTheDocument();
-    expect(screen.getByLabelText('Your approximate area')).toBeInTheDocument();
+    // Your own pin opens your own details, never another person's profile.
+    expect(screen.getByRole('button', { name: 'Show your pin details' })).toBeInTheDocument();
     expect(screen.queryByText('YOU')).not.toBeInTheDocument();
     expect(screen.queryByText('Now')).not.toBeInTheDocument();
     expect(screen.queryByText('2m ago')).not.toBeInTheDocument();
@@ -263,16 +267,13 @@ describe('MapView', () => {
     expect(screen.getByTestId('marker-heart-user-1').querySelector('filter')).toBeNull();
   });
 
-  it('builds the optional heatmap only from coarse seven-day cohorts', async () => {
+  it('never adds a people heatmap source or layer', async () => {
     const markers = [
       { id: 'recent-1', displayName: 'Recent 1', approximateLatitude: 40.711, approximateLongitude: -74.011, lastActiveLabel: 'Now' },
       { id: 'recent-2', displayName: 'Recent 2', approximateLatitude: 40.712, approximateLongitude: -74.012, lastActiveLabel: '4h ago' },
       { id: 'recent-3', displayName: 'Recent 3', approximateLatitude: 40.713, approximateLongitude: -74.013, lastActiveLabel: '7d ago' },
-      { id: 'stale', displayName: 'Stale', approximateLatitude: 40.714, approximateLongitude: -74.014, lastActiveLabel: '8d ago' },
-      { id: 'self', displayName: 'You', approximateLatitude: 40.715, approximateLongitude: -74.015, lastActiveLabel: 'Now', isCurrentUser: true },
-      { id: 'demo', displayName: 'Demo', approximateLatitude: 40.716, approximateLongitude: -74.016, lastActiveLabel: 'Now', npcGhostDemo: true },
     ];
-    const { rerender } = render(
+    render(
       <MapView
         markers={markers}
         onPinClick={vi.fn()}
@@ -284,33 +285,6 @@ describe('MapView', () => {
 
     expect(mapInstances[0].getSource('cruush-user-heatmap')).toBeUndefined();
     expect(mapInstances[0].getLayer('cruush-user-heatmap-layer')).toBeUndefined();
-
-    rerender(
-      <MapView
-        markers={markers}
-        onPinClick={vi.fn()}
-        peopleHeatmapEnabled
-      />
-    );
-
-    await waitFor(() => expect(mapInstances[0].getSource('cruush-user-heatmap')).toBeDefined());
-    const source = mapInstances[0].getSource('cruush-user-heatmap');
-    expect(source.data.features).toHaveLength(1);
-    expect(source.data.features[0]).toMatchObject({
-      properties: {
-        samples: 3,
-        weight: 0.25,
-      },
-      geometry: {
-        type: 'Point',
-      },
-    });
-    expect(source.data.features[0].geometry.coordinates).not.toEqual([-74.011, 40.711]);
-    expect(mapInstances[0].getLayer('cruush-user-heatmap-layer')).toEqual(expect.objectContaining({
-      type: 'heatmap',
-      source: 'cruush-user-heatmap',
-      maxzoom: 16.75,
-    }));
   });
 
   it('uses the Dark Room palette and shows the owner photo through the keyhole', () => {
@@ -440,7 +414,12 @@ describe('MapView', () => {
     expect(screen.getByTestId('marker-role-badge-traveller').querySelector('svg')).toHaveAttribute('stroke', '#77B9DA');
     expect(screen.getByTestId('marker-position-badge-traveller').querySelector('svg')).toHaveAttribute('stroke', '#77B9DA');
     expect(screen.getByTestId('marker-signal-badge-traveller').getAttribute('style')).toContain('#77B9DA');
-    expect(screen.getByTestId('marker-heart-traveller').querySelector('[data-testid="marker-ghost-border-traveller"]')).toHaveAttribute('stroke-opacity', '0');
+    // The heart border stays visible while MHC is active and resolves to the same
+    // sky tone as the badge borders.
+    const travellerHeartBorder = screen.getByTestId('marker-heart-traveller')
+      .querySelector('[data-testid="marker-ghost-border-traveller"]');
+    expect(travellerHeartBorder).toHaveAttribute('stroke-opacity', '1');
+    expect(travellerHeartBorder).toHaveAttribute('stroke', '#77B9DA');
   });
 
   it('masks map pixels outside the circular service area without decorating the inside', async () => {
@@ -792,6 +771,19 @@ describe('MapView', () => {
     }));
   });
 
+  it('connects both Ghost badge frames to the heart flash color without changing their base color', () => {
+    render(<MapMarkerPin marker={{
+      id: 'ghost-badges', displayName: 'River', displayMode: 'GHOST',
+      approximateLatitude: 40.72, approximateLongitude: -74.01,
+      roleBadge: { kind: 'role', iconName: 'switch', label: 'Switch' },
+      badge: createMapMarkerBadge(['Versatile']),
+    }} />);
+    for (const side of ['role', 'position']) {
+      expect(screen.getByTestId(`marker-${side}-badge-ghost-badges`).querySelector('svg[stroke]'))
+        .toHaveAttribute('stroke', 'var(--cruush-ghost-flash-border-color, #FF0072)');
+    }
+  });
+
   it('keeps Ghost markers static without changing the normal no-photo heart treatment', async () => {
     render(
       <MapView
@@ -822,7 +814,46 @@ describe('MapView', () => {
     expect(marker.querySelector('path[style*="transform"]')).toBeNull();
   });
 
-  it('does not replay an active Ghost rotation window when the pin mounts', () => {
+  it('shows the ghost mark on the owner decoy and on nobody else', async () => {
+    const { unmount } = render(
+      <MapView
+        markers={[{
+          id: 'ghost-other',
+          displayName: 'River',
+          approximateLatitude: 40.72,
+          approximateLongitude: -74.01,
+          displayMode: 'GHOST',
+        }]}
+      />,
+    );
+
+    // Outside the last-minute rotation animation, a ghosted profile must look
+    // like any other profile to everyone but its owner.
+    await screen.findByTestId('marker-heart-ghost-other');
+    expect(screen.queryByTestId('marker-ghost-decoy-mark-ghost-other')).not.toBeInTheDocument();
+    unmount();
+
+    render(
+      <MapView
+        markers={[{
+          id: 'ghost-owner',
+          displayName: 'Me',
+          approximateLatitude: 40.72,
+          approximateLongitude: -74.01,
+          displayMode: 'GHOST',
+          isCurrentUser: true,
+        }]}
+      />,
+    );
+
+    await screen.findByTestId('marker-heart-ghost-owner');
+    // The decoy is the Pepper's ghost from the rotation animation: the
+    // apparition behind the electric-blue border, with no mark drawn over it.
+    expect(screen.queryByTestId('marker-ghost-decoy-mark-ghost-owner')).not.toBeInTheDocument();
+    expect(screen.getByTestId('marker-ghost-border-ghost-owner')).toHaveAttribute('stroke', '#0BA8FF');
+  });
+
+  it('uses the approved deadline-driven Ghost animation when a pin mounts inside the last minute', () => {
     render(
       <MapMarkerPin
         marker={{
@@ -837,9 +868,29 @@ describe('MapView', () => {
       />,
     );
 
-    expect(screen.queryByTestId('marker-ghost-pulse-ghost-load-window')).not.toBeInTheDocument();
+    expect(screen.getByTestId('marker-ghost-pulse-ghost-load-window')).toBeInTheDocument();
     expect(screen.queryByTestId('marker-ghost-fly-icon-ghost-load-window')).not.toBeInTheDocument();
     expect(screen.queryByTestId('marker-ghost-puff-ghost-load-window')).not.toBeInTheDocument();
+  });
+
+  it('animates a Ghost pin that first appears within the first refetch of its last minute', () => {
+    // Other viewers only receive the deadline once the last minute has begun,
+    // and that remounts the pin a few seconds in. That copy must still animate.
+    render(
+      <MapMarkerPin
+        marker={{
+          id: 'ghost-fresh-window',
+          displayName: 'River',
+          approximateLatitude: 40.72,
+          approximateLongitude: -74.01,
+          displayMode: 'GHOST',
+          animationHint: 'FADE_LAST_MINUTE',
+          ghostRotationExpiresAtMs: Date.now() + 52_000,
+        }}
+      />,
+    );
+
+    expect(screen.getByTestId('marker-ghost-pulse-ghost-fresh-window')).toBeInTheDocument();
   });
 
   it('still animates a Ghost rotation window entered after the pin mounts', () => {
@@ -900,8 +951,25 @@ describe('MapView', () => {
     expect(pulse).toHaveAttribute('data-ghost-rotation-exit', 'true');
     expect(plane.outerHTML).toBe(initialPlane);
     await act(async () => { await vi.advanceTimersByTimeAsync(2_000); });
-    expect(screen.queryByTestId('marker-ghost-fly-icon-owner-mhc-rotation')).not.toBeInTheDocument();
+    expect(pulse).toHaveAttribute('data-ghost-rotation-exit', 'true');
     expect(pulse.style.transform).toBe('');
+  });
+
+  it('does not reveal an expired other-member decoy while its replacement is loading', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-09-09T06:00:00Z'));
+    vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() })));
+    const marker = {
+      id: 'ghost-replacement', displayName: 'River', displayMode: 'GHOST' as const,
+      animationHint: 'FADE_LAST_MINUTE' as const,
+      approximateLatitude: 40.72, approximateLongitude: -74.01,
+      ghostRotationExpiresAtMs: Date.now() + 5_000,
+    };
+    const { rerender } = render(<MapMarkerPin marker={marker} />);
+    await act(async () => { await vi.advanceTimersByTimeAsync(5_500); });
+    expect(screen.getByTestId('marker-ghost-pulse-ghost-replacement')).toHaveAttribute('data-ghost-rotation-exit', 'true');
+    rerender(<MapMarkerPin marker={{ ...marker, approximateLatitude: 40.73, ghostRotationExpiresAtMs: Date.now() + 900_000 }} />);
+    expect(screen.getByTestId('marker-ghost-pulse-ghost-replacement')).toHaveAttribute('data-ghost-rotation-exit', 'false');
   });
 
   it('draws the owner Ghost Mode radius around true location and a leash to the decoy', async () => {
@@ -1025,6 +1093,8 @@ describe('MapView', () => {
       />
     );
 
+    await waitFor(() => expect(mapInstances).toHaveLength(1));
+    act(() => { mapInstances[0].getZoom.mockReturnValue(16); mapInstances[0].trigger('zoomend'); });
     expect(await screen.findByTestId('marker-photo-fill-me')).toHaveAttribute('href', 'https://example.com/me.jpg');
     expect(screen.getByTestId('marker-heart-me')).toHaveAttribute('data-has-photo', 'true');
     expect(screen.getByTestId('marker-heart-me')).toHaveAttribute('data-marker-theme', 'current');
@@ -1036,6 +1106,31 @@ describe('MapView', () => {
     expect(screen.queryByLabelText('versatile')).not.toBeInTheDocument();
     expect(screen.getByLabelText('position: versatile')).toBeInTheDocument();
     expect(screen.queryByText('12m ago')).not.toBeInTheDocument();
+  });
+
+  it('keeps another expired Ghost pin hidden until its fresh position arrives without hiding the owner', () => {
+    vi.useFakeTimers();
+    const deadline = Date.now() + 1_000;
+    const marker = { id: 'other-ghost', displayName: 'River', displayMode: 'GHOST' as const, approximateLatitude: 40.72, approximateLongitude: -74.01, ghostRotationExpiresAtMs: deadline };
+    const { rerender } = render(<MapMarkerPin marker={marker} />);
+    act(() => vi.advanceTimersByTime(1_000));
+    expect(screen.getByTestId('marker-pin-unit-other-ghost')).toHaveStyle({ visibility: 'hidden' });
+    rerender(<MapMarkerPin marker={{ ...marker, approximateLatitude: 40.725, ghostRotationExpiresAtMs: deadline + 60_000 }} />);
+    expect(screen.getByTestId('marker-pin-unit-other-ghost')).not.toHaveStyle({ visibility: 'hidden' });
+    rerender(<MapMarkerPin marker={{ ...marker, isCurrentUser: true }} />);
+    expect(screen.getByTestId('marker-pin-unit-other-ghost')).not.toHaveStyle({ visibility: 'hidden' });
+    vi.useRealTimers();
+  });
+
+  it('replaces failed map photos with the existing gradient and accepts a changed photo', async () => {
+    const marker = { id: 'failed-photo', displayName: 'River', approximateLatitude: 40.72, approximateLongitude: -74.01, photo: 'https://example.com/broken.jpg', photoExplicit: false };
+    const { rerender } = render(<MapView onPinClick={vi.fn()} markers={[marker]} />);
+    fireEvent.error(await screen.findByTestId('marker-photo-fill-failed-photo'));
+    expect(screen.queryByTestId('marker-photo-fill-failed-photo')).not.toBeInTheDocument();
+    expect(screen.getByTestId('marker-heart-failed-photo')).toHaveAttribute('data-has-photo', 'false');
+    expect(screen.getByTestId('marker-heart-failed-photo').querySelector('path[fill="url(#marker-fill-failed-photo)"]')).not.toBeNull();
+    rerender(<MapView onPinClick={vi.fn()} markers={[{ ...marker, photo: 'https://example.com/replacement.jpg' }]} />);
+    expect(await screen.findByTestId('marker-photo-fill-failed-photo')).toHaveAttribute('href', 'https://example.com/replacement.jpg');
   });
 
   it('keeps an allowed Ghost Mode profile photo and regular pink map styling', async () => {
@@ -1438,14 +1533,9 @@ describe('MapView', () => {
     const pinUnit = screen.getByTestId('marker-pin-unit-user-pinging');
     const signalBadge = screen.getByTestId('marker-signal-badge-user-pinging');
     const positionBadge = screen.getByTestId('marker-position-badge-user-pinging');
-    const postPreview = screen.getByTestId('marker-post-preview-user-pinging');
     expect(signalStack).toHaveClass('opacity-100');
     expect(signalStack).not.toHaveClass('opacity-0');
-    expect(postPreview).toHaveClass(
-      'opacity-0',
-      'group-hover:opacity-100',
-      'group-focus-within:opacity-100',
-    );
+    expect(screen.queryByTestId('marker-post-preview-user-pinging')).not.toBeInTheDocument();
     expect(heart).toHaveClass('z-10');
     expect(heart).not.toHaveClass('cruush-map-ping-heart');
     expect(heartLayer).toHaveClass('cruush-map-ping-heart');
@@ -1456,7 +1546,6 @@ describe('MapView', () => {
     expect(signalBadge).not.toHaveClass('shadow-[0_12px_30px_rgba(0,0,0,0.45)]');
     expect(positionBadge).toHaveStyle({ color: '#C8FF31' });
     expect(heartLayer).toContainElement(positionBadge);
-    expect(heartLayer).not.toContainElement(postPreview);
     expect(heartLayer).toContainElement(signalStack);
     expect(markerInstances[0].element).toHaveAttribute('data-active-ping', 'true');
     expect(screen.queryByTestId('marker-ping-rings-user-pinging')).not.toBeInTheDocument();
@@ -1689,6 +1778,113 @@ describe('MapView', () => {
     expect(onPinClick).toHaveBeenCalledWith(expect.objectContaining({ kind: 'event' }));
   });
 
+  it('keeps the owner and owner Ghost decoy out of clusters through zoom and same-building spiderfy', async () => {
+    const onPinClick = vi.fn();
+    const owner: MapMarker = {
+      id: 'me', displayName: 'You',
+      approximateLatitude: 40.7128, approximateLongitude: -73.99,
+    };
+    const decoy: MapMarker = {
+      id: 'me-ghost-decoy', displayName: 'Your Ghost pin', isCurrentUser: true,
+      displayMode: 'GHOST', ghostRotationExpiresAtMs: Date.now() + 60_000,
+      approximateLatitude: 40.7148, approximateLongitude: -73.99,
+    };
+    const nearby: MapMarker = {
+      id: 'nearby', displayName: 'Nearby', approximateLatitude: owner.approximateLatitude + 0.0008,
+      approximateLongitude: owner.approximateLongitude,
+    };
+    const neighbor: MapMarker = { ...nearby, id: 'neighbor', displayName: 'Neighbor' };
+    render(<MapView onPinClick={onPinClick} markers={[owner, decoy, nearby, neighbor]} />);
+    await waitFor(() => expect(mapInstances).toHaveLength(1));
+    for (const zoom of [10, 12, 16, 20, 12]) {
+      act(() => {
+        mapInstances[0].getZoom.mockReturnValue(zoom);
+        mapInstances[0].trigger('zoomend');
+      });
+      await screen.findByRole('button', { name: 'Open 2 nearby people sharing this map spot' });
+      expect(screen.getByRole('button', { name: 'Show your pin details' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Show your Ghost Mode decoy details' })).toBeInTheDocument();
+      const visible = markerInstances.filter((marker) => marker.element.isConnected);
+      expect(visible).toHaveLength(3);
+      const clusterMarker = visible.find((candidate) => candidate.element.querySelector('[data-testid^="people-cluster-marker-"]'));
+      for (const original of [owner, decoy]) {
+        const marker = visible.find((candidate) => candidate.element.querySelector(`[data-testid="marker-pin-unit-${original.id}"]`));
+        expect(marker?.coordinates).toEqual([original.approximateLongitude, original.approximateLatitude]);
+        expect(marker?.offset).toBeNull();
+        expect(Number(marker?.element.style.zIndex)).toBeGreaterThan(Number(clusterMarker?.element.style.zIndex));
+      }
+    }
+
+    const cluster = await screen.findByRole('button', { name: 'Open 2 nearby people sharing this map spot' });
+    const collapsed = markerInstances.filter((marker) => marker.element.isConnected);
+    expect(collapsed).toHaveLength(3);
+    expect(screen.queryByRole('button', { name: 'Open Nearby on map' })).not.toBeInTheDocument();
+
+    fireEvent.click(cluster);
+    const nearbyButton = await screen.findByRole('button', { name: 'Open Nearby on map' });
+    const expanded = markerInstances.filter((marker) => marker.element.isConnected);
+    expect(expanded).toHaveLength(4);
+    for (const original of [owner, decoy, nearby, neighbor]) {
+      const marker = expanded.find((candidate) => candidate.element.querySelector(`[data-testid="marker-pin-unit-${original.id}"]`));
+      expect(marker?.coordinates).toEqual([original.approximateLongitude, original.approximateLatitude]);
+      if (original === owner || original === decoy) expect(marker?.offset).toBeNull();
+      else expect(Math.hypot(...(marker?.offset ?? [0, 0]))).toBeGreaterThan(0);
+    }
+    expect(mapInstances[0].fitBounds).not.toHaveBeenCalled();
+    expect(mapInstances[0].setZoom).not.toHaveBeenCalled();
+    expect(onPinClick).not.toHaveBeenCalled();
+    fireEvent.click(nearbyButton);
+    expect(onPinClick).toHaveBeenCalledWith(expect.objectContaining(nearby));
+  });
+
+  it('removes an expired other Ghost from a people cluster at its visibility deadline', async () => {
+    vi.useFakeTimers();
+    try {
+      const deadline = Date.now() + 1_000;
+      await act(async () => {
+        render(<MapView onPinClick={vi.fn()} markers={[
+          { id: 'me', displayName: 'You', isCurrentUser: true, approximateLatitude: 40.7128, approximateLongitude: -73.99 },
+          { id: 'other-person', displayName: 'Nearby', approximateLatitude: 40.7128, approximateLongitude: -73.99 },
+          { id: 'other-ghost', displayName: 'River', displayMode: 'GHOST', ghostRotationExpiresAtMs: deadline, approximateLatitude: 40.7128, approximateLongitude: -73.99 },
+        ]} />);
+      });
+      expect(screen.getByRole('button', { name: 'Open 2 nearby people sharing this map spot' })).toBeInTheDocument();
+      await act(async () => { vi.advanceTimersByTime(1_000); });
+      expect(screen.queryByRole('button', { name: 'Open 2 nearby people sharing this map spot' })).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Show your pin details' })).toBeInTheDocument();
+      expect(screen.getByTestId('marker-pin-unit-other-ghost')).toHaveStyle({ visibility: 'hidden' });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('keeps unclustered people at their anchors through zoom and metadata changes', async () => {
+    const markers: MapMarker[] = [
+      { id: 'me', displayName: 'You', isCurrentUser: true, approximateLatitude: 40.7128, approximateLongitude: -73.99 },
+      { id: 'far-person', displayName: 'Far person', approximateLatitude: 40.73, approximateLongitude: -73.96 },
+    ];
+    const view = render(<MapView onPinClick={vi.fn()} markers={markers} />);
+    await screen.findByRole('button', { name: 'Open Far person on map' });
+    for (const zoom of [16, 18.9, 20, 18.9, 16]) {
+      act(() => {
+        mapInstances[0].getZoom.mockReturnValue(zoom);
+        mapInstances[0].trigger('zoomend');
+      });
+      await waitFor(() => {
+        const visible = markerInstances.filter((marker) => marker.element.isConnected);
+        expect(visible).toHaveLength(2);
+        for (const original of markers) {
+          const marker = visible.find((candidate) => candidate.element.querySelector(`[data-testid="marker-pin-unit-${original.id}"]`));
+          expect(marker?.coordinates).toEqual([original.approximateLongitude, original.approximateLatitude]);
+          expect(marker?.offset).toBeNull();
+        }
+      });
+    }
+    view.rerender(<MapView onPinClick={vi.fn()} markers={markers.map((marker) => ({ ...marker, displayName: `${marker.displayName} refreshed` }))} />);
+    await screen.findByRole('button', { name: 'Open Far person refreshed on map' });
+    expect(markerInstances.filter((marker) => marker.element.isConnected).every((marker) => marker.offset === null)).toBe(true);
+  });
+
   it('clusters overlapping people pins into a zoomable count marker', async () => {
     const onPinClick = vi.fn();
 
@@ -1708,12 +1904,14 @@ describe('MapView', () => {
             displayName: 'A',
             approximateLatitude: 40.7128,
             approximateLongitude: -73.99,
+            privacyRadiusMeters: 10,
           },
           {
             id: 'user-b',
             displayName: 'B',
-            approximateLatitude: 40.713,
+            approximateLatitude: 40.716,
             approximateLongitude: -73.9902,
+            privacyRadiusMeters: 10,
           },
           {
             id: 'user-c',
@@ -1726,11 +1924,11 @@ describe('MapView', () => {
     );
 
     const cluster = await screen.findByRole('button', { name: 'Zoom into 2 nearby people on map' });
-    expect(screen.getByTestId('people-cluster-marker-people-0')).toHaveTextContent('2');
+    expect(cluster.querySelector('[data-testid^="people-cluster-marker-"]')).toHaveTextContent('2');
     expect(screen.queryByRole('button', { name: 'Open A on map' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Open B on map' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Open C on map' })).toBeInTheDocument();
-    expect(screen.getByLabelText('Your approximate area')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Show your pin details' })).toBeInTheDocument();
 
     await act(async () => {
       fireEvent.click(cluster);
@@ -1740,14 +1938,58 @@ describe('MapView', () => {
 
     expect(onPinClick).not.toHaveBeenCalled();
     expect(mapInstances[0].fitBounds).toHaveBeenCalledWith(
-      [[-73.9902, 40.7128], [-73.99, 40.713]],
+      [[-73.9902, 40.7128], [-73.99, 40.716]],
       expect.objectContaining({ maxZoom: 15.25 }),
     );
     expect(mapInstances[0].setCenter).not.toHaveBeenCalled();
     expect(screen.getByRole('button', { name: 'Zoom into 2 nearby people on map' })).toBeInTheDocument();
   });
 
-  it('keeps active Ping hearts above ordinary people clusters during zoom-out', async () => {
+  it('separates ordinary nearby people at close zoom while same-building clusters remain available to spiderfy', async () => {
+    render(
+      <MapView
+        onPinClick={vi.fn()}
+        markers={[
+          { id: 'person-a', displayName: 'Person A', approximateLatitude: 40.7128, approximateLongitude: -73.99, privacyRadiusMeters: 10 },
+          { id: 'person-b', displayName: 'Person B', approximateLatitude: 40.7158, approximateLongitude: -73.99, privacyRadiusMeters: 10 },
+        ]}
+      />,
+    );
+
+    expect(await screen.findByRole('button', { name: 'Zoom into 2 nearby people on map' })).toBeInTheDocument();
+    act(() => {
+      mapInstances[0].getZoom.mockReturnValue(16);
+      mapInstances[0].trigger('zoomend');
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: 'Zoom into 2 nearby people on map' })).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Open Person A on map' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Open Person B on map' })).toBeInTheDocument();
+    });
+  });
+
+  it('keeps a people cluster mounted when input order and unrelated clusters change', async () => {
+    const onPinClick = vi.fn();
+    const markers: MapMarker[] = [
+      { id: 'user-a', displayName: 'A', approximateLatitude: 40.7128, approximateLongitude: -73.99 },
+      { id: 'user-b', displayName: 'B', approximateLatitude: 40.713, approximateLongitude: -73.9902 },
+    ];
+    const view = render(<MapView onPinClick={onPinClick} markers={markers} />);
+    const cluster = await screen.findByRole('button', { name: 'Open 2 nearby people sharing this map spot' });
+    const artworkId = cluster.querySelector('[data-testid]')!.getAttribute('data-testid')!;
+
+    view.rerender(<MapView onPinClick={onPinClick} markers={[
+      { id: '0-far-a', displayName: 'Far A', approximateLatitude: 40.76, approximateLongitude: -73.95 },
+      { id: '0-far-b', displayName: 'Far B', approximateLatitude: 40.7602, approximateLongitude: -73.9502 },
+      ...[...markers].reverse(),
+    ]} />);
+
+    await waitFor(() => expect(screen.getAllByRole('button', { name: 'Open 2 nearby people sharing this map spot' })).toHaveLength(2));
+    expect(screen.getByTestId(artworkId).closest('button')).toBe(cluster);
+  });
+
+  it('preserves active Ping artwork after opening a same-building people cluster', async () => {
     render(
       <MapView
         onPinClick={vi.fn()}
@@ -1762,30 +2004,30 @@ describe('MapView', () => {
           {
             id: 'user-a',
             displayName: 'A',
-            approximateLatitude: 40.7129,
-            approximateLongitude: -73.9901,
+            approximateLatitude: 40.7128,
+            approximateLongitude: -73.99,
           },
           {
             id: 'user-b',
             displayName: 'B',
-            approximateLatitude: 40.713,
-            approximateLongitude: -73.9902,
+            approximateLatitude: 40.7128,
+            approximateLongitude: -73.99,
           },
         ]}
       />,
     );
 
+    fireEvent.click(await screen.findByRole('button', { name: 'Open 3 nearby people sharing this map spot' }));
     expect(await screen.findByRole('button', { name: 'Open Pinging on map' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Zoom into 2 nearby people on map' })).toBeInTheDocument();
 
     const pingMarker = markerInstances.find((instance: any) => instance.element.dataset.activePing === 'true');
-    const clusterMarker = markerInstances.find((instance: any) => instance.element.dataset.mapMarkerKind === 'cluster');
+    const clusterMarker = markerInstances.find((instance: any) => instance.element.isConnected && instance.element.dataset.activePing === 'false');
     expect(pingMarker?.element.style.zIndex).not.toBe('');
     expect(Number(pingMarker?.element.style.zIndex)).toBeGreaterThan(Number(clusterMarker?.element.style.zIndex || 0));
     expect(screen.getByTestId('pulse-ekg-pin')).toHaveAttribute('clip-path', 'url(#marker-photo-clip-user-pinging)');
   });
 
-  it('keeps a focused person pin visible instead of hiding it in a nearby cluster', async () => {
+  it('keeps a focused person selectable through the same-building people cluster', async () => {
     render(
       <MapView
         onPinClick={vi.fn()}
@@ -1803,13 +2045,16 @@ describe('MapView', () => {
           {
             id: 'user-nearby',
             displayName: 'Nearby',
-            approximateLatitude: 40.713,
-            approximateLongitude: -73.9902,
+            approximateLatitude: 40.7128,
+            approximateLongitude: -73.99,
           },
         ]}
       />
     );
 
+    await waitFor(() => expect(mapInstances).toHaveLength(1));
+    act(() => { mapInstances[0].getZoom.mockReturnValue(16); mapInstances[0].trigger('zoomend'); });
+    fireEvent.click(await screen.findByRole('button', { name: 'Open 2 nearby people sharing this map spot' }));
     expect(await screen.findByRole('button', { name: 'Open Focused on map' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Open Nearby on map' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Zoom into .* nearby people on map/ })).not.toBeInTheDocument();
@@ -1959,6 +2204,91 @@ describe('MapView', () => {
 });
 
 describe('spiderfy clusters', () => {
+  it('spiderfies people whose disclosed privacy areas overlap across adjacent cells', async () => {
+    render(
+      <MapView
+        onPinClick={vi.fn()}
+        markers={[
+          {
+            id: 'a', displayName: 'A', approximateLatitude: 40.7128, approximateLongitude: -73.99,
+            privacyRadiusMeters: 250,
+          },
+          {
+            id: 'b', displayName: 'B', approximateLatitude: 40.7159, approximateLongitude: -73.99,
+            privacyRadiusMeters: 250,
+          },
+        ]}
+      />,
+    );
+
+    const cluster = await screen.findByRole('button', { name: 'Open 2 nearby people sharing this map spot' });
+    fireEvent.click(cluster);
+
+    expect(await screen.findByRole('button', { name: 'Open A on map' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Open B on map' })).toBeInTheDocument();
+    expect(mapInstances[0].setZoom).not.toHaveBeenCalled();
+  });
+
+  it('opens a same-building people fan on hover and pins it open with a click', async () => {
+    const onPinClick = vi.fn();
+    render(
+      <MapView
+        onPinClick={onPinClick}
+        markers={[
+          { id: 'a', displayName: 'A', approximateLatitude: 40.7128, approximateLongitude: -73.99 },
+          { id: 'b', displayName: 'B', approximateLatitude: 40.7136, approximateLongitude: -73.99 },
+        ]}
+      />
+    );
+
+    const cluster = await screen.findByRole('button', { name: 'Open 2 nearby people sharing this map spot' });
+    fireEvent.pointerEnter(cluster, { pointerType: 'mouse' });
+    expect(await screen.findByRole('button', { name: 'Open A on map' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open B on map' }));
+    const pinnedMember = await screen.findByRole('button', { name: 'Open B on map' });
+    fireEvent.pointerLeave(pinnedMember, { pointerType: 'mouse', relatedTarget: document.body });
+
+    expect(screen.getByRole('button', { name: 'Open A on map' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Open B on map' })).toBeInTheDocument();
+    expect(onPinClick).not.toHaveBeenCalled();
+  });
+
+  it('opens a same-building people fan on a mobile long press and keeps it open after a tap', async () => {
+    const onPinClick = vi.fn();
+    render(
+      <MapView
+        onPinClick={onPinClick}
+        markers={[
+          { id: 'a', displayName: 'A', approximateLatitude: 40.7128, approximateLongitude: -73.99 },
+          { id: 'b', displayName: 'B', approximateLatitude: 40.7136, approximateLongitude: -73.99 },
+        ]}
+      />,
+    );
+
+    const cluster = await screen.findByRole('button', { name: 'Open 2 nearby people sharing this map spot' });
+    const pointerDown = new Event('pointerdown', { bubbles: true });
+    Object.defineProperty(pointerDown, 'pointerType', { value: 'touch' });
+    fireEvent(cluster, pointerDown);
+    await new Promise((resolve) => window.setTimeout(resolve, 320));
+
+    const member = await screen.findByRole('button', { name: 'Open A on map' });
+    fireEvent.pointerUp(cluster, { pointerType: 'touch' });
+    const memberPointerDown = new Event('pointerdown', { bubbles: true });
+    Object.defineProperty(memberPointerDown, 'pointerType', { value: 'touch' });
+    await act(async () => {
+      fireEvent(member, memberPointerDown);
+      fireEvent.pointerUp(member, { pointerType: 'touch' });
+      fireEvent.click(member, { detail: 1 });
+      await Promise.resolve();
+    });
+    fireEvent.pointerLeave(member, { pointerType: 'mouse', relatedTarget: document.body });
+
+    expect(screen.getByRole('button', { name: 'Open A on map' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Open B on map' })).toBeInTheDocument();
+    expect(onPinClick).not.toHaveBeenCalled();
+  });
+
   it('fans same-spot people out on tap instead of zooming', async () => {
     render(
       <MapView
@@ -1985,7 +2315,7 @@ describe('spiderfy clusters', () => {
     expect(screen.getByRole('button', { name: 'Open B on map' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Open C on map' })).toBeInTheDocument();
 
-    const offsets = markerInstances.map((m: any) => m.offset).filter(Boolean);
+    const offsets = markerInstances.filter((m: any) => m.element.isConnected).map((m: any) => m.offset).filter(Boolean);
     expect(offsets).toHaveLength(3);
     // Every member gets a distinct offset so none of them stack.
     expect(new Set(offsets.map((o: number[]) => o.join(','))).size).toBe(3);
@@ -2044,6 +2374,94 @@ describe('spiderfy clusters', () => {
       .filter((offset: number[] | undefined) => Boolean(offset));
     expect(spotOffsets).toHaveLength(2);
     expect(new Set(spotOffsets.map((offset: number[]) => offset.join(','))).size).toBe(2);
+  });
+});
+
+describe('stable Spot clusters', () => {
+  const markerAtOffset = (id: string, offsetX: number, zoom: number): MapMarker => ({
+    id,
+    kind: 'place',
+    displayName: id,
+    approximateLatitude: 40.68,
+    approximateLongitude: -73.95 + offsetX / (512 * 2 ** zoom) * 360,
+  });
+  const normalized = (markers: MapMarker[]) => [...markers].sort((a, b) => a.id.localeCompare(b.id));
+
+  it('keeps fixed Spot membership and coordinates through tiny zoom changes and reordered results', () => {
+    const zoom = 14.01;
+    const markers = Array.from({ length: 7 }, (_, index) => markerAtOffset(`spot-${index}`, index * 63, zoom));
+    const before = normalized(applyPlaceMarkerClusters(markers, zoom));
+    const after = normalized(applyPlaceMarkerClusters([...markers].reverse(), zoom + 0.0001));
+
+    expect(before.filter((marker) => marker.cluster)).toHaveLength(3);
+    expect(after).toEqual(before);
+    expect(normalized(applyPlaceMarkerClusters(markers, zoom))).toEqual(before);
+    expect(before.flatMap((marker) => marker.cluster?.memberIds ?? [marker.id]).sort())
+      .toEqual(markers.map((marker) => marker.id));
+    const centers = before.map((marker) => marker.approximateLongitude / 360 * (512 * 2 ** zoom)).sort((a, b) => a - b);
+    expect(centers.every((x, index) => index === 0 || x - centers[index - 1] >= 62)).toBe(true);
+  });
+
+  it('keeps dense Spot groups nested and clear across meaningful zoom changes', () => {
+    const referenceZoom = 14.6;
+    const world = 512 * 2 ** referenceZoom;
+    const baseX = (-73.95 + 180) / 360 * world;
+    const baseY = (0.5 - Math.log((1 + Math.sin(40.68 * Math.PI / 180))
+      / (1 - Math.sin(40.68 * Math.PI / 180))) / (4 * Math.PI)) * world;
+    let state = 3;
+    const random = () => ((state = (Math.imul(state, 1664525) + 1013904223) >>> 0) / 4294967296);
+    const markers: MapMarker[] = Array.from({ length: 300 }, (_, index) => ({
+      id: `spot-${String(index).padStart(3, '0')}`,
+      kind: 'place',
+      displayName: `Spot ${index}`,
+      approximateLongitude: (baseX + random() * 720) / world * 360 - 180,
+      approximateLatitude: Math.atan(Math.sinh(Math.PI * (1 - 2 * (baseY + random() * 480) / world))) * 180 / Math.PI,
+    }));
+    const members = (marker: MapMarker) => marker.cluster?.memberIds ?? [marker.id];
+    const project = (marker: MapMarker, zoom: number) => {
+      const size = 512 * 2 ** zoom;
+      const sin = Math.sin(marker.approximateLatitude * Math.PI / 180);
+      return [(marker.approximateLongitude + 180) / 360 * size,
+        (0.5 - Math.log((1 + sin) / (1 - sin)) / (4 * Math.PI)) * size];
+    };
+    let previous = applyPlaceMarkerClusters(markers, 14.4);
+    for (const zoom of [14.5, 14.6, 14.61, 14.8, 15, 15.2]) {
+      const next = applyPlaceMarkerClusters(markers, zoom);
+      for (const marker of next) {
+        expect(previous.some((parent) => members(marker).every((id) => members(parent).includes(id)))).toBe(true);
+      }
+      const centers = next.map((marker) => project(marker, zoom));
+      centers.forEach((center, index) => centers.slice(index + 1).forEach((other) => {
+        expect(Math.hypot(center[0] - other[0], center[1] - other[1])).toBeGreaterThanOrEqual(62);
+      }));
+      expect(next.flatMap(members).sort()).toEqual(markers.map((marker) => marker.id).sort());
+      previous = next;
+    }
+    const initial = normalized(applyPlaceMarkerClusters(markers, 14.6));
+    expect(normalized(applyPlaceMarkerClusters(markers, 14.61))).toEqual(initial);
+    expect(normalized(applyPlaceMarkerClusters([...markers].reverse(), 14.6))).toEqual(initial);
+    const byId = new Map(markers.map((marker) => [marker.id, marker]));
+    initial.forEach((marker) => {
+      const center = project(marker, 14.6);
+      members(marker).forEach((id) => {
+        const point = project(byId.get(id)!, 14.6);
+        expect(Math.hypot(point[0] - center[0], point[1] - center[1])).toBeLessThan(100);
+      });
+    });
+  });
+
+  it('preserves Spot radius thresholds, maximum zoom and same-coordinate spiderfy', () => {
+    const radiusPair = [markerAtOffset('a', 0, 14.5), markerAtOffset('b', 80, 14.5)];
+    expect(applyPlaceMarkerClusters(radiusPair, 14.49)).toHaveLength(1);
+    expect(applyPlaceMarkerClusters(radiusPair, 14.5)).toEqual(radiusPair);
+
+    const maxZoomPair = [markerAtOffset('a', 0, 15.5), markerAtOffset('b', 65, 15.5)];
+    expect(applyPlaceMarkerClusters(maxZoomPair, 15.49)).toHaveLength(1);
+    expect(applyPlaceMarkerClusters(maxZoomPair, 15.5)).toEqual(maxZoomPair);
+
+    const sameCoordinate = [markerAtOffset('a', 0, 16), markerAtOffset('b', 0, 16)];
+    expect(applyPlaceMarkerClusters(sameCoordinate, 16)[0].cluster)
+      .toMatchObject({ action: 'spiderfy', memberIds: ['a', 'b'], count: 2 });
   });
 });
 

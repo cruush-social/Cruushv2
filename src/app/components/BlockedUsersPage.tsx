@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { ArrowLeft } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '../lib/toast';
 import { Button } from './ui/button';
 import { CruushIcon } from './CruushIconImage';
 import HeartPhoto from './HeartPhoto';
 import LoadingCardSkeletons from './LoadingCardSkeletons';
+import BugButtonSlot from './BugButtonSlot';
 import { getBlockedUsers, unblockUser, type BlockedUser } from '../lib/blockApi';
 import { shouldMaskPhoto, useDlMode } from '../lib/dlMode';
 
@@ -86,6 +87,8 @@ export default function BlockedUsersPage() {
           <h2 className="text-xl">Blocked users</h2>
           <p className="text-xs text-muted-foreground">Manage people you no longer want to see or interact with.</p>
         </div>
+      
+        <BugButtonSlot testId="blocked-users-page-bug-button-slot" />
       </header>
 
       <main className="mx-auto max-w-2xl space-y-3 p-4">

@@ -1,7 +1,8 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import MapProfilePopup from './MapProfilePopup';
+import { saveDistancePreferences } from '../lib/distancePreferences';
 
 const { embeddedSavedProfile } = vi.hoisted(() => ({
   embeddedSavedProfile: {
@@ -55,6 +56,7 @@ vi.mock('./ProfileEdit', () => ({
 
 describe('MapProfilePopup', () => {
   beforeEach(() => {
+    window.localStorage.removeItem('cruush:distance-preference');
     getMyProfile.mockReset();
     getProfileById.mockReset();
     sendCruush.mockReset();
@@ -101,7 +103,7 @@ describe('MapProfilePopup', () => {
     });
   });
 
-  it('does not render a redundant full-profile button on desktop previews', () => {
+  it('keeps desktop profile tabs in normal flow without a redundant full-profile button', async () => {
     render(
       <MemoryRouter initialEntries={['/map']}>
         <MapProfilePopup
@@ -124,6 +126,14 @@ describe('MapProfilePopup', () => {
     );
 
     expect(screen.queryByRole('button', { name: 'View profile' })).not.toBeInTheDocument();
+    const tabs = await screen.findByRole('tablist');
+    expect(tabs.parentElement?.parentElement).toHaveClass('[&_[role=tablist]]:static', '[&_[role=tablist]]:z-auto');
+    expect(tabs.parentElement?.parentElement).toHaveClass('[&_[id$=-content-intimacy]>.grid]:grid-cols-1');
+    expect(screen.getByText('~0.5 mi')).toBeInTheDocument();
+    act(() => saveDistancePreferences({ mode: 'precise' }));
+    expect(screen.getByText('0.4 mi')).toBeInTheDocument();
+    act(() => saveDistancePreferences({ mode: 'approximate' }));
+    expect(screen.getByText('~0.5 mi')).toBeInTheDocument();
   });
 
   it('updates the desktop own-profile preview immediately after an embedded save', async () => {
