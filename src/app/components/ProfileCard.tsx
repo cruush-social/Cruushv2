@@ -235,7 +235,7 @@ export default function ProfileCard({
   };
 
   if (carouselPresentation) {
-    const carouselActionClassName = 'cruush-action-sheen h-10 min-w-0 rounded-xl border border-white/10 bg-[color:var(--cruush-black-glass)] px-3 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-[var(--cruush-black-glass-blur)]';
+    const carouselActionClassName = 'cruush-action-sheen h-10 min-w-0 rounded-xl border border-white/10 bg-black/55 px-3 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-xl';
     const carouselTextOutlineStyle = {
       textShadow: [
         '1px 0 0 #000',
@@ -305,7 +305,7 @@ export default function ProfileCard({
           <button
             type="button"
             onClick={onClose}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-[color:var(--cruush-black-glass)] text-white/90 backdrop-blur-[var(--cruush-black-glass-blur)] transition hover:bg-black/70 hover:text-white"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-black/55 text-white/90 backdrop-blur-xl transition hover:bg-black/70 hover:text-white"
             aria-label="Close profile preview"
           >
             <X className="h-5 w-5" />
@@ -506,7 +506,7 @@ export default function ProfileCard({
 
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 w-8 h-8 bg-[color:var(--cruush-black-glass)] backdrop-blur-[var(--cruush-black-glass-blur)] rounded-full flex items-center justify-center"
+          className="absolute top-4 right-4 w-8 h-8 bg-black/50 backdrop-blur-sm rounded-full flex items-center justify-center"
         >
           <X className="w-5 h-5 text-white" />
         </button>

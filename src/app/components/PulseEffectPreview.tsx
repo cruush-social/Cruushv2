@@ -49,7 +49,7 @@ function Unit({ children, traceSignal = false, beating = false, signalTrace = fa
           </svg>
         ) : null}
         <span
-          className={`relative block w-max max-w-[16rem] overflow-hidden rounded-full border border-[3.2px] bg-[color:var(--cruush-black-glass)] px-3 py-1 text-center text-[0.7rem] font-semibold leading-tight text-white backdrop-blur-[var(--cruush-black-glass-blur)] ${
+          className={`relative block w-max max-w-[16rem] overflow-hidden rounded-full border border-[3.2px] bg-black/86 px-3 py-1 text-center text-[0.7rem] font-semibold leading-tight text-white backdrop-blur-md ${
             traceSignal ? 'cruush-ping-signal-trace' : ''
           }`}
           style={{ borderColor: '#C8FF31' }}
@@ -307,7 +307,7 @@ export default function PulseEffectPreview() {
 
   return (
     <div className="min-h-screen bg-background pb-24 text-white">
-      <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-white/10 bg-[color:var(--cruush-black-glass)] px-4 py-3 backdrop-blur-[var(--cruush-black-glass-blur)]">
+      <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-white/10 bg-background/95 px-4 py-3 backdrop-blur-md">
         <button
           aria-label="Back"
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/12 bg-black/55"

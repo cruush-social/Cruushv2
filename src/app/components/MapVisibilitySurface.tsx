@@ -282,7 +282,7 @@ export default function MapVisibilitySurface({
           </div>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid h-auto w-full grid-cols-3 rounded-full border border-white/10 bg-[color:var(--cruush-black-glass)] p-1 backdrop-blur-[var(--cruush-black-glass-blur)]">
+            <TabsList className="grid h-auto w-full grid-cols-3 rounded-full border border-white/10 bg-background/92 p-1 backdrop-blur-md">
               <TabsTrigger value="basics" className="min-h-11" onClick={() => setActiveTab('basics')}>Basics</TabsTrigger>
               <TabsTrigger value="intimacy" className="min-h-11" onClick={() => setActiveTab('intimacy')}>Intimacy</TabsTrigger>
               <TabsTrigger value="health" className="min-h-11" onClick={() => setActiveTab('health')}>Health</TabsTrigger>
@@ -401,7 +401,7 @@ export default function MapVisibilitySurface({
           </Tabs>
         </div>
 
-        <SheetFooter className="shrink-0 border-t border-white/10 bg-[color:var(--cruush-black-glass)] px-5 py-4 backdrop-blur-[var(--cruush-black-glass-blur)]">
+        <SheetFooter className="shrink-0 border-t border-white/10 bg-background/95 px-5 py-4 backdrop-blur">
           <div className="flex gap-3">
             <Button type="button" variant="outline" className="flex-1" onClick={handleClear} disabled={saving}>
               Clear

@@ -285,7 +285,7 @@ export default function MapProfilePopup({
                 <button
                   type="button"
                   onClick={() => setOwnProfileMode('edit')}
-                  className="h-9 rounded-full border border-white/10 bg-[color:var(--cruush-black-glass)] px-3 text-[11px] uppercase tracking-[0.14em] text-white/82 backdrop-blur-[var(--cruush-black-glass-blur)] transition hover:text-white"
+                  className="h-9 rounded-full border border-white/10 bg-black/45 px-3 text-[11px] uppercase tracking-[0.14em] text-white/82 backdrop-blur-sm transition hover:text-white"
                 >
                   Edit profile
                 </button>
@@ -297,12 +297,12 @@ export default function MapProfilePopup({
                     targetId={user.id}
                     targetLabel={displayName}
                     label={`Report ${displayName}`}
-                    className="h-9 w-9 rounded-full border border-white/10 bg-[color:var(--cruush-black-glass)] text-white/80 backdrop-blur-[var(--cruush-black-glass-blur)] transition hover:bg-black/55 hover:text-white"
+                    className="h-9 w-9 rounded-full border border-white/10 bg-black/45 text-white/80 backdrop-blur-sm transition hover:bg-black/55 hover:text-white"
                   />
                   <BlockUserAction
                     userId={user.id}
                     displayName={displayName}
-                    className="h-9 w-9 rounded-full border border-white/10 bg-[color:var(--cruush-black-glass)] text-white/80 backdrop-blur-[var(--cruush-black-glass-blur)] transition hover:bg-black/55 hover:text-white"
+                    className="h-9 w-9 rounded-full border border-white/10 bg-black/45 text-white/80 backdrop-blur-sm transition hover:bg-black/55 hover:text-white"
                     onBlocked={(blockedUserId) => {
                       onBlockedUser?.(blockedUserId);
                       onClose();
@@ -316,7 +316,7 @@ export default function MapProfilePopup({
               <button
                 type="button"
                 onClick={onClose}
-                className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-[color:var(--cruush-black-glass)] text-white/80 backdrop-blur-[var(--cruush-black-glass-blur)] transition hover:text-white"
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-black/45 text-white/80 backdrop-blur-sm transition hover:text-white"
                 aria-label="Close profile preview"
               >
                 <X className="h-4 w-4" />
@@ -403,7 +403,7 @@ export default function MapProfilePopup({
         </div>
 
         {!isOwnProfile ? (
-          <div className="sticky bottom-0 border-t border-white/10 bg-[color:var(--cruush-black-glass)] px-5 py-4 backdrop-blur-[var(--cruush-black-glass-blur)]">
+          <div className="sticky bottom-0 border-t border-white/10 bg-black/85 px-5 py-4 backdrop-blur-xl">
           <div className="flex items-center gap-3">
             <Button
               onClick={() => {

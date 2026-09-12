@@ -503,7 +503,7 @@ export default function ProfileView() {
   if (loading) {
     return (
       <div className="min-h-screen bg-background pb-20">
-        <header className="sticky top-0 z-10 border-b border-border bg-[color:var(--cruush-black-glass)] p-4 backdrop-blur-[var(--cruush-black-glass-blur)]">
+        <header className="sticky top-0 z-10 border-b border-border bg-card/90 p-4 backdrop-blur-sm">
           <div className="mx-auto flex max-w-2xl items-center gap-2">
             <Button variant="ghost" size="icon" onClick={() => navigate(-1)} aria-label="Back">
               <ArrowLeft className="w-5 h-5" />
@@ -523,7 +523,7 @@ export default function ProfileView() {
   if (error || !profileView) {
     return (
       <div className="min-h-screen bg-background pb-20">
-        <header className="sticky top-0 z-10 border-b border-border bg-[color:var(--cruush-black-glass)] p-4 backdrop-blur-[var(--cruush-black-glass-blur)]">
+        <header className="sticky top-0 z-10 border-b border-border bg-card/90 p-4 backdrop-blur-sm">
           <div className="mx-auto flex max-w-2xl items-center gap-2">
             <Button variant="ghost" size="icon" onClick={() => navigate(-1)} aria-label="Back">
               <ArrowLeft className="w-5 h-5" />
@@ -555,7 +555,7 @@ export default function ProfileView() {
           <div className="pointer-events-auto flex min-w-0 items-center gap-2">
             <button
               aria-label="Back"
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/12 bg-[color:var(--cruush-black-glass)] text-white backdrop-blur-[var(--cruush-black-glass-blur)]"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/12 bg-black/55 text-white backdrop-blur-sm"
               data-testid="profile-back"
               onClick={() => navigate(-1)}
               type="button"
@@ -569,7 +569,7 @@ export default function ProfileView() {
           <div className="pointer-events-auto flex items-center gap-2">
             <Button
               aria-label="Send profile in cruush"
-              className="h-10 w-10 rounded-full border border-white/12 bg-[color:var(--cruush-black-glass)] text-white backdrop-blur-[var(--cruush-black-glass-blur)]"
+              className="h-10 w-10 rounded-full border border-white/12 bg-black/55 text-white backdrop-blur-sm"
               onClick={() => setShareOpen(true)}
               size="icon"
               type="button"
@@ -579,7 +579,7 @@ export default function ProfileView() {
             </Button>
             {isOwnProfile ? (
               <Button
-                className="h-10 rounded-full border border-white/12 bg-[color:var(--cruush-black-glass)] px-4 text-white backdrop-blur-[var(--cruush-black-glass-blur)]"
+                className="h-10 rounded-full border border-white/12 bg-black/55 px-4 text-white backdrop-blur-sm"
                 onClick={() => navigate('/profile/edit')}
                 variant="ghost"
               >
@@ -589,7 +589,7 @@ export default function ProfileView() {
               <>
                 {userId ? (
                   <BlockUserAction
-                    className="h-10 w-10 rounded-full border border-white/12 bg-[color:var(--cruush-black-glass)] text-white backdrop-blur-[var(--cruush-black-glass-blur)]"
+                    className="h-10 w-10 rounded-full border border-white/12 bg-black/55 text-white backdrop-blur-sm"
                     displayName={profileView.name}
                     onBlocked={() => {
                       setProfile(null);
@@ -600,7 +600,7 @@ export default function ProfileView() {
                 ) : null}
                 {userId ? (
                   <ReportAction
-                    className="h-10 w-10 rounded-full border border-white/12 bg-[color:var(--cruush-black-glass)] text-white backdrop-blur-[var(--cruush-black-glass-blur)]"
+                    className="h-10 w-10 rounded-full border border-white/12 bg-black/55 text-white backdrop-blur-sm"
                     label="Report profile"
                     targetId={userId}
                     targetLabel={profileView.name}
@@ -764,7 +764,7 @@ export default function ProfileView() {
             onClick={(event) => event.stopPropagation()}
           >
             {isOwnProfile ? null : (
-              <div className="rounded-full border border-white/12 bg-[color:var(--cruush-black-glass)] backdrop-blur-[var(--cruush-black-glass-blur)]">
+              <div className="rounded-full border border-white/12 bg-black/55 backdrop-blur-sm">
                 <ReportAction
                   label="Report this profile photo"
                   targetId={expandedPhoto}
@@ -776,7 +776,7 @@ export default function ProfileView() {
             )}
             <button
               aria-label="Close photo"
-              className="flex h-10 w-10 items-center justify-center rounded-full border border-white/12 bg-[color:var(--cruush-black-glass)] text-white backdrop-blur-[var(--cruush-black-glass-blur)]"
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-white/12 bg-black/55 text-white backdrop-blur-sm"
               data-testid="profile-photo-viewer-close"
               onClick={() => setExpandedPhoto(null)}
               type="button"
@@ -843,7 +843,7 @@ export function ProfileDetailsTabs({
 
   return (
     <Tabs value={activeTab} onValueChange={onActiveTabChange} className="w-full">
-      <TabsList className={`sticky top-0 z-20 grid h-auto w-full grid-cols-3 rounded-full border border-white/10 bg-[color:var(--cruush-black-glass)] p-1 backdrop-blur-[var(--cruush-black-glass-blur)] ${compact ? 'text-xs' : ''}`}>
+      <TabsList className={`sticky top-0 z-20 grid h-auto w-full grid-cols-3 rounded-full border border-white/10 bg-background/92 p-1 backdrop-blur-md ${compact ? 'text-xs' : ''}`}>
         <TabsTrigger value="basics" className={tabTriggerClassName} onClick={() => onActiveTabChange('basics')}>Basics</TabsTrigger>
         <TabsTrigger value="intimacy" className={tabTriggerClassName} onClick={() => onActiveTabChange('intimacy')}>Intimacy</TabsTrigger>
         <TabsTrigger value="health" className={tabTriggerClassName} onClick={() => onActiveTabChange('health')}>Health</TabsTrigger>

@@ -446,7 +446,7 @@ export default function Settings({ embedded = false, onBack, onClose, onOpenMile
 
   return (
     <div className={embedded ? 'min-h-full bg-background pb-6' : 'min-h-screen bg-background pb-20'}>
-      <header className="sticky top-0 bg-[color:var(--cruush-black-glass)] backdrop-blur-[var(--cruush-black-glass-blur)] border-b border-border p-4 flex items-center gap-4 z-10">
+      <header className="sticky top-0 bg-card/80 backdrop-blur-sm border-b border-border p-4 flex items-center gap-4 z-10">
         <Button variant="ghost" size="icon" onClick={embedded ? (onBack ?? onClose) : () => navigate('/map')} aria-label={embedded ? 'Back' : 'Back to map'}>
           <ArrowLeft className="w-5 h-5" />
         </Button>

@@ -18,10 +18,10 @@ export default function SignalBadge({
 }) {
   return (
     <span
-      className={`relative overflow-hidden rounded-full border border-[3.2px] bg-[color:var(--cruush-black-glass)] px-3 py-1 text-center text-[0.7rem] font-semibold leading-tight text-white backdrop-blur-[var(--cruush-black-glass-blur)] [overflow-wrap:anywhere] ${className}`}
+      className={`relative overflow-hidden rounded-full border border-[3.2px] bg-black/86 px-3 py-1 text-center text-[0.7rem] font-semibold leading-tight text-white backdrop-blur-md [overflow-wrap:anywhere] ${className}`}
       data-testid={testId}
       style={{
-        backgroundColor: 'var(--cruush-ghost-surface-color, var(--cruush-black-glass))',
+        backgroundColor: 'rgba(0, 0, 0, var(--cruush-ghost-surface-alpha, 0.86))',
         borderColor: `var(--cruush-ghost-flash-border-color, ${borderColor})`,
         borderWidth: '3.2px',
       } as CSSProperties}

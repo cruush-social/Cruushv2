@@ -79,7 +79,7 @@ export default function BlockedUsersPage() {
 
   return (
     <div className="min-h-screen bg-background pb-20">
-      <header className="sticky top-0 z-10 flex items-center gap-4 border-b border-border bg-[color:var(--cruush-black-glass)] p-4 backdrop-blur-[var(--cruush-black-glass-blur)]">
+      <header className="sticky top-0 z-10 flex items-center gap-4 border-b border-border bg-card/80 p-4 backdrop-blur-sm">
         <Button variant="ghost" size="icon" onClick={() => navigate(-1)} aria-label="Back to settings">
           <ArrowLeft className="h-5 w-5" />
         </Button>

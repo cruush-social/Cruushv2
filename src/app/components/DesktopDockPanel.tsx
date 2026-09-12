@@ -295,7 +295,7 @@ export default function DesktopDockPanel({
       aria-label={ariaLabel}
       data-dock-slot={slot}
       data-testid={`desktop-dock-${slot}`}
-      className={`fixed flex flex-col overflow-hidden rounded-[28px] border border-white/12 bg-[color:var(--cruush-black-glass)] shadow-[0_24px_80px_rgba(0,0,0,0.48)] backdrop-blur-[var(--cruush-black-glass-blur)] ${className ?? ''}`}
+      className={`fixed flex flex-col overflow-hidden rounded-[28px] border border-white/12 bg-black/45 shadow-[0_24px_80px_rgba(0,0,0,0.48)] backdrop-blur-2xl ${className ?? ''}`}
       style={panelStyle}
       onPointerDownCapture={raise}
     >

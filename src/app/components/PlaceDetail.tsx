@@ -399,7 +399,7 @@ export default function PlaceDetail({ embedded = false, onBack, onClose, placeId
 
   return (
     <div className={embedded ? 'bg-background' : 'min-h-screen bg-background pb-20'} data-testid="spot-detail">
-      <header className="sticky top-0 z-20 flex min-h-16 items-center gap-3 border-b border-white/10 bg-[color:var(--cruush-black-glass)] px-4 backdrop-blur-[var(--cruush-black-glass-blur)]">
+      <header className="sticky top-0 z-20 flex min-h-16 items-center gap-3 border-b border-white/10 bg-background/95 px-4 backdrop-blur-md">
         <button type="button" aria-label="Back" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/12 bg-black/70 text-white" onClick={onBack ?? (() => navigate(-1))}>
           <ArrowLeft className="h-5 w-5" />
         </button>

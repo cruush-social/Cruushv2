@@ -146,7 +146,7 @@ export default function NotificationCenter() {
 
   return (
     <div className="min-h-screen bg-background pb-28 text-foreground">
-      <header className="cruush-notification-header sticky top-0 z-20 flex items-center gap-3 border-b border-border bg-[color:var(--cruush-black-glass)] px-4 py-3 backdrop-blur-[var(--cruush-black-glass-blur)]">
+      <header className="cruush-notification-header sticky top-0 z-20 flex items-center gap-3 border-b border-border bg-background/88 px-4 py-3 backdrop-blur-md">
         <Button
           variant="ghost"
           size="icon"

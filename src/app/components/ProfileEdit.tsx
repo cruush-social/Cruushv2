@@ -1139,7 +1139,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
   };
   return (
     <div className={embedded ? 'bg-transparent pb-0' : 'min-h-screen bg-background pb-20'}>
-      <header className={`${embedded ? 'top-0 border-white/10 bg-black text-white backdrop-blur-sm' : 'top-0 border-border bg-[color:var(--cruush-black-glass)] backdrop-blur-[var(--cruush-black-glass-blur)]'} sticky z-30 flex items-center justify-between border-b p-4`}>
+      <header className={`${embedded ? 'top-0 border-white/10 bg-black text-white' : 'top-0 border-border bg-card/80'} sticky z-30 flex items-center justify-between border-b p-4 backdrop-blur-sm`}>
         <div className="flex min-w-0 items-center gap-2">
           <Button variant="ghost" size="icon" onClick={() => void handleCancel()} aria-label={embedded ? 'Back to profile preview' : 'Back'}>
             <ArrowLeft className="w-5 h-5" />
@@ -1176,7 +1176,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
           </div>
         ) : null}
         <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-          <TabsList className="sticky top-0 z-20 grid h-auto w-full grid-cols-5 rounded-full border border-white/10 bg-[color:var(--cruush-black-glass)] p-1 backdrop-blur-[var(--cruush-black-glass-blur)]">
+          <TabsList className="sticky top-0 z-20 grid h-auto w-full grid-cols-5 rounded-full border border-white/10 bg-background/92 p-1 backdrop-blur-md">
             <TabsTrigger value="photos" className="min-h-11">Photos</TabsTrigger>
             <TabsTrigger
               value="badges"

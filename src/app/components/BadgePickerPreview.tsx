@@ -831,7 +831,7 @@ export default function BadgePickerPreview({
         data-state={!isMobile ? 'open' : undefined}
         role={!isMobile && !containedEmbedded ? 'dialog' : undefined}
       >
-      {!embedded ? <header className="sticky top-0 z-20 flex items-center gap-2 border-b border-white/10 bg-[color:var(--cruush-black-glass)] px-4 py-3 backdrop-blur-[var(--cruush-black-glass-blur)]">
+      {!embedded ? <header className="sticky top-0 z-20 flex items-center gap-2 border-b border-white/10 bg-background/95 px-4 py-3 backdrop-blur-md">
         <button
           aria-label="Back"
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/12 bg-black/55"
@@ -873,7 +873,7 @@ export default function BadgePickerPreview({
       <main className={`mx-auto flex w-full max-w-2xl flex-1 flex-col px-4 ${containedEmbedded ? 'min-h-0 pb-8 pt-0' : !containedEmbedded && isMobile ? 'pb-[calc(7rem+env(safe-area-inset-bottom))] pt-6' : 'pb-8 pt-6'}`}>
         {/* You are the thing being dressed, so you sit in the middle. Tap a side
             to work on it; everything under here changes that side only. */}
-        <div className={`${!containedEmbedded && isMobile ? 'sticky top-[65px] z-10 -mx-4 border-b border-white/10 bg-[color:var(--cruush-black-glass)] px-4 pb-4 pt-1 backdrop-blur-[var(--cruush-black-glass-blur)]' : ''} flex flex-col items-center gap-5`}>
+        <div className={`${!containedEmbedded && isMobile ? 'sticky top-[65px] z-10 -mx-4 border-b border-white/10 bg-background/95 px-4 pb-4 pt-1 backdrop-blur-md' : ''} flex flex-col items-center gap-5`}>
           <span className="relative flex h-[7rem] w-[9rem] items-center justify-center">
             <span className="relative flex h-20 w-[103px] items-center justify-center">
               <HeartPhoto

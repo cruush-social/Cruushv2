@@ -267,7 +267,7 @@ export default function Rewards() {
 
   return (
     <div className="min-h-screen bg-background pb-24">
-      <header className="sticky top-0 z-10 border-b border-border bg-[color:var(--cruush-black-glass)] px-4 py-4 backdrop-blur-[var(--cruush-black-glass-blur)]">
+      <header className="sticky top-0 z-10 border-b border-border bg-card/90 px-4 py-4 backdrop-blur">
         <div className="mx-auto flex max-w-2xl items-center gap-3">
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)} aria-label="Back">
             <ArrowLeft className="h-5 w-5" />

@@ -384,7 +384,7 @@ export default function AlphaBugButton({
       }}
     >
       {showTip ? (
-        <div className={`fixed z-[1500] w-[min(18rem,calc(100vw-2rem))] rounded-md border border-primary/25 bg-[color:var(--cruush-black-glass)] p-3 text-center text-sm text-foreground shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-[var(--cruush-black-glass-blur)] ${getBugTipPlacement(location.pathname)}`}>
+        <div className={`fixed z-[1500] w-[min(18rem,calc(100vw-2rem))] rounded-md border border-primary/25 bg-background/95 p-3 text-center text-sm text-foreground shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-md ${getBugTipPlacement(location.pathname)}`}>
           <p className="leading-snug">Alpha test: tap the bug icon to report anything broken.</p>
           <button
             className="mt-2 text-xs font-semibold text-primary"

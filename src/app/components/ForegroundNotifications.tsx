@@ -225,7 +225,7 @@ export default function ForegroundNotifications({ showLatestRewardOnFirstPoll = 
     const theme = notificationPopupTheme();
 
     toast.custom((toastId) => (
-      <div className={`relative flex w-full max-w-[22rem] rounded-lg border bg-[color:var(--cruush-black-glass)] text-white shadow-[0_18px_48px_rgba(0,0,0,0.46)] backdrop-blur-[var(--cruush-black-glass-blur)] ${theme.popup}`}>
+      <div className={`relative flex w-full max-w-[22rem] rounded-lg border bg-background/95 text-white shadow-[0_18px_48px_rgba(0,0,0,0.46)] backdrop-blur-md ${theme.popup}`}>
       <button
         type="button"
         className="flex w-full items-start gap-3 rounded-lg border-0 bg-transparent p-4 pr-10 text-left text-white transition-colors hover:bg-muted/80"
