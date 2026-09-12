@@ -2774,7 +2774,7 @@ describe('MapHome', () => {
     );
     await waitFor(() => {
       expect(mapControls.setCenter).toHaveBeenCalledWith([-73.901, 40.701]);
-      expect(mapControls.setZoom).toHaveBeenCalledWith(14);
+      expect(mapControls.setZoom).toHaveBeenCalledWith(16);
       expect(screen.getByTestId('map-focus')).toHaveAttribute('data-lat', '40.701');
       expect(screen.getByTestId('map-focus')).toHaveAttribute('data-lng', '-73.901');
     });

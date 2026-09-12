@@ -1,5 +1,7 @@
 # FIXLOG
 
+- 2026-09-11 MAP-CENTER-PIN-CLOSE-ZOOM-20260911: The Center location action now recenters the signed-in member at zoom 16 for both fresh browser and active travel locations. Coordinates, location sync, privacy, controls, and other camera actions remain unchanged. The focused browser-location check and both builds pass. Seeded localhost at 1114x963 accepted the action, but browser geolocation remained in Finding your location, so final rendered camera state and production remain unverified.
+
 - 2026-09-11 MAP-CLOSE-ZOOM-SPIDERFY-20260911: Ordinary nearby member clusters now split into anchored pins at zoom 15.25 and above, while same-building clusters remain available for desktop hover/click and mobile long-press/tap spiderfy. Owner and owner Ghost decoy remain individual. Five focused checks pass; seeded localhost at 1114x963 rendered a two-person cluster and click expanded it into two separated hearts that stayed open. Full MapView is 70/71 because the unchanged origin/main Ping post-preview baseline test still fails. Production verification pending.
 
 - 2026-09-11 PIN-JUMP-20260910: People whose privacy-preserving map cells overlapped could be classified as an ordinary zoom cluster, so same-building pairs failed to spiderfy. Same-building detection now uses only the existing displayed privacy radii; it does not read or expose precise coordinates. Focused MapView checks cover overlapping adjacent 250 m cells, desktop hover/click, and mobile long-press/tap. Production and physical Android verification remain pending.

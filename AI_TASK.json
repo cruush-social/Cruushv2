@@ -1,27 +1,27 @@
 {
   "schemaVersion": 2,
-  "taskId": "map-close-spiderfy-release-20260911",
-  "status": "active",
-  "objective": "Stop people pins from jumping, keep same-building members clustered for spiderfy, and separate ordinary nearby members at close zoom.",
-  "userOutcome": "People stay at stable geographic anchors; same-building clusters preview on desktop hover or mobile long press and stay open on click or tap; ordinary clusters split at close zoom.",
+  "taskId": "map-center-user-closer-release-20260911",
+  "status": "validating",
+  "objective": "Make the map Center pin button recenter closer on the signed-in member.",
+  "userOutcome": "Center location moves the camera to the signed-in member at close neighborhood zoom instead of zooming too far out.",
   "audience": "cruush map members",
   "successCriteria": [
-    "Same-building people remain a cluster at close zoom and spiderfy through existing desktop and mobile interactions.",
-    "Ordinary nearby people split into individual pins at zoom 15.25 and above.",
-    "The signed-in member and owner Ghost decoy never enter people clusters.",
-    "Focused MapView tests, client build, server build, rendered map checks, production SHAs, and live version verification pass."
+    "Fresh browser-location recenter uses zoom 16.",
+    "Travel-location recenter uses zoom 16.",
+    "Coordinates, location sync, privacy, controls, and other camera actions remain unchanged.",
+    "Focused MapHome test, both builds, production SHA, and live version verification pass."
   ],
   "mustPreserve": [
-    "Geographic coordinates, map tiles, theme, camera controls, privacy radii, real photos, heart artwork, borders, badges, DL masking, signal previews, and accessible names.",
-    "Existing desktop hover and click plus mobile long-press and tap spiderfy handlers.",
+    "Geographic coordinates, map tiles, theme, privacy radii, markers, and control presentation.",
+    "Existing location permission, sync, travel-mode, error, and fetch behavior.",
     "All unrelated worktrees, dirty work, and the running localhost:5187 server.",
-    "No DL Mode settings, hover-copy removal, or app-wide placeholder work in this release."
+    "No DL Mode settings, hover-copy removal, relationship-status work, or app-wide placeholder work in this release."
   ],
   "nonGoals": [
-    "No Spot cleanup, map redesign, coordinate displacement, new controls, hover-copy removal, placeholder redesign, DL Mode release, or unrelated queue work in this release."
+    "No Spot cleanup, map redesign, coordinate changes, new controls, placeholder redesign, DL Mode release, or unrelated queue work in this release."
   ],
   "assumptions": [],
-  "nextVisibleMilestone": "Production map renders stable close-zoom people pins and working same-building spiderfy.",
+  "nextVisibleMilestone": "Seeded Center location action recenters at zoom 16.",
   "stopConditions": [
     "Stop on explicit user cancellation.",
     "Block any unrelated staged or outgoing difference."
@@ -48,10 +48,10 @@
   },
   "product": "cruush",
   "repository": "cruush-social/Cruushv2",
-  "branch": "fix/map-close-spiderfy-release-20260911",
+  "branch": "fix/map-center-user-closer-20260911",
   "allowedPaths": [
-    "src/app/components/MapView.tsx",
-    "src/app/components/MapView.test.tsx",
+    "src/app/components/MapHome.tsx",
+    "src/app/components/MapHome.test.tsx",
     "AI_TASK.json",
     "FIXLOG.md",
     "public/sw.js",
@@ -65,31 +65,31 @@
   ],
   "source": {
     "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
-    "line": 13531,
-    "sha256": "74686da28e255fdd23c1df1d5c284dcd67af181899afeca057f9f70dd62816c8",
-    "text": "More duplicates to remove as well as clustering too strong on user pins now im zoomed in close i should see them. Add to que"
+    "line": 11679,
+    "sha256": "2101f325e2142e1350be86972392e7d4273c2684effa487194caf3cab36d525b",
+    "text": "Add to que center pin button zooms out too much make it center on signed in user closer"
   },
   "baseline": {
-    "sha": "69eb63aa8875ce178317868fcaf212ba3ceb1058",
-    "inheritedTaskId": "owner-ghost-pins-20260910",
+    "sha": "e941adc235e3b80bd02c775fa58b42e94a2b6637",
+    "inheritedTaskId": "map-close-spiderfy-release-20260911",
     "productState": "Clean isolated worktree from current origin/main; prior task contract remains in immutable git history."
   },
-  "currentItem": "MAP-CLOSE-ZOOM-SPIDERFY-20260911",
+  "currentItem": "MAP-CENTER-PIN-CLOSE-ZOOM-20260911",
   "queue": [
     {
       "id": "MAP-CLOSE-ZOOM-SPIDERFY-20260911",
-      "status": "queued-separate-release",
+      "status": "completed-production-e941adc",
       "source": {
         "line": 13531,
         "text": "clustering too strong on user pins now im zoomed in close i should see them"
       }
     },
     {
-      "id": "MAP-HOVER-COPY-REMOVAL-20260910",
-      "status": "queued-separate-release",
+      "id": "MAP-CENTER-PIN-CLOSE-ZOOM-20260911",
+      "status": "ready-to-release",
       "source": {
-        "line": 7980,
-        "text": "make sure this isnt in this commit or deploy add to que"
+        "line": 11679,
+        "text": "center pin button zooms out too much make it center on signed in user closer"
       }
     },
     {
@@ -101,7 +101,7 @@
       }
     }
   ],
-  "proofTarget": "Populated map at desktop 1114x963 and mobile 412x915 with close zoom, same-building cluster, hover/click, and long-press/tap states.",
+  "proofTarget": "Seeded populated map with Center location action and resulting zoom 16 camera state.",
   "publicationTarget": "origin/main and production https://cruush.app with https://api.cruush.app",
   "deploymentAuthorization": {
     "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
@@ -110,28 +110,18 @@
     "text": "deploy both"
   },
   "outcomes": {
-    "source": "Prepared in isolated release worktree.",
-    "tests": "Five focused close-zoom, owner-exclusion, adjacent-cell and desktop/mobile spiderfy checks pass. Full MapView run is 70/71; the sole Ping post-preview assertion is the unchanged origin/main baseline failure.",
-    "clientBuild": "Passed final release-tree build.",
-    "serverBuild": "Passed final release-tree TypeScript build.",
-    "render": "Existing seeded localhost:5187 at 1114x963 rendered a two-person same-building cluster; clicking it replaced the count with two separated heart pins and kept the fan open. Exact production render pending deployment.",
+    "source": "Clean isolated worktree from deployed e941adc; only the two Center-location zoom calls changed from 14 to 16.",
+    "tests": "Focused fresh browser-location Center action check passes (1 passed, 84 skipped).",
+    "clientBuild": "Passed production Vite build.",
+    "serverBuild": "Passed server TypeScript build.",
+    "render": "Seeded localhost:5187 at 1114x963 accepted Center location and moved toward the signed-in location, but browser geolocation remained in Finding your location; final camera state is not render-confirmed in that replay.",
     "publication": "Authorized; pending.",
     "device": "Physical Android remains unverified."
   },
   "requiredEvidence": [
     "Focused MapView tests.",
     "Client and server builds.",
-    "Independent UI scope review and rendered desktop/mobile interaction checks.",
+    "Rendered Center location interaction check.",
     "Both production service SHAs and live web version."
-  ],
-  "uiScope": {
-    "version": 1,
-    "source": {
-      "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
-      "line": 13531,
-      "sha256": "74686da28e255fdd23c1df1d5c284dcd67af181899afeca057f9f70dd62816c8"
-    },
-    "baselineId": "84625f9b423cfc9ff89692af79d3a966b842739732a72f61109344864bc8b0d0",
-    "grants": []
-  }
+  ]
 }

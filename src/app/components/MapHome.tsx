@@ -1910,7 +1910,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
         browserCoordinates.longitude,
         browserCoordinates.latitude,
       ]);
-      mapInstance?.setZoom(14);
+      mapInstance?.setZoom(16);
     }
     void fetchUsers(fetchCoordinates, hasActiveSeekingFilters(filters) ? filters : undefined);
 
@@ -2469,7 +2469,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
         travelMapLocation.approximateLongitude,
         travelMapLocation.approximateLatitude,
       ]);
-      mapInstance.setZoom(14);
+      mapInstance.setZoom(16);
       return;
     }
 
