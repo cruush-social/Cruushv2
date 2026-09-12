@@ -240,3 +240,5 @@
 - Relationship status was omitted from encrypted profile writes, so selections disappeared after saving. It now persists and appears below Position and Role in profile menus and profiles.
 - The desktop Spot popup's bug control could cover its close control. Its header now places a dedicated Close button immediately after the bug control while the mobile dialog keeps its existing Close behavior.
 - Desktop map profile popups stopped too high above the bottom navigation. Profile and Edit Profile panels can now extend 34px farther down while other docked panels retain their existing clearance.
+
+- 2026-09-12: Prevent auth-token disclosure in request/error serializers, nginx access/error logs, development email previews and provider failures. Three focused security regressions plus seven mailer tests pass; production synthetic redirect, 404, query and header probes retain expected responses with zero token values in application/frontend logs. Removed all 37 outstanding recovery-token records (already expired); retained Docker and 43 host logs contained no matching real token URLs.

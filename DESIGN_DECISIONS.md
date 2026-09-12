@@ -90,3 +90,7 @@ Any requested adaptation of supplied icon artwork preserves the source icon's or
 ## Side badge geometry, September 11, 2026
 
 Hanky choices use the same icon size and badge border geometry as ordinary choices. Map-pin side badges use the same 35px size as profile-card side badges. Every non-flag icon stays fully inside the border with visible clearance and never overlaps the border; the shared 60% glyph inset enforces this. Pride flags remain the sole edge-to-edge badge fill and follow the no-border rule above. Preserve badge placement, hover labels, heart size and all non-badge pin geometry.
+
+## Secret-free operational logging, September 12, 2026
+
+Never record passwords, authentication tokens, session cookies, authorization headers, API keys or token-bearing URLs in application, proxy, error, preview or operational logs. Log only necessary route, method, status and timing metadata. Strip query values and omit raw request/response bodies and headers; provider errors and development previews must not echo secret values. Test these paths with synthetic tokens when verification is permitted. Julien explicitly requested stopping token logging, deleting accessible leaked copies, invalidating exposed tokens, and updating the loaded contract (task `01a09564-f771-7b91-b1db-319f81d01954`).

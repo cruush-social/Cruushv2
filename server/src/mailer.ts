@@ -408,8 +408,8 @@ async function sendResendEmail(input: {
   });
 
   if (!response.ok) {
-    const responseBody = await response.text();
-    logger.error({ email, responseBody, statusCode: response.status }, failureMessage);
+    // Provider responses may echo the email content, including token URLs.
+    logger.error({ email, statusCode: response.status }, failureMessage);
     throw new ApiError(502, "INTERNAL_ERROR", "Failed to send email.");
   }
 }
@@ -483,7 +483,7 @@ export async function sendVerificationEmail(input: VerificationEmailInput): Prom
     throw new ApiError(500, "INTERNAL_ERROR", "Email delivery is not configured.");
   }
 
-  logger.info({ email, verificationUrl }, "verification email preview");
+  logger.info({ email }, "verification email preview");
 
   return {
     previewUrl: verificationUrl
@@ -617,7 +617,7 @@ export async function sendPasswordResetEmail(input: PasswordResetEmailInput): Pr
     throw new ApiError(500, "INTERNAL_ERROR", "Email delivery is not configured.");
   }
 
-  logger.info({ email, resetUrl }, "password reset email preview");
+  logger.info({ email }, "password reset email preview");
 
   return {
     previewUrl: resetUrl
@@ -680,7 +680,7 @@ export async function sendEmailChangeConfirmationEmail(input: EmailChangeConfirm
     throw new ApiError(500, "INTERNAL_ERROR", "Email delivery is not configured.");
   }
 
-  logger.info({ email, confirmUrl }, "email change confirmation preview");
+  logger.info({ email }, "email change confirmation preview");
 
   return { previewUrl: confirmUrl };
 }
