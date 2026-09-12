@@ -2,7 +2,8 @@ import type { ChangeEvent, PointerEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { DROPDOWN_TRIGGER_CLASS } from '../lib/controlStyles';
 import { registerBugButtonSlot } from '../lib/bugButtonSlot';
-import { PHOTO_UPLOAD_ACCEPT, PHOTO_UPLOAD_EXTENSION_TYPES } from '../lib/photoUploadFormats';
+import PhotoUploadSpinner from './PhotoUploadSpinner';
+import { PHOTO_MAX_COMPRESSED_BYTES, PHOTO_UPLOAD_FORMAT_MESSAGE, PHOTO_UPLOAD_ACCEPT, PHOTO_UPLOAD_EXTENSION_TYPES } from '../lib/photoUploadFormats';
 import { SIGNAL_MAX_LENGTH } from '../lib/profileLimits';
 import { lazy, Suspense, useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router';
@@ -194,20 +195,34 @@ function sanitizeProfilePhotos(photos: string[] = []) {
   ).slice(0, MAX_PROFILE_PHOTOS);
 }
 
-function canvasToJpegFile(canvas: HTMLCanvasElement) {
-  return new Promise<File>((resolve, reject) => {
-    canvas.toBlob((blob) => {
-      if (!blob) {
-        reject(new Error('Could not crop profile photo.'));
-        return;
-      }
-
-      resolve(new File([blob], 'profile-crop.jpg', { type: 'image/jpeg' }));
-    }, 'image/jpeg', 0.92);
-  });
+async function canvasToJpegFile(canvas: HTMLCanvasElement) {
+  for (const quality of [0.92, 0.90, 0.88]) {
+    const blob = await new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob((output) => output ? resolve(output) : reject(new Error('Could not crop profile photo.')), 'image/jpeg', quality);
+    });
+    if (blob.size < PHOTO_MAX_COMPRESSED_BYTES) {
+      return new File([blob], 'profile-crop.jpg', { type: 'image/jpeg' });
+    }
+  }
+  throw new Error('Could not compress this photo below 5 MB.');
 }
 
-export async function readProfilePhotoPreviewUrl(file: File): Promise<PendingProfilePhoto> {
+export async function readProfilePhotoPreviewUrl(file: File, options: { previewOnly?: boolean; surface?: 'profile' | 'feed' } = {}): Promise<PendingProfilePhoto> {
+  if (!options.previewOnly) {
+    const body = new FormData();
+    const inferredType = PHOTO_UPLOAD_EXTENSION_TYPES.get(file.name.split('.').pop()?.toLowerCase() ?? '');
+    body.set('photo', (!file.type || file.type === 'application/octet-stream') && inferredType
+      ? new File([file], file.name, { type: inferredType }) : file);
+    const prepared = await requestApi<{ url: string }>(options.surface === 'feed' ? '/api/feed/photos/prepare' : '/api/profile-photos/prepare', { method: 'POST', body });
+    const image = new Image();
+    image.src = prepared.url;
+    await image.decode();
+    if (!image.naturalWidth || !image.naturalHeight) {
+      throw new Error(PROFILE_PHOTO_LOAD_ERROR);
+    }
+    return { url: prepared.url };
+  }
+
   // Safari excludes blob URLs from CSP 'self'. Data URLs are explicitly
   // permitted by the app's image policy and keep this preview on the device.
   const url = await new Promise<string>((resolve, reject) => {
@@ -217,7 +232,7 @@ export async function readProfilePhotoPreviewUrl(file: File): Promise<PendingPro
     reader.onerror = reader.onabort = () => reject(new Error(PROFILE_PHOTO_LOAD_ERROR));
     reader.readAsDataURL(file);
   });
-  if (/\.(heic|heif|avif|tif|tiff)$/i.test(file.name) || /^image\/(heic|heif|avif|tiff|x-tiff|tif)(-sequence)?$/i.test(file.type)) {
+  if (/\.(heic|heif|avif|tif|tiff|dng|gif|bmp)$/i.test(file.name) || /^image\/(heic|heif|avif|tiff|x-tiff|tif|dng|x-adobe-dng|gif|bmp|x-ms-bmp)(-sequence)?$/i.test(file.type)) {
     // Native decoding lets camera originals reach the same cropper as JPEGs
     // before final-upload size limits apply. Unsupported browsers still use
     // the private server conversion without saving a photo.
@@ -330,8 +345,8 @@ export function ProfilePhotoCropper({
 
     try {
       const canvas = document.createElement('canvas');
-      canvas.width = 1200;
-      canvas.height = 1500;
+      canvas.width = 1600;
+      canvas.height = 2000;
       const context = canvas.getContext('2d');
 
       if (!context) {
@@ -352,7 +367,7 @@ export function ProfilePhotoCropper({
       context.fillStyle = '#000';
       context.fillRect(0, 0, canvas.width, canvas.height);
       context.save();
-      context.translate(canvas.width / 2 + offset.x * 2, canvas.height / 2 + offset.y * 2);
+      context.translate(canvas.width / 2 + offset.x * 2 * (canvas.width / 1200), canvas.height / 2 + offset.y * 2 * (canvas.height / 1500));
       context.rotate((rotation * Math.PI) / 180);
       context.drawImage(image, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
       context.restore();
@@ -893,6 +908,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
 
     const requestId = photoPreviewRequestRef.current + 1;
     photoPreviewRequestRef.current = requestId;
+    setUploadingPhoto(true);
     setPhotoUploadError(null);
     setPhotoUploadNotice(null);
     setError(null);
@@ -910,6 +926,10 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
     } catch (previewError) {
       if (photoPreviewRequestRef.current === requestId) {
         setPhotoUploadError(previewError instanceof Error ? previewError.message : PROFILE_PHOTO_LOAD_ERROR);
+      }
+    } finally {
+      if (photoPreviewRequestRef.current === requestId) {
+        setUploadingPhoto(false);
       }
     }
   };
@@ -1263,8 +1283,10 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
 
               {normalizedProfile.photos.length < MAX_PROFILE_PHOTOS ? (
                 <label className={`flex aspect-[4/5] flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-border bg-card/60 p-4 text-center transition-colors ${profilePhotoUploadsAvailable === false ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:bg-accent/50'}`}>
-                  <Upload className="h-7 w-7 text-muted-foreground" />
-                  <span className="text-sm text-muted-foreground">{uploadingPhoto ? 'Uploading...' : 'Upload photo'}</span>
+                  <span className="flex h-7 w-7 items-center justify-center text-muted-foreground">
+                    {uploadingPhoto ? <PhotoUploadSpinner /> : <Upload className="h-7 w-7" />}
+                  </span>
+                  <span className="text-sm text-muted-foreground">Upload photo</span>
                   <input
                     accept={PHOTO_UPLOAD_ACCEPT}
                     className="sr-only"
@@ -1275,6 +1297,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
                 </label>
               ) : null}
             </div>
+            <p className="text-xs text-muted-foreground">{PHOTO_UPLOAD_FORMAT_MESSAGE}</p>
           </TabsContent>
 
           <TabsContent value="basics" className="space-y-6 mt-6">

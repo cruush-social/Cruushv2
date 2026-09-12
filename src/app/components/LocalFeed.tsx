@@ -1,5 +1,6 @@
+import PhotoUploadSpinner from './PhotoUploadSpinner';
 import { useCallback, useEffect, useId, useRef, useState, type ChangeEvent, type KeyboardEvent } from 'react';
-import { PHOTO_UPLOAD_ACCEPT, PHOTO_UPLOAD_FORMAT_MESSAGE } from '../lib/photoUploadFormats';
+import { PHOTO_UPLOAD_ACCEPT, PHOTO_UPLOAD_FORMAT_MESSAGE, PHOTO_UPLOAD_EXTENSION_TYPES } from '../lib/photoUploadFormats';
 import { useLocation, useNavigate } from 'react-router';
 import { formatDistanceLabel, useDistancePreferences } from '../lib/distancePreferences';
 import { ArrowLeft, Clock, Hash, SlidersHorizontal, Trash2, X } from 'lucide-react';
@@ -529,15 +530,16 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
       setError('Feed posts can include up to three photos.');
       return;
     }
-    if (!file.type.startsWith('image/')) {
+    if (!file.type.startsWith('image/') && !PHOTO_UPLOAD_EXTENSION_TYPES.has(file.name.split('.').pop()?.toLowerCase() ?? '')) {
       setError(PHOTO_UPLOAD_FORMAT_MESSAGE);
       return;
     }
 
     const requestId = ++feedPhotoPreviewRequestRef.current;
     setError(null);
+    setUploadingFeedPhoto(true);
     try {
-      const preview = await readProfilePhotoPreviewUrl(file);
+      const preview = await readProfilePhotoPreviewUrl(file, { surface: 'feed' });
       if (feedPhotoPreviewRequestRef.current === requestId) {
         setPendingFeedPhotoUrl(preview.url);
       }
@@ -545,6 +547,8 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
       if (feedPhotoPreviewRequestRef.current === requestId) {
         setError(previewError instanceof Error ? previewError.message : 'Failed to upload Feed photo.');
       }
+    } finally {
+      if (feedPhotoPreviewRequestRef.current === requestId) setUploadingFeedPhoto(false);
     }
   };
 
@@ -1280,9 +1284,10 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
                 type="button"
                 variant="outline"
               >
-                <CruushIcon name="camera" className="mr-2 h-4 w-4" />
-                {uploadingFeedPhoto ? 'Uploading...' : `Photo${hasCruushPlus === true ? ` ${stagedPhotos.length}/3` : ' +'}`}
+                {uploadingFeedPhoto ? <PhotoUploadSpinner className="mr-2 h-4 w-4" /> : <CruushIcon name="camera" className="mr-2 h-4 w-4" />}
+                {`Photo${hasCruushPlus === true ? ` ${stagedPhotos.length}/3` : ' +'}`}
               </Button>
+              <p className="mt-1 text-xs text-muted-foreground">{PHOTO_UPLOAD_FORMAT_MESSAGE}</p>
             </div>
             <Button
               onClick={handlePost}

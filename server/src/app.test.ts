@@ -8415,6 +8415,49 @@ describe("server", () => {
     });
   });
 
+  it.each([
+    ["adult-human-profile.png", 200],
+    ["hate-symbol.png", 400]
+  ] as const)("prepares a compressed photo only after moderation: %s", async (filename, status) => {
+    mockPendingProfileMediaQueries();
+    const multipart = multipartFilePayload({ fieldName: "photo", filename, contentType: "image/png", content: await validPng() });
+    const response = await app.inject({ method: "POST", url: "/api/profile-photos/prepare", headers: { "x-user-id": userId, "content-type": multipart.contentType }, payload: multipart.payload });
+    expect(response.statusCode, response.body).toBe(status);
+    const queries = query.mock.calls.map(([sql]) => String(sql));
+    expect(queries.some((sql) => sql.includes("insert into media_objects"))).toBe(true);
+    expect(queries.some((sql) => sql.includes("delete from media_objects"))).toBe(true);
+    expect(queries.some((sql) => sql.includes("insert into profiles"))).toBe(false);
+    if (status === 200) {
+      const source = response.json().data.url as string;
+      expect(source).toMatch(/^data:image\/(png|jpeg|webp);base64,/);
+      const bytes = Buffer.from(source.split(",")[1], "base64");
+      expect(bytes.length).toBeLessThan(5_000_000);
+      expect(Math.max((await sharp(bytes).metadata()).width!, (await sharp(bytes).metadata()).height!)).toBeLessThanOrEqual(2048);
+      expect(response.headers["cache-control"]).toBe("no-store");
+    } else {
+      expect(response.json().data).toBeUndefined();
+      expect(response.json().error.code).toBe("CONTENT_REJECTED");
+    }
+  });
+
+  it("prepares Feed photos with Feed eligibility and media policy instead of profile restrictions", async () => {
+    query.mockImplementation(async (sql: string, params: unknown[] = []) => {
+      if (sql.includes("with paid_state as")) return { rows: [{ cruush_plus_enabled: true, cruush_plus_expires_at: null }] };
+      if (sql.includes("as allowed")) return { rows: [{ allowed: true }] };
+      if (sql.includes("with inserted_media as")) return { rows: [{ id: params[0] }] };
+      return { rows: [] };
+    });
+    const multipart = multipartFilePayload({ fieldName: "photo", filename: "non-human.png", contentType: "image/png", content: await validPng() });
+    const response = await app.inject({ method: "POST", url: "/api/feed/photos/prepare", headers: { "x-user-id": userId, "content-type": multipart.contentType }, payload: multipart.payload });
+    expect(response.statusCode, response.body).toBe(200);
+    expect(response.json().data.url).toMatch(/^data:image\//);
+    const queries = query.mock.calls.map(([sql]) => String(sql));
+    expect(queries.some((sql) => sql.includes("restriction.feature in ('photo_uploads', 'feed_posting')"))).toBe(true);
+    expect(queries.some((sql) => sql.includes("select photos from profiles"))).toBe(false);
+    expect(queries.some((sql) => sql.includes("delete from media_objects"))).toBe(true);
+    expect(queries.some((sql) => sql.includes("set public_url"))).toBe(false);
+  });
+
   it("uploads a profile photo on POST /api/profile-photos", async () => {
     query.mockImplementation(async (_sql: string, params: unknown[] = []) => ({
       rows: String(_sql).includes("select photos from profiles")
@@ -8463,7 +8506,7 @@ describe("server", () => {
     expect(profileInsert?.[1]).toEqual(expect.arrayContaining([userId, body.data.url]));
   });
 
-  it("rejects restricted profile-photo uploads before creating pending media", async () => {
+  it.each(["/api/profile-photos", "/api/profile-photos/prepare"])("rejects restricted profile-photo uploads before creating pending media: %s", async (route) => {
     query.mockImplementation(async (sql: string) => ({
       rows: sql.includes("select photos from profiles")
         ? [{ photos: [], photo_uploads_allowed: false }]
@@ -8479,7 +8522,7 @@ describe("server", () => {
 
     const response = await app.inject({
       method: "POST",
-      url: "/api/profile-photos",
+      url: route,
       headers: {
         "x-user-id": userId,
         "content-type": multipart.contentType
@@ -8797,6 +8840,53 @@ describe("server", () => {
       expect(queries.some((sql) => sql.includes("insert into media_objects"))).toBe(true);
       expect(queries.some((sql) => sql.includes("moderation_failure_reason = 'provider_unavailable'"))).toBe(true);
       expect(queries.some((sql) => sql.includes("delete from media_objects"))).toBe(false);
+      expect(queries.some((sql) => sql.includes("insert into profiles"))).toBe(false);
+    } finally {
+      await outageApp.close();
+      rekognitionSend.mockRestore();
+    }
+  });
+
+  it("keeps the cropper closed and removes temporary preparation media when moderation is unavailable", async () => {
+    const rekognitionSend = vi.spyOn(RekognitionClient.prototype, "send").mockRejectedValue(
+      Object.assign(new Error("Rekognition unavailable"), {
+        name: "ServiceUnavailableException",
+        $metadata: { httpStatusCode: 503, requestId: "rekognition-mock-outage-1" }
+      })
+    );
+    const outageApp = buildServer({
+      ...app.config,
+      PROFILE_PHOTO_REKOGNITION_ENABLED: true
+    }, {
+      db: { query, end },
+      rateLimiter
+    });
+    mockPendingProfileMediaQueries();
+    const multipart = multipartFilePayload({
+      fieldName: "photo",
+      filename: "adult-human-profile.png",
+      contentType: "image/png",
+      content: await validPng()
+    });
+
+    try {
+      const response = await outageApp.inject({
+        method: "POST",
+        url: "/api/profile-photos/prepare",
+        headers: {
+          "x-user-id": userId,
+          "content-type": multipart.contentType
+        },
+        payload: multipart.payload
+      });
+      const queries = query.mock.calls.map(([sql]) => String(sql));
+
+      expect(response.statusCode).toBe(503);
+      expect(response.json().data).toBeUndefined();
+      expect(rekognitionSend).toHaveBeenCalled();
+      expect(queries.some((sql) => sql.includes("insert into media_objects"))).toBe(true);
+      expect(queries.some((sql) => sql.includes("moderation_failure_reason = 'provider_unavailable'"))).toBe(true);
+      expect(queries.some((sql) => sql.includes("delete from media_objects"))).toBe(true);
       expect(queries.some((sql) => sql.includes("insert into profiles"))).toBe(false);
     } finally {
       await outageApp.close();

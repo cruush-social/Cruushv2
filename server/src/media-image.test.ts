@@ -1,4 +1,5 @@
 import sharp from "sharp";
+import { randomBytes } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { processUploadedImage } from "./media-image.js";
 
@@ -29,9 +30,22 @@ describe("media image processing", () => {
     for (const variant of processed.variants) {
       const metadata = await sharp(variant.bytes).metadata();
       expect(metadata.format).toBe("webp");
-      expect(metadata.width).toBeLessThanOrEqual(variant.type === "thumbnail" ? 320 : 960);
-      expect(metadata.height).toBeLessThanOrEqual(variant.type === "thumbnail" ? 400 : 1200);
+      expect(metadata.width).toBeLessThanOrEqual(variant.type === "thumbnail" ? 320 : 1600);
+      expect(metadata.height).toBeLessThanOrEqual(variant.type === "thumbnail" ? 400 : 2000);
     }
+  });
+
+  it("compresses a camera original above 5 MB before moderation without accepting it as a final upload", async () => {
+    const original = await sharp(randomBytes(2048 * 2048 * 3), {
+      raw: { width: 2048, height: 2048, channels: 3 }
+    }).png().toBuffer();
+    expect(original.length).toBeGreaterThan(5_000_000);
+    await expect(processUploadedImage(original, "image/png")).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+    const processed = await processUploadedImage(original, "image/png", { cameraOriginal: true });
+    expect(processed.canonicalBytes.length).toBeLessThan(5_000_000);
+    expect(processed.canonicalMimeType).toBe("image/webp");
+    expect((await sharp(processed.canonicalBytes).metadata()).width).toBe(2048);
+    expect(processed.variants.every((variant) => variant.bytes.length < 5_000_000)).toBe(true);
   });
 
   it("normalizes orientation and strips embedded metadata", async () => {

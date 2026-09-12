@@ -5,25 +5,19 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import { ApiError } from "./errors.js";
-import { sanitizeProfilePhoto } from "./image-sanitization.js";
+import { decodeBitmapPhoto } from "./bitmap-image.js";
+import { decodeCameraRaw } from "./camera-raw-image.js";
+import { MAX_COMPRESSED_PHOTO_BYTES, sanitizeProfilePhoto } from "./image-sanitization.js";
 
-export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+export const MAX_IMAGE_BYTES = MAX_COMPRESSED_PHOTO_BYTES;
 export const MAX_IMAGE_PIXELS = 40_000_000;
+export const MAX_PHOTO_SOURCE_BYTES = 128 * 1024 * 1024;
+export const MAX_PHOTO_SOURCE_PIXELS = 260_000_000;
 const MAX_IMAGE_DIMENSION = 12_000;
 
-// What a phone camera actually produces. HEIC is the iPhone default and AVIF
-// is turning up from Android; libvips reports both as heif, so AVIF passes the
-// format check already and only ever failed on its declared type. TIFF comes
-// out of the odd camera app. Everything is re-encoded to WebP for delivery, so
-// accepting a format costs nothing downstream.
-//
-// A photo is a still. Animated formats are out: GIF entirely, and an animated
-// WebP or APNG is rejected rather than silently frozen to its first frame.
-// SVG and raw are deliberately absent even though this build decodes them: SVG
-// carries script, and raw is not a photo anyone is uploading from a phone.
-// Sharp's bundled libvips reads HEIC metadata but omits HEVC decoding.
-// The runtime's libheif tool supplies that decoder after the same validation.
-const supportedFormats = new Set(["jpeg", "png", "webp", "heif", "tiff"]);
+// Static uploads are decoded and re-encoded before moderation and delivery.
+// HEVC uses libheif; phone DNG uses LibRaw. Animated uploads remain rejected.
+const supportedFormats = new Set(["jpeg", "png", "webp", "heif", "tiff", "gif"]);
 
 const runImageDecoder = promisify(execFile);
 
@@ -49,7 +43,8 @@ const mimeTypes = {
   png: "image/png",
   webp: "image/webp",
   heif: "image/heic",
-  tiff: "image/tiff"
+  tiff: "image/tiff",
+  gif: "image/gif"
 } as const;
 
 export type ProcessedImageVariant = {
@@ -61,8 +56,9 @@ export type ProcessedImageVariant = {
 };
 
 export type ProcessedImage = {
-  detectedMimeType: "image/jpeg" | "image/png" | "image/webp" | "image/heic" | "image/tiff";
+  detectedMimeType: "image/jpeg" | "image/png" | "image/webp" | "image/heic" | "image/tiff" | "image/gif" | "image/dng" | "image/bmp";
   canonicalBytes: Buffer;
+  canonicalMimeType?: "image/jpeg" | "image/png" | "image/webp";
   width: number;
   height: number;
   variants: ProcessedImageVariant[];
@@ -93,7 +89,7 @@ function mimeTypeAliases(detectedMimeType: string) {
   }
 }
 
-function invalidImage(message = "Upload a still photo your phone or camera made: JPEG, PNG, HEIC, AVIF, WebP, or TIFF.") {
+function invalidImage(message = "Upload a still photo your phone or camera made: JPEG, PNG, HEIC/HEIF, AVIF, WebP, TIFF, DNG, BMP or still GIF.") {
   return new ApiError(400, "VALIDATION_ERROR", message);
 }
 
@@ -113,6 +109,9 @@ async function makeVariant(
     .webp({ quality: 82, effort: 4 })
     .toBuffer({ resolveWithObject: true });
 
+  if (output.data.length >= MAX_COMPRESSED_PHOTO_BYTES) {
+    throw invalidImage("Compressed photo exceeds 5 MB.");
+  }
   return {
     type,
     bytes: output.data,
@@ -122,20 +121,26 @@ async function makeVariant(
   };
 }
 
-export async function processUploadedImage(bytes: Buffer, declaredMimeType?: string): Promise<ProcessedImage> {
+export async function processUploadedImage(bytes: Buffer, declaredMimeType?: string, options: { cameraOriginal?: boolean } = {}): Promise<ProcessedImage> {
+  const maxBytes = options.cameraOriginal ? MAX_PHOTO_SOURCE_BYTES : MAX_IMAGE_BYTES;
+  const maxPixels = options.cameraOriginal ? MAX_PHOTO_SOURCE_PIXELS : MAX_IMAGE_PIXELS;
+  const maxDimension = options.cameraOriginal ? 20_000 : MAX_IMAGE_DIMENSION;
   if (bytes.length === 0) {
     throw invalidImage("Image cannot be empty.");
   }
 
-  if (bytes.length > MAX_IMAGE_BYTES) {
-    throw invalidImage("Image must be 5 MB or smaller.");
+  if (bytes.length > maxBytes) {
+    throw invalidImage(options.cameraOriginal ? "Camera original must be 128 MB or smaller." : "Image must be 5 MB or smaller.");
   }
 
   try {
-    const metadata = await sharp(bytes, {
+    const rawPixels = await decodeCameraRaw(bytes, declaredMimeType, { maxPixels, maxDimension });
+    const bitmapPixels = rawPixels ? null : await decodeBitmapPhoto(bytes, declaredMimeType, maxPixels);
+    const imageBytes = rawPixels ?? bitmapPixels ?? bytes;
+    const metadata = await sharp(imageBytes, {
       animated: false,
       failOn: "warning",
-      limitInputPixels: MAX_IMAGE_PIXELS
+      limitInputPixels: maxPixels
     }).metadata();
     const format = metadata.format;
 
@@ -153,36 +158,37 @@ export async function processUploadedImage(bytes: Buffer, declaredMimeType?: str
     if (
       width <= 0 ||
       height <= 0 ||
-      width > MAX_IMAGE_DIMENSION ||
-      height > MAX_IMAGE_DIMENSION ||
-      width * height > MAX_IMAGE_PIXELS
+      width > maxDimension ||
+      height > maxDimension ||
+      width * height > maxPixels
     ) {
       throw invalidImage("Image dimensions are not supported.");
     }
 
-    const detectedMimeType = mimeTypes[format as keyof typeof mimeTypes];
+    const detectedMimeType = rawPixels ? "image/dng" : bitmapPixels ? "image/bmp" : mimeTypes[format as keyof typeof mimeTypes];
 
     // Browsers and phones label the same bytes several ways: image/jpg for a
     // JPEG, image/heif for a HEIC. Comparing against one exact string rejected
     // real photos whose content was perfectly valid, which is what made "tried
     // png and jpg" fail. The check still catches content that is genuinely a
     // different format from what was claimed.
-    if (declaredMimeType && !mimeTypeAliases(detectedMimeType).has(declaredMimeType.trim().toLowerCase())) {
+    if (!rawPixels && !bitmapPixels && declaredMimeType && !mimeTypeAliases(detectedMimeType).has(declaredMimeType.trim().toLowerCase())) {
       throw invalidImage("Image content does not match its declared type.");
     }
 
     const decodableBytes = format === "heif" && metadata.compression === "hevc"
-      ? await decodeHeic(bytes) : bytes;
-    const canonical = await sanitizeProfilePhoto(decodableBytes, detectedMimeType);
+      ? await decodeHeic(imageBytes) : imageBytes;
+    const canonical = await sanitizeProfilePhoto(decodableBytes, detectedMimeType, { maxInputPixels: maxPixels });
     const canonicalMetadata = await sharp(canonical.bytes).metadata();
     const variants = await Promise.all([
       makeVariant(canonical.bytes, "thumbnail", 320, 400),
-      makeVariant(canonical.bytes, "display", 960, 1200)
+      makeVariant(canonical.bytes, "display", 1600, 2000)
     ]);
 
     return {
       detectedMimeType,
       canonicalBytes: canonical.bytes,
+      canonicalMimeType: canonical.mimeType,
       width: canonicalMetadata.width ?? width,
       height: canonicalMetadata.height ?? height,
       variants
@@ -192,6 +198,6 @@ export async function processUploadedImage(bytes: Buffer, declaredMimeType?: str
       throw error;
     }
 
-    throw invalidImage("This photo could not be decoded. It may be damaged or use an unsupported encoding. Export it as JPEG or PNG and try again.");
+    throw invalidImage("This photo could not be decoded. It may be damaged or use an unsupported encoding. Supported photos: JPEG, PNG, HEIC/HEIF, AVIF, WebP, TIFF, DNG, BMP or still GIF.");
   }
 }

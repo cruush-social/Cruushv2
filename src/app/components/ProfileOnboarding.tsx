@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
-import { PHOTO_UPLOAD_ACCEPT } from '../lib/photoUploadFormats';
+import PhotoUploadSpinner from './PhotoUploadSpinner';
+import { PHOTO_UPLOAD_ACCEPT, PHOTO_UPLOAD_FORMAT_MESSAGE } from '../lib/photoUploadFormats';
 import { CROWDS, ONBOARDING_IDENTITIES, LOOKING_FOR, MAX_PROFILE_SEXUALITIES, POSITIONS, PRONOUNS, ROLES, SEXUALITY, VIBE_GROUPS } from '../lib/profileOptions';
 import { ArrowRight, Check, Clipboard, Gift, Share2, ShieldCheck } from 'lucide-react';
 import { toast } from '../lib/toast';
@@ -418,10 +419,13 @@ export default function ProfileOnboarding({
     setPhotoUploadError(null);
     setPhotoUploadNotice(null);
 
+    setPhotoUploading(true);
     try {
-      setPendingPhoto(await readProfilePhotoPreviewUrl(photo));
+      setPendingPhoto(await readProfilePhotoPreviewUrl(photo, { previewOnly: previewMode }));
     } catch (previewError) {
       setPhotoUploadError(previewError instanceof Error ? previewError.message : 'Failed to read that photo.');
+    } finally {
+      setPhotoUploading(false);
     }
   };
 
@@ -828,7 +832,8 @@ export default function ProfileOnboarding({
                       disabled={photoUploading}
                       onChange={(event) => void handleOnboardingPhotoUpload(event)}
                     />
-                    {photoUploading ? <p className="text-xs text-white/58">Uploading...</p> : null}
+                    {photoUploading ? <PhotoUploadSpinner /> : null}
+                    <p className="text-xs text-white/58">{PHOTO_UPLOAD_FORMAT_MESSAGE}</p>
                     {photoUploadNotice ? <p className="text-xs text-primary">{photoUploadNotice}</p> : null}
                     {photoUploadError ? <p role="alert" className="text-xs text-destructive">{photoUploadError}</p> : null}
                   </div>

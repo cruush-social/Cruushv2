@@ -50,7 +50,7 @@ describe('ProfileEdit', () => {
     });
     const file = new File([new Uint8Array(5 * 1024 * 1024 + 1)], 'camera.heic', { type: 'image/heic' });
 
-    const preview = await readProfilePhotoPreviewUrl(file);
+    const preview = await readProfilePhotoPreviewUrl(file, { previewOnly: true });
     expect(preview.url.startsWith('data:image/heic;base64,')).toBe(true);
     expect(preview.objectUrl).toBeUndefined();
     expect(fetchPreview).not.toHaveBeenCalled();
@@ -69,9 +69,38 @@ describe('ProfileEdit', () => {
     });
     for (const [name, type] of [['camera.heic', 'image/heic'], ['camera.tiff', 'image/tiff'], ['camera.avif', 'image/avif'], ['camera.heic', '']]) {
       const file = new File(['camera bytes'], name, { type });
-      expect(await readProfilePhotoPreviewUrl(file)).toEqual({ url: 'data:image/webp;base64,cHJldmlldw==' });
+      expect(await readProfilePhotoPreviewUrl(file, { previewOnly: true })).toEqual({ url: 'data:image/webp;base64,cHJldmlldw==' });
       expect(fetchPreview).toHaveBeenLastCalledWith(expect.stringContaining('/api/profile-photos/preview'), expect.objectContaining({ method: 'POST', credentials: 'include' }));
     }
+    expect(uploadProfilePhoto).not.toHaveBeenCalled();
+  });
+
+  it('waits for moderation approval and decoding before returning a cropper source', async () => {
+    let approve!: (response: Response) => void;
+    const fetchPreparation = vi.fn(() => new Promise<Response>((resolve) => { approve = resolve; }));
+    vi.stubGlobal('fetch', fetchPreparation);
+    const decode = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal('Image', class {
+      src = '';
+      naturalWidth = 1200;
+      naturalHeight = 1500;
+      decode = decode;
+    });
+    const preparation = readProfilePhotoPreviewUrl(new File(['photo'], 'camera.jpg', { type: 'image/jpeg' }));
+    expect(decode).not.toHaveBeenCalled();
+    approve(new Response(JSON.stringify({ data: { url: 'data:image/jpeg;base64,cGhvdG8=' } }), { status: 200 }));
+    await expect(preparation).resolves.toEqual({ url: 'data:image/jpeg;base64,cGhvdG8=' });
+    expect(fetchPreparation).toHaveBeenCalledWith(expect.stringContaining('/api/profile-photos/prepare'), expect.objectContaining({ method: 'POST' }));
+    expect(decode).toHaveBeenCalledOnce();
+    expect(uploadProfilePhoto).not.toHaveBeenCalled();
+  });
+
+  it.each([400, 503])('does not return a cropper source when moderation responds %s', async (status) => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: { code: status === 400 ? 'CONTENT_REJECTED' : 'MODERATION_UNAVAILABLE', message: 'Photo not approved.' } }), { status })));
+    const decode = vi.fn();
+    vi.stubGlobal('Image', class { decode = decode; });
+    await expect(readProfilePhotoPreviewUrl(new File(['photo'], 'camera.jpg', { type: 'image/jpeg' }))).rejects.toThrow();
+    expect(decode).not.toHaveBeenCalled();
     expect(uploadProfilePhoto).not.toHaveBeenCalled();
   });
 
@@ -107,6 +136,8 @@ describe('ProfileEdit', () => {
       revokeObjectURL: { value: vi.fn() },
     });
     vi.stubGlobal('URL', MockURL);
+    vi.stubGlobal('fetch', vi.fn().mockImplementation(async () => new Response(JSON.stringify({ data: { url: 'data:image/png;base64,AQID' } }), { status: 200 })));
+    HTMLImageElement.prototype.decode = vi.fn().mockResolvedValue(undefined);
     HTMLCanvasElement.prototype.getContext = vi.fn(() => ({
       clearRect: vi.fn(),
       drawImage: vi.fn(),

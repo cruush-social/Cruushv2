@@ -575,6 +575,11 @@ export async function registerPostRoutes(app: FastifyInstance) {
     return handleFeedPhotoUpload(app, request, reply, userId);
   });
 
+  app.post("/api/feed/photos/prepare", async (request, reply) => {
+    const userId = await getActiveAccountUserId(request);
+    return handleFeedPhotoUpload(app, request, reply, userId, true);
+  });
+
   app.get("/api/posts", async (request, reply) => {
     const userId = await getAuthenticatedUserId(request);
     const query = feedPostQuerySchema.parse(request.query);

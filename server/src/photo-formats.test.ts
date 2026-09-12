@@ -20,6 +20,7 @@ describe("photo formats a phone actually produces", () => {
     ["webp", "image/webp"],
     ["avif", "image/avif"],
     ["tiff", "image/tiff"],
+    ["gif", "image/gif"],
   ])("accepts %s declared as %s", async (format, declared) => {
     const bytes = await swatch().toFormat(format as never).toBuffer();
     const processed = await processUploadedImage(bytes, declared);
@@ -28,9 +29,26 @@ describe("photo formats a phone actually produces", () => {
     expect(processed.variants.every((v) => v.mimeType === "image/webp")).toBe(true);
   });
 
-  it("rejects an animated GIF and a still one alike: a photo is a still", async () => {
-    const gif = await swatch().toFormat("gif").toBuffer();
-    await expect(processUploadedImage(gif, "image/gif")).rejects.toThrow();
+  it("rejects an animated GIF instead of silently choosing a frame", async () => {
+    const pixels = Buffer.alloc(80 * 240 * 3);
+    pixels.fill(255, 80 * 120 * 3);
+    const gif = await sharp(pixels, { raw: { width: 80, height: 240, channels: 3, pageHeight: 120 } }).gif().toBuffer();
+    expect((await sharp(gif).metadata()).pages).toBe(2);
+    await expect(processUploadedImage(gif, "image/gif")).rejects.toThrow(/Animated images/);
+  });
+
+  it("decodes a BMP raster and sends only compressed WebP onward", async () => {
+    const bytes = Buffer.from("Qk1OAAAAAAAAADYAAAAoAAAAAgAAAAMAAAABABgAAAAAABgAAAAAAAAAAAAAAAAAAAAAAAAAcCCgcCCgAABwIKBwIKAAAHAgoHAgoAAA", "base64");
+    const processed = await processUploadedImage(bytes, "image/bmp");
+    expect(processed.detectedMimeType).toBe("image/bmp");
+    expect(processed.canonicalMimeType).toBe("image/webp");
+    expect(processed.width).toBe(2);
+    expect(processed.height).toBe(3);
+  });
+
+  it("does not mistake an ordinary TIFF for DNG from its declared label", async () => {
+    const bytes = await swatch().tiff().toBuffer();
+    await expect(processUploadedImage(bytes, "image/dng")).rejects.toThrow(/declared type/);
   });
 
   it("still rejects a JPEG that claims to be a PNG", async () => {

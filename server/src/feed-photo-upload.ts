@@ -7,16 +7,16 @@ import {
   isPhotoModerationUnavailable,
   moderatePendingMediaAsset
 } from "./media-assets.js";
-import { MAX_IMAGE_BYTES, processUploadedImage } from "./media-image.js";
+import { MAX_IMAGE_BYTES, MAX_PHOTO_SOURCE_BYTES, processUploadedImage } from "./media-image.js";
 import { approvedContentReviewCte } from "./moderation-service.js";
 import { toReportablePhotoUploadError } from "./photo-upload-incident.js";
 import { photoUploadAvailability } from "./photo-upload-availability.js";
 import { getCruushEntitlement } from "./match-relationships.js";
 
-function uploadError(error: unknown) {
+function uploadError(error: unknown, prepareOnly = false) {
   const message = error instanceof Error ? error.message.toLowerCase() : "";
   if (message.includes("request file too large") || message.includes("file size")) {
-    return new ApiError(400, "VALIDATION_ERROR", "Feed photo must be 5 MB or smaller.");
+    return new ApiError(400, "VALIDATION_ERROR", prepareOnly ? "Camera original must be 128 MB or smaller." : "Feed photo must be 5 MB or smaller.");
   }
   return error;
 }
@@ -25,7 +25,8 @@ export async function handleFeedPhotoUpload(
   app: FastifyInstance,
   request: FastifyRequest,
   reply: FastifyReply,
-  userId: string
+  userId: string,
+  prepareOnly = false
 ) {
   const entitlement = await getCruushEntitlement(app, userId);
   if (!entitlement.cruushPlus) {
@@ -77,9 +78,9 @@ export async function handleFeedPhotoUpload(
 
   let upload;
   try {
-    upload = await request.file({ limits: { fileSize: MAX_IMAGE_BYTES, files: 1 } });
+    upload = await request.file({ limits: { fileSize: prepareOnly ? MAX_PHOTO_SOURCE_BYTES : MAX_IMAGE_BYTES, files: 1 } });
   } catch (error) {
-    throw uploadError(error);
+    throw uploadError(error, prepareOnly);
   }
 
   if (!upload || upload.fieldname !== "photo") {
@@ -90,13 +91,13 @@ export async function handleFeedPhotoUpload(
   try {
     bytes = await upload.toBuffer();
   } catch (error) {
-    throw uploadError(error);
+    throw uploadError(error, prepareOnly);
   }
   if (upload.file.truncated) {
-    throw new ApiError(400, "VALIDATION_ERROR", "Feed photo must be 5 MB or smaller.");
+    throw new ApiError(400, "VALIDATION_ERROR", prepareOnly ? "Camera original must be 128 MB or smaller." : "Feed photo must be 5 MB or smaller.");
   }
 
-  const processed = await processUploadedImage(bytes, upload.mimetype);
+  const processed = await processUploadedImage(bytes, upload.mimetype, { cameraOriginal: prepareOnly });
   let pendingAsset: Awaited<ReturnType<typeof createPendingMediaAsset>> | null = null;
 
   try {
@@ -104,13 +105,20 @@ export async function handleFeedPhotoUpload(
       ownerUserId: userId,
       surface: "feed_photo",
       processed,
-      moderationHold: { kind: "feed_photo" }
+      moderationHold: prepareOnly ? undefined : { kind: "feed_photo" }
     });
     const asset = await moderatePendingMediaAsset(app, request, pendingAsset, {
       filename: upload.filename,
       // Feed photos intentionally follow the same content rules as message photos.
       moderationSurface: "direct_message"
     });
+    if (prepareOnly) {
+      await deletePendingMediaAsset(app, request, pendingAsset);
+      const mimeType = processed.canonicalMimeType ?? processed.detectedMimeType;
+      return reply.header("Cache-Control", "no-store").send({
+        data: { url: `data:${mimeType};base64,${processed.canonicalBytes.toString("base64")}` }
+      });
+    }
     const explicit = asset.moderation.labels.some((label) => (
       label.normalized_label === "adult_nudity" || label.normalized_label === "adult_explicit"
     ));
@@ -185,7 +193,7 @@ export async function handleFeedPhotoUpload(
       }
     });
   } catch (error) {
-    if (pendingAsset && isPhotoModerationUnavailable(error)) {
+    if (!prepareOnly && pendingAsset && isPhotoModerationUnavailable(error)) {
       return reply.code(202).send({
         data: { status: "pending_review", assetId: pendingAsset.id }
       });

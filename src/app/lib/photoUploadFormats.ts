@@ -1,17 +1,6 @@
-/**
- * What a phone camera actually produces, in one place so the pickers cannot
- * drift apart from each other or from the server.
- *
- * HEIC is the iPhone default, including Portrait mode. AVIF turns up from
- * Android. TIFF comes out of the odd camera app. The server decodes all of them
- * and re-encodes to WebP for delivery, so the browser never has to transcode a
- * format it cannot even open.
- *
- * A photo is a still, so animated formats are out: GIF entirely, and an
- * animated WebP or APNG is rejected rather than frozen to its first frame.
- * SVG and camera raw are absent too: SVG carries script, and raw is not
- * something anyone shares from a phone.
- */
+/** Accepted static-photo formats; phone RAW is decoded on the server. */
+export const PHOTO_MAX_COMPRESSED_BYTES = 5_000_000;
+
 export const PHOTO_UPLOAD_TYPES = [
   'image/jpeg',
   'image/png',
@@ -20,10 +9,13 @@ export const PHOTO_UPLOAD_TYPES = [
   'image/heif',
   'image/avif',
   'image/tiff',
+  'image/dng',
+  'image/gif',
+  'image/bmp',
 ] as const;
 
 /** Some pickers only match on extension, so name the common ones too. */
-const PHOTO_UPLOAD_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.heic', '.heif', '.avif', '.tif', '.tiff'];
+const PHOTO_UPLOAD_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.heic', '.heif', '.avif', '.tif', '.tiff', '.dng', '.gif', '.bmp'];
 
 export const PHOTO_UPLOAD_ACCEPT = [...PHOTO_UPLOAD_TYPES, ...PHOTO_UPLOAD_EXTENSIONS].join(',');
 
@@ -38,6 +30,9 @@ export const PHOTO_UPLOAD_TYPE_ALIASES = new Map<string, string>([
   ['image/avif-sequence', 'image/avif'],
   ['image/x-tiff', 'image/tiff'],
   ['image/tif', 'image/tiff'],
+  ['image/x-adobe-dng', 'image/dng'],
+  ['image/x-bmp', 'image/bmp'],
+  ['image/x-ms-bmp', 'image/bmp'],
 ]);
 
 export const PHOTO_UPLOAD_EXTENSION_TYPES = new Map<string, string>([
@@ -50,6 +45,9 @@ export const PHOTO_UPLOAD_EXTENSION_TYPES = new Map<string, string>([
   ['avif', 'image/avif'],
   ['tif', 'image/tiff'],
   ['tiff', 'image/tiff'],
+  ['dng', 'image/dng'],
+  ['gif', 'image/gif'],
+  ['bmp', 'image/bmp'],
 ]);
 
-export const PHOTO_UPLOAD_FORMAT_MESSAGE = 'Choose a still photo your phone or camera made: JPEG, PNG, HEIC, AVIF, WebP, or TIFF.';
+export const PHOTO_UPLOAD_FORMAT_MESSAGE = 'JPEG, PNG, HEIC/HEIF, AVIF, WebP, TIFF, DNG, BMP or still GIF.';

@@ -242,3 +242,5 @@
 - Desktop map profile popups stopped too high above the bottom navigation. Profile and Edit Profile panels can now extend 34px farther down while other docked panels retain their existing clearance.
 
 - 2026-09-12: Fit every onboarding step to the available viewport, keeping the full logo, conduct agreement and navigation visible. Rendered all seven steps at 375x812, 768x800 and 1280x800; Gender Identity menu scrolls without page/step scrolling. Client build and 14 existing onboarding tests passed. Physical mobile keyboard panning remains unverified.
+
+- 2026-09-12: Photo preparation compresses before moderation and opens cropping only after approval; preserve each surface policy, use canonical MIME for stored bytes, and show the upload wheel. Focused evidence: 19 format/media, 6 preparation-route, 15 profile-photo and 5 message-photo checks pass; client/server builds pass. Real-provider upload/readback and newer JPEG-XL DNG remain under verification.

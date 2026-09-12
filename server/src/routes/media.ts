@@ -12,7 +12,7 @@ import {
   removeOwnedNonPublicMediaAsset
 } from "../media-assets.js";
 import { decryptMediaBytes } from "../media-encryption.js";
-import { MAX_IMAGE_BYTES, processUploadedImage } from "../media-image.js";
+import { MAX_IMAGE_BYTES, MAX_PHOTO_SOURCE_BYTES, processUploadedImage } from "../media-image.js";
 import {
   verifyMediaModerationInspectionSignature
 } from "../media-moderation-url.js";
@@ -274,14 +274,57 @@ async function assertFeedMediaAccess(app: FastifyInstance, userId: string, asset
   throw new ApiError(404, "NOT_FOUND", "Media not found.");
 }
 
-function toUploadError(error: unknown) {
+function toUploadError(error: unknown, cameraOriginal = false) {
   const message = error instanceof Error ? error.message.toLowerCase() : "";
 
   if (message.includes("request file too large") || message.includes("file size")) {
-    return new ApiError(400, "VALIDATION_ERROR", "Profile photo must be 5 MB or smaller.");
+    return new ApiError(400, "VALIDATION_ERROR", cameraOriginal ? "Camera original must be 128 MB or smaller." : "Profile photo must be 5 MB or smaller.");
   }
 
   return error;
+}
+
+async function assertProfilePhotoUploadAllowed(app: FastifyInstance, userId: string, ownerFullAccess: boolean) {
+  const currentPhotoResult = await app.db.query<CurrentProfilePhotoStateRow>(
+    `select
+       (select photos from profiles where id = $1) as photos,
+       exists (
+         select 1
+         from app_users app_user
+         left join user_trust_profiles trust on trust.user_id = app_user.id
+         where app_user.id = $1
+           and (
+             $2::boolean
+             or (
+               app_user.account_status = 'active'
+               and coalesce(trust.is_suspended, false) = false
+               and coalesce(trust.trust_score, 50) > 20
+               and not exists (
+                 select 1 from suspensions suspension
+                 where suspension.user_id = app_user.id
+                   and (suspension.permanent or suspension.ends_at is null or suspension.ends_at > now())
+               )
+               and not exists (
+                 select 1 from feature_restrictions restriction
+                 where restriction.user_id = app_user.id
+                   and restriction.feature = 'photo_uploads'
+                   and (restriction.ends_at is null or restriction.ends_at > now())
+               )
+             )
+           )
+       ) as photo_uploads_allowed`,
+    [userId, ownerFullAccess]
+  );
+  const currentPhotoState = currentPhotoResult.rows[0];
+  const currentPhotos = currentPhotoState?.photos ?? [];
+
+  if (currentPhotoState?.photo_uploads_allowed === false) {
+    throw new ApiError(403, "FEATURE_RESTRICTED", "Photo uploads are unavailable for this account.");
+  }
+
+  if (currentPhotos.length >= MAX_PROFILE_PHOTOS) {
+    throw new ApiError(400, "VALIDATION_ERROR", `You can add up to ${MAX_PROFILE_PHOTOS} photos.`);
+  }
 }
 
 export async function registerMediaRoutes(app: FastifyInstance) {
@@ -518,37 +561,66 @@ export async function registerMediaRoutes(app: FastifyInstance) {
     return reply.code(204).send();
   });
 
-  app.post("/api/profile-photos/preview", async (request, reply) => {
-    const userId = await getActiveAccountUserId(request);
-    await app.rateLimiter.assert({
-      key: `profile-photo-preview:${userId}`,
-      max: 10,
-      windowMs: 60 * 1000,
-      message: "Too many photo previews. Try again in a minute."
-    });
-    let upload;
-    let bytes: Buffer;
-    try {
-      upload = await request.file({ limits: { fileSize: MAX_IMAGE_BYTES, files: 1 } });
-      if (!upload || upload.fieldname !== "photo") {
-        throw new ApiError(400, "VALIDATION_ERROR", "Choose a photo to preview.");
+  for (const route of ["/api/profile-photos/preview", "/api/profile-photos/prepare"]) {
+    app.post(route, async (request, reply) => {
+      const userId = await getActiveAccountUserId(request);
+      await app.rateLimiter.assert({
+        key: `profile-photo-preview:${userId}`,
+        max: 10,
+        windowMs: 60 * 1000,
+        message: "Too many photo previews. Try again in a minute."
+      });
+      if (route === "/api/profile-photos/prepare") {
+        if (!photoUploadAvailability(app.config).profilePhotos) {
+          throw new ApiError(503, "FEATURE_RESTRICTED", "Profile photo uploads are temporarily unavailable.");
+        }
+        await assertProfilePhotoUploadAllowed(app, userId, await userHasOwnerFullAccess(app, userId));
       }
-      bytes = await upload.toBuffer();
-    } catch (error) {
-      throw toUploadError(error);
-    }
-    if (upload.file.truncated) {
-      throw new ApiError(400, "VALIDATION_ERROR", "Photo must be 5 MB or smaller.");
-    }
-    const processed = await processUploadedImage(bytes, upload.mimetype);
-    const mimeType = processed.detectedMimeType === "image/heic" || processed.detectedMimeType === "image/tiff"
-      ? "image/webp" : processed.detectedMimeType;
-    // Private, transient response only. Final upload still runs all moderation
-    // and account checks; no media object or profile data is created here.
-    return reply.header("Cache-Control", "no-store").send({
-      data: { url: `data:${mimeType};base64,${processed.canonicalBytes.toString("base64")}` }
+      let upload;
+      let bytes: Buffer;
+      try {
+        upload = await request.file({ limits: { fileSize: MAX_PHOTO_SOURCE_BYTES, files: 1 } });
+        if (!upload || upload.fieldname !== "photo") {
+          throw new ApiError(400, "VALIDATION_ERROR", "Choose a photo to preview.");
+        }
+        bytes = await upload.toBuffer();
+      } catch (error) {
+        throw toUploadError(error, true);
+      }
+      if (upload.file.truncated) {
+        throw new ApiError(400, "VALIDATION_ERROR", "Camera original must be 128 MB or smaller.");
+      }
+      const processed = await processUploadedImage(bytes, upload.mimetype, { cameraOriginal: true });
+      const mimeType = processed.canonicalMimeType ?? processed.detectedMimeType;
+      if (route === "/api/profile-photos/prepare") {
+        const pending = await createPendingMediaAsset(app, request, {
+          ownerUserId: userId,
+          surface: "profile_photo",
+          processed
+        });
+        try {
+          const candidate = await moderatePendingMediaAsset(app, request, pending, {
+            filename: upload.filename,
+            moderationSurface: "profile_photo"
+          });
+          if (candidate.moderation.decision.decision !== "allow") {
+            throw new ApiError(400, "CONTENT_REJECTED", "Photo was not approved.");
+          }
+        } catch (error) {
+          if (!isModerationEvidenceRetained(error)) {
+            await deletePendingMediaAsset(app, request, pending);
+          }
+          throw toReportablePhotoUploadError(app, request, error, { surface: "profile_photo", userId });
+        }
+        await deletePendingMediaAsset(app, request, pending);
+      }
+      // The response is private. Preparing a crop never attaches or publishes a
+      // profile photo; the final edited upload retains its own moderation checks.
+      return reply.header("Cache-Control", "no-store").send({
+        data: { url: `data:${mimeType};base64,${processed.canonicalBytes.toString("base64")}` }
+      });
     });
-  });
+  }
 
   app.post("/api/profile-photos", async (request, reply) => {
     const userId = await getActiveAccountUserId(request);
@@ -590,46 +662,7 @@ export async function registerMediaRoutes(app: FastifyInstance) {
     }
 
     const processed = await processUploadedImage(bytes, upload.mimetype);
-    const currentPhotoResult = await app.db.query<CurrentProfilePhotoStateRow>(
-      `select
-         (select photos from profiles where id = $1) as photos,
-         exists (
-           select 1
-           from app_users app_user
-           left join user_trust_profiles trust on trust.user_id = app_user.id
-           where app_user.id = $1
-             and (
-               $2::boolean
-               or (
-                 app_user.account_status = 'active'
-                 and coalesce(trust.is_suspended, false) = false
-                 and coalesce(trust.trust_score, 50) > 20
-                 and not exists (
-                   select 1 from suspensions suspension
-                   where suspension.user_id = app_user.id
-                     and (suspension.permanent or suspension.ends_at is null or suspension.ends_at > now())
-                 )
-                 and not exists (
-                   select 1 from feature_restrictions restriction
-                   where restriction.user_id = app_user.id
-                     and restriction.feature = 'photo_uploads'
-                     and (restriction.ends_at is null or restriction.ends_at > now())
-                 )
-               )
-             )
-         ) as photo_uploads_allowed`,
-      [userId, ownerFullAccess]
-    );
-    const currentPhotoState = currentPhotoResult.rows[0];
-    const currentPhotos = currentPhotoState?.photos ?? [];
-
-    if (currentPhotoState?.photo_uploads_allowed === false) {
-      throw new ApiError(403, "FEATURE_RESTRICTED", "Photo uploads are unavailable for this account.");
-    }
-
-    if (currentPhotos.length >= MAX_PROFILE_PHOTOS) {
-      throw new ApiError(400, "VALIDATION_ERROR", `You can add up to ${MAX_PROFILE_PHOTOS} photos.`);
-    }
+    await assertProfilePhotoUploadAllowed(app, userId, ownerFullAccess);
 
     let pendingAsset: Awaited<ReturnType<typeof createPendingMediaAsset>> | null = null;
 

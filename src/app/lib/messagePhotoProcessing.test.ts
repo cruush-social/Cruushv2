@@ -79,6 +79,16 @@ describe('message photo preprocessing', () => {
     expect(URL.revokeObjectURL).not.toHaveBeenCalled();
   });
 
+  it('compresses a large DNG on the server before the message upload', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ data: { url: 'data:image/webp;base64,cGhvdG8=' } }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+    const file = new File([new Uint8Array(MESSAGE_PHOTO_MAX_UPLOAD_BYTES + 1)], 'camera.dng', { type: 'image/dng' });
+    const prepared = await prepareMessagePhotoForUpload(file);
+    expect(prepared.type).toBe('image/webp');
+    expect(prepared.size).toBeLessThan(MESSAGE_PHOTO_MAX_UPLOAD_BYTES);
+    expect(fetchMock).toHaveBeenCalledWith('/api/profile-photos/preview', expect.objectContaining({ method: 'POST', body: expect.any(FormData) }));
+  });
+
   it('normalizes phone JPEG MIME aliases before upload', async () => {
     const file = new File(['image-bytes'], 'photo.JPG', { type: 'image/jpg' });
     const prepared = await prepareMessagePhotoForUpload(file);

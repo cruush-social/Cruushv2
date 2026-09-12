@@ -1,11 +1,14 @@
+import { requestApi } from './apiClient';
 import {
+  PHOTO_MAX_COMPRESSED_BYTES,
+  PHOTO_UPLOAD_FORMAT_MESSAGE,
   PHOTO_UPLOAD_ACCEPT,
   PHOTO_UPLOAD_EXTENSION_TYPES,
   PHOTO_UPLOAD_TYPE_ALIASES,
   PHOTO_UPLOAD_TYPES,
 } from './photoUploadFormats';
 
-export const MESSAGE_PHOTO_MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
+export const MESSAGE_PHOTO_MAX_UPLOAD_BYTES = PHOTO_MAX_COMPRESSED_BYTES;
 export const MESSAGE_PHOTO_UPLOAD_ACCEPT = PHOTO_UPLOAD_ACCEPT;
 
 // The server decodes every one of these and re-encodes to WebP, so a photo
@@ -15,8 +18,8 @@ const SERVER_SUPPORTED_MESSAGE_PHOTO_TYPES = new Set<string>(PHOTO_UPLOAD_TYPES)
 const PREVIEWABLE_MESSAGE_PHOTO_TYPES = new Set<string>(PHOTO_UPLOAD_TYPES);
 const MESSAGE_PHOTO_TYPE_ALIASES = PHOTO_UPLOAD_TYPE_ALIASES;
 const MESSAGE_PHOTO_EXTENSION_TYPES = PHOTO_UPLOAD_EXTENSION_TYPES;
-const JPEG_QUALITY_STEPS = [0.88, 0.78, 0.68];
-const MAX_DIMENSION_STEPS = [1600, 1280, 960];
+const JPEG_QUALITY_STEPS = [0.92, 0.90, 0.88];
+const MAX_DIMENSION_STEPS = [2048];
 
 function typeFromFileName(name: string) {
   const extensionMatch = /\.([^.]+)$/.exec(name.trim().toLowerCase());
@@ -31,7 +34,7 @@ function normalizeFileType(file: File) {
     return MESSAGE_PHOTO_TYPE_ALIASES.get(declaredType) ?? '';
   }
 
-  return declaredType || typeFromFileName(file.name);
+  return declaredType === 'application/octet-stream' ? typeFromFileName(file.name) : declaredType || typeFromFileName(file.name);
 }
 
 function normalizeOriginalUploadFile(file: File, normalizedType: string) {
@@ -48,7 +51,7 @@ function normalizeOriginalUploadFile(file: File, normalizedType: string) {
 }
 
 function shouldSendOriginalMessagePhoto(file: File) {
-  return file.size <= MESSAGE_PHOTO_MAX_UPLOAD_BYTES &&
+  return file.size < MESSAGE_PHOTO_MAX_UPLOAD_BYTES &&
     SERVER_SUPPORTED_MESSAGE_PHOTO_TYPES.has(normalizeFileType(file));
 }
 
@@ -94,7 +97,7 @@ async function loadImageFromFile(file: File) {
   const fileType = normalizeFileType(file);
 
   if (fileType && !PREVIEWABLE_MESSAGE_PHOTO_TYPES.has(fileType)) {
-    throw new Error('Choose a JPEG, PNG, WebP, HEIC, or HEIF photo.');
+    throw new Error(PHOTO_UPLOAD_FORMAT_MESSAGE);
   }
 
   if (typeof Image === 'undefined') {
@@ -153,18 +156,39 @@ async function createJpegCandidate(image: HTMLImageElement, maxDimension: number
   return canvasToJpegBlob(canvas, quality);
 }
 
+async function preparePhotoOnServer(file: File) {
+  const body = new FormData();
+  body.set('photo', normalizeOriginalUploadFile(file, normalizeFileType(file)));
+  const prepared = await requestApi<{ url: string }>('/api/profile-photos/preview', { method: 'POST', body });
+  const match = /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/.exec(prepared.url);
+  if (!match) throw new Error('Could not prepare this photo for upload.');
+  const bytes = Uint8Array.from(atob(match[2]), (character) => character.charCodeAt(0));
+  if (bytes.length >= MESSAGE_PHOTO_MAX_UPLOAD_BYTES) throw new Error('Could not compress this photo below 5 MB.');
+  const extension = match[1] === 'image/jpeg' ? 'jpg' : match[1].split('/')[1];
+  return new File([bytes], `${file.name.replace(/\.[^.]+$/, '')}.${extension}`, { type: match[1] });
+}
+
 export async function prepareMessagePhotoForUpload(file: File) {
   if (shouldSendOriginalMessagePhoto(file)) {
     return normalizeOriginalUploadFile(file, normalizeFileType(file));
   }
 
-  const image = await loadImageFromFile(file);
+  if (['image/dng', 'image/gif', 'image/tiff', 'image/bmp'].includes(normalizeFileType(file))) {
+    return preparePhotoOnServer(file);
+  }
+  let image: HTMLImageElement;
+  try {
+    image = await loadImageFromFile(file);
+  } catch (error) {
+    if (!SERVER_SUPPORTED_MESSAGE_PHOTO_TYPES.has(normalizeFileType(file))) throw error;
+    return preparePhotoOnServer(file);
+  }
 
   for (const maxDimension of MAX_DIMENSION_STEPS) {
     for (const quality of JPEG_QUALITY_STEPS) {
       const candidate = await createJpegCandidate(image, maxDimension, quality);
 
-      if (candidate.size <= MESSAGE_PHOTO_MAX_UPLOAD_BYTES) {
+      if (candidate.size < MESSAGE_PHOTO_MAX_UPLOAD_BYTES) {
         return new File([candidate], normalizedJpegName(file.name), { type: 'image/jpeg' });
       }
     }
