@@ -40,6 +40,7 @@ function SavedSideBadge({ badge, side, tone }: {
       tabIndex={0}
     >
       <BadgeFrame
+        fillWithGlyph={savedBadge.fillsFrame}
         className="h-full w-full"
         frame="circle"
         hankyColor={hanky?.color}

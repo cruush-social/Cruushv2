@@ -16,7 +16,7 @@ function StripeFlag({ children, className, colors }: StripeFlagProps) {
     <svg aria-hidden="true" className={className} viewBox="0 0 24 24">
       <defs>
         <clipPath id={clipId}>
-          <circle cx="12" cy="12" r="11.5" />
+          <circle cx="12" cy="12" r="12" />
         </clipPath>
       </defs>
       <g clipPath={`url(#${clipId})`}>
@@ -89,7 +89,7 @@ export function ProgressPrideFlagGlyph({ className }: FlagGlyphProps) {
 export function LeatherFlagGlyph({ className }: FlagGlyphProps) {
   return (
     <StripeFlag className={className} colors={['#000000', '#2A2A7F', '#000000', '#2A2A7F', '#FFFFFF', '#2A2A7F', '#000000', '#2A2A7F', '#000000']}>
-      <path d="M5.4 4.9C3.3 2.8.2 6.2 5.4 10.2 10.6 6.2 7.5 2.8 5.4 4.9Z" fill="#E70039" />
+      <path d="M8.4 7.9C6.3 5.8 3.2 9.2 8.4 13.2 13.6 9.2 10.5 5.8 8.4 7.9Z" fill="#E70039" />
     </StripeFlag>
   );
 }

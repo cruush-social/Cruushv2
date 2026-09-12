@@ -56,6 +56,8 @@ type FrameProps = {
   children?: React.ReactNode;
   contentScalePercent?: number;
   fillColor?: string;
+  /** Draw glyph artwork behind the existing frame border. */
+  fillWithGlyph?: boolean;
   gradientStops?: readonly [string, string, string];
   hankyColor?: string;
   strokeColor?: string;
@@ -104,9 +106,8 @@ const BADGE_RADIUS = 27;
 const STROKE = 6;
 const HEART_FRAME_SCALE = 1.25;
 
-/** Matches the old 25px Hanky square after its 45-degree rotation. */
 export const SIDE_BADGE_SIZE_PX = 35;
-export const MAP_SIDE_BADGE_SIZE_PX = SIDE_BADGE_SIZE_PX * 0.85;
+export const MAP_SIDE_BADGE_SIZE_PX = SIDE_BADGE_SIZE_PX;
 export const MAP_SIDE_BADGE_PLACEMENT_CLASS = 'top-[70%] z-20 -translate-y-1/2';
 export const SIDE_BADGE_GLYPH_SCALE_PERCENT = 60;
 const HEART_BADGE_GLYPH_SCALE_PERCENT = SIDE_BADGE_GLYPH_SCALE_PERCENT * 0.85;
@@ -193,6 +194,7 @@ export function BadgeFrame({
   children,
   contentScalePercent,
   fillColor = '#05050A',
+  fillWithGlyph = false,
   frame = 'plain',
   gradientStops,
   hankyColor,
@@ -204,9 +206,11 @@ export function BadgeFrame({
   const shapeTransform = SHAPE_TRANSFORMS[resolvedFrame];
   const gradientId = `badge-frame-gradient-${useId().replace(/:/g, '')}`;
   const clipId = `badge-frame-clip-${useId().replace(/:/g, '')}`;
+  const glyphClipId = `badge-frame-glyph-clip-${useId().replace(/:/g, '')}`;
   const maskId = `badge-frame-hanky-mask-${useId().replace(/:/g, '')}`;
   const resolvedStroke = gradientStops ? `url(#${gradientId})` : strokeColor ?? 'currentColor';
   const hankyDetailColor = hankyColor?.toUpperCase() === '#1A1A1E' ? '#FFFFFF' : '#05050A';
+  const glyphFillRadius = BADGE_RADIUS + STROKE / 2;
 
   return (
     <span className={`relative inline-flex items-center justify-center ${className ?? ''}`}>
@@ -214,7 +218,7 @@ export function BadgeFrame({
         aria-hidden="true"
         className="absolute inset-0 h-full w-full overflow-visible"
         fill="none"
-        stroke={resolvedStroke}
+        stroke={fillWithGlyph ? 'none' : resolvedStroke}
         strokeLinecap={resolvedFrame === 'heart' ? 'butt' : 'round'}
         strokeLinejoin={resolvedFrame === 'heart' ? 'miter' : 'round'}
         strokeWidth={resolvedFrame === 'heart' ? STROKE / HEART_FRAME_SCALE : STROKE}
@@ -232,6 +236,11 @@ export function BadgeFrame({
           <clipPath id={clipId}>
             {shape ? <path d={shape} transform={shapeTransform} /> : <circle cx={CENTRE} cy={CENTRE} r={arms ? COMPACT_RADIUS : BADGE_RADIUS} />}
           </clipPath>
+          {fillWithGlyph ? (
+            <clipPath id={glyphClipId}>
+              <circle cx={CENTRE} cy={CENTRE} r={glyphFillRadius} />
+            </clipPath>
+          ) : null}
           {hankyColor ? (
             <mask
               id={maskId}
@@ -246,6 +255,19 @@ export function BadgeFrame({
             </mask>
           ) : null}
         </defs>
+        {fillWithGlyph && !hankyColor ? (
+          <foreignObject
+            clipPath={`url(#${glyphClipId})`}
+            {...{
+              height: glyphFillRadius * 2,
+              width: glyphFillRadius * 2,
+              x: CENTRE - glyphFillRadius,
+              y: CENTRE - glyphFillRadius,
+            }}
+          >
+            <span style={{ stroke: 'none' }}>{children}</span>
+          </foreignObject>
+        ) : null}
         {hankyColor ? (
           <g clipPath={`url(#${clipId})`}>
             {shape ? <path d={shape} fill={hankyDetailColor} stroke="none" transform={shapeTransform} /> : <circle cx={CENTRE} cy={CENTRE} fill={hankyDetailColor} r={arms ? COMPACT_RADIUS : BADGE_RADIUS} stroke="none" />}
@@ -255,17 +277,17 @@ export function BadgeFrame({
         {shape ? (
           <path
             d={shape}
-            fill={hankyColor ? 'none' : fillColor}
+            fill={hankyColor || fillWithGlyph ? 'none' : fillColor}
             transform={shapeTransform}
           />
         ) : (
-          <circle cx={CENTRE} cy={CENTRE} fill={hankyColor ? 'none' : fillColor} r={arms ? COMPACT_RADIUS : BADGE_RADIUS} />
+          <circle cx={CENTRE} cy={CENTRE} fill={hankyColor || fillWithGlyph ? 'none' : fillColor} r={arms ? COMPACT_RADIUS : BADGE_RADIUS} />
         )}
         {arms ? <path d={arms} /> : null}
       </svg>
 
       {/* The badge sits in the circle, which never changes size. */}
-      {hankyColor ? null : (
+      {hankyColor || fillWithGlyph ? null : (
         <span
           className="relative flex items-center justify-center"
           style={{

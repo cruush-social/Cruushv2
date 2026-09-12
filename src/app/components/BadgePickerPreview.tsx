@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { ZODIAC_SIGNS, ZodiacGlyph } from './ZodiacGlyphs';
-import { AnalGlyph, BondageGlyph, CyborgGlyph, GooningGlyph, HarnessGlyph, KeyholeEyeGlyph, LeatherGlyph, LipsGlyph, NeurodivergentGlyph, NippleGlyph, PartyHatGlyph, PenetrationGlyph, RimmingGlyph, RubberGlyph, SpankingGlyph, StraightEdgeGlyph } from './BadgeGlyphs';
+import { AnalGlyph, BondageGlyph, CyborgGlyph, GooningGlyph, HarnessGlyph, LeatherGlyph, LipsGlyph, NeurodivergentGlyph, NippleGlyph, PartyHatGlyph, PenetrationGlyph, RimmingGlyph, RubberGlyph, SpankingGlyph, StraightEdgeGlyph } from './BadgeGlyphs';
 import {
   BdsmTriskelionGlyph,
   BisexualGlyph,
@@ -66,16 +66,15 @@ import {
   VersatileGlyph,
   SnakeGlyph,
 } from './PositionRoleGlyphs';
+import { BratGlyph, CheatingGlyph, ExhibitionismGlyph, FilmingGlyph, LatexMaskGlyph, PacifierGlyph } from './RequestedRasterGlyphs';
 import {
   Activity,
   ArrowLeft,
   Axe,
-  Baby,
   BadgeCheck,
   Bed,
   Bookmark,
   Cable,
-  Camera,
   Droplets,
   Dumbbell,
   Footprints,
@@ -120,7 +119,6 @@ import {
   Car,
   DoorOpen,
   EyeOff,
-  Flame,
   Route,
   TreePine,
   Sun,
@@ -220,12 +218,12 @@ export const BADGE_OPTIONS: BadgeOption[] = [
   { id: 'worshipped', label: 'Worshipped', icon: Sun, group: 'Role' },
   { id: 'handler', label: 'Handler', icon: Handshake, group: 'Role' },
   { id: 'pet', label: 'Pet', icon: Bone, group: 'Role' },
-  { id: 'brat', label: 'Brat', icon: Drama, group: 'Role' },
+  { id: 'brat', label: 'Brat', icon: BratGlyph, group: 'Role' },
   { id: 'brat-tamer', label: 'Brat tamer', icon: Gavel, group: 'Role' },
   { id: 'caregiver', label: 'Caregiver', icon: HandHeart, group: 'Role' },
   { id: 'degradee', label: 'Degradee', icon: CircleArrowDown, group: 'Role' },
   { id: 'degrader', label: 'Degrader', icon: Megaphone, group: 'Role' },
-  { id: 'little', label: 'Little', icon: Baby, group: 'Role' },
+  { id: 'little', label: 'Little', icon: PacifierGlyph, group: 'Role' },
   { id: 'masochist', label: 'Masochist', icon: HeartCrack, group: 'Role' },
   { id: 'owner', label: 'Owner', icon: KeyRound, group: 'Role' },
   { id: 'prey', label: 'Prey', icon: Rat, group: 'Role' },
@@ -272,7 +270,7 @@ export const BADGE_OPTIONS: BadgeOption[] = [
   { id: 'pup', label: 'Pup', icon: Bone, group: 'Vibes' },
 
   // Kink gear remains in the shared Kinks menu.
-  { id: 'latex', label: 'Latex', icon: Droplet, group: 'Kinks' },
+  { id: 'latex', label: 'Latex', icon: LatexMaskGlyph, group: 'Kinks' },
   { id: 'uniforms', label: 'Uniforms', icon: BadgeCheck, group: 'Kinks' },
   { id: 'underwear', label: 'Underwear', icon: Bookmark, group: 'Kinks' },
   { id: 'socks', label: 'Socks', icon: Footprints, group: 'Kinks' },
@@ -299,9 +297,9 @@ export const BADGE_OPTIONS: BadgeOption[] = [
   { id: 'group', label: 'Group', icon: UsersRound, group: 'Kinks' },
   { id: 'threesome', label: 'Threesome', icon: Users, group: 'Kinks' },
   { id: 'orgy', label: 'Orgy', icon: UsersRound, group: 'Kinks' },
-  { id: 'cuckolding', label: 'Cuckolding', icon: KeyholeEyeGlyph, group: 'Kinks' },
+  { id: 'cuckolding', label: 'Cuckolding', icon: CheatingGlyph, group: 'Kinks' },
   { id: 'voyeurism', label: 'Voyeurism', icon: Eye, group: 'Kinks' },
-  { id: 'exhibitionism', label: 'Exhibitionism', icon: Flame, group: 'Kinks' },
+  { id: 'exhibitionism', label: 'Exhibitionism', icon: ExhibitionismGlyph, group: 'Kinks' },
   { id: 'public', label: 'Public', icon: Building2, group: 'Kinks' },
   { id: 'cruising-spots', label: 'Cruising spots', icon: Route, group: 'Kinks' },
   { id: 'glory-hole', label: 'Glory hole', icon: DoorOpen, group: 'Kinks' },
@@ -312,7 +310,7 @@ export const BADGE_OPTIONS: BadgeOption[] = [
   { id: 'hotel', label: 'Hotel', icon: Bed, group: 'Kinks' },
   { id: 'car', label: 'Car', icon: Car, group: 'Kinks' },
   { id: 'overnight', label: 'Overnight', icon: Moon, group: 'Kinks' },
-  { id: 'camera-play', label: 'Camera play', icon: Camera, group: 'Kinks' },
+  { id: 'camera-play', label: 'Camera play', icon: FilmingGlyph, group: 'Kinks' },
   { id: 'discreet', label: 'Discreet', icon: EyeOff, group: 'Vibes' },
 
   // Pride: established community symbols sized to sit beside the hanky set.
@@ -452,6 +450,7 @@ function BadgeChip({ darkRoom = false, frame, option, side, meaning }: {
       tabIndex={0}
     >
       <BadgeFrame
+        fillWithGlyph={option.id.startsWith('flag-')}
         className="h-full w-full"
         frame={frame}
         gradientStops={gradientStops}
@@ -792,7 +791,7 @@ export default function BadgePickerPreview({
         {option.hanky ? (
           <>
             <HankyPaisleyIcon
-              className="h-[1.5625rem] w-[1.5625rem]"
+              className="h-6 w-6"
               color={option.hanky.color}
               label={option.hanky.meaning}
             />

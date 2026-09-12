@@ -52,3 +52,41 @@ Ghost placement approval, September 8: Julien selected a middle option rather th
 Julien reaffirmed that other members' Ghost pins retain the approved animation: both side-badge borders flash with the heart, and relocation updates the pin in place without requiring a page refresh. The visible disappearance, Ghost effect, and reappearance at the new position must remain; retaining the underlying marker is not permission to remove the visible replacement. A badge implementation change must preserve its connection to the existing flash color. His latest instruction explicitly restores the animation code from the approved `bff0498` treatment while keeping the new Ghost Mode exit icon. Preserve current badge shapes and adjacent geometry. This supersedes preserving the more recent, changed animation implementation.
 
 - HIV Status in the profile Health tab has its own capsule, matching the other health fields. Preserve its label, value, visibility and field order. This supersedes the historical issue #231 capsule-removal interpretation. Sources: task `01a08c91-a340-7b92-95aa-f137c8bf7b16`, user lines 9 and 228, September 10, 2026.
+
+## Zodiac badge artwork, September 10, 2026
+
+Use the corresponding twelve sign icons from monkik’s Astrology - Solid collection: https://thenounproject.com/browse/collection-icon/astrology-solid-104001/. Julien specified white artwork and explicitly required the appropriate icon for each Zodiac sign (task 01a08d63-deff-7082-8ac8-8327605f3900, transcript user messages at lines 240 and 252). Preserve the current circle, border thickness, content scale, sign IDs, and mask rendering. The interactive test picker is local at `/Volumes/good/output/cruush-badge-icons-20260910/zodiac-badge-picker.html`. Publication was not requested.
+
+Julien approved this exact test-picker version with “looks good” at transcript line 376 (2026-09-10T22:45:07.432Z). The immutable preview, images, source hashes, and twelve asset hashes are recorded in `/Volumes/good/output/cruush-badge-icons-20260910/zodiac-approval.json`. This approval covers the shown Zodiac artwork and white treatment; it does not approve publication or other badge replacements.
+
+## Little badge artwork, September 10, 2026
+
+Little uses the exact pacifier icon 483101 by Those Icons from https://www.flaticon.com/free-icon/pacifier_483101, rendered in white. Julien requested “use a pacifer for little not baby”, then supplied this asset and specified “in white” (task 01a08d63-deff-7082-8ac8-8327605f3900, transcript user lines 410, 449 and 451). Use the same PacifierGlyph in the picker and shared saved-role resolver. Preserve the Little label and ID, all role behavior, the current badge circle, border thickness, inset and neighboring artwork. This is the sole newly requested role-icon exception to the earlier gallery exclusion; it does not change any age safeguards or authorize other labels. The approved Zodiac set remains unchanged. Publication was not requested.
+
+## Bimbo and Brat badge artwork, September 10, 2026
+
+Bimbo uses the exact Girl icon 11431890 by Leremy from https://www.flaticon.com/free-icon/girl_11431890, with a white body and explicitly black bikini. Use the same BimboGlyph for the Bimbo archetype and the taxonomy-migrated Bimbofication kink so picker, profile, saved and map badges share this artwork. The original PNG remains unchanged; its transparent bikini regions receive a black underlay to preserve the requested color on picker backgrounds. Brat uses the exact Heart icon 3638961 by Smashicons from https://www.flaticon.com/free-icon/heart_3638961 in white, shared by the picker and role resolver. Source: task 01a08d63-deff-7082-8ac8-8327605f3900, genuine user message at transcript line 867, September 10, 2026, 23:29:20.734Z.
+
+Preserve all labels, saved IDs, behavior, badge frames, border colors, inset and other artwork, including Brat tamer and Drag. This selection supersedes the unselected Brat proposal in the local Noun Project comparison. Other comparison choices remain pending. Publication was not requested.
+
+## Cuckolding-related badge artwork, September 10, 2026
+
+Use the exact Cheating icon 27256 by Luis Prado from https://thenounproject.com/icon/cheating-27256/ in white for Cuckolding, Cuckholding, Cuck, Cuckquean, Bull, Hotwife, Hothusband and Side piece. The same CheatingGlyph serves current profile badges and the legacy Cuckolding picker/saved badge. User source: task 01a08d63-deff-7082-8ac8-8327605f3900, transcript line 1141. Preserve spelling, labels, IDs, badge geometry and unrelated meanings such as Mistress or Swinger. No publication is requested.
+
+## Flag badge fill, September 10, 2026
+
+Flags fill the existing badge circle edge to edge, just like the Hanky code fill, with no black border, ring, underlay, stroke, or gap on any badge surface. Preserve the exact badge footprint and remove the frame stroke for flags only. User source: task 01a08d63-deff-7082-8ac8-8327605f3900, transcript lines 1321, 1323, 4127, 6009, and the latest September 11 correction after more than ten repetitions. This explicit instruction supersedes the older rule to shrink flag artwork within the circle or retain a flag border. Preserve flag colors, artwork, all non-flag icons, Hanky rendering, placements, hover labels and behavior.
+
+## Gloves badge artwork, September 11, 2026
+
+The `gloves` profile and saved badge use the exact Noun Project `rubber-gloves-4891935` source by Amethyst Studio, rendered in white. Preserve the existing badge geometry, border color, size and placement. Source: https://thenounproject.com/icon/rubber-gloves-4891935/. Publication was not requested.
+
+## Individually assigned badge artwork, September 11, 2026
+
+Implement only exact assets Julien assigned through direct prompts. Doll uses Flaticon `beautiful-16458752`. Fuck machine uses Flaticon `machine-4648539`. Masturbator uses Flaticon `stroker-16012048`. Mutual masturbation uses Flaticon `nipple-9463796`. Strap-ons, pegging and harness toys use Flaticon `toy-16011932`. Small penis humiliation uses Noun Project `penis-3883876`. Camera play, filming, photos and streaming use Noun Project `dating-app-3817923`. Latex uses Noun Project `fetish-mask-3574195`. Tribbing uses scissors. All render white except Bimbo's separately approved black bikini. Preserve labels, IDs, badge frames and unrelated artwork. Do not install picker candidates, filled interpretations or bold-silhouette variants that Julien has not selected.
+
+Any requested adaptation of supplied icon artwork preserves the source icon's original line weight, proportions, pose language, and negative-space style. Change only the named figure or action detail. Julien withdrew the Spit roast strap-on adaptation after rejecting its generated variants, so Spit roast uses the selected original Noun Project `threesome-759966` unchanged. Exhibitionism likewise uses the already selected original Noun Project `strip-tease-970491` unchanged. Exclude every generated variant of either source from implementation and commits.
+
+## Side badge geometry, September 11, 2026
+
+Hanky choices use the same icon size and badge border geometry as ordinary choices. Map-pin side badges use the same 35px size as profile-card side badges. Every non-flag icon stays fully inside the border with visible clearance and never overlaps the border; the shared 60% glyph inset enforces this. Pride flags remain the sole edge-to-edge badge fill and follow the no-border rule above. Preserve badge placement, hover labels, heart size and all non-badge pin geometry.

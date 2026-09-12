@@ -6,7 +6,6 @@ import {
   Axe,
   Bone,
   CircleArrowDown,
-  Drama,
   Dumbbell,
   Feather,
   Gavel,
@@ -25,6 +24,7 @@ import {
 } from 'lucide-react';
 import { BottomSwitchEmblem, DomEmblem, SubEmblem, SwitchEmblem, TopSwitchEmblem } from './BdsmEmblems';
 import { LipsGlyph } from './BadgeGlyphs';
+import { BratGlyph, PacifierGlyph } from './RequestedRasterGlyphs';
 
 /**
  * Marks for the two badges a basic account carries: the role on one side of the
@@ -287,12 +287,12 @@ export const ROLE_GLYPHS: Record<string, (props: GlyphProps) => JSX.Element> = {
   worshipped: Sun,
   handler: Handshake,
   pet: Bone,
-  brat: Drama,
+  brat: BratGlyph,
   'brat tamer': Gavel,
   caregiver: HandHeart,
   degradee: CircleArrowDown,
   degrader: Megaphone,
-  little: RattleGlyph,
+  little: PacifierGlyph,
   masochist: HeartCrack,
   owner: KeyRound,
   prey: Rat,

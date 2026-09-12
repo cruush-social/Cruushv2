@@ -1183,6 +1183,7 @@ function MarkerSideBadge({
       }}
     >
       <BadgeFrame
+        fillWithGlyph={savedBadge.fillsFrame}
         className="h-full w-full"
         frame={frame}
         gradientStops={badgeGradientStops}
