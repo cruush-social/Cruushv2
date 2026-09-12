@@ -46,20 +46,6 @@ Index keys and signing/hash keys are outside this fallback mechanism.
 | `CORS_ORIGIN` | server | yes | `server/src/urgent-release-real-postgres.test.ts`, `server/src/config.ts` |  |
 | `CRUUSH_MEDIA_BACKFILL_BATCH` | server | no | `server/src/backfill-media-classification.ts` | **missing from .env.example** |
 | `CRUUSH_REAL_POSTGRES_URL` | server | no | `server/src/urgent-release-real-postgres.test.ts` | test-only |
-| `CRUUSH_FORWARDING_KEY_FILE` | forwarding Compose | yes | `tools/cruush-wallet/deploy/compose.yml` | Absolute private file path; never file contents |
-| `CRYPTO_PROCESSOR_ARBITRUM_RPC_URL` | server | yes | `server/src/config.ts` |  |
-| `CRYPTO_PROCESSOR_BASE_RPC_URL` | server | yes | `server/src/config.ts` |  |
-| `CRYPTO_PROCESSOR_BASE_SEPOLIA_RPC_URL` | server | yes | `server/src/config.ts` |  |
-| `CRYPTO_PROCESSOR_BITCOIN_ESPLORA_URL` | server | yes | `server/src/config.ts` |  |
-| `CRYPTO_PROCESSOR_BITCOIN_WALLET_XPUB` | server | yes | `server/src/config.ts` |  |
-| `CRYPTO_PROCESSOR_CONFIRMATION_TARGET` | server | yes | `server/src/config.ts` |  |
-| `CRYPTO_PROCESSOR_ENABLED` | server | yes | `server/src/config.ts` |  |
-| `CRYPTO_PROCESSOR_ETHEREUM_RPC_URL` | server | yes | `server/src/config.ts` |  |
-| `CRYPTO_PROCESSOR_INTENT_TTL_MINUTES` | server | yes | `server/src/config.ts` |  |
-| `CRYPTO_PROCESSOR_TESTNET_ENABLED` | server | yes | `server/src/config.ts` |  |
-| `CRYPTO_PROCESSOR_WALLET_XPUB` | server | yes | `server/src/config.ts` |  |
-| `CRYPTO_PROCESSOR_WATCHER_ENABLED` | server | yes | `server/src/config.ts` |  |
-| `CRYPTO_PROCESSOR_WATCHER_INTERVAL_SECONDS` | server | yes | `server/src/config.ts` |  |
 | `CSAM_REPORTING_ENABLED` | server | yes | `server/src/config.ts` |  |
 | `CSAM_REPORTING_MODE` | server | yes | `server/src/config.ts` |  |
 | `CSAM_REPORTING_TEST_MODE` | server | yes | `server/src/config.ts` |  |

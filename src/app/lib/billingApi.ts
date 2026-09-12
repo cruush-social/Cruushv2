@@ -10,7 +10,6 @@ export type CruushPlusPlanId =
   | 'plus_3_month'
   | 'plus_6_month'
   | 'plus_annual'
-  | 'plus_lifetime'
   | 'founder_annual'
   | 'lifetime_founder';
 

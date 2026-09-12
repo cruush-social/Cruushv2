@@ -4,8 +4,6 @@ import { useBackOrFallback } from '../lib/useBackOrFallback';
 import SupportRequestForm from './SupportRequestForm';
 import BugButtonSlot from './BugButtonSlot';
 import {
-  billingSections,
-  billingUpdated,
   legalUpdated,
   privacySections,
   privacyUpdated,
@@ -23,7 +21,6 @@ export type PublicInfoPageId =
   | 'privacy'
   | 'safety'
   | 'security'
-  | 'billing'
   | 'content-removal'
   | 'human-trafficking'
   | 'takedown'
@@ -174,12 +171,6 @@ const pageContent: Record<PublicInfoPageId, PublicInfoPageContent> = {
     title: 'security faq',
     updated: securityUpdated,
     sections: securitySections,
-  },
-  billing: {
-    eyebrow: 'Billing',
-    title: 'billing policy',
-    updated: billingUpdated,
-    sections: billingSections,
   },
   'content-removal': {
     eyebrow: 'Removal request',

@@ -281,7 +281,6 @@ export default function Rewards() {
       </header>
 
       <main className="mx-auto max-w-2xl space-y-5 p-4">
-        <Button variant="outline" onClick={() => navigate('/store/pulse')}>Pulse checkout</Button>
         <Card className="gap-0">
           <Accordion
             collapsible

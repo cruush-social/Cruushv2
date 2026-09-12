@@ -1,5 +1,0 @@
-dist/
-node_modules/
-*.plan.json
-*.signed.json
-*.wallet.json

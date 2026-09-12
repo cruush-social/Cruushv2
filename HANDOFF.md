@@ -1,7 +1,3 @@
-# Processor release, September 12, 2026
-
-Julien explicitly requested committing the processor and pushing it to main. Current implementation and setup evidence: `CODEX_HANDOFF.md`. Existing production features below are preserved. Owner Bitcoin/private forwarding setup remains deferred separately.
-
 # Authorized production release, September 10, 2026
 
 User source: current task transcript line 411, “Deploy this fix ASAP”. Release only the verified owner pin/decoy fix, its tests and required worker-cache version update to v129. Both frontend and server builds, independent review, scoped commit/push, runtime identity and authenticated live mobile verification are required. No environment variables or provider settings change. Status: release in progress. Independent review by `/root/owner_pin_review` approved the exact owner-marker source and rendered evidence; server build, client build and four worker-version checks pass.
