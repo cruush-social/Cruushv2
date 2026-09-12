@@ -1,3 +1,7 @@
+## Canonical logo and installed app assets, September 12, 2026
+
+The notched cruush logo is rejected for every app use, including installed home-screen launch/loading and mobile icons. Use the actual approved `src/app/assets/brand/cruush-logo.svg` (SHA-256 `928d31f785515d958b2efb9778b1d5082e6e677df49e6426cf4be0942fbcace1`) as the source for raster exports. Remove rejected source/raster files from the repository and replace their references. Preserve icon dimensions, backgrounds, safe-area padding, loading behavior and unrelated artwork. This records the asset rule, not production or physical-device verification. Source: session `01a09549-890d-7f11-9c12-4ac016446942`, Julien's September 12 repeated notched-logo removal requests, home-screen loading clarification and mobile-icon correction.
+
 # cruush design decisions
 
 - The signed-in owner’s real map pin and owner-only Ghost decoy always remain individual markers at their existing coordinates, at every zoom. Never replace either with a numbered people cluster or include either in its count. Owner artwork and tap targets remain above nearby cluster counts without automatic position offsets. Other members retain existing clustering, same-building spiderfy and Ghost expiry. This corrects the owner inclusion introduced by the September 10 spiderfy repair. Source: task `01a08e63-fb72-7070-886b-c162d77b31d9`, user message at transcript line 9, September 10, 2026.
