@@ -67,10 +67,10 @@ export default function DebugCruushPlusToggle() {
       disabled={saving}
       onClick={handleToggle}
       className={[
-        'fixed bottom-6 left-6 z-[45] hidden h-9 items-center gap-2 rounded-full border px-3 text-[11px] font-semibold uppercase tracking-[0.12em] shadow-[0_10px_30px_rgba(0,0,0,0.35)] backdrop-blur-md transition sm:inline-flex',
+        'fixed bottom-6 left-6 z-[45] hidden h-9 items-center gap-2 rounded-full border px-3 text-[11px] font-semibold uppercase tracking-[0.12em] shadow-[0_10px_30px_rgba(0,0,0,0.35)] transition sm:inline-flex',
         enabled
-          ? 'border-primary/50 bg-primary/20 text-primary'
-          : 'border-white/15 bg-black/55 text-white/70',
+          ? 'border-primary/50 bg-primary/20 text-primary backdrop-blur-md'
+          : 'border-white/15 bg-[color:var(--cruush-black-glass)] text-white/70 backdrop-blur-[var(--cruush-black-glass-blur)]',
         saving ? 'opacity-60' : 'hover:bg-primary/24 hover:text-primary',
       ].join(' ')}
     >

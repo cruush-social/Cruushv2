@@ -141,7 +141,7 @@ export default function CruushMatchSettings({ embedded = false }: { embedded?: b
 
   return (
     <div className={embedded ? 'bg-transparent pb-2 text-white' : 'min-h-screen bg-background pb-20 text-white'}>
-      <header className={embedded ? 'hidden' : 'sticky top-0 z-10 flex items-center gap-4 border-b border-white/10 bg-background/88 p-4 backdrop-blur-sm'}>
+      <header className={embedded ? 'hidden' : 'sticky top-0 z-10 flex items-center gap-4 border-b border-white/10 bg-[color:var(--cruush-black-glass)] p-4 backdrop-blur-[var(--cruush-black-glass-blur)]'}>
         <Button variant="ghost" size="icon" onClick={() => navigate(-1)} aria-label="Back to cruush">
           <ArrowLeft className="h-5 w-5" />
         </Button>

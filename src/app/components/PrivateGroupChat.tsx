@@ -993,7 +993,7 @@ export default function PrivateGroupChat({
 
   return (
     <div data-testid="private-group-chat-screen" className={`relative max-w-full overflow-x-clip bg-background pb-20 ${embedded ? 'min-h-full' : 'min-h-screen'}`}>
-      <header data-testid="chat-thread-header" className="sticky top-0 z-40 border-b border-border bg-background/88 px-3 py-4 backdrop-blur-md sm:px-4">
+      <header data-testid="chat-thread-header" className="sticky top-0 z-40 border-b border-border bg-[color:var(--cruush-black-glass)] px-3 py-4 backdrop-blur-[var(--cruush-black-glass-blur)] sm:px-4">
         <div className="mx-auto flex w-full max-w-2xl items-center justify-between gap-3 sm:gap-4">
           <div className="flex min-w-0 flex-1 items-center gap-3">
             <Button
@@ -1137,7 +1137,7 @@ export default function PrivateGroupChat({
                 </SelectTrigger>
                 <SelectContent
                   align="start"
-                  className="rounded-2xl border-white/12 bg-card/95 p-1 text-foreground shadow-[0_18px_52px_rgba(0,0,0,0.46)] backdrop-blur-xl"
+                  className="rounded-2xl border-white/12 bg-[color:var(--cruush-black-glass)] p-1 text-foreground shadow-[0_18px_52px_rgba(0,0,0,0.46)] backdrop-blur-[var(--cruush-black-glass-blur)]"
                 >
                   {timerOptions.map((option) => (
                     <SelectItem
@@ -1622,7 +1622,7 @@ export default function PrivateGroupChat({
                   <SelectContent
                     align="start"
                     side="top"
-                    className="min-w-36 rounded-2xl border-white/12 bg-card/95 p-1 text-foreground shadow-[0_18px_52px_rgba(0,0,0,0.46)] backdrop-blur-xl"
+                    className="min-w-36 rounded-2xl border-white/12 bg-[color:var(--cruush-black-glass)] p-1 text-foreground shadow-[0_18px_52px_rgba(0,0,0,0.46)] backdrop-blur-[var(--cruush-black-glass-blur)]"
                   >
                     {timerOptions.map((option) => (
                       <SelectItem

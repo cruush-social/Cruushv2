@@ -3263,7 +3263,7 @@ describe('MapHome', () => {
     expect(recentToggle.parentElement).toHaveClass('justify-center');
     expect(recentToggle).toHaveStyle({ background: 'var(--cruush-gradient)' });
     expect(recentPanel.parentElement).toHaveClass('bottom-[calc(6.25rem+env(safe-area-inset-bottom))]', 'left-0', 'right-0', 'z-[130]');
-    expect(recentPanel).toHaveClass('max-w-[35.75rem]', 'rounded-2xl', 'bg-background/68', 'backdrop-blur-md', 'p-3');
+    expect(recentPanel).toHaveClass('max-w-[35.75rem]', 'rounded-2xl', 'bg-[color:var(--cruush-black-glass)]', 'backdrop-blur-[var(--cruush-black-glass-blur)]', 'p-3');
     expect(screen.getByTestId('recently-active-tray')).toHaveClass('justify-center', 'overflow-hidden');
     expect(screen.getByTestId('recently-active-tray')).not.toHaveClass('scrollbar-subtle', 'pb-2');
     expect(screen.getByTestId('recently-active-tray')).toHaveAttribute('data-scrollable', 'false');
@@ -3294,7 +3294,7 @@ describe('MapHome', () => {
     expect(restoredRecentToggle).toHaveAttribute('aria-expanded', 'false');
     expect(restoredRecentToggle).toHaveAccessibleName('Show recently active bar');
     expect(restoredRecentToggle).toHaveTextContent('Recently Active');
-    expect(restoredRecentToggle).toHaveClass('bg-background/68', 'backdrop-blur-md');
+    expect(restoredRecentToggle).toHaveClass('bg-[color:var(--cruush-black-glass)]', 'backdrop-blur-[var(--cruush-black-glass-blur)]');
     const restoredRecentPanel = screen.getByTestId('recently-active-panel');
     expect(restoredRecentPanel).toHaveClass('max-w-max', 'p-0');
     expect(restoredRecentPanel).not.toHaveClass('rounded-2xl', 'bg-background/40', 'p-3');
@@ -3305,7 +3305,7 @@ describe('MapHome', () => {
     expect(restoredRecentToggle).toHaveAttribute('aria-expanded', 'true');
     expect(restoredRecentToggle).toHaveAccessibleName('Hide recently active bar');
     expect(restoredRecentToggle).toHaveTextContent('Recently Active');
-    expect(restoredRecentPanel).toHaveClass('max-w-[35.75rem]', 'rounded-2xl', 'bg-background/68', 'backdrop-blur-md', 'p-3');
+    expect(restoredRecentPanel).toHaveClass('max-w-[35.75rem]', 'rounded-2xl', 'bg-[color:var(--cruush-black-glass)]', 'backdrop-blur-[var(--cruush-black-glass-blur)]', 'p-3');
     expect(screen.getByTestId('recently-active-tray')).toBeInTheDocument();
   });
 

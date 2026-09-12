@@ -1468,8 +1468,10 @@ function GhostRotationPulse({ marker, children }: { marker: MapMarker; children:
         effectHost.style.setProperty('--cruush-ghost-pepper-opacity', visibleFlash ? '0.72' : '1');
         if (visibleFlash) {
           effectHost.style.setProperty('--cruush-ghost-surface-alpha', '0.34');
+          effectHost.style.setProperty('--cruush-ghost-surface-color', 'rgba(0, 0, 0, 0.34)');
         } else {
           effectHost.style.removeProperty('--cruush-ghost-surface-alpha');
+          effectHost.style.removeProperty('--cruush-ghost-surface-color');
         }
         effectHost.style.setProperty(
           '--cruush-ghost-photo-filter',
@@ -1498,6 +1500,7 @@ function GhostRotationPulse({ marker, children }: { marker: MapMarker; children:
         effectHost.style.setProperty('--cruush-ghost-pepper-filter', 'none');
         effectHost.style.setProperty('--cruush-ghost-pepper-opacity', '1');
         effectHost.style.removeProperty('--cruush-ghost-surface-alpha');
+        effectHost.style.removeProperty('--cruush-ghost-surface-color');
       }
 
       frame = requestAnimationFrame(step);
@@ -1781,7 +1784,7 @@ function VenueClusterMarker({ marker }: { marker: MapMarker }) {
 
   return (
     <span
-      className="relative flex h-12 w-12 rotate-45 items-center justify-center rounded-[0.7rem] border-2 border-[#55C8FF] bg-black/94 text-white shadow-[0_0_10px_rgba(20,157,255,0.95),0_0_24px_rgba(21,79,255,0.62)] backdrop-blur-md"
+      className="relative flex h-12 w-12 rotate-45 items-center justify-center rounded-[0.7rem] border-2 border-[#55C8FF] bg-[color:var(--cruush-black-glass)] text-white shadow-[0_0_10px_rgba(20,157,255,0.95),0_0_24px_rgba(21,79,255,0.62)] backdrop-blur-[var(--cruush-black-glass-blur)]"
       data-testid={`venue-cluster-marker-${marker.cluster?.id ?? marker.id}`}
     >
       <span className="cruush-logo-font flex -rotate-45 items-center text-xl font-normal leading-none tracking-normal">
@@ -1796,7 +1799,7 @@ function PeopleClusterMarker({ marker }: { marker: MapMarker }) {
 
   return (
     <span
-      className="cruush-logo-font flex h-16 min-w-16 items-center justify-center rounded-full border border-[3.2px] border-[#FF0072]/70 bg-black/86 px-4 text-2xl font-normal leading-none tracking-normal text-white shadow-[0_0_46px_rgba(255,0,114,0.72)] backdrop-blur-md"
+      className="cruush-logo-font flex h-16 min-w-16 items-center justify-center rounded-full border border-[3.2px] border-[#FF0072]/70 bg-[color:var(--cruush-black-glass)] px-4 text-2xl font-normal leading-none tracking-normal text-white shadow-[0_0_46px_rgba(255,0,114,0.72)] backdrop-blur-[var(--cruush-black-glass-blur)]"
       data-testid={`people-cluster-marker-${marker.cluster?.id ?? marker.id}`}
     >
       {count > 999 ? '999+' : count}
@@ -1857,7 +1860,7 @@ function PlaceMarker({ marker, previewed = false }: { marker: MapMarker; preview
           {marker.displayName}
         </SignalBadge>
       </span>
-      <span className={`relative flex h-12 w-12 rotate-45 items-center justify-center rounded-[0.7rem] border-2 border-[#55C8FF] bg-black/94 text-white shadow-[0_0_10px_rgba(20,157,255,0.95),0_0_24px_rgba(21,79,255,0.62)] backdrop-blur-md ${active ? 'shadow-[0_0_28px_rgba(85,200,255,0.62)]' : ''}`}>
+      <span className={`relative flex h-12 w-12 rotate-45 items-center justify-center rounded-[0.7rem] border-2 border-[#55C8FF] bg-[color:var(--cruush-black-glass)] text-white shadow-[0_0_10px_rgba(20,157,255,0.95),0_0_24px_rgba(21,79,255,0.62)] backdrop-blur-[var(--cruush-black-glass-blur)] ${active ? 'shadow-[0_0_28px_rgba(85,200,255,0.62)]' : ''}`}>
         <span className="flex h-8 w-8 -rotate-45 items-center justify-center">
           {config.special === 'beach' ? <img src={beachUmbrellaIcon} alt="" className="h-7 w-7 brightness-0 invert" /> : null}
           {config.special === 'stairs' ? <span aria-hidden="true" className="relative block h-6 w-6"><i className="absolute bottom-1 left-0 h-[3px] w-2.5 rounded-full bg-white" /><i className="absolute bottom-2.5 left-[7px] h-[3px] w-2.5 rounded-full bg-white" /><i className="absolute bottom-4 left-3.5 h-[3px] w-2.5 rounded-full bg-white" /></span> : null}
@@ -1875,7 +1878,7 @@ function LaunchPartyMarker({ marker }: { marker: MapMarker }) {
 
   return (
     <span
-      className="flex h-16 min-w-16 items-center justify-center rounded-full border border-[3.2px] border-[#FF0072]/45 bg-black/82 px-4 text-xl font-semibold text-white shadow-[0_0_38px_rgba(255,0,114,0.55)] backdrop-blur-md"
+      className="flex h-16 min-w-16 items-center justify-center rounded-full border border-[3.2px] border-[#FF0072]/45 bg-[color:var(--cruush-black-glass)] px-4 text-xl font-semibold text-white shadow-[0_0_38px_rgba(255,0,114,0.55)] backdrop-blur-[var(--cruush-black-glass-blur)]"
       data-testid={`launch-party-marker-${marker.id}`}
     >
       {attendeeCount > 999 ? '999+' : attendeeCount}
@@ -3214,7 +3217,7 @@ function MapView({
         data-testid="maplibre-map"
       />
       {mapLoadStatus === 'loading' ? (
-        <div className="pointer-events-none absolute left-4 top-4 z-10 rounded-md bg-background/82 px-3 py-2 text-xs text-white/70 backdrop-blur-md">
+        <div className="pointer-events-none absolute left-4 top-4 z-10 rounded-md bg-[color:var(--cruush-black-glass)] px-3 py-2 text-xs text-white/70 backdrop-blur-[var(--cruush-black-glass-blur)]">
           Loading NYC map...
         </div>
       ) : null}

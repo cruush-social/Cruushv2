@@ -17,7 +17,7 @@ import {
  */
 
 const HEART_UNIT_CLASS = 'relative flex h-20 w-[103px] items-end justify-center';
-const CHIP_CLASS = 'absolute top-[62%] flex h-[1.5625rem] w-[1.5625rem] -translate-y-1/2 items-center justify-center rounded-full bg-black/86 backdrop-blur-md';
+const CHIP_CLASS = 'absolute top-[62%] flex h-[1.5625rem] w-[1.5625rem] -translate-y-1/2 items-center justify-center rounded-full bg-[color:var(--cruush-black-glass)] backdrop-blur-[var(--cruush-black-glass-blur)]';
 
 function BadgeChip({ side, children, meaning }: { side: 'left' | 'right'; children: React.ReactNode; meaning: string }) {
   return (

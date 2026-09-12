@@ -31,6 +31,9 @@
 
   /* dark cinematic theme - default */
   --background: #080808;
+  /* Shared black glass: the existing map top bar color, opacity and blur. */
+  --cruush-black-glass: color-mix(in oklab, var(--background) 25%, transparent);
+  --cruush-black-glass-blur: 12px;
   --foreground: #f5f5f7;
   --card: #101014;
   --card-foreground: #f5f5f7;

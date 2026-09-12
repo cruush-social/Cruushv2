@@ -330,7 +330,7 @@ function CarouselTile({ item, featured, itemIndex, spinning, activePhotoIndex, o
                 e.stopPropagation();
                 onSelectPhoto?.(( (activePhotoIndex ?? 0) - 1 + allPhotos.length ) % allPhotos.length);
               }}
-              className="absolute left-1.5 top-1/2 -translate-y-1/2 z-30 flex h-7 w-7 items-center justify-center rounded-full bg-black/60 text-white/90 backdrop-blur-sm transition hover:bg-black/80 hover:scale-110 active:scale-95"
+              className="absolute left-1.5 top-1/2 -translate-y-1/2 z-30 flex h-7 w-7 items-center justify-center rounded-full bg-[color:var(--cruush-black-glass)] text-white/90 backdrop-blur-[var(--cruush-black-glass-blur)] transition hover:bg-black/80 hover:scale-110 active:scale-95"
               aria-label="Previous photo"
             >
               <ChevronLeft className="h-4 w-4" />
@@ -341,12 +341,12 @@ function CarouselTile({ item, featured, itemIndex, spinning, activePhotoIndex, o
                 e.stopPropagation();
                 onSelectPhoto?.(( (activePhotoIndex ?? 0) + 1 ) % allPhotos.length);
               }}
-              className="absolute right-1.5 top-1/2 -translate-y-1/2 z-30 flex h-7 w-7 items-center justify-center rounded-full bg-black/60 text-white/90 backdrop-blur-sm transition hover:bg-black/80 hover:scale-110 active:scale-95"
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 z-30 flex h-7 w-7 items-center justify-center rounded-full bg-[color:var(--cruush-black-glass)] text-white/90 backdrop-blur-[var(--cruush-black-glass-blur)] transition hover:bg-black/80 hover:scale-110 active:scale-95"
               aria-label="Next photo"
             >
               <ChevronRight className="h-4 w-4" />
             </button>
-            <div className="absolute bottom-2 left-1/2 z-30 flex -translate-x-1/2 items-center gap-1 rounded-full bg-black/50 px-2 py-0.5 backdrop-blur-sm">
+            <div className="absolute bottom-2 left-1/2 z-30 flex -translate-x-1/2 items-center gap-1 rounded-full bg-[color:var(--cruush-black-glass)] px-2 py-0.5 backdrop-blur-[var(--cruush-black-glass-blur)]">
               {allPhotos.map((_, idx) => (
                 <button
                   key={`photo-dot-${idx}`}
@@ -475,7 +475,7 @@ export default function CruiseCarouselSlot({
           <button
             type="button"
             onClick={onClose}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-black/35 text-white/80 backdrop-blur-sm transition hover:text-white"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-[color:var(--cruush-black-glass)] text-white/80 backdrop-blur-[var(--cruush-black-glass-blur)] transition hover:text-white"
             aria-label="Close cruise carousel"
           >
             <X className="h-4 w-4" />
@@ -569,7 +569,7 @@ export default function CruiseCarouselSlot({
   return (
     <section
       aria-label="cruise carousel"
-      className="mx-auto h-full w-full max-w-2xl overflow-hidden border-y border-white/10 bg-black/78 shadow-[0_24px_80px_rgba(0,0,0,0.46)] backdrop-blur-xl sm:rounded-[28px] sm:border"
+      className="mx-auto h-full w-full max-w-2xl overflow-hidden border-y border-white/10 bg-[color:var(--cruush-black-glass)] shadow-[0_24px_80px_rgba(0,0,0,0.46)] backdrop-blur-[var(--cruush-black-glass-blur)] sm:rounded-[28px] sm:border"
     >
       {content}
     </section>

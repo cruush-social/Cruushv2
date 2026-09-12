@@ -48,7 +48,7 @@ export default function EventPassGuide() {
 
   return (
     <div className="min-h-screen bg-background pb-24 text-foreground">
-      <header className="sticky top-0 z-10 border-b border-white/10 bg-background/92 px-4 py-4 backdrop-blur-xl">
+      <header className="sticky top-0 z-10 border-b border-white/10 bg-[color:var(--cruush-black-glass)] px-4 py-4 backdrop-blur-[var(--cruush-black-glass-blur)]">
         <div className="mx-auto flex w-full max-w-3xl items-center gap-4">
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)} aria-label="Back">
             <ArrowLeft className="h-5 w-5" />

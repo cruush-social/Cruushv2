@@ -566,7 +566,7 @@ export default function TravelModeSettings({ embedded = false, onBack, onClose, 
 
   return (
     <div className={`cruush-travel-mode-page flex min-h-0 flex-col overflow-hidden bg-background text-foreground ${embedded ? 'h-full' : 'h-[100dvh] pb-[calc(6rem+env(safe-area-inset-bottom))]'}`}>
-      <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-border bg-background/88 px-4 py-3 backdrop-blur-md">
+      <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-border bg-[color:var(--cruush-black-glass)] px-4 py-3 backdrop-blur-[var(--cruush-black-glass-blur)]">
         <button
           aria-label="Back"
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/12 bg-black/55"

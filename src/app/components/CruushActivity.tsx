@@ -866,7 +866,7 @@ export default function CruushActivity({
   return (
     <div className={embedded ? 'min-h-full bg-[#050505] pb-6' : 'min-h-screen bg-[#050505] pb-[calc(7rem+env(safe-area-inset-bottom))]'}>
       <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as ActivityTab)}>
-        <header data-testid="cruush-activity-header" className="sticky top-0 z-20 border-b border-white/10 bg-black/88 pb-4 pt-4 shadow-[0_20px_55px_rgba(0,0,0,0.34)] backdrop-blur-xl">
+        <header data-testid="cruush-activity-header" className="sticky top-0 z-20 border-b border-white/10 bg-[color:var(--cruush-black-glass)] pb-4 pt-4 shadow-[0_20px_55px_rgba(0,0,0,0.34)] backdrop-blur-[var(--cruush-black-glass-blur)]">
           <div
             data-testid="cruush-activity-header-content"
             className={embedded
@@ -879,7 +879,7 @@ export default function CruushActivity({
                   type="button"
                   size="icon"
                   variant="secondary"
-                  className="rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10"
+                  className="rounded-full border border-white/10 bg-[color:var(--cruush-black-glass)] text-white backdrop-blur-[var(--cruush-black-glass-blur)] hover:bg-white/10"
                   aria-label="Back"
                   title="Back"
                   onClick={() => embedded && onClose ? onClose() : navigate(-1)}
@@ -896,7 +896,7 @@ export default function CruushActivity({
                     type="button"
                     variant="secondary"
                     size="icon"
-                    className="rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10"
+                    className="rounded-full border border-white/10 bg-[color:var(--cruush-black-glass)] text-white backdrop-blur-[var(--cruush-black-glass-blur)] hover:bg-white/10"
                     aria-label="Open cruush match settings"
                     onClick={onOpenSettings}
                   >
@@ -908,7 +908,7 @@ export default function CruushActivity({
                       type="button"
                       variant="secondary"
                       size="icon"
-                      className="rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10"
+                      className="rounded-full border border-white/10 bg-[color:var(--cruush-black-glass)] text-white backdrop-blur-[var(--cruush-black-glass-blur)] hover:bg-white/10"
                       aria-label="Open cruush match settings"
                     >
                       <CruushIcon name="settings" className="h-5 w-5" />
@@ -925,7 +925,7 @@ export default function CruushActivity({
                 {/* Docked here on every layout; Close stays last. */}
                 <div className="h-11 w-11 shrink-0" data-testid="cruush-activity-bug-button-slot" ref={registerBugButtonSlot} />
                 {embedded && onClose ? (
-                  <Button type="button" variant="secondary" size="icon" className="rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10" aria-label="Close Cruushes" onClick={onClose}>
+                  <Button type="button" variant="secondary" size="icon" className="rounded-full border border-white/10 bg-[color:var(--cruush-black-glass)] text-white backdrop-blur-[var(--cruush-black-glass-blur)] hover:bg-white/10" aria-label="Close Cruushes" onClick={onClose}>
                     <X className="h-4 w-4" />
                   </Button>
                 ) : null}
@@ -948,7 +948,7 @@ export default function CruushActivity({
 
               <TabsList
                 data-testid="cruush-tab-grid"
-                className="cruush-activity-tab-grid grid h-auto w-full grid-cols-[repeat(4,minmax(0,1fr))] rounded-lg border border-white/10 bg-background/25 p-1 shadow-[0_20px_55px_rgba(0,0,0,0.32)] backdrop-blur-xl"
+                className="cruush-activity-tab-grid grid h-auto w-full grid-cols-[repeat(4,minmax(0,1fr))] rounded-lg border border-white/10 bg-[color:var(--cruush-black-glass)] p-1 shadow-[0_20px_55px_rgba(0,0,0,0.32)] backdrop-blur-[var(--cruush-black-glass-blur)]"
               >
                 <ActivityTabButton value="incoming" label="incoming" />
                 <ActivityTabButton value="sent" label="sent" />
@@ -1129,7 +1129,7 @@ function ComposeChoiceOverlay({
   onStartGroup: () => void;
 }) {
   return (
-    <div className="scrollbar-hide fixed inset-0 z-40 overflow-y-auto overscroll-contain bg-background/95 px-4 py-6 text-white backdrop-blur-md">
+    <div className="scrollbar-hide fixed inset-0 z-40 overflow-y-auto overscroll-contain bg-[color:var(--cruush-black-glass)] px-4 py-6 text-white backdrop-blur-[var(--cruush-black-glass-blur)]">
       <div className="mx-auto max-w-2xl space-y-5">
         <div className="flex items-center justify-between gap-3">
           <div>
@@ -1178,7 +1178,7 @@ function MutualDirectOverlay({
   const dlModeActive = useDlMode();
   const distancePreferences = useDistancePreferences();
   return (
-    <div className="fixed inset-0 z-40 bg-background/95 px-4 py-6 text-white backdrop-blur-md">
+    <div className="fixed inset-0 z-40 bg-[color:var(--cruush-black-glass)] px-4 py-6 text-white backdrop-blur-[var(--cruush-black-glass-blur)]">
       <div className="mx-auto max-w-2xl space-y-5">
         <div className="flex items-center justify-between gap-3">
           <div>

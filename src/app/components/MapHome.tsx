@@ -142,7 +142,7 @@ export function MileHighClubBrowseLimit({
 }) {
   if (travelling) {
     return (
-      <div className="flex h-11 items-center gap-2 rounded-full border border-[#77B9DA]/65 bg-black/88 px-4 text-sm font-semibold text-white shadow-[0_12px_36px_rgba(0,0,0,0.55)] backdrop-blur-xl">
+      <div className="flex h-11 items-center gap-2 rounded-full border border-[#77B9DA]/65 bg-[color:var(--cruush-black-glass)] px-4 text-sm font-semibold text-white shadow-[0_12px_36px_rgba(0,0,0,0.55)] backdrop-blur-[var(--cruush-black-glass-blur)]">
         <img alt="" aria-hidden="true" className="h-5 w-5" src={mileHighClubWhite} />
         Mile High Club range
       </div>
@@ -151,7 +151,7 @@ export function MileHighClubBrowseLimit({
 
   return (
     <Button
-      className="h-11 rounded-full border border-[#77B9DA]/65 bg-black/88 px-4 text-white shadow-[0_12px_36px_rgba(0,0,0,0.55)] backdrop-blur-xl hover:bg-black/92"
+      className="h-11 rounded-full border border-[#77B9DA]/65 bg-[color:var(--cruush-black-glass)] px-4 text-white shadow-[0_12px_36px_rgba(0,0,0,0.55)] backdrop-blur-[var(--cruush-black-glass-blur)] hover:bg-black/92"
       onClick={onActivate}
       type="button"
     >
@@ -3047,7 +3047,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
 
         {outsideServiceArea ? (
           <div className="pointer-events-auto absolute inset-0 z-20 flex items-center justify-center px-4 pb-28 pt-32">
-            <div className="w-full max-w-md rounded-3xl border border-white/14 bg-black/88 p-6 text-center text-white shadow-[0_24px_80px_rgba(0,0,0,0.68)] backdrop-blur-xl">
+            <div className="w-full max-w-md rounded-3xl border border-white/14 bg-[color:var(--cruush-black-glass)] p-6 text-center text-white shadow-[0_24px_80px_rgba(0,0,0,0.68)] backdrop-blur-[var(--cruush-black-glass-blur)]">
               <h2 className="text-2xl font-semibold">NYC open beta</h2>
               <p className="mt-3 text-sm text-white/72">
                 cruush is testing its open beta within 100 miles of the center of New York.
@@ -3102,7 +3102,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
         ) : null}
 
         {locationError ? (
-          <div className="absolute left-4 right-20 top-40 z-20 rounded-md border border-white/10 bg-background/82 p-3 text-sm text-white/72 backdrop-blur-md">
+          <div className="absolute left-4 right-20 top-40 z-20 rounded-md border border-white/10 bg-[color:var(--cruush-black-glass)] p-3 text-sm text-white/72 backdrop-blur-[var(--cruush-black-glass-blur)]">
             {locationError}
           </div>
         ) : null}
@@ -3190,7 +3190,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
 
         {selectedEvent ? (
           <div
-            className={`pointer-events-auto absolute z-20 rounded-xl border border-white/10 bg-black/88 p-4 text-white shadow-[0_24px_80px_rgba(0,0,0,0.55)] backdrop-blur-xl ${
+            className={`pointer-events-auto absolute z-20 rounded-xl border border-white/10 bg-[color:var(--cruush-black-glass)] p-4 text-white shadow-[0_24px_80px_rgba(0,0,0,0.55)] backdrop-blur-[var(--cruush-black-glass-blur)] ${
               isMobile
                 ? 'bottom-[calc(6.25rem+env(safe-area-inset-bottom))] left-3 right-3'
                 : 'left-4 top-[8.75rem] w-[22rem]'
@@ -3398,7 +3398,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
             <div
               className={`mx-auto ${
                 isRecentlyActiveOpen
-                  ? `${isMobile ? 'w-fit max-w-full' : 'w-fit max-w-[35.75rem]'} rounded-2xl border border-white/10 bg-background/68 p-3 shadow-[0_20px_60px_rgba(0,0,0,0.42)] backdrop-blur-md`
+                  ? `${isMobile ? 'w-fit max-w-full' : 'w-fit max-w-[35.75rem]'} rounded-2xl border border-white/10 bg-[color:var(--cruush-black-glass)] p-3 shadow-[0_20px_60px_rgba(0,0,0,0.42)] backdrop-blur-[var(--cruush-black-glass-blur)]`
                   : 'max-w-max p-0'
               } pointer-events-auto`}
               data-testid="recently-active-panel"
@@ -3409,8 +3409,8 @@ export default function MapHome(_props: MapHomeProps = {}) {
                   aria-controls="recently-active-tray"
                   aria-expanded={isRecentlyActiveOpen}
                   aria-label={isRecentlyActiveOpen ? 'Hide recently active bar' : 'Show recently active bar'}
-                  className={`h-9 rounded-full border border-white/10 px-5 text-[11px] uppercase tracking-[0.18em] text-white shadow-[0_10px_24px_rgba(0,0,0,0.32)] backdrop-blur-md transition hover:border-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/65 ${
-                    isRecentlyActiveOpen ? '' : 'bg-background/68'
+                  className={`h-9 rounded-full border border-white/10 px-5 text-[11px] uppercase tracking-[0.18em] text-white shadow-[0_10px_24px_rgba(0,0,0,0.32)] ${isRecentlyActiveOpen ? 'backdrop-blur-md' : 'backdrop-blur-[var(--cruush-black-glass-blur)]'} transition hover:border-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/65 ${
+                    isRecentlyActiveOpen ? '' : 'bg-[color:var(--cruush-black-glass)]'
                   }`}
                   onClick={() => setIsRecentlyActiveOpen((open) => !open)}
                   style={isRecentlyActiveOpen ? { background: 'var(--cruush-gradient)' } : undefined}

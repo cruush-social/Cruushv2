@@ -752,3 +752,8 @@ These are not preferences. Breaking one is a bug.
 ## Owner-restricted NSFW photo covers, September 12, 2026
 
 When an owner's explicit-photo sharing policy excludes the viewer, show the existing translucent white DL icon and replace the non-heart cover's “DL MODE ON” line with exactly “MUTUAL CRUUSHES ONLY” or “MUTUAL CROWDS ONLY”, according to the actual server-enforced restriction. A viewer's DL setting or show-only exception cannot bypass that owner policy. Preserve the icon, photo geometry, non-explicit photos and independent authorization rules. Whether the previously icon-only heart covers also gain this text is pending the owner's clarification; no extra heart text is approved yet. Source: task01a09549, September12 latest “if you encounter a picture” request.
+
+
+## Shared black glass, September 12, 2026
+
+Existing black-glass panels, headers, capsules and controls use the actual map top bar background and backdrop treatment: the existing background color at 25 percent opacity and 12px blur. `src/styles/theme.css` holds the shared semantic values. Preserve geometry, content, borders, shadows, colored/selected states and existing hover behavior. Emails are excluded. The later approval of Map Controls preserves that component's current appearance, including its separately requested opaque hover. The later onboarding/tutorial requests preserve their named presentation except their authorized edits. Whether full-screen dimming backdrops and login inputs are included remains an unanswered scope clarification; leave those unchanged pending an answer. Source: task01a08cc1 native user24438, September 12 at 08:05:48Z, and the linked current-task clarifications.

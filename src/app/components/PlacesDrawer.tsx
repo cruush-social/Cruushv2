@@ -425,7 +425,7 @@ export default function PlacesDrawer({ open, onOpenChange, coordinates, onFilter
         </SheetHeader>
         {drawerBody}
         {!showSubmit ? (
-          <SheetFooter className="shrink-0 border-t border-white/10 bg-background/95 px-5 py-4 backdrop-blur">
+          <SheetFooter className="shrink-0 border-t border-white/10 bg-[color:var(--cruush-black-glass)] px-5 py-4 backdrop-blur-[var(--cruush-black-glass-blur)]">
             <div className="flex gap-3">
               <Button type="button" variant="outline" className="flex-1" onClick={() => {
                 setQuery('');

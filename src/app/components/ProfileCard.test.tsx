@@ -191,7 +191,7 @@ describe('ProfileCard', () => {
     expect(screen.getByRole('img', { name: 'Jordan with a deliberately long display name' })).toHaveClass('h-full', 'w-full', 'object-cover');
     expect(screen.getByTestId('carousel-profile-glass')).not.toHaveClass('bg-black/60', 'backdrop-blur-xl');
     expect(card).toContainElement(browseAgainButton);
-    expect(browseAgainButton).toHaveClass('bg-black/55', 'backdrop-blur-xl');
+    expect(browseAgainButton).toHaveClass('bg-[color:var(--cruush-black-glass)]', 'backdrop-blur-[var(--cruush-black-glass-blur)]');
     expect(screen.getByRole('button', { name: 'Mutuals only' })).toBeDisabled();
     expect(screen.getByTestId('profile-card-vibes')).toHaveTextContent('GothPunkClub kid');
     expect(screen.queryByText('Leather')).not.toBeInTheDocument();

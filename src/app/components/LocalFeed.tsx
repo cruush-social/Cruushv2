@@ -735,14 +735,14 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
       data-testid="local-feed-screen"
     >
       <header
-        className="sticky top-0 z-40 flex shrink-0 items-center gap-2 border-b border-white/10 bg-black/88 pb-3 pl-4 pr-4 pt-[calc(0.75rem+env(safe-area-inset-top))] shadow-[0_20px_55px_rgba(0,0,0,0.34)] backdrop-blur-xl"
+        className="sticky top-0 z-40 flex shrink-0 items-center gap-2 border-b border-white/10 bg-[color:var(--cruush-black-glass)] pb-3 pl-4 pr-4 pt-[calc(0.75rem+env(safe-area-inset-top))] shadow-[0_20px_55px_rgba(0,0,0,0.34)] backdrop-blur-[var(--cruush-black-glass-blur)]"
         data-testid="local-feed-header"
       >
         <Button
           type="button"
           size="icon"
           variant="secondary"
-          className="rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10"
+          className="rounded-full border border-white/10 bg-[color:var(--cruush-black-glass)] text-white backdrop-blur-[var(--cruush-black-glass-blur)] hover:bg-white/10"
           aria-label="Back"
           title="Back"
           onClick={() => {
@@ -767,7 +767,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
         <Button
           variant="ghost"
           size="icon"
-          className="rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10"
+          className="rounded-full border border-white/10 bg-[color:var(--cruush-black-glass)] text-white backdrop-blur-[var(--cruush-black-glass-blur)] hover:bg-white/10"
           aria-label="Feed seeking"
           title="Feed seeking"
           aria-pressed={seekingOpen}
@@ -782,7 +782,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
           <Button
             variant="ghost"
             size="icon"
-            className="rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10"
+            className="rounded-full border border-white/10 bg-[color:var(--cruush-black-glass)] text-white backdrop-blur-[var(--cruush-black-glass-blur)] hover:bg-white/10"
             aria-label="Feed settings"
             title="Feed settings"
             onClick={() => setSettingsOpen(true)}
@@ -794,7 +794,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
             <Button
               variant="ghost"
               size="icon"
-              className="rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10"
+              className="rounded-full border border-white/10 bg-[color:var(--cruush-black-glass)] text-white backdrop-blur-[var(--cruush-black-glass-blur)] hover:bg-white/10"
               aria-label="Feed settings"
               title="Feed settings"
             >
@@ -965,7 +965,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
         </> : null}
         <BugButtonSlot testId="local-feed-bug-button-slot" />
         {embedded && onClose ? (
-          <Button type="button" variant="secondary" size="icon" className="rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10" aria-label="Close Feed" onClick={onClose}>
+          <Button type="button" variant="secondary" size="icon" className="rounded-full border border-white/10 bg-[color:var(--cruush-black-glass)] text-white backdrop-blur-[var(--cruush-black-glass-blur)] hover:bg-white/10" aria-label="Close Feed" onClick={onClose}>
             <X className="h-4 w-4" />
           </Button>
         ) : null}
@@ -1123,7 +1123,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
       ) : null}
 
       <div className={`${embedded && settingsOpen ? 'hidden ' : ''}mx-auto flex min-h-0 w-full max-w-2xl flex-1 flex-col overflow-hidden px-3 pt-4`} data-testid="local-feed-content">
-        <div className="shrink-0 rounded-2xl border border-white/10 bg-black/82 p-4 shadow-[0_18px_50px_rgba(0,0,0,0.35)] backdrop-blur" data-testid="local-feed-composer">
+        <div className="shrink-0 rounded-2xl border border-white/10 bg-[color:var(--cruush-black-glass)] p-4 shadow-[0_18px_50px_rgba(0,0,0,0.35)] backdrop-blur-[var(--cruush-black-glass-blur)]" data-testid="local-feed-composer">
           {error ? (
             <div className="mb-3 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
               {error}

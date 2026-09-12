@@ -40,7 +40,7 @@ export default function MapTopBar({ setMapControlsHovered, handleFeelingLucky, n
   return (
           <div ref={availableWidthRef} className="relative min-w-0 flex-1" style={{ height: 70 * scale }}>
             <div
-              className="cruush-map-top-actions pointer-events-auto absolute left-1/2 top-0 flex h-[70px] w-[298px] shrink-0 items-center justify-center gap-1 rounded-full border border-white/10 bg-background/25 px-2.5 py-2 backdrop-blur-md"
+              className="cruush-map-top-actions pointer-events-auto absolute left-1/2 top-0 flex h-[70px] w-[298px] shrink-0 items-center justify-center gap-1 rounded-full border border-white/10 bg-[color:var(--cruush-black-glass)] px-2.5 py-2 backdrop-blur-[var(--cruush-black-glass-blur)]"
               style={{ transform: `translateX(-50%) scale(${scale})`, transformOrigin: 'top center' }}
               data-map-control-hit-layer="true"
               data-testid="map-top-actions"

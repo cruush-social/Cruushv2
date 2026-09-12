@@ -180,7 +180,7 @@ export default function BottomNav() {
       ) : null}
       <div
         data-testid="bottom-nav-pill"
-        className="cruush-bottom-nav-pill pointer-events-auto relative z-10 mx-auto flex w-full max-w-[23rem] items-center justify-between rounded-full border border-white/10 bg-background/68 px-1.5 pb-1.5 pt-2 shadow-[0_20px_60px_rgba(0,0,0,0.42)] backdrop-blur-md transition-transform"
+        className="cruush-bottom-nav-pill pointer-events-auto relative z-10 mx-auto flex w-full max-w-[23rem] items-center justify-between rounded-full border border-white/10 bg-[color:var(--cruush-black-glass)] px-1.5 pb-1.5 pt-2 shadow-[0_20px_60px_rgba(0,0,0,0.42)] backdrop-blur-[var(--cruush-black-glass-blur)] transition-transform"
       >
         {navItems.map((item) => {
           const active = isActive(item.path);

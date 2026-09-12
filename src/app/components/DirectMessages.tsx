@@ -629,12 +629,12 @@ export default function DirectMessages({
   if (embedded && messageSettingsOpen) {
     return (
       <div className="relative min-h-full bg-[#050505] pb-6 text-white" data-testid="embedded-message-settings">
-        <header className="sticky top-0 z-20 flex items-center gap-2 border-b border-white/10 bg-black/88 px-4 pb-4 pt-4 shadow-[0_20px_55px_rgba(0,0,0,0.34)] backdrop-blur-xl">
+        <header className="sticky top-0 z-20 flex items-center gap-2 border-b border-white/10 bg-[color:var(--cruush-black-glass)] px-4 pb-4 pt-4 shadow-[0_20px_55px_rgba(0,0,0,0.34)] backdrop-blur-[var(--cruush-black-glass-blur)]">
           <Button
             type="button"
             size="icon"
             variant="secondary"
-            className="h-11 w-11 rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10"
+            className="h-11 w-11 rounded-full border border-white/10 bg-[color:var(--cruush-black-glass)] text-white backdrop-blur-[var(--cruush-black-glass-blur)] hover:bg-white/10"
             aria-label="Back to Messages"
             title="Back to Messages"
             onClick={() => setMessageSettingsOpen(false)}
@@ -647,7 +647,7 @@ export default function DirectMessages({
               type="button"
               size="icon"
               variant="secondary"
-              className="h-11 w-11 rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10"
+              className="h-11 w-11 rounded-full border border-white/10 bg-[color:var(--cruush-black-glass)] text-white backdrop-blur-[var(--cruush-black-glass-blur)] hover:bg-white/10"
               aria-label="Close Message settings"
               onClick={onClose}
             >
@@ -662,14 +662,14 @@ export default function DirectMessages({
 
   return (
     <div className={embedded ? 'relative min-h-full bg-[#050505] pb-6 text-white' : 'relative min-h-screen bg-[#050505] pb-[calc(7rem+env(safe-area-inset-bottom))] text-white'}>
-      <header data-testid="direct-messages-header" className="sticky top-0 z-20 border-b border-white/10 bg-black/88 pb-4 pt-4 shadow-[0_20px_55px_rgba(0,0,0,0.34)] backdrop-blur-xl">
+      <header data-testid="direct-messages-header" className="sticky top-0 z-20 border-b border-white/10 bg-[color:var(--cruush-black-glass)] pb-4 pt-4 shadow-[0_20px_55px_rgba(0,0,0,0.34)] backdrop-blur-[var(--cruush-black-glass-blur)]">
         <div data-testid="direct-messages-header-content" className="mx-auto max-w-2xl space-y-4 px-4">
           <div data-testid="direct-messages-header-row" className="flex items-center gap-2">
             <Button
               type="button"
               size="icon"
               variant="secondary"
-              className="rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10"
+              className="rounded-full border border-white/10 bg-[color:var(--cruush-black-glass)] text-white backdrop-blur-[var(--cruush-black-glass-blur)] hover:bg-white/10"
               aria-label="Back"
               title="Back"
               onClick={() => embedded && onClose ? onClose() : navigate(-1)}
@@ -698,7 +698,7 @@ export default function DirectMessages({
                   size="icon"
                   aria-label="Message settings"
                   title="Message settings"
-                  className="h-11 w-11 rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10"
+                  className="h-11 w-11 rounded-full border border-white/10 bg-[color:var(--cruush-black-glass)] text-white backdrop-blur-[var(--cruush-black-glass-blur)] hover:bg-white/10"
                   onClick={() => setMessageSettingsOpen(true)}
                 >
                   <CruushIcon name="settings" className="h-5 w-5" />
@@ -710,7 +710,7 @@ export default function DirectMessages({
                     size="icon"
                     aria-label="Message settings"
                     title="Message settings"
-                    className="h-11 w-11 rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10"
+                    className="h-11 w-11 rounded-full border border-white/10 bg-[color:var(--cruush-black-glass)] text-white backdrop-blur-[var(--cruush-black-glass-blur)] hover:bg-white/10"
                   >
                     <CruushIcon name="settings" className="h-5 w-5" />
                   </Button>
@@ -726,7 +726,7 @@ export default function DirectMessages({
               {/* Docked here on every layout; Close stays last. */}
               <div className="h-11 w-11 shrink-0" data-testid="direct-messages-bug-button-slot" ref={registerBugButtonSlot} />
               {embedded && onClose ? (
-                <Button type="button" size="icon" variant="secondary" className="h-11 w-11 rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10" aria-label="Close Messages" onClick={onClose}>
+                <Button type="button" size="icon" variant="secondary" className="h-11 w-11 rounded-full border border-white/10 bg-[color:var(--cruush-black-glass)] text-white backdrop-blur-[var(--cruush-black-glass-blur)] hover:bg-white/10" aria-label="Close Messages" onClick={onClose}>
                   <X className="h-4 w-4" />
                 </Button>
               ) : null}
@@ -760,7 +760,7 @@ export default function DirectMessages({
           </div>
 
           <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'all' | 'unread' | 'groups')}>
-            <TabsList className="grid h-auto w-full grid-cols-3 rounded-lg border border-white/10 bg-background/25 p-1 shadow-[0_20px_55px_rgba(0,0,0,0.32)] backdrop-blur-xl">
+            <TabsList className="grid h-auto w-full grid-cols-3 rounded-lg border border-white/10 bg-[color:var(--cruush-black-glass)] p-1 shadow-[0_20px_55px_rgba(0,0,0,0.32)] backdrop-blur-[var(--cruush-black-glass-blur)]">
               <TabsTrigger value="all" className="h-10 rounded-md text-sm text-white/72">All</TabsTrigger>
               <TabsTrigger value="unread" className="h-10 rounded-md text-sm text-white/72">Unread</TabsTrigger>
               <TabsTrigger value="groups" className="h-10 rounded-md text-sm text-white/72">Groups</TabsTrigger>
@@ -817,7 +817,7 @@ export default function DirectMessages({
 
       {groupComposerOpen ? (
         <div
-          className="scrollbar-hide fixed inset-0 z-40 overflow-y-auto overscroll-contain bg-background/95 px-4 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-6 backdrop-blur-md"
+          className="scrollbar-hide fixed inset-0 z-40 overflow-y-auto overscroll-contain bg-[color:var(--cruush-black-glass)] px-4 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-6 backdrop-blur-[var(--cruush-black-glass-blur)]"
           style={{ WebkitOverflowScrolling: 'touch' }}
         >
           <div className="mx-auto max-w-2xl space-y-5">
@@ -1187,7 +1187,7 @@ function ComposeChoiceOverlay({
   onStartGroup: () => void;
 }) {
   return (
-    <div className="fixed inset-0 z-40 bg-background/95 px-4 py-6 backdrop-blur-md">
+    <div className="fixed inset-0 z-40 bg-[color:var(--cruush-black-glass)] px-4 py-6 backdrop-blur-[var(--cruush-black-glass-blur)]">
       <div className="mx-auto max-w-2xl space-y-5">
         <div className={`flex items-center justify-between gap-3 ${embedded ? '' : 'pr-14'}`}>
           <div>
@@ -1333,7 +1333,7 @@ function DirectUserOverlay({
 
   return (
     <div
-      className="scrollbar-hide fixed inset-0 z-40 overflow-y-auto overscroll-contain bg-background/95 px-4 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-6 backdrop-blur-md"
+      className="scrollbar-hide fixed inset-0 z-40 overflow-y-auto overscroll-contain bg-[color:var(--cruush-black-glass)] px-4 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-6 backdrop-blur-[var(--cruush-black-glass-blur)]"
       style={{ WebkitOverflowScrolling: 'touch' }}
     >
       <div className="mx-auto min-h-full max-w-2xl space-y-5 pb-8">

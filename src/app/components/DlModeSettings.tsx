@@ -84,7 +84,7 @@ export default function DlModeSettings() {
 
   return (
     <div className="min-h-screen bg-background pb-20">
-      <header className="sticky top-0 z-10 border-b border-border bg-card/80 p-4 backdrop-blur-sm">
+      <header className="sticky top-0 z-10 border-b border-border bg-[color:var(--cruush-black-glass)] p-4 backdrop-blur-[var(--cruush-black-glass-blur)]">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
             <ArrowLeft className="h-5 w-5" />
