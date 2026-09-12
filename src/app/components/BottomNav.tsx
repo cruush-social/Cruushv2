@@ -7,11 +7,11 @@ import messagesIconColored from '../assets/ui-icons/messages-colored.png';
 import messagesIconWhite from '../assets/ui-icons/messages-white.png';
 import humanityProfileIcon from '../assets/ui-icons/humanity-profile-selected-winged-heart-symmetric.png';
 import humanityProfileIconGradient from '../assets/ui-icons/humanity-profile-selected-winged-heart-symmetric-gradient.png';
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
   addDesktopPageLayoutChangedListener,
   getDesktopPageLayout,
-  isDesktopPageLayoutDevice,
+  useCanChoosePopupLayout,
 } from '../lib/desktopPageLayoutPreferences';
 import { getMyCruushActivity } from '../lib/cruushApi';
 import { getConversations } from '../lib/messagesApi';
@@ -65,8 +65,24 @@ function ProfileNavIcon({ active }: { active: boolean }) {
 
 export default function BottomNav() {
   const navigate = useNavigate();
+  const navRef = useRef<HTMLElement>(null);
+
+  useLayoutEffect(() => {
+    const nav = navRef.current;
+    if (!nav) return;
+    const update = () => document.documentElement.style.setProperty(
+      "--cruush-nav-clearance", `${nav.getBoundingClientRect().height}px`
+    );
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(nav);
+    return () => {
+      observer.disconnect();
+      document.documentElement.style.removeProperty("--cruush-nav-clearance");
+    };
+  }, []);
   const location = useLocation();
-  const desktopPageLayoutDevice = isDesktopPageLayoutDevice();
+  const desktopPageLayoutDevice = useCanChoosePopupLayout();
   const [desktopPageLayout, setDesktopPageLayout] = useState(getDesktopPageLayout);
   const [unreadMessages, setUnreadMessages] = useState(false);
   const [unreadCruushes, setUnreadCruushes] = useState(false);
@@ -155,7 +171,7 @@ export default function BottomNav() {
   };
 
   return (
-    <nav hidden={location.pathname === '/settings/onboarding-test'} className="pointer-events-none fixed bottom-0 left-0 right-0 z-[60] px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-2">
+    <nav ref={navRef} className="pointer-events-none fixed bottom-0 left-0 right-0 z-[60] px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-2">
       {!isMapRoute && !isCruiseCarouselRoute ? (
         <div
           aria-hidden="true"

@@ -1,3 +1,5 @@
+import { useEffect, useState } from 'react';
+
 export type DesktopPageLayout = 'popups' | 'fullscreen';
 
 export const DESKTOP_PAGE_LAYOUT_STORAGE_KEY = 'cruush.desktopPageLayout';
@@ -72,4 +74,33 @@ export function addDesktopPageLayoutChangedListener(
 
   window.addEventListener(DESKTOP_PAGE_LAYOUT_CHANGED_EVENT, handleChange);
   return () => window.removeEventListener(DESKTOP_PAGE_LAYOUT_CHANGED_EVENT, handleChange);
+}
+
+/** Desktop and landscape tablets may choose popup pages; phones never do. */
+export function canChoosePopupLayout(width: number, height: number, navigatorValue: NavigatorWithUserAgentData | undefined = typeof navigator === 'undefined' ? undefined : navigator) {
+  const userAgent = navigatorValue?.userAgent ?? '';
+  const tablet = /iPad|Tablet/i.test(userAgent)
+    || (/Macintosh/i.test(userAgent) && (navigatorValue?.maxTouchPoints ?? 0) > 1)
+    || (/Android/i.test(userAgent) && !/Mobile/i.test(userAgent));
+  if (tablet) return width > height;
+  const phone = navigatorValue?.userAgentData?.mobile === true || /iPhone|iPod|Mobile/i.test(userAgent);
+  if (phone) return false;
+  if (width >= 1024) return true;
+  return Math.min(width, height) >= 600 && width > height;
+}
+
+export function useCanChoosePopupLayout() {
+  const read = () => typeof window === 'undefined' || canChoosePopupLayout(window.innerWidth, window.innerHeight);
+  const [allowed, setAllowed] = useState(read);
+  useEffect(() => {
+    const update = () => setAllowed(read());
+    update();
+    window.addEventListener('resize', update);
+    window.addEventListener('orientationchange', update);
+    return () => {
+      window.removeEventListener('resize', update);
+      window.removeEventListener('orientationchange', update);
+    };
+  }, []);
+  return allowed;
 }

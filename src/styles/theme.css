@@ -69,6 +69,28 @@
   --sidebar-ring: #6f00ff;
 }
 
+/* Mobile and tablet have no popup framing, even when an old caller sets a width. */
+html[data-cruush-page-framing="fullscreen"] :is([data-slot="dialog-content"], [data-slot="sheet-content"], [data-slot="alert-dialog-content"]):not([data-testid="alpha-bug-dialog"]) {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  height: 100dvh !important;
+  min-height: 0 !important;
+  max-height: 100dvh !important;
+  margin: 0 !important;
+  transform: none !important;
+  border-radius: 0 !important;
+}
+
+html[data-cruush-page-framing],
+html[data-cruush-page-framing] body,
+html[data-cruush-page-framing] #root {
+  height: 100%;
+  overflow: hidden;
+}
+
 html[data-cruush-larger-text] {
   --font-size: 16px;
   --text-xs: 0.9375rem;
@@ -1838,5 +1860,33 @@ html[data-cruush-alpha-bug-corner='top-right'] [data-testid='accessibility-quick
   .cruush-user-activity-actions [data-testid='profile-action-trio'] > button > img {
     width: clamp(1.5rem, 4.9cqw, 2rem);
     height: clamp(1.5rem, 4.9cqw, 2rem);
+  }
+}
+
+/* Navigation keeps its own measured space; full-screen content ends above it. */
+html[data-cruush-page-framing] :is([data-slot="dialog-overlay"], [data-slot="sheet-overlay"], [data-slot="alert-dialog-overlay"]):not(.alpha-bug-overlay) {
+  bottom: var(--cruush-nav-clearance, 6rem) !important;
+}
+
+html[data-cruush-page-framing="fullscreen"] :is([data-slot="dialog-content"], [data-slot="sheet-content"], [data-slot="alert-dialog-content"]):not([data-testid="alpha-bug-dialog"]) {
+  bottom: var(--cruush-nav-clearance, 6rem) !important;
+  height: calc(100dvh - var(--cruush-nav-clearance, 6rem)) !important;
+  max-height: calc(100dvh - var(--cruush-nav-clearance, 6rem)) !important;
+}
+
+html[data-cruush-page-framing="desktop"] :is([data-slot="dialog-content"], [data-slot="alert-dialog-content"]):not([data-testid="alpha-bug-dialog"]) {
+  max-height: calc(100dvh - var(--cruush-nav-clearance, 6rem) - 2rem) !important;
+}
+
+@media (max-width: 1023px) {
+  html[data-cruush-page-framing="desktop"] [data-dialog-framing="sheet"]:not([data-testid="alpha-bug-dialog"]) {
+    inset: auto;
+    top: calc((100dvh - var(--cruush-nav-clearance, 6rem)) / 2);
+    left: 50%;
+    width: calc(100% - 2rem);
+    max-width: 32rem;
+    height: auto;
+    transform: translate(-50%, -50%);
+    border-radius: var(--radius-lg);
   }
 }

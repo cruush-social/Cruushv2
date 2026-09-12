@@ -7,6 +7,8 @@ import VerifyEmail from './components/VerifyEmail';
 import ConfirmEmailChange from './components/ConfirmEmailChange';
 import ResetPassword from './components/ResetPassword';
 import AppErrorBoundary from './components/AppErrorBoundary';
+import AppViewport from './components/AppViewport';
+import BottomNav from './components/BottomNav';
 import GoogleAnalyticsPageTracker from './components/GoogleAnalyticsPageTracker';
 import { Toaster } from './components/ui/sonner';
 import { loadCurrentSession } from './lib/sessionUser';
@@ -68,7 +70,6 @@ const FeelingLucky = lazyRoute(() => import('./components/FeelingLucky'));
 const RequestsDashboard = lazyRoute(() => import('./components/RequestsDashboard'));
 const CodeOfConductGate = lazyRoute(() => import('./components/CodeOfConductGate'));
 const EmailVerificationGate = lazyRoute(() => import('./components/EmailVerificationGate'));
-const BottomNav = lazyRoute(() => import('./components/BottomNav'));
 const DebugCruushPlusToggle = lazyRoute(() => import('./components/DebugCruushPlusToggle'));
 const Rewards = lazyRoute(() => import('./components/Rewards'));
 const EarnedCruushPlusCards = lazyRoute(() => import('./components/EarnedCruushPlusCards'));
@@ -628,7 +629,7 @@ export default function App({
       <CanonicalAppAddressBar />
       <GoogleAnalyticsPageTracker />
       <AppErrorBoundary>
-        <div className="min-h-screen bg-background text-foreground">
+        <AppViewport>
           <Suspense fallback={<RouteLoading />}>
             <Routes>
               <Route path="/" element={<Navigate to="/map" replace />} />
@@ -689,14 +690,14 @@ export default function App({
             <MobileInstallPrompt />
             <DlModeDefaultNotice />
             <FirstFeedPostPrompt userId={session.user.id} />
-            <BottomNav />
             <ForegroundNotifications showLatestRewardOnFirstPoll={showOnboardingReward} />
             <EarnedCruushPlusCards key={session.user.id} userId={session.user.id} />
             <DebugCruushPlusToggle />
             {alphaBugControl}
           </Suspense>
+          <BottomNav />
           <Toaster closeButton position="top-center" richColors />
-        </div>
+        </AppViewport>
       </AppErrorBoundary>
     </MemoryRouter>
   );

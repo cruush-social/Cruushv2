@@ -53,6 +53,7 @@ import mileHighClubWhite from '../assets/ui-icons/mile-high-club-white.svg';
 import {
   addDesktopPageLayoutChangedListener,
   getDesktopPageLayout,
+  useCanChoosePopupLayout,
   saveDesktopPageLayout,
   type DesktopPageLayout,
 } from '../lib/desktopPageLayoutPreferences';
@@ -144,6 +145,7 @@ export default function Settings({ embedded = false, onBack, onClose, onOpenMile
   const [accessibilityPreferences, setAccessibilityPreferences] = useState(getAccessibilityPreferences);
   const [previewUrl, setPreviewUrlState] = useState(() => getVerificationPreviewUrl());
   const [desktopPageLayout, setDesktopPageLayout] = useState(getDesktopPageLayout);
+  const canChooseLayout = useCanChoosePopupLayout();
   const isEmailVerified = Boolean(storedUser?.email_verified_at);
   const moderatorRole = storedUser?.moderator_role ?? null;
   const [onboardingTestEnabled, setOnboardingTestEnabled] = useState(false);
@@ -570,9 +572,10 @@ export default function Settings({ embedded = false, onBack, onClose, onOpenMile
                   ] as const).map(([value, label]) => (
                     <button
                       key={value}
-                      aria-checked={desktopPageLayout === value}
-                      className={`rounded-full px-3 py-1.5 text-sm transition-colors ${
-                        desktopPageLayout === value
+                      aria-checked={(canChooseLayout ? desktopPageLayout : 'fullscreen') === value}
+                      disabled={!canChooseLayout}
+                      className={`rounded-full px-3 py-1.5 text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+                        (canChooseLayout ? desktopPageLayout : 'fullscreen') === value
                           ? 'bg-white/10 text-foreground'
                           : 'text-muted-foreground hover:text-foreground'
                       }`}

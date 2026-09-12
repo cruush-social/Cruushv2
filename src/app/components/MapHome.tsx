@@ -95,7 +95,7 @@ import { PLACE_FACILITY_LABELS, type PlaceAmenity, type PlaceFacilityType, type 
 import {
   addDesktopPageLayoutChangedListener,
   getDesktopPageLayout,
-  isDesktopPageLayoutDevice,
+  useCanChoosePopupLayout,
 } from '../lib/desktopPageLayoutPreferences';
 import cruushIconWhite from '../assets/ui-icons/cruush-white.png';
 import mileHighClubWhite from '../assets/ui-icons/mile-high-club-white.svg';
@@ -884,7 +884,8 @@ export default function MapHome(_props: MapHomeProps = {}) {
   const routeState = location.state as MapRouteState;
   const isMobile = useIsMobile();
   const [desktopPageLayout, setDesktopPageLayout] = useState(getDesktopPageLayout);
-  const usesFullPageProfile = !isDesktopPageLayoutDevice() || desktopPageLayout === 'fullscreen';
+  const canChoosePopupLayout = useCanChoosePopupLayout();
+  const usesFullPageProfile = !canChoosePopupLayout || desktopPageLayout === 'fullscreen';
   const mobileVisualViewportBounds = useMobileVisualViewportBounds(isMobile);
   const [users, setUsers] = useState<DiscoveryUser[]>([]);
   const [outsideServiceArea, setOutsideServiceArea] = useState(false);
