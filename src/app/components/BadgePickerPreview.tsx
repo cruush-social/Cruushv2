@@ -159,7 +159,7 @@ import { Button } from './ui/button';
 import { profileBadgeCategory, profileBadgeGlyph, type ProfileBadgeGroup } from './ProfileBadgeGlyphs';
 import BugButtonSlot from './BugButtonSlot';
 import {
-  BadgeFrame,
+  BadgeUnit,
   BADGE_INTERACTION_CLASS,
   BadgeHoverLabel,
   MAP_SIDE_BADGE_PLACEMENT_CLASS,
@@ -449,20 +449,17 @@ function BadgeChip({ darkRoom = false, frame, option, side, meaning }: {
       }}
       tabIndex={0}
     >
-      <BadgeFrame
+      <BadgeUnit
         fillWithGlyph={option.id.startsWith('flag-')}
         className="h-full w-full"
         frame={frame}
         gradientStops={gradientStops}
         hankyColor={option.hanky?.color}
         strokeColor={CURRENT_USER_BORDER}
-      >
-        {!option.hanky ? (
-          <span className="flex h-full w-full items-center justify-center text-white">
-            <Icon aria-hidden="true" className="h-full w-full" strokeWidth={2.6} />
-          </span>
-        ) : null}
-      </BadgeFrame>
+
+        glyph={Icon}
+        glyphAriaHidden
+      />
       {meaning ? <BadgeHoverLabel>{meaning}</BadgeHoverLabel> : null}
     </span>
   );

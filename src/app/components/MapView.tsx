@@ -54,7 +54,7 @@ import {
 } from '../lib/mapMarkers';
 import { positionGlyphFor, roleGlyphFor } from './PositionRoleGlyphs';
 import {
-  BadgeFrame,
+  BadgeUnit,
   BADGE_INTERACTION_CLASS,
   BadgeHoverLabel,
   MAP_SIDE_BADGE_PLACEMENT_CLASS,
@@ -1221,20 +1221,18 @@ function MarkerSideBadge({
         ...ownerGhostDecoyFadeStyle(marker, isCurrentUser),
       }}
     >
-      <BadgeFrame
+      <BadgeUnit
         fillWithGlyph={savedBadge.fillsFrame}
         className="h-full w-full"
         frame={frame}
         gradientStops={badgeGradientStops}
         hankyColor={hanky?.color}
         strokeColor={marker.displayMode === 'GHOST' ? `var(--cruush-ghost-flash-border-color, ${badgeBorderColor})` : badgeBorderColor}
-      >
-        {!hanky ? (
-          <span className={`flex h-full w-full items-center justify-center text-white ${isCurrentUser && marker.displayMode === 'GHOST' ? 'overflow-hidden rounded-full' : ''}`}>
-            <Glyph className="cruush-ghost-rotation-badge-symbol h-full w-full" strokeWidth={2.6} />
-          </span>
-        ) : null}
-      </BadgeFrame>
+
+        glyph={Glyph}
+        glyphClassName="cruush-ghost-rotation-badge-symbol h-full w-full"
+        contentClassName={`flex h-full w-full items-center justify-center text-white ${isCurrentUser && marker.displayMode === 'GHOST' ? 'overflow-hidden rounded-full' : ''}`}
+      />
       <BadgeHoverLabel align={side === 'left' ? 'start' : 'end'} revealed={revealed}>{hoverLabel}</BadgeHoverLabel>
     </span>
   );

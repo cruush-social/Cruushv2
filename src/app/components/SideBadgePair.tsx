@@ -1,7 +1,7 @@
 import { formatBadgeLabel } from '../lib/badgeIntent';
 import { createSavedMapMarkerBadge, type MapMarkerBadge } from '../lib/mapMarkers';
 import type { SideBadges } from '../lib/profileApi';
-import { BADGE_INTERACTION_CLASS, BadgeFrame, BadgeHoverLabel, preventBadgeContextMenu, SIDE_BADGE_SIZE_PX } from './BadgeFrames';
+import { BADGE_INTERACTION_CLASS, BadgeUnit, BadgeHoverLabel, preventBadgeContextMenu, SIDE_BADGE_SIZE_PX } from './BadgeFrames';
 import { HANKY_COLORS } from './HankyFrame';
 import { positionGlyphFor, roleGlyphFor } from './PositionRoleGlyphs';
 import { USER_BORDER_COLORS, type UserBorderTone } from '../lib/userBorderTone';
@@ -39,19 +39,15 @@ function SavedSideBadge({ badge, side, tone }: {
       style={{ color: borderColor, width: SIDE_BADGE_SIZE_PX, height: SIDE_BADGE_SIZE_PX }}
       tabIndex={0}
     >
-      <BadgeFrame
+      <BadgeUnit
         fillWithGlyph={savedBadge.fillsFrame}
         className="h-full w-full"
         frame="circle"
         hankyColor={hanky?.color}
         strokeColor={borderColor}
-      >
-        {!hanky ? (
-          <span className="flex h-full w-full items-center justify-center text-white">
-            <Glyph className="h-full w-full" strokeWidth={2.6} />
-          </span>
-        ) : null}
-      </BadgeFrame>
+
+        glyph={Glyph}
+      />
       {/* On a card the label centres under its own badge, the way the map
           does it. The outer-edge anchor is for the map's paired badges, where
           two labels either side of a heart would otherwise meet in the middle;

@@ -1,4 +1,12 @@
 /**
+ * Protected cruush presentation and behavior.
+ * Do not change artwork, geometry, styling, content, controls, privacy rules,
+ * interactions, animation sequences or timing unless Julien explicitly requests
+ * that exact change in a user prompt. Improvement, cleanup and consistency are
+ * not authorization. Preserve the approved local appearance and functionality.
+ */
+
+/**
  * Badge frames: the outside of a side badge, and nothing else.
  *
  * Almost every gender symbol is a circle with something attached to it, which
@@ -14,7 +22,7 @@
  * uses a hexagon, and Heart is the default.
  */
 
-import { useId, type MouseEvent } from 'react';
+import { useId, type MouseEvent, type ElementType } from 'react';
 import paisley515105 from '../assets/ui-icons/paisley-515105.png';
 import { HEART_PIN_PATH } from '../lib/heartPin';
 
@@ -327,3 +335,28 @@ export const BADGE_FRAMES: Array<{ id: BadgeFrameId; label: string; group: strin
   { id: 'butch', label: 'Butch', group: 'Gender' },
   { id: 'femme', label: 'Femme', group: 'Gender' },
 ];
+
+/** Shared framed badge artwork. Callers retain their existing placement and interaction wrappers. */
+export function BadgeUnit({
+  glyph: Glyph,
+  glyphClassName = 'h-full w-full',
+  glyphAriaHidden,
+  contentClassName = 'flex h-full w-full items-center justify-center text-white',
+  ...frameProps
+}: Omit<FrameProps, 'children'> & {
+  frame?: BadgeFrameId;
+  glyph: ElementType;
+  glyphClassName?: string;
+  glyphAriaHidden?: true;
+  contentClassName?: string;
+}) {
+  return (
+    <BadgeFrame {...frameProps}>
+      {!frameProps.hankyColor ? (
+        <span className={contentClassName}>
+          <Glyph aria-hidden={glyphAriaHidden} className={glyphClassName} strokeWidth={2.6} />
+        </span>
+      ) : null}
+    </BadgeFrame>
+  );
+}
