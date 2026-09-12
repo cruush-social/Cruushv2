@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef, useState } from 'react';
 import type { NavigateFunction } from 'react-router';
 import { Button } from './ui/button';
 import CruushIconImage, { CruushIcon } from './CruushIconImage';
@@ -23,10 +24,24 @@ type MapTopBarProps = {
 };
 
 export default function MapTopBar({ setMapControlsHovered, handleFeelingLucky, navigate, privacySettings, dlModeActive, usesFullPageProfile, sidePanelView, setSidePanelReturnView, setSidePanelView, notificationUnreadCount }: MapTopBarProps) {
+  const availableWidthRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(1);
+
+  useLayoutEffect(() => {
+    const frame = availableWidthRef.current;
+    if (!frame) return;
+    const resize = () => setScale(Math.min(1, frame.clientWidth / 298));
+    resize();
+    const observer = new ResizeObserver(resize);
+    observer.observe(frame);
+    return () => observer.disconnect();
+  }, []);
+
   return (
-          <div className="flex min-w-0 flex-1 justify-center">
+          <div ref={availableWidthRef} className="relative min-w-0 flex-1" style={{ height: 70 * scale }}>
             <div
-              className="cruush-map-top-actions pointer-events-auto mt-0 flex w-full min-w-0 max-w-full items-center justify-between sm:w-auto sm:justify-center gap-0.5 rounded-full border border-white/10 bg-background/25 px-1 py-1 backdrop-blur-md transition-[width,margin,transform] max-[430px]:gap-0 max-[430px]:px-0.5 sm:gap-1 sm:px-2.5 sm:py-2"
+              className="cruush-map-top-actions pointer-events-auto absolute left-1/2 top-0 flex h-[70px] w-[298px] shrink-0 items-center justify-center gap-1 rounded-full border border-white/10 bg-background/25 px-2.5 py-2 backdrop-blur-md"
+              style={{ transform: `translateX(-50%) scale(${scale})`, transformOrigin: 'top center' }}
               data-map-control-hit-layer="true"
               data-testid="map-top-actions"
               onPointerEnter={() => setMapControlsHovered(true)}
@@ -39,9 +54,9 @@ export default function MapTopBar({ setMapControlsHovered, handleFeelingLucky, n
               data-tutorial-target="carousel"
               aria-label="Cruise Carousel"
               title="Cruise Carousel"
-              className="size-11 rounded-full bg-transparent text-white/90 hover:bg-transparent focus:bg-transparent focus-visible:bg-transparent max-[360px]:size-10 sm:size-12 lg:size-[3.25rem]"
+              className="size-[3.25rem] rounded-full bg-transparent text-white/90 hover:bg-transparent focus:bg-transparent focus-visible:bg-transparent"
             >
-              <CruushIconImage src={luckyIconWhite} className="h-10 w-10 scale-[1.28] object-contain max-[360px]:h-9 max-[360px]:w-9 lg:h-11 lg:w-11" />
+              <CruushIconImage src={luckyIconWhite} className="h-11 w-11 scale-[1.28] object-contain" />
             </Button>
             <Button
               variant="ghost"
@@ -50,10 +65,10 @@ export default function MapTopBar({ setMapControlsHovered, handleFeelingLucky, n
               data-tutorial-target="ghost"
               aria-label="Ghost Mode Settings"
               title="Ghost Mode Settings"
-              className="size-11 rounded-full bg-transparent text-white/90 hover:bg-transparent focus:bg-transparent focus-visible:bg-transparent max-[360px]:size-10 sm:size-12 lg:size-[3.25rem]"
+              className="size-[3.25rem] rounded-full bg-transparent text-white/90 hover:bg-transparent focus:bg-transparent focus-visible:bg-transparent"
             >
               {privacySettings.baseMode === 'STEALTH' ? (
-                <DarkRoomMark active className="!h-10 !w-10 text-white max-[360px]:!h-9 max-[360px]:!w-9 lg:!h-11 lg:!w-11" />
+                <DarkRoomMark active className="!h-11 !w-11 text-white" />
               ) : (
                 <CruushIcon
                   name="ghost"
@@ -61,7 +76,7 @@ export default function MapTopBar({ setMapControlsHovered, handleFeelingLucky, n
                   // The ghost art carries padding inside its own viewBox, so
                   // at the shared box size it drew smaller than its neighbours.
                   // Scaled to match, the way the lucky and DL Mode marks are.
-                  className="h-10 w-10 scale-[1.22] object-contain max-[360px]:h-9 max-[360px]:w-9 lg:h-11 lg:w-11"
+                  className="h-11 w-11 scale-[1.22] object-contain"
                 />
               )}
             </Button>
@@ -72,10 +87,10 @@ export default function MapTopBar({ setMapControlsHovered, handleFeelingLucky, n
               data-tutorial-target="dl-mode"
               aria-label="DL Mode settings"
               title="DL Mode settings"
-              className="size-11 overflow-visible rounded-full bg-transparent text-white/90 hover:bg-transparent focus:bg-transparent focus-visible:bg-transparent max-[360px]:size-10 sm:size-12 lg:size-[3.25rem] [&_img]:!overflow-visible"
+              className="size-[3.25rem] overflow-visible rounded-full bg-transparent text-white/90 hover:bg-transparent focus:bg-transparent focus-visible:bg-transparent [&_img]:!overflow-visible"
             >
               {/* The gradient mark is the active state. Hover does not add a circle around it. */}
-              <DlModeMark active={dlModeActive} className="!h-10 !w-10 scale-[1.18] overflow-visible max-[360px]:!h-9 max-[360px]:!w-9 lg:!h-11 lg:!w-11" />
+              <DlModeMark active={dlModeActive} className="!h-11 !w-11 scale-[1.18] overflow-visible" />
             </Button>
             <Button
                 variant="ghost"
@@ -91,9 +106,9 @@ export default function MapTopBar({ setMapControlsHovered, handleFeelingLucky, n
                 }}
                 aria-label="Settings"
                 title="Settings"
-                className="size-11 rounded-full bg-transparent text-white/90 hover:bg-transparent focus:bg-transparent focus-visible:bg-transparent max-[360px]:size-10 sm:size-12 lg:size-[3.25rem]"
+                className="size-[3.25rem] rounded-full bg-transparent text-white/90 hover:bg-transparent focus:bg-transparent focus-visible:bg-transparent"
               >
-                <CruushIconImage src={settingsIconWhite} className="h-10 w-10 object-contain max-[360px]:h-9 max-[360px]:w-9 lg:h-11 lg:w-11" />
+                <CruushIconImage src={settingsIconWhite} className="h-11 w-11 object-contain" />
             </Button>
             <Button
               variant="ghost"
@@ -102,9 +117,9 @@ export default function MapTopBar({ setMapControlsHovered, handleFeelingLucky, n
               data-tutorial-target="notifications"
               aria-label="Notifications"
               title="Notifications"
-              className="relative size-11 rounded-full bg-transparent text-white/90 hover:bg-transparent focus:bg-transparent focus-visible:bg-transparent max-[360px]:size-10 sm:size-12 lg:size-[3.25rem]"
+              className="relative size-[3.25rem] rounded-full bg-transparent text-white/90 hover:bg-transparent focus:bg-transparent focus-visible:bg-transparent"
             >
-              <CruushIconImage src={notificationsIconWhite} className="h-10 w-10 scale-[1.28] object-contain max-[360px]:h-9 max-[360px]:w-9 lg:h-11 lg:w-11" />
+              <CruushIconImage src={notificationsIconWhite} className="h-11 w-11 scale-[1.28] object-contain" />
               {notificationUnreadCount > 0 ? (
                 <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[0.62rem] font-semibold leading-none text-primary-foreground">
                   {notificationUnreadCount > 9 ? '9+' : notificationUnreadCount}
