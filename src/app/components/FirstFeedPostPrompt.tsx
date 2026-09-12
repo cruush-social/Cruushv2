@@ -149,7 +149,7 @@ export default function FirstFeedPostPrompt({ userId }: FirstFeedPostPromptProps
   return (
     <Dialog open={showing} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-sm rounded-lg border-white/10 bg-background" data-testid="first-feed-post-prompt">
-        <DialogHeader>
+        <DialogHeader bugButton={false}>
           <div className="mb-2 flex h-11 w-11 items-center justify-center rounded-full border border-primary/25 bg-primary/10">
             <MapPin className="h-5 w-5 text-primary" />
           </div>

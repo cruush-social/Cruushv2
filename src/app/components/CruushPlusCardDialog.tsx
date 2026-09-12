@@ -40,7 +40,7 @@ export default function CruushPlusCardDialog({
             </div>
           </div>
         </div>
-        <DialogHeader>
+        <DialogHeader bugButton={false}>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription className="text-base text-white/70">{description}</DialogDescription>
         </DialogHeader>

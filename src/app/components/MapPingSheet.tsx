@@ -10,6 +10,7 @@ import {
 } from 'react';
 import { SIGNAL_MAX_LENGTH } from '../lib/profileLimits';
 import PulseLedIcon from './PulseLedIcon';
+import BugButtonSlot from './BugButtonSlot';
 import { MapMarkerPin } from './MapView';
 import { ApiClientError } from '../lib/apiClient';
 import {
@@ -316,6 +317,9 @@ export default function MapPingSheet({
     if (isMobile || event.button !== 0) {
       return;
     }
+    if (mode === 'move' && event.target instanceof Element && event.target.closest('[data-cruush-bug-slot]')) {
+      return;
+    }
 
     event.preventDefault();
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -413,20 +417,19 @@ export default function MapPingSheet({
         style={sheetStyle}
       >
         <SheetHeader
-          className={`shrink-0 pb-2 pr-10 pt-3 ${isMobile ? '' : 'cursor-grab active:cursor-grabbing'}`}
+          className={`shrink-0 pb-2 pr-4 pt-3 ${isMobile ? '' : 'cursor-grab active:cursor-grabbing'}`}
           data-testid="map-ping-sheet-handle"
           onPointerDown={isMobile ? undefined : beginDrag}
           onPointerMove={isMobile ? undefined : continueDrag}
           onPointerUp={isMobile ? undefined : endDrag}
           onPointerCancel={isMobile ? undefined : endDrag}
         >
-          <div className="flex items-center gap-3">
+          <div className="flex min-w-0 items-center gap-3">
             <PulseLedIcon className="h-8 w-8 shrink-0 text-[#c8ff31]" />
-            <div>
-              <SheetTitle>Send a Pulse</SheetTitle>
-              <SheetDescription>Light up your heart for people nearby.</SheetDescription>
-            </div>
+            <SheetTitle className="min-w-0 flex-1 truncate pr-7">Send a Pulse</SheetTitle>
+            <BugButtonSlot testId="pulse-bug-button-slot" />
           </div>
+          <SheetDescription>Light up your heart for people nearby.</SheetDescription>
         </SheetHeader>
 
         <div className="scrollbar-hide min-h-0 space-y-2.5 overflow-y-auto px-4">

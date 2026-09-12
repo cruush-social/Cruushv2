@@ -33,6 +33,8 @@ export function registerBugButtonSlot(element: HTMLElement | null) {
     return;
   }
 
+  element.setAttribute('data-cruush-bug-slot', '');
+
   const existing = slots.indexOf(element);
   if (existing >= 0) {
     slots.splice(existing, 1);
@@ -80,12 +82,20 @@ export function subscribeToBugButtonSlot(listener: BugButtonSlotListener) {
   };
 }
 
+function isSlotVisible(element: HTMLElement) {
+  for (let current: HTMLElement | null = element; current; current = current.parentElement) {
+    const style = window.getComputedStyle(current);
+    if (style.display === 'none' || style.visibility === 'hidden' || style.visibility === 'collapse') return false;
+  }
+  return true;
+}
+
 export function getBugButtonSlot() {
   // A slot whose screen has gone leaves a detached node behind, so the holder
   // is the most recent element still in the document.
   for (let index = slots.length - 1; index >= 0; index -= 1) {
     const candidate = slots[index];
-    if (candidate.isConnected) {
+    if (candidate.isConnected && isSlotVisible(candidate)) {
       return candidate;
     }
   }

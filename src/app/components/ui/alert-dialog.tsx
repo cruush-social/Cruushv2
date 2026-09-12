@@ -4,6 +4,7 @@ import * as React from "react";
 import * as AlertDialogPrimitive from "@radix-ui/react-alert-dialog";
 
 import { cn } from "./utils";
+import BugButtonSlot from "../BugButtonSlot";
 import { buttonVariants } from "./button";
 
 function AlertDialog({
@@ -65,14 +66,18 @@ function AlertDialogContent({
 
 function AlertDialogHeader({
   className,
+  children,
   ...props
 }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="alert-dialog-header"
-      className={cn("flex flex-col gap-2 text-center sm:text-left", className)}
+      className={cn("cruush-alert-bug-header flex flex-col gap-2 text-center sm:text-left", className)}
       {...props}
-    />
+    >
+      {children}
+      <BugButtonSlot className="absolute right-3 top-3" testId="alert-dialog-bug-button-slot" />
+    </div>
   );
 }
 

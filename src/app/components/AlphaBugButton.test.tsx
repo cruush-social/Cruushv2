@@ -208,6 +208,32 @@ describe('AlphaBugButton', () => {
     expect(reportButton).not.toHaveClass('fixed');
   });
 
+  it('refreshes popup placement after an entrance animation without a layout resize', () => {
+    const surface = document.createElement('div');
+    surface.setAttribute('role', 'dialog');
+    const slot = document.createElement('div');
+    surface.appendChild(slot);
+    document.body.appendChild(surface);
+    Object.defineProperty(slot, 'offsetWidth', { value: 40 });
+    Object.defineProperty(slot, 'offsetHeight', { value: 40 });
+    vi.spyOn(surface, 'getBoundingClientRect').mockReturnValue(new DOMRect(100, 100, 500, 400));
+    let opening = true;
+    vi.spyOn(slot, 'getBoundingClientRect').mockImplementation(() => opening
+      ? new DOMRect(550, 125, 38, 38)
+      : new DOMRect(548, 112, 40, 40));
+    registerBugButtonSlot(slot);
+    renderAlphaBugButton();
+    const button = screen.getByRole('button', { name: 'Report alpha bug' });
+    const openingPlacement = button.style.transform;
+    expect(openingPlacement).not.toBe('');
+
+    opening = false;
+    fireEvent.animationEnd(surface);
+
+    expect(button.style.transform).not.toBe(openingPlacement);
+    surface.remove();
+  });
+
   it('leaves a slot whose screen has gone and floats again, so no page is without it', async () => {
     // The map registers a slot; a full page that unmounts the map does not.
     // The button used to stay portaled into the dead node and vanish from

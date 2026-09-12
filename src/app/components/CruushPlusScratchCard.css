@@ -668,3 +668,16 @@ html[data-cruush-reduce-motion] .cruush-scratch-dialog .confetti { display: none
   html[data-cruush-larger-text] .cruush-scratch-dialog[data-layout="desktop"] .beta-launch-plus-card__valid em { font-size: 5.75rem; }
   html[data-cruush-larger-text] .cruush-scratch-dialog[data-layout="desktop"] .beta-launch-plus-card__valid i { font-size: 2rem; }
   html[data-cruush-larger-text] .cruush-scratch-dialog[data-layout="desktop"] .card-back li { font-size: 6.25cqh; }
+
+/* The existing Close control stays left of the shared rightmost Bug button. */
+.cruush-scratch-dialog > [data-slot="dialog-close-x"] {
+  top: 10px;
+  right: 56px;
+  z-index: 40;
+}
+
+/* Reporting a scratch-off must open above that card's existing 15000 layer. */
+@layer base {
+  html:has(.cruush-scratch-dialog) body [data-slot="dialog-overlay"].alpha-bug-overlay { z-index: 15001 !important; }
+  html:has(.cruush-scratch-dialog) body [data-testid="alpha-bug-dialog"] { z-index: 15002 !important; }
+}

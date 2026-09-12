@@ -403,8 +403,8 @@ export default function PlacesDrawer({ open, onOpenChange, coordinates, onFilter
         className="z-[1700] flex h-full max-h-[100dvh] w-full flex-col gap-0 overflow-hidden border-white/10 bg-background/95 p-0 sm:max-w-xl"
         data-testid="places-drawer"
       >
-        <SheetHeader className="shrink-0 border-b border-white/10 py-4 pl-14 pr-[4.5rem]">
-          <div className="flex items-start justify-between gap-3">
+        <SheetHeader className="shrink-0 border-b border-white/10 py-4 pl-14 pr-4">
+          <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
               <SheetTitle className="text-xl text-white">Spots</SheetTitle>
             </div>

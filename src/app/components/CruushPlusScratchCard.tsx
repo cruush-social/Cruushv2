@@ -1,9 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
 import { Dialog, DialogContent, DialogTitle } from './ui/dialog';
+import BugButtonSlot from './BugButtonSlot';
 import { CRUUSH_PLUS_FEATURES } from '../lib/cruushPlusFeatures';
 import { attachCruushScratchInteraction } from '../lib/cruushScratchInteraction';
 import type { EarnedCruushPlusCard } from '../lib/earnedCruushPlusCard';
 import './CruushPlusScratchCard.css';
+
+// Existing Pulse explanation from MapPingSheet, reused on the Pulse reward card.
+const PULSE_CARD_FEATURES = [{
+  title: 'Your heart beats for 30 minutes',
+  description: 'People in your radius see it beat and your signal posts to Feed. Your pin does not move. Alerts go to mutuals only, at most one every 4 hours.',
+}] as const;
 
 function CardPatterns({ back = false }: { back?: boolean }) {
   return <>
@@ -57,7 +64,7 @@ function ScratchCardBody({ card, onAccept }: { card: EarnedCruushPlusCard; onAcc
               <CardPatterns back />
               <div className="card-back-veil" />
               <div className="card-back-body"><ul>
-                {CRUUSH_PLUS_FEATURES.map(feature => <li key={feature.title}><b>{feature.title}.</b> {feature.description}</li>)}
+                {(isPingCard ? PULSE_CARD_FEATURES : CRUUSH_PLUS_FEATURES).map(feature => <li key={feature.title}><b>{feature.title}.</b> {feature.description}</li>)}
               </ul></div>
             </div>
           </div>
@@ -67,11 +74,9 @@ function ScratchCardBody({ card, onAccept }: { card: EarnedCruushPlusCard; onAcc
         <span className="scratch-hint" data-done={revealed} aria-hidden="true">Scratch to reveal</span>
       </div>
     </div>
-    {isPingCard ? null : (
       <button className="flip-tab" data-shown={revealed} disabled={!revealed} type="button" onClick={turn}>
         {back ? 'Tap to flip back' : 'Tap to see benefits'}
       </button>
-    )}
     <div className="beta-launch-plus-dialog__footer locked" data-shown={revealed}>
       <button className="launch-login-auth-submit" type="button" disabled={!revealed} onClick={onAccept}><span>Done</span></button>
     </div>
@@ -93,7 +98,8 @@ export default function CruushPlusScratchCard({ card, onClose }: {
   return <Dialog open onOpenChange={open => { if (!open) onClose(false); }}>
     <DialogContent className="cruush-scratch-dialog" data-layout={desktop ? 'desktop' : 'phone'} aria-describedby={undefined}
       onInteractOutside={event => event.preventDefault()}>
-      <DialogTitle className="sr-only">cruush+ reward</DialogTitle>
+      <DialogTitle className="sr-only">{card.kind === 'ping' ? 'Pulse reward' : 'cruush+ reward'}</DialogTitle>
+      <BugButtonSlot className="absolute right-3 top-3 z-40" testId="scratch-card-bug-button-slot" />
       <ScratchCardBody key={card.id} card={card} onAccept={() => onClose(true)} />
     </DialogContent>
   </Dialog>;

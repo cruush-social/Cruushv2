@@ -41,6 +41,22 @@ describe('bugButtonSlot', () => {
     expect(getBugButtonSlot()).toBe(mapSlot);
   });
 
+  it('keeps the visible dialog slot when its embedded page registers a hidden header', () => {
+    const dialogSlot = document.createElement('div');
+    const hiddenHeader = document.createElement('header');
+    hiddenHeader.style.display = 'none';
+    const embeddedSlot = document.createElement('div');
+    hiddenHeader.appendChild(embeddedSlot);
+    document.body.append(dialogSlot, hiddenHeader);
+
+    registerBugButtonSlot(dialogSlot);
+    registerBugButtonSlot(embeddedSlot);
+
+    expect(getBugButtonSlot()).toBe(dialogSlot);
+    hiddenHeader.style.display = 'block';
+    expect(getBugButtonSlot()).toBe(embeddedSlot);
+  });
+
   it('skips a slot whose screen has gone', () => {
     const gone = document.createElement('div');
     const live = document.createElement('div');

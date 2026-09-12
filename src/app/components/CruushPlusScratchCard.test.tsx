@@ -26,3 +26,14 @@ it('reveals the confirmed duration, flips to shared benefits, and accepts only a
   fireEvent.click(screen.getByRole('button', { name: 'Done' }));
   expect(close).toHaveBeenCalledWith(true);
 });
+
+it('reveals and flips a Pulse card to its own benefits without cruush+ benefits', () => {
+  vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() })));
+  render(<CruushPlusScratchCard card={{ id: 'pings:one', amount: '1', unit: 'Pulse', format: 'default', kind: 'ping' }} onClose={vi.fn()} />);
+  expect(screen.getByRole('button', { name: 'Tap to see benefits' })).toBeDisabled();
+  fireEvent.keyDown(screen.getByRole('button', { name: 'Scratch to reveal your reward' }), { key: 'Enter' });
+  fireEvent.click(screen.getByRole('button', { name: 'Tap to see benefits' }));
+  expect(screen.getByText('Your heart beats for 30 minutes.')).toBeVisible();
+  expect(screen.queryByText('Mile High Club.')).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Tap to flip back' })).toBeEnabled();
+});

@@ -3,6 +3,7 @@
 :root {
   --font-size: 16px;
   --cruush-profile-heart-size: 80px;
+  --cruush-bug-button-size: 40px;
 
   /* cruush brand colors */
   --cruush-pink: #ff0072;
@@ -72,6 +73,64 @@
   --sidebar-ring: #6f00ff;
 }
 
+/* One bug-button size and a rightmost slot across every app header. */
+[data-cruush-bug-slot],
+.cruush-alpha-bug-button {
+  width: var(--cruush-bug-button-size) !important;
+  height: var(--cruush-bug-button-size) !important;
+  flex-shrink: 0;
+}
+
+[data-cruush-bug-slot] {
+  order: 9999;
+}
+
+header:has([data-cruush-bug-slot]) {
+  flex-wrap: nowrap;
+}
+
+header:has([data-cruush-bug-slot]) :is(h1, h2, h3) {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+header:has([data-cruush-bug-slot]) div:has(> :is(h1, h2, h3)) {
+  min-width: 0;
+}
+
+[data-slot="sheet-content"]:has([data-cruush-bug-slot]) > button:last-child {
+  top: 28px;
+}
+
+[data-testid="map-ping-sheet"]:has([data-cruush-bug-slot]) > button:last-child {
+  top: 24px;
+  right: 64px;
+}
+
+/* Reserve the existing dialog title row for its shared Bug and Close controls. */
+.cruush-dialog-bug-header > [data-slot="dialog-title"],
+.cruush-alert-bug-header > [data-slot="alert-dialog-title"] {
+  min-height: 28px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cruush-dialog-bug-header > [data-slot="dialog-title"] {
+  padding-right: 80px;
+}
+
+.cruush-alert-bug-header > [data-slot="alert-dialog-title"] {
+  padding-right: 36px;
+}
+
+[data-slot="dialog-content"]:has(.cruush-dialog-bug-header) > [data-slot="dialog-close-x"] {
+  top: calc(10px + env(safe-area-inset-top));
+  right: calc(56px + env(safe-area-inset-right));
+}
+
 /* Mobile and tablet have no popup framing, even when an old caller sets a width. */
 html[data-cruush-page-framing="fullscreen"] :is([data-slot="dialog-content"], [data-slot="sheet-content"], [data-slot="alert-dialog-content"]):not([data-testid="alpha-bug-dialog"]) {
   position: fixed !important;
@@ -84,6 +143,7 @@ html[data-cruush-page-framing="fullscreen"] :is([data-slot="dialog-content"], [d
   max-height: 100dvh !important;
   margin: 0 !important;
   transform: none !important;
+  translate: none !important;
   border-radius: 0 !important;
 }
 

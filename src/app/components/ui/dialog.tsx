@@ -5,6 +5,7 @@ import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { XIcon } from "lucide-react";
 
 import { cn } from "./utils";
+import BugButtonSlot from "../BugButtonSlot";
 
 function Dialog({
   ...props
@@ -93,13 +94,17 @@ function DialogContent({
   );
 }
 
-function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
+function DialogHeader({ className, children, bugButton = true, ...props }: React.ComponentProps<"div"> & { bugButton?: boolean }) {
+  const showBugButton = bugButton && !className?.split(/\s+/).includes("sr-only");
   return (
     <div
       data-slot="dialog-header"
-      className={cn("flex flex-col gap-2 text-center sm:text-left", className)}
+      className={cn("flex flex-col gap-2 text-center sm:text-left", showBugButton && "cruush-dialog-bug-header", className)}
       {...props}
-    />
+    >
+      {children}
+      {showBugButton ? <BugButtonSlot className="absolute right-3 top-3" testId="dialog-bug-button-slot" /> : null}
+    </div>
   );
 }
 

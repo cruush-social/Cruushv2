@@ -84,7 +84,7 @@ export default function DlModeDefaultNotice() {
       }}
     >
       <DialogContent className="max-w-sm rounded-lg border-white/10 bg-background">
-        <DialogHeader>
+        <DialogHeader bugButton={false}>
           <div className="mb-2 flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/[0.045]">
             <Eye className="h-5 w-5 text-primary" strokeWidth={2.35} />
           </div>

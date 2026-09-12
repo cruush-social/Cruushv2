@@ -3,8 +3,8 @@ import { registerBugButtonSlot } from '../lib/bugButtonSlot';
 /**
  * The place in a screen header where the bug button docks. Every header has
  * one, so the button is always in the header row and never floats over it.
- * It sits at the right end of the row; a Close control, where the row has
- * one, stays last.
+ * It stays rightmost in the single header row. Close and other controls sit
+ * to its left. Size is shared across every page and viewport.
  */
 export default function BugButtonSlot({ className = '', testId }: { className?: string; testId: string }) {
   return (

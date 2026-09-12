@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import BugButtonSlot from './BugButtonSlot';
 import { Button } from './ui/button';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
 import { Label } from './ui/label';
@@ -165,8 +166,11 @@ export default function MapFiltersSurface({
         overlayClassName="z-[1090]"
         className="z-[1100] w-full flex h-full max-h-[100dvh] flex-col gap-0 overflow-hidden border-white/10 bg-background/95 p-0 sm:max-w-xl"
       >
-        <SheetHeader className="shrink-0 border-b border-white/10 py-4 pl-14 pr-[4.5rem]">
-          <SheetTitle>{title}</SheetTitle>
+        <SheetHeader className="shrink-0 border-b border-white/10 py-4 pl-14 pr-4">
+          <div className="flex min-w-0 items-center gap-3">
+            <SheetTitle className="min-w-0 truncate">{title}</SheetTitle>
+            <BugButtonSlot testId="seeking-bug-button-slot" />
+          </div>
           {description ? <SheetDescription>{description}</SheetDescription> : null}
         </SheetHeader>
 
