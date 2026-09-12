@@ -89,7 +89,7 @@ describe("development profile seeding", () => {
     });
     expect(new Set(profiles.map((profile) => profile.lat.toFixed(4))).size).toBeGreaterThan(15);
     expect(new Set(profiles.map((profile) => profile.lng.toFixed(4))).size).toBeGreaterThan(15);
-    expect(profiles.every((profile) => profile.photo.startsWith("data:image/svg+xml,"))).toBe(true);
+    expect(profiles.every((profile) => profile.photo === null)).toBe(true);
     expect(profiles.every((profile) => profile.lat >= 40.35 && profile.lat <= 41.08)).toBe(true);
     expect(profiles.every((profile) => profile.lng >= -74.65 && profile.lng <= -73.45)).toBe(true);
     expect(profiles.some((profile) => profile.sensitiveProfile.crowds.includes("T4T"))).toBe(true);
@@ -212,19 +212,18 @@ describe("development profile seeding", () => {
       "In from Los Angeles",
       "In from Atlanta"
     ]);
-    // Each seeded profile carries a small gallery, so the side previews on a
-    // profile have something to show locally.
-    expect(mediaObjectCalls).toHaveLength((TEST_PROFILE_COUNT + 1) * 3);
+    // Seeded profiles use the product fallback without generating media.
+    expect(mediaObjectCalls).toHaveLength(0);
     expect(profileCalls).toHaveLength(TEST_PROFILE_COUNT);
     expect(adminPhotoCalls).toHaveLength(1);
     expect(((adminPhotoCalls[0]?.[1] ?? []) as unknown[]).slice(0, 2)).toEqual([
       seededUserId(1),
-      Array.from({ length: 3 }, () => expect.stringMatching(/^\/api\/media\/profile-photos\/[0-9a-f-]+\.png$/))
+      []
     ]);
-    expect(deleteEncryptedMediaObject).toHaveBeenCalledTimes((TEST_PROFILE_COUNT + 1) * 3);
-    expect(writeEncryptedMediaObject).toHaveBeenCalledTimes((TEST_PROFILE_COUNT + 1) * 3);
+    expect(deleteEncryptedMediaObject).not.toHaveBeenCalled();
+    expect(writeEncryptedMediaObject).not.toHaveBeenCalled();
     for (const [, params] of profileCalls) {
-      expect(((params ?? []) as unknown[])[2]).toEqual(Array.from({ length: 3 }, () => expect.stringMatching(/^\/api\/media\/profile-photos\/[0-9a-f-]+\.png$/)));
+      expect(((params ?? []) as unknown[])[2]).toEqual([]);
     }
     for (const [, params] of seededProfileLocationCalls) {
       const coarseIndexTokens = (((params ?? []) as unknown[])[9] ?? []) as string[];

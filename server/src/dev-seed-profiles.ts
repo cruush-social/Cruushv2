@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import { hashPassword } from "./auth.js";
@@ -25,12 +24,6 @@ import {
 } from "./profile-sensitive.js";
 import { DEFAULT_GHOST_RADIUS_METERS, saveVisibilityPolicy } from "./location-privacy.js";
 import { emptyProfile } from "./profile-schema.js";
-import { encryptMediaBytes } from "./media-encryption.js";
-import {
-  deleteEncryptedMediaObject,
-  ENCRYPTED_PROFILE_PHOTO_MEDIA_PREFIX,
-  writeEncryptedMediaObject
-} from "./media-storage.js";
 
 export const TEST_PROFILE_COUNT = 20;
 const TEST_PROFILE_PASSWORD = "cruush-test-profile-password";
@@ -63,7 +56,7 @@ export type DevelopmentTestProfile = {
   height: string;
   weight: string;
   hobbies: string[];
-  photo: string;
+  photo: null;
   lat: number;
   lng: number;
   fuzzyLat: number;
@@ -219,185 +212,6 @@ export function loadSeedConfig() {
   return loadConfig(serverEnv);
 }
 
-function createSeedPhoto(profileName: string, index: number) {
-  const hue = (326 + index * 17) % 360;
-  const initials = profileName.slice(0, 2).toUpperCase();
-  const svg = `
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 320">
-  <defs>
-    <linearGradient id="backdrop" x1="0" x2="1" y1="0" y2="1">
-      <stop offset="0%" stop-color="hsl(${hue}, 90%, 56%)"/>
-      <stop offset="58%" stop-color="hsl(${(hue + 28) % 360}, 82%, 28%)"/>
-      <stop offset="100%" stop-color="#050505"/>
-    </linearGradient>
-    <radialGradient id="face" cx="50%" cy="35%" r="62%">
-      <stop offset="0%" stop-color="#ffe3ed"/>
-      <stop offset="60%" stop-color="#bf5c75"/>
-      <stop offset="100%" stop-color="#2a0d17"/>
-    </radialGradient>
-  </defs>
-  <rect width="320" height="320" fill="url(#backdrop)"/>
-  <circle cx="160" cy="126" r="70" fill="url(#face)"/>
-  <path d="M58 320c10-82 66-126 142-126 58 0 100 44 112 126z" fill="#080808"/>
-  <path d="M64 134c18-72 70-96 126-78 42 14 62 44 68 92-34-40-72-48-118-28-22 10-48 26-76 14z" fill="#050505"/>
-  <circle cx="136" cy="138" r="8" fill="#12070c"/>
-  <circle cx="192" cy="138" r="8" fill="#12070c"/>
-  <path d="M136 176c18 13 40 13 58 0" fill="none" stroke="#fff4f8" stroke-width="8" stroke-linecap="round" opacity=".74"/>
-  <text x="160" y="286" text-anchor="middle" font-family="Arial, sans-serif" font-size="42" font-weight="700" fill="#fff">${initials}</text>
-</svg>`;
-
-  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
-}
-
-function uuidFromSeed(seed: string) {
-  const bytes = createHash("sha256").update(seed).digest().subarray(0, 16);
-  bytes[6] = (bytes[6] & 0x0f) | 0x40;
-  bytes[8] = (bytes[8] & 0x3f) | 0x80;
-  const hex = bytes.toString("hex");
-
-  return [
-    hex.slice(0, 8),
-    hex.slice(8, 12),
-    hex.slice(12, 16),
-    hex.slice(16, 20),
-    hex.slice(20, 32)
-  ].join("-");
-}
-
-function decodeSeedPhoto(photo: string) {
-  const prefix = "data:image/svg+xml,";
-
-  if (!photo.startsWith(prefix)) {
-    throw new Error("Development profile photo must be an SVG data URL.");
-  }
-
-  return Buffer.from(decodeURIComponent(photo.slice(prefix.length)), "utf8");
-}
-
-const DEVELOPMENT_GALLERY_SIZE = 3;
-
-async function upsertDevelopmentProfileGallery(
-  context: DevelopmentSeedContext,
-  userId: string,
-  profile: Pick<DevelopmentTestProfile, "email" | "photo"> & { displayName: string }
-) {
-  const urls: string[] = [];
-
-  for (let slot = 0; slot < DEVELOPMENT_GALLERY_SIZE; slot += 1) {
-    urls.push(await upsertDevelopmentProfilePhoto(context, userId, {
-      email: profile.email,
-      photo: slot === 0 ? profile.photo : createSeedPhoto(profile.displayName, slot * 9),
-      slot
-    }));
-  }
-
-  return urls;
-}
-
-async function upsertDevelopmentProfilePhoto(
-  context: DevelopmentSeedContext,
-  userId: string,
-  profile: Pick<DevelopmentTestProfile, "email" | "photo"> & { slot?: number }
-) {
-  const slotSuffix = profile.slot ? `:${profile.slot}` : "";
-  const photoId = uuidFromSeed(`development-profile-photo:${profile.email}${slotSuffix}`);
-  const filename = `${photoId}.png`;
-  const publicUrl = `${ENCRYPTED_PROFILE_PHOTO_MEDIA_PREFIX}/${filename}`;
-  const objectKey = `profile-photos/${filename}.enc`;
-  const photoBytes = decodeSeedPhoto(profile.photo);
-  const encryptedPhoto = encryptMediaBytes(context.config, photoBytes);
-
-  // Development secrets can change between local sessions. Always replace the
-  // object bytes so a deterministic media row never keeps obsolete ciphertext.
-  await deleteEncryptedMediaObject(context.config, objectKey);
-  await writeEncryptedMediaObject(context.config, objectKey, encryptedPhoto.ciphertext);
-
-  await context.db.query(
-    `insert into media_objects (
-       id,
-       owner_user_id,
-       surface,
-       object_key,
-       public_url,
-       media_type,
-       mime_type,
-       byte_size,
-       width,
-       height,
-       encrypted_data_key,
-       data_key_nonce,
-       data_key_auth_tag,
-       content_nonce,
-       content_auth_tag,
-       key_version,
-       moderation_status,
-       photodna_status,
-       moderation_provider,
-       moderation_provider_version,
-       moderation_scores,
-       moderation_decided_at,
-       explicit_classification,
-       legacy_asset,
-       explicit_classification_source,
-       explicit_classification_updated_at,
-       explicit_classification_reason
-     ) values (
-       $1, $2, 'profile_photo', $3, $4, 'image', 'image/svg+xml', $5,
-       320, 320, $6, $7, $8, $9, $10, $11, 'approved', 'not_configured',
-       'development_seed', 'v1', '[]'::jsonb, now(), 'non_explicit', true,
-       'provider', now(), 'Deterministic local development fixture.'
-     )
-     on conflict (id) do update
-     set owner_user_id = excluded.owner_user_id,
-         surface = excluded.surface,
-         object_key = excluded.object_key,
-         public_url = excluded.public_url,
-         media_type = excluded.media_type,
-         mime_type = excluded.mime_type,
-         byte_size = excluded.byte_size,
-         width = excluded.width,
-         height = excluded.height,
-         encrypted_data_key = excluded.encrypted_data_key,
-         data_key_nonce = excluded.data_key_nonce,
-         data_key_auth_tag = excluded.data_key_auth_tag,
-         content_nonce = excluded.content_nonce,
-         content_auth_tag = excluded.content_auth_tag,
-         key_version = excluded.key_version,
-         moderation_status = excluded.moderation_status,
-         photodna_status = excluded.photodna_status,
-         moderation_provider = excluded.moderation_provider,
-         moderation_provider_version = excluded.moderation_provider_version,
-         moderation_scores = excluded.moderation_scores,
-         moderation_decided_at = excluded.moderation_decided_at,
-         moderation_failure_reason = null,
-         explicit_classification = excluded.explicit_classification,
-         legacy_asset = excluded.legacy_asset,
-         explicit_classification_source = excluded.explicit_classification_source,
-         explicit_classification_updated_by = null,
-         explicit_classification_updated_at = excluded.explicit_classification_updated_at,
-         explicit_classification_reason = excluded.explicit_classification_reason,
-         moderation_attempts = 0,
-         moderation_next_retry_at = null,
-         moderation_hold = null,
-         deleted_at = null`,
-    [
-      photoId,
-      userId,
-      objectKey,
-      publicUrl,
-      photoBytes.length,
-      encryptedPhoto.encryptedDataKey,
-      encryptedPhoto.dataKeyNonce,
-      encryptedPhoto.dataKeyAuthTag,
-      encryptedPhoto.nonce,
-      encryptedPhoto.authTag,
-      encryptedPhoto.keyVersion
-    ]
-  );
-
-  return publicUrl;
-}
-
 function offsetCoordinate(value: number, index: number, direction: 1 | -1) {
   const offset = (((index % 5) - 2) * 0.0012 + Math.floor(index / 5) * 0.0003) * direction;
   return Number((value + offset).toFixed(6));
@@ -438,7 +252,7 @@ export function buildDevelopmentTestProfiles(now = new Date()): DevelopmentTestP
       height: `${5 + (index % 2)}'${4 + (index % 8)}\"`,
       weight: `${135 + index * 5} lb`,
       hobbies: [seedHobbies[index % seedHobbies.length], seedHobbies[(index + 3) % seedHobbies.length]],
-      photo: createSeedPhoto(displayName, index),
+      photo: null,
       lat,
       lng,
       fuzzyLat: offsetCoordinate(lat, index, 1),
@@ -536,11 +350,7 @@ async function upsertDevelopmentProfile(context: DevelopmentSeedContext, profile
     throw new Error(`Unable to create ${profile.email}.`);
   }
 
-  const profilePhotoUrls = await upsertDevelopmentProfileGallery(context, userId, {
-    email: profile.email,
-    photo: profile.photo,
-    displayName: profile.displayName
-  });
+  const profilePhotoUrls: string[] = [];
   const encryptedSensitiveProfile = encryptSensitiveProfile(context.config, profile.sensitiveProfile);
   const encryptedProfileVisibility = encryptProfileVisibility(context.config, emptyProfile.visibility_rules);
 
@@ -707,11 +517,7 @@ export async function seedDevelopmentProfilesWithDb(context: DevelopmentSeedCont
 
   try {
     const adminUserId = await ensureDevelopmentAdminUser(context);
-    const adminPhotoUrls = await upsertDevelopmentProfileGallery(context, adminUserId, {
-      displayName: DEVELOPMENT_ADMIN_DISPLAY_NAME,
-      email: DEVELOPMENT_ADMIN_EMAIL,
-      photo: createSeedPhoto(DEVELOPMENT_ADMIN_DISPLAY_NAME, TEST_PROFILE_COUNT)
-    });
+    const adminPhotoUrls: string[] = [];
     const adminSensitiveProfile: SensitiveProfileData = {
       is_trans: null,
       crowds: [],
