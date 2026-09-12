@@ -2212,6 +2212,11 @@ export default function MapHome(_props: MapHomeProps = {}) {
 
     if (!dragState.isPointerDown || dragState.pointerId !== event.pointerId) return;
 
+    if (event.pointerType === 'mouse' && event.buttons === 0) {
+      handleRecentlyActivePointerEnd(event);
+      return;
+    }
+
     const deltaX = event.clientX - dragState.startX;
     if (Math.abs(deltaX) > 4) {
       dragState.hasDragged = true;
@@ -3422,10 +3427,11 @@ export default function MapHome(_props: MapHomeProps = {}) {
                 <div
                   id="recently-active-tray"
                   aria-label="Recently active profiles"
-                  className={`${isMobile ? 'gap-2' : 'gap-3'} flex ${recentlyActiveScrollable ? 'scrollbar-hide cursor-grab justify-start overflow-x-auto overscroll-x-contain scroll-smooth active:cursor-grabbing' : 'justify-center overflow-hidden'} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/65`}
+                  className={`${isMobile ? 'gap-2 scroll-smooth' : 'gap-3'} flex ${recentlyActiveScrollable ? 'scrollbar-hide cursor-grab justify-start overflow-x-auto overscroll-x-contain active:cursor-grabbing' : 'justify-center overflow-hidden'} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/65`}
                   data-scrollable={recentlyActiveScrollable ? 'true' : 'false'}
                   data-testid="recently-active-tray"
                   onClickCapture={handleRecentlyActiveClickCapture}
+                  onLostPointerCapture={handleRecentlyActivePointerEnd}
                   onPointerCancel={handleRecentlyActivePointerEnd}
                   onPointerDown={handleRecentlyActivePointerDown}
                   onPointerMove={handleRecentlyActivePointerMove}

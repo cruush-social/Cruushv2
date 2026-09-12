@@ -3371,6 +3371,32 @@ describe('MapHome', () => {
     fireEvent(recentTray, pointerMove);
     fireEvent(recentTray, pointerUp);
     expect(recentTray.scrollLeft).toBe(146);
+
+    const pointer = (type: string, clientX: number, buttons = 1) => {
+      const event = new Event(type, { bubbles: true });
+      Object.defineProperties(event, {
+        clientX: { value: clientX },
+        pointerId: { value: 2 },
+        pointerType: { value: 'mouse' },
+        buttons: { value: buttons },
+      });
+      fireEvent(recentTray, event);
+    };
+
+    pointer('pointerdown', 90);
+    pointer('pointermove', 236);
+    expect(recentTray.scrollLeft).toBe(0);
+    pointer('lostpointercapture', 236, 0);
+    pointer('pointermove', 190);
+    expect(recentTray.scrollLeft).toBe(0);
+
+    pointer('pointerdown', 190);
+    pointer('pointermove', 140);
+    expect(recentTray.scrollLeft).toBe(50);
+    // A release outside the window must not leave movement tied to the mouse.
+    pointer('pointermove', 100, 0);
+    pointer('pointermove', 80, 0);
+    expect(recentTray.scrollLeft).toBe(50);
   });
 
   it('does not crash when pointer capture is rejected while dragging recently active', async () => {

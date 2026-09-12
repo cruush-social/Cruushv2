@@ -254,3 +254,5 @@
 - 2026-09-12: Nearby notifications open an anonymous 1-mile area around the viewer-authorized displayed pin, without centering on or identifying the source. Local desktop/mobile notification clicks, Ghost/ownership/discovery checks and builds passed.
 
 - 2026-09-12: Apply the requested DL photo audience and viewer exceptions across photo callers; retain owner-restricted covers with the exact mutual labels. Local profile/chat desktop and mobile renders, encrypted media access and unconsumed view-once checks pass.
+
+- 2026-09-12: Fixed desktop Recently Active drag lag and stale pointer state; reverse drag returns to the beginning and a profile opens after release. Six focused RA checks and an actual desktop interaction passed.
