@@ -5,7 +5,7 @@
 That file is the single source of truth for shipping, verification, scope, layout
 invariants, the design system, product invariants, third-party integrations, secrets,
 branches, planning, tests, and communication. Then read `HANDOFF.md` for the current
-branch's context. Do not ask Julien to repeat anything documented in either file.
+branch's context. Read `docs/design-master.md` in full for every project request, including backend repairs and deployments. Do not ask Julien to repeat anything documented in either file.
 
 # AWS Guidance
 

@@ -23,6 +23,8 @@ the branch name.
 | `codex/fix-mobile-map-controls-20260820` | `/Volumes/good/Cruushv2-mobile-map-controls-20260820` | 2026-08-20 101f4b2d fix: polish activity and cruise carousel | dirty (3 files) | +0/-0 | Android Chrome visual-viewport map chrome clipping fix; Codex; in progress; unmerged. |
 | `feature/v2-crypto-processor-20260822` | `/Volumes/good/Cruushv2-crypto-processor-20260822` | 2026-08-22 5a77cb50 fix: stop the layout gate failing on a render race | dirty | +0/-0 | Disabled-by-default in-house Base USDC processor and seamless no-voucher store checkout; recovered from Claude session `cffee9e5-ed21-41a6-82ae-238e21493464`; Codex; in progress; unmerged. |
 
+| `codex/fix-staging-token-logging-20260912` | `/Volumes/good/cruush-token-logging-staging-20260912` | 2026-09-12, based on staging 1903edc | scoped logging repair | staging-only | Codex; same security incident as production 6a53037; built and tested; prepared for staging release. |
+
 ## Rules that apply here
 
 - **J1** — every worktree gets a row above.

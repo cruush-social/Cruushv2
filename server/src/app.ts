@@ -83,8 +83,27 @@ function buildMetadata(config: AppConfig) {
 }
 
 export function buildServer(config: AppConfig, deps: BuildServerDeps = {}) {
+  const logger = deps.logger ?? config.NODE_ENV !== "test";
   const app = Fastify({
-    logger: deps.logger ?? config.NODE_ENV !== "test",
+    logger: logger === false ? false : {
+      ...(typeof logger === "object" ? logger : {}),
+      serializers: {
+        // Log only route metadata, never a raw URL, headers, body or token.
+        req: (request) => ({
+          method: request.method,
+          url: request.routeOptions?.url ?? "[unmatched]"
+        }),
+        res: (reply) => ({ statusCode: reply.statusCode }),
+        // Error messages/stacks can echo request URLs or submitted secrets.
+        err: (error) => ({
+          type: error.name,
+          code: error.code,
+          statusCode: error.statusCode,
+          message: "[omitted]",
+          stack: ""
+        })
+      }
+    },
     // Request logging is reproduced by the hooks below so that the container
     // healthcheck can be excluded from it.
     disableRequestLogging: true,

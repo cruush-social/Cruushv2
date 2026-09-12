@@ -616,3 +616,7 @@ These are not preferences. Breaking one is a bug.
 - The one exception is the send control itself, which is filled green and picks
   up the hover sheen.
 - The sheet floats above the bottom nav. Nothing opens behind it.
+
+## Secret-safe logging (2026-09-12)
+
+Julien explicitly requires that recovery tokens and other secret values never be recorded in logs. Request logging uses route templates, method, status and timing only. Static-server access logs omit paths, queries and headers. Error and email-preview logging omit secret-bearing URLs, payloads and raw provider responses. Verify with synthetic values without copying production secrets into tests, notes or tool output.
