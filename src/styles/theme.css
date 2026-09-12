@@ -1877,6 +1877,11 @@ html[data-cruush-page-framing="fullscreen"] :is([data-slot="dialog-content"], [d
   max-height: calc(100dvh - var(--cruush-nav-clearance, 6rem)) !important;
 }
 
+html[data-cruush-page-framing="desktop"] [data-slot="sheet-content"].inset-y-0 {
+  bottom: var(--cruush-nav-clearance, 6rem) !important;
+  max-height: calc(100dvh - var(--cruush-nav-clearance, 6rem)) !important;
+}
+
 html[data-cruush-page-framing="desktop"] :is([data-slot="dialog-content"], [data-slot="alert-dialog-content"]):not([data-testid="alpha-bug-dialog"]) {
   max-height: calc(100dvh - var(--cruush-nav-clearance, 6rem) - 2rem) !important;
 }
