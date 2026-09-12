@@ -1823,7 +1823,8 @@ describe('MapView', () => {
     fireEvent.click(cluster);
     const nearbyButton = await screen.findByRole('button', { name: 'Open Nearby on map' });
     const expanded = markerInstances.filter((marker) => marker.element.isConnected);
-    expect(expanded).toHaveLength(4);
+    expect(expanded).toHaveLength(5);
+    expect(screen.getByRole('button', { name: 'Open 2 nearby people sharing this map spot' })).toBeInTheDocument();
     for (const original of [owner, decoy, nearby, neighbor]) {
       const marker = expanded.find((candidate) => candidate.element.querySelector(`[data-testid="marker-pin-unit-${original.id}"]`));
       expect(marker?.coordinates).toEqual([original.approximateLongitude, original.approximateLatitude]);
@@ -1885,7 +1886,7 @@ describe('MapView', () => {
     expect(markerInstances.filter((marker) => marker.element.isConnected).every((marker) => marker.offset === null)).toBe(true);
   });
 
-  it('clusters overlapping people pins into a zoomable count marker', async () => {
+  it('clusters ordinary overlapping people at low zoom while preserving the owner', async () => {
     const onPinClick = vi.fn();
 
     render(
@@ -1923,26 +1924,43 @@ describe('MapView', () => {
       />
     );
 
-    const cluster = await screen.findByRole('button', { name: 'Zoom into 2 nearby people on map' });
-    expect(cluster.querySelector('[data-testid^="people-cluster-marker-"]')).toHaveTextContent('2');
+    expect(await screen.findByRole('button', { name: 'Zoom into 2 nearby people on map' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Open A on map' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Open B on map' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Open C on map' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Show your pin details' })).toBeInTheDocument();
-
-    await act(async () => {
-      fireEvent.click(cluster);
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-
     expect(onPinClick).not.toHaveBeenCalled();
+    expect(mapInstances[0].fitBounds).not.toHaveBeenCalled();
+    const cluster = screen.getByRole('button', { name: 'Zoom into 2 nearby people on map' });
+    expect(cluster.querySelector('[data-testid^="people-cluster-marker-"]')).toHaveTextContent('2');
+    fireEvent.click(cluster);
     expect(mapInstances[0].fitBounds).toHaveBeenCalledWith(
       [[-73.9902, 40.7128], [-73.99, 40.716]],
-      expect.objectContaining({ maxZoom: 15.25 }),
+      expect.objectContaining({ maxZoom: MAX_DISCOVERY_ZOOM }),
     );
     expect(mapInstances[0].setCenter).not.toHaveBeenCalled();
-    expect(screen.getByRole('button', { name: 'Zoom into 2 nearby people on map' })).toBeInTheDocument();
+  });
+
+  it('zooms overlapping wider people groups beyond the former cutoff', async () => {
+    const latitude = 40.7128;
+    const longitude = -74.006;
+    render(<MapView onPinClick={vi.fn()} markers={[
+      { id: 'edge-a', displayName: 'Edge A', approximateLatitude: latitude, approximateLongitude: longitude,
+        badge: { kind: 'position', label: 'top', iconName: 'top' } },
+      { id: 'edge-b', displayName: 'Edge B', approximateLatitude: latitude,
+        approximateLongitude: longitude + 180 / (111195.0802 * Math.cos(latitude * Math.PI / 180)),
+        roleBadge: { kind: 'role', label: 'switch', iconName: 'switch' } },
+    ]} />);
+    await screen.findByRole('button', { name: 'Zoom into 2 nearby people on map' });
+    act(() => {
+      mapInstances[0].getZoom.mockReturnValue(15);
+      mapInstances[0].trigger('zoomend');
+    });
+    fireEvent.click(await screen.findByRole('button', { name: 'Zoom into 2 nearby people on map' }));
+    expect(mapInstances[0].fitBounds).toHaveBeenCalledWith(
+      expect.any(Array), expect.objectContaining({ maxZoom: MAX_DISCOVERY_ZOOM }),
+    );
+    expect(mapInstances[0].setCenter).not.toHaveBeenCalled();
   });
 
   it('separates ordinary nearby people at close zoom while same-building clusters remain available to spiderfy', async () => {
@@ -1958,7 +1976,7 @@ describe('MapView', () => {
 
     expect(await screen.findByRole('button', { name: 'Zoom into 2 nearby people on map' })).toBeInTheDocument();
     act(() => {
-      mapInstances[0].getZoom.mockReturnValue(16);
+      mapInstances[0].getZoom.mockReturnValue(14.5);
       mapInstances[0].trigger('zoomend');
     });
 
@@ -1967,6 +1985,44 @@ describe('MapView', () => {
       expect(screen.getByRole('button', { name: 'Open Person A on map' })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Open Person B on map' })).toBeInTheDocument();
     });
+  });
+
+  it('shows ordinary profiles 130px apart before the close-zoom cutoff without moving their anchors', async () => {
+    const longitude = -73.99;
+    const otherLongitude = longitude + 130 * 360 / (512 * 2 ** 14);
+    render(<MapView onPinClick={vi.fn()} markers={[
+      { id: 'person-a', displayName: 'Person A', approximateLatitude: 40.7128, approximateLongitude: longitude, privacyRadiusMeters: 10 },
+      { id: 'person-b', displayName: 'Person B', approximateLatitude: 40.7128, approximateLongitude: otherLongitude, privacyRadiusMeters: 10 },
+    ]} />);
+    await screen.findByRole('button', { name: 'Zoom into 2 nearby people on map' });
+    act(() => {
+      mapInstances[0].getZoom.mockReturnValue(14);
+      mapInstances[0].trigger('zoomend');
+    });
+    await screen.findByRole('button', { name: 'Open Person A on map' });
+    expect(screen.getByRole('button', { name: 'Open Person B on map' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Zoom into 2 nearby people/ })).not.toBeInTheDocument();
+    const visible = markerInstances.filter((marker) => marker.element.isConnected);
+    expect(visible).toHaveLength(2);
+    expect(visible.map((marker) => marker.coordinates))
+      .toEqual(expect.arrayContaining([[longitude, 40.7128], [otherLongitude, 40.7128]]));
+  });
+
+  it('does not merge individual people again while zooming in', async () => {
+    render(<MapView onPinClick={vi.fn()} markers={[
+      { id: 'a', displayName: 'A', approximateLatitude: 40.7128, approximateLongitude: -73.99, privacyRadiusMeters: 250 },
+      { id: 'b', displayName: 'B', approximateLatitude: 40.7128, approximateLongitude: -73.98442100524902, privacyRadiusMeters: 250 },
+      { id: 'c', displayName: 'C', approximateLatitude: 40.70759510165198, approximateLongitude: -73.9872105026245, privacyRadiusMeters: 250 },
+    ]} />);
+    await waitFor(() => expect(mapInstances).toHaveLength(1));
+    for (const zoom of [14, 14.04, 14.5, 14.6, 15]) {
+      act(() => {
+        mapInstances[0].getZoom.mockReturnValue(zoom);
+        mapInstances[0].trigger('zoomend');
+      });
+      for (const name of ['A', 'B', 'C']) await screen.findByRole('button', { name: `Open ${name} on map` });
+      expect(screen.queryByRole('button', { name: /Open 2 nearby people sharing/ })).not.toBeInTheDocument();
+    }
   });
 
   it('keeps a people cluster mounted when input order and unrelated clusters change', async () => {
@@ -2204,7 +2260,7 @@ describe('MapView', () => {
 });
 
 describe('spiderfy clusters', () => {
-  it('spiderfies people whose disclosed privacy areas overlap across adjacent cells', async () => {
+  it('zooms wider people clusters even when disclosed privacy areas overlap', async () => {
     render(
       <MapView
         onPinClick={vi.fn()}
@@ -2221,12 +2277,12 @@ describe('spiderfy clusters', () => {
       />,
     );
 
-    const cluster = await screen.findByRole('button', { name: 'Open 2 nearby people sharing this map spot' });
+    const cluster = await screen.findByRole('button', { name: 'Zoom into 2 nearby people on map' });
     fireEvent.click(cluster);
 
-    expect(await screen.findByRole('button', { name: 'Open A on map' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Open B on map' })).toBeInTheDocument();
-    expect(mapInstances[0].setZoom).not.toHaveBeenCalled();
+    expect(mapInstances[0].fitBounds).toHaveBeenCalled();
+    expect(screen.queryByRole('button', { name: 'Open A on map' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Open B on map' })).not.toBeInTheDocument();
   });
 
   it('opens a same-building people fan on hover and pins it open with a click', async () => {
@@ -2245,7 +2301,9 @@ describe('spiderfy clusters', () => {
     fireEvent.pointerEnter(cluster, { pointerType: 'mouse' });
     expect(await screen.findByRole('button', { name: 'Open A on map' })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Open B on map' }));
+    expect(cluster.isConnected).toBe(true);
+    fireEvent.click(cluster);
+    fireEvent.pointerEnter(cluster, { pointerType: 'mouse' });
     const pinnedMember = await screen.findByRole('button', { name: 'Open B on map' });
     fireEvent.pointerLeave(pinnedMember, { pointerType: 'mouse', relatedTarget: document.body });
 
@@ -2486,5 +2544,23 @@ describe('separateOverlappingMarkers', () => {
     expect(zoomedIn).toBe(markers);
     expect(zoomedOut.map(({ approximateLatitude, approximateLongitude }) => [approximateLatitude, approximateLongitude]))
       .toEqual(zoomedIn.map(({ approximateLatitude, approximateLongitude }) => [approximateLatitude, approximateLongitude]));
+  });
+});
+
+
+describe('people cluster maximum spread', () => {
+  it.each([
+    { offsets: [0, 160], action: 'Open 2 nearby people sharing this map spot' },
+    { offsets: [0, 162], action: 'Zoom into 2 nearby people on map' },
+    { offsets: [0, -100, 100], action: 'Zoom into 3 nearby people on map' },
+  ])('uses the 0.1-mile maximum pair distance for $offsets', async ({ offsets, action }) => {
+    render(<MapView onPinClick={vi.fn()} markers={offsets.map((meters, index) => ({
+      id: `spread-${index}`,
+      displayName: `Spread ${index}`,
+      approximateLatitude: 40.7128 + meters / 111_195.0802,
+      approximateLongitude: -73.99,
+      privacyRadiusMeters: 500,
+    }))} />);
+    expect(await screen.findByRole('button', { name: action })).toBeInTheDocument();
   });
 });

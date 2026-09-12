@@ -175,8 +175,11 @@ const MARKER_INTERACTION_SUPPRESS_MS = 350;
 // pins only merge when they are nearly on top of one another.
 // Keep dense map pins grouped while zoomed out. These values match the
 // approved map handoff and prevent nearby profile hearts from stacking.
-const PERSON_CLUSTER_MAX_ZOOM = 15.25;
-const PERSON_CLUSTER_RADIUS_PX = 164;
+const PERSON_CLUSTER_MAX_ZOOM = MAX_DISCOVERY_ZOOM;
+// Idle side-badge footprint is wider than the visible heart. Vertical
+// clearance follows the heart artwork, not that wider horizontal envelope.
+const PERSON_CLUSTER_RADIUS_PX = 124;
+const PERSON_HEART_FOOTPRINT_PX = 64;
 export const MAP_SERVICE_MASK_SOURCE_ID = 'cruush-map-service-mask';
 export const MAP_SERVICE_MASK_LAYER_ID = 'cruush-map-service-mask';
 export const MAP_BROWSE_MASK_SOURCE_ID = 'cruush-map-browse-mask';
@@ -193,7 +196,7 @@ export const SIGNAL_CLEARANCE_PX = Math.round(268 * MAP_PIN_UNIT_SCALE);
 // Spot markers sharing a coordinate to this many decimal places collapse into
 // one cluster that fans out on tap rather than stacking.
 const SAME_LOCATION_CLUSTER_PRECISION = 6;
-const SAME_BUILDING_PROXIMITY_METERS = 250;
+const SAME_BUILDING_PROXIMITY_METERS = 160.9344; // Maximum member spread: 0.1 mile.
 const SPIDERFY_RADIUS_PX = 86;
 const SPIDERFY_SECOND_RING_RADIUS_PX = 122;
 const SPIDERFY_SECOND_RING_AFTER = 10;
@@ -650,24 +653,25 @@ function coordinateKey(marker: Pick<MapMarker, 'approximateLatitude' | 'approxim
   return `${marker.approximateLatitude.toFixed(SAME_LOCATION_CLUSTER_PRECISION)}:${marker.approximateLongitude.toFixed(SAME_LOCATION_CLUSTER_PRECISION)}`;
 }
 
-function areInSameBuildingDisplayArea(group: Pick<MapMarker, 'approximateLatitude' | 'approximateLongitude' | 'privacyRadiusMeters'>[]) {
+function areInSameBuildingDisplayArea(group: Pick<MapMarker, 'approximateLatitude' | 'approximateLongitude'>[]) {
   if (group.length < 2) return false;
-  const anchor = group[0];
-  return group.every((marker) => {
-    const latitudeMeters = (marker.approximateLatitude - anchor.approximateLatitude) * 111_320;
-    const longitudeScale = Math.max(0.01, Math.cos(anchor.approximateLatitude * Math.PI / 180));
-    const longitudeMeters = (marker.approximateLongitude - anchor.approximateLongitude) * 111_320 * longitudeScale;
-    // Each discovery pin represents an area, rather than an exact point. A
-    // shared building may therefore land in adjacent displayed privacy cells.
-    // Use only those already-disclosed radii to recognize overlapping display
-    // areas; never send or compare the underlying precise coordinates.
-    const sharedDisplayRadius = Math.max(
-      SAME_BUILDING_PROXIMITY_METERS,
-      (anchor.privacyRadiusMeters ?? SAME_BUILDING_PROXIMITY_METERS)
-        + (marker.privacyRadiusMeters ?? SAME_BUILDING_PROXIMITY_METERS),
-    );
-    return Math.hypot(latitudeMeters, longitudeMeters) <= sharedDisplayRadius;
-  });
+  // Check every pair: proximity to one anchor alone can hide a wider group.
+  // Use displayed coordinates only; privacy radii do not widen this limit.
+  const radians = Math.PI / 180;
+  for (let first = 0; first < group.length; first += 1) {
+    for (let second = first + 1; second < group.length; second += 1) {
+      const a = group[first];
+      const b = group[second];
+      const latitudeDelta = (b.approximateLatitude - a.approximateLatitude) * radians;
+      const longitudeDelta = (b.approximateLongitude - a.approximateLongitude) * radians;
+      const haversine = Math.sin(latitudeDelta / 2) ** 2
+        + Math.cos(a.approximateLatitude * radians) * Math.cos(b.approximateLatitude * radians)
+        * Math.sin(longitudeDelta / 2) ** 2;
+      const distance = 2 * 6_371_008.8 * Math.asin(Math.sqrt(Math.min(1, Math.max(0, haversine))));
+      if (!Number.isFinite(distance) || distance > SAME_BUILDING_PROXIMITY_METERS) return false;
+    }
+  }
+  return true;
 }
 
 function groupMarkersByCoordinate(markers: MapMarker[]) {
@@ -811,9 +815,10 @@ function canClusterMarker(marker: MapMarker, focusCoordinates: MapViewProps['foc
     || typeof marker.ghostRotationExpiresAtMs !== 'number' || marker.ghostRotationExpiresAtMs > Date.now();
 }
 
-function groupNearbyMarkers(markers: DisplayMapMarker[], zoom: number, radiusPx: number, includeBoundary = false, peopleGeometry = false): DisplayMapMarker[][] {
+function groupNearbyMarkers(markers: DisplayMapMarker[], zoom: number, radiusPx: number, includeBoundary = false, peopleGeometry = false, acceptGroup?: (group: DisplayMapMarker[]) => boolean): DisplayMapMarker[][] {
   const radius = radiusPx / (2 ** zoom);
-  const seeds = [...markers].sort((a, b) => a.id.localeCompare(b.id)).map((marker, id) => ({
+  type Entity = { id: number; group: DisplayMapMarker[]; x: number; y: number; owner: boolean; children?: [Entity, Entity] };
+  const seeds: Entity[] = [...markers].sort((a, b) => a.id.localeCompare(b.id)).map((marker, id) => ({
     id, group: [marker], ...mercatorPixelPoint(marker, 0),
     owner: peopleGeometry && (marker.isCurrentUser === true || marker.id === 'me'),
   }));
@@ -824,10 +829,11 @@ function groupNearbyMarkers(markers: DisplayMapMarker[], zoom: number, radiusPx:
   }), { left: Infinity, right: -Infinity, top: Infinity, bottom: -Infinity });
   // Every aggregate center stays inside these bounds. If even the diagonal
   // clears the merge radius, the hierarchy can only end in this one group.
-  if (Math.hypot(bounds.right - bounds.left, bounds.bottom - bounds.top) < radius) {
+  if (Math.hypot(bounds.right - bounds.left, bounds.bottom - bounds.top) < radius
+    && !peopleGeometry
+    && (!acceptGroup || acceptGroup(markers))) {
     return [seeds.flatMap((entity) => entity.group)];
   }
-  type Entity = typeof seeds[number];
   type Pair = { distance: number; a: number; b: number };
   const entities = new Map(seeds.map((entity) => [entity.id, entity]));
   const cells = new Map<string, Set<number>>();
@@ -849,10 +855,31 @@ function groupNearbyMarkers(markers: DisplayMapMarker[], zoom: number, radiusPx:
   // not allocate a quadratic heap of pairs that become stale after merging.
   const nearest = new Map<number, Pair>();
   const comparePairs = (first: Pair, second: Pair) => first.distance - second.distance || first.a - second.a || first.b - second.b;
+  const peopleFootprints = (entity: Entity) => {
+    const halfHeart = PERSON_HEART_FOOTPRINT_PX / 2;
+    const footprints = [{ left: -halfHeart, right: halfHeart, top: -halfHeart, bottom: halfHeart }];
+    if (entity.group.length === 1) {
+      const marker = entity.group[0];
+      // The artwork is centered in the existing 103px unit. Side badges are
+      // 35px circles at 70% of its 80px heart layer, with the original -10.5px edge.
+      if (marker.roleBadge) footprints.push({ left: -62, right: -27, top: -1.5, bottom: 33.5 });
+      if (marker.badge) footprints.push({ left: 27, right: 62, top: -1.5, bottom: 33.5 });
+    }
+    return footprints;
+  };
   const considerPair = (entity: Entity, other: Entity) => {
     if (entity.id === other.id) return;
     const dx = entity.x - other.x;
     const dy = entity.y - other.y;
+    if (peopleGeometry) {
+      const screenX = dx * 2 ** zoom;
+      const screenY = dy * 2 ** zoom;
+      const overlaps = peopleFootprints(entity).some((first) => peopleFootprints(other).some((second) => (
+        first.left + screenX < second.right && first.right + screenX > second.left
+        && first.top + screenY < second.bottom && first.bottom + screenY > second.top
+      )));
+      if (!overlaps) return;
+    }
     const distance = peopleGeometry ? Math.max(dx * dx, dy * dy) : dx * dx + dy * dy;
     if (includeBoundary ? distance > radius * radius : distance >= radius * radius) return;
     const previous = nearest.get(entity.id);
@@ -889,7 +916,7 @@ function groupNearbyMarkers(markers: DisplayMapMarker[], zoom: number, radiusPx:
     const count = first.group.length + second.group.length;
     const owner = first.owner ? first : second.owner ? second : null;
     const merged: Entity = {
-      id: nextId++, group: [...first.group, ...second.group],
+      id: nextId++, group: [...first.group, ...second.group], children: [first, second],
       owner: Boolean(owner),
       x: owner?.x ?? (first.x * first.group.length + second.x * second.group.length) / count,
       y: owner?.y ?? (first.y * first.group.length + second.y * second.group.length) / count,
@@ -911,7 +938,11 @@ function groupNearbyMarkers(markers: DisplayMapMarker[], zoom: number, radiusPx:
       }
     }
   }
-  return [...entities.values()].map((entity) => entity.group);
+  const collect = (entity: Entity): DisplayMapMarker[][] => {
+    if (!acceptGroup || entity.group.length === 1 || acceptGroup(entity.group)) return [entity.group];
+    return entity.children!.flatMap(collect);
+  };
+  return [...entities.values()].flatMap(collect);
 }
 
 function buildPeopleCluster(group: MapMarker[], action: 'zoom' | 'spiderfy' = 'zoom'): MapMarker {
@@ -959,21 +990,24 @@ function applyPersonMarkerClusters(
   const clusters: MapMarker[] = [];
 
   groupNearbyMarkers(
-    clusterableMarkers.filter((marker) => !clusteredIds.has(marker.id)),
+    clusterableMarkers,
     zoom,
     PERSON_CLUSTER_RADIUS_PX,
     true,
     true,
   ).filter((group) => group.length >= 2).forEach((group) => {
-    const sameBuildingDisplayArea = areInSameBuildingDisplayArea(group);
-    // A shared building remains one intentional spiderfy target at every zoom.
-    // Ordinary nearby people separate once the map is close enough to show
-    // their independent locations.
-    if (!sameBuildingDisplayArea && zoom >= PERSON_CLUSTER_MAX_ZOOM) return;
-
     group.forEach((marker) => clusteredIds.add(marker.id));
-    clusters.push(buildPeopleCluster(group, sameBuildingDisplayArea ? 'spiderfy' : 'zoom'));
+    clusters.push(buildPeopleCluster(group, areInSameBuildingDisplayArea(group) ? 'spiderfy' : 'zoom'));
   });
+
+  // Keep the same cluster button at its anchor during expansion so a
+  // desktop click after hover (or a tap after a hold) can pin it open.
+  if (spiderfiedCluster && spiderfiedIds.size >= 2) {
+    const members = markers.filter((marker) => spiderfiedIds.has(marker.id) && canClusterMarker(marker, focusCoordinates));
+    if (members.length >= 2 && members.every((marker) => (marker.kind ?? 'person') === 'person')) {
+      clusters.push(buildPeopleCluster(members, 'spiderfy'));
+    }
+  }
 
   return [
     ...markers
@@ -3041,10 +3075,12 @@ function MapView({
                 );
                 return;
               }
-              const nextZoom = Math.min(
-                clusterMaxZoom + 0.75,
-                Math.max(currentZoom + PERSON_CLUSTER_ZOOM_STEP, clusterMaxZoom + 0.25),
-              );
+              const nextZoom = isPlaceCluster(selectedMarker)
+                ? Math.min(
+                  clusterMaxZoom + 0.75,
+                  Math.max(currentZoom + PERSON_CLUSTER_ZOOM_STEP, clusterMaxZoom + 0.25),
+                )
+                : Math.min(clusterMaxZoom, currentZoom + PERSON_CLUSTER_ZOOM_STEP);
               setSpiderfiedCluster(null);
               map.setCenter([selectedMarker.approximateLongitude, selectedMarker.approximateLatitude]);
               map.setZoom(nextZoom);
@@ -3059,14 +3095,14 @@ function MapView({
             if (isSpiderfyCluster(previewedMarker)) {
               const memberIds = previewedMarker.cluster?.memberIds ?? [];
               if (memberIds.length >= 2) {
-                setSpiderfiedCluster({
+                setSpiderfiedCluster((current) => current?.pinned ? current : ({
                   center: {
                     approximateLatitude: previewedMarker.approximateLatitude,
                     approximateLongitude: previewedMarker.approximateLongitude,
                   },
                   memberIds,
                   pinned: false,
-                });
+                }));
               }
               return;
             }
@@ -3079,7 +3115,8 @@ function MapView({
               ? relatedTarget.closest('[data-map-marker-id]')?.getAttribute('data-map-marker-id')
               : null;
             setSpiderfiedCluster((currentCluster) => {
-              if (currentCluster?.pinned || !currentCluster?.memberIds.includes(previewedMarker.id)) {
+              if (currentCluster?.pinned || (!currentCluster?.memberIds.includes(previewedMarker.id)
+                && !isSpiderfyCluster(previewedMarker))) {
                 return currentCluster;
               }
               return nextMarker && currentCluster.memberIds.includes(nextMarker) ? currentCluster : null;
