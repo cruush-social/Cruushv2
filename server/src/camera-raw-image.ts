@@ -45,9 +45,27 @@ export async function decodeCameraRaw(
     }
     // LibRaw applies the camera white balance and orientation, then writes sRGB
     // pixels. Existing Sharp sanitization handles resizing and metadata removal.
-    await runDecoder("dcraw_emu", ["-w", "-o", "1", "-T", "-Z", output, input], {
-      timeout: 60_000, killSignal: "SIGKILL", maxBuffer: 64 * 1024
-    });
+    try {
+      await runDecoder("dcraw_emu", ["-w", "-o", "1", "-T", "-Z", output, input], {
+        timeout: 60_000, killSignal: "SIGKILL", maxBuffer: 64 * 1024
+      });
+    } catch (error) {
+      const decoderError = error as { stderr?: string; code?: string | number };
+      // Preserve the established LibRaw rendering. Only an unsupported RAW
+      // codec uses Adobe's decoder; timeouts and damaged inputs still fail.
+      if (decoderError.code !== 2 || !decoderError.stderr?.includes("Unsupported file format or not RAW file")) {
+        throw error;
+      }
+      const adobeOutput = join(directory, "adobe");
+      await runDecoder("dng_validate", ["-max", "2048", "-tif", adobeOutput, input], {
+        timeout: 60_000, killSignal: "SIGKILL", maxBuffer: 64 * 1024
+      });
+      const adobeFile = `${adobeOutput}.tif`;
+      if ((await stat(adobeFile)).size > limits.maxPixels * 8 + 1024 * 1024) {
+        throw new ApiError(400, "VALIDATION_ERROR", "Decoded photo is too large.");
+      }
+      return await readFile(adobeFile);
+    }
     if ((await stat(output)).size > limits.maxPixels * 4 + 1024 * 1024) {
       throw new ApiError(400, "VALIDATION_ERROR", "Decoded photo is too large.");
     }
