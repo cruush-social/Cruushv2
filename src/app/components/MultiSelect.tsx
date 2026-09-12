@@ -286,9 +286,7 @@ export default function MultiSelect({
     onChange?.(newSelected);
   };
 
-  const menuContent = hasCategoryPicker ? (
-    <div className="flex h-full min-h-0 flex-col">
-      {searchable ? (
+  const searchInput = searchable ? (
         <label className="flex shrink-0 items-center gap-2 border-b border-border px-3 py-2">
           <Search aria-hidden="true" className="h-4 w-4 shrink-0 text-muted-foreground" />
           <input
@@ -301,7 +299,39 @@ export default function MultiSelect({
             value={searchQuery}
           />
         </label>
-      ) : null}
+      ) : null;
+
+  const flatMenuContent = (
+    <div role="listbox" aria-label={ariaLabel} className={`scrollbar-subtle min-h-0 max-h-[inherit] overflow-y-auto${searchable ? ' flex-1' : ''}`} style={TOUCH_SCROLL_STYLE}>
+      {(normalizedSearchQuery ? searchGroups : groups).map((group) => (
+        <div key={group.label || 'options'} role={group.label ? 'group' : undefined} aria-label={group.label || undefined}>
+          {group.label ? (
+            <div className="sticky top-0 bg-popover px-4 py-2 text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
+              {group.label}
+            </div>
+          ) : null}
+          {group.options.map((option) => (
+            <button
+              key={option}
+              type="button"
+              role="option"
+              aria-selected={selected.includes(option)}
+              onClick={() => toggleOption(option)}
+              className={`w-full px-4 py-2 text-left text-sm hover:bg-accent transition-colors ${
+                selected.includes(option) ? 'bg-accent text-accent-foreground' : ''
+              }`}
+            >
+              {option}
+            </button>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+
+  const menuContent = hasCategoryPicker ? (
+    <div className="flex h-full min-h-0 flex-col">
+      {searchInput}
       {normalizedSearchQuery ? (
         <div role="listbox" aria-label={`${ariaLabel ?? 'Options'} search results`} className="scrollbar-subtle min-h-0 flex-1 overflow-y-auto py-1" style={TOUCH_SCROLL_STYLE}>
           {searchGroups.length > 0 ? searchGroups.map((group) => (
@@ -406,31 +436,12 @@ export default function MultiSelect({
       )}
     </div>
   ) : (
-    <div role="listbox" aria-label={ariaLabel} className="scrollbar-subtle min-h-0 max-h-[inherit] overflow-y-auto" style={TOUCH_SCROLL_STYLE}>
-      {groups.map((group) => (
-        <div key={group.label || 'options'} role={group.label ? 'group' : undefined} aria-label={group.label || undefined}>
-          {group.label ? (
-            <div className="sticky top-0 bg-popover px-4 py-2 text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
-              {group.label}
-            </div>
-          ) : null}
-          {group.options.map((option) => (
-            <button
-              key={option}
-              type="button"
-              role="option"
-              aria-selected={selected.includes(option)}
-              onClick={() => toggleOption(option)}
-              className={`w-full px-4 py-2 text-left text-sm hover:bg-accent transition-colors ${
-                selected.includes(option) ? 'bg-accent text-accent-foreground' : ''
-              }`}
-            >
-              {option}
-            </button>
-          ))}
-        </div>
-      ))}
-    </div>
+    searchable ? (
+      <div className="flex h-full min-h-0 flex-col">
+        {searchInput}
+        {flatMenuContent}
+      </div>
+    ) : flatMenuContent
   );
 
   const menu = isOpen && menuPortal && portalStyle && portalRoot

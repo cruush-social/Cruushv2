@@ -18,6 +18,23 @@ function mockTriggerRect(button: HTMLElement, rect: Partial<DOMRect>) {
 }
 
 describe('MultiSelect', () => {
+  it('filters a flat picker without losing selected values and resets search on reopen', () => {
+    const onChange = vi.fn();
+    render(<MultiSelect ariaLabel="Gender Identity" searchable options={['agender', 'nonbinary', 'trans man']} value={['agender']} onChange={onChange} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Gender Identity' }));
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Search Gender Identity' }), { target: { value: ' TRANS ' } });
+    expect(screen.queryByRole('option', { name: 'agender' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('option', { name: 'trans man' }));
+    expect(onChange).toHaveBeenLastCalledWith(['agender', 'trans man']);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Gender Identity' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Gender Identity' }));
+    expect(screen.getByRole('searchbox', { name: 'Search Gender Identity' })).toHaveValue('');
+    expect(screen.getByRole('option', { name: 'agender' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getAllByRole('option')).toHaveLength(3);
+  });
+
   it('keeps the latest multi-select choices when a max selection count is set', () => {
     const onChange = vi.fn();
 

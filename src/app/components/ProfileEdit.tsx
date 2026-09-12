@@ -1423,6 +1423,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
               <MultiSelect
                 {...profileMenuProps}
                 ariaLabel="Gender Identities"
+                searchable
                 maxSelections={MAX_GENDER_IDENTITIES}
                 options={IDENTITIES}
                 value={normalizedProfile.identities}

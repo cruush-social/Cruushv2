@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { PHOTO_UPLOAD_ACCEPT } from '../lib/photoUploadFormats';
-import { CROWDS, IDENTITIES, LOOKING_FOR, MAX_PROFILE_SEXUALITIES, POSITIONS, PRONOUNS, ROLES, SEXUALITY, VIBE_GROUPS } from '../lib/profileOptions';
+import { CROWDS, ONBOARDING_IDENTITIES, LOOKING_FOR, MAX_PROFILE_SEXUALITIES, POSITIONS, PRONOUNS, ROLES, SEXUALITY, VIBE_GROUPS } from '../lib/profileOptions';
 import { ArrowRight, Check, Clipboard, Gift, Share2, ShieldCheck } from 'lucide-react';
 import { toast } from '../lib/toast';
 import { Button } from './ui/button';
@@ -842,8 +842,9 @@ export default function ProfileOnboarding({
                     <MultiSelect
                       menuPortal
                       ariaLabel="Gender Identity"
+                      searchable
                       maxSelections={3}
-                      options={IDENTITIES}
+                      options={ONBOARDING_IDENTITIES}
                       value={profile.identities}
                       onChange={(values) => setProfileField('identities', limitToThree(values))}
                     />

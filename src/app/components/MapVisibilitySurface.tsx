@@ -344,7 +344,7 @@ export default function MapVisibilitySurface({
                 </p>
               </div>
 
-              <FieldGroup label="Gender Identities" options={IDENTITIES} stateKey="identities" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} />
+              <FieldGroup searchable label="Gender Identities" options={IDENTITIES} stateKey="identities" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} />
               <FieldGroup label="Presentation" options={PRESENTATIONS} stateKey="presentations" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} />
               <FieldGroup label="Crowds" options={CROWDS} stateKey="crowds" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} />
               <p className="-mt-4 text-sm text-muted-foreground">

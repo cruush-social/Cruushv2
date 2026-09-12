@@ -12,6 +12,15 @@ export const IDENTITIES = alphabetize([
   'trans', 'transfemme', 'transmasc', 'two-spirit', 'woman', 'x-gender'
 ]);
 
+const ONBOARDING_FIRST_IDENTITIES = alphabetize([
+  'man', 'woman', 'cis man', 'cis woman', 'trans woman', 'trans man',
+  'transmasc', 'transfemme', 'nonbinary', 'two-spirit',
+]);
+export const ONBOARDING_IDENTITIES = [
+  ...ONBOARDING_FIRST_IDENTITIES,
+  ...IDENTITIES.filter((identity) => !ONBOARDING_FIRST_IDENTITIES.includes(identity)),
+];
+
 export const PRESENTATIONS = alphabetize([
   'androgynous', 'boi', 'butch', 'drag king', 'drag queen', 'drag thing', 'femboy', 'femme', 'femme queen', 'fluid', 'genderpunk', 'hard butch', 'hard femme',
   'high femme', 'masc', 'nonconforming', 'soft butch', 'soft femme', 'stone butch', 'stone femme', 'stud', 'tomboy'
