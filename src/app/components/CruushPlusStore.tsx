@@ -6,8 +6,9 @@ import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 import { Card, CardContent } from './ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
 import CruushPlusWord from './CruushPlusWord';
-import { getBillingPlans, type CruushPlusPlan } from '../lib/billingApi';
+import { getBillingPlans, type CruushPlusPlan, type CruushPlusPlanId } from '../lib/billingApi';
 import {
+  getPulsePacks, createPulsePaymentIntent, getCurrentPulsePaymentIntent,
   cancelCryptoPaymentIntent,
   createCryptoPaymentIntent,
   getCurrentCryptoPaymentIntent,
@@ -24,6 +25,8 @@ import {
   CRYPTO_PAYMENT_SOURCES,
   CryptoPaymentMethodInstructions,
 } from './CryptoPaymentMethods';
+
+type StorePlan = Omit<CruushPlusPlan, 'id' | 'interval'> & { id: string; interval: CruushPlusPlan['interval'] | 'pack' };
 
 const CHECKOUT_PLUS_FEATURES = CRUUSH_PLUS_FEATURES.map((benefit) =>
   benefit.title === 'Full activity'
@@ -61,8 +64,9 @@ function formatPrice(amountCents: number, currency = 'USD') {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(amountCents / 100);
 }
 
-function termLabel(plan: CruushPlusPlan) {
+function termLabel(plan: StorePlan) {
   switch (plan.interval) {
+    case 'pack': return plan.name;
     case 'week':
       return '7 days';
     case 'month':
@@ -85,7 +89,7 @@ function termLabel(plan: CruushPlusPlan) {
 // saving rather than as a bigger number.
 const MONTHLY_REFERENCE_ID = 'plus_monthly';
 
-function planMonths(plan: CruushPlusPlan) {
+function planMonths(plan: StorePlan) {
   if (plan.durationMonths) {
     return plan.durationMonths;
   }
@@ -95,7 +99,7 @@ function planMonths(plan: CruushPlusPlan) {
   return null;
 }
 
-function monthlyEquivalentCents(plan: CruushPlusPlan) {
+function monthlyEquivalentCents(plan: StorePlan) {
   const months = planMonths(plan);
   if (!months || months < 1) {
     // A per-month figure on a term shorter than a month is nonsense. Nobody
@@ -106,7 +110,7 @@ function monthlyEquivalentCents(plan: CruushPlusPlan) {
   return Math.round(plan.amountCents / months);
 }
 
-function savingsPercent(plan: CruushPlusPlan, monthlyCents: number | null) {
+function savingsPercent(plan: StorePlan, monthlyCents: number | null) {
   const equivalent = monthlyEquivalentCents(plan);
   if (!monthlyCents || !equivalent || equivalent >= monthlyCents) {
     return null;
@@ -122,14 +126,16 @@ function createIdempotencyKey() {
   return `key-${Date.now()}-${Math.floor(Math.random() * 1_000_000)}`;
 }
 
-function formatUsdcAtomic(value: string | null) {
+function formatUsdcAtomic(value: string | null, asset?: string) {
   if (!value || !/^\d+$/.test(value)) {
     return null;
   }
 
   const atomic = BigInt(value);
-  const whole = atomic / 1_000_000n;
-  const fraction = (atomic % 1_000_000n).toString().padStart(6, '0').replace(/0+$/, '');
+  const decimals = asset === 'BTC' ? 8 : 6;
+  const units = 10n ** BigInt(decimals);
+  const whole = atomic / units;
+  const fraction = (atomic % units).toString().padStart(decimals, '0').replace(/0+$/, '');
   return fraction ? `${whole}.${fraction}` : whole.toString();
 }
 
@@ -140,10 +146,12 @@ function formatPaymentTimeRemaining(expiresAt: string, nowMs: number) {
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 }
 
-export default function CruushPlusStore() {
+export default function CruushPlusStore({ product = 'cruush_plus' }: { product?: 'cruush_plus' | 'ping_pack' }) {
+  const isPulse = product === 'ping_pack';
+  const statusCopy = isPulse ? { ...PAYMENT_STATUS_COPY, paid: 'Payment confirmed. Your Pulses are available.', failed: 'Payment was not confirmed. No Pulses were added.' } : PAYMENT_STATUS_COPY;
   const [gasFeeHelpOpen, setGasFeeHelpOpen] = useState(false);
   const navigate = useNavigate();
-  const [plans, setPlans] = useState<CruushPlusPlan[]>([]);
+  const [plans, setPlans] = useState<StorePlan[]>([]);
   const [processor, setProcessor] = useState<CryptoProcessorStatus | null>(null);
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [intent, setIntent] = useState<CryptoPaymentIntent | null>(null);
@@ -165,9 +173,9 @@ export default function CruushPlusStore() {
     let active = true;
 
     Promise.all([
-      getBillingPlans(),
+      isPulse ? getPulsePacks().then(({ packs }) => ({ plans: packs.map(pack => ({ ...pack, interval: 'pack' as const, supplyRemaining: null, isFounder: false, isLifetime: false, badgeKeys: [] })) })) : getBillingPlans(),
       getCryptoProcessorStatus().catch(() => null),
-      getCurrentCryptoPaymentIntent().catch(() => null),
+      (isPulse ? getCurrentPulsePaymentIntent() : getCurrentCryptoPaymentIntent()).catch(() => null),
     ])
       .then(([billing, cryptoStatus, currentIntent]) => {
         if (!active) {
@@ -204,7 +212,7 @@ export default function CruushPlusStore() {
       })
       .catch((loadError) => {
         if (active) {
-          setError(loadError instanceof Error ? loadError.message : 'Unable to load cruush+.');
+          setError(loadError instanceof Error ? loadError.message : (isPulse ? 'Unable to load Pulse packs.' : 'Unable to load cruush+.'));
         }
       })
       .finally(() => {
@@ -216,7 +224,7 @@ export default function CruushPlusStore() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [isPulse]);
 
   const intentExpiresAtMs = intent?.expiresAt ? Date.parse(intent.expiresAt) : Number.NaN;
   const paymentWindowClosed = Boolean(
@@ -261,7 +269,7 @@ export default function CruushPlusStore() {
       : { intentId: intent.id, startedAt: Date.now() };
     pollStartedRef.current = pollStarted;
     const hardStopAt = Number.isFinite(intentExpiresAtMs)
-      ? intentExpiresAtMs + (intent.status === 'confirming' ? 20 * 60 * 1000 : 0)
+      ? intentExpiresAtMs + (intent.status === 'confirming' ? (intent.asset === 'BTC' ? 24 * 60 : 20) * 60 * 1000 : 0)
       : pollStarted.startedAt + (60 * 60 * 1000);
 
     const timer = window.setInterval(() => {
@@ -379,11 +387,11 @@ export default function CruushPlusStore() {
             idempotencyKey: createIdempotencyKey(),
           };
       paymentAttemptRef.current = attempt;
-      const nextIntent = await createCryptoPaymentIntent({
-        planId: attempt.planId,
+      const nextIntent = await (isPulse ? createPulsePaymentIntent({ packId: attempt.planId, idempotencyKey: attempt.idempotencyKey, rail: attempt.rail }) : createCryptoPaymentIntent({
+        planId: attempt.planId as CruushPlusPlanId,
         idempotencyKey: attempt.idempotencyKey,
         rail: attempt.rail,
-      });
+      }));
       if (paymentAttemptRef.current !== attempt) {
         return;
       }
@@ -396,7 +404,7 @@ export default function CruushPlusStore() {
     } finally {
       setStarting(false);
     }
-  }, [locallyExpired, paymentOpen, paymentPaid, selectedPlan, selectedRail, selectedRailReady, starting]);
+  }, [isPulse, locallyExpired, paymentOpen, paymentPaid, selectedPlan, selectedRail, selectedRailReady, starting]);
 
   const handleCancelPayment = useCallback(async () => {
     if (!intent || !cancelAction || cancelling || !['pending', 'awaiting_payment'].includes(intent.status)) {
@@ -442,7 +450,7 @@ export default function CruushPlusStore() {
     }
   }, [intent]);
 
-  const renderPlanButton = (plan: CruushPlusPlan, featured = false) => {
+  const renderPlanButton = (plan: StorePlan, featured = false) => {
     const selected = plan.id === selectedPlanId;
     const recommended = plan.id === recommendedPlanId;
     const soldOut = plan.supplyRemaining === 0;
@@ -490,10 +498,10 @@ export default function CruushPlusStore() {
           </span>
           <span className="mt-0.5 text-[11px] leading-4 text-muted-foreground">
             {plan.isLifetime
-              ? 'Pay once, keep it forever'
+              ? 'Pay once, keep it forever. Plus processing fee'
               : perMonth
-                ? `${formatPrice(plan.amountCents, plan.currency)} + gas fee`
-                : null}
+                ? `${formatPrice(plan.amountCents, plan.currency)} + processing fee`
+                : '+ processing fee'}
             {scarce ? (
               <span className="text-primary">
                 {plan.isLifetime || perMonth ? ' · ' : ''}
@@ -526,10 +534,13 @@ export default function CruushPlusStore() {
         <Button variant="ghost" size="icon" onClick={() => navigate(-1)} aria-label="Back">
           <ArrowLeft className="h-5 w-5" />
         </Button>
-        <h1 className="text-xl font-semibold">Get <CruushPlusWord /></h1>
+        <h1 className="text-xl font-semibold">{isPulse ? 'Get Pulses' : <>Get <CruushPlusWord /></>}</h1>
       </header>
 
       <main className="mx-auto flex max-w-3xl flex-col gap-2 px-3 py-1.5">
+        <Button variant="outline" onClick={() => navigate(isPulse ? '/store' : '/store/pulse')}>
+          {isPulse ? 'cruush+ checkout' : 'Pulse checkout'}
+        </Button>
         {error ? (
           <div role="alert" className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
             {error}
@@ -545,8 +556,8 @@ export default function CruushPlusStore() {
         {!loading && plans.length > 0 ? (
           <Card>
             <CardContent className="p-3">
-              <p className="mb-2 text-sm font-semibold">Choose your time</p>
-              <ul aria-label="cruush+ prices" className="grid gap-2">
+              <p className="mb-2 text-sm font-semibold">{isPulse ? 'Choose your Pulses' : 'Choose your time'}</p>
+              <ul aria-label={isPulse ? 'Pulse prices' : 'cruush+ prices'} className="grid gap-2">
                 {selectedPlan ? <li>{renderPlanButton(selectedPlan, true)}</li> : null}
               </ul>
               {otherPlans.length > 0 ? (
@@ -556,7 +567,7 @@ export default function CruushPlusStore() {
                       Compare plans
                     </AccordionTrigger>
                     <AccordionContent className="pb-0">
-                      <ul aria-label="Other cruush+ prices" className="grid gap-2">
+                      <ul aria-label={isPulse ? 'Other Pulse prices' : 'Other cruush+ prices'} className="grid gap-2">
                         {otherPlans.map((plan) => <li key={plan.id}>{renderPlanButton(plan)}</li>)}
                       </ul>
                     </AccordionContent>
@@ -564,7 +575,7 @@ export default function CruushPlusStore() {
                 </Accordion>
               ) : null}
               <p className="mt-2 text-xs leading-4 text-muted-foreground">
-                One payment for a fixed amount of time. Nothing renews and nothing is billed again.
+                {isPulse ? 'One payment for permanent Pulse credits. Nothing renews automatically.' : 'One payment for a fixed amount of time. Nothing renews and nothing is billed again.'}
               </p>
             </CardContent>
           </Card>
@@ -636,7 +647,7 @@ export default function CruushPlusStore() {
                 {starting
                   ? 'Starting…'
                   : paymentPaid
-                    ? 'cruush+ active'
+                    ? (isPulse ? 'Pulses added' : 'cruush+ active')
                     : paymentOpen && !locallyExpired
                     ? 'Payment started'
                     : locallyExpired
@@ -654,8 +665,14 @@ export default function CruushPlusStore() {
               {intent ? (
                 <div aria-live="polite" className="space-y-3 rounded-lg border border-border p-4">
                   <p className="text-sm font-medium">
-                    {locallyExpired ? PAYMENT_STATUS_COPY.expired : PAYMENT_STATUS_COPY[intent.status]}
+                    {locallyExpired ? statusCopy.expired : statusCopy[intent.status]}
                   </p>
+                  {Number.isInteger(intent.confirmations) && Number.isInteger(intent.confirmationTarget) && intent.confirmationTarget! > 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      {intent.confirmations}/{intent.confirmationTarget} confirmations
+                      {intent.paymentAmountReceived === false && intent.confirmations! > 0 ? ' · Full payment not yet received' : ''}
+                    </p>
+                  ) : null}
                   {statusError ? <p className="text-xs text-destructive">{statusError}</p> : null}
                   {!paymentWindowClosed && intent.expiresAt && isOpenCryptoPayment(intent.status) ? (
                     <div className="rounded-lg border border-border bg-muted/40 p-3">
@@ -664,32 +681,48 @@ export default function CruushPlusStore() {
                         Order timer: {formatPaymentTimeRemaining(intent.expiresAt, clockMs)}
                       </p>
                       <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                        This address is unique to this order. Only the exact amount in {intent.asset} on{' '}
-                        {CRYPTO_NETWORK_LABELS[intent.network]} that arrives on-chain before the timer reaches 0 can count toward it.
+                        This address is unique to your order. Send the exact amount in {intent.asset} on{' '}
+                        {CRYPTO_NETWORK_LABELS[intent.network]} and allow time for it to arrive on-chain before the timer reaches 0. Network confirmation can finish afterward.
                       </p>
                     </div>
                   ) : null}
                   {intent.paymentAddress && intent.quotedAmountAtomic && isOpenCryptoPayment(intent.status) && !paymentWindowClosed ? (
                     <div className="space-y-3">
                       <div>
+                        {intent.fundingEstimates?.length ? (
+                          <div className="mb-3 space-y-1 text-xs text-muted-foreground">
+                            {intent.fundingEstimates.map(estimate => (
+                              <p key={estimate.app}>
+                                {estimate.meetsSendingMinimum === false ? (
+                                  <>{estimate.app}: this order is below its {formatUsdcAtomic(estimate.minimumSendAtomic!, intent.asset)} {intent.asset} sending minimum. Choose another method before buying.</>
+                                ) : intent.rail === 'usdc_arbitrum' ? (
+                                  <>Cash App: have about {formatPrice(estimate.availableUsdCents)} available, including a {formatPrice(estimate.allowanceUsdCents)} sending-fee allowance. Cash App converts your dollar payment to USDC.</>
+                                ) : (
+                                  <>{estimate.app}: have about {formatUsdcAtomic(estimate.availableAtomic, intent.asset)} {intent.asset} available ({formatPrice(estimate.availableUsdCents)}), including a {formatPrice(estimate.allowanceUsdCents)} sending-fee allowance. Buy only what you still need.</>
+                                )}
+                              </p>
+                            ))}
+                            <p>Send only the exact amount below. Your app charges its sending fee separately; unused crypto stays in your balance. Fees can change, so check the app’s final total.</p>
+                          </div>
+                        ) : null}
                         {(intent.gasFeeUsdCents ?? 0) > 0 ? (
                           <p className="flex items-center gap-1 text-xs text-muted-foreground">
-                            Gas fee: {formatPrice(intent.gasFeeUsdCents!, 'USD')} (included)
+                            cruush processing fee: {formatPrice(intent.gasFeeUsdCents!, 'USD')} (included)
                             <Tooltip open={gasFeeHelpOpen} onOpenChange={setGasFeeHelpOpen}>
                               <TooltipTrigger asChild>
-                                <button type="button" aria-label="About the gas fee" className="inline-flex items-center justify-center rounded-full p-1 focus-visible:outline focus-visible:outline-2" onClick={() => setGasFeeHelpOpen(true)}>
+                                <button type="button" aria-label="About the processing fee" className="inline-flex items-center justify-center rounded-full p-1 focus-visible:outline focus-visible:outline-2" onClick={() => setGasFeeHelpOpen(true)}>
                                   <Info className="h-3.5 w-3.5" aria-hidden="true" />
                                 </button>
                               </TooltipTrigger>
                               <TooltipContent className="max-w-[min(18rem,calc(100vw-2rem))]" side="top" sideOffset={4}>
-                                Covers the estimated network cost of collecting your payment. Your sending wallet may charge its own network fee separately.
+                                Covers the estimated network cost of automatically forwarding your payment to cruush’s main wallet, including any required gas-funding transfer. Your app’s sending fee is separate.
                               </TooltipContent>
                             </Tooltip>
                           </p>
                         ) : null}
                         <p className="text-xs text-muted-foreground">Send exactly</p>
                         <p className="text-xl font-semibold">
-                          {formatUsdcAtomic(intent.quotedAmountAtomic)} {intent.asset}
+                          {formatUsdcAtomic(intent.quotedAmountAtomic, intent.asset)} {intent.asset}
                         </p>
                         <p className="text-xs text-muted-foreground">on {CRYPTO_NETWORK_LABELS[intent.network]} to this address</p>
                       </div>
@@ -718,8 +751,7 @@ export default function CruushPlusStore() {
                   ) : null}
                   {!locallyExpired ? (
                     <p className="text-xs leading-5 text-muted-foreground">
-                      Your time is added once the payment settles on the network. Leaving this page does
-                      not cancel it. Return here to see the same active payment.
+                      Checkout updates when your payment is detected and confirmed. {isPulse ? 'Your Pulses are added' : 'Your time is added'} after confirmation. Leaving this page does not cancel your order; return here to check its status.
                     </p>
                   ) : null}
                   {paymentOpen && !locallyExpired && intent.status !== 'confirming' ? (
@@ -772,7 +804,7 @@ export default function CruushPlusStore() {
         {/* Same gradient tile treatment as the rewards page: one implementation
             per surface, so the two pages describing cruush+ do not look like
             different products. */}
-        <Card>
+        {!isPulse ? <Card>
           <CardContent className="p-3">
             <p className="mb-1 flex items-center gap-2 text-sm font-semibold">
               <Sparkles className="h-4 w-4 shrink-0 text-primary" />
@@ -800,7 +832,7 @@ export default function CruushPlusStore() {
               ))}
             </ul>
           </CardContent>
-        </Card>
+        </Card> : null}
 
         <Card>
           <Accordion collapsible type="single">
@@ -818,7 +850,7 @@ export default function CruushPlusStore() {
                 </p>
                 <p>
                   Cash App pays with USDC on Arbitrum. PayPal pays with PYUSD on Arbitrum.
-                  You pay once for the cruush+ time you choose. Nothing renews automatically.
+                  {isPulse ? 'You pay once for the Pulse pack you choose.' : 'You pay once for the cruush+ time you choose.'} Nothing renews automatically.
                 </p>
                 <p>
                   Each checkout gives you a fresh payment address and clear payment status.

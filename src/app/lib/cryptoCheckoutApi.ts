@@ -1,9 +1,9 @@
 import { requestApi } from './apiClient';
 import type { CruushPlusPlanId } from './billingApi';
 
-export type CryptoPaymentRailId = 'usdc_arbitrum' | 'pyusd_arbitrum' | 'pyusd_ethereum' | 'usdc_base';
-export type CryptoPaymentAsset = 'USDC' | 'PYUSD';
-export type CryptoPaymentNetwork = 'arbitrum' | 'base' | 'ethereum';
+export type CryptoPaymentRailId = 'usdc_arbitrum' | 'pyusd_arbitrum' | 'pyusd_ethereum' | 'usdc_base' | 'btc_bitcoin';
+export type CryptoPaymentAsset = 'USDC' | 'PYUSD' | 'BTC';
+export type CryptoPaymentNetwork = 'arbitrum' | 'base' | 'ethereum' | 'bitcoin';
 
 export type CryptoProcessorStatus = {
   ready: boolean;
@@ -43,6 +43,7 @@ export type CryptoPaymentIntent = {
   amountUsdCents: number;
   gasFeeUsdCents?: number;
   totalUsdCents?: number;
+  fundingEstimates?: Array<{ app: string; minimumSendAtomic?: string; meetsSendingMinimum?: boolean; allowanceUsdCents: number; availableUsdCents: number; availableAtomic: string; estimated: true }>;
   quotedAmountAtomic: string | null;
   paymentAddress: string | null;
   paymentUri: string | null;
@@ -52,6 +53,9 @@ export type CryptoPaymentIntent = {
   createdAt: string | null;
   updatedAt: string | null;
   paidAt: string | null;
+  confirmations?: number;
+  confirmationTarget?: number;
+  paymentAmountReceived?: boolean;
 };
 
 export function isSettledCryptoPayment(status: CryptoPaymentStatus) {
@@ -89,4 +93,15 @@ export async function cancelCryptoPaymentIntent(intentId: string) {
   return requestApi<CryptoPaymentIntent>(`/api/crypto/payment-intents/${intentId}/cancel`, {
     method: 'POST',
   });
+}
+
+export type PulsePack = { id: 'ping_3' | 'ping_10' | 'ping_25'; name: string; description: string; pingCount: number; amountCents: number; currency: 'USD' };
+export function getPulsePacks() {
+  return requestApi<{ packs: PulsePack[] }>('/api/billing/ping-packs');
+}
+export function createPulsePaymentIntent(input: { packId: string; idempotencyKey: string; rail: CryptoPaymentRailId }) {
+  return requestApi<CryptoPaymentIntent>('/api/crypto/ping-pack-intents', { method: 'POST', body: JSON.stringify(input) });
+}
+export function getCurrentPulsePaymentIntent() {
+  return requestApi<CryptoPaymentIntent | null>('/api/crypto/ping-pack-intents/current');
 }

@@ -279,6 +279,7 @@ describe("crypto payment core", () => {
       confirmationTarget: 1
     });
     expect(arbitrumOnly.rails.map(({ id, ready }) => ({ id, ready }))).toEqual([
+      { id: "btc_bitcoin", ready: false },
       { id: "usdc_arbitrum", ready: true },
       { id: "pyusd_arbitrum", ready: true },
       { id: "pyusd_ethereum", ready: false },

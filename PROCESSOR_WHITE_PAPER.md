@@ -1,155 +1,89 @@
-# cruush crypto processor: architecture and design rationale
+# cruush crypto processor: architecture
 
-Version 1.0 · 8 September 2026 · Security review draft
+Version 2.0, September 12, 2026. This describes the actual implementation on `security/crypto-processor-review-20260908`, including native Bitcoin and automatic forwarding. See `CODEX_HANDOFF.md` for current validation and owner setup, and `docs/crypto-checkout-fees.md` for the catalog allowances. Earlier security-review documents describe the prior baseline; they do not certify the new signer.
 
-## Purpose and status
+## Components and money flow
 
-The processor lets an authenticated member purchase cruush products by transferring a supported stablecoin to an order-specific blockchain address. A backend verifies payment evidence, records settlement, and grants the purchased entitlement. A separate operator wallet collects deposited tokens.
-
-This paper describes the implementation in `security/crypto-processor-review-20260908`. It explains the engineering rationale and tradeoffs of the existing design; it is not a security certification or a promise of launch readiness. Read [SECURITY_REVIEW.md](SECURITY_REVIEW.md) for validation evidence and release blockers, and [THREAT_MODEL.md](THREAT_MODEL.md) for adversaries, trust assumptions and residual risks.
-
-The processor is disabled by default. Testnet transfers have exercised parts of the wallet workflow, and local tests have exercised fee-inclusive settlement and concurrency. Those are separate evidence sets. A complete live payment rehearsal using the new mandatory fee remains outstanding.
-
-## System structure
-
-The implementation has three operational parts:
-
-1. **Checkout and accounting service.** The existing authenticated application owns product selection, prices, order identity, allocated addresses and entitlement records. PostgreSQL provides durable state and transactions.
-2. **Chain observer.** RPC clients retrieve transfer evidence and block information. The watcher and receipt recovery path apply settlement policy before crediting an order.
-3. **Operator wallet.** A separate command-line tool derives spending keys, validates plans, signs transactions and broadcasts signed bundles. The application server receives public derivation information, not recovery words.
+1. The authenticated checkout API owns product prices, order identity, public address derivation and the fixed quote. PostgreSQL owns address allocation, observations, settlement and entitlements.
+2. Chain observers read supported EVM networks or Bitcoin mainnet through Esplora. They verify recipient, amount, network, block identity, timing and confirmation depth before granting a purchase.
+3. The separate forwarding service holds the processor receive-chain spending keys. It automatically signs and broadcasts transfers from paid receiving addresses into the owner's ELLIPAL destinations. The website never needs those keys or the ELLIPAL recovery words.
 
 ```mermaid
 flowchart TD
-  Member[Authenticated member] --> Checkout[Checkout API]
-  Checkout --> Quote[Product price plus collection fee]
-  Quote --> Orders[(PostgreSQL orders and address allocation)]
-  Orders --> Instructions[Network, token, address and total]
-  Instructions --> Sender[Member wallet sends payment]
-  Sender --> Chain[Supported blockchain]
-  Chain --> Observer[RPC watcher or receipt recovery]
-  Observer --> Settlement[Validate evidence and settlement policy]
-  Settlement --> Orders
-  Settlement --> Benefits[Grant purchased entitlement]
-  Orders -. Operational reference .-> Planner[Operator collection planner]
-  Planner --> Unsigned[Unsigned transaction bundle]
-  Unsigned --> Signer[Separate signing terminal]
-  Signer --> Signed[Signed transaction bundle]
-  Signed --> Broadcast[Online broadcast and receipt checks]
-  Broadcast --> Chain
+  Customer[Customer selects product and app] --> API[Authenticated checkout API]
+  API --> Quote[Fixed product plus collection cost]
+  Quote --> DB[(Orders and unique addresses)]
+  DB --> Checkout[Exact payment and separate balance guidance]
+  Checkout --> App[Customer's existing payment app]
+  App --> Deposit[Unique order receiving address]
+  Deposit --> Watcher[Chain evidence and confirmations]
+  Watcher --> DB
+  DB --> Grant[Grant cruush+ time or Pulse credits once]
+  DB --> Forward[Automatic forwarding service]
+  Forward --> Journal[Persist exact signed transaction]
+  Journal --> Cold[ELLIPAL destination]
 ```
 
-The dashed connection represents information needed by operations, not an implemented automatic server-to-signer integration. Payment acceptance and collection are distinct: the entitlement can be granted when the deposit qualifies, before the operator consolidates tokens.
+Acceptance and forwarding are distinct stages. The entitlement is granted when the deposit qualifies; forwarding follows automatically. Network or fee delays can defer forwarding without requiring a manual command for each address.
 
-## Purchase lifecycle
+## Prices and the two checkout amounts
 
-### 1. Create an authenticated order
+The API reads the existing catalog and accepts no browser-supplied price or entitlement. It stores a fixed product-plus-collection quote with metadata. Stablecoins use six decimal places; Bitcoin uses satoshis and an issuance-time BTC/USD conversion rounded upward. Later exchange-rate changes never rewrite that order's BTC obligation.
 
-The member selects a supported product and payment rail. The server determines the price and binds the intent to the authenticated member. It does not accept a browser-supplied entitlement or price as authoritative.
+**Send exactly** is the product plus cruush's quoted collection cost. It is the amount in the payment URI/QR and the minimum required for fee-bearing settlement. **Have available** adds the estimated Cash App, PayPal or Venmo sending allowance. That allowance stays in the customer's app and is not subtracted from the exact recipient amount. Unused balance belongs to the customer. Other wallets get no sender allowance estimate.
 
-The order workflow uses database transactions, reservations and idempotency handling to prevent retries from allocating inconsistent purchases. Product accounting includes subscription entitlements and purchased pack credits; the presence of pack accounting does not add a separate group product or group interface.
+The allowance policy takes the maximum of a $5 floor ($10 for Venmo/Ethereum), 10% of the product price rounded upward to whole dollars, and three times the quoted collection cost rounded upward to dollars. It is cruush's estimate, not a provider-authenticated quote or guaranteed maximum. Provider recipient minimums are checked separately; buying more cannot make an undersized exact payment eligible.
 
-The principal implementation is `server/src/crypto-payments.ts`, reached through `server/src/routes/crypto-payments.ts`. Direct billing integration is in `billing.ts` and `ping-packs.ts`.
+EVM collection estimates include token movement, a native gas-funding transfer and applicable network fee components. Bitcoin estimates reserve a 150-vbyte forwarding transaction at the current target-one-block fee rate. A normal receipt creates no separate recipient gas bill. The customer's outgoing app fee is separate from these collection costs.
 
-### 2. Calculate and persist the mandatory collection fee
+Stablecoin forwarding requires a native ETH working balance on the selected chain. The service automatically supplies ETH to individual receiving addresses; stablecoin collection charges reimburse its estimated value. Bitcoin pays its forwarding fee from received BTC. No exchange/conversion or automatic ETH replenishment is implemented.
 
-A new order includes the product price plus a mandatory estimate of the cost of collecting its tokens. The fee is denominated in the purchase stablecoin. It is part of the amount that must reach the deposit address.
+## Order identity and deadlines
 
-The estimator reads the selected chain's gas conditions, simulates token and native transfers, adds gas allowances, and converts the estimated ETH cost using Coinbase's public ETH/USD spot response. Base estimates also include Layer 1 data and operator fee reserves. The result is rounded upward to cents and stored with its estimation metadata.
+Every order persists its owner, product, network, asset, address derivation index, wallet fingerprint, quote and publication deadline. Database allocation prevents reusing a receiving address for another order. EVM uses the existing public receive-chain descriptor; Bitcoin uses BIP84 at `m/84'/0'/0'/0` and native SegWit receiving addresses.
 
-The stored quote is fixed for the addressed order. Reopening an order reuses that quote rather than silently changing what the member owes. A failed fee lookup prevents successful order issuance and rolls back the reservation. A freshness check runs after the price fetch so a slow fetch cannot leave an already-stale block sample accepted.
+New orders default to a 24-hour on-chain arrival window. Previously issued deadlines remain unchanged. A payment included on-chain by the deadline can finish confirmation afterward. A customer app's pending status is not proof of on-chain arrival. Changing method cancels an unpaid order before a fresh order/address/deadline is created. Confirming orders cannot be canceled through that flow.
 
-The fee is an estimate, not reimbursement of a measured future transaction. The implementation does not refund an unused estimate or bill a later difference automatically. The purchaser also pays their sending wallet's network fee. Collecting stablecoin does not create native ETH: the operator still needs ETH to fund and execute collection transactions.
+`/store` and `/store/pulse` use the same store component and processor. Product-specific APIs preserve subscription and Pulse accounting. Fixed-term subscriptions never auto-renew; Pulse credits are a one-time purchase. The requested cross-navigation also appears on the cruush+ information page. Group Pulse is outside scope.
 
-The design prices supported stablecoin atomic amounts against a dollar-denominated product catalog. Stablecoin depegging is therefore a commercial risk, not something this ETH/USD conversion resolves. Estimation allowances, the fee cap, source availability and collection delay need launch review.
+## Observation, confirmation and settlement
 
-### 3. Publish a unique deposit address
+| Rail | Network | Confirmation target |
+| --- | --- | ---: |
+| USDC / PYUSD | Arbitrum | 240 |
+| PYUSD | Ethereum | 12 |
+| USDC | Base | 30 |
+| BTC | Bitcoin mainnet | 6 |
+| Test USDC | Base Sepolia, test infrastructure only | 3 |
 
-The server derives a child address from an extended public key and persists its association with the order. The member receives the network, asset, address and quoted total. An address on one EVM chain does not establish that a payment on another chain qualifies.
+Existing EVM policy can require a higher target. Bitcoin's approved target is six. An hour is a rough Bitcoin block-production average, not a guaranteed time from clicking Send. The UI polls actual server observations and displays progress such as 1/6.
 
-Unique addresses make order attribution possible without asking each member to add a memo to an ERC-20 transfer. They also create operational costs: each address holding tokens may require native gas before those tokens can be collected.
+The EVM watcher validates successful token transfer evidence against chain, contract, recipient and canonical blocks. Native Bitcoin verifies mainnet genesis, recent canonical head, transaction outputs and block identity. Its order/user locks encompass observation and settlement so overlapping passes cannot overwrite newer evidence with stale results. Removed pre-settlement chain evidence is reconciled before granting.
 
-The public descriptor enables address derivation without putting routine spending keys on the application server. It remains sensitive operational data because it can expose relationships among derived addresses. Database allocation history must survive recovery so old addresses are not reassigned to new orders.
+Atomic integer sums determine whether enough qualifying money arrived. Progress reflects the outputs needed to cover the quote; a small additional output does not reset a fully funded payment's progress. Transactional entitlement accounting grants once under repeated or concurrent observation. Timely deposits remain recoverable during the watcher recovery window after expiry. Wrong network, late deposits and exceptional accounting states remain support cases rather than automatic valid purchases.
 
-### 4. Observe and validate the transfer
+Bitcoin uses its own evidence table and watcher. Its internal chain discriminator never enters the EVM RPC watcher. Support reconciliation includes native transaction outputs and canonical confirmation counts.
 
-The watcher reads chain evidence through configured RPC endpoints. The receipt recovery path provides another way to inspect a known transaction. Neither a transaction hash supplied by a client nor a successful HTTP response alone proves a purchase was paid.
+## Automatic forwarding and custody
 
-Validation binds evidence to the expected chain, token contract, recipient, successful transaction, block identity and timing. Settlement considers confirmation depth and the order's publication/payment window. Persistent watcher positions support continued observation, while database constraints and transactional settlement protect against repeated grants.
+`tools/cruush-wallet` supplies `setup-forwarding` and `forward`. One-time private setup verifies the existing processor wallet fingerprint, derives EVM and Bitcoin receive-chain keys, validates the public Bitcoin cold destination and writes a new private file. It never asks for ELLIPAL spending keys. Public xpub configuration goes to the API; the private file belongs only to the forwarding service.
 
-The code declares these rails and confirmation requirements:
+The service queries paid orders, verifies each derived address/fingerprint, and prepares a transfer to the pinned EVM or configured Bitcoin ELLIPAL destination. It refuses a plan above the customer's stored collection budget and retries later. Bitcoin verifies source transaction bytes, scripts, amounts, canonical blocks and six confirmations before signing one destination output. Unconfirmed dust does not block an already confirmed purchase. A highly fragmented deposit can require more fee than the original single-input estimate.
 
-| Rail | Chain ID | Declared confirmations |
-| --- | ---: | ---: |
-| USDC on Arbitrum | 42161 | 240 |
-| PYUSD on Arbitrum | 42161 | 240 |
-| PYUSD on Ethereum | 1 | 12 |
-| USDC on Base | 8453 | 30 |
-| USDC on Base Sepolia | 84532 | 3 |
+`crypto_payment_collections` persists exact signed bytes before submission. Restart reuses the same transaction rather than creating another payment. Advisory locks serialize each wallet/network's work. EVM receipt-aware retry preserves successful gas funding and stops later nonce allocation while an earlier signed operation is unresolved. Bitcoin checks for an existing transaction before broadcasting and records eventual confirmation.
 
-These are source constants, not claims of equivalent economic finality or evidence that every rail is enabled in the running application. Configuration and settlement policy can require a higher threshold. Base Sepolia is test infrastructure, not a real-money asset rail.
+The supplied Docker/Compose service runs the real implementation continuously with automatic restart, no public port, a read-only private-file mount and a non-root service user. The key file must be private and owned by that user. Generic diagnostic counts/errors avoid logging key material or raw provider responses.
 
-### 5. Settle and grant the purchase
+## Trust and failure boundaries
 
-Amounts are handled in atomic token units. The processor compares qualifying deposits with the persisted order amount rather than relying on display rounding. New fee-bearing quotes require the complete quoted total: legacy underpayment tolerance cannot remove the mandatory collection fee.
+The processor relies on its database, application, configured chain sources and price source. Public derivation protects spending keys from routine API exposure but does not prevent a compromised checkout server from substituting instructions. The separate signer is an online software signer for the processor wallet; the ELLIPAL destination remains cold. It is not hardware signing of the intermediate transfers.
 
-Database locks and transactional updates coordinate order settlement with entitlement accounting. Repeated observations or concurrent settlement attempts must not grant the same purchase twice. The local PostgreSQL tests specifically exercise rollback, quote reuse, incomplete fee payment and concurrent completion.
+Fees can rise after issuance, and custodian app fees are not derivable exactly from public network conditions. If forwarding costs exceed the stored budget, the service waits and retries. Missing native ETH also requires replenishing the working balance. Funds remain controlled by the processor keys while waiting. Addresses continue to exist after timers expire.
 
-A transfer mined outside the allowed payment window is not made timely merely because someone submits its hash later. Recovery can identify timely evidence after an intent expires; it still applies the underlying evidence and timing checks. Refunds, wrong-network deposits and late payments require an operational policy rather than an assumption that every transfer buys an entitlement.
+Database address history and private key backups are necessary for recovery. A child private key combined with relevant public derivation information can compromise non-hardened BIP32 ancestry. Six confirmations reduce competing-chain risk but do not make consumed entitlements reversible or guarantee consensus finality. No automatic refunds, asset conversion, late-deposit entitlement override or post-grant benefit reversal is introduced here.
 
-### 6. Collect deposited tokens
+## Verification and configuration
 
-The operator prepares a bundle describing native gas funding and a token sweep. Plans identify the network, wallet fingerprint, derivation index, source, destination, amounts, nonce and fee bounds. Signing validates these fields and requires an explicit confirmation phrase.
+Server, client and wallet builds pass. Focused tests exercise both product settlements in PostgreSQL, concurrent grants, pre-settlement reorganization, expiry timing, actual transaction signing with public unfunded keys, destination validation and fee-budget waiting. Authenticated local UI checks use real mainnet fee sources and persist real unpaid orders. No mainnet payment or collection was broadcast in this session.
 
-Signed bundles can move to an online broadcasting context. The broadcaster validates their contents and checks receipts so a retry can continue after confirmed partial completion. For example, a successful funding transaction should not need to be repeated just because the token sweep failed later.
-
-The signing terminal uses a software wallet. Interactive checks are a guard against accidental use, not protection against a compromised computer or a malicious terminal wrapper. The implementation can select a pinned ELLIPAL recipient, but does not implement ELLIPAL device signing. Receiving into a hardware-controlled address does not turn the upstream software signer into a hardware wallet.
-
-## Why these choices were made
-
-The rationale below explains the implementation's engineering properties. It does not imply that every alternative has been benchmarked or independently reviewed.
-
-| Choice | Benefit | Cost or limitation |
-| --- | --- | --- |
-| Order-specific HD addresses | Straightforward transfer attribution without ERC-20 payment memos | Address allocation must be durable; collection can require two transactions per deposit address |
-| Public derivation on the server, separate signing tool | Reduces private-key exposure from routine application compromise | Server compromise can still substitute checkout instructions or corrupt accounting; signer compromise remains critical |
-| Existing token transfers and application ledger | Reuses supported assets and product accounting without a custom payment contract | Correctness depends on the application, database and RPC evidence; this is not trustless settlement |
-| Persisted fee-inclusive quote | The member sees one stable total tied to an order; retries retain the same obligation | The estimate can differ from later costs and depends on gas and price sources |
-| Exact settlement for new fee-bearing orders | Prevents tolerance from making the mandatory fee optional | Small underpayments need additional payment or support handling |
-| Persistent observation plus receipt recovery | Supports normal discovery and investigation of a specific missing payment | Both paths must enforce the same evidence rules and depend on reliable chain access |
-| Explicit unsigned/signed file handoff | Allows review before signing and separates planning from broadcast | Files and signing hosts require operational protection; this is not an air-gap guarantee |
-| Disabled activation defaults | Supports review and rehearsal before accepting deposits | An operator must deliberately configure, fund and monitor the service before launch |
-
-## Data and trust boundaries
-
-PostgreSQL links member accounts to payment intents, address allocation, chain evidence and entitlement state. This link is private application data even though blockchain transfers are public. Limiting support access and log contents reduces exposure, but unique addresses do not guarantee anonymity.
-
-The chain source checks consistency of RPC responses. It does not independently validate blockchain consensus. A coherently dishonest provider remains a trust dependency, as does a compromised backend or database. Confirmation depth reduces certain settlement risks but does not prove immunity to reorganizations, especially after an entitlement has already been consumed.
-
-The extended public key cannot ordinarily spend funds by itself. However, the non-hardened derivation structure has an important combined-compromise risk: disclosure of an appropriate child private key together with its parent extended public key can expose parent key material. See the [BIP-32 security implications](https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki#implications). Key isolation and recovery procedures must account for the complete wallet structure.
-
-Layer 2 fees also have components beyond ordinary EVM execution. Base collection reserves account for the relevant OP Stack fee categories; the [OP Stack fee documentation](https://docs.optimism.io/op-stack/transactions/fees) explains why execution gas alone is insufficient. Simulation sizes and allowances still need empirical verification for the actual transactions used.
-
-## Failure handling and operational requirements
-
-| Condition | Current behavior or boundary |
-| --- | --- |
-| Fee source unavailable or stale block sample | New issuance fails rather than omitting the fee |
-| Member retries an existing addressed order | The persisted quote and order identity are reused |
-| Product amount arrives without the collection fee | New fee-bearing order remains underpaid |
-| Duplicate or concurrent qualifying observations | Transactional settlement is intended to grant once; covered by database tests |
-| Receipt arrives after expiry for a timely transfer | Recovery verifies the original evidence and timing before settlement |
-| Funding succeeded but sweep did not | Receipt-aware bundle retry can skip successful funding |
-| Treasury lacks native ETH | Stablecoin balances alone cannot pay collection gas; operator action is required |
-| Wrong network, wrong asset or late payment | Does not automatically qualify; recovery/refund policy is required |
-| Reorganization after entitlement grant | Residual operational risk; no claim of automatic reversal of consumed benefits |
-| Database loss or signer compromise | Requires a rehearsed recovery process; documentation is not proof that recovery works |
-
-A production runbook should name the people responsible for monitoring unresolved deposits, gas reserves, RPC failures, accounting reconciliation and key recovery. It should also distinguish pausing new order issuance from handling addresses already published: those addresses can still receive transfers.
-
-## Evidence and next decision
-
-The security-review snapshot records passing processor, wallet and checkout tests, including real PostgreSQL concurrency cases, and successful server, client and wallet builds. The exact counts and reproduction commands are maintained in [SECURITY_REVIEW.md](SECURITY_REVIEW.md). The database tests use simulated confirmed evidence; they do not replace a live chain rehearsal.
-
-Before launch, complete independent security review, fresh installation and migration rehearsals, a controlled fee-inclusive testnet purchase through collection, and ownership/spending verification on the intended custody setup. Approve fee policy, finality thresholds and operational handling of refunds and exceptions. Deployment and activation remain separate owner decisions.
-
-This design provides a reviewable route from a member's order to observed payment, durable entitlement and operator collection. Its strongest remaining questions concern trust in chain and price sources, signer isolation, recovery durability and proof of the complete deployed flow.
+The owner explicitly deferred Bitcoin address/private provisioning until code completion. The full implementation is present; those values and the service's working balances are necessary runtime inputs. Follow `tools/cruush-wallet/AUTOMATIC_FORWARDING.md` for exact setup. The existing API enabled/watcher flags must be true in the intended service. This task has not changed production configuration or deployed the branch.

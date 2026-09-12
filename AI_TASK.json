@@ -1,9 +1,9 @@
 {
   "schemaVersion": 2,
   "taskId": "crypto-processor-security-handoff-20260908",
-  "status": "validating",
-  "objective": "Prepare a processor-only local security review branch with validated code, database evidence and explicit remaining launch blockers.",
-  "userOutcome": "A processor-only local security review branch and an evidence-honest reviewer handoff.",
+  "status": "validated_locally",
+  "objective": "Deliver the real crypto checkout and automatic ELLIPAL forwarding implementation for cruush+ and Pulse, including native Bitcoin and separate customer sending allowances.",
+  "userOutcome": "Code complete on the existing processor review branch; owner Bitcoin and private forwarding setup explicitly follow code completion.",
   "audience": "Julien and the reviewing developer",
   "successCriteria": [
     "The branch changes only crypto files and the modules the processor imports.",
@@ -332,5 +332,35 @@
     ],
     "worktree": "/Volumes/good/cruush-processor-security-handoff",
     "verification": "Documentation checked against source and local links; recovered source snapshot compared byte-for-byte before commit. Historical test evidence remains labeled."
+  },
+  "currentProcessorContinuation": {
+    "sessionId": "01a095c7-d9c8-7d51-980b-24acbc0daf99",
+    "date": "2026-09-12",
+    "status": "validated_locally_owner_setup_deferred",
+    "supersedes": "Earlier disabled/manual-only, no-Pulse-checkout and documentation-only scope statements apply to their historical checkpoints, not this implementation. Current owner requests govern.",
+    "scope": [
+      "Native Bitcoin for Cash App, PayPal and Venmo; six confirmations and actual progress",
+      "24-hour default and fresh orders after unpaid method changes",
+      "Real automatic ELLIPAL forwarding with durable retry",
+      "Shared cruush+ and Pulse checkout and requested cross-navigation",
+      "Exact recipient amount plus separate estimated named-app available balance; unused allowance stays with customer"
+    ],
+    "deferredByOwner": [
+      "Blog revisions",
+      "Bitcoin receiving address and private service provisioning until code completion"
+    ],
+    "validation": [
+      "Client, server and wallet builds passed",
+      "Forwarding Docker image built",
+      "30 checkout/API tests passed",
+      "11 wallet RPC/signing/recovery tests passed",
+      "Real PostgreSQL settlement cases for both products passed",
+      "Authenticated mainnet-source local quotes for Cash App, PayPal, Venmo and Pulse; 375px and 1280px renders"
+    ],
+    "remainingRuntimeEvidence": [
+      "Owner Bitcoin destination and private forwarding file are not provisioned",
+      "No actual mainnet payment or ELLIPAL forwarding performed",
+      "No production deployment"
+    ]
   }
 }

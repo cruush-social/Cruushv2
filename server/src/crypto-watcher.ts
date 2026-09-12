@@ -214,7 +214,7 @@ export async function loadWatchableIntents(
 
   return result.rows.flatMap((row) => {
     const rail = railIdFor(row.asset, row.network);
-    if (!rail) {
+    if (!rail || rail === "btc_bitcoin") {
       return [];
     }
 
@@ -539,6 +539,15 @@ async function lockAndSumConfirmedAmount(
   watchStartBlock: string
 ): Promise<bigint> {
   const rail = CRYPTO_PAYMENT_RAILS[railId];
+  if (railId === "btc_bitcoin") {
+    const result = await db.query<{ total: string }>(
+      `select coalesce(sum(amount_atomic::numeric), 0)::text as total
+       from crypto_bitcoin_transfers where intent_id = $1 and status = 'confirmed' and confirmations >= 6
+         and block_timestamp <= $2::timestamptz and block_number > $3::bigint`,
+      [intentId, expiresAt, watchStartBlock]
+    );
+    return BigInt(result.rows[0]?.total ?? '0');
+  }
   const result = await db.query<{ total: string | null }>(
     `select coalesce(sum(amount_atomic::numeric), 0)::text as total
      from (
@@ -575,7 +584,7 @@ async function lockAndSumConfirmedAmount(
  */
 type SettlementResult = { settled: boolean; granted: boolean; note: string | null };
 
-async function settleIntentInTransaction(
+export async function settleIntentInTransaction(
   app: { db: DbClient },
   tx: DbClient,
   intent: WatchableIntent,

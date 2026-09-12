@@ -1,3 +1,4 @@
+import { withCryptoPaymentProgress } from "../crypto-payment-progress.js";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { getCruushPlusPlan } from "../billing.js";
@@ -36,13 +37,13 @@ import { ingestCryptoPaymentReceipt } from "../crypto-watcher.js";
 const paymentIntentPayloadSchema = z.object({
   planId: z.string().min(1),
   idempotencyKey: z.string().trim().min(8).max(128),
-  rail: z.enum(["usdc_arbitrum", "pyusd_arbitrum", "pyusd_ethereum", "usdc_base", "usdc_base_sepolia"]).default("usdc_arbitrum")
+  rail: z.enum(["usdc_arbitrum", "pyusd_arbitrum", "pyusd_ethereum", "usdc_base", "usdc_base_sepolia", "btc_bitcoin"]).default("usdc_arbitrum")
 }).strict();
 
 const pingPackIntentPayloadSchema = z.object({
   packId: z.enum(["ping_3", "ping_10", "ping_25"]),
   idempotencyKey: z.string().trim().min(8).max(128),
-  rail: z.enum(["usdc_arbitrum", "pyusd_arbitrum", "pyusd_ethereum", "usdc_base", "usdc_base_sepolia"]).default("usdc_arbitrum")
+  rail: z.enum(["usdc_arbitrum", "pyusd_arbitrum", "pyusd_ethereum", "usdc_base", "usdc_base_sepolia", "btc_bitcoin"]).default("usdc_arbitrum")
 }).strict();
 
 const paymentIntentParamsSchema = z.object({
@@ -103,6 +104,7 @@ export async function resolvePrePublicationWatchStartBlocks(
   intendedRail: CryptoPaymentRailId,
   readRailHead: CryptoPaymentRailHeadReader
 ) {
+  if (intendedRail === "btc_bitcoin") return {};
   const intendedChainId = CRYPTO_PAYMENT_RAILS[intendedRail].chainId;
   const secondaryRails = SUPPORTED_CHAIN_BOOTSTRAP_RAILS.filter(
     (rail) => CRYPTO_PAYMENT_RAILS[rail].chainId !== intendedChainId
@@ -133,8 +135,8 @@ async function assertCryptoPaymentIntentReadRateLimit(app: FastifyInstance, user
 const supportLookupSchema = z.union([
   z.object({ intentId: z.uuid() }).strict(),
   z.object({ userId: z.uuid() }).strict(),
-  z.object({ address: z.string().regex(/^0x[0-9a-fA-F]{40}$/) }).strict(),
-  z.object({ transactionHash: z.string().regex(/^0x[0-9a-fA-F]{64}$/) }).strict()
+  z.object({ address: z.string().regex(/^(?:0x[0-9a-fA-F]{40}|bc1q[023456789acdefghjklmnpqrstuvwxyz]{38})$/) }).strict(),
+  z.object({ transactionHash: z.string().regex(/^(?:0x)?[0-9a-fA-F]{64}$/) }).strict()
 ]);
 
 const supportReceiptSchema = z.object({
@@ -195,7 +197,7 @@ export async function registerCryptoPaymentRoutes(
       metadata: { source: "store" }
     });
 
-    return reply.code(201).send({ data: await withCryptoPaymentDisplay(intent) });
+    return reply.code(201).send({ data: await withCryptoPaymentDisplay(await withCryptoPaymentProgress(app.db, app.config, intent)) });
   });
 
   app.post("/api/crypto/ping-pack-intents", async (request, reply) => {
@@ -228,7 +230,7 @@ export async function registerCryptoPaymentRoutes(
       metadata: { source: "ping_pack_store", pingCount: pack.pingCount }
     });
 
-    return reply.code(201).send({ data: await withCryptoPaymentDisplay(intent) });
+    return reply.code(201).send({ data: await withCryptoPaymentDisplay(await withCryptoPaymentProgress(app.db, app.config, intent)) });
   });
 
   app.get("/api/crypto/payment-intents/current", async (request, reply) => {
@@ -237,7 +239,7 @@ export async function registerCryptoPaymentRoutes(
     const intent = await loadCurrentOpenCryptoPaymentIntent(app.db, userId);
 
     return reply.send({
-      data: intent ? await withCryptoPaymentDisplay(intent) : null
+      data: intent ? await withCryptoPaymentDisplay(await withCryptoPaymentProgress(app.db, app.config, intent)) : null
     });
   });
 
@@ -247,7 +249,7 @@ export async function registerCryptoPaymentRoutes(
     const intent = await loadCurrentOpenCryptoPaymentIntent(app.db, userId, "ping_pack");
 
     return reply.send({
-      data: intent ? await withCryptoPaymentDisplay(intent) : null
+      data: intent ? await withCryptoPaymentDisplay(await withCryptoPaymentProgress(app.db, app.config, intent)) : null
     });
   });
 
@@ -258,7 +260,7 @@ export async function registerCryptoPaymentRoutes(
     const intent = await loadCryptoPaymentIntent(app.db, userId, intentId);
 
     return reply.send({
-      data: await withCryptoPaymentDisplay(intent)
+      data: await withCryptoPaymentDisplay(await withCryptoPaymentProgress(app.db, app.config, intent))
     });
   });
 
@@ -273,7 +275,7 @@ export async function registerCryptoPaymentRoutes(
     const intent = await cancelCryptoPaymentIntent(app.db, userId, intentId);
 
     return reply.send({
-      data: await withCryptoPaymentDisplay(intent)
+      data: await withCryptoPaymentDisplay(await withCryptoPaymentProgress(app.db, app.config, intent))
     });
   });
 

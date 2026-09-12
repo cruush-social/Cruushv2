@@ -116,6 +116,12 @@ async function attachTransfers(db: DbClient, rows: IntentRow[]): Promise<CryptoR
             amount_atomic, from_address, to_address, confirmations, status, first_seen_at, confirmed_at
      from crypto_payment_transfers
      where intent_id = any($1::uuid[])
+     union all
+     select id, intent_id, 0 as chain_id, '' as token_address, coalesce(block_hash, '') as block_hash, block_timestamp,
+            transaction_hash, output_index as log_index, block_number::text,
+            amount_atomic::text, '' as from_address, to_address, confirmations, status, first_seen_at,
+            case when status = 'confirmed' then updated_at else null end as confirmed_at
+     from crypto_bitcoin_transfers where intent_id = any($1::uuid[])
      order by block_number asc, log_index asc`,
     [rows.map((row) => row.id)]
   );
@@ -202,8 +208,8 @@ export async function findCryptoPaymentsByTransactionHash(db: DbClient, transact
   const result = await db.query<IntentRow>(
     `select distinct ${INTENT_COLUMNS}
      from crypto_payment_intents i
-     join crypto_payment_transfers t on t.intent_id = i.id
-     where lower(t.transaction_hash) = lower($1)`,
+     where exists (select 1 from crypto_payment_transfers t where t.intent_id = i.id and lower(t.transaction_hash) = lower($1))
+        or exists (select 1 from crypto_bitcoin_transfers t where t.intent_id = i.id and t.transaction_hash = lower($1))`,
     [transactionHash]
   );
 
@@ -273,7 +279,7 @@ export async function findCryptoReconciliationExceptions(db: DbClient): Promise<
   // moved. Only the intent's exact chain and token count. Mismatched transfers
   // stay stored and remain visible through support lookup as truthful,
   // non-creditable evidence.
-  const intendedRails = Object.values(CRYPTO_PAYMENT_RAILS);
+  const intendedRails = Object.values(CRYPTO_PAYMENT_RAILS).filter(rail => rail.chainId !== 0);
   const stuck = await db.query<{ id: string; confirmed: string; quoted: string }>(
     `select i.id,
             sum(t.amount_atomic::numeric)::text as confirmed,
@@ -297,7 +303,16 @@ export async function findCryptoReconciliationExceptions(db: DbClient): Promise<
        i.quoted_amount_atomic::numeric - case when i.metadata ? 'collectionFee' then 0 else least(
          floor(i.quoted_amount_atomic::numeric * $5::integer / 10000),
          $6::numeric
-       ) end`,
+       ) end
+     union all
+     select i.id, sum(t.amount_atomic)::text as confirmed, i.quoted_amount_atomic as quoted
+     from crypto_payment_intents i join crypto_bitcoin_transfers t on t.intent_id = i.id
+       and t.to_address = i.payment_address and t.status = 'confirmed' and t.confirmations >= 6
+       and t.block_number > i.watch_start_block and t.block_timestamp <= i.expires_at
+     where i.asset = 'BTC' and i.network = 'bitcoin' and i.status not in ('paid', 'refunded')
+       and i.quoted_amount_atomic is not null
+     group by i.id, i.quoted_amount_atomic
+     having sum(t.amount_atomic) >= i.quoted_amount_atomic::numeric`,
     [
       intendedRails.map((rail) => rail.asset),
       intendedRails.map((rail) => rail.network),

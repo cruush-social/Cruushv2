@@ -13,7 +13,7 @@ alter table crypto_payment_intents
 
 alter table crypto_payment_intents
   add constraint crypto_payment_intents_network_check
-  check (network in ('base', 'ethereum', 'arbitrum', 'base-sepolia'));
+  check (network in ('base', 'ethereum', 'arbitrum', 'base-sepolia', 'bitcoin'));
 
 alter table crypto_payment_events
   drop constraint if exists crypto_payment_events_source_check;

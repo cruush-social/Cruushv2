@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+import { setupAutomaticForwarding } from "./automatic-forwarding.js";
+import { startAutomaticForwarding } from "./forwarding-worker.js";
 import { existsSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { lstat, open, readFile, rename, unlink } from "node:fs/promises";
@@ -49,6 +51,8 @@ import {
 const HELP = `cruush local software wallet
 
 Commands:
+  wallet setup-forwarding <private-config-file>
+  wallet forward <private-config-file>
   wallet status
   wallet address <derivation-index>
   wallet configure-server-xpub <server-env-file>
@@ -66,7 +70,8 @@ redirection. Those checks are heuristics that stop accidents, not a boundary:
 a process that deliberately wraps this tool in a pseudo-terminal defeats all of
 them. Close agent apps, screen sharing, terminal recording, and remote control
 before answering the live-presence challenge.
-Only broadcast-bundle broadcasts. It requires a direct normal Terminal, prints
+The forward service automatically broadcasts collections to the configured cold wallet.
+Manual broadcast-bundle requires a direct normal Terminal, prints
 the exact hashes and maximum fees, and requires an exact live confirmation.`;
 
 async function showWalletStatus(args: string[]) {
@@ -516,6 +521,12 @@ async function main() {
     return;
   }
 
+  if (command === "setup-forwarding" || command === "forward") {
+    if (args.length !== 1) throw new Error("Provide one private forwarding configuration file path.");
+    if (command === "setup-forwarding") await setupAutomaticForwarding(args[0]!);
+    else await startAutomaticForwarding(args[0]!);
+    return;
+  }
   if (command === "init") {
     await initializeWallet(args);
     return;

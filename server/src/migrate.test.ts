@@ -23,14 +23,14 @@ describe("migration runner", () => {
     expect(listedFiles).toEqual(sqlFiles);
   });
 
-  it("keeps the crypto order database fallback at 60 minutes", async () => {
+  it("sets the new crypto order database fallback to 24 hours", async () => {
     const windowSql = await readFile(
-      path.join(serverRoot, "sql", "122_crypto_payment_intent_window.sql"),
+      path.join(serverRoot, "sql", "125_crypto_payment_24_hour_window.sql"),
       "utf8"
     );
 
     expect(windowSql).toContain("alter column expires_at set default");
-    expect(windowSql).toContain("interval '60 minutes'");
+    expect(windowSql).toContain("interval '1440 minutes'");
   });
 
   it("keeps Ping pack grants permanent, exact, and linked to one payment intent", async () => {

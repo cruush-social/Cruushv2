@@ -616,7 +616,8 @@ export default function App({
               ) : null}
               <Route path="/lucky" element={<FeelingLucky />} />
               <Route path="/requests" element={<RequestsDashboard />} />
-              <Route path="/store" element={<CruushPlusStore />} />
+              <Route path="/store" element={<CruushPlusStore key="plus" />} />
+              <Route path="/store/pulse" element={<CruushPlusStore key="pulse" product="ping_pack" />} />
               <Route path="/upgrade" element={<Navigate to="/rewards" replace />} />
               <Route path="/rewards" element={<Rewards />} />
               <Route path="/checkout/success" element={<CruushPlusSuccess />} />

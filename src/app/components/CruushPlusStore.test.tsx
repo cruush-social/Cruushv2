@@ -20,6 +20,9 @@ vi.mock('../lib/cryptoCheckoutApi', async () => {
 
   return {
     ...actual,
+    getPulsePacks: vi.fn(),
+    createPulsePaymentIntent: vi.fn(),
+    getCurrentPulsePaymentIntent: vi.fn(),
     getCryptoProcessorStatus: vi.fn(),
     getCurrentCryptoPaymentIntent: vi.fn(),
     createCryptoPaymentIntent: vi.fn(),
@@ -30,6 +33,7 @@ vi.mock('../lib/cryptoCheckoutApi', async () => {
 
 const { getBillingPlans } = await import('../lib/billingApi');
 const {
+  getPulsePacks, createPulsePaymentIntent, getCurrentPulsePaymentIntent,
   cancelCryptoPaymentIntent,
   createCryptoPaymentIntent,
   getCryptoPaymentIntent,
@@ -215,17 +219,17 @@ describe('CruushPlusStore', () => {
       expect(screen.queryByText(/47\.10\/month/)).not.toBeInTheDocument();
     });
 
-    it('puts the monthly rate on the right and the purchase price plus gas under the term', async () => {
+    it('puts the monthly rate on the right and the purchase price plus processing fee under the term', async () => {
       renderStore();
 
       // The comparison number gets the prominent right-hand price position.
       expect(await screen.findByText('$8.33/month')).toBeInTheDocument();
-      expect(screen.getByText('$99.99 + gas fee')).toBeInTheDocument();
+      expect(screen.getByText('$99.99 + processing fee')).toBeInTheDocument();
       fireEvent.click(screen.getByRole('button', { name: /compare plans/i }));
       expect(screen.getByText('$10.00/month')).toBeInTheDocument();
-      expect(screen.getByText('$119.99 + gas fee')).toBeInTheDocument();
+      expect(screen.getByText('$119.99 + processing fee')).toBeInTheDocument();
       expect(screen.getByText('$10.99/month')).toBeInTheDocument();
-      expect(screen.getByText('$65.94 + gas fee')).toBeInTheDocument();
+      expect(screen.getByText('$65.94 + processing fee')).toBeInTheDocument();
     });
 
     it('shows the saving against the monthly price, and never on the monthly plan itself', async () => {
@@ -328,17 +332,17 @@ describe('CruushPlusStore', () => {
 
     const main = (await screen.findByText('Choose your time')).closest('main');
     expect(main).not.toBeNull();
-    expect(main?.children).toHaveLength(5);
-    expect(main?.children[0]).toHaveTextContent('Choose your time');
-    expect(main?.children[0]).toHaveTextContent('Recommended');
-    expect(main?.children[1]).toHaveTextContent('What are you paying from?');
-    expect(main?.children[1]).toContainElement(screen.getByRole('button', { name: 'Cash App' }));
-    expect(main?.children[1]).toContainElement(screen.getByRole('button', { name: 'PayPal' }));
-    expect(main?.children[1]).toContainElement(screen.getByRole('button', { name: 'A crypto wallet' }));
-    expect(main?.children[1]).toContainElement(screen.getByRole('button', { name: /get 1 year for \$99\.99/i }));
-    expect(main?.children[2]).toContainElement(screen.getByRole('list', { name: 'cruush+ benefits' }));
-    expect(main?.children[3]).toContainElement(screen.getByRole('button', { name: /why cruush takes crypto/i }));
-    expect(main?.children[4]).toContainElement(screen.getByRole('link', { name: /read the billing policy/i }));
+    expect(main?.children).toHaveLength(6);
+    expect(main?.children[1]).toHaveTextContent('Choose your time');
+    expect(main?.children[1]).toHaveTextContent('Recommended');
+    expect(main?.children[2]).toHaveTextContent('What are you paying from?');
+    expect(main?.children[2]).toContainElement(screen.getByRole('button', { name: 'Cash App' }));
+    expect(main?.children[2]).toContainElement(screen.getByRole('button', { name: 'PayPal' }));
+    expect(main?.children[2]).toContainElement(screen.getByRole('button', { name: 'A crypto wallet' }));
+    expect(main?.children[2]).toContainElement(screen.getByRole('button', { name: /get 1 year for \$99\.99/i }));
+    expect(main?.children[3]).toContainElement(screen.getByRole('list', { name: 'cruush+ benefits' }));
+    expect(main?.children[4]).toContainElement(screen.getByRole('button', { name: /why cruush takes crypto/i }));
+    expect(main?.children[5]).toContainElement(screen.getByRole('link', { name: /read the billing policy/i }));
   });
 
   it('never starts a payment while the processor is not ready', async () => {
@@ -411,18 +415,23 @@ describe('CruushPlusStore', () => {
     expect(screen.getByRole('button', { name: 'PayPal' })).toBeDisabled();
   });
 
-  it('keeps the backend PYUSD Ethereum rail hidden and cannot start it from checkout', async () => {
+  it('selects the ready Venmo PYUSD Ethereum rail and starts its checkout', async () => {
     vi.mocked(getCryptoProcessorStatus).mockResolvedValue(processorStatus(['pyusd_ethereum']));
 
     renderStore();
 
     const payButton = await screen.findByRole('button', { name: /get 1 month for \$18\.99/i });
-    expect(payButton).toBeDisabled();
+    await waitFor(() => expect(payButton).toBeEnabled());
+    expect(screen.getByRole('button', { name: 'Venmo' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByRole('button', { name: 'Cash App' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'PayPal' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'A crypto wallet' })).toBeDisabled();
-    expect(screen.queryByRole('button', { name: /something else/i })).not.toBeInTheDocument();
-    expect(createCryptoPaymentIntent).not.toHaveBeenCalled();
+    fireEvent.click(payButton);
+    await waitFor(() => expect(createCryptoPaymentIntent).toHaveBeenCalledWith({
+      planId: 'plus_monthly',
+      idempotencyKey: expect.any(String),
+      rail: 'pyusd_ethereum',
+    }));
   });
 
   it('starts one seamless Base USDC payment once the processor is ready', async () => {
@@ -493,8 +502,8 @@ describe('CruushPlusStore', () => {
     expect(await screen.findByText(/waiting for your payment to arrive/i)).toBeInTheDocument();
     expect(screen.getByText('Protected order')).toBeInTheDocument();
     expect(screen.getByText(/order timer:/i)).toBeInTheDocument();
-    expect(screen.getByText(/this address is unique to this order/i)).toHaveTextContent(
-      /only the exact amount in USDC on Base that arrives on-chain before the timer reaches 0 can count toward it/i,
+    expect(screen.getByText(/this address is unique to your order/i)).toHaveTextContent(
+      /Send the exact amount in USDC on Base and allow time for it to arrive on-chain before the timer reaches 0/i,
     );
     expect(screen.getByText('0x73659c60270d326c06Ac204F1A9C63f889a3D14B')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Payment started' })).toBeDisabled();
@@ -555,6 +564,23 @@ describe('CruushPlusStore', () => {
     expect(screen.getByRole('button', { name: 'PayPal' })).toBeEnabled();
     fireEvent.click(screen.getByRole('button', { name: 'PayPal' }));
     expect(screen.getByRole('button', { name: 'PayPal' })).toHaveAttribute('aria-pressed', 'true');
+    const replacement = {
+      ...openIntent,
+      id: '00000000-0000-4000-8000-000000000012',
+      asset: 'PYUSD' as const,
+      rail: 'pyusd_arbitrum' as const,
+      tokenAddress: '0x46850aD61C2B7d64d08c9C754F45254596696984',
+      paymentAddress: '0x2222222222222222222222222222222222222222',
+      createdAt: '2099-09-01T12:01:00.000Z',
+      expiresAt: '2099-09-02T12:01:00.000Z',
+    };
+    vi.mocked(createCryptoPaymentIntent).mockResolvedValue(replacement);
+    fireEvent.click(screen.getByRole('button', { name: /get 1 month for/i }));
+    expect(await screen.findByText(replacement.paymentAddress)).toBeInTheDocument();
+    expect(createCryptoPaymentIntent).toHaveBeenCalledWith({
+      planId: 'plus_monthly', rail: 'pyusd_arbitrum', idempotencyKey: expect.any(String),
+    });
+    expect(screen.queryByText(openIntent.paymentAddress)).not.toBeInTheDocument();
   });
 
   it('keeps a restored open payment on its original rail when that rail is unavailable', async () => {
@@ -826,5 +852,19 @@ describe('CruushPlusStore', () => {
     expect(link.closest('div')).toHaveTextContent(
       'Purchases are final and non-refundable except where applicable law requires a withdrawal, refund, remedy, or forced reversal.',
     );
+  });
+});
+
+describe('Pulse checkout shares the live processor', () => {
+  it('loads Pulse packs and sends the chosen pack to the real Pulse intent API', async () => {
+    vi.mocked(getPulsePacks).mockResolvedValue({ packs: [{ id: 'ping_3', name: '3 Pulses', description: '3 permanent Pulse credits', pingCount: 3, amountCents: 299, currency: 'USD' }] });
+    vi.mocked(getCurrentPulsePaymentIntent).mockResolvedValue(null);
+    vi.mocked(getCryptoProcessorStatus).mockResolvedValue({ ready: true, asset: 'USDC', network: 'arbitrum', confirmationTarget: 1, rails: [{ id: 'usdc_arbitrum', asset: 'USDC', network: 'arbitrum', chainId: 42161, tokenAddress: '', ready: true }] });
+    vi.mocked(createPulsePaymentIntent).mockResolvedValue({ id: 'pulse-order', userId: 'member', planId: 'ping_3', productType: 'ping_pack', asset: 'USDC', network: 'arbitrum', rail: 'usdc_arbitrum', chainId: 42161, tokenAddress: '', amountUsdCents: 299, quotedAmountAtomic: '2990000', paymentAddress: '0x123', paymentUri: null, qrCodeDataUrl: null, status: 'paid', expiresAt: null, createdAt: null, updatedAt: null, paidAt: null });
+    render(<MemoryRouter><CruushPlusStore product="ping_pack" /></MemoryRouter>);
+    fireEvent.click(await screen.findByRole('button', { name: 'Get 3 pulses for $2.99' }));
+    await waitFor(() => expect(createPulsePaymentIntent).toHaveBeenCalledWith(expect.objectContaining({ packId: 'ping_3', rail: 'usdc_arbitrum' })));
+    expect(await screen.findByText('Payment confirmed. Your Pulses are available.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'cruush+ checkout' })).toBeInTheDocument();
   });
 });

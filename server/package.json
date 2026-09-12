@@ -37,6 +37,7 @@
     "@fastify/cors": "11.2.0",
     "@fastify/multipart": "10.0.0",
     "@noble/hashes": "2.3.0",
+    "@scure/base": "2.0.0",
     "@scure/bip32": "2.3.0",
     "@stream-io/node-sdk": "^0.7.59",
     "fastify": "5.8.5",

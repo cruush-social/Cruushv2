@@ -1,3 +1,5 @@
+import { createBitcoinSource, type BitcoinSource } from "./bitcoin.js";
+import { runBitcoinWatcherPass } from "./bitcoin-watcher.js";
 /**
  * Scheduling for the chain watcher.
  *
@@ -17,6 +19,7 @@ import type { DbClient } from "./db.js";
 import {
   CRYPTO_PAYMENT_RAILS,
   assertCryptoProcessorReady,
+  isCryptoPaymentRailReady,
   getCryptoPaymentChainRpcEndpoint,
   getCryptoPaymentRailRpcEndpoint,
   getCryptoPaymentRailIdForChainId,
@@ -49,6 +52,7 @@ export async function readVerifiedCryptoPaymentRailHead(
   sourceFactory: (input: { chainId: number; endpointUrl: string }) => ChainSource = createJsonRpcChainSource
 ) {
   assertCryptoProcessorReady(config, railId);
+  if (railId === "btc_bitcoin") return BigInt((await createBitcoinSource(config.CRYPTO_PROCESSOR_BITCOIN_ESPLORA_URL ?? "").head()).height);
   const rail = CRYPTO_PAYMENT_RAILS[railId];
   const source = sourceFactory({
     chainId: rail.chainId,
@@ -95,6 +99,8 @@ export function resolveWatchedChains(config: AppConfig): ConfiguredChain[] {
     ]);
   }
 
+  if (isCryptoPaymentRailReady(config, "btc_bitcoin")) endpoints.push([0, config.CRYPTO_PROCESSOR_BITCOIN_ESPLORA_URL ?? ""]);
+
   return endpoints
     .filter(([, endpointUrl]) => endpointUrl.length > 0)
     .map(([chainId, endpointUrl]) => ({ chainId, endpointUrl }));
@@ -118,7 +124,7 @@ export function describeWatcherStatus(config: AppConfig) {
 }
 
 export function createChainSources(config: AppConfig): ChainSource[] {
-  return resolveWatchedChains(config).map((chain) =>
+  return resolveWatchedChains(config).filter(chain => chain.chainId !== 0).map((chain) =>
     createJsonRpcChainSource({ chainId: chain.chainId, endpointUrl: chain.endpointUrl })
   );
 }
@@ -148,11 +154,13 @@ export type CryptoWatcherHandle = {
 
 export function startCryptoWatcher(
   app: { db: DbClient; config: AppConfig; log: WatcherLogger },
-  options: { sources?: ChainSource[]; schedule?: boolean } = {}
+  options: { sources?: ChainSource[]; bitcoinSource?: BitcoinSource; schedule?: boolean } = {}
 ): CryptoWatcherHandle | null {
   const sources = options.sources ?? createChainSources(app.config);
 
-  if (sources.length === 0) {
+  const bitcoinSource = options.bitcoinSource ?? (options.sources === undefined && isCryptoPaymentRailReady(app.config, "btc_bitcoin") ? createBitcoinSource(app.config.CRYPTO_PROCESSOR_BITCOIN_ESPLORA_URL ?? "") : null);
+
+  if (sources.length === 0 && !bitcoinSource) {
     const status = describeWatcherStatus(app.config);
     app.log.info({ reason: status.reason }, "crypto watcher not started");
     return null;
@@ -182,6 +190,10 @@ export function startCryptoWatcher(
       }
     }
 
+    if (bitcoinSource) {
+      try { results.push(await runBitcoinWatcherPass(app, bitcoinSource)); }
+      catch { app.log.error({ network: "bitcoin" }, "Bitcoin monitoring failed; will retry"); }
+    }
     return results;
   }
 

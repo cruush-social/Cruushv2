@@ -97,3 +97,6 @@ coverage/
 .claude/settings.local.json
 .claude/worktrees/
 ._.claude
+
+# Local session task records
+/.ai-queues/

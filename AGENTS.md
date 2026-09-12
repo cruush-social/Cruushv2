@@ -7,6 +7,11 @@ invariants, the design system, product invariants, third-party integrations, sec
 branches, planning, tests, and communication. Then read `HANDOFF.md` for the current
 branch's context. Do not ask Julien to repeat anything documented in either file.
 
+For every request in this checkout, also read `DESIGN_DECISIONS.md` and
+`docs/design-master.md`. For processor work, read the current section of
+`CODEX_HANDOFF.md`; its latest owner scope supersedes historical `HANDOFF.md`
+processor status. Runtime architecture is in `docs/master-architecture.md`.
+
 # AWS Guidance
 
 - Prefer the AWS MCP Server for AWS interactions - it provides sandboxed

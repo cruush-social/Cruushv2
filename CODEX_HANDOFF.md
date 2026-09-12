@@ -1,3 +1,39 @@
+# Current processor handoff: September 12, 2026
+
+Worktree: `/Volumes/good/cruush-processor-security-handoff`. Branch: `security/crypto-processor-review-20260908`. This section supersedes the historical records below. Current scope is processor code for cruush+ and Pulse, native Bitcoin, six-confirmation progress, two-amount checkout guidance and automatic forwarding to ELLIPAL. Blog work is deferred. Julien explicitly requested code completion first and his Bitcoin setup afterward; no production deployment has occurred.
+
+## Delivered implementation
+
+- Shared `/store` and `/store/pulse` checkouts, with the requested links from the cruush+ page and between both checkouts. Existing styles and unrelated behavior remain intact.
+- Cash App USDC/Arbitrum, PayPal PYUSD/Arbitrum, Venmo PYUSD/Ethereum and generic USDC/Base remain. Native Bitcoin serves all three named apps, including Cash App where stablecoins are unavailable.
+- New orders default to 24 hours through `CRYPTO_PROCESSOR_INTENT_TTL_MINUTES=1440`. Migration 125 preserves existing deadlines. Changing method cancels an unpaid order before creating a new order/address/deadline; confirming orders remain protected.
+- Every addressed order locks the product plus collection fee in atomic units. Bitcoin has a fixed BTC quote and requires six confirmations. Server polling supplies actual progress, never a simulated timer.
+- Checkout shows the exact recipient amount separately from an estimated available balance for the named app. Unused sending allowance stays with the customer. Generic wallets receive no sender-fee estimate. Provider minimums are disclosed before sending.
+- A separate real signing/broadcast service automatically forwards paid addresses to ELLIPAL. It persists signed transactions before broadcast, retries the same bytes, and serializes each wallet/network. No per-order manual collection. Customer-funded collection budget includes network costs; the app's sending fee is separate.
+- Migrations 126 and 127 add native Bitcoin evidence and durable collection jobs. The API uses public derivation keys; private receive-chain keys remain with the forwarding service.
+
+## Validation
+
+- Server and wallet TypeScript builds pass; the current client production build passes. The forwarding Docker image also builds successfully.
+- Focused server suites passed 101 existing assertions covering watcher, atomicity, Bitcoin helpers and reconciliation. Twelve formerly skipped PostgreSQL cases ran against disposable databases. The added native PostgreSQL suite passed both product cases plus four helper cases, including five-confirmation waiting, reorganization evidence removal, six-confirmation grant-once behavior and confirmation after expiry for an on-time payment.
+- Wallet signing/forwarding and RPC tests pass 11 assertions with public, unfunded fixture keys. The forwarding recovery case verifies that a failed pass retains the signed bundle and the next pass reuses it without preparing another transfer. All 30 focused checkout/API assertions pass. No owner keys were handled and no mainnet collection was broadcast.
+- Local authenticated checkout created real Arbitrum quotes for both products. Changing Cash App to PayPal created a distinct address and deadline. Pulse returned $2.99 + $0.02 collection: 3.01 USDC to send versus $8.01 suggested Cash App balance. Both checkouts rendered at 375px mobile and 1280px desktop; mobile had no horizontal overflow. Screenshots are in the ignored session evidence directory.
+- Bitcoin settlement uses controlled chain evidence in database tests. Actual owner Bitcoin receipt and ELLIPAL forwarding remain unverified until the deferred one-time wallet setup. The implementation is real; these are runtime evidence limits.
+
+## Next owner setup
+
+Follow [Automatic forwarding to ELLIPAL](tools/cruush-wallet/AUTOMATIC_FORWARDING.md). Enable Bitcoin in ELLIPAL, verify its public receiving address, run the private one-time setup, configure the API's public Bitcoin xpub and Esplora endpoint, and start the supplied forwarding service with its private file. Stablecoin collection needs a native ETH working balance on each used EVM network; the service funds individual receiving addresses itself. No ELLIPAL recovery words go into the service.
+
+The application enable/watcher flags are existing configuration, and must be true in the intended live service. This branch does not silently modify production environment variables. The owner explicitly deferred wallet setup; do not invent a destination or repeat the setup question before finishing independent code work.
+
+[Fee policy and every-item table](docs/crypto-checkout-fees.md) · [Current architecture](PROCESSOR_WHITE_PAPER.md). `SECURITY_REVIEW.md` and `THREAT_MODEL.md` describe the prior review baseline; the new automatic signer and Bitcoin paths need the owner's review of this actual implementation.
+
+---
+
+## Historical records below
+
+The following status, disabled/manual workflow and launch-gate statements describe earlier checkpoints only. Current owner scope and the section above govern this revision.
+
 # Current processor security handoff: 8 September 2026
 
 This section supersedes older workspace, Git and readiness instructions below. Historical logs remain as evidence, not as authorization to deploy or move funds.

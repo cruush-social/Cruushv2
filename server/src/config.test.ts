@@ -137,8 +137,21 @@ describe("loadConfig", () => {
       CRYPTO_PROCESSOR_ENABLED: false,
       CRYPTO_PROCESSOR_WALLET_XPUB: "",
       CRYPTO_PROCESSOR_CONFIRMATION_TARGET: 1,
-      CRYPTO_PROCESSOR_INTENT_TTL_MINUTES: 60
+      CRYPTO_PROCESSOR_INTENT_TTL_MINUTES: 1440
     });
+  });
+
+  it("accepts a 24-hour crypto window and retains bounded shorter overrides", () => {
+    const baseEnv = {
+      DATABASE_URL: "postgres://postgres:postgres@localhost:5432/cruush",
+      SESSION_SECRET: "local-dev-secret"
+    };
+    for (const minutes of [60, 1440]) {
+      expect(loadConfig({ ...baseEnv, CRYPTO_PROCESSOR_INTENT_TTL_MINUTES: String(minutes) })
+        .CRYPTO_PROCESSOR_INTENT_TTL_MINUTES).toBe(minutes);
+    }
+    expect(() => loadConfig({ ...baseEnv, CRYPTO_PROCESSOR_INTENT_TTL_MINUTES: "1441" }))
+      .toThrow(/CRYPTO_PROCESSOR_INTENT_TTL_MINUTES/);
   });
 
   it("accepts a confirmation floor above the Arbitrum rail default", () => {

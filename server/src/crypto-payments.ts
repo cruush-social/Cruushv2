@@ -1,7 +1,9 @@
+import { cryptoFundingEstimates } from "./crypto-funding-estimate.js";
+import { BITCOIN_CONFIRMATION_TARGET, deriveBitcoinReceivingAddress, formatBitcoinAtomic, quoteBitcoinOrder } from "./bitcoin.js";
 import { quoteCollectionFee } from "./crypto-collection-fee.js";
 import { createHash } from "node:crypto";
 import QRCode from "qrcode";
-import type { AppConfig } from "./config.js";
+import { DEFAULT_CRYPTO_PAYMENT_INTENT_TTL_MINUTES, type AppConfig } from "./config.js";
 import type { DbClient } from "./db.js";
 import { runTransaction } from "./db.js";
 import { ApiError } from "./errors.js";
@@ -46,8 +48,14 @@ import { getPingPack } from "./ping-packs.js";
  * later reorganized away, which is why neither number is 1.
  */
 export const CRYPTO_PAYMENT_RAILS = {
-  // Arbitrum first: it is the only network Cash App, Venmo, and PayPal can all
-  // send to, and its fees are negligible. Collecting a payment costs two
+  // Internal chain discriminator 0 identifies native Bitcoin, never an EVM chain.
+  // Native outputs use their own evidence table and watcher; there is no token contract.
+  btc_bitcoin: {
+    asset: "BTC", network: "bitcoin", chainId: 0, tokenAddress: "",
+    decimals: 8, confirmationTarget: BITCOIN_CONFIRMATION_TARGET
+  },
+  // Arbitrum first for eligible Cash App and PayPal senders. Venmo documents
+  // PYUSD on Ethereum, which is exposed separately. Collecting a payment costs two
   // transactions per order (fund the derived address with gas, then sweep it to
   // the treasury), so a mainnet rail charges a fee on every sale forever.
   // Arbitrum One produces a block roughly every 0.25 seconds, so 240 blocks is
@@ -72,7 +80,7 @@ export const CRYPTO_PAYMENT_RAILS = {
     confirmationTarget: 240
   },
   // Ethereum mainnet stays as the fallback for anyone whose app will not offer
-  // Arbitrum. Reach is identical; the fees are not.
+  // Arbitrum, including Venmo. Collection fees are quoted on the selected chain.
   pyusd_ethereum: {
     asset: "PYUSD",
     network: "ethereum",
@@ -137,7 +145,7 @@ const CRYPTO_PAYMENT_CHAIN_IDS = Array.from(new Set(
     CryptoPaymentRailId,
     typeof CRYPTO_PAYMENT_RAILS[CryptoPaymentRailId]
   ][])
-    .filter(([id]) => !isTestnetCryptoPaymentRail(id))
+    .filter(([id]) => id !== "btc_bitcoin" && !isTestnetCryptoPaymentRail(id))
     .map(([, rail]) => rail.chainId)
 )).sort((left, right) => left - right);
 
@@ -147,6 +155,7 @@ const CRYPTO_PAYMENT_CHAIN_IDS = Array.from(new Set(
  * on its own worthless chain, and a mainnet order is never watched there.
  */
 function watchedChainIdsForRail(railId: CryptoPaymentRailId) {
+  if (railId === "btc_bitcoin") return [];
   return isTestnetCryptoPaymentRail(railId)
     ? [CRYPTO_PAYMENT_RAILS[railId].chainId]
     : CRYPTO_PAYMENT_CHAIN_IDS;
@@ -163,6 +172,8 @@ export function getCryptoPaymentRailRpcEndpoint(
 
 export function getCryptoPaymentChainRpcEndpoint(config: AppConfig, chainId: number) {
   switch (chainId) {
+    case 0:
+      return config.CRYPTO_PROCESSOR_BITCOIN_ESPLORA_URL ?? "";
     case 42161:
       return config.CRYPTO_PROCESSOR_ARBITRUM_RPC_URL ?? "";
     case 8453:
@@ -189,7 +200,7 @@ export function getCryptoPaymentRailIdForChainId(chainId: number): CryptoPayment
 
 export function isCryptoPaymentRailReady(config: AppConfig, railId: CryptoPaymentRailId) {
   return config.CRYPTO_PROCESSOR_ENABLED === true
-    && isValidCryptoWalletXpub(config.CRYPTO_PROCESSOR_WALLET_XPUB ?? "")
+    && isValidCryptoWalletXpub((railId === "btc_bitcoin" ? config.CRYPTO_PROCESSOR_BITCOIN_WALLET_XPUB : config.CRYPTO_PROCESSOR_WALLET_XPUB) ?? "")
     && config.CRYPTO_PROCESSOR_WATCHER_ENABLED === true
     && getCryptoPaymentRailRpcEndpoint(config, railId).trim().length > 0;
 }
@@ -250,6 +261,7 @@ export type CryptoPaymentIntent = {
   amountUsdCents: number;
   gasFeeUsdCents: number;
   totalUsdCents: number;
+  fundingEstimates?: ReturnType<typeof cryptoFundingEstimates>;
   quotedAmountAtomic: string | null;
   paymentAddress: string | null;
   status: CryptoPaymentStatus;
@@ -307,6 +319,7 @@ export function mapCryptoPaymentIntent(row: CryptoPaymentIntentRow): CryptoPayme
     amountUsdCents: Number(row.amount_usd_cents),
     gasFeeUsdCents: Number((row.metadata?.collectionFee as {feeUsdCents?:number} | undefined)?.feeUsdCents ?? 0),
     totalUsdCents: Number(row.amount_usd_cents) + Number((row.metadata?.collectionFee as {feeUsdCents?:number} | undefined)?.feeUsdCents ?? 0),
+    fundingEstimates: cryptoFundingEstimates({ rail: railFor(row.asset, row.network), amountUsdCents: Number(row.amount_usd_cents), gasFeeUsdCents: Number((row.metadata?.collectionFee as { feeUsdCents?: number } | undefined)?.feeUsdCents ?? 0), quotedAmountAtomic: row.quoted_amount_atomic ?? null }),
     quotedAmountAtomic: row.quoted_amount_atomic ?? null,
     paymentAddress: row.payment_address ?? null,
     status: row.status,
@@ -324,6 +337,8 @@ export function buildCryptoPaymentUri(
   if (!intent.paymentAddress || !intent.quotedAmountAtomic) {
     return null;
   }
+
+  if (intent.chainId === 0) return `bitcoin:${intent.paymentAddress}?amount=${formatBitcoinAtomic(intent.quotedAmountAtomic)}`;
 
   const params = new URLSearchParams({
     address: intent.paymentAddress,
@@ -462,7 +477,7 @@ export function assertCryptoProcessorReady(config: AppConfig, railId: CryptoPaym
     throw new ApiError(503, "CRYPTO_PROCESSOR_NOT_READY", "Crypto payments are not enabled.");
   }
 
-  const receiveChainXpub = config.CRYPTO_PROCESSOR_WALLET_XPUB ?? "";
+  const receiveChainXpub = (railId === "btc_bitcoin" ? config.CRYPTO_PROCESSOR_BITCOIN_WALLET_XPUB : config.CRYPTO_PROCESSOR_WALLET_XPUB) ?? "";
   if (!isValidCryptoWalletXpub(receiveChainXpub)) {
     throw new ApiError(503, "CRYPTO_PROCESSOR_NOT_READY", "Crypto wallet setup is not ready.");
   }
@@ -478,7 +493,7 @@ export function assertCryptoProcessorReady(config: AppConfig, railId: CryptoPaym
   return {
     receiveChainXpub,
     confirmationTarget: config.CRYPTO_PROCESSOR_CONFIRMATION_TARGET ?? 1,
-    intentTtlMinutes: config.CRYPTO_PROCESSOR_INTENT_TTL_MINUTES ?? 30
+    intentTtlMinutes: config.CRYPTO_PROCESSOR_INTENT_TTL_MINUTES ?? DEFAULT_CRYPTO_PAYMENT_INTENT_TTL_MINUTES
   };
 }
 
@@ -860,13 +875,14 @@ export async function createInHouseCryptoPaymentIntent(
       throw new Error("Crypto payment intent has no address after leaving pending status.");
     }
 
-    const paymentAddress = deriveCryptoReceivingAddress(
+    const paymentAddress = (rail === "btc_bitcoin" ? deriveBitcoinReceivingAddress : deriveCryptoReceivingAddress)(
       wallet.receiveChainXpub,
       numericDerivationIndex(reserved.derivation_index)
     );
-    const collectionFee = await quoteCollectionFee(config, cryptoRail(rail), paymentAddress,
+    const bitcoinQuote = rail === "btc_bitcoin" ? await quoteBitcoinOrder(config, input.amountUsdCents) : null;
+    const collectionFee = bitcoinQuote?.collectionFee ?? await quoteCollectionFee(config, cryptoRail(rail), paymentAddress,
       deriveCryptoReceivingAddress(wallet.receiveChainXpub, 0));
-    const quotedAmountAtomic = quoteUsdCentsAsStablecoinAtomic(input.amountUsdCents + collectionFee.feeUsdCents);
+    const quotedAmountAtomic = bitcoinQuote?.quotedAmountAtomic ?? quoteUsdCentsAsStablecoinAtomic(input.amountUsdCents + collectionFee.feeUsdCents);
     const watchStartBlock = input.watchStartBlock ?? 0n;
     if (watchStartBlock < 0n || watchStartBlock > 9_223_372_036_854_775_807n) {
       throw new Error("Crypto payment intent has an invalid watch-start block.");

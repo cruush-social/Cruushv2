@@ -4,7 +4,7 @@ alter table crypto_payment_intents
 
 alter table crypto_payment_intents
   add constraint crypto_payment_intents_asset_check
-  check (asset in ('USDC', 'PYUSD'));
+  check (asset in ('USDC', 'PYUSD', 'BTC'));
 
 -- The network and source checks are widened again by 099. Recreating them
 -- here unconditionally would fail a replay against a database that already

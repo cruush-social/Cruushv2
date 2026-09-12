@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { getCryptoWalletXpubValidationError } from "./crypto-wallet.js";
 
+export const DEFAULT_CRYPTO_PAYMENT_INTENT_TTL_MINUTES = 24 * 60;
+
 const booleanEnvSchema = z.union([
   z.boolean(),
   z.string().trim().toLowerCase().transform((value, ctx) => {
@@ -206,8 +208,10 @@ const configSchema = z.object({
   WEB_PUSH_SUBJECT: z.string().trim().min(1).optional().default("mailto:hello@cruush.app"),
   CRYPTO_PROCESSOR_ENABLED: booleanEnvSchema,
   CRYPTO_PROCESSOR_WALLET_XPUB: z.string().trim().optional().default(""),
+  CRYPTO_PROCESSOR_BITCOIN_WALLET_XPUB: z.string().trim().optional().default(""),
+  CRYPTO_PROCESSOR_BITCOIN_ESPLORA_URL: z.string().trim().optional().default(""),
   CRYPTO_PROCESSOR_CONFIRMATION_TARGET: z.coerce.number().int().min(1).max(10_000).optional().default(1),
-  CRYPTO_PROCESSOR_INTENT_TTL_MINUTES: z.coerce.number().int().min(5).max(180).optional().default(60),
+  CRYPTO_PROCESSOR_INTENT_TTL_MINUTES: z.coerce.number().int().min(5).max(DEFAULT_CRYPTO_PAYMENT_INTENT_TTL_MINUTES).optional().default(DEFAULT_CRYPTO_PAYMENT_INTENT_TTL_MINUTES),
   // Read-only JSON-RPC endpoints for the settlement watcher. Empty means the
   // watcher for that chain never runs. These may carry an API key, so they are
   // server-only and must never be logged or returned to a client.
@@ -237,6 +241,11 @@ const configSchema = z.object({
     }
   }
 
+  if (config.CRYPTO_PROCESSOR_BITCOIN_WALLET_XPUB) {
+    const error = getCryptoWalletXpubValidationError(config.CRYPTO_PROCESSOR_BITCOIN_WALLET_XPUB);
+    if (error) ctx.addIssue({ code: z.ZodIssueCode.custom, message: error.replaceAll("CRYPTO_PROCESSOR_WALLET_XPUB", "CRYPTO_PROCESSOR_BITCOIN_WALLET_XPUB"), path: ["CRYPTO_PROCESSOR_BITCOIN_WALLET_XPUB"] });
+  }
+
   // The watcher grants real entitlements from what it reads, so it must never
   // run against an endpoint that was not deliberately configured.
   if (config.CRYPTO_PROCESSOR_WATCHER_ENABLED) {
@@ -251,7 +260,8 @@ const configSchema = z.object({
     if (
       !config.CRYPTO_PROCESSOR_BASE_RPC_URL &&
       !config.CRYPTO_PROCESSOR_ETHEREUM_RPC_URL &&
-      !config.CRYPTO_PROCESSOR_ARBITRUM_RPC_URL
+      !config.CRYPTO_PROCESSOR_ARBITRUM_RPC_URL &&
+      !config.CRYPTO_PROCESSOR_BITCOIN_ESPLORA_URL
     ) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -265,7 +275,8 @@ const configSchema = z.object({
     "CRYPTO_PROCESSOR_BASE_RPC_URL",
     "CRYPTO_PROCESSOR_ETHEREUM_RPC_URL",
     "CRYPTO_PROCESSOR_ARBITRUM_RPC_URL",
-    "CRYPTO_PROCESSOR_BASE_SEPOLIA_RPC_URL"
+    "CRYPTO_PROCESSOR_BASE_SEPOLIA_RPC_URL",
+    "CRYPTO_PROCESSOR_BITCOIN_ESPLORA_URL"
   ] as const) {
     const value = config[key];
     if (!value) {
@@ -850,6 +861,8 @@ type AudienceConfigKey =
 type CryptoProcessorConfigKey =
   | "CRYPTO_PROCESSOR_ENABLED"
   | "CRYPTO_PROCESSOR_WALLET_XPUB"
+  | "CRYPTO_PROCESSOR_BITCOIN_WALLET_XPUB"
+  | "CRYPTO_PROCESSOR_BITCOIN_ESPLORA_URL"
   | "CRYPTO_PROCESSOR_CONFIRMATION_TARGET"
   | "CRYPTO_PROCESSOR_INTENT_TTL_MINUTES"
   | "CRYPTO_PROCESSOR_BASE_RPC_URL"

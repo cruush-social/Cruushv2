@@ -130,7 +130,10 @@ const migrationFiles = [
   "121_crypto_payment_chain_positions.sql",
   "122_crypto_payment_intent_window.sql",
   "123_ping_pack_purchases.sql",
-  "124_crypto_payment_base_sepolia_rail.sql"
+  "124_crypto_payment_base_sepolia_rail.sql",
+  "125_crypto_payment_24_hour_window.sql",
+  "126_crypto_bitcoin.sql",
+  "127_crypto_payment_collections.sql"
 ];
 const rewardSafetyPreflightFiles = [
   "079_daily_check_in_rewards.sql",
