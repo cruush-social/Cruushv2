@@ -247,7 +247,7 @@ export default function MapProfilePopup({
 
   if (isOwnProfile && ownProfileMode === 'edit') {
     return (
-      <DesktopDockPanel slot="left" ariaLabel="Edit profile preview">
+      <DesktopDockPanel slot="left" ariaLabel="Edit profile preview" bottomClearance={112}>
         <div className="profile-card-scroll h-full">
           <ProfileEdit
             embedded
@@ -269,7 +269,7 @@ export default function MapProfilePopup({
   }
 
   return (
-    <DesktopDockPanel slot="left" ariaLabel={isOwnProfile ? 'Your profile' : `${displayName} profile`}>
+    <DesktopDockPanel slot="left" ariaLabel={isOwnProfile ? 'Your profile' : `${displayName} profile`} bottomClearance={112}>
       <div className="profile-card-scroll h-full">
         <div className="relative overflow-hidden">
           <ProfilePhotoGallery

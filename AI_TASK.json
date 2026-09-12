@@ -1,38 +1,38 @@
 {
   "schemaVersion": 2,
-  "taskId": "spot-popup-header-overlap-release-20260911",
+  "taskId": "profile-popup-expand-down-release-20260911",
   "status": "validating",
-  "objective": "Prevent the Spot popup bug button from covering its close button on desktop.",
-  "userOutcome": "Desktop Spot popups show separate bug and Close controls that remain usable.",
-  "audience": "cruush members using desktop Spot popups",
+  "objective": "Let desktop map profile popups expand farther downward.",
+  "userOutcome": "Profile popups retain their top position and width but can extend 34px farther down while clearing bottom navigation.",
+  "audience": "cruush members using desktop map profile popups",
   "successCriteria": [
-    "The Spot popup header places the existing bug button immediately before Close.",
-    "The dialog's default close control is hidden so it cannot overlap the header controls.",
-    "Spot content, actions, layout, and mobile behavior remain unchanged.",
-    "Focused rendered verification, focused test, both builds, production SHA, and live version verification pass."
+    "Profile and Edit Profile dock panels use 112px bottom clearance.",
+    "Other dock panels retain their existing clearance.",
+    "Profile popup width, top position, resize behavior, and content remain unchanged.",
+    "Focused test, rendered verification, both builds, production SHA, and live version verification pass."
   ],
   "mustPreserve": [
-    "Existing Spot popup content, actions, dimensions, styling, and responsive behavior.",
-    "Existing bug and Close control appearance and behavior.",
-    "All unrelated worktrees, dirty work, and the running localhost:5187 server.",
-    "No other queue item in this release."
+    "Profile popup width, top edge, styling, tabs, controls, content, and resize behavior.",
+    "All other desktop dock panel geometry.",
+    "Bottom navigation clearance.",
+    "All unrelated worktrees, dirty work, and localhost:5187."
   ],
   "nonGoals": [
-    "No Spot data cleanup, map behavior, profile UI, DL Mode, or unrelated UI change."
+    "No profile content, mobile layout, map, DL Mode, Spot data, or unrelated queue change."
   ],
   "assumptions": [],
-  "nextVisibleMilestone": "Seeded desktop Spot popup renders separate bug and Close controls.",
+  "nextVisibleMilestone": "Seeded desktop profile popup extends lower while remaining above navigation.",
   "stopConditions": [
     "Stop on explicit user cancellation.",
-    "Block any unrelated staged or outgoing difference."
+    "Block unrelated staged or outgoing differences."
   ],
   "costBudget": {
     "maxUsd": 0,
     "maxMinutes": null
   },
   "externalEffectDecisions": {
-    "publication": "authorized to origin/main by user line 9276",
-    "deployment": "authorized production release by user lines 8952 and 9276",
+    "publication": "authorized to origin/main",
+    "deployment": "authorized production release",
     "messages": "forbidden"
   },
   "externalEffects": {
@@ -48,11 +48,11 @@
   },
   "product": "cruush",
   "repository": "cruush-social/Cruushv2",
-  "branch": "fix/spot-popup-header-overlap-20260911",
+  "branch": "fix/profile-popup-expand-down-20260911",
   "allowedPaths": [
-    "src/app/components/PlaceDetail.tsx",
-    "src/app/components/PlaceDetail.test.tsx",
-    "src/app/components/SpotBoardDialog.tsx",
+    "src/app/components/DesktopDockPanel.tsx",
+    "src/app/components/DesktopDockPanel.test.tsx",
+    "src/app/components/MapProfilePopup.tsx",
     "AI_TASK.json",
     "FIXLOG.md",
     "public/sw.js",
@@ -66,26 +66,26 @@
   ],
   "source": {
     "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
-    "line": 9455,
-    "text": "add to que bug fix button covers close button on pop up per spot on desktop"
+    "line": 9697,
+    "text": "let me expand the profile pop ups down more  add to que"
   },
   "baseline": {
-    "sha": "d70a0421ed2b8f1253c33c589148f161a3caf100",
-    "inheritedTaskId": "relationship-status-save-profile-release-20260911",
-    "productState": "Clean isolated worktree from current origin/main; prior task contract remains in immutable git history."
+    "sha": "ae30806c9ba9b326c0ccb4ca443c6837b4855f40",
+    "inheritedTaskId": "spot-popup-header-overlap-release-20260911",
+    "productState": "Clean isolated worktree from current origin/main."
   },
-  "currentItem": "SPOT-POPUP-HEADER-OVERLAP-20260911",
+  "currentItem": "PROFILE-POPUP-EXPAND-DOWN-20260911",
   "queue": [
     {
-      "id": "SPOT-POPUP-HEADER-OVERLAP-20260911",
-      "status": "validating",
+      "id": "PROFILE-POPUP-EXPAND-DOWN-20260911",
+      "status": "locally_verified",
       "source": {
-        "line": 9455,
-        "text": "bug fix button covers close button on pop up per spot on desktop"
+        "line": 9697,
+        "text": "let me expand the profile pop ups down more"
       }
     }
   ],
-  "proofTarget": "Seeded desktop Spot popup with separate visible bug and Close controls.",
+  "proofTarget": "Seeded desktop profile popup lower edge and bottom navigation clearance.",
   "publicationTarget": "origin/main and production https://cruush.app",
   "deploymentAuthorization": {
     "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
@@ -93,194 +93,28 @@
     "text": "deploy both"
   },
   "outcomes": {
-    "source": "Clean isolated worktree from deployed d70a042; only the docked desktop Spot popup receives a header Close control after the bug slot. Mobile retains its existing dialog Close.",
-    "tests": "Focused PlaceDetail suite passes 5/5.",
+    "source": "Only MapProfilePopup view/edit panels pass a 112px bottom clearance. Other dock panels retain their responsive 138/146px defaults, including after crossing the 1024px breakpoint.",
+    "tests": "DesktopDockPanel focused suite passes 4/4, including profile geometry and responsive default clearance.",
     "clientBuild": "Passed production Vite build.",
     "serverBuild": "Passed server TypeScript build with pnpm --dir server build.",
-    "render": "Exact release worktree at localhost:5191 rendered Crunch Tribeca at desktop size with separate controls: bug 44x44 at x1411 and Close 40x36 at x1467. Both remained fixed after PageDown; Close dismissed the popup and the bug control opened its dialog.",
+    "render": "Exact release worktree at localhost:5191, 1526x987: atlas profile top stayed 90px and width 416px; lower-handle resize expanded height to 785px and stopped at y=875, exactly 112px above viewport bottom. Closing and reopening retained the same geometry. Screenshots: evidence/profile-popup-expanded-1526x987.png and evidence/profile-popup-expanded-after-drag-1526x987.png.",
     "publication": "Authorized; pending.",
     "device": "Physical Android remains unverified."
   },
   "requiredEvidence": [
-    "Focused PlaceDetail test.",
+    "Focused DesktopDockPanel test.",
     "Client and server builds.",
-    "Rendered desktop Spot popup header check.",
+    "Rendered desktop profile popup geometry.",
     "Production SHA and live web version."
   ],
   "uiScope": {
     "version": 1,
     "source": {
       "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
-      "line": 9455,
-      "sha256": "0e59d661c081b26241878c92e3a8afc1596bc96b95e45944bbba5740277d5465"
+      "line": 9697,
+      "sha256": "f62d9d03109213774f9ad869c64a4ee3eab53728abc46760d347b72814612511"
     },
-    "baselineId": "970bb3542ebed3d5f553ac4485616f4d78652248afe167d8b435a2168da3e2f9",
-    "grants": [
-      {
-        "file": "src/app/components/PlaceDetail.tsx",
-        "surface": "pop up per spot on desktop",
-        "statement": "bug fix button covers close button on pop up per spot on desktop",
-        "viewport": "desktop",
-        "preserve": [
-          "Existing Spot header layout",
-          "Existing bug control",
-          "Existing Close behavior",
-          "Spot content and actions",
-          "Mobile Spot dialog"
-        ],
-        "source": {
-          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
-          "line": 9455,
-          "sha256": "0e59d661c081b26241878c92e3a8afc1596bc96b95e45944bbba5740277d5465"
-        },
-        "executionSource": {
-          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
-          "line": 14345,
-          "sha256": "5ed03f22466442e65d352cf6701151c831d588a4fabc5785451531a2a1778bee"
-        },
-        "property": "structure",
-        "target": "jsx:div[3]/header[1]",
-        "before": "element: header\nchildren: [\"button\",\"h1\",\"div[data-testid=\\\"spot-detail-bug-button-slot\\\"]\"]",
-        "after": "element: header\nchildren: [\"button\",\"h1\",\"div[data-testid=\\\"spot-detail-bug-button-slot\\\"]\",\"#expression\",\"Button\"]",
-        "requestedProperty": "structure",
-        "review": {
-          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T17-36-18-01a08d40-04af-7300-9d2a-e8b58cd08bac.jsonl",
-          "line": 2569,
-          "sha256": "e470693764fa3b2bd3fc10d84083efcfc4a9c0105aab8ba80a608f4a78093f63"
-        }
-      },
-      {
-        "file": "src/app/components/PlaceDetail.tsx",
-        "surface": "pop up per spot on desktop",
-        "statement": "bug fix button covers close button on pop up per spot on desktop",
-        "viewport": "desktop",
-        "preserve": [
-          "Existing Spot header layout",
-          "Existing bug control",
-          "Existing Close behavior",
-          "Spot content and actions",
-          "Mobile Spot dialog"
-        ],
-        "source": {
-          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
-          "line": 9455,
-          "sha256": "0e59d661c081b26241878c92e3a8afc1596bc96b95e45944bbba5740277d5465"
-        },
-        "executionSource": {
-          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
-          "line": 14345,
-          "sha256": "5ed03f22466442e65d352cf6701151c831d588a4fabc5785451531a2a1778bee"
-        },
-        "property": "unknown",
-        "target": "jsx:div[3]/header[1]",
-        "before": "",
-        "after": "children: [\"onClose ? ( <jsx> ) : null\"]",
-        "requestedProperty": "structure",
-        "review": {
-          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T17-36-18-01a08d40-04af-7300-9d2a-e8b58cd08bac.jsonl",
-          "line": 2569,
-          "sha256": "e470693764fa3b2bd3fc10d84083efcfc4a9c0105aab8ba80a608f4a78093f63"
-        }
-      },
-      {
-        "file": "src/app/components/PlaceDetail.tsx",
-        "surface": "pop up per spot on desktop",
-        "statement": "bug fix button covers close button on pop up per spot on desktop",
-        "viewport": "desktop",
-        "preserve": [
-          "Existing Spot header layout",
-          "Existing bug control",
-          "Existing Close behavior",
-          "Spot content and actions",
-          "Mobile Spot dialog"
-        ],
-        "source": {
-          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
-          "line": 9455,
-          "sha256": "0e59d661c081b26241878c92e3a8afc1596bc96b95e45944bbba5740277d5465"
-        },
-        "executionSource": {
-          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
-          "line": 14345,
-          "sha256": "5ed03f22466442e65d352cf6701151c831d588a4fabc5785451531a2a1778bee"
-        },
-        "property": "structure",
-        "target": "jsx:div[3]/header[1]/Button[1]",
-        "before": "",
-        "after": "element: Button\nchildren: [\"X\"]\ntype: button",
-        "requestedProperty": "structure",
-        "review": {
-          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T17-36-18-01a08d40-04af-7300-9d2a-e8b58cd08bac.jsonl",
-          "line": 2569,
-          "sha256": "e470693764fa3b2bd3fc10d84083efcfc4a9c0105aab8ba80a608f4a78093f63"
-        }
-      },
-      {
-        "file": "src/app/components/PlaceDetail.tsx",
-        "surface": "pop up per spot on desktop",
-        "statement": "bug fix button covers close button on pop up per spot on desktop",
-        "viewport": "desktop",
-        "preserve": [
-          "Existing Spot header layout",
-          "Existing bug control",
-          "Existing Close behavior",
-          "Spot content and actions",
-          "Mobile Spot dialog"
-        ],
-        "source": {
-          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
-          "line": 9455,
-          "sha256": "0e59d661c081b26241878c92e3a8afc1596bc96b95e45944bbba5740277d5465"
-        },
-        "executionSource": {
-          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
-          "line": 14345,
-          "sha256": "5ed03f22466442e65d352cf6701151c831d588a4fabc5785451531a2a1778bee"
-        },
-        "property": "unknown",
-        "target": "jsx:div[3]/header[1]/Button[1]",
-        "before": "",
-        "after": "variant: ghost\naria-label: ['Close', 'Spot'].join(' ')",
-        "requestedProperty": "structure",
-        "review": {
-          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T17-36-18-01a08d40-04af-7300-9d2a-e8b58cd08bac.jsonl",
-          "line": 2569,
-          "sha256": "e470693764fa3b2bd3fc10d84083efcfc4a9c0105aab8ba80a608f4a78093f63"
-        }
-      },
-      {
-        "file": "src/app/components/PlaceDetail.tsx",
-        "surface": "pop up per spot on desktop",
-        "statement": "bug fix button covers close button on pop up per spot on desktop",
-        "viewport": "desktop",
-        "preserve": [
-          "Existing Spot header layout",
-          "Existing bug control",
-          "Existing Close behavior",
-          "Spot content and actions",
-          "Mobile Spot dialog"
-        ],
-        "source": {
-          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
-          "line": 9455,
-          "sha256": "0e59d661c081b26241878c92e3a8afc1596bc96b95e45944bbba5740277d5465"
-        },
-        "executionSource": {
-          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
-          "line": 14345,
-          "sha256": "5ed03f22466442e65d352cf6701151c831d588a4fabc5785451531a2a1778bee"
-        },
-        "property": "structure",
-        "target": "jsx:div[3]/header[1]/Button[1]/X[1]",
-        "before": "",
-        "after": "element: X",
-        "requestedProperty": "structure",
-        "review": {
-          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T17-36-18-01a08d40-04af-7300-9d2a-e8b58cd08bac.jsonl",
-          "line": 2569,
-          "sha256": "e470693764fa3b2bd3fc10d84083efcfc4a9c0105aab8ba80a608f4a78093f63"
-        }
-      }
-    ]
+    "baselineId": "e1ff72d198d76415c629e2e36c3d1a9ec3bc5a384674eace946363a86d054c46",
+    "grants": []
   }
 }

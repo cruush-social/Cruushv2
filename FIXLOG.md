@@ -239,3 +239,4 @@
 - Nobody but the owner ever saw a Ghost pin's last-minute animation: the deadline only arrives once the last minute has begun, that remounts the pin, and a pin that mounted inside the window skipped the animation. A pin that appears within the first refetch cycle of its window now animates.
 - Relationship status was omitted from encrypted profile writes, so selections disappeared after saving. It now persists and appears below Position and Role in profile menus and profiles.
 - The desktop Spot popup's bug control could cover its close control. Its header now places a dedicated Close button immediately after the bug control while the mobile dialog keeps its existing Close behavior.
+- Desktop map profile popups stopped too high above the bottom navigation. Profile and Edit Profile panels can now extend 34px farther down while other docked panels retain their existing clearance.

@@ -21,6 +21,8 @@ type DesktopDockPanelProps = {
   minWidth?: number;
   minHeight?: number;
   layer?: DesktopDockLayer;
+  /** Profile previews can extend closer to, while still clearing, the bottom navigation. */
+  bottomClearance?: number;
 };
 
 const EDGE_GAP = 10;
@@ -67,7 +69,7 @@ function topChromeClearance(slot: DesktopDockSlot) {
   return 74;
 }
 
-function clampGeometry(slot: DesktopDockSlot, geometry: DockGeometry, minWidth: number, minHeight: number): DockGeometry {
+function clampGeometry(slot: DesktopDockSlot, geometry: DockGeometry, minWidth: number, minHeight: number, bottomClearance = bottomFloatingControlsClearance()): DockGeometry {
   if (typeof window === 'undefined') {
     return geometry;
   }
@@ -83,7 +85,6 @@ function clampGeometry(slot: DesktopDockSlot, geometry: DockGeometry, minWidth: 
     ? Math.floor(window.innerWidth / 2)
     : EDGE_GAP;
   const maxWidth = Math.max(1, window.innerWidth - minimumX - rightClearance);
-  const bottomClearance = bottomFloatingControlsClearance();
   const maxHeight = Math.max(1, window.innerHeight - minimumY - bottomClearance);
   const effectiveMinWidth = Math.min(minWidth, maxWidth);
   const width = Math.min(Math.max(geometry.width, effectiveMinWidth), maxWidth);
@@ -101,7 +102,7 @@ function clampGeometry(slot: DesktopDockSlot, geometry: DockGeometry, minWidth: 
   return { x, y, width, height };
 }
 
-function defaultGeometry(slot: DesktopDockSlot, minWidth: number, minHeight: number): DockGeometry {
+function defaultGeometry(slot: DesktopDockSlot, minWidth: number, minHeight: number, bottomClearance = bottomFloatingControlsClearance()): DockGeometry {
   if (typeof window === 'undefined') {
     return { x: EDGE_GAP, y: EDGE_GAP, width: DEFAULT_WIDTH, height: minHeight };
   }
@@ -110,7 +111,7 @@ function defaultGeometry(slot: DesktopDockSlot, minWidth: number, minHeight: num
   const height = Math.max(minHeight, window.innerHeight - EDGE_GAP * 2);
   const x = slot === 'left' ? EDGE_GAP : Math.max(EDGE_GAP, window.innerWidth - width - EDGE_GAP);
 
-  return clampGeometry(slot, { x, y: topChromeClearance(slot), width, height }, minWidth, minHeight);
+  return clampGeometry(slot, { x, y: topChromeClearance(slot), width, height }, minWidth, minHeight, bottomClearance);
 }
 
 function readStoredGeometry(slot: DesktopDockSlot): DockGeometry | null {
@@ -149,12 +150,13 @@ export default function DesktopDockPanel({
   minWidth = MIN_WIDTH,
   minHeight = MIN_HEIGHT,
   layer = 'panel',
+  bottomClearance,
 }: DesktopDockPanelProps) {
   const [geometry, setGeometry] = useState<DockGeometry>(() => {
     const stored = readStoredGeometry(slot);
     return stored
-      ? clampGeometry(slot, stored, minWidth, minHeight)
-      : defaultGeometry(slot, minWidth, minHeight);
+      ? clampGeometry(slot, stored, minWidth, minHeight, bottomClearance)
+      : defaultGeometry(slot, minWidth, minHeight, bottomClearance);
   });
   const dragStateRef = useRef<{ pointerId: number; mode: DockDragMode; originX: number; originY: number; start: DockGeometry } | null>(null);
   const [zIndex, setZIndex] = useState(() => {
@@ -178,11 +180,11 @@ export default function DesktopDockPanel({
       return undefined;
     }
 
-    const handleResize = () => setGeometry((current) => clampGeometry(slot, current, minWidth, minHeight));
+    const handleResize = () => setGeometry((current) => clampGeometry(slot, current, minWidth, minHeight, bottomClearance));
     window.addEventListener('resize', handleResize);
 
     return () => window.removeEventListener('resize', handleResize);
-  }, [minHeight, minWidth, slot]);
+  }, [bottomClearance, minHeight, minWidth, slot]);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -228,6 +230,7 @@ export default function DesktopDockPanel({
         { ...dragState.start, x: dragState.start.x + deltaX, y: dragState.start.y + deltaY },
         minWidth,
         minHeight,
+        bottomClearance,
       ));
       return;
     }
@@ -241,6 +244,7 @@ export default function DesktopDockPanel({
         },
         minWidth,
         minHeight,
+        bottomClearance,
       ));
       return;
     }
@@ -262,8 +266,9 @@ export default function DesktopDockPanel({
       },
       minWidth,
       minHeight,
+      bottomClearance,
     ));
-  }, [minHeight, minWidth, slot]);
+  }, [bottomClearance, minHeight, minWidth, slot]);
 
   const endDrag = useCallback((event: ReactPointerEvent<HTMLElement>) => {
     const dragState = dragStateRef.current;

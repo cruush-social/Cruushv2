@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import DesktopDockPanel from './DesktopDockPanel';
 
@@ -42,6 +42,18 @@ describe('DesktopDockPanel', () => {
     expect(screen.getByLabelText('Left panel')).toHaveStyle({ top: '90px', height: '564px' });
   });
 
+  it('lets a profile preview extend 34px lower while keeping a 112px bottom-control clearance', () => {
+    setViewport(1280, 800);
+
+    render(
+      <DesktopDockPanel slot="left" ariaLabel="Profile preview" bottomClearance={112}>
+        <p>Profile content</p>
+      </DesktopDockPanel>,
+    );
+
+    expect(screen.getByLabelText('Profile preview')).toHaveStyle({ top: '90px', height: '598px' });
+  });
+
   it('preserves the Map Controls clearance on a narrow desktop viewport', () => {
     setViewport(800, 900);
 
@@ -53,5 +65,20 @@ describe('DesktopDockPanel', () => {
 
     const panel = screen.getByLabelText('Right panel');
     expect(panel).toHaveStyle({ left: '400px', top: '132px', width: '390px', height: '630px' });
+  });
+
+  it('recalculates the default bottom clearance when resizing across the desktop breakpoint', () => {
+    setViewport(800, 900);
+
+    render(
+      <DesktopDockPanel slot="right" ariaLabel="Responsive panel">
+        <p>Right content</p>
+      </DesktopDockPanel>,
+    );
+
+    setViewport(1280, 900);
+    act(() => window.dispatchEvent(new Event('resize')));
+
+    expect(screen.getByLabelText('Responsive panel')).toHaveStyle({ top: '136px', height: '618px' });
   });
 });
