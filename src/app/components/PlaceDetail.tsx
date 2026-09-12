@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router';
-import { ArrowLeft, Clock, Copy, ExternalLink, Flag, MapPin, Share2, Star, Trash2, Users } from 'lucide-react';
+import { ArrowLeft, Clock, Copy, ExternalLink, Flag, MapPin, Share2, Star, Trash2, Users, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { Checkbox } from './ui/checkbox';
 import { Slider } from './ui/slider';
@@ -70,10 +70,11 @@ function relativeTime(value: string) {
 type PlaceDetailProps = {
   embedded?: boolean;
   onBack?: () => void;
+  onClose?: () => void;
   placeIdOverride?: string;
 };
 
-export default function PlaceDetail({ embedded = false, onBack, placeIdOverride }: PlaceDetailProps = {}) {
+export default function PlaceDetail({ embedded = false, onBack, onClose, placeIdOverride }: PlaceDetailProps = {}) {
   const { placeId: routePlaceId } = useParams();
   const placeId = placeIdOverride ?? routePlaceId;
   const navigate = useNavigate();
@@ -399,6 +400,11 @@ export default function PlaceDetail({ embedded = false, onBack, placeIdOverride 
         </button>
         <h1 className="min-w-0 truncate text-xl">{PLACE_FACILITY_SINGULAR_LABELS[place.facilityType]}</h1>
         <div className="ml-auto h-11 w-11 shrink-0" data-testid="spot-detail-bug-button-slot" ref={registerBugButtonSlot} />
+        {onClose ? (
+          <Button type="button" variant="ghost" aria-label={['Close', 'Spot'].join(' ')} onClick={onClose}>
+            <X />
+          </Button>
+        ) : null}
       </header>
 
       <div className={`mx-auto flex flex-col gap-4 px-4 py-4 sm:gap-6 sm:p-6 ${embedded ? 'max-w-none' : 'max-w-2xl'}`}>

@@ -156,6 +156,25 @@ describe('PlaceDetail request isolation', () => {
     expect(screen.queryByText('Spot A')).not.toBeInTheDocument();
   });
 
+  it('puts an embedded Spot close control after its dedicated bug-button slot', async () => {
+    const onClose = vi.fn();
+    getPlace.mockResolvedValue(makePlace('spot-a', 'Spot A'));
+    getPlaceBoard.mockResolvedValue([]);
+
+    render(
+      <MemoryRouter>
+        <PlaceDetail embedded placeIdOverride="spot-a" onClose={onClose} />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole('heading', { name: 'Spot A' });
+    const close = screen.getByRole('button', { name: 'Close Spot' });
+    const header = close.parentElement;
+    expect(header?.querySelector('[data-testid="spot-detail-bug-button-slot"]')?.nextElementSibling).toBe(close);
+    fireEvent.click(close);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
   it('shows Popular times under the Here now and rating capsules, before the Pink Book', async () => {
     getPlace.mockResolvedValue(makePlace('spot-a', 'Spot A'));
     getPlaceBoard.mockResolvedValue([]);

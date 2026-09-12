@@ -26,7 +26,7 @@ export default function SpotBoardDialog({
       <DesktopDockPanel ariaLabel={`${spotName ?? 'Spot'} Pink Book`} layer="modal" slot="right" minWidth={390}>
         <div className="relative flex h-full min-h-0 flex-col bg-background/92">
           <div className="scrollbar-hide min-h-0 flex-1 overflow-y-auto">
-            <PlaceDetail embedded placeIdOverride={placeId} onBack={() => onOpenChange(false)} />
+            <PlaceDetail embedded placeIdOverride={placeId} onBack={() => onOpenChange(false)} onClose={() => onOpenChange(false)} />
           </div>
         </div>
       </DesktopDockPanel>

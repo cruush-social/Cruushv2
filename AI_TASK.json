@@ -1,27 +1,27 @@
 {
   "schemaVersion": 2,
-  "taskId": "relationship-status-save-profile-release-20260911",
+  "taskId": "spot-popup-header-overlap-release-20260911",
   "status": "validating",
-  "objective": "Persist relationship status and show it immediately below Position and Role in profile menus and profiles.",
-  "userOutcome": "A selected relationship status saves, reloads, and appears below Position and Role in Edit Profile and Profile view.",
-  "audience": "cruush members",
+  "objective": "Prevent the Spot popup bug button from covering its close button on desktop.",
+  "userOutcome": "Desktop Spot popups show separate bug and Close controls that remain usable.",
+  "audience": "cruush members using desktop Spot popups",
   "successCriteria": [
-    "Relationship status is included in encrypted sensitive-profile writes.",
-    "Edit Profile and Profile view place Relationship status immediately below Position and Role.",
-    "Existing options, other profile fields, tabs, and layout remain unchanged.",
-    "Focused persistence and render checks, both builds, production SHA, and live version verification pass."
+    "The Spot popup header places the existing bug button immediately before Close.",
+    "The dialog's default close control is hidden so it cannot overlap the header controls.",
+    "Spot content, actions, layout, and mobile behavior remain unchanged.",
+    "Focused rendered verification, focused test, both builds, production SHA, and live version verification pass."
   ],
   "mustPreserve": [
-    "Existing relationship-status options and encrypted sensitive-profile behavior.",
-    "All other profile fields, menus, profile sections, tabs, and presentation.",
+    "Existing Spot popup content, actions, dimensions, styling, and responsive behavior.",
+    "Existing bug and Close control appearance and behavior.",
     "All unrelated worktrees, dirty work, and the running localhost:5187 server.",
-    "No DL Mode settings, hover-copy removal, sticky-tab change, map change, or app-wide placeholder work in this release."
+    "No other queue item in this release."
   ],
   "nonGoals": [
-    "No Spot cleanup, map work, new controls, placeholder redesign, DL Mode release, or unrelated queue work in this release."
+    "No Spot data cleanup, map behavior, profile UI, DL Mode, or unrelated UI change."
   ],
   "assumptions": [],
-  "nextVisibleMilestone": "Seeded Edit Profile and Profile view show Relationship status below Position and Role.",
+  "nextVisibleMilestone": "Seeded desktop Spot popup renders separate bug and Close controls.",
   "stopConditions": [
     "Stop on explicit user cancellation.",
     "Block any unrelated staged or outgoing difference."
@@ -48,14 +48,11 @@
   },
   "product": "cruush",
   "repository": "cruush-social/Cruushv2",
-  "branch": "fix/relationship-status-save-profile-20260911",
+  "branch": "fix/spot-popup-header-overlap-20260911",
   "allowedPaths": [
-    "src/app/components/ProfileEdit.tsx",
-    "src/app/components/ProfileEdit.test.tsx",
-    "src/app/components/ProfileView.tsx",
-    "src/app/components/ProfileView.test.tsx",
-    "server/src/routes/profiles.ts",
-    "server/src/app.test.ts",
+    "src/app/components/PlaceDetail.tsx",
+    "src/app/components/PlaceDetail.test.tsx",
+    "src/app/components/SpotBoardDialog.tsx",
     "AI_TASK.json",
     "FIXLOG.md",
     "public/sw.js",
@@ -64,406 +61,224 @@
     "index.html"
   ],
   "forbiddenPaths": [
+    "server/**",
     "src/app/assets/**"
   ],
   "source": {
     "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
-    "line": 12071,
-    "sha256": "0682f6f4aaaa5fc529f4d913d6d516be7d6409d6aea8af6d16e5f13b14ee2b41",
-    "text": "Add to que relationship status not saving and not appearing in profiles put it under position and role in menus and profiles"
+    "line": 9455,
+    "text": "add to que bug fix button covers close button on pop up per spot on desktop"
   },
   "baseline": {
-    "sha": "bcad5880fb0c4b38571d7ff5fa8d62c6b8f533f9",
-    "inheritedTaskId": "map-center-user-closer-release-20260911",
+    "sha": "d70a0421ed2b8f1253c33c589148f161a3caf100",
+    "inheritedTaskId": "relationship-status-save-profile-release-20260911",
     "productState": "Clean isolated worktree from current origin/main; prior task contract remains in immutable git history."
   },
-  "currentItem": "RELATIONSHIP-STATUS-SAVE-AND-PLACEMENT-20260911",
+  "currentItem": "SPOT-POPUP-HEADER-OVERLAP-20260911",
   "queue": [
     {
-      "id": "MAP-CLOSE-ZOOM-SPIDERFY-20260911",
-      "status": "completed-production-e941adc",
-      "source": {
-        "line": 13531,
-        "text": "clustering too strong on user pins now im zoomed in close i should see them"
-      }
-    },
-    {
-      "id": "MAP-CENTER-PIN-CLOSE-ZOOM-20260911",
-      "status": "completed-production-bcad588",
-      "source": {
-        "line": 11679,
-        "text": "center pin button zooms out too much make it center on signed in user closer"
-      }
-    },
-    {
-      "id": "RELATIONSHIP-STATUS-SAVE-AND-PLACEMENT-20260911",
+      "id": "SPOT-POPUP-HEADER-OVERLAP-20260911",
       "status": "validating",
       "source": {
-        "line": 12071,
-        "text": "relationship status not saving and not appearing in profiles put it under position and role in menus and profiles"
+        "line": 9455,
+        "text": "bug fix button covers close button on pop up per spot on desktop"
       }
     }
   ],
-  "proofTarget": "Seeded Edit Profile save and reloaded Profile view with Relationship status below Position and Role.",
-  "publicationTarget": "origin/main and production https://cruush.app with https://api.cruush.app",
+  "proofTarget": "Seeded desktop Spot popup with separate visible bug and Close controls.",
+  "publicationTarget": "origin/main and production https://cruush.app",
   "deploymentAuthorization": {
     "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
     "line": 9276,
-    "sha256": "4c68f25618bdf3735c7003f7fc861521d4a855283807f5bf9913b9be0d31e5f0",
     "text": "deploy both"
   },
   "outcomes": {
-    "source": "Clean isolated worktree from deployed bcad588; relationship-status persistence and requested field placement only.",
-    "tests": "ProfileEdit save test passes 28/28; focused ProfileView relationship-status display test passes 1/1; focused server PUT persistence test passes 1/1.",
+    "source": "Clean isolated worktree from deployed d70a042; only the docked desktop Spot popup receives a header Close control after the bug slot. Mobile retains its existing dialog Close.",
+    "tests": "Focused PlaceDetail suite passes 5/5.",
     "clientBuild": "Passed production Vite build.",
-    "serverBuild": "Passed server TypeScript build with pnpm --dir server build; this workspace does not register an @cruush/server filter.",
-    "render": "Seeded localhost:5187 at 1114x963 shows Looking For, Position and Role, then Relationship status in Edit Profile; Save returns to Profile, and Relationship status remains visible after reload.",
+    "serverBuild": "Passed server TypeScript build with pnpm --dir server build.",
+    "render": "Exact release worktree at localhost:5191 rendered Crunch Tribeca at desktop size with separate controls: bug 44x44 at x1411 and Close 40x36 at x1467. Both remained fixed after PageDown; Close dismissed the popup and the bug control opened its dialog.",
     "publication": "Authorized; pending.",
     "device": "Physical Android remains unverified."
   },
   "requiredEvidence": [
-    "Focused ProfileEdit, ProfileView, and server persistence tests.",
+    "Focused PlaceDetail test.",
     "Client and server builds.",
-    "Rendered Edit Profile and Profile view placement and save/reload check.",
-    "Both production service SHAs and live web version."
+    "Rendered desktop Spot popup header check.",
+    "Production SHA and live web version."
   ],
   "uiScope": {
     "version": 1,
     "source": {
       "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
-      "line": 14345,
-      "sha256": "5ed03f22466442e65d352cf6701151c831d588a4fabc5785451531a2a1778bee"
+      "line": 9455,
+      "sha256": "0e59d661c081b26241878c92e3a8afc1596bc96b95e45944bbba5740277d5465"
     },
-    "baselineId": "44fdaa609d3ab1e10b27d694279a7708374725582decde96e1eb1c7e5c2ef7eb",
+    "baselineId": "970bb3542ebed3d5f553ac4485616f4d78652248afe167d8b435a2168da3e2f9",
     "grants": [
       {
-        "file": "src/app/components/ProfileEdit.tsx",
-        "property": "layout",
-        "target": "jsx:div[2]/div[1]/Tabs[1]/TabsContent[4]",
-        "before": "",
-        "after": "class: flex\nclass: flex-col\nclass: [&>*]:order-4",
-        "requestedProperty": "position",
-        "surface": "menus",
-        "statement": "Add to que relationship status not saving and not appearing in profiles put it under position and role in menus and profiles",
-        "viewport": "all supported viewports",
+        "file": "src/app/components/PlaceDetail.tsx",
+        "surface": "pop up per spot on desktop",
+        "statement": "bug fix button covers close button on pop up per spot on desktop",
+        "viewport": "desktop",
         "preserve": [
-          "Existing labels and field values",
-          "Existing 24px Edit Profile field spacing",
-          "Existing Profile grid and breakpoints",
-          "Every other field order",
-          "Tabs, colors, typography, and behavior"
+          "Existing Spot header layout",
+          "Existing bug control",
+          "Existing Close behavior",
+          "Spot content and actions",
+          "Mobile Spot dialog"
         ],
         "source": {
           "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
-          "line": 12071,
-          "sha256": "0682f6f4aaaa5fc529f4d913d6d516be7d6409d6aea8af6d16e5f13b14ee2b41"
+          "line": 9455,
+          "sha256": "0e59d661c081b26241878c92e3a8afc1596bc96b95e45944bbba5740277d5465"
         },
         "executionSource": {
           "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
           "line": 14345,
           "sha256": "5ed03f22466442e65d352cf6701151c831d588a4fabc5785451531a2a1778bee"
         },
+        "property": "structure",
+        "target": "jsx:div[3]/header[1]",
+        "before": "element: header\nchildren: [\"button\",\"h1\",\"div[data-testid=\\\"spot-detail-bug-button-slot\\\"]\"]",
+        "after": "element: header\nchildren: [\"button\",\"h1\",\"div[data-testid=\\\"spot-detail-bug-button-slot\\\"]\",\"#expression\",\"Button\"]",
+        "requestedProperty": "structure",
         "review": {
           "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T17-36-18-01a08d40-04af-7300-9d2a-e8b58cd08bac.jsonl",
-          "line": 2440,
-          "sha256": "7f0c65b50ba9a443d8a5a6f68020af3258c956658938d20f2d5c0eff145a343c"
+          "line": 2569,
+          "sha256": "e470693764fa3b2bd3fc10d84083efcfc4a9c0105aab8ba80a608f4a78093f63"
         }
       },
       {
-        "file": "src/app/components/ProfileEdit.tsx",
-        "property": "spacing",
-        "target": "jsx:div[2]/div[1]/Tabs[1]/TabsContent[4]",
-        "before": "class: space-y-6\nclass: mt-6",
-        "after": "class: mt-6\nclass: gap-6",
-        "requestedProperty": "position",
-        "surface": "menus",
-        "statement": "Add to que relationship status not saving and not appearing in profiles put it under position and role in menus and profiles",
-        "viewport": "all supported viewports",
+        "file": "src/app/components/PlaceDetail.tsx",
+        "surface": "pop up per spot on desktop",
+        "statement": "bug fix button covers close button on pop up per spot on desktop",
+        "viewport": "desktop",
         "preserve": [
-          "Existing labels and field values",
-          "Existing 24px Edit Profile field spacing",
-          "Existing Profile grid and breakpoints",
-          "Every other field order",
-          "Tabs, colors, typography, and behavior"
+          "Existing Spot header layout",
+          "Existing bug control",
+          "Existing Close behavior",
+          "Spot content and actions",
+          "Mobile Spot dialog"
         ],
         "source": {
           "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
-          "line": 12071,
-          "sha256": "0682f6f4aaaa5fc529f4d913d6d516be7d6409d6aea8af6d16e5f13b14ee2b41"
+          "line": 9455,
+          "sha256": "0e59d661c081b26241878c92e3a8afc1596bc96b95e45944bbba5740277d5465"
         },
         "executionSource": {
           "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
           "line": 14345,
           "sha256": "5ed03f22466442e65d352cf6701151c831d588a4fabc5785451531a2a1778bee"
         },
-        "review": {
-          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T17-36-18-01a08d40-04af-7300-9d2a-e8b58cd08bac.jsonl",
-          "line": 2440,
-          "sha256": "7f0c65b50ba9a443d8a5a6f68020af3258c956658938d20f2d5c0eff145a343c"
-        }
-      },
-      {
-        "file": "src/app/components/ProfileEdit.tsx",
-        "property": "layout",
-        "target": "jsx:div[2]/div[1]/Tabs[1]/TabsContent[4]/div[1]",
-        "before": "",
-        "after": "class: !order-3",
-        "requestedProperty": "position",
-        "surface": "menus",
-        "statement": "Add to que relationship status not saving and not appearing in profiles put it under position and role in menus and profiles",
-        "viewport": "all supported viewports",
-        "preserve": [
-          "Existing labels and field values",
-          "Existing 24px Edit Profile field spacing",
-          "Existing Profile grid and breakpoints",
-          "Every other field order",
-          "Tabs, colors, typography, and behavior"
-        ],
-        "source": {
-          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
-          "line": 12071,
-          "sha256": "0682f6f4aaaa5fc529f4d913d6d516be7d6409d6aea8af6d16e5f13b14ee2b41"
-        },
-        "executionSource": {
-          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
-          "line": 14345,
-          "sha256": "5ed03f22466442e65d352cf6701151c831d588a4fabc5785451531a2a1778bee"
-        },
-        "review": {
-          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T17-36-18-01a08d40-04af-7300-9d2a-e8b58cd08bac.jsonl",
-          "line": 2440,
-          "sha256": "7f0c65b50ba9a443d8a5a6f68020af3258c956658938d20f2d5c0eff145a343c"
-        }
-      },
-      {
-        "file": "src/app/components/ProfileEdit.tsx",
-        "property": "layout",
-        "target": "jsx:div[2]/div[1]/Tabs[1]/TabsContent[4]/div[2]",
-        "before": "",
-        "after": "class: !order-1",
-        "requestedProperty": "position",
-        "surface": "menus",
-        "statement": "Add to que relationship status not saving and not appearing in profiles put it under position and role in menus and profiles",
-        "viewport": "all supported viewports",
-        "preserve": [
-          "Existing labels and field values",
-          "Existing 24px Edit Profile field spacing",
-          "Existing Profile grid and breakpoints",
-          "Every other field order",
-          "Tabs, colors, typography, and behavior"
-        ],
-        "source": {
-          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
-          "line": 12071,
-          "sha256": "0682f6f4aaaa5fc529f4d913d6d516be7d6409d6aea8af6d16e5f13b14ee2b41"
-        },
-        "executionSource": {
-          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
-          "line": 14345,
-          "sha256": "5ed03f22466442e65d352cf6701151c831d588a4fabc5785451531a2a1778bee"
-        },
-        "review": {
-          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T17-36-18-01a08d40-04af-7300-9d2a-e8b58cd08bac.jsonl",
-          "line": 2440,
-          "sha256": "7f0c65b50ba9a443d8a5a6f68020af3258c956658938d20f2d5c0eff145a343c"
-        }
-      },
-      {
-        "file": "src/app/components/ProfileEdit.tsx",
-        "property": "layout",
-        "target": "jsx:div[2]/div[1]/Tabs[1]/TabsContent[4]/div[3]",
-        "before": "class: grid\nclass: @breakpoint[1]:grid-cols-2",
-        "after": "class: !order-2\nclass: grid\nclass: @breakpoint[1]:grid-cols-2",
-        "requestedProperty": "position",
-        "surface": "menus",
-        "statement": "Add to que relationship status not saving and not appearing in profiles put it under position and role in menus and profiles",
-        "viewport": "all supported viewports",
-        "preserve": [
-          "Existing labels and field values",
-          "Existing 24px Edit Profile field spacing",
-          "Existing Profile grid and breakpoints",
-          "Every other field order",
-          "Tabs, colors, typography, and behavior"
-        ],
-        "source": {
-          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
-          "line": 12071,
-          "sha256": "0682f6f4aaaa5fc529f4d913d6d516be7d6409d6aea8af6d16e5f13b14ee2b41"
-        },
-        "executionSource": {
-          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
-          "line": 14345,
-          "sha256": "5ed03f22466442e65d352cf6701151c831d588a4fabc5785451531a2a1778bee"
-        },
-        "review": {
-          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T17-36-18-01a08d40-04af-7300-9d2a-e8b58cd08bac.jsonl",
-          "line": 2440,
-          "sha256": "7f0c65b50ba9a443d8a5a6f68020af3258c956658938d20f2d5c0eff145a343c"
-        }
-      },
-      {
-        "file": "src/app/components/ProfileView.tsx",
         "property": "unknown",
-        "target": "jsx:section[1]",
-        "before": "className: `space-y-3 rounded-2xl border border-border bg-card/60 ${compact ? 'p-3' : 'p-4'}`\nchildren: [\"children\"]",
-        "after": "className: `space-y-3 rounded-2xl border border-border bg-card/60 ${compact ? 'p-3' : 'p-4'} ${className}`\nchildren: [\"children\"]",
-        "requestedProperty": "position",
-        "surface": "profiles",
-        "statement": "Add to que relationship status not saving and not appearing in profiles put it under position and role in menus and profiles",
-        "viewport": "all supported viewports",
-        "preserve": [
-          "Existing labels and field values",
-          "Existing 24px Edit Profile field spacing",
-          "Existing Profile grid and breakpoints",
-          "Every other field order",
-          "Tabs, colors, typography, and behavior"
-        ],
-        "source": {
-          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
-          "line": 12071,
-          "sha256": "0682f6f4aaaa5fc529f4d913d6d516be7d6409d6aea8af6d16e5f13b14ee2b41"
-        },
-        "executionSource": {
-          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
-          "line": 14345,
-          "sha256": "5ed03f22466442e65d352cf6701151c831d588a4fabc5785451531a2a1778bee"
-        },
-        "review": {
-          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T17-36-18-01a08d40-04af-7300-9d2a-e8b58cd08bac.jsonl",
-          "line": 2440,
-          "sha256": "7f0c65b50ba9a443d8a5a6f68020af3258c956658938d20f2d5c0eff145a343c"
-        }
-      },
-      {
-        "file": "src/app/components/ProfileView.tsx",
-        "property": "layout",
-        "target": "jsx:Tabs[1]/TabsContent[2]/div[1]",
-        "before": "class: grid\nclass: grid-cols-1\nclass: @breakpoint[1]:grid-cols-2",
-        "after": "class: grid\nclass: grid-cols-1\nclass: @breakpoint[1]:grid-cols-2\nclass: [&>*]:order-4",
-        "requestedProperty": "position",
-        "surface": "profiles",
-        "statement": "Add to que relationship status not saving and not appearing in profiles put it under position and role in menus and profiles",
-        "viewport": "all supported viewports",
-        "preserve": [
-          "Existing labels and field values",
-          "Existing 24px Edit Profile field spacing",
-          "Existing Profile grid and breakpoints",
-          "Every other field order",
-          "Tabs, colors, typography, and behavior"
-        ],
-        "source": {
-          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
-          "line": 12071,
-          "sha256": "0682f6f4aaaa5fc529f4d913d6d516be7d6409d6aea8af6d16e5f13b14ee2b41"
-        },
-        "executionSource": {
-          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
-          "line": 14345,
-          "sha256": "5ed03f22466442e65d352cf6701151c831d588a4fabc5785451531a2a1778bee"
-        },
-        "review": {
-          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T17-36-18-01a08d40-04af-7300-9d2a-e8b58cd08bac.jsonl",
-          "line": 2440,
-          "sha256": "7f0c65b50ba9a443d8a5a6f68020af3258c956658938d20f2d5c0eff145a343c"
-        }
-      },
-      {
-        "file": "src/app/components/ProfileView.tsx",
-        "property": "layout",
-        "target": "jsx:Tabs[1]/TabsContent[2]/div[1]/Section[1]",
+        "target": "jsx:div[3]/header[1]",
         "before": "",
-        "after": "class: !order-3",
-        "requestedProperty": "position",
-        "surface": "profiles",
-        "statement": "Add to que relationship status not saving and not appearing in profiles put it under position and role in menus and profiles",
-        "viewport": "all supported viewports",
-        "preserve": [
-          "Existing labels and field values",
-          "Existing 24px Edit Profile field spacing",
-          "Existing Profile grid and breakpoints",
-          "Every other field order",
-          "Tabs, colors, typography, and behavior"
-        ],
-        "source": {
-          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
-          "line": 12071,
-          "sha256": "0682f6f4aaaa5fc529f4d913d6d516be7d6409d6aea8af6d16e5f13b14ee2b41"
-        },
-        "executionSource": {
-          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
-          "line": 14345,
-          "sha256": "5ed03f22466442e65d352cf6701151c831d588a4fabc5785451531a2a1778bee"
-        },
+        "after": "children: [\"onClose ? ( <jsx> ) : null\"]",
+        "requestedProperty": "structure",
         "review": {
           "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T17-36-18-01a08d40-04af-7300-9d2a-e8b58cd08bac.jsonl",
-          "line": 2440,
-          "sha256": "7f0c65b50ba9a443d8a5a6f68020af3258c956658938d20f2d5c0eff145a343c"
+          "line": 2569,
+          "sha256": "e470693764fa3b2bd3fc10d84083efcfc4a9c0105aab8ba80a608f4a78093f63"
         }
       },
       {
-        "file": "src/app/components/ProfileView.tsx",
-        "property": "layout",
-        "target": "jsx:Tabs[1]/TabsContent[2]/div[1]/Section[2]",
-        "before": "",
-        "after": "class: !order-1",
-        "requestedProperty": "position",
-        "surface": "profiles",
-        "statement": "Add to que relationship status not saving and not appearing in profiles put it under position and role in menus and profiles",
-        "viewport": "all supported viewports",
+        "file": "src/app/components/PlaceDetail.tsx",
+        "surface": "pop up per spot on desktop",
+        "statement": "bug fix button covers close button on pop up per spot on desktop",
+        "viewport": "desktop",
         "preserve": [
-          "Existing labels and field values",
-          "Existing 24px Edit Profile field spacing",
-          "Existing Profile grid and breakpoints",
-          "Every other field order",
-          "Tabs, colors, typography, and behavior"
+          "Existing Spot header layout",
+          "Existing bug control",
+          "Existing Close behavior",
+          "Spot content and actions",
+          "Mobile Spot dialog"
         ],
         "source": {
           "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
-          "line": 12071,
-          "sha256": "0682f6f4aaaa5fc529f4d913d6d516be7d6409d6aea8af6d16e5f13b14ee2b41"
+          "line": 9455,
+          "sha256": "0e59d661c081b26241878c92e3a8afc1596bc96b95e45944bbba5740277d5465"
         },
         "executionSource": {
           "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
           "line": 14345,
           "sha256": "5ed03f22466442e65d352cf6701151c831d588a4fabc5785451531a2a1778bee"
         },
+        "property": "structure",
+        "target": "jsx:div[3]/header[1]/Button[1]",
+        "before": "",
+        "after": "element: Button\nchildren: [\"X\"]\ntype: button",
+        "requestedProperty": "structure",
         "review": {
           "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T17-36-18-01a08d40-04af-7300-9d2a-e8b58cd08bac.jsonl",
-          "line": 2440,
-          "sha256": "7f0c65b50ba9a443d8a5a6f68020af3258c956658938d20f2d5c0eff145a343c"
+          "line": 2569,
+          "sha256": "e470693764fa3b2bd3fc10d84083efcfc4a9c0105aab8ba80a608f4a78093f63"
         }
       },
       {
-        "file": "src/app/components/ProfileView.tsx",
-        "property": "layout",
-        "target": "jsx:Tabs[1]/TabsContent[2]/div[1]/Section[3]",
-        "before": "",
-        "after": "class: !order-2",
-        "requestedProperty": "position",
-        "surface": "profiles",
-        "statement": "Add to que relationship status not saving and not appearing in profiles put it under position and role in menus and profiles",
-        "viewport": "all supported viewports",
+        "file": "src/app/components/PlaceDetail.tsx",
+        "surface": "pop up per spot on desktop",
+        "statement": "bug fix button covers close button on pop up per spot on desktop",
+        "viewport": "desktop",
         "preserve": [
-          "Existing labels and field values",
-          "Existing 24px Edit Profile field spacing",
-          "Existing Profile grid and breakpoints",
-          "Every other field order",
-          "Tabs, colors, typography, and behavior"
+          "Existing Spot header layout",
+          "Existing bug control",
+          "Existing Close behavior",
+          "Spot content and actions",
+          "Mobile Spot dialog"
         ],
         "source": {
           "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
-          "line": 12071,
-          "sha256": "0682f6f4aaaa5fc529f4d913d6d516be7d6409d6aea8af6d16e5f13b14ee2b41"
+          "line": 9455,
+          "sha256": "0e59d661c081b26241878c92e3a8afc1596bc96b95e45944bbba5740277d5465"
         },
         "executionSource": {
           "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
           "line": 14345,
           "sha256": "5ed03f22466442e65d352cf6701151c831d588a4fabc5785451531a2a1778bee"
         },
+        "property": "unknown",
+        "target": "jsx:div[3]/header[1]/Button[1]",
+        "before": "",
+        "after": "variant: ghost\naria-label: ['Close', 'Spot'].join(' ')",
+        "requestedProperty": "structure",
         "review": {
           "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T17-36-18-01a08d40-04af-7300-9d2a-e8b58cd08bac.jsonl",
-          "line": 2440,
-          "sha256": "7f0c65b50ba9a443d8a5a6f68020af3258c956658938d20f2d5c0eff145a343c"
+          "line": 2569,
+          "sha256": "e470693764fa3b2bd3fc10d84083efcfc4a9c0105aab8ba80a608f4a78093f63"
+        }
+      },
+      {
+        "file": "src/app/components/PlaceDetail.tsx",
+        "surface": "pop up per spot on desktop",
+        "statement": "bug fix button covers close button on pop up per spot on desktop",
+        "viewport": "desktop",
+        "preserve": [
+          "Existing Spot header layout",
+          "Existing bug control",
+          "Existing Close behavior",
+          "Spot content and actions",
+          "Mobile Spot dialog"
+        ],
+        "source": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
+          "line": 9455,
+          "sha256": "0e59d661c081b26241878c92e3a8afc1596bc96b95e45944bbba5740277d5465"
+        },
+        "executionSource": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
+          "line": 14345,
+          "sha256": "5ed03f22466442e65d352cf6701151c831d588a4fabc5785451531a2a1778bee"
+        },
+        "property": "structure",
+        "target": "jsx:div[3]/header[1]/Button[1]/X[1]",
+        "before": "",
+        "after": "element: X",
+        "requestedProperty": "structure",
+        "review": {
+          "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T17-36-18-01a08d40-04af-7300-9d2a-e8b58cd08bac.jsonl",
+          "line": 2569,
+          "sha256": "e470693764fa3b2bd3fc10d84083efcfc4a9c0105aab8ba80a608f4a78093f63"
         }
       }
     ]
