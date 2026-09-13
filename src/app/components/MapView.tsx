@@ -958,20 +958,30 @@ function applyPersonMarkerClusters(
     .sort((a, b) => a.id.localeCompare(b.id));
   const clusters: MapMarker[] = [];
 
-  groupNearbyMarkers(
-    clusterableMarkers.filter((marker) => !clusteredIds.has(marker.id)),
-    zoom,
-    PERSON_CLUSTER_RADIUS_PX,
-    true,
-    true,
-  ).filter((group) => group.length >= 2).forEach((group) => {
-    const sameBuildingDisplayArea = areInSameBuildingDisplayArea(group);
-    // Only an actual shared building clusters/spiderfies. Ordinary nearby
-    // people never merge into a cluster, at any zoom level.
-    if (!sameBuildingDisplayArea) return;
-
-    group.forEach((marker) => clusteredIds.add(marker.id));
-    clusters.push(buildPeopleCluster(group, sameBuildingDisplayArea ? 'spiderfy' : 'zoom'));
+  // Grouping is purely by real-world same-building overlap, never by a
+  // zoom-scaled pixel radius. Two people either share a building or they
+  // don't; that fact does not change as the map zooms in or out, so this
+  // must not either.
+  const visited = new Set<string>();
+  clusterableMarkers.forEach((marker) => {
+    if (visited.has(marker.id)) return;
+    const group = [marker];
+    visited.add(marker.id);
+    let grew = true;
+    while (grew) {
+      grew = false;
+      clusterableMarkers.forEach((candidate) => {
+        if (visited.has(candidate.id)) return;
+        if (areInSameBuildingDisplayArea([...group, candidate])) {
+          group.push(candidate);
+          visited.add(candidate.id);
+          grew = true;
+        }
+      });
+    }
+    if (group.length < 2) return;
+    group.forEach((groupMarker) => clusteredIds.add(groupMarker.id));
+    clusters.push(buildPeopleCluster(group, 'spiderfy'));
   });
 
   return [
