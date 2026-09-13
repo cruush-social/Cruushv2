@@ -2198,6 +2198,8 @@ export default function MapHome(_props: MapHomeProps = {}) {
     : `${recentlyActiveVisibleCount * 6.25 + Math.max(0, recentlyActiveVisibleCount - 1) * 0.75}rem`;
 
   const handleRecentlyActivePointerDown = (event: PointerEvent<HTMLDivElement>) => {
+    if (event.pointerType === 'touch') return;
+
     recentlyActiveDragRef.current = {
       hasPointerCapture: false,
       isPointerDown: true,
@@ -3399,7 +3401,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
             className={`pointer-events-none absolute ${
               isMobile
                 ? 'bottom-[calc(5.75rem+env(safe-area-inset-bottom))] left-3 right-3 z-[130] px-0'
-                : 'bottom-[calc(6.25rem+env(safe-area-inset-bottom))] left-0 right-0 z-[130] px-4'
+                : 'bottom-[calc(5.75rem+env(safe-area-inset-bottom))] left-0 right-0 z-[130] px-4'
             }`}
           >
             <div
