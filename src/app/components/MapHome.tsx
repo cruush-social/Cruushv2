@@ -2286,13 +2286,17 @@ export default function MapHome(_props: MapHomeProps = {}) {
       return false;
     }
 
-    return distanceMilesBetween(
-      {
-        latitude: currentUserMapLocation.approximateLatitude,
-        longitude: currentUserMapLocation.approximateLongitude,
-      },
+    const origin = {
+      latitude: currentUserMapLocation.approximateLatitude,
+      longitude: currentUserMapLocation.approximateLongitude,
+    };
+    return [
       mapViewport.center,
-    ) > DISCOVERY_BROWSE_RADIUS_MILES;
+      { latitude: mapViewport.north, longitude: mapViewport.west },
+      { latitude: mapViewport.north, longitude: mapViewport.east },
+      { latitude: mapViewport.south, longitude: mapViewport.west },
+      { latitude: mapViewport.south, longitude: mapViewport.east },
+    ].some((point) => distanceMilesBetween(origin, point) > DISCOVERY_BROWSE_RADIUS_MILES);
   }, [currentUserMapLocation, mapViewport?.signature]);
   useEffect(() => {
     let cancelled = false;
