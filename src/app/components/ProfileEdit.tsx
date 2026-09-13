@@ -1183,7 +1183,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
           </div>
         ) : null}
         <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-          <TabsList className="sticky top-0 z-20 grid h-auto w-full grid-cols-5 rounded-full border border-white/10 bg-background/92 p-1 backdrop-blur-md">
+          <TabsList className="grid h-auto w-full grid-cols-5 rounded-full border border-white/10 bg-background/92 p-1 backdrop-blur-md">
             <TabsTrigger value="photos" className="min-h-11">Photos</TabsTrigger>
             <TabsTrigger
               value="badges"
