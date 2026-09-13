@@ -3,7 +3,6 @@
 :root {
   --font-size: 16px;
   --cruush-profile-heart-size: 80px;
-  --cruush-bug-button-size: 40px;
 
   /* cruush brand colors */
   --cruush-pink: #ff0072;
@@ -71,14 +70,6 @@
   --sidebar-accent-foreground: #f5f5f7;
   --sidebar-border: rgba(255, 255, 255, 0.08);
   --sidebar-ring: #6f00ff;
-}
-
-/* One bug-button size and a rightmost slot across every app header. */
-[data-cruush-bug-slot],
-.cruush-alpha-bug-button {
-  width: var(--cruush-bug-button-size) !important;
-  height: var(--cruush-bug-button-size) !important;
-  flex-shrink: 0;
 }
 
 [data-cruush-bug-slot] {
