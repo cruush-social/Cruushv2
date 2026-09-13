@@ -285,36 +285,34 @@ function IncomingRow({
         </button>
       )}
       actions={unlocked ? (
-        <div className="flex items-center gap-1">
-          {onDismiss ? (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="size-8 text-muted-foreground hover:text-white"
-              aria-label={`Clear incoming cruush from ${item.user.name}`}
-              title="Clear from your list"
-              disabled={dismissing}
-              onClick={(event) => {
-                event.stopPropagation();
-                onDismiss(item);
-              }}
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          ) : null}
-          <ProfileActionTrio
-            className={activityActionClassName}
-            userName={item.user.name}
-            cruushState={actionState}
-            cruushTone={actionState === 'mutual' ? 'dark' : undefined}
-            cruushReceived
-            onCruush={() => onCruushAction(item)}
-            canMessage={item.permissions?.canMessage === true}
-            onMessage={() => onMessage(item.user!.id)}
-            canCenterPin={pinActionable}
-            onCenterPin={() => onOpenMap(item.user!.id)}
-          />
-        </div>
+        <ProfileActionTrio
+          className={activityActionClassName}
+          userName={item.user.name}
+          cruushState={actionState}
+          cruushTone={actionState === 'mutual' ? 'dark' : undefined}
+          cruushReceived
+          onCruush={() => onCruushAction(item)}
+          canMessage={item.permissions?.canMessage === true}
+          onMessage={() => onMessage(item.user!.id)}
+          canCenterPin={pinActionable}
+          onCenterPin={() => onOpenMap(item.user!.id)}
+        />
+      ) : null}
+      cornerBadge={unlocked && onDismiss ? (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-8 text-muted-foreground hover:text-white"
+          aria-label={`Clear incoming cruush from ${item.user.name}`}
+          title="Clear from your list"
+          disabled={dismissing}
+          onClick={(event) => {
+            event.stopPropagation();
+            onDismiss(item);
+          }}
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
       ) : null}
       mutual={item.mutual === true}
       vibes={item.user?.vibes}
@@ -506,35 +504,33 @@ function ViewRow({
         </button>
       )}
       actions={unlocked ? (
-        <div className="flex items-center gap-1">
-          {onRemove ? (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="size-8 text-muted-foreground hover:text-white"
-              aria-label={`Clear profile view from ${item.user.name}`}
-              title="Clear from your list"
-              disabled={removing}
-              onClick={(event) => {
-                event.stopPropagation();
-                onRemove(item);
-              }}
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          ) : null}
-          <ProfileActionTrio
-            className={activityActionClassName}
-            userName={item.user.name}
-            cruushState={actionState}
-            cruushTone={actionState === 'mutual' ? 'dark' : undefined}
-            onCruush={() => onCruush(item)}
-            canMessage={item.permissions?.canMessage === true}
-            onMessage={() => onMessage(item.user!.id)}
-            canCenterPin={pinActionable}
-            onCenterPin={() => onOpenMap(item.user!.id)}
-          />
-        </div>
+        <ProfileActionTrio
+          className={activityActionClassName}
+          userName={item.user.name}
+          cruushState={actionState}
+          cruushTone={actionState === 'mutual' ? 'dark' : undefined}
+          onCruush={() => onCruush(item)}
+          canMessage={item.permissions?.canMessage === true}
+          onMessage={() => onMessage(item.user!.id)}
+          canCenterPin={pinActionable}
+          onCenterPin={() => onOpenMap(item.user!.id)}
+        />
+      ) : null}
+      cornerBadge={unlocked && onRemove ? (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-8 text-muted-foreground hover:text-white"
+          aria-label={`Clear profile view from ${item.user.name}`}
+          title="Clear from your list"
+          disabled={removing}
+          onClick={(event) => {
+            event.stopPropagation();
+            onRemove(item);
+          }}
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
       ) : null}
       mutual={actionState === 'mutual'}
       vibes={item.user?.vibes}

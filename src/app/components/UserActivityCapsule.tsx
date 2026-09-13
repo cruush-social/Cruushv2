@@ -1,3 +1,11 @@
+/**
+ * Protected cruush presentation and behavior.
+ * Do not change artwork, geometry, styling, content, controls, privacy rules,
+ * interactions, animation sequences or timing unless Julien explicitly requests
+ * that exact change in a user prompt. Improvement, cleanup and consistency are
+ * not authorization. Preserve the approved local appearance and functionality.
+ */
+
 import type { KeyboardEvent, ReactNode } from 'react';
 import { resolveVibeTone, vibeCapsuleStyle } from '../lib/vibeTone';
 import type { SideBadges } from '../lib/profileApi';
@@ -19,6 +27,8 @@ export type UserActivityCapsuleProps = {
   vibeTone?: 'current' | 'mutual' | 'nearby';
   content?: ReactNode;
   cornerAction?: ReactNode;
+  /** A single control pinned to the card's own top-right corner, separate from `actions`. */
+  cornerBadge?: ReactNode;
   onOpenIdentity?: () => void;
   identityDisabled?: boolean;
   onSelect?: () => void;
@@ -45,6 +55,7 @@ export default function UserActivityCapsule({
   vibeTone = 'nearby',
   content,
   cornerAction,
+  cornerBadge,
   onOpenIdentity,
   identityDisabled = false,
   onSelect,
@@ -122,6 +133,12 @@ export default function UserActivityCapsule({
         role={onSelect ? 'button' : undefined}
         tabIndex={onSelect ? 0 : undefined}
       >
+      {cornerBadge ? (
+        <div className="absolute right-2 top-2 z-10" data-testid="activity-corner-badge">
+          {cornerBadge}
+        </div>
+      ) : null}
+
       {vibeRow ? <div className="mb-2 min-w-0">{vibeRow}</div> : null}
 
       <div className="cruush-user-activity-grid grid w-full items-center">
