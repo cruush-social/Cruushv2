@@ -391,6 +391,7 @@ function hasActiveSeekingFilters(filters: FilterState) {
       filters.hobbies,
       filters.positions,
       filters.roles,
+      filters.relationshipStatus,
       filters.kinks,
       filters.bodyTypes,
       filters.sexuality,

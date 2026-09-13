@@ -24,6 +24,7 @@ import {
   PREFERRED_SPOTS,
   PRESENTATIONS,
   PROTECTION_BOUNDARIES,
+  RELATIONSHIP_STATUS,
   ROLES,
   SEXUALITY,
   SUBSTANCE_BOUNDARIES,
@@ -48,6 +49,7 @@ export interface FilterState {
   hobbies: string[];
   positions: string[];
   roles: string[];
+  relationshipStatus: string[];
   kinks: string[];
   bodyTypes: string[];
   sexuality: string[];
@@ -73,6 +75,7 @@ export const DEFAULT_FILTER_STATE: FilterState = {
   hobbies: [],
   positions: [],
   roles: [],
+  relationshipStatus: [],
   kinks: [],
   bodyTypes: [],
   sexuality: [],
@@ -292,6 +295,7 @@ export default function MapFiltersSurface({
               <FieldGroup label="Preferred spots" options={PREFERRED_SPOTS} stateKey="preferredSpots" value={value} onChange={onChange} />
               <FieldGroup label="Position" options={POSITIONS} stateKey="positions" value={value} onChange={onChange} />
               <FieldGroup label="Role" options={ROLES} stateKey="roles" value={value} onChange={onChange} />
+              <FieldGroup label="Relationship status" options={RELATIONSHIP_STATUS} stateKey="relationshipStatus" value={value} onChange={onChange} />
               <FieldGroup searchable label="Kinks & Fetishes" optionGroups={KINK_GROUPS} stateKey="kinks" value={value} onChange={onChange} />
             </TabsContent>
 

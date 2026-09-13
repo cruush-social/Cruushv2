@@ -375,6 +375,14 @@ export function createSensitiveProfileTokens(
     }
   }
 
+  for (const status of sensitiveProfile.relationship_status ?? []) {
+    const normalizedStatus = normalizeTokenValue(status);
+
+    if (normalizedStatus) {
+      tokenValues.add(`relationship-status:${normalizedStatus}`);
+    }
+  }
+
   return [...tokenValues].map((tokenValue) => createSensitiveProfileToken(config, tokenValue));
 }
 

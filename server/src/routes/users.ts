@@ -226,6 +226,7 @@ const discoveryQuerySchema = z.object({
   hobbies: queryArrayField,
   positions: queryArrayField,
   roles: queryArrayField,
+  relationshipStatus: queryArrayField,
   kinks: queryArrayField,
   bodyTypes: queryArrayField,
   sexuality: queryArrayField,
@@ -348,7 +349,7 @@ function addSensitiveTokenFilter(
   app: FastifyInstance,
   where: string[],
   values: unknown[],
-  tokenKind: "crowd" | "kink",
+  tokenKind: "crowd" | "kink" | "relationship-status",
   selectedValues: string[]
 ) {
   if (selectedValues.length === 0) {
@@ -739,6 +740,7 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, fi
     addTextArrayFilter(where, values, "protection_boundaries", filters.protectionBoundaries);
     addSensitiveTokenFilter(app, where, values, "crowd", filters.crowds);
     addSensitiveTokenFilter(app, where, values, "kink", filters.kinks);
+    addSensitiveTokenFilter(app, where, values, "relationship-status", filters.relationshipStatus);
     addProfileSearchFilter(app, where, values, filters.q);
     values.push(filters.limit);
     const limitPlaceholder = `$${values.length}`;

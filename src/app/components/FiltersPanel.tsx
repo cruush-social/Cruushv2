@@ -17,6 +17,7 @@ import {
   LOOKING_FOR,
   POSITIONS,
   PRESENTATIONS,
+  RELATIONSHIP_STATUS,
   ROLES,
   SUBSTANCE_BOUNDARIES,
   VIBE_GROUPS,
@@ -127,6 +128,11 @@ export default function FiltersPanel() {
             <div className="space-y-2">
               <Label>Role</Label>
               <MultiSelect menuPortal options={ROLES} />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Relationship status</Label>
+              <MultiSelect menuPortal ariaLabel="Relationship status" options={RELATIONSHIP_STATUS} />
             </div>
 
             <div className="space-y-2">

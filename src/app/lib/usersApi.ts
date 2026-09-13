@@ -210,6 +210,7 @@ export async function getNearbyUsers(
   appendListParams(params, 'hobbies', filters?.hobbies);
   appendListParams(params, 'positions', filters?.positions);
   appendListParams(params, 'roles', filters?.roles);
+  appendListParams(params, 'relationshipStatus', filters?.relationshipStatus);
   appendListParams(params, 'kinks', filters?.kinks);
   appendListParams(params, 'bodyTypes', filters?.bodyTypes);
   appendListParams(params, 'sexuality', filters?.sexuality);
