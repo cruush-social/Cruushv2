@@ -832,74 +832,6 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
                 </div>
               </section>
 
-              {/* Expiry is chosen per post in the composer now, so it is not a
-                  single setting applied to everything you write. */}
-              <section className="rounded-lg border border-white/10 bg-black/42 p-3">
-                <p className="text-sm font-semibold text-white">Who can see this post</p>
-                <p className="mb-2 mt-1 text-xs text-white/58">Public and Mutuals are free. A specific Crowd is part of Feed+.</p>
-                <div className="grid grid-cols-3 gap-2">
-                  {([
-                    { value: 'public', label: 'Public' },
-                    { value: 'mutuals', label: 'Mutuals' },
-                    { value: 'crowd', label: 'Specific Crowd +' },
-                  ] as const).map((option) => {
-                    const selected = postAudience === option.value;
-                    return (
-                      <button
-                        key={option.value}
-                        type="button"
-                        className={[
-                          'min-h-10 rounded-full border px-2 text-sm font-semibold transition',
-                          selected
-                            ? 'border-primary/45 text-white'
-                            : 'border-white/10 bg-black/40 text-white/72 hover:bg-white/8',
-                        ].join(' ')}
-                        style={selected ? { background: 'var(--cruush-gradient-soft-18)' } : undefined}
-                        aria-pressed={selected}
-                        onClick={() => {
-                          if (option.value === 'crowd' && hasCruushPlus !== true) {
-                            setPlusCardOpen(true);
-                            return;
-                          }
-
-                          setPostAudience(option.value);
-                          if (option.value !== 'crowd') {
-                            setSelectedCrowdTargets([]);
-                          }
-                        }}
-                      >
-                        {option.label}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {postAudience === 'crowd' && availableCrowdTargets.length > 0 ? (
-                  <div className="flex flex-wrap gap-2">
-                    {availableCrowdTargets.map((crowd) => {
-                      const selected = selectedCrowdTargets.includes(crowd);
-                      return (
-                        <button
-                          key={crowd}
-                          type="button"
-                          className={[
-                            'h-10 rounded-full border px-4 text-sm font-semibold transition',
-                            selected
-                              ? 'border-primary/45 text-white'
-                              : 'border-white/10 bg-black/40 text-white/72 hover:bg-white/8',
-                          ].join(' ')}
-                          style={selected ? { background: 'var(--cruush-gradient-soft-18)' } : undefined}
-                          aria-pressed={selected}
-                          onClick={() => toggleCrowdTarget(crowd)}
-                        >
-                          {crowd}
-                        </button>
-                      );
-                    })}
-                  </div>
-                ) : null}
-              </section>
-
               <section className="rounded-lg border border-white/10 bg-black/42 p-3">
                 <div className="mb-2 flex items-center justify-between gap-3">
                   <p className="text-sm font-semibold text-white">Distance</p>
@@ -1002,67 +934,6 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
                   </button>
                 ))}
               </div>
-            </section>
-
-            <section className="rounded-lg border border-white/10 bg-black/42 p-3">
-              <p className="mb-2 text-sm font-semibold text-white">Who can see this post</p>
-              <div className="grid grid-cols-3 gap-2">
-                {([
-                  { value: 'public', label: 'Public' },
-                  { value: 'mutuals', label: 'Mutuals' },
-                  { value: 'crowd', label: 'Specific Crowd +' },
-                ] as const).map((option) => {
-                  const selected = postAudience === option.value;
-                  return (
-                    <button
-                      key={option.value}
-                      type="button"
-                      className={[
-                        'min-h-10 rounded-full border px-2 text-sm font-semibold transition',
-                        selected
-                          ? 'border-primary/45 text-white'
-                          : 'border-white/10 bg-black/40 text-white/72 hover:bg-white/8',
-                      ].join(' ')}
-                      style={selected ? { background: 'var(--cruush-gradient-soft-18)' } : undefined}
-                      aria-pressed={selected}
-                      onClick={() => {
-                        if (option.value === 'crowd' && hasCruushPlus !== true) {
-                          setPlusCardOpen(true);
-                          return;
-                        }
-                        setPostAudience(option.value);
-                        if (option.value !== 'crowd') setSelectedCrowdTargets([]);
-                      }}
-                    >
-                      {option.label}
-                    </button>
-                  );
-                })}
-              </div>
-              {postAudience === 'crowd' && availableCrowdTargets.length > 0 ? (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {availableCrowdTargets.map((crowd) => {
-                    const selected = selectedCrowdTargets.includes(crowd);
-                    return (
-                      <button
-                        key={crowd}
-                        type="button"
-                        className={[
-                          'h-10 rounded-full border px-4 text-sm font-semibold transition',
-                          selected
-                            ? 'border-primary/45 text-white'
-                            : 'border-white/10 bg-black/40 text-white/72 hover:bg-white/8',
-                        ].join(' ')}
-                        style={selected ? { background: 'var(--cruush-gradient-soft-18)' } : undefined}
-                        aria-pressed={selected}
-                        onClick={() => toggleCrowdTarget(crowd)}
-                      >
-                        {crowd}
-                      </button>
-                    );
-                  })}
-                </div>
-              ) : null}
             </section>
 
             <section className="rounded-lg border border-white/10 bg-black/42 p-3">
@@ -1224,6 +1095,71 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
                 <span>{FEED_EXPIRY_OPTIONS[FEED_EXPIRY_OPTIONS.length - 1].label}</span>
               </div>
               <p className="mt-2 text-xs text-white/58">Never expire is free. Custom timers are part of Feed+.</p>
+            </section>
+            <section className="rounded-lg border border-white/10 bg-black/42 p-3">
+              <p className="text-sm font-semibold text-white">Who can see this post</p>
+              <p className="mb-2 mt-1 text-xs text-white/58">Public and Mutuals are free. A specific Crowd is part of Feed+.</p>
+              <div className="grid grid-cols-3 gap-2">
+                {([
+                  { value: 'public', label: 'Public' },
+                  { value: 'mutuals', label: 'Mutuals' },
+                  { value: 'crowd', label: 'Specific Crowd +' },
+                ] as const).map((option) => {
+                  const selected = postAudience === option.value;
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      className={[
+                        'min-h-10 rounded-full border px-2 text-sm font-semibold transition',
+                        selected
+                          ? 'border-primary/45 text-white'
+                          : 'border-white/10 bg-black/40 text-white/72 hover:bg-white/8',
+                      ].join(' ')}
+                      style={selected ? { background: 'var(--cruush-gradient-soft-18)' } : undefined}
+                      aria-pressed={selected}
+                      onClick={() => {
+                        if (option.value === 'crowd' && hasCruushPlus !== true) {
+                          setPlusCardOpen(true);
+                          return;
+                        }
+
+                        setPostAudience(option.value);
+                        if (option.value !== 'crowd') {
+                          setSelectedCrowdTargets([]);
+                        }
+                      }}
+                    >
+                      {option.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {postAudience === 'crowd' && availableCrowdTargets.length > 0 ? (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {availableCrowdTargets.map((crowd) => {
+                    const selected = selectedCrowdTargets.includes(crowd);
+                    return (
+                      <button
+                        key={crowd}
+                        type="button"
+                        className={[
+                          'h-10 rounded-full border px-4 text-sm font-semibold transition',
+                          selected
+                            ? 'border-primary/45 text-white'
+                            : 'border-white/10 bg-black/40 text-white/72 hover:bg-white/8',
+                        ].join(' ')}
+                        style={selected ? { background: 'var(--cruush-gradient-soft-18)' } : undefined}
+                        aria-pressed={selected}
+                        onClick={() => toggleCrowdTarget(crowd)}
+                      >
+                        {crowd}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : null}
             </section>
             {hasCruushPlus ? (
               <p className="text-xs text-white/58">Up to {MAX_FEED_POST_TAGS} tags.</p>
