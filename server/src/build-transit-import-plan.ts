@@ -220,13 +220,18 @@ try {
       groupedExplicitParents.set(candidate.explicitParentKey, group);
       continue;
     }
-    const group = groupedRetained.get(candidate.existingPlaceId) ?? [];
+    const existingPlaceId = candidate.existingPlaceId;
+    if (!existingPlaceId) throw new Error('Candidate missing existingPlaceId in retained branch');
+    const group = groupedRetained.get(existingPlaceId) ?? [];
     group.push(candidate);
-    groupedRetained.set(candidate.existingPlaceId, group);
+    groupedRetained.set(existingPlaceId, group);
   }
   for (const [id, records] of groupedRetained) {
     const retained = retainedById.get(id);
     if (!retained) throw new Error('Existing transit Spot disappeared: ' + id);
+    if (retained.facility_type !== 'rail_station' && retained.facility_type !== 'bus_stop') {
+      throw new Error('Existing transit Spot has an unsupported category: ' + id);
+    }
     plan.push(combineRetainedParent({
       name: retained.name,
       latitude: retained.latitude,
