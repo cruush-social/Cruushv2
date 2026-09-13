@@ -6,6 +6,7 @@ import { PHOTO_UPLOAD_ACCEPT, PHOTO_UPLOAD_FORMAT_MESSAGE } from '../lib/photoUp
 import { CROWDS, ONBOARDING_IDENTITIES, LOOKING_FOR, MAX_PROFILE_SEXUALITIES, POSITIONS, PRONOUNS, ROLES, SEXUALITY, VIBE_GROUPS } from '../lib/profileOptions';
 import { ArrowRight, Check, Clipboard, Gift, Share2, ShieldCheck } from 'lucide-react';
 import { toast } from '../lib/toast';
+import { enablePushNotifications } from '../lib/pushNotifications';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { acceptCodeOfConduct, attachReferralCode, getAuthSession, type AuthSessionPayload } from '../lib/authApi';
@@ -764,6 +765,7 @@ export default function ProfileOnboarding({
       // The profile is saved server side now, so the draft has nothing left to
       // protect and would otherwise reopen a finished flow.
       clearOnboardingDraft();
+      void enablePushNotifications().catch(() => undefined);
       onComplete(nextSession, destination, twoFactorPromoDaysGranted > 0);
     } catch (error) {
       console.error('Error saving profile:', error);
