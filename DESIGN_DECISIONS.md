@@ -119,3 +119,8 @@ When an owner's explicit-photo sharing policy excludes the viewer, show the exis
 ## Shared black glass, September 12, 2026
 
 The black-glass consistency request applies only to Map Controls, the map top bar and bottom navigation bar. Match the existing top bar background (background color at 25 percent opacity, 12px blur) only within those named controls. Preserve their geometry and approved hover states. Signals, badges, Ghost internals, other panels, headers, capsules, inputs and dimming backdrops are excluded. A separate explicit approval makes the inner Settings page transparent only when embedded in a popup; fullscreen Settings stays unchanged. Source: task 01a09549, September 12, “mapcontrols, top and bottom bar, thats it” and the popup-only Settings approval. The earlier app-wide interpretation was unauthorized and is superseded.
+
+
+## No padding additions app-wide without an explicit request, September 13, 2026
+
+Never add padding or spacing anywhere in the app as a side effect of other work. This repeats and generalizes the earlier Recently Active/bottom-nav lock: that gap must stay exactly as tight as documented (calc(5.75rem + safe-area-inset-bottom) below 1024px, calc(6.25rem + safe-area-inset-bottom) on desktop, BottomNav at 0.75rem plus safe-area) at every breakpoint, and the same standard applies to every other surface in the app, not just that one. If a change touches layout near existing padding, verify the surrounding spacing is unchanged before calling the work done. Source: Julien, September13, repeated report of an AI widening the Recently Active/bottom-nav gap again: "I never want you to add padding â¦ you keep adding padding around the app in general."
