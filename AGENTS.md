@@ -46,4 +46,7 @@ branch's context. Do not ask Julien to repeat anything documented in either file
 
 ## Current project documents
 
-On every project request, read `docs/CRUUSH-RULES.md`, `DESIGN_DECISIONS.md`, `docs/design-master.md`, and `docs/master-architecture.md` in full, plus applicable scoped rules. Read `HANDOFF.md` for branch context. Current explicit user instructions supersede historical rules.
+On every project request, read `docs/CRUUSH-RULES.md`, `HANDOFF.md`,
+`DESIGN_DECISIONS.md`, and `docs/design-master.md` in this checkout.
+For backend or infrastructure work, consult `docs/master-architecture.md` and
+the applicable source. Current explicit user instructions override older decisions.

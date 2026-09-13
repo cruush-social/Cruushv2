@@ -8,12 +8,12 @@
     <meta name="theme-color" content="#ff006e" />
     <meta property="og:type" content="article" />
     <meta property="og:site_name" content="cruush" />
-    <meta property="og:title" content="Safety on cruush: privacy starts with control" />
+    <meta property="og:title" content="Your cruising life is your business" />
     <meta property="og:description" content="How cruush protects sensitive data, gives members control over map visibility, and makes mutual cruushes meaningful." />
     <meta property="og:url" content="https://cruush.app/blog/safety-on-cruush.html" />
     <meta property="og:image" content="https://cruush.app/icons/icon-512.png" />
     <meta name="twitter:card" content="summary" />
-    <meta name="twitter:title" content="Safety on cruush: privacy starts with control" />
+    <meta name="twitter:title" content="Your cruising life is your business" />
     <meta name="twitter:description" content="How cruush protects sensitive data, gives members control over map visibility, and makes mutual cruushes meaningful." />
     <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png" />
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
@@ -21,7 +21,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=UnifrakturMaguntia&family=Spectral:ital,wght@0,300;0,400;0,600;1,400&display=swap" />
     <link rel="stylesheet" href="/pages.css" />
-    <title>Safety on cruush: privacy starts with control</title>
+    <link rel="stylesheet" href="/blog/article.css?v=20260912" />
+    <title>Your cruising life is your business</title>
   </head>
   <body class="blog-page">
     <header class="site">
@@ -35,54 +36,53 @@
       </nav>
     </header>
 
-    <main>
+    <main class="blog-article">
       <p><a href="/blog">&larr; cruush blog</a></p>
-      <h1>Safety on cruush: privacy starts with control</h1>
-      <p class="lede">Meeting people nearby should not mean giving up control of your information. cruush is built around a simple idea: privacy settings should shape what people can see and how they can reach you.</p>
-      <p>Here is how that works today.</p>
+      <h1>Your cruising life is your business</h1>
       <p>Written by Julien Lenaz, admin and lead developer of cruush. <time datetime="2026-09-08">September 8, 2026</time></p>
 
-      <section class="card">
-        <h2>Sensitive information is encrypted at rest</h2>
-        <p>cruush encrypts sensitive profile data, relationship records, stored location data, messages, feed content, and media while it is stored on the server. That protection includes the privacy policy behind Ghost Mode and the relationship record created when a cruush becomes mutual. Encryption is paired with integrity checks, versioned keys, and access controls, helping protect stored information from unauthorized access or tampering.</p>
-        <p>This secure server-side foundation lets cruush run core features such as mutual cruushes, visibility controls, account recovery, moderation, and abuse prevention while protecting stored information.</p>
+      <section>
+        <h2>Privacy you can actually use</h2>
+        <p>We’re building cruush for the way people actually cruise. Sometimes you want to be easy to find. Sometimes you want to see who’s around while keeping your own location less specific. Sometimes you want to share a little more with someone you’re into.</p>
+        <p>You should get to make those choices. That’s why privacy is part of how cruush works, from the pin on the map to the information on your profile.</p>
+        <p>The point is to give you more room to enjoy yourself. Find your people, make your interest known, and choose what you share as you go.</p>
       </section>
 
-      <section class="card">
-        <h2>Your map presence is not a public trail</h2>
-        <p>cruush uses location permission from your device to power nearby discovery. Your stored location is encrypted. For nearby discovery, cruush derives privacy-preserving coarse location index tokens and searches nearby cells, rather than publishing your exact coordinates for everyone to query.</p>
-        <p>When the app shows another member's location, it creates a protected display value for that specific viewer and session. Your actual location is not simply passed around as an open map coordinate.</p>
-        <p>You decide how your presence appears. Precise sharing is an opt-in setting for mutual cruushes. You can also choose Ghost Mode when you want nearby discovery without showing your precise pin.</p>
+      <section>
+        <h2>The personal stuff stays protected</h2>
+        <p>cruush encrypts sensitive profile information, stored locations, messages, Feed content and media on our servers. Your relationship records are encrypted too, including who you have a mutual cruush with. The settings behind Ghost Mode and its location-sharing choices get that protection as well.</p>
+        <p>We’ve paired that encryption with access checks and checks against tampering. The protection reaches the things that make cruising personal: what you share, who you connect with, and where you are.</p>
+        <p>You get the features you came for, with serious work happening underneath them.</p>
       </section>
 
-      <section class="card">
-        <h2>Ghost Mode shifts your public pin</h2>
-        <p>Ghost Mode replaces your public map position with a decoy position inside the privacy radius you choose. That decoy changes over the course of your Ghost Mode session, so it does not become a fixed stand-in for your actual location.</p>
-        <p>Map presence controls how long your heart pin remains on the map after its last location update. If that window is still open after you log off, Ghost Mode remains active for that pin. Members who are not allowed your precise location continue to see a decoy until the presence window ends or you change your privacy settings.</p>
-        <p>Ghost Mode is protected at rest as well. The privacy policy that stores its state and sharing choices receives the same encryption protection as other sensitive data.</p>
-        <p>Ghost Mode keeps location privacy focused. It does not silently change messaging permissions or erase profile-view activity. Those rules stay separate, with blocking remaining a hard boundary across the app. You can turn Ghost Mode on or off in your privacy controls.</p>
-        <p>Ghost Mode reduces what other members can infer from the map. It does not make anyone anonymous to cruush, its service providers, or legal requests where disclosure is required. It also cannot undo information someone may have already seen.</p>
+      <section>
+        <h2>Be nearby without putting your exact location on display</h2>
+        <p>Nearby discovery is the heart of cruush. We built it so the app can find people around you using coarse location cells, with your stored location encrypted.</p>
+        <p>What another member sees follows your sharing settings. Precise location sharing is something you choose for mutual cruushes, so you decide when to make it easier for someone to find you.</p>
+        <p>Want more space around your pin? Turn on Ghost Mode and choose your privacy radius. Other members who don’t have precise-location access see a decoy inside that area. The decoy moves during your Ghost Mode session, keeping your map presence from settling into one fixed spot.</p>
+        <p>Ghost Mode also stays with your pin while your map-presence window is open, even after you log off. Choose how long your pin stays around, and your location choices keep applying for that whole window.</p>
       </section>
 
-      <section class="card">
-        <h2>Mutual cruushes require two choices</h2>
-        <p>A cruush is an expression of interest. A mutual cruush happens only when both people choose each other. cruush creates and protects that relationship as a separate encrypted record.</p>
-        <p>The mutual-cruush relationship itself is encrypted at rest, not only the messages or profile information around it.</p>
-        <p>Mutual cruushes can unlock settings a member has chosen to reserve for that relationship, including protected profile information and precise location sharing. Mutual cruushes do not share precise location automatically. If a member's setting allows it, mutual cruushes can share precise location with each other, and that access can be revoked. Blocking is a hard boundary across the app.</p>
-        <p>The mutual-cruush model gives cruush a clear foundation for consent-based sharing. Ghost Mode adds a further safeguard by keeping precise location behind a decoy, while messaging and blocking rules remain explicit.</p>
+      <section>
+        <h2>A mutual cruush takes two people</h2>
+        <p>Sending a cruush tells someone you’re interested. When they cruush you back, it’s mutual. Both of you chose it. That’s the whole point.</p>
+        <p>You can reserve parts of your profile for mutual cruushes and choose whether to share your precise location with them. Becoming mutual keeps those choices in your hands. You decide what opens up, and you can change your mind.</p>
+        <p>We encrypt the mutual relationship itself, alongside the personal information around it. Who you’re into deserves care too.</p>
       </section>
 
-      <section class="card">
-        <h2>Safety is a set of layers</h2>
-        <p>Encryption matters, but it is only one part of safety. cruush also uses secure session handling, password hashing, rate limits, access controls, reporting, blocking, moderation, and protections against unsafe links and spam.</p>
-        <p>No tool can guarantee a perfect outcome. The goal is to give members meaningful control, reduce unnecessary exposure, and make consent part of how connection works on cruush.</p>
+      <section>
+        <h2>Room to be yourself, tools to draw the line</h2>
+        <p>We want cruush to be a place where queer adults can be direct about what they want. That includes adult content, specific interests and conversations that don’t need to be dressed up for someone else.</p>
+        <p>We’ve built reporting, blocking, moderation, spam protection and account protections into that experience. Blocking draws a firm line across the app. Your visibility and messaging settings let you make more specific choices about who sees you and who can reach you.</p>
+        <p>These are tools for the moments that actually come up while cruising. You can be interested, change your mind, narrow your audience, or step back. Your settings should work with you through all of it.</p>
       </section>
 
-      <section class="card">
-        <h2>Building the next privacy layer</h2>
-        <p>We are approaching end-to-end encryption as a focused post-launch engineering track. It would change more than the way messages are stored. It would touch account recovery, multiple devices, key changes, abuse reporting, moderation, search, mutual cruushes, and visibility controls.</p>
-        <p>Our next phase is to define the threat model and identify which cruush surfaces can support E2EE while keeping those protections strong. We then plan to prototype the key and recovery flows, test migration from the beta architecture, and review the design independently before rollout.</p>
-        <p>We will publish the user-facing protections and limits as the work advances. Until rollout, cruush continues to protect stored data with server-side encryption at rest.</p>
+      <section>
+        <h2>We’re putting more into privacy</h2>
+        <p>The foundation today is encryption on our servers, paired with sharing rules that shape the app around your choices. Next, we’re working toward end-to-end encryption for suitable private parts of cruush.</p>
+        <p>That work includes moving between devices, recovering your account and reporting abuse, because we want those parts of the experience to work well together. We’ll share the new features as we build them.</p>
+        <p>We care about this because we want to use the kind of app we’re making. A cruising app with personality, room for real queer lives, and privacy controls you can actually do something with.</p>
+        <p>Come find someone you’re into. You choose what happens next.</p>
       </section>
     </main>
 
@@ -99,10 +99,10 @@
     <script type="application/ld+json">{
   "@context": "https://schema.org",
   "@type": "BlogPosting",
-  "headline": "Safety on cruush: privacy starts with control",
+  "headline": "Your cruising life is your business",
   "description": "How cruush protects sensitive data, gives members control over map visibility, and makes mutual cruushes meaningful.",
   "datePublished": "2026-09-08",
-  "dateModified": "2026-09-08",
+  "dateModified": "2026-09-12",
   "url": "https://cruush.app/blog/safety-on-cruush.html",
   "author": {
     "@type": "Person",

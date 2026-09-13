@@ -1,5 +1,7 @@
 # FIXLOG
 
+- 2026-09-12 TOKEN-LOGGING-INCIDENT: Removed raw static-server paths and captcha-provider error bodies from logs. Existing opted-in push subscriptions renew against the current VAPID key after sign-in or an enable action, so signing-key rotation retires the previous browser endpoint without requesting permission or changing opt-in choices. Client and server Docker builds, 10 logging/mailer checks and 6 push-subscription checks pass; operational key rotation and live verification remain active.
+
 - 2026-09-11 MAP-CENTER-PIN-CLOSE-ZOOM-20260911: The Center location action now recenters the signed-in member at zoom 16 for both fresh browser and active travel locations. Coordinates, location sync, privacy, controls, and other camera actions remain unchanged. The focused browser-location check and both builds pass. Seeded localhost at 1114x963 accepted the action, but browser geolocation remained in Finding your location, so final rendered camera state and production remain unverified.
 
 - 2026-09-11 MAP-CLOSE-ZOOM-SPIDERFY-20260911: Ordinary nearby member clusters now split into anchored pins at zoom 15.25 and above, while same-building clusters remain available for desktop hover/click and mobile long-press/tap spiderfy. Owner and owner Ghost decoy remain individual. Five focused checks pass; seeded localhost at 1114x963 rendered a two-person cluster and click expanded it into two separated hearts that stayed open. Full MapView is 70/71 because the unchanged origin/main Ping post-preview baseline test still fails. Production verification pending.
@@ -240,3 +242,5 @@
 - Relationship status was omitted from encrypted profile writes, so selections disappeared after saving. It now persists and appears below Position and Role in profile menus and profiles.
 - The desktop Spot popup's bug control could cover its close control. Its header now places a dedicated Close button immediately after the bug control while the mobile dialog keeps its existing Close behavior.
 - Desktop map profile popups stopped too high above the bottom navigation. Profile and Edit Profile panels can now extend 34px farther down while other docked panels retain their existing clearance.
+
+- 2026-09-12: Prevent auth-token disclosure in request/error serializers, nginx access/error logs, development email previews and provider failures. Three focused security regressions plus seven mailer tests pass; production synthetic redirect, 404, query and header probes retain expected responses with zero token values in application/frontend logs. Removed all 37 outstanding recovery-token records (already expired); retained Docker and 43 host logs contained no matching real token URLs.

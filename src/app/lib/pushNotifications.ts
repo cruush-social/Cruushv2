@@ -1,5 +1,6 @@
 import {
   getVapidPublicKey,
+  getNotificationPreferences,
   subscribeToPushNotifications,
   unsubscribeFromPushNotifications,
   type NotificationPreferences,
@@ -43,6 +44,34 @@ function serializeSubscription(subscription: PushSubscription): PushSubscription
   };
 }
 
+async function currentSubscription(registration: ServiceWorkerRegistration, publicKey: string) {
+  const key = urlBase64ToUint8Array(publicKey);
+  const existing = await registration.pushManager.getSubscription();
+  const previousKey = existing?.options?.applicationServerKey;
+  const bytes = previousKey ? new Uint8Array(previousKey) : null;
+  if (existing && bytes && bytes.length === key.length && bytes.every((byte, index) => byte === key[index])) {
+    return existing;
+  }
+  if (existing && !(await existing.unsubscribe())) {
+    throw new Error('Could not replace the previous push subscription.');
+  }
+  return registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
+}
+
+// Refresh only an existing, opted-in subscription. Never request permission here.
+export async function refreshExistingPushSubscription(): Promise<void> {
+  if (!('Notification' in window) || Notification.permission !== 'granted' ||
+      !('serviceWorker' in navigator) || !('PushManager' in window)) return;
+  const preferences = await getNotificationPreferences();
+  if (!preferences.pushEnabled) return;
+  const registration = await navigator.serviceWorker.ready;
+  if (!(await registration.pushManager.getSubscription())) return;
+  const vapid = await getVapidPublicKey();
+  if (!vapid.enabled || !vapid.publicKey) return;
+  const subscription = await currentSubscription(registration, vapid.publicKey);
+  await subscribeToPushNotifications(serializeSubscription(subscription));
+}
+
 export async function enablePushNotifications(): Promise<NotificationPreferences> {
   const vapid = await getVapidPublicKey();
 
@@ -67,11 +96,7 @@ export async function enablePushNotifications(): Promise<NotificationPreferences
   }
 
   const registration = await navigator.serviceWorker.ready;
-  const existing = await registration.pushManager.getSubscription();
-  const subscription = existing ?? await registration.pushManager.subscribe({
-    userVisibleOnly: true,
-    applicationServerKey: urlBase64ToUint8Array(vapid.publicKey),
-  });
+  const subscription = await currentSubscription(registration, vapid.publicKey);
 
   return subscribeToPushNotifications(serializeSubscription(subscription));
 }

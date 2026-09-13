@@ -38,3 +38,5 @@ the branch name.
 - `/Volumes/good/cruush-spot-alias-duplicates-20260910`: `fix/spot-alias-duplicates-20260910`, Codex thread 01a08cc1, guarded Lincoln Terrace alias repair; active, not yet merged.
 
 - `fix/owner-ghost-pins-20260910` at `/Volumes/good/cruush-owner-ghost-pins-20260910`: Codex task `01a08e63-fb72-7070-886b-c162d77b31d9`; excludes owner/decoy from people clusters and protects their tap targets; local tests/build/render verified; not merged or published.
+
+- `codex/fix-token-logging-20260912` at `/Volumes/good/cruush-token-logging-20260912`: Codex task `01a09564-f771-7b91-b1db-319f81d01954`; isolate the token-logging repair, recovery-token invalidation and loaded-rule correction. Production containment verified; permanent release being prepared. No other worktree was modified.
