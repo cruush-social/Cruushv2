@@ -85,7 +85,6 @@ export default function BlockedUsersPage() {
         </Button>
         <div>
           <h2 className="text-xl">Blocked users</h2>
-          <p className="text-xs text-muted-foreground">Manage people you no longer want to see or interact with.</p>
         </div>
       
         <BugButtonSlot testId="blocked-users-page-bug-button-slot" />

@@ -40,7 +40,6 @@ export default function SafetyCenter() {
         </Button>
         <div>
           <h2 className="text-xl">Safety Center</h2>
-          <p className="text-xs text-muted-foreground">Your safety is our priority</p>
         </div>
       
         <BugButtonSlot testId="safety-center-bug-button-slot" />
