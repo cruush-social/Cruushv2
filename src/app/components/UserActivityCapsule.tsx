@@ -132,6 +132,7 @@ export default function UserActivityCapsule({
         onKeyDown={handleSelectKeyDown}
         role={onSelect ? 'button' : undefined}
         tabIndex={onSelect ? 0 : undefined}
+        style={content ? undefined : { paddingBottom: 'clamp(0.5rem, 2.65cqw, 1.1rem)' }}
       >
       {cornerBadge ? (
         <div className="absolute right-2 top-2 z-10" data-testid="activity-corner-badge">
