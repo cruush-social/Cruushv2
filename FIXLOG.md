@@ -1,5 +1,7 @@
 # FIXLOG
 
+- 2026-09-13 CRUUSH-PLUS-BUTTON-SIZE-20260913: The cruush+ rewards pill (map top-left) was oversized on tablet and desktop. Reduced its height/padding/text size by 30% at the `sm:` (tablet) and `lg:` (desktop) breakpoints only; the mobile base and max-[360px] sizes are unchanged. Verified live at 1280x900. Client build passes. No production deployment.
+
 - 2026-09-13 STICKY-TAB-MENU-20260913: Profile Edit and the Seeking Filter sheet pinned their Tabs bar (`sticky top-0 z-20`) so it stayed fixed while its own tab content scrolled underneath, letting content bleed through behind it. Removed `sticky top-0 z-20` from both `TabsList` elements; the bar now scrolls with its content like every other tab bar in the app. Verified live: Profile Edit Basics tab and the Seeking Filter Basics/Intimacy/Health tab bar both scroll away cleanly with no bleed-through. Client build passes. No production deployment.
 
 - 2026-09-13 CARD-DELETE-BUTTON-TOP-RIGHT-20260913: Moved the delete/dismiss button on Cruushes cards (Incoming, Views) and Message conversation cards from the bottom corner row into the existing top-right actions row, next to the heart/message/pin buttons, and tightened the resulting layout instead of adding new space. Feed's own bottom corner row (tags + expiry) is untouched, per explicit instruction not to touch anything about Feed cards beyond the tag placement already shipped. Verified live on all three surfaces (Cruushes Incoming, Cruushes Views, Messages). Client build passes. No production deployment.
