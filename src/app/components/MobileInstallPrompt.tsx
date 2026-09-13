@@ -9,6 +9,7 @@ import {
   INSTALL_PROMPT_AVAILABLE_EVENT,
   type BeforeInstallPromptEvent,
 } from '../lib/installPrompt';
+import { enablePushNotifications } from '../lib/pushNotifications';
 
 const INSTALL_PROMPT_DISMISSED_KEY = 'cruush-install-prompt-dismissed';
 const INSTALL_REQUESTED_EVENT = 'cruush:install-requested';
@@ -108,7 +109,10 @@ export default function MobileInstallPrompt() {
 
     try {
       await installEvent.prompt();
-      await installEvent.userChoice.catch(() => null);
+      const choice = await installEvent.userChoice.catch(() => null);
+      if (choice?.outcome === 'accepted') {
+        void enablePushNotifications().catch(() => undefined);
+      }
     } finally {
       clearInstallPrompt();
       setInstallEvent(null);
