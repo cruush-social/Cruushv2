@@ -1,13 +1,8 @@
 import { z } from "zod";
 import { multilineTextSchema, publicHttpsUrlSchema, singleLineTextSchema } from "./input-schema.js";
 
-export const PLACE_FACILITY_TYPES = [
-  "clinic", "bar", "nightclub", "community_space", "park", "restroom",
-  "sauna", "gym", "hotel", "dungeon", "cafe", "shop", "library",
-  "staircase", "trail", "transit", "parking", "beach", "adult_venue",
-  "adult_shop", "music_venue", "sports_venue", "retail", "woods",
-  "rest_stop", "bridge", "other"
-] as const;
+import { PLACE_FACILITY_TYPES } from "./place-categories.js";
+export { PLACE_FACILITY_TYPES } from "./place-categories.js";
 
 export const PLACE_TAGS = [
   "lgbtq_health", "womens_health", "sexual_health"
@@ -40,6 +35,7 @@ export const listPlacesQuerySchema = z.object({
   sort: z.enum(["nearest", "active", "recent", "top_rated", "az"]).default("nearest"),
   activity: z.enum(["any", "active", "recent"]).default("any"),
   facilityTypes: z.string().optional().default(""),
+  excludedFacilityTypes: z.string().optional().default(""),
   tags: z.string().optional().default(""),
   vibes: z.string().optional().default(""),
   amenities: z.string().optional().default(""),

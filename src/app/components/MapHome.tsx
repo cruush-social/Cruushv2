@@ -91,7 +91,7 @@ import {
   type MapMarker,
 } from '../lib/mapMarkers';
 import { getPlaces, type PlaceRecord } from '../lib/placesApi';
-import { PLACE_FACILITY_LABELS, type PlaceAmenity, type PlaceFacilityType, type PlaceTag, type PlaceVibe } from '../lib/places';
+import { DEFAULT_EXCLUDED_PLACE_FACILITY_TYPES, PLACE_FACILITY_LABELS, type PlaceAmenity, type PlaceFacilityType, type PlaceTag, type PlaceVibe } from '../lib/places';
 import {
   addDesktopPageLayoutChangedListener,
   getDesktopPageLayout,
@@ -933,12 +933,12 @@ export default function MapHome(_props: MapHomeProps = {}) {
   const [spotFiltersActive, setSpotFiltersActive] = useState(false);
   const [spotMapFilters, setSpotMapFilters] = useState<{
     query: string;
-    facilityTypes: PlaceFacilityType[];
+    excludedFacilityTypes: PlaceFacilityType[];
     tags: PlaceTag[];
     vibes: PlaceVibe[];
     amenities: PlaceAmenity[];
     radiusMiles: number;
-  }>({ query: '', facilityTypes: [], tags: [], vibes: [], amenities: [], radiusMiles: 100 });
+  }>({ query: '', excludedFacilityTypes: [...DEFAULT_EXCLUDED_PLACE_FACILITY_TYPES], tags: [], vibes: [], amenities: [], radiusMiles: 100 });
   const [places, setPlaces] = useState<PlaceRecord[]>([]);
   // Hiding Spots is a view preference, so it survives a reload.
   const [spotsVisible, setSpotsVisible] = useState(() => {
@@ -2307,7 +2307,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
       latitude: mapViewport?.center.latitude ?? currentUserMapLocation?.approximateLatitude,
       longitude: mapViewport?.center.longitude ?? currentUserMapLocation?.approximateLongitude,
       query: spotMapFilters.query || undefined,
-      facilityTypes: spotMapFilters.facilityTypes,
+      excludedFacilityTypes: spotMapFilters.excludedFacilityTypes,
       tags: spotMapFilters.tags,
       vibes: spotMapFilters.vibes,
       amenities: spotMapFilters.amenities,
@@ -2327,7 +2327,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
     currentUserMapLocation?.approximateLatitude,
     currentUserMapLocation?.approximateLongitude,
     mapViewport?.signature,
-    spotMapFilters.facilityTypes,
+    spotMapFilters.excludedFacilityTypes,
     spotMapFilters.amenities,
     spotMapFilters.query,
     spotMapFilters.tags,
@@ -2720,7 +2720,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
     }));
 
     const placeMarkers: MapMarker[] = (spotsVisible ? places : [])
-      .filter((place) => !fitToMapMarkers || isCoordinateInViewport(place.latitude, place.longitude, mapViewport))
+      .filter((place) => isCoordinateInViewport(place.latitude, place.longitude, mapViewport))
       .map((place) => ({
       id: `place-${place.id}`,
       kind: 'place',

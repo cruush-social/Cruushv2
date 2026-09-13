@@ -15847,7 +15847,7 @@ describe("server", () => {
     ["nearest", "distance_miles asc nulls last, lower(name) asc, id asc"],
     ["active", "active_checkins desc, recent_activity_at desc nulls last, distance_miles asc nulls last, id asc"],
     ["recent", "recent_activity_at desc nulls last, active_checkins desc, distance_miles asc nulls last, id asc"],
-    ["top_rated", "(rating_count >= 3) desc, rating_average desc nulls last, rating_count desc, distance_miles asc nulls last, id asc"],
+    ["top_rated", "rating_average desc nulls last, rating_count desc, distance_miles asc nulls last, id asc"],
     ["az", "lower(name) asc, distance_miles asc nulls last, id asc"]
   ])("lists published Spots with the %s sort and bounded pagination", async (sort, expectedOrder) => {
     const response = await app.inject({
@@ -15869,6 +15869,22 @@ describe("server", () => {
     expect(listCall?.[1]?.[9]).toBe(23);
     expect(listCall?.[1]?.[10]).toBe(46);
     expect(listCall?.[1]?.[13]).toBe(100);
+  });
+
+  it.each([
+    ["", []],
+    ["park,gym", ["park", "gym"]],
+    ["rail_station,bus_stop,adult_venue,other", ["rail_station", "bus_stop", "adult_venue", "other", "venue", "cafe", "shop", "retail", "parking", "staircase", "adult_shop", "dungeon"]]
+  ])("passes disabled Spot categories to the list query: %s", async (disabled, expected) => {
+    const response = await app.inject({
+      method: "GET",
+      url: `/api/places?excludedFacilityTypes=${encodeURIComponent(disabled as string)}`,
+      headers: { "x-user-id": userId }
+    });
+    const listCall = query.mock.calls.find(([sql]) => String(sql).includes("where p.status = 'published'"));
+    expect(response.statusCode).toBe(200);
+    expect(String(listCall?.[0])).toContain("not (p.facility_type = any($16::text[]))");
+    expect(listCall?.[1]?.[15]).toEqual(expected);
   });
 
   it("rejects a published Spot search radius above 100 miles before database access", async () => {
@@ -16035,6 +16051,11 @@ describe("server", () => {
 
   it("derives Who's Here mutual state from encrypted relationships", async () => {
     const placeId = "10000000-0000-4000-8000-000000000001";
+    const transitDetails = {
+      services: [{ route: "A", operator: "MTA", direction: "Manhattan", destinations: ["Inwood-207 St"] }],
+      scheduleLinks: [{ label: "A schedule", url: "https://www.mta.info/schedules/subway/a-train" }],
+      entrances: []
+    };
     const checkedInUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
     const mutualRecord = await encryptedRelationshipRecordRow({
       id: "spot-who-is-here-mutual",
@@ -16053,6 +16074,7 @@ describe("server", () => {
             slug: "test-spot",
             name: "Test Spot",
             description: "",
+            transit_details: transitDetails,
             latitude: 40.7,
             longitude: -74,
             address: null,
@@ -16115,6 +16137,7 @@ describe("server", () => {
     expect(response.json().data.visiblePeople).toEqual([
       expect.objectContaining({ id: checkedInUserId, mutual: true })
     ]);
+    expect(response.json().data.transitDetails).toEqual(transitDetails);
     expect(peopleSql).toContain("b.blocker_user_id = $2 and b.blocked_user_id = c.user_id");
     expect(peopleSql).toContain("b.blocker_user_id = c.user_id and b.blocked_user_id = $2");
     expect(peopleSql).toContain("c.visible = true and c.expires_at > now()");

@@ -9,7 +9,7 @@ alter table places drop constraint if exists places_facility_type_check;
 alter table places add constraint places_facility_type_check check (facility_type in (
   'clinic', 'bar', 'nightclub', 'community_space', 'park', 'restroom',
   'sauna', 'gym', 'hotel', 'dungeon', 'cafe', 'shop', 'library',
-  'staircase', 'trail', 'transit', 'parking', 'beach', 'adult_venue',
+  'staircase', 'trail', 'transit', 'rail_station', 'bus_stop', 'parking', 'beach', 'adult_venue',
   'adult_shop', 'music_venue', 'sports_venue',
   'retail', 'woods', 'rest_stop', 'bridge', 'other'
 ));

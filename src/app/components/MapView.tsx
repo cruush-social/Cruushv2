@@ -183,7 +183,6 @@ const MARKER_INTERACTION_SUPPRESS_MS = 350;
 const PERSON_CLUSTER_MAX_ZOOM = MAX_DISCOVERY_ZOOM;
 // Idle side-badge footprint is wider than the visible heart. Vertical
 // clearance follows the heart artwork, not that wider horizontal envelope.
-const PERSON_CLUSTER_RADIUS_PX = 124;
 const PERSON_HEART_FOOTPRINT_PX = 64;
 export const MAP_SERVICE_MASK_SOURCE_ID = 'cruush-map-service-mask';
 export const MAP_SERVICE_MASK_LAYER_ID = 'cruush-map-service-mask';
@@ -994,15 +993,30 @@ function applyPersonMarkerClusters(
     .sort((a, b) => a.id.localeCompare(b.id));
   const clusters: MapMarker[] = [];
 
-  groupNearbyMarkers(
-    clusterableMarkers,
-    zoom,
-    PERSON_CLUSTER_RADIUS_PX,
-    true,
-    true,
-  ).filter((group) => group.length >= 2).forEach((group) => {
-    group.forEach((marker) => clusteredIds.add(marker.id));
-    clusters.push(buildPeopleCluster(group, areInSameBuildingDisplayArea(group) ? 'spiderfy' : 'zoom'));
+  // Grouping is purely by real-world same-building overlap, never by a
+  // zoom-scaled pixel radius. Two people either share a building or they
+  // don't; that fact does not change as the map zooms in or out, so this
+  // must not either.
+  const visited = new Set<string>();
+  clusterableMarkers.forEach((marker) => {
+    if (visited.has(marker.id)) return;
+    const group = [marker];
+    visited.add(marker.id);
+    let grew = true;
+    while (grew) {
+      grew = false;
+      clusterableMarkers.forEach((candidate) => {
+        if (visited.has(candidate.id)) return;
+        if (areInSameBuildingDisplayArea([...group, candidate])) {
+          group.push(candidate);
+          visited.add(candidate.id);
+          grew = true;
+        }
+      });
+    }
+    if (group.length < 2) return;
+    group.forEach((groupMarker) => clusteredIds.add(groupMarker.id));
+    clusters.push(buildPeopleCluster(group, 'spiderfy'));
   });
 
   // Keep the same cluster button at its anchor during expansion so a
@@ -1820,6 +1834,8 @@ const PLACE_MARKER_CONFIG: Record<string, { icon?: LucideIcon; special?: 'stairs
   staircase: { special: 'stairs' },
   trail: { icon: Route },
   transit: { icon: TrainFront },
+  rail_station: { icon: TrainFront },
+  bus_stop: { icon: MapPinned },
   parking: { icon: CircleParking },
   beach: { special: 'beach' },
   adult_venue: { special: 'adult' },

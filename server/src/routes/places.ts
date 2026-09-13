@@ -10,6 +10,7 @@ import { databaseUuidSchema, uuidSchema } from "../input-schema.js";
 import { getModeratorUser } from "../moderator-auth.js";
 import { approvedContentReviewCte, moderateTextOrReject } from "../moderation-service.js";
 import { userHasOwnerFullAccess } from "../owner-access.js";
+import { transitScheduleUrl, type PlaceTransitDetails } from "../place-transit.js";
 import {
   decryptPlaceSuggestion,
   encryptPlaceSuggestion,
@@ -51,6 +52,7 @@ type PlaceRow = {
   name: string;
   description: string;
   access_instructions: string;
+  transit_details?: PlaceTransitDetails | null;
   latitude: number;
   longitude: number;
   address: string | null;
@@ -132,19 +134,23 @@ function optionalExpiryIso(value: string | Date | null | undefined) {
 
 function mapPlace(row: PlaceRow) {
   const hidesCompetitorSource = row.source_url?.toLowerCase().includes('sniffies.com') === true;
+  const transitSourceUrl = row.facility_type === 'bus_stop' || row.facility_type === 'rail_station'
+    ? transitScheduleUrl(row.source_url ?? '')
+    : row.source_url;
   return {
     id: row.id,
     slug: row.slug,
     name: row.name,
     description: row.description,
     accessInstructions: row.access_instructions,
+    transitDetails: row.transit_details ?? null,
     latitude: Number(row.latitude),
     longitude: Number(row.longitude),
     address: row.address,
     facilityType: row.facility_type,
     status: row.status,
     sourceKind: row.source_kind,
-    sourceUrl: hidesCompetitorSource ? null : row.source_url,
+    sourceUrl: hidesCompetitorSource ? null : transitSourceUrl,
     sourceAttribution: hidesCompetitorSource ? null : row.source_attribution,
     verifiedAt: row.verified_at ? new Date(row.verified_at).toISOString() : null,
     createdAt: new Date(row.created_at).toISOString(),
@@ -193,9 +199,10 @@ function mapPlaceForModerator(app: FastifyInstance, row: PlaceRow) {
   };
 }
 
-function basePlaceSelect(viewerParam: string, latParam: string, lngParam: string) {
+function basePlaceSelect(viewerParam: string, latParam: string, lngParam: string, includeTransit = false) {
   return `
-    p.id::text, p.slug, p.name, p.description, p.access_instructions, p.latitude, p.longitude, p.address,
+    p.id::text, p.slug, p.name, p.description, p.access_instructions,
+    ${includeTransit ? 'p.transit_details' : 'null::jsonb'} as transit_details, p.latitude, p.longitude, p.address,
     p.facility_type, p.status, p.source_kind, p.source_url, p.source_attribution,
     p.verified_at, p.created_at, p.suggestion_count, p.auto_shortlisted_at,
     p.suggestion_ciphertext, p.suggestion_nonce, p.suggestion_auth_tag, p.suggestion_key_version,
@@ -243,7 +250,7 @@ function basePlaceSelect(viewerParam: string, latParam: string, lngParam: string
 function placeOrder(sort: string) {
   if (sort === "active") return "active_checkins desc, recent_activity_at desc nulls last, distance_miles asc nulls last, id asc";
   if (sort === "recent") return "recent_activity_at desc nulls last, active_checkins desc, distance_miles asc nulls last, id asc";
-  if (sort === "top_rated") return "(rating_count >= 3) desc, rating_average desc nulls last, rating_count desc, distance_miles asc nulls last, id asc";
+  if (sort === "top_rated") return "rating_average desc nulls last, rating_count desc, distance_miles asc nulls last, id asc";
   if (sort === "az") return "lower(name) asc, distance_miles asc nulls last, id asc";
   return "distance_miles asc nulls last, lower(name) asc, id asc";
 }
@@ -315,6 +322,10 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
     const lng = query.lng ?? NYC_SERVICE_AREA.center.lng;
     if (!isWithinServiceArea({ lat, lng })) throw new ApiError(400, "OUTSIDE_SERVICE_AREA", "Search from within the NYC service area.");
     const facilityTypes = query.facilityTypes.split(",").map((value) => value.trim()).filter(Boolean);
+    const excludedFacilityTypes = query.excludedFacilityTypes.split(",").map((value) => value.trim()).filter(Boolean);
+    // Existing legacy records use the same visible category as their replacement.
+    if (excludedFacilityTypes.includes("other")) excludedFacilityTypes.push("venue", "cafe", "shop", "retail", "parking", "staircase");
+    if (excludedFacilityTypes.includes("adult_venue")) excludedFacilityTypes.push("adult_shop", "dungeon");
     const tags = query.tags.split(",").map((value) => value.trim()).filter(Boolean);
     const vibes = query.vibes.split(",").map((value) => value.trim()).filter(Boolean);
     const amenities = query.amenities.split(",").map((value) => value.trim()).filter(Boolean);
@@ -325,6 +336,7 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
          where p.status = 'published'
            and ($4::text = '' or p.name ilike '%' || $4 || '%' or p.description ilike '%' || $4 || '%')
            and (cardinality($5::text[]) = 0 or p.facility_type = any($5::text[]))
+           and not (p.facility_type = any($16::text[]))
            and (cardinality($6::text[]) = 0 or exists (select 1 from place_tags filter_tag where filter_tag.place_id = p.id and filter_tag.tag = any($6::text[])))
            and (cardinality($8::text[]) = 0
              or exists (select 1 from place_amenities filter_amenity where filter_amenity.place_id = p.id and filter_amenity.amenity = any($8::text[]))
@@ -363,7 +375,8 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
         NYC_SERVICE_AREA.center.lat,
         NYC_SERVICE_AREA.center.lng,
         NYC_SERVICE_AREA.radiusMiles,
-        query.activity
+        query.activity,
+        excludedFacilityTypes
       ]
     );
     return reply.send({ data: result.rows.map(mapPlace), page: { limit: query.limit, offset: query.offset, hasMore: result.rows.length === query.limit } });
@@ -374,7 +387,7 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
     const userId = await getAuthenticatedUserId(request);
     const { placeId } = placeParamsSchema.parse(request.params);
     const placeResult = await app.db.query<PlaceRow>(
-      `select ${basePlaceSelect("$1", "null", "null")} from places p where p.id = $2 and p.status = 'published' limit 1`,
+      `select ${basePlaceSelect("$1", "null", "null", true)} from places p where p.id = $2 and p.status = 'published' limit 1`,
       [userId, placeId]
     );
     const place = placeResult.rows[0];

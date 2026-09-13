@@ -1,3 +1,11 @@
+# Spot reduction, September 12, 2026
+
+Active task: `01a094d4-5fda-7853-85e5-ca7f5634e4bb`. Queue: `/Volumes/good/ai-queues/01a094d4-5fda-7853-85e5-ca7f5634e4bb/TODO.md`.
+
+Worktree: `/Volumes/good/cruush-spots-major-reduction-20260912`; branch `codex/spots-major-reduction-20260912`; base `6b0fe06`. New ego lite space 70, p1. Local frontend 5204, API 3024, dedicated database `cruush_spots_review_20260912`. Full screenshot-based manual review is in progress, with actual coverage and decisions in the external VISUAL_REVIEW.md. Full-radius coverage remains incomplete. No publication requested. Local viewing overrides and screenshots must never be committed.
+
+# Historical inherited handoff
+
 # Authorized production release, September 10, 2026
 
 User source: current task transcript line 411, “Deploy this fix ASAP”. Release only the verified owner pin/decoy fix, its tests and required worker-cache version update to v129. Both frontend and server builds, independent review, scoped commit/push, runtime identity and authenticated live mobile verification are required. No environment variables or provider settings change. Status: release in progress. Independent review by `/root/owner_pin_review` approved the exact owner-marker source and rendered evidence; server build, client build and four worker-version checks pass.

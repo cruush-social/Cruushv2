@@ -3683,6 +3683,35 @@ describe('MapHome', () => {
     expect(screen.queryByRole('button', { name: 'Pin Mika Demo' })).not.toBeInTheDocument();
   });
 
+  it('applies independent Spot categories while preserving the master visibility switch', async () => {
+    useIsMobile.mockReturnValue(false);
+    getNearbyUsers.mockResolvedValue([]);
+    render(<MemoryRouter initialEntries={['/map']}><MapHome /></MemoryRouter>);
+
+    await openMapControls();
+    fireEvent.click(await screen.findByTestId('map-places-button'));
+    fireEvent.click(await screen.findByText(/^Spot filters/));
+    const buses = await screen.findByRole('switch', { name: 'Show Bus stops' });
+    const parks = screen.getByRole('switch', { name: 'Show Park' });
+    expect(buses).not.toBeChecked();
+    expect(parks).toBeChecked();
+    fireEvent.click(buses);
+    fireEvent.click(parks);
+    fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+    await waitFor(() => expect(getPlaces).toHaveBeenCalledWith(expect.objectContaining({
+      excludedFacilityTypes: ['park'],
+    })));
+
+    const allSpots = screen.getByRole('switch', { name: 'Show Spots on the map' });
+    fireEvent.click(allSpots);
+    expect(allSpots).not.toBeChecked();
+    expect(window.localStorage.getItem('cruush:map-spots-hidden')).toBe('true');
+    fireEvent.click(allSpots);
+    expect(allSpots).toBeChecked();
+    expect(window.localStorage.getItem('cruush:map-spots-hidden')).toBe('false');
+    window.localStorage.removeItem('cruush:map-spots-hidden');
+  });
+
   it('keeps Spot pins off the map when Spots are hidden', async () => {
     // The preference lives in storage so it survives a reload.
     window.localStorage.setItem('cruush:map-spots-hidden', 'true');
@@ -3707,6 +3736,9 @@ describe('MapHome', () => {
 
     await waitFor(() => expect(getPlaces).toHaveBeenCalled());
     await waitFor(() => expect(screen.queryByTestId('marker-place-place-1')).not.toBeInTheDocument());
+    expect(getPlaces).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      excludedFacilityTypes: ['bus_stop'],
+    }));
 
     window.localStorage.removeItem('cruush:map-spots-hidden');
   });

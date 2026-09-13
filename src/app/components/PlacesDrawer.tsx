@@ -8,6 +8,7 @@ import { Input } from './ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from './ui/sheet';
 import {
+  DEFAULT_EXCLUDED_PLACE_FACILITY_TYPES,
   PLACE_FACILITY_LABELS,
   PLACE_FACILITY_TYPES,
   PLACE_AMENITIES,
@@ -34,7 +35,7 @@ type PlacesDrawerProps = {
   onSpotsVisibleChange?: (visible: boolean) => void;
   onMapFiltersChange?: (filters: {
     query: string;
-    facilityTypes: PlaceFacilityType[];
+    excludedFacilityTypes: PlaceFacilityType[];
     tags: PlaceTag[];
     vibes: PlaceVibe[];
     amenities: PlaceAmenity[];
@@ -44,11 +45,9 @@ type PlacesDrawerProps = {
 };
 
 const SORT_OPTIONS: Array<{ value: PlaceSort; label: string }> = [
-  { value: 'nearest', label: 'Nearest' },
-  { value: 'active', label: 'Active now' },
-  { value: 'recent', label: 'Recent activity' },
-  { value: 'top_rated', label: 'Top rated' },
-  { value: 'az', label: 'A-Z' },
+  { value: 'nearest', label: 'Distance' },
+  { value: 'recent', label: 'Recently active' },
+  { value: 'top_rated', label: 'Star rating' },
 ];
 
 const PLACE_PAGE_SIZE = 50;
@@ -62,8 +61,8 @@ export default function PlacesDrawer({ open, onOpenChange, coordinates, onFilter
   const [places, setPlaces] = useState<PlaceRecord[]>([]);
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<PlaceSort>('nearest');
-  const [facilityTypes, setFacilityTypes] = useState<PlaceFacilityType[]>([]);
-  const [draftFacilityTypes, setDraftFacilityTypes] = useState<PlaceFacilityType[]>([]);
+  const [excludedFacilityTypes, setExcludedFacilityTypes] = useState<PlaceFacilityType[]>(() => [...DEFAULT_EXCLUDED_PLACE_FACILITY_TYPES]);
+  const [draftExcludedFacilityTypes, setDraftExcludedFacilityTypes] = useState<PlaceFacilityType[]>(() => [...DEFAULT_EXCLUDED_PLACE_FACILITY_TYPES]);
   const [tags, setTags] = useState<PlaceTag[]>([]);
   const [draftTags, setDraftTags] = useState<PlaceTag[]>([]);
   const [vibes, setVibes] = useState<PlaceVibe[]>([]);
@@ -101,7 +100,7 @@ export default function PlacesDrawer({ open, onOpenChange, coordinates, onFilter
       void getPlaces({
         latitude: coordinates?.latitude,
         longitude: coordinates?.longitude,
-        sort, query, facilityTypes, tags, vibes, amenities, radiusMiles, limit: PLACE_PAGE_SIZE, offset: 0,
+        sort, query, excludedFacilityTypes, tags, vibes, amenities, radiusMiles, limit: PLACE_PAGE_SIZE, offset: 0,
       }).then((result) => {
         if (cancelled) return;
         setPlaces(result);
@@ -117,13 +116,13 @@ export default function PlacesDrawer({ open, onOpenChange, coordinates, onFilter
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [amenities, coordinates?.latitude, coordinates?.longitude, facilityTypes, onPlacesChange, open, query, radiusMiles, sort, tags, vibes]);
+  }, [amenities, coordinates?.latitude, coordinates?.longitude, excludedFacilityTypes, onPlacesChange, open, query, radiusMiles, sort, tags, vibes]);
 
-  const filterCount = facilityTypes.length + tags.length + vibes.length + amenities.length + (query.trim() ? 1 : 0) + (radiusMiles < 100 ? 1 : 0);
+  const filterCount = excludedFacilityTypes.length + tags.length + vibes.length + amenities.length + (query.trim() ? 1 : 0) + (radiusMiles < 100 ? 1 : 0);
   useEffect(() => {
     onFiltersActiveChange?.(filterCount > 0);
-    onMapFiltersChange?.({ query: query.trim(), facilityTypes, tags, vibes, amenities, radiusMiles });
-  }, [amenities, facilityTypes, filterCount, onFiltersActiveChange, onMapFiltersChange, query, radiusMiles, tags, vibes]);
+    onMapFiltersChange?.({ query: query.trim(), excludedFacilityTypes, tags, vibes, amenities, radiusMiles });
+  }, [amenities, excludedFacilityTypes, filterCount, onFiltersActiveChange, onMapFiltersChange, query, radiusMiles, tags, vibes]);
   const resultLabel = useMemo(() => loading ? 'Loading spots...' : `${places.length}${hasMore ? '+' : ''} ${places.length === 1 ? 'spot' : 'spots'}`, [hasMore, loading, places.length]);
 
   const handleSubmit = async () => {
@@ -160,7 +159,7 @@ export default function PlacesDrawer({ open, onOpenChange, coordinates, onFilter
         longitude: coordinates?.longitude,
         sort,
         query,
-        facilityTypes,
+        excludedFacilityTypes,
         tags,
         vibes,
         amenities,
@@ -185,7 +184,7 @@ export default function PlacesDrawer({ open, onOpenChange, coordinates, onFilter
       loadMoreInFlightRef.current = false;
       setLoadingMore(false);
     }
-  }, [amenities, coordinates?.latitude, coordinates?.longitude, facilityTypes, hasMore, loading, loadingMore, onPlacesChange, places, query, radiusMiles, sort, tags, vibes]);
+  }, [amenities, coordinates?.latitude, coordinates?.longitude, excludedFacilityTypes, hasMore, loading, loadingMore, onPlacesChange, places, query, radiusMiles, sort, tags, vibes]);
 
   useEffect(() => {
     if (!open || showSubmit || loading || loadingMore || !hasMore) return;
@@ -312,7 +311,7 @@ export default function PlacesDrawer({ open, onOpenChange, coordinates, onFilter
                   const nextOpen = event.currentTarget.open;
                   setFiltersOpen(nextOpen);
                   if (nextOpen) {
-                    setDraftFacilityTypes(facilityTypes);
+                    setDraftExcludedFacilityTypes(excludedFacilityTypes);
                     setDraftTags(tags);
                     setDraftVibes(vibes);
                     setDraftAmenities(amenities);
@@ -336,7 +335,18 @@ export default function PlacesDrawer({ open, onOpenChange, coordinates, onFilter
                   <fieldset className="space-y-2">
                     <legend className="text-sm text-white">Place type</legend>
                     <div className="flex flex-wrap gap-2">
-                      {PLACE_FACILITY_TYPES.map((type) => <button key={type} type="button" aria-pressed={draftFacilityTypes.includes(type)} className={`rounded-full border px-3 py-1 text-xs ${draftFacilityTypes.includes(type) ? 'border-primary bg-primary/20 text-white' : 'border-white/10 text-white/65'}`} onClick={() => setDraftFacilityTypes(toggleValue(draftFacilityTypes, type))}>{PLACE_FACILITY_LABELS[type]}</button>)}
+                      {PLACE_FACILITY_TYPES.map((type) => (
+                        <label key={type} className="flex items-center gap-2 rounded-full border border-white/10 px-3 py-1 text-xs text-white">
+                          <Switch
+                            aria-label={`Show ${PLACE_FACILITY_LABELS[type]}`}
+                            checked={!draftExcludedFacilityTypes.includes(type)}
+                            onCheckedChange={(checked) => setDraftExcludedFacilityTypes((current) => checked
+                              ? current.filter((value) => value !== type)
+                              : [...new Set([...current, type])])}
+                          />
+                          {PLACE_FACILITY_LABELS[type]}
+                        </label>
+                      ))}
                     </div>
                   </fieldset>
                   <fieldset className="space-y-2">
@@ -430,8 +440,8 @@ export default function PlacesDrawer({ open, onOpenChange, coordinates, onFilter
               <Button type="button" variant="outline" className="flex-1" onClick={() => {
                 setQuery('');
                 setSort('nearest');
-                setDraftFacilityTypes([]);
-                setFacilityTypes([]);
+                setDraftExcludedFacilityTypes([]);
+                setExcludedFacilityTypes([]);
                 setDraftTags([]);
                 setTags([]);
                 setDraftVibes([]);
@@ -442,7 +452,7 @@ export default function PlacesDrawer({ open, onOpenChange, coordinates, onFilter
                 setRadiusMiles(100);
               }}>Clear</Button>
               <Button type="button" className="flex-1" style={{ background: 'var(--cruush-gradient)' }} onClick={() => {
-                setFacilityTypes(draftFacilityTypes);
+                setExcludedFacilityTypes(draftExcludedFacilityTypes);
                 setTags(draftTags);
                 setVibes(draftVibes);
                 setAmenities(draftAmenities);
