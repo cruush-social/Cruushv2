@@ -1472,7 +1472,6 @@ function DirectUserOverlay({
                   onCenterPin={() => onOpenMap(user.id, false)}
                 />}
                 mutual={user.relationship?.mutualCruush === true}
-                content={user.latestFeedPostPreview ? <p className="text-base text-white/78">{user.latestFeedPostPreview}</p> : undefined}
               />
             );
           }) : mutuals.map((item) => {
