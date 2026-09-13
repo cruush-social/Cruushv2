@@ -190,7 +190,8 @@ const migrationFiles = [
   "181_merge_allentown_transportation_center_bus_stops.sql",
   "182_archive_fullington_stops_absent_from_current_official_schedule.sql",
   "183_archive_meat_rock_central_park_sublocation.sql",
-  "184_merge_port_authority_bus_terminal_stops.sql"
+  "184_merge_port_authority_bus_terminal_stops.sql",
+  "185_reduce_spots_for_women_audience_launch.sql"
 ];
 const rewardSafetyPreflightFiles = [
   "079_daily_check_in_rewards.sql",
