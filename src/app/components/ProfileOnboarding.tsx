@@ -982,10 +982,10 @@ export default function ProfileOnboarding({
                       theme="current"
                     />
                   </div>
+                  <p className="mb-2 text-xs text-white/58">Text above your heart pin on hover.</p>
                   <Input
                     type="text"
                     maxLength={SIGNAL_MAX_LENGTH}
-                    placeholder="A few words people see when they hover your heart pin"
                     value={profile.signal}
                     onChange={e => setProfileField('signal', e.target.value)}
                   />
