@@ -190,8 +190,8 @@ function comparePrivacySafeDistance(a: DiscoveryUser, b: DiscoveryUser, viewer: 
   const bLabelled = parseDistanceMiles(b.distance);
   // Approximate labels read the same for everyone. When neither row carries a
   // numeric label, rank them by the coordinates already on screen instead.
-  const aDistance = aLabelled ?? (bLabelled === null ? displayCoordinateMiles(a, viewer) : null);
-  const bDistance = bLabelled ?? (aLabelled === null ? displayCoordinateMiles(b, viewer) : null);
+  const aDistance = aLabelled ?? displayCoordinateMiles(a, viewer);
+  const bDistance = bLabelled ?? displayCoordinateMiles(b, viewer);
 
   if (aDistance === null && bDistance === null) return 0;
   if (aDistance === null) return 1;

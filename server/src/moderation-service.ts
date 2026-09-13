@@ -1001,9 +1001,21 @@ export async function moderateTextOrReject(
   // Text is either screened synchronously or not saved. The local policy fallback is
   // deliberately available on every text surface, including DMs and group chats, so a
   // Stream outage cannot turn a text message into a pending-review item or an outage error.
+  // The local rule set carries cruush's own blocked emoji and coded-language
+  // patterns, which Stream does not know about. It runs on every call now, not
+  // only during a Stream outage, and its labels merge into Stream's verdict.
+  const localPolicyResult = await new MockModerationProvider().moderateText({
+    ...input,
+    text: prepareTextForModerationProvider(input.text)
+  });
   const providerResult = providerResultUnavailable(providerResultFromPrimary)
     ? await moderateTextWithLocalFallback(app, input, providerResultFromPrimary)
-    : providerResultFromPrimary;
+    : localPolicyResult.labels.length > 0
+      ? {
+          ...providerResultFromPrimary,
+          labels: [...providerResultFromPrimary.labels, ...localPolicyResult.labels]
+        }
+      : providerResultFromPrimary;
   const decision = mapProviderResultToPolicy({
     surface: input.surface,
     contentType: "text",

@@ -843,7 +843,7 @@ export function ProfileDetailsTabs({
 
   return (
     <Tabs value={activeTab} onValueChange={onActiveTabChange} className="w-full">
-      <TabsList className={`sticky top-0 z-20 grid h-auto w-full grid-cols-3 rounded-full border border-white/10 bg-background/92 p-1 backdrop-blur-md ${compact ? 'text-xs' : ''}`}>
+      <TabsList className={`grid h-auto w-full grid-cols-3 rounded-full border border-white/10 bg-background/92 p-1 backdrop-blur-md ${compact ? 'text-xs' : ''}`}>
         <TabsTrigger value="basics" className={tabTriggerClassName} onClick={() => onActiveTabChange('basics')}>Basics</TabsTrigger>
         <TabsTrigger value="intimacy" className={tabTriggerClassName} onClick={() => onActiveTabChange('intimacy')}>Intimacy</TabsTrigger>
         <TabsTrigger value="health" className={tabTriggerClassName} onClick={() => onActiveTabChange('health')}>Health</TabsTrigger>
@@ -879,12 +879,6 @@ export function ProfileDetailsTabs({
         <Section title="Zodiac" compact={compact}>
           <BadgeList items={profileView.zodiac} compact={compact} />
         </Section>
-
-        {profileView.crowds.length > 0 ? (
-          <Section title="Crowds" compact={compact}>
-            <BadgeList items={profileView.crowds} compact={compact} />
-          </Section>
-        ) : null}
 
         <Section title="Stats" compact={compact}>
           <div className="grid grid-cols-2 gap-3 text-sm">
