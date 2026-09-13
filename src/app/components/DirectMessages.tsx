@@ -1083,7 +1083,23 @@ export default function DirectMessages({
                     <span className="truncate">{formatDistanceLabel(conversation.distance, distancePreferences.mode) ?? conversation.distance}</span>
                   </button>
                 )}
-                actions={conversation.kind === 'dm' ? (
+                actions={conversation.kind === 'dm' || canDeleteConversation(conversation) ? (
+                  <div className="flex items-center gap-1">
+                    {canDeleteConversation(conversation) ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        aria-label={deleteLabel}
+                        title={deleteLabel}
+                        disabled={deletingConversationId === conversation.id}
+                        onClick={() => void handleDeleteConversation(conversation)}
+                        className="size-8 text-white/55 hover:bg-white/10 hover:text-white"
+                      >
+                        <Trash2 className="size-4" />
+                      </Button>
+                    ) : null}
+                    {conversation.kind === 'dm' ? (
                   <ProfileActionTrio
                     className={messageCardActionClassName}
                     size="sm"
@@ -1102,6 +1118,8 @@ export default function DirectMessages({
                     canCenterPin={validPinUserIds.has(conversation.user.id)}
                     onCenterPin={() => navigate(`/map?mode=mutuals&focusUserId=${encodeURIComponent(conversation.user.id)}`)}
                   />
+                    ) : null}
+                  </div>
                 ) : undefined}
                 mutual={conversation.kind === 'group' || conversation.mutual === true}
                 content={(
@@ -1123,20 +1141,7 @@ export default function DirectMessages({
                     ) : null}
                   </div>
                 )}
-                cornerAction={canDeleteConversation(conversation) ? (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    aria-label={deleteLabel}
-                    title={deleteLabel}
-                    disabled={deletingConversationId === conversation.id}
-                    onClick={() => void handleDeleteConversation(conversation)}
-                    className="size-8 text-white/55 hover:bg-white/10 hover:text-white"
-                  >
-                    <Trash2 className="size-4" />
-                  </Button>
-                ) : <ChevronRight className="m-2 size-4 text-white/40" />}
+                cornerAction={canDeleteConversation(conversation) ? undefined : <ChevronRight className="m-2 size-4 text-white/40" />}
               />
             );
           })}
