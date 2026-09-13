@@ -191,7 +191,6 @@ export default function NotificationSettings() {
         </Button>
         <div>
           <h1 className="text-xl text-white">Notification settings</h1>
-          <p className="text-sm text-muted-foreground">Push alerts stay private on your lock screen.</p>
         </div>
       
         <BugButtonSlot testId="notification-settings-bug-button-slot" />

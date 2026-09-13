@@ -36,7 +36,7 @@ export const ETHNICITIES = alphabetize(['Black', 'East Asian', 'Indigenous', 'La
 
 export const BODY_TYPES = alphabetize([
   'BBW', 'BBM', 'athletic', 'average', 'bear', 'big and tall', 'chubby', 'chub', 'cub', 'curvy', 'dad bod', 'disabled',
-  'fat', 'full-figured', 'lean', 'little person', 'muscular', 'otter', 'petite', 'plus-size', 'round', 'slim', 'soft',
+  'fat', 'full-figured', 'lean', 'little person', 'mom bod', 'muscular', 'otter', 'petite', 'plus-size', 'round', 'slim', 'soft',
   'stocky', 'thick', 'toned', 'twink', 'wheelchair user'
 ]);
 
@@ -337,7 +337,7 @@ export const KINK_CATALOG = [
   { id: 'partner-swap', label: 'partner swap', category: 'Group' },
   { id: 'spit-roast', label: 'spit roast', category: 'Group' },
   { id: 'threesome', label: 'threesome', category: 'Group' },
-  { id: 'cum-dump', label: 'cum dump', category: 'Group' },
+  { id: 'cum-dump', label: 'cum dump', category: 'Body & Touch' },
   { id: 'being-watched', label: 'being watched', category: 'Public & Watching' },
   { id: 'anonymous', label: 'anonymous', category: 'Public & Watching' },
   { id: 'camera-play', label: 'camera play', category: 'Public & Watching' },

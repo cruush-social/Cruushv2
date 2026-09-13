@@ -1644,7 +1644,6 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
             </div>
             <div className="space-y-2">
               <Label>Substance Boundaries</Label>
-              <p className="text-sm text-muted-foreground">Pick all that apply to what you do not want involved when meeting.</p>
               <MultiSelect
                 {...profileMenuProps}
                 ariaLabel="Substance Boundaries"
