@@ -370,7 +370,7 @@ function SentRow({
       pronouns={item.user.pronouns || 'Ask me'}
       sideBadges={item.user.sideBadges}
       sideBadgeTone={borderTone}
-      identityAdornment={<><CruushBadge badges={item.user.badges} compact />{item.mutual ? null : <ActivityBadge>Pending</ActivityBadge>}</>}
+      identityAdornment={<CruushBadge badges={item.user.badges} compact />}
       onOpenIdentity={() => onOpenProfile(item.user!.id, { distance })}
       metadata={<button type="button" className="min-w-0 text-left" onClick={() => onOpenProfile(item.user!.id, { distance })}><ActivityMeta items={[formatRelativeTime(item.createdAt), distance]} /></button>}
       actions={(
