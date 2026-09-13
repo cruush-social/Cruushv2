@@ -1,3 +1,4 @@
+import CodeOfConductPage from './CodeOfConductPage';
 import { useNavigate } from 'react-router';
 import profileNavIcon from '../assets/nav-icons/profile-white.png';
 import { useEffect, useMemo, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react';
@@ -119,6 +120,7 @@ type SettingsProps = {
 
 export default function Settings({ embedded = false, onBack, onClose, onOpenMileHighClub }: SettingsProps = {}) {
   const navigate = useNavigate();
+  const [showCodeOfConduct, setShowCodeOfConduct] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [isResendingVerification, setIsResendingVerification] = useState(false);
   const [verificationError, setVerificationError] = useState<string | null>(null);
@@ -330,6 +332,7 @@ export default function Settings({ embedded = false, onBack, onClose, onOpenMile
           action: () => window.dispatchEvent(new Event('cruush:install-requested')),
         },
         { icon: LifeBuoy, label: 'Contact support', action: () => navigate('/support') },
+        { icon: ShieldCheck, label: 'Code of Conduct', action: () => embedded ? setShowCodeOfConduct(true) : navigate('/settings/code-of-conduct') },
       ],
     },
     {
@@ -443,6 +446,10 @@ export default function Settings({ embedded = false, onBack, onClose, onOpenMile
       }))
       .filter((section) => section.items.length > 0)
     : settingsSections;
+
+  if (showCodeOfConduct) {
+    return <CodeOfConductPage onBack={() => setShowCodeOfConduct(false)} onClose={onClose} />;
+  }
 
   return (
     <div className={embedded ? 'min-h-full bg-transparent pb-6' : 'min-h-screen bg-background pb-20'}>

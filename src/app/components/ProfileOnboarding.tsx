@@ -9,7 +9,7 @@ import { toast } from '../lib/toast';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { acceptCodeOfConduct, attachReferralCode, getAuthSession, type AuthSessionPayload } from '../lib/authApi';
-import { CODE_OF_CONDUCT_ITEMS } from '../lib/codeOfConduct';
+import CodeOfConduct from './CodeOfConduct';
 import { emptyProfilePayload, emptySideBadges, saveMyProfile, toDefaultKinkInterest, type ProfilePayload, type SideBadges, uploadProfilePhoto } from '../lib/profileApi';
 import { ApiClientError } from '../lib/apiClient';
 import HeartPhoto from './HeartPhoto';
@@ -44,6 +44,8 @@ interface ProfileOnboardingProps {
   codeOfConductVersion?: string;
   constrainedViewport?: boolean;
   previewMode?: boolean;
+  /** Renders only the already-signed Code of Conduct, checked and read-only. */
+  signedCodeOfConductAt?: string | null;
 }
 
 type OnboardingStep =
@@ -233,10 +235,13 @@ export default function ProfileOnboarding({
   codeOfConductVersion = '',
   constrainedViewport = false,
   previewMode = false,
+  signedCodeOfConductAt = null,
 }: ProfileOnboardingProps) {
   const trust = useTrustRestrictions(!previewMode);
   // Minimal onboarding steps, but state includes all schema fields for upsert
-  const steps: OnboardingStep[] = needsCodeOfConduct
+  const steps: OnboardingStep[] = signedCodeOfConductAt
+    ? ['oath']
+    : needsCodeOfConduct
     ? [...PROFILE_STEPS, 'twoFactor', 'affiliateShare', 'oath']
     : [...PROFILE_STEPS, 'twoFactor', 'affiliateShare'];
   // A preview renders the flow for inspection, so it never reads or writes the
@@ -1033,35 +1038,10 @@ export default function ProfileOnboarding({
                 </div>
               );
             case 'oath':
-              return (
-                <div className="space-y-4">
-                  <div className="flex items-center gap-3 rounded-lg border border-primary/30 bg-primary/10 p-3 text-primary">
-                    <ShieldCheck className="h-5 w-5 shrink-0" />
-                    <p className="text-sm font-medium">This agreement is required before entering cruush.</p>
-                  </div>
-                  <div className="rounded-lg border border-white/10 bg-black/60 p-4">
-                    <ul className="space-y-3 text-sm leading-6 text-white/72">
-                      {CODE_OF_CONDUCT_ITEMS.map((item) => (
-                        <li key={item} className="flex gap-3">
-                          <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
-                          <span>{item}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                  <p className="text-2xl font-bold leading-7 text-destructive">
-                    By agreeing, you acknowledge that violating any Code of Conduct rule may result in a ban, suspension, or restrictions on app features, without warning or appeal.
-                  </p>
-                  <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-white/10 bg-black/55 p-4 text-sm leading-6 text-white/80">
-                    <input
-                      type="checkbox"
-                      checked={oathAccepted}
-                      onChange={(event) => setOathAccepted(event.target.checked)}
-                      className="mt-1 h-4 w-4 rounded border-white/25 bg-input-background accent-primary"
-                    />
-                    <span>I have read and agree to the cruush code of conduct.</span>
-                  </label>
-                </div>
+              return signedCodeOfConductAt ? (
+                <CodeOfConduct checked readOnly signedAt={signedCodeOfConductAt} />
+              ) : (
+                <CodeOfConduct checked={oathAccepted} onCheckedChange={setOathAccepted} />
               );
             case 'twoFactor':
               return (
@@ -1225,6 +1205,7 @@ export default function ProfileOnboarding({
               return null;
           }
         })()}
+        {signedCodeOfConductAt ? null : (
         <div className="mt-6 flex flex-wrap items-center justify-between gap-3 sm:mt-8">
           <Button variant="outline" onClick={() => setStep((s) => Math.max(0, s - 1))} disabled={step === 0 || inviteCodeSaving}>
             Back
@@ -1257,6 +1238,7 @@ export default function ProfileOnboarding({
             </div>
           )}
         </div>
+        )}
         </div>
       </div>
       {pendingPhoto ? (

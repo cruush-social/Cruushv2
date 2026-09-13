@@ -69,6 +69,7 @@ const PrivacyAudit = lazyRoute(() => import('./components/PrivacyAudit'));
 const FeelingLucky = lazyRoute(() => import('./components/FeelingLucky'));
 const RequestsDashboard = lazyRoute(() => import('./components/RequestsDashboard'));
 const CodeOfConductGate = lazyRoute(() => import('./components/CodeOfConductGate'));
+const CodeOfConductPage = lazyRoute(() => import('./components/CodeOfConductPage'));
 const EmailVerificationGate = lazyRoute(() => import('./components/EmailVerificationGate'));
 const DebugCruushPlusToggle = lazyRoute(() => import('./components/DebugCruushPlusToggle'));
 const Rewards = lazyRoute(() => import('./components/Rewards'));
@@ -661,6 +662,7 @@ export default function App({
               <Route path="/cruush" element={<CruushActivity />} />
               <Route path="/cruush/settings" element={<CruushMatchSettings />} />
               <Route path="/settings" element={<Settings />} />
+              <Route path="/settings/code-of-conduct" element={<CodeOfConductPage />} />
               <Route path="/settings/blocked-users" element={<BlockedUsersPage />} />
               <Route path="/settings/notifications" element={<NotificationSettings />} />
               <Route path="/settings/2fa" element={<TwoFactorSettings />} />
