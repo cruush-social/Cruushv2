@@ -1,6 +1,7 @@
 import { useTrustRestrictions } from '../lib/trustRestrictions';
 import TrustRestrictionNotice from './TrustRestrictionNotice';
 import PhotoUploadSpinner from './PhotoUploadSpinner';
+import MultiSelect from './MultiSelect';
 import { useCallback, useEffect, useId, useRef, useState, type ChangeEvent, type KeyboardEvent } from 'react';
 import { PHOTO_UPLOAD_ACCEPT, PHOTO_UPLOAD_FORMAT_MESSAGE, PHOTO_UPLOAD_EXTENSION_TYPES } from '../lib/photoUploadFormats';
 import { useLocation, useNavigate } from 'react-router';
@@ -466,6 +467,10 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
 
   const handlePost = async () => {
     if (!newPost.trim() || posting || uploadingFeedPhoto || trust.restricted('feed_posting')) return;
+    if (postAudience === 'crowd' && selectedCrowdTargets.length === 0) {
+      setError('Pick at least one Crowd to post to, or choose a different audience.');
+      return;
+    }
 
     setPosting(true);
     setError(null);
@@ -599,10 +604,6 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
     } finally {
       setUploadingFeedPhoto(false);
     }
-  };
-
-  const toggleCrowdTarget = (crowd: string) => {
-    setSelectedCrowdTargets((currentTargets) => currentTargets[0] === crowd ? [] : [crowd]);
   };
 
   const handleDeletePost = async (postId: string) => {
@@ -1137,27 +1138,14 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
               </div>
 
               {postAudience === 'crowd' && availableCrowdTargets.length > 0 ? (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {availableCrowdTargets.map((crowd) => {
-                    const selected = selectedCrowdTargets.includes(crowd);
-                    return (
-                      <button
-                        key={crowd}
-                        type="button"
-                        className={[
-                          'h-10 rounded-full border px-4 text-sm font-semibold transition',
-                          selected
-                            ? 'border-primary/45 text-white'
-                            : 'border-white/10 bg-black/40 text-white/72 hover:bg-white/8',
-                        ].join(' ')}
-                        style={selected ? { background: 'var(--cruush-gradient-soft-18)' } : undefined}
-                        aria-pressed={selected}
-                        onClick={() => toggleCrowdTarget(crowd)}
-                      >
-                        {crowd}
-                      </button>
-                    );
-                  })}
+                <div className="mt-3">
+                  <MultiSelect
+                    menuPortal
+                    ariaLabel="Crowds"
+                    options={availableCrowdTargets}
+                    value={selectedCrowdTargets}
+                    onChange={setSelectedCrowdTargets}
+                  />
                 </div>
               ) : null}
             </section>
