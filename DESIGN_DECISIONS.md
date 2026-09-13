@@ -90,3 +90,47 @@ Any requested adaptation of supplied icon artwork preserves the source icon's or
 ## Side badge geometry, September 11, 2026
 
 Hanky choices use the same icon size and badge border geometry as ordinary choices. Map-pin side badges use the same 35px size as profile-card side badges. Every non-flag icon stays fully inside the border with visible clearance and never overlaps the border; the shared 60% glyph inset enforces this. Pride flags remain the sole edge-to-edge badge fill and follow the no-border rule above. Preserve badge placement, hover labels, heart size and all non-badge pin geometry.
+
+## Spot reduction and discovery, September 12, 2026
+
+Source: Julien, task `01a094d4-5fda-7853-85e5-ca7f5634e4bb`, September 12, 2026. One address or parent venue, stadium, park, ferry, or station is allowed only one Spot, regardless of different names for internal features. Nearby independent venues such as two bars remain distinct; proximity alone is not duplication. Review the entire NYC-centered 100-mile radius manually using rendered map screenshots. Manually zoom into every Spot, including singletons, until street/venue context is visible. Regional overviews count only as navigation, never detailed review. Name similarity, spreadsheets, and automated candidates cannot substitute for that inspection. Archive duplicates recoverably and preserve member data. This supersedes the September 10 source-specific preservation where it would keep duplicates or excluded categories.
+
+Remove all cafes and the Cafe category for now. Remove retail stores such as Home Depot and their related sublocations; preserve adult stores and combine them with adult venues into one category. Include bus stations and transit options, separating bus stops and combining subway and regional rail stations. The Spots menu supports independent category toggles and sorting by Distance, Recently active, and Star rating. Julien explicitly removed travel time later in this same task. Preserve unrelated map controls and styling.
+
+The review uses a new local server and new ego lite space. A local development user may inspect the full radius without MHC; that viewing exception must stay local and uncommitted, with no production entitlement/privacy changes. Screenshots stay outside the repository and are never committed.
+
+September 12 later refinement, same task: Julien explicitly adds "no parking lots too". Remove parking-lot Spots, including public lots previously retained. This supersedes older parking-lot preservation.
+
+Same-task parking clarification: "Yes, remove lots and garages" and "if that s a category, remove teh category, we can readdthese later, but jsut archiev it for now". Archive all parking facilities and remove Parking from selectable categories. Reintroduction of anything archived in this cleanup requires support from aggregated user data ("i only want to readd stuff that aggregated user data supports", clarified "in terms of what were archiving"). Preserve recoverability; do not automatically restore archived records or add analytics beyond this task.
+
+Same-task later refinement: "campuses good, staircases in random building no remove staircase as category if it is one". Keep campuses as parent venues with one Spot each. Archive staircase Spots and remove Staircase from selectable categories; random-building stair sublocations are excluded.
+
+
+September 12 latest transit clarification, same task: the combined rail category is named exactly "Train stations", covering subway, NJ Transit rail and Pennsylvania rail stations. This supersedes "Rail & subway". Import every bus stop and every train station within the full NYC-centered 100-mile radius; categorizing only existing Spots is insufficient. Preserve one Spot per actual parent station/stop, not separate platforms, entrances or internal features. Source: Julien's consecutive "Rather train stations category" and "every single bus stop in the 100 mile radius ... same thing for the train stations" messages.
+
+
+Same-task bus-stop detail requirements: the Spot title and map hover use the actual operator stop name. Immediately below the name, show which bus routes serve the stop. For stops with an operator-supported SMS arrival service, provide a mobile action opening a prefilled text composer with the verified stop code and destination number, and visible instructions stating that code and number for arrivals. Never send the message automatically. Verify operator data rather than assuming every transit agency uses the same SMS service. Source: Julien's September 12 consecutive bus SMS and route-description requests.
+
+
+Same-task train detail requirement: subway and train-station hover/title uses the actual station name. The individual Spot detail immediately lists all serving train/subway lines and links to that station's schedule using official operator documentation. Source: Julien's September 12 train-station hover, routes and schedule-link request.
+
+
+Latest same-task clarification: reuse existing Spot IDs/pages when a bus stop or train station already exists. SMS is exclusively for New York City bus stops; buses outside NYC use official schedule links instead. This supersedes the earlier generic operator-SMS wording. Source: Julien's September 12 existing-page and outside-NYC bus messages.
+
+Train detail clarification, same task: list only the train/line names serving the station, never each line's full stop list. The Spot title remains the station name.
+
+
+September 12 latest transit detail refinements, same task: serving bus/train lines may include their actual final destination or headsign as shown by the operator, but never an entire route itinerary. Bus stops identify their actual direction, including Uptown/Downtown where applicable; do not infer those labels from GTFS direction_id 0/1 alone. Each train-station page lists every verified entrance and its street/corner/side, all under the same parent Spot. Source: Julien's consecutive final-destination, every-entrance and "up or downtown version" instructions. These refine the earlier line-designations-only wording.
+
+
+Latest bus-direction clarification, Julien September 12: same-name stops on opposite sides remain distinct and use the operator's own direction/destination wording. Do not impose Uptown/Downtown where the operator uses other wording. Source: "they may not use the language up or downtown ... use what they used to describe themselves". Actual station/stop name remains the title; serving routes and official direction/headsign distinguish the stop.
+
+
+Latest transit presentation rule, Julien September 12: "what is communicated on the spots page for train stations and bus stops ... stuff that you would see on a bus stop sign or a sign to enter a train station". Use concise, source-backed signage information: actual stop/station name, serving route/line, operator's own direction or final destination, and station entrance location/side. No full itineraries or additional descriptive prose. Previously requested official schedule links and NYC-only SMS arrivals remain in scope.
+
+September 12 Spots default, same task: Bus stops are off by default in the Spots menu and corresponding map filters. Members can enable them with the existing category toggle. Preserve other category defaults. Source: Julien, "by default dont have bus stations turned on in the spots menu btw".
+
+September 12 explicit confirmation, Julien: "each category in the spots menu can be turned on and off in terms of the spot sbeing displayed , you can also still turn the spots off completely". Each category toggle controls whether that category’s Spots display. The existing Show Spots on the map master toggle still hides all Spot categories without replacing or removing individual category choices.
+
+
+September 12 official-source requirement, Julien: "literally just google for it if you cant find it immediately", "there is no reason to look outside the official websites", and "i dont want anything linked but official pages" for bus and train Spots. Search missing schedules with operator-domain restrictions. Every displayed transit link must be an official transit authority/operator page or its officially linked schedule document; no third-party maps, aggregators, news or unrelated business pages. This applies to existing transit pages and prepared imports. Source: task `01a094d4-5fda-7853-85e5-ca7f5634e4bb`.

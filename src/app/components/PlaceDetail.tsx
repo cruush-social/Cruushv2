@@ -13,6 +13,7 @@ import ReportPage from './ReportPage';
 import UserActivityCapsule from './UserActivityCapsule';
 import LoadingCardSkeletons from './LoadingCardSkeletons';
 import InAppShareDialog from './InAppShareDialog';
+import PlaceTransitDetails from './PlaceTransitDetails';
 import { registerBugButtonSlot } from '../lib/bugButtonSlot';
 import { getStoredUserId } from '../lib/sessionUser';
 import { shouldMaskPhoto, useDlMode } from '../lib/dlMode';
@@ -410,6 +411,7 @@ export default function PlaceDetail({ embedded = false, onBack, onClose, placeId
       <div className={`mx-auto flex flex-col gap-4 px-4 py-4 sm:gap-6 sm:p-6 ${embedded ? 'max-w-none' : 'max-w-2xl'}`}>
         <div className={`relative ${embedded ? 'order-1' : 'order-3'}`}>
           <h1 className={`text-3xl ${embedded ? 'pr-10' : ''}`}>{place.name}</h1>
+          <PlaceTransitDetails details={place.transitDetails} />
           <div className="mt-2 flex items-start gap-2 text-sm text-muted-foreground">
             <p className="min-w-0 flex-1"><MapPin className="mr-1 inline h-4 w-4" />{place.address || `${place.latitude.toFixed(5)}, ${place.longitude.toFixed(5)}`}</p>
             <button type="button" aria-label="Send spot in cruush" title="Send in cruush" className="shrink-0 rounded-md p-1 text-white/55 transition hover:bg-white/10 hover:text-white" onClick={() => setShareOpen(true)}><Share2 className="h-4 w-4" /></button>

@@ -9,7 +9,7 @@ create table if not exists places (
   facility_type text not null check (facility_type in (
     'clinic', 'bar', 'nightclub', 'community_space', 'park', 'restroom',
     'sauna', 'gym', 'hotel', 'dungeon', 'venue', 'cafe', 'shop', 'library',
-    'staircase', 'trail', 'transit', 'parking', 'beach', 'adult_venue', 'other'
+    'staircase', 'trail', 'transit', 'rail_station', 'bus_stop', 'parking', 'beach', 'adult_venue', 'other'
   )),
   status text not null default 'pending' check (status in ('pending', 'published', 'rejected', 'archived')),
   source_kind text not null default 'community' check (source_kind in ('official', 'open_data', 'community')),
@@ -44,7 +44,7 @@ alter table places drop constraint if exists places_facility_type_check;
 alter table places add constraint places_facility_type_check check (facility_type in (
   'clinic', 'bar', 'nightclub', 'community_space', 'park', 'restroom',
   'sauna', 'gym', 'hotel', 'dungeon', 'venue', 'cafe', 'shop', 'library',
-  'staircase', 'trail', 'transit', 'parking', 'beach', 'adult_venue',
+  'staircase', 'trail', 'transit', 'rail_station', 'bus_stop', 'parking', 'beach', 'adult_venue',
   'adult_shop', 'music_venue', 'sports_venue',
   'retail', 'woods', 'rest_stop', 'bridge', 'other'
 ));

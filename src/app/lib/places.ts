@@ -1,10 +1,9 @@
-export const PLACE_FACILITY_TYPES = [
-  'clinic', 'bar', 'nightclub', 'community_space', 'park', 'restroom',
-  'sauna', 'gym', 'hotel', 'dungeon', 'cafe', 'shop', 'library',
-  'staircase', 'trail', 'transit', 'parking', 'beach', 'adult_venue',
-  'adult_shop', 'music_venue', 'sports_venue', 'retail', 'woods',
-  'rest_stop', 'bridge', 'other',
-] as const;
+import { PLACE_FACILITY_LABELS } from '../../../server/src/place-categories';
+import type { PlaceFacilityType } from '../../../server/src/place-categories';
+export { PLACE_FACILITY_TYPES, PLACE_FACILITY_LABELS, PLACE_FACILITY_SINGULAR_LABELS } from '../../../server/src/place-categories';
+export type { PlaceFacilityType } from '../../../server/src/place-categories';
+
+export const DEFAULT_EXCLUDED_PLACE_FACILITY_TYPES: readonly PlaceFacilityType[] = ['bus_stop'];
 
 export const PLACE_TAGS = [
   'lgbtq_health', 'womens_health', 'sexual_health',
@@ -20,31 +19,10 @@ export const PLACE_AMENITIES = [
   'transit_nearby', 'staff_present', 'indoor', 'outdoor',
 ] as const;
 
-export type PlaceFacilityType = typeof PLACE_FACILITY_TYPES[number] | 'venue';
 export type PlaceTag = typeof PLACE_TAGS[number];
 export type PlaceVibe = typeof PLACE_VIBES[number];
 export type PlaceAmenity = typeof PLACE_AMENITIES[number];
 export type PlaceSort = 'nearest' | 'active' | 'recent' | 'top_rated' | 'az';
-
-export const PLACE_FACILITY_LABELS: Record<PlaceFacilityType, string> = {
-  clinic: 'Healthcare clinic', bar: 'Bars', nightclub: 'Nightclub', community_space: 'Community space',
-  park: 'Park', restroom: 'Bathroom', sauna: 'Sauna', gym: 'Gym', hotel: 'Hotel',
-  dungeon: 'Dungeon', venue: 'Other', cafe: 'Café', shop: 'Shop', library: 'Library',
-  staircase: 'Staircase', trail: 'Trail', transit: 'Transit', parking: 'Parking',
-  beach: 'Beach', adult_venue: 'Adult venue', adult_shop: 'Adult shop',
-  music_venue: 'Music venue', sports_venue: 'Sports venue', retail: 'Stores',
-  woods: 'Woods', rest_stop: 'Rest stops', bridge: 'Bridges', other: 'Other',
-};
-
-export const PLACE_FACILITY_SINGULAR_LABELS: Record<PlaceFacilityType, string> = {
-  clinic: 'Healthcare clinic', bar: 'Bar', nightclub: 'Nightclub', community_space: 'Community space',
-  park: 'Park', restroom: 'Bathroom', sauna: 'Sauna', gym: 'Gym', hotel: 'Hotel',
-  dungeon: 'Dungeon', venue: 'Spot', cafe: 'Café', shop: 'Shop', library: 'Library',
-  staircase: 'Staircase', trail: 'Trail', transit: 'Transit', parking: 'Parking',
-  beach: 'Beach', adult_venue: 'Adult venue', adult_shop: 'Adult shop',
-  music_venue: 'Music venue', sports_venue: 'Sports venue', retail: 'Store',
-  woods: 'Woods', rest_stop: 'Rest stop', bridge: 'Bridge', other: 'Spot',
-};
 
 export const PLACE_TAG_LABELS: Record<PlaceTag, string> = {
   lgbtq_health: 'LGBTQ health', womens_health: 'Ob/gyn health', sexual_health: 'Sexual health',

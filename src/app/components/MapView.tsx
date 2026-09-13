@@ -1776,6 +1776,8 @@ const PLACE_MARKER_CONFIG: Record<string, { icon?: LucideIcon; special?: 'stairs
   staircase: { special: 'stairs' },
   trail: { icon: Route },
   transit: { icon: TrainFront },
+  rail_station: { icon: TrainFront },
+  bus_stop: { icon: MapPinned },
   parking: { icon: CircleParking },
   beach: { special: 'beach' },
   adult_venue: { special: 'adult' },

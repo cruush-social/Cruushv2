@@ -43,3 +43,7 @@ branch's context. Do not ask Julien to repeat anything documented in either file
   exactly as legally written when they are explicitly provided.
 - Before finalizing work, run `pnpm check:cruush-casing` and correct any
   product-name casing errors it reports.
+
+## Current project documents
+
+On every project request, read `docs/CRUUSH-RULES.md`, `DESIGN_DECISIONS.md`, `docs/design-master.md`, and `docs/master-architecture.md` in full, plus applicable scoped rules. Read `HANDOFF.md` for branch context. Current explicit user instructions supersede historical rules.

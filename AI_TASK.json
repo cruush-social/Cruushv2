@@ -1,27 +1,26 @@
 {
   "schemaVersion": 2,
-  "taskId": "profile-popup-expand-down-release-20260911",
-  "status": "validating",
-  "objective": "Let desktop map profile popups expand farther downward.",
-  "userOutcome": "Profile popups retain their top position and width but can extend 34px farther down while clearing bottom navigation.",
-  "audience": "cruush members using desktop map profile popups",
+  "taskId": "spots-major-reduction-20260912",
+  "status": "active",
+  "objective": "Reduce Spots to one per parent venue, remove cafes and retail, combine categories, and add requested discovery controls.",
+  "userOutcome": "Fewer meaningful Spots, independently selectable categories, and requested sorting.",
+  "audience": "cruush members",
   "successCriteria": [
-    "Profile and Edit Profile dock panels use 112px bottom clearance.",
-    "Other dock panels retain their existing clearance.",
-    "Profile popup width, top position, resize behavior, and content remain unchanged.",
-    "Focused test, rendered verification, both builds, production SHA, and live version verification pass."
+    "Manually inspect map screenshots throughout the full NYC 100-mile radius.",
+    "One Spot per address or parent venue; preserve independent nearby businesses.",
+    "Recoverably archive cafes, retail and visually confirmed duplicate sublocations.",
+    "Combine adult categories, separate bus stops and rail/subway, implement category toggles and distance/travel-time/recent activity sort."
   ],
   "mustPreserve": [
-    "Profile popup width, top edge, styling, tabs, controls, content, and resize behavior.",
-    "All other desktop dock panel geometry.",
-    "Bottom navigation clearance.",
-    "All unrelated worktrees, dirty work, and localhost:5187."
+    "Member data, independent nearby venues, unrelated UI and privacy.",
+    "Other worktrees and servers."
   ],
   "nonGoals": [
-    "No profile content, mobile layout, map, DL Mode, Spot data, or unrelated queue change."
+    "No production deployment.",
+    "No committed screenshots or local viewing override."
   ],
   "assumptions": [],
-  "nextVisibleMilestone": "Seeded desktop profile popup extends lower while remaining above navigation.",
+  "nextVisibleMilestone": "Complete official transit metadata and the remaining manual 100-mile Spot review; browser verification awaits permission-prompt dismissal.",
   "stopConditions": [
     "Stop on explicit user cancellation.",
     "Block unrelated staged or outgoing differences."
@@ -31,90 +30,65 @@
     "maxMinutes": null
   },
   "externalEffectDecisions": {
-    "publication": "authorized to origin/main",
-    "deployment": "authorized production release",
+    "publication": "not requested",
+    "deployment": "not requested",
     "messages": "forbidden"
   },
   "externalEffects": {
     "externalMessages": "forbidden",
     "purchases": "forbidden",
-    "deployment": "auto",
-    "publication": "auto",
-    "deletion": "forbidden",
-    "securityChanges": "forbidden",
-    "credentials": "forbidden",
-    "newDefaults": "forbidden",
-    "identityCreativeDecisions": "forbidden"
+    "deployment": "forbidden",
+    "publication": "forbidden",
+    "deletion": "recoverable archival only",
+    "securityChanges": "local full-radius review only"
   },
   "product": "cruush",
   "repository": "cruush-social/Cruushv2",
-  "branch": "fix/profile-popup-expand-down-20260911",
+  "branch": "codex/spots-major-reduction-20260912",
   "allowedPaths": [
-    "src/app/components/DesktopDockPanel.tsx",
-    "src/app/components/DesktopDockPanel.test.tsx",
-    "src/app/components/MapProfilePopup.tsx",
+    "server/src/places.ts",
+    "server/src/routes/places.ts",
+    "server/src/migrate.ts",
+    "server/sql/*",
+    "src/app/lib/*place*",
+    "src/app/components/*Spot*",
+    "src/app/components/*Place*",
+    "src/app/components/MapHome.tsx",
+    "src/app/components/MapView.tsx",
+    "DESIGN_DECISIONS.md",
+    "AGENTS.md",
+    "docs/design-master.md",
+    "docs/worktrees.md",
+    "HANDOFF.md",
     "AI_TASK.json",
-    "FIXLOG.md",
-    "public/sw.js",
-    "public/service-worker-recovery.js",
-    "src/main.tsx",
-    "index.html"
+    "FIXLOG.md"
   ],
   "forbiddenPaths": [
-    "server/**",
-    "src/app/assets/**"
+    ".dev/**",
+    "screenshots/**"
   ],
   "source": {
-    "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
-    "line": 9697,
-    "text": "let me expand the profile pop ups down more  add to que"
+    "taskId": "01a094d4-5fda-7853-85e5-ca7f5634e4bb",
+    "text": "Current user requests captured in the canonical local Markdown queue."
   },
   "baseline": {
-    "sha": "ae30806c9ba9b326c0ccb4ca443c6837b4855f40",
-    "inheritedTaskId": "spot-popup-header-overlap-release-20260911",
-    "productState": "Clean isolated worktree from current origin/main."
+    "sha": "6b0fe060baa36f6b89f71e42d0db0418f5f87638"
   },
-  "currentItem": "PROFILE-POPUP-EXPAND-DOWN-20260911",
-  "queue": [
-    {
-      "id": "PROFILE-POPUP-EXPAND-DOWN-20260911",
-      "status": "locally_verified",
-      "source": {
-        "line": 9697,
-        "text": "let me expand the profile pop ups down more"
-      }
-    }
-  ],
-  "proofTarget": "Seeded desktop profile popup lower edge and bottom navigation clearance.",
-  "publicationTarget": "origin/main and production https://cruush.app",
-  "deploymentAuthorization": {
-    "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
-    "line": 9276,
-    "text": "deploy both"
-  },
-  "outcomes": {
-    "source": "Only MapProfilePopup view/edit panels pass a 112px bottom clearance. Other dock panels retain their responsive 138/146px defaults, including after crossing the 1024px breakpoint.",
-    "tests": "DesktopDockPanel focused suite passes 4/4, including profile geometry and responsive default clearance.",
-    "clientBuild": "Passed production Vite build.",
-    "serverBuild": "Passed server TypeScript build with pnpm --dir server build.",
-    "render": "Exact release worktree at localhost:5191, 1526x987: atlas profile top stayed 90px and width 416px; lower-handle resize expanded height to 785px and stopped at y=875, exactly 112px above viewport bottom. Closing and reopening retained the same geometry. Screenshots: evidence/profile-popup-expanded-1526x987.png and evidence/profile-popup-expanded-after-drag-1526x987.png.",
-    "publication": "Authorized; pending.",
-    "device": "Physical Android remains unverified."
-  },
+  "currentItem": "SPOT-07",
+  "queue": [],
+  "proofTarget": "Full-radius screenshot review and actual local Spot menu interaction.",
+  "publicationTarget": null,
+  "deploymentAuthorization": null,
+  "outcomes": {},
   "requiredEvidence": [
-    "Focused DesktopDockPanel test.",
-    "Client and server builds.",
-    "Rendered desktop profile popup geometry.",
-    "Production SHA and live web version."
+    "Screenshots outside repository",
+    "Manual geographic coverage log",
+    "Recoverable archival manifest",
+    "Focused functional checks"
   ],
   "uiScope": {
     "version": 1,
-    "source": {
-      "transcriptPath": "/Users/julienlenaz/.codex/sessions/2026/09/10/rollout-2026-09-10T15-17-56-01a08cc1-59ca-7ae1-b080-d59c8761f139.jsonl",
-      "line": 9697,
-      "sha256": "f62d9d03109213774f9ad869c64a4ee3eab53728abc46760d347b72814612511"
-    },
-    "baselineId": "e1ff72d198d76415c629e2e36c3d1a9ec3bc5a384674eace946363a86d054c46",
     "grants": []
-  }
+  },
+  "queuePath": "/Volumes/good/ai-queues/01a094d4-5fda-7853-85e5-ca7f5634e4bb/TODO.md"
 }

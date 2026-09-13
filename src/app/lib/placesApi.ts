@@ -2,6 +2,7 @@ import { requestApi } from './apiClient';
 import type { CruushBadge } from './billingApi';
 import type { SideBadges } from './profileApi';
 import type { PlaceAmenity, PlaceFacilityType, PlaceSort, PlaceTag, PlaceVibe } from './places';
+import type { PlaceTransitDetails } from '../../../server/src/place-transit';
 
 export type PlaceRecord = {
   id: string;
@@ -9,6 +10,7 @@ export type PlaceRecord = {
   name: string;
   description: string;
   accessInstructions: string;
+  transitDetails?: PlaceTransitDetails | null;
   latitude: number;
   longitude: number;
   address: string | null;
@@ -82,6 +84,7 @@ export async function getPlaces(options: {
   sort?: PlaceSort;
   query?: string;
   facilityTypes?: PlaceFacilityType[];
+  excludedFacilityTypes?: PlaceFacilityType[];
   tags?: PlaceTag[];
   vibes?: PlaceVibe[];
   amenities?: PlaceAmenity[];
@@ -101,6 +104,7 @@ export async function getPlaces(options: {
   if (options.longitude != null) params.set('lng', String(options.longitude));
   if (options.query) params.set('query', options.query);
   if (options.facilityTypes?.length) params.set('facilityTypes', options.facilityTypes.join(','));
+  if (options.excludedFacilityTypes?.length) params.set('excludedFacilityTypes', options.excludedFacilityTypes.join(','));
   if (options.tags?.length) params.set('tags', options.tags.join(','));
   if (options.vibes?.length) params.set('vibes', options.vibes.join(','));
   if (options.amenities?.length) params.set('amenities', options.amenities.join(','));

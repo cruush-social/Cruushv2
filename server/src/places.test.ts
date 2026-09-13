@@ -23,10 +23,22 @@ const privacyConfig = {
 } as AppConfig;
 
 describe("Spot taxonomy", () => {
-  it("accepts exactly the 27 approved facility categories", () => {
-    expect(PLACE_FACILITY_TYPES).toHaveLength(27);
-    expect(new Set(PLACE_FACILITY_TYPES).size).toBe(27);
-    expect(PLACE_FACILITY_TYPES).toEqual(expect.arrayContaining(["adult_shop", "music_venue", "sports_venue", "retail", "woods", "rest_stop", "bridge"]));
+  it("accepts the current categories and excludes archived categories from submissions", () => {
+    expect(PLACE_FACILITY_TYPES).toHaveLength(22);
+    expect(new Set(PLACE_FACILITY_TYPES).size).toBe(22);
+    expect(PLACE_FACILITY_TYPES).toEqual(expect.arrayContaining(["adult_venue", "rail_station", "bus_stop", "music_venue", "sports_venue", "woods", "rest_stop", "bridge"]));
+    for (const facilityType of ["cafe", "retail", "shop", "parking", "staircase", "adult_shop", "dungeon"]) {
+      expect(PLACE_FACILITY_TYPES).not.toContain(facilityType);
+      expect(storedPlaceSuggestionSchema.safeParse({
+        name: "Archived category suggestion",
+        description: "",
+        latitude: 40.72,
+        longitude: -73.98,
+        address: "",
+        facilityType,
+        tags: []
+      }).success).toBe(false);
+    }
     expect(PLACE_FACILITY_TYPES).not.toContain("venue");
     expect(storedPlaceSuggestionSchema.safeParse({
       name: "Legacy venue",
