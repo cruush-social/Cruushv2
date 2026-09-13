@@ -966,10 +966,9 @@ function applyPersonMarkerClusters(
     true,
   ).filter((group) => group.length >= 2).forEach((group) => {
     const sameBuildingDisplayArea = areInSameBuildingDisplayArea(group);
-    // A shared building remains one intentional spiderfy target at every zoom.
-    // Ordinary nearby people separate once the map is close enough to show
-    // their independent locations.
-    if (!sameBuildingDisplayArea && zoom >= PERSON_CLUSTER_MAX_ZOOM) return;
+    // Only an actual shared building clusters/spiderfies. Ordinary nearby
+    // people never merge into a cluster, at any zoom level.
+    if (!sameBuildingDisplayArea) return;
 
     group.forEach((marker) => clusteredIds.add(marker.id));
     clusters.push(buildPeopleCluster(group, sameBuildingDisplayArea ? 'spiderfy' : 'zoom'));
