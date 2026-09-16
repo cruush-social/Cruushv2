@@ -356,13 +356,14 @@ export default function ProfileOnboarding({
     let frame = 0;
     const fitStep = () => {
       const visualViewport = window.visualViewport;
-      const visibleBottom = visualViewport
-        ? visualViewport.offsetTop + visualViewport.height
-        : window.innerHeight;
       const viewportTop = viewport.getBoundingClientRect().top;
       const visibleTop = visualViewport?.offsetTop ?? 0;
+      // The on-screen keyboard shrinks the visual viewport but not the layout
+      // viewport. Fitting to the visual viewport rescaled and reflowed the whole
+      // step the moment a field was focused, so the step is sized against the
+      // layout viewport and the visual viewport only pans it into view.
       viewport.style.setProperty('--onboarding-pan-offset', `${Math.max(0, visibleTop - viewportTop)}px`);
-      viewport.style.maxHeight = `${Math.max(0, visibleBottom - viewportTop)}px`;
+      viewport.style.maxHeight = `${Math.max(0, window.innerHeight - viewportTop)}px`;
       const style = getComputedStyle(viewport);
       const horizontalPadding = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight);
       const availableHeight = viewport.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
@@ -792,7 +793,7 @@ export default function ProfileOnboarding({
     >
       <div ref={stepContentRef} className="flex w-full shrink-0 flex-col">
         <header className="mb-4 text-center sm:mb-6">
-          <img className="cruush-brand-logo mx-auto mb-2 h-auto w-36" src={cruushLogo} alt="cruush" />
+          <img className="cruush-brand-logo mx-auto mb-2 h-auto w-24" src={cruushLogo} alt="cruush" />
           <p className="mt-2 text-center text-white/58">the rites</p>
         </header>
         <div className="w-full space-y-5 rounded-lg border border-white/12 bg-black/82 p-4 shadow-[0_28px_90px_rgba(0,0,0,0.52)] backdrop-blur sm:space-y-8 sm:p-6">
@@ -810,12 +811,12 @@ export default function ProfileOnboarding({
           ))}
         </div>
         <div className="space-y-2 text-center">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
             {STEP_COPY[currentStep].rite}
           </p>
-          <h2 className="text-xl font-semibold text-foreground">{STEP_COPY[currentStep].title}</h2>
-          <p className="text-sm text-white/62">{STEP_COPY[currentStep].detail}</p>
-          <p className="text-xs text-white/42">Rite {step + 1} of {steps.length}</p>
+          <h2 className="text-2xl font-semibold text-foreground">{STEP_COPY[currentStep].title}</h2>
+          <p className="text-base text-white/62">{STEP_COPY[currentStep].detail}</p>
+          <p className="text-sm text-white/42">Rite {step + 1} of {steps.length}</p>
         </div>
         {/* Step content */}
         {(() => {
