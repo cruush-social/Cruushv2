@@ -5,6 +5,21 @@ import { Button } from './ui/button';
 
 const changelogReleases = [
   {
+    version: 'v1.7',
+    items: [
+      'DL Mode now shows a lit state on the map, and controls which photo audiences see masked covers.',
+      'Badges expand with collar emblems, Pride symbols, frames, hanky code, and the twelve zodiac signs.',
+      'Relationship status is now a Seeking filter and shows on your profile.',
+      'Read receipts show when your direct message was read.',
+      'Notifications add Do Not Disturb hours.',
+      'Color vision (color-blind) accessibility modes and larger text options are available across the app.',
+      'Push notifications now prompt automatically after install and after onboarding.',
+      'The Spot directory is cleaner: duplicate, unnamed, and mislabeled Spots removed, transit stops added, categories reorganized.',
+      'Sign the Code of Conduct from Settings.',
+      'Public report and suspension appeal forms, with a dedicated sign-in screen for suspended accounts.',
+    ],
+  },
+  {
     version: 'v1.6',
     items: [
       'Explore from another location with Mile High Club.',
