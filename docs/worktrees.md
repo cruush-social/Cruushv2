@@ -9,6 +9,7 @@ the branch name.
 
 | Branch | Worktree path | Last commit | State | Ahead/behind main | Purpose |
 | --- | --- | --- | --- | --- | --- |
+| `fix/onboarding-fit-no-scroll-20260915` | `/Volumes/good/cruush-onboarding-fit-20260915` | `a2d053e` (base) | clean, Claude | +1/-0 at creation | Stop the onboarding step fitter rescaling when the keyboard opens; smaller logo, larger step copy. Unmerged. |
 | `codex/spots-major-reduction-20260912` | `/Volumes/good/cruush-spots-major-reduction-20260912` | `6b0fe06` (base) | dirty, Codex 01a094d4 | +0/-0 at creation | Major Spot reduction, category switches and screenshot review; active, unmerged, local only. |
 | `fix/onboarding-step-consolidation-20260910` | `/Volumes/good/cruush-onboarding-steps-20260910` | `00bd751` (base) | dirty, Codex thread 01a08cc1 | +0/-0 at creation | Combined release of five approved fixes; source integrated, validating before production deployment. |
 | `codex/publish-safety-blog-20260908` | `/Users/julienlenaz/Documents/Codex/cruush-safety-blog-ssd` | 2026-09-08 7f743ca docs: publish cruush safety blog article | dirty (1 files) | +1/-0 | Publish the code-accurate safety article to the existing cruush static blog; Codex; in progress. |
