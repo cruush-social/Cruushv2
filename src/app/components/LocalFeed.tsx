@@ -732,7 +732,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
     <div
       className={embedded
         ? 'relative flex h-full w-full max-w-full flex-col overflow-x-clip overflow-y-hidden bg-[#050505] text-foreground'
-        : 'fixed inset-0 flex h-[100dvh] w-full max-w-full flex-col overflow-x-clip overflow-y-hidden bg-[#050505] pt-[env(safe-area-inset-top)] text-foreground'}
+        : 'fixed inset-x-0 top-0 bottom-[var(--cruush-nav-clearance,6rem)] flex w-full max-w-full flex-col overflow-x-clip overflow-y-hidden bg-[#050505] pt-[env(safe-area-inset-top)] text-foreground'}
       data-testid="local-feed-screen"
     >
       <header
@@ -995,7 +995,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
       ) : null}
 
       <div className={`${embedded && settingsOpen ? 'hidden ' : ''}mx-auto flex min-h-0 w-full max-w-2xl flex-1 flex-col overflow-hidden px-3 pt-4`} data-testid="local-feed-content">
-        <div className="shrink-0 rounded-2xl border border-white/10 bg-black/82 p-4 shadow-[0_18px_50px_rgba(0,0,0,0.35)] backdrop-blur" data-testid="local-feed-composer">
+        <div className="flex max-h-full min-h-0 shrink-0 flex-col rounded-2xl border border-white/10 bg-black/82 p-3 shadow-[0_18px_50px_rgba(0,0,0,0.35)] backdrop-blur" data-testid="local-feed-composer">
           {error ? (
             <div className="mb-3 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
               {error}
@@ -1018,7 +1018,9 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
               <span className="min-w-0 flex-1 truncate">Share something with nearby people...</span>
             </button>
           ) : null}
-          <div id={composerPanelId} className={composerOpen ? undefined : 'hidden'}>
+          {/* The open composer scrolls inside the height it has above the
+              bottom navigation bar, and the Post row sticks to its end. */}
+          <div id={composerPanelId} className={composerOpen ? 'scrollbar-hide min-h-0 flex-1 overflow-y-auto overscroll-contain' : 'hidden'}>
           <Accordion
             collapsible
             type="single"
@@ -1039,9 +1041,9 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
             value={newPost}
             onChange={(e) => setNewPost(e.target.value)}
             placeholder="Share something with nearby people..."
-            className="bg-input-background mb-3 min-h-[100px]"
+            className="bg-input-background mb-2 min-h-16"
           />
-          <div className="mb-3 space-y-2">
+          <div className="mb-2 space-y-2">
             <div className="flex items-center gap-2 rounded-md border border-white/10 bg-input-background px-3">
               <Hash aria-hidden="true" className="h-4 w-4 shrink-0 text-white/55" />
               <input
@@ -1065,8 +1067,8 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
             </div>
             {/* Expiry belongs to the post being written, not to a setting
                 applied to everything. Every composer starts at Never. */}
-            <section className="rounded-lg border border-white/10 bg-black/42 p-3">
-              <p className="mb-2 text-sm font-semibold text-white">This post expires</p>
+            <section className="rounded-lg border border-white/10 bg-black/42 p-2">
+              <p className="mb-1 text-sm font-semibold text-white">This post expires</p>
               {/* A slider rather than a row of buttons: the options are an
                   ordered scale from 30 minutes to never, so sliding along it
                   reads better than picking one of six pills. */}
@@ -1097,7 +1099,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
               </div>
               <p className="mt-2 text-xs text-white/58">Never expire is free. Custom timers are part of Feed+.</p>
             </section>
-            <section className="rounded-lg border border-white/10 bg-black/42 p-3">
+            <section className="rounded-lg border border-white/10 bg-black/42 p-2">
               <p className="text-sm font-semibold text-white">Who can see this post</p>
               <p className="mb-2 mt-1 text-xs text-white/58">Public and Mutuals are free. A specific Crowd is part of Feed+.</p>
               <div className="grid grid-cols-3 gap-2">
@@ -1170,7 +1172,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
             ) : null}
           </div>
           {stagedPhotos.length > 0 ? (
-            <div className="mb-3 space-y-2 rounded-xl border border-white/10 bg-black/45 p-3" data-testid="feed-photo-staging">
+            <div className="mb-2 space-y-2 rounded-xl border border-white/10 bg-black/45 p-2" data-testid="feed-photo-staging">
               <FeedAttachmentPreview
                 dlModeActive={false}
                 onOpen={() => undefined}
@@ -1195,7 +1197,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
           ) : null}
           {/* Expiry and crowd targeting live in the feed settings menu now, so
               the composer is the textarea and the Post button. */}
-          <div className="flex items-center justify-between gap-3">
+          <div className="sticky bottom-0 flex items-center justify-between gap-2 bg-black/82 pt-2">
             <div>
               <input
                 accept={PHOTO_UPLOAD_ACCEPT}
@@ -1243,7 +1245,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
         </div>
 
         <div
-          className="scrollbar-hide mt-4 min-h-0 flex-1 overflow-y-auto overscroll-contain pb-[calc(9rem+env(safe-area-inset-bottom))]"
+          className="scrollbar-hide mt-4 min-h-0 flex-1 overflow-y-auto overscroll-contain pb-4"
           data-testid="local-feed-posts-scroll"
           style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}
         >

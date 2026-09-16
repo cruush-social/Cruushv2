@@ -194,7 +194,7 @@ describe('LocalFeed', () => {
     expect(await screen.findByRole('heading', { name: 'Feed' })).toBeInTheDocument();
     expect(screen.getByTestId('local-feed-screen')).toHaveClass(
       'flex',
-      'h-[100dvh]',
+      'bottom-[var(--cruush-nav-clearance,6rem)]',
       'flex-col',
       'overflow-x-clip',
       'overflow-y-hidden',
@@ -219,7 +219,7 @@ describe('LocalFeed', () => {
       'flex-1',
       'overflow-y-auto',
       'overscroll-contain',
-      'pb-[calc(9rem+env(safe-area-inset-bottom))]',
+      'pb-4',
     );
     const postsScroll = screen.getByTestId('local-feed-posts-scroll');
     expect(postsScroll.style.touchAction).toBe('pan-y');
