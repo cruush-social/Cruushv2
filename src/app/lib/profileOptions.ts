@@ -338,6 +338,7 @@ export const KINK_CATALOG = [
   { id: 'spit-roast', label: 'spit roast', category: 'Group' },
   { id: 'threesome', label: 'threesome', category: 'Group' },
   { id: 'cum-dump', label: 'cum dump', category: 'Body & Touch' },
+  { id: 'cum-n-go', label: 'cum n go', category: 'Body & Touch' },
   { id: 'being-watched', label: 'being watched', category: 'Public & Watching' },
   { id: 'anonymous', label: 'anonymous', category: 'Public & Watching' },
   { id: 'camera-play', label: 'camera play', category: 'Public & Watching' },
@@ -450,7 +451,7 @@ export const ZODIAC = [
 
 // Retired choices remain canonical so existing saved interests and badges keep their identity.
 const SELECTABLE_KINK_CATALOG = KINK_CATALOG.filter((kink) => (
-  kink.id !== 'fantasy-roleplay' && kink.id !== 'fantasy-scenes'
+  kink.id !== 'fantasy-roleplay' && kink.id !== 'fantasy-scenes' && kink.id !== 'group'
 ));
 
 export const KINKS = SELECTABLE_KINK_CATALOG.map((kink) => kink.label);
