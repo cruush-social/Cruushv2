@@ -832,6 +832,9 @@ export default function ProfileOnboarding({
                     value={profile.name}
                     onChange={e => setProfileField('name', e.target.value)}
                   />
+                  {profile.name.length > 0 && profile.name.trim().length < 2 ? (
+                    <p role="alert" className="text-xs text-destructive">Name must be at least 2 characters.</p>
+                  ) : null}
                   <div className="space-y-2 rounded-lg border border-white/10 bg-white/[0.04] p-3">
                     <label className="text-sm block text-white/82" htmlFor="onboarding-profile-photo">Profile photo</label>
                     <p className="text-xs leading-5 text-white/58">NSFW is allowed. Your face is optional, but the photo must show you or your gear.</p>
