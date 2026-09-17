@@ -1,118 +1,144 @@
-# Plan: split the map render path so cruush runs smoother
+# Plan: move the DOM/React boundary for map pins
 
 Status: **awaiting sign-off**. No code written.
-Branch: `claude/crush-performance-split-he27z3` (currently identical to `origin/main` at `ce0c7d0`).
+Branch: `claude/crush-performance-split-he27z3`. PR #284.
 
-I have no record of the earlier conversation in this session, so this plan is built from
-what the code shows rather than from that discussion. If it misses the part you meant by
-"splitting elements", say which part and I will redo it.
-
----
-
-## The measurement
-
-`src/app/components/MapHome.tsx` is 3581 lines with 65 `useState`, 32 `useEffect`,
-3 `useCallback`. `src/app/components/MapView.tsx` is 3244 lines. Neither is wrapped in
-`React.memo`; there is no `React.memo` anywhere in `src/app/components`.
-
-`MapHome.tsx:1390` runs `window.setInterval(() => setMapPingClock(Date.now()), 1000)`
-for as long as the map is open. Every one of those ticks does all of this:
-
-| # | Work | Where |
-| --- | --- | --- |
-| 1 | MapHome re-renders its whole tree | `MapHome.tsx` |
-| 2 | `mapMarkers` rebuilds: map + filter over every displayed user | `MapHome.tsx:2650`, dep `mapPingClock` |
-| 3 | `browseVisibleMapMarkers` rebuilds, one haversine per marker | `MapHome.tsx:2815` |
-| 4 | MapView re-renders; every prop it receives is a fresh inline literal | `MapHome.tsx:3010` |
-| 5 | `denseMarkerResult` recomputes | `MapView.tsx:2443` |
-| 6 | `renderedMarkers` recomputes: full person clustering, place clustering, overlap pass | `MapView.tsx:2448` |
-| 7 | `JSON.stringify(renderedMarkers)` over the entire array | `MapView.tsx:2463` |
-| 8 | `viewportMarkerSignature` rebuilds and sorts | `MapView.tsx:2467` |
-| 9 | Marker diff effect runs `JSON.stringify(marker)` once per marker | `MapView.tsx:3052` |
-| 10 | Ghost radius circle: polygon recomputed, `setData` called | `MapView.tsx:2823`, dep `radiusCircle` |
-| 11 | Ghost leash effect re-runs | `MapView.tsx:2890`, dep `ghostLeash` |
-
-Item 6 is the expensive one. `applyPersonMarkerClusters` (`MapView.tsx:979`) grows each
-cluster with a `while (grew) { clusterableMarkers.forEach(...) }` loop calling
-`areInSameBuildingDisplayArea` on the whole group each pass.
-
-None of that work produces a different result on a tick where no ping actually expired,
-which is almost every tick.
-
-The same cascade also fires on **every unrelated MapHome state change**, because
-`radiusCircle`, `ghostLeash`, `browseArea`, `focusArea`, `focusCoordinates`,
-`initialViewport` and `onMapClick` are all built inline at the `<MapView>` call site
-(`MapHome.tsx:3010-3057`). Typing one character into the "Request a city" input re-clusters
-every marker and re-serialises the array.
-
-The marker DOM itself is already diffed per marker (`MapView.tsx:3052`), so pins are not
-torn down and rebuilt. The cost is the JavaScript above it, on the main thread, once a
-second.
+Supersedes the first version of this file, which led on the re-render cascade. The cascade
+is real and is kept below, but it is what multiplies the cost, not the cost itself. The
+subject is where the line between hand-written DOM and React is drawn for map pins.
 
 ---
 
-## The five steps
+## Where the boundary sits today
 
-Each one is independently shippable and behaviour-preserving. Nothing is deleted.
+Every map pin is half raw DOM and half React, and the seam is drawn **once per pin**.
 
-### 1. Replace the 1s clock with a deadline timer
+`createMarkerElement` (`MapView.tsx:2054`) builds the outside by hand:
 
-The clock exists only to decide whether a ping has passed `expiresAt`. Ticking once a
-second to answer that is polling; the answer only changes at the deadline itself.
+- `document.createElement('button')`, then `className`, then five `dataset` fields
+- `addEventListener` for pointerdown, pointerup, pointerenter, pointerleave, long-press
 
-Schedule a single `setTimeout` for the *next* actual ping expiry and re-render then.
-This is the pattern already in this file's neighbour: `MapView.tsx:2431` does exactly
-that for ghost rotation deadlines.
+Then, for the inside of that same element, at `MapView.tsx:2085`:
 
-Ticks per map session drop from 60/minute to one per real expiry. Pings expire on their
-exact deadline instead of within a second of it.
+```js
+const root = createRoot(element);
+```
 
-**Biggest single win. Contained to `MapHome.tsx`.**
+**One React root per marker.** Each one is an independent fiber tree with its own scheduler
+entry, its own effect queue and its own timers. Nothing else in `src/app` calls `createRoot`
+or `flushSync`; the whole rest of the app is a single React tree.
 
-### 2. Stabilise the props MapView receives
+Every render of that root goes through `MapView.tsx:2102`:
 
-`useMemo` the object props and `useCallback` the handler at `MapHome.tsx:3010`. Nothing
-about what is passed changes, only when a new identity is created.
+```js
+const renderMarker = () => {
+  flushSync(() => {
+    root.render(<MapMarkerPin marker={marker} previewed={previewed} />);
+  });
+};
+```
 
-This stops items 5, 6, 7, 10 and 11 from running on unrelated MapHome state changes.
+`flushSync` forces a synchronous, unbatched commit. It is called at creation
+(`MapView.tsx:2311`) and again on every preview toggle (`MapView.tsx:2125`), which is every
+hover in and hover out, and every long-press.
 
-### 3. Drop the whole-array `JSON.stringify` signatures
+What that root renders is not small. `MapMarkerPin` (`MapView.tsx:1955`) holds its own
+`useState` and a `useEffect` deadline timer, and renders one of:
 
-`renderedMarkerSignature` (`MapView.tsx:2463`) serialises every marker with every field.
-Replace with the cheap field-join already written twelve lines below it
-(`viewportMarkerSignature`), extended to the fields the effects actually depend on, so
-the same effects fire on exactly the same changes.
+| Path | Components below it |
+| --- | --- |
+| person | `GhostRotationPulse` (4 hooks) → `MarkerHeart` (1 hook), two `MarkerSideBadge`, `SignalBadge`, `GhostRotationCountdown` (2 hooks, own 1s interval at `MapView.tsx:1268`) |
+| person cluster | `PeopleClusterMarker` |
+| venue cluster | `VenueClusterMarker` |
+| place | `PlaceMarker` |
+| event | `LaunchPartyMarker` |
 
-### 4. Split MapHome's overlays off the map's render path
+So with N pins on screen there are N React roots, N sets of hooks and timers, and N
+synchronous commits.
 
-MapHome renders MapView plus roughly fifteen overlay surfaces from one component holding
-all 65 state slices. Move the surfaces that own their own state, starting with the
-city-request form, into child components that hold that state themselves. Then wrap
-MapView in `React.memo`, which only becomes effective once step 2 lands.
+Mounting is the worst case. The creation loop at `MapView.tsx:3064` runs inside a single
+`queueMicrotask` and calls `createMarkerElement` for each new marker, so mounting N pins is
+**N back-to-back `flushSync` commits in one task**, with no batching and no yielding to the
+browser between them.
 
-This is the largest diff and the one I would ship last and separately.
+Teardown is split the other way: `cleanupRenderedMarker` (`MapView.tsx:2378`) removes the
+MapLibre marker synchronously but defers `root.unmount()` to a microtask.
 
-### 5. The next two screens
+## What multiplies it
 
-`LocalFeed.tsx` (1483 lines, 37 `useState`, 0 `useMemo`) and `DirectMessages.tsx`
-(1551 lines, 33 `useState`). Same treatment, lower priority. Out of scope unless asked.
+The marker diff effect is keyed on `renderedMarkerSignature`, and `renderedMarkers`
+recomputes whenever `focusCoordinates` changes identity. That prop is built inline at the
+`<MapView>` call site (`MapHome.tsx:3010`), and `MapHome.tsx:1390` re-renders MapHome once a
+second via `setInterval(() => setMapPingClock(Date.now()), 1000)`. Every unrelated MapHome
+state change does the same, down to a keystroke in the "Request a city" input.
+
+Each pass re-runs person clustering (`applyPersonMarkerClusters`, `MapView.tsx:979`, a
+`while (grew) { forEach }` growth loop), `JSON.stringify(renderedMarkers)` over the whole
+array (`MapView.tsx:2463`), and `JSON.stringify(marker)` per marker in the diff
+(`MapView.tsx:3052`).
+
+The diff spares surviving pins a rebuild, so this is not N re-mounts per second. It is the
+work above the pins, every second, feeding a boundary that is expensive to cross.
+
+---
+
+## The two directions
+
+### A. Push the boundary down: pins become pure DOM
+
+Drop `createRoot` entirely. Build the pin with the same imperative DOM already used for the
+wrapper, and update it by mutating classes and attributes. Preview state becomes a class
+toggle instead of a React commit.
+
+Removes both costs completely. But the pin art is a real component tree with conditional
+subtrees, gradients, badge slots and countdown text, and hand-writing it as DOM means
+re-expressing Julien's design in a different medium. That is a large, error-prone rewrite
+with real regression risk on artwork that is settled.
+
+### B. Pull the boundary up: one root for all pins (recommended)
+
+Keep MapLibre's marker elements as positioning containers. Render into them from the app's
+existing React tree with `createPortal`, one portal per marker, all inside the single root
+the app already has.
+
+- One fiber tree instead of N
+- Normal batching; `flushSync` goes away
+- Preview becomes React state in a memoized pin component, so a hover re-renders one pin
+- Every existing pin component stays exactly as written
+
+Smaller diff than A, and it keeps the design untouched.
+
+Two things to check before committing to it:
+
+1. The marker element must outlive its portal. Ordering against MapLibre's own
+   `marker.remove()` needs to be got right, and is the likely source of the duplicate-pin
+   bug already failing CI on `main`.
+2. React events through a portal bubble along the React tree, not the DOM tree. The
+   map-click filter at `MapView.tsx:2049` uses `target.closest('[data-map-marker-pin="true"]')`,
+   which is DOM-based and so unaffected. Worth verifying rather than assuming.
+
+### Either way
+
+Stabilise the props at `MapHome.tsx:3010` with `useMemo`/`useCallback`, and replace the
+1s clock with a `setTimeout` for the next real ping expiry, the pattern already used for
+ghost rotation at `MapView.tsx:2431`. Both are small, independent of A or B, and cut how
+often the boundary is crossed at all.
 
 ---
 
 ## Verification
 
 - `pnpm vitest run src/app/components/MapView.test.tsx src/app/components/MapHome.test.tsx`
-  (targeted per L4, not the full suite).
+  (targeted per L4).
 - `pnpm check:layout` at 375/768/1280 for D1-D7.
 - `vite build`.
-- Rendered before/after on the running app per B1/B2, with a React Profiler commit count
-  for one idle minute on the map. This needs a working `pnpm dev:local:seeded`; the
-  previous handoff records that failing on a machine without Docker. If it fails here I
-  will say so plainly rather than claim the improvement (B5).
+- Rendered before and after per B1/B2, with a Profiler commit count for one idle minute on
+  the map. If `dev:local:seeded` cannot start here I will say so rather than claim the
+  improvement (B5).
 
-No visual change is intended by any step. Any pixel that moves is a bug in the change.
+No visual change is intended. Any pixel that moves is a bug in the change.
 
 ## Not in scope
 
-No product, design or behaviour change. No deletions. No map style, label sizing or
-canvas filter work (C5). No new dependency. No environment variables.
+No product, design or behaviour change. No deletions. No map style, label sizing or canvas
+filter work (C5). No new dependency. No environment variables.
