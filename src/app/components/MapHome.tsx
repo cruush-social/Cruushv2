@@ -982,6 +982,39 @@ export default function MapHome(_props: MapHomeProps = {}) {
   const [mapPingStatusLoading, setMapPingStatusLoading] = useState(true);
   const [mapPingSheetOpen, setMapPingSheetOpen] = useState(false);
   const [mapPingClock, setMapPingClock] = useState(() => Date.now());
+  // mapPingClock exists only to answer "has this deadline passed yet". Ticking
+  // it every second asked that question sixty times a minute and rebuilt every
+  // marker to reach the same answer. The clock now advances only when a
+  // deadline is actually crossed, which leaves every predicate reading it with
+  // the value a continuously fresh clock would have given it.
+  const pingDeadlinesRef = useRef<number[]>([]);
+  const advanceMapPingClock = useCallback((deadlines: number[], now: number) => {
+    setMapPingClock((previous) => (deadlines.some((deadline) => previous < deadline && deadline <= now)
+      ? now
+      : previous));
+  }, []);
+  useEffect(() => {
+    const deadlines: number[] = [];
+    const addDeadline = (value: string | number | null | undefined) => {
+      const ms = typeof value === 'number' ? value : value == null ? Number.NaN : Date.parse(value);
+      if (Number.isFinite(ms)) {
+        deadlines.push(ms);
+      }
+    };
+
+    users.forEach((user) => {
+      addDeadline(user.displayExpiresAtMs);
+      addDeadline(user.activePing?.expiresAt);
+    });
+    (mapPingStatus?.receivedPings ?? []).forEach((ping) => addDeadline(ping.expiresAt));
+    addDeadline(mapPingStatus?.activePing?.expiresAt);
+
+    pingDeadlinesRef.current = deadlines;
+    // A deadline already in the past when it arrives has to read as expired on
+    // this render, the way a fresh clock would have shown it, rather than
+    // waiting for the next tick to notice.
+    advanceMapPingClock(deadlines, Date.now());
+  }, [advanceMapPingClock, mapPingStatus, users]);
   const [activeEvents, setActiveEvents] = useState<LaunchEvent[]>([]);
   const [selectedEventSlug, setSelectedEventSlug] = useState<string | null>(null);
   const [eventPass, setEventPass] = useState<EventPassReveal | null>(null);
@@ -1387,7 +1420,13 @@ export default function MapHome(_props: MapHomeProps = {}) {
         void refresh();
       }
     }, MAP_PING_STATUS_REFRESH_INTERVAL_MS);
-    const clockIntervalId = window.setInterval(() => setMapPingClock(Date.now()), 1000);
+    // Same one-second granularity as before. The difference is that a tick
+    // crossing no deadline bails out of the render instead of rebuilding every
+    // marker to reach an unchanged answer.
+    const clockIntervalId = window.setInterval(
+      () => advanceMapPingClock(pingDeadlinesRef.current, Date.now()),
+      1000,
+    );
 
     return () => {
       isMounted = false;
@@ -1396,7 +1435,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
       window.clearInterval(refreshIntervalId);
       window.clearInterval(clockIntervalId);
     };
-  }, [refreshMapPingStatus]);
+  }, [advanceMapPingClock, refreshMapPingStatus]);
 
   useEffect(() => {
     let isMounted = true;
@@ -2852,6 +2891,56 @@ export default function MapHome(_props: MapHomeProps = {}) {
     };
   }, [displayedUsers, focusUserId, isMutualMapMode]);
 
+  // These were built inline at the <MapView> call site, so every MapHome render
+  // handed MapView a new identity for each and re-ran the clustering and the
+  // geojson effects keyed on them. Same values, created only when their inputs
+  // actually change. Every input below is useState or useMemo, so each of these
+  // is genuinely stable between real changes.
+  const mapBrowseArea = useMemo(() => (currentUserMapLocation
+    ? { center: currentUserMapLocation, radiusMiles: DISCOVERY_BROWSE_RADIUS_MILES }
+    : null), [currentUserMapLocation]);
+  const mapRadiusCircle = useMemo(() => (privacySettings.ghostModeEnabled && currentUserMapLocation
+    ? { center: currentUserMapLocation, radiusMeters: privacySettings.ghostRadiusMeters }
+    : null), [currentUserMapLocation, privacySettings.ghostModeEnabled, privacySettings.ghostRadiusMeters]);
+  const mapGhostLeash = useMemo(() => (privacySettings.ghostModeEnabled && currentUserMapLocation && ownerGhostMapLocation
+    ? { from: currentUserMapLocation, to: ownerGhostMapLocation }
+    : null), [currentUserMapLocation, ownerGhostMapLocation, privacySettings.ghostModeEnabled]);
+  const mapFocusCoordinates = useMemo(() => (
+    (selectedPlace ? {
+      approximateLatitude: selectedPlace.latitude,
+      approximateLongitude: selectedPlace.longitude,
+    } : null) ??
+    focusedMapLocation ??
+    nearbyArea ??
+    browserFocusCoordinates ??
+    placeReturnFocus ??
+    (focusUserId ? undefined : travelMapLocation ?? (restoredMapViewport ? undefined : currentUserMapLocation))
+  ), [
+    browserFocusCoordinates,
+    currentUserMapLocation,
+    focusUserId,
+    focusedMapLocation,
+    nearbyArea,
+    placeReturnFocus,
+    restoredMapViewport,
+    selectedPlace,
+    travelMapLocation,
+  ]);
+  const mapInitialViewport = useMemo(() => (!travelMapLocation && restoredMapViewport
+    ? {
+        center: {
+          approximateLatitude: restoredMapViewport.latitude,
+          approximateLongitude: restoredMapViewport.longitude,
+        },
+        zoom: restoredMapViewport.zoom,
+      }
+    : undefined), [restoredMapViewport, travelMapLocation]);
+  const handleMapBackgroundClick = useCallback(() => {
+    setSelectedUser(null);
+    setSelectedEventSlug(null);
+    setSelectedPlace(null);
+  }, []);
+
   const openSpot = (place: PlaceRecord) => {
     setNearbyArea(null);
     setSelectedPlace(place);
@@ -3009,49 +3098,16 @@ export default function MapHome(_props: MapHomeProps = {}) {
         >
           <MapView
             onPinClick={handleMarkerSelect}
-            onMapClick={() => {
-              setSelectedUser(null);
-              setSelectedEventSlug(null);
-              setSelectedPlace(null);
-            }}
+            onMapClick={handleMapBackgroundClick}
             markers={browseVisibleMapMarkers}
-            browseArea={currentUserMapLocation ? {
-              center: currentUserMapLocation,
-              radiusMiles: DISCOVERY_BROWSE_RADIUS_MILES,
-            } : null}
+            browseArea={mapBrowseArea}
             fitToMarkers={fitToMapMarkers && !nearbyArea}
             focusArea={nearbyArea}
-            focusCoordinates={
-              (selectedPlace ? {
-                approximateLatitude: selectedPlace.latitude,
-                approximateLongitude: selectedPlace.longitude,
-              } : null) ??
-              focusedMapLocation ??
-              nearbyArea ??
-              browserFocusCoordinates ??
-              placeReturnFocus ??
-              (focusUserId ? undefined : travelMapLocation ?? (restoredMapViewport ? undefined : currentUserMapLocation))
-            }
-            initialViewport={!travelMapLocation && restoredMapViewport ? {
-              center: {
-                approximateLatitude: restoredMapViewport.latitude,
-                approximateLongitude: restoredMapViewport.longitude,
-              },
-              zoom: restoredMapViewport.zoom,
-            } : undefined}
+            focusCoordinates={mapFocusCoordinates}
+            initialViewport={mapInitialViewport}
             denseVenue={denseVenue}
-            radiusCircle={privacySettings.ghostModeEnabled && currentUserMapLocation
-              ? {
-                  center: currentUserMapLocation,
-                  radiusMeters: privacySettings.ghostRadiusMeters,
-                }
-              : null}
-            ghostLeash={privacySettings.ghostModeEnabled && currentUserMapLocation && ownerGhostMapLocation
-              ? {
-                  from: currentUserMapLocation,
-                  to: ownerGhostMapLocation,
-                }
-              : null}
+            radiusCircle={mapRadiusCircle}
+            ghostLeash={mapGhostLeash}
             onMapReady={handleMapReady}
           />
         </Suspense>
