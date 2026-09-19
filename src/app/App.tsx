@@ -47,6 +47,7 @@ const ModeratorReview = lazyRoute(() => import('./components/ModeratorReview'));
 const CruushActivity = lazyRoute(() => import('./components/CruushActivity'));
 const CruushMatchSettings = lazyRoute(() => import('./components/CruushMatchSettings'));
 const Settings = lazyRoute(() => import('./components/Settings'));
+const OrderHistory = lazyRoute(() => import('./components/OrderHistory'));
 const BlockedUsersPage = lazyRoute(() => import('./components/BlockedUsersPage'));
 const DlModeSettings = lazyRoute(() => import('./components/DlModeSettings'));
 const HankyPreview = lazyRoute(() => import('./components/HankyPreview'));
@@ -658,6 +659,7 @@ export default function App({
               <Route path="/cruush/settings" element={<CruushMatchSettings />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/settings/code-of-conduct" element={<CodeOfConductPage />} />
+              <Route path="/settings/orders" element={<OrderHistory />} />
               <Route path="/settings/blocked-users" element={<BlockedUsersPage />} />
               <Route path="/settings/notifications" element={<NotificationSettings />} />
               <Route path="/settings/2fa" element={<TwoFactorSettings />} />

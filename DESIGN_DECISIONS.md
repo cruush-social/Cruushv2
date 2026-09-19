@@ -213,3 +213,7 @@ In full-screen framing (mobile, and desktop set to full-screen), the Seeking Fil
 ## Map-pin side badge size, September 19, 2026
 
 Map-pin side badges return to their prior size: 85 percent of the 35px profile-card side badge (MAP_SIDE_BADGE_SIZE_PX = SIDE_BADGE_SIZE_PX * 0.85, about 29.75px), as they were from September 1 until the September 11 change to 35px. Profile-card, Feed, Messages, Cruushes and badge-editor side badges keep 35px. This supersedes the September 11 rule that map-pin side badges match the 35px profile-card size and the September 12 same-size-across-surfaces wording for map pins only. Source: Julien, session bb234b23-d737-4f10-969e-de4810ea8842, "resize map badges to prior badge size".
+
+## Order history, September 12, 2026
+
+Members access their crypto order history from Settings. Include cruush+ and Pulse purchases, the order's payment and activation state, and its network confirmation progress after the payment deadline. Expiry must not hide an existing order. Each account sees only its own orders. Preserve existing checkout rules, payment deadlines and all unrelated Settings controls. Source: task `01a095c7-d9c8-7d51-980b-24acbc0daf99`, user “uesrs need a order hisotry page” and “id just put it in settings”, following the request to see confirmation progress after expiry. Processor changes stay on `security/crypto-processor-review-20260908`; no main merge or deployment is authorized.

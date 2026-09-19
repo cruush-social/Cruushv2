@@ -1,3 +1,11 @@
+# Current additions: September 12, 2026
+
+The owner explicitly corrected the earlier publication instruction: processor work belongs on `security/crypto-processor-review-20260908`, not main, and must not be deployed. The earlier processor deployment was reverted. The crypto announcement is now unpublished and preserved separately on `draft/crypto-announcement-20260912`. These current instructions supersede the historical release language below.
+
+Order history is implemented at Settings > Order history (`/settings/orders`), covering both products with authenticated, owner-scoped, cursor-paginated records and server confirmation progress. The page continues reading progress after payment expiry and distinguishes payment from actual activation. Client and API production builds,16 route assertions and1 client lifecycle assertion pass. Real local PostgreSQL readback covers both products, owner isolation and cursor boundaries. The authenticated browser verification is pending a browser-owned location prompt; no production or real-money claim is made. No new deployment or owner-wallet configuration is part of this addition.
+
+---
+
 # Current processor handoff: September 12, 2026
 
 Worktree: `/Volumes/good/cruush-processor-security-handoff`. Branch: `security/crypto-processor-review-20260908`. This section supersedes the historical records below. Current scope is processor code for cruush+ and Pulse, native Bitcoin, six-confirmation progress, two-amount checkout guidance and automatic forwarding to ELLIPAL. Blog work is deferred. Julien explicitly requested code completion first and his Bitcoin setup afterward. His latest instruction authorizes committing and pushing this processor to main; publication is in progress, with owner wallet provisioning still deferred.

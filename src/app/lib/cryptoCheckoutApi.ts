@@ -105,3 +105,15 @@ export function createPulsePaymentIntent(input: { packId: string; idempotencyKey
 export function getCurrentPulsePaymentIntent() {
   return requestApi<CryptoPaymentIntent | null>('/api/crypto/ping-pack-intents/current');
 }
+
+export type CryptoOrder = Pick<CryptoPaymentIntent,
+  'id' | 'productType' | 'asset' | 'network' | 'amountUsdCents' | 'gasFeeUsdCents' |
+  'totalUsdCents' | 'quotedAmountAtomic' | 'status' | 'createdAt' | 'expiresAt' | 'paidAt' |
+  'confirmations' | 'confirmationTarget' | 'paymentAmountReceived'
+> & { name: string; activatedAt: string | null };
+
+export type CryptoOrderHistory = { orders: CryptoOrder[]; nextCursor: string | null };
+
+export function getCryptoOrderHistory(before?: string) {
+  return requestApi<CryptoOrderHistory>(`/api/crypto/orders${before ? `?before=${encodeURIComponent(before)}` : ''}`);
+}
