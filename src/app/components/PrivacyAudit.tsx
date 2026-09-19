@@ -92,9 +92,9 @@ export default function PrivacyAudit() {
     ? 'Public'
     : messageVisibility === 'mutual_crowds'
       ? 'Crowd'
-      : 'Mutuals';
+      : 'Cruushes';
   const precisePrivileges = [
-    privacySettings.preciseToMutualCruushes ? 'Mutuals can receive precise location.' : 'Mutuals do not get precise location by default.',
+    privacySettings.preciseToMutualCruushes ? 'Cruushes can receive precise location.' : 'Cruushes do not get precise location by default.',
     ...privacySettings.preciseToMutualCrowds
       .filter((policy) => policy.precisionEnabled && !policy.revokedAtMs)
       .map((policy) => `${policy.crowdId} crowd precise access is enabled.`),
@@ -153,7 +153,7 @@ export default function PrivacyAudit() {
           <div className="rounded-lg border border-white/10 bg-card p-6 text-center">
             <CruushIcon name="safety" className="mx-auto h-8 w-8 opacity-70" />
             <p className="mt-3">No exact-location grants</p>
-            <p className="mt-1 text-sm text-muted-foreground">Mutuals without an exact grant will see your public precise or Ghost display policy.</p>
+            <p className="mt-1 text-sm text-muted-foreground">Cruushes without an exact grant will see your public precise or Ghost display policy.</p>
           </div>
         ) : null}
 

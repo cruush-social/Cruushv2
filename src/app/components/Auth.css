@@ -397,11 +397,9 @@
   min-height: 3rem;
   margin-top: 0.9rem !important;
   border-radius: 0.45rem;
-  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.34), 0 0 1.2rem rgba(255, 255, 255, 0.3);
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.34);
   box-shadow:
     0 1.15rem 2.7rem rgba(0, 0, 0, 0.46),
-    0 0 1.8rem rgba(255, 0, 114, 0.4),
-    0 0 2.4rem rgba(17, 129, 255, 0.36),
     inset 0 1px 0 rgba(255, 255, 255, 0.3);
   filter: saturate(1.32) brightness(1.16) contrast(1.04);
 }
@@ -460,10 +458,7 @@
 .launch-login-auth-submit:hover:not(:disabled),
 .launch-login-auth-submit:focus-visible:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow:
-    0 1.2rem 2.8rem rgba(0, 0, 0, 0.48),
-    0 0 2rem rgba(255, 0, 114, 0.58),
-    0 0 2.8rem rgba(17, 129, 255, 0.46);
+  box-shadow: 0 1.2rem 2.8rem rgba(0, 0, 0, 0.48);
   filter: saturate(1.42) brightness(1.2) contrast(1.06);
 }
 
@@ -1013,8 +1008,6 @@
     text-shadow: 0 1px 0 rgba(0, 0, 0, 0.52);
     box-shadow:
       0 0.75rem 1.5rem rgba(0, 0, 0, 0.64),
-      0 0 1rem rgba(255, 0, 114, 0.4),
-      0 0 1.25rem rgba(56, 38, 255, 0.28),
       inset 0 0 1.35rem rgba(246, 252, 255, 0.16),
       inset 0 1px 0 rgba(255, 255, 255, 0.22);
     filter: saturate(1.05) brightness(1.02) contrast(0.96);

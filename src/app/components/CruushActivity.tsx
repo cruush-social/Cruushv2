@@ -897,7 +897,7 @@ export default function CruushActivity({
                     variant="secondary"
                     size="icon"
                     className="rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10"
-                    aria-label="Open cruush match settings"
+                    aria-label="Open Message permissions"
                     onClick={onOpenSettings}
                   >
                     <CruushIcon name="settings" className="h-5 w-5" />
@@ -909,14 +909,14 @@ export default function CruushActivity({
                       variant="secondary"
                       size="icon"
                       className="rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10"
-                      aria-label="Open cruush match settings"
+                      aria-label="Open Message permissions"
                     >
                       <CruushIcon name="settings" className="h-5 w-5" />
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="scrollbar-hide max-h-[calc(100dvh-2rem)] max-w-md overflow-y-auto overscroll-contain rounded-lg border-white/10 bg-background pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
                     <DialogHeader>
-                      <DialogTitle>cruush match settings</DialogTitle>
+                      <DialogTitle>Message permissions</DialogTitle>
                       <DialogDescription>Choose who can start a chat with you.</DialogDescription>
                     </DialogHeader>
                     <CruushMatchSettings embedded />
@@ -1033,7 +1033,7 @@ export default function CruushActivity({
                   </TabsContent>
 
                   <TabsContent value="mutual" className="mt-0">
-                    <ActivitySurface empty={activity.mutual.length === 0} emptyText="No mutuals yet.">
+                    <ActivitySurface empty={activity.mutual.length === 0} emptyText="No cruushes yet.">
                       {activity.mutual.map((item) => (
                         <MutualRow
                           key={item.id}
@@ -1156,7 +1156,7 @@ function ComposeChoiceOverlay({
             onClick={onStartGroup}
           >
             <span className="block text-base text-white">Create group message</span>
-            <span className="mt-1 block text-sm text-white/58">Choose mutuals for a group thread.</span>
+            <span className="mt-1 block text-sm text-white/58">Choose cruushes for a group thread.</span>
           </button>
         </div>
       </div>
@@ -1192,7 +1192,7 @@ function MutualDirectOverlay({
 
         {mutuals.length === 0 ? (
           <div className="rounded-lg border border-dashed border-white/12 bg-card/60 p-5 text-sm text-white/58">
-            No mutuals available.
+            No cruushes available.
           </div>
         ) : (
           <div className="space-y-2">

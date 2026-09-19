@@ -5,10 +5,7 @@
       <meta charset="UTF-8" />
       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <meta name="description" content="cruush is a location-based cruising app for queer people. See who is nearby, who is travelling through, and who is up for meeting now." />
-      <!-- Indexing is controlled per path by X-Robots-Tag in nginx.conf. This
-           file is the SPA fallback for every route, so a robots meta tag here
-           would claim one rule for the landing page and every member surface
-           alike. -->
+      <!-- Indexing: see X-Robots-Tag in nginx.conf. -->
       <meta name="theme-color" content="#ff006e" />
       <meta name="mobile-web-app-capable" content="yes" />
       <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -36,11 +33,7 @@
 
     <body>
       <div id="root"></div>
-      <!-- The application renders into #root once its bundle executes. Crawlers
-           that do not run JavaScript, which includes most answer-engine
-           crawlers, would otherwise read an empty document. This block is the
-           only description of cruush they can see. It is inside noscript, so a
-           member with JavaScript never renders it and the page is unchanged. -->
+      <!-- Shown only without JavaScript. -->
       <noscript>
         <h1>cruush</h1>
         <p>

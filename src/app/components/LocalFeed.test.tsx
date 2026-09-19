@@ -637,7 +637,7 @@ describe('LocalFeed', () => {
     }));
   });
 
-  it('lets free members post to Mutuals', async () => {
+  it('lets free members post to Cruushes', async () => {
     getMyBillingStatus.mockResolvedValue({
       cruushPlus: false,
       expiresAt: null,
@@ -664,7 +664,7 @@ describe('LocalFeed', () => {
       target: { value: 'mutual post' },
     });
     const settings = await openFeedSettings();
-    fireEvent.click(within(settings).getByRole('button', { name: 'Mutuals' }));
+    fireEvent.click(within(settings).getByRole('button', { name: 'Cruushes' }));
     fireEvent.keyDown(settings, { key: 'Escape' });
     fireEvent.click(await within(composer).findByRole('button', { name: 'Post' }));
 

@@ -1172,7 +1172,7 @@ describe('PrivateGroupChat', () => {
     fireEvent.click(favoriteGalleryButtons[favoriteGalleryButtons.length - 1]);
 
     await waitFor(() => expect(getFavoriteMessageImages).toHaveBeenCalledTimes(1));
-    expect(await screen.findByText('No favorite images yet.')).toBeInTheDocument();
+    expect(await screen.findByText('No photos in your Quick access gallery yet.')).toBeInTheDocument();
 
     const favoriteInput = screen.getByLabelText('Choose favorite image') as HTMLInputElement;
     const favoriteUploadButton = screen.getByRole('button', { name: 'Upload' });
@@ -1229,7 +1229,7 @@ describe('PrivateGroupChat', () => {
       target: { files: [new File(['image-bytes'], 'favorite.png', { type: 'image/png' })] },
     });
 
-    expect(await screen.findByText('Photo submitted for review. It will appear in your quick access gallery automatically.')).toHaveAttribute('role', 'status');
+    expect(await screen.findByText('Photo submitted for review. It will appear in your Quick access gallery automatically.')).toHaveAttribute('role', 'status');
     expect(screen.queryByAltText('favorite')).not.toBeInTheDocument();
   });
 

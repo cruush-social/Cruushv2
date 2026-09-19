@@ -241,7 +241,7 @@ describe('CruushActivity', () => {
     expect(getMyCruushActivity).toHaveBeenCalledTimes(1);
   });
 
-  it('renders locked free rows, mutual actions, and list-only mutuals', async () => {
+  it('renders locked free rows, mutual actions, and list-only cruushes', async () => {
     const { container } = render(
       <MemoryRouter initialEntries={['/cruush']}>
         <Routes>
@@ -311,7 +311,7 @@ describe('CruushActivity', () => {
 
     selectTab(/mutual/i);
     await waitFor(() => expect(screen.getByText('river')).toBeInTheDocument());
-    expect(screen.queryByText('your mutuals')).not.toBeInTheDocument();
+    expect(screen.queryByText('your cruushes')).not.toBeInTheDocument();
     expect(screen.queryByText('People you are mutually into.')).not.toBeInTheDocument();
     expect(screen.getByText('river')).toBeInTheDocument();
     expect(screen.getByText('~0.5 mi away')).toBeInTheDocument();

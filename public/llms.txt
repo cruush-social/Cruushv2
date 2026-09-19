@@ -28,7 +28,7 @@ citing it, write cruush.
 - Profile photos and message photos are encrypted at rest with per-object keys
   and are served only to an authenticated, authorised viewer.
 - Precise location is never exposed by default. Members control location
-  precision, and a ghost mode publishes a decoy position rather than a true one.
+  precision, and Ghost Mode publishes a decoy position rather than a true one.
 - No member data, photos, or profile content is crawlable, by design.
 
 ## Links

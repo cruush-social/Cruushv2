@@ -407,7 +407,7 @@ export default function DirectMessages({
     } catch (error) {
       console.error('Error loading mutuals:', error);
       setMutualOptions([]);
-      setComposerError(error instanceof Error ? error.message : 'Failed to load mutuals.');
+      setComposerError(error instanceof Error ? error.message : 'Failed to load cruushes.');
     } finally {
       setComposerLoading(false);
     }
@@ -863,21 +863,21 @@ export default function DirectMessages({
             </label>
 
             <div className="space-y-3">
-              <p className="text-sm text-muted-foreground">Mutuals</p>
+              <p className="text-sm text-muted-foreground">Cruushes</p>
               <div className="relative">
                 <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  aria-label="Search mutuals"
+                  aria-label="Search cruushes"
                   className="pl-9"
                   value={groupSearchQuery}
                   onChange={(event) => setGroupSearchQuery(event.target.value)}
-                  placeholder="Search mutuals"
+                  placeholder="Search cruushes"
                 />
               </div>
               <div
                 className="grid grid-cols-2 gap-2 rounded-2xl border border-white/10 bg-background/55 p-1"
                 role="group"
-                aria-label="Sort mutuals"
+                aria-label="Sort cruushes"
               >
                 {([
                   ['lastOnline', 'Recently online', Clock3],
@@ -888,7 +888,7 @@ export default function DirectMessages({
                     type="button"
                     size="sm"
                     variant={groupSortMode === value ? 'default' : 'ghost'}
-                    aria-label={`Sort mutuals by ${label}`}
+                    aria-label={`Sort cruushes by ${label}`}
                     aria-pressed={groupSortMode === value}
                     className="min-h-11 min-w-0 rounded-xl px-2 text-xs"
                     onClick={() => setGroupSortMode(value)}
@@ -899,16 +899,16 @@ export default function DirectMessages({
                 ))}
               </div>
               {groupLoading ? (
-                <LoadingCardSkeletons count={3} label="Loading mutuals" />
+                <LoadingCardSkeletons count={3} label="Loading cruushes" />
               ) : null}
               {!groupLoading && mutualOptions.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-border bg-card/60 p-4 text-sm text-muted-foreground">
-                  No mutuals available.
+                  No cruushes available.
                 </div>
               ) : null}
               {!groupLoading && mutualOptions.length > 0 && groupMutuals.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-border bg-card/60 p-4 text-sm text-muted-foreground">
-                  No mutuals match your search.
+                  No cruushes match your search.
                 </div>
               ) : null}
               <div className="space-y-2">
@@ -1215,7 +1215,7 @@ function ComposeChoiceOverlay({
             onClick={onStartGroup}
           >
             <span className="block">Create group message</span>
-            <span className="mt-1 block text-sm text-muted-foreground">Choose mutuals for a group thread.</span>
+            <span className="mt-1 block text-sm text-muted-foreground">Choose cruushes for a group thread.</span>
           </button>
         </div>
       </div>
@@ -1414,7 +1414,7 @@ function DirectUserOverlay({
 
         {!loading && activeComposerTab === 'mutuals' && mutuals.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-border bg-card/60 p-4 text-sm text-muted-foreground">
-            No mutuals are available right now.
+            No cruushes are available right now.
           </div>
         ) : null}
 

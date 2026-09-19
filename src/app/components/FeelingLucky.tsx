@@ -116,7 +116,7 @@ export default function FeelingLucky() {
     } catch (loadError) {
       console.error('Error loading cruise carousel:', loadError);
       setCandidateUsers([]);
-      setError(loadError instanceof Error ? loadError.message : 'Unable to load cruise carousel.');
+      setError(loadError instanceof Error ? loadError.message : 'Unable to load Cruise Carousel.');
       setStatus('error');
     }
   };
@@ -137,7 +137,7 @@ export default function FeelingLucky() {
         </Button>
         <div className="flex items-center gap-2">
           <CruushIcon name="lucky" className="h-5 w-5" variant="colored" />
-          <h1 className="text-xl">cruise carousel</h1>
+          <h1 className="text-xl">Cruise Carousel</h1>
         </div>
       
         <BugButtonSlot testId="feeling-lucky-bug-button-slot" />
@@ -145,7 +145,7 @@ export default function FeelingLucky() {
 
       <main className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col gap-2 px-2 pt-0 sm:px-4 sm:pt-2">
         {status === 'checking' ? (
-          <LoadingCardSkeletons count={3} label="Loading cruise carousel" />
+          <LoadingCardSkeletons count={3} label="Loading Cruise Carousel" />
         ) : null}
 
         {status === 'locked' ? (
@@ -197,7 +197,7 @@ export default function FeelingLucky() {
 
         {status === 'error' ? (
           <div className="rounded-2xl border border-destructive/30 bg-destructive/10 p-5 text-center">
-            <p className="text-sm text-destructive">{error ?? 'Unable to load cruise carousel.'}</p>
+            <p className="text-sm text-destructive">{error ?? 'Unable to load Cruise Carousel.'}</p>
             <div className="mt-4 flex flex-col items-center gap-1.5">
               <Button
                 type="button"

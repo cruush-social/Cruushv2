@@ -169,7 +169,7 @@ describe('Settings', () => {
     expect(await screen.findByText('Edit Profile')).toBeInTheDocument();
     expect(screen.queryByText('Privacy & Safety')).not.toBeInTheDocument();
     expect(screen.queryByRole('switch', { name: 'Toggle Ghost Mode' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('switch', { name: 'Toggle precise location for mutuals' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('switch', { name: 'Toggle precise location for cruushes' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Location privacy/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /DL Mode/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Two-factor authentication/i })).toBeInTheDocument();
@@ -505,7 +505,7 @@ describe('Settings', () => {
 
     await screen.findByText('Edit Profile');
     expect(screen.queryByText('Streaks, referrals, and promotional access.')).not.toBeInTheDocument();
-    expect(screen.queryByText('Ghost Mode and precise location access for mutuals.')).not.toBeInTheDocument();
+    expect(screen.queryByText('Ghost Mode and precise location access for cruushes.')).not.toBeInTheDocument();
     expect(screen.queryByText('See what is new in cruush.')).not.toBeInTheDocument();
     expect(screen.queryByText('Permanently delete your cruush account.')).not.toBeInTheDocument();
   });

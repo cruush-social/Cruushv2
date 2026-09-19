@@ -1630,7 +1630,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
           user.displayExpiresAtMs == null || user.displayExpiresAtMs > Date.now()));
       } else {
         setUsers([]);
-        setError(fetchError instanceof Error ? fetchError.message : request.mutual ? 'Failed to load mutuals.' : 'Failed to load nearby people.');
+        setError(fetchError instanceof Error ? fetchError.message : request.mutual ? 'Failed to load cruushes.' : 'Failed to load nearby people.');
       }
     } finally {
       refresh.inFlight = null;

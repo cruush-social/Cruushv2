@@ -192,7 +192,7 @@ describe('ProfileCard', () => {
     expect(screen.getByTestId('carousel-profile-glass')).not.toHaveClass('bg-black/60', 'backdrop-blur-xl');
     expect(card).toContainElement(browseAgainButton);
     expect(browseAgainButton).toHaveClass('bg-black/55', 'backdrop-blur-xl');
-    expect(screen.getByRole('button', { name: 'Mutuals only' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'cruushes only' })).toBeDisabled();
     expect(screen.getByTestId('profile-card-vibes')).toHaveTextContent('GothPunkClub kid');
     expect(screen.queryByText('Leather')).not.toBeInTheDocument();
 

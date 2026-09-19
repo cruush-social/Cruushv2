@@ -94,7 +94,7 @@ function formatFeedExpiry(expiry: FeedPostExpiry) {
 }
 
 const FEED_LOCATION_PIN_OPTIONS: Array<{ value: FeedLocationPinVisibility; label: string; description: string }> = [
-  { value: 'mutuals', label: 'mutuals', description: 'Only mutuals see your feed pin.' },
+  { value: 'mutuals', label: 'cruushes', description: 'Only cruushes see your feed pin.' },
   { value: 'same_crowd', label: 'same crowd', description: 'People sharing one of your crowds see your feed pin.' },
   { value: 'public', label: 'public', description: 'Anyone who can read your post can tap through to your map pin.' },
   { value: 'off', label: 'off', description: 'Do not show a feed pin on your posts.' },
@@ -1097,15 +1097,15 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
                 </span>
                 <span>{FEED_EXPIRY_OPTIONS[FEED_EXPIRY_OPTIONS.length - 1].label}</span>
               </div>
-              <p className="mt-2 text-xs text-white/58">Never expire is free. Custom timers are part of Feed+.</p>
+              <p className="mt-2 text-xs text-white/58">Never expire is free. Custom timers are part of cruush+.</p>
             </section>
             <section className="rounded-lg border border-white/10 bg-black/42 p-2">
               <p className="text-sm font-semibold text-white">Who can see this post</p>
-              <p className="mb-2 mt-1 text-xs text-white/58">Public and Mutuals are free. A specific Crowd is part of Feed+.</p>
+              <p className="mb-2 mt-1 text-xs text-white/58">Public and Cruushes are free. A specific Crowd is part of cruush+.</p>
               <div className="grid grid-cols-3 gap-2">
                 {([
                   { value: 'public', label: 'Public' },
-                  { value: 'mutuals', label: 'Mutuals' },
+                  { value: 'mutuals', label: 'Cruushes' },
                   { value: 'crowd', label: 'Specific Crowd +' },
                 ] as const).map((option) => {
                   const selected = postAudience === option.value;
@@ -1475,7 +1475,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
       open={plusCardOpen}
       onOpenChange={setPlusCardOpen}
       onUpgrade={() => navigate('/rewards')}
-      title="Feed+"
+      title="cruush+"
       description="Add up to three photos, post to a specific Crowd, and choose when your post expires."
     />
     </>

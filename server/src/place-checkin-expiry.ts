@@ -36,7 +36,7 @@ export async function expirePlaceCheckins(
         userId: checkin.user_id,
         type: "place_checkin_expired",
         title: `Check-in ended at ${checkin.place_name}`,
-        body: "Check in again to view the board.",
+        body: "Check in again to view the Pink Book.",
         linkUrl: `/places/${checkin.place_id}`,
         dedupeKey: `place-checkin-expired:${checkin.place_id}:${checkedInAt}`,
         metadata: { placeId: checkin.place_id }

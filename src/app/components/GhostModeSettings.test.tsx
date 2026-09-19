@@ -120,7 +120,7 @@ describe('GhostModeSettings', () => {
     expect(screen.getByText('Who can see my precise location?')).toBeInTheDocument();
     expect(screen.queryByText('Precise location for mutual crowds')).not.toBeInTheDocument();
 
-    const mutualsButton = await screen.findByRole('button', { name: 'Mutuals' });
+    const mutualsButton = await screen.findByRole('button', { name: 'Cruushes' });
     const ghostSwitch = screen.getByRole('switch', {
       name: 'Toggle Ghost Mode',
     });
@@ -244,7 +244,7 @@ describe('GhostModeSettings', () => {
   });
 
   it('restores the saved Ghost Mode setting after a failed save', async () => {
-    saveMyPrivacySettings.mockRejectedValueOnce(new Error('Upgrade to cruush+ to share precise location with mutuals.'));
+    saveMyPrivacySettings.mockRejectedValueOnce(new Error('Upgrade to cruush+ to share precise location with cruushes.'));
 
     render(
       <MemoryRouter initialEntries={['/privacy/ghost-mode']}>
@@ -254,12 +254,12 @@ describe('GhostModeSettings', () => {
       </MemoryRouter>
     );
 
-    const mutualsButton = await screen.findByRole('button', { name: 'Mutuals' });
+    const mutualsButton = await screen.findByRole('button', { name: 'Cruushes' });
     await waitFor(() => expect(mutualsButton).not.toBeDisabled());
 
     fireEvent.click(mutualsButton);
 
-    expect(await screen.findByText('Upgrade to cruush+ to share precise location with mutuals.')).toBeInTheDocument();
+    expect(await screen.findByText('Upgrade to cruush+ to share precise location with cruushes.')).toBeInTheDocument();
     expect(mutualsButton).toHaveAttribute('aria-pressed', 'false');
   });
 
@@ -349,7 +349,7 @@ describe('GhostModeSettings', () => {
     );
 
     const ghostSwitch = await screen.findByRole('switch', { name: 'Toggle Ghost Mode' });
-    const mutualsButton = screen.getByRole('button', { name: 'Mutuals' });
+    const mutualsButton = screen.getByRole('button', { name: 'Cruushes' });
     await waitFor(() => {
       expect(ghostSwitch).not.toBeDisabled();
       expect(mutualsButton).not.toBeDisabled();

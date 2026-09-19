@@ -251,7 +251,7 @@ function assertLocationIsFresh(location: LocationPayload, userId: string, now: D
     throw new ApiError(
       409,
       "LOCATION_STORAGE_UNAVAILABLE",
-      "Refresh your location before sending a Ping."
+      "Refresh your location before sending a Pulse."
     );
   }
 }
@@ -345,23 +345,23 @@ async function loadSenderDispatchContext(
   const profile = profileResult.rows[0];
 
   if (!profile) {
-    throw new ApiError(403, "FEATURE_RESTRICTED", "Ping is unavailable for this account.");
+    throw new ApiError(403, "FEATURE_RESTRICTED", "Pulse is unavailable for this account.");
   }
 
   if (!profile.signal?.trim()) {
-    throw new ApiError(409, "VALIDATION_ERROR", "Add a signal to your profile before sending a Ping.");
+    throw new ApiError(409, "VALIDATION_ERROR", "Add a signal to your profile before sending a Pulse.");
   }
 
   const senderRules = decryptProfileVisibility(app.config, profile);
 
   if (!senderRules) {
-    throw new ApiError(409, "FEATURE_RESTRICTED", "Ping privacy settings are unavailable.");
+    throw new ApiError(409, "FEATURE_RESTRICTED", "Pulse privacy settings are unavailable.");
   }
 
   let visibilityPolicy = await dependencies.loadStrictVisibilityPolicy({ config: app.config, db }, userId);
 
   if (!visibilityPolicy) {
-    throw new ApiError(409, "FEATURE_RESTRICTED", "Ping privacy settings are unavailable.");
+    throw new ApiError(409, "FEATURE_RESTRICTED", "Pulse privacy settings are unavailable.");
   }
 
   if (visibilityPolicy.baseMode === "STEALTH") {
@@ -387,7 +387,7 @@ async function loadSenderDispatchContext(
   }
 
   if (!sourceLocation) {
-    throw new ApiError(409, "LOCATION_STORAGE_UNAVAILABLE", "Refresh your location before sending a Ping.");
+    throw new ApiError(409, "LOCATION_STORAGE_UNAVAILABLE", "Refresh your location before sending a Pulse.");
   }
 
   if (!mileHighClubPin) {
@@ -400,7 +400,7 @@ async function loadSenderDispatchContext(
     !Number.isFinite(sourceCoordinates.lng) ||
     !isWithinBetaLaunchArea(sourceCoordinates)
   ) {
-    throw new ApiError(403, "FEATURE_RESTRICTED", "Ping is unavailable outside the current beta service area.");
+    throw new ApiError(403, "FEATURE_RESTRICTED", "Pulse is unavailable outside the current beta service area.");
   }
 
   return {
@@ -449,7 +449,7 @@ async function loadSenderSignalForModeration(
   const signal = row?.signal?.trim();
 
   if (!signal) {
-    throw new ApiError(409, "VALIDATION_ERROR", "Add a signal to your profile before sending a Ping.");
+    throw new ApiError(409, "VALIDATION_ERROR", "Add a signal to your profile before sending a Pulse.");
   }
 
   return signal;
@@ -902,7 +902,7 @@ export async function createMapPing(
     throw new ApiError(
       429,
       "RATE_LIMITED",
-      "Your next Ping is not available yet.",
+      "Your next Pulse is not available yet.",
       { nextEligibleAt: preflightAllowance.nextEligibleAt }
     );
   }
@@ -929,7 +929,7 @@ export async function createMapPing(
     );
 
     if (!account.rows[0]) {
-      throw new ApiError(403, "FEATURE_RESTRICTED", "Ping is unavailable for this account.");
+      throw new ApiError(403, "FEATURE_RESTRICTED", "Pulse is unavailable for this account.");
     }
 
     const existingResult = await db.query<MapPingRow>(
@@ -961,7 +961,7 @@ export async function createMapPing(
     );
 
     if (dispatchContext.signal !== moderatedSignal) {
-      throw new ApiError(409, "VALIDATION_ERROR", "Your signal changed. Send the Ping again.");
+      throw new ApiError(409, "VALIDATION_ERROR", "Your signal changed. Send the Pulse again.");
     }
     const feedExpiry = await loadSavedFeedExpiry(db, input.userId);
     const postExpiresAt = feedPostExpiresAt(feedExpiry, now);
@@ -974,7 +974,7 @@ export async function createMapPing(
       throw new ApiError(
         429,
         "RATE_LIMITED",
-        "Your next Ping is not available yet.",
+        "Your next Pulse is not available yet.",
         { nextEligibleAt: allowance.nextEligibleAt }
       );
     }
@@ -1024,7 +1024,7 @@ export async function createMapPing(
     const ping = insertResult.rows[0];
 
     if (!ping) {
-      throw new ApiError(500, "INTERNAL_ERROR", "Ping could not be created.");
+      throw new ApiError(500, "INTERNAL_ERROR", "Pulse could not be created.");
     }
 
     await db.query(

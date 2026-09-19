@@ -342,7 +342,7 @@ export default function Settings({ embedded = false, onBack, onClose, onOpenMile
         {
           iconName: 'ghost' as const,
           label: 'Location privacy',
-          description: 'Ghost Mode and precise location access for mutuals.',
+          description: 'Ghost Mode and precise location access for cruushes.',
           action: () => navigate('/privacy/ghost-mode'),
         },
         {
@@ -354,7 +354,7 @@ export default function Settings({ embedded = false, onBack, onClose, onOpenMile
         {
           icon: MessageCircle,
           label: 'Message permissions',
-          description: 'Mutuals is the default. Choose Public, Mutuals, or Crowd.',
+          description: 'Cruushes is the default. Choose Public, Cruushes, or Crowd.',
           action: () => navigate('/cruush/settings'),
         },
         {

@@ -184,7 +184,7 @@ function genericPushCopy(type: AppNotificationType) {
   if (type === "place_checkin_expired") {
     return {
       title: "Spot check-in ended",
-      body: "Check in again to view the board."
+      body: "Check in again to view the Pink Book."
     };
   }
 

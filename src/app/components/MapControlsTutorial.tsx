@@ -76,7 +76,7 @@ const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'cruush-plus',
     title: 'cruush+',
-    description: 'cruush+ unlocks full activity, 5 Pulses per day, Mile High Club, photo hearts and more controls in Feed+, the Cruise Carousel, all Seeking and Visibility controls, up to 10 profile tags, unlimited profile kinks, and Dark Room.',
+    description: 'cruush+ unlocks full activity, 5 Pulses per day, Mile High Club, photo hearts and more Feed controls, the Cruise Carousel, all Seeking and Visibility controls, up to 10 profile tags, unlimited profile kinks, and Dark Room.',
     actionLabel: 'Open cruush+',
   },
   {
@@ -100,7 +100,7 @@ const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'ghost',
     title: 'Ghost Mode',
-    description: 'Ghost Mode does not hide you. It puts a decoy pin on the map that hops around inside a radius you choose, so people see you nearby without seeing where you are. By default the public can see you, and only mutuals can message you or get your precise location. Visibility Controls change that.',
+    description: 'Ghost Mode does not hide you. It puts a decoy pin on the map that hops around inside a radius you choose, so people see you nearby without seeing where you are. By default the public can see you, and only cruushes can message you or get your precise location. Visibility Controls change that.',
     actionLabel: 'Open Ghost Mode',
   },
   {
@@ -112,7 +112,7 @@ const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'ping',
     title: 'Pulse',
-    description: 'Pulse makes your heart beat for 30 minutes inside the radius you choose and posts your saved profile signal to Feed without moving your pin. Optional phone alerts go only to eligible mutuals. A person receives at most one Pulse alert every 4 hours and never more than one from the same sender per day. Basic includes 1 Pulse per day. cruush+ includes 5 per day.',
+    description: 'Pulse makes your heart beat for 30 minutes inside the radius you choose and posts your saved profile signal to Feed without moving your pin. Optional phone alerts go only to eligible cruushes. A person receives at most one Pulse alert every 4 hours and never more than one from the same sender per day. Basic includes 1 Pulse per day. cruush+ includes 5 per day.',
     actionLabel: 'Open Pulse',
   },
   {

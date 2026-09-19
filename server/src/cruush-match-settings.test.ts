@@ -217,7 +217,7 @@ describe("cruush match settings", () => {
     })).rejects.toMatchObject({
       statusCode: 403,
       code: "NSFW_MESSAGES_RESTRICTED",
-      message: "Your cruush match settings only allow NSFW photos with mutual crowds."
+      message: "Your Message permissions only allow NSFW photos with mutual crowds."
     });
   });
 
