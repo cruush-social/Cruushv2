@@ -284,7 +284,7 @@ describe('CruushPlusStore', () => {
     expect(screen.getByText('Drop a pin where you are visiting and cruise from there.')).toBeInTheDocument();
     expect(screen.getByText('Feed+')).toBeInTheDocument();
     expect(screen.getByText('Add up to three photo hearts, post to a specific Crowd, and choose when your post expires.')).toBeInTheDocument();
-    expect(screen.getByText('Cruise carousel')).toBeInTheDocument();
+    expect(screen.getByText('Cruise Carousel')).toBeInTheDocument();
     expect(screen.getByText('Spin through nearby profiles and browse again.')).toBeInTheDocument();
     expect(screen.getByText('All seeking and visibility controls')).toBeInTheDocument();
     expect(screen.getByText('Use all seeking filters, combine more visibility controls, save visibility sets, add up to 10 searchable profile tags, and add as many profile kinks as fit you. Basic includes 3 tags and 3 kinks.')).toBeInTheDocument();
