@@ -99,3 +99,60 @@ marker CSS, neither of which is in the current plan and both of which touch artw
 - The largest addressable JS win found is `getPointAtLength`, and it is off the table by decision.
 - The largest cost overall is native rendering of 243 live marker elements, which is not a React
   problem either.
+
+---
+
+## 5. The dominant cost is marker count, and most markers are invisible
+
+Measured on the map at rest, 390x844:
+
+| | |
+| --- | --- |
+| marker elements in the DOM | **243** |
+| actually on screen | **54** |
+| off screen | **189 (78%)** |
+| DOM nodes inside all markers | 7,506 |
+
+Person markers are only clipped to the viewport when `fitToMapMarkers` is true
+(`MapHome.tsx:2700`), and that is false for any returning user, since it requires no stored
+viewport, no known location, no mutual mode and no focused user (`:2688`). So in the normal case
+every person within the 50 mile browse radius gets a live DOM element whether or not they are on
+screen. Places are already clipped unconditionally at `:2762`; people are not.
+
+The server returns up to **500 profiles, and the default is also 500**, so this is the designed
+ceiling, not an edge case.
+
+### What that costs, measured
+
+Same pan, same throttle, changing only how many profiles the client receives:
+
+| | 250 pins | 69 pins |
+| --- | --- | --- |
+| fps | 11.3 | **24.3** |
+| long tasks | 358 | **16** |
+| long-task total | 29.7 s | **1.0 s** |
+| blocking | 11.8 s | **0.21 s** |
+| longest task | 228 ms | 79 ms |
+
+Roughly a 98% reduction in blocking, from marker count alone. That is larger than every other
+effect measured in this document combined, including all of stage 1.
+
+**Caveats, so this is not over-read:**
+
+1. The test cut the profiles delivered, which also shrinks the clustering input. Real viewport
+   culling would keep the data and only skip rendering, so the gain would be smaller than this.
+2. `MapHome.tsx:2695` says the unclipped set is deliberate: clusters need neighbours just beyond
+   the camera edge "so panning does not change their membership or center." A naive viewport
+   filter would make cluster counts shift as you pan. Culling needs a buffer margin around the
+   viewport, not a bare intersection test.
+3. Nothing here has been implemented or verified. This is a sizing exercise.
+
+### What this means for the plan
+
+The DOM/React boundary work was aimed at the wrong thing. Marker count dominates, and most
+markers are invisible. If any further performance work happens on this map, viewport culling of
+person markers with a cluster-safe margin is the candidate worth costing, not stages 2-4.
+
+There is no analytics to say how crowded a real user's map is: the PostHog project records only
+`$pageview`, with no cruush product events in the last 30 days. Until the map is instrumented,
+whether users hit 243 pins or 20 is unknown, and that determines whether any of this matters yet.
