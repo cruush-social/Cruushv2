@@ -370,7 +370,7 @@ describe('ProfileView', () => {
     const healthHeading = screen.getAllByText('HIV Status').find((node) => node.tagName.toLowerCase() === 'h2');
     expect(healthHeading).toBeDefined();
     const healthGroup = healthHeading?.parentElement as HTMLElement;
-    expect(healthGroup).toHaveClass('rounded-2xl', 'border', 'border-border', 'bg-card/60', 'p-3');
+    expect(healthGroup).toHaveClass('rounded-2xl', 'border', 'border-border', 'bg-card/60', 'p-4');
     expect(within(healthGroup).getByText('Negative')).toBeInTheDocument();
     expect(within(healthGroup).queryByText('Not shared')).not.toBeInTheDocument();
 

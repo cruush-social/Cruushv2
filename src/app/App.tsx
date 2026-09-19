@@ -1,5 +1,5 @@
-import { BrowserRouter, MemoryRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router';
-import { Suspense, useEffect, useState } from 'react';
+import { BrowserRouter, MemoryRouter, Routes, Route, Navigate } from 'react-router';
+import { Suspense, useCallback, useEffect, useState } from 'react';
 import { lazyRoute } from './lib/lazyRoute';
 import { useSyncDistancePreferences } from './lib/distancePreferences';
 import Auth from './components/Auth';
@@ -14,17 +14,11 @@ import { Toaster } from './components/ui/sonner';
 import { loadCurrentSession } from './lib/sessionUser';
 import { canUseDeveloperMapToolsEmail } from './lib/developerMapTools';
 import { canTestOnboarding } from './lib/adminOnboarding';
-import { recordDailyRewardCheckIn, recordTutorialCompletion, updateRewardTimezone } from './lib/rewardsApi';
+import AdminOnboardingReplay, { AdminOnboardingReplayFrame } from './components/AdminOnboardingReplay';
+import { recordDailyRewardCheckIn, updateRewardTimezone } from './lib/rewardsApi';
 import type { AuthSessionPayload } from './lib/authApi';
 import { refreshExistingPushSubscription } from './lib/pushNotifications';
 import type { ProfileRecord } from './lib/profileApi';
-import MapControlsTutorial, {
-  getStoredMapControlsTutorialStep,
-  MAP_CONTROLS_TUTORIAL_STORAGE_KEY,
-  notifyMapControlsTutorialCompleted,
-  type MapControlsTutorialStepId,
-} from './components/MapControlsTutorial';
-import { markNoticeDismissed } from './lib/userNoticesApi';
 import AccessibilityQuickAccess from './components/AccessibilityQuickAccess';
 import LoadingCardSkeletons from './components/LoadingCardSkeletons';
 
@@ -60,9 +54,7 @@ const MileHighMarkPreview = lazyRoute(() => import('./components/MileHighMarkPre
 const TravelModeSettings = lazyRoute(() => import('./components/TravelModeSettings'));
 const MapPresenceSettings = lazyRoute(() => import('./components/MapPresenceSettings'));
 const DlModeDefaultNotice = lazyRoute(() => import('./components/DlModeDefaultNotice'));
-const FirstFeedPostPrompt = lazyRoute(() => import('./components/FirstFeedPostPrompt'));
 const OnboardingPreview = lazyRoute(() => import('./components/OnboardingPreview'));
-const AdminOnboardingReplay = lazyRoute(() => import('./components/AdminOnboardingReplay'));
 const SupportPage = lazyRoute(() => import('./components/SupportPage'));
 const GhostModeSettings = lazyRoute(() => import('./components/GhostModeSettings'));
 const PrivacyAudit = lazyRoute(() => import('./components/PrivacyAudit'));
@@ -78,7 +70,6 @@ const CruushPlusSuccess = lazyRoute(() => import('./components/CruushPlusSuccess
 const AlphaBugButton = lazyRoute(() => import('./components/AlphaBugButton'));
 const TwoFactorSettings = lazyRoute(() => import('./components/TwoFactorSettings'));
 const PublicInfoPage = lazyRoute(() => import('./components/PublicInfoPage'));
-const Tutorial = lazyRoute(() => import('./components/Tutorial'));
 const Changelog = lazyRoute(() => import('./components/Changelog'));
 const Survey = lazyRoute(() => import('./components/Survey'));
 
@@ -178,69 +169,6 @@ function RouteLoading() {
   return <AppLoading label="Loading page" />;
 }
 
-function mapTutorialRoute(step: MapControlsTutorialStepId) {
-  if (step === 'ghost') {
-    return '/privacy/ghost-mode';
-  }
-
-  if (step === 'feed') {
-    return '/feed';
-  }
-
-  if (step === 'carousel') {
-    return '/lucky';
-  }
-
-  if (step === 'profile-edit') {
-    return '/profile/edit';
-  }
-
-  if (step === 'cruush-plus') {
-    return '/rewards';
-  }
-
-  if (step === 'mile-high-club') {
-    return '/settings/travel';
-  }
-
-  return '/map';
-}
-
-function MapTutorialRouteFollower() {
-  const location = useLocation();
-  const navigate = useNavigate();
-  const savedStep = getStoredMapControlsTutorialStep();
-
-  if (!savedStep || location.pathname === '/map' || location.pathname === '/settings/onboarding-test') {
-    return null;
-  }
-
-  const followStep = (step: MapControlsTutorialStepId) => {
-    const destination = mapTutorialRoute(step);
-
-    if (location.pathname !== destination) {
-      navigate(destination);
-    }
-  };
-
-  const completeTutorial = (completed: boolean) => {
-    markNoticeDismissed(MAP_CONTROLS_TUTORIAL_STORAGE_KEY);
-    notifyMapControlsTutorialCompleted();
-    if (completed) {
-      void recordTutorialCompletion().catch(() => undefined);
-    }
-  };
-
-  return (
-    <MapControlsTutorial
-      open
-      onActivateStep={followStep}
-      onComplete={completeTutorial}
-      onStepChange={followStep}
-    />
-  );
-}
-
 function getTokenLinkType() {
   const searchParams = new URLSearchParams(window.location.search);
 
@@ -309,6 +237,10 @@ export default function App({
   }, [authStatus, session?.user.id]);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
   const [showOnboardingReward, setShowOnboardingReward] = useState(false);
+  // The admin onboarding test renders through the same screen a new member
+  // gets, outside the signed-in app shell, so the two cannot drift apart.
+  const [onboardingReplayActive, setOnboardingReplayActive] = useState(false);
+  const startOnboardingReplay = useCallback(() => setOnboardingReplayActive(true), []);
   const devOnboardingPreview = import.meta.env.DEV && window.location.pathname === '/dev/onboarding-preview';
   const authShellControlsScrolled = useAuthShellControlsScrolled(authStatus === 'signed_out');
 
@@ -418,6 +350,23 @@ export default function App({
     } else {
       redirectToMap();
     }
+  };
+
+  const handleOnboardingReplayComplete = (
+    _nextSession?: AuthSessionPayload,
+    destination: 'map' | 'rewards' = 'map',
+  ) => {
+    setOnboardingReplayActive(false);
+    if (destination === 'rewards') {
+      redirectToRewards();
+    } else {
+      redirectToMap();
+    }
+  };
+
+  const handleOnboardingReplayClose = () => {
+    setOnboardingReplayActive(false);
+    window.history.replaceState({}, '', '/settings');
   };
 
   const handleAgeVerified = (nextSession: AuthSessionPayload) => {
@@ -577,7 +526,29 @@ export default function App({
     );
   }
 
-  if (needsOnboarding) {
+  const renderOnboardingScreen = ({
+    onComplete,
+    needsCodeOfConduct,
+    codeOfConductVersion,
+    previewMode = false,
+    onCloseReplay,
+  }: {
+    onComplete: (nextSession?: AuthSessionPayload, destination?: 'map' | 'rewards', rewardGranted?: boolean) => void;
+    needsCodeOfConduct: boolean;
+    codeOfConductVersion: string;
+    previewMode?: boolean;
+    onCloseReplay?: () => void;
+  }) => {
+    const onboarding = (
+      <ProfileOnboarding
+        onComplete={onComplete}
+        needsCodeOfConduct={needsCodeOfConduct}
+        codeOfConductVersion={codeOfConductVersion}
+        constrainedViewport={Boolean(onCloseReplay)}
+        previewMode={previewMode}
+      />
+    );
+
     return (
       <BrowserRouter key="onboarding-router">
         <GoogleAnalyticsPageTracker />
@@ -588,20 +559,24 @@ export default function App({
             {renderPublicRoutes(true, true)}
             <Route
               path="*"
-              element={(
-                <ProfileOnboarding
-                  onComplete={handleOnboardingComplete}
-                  needsCodeOfConduct={Boolean(session?.needsCodeOfConduct)}
-                  codeOfConductVersion={session?.codeOfConductVersion ?? ''}
-                />
-              )}
+              element={onCloseReplay
+                ? <AdminOnboardingReplayFrame onClose={onCloseReplay}>{onboarding}</AdminOnboardingReplayFrame>
+                : onboarding}
             />
           </Routes>
           {alphaBugControl}
-          {accessibilityQuickAccess}
+          {onCloseReplay ? null : accessibilityQuickAccess}
         </Suspense>
       </BrowserRouter>
     );
+  };
+
+  if (needsOnboarding) {
+    return renderOnboardingScreen({
+      onComplete: handleOnboardingComplete,
+      needsCodeOfConduct: Boolean(session?.needsCodeOfConduct),
+      codeOfConductVersion: session?.codeOfConductVersion ?? '',
+    });
   }
 
   if (session?.needsCodeOfConduct) {
@@ -628,6 +603,18 @@ export default function App({
         </Suspense>
       </BrowserRouter>
     );
+  }
+
+  if (onboardingReplayActive && session && canTestOnboarding(session.user)) {
+    // A new account has never accepted the Code of Conduct, so the replay
+    // always includes the oath, exactly as a new member sees it.
+    return renderOnboardingScreen({
+      onComplete: handleOnboardingReplayComplete,
+      needsCodeOfConduct: true,
+      codeOfConductVersion: session.codeOfConductVersion,
+      previewMode: true,
+      onCloseReplay: handleOnboardingReplayClose,
+    });
   }
 
   return (
@@ -670,9 +657,8 @@ export default function App({
               <Route path="/settings/blocked-users" element={<BlockedUsersPage />} />
               <Route path="/settings/notifications" element={<NotificationSettings />} />
               <Route path="/settings/2fa" element={<TwoFactorSettings />} />
-              <Route path="/settings/tutorial" element={<Tutorial />} />
               <Route path="/settings/onboarding-test" element={canTestOnboarding(session.user)
-                ? <AdminOnboardingReplay codeOfConductVersion={session.codeOfConductVersion} />
+                ? <AdminOnboardingReplay onStart={startOnboardingReplay} />
                 : <Navigate to="/settings" replace />} />
               <Route path="/settings/changelog" element={<Changelog />} />
               <Route path="/support" element={<SupportPage signedIn />} />
@@ -692,10 +678,8 @@ export default function App({
               <Route path="/checkout/:sessionId" element={<Navigate to="/rewards" replace />} />
               <Route path="*" element={<Navigate to="/map" replace />} />
             </Routes>
-            <MapTutorialRouteFollower />
             <MobileInstallPrompt />
             <DlModeDefaultNotice />
-            <FirstFeedPostPrompt userId={session.user.id} />
             <ForegroundNotifications showLatestRewardOnFirstPoll={showOnboardingReward} />
             <EarnedCruushPlusCards key={session.user.id} userId={session.user.id} />
             <DebugCruushPlusToggle />

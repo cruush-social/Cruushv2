@@ -1214,7 +1214,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
           </TabsContent>
 
           <TabsContent value="photos" className="space-y-4 mt-6">
-            <div className="rounded-md border border-border bg-card/70 p-3 text-xs leading-snug text-muted-foreground sm:text-sm">
+            <div className="rounded-md border border-border bg-card/70 p-3 text-sm text-muted-foreground">
               <ul className="list-disc space-y-1 pl-5">
                 <li>Profile photos may be SFW or NSFW.</li>
                 <li>Use a photo of you or your gear.</li>

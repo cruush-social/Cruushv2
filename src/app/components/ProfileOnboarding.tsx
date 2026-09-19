@@ -454,7 +454,7 @@ export default function ProfileOnboarding({
 
     if (previewMode) {
       setProfileField('photos', [...profile.photos, URL.createObjectURL(croppedPhoto)].slice(0, 4));
-      setPhotoUploadNotice('Photo added to this preview only.');
+      setPhotoUploadNotice('Photo added. You can change it later in Edit Profile.');
       setPhotoUploading(false);
       setPendingPhoto(null);
       return;

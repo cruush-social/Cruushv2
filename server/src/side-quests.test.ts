@@ -49,6 +49,12 @@ describe("initial Side Quests", () => {
     }
   });
 
+  it("no longer lists the tutorial quest now that the tutorial is gone", async () => {
+    const { app } = fixture();
+    const { quests } = await getSideQuests(app, "member-1");
+    expect(quests.some((quest) => quest.key === "complete_tutorial")).toBe(false);
+  });
+
   it("keeps the actual reward on a previously claimed profile quest", async () => {
     const { app } = fixture([{ quest_key: "complete_profile", reward_kind: "ping", reward_amount: 2, claim_date: "2026-01-01", claimed_at: "2026-01-01T00:00:00Z" }]);
     const { quests } = await getSideQuests(app, "member-1");

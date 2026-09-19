@@ -78,6 +78,24 @@ describe('pushNotifications', () => {
     });
   });
 
+  it('shows the permission prompt before any network wait', async () => {
+    const order: string[] = [];
+    Object.defineProperty(window, 'Notification', {
+      configurable: true,
+      value: {
+        permission: 'default',
+        requestPermission: vi.fn(async () => { order.push('permission'); return 'granted'; }),
+      },
+    });
+    getVapidPublicKey.mockImplementation(async () => { order.push('vapid'); return { enabled: true, publicKey: 'AQID' }; });
+    getSubscription.mockResolvedValue(null);
+    subscribe.mockResolvedValue({ endpoint: 'https://push.example/subscription', getKey: () => new ArrayBuffer(0) });
+
+    await enablePushNotifications();
+
+    expect(order).toEqual(['permission', 'vapid']);
+  });
+
   it('does not subscribe after notification permission is denied', async () => {
     Object.defineProperty(window, 'Notification', {
       configurable: true,
@@ -114,10 +132,29 @@ describe('pushNotifications', () => {
     expect(subscribe).not.toHaveBeenCalled();
   });
 
-  it('never opts a disabled account or unsubscribed browser into push', async () => {
+  it('never opts a disabled account into push', async () => {
     getNotificationPreferences.mockResolvedValueOnce({ pushEnabled: false });
     await refreshExistingPushSubscription();
     expect(getSubscription).not.toHaveBeenCalled();
+    expect(subscribe).not.toHaveBeenCalled();
+    expect(subscribeToPushNotifications).not.toHaveBeenCalled();
+    expect(Notification.requestPermission).not.toHaveBeenCalled();
+  });
+
+  it('resubscribes an opted-in browser whose subscription was expired or revoked, without prompting', async () => {
+    getSubscription.mockResolvedValue(null);
+    subscribe.mockResolvedValue({ endpoint: 'https://push.example/renewed', getKey: () => new ArrayBuffer(0) });
+    await refreshExistingPushSubscription();
+    expect(subscribe).toHaveBeenCalledWith({ userVisibleOnly: true, applicationServerKey: Uint8Array.from([1, 2, 3]) });
+    expect(subscribeToPushNotifications).toHaveBeenCalledWith(expect.objectContaining({ endpoint: 'https://push.example/renewed' }));
+    expect(Notification.requestPermission).not.toHaveBeenCalled();
+  });
+
+  it('never subscribes when browser notification permission is not granted', async () => {
+    Object.defineProperty(window, 'Notification', {
+      configurable: true,
+      value: { permission: 'default', requestPermission: vi.fn() },
+    });
     getSubscription.mockResolvedValue(null);
     await refreshExistingPushSubscription();
     expect(subscribe).not.toHaveBeenCalled();

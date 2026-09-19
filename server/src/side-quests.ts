@@ -42,6 +42,10 @@ type QuestDefinition = {
   rewardAmount: number;
 };
 
+// The tutorial was removed from the app, so its quest can no longer be
+// completed. Keep its key and past claims, but stop listing it.
+const HIDDEN_QUEST_KEYS: ReadonlySet<SideQuestKey> = new Set(["complete_tutorial"]);
+
 const QUESTS: QuestDefinition[] = [
   { key: "post_feed", title: "Make your first Feed post", rewardKind: "cruush_plus_day", rewardAmount: 1 },
   { key: "complete_profile", title: "Finish your profile", rewardKind: "cruush_plus_day", rewardAmount: 1 },
@@ -216,7 +220,7 @@ export async function getSideQuests(app: Pick<FastifyInstance, "config" | "db">,
     cruushPlusClaimsThisWeek,
     cruushPlusWeeklyLimit: SIDE_QUEST_CRUUSH_PLUS_WEEKLY_LIMIT,
     claimedToday: claimRows.some((row) => dateKey(row.claim_date) === claimDate),
-    quests: QUESTS.map((quest) => ({
+    quests: QUESTS.filter((quest) => !HIDDEN_QUEST_KEYS.has(quest.key)).map((quest) => ({
       ...quest,
       rewardKind: claimsByKey.get(quest.key)?.reward_kind ?? quest.rewardKind,
       rewardAmount: claimsByKey.get(quest.key)?.reward_amount ?? quest.rewardAmount,

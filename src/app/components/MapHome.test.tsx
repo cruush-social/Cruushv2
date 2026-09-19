@@ -1099,6 +1099,90 @@ describe('MapHome', () => {
       top: '0px',
       width: '384px',
     }));
+
+    // A pinch-zoomed page must not drag the map shell into the zoomed window.
+    Object.assign(visualViewport, {
+      height: 383,
+      offsetLeft: 90,
+      offsetTop: 140,
+      scale: 2,
+      width: 192,
+    });
+    act(() => {
+      listeners.get('scroll')?.forEach((listener) => listener(new Event('scroll')));
+    });
+
+    await waitFor(() => expect(shell).toHaveClass('inset-0'));
+    expect(shell.style.width).toBe('');
+    expect(shell.style.top).toBe('');
+  });
+
+  it('rechecks an allowed browser location when a saved out-of-town location marks the member outside NYC', async () => {
+    const { OutsideServiceAreaError } = await import('../lib/usersApi');
+    const baseProfile = await getMyProfile();
+    getMyProfile.mockResolvedValue({
+      ...baseProfile,
+      location: { id: 'me', fuzzy_lat: 41.9, fuzzy_lng: -75.6, fuzz_radius_meters: 250, location_updated_at: '2026-09-17T00:00:00.000Z' },
+    });
+    getNearbyUsers.mockReset();
+    getNearbyUsers
+      .mockRejectedValueOnce(new OutsideServiceAreaError('NYC open beta.'))
+      .mockResolvedValue([]);
+    const getCurrentPosition = vi.fn((success: PositionCallback) => {
+      success({ coords: { latitude: 40.7128, longitude: -74.006, accuracy: 20 } } as GeolocationPosition);
+    });
+    Object.defineProperty(global.navigator, 'geolocation', { configurable: true, value: { getCurrentPosition } });
+    Object.defineProperty(global.navigator, 'permissions', {
+      configurable: true,
+      value: { query: vi.fn().mockResolvedValue({ state: 'granted' }) },
+    });
+
+    try {
+      render(
+        <MemoryRouter initialEntries={['/map']}>
+          <Routes>
+            <Route path="/map" element={<MapHome />} />
+          </Routes>
+        </MemoryRouter>,
+      );
+
+      await waitFor(() => expect(getCurrentPosition).toHaveBeenCalled());
+      await waitFor(() => expect(syncMyLocation).toHaveBeenCalled());
+      await waitFor(() => expect(screen.queryByRole('button', { name: 'Turn on Mile High Club' })).not.toBeInTheDocument());
+    } finally {
+      delete (global.navigator as { permissions?: Permissions }).permissions;
+    }
+  });
+
+  it('never prompts for location just because the member is marked outside NYC', async () => {
+    const { OutsideServiceAreaError } = await import('../lib/usersApi');
+    const baseProfile = await getMyProfile();
+    getMyProfile.mockResolvedValue({
+      ...baseProfile,
+      location: { id: 'me', fuzzy_lat: 41.9, fuzzy_lng: -75.6, fuzz_radius_meters: 250, location_updated_at: '2026-09-17T00:00:00.000Z' },
+    });
+    getNearbyUsers.mockReset();
+    getNearbyUsers.mockRejectedValue(new OutsideServiceAreaError('NYC open beta.'));
+    const getCurrentPosition = vi.fn();
+    Object.defineProperty(global.navigator, 'geolocation', { configurable: true, value: { getCurrentPosition } });
+    const query = vi.fn().mockResolvedValue({ state: 'prompt' });
+    Object.defineProperty(global.navigator, 'permissions', { configurable: true, value: { query } });
+
+    try {
+      render(
+        <MemoryRouter initialEntries={['/map']}>
+          <Routes>
+            <Route path="/map" element={<MapHome />} />
+          </Routes>
+        </MemoryRouter>,
+      );
+
+      await screen.findByRole('button', { name: 'Turn on Mile High Club' });
+      await waitFor(() => expect(query).toHaveBeenCalled());
+      expect(getCurrentPosition).not.toHaveBeenCalled();
+    } finally {
+      delete (global.navigator as { permissions?: Permissions }).permissions;
+    }
   });
 
   it('exposes the real Ping control to the tutorial and opens the Ping sheet', async () => {
@@ -2195,111 +2279,15 @@ describe('MapHome', () => {
     expect(within(dialog).getByText('Basic includes up to 3 hidden filters.')).toBeInTheDocument();
   });
 
-  it('runs install and notification permission actions from the tutorial', async () => {
+  it('never opens the map tutorial, even for a new member or saved tutorial progress', async () => {
     useIsMobile.mockReturnValue(false);
     window.localStorage.removeItem('cruush:tutorial-v4-seen');
     window.localStorage.removeItem('cruush:tutorial-v5-seen');
-    resolveNoticeDismissal.mockResolvedValue({ dismissed: false, offline: false });
-    const installRequested = vi.fn();
-    window.addEventListener('cruush:install-requested', installRequested);
-
-    render(
-      <MemoryRouter initialEntries={['/map']}>
-        <Routes>
-          <Route path="/map" element={<MapHome />} />
-        </Routes>
-      </MemoryRouter>
-    );
-
-    expect(await screen.findByRole('heading', { name: 'Install cruush' })).toBeInTheDocument();
-    fireEvent.click(screen.getByTestId('tutorial-try-step'));
-    expect(installRequested).toHaveBeenCalledTimes(1);
-    fireEvent.click(await screen.findByTestId('tutorial-skip-step'));
-    expect(await screen.findByRole('heading', { name: 'Notifications' })).toBeInTheDocument();
-
-    fireEvent.click(screen.getByTestId('tutorial-try-step'));
-    await waitFor(() => expect(enablePushNotifications).toHaveBeenCalledTimes(1));
-    expect(await screen.findByRole('heading', { name: 'Map Controls' })).toBeInTheDocument();
-
-    window.removeEventListener('cruush:install-requested', installRequested);
-  });
-
-  it('shows the map controls intro once and dismisses it permanently', async () => {
-    useIsMobile.mockReturnValue(false);
-    window.localStorage.removeItem('cruush:tutorial-v4-seen');
-    window.localStorage.removeItem('cruush:tutorial-v5-seen');
-    resolveNoticeDismissal.mockResolvedValue({ dismissed: false, offline: false });
-
-    const { unmount } = render(
-      <MemoryRouter initialEntries={['/map']}>
-        <Routes>
-          <Route path="/map" element={<MapHome />} />
-        </Routes>
-      </MemoryRouter>
-    );
-
-    expect(await screen.findByTestId('map-controls-tutorial')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Install cruush' })).toBeInTheDocument();
-    fireEvent.click(screen.getByTestId('skip-map-controls-tutorial'));
-
-    await waitFor(() => expect(screen.queryByTestId('map-controls-tutorial')).not.toBeInTheDocument());
-    expect(window.localStorage.getItem('cruush:tutorial-v5-seen')).toBe('true');
-    expect(markNoticeDismissed).toHaveBeenCalledWith('cruush:tutorial-v5-seen', { offline: false });
-    unmount();
-
-    resolveNoticeDismissal.mockResolvedValue({ dismissed: true, offline: false });
-
-    render(
-      <MemoryRouter initialEntries={['/map']}>
-        <Routes>
-          <Route path="/map" element={<MapHome />} />
-        </Routes>
-      </MemoryRouter>
-    );
-
-    await openMapControls();
-    await screen.findByRole('button', { name: /^seeking$/i });
-    expect(screen.queryByTestId('map-controls-tutorial')).not.toBeInTheDocument();
-  });
-
-  it('resumes saved tutorial progress even when the completion notice is already dismissed', async () => {
-    useIsMobile.mockReturnValue(false);
-    window.localStorage.setItem('cruush:tutorial-v5-seen', 'true');
     window.localStorage.setItem('cruush:tutorial-v5-progress', 'ghost');
-    resolveNoticeDismissal.mockResolvedValue({ dismissed: true, offline: false });
+    resolveNoticeDismissal.mockResolvedValue({ dismissed: false, offline: false });
 
     render(
-      <MemoryRouter initialEntries={['/map']}>
-        <Routes>
-          <Route path="/map" element={<MapHome />} />
-        </Routes>
-      </MemoryRouter>
-    );
-
-    expect(await screen.findByRole('heading', { name: 'Ghost Mode' })).toBeInTheDocument();
-    expect(screen.getByTestId('map-controls-tutorial')).toBeInTheDocument();
-  });
-
-  it('opens Map Controls when a mobile tutorial menu step returns from another route', async () => {
-    useIsMobile.mockReturnValue(true);
-    window.localStorage.setItem('cruush:tutorial-v5-seen', 'true');
-    window.localStorage.setItem('cruush:tutorial-v5-progress', 'places');
-    resolveNoticeDismissal.mockResolvedValue({ dismissed: true, offline: false });
-
-    render(<MemoryRouter initialEntries={['/map']}><MapHome /></MemoryRouter>);
-
-    expect(await screen.findByTestId('map-controls-trigger')).toHaveAttribute('aria-expanded', 'true');
-    expect(await screen.findByRole('heading', { name: 'Spots' })).toBeInTheDocument();
-  });
-
-  it('ignores malformed saved tutorial progress when the tutorial is dismissed', async () => {
-    useIsMobile.mockReturnValue(false);
-    window.localStorage.setItem('cruush:tutorial-v5-seen', 'true');
-    window.localStorage.setItem('cruush:tutorial-v5-progress', 'not-a-tutorial-step');
-    resolveNoticeDismissal.mockResolvedValue({ dismissed: true, offline: false });
-
-    render(
-      <MemoryRouter initialEntries={['/map']}>
+      <MemoryRouter initialEntries={['/map?replayTutorial=1']}>
         <Routes>
           <Route path="/map" element={<MapHome />} />
         </Routes>
@@ -2308,12 +2296,8 @@ describe('MapHome', () => {
 
     await openMapControls();
     await screen.findByRole('button', { name: /^seeking$/i });
-    await waitFor(() => expect(resolveNoticeDismissal).toHaveBeenCalledWith('cruush:tutorial-v5-seen'));
-    expect(window.localStorage.getItem('cruush:tutorial-v5-progress')).toBe('not-a-tutorial-step');
-    await act(async () => {
-      await new Promise((resolve) => window.setTimeout(resolve, 20));
-    });
     expect(screen.queryByTestId('map-controls-tutorial')).not.toBeInTheDocument();
+    window.localStorage.removeItem('cruush:tutorial-v5-progress');
   });
 
   it('keeps visibility controls manual without saved-set affordances', async () => {
