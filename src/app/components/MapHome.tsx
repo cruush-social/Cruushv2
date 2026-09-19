@@ -699,6 +699,8 @@ type LuckySlotState =
       nonce: number;
     };
 
+// Centering on yourself lands at the same zoom the map opens you at.
+const CENTER_ON_ME_ZOOM = 14;
 const LAUNCH_EVENT_SLUG = 'the-chocolate-factory-launch';
 const METERS_PER_MILE = 1609.344;
 const EARTH_RADIUS_MILES = 3958.7613;
@@ -1785,7 +1787,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
         browserCoordinates.longitude,
         browserCoordinates.latitude,
       ]);
-      mapInstance?.setZoom(16);
+      mapInstance?.setZoom(CENTER_ON_ME_ZOOM);
     }
     void fetchUsers(fetchCoordinates, hasActiveSeekingFilters(filters) ? filters : undefined);
     // The server judges the service area from the saved location, so a fetch
@@ -2395,7 +2397,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
         travelMapLocation.approximateLongitude,
         travelMapLocation.approximateLatitude,
       ]);
-      mapInstance.setZoom(16);
+      mapInstance.setZoom(CENTER_ON_ME_ZOOM);
       return;
     }
 
