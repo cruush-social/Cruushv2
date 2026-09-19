@@ -177,17 +177,49 @@ async function verifyApi(expectedSha, uuid) {
   return { ok: false, sha: last, routeMissing };
 }
 
-async function verifyFrontend(expectedSha, uuid) {
-  if (!uuid) return { ok: null, reason: 'no COOLIFY_PRODUCTION_FRONTEND_UUID; cannot read the deployed commit' };
+// The service worker release the pushed commit ships, when this push bumped
+// it. Coolify's git_commit_sha for the frontend has been seen stuck on an old
+// commit while the new build was live, so the release the site actually serves
+// is the more reliable answer. A push that did not bump the release cannot be
+// told apart from the previous build this way, so it falls back to Coolify.
+function bumpedServiceWorkerRelease(previousSha, expectedSha) {
+  try {
+    const changed = git(['diff', '--name-only', previousSha, expectedSha, '--', 'public/sw.js']);
+    if (!changed) return null;
+    const source = git(['show', `${expectedSha}:public/sw.js`]);
+    return source.match(/const REFRESH_ID = '([^']+)'/)?.[1] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function servedServiceWorkerRelease() {
+  try {
+    const response = await fetch(new URL(`sw.js?verify=${Date.now()}`, FRONTEND_URL), { cache: 'no-store' });
+    if (!response.ok) return null;
+    return (await response.text()).match(/const REFRESH_ID = '([^']+)'/)?.[1] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function verifyFrontend(expectedSha, uuid, previousSha) {
+  const expectedRelease = previousSha ? bumpedServiceWorkerRelease(previousSha, expectedSha) : null;
+  if (!uuid && !expectedRelease) return { ok: null, reason: 'no COOLIFY_PRODUCTION_FRONTEND_UUID; cannot read the deployed commit' };
   const deadline = Date.now() + VERIFY_TIMEOUT_MS;
   let last = null;
   while (Date.now() < deadline) {
-    try {
-      const app = await coolify(`/applications/${encodeURIComponent(uuid)}`);
-      last = app?.git_commit_sha ?? null;
-      if (last === expectedSha) return { ok: true, sha: last, status: app?.status };
-    } catch {
-      // Transient Coolify errors during a build are expected.
+    if (expectedRelease && await servedServiceWorkerRelease() === expectedRelease) {
+      return { ok: true, sha: expectedSha, status: `serving release ${expectedRelease}` };
+    }
+    if (uuid) {
+      try {
+        const app = await coolify(`/applications/${encodeURIComponent(uuid)}`);
+        last = app?.git_commit_sha ?? null;
+        if (last === expectedSha) return { ok: true, sha: last, status: app?.status };
+      } catch {
+        // Transient Coolify errors during a build are expected.
+      }
     }
     process.stdout.write('.');
     await sleep(POLL_INTERVAL_MS);
@@ -237,6 +269,7 @@ async function main() {
   }
 
   const sha = git(['rev-parse', 'HEAD']);
+  const previousRemoteSha = git(['rev-parse', 'origin/main']);
   execFileSync('git', ['push', 'origin', `HEAD:main`], { cwd: ROOT, stdio: 'inherit' });
   console.log(`Pushed ${sha.slice(0, 12)} to main.`);
 
@@ -272,7 +305,7 @@ async function main() {
   }
 
   process.stdout.write('Verifying web  ');
-  const web = await verifyFrontend(sha, frontendUuid);
+  const web = await verifyFrontend(sha, frontendUuid, previousRemoteSha);
   if (web.ok === null) console.log(` skipped — ${web.reason}`);
   else console.log(web.ok ? ` matched (${web.sha.slice(0, 12)}, ${web.status})` : ` MISMATCH (deployed ${web.sha ?? 'unknown'})`);
 
