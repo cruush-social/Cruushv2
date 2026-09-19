@@ -86,7 +86,7 @@ const STEP_COPY: Record<OnboardingStep, { rite: string; title: string; detail: s
   crowds: {
     rite: 'find your crowd',
     title: 'Choose your crowds.',
-    detail: 'Think of crowds like gay or dyke bars: shared social spaces, not identity labels. Pick up to 3. Find Crowd Mode in Map Controls > Visibility. Turn it on to be seen only by people in your selected crowds. Choosing crowds here does not turn it on.',
+    detail: 'Optional. Think of crowds like gay or dyke bars: shared social spaces, not identity labels. Pick up to 3. Find Crowd Mode in Map Controls > Visibility. Turn it on to be seen only by people in your selected crowds. Choosing crowds here does not turn it on.',
   },
   lookingFor: {
     rite: 'declare your hunger',
@@ -96,12 +96,12 @@ const STEP_COPY: Record<OnboardingStep, { rite: string; title: string; detail: s
   vibes: {
     rite: 'reveal your aura',
     title: 'Set the signal around you.',
-    detail: 'Pick up to 3.',
+    detail: 'Optional. Pick up to 3.',
   },
   bio: {
     rite: 'leave your confession',
     title: 'Give them a reason to look twice.',
-    detail: 'Keep it real, specific, and safe.',
+    detail: 'Optional. Keep it real, specific, and safe.',
   },
   rolePosition: {
     rite: 'name your role',
@@ -111,7 +111,7 @@ const STEP_COPY: Record<OnboardingStep, { rite: string; title: string; detail: s
   badges: {
     rite: 'dress your heart',
     title: 'Set your badges.',
-    detail: 'Left defaults to your role. Right defaults to your position. Choose another badge only if you want to change either side.',
+    detail: 'Optional. Left defaults to your role. Right defaults to your position. Choose another badge only if you want to change either side.',
   },
   oath: {
     rite: 'take the oath',
@@ -126,7 +126,7 @@ const STEP_COPY: Record<OnboardingStep, { rite: string; title: string; detail: s
   affiliateShare: {
     rite: 'summon your circle',
     title: 'Share your affiliate link.',
-    detail: 'Send it to trusted contacts before you enter the map.',
+    detail: 'Optional. Send it to trusted contacts before you enter the map.',
   },
 };
 
@@ -837,7 +837,7 @@ export default function ProfileOnboarding({
                   ) : null}
                   <div className="space-y-2 rounded-lg border border-white/10 bg-white/[0.04] p-3">
                     <label className="text-sm block text-white/82" htmlFor="onboarding-profile-photo">Profile photo</label>
-                    <p className="text-xs leading-5 text-white/58">NSFW is allowed. Your face is optional, but the photo must show you or your gear.</p>
+                    <p className="text-xs leading-5 text-white/58">Optional. NSFW is allowed. Your face is optional, but the photo must show you or your gear.</p>
                     <Input
                       id="onboarding-profile-photo"
                       aria-label="Profile photo"
@@ -880,7 +880,7 @@ export default function ProfileOnboarding({
                     <span>
                       <span className="block">I am trans</span>
                       <span className="mt-1 block text-xs leading-5 text-white/58">
-                        We ask this to offer you the optional T4T crowd. It does not add a trans label to your profile.
+                        Optional. We ask this to offer you the optional T4T crowd. It does not add a trans label to your profile.
                       </span>
                     </span>
                   </label>
@@ -906,7 +906,7 @@ export default function ProfileOnboarding({
                       value={profile.pronouns}
                       onChange={(values) => setProfileField('pronouns', limitToThree(values))}
                     />
-                    <p className="text-xs text-white/58 mt-1">Pick up to 3</p>
+                    <p className="text-xs text-white/58 mt-1">Optional. Pick up to 3</p>
                   </div>
                 </div>
               );

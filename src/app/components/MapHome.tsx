@@ -676,7 +676,16 @@ type StoredMapViewport = {
   latitude: number;
   longitude: number;
   zoom: number;
+  // The Mile High Club pin active when the camera was saved, so a return keeps
+  // the view unless a different pin has been dropped since.
+  travelPinKey?: string | null;
 };
+
+export function travelPinViewportKey(location: { approximateLatitude: number; approximateLongitude: number } | null) {
+  return location
+    ? `${location.approximateLatitude.toFixed(5)},${location.approximateLongitude.toFixed(5)}`
+    : null;
+}
 
 type LuckySlotState =
   | {
@@ -729,7 +738,7 @@ export function readStoredMapViewport() {
   return parsedViewport;
 }
 
-export function storeMapViewportForRestore(map: CruushMapInstance | null) {
+export function storeMapViewportForRestore(map: CruushMapInstance | null, travelPinKey: string | null = null) {
   if (typeof window === 'undefined' || !map) {
     return;
   }
@@ -751,6 +760,7 @@ export function storeMapViewportForRestore(map: CruushMapInstance | null) {
       latitude: center.lat,
       longitude: center.lng,
       zoom,
+      travelPinKey,
     } satisfies StoredMapViewport),
   );
 }
@@ -903,6 +913,13 @@ export default function MapHome(_props: MapHomeProps = {}) {
     approximateLongitude: number;
   } | null>(null);
   const [restoredMapViewport] = useState<StoredMapViewport | null>(() => readStoredMapViewport());
+  const travelPinKeyRef = useRef<string | null>(null);
+  const travelPinLoadedRef = useRef(false);
+  // Until the member's travel pin has loaded, keep whatever pin the saved
+  // camera already recorded instead of overwriting it with "no pin".
+  const travelPinKeyForStore = () => (
+    travelPinLoadedRef.current ? travelPinKeyRef.current : readStoredMapViewport()?.travelPinKey ?? null
+  );
   const [locationStatus, setLocationStatus] = useState<'idle' | 'locating' | 'ready' | 'error'>('idle');
   const [locationError, setLocationError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -1293,7 +1310,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
     }
 
     const handleMoveEnd = () => {
-      storeMapViewportForRestore(mapInstance);
+      storeMapViewportForRestore(mapInstance, travelPinKeyForStore());
       const nextViewport = readSettledMapViewport(mapInstance);
 
       if (nextViewport) {
@@ -1315,7 +1332,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
       return;
     }
 
-    storeMapViewportForRestore(mapInstance);
+    storeMapViewportForRestore(mapInstance, travelPinKeyForStore());
     navigate(`/profile/${user.id}`, {
       state: {
         distance: user.distance,
@@ -1374,6 +1391,11 @@ export default function MapHome(_props: MapHomeProps = {}) {
           setCurrentProfile(profile);
           setCurrentUserEmail(authSession?.user.email ?? '');
           setPrivacySettings(loadedPrivacySettings);
+          travelPinKeyRef.current = travelPinViewportKey(loadedTravelPin.pin ? {
+            approximateLatitude: loadedTravelPin.pin.latitude,
+            approximateLongitude: loadedTravelPin.pin.longitude,
+          } : null);
+          travelPinLoadedRef.current = true;
           setTravelPin(loadedTravelPin.pin);
           setVisibility(visibilityRulesToState(profile.visibility_rules));
         }
@@ -2153,6 +2175,13 @@ export default function MapHome(_props: MapHomeProps = {}) {
     () => travelMapLocation ?? userApproximateLocation ?? savedProfileMapLocation,
     [savedProfileMapLocation, travelMapLocation, userApproximateLocation],
   );
+  const travelPinKey = travelPinViewportKey(travelMapLocation);
+  travelPinKeyRef.current = travelPinKey;
+  // Coming back to the map (for example from a profile) keeps the saved camera.
+  // Only a Mile High Club pin dropped since that camera was saved re-centers.
+  const restoredViewportApplies = Boolean(
+    restoredMapViewport && (!travelMapLocation || restoredMapViewport.travelPinKey === travelPinKey),
+  );
   const outsideBrowseArea = useMemo(() => {
     if (!currentUserMapLocation || !mapViewport) {
       return false;
@@ -2900,9 +2929,9 @@ export default function MapHome(_props: MapHomeProps = {}) {
               nearbyArea ??
               browserFocusCoordinates ??
               placeReturnFocus ??
-              (focusUserId ? undefined : travelMapLocation ?? (restoredMapViewport ? undefined : currentUserMapLocation))
+              (focusUserId || restoredViewportApplies ? undefined : travelMapLocation ?? (restoredMapViewport ? undefined : currentUserMapLocation))
             }
-            initialViewport={!travelMapLocation && restoredMapViewport ? {
+            initialViewport={restoredMapViewport && restoredViewportApplies ? {
               center: {
                 approximateLatitude: restoredMapViewport.latitude,
                 approximateLongitude: restoredMapViewport.longitude,

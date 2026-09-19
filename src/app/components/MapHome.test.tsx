@@ -71,6 +71,10 @@ const { getMyPrivacySettings } = vi.hoisted(() => ({
   getMyPrivacySettings: vi.fn(),
 }));
 
+const { getMyTravelPin } = vi.hoisted(() => ({
+  getMyTravelPin: vi.fn(),
+}));
+
 const { syncMyLocation } = vi.hoisted(() => ({
   syncMyLocation: vi.fn(),
 }));
@@ -193,6 +197,7 @@ vi.mock('../lib/privacyApi', async () => {
   return {
     ...actual,
     getMyPrivacySettings,
+    getMyTravelPin,
   };
 });
 
@@ -608,6 +613,8 @@ describe('MapHome', () => {
     decryptDisplayLocationToken.mockReset();
     getMyPrivacySettings.mockReset();
     syncMyLocation.mockReset();
+    getMyTravelPin.mockReset();
+    getMyTravelPin.mockResolvedValue({ pin: null });
     getMapPingStatus.mockReset();
     sendMapPing.mockReset();
     enablePushNotifications.mockReset();
@@ -1674,7 +1681,57 @@ describe('MapHome', () => {
       latitude: 40.73,
       longitude: -73.97,
       zoom: 13.75,
+      travelPinKey: null,
     });
+  });
+
+  it('keeps the saved camera instead of jumping to an unchanged Mile High Club pin', async () => {
+    useIsMobile.mockReturnValue(true);
+    getMyTravelPin.mockResolvedValue({
+      pin: { userId: 'me', latitude: 40.8, longitude: -73.95, label: 'Harlem', setAtMs: 0, movableAtMs: 0 },
+    });
+    window.sessionStorage.setItem('cruush:map-viewport-restore', JSON.stringify({
+      latitude: 40.72,
+      longitude: -74.0,
+      zoom: 15,
+      travelPinKey: '40.80000,-73.95000',
+    }));
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<MapHome />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole('button', { name: 'Pin Jordan' });
+    await waitFor(() => expect(getMyTravelPin).toHaveBeenCalled());
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(screen.getByTestId('map-focus')).toHaveAttribute('data-lat', '');
+  });
+
+  it('centers on a Mile High Club pin dropped after the camera was saved', async () => {
+    useIsMobile.mockReturnValue(true);
+    getMyTravelPin.mockResolvedValue({
+      pin: { userId: 'me', latitude: 40.8, longitude: -73.95, label: 'Harlem', setAtMs: 0, movableAtMs: 0 },
+    });
+    window.sessionStorage.setItem('cruush:map-viewport-restore', JSON.stringify({
+      latitude: 40.72,
+      longitude: -74.0,
+      zoom: 15,
+      travelPinKey: null,
+    }));
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<MapHome />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => expect(screen.getByTestId('map-focus')).toHaveAttribute('data-lat', '40.8'));
   });
 
   it('uses the full profile page when the viewport cannot fit an accessible desktop panel', async () => {
