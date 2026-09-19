@@ -71,6 +71,10 @@ These are not suggestions you interpret. Run them.
   it does not have, say so in one sentence and wait.
 - **C5.** The map vector style, label sizing, and canvas filter are off limits unless the
   request names the map.
+- **C11.** The Mile High Club contrail animation is off limits for performance work. Profiling the
+  map puts `getPointAtLength` near the top (19.6% of a throttled pan, from two travelling markers
+  calling it twice a frame). It has been raised and declined. Do not optimise it, pause it, or
+  port it to CSS unless Julien names it.
 - **C6.** After a visual edit, measure the adjacent geometry too. The thing you did not
   intend to change is the thing that changed.
 - **C7.** Never delete or disable an existing feature, control, handler, import, or test.

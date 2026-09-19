@@ -9,6 +9,7 @@ the branch name.
 
 | Branch | Worktree path | Last commit | State | Ahead/behind main | Purpose |
 | --- | --- | --- | --- | --- | --- |
+| `claude/crush-performance-split-he27z3` | `/home/user/cruush-map-pin-boundary-20260919` | `6f52a28` (base, live deploy) | clean, Claude | +3/-0 at creation | Move the DOM/React boundary for map pins: one React root with portals instead of createRoot plus flushSync per pin. Plan only, unmerged. |
 | `fix/onboarding-fit-no-scroll-20260915` | `/Volumes/good/cruush-onboarding-fit-20260915` | `a2d053e` (base) | clean, Claude | +1/-0 at creation | Stop the onboarding step fitter rescaling when the keyboard opens; smaller logo, larger step copy. Unmerged. |
 | `codex/spots-major-reduction-20260912` | `/Volumes/good/cruush-spots-major-reduction-20260912` | `6b0fe06` (base) | dirty, Codex 01a094d4 | +0/-0 at creation | Major Spot reduction, category switches and screenshot review; active, unmerged, local only. |
 | `fix/onboarding-step-consolidation-20260910` | `/Volumes/good/cruush-onboarding-steps-20260910` | `00bd751` (base) | dirty, Codex thread 01a08cc1 | +0/-0 at creation | Combined release of five approved fixes; source integrated, validating before production deployment. |
