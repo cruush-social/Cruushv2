@@ -1,4 +1,4 @@
-import { BrowserRouter, MemoryRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router';
+import { BrowserRouter, MemoryRouter, Routes, Route, Navigate } from 'react-router';
 import { Suspense, useEffect, useState } from 'react';
 import { lazyRoute } from './lib/lazyRoute';
 import { useSyncDistancePreferences } from './lib/distancePreferences';
@@ -14,17 +14,10 @@ import { Toaster } from './components/ui/sonner';
 import { loadCurrentSession } from './lib/sessionUser';
 import { canUseDeveloperMapToolsEmail } from './lib/developerMapTools';
 import { canTestOnboarding } from './lib/adminOnboarding';
-import { recordDailyRewardCheckIn, recordTutorialCompletion, updateRewardTimezone } from './lib/rewardsApi';
+import { recordDailyRewardCheckIn, updateRewardTimezone } from './lib/rewardsApi';
 import type { AuthSessionPayload } from './lib/authApi';
 import { refreshExistingPushSubscription } from './lib/pushNotifications';
 import type { ProfileRecord } from './lib/profileApi';
-import MapControlsTutorial, {
-  getStoredMapControlsTutorialStep,
-  MAP_CONTROLS_TUTORIAL_STORAGE_KEY,
-  notifyMapControlsTutorialCompleted,
-  type MapControlsTutorialStepId,
-} from './components/MapControlsTutorial';
-import { markNoticeDismissed } from './lib/userNoticesApi';
 import AccessibilityQuickAccess from './components/AccessibilityQuickAccess';
 import LoadingCardSkeletons from './components/LoadingCardSkeletons';
 
@@ -61,7 +54,6 @@ const MileHighMarkPreview = lazyRoute(() => import('./components/MileHighMarkPre
 const TravelModeSettings = lazyRoute(() => import('./components/TravelModeSettings'));
 const MapPresenceSettings = lazyRoute(() => import('./components/MapPresenceSettings'));
 const DlModeDefaultNotice = lazyRoute(() => import('./components/DlModeDefaultNotice'));
-const FirstFeedPostPrompt = lazyRoute(() => import('./components/FirstFeedPostPrompt'));
 const OnboardingPreview = lazyRoute(() => import('./components/OnboardingPreview'));
 const AdminOnboardingReplay = lazyRoute(() => import('./components/AdminOnboardingReplay'));
 const SupportPage = lazyRoute(() => import('./components/SupportPage'));
@@ -79,7 +71,6 @@ const CruushPlusSuccess = lazyRoute(() => import('./components/CruushPlusSuccess
 const AlphaBugButton = lazyRoute(() => import('./components/AlphaBugButton'));
 const TwoFactorSettings = lazyRoute(() => import('./components/TwoFactorSettings'));
 const PublicInfoPage = lazyRoute(() => import('./components/PublicInfoPage'));
-const Tutorial = lazyRoute(() => import('./components/Tutorial'));
 const Changelog = lazyRoute(() => import('./components/Changelog'));
 const Survey = lazyRoute(() => import('./components/Survey'));
 
@@ -177,69 +168,6 @@ function AppLoading({ label }: { label: string }) {
 
 function RouteLoading() {
   return <AppLoading label="Loading page" />;
-}
-
-function mapTutorialRoute(step: MapControlsTutorialStepId) {
-  if (step === 'ghost') {
-    return '/privacy/ghost-mode';
-  }
-
-  if (step === 'feed') {
-    return '/feed';
-  }
-
-  if (step === 'carousel') {
-    return '/lucky';
-  }
-
-  if (step === 'profile-edit') {
-    return '/profile/edit';
-  }
-
-  if (step === 'cruush-plus') {
-    return '/rewards';
-  }
-
-  if (step === 'mile-high-club') {
-    return '/settings/travel';
-  }
-
-  return '/map';
-}
-
-function MapTutorialRouteFollower() {
-  const location = useLocation();
-  const navigate = useNavigate();
-  const savedStep = getStoredMapControlsTutorialStep();
-
-  if (!savedStep || location.pathname === '/map' || location.pathname === '/settings/onboarding-test') {
-    return null;
-  }
-
-  const followStep = (step: MapControlsTutorialStepId) => {
-    const destination = mapTutorialRoute(step);
-
-    if (location.pathname !== destination) {
-      navigate(destination);
-    }
-  };
-
-  const completeTutorial = (completed: boolean) => {
-    markNoticeDismissed(MAP_CONTROLS_TUTORIAL_STORAGE_KEY);
-    notifyMapControlsTutorialCompleted();
-    if (completed) {
-      void recordTutorialCompletion().catch(() => undefined);
-    }
-  };
-
-  return (
-    <MapControlsTutorial
-      open
-      onActivateStep={followStep}
-      onComplete={completeTutorial}
-      onStepChange={followStep}
-    />
-  );
 }
 
 function getTokenLinkType() {
@@ -672,7 +600,6 @@ export default function App({
               <Route path="/settings/blocked-users" element={<BlockedUsersPage />} />
               <Route path="/settings/notifications" element={<NotificationSettings />} />
               <Route path="/settings/2fa" element={<TwoFactorSettings />} />
-              <Route path="/settings/tutorial" element={<Tutorial />} />
               <Route path="/settings/onboarding-test" element={canTestOnboarding(session.user)
                 ? <AdminOnboardingReplay codeOfConductVersion={session.codeOfConductVersion} />
                 : <Navigate to="/settings" replace />} />
@@ -694,10 +621,8 @@ export default function App({
               <Route path="/checkout/:sessionId" element={<Navigate to="/rewards" replace />} />
               <Route path="*" element={<Navigate to="/map" replace />} />
             </Routes>
-            <MapTutorialRouteFollower />
             <MobileInstallPrompt />
             <DlModeDefaultNotice />
-            <FirstFeedPostPrompt userId={session.user.id} />
             <ForegroundNotifications showLatestRewardOnFirstPoll={showOnboardingReward} />
             <EarnedCruushPlusCards key={session.user.id} userId={session.user.id} />
             <DebugCruushPlusToggle />

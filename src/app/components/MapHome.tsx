@@ -22,14 +22,7 @@ import PlacesDrawer from './PlacesDrawer';
 import SpotBoardDialog from './SpotBoardDialog';
 import PulseLedIcon from './PulseLedIcon';
 import LoadingCardSkeletons from './LoadingCardSkeletons';
-import MapControlsTutorial, {
-  getStoredMapControlsTutorialStep,
-  MAP_CONTROLS_TUTORIAL_LEGACY_STORAGE_KEYS,
-  MAP_CONTROLS_TUTORIAL_STEP_EVENT,
-  MAP_CONTROLS_TUTORIAL_STORAGE_KEY,
-  notifyMapControlsTutorialCompleted,
-  type MapControlsTutorialStepId,
-} from './MapControlsTutorial';
+import { MAP_CONTROLS_TUTORIAL_STORAGE_KEY } from './MapControlsTutorial';
 import {
   OutsideBrowseRadiusError,
   OutsideServiceAreaError,
@@ -49,13 +42,11 @@ import {
 import { CRUUSH_PLUS_CHANGED_EVENT, getMyBillingStatus, type BillingStatus } from '../lib/billingApi';
 import { addCruushChangedListener } from '../lib/cruushEvents';
 import { addNotificationsChangedListener, getNotificationSummary, getNearbyNotificationArea, type NearbyNotificationArea } from '../lib/notificationsApi';
-import { enablePushNotifications } from '../lib/pushNotifications';
 import { ApiClientError, resolveMediaUrl } from '../lib/apiClient';
 import { emailEventPass, getActiveEvents, joinEventChat, revealEventPass, type EventPassReveal, type LaunchEvent } from '../lib/eventsApi';
 import type { DenseVenueConfig } from '../lib/denseVenueMarkers';
 import { getProfileGradientCss } from '../lib/profileGradient';
 import { useDlMode, shouldMaskPhoto, setDlModeEnabled, getNsfwPhotoRestriction } from '../lib/dlMode';
-import { markNoticeDismissed, resolveAnyNoticeDismissal } from '../lib/userNoticesApi';
 import { syncMyLocation, type ProfileLocationPayload, type ProfileLocationRecord } from '../lib/locationApi';
 import {
   getMapPingStatus,
@@ -63,7 +54,6 @@ import {
   type MapPingRadiusMiles,
   type MapPingStatus,
 } from '../lib/mapPingsApi';
-import { recordTutorialCompletion } from '../lib/rewardsApi';
 import {
   emptyProfilePayload,
   addProfileChangedListener,
@@ -697,10 +687,6 @@ const EARTH_RADIUS_MILES = 3958.7613;
 // Version the tutorial so the repaired interactive tour is shown once to users
 // who completed an older, non-interactive version. Settings can explicitly replay it.
 export const MAP_CONTROLS_INTRO_STORAGE_KEY = MAP_CONTROLS_TUTORIAL_STORAGE_KEY;
-const MAP_CONTROLS_TUTORIAL_DISMISSAL_KEYS = [
-  MAP_CONTROLS_TUTORIAL_STORAGE_KEY,
-  ...MAP_CONTROLS_TUTORIAL_LEGACY_STORAGE_KEYS,
-];
 
 export function readStoredMapViewport() {
   if (typeof window === 'undefined') {
@@ -913,22 +899,6 @@ export default function MapHome(_props: MapHomeProps = {}) {
   const [mapViewport, setMapViewport] = useState<SettledMapViewport | null>(null);
   const [mapControlsOpen, setMapControlsOpen] = useState(false);
 
-  // Resume the menu state too: a return from another route can emit the step
-  // event before this map mounts and installs its listener.
-  useEffect(() => {
-    const openTutorialMenu = (step: MapControlsTutorialStepId | null) => {
-      if (step === 'map-controls' || step === 'seeking' || step === 'visibility' || step === 'places' || step === 'crowds' || step === 'ping' || step === 'zoom') {
-        setMapControlsOpen(true);
-      }
-    };
-    const followTutorialStep = (event: Event) => {
-      openTutorialMenu((event as CustomEvent<MapControlsTutorialStepId>).detail);
-    };
-
-    openTutorialMenu(getStoredMapControlsTutorialStep());
-    window.addEventListener(MAP_CONTROLS_TUTORIAL_STEP_EVENT, followTutorialStep);
-    return () => window.removeEventListener(MAP_CONTROLS_TUTORIAL_STEP_EVENT, followTutorialStep);
-  }, []);
   const [placesOpen, setPlacesOpen] = useState(false);
   const [spotFiltersActive, setSpotFiltersActive] = useState(false);
   const [spotMapFilters, setSpotMapFilters] = useState<{
@@ -993,9 +963,6 @@ export default function MapHome(_props: MapHomeProps = {}) {
   const [joiningEventChat, setJoiningEventChat] = useState(false);
   const dlModeActive = useDlMode();
   const [profileLoaded, setProfileLoaded] = useState(false);
-  const [mapControlsIntroOpen, setMapControlsIntroOpen] = useState(false);
-  const [mapControlsNoticeOffline, setMapControlsNoticeOffline] = useState(false);
-  const tutorialNoticeRequestKeyRef = useRef<string | null>(null);
   const setMapControlsHovered = useCallback((hovered: boolean) => {
     if (typeof document === 'undefined') {
       return;
@@ -1056,7 +1023,6 @@ export default function MapHome(_props: MapHomeProps = {}) {
   });
   const isMutualMapMode = searchParams.get('mode') === 'mutuals';
   const lastMutualMapModeRef = useRef(isMutualMapMode);
-  const shouldReplayTutorial = searchParams.get('replayTutorial') === '1';
   const focusUserId = searchParams.get('focusUserId') ?? routeState?.focusUserId ?? null;
   const nearbyNotificationId = searchParams.get('nearbyNotification');
   const [nearbyArea, setNearbyArea] = useState<NearbyNotificationArea | null>(null);
@@ -1188,117 +1154,6 @@ export default function MapHome(_props: MapHomeProps = {}) {
     }
   }, []);
 
-  const dismissMapControlsIntro = (completed: boolean) => {
-    setMapControlsIntroOpen(false);
-    markNoticeDismissed(MAP_CONTROLS_INTRO_STORAGE_KEY, { offline: mapControlsNoticeOffline });
-    notifyMapControlsTutorialCompleted();
-    if (completed) {
-      void recordTutorialCompletion().catch(() => undefined);
-    }
-
-    if (shouldReplayTutorial) {
-      navigate('/map', { replace: true });
-    }
-  };
-
-  const activateMapTutorialStep = async (step: MapControlsTutorialStepId) => {
-    if (step === 'install') {
-      window.dispatchEvent(new Event('cruush:install-requested'));
-      return;
-    }
-
-    if (step === 'notifications') {
-      await enablePushNotifications();
-      return;
-    }
-
-    if (step === 'ping') {
-      setMapPingSheetOpen(true);
-      return;
-    }
-
-    if (step === 'seeking') {
-      setIsFiltersOpen(true);
-      return;
-    }
-
-    if (step === 'visibility') {
-      setVisibilityError(null);
-      setIsVisibilityOpen(true);
-      return;
-    }
-
-    if (step === 'crowds') {
-      setVisibilityError(null);
-      setIsVisibilityOpen(true);
-      return;
-    }
-
-    if (step === 'ghost') {
-      navigate('/privacy/ghost-mode');
-      return;
-    }
-
-    if (step === 'cruush-plus') {
-      navigate('/rewards');
-      return;
-    }
-
-    if (step === 'mile-high-club') {
-      navigate('/settings/travel');
-      return;
-    }
-
-    if (step === 'dl-mode') {
-      handleToggleDlMode();
-      return;
-    }
-
-    if (step === 'feed') {
-      navigate('/feed');
-      return;
-    }
-
-    if (step === 'carousel') {
-      handleFeelingLucky();
-      return;
-    }
-
-    if (step === 'zoom') {
-      mapInstance?.zoomIn();
-    }
-  };
-
-  const followMapTutorialStep = (step: MapControlsTutorialStepId) => {
-    if (step === 'seeking' || step === 'visibility' || step === 'places' || step === 'ping' || step === 'zoom') {
-      setMapControlsOpen(true);
-    }
-
-    if (step === 'ghost') {
-      navigate('/privacy/ghost-mode');
-      return;
-    }
-
-    if (step === 'cruush-plus') {
-      navigate('/rewards');
-      return;
-    }
-
-    if (step === 'mile-high-club') {
-      navigate('/settings/travel');
-      return;
-    }
-
-    if (step === 'feed') {
-      navigate('/feed');
-      return;
-    }
-
-    if (step === 'carousel') {
-      navigate('/lucky');
-    }
-  };
-
   useEffect(() => {
     let isMounted = true;
 
@@ -1322,35 +1177,6 @@ export default function MapHome(_props: MapHomeProps = {}) {
       window.removeEventListener(CRUUSH_PLUS_CHANGED_EVENT, loadBillingStatus);
     };
   }, []);
-
-  useEffect(() => {
-    if (!profileLoaded || !currentProfile || typeof window === 'undefined') {
-      return;
-    }
-
-    const requestKey = `${currentProfile.id}:${shouldReplayTutorial ? 'replay' : 'initial'}`;
-    if (tutorialNoticeRequestKeyRef.current === requestKey) {
-      return;
-    }
-    tutorialNoticeRequestKeyRef.current = requestKey;
-
-    let isMounted = true;
-
-    void resolveAnyNoticeDismissal(MAP_CONTROLS_TUTORIAL_DISMISSAL_KEYS).then((notice) => {
-      if (!isMounted) {
-        return;
-      }
-
-      setMapControlsNoticeOffline((currentOffline) => currentOffline === notice.offline ? currentOffline : notice.offline);
-      const hasSavedProgress = getStoredMapControlsTutorialStep() !== null;
-      const shouldOpen = shouldReplayTutorial || hasSavedProgress || !notice.dismissed;
-      setMapControlsIntroOpen((currentOpen) => currentOpen === shouldOpen ? currentOpen : shouldOpen);
-    });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [currentProfile?.id, profileLoaded, shouldReplayTutorial]);
 
   useEffect(() => addProfileChangedListener((savedProfile) => {
     setCurrentProfile((currentProfile) => mergeSavedCurrentProfile(currentProfile, savedProfile));
@@ -3569,12 +3395,6 @@ export default function MapHome(_props: MapHomeProps = {}) {
           onUpgrade={() => navigate('/rewards')}
         />
 
-        <MapControlsTutorial
-          open={mapControlsIntroOpen}
-          onActivateStep={activateMapTutorialStep}
-          onComplete={dismissMapControlsIntro}
-          onStepChange={followMapTutorialStep}
-        />
       </div>
     </div>
   );

@@ -2195,111 +2195,15 @@ describe('MapHome', () => {
     expect(within(dialog).getByText('Basic includes up to 3 hidden filters.')).toBeInTheDocument();
   });
 
-  it('runs install and notification permission actions from the tutorial', async () => {
+  it('never opens the map tutorial, even for a new member or saved tutorial progress', async () => {
     useIsMobile.mockReturnValue(false);
     window.localStorage.removeItem('cruush:tutorial-v4-seen');
     window.localStorage.removeItem('cruush:tutorial-v5-seen');
-    resolveNoticeDismissal.mockResolvedValue({ dismissed: false, offline: false });
-    const installRequested = vi.fn();
-    window.addEventListener('cruush:install-requested', installRequested);
-
-    render(
-      <MemoryRouter initialEntries={['/map']}>
-        <Routes>
-          <Route path="/map" element={<MapHome />} />
-        </Routes>
-      </MemoryRouter>
-    );
-
-    expect(await screen.findByRole('heading', { name: 'Install cruush' })).toBeInTheDocument();
-    fireEvent.click(screen.getByTestId('tutorial-try-step'));
-    expect(installRequested).toHaveBeenCalledTimes(1);
-    fireEvent.click(await screen.findByTestId('tutorial-skip-step'));
-    expect(await screen.findByRole('heading', { name: 'Notifications' })).toBeInTheDocument();
-
-    fireEvent.click(screen.getByTestId('tutorial-try-step'));
-    await waitFor(() => expect(enablePushNotifications).toHaveBeenCalledTimes(1));
-    expect(await screen.findByRole('heading', { name: 'Map Controls' })).toBeInTheDocument();
-
-    window.removeEventListener('cruush:install-requested', installRequested);
-  });
-
-  it('shows the map controls intro once and dismisses it permanently', async () => {
-    useIsMobile.mockReturnValue(false);
-    window.localStorage.removeItem('cruush:tutorial-v4-seen');
-    window.localStorage.removeItem('cruush:tutorial-v5-seen');
-    resolveNoticeDismissal.mockResolvedValue({ dismissed: false, offline: false });
-
-    const { unmount } = render(
-      <MemoryRouter initialEntries={['/map']}>
-        <Routes>
-          <Route path="/map" element={<MapHome />} />
-        </Routes>
-      </MemoryRouter>
-    );
-
-    expect(await screen.findByTestId('map-controls-tutorial')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Install cruush' })).toBeInTheDocument();
-    fireEvent.click(screen.getByTestId('skip-map-controls-tutorial'));
-
-    await waitFor(() => expect(screen.queryByTestId('map-controls-tutorial')).not.toBeInTheDocument());
-    expect(window.localStorage.getItem('cruush:tutorial-v5-seen')).toBe('true');
-    expect(markNoticeDismissed).toHaveBeenCalledWith('cruush:tutorial-v5-seen', { offline: false });
-    unmount();
-
-    resolveNoticeDismissal.mockResolvedValue({ dismissed: true, offline: false });
-
-    render(
-      <MemoryRouter initialEntries={['/map']}>
-        <Routes>
-          <Route path="/map" element={<MapHome />} />
-        </Routes>
-      </MemoryRouter>
-    );
-
-    await openMapControls();
-    await screen.findByRole('button', { name: /^seeking$/i });
-    expect(screen.queryByTestId('map-controls-tutorial')).not.toBeInTheDocument();
-  });
-
-  it('resumes saved tutorial progress even when the completion notice is already dismissed', async () => {
-    useIsMobile.mockReturnValue(false);
-    window.localStorage.setItem('cruush:tutorial-v5-seen', 'true');
     window.localStorage.setItem('cruush:tutorial-v5-progress', 'ghost');
-    resolveNoticeDismissal.mockResolvedValue({ dismissed: true, offline: false });
+    resolveNoticeDismissal.mockResolvedValue({ dismissed: false, offline: false });
 
     render(
-      <MemoryRouter initialEntries={['/map']}>
-        <Routes>
-          <Route path="/map" element={<MapHome />} />
-        </Routes>
-      </MemoryRouter>
-    );
-
-    expect(await screen.findByRole('heading', { name: 'Ghost Mode' })).toBeInTheDocument();
-    expect(screen.getByTestId('map-controls-tutorial')).toBeInTheDocument();
-  });
-
-  it('opens Map Controls when a mobile tutorial menu step returns from another route', async () => {
-    useIsMobile.mockReturnValue(true);
-    window.localStorage.setItem('cruush:tutorial-v5-seen', 'true');
-    window.localStorage.setItem('cruush:tutorial-v5-progress', 'places');
-    resolveNoticeDismissal.mockResolvedValue({ dismissed: true, offline: false });
-
-    render(<MemoryRouter initialEntries={['/map']}><MapHome /></MemoryRouter>);
-
-    expect(await screen.findByTestId('map-controls-trigger')).toHaveAttribute('aria-expanded', 'true');
-    expect(await screen.findByRole('heading', { name: 'Spots' })).toBeInTheDocument();
-  });
-
-  it('ignores malformed saved tutorial progress when the tutorial is dismissed', async () => {
-    useIsMobile.mockReturnValue(false);
-    window.localStorage.setItem('cruush:tutorial-v5-seen', 'true');
-    window.localStorage.setItem('cruush:tutorial-v5-progress', 'not-a-tutorial-step');
-    resolveNoticeDismissal.mockResolvedValue({ dismissed: true, offline: false });
-
-    render(
-      <MemoryRouter initialEntries={['/map']}>
+      <MemoryRouter initialEntries={['/map?replayTutorial=1']}>
         <Routes>
           <Route path="/map" element={<MapHome />} />
         </Routes>
@@ -2308,12 +2212,8 @@ describe('MapHome', () => {
 
     await openMapControls();
     await screen.findByRole('button', { name: /^seeking$/i });
-    await waitFor(() => expect(resolveNoticeDismissal).toHaveBeenCalledWith('cruush:tutorial-v5-seen'));
-    expect(window.localStorage.getItem('cruush:tutorial-v5-progress')).toBe('not-a-tutorial-step');
-    await act(async () => {
-      await new Promise((resolve) => window.setTimeout(resolve, 20));
-    });
     expect(screen.queryByTestId('map-controls-tutorial')).not.toBeInTheDocument();
+    window.localStorage.removeItem('cruush:tutorial-v5-progress');
   });
 
   it('keeps visibility controls manual without saved-set affordances', async () => {
