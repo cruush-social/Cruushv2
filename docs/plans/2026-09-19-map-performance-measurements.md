@@ -80,12 +80,9 @@ pauses, and the cost is per travelling marker, independent of how many pins are 
 
 The probe path is static, so the geometry it recomputes every frame never changes.
 
-Not fixed here. It is outside the DOM/React boundary work and is Julien's call. Three options, in
-rough order of how little they disturb the artwork:
-
-1. Sample the path once into a lookup table and interpolate, instead of asking the DOM each frame.
-2. Pause the loop when the marker is off screen, or when the map is not interacting.
-3. Drive the dash animation from CSS instead of JS.
+**Decided: leave it alone.** Julien's call, 2026-09-19. Mile High Club is not to be touched for
+performance. Recorded because anyone profiling this map will find the same 19.6% and propose the
+same fix; it has already been raised and declined. Do not re-propose it.
 
 ### The other two thirds are native rendering
 
@@ -99,6 +96,6 @@ marker CSS, neither of which is in the current plan and both of which touch artw
 - Stage 1 is worth keeping and is done.
 - Stage 2 as written is aimed at mount cost, which the diff already makes rare. Its remaining
   justification is the duplicate-pin bug, which keying hosts by id does fix structurally.
-- The largest addressable JS win found is `getPointAtLength`, which is not a React problem.
+- The largest addressable JS win found is `getPointAtLength`, and it is off the table by decision.
 - The largest cost overall is native rendering of 243 live marker elements, which is not a React
   problem either.
