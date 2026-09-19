@@ -1099,6 +1099,90 @@ describe('MapHome', () => {
       top: '0px',
       width: '384px',
     }));
+
+    // A pinch-zoomed page must not drag the map shell into the zoomed window.
+    Object.assign(visualViewport, {
+      height: 383,
+      offsetLeft: 90,
+      offsetTop: 140,
+      scale: 2,
+      width: 192,
+    });
+    act(() => {
+      listeners.get('scroll')?.forEach((listener) => listener(new Event('scroll')));
+    });
+
+    await waitFor(() => expect(shell).toHaveClass('inset-0'));
+    expect(shell.style.width).toBe('');
+    expect(shell.style.top).toBe('');
+  });
+
+  it('rechecks an allowed browser location when a saved out-of-town location marks the member outside NYC', async () => {
+    const { OutsideServiceAreaError } = await import('../lib/usersApi');
+    const baseProfile = await getMyProfile();
+    getMyProfile.mockResolvedValue({
+      ...baseProfile,
+      location: { id: 'me', fuzzy_lat: 41.9, fuzzy_lng: -75.6, fuzz_radius_meters: 250, location_updated_at: '2026-09-17T00:00:00.000Z' },
+    });
+    getNearbyUsers.mockReset();
+    getNearbyUsers
+      .mockRejectedValueOnce(new OutsideServiceAreaError('NYC open beta.'))
+      .mockResolvedValue([]);
+    const getCurrentPosition = vi.fn((success: PositionCallback) => {
+      success({ coords: { latitude: 40.7128, longitude: -74.006, accuracy: 20 } } as GeolocationPosition);
+    });
+    Object.defineProperty(global.navigator, 'geolocation', { configurable: true, value: { getCurrentPosition } });
+    Object.defineProperty(global.navigator, 'permissions', {
+      configurable: true,
+      value: { query: vi.fn().mockResolvedValue({ state: 'granted' }) },
+    });
+
+    try {
+      render(
+        <MemoryRouter initialEntries={['/map']}>
+          <Routes>
+            <Route path="/map" element={<MapHome />} />
+          </Routes>
+        </MemoryRouter>,
+      );
+
+      await waitFor(() => expect(getCurrentPosition).toHaveBeenCalled());
+      await waitFor(() => expect(syncMyLocation).toHaveBeenCalled());
+      await waitFor(() => expect(screen.queryByRole('button', { name: 'Turn on Mile High Club' })).not.toBeInTheDocument());
+    } finally {
+      delete (global.navigator as { permissions?: Permissions }).permissions;
+    }
+  });
+
+  it('never prompts for location just because the member is marked outside NYC', async () => {
+    const { OutsideServiceAreaError } = await import('../lib/usersApi');
+    const baseProfile = await getMyProfile();
+    getMyProfile.mockResolvedValue({
+      ...baseProfile,
+      location: { id: 'me', fuzzy_lat: 41.9, fuzzy_lng: -75.6, fuzz_radius_meters: 250, location_updated_at: '2026-09-17T00:00:00.000Z' },
+    });
+    getNearbyUsers.mockReset();
+    getNearbyUsers.mockRejectedValue(new OutsideServiceAreaError('NYC open beta.'));
+    const getCurrentPosition = vi.fn();
+    Object.defineProperty(global.navigator, 'geolocation', { configurable: true, value: { getCurrentPosition } });
+    const query = vi.fn().mockResolvedValue({ state: 'prompt' });
+    Object.defineProperty(global.navigator, 'permissions', { configurable: true, value: { query } });
+
+    try {
+      render(
+        <MemoryRouter initialEntries={['/map']}>
+          <Routes>
+            <Route path="/map" element={<MapHome />} />
+          </Routes>
+        </MemoryRouter>,
+      );
+
+      await screen.findByRole('button', { name: 'Turn on Mile High Club' });
+      await waitFor(() => expect(query).toHaveBeenCalled());
+      expect(getCurrentPosition).not.toHaveBeenCalled();
+    } finally {
+      delete (global.navigator as { permissions?: Permissions }).permissions;
+    }
   });
 
   it('exposes the real Ping control to the tutorial and opens the Ping sheet', async () => {

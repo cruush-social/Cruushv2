@@ -818,7 +818,6 @@ export default function ProfileView() {
 
           <ProfileDetailsTabs
             activeTab={activeTab}
-            compact
             onActiveTabChange={setActiveTab}
             profileView={profileView}
           />

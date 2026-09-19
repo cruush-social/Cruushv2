@@ -94,7 +94,7 @@ Any requested adaptation of supplied icon artwork preserves the source icon's or
 
 ## Side badge geometry, September 11, 2026
 
-Hanky choices use the same icon size and badge border geometry as ordinary choices. Map-pin side badges use the same 35px size as profile-card side badges. Every non-flag icon stays fully inside the border with visible clearance and never overlaps the border; the shared 60% glyph inset enforces this. Pride flags remain the sole edge-to-edge badge fill and follow the no-border rule above. Preserve badge placement, hover labels, heart size and all non-badge pin geometry.
+Hanky choices use the same icon size and badge border geometry as ordinary choices. Map-pin side badges use the same 35px size as profile-card side badges. (Superseded for map pins on September 19, 2026: see "Map-pin side badge size" below.) Every non-flag icon stays fully inside the border with visible clearance and never overlaps the border; the shared 60% glyph inset enforces this. Pride flags remain the sole edge-to-edge badge fill and follow the no-border rule above. Preserve badge placement, hover labels, heart size and all non-badge pin geometry.
 
 ## Restricted feature controls and recovery notices, September 12, 2026
 
@@ -177,3 +177,7 @@ Never record passwords, authentication tokens, session cookies, authorization he
 ## Map filter menus in full-screen framing, September 18, 2026
 
 In full-screen framing (mobile, and desktop set to full-screen), the Seeking Filter, Visibility Controls and Spots menus fill the whole screen and are allowed to cover the map top bar and the bottom navigation while open. This is an explicit exception to the no-overlap rule for these three menus only. Other dialogs and sheets keep their existing bottom-navigation clearance. Desktop popup framing is not covered by this decision. Source: Julien, session `3a2c6143-f31c-4d40-b349-3fe7faab569d`, September 18, 2026: "The 3 filter menus are allowed to cover top bsr and bottom nav in full screen/modile".
+
+## Map-pin side badge size, September 19, 2026
+
+Map-pin side badges return to their prior size: 85 percent of the 35px profile-card side badge (MAP_SIDE_BADGE_SIZE_PX = SIDE_BADGE_SIZE_PX * 0.85, about 29.75px), as they were from September 1 until the September 11 change to 35px. Profile-card, Feed, Messages, Cruushes and badge-editor side badges keep 35px. This supersedes the September 11 rule that map-pin side badges match the 35px profile-card size and the September 12 same-size-across-surfaces wording for map pins only. Source: Julien, session bb234b23-d737-4f10-969e-de4810ea8842, "resize map badges to prior badge size".

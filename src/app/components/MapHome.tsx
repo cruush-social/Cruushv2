@@ -304,6 +304,14 @@ function readMobileVisualViewportBounds(enabled: boolean): MobileVisualViewportB
     return null;
   }
 
+  // While the page itself is pinch-zoomed the visual viewport is a zoomed-in
+  // window onto the page. Following it shrinks the map to that window and
+  // chases every pan, so the map zooms and slides. Hold the full-screen shell
+  // until the page is back at its normal scale.
+  if (typeof viewport.scale === 'number' && viewport.scale > 1.01) {
+    return null;
+  }
+
   return {
     height: roundViewportValue(viewport.height),
     left: roundViewportValue(Math.max(0, viewport.offsetLeft)),
@@ -884,6 +892,9 @@ export default function MapHome(_props: MapHomeProps = {}) {
   const mobileVisualViewportBounds = useMobileVisualViewportBounds(isMobile);
   const [users, setUsers] = useState<DiscoveryUser[]>([]);
   const [outsideServiceArea, setOutsideServiceArea] = useState(false);
+  const outsideServiceAreaRef = useRef(false);
+  outsideServiceAreaRef.current = outsideServiceArea;
+  const hasRefreshedOutsideLocationRef = useRef(false);
   const [userApproximateLocation, setUserApproximateLocation] = useState<ApproximateCoordinates | null>(null);
   const [travelPin, setTravelPin] = useState<TravelPin | null>(null);
   const [ownerGhostMapLocation, setOwnerGhostMapLocation] = useState<ApproximateCoordinates | null>(null);
@@ -1754,6 +1765,16 @@ export default function MapHome(_props: MapHomeProps = {}) {
       mapInstance?.setZoom(16);
     }
     void fetchUsers(fetchCoordinates, hasActiveSeekingFilters(filters) ? filters : undefined);
+    // The server judges the service area from the saved location, so a fetch
+    // that raced ahead of this save can still see the old spot. Once the new
+    // location is saved, ask again if the map is still marked outside.
+    void locationSync
+      .then(() => {
+        if (outsideServiceAreaRef.current) {
+          void fetchUsers(fetchCoordinates, hasActiveSeekingFilters(filters) ? filters : undefined);
+        }
+      })
+      .catch(() => undefined);
 
     if (requireLocationSync) {
       await locationSync;
@@ -1879,6 +1900,29 @@ export default function MapHome(_props: MapHomeProps = {}) {
     hasRequestedInitialLocationRef.current = true;
     requestUserLocation();
   }, [currentProfile, isMutualMapMode, locationStatus, profileLoaded, userApproximateLocation]);
+
+  // A member who left the service area keeps a saved location from out of
+  // town until it expires. When the map says they are outside, check where the
+  // browser is now, but only if location is already allowed: never prompt here.
+  useEffect(() => {
+    if (!outsideServiceArea || isMutualMapMode || hasRefreshedOutsideLocationRef.current || !navigator.geolocation) {
+      return;
+    }
+
+    hasRefreshedOutsideLocationRef.current = true;
+    const permissions = navigator.permissions;
+    if (!permissions?.query) {
+      return;
+    }
+
+    void permissions.query({ name: 'geolocation' as PermissionName })
+      .then((status) => {
+        if (status.state === 'granted') {
+          requestUserLocation();
+        }
+      })
+      .catch(() => undefined);
+  }, [isMutualMapMode, outsideServiceArea]);
 
   const hasActiveFilters = isMutualMapMode || hasActiveSeekingFilters(filters);
 

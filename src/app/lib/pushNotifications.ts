@@ -58,14 +58,15 @@ async function currentSubscription(registration: ServiceWorkerRegistration, publ
   return registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
 }
 
-// Refresh only an existing, opted-in subscription. Never request permission here.
+// Keep an opted-in device subscribed. Never request permission here: this runs
+// only when permission is already granted and the account has push turned on,
+// so a subscription the push service expired or revoked is recreated.
 export async function refreshExistingPushSubscription(): Promise<void> {
   if (!('Notification' in window) || Notification.permission !== 'granted' ||
       !('serviceWorker' in navigator) || !('PushManager' in window)) return;
   const preferences = await getNotificationPreferences();
   if (!preferences.pushEnabled) return;
   const registration = await navigator.serviceWorker.ready;
-  if (!(await registration.pushManager.getSubscription())) return;
   const vapid = await getVapidPublicKey();
   if (!vapid.enabled || !vapid.publicKey) return;
   const subscription = await currentSubscription(registration, vapid.publicKey);
@@ -73,12 +74,6 @@ export async function refreshExistingPushSubscription(): Promise<void> {
 }
 
 export async function enablePushNotifications(): Promise<NotificationPreferences> {
-  const vapid = await getVapidPublicKey();
-
-  if (!vapid.enabled || !vapid.publicKey) {
-    throw new Error('Push alerts are not configured on this server yet.');
-  }
-
   if (!('Notification' in window)) {
     throw new Error('This browser does not support push notifications.');
   }
@@ -93,6 +88,15 @@ export async function enablePushNotifications(): Promise<NotificationPreferences
 
   if (permission !== 'granted') {
     throw new Error('Notifications are blocked for cruush in this browser.');
+  }
+
+  // Asked only after the permission prompt: Safari and Firefox show the prompt
+  // only while the tap that started it is still current, so no network wait
+  // may come before it.
+  const vapid = await getVapidPublicKey();
+
+  if (!vapid.enabled || !vapid.publicKey) {
+    throw new Error('Push alerts are not configured on this server yet.');
   }
 
   const registration = await navigator.serviceWorker.ready;
