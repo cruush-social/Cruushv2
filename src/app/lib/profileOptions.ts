@@ -194,7 +194,7 @@ export const PROTECTION_BOUNDARIES = [
 
 export const PROFILE_VISIBILITY_OPTIONS = [
   { value: 'public', label: 'Public' },
-  { value: 'mutual_cruushes', label: 'Mutuals' },
+  { value: 'mutual_cruushes', label: 'Cruushes' },
   { value: 'mutual_crowds', label: 'Mutual Crowds' },
 ];
 

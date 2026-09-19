@@ -31,7 +31,7 @@ const IMPLEMENTATION_MARKERS = [
     marker: '"Posting to a specific Crowd is part of cruush+."',
   },
   {
-    title: 'Cruise carousel',
+    title: 'Cruise Carousel',
     file: 'src/app/components/FeelingLucky.tsx',
     marker: 'if (!billingStatus.cruushPlus)',
   },

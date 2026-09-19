@@ -172,3 +172,22 @@ September 12-13 Spots reduction for launch: dropped the sports_venue and gym cat
 ## Secret-free operational logging, September 12, 2026
 
 Never record passwords, authentication tokens, session cookies, authorization headers, API keys or token-bearing URLs in application, proxy, error, preview or operational logs. Log only necessary route, method, status and timing metadata. Strip query values and omit raw request/response bodies and headers; provider errors and development previews must not echo secret values. Test these paths with synthetic tokens when verification is permitted. Julien explicitly requested stopping token logging, deleting accessible leaked copies, invalidating exposed tokens, and updating the loaded contract (task `01a09564-f771-7b91-b1db-319f81d01954`).
+
+## Map pin hover shows no extra text, September 18, 2026
+
+Hovering or holding a map pin never shows the red/pink latest-post preview capsule and never sets a native browser `title` tooltip ("Tap to open profile; hover for details" and its variants). The existing Signal preview, accessible names, heart artwork, badges and DL masking stay unchanged. Julien asked for this removal on September 11 ("did you add red text over pin hover and alt text over pin hover i didnt ask for", task `01a08cc1`, transcript line 7630; queued at line 7980). The removal was prepared twice but never shipped because a local UI-authorization hook rejected the wording. He repeated the request on September 18, 2026 (session `3653ce18`).
+
+## Feature names and product stage, September 18-19, 2026
+
+Julien picked one name per feature (session `3653ce18`, September 18 and 19, 2026). Use these in all user-facing text:
+- Pulse, never Ping.
+- "cruushes" (or "Cruushes" at the start of a sentence or as an option label), never "mutuals". Buttons that said "Mutuals only" say "cruushes only" in lowercase. The approved photo cover text "MUTUAL CRUUSHES ONLY" is unchanged.
+- Pink Book, never "Spot board" or "the board".
+- Ghost Mode, always capitalized.
+- Cruise Carousel, title case.
+- cruush+ is the gate name for Feed extras. The cruush+ benefit card keeps its title "Feed+".
+- The message settings screen is "Message permissions".
+- The saved-photo feature is "Quick access gallery".
+- The product stage is "NYC open beta". Waitlist data and waitlist codes still exist, so the privacy policy and Rewards keep their waitlist mentions.
+
+Glow: the landing Sign In and Sign up buttons, Spot clusters and individual Spot pins have no outer glow. The login input focus glow stays. (Julien approved these on September 18, 2026.)

@@ -481,7 +481,7 @@ export default function GhostModeSettings() {
 
               <button
                 type="button"
-                aria-label="Mutuals"
+                aria-label="Cruushes"
                 aria-pressed={privacySettings.preciseToMutualCruushes}
                 className={[
                   ghostSettingsChoiceClassName,
@@ -500,7 +500,7 @@ export default function GhostModeSettings() {
                 }}
                 style={privacySettings.preciseToMutualCruushes ? { background: 'var(--cruush-gradient)' } : undefined}
               >
-                <span>Mutuals</span>
+                <span>Cruushes</span>
                 <span className="text-xs">{privacySettings.preciseToMutualCruushes ? 'On' : 'Off'}</span>
               </button>
 

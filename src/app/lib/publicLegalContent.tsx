@@ -35,14 +35,14 @@ export const termsSections: PolicySection[] = [
         These Terms of Service are between you and {legalEntity}, doing business
         as cruush. Questions about these Terms can be sent to {contactLink}.
       </>,
-      "cruush is currently focused on a U.S. launch. The website, waitlist, pre-launch communications, and app access are intended for people located in the United States.",
+      "cruush is currently in an NYC open beta. The website and app access are intended for people located in the United States.",
       "Additional product-specific notices, in-app disclosures, safety prompts, community guidelines, or event terms may also apply. If there is a conflict, the more specific notice controls for that feature or activity."
     ]
   },
   {
     title: "Adult-only service",
     body: [
-      "cruush is only for adults who are at least 18 years old. You may not use the website, join the waitlist, create an account, view profiles, upload content, send messages, or attend cruush-operated launch experiences if you are under 18.",
+      "cruush is only for adults who are at least 18 years old. You may not use the website, create an account, view profiles, upload content, send messages, or attend cruush-operated launch experiences if you are under 18.",
       "By using cruush, you represent that the age you provide is accurate, that you are at least 18, and that you are legally allowed to use an adult-oriented social, dating, and discovery service."
     ]
   },
@@ -115,10 +115,10 @@ export const termsSections: PolicySection[] = [
     ]
   },
   {
-    title: "Beta, waitlist, and launch changes",
+    title: "NYC open beta and changes",
     body: [
-      "cruush is pre-launch and may run beta tests, limited releases, waitlist perks, city-specific launches, feature experiments, and temporary promotions. Access, features, pricing, timing, eligibility, and availability may change.",
-      "Joining the waitlist or receiving a promotional message does not guarantee account approval, product access, launch timing, event access, or continued feature availability."
+      "cruush is in an NYC open beta and may run beta tests, limited releases, city-specific launches, feature experiments, and temporary promotions. Access, features, pricing, timing, eligibility, and availability may change.",
+      "Receiving a promotional message does not guarantee account approval, product access, launch timing, event access, or continued feature availability."
     ]
   },
   {
@@ -208,7 +208,7 @@ export const privacySections: PolicySection[] = [
   {
     title: "How we use information",
     body: [
-      "We use information to operate cruush, manage the waitlist, provide accounts, show nearby users, support mutuals, process subscriptions, send service, launch, event, and ticket communications when you opt in, provide support, enforce our policies, investigate reports, prevent abuse, improve the product, comply with law, and protect users and the service.",
+      "We use information to operate cruush, manage the waitlist, provide accounts, show nearby users, support cruushes, process subscriptions, send service, launch, event, and ticket communications when you opt in, provide support, enforce our policies, investigate reports, prevent abuse, improve the product, comply with law, and protect users and the service.",
       "We do not sell your personal information."
     ]
   },

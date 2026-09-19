@@ -457,7 +457,7 @@ export default function MapProfilePopup({
               }}
             >
               <CruushIconImage src={sendIconWhite} className="mr-2 h-4 w-4" />
-              {isDemo ? 'Demo only' : canMessage === false ? 'Mutuals only' : openingMessage ? 'Opening...' : 'Message now'}
+              {isDemo ? 'Demo only' : canMessage === false ? 'cruushes only' : openingMessage ? 'Opening...' : 'Message now'}
             </Button>
           </div>
           </div>

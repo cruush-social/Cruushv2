@@ -3519,7 +3519,7 @@ describe('MapHome', () => {
     expect(fallback.querySelector('img')).toBeNull();
   });
 
-  it('loads mutual-only map pins from the mutuals query mode', async () => {
+  it('loads mutual-only map pins from the cruushes query mode', async () => {
     useIsMobile.mockReturnValue(false);
     getMutualCruushMap.mockResolvedValue([{
       id: 'match-1',

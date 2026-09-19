@@ -305,14 +305,14 @@ export async function assertCanSendNsfwMessagePhoto(
   };
 
   if (senderSettings.nsfwSendVisibility === "none") {
-    throw new ApiError(403, "NSFW_MESSAGES_RESTRICTED", "Your cruush match settings block sending NSFW photos.");
+    throw new ApiError(403, "NSFW_MESSAGES_RESTRICTED", "Your Message permissions block sending NSFW photos.");
   }
 
   if (
     senderSettings.nsfwSendVisibility === "mutual_cruushes" &&
     !await everyRecipientIsMutual(app, input.senderUserId, recipientUserIds)
   ) {
-    throw new ApiError(403, "NSFW_MESSAGES_RESTRICTED", "Your cruush match settings only allow NSFW photos with mutual cruushes.");
+    throw new ApiError(403, "NSFW_MESSAGES_RESTRICTED", "Your Message permissions only allow NSFW photos with mutual cruushes.");
   }
 
   if (senderSettings.nsfwSendVisibility === "mutual_crowds") {
@@ -323,7 +323,7 @@ export async function assertCanSendNsfwMessagePhoto(
     ));
 
     if (!everyRecipientSharesCrowd) {
-      throw new ApiError(403, "NSFW_MESSAGES_RESTRICTED", "Your cruush match settings only allow NSFW photos with mutual crowds.");
+      throw new ApiError(403, "NSFW_MESSAGES_RESTRICTED", "Your Message permissions only allow NSFW photos with mutual crowds.");
     }
   }
 
@@ -331,7 +331,7 @@ export async function assertCanSendNsfwMessagePhoto(
     const recipientSettings = settingsByUserId.get(recipientUserId) ?? DEFAULT_CRUUSH_MATCH_SETTINGS;
 
     if (recipientSettings.nsfwMessageVisibility === "none") {
-      throw new ApiError(403, "NSFW_MESSAGES_RESTRICTED", "A recipient's cruush match settings do not allow NSFW photos.");
+      throw new ApiError(403, "NSFW_MESSAGES_RESTRICTED", "A recipient's Message permissions do not allow NSFW photos.");
     }
 
     if (

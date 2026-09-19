@@ -56,7 +56,7 @@ const QUESTS: QuestDefinition[] = [
   { key: "send_three_messages", title: "Send three messages", rewardKind: "ping", rewardAmount: 2 },
   { key: "post_three_feed", title: "Make three Feed posts", rewardKind: "ping", rewardAmount: 2 },
   { key: "check_in_spot", title: "Check in at a Spot", rewardKind: "ping", rewardAmount: 1 },
-  { key: "post_spot_board", title: "Post on a Spot board", rewardKind: "cruush_plus_day", rewardAmount: 1 },
+  { key: "post_spot_board", title: "Post in the Pink Book", rewardKind: "cruush_plus_day", rewardAmount: 1 },
   { key: "rate_spot", title: "Rate your first Spot", rewardKind: "cruush_plus_day", rewardAmount: 1 },
   { key: "save_visibility_set", title: "Save a Visibility set", rewardKind: "ping", rewardAmount: 2 }
 ];

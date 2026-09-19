@@ -30,8 +30,8 @@ const visibilityOptions: Array<{
   },
   {
     value: 'mutual_cruushes',
-    label: 'Mutuals',
-    description: 'Only mutuals can start a chat. This is the default.',
+    label: 'Cruushes',
+    description: 'Only cruushes can start a chat. This is the default.',
   },
   {
     value: 'mutual_crowds',
@@ -91,7 +91,7 @@ export default function CruushMatchSettings({ embedded = false }: { embedded?: b
       })
       .catch((loadError) => {
         if (active) {
-          setError(loadError instanceof Error ? loadError.message : 'Failed to load match settings.');
+          setError(loadError instanceof Error ? loadError.message : 'Failed to load Message permissions.');
         }
       })
       .finally(() => {
@@ -117,7 +117,7 @@ export default function CruushMatchSettings({ embedded = false }: { embedded?: b
         nsfwSendVisibility: nextSettings.nsfwSendVisibility,
       }));
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : 'Failed to save match settings.');
+      setError(saveError instanceof Error ? saveError.message : 'Failed to save Message permissions.');
     } finally {
       setStatus('idle');
     }
@@ -163,7 +163,7 @@ export default function CruushMatchSettings({ embedded = false }: { embedded?: b
             <MessageCircle className="mt-1 h-5 w-5 text-primary" />
             <div>
               <h3 className="text-base">Who can message me</h3>
-              <p className="mt-1 text-sm text-white/58">Mutuals is the default. Switch to Public or Crowd when you want more people to be able to start a chat.</p>
+              <p className="mt-1 text-sm text-white/58">Cruushes is the default. Switch to Public or Crowd when you want more people to be able to start a chat.</p>
             </div>
           </div>
           <div className="mt-4 grid gap-2">
@@ -186,12 +186,12 @@ export default function CruushMatchSettings({ embedded = false }: { embedded?: b
             <div className="flex items-start gap-3">
               <MapPin className="mt-1 h-5 w-5 text-primary" />
               <div>
-                <h3 className="text-base">Precise location for mutuals</h3>
-                <p className="mt-1 text-sm text-white/58">When on, mutuals may see precise live location instead of your Ghost location.</p>
+                <h3 className="text-base">Precise location for cruushes</h3>
+                <p className="mt-1 text-sm text-white/58">When on, cruushes may see precise live location instead of your Ghost location.</p>
               </div>
             </div>
             <Switch
-              aria-label="Toggle precise location for mutuals"
+              aria-label="Toggle precise location for cruushes"
               checked={privacySettings.preciseToMutualCruushes}
               disabled={disabled}
               onCheckedChange={(enabled) => void persistPrivacySettings({

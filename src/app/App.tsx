@@ -39,7 +39,6 @@ const ProfileOnboarding = lazyRoute(() => import('./components/ProfileOnboarding
 const AgeVerification = lazyRoute(() => import('./components/AgeVerification'));
 const FiltersPanel = lazyRoute(() => import('./components/FiltersPanel'));
 const GroupDetail = lazyRoute(() => import('./components/GroupDetail'));
-const EventDetail = lazyRoute(() => import('./components/EventDetail'));
 const EventPassGuide = lazyRoute(() => import('./components/EventPassGuide'));
 const PlaceDetail = lazyRoute(() => import('./components/PlaceDetail'));
 const PrivateGroupChat = lazyRoute(() => import('./components/PrivateGroupChat'));
@@ -655,7 +654,6 @@ export default function App({
               <Route path="/survey" element={<Survey />} />
               <Route path="/groups/:groupId" element={<GroupDetail />} />
               <Route path="/events/:eventId/pass-guide" element={<EventPassGuide />} />
-              <Route path="/events/:eventId" element={<EventDetail />} />
               <Route path="/places/:placeId" element={<PlaceDetail />} />
               <Route path="/chat/:chatId" element={<PrivateGroupChat />} />
               <Route path="/chat/group/:chatId" element={<PrivateGroupChat />} />

@@ -98,7 +98,7 @@ export default function ReportPage({ embedded = false, targetOverride, onBack }:
           : target.targetType === 'place'
             ? 'this spot'
           : target.targetType === 'place_message'
-            ? 'this board post'
+            ? 'this Pink Book post'
           : 'this profile'
   );
   const goBack = onBack ?? (() => navigate(-1));

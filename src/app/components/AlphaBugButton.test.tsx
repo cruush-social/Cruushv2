@@ -283,7 +283,7 @@ describe('AlphaBugButton', () => {
 
     renderAlphaBugButton();
 
-    const tipCopy = await screen.findByText('Alpha test: tap the bug icon to report anything broken.');
+    const tipCopy = await screen.findByText('NYC open beta: tap the bug icon to report anything broken.');
     const tip = tipCopy.closest('div');
     expect(tip).toHaveClass(
       'left-4',

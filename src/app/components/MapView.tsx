@@ -1793,7 +1793,7 @@ function VenueClusterMarker({ marker }: { marker: MapMarker }) {
 
   return (
     <span
-      className="relative flex h-12 w-12 rotate-45 items-center justify-center rounded-[0.7rem] border-2 border-[#55C8FF] bg-black/94 text-white shadow-[0_0_10px_rgba(20,157,255,0.95),0_0_24px_rgba(21,79,255,0.62)] backdrop-blur-md"
+      className="relative flex h-12 w-12 rotate-45 items-center justify-center rounded-[0.7rem] border-2 border-[#55C8FF] bg-black/94 text-white backdrop-blur-md"
       data-testid={`venue-cluster-marker-${marker.cluster?.id ?? marker.id}`}
     >
       <span className="cruush-logo-font flex -rotate-45 items-center text-xl font-normal leading-none tracking-normal">
@@ -1871,7 +1871,7 @@ function PlaceMarker({ marker, previewed = false }: { marker: MapMarker; preview
           {marker.displayName}
         </SignalBadge>
       </span>
-      <span className={`relative flex h-12 w-12 rotate-45 items-center justify-center rounded-[0.7rem] border-2 border-[#55C8FF] bg-black/94 text-white shadow-[0_0_10px_rgba(20,157,255,0.95),0_0_24px_rgba(21,79,255,0.62)] backdrop-blur-md ${active ? 'shadow-[0_0_28px_rgba(85,200,255,0.62)]' : ''}`}>
+      <span className={`relative flex h-12 w-12 rotate-45 items-center justify-center rounded-[0.7rem] border-2 border-[#55C8FF] bg-black/94 text-white backdrop-blur-md`}>
         <span className="flex h-8 w-8 -rotate-45 items-center justify-center">
           {config.special === 'beach' ? <img src={beachUmbrellaIcon} alt="" className="h-7 w-7 brightness-0 invert" /> : null}
           {config.special === 'stairs' ? <span aria-hidden="true" className="relative block h-6 w-6"><i className="absolute bottom-1 left-0 h-[3px] w-2.5 rounded-full bg-white" /><i className="absolute bottom-2.5 left-[7px] h-[3px] w-2.5 rounded-full bg-white" /><i className="absolute bottom-4 left-3.5 h-[3px] w-2.5 rounded-full bg-white" /></span> : null}
@@ -1968,7 +1968,6 @@ export function MapMarkerPin({ marker, previewed = false }: { marker: MapMarker;
   const isOwnerGhostDecoy = isCurrentUser && marker.displayMode === 'GHOST';
   const isPerson = marker.kind == null || marker.kind === 'person';
   const signalPreview = isPerson ? truncateMarkerPreview(marker.signal) : '';
-  const postPreview = isPerson ? truncateMarkerPreview(marker.latestFeedPostPreview) : '';
   const pingActive = Boolean(marker.activePing);
   const travellerActive = marker.travelling === true
     && !(isCurrentUser && marker.ownerStealthActive === true)
@@ -2031,16 +2030,6 @@ export function MapMarkerPin({ marker, previewed = false }: { marker: MapMarker;
           </>}
         </GhostRotationPulse>
       </span>
-      {postPreview ? (
-        <span
-          className={`absolute left-1/2 top-0 z-20 w-max max-w-[16rem] -translate-x-1/2 transition-opacity duration-150 ${previewed ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'} ${signalPreview ? '-translate-y-[calc(200%+0.25rem)]' : '-translate-y-full'}`}
-          data-testid={`marker-post-preview-${marker.id}`}
-        >
-          <span className="rounded-full border border-primary/20 bg-black/86 px-3 py-1 text-center text-[0.7rem] font-semibold leading-tight text-primary backdrop-blur-md">
-            {postPreview}
-          </span>
-        </span>
-      ) : null}
     </span>
   );
 }
@@ -2144,15 +2133,10 @@ function createMarkerElement(
         ? `Zoom into ${marker.cluster?.label ?? name} on map`
         : `Open ${marker.cluster?.label ?? name} on map`
       : marker.kind === 'place'
-        ? `Open ${name} spot board`
+        ? `Open ${name} Pink Book`
       : `Open ${name} on map`);
     if (supportsHoldPreview) {
       button.setAttribute('aria-pressed', 'false');
-      button.title = isCurrentUser
-        ? 'Tap or hover for details'
-        : marker.kind === 'place'
-        ? 'Click to open spot board; hover or hold for name'
-        : 'Tap to open profile; hover for details';
     }
     const recordMarkerInteraction = (event: Event) => {
       event.stopPropagation();

@@ -2422,8 +2422,8 @@ describe('spiderfy clusters', () => {
     });
 
     expect(mapInstances[0].setZoom).not.toHaveBeenCalled();
-    expect(await screen.findByRole('button', { name: 'Open Spot A spot board' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Open Spot B spot board' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Open Spot A Pink Book' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Open Spot B Pink Book' })).toBeInTheDocument();
     expect(onPinClick).not.toHaveBeenCalled();
 
     const spotOffsets = markerInstances

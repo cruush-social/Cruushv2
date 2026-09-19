@@ -518,7 +518,7 @@ export default function PrivateGroupChat({
       setError(null);
     } catch (error) {
       console.error('Error loading favorite images:', error);
-      setError(error instanceof Error ? error.message : 'Failed to load favorite images.');
+      setError(error instanceof Error ? error.message : 'Failed to load Quick access gallery.');
     } finally {
       setFavoriteImagesLoading(false);
     }
@@ -556,7 +556,7 @@ export default function PrivateGroupChat({
 
       if (isPendingPhotoReview(favorite)) {
         setFavoriteGalleryOpen(true);
-        setPhotoUploadNotice('Photo submitted for review. It will appear in your quick access gallery automatically.');
+        setPhotoUploadNotice('Photo submitted for review. It will appear in your Quick access gallery automatically.');
         return;
       }
 
@@ -1715,7 +1715,7 @@ export default function PrivateGroupChat({
                           type="button"
                           variant="ghost"
                           size="icon"
-                          aria-label="Close quick access gallery"
+                          aria-label="Close Quick access gallery"
                           onClick={() => setFavoriteGalleryOpen(false)}
                         >
                           <X className="size-4" />
@@ -1724,12 +1724,12 @@ export default function PrivateGroupChat({
                     </div>
 
                     {favoriteImagesLoading ? (
-                      <LoadingCardSkeletons count={2} label="Loading favorite images" />
+                      <LoadingCardSkeletons count={2} label="Loading Quick access gallery" />
                     ) : null}
 
                     {!favoriteImagesLoading && favoriteImages.length === 0 ? (
                       <div className="rounded-2xl border border-dashed border-border bg-card/50 p-4 text-center text-sm text-muted-foreground">
-                        No favorite images yet.
+                        No photos in your Quick access gallery yet.
                       </div>
                     ) : null}
 

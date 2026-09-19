@@ -117,10 +117,6 @@ vi.mock('./components/GroupDetail', () => ({
   default: () => <div>Mock Group</div>
 }));
 
-vi.mock('./components/EventDetail', () => ({
-  default: () => <div>Mock Event</div>
-}));
-
 vi.mock('./components/PlaceDetail', () => ({
   default: () => <div>Mock Place</div>
 }));

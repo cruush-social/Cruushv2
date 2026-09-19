@@ -214,8 +214,8 @@ export default function MapFiltersSurface({
               style={mutualCruushesOnly ? { background: 'var(--cruush-gradient)' } : undefined}
             >
               <span>
-                <span className="block text-sm font-semibold">Mutuals</span>
-                <span className="mt-0.5 block text-xs text-white/68">Show mutuals at the top of the map.</span>
+                <span className="block text-sm font-semibold">Cruushes</span>
+                <span className="mt-0.5 block text-xs text-white/68">Show cruushes at the top of the map.</span>
               </span>
               <span className="shrink-0 rounded-full bg-black/24 px-3 py-1 text-xs font-semibold">
                 {mutualCruushesOnly ? 'On' : 'Off'}

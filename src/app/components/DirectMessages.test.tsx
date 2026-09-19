@@ -243,7 +243,7 @@ describe('DirectMessages', () => {
     confirmSpy.mockRestore();
   });
 
-  it('creates a group from mutuals only', async () => {
+  it('creates a group from cruushes only', async () => {
     getConversations.mockResolvedValue([]);
     getMyCruushActivity.mockResolvedValue({
       mutual: [{
@@ -379,7 +379,7 @@ describe('DirectMessages', () => {
     expect(openConversationOrInbox).toHaveBeenCalledWith(expect.any(Function), '53fd68d7-24fc-4cff-8cd7-a97ec0cadf97', undefined);
   });
 
-  it('shows messageable mutuals on Public when no public profiles are available', async () => {
+  it('shows messageable cruushes on Public when no public profiles are available', async () => {
     getConversations.mockResolvedValue([]);
     getNearbyUsers.mockResolvedValue([]);
     getMyCruushActivity.mockResolvedValue({
@@ -414,7 +414,7 @@ describe('DirectMessages', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Start chat with someone/ }));
 
     expect(await screen.findByText('River')).toBeInTheDocument();
-    expect(screen.queryByText('Showing messageable mutuals because no public profiles are available.')).not.toBeInTheDocument();
+    expect(screen.queryByText('Showing messageable cruushes because no public profiles are available.')).not.toBeInTheDocument();
     expect(screen.queryByText('No nearby people are available right now.')).not.toBeInTheDocument();
   });
 

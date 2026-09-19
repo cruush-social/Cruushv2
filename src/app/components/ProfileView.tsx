@@ -732,10 +732,10 @@ export default function ProfileView() {
                   void handleMessage();
                 }}
                 disabled={openingMessage || !canMessage}
-                aria-label={canMessage ? 'Message' : 'Mutuals only'}
+                aria-label={canMessage ? 'Message' : 'cruushes only'}
               >
                 <CruushIcon name="send" className="mr-2 h-4 w-4" variant="white" />
-                {!canMessage ? 'Mutuals only' : openingMessage ? 'Opening...' : 'Message'}
+                {!canMessage ? 'cruushes only' : openingMessage ? 'Opening...' : 'Message'}
               </Button>
             </div>
             </div>

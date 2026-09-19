@@ -19,7 +19,7 @@ export const CRUUSH_PLUS_FEATURES = [
     description: 'Add up to three photo hearts, post to a specific Crowd, and choose when your post expires.',
   },
   {
-    title: 'Cruise carousel',
+    title: 'Cruise Carousel',
     description: 'Spin through nearby profiles and browse again.',
   },
   {

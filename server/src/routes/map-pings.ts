@@ -35,7 +35,7 @@ export function registerMapPingRoutes(app: FastifyInstance) {
       key: `map-pings:create:${userId}`,
       max: 5,
       windowMs: 60_000,
-      message: "Too many Ping attempts. Try again shortly."
+      message: "Too many Pulse attempts. Try again shortly."
     });
 
     const payload = mapPingPayloadSchema.parse(request.body);

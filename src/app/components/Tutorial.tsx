@@ -39,12 +39,12 @@ export default function Tutorial() {
           <div className="flex items-start gap-3">
             <MessageCircle className="mt-1 h-5 w-5 text-primary" />
             <div>
-              <h3 className="text-base">Messages default to Mutuals</h3>
+              <h3 className="text-base">Messages default to Cruushes</h3>
               <p className="mt-1 text-sm text-white/58">
-                New accounts default to Mutuals, so only mutuals can start chats unless you change it to Public or Crowd.
+                New accounts default to Cruushes, so only cruushes can start chats unless you change it to Public or Crowd.
               </p>
               <Button className="mt-4 rounded-full" variant="outline" onClick={() => navigate('/cruush/settings')}>
-                Open message permissions
+                Open Message permissions
               </Button>
             </div>
           </div>
@@ -71,7 +71,7 @@ export default function Tutorial() {
             <div>
               <h3 className="text-base">Feed and profile controls</h3>
               <p className="mt-1 text-sm text-white/58">
-                Basic members can post text and tags. Feed+ adds up to three photo hearts, specific Crowd audiences, and custom expiration times. Profile tags are searchable in Seeking and Visibility.
+                Basic members can post text and tags. cruush+ adds up to three photo hearts, specific Crowd audiences, and custom expiration times. Profile tags are searchable in Seeking and Visibility.
               </p>
               <div className="mt-4 flex flex-wrap gap-2">
                 <Button className="rounded-full" variant="outline" onClick={() => navigate('/feed')}>
