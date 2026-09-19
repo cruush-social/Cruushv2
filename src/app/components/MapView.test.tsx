@@ -467,6 +467,25 @@ describe('MapView', () => {
     }));
   });
 
+  it('keeps a pinch on the map surface from zooming the page', async () => {
+    render(<MapView onPinClick={vi.fn()} markers={[]} />);
+
+    const surface = screen.getByTestId('maplibre-map').parentElement as HTMLElement;
+    const pageZoomGesture = new Event('gesturestart', { bubbles: true, cancelable: true });
+    surface.dispatchEvent(pageZoomGesture);
+    expect(pageZoomGesture.defaultPrevented).toBe(true);
+
+    const twoFingerMove = new Event('touchmove', { bubbles: true, cancelable: true });
+    Object.defineProperty(twoFingerMove, 'touches', { value: [{}, {}] });
+    surface.dispatchEvent(twoFingerMove);
+    expect(twoFingerMove.defaultPrevented).toBe(true);
+
+    const oneFingerMove = new Event('touchmove', { bubbles: true, cancelable: true });
+    Object.defineProperty(oneFingerMove, 'touches', { value: [{}] });
+    surface.dispatchEvent(oneFingerMove);
+    expect(oneFingerMove.defaultPrevented).toBe(false);
+  });
+
   it('adds Mile High Club fog outside the fifty-mile browse origin', async () => {
     const browseArea = {
       center: {

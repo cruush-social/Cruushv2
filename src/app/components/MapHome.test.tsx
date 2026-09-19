@@ -1107,7 +1107,8 @@ describe('MapHome', () => {
       width: '384px',
     }));
 
-    // A pinch-zoomed page must not drag the map shell into the zoomed window.
+    // A pinch-zoomed page must not resize the map shell into the zoomed window
+    // or drag it around; the bounds from the unzoomed page stay in place.
     Object.assign(visualViewport, {
       height: 383,
       offsetLeft: 90,
@@ -1117,11 +1118,12 @@ describe('MapHome', () => {
     });
     act(() => {
       listeners.get('scroll')?.forEach((listener) => listener(new Event('scroll')));
+      listeners.get('resize')?.forEach((listener) => listener(new Event('resize')));
     });
 
-    await waitFor(() => expect(shell).toHaveClass('inset-0'));
-    expect(shell.style.width).toBe('');
-    expect(shell.style.top).toBe('');
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(shell).toHaveStyle({ height: '766px', left: '0px', top: '0px', width: '384px' });
+    expect(shell).not.toHaveClass('inset-0');
   });
 
   it('rechecks an allowed browser location when a saved out-of-town location marks the member outside NYC', async () => {
