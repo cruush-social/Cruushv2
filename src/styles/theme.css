@@ -1922,7 +1922,7 @@ html[data-cruush-page-framing] :is([data-slot="dialog-overlay"], [data-slot="she
   bottom: var(--cruush-nav-clearance, 6rem) !important;
 }
 
-html[data-cruush-page-framing="fullscreen"] :is([data-slot="dialog-content"], [data-slot="sheet-content"], [data-slot="alert-dialog-content"]):not([data-testid="alpha-bug-dialog"]) {
+html[data-cruush-page-framing="fullscreen"] :is([data-slot="dialog-content"], [data-slot="sheet-content"], [data-slot="alert-dialog-content"]):not([data-testid="alpha-bug-dialog"]):not([data-slot="sheet-content"].inset-y-0) {
   bottom: var(--cruush-nav-clearance, 6rem) !important;
   height: calc(100dvh - var(--cruush-nav-clearance, 6rem)) !important;
   max-height: calc(100dvh - var(--cruush-nav-clearance, 6rem)) !important;

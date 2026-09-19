@@ -172,3 +172,7 @@ September 12-13 Spots reduction for launch: dropped the sports_venue and gym cat
 ## Secret-free operational logging, September 12, 2026
 
 Never record passwords, authentication tokens, session cookies, authorization headers, API keys or token-bearing URLs in application, proxy, error, preview or operational logs. Log only necessary route, method, status and timing metadata. Strip query values and omit raw request/response bodies and headers; provider errors and development previews must not echo secret values. Test these paths with synthetic tokens when verification is permitted. Julien explicitly requested stopping token logging, deleting accessible leaked copies, invalidating exposed tokens, and updating the loaded contract (task `01a09564-f771-7b91-b1db-319f81d01954`).
+
+## Map filter menus in full-screen framing, September 18, 2026
+
+In full-screen framing (mobile, and desktop set to full-screen), the Seeking Filter, Visibility Controls and Spots menus fill the whole screen and are allowed to cover the map top bar and the bottom navigation while open. This is an explicit exception to the no-overlap rule for these three menus only. Other dialogs and sheets keep their existing bottom-navigation clearance. Desktop popup framing is not covered by this decision. Source: Julien, session `3a2c6143-f31c-4d40-b349-3fe7faab569d`, September 18, 2026: "The 3 filter menus are allowed to cover top bsr and bottom nav in full screen/modile".

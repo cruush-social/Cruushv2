@@ -15,6 +15,7 @@ import {
   type DlModeShowOnlyException,
 } from '../lib/dlMode';
 import { requestApi } from '../lib/apiClient';
+import { addDesktopPageLayoutChangedListener, getDesktopPageLayout, useCanChoosePopupLayout } from '../lib/desktopPageLayoutPreferences';
 
 type NsfwPhotoAudience = 'public' | 'mutual_cruushes' | 'mutual_crowds';
 
@@ -25,6 +26,10 @@ export default function DlModeSettings() {
   const [audienceReady, setAudienceReady] = useState(false);
   const [savingAudience, setSavingAudience] = useState(false);
   const [showOnlyException, setShowOnlyException] = useState<DlModeShowOnlyException>(() => getDlModeShowOnlyException());
+  const canChooseLayout = useCanChoosePopupLayout();
+  const [desktopLayout, setDesktopLayout] = useState(getDesktopPageLayout);
+  useEffect(() => addDesktopPageLayoutChangedListener(setDesktopLayout), []);
+  const desktopPopupLayout = canChooseLayout && desktopLayout === 'popups';
 
   useEffect(() => addDlModeChangedListener((nextEnabled) => {
     setEnabled(nextEnabled);
@@ -84,8 +89,23 @@ export default function DlModeSettings() {
 
   return (
     <div className="min-h-screen bg-background pb-20">
-      <header className="sticky top-0 z-10 border-b border-border bg-card/80 p-4 backdrop-blur-sm">
-        <div className="flex items-center gap-4">
+      {/* Desktop popup layout keeps its original header; full-screen matches Ghost Mode. */}
+      {desktopPopupLayout ? (
+        <header className="sticky top-0 z-10 border-b border-border bg-card/80 p-4 backdrop-blur-sm">
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <div className="flex min-w-0 items-center gap-3">
+              <DlModeMark active={enabled} className="h-7 w-7 shrink-0" />
+              <h2 className="truncate text-xl">DL Mode</h2>
+            </div>
+            <BugButtonSlot testId="dl-mode-settings-bug-button-slot" />
+          </div>
+          <p className="mt-1.5 text-sm text-muted-foreground">Explicit photo controls.</p>
+        </header>
+      ) : (
+        <header className="sticky top-0 z-10 flex items-center gap-4 border-b border-border bg-card/80 p-4 backdrop-blur-sm">
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
@@ -94,9 +114,8 @@ export default function DlModeSettings() {
             <h2 className="truncate text-xl">DL Mode</h2>
           </div>
           <BugButtonSlot testId="dl-mode-settings-bug-button-slot" />
-        </div>
-        <p className="mt-1.5 text-sm text-muted-foreground">Explicit photo controls.</p>
-      </header>
+        </header>
+      )}
 
       <div className={ghostSettingsBodyClassName}>
         <div className={ghostSettingsCardClassName}>
