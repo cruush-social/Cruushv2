@@ -9,66 +9,121 @@ worktree was cut.
 The measurement this rests on is in `docs/plans/2026-09-17-map-render-split.md`. This file is the
 how, not the why.
 
-**Assumption:** this builds direction **B**, one React root with portals. That is the direction
-recommended in the earlier doc. If the one you meant was A (pins as pure hand-written DOM), say so
-and I will rewrite this; the staging below would change completely.
+**Assumption:** this builds direction **B**, one React root with portals. If the plan you liked was
+A (pins as pure hand-written DOM), the staging changes completely and I will rewrite it.
 
 ---
 
-## The one decision that makes this small
+## The constraint
 
-The pin is already split into two halves that change for different reasons:
+Performance only. No change to appearance, function or behaviour.
+
+Everything below is held to that. One thing genuinely cannot be held to it in the literal sense,
+and it is named in full under **What does change** rather than buried.
+
+### What does not change
+
+- **The rendered DOM.** Every pin produces byte-identical markup: same element, same class names,
+  same `data-*` attributes, same `aria-label`, same subtree. Stage 4 makes that a checked
+  assertion, not a claim.
+- **Every interaction.** The shell keeps its hand-written DOM and all eleven native listeners
+  exactly as written. Hover, focus, long-press with its move tolerance, contextmenu, click,
+  spiderfy, cluster zoom: untouched code.
+- **Ping and ghost expiry timing.** Same one-second observation granularity as today, to the tick.
+  See 1a.
+- **Visible countdowns.** `GhostRotationCountdown` keeps its own 1s interval at `MapView.tsx:1268`.
+  It renders seconds to the screen and is not in scope.
+
+### What does change
+
+Removing `flushSync` is the change. That is not a side effect of the work, it is the work, and it
+is a timing change by definition:
+
+| | Today | After |
+| --- | --- | --- |
+| A pin's artwork on mount | Committed synchronously inside the creating task, blocking it | Committed on the next React flush |
+| A hover preview | Committed synchronously, blocking the event handler | Committed on the next React flush (stage 3 only) |
+
+In both cases the work lands before the next paint under any normal frame budget, so nothing should
+be visible. But "nothing should be visible" is not "nothing changed", and I would rather say so now
+than have it surface later. The before/after rendered check and the frame capture below exist to
+hold that claim to account.
+
+If even that is more than you want, **stages 1 and 2 stand without stage 3**, and stage 3 is the
+only one that touches the hover path.
+
+---
+
+## The decision that keeps the diff small
+
+The pin is already two halves that change for different reasons:
 
 | Half | What it does | Where |
 | --- | --- | --- |
 | The shell | `document.createElement('button')`, class names, five `dataset` fields, `aria-label`, `title`, and eleven `addEventListener` calls covering hover, focus, long-press, move tolerance, contextmenu and click | `createMarkerElement`, `MapView.tsx:2054-2318` |
 | The artwork | `MapMarkerPin` and everything under it | `MapView.tsx:1955`, rendered into the shell via `createRoot` |
 
-**Only the second half moves.** The shell keeps its hand-written DOM and keeps every native
-listener exactly as written.
+**Only the artwork moves.**
 
 That matters because the click and pointerdown handlers call `stopImmediatePropagation()`
-(`MapView.tsx:2233`, `:2183`), which orders them against MapLibre's own native map listeners.
-React synthetic handlers attach at the root container and would fire at a different point in that
-ordering. Migrating the event layer would risk the map-click filter, the long-press preview and the
-spiderfy behaviour all at once, for no performance gain: the listeners are not what costs anything.
-
-So the diff is: delete one `createRoot` per pin, delete `flushSync`, and render the same
-`MapMarkerPin` elements through portals from the root the app already has.
+(`MapView.tsx:2233`, `:2183`), which orders them against MapLibre's own native map listeners. React
+synthetic handlers attach at the root container and would fire at a different point in that
+ordering. Migrating the event layer would put the map-click filter, the long-press preview and
+spiderfy at risk at once, for no gain: the listeners are not what costs anything.
 
 ---
 
-## Stage 1: stop paying the cost unnecessarily
+## Stage 1: stop paying the cost, change nothing
 
-Independent of the boundary. Ship first, on its own.
+Independent of the boundary. Ships first, on its own.
 
-**1a. `MapHome.tsx:1390`** — the 1s `setInterval` that drives `mapPingClock` exists only to decide
-whether a ping is past `expiresAt`. Replace with a `setTimeout` scheduled for the next actual
-expiry across the loaded pings, rescheduled when that set changes. The pattern is already in the
-neighbouring file at `MapView.tsx:2431` for ghost rotation deadlines.
+**1a. `MapHome.tsx:1390` — gate the tick instead of replacing it.**
 
-Behaviour change, and the only one in this plan: a ping expires at its exact deadline rather than
-within a second after it. Tighter, not looser.
+An earlier draft of this plan proposed swapping the 1s interval for a deadline `setTimeout`. That
+would have made pings expire at their exact deadline instead of within a second of it. Tighter, but
+a behaviour change, so it is out.
 
-**1b. `MapHome.tsx:3010`** — `useMemo` the object props at the `<MapView>` call site
-(`browseArea`, `focusArea`, `focusCoordinates`, `initialViewport`, `radiusCircle`, `ghostLeash`)
-and `useCallback` the inline `onMapClick`. Nothing about their values changes, only how often a new
-identity is created.
+Instead: keep the interval, keep the one-second granularity, and make the tick a no-op unless a
+deadline was actually crossed. Every read of `mapPingClock` is a deadline predicate:
 
-Together these stop `renderedMarkers` re-clustering, `JSON.stringify(renderedMarkers)` re-running,
-and the ghost-radius geojson being rebuilt on every unrelated MapHome state change.
+```
+:1022-1023  user.displayExpiresAtMs <= / > mapPingClock
+:2653       Date.parse(ping.expiresAt) > mapPingClock
+:2663       user.activePing.expiresAt > mapPingClock
+:2762,:2797 mapPingStatus.activePing.expiresAt > mapPingClock
+```
+
+Nothing formats it for display. So every one of those predicates can only flip when `now` crosses
+one of the deadlines in that set. The tick becomes:
+
+```ts
+const next = Date.now();
+if (deadlines.some((d) => prev < d && d <= next)) setMapPingClock(next);
+```
+
+Same interval, same granularity, same predicate results on every tick, provably. The difference is
+that the other fifty-nine ticks a minute stop rebuilding every marker, re-clustering, and
+re-serialising the array.
+
+**1b. `MapHome.tsx:3010` — memoise the props at the `<MapView>` call site.**
+
+`useMemo` the objects (`browseArea`, `focusArea`, `focusCoordinates`, `initialViewport`,
+`radiusCircle`, `ghostLeash`) and `useCallback` the inline `onMapClick`. Same values, fewer
+identities. Stops `renderedMarkers` re-clustering and the ghost-radius geojson rebuilding on every
+unrelated MapHome state change, down to a keystroke in the city-request input.
+
+Neither touches rendered output. Stage 1 alone should be most of the win.
 
 ## Stage 2: the boundary move
 
-**2a. `RenderedMapMarker` (`MapView.tsx:629`)** — drop the `root` field. Add nothing.
+**2a. `RenderedMapMarker` (`:629`)** — drop the `root` field.
 
-**2b. `createMarkerElement` (`:2054`)** — remove `const root = createRoot(element)` (`:2085`), the
-`renderMarker` helper (`:2101-2105`) and its call at `:2311`. Keep the element, every listener, and
-`setPreviewed`'s imperative half: `element.dataset.markerPreviewed`, the `zIndex` swap and
-`aria-pressed` (`:2106-2126`). `setPreviewed` gains a callback the caller supplies for the React
-half.
+**2b. `createMarkerElement` (`:2054`)** — remove `createRoot` (`:2085`), the `renderMarker` helper
+(`:2101-2105`) and its call at `:2311`. Keep the element, every listener, and `setPreviewed`'s
+imperative half: `element.dataset.markerPreviewed`, the `zIndex` swap, `aria-pressed`
+(`:2106-2126`).
 
-**2c. MapView holds the hosts.** A `useState` keyed by marker id:
+**2c. MapView holds the hosts**, keyed by id:
 
 ```ts
 type PinHost = { id: string; marker: MapMarker; element: HTMLElement; previewed: boolean };
@@ -77,8 +132,8 @@ const [pinHosts, setPinHosts] = useState<Map<string, PinHost>>(() => new Map());
 
 The marker sync effect (`:3041`) writes this map instead of calling into a per-pin root. **Keyed by
 id, a Map cannot hold the same pin twice.** That is the structural reason this also closes the
-duplicate-pin bug currently failing `session-interactions.spec.ts:832` on `main`, where
-`Open Nearby Ghost on map` resolves to two elements carrying the same `data-map-marker-id`.
+duplicate-pin bug currently red on `main`, where `Open Nearby Ghost on map` resolves to two
+elements carrying the same `data-map-marker-id`.
 
 **2d. MapView renders them**, inside the existing return (`:3223`):
 
@@ -90,25 +145,37 @@ duplicate-pin bug currently failing `session-interactions.spec.ts:832` on `main`
 ))}
 ```
 
-**2e. `cleanupRenderedMarker` (`:2378`)** — delete the host from `pinHosts` so React unmounts that
-portal, then `marker.remove()` as now. The deferred `queueMicrotask(() => root.unmount())` goes
-away with the root.
+**2e. `cleanupRenderedMarker` (`:2378`)** — delete the host so React unmounts that portal, then
+`marker.remove()` as now. The deferred `queueMicrotask(() => root.unmount())` goes with the root.
 
-## Stage 3: preview becomes React state
+## Stage 3 (optional): preview becomes React state
 
-`setPreviewed` stops driving a render directly. It does its imperative half, then flips
-`previewed` on that one host. With `MapMarkerPin` wrapped in `React.memo`, a hover re-renders one
-pin instead of committing a whole root synchronously.
+`setPreviewed` does its imperative half, then flips `previewed` on that one host, with
+`MapMarkerPin` memoised. A hover then re-renders one pin instead of committing a root
+synchronously.
 
-## Stage 4: confirm the cost is gone
+This is the only stage that touches the hover path, and the only one where a frame of difference
+could in principle be seen. **Drop it if you want the hover path untouched**; stages 1, 2 and 4
+stand alone and keep almost all of the gain.
 
-`flushSync` and `createRoot` should have no remaining callers in `src/app`. Assert it:
+## Stage 4: prove the output is identical
+
+Two assertions, not prose.
+
+**4a. No roots left.** `createRoot` and `flushSync` should have no callers in `src/app` outside
+`src/main.tsx`:
 
 ```
-grep -rn "createRoot\|flushSync" src/app --include=*.tsx --include=*.ts | grep -v main.tsx
+grep -rn "createRoot\|flushSync" src/app --include=*.tsx --include=*.ts
 ```
 
-`src/main.tsx` keeps the app's single `createRoot`. Nothing else should match.
+**4b. DOM equivalence.** Render the map against a fixed marker set covering every `MapMarkerPin`
+branch (person, person cluster, venue cluster, place, event, ghost, ping-active, spiderfied), on
+`6f52a28` and on the branch, and diff each marker element's `outerHTML`. Identical output is the
+whole requirement, so it should be a check rather than a promise.
+
+Per L1 this is new scaffolding during what is not a bug fix, so it is yours to keep or bin once the
+change lands. I would keep it: it is the thing that answers "did the appearance change".
 
 ---
 
@@ -116,41 +183,39 @@ grep -rn "createRoot\|flushSync" src/app --include=*.tsx --include=*.ts | grep -
 
 | Risk | Why it might bite | Check |
 | --- | --- | --- |
-| Pin content arrives a tick later than the container | `flushSync` currently fills the element before it is handed to MapLibre | The shell carries explicit `h-[128px] w-[103px]`, and MapLibre positions by transform on the container, so content timing should not move a pin. Measure pin centres before and after at 375 and 1280. |
-| Unmount ordering against `marker.remove()` | This is where the duplicate-pin bug already lives | Pan and zoom hard, then assert every `data-map-marker-id` on the page is unique. Add that assertion to the marker test. |
-| Portal event bubbling | React events bubble along the React tree, not the DOM | The map-click filter at `:2049` uses `target.closest('[data-map-marker-pin="true"]')`, which is DOM-based, and the pin's own listeners stay native. Verify rather than assume: click a pin, click the map, confirm the sheet opens and closes as now. |
-| Spiderfy and cluster pins | They render through the same `MapMarkerPin` switch | Covered by the existing cluster tests; run them. |
+| Pin content arrives a tick later than the container | `flushSync` currently fills the element before MapLibre gets it | The shell carries explicit `h-[128px] w-[103px]` and MapLibre positions by transform on the container, so content timing should not move a pin. Measure pin centres before and after at 375 and 1280. |
+| Unmount ordering against `marker.remove()` | This is where the duplicate-pin bug already lives | Pan and zoom hard, then assert every `data-map-marker-id` on the page is unique. |
+| Portal event bubbling | React events bubble along the React tree, not the DOM | The map-click filter at `:2049` uses `closest()`, which is DOM-based, and the pin's listeners stay native. Verify rather than assume: click a pin, click the map. |
+| Cluster and spiderfy pins | Same `MapMarkerPin` switch | Covered by 4b and the existing cluster tests. |
 
-## Verification, per stage
+## Verification
 
-Targeted, per L4. Not the full suite.
+Targeted, per L4:
 
 ```
 pnpm vitest run src/app/components/MapView.test.tsx src/app/components/MapHome.test.tsx
 ```
 
-That is 74 + 82 tests over the two files being changed. Then:
+74 + 82 tests over the two files being changed. Then:
 
 - `pnpm check:layout` at 375 / 768 / 1280 for D1-D7.
 - `vite build`.
-- `pnpm exec playwright test --config playwright.regression.config.ts` for
-  `session-interactions.spec.ts` and `e2e/map-ping.spec.ts`, the two specs that touch marker DOM.
-  Note that spec is **already red on `main`**, so the bar is "no test red here that is not red on
-  `6f52a28`", compared run to run, not "all green".
-- Rendered before and after per B1/B2: 375px mobile and desktop, uncropped, plus a React Profiler
-  commit count for one idle minute on the map.
-
-No visual change is intended by any stage. Any pixel that moves is a bug in the change, not a
-tradeoff.
+- `session-interactions.spec.ts` and `e2e/map-ping.spec.ts`, the two specs that touch marker DOM.
+  That regression spec is **already red on `main`**, so the bar is "nothing red here that is not
+  red on `6f52a28`", compared run to run, not all green.
+- Rendered before and after per B1/B2: 375px mobile and desktop, uncropped. Plus a frame capture of
+  a hover and of a pan, which is where a timing difference would show if it shows anywhere.
+- A React Profiler commit count for one idle minute on the map, before and after. That number is
+  the point of the exercise.
 
 ## If it goes wrong
 
-Each stage is its own commit and reverts on its own. Stage 1 is independent of 2-4 entirely.
-Stage 2 is the only one that changes how pins reach the screen; if the rendered check disagrees
-with the before shot, revert that commit rather than patch forward.
+Each stage is its own commit and reverts alone. Stage 1 is independent of 2-4. Stage 2 is the only
+one that changes how pins reach the screen; if 4b disagrees, revert that commit rather than patch
+forward.
 
 ## Not in scope
 
-No product, design or behaviour change beyond the ping-expiry timing named in 1a. No deletions. No
-map style, label sizing or canvas filter work (C5). No new dependency. No environment variables.
-`LocalFeed` and `DirectMessages` carry the same shape of problem and are not touched here.
+No product, design or behaviour change. No deletions. No map style, label sizing or canvas filter
+work (C5). No new dependency. No environment variables. `LocalFeed` and `DirectMessages` carry the
+same shape of problem and are not touched here.
