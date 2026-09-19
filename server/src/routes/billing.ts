@@ -1,15 +1,15 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import {
-  CRUUSH_PLUS_PLANS,
   TEST_CHECKOUT_WARNING,
   completeFakeCheckoutSession,
   createFakeCheckoutSession,
-  getPlanAvailability,
+  getPublicCruushPlusPlans,
   getUserBillingStatus,
   loadCheckoutSession
 } from "../billing.js";
 import { getActiveAccountUserId, getAuthenticatedUserId } from "../request-auth.js";
+import { PING_PACKS } from "../ping-packs.js";
 
 const checkoutSessionPayloadSchema = z.object({
   planId: z.string().min(1)
@@ -20,9 +20,19 @@ const checkoutSessionParamsSchema = z.object({
 }).strict();
 
 export async function registerBillingRoutes(app: FastifyInstance) {
+  app.get("/api/billing/ping-packs", async (request, reply) => {
+    await getAuthenticatedUserId(request);
+
+    return reply.send({
+      data: {
+        currency: "USD",
+        packs: PING_PACKS
+      }
+    });
+  });
+
   app.get("/api/billing/plans", async (request, reply) => {
     await getAuthenticatedUserId(request);
-    const availability = await getPlanAvailability(app);
 
     return reply.send({
       data: {
@@ -30,10 +40,7 @@ export async function registerBillingRoutes(app: FastifyInstance) {
         testCheckout: true,
         testWarning: TEST_CHECKOUT_WARNING,
         currency: "USD",
-        plans: CRUUSH_PLUS_PLANS.map((plan) => ({
-          ...plan,
-          supplyRemaining: availability.get(plan.id) ?? null
-        }))
+        plans: await getPublicCruushPlusPlans(app)
       }
     });
   });

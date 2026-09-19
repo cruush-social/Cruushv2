@@ -101,4 +101,5 @@ coverage/
 .claude/worktrees/
 ._.claude
 
+# Local session task records
 /.ai-queues/

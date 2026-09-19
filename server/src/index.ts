@@ -44,6 +44,7 @@ import { startPendingPhotoModerationRetryScheduler } from "./recheck-pending-pho
 import { startMapPingCleanupScheduler } from "./map-ping-cleanup.js";
 import { startPlaceCheckinExpiryScheduler } from "./place-checkin-expiry.js";
 import { syncAllVerifiedMembersToResendAudience } from "./resend-audience.js";
+import { startCryptoWatcher } from "./crypto-watcher-runtime.js";
 
 const config = loadConfig();
 const app = buildServer(config);
@@ -52,6 +53,7 @@ let stopMessageExpiryScheduler: (() => void) | null = null;
 let stopAccountDeletionMediaCleanupScheduler: (() => void) | null = null;
 let stopPendingPhotoModerationRetryScheduler: (() => void) | null = null;
 let stopMapPingCleanupScheduler: (() => void) | null = null;
+let stopCryptoWatcher: (() => void) | null = null;
 let stopPlaceCheckinExpiryScheduler: (() => void) | null = null;
 
 const shutdown = async () => {
@@ -60,6 +62,7 @@ const shutdown = async () => {
   stopAccountDeletionMediaCleanupScheduler?.();
   stopPendingPhotoModerationRetryScheduler?.();
   stopMapPingCleanupScheduler?.();
+  stopCryptoWatcher?.();
   stopPlaceCheckinExpiryScheduler?.();
   await app.close();
 };
@@ -82,6 +85,9 @@ stopMessageExpiryScheduler = startMessageExpiryScheduler(app);
 stopAccountDeletionMediaCleanupScheduler = startAccountDeletionMediaCleanupScheduler(app);
 stopPendingPhotoModerationRetryScheduler = startPendingPhotoModerationRetryScheduler(app);
 stopMapPingCleanupScheduler = startMapPingCleanupScheduler(app);
+// Returns null and logs why unless the processor, the watcher, and a chain
+// endpoint are all explicitly configured.
+stopCryptoWatcher = startCryptoWatcher(app)?.stop ?? null;
 stopPlaceCheckinExpiryScheduler = startPlaceCheckinExpiryScheduler(app);
 // Side Quest nudges are off for now at Julien's request: no prompt, and no
 // notification standing in for one. The sweep is left in place, so turning

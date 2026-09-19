@@ -73,6 +73,7 @@ const TwoFactorSettings = lazyRoute(() => import('./components/TwoFactorSettings
 const PublicInfoPage = lazyRoute(() => import('./components/PublicInfoPage'));
 const Changelog = lazyRoute(() => import('./components/Changelog'));
 const Survey = lazyRoute(() => import('./components/Survey'));
+const CruushPlusStore = lazyRoute(() => import('./components/CruushPlusStore'));
 
 const PUBLIC_INFO_ROUTES = [
   { path: '/about', page: 'about' },
@@ -80,6 +81,7 @@ const PUBLIC_INFO_ROUTES = [
   { path: '/privacy', page: 'privacy' },
   { path: '/safety', page: 'safety' },
   { path: '/security', page: 'security' },
+  { path: '/billing-policy', page: 'billing' },
   { path: '/content-removal', page: 'content-removal' },
   { path: '/human-trafficking-policy', page: 'human-trafficking' },
   { path: '/takedown-policy', page: 'takedown' },
@@ -674,6 +676,8 @@ export default function App({
               <Route path="/privacy/audit" element={<PrivacyAudit />} />
               <Route path="/lucky" element={<FeelingLucky />} />
               <Route path="/requests" element={<RequestsDashboard />} />
+              <Route path="/store" element={<CruushPlusStore key="plus" />} />
+              <Route path="/store/pulse" element={<CruushPlusStore key="pulse" product="ping_pack" />} />
               <Route path="/upgrade" element={<Navigate to="/rewards" replace />} />
               <Route path="/rewards" element={<Rewards />} />
               <Route path="/checkout/success" element={<CruushPlusSuccess />} />

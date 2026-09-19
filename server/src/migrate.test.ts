@@ -23,6 +23,30 @@ describe("migration runner", () => {
     expect(listedFiles).toEqual(sqlFiles);
   });
 
+  it("sets the new crypto order database fallback to 24 hours", async () => {
+    const windowSql = await readFile(
+      path.join(serverRoot, "sql", "125_crypto_payment_24_hour_window.sql"),
+      "utf8"
+    );
+
+    expect(windowSql).toContain("alter column expires_at set default");
+    expect(windowSql).toContain("interval '1440 minutes'");
+  });
+
+  it("keeps Ping pack grants permanent, exact, and linked to one payment intent", async () => {
+    const pingPackSql = await readFile(
+      path.join(serverRoot, "sql", "123_ping_pack_purchases.sql"),
+      "utf8"
+    );
+
+    expect(pingPackSql).toContain("product_type in ('cruush_plus', 'ping_pack')");
+    expect(pingPackSql).toContain("crypto_payment_intent_id uuid not null unique");
+    expect(pingPackSql).toContain("pack_id = 'ping_3' and ping_count = 3 and amount_cents = 299");
+    expect(pingPackSql).toContain("pack_id = 'ping_10' and ping_count = 10 and amount_cents = 799");
+    expect(pingPackSql).toContain("pack_id = 'ping_25' and ping_count = 25 and amount_cents = 1499");
+    expect(pingPackSql).not.toMatch(/expires_at|expiration/i);
+  });
+
   it("keeps cruush+ billing ownership on app users before profile onboarding", async () => {
     const billingSql = await readFile(path.join(serverRoot, "sql", "027_cruush_plus_billing.sql"), "utf8");
     const rewardsSql = await readFile(path.join(serverRoot, "sql", "042_rewards_and_two_factor.sql"), "utf8");

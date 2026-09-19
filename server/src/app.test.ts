@@ -1138,16 +1138,44 @@ describe("server", () => {
         testCheckout: true,
         currency: "USD",
         plans: expect.arrayContaining([
-          expect.objectContaining({ id: "plus_weekly", amountCents: 999, interval: "week" }),
+          expect.objectContaining({ id: "plus_weekly", amountCents: 1099, interval: "week" }),
           expect.objectContaining({ id: "plus_monthly", amountCents: 1899, interval: "month" }),
           expect.objectContaining({ id: "plus_3_month", amountCents: 3597, interval: "3_months" }),
-          expect.objectContaining({ id: "plus_6_month", amountCents: 5994, interval: "6_months" }),
+          expect.objectContaining({ id: "plus_6_month", amountCents: 5394, interval: "6_months" }),
           expect.objectContaining({ id: "plus_annual", amountCents: 11999, interval: "year" }),
-          expect.objectContaining({ id: "founder_annual", amountCents: 9900, interval: "year", supplyLimit: 1000 }),
-          expect.objectContaining({ id: "lifetime_founder", amountCents: 99900, interval: "lifetime", supplyLimit: 250 })
+          expect.objectContaining({ id: "founder_annual", amountCents: 9999, interval: "year", supplyLimit: 1000 }),
+          expect.objectContaining({ id: "lifetime_founder", amountCents: 99999, interval: "lifetime", supplyLimit: 1000 })
         ])
       }
     });
+    expect(response.json().data.plans).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: "plus_lifetime" })
+    ]));
+  });
+
+  it("releases the $1,999.99 regular lifetime plan only after founder lifetime sells out", async () => {
+    query.mockResolvedValueOnce({
+      rows: [{ plan_id: "lifetime_founder", redemption_count: 1000 }]
+    });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/billing/plans",
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data.plans).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        id: "plus_lifetime",
+        amountCents: 199999,
+        interval: "lifetime",
+        isFounder: false,
+        isLifetime: true
+      })
+    ]));
   });
 
   it("creates and completes a visible fake lifetime founder checkout without consuming real founder supply", async () => {
@@ -1160,7 +1188,7 @@ describe("server", () => {
           processor: "fake",
           status: "pending",
           test_mode: true,
-          amount_cents: 99900,
+          amount_cents: 99999,
           currency: "USD",
           created_at: "2026-07-07T12:00:00.000Z",
           expires_at: "2026-07-07T12:30:00.000Z",
@@ -1193,6 +1221,7 @@ describe("server", () => {
 
     query.mockReset();
     query
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({
         rows: [{
           id: "7d39c89e-e816-4684-82e0-b48e3f8127d4",
@@ -1201,10 +1230,11 @@ describe("server", () => {
           processor: "fake",
           status: "pending",
           test_mode: true,
-          amount_cents: 99900,
+          amount_cents: 99999,
           currency: "USD"
         }]
       })
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({

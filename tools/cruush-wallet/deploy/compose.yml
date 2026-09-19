@@ -1,0 +1,18 @@
+services:
+  forwarding:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    init: true
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?Set the processor database URL}
+      CRYPTO_PROCESSOR_BASE_RPC_URL: ${CRYPTO_PROCESSOR_BASE_RPC_URL:-}
+      CRYPTO_PROCESSOR_ARBITRUM_RPC_URL: ${CRYPTO_PROCESSOR_ARBITRUM_RPC_URL:-}
+      CRYPTO_PROCESSOR_ETHEREUM_RPC_URL: ${CRYPTO_PROCESSOR_ETHEREUM_RPC_URL:-}
+      CRYPTO_PROCESSOR_BITCOIN_ESPLORA_URL: ${CRYPTO_PROCESSOR_BITCOIN_ESPLORA_URL:-}
+    volumes:
+      - ${CRUUSH_FORWARDING_KEY_FILE:?Set the private forwarding file path}:/run/cruush/forwarding.json:ro
