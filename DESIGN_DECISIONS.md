@@ -125,3 +125,7 @@ Hanky choices use the same icon size and badge border geometry as ordinary choic
 ## Secret-free operational logging, September 12, 2026
 
 Never record passwords, authentication tokens, session cookies, authorization headers, API keys or token-bearing URLs in application, proxy, error, preview or operational logs. Log only necessary route, method, status and timing metadata. Strip query values and omit raw request/response bodies and headers; provider errors and development previews must not echo secret values. Test these paths with synthetic tokens when verification is permitted. Julien explicitly requested stopping token logging, deleting accessible leaked copies, invalidating exposed tokens, and updating the loaded contract (task `01a09564-f771-7b91-b1db-319f81d01954`).
+
+## Order history, September 12, 2026
+
+Members access their crypto order history from Settings. Include cruush+ and Pulse purchases, the order's payment and activation state, and its network confirmation progress after the payment deadline. Expiry must not hide an existing order. Each account sees only its own orders. Preserve existing checkout rules, payment deadlines and all unrelated Settings controls. Source: task `01a095c7-d9c8-7d51-980b-24acbc0daf99`, user “uesrs need a order hisotry page” and “id just put it in settings”, following the request to see confirmation progress after expiry. Processor changes stay on `security/crypto-processor-review-20260908`; no main merge or deployment is authorized.

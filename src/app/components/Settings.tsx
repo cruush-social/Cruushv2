@@ -312,6 +312,7 @@ export default function Settings({ embedded = false, onBack, onClose, onOpenMile
           description: 'Streaks, referrals, and promotional access.',
           action: () => navigate('/rewards'),
         },
+        { icon: History, label: 'Order history', action: () => navigate('/settings/orders') },
         { icon: Mail, label: 'Change email', action: () => setIsEmailDialogOpen(true) },
         { icon: KeyRound, label: 'Change password', action: () => setIsPasswordDialogOpen(true) },
         {

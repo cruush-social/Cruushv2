@@ -67,6 +67,53 @@ describe("crypto payment routes", () => {
     await disabledApp.close();
   });
 
+  it("requires authentication and rejects invalid order-history cursors", async () => {
+    const anonymous = await disabledApp.inject({ method: "GET", url: "/api/crypto/orders" });
+    expect(anonymous.statusCode).toBe(401);
+    const invalid = await disabledApp.inject({ method: "GET", url: "/api/crypto/orders?before=invalid", headers: { "x-user-id": userId } });
+    expect(invalid.statusCode).toBe(400);
+  });
+
+  it("returns bounded owner-scoped history with expired confirmation progress and no private wallet fields", async () => {
+    const before = "00000000-0000-4000-8000-000000000099";
+    const rows = Array.from({ length: 21 }, (_, index) => ({
+      id: `00000000-0000-4000-8000-${String(index + 10).padStart(12, '0')}`,
+      user_id: userId, plan_id: index === 0 ? "ping_3" : "plus_monthly",
+      product_type: index === 0 ? "ping_pack" : "cruush_plus",
+      asset: "BTC", network: "bitcoin", amount_usd_cents: 1899,
+      quoted_amount_atomic: "10000", payment_address: "fixture-address",
+      status: "expired", metadata: { privateFixture: "must-not-leave-server" },
+      wallet_xpub_fingerprint: "private-wallet-fingerprint", derivation_index: 42,
+      expires_at: "2026-09-01T10:00:00Z", created_at: "2026-08-31T10:00:00Z",
+      updated_at: "2026-09-02T10:00:00Z", paid_at: null, entitlement_granted_at: null,
+    }));
+    const query = vi.fn(async (sql: string, values: unknown[] = []) => {
+      if (sql.includes("select i.* from crypto_payment_intents i")) {
+        expect(sql).toContain("i.user_id = $1");
+        expect(sql).toContain("c.user_id = $1");
+        expect(sql).toContain("order by i.created_at desc, i.id desc");
+        expect(values).toEqual([userId, before, 21]);
+        return { rows };
+      }
+      if (sql.includes("crypto_bitcoin_transfers")) {
+        expect(values[1]).toBe(userId);
+        return { rows: [{ amount_atomic: "10000", confirmations: 3 }] };
+      }
+      throw new Error("Unexpected history query");
+    });
+    const app = buildServer(baseConfig(), { db: databaseWithTransaction(query), rateLimiter: createMemoryRateLimiter() });
+    try {
+      const response = await app.inject({ method: "GET", url: `/api/crypto/orders?before=${before}`, headers: { "x-user-id": userId } });
+      expect(response.statusCode).toBe(200);
+      const history = response.json().data;
+      expect(history.orders).toHaveLength(20);
+      expect(history.nextCursor).toBe(rows[19].id);
+      expect(history.orders[0]).toMatchObject({ name: "3 Pulses", status: "expired", confirmations: 3, confirmationTarget: 6, paymentAmountReceived: true, activatedAt: null });
+      expect(history.orders[1].name).toBe("Monthly cruush+");
+      expect(response.body).not.toMatch(/private-wallet|must-not-leave|derivation|payment_address|user_id/);
+    } finally { await app.close(); }
+  });
+
   it("reports a disabled processor without exposing wallet configuration", async () => {
     const response = await disabledApp.inject({
       method: "GET",

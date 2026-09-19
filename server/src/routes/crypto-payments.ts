@@ -1,4 +1,5 @@
 import { withCryptoPaymentProgress } from "../crypto-payment-progress.js";
+import { loadCryptoOrderHistory } from "../crypto-order-history.js";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { getCruushPlusPlan } from "../billing.js";
@@ -231,6 +232,13 @@ export async function registerCryptoPaymentRoutes(
     });
 
     return reply.code(201).send({ data: await withCryptoPaymentDisplay(await withCryptoPaymentProgress(app.db, app.config, intent)) });
+  });
+
+  app.get("/api/crypto/orders", async (request, reply) => {
+    const userId = await getAuthenticatedUserId(request);
+    await assertCryptoPaymentIntentReadRateLimit(app, userId);
+    const query = z.object({ before: z.uuid().optional() }).strict().parse(request.query);
+    return reply.send({ data: await loadCryptoOrderHistory(app.db, app.config, userId, query.before) });
   });
 
   app.get("/api/crypto/payment-intents/current", async (request, reply) => {
