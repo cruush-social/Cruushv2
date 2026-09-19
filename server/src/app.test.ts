@@ -11475,6 +11475,81 @@ describe("server", () => {
     expect(response.json().data.crowdTargets).toEqual(["Dyke"]);
   });
 
+  it("creates a Feed+ post for several Crowds with blind tokens for every targeted Crowd", async () => {
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          cruush_plus_enabled: true,
+          cruush_plus_expires_at: null
+        }]
+      })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "post-multi-crowds",
+          user_id: userId,
+          content: "Hosting for two crowds",
+          expires_in: "never",
+          expires_at: "infinity",
+          created_at: "2026-04-28T12:10:00.000Z",
+          display_name: "Cruusher",
+          pronouns: ["they/them"],
+          photos: [],
+          audience: "crowd",
+          crowd_targets: ["Dyke", "Gay"]
+        }]
+      });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/posts",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        content: "Hosting for two crowds",
+        expiresIn: "never",
+        audience: "crowd",
+        crowdTargets: ["Dyke", "Gay", "Dyke"]
+      }
+    });
+
+    expect(response.statusCode).toBe(201);
+    const insertCall = query.mock.calls[2];
+    expect(insertCall?.[0]).toContain("insert into feed_post_crowd_targets");
+    expect(insertCall?.[1]?.[13]).toEqual(["Dyke", "Gay"]);
+    const tokenRows = JSON.parse(String(insertCall?.[1]?.[14])) as Array<{ crowd: string; token_hash: string; token_key_version: string }>;
+    expect([...new Set(tokenRows.map((row) => row.crowd))].sort()).toEqual(["Dyke", "Gay"]);
+    for (const row of tokenRows) {
+      expect(row.token_hash).toMatch(/^[a-f0-9]{64}$/);
+    }
+    expect(response.json().data.audience).toBe("crowd");
+    expect(response.json().data.crowdTargets).toEqual(["Dyke", "Gay"]);
+  });
+
+  it("rejects a Crowd audience post with no Crowd chosen", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/posts",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        content: "Nobody to post to",
+        expiresIn: "never",
+        audience: "crowd",
+        crowdTargets: []
+      }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json().error.code).toBe("VALIDATION_ERROR");
+    expect(response.json().error.details.fieldErrors.crowdTargets).toEqual([
+      "Pick at least one Crowd to post to, or choose a different audience."
+    ]);
+    expect(query).not.toHaveBeenCalled();
+  });
+
   it("deletes the current user's feed post on DELETE /api/posts/:postId", async () => {
     const postId = "7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2";
     query

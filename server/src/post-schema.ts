@@ -27,14 +27,6 @@ const crowdTargetsSchema = z.array(z.string()).optional().default([])
       }
     }
 
-    if (normalizedValues.length > 1) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Choose one Crowd for this post."
-      });
-      return z.NEVER;
-    }
-
     return normalizedValues;
   });
 
@@ -63,11 +55,11 @@ export const createPostPayloadSchema = z.object({
     });
   }
 
-  if (payload.audience === "crowd" && payload.crowdTargets.length !== 1) {
+  if (payload.audience === "crowd" && payload.crowdTargets.length === 0) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ["crowdTargets"],
-      message: "Choose one Crowd for this post."
+      message: "Pick at least one Crowd to post to, or choose a different audience."
     });
   }
 

@@ -706,7 +706,7 @@ describe('LocalFeed', () => {
     expect(await screen.findByTestId('cruush-plus-card')).toBeInTheDocument();
   });
 
-  it('lets Feed+ post to one specific allowed Crowd', async () => {
+  it('lets Feed+ post to every selected allowed Crowd', async () => {
     getFeedPosts.mockResolvedValue([]);
     createFeedPost.mockResolvedValue({
       id: 'post-crowd',
@@ -739,12 +739,12 @@ describe('LocalFeed', () => {
       target: { value: 'hello crowd' },
     });
 
-    const crowdSettings = await openFeedSettings();
-    fireEvent.click(within(crowdSettings).getByRole('button', { name: 'Specific Crowd +' }));
-    fireEvent.click(within(crowdSettings).getByRole('button', { name: 'Dyke' }));
-    fireEvent.click(within(crowdSettings).getByRole('button', { name: 'Gay' }));
-    expect(within(crowdSettings).queryByRole('button', { name: 'T4T' })).not.toBeInTheDocument();
-    fireEvent.keyDown(crowdSettings, { key: 'Escape' });
+    // The audience and Crowd picker live in the composer.
+    fireEvent.click(await screen.findByRole('button', { name: 'Specific Crowd +' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Crowds' }));
+    fireEvent.click(await screen.findByRole('option', { name: 'Dyke', exact: true }));
+    fireEvent.click(await screen.findByRole('option', { name: 'Gay', exact: true }));
+    expect(screen.queryByRole('option', { name: 'T4T', exact: true })).not.toBeInTheDocument();
 
     fireEvent.click(await screen.findByRole('button', { name: 'Post' }));
 
@@ -752,7 +752,7 @@ describe('LocalFeed', () => {
       content: 'hello crowd',
       expiresIn: 'never',
       audience: 'crowd',
-      crowdTargets: ['Gay'],
+      crowdTargets: ['Dyke', 'Gay'],
       photoMediaIds: [],
       tags: [],
     }));

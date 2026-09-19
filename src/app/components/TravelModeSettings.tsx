@@ -590,7 +590,7 @@ export default function TravelModeSettings({ embedded = false, onBack, onClose, 
         <BugButtonSlot testId="travel-mode-settings-bug-button-slot" />
       </header>
 
-      <main className="cruush-travel-mode-main mx-auto flex min-h-0 w-full max-w-2xl flex-1 flex-col px-4 py-4">
+      <main className="cruush-travel-mode-main mx-auto flex min-h-0 w-full max-w-2xl flex-1 flex-col px-4 py-4 lg:overflow-y-auto">
         <p className="cruush-travel-mode-intro mb-3 text-sm text-muted-foreground">Drop your pin anywhere in the current map area to explore and connect with people there.</p>
         <TravelModeSection onTravelPinChange={onTravelPinChange} />
       </main>
