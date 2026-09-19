@@ -1,5 +1,5 @@
 import { BrowserRouter, MemoryRouter, Routes, Route, Navigate } from 'react-router';
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useState } from 'react';
 import { lazyRoute } from './lib/lazyRoute';
 import { useSyncDistancePreferences } from './lib/distancePreferences';
 import Auth from './components/Auth';
@@ -14,6 +14,7 @@ import { Toaster } from './components/ui/sonner';
 import { loadCurrentSession } from './lib/sessionUser';
 import { canUseDeveloperMapToolsEmail } from './lib/developerMapTools';
 import { canTestOnboarding } from './lib/adminOnboarding';
+import AdminOnboardingReplay, { AdminOnboardingReplayFrame } from './components/AdminOnboardingReplay';
 import { recordDailyRewardCheckIn, updateRewardTimezone } from './lib/rewardsApi';
 import type { AuthSessionPayload } from './lib/authApi';
 import { refreshExistingPushSubscription } from './lib/pushNotifications';
@@ -55,7 +56,6 @@ const TravelModeSettings = lazyRoute(() => import('./components/TravelModeSettin
 const MapPresenceSettings = lazyRoute(() => import('./components/MapPresenceSettings'));
 const DlModeDefaultNotice = lazyRoute(() => import('./components/DlModeDefaultNotice'));
 const OnboardingPreview = lazyRoute(() => import('./components/OnboardingPreview'));
-const AdminOnboardingReplay = lazyRoute(() => import('./components/AdminOnboardingReplay'));
 const SupportPage = lazyRoute(() => import('./components/SupportPage'));
 const GhostModeSettings = lazyRoute(() => import('./components/GhostModeSettings'));
 const PrivacyAudit = lazyRoute(() => import('./components/PrivacyAudit'));
@@ -238,6 +238,10 @@ export default function App({
   }, [authStatus, session?.user.id]);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
   const [showOnboardingReward, setShowOnboardingReward] = useState(false);
+  // The admin onboarding test renders through the same screen a new member
+  // gets, outside the signed-in app shell, so the two cannot drift apart.
+  const [onboardingReplayActive, setOnboardingReplayActive] = useState(false);
+  const startOnboardingReplay = useCallback(() => setOnboardingReplayActive(true), []);
   const devOnboardingPreview = import.meta.env.DEV && window.location.pathname === '/dev/onboarding-preview';
   const authShellControlsScrolled = useAuthShellControlsScrolled(authStatus === 'signed_out');
 
@@ -347,6 +351,23 @@ export default function App({
     } else {
       redirectToMap();
     }
+  };
+
+  const handleOnboardingReplayComplete = (
+    _nextSession?: AuthSessionPayload,
+    destination: 'map' | 'rewards' = 'map',
+  ) => {
+    setOnboardingReplayActive(false);
+    if (destination === 'rewards') {
+      redirectToRewards();
+    } else {
+      redirectToMap();
+    }
+  };
+
+  const handleOnboardingReplayClose = () => {
+    setOnboardingReplayActive(false);
+    window.history.replaceState({}, '', '/settings');
   };
 
   const handleAgeVerified = (nextSession: AuthSessionPayload) => {
@@ -506,7 +527,29 @@ export default function App({
     );
   }
 
-  if (needsOnboarding) {
+  const renderOnboardingScreen = ({
+    onComplete,
+    needsCodeOfConduct,
+    codeOfConductVersion,
+    previewMode = false,
+    onCloseReplay,
+  }: {
+    onComplete: (nextSession?: AuthSessionPayload, destination?: 'map' | 'rewards', rewardGranted?: boolean) => void;
+    needsCodeOfConduct: boolean;
+    codeOfConductVersion: string;
+    previewMode?: boolean;
+    onCloseReplay?: () => void;
+  }) => {
+    const onboarding = (
+      <ProfileOnboarding
+        onComplete={onComplete}
+        needsCodeOfConduct={needsCodeOfConduct}
+        codeOfConductVersion={codeOfConductVersion}
+        constrainedViewport={Boolean(onCloseReplay)}
+        previewMode={previewMode}
+      />
+    );
+
     return (
       <BrowserRouter key="onboarding-router">
         <GoogleAnalyticsPageTracker />
@@ -517,20 +560,24 @@ export default function App({
             {renderPublicRoutes(true, true)}
             <Route
               path="*"
-              element={(
-                <ProfileOnboarding
-                  onComplete={handleOnboardingComplete}
-                  needsCodeOfConduct={Boolean(session?.needsCodeOfConduct)}
-                  codeOfConductVersion={session?.codeOfConductVersion ?? ''}
-                />
-              )}
+              element={onCloseReplay
+                ? <AdminOnboardingReplayFrame onClose={onCloseReplay}>{onboarding}</AdminOnboardingReplayFrame>
+                : onboarding}
             />
           </Routes>
           {alphaBugControl}
-          {accessibilityQuickAccess}
+          {onCloseReplay ? null : accessibilityQuickAccess}
         </Suspense>
       </BrowserRouter>
     );
+  };
+
+  if (needsOnboarding) {
+    return renderOnboardingScreen({
+      onComplete: handleOnboardingComplete,
+      needsCodeOfConduct: Boolean(session?.needsCodeOfConduct),
+      codeOfConductVersion: session?.codeOfConductVersion ?? '',
+    });
   }
 
   if (session?.needsCodeOfConduct) {
@@ -557,6 +604,18 @@ export default function App({
         </Suspense>
       </BrowserRouter>
     );
+  }
+
+  if (onboardingReplayActive && session && canTestOnboarding(session.user)) {
+    // A new account has never accepted the Code of Conduct, so the replay
+    // always includes the oath, exactly as a new member sees it.
+    return renderOnboardingScreen({
+      onComplete: handleOnboardingReplayComplete,
+      needsCodeOfConduct: true,
+      codeOfConductVersion: session.codeOfConductVersion,
+      previewMode: true,
+      onCloseReplay: handleOnboardingReplayClose,
+    });
   }
 
   return (
@@ -601,7 +660,7 @@ export default function App({
               <Route path="/settings/notifications" element={<NotificationSettings />} />
               <Route path="/settings/2fa" element={<TwoFactorSettings />} />
               <Route path="/settings/onboarding-test" element={canTestOnboarding(session.user)
-                ? <AdminOnboardingReplay codeOfConductVersion={session.codeOfConductVersion} />
+                ? <AdminOnboardingReplay onStart={startOnboardingReplay} />
                 : <Navigate to="/settings" replace />} />
               <Route path="/settings/changelog" element={<Changelog />} />
               <Route path="/support" element={<SupportPage signedIn />} />

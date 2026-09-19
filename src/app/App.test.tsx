@@ -101,9 +101,6 @@ vi.mock('./components/FirstFeedPostPrompt', () => ({
 vi.mock('./components/OnboardingPreview', () => ({
   default: () => <div>Mock Onboarding Preview</div>
 }));
-vi.mock('./components/AdminOnboardingReplay', () => ({
-  default: () => <div>Mock Admin Onboarding Replay</div>,
-}));
 
 vi.mock('./components/MobileInstallPrompt', () => ({
   default: () => null
@@ -718,14 +715,28 @@ describe('App', () => {
     ['other@example.com', 'admin', false],
     ['julienlenazny@gmail.com', 'moderator', false],
   ])('gates onboarding replay for %s with role %s', async (email, moderatorRole, allowed) => {
+    const originalScrollTo = HTMLElement.prototype.scrollTo;
+    HTMLElement.prototype.scrollTo = vi.fn();
     loadCurrentSession.mockResolvedValue({
       user: { id: 'user-1', email, moderatorRole, displayName: 'Test', emailVerifiedAt: '2026-09-08', createdAt: '2026-09-08' },
       profile: { displayName: 'Test', yearOfBirth: 1990 }, needsOnboarding: false, ...acceptedConductSession,
     });
     window.history.replaceState({}, '', '/settings/onboarding-test');
-    render(<App />);
-    expect(await screen.findByText(allowed ? 'Mock Admin Onboarding Replay' : 'Mock Settings')).toBeInTheDocument();
-    if (!allowed) expect(screen.queryByText('Mock Admin Onboarding Replay')).not.toBeInTheDocument();
+    try {
+      render(<App />);
+      // The replay is the new-member onboarding screen itself, outside the
+      // signed-in shell, so no bottom navigation surrounds it. Only the admin
+      // close bar is added.
+      expect(await screen.findByText(allowed ? 'Mock Onboarding' : 'Mock Settings')).toBeInTheDocument();
+      if (allowed) {
+        expect(screen.queryByText('Mock Bottom Nav')).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Close onboarding test' })).toBeInTheDocument();
+      } else {
+        expect(screen.queryByText('Mock Onboarding')).not.toBeInTheDocument();
+      }
+    } finally {
+      HTMLElement.prototype.scrollTo = originalScrollTo;
+    }
   });
 
   it('renders Ghost Mode settings as the dedicated privacy route', async () => {
