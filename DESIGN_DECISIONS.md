@@ -240,6 +240,7 @@ Map-pin side badges return to their prior size: 85 percent of the 35px profile-c
 ## Order history, September 12, 2026
 
 Members access their crypto order history from Settings. Include cruush+ and Pulse purchases, the order's payment and activation state, and its network confirmation progress after the payment deadline. Expiry must not hide an existing order. Each account sees only its own orders. Preserve existing checkout rules, payment deadlines and all unrelated Settings controls. Source: task `01a095c7-d9c8-7d51-980b-24acbc0daf99`, user “uesrs need a order hisotry page” and “id just put it in settings”, following the request to see confirmation progress after expiry. Processor changes stay on `security/crypto-processor-review-20260908`; no main merge or deployment is authorized.
+
 ## Precise location for mutual cruushes stays on by default, September 19, 2026
 
 The default visibility policy keeps `preciseToMutualCruushes` true, so a member's precise live location is available to their mutual cruushes unless that member turns it off. The toggle is the existing "Toggle precise location for cruushes" control in cruush match settings, and turning it off writes `preciseLocationVisibility: 'none'`, which the server honours immediately. This default reaches every member, because `loadVisibilityPolicy` persists the default policy for anyone who has none yet. A mutual cruush still needs an active relationship token and an unrevoked grant, and blocks remain a hard boundary.
