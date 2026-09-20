@@ -3466,6 +3466,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
           onSend={handleSendMapPing}
           hasCruushPlus={hasCruushPlus}
           onUpgrade={() => navigate('/rewards')}
+          onGetPulses={() => navigate('/store/pulse')}
         />
 
       </div>

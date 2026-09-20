@@ -44,6 +44,9 @@ type MapPingSheetProps = {
   onSaveSignal?: (signal: string) => Promise<void>;
   hasCruushPlus?: boolean;
   onUpgrade?: () => void;
+  /** Opens the Pulse pack checkout. The sheet closes first, the same way the
+      cruush+ gate hands navigation back to the map. */
+  onGetPulses?: () => void;
   /** Your own photo, so the demonstration is your pin and not a placeholder. */
   photo?: string | null;
   /** Dark Room keeps you off the map, so a Pulse cannot go out. */
@@ -197,6 +200,7 @@ export default function MapPingSheet({
   hasCruushPlus = false,
   lurkerActive = false,
   onUpgrade,
+  onGetPulses,
 }: MapPingSheetProps) {
   const isMobile = useIsMobile();
   const trust = useTrustRestrictions(open);
@@ -411,13 +415,13 @@ export default function MapPingSheet({
       <SheetContent
         side="bottom"
         overlayClassName="!z-[1600]"
-        className="!z-[1601] flex flex-col overflow-hidden rounded-2xl border border-white/10 bg-background/96 pb-3 backdrop-blur-xl sm:max-w-lg lg:max-w-none"
+        className={`!z-[1601] flex flex-col overflow-hidden rounded-2xl border border-white/10 bg-background/96 pb-3 backdrop-blur-xl sm:max-w-lg lg:max-w-none ${isMobile ? 'gap-2' : ''}`}
         data-testid="map-ping-sheet"
         data-window-mode={isMobile ? 'mobile-sheet' : 'desktop-window'}
         style={sheetStyle}
       >
         <SheetHeader
-          className={`shrink-0 pb-2 pr-4 pt-3 ${isMobile ? '' : 'cursor-grab active:cursor-grabbing'}`}
+          className={`shrink-0 pr-4 ${isMobile ? 'pb-1 pt-2' : 'pb-2 pt-3 cursor-grab active:cursor-grabbing'}`}
           data-testid="map-ping-sheet-handle"
           onPointerDown={isMobile ? undefined : beginDrag}
           onPointerMove={isMobile ? undefined : continueDrag}
@@ -432,7 +436,7 @@ export default function MapPingSheet({
           <SheetDescription>Light up your heart for people nearby.</SheetDescription>
         </SheetHeader>
 
-        <div className="scrollbar-hide min-h-0 space-y-2.5 overflow-y-auto px-4">
+        <div className={`scrollbar-hide min-h-0 overflow-y-auto ${isMobile ? 'space-y-2 px-3' : 'space-y-2.5 px-4'}`}>
           <div className="flex items-center gap-3 rounded-xl border border-[#c8ff31]/45 bg-black/45 p-2.5">
             {/* The real marker, running the real Pulse state, so this is what
                 people actually see rather than an approximation of it. */}
@@ -562,6 +566,18 @@ export default function MapPingSheet({
                   ? statusText
                   : 'Share your map location before sending a Pulse.'}
             </p>
+            {onGetPulses ? (
+              <button
+                type="button"
+                className="shrink-0 rounded-full border border-[#c8ff31]/60 px-2.5 py-1 text-xs font-semibold text-white transition hover:brightness-110"
+                onClick={() => {
+                  onOpenChange(false);
+                  onGetPulses();
+                }}
+              >
+                Get Pulses
+              </button>
+            ) : null}
             {cooldownCountdown && status?.allowance.nextEligibleAt ? (
               <time
                 aria-label="Pulse cooldown"
