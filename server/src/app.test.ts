@@ -4173,6 +4173,7 @@ describe("server", () => {
           pronouns: "they/them",
           photo: null,
           photoExplicit: false,
+          photoRelationship: { isMutualCruush: false, sharesCrowd: false },
           travelling: false
         },
         distance: "Nearby",
@@ -4264,6 +4265,9 @@ describe("server", () => {
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [matchToken] })
+      // A mutual cruush with an active token holds the default precise-location
+      // grant, so the revocation lookup runs before the block check.
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({
         rows: [{
@@ -4311,8 +4315,10 @@ describe("server", () => {
     expect(response.statusCode).toBe(201);
     expect(query.mock.calls[0]?.[0]).toContain("encrypted_relationship_records");
     expect(query.mock.calls[3]?.[0]).toContain("encrypted_relationship_tokens");
-    expect(query.mock.calls[6]?.[0]).toContain("insert into conversations");
-    expect(query.mock.calls[7]?.[0]).toContain("insert into conversation_members");
+    expect(query.mock.calls[4]?.[0]).toContain("encrypted_privacy_audit_events");
+    expect(query.mock.calls[5]?.[0]).toContain("from user_blocks");
+    expect(query.mock.calls[7]?.[0]).toContain("insert into conversations");
+    expect(query.mock.calls[8]?.[0]).toContain("insert into conversation_members");
     expect(response.json()).toEqual({
       data: {
         id: conversationId,
@@ -4323,6 +4329,7 @@ describe("server", () => {
           pronouns: "they/them",
           photo: "https://example.com/alex.jpg",
           photoExplicit: false,
+          photoRelationship: { isMutualCruush: true, sharesCrowd: false },
           travelling: false
         },
         distance: "Nearby",
@@ -4359,6 +4366,9 @@ describe("server", () => {
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [matchToken] })
+      // A mutual cruush with an active token holds the default precise-location
+      // grant, so the revocation lookup runs before the block check.
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({
       rows: [{
@@ -4401,11 +4411,13 @@ describe("server", () => {
     expect(response.statusCode).toBe(201);
     expect(query.mock.calls[1]?.[0]).toContain("encrypted_relationship_records");
     expect(query.mock.calls[4]?.[0]).toContain("encrypted_relationship_tokens");
-    expect(query.mock.calls[6]?.[0]).toContain("insert into conversations");
-    expect(query.mock.calls[6]?.[0]).toContain("insert into conversation_members");
-    expect(query.mock.calls[6]?.[0]).toContain("'owner'");
-    expect(query.mock.calls[7]?.[0]).toContain("insert into app_notifications");
-    expect(query.mock.calls[7]?.[1]).toEqual([
+    expect(query.mock.calls[5]?.[0]).toContain("encrypted_privacy_audit_events");
+    expect(query.mock.calls[6]?.[0]).toContain("from user_blocks");
+    expect(query.mock.calls[7]?.[0]).toContain("insert into conversations");
+    expect(query.mock.calls[7]?.[0]).toContain("insert into conversation_members");
+    expect(query.mock.calls[7]?.[0]).toContain("'owner'");
+    expect(query.mock.calls[8]?.[0]).toContain("insert into app_notifications");
+    expect(query.mock.calls[8]?.[1]).toEqual([
       memberId,
       "group_membership",
       "You were added to Beta crew",
@@ -4792,6 +4804,9 @@ describe("server", () => {
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [matchToken] })
+      // A mutual cruush with an active token holds the default precise-location
+      // grant, so the revocation lookup runs before the block check.
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [{ id: memberId }] })
       .mockResolvedValueOnce({
@@ -4819,10 +4834,12 @@ describe("server", () => {
     expect(response.statusCode).toBe(204);
     expect(query.mock.calls[1]?.[0]).toContain("encrypted_relationship_records");
     expect(query.mock.calls[4]?.[0]).toContain("encrypted_relationship_tokens");
-    expect(query.mock.calls[6]?.[0]).toContain("insert into conversation_members");
-    expect(query.mock.calls[6]?.[0]).toContain("'member'");
-    expect(query.mock.calls[7]?.[0]).toContain("insert into app_notifications");
-    expect(query.mock.calls[7]?.[1]).toEqual([
+    expect(query.mock.calls[5]?.[0]).toContain("encrypted_privacy_audit_events");
+    expect(query.mock.calls[6]?.[0]).toContain("from user_blocks");
+    expect(query.mock.calls[7]?.[0]).toContain("insert into conversation_members");
+    expect(query.mock.calls[7]?.[0]).toContain("'member'");
+    expect(query.mock.calls[8]?.[0]).toContain("insert into app_notifications");
+    expect(query.mock.calls[8]?.[1]).toEqual([
       memberId,
       "group_membership",
       "You were added to Group chat",
@@ -4923,6 +4940,7 @@ describe("server", () => {
             message_visibility: "public",
             nsfw_message_visibility: "public",
             nsfw_send_visibility: "public",
+            nsfw_photo_visibility: "public",
             updated_at: "2026-08-09T08:00:00.000Z"
           }]
         };
@@ -5007,6 +5025,9 @@ describe("server", () => {
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [matchToken] })
+      // A mutual cruush with an active token holds the default precise-location
+      // grant, so the revocation lookup runs before the block check.
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [{ exists: true }] });
 
     const response = await app.inject({
@@ -5020,10 +5041,15 @@ describe("server", () => {
       }
     });
     const queries = query.mock.calls.map(([sql]) => String(sql));
+    // Find the block check by its own SQL: a shifted mock queue must never be
+    // able to turn this into a 404 that silently stops proving the block.
+    const blockCheck = query.mock.calls.find(([sql]) => String(sql).includes("from user_blocks"));
 
     expect(response.statusCode).toBe(403);
-    expect(query.mock.calls[4]?.[0]).toContain("from user_blocks");
-    expect(query.mock.calls[4]?.[1]).toEqual([userId, otherUserId]);
+    expect(blockCheck?.[0]).toContain("from user_blocks");
+    expect(blockCheck?.[1]).toEqual([userId, otherUserId]);
+    expect(query.mock.calls[5]?.[0]).toContain("from user_blocks");
+    expect(queries.some((sql) => sql.includes("from app_users"))).toBe(false);
     expect(queries.some((sql) => sql.includes("insert into conversations"))).toBe(false);
     expect(response.json()).toEqual({
       error: {
@@ -5214,7 +5240,8 @@ describe("server", () => {
         name: "cas",
         pronouns: "he/him",
         photo: "https://example.com/cas.jpg",
-        photoExplicit: false
+        photoExplicit: false,
+        photoRelationship: { isMutualCruush: false, sharesCrowd: false }
       }
     }]);
   });
@@ -5255,6 +5282,9 @@ describe("server", () => {
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [matchToken] })
+      // A mutual cruush with an active token holds the default precise-location
+      // grant, so the revocation lookup runs before the block check.
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({
         rows: [{
@@ -5370,6 +5400,9 @@ describe("server", () => {
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [matchToken] })
+      // A mutual cruush with an active token holds the default precise-location
+      // grant, so the revocation lookup runs before the block check.
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [{ email: "user@example.com" }] })
       .mockResolvedValueOnce({
@@ -5415,14 +5448,16 @@ describe("server", () => {
     expect(query.mock.calls[0]?.[0]).toContain("from conversation_members cm");
     expect(query.mock.calls[1]?.[0]).toContain("encrypted_relationship_records");
     expect(query.mock.calls[4]?.[0]).toContain("encrypted_relationship_tokens");
-    expect(query.mock.calls[7]?.[0]).toContain("insert into messages");
-    expect(query.mock.calls[7]?.[0]).toContain("lower(trim(coalesce(u.email, ''))) = 'julienlenazny@gmail.com'");
-    expect(query.mock.calls[7]?.[0]).toContain("content_ciphertext");
-    expect(query.mock.calls[7]?.[1]).not.toContain("on my way");
-    expect(query.mock.calls[7]?.[1]).toContain("keyword_prefilter");
-    expect(query.mock.calls[8]?.[0]).toContain("from conversation_members cm");
-    expect(query.mock.calls[9]?.[0]).toContain("insert into app_notifications");
-    expect(query.mock.calls[9]?.[1]).toEqual([
+    expect(query.mock.calls[5]?.[0]).toContain("encrypted_privacy_audit_events");
+    expect(query.mock.calls[6]?.[0]).toContain("from user_blocks");
+    expect(query.mock.calls[8]?.[0]).toContain("insert into messages");
+    expect(query.mock.calls[8]?.[0]).toContain("lower(trim(coalesce(u.email, ''))) = 'julienlenazny@gmail.com'");
+    expect(query.mock.calls[8]?.[0]).toContain("content_ciphertext");
+    expect(query.mock.calls[8]?.[1]).not.toContain("on my way");
+    expect(query.mock.calls[8]?.[1]).toContain("keyword_prefilter");
+    expect(query.mock.calls[9]?.[0]).toContain("from conversation_members cm");
+    expect(query.mock.calls[10]?.[0]).toContain("insert into app_notifications");
+    expect(query.mock.calls[10]?.[1]).toEqual([
       "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
       "direct_message",
       "Jordan sent you a message",
@@ -6395,7 +6430,7 @@ describe("server", () => {
     expect(response.json()).toEqual({
       error: {
         code: "CONTENT_REJECTED",
-        message: "This was not saved. Automated moderation flagged it for harm, hate, threats, nudity where it is not allowed, or illegal activity. Write to reports@cruush.app if you think this is wrong.",
+        message: "Photo not saved: automated moderation flagged drug sales. Contact reports@cruush.app if this is wrong.",
         details: null
       }
     });
@@ -9095,7 +9130,7 @@ describe("server", () => {
     expect(response.json()).toEqual({
       error: {
         code: "CONTENT_REJECTED",
-        message: "This was not saved. Automated moderation flagged it for harm, hate, threats, nudity where it is not allowed, or illegal activity. Write to reports@cruush.app if you think this is wrong.",
+        message: "Photo not saved: automated moderation flagged fecal content. Contact reports@cruush.app if this is wrong.",
         details: null
       }
     });
@@ -9129,7 +9164,7 @@ describe("server", () => {
     expect(response.json()).toEqual({
       error: {
         code: "CONTENT_REJECTED",
-        message: "This was not saved. Automated moderation flagged it for harm, hate, threats, nudity where it is not allowed, or illegal activity. Write to reports@cruush.app if you think this is wrong.",
+        message: "Photo not saved: automated moderation flagged drug sales. Contact reports@cruush.app if this is wrong.",
         details: null
       }
     });
@@ -9162,7 +9197,7 @@ describe("server", () => {
     expect(response.json()).toEqual({
       error: {
         code: "VALIDATION_ERROR",
-        message: "Upload a still photo your phone or camera made: JPEG, PNG, HEIC, AVIF, WebP, or TIFF.",
+        message: "This photo could not be decoded. It may be damaged or use an unsupported encoding. Supported photos: JPEG, PNG, HEIC/HEIF, AVIF, WebP, TIFF, DNG, BMP or still GIF.",
         details: null
       }
     });
@@ -9427,7 +9462,9 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(query).toHaveBeenCalledTimes(11);
+    // Seven of these resolve the DL photo audience for the one listed member:
+    // shared crowds, their NSFW photo policy, and their viewer relationship.
+    expect(query).toHaveBeenCalledTimes(18);
     expect(query.mock.calls[1]?.[0]).toContain("from profiles");
     expect(query.mock.calls[1]?.[0]).toContain("join encrypted_location_envelopes");
     expect(query.mock.calls[1]?.[0]).toContain("profiles.display_name as display_name");
@@ -10436,6 +10473,11 @@ describe("server", () => {
         return Promise.resolve({ rows: [] });
       }
 
+      // No stored row means the requested Public NSFW photo default.
+      if (normalizedSql.includes("from user_cruush_match_settings")) {
+        return Promise.resolve({ rows: [] });
+      }
+
       if (normalizedSql.includes("from encrypted_relationship_records") ||
           normalizedSql.includes("from encrypted_relationship_tokens") ||
           normalizedSql.includes("from encrypted_privacy_audit_events") ||
@@ -10596,7 +10638,9 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(query).toHaveBeenCalledTimes(7);
+    // Seven of these resolve the DL photo audience for the one legacy member:
+    // shared crowds, their NSFW photo policy, and their viewer relationship.
+    expect(query).toHaveBeenCalledTimes(14);
     expect(query.mock.calls[2]?.[0]).toContain("tribes as legacy_vibe_tags");
     expect(query.mock.calls[2]?.[0]).toContain("where last_active >= now() - interval '4 days'");
 
@@ -10930,7 +10974,7 @@ describe("server", () => {
         expiresAt: "2026-08-10T18:00:00.000Z",
         createdAt: "2026-08-09T18:00:00.000Z",
         audience: "public",
-        distance: "<1 mi",
+        distance: "Nearby",
         locationPin: {
           userId: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
           visibility: "public"
@@ -10942,6 +10986,8 @@ describe("server", () => {
           pronouns: "they/them",
           photo: null,
           photoExplicit: false,
+          photoRelationship: { isMutualCruush: false, sharesCrowd: false },
+          sharesCrowd: false,
           canMessage: false
         }
       }]
@@ -11156,7 +11202,9 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(201);
-    expect(query).toHaveBeenCalledTimes(3);
+    // The reciprocal distance-label rule reads both members' visibility
+    // policies when the new post is mapped back, after the insert.
+    expect(query).toHaveBeenCalledTimes(5);
     expect(query.mock.calls[2]?.[0]).toContain("insert into posts");
     expect(query.mock.calls[2]?.[0]).toContain("content_ciphertext");
     expect(query.mock.calls[2]?.[0]).toContain("'[encrypted]'");
@@ -11183,6 +11231,7 @@ describe("server", () => {
           pronouns: "they/them",
           photo: null,
           photoExplicit: false,
+          sharesCrowd: false,
           canMessage: false
         }
       }
@@ -11362,6 +11411,10 @@ describe("server", () => {
           photos: []
         }]
       })
+      // The reciprocal distance-label rule reads both members' visibility
+      // policies while the created post is mapped back.
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({
         rows: [{
           cruush_plus_enabled: true,
@@ -11410,9 +11463,9 @@ describe("server", () => {
     expect(sevenDayResponse.statusCode).toBe(201);
     expect(neverResponse.statusCode).toBe(201);
     expect(query.mock.calls[2]?.[0]).toContain("when $2 = '7d' then interval '7 days'");
-    expect(query.mock.calls[5]?.[0]).toContain("when $2 = 'never' then 'infinity'::timestamptz");
+    expect(query.mock.calls[7]?.[0]).toContain("when $2 = 'never' then 'infinity'::timestamptz");
     expect(query.mock.calls[2]?.[1]?.[1]).toBe("7d");
-    expect(query.mock.calls[5]?.[1]?.[1]).toBe("never");
+    expect(query.mock.calls[7]?.[1]?.[1]).toBe("never");
     expect(sevenDayResponse.json().data.expiresAt).toBe("2026-05-05T12:00:00.000Z");
     expect(neverResponse.json().data.expiresAt).toBeNull();
   });
@@ -12052,6 +12105,7 @@ describe("server", () => {
             pronouns: "they/them",
             photo: "https://example.com/alex.jpg",
             photoExplicit: false,
+            photoRelationship: { isMutualCruush: false, sharesCrowd: false },
             travelling: false,
             vibes: ["Artsy", "Chill", "Drag"]
           }
@@ -12083,6 +12137,7 @@ describe("server", () => {
             pronouns: "they/them",
             photo: "https://example.com/alex.jpg",
             photoExplicit: false,
+            photoRelationship: { isMutualCruush: false, sharesCrowd: false },
             travelling: false,
             vibes: ["Artsy", "Chill", "Drag"]
           }
@@ -12099,6 +12154,7 @@ describe("server", () => {
             pronouns: "they/them",
             photo: "https://example.com/alex.jpg",
             photoExplicit: false,
+            photoRelationship: { isMutualCruush: false, sharesCrowd: false },
             travelling: false,
             vibes: ["Artsy", "Chill", "Drag"]
           }
@@ -12768,7 +12824,9 @@ describe("server", () => {
         permissions: {
           matchId: "match-1",
           canMessage: true,
-          canRevealPreciseLocation: false
+          // The default visibility policy shares precise location with mutual
+          // cruushes, so a fresh match with an active token carries the grant.
+          canRevealPreciseLocation: true
         }
       }
     });
@@ -12822,8 +12880,11 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(query).toHaveBeenCalledTimes(8);
+    // The ninth read is the precise-location revocation lookup the default
+    // mutual-cruush grant requires; nothing is written or reissued.
+    expect(query).toHaveBeenCalledTimes(9);
     expect(query.mock.calls[0]?.[0]).toContain("encrypted_relationship_records");
+    expect(query.mock.calls[7]?.[0]).toContain("encrypted_privacy_audit_events");
     expect(query.mock.calls.map((call) => call[0]).join("\n")).not.toContain("insert into encrypted_relationship_tokens");
     expect(response.json()).toEqual({
       data: {
@@ -12835,7 +12896,9 @@ describe("server", () => {
         permissions: {
           matchId: "match-existing",
           canMessage: true,
-          canRevealPreciseLocation: false
+          // The default visibility policy shares precise location with mutual
+          // cruushes, and this match still holds an active token.
+          canRevealPreciseLocation: true
         }
       }
     });
@@ -13917,6 +13980,9 @@ describe("server", () => {
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [matchToken] })
+      // A mutual cruush with an active token holds the default precise-location
+      // grant, so the revocation lookup runs before the block check.
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({
@@ -13950,7 +14016,9 @@ describe("server", () => {
           mutual_cruush: true,
           outgoing_cruush: true,
           can_message: true,
-          can_reveal_precise_location: false,
+          // The default visibility policy shares precise location with mutual
+          // cruushes, and this match still holds an active token.
+          can_reveal_precise_location: true,
           location_mode: "GHOST",
           dark_room_distance_label: false
         })

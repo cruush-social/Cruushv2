@@ -2382,6 +2382,7 @@ function MapView({
   denseVenue = null,
 }: MapViewProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const surfaceRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const markersRef = useRef<RenderedMapMarker[]>([]);
   const viewportMarkersRef = useRef<MapMarker[]>([]);
@@ -3204,8 +3205,40 @@ function MapView({
     };
   }, [currentZoom, mapInstance, renderedMarkerSignature]);
 
+  // A pinch on the map belongs to the map. Safari zooms the whole page on its
+  // own gesture events, and a two-finger move can still reach the page where a
+  // control sits above the canvas, so the map surface refuses both. MapLibre
+  // still receives the touches and runs its own pinch zoom.
+  useEffect(() => {
+    const surface = surfaceRef.current;
+    if (!surface) {
+      return;
+    }
+
+    const swallow = (event: Event) => {
+      event.preventDefault();
+    };
+    const swallowMultiTouch = (event: TouchEvent) => {
+      if (event.touches.length > 1) {
+        event.preventDefault();
+      }
+    };
+
+    surface.addEventListener('gesturestart', swallow, { passive: false });
+    surface.addEventListener('gesturechange', swallow, { passive: false });
+    surface.addEventListener('gestureend', swallow, { passive: false });
+    surface.addEventListener('touchmove', swallowMultiTouch, { passive: false });
+
+    return () => {
+      surface.removeEventListener('gesturestart', swallow);
+      surface.removeEventListener('gesturechange', swallow);
+      surface.removeEventListener('gestureend', swallow);
+      surface.removeEventListener('touchmove', swallowMultiTouch);
+    };
+  }, []);
+
   return (
-    <div className="relative h-full min-h-[400px] w-full overflow-hidden bg-background">
+    <div ref={surfaceRef} className="relative h-full min-h-[400px] w-full overflow-hidden bg-background" style={{ touchAction: 'pan-x pan-y' }}>
       <div
         ref={containerRef}
         className="cruush-map h-full min-h-[400px] w-full overflow-hidden bg-background"

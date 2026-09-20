@@ -58,7 +58,11 @@ describe('Changelog', () => {
     expect(screen.getByText(/winged-heart Profile icon stays white until selected/i)).toBeInTheDocument();
     expect(screen.getByText(/Popup notifications now have a green border/i)).toBeInTheDocument();
     expect(screen.getByText(/Feed post duration is yours to choose, with Never as the default/i)).toBeInTheDocument();
-    expect(screen.getByText(/Messages now default to Mutuals/i)).toBeInTheDocument();
+    // d709ffc applied Julien's chosen names to this entry: the v1.1 permission
+    // copy says Cruushes, not Mutuals.
+    expect(
+      screen.getByText(/Messages now default to Cruushes, with Public, Cruushes, and Crowd permission options/i),
+    ).toBeInTheDocument();
   });
 
   it('docks the alpha bug button into the changelog header slot', () => {

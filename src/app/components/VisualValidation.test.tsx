@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { createEvent, fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import MapControlsTutorial from './MapControlsTutorial';
 import MultiSelect from './MultiSelect';
@@ -21,8 +21,12 @@ describe('Visual & Layout Invariant Validation', () => {
     expect(skipButton).toBeInTheDocument();
     expect(skipButton).toHaveClass('px-2.5', 'py-1', 'rounded-full', 'border', 'text-xs');
 
-    // Test touchEnd event on mobile
-    fireEvent.touchEnd(skipButton);
+    // Mobile dismissal runs on a touch pointerup, not touchend: 13f4bcd moved
+    // every tutorial control to onPointerUp guarded by pointerType === 'touch'
+    // so a tap fires exactly once instead of racing the synthesized click.
+    const skipTouch = createEvent.pointerUp(skipButton);
+    Object.defineProperty(skipTouch, 'pointerType', { value: 'touch' });
+    fireEvent(skipButton, skipTouch);
     expect(onComplete).toHaveBeenCalledTimes(1);
     expect(window.localStorage.getItem('cruush:tutorial-v5-seen')).toBe('true');
   });

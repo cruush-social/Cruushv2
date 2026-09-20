@@ -304,14 +304,6 @@ function readMobileVisualViewportBounds(enabled: boolean): MobileVisualViewportB
     return null;
   }
 
-  // While the page itself is pinch-zoomed the visual viewport is a zoomed-in
-  // window onto the page. Following it shrinks the map to that window and
-  // chases every pan, so the map zooms and slides. Hold the full-screen shell
-  // until the page is back at its normal scale.
-  if (typeof viewport.scale === 'number' && viewport.scale > 1.01) {
-    return null;
-  }
-
   return {
     height: roundViewportValue(viewport.height),
     left: roundViewportValue(Math.max(0, viewport.offsetLeft)),
@@ -343,6 +335,15 @@ function useMobileVisualViewportBounds(enabled: boolean) {
     }
 
     const updateBounds = () => {
+      // While the page itself is pinch-zoomed, the visual viewport is a
+      // zoomed-in window onto the page. Following it resizes the map to that
+      // window and chases every pan, which reads as the map zooming and
+      // sliding. Hold the bounds from the last unzoomed state instead, and
+      // resume once the page is back at its normal scale.
+      if (typeof viewport.scale === 'number' && viewport.scale > 1.01) {
+        return;
+      }
+
       const nextBounds = readMobileVisualViewportBounds(true);
       setBounds((currentBounds) => (
         visualViewportBoundsMatch(currentBounds, nextBounds) ? currentBounds : nextBounds
@@ -698,6 +699,8 @@ type LuckySlotState =
       nonce: number;
     };
 
+// Centering on yourself lands at the same zoom the map opens you at.
+const CENTER_ON_ME_ZOOM = 14;
 const LAUNCH_EVENT_SLUG = 'the-chocolate-factory-launch';
 const METERS_PER_MILE = 1609.344;
 const EARTH_RADIUS_MILES = 3958.7613;
@@ -1784,7 +1787,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
         browserCoordinates.longitude,
         browserCoordinates.latitude,
       ]);
-      mapInstance?.setZoom(16);
+      mapInstance?.setZoom(CENTER_ON_ME_ZOOM);
     }
     void fetchUsers(fetchCoordinates, hasActiveSeekingFilters(filters) ? filters : undefined);
     // The server judges the service area from the saved location, so a fetch
@@ -2394,7 +2397,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
         travelMapLocation.approximateLongitude,
         travelMapLocation.approximateLatitude,
       ]);
-      mapInstance.setZoom(16);
+      mapInstance.setZoom(CENTER_ON_ME_ZOOM);
       return;
     }
 

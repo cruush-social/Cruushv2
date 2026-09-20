@@ -3,6 +3,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useNavigate } from 'react-router';
 import App, { getInitialAppEntries } from './App';
 
+// AppViewport resets the scroll position of its own content element on every
+// route change. This jsdom build ships no Element.prototype.scrollTo, so that
+// layout effect threw, the app shell error boundary replaced the whole tree,
+// and every authenticated route test failed on a missing mock route element.
+// src/test/setup.ts stubs scrollIntoView the same way for the same reason.
+Element.prototype.scrollTo ??= function scrollTo() {};
+
 const { getRewardSummary, getSideQuests, loadCurrentSession, persistSessionUser, recordDailyRewardCheckIn, routeModuleLoads, updateRewardTimezone } = vi.hoisted(() => ({
   getRewardSummary: vi.fn(),
   // The Side Quest prompt mounts inside the authenticated shell and reads this

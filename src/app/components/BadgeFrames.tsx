@@ -22,7 +22,7 @@
  * uses a hexagon, and Heart is the default.
  */
 
-import { useId, type MouseEvent, type ElementType } from 'react';
+import { Fragment, useId, type MouseEvent, type ElementType } from 'react';
 import paisley515105 from '../assets/ui-icons/paisley-515105.png';
 import { HEART_PIN_PATH } from '../lib/heartPin';
 
@@ -74,6 +74,22 @@ type FrameProps = {
 // `revealed` is the map's long-press state. It only opens the label where there
 // is no hover to open it with, so a touch press shows every badge label beside
 // the signal while a desktop pointer still reveals one badge at a time.
+// A label wraps between words, never inside one, so no single letter is left
+// hanging on its own line. A slashed pair such as "switch/service" is one word
+// to the browser, so it gets its own break opportunity after each slash.
+function withSlashBreaks(children: React.ReactNode) {
+  if (typeof children !== 'string' || !children.includes('/')) {
+    return children;
+  }
+
+  return children.split('/').map((part, index, parts) => (
+    <Fragment key={`${part}-${index}`}>
+      {index < parts.length - 1 ? `${part}/` : part}
+      {index < parts.length - 1 ? <wbr /> : null}
+    </Fragment>
+  ));
+}
+
 export function BadgeHoverLabel({ children, revealed = false, align = 'center' }: {
   children: React.ReactNode;
   revealed?: boolean;
@@ -90,15 +106,17 @@ export function BadgeHoverLabel({ children, revealed = false, align = 'center' }
       ? `right-0 translate-x-0 [@media(hover:hover)]:left-1/2 [@media(hover:hover)]:right-auto [@media(hover:hover)]:-translate-x-1/2 ${revealed ? '[@media(hover:none)]:left-1/2 [@media(hover:none)]:right-auto [@media(hover:none)]:-translate-x-1/2' : ''}`
       : 'left-1/2 -translate-x-1/2';
   // Centred pairs sit close, so the revealed label stays narrow enough that
-  // the two sides do not cross under the heart between them.
+  // the two sides do not cross under the heart between them. The label breaks
+  // between words only, so a name that does not fit wraps at its space or
+  // slash instead of leaving one letter hanging on its own line.
   const revealedWidth = revealed ? '[@media(hover:none)]:max-w-[5.5rem]' : '';
 
   return (
     <span
       aria-hidden="true"
-      className={`pointer-events-none absolute top-full z-50 mt-1.5 w-max max-w-[min(13rem,calc(100vw-2rem))] break-words whitespace-normal rounded-xl border border-white/20 bg-black/95 px-2 py-1 text-center text-[0.7rem] font-semibold leading-tight text-white opacity-0 shadow-lg transition-opacity group-active/badge:opacity-100 group-focus-within/badge:opacity-100 group-hover/badge:opacity-100 ${anchor} ${revealedWidth} ${revealed ? '[@media(hover:none)]:opacity-100' : ''}`}
+      className={`pointer-events-none absolute top-full z-50 mt-1.5 w-max max-w-[min(13rem,calc(100vw-2rem))] break-normal whitespace-normal rounded-xl border border-white/20 bg-black/95 px-2 py-1 text-center text-[0.7rem] font-semibold leading-tight text-white opacity-0 shadow-lg transition-opacity group-active/badge:opacity-100 group-focus-within/badge:opacity-100 group-hover/badge:opacity-100 ${anchor} ${revealedWidth} ${revealed ? '[@media(hover:none)]:opacity-100' : ''}`}
     >
-      {children}
+      {withSlashBreaks(children)}
     </span>
   );
 }

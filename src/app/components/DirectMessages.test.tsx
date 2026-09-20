@@ -560,8 +560,14 @@ describe('DirectMessages', () => {
       const sortedBlake = screen.getByText('Blake');
       const sortedAlex = screen.getByText('Alex');
       const sortedGhosted = screen.getByText('Ghosted');
+      // ee9d870: a row with no numeric label now falls back to its own display
+      // coordinates independently, instead of only when the row it is compared
+      // against is also unlabelled. Ghosted reads "Nearby", and its displayed
+      // coordinates put it about 1.7 mi out, so it sorts between Blake's 1 mi
+      // and Alex's 5 mi rather than dropping to the end of the list.
+      expect(sortedBlake.compareDocumentPosition(sortedGhosted) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(sortedGhosted.compareDocumentPosition(sortedAlex) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
       expect(sortedBlake.compareDocumentPosition(sortedAlex) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-      expect(sortedAlex.compareDocumentPosition(sortedGhosted) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
   });
 });

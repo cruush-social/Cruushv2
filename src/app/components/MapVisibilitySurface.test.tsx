@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { useState } from 'react';
 import MapVisibilitySurface, { DEFAULT_VISIBILITY_STATE, type VisibilityControlState } from './MapVisibilitySurface';
 
@@ -55,7 +55,14 @@ describe('MapVisibilitySurface', () => {
     expect(screen.getByText('Basic includes up to 3 hidden filters.')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Get cruush+' }));
     expect(onUpgrade).toHaveBeenCalledTimes(1);
-    expect(screen.getByText('Pick who should not see you.')).toBeInTheDocument();
+    // 4c86ba7 replaced the in-body "Pick who should not see you." paragraph
+    // with the approved one-line tagline under the sheet header, matching the
+    // Seeking header treatment.
+    const header = screen
+      .getByRole('dialog', { name: 'Visibility Controls' })
+      .querySelector('[data-slot="sheet-header"]') as HTMLElement;
+    expect(within(header).getByText('Choose who sees you.')).toBeInTheDocument();
+    expect(screen.queryByText('Pick who should not see you.')).not.toBeInTheDocument();
     expect(screen.getByTestId('crowd-mode-tutorial-target')).toHaveAttribute('data-tutorial-target', 'crowds');
 
     selectVisibilityOption('Gender Identity', 'man');

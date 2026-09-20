@@ -208,7 +208,12 @@ describe('AlphaBugButton', () => {
     expect(reportButton).not.toHaveClass('fixed');
   });
 
-  it('refreshes popup placement after an entrance animation without a layout resize', () => {
+  it('stays docked in a popup slot across its entrance animation, with no measured offset', () => {
+    // 940de53 pushed the docked button around with an inline transform measured
+    // off the slot, which then had to be re-measured on animationend. bbcc5fa
+    // reverted that to the production implementation: the button is a real
+    // child of the slot at h-full/w-full, so it follows the slot's own box and
+    // must carry no measured offset, before or after the popup animates in.
     const surface = document.createElement('div');
     surface.setAttribute('role', 'dialog');
     const slot = document.createElement('div');
@@ -224,13 +229,18 @@ describe('AlphaBugButton', () => {
     registerBugButtonSlot(slot);
     renderAlphaBugButton();
     const button = screen.getByRole('button', { name: 'Report alpha bug' });
-    const openingPlacement = button.style.transform;
-    expect(openingPlacement).not.toBe('');
+    expect(slot).toContainElement(button);
+    expect(button).toHaveClass('h-full', 'w-full');
+    expect(button).not.toHaveClass('fixed');
+    expect(button.style.transform).toBe('');
 
     opening = false;
     fireEvent.animationEnd(surface);
 
-    expect(button.style.transform).not.toBe(openingPlacement);
+    expect(slot).toContainElement(button);
+    expect(button).toHaveClass('h-full', 'w-full');
+    expect(button).not.toHaveClass('fixed');
+    expect(button.style.transform).toBe('');
     surface.remove();
   });
 

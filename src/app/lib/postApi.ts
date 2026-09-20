@@ -1,4 +1,4 @@
-import { requestApi } from './apiClient';
+import { requestApi, requestApiWithUploadRetry } from './apiClient';
 import type { CruushBadge } from './billingApi';
 import type { SideBadges } from './profileApi';
 import type { DlModePhotoRelationship } from './dlMode';
@@ -176,7 +176,7 @@ export async function uploadFeedPhoto(photo: File) {
   const formData = new FormData();
   formData.set('photo', photo);
 
-  return requestApi<
+  return requestApiWithUploadRetry<
     | FeedPhoto
     | { status: 'pending_review'; assetId: string }
   >('/api/feed/photos', {

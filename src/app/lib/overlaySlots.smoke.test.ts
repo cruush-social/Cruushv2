@@ -119,11 +119,11 @@ describe('smoke: declared overlay geometry matches the components', () => {
     ],
     [
       'map-right-actions',
-      'src/app/components/MapHome.tsx',
+      'src/app/components/MapControls.tsx',
       [
         'right-3 top-[4.625rem]',
         'sm:right-4 sm:top-[5.375rem]',
-        'lg:top-[5.625rem]',
+        'lg:right-3 lg:top-16',
         'data-testid="map-right-actions"',
       ],
     ],

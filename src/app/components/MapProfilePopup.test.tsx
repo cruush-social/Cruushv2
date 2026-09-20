@@ -2,7 +2,20 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import MapProfilePopup from './MapProfilePopup';
-import { saveDistancePreferences } from '../lib/distancePreferences';
+import {
+  DISTANCE_PREFERENCES_CHANGED_EVENT,
+  DISTANCE_PREFERENCES_STORAGE_KEY,
+  type DistanceDisplayMode,
+} from '../lib/distancePreferences';
+
+// cb5de40 made a precise preference wait for server acceptance before it is
+// cached, so a unit test cannot reach the precise label through
+// saveDistancePreferences. This mirrors what the module does once the server
+// has accepted a mode, which is what the display actually reacts to.
+function applyAcceptedDistanceMode(mode: DistanceDisplayMode) {
+  window.localStorage.setItem(DISTANCE_PREFERENCES_STORAGE_KEY, JSON.stringify({ mode }));
+  window.dispatchEvent(new CustomEvent(DISTANCE_PREFERENCES_CHANGED_EVENT, { detail: { mode } }));
+}
 
 const { embeddedSavedProfile } = vi.hoisted(() => ({
   embeddedSavedProfile: {
@@ -129,11 +142,15 @@ describe('MapProfilePopup', () => {
     const tabs = await screen.findByRole('tablist');
     expect(tabs.parentElement?.parentElement).toHaveClass('[&_[role=tablist]]:static', '[&_[role=tablist]]:z-auto');
     expect(tabs.parentElement?.parentElement).toHaveClass('[&_[id$=-content-intimacy]>.grid]:grid-cols-1');
-    expect(screen.getByText('~0.5 mi')).toBeInTheDocument();
-    act(() => saveDistancePreferences({ mode: 'precise' }));
+    // cb5de40 made the approximate label strictly nonnumeric, so 0.4 mi reads
+    // as Nearby rather than a rounded ~0.5 mi. Precise still shows the number.
+    expect(screen.getByText('Nearby')).toBeInTheDocument();
+    expect(screen.queryByText('0.4 mi')).not.toBeInTheDocument();
+    act(() => applyAcceptedDistanceMode('precise'));
     expect(screen.getByText('0.4 mi')).toBeInTheDocument();
-    act(() => saveDistancePreferences({ mode: 'approximate' }));
-    expect(screen.getByText('~0.5 mi')).toBeInTheDocument();
+    act(() => applyAcceptedDistanceMode('approximate'));
+    expect(screen.getByText('Nearby')).toBeInTheDocument();
+    expect(screen.queryByText('0.4 mi')).not.toBeInTheDocument();
   });
 
   it('updates the desktop own-profile preview immediately after an embedded save', async () => {

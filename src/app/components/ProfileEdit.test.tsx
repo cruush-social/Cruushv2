@@ -29,6 +29,28 @@ vi.mock('../lib/profileApi', async () => {
 const existingProfilePhoto = '/api/media/assets/11111111-1111-4111-8111-111111111111/display';
 const uploadedProfilePhoto = '/api/media/assets/d271f6da-c51d-4d73-a322-d9c56f45d4fa/display';
 
+// ProfileEdit reads trust restrictions from /api/me/trust-restrictions. The
+// photo-preview fetch stub below answers every request, so that endpoint needs
+// a real restrictions payload or the hook dereferences a missing `features`.
+const unrestrictedTrustRestrictions = () => ({
+  checkedAt: '2026-04-29T12:00:00.000Z',
+  features: Object.fromEntries([
+    'direct_messages', 'group_messages', 'group_creation', 'direct_message_photos',
+    'group_message_photos', 'photo_uploads', 'feed_posting', 'pink_book', 'map_pings',
+    'favorite_images',
+  ].map((feature) => [feature, { restricted: false, dueToTrust: false, recoveryAt: null }])),
+});
+
+const requestUrl = (input: unknown) => (typeof input === 'string'
+  ? input
+  : String((input as { url?: string } | undefined)?.url ?? input));
+
+const respondToProfileEditFetch = async (input: unknown) => (
+  requestUrl(input).includes('/api/me/trust-restrictions')
+    ? new Response(JSON.stringify({ data: unrestrictedTrustRestrictions() }), { status: 200 })
+    : new Response(JSON.stringify({ data: { url: 'data:image/png;base64,AQID' } }), { status: 200 })
+);
+
 async function selectProfileEditTab(name: 'Photos' | 'Badges' | 'Basics' | 'Intimacy' | 'Health') {
   const tab = await screen.findByRole('tab', { name });
   fireEvent.pointerDown(tab, { button: 0, ctrlKey: false });
@@ -136,7 +158,7 @@ describe('ProfileEdit', () => {
       revokeObjectURL: { value: vi.fn() },
     });
     vi.stubGlobal('URL', MockURL);
-    vi.stubGlobal('fetch', vi.fn().mockImplementation(async () => new Response(JSON.stringify({ data: { url: 'data:image/png;base64,AQID' } }), { status: 200 })));
+    vi.stubGlobal('fetch', vi.fn().mockImplementation(respondToProfileEditFetch));
     HTMLImageElement.prototype.decode = vi.fn().mockResolvedValue(undefined);
     HTMLCanvasElement.prototype.getContext = vi.fn(() => ({
       clearRect: vi.fn(),
