@@ -110,6 +110,10 @@ Preserve all labels, saved IDs, behavior, badge frames, border colors, inset and
 
 Use the exact Cheating icon 27256 by Luis Prado from https://thenounproject.com/icon/cheating-27256/ in white for Cuckolding, Cuckholding, Cuck, Cuckquean, Bull, Hotwife, Hothusband and Side piece. The same CheatingGlyph serves current profile badges and the legacy Cuckolding picker/saved badge. User source: task 01a08d63-deff-7082-8ac8-8327605f3900, transcript line 1141. Preserve spelling, labels, IDs, badge geometry and unrelated meanings such as Mistress or Swinger. No publication is requested.
 
+## Pride flag badges keep the usual border, September 20, 2026
+
+Pride flag artwork fills the badge inside the usual badge border. The badge keeps its normal size and its normal border, the same border every other badge has, in the same colour as the member's heart. The flag runs under the border's inner edge so there is no gap, ring or underlay between artwork and border. Source: Julien, September 20, 2026: "I want the pride flags to fill the usual border for the badges, without changing the badge size or changing the badge border." This supersedes the September 10 rule below, which removed the border for flags.
+
 ## Flag badge fill, September 10, 2026
 
 Flags fill the existing badge circle edge to edge, just like the Hanky code fill, with no black border, ring, underlay, stroke, or gap on any badge surface. Preserve the exact badge footprint and remove the frame stroke for flags only. User source: task 01a08d63-deff-7082-8ac8-8327605f3900, transcript lines 1321, 1323, 4127, 6009, and the latest September 11 correction after more than ten repetitions. This explicit instruction supersedes the older rule to shrink flag artwork within the circle or retain a flag border. Preserve flag colors, artwork, all non-flag icons, Hanky rendering, placements, hover labels and behavior.

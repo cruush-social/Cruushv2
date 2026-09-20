@@ -1,3 +1,20 @@
+# Pride flag badge fill, September 20, 2026
+
+Branch `fix/pride-flag-badge-fill-20260920`, one commit on top of `d40a6be` (the commit production serves as of September 20). Worktree `/Volumes/good/Cruushv2-pride-flags-20260920`. Session queue `.ai-queues/bb234b23-d737-4f10-969e-de4810ea8842.md` in that worktree.
+
+Julien's instruction: "I want the pride flags to fill the usual border for the badges, without changing the badge size or changing the badge border." Recorded in `DESIGN_DECISIONS.md` ("Pride flag badges keep the usual border, September 20, 2026"), superseding the September 10 rule that removed the border for flags.
+
+Change, all in `src/app/components/BadgeFrames.tsx` (`BadgeFrame`):
+- Flags keep the same stroke as every other badge (the stroke was set to none for flags).
+- Flag artwork is rendered in a rounded HTML layer beneath the frame SVG, inset to the border's inner edge (radius 24 of the 64-unit frame), instead of a `foreignObject` inside the SVG that ran over the border. The browser painted that embedded layer above the stroke, which made the flag's border look thinner than an icon's. With the layer underneath, the stroke paints over the flag at full width, exactly as it does over an icon.
+- Icons are untouched: they keep the 60 percent inset and the same frame.
+
+Verified locally (this worktree's stack on port 5521, Cruushes list, 412px): a `flag rainbow` left badge and a `Switch` right badge both measure 35px with the same border; the flag fills to the inner edge (26.3px layer inside the 35px badge); the icon keeps its clearance. Not verified on the map pin at 29.75px other than by the same shared component.
+
+Tests: `BadgeFrames`, `MapView`, `CruushActivity`, `SideBadgePair` suites pass (88 tests). Client build passes. `pnpm check:cruush-casing` passes.
+
+To release with the crypto processor: merge this branch into the release branch, bump the service worker release (the five copies of the version string in `index.html`, `public/sw.js`, `public/service-worker-recovery.js`, `src/main.tsx`), and check one flag badge and one icon badge side by side on a profile card before shipping. No environment variables change.
+
 # Spot reduction, September 12, 2026
 
 Active task: `01a094d4-5fda-7853-85e5-ca7f5634e4bb`. Queue: `/Volumes/good/ai-queues/01a094d4-5fda-7853-85e5-ca7f5634e4bb/TODO.md`.
