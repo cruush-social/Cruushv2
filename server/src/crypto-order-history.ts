@@ -33,7 +33,7 @@ export async function loadCryptoOrderHistory(db: DbClient, config: AppConfig, us
     // provider metadata, internal notes, or new payment instructions.
     return {
       id: intent.id, name, productType: intent.productType,
-      asset: intent.asset, network: intent.network,
+      asset: intent.asset, network: intent.network, sendingApp: intent.sendingApp,
       amountUsdCents: intent.amountUsdCents, gasFeeUsdCents: intent.gasFeeUsdCents,
       totalUsdCents: intent.totalUsdCents, quotedAmountAtomic: intent.quotedAmountAtomic,
       status: intent.status === 'awaiting_payment' && new Date(intent.expiresAt).getTime() <= Date.now()

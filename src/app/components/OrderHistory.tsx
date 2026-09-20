@@ -5,6 +5,7 @@ import { Button } from './ui/button';
 import BugButtonSlot from './BugButtonSlot';
 import LoadingCardSkeletons from './LoadingCardSkeletons';
 import { getCryptoOrderHistory, type CryptoOrder, type CryptoOrderHistory } from '../lib/cryptoCheckoutApi';
+import { CRYPTO_SENDING_APP_LABELS } from './CryptoPaymentMethods';
 
 const statusLabels: Record<CryptoOrder['status'], string> = {
   pending: 'Preparing payment', awaiting_payment: 'Awaiting payment', confirming: 'Confirming',
@@ -84,7 +85,7 @@ export default function OrderHistory() {
             <dl className="space-y-2 text-sm">
               <div><dt>Purchase</dt><dd>{dollars(order.amountUsdCents)}</dd></div>
               <div><dt>Processing fee</dt><dd>{dollars(order.gasFeeUsdCents ?? 0)}</dd></div>
-              <div><dt>Order total</dt><dd>{dollars(order.totalUsdCents ?? order.amountUsdCents)} · {order.asset} ({order.network})</dd></div>
+              <div><dt>Order total</dt><dd>{dollars(order.totalUsdCents ?? order.amountUsdCents)} · {order.asset} ({order.network}){order.sendingApp ? ` · ${CRYPTO_SENDING_APP_LABELS[order.sendingApp]}` : ''}</dd></div>
               <div><dt>Payment</dt><dd>{statusLabels[order.status]}</dd></div>
               <div><dt>Activation</dt><dd>{order.activatedAt ? `Activated ${dateLabel(order.activatedAt)}` : 'Not activated'}</dd></div>
               {order.quotedAmountAtomic && order.confirmationTarget ? (

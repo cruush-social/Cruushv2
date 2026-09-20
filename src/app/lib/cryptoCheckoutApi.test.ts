@@ -2,6 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   cancelCryptoPaymentIntent,
   createCryptoPaymentIntent,
+  createPulsePaymentIntent,
+  getBitcoinSendingEligibility,
   getCurrentCryptoPaymentIntent,
   getCryptoPaymentIntent,
   getCryptoProcessorStatus,
@@ -53,6 +55,48 @@ describe('cryptoCheckoutApi', () => {
         planId: 'plus_monthly',
         idempotencyKey: 'checkout-client-1',
       }),
+    }));
+  });
+
+  it('sends the chosen app alongside the Bitcoin rail for cruush+ and Pulse orders', async () => {
+    await createCryptoPaymentIntent({
+      planId: 'plus_annual',
+      idempotencyKey: 'checkout-client-2',
+      rail: 'btc_bitcoin',
+      sendingApp: 'paypal',
+    });
+    await createPulsePaymentIntent({
+      packId: 'ping_10',
+      idempotencyKey: 'checkout-client-3',
+      rail: 'btc_bitcoin',
+      sendingApp: 'cash_app',
+    });
+
+    expect(fetch).toHaveBeenNthCalledWith(1, '/api/crypto/payment-intents', expect.objectContaining({
+      method: 'POST',
+      body: JSON.stringify({
+        planId: 'plus_annual',
+        idempotencyKey: 'checkout-client-2',
+        rail: 'btc_bitcoin',
+        sendingApp: 'paypal',
+      }),
+    }));
+    expect(fetch).toHaveBeenNthCalledWith(2, '/api/crypto/ping-pack-intents', expect.objectContaining({
+      method: 'POST',
+      body: JSON.stringify({
+        packId: 'ping_10',
+        idempotencyKey: 'checkout-client-3',
+        rail: 'btc_bitcoin',
+        sendingApp: 'cash_app',
+      }),
+    }));
+  });
+
+  it('reads the per-app Bitcoin sending eligibility with the member session', async () => {
+    await getBitcoinSendingEligibility();
+
+    expect(fetch).toHaveBeenCalledWith('/api/crypto/bitcoin-sending-eligibility', expect.objectContaining({
+      credentials: 'include',
     }));
   });
 

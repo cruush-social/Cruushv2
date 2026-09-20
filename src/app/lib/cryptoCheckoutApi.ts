@@ -2,6 +2,8 @@ import { requestApi } from './apiClient';
 import type { CruushPlusPlanId } from './billingApi';
 
 export type CryptoPaymentRailId = 'usdc_arbitrum' | 'pyusd_arbitrum' | 'pyusd_ethereum' | 'usdc_base' | 'btc_bitcoin';
+/** The app a member sends from. Several apps can share one rail (Bitcoin). */
+export type CryptoSendingApp = 'cash_app' | 'paypal' | 'venmo' | 'wallet';
 export type CryptoPaymentAsset = 'USDC' | 'PYUSD' | 'BTC';
 export type CryptoPaymentNetwork = 'arbitrum' | 'base' | 'ethereum' | 'bitcoin';
 
@@ -38,6 +40,7 @@ export type CryptoPaymentIntent = {
   asset: CryptoPaymentAsset;
   network: CryptoPaymentNetwork;
   rail: CryptoPaymentRailId;
+  sendingApp?: CryptoSendingApp | null;
   chainId: number;
   tokenAddress: string;
   amountUsdCents: number;
@@ -87,6 +90,7 @@ export async function createCryptoPaymentIntent(input: {
   planId: CruushPlusPlanId;
   idempotencyKey: string;
   rail?: CryptoPaymentRailId;
+  sendingApp?: CryptoSendingApp;
 }) {
   return requestApi<CryptoPaymentIntent>('/api/crypto/payment-intents', {
     method: 'POST',
@@ -112,7 +116,7 @@ export type PulsePack = { id: 'ping_3' | 'ping_10' | 'ping_25'; name: string; de
 export function getPulsePacks() {
   return requestApi<{ packs: PulsePack[] }>('/api/billing/ping-packs');
 }
-export function createPulsePaymentIntent(input: { packId: string; idempotencyKey: string; rail: CryptoPaymentRailId }) {
+export function createPulsePaymentIntent(input: { packId: string; idempotencyKey: string; rail: CryptoPaymentRailId; sendingApp?: CryptoSendingApp }) {
   return requestApi<CryptoPaymentIntent>('/api/crypto/ping-pack-intents', { method: 'POST', body: JSON.stringify(input) });
 }
 export function getCurrentPulsePaymentIntent() {
@@ -120,7 +124,7 @@ export function getCurrentPulsePaymentIntent() {
 }
 
 export type CryptoOrder = Pick<CryptoPaymentIntent,
-  'id' | 'productType' | 'asset' | 'network' | 'amountUsdCents' | 'gasFeeUsdCents' |
+  'id' | 'productType' | 'asset' | 'network' | 'sendingApp' | 'amountUsdCents' | 'gasFeeUsdCents' |
   'totalUsdCents' | 'quotedAmountAtomic' | 'status' | 'createdAt' | 'expiresAt' | 'paidAt' |
   'confirmations' | 'confirmationTarget' | 'paymentAmountReceived'
 > & { name: string; activatedAt: string | null };

@@ -25,7 +25,9 @@ import { CRUUSH_PLUS_FEATURES } from '../lib/cruushPlusFeatures';
 import {
   CRYPTO_NETWORK_LABELS,
   CRYPTO_PAYMENT_SOURCES,
+  CRYPTO_SENDING_APP_LABELS,
   CryptoPaymentMethodInstructions,
+  cryptoPaymentSourceForIntent,
 } from './CryptoPaymentMethods';
 
 type StorePlan = Omit<CruushPlusPlan, 'id' | 'interval'> & { id: string; interval: CruushPlusPlan['interval'] | 'pack' };
@@ -158,7 +160,7 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
   const [bitcoinEligibility, setBitcoinEligibility] = useState<BitcoinSendingEligibility | null>(null);
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [intent, setIntent] = useState<CryptoPaymentIntent | null>(null);
-  const [selectedRail, setSelectedRail] = useState<CryptoPaymentRailId>('usdc_arbitrum');
+  const [selectedSourceId, setSelectedSourceId] = useState<string>(CRYPTO_PAYMENT_SOURCES[0].id);
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState(false);
@@ -168,7 +170,7 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
   const [error, setError] = useState<string | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
   const [clockMs, setClockMs] = useState(() => Date.now());
-  const paymentAttemptRef = useRef<{ planId: string; rail: CryptoPaymentRailId; idempotencyKey: string } | null>(null);
+  const paymentAttemptRef = useRef<{ planId: string; sourceId: string; idempotencyKey: string } | null>(null);
   const pollStartedRef = useRef<{ intentId: string; startedAt: number } | null>(null);
   const cancelledIntentIdRef = useRef<string | null>(null);
 
@@ -193,7 +195,10 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
         if (currentIntent && isOpenCryptoPayment(currentIntent.status)) {
           setIntent(currentIntent);
           setSelectedPlanId(currentIntent.planId);
-          setSelectedRail(currentIntent.rail);
+          const intentSource = cryptoPaymentSourceForIntent(currentIntent);
+          if (intentSource) {
+            setSelectedSourceId(intentSource.id);
+          }
           return;
         }
         // Default to the best-value term that is still available rather than to
@@ -314,23 +319,30 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
     [plans],
   );
 
-  // What the selected method can actually send. The server evaluates every
-  // catalogue item against the live BTC quote and that app's sending minimum,
-  // so an item only disappears while a rail that cannot carry it is selected.
-  // An id the server did not evaluate stays listed, and a filter that would
-  // empty the picker is not applied, because a member must always be able to
-  // reach another method.
+  const selectedPaymentSource = useMemo(
+    () => CRYPTO_PAYMENT_SOURCES.find((source) => source.id === selectedSourceId) ?? CRYPTO_PAYMENT_SOURCES[0],
+    [selectedSourceId],
+  );
+  const selectedRail: CryptoPaymentRailId = selectedPaymentSource.rail;
+
+  // What the selected app can actually send. The server evaluates every
+  // catalogue item against the live BTC quote and each app's sending minimum,
+  // so an item only disappears while an app that cannot send it is selected.
+  // A wallet has no sending minimum. An id the server did not evaluate stays
+  // listed, and a filter that would empty the picker is not applied, because
+  // a member must always be able to reach another method.
   const listedPlans = useMemo(() => {
-    if (selectedRail !== 'btc_bitcoin' || !bitcoinEligibility) {
+    if (selectedPaymentSource.rail !== 'btc_bitcoin' || selectedPaymentSource.sendingApp === 'wallet' || !bitcoinEligibility) {
       return plans;
     }
 
+    const appLabel = CRYPTO_SENDING_APP_LABELS[selectedPaymentSource.sendingApp];
     const sendable = plans.filter((plan) => {
       const apps = bitcoinEligibility.products[plan.id];
-      return apps === undefined || apps.length > 0;
+      return apps === undefined || apps.includes(appLabel);
     });
     return sendable.length > 0 ? sendable : plans;
-  }, [bitcoinEligibility, plans, selectedRail]);
+  }, [bitcoinEligibility, plans, selectedPaymentSource]);
 
   const selectedPlan = useMemo(
     () => plans.find((plan) => plan.id === selectedPlanId) ?? null,
@@ -360,11 +372,19 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
     [readyRailIds],
   );
   const selectedRailReady = readyRailIds.has(selectedRail);
-  const selectedPaymentSource = CRYPTO_PAYMENT_SOURCES.find((source) => source.rail === selectedRail) ?? null;
   const visibleProcessorReady = readyVisibleSources.length > 0;
   const paymentOpen = intent ? isOpenCryptoPayment(intent.status) : false;
   const paymentPaid = intent?.status === 'paid';
   const checkoutSelectionLocked = starting || (paymentOpen && !locallyExpired) || paymentPaid;
+  // A source whose rail is not ready is not offered at all. The one exception
+  // is the source an open or paid order was started from, which stays shown
+  // so the checkout keeps presenting the order's own method.
+  const pickerSources = useMemo(
+    () => CRYPTO_PAYMENT_SOURCES.filter((source) =>
+      readyRailIds.has(source.rail)
+      || (source.id === selectedSourceId && (paymentOpen || paymentPaid))),
+    [paymentOpen, paymentPaid, readyRailIds, selectedSourceId],
+  );
 
   useEffect(() => {
     // An open or paid intent owns its original rail even if readiness changes
@@ -379,7 +399,7 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
       return;
     }
 
-    setSelectedRail(firstReadySource.rail);
+    setSelectedSourceId(firstReadySource.id);
     setIntent(null);
     setCopied(false);
     paymentAttemptRef.current = null;
@@ -421,18 +441,19 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
     setCopied(false);
 
     try {
-      const attempt = paymentAttemptRef.current?.planId === selectedPlan.id && paymentAttemptRef.current.rail === selectedRail
+      const attempt = paymentAttemptRef.current?.planId === selectedPlan.id && paymentAttemptRef.current.sourceId === selectedPaymentSource.id
         ? paymentAttemptRef.current
         : {
             planId: selectedPlan.id,
-            rail: selectedRail,
+            sourceId: selectedPaymentSource.id,
             idempotencyKey: createIdempotencyKey(),
           };
       paymentAttemptRef.current = attempt;
-      const nextIntent = await (isPulse ? createPulsePaymentIntent({ packId: attempt.planId, idempotencyKey: attempt.idempotencyKey, rail: attempt.rail }) : createCryptoPaymentIntent({
+      const nextIntent = await (isPulse ? createPulsePaymentIntent({ packId: attempt.planId, idempotencyKey: attempt.idempotencyKey, rail: selectedPaymentSource.rail, sendingApp: selectedPaymentSource.sendingApp }) : createCryptoPaymentIntent({
         planId: attempt.planId as CruushPlusPlanId,
         idempotencyKey: attempt.idempotencyKey,
-        rail: attempt.rail,
+        rail: selectedPaymentSource.rail,
+        sendingApp: selectedPaymentSource.sendingApp,
       }));
       if (paymentAttemptRef.current !== attempt) {
         return;
@@ -446,7 +467,7 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
     } finally {
       setStarting(false);
     }
-  }, [isPulse, locallyExpired, paymentOpen, paymentPaid, selectedPlan, selectedRail, selectedRailReady, starting]);
+  }, [isPulse, locallyExpired, paymentOpen, paymentPaid, selectedPlan, selectedPaymentSource, selectedRailReady, starting]);
 
   const handleCancelPayment = useCallback(async () => {
     if (!intent || !cancelAction || cancelling || !['pending', 'awaiting_payment'].includes(intent.status)) {
@@ -633,21 +654,21 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
                 </p>
               ) : null}
               <div className="grid grid-cols-3 gap-2" aria-label="Where you are paying from">
-                {CRYPTO_PAYMENT_SOURCES.map((source) => {
+                {pickerSources.map((source) => {
                   const sourceReady = readyRailIds.has(source.rail);
-                  const sourceSelected = selectedRail === source.rail
+                  const sourceSelected = selectedSourceId === source.id
                     && (sourceReady || paymentOpen || paymentPaid);
 
                   return (
                     <button
-                      key={source.rail}
+                      key={source.id}
                       type="button"
                       aria-label={source.label}
                       aria-pressed={sourceSelected}
                       disabled={!sourceReady || checkoutSelectionLocked}
                       className={`rounded-xl border px-2 py-2 text-center disabled:opacity-50 ${sourceSelected ? 'border-primary bg-primary/10' : 'border-border'}`}
                       onClick={() => {
-                        setSelectedRail(source.rail);
+                        setSelectedSourceId(source.id);
                         setIntent(null);
                         setCopied(false);
                         paymentAttemptRef.current = null;
@@ -661,7 +682,7 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
                   );
                 })}
               </div>
-              {selectedPaymentSource?.availabilityNote ? (
+              {selectedPaymentSource.availabilityNote ? (
                 <p className="rounded-lg border border-border bg-muted/40 p-2 text-xs leading-4 text-muted-foreground">
                   {selectedPaymentSource.availabilityNote}
                 </p>

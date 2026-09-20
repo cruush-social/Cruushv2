@@ -5,6 +5,7 @@ import { z } from "zod";
 import { getCruushPlusPlan } from "../billing.js";
 import type { AppConfig } from "../config.js";
 import { ApiError } from "../errors.js";
+import { CRYPTO_SENDING_APPS } from "../crypto-funding-estimate.js";
 import {
   CRYPTO_PAYMENT_RAILS,
   cancelCryptoPaymentIntent,
@@ -36,16 +37,23 @@ import {
 } from "../crypto-watcher-runtime.js";
 import { ingestCryptoPaymentReceipt } from "../crypto-watcher.js";
 
+// The app the member sends from is recorded with the order so the estimate,
+// the minimum warning and the order history all name it. Bitcoin is the rail
+// Cash App, PayPal and Venmo share.
+const sendingAppSchema = z.enum(CRYPTO_SENDING_APPS).optional();
+
 const paymentIntentPayloadSchema = z.object({
   planId: z.string().min(1),
   idempotencyKey: z.string().trim().min(8).max(128),
-  rail: z.enum(["usdc_arbitrum", "pyusd_arbitrum", "pyusd_ethereum", "usdc_base", "usdc_base_sepolia", "btc_bitcoin"]).default("usdc_arbitrum")
+  rail: z.enum(["usdc_arbitrum", "pyusd_arbitrum", "pyusd_ethereum", "usdc_base", "usdc_base_sepolia", "btc_bitcoin"]).default("usdc_arbitrum"),
+  sendingApp: sendingAppSchema
 }).strict();
 
 const pingPackIntentPayloadSchema = z.object({
   packId: z.enum(["ping_3", "ping_10", "ping_25"]),
   idempotencyKey: z.string().trim().min(8).max(128),
-  rail: z.enum(["usdc_arbitrum", "pyusd_arbitrum", "pyusd_ethereum", "usdc_base", "usdc_base_sepolia", "btc_bitcoin"]).default("usdc_arbitrum")
+  rail: z.enum(["usdc_arbitrum", "pyusd_arbitrum", "pyusd_ethereum", "usdc_base", "usdc_base_sepolia", "btc_bitcoin"]).default("usdc_arbitrum"),
+  sendingApp: sendingAppSchema
 }).strict();
 
 const paymentIntentParamsSchema = z.object({
@@ -207,7 +215,7 @@ export async function registerCryptoPaymentRoutes(
       rail,
       watchStartBlock,
       watchStartBlocksByChain,
-      metadata: { source: "store" }
+      metadata: { source: "store", ...(payload.sendingApp ? { sendingApp: payload.sendingApp } : {}) }
     });
 
     return reply.code(201).send({ data: await withCryptoPaymentDisplay(await withCryptoPaymentProgress(app.db, app.config, intent)) });
@@ -240,7 +248,7 @@ export async function registerCryptoPaymentRoutes(
       rail,
       watchStartBlock,
       watchStartBlocksByChain,
-      metadata: { source: "ping_pack_store", pingCount: pack.pingCount }
+      metadata: { source: "ping_pack_store", pingCount: pack.pingCount, ...(payload.sendingApp ? { sendingApp: payload.sendingApp } : {}) }
     });
 
     return reply.code(201).send({ data: await withCryptoPaymentDisplay(await withCryptoPaymentProgress(app.db, app.config, intent)) });

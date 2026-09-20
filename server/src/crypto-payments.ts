@@ -1,4 +1,4 @@
-import { cryptoFundingEstimates } from "./crypto-funding-estimate.js";
+import { cryptoFundingEstimates, isCryptoSendingApp, type CryptoSendingApp } from "./crypto-funding-estimate.js";
 import { BITCOIN_CONFIRMATION_TARGET, deriveBitcoinReceivingAddress, formatBitcoinAtomic, quoteBitcoinOrder, quoteUsdCentsAsBitcoinAtomic } from "./bitcoin.js";
 import { quoteCollectionFee } from "./crypto-collection-fee.js";
 import { createHash } from "node:crypto";
@@ -257,6 +257,8 @@ export type CryptoPaymentIntent = {
   asset: CryptoPaymentAsset;
   network: CryptoPaymentNetwork;
   rail: CryptoPaymentRailId;
+  /** The app the member chose to send from. Absent on orders recorded before it was stored. */
+  sendingApp: CryptoSendingApp | null;
   chainId: number;
   tokenAddress: string;
   amountUsdCents: number;
@@ -306,7 +308,14 @@ function numericDerivationIndex(value: number | string) {
   return index;
 }
 
+/** The sending app recorded on an intent's metadata, or null when none was stored or it is not a known app. */
+export function cryptoSendingAppFromMetadata(metadata: Record<string, unknown> | null | undefined): CryptoSendingApp | null {
+  const value = metadata?.sendingApp;
+  return isCryptoSendingApp(value) ? value : null;
+}
+
 export function mapCryptoPaymentIntent(row: CryptoPaymentIntentRow): CryptoPaymentIntent {
+  const sendingApp = cryptoSendingAppFromMetadata(row.metadata);
   return {
     id: row.id,
     userId: row.user_id,
@@ -315,12 +324,13 @@ export function mapCryptoPaymentIntent(row: CryptoPaymentIntentRow): CryptoPayme
     asset: row.asset,
     network: row.network,
     rail: railFor(row.asset, row.network),
+    sendingApp,
     chainId: cryptoRail(railFor(row.asset, row.network)).chainId,
     tokenAddress: cryptoRail(railFor(row.asset, row.network)).tokenAddress,
     amountUsdCents: Number(row.amount_usd_cents),
     gasFeeUsdCents: Number((row.metadata?.collectionFee as {feeUsdCents?:number} | undefined)?.feeUsdCents ?? 0),
     totalUsdCents: Number(row.amount_usd_cents) + Number((row.metadata?.collectionFee as {feeUsdCents?:number} | undefined)?.feeUsdCents ?? 0),
-    fundingEstimates: cryptoFundingEstimates({ rail: railFor(row.asset, row.network), amountUsdCents: Number(row.amount_usd_cents), gasFeeUsdCents: Number((row.metadata?.collectionFee as { feeUsdCents?: number } | undefined)?.feeUsdCents ?? 0), quotedAmountAtomic: row.quoted_amount_atomic ?? null }),
+    fundingEstimates: cryptoFundingEstimates({ rail: railFor(row.asset, row.network), sendingApp, amountUsdCents: Number(row.amount_usd_cents), gasFeeUsdCents: Number((row.metadata?.collectionFee as { feeUsdCents?: number } | undefined)?.feeUsdCents ?? 0), quotedAmountAtomic: row.quoted_amount_atomic ?? null }),
     quotedAmountAtomic: row.quoted_amount_atomic ?? null,
     paymentAddress: row.payment_address ?? null,
     status: row.status,
@@ -619,9 +629,13 @@ async function loadCompatibleOpenCryptoPaymentIntent(
     amountUsdCents: number;
     walletXpubFingerprint: string;
     rail: CryptoPaymentRailId;
+    sendingApp: CryptoSendingApp | null;
   }
 ) {
   const rail = cryptoRail(input.rail);
+  // The app is part of the method: an open Cash App Bitcoin order is not the
+  // PayPal Bitcoin order the member is now asking for, since its sending
+  // minimum and balance guidance differ.
   const result = await db.query<CryptoPaymentIntentRow>(
     `select *
      from crypto_payment_intents
@@ -632,6 +646,7 @@ async function loadCompatibleOpenCryptoPaymentIntent(
        and wallet_xpub_fingerprint = $5
        and asset = $6
        and network = $7
+       and coalesce(metadata->>'sendingApp', '') = $8
        and (
          status = 'confirming'
          or (
@@ -649,7 +664,8 @@ async function loadCompatibleOpenCryptoPaymentIntent(
       input.amountUsdCents,
       input.walletXpubFingerprint,
       rail.asset,
-      rail.network
+      rail.network,
+      input.sendingApp ?? ""
     ]
   );
 
@@ -832,7 +848,8 @@ export async function createInHouseCryptoPaymentIntent(
         ...input,
         productType,
         walletXpubFingerprint,
-        rail
+        rail,
+        sendingApp: cryptoSendingAppFromMetadata(input.metadata)
       });
     }
 

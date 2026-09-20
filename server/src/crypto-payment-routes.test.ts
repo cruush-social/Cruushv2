@@ -82,7 +82,7 @@ describe("crypto payment routes", () => {
       product_type: index === 0 ? "ping_pack" : "cruush_plus",
       asset: "BTC", network: "bitcoin", amount_usd_cents: 1899,
       quoted_amount_atomic: "10000", payment_address: "fixture-address",
-      status: "expired", metadata: { privateFixture: "must-not-leave-server" },
+      status: "expired", metadata: { privateFixture: "must-not-leave-server", ...(index === 0 ? { sendingApp: "paypal" } : {}) },
       wallet_xpub_fingerprint: "private-wallet-fingerprint", derivation_index: 42,
       expires_at: "2026-09-01T10:00:00Z", created_at: "2026-08-31T10:00:00Z",
       updated_at: "2026-09-02T10:00:00Z", paid_at: null, entitlement_granted_at: null,
@@ -108,8 +108,10 @@ describe("crypto payment routes", () => {
       const history = response.json().data;
       expect(history.orders).toHaveLength(20);
       expect(history.nextCursor).toBe(rows[19].id);
-      expect(history.orders[0]).toMatchObject({ name: "3 Pulses", status: "expired", confirmations: 3, confirmationTarget: 6, paymentAmountReceived: true, activatedAt: null });
+      expect(history.orders[0]).toMatchObject({ name: "3 Pulses", status: "expired", confirmations: 3, confirmationTarget: 6, paymentAmountReceived: true, activatedAt: null, sendingApp: "paypal" });
       expect(history.orders[1].name).toBe("Monthly cruush+");
+      // An order recorded before the app was stored names no app.
+      expect(history.orders[1].sendingApp).toBeNull();
       expect(response.body).not.toMatch(/private-wallet|must-not-leave|derivation|payment_address|user_id/);
     } finally { await app.close(); }
   });
@@ -228,6 +230,15 @@ describe("crypto payment routes", () => {
     });
 
     expect(response.statusCode).toBe(400);
+
+    // The sending app is a fixed list: an unknown app never reaches the order record.
+    const unknownApp = await disabledApp.inject({
+      method: "POST",
+      url: "/api/crypto/payment-intents",
+      headers: { "content-type": "application/json", "x-user-id": userId },
+      payload: { planId: "plus_monthly", idempotencyKey: "checkout-route-1", rail: "btc_bitcoin", sendingApp: "zelle" }
+    });
+    expect(unknownApp.statusCode).toBe(400);
   });
 
   it("refuses the worthless-token testnet rail unless it was deliberately enabled", async () => {
@@ -560,7 +571,7 @@ describe("crypto payment routes", () => {
       wallet_xpub_fingerprint: fingerprintCryptoWalletXpub(receiveChainXpub),
       watch_start_block: null,
       idempotency_key: "checkout-route-1",
-      metadata: { source: "store" },
+      metadata: { source: "store", sendingApp: "cash_app" },
       expires_at: "2026-08-22T18:00:00Z",
       created_at: "2026-08-22T17:30:00Z",
       updated_at: "2026-08-22T17:30:00Z",
@@ -614,7 +625,8 @@ describe("crypto payment routes", () => {
         },
         payload: {
           planId: "plus_monthly",
-          idempotencyKey: "checkout-route-1"
+          idempotencyKey: "checkout-route-1",
+          sendingApp: "cash_app"
         }
       });
 
@@ -631,9 +643,19 @@ describe("crypto payment routes", () => {
           paymentAddress,
           asset: "USDC",
           network: "arbitrum",
+          sendingApp: "cash_app",
           status: "awaiting_payment"
         }
       });
+      // The chosen app is part of the method: an open order is only reused
+      // for the same app, and a new one records it.
+      const compatibleLookup = query.mock.calls.find(([sql]) =>
+        String(sql).includes("wallet_xpub_fingerprint = $5")
+      );
+      expect((compatibleLookup as unknown as [string, unknown[]] | undefined)?.[0]).toContain("metadata->>'sendingApp'");
+      expect((compatibleLookup as unknown as [string, unknown[]] | undefined)?.[1]).toEqual(
+        expect.arrayContaining(["cash_app"])
+      );
       expect(body.data.paymentUri).toBe(
         `ethereum:0xaf88d065e77c8cC2239327C5EDb3A432268e5831@42161/transfer?address=${paymentAddress}&uint256=19000000`
       );
@@ -669,7 +691,7 @@ describe("crypto payment routes", () => {
         String(sql).includes("insert into crypto_payment_intents")
       );
       expect((reservation as unknown as [string, unknown[]] | undefined)?.[1])
-        .toEqual(expect.arrayContaining([1899]));
+        .toEqual(expect.arrayContaining([1899, JSON.stringify({ source: "store", sendingApp: "cash_app" })]));
     } finally {
       await app.close();
     }

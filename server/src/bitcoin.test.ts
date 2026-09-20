@@ -42,3 +42,17 @@ it('keeps the sending allowance out of the required payment and scales balance g
   expect(cryptoFundingEstimates({ rail: 'pyusd_arbitrum', amountUsdCents: 11999, gasFeeUsdCents: 1, quotedAmountAtomic: '120000000' })[0]?.allowanceUsdCents).toBe(1200);
   expect(cryptoFundingEstimates({ rail: 'usdc_base', amountUsdCents: 1899, gasFeeUsdCents: 1, quotedAmountAtomic: '19000000' })).toEqual([]);
 });
+
+it('narrows Bitcoin guidance to the app the order was started from', () => {
+  const order = { rail: 'btc_bitcoin', amountUsdCents: 1899, gasFeeUsdCents: 1, quotedAmountAtomic: '19000' };
+  // 19,000 satoshis clears Cash App's 5,000 but not the 100,000 PayPal and Venmo require.
+  expect(cryptoFundingEstimates({ ...order, sendingApp: 'cash_app' }).map(row => [row.app, row.meetsSendingMinimum])).toEqual([['Cash App', true]]);
+  expect(cryptoFundingEstimates({ ...order, sendingApp: 'paypal' }).map(row => [row.app, row.meetsSendingMinimum, row.minimumSendAtomic])).toEqual([['PayPal', false, '100000']]);
+  expect(cryptoFundingEstimates({ ...order, sendingApp: 'venmo' }).map(row => [row.app, row.meetsSendingMinimum])).toEqual([['Venmo', false]]);
+  // A wallet has no app minimum and gets no app guidance.
+  expect(cryptoFundingEstimates({ ...order, sendingApp: 'wallet' })).toEqual([]);
+  // An order recorded before the app was stored keeps every app's guidance.
+  expect(cryptoFundingEstimates({ ...order, sendingApp: null }).map(row => row.app)).toEqual(['Cash App', 'PayPal', 'Venmo']);
+  // A stablecoin rail belongs to one app whatever was recorded.
+  expect(cryptoFundingEstimates({ rail: 'pyusd_arbitrum', sendingApp: 'paypal', amountUsdCents: 11999, gasFeeUsdCents: 1, quotedAmountAtomic: '120000000' }).map(row => row.app)).toEqual(['PayPal']);
+});

@@ -1,27 +1,55 @@
 import type {
   CryptoPaymentNetwork,
   CryptoPaymentRailId,
+  CryptoSendingApp,
 } from '../lib/cryptoCheckoutApi';
 
-export const CRYPTO_PAYMENT_SOURCES: ReadonlyArray<{
+export const CRYPTO_SENDING_APP_LABELS: Record<CryptoSendingApp, string> = {
+  cash_app: 'Cash App',
+  paypal: 'PayPal',
+  venmo: 'Venmo',
+  wallet: 'A crypto wallet',
+};
+
+export type CryptoPaymentSource = {
+  /** One entry per app and rail pair; the id names both. */
+  id: string;
   rail: CryptoPaymentRailId;
+  sendingApp: CryptoSendingApp;
   label: string;
   asset: string;
   network: string;
   availabilityNote?: string;
-}> = [
+};
+
+// Cash App, PayPal and Venmo each send Bitcoin on-chain, so every app is
+// listed on the Bitcoin rail as well as on its stablecoin rail. A source is
+// only shown while its rail is ready.
+export const CRYPTO_PAYMENT_SOURCES: ReadonlyArray<CryptoPaymentSource> = [
   {
+    id: 'cash_app_usdc_arbitrum',
     rail: 'usdc_arbitrum',
+    sendingApp: 'cash_app',
     label: 'Cash App',
     asset: 'USDC',
     network: 'Arbitrum',
     availabilityNote: 'Cash App stablecoin transfers are not available to New York residents. If that applies to you, choose Bitcoin for Cash App, or another available method.',
   },
-  { rail: 'pyusd_arbitrum', label: 'PayPal', asset: 'PYUSD', network: 'Arbitrum' },
-  { rail: 'pyusd_ethereum', label: 'Venmo', asset: 'PYUSD', network: 'Ethereum' },
-  { rail: 'usdc_base', label: 'A crypto wallet', asset: 'USDC', network: 'Base' },
-  { rail: 'btc_bitcoin', label: 'Bitcoin', asset: 'BTC', network: 'Bitcoin', availabilityNote: 'Send Bitcoin with Cash App, PayPal or Venmo. Cash App supports on-chain Bitcoin in New York. Each app has its own sending minimum and fees.' },
+  { id: 'paypal_pyusd_arbitrum', rail: 'pyusd_arbitrum', sendingApp: 'paypal', label: 'PayPal', asset: 'PYUSD', network: 'Arbitrum' },
+  { id: 'venmo_pyusd_ethereum', rail: 'pyusd_ethereum', sendingApp: 'venmo', label: 'Venmo', asset: 'PYUSD', network: 'Ethereum' },
+  { id: 'wallet_usdc_base', rail: 'usdc_base', sendingApp: 'wallet', label: 'A crypto wallet', asset: 'USDC', network: 'Base' },
+  { id: 'cash_app_btc_bitcoin', rail: 'btc_bitcoin', sendingApp: 'cash_app', label: 'Cash App', asset: 'BTC', network: 'Bitcoin' },
+  { id: 'paypal_btc_bitcoin', rail: 'btc_bitcoin', sendingApp: 'paypal', label: 'PayPal', asset: 'BTC', network: 'Bitcoin' },
+  { id: 'venmo_btc_bitcoin', rail: 'btc_bitcoin', sendingApp: 'venmo', label: 'Venmo', asset: 'BTC', network: 'Bitcoin' },
+  { id: 'wallet_btc_bitcoin', rail: 'btc_bitcoin', sendingApp: 'wallet', label: 'A crypto wallet', asset: 'BTC', network: 'Bitcoin' },
 ];
+
+/** The source an existing order was started from: its app on its rail, or the rail's first source for older orders. */
+export function cryptoPaymentSourceForIntent(intent: { rail: CryptoPaymentRailId; sendingApp?: CryptoSendingApp | null }) {
+  return CRYPTO_PAYMENT_SOURCES.find((source) => source.rail === intent.rail && source.sendingApp === intent.sendingApp)
+    ?? CRYPTO_PAYMENT_SOURCES.find((source) => source.rail === intent.rail)
+    ?? null;
+}
 
 type PaymentMethodGuide = {
   title: string;

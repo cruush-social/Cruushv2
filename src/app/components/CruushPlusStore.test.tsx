@@ -280,7 +280,11 @@ describe('CruushPlusStore', () => {
   });
 
   it('shows the real plan price and explains why cruush takes crypto', async () => {
-    vi.mocked(getCryptoProcessorStatus).mockResolvedValue(processorStatus());
+    vi.mocked(getCryptoProcessorStatus).mockResolvedValue(processorStatus([
+      'usdc_arbitrum',
+      'pyusd_arbitrum',
+      'usdc_base',
+    ]));
 
     renderStore();
 
@@ -361,29 +365,28 @@ describe('CruushPlusStore', () => {
 
     const payButton = await screen.findByRole('button', { name: /get 1 month for \$18\.99/i });
     expect(payButton).toBeDisabled();
-    for (const sourceLabel of ['Cash App', 'PayPal', 'A crypto wallet']) {
-      const sourceButton = screen.getByRole('button', { name: sourceLabel });
-      expect(sourceButton).toBeDisabled();
-      expect(sourceButton).toHaveAttribute('aria-pressed', 'false');
-      expect(sourceButton).not.toHaveClass('bg-primary/10');
+    // A source whose rail is not ready is not offered, so nothing is listed.
+    for (const sourceLabel of ['Cash App', 'PayPal', 'Venmo', 'A crypto wallet', 'Bitcoin']) {
+      expect(screen.queryByRole('button', { name: sourceLabel })).not.toBeInTheDocument();
     }
+    expect(screen.getByText(/crypto payment is not available yet/i)).toBeInTheDocument();
 
     fireEvent.click(payButton);
     expect(createCryptoPaymentIntent).not.toHaveBeenCalled();
   });
 
   it.each([
-    ['Cash App', 'usdc_arbitrum', [
+    ['Cash App', 'usdc_arbitrum', 'cash_app', [
       'Confirm you are eligible. Cash App says stablecoin transfers are not available to New York residents.',
       'Open Cash App and go to the Payment tab.',
     ]],
-    ['PayPal', 'pyusd_arbitrum', [
+    ['PayPal', 'pyusd_arbitrum', 'paypal', [
       'Open PayPal, go to Finances, and open your PayPal USD (PYUSD) balance.',
     ]],
-    ['A crypto wallet', 'usdc_base', [
+    ['A crypto wallet', 'usdc_base', 'wallet', [
       'Choose USDC as the asset and Base as the network.',
     ]],
-  ] as const)('maps %s to the exact %s rail and instructions', async (sourceLabel, rail, instructions) => {
+  ] as const)('maps %s to the exact %s rail and instructions', async (sourceLabel, rail, sendingApp, instructions) => {
     vi.mocked(getCryptoProcessorStatus).mockResolvedValue(processorStatus([
       'usdc_arbitrum',
       'pyusd_arbitrum',
@@ -408,11 +411,12 @@ describe('CruushPlusStore', () => {
         planId: 'plus_monthly',
         idempotencyKey: expect.any(String),
         rail,
+        sendingApp,
       });
     });
   });
 
-  it('moves selection to a ready visible rail and disables unavailable sources', async () => {
+  it('moves selection to a ready visible rail and hides unavailable sources', async () => {
     vi.mocked(getCryptoProcessorStatus).mockResolvedValue(processorStatus(['usdc_base']));
 
     renderStore();
@@ -420,8 +424,8 @@ describe('CruushPlusStore', () => {
     const walletButton = await screen.findByRole('button', { name: 'A crypto wallet' });
     await waitFor(() => expect(walletButton).toHaveAttribute('aria-pressed', 'true'));
     expect(walletButton).toBeEnabled();
-    expect(screen.getByRole('button', { name: 'Cash App' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'PayPal' })).toBeDisabled();
+    expect(screen.queryByRole('button', { name: 'Cash App' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'PayPal' })).not.toBeInTheDocument();
   });
 
   it('selects the ready Venmo PYUSD Ethereum rail and starts its checkout', async () => {
@@ -432,14 +436,15 @@ describe('CruushPlusStore', () => {
     const payButton = await screen.findByRole('button', { name: /get 1 month for \$18\.99/i });
     await waitFor(() => expect(payButton).toBeEnabled());
     expect(screen.getByRole('button', { name: 'Venmo' })).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByRole('button', { name: 'Cash App' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'PayPal' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'A crypto wallet' })).toBeDisabled();
+    expect(screen.queryByRole('button', { name: 'Cash App' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'PayPal' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'A crypto wallet' })).not.toBeInTheDocument();
     fireEvent.click(payButton);
     await waitFor(() => expect(createCryptoPaymentIntent).toHaveBeenCalledWith({
       planId: 'plus_monthly',
       idempotencyKey: expect.any(String),
       rail: 'pyusd_ethereum',
+      sendingApp: 'venmo',
     }));
   });
 
@@ -587,7 +592,7 @@ describe('CruushPlusStore', () => {
     fireEvent.click(screen.getByRole('button', { name: /get 1 month for/i }));
     expect(await screen.findByText(replacement.paymentAddress)).toBeInTheDocument();
     expect(createCryptoPaymentIntent).toHaveBeenCalledWith({
-      planId: 'plus_monthly', rail: 'pyusd_arbitrum', idempotencyKey: expect.any(String),
+      planId: 'plus_monthly', rail: 'pyusd_arbitrum', sendingApp: 'paypal', idempotencyKey: expect.any(String),
     });
     expect(screen.queryByText(openIntent.paymentAddress)).not.toBeInTheDocument();
   });
@@ -872,13 +877,13 @@ describe('Pulse checkout shares the live processor', () => {
     vi.mocked(createPulsePaymentIntent).mockResolvedValue({ id: 'pulse-order', userId: 'member', planId: 'ping_3', productType: 'ping_pack', asset: 'USDC', network: 'arbitrum', rail: 'usdc_arbitrum', chainId: 42161, tokenAddress: '', amountUsdCents: 299, quotedAmountAtomic: '2990000', paymentAddress: '0x123', paymentUri: null, qrCodeDataUrl: null, status: 'paid', expiresAt: null, createdAt: null, updatedAt: null, paidAt: null });
     render(<MemoryRouter><CruushPlusStore product="ping_pack" /></MemoryRouter>);
     fireEvent.click(await screen.findByRole('button', { name: 'Get 3 pulses for $2.99' }));
-    await waitFor(() => expect(createPulsePaymentIntent).toHaveBeenCalledWith(expect.objectContaining({ packId: 'ping_3', rail: 'usdc_arbitrum' })));
+    await waitFor(() => expect(createPulsePaymentIntent).toHaveBeenCalledWith(expect.objectContaining({ packId: 'ping_3', rail: 'usdc_arbitrum', sendingApp: 'cash_app' })));
     expect(await screen.findByText('Payment confirmed. Your Pulses are available.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'cruush+ checkout' })).toBeInTheDocument();
   });
 });
 
-describe('a Bitcoin method lists only what it can send', () => {
+describe('Bitcoin through Cash App, PayPal, Venmo or a wallet', () => {
   const bitcoinRail = {
     id: 'btc_bitcoin' as const,
     asset: 'BTC' as const,
@@ -888,23 +893,54 @@ describe('a Bitcoin method lists only what it can send', () => {
     ready: true,
   };
 
-  function bitcoinProcessorStatus(): CryptoProcessorStatus {
+  /** Production at launch: only the Bitcoin rail is ready. */
+  function bitcoinOnlyProcessorStatus(): CryptoProcessorStatus {
     return {
       ready: true,
-      asset: 'USDC',
-      network: 'arbitrum',
-      confirmationTarget: 1,
+      asset: 'BTC',
+      network: 'bitcoin',
+      confirmationTarget: 6,
       rails: [
-        ...processorRails.map((rail) => ({ ...rail, ready: rail.id === 'usdc_arbitrum' })),
+        ...processorRails.map((rail) => ({ ...rail, ready: false })),
         bitcoinRail,
       ],
     };
   }
 
+  /** Every rail ready: the stablecoin sources sit next to the Bitcoin ones. */
+  function everyRailProcessorStatus(): CryptoProcessorStatus {
+    return {
+      ...bitcoinOnlyProcessorStatus(),
+      rails: [
+        ...processorRails.map((rail) => ({ ...rail, ready: true })),
+        bitcoinRail,
+      ],
+    };
+  }
+
+  // At a quote where the weekly plan is under every app's minimum, the monthly
+  // and 6 month plans clear Cash App only, and the annual plans clear all three.
+  const perAppEligibility = {
+    rail: 'btc_bitcoin' as const,
+    products: {
+      plus_weekly: [],
+      plus_monthly: ['Cash App'],
+      plus_6_month: ['Cash App'],
+      plus_annual: ['Cash App', 'PayPal', 'Venmo'],
+      founder_annual: ['Cash App', 'PayPal', 'Venmo'],
+    },
+  };
+
+  const pulsePacks = [
+    { id: 'ping_3' as const, name: '3 Pulses', description: '3 permanent Pulse credits', pingCount: 3, amountCents: 299, currency: 'USD' as const },
+    { id: 'ping_10' as const, name: '10 Pulses', description: '10 permanent Pulse credits', pingCount: 10, amountCents: 799, currency: 'USD' as const },
+    { id: 'ping_25' as const, name: '25 Pulses', description: '25 permanent Pulse credits', pingCount: 25, amountCents: 1499, currency: 'USD' as const },
+  ];
+
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(getCurrentCryptoPaymentIntent).mockResolvedValue(null);
-    vi.mocked(getCryptoProcessorStatus).mockResolvedValue(bitcoinProcessorStatus());
+    vi.mocked(getCryptoProcessorStatus).mockResolvedValue(bitcoinOnlyProcessorStatus());
     vi.mocked(getBillingPlans).mockResolvedValue({
       processor: 'fake',
       testCheckout: true,
@@ -914,36 +950,97 @@ describe('a Bitcoin method lists only what it can send', () => {
     });
   });
 
-  it('hides a plan no Bitcoin app can send and moves the selection to one they can', async () => {
-    vi.mocked(getBitcoinSendingEligibility).mockResolvedValue({
-      rail: 'btc_bitcoin',
-      products: {
-        plus_weekly: [],
-        plus_monthly: ['Cash App'],
-        plus_6_month: ['Cash App'],
-        plus_annual: ['Cash App'],
-        founder_annual: ['Cash App'],
-      },
-    });
+  it('offers exactly Cash App, PayPal, Venmo and a wallet, all on Bitcoin, while only Bitcoin is ready', async () => {
+    vi.mocked(getBitcoinSendingEligibility).mockResolvedValue({ rail: 'btc_bitcoin', products: {} });
     renderStore();
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Bitcoin' }));
+    const picker = await screen.findByLabelText('Where you are paying from');
+    const buttons = within(picker).getAllByRole('button');
+    expect(buttons.map((button) => button.getAttribute('aria-label'))).toEqual(['Cash App', 'PayPal', 'Venmo', 'A crypto wallet']);
+    expect(within(picker).getAllByText('BTC · Bitcoin')).toHaveLength(4);
+    expect(within(picker).queryByText(/USDC|PYUSD/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Bitcoin' })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Send Bitcoin with Cash App, PayPal or Venmo/i)).not.toBeInTheDocument();
+    for (const button of buttons) {
+      expect(button).toBeEnabled();
+    }
+    // The first offered source is selected and the checkout is live.
+    expect(screen.getByRole('button', { name: 'Cash App' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: /get 1 year for \$99\.99/i })).toBeEnabled();
+  });
+
+  it('sends the chosen app with the Bitcoin rail so the order records it', async () => {
+    vi.mocked(getBitcoinSendingEligibility).mockResolvedValue({ rail: 'btc_bitcoin', products: {} });
+    vi.mocked(createCryptoPaymentIntent).mockRejectedValue(new Error('Stop after request mapping.'));
+    renderStore();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Venmo' }));
+    expect(screen.getByRole('button', { name: 'Venmo' })).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(screen.getByRole('button', { name: /how to send this payment/i }));
+    expect(await screen.findByText('Cash App, PayPal or Venmo')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /get 1 year for \$99\.99/i }));
+
+    await waitFor(() => expect(createCryptoPaymentIntent).toHaveBeenCalledWith({
+      planId: 'founder_annual',
+      idempotencyKey: expect.any(String),
+      rail: 'btc_bitcoin',
+      sendingApp: 'venmo',
+    }));
+  });
+
+  it('lists for Cash App only what Cash App can send, and moves the selection onto it', async () => {
+    vi.mocked(getBitcoinSendingEligibility).mockResolvedValue(perAppEligibility);
+    renderStore();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Cash App' }));
     fireEvent.click(screen.getByRole('button', { name: /Compare plans/i }));
 
     const otherPrices = await screen.findByRole('list', { name: 'Other cruush+ prices' });
     await waitFor(() => expect(within(otherPrices).queryByText('7 days')).not.toBeInTheDocument());
     expect(within(otherPrices).getByText('1 month')).toBeInTheDocument();
+    expect(within(otherPrices).getByText('6 months')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^Get 7 days for/ })).not.toBeInTheDocument();
   });
 
-  it('keeps every plan listed for a method the sample did not evaluate', async () => {
+  it('lists for PayPal only the items at or above its 0.001 BTC minimum', async () => {
+    vi.mocked(getBitcoinSendingEligibility).mockResolvedValue(perAppEligibility);
+    renderStore();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'PayPal' }));
+    expect(screen.getByRole('button', { name: 'PayPal' })).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(screen.getByRole('button', { name: /Compare plans/i }));
+
+    const otherPrices = await screen.findByRole('list', { name: 'Other cruush+ prices' });
+    await waitFor(() => expect(within(otherPrices).queryByText('1 month')).not.toBeInTheDocument());
+    expect(within(otherPrices).queryByText('7 days')).not.toBeInTheDocument();
+    expect(within(otherPrices).queryByText('6 months')).not.toBeInTheDocument();
+    // Founder annual stays selected; the other annual plan is the only other item.
+    expect(within(otherPrices).getAllByRole('listitem')).toHaveLength(1);
+    expect(within(otherPrices).getByText('1 year')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /get 1 year for \$99\.99/i })).toBeEnabled();
+  });
+
+  it('lists everything for a wallet, which has no app minimum', async () => {
+    vi.mocked(getBitcoinSendingEligibility).mockResolvedValue(perAppEligibility);
+    renderStore();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'A crypto wallet' }));
+    fireEvent.click(screen.getByRole('button', { name: /Compare plans/i }));
+
+    const otherPrices = await screen.findByRole('list', { name: 'Other cruush+ prices' });
+    expect(within(otherPrices).getByText('7 days')).toBeInTheDocument();
+    expect(within(otherPrices).getAllByRole('listitem')).toHaveLength(4);
+  });
+
+  it('keeps every plan listed for a stablecoin method the Bitcoin sample does not cover', async () => {
+    vi.mocked(getCryptoProcessorStatus).mockResolvedValue(everyRailProcessorStatus());
     vi.mocked(getBitcoinSendingEligibility).mockResolvedValue({
       rail: 'btc_bitcoin',
       products: { plus_weekly: [] },
     });
     renderStore();
 
-    // Cash App is the default rail, so the Bitcoin sample must not filter it.
+    // Cash App on USDC is the default source, so the Bitcoin sample must not filter it.
     fireEvent.click(await screen.findByRole('button', { name: /Compare plans/i }));
     const otherPrices = await screen.findByRole('list', { name: 'Other cruush+ prices' });
     expect(within(otherPrices).getByText('7 days')).toBeInTheDocument();
@@ -953,35 +1050,121 @@ describe('a Bitcoin method lists only what it can send', () => {
     vi.mocked(getBitcoinSendingEligibility).mockRejectedValue(new Error('chain source unavailable'));
     renderStore();
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Bitcoin' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'PayPal' }));
     fireEvent.click(screen.getByRole('button', { name: /Compare plans/i }));
 
     const otherPrices = await screen.findByRole('list', { name: 'Other cruush+ prices' });
     expect(within(otherPrices).getByText('7 days')).toBeInTheDocument();
   });
 
-  it('lists only the Pulse packs a Bitcoin app can send', async () => {
-    vi.mocked(getPulsePacks).mockResolvedValue({
-      packs: [
-        { id: 'ping_3', name: '3 Pulses', description: '3 permanent Pulse credits', pingCount: 3, amountCents: 299, currency: 'USD' },
-        { id: 'ping_10', name: '10 Pulses', description: '10 permanent Pulse credits', pingCount: 10, amountCents: 799, currency: 'USD' },
-        { id: 'ping_25', name: '25 Pulses', description: '25 permanent Pulse credits', pingCount: 25, amountCents: 1499, currency: 'USD' },
-      ],
-    });
+  it('hides 3 Pulses for Cash App and sends the app with the Pulse order', async () => {
+    vi.mocked(getPulsePacks).mockResolvedValue({ packs: pulsePacks });
     vi.mocked(getCurrentPulsePaymentIntent).mockResolvedValue(null);
     vi.mocked(getBitcoinSendingEligibility).mockResolvedValue({
       rail: 'btc_bitcoin',
       products: { ping_3: [], ping_10: ['Cash App'], ping_25: ['Cash App'] },
     });
+    vi.mocked(createPulsePaymentIntent).mockRejectedValue(new Error('Stop after request mapping.'));
     render(<MemoryRouter><CruushPlusStore product="ping_pack" /></MemoryRouter>);
 
-    expect(await screen.findByRole('button', { name: 'Get 3 pulses for $2.99' })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Bitcoin' }));
-
+    // Cash App is the first offered source, so the selection moves off 3 Pulses on load.
     expect(await screen.findByRole('button', { name: 'Get 10 pulses for $7.99' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Cash App' })).toHaveAttribute('aria-pressed', 'true');
     fireEvent.click(screen.getByRole('button', { name: /Compare plans/i }));
     const otherPrices = await screen.findByRole('list', { name: 'Other Pulse prices' });
     expect(within(otherPrices).queryByText('3 Pulses')).not.toBeInTheDocument();
     expect(within(otherPrices).getByText('25 Pulses')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Get 10 pulses for $7.99' }));
+    await waitFor(() => expect(createPulsePaymentIntent).toHaveBeenCalledWith({
+      packId: 'ping_10',
+      idempotencyKey: expect.any(String),
+      rail: 'btc_bitcoin',
+      sendingApp: 'cash_app',
+    }));
+  });
+
+  it('lists for PayPal only the Pulse packs PayPal can send', async () => {
+    vi.mocked(getPulsePacks).mockResolvedValue({ packs: pulsePacks });
+    vi.mocked(getCurrentPulsePaymentIntent).mockResolvedValue(null);
+    vi.mocked(getBitcoinSendingEligibility).mockResolvedValue({
+      rail: 'btc_bitcoin',
+      products: { ping_3: [], ping_10: ['Cash App'], ping_25: ['Cash App', 'PayPal', 'Venmo'] },
+    });
+    render(<MemoryRouter><CruushPlusStore product="ping_pack" /></MemoryRouter>);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'PayPal' }));
+
+    expect(await screen.findByRole('button', { name: 'Get 25 pulses for $14.99' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Compare plans/i })).not.toBeInTheDocument();
+    expect(screen.queryByText('3 Pulses')).not.toBeInTheDocument();
+    expect(screen.queryByText('10 Pulses')).not.toBeInTheDocument();
+  });
+
+  it('restores an open PayPal Bitcoin order onto the PayPal source', async () => {
+    vi.mocked(getBitcoinSendingEligibility).mockResolvedValue(perAppEligibility);
+    vi.mocked(getCurrentCryptoPaymentIntent).mockResolvedValue({
+      id: '00000000-0000-4000-8000-000000000021',
+      userId: '00000000-0000-4000-8000-000000000001',
+      planId: 'plus_annual',
+      productType: 'cruush_plus',
+      asset: 'BTC',
+      network: 'bitcoin',
+      rail: 'btc_bitcoin',
+      sendingApp: 'paypal',
+      chainId: 0,
+      tokenAddress: '',
+      amountUsdCents: 11999,
+      gasFeeUsdCents: 20,
+      totalUsdCents: 12019,
+      fundingEstimates: [{ app: 'PayPal', minimumSendAtomic: '100000', meetsSendingMinimum: true, allowanceUsdCents: 1200, availableUsdCents: 13219, availableAtomic: '165000', estimated: true }],
+      quotedAmountAtomic: '150000',
+      paymentAddress: 'bc1qexampleaddressforthepaypalorder000000000',
+      paymentUri: null,
+      qrCodeDataUrl: null,
+      status: 'awaiting_payment',
+      expiresAt: '2099-09-01T12:30:00.000Z',
+      createdAt: '2099-09-01T12:00:00.000Z',
+      updatedAt: '2099-09-01T12:00:00.000Z',
+      paidAt: null,
+    });
+    renderStore();
+
+    expect(await screen.findByText(/waiting for your payment to arrive/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'PayPal' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Cash App' })).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByRole('button', { name: 'Venmo' })).toHaveAttribute('aria-pressed', 'false');
+    // Only the chosen app's balance guidance is shown.
+    expect(screen.getByText(/^PayPal: have about/)).toBeInTheDocument();
+    expect(screen.queryByText(/^Cash App: have about/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Venmo: have about/)).not.toBeInTheDocument();
+  });
+
+  it('shows the stablecoin and Bitcoin sources side by side once every rail is ready', async () => {
+    vi.mocked(getCryptoProcessorStatus).mockResolvedValue(everyRailProcessorStatus());
+    vi.mocked(getBitcoinSendingEligibility).mockResolvedValue({ rail: 'btc_bitcoin', products: {} });
+    renderStore();
+
+    const picker = await screen.findByLabelText('Where you are paying from');
+    expect(picker).toHaveClass('grid-cols-3');
+    const buttons = within(picker).getAllByRole('button');
+    expect(buttons.map((button) => button.getAttribute('aria-label'))).toEqual([
+      'Cash App', 'PayPal', 'Venmo', 'A crypto wallet',
+      'Cash App', 'PayPal', 'Venmo', 'A crypto wallet',
+    ]);
+    expect(buttons.map((button) => button.textContent)).toEqual([
+      'Cash AppUSDC · Arbitrum', 'PayPalPYUSD · Arbitrum', 'VenmoPYUSD · Ethereum', 'A crypto walletUSDC · Base',
+      'Cash AppBTC · Bitcoin', 'PayPalBTC · Bitcoin', 'VenmoBTC · Bitcoin', 'A crypto walletBTC · Bitcoin',
+    ]);
+    for (const button of buttons) {
+      expect(button).toBeEnabled();
+      expect(button.className).not.toContain('col-span');
+    }
+    // Only one source is selected across both sets.
+    expect(buttons.filter((button) => button.getAttribute('aria-pressed') === 'true')).toHaveLength(1);
+
+    fireEvent.click(buttons[5]);
+    expect(buttons[5]).toHaveAttribute('aria-pressed', 'true');
+    expect(buttons[1]).toHaveAttribute('aria-pressed', 'false');
   });
 });
