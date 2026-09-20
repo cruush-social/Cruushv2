@@ -23,6 +23,7 @@ vi.mock('../lib/cryptoCheckoutApi', async () => {
     getPulsePacks: vi.fn(),
     createPulsePaymentIntent: vi.fn(),
     getCurrentPulsePaymentIntent: vi.fn(),
+    getBitcoinSendingEligibility: vi.fn(),
     getCryptoProcessorStatus: vi.fn(),
     getCurrentCryptoPaymentIntent: vi.fn(),
     createCryptoPaymentIntent: vi.fn(),
@@ -36,6 +37,7 @@ const {
   getPulsePacks, createPulsePaymentIntent, getCurrentPulsePaymentIntent,
   cancelCryptoPaymentIntent,
   createCryptoPaymentIntent,
+  getBitcoinSendingEligibility,
   getCryptoPaymentIntent,
   getCryptoProcessorStatus,
   getCurrentCryptoPaymentIntent,
@@ -173,9 +175,16 @@ function renderStore() {
   );
 }
 
+// Every render loads the Bitcoin sending sample. An empty map evaluates nothing,
+// so tests that are not about it keep the whole catalogue listed.
+beforeEach(() => {
+  vi.mocked(getBitcoinSendingEligibility).mockResolvedValue({ rail: 'btc_bitcoin', products: {} });
+});
+
 describe('CruushPlusStore', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(getBitcoinSendingEligibility).mockResolvedValue({ rail: 'btc_bitcoin', products: {} });
     vi.mocked(getCurrentCryptoPaymentIntent).mockResolvedValue(null);
     vi.mocked(getBillingPlans).mockResolvedValue({
       processor: 'fake',
@@ -866,5 +875,113 @@ describe('Pulse checkout shares the live processor', () => {
     await waitFor(() => expect(createPulsePaymentIntent).toHaveBeenCalledWith(expect.objectContaining({ packId: 'ping_3', rail: 'usdc_arbitrum' })));
     expect(await screen.findByText('Payment confirmed. Your Pulses are available.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'cruush+ checkout' })).toBeInTheDocument();
+  });
+});
+
+describe('a Bitcoin method lists only what it can send', () => {
+  const bitcoinRail = {
+    id: 'btc_bitcoin' as const,
+    asset: 'BTC' as const,
+    network: 'bitcoin' as const,
+    chainId: 0,
+    tokenAddress: '',
+    ready: true,
+  };
+
+  function bitcoinProcessorStatus(): CryptoProcessorStatus {
+    return {
+      ready: true,
+      asset: 'USDC',
+      network: 'arbitrum',
+      confirmationTarget: 1,
+      rails: [
+        ...processorRails.map((rail) => ({ ...rail, ready: rail.id === 'usdc_arbitrum' })),
+        bitcoinRail,
+      ],
+    };
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(getCurrentCryptoPaymentIntent).mockResolvedValue(null);
+    vi.mocked(getCryptoProcessorStatus).mockResolvedValue(bitcoinProcessorStatus());
+    vi.mocked(getBillingPlans).mockResolvedValue({
+      processor: 'fake',
+      testCheckout: true,
+      testWarning: 'TEST CHECKOUT - no real payment will be collected.',
+      currency: 'USD',
+      plans: conversionPlans,
+    });
+  });
+
+  it('hides a plan no Bitcoin app can send and moves the selection to one they can', async () => {
+    vi.mocked(getBitcoinSendingEligibility).mockResolvedValue({
+      rail: 'btc_bitcoin',
+      products: {
+        plus_weekly: [],
+        plus_monthly: ['Cash App'],
+        plus_6_month: ['Cash App'],
+        plus_annual: ['Cash App'],
+        founder_annual: ['Cash App'],
+      },
+    });
+    renderStore();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Bitcoin' }));
+    fireEvent.click(screen.getByRole('button', { name: /Compare plans/i }));
+
+    const otherPrices = await screen.findByRole('list', { name: 'Other cruush+ prices' });
+    await waitFor(() => expect(within(otherPrices).queryByText('7 days')).not.toBeInTheDocument());
+    expect(within(otherPrices).getByText('1 month')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Get 7 days for/ })).not.toBeInTheDocument();
+  });
+
+  it('keeps every plan listed for a method the sample did not evaluate', async () => {
+    vi.mocked(getBitcoinSendingEligibility).mockResolvedValue({
+      rail: 'btc_bitcoin',
+      products: { plus_weekly: [] },
+    });
+    renderStore();
+
+    // Cash App is the default rail, so the Bitcoin sample must not filter it.
+    fireEvent.click(await screen.findByRole('button', { name: /Compare plans/i }));
+    const otherPrices = await screen.findByRole('list', { name: 'Other cruush+ prices' });
+    expect(within(otherPrices).getByText('7 days')).toBeInTheDocument();
+  });
+
+  it('leaves the catalogue alone when the sample is unavailable', async () => {
+    vi.mocked(getBitcoinSendingEligibility).mockRejectedValue(new Error('chain source unavailable'));
+    renderStore();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Bitcoin' }));
+    fireEvent.click(screen.getByRole('button', { name: /Compare plans/i }));
+
+    const otherPrices = await screen.findByRole('list', { name: 'Other cruush+ prices' });
+    expect(within(otherPrices).getByText('7 days')).toBeInTheDocument();
+  });
+
+  it('lists only the Pulse packs a Bitcoin app can send', async () => {
+    vi.mocked(getPulsePacks).mockResolvedValue({
+      packs: [
+        { id: 'ping_3', name: '3 Pulses', description: '3 permanent Pulse credits', pingCount: 3, amountCents: 299, currency: 'USD' },
+        { id: 'ping_10', name: '10 Pulses', description: '10 permanent Pulse credits', pingCount: 10, amountCents: 799, currency: 'USD' },
+        { id: 'ping_25', name: '25 Pulses', description: '25 permanent Pulse credits', pingCount: 25, amountCents: 1499, currency: 'USD' },
+      ],
+    });
+    vi.mocked(getCurrentPulsePaymentIntent).mockResolvedValue(null);
+    vi.mocked(getBitcoinSendingEligibility).mockResolvedValue({
+      rail: 'btc_bitcoin',
+      products: { ping_3: [], ping_10: ['Cash App'], ping_25: ['Cash App'] },
+    });
+    render(<MemoryRouter><CruushPlusStore product="ping_pack" /></MemoryRouter>);
+
+    expect(await screen.findByRole('button', { name: 'Get 3 pulses for $2.99' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Bitcoin' }));
+
+    expect(await screen.findByRole('button', { name: 'Get 10 pulses for $7.99' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Compare plans/i }));
+    const otherPrices = await screen.findByRole('list', { name: 'Other Pulse prices' });
+    expect(within(otherPrices).queryByText('3 Pulses')).not.toBeInTheDocument();
+    expect(within(otherPrices).getByText('25 Pulses')).toBeInTheDocument();
   });
 });

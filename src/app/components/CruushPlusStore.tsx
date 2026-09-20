@@ -11,10 +11,12 @@ import {
   getPulsePacks, createPulsePaymentIntent, getCurrentPulsePaymentIntent,
   cancelCryptoPaymentIntent,
   createCryptoPaymentIntent,
+  getBitcoinSendingEligibility,
   getCurrentCryptoPaymentIntent,
   getCryptoPaymentIntent,
   getCryptoProcessorStatus,
   isOpenCryptoPayment,
+  type BitcoinSendingEligibility,
   type CryptoPaymentIntent,
   type CryptoPaymentRailId,
   type CryptoProcessorStatus,
@@ -153,6 +155,7 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
   const navigate = useNavigate();
   const [plans, setPlans] = useState<StorePlan[]>([]);
   const [processor, setProcessor] = useState<CryptoProcessorStatus | null>(null);
+  const [bitcoinEligibility, setBitcoinEligibility] = useState<BitcoinSendingEligibility | null>(null);
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [intent, setIntent] = useState<CryptoPaymentIntent | null>(null);
   const [selectedRail, setSelectedRail] = useState<CryptoPaymentRailId>('usdc_arbitrum');
@@ -176,14 +179,17 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
       isPulse ? getPulsePacks().then(({ packs }) => ({ plans: packs.map(pack => ({ ...pack, interval: 'pack' as const, supplyRemaining: null, isFounder: false, isLifetime: false, badgeKeys: [] })) })) : getBillingPlans(),
       getCryptoProcessorStatus().catch(() => null),
       (isPulse ? getCurrentPulsePaymentIntent() : getCurrentCryptoPaymentIntent()).catch(() => null),
+      // A missing sample leaves the catalogue as it is rather than hiding it.
+      getBitcoinSendingEligibility().catch(() => null),
     ])
-      .then(([billing, cryptoStatus, currentIntent]) => {
+      .then(([billing, cryptoStatus, currentIntent, bitcoinSending]) => {
         if (!active) {
           return;
         }
 
         setPlans(billing.plans);
         setProcessor(cryptoStatus);
+        setBitcoinEligibility(bitcoinSending);
         if (currentIntent && isOpenCryptoPayment(currentIntent.status)) {
           setIntent(currentIntent);
           setSelectedPlanId(currentIntent.planId);
@@ -308,6 +314,24 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
     [plans],
   );
 
+  // What the selected method can actually send. The server evaluates every
+  // catalogue item against the live BTC quote and that app's sending minimum,
+  // so an item only disappears while a rail that cannot carry it is selected.
+  // An id the server did not evaluate stays listed, and a filter that would
+  // empty the picker is not applied, because a member must always be able to
+  // reach another method.
+  const listedPlans = useMemo(() => {
+    if (selectedRail !== 'btc_bitcoin' || !bitcoinEligibility) {
+      return plans;
+    }
+
+    const sendable = plans.filter((plan) => {
+      const apps = bitcoinEligibility.products[plan.id];
+      return apps === undefined || apps.length > 0;
+    });
+    return sendable.length > 0 ? sendable : plans;
+  }, [bitcoinEligibility, plans, selectedRail]);
+
   const selectedPlan = useMemo(
     () => plans.find((plan) => plan.id === selectedPlanId) ?? null,
     [plans, selectedPlanId],
@@ -323,8 +347,8 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
   }, [plans]);
 
   const otherPlans = useMemo(
-    () => plans.filter((plan) => plan.id !== selectedPlanId),
-    [plans, selectedPlanId],
+    () => listedPlans.filter((plan) => plan.id !== selectedPlanId),
+    [listedPlans, selectedPlanId],
   );
 
   const readyRailIds = useMemo(
@@ -360,6 +384,24 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
     setCopied(false);
     paymentAttemptRef.current = null;
   }, [paymentOpen, paymentPaid, processor, readyVisibleSources, selectedRailReady]);
+
+  useEffect(() => {
+    // A started or paid order owns its plan, so the selection is left alone
+    // while it is locked. Otherwise the selection follows the listed items.
+    if (checkoutSelectionLocked || listedPlans.length === 0) {
+      return;
+    }
+
+    if (selectedPlanId && listedPlans.some((plan) => plan.id === selectedPlanId)) {
+      return;
+    }
+
+    const available = listedPlans.find((plan) => plan.supplyRemaining !== 0) ?? listedPlans[0];
+    setSelectedPlanId(available.id);
+    setIntent(null);
+    setCopied(false);
+    paymentAttemptRef.current = null;
+  }, [checkoutSelectionLocked, listedPlans, selectedPlanId]);
 
   const handleStartPayment = useCallback(async () => {
     if (

@@ -70,6 +70,19 @@ export async function getCryptoProcessorStatus() {
   return requestApi<CryptoProcessorStatus>('/api/crypto/status');
 }
 
+/**
+ * Which Bitcoin sending apps can send each catalogue item at the current quote.
+ * An id absent from `products` was not evaluated and stays listed.
+ */
+export type BitcoinSendingEligibility = {
+  rail: 'btc_bitcoin';
+  products: Record<string, string[]>;
+};
+
+export async function getBitcoinSendingEligibility() {
+  return requestApi<BitcoinSendingEligibility>('/api/crypto/bitcoin-sending-eligibility');
+}
+
 export async function createCryptoPaymentIntent(input: {
   planId: CruushPlusPlanId;
   idempotencyKey: string;

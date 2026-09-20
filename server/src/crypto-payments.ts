@@ -1,5 +1,5 @@
 import { cryptoFundingEstimates } from "./crypto-funding-estimate.js";
-import { BITCOIN_CONFIRMATION_TARGET, deriveBitcoinReceivingAddress, formatBitcoinAtomic, quoteBitcoinOrder } from "./bitcoin.js";
+import { BITCOIN_CONFIRMATION_TARGET, deriveBitcoinReceivingAddress, formatBitcoinAtomic, quoteBitcoinOrder, quoteUsdCentsAsBitcoinAtomic } from "./bitcoin.js";
 import { quoteCollectionFee } from "./crypto-collection-fee.js";
 import { createHash } from "node:crypto";
 import QRCode from "qrcode";
@@ -10,7 +10,8 @@ import { ApiError } from "./errors.js";
 import {
   assertCryptoPlanCanReserve,
   getCruushPlusPlan,
-  lockCryptoPurchaseUser
+  lockCryptoPurchaseUser,
+  CRUUSH_PLUS_PLANS
 } from "./billing.js";
 import {
   deriveCryptoReceivingAddress,
@@ -18,7 +19,7 @@ import {
   isValidCryptoWalletXpub,
   quoteUsdCentsAsStablecoinAtomic
 } from "./crypto-wallet.js";
-import { getPingPack } from "./ping-packs.js";
+import { getPingPack, PING_PACKS } from "./ping-packs.js";
 
 /**
  * The receiving rails. Every value here is fixed server-side; a client may name
@@ -1108,4 +1109,52 @@ export async function cancelCryptoPaymentIntent(db: DbClient, userId: string, in
 
     return mapCryptoPaymentIntent(cancelled);
   });
+}
+
+/**
+ * The collection fee a Bitcoin order quotes depends on the fee rate and the BTC
+ * price, never on the order amount, so one probe quote covers the catalogue.
+ */
+const BITCOIN_SENDING_PROBE_USD_CENTS = 100;
+
+/**
+ * Which Bitcoin sending apps can actually send each catalogue item at the
+ * current quote.
+ *
+ * The store hides what the selected method cannot send, and an order already
+ * warns when it falls under an app's minimum. Both read the same two things
+ * here - the live quote from quoteBitcoinOrder and the minimums inside
+ * cryptoFundingEstimates - so the list and the warning can never disagree, and
+ * the threshold follows the BTC price instead of a fixed dollar figure.
+ *
+ * An id missing from the map means "not evaluated", so a caller that cannot
+ * reach this data leaves the catalogue alone rather than hiding all of it.
+ */
+export async function listBitcoinSendingEligibility(config: AppConfig, fetcher: typeof fetch = fetch) {
+  if (!isCryptoPaymentRailReady(config, "btc_bitcoin")) {
+    return { rail: "btc_bitcoin" as const, products: {} as Record<string, string[]> };
+  }
+
+  const { collectionFee } = await quoteBitcoinOrder(config, BITCOIN_SENDING_PROBE_USD_CENTS, fetcher);
+  const sendingApps = (amountUsdCents: number) => cryptoFundingEstimates({
+    rail: "btc_bitcoin",
+    amountUsdCents,
+    gasFeeUsdCents: collectionFee.feeUsdCents,
+    quotedAmountAtomic: quoteUsdCentsAsBitcoinAtomic(
+      amountUsdCents + collectionFee.feeUsdCents,
+      collectionFee.btcUsdCents
+    )
+  })
+    .filter((estimate) => estimate.meetsSendingMinimum)
+    .map((estimate) => estimate.app);
+
+  const products: Record<string, string[]> = {};
+  for (const plan of CRUUSH_PLUS_PLANS) {
+    products[plan.id] = sendingApps(plan.amountCents);
+  }
+  for (const pack of PING_PACKS) {
+    products[pack.id] = sendingApps(pack.amountCents);
+  }
+
+  return { rail: "btc_bitcoin" as const, products };
 }

@@ -9,6 +9,7 @@ import {
   CRYPTO_PAYMENT_RAILS,
   cancelCryptoPaymentIntent,
   createInHouseCryptoPaymentIntent,
+  listBitcoinSendingEligibility,
   getCryptoPaymentRailRpcEndpoint,
   getCryptoProcessorStatus,
   isTestnetCryptoPaymentRail,
@@ -164,6 +165,17 @@ export async function registerCryptoPaymentRoutes(
 
     return reply.send({
       data: getCryptoProcessorStatus(app.config)
+    });
+  });
+
+  // Separate from /status because this one samples the live chain and price:
+  // a checkout must keep listing its rails when that sample is unavailable.
+  app.get("/api/crypto/bitcoin-sending-eligibility", async (request, reply) => {
+    const userId = await getAuthenticatedUserId(request);
+    await assertCryptoPaymentIntentReadRateLimit(app, userId);
+
+    return reply.send({
+      data: await listBitcoinSendingEligibility(app.config)
     });
   });
 
