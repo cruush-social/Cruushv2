@@ -113,7 +113,7 @@ describe('NotificationCenter', () => {
     await waitFor(() => expect(markAllNotificationsRead).toHaveBeenCalled());
   });
 
-  it('opens an existing nearby notification on its source pin', async () => {
+  it('opens an existing nearby notification on an anonymous area, never its source pin', async () => {
     const sourceUserId = '00000000-0000-4000-8000-000000000002';
     getNotifications.mockResolvedValue({
       notifications: [{
@@ -143,9 +143,13 @@ describe('NotificationCenter', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Someone nearby' }));
     await waitFor(() => expect(markNotificationRead).toHaveBeenCalledWith('notification-nearby'));
-    expect(await screen.findByTestId('location-probe')).toHaveTextContent(
-      `/map?layer=nearby&focusUserId=${sourceUserId}`,
-    );
+    // 1aaf2f3 made this navigation anonymous: the notification frames a general
+    // area and must never name, select or centre on the triggering member, so
+    // no source profile ID may reach the destination URL.
+    const probe = await screen.findByTestId('location-probe');
+    expect(probe).toHaveTextContent('/map?layer=nearby');
+    expect(probe.textContent ?? '').not.toContain(sourceUserId);
+    expect(probe.textContent ?? '').not.toContain('focusUserId');
   });
 
   it('renders an empty state and a load error state', async () => {

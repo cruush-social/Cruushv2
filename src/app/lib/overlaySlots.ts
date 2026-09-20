@@ -56,7 +56,8 @@ export const OVERLAY_SLOTS: OverlaySlot[] = [
   },
   {
     id: 'map-right-actions',
-    source: 'src/app/components/MapHome.tsx',
+    // Extracted out of MapHome.tsx into its own component by 78ff219.
+    source: 'src/app/components/MapControls.tsx',
     z: 40,
     // Includes the widest state: crowd/ghost notices, Seeking, Visibility and the
     // complete vertical map-control stack.

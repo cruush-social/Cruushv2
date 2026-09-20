@@ -35,7 +35,7 @@ import {
   type ProfilePayload,
   type ProfileVisibilityRules,
 } from '../lib/profileApi';
-import { ApiClientError, requestApi, resolveMediaUrl } from '../lib/apiClient';
+import { ApiClientError, requestApi, requestApiWithUploadRetry, resolveMediaUrl } from '../lib/apiClient';
 import { getAppMeta } from '../lib/metaApi';
 import { getStoredCurrentUser, persistCurrentUser } from '../lib/sessionUser';
 import { addDlModeChangedListener, isDlModeEnabled, shouldMaskPhoto } from '../lib/dlMode';
@@ -215,7 +215,7 @@ export async function readProfilePhotoPreviewUrl(file: File, options: { previewO
     const inferredType = PHOTO_UPLOAD_EXTENSION_TYPES.get(file.name.split('.').pop()?.toLowerCase() ?? '');
     body.set('photo', (!file.type || file.type === 'application/octet-stream') && inferredType
       ? new File([file], file.name, { type: inferredType }) : file);
-    const prepared = await requestApi<{ url: string }>(options.surface === 'feed' ? '/api/feed/photos/prepare' : '/api/profile-photos/prepare', { method: 'POST', body });
+    const prepared = await requestApiWithUploadRetry<{ url: string }>(options.surface === 'feed' ? '/api/feed/photos/prepare' : '/api/profile-photos/prepare', { method: 'POST', body });
     const image = new Image();
     image.src = prepared.url;
     await image.decode();

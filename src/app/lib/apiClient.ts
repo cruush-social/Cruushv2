@@ -117,3 +117,25 @@ export async function requestApi<T>(path: string, init?: RequestInit): Promise<T
 
   return parseApiResponse<T>(response);
 }
+
+const UPLOAD_RETRY_DELAYS_MS = [1000, 2500];
+
+// A photo upload from a phone can lose its connection partway: the server
+// logs the stream closing early and the browser gets no response at all, so
+// the member sees "API unavailable" for a photo that never arrived (#286).
+// Only that case is retried; any answer from the server, good or bad, stands.
+export async function requestApiWithUploadRetry<T>(path: string, init?: RequestInit): Promise<T> {
+  let attempt = 0;
+  for (;;) {
+    try {
+      return await requestApi<T>(path, init);
+    } catch (error) {
+      const connectionLost = error instanceof ApiClientError && error.code === 'API_UNAVAILABLE';
+      if (!connectionLost || attempt >= UPLOAD_RETRY_DELAYS_MS.length) {
+        throw error;
+      }
+      await new Promise((resolve) => setTimeout(resolve, UPLOAD_RETRY_DELAYS_MS[attempt]));
+      attempt += 1;
+    }
+  }
+}

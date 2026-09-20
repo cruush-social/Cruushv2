@@ -305,7 +305,9 @@ describe('CruushActivity', () => {
 
     selectTab(/sent/i);
     expect(await screen.findByText('jay')).toBeInTheDocument();
-    expect(screen.getByText(/pending/i)).toBeInTheDocument();
+    // A sent cruush carries no Pending label any more (414b93a, issue #280);
+    // the card itself says the state.
+    expect(screen.queryByText(/pending/i)).not.toBeInTheDocument();
     expectHeartPreviewSize('jay preview');
     expect(screen.getByRole('button', { name: 'jay preview' }).querySelector('path')).toHaveAttribute('stroke', '#FF0072');
 
@@ -314,7 +316,11 @@ describe('CruushActivity', () => {
     expect(screen.queryByText('your cruushes')).not.toBeInTheDocument();
     expect(screen.queryByText('People you are mutually into.')).not.toBeInTheDocument();
     expect(screen.getByText('river')).toBeInTheDocument();
-    expect(screen.getByText('~0.5 mi away')).toBeInTheDocument();
+    // Distance labels are approximate unless both members choose precise, so
+    // the mutual row reads Nearby instead of a mileage (cb5de40).
+    const riverRow = screen.getByRole('button', { name: 'river preview' }).closest('[data-testid]')?.parentElement;
+    expect(riverRow?.textContent).toContain('Nearby');
+    expect(riverRow?.textContent).not.toMatch(/\d+(\.\d+)?\s*mi/);
     expectHeartPreviewSize('river preview');
     expect(screen.getByRole('button', { name: 'river preview' }).querySelector('path')).toHaveAttribute('stroke', '#6F00FF');
     // Cruushes rows use the Feed card layout: the identity takes the full

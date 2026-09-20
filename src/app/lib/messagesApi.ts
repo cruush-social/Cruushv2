@@ -1,4 +1,4 @@
-import { requestApi } from './apiClient';
+import { requestApi, requestApiWithUploadRetry } from './apiClient';
 import { ApiClientError, getApiBaseUrl } from './apiClient';
 import type { SideBadges } from './profileApi';
 import type { MapPingStatus } from './mapPingsApi';
@@ -260,7 +260,7 @@ export function createMessagePhoto(
   body.set('viewOnce', options.viewOnce ? 'true' : 'false');
   body.set('photo', photo);
 
-  return requestApi<RemoteChatMessage | PendingPhotoReview>('/api/messages/photos', {
+  return requestApiWithUploadRetry<RemoteChatMessage | PendingPhotoReview>('/api/messages/photos', {
     method: 'POST',
     body,
   });

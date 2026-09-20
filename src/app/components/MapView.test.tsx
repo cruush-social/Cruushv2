@@ -1905,7 +1905,11 @@ describe('MapView', () => {
     expect(markerInstances.filter((marker) => marker.element.isConnected).every((marker) => marker.offset === null)).toBe(true);
   });
 
-  it('clusters ordinary overlapping people at low zoom while preserving the owner', async () => {
+  // 0da9639 and 7811c70 made a shared building the only thing that forms a
+  // people cluster: anyone further apart than SAME_BUILDING_PROXIMITY_METERS
+  // (0.1 mile) keeps their own pin at every zoom, so the old "zoom into N
+  // nearby people" cluster no longer exists for ordinary nearby members.
+  it('keeps ordinary nearby people on their own pins while preserving the owner', async () => {
     const onPinClick = vi.fn();
 
     render(
@@ -1943,24 +1947,19 @@ describe('MapView', () => {
       />
     );
 
-    expect(await screen.findByRole('button', { name: 'Zoom into 2 nearby people on map' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Open A on map' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Open B on map' })).not.toBeInTheDocument();
+    // A and B sit ~355m apart, wider than a shared building, so they stay apart.
+    expect(await screen.findByRole('button', { name: 'Open A on map' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Open B on map' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Open C on map' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Show your pin details' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /nearby people/ })).not.toBeInTheDocument();
+    expect(document.querySelector('[data-testid^="people-cluster-marker-"]')).toBeNull();
     expect(onPinClick).not.toHaveBeenCalled();
     expect(mapInstances[0].fitBounds).not.toHaveBeenCalled();
-    const cluster = screen.getByRole('button', { name: 'Zoom into 2 nearby people on map' });
-    expect(cluster.querySelector('[data-testid^="people-cluster-marker-"]')).toHaveTextContent('2');
-    fireEvent.click(cluster);
-    expect(mapInstances[0].fitBounds).toHaveBeenCalledWith(
-      [[-73.9902, 40.7128], [-73.99, 40.716]],
-      expect.objectContaining({ maxZoom: MAX_DISCOVERY_ZOOM }),
-    );
     expect(mapInstances[0].setCenter).not.toHaveBeenCalled();
   });
 
-  it('zooms overlapping wider people groups beyond the former cutoff', async () => {
+  it('keeps people wider than a shared building apart at every zoom', async () => {
     const latitude = 40.7128;
     const longitude = -74.006;
     render(<MapView onPinClick={vi.fn()} markers={[
@@ -1970,57 +1969,69 @@ describe('MapView', () => {
         approximateLongitude: longitude + 180 / (111195.0802 * Math.cos(latitude * Math.PI / 180)),
         roleBadge: { kind: 'role', label: 'switch', iconName: 'switch' } },
     ]} />);
-    await screen.findByRole('button', { name: 'Zoom into 2 nearby people on map' });
+    // 180m apart is just past the 0.1-mile shared-building limit.
+    expect(await screen.findByRole('button', { name: 'Open Edge A on map' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Open Edge B on map' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /nearby people/ })).not.toBeInTheDocument();
     act(() => {
       mapInstances[0].getZoom.mockReturnValue(15);
       mapInstances[0].trigger('zoomend');
     });
-    fireEvent.click(await screen.findByRole('button', { name: 'Zoom into 2 nearby people on map' }));
-    expect(mapInstances[0].fitBounds).toHaveBeenCalledWith(
-      expect.any(Array), expect.objectContaining({ maxZoom: MAX_DISCOVERY_ZOOM }),
-    );
+    expect(await screen.findByRole('button', { name: 'Open Edge A on map' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Open Edge B on map' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /nearby people/ })).not.toBeInTheDocument();
+    expect(mapInstances[0].fitBounds).not.toHaveBeenCalled();
     expect(mapInstances[0].setCenter).not.toHaveBeenCalled();
   });
 
-  it('separates ordinary nearby people at close zoom while same-building clusters remain available to spiderfy', async () => {
+  it('separates ordinary nearby people at every zoom while same-building clusters remain available to spiderfy', async () => {
     render(
       <MapView
         onPinClick={vi.fn()}
         markers={[
           { id: 'person-a', displayName: 'Person A', approximateLatitude: 40.7128, approximateLongitude: -73.99, privacyRadiusMeters: 10 },
           { id: 'person-b', displayName: 'Person B', approximateLatitude: 40.7158, approximateLongitude: -73.99, privacyRadiusMeters: 10 },
+          { id: 'same-a', displayName: 'Same A', approximateLatitude: 40.72, approximateLongitude: -73.98, privacyRadiusMeters: 10 },
+          { id: 'same-b', displayName: 'Same B', approximateLatitude: 40.72005, approximateLongitude: -73.98, privacyRadiusMeters: 10 },
         ]}
       />,
     );
 
-    expect(await screen.findByRole('button', { name: 'Zoom into 2 nearby people on map' })).toBeInTheDocument();
+    // The 333m pair never merges; the 5.5m pair is one shared building.
+    expect(await screen.findByRole('button', { name: 'Open Person A on map' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Open Person B on map' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Open 2 nearby people sharing this map spot' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Open Same A on map' })).not.toBeInTheDocument();
     act(() => {
       mapInstances[0].getZoom.mockReturnValue(14.5);
       mapInstances[0].trigger('zoomend');
     });
 
     await waitFor(() => {
-      expect(screen.queryByRole('button', { name: 'Zoom into 2 nearby people on map' })).not.toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Open Person A on map' })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Open Person B on map' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Open 2 nearby people sharing this map spot' })).toBeInTheDocument();
     });
   });
 
-  it('shows ordinary profiles 130px apart before the close-zoom cutoff without moving their anchors', async () => {
+  it('shows ordinary profiles 130px apart at every zoom without moving their anchors', async () => {
     const longitude = -73.99;
     const otherLongitude = longitude + 130 * 360 / (512 * 2 ** 14);
     render(<MapView onPinClick={vi.fn()} markers={[
       { id: 'person-a', displayName: 'Person A', approximateLatitude: 40.7128, approximateLongitude: longitude, privacyRadiusMeters: 10 },
       { id: 'person-b', displayName: 'Person B', approximateLatitude: 40.7128, approximateLongitude: otherLongitude, privacyRadiusMeters: 10 },
     ]} />);
-    await screen.findByRole('button', { name: 'Zoom into 2 nearby people on map' });
+    // 130px at zoom 14 is ~430m of real ground, past the shared-building limit,
+    // so the pair is separate before the zoom change as well as after it.
+    await screen.findByRole('button', { name: 'Open Person A on map' });
+    expect(screen.queryByRole('button', { name: /nearby people/ })).not.toBeInTheDocument();
     act(() => {
       mapInstances[0].getZoom.mockReturnValue(14);
       mapInstances[0].trigger('zoomend');
     });
     await screen.findByRole('button', { name: 'Open Person A on map' });
     expect(screen.getByRole('button', { name: 'Open Person B on map' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Zoom into 2 nearby people/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /nearby people/ })).not.toBeInTheDocument();
     const visible = markerInstances.filter((marker) => marker.element.isConnected);
     expect(visible).toHaveLength(2);
     expect(visible.map((marker) => marker.coordinates))
@@ -2279,7 +2290,7 @@ describe('MapView', () => {
 });
 
 describe('spiderfy clusters', () => {
-  it('zooms wider people clusters even when disclosed privacy areas overlap', async () => {
+  it('keeps wider people apart even when disclosed privacy areas overlap', async () => {
     render(
       <MapView
         onPinClick={vi.fn()}
@@ -2296,12 +2307,12 @@ describe('spiderfy clusters', () => {
       />,
     );
 
-    const cluster = await screen.findByRole('button', { name: 'Zoom into 2 nearby people on map' });
-    fireEvent.click(cluster);
-
-    expect(mapInstances[0].fitBounds).toHaveBeenCalled();
-    expect(screen.queryByRole('button', { name: 'Open A on map' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Open B on map' })).not.toBeInTheDocument();
+    // Both disclose a 250m privacy radius, so their circles overlap, but they
+    // are ~344m apart: only real shared-building proximity forms a cluster.
+    expect(await screen.findByRole('button', { name: 'Open A on map' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Open B on map' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /nearby people/ })).not.toBeInTheDocument();
+    expect(mapInstances[0].fitBounds).not.toHaveBeenCalled();
   });
 
   it('opens a same-building people fan on hover and pins it open with a click', async () => {
@@ -2568,11 +2579,13 @@ describe('separateOverlappingMarkers', () => {
 
 
 describe('people cluster maximum spread', () => {
+  // Every pair in a group has to be inside the 0.1-mile limit. A wider pair no
+  // longer downgrades the group to a zoom cluster: it simply does not join it.
   it.each([
-    { offsets: [0, 160], action: 'Open 2 nearby people sharing this map spot' },
-    { offsets: [0, 162], action: 'Zoom into 2 nearby people on map' },
-    { offsets: [0, -100, 100], action: 'Zoom into 3 nearby people on map' },
-  ])('uses the 0.1-mile maximum pair distance for $offsets', async ({ offsets, action }) => {
+    { offsets: [0, 160], clustered: ['Spread 0', 'Spread 1'], separate: [] as string[] },
+    { offsets: [0, 162], clustered: [] as string[], separate: ['Spread 0', 'Spread 1'] },
+    { offsets: [0, -100, 100], clustered: ['Spread 0', 'Spread 1'], separate: ['Spread 2'] },
+  ])('uses the 0.1-mile maximum pair distance for $offsets', async ({ offsets, clustered, separate }) => {
     render(<MapView onPinClick={vi.fn()} markers={offsets.map((meters, index) => ({
       id: `spread-${index}`,
       displayName: `Spread ${index}`,
@@ -2580,6 +2593,20 @@ describe('people cluster maximum spread', () => {
       approximateLongitude: -73.99,
       privacyRadiusMeters: 500,
     }))} />);
-    expect(await screen.findByRole('button', { name: action })).toBeInTheDocument();
+
+    for (const name of separate) {
+      expect(await screen.findByRole('button', { name: `Open ${name} on map` })).toBeInTheDocument();
+    }
+
+    if (clustered.length > 0) {
+      expect(await screen.findByRole('button', {
+        name: `Open ${clustered.length} nearby people sharing this map spot`,
+      })).toBeInTheDocument();
+      for (const name of clustered) {
+        expect(screen.queryByRole('button', { name: `Open ${name} on map` })).not.toBeInTheDocument();
+      }
+    } else {
+      expect(screen.queryByRole('button', { name: /nearby people/ })).not.toBeInTheDocument();
+    }
   });
 });

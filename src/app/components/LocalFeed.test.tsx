@@ -663,9 +663,9 @@ describe('LocalFeed', () => {
     fireEvent.change(within(composer).getByPlaceholderText('Share something with nearby people...'), {
       target: { value: 'mutual post' },
     });
-    const settings = await openFeedSettings();
-    fireEvent.click(within(settings).getByRole('button', { name: 'Cruushes' }));
-    fireEvent.keyDown(settings, { key: 'Escape' });
+    // 905b731 moved "Who can see this post" out of Feed settings and into the
+    // composer, where the per-post state already lived.
+    fireEvent.click(await within(composer).findByRole('button', { name: 'Cruushes' }));
     fireEvent.click(await within(composer).findByRole('button', { name: 'Post' }));
 
     await waitFor(() => expect(createFeedPost).toHaveBeenCalledWith({
@@ -700,9 +700,8 @@ describe('LocalFeed', () => {
     expect(updateFeedSettings).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Not now' }));
 
-    // The audience picker still lives in settings.
-    const settings = await openFeedSettings();
-    fireEvent.click(within(settings).getByRole('button', { name: 'Specific Crowd +' }));
+    // 905b731 moved the audience picker into the composer beside the timer.
+    fireEvent.click(await within(composer).findByRole('button', { name: 'Specific Crowd +' }));
     expect(await screen.findByTestId('cruush-plus-card')).toBeInTheDocument();
   });
 

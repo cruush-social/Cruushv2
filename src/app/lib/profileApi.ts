@@ -1,4 +1,4 @@
-import { ApiClientError, requestApi } from './apiClient';
+import { ApiClientError, requestApi, requestApiWithUploadRetry } from './apiClient';
 import type { CruushBadge } from './billingApi';
 import type { DisplayLocationToken } from './displayLocationTokens';
 
@@ -385,7 +385,7 @@ export async function uploadProfilePhoto(photo: File) {
   const formData = new FormData();
   formData.set('photo', photo);
 
-  return requestApi<
+  return requestApiWithUploadRetry<
     | { url: string; explicit?: boolean; photos?: string[]; status?: undefined }
     | { status: 'pending_review'; assetId: string }
   >('/api/profile-photos', {

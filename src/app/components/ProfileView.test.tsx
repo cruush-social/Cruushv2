@@ -212,8 +212,10 @@ describe('ProfileView', () => {
 
     // Opened from a deep link rather than the map, so nothing was handed over
     // in route state and the line has to come from the profile itself.
-    // The default distance display is approximate, so 2.4 mi reads as ~2 mi.
-    expect(await screen.findByText(/~2 mi away/)).toBeInTheDocument();
+    // The default distance display is approximate, and cb5de40 made approximate
+    // strictly nonnumeric: 2.4 mi reads as Nearby, never a rounded ~2 mi.
+    expect(await screen.findByText('Nearby')).toBeInTheDocument();
+    expect(screen.queryByText(/\d\s*mi\b/i)).not.toBeInTheDocument();
     expect(screen.getByText(/10m ago/)).toBeInTheDocument();
   });
 
@@ -450,7 +452,10 @@ describe('ProfileView', () => {
     expect(screen.queryByTestId('profile-photo-viewer')).not.toBeInTheDocument();
   });
 
-  it('shows visible shared crowds when another profile includes them', async () => {
+  it('never shows another profile’s crowds publicly, even when it carries them', async () => {
+    // ee9d870 removed the Crowds section from every public profile view.
+    // Crowds stay editable in Profile Edit and still drive Visibility Controls,
+    // but no viewer sees which crowds someone belongs to.
     getProfileById.mockResolvedValue(createProfileFixture({
       crowds: ['T4T'],
     }));
@@ -463,8 +468,10 @@ describe('ProfileView', () => {
       </MemoryRouter>
     );
 
-    expect(await screen.findByText('Crowds')).toBeInTheDocument();
-    expect(screen.getByText('T4T')).toBeInTheDocument();
+    // Wait for the loaded profile before asserting an absence.
+    expect(await screen.findByText('About')).toBeInTheDocument();
+    expect(screen.queryByText('Crowds')).not.toBeInTheDocument();
+    expect(screen.queryByText('T4T')).not.toBeInTheDocument();
   });
 
   it('shows trans beside gender identity only when selected', async () => {

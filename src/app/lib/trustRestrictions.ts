@@ -47,8 +47,10 @@ export function useTrustRestrictions(enabled = true) {
     return () => { active = false; window.clearInterval(interval); window.removeEventListener('focus', focus); };
   }, [enabled]);
   return {
-    restricted: (feature: TrustRestrictedFeature) => enabled && state?.features[feature]?.restricted === true,
-    message: (feature: TrustRestrictedFeature, label: string) => enabled && state
+    // A response without the full feature map must not take the screen down
+    // with it: an unknown feature simply reads as unrestricted.
+    restricted: (feature: TrustRestrictedFeature) => enabled && state?.features?.[feature]?.restricted === true,
+    message: (feature: TrustRestrictedFeature, label: string) => enabled && state?.features?.[feature]
       ? trustRestrictionMessage(label, state.features[feature], state.checkedAt) : null,
   };
 }

@@ -525,12 +525,25 @@ describe('Spot map loading', () => {
 });
 
 describe('Spot taxonomy', () => {
-  it('offers the 27 approved facility choices and retains legacy venue reads as Other', () => {
-    expect(PLACE_FACILITY_TYPES).toHaveLength(27);
-    expect(new Set(PLACE_FACILITY_TYPES).size).toBe(27);
-    expect(PLACE_FACILITY_TYPES).toEqual(expect.arrayContaining(['adult_shop', 'music_venue', 'sports_venue', 'retail', 'woods', 'rest_stop', 'bridge']));
+  it('offers the 22 approved facility choices and retains legacy venue reads as Other', () => {
+    // The Spots reduction (44d3bca) retired cafe, shop, retail, adult_shop,
+    // parking and staircase from the offered set and split transit into
+    // rail_station and bus_stop. Archived records keep their stored category,
+    // so the retired ones must still resolve to a label.
+    expect(PLACE_FACILITY_TYPES).toEqual([
+      'clinic', 'bar', 'nightclub', 'community_space', 'park', 'restroom',
+      'sauna', 'gym', 'hotel', 'library', 'trail', 'transit',
+      'rail_station', 'bus_stop', 'beach', 'adult_venue',
+      'music_venue', 'sports_venue', 'woods', 'rest_stop', 'bridge', 'other',
+    ]);
+    expect(new Set(PLACE_FACILITY_TYPES).size).toBe(PLACE_FACILITY_TYPES.length);
+    for (const retired of ['cafe', 'shop', 'retail', 'adult_shop', 'parking', 'staircase']) {
+      expect(PLACE_FACILITY_TYPES as readonly string[]).not.toContain(retired);
+    }
     expect(PLACE_FACILITY_LABELS.bar).toBe('Bars');
     expect(PLACE_FACILITY_LABELS.venue).toBe('Other');
+    expect(PLACE_FACILITY_LABELS.retail).toBe('Other');
+    expect(PLACE_FACILITY_LABELS.adult_shop).toBe('Adult venues & stores');
   });
 
   it('hides every removed identity tag and caps Spot summaries at two labels', () => {
@@ -1954,7 +1967,7 @@ describe('MapHome', () => {
     expect(screen.queryByText('Internal server error')).not.toBeInTheDocument();
   });
 
-  it('renders responsive map top chrome with larger controls and toggles DL Mode from the top slot', async () => {
+  it('renders responsive map top chrome with larger controls and opens DL Mode settings from the top slot', async () => {
     useIsMobile.mockReturnValue(false);
     getMyBillingStatus.mockResolvedValue({
       cruushPlus: false,
@@ -1977,7 +1990,9 @@ describe('MapHome', () => {
     await openMapControls();
     const luckyIcon = screen.getByRole('button', { name: 'Cruise Carousel' }).querySelector('img');
     const ghostModeButton = screen.getByRole('button', { name: 'Ghost Mode Settings' });
-    const dlModeButton = screen.getByRole('button', { name: 'Turn DL Mode off' });
+    // The eye opens DL Mode settings, the way the Ghost Mode mark beside it
+    // opens its own page; the on/off switch lives on that page.
+    const dlModeButton = screen.getByRole('button', { name: 'DL Mode settings' });
     const dlModeIcon = dlModeButton.querySelector('[data-testid="dl-mode-mark"]');
     const ghostModeIcon = ghostModeButton.querySelector('img');
     const notificationButton = screen.getByRole('button', { name: 'Notifications' });
@@ -2000,19 +2015,18 @@ describe('MapHome', () => {
     expect(screen.getByTestId('map-top-chrome')).toHaveClass('pointer-events-none', 'z-[1000]');
     // The bar carries icons only. cruush+ and the bug control are their own
     // corner controls beside it rather than members of it.
+    // One fixed composition scaled as a whole, so its size and spacing no
+    // longer change per breakpoint.
     expect(topActions).toHaveClass(
       'pointer-events-auto',
-      'mt-0',
-      'min-w-0',
       'justify-center',
-      'gap-0.5',
-      'px-1',
-      'py-1',
-      'bg-background/25',
-      'max-[430px]:px-0.5',
-      'sm:gap-1',
-      'sm:px-2.5',
+      'h-[70px]',
+      'w-[298px]',
+      'gap-1',
+      'px-2.5',
+      'py-2',
     );
+    expect(topActions).not.toHaveClass('max-[430px]:px-0.5', 'sm:gap-1', 'sm:px-2.5');
     expect(topActions).not.toContainElement(screen.getByTestId('map-plus-stack'));
     expect(topActions).not.toContainElement(screen.getByTestId('map-bug-button-slot'));
     for (const button of [
@@ -2022,11 +2036,16 @@ describe('MapHome', () => {
       notificationButton,
       settingsButton,
     ]) {
-      expect(button).toHaveClass('size-11', 'max-[360px]:size-10', 'sm:size-12');
+      // One fixed composition scaled as a whole, so every mark is the same size
+      // at every width.
+      expect(button).toHaveClass('size-[3.25rem]');
+      expect(button).not.toHaveClass('max-[360px]:size-10', 'sm:size-12');
     }
     expect(topActions).not.toHaveClass('sm:max-w-[34rem]');
-    // The pill sits in a centring wrapper inside the full-width chrome row.
-    expect(topActions.parentElement).toHaveClass('flex-1', 'justify-center');
+    // The pill is centred inside the measuring frame that scales it, and that
+    // frame takes the width left between the corner controls.
+    expect(topActions.parentElement).toHaveClass('relative', 'min-w-0', 'flex-1');
+    expect(topActions).toHaveClass('absolute', 'left-1/2', 'top-0');
     expect(topActions.parentElement?.parentElement).toHaveClass('w-full');
     expect(topActions.parentElement?.parentElement).not.toHaveClass('mx-auto', 'max-w-[42rem]');
     expect(topActions).not.toHaveClass('mt-11');
@@ -2054,8 +2073,9 @@ describe('MapHome', () => {
     expect(pingButton).toHaveClass(
       'size-11',
       'shrink-0',
-      'bg-background',
+      'bg-[color:var(--cruush-black-glass)]',
       'text-[#c8ff31]',
+      'sm:size-12',
       'lg:size-[3.25rem]',
       '[&_svg]:!h-full',
       '[&_svg]:!w-full',
@@ -2063,30 +2083,35 @@ describe('MapHome', () => {
     expect(pingButton).not.toHaveClass('absolute', 'mt-2');
     // Desktop controls sit 8px below the bug button; mobile offsets are unchanged.
     expect(rightActions).toHaveClass('right-3', 'top-[4.625rem]', 'sm:right-4', 'sm:top-[5.375rem]', 'lg:right-3', 'lg:top-16');
+    // The capsule keeps its own measured sizes per width rather than the
+    // rounded utility steps it started from.
     expect(cruushPlusButton).toHaveClass(
       'cruush-plus-shimmer-button',
       'cruush-logo-font',
       'normal-case',
       'tracking-normal',
-      'h-12',
-      'px-3',
-      'text-base',
-      'max-[360px]:h-11',
-      'max-[360px]:px-1.5',
-      'max-[360px]:text-xs',
-      'sm:h-10',
-      'sm:px-3.5',
-      'sm:text-lg',
-      'lg:h-11',
-      'lg:px-4',
-      'lg:text-xl',
+      'h-[3.315rem]',
+      'px-[0.82875rem]',
+      'text-[1.105rem]',
+      'max-[360px]:h-[3.03875rem]',
+      'max-[360px]:px-[0.414375rem]',
+      'max-[360px]:text-[0.82875rem]',
+      'sm:h-[3.5rem]',
+      'sm:px-[1.225rem]',
+      'sm:text-[1.575rem]',
+      'lg:h-[3.85rem]',
+      'lg:px-[1.4rem]',
+      'lg:text-[1.75rem]',
     );
     expect(screen.queryByRole('button', { name: 'Safety Center' })).not.toBeInTheDocument();
-    expect(luckyIcon).toHaveClass('h-10', 'w-10', 'scale-[1.28]', 'object-contain', 'max-[360px]:h-9', 'max-[360px]:w-9', 'lg:h-11', 'lg:w-11');
-    expect(ghostModeIcon).toHaveClass('h-10', 'w-10', 'object-contain', 'max-[360px]:h-9', 'max-[360px]:w-9', 'lg:h-11', 'lg:w-11');
-    // The Ghost Mode glyph sits in the same box as its neighbours, with no extra scale.
-    expect(ghostModeIcon).not.toHaveClass('scale-[1.15]');
-    expect(dlModeIcon).toHaveClass('!h-10', '!w-10', 'scale-[1.18]', 'max-[360px]:!h-9', 'max-[360px]:!w-9', 'lg:!h-11', 'lg:!w-11');
+    // Every glyph sits in the same 11-unit box inside the scaled bar, so none
+    // of them carries per-breakpoint sizes any more.
+    expect(luckyIcon).toHaveClass('h-11', 'w-11', 'scale-[1.28]', 'object-contain');
+    expect(luckyIcon).not.toHaveClass('max-[360px]:h-9', 'lg:h-11');
+    expect(ghostModeIcon).toHaveClass('h-11', 'w-11', 'object-contain');
+    expect(ghostModeIcon).not.toHaveClass('max-[360px]:h-9', 'lg:h-11');
+    expect(dlModeIcon).toHaveClass('!h-11', '!w-11', 'scale-[1.18]');
+    expect(dlModeIcon).not.toHaveClass('max-[360px]:!h-9', 'lg:!h-11');
     expect(settingsButton.nextElementSibling).toBe(notificationButton);
     expect(topActions.lastElementChild).toBe(notificationButton);
     for (const button of [
@@ -2096,31 +2121,32 @@ describe('MapHome', () => {
       notificationButton,
       settingsButton,
     ]) {
-      // Hover darkens the control instead of washing it lighter.
-      expect(button).toHaveClass('bg-transparent', 'hover:bg-black/45', 'focus-visible:bg-transparent');
-      expect(button).not.toHaveClass('hover:bg-transparent');
+      // Hover draws no circle around a mark: the control stays transparent.
+      expect(button).toHaveClass('bg-transparent', 'hover:bg-transparent', 'focus-visible:bg-transparent');
+      expect(button).not.toHaveClass('hover:bg-black/45');
       expect(button).not.toHaveClass('hover:bg-white/10');
     }
     expect(dlModeButton).not.toHaveClass('bg-white/[0.07]');
-    expect(notificationIcon).toHaveClass('h-10', 'w-10', 'scale-[1.28]', 'object-contain', 'max-[360px]:h-9', 'max-[360px]:w-9', 'lg:h-11', 'lg:w-11');
-    expect(settingsIcon).toHaveClass('h-10', 'w-10', 'object-contain', 'max-[360px]:h-9', 'max-[360px]:w-9', 'lg:h-11', 'lg:w-11');
+    expect(notificationIcon).toHaveClass('h-11', 'w-11', 'scale-[1.28]', 'object-contain');
+    expect(settingsIcon).toHaveClass('h-11', 'w-11', 'object-contain');
+    expect(settingsIcon).not.toHaveClass('max-[360px]:h-9', 'lg:h-11');
     expect(dlModeIcon).toHaveAttribute('data-source', 'Julien supplied balaclava halo DL Mode icon');
     expect(dlModeIcon).toHaveAttribute('data-tone', 'gradient');
     expect(dlModeIcon?.querySelector('[data-dl-mode-part="balaclava-halo"]')).toHaveAttribute('href', expect.stringContaining('dl-mode-balaclava-halo-user-supplied.png'));
     expect(dlModeIcon?.querySelector('[data-dl-mode-part="halo-cutout"]')).not.toBeInTheDocument();
     expect(dlModeIcon?.querySelector('[data-dl-mode-part="wing-cutout"]')).not.toBeInTheDocument();
     expect(decodeURIComponent(ghostModeIcon?.getAttribute('src') ?? '')).toContain("fill='#ffffff'");
-    expect(locationButton).toHaveClass('rounded-full', 'bg-background/78', 'backdrop-blur-md');
+    expect(locationButton).toHaveClass('rounded-full', 'bg-[color:var(--cruush-black-glass)]', 'backdrop-blur-[var(--cruush-black-glass-blur)]');
     expect(locationButton.querySelector('svg')).toHaveClass('h-4', 'w-4');
     expect(screen.queryByText('DL Mode Active')).not.toBeInTheDocument();
 
     await screen.findByRole('button', { name: 'Pin Jordan' });
 
+    // The eye opens the DL Mode page, where the switch lives; it no longer
+    // toggles from the map itself.
     fireEvent.click(dlModeButton);
-    expect(window.localStorage.getItem('cruush:dl-mode-enabled')).toBe('false');
-    expect(screen.queryByTestId('location-probe')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Turn DL Mode on' }).querySelector('[data-testid="dl-mode-mark"]'))
-      .toHaveAttribute('data-tone', 'white');
+    expect(screen.getByTestId('location-probe')).toHaveTextContent('/privacy/dl-mode');
+    expect(window.localStorage.getItem('cruush:dl-mode-enabled')).not.toBe('false');
   });
 
   it('keeps one combined active crowd notice on the map and returns to Visibility', async () => {
@@ -2171,7 +2197,9 @@ describe('MapHome', () => {
       </MemoryRouter>
     );
 
-    expect(await screen.findByText('Your profile')).toBeInTheDocument();
+    // The owner capsule was removed in 206c04f; the panel itself still carries
+    // the own-profile label.
+    expect(await screen.findByRole('complementary', { name: 'Your profile' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Edit profile' })).toBeInTheDocument();
   });
 
@@ -2193,7 +2221,9 @@ describe('MapHome', () => {
 
     expect(screen.getByLabelText('cruise carousel')).toBeInTheDocument();
     expect(screen.getByTestId('location-probe')).toHaveTextContent('/map');
-    expect(await screen.findByText('Nearby now')).toBeInTheDocument();
+    // The "Nearby now" capsule was removed in 05c2b9c; the dock panel's own
+    // label is what identifies the opened profile now.
+    expect(await screen.findByRole('complementary', { name: 'Jordan profile' })).toBeInTheDocument();
     expect(await screen.findByRole('button', { name: /message now/i })).toBeInTheDocument();
     expect(getProfileById).toHaveBeenCalledWith('user-1');
     expect(screen.getByTestId('location-probe')).toHaveTextContent('/map');
@@ -2266,7 +2296,7 @@ describe('MapHome', () => {
     expect(screen.getByTestId('location-probe')).toHaveTextContent('/map');
     expect(screen.getByLabelText('cruise carousel')).toBeInTheDocument();
     expect(await screen.findByRole('button', { name: 'Get cruush+' })).toBeInTheDocument();
-    expect(screen.queryByText('Nearby now')).not.toBeInTheDocument();
+    expect(screen.queryByRole('complementary', { name: /profile$/ })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Get cruush+' }));
 
@@ -2716,7 +2746,12 @@ describe('MapHome', () => {
     );
 
     const darkRoomMark = (await screen.findByRole('button', { name: 'Ghost Mode Settings' })).querySelector('svg');
-    expect(darkRoomMark).toHaveClass('!h-10', '!w-10', 'max-[360px]:!h-9', 'max-[360px]:!w-9', 'lg:!h-11', 'lg:!w-11');
+    // b904fc0 made the top bar one fixed 298x70 composition that is scaled as a
+    // whole, so every glyph in it is a flat h-11/w-11 with no breakpoint steps.
+    expect(darkRoomMark).toHaveClass('!h-11', '!w-11');
+    expect(darkRoomMark).not.toHaveClass('!h-10');
+    expect(darkRoomMark).not.toHaveClass('!w-10');
+    expect(darkRoomMark).not.toHaveClass('max-[360px]:!h-9');
     expect(darkRoomMark).not.toHaveClass('scale-[1.12]');
     expect(darkRoomMark?.querySelector('[data-dark-room-part="housing"]')).toHaveAttribute('fill-rule', 'evenodd');
     expect(darkRoomMark?.querySelector('[data-dark-room-part="keyhole"]')).not.toBeInTheDocument();
@@ -3306,7 +3341,10 @@ describe('MapHome', () => {
     expect(recentToggle).toHaveTextContent('Recently Active');
     expect(recentToggle.parentElement).toHaveClass('justify-center');
     expect(recentToggle).toHaveStyle({ background: 'var(--cruush-gradient)' });
-    expect(recentPanel.parentElement).toHaveClass('bottom-[calc(6.25rem+env(safe-area-inset-bottom))]', 'left-0', 'right-0', 'z-[130]');
+    // 0327eaf unified the Recently Active-to-bottom-nav gap to 5.75rem at every
+    // breakpoint; desktop no longer uses its own 6.25rem value.
+    expect(recentPanel.parentElement).toHaveClass('bottom-[calc(5.75rem+env(safe-area-inset-bottom))]', 'left-0', 'right-0', 'z-[130]');
+    expect(recentPanel.parentElement).not.toHaveClass('bottom-[calc(6.25rem+env(safe-area-inset-bottom))]');
     expect(recentPanel).toHaveClass('max-w-[35.75rem]', 'rounded-2xl', 'bg-background/68', 'backdrop-blur-md', 'p-3');
     expect(screen.getByTestId('recently-active-tray')).toHaveClass('justify-center', 'overflow-hidden');
     expect(screen.getByTestId('recently-active-tray')).not.toHaveClass('scrollbar-subtle', 'pb-2');

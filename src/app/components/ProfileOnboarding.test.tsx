@@ -317,7 +317,10 @@ describe('ProfileOnboarding', () => {
     await chooseMultiSelect('Crowds', 'T4T');
     fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
-    expect(screen.getByText('Select up to 3')).toBeInTheDocument();
+    // The vibes step states its own limit: "Select up to 3" became "Pick up to
+    // 3" in 507bf0d and gained the optional prefix in a0d5651.
+    expect(screen.getByText('reveal your aura')).toBeInTheDocument();
+    expect(screen.getByText('Optional. Pick up to 3.')).toBeInTheDocument();
     await chooseVibe('Style', 'Alt');
     await chooseVibe('Style', 'Artsy');
     await chooseVibe('Energy', 'Chill');
