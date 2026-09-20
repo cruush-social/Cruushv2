@@ -21,5 +21,10 @@ export const PUBLIC_DESCRIPTOR_SAMPLE_INDICES = [
   FIRST_PAYMENT_DERIVATION_INDEX + 1
 ] as const;
 
+// Bitcoin Core's default -minrelaytxfee. A node drops anything cheaper, so a
+// collection is never built below this rate whatever a fee estimator returns.
+export const BITCOIN_MIN_RELAY_FEE_RATE = 1;
+export const BITCOIN_DUST_LIMIT = 546n;
+
 // Explicitly approved cold destination. Never selected by default.
 export const ELLIPAL_DESTINATION: Address = getAddress("0x929dbb0E43D1CfD62632c21387f1a248c4c85501");
