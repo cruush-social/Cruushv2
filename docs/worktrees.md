@@ -9,6 +9,7 @@ the branch name.
 
 | Branch | Worktree path | Last commit | State | Ahead/behind main | Purpose |
 | --- | --- | --- | --- | --- | --- |
+| `codex/fix-issue-295-onboarding-labels` | `/Volumes/good/cruush-issue-295-onboarding-labels` | 2026-09-21 c86d0ec6 chore: refresh service worker for onboarding fixes | clean | +0/-0 | iPhone onboarding labels fix for GitHub issue #295; Codex; unmerged, shipping. |
 | `fix/onboarding-fit-no-scroll-20260915` | `/Volumes/good/cruush-onboarding-fit-20260915` | `a2d053e` (base) | clean, Claude | +1/-0 at creation | Stop the onboarding step fitter rescaling when the keyboard opens; smaller logo, larger step copy. Unmerged. |
 | `codex/spots-major-reduction-20260912` | `/Volumes/good/cruush-spots-major-reduction-20260912` | `6b0fe06` (base) | dirty, Codex 01a094d4 | +0/-0 at creation | Major Spot reduction, category switches and screenshot review; active, unmerged, local only. |
 | `fix/onboarding-step-consolidation-20260910` | `/Volumes/good/cruush-onboarding-steps-20260910` | `00bd751` (base) | dirty, Codex thread 01a08cc1 | +0/-0 at creation | Combined release of five approved fixes; source integrated, validating before production deployment. |

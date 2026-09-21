@@ -377,8 +377,13 @@ export default function ProfileOnboarding({
         let high = 1;
         for (let attempt = 0; attempt < 12; attempt += 1) {
           const scale = (low + high) / 2;
-          applyScale(scale);
-          if (content.getBoundingClientRect().height <= availableHeight) low = scale;
+          // Safari can report the zoomed box using its unzoomed height. Measure
+          // the reflowed content at zoom 1, then apply the scale once. Otherwise
+          // the search can converge on an almost-zero zoom, leaving tappable
+          // boxes with unreadable text.
+          content.style.zoom = '1';
+          content.style.width = `${availableWidth / scale}px`;
+          if (content.getBoundingClientRect().height * scale <= availableHeight) low = scale;
           else high = scale;
         }
         applyScale(low);
