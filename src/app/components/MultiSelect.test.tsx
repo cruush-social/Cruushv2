@@ -150,6 +150,32 @@ describe('MultiSelect', () => {
     expect(listbox.style.getPropertyValue('-webkit-overflow-scrolling')).toBe('touch');
   });
 
+  it('gives long mobile option menus a definite scroll height', async () => {
+    Object.defineProperty(window, 'innerHeight', { configurable: true, value: 844 });
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 390 });
+
+    render(
+      <MultiSelect
+        ariaLabel="Role"
+        menuPortal
+        options={Array.from({ length: 20 }, (_, index) => `role ${index}`)}
+        value={[]}
+      />,
+    );
+
+    const trigger = screen.getByRole('button', { name: 'Role' });
+    mockTriggerRect(trigger, { bottom: 500, left: 21, top: 460, width: 349 });
+    fireEvent.click(trigger);
+
+    const listbox = screen.getByRole('listbox', { name: 'Role' });
+    const menuSurface = listbox.parentElement!;
+    await waitFor(() => {
+      expect(menuSurface).toHaveStyle({ height: '288px' });
+    });
+    expect(listbox).toHaveStyle({ height: '100%' });
+    expect(listbox).toHaveClass('overflow-y-auto');
+  });
+
   it('opens local menus upward when the trigger is near the bottom of the viewport', async () => {
     Object.defineProperty(window, 'innerHeight', {
       configurable: true,
