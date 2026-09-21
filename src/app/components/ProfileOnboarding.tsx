@@ -354,11 +354,13 @@ export default function ProfileOnboarding({
       // viewport. Fitting to the visual viewport rescaled and reflowed the whole
       // step the moment a field was focused, so the step is sized against the
       // layout viewport and the visual viewport only pans it into view.
-      viewport.style.setProperty('--onboarding-pan-offset', `${Math.max(0, visibleTop - viewportTop)}px`);
+      const panOffset = Math.max(0, visibleTop - viewportTop);
+      viewport.style.setProperty('--onboarding-pan-offset', `${panOffset}px`);
       viewport.style.maxHeight = `${Math.max(0, window.innerHeight - viewportTop)}px`;
       const style = getComputedStyle(viewport);
       const horizontalPadding = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight);
-      const availableHeight = viewport.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
+      // Keyboard panning moves the step; it must not shrink the fitted content.
+      const availableHeight = viewport.clientHeight - (parseFloat(style.paddingTop) - panOffset) - parseFloat(style.paddingBottom);
       const availableWidth = Math.min(viewport.clientWidth, 28 * parseFloat(getComputedStyle(document.documentElement).fontSize)) - horizontalPadding;
       if (availableHeight <= 0 || availableWidth <= 0) return;
 
