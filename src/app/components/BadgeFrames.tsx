@@ -232,19 +232,30 @@ export function BadgeFrame({
   const shapeTransform = SHAPE_TRANSFORMS[resolvedFrame];
   const gradientId = `badge-frame-gradient-${useId().replace(/:/g, '')}`;
   const clipId = `badge-frame-clip-${useId().replace(/:/g, '')}`;
-  const glyphClipId = `badge-frame-glyph-clip-${useId().replace(/:/g, '')}`;
   const maskId = `badge-frame-hanky-mask-${useId().replace(/:/g, '')}`;
   const resolvedStroke = gradientStops ? `url(#${gradientId})` : strokeColor ?? 'currentColor';
   const hankyDetailColor = hankyColor?.toUpperCase() === '#1A1A1E' ? '#FFFFFF' : '#05050A';
-  const glyphFillRadius = BADGE_RADIUS + STROKE / 2;
+  // Flag artwork fills the badge right up to the inner edge of the usual
+  // border. It sits in its own layer underneath the frame, so the border
+  // paints over its edge at full width, exactly as it does over an icon.
+  const glyphFillInsetPercent = ((CENTRE - (BADGE_RADIUS - STROKE / 2)) / 64) * 100;
 
   return (
     <span className={`relative inline-flex items-center justify-center ${className ?? ''}`}>
+      {fillWithGlyph && !hankyColor ? (
+        <span
+          aria-hidden="true"
+          className="absolute overflow-hidden rounded-full"
+          style={{ inset: `${glyphFillInsetPercent}%`, stroke: 'none' }}
+        >
+          {children}
+        </span>
+      ) : null}
       <svg
         aria-hidden="true"
         className="absolute inset-0 h-full w-full overflow-visible"
         fill="none"
-        stroke={fillWithGlyph ? 'none' : resolvedStroke}
+        stroke={resolvedStroke}
         strokeLinecap={resolvedFrame === 'heart' ? 'butt' : 'round'}
         strokeLinejoin={resolvedFrame === 'heart' ? 'miter' : 'round'}
         strokeWidth={resolvedFrame === 'heart' ? STROKE / HEART_FRAME_SCALE : STROKE}
@@ -262,11 +273,6 @@ export function BadgeFrame({
           <clipPath id={clipId}>
             {shape ? <path d={shape} transform={shapeTransform} /> : <circle cx={CENTRE} cy={CENTRE} r={arms ? COMPACT_RADIUS : BADGE_RADIUS} />}
           </clipPath>
-          {fillWithGlyph ? (
-            <clipPath id={glyphClipId}>
-              <circle cx={CENTRE} cy={CENTRE} r={glyphFillRadius} />
-            </clipPath>
-          ) : null}
           {hankyColor ? (
             <mask
               id={maskId}
@@ -281,19 +287,6 @@ export function BadgeFrame({
             </mask>
           ) : null}
         </defs>
-        {fillWithGlyph && !hankyColor ? (
-          <foreignObject
-            clipPath={`url(#${glyphClipId})`}
-            {...{
-              height: glyphFillRadius * 2,
-              width: glyphFillRadius * 2,
-              x: CENTRE - glyphFillRadius,
-              y: CENTRE - glyphFillRadius,
-            }}
-          >
-            <span style={{ stroke: 'none' }}>{children}</span>
-          </foreignObject>
-        ) : null}
         {hankyColor ? (
           <g clipPath={`url(#${clipId})`}>
             {shape ? <path d={shape} fill={hankyDetailColor} stroke="none" transform={shapeTransform} /> : <circle cx={CENTRE} cy={CENTRE} fill={hankyDetailColor} r={arms ? COMPACT_RADIUS : BADGE_RADIUS} stroke="none" />}
