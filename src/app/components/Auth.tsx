@@ -255,6 +255,8 @@ export default function Auth({ onAuth }: AuthProps) {
         setError(err instanceof Error ? err.message : 'Email verification is required.');
         setVerificationRetryAvailable(true);
         setIsLoading(false);
+        // The server already consumed this single-use token before checking email.
+        resetCaptcha();
         return;
       }
 

@@ -40,7 +40,7 @@ vi.mock('./Turnstile', () => ({
     resetKey: number;
   }) => {
     useEffect(() => {
-      onTokenChange('captcha-token');
+      onTokenChange(`captcha-token-${resetKey}`);
     }, [onTokenChange, resetKey]);
 
     return <div>Mock Turnstile</div>;
@@ -189,6 +189,21 @@ describe('Auth', () => {
       password: 'password-123',
     }));
     expect(await screen.findByText('Verification email sent. Check your inbox, then sign in again.')).toBeInTheDocument();
+  });
+
+  it('refreshes the consumed captcha before retrying an unverified-email login', async () => {
+    render(<Auth onAuth={vi.fn()} />);
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'river@example.com' } });
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password-123' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Sign In' }));
+    await screen.findByText('Verify your email before signing in.');
+    const firstToken = signIn.mock.calls[0][0].captchaToken;
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sign In' }));
+    await waitFor(() => expect(signIn).toHaveBeenCalledTimes(2));
+    expect(signIn.mock.calls[1][0].captchaToken).toBeTruthy();
+    expect(signIn.mock.calls[1][0].captchaToken).not.toBe(firstToken);
+    expect(screen.getByLabelText('Password')).toHaveValue('password-123');
   });
 
   it('links signed-out visitors to public policy pages without rendering the support form inline', async () => {
