@@ -329,7 +329,7 @@ function profilePhotoMetadataSelect(profileAlias = "profiles") {
               select jsonb_agg(
                 jsonb_build_object(
                   'url', photo.photo_url,
-                  'explicit', coalesce(media.explicit_classification is distinct from 'non_explicit', true)
+                  'explicit', coalesce(media.explicit_classification = 'explicit', false)
                 )
                 order by photo.ordinality
               )
