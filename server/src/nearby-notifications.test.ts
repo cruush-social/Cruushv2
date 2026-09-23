@@ -399,7 +399,7 @@ describe("nearby notifications", () => {
       sent: 1
     });
     const recipientQuery = query.mock.calls.find(([sql]) => String(sql).includes("from profiles p"));
-    expect(recipientQuery?.[0]).toContain("coalesce(preferences.nearby_enabled, true) = true");
+    expect(recipientQuery?.[0]).toContain("coalesce(preferences.nearby_enabled, false) = true");
     expect(recipientQuery?.[0]).not.toContain("preferences.push_enabled = true");
     expect(recipientQuery?.[0]).not.toContain("from push_subscriptions subscription");
     expect(query.mock.calls.filter(([sql]) => String(sql).includes("insert into app_notifications"))).toHaveLength(1);

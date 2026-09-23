@@ -114,7 +114,7 @@ function mapPreferences(row?: Partial<NotificationPreferencesRow> | null): Notif
     cruushEnabled: row?.cruush_enabled ?? true,
     messagesEnabled: row?.messages_enabled ?? true,
     groupsEnabled: row?.groups_enabled ?? true,
-    nearbyEnabled: row?.nearby_enabled ?? true,
+    nearbyEnabled: row?.nearby_enabled ?? false,
     rewardsEnabled: row?.rewards_enabled ?? true,
     soundEnabled: row?.sound_enabled ?? true,
     quietHoursEnabled: row?.quiet_hours_enabled ?? false,
@@ -346,8 +346,8 @@ export async function upsertPushSubscription(
              updated_at = now()
        returning id
      ), preferences_upsert as (
-       insert into notification_preferences (user_id, push_enabled)
-       values ($1, true)
+       insert into notification_preferences (user_id, push_enabled, nearby_enabled)
+       values ($1, true, false)
        on conflict (user_id) do update
          set push_enabled = true,
              updated_at = now()

@@ -203,7 +203,7 @@ async function loadNearbyNotificationRecipients(app: FastifyInstance, sourceUser
      where p.id <> $1
        and coalesce(u.account_status, 'active') = 'active'
        and p.location_updated_at >= now() - interval '4 days'
-       and coalesce(preferences.nearby_enabled, true) = true
+       and coalesce(preferences.nearby_enabled, false) = true
        and not exists (
          select 1
          from user_blocks block
