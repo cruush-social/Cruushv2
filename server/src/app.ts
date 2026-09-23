@@ -164,7 +164,7 @@ export function buildServer(config: AppConfig, deps: BuildServerDeps = {}) {
     reply.header("x-content-type-options", "nosniff");
     reply.header("x-frame-options", "DENY");
     reply.header("referrer-policy", "no-referrer");
-    reply.header("permissions-policy", "camera=(), microphone=(), geolocation=()");
+    reply.header("permissions-policy", "camera=(), microphone=(), geolocation=(self)");
     reply.header("cross-origin-resource-policy", "same-site");
 
     if (config.NODE_ENV === "production") {
