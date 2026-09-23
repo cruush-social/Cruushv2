@@ -317,9 +317,10 @@ describe('ModeratorReview', () => {
     renderReview();
 
     const tablist = await screen.findByRole('tablist', { name: 'Moderation views' });
-    expect(tablist).toHaveClass('min-w-0', 'flex-1', 'overflow-x-auto');
+    expect(tablist).toHaveClass('min-w-0', 'w-full', 'overflow-x-auto');
     expect(tablist.parentElement).toHaveClass('min-w-0');
-    expect(screen.getByRole('button', { name: 'Refresh' })).toHaveClass('shrink-0');
+    expect(tablist.parentElement).toHaveClass('flex-col', 'sm:flex-row');
+    expect(screen.getByRole('button', { name: 'Refresh' })).toHaveClass('w-full', 'shrink-0', 'sm:w-auto');
   });
 
   it('shows the authorization loading state while the queue request is pending', () => {
