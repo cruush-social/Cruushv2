@@ -20,9 +20,9 @@ The event trigger is the public Mempool WebSocket. Existing Esplora sources rema
 
 ## Full release boundary
 
-The release candidate starts from the previously reviewed processor integration through `06bbfef4ebbbd6f063279ddcfc4b8110310e94a5`, adds the scoped September 25 Mempool/readiness commit `b69b268`, and integrates current `origin/main` at `82613aa7c86cdb967e4abe4707b9b5e1b9a7c2d0`. The integrated source tested below is merge commit `b0cc280a48ccdb865d5e721d9c3cb12b8f8930d7`.
+The release candidate starts from the previously reviewed processor integration through `06bbfef4ebbbd6f063279ddcfc4b8110310e94a5`, adds the scoped September 25 Mempool/readiness commit `b69b268`, and integrates current `origin/main` at `82613aa7c86cdb967e4abe4707b9b5e1b9a7c2d0`. The integrated base is merge commit `b0cc280a48ccdb865d5e721d9c3cb12b8f8930d7`; the tested release source including the allocator cutover is `d21c3e10f6c25730eb69b11454ce19ac963541d6`.
 
-The complete candidate contains 139 changed paths relative to current `origin/main`. The authoritative exact list is:
+The complete candidate contains 140 changed paths relative to current `origin/main`. The authoritative exact list is:
 
 ```bash
 git diff --name-only origin/main...HEAD
@@ -59,6 +59,7 @@ Server and database:
 - `server/sql/187_subscription_expiry_reminders.sql`
 - `server/sql/188_billing_support_categories.sql`
 - `server/sql/189_subscription_expiry_email_delivery.sql`
+- `server/sql/190_crypto_payment_allocator_history_floor.sql`
 - `server/package.json`
 - `server/package-lock.json`
 
@@ -95,7 +96,11 @@ Release record:
 
 ## Configuration boundary
 
-This candidate adds no environment variable. Deployment uses the existing processor enable flag, watcher enable flag, Bitcoin public receive descriptor, Esplora URL, confirmation target and Resend configuration. Before deployment, production address history and the allocator must be reconciled without printing the descriptor or database credentials.
+This candidate adds no environment variable. Deployment uses the existing processor enable flag, watcher enable flag, Bitcoin public receive descriptor, Esplora URL, confirmation target and Resend configuration.
+
+The read-only production preflight on 25 September found the correct receive-key fingerprint, processor and watcher enabled, testnet disabled, public Blockstream Esplora configured, Resend configured, no QuickNode key, an empty production order ledger and an unused allocator at index 1. The canonical local history now contains 11 Bitcoin orders with 11 unique addresses, no open Bitcoin order, two paid Bitcoin orders, matching receive-key fingerprints and a last allocator value of 12. Every saved Bitcoin address was re-derived from the recorded descriptor successfully.
+
+Migration `190_crypto_payment_allocator_history_floor.sql` completes the cutover without copying member/order history into production: it advances the production allocator to at least 12 without ever moving it backward, so the first production invoice uses index 13. It is replay-safe. Production becomes the sole issuing ledger when the separately authorized deployment starts; the local rehearsal ledger must remain non-issuing.
 
 ## Integrated-candidate verification
 
@@ -103,7 +108,8 @@ This candidate adds no environment variable. Deployment uses the existing proces
 - Bitcoin, Mempool, watcher, mailer, payment, support, reminder and image-safety selection: 216 passed, 33 PostgreSQL tests skipped because no disposable database was configured for that run.
 - Complete server application selection: 336 passed.
 - Checkout, Pulse, order-history, support and notification client selection: 79 passed.
-- Migration registration selection: 34 passed.
+- Migration registration selection: 35 passed.
+- Full migrations `001` through `190` installed and replayed cleanly on a disposable PostgreSQL database; the empty-ledger cutover left the allocator at 12 and the next index at 13. A separate higher-sequence replay stayed forward-only.
 - Wallet/operator-tool suite: 56 passed.
 - Server TypeScript build: passed.
 - Frontend production build: passed.
@@ -111,4 +117,4 @@ This candidate adds no environment variable. Deployment uses the existing proces
 - Product-name casing, conflict-marker scan and `git diff --check`: passed.
 - Production dependency audit: zero known vulnerabilities after updating Fastify, Sharp and their vulnerable transitive URI parser; the server image already uses the required Node 22 runtime.
 
-The skipped PostgreSQL cases retain the earlier disposable-database and real-payment acceptance evidence. This candidate is locally deploy-ready. It has not been pushed, merged to `main`, deployed, used to mutate production configuration, or used to send funds or announcement email.
+The skipped PostgreSQL cases retain the earlier disposable-database and real-payment acceptance evidence. This candidate is deploy-ready. It has not been pushed, merged to `main`, deployed, used to mutate production configuration, or used to send funds or announcement email. No browser or native-app UI was opened or controlled during this readiness pass.
