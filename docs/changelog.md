@@ -8,6 +8,11 @@
 - Order history in Settings keeps cruush+ and Pulse purchases visible, including confirmation and activation status.
 - Fixed-term cruush+ purchases never auto-renew. New reminders arrive three days and one day before access ends.
 - Billing support now has dedicated choices for payment issues, subscriptions or renewals, Pulse purchases, and refund requests.
+- Feed posts can now reach more than one Crowd at a time.
+- Mobile onboarding stays readable and scrollable around the keyboard, including long option lists.
+- Map gestures and recentering are steadier: pinching stays on the map instead of zooming the page.
+- Sign-in retries and photo uploads recover more reliably when a connection drops.
+- Badge frames now keep Pride symbols inside their borders, with clearer sizing across the map and profiles.
 
 ## Release 1.7 (September 15, 2026)
 

@@ -44,6 +44,11 @@ describe('Changelog', () => {
     expect(v18Section?.textContent ?? '').toMatch(/six confirmations/i);
     expect(v18Section?.textContent ?? '').toMatch(/never auto-renew/i);
     expect(v18Section?.textContent ?? '').toMatch(/Order history in Settings/i);
+    expect(v18Section?.textContent ?? '').toMatch(/more than one Crowd/i);
+    expect(v18Section?.textContent ?? '').toMatch(/Mobile onboarding stays readable and scrollable/i);
+    expect(v18Section?.textContent ?? '').toMatch(/pinching stays on the map/i);
+    expect(v18Section?.textContent ?? '').toMatch(/photo uploads recover more reliably/i);
+    expect(v18Section?.textContent ?? '').toMatch(/Pride symbols inside their borders/i);
     const v15Section = screen.getByRole('heading', { level: 3, name: 'cruush v1.5' }).closest('section');
     expect(v15Section).not.toBeNull();
     expect(v15Section?.textContent ?? '').toMatch(/full 4:5 profile photos/i);
