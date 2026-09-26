@@ -18,7 +18,19 @@ The event trigger is the public Mempool WebSocket. Existing Esplora sources rema
 - Existing subscription-expiry reminders and billing-support categories already approved in the unified Bitcoin release.
 - Previously approved checkout and Pulse presentation changes included by the unified release.
 
-## Allowed release files
+## Full release boundary
+
+The release candidate starts from the previously reviewed processor integration through `06bbfef4ebbbd6f063279ddcfc4b8110310e94a5`, adds the scoped September 25 Mempool/readiness commit `b69b268`, and integrates current `origin/main` at `82613aa7c86cdb967e4abe4707b9b5e1b9a7c2d0`. The integrated source tested below is merge commit `b0cc280a48ccdb865d5e721d9c3cb12b8f8930d7`.
+
+The complete candidate contains 139 changed paths relative to current `origin/main`. The authoritative exact list is:
+
+```bash
+git diff --name-only origin/main...HEAD
+```
+
+That full diff consists of the existing processor migrations, server settlement/watcher code, checkout and order-history UI, wallet/forwarding operator tool, billing/support/reminder integration and processor documentation, plus the continuation files listed below. Existing map/settings changes in the base are limited to approved checkout/Pulse entry points and order-history navigation. No later dirty-worktree UI was copied into this candidate.
+
+## September 25 continuation files
 
 Server and database:
 
@@ -85,15 +97,18 @@ Release record:
 
 This candidate adds no environment variable. Deployment uses the existing processor enable flag, watcher enable flag, Bitcoin public receive descriptor, Esplora URL, confirmation target and Resend configuration. Before deployment, production address history and the allocator must be reconciled without printing the descriptor or database credentials.
 
-## Current verification
+## Integrated-candidate verification
 
 - QuickNode runtime/config references in the candidate: none.
-- Bitcoin/Mempool/watcher/mailer/config selection: 129 passed, 21 PostgreSQL tests skipped because no disposable database was configured for that run.
-- Subscription, support and payment selection: 63 passed, 12 skipped.
+- Bitcoin, Mempool, watcher, mailer, payment, support, reminder and image-safety selection: 216 passed, 33 PostgreSQL tests skipped because no disposable database was configured for that run.
+- Complete server application selection: 336 passed.
 - Checkout, Pulse, order-history, support and notification client selection: 79 passed.
+- Migration registration selection: 34 passed.
+- Wallet/operator-tool suite: 56 passed.
 - Server TypeScript build: passed.
 - Frontend production build: passed.
+- Wallet TypeScript build: passed.
 - Product-name casing, conflict-marker scan and `git diff --check`: passed.
 - Production dependency audit: zero known vulnerabilities after updating Fastify, Sharp and their vulnerable transitive URI parser; the server image already uses the required Node 22 runtime.
 
-The skipped PostgreSQL cases have historical disposable-database evidence, but this candidate is not called deploy-ready until its current commit is retested after integration with current `origin/main`.
+The skipped PostgreSQL cases retain the earlier disposable-database and real-payment acceptance evidence. This candidate is locally deploy-ready. It has not been pushed, merged to `main`, deployed, used to mutate production configuration, or used to send funds or announcement email.
