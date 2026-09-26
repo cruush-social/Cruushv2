@@ -220,12 +220,13 @@ html[data-cruush-larger-text] :where([class~="text-[21px]"]) {
   /* One row: every control sits in line with the title and the bug button.
      The actions used to drop to a second row, which left them floating under
      the header on phones. */
-  .cruush-notification-header {
+  .cruush-notification-header-row {
     display: grid;
     grid-template-columns: 2.25rem minmax(0, 1fr) 2.25rem 2.25rem 2.25rem 2.25rem;
     align-items: center;
     gap: 0.375rem;
-    padding: 0.5rem 0.75rem;
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
   }
 
   .cruush-notification-back {
@@ -236,12 +237,9 @@ html[data-cruush-larger-text] :where([class~="text-[21px]"]) {
   .cruush-notification-title {
     grid-column: 2;
     grid-row: 1;
-    overflow: visible;
-    text-overflow: clip;
+    overflow: hidden;
+    text-overflow: ellipsis;
     white-space: nowrap;
-    /* Six controls share the row now, so the title trims to keep the word
-       whole on a 390px screen. */
-    font-size: 1.0625rem;
   }
 
   .cruush-notification-mark-all {

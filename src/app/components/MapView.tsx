@@ -1857,7 +1857,6 @@ function PlaceMarker({ marker, previewed = false }: { marker: MapMarker; preview
   const facilityType = marker.place?.facilityType ?? 'other';
   const config = PLACE_MARKER_CONFIG[facilityType] ?? PLACE_MARKER_CONFIG.other;
   const Icon = config.icon ?? Shapes;
-  const clusteredCount = marker.cluster?.kind === 'place' ? marker.cluster.count : 0;
   return (
     <span
       className="group relative flex h-12 w-12 items-center justify-center"
@@ -1882,8 +1881,7 @@ function PlaceMarker({ marker, previewed = false }: { marker: MapMarker; preview
           {config.special === 'adult' ? <span className="cruush-logo-font text-[21px] font-normal leading-none tracking-normal">18+</span> : null}
           {!config.special ? <Icon className="h-6 w-6" /> : null}
         </span>
-        {clusteredCount > 1 ? <span data-testid="spot-cluster-count" className="absolute -right-2 -top-2 flex h-6 min-w-6 -rotate-45 items-center justify-center rounded-full bg-[#55C8FF] px-1 text-[10px] font-bold text-black">{clusteredCount > 999 ? '999+' : clusteredCount}</span> : null}
-        {active ? <span data-testid="spot-checkin-count" title={`${activeCheckins} checked in`} className={`absolute -right-2 flex h-6 min-w-6 -rotate-45 items-center justify-center rounded-full bg-[#55C8FF] px-1 text-[10px] font-bold text-black ${clusteredCount > 1 ? '-bottom-2' : '-top-2'}`}><Users className="mr-0.5 h-3 w-3" aria-hidden="true" />{activeCheckins > 999 ? '999+' : activeCheckins}</span> : null}
+        {active ? <span data-testid="spot-checkin-count" title={`${activeCheckins} checked in`} className="absolute -right-2 -top-2 flex h-6 min-w-6 -rotate-45 items-center justify-center rounded-full bg-[#55C8FF] px-1 text-[10px] font-bold text-black"><Users className="mr-0.5 h-3 w-3" aria-hidden="true" />{activeCheckins > 999 ? '999+' : activeCheckins}</span> : null}
       </span>
     </span>
   );
@@ -1984,9 +1982,7 @@ export function MapMarkerPin({ marker, previewed = false }: { marker: MapMarker;
   if (marker.kind === 'cluster') {
     return isPersonCluster(marker)
       ? <PeopleClusterMarker marker={marker} />
-      : isPlaceCluster(marker) && marker.place
-        ? <PlaceMarker marker={marker} previewed={previewed} />
-        : <VenueClusterMarker marker={marker} />;
+      : <VenueClusterMarker marker={marker} />;
   }
 
   if (marker.kind === 'place') {

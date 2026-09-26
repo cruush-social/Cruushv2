@@ -75,6 +75,17 @@ describe('NotificationCenter', () => {
     expect(screen.getByText('Open cruush to reply.')).toBeInTheDocument();
     expect(screen.getByText('Unread')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Notification settings' })).toBeInTheDocument();
+    expect(screen.getByTestId('notification-center-header')).toHaveClass(
+      'border-white/10',
+      'bg-black/88',
+      'shadow-[0_20px_55px_rgba(0,0,0,0.34)]',
+      'backdrop-blur-xl',
+    );
+    expect(screen.getByRole('heading', { name: 'Notifications' })).toHaveClass('text-2xl', 'sm:text-3xl');
+    expect(screen.getByRole('button', { name: 'Back' })).toHaveClass('rounded-full', 'bg-background/55');
+    expect(screen.getByRole('button', { name: 'Mark all as read' })).toHaveClass('rounded-full', 'bg-background/55');
+    expect(screen.getByRole('button', { name: 'Delete all notifications' })).toHaveClass('rounded-full', 'bg-background/55');
+    expect(screen.getByRole('button', { name: 'Notification settings' })).toHaveClass('rounded-full', 'bg-background/55');
 
     fireEvent.click(screen.getByRole('button', { name: 'Jordan sent you a message' }));
     await waitFor(() => expect(markNotificationRead).toHaveBeenCalledWith('notification-1'));

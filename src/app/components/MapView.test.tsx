@@ -2417,7 +2417,24 @@ describe('spiderfy clusters', () => {
     expect(Math.max(...offsets.map((offset: number[]) => Math.hypot(...offset)))).toBeLessThanOrEqual(95);
   });
 
-  it('keeps Spot clusters out of people spiderfy and opens their representative at street zoom', async () => {
+  it('uses the earlier Spot cluster marker while keeping Spot numbers for checked-in users', async () => {
+    const { unmount } = render(
+      <MapMarkerPin
+        marker={{
+          id: 'place-checkins',
+          kind: 'place',
+          displayName: 'Checked-in Spot',
+          approximateLatitude: 40.7,
+          approximateLongitude: -74,
+          place: { id: 'checked-in', facilityType: 'bar', activeCheckins: 4 },
+        }}
+      />,
+    );
+
+    expect(screen.getByTestId('spot-checkin-count')).toHaveTextContent('4');
+    expect(screen.queryByTestId('spot-cluster-count')).not.toBeInTheDocument();
+    unmount();
+
     const onPinClick = vi.fn();
     render(
       <MapView
@@ -2452,9 +2469,8 @@ describe('spiderfy clusters', () => {
 
     expect(await screen.findByRole('button', { name: 'Open Person A on map' })).toBeInTheDocument();
     const cluster = screen.getByRole('button', { name: 'Open 2 spots on map' });
-    expect(screen.getByTestId('place-marker-title-a')).toHaveClass('text-[0.7rem]');
-    expect(screen.getByTestId('spot-cluster-count')).toHaveTextContent('2');
-    expect(screen.getByTestId('spot-checkin-count')).toHaveTextContent('4');
+    expect(screen.getByTestId(/^venue-cluster-marker-places-/)).toHaveTextContent('2');
+    expect(screen.queryByTestId('spot-cluster-count')).not.toBeInTheDocument();
     const map = mapInstances.at(-1)!;
     map.getZoom.mockReturnValue(12);
 

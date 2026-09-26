@@ -146,50 +146,57 @@ export default function NotificationCenter() {
 
   return (
     <div className="min-h-screen bg-background pb-28 text-foreground">
-      <header className="cruush-notification-header sticky top-0 z-20 flex items-center gap-3 border-b border-border bg-background/88 px-4 py-3 backdrop-blur-md">
+      <header
+        className="cruush-notification-header sticky top-0 z-20 border-b border-white/10 bg-black/88 py-4 shadow-[0_20px_55px_rgba(0,0,0,0.34)] backdrop-blur-xl"
+        data-testid="notification-center-header"
+      >
+        <div className="cruush-notification-header-row mx-auto flex w-full max-w-2xl items-center gap-2 px-4">
         <Button
-          variant="ghost"
+          variant="secondary"
           size="icon"
           onClick={() => navigate(-1)}
           aria-label="Back"
-          className="cruush-notification-back rounded-full"
+          className="cruush-notification-back rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10"
         >
-          <ArrowLeft className="h-5 w-5" />
+          <ArrowLeft className="h-4 w-4" />
         </Button>
-        <h1 className="cruush-notification-title min-w-0 flex-1 text-xl text-white">Notifications</h1>
+        <h1 className="cruush-notification-title min-w-0 flex-1 truncate text-2xl text-white sm:text-3xl">Notifications</h1>
         <Button
           type="button"
-          variant="outline"
+          variant="secondary"
+          size="icon"
           onClick={handleMarkAllRead}
           disabled={unreadCount === 0 || isMarkingAll}
           aria-label="Mark all as read"
-          className="cruush-notification-mark-all gap-2 rounded-full"
+          className="cruush-notification-mark-all rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10"
         >
           <CheckCheck className="h-4 w-4" />
-          <span className="hidden sm:inline">Mark all as read</span>
+          <span className="sr-only">Mark all as read</span>
         </Button>
         <Button
           type="button"
-          variant="outline"
+          variant="secondary"
+          size="icon"
           onClick={() => void handleClearAll()}
           disabled={notifications.length === 0 || isClearingAll}
           aria-label="Delete all notifications"
-          className="cruush-notification-delete-all gap-2 rounded-full"
+          className="cruush-notification-delete-all rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10"
         >
           <Trash2 className="h-4 w-4" />
-          <span className="hidden sm:inline">Delete all notifications</span>
+          <span className="sr-only">Delete all notifications</span>
         </Button>
         <Button
           type="button"
-          variant="ghost"
+          variant="secondary"
           size="icon"
           onClick={() => navigate('/settings/notifications')}
           aria-label="Notification settings"
-          className="cruush-notification-settings rounded-full text-white/88 hover:bg-white/10"
+          className="cruush-notification-settings rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10"
         >
           <CruushIcon name="settings" className="h-5 w-5" />
         </Button>
         <div className="cruush-notification-bug-slot h-10 w-10 shrink-0" data-testid="notification-bug-button-slot" ref={registerBugButtonSlot} />
+        </div>
       </header>
 
       <main className="mx-auto flex w-full max-w-2xl flex-col gap-3 px-4 py-5">
