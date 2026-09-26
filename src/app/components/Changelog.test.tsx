@@ -22,7 +22,7 @@ describe('Changelog', () => {
     getUserNoticeDismissal.mockResolvedValue({ dismissed: true, dismissedAt: '2026-08-09T12:00:00.000Z' });
   });
 
-  it('shows v1.6 before the preserved earlier history', () => {
+  it('shows v1.8 before the preserved earlier history', () => {
     render(
       <MemoryRouter>
         <Changelog />
@@ -30,6 +30,7 @@ describe('Changelog', () => {
     );
 
     expect(screen.getAllByRole('heading', { level: 3 }).map((heading) => heading.textContent)).toEqual([
+      'cruush v1.8',
       'cruush v1.7',
       'cruush v1.6',
       'cruush v1.5',
@@ -37,6 +38,12 @@ describe('Changelog', () => {
       'cruush v1.2',
       'cruush v1.1',
     ]);
+    const v18Section = screen.getByRole('heading', { level: 3, name: 'cruush v1.8' }).closest('section');
+    expect(v18Section).not.toBeNull();
+    expect(v18Section?.textContent ?? '').toMatch(/Pay for cruush\+ or Pulse with Bitcoin/i);
+    expect(v18Section?.textContent ?? '').toMatch(/six confirmations/i);
+    expect(v18Section?.textContent ?? '').toMatch(/never auto-renew/i);
+    expect(v18Section?.textContent ?? '').toMatch(/Order history in Settings/i);
     const v15Section = screen.getByRole('heading', { level: 3, name: 'cruush v1.5' }).closest('section');
     expect(v15Section).not.toBeNull();
     expect(v15Section?.textContent ?? '').toMatch(/full 4:5 profile photos/i);

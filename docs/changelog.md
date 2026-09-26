@@ -1,5 +1,14 @@
 # cruush changelog
 
+## Release 1.8 (September 25, 2026)
+
+- Pay for cruush+ or Pulse with Bitcoin from Cash App, PayPal, Venmo, or another compatible wallet.
+- Bitcoin checkout shows the exact amount and address, a QR code, copy controls, and a 24-hour payment window.
+- Track payment progress through six confirmations and return to an unfinished checkout without losing its details.
+- Order history in Settings keeps cruush+ and Pulse purchases visible, including confirmation and activation status.
+- Fixed-term cruush+ purchases never auto-renew. New reminders arrive three days and one day before access ends.
+- Billing support now has dedicated choices for payment issues, subscriptions or renewals, Pulse purchases, and refund requests.
+
 ## Release 1.7 (September 15, 2026)
 
 - DL Mode now shows a lit state on the map, and controls which photo audiences see masked covers.
