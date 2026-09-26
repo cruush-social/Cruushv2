@@ -207,7 +207,8 @@ const migrationFiles = [
   "186_nsfw_photo_audience.sql",
   "187_subscription_expiry_reminders.sql",
   "188_billing_support_categories.sql",
-  "189_subscription_expiry_email_delivery.sql"
+  "189_subscription_expiry_email_delivery.sql",
+  "190_crypto_payment_allocator_history_floor.sql"
 ];
 const rewardSafetyPreflightFiles = [
   "079_daily_check_in_rewards.sql",

@@ -23,6 +23,18 @@ describe("migration runner", () => {
     expect(listedFiles).toEqual(sqlFiles);
   });
 
+  it("starts production crypto allocation after the reconciled address history", async () => {
+    const allocatorSql = await readFile(
+      path.join(serverRoot, "sql", "190_crypto_payment_allocator_history_floor.sql"),
+      "utf8"
+    );
+
+    expect(allocatorSql).toContain("greatest(allocator_last_value, saved_maximum, 12)");
+    expect(allocatorSql).toContain("perform setval(");
+    expect(allocatorSql).toContain("crypto_payment_intents_derivation_index_seq");
+    expect(allocatorSql).not.toMatch(/\b(insert into|update|delete from|truncate|drop table)\b/i);
+  });
+
   it("sets the new crypto order database fallback to 24 hours", async () => {
     const windowSql = await readFile(
       path.join(serverRoot, "sql", "125_crypto_payment_24_hour_window.sql"),
