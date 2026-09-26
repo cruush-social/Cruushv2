@@ -3238,7 +3238,7 @@ function MapView({
   }, []);
 
   return (
-    <div ref={surfaceRef} className="relative h-full min-h-[400px] w-full overflow-hidden bg-background" style={{ touchAction: 'pan-x pan-y' }}>
+    <div ref={surfaceRef} className="relative h-full min-h-[400px] w-full overflow-hidden bg-background" data-map-gesture-surface style={{ touchAction: 'pan-x pan-y' }}>
       <div
         ref={containerRef}
         className="cruush-map h-full min-h-[400px] w-full overflow-hidden bg-background"

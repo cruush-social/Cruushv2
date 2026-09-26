@@ -17,6 +17,7 @@ const MENU_VIEWPORT_PADDING = 16;
 const MENU_FLIP_THRESHOLD = 220;
 const MENU_MOBILE_BREAKPOINT = 640;
 const MENU_PORTAL_Z_INDEX = 120;
+const MENU_OPTION_HEIGHT_ESTIMATE = 36;
 const MULTI_SELECT_OPEN_EVENT = 'cruush:multiselect-open';
 const TOUCH_SCROLL_STYLE: CSSProperties = {
   WebkitOverflowScrolling: 'touch',
@@ -70,6 +71,7 @@ export default function MultiSelect({
   const [portalStyle, setPortalStyle] = useState<CSSProperties | null>(null);
   const groups = useMemo(() => optionGroups ?? [{ label: '', options }], [optionGroups, options]);
   const hasCategoryPicker = Boolean(optionGroups?.length && optionGroups.length > 1);
+  const menuNeedsDefiniteHeight = hasCategoryPicker || groups.reduce((total, group) => total + group.options.length, 0) * MENU_OPTION_HEIGHT_ESTIMATE > MENU_MAX_HEIGHT;
   const [activeGroupLabel, setActiveGroupLabel] = useState(groups[0]?.label ?? '');
   const [searchQuery, setSearchQuery] = useState('');
   const activeGroup = groups.find((group) => group.label === activeGroupLabel) ?? groups[0] ?? { label: '', options: [] };
@@ -177,7 +179,7 @@ export default function MultiSelect({
       // A max-height does not establish a definite height for the desktop
       // category picker. Its h-full children then expand to their content
       // instead of making their own options panes scrollable.
-      const menuHeight = hasCategoryPicker ? { height: maxHeight } : { maxHeight };
+      const menuHeight = menuNeedsDefiniteHeight ? { height: maxHeight } : { maxHeight };
       setLocalMenuStyle(menuPortal ? null : menuHeight);
       // Radix locks touch scrolling outside modal content. Keep fixed portal
       // geometry while mounting the menu inside that allowed scroll boundary.
@@ -236,7 +238,7 @@ export default function MultiSelect({
       window.removeEventListener('scroll', updatePortalStyle, true);
       observer?.disconnect();
     };
-  }, [hasCategoryPicker, isOpen, menuPlacement, menuPortal, selected.length]);
+  }, [hasCategoryPicker, isOpen, menuNeedsDefiniteHeight, menuPlacement, menuPortal, selected.length]);
 
   useEffect(() => {
     if (!isOpen || !menuPortal) {
@@ -302,7 +304,7 @@ export default function MultiSelect({
       ) : null;
 
   const flatMenuContent = (
-    <div role="listbox" aria-label={ariaLabel} className={`scrollbar-subtle min-h-0 max-h-[inherit] overflow-y-auto${searchable ? ' flex-1' : ''}`} style={TOUCH_SCROLL_STYLE}>
+    <div role="listbox" aria-label={ariaLabel} className={`scrollbar-subtle min-h-0 max-h-[inherit] overflow-y-auto${searchable ? ' flex-1' : ''}`} style={menuNeedsDefiniteHeight ? { ...TOUCH_SCROLL_STYLE, height: '100%' } : TOUCH_SCROLL_STYLE}>
       {(normalizedSearchQuery ? searchGroups : groups).map((group) => (
         <div key={group.label || 'options'} role={group.label ? 'group' : undefined} aria-label={group.label || undefined}>
           {group.label ? (

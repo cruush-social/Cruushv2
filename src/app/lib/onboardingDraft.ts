@@ -9,7 +9,7 @@
  * private window or a full quota costs the restore and nothing else.
  */
 const ONBOARDING_DRAFT_KEY = 'cruush:onboarding-draft';
-const ONBOARDING_DRAFT_VERSION = 3;
+const ONBOARDING_DRAFT_VERSION = 4;
 
 export type OnboardingDraft<TProfile> = { step: number; profile: Partial<TProfile> };
 
@@ -33,9 +33,14 @@ export function readOnboardingDraft<TProfile>(): OnboardingDraft<TProfile> | nul
       : savedStep - 1;
     // Version 3 moves Pronouns into Gender. Resume that combined step for
     // either old step, and shift each later rite back by one.
-    const step = parsed.version === ONBOARDING_DRAFT_VERSION || previousStep <= 1
+    const combinedGenderStep = (parsed.version != null && parsed.version >= 3) || previousStep <= 1
       ? previousStep
       : previousStep - 1;
+    // Version 4 removes badge selection at index 6. Resume 2FA for that
+    // removed step and keep later drafts on their corresponding rite.
+    const step = (parsed.version != null && parsed.version >= 4) || combinedGenderStep <= 6
+      ? combinedGenderStep
+      : combinedGenderStep - 1;
     return { step, profile: parsed.profile };
   } catch {
     return null;

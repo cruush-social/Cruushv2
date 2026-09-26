@@ -31,6 +31,33 @@ describe("client security check", () => {
     })).not.toThrow();
   });
 
+  it.each([-3600000, 120000, 3600000])("accepts a normal check with a device clock offset of %i ms", (offset) => {
+    const deviceNow = Date.now() + offset;
+    expect(() => verifyClientSecurityCheck({
+      startedAt: deviceNow - 1800,
+      submittedAt: deviceNow,
+      trap: ""
+    })).not.toThrow();
+  });
+
+  it.each([-1, 99, 30 * 60 * 1000 + 1, Number.NaN, Number.POSITIVE_INFINITY])("rejects invalid elapsed time %s", (elapsed) => {
+    const deviceNow = Date.now() + 3600000;
+    expect(() => verifyClientSecurityCheck({
+      startedAt: deviceNow,
+      submittedAt: deviceNow + elapsed,
+      trap: ""
+    })).toThrow(ApiError);
+  });
+
+  it("still rejects a filled bot trap with an offset device clock", () => {
+    const deviceNow = Date.now() + 3600000;
+    expect(() => verifyClientSecurityCheck({
+      startedAt: deviceNow - 1800,
+      submittedAt: deviceNow,
+      trap: "filled"
+    })).toThrow(ApiError);
+  });
+
   it("rejects bot trap submissions", () => {
     const now = Date.now();
 

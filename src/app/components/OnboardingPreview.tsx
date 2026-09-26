@@ -85,7 +85,7 @@ export default function OnboardingPreview() {
           <div>
             <p>Run onboarding</p>
             <p className="text-sm text-muted-foreground">
-              Steps through the full rite list including the optional invite code, role, position, badges, 2FA, affiliate share, and final code of conduct.
+              Steps through the full rite list including the optional invite code, role, position, 2FA, affiliate share, and final code of conduct.
               No email or account is needed. Photos, invite codes, 2FA, profile details, and completion stay inside this preview and are not saved.
             </p>
           </div>

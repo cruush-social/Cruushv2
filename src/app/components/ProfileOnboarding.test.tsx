@@ -147,8 +147,9 @@ async function fillProfileRites() {
 
   expect(screen.getByText('name your role')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: /next/i }));
-  expect(screen.getByText('dress your heart')).toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button', { name: /next/i }));
+  expect(screen.getByText('protect your key')).toBeInTheDocument();
+  expect(screen.queryByText('dress your heart')).not.toBeInTheDocument();
+  expect(screen.queryByLabelText('Badge category')).not.toBeInTheDocument();
 }
 
 async function reachFinalOath() {
@@ -262,7 +263,7 @@ describe('ProfileOnboarding', () => {
     fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
     expect(screen.getByText('name your form')).toBeInTheDocument();
-    expect(screen.getByText('Rite 2 of 10')).toBeInTheDocument();
+    expect(screen.getByText('Rite 2 of 9')).toBeInTheDocument();
     expect(screen.queryByLabelText('Friend invite code')).not.toBeInTheDocument();
     await chooseMultiSelect('Pronouns', 'they/them');
     await chooseMultiSelect('Gender Identity', 'nonbinary');
@@ -328,7 +329,6 @@ describe('ProfileOnboarding', () => {
     fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
     fireEvent.change(screen.getByPlaceholderText('A little about you...'), { target: { value: 'Velvet trouble.' } });
-    fireEvent.click(screen.getByRole('button', { name: /next/i }));
     fireEvent.click(screen.getByRole('button', { name: /next/i }));
     fireEvent.click(screen.getByRole('button', { name: /next/i }));
     await skipTwoFactorAndEnter();
@@ -609,8 +609,7 @@ describe('ProfileOnboarding', () => {
     expect(screen.getByText('name your role')).toBeInTheDocument();
     expect(screen.getByText('Optional. This becomes your left badge.')).toBeInTheDocument();
     fireEvent.click(next()); // No Role or Position.
-    expect(screen.getByText('dress your heart')).toBeInTheDocument();
-    fireEvent.click(next()); // No badge selection.
+    expect(screen.getByText('protect your key')).toBeInTheDocument();
     await reachFinalOath(); // Skip 2FA without an invite code.
     const enter = screen.getByRole('button', { name: /enter cruush/i });
     expect(enter).toBeDisabled();
@@ -622,7 +621,7 @@ describe('ProfileOnboarding', () => {
   });
 
   it('migrates old draft steps once, preserves Looking for answers and revisits missing required fields', () => {
-    const profile = { name: 'River', pronouns: ['they/them'], identities: ['nonbinary'], sexuality: ['queer'], crowds: ['Dyke'], lookingFor: ['cruise'] };
+    const profile = { name: 'River', pronouns: ['they/them'], identities: ['nonbinary'], sexuality: ['queer'], crowds: ['Dyke'], lookingFor: ['cruise'], sideBadges: { left: { badge_id: 'service-sub' }, right: null } };
     window.localStorage.setItem('cruush:onboarding-draft', JSON.stringify({ step: 5, profile }));
     const migrated = readOnboardingDraft<typeof profile>();
     expect(migrated).toEqual({ step: 3, profile });
@@ -637,20 +636,26 @@ describe('ProfileOnboarding', () => {
       [1, 1, 1], // Removed Pronouns resumes the combined Gender step.
       [2, 1, 1],
       [2, 2, 1],
-      [2, 8, 7], // Existing 2FA drafts stay on 2FA.
-      [3, 7, 7], // Current drafts are not migrated again.
+      [1, 8, 6], // Old badge selection resumes 2FA after all migrations.
+      [2, 8, 6], // Existing 2FA drafts stay on 2FA.
+      [3, 5, 5], // Role/Position stays in place.
+      [3, 6, 6], // Removed badge selection resumes 2FA.
+      [3, 7, 6], // 2FA stays on 2FA.
+      [3, 8, 7], // Affiliate share stays on affiliate share.
+      [3, 9, 8], // The final oath is not skipped.
+      [4, 7, 7], // Current drafts are not migrated again.
     ]) {
       window.localStorage.setItem('cruush:onboarding-draft', JSON.stringify({ version, step: savedStep, profile }));
       expect(readOnboardingDraft()).toEqual({ step: expectedStep, profile });
       writeOnboardingDraft(readOnboardingDraft<typeof profile>()!);
       expect(readOnboardingDraft()).toEqual({ step: expectedStep, profile });
     }
-    writeOnboardingDraft({ step: 7, profile: { ...profile, sexuality: [] } });
+    writeOnboardingDraft({ step: 6, profile: { ...profile, sexuality: [] } });
     const second = render(<MemoryRouter><ProfileOnboarding onComplete={vi.fn()} /></MemoryRouter>);
     expect(screen.getByText('name your form')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /next rite/i })).toBeDisabled();
     second.unmount();
-    writeOnboardingDraft({ step: 7, profile: { ...profile, crowds: [], is_trans: false } });
+    writeOnboardingDraft({ step: 6, profile: { ...profile, crowds: [], is_trans: false } });
     render(<MemoryRouter><ProfileOnboarding onComplete={vi.fn()} /></MemoryRouter>);
     expect(screen.getByText('protect your key')).toBeInTheDocument();
   });

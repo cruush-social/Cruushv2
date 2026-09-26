@@ -36,7 +36,6 @@ import { persistCurrentUser } from '../lib/sessionUser';
 import CruushPlusWord from './CruushPlusWord';
 import MultiSelect from './MultiSelect';
 import LoadingCardSkeletons from './LoadingCardSkeletons';
-import BadgePickerPreview from './BadgePickerPreview';
 import cruushLogo from '../assets/brand/cruush-logo.svg';
 
 interface ProfileOnboardingProps {
@@ -57,7 +56,6 @@ type OnboardingStep =
   | 'vibes'
   | 'bio'
   | 'rolePosition'
-  | 'badges'
   | 'oath'
   | 'twoFactor'
   | 'affiliateShare';
@@ -69,7 +67,6 @@ const PROFILE_STEPS: OnboardingStep[] = [
   'vibes',
   'bio',
   'rolePosition',
-  'badges',
 ];
 
 const STEP_COPY: Record<OnboardingStep, { rite: string; title: string; detail: string }> = {
@@ -107,11 +104,6 @@ const STEP_COPY: Record<OnboardingStep, { rite: string; title: string; detail: s
     rite: 'name your role',
     title: 'Choose your role and position.',
     detail: 'These become your default left and right badges.',
-  },
-  badges: {
-    rite: 'dress your heart',
-    title: 'Set your badges.',
-    detail: 'Optional. Left defaults to your role. Right defaults to your position. Choose another badge only if you want to change either side.',
   },
   oath: {
     rite: 'take the oath',
@@ -362,11 +354,13 @@ export default function ProfileOnboarding({
       // viewport. Fitting to the visual viewport rescaled and reflowed the whole
       // step the moment a field was focused, so the step is sized against the
       // layout viewport and the visual viewport only pans it into view.
-      viewport.style.setProperty('--onboarding-pan-offset', `${Math.max(0, visibleTop - viewportTop)}px`);
+      const panOffset = Math.max(0, visibleTop - viewportTop);
+      viewport.style.setProperty('--onboarding-pan-offset', `${panOffset}px`);
       viewport.style.maxHeight = `${Math.max(0, window.innerHeight - viewportTop)}px`;
       const style = getComputedStyle(viewport);
       const horizontalPadding = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight);
-      const availableHeight = viewport.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
+      // Keyboard panning moves the step; it must not shrink the fitted content.
+      const availableHeight = viewport.clientHeight - (parseFloat(style.paddingTop) - panOffset) - parseFloat(style.paddingBottom);
       const availableWidth = Math.min(viewport.clientWidth, 28 * parseFloat(getComputedStyle(document.documentElement).fontSize)) - horizontalPadding;
       if (availableHeight <= 0 || availableWidth <= 0) return;
 
@@ -383,8 +377,13 @@ export default function ProfileOnboarding({
         let high = 1;
         for (let attempt = 0; attempt < 12; attempt += 1) {
           const scale = (low + high) / 2;
-          applyScale(scale);
-          if (content.getBoundingClientRect().height <= availableHeight) low = scale;
+          // Safari can report the zoomed box using its unzoomed height. Measure
+          // the reflowed content at zoom 1, then apply the scale once. Otherwise
+          // the search can converge on an almost-zero zoom, leaving tappable
+          // boxes with unreadable text.
+          content.style.zoom = '1';
+          content.style.width = `${availableWidth / scale}px`;
+          if (content.getBoundingClientRect().height * scale <= availableHeight) low = scale;
           else high = scale;
         }
         applyScale(low);
@@ -513,7 +512,6 @@ export default function ProfileOnboarding({
       case 'bio':
         return true;
       case 'rolePosition':
-      case 'badges':
         return true;
       case 'oath':
         return oathAccepted;
@@ -1024,23 +1022,6 @@ export default function ProfileOnboarding({
                     />
                     <p className="mt-1 text-xs text-white/58">Optional. This becomes your right badge.</p>
                   </div>
-                </div>
-              );
-            case 'badges':
-              return (
-                <div className="-mx-1 rounded-lg border border-white/10 bg-black/35 px-1 pt-3">
-                  <BadgePickerPreview
-                    embedded
-                    onboardingProfile={{
-                      photos: profile.photos,
-                      role: profile.role,
-                      position: profile.position,
-                      vibes: profile.vibes,
-                      kinks: profile.kinks,
-                      side_badges: profile.sideBadges,
-                    }}
-                    onOnboardingBadgesChange={(sideBadges) => setProfileField('sideBadges', sideBadges)}
-                  />
                 </div>
               );
             case 'oath':
