@@ -20,7 +20,7 @@ The event trigger is the public Mempool WebSocket. Existing Esplora sources rema
 
 ## Full release boundary
 
-The release candidate starts from the previously reviewed processor integration through `06bbfef4ebbbd6f063279ddcfc4b8110310e94a5`, adds the scoped September 25 Mempool/readiness commit `b69b268`, and integrates current `origin/main` at `82613aa7c86cdb967e4abe4707b9b5e1b9a7c2d0`. The integrated base is merge commit `b0cc280a48ccdb865d5e721d9c3cb12b8f8930d7`; the tested release source including the allocator cutover is `d21c3e10f6c25730eb69b11454ce19ac963541d6`.
+The release candidate starts from the previously reviewed processor integration through `06bbfef4ebbbd6f063279ddcfc4b8110310e94a5`, adds the scoped September 25 Mempool/readiness commit `b69b268`, and integrates current `origin/main` at `82613aa7c86cdb967e4abe4707b9b5e1b9a7c2d0`. The integrated base is merge commit `b0cc280a48ccdb865d5e721d9c3cb12b8f8930d7`; the tested release source including the allocator cutover and whitespace-only diff cleanup is `c91c087aee482f2faf42fc2e284d0a380342a680`.
 
 The complete candidate contains 140 changed paths relative to current `origin/main`. The authoritative exact list is:
 
@@ -113,7 +113,7 @@ Migration `190_crypto_payment_allocator_history_floor.sql` completes the cutover
 - Canonical history reconciliation: all 11 saved Bitcoin addresses match the production receive-key fingerprint and re-derive correctly; no Bitcoin order is open; both paid orders have an entitlement marker and exactly one linked grant.
 - Wallet/operator-tool suite: 56 passed.
 - Server TypeScript build: passed.
-- Frontend production build: passed.
+- Frontend production build: passed; the whitespace-only cleanup produced the identical Order History JavaScript artifact hash.
 - Wallet TypeScript build: passed.
 - Product-name casing, conflict-marker scan and `git diff --check`: passed.
 - Production dependency audit: zero known vulnerabilities after updating Fastify, Sharp and their vulnerable transitive URI parser; the server image already uses the required Node 22 runtime.
