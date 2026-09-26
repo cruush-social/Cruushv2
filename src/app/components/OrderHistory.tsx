@@ -65,7 +65,7 @@ export default function OrderHistory() {
         <div>
           <h2 className="text-xl">Order history</h2>
         </div>
-      
+
         <BugButtonSlot testId="order-history-bug-button-slot" />
       </header>
 
