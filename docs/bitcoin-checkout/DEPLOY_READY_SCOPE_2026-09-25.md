@@ -110,6 +110,7 @@ Migration `190_crypto_payment_allocator_history_floor.sql` completes the cutover
 - Checkout, Pulse, order-history, support and notification client selection: 79 passed.
 - Migration registration selection: 35 passed.
 - Full migrations `001` through `190` installed and replayed cleanly on a disposable PostgreSQL database; the empty-ledger cutover left the allocator at 12 and the next index at 13. A separate higher-sequence replay stayed forward-only.
+- Canonical history reconciliation: all 11 saved Bitcoin addresses match the production receive-key fingerprint and re-derive correctly; no Bitcoin order is open; both paid orders have an entitlement marker and exactly one linked grant.
 - Wallet/operator-tool suite: 56 passed.
 - Server TypeScript build: passed.
 - Frontend production build: passed.
