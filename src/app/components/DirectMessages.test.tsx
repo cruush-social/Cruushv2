@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { MemoryRouter } from 'react-router';
+import { MemoryRouter, Route, Routes } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import DirectMessages from './DirectMessages';
 
@@ -97,6 +97,22 @@ describe('DirectMessages', () => {
     );
   });
 
+  it('opens Message settings as the shared-header settings page', async () => {
+    getConversations.mockResolvedValue([]);
+
+    render(
+      <MemoryRouter initialEntries={['/messages']}>
+        <Routes>
+          <Route path="/messages" element={<DirectMessages />} />
+          <Route path="/cruush/settings" element={<div>Message settings route</div>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Message settings' }));
+    expect(screen.getByText('Message settings route')).toBeInTheDocument();
+  });
+
   it('shows an empty live inbox without preview conversations', async () => {
     getConversations.mockResolvedValue([]);
 
@@ -168,6 +184,7 @@ describe('DirectMessages', () => {
         name: 'River',
         pronouns: 'they/them',
         photo: null,
+        lastActive: '12m ago',
       },
       distance: 'Nearby',
       updatedAt: new Date().toISOString(),
@@ -198,6 +215,8 @@ describe('DirectMessages', () => {
     expect(row.querySelector('.cruush-user-activity-grid')).toHaveClass('grid');
     expect(screen.queryByTestId('activity-vibes')).not.toBeInTheDocument();
     expect(screen.getByText('meet by the door')).toBeInTheDocument();
+    expect(screen.getByText('12m ago')).toBeInTheDocument();
+    expect(screen.queryByText('Nearby')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Delete River chat for everyone' })).toBeInTheDocument();
   });
 

@@ -102,7 +102,7 @@ export default function ProfilePhotoGallery({
           role="img"
           style={{ ...PROFILE_HERO_ASPECT_STYLE, background: getProfileGradientCss(userId ?? activePhoto) }}
         >
-          <DlModePhotoPlaceholder restriction={getNsfwPhotoRestriction(activePhoto ? photoMetadataByUrl.get(activePhoto) : false, relationship)} />
+          <DlModePhotoPlaceholder className="w-28" restriction={getNsfwPhotoRestriction(activePhoto ? photoMetadataByUrl.get(activePhoto) : false, relationship)} />
         </div>
       ) : (
         <div className="flex h-full w-full items-center justify-center">

@@ -580,12 +580,14 @@ describe("notification routes", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({
       data: {
+        emailEnabled: true,
         pushEnabled: true,
         cruushEnabled: true,
         messagesEnabled: true,
         groupsEnabled: true,
         nearbyEnabled: false,
         rewardsEnabled: false,
+        siteRemindersEnabled: true,
         pulseEnabled: true,
         soundEnabled: true,
         quietHoursEnabled: false,
@@ -638,12 +640,14 @@ describe("notification routes", () => {
     expect(query.mock.calls[0]?.[0]).toContain("insert into notification_preferences");
     expect(response.json()).toEqual({
       data: {
+        emailEnabled: true,
         pushEnabled: true,
         cruushEnabled: true,
         messagesEnabled: true,
         groupsEnabled: true,
         nearbyEnabled: true,
         rewardsEnabled: true,
+        siteRemindersEnabled: true,
         pulseEnabled: true,
         soundEnabled: true,
         quietHoursEnabled: false,

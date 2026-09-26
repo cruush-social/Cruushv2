@@ -18,12 +18,14 @@ type PushSubscriptionRow = {
 };
 
 type NotificationPreferencesRow = {
+  email_enabled: boolean;
   push_enabled: boolean;
   cruush_enabled: boolean;
   messages_enabled: boolean;
   groups_enabled: boolean;
   nearby_enabled: boolean;
   rewards_enabled: boolean;
+  site_reminders_enabled: boolean;
   sound_enabled: boolean;
   quiet_hours_enabled: boolean;
   quiet_hours_start_minute: number;
@@ -33,12 +35,14 @@ type NotificationPreferencesRow = {
 };
 
 export type NotificationPreferences = {
+  emailEnabled: boolean;
   pushEnabled: boolean;
   cruushEnabled: boolean;
   messagesEnabled: boolean;
   groupsEnabled: boolean;
   nearbyEnabled: boolean;
   rewardsEnabled: boolean;
+  siteRemindersEnabled: boolean;
   soundEnabled: boolean;
   quietHoursEnabled: boolean;
   /** Minutes past local midnight. A start above the end wraps past midnight. */
@@ -126,12 +130,14 @@ export function isWithinQuietHours(preferences: NotificationPreferences, atMs = 
 
 function mapPreferences(row?: Partial<NotificationPreferencesRow> | null): NotificationPreferences {
   return {
+    emailEnabled: row?.email_enabled !== false,
     pushEnabled: Boolean(row?.push_enabled),
     cruushEnabled: row?.cruush_enabled ?? true,
     messagesEnabled: row?.messages_enabled ?? true,
     groupsEnabled: row?.groups_enabled ?? true,
     nearbyEnabled: row?.nearby_enabled ?? true,
     rewardsEnabled: row?.rewards_enabled ?? true,
+    siteRemindersEnabled: row?.site_reminders_enabled ?? true,
     soundEnabled: row?.sound_enabled ?? true,
     quietHoursEnabled: row?.quiet_hours_enabled ?? false,
     quietHoursStartMinute: clampMinuteOfDay(row?.quiet_hours_start_minute, 0),
@@ -183,6 +189,10 @@ function isPreferenceEnabledForType(preferences: NotificationPreferences, type: 
 
   if (type === "reward") {
     return preferences.rewardsEnabled;
+  }
+
+  if (type === "site_reminder") {
+    return preferences.siteRemindersEnabled;
   }
 
   if (type === "incoming_cruush" || type === "mutual_cruush") {
@@ -243,6 +253,13 @@ function genericPushCopy(type: AppNotificationType) {
     };
   }
 
+  if (type === "site_reminder") {
+    return {
+      title: "cruush reminder",
+      body: "Open cruush to check it."
+    };
+  }
+
   return {
     title: "New message",
     body: "Open cruush to check it."
@@ -267,7 +284,7 @@ export function getVapidPublicKey(config: AppConfig) {
 
 export async function getNotificationPreferences(app: PushApp, userId: string) {
   const result = await app.db.query<NotificationPreferencesRow>(
-    `select push_enabled, cruush_enabled, messages_enabled, groups_enabled, nearby_enabled, rewards_enabled, sound_enabled, quiet_hours_enabled, quiet_hours_start_minute, quiet_hours_end_minute, quiet_hours_timezone, pulse_enabled
+    `select email_enabled, push_enabled, cruush_enabled, messages_enabled, groups_enabled, nearby_enabled, rewards_enabled, site_reminders_enabled, sound_enabled, quiet_hours_enabled, quiet_hours_start_minute, quiet_hours_end_minute, quiet_hours_timezone, pulse_enabled
      from notification_preferences
      where user_id = $1
      limit 1`,
@@ -291,12 +308,14 @@ export async function updateNotificationPreferences(
   const result = await app.db.query<NotificationPreferencesRow>(
     `insert into notification_preferences (
        user_id,
+       email_enabled,
        push_enabled,
        cruush_enabled,
        messages_enabled,
        groups_enabled,
        nearby_enabled,
        rewards_enabled,
+       site_reminders_enabled,
        sound_enabled,
        quiet_hours_enabled,
        quiet_hours_start_minute,
@@ -304,14 +323,16 @@ export async function updateNotificationPreferences(
        quiet_hours_timezone,
        pulse_enabled
      )
-     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
      on conflict (user_id) do update
-       set push_enabled = excluded.push_enabled,
+       set email_enabled = excluded.email_enabled,
+           push_enabled = excluded.push_enabled,
            cruush_enabled = excluded.cruush_enabled,
            messages_enabled = excluded.messages_enabled,
            groups_enabled = excluded.groups_enabled,
            nearby_enabled = excluded.nearby_enabled,
            rewards_enabled = excluded.rewards_enabled,
+           site_reminders_enabled = excluded.site_reminders_enabled,
            sound_enabled = excluded.sound_enabled,
            quiet_hours_enabled = excluded.quiet_hours_enabled,
            quiet_hours_start_minute = excluded.quiet_hours_start_minute,
@@ -319,15 +340,17 @@ export async function updateNotificationPreferences(
            quiet_hours_timezone = excluded.quiet_hours_timezone,
            pulse_enabled = excluded.pulse_enabled,
            updated_at = now()
-     returning push_enabled, cruush_enabled, messages_enabled, groups_enabled, nearby_enabled, rewards_enabled, sound_enabled, quiet_hours_enabled, quiet_hours_start_minute, quiet_hours_end_minute, quiet_hours_timezone, pulse_enabled`,
+     returning email_enabled, push_enabled, cruush_enabled, messages_enabled, groups_enabled, nearby_enabled, rewards_enabled, site_reminders_enabled, sound_enabled, quiet_hours_enabled, quiet_hours_start_minute, quiet_hours_end_minute, quiet_hours_timezone, pulse_enabled`,
     [
       userId,
+      next.emailEnabled,
       next.pushEnabled,
       next.cruushEnabled,
       next.messagesEnabled,
       next.groupsEnabled,
       next.nearbyEnabled,
       next.rewardsEnabled,
+      next.siteRemindersEnabled,
       next.soundEnabled,
       next.quietHoursEnabled,
       clampMinuteOfDay(next.quietHoursStartMinute, 0),
@@ -371,9 +394,9 @@ export async function upsertPushSubscription(
        on conflict (user_id) do update
          set push_enabled = true,
              updated_at = now()
-       returning push_enabled, cruush_enabled, messages_enabled, groups_enabled, nearby_enabled, rewards_enabled, sound_enabled, quiet_hours_enabled, quiet_hours_start_minute, quiet_hours_end_minute, quiet_hours_timezone, pulse_enabled
+       returning push_enabled, cruush_enabled, messages_enabled, groups_enabled, nearby_enabled, rewards_enabled, site_reminders_enabled, sound_enabled, quiet_hours_enabled, quiet_hours_start_minute, quiet_hours_end_minute, quiet_hours_timezone, pulse_enabled
      )
-     select push_enabled, cruush_enabled, messages_enabled, groups_enabled, nearby_enabled, rewards_enabled, sound_enabled, quiet_hours_enabled, quiet_hours_start_minute, quiet_hours_end_minute, quiet_hours_timezone, pulse_enabled
+     select push_enabled, cruush_enabled, messages_enabled, groups_enabled, nearby_enabled, rewards_enabled, site_reminders_enabled, sound_enabled, quiet_hours_enabled, quiet_hours_start_minute, quiet_hours_end_minute, quiet_hours_timezone, pulse_enabled
      from preferences_upsert`,
     [
       userId,
@@ -465,7 +488,7 @@ export async function sendPushForNotification(app: PushApp, notification: AppNot
      order by updated_at desc`,
     [notification.userId]
   );
-  const copy = notification.type === "subscription_expiring"
+  const copy = notification.type === "subscription_expiring" || notification.type === "site_reminder"
     ? { title: notification.title, body: notification.body }
     : genericPushCopy(notification.type);
   const payload = JSON.stringify({

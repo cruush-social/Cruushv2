@@ -96,7 +96,8 @@ export default function CruushPlusScratchCard({ card, onClose }: {
     return () => media.removeEventListener('change', sync);
   }, []);
   return <Dialog open onOpenChange={open => { if (!open) onClose(false); }}>
-    <DialogContent className="cruush-scratch-dialog" data-layout={desktop ? 'desktop' : 'phone'} aria-describedby={undefined}
+    <DialogContent className="cruush-scratch-dialog overflow-hidden" data-layout={desktop ? 'desktop' : 'phone'} aria-describedby={undefined}
+      showCloseButton={false}
       onInteractOutside={event => event.preventDefault()}>
       <DialogTitle className="sr-only">{card.kind === 'ping' ? 'Pulse reward' : 'cruush+ reward'}</DialogTitle>
       <BugButtonSlot className="absolute right-3 top-3 z-40" testId="scratch-card-bug-button-slot" />

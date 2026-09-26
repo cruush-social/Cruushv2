@@ -51,6 +51,8 @@ import { isCryptoPaymentRailReady } from "./crypto-payments.js";
 import { sendBitcoinMonitoringCapacityAlertEmail } from "./mailer.js";
 
 import { startSubscriptionExpiryScheduler } from "./subscription-expiry.js";
+import { startWeeklyOrderReportScheduler } from "./weekly-order-report.js";
+import { startSiteReminderScheduler } from "./site-reminders.js";
 
 const config = loadConfig();
 let cryptoWatcherHandle: ReturnType<typeof startCryptoWatcher> = null;
@@ -90,9 +92,13 @@ let stopCryptoWatcher: (() => void) | null = null;
 let stopPlaceCheckinExpiryScheduler: (() => void) | null = null;
 
 let stopSubscriptionExpiryScheduler: (() => void) | null = null;
+let stopWeeklyOrderReportScheduler: (() => void) | null = null;
+let stopSiteReminderScheduler: (() => void) | null = null;
 
 const shutdown = async () => {
   stopSubscriptionExpiryScheduler?.();
+  stopWeeklyOrderReportScheduler?.();
+  stopSiteReminderScheduler?.();
   stopReferralScheduler?.();
   stopMessageExpiryScheduler?.();
   stopAccountDeletionMediaCleanupScheduler?.();
@@ -129,6 +135,8 @@ stopCryptoWatcher = cryptoWatcherHandle?.stop ?? null;
 if (mempoolBitcoinSource) void cryptoWatcherHandle?.runOnce();
 stopPlaceCheckinExpiryScheduler = startPlaceCheckinExpiryScheduler(app);
 stopSubscriptionExpiryScheduler = startSubscriptionExpiryScheduler(app);
+stopWeeklyOrderReportScheduler = startWeeklyOrderReportScheduler(app);
+stopSiteReminderScheduler = startSiteReminderScheduler(app);
 // Side Quest nudges are off for now at Julien's request: no prompt, and no
 // notification standing in for one. The sweep is left in place, so turning
 // them back on is this one line.

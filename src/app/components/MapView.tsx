@@ -28,6 +28,7 @@ import {
   PackageOpen,
   Route,
   Shapes,
+  Users,
   ShoppingBag,
   ShoppingCart,
   Toilet,
@@ -649,7 +650,6 @@ type DisplayMapMarker = MapMarker & {
     offset: [number, number];
     index: number;
     count: number;
-    pinned: boolean;
   };
 };
 
@@ -728,7 +728,9 @@ function getSpiderfiedMarkerMap(markers: MapMarker[], spiderfiedCluster: Spiderf
   const fannedMembers = members.filter((marker) => marker !== owner);
   // The full heart unit includes its badges and hover peak. The diagonal
   // clearance keeps adjacent rings and neighboring heart rectangles separate.
-  const clearance = peopleOnly ? Math.hypot(164, 164) : 0;
+  // One heart-unit width between centres keeps the artwork clear without the
+  // oversized diagonal gap that made a two-person fan span most of a phone.
+  const clearance = peopleOnly ? 164 : 0;
   const offsets = getSpiderfyOffsets(fannedMembers.length, clearance, owner ? clearance : 0);
   const project = (marker: MapMarker) => map && typeof map.project === 'function'
     ? map.project([marker.approximateLongitude, marker.approximateLatitude])
@@ -748,7 +750,6 @@ function getSpiderfiedMarkerMap(markers: MapMarker[], spiderfiedCluster: Spiderf
         })(),
         index,
         count: members.length,
-        pinned: spiderfiedCluster.pinned,
       },
     },
   ]));
@@ -1038,7 +1039,6 @@ function applyPersonMarkerClusters(
 
 function buildPlaceCluster(
   group: DisplayMapMarker[],
-  action: 'zoom' | 'spiderfy' = 'zoom',
 ): MapMarker {
   const count = group.length;
   const members = [...group].sort((a, b) => a.id.localeCompare(b.id));
@@ -1046,20 +1046,22 @@ function buildPlaceCluster(
   const clusterHash = hashString(sortedIds.join('|'));
   const averageLatitude = members.reduce((sum, marker) => sum + marker.approximateLatitude, 0) / count;
   const averageLongitude = members.reduce((sum, marker) => sum + marker.approximateLongitude, 0) / count;
+  const representative = members[0];
 
   return {
     id: `place-cluster-${clusterHash}`,
     kind: 'cluster',
-    displayName: `${count} spots`,
+    displayName: representative.displayName,
     approximateLatitude: averageLatitude,
     approximateLongitude: averageLongitude,
+    place: representative.place,
     cluster: {
       id: `places-${clusterHash}`,
       count,
       label: `${count} spots`,
       kind: 'place',
       memberIds: sortedIds,
-      action,
+      action: 'zoom',
     },
   };
 }
@@ -1071,13 +1073,13 @@ export function applyPlaceMarkerClusters(markers: DisplayMapMarker[], zoom: numb
   const clusteredIds = new Set<string>();
   const clusters: MapMarker[] = [];
 
-  // Spots can share a public coordinate. Keep them selectable at every zoom
-  // with the same pixel-only fan-out used for people at an exact coordinate.
+  // Exact-coordinate Spots stay a Spot cluster. Spiderfy is reserved for
+  // people sharing a building; the representative Spot opens at street zoom.
   Array.from(groupMarkersByCoordinate(placeMarkers).values())
     .filter((group) => group.length >= 2)
     .forEach((group) => {
       group.forEach((marker) => clusteredIds.add(marker.id));
-      clusters.push(buildPlaceCluster(group, 'spiderfy'));
+      clusters.push(buildPlaceCluster(group));
     });
 
   if (zoom >= PLACE_CLUSTER_MAX_ZOOM) {
@@ -1850,10 +1852,12 @@ const PLACE_MARKER_CONFIG: Record<string, { icon?: LucideIcon; special?: 'stairs
 };
 
 function PlaceMarker({ marker, previewed = false }: { marker: MapMarker; previewed?: boolean }) {
-  const active = (marker.place?.activeCheckins ?? 0) > 0;
+  const activeCheckins = marker.place?.activeCheckins ?? 0;
+  const active = activeCheckins > 0;
   const facilityType = marker.place?.facilityType ?? 'other';
   const config = PLACE_MARKER_CONFIG[facilityType] ?? PLACE_MARKER_CONFIG.other;
   const Icon = config.icon ?? Shapes;
+  const clusteredCount = marker.cluster?.kind === 'place' ? marker.cluster.count : 0;
   return (
     <span
       className="group relative flex h-12 w-12 items-center justify-center"
@@ -1878,7 +1882,8 @@ function PlaceMarker({ marker, previewed = false }: { marker: MapMarker; preview
           {config.special === 'adult' ? <span className="cruush-logo-font text-[21px] font-normal leading-none tracking-normal">18+</span> : null}
           {!config.special ? <Icon className="h-6 w-6" /> : null}
         </span>
-        {active ? <span className="absolute -right-2 -top-2 flex h-6 min-w-6 -rotate-45 items-center justify-center rounded-full bg-[#55C8FF] px-1 text-[10px] font-bold text-black">{marker.place?.activeCheckins}</span> : null}
+        {clusteredCount > 1 ? <span data-testid="spot-cluster-count" className="absolute -right-2 -top-2 flex h-6 min-w-6 -rotate-45 items-center justify-center rounded-full bg-[#55C8FF] px-1 text-[10px] font-bold text-black">{clusteredCount > 999 ? '999+' : clusteredCount}</span> : null}
+        {active ? <span data-testid="spot-checkin-count" title={`${activeCheckins} checked in`} className={`absolute -right-2 flex h-6 min-w-6 -rotate-45 items-center justify-center rounded-full bg-[#55C8FF] px-1 text-[10px] font-bold text-black ${clusteredCount > 1 ? '-bottom-2' : '-top-2'}`}><Users className="mr-0.5 h-3 w-3" aria-hidden="true" />{activeCheckins > 999 ? '999+' : activeCheckins}</span> : null}
       </span>
     </span>
   );
@@ -1977,7 +1982,11 @@ export function MapMarkerPin({ marker, previewed = false }: { marker: MapMarker;
   const signalBorderColor = getMarkerBorderColor(marker, isCurrentUser);
 
   if (marker.kind === 'cluster') {
-    return isPersonCluster(marker) ? <PeopleClusterMarker marker={marker} /> : <VenueClusterMarker marker={marker} />;
+    return isPersonCluster(marker)
+      ? <PeopleClusterMarker marker={marker} />
+      : isPlaceCluster(marker) && marker.place
+        ? <PlaceMarker marker={marker} previewed={previewed} />
+        : <VenueClusterMarker marker={marker} />;
   }
 
   if (marker.kind === 'place') {
@@ -3082,9 +3091,21 @@ function MapView({
             }
 
             if (isPersonCluster(selectedMarker) || isPlaceCluster(selectedMarker)) {
+              if (isPlaceCluster(selectedMarker)) {
+                setSpiderfiedCluster(null);
+                const liveZoom = typeof map.getZoom === 'function' ? map.getZoom() : currentZoom;
+                if (liveZoom >= PLACE_CLUSTER_MAX_ZOOM && selectedMarker.place) {
+                  onPinClickRef.current({ ...selectedMarker, kind: 'place', cluster: undefined });
+                  return;
+                }
+                map.setCenter([selectedMarker.approximateLongitude, selectedMarker.approximateLatitude]);
+                map.setZoom(PLACE_CLUSTER_MAX_ZOOM);
+                setCurrentZoom(PLACE_CLUSTER_MAX_ZOOM);
+                return;
+              }
               const memberIds = selectedMarker.cluster?.memberIds ?? [];
               const memberMarkers = denseMarkerResult.markers.filter((candidate) => memberIds.includes(candidate.id));
-              const clusterMaxZoom = isPlaceCluster(selectedMarker) ? PLACE_CLUSTER_MAX_ZOOM : PERSON_CLUSTER_MAX_ZOOM;
+              const clusterMaxZoom = PERSON_CLUSTER_MAX_ZOOM;
               const coordinates = memberMarkers.map((candidate) => [
                 candidate.approximateLongitude,
                 candidate.approximateLatitude,
@@ -3112,12 +3133,7 @@ function MapView({
                 );
                 return;
               }
-              const nextZoom = isPlaceCluster(selectedMarker)
-                ? Math.min(
-                  clusterMaxZoom + 0.75,
-                  Math.max(currentZoom + PERSON_CLUSTER_ZOOM_STEP, clusterMaxZoom + 0.25),
-                )
-                : Math.min(clusterMaxZoom, currentZoom + PERSON_CLUSTER_ZOOM_STEP);
+              const nextZoom = Math.min(clusterMaxZoom, currentZoom + PERSON_CLUSTER_ZOOM_STEP);
               setSpiderfiedCluster(null);
               map.setCenter([selectedMarker.approximateLongitude, selectedMarker.approximateLatitude]);
               map.setZoom(nextZoom);

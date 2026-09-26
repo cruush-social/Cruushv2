@@ -285,8 +285,9 @@ describe('ProfileOnboarding', () => {
     fireEvent.change(screen.getByPlaceholderText('Your name'), { target: { value: 'River' } });
     fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
-    expect(screen.getByText('name your form')).toBeInTheDocument();
-    expect(screen.getByText('Rite 2 of 9')).toBeInTheDocument();
+    expect(screen.getByText('name your form')).toHaveClass('text-xl');
+    expect(screen.queryByText('Choose the words that fit.')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Rite 2 of 9/)).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Friend invite code')).not.toBeInTheDocument();
     await chooseMultiSelect('Pronouns', 'they/them');
     await chooseMultiSelect('Gender Identity', 'nonbinary');
@@ -295,10 +296,9 @@ describe('ProfileOnboarding', () => {
     fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
     expect(screen.getByText('find your crowd')).toBeInTheDocument();
-    expect(screen.getByText('Choose your crowds.')).toBeInTheDocument();
-    expect(screen.getByText(/Choosing crowds here does not turn it on/i)).toHaveTextContent(
-      'Think of crowds like gay or dyke bars: shared social spaces, not identity labels. Pick up to 3. Find Crowd Mode in Map Controls > Visibility. Turn it on to be seen only by people in your selected crowds. Choosing crowds here does not turn it on.',
-    );
+    expect(screen.queryByText('Choose your crowds.')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Choosing crowds here does not turn it on/i)).not.toBeInTheDocument();
+    expect(screen.queryByText('Pick up to 3')).not.toBeInTheDocument();
     chooseCrowd('Gay');
     fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
@@ -341,10 +341,10 @@ describe('ProfileOnboarding', () => {
     chooseCrowd('T4T');
     fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
-    // The vibes step states its own limit: "Select up to 3" became "Pick up to
-    // 3" in 507bf0d and gained the optional prefix in a0d5651.
+    // The step description no longer repeats the field-level selection limit.
     expect(screen.getByText('reveal your aura')).toBeInTheDocument();
-    expect(screen.getByText('Optional. Pick up to 3.')).toBeInTheDocument();
+    expect(screen.queryByText('Set the signal around you.')).not.toBeInTheDocument();
+    expect(screen.getByText('Pick up to 3')).toBeInTheDocument();
     await chooseVibe('Style', 'Alt');
     await chooseVibe('Style', 'Artsy');
     await chooseVibe('Energy', 'Chill');
@@ -485,7 +485,7 @@ describe('ProfileOnboarding', () => {
     await fillProfileRites();
 
     expect(screen.getByText('protect your key')).toBeInTheDocument();
-    expect(screen.getByText('Optional. New accounts can receive one free day of cruush+ when 2FA is enabled.')).toBeInTheDocument();
+    expect(screen.queryByText('Set up 2FA?')).not.toBeInTheDocument();
     expect(screen.getByText('Use the same password you use to sign in. This is not a separate 2FA password.')).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Friend invite code'), {
       target: { value: 'https://cruush.test/join/abcdefghijklmnop' },

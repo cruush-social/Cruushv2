@@ -25,7 +25,6 @@ import { useIsMobile } from './ui/use-mobile';
 import {
   Sheet,
   SheetContent,
-  SheetDescription,
   SheetFooter,
   SheetHeader,
   SheetTitle,
@@ -404,7 +403,7 @@ export default function MapPingSheet({
         style={sheetStyle}
       >
         <SheetHeader
-          className={`shrink-0 pr-4 ${isMobile ? 'pb-1 pt-2' : 'pb-2 pt-3 cursor-grab active:cursor-grabbing'}`}
+          className={`shrink-0 pl-14 pr-4 ${isMobile ? 'pb-1 pt-2' : 'pb-2 pt-3 cursor-grab active:cursor-grabbing'}`}
           data-testid="map-ping-sheet-handle"
           onPointerDown={isMobile ? undefined : beginDrag}
           onPointerMove={isMobile ? undefined : continueDrag}
@@ -416,7 +415,6 @@ export default function MapPingSheet({
             <SheetTitle className="min-w-0 flex-1 truncate pr-7">Send a Pulse</SheetTitle>
             <BugButtonSlot testId="pulse-bug-button-slot" />
           </div>
-          <SheetDescription>Light up your heart for people nearby.</SheetDescription>
         </SheetHeader>
 
         <div className={`scrollbar-hide min-h-0 overflow-y-auto ${isMobile ? 'space-y-2 px-3' : 'space-y-2.5 px-4'}`}>

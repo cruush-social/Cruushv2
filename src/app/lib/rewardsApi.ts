@@ -52,6 +52,12 @@ export type PromotionalClaim = {
   grant: RewardGrant | null;
 };
 
+export type WelcomeDayStatus = {
+  available: boolean;
+  claimed: boolean;
+  activeUntil: string | null;
+};
+
 export type DailyRewardCheckIn = {
   credited: boolean;
   activityDate: string;
@@ -97,6 +103,16 @@ export function getRewardSummary() {
 
 export function getRewardGrant(grantId: string) {
   return requestApi<RewardGrant>(`/api/rewards/grants/${encodeURIComponent(grantId)}`);
+}
+
+export function getWelcomeDayStatus() {
+  return requestApi<WelcomeDayStatus>('/api/rewards/welcome-day');
+}
+
+export function claimWelcomeDay() {
+  return requestApi<WelcomeDayStatus & { grant: RewardGrant | null }>('/api/rewards/welcome-day/claim', {
+    method: 'POST',
+  });
 }
 
 export function updateRewardTimezone(timezone: string) {

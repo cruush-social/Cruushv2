@@ -28,15 +28,19 @@ export const PRESENTATIONS = alphabetize([
 
 export const PRONOUNS = alphabetize(['ask me', 'fae/faer', 'he/him', 'she/her', 'they/them', 'xe/xem', 'ze/zir']);
 
-export const SEXUALITY = alphabetize(['asexual', 'bisexual', 'straight', 'gay', 'queer', 'questioning', 'other', 'pansexual', 'curious', 'demisexual', 'aromantic', 'lesbian', 'dyke', 'fag']);
+export const SEXUALITY = alphabetize([
+  'abrosexual', 'achillean', 'androsexual', 'aromantic', 'asexual', 'bisexual', 'curious', 'demisexual', 'dyke', 'fag',
+  'gay', 'graysexual', 'heteroflexible', 'homoflexible', 'lesbian', 'omnisexual', 'other', 'pansexual', 'polysexual',
+  'queer', 'questioning', 'sapphic', 'straight',
+]);
 
 export const MAX_PROFILE_SEXUALITIES = 3;
 
 export const ETHNICITIES = alphabetize(['Black', 'East Asian', 'Indigenous', 'Latino/Latina', 'Middle Eastern', 'Mixed', 'Other', 'Pacific Islander', 'South Asian', 'Southeast Asian', 'White']);
 
 export const BODY_TYPES = alphabetize([
-  'BBW', 'BBM', 'athletic', 'average', 'bear', 'big and tall', 'chubby', 'chub', 'cub', 'curvy', 'dad bod', 'disabled',
-  'fat', 'full-figured', 'lean', 'little person', 'mom bod', 'muscular', 'otter', 'petite', 'plus-size', 'round', 'slim', 'soft',
+  'BBW', 'BBM', 'athletic', 'average', 'bear', 'big and tall', 'big dick', 'busty', 'chubby', 'chub', 'cub', 'curvy', 'dad bod', 'disabled',
+  'fat', 'full-figured', 'lean', 'little person', 'mom bod', 'muscular', 'otter', 'petite', 'plus-size', 'round', 'slim', 'small chested', 'small dick', 'soft',
   'stocky', 'thick', 'toned', 'twink', 'wheelchair user'
 ]);
 

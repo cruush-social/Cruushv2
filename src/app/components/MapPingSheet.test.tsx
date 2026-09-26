@@ -124,6 +124,8 @@ describe('MapPingSheet', () => {
     expect(onRefresh).toHaveBeenCalledTimes(1);
     expect(screen.getByTestId('map-ping-sheet')).toHaveAttribute('data-window-mode', 'desktop-window');
     expect(screen.getByTestId('map-ping-sheet')).toHaveClass('overflow-hidden');
+    expect(screen.getByTestId('map-ping-sheet-handle')).toHaveClass('pl-14');
+    expect(screen.queryByText('Light up your heart for people nearby.')).not.toBeInTheDocument();
     expect(screen.getByTestId('map-ping-sheet-resize')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Send Pulse' }).closest('[data-slot="sheet-footer"]')).toHaveClass('shrink-0');
   });

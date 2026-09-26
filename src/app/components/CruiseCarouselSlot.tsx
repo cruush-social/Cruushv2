@@ -276,7 +276,7 @@ function CarouselTile({ item, featured, itemIndex, spinning, activePhotoIndex, o
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-2xl sm:text-4xl font-bold text-white" style={{ background: 'var(--cruush-gradient)' }}>
-            {photoUrl && shouldMaskPhoto(dlModeActive, item.user.photoExplicit, { ...item.user.photoRelationship, isMutualCruush: item.user.relationship?.mutualCruush === true, sharesCrowd: item.user.photoRelationship?.sharesCrowd ?? item.user.hasSharedCrowd === true }) ? <DlModePhotoPlaceholder className="w-14" restriction={getNsfwPhotoRestriction(item.user.photoExplicit, item.user.photoRelationship)} /> : initial}
+            {photoUrl && shouldMaskPhoto(dlModeActive, item.user.photoExplicit, { ...item.user.photoRelationship, isMutualCruush: item.user.relationship?.mutualCruush === true, sharesCrowd: item.user.photoRelationship?.sharesCrowd ?? item.user.hasSharedCrowd === true }) ? <DlModePhotoPlaceholder className={featured ? 'w-28' : 'w-14'} restriction={getNsfwPhotoRestriction(item.user.photoExplicit, item.user.photoRelationship)} /> : initial}
           </div>
         )}
 
@@ -310,7 +310,7 @@ function CarouselTile({ item, featured, itemIndex, spinning, activePhotoIndex, o
               <div className="mt-1.5 flex flex-nowrap gap-1 overflow-hidden">
                 {item.user.vibes.slice(0, 3).map((vibe) => (
                   <span
-                    className="shrink-0 truncate rounded-full border px-2 py-0.5 text-[11px] uppercase leading-tight tracking-[0.08em]"
+                    className="min-w-0 shrink truncate rounded-full border px-2 py-0.5 text-[11px] uppercase leading-tight tracking-[0.08em]"
                     key={vibe}
                     style={vibeCapsuleStyle(resolveVibeTone({ mutual: item.user.relationship?.mutualCruush === true }))}
                   >

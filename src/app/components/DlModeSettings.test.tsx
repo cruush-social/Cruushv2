@@ -31,6 +31,23 @@ describe('DlModeSettings', () => {
     expect(localStorage.getItem('cruush:dl-mode-enabled')).toBe('false');
   });
 
+  it('fits the existing settings composition inside a mobile viewport', () => {
+    render(
+      <MemoryRouter>
+        <DlModeSettings />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByTestId('dl-mode-mobile-body')).toHaveClass(
+      'min-w-0',
+      '!px-3',
+      '!py-4',
+      'sm:!p-6',
+    );
+    expect(screen.getByRole('heading', { name: 'DL Mode' }).closest('header'))
+      .toHaveClass('px-3', 'py-3', 'sm:p-4');
+  });
+
   it('keeps outgoing explicit-image options disabled when the saved privacy policy cannot load', async () => {
     requestApi.mockRejectedValueOnce(new Error('offline'));
 

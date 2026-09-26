@@ -214,6 +214,44 @@ describe('PlaceDetail request isolation', () => {
     expect(screen.queryByText('Late Spot A post')).not.toBeInTheDocument();
   });
 
+  it('offers public, checked-in-only, and hidden check-in visibility', async () => {
+    getPlace.mockResolvedValue(makePlace('spot-a', 'Spot A'));
+    getPlaceBoard.mockResolvedValue([]);
+    checkIntoPlace.mockResolvedValue({
+      placeId: 'spot-a',
+      boardPostId: null,
+      visible: true,
+      visibility: 'checked_in',
+      expiresAt: '2026-08-31T19:00:00.000Z',
+    });
+
+    render(placeDetail('spot-a'));
+    fireEvent.click(await screen.findByRole('button', { name: 'Check in' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Chill' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Only people checked in' }));
+    fireEvent.click(within(screen.getByRole('radiogroup', { name: 'Check-in visibility' }).parentElement!.parentElement!).getByRole('button', { name: 'Check in' }));
+
+    act(() => {
+      locationSuccess?.({
+        coords: {
+          accuracy: 5,
+          altitude: null,
+          altitudeAccuracy: null,
+          heading: null,
+          latitude: 40.7,
+          longitude: -74,
+          speed: null,
+        },
+        timestamp: Date.now(),
+      });
+    });
+
+    await waitFor(() => expect(checkIntoPlace).toHaveBeenCalledWith('spot-a', expect.objectContaining({
+      visible: true,
+      visibility: 'checked_in',
+    })));
+  });
+
   it('does not post a check-in for the old Spot when location returns after switching', async () => {
     getPlace.mockImplementation((placeId: string) => Promise.resolve(
       placeId === 'spot-a' ? makePlace('spot-a', 'Spot A') : makePlace('spot-b', 'Spot B'),

@@ -290,7 +290,7 @@ export default function ProfileCard({
               role="img"
               style={{ background: getProfileGradientCss(user.id) }}
             >
-              <DlModePhotoPlaceholder restriction={getNsfwPhotoRestriction(carouselPhotoExplicit[activeCarouselPhoto] ?? (activeCarouselPhoto === user.photo ? user.photoExplicit : false), carouselPhotoRelationship)} />
+              <DlModePhotoPlaceholder className="w-28" restriction={getNsfwPhotoRestriction(carouselPhotoExplicit[activeCarouselPhoto] ?? (activeCarouselPhoto === user.photo ? user.photoExplicit : false), carouselPhotoRelationship)} />
             </div>
           ) : (
             <div className="flex h-full w-full items-center justify-center" style={{ background: getProfileGradientCss(user.id) }}>
@@ -392,7 +392,7 @@ export default function ProfileCard({
                 {visibleVibeItems.map((vibe: string) => (
                   <span
                     key={vibe}
-                    className="rounded-full border px-2 py-0.5 text-[11px] uppercase leading-tight tracking-[0.08em]"
+                    className="max-w-full min-w-0 truncate rounded-full border px-2 py-0.5 text-[11px] uppercase leading-tight tracking-[0.08em]"
                     style={vibeCapsuleStyle(resolveVibeTone({ mutual: isAlreadyMutual, isCurrentUser: user.isCurrentUser }))}
                   >
                     {vibe}
@@ -560,12 +560,12 @@ export default function ProfileCard({
                   variant="outline"
                   className={compact
                     ? 'min-w-0 shrink whitespace-nowrap border-primary/50 px-2 py-0.5 text-[11px] uppercase tracking-[0.08em] text-primary'
-                    : 'border-primary/50 text-primary'}
+                    : 'max-w-full min-w-0 border-primary/50 text-primary'}
                 >
                   {/* Badge is a centred flex row, so text-overflow on the badge
                       itself clips the label at both ends instead of ellipsising
                       it. The label needs its own block box to truncate. */}
-                  {compact ? <span className="block min-w-0 truncate">{vibe}</span> : vibe}
+                  <span className="block min-w-0 truncate">{vibe}</span>
                 </Badge>
               ))}
             </div>

@@ -41,11 +41,11 @@ function chainStub(btcUsd: number) {
 }
 
 describe("Bitcoin sending eligibility", () => {
-  it("hides an order under an app's on-chain minimum and follows the BTC price", async () => {
-    // At $80,000 a coin, $2.99 plus the collection fee is about 3,800 satoshis,
-    // under Cash App's 5,000. At $30,000 the same pack clears it.
+  it("keeps the repriced smallest Pulse pack above Cash App's on-chain minimum", async () => {
+    // The new $9.99 entry pack clears Cash App's 5,000-satoshi minimum even at
+    // a high BTC spot price.
     const expensive = await listBitcoinSendingEligibility(config(), chainStub(80_000));
-    expect(expensive.products.ping_3).toEqual([]);
+    expect(expensive.products.ping_3).toEqual(["Cash App"]);
     expect(expensive.products.ping_10).toEqual(["Cash App"]);
     expect(expensive.products.plus_weekly).toEqual(["Cash App"]);
 

@@ -3,12 +3,14 @@ import { isWithinQuietHours, type NotificationPreferences } from "./push-service
 
 function preferences(overrides: Partial<NotificationPreferences> = {}): NotificationPreferences {
   return {
+    emailEnabled: true,
     pushEnabled: true,
     cruushEnabled: true,
     messagesEnabled: true,
     groupsEnabled: true,
     nearbyEnabled: true,
     rewardsEnabled: true,
+    siteRemindersEnabled: true,
     soundEnabled: true,
     quietHoursEnabled: true,
     quietHoursStartMinute: 0,

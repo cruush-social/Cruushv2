@@ -45,6 +45,11 @@ function isStandaloneDisplay() {
 function preferenceRows(preferences: NotificationPreferences) {
   return [
     {
+      key: 'emailEnabled' as const,
+      label: 'Email alerts',
+      checked: preferences.emailEnabled,
+    },
+    {
       key: 'soundEnabled' as const,
       label: 'Heartbeat sound',
       checked: preferences.soundEnabled,
@@ -78,6 +83,11 @@ function preferenceRows(preferences: NotificationPreferences) {
       key: 'rewardsEnabled' as const,
       label: 'Reward updates',
       checked: preferences.rewardsEnabled,
+    },
+    {
+      key: 'siteRemindersEnabled' as const,
+      label: 'Site reminders',
+      checked: preferences.siteRemindersEnabled,
     },
   ];
 }

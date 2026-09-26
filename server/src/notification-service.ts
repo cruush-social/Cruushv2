@@ -15,7 +15,8 @@ export type AppNotificationType =
   | "nearby_user"
   | "pulse"
   | "place_checkin_expired"
-  | "subscription_expiring";
+  | "subscription_expiring"
+  | "site_reminder";
 
 export type AppNotificationRecord = {
   id: string;

@@ -112,10 +112,10 @@ describe('GhostModeSettings', () => {
       </MemoryRouter>
     );
 
-    expect(await screen.findByRole('heading', { name: 'Ghost Mode & Dark Room Mode' })).toBeInTheDocument();
-    // Ghost Mode moves a decoy, it does not hide you, and the copy has to say so.
-    expect(screen.getByText(/You stay visible\. What moves is a decoy pin/)).toBeInTheDocument();
-    expect(screen.getByText(/the area your decoy pin moves around in, not the area you are visible in/)).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Ghost Mode' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /Dark Room Mode/ })).not.toBeInTheDocument();
+    expect(screen.getByText(/Your real pin is hidden\. Only a decoy pin is visible/)).toBeInTheDocument();
+    expect(screen.getByText(/visible decoy pin moves around in/)).toBeInTheDocument();
 
     expect(screen.getByText('Who can see my precise location?')).toBeInTheDocument();
     expect(screen.queryByText('Precise location for mutual crowds')).not.toBeInTheDocument();
@@ -272,7 +272,7 @@ describe('GhostModeSettings', () => {
       </MemoryRouter>
     );
 
-    expect(await screen.findByRole('heading', { name: 'Ghost Mode & Dark Room Mode' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Ghost Mode' })).toBeInTheDocument();
     expect(screen.getByText('Countdown animation')).toBeInTheDocument();
 
     const countdownToggle = await screen.findByRole('switch', {

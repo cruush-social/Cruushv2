@@ -208,7 +208,11 @@ const migrationFiles = [
   "187_subscription_expiry_reminders.sql",
   "188_billing_support_categories.sql",
   "189_subscription_expiry_email_delivery.sql",
-  "190_crypto_payment_allocator_history_floor.sql"
+  "190_crypto_payment_allocator_history_floor.sql",
+  "191_email_preferences_and_weekly_order_reports.sql",
+  "192_place_checkin_visibility.sql",
+  "193_pulse_pack_prices.sql",
+  "194_site_reminders.sql"
 ];
 const rewardSafetyPreflightFiles = [
   "079_daily_check_in_rewards.sql",

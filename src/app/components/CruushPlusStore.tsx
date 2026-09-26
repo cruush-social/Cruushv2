@@ -191,31 +191,28 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
   useEffect(() => {
     let active = true;
 
-    Promise.all([
-      isPulse ? getPulsePacks().then(({ packs }) => ({ plans: packs.map(pack => ({ ...pack, interval: 'pack' as const, supplyRemaining: null, isFounder: false, isLifetime: false, badgeKeys: [] })) })) : getBillingPlans(),
-      getCryptoProcessorStatus().catch(() => null),
-      (isPulse ? getCurrentPulsePaymentIntent() : getCurrentCryptoPaymentIntent()).catch(() => null),
-      // A missing sample leaves the catalogue as it is rather than hiding it.
-      getBitcoinSendingEligibility().catch(() => null),
-    ])
-      .then(([billing, cryptoStatus, currentIntent, bitcoinSending]) => {
+    const billingRequest = isPulse
+      ? getPulsePacks().then(({ packs }) => ({
+          plans: packs.map(pack => ({
+            ...pack,
+            interval: 'pack' as const,
+            supplyRemaining: null,
+            isFounder: false,
+            isLifetime: false,
+            badgeKeys: [],
+          })),
+        }))
+      : getBillingPlans();
+
+    // Plans are the first useful checkout content. Do not hold them behind the
+    // independent processor, existing-order, or Bitcoin-minimum requests.
+    void billingRequest
+      .then((billing) => {
         if (!active) {
           return;
         }
 
         setPlans(billing.plans);
-        setProcessor(cryptoStatus);
-        setBitcoinEligibility(bitcoinSending);
-        if (currentIntent && isOpenCryptoPayment(currentIntent.status)) {
-          setIntent(currentIntent);
-          setHasChosenSource(true);
-          setSelectedPlanId(currentIntent.planId);
-          const intentSource = cryptoPaymentSourceForIntent(currentIntent);
-          if (intentSource) {
-            setSelectedSourceId(intentSource.id);
-          }
-          return;
-        }
         // Default to the best-value term that is still available rather than to
         // whatever happens to be first, which is the cheapest and anchors every
         // other price against it.
@@ -246,6 +243,29 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
           setLoading(false);
         }
       });
+
+    void Promise.all([
+      getCryptoProcessorStatus().catch(() => null),
+      (isPulse ? getCurrentPulsePaymentIntent() : getCurrentCryptoPaymentIntent()).catch(() => null),
+      // A missing sample leaves the catalogue as it is rather than hiding it.
+      getBitcoinSendingEligibility().catch(() => null),
+    ]).then(([cryptoStatus, currentIntent, bitcoinSending]) => {
+      if (!active) {
+        return;
+      }
+
+      setProcessor(cryptoStatus);
+      setBitcoinEligibility(bitcoinSending);
+      if (currentIntent && isOpenCryptoPayment(currentIntent.status)) {
+        setIntent(currentIntent);
+        setHasChosenSource(true);
+        setSelectedPlanId(currentIntent.planId);
+        const intentSource = cryptoPaymentSourceForIntent(currentIntent);
+        if (intentSource) {
+          setSelectedSourceId(intentSource.id);
+        }
+      }
+    });
 
     return () => {
       active = false;
@@ -591,7 +611,7 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
           </span>
           <span className="mt-1 text-sm leading-5 text-muted-foreground">
             {plan.isLifetime
-              ? 'Pay once, keep it forever. Plus processing fee'
+              ? 'Pay once, keep it forever with unlimited Pulses. Plus processing fee'
               : perMonth
                 ? `${formatPrice(plan.amountCents, plan.currency)} + processing fee`
                 : '+ processing fee'}
@@ -612,7 +632,7 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
                 : formatPrice(plan.amountCents, plan.currency)}
           </span>
           {saving && !soldOut ? (
-            <span className="text-xs font-medium leading-4 text-primary">
+            <span className="text-sm font-medium leading-5 text-primary sm:text-xs sm:leading-4">
               Save {saving}%
             </span>
           ) : null}
@@ -633,7 +653,7 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
       <main className="mx-auto flex max-w-3xl flex-col gap-3 px-3 py-2 sm:px-4">
         {!isPulse ? <Card>
           <Accordion collapsible type="single">
-            <AccordionItem value="benefits">
+            <AccordionItem className="border-0" value="benefits">
               <AccordionTrigger className="px-4 py-3 text-base hover:no-underline">
                 <span className="flex items-center gap-2">
                   <Sparkles className="h-4 w-4 shrink-0 text-primary" />
@@ -658,7 +678,7 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
                         <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-white" />
                         <span className="min-w-0">
                           <span className="block text-sm font-semibold leading-5">{benefit.title}</span>
-                          <span className="block text-xs leading-5 text-white/90">{benefit.description}</span>
+                          <span className="block text-sm leading-5 text-white/90 sm:text-xs">{benefit.description}</span>
                         </span>
                       </li>
                     ))}
@@ -690,7 +710,7 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
                 {selectedPlan && (checkoutSelectionLocked || listedPlans.some(plan => plan.id === selectedPlan.id)) ? <li>{renderPlanButton(selectedPlan, true)}</li> : null}
               </ul>
               {otherPlans.length > 0 ? (
-                <Accordion collapsible type="single">
+                <Accordion className="mt-2" collapsible type="single">
                   <AccordionItem value="compare-plans">
                     <AccordionTrigger className="px-3 py-2 text-sm hover:no-underline">
                       Compare plans
@@ -715,12 +735,12 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
             <CardContent className="space-y-2 p-3">
               <p className="text-sm font-semibold">What are you paying from?</p>
               {checkoutNotice ? (
-                <p role="status" className="rounded-lg border border-border bg-muted/40 p-2 text-xs leading-4 text-muted-foreground">
+                <p role="status" className="rounded-lg border border-border bg-muted/40 p-2 text-sm leading-5 text-muted-foreground sm:text-xs sm:leading-4">
                   {checkoutNotice}
                 </p>
               ) : null}
-              <div className="grid grid-cols-3 gap-2" aria-label="Where you are paying from">
-                {pickerSources.map((source) => {
+              <div className="grid grid-cols-2 gap-2" aria-label="Where you are paying from">
+                {pickerSources.map((source, index) => {
                   const sourceReady = readyRailIds.has(source.rail);
                   const eligibleApps = bitcoinEligibility?.products[selectedPlan.id];
                   const checkingMinimum = source.rail === 'btc_bitcoin' && source.sendingApp !== 'wallet' && bitcoinEligibility === null;
@@ -736,20 +756,20 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
                       aria-label={source.label}
                       aria-pressed={sourceSelected}
                       disabled={!sourceReady || checkoutSelectionLocked || checkingMinimum || belowMinimum || retryAt > clockMs}
-                      className={`rounded-xl border px-2 py-2 text-center disabled:opacity-50 ${sourceSelected ? 'border-primary bg-primary/10' : 'border-border'}`}
+                      className={`${pickerSources.length % 2 === 1 && index === pickerSources.length - 1 ? 'col-span-2' : ''} rounded-xl border px-2 py-2 text-center disabled:opacity-50 ${sourceSelected ? 'border-primary bg-primary/10' : 'border-border'}`}
                       onClick={() => void handleStartPayment(source)}
                     >
                       <span className="block text-sm font-medium">{source.label}</span>
-                      <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">
+                      <span className="mt-0.5 block text-sm leading-5 text-muted-foreground sm:text-xs">
                         {belowMinimum ? `Minimum ${source.sendingApp === 'cash_app' ? '0.00005' : '0.001'} BTC` : checkingMinimum ? 'Checking minimum' : `${source.asset} · ${source.network}`}
                       </span>
                     </button>
                   );
                 })}
               </div>
-              {retryAt > clockMs ? <p role="status" className="text-xs text-muted-foreground">Try again in {Math.ceil((retryAt - clockMs) / 1000)}s</p> : null}
+              {retryAt > clockMs ? <p role="status" className="text-sm text-muted-foreground sm:text-xs">Try again in {Math.ceil((retryAt - clockMs) / 1000)}s</p> : null}
               {selectedPaymentSource.availabilityNote ? (
-                <p className="rounded-lg border border-border bg-muted/40 p-2 text-xs leading-4 text-muted-foreground">
+                <p className="rounded-lg border border-border bg-muted/40 p-2 text-sm leading-5 text-muted-foreground sm:text-xs sm:leading-4">
                   {selectedPaymentSource.availabilityNote}
                 </p>
               ) : null}
@@ -785,7 +805,7 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
               </Button> : null}
 
               {!visibleProcessorReady ? (
-                <p className="rounded-lg border border-border bg-muted/40 p-2 text-xs leading-4 text-muted-foreground">
+                <p className="rounded-lg border border-border bg-muted/40 p-2 text-sm leading-5 text-muted-foreground sm:text-xs sm:leading-4">
                   Crypto payment is not available yet. You can still earn cruush+ time through
                   check-ins and referrals.
                 </p>
@@ -802,9 +822,9 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
                       {intent.paymentAmountReceived === false && intent.confirmations! > 0 ? ' · Full payment not yet received' : ''}
                     </p>
                   ) : null}
-                  {statusError ? <p className="text-xs text-destructive">{statusError}</p> : null}
+                  {statusError ? <p className="text-sm text-destructive sm:text-xs">{statusError}</p> : null}
                   {intent.asset === 'BTC' && ['awaiting_payment', 'confirming', 'paid'].includes(intent.status) ? (
-                    <ol aria-label="Payment progress" className="space-y-1 text-xs text-muted-foreground">
+                    <ol aria-label="Payment progress" className="space-y-1 text-sm text-muted-foreground sm:text-xs">
                       <li>{intent.status === 'awaiting_payment' ? 'Awaiting payment' : 'Payment detected'}</li>
                       <li>{(intent.confirmations ?? 0) > 0 ? 'On the Bitcoin blockchain' : intent.status === 'confirming' ? 'Waiting for the first block' : 'Waiting for Bitcoin'}</li>
                       <li>{Math.min(intent.confirmations ?? 0, 6)}/6 confirmations</li>
@@ -813,11 +833,11 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
                   ) : null}
                   {!paymentWindowClosed && intent.expiresAt && isOpenCryptoPayment(intent.status) ? (
                     <div className="rounded-lg border border-border bg-muted/40 p-3">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-foreground">Protected order</p>
+                      <p className="text-sm font-semibold uppercase tracking-wide text-foreground sm:text-xs">Protected order</p>
                       <p className="mt-1 text-sm font-semibold">
                         Order timer: {formatPaymentTimeRemaining(intent.expiresAt, clockMs)}
                       </p>
-                      <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                      <p className="mt-1 text-sm leading-5 text-muted-foreground sm:text-xs">
                         This address is unique to your order. Send the exact amount in {intent.asset} on{' '}
                         {CRYPTO_NETWORK_LABELS[intent.network]} and allow time for it to arrive on-chain before the timer reaches 0. Network confirmation can finish afterward.
                       </p>
@@ -827,7 +847,7 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
                     <div className="space-y-3">
                       <div>
                         {intent.fundingEstimates?.length ? (
-                          <div className="mb-3 space-y-1 text-xs text-muted-foreground">
+                          <div className="mb-3 space-y-1 text-sm text-muted-foreground sm:text-xs">
                             {intent.fundingEstimates.map(estimate => (
                               <p key={estimate.app}>
                                 {estimate.meetsSendingMinimum === false ? (
@@ -843,7 +863,7 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
                           </div>
                         ) : null}
                         {(intent.gasFeeUsdCents ?? 0) > 0 ? (
-                          <p className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <p className="flex items-center gap-1 text-sm text-muted-foreground sm:text-xs">
                             cruush processing fee: {formatPrice(intent.gasFeeUsdCents!, 'USD')} (included)
                             <Tooltip open={gasFeeHelpOpen} onOpenChange={setGasFeeHelpOpen}>
                               <TooltipTrigger asChild>
@@ -857,11 +877,11 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
                             </Tooltip>
                           </p>
                         ) : null}
-                        <p className="text-xs text-muted-foreground">Send exactly</p>
+                        <p className="text-sm text-muted-foreground sm:text-xs">Send exactly</p>
                         <p className="text-xl font-semibold">
                           {formatUsdcAtomic(intent.quotedAmountAtomic, intent.asset)} {intent.asset}
                         </p>
-                        <p className="text-xs text-muted-foreground">on {CRYPTO_NETWORK_LABELS[intent.network]} to this address</p>
+                        <p className="text-sm text-muted-foreground sm:text-xs">on {CRYPTO_NETWORK_LABELS[intent.network]} to this address</p>
                       </div>
                       {intent.qrCodeDataUrl ? (
                         <img
@@ -870,7 +890,7 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
                           className="mx-auto h-40 w-40"
                         />
                       ) : null}
-                      <code className="block break-all rounded-lg bg-muted p-3 text-xs leading-5">
+                      <code className="block break-all rounded-lg bg-muted p-3 text-sm leading-5 sm:text-xs">
                         {intent.paymentAddress}
                       </code>
                       <Button className="w-full" type="button" variant="outline" onClick={() => void handleCopyAddress()}>
@@ -888,7 +908,7 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
                           </a>
                         </Button>
                       ) : null}
-                      <p className="text-xs leading-5 text-muted-foreground">
+                      <p className="text-sm leading-5 text-muted-foreground sm:text-xs">
                         Send only {intent.asset} on {CRYPTO_NETWORK_LABELS[intent.network]} to this address. Another asset or network may be lost.
                       </p>
                       <div>
@@ -898,14 +918,14 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
                     </div>
                   ) : null}
                   {!locallyExpired ? (
-                    <p className="text-xs leading-5 text-muted-foreground">
+                    <p className="text-sm leading-5 text-muted-foreground sm:text-xs">
                       Checkout updates when your payment is detected and confirmed. {isPulse ? 'Your Pulses are added' : 'Your time is added'} after confirmation. Leaving this page does not cancel your order; return here to check its status.
                     </p>
                   ) : null}
                   {paymentOpen && !locallyExpired && intent.status !== 'confirming' ? (
                     cancelAction ? (
                       <div className="space-y-2 rounded-lg border border-destructive/30 bg-destructive/10 p-3">
-                        <p className="text-xs leading-5 text-foreground">
+                        <p className="text-sm leading-5 text-foreground sm:text-xs">
                           Only cancel if you have not sent payment. Blockchain transfers cannot be stopped,
                           and funds sent to this address after cancellation will not activate this order automatically.
                         </p>
@@ -997,6 +1017,9 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
             </a>
             <a className="block font-medium text-foreground underline underline-offset-4" href="/support?refund=1">
               Request a legally required refund review
+            </a>
+            <a className="block font-medium text-foreground underline underline-offset-4" href="/support?billing=payment">
+              Report a billing issue
             </a>
           </CardContent>
         </Card>

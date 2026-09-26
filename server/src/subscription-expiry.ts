@@ -92,6 +92,14 @@ async function deliverReminder(app: FastifyInstance, candidate: Candidate) {
       );
     }
     if (!reminder.email_sent_at && app.config.RESEND_API_KEY && app.config.MAIL_FROM) {
+      const preferences = await getNotificationPreferences(app, candidate.user_id);
+      if (!preferences.emailEnabled) {
+        await app.db.query(
+          `update subscription_expiry_reminders set email_sent_at = now() where id = $1 and claim_token = $2`,
+          [reminder.id, token]
+        );
+        return;
+      }
       // Resend retains keys for 24h; older ambiguous sends need reconciliation.
       if (reminder.email_started_at && Date.now() - new Date(reminder.email_started_at).getTime() >= 23 * 60 * 60 * 1000) {
         await app.db.query(

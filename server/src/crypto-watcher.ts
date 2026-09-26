@@ -94,6 +94,7 @@ type IntentRow = {
   id: string;
   user_id: string;
   plan_id: string;
+  amount_usd_cents?: number;
   product_type?: "cruush_plus" | "ping_pack";
   status: CryptoPaymentStatus;
   payment_address: string;
@@ -194,7 +195,7 @@ export async function loadWatchableIntents(
   }
 
   const result = await db.query<IntentRow>(
-    `select id, user_id, plan_id, status, product_type, payment_address, quoted_amount_atomic, asset, network,
+    `select id, user_id, plan_id, status, product_type, payment_address, quoted_amount_atomic, asset, network, amount_usd_cents,
             watch_start_block::text as watch_start_block, expires_at
      from crypto_payment_intents
      where status = any($1::text[])
@@ -597,7 +598,7 @@ export async function settleIntentInTransaction(
 
   const locked = await tx.query<LockedIntentRow>(
     `select id, user_id, plan_id, status, product_type, payment_address,
-            quoted_amount_atomic, asset, network,
+            quoted_amount_atomic, asset, network, amount_usd_cents,
             watch_start_block::text as watch_start_block,
             expires_at, entitlement_granted_at, metadata
      from crypto_payment_intents
@@ -720,7 +721,10 @@ export async function settleIntentInTransaction(
     await grantPingPackPurchase(tx, {
       userId: current.user_id,
       cryptoPaymentIntentId: current.id,
-      pack: pingPack
+      pack: pingPack,
+      // Settle the amount recorded when the order was created. This keeps an
+      // already-open order valid across a later catalogue price change.
+      amountCents: current.amount_usd_cents
     });
   } else if (plan) {
     await grantCruushPlusPlan({ ...app, db: tx } as never, current.user_id, plan, {
@@ -820,7 +824,7 @@ export async function ingestCryptoPaymentReceipt(
     await lockCryptoPurchaseUser(tx, userId);
     const locked = await tx.query<ReceiptIntentRow>(
       `select i.id, i.user_id, i.plan_id, i.status, i.product_type, i.payment_address,
-              i.quoted_amount_atomic, i.asset, i.network,
+              i.quoted_amount_atomic, i.asset, i.network, i.amount_usd_cents,
               i.watch_start_block::text as watch_start_block,
               i.expires_at, i.entitlement_granted_at,
               coalesce(

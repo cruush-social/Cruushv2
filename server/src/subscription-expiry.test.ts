@@ -64,7 +64,7 @@ describe.skipIf(!process.env.SUBSCRIPTION_TEST_DATABASE_URL)("subscription remin
     await query("insert into cruush_plus_subscriptions(user_id,current_period_ends_at) values($1,$2)", [userId, expiry]);
     await query("insert into push_subscriptions(user_id) values($1)", [userId]);
     vi.mocked(getCruushEntitlement).mockResolvedValue({ cruushPlus: true, expiresAt: expiry.toISOString(), ownerFullAccess: false });
-    vi.mocked(getNotificationPreferences).mockResolvedValue({ pushEnabled: true } as any);
+    vi.mocked(getNotificationPreferences).mockResolvedValue({ emailEnabled: true, pushEnabled: true } as any);
     vi.mocked(isWithinQuietHours).mockReturnValue(false);
     vi.mocked(sendPushForNotification).mockResolvedValue({ attempted: true, sent: 1 });
     vi.mocked(sendSubscriptionExpiryEmail).mockResolvedValue({ accepted: true, providerMessageId: "email_test_1" });
@@ -118,7 +118,7 @@ describe.skipIf(!process.env.SUBSCRIPTION_TEST_DATABASE_URL)("subscription remin
     expect(sendSubscriptionExpiryEmail).toHaveBeenCalledTimes(1);
   });
   it("respects push opt-out without dropping email or in-app", async () => {
-    vi.mocked(getNotificationPreferences).mockResolvedValue({ pushEnabled: false } as any);
+    vi.mocked(getNotificationPreferences).mockResolvedValue({ emailEnabled: true, pushEnabled: false } as any);
     await sendSubscriptionExpiryReminders(app);
     expect(sendPushForNotification).not.toHaveBeenCalled();
     expect(sendSubscriptionExpiryEmail).toHaveBeenCalledTimes(1);

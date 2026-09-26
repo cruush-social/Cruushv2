@@ -21,32 +21,36 @@ type MapTopBarProps = {
   setSidePanelReturnView: (view: Exclude<MapSidePanelView, 'settings'> | null) => void;
   setSidePanelView: (view: MapSidePanelView | null) => void;
   notificationUnreadCount: number;
+  outsideServiceArea?: boolean;
 };
 
-export default function MapTopBar({ setMapControlsHovered, handleFeelingLucky, navigate, privacySettings, dlModeActive, usesFullPageProfile, sidePanelView, setSidePanelReturnView, setSidePanelView, notificationUnreadCount }: MapTopBarProps) {
+export default function MapTopBar({ setMapControlsHovered, handleFeelingLucky, navigate, privacySettings, dlModeActive, usesFullPageProfile, sidePanelView, setSidePanelReturnView, setSidePanelView, notificationUnreadCount, outsideServiceArea = false }: MapTopBarProps) {
   const availableWidthRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
+  const capsuleWidth = outsideServiceArea ? 128 : 298;
 
   useLayoutEffect(() => {
     const frame = availableWidthRef.current;
     if (!frame) return;
-    const resize = () => setScale(Math.min(1, frame.clientWidth / 298));
+    const resize = () => setScale(Math.min(1, frame.clientWidth / capsuleWidth));
     resize();
     const observer = new ResizeObserver(resize);
     observer.observe(frame);
     return () => observer.disconnect();
-  }, []);
+  }, [capsuleWidth]);
 
   return (
           <div ref={availableWidthRef} className="relative min-w-0 flex-1" style={{ height: 70 * scale }}>
             <div
               className="cruush-map-top-actions pointer-events-auto absolute left-1/2 top-0 flex h-[70px] w-[298px] shrink-0 items-center justify-center gap-1 rounded-full border border-white/10 bg-[color:var(--cruush-black-glass)] px-2.5 py-2 backdrop-blur-[var(--cruush-black-glass-blur)]"
-              style={{ transform: `translateX(-50%) scale(${scale})`, transformOrigin: 'top center' }}
+              data-capsule-width={capsuleWidth}
+              style={{ width: `${capsuleWidth}px`, transform: `translateX(-50%) scale(${scale})`, transformOrigin: 'top center' }}
               data-map-control-hit-layer="true"
               data-testid="map-top-actions"
               onPointerEnter={() => setMapControlsHovered(true)}
               onPointerLeave={() => setMapControlsHovered(false)}
             >
+            {!outsideServiceArea ? <>
             <Button
               variant="ghost"
               size="icon"
@@ -92,6 +96,7 @@ export default function MapTopBar({ setMapControlsHovered, handleFeelingLucky, n
               {/* The gradient mark is the active state. Hover does not add a circle around it. */}
               <DlModeMark active={dlModeActive} className="!h-11 !w-11 scale-[1.18] overflow-visible" />
             </Button>
+            </> : null}
             <Button
                 variant="ghost"
                 size="icon"

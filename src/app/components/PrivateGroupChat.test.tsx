@@ -239,6 +239,7 @@ describe('PrivateGroupChat', () => {
           name: 'River',
           pronouns: 'they/them',
           photo: null,
+          lastActive: '12m ago',
         },
         distance: 'Nearby',
         updatedAt: '2026-04-29T12:00:00.000Z',
@@ -261,6 +262,8 @@ describe('PrivateGroupChat', () => {
     );
 
     expect(await screen.findByText('No messages yet.')).toBeInTheDocument();
+    expect(screen.getByText('12m ago')).toBeInTheDocument();
+    expect(screen.queryByText('Nearby')).not.toBeInTheDocument();
     expect(screen.queryByText('Preview thread')).not.toBeInTheDocument();
     expect(screen.queryByText('hosting for another hour if you still want to swing by')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Open River profile' })).not.toBeInTheDocument();

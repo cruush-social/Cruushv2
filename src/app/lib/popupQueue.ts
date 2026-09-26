@@ -14,7 +14,7 @@ import { useEffect, useState } from 'react';
  * open its buttons sat inside that dialog's outside-click layer and did
  * nothing when tapped. Holding the slot keeps the two from ever overlapping.
  */
-const PRIORITY = ['map-tutorial', 'dl-mode-default', 'first-feed-post', 'mobile-install'] as const;
+const PRIORITY = ['map-tutorial', 'dl-mode-default', 'first-feed-post', 'mobile-install', 'pulse-gesture'] as const;
 
 export type ExclusivePopupId = (typeof PRIORITY)[number];
 
@@ -64,6 +64,21 @@ export function useExclusivePopup(id: ExclusivePopupId, wantsToShow: boolean) {
   }, [id, wantsToShow]);
 
   return wantsToShow && holder() === id;
+}
+
+/** True only when every existing post-onboarding prompt has released the slot. */
+export function usePopupQueueIdle() {
+  const [, bump] = useState(0);
+
+  useEffect(() => {
+    const listener = () => bump((count) => count + 1);
+    listeners.add(listener);
+    return () => {
+      listeners.delete(listener);
+    };
+  }, []);
+
+  return holder() === null;
 }
 
 /** Test helper: no prompt is waiting at the start of a test. */

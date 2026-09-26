@@ -311,6 +311,7 @@ function appWithDb(db: MapPingDb) {
 function dependencies(input: {
   locations?: Map<string, LocationPayload>;
   cruushPlus?: boolean;
+  lifetime?: boolean;
   policy?: VisibilityPolicyPayload | null;
   loadLocation?: MapPingDependencies["loadLocation"];
   moderateSignal?: MapPingDependencies["moderateSignal"];
@@ -325,7 +326,7 @@ function dependencies(input: {
     now: () => now,
     getEntitlement: async () => ({
       cruushPlus: input.cruushPlus ?? false,
-      expiresAt: null
+      expiresAt: input.lifetime ? null : input.cruushPlus ? "2099-01-01T00:00:00.000Z" : null
     }),
     loadLocation: input.loadLocation ?? (async (_context: unknown, userId: string) => locations.get(userId) ?? null),
     loadStrictVisibilityPolicy: async () => input.policy === undefined
@@ -460,6 +461,25 @@ describe("map Pings", () => {
       idempotencyKey: "30000000-0000-4000-8000-000000000013"
     }, plusDependencies)).rejects.toMatchObject({
       code: "RATE_LIMITED"
+    });
+  });
+
+  it("gives lifetime cruush+ unlimited Pulses", async () => {
+    const db = new MapPingDb(Array.from({ length: 12 }, (_, index) => storedPing({
+      id: `20000000-0000-4000-8000-${String(index + 100).padStart(12, "0")}`,
+      createdAt: new Date(now.getTime() - (index + 1) * 60_000)
+    })));
+    const lifetimeDependencies = dependencies({ cruushPlus: true, lifetime: true });
+
+    expect((await getMapPingStatus(appWithDb(db), senderUserId, lifetimeDependencies)).allowance)
+      .toEqual({ unlimited: true, limit: null, used: 12, remaining: null, nextEligibleAt: null });
+
+    await expect(createMapPing(appWithDb(db), {
+      userId: senderUserId,
+      radiusMiles: 15,
+      idempotencyKey: "30000000-0000-4000-8000-000000000099"
+    }, lifetimeDependencies)).resolves.toMatchObject({
+      allowance: { unlimited: true, limit: null, remaining: null, nextEligibleAt: null }
     });
   });
 

@@ -240,7 +240,22 @@ function basePlaceSelect(viewerParam: string, latParam: string, lngParam: string
         + cos(radians(${latParam}::double precision)) * cos(radians(p.latitude))
           * power(sin(radians((p.longitude - ${lngParam}::double precision) / 2)), 2)
       )) end as distance_miles,
-    (select count(*)::int from place_checkins c where c.place_id = p.id and c.expires_at > now()) as active_checkins,
+    (select count(*)::int
+     from place_checkins c
+     where c.place_id = p.id
+       and c.expires_at > now()
+       and (
+         c.visibility_scope = 'public'
+         or (
+           c.visibility_scope = 'checked_in'
+           and exists (
+             select 1 from place_checkins viewer_checkin
+             where viewer_checkin.user_id = ${viewerParam}::uuid
+               and viewer_checkin.place_id = p.id
+               and viewer_checkin.expires_at > now()
+           )
+         )
+       )) as active_checkins,
     (select max(m.created_at) from place_board_messages m where m.place_id = p.id and (m.expires_at is null or m.expires_at > now())) as recent_activity_at,
     (select avg(r.stars)::float from place_ratings r where r.place_id = p.id and r.category = 'overall') as rating_average,
     (select count(*)::int from place_ratings r where r.place_id = p.id and r.category = 'overall') as rating_count,
@@ -445,6 +460,18 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
          join app_users u on u.id = c.user_id
          join profiles pr on pr.id = c.user_id
          where c.place_id = $1 and c.visible = true and c.expires_at > now()
+           and (
+             c.visibility_scope = 'public'
+             or (
+               c.visibility_scope = 'checked_in'
+               and exists (
+                 select 1 from place_checkins viewer_checkin
+                 where viewer_checkin.user_id = $2
+                   and viewer_checkin.place_id = c.place_id
+                   and viewer_checkin.expires_at > now()
+               )
+             )
+           )
            and not exists (
              select 1 from user_blocks b
              where (b.blocker_user_id = $2 and b.blocked_user_id = c.user_id)
@@ -464,8 +491,8 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
          order by array_position(array['overall', 'gender_inclusivity', 'lgbtq_friendliness', 'safety', 'accessibility', 'cleanliness'], categories.category)`,
         [placeId, userId]
       ),
-      app.db.query<{ visible: boolean; checked_in_at: string | Date; expires_at: string | Date }>(
-        `select visible, checked_in_at, expires_at from place_checkins
+      app.db.query<{ visible: boolean; visibility_scope: "hidden" | "public" | "checked_in"; checked_in_at: string | Date; expires_at: string | Date }>(
+        `select visible, visibility_scope, checked_in_at, expires_at from place_checkins
          where place_id = $1 and user_id = $2 and expires_at > now() limit 1`,
         [placeId, userId]
       ),
@@ -491,6 +518,7 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
         })),
         viewerCheckin: viewerCheckin.rows[0] ? {
           visible: viewerCheckin.rows[0].visible,
+          visibility: viewerCheckin.rows[0].visibility_scope,
           checkedInAt: new Date(viewerCheckin.rows[0].checked_in_at).toISOString(),
           expiresAt: new Date(viewerCheckin.rows[0].expires_at).toISOString()
         } : null,
@@ -703,6 +731,7 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
     const userId = await getActiveAccountUserId(request);
     const { placeId } = placeParamsSchema.parse(request.params);
     const payload = placeCheckinSchema.parse(request.body);
+    const checkinVisibility = payload.visibility ?? (payload.visible ? "public" : "hidden");
     await app.rateLimiter.assert({
       key: `place-checkin:${userId}`,
       max: 12,
@@ -747,12 +776,13 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
         [placeId, userId, bucketStart]
       );
       const checkin = await db.query<{ expires_at: Date }>(
-        `insert into place_checkins (user_id, place_id, visible, checked_in_at, expires_at)
-         values ($1, $2, $3, now(), now() + ($4::int * interval '1 hour'))
+        `insert into place_checkins (user_id, place_id, visible, visibility_scope, checked_in_at, expires_at)
+         values ($1, $2, $3, $4, now(), now() + ($5::int * interval '1 hour'))
          on conflict (user_id) do update set place_id = excluded.place_id, visible = excluded.visible,
-           checked_in_at = excluded.checked_in_at, expires_at = excluded.expires_at
+           visibility_scope = excluded.visibility_scope, checked_in_at = excluded.checked_in_at,
+           expires_at = excluded.expires_at
          returning expires_at`,
-        [userId, placeId, payload.visible, payload.durationHours]
+        [userId, placeId, checkinVisibility !== "hidden", checkinVisibility, payload.durationHours]
       );
       if (payload.vibes.length > 0) {
         await db.query(`delete from place_vibe_reports where place_id = $1 and user_id = $2`, [placeId, userId]);
@@ -905,7 +935,7 @@ export async function registerPlaceRoutes(app: FastifyInstance) {
         expiresAt: new Date(checkin.rows[0].expires_at).toISOString()
       };
     });
-    return reply.code(201).send({ data: { placeId, visible: payload.visible, ...result } });
+    return reply.code(201).send({ data: { placeId, visible: checkinVisibility !== "hidden", visibility: checkinVisibility, ...result } });
   });
 
   app.delete("/api/places/:placeId/check-ins/me", async (request, reply) => {

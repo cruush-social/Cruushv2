@@ -4,8 +4,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiClientError } from '../lib/apiClient';
 import ProfileEdit, { getPhotoUploadRejectedMessage, readProfilePhotoPreviewUrl } from './ProfileEdit';
 
-const { getAppMeta, getMyProfile, saveMyProfile, uploadProfilePhoto } = vi.hoisted(() => ({
+const { getAppMeta, getMyBillingStatus, getMyProfile, saveMyProfile, uploadProfilePhoto } = vi.hoisted(() => ({
   getAppMeta: vi.fn(),
+  getMyBillingStatus: vi.fn(),
   getMyProfile: vi.fn(),
   saveMyProfile: vi.fn(),
   uploadProfilePhoto: vi.fn(),
@@ -13,6 +14,10 @@ const { getAppMeta, getMyProfile, saveMyProfile, uploadProfilePhoto } = vi.hoist
 
 vi.mock('../lib/metaApi', () => ({
   getAppMeta,
+}));
+
+vi.mock('../lib/billingApi', () => ({
+  getMyBillingStatus,
 }));
 
 vi.mock('../lib/profileApi', async () => {
@@ -148,6 +153,7 @@ describe('ProfileEdit', () => {
   beforeEach(async () => {
     localStorage.clear();
     getAppMeta.mockReset();
+    getMyBillingStatus.mockReset();
     getMyProfile.mockReset();
     saveMyProfile.mockReset();
     uploadProfilePhoto.mockReset();
@@ -210,6 +216,7 @@ describe('ProfileEdit', () => {
     };
 
     getMyProfile.mockResolvedValue(profile);
+    getMyBillingStatus.mockResolvedValue({ cruushPlus: false });
     getAppMeta.mockResolvedValue({
       service: 'cruush-server',
       auth: 'session-cookie',
@@ -231,6 +238,19 @@ describe('ProfileEdit', () => {
       url: uploadedProfilePhoto,
       explicit: false,
     });
+  });
+
+  it('offers up to ten hobbies to cruush+ profiles', async () => {
+    getMyBillingStatus.mockResolvedValue({ cruushPlus: true });
+
+    render(
+      <MemoryRouter initialEntries={['/profile/edit']}>
+        <ProfileEdit onSaved={vi.fn()} />
+      </MemoryRouter>,
+    );
+
+    await selectProfileEditTab('Basics');
+    expect(await screen.findByText('Pick up to 10 with cruush+')).toBeInTheDocument();
   });
 
   it('lets users set master position, master role, and field-level kink visibility', async () => {

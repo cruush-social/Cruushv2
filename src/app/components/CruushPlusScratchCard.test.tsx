@@ -17,6 +17,8 @@ it('reveals the confirmed duration, flips to shared benefits, and accepts only a
   vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() })));
   const close = vi.fn();
   render(<CruushPlusScratchCard card={{ id: 'grant:one', amount: '1', unit: 'day', format: 'default' }} onClose={close} />);
+  expect(screen.getByRole('dialog')).toHaveClass('overflow-hidden');
+  expect(screen.queryByRole('button', { name: 'Close' })).not.toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Done' })).toBeDisabled();
   fireEvent.keyDown(screen.getByRole('button', { name: 'Scratch to reveal your reward' }), { key: 'Enter' });
   expect(screen.getByRole('button', { name: 'Done' })).toBeEnabled();

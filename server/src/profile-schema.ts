@@ -111,6 +111,7 @@ const cappedArrayField = (max: number) =>
       return nextValues.slice(-max);
     });
 const upToThreeArrayField = cappedArrayField(3);
+const upToTenArrayField = cappedArrayField(10);
 const singleArrayField = cappedArrayField(1);
 const kinkArrayField = cappedArrayField(200);
 
@@ -351,7 +352,7 @@ export const profilePayloadSchema = z.object({
   vibes: upToThreeArrayField,
   scenes: arrayField,
   archetypes: arrayField,
-  hobbies: upToThreeArrayField,
+  hobbies: upToTenArrayField,
   custom_hobby: shortStringField,
   looking_for: upToThreeArrayField,
   hiv_status: singleArrayField,

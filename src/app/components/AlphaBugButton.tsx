@@ -215,7 +215,10 @@ export default function AlphaBugButton({
   const [errorCode, setErrorCode] = useState('');
   const [deviceSummary, setDeviceSummary] = useState('');
   const [showTip, setShowTip] = useState(false);
-  const pageUrl = useMemo(() => getCurrentPageUrl(), [open]);
+  const pageUrl = useMemo(
+    () => `${location.pathname}${location.search}` || getCurrentPageUrl(),
+    [open, location.pathname, location.search],
+  );
   const mapRoute = location.pathname === '/map' || location.pathname.startsWith('/map/');
 
   useEffect(() => {
@@ -396,7 +399,7 @@ export default function AlphaBugButton({
         </div>
       ) : null}
       {trigger}
-      <DialogContent data-testid="alpha-bug-dialog" overlayClassName="alpha-bug-overlay !z-[1602]" className="!z-[1603] max-w-md content-start rounded-lg border-white/10 bg-background p-4 sm:p-6">
+      <DialogContent floating data-testid="alpha-bug-dialog" overlayClassName="alpha-bug-overlay !z-[1602]" className="!z-[1603] max-w-md content-start rounded-lg border-white/10 bg-background p-4 sm:p-6">
         <DialogHeader>
           <DialogTitle>Report alpha bug</DialogTitle>
           <DialogDescription>

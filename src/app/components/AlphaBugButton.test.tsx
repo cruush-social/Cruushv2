@@ -75,6 +75,7 @@ describe('AlphaBugButton', () => {
     fireEvent.click(reportButton);
     const dialog = screen.getByRole('dialog', { name: 'Report alpha bug' });
     expect(dialog).toHaveAttribute('data-testid', 'alpha-bug-dialog');
+    expect(dialog).toHaveAttribute('data-dialog-framing', 'floating');
     expect(dialog).toHaveClass('content-start', 'p-4', 'sm:p-6');
     expect(screen.getByRole('button', { name: 'Close' })).toHaveClass('left-1');
     expect(document.querySelector('[data-slot="dialog-overlay"]')).toHaveClass('alpha-bug-overlay', '!z-[1602]');
@@ -94,6 +95,15 @@ describe('AlphaBugButton', () => {
     expect(await screen.findByText('Bug report sent')).toBeInTheDocument();
     expect(screen.getByText('Describe what broke and how support can reproduce it.')).toBeInTheDocument();
     expect(screen.queryByText(/attaches a screenshot/i)).not.toBeInTheDocument();
+  });
+
+  it('uses the router page even when the browser location has not caught up', () => {
+    window.history.replaceState({}, '', '/');
+    renderAlphaBugButton(true, '/privacy/dl-mode?from=settings');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Report alpha bug' }));
+
+    expect(screen.getByText('/privacy/dl-mode?from=settings')).toBeInTheDocument();
   });
 
   it('submits without requesting screen sharing', async () => {

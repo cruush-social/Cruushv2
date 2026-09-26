@@ -2330,9 +2330,14 @@ describe('spiderfy clusters', () => {
     const cluster = await screen.findByRole('button', { name: 'Open 2 nearby people sharing this map spot' });
     fireEvent.pointerEnter(cluster, { pointerType: 'mouse' });
     expect(await screen.findByRole('button', { name: 'Open A on map' })).toBeInTheDocument();
+    const expandedMarkers = markerInstances.filter((instance: any) => instance.element.isConnected);
+    const createdMarkerCount = markerInstances.length;
 
     expect(cluster.isConnected).toBe(true);
     fireEvent.click(cluster);
+    await act(async () => Promise.resolve());
+    expect(markerInstances).toHaveLength(createdMarkerCount);
+    expect(expandedMarkers.every((instance: any) => instance.element.isConnected)).toBe(true);
     fireEvent.pointerEnter(cluster, { pointerType: 'mouse' });
     const pinnedMember = await screen.findByRole('button', { name: 'Open B on map' });
     fireEvent.pointerLeave(pinnedMember, { pointerType: 'mouse', relatedTarget: document.body });
@@ -2407,9 +2412,12 @@ describe('spiderfy clusters', () => {
     expect(offsets).toHaveLength(3);
     // Every member gets a distinct offset so none of them stack.
     expect(new Set(offsets.map((o: number[]) => o.join(','))).size).toBe(3);
+    // Keep the fan compact: each heart stays within one heart-width of the
+    // shared coordinate instead of using the older extra-wide clearance.
+    expect(Math.max(...offsets.map((offset: number[]) => Math.hypot(...offset)))).toBeLessThanOrEqual(95);
   });
 
-  it('fans same-coordinate Spots out without mixing them with people', async () => {
+  it('keeps Spot clusters out of people spiderfy and opens their representative at street zoom', async () => {
     const onPinClick = vi.fn();
     render(
       <MapView
@@ -2428,7 +2436,7 @@ describe('spiderfy clusters', () => {
             displayName: 'Spot A',
             approximateLatitude: 40.7128,
             approximateLongitude: -73.99,
-            place: { id: 'a', facilityType: 'bar', activeCheckins: 0 },
+            place: { id: 'a', facilityType: 'bar', activeCheckins: 4 },
           },
           {
             id: 'place-b',
@@ -2443,7 +2451,12 @@ describe('spiderfy clusters', () => {
     );
 
     expect(await screen.findByRole('button', { name: 'Open Person A on map' })).toBeInTheDocument();
-    const cluster = screen.getByRole('button', { name: 'Open 2 spots sharing this map spot' });
+    const cluster = screen.getByRole('button', { name: 'Open 2 spots on map' });
+    expect(screen.getByTestId('place-marker-title-a')).toHaveClass('text-[0.7rem]');
+    expect(screen.getByTestId('spot-cluster-count')).toHaveTextContent('2');
+    expect(screen.getByTestId('spot-checkin-count')).toHaveTextContent('4');
+    const map = mapInstances.at(-1)!;
+    map.getZoom.mockReturnValue(12);
 
     await act(async () => {
       fireEvent.click(cluster);
@@ -2451,17 +2464,20 @@ describe('spiderfy clusters', () => {
       await Promise.resolve();
     });
 
-    expect(mapInstances[0].setZoom).not.toHaveBeenCalled();
-    expect(await screen.findByRole('button', { name: 'Open Spot A Pink Book' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Open Spot B Pink Book' })).toBeInTheDocument();
+    expect(map.setZoom).toHaveBeenCalledWith(15.5);
+    expect(screen.queryByRole('button', { name: 'Open Spot A Pink Book' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Open Spot B Pink Book' })).not.toBeInTheDocument();
     expect(onPinClick).not.toHaveBeenCalled();
 
-    const spotOffsets = markerInstances
-      .filter((instance: any) => instance.element.isConnected)
-      .map((instance: any) => instance.offset)
-      .filter((offset: number[] | undefined) => Boolean(offset));
-    expect(spotOffsets).toHaveLength(2);
-    expect(new Set(spotOffsets.map((offset: number[]) => offset.join(','))).size).toBe(2);
+    map.getZoom.mockReturnValue(15.5);
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Open 2 spots on map' }));
+      await Promise.resolve();
+    });
+    expect(onPinClick).toHaveBeenCalledWith(expect.objectContaining({
+      kind: 'place',
+      place: expect.objectContaining({ id: 'a' }),
+    }));
   });
 });
 
@@ -2538,7 +2554,7 @@ describe('stable Spot clusters', () => {
     });
   });
 
-  it('preserves Spot radius thresholds, maximum zoom and same-coordinate spiderfy', () => {
+  it('preserves Spot radius thresholds and maximum zoom without Spot spiderfy', () => {
     const radiusPair = [markerAtOffset('a', 0, 14.5), markerAtOffset('b', 80, 14.5)];
     expect(applyPlaceMarkerClusters(radiusPair, 14.49)).toHaveLength(1);
     expect(applyPlaceMarkerClusters(radiusPair, 14.5)).toEqual(radiusPair);
@@ -2549,7 +2565,7 @@ describe('stable Spot clusters', () => {
 
     const sameCoordinate = [markerAtOffset('a', 0, 16), markerAtOffset('b', 0, 16)];
     expect(applyPlaceMarkerClusters(sameCoordinate, 16)[0].cluster)
-      .toMatchObject({ action: 'spiderfy', memberIds: ['a', 'b'], count: 2 });
+      .toMatchObject({ action: 'zoom', memberIds: ['a', 'b'], count: 2 });
   });
 });
 

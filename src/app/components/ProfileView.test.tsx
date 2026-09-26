@@ -286,6 +286,43 @@ describe('ProfileView', () => {
     expect(screen.queryByRole('heading', { name: 'Vibes' })).not.toBeInTheDocument();
   });
 
+  it('keeps full-profile Vibe capsules prominent while retaining truncation', async () => {
+    getProfileById.mockResolvedValue(createProfileFixture({
+      vibes: ['A deliberately lengthy nightlife vibe'],
+    }));
+
+    render(
+      <MemoryRouter initialEntries={['/profile/user-1']}>
+        <Routes>
+          <Route path="/profile/:userId" element={<ProfileView />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    const vibe = await screen.findByText('A deliberately lengthy nightlife vibe');
+    expect(vibe).toHaveClass('text-sm', 'px-2', 'py-1', 'truncate');
+  });
+
+  it('shows a large DL Mode icon and label on a masked full-profile photo', async () => {
+    window.localStorage.setItem('cruush:dl-mode-enabled', 'true');
+    getProfileById.mockResolvedValue(createProfileFixture({
+      photos: ['/explicit-profile.jpg'],
+      photo_metadata: [{ url: '/explicit-profile.jpg', explicit: true }],
+    }));
+
+    render(
+      <MemoryRouter initialEntries={['/profile/user-1']}>
+        <Routes>
+          <Route path="/profile/:userId" element={<ProfileView />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    const placeholder = await screen.findByTestId('dl-mode-photo-placeholder');
+    expect(placeholder).toHaveClass('w-28');
+    expect(placeholder.querySelector('text')).toHaveTextContent('DL MODE ON');
+  });
+
   it('shows the Mile High Club plane beside the name for a travelling profile', async () => {
     getProfileById.mockResolvedValue(createProfileFixture({
       travelling: true,

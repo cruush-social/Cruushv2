@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BODY_TYPES, HOBBY_GROUPS, HOBBIES, KINK_CATALOG, KINK_GROUPS, KINKS, LOOKING_FOR, ROLES, STRUCTURED_PROFILE_OPTION_FIELDS, VIBE_GROUPS } from './profileOptions';
+import { BODY_TYPES, HOBBY_GROUPS, HOBBIES, KINK_CATALOG, KINK_GROUPS, KINKS, LOOKING_FOR, ROLES, SEXUALITY, STRUCTURED_PROFILE_OPTION_FIELDS, VIBE_GROUPS } from './profileOptions';
 import { profileBadgeCategory, resolveSavedProfileBadge } from '../components/ProfileBadgeGlyphs';
 import { Drama } from 'lucide-react';
 
@@ -70,8 +70,17 @@ describe('profileOptions', () => {
   });
 
   it('keeps body descriptors in body type instead of vibes', () => {
-    expect(BODY_TYPES).toEqual(expect.arrayContaining(['BBW', 'BBM', 'bear', 'otter', 'twink']));
+    expect(BODY_TYPES).toEqual(expect.arrayContaining([
+      'BBW', 'BBM', 'bear', 'big dick', 'busty', 'otter', 'small chested', 'small dick', 'twink',
+    ]));
     expect(optionsFor('Scenes')).not.toEqual(expect.arrayContaining(['Bear', 'Otter', 'Twink']));
+  });
+
+  it('offers the expanded sexuality catalog while preserving the shared selection field', () => {
+    expect(SEXUALITY).toEqual(expect.arrayContaining([
+      'abrosexual', 'achillean', 'androsexual', 'graysexual', 'heteroflexible', 'homoflexible',
+      'omnisexual', 'polysexual', 'sapphic',
+    ]));
   });
 
   it('keeps removed profile labels out of active catalogs', () => {

@@ -1976,7 +1976,7 @@ export async function registerProfileRoutes(app: FastifyInstance) {
     const userId = await getActiveAccountUserId(request);
     const parsedPayload = profilePayloadSchema.parse(request.body);
     const kinkInterests = normalizeKinkInterests(parsedPayload);
-    const entitlement = parsedPayload.tags.length > 3 || kinkInterests.length > 3
+    const entitlement = parsedPayload.tags.length > 3 || kinkInterests.length > 3 || parsedPayload.hobbies.length > 3
       ? await getCruushEntitlement(app, userId)
       : null;
 
@@ -1988,6 +1988,10 @@ export async function registerProfileRoutes(app: FastifyInstance) {
 
     if (kinkInterests.length > 3 && !entitlement?.cruushPlus) {
       throw new ApiError(402, "CRUUSH_PLUS_REQUIRED", "Upgrade to cruush+ to add more than 3 kinks.");
+    }
+
+    if (parsedPayload.hobbies.length > 3 && !entitlement?.cruushPlus) {
+      throw new ApiError(402, "CRUUSH_PLUS_REQUIRED", "Upgrade to cruush+ to add up to 10 hobbies.");
     }
 
     if (countVisibilityExclusionFilters(parsedPayload.visibility_rules) > FREE_VISIBILITY_EXCLUSION_LIMIT) {

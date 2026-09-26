@@ -33,12 +33,14 @@ const notificationParamsSchema = z.object({
 }).strict();
 
 const notificationPreferencesPayloadSchema = z.object({
+  emailEnabled: z.boolean().optional(),
   pushEnabled: z.boolean().optional(),
   cruushEnabled: z.boolean().optional(),
   messagesEnabled: z.boolean().optional(),
   groupsEnabled: z.boolean().optional(),
   nearbyEnabled: z.boolean().optional(),
   rewardsEnabled: z.boolean().optional(),
+  siteRemindersEnabled: z.boolean().optional(),
   soundEnabled: z.boolean().optional(),
   quietHoursEnabled: z.boolean().optional(),
   quietHoursStartMinute: z.number().int().min(0).max(1439).optional(),

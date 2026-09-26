@@ -83,6 +83,16 @@ export type PromotionalClaimResult = {
   grant: RewardGrantResult | null;
 };
 
+export type WelcomeDayStatus = {
+  available: boolean;
+  claimed: boolean;
+  activeUntil: string | null;
+};
+
+function welcomeDayIdempotencyKey(userId: string) {
+  return `welcome-day:${userId}`;
+}
+
 function asDate(value: string | Date | null | undefined) {
   if (!value) {
     return null;
@@ -319,6 +329,61 @@ export async function grantPromotionalDays(
   }
 
   return grant;
+}
+
+export async function getWelcomeDayStatus(
+  app: RewardServiceApp,
+  userId: string,
+): Promise<WelcomeDayStatus> {
+  const result = await app.db.query<{ claimed: boolean; active_until: string | Date | null }>(
+    `select
+       exists (
+         select 1
+         from reward_grants reward
+         where reward.user_id = $1
+           and reward.idempotency_key = $2
+       ) as claimed,
+       promotion.active_until
+     from promotional_cruush_plus_entitlements promotion
+     where promotion.user_id = $1`,
+    [userId, welcomeDayIdempotencyKey(userId)],
+  );
+  const row = result.rows[0];
+  const claimed = row?.claimed === true;
+  const activeUntil = asDate(row?.active_until)?.toISOString() ?? null;
+
+  return {
+    available: !claimed,
+    claimed,
+    activeUntil,
+  };
+}
+
+export async function claimWelcomeDay(
+  app: RewardServiceApp,
+  userId: string,
+) {
+  const grant = await grantPromotionalDays(app, {
+    userId,
+    source: "admin",
+    days: 1,
+    idempotencyKey: welcomeDayIdempotencyKey(userId),
+    milestoneKey: "welcome-day",
+    auditMetadata: {
+      reason: "outside-service-area-welcome-day",
+    },
+  });
+
+  if (!grant) {
+    const status = await getWelcomeDayStatus(app, userId);
+    if (status.claimed) {
+      return { ...status, grant: null };
+    }
+    throw new ApiError(409, "VALIDATION_ERROR", "Your cruush+ day could not be applied right now.");
+  }
+
+  const status = await getWelcomeDayStatus(app, userId);
+  return { ...status, available: false, claimed: true, grant };
 }
 
 async function grantPromotionalAccessUntilInTransaction(

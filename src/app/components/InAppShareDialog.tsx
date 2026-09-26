@@ -1,9 +1,9 @@
 import { useDlMode, shouldMaskPhoto, getNsfwPhotoRestriction } from '../lib/dlMode';
 import { useEffect, useState } from 'react';
 import { Send } from 'lucide-react';
-import { Button } from './ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
 import HeartPhoto from './HeartPhoto';
+import UserActivityCapsule from './UserActivityCapsule';
 import {
   createInAppShareMessage,
   createMessage,
@@ -61,18 +61,19 @@ export default function InAppShareDialog({ open, onOpenChange, share }: InAppSha
         {!loading && conversations.length === 0 ? <p className="py-6 text-center text-sm text-white/55">No available chats yet.</p> : null}
         <div className="space-y-2">
           {conversations.map((conversation) => (
-            <Button
-              className="h-auto w-full justify-start gap-3 rounded-xl border border-white/10 bg-black/35 px-3 py-2 text-left hover:bg-white/[0.06]"
-              disabled={Boolean(sendingId)}
+            <UserActivityCapsule
+              actions={<Send className="h-4 w-4 shrink-0" />}
+              className="rounded-3xl p-3"
+              heart={<HeartPhoto className="w-16" label={`${conversation.user.name} avatar`} restriction={getNsfwPhotoRestriction(conversation.user.photoExplicit, { ...conversation.user.photoRelationship, isMutualCruush: conversation.mutual === true })} masked={shouldMaskPhoto(dlModeActive, conversation.user.photoExplicit, { ...conversation.user.photoRelationship, isMutualCruush: conversation.mutual === true })} photo={conversation.user.photo} theme={conversation.mutual ? 'mutual' : 'nearby'} userId={conversation.user.id} />}
               key={conversation.id}
-              onClick={() => void send(conversation)}
-              type="button"
-              variant="ghost"
-            >
-              <HeartPhoto className="w-16" label={`${conversation.user.name} avatar`} restriction={getNsfwPhotoRestriction(conversation.user.photoExplicit, { ...conversation.user.photoRelationship, isMutualCruush: conversation.mutual === true })} masked={shouldMaskPhoto(dlModeActive, conversation.user.photoExplicit, { ...conversation.user.photoRelationship, isMutualCruush: conversation.mutual === true })} photo={conversation.user.photo} theme={conversation.mutual ? 'mutual' : 'nearby'} userId={conversation.user.id} />
-              <span className="min-w-0 flex-1 truncate">{conversation.user.name}</span>
-              <Send className="h-4 w-4 shrink-0" />
-            </Button>
+              mutual={conversation.mutual === true}
+              name={conversation.user.name}
+              onSelect={() => void send(conversation)}
+              pronouns={conversation.user.pronouns}
+              selectLabel={`Send to ${conversation.user.name}`}
+              selected={sendingId === conversation.id}
+              testId="share-recipient-profile-card"
+            />
           ))}
         </div>
       </DialogContent>

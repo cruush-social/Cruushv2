@@ -93,4 +93,40 @@ describe('CruiseCarouselSlot', () => {
 
     expect(screen.getByTestId('cruise-carousel-featured-frame')).toHaveClass('aspect-[4/5]');
   });
+
+  it('makes the DL Mode icon and label large on the featured Cruise Carousel card', async () => {
+    window.localStorage.setItem('cruush:dl-mode-enabled', 'true');
+    render(
+      <CruiseCarouselSlot
+        mode="profile"
+        variant="page"
+        targetUser={{
+          id: 'explicit-user',
+          name: 'Explicit user',
+          display_name: 'Explicit user',
+          age: 30,
+          pronouns: 'they/them',
+          lat: 40.73,
+          lng: -73.97,
+          lastActive: '2m ago',
+          distance: '1 mi',
+          lookingFor: [],
+          vibes: [],
+          position: [],
+          role: [],
+          hostingTravel: [],
+          photo: '/explicit-carousel.jpg',
+          photoExplicit: true,
+        }}
+        browseDurationMs={1}
+      />,
+    );
+
+    await screen.findByText('Found Explicit user nearby.');
+    const featuredTile = screen.getAllByTestId('cruise-carousel-profile-tile')
+      .find((tile) => tile.className.includes('w-[15rem]'));
+    const placeholder = featuredTile?.querySelector('[data-testid="dl-mode-photo-placeholder"]');
+    expect(placeholder).toHaveClass('w-28');
+    expect(placeholder?.querySelector('text')).toHaveTextContent('DL MODE ON');
+  });
 });

@@ -19,6 +19,7 @@ export type ConversationThread = {
     sideBadges?: SideBadges;
     travelling?: boolean;
     vibes?: string[];
+    lastActive?: string;
   };
   distance: string;
   updatedAt: string;

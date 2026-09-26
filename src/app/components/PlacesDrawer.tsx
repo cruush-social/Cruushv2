@@ -7,6 +7,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from './ui/sheet';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
 import {
   DEFAULT_EXCLUDED_PLACE_FACILITY_TYPES,
   PLACE_FACILITY_LABELS,
@@ -213,7 +214,7 @@ export default function PlacesDrawer({ open, onOpenChange, coordinates, onFilter
   };
 
   const drawerBody = (
-    <div className="scrollbar-hide flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-5 py-4 overscroll-contain">
+    <div className="scrollbar-hide flex min-h-0 flex-1 touch-pan-y flex-col gap-3 overflow-y-auto scroll-smooth px-5 py-4 overscroll-contain [-webkit-overflow-scrolling:touch]">
           {showSubmit ? (
             <Button type="button" className="w-full" variant="secondary" onClick={() => setShowSubmit(false)}>
               <ArrowLeft className="mr-2 h-4 w-4" /> Back to Spots
@@ -304,11 +305,12 @@ export default function PlacesDrawer({ open, onOpenChange, coordinates, onFilter
                   {SORT_OPTIONS.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}
                 </SelectContent>
               </Select>
-              <details
-                open={filtersOpen}
-                className="rounded-xl border border-white/10 bg-white/[0.035] p-3"
-                onToggle={(event) => {
-                  const nextOpen = event.currentTarget.open;
+              <Accordion
+                type="single"
+                collapsible
+                value={filtersOpen ? 'spot-filters' : undefined}
+                onValueChange={(value) => {
+                  const nextOpen = value === 'spot-filters';
                   setFiltersOpen(nextOpen);
                   if (nextOpen) {
                     setDraftExcludedFacilityTypes(excludedFacilityTypes);
@@ -319,8 +321,11 @@ export default function PlacesDrawer({ open, onOpenChange, coordinates, onFilter
                   }
                 }}
               >
-                <summary className="cursor-pointer text-sm text-white">Spot filters{filterCount ? ` (${filterCount})` : ''}</summary>
-                <div className="mt-4 space-y-4">
+                <AccordionItem value="spot-filters" className="border-white/10 bg-white/[0.035]">
+                  <AccordionTrigger className="w-full px-3 py-3 text-sm text-white">
+                    Spot filters{filterCount ? ` (${filterCount})` : ''}
+                  </AccordionTrigger>
+                  <AccordionContent className="space-y-4 px-3 pb-3">
                   <label className="block space-y-2 text-sm text-white">
                     <span>Distance</span>
                     <select
@@ -361,8 +366,9 @@ export default function PlacesDrawer({ open, onOpenChange, coordinates, onFilter
                       {PLACE_AMENITIES.map((amenity) => <button key={amenity} type="button" aria-pressed={draftAmenities.includes(amenity)} className={`rounded-full border px-3 py-1 text-xs ${draftAmenities.includes(amenity) ? 'border-primary bg-primary/20 text-white' : 'border-white/10 text-white/65'}`} onClick={() => setDraftAmenities(toggleValue(draftAmenities, amenity))}>{PLACE_AMENITY_LABELS[amenity]}</button>)}
                     </div>
                   </fieldset>
-                </div>
-              </details>
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
               <p className="text-xs text-white/55">{resultLabel}</p>
               {error ? <p className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{error}</p> : null}
               {!loading && !error && places.length === 0 ? <p className="rounded-xl border border-white/10 p-6 text-center text-sm text-white/60">No matching spots yet.</p> : null}
@@ -422,7 +428,7 @@ export default function PlacesDrawer({ open, onOpenChange, coordinates, onFilter
             <div className="h-9 w-9 shrink-0" data-testid="places-bug-button-slot" ref={registerBugButtonSlot} />
           </div>
           {onSpotsVisibleChange ? (
-            <div className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2">
+            <div className="mt-3 flex w-fit items-center gap-3 self-start rounded-full border border-white/10 bg-white/[0.04] px-3 py-2">
               <span className="text-sm text-white">Show Spots on the map</span>
               <Switch
                 aria-label="Show Spots on the map"

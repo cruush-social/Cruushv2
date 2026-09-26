@@ -260,7 +260,7 @@ export default function GhostModeSettings() {
           ) : (
             <CruushIcon name="ghost" variant={privacySettings.ghostModeEnabled ? 'colored' : 'white'} className="h-7 w-7 shrink-0" />
           )}
-          <h2 className="truncate text-xl">Ghost Mode &amp; Dark Room Mode</h2>
+          <h2 className="truncate text-xl">Ghost Mode</h2>
         </div>
       
         <BugButtonSlot testId="ghost-mode-settings-bug-button-slot" />
@@ -279,7 +279,7 @@ export default function GhostModeSettings() {
               <CruushIcon name="ghost" variant={privacySettings.ghostModeEnabled ? 'colored' : 'white'} className="mt-1 h-5 w-5 opacity-80" />
               <div>
                 <p>Ghost Mode</p>
-                <p className="text-sm text-muted-foreground">You stay visible. What moves is a decoy pin, which hops around inside the radius you choose, while you still see your own real position.</p>
+                <p className="text-sm text-muted-foreground">Your real pin is hidden. Only a decoy pin is visible, hopping inside the radius you choose while you still see your real position.</p>
                 {privacySettings.baseMode === 'GHOST' && privacySettings.ghostRotationExpiresAtMs ? (
                   <p className="mt-1 text-xs text-muted-foreground">
                     Location rotates in {formatCountdown(privacySettings.ghostRotationExpiresAtMs - nowMs)}
@@ -385,7 +385,7 @@ export default function GhostModeSettings() {
                 <span key={option.label}>{option.label}</span>
               ))}
             </div>
-            <p className="text-sm text-muted-foreground">This is the area your decoy pin moves around in, not the area you are visible in. A larger radius puts the decoy further from you.</p>
+            <p className="text-sm text-muted-foreground">This is the area your visible decoy pin moves around in. A larger radius puts the decoy further from your hidden real pin.</p>
           </div>
 
           <div className="space-y-3 rounded-lg border border-white/10 bg-white/[0.025] p-4">

@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { ArrowLeft, MapPin, MessageCircle } from 'lucide-react';
-import { Button } from './ui/button';
+import { MapPin, MessageCircle } from 'lucide-react';
 import { Switch } from './ui/switch';
-import BugButtonSlot from './BugButtonSlot';
+import { Card, CardContent } from './ui/card';
+import AppPageHeader from './AppPageHeader';
 import {
   DEFAULT_CRUUSH_MATCH_SETTINGS,
   getCruushMatchSettings,
@@ -141,15 +141,14 @@ export default function CruushMatchSettings({ embedded = false }: { embedded?: b
 
   return (
     <div className={embedded ? 'bg-transparent pb-2 text-white' : 'min-h-screen bg-background pb-20 text-white'}>
-      <header className={embedded ? 'hidden' : 'sticky top-0 z-10 flex items-center gap-4 border-b border-white/10 bg-background/88 p-4 backdrop-blur-sm'}>
-        <Button variant="ghost" size="icon" onClick={() => navigate(-1)} aria-label="Back to cruush">
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <div>
-          <h2 className="text-xl">message settings</h2>
-        </div>
-        <BugButtonSlot testId="cruush-match-settings-bug-button-slot" />
-      </header>
+      {!embedded ? (
+        <AppPageHeader
+          title="Message settings"
+          onBack={() => navigate(-1)}
+          backLabel="Back to cruush"
+          bugButtonTestId="cruush-match-settings-bug-button-slot"
+        />
+      ) : null}
 
       <main className="mx-auto max-w-2xl space-y-5 p-4">
         {error ? (
@@ -158,50 +157,51 @@ export default function CruushMatchSettings({ embedded = false }: { embedded?: b
           </div>
         ) : null}
 
-        <section className="rounded-xl border border-white/10 bg-card/80 p-4">
-          <div className="flex items-start gap-3">
-            <MessageCircle className="mt-1 h-5 w-5 text-primary" />
-            <div>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-start gap-3">
+              <MessageCircle className="mt-1 h-5 w-5 text-primary" />
               <h3 className="text-base">Who can message me</h3>
-              <p className="mt-1 text-sm text-white/58">Cruushes is the default. Switch to Public or Crowd when you want more people to be able to start a chat.</p>
             </div>
-          </div>
-          <div className="mt-4 grid gap-2">
-            {visibilityOptions.map((option) => (
-              <ChoiceRow
-                key={option.value}
-                value={option}
-                selected={matchSettings.messageVisibility === option.value}
-                onSelect={() => void persistMatchSettings({
-                  ...matchSettings,
-                  messageVisibility: option.value,
+            <div className="mt-4 grid gap-2">
+              {visibilityOptions.map((option) => (
+                <ChoiceRow
+                  key={option.value}
+                  value={option}
+                  selected={matchSettings.messageVisibility === option.value}
+                  onSelect={() => void persistMatchSettings({
+                    ...matchSettings,
+                    messageVisibility: option.value,
+                  })}
+                />
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <MapPin className="mt-1 h-5 w-5 text-primary" />
+                <div>
+                  <h3 className="text-base">Precise location for cruushes</h3>
+                  <p className="mt-1 text-sm text-white/58">When on, cruushes may see precise live location instead of your Ghost location.</p>
+                </div>
+              </div>
+              <Switch
+                aria-label="Toggle precise location for cruushes"
+                checked={privacySettings.preciseToMutualCruushes}
+                disabled={disabled}
+                onCheckedChange={(enabled) => void persistPrivacySettings({
+                  ...privacySettings,
+                  preciseToMutualCruushes: enabled,
+                  preciseLocationVisibility: enabled ? 'mutual_cruushes' : 'none',
                 })}
               />
-            ))}
-          </div>
-        </section>
-
-        <section className="rounded-xl border border-white/10 bg-card/80 p-4">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex items-start gap-3">
-              <MapPin className="mt-1 h-5 w-5 text-primary" />
-              <div>
-                <h3 className="text-base">Precise location for cruushes</h3>
-                <p className="mt-1 text-sm text-white/58">When on, cruushes may see precise live location instead of your Ghost location.</p>
-              </div>
             </div>
-            <Switch
-              aria-label="Toggle precise location for cruushes"
-              checked={privacySettings.preciseToMutualCruushes}
-              disabled={disabled}
-              onCheckedChange={(enabled) => void persistPrivacySettings({
-                ...privacySettings,
-                preciseToMutualCruushes: enabled,
-                preciseLocationVisibility: enabled ? 'mutual_cruushes' : 'none',
-              })}
-            />
-          </div>
-        </section>
+          </CardContent>
+        </Card>
 
         {status === 'saving' ? (
           <p className="px-1 text-xs text-white/52">Saving...</p>

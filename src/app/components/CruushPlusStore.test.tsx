@@ -197,6 +197,42 @@ describe('CruushPlusStore', () => {
     });
   });
 
+  it('shows plans without waiting for slower processor and Bitcoin checks', async () => {
+    vi.mocked(getCryptoProcessorStatus).mockReturnValue(new Promise(() => {}));
+    vi.mocked(getBitcoinSendingEligibility).mockReturnValue(new Promise(() => {}));
+
+    renderStore();
+
+    expect(await screen.findByText('$18.99/month')).toBeInTheDocument();
+    expect(screen.queryByText('Loading plans…')).not.toBeInTheDocument();
+  });
+
+  it('states that Lifetime includes unlimited Pulses', async () => {
+    vi.mocked(getCryptoProcessorStatus).mockResolvedValue(processorStatus());
+    vi.mocked(getBillingPlans).mockResolvedValue({
+      processor: 'fake',
+      testCheckout: true,
+      testWarning: 'TEST CHECKOUT - no real payment will be collected.',
+      currency: 'USD',
+      plans: [{
+        ...plans[0]!,
+        id: 'lifetime_founder',
+        name: 'Lifetime founder cruush+',
+        interval: 'lifetime',
+        durationMonths: undefined,
+        amountCents: 99999,
+        isFounder: true,
+        isLifetime: true,
+        supplyRemaining: 1000,
+        badgeKeys: ['founder', 'lifetime_founder'],
+      }],
+    });
+
+    renderStore();
+
+    expect(await screen.findByText(/keep it forever with unlimited Pulses/i)).toBeInTheDocument();
+  });
+
   describe('pricing presentation', () => {
     beforeEach(() => {
       vi.mocked(getCryptoProcessorStatus).mockResolvedValue(processorStatus());
@@ -351,10 +387,12 @@ describe('CruushPlusStore', () => {
     expect(main?.children).toHaveLength(5);
     const benefitsToggle = screen.getByRole('button', { name: /what cruush\+ unlocks/i });
     expect(main?.children[0]).toContainElement(benefitsToggle);
+    expect(benefitsToggle.closest('[data-slot="accordion-item"]')).toHaveClass('border-0');
     expect(benefitsToggle).toHaveAttribute('aria-expanded', 'false');
     expect(screen.queryByRole('list', { name: 'cruush+ benefits' })).not.toBeInTheDocument();
     expect(main?.children[1]).toHaveTextContent('Choose your time');
     expect(main?.children[1]).toHaveTextContent('Recommended');
+    expect(screen.getByRole('button', { name: /Compare plans/i }).closest('[data-slot="accordion"]')).toHaveClass('mt-2');
     expect(main?.children[2]).toHaveTextContent('What are you paying from?');
     expect(main?.children[2]).toContainElement(screen.getByRole('button', { name: 'Cash App' }));
     expect(main?.children[2]).toContainElement(screen.getByRole('button', { name: 'PayPal' }));
@@ -863,8 +901,10 @@ describe('CruushPlusStore', () => {
 
     const link = await screen.findByRole('link', { name: 'Read the billing policy' });
     const refundLink = screen.getByRole('link', { name: 'Request a legally required refund review' });
+    const billingSupportLink = screen.getByRole('link', { name: 'Report a billing issue' });
     expect(link).toHaveAttribute('href', '/billing-policy');
     expect(refundLink).toHaveAttribute('href', '/support?refund=1');
+    expect(billingSupportLink).toHaveAttribute('href', '/support?billing=payment');
     expect(link.closest('div')).toHaveTextContent('One-time purchase. Nothing renews automatically.');
     expect(link.closest('div')).toHaveTextContent(
       'Purchases are final and non-refundable except where applicable law requires a withdrawal, refund, remedy, or forced reversal.',
@@ -874,10 +914,10 @@ describe('CruushPlusStore', () => {
 
 describe('Pulse checkout shares the live processor', () => {
   it('loads Pulse packs and sends the chosen pack to the real Pulse intent API', async () => {
-    vi.mocked(getPulsePacks).mockResolvedValue({ packs: [{ id: 'ping_3', name: '3 Pulses', description: '3 permanent Pulse credits', pingCount: 3, amountCents: 299, currency: 'USD' }] });
+    vi.mocked(getPulsePacks).mockResolvedValue({ packs: [{ id: 'ping_3', name: '3 Pulses', description: '3 permanent Pulse credits', pingCount: 3, amountCents: 999, currency: 'USD' }] });
     vi.mocked(getCurrentPulsePaymentIntent).mockResolvedValue(null);
     vi.mocked(getCryptoProcessorStatus).mockResolvedValue({ ready: true, asset: 'USDC', network: 'arbitrum', confirmationTarget: 1, rails: [{ id: 'usdc_arbitrum', asset: 'USDC', network: 'arbitrum', chainId: 42161, tokenAddress: '', ready: true }] });
-    vi.mocked(createPulsePaymentIntent).mockResolvedValue({ id: 'pulse-order', userId: 'member', planId: 'ping_3', productType: 'ping_pack', asset: 'USDC', network: 'arbitrum', rail: 'usdc_arbitrum', chainId: 42161, tokenAddress: '', amountUsdCents: 299, quotedAmountAtomic: '2990000', paymentAddress: '0x123', paymentUri: null, qrCodeDataUrl: null, status: 'paid', expiresAt: null, createdAt: null, updatedAt: null, paidAt: null });
+    vi.mocked(createPulsePaymentIntent).mockResolvedValue({ id: 'pulse-order', userId: 'member', planId: 'ping_3', productType: 'ping_pack', asset: 'USDC', network: 'arbitrum', rail: 'usdc_arbitrum', chainId: 42161, tokenAddress: '', amountUsdCents: 999, quotedAmountAtomic: '9990000', paymentAddress: '0x123', paymentUri: null, qrCodeDataUrl: null, status: 'paid', expiresAt: null, createdAt: null, updatedAt: null, paidAt: null });
     render(<MemoryRouter><CruushPlusStore product="ping_pack" /></MemoryRouter>);
     fireEvent.click(await screen.findByRole('button', { name: 'Cash App' }));
     await waitFor(() => expect(createPulsePaymentIntent).toHaveBeenCalledWith(expect.objectContaining({ packId: 'ping_3', rail: 'usdc_arbitrum', sendingApp: 'cash_app' })));
@@ -935,9 +975,9 @@ describe('Bitcoin through Cash App, PayPal, Venmo or a wallet', () => {
   };
 
   const pulsePacks = [
-    { id: 'ping_3' as const, name: '3 Pulses', description: '3 permanent Pulse credits', pingCount: 3, amountCents: 299, currency: 'USD' as const },
-    { id: 'ping_10' as const, name: '10 Pulses', description: '10 permanent Pulse credits', pingCount: 10, amountCents: 799, currency: 'USD' as const },
-    { id: 'ping_25' as const, name: '25 Pulses', description: '25 permanent Pulse credits', pingCount: 25, amountCents: 1499, currency: 'USD' as const },
+    { id: 'ping_3' as const, name: '3 Pulses', description: '3 permanent Pulse credits', pingCount: 3, amountCents: 999, currency: 'USD' as const },
+    { id: 'ping_10' as const, name: '10 Pulses', description: '10 permanent Pulse credits', pingCount: 10, amountCents: 2499, currency: 'USD' as const },
+    { id: 'ping_25' as const, name: '25 Pulses', description: '25 permanent Pulse credits', pingCount: 25, amountCents: 4999, currency: 'USD' as const },
   ];
 
   beforeEach(() => {
@@ -958,6 +998,7 @@ describe('Bitcoin through Cash App, PayPal, Venmo or a wallet', () => {
     renderStore();
 
     const picker = await screen.findByLabelText('Where you are paying from');
+    expect(picker).toHaveClass('grid-cols-2');
     const buttons = within(picker).getAllByRole('button');
     expect(buttons.map((button) => button.getAttribute('aria-label'))).toEqual(['Cash App', 'PayPal', 'Venmo', 'A crypto wallet']);
     expect(within(picker).getAllByText('BTC · Bitcoin')).toHaveLength(4);
@@ -1054,18 +1095,16 @@ describe('Bitcoin through Cash App, PayPal, Venmo or a wallet', () => {
     expect(within(otherPrices).getByText('7 days')).toBeInTheDocument();
   });
 
-  it('disables Cash App for 3 Pulses and enables it when 10 Pulses are selected', async () => {
+  it('offers the repriced 3-Pulse entry pack through Cash App', async () => {
     vi.mocked(getPulsePacks).mockResolvedValue({ packs: pulsePacks });
     vi.mocked(getCurrentPulsePaymentIntent).mockResolvedValue(null);
-    vi.mocked(getBitcoinSendingEligibility).mockResolvedValue({ rail: 'btc_bitcoin', products: { ping_3: [], ping_10: ['Cash App'], ping_25: ['Cash App'] } });
+    vi.mocked(getBitcoinSendingEligibility).mockResolvedValue({ rail: 'btc_bitcoin', products: { ping_3: ['Cash App'], ping_10: ['Cash App'], ping_25: ['Cash App'] } });
     vi.mocked(createPulsePaymentIntent).mockRejectedValue(new Error('Stop after request mapping.'));
     render(<MemoryRouter><CruushPlusStore product="ping_pack" /></MemoryRouter>);
-    expect(await screen.findByRole('button', { name: 'Cash App' })).toBeDisabled();
-    fireEvent.click(screen.getByRole('button', { name: /Compare plans/i }));
-    fireEvent.click(within(screen.getByRole('list', { name: 'Other Pulse prices' })).getByText('10 Pulses'));
+    expect(await screen.findByText('$9.99')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Cash App' })).toBeEnabled();
     fireEvent.click(screen.getByRole('button', { name: 'Cash App' }));
-    await waitFor(() => expect(createPulsePaymentIntent).toHaveBeenCalledWith(expect.objectContaining({ packId: 'ping_10', sendingApp: 'cash_app' })));
+    await waitFor(() => expect(createPulsePaymentIntent).toHaveBeenCalledWith(expect.objectContaining({ packId: 'ping_3', sendingApp: 'cash_app' })));
   });
 
   it('enables PayPal only after a qualifying Pulse pack is selected', async () => {
@@ -1148,7 +1187,7 @@ describe('Bitcoin through Cash App, PayPal, Venmo or a wallet', () => {
     renderStore();
 
     const picker = await screen.findByLabelText('Where you are paying from');
-    expect(picker).toHaveClass('grid-cols-3');
+    expect(picker).toHaveClass('grid-cols-2');
     const buttons = within(picker).getAllByRole('button');
     expect(buttons.map((button) => button.getAttribute('aria-label'))).toEqual([
       'Cash App', 'PayPal', 'Venmo', 'A crypto wallet',

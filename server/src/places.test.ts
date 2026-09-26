@@ -115,6 +115,17 @@ describe("Spot check-in contract", () => {
     })).toMatchObject({ durationHours, visible: false });
   });
 
+  it.each(["hidden", "public", "checked_in"])("accepts %s check-in visibility", (visibility) => {
+    expect(placeCheckinSchema.parse({
+      durationHours: 3,
+      visibility,
+      latitude: 40.72,
+      longitude: -73.98,
+      accuracyMeters: 10,
+      observedAt: "2026-08-31T20:00:00.000Z"
+    })).toMatchObject({ visibility });
+  });
+
   it("rejects unsupported duration and imprecise location values", () => {
     expect(placeCheckinSchema.safeParse({
       content: "Meet by the entrance",

@@ -15,6 +15,7 @@ import {
 } from '../lib/desktopPageLayoutPreferences';
 import { getMyCruushActivity } from '../lib/cruushApi';
 import { getConversations } from '../lib/messagesApi';
+import { useMapServiceArea } from './MapServiceAreaContext';
 
 const CRUUSH_SEEN_AT_KEY = 'cruush.activity.seenAt';
 
@@ -63,7 +64,10 @@ function ProfileNavIcon({ active }: { active: boolean }) {
   );
 }
 
-export default function BottomNav() {
+export default function BottomNav({
+  outsideServiceArea: outsideServiceAreaOverride,
+  mapSurface = false,
+}: { outsideServiceArea?: boolean; mapSurface?: boolean } = {}) {
   const navigate = useNavigate();
   const navRef = useRef<HTMLElement>(null);
 
@@ -86,6 +90,11 @@ export default function BottomNav() {
   const [desktopPageLayout, setDesktopPageLayout] = useState(getDesktopPageLayout);
   const [unreadMessages, setUnreadMessages] = useState(false);
   const [unreadCruushes, setUnreadCruushes] = useState(false);
+  const mapServiceArea = useMapServiceArea();
+  const outsideServiceArea = outsideServiceAreaOverride ?? mapServiceArea.outsideServiceArea;
+  const visibleNavItems = outsideServiceArea
+    ? navItems.filter((item) => ['/cruush', '/messages', '/profile'].includes(item.path))
+    : navItems;
   const isOwnProfilePanelOpen = Boolean(
     (location.state as { openOwnProfilePanel?: boolean } | null)?.openOwnProfilePanel
   );
@@ -172,7 +181,7 @@ export default function BottomNav() {
 
   return (
     <nav ref={navRef} className="pointer-events-none fixed bottom-0 left-0 right-0 z-[60] px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-2">
-      {!isMapRoute && !isCruiseCarouselRoute ? (
+      {!isMapRoute && !isCruiseCarouselRoute && !mapSurface ? (
         <div
           aria-hidden="true"
           className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-background from-[68%] via-background/96 via-[82%] to-background/0"
@@ -180,9 +189,10 @@ export default function BottomNav() {
       ) : null}
       <div
         data-testid="bottom-nav-pill"
-        className="cruush-bottom-nav-pill pointer-events-auto relative z-10 mx-auto flex w-full max-w-[23rem] items-center justify-between rounded-full border border-white/10 bg-[color:var(--cruush-black-glass)] px-1.5 pb-1.5 pt-2 shadow-[0_20px_60px_rgba(0,0,0,0.42)] backdrop-blur-[var(--cruush-black-glass-blur)] transition-transform"
+        className={`cruush-bottom-nav-pill pointer-events-auto relative z-10 mx-auto flex w-full items-center justify-between rounded-full border border-white/10 bg-[color:var(--cruush-black-glass)] px-1.5 pb-1.5 pt-2 shadow-[0_20px_60px_rgba(0,0,0,0.42)] backdrop-blur-[var(--cruush-black-glass-blur)] transition-transform ${outsideServiceArea ? 'max-w-[12rem]' : 'max-w-[23rem]'}`}
+        data-capsule-width={outsideServiceArea ? 192 : 368}
       >
-        {navItems.map((item) => {
+        {visibleNavItems.map((item) => {
           const active = isActive(item.path);
           const hasUnread = item.path === '/messages'
             ? unreadMessages

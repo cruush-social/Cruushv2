@@ -673,7 +673,7 @@ export default function ProfileView() {
             <div className="mt-2 flex flex-wrap gap-1.5" data-testid="profile-overlay-vibes">
               {profileView.vibes.slice(0, 3).map((vibe) => (
                 <span
-                  className="rounded-full border px-2 py-0.5 text-[11px] uppercase leading-tight tracking-[0.08em]"
+                  className="max-w-full min-w-0 truncate rounded-full border px-2 py-1 text-sm uppercase leading-tight tracking-[0.08em]"
                   key={vibe}
                   style={vibeCapsuleStyle(resolveVibeTone({
                     mutual: profileView.relationship?.mutual_cruush,

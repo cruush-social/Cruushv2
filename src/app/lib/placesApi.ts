@@ -56,7 +56,7 @@ export type PlaceDetailRecord = PlaceRecord & {
     count: number;
     viewerRating: number | null;
   }>;
-  viewerCheckin: { visible: boolean; checkedInAt: string; expiresAt: string } | null;
+  viewerCheckin: { visible: boolean; visibility: 'hidden' | 'public' | 'checked_in'; checkedInAt: string; expiresAt: string } | null;
 };
 
 export type PlaceRatingCategory = 'overall' | 'gender_inclusivity' | 'lgbtq_friendliness' | 'safety' | 'accessibility' | 'cleanliness';
@@ -153,12 +153,13 @@ export async function checkIntoPlace(placeId: string, input: {
   amenities: PlaceAmenity[];
   durationHours: 1 | 3 | 6 | 12 | 24;
   visible: boolean;
+  visibility: 'hidden' | 'public' | 'checked_in';
   latitude: number;
   longitude: number;
   accuracyMeters: number;
   observedAt: string;
 }) {
-  return requestApi<{ placeId: string; boardPostId: string | null; visible: boolean; expiresAt: string }>(`/api/places/${placeId}/check-ins`, { method: 'POST', body: JSON.stringify(input) });
+  return requestApi<{ placeId: string; boardPostId: string | null; visible: boolean; visibility: 'hidden' | 'public' | 'checked_in'; expiresAt: string }>(`/api/places/${placeId}/check-ins`, { method: 'POST', body: JSON.stringify(input) });
 }
 
 export async function checkOutOfPlace(placeId: string) {

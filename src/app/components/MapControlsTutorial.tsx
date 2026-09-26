@@ -100,7 +100,7 @@ const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'ghost',
     title: 'Ghost Mode',
-    description: 'Ghost Mode does not hide you. It puts a decoy pin on the map that hops around inside a radius you choose, so people see you nearby without seeing where you are. By default the public can see you, and only cruushes can message you or get your precise location. Visibility Controls change that.',
+    description: 'Ghost Mode hides your real pin and shows only a decoy pin that hops around inside the radius you choose. People see the decoy nearby without seeing where you are. By default only cruushes can message you or get your precise location. Visibility Controls change that.',
     actionLabel: 'Open Ghost Mode',
   },
   {

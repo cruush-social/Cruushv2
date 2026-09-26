@@ -88,10 +88,10 @@ export default function DlModeSettings() {
   ];
 
   return (
-    <div className="min-h-screen bg-background pb-20">
+    <div className="min-h-screen overflow-x-hidden bg-background pb-20">
       {/* Desktop popup layout keeps its original header; full-screen matches Ghost Mode. */}
       {desktopPopupLayout ? (
-        <header className="sticky top-0 z-10 border-b border-border bg-card/80 p-4 backdrop-blur-sm">
+        <header className="sticky top-0 z-10 border-b border-border bg-card/80 px-3 py-3 backdrop-blur-sm sm:p-4">
           <div className="flex items-center gap-4">
             <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
               <ArrowLeft className="h-5 w-5" />
@@ -105,8 +105,8 @@ export default function DlModeSettings() {
           <p className="mt-1.5 text-sm text-muted-foreground">Explicit photo controls.</p>
         </header>
       ) : (
-        <header className="sticky top-0 z-10 flex items-center gap-4 border-b border-border bg-card/80 p-4 backdrop-blur-sm">
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+        <header className="sticky top-0 z-10 flex items-center gap-2 border-b border-border bg-card/80 px-3 py-3 backdrop-blur-sm sm:gap-4 sm:p-4">
+          <Button className="shrink-0" variant="ghost" size="icon" onClick={() => navigate(-1)}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="flex min-w-0 items-center gap-3">
@@ -117,8 +117,8 @@ export default function DlModeSettings() {
         </header>
       )}
 
-      <div className={ghostSettingsBodyClassName}>
-        <div className={ghostSettingsCardClassName}>
+      <div className={`${ghostSettingsBodyClassName} min-w-0 !space-y-4 !px-3 !py-4 sm:!space-y-6 sm:!p-6`} data-testid="dl-mode-mobile-body">
+        <div className={`${ghostSettingsCardClassName} min-w-0 !p-3 sm:!p-4`}>
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-start gap-3">
               <DlModeMark active={enabled} className="mt-1 h-5 w-5" />
@@ -132,7 +132,7 @@ export default function DlModeSettings() {
           </div>
         </div>
 
-        <section aria-label="Share explicit images with" className={ghostSettingsCardClassName}>
+        <section aria-label="Share explicit images with" className={`${ghostSettingsCardClassName} min-w-0 !p-3 sm:!p-4`}>
           <p>Share explicit images with</p>
           <div className="mt-3 grid gap-2">
             {nsfwAudienceOptions.map((option) => (
@@ -154,7 +154,7 @@ export default function DlModeSettings() {
         </section>
 
         {enabled ? (
-          <section aria-label="Show only exception" className={ghostSettingsCardClassName}>
+          <section aria-label="Show only exception" className={`${ghostSettingsCardClassName} min-w-0 !p-3 sm:!p-4`}>
             <p>Show only exception</p>
             <div className="mt-3 grid gap-2">
               {[

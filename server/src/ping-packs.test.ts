@@ -12,9 +12,9 @@ describe("Ping packs", () => {
       pingCount: pack.pingCount,
       amountCents: pack.amountCents
     }))).toEqual([
-      { id: "ping_3", pingCount: 3, amountCents: 299 },
-      { id: "ping_10", pingCount: 10, amountCents: 799 },
-      { id: "ping_25", pingCount: 25, amountCents: 1499 }
+      { id: "ping_3", pingCount: 3, amountCents: 999 },
+      { id: "ping_10", pingCount: 10, amountCents: 2499 },
+      { id: "ping_25", pingCount: 25, amountCents: 4999 }
     ]);
     expect(PING_PACKS.map((pack) => pack.name)).toEqual(["3 Pulses", "10 Pulses", "25 Pulses"]);
     expect(() => getPingPack("ping_100")).toThrow(/not available/i);
@@ -39,7 +39,29 @@ describe("Ping packs", () => {
       "intent-1",
       "ping_25",
       25,
-      1499,
+      4999,
+      "USD"
+    ]);
+  });
+
+  it("preserves the recorded amount when an older paid order settles", async () => {
+    const query = vi.fn().mockResolvedValue({ rows: [{ id: "purchase-legacy" }] });
+    await grantPingPackPurchase(
+      { query, end: vi.fn() } as unknown as DbClient,
+      {
+        userId: "user-legacy",
+        cryptoPaymentIntentId: "intent-legacy",
+        pack: getPingPack("ping_10"),
+        amountCents: 799
+      }
+    );
+
+    expect(query.mock.calls[0]?.[1]).toEqual([
+      "user-legacy",
+      "intent-legacy",
+      "ping_10",
+      10,
+      799,
       "USD"
     ]);
   });
@@ -84,8 +106,8 @@ describe.skipIf(!realPostgresUrl)("Ping packs with real PostgreSQL", () => {
          quoted_amount_atomic, confirmed_amount_atomic, wallet_xpub_fingerprint,
          status, idempotency_key, paid_at
        ) values (
-         $1, 'ping_10', 'ping_pack', 'USDC', 'arbitrum', 799,
-         '7990000', '7990000', $2, 'paid', 'ping-pack-postgres', now()
+         $1, 'ping_10', 'ping_pack', 'USDC', 'arbitrum', 2499,
+         '24990000', '24990000', $2, 'paid', 'ping-pack-postgres', now()
        )
        returning id::text as id`,
       [userId, "a".repeat(64)]

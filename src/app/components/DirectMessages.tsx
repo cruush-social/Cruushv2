@@ -30,14 +30,7 @@ import ProfileActionTrio from './ProfileActionTrio';
 import UserActivityCapsule from './UserActivityCapsule';
 import LoadingCardSkeletons from './LoadingCardSkeletons';
 import CruushMatchSettings from './CruushMatchSettings';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from './ui/dialog';
+import AppPageHeader from './AppPageHeader';
 import { shouldMaskPhoto, useDlMode } from '../lib/dlMode';
 import { registerBugButtonSlot } from '../lib/bugButtonSlot';
 import { formatDistanceLabel, useDistancePreferences } from '../lib/distancePreferences';
@@ -103,6 +96,7 @@ function normalizeConversation(raw: any): ConversationThread {
       // server was sending vibes and this discarded them before the card saw.
       vibes: Array.isArray(raw?.user?.vibes) ? raw.user.vibes : undefined,
       travelling: raw?.user?.travelling === true,
+      lastActive: typeof raw?.user?.lastActive === 'string' ? raw.user.lastActive : undefined,
     },
     distance: raw?.distance ?? 'Nearby',
     updatedAt: raw?.updatedAt ?? raw?.timestamp ?? new Date().toISOString(),
@@ -629,32 +623,14 @@ export default function DirectMessages({
   if (embedded && messageSettingsOpen) {
     return (
       <div className="relative min-h-full bg-[#050505] pb-6 text-white" data-testid="embedded-message-settings">
-        <header className="sticky top-0 z-20 flex items-center gap-2 border-b border-white/10 bg-black/88 px-4 pb-4 pt-4 shadow-[0_20px_55px_rgba(0,0,0,0.34)] backdrop-blur-xl">
-          <Button
-            type="button"
-            size="icon"
-            variant="secondary"
-            className="h-11 w-11 rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10"
-            aria-label="Back to Messages"
-            title="Back to Messages"
-            onClick={() => setMessageSettingsOpen(false)}
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <h1 className="min-w-0 flex-1 text-2xl leading-none text-white sm:text-3xl">Message settings</h1>
-          {onClose ? (
-            <Button
-              type="button"
-              size="icon"
-              variant="secondary"
-              className="h-11 w-11 rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10"
-              aria-label="Close Message settings"
-              onClick={onClose}
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          ) : null}
-        </header>
+        <AppPageHeader
+          title="Message settings"
+          onBack={() => setMessageSettingsOpen(false)}
+          backLabel="Back to Messages"
+          onClose={onClose}
+          closeLabel="Close Message settings"
+          bugButtonTestId="embedded-message-settings-bug-button-slot"
+        />
         <CruushMatchSettings embedded />
       </div>
     );
@@ -703,26 +679,18 @@ export default function DirectMessages({
                 >
                   <CruushIcon name="settings" className="h-5 w-5" />
                 </Button>
-              ) : <Dialog open={messageSettingsOpen} onOpenChange={setMessageSettingsOpen}>
-                <DialogTrigger asChild>
-                  <Button
-                    type="button"
-                    size="icon"
-                    aria-label="Message settings"
-                    title="Message settings"
-                    className="h-11 w-11 rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10"
-                  >
-                    <CruushIcon name="settings" className="h-5 w-5" />
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="scrollbar-hide max-h-[calc(100dvh-2rem)] max-w-md overflow-y-auto overscroll-contain rounded-lg border-white/10 bg-background pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
-                  <DialogHeader>
-                    <DialogTitle>Message settings</DialogTitle>
-                    <DialogDescription>Choose who can start a chat with you.</DialogDescription>
-                  </DialogHeader>
-                  <CruushMatchSettings embedded />
-                </DialogContent>
-              </Dialog>}
+              ) : (
+                <Button
+                  type="button"
+                  size="icon"
+                  aria-label="Message settings"
+                  title="Message settings"
+                  className="h-11 w-11 rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10"
+                  onClick={() => navigate('/cruush/settings')}
+                >
+                  <CruushIcon name="settings" className="h-5 w-5" />
+                </Button>
+              )}
               {/* Docked here on every layout; Close stays last. */}
               <div className="h-11 w-11 shrink-0" data-testid="direct-messages-bug-button-slot" ref={registerBugButtonSlot} />
               {embedded && onClose ? (
@@ -1002,7 +970,9 @@ export default function DirectMessages({
                     ) : null}
                   </div>
                   <p className="mt-3 truncate">{conversation.user.name}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">{formatDistanceLabel(conversation.distance, distancePreferences.mode) ?? conversation.distance}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {conversation.kind === 'dm' ? conversation.user.lastActive ?? 'Active recently' : conversation.membersLabel}
+                  </p>
                 </button>
               ))}
             </div>
@@ -1080,7 +1050,9 @@ export default function DirectMessages({
                 metadata={(
                   <button type="button" className="flex h-11 min-w-0 flex-col justify-center gap-0.5 text-left text-xs leading-snug text-white/62 sm:text-sm" onClick={() => openConversation(conversation.id)}>
                     <span className="truncate">{formatRelativeTime(conversation.updatedAt)}</span>
-                    <span className="truncate">{formatDistanceLabel(conversation.distance, distancePreferences.mode) ?? conversation.distance}</span>
+                    <span className="truncate">
+                      {conversation.kind === 'dm' ? conversation.user.lastActive ?? 'Active recently' : conversation.membersLabel}
+                    </span>
                   </button>
                 )}
                 actions={conversation.kind === 'dm' ? (

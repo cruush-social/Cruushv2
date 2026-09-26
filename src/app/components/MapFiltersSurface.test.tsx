@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { useState } from 'react';
 import MapFiltersSurface, { DEFAULT_FILTER_STATE, type FilterState } from './MapFiltersSurface';
 
-function SeekingHarness({ hasCruushPlus = false, onUpgrade = vi.fn() }: { hasCruushPlus?: boolean; onUpgrade?: () => void }) {
+function SeekingHarness({ hasCruushPlus = false, onUpgrade = vi.fn(), showMutualControl = false }: { hasCruushPlus?: boolean; onUpgrade?: () => void; showMutualControl?: boolean }) {
   const [value, setValue] = useState<FilterState>(DEFAULT_FILTER_STATE);
   const [applied, setApplied] = useState<FilterState | null>(null);
 
@@ -17,6 +17,8 @@ function SeekingHarness({ hasCruushPlus = false, onUpgrade = vi.fn() }: { hasCru
         onChange={setValue}
         onClear={() => setValue(DEFAULT_FILTER_STATE)}
         onApply={() => setApplied(value)}
+        mutualCruushesOnly={false}
+        onMutualCruushesOnlyChange={showMutualControl ? () => {} : undefined}
       />
       <output data-testid="applied-identities">{applied?.identities.join(',') ?? ''}</output>
       <output data-testid="applied-mile-high-club">{String(applied?.mileHighClub ?? false)}</output>
@@ -51,6 +53,14 @@ describe('MapFiltersSurface', () => {
   it('does not show a seeking upgrade notice to cruush+ members', () => {
     render(<SeekingHarness hasCruushPlus />);
     expect(screen.queryByText('Basic includes up to 3 seeking filter categories.')).not.toBeInTheDocument();
+  });
+
+  it('labels the map relationship filter as cruushes only without an On suffix', () => {
+    render(<SeekingHarness showMutualControl />);
+
+    const control = screen.getByRole('button', { name: /cruushes only/i });
+    expect(control).toHaveTextContent('cruushes only');
+    expect(control).not.toHaveTextContent(/\bOn\b/);
   });
 
   it('can limit Seeking to active Mile High Club members from Intimacy', () => {

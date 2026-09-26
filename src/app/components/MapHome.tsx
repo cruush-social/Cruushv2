@@ -5,7 +5,6 @@ import { lazy, Suspense, useState, useEffect, useMemo, useRef, useCallback } fro
 import { useLocation, useNavigate, useSearchParams } from 'react-router';
 import { ExternalLink, Mail, MapPin, MessageCircle, X } from 'lucide-react';
 import { Button } from './ui/button';
-import { Input } from './ui/input';
 import { useIsMobile } from './ui/use-mobile';
 import CruushIconImage, { CruushIcon } from './CruushIconImage';
 import CruushPlusButton from './CruushPlusButton';
@@ -91,6 +90,9 @@ import cruushIconWhite from '../assets/ui-icons/cruush-white.png';
 import mileHighClubWhite from '../assets/ui-icons/mile-high-club-white.svg';
 import DlModeMark from './DlModeMark';
 import DlModePhotoPlaceholder from './DlModePhotoPlaceholder';
+import OutsideServiceAreaCard from './OutsideServiceAreaCard';
+import { useMapServiceArea } from './MapServiceAreaContext';
+import { claimWelcomeDay, getWelcomeDayStatus, type WelcomeDayStatus } from '../lib/rewardsApi';
 
 const DISCOVERY_MAP_LIMIT = 500;
 const DISCOVERY_BROWSE_RADIUS_MILES = 50;
@@ -905,8 +907,13 @@ export default function MapHome(_props: MapHomeProps = {}) {
   const mobileVisualViewportBounds = useMobileVisualViewportBounds(isMobile);
   const [users, setUsers] = useState<DiscoveryUser[]>([]);
   const [outsideServiceArea, setOutsideServiceArea] = useState(false);
+  const { setOutsideServiceArea: setMapChromeOutsideServiceArea } = useMapServiceArea();
   const outsideServiceAreaRef = useRef(false);
   outsideServiceAreaRef.current = outsideServiceArea;
+  useEffect(() => {
+    setMapChromeOutsideServiceArea(outsideServiceArea);
+    return () => setMapChromeOutsideServiceArea(false);
+  }, [outsideServiceArea, setMapChromeOutsideServiceArea]);
   const hasRefreshedOutsideLocationRef = useRef(false);
   const [userApproximateLocation, setUserApproximateLocation] = useState<ApproximateCoordinates | null>(null);
   const [travelPin, setTravelPin] = useState<TravelPin | null>(null);
@@ -941,14 +948,9 @@ export default function MapHome(_props: MapHomeProps = {}) {
     radiusMiles: number;
   }>({ query: '', excludedFacilityTypes: [...DEFAULT_EXCLUDED_PLACE_FACILITY_TYPES], tags: [], vibes: [], amenities: [], radiusMiles: 100 });
   const [places, setPlaces] = useState<PlaceRecord[]>([]);
-  // Hiding Spots is a view preference, so it survives a reload.
-  const [spotsVisible, setSpotsVisible] = useState(() => {
-    try {
-      return window.localStorage.getItem('cruush:map-spots-hidden') !== 'true';
-    } catch {
-      return true;
-    }
-  });
+  // Every map visit starts with Spots on. Hiding them is session-only so a
+  // stale preference cannot make the default layer silently disappear.
+  const [spotsVisible, setSpotsVisible] = useState(true);
   const [selectedPlace, setSelectedPlace] = useState<PlaceRecord | null>(null);
   // Keeps the map where the Spot left it after the Spot sheet closes, instead
   // of snapping back to the viewer's own location.
@@ -976,6 +978,9 @@ export default function MapHome(_props: MapHomeProps = {}) {
   const [requestingCity, setRequestingCity] = useState(false);
   const [cityRequestNotice, setCityRequestNotice] = useState<string | null>(null);
   const [cityRequestError, setCityRequestError] = useState<string | null>(null);
+  const [welcomeDayStatus, setWelcomeDayStatus] = useState<WelcomeDayStatus | null>(null);
+  const [claimingWelcomeDay, setClaimingWelcomeDay] = useState(false);
+  const [welcomeDayError, setWelcomeDayError] = useState<string | null>(null);
   const [privacySettings, setPrivacySettings] = useState<PrivacySettings>(DEFAULT_PRIVACY_SETTINGS);
   const [billingStatus, setBillingStatus] = useState<BillingStatus | null>(null);
   const [notificationUnreadCount, setNotificationUnreadCount] = useState(0);
@@ -993,6 +998,22 @@ export default function MapHome(_props: MapHomeProps = {}) {
   const [emailingEventPass, setEmailingEventPass] = useState(false);
   const [joiningEventChat, setJoiningEventChat] = useState(false);
   const dlModeActive = useDlMode();
+
+  useEffect(() => {
+    if (!outsideServiceArea || !currentProfile?.id) return;
+    let active = true;
+    setWelcomeDayError(null);
+    void getWelcomeDayStatus()
+      .then((status) => {
+        if (active) setWelcomeDayStatus(status);
+      })
+      .catch(() => {
+        if (active) setWelcomeDayError('Unable to check your free cruush+ day.');
+      });
+    return () => {
+      active = false;
+    };
+  }, [currentProfile?.id, outsideServiceArea]);
   const [profileLoaded, setProfileLoaded] = useState(false);
   const setMapControlsHovered = useCallback((hovered: boolean) => {
     if (typeof document === 'undefined') {
@@ -2836,6 +2857,21 @@ export default function MapHome(_props: MapHomeProps = {}) {
     }
   };
 
+  const handleWelcomeDayClaim = async () => {
+    if (claimingWelcomeDay || !welcomeDayStatus?.available) return;
+    setClaimingWelcomeDay(true);
+    setWelcomeDayError(null);
+    try {
+      const status = await claimWelcomeDay();
+      setWelcomeDayStatus(status);
+      window.dispatchEvent(new CustomEvent(CRUUSH_PLUS_CHANGED_EVENT, { detail: status }));
+    } catch (claimError) {
+      setWelcomeDayError(claimError instanceof Error ? claimError.message : 'Unable to redeem your free cruush+ day.');
+    } finally {
+      setClaimingWelcomeDay(false);
+    }
+  };
+
   return (
     <div
       className={`cruush-map-shell ${isFiltersOpen || isVisibilityOpen ? 'cruush-map-surface-open' : ''} ${isMobile ? `fixed${mobileVisualViewportBounds ? '' : ' inset-0'}` : 'relative isolate'} overflow-hidden overscroll-none bg-background select-none`}
@@ -2855,9 +2891,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
       >
         <div className="relative flex w-full items-start gap-2 max-[430px]:gap-0.5 sm:gap-2.5">
           <h1 className="sr-only">cruush</h1>
-          {/* cruush+ is its own corner control, so the bar beside it carries
-              nothing but icons. */}
-          <div
+          {!outsideServiceArea ? <div
             className="relative shrink-0"
             data-map-control-hit-layer="true"
             data-testid="map-plus-stack"
@@ -2865,7 +2899,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
             onPointerLeave={() => setMapControlsHovered(false)}
           >
             <CruushPlusButton onClick={() => navigate('/rewards')} />
-          </div>
+          </div> : null}
           <MapTopBar
             setMapControlsHovered={setMapControlsHovered}
             handleFeelingLucky={handleFeelingLucky}
@@ -2877,11 +2911,12 @@ export default function MapHome(_props: MapHomeProps = {}) {
             setSidePanelReturnView={setSidePanelReturnView}
             setSidePanelView={setSidePanelView}
             notificationUnreadCount={notificationUnreadCount}
+            outsideServiceArea={outsideServiceArea}
           />
 
           {/* The bug control is fixed to the corner like cruush+ is, so the bar
               ends before it instead of running underneath it. */}
-            <div
+            {!outsideServiceArea ? <div
               // The whole top layer is pointer-events-none so the map underneath
               // stays draggable; every control in it opts back in. The slot had
               // not, so the bug button it holds looked tappable and was not:
@@ -2893,7 +2928,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
               onPointerEnter={() => setMapControlsHovered(true)}
               onPointerLeave={() => setMapControlsHovered(false)}
               ref={registerBugButtonSlot}
-            />
+            /> : null}
           </div>
         </div>
 
@@ -2909,6 +2944,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
             </div>
           )}
         >
+          <div className={`h-full w-full ${outsideServiceArea ? 'grayscale brightness-[0.68]' : ''}`} data-testid={outsideServiceArea ? 'outside-service-area-map-filter' : undefined}>
           <MapView
             onPinClick={handleMarkerSelect}
             onMapClick={() => {
@@ -2956,45 +2992,34 @@ export default function MapHome(_props: MapHomeProps = {}) {
               : null}
             onMapReady={handleMapReady}
           />
+          </div>
+          {outsideServiceArea ? (
+            <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-[5] bg-black/28" data-testid="outside-service-area-map-overlay" />
+          ) : null}
         </Suspense>
         <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-24 bg-gradient-to-r from-background/65 to-transparent" />
 
         {outsideServiceArea ? (
-          <div className="pointer-events-auto absolute inset-0 z-20 flex items-center justify-center px-4 pb-28 pt-32">
-            <div className="w-full max-w-md rounded-3xl border border-white/14 bg-black/88 p-6 text-center text-white shadow-[0_24px_80px_rgba(0,0,0,0.68)] backdrop-blur-xl">
-              <h2 className="text-2xl font-semibold">NYC open beta</h2>
-              <p className="mt-3 text-sm text-white/72">
-                cruush is testing its open beta within 100 miles of the center of New York.
-              </p>
-              <Button
-                className="mt-5 h-12 w-full rounded-full border border-[#77B9DA]/65 bg-black/88 text-white hover:bg-black/92"
-                onClick={openMileHighClubFromMap}
-                type="button"
-              >
-                <img alt="" aria-hidden="true" className="mr-2 h-5 w-5" src={mileHighClubWhite} />
-                Turn on Mile High Club
-              </Button>
-              <form className="mt-5 flex gap-2" onSubmit={handleCityRequest}>
-                <Input
-                  aria-label="Request a city"
-                  className="h-11 min-w-0 rounded-full border-white/14 bg-black/70 text-white placeholder:text-white/45"
-                  maxLength={120}
-                  onChange={(event) => setRequestedCity(event.target.value)}
-                  placeholder="Request a city"
-                  value={requestedCity}
-                />
-                <Button
-                  className="h-11 shrink-0 rounded-full"
-                  disabled={requestingCity || requestedCity.trim().length < 2 || !currentUserEmail}
-                  type="submit"
-                >
-                  {requestingCity ? 'Sending...' : 'Send'}
-                </Button>
-              </form>
-              {cityRequestNotice ? <p className="mt-3 text-sm text-white/72" role="status">{cityRequestNotice}</p> : null}
-              {cityRequestError ? <p className="mt-3 text-sm text-destructive" role="alert">{cityRequestError}</p> : null}
-            </div>
-          </div>
+          <OutsideServiceAreaCard
+            currentUserEmail={currentUserEmail}
+            onActivate={openMileHighClubFromMap}
+            onRequestedCityChange={(value) => {
+              setRequestedCity(value);
+              setCityRequestError(null);
+              setCityRequestNotice(null);
+            }}
+            onSubmit={handleCityRequest}
+            requestedCity={requestedCity}
+            requestingCity={requestingCity}
+            cityRequestNotice={cityRequestNotice}
+            cityRequestError={cityRequestError}
+            welcomeDayStatus={welcomeDayStatus}
+            claimingWelcomeDay={claimingWelcomeDay}
+            welcomeDayError={welcomeDayError}
+            onClaimWelcomeDay={handleWelcomeDayClaim}
+            onOpenCruushPlus={() => navigate('/rewards')}
+            hasCruushPlus={hasCruushPlus}
+          />
         ) : null}
 
         {error ? (
@@ -3391,11 +3416,6 @@ export default function MapHome(_props: MapHomeProps = {}) {
           spotsVisible={spotsVisible}
           onSpotsVisibleChange={(visible) => {
             setSpotsVisible(visible);
-            try {
-              window.localStorage.setItem('cruush:map-spots-hidden', visible ? 'false' : 'true');
-            } catch {
-              // The preference is a convenience; hiding still works this session.
-            }
           }}
           onSelect={(place) => {
             openSpot(place);

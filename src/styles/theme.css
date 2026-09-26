@@ -217,6 +217,35 @@ html[data-cruush-larger-text] :where([class~="text-[21px]"]) {
 }
 
 @media (max-width: 640px) {
+  /* Alpha report text is the mobile readability floor. Keep desktop and the
+     optional larger-text scale unchanged. */
+  :root:not([data-cruush-larger-text]) {
+    --text-xs: 1rem;
+    --text-xs--line-height: 1.5rem;
+    --text-sm: 1rem;
+    --text-sm--line-height: 1.5rem;
+  }
+
+  :where(
+    [class~="text-[8px]"],
+    [class~="text-[9px]"],
+    [class~="text-[10px]"],
+    [class~="text-[11px]"],
+    [class~="text-[13px]"],
+    [class~="text-[15px]"],
+    [class~="text-[0.62rem]"],
+    [class~="text-[0.65rem]"],
+    [class~="text-[0.68rem]"],
+    [class~="text-[0.7rem]"],
+    [class~="text-[0.72rem]"],
+    [class~="text-[0.8em]"],
+    [class~="text-[0.8rem]"],
+    [class~="text-[0.82875rem]"]
+  ) {
+    font-size: 1rem !important;
+    line-height: 1.25rem;
+  }
+
   /* One row: every control sits in line with the title and the bug button.
      The actions used to drop to a second row, which left them floating under
      the header on phones. */
@@ -869,8 +898,10 @@ html[data-cruush-map-route='open'] [data-testid='alpha-bug-dialog'] {
 
 @media (max-width: 639px) {
   html[data-cruush-map-route='open'] [data-testid='alpha-bug-dialog'] {
-    top: 0 !important;
-    max-height: 100dvh !important;
+    top: 50% !important;
+    width: calc(100vw - 2rem) !important;
+    max-width: 28rem !important;
+    max-height: calc(100dvh - 2rem) !important;
   }
 }
 

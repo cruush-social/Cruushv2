@@ -3,11 +3,10 @@ import TrustRestrictionNotice from './TrustRestrictionNotice';
 import PhotoUploadSpinner from './PhotoUploadSpinner';
 import { useEffect, useId, useRef, useState } from 'react';
 import { DROPDOWN_TRIGGER_CLASS } from '../lib/controlStyles';
-import { formatDistanceLabel, useDistancePreferences } from '../lib/distancePreferences';
 import { registerBugButtonSlot } from '../lib/bugButtonSlot';
 import type { CSSProperties, ChangeEvent, RefObject } from 'react';
 import { useLocation, useParams, useNavigate } from 'react-router';
-import { ArrowLeft, Eye, Image as ImageIcon, ImagePlus, Timer, Star, Trash2, X } from 'lucide-react';
+import { ArrowLeft, Clock3, Eye, Image as ImageIcon, ImagePlus, Timer, Star, Trash2, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Checkbox } from './ui/checkbox';
@@ -262,7 +261,6 @@ export default function PrivateGroupChat({
   onClose?: () => void;
 } = {}) {
   const params = useParams();
-  const distancePreferences = useDistancePreferences();
   // The dock renders this thread without a route of its own.
   const chatId = conversationId ?? params.chatId;
   const navigate = useNavigate();
@@ -1039,10 +1037,12 @@ export default function PrivateGroupChat({
                   <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                     {conversation.user.pronouns ? <span>{conversation.user.pronouns}</span> : null}
                     {conversation.membersLabel ? <span>{conversation.membersLabel}</span> : null}
-                    <span className="inline-flex items-center gap-1">
-                      <CruushIcon name="map" className="size-3 opacity-70" />
-                      {formatDistanceLabel(conversation.distance, distancePreferences.mode)}
-                    </span>
+                    {conversation.kind === 'dm' ? (
+                      <span className="inline-flex items-center gap-1">
+                        <Clock3 className="size-3 opacity-70" />
+                        {conversation.user.lastActive ?? 'Active recently'}
+                      </span>
+                    ) : null}
                   </div>
                 </>
               ) : (

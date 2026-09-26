@@ -59,6 +59,29 @@ describe("migration runner", () => {
     expect(pingPackSql).not.toMatch(/expires_at|expiration/i);
   });
 
+  it("raises Pulse prices without invalidating historical pack grants", async () => {
+    const priceSql = await readFile(
+      path.join(serverRoot, "sql", "193_pulse_pack_prices.sql"),
+      "utf8"
+    );
+
+    expect(priceSql).toContain("amount_cents in (299, 999)");
+    expect(priceSql).toContain("amount_cents in (799, 2499)");
+    expect(priceSql).toContain("amount_cents in (1499, 4999)");
+  });
+
+  it("adds member-controlled site reminders and their notification type", async () => {
+    const reminderSql = await readFile(
+      path.join(serverRoot, "sql", "194_site_reminders.sql"),
+      "utf8"
+    );
+    const migrateSource = await readFile(path.join(currentDir, "migrate.ts"), "utf8");
+
+    expect(reminderSql).toContain("site_reminders_enabled boolean not null default true");
+    expect(reminderSql).toContain("'site_reminder'");
+    expect(migrateSource).toMatch(/"193_pulse_pack_prices\.sql",\s*"194_site_reminders\.sql"/);
+  });
+
   it("keeps cruush+ billing ownership on app users before profile onboarding", async () => {
     const billingSql = await readFile(path.join(serverRoot, "sql", "027_cruush_plus_billing.sql"), "utf8");
     const rewardsSql = await readFile(path.join(serverRoot, "sql", "042_rewards_and_two_factor.sql"), "utf8");

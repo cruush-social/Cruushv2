@@ -198,8 +198,10 @@ function buildAllowance(
   now: Date
 ) {
   const nowMs = now.getTime();
-  const unlimited = false;
-  const limit = entitlement.cruushPlus ? MAP_PING_PLUS_DAILY_LIMIT : MAP_PING_BASIC_DAILY_LIMIT;
+  const unlimited = entitlement.cruushPlus && entitlement.expiresAt === null;
+  const limit = unlimited
+    ? null
+    : entitlement.cruushPlus ? MAP_PING_PLUS_DAILY_LIMIT : MAP_PING_BASIC_DAILY_LIMIT;
   const timestamps = createdAtValues
     .map(toTimestamp)
     .filter((timestamp) => Number.isFinite(timestamp) && timestamp > nowMs - MAP_PING_WINDOW_MS)

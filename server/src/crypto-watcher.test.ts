@@ -354,6 +354,7 @@ describe("settling one intent", () => {
         id: intentId,
         user_id: userId,
         plan_id: "ping_10",
+        amount_usd_cents: 799,
         product_type: "ping_pack",
         status: "awaiting_payment",
         payment_address: paymentAddress,

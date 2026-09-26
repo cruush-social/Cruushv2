@@ -58,6 +58,14 @@ type BitcoinMonitoringCapacityAlertEmailInput = {
   logger: FastifyBaseLogger;
 };
 
+type WeeklyOrderReportEmailInput = {
+  config: AppConfig;
+  csv: string;
+  logger: FastifyBaseLogger;
+  weekEnd: string;
+  weekStart: string;
+};
+
 export type SupportRequestEmailInput = {
   category: string;
   contactEmail: string | null;
@@ -812,6 +820,31 @@ export async function sendBitcoinMonitoringCapacityAlertEmail(input: BitcoinMoni
     text,
     failureMessage: "bitcoin monitoring capacity email delivery failed"
   });
+}
+
+export async function sendWeeklyOrderReportEmail(input: WeeklyOrderReportEmailInput) {
+  const { config, csv, logger, weekEnd, weekStart } = input;
+  if (!config.RESEND_API_KEY || !config.MAIL_FROM) {
+    logger.info({ weekStart }, "weekly order report email skipped, mail is not configured");
+    return { accepted: false, providerMessageId: null };
+  }
+
+  const delivery = await sendResendEmail({
+    attachments: [{
+      content: Buffer.from(csv, "utf8").toString("base64"),
+      filename: `cruush-orders-${weekStart}.csv`
+    }],
+    config,
+    email: OWNER_FULL_ACCESS_EMAIL,
+    idempotencyKey: `weekly-orders/${weekStart}`,
+    logger,
+    subject: `cruush weekly orders: ${weekStart} to ${weekEnd}`,
+    html: `<p>The completed weekly cruush order report for <strong>${escapeHtml(weekStart)}</strong> through <strong>${escapeHtml(weekEnd)}</strong> is attached.</p>`,
+    text: `The completed weekly cruush order report for ${weekStart} through ${weekEnd} is attached.`,
+    failureMessage: "weekly order report email delivery failed"
+  });
+
+  return { accepted: true, providerMessageId: delivery.providerMessageId };
 }
 
 type AgeSuspensionAppealEmailInput = {

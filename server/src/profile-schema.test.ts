@@ -34,6 +34,18 @@ describe("profile schema", () => {
     expect(parsed.sexuality).toEqual(["queer", "pansexual", "bisexual"]);
   });
 
+  it("accepts ten hobbies and trims older selections beyond the cruush+ cap", () => {
+    const hobbies = Array.from({ length: 11 }, (_, index) => `Hobby ${index + 1}`);
+    const parsed = profilePayloadSchema.parse({
+      ...emptyProfile,
+      display_name: "Cruusher",
+      year_of_birth: 1994,
+      hobbies
+    });
+
+    expect(parsed.hobbies).toEqual(hobbies.slice(1));
+  });
+
   it("accepts only PING as the optional location sync reason", () => {
     const ordinaryLocation = profileLocationPayloadSchema.parse({
       lat: 40.711,

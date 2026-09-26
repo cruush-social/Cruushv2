@@ -86,7 +86,7 @@ export default function PrivacyAudit() {
   const visibleWhere = privacySettings.baseMode === 'STEALTH'
     ? 'Hidden from discovery while Dark Room is on'
     : privacySettings.ghostModeEnabled || privacySettings.baseMode === 'GHOST'
-      ? `Visible, with a decoy pin moving inside ${privacySettings.ghostRadiusLabel}`
+      ? `Only a decoy pin is visible inside ${privacySettings.ghostRadiusLabel}`
       : 'Live map location';
   const whoCanMessage = messageVisibility === 'public'
     ? 'Public'

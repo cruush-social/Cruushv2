@@ -237,4 +237,35 @@ describe('ProfileCard', () => {
     expect(screen.queryByTestId('carousel-profile-photo-hearts')).not.toBeInTheDocument();
     expect(getProfileById).not.toHaveBeenCalled();
   });
+
+  it('shows a large DL Mode icon and label on a masked carousel card', () => {
+    window.localStorage.setItem('cruush:dl-mode-enabled', 'true');
+
+    render(
+      <MemoryRouter>
+        <ProfileCard
+          density="compact"
+          fillAvailableHeight
+          placement="inline"
+          presentation="carousel"
+          user={{
+            id: 'user-explicit',
+            name: 'Jordan',
+            photo: '/explicit-card.jpg',
+            photoExplicit: true,
+            photo_metadata: [{ url: '/explicit-card.jpg', explicit: true }],
+            lookingFor: [],
+            vibes: [],
+          }}
+          onClose={vi.fn()}
+          onViewProfile={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    const placeholder = screen.getByTestId('dl-mode-photo-placeholder');
+    expect(placeholder).toHaveClass('w-28');
+    expect(placeholder.querySelector('text')).toHaveTextContent('DL MODE ON');
+    expect(screen.queryByTestId('carousel-profile-photo')).not.toBeInTheDocument();
+  });
 });

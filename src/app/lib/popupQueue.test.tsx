@@ -18,12 +18,14 @@ describe('useExclusivePopup', () => {
         <Prompt id="first-feed-post" wants />
         <Prompt id="dl-mode-default" wants />
         <Prompt id="mobile-install" wants />
+        <Prompt id="pulse-gesture" wants />
       </>,
     );
 
     expect(screen.getByTestId('dl-mode-default')).toBeInTheDocument();
     expect(screen.queryByTestId('first-feed-post')).not.toBeInTheDocument();
     expect(screen.queryByTestId('mobile-install')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('pulse-gesture')).not.toBeInTheDocument();
   });
 
   it('hands the screen to the next prompt once the holder stops wanting it', () => {

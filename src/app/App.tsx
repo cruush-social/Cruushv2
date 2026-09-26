@@ -21,6 +21,7 @@ import { refreshExistingPushSubscription } from './lib/pushNotifications';
 import type { ProfileRecord } from './lib/profileApi';
 import AccessibilityQuickAccess from './components/AccessibilityQuickAccess';
 import LoadingCardSkeletons from './components/LoadingCardSkeletons';
+import { MapServiceAreaProvider } from './components/MapServiceAreaContext';
 
 const MapHome = lazyRoute(() => import('./components/MapHome'));
 const LocalFeed = lazyRoute(() => import('./components/LocalFeed'));
@@ -41,6 +42,7 @@ const NotificationCenter = lazyRoute(() => import('./components/NotificationCent
 const NotificationSettings = lazyRoute(() => import('./components/NotificationSettings'));
 const ForegroundNotifications = lazyRoute(() => import('./components/ForegroundNotifications'));
 const MobileInstallPrompt = lazyRoute(() => import('./components/MobileInstallPrompt'));
+const PulseGesturePrompt = lazyRoute(() => import('./components/PulseGesturePrompt'));
 const ReportPage = lazyRoute(() => import('./components/ReportPage'));
 const ModeratorReview = lazyRoute(() => import('./components/ModeratorReview'));
 const CruushActivity = lazyRoute(() => import('./components/CruushActivity'));
@@ -240,6 +242,7 @@ export default function App({
   }, [authStatus, session?.user.id]);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
   const [showOnboardingReward, setShowOnboardingReward] = useState(false);
+  const [showPulseGestureIntro, setShowPulseGestureIntro] = useState(false);
   // The admin onboarding test renders through the same screen a new member
   // gets, outside the signed-in app shell, so the two cannot drift apart.
   const [onboardingReplayActive, setOnboardingReplayActive] = useState(false);
@@ -329,6 +332,7 @@ export default function App({
 
   const handleSignedOut = () => {
     setShowOnboardingReward(false);
+    setShowPulseGestureIntro(false);
     setSession(null);
     setNeedsOnboarding(false);
     setAuthStatus('signed_out');
@@ -340,6 +344,7 @@ export default function App({
     rewardGranted = false,
   ) => {
     setShowOnboardingReward(rewardGranted);
+    setShowPulseGestureIntro(true);
     if (nextSession) {
       setSession(nextSession);
       setNeedsOnboarding(nextSession.needsOnboarding);
@@ -626,6 +631,7 @@ export default function App({
       <GoogleAnalyticsPageTracker />
       <AppErrorBoundary>
         <AppViewport>
+          <MapServiceAreaProvider>
           <Suspense fallback={<RouteLoading />}>
             <Routes>
               <Route path="/" element={<Navigate to="/map" replace />} />
@@ -686,12 +692,14 @@ export default function App({
             </Routes>
             <MobileInstallPrompt />
             <DlModeDefaultNotice />
+            <PulseGesturePrompt pending={showPulseGestureIntro} userId={session.user.id} />
             <ForegroundNotifications showLatestRewardOnFirstPoll={showOnboardingReward} />
             <EarnedCruushPlusCards key={session.user.id} userId={session.user.id} />
             <DebugCruushPlusToggle />
             {alphaBugControl}
           </Suspense>
           <BottomNav />
+          </MapServiceAreaProvider>
           <Toaster closeButton position="top-center" richColors />
         </AppViewport>
       </AppErrorBoundary>

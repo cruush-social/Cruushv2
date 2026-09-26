@@ -7,7 +7,7 @@ export const PING_PACKS = [
     name: "3 Pulses",
     description: "3 permanent Pulse credits",
     pingCount: 3,
-    amountCents: 299,
+    amountCents: 999,
     currency: "USD"
   },
   {
@@ -15,7 +15,7 @@ export const PING_PACKS = [
     name: "10 Pulses",
     description: "10 permanent Pulse credits",
     pingCount: 10,
-    amountCents: 799,
+    amountCents: 2499,
     currency: "USD"
   },
   {
@@ -23,7 +23,7 @@ export const PING_PACKS = [
     name: "25 Pulses",
     description: "25 permanent Pulse credits",
     pingCount: 25,
-    amountCents: 1499,
+    amountCents: 4999,
     currency: "USD"
   }
 ] as const;
@@ -46,6 +46,7 @@ export async function grantPingPackPurchase(
     userId: string;
     cryptoPaymentIntentId: string;
     pack: PingPack;
+    amountCents?: number;
   }
 ) {
   const result = await db.query<{ id: string }>(
@@ -64,7 +65,7 @@ export async function grantPingPackPurchase(
       input.cryptoPaymentIntentId,
       input.pack.id,
       input.pack.pingCount,
-      input.pack.amountCents,
+      input.amountCents ?? input.pack.amountCents,
       input.pack.currency
     ]
   );

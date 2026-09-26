@@ -1200,6 +1200,13 @@ describe('MapHome', () => {
       );
 
       await screen.findByRole('button', { name: 'Turn on Mile High Club' });
+      expect(screen.getByText('One free day of cruush+')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'cruush+ rewards' })).toBeInTheDocument();
+      expect(screen.getByTestId('outside-service-area-map-filter')).toHaveClass('grayscale', 'brightness-[0.68]');
+      expect(screen.getByTestId('outside-service-area-map-overlay')).toBeInTheDocument();
+      expect(screen.getByTestId('map-top-actions')).toHaveAttribute('data-capsule-width', '128');
+      expect(screen.queryByTestId('map-plus-stack')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('map-bug-button-slot')).not.toBeInTheDocument();
       await waitFor(() => expect(query).toHaveBeenCalled());
       expect(getCurrentPosition).not.toHaveBeenCalled();
     } finally {
@@ -3773,6 +3780,7 @@ describe('MapHome', () => {
     await openMapControls();
     fireEvent.click(await screen.findByTestId('map-places-button'));
     fireEvent.click(await screen.findByText(/^Spot filters/));
+    expect(screen.getByRole('button', { name: /^Spot filters/ })).toHaveAttribute('data-slot', 'accordion-trigger');
     const buses = await screen.findByRole('switch', { name: 'Show Bus stops' });
     const parks = screen.getByRole('switch', { name: 'Show Park' });
     expect(buses).not.toBeChecked();
@@ -3785,17 +3793,15 @@ describe('MapHome', () => {
     })));
 
     const allSpots = screen.getByRole('switch', { name: 'Show Spots on the map' });
+    expect(allSpots.closest('div')).toHaveClass('w-fit', 'rounded-full');
     fireEvent.click(allSpots);
     expect(allSpots).not.toBeChecked();
-    expect(window.localStorage.getItem('cruush:map-spots-hidden')).toBe('true');
     fireEvent.click(allSpots);
     expect(allSpots).toBeChecked();
-    expect(window.localStorage.getItem('cruush:map-spots-hidden')).toBe('false');
-    window.localStorage.removeItem('cruush:map-spots-hidden');
+    expect(window.localStorage.getItem('cruush:map-spots-hidden')).toBeNull();
   });
 
-  it('keeps Spot pins off the map when Spots are hidden', async () => {
-    // The preference lives in storage so it survives a reload.
+  it('starts each map visit with Spots visible despite a stale hidden preference', async () => {
     window.localStorage.setItem('cruush:map-spots-hidden', 'true');
     useIsMobile.mockReturnValue(false);
     getNearbyUsers.mockResolvedValue([]);
@@ -3817,7 +3823,7 @@ describe('MapHome', () => {
     );
 
     await waitFor(() => expect(getPlaces).toHaveBeenCalled());
-    await waitFor(() => expect(screen.queryByTestId('marker-place-place-1')).not.toBeInTheDocument());
+    expect(await screen.findByTestId('marker-place-place-1')).toBeInTheDocument();
     expect(getPlaces).toHaveBeenNthCalledWith(1, expect.objectContaining({
       excludedFacilityTypes: ['bus_stop'],
     }));

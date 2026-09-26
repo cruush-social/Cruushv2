@@ -198,9 +198,9 @@ describe("crypto payment routes", () => {
       data: {
         currency: "USD",
         packs: [
-          expect.objectContaining({ id: "ping_3", pingCount: 3, amountCents: 299 }),
-          expect.objectContaining({ id: "ping_10", pingCount: 10, amountCents: 799 }),
-          expect.objectContaining({ id: "ping_25", pingCount: 25, amountCents: 1499 })
+          expect.objectContaining({ id: "ping_3", pingCount: 3, amountCents: 999 }),
+          expect.objectContaining({ id: "ping_10", pingCount: 10, amountCents: 2499 }),
+          expect.objectContaining({ id: "ping_25", pingCount: 25, amountCents: 4999 })
         ]
       }
     });

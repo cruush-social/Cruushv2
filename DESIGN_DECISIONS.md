@@ -6,6 +6,12 @@ The notched cruush logo is rejected for every app use, including installed home-
 
 - September 25 app chrome: “I prefer close buttons on app on the left hand” and “I thought we made a compontent for headers? They're inconsistent.” App page headers use the shared one-line header component, and Close is the leftmost header/dialog/sheet control. Preserve each screen's existing title, actions, Bug slot and behavior while migrating it. Source: GitHub issues #305 and #312, reported September 25, 2026.
 
+- September 26 mobile follow-up: “I told you no taglines in header.” Headers contain the page or panel title and their controls, not a tagline beneath the title. Source: GitHub issue #318.
+
+- Ghost Mode description: “you aren't visible, only the decoy is.” Ghost Mode hides the member's real pin from others and shows the moving decoy pin. This is a copy correction only; existing privacy behavior stays unchanged. Source: GitHub issue #320, September 26, 2026.
+
+- New-member Pulse intro: after the existing first-login intro queue is finished, wait 30 seconds and show the Pulse control and gesture once. Source: GitHub issue #321, September 26, 2026.
+
 - The signed-in owner’s real map pin and owner-only Ghost decoy always remain individual markers at their existing coordinates, at every zoom. Never replace either with a numbered people cluster or include either in its count. Owner artwork and tap targets remain above nearby cluster counts without automatic position offsets. Other members retain existing clustering, same-building spiderfy and Ghost expiry. This corrects the owner inclusion introduced by the September 10 spiderfy repair. Source: task `01a08e63-fb72-7070-886b-c162d77b31d9`, user message at transcript line 9, September 10, 2026.
 
 - September 10 Spot curation: substantially reduce remaining Sniffies user pins, including random micro-locations, stair/bathroom sublocations, office-building cruising pins, retail bathrooms and retail parking lots, and duplicate or misspelled versions of the same venue. Verify real venues against OpenStreetMap; retain dungeons and adult venues, identifiable parks, gyms, public parking facilities, hotels and actual bus/train/shuttle stations, comparable real venues and distinct chain branches. Explicit retail-parking removal supersedes earlier broad parking-lot preservation. For venue/venue-bathroom pairs retain the actual venue. Preserve all non-Sniffies records and member data; use recoverable archival. Continue collecting cruush member submissions privately for review, and do not merge a different nearby venue solely by proximity. Sources: task `01a08c91-a340-7b92-95aa-f137c8bf7b16`, user lines1110,1128,1138,1140,1326,1352.
@@ -252,3 +258,18 @@ The default was changed from false to true in commit `13f4bcd` (September 8, 202
 ## No badge selection in onboarding, September 21, 2026
 
 Julien: "No badge selection in onboarding", confirmed with "Yes remove badge selection" (task `01a0c25e-2b46-7c32-9872-961a9d7daa33`). Remove the custom badge-selection rite from the shared member onboarding and its previews. Preserve the Role/Position rite, its existing default badge behavior, saved badge choices, the badge editor outside onboarding, and every other rite and safeguard. Existing drafts on the removed rite continue to 2FA; later drafts retain their corresponding rite. This supersedes the earlier optional badge-selection onboarding decision.
+
+## Onboarding rite headings, September 26, 2026
+
+The red rite name is the only heading above each onboarding step and uses the larger heading treatment. Do not place a title, tagline, helper sentence, optional label, or other descriptive copy directly beneath it. Field-specific labels and instructions remain inside the step content where needed. Source: Julien, “no taglines under red text head and larger red text head.”
+### 2026-09-26 — Engagement prompts are “Site reminders”
+
+Julien: “Program cruush to send periodic notifications for engagement throughout the week, make this a setting idk what to call them tho? Maybe site reminders?” and “Make app encoruage periodically to share affliate link make these under site reminders.”
+
+- Weekly engagement and affiliate-share prompts use the member-facing setting label “Site reminders.”
+- Site reminders are bounded and deduplicated, and remain subject to push permission and do-not-disturb behavior.
+- Site reminders may encourage nearby Feed reading, Feed posting and Pulse usage on separate weekdays, in addition to affiliate sharing and the existing weekend prompt. They remain limited to one deduplicated reminder per scheduled day.
+
+## Mobile text floor, September 26, 2026
+
+On mobile, text that would otherwise render smaller than the 16px alpha-report text uses 16px as its minimum readable size. This does not resize headings or icons, does not change desktop typography, and does not replace the optional larger-text setting. Source: Julien, “Pls just make fonts that are smaller than the one i wrote this in, big as this size.”

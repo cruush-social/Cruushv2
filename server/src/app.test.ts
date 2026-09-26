@@ -4089,6 +4089,7 @@ describe("server", () => {
           other_user_name: "Alex",
           other_user_pronouns: ["they/them"],
           other_user_photo: "https://example.com/alex.jpg",
+          other_user_last_active: "2026-04-29T11:48:00.000Z",
           member_count: 2
         }]
       })
@@ -4119,7 +4120,8 @@ describe("server", () => {
           photo: "https://example.com/alex.jpg",
           photoExplicit: false,
           photoRelationship: { isMutualCruush: true, sharesCrowd: false },
-          travelling: false
+          travelling: false,
+          lastActive: expect.any(String)
         },
         distance: "Nearby",
         updatedAt: "2026-04-29T12:00:00.000Z",
@@ -14304,6 +14306,35 @@ describe("server", () => {
     });
   });
 
+  it("requires cruush+ before a profile saves more than three hobbies", async () => {
+    query.mockResolvedValue({ rows: [] });
+
+    const response = await app.inject({
+      method: "PUT",
+      url: "/api/profiles/me",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        ...emptyProfile,
+        display_name: "Cruusher",
+        year_of_birth: 1994,
+        hobbies: ["Hiking", "Gaming", "Cooking", "Travel"]
+      }
+    });
+
+    expect(response.statusCode).toBe(402);
+    expect(response.json()).toEqual({
+      error: {
+        code: "CRUUSH_PLUS_REQUIRED",
+        message: "Upgrade to cruush+ to add up to 10 hobbies.",
+        details: null
+      }
+    });
+    expect(query.mock.calls.some((call) => String(call[0]).includes("from user_entitlements"))).toBe(true);
+    expect(query.mock.calls.some((call) => String(call[0]).includes("insert into profiles"))).toBe(false);
+  });
+
   // The profile insert column list grows with the taxonomy, so read each value
   // back by column name instead of pinning a positional index that shifts every
   // time a field is added.
@@ -16047,6 +16078,8 @@ describe("server", () => {
     expect(response.json().page).toEqual({ limit: 23, offset: 46, hasMore: false });
     expect(listSql).toContain(`order by ${expectedOrder}`);
     expect(listSql).toContain("limit $10 offset $11");
+    expect(listSql).toContain("c.visibility_scope = 'public'");
+    expect(listSql).toContain("c.visibility_scope = 'checked_in'");
     expect(listCall?.[1]).toEqual(expect.arrayContaining([100, 23, 46]));
     // The page stays bounded, and both radius limits still apply: the viewport
     // radius and the independent NYC service-area radius.
@@ -16224,8 +16257,8 @@ describe("server", () => {
     expect(boardInsertParams).not.toContain(content);
     expect(boardInsertParams).toHaveLength(6);
     // The check-in itself still expires on the requested schedule.
-    expect(checkinInsertSql).toContain("now() + ($4::int * interval '1 hour')");
-    expect(checkinInsertParams).toEqual([userId, placeId, true, 3]);
+    expect(checkinInsertSql).toContain("now() + ($5::int * interval '1 hour')");
+    expect(checkinInsertParams).toEqual([userId, placeId, true, "public", 3]);
     expect(decryptTextContent(app.config, "feed", {
       ciphertext: String(boardInsertParams[2]),
       nonce: String(boardInsertParams[3]),
@@ -16326,6 +16359,8 @@ describe("server", () => {
     expect(peopleSql).toContain("b.blocker_user_id = $2 and b.blocked_user_id = c.user_id");
     expect(peopleSql).toContain("b.blocker_user_id = c.user_id and b.blocked_user_id = $2");
     expect(peopleSql).toContain("c.visible = true and c.expires_at > now()");
+    expect(peopleSql).toContain("c.visibility_scope = 'public'");
+    expect(peopleSql).toContain("c.visibility_scope = 'checked_in'");
     expect(queries.some((sql) => sql.includes("encrypted_relationship_records"))).toBe(true);
     expect(queries.every((sql) => !sql.includes("cruush_matches"))).toBe(true);
     expect(popularTimesSql).toContain("bucket_start >= now() - interval '90 days'");

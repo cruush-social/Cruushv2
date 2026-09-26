@@ -72,6 +72,7 @@ export const placeCheckinSchema = z.object({
     z.literal(1), z.literal(3), z.literal(6), z.literal(12), z.literal(24), z.literal(168), z.null()
   ]).optional(),
   visible: z.boolean().default(false),
+  visibility: z.enum(["hidden", "public", "checked_in"]).optional(),
   ...coordinatesSchema,
   accuracyMeters: z.number().nonnegative().max(402.336),
   observedAt: z.string().datetime()

@@ -304,7 +304,7 @@ describe.skipIf(!databaseUrl)('Bitcoin order creation in PostgreSQL', () => {
   afterAll(async () => { if (db) await db.end(); });
   const products = [
     ['/api/crypto/payment-intents', 'planId', 'plus_monthly', 1899],
-    ['/api/crypto/ping-pack-intents', 'packId', 'ping_10', 799]
+    ['/api/crypto/ping-pack-intents', 'packId', 'ping_10', 2499]
   ] as const;
   const request = (product: readonly [string, string, string, number], key = randomUUID(), sendingApp = 'wallet') => ({
     method: 'POST' as const, url: product[0], headers: { 'x-user-id': user },

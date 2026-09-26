@@ -5,7 +5,9 @@ import { getModeratorUser } from "../moderator-auth.js";
 import { getActiveAccountUserId, getAuthenticatedUserId } from "../request-auth.js";
 import { getReferralInfo, qualifyPendingReferrals } from "../referrals-service.js";
 import {
+  claimWelcomeDay,
   getOwnedRewardGrant,
+  getWelcomeDayStatus,
   getRewardSummary,
   normalizeTimeZone,
   recordMeaningfulActivity,
@@ -131,6 +133,16 @@ export async function registerRewardRoutes(app: FastifyInstance) {
     const userId = await getAuthenticatedUserId(request);
     const summary = await getRewardSummary(app, userId);
     return reply.send({ data: summary.recentGrants });
+  });
+
+  app.get("/api/rewards/welcome-day", async (request, reply) => {
+    const userId = await getAuthenticatedUserId(request);
+    return reply.send({ data: await getWelcomeDayStatus(app, userId) });
+  });
+
+  app.post("/api/rewards/welcome-day/claim", async (request, reply) => {
+    const userId = await getActiveAccountUserId(request);
+    return reply.send({ data: await claimWelcomeDay(app, userId) });
   });
 
   app.get("/api/rewards/grants/:grantId", async (request, reply) => {

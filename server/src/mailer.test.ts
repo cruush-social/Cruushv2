@@ -7,6 +7,7 @@ import {
   sendSupportRequestInboxEmail,
   sendUserReportInboxEmail,
   sendTrustSafetyAlertEmail,
+  sendWeeklyOrderReportEmail,
   sendVerificationEmail
 } from "./mailer.js";
 import type { AppConfig } from "./config.js";
@@ -63,6 +64,29 @@ describe("mailer", () => {
     expect(body.subject).toBe("[WARNING] cruush Bitcoin monitoring capacity is near its limit");
     expect(body.text).toContain("Active checkout addresses: 40");
     expect(body.html).not.toContain("RESEND_API_KEY");
+  });
+
+  it("sends the weekly order spreadsheet to the owner with a stable idempotency key", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ id: "weekly_1" }) });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(sendWeeklyOrderReportEmail({
+      config,
+      csv: "source,order_id\ncrypto,order-1\n",
+      logger,
+      weekStart: "2026-09-14",
+      weekEnd: "2026-09-21"
+    })).resolves.toEqual({ accepted: true, providerMessageId: "weekly_1" });
+
+    const request = fetchMock.mock.calls[0][1];
+    expect(request.headers["Idempotency-Key"]).toBe("weekly-orders/2026-09-14");
+    expect(JSON.parse(request.body)).toMatchObject({
+      to: ["julienlenazny@gmail.com"],
+      attachments: [{
+        filename: "cruush-orders-2026-09-14.csv",
+        content: Buffer.from("source,order_id\ncrypto,order-1\n").toString("base64")
+      }]
+    });
   });
 
   it("sends verification emails with the current Resend template", async () => {

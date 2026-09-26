@@ -37,6 +37,8 @@ import CruushPlusWord from './CruushPlusWord';
 import MultiSelect from './MultiSelect';
 import LoadingCardSkeletons from './LoadingCardSkeletons';
 import cruushLogo from '../assets/brand/cruush-logo.svg';
+import LaunchLoginMapTeaser from './LaunchLoginMapTeaser';
+import './ProfileOnboarding.css';
 
 interface ProfileOnboardingProps {
   onComplete: (session?: AuthSessionPayload, destination?: 'map' | 'rewards', rewardGranted?: boolean) => void;
@@ -69,57 +71,17 @@ const PROFILE_STEPS: OnboardingStep[] = [
   'rolePosition',
 ];
 
-const STEP_COPY: Record<OnboardingStep, { rite: string; title: string; detail: string }> = {
-  name: {
-    rite: 'speak your name',
-    title: 'What should the room call you?',
-    detail: 'This is the name other members see first.',
-  },
-  identities: {
-    rite: 'name your form',
-    title: 'Choose the words that fit.',
-    detail: 'Pick up to 3.',
-  },
-  crowds: {
-    rite: 'find your crowd',
-    title: 'Choose your crowds.',
-    detail: 'Optional. Think of crowds like gay or dyke bars: shared social spaces, not identity labels. Pick up to 3. Find Crowd Mode in Map Controls > Visibility. Turn it on to be seen only by people in your selected crowds. Choosing crowds here does not turn it on.',
-  },
-  lookingFor: {
-    rite: 'declare your hunger',
-    title: 'What are you seeking tonight?',
-    detail: 'Pick up to 3.',
-  },
-  vibes: {
-    rite: 'reveal your aura',
-    title: 'Set the signal around you.',
-    detail: 'Optional. Pick up to 3.',
-  },
-  bio: {
-    rite: 'leave your confession',
-    title: 'Give them a reason to look twice.',
-    detail: 'Optional. Keep it real, specific, and safe.',
-  },
-  rolePosition: {
-    rite: 'name your role',
-    title: 'Choose your role and position.',
-    detail: 'These become your default left and right badges.',
-  },
-  oath: {
-    rite: 'take the oath',
-    title: 'Before the map opens.',
-    detail: 'Every member agrees to the cruush code of conduct.',
-  },
-  twoFactor: {
-    rite: 'protect your key',
-    title: 'Set up 2FA?',
-    detail: 'Optional. New accounts can receive one free day of cruush+ when 2FA is enabled.',
-  },
-  affiliateShare: {
-    rite: 'summon your circle',
-    title: 'Share your affiliate link.',
-    detail: 'Optional. Send it to trusted contacts before you enter the map.',
-  },
+const STEP_COPY: Record<OnboardingStep, { rite: string }> = {
+  name: { rite: 'speak your name' },
+  identities: { rite: 'name your form' },
+  crowds: { rite: 'find your crowd' },
+  lookingFor: { rite: 'declare your hunger' },
+  vibes: { rite: 'reveal your aura' },
+  bio: { rite: 'leave your confession' },
+  rolePosition: { rite: 'name your role' },
+  oath: { rite: 'take the oath' },
+  twoFactor: { rite: 'protect your key' },
+  affiliateShare: { rite: 'summon your circle' },
 };
 
 function limitToThree(values: string[]) {
@@ -798,14 +760,16 @@ export default function ProfileOnboarding({
   return (
     <div
       ref={scrollContainerRef}
-      className={`${constrainedViewport ? 'h-full' : 'h-[100dvh]'} flex max-w-full flex-col items-center ${signedCodeOfConductAt ? 'justify-start' : 'justify-center'} overflow-hidden bg-[#050505] px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-[calc(max(0.75rem,env(safe-area-inset-top))+var(--onboarding-pan-offset,0px))] text-foreground sm:px-4`}
+      className={`${constrainedViewport ? 'h-full' : 'h-[100dvh]'} relative isolate flex max-w-full flex-col items-center ${signedCodeOfConductAt ? 'justify-start' : 'justify-center'} overflow-y-auto bg-black/20 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-[calc(max(0.75rem,env(safe-area-inset-top))+var(--onboarding-pan-offset,0px))] text-foreground sm:px-4`}
     >
-      <div ref={stepContentRef} className="flex w-full shrink-0 flex-col">
+      <div className="onboarding-map-teaser-layer pointer-events-none absolute inset-0 opacity-95">
+        <LaunchLoginMapTeaser fasterPulses pulseStep={step} showVideo={false} />
+      </div>
+      <div ref={stepContentRef} className="relative z-10 flex w-full max-w-md shrink-0 flex-col">
         <header className="mb-4 text-center sm:mb-6">
-          <img className="cruush-brand-logo mx-auto mb-2 h-auto w-24" src={cruushLogo} alt="cruush" />
-          <p className="mt-2 text-center text-xl font-semibold text-white/72">the rites</p>
+          <img className="cruush-brand-logo mx-auto mb-2 h-auto w-20" src={cruushLogo} alt="cruush" />
         </header>
-        <div className="w-full space-y-5 rounded-lg border border-white/12 bg-black/82 p-4 shadow-[0_28px_90px_rgba(0,0,0,0.52)] backdrop-blur sm:space-y-8 sm:p-6">
+        <div className="onboarding-glass-panel relative w-full space-y-5 overflow-hidden rounded-lg border border-white/25 bg-black/48 p-4 shadow-[0_28px_90px_rgba(0,0,0,0.52)] backdrop-blur-xl backdrop-saturate-150 sm:space-y-8 sm:p-6" data-testid="onboarding-glass-panel">
         {saveError ? (
           <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
             {saveError}
@@ -819,13 +783,10 @@ export default function ProfileOnboarding({
             />
           ))}
         </div>
-        <div className="space-y-2 text-center">
-          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-primary">
+        <div className="text-center">
+          <p className="text-xl font-semibold uppercase tracking-[0.18em] text-primary sm:text-2xl">
             {STEP_COPY[currentStep].rite}
           </p>
-          <h2 className="text-2xl font-semibold text-foreground">{STEP_COPY[currentStep].title}</h2>
-          <p className="text-base text-white/62">{STEP_COPY[currentStep].detail}</p>
-          <p className="text-sm text-white/42">Rite {step + 1} of {steps.length}</p>
         </div>
         {/* Step content */}
         {(() => {
@@ -938,7 +899,7 @@ export default function ProfileOnboarding({
                       );
                     })}
                   </div>
-                  <p className="mt-2 text-sm text-white/58">Pick up to 3</p>
+                  {availableCrowds.length > 3 ? <p className="mt-2 text-sm text-white/58">Pick up to 3</p> : null}
                 </div>
               );
             case 'lookingFor':
@@ -1226,18 +1187,18 @@ export default function ProfileOnboarding({
                   Skip 2FA for now <ArrowRight className="ml-2 w-4 h-4" />
                 </Button>
               ) : (
-                <Button onClick={() => void handleNextRite()} disabled={!canProceed() || twoFactorSaving || inviteCodeSaving}>
+                <Button className="onboarding-primary-action" onClick={() => void handleNextRite()} disabled={!canProceed() || twoFactorSaving || inviteCodeSaving} style={{ background: 'var(--cruush-logo)' }}>
                   Continue <ShieldCheck className="ml-2 w-4 h-4" />
                 </Button>
               )}
             </div>
           ) : step < steps.length - 1 ? (
-            <Button onClick={() => void handleNextRite()} disabled={!canProceed() || inviteCodeSaving}>
+            <Button className="onboarding-primary-action" onClick={() => void handleNextRite()} disabled={!canProceed() || inviteCodeSaving} style={{ background: 'var(--cruush-logo)' }}>
               {inviteCodeSaving ? 'Checking code...' : 'Next rite'} {!inviteCodeSaving ? <ArrowRight className="ml-2 w-4 h-4" /> : null}
             </Button>
           ) : (
             <div className="flex flex-wrap justify-end gap-2">
-              <Button onClick={() => void handleComplete('map')} disabled={!canProceed() || saving || twoFactorSaving}>
+              <Button className="onboarding-primary-action" onClick={() => void handleComplete('map')} disabled={!canProceed() || saving || twoFactorSaving} style={{ background: 'var(--cruush-logo)' }}>
                 Enter cruush <Check className="ml-2 w-4 h-4" />
               </Button>
             </div>

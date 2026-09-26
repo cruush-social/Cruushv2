@@ -77,6 +77,7 @@ const BadgePickerPreview = lazy(() => import('./BadgePickerPreview'));
 const MAX_PROFILE_GROUP_SELECTIONS = 3;
 const MAX_PROFILE_VIBES = 3;
 const MAX_PROFILE_HOBBIES = 3;
+const CRUUSH_PLUS_PROFILE_HOBBIES = 10;
 const MAX_PROFILE_KINKS = 3;
 const BASIC_PROFILE_TAGS = 3;
 const CRUUSH_PLUS_PROFILE_TAGS = 10;
@@ -531,8 +532,8 @@ function sanitizeKinkInterests(profile: ProfilePayload): ProfilePayload['kink_in
     .filter((interest): interest is ProfilePayload['kink_interests'][number] => Boolean(interest));
 }
 
-function normalizeProfileHobbies(values: string[]) {
-  return limitToThree(uniqueValues(values).map((value) => value.trim().toLowerCase() === 'gaming' ? 'video games' : value));
+function normalizeProfileHobbies(values: string[], limit: number = MAX_PROFILE_HOBBIES) {
+  return latestUniqueValues(uniqueValues(values).map((value) => value.trim().toLowerCase() === 'gaming' ? 'video games' : value)).slice(-limit);
 }
 
 function sanitizeVisibilityRules(profile: ProfilePayload): ProfileVisibilityRules {
@@ -568,6 +569,7 @@ function toProfileSavePayload(
   profile: ProfilePayload,
   kinkLimit: number = MAX_PROFILE_KINKS,
   profileTagLimit: number = BASIC_PROFILE_TAGS,
+  hobbyLimit: number = MAX_PROFILE_HOBBIES,
 ): ProfilePayload {
   return {
     display_name: getSaveDisplayName(profile),
@@ -603,7 +605,7 @@ function toProfileSavePayload(
     vibes: limitToThree(mergeCategorizedVibes(profile)),
     scenes: [],
     archetypes: [],
-    hobbies: normalizeProfileHobbies(profile.hobbies ?? []),
+    hobbies: normalizeProfileHobbies(profile.hobbies ?? [], hobbyLimit),
     custom_hobby: (profile.custom_hobby ?? '').trim(),
     looking_for: limitToThree(profile.looking_for ?? []),
     hiv_status: singleValue(profile.hiv_status ?? []),
@@ -811,6 +813,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
 
   const kinkLimit = cruushPlus ? UNLIMITED_PROFILE_KINKS : MAX_PROFILE_KINKS;
   const profileTagLimit = cruushPlus ? CRUUSH_PLUS_PROFILE_TAGS : BASIC_PROFILE_TAGS;
+  const hobbyLimit = cruushPlus ? CRUUSH_PLUS_PROFILE_HOBBIES : MAX_PROFILE_HOBBIES;
 
   const handleKinksChange = (selectedKinks: string[]) => {
     setProfile((prev) => {
@@ -835,7 +838,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
       const profileToSave = pendingTag && !findStructuredProfileFieldForTag(pendingTag)
         ? { ...profile, tags: uniqueValues([...(profile.tags ?? []), pendingTag]) }
         : profile;
-      const savedProfile = await saveMyProfile(toProfileSavePayload(profileToSave, kinkLimit, profileTagLimit));
+      const savedProfile = await saveMyProfile(toProfileSavePayload(profileToSave, kinkLimit, profileTagLimit, hobbyLimit));
       if (profileSaveRequestRef.current !== requestId) {
         return;
       }
@@ -870,7 +873,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
     setPhotoUploadError(null);
 
     try {
-      const savedProfile = await saveMyProfile(toProfileSavePayload(nextProfile, kinkLimit, profileTagLimit));
+      const savedProfile = await saveMyProfile(toProfileSavePayload(nextProfile, kinkLimit, profileTagLimit, hobbyLimit));
 
       if (profileSaveRequestRef.current === requestId) {
         applySavedProfile(savedProfile);
@@ -1102,7 +1105,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
     vibes: limitToThree(mergeCategorizedVibes(profile)),
     scenes: [],
     archetypes: [],
-    hobbies: normalizeProfileHobbies(profile.hobbies || []),
+    hobbies: normalizeProfileHobbies(profile.hobbies || [], hobbyLimit),
     looking_for: limitToThree(profile.looking_for || []),
     hiv_status: singleValue(profile.hiv_status || []),
     hiv_status_visibility: FIXED_PRIVATE_PROFILE_VISIBILITY,
@@ -1525,8 +1528,8 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
 
             <div className="space-y-2">
               <Label>Hobbies</Label>
-              <MultiSelect {...profileMenuProps} ariaLabel="Hobbies" searchable maxSelections={MAX_PROFILE_HOBBIES} optionGroups={HOBBY_GROUPS} value={normalizedProfile.hobbies} onChange={(vals) => handleChange('hobbies', limitToThree(vals))} />
-              <p className="text-xs text-muted-foreground">Pick up to {MAX_PROFILE_HOBBIES}</p>
+              <MultiSelect {...profileMenuProps} ariaLabel="Hobbies" searchable maxSelections={hobbyLimit} optionGroups={HOBBY_GROUPS} value={normalizedProfile.hobbies} onChange={(vals) => handleChange('hobbies', normalizeProfileHobbies(vals, hobbyLimit))} />
+              <p className="text-xs text-muted-foreground">Pick up to {hobbyLimit}{cruushPlus ? ' with cruush+' : ''}</p>
             </div>
           </TabsContent>
 

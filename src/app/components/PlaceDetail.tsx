@@ -6,7 +6,6 @@ import { useParams, useNavigate } from 'react-router';
 import { ArrowLeft, Clock, Copy, ExternalLink, Flag, MapPin, Share2, Star, Trash2, Users, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
-import { Checkbox } from './ui/checkbox';
 import { Slider } from './ui/slider';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
@@ -98,7 +97,7 @@ export default function PlaceDetail({ embedded = false, onBack, onClose, placeId
   const [detailAmenities, setDetailAmenities] = useState<PlaceAmenity[]>([]);
   const [detailAccess, setDetailAccess] = useState('');
   const [sendingDetails, setSendingDetails] = useState(false);
-  const [visibleCheckin, setVisibleCheckin] = useState(false);
+  const [checkinVisibility, setCheckinVisibility] = useState<'hidden' | 'public' | 'checked_in'>('hidden');
   const [postingCheckin, setPostingCheckin] = useState(false);
   const [postingBoard, setPostingBoard] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
@@ -154,6 +153,7 @@ export default function PlaceDetail({ embedded = false, onBack, onClose, placeId
     setMessage('');
     setCheckinVibes([]);
     setCheckinAmenities([]);
+    setCheckinVisibility('hidden');
     setDetailsOpen(false);
     setDetailVibes([]);
     setDetailAmenities([]);
@@ -208,7 +208,8 @@ export default function PlaceDetail({ embedded = false, onBack, onClose, placeId
         vibes: checkinVibes,
         amenities: checkinAmenities,
         durationHours: checkinDurationHours,
-        visible: visibleCheckin,
+        visible: checkinVisibility !== 'hidden',
+        visibility: checkinVisibility,
         latitude: position.coords.latitude,
         longitude: position.coords.longitude,
         accuracyMeters: position.coords.accuracy,
@@ -604,11 +605,28 @@ export default function PlaceDetail({ embedded = false, onBack, onClose, placeId
                     }}
                   />
                 </div>
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                <label className="flex items-center gap-2 text-xs text-white/70">
-                  <Checkbox checked={visibleCheckin} onCheckedChange={(checked) => setVisibleCheckin(checked === true)} />
-                  Show me in Who's Here
-                </label>
+                <div className="flex flex-wrap items-end justify-between gap-3">
+                  <fieldset>
+                    <legend className="mb-2 text-xs text-white/60">Who can see this check-in?</legend>
+                    <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Check-in visibility">
+                      {([
+                        ['hidden', 'Hidden'],
+                        ['public', 'Public'],
+                        ['checked_in', 'Only people checked in'],
+                      ] as const).map(([value, label]) => (
+                        <button
+                          key={value}
+                          type="button"
+                          role="radio"
+                          aria-checked={checkinVisibility === value}
+                          className={`rounded-full border px-3 py-1.5 text-xs ${checkinVisibility === value ? 'border-primary bg-primary/20 text-white' : 'border-white/10 text-white/65'}`}
+                          onClick={() => setCheckinVisibility(value)}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </fieldset>
                   <Button size="sm" disabled={checkinVibes.length === 0 || (Boolean(message.trim()) && trust.restricted('pink_book')) || postingCheckin || postingBoard || mutating} onClick={handlePostCheckin}>{postingCheckin ? 'Checking in...' : 'Check in'}</Button>
                 </div>
               </div>

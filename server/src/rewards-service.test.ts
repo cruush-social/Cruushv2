@@ -3,7 +3,9 @@ import type { AppConfig } from "./config.js";
 import type { DbClient, DbQueryResult } from "./db.js";
 import {
   calendarDateInTimeZone,
+  claimWelcomeDay,
   getRewardSummary,
+  getWelcomeDayStatus,
   grantPromotionalDays,
   recordMeaningfulActivity,
   redeemCruushPlusPromoCode,
@@ -38,6 +40,7 @@ class RewardTestDb implements DbClient {
   activeUntil: Date | null = null;
   bankedSeconds = 0;
   paid = false;
+  promotionalEntitlementExists = false;
   reversals = new Set<string>();
   settings: Array<{ key: string; value: unknown }> = [];
   notifications: Array<Record<string, unknown>> = [];
@@ -98,7 +101,15 @@ class RewardTestDb implements DbClient {
         ? this.grants.filter((grant) => grant.source.startsWith("activity_"))
         : this.grants.filter((grant) => grant.source === "referral");
       rows = [{ total: filtered.reduce((total, grant) => total + grant.days, 0) }];
+    } else if (sql.includes("from promotional_cruush_plus_entitlements promotion") && sql.includes("as claimed")) {
+      rows = this.promotionalEntitlementExists
+        ? [{
+            claimed: this.grants.some((grant) => grant.idempotencyKey === `welcome-day:${params[0]}`),
+            active_until: this.activeUntil?.toISOString() ?? null
+          }]
+        : [];
     } else if (sql.includes("insert into promotional_cruush_plus_entitlements")) {
+      this.promotionalEntitlementExists = true;
       rows = [{
         active_until: this.activeUntil?.toISOString() ?? null,
         banked_seconds: this.bankedSeconds
@@ -254,6 +265,23 @@ afterEach(() => {
 });
 
 describe("rewards activity and promotional entitlement service", () => {
+  it("grants the out-of-service welcome day once and reports it as claimed", async () => {
+    const db = new RewardTestDb();
+
+    expect(await getWelcomeDayStatus(appFor(db), userId)).toMatchObject({
+      available: true,
+      claimed: false
+    });
+
+    const firstClaim = await claimWelcomeDay(appFor(db), userId);
+    const repeatedClaim = await claimWelcomeDay(appFor(db), userId);
+
+    expect(firstClaim).toMatchObject({ available: false, claimed: true });
+    expect(firstClaim.grant?.days).toBe(1);
+    expect(repeatedClaim).toMatchObject({ available: false, claimed: true, grant: null });
+    expect(db.grants.filter((grant) => grant.idempotencyKey === `welcome-day:${userId}`)).toHaveLength(1);
+  });
+
   it("dispatches a persisted reward push after the reward transaction commits", async () => {
     const db = new RewardTestDb();
     sendNotification.mockResolvedValueOnce(undefined);

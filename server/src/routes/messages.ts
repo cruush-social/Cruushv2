@@ -34,6 +34,7 @@ import {
 import { approvedContentReviewCte, moderateMessageTextOrAllowByKeyword } from "../moderation-service.js";
 import { OWNER_FULL_ACCESS_EMAIL, userHasOwnerFullAccess } from "../owner-access.js";
 import { getActiveAccountUserId, getAuthenticatedUserId } from "../request-auth.js";
+import { formatLastActiveFromDate } from "../discovery-users.js";
 
 const conversationParamsSchema = z.object({
   conversationId: z.uuid()
@@ -93,6 +94,7 @@ type ConversationRow = {
   other_user_side_badges?: unknown;
   other_user_vibes?: string[] | null;
   other_user_travelling?: boolean;
+  other_user_last_active?: string | Date | null;
   member_count: number;
 };
 
@@ -402,7 +404,8 @@ export function mapConversationRow(app: FastifyInstance, row: ConversationRow, o
       ...(isGroup ? {} : { photoRelationship: { isMutualCruush: options.mutual === true, sharesCrowd: options.sharesCrowd === true, nsfwPhotoRestriction: options.nsfwPhotoRestriction } }),
       ...(isGroup || !row.other_user_side_badges ? {} : { sideBadges: row.other_user_side_badges }),
       ...(isGroup || !row.other_user_vibes?.length ? {} : { vibes: row.other_user_vibes.slice(0, 3) }),
-      ...(isGroup ? {} : { travelling: row.other_user_travelling === true })
+      ...(isGroup ? {} : { travelling: row.other_user_travelling === true }),
+      ...(isGroup || !row.other_user_last_active ? {} : { lastActive: formatLastActiveFromDate(row.other_user_last_active) })
     },
     distance: "Nearby",
     updatedAt: new Date(row.updated_at).toISOString(),
@@ -697,6 +700,10 @@ const CONVERSATION_SELECT = `
       where travel.user_id = other_member.user_id
         and travel.set_at > now() - interval '24 hours'
     ) else false end as other_user_travelling,
+    case when c.kind = 'dm'
+      then coalesce(other_profile.location_updated_at, other_profile.updated_at)
+      else null
+    end as other_user_last_active,
     case when c.kind = 'dm' then coalesce((
       select media.explicit_classification is distinct from 'non_explicit'
       from media_objects media

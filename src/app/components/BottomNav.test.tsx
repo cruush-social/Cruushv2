@@ -105,6 +105,21 @@ describe('BottomNav', () => {
     expect(backdrop).toHaveClass('h-28', 'from-background', 'from-[68%]', 'via-background/96', 'via-[82%]', 'to-background/0');
   });
 
+  it('keeps only the three approved destinations in the reduced out-of-service capsule', () => {
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <BottomNav outsideServiceArea />
+      </MemoryRouter>
+    );
+
+    expect(screen.queryByRole('button', { name: /map/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /feed/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^cruush$/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /messages/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /profile/i })).toBeInTheDocument();
+    expect(screen.getByTestId('bottom-nav-pill')).toHaveAttribute('data-capsule-width', '192');
+  });
+
   it('uses icon tone alone for active tabs without a resting grey circle', () => {
     render(
       <MemoryRouter initialEntries={['/feed']}>

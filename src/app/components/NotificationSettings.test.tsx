@@ -34,30 +34,36 @@ describe('NotificationSettings', () => {
     updateNotificationPreferences.mockReset();
     enablePushNotifications.mockReset();
     getNotificationPreferences.mockResolvedValue({
+      emailEnabled: true,
       pushEnabled: false,
       cruushEnabled: true,
       messagesEnabled: true,
       groupsEnabled: true,
       nearbyEnabled: true,
       rewardsEnabled: true,
+      siteRemindersEnabled: true,
       soundEnabled: true,
     });
     enablePushNotifications.mockResolvedValue({
+      emailEnabled: true,
       pushEnabled: true,
       cruushEnabled: true,
       messagesEnabled: true,
       groupsEnabled: true,
       nearbyEnabled: true,
       rewardsEnabled: true,
+      siteRemindersEnabled: true,
       soundEnabled: true,
     });
     updateNotificationPreferences.mockImplementation((partial) => Promise.resolve({
+      emailEnabled: true,
       pushEnabled: false,
       cruushEnabled: true,
       messagesEnabled: false,
       groupsEnabled: true,
       nearbyEnabled: true,
       rewardsEnabled: true,
+      siteRemindersEnabled: true,
       soundEnabled: true,
       ...partial,
     }));
@@ -105,18 +111,30 @@ describe('NotificationSettings', () => {
     await waitFor(() => expect(updateNotificationPreferences).toHaveBeenCalledWith({
       rewardsEnabled: false,
     }));
+
+    fireEvent.click(screen.getByRole('switch', { name: 'Toggle Email alerts' }));
+    await waitFor(() => expect(updateNotificationPreferences).toHaveBeenCalledWith({
+      emailEnabled: false,
+    }));
+
+    fireEvent.click(screen.getByRole('switch', { name: 'Toggle Site reminders' }));
+    await waitFor(() => expect(updateNotificationPreferences).toHaveBeenCalledWith({
+      siteRemindersEnabled: false,
+    }));
   });
 
   it('offers a retry after loading fails and recovers without leaving a false loading state', async () => {
     getNotificationPreferences
       .mockRejectedValueOnce(new Error('Notification settings are temporarily unavailable.'))
       .mockResolvedValueOnce({
+        emailEnabled: true,
         pushEnabled: false,
         cruushEnabled: true,
         messagesEnabled: true,
         groupsEnabled: true,
         nearbyEnabled: true,
         rewardsEnabled: true,
+        siteRemindersEnabled: true,
         soundEnabled: true,
       });
 
