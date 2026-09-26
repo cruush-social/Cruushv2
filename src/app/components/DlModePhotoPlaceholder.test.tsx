@@ -17,7 +17,7 @@ it('omits the label only from heart previews while retaining the white transluce
   expect(document.querySelector('image[href="/explicit.jpg"]')).toBeNull();
 });
 
-it('keeps DL MODE ON beneath the icon on non-heart covers', () => {
+it('keeps cruushes only beneath the icon on non-heart covers', () => {
   render(<DlModePhotoPlaceholder />);
-  expect(screen.getByTestId('dl-mode-photo-placeholder').querySelector('text')).toHaveTextContent('DL MODE ON');
+  expect(screen.getByTestId('dl-mode-photo-placeholder').querySelector('text')).toHaveTextContent('cruushes only');
 });

@@ -320,7 +320,7 @@ describe('ProfileView', () => {
 
     const placeholder = await screen.findByTestId('dl-mode-photo-placeholder');
     expect(placeholder).toHaveClass('w-28');
-    expect(placeholder.querySelector('text')).toHaveTextContent('DL MODE ON');
+    expect(placeholder.querySelector('text')).toHaveTextContent('cruushes only');
   });
 
   it('shows the Mile High Club plane beside the name for a travelling profile', async () => {

@@ -265,7 +265,7 @@ describe('ProfileCard', () => {
 
     const placeholder = screen.getByTestId('dl-mode-photo-placeholder');
     expect(placeholder).toHaveClass('w-28');
-    expect(placeholder.querySelector('text')).toHaveTextContent('DL MODE ON');
+    expect(placeholder.querySelector('text')).toHaveTextContent('cruushes only');
     expect(screen.queryByTestId('carousel-profile-photo')).not.toBeInTheDocument();
   });
 });

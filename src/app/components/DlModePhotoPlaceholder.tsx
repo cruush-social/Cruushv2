@@ -3,7 +3,7 @@ import { getNsfwPhotoRestrictionLabel, type NsfwPhotoRestriction } from '../lib/
 
 /** One scalable cover for censored photos, including compact heart thumbnails. */
 export default function DlModePhotoPlaceholder({ className = 'w-20', showLabel = true, restriction }: { className?: string; showLabel?: boolean; restriction?: NsfwPhotoRestriction }) {
-  const label = getNsfwPhotoRestrictionLabel(restriction) ?? 'DL MODE ON';
+  const label = getNsfwPhotoRestrictionLabel(restriction) ?? 'cruushes only';
   return (
     <svg
       aria-label={label}

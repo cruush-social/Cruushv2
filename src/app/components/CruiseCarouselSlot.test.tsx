@@ -127,6 +127,6 @@ describe('CruiseCarouselSlot', () => {
       .find((tile) => tile.className.includes('w-[15rem]'));
     const placeholder = featuredTile?.querySelector('[data-testid="dl-mode-photo-placeholder"]');
     expect(placeholder).toHaveClass('w-28');
-    expect(placeholder?.querySelector('text')).toHaveTextContent('DL MODE ON');
+    expect(placeholder?.querySelector('text')).toHaveTextContent('cruushes only');
   });
 });
