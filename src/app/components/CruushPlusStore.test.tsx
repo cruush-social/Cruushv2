@@ -308,10 +308,9 @@ describe('CruushPlusStore', () => {
     expect(screen.getByText('Browse the map without appearing on it.')).toBeInTheDocument();
     const benefits = screen.getByRole('list', { name: 'cruush+ benefits' });
     const benefitCards = within(benefits).getAllByRole('listitem');
-    expect(benefits).toHaveClass('grid-cols-3');
+    expect(benefits).toHaveClass('grid-cols-2');
     expect(benefitCards).toHaveLength(7);
-    expect(benefitCards.every((card) => !card.className.includes('col-span-'))).toBe(true);
-    expect(benefitCards[6]).toHaveClass('col-start-2');
+    expect(benefitCards[6]).toHaveClass('col-span-2');
     expect(screen.queryByText('Post to the local feed')).not.toBeInTheDocument();
     expect(screen.queryByText('Cruise nearby profiles')).not.toBeInTheDocument();
     expect(screen.queryByText('Stealth Mode')).not.toBeInTheDocument();
@@ -327,6 +326,7 @@ describe('CruushPlusStore', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /why cruush takes crypto/i }));
     expect(await screen.findByText(/Cash App pays with USDC on Arbitrum/i)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Crypto first. On our terms.' })).toHaveAttribute('href', '/blog/crypto-first.html');
     expect(screen.queryByText(/licensed processor/i)).not.toBeInTheDocument();
   });
 

@@ -1235,7 +1235,7 @@ describe('MapHome', () => {
     fireEvent.click(pingControl);
 
     expect(await screen.findByRole('dialog')).toHaveAttribute('data-testid', 'map-ping-sheet');
-    expect(screen.getByText('3 of 3 Pulses available right now.')).toBeInTheDocument();
+    expect(screen.getByText('3 Pulses left')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Close' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());

@@ -73,7 +73,10 @@ describe('AlphaBugButton', () => {
     );
 
     fireEvent.click(reportButton);
-    expect(screen.getByRole('dialog', { name: 'Report alpha bug' })).toHaveAttribute('data-testid', 'alpha-bug-dialog');
+    const dialog = screen.getByRole('dialog', { name: 'Report alpha bug' });
+    expect(dialog).toHaveAttribute('data-testid', 'alpha-bug-dialog');
+    expect(dialog).toHaveClass('content-start', 'p-4', 'sm:p-6');
+    expect(screen.getByRole('button', { name: 'Close' })).toHaveClass('left-1');
     expect(document.querySelector('[data-slot="dialog-overlay"]')).toHaveClass('alpha-bug-overlay', '!z-[1602]');
     expect(screen.getByText('/map?layer=nearby')).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('What broke?'), {

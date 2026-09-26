@@ -210,6 +210,7 @@ describe('PrivateGroupChat', () => {
     </MemoryRouter>);
     try {
       expect(await screen.findByText('Messaging is temporarily restricted because of your trust score.')).toBeVisible();
+      expect(screen.queryByText('JPEG, PNG, HEIC/HEIF, AVIF, WebP, TIFF, DNG, BMP or still GIF.')).not.toBeInTheDocument();
       const input = screen.getByPlaceholderText('Drop the plan...');
       expect(input).toBeDisabled();
       expect(screen.getByRole('button', { name: 'Attach photo' })).toBeDisabled();

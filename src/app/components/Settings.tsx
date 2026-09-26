@@ -2,7 +2,7 @@ import CodeOfConductPage from './CodeOfConductPage';
 import { useNavigate } from 'react-router';
 import profileNavIcon from '../assets/nav-icons/profile-white.png';
 import { useEffect, useMemo, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react';
-import { Accessibility, ArrowLeft, ChevronRight, Contrast, ExternalLink, Gift, History, KeyRound, LifeBuoy, LogOut, Mail, MapPin, MessageCircle, MessageSquareReply, Palette, ShieldAlert, ShieldCheck, Trash2, Type, UserX, Vibrate, X, type LucideIcon, Download,
+import { Accessibility, ChevronRight, Contrast, ExternalLink, Gift, History, KeyRound, LifeBuoy, LogOut, Mail, MapPin, MessageCircle, MessageSquareReply, Palette, ShieldAlert, ShieldCheck, Trash2, Type, UserX, Vibrate, type LucideIcon, Download,
 } from 'lucide-react';
 import { Button } from './ui/button';
 import CruushPlusWord from './CruushPlusWord';
@@ -34,7 +34,7 @@ import PublicPolicyLinks from './PublicPolicyLinks';
 import { changeEmail, changePassword, deleteAccount, getAuthSession, sendVerificationEmail, signOut } from '../lib/authApi';
 import { canTestOnboarding } from '../lib/adminOnboarding';
 import SupportRequestForm from './SupportRequestForm';
-import BugButtonSlot from './BugButtonSlot';
+import AppPageHeader from './AppPageHeader';
 import {
   clearCurrentUser,
   getStoredCurrentUser,
@@ -449,18 +449,14 @@ export default function Settings({ embedded = false, onBack, onClose, onOpenMile
 
   return (
     <div className={embedded ? 'min-h-full bg-transparent pb-6' : 'min-h-screen bg-background pb-20'}>
-      <header className="sticky top-0 bg-card/80 backdrop-blur-sm border-b border-border p-4 flex items-center gap-4 z-10">
-        <Button variant="ghost" size="icon" onClick={embedded ? (onBack ?? onClose) : () => navigate('/map')} aria-label={embedded ? 'Back' : 'Back to map'}>
-          <ArrowLeft className="w-5 h-5" />
-        </Button>
-        <h2 className="flex-1 text-xl">Settings</h2>
-        <BugButtonSlot testId="settings-bug-button-slot" />
-        {embedded && onClose ? (
-          <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close Settings">
-            <X className="h-5 w-5" />
-          </Button>
-        ) : null}
-      </header>
+      <AppPageHeader
+        title="Settings"
+        onClose={embedded ? onClose : undefined}
+        closeLabel="Close Settings"
+        onBack={embedded ? (onBack ?? (onClose ? undefined : () => navigate('/map'))) : () => navigate('/map')}
+        backLabel={embedded ? 'Back' : 'Back to map'}
+        bugButtonTestId="settings-bug-button-slot"
+      />
 
       <div className={`max-w-2xl mx-auto space-y-8 ${embedded ? 'p-4' : 'p-6'}`}>
         <div className="px-2">
@@ -826,7 +822,7 @@ export default function Settings({ embedded = false, onBack, onClose, onOpenMile
             />
             <p className="flex flex-col items-center justify-center gap-0.5 whitespace-nowrap text-xs text-muted-foreground">
               <span className="tracking-[0.18em]">OPEN BETA</span>
-              <span>Version 1.6</span>
+              <span>Version 1.8</span>
             </p>
           </div>
         </div>

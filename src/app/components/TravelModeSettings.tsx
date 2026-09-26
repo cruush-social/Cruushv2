@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import { ArrowLeft, Search, X } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { toast } from '../lib/toast';
 import {
@@ -18,7 +18,8 @@ import {
 import { MAX_DISCOVERY_ZOOM, MIN_DISCOVERY_ZOOM, getMapStyle } from './MapView';
 import { Button } from './ui/button';
 import CruushPlusCardDialog from './CruushPlusCardDialog';
-import BugButtonSlot from './BugButtonSlot';
+import AppPageHeader from './AppPageHeader';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
 import { CRUUSH_PLUS_CHANGED_EVENT, getMyBillingStatus } from '../lib/billingApi';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import mileHighClubWhite from '../assets/ui-icons/mile-high-club-white.svg';
@@ -491,14 +492,26 @@ function TravelModeSection({ onTravelPinChange }: { onTravelPinChange?: (pin: Tr
 
       {!pin ? (
         <div className="cruush-travel-mode-open-panel flex min-h-0 flex-1 flex-col gap-3">
-          <ul className="cruush-travel-mode-terms space-y-2 pr-1 text-sm text-muted-foreground">
-            {TRAVEL_MODE_TERMS.map((term) => (
-              <li className="flex gap-2" key={term}>
-                <span aria-hidden="true" className="text-white/40">-</span>
-                <span>{term}</span>
-              </li>
-            ))}
-          </ul>
+          <Accordion
+            collapsible
+            type="single"
+            value={showTerms ? 'details' : ''}
+            onValueChange={(value) => setShowTerms(value === 'details')}
+          >
+            <AccordionItem value="details">
+              <AccordionTrigger className="px-4 py-2 text-sm">How Mile High Club works</AccordionTrigger>
+              <AccordionContent className="px-4 pb-3">
+                <ul className="cruush-travel-mode-terms space-y-2 pr-1 text-sm text-muted-foreground">
+                  {TRAVEL_MODE_TERMS.map((term) => (
+                    <li className="flex gap-2" key={term}>
+                      <span aria-hidden="true" className="text-white/40">-</span>
+                      <span>{term}</span>
+                    </li>
+                  ))}
+                </ul>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
           <TravelPinPicker
             actions={(
               <div className="cruush-travel-mode-actions grid grid-cols-2 gap-2">
@@ -566,29 +579,13 @@ export default function TravelModeSettings({ embedded = false, onBack, onClose, 
 
   return (
     <div className={`cruush-travel-mode-page flex min-h-0 flex-col overflow-hidden bg-background text-foreground ${embedded ? 'h-full' : 'h-[100dvh] pb-[calc(6rem+env(safe-area-inset-bottom))]'}`}>
-      <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-border bg-background/88 px-4 py-3 backdrop-blur-md">
-        <button
-          aria-label="Back"
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/12 bg-black/55"
-          onClick={embedded ? onBack : () => navigate(-1)}
-          type="button"
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </button>
-        <h1 className="min-w-0 flex-1 truncate text-lg text-white">Mile High Club</h1>
-        {embedded ? (
-          <button
-            aria-label="Close Mile High Club"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/12 bg-black/55"
-            onClick={onClose}
-            type="button"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        ) : null}
-      
-        <BugButtonSlot testId="travel-mode-settings-bug-button-slot" />
-      </header>
+      <AppPageHeader
+        title="Mile High Club"
+        onClose={embedded ? onClose : undefined}
+        closeLabel="Close Mile High Club"
+        onBack={embedded ? onBack : () => navigate(-1)}
+        bugButtonTestId="travel-mode-settings-bug-button-slot"
+      />
 
       <main className="cruush-travel-mode-main mx-auto flex min-h-0 w-full max-w-2xl flex-1 flex-col px-4 py-4 lg:overflow-y-auto">
         <p className="cruush-travel-mode-intro mb-3 text-sm text-muted-foreground">Drop your pin anywhere in the current map area to explore and connect with people there.</p>

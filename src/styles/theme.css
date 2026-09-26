@@ -110,7 +110,8 @@ header:has([data-cruush-bug-slot]) div:has(> :is(h1, h2, h3)) {
 }
 
 .cruush-dialog-bug-header > [data-slot="dialog-title"] {
-  padding-right: 80px;
+  padding-left: 44px;
+  padding-right: 44px;
 }
 
 .cruush-alert-bug-header > [data-slot="alert-dialog-title"] {
@@ -119,7 +120,7 @@ header:has([data-cruush-bug-slot]) div:has(> :is(h1, h2, h3)) {
 
 [data-slot="dialog-content"]:has(.cruush-dialog-bug-header) > [data-slot="dialog-close-x"] {
   top: calc(10px + env(safe-area-inset-top));
-  right: calc(56px + env(safe-area-inset-right));
+  left: calc(8px + env(safe-area-inset-left));
 }
 
 /* Mobile and tablet use fullscreen framing, except the content-sized Pulse popup. */

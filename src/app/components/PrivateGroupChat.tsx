@@ -1,7 +1,6 @@
 import { useTrustRestrictions } from '../lib/trustRestrictions';
 import TrustRestrictionNotice from './TrustRestrictionNotice';
 import PhotoUploadSpinner from './PhotoUploadSpinner';
-import { PHOTO_UPLOAD_FORMAT_MESSAGE } from '../lib/photoUploadFormats';
 import { useEffect, useId, useRef, useState } from 'react';
 import { DROPDOWN_TRIGGER_CLASS } from '../lib/controlStyles';
 import { formatDistanceLabel, useDistancePreferences } from '../lib/distancePreferences';
@@ -1845,7 +1844,6 @@ export default function PrivateGroupChat({
                     </Button>
                   </div>
                 </div>
-                <p className="mt-1 text-xs text-muted-foreground">{PHOTO_UPLOAD_FORMAT_MESSAGE}</p>
               </div>
             </div>
           </div>

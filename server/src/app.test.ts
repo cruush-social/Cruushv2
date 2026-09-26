@@ -12792,6 +12792,10 @@ describe("server", () => {
       .mockResolvedValueOnce({
         rows: [matchToken]
       })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: "conversation-mutual" }] })
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] });
 
     const response = await app.inject({
@@ -12814,6 +12818,8 @@ describe("server", () => {
     expect(query.mock.calls[4]?.[0]).toContain("insert into encrypted_relationship_records");
     expect(query.mock.calls[5]?.[0]).toContain("insert into encrypted_relationship_tokens");
     expect(query.mock.calls[9]?.[0]).toContain("encrypted_relationship_tokens");
+    expect(query.mock.calls[12]?.[0]).toContain("insert into conversations");
+    expect(query.mock.calls[13]?.[0]).toContain("insert into conversation_members");
     expect(response.json()).toEqual({
       data: {
         id: "cruush-4",
@@ -12861,6 +12867,9 @@ describe("server", () => {
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [matchToken] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: "conversation-existing" }] })
       .mockResolvedValueOnce({ rows: [] });
 
     const response = await app.inject({
@@ -12881,10 +12890,13 @@ describe("server", () => {
 
     expect(response.statusCode).toBe(200);
     // The ninth read is the precise-location revocation lookup the default
-    // mutual-cruush grant requires; nothing is written or reissued.
-    expect(query).toHaveBeenCalledTimes(9);
+    // mutual-cruush grant requires. The only writes ensure the existing match
+    // has a direct conversation; no relationship token is reissued.
+    expect(query).toHaveBeenCalledTimes(11);
     expect(query.mock.calls[0]?.[0]).toContain("encrypted_relationship_records");
     expect(query.mock.calls[7]?.[0]).toContain("encrypted_privacy_audit_events");
+    expect(query.mock.calls[9]?.[0]).toContain("insert into conversations");
+    expect(query.mock.calls[10]?.[0]).toContain("insert into conversation_members");
     expect(query.mock.calls.map((call) => call[0]).join("\n")).not.toContain("insert into encrypted_relationship_tokens");
     expect(response.json()).toEqual({
       data: {

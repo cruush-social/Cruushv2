@@ -252,14 +252,14 @@ describe('Settings', () => {
     });
   });
 
-  it('shows the v1.5 footer with the approved cruush logo and no redundant footer links', async () => {
+  it('shows the current release footer with the approved cruush logo and no redundant footer links', async () => {
     const { container } = render(
       <MemoryRouter>
         <Settings />
       </MemoryRouter>
     );
 
-    const version = await screen.findByText('Version 1.6');
+    const version = await screen.findByText('Version 1.8');
     const openBeta = screen.getByText('OPEN BETA');
     expect(version.parentElement).toContainElement(openBeta);
     expect(container.querySelector('img[src*="cruush-logo.svg"]')).toHaveAttribute('alt', 'cruush');

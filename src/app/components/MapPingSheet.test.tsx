@@ -136,7 +136,9 @@ describe('MapPingSheet', () => {
         onSend={vi.fn()} onGetPulses={vi.fn()} />,
     );
     const count = await screen.findByText('9 Pulses left');
-    expect(count.parentElement).toContainElement(screen.getByRole('button', { name: 'Get Pulses' }));
+    const getPulses = screen.getByRole('button', { name: 'Get Pulses' });
+    expect(count.parentElement).toContainElement(getPulses);
+    expect(getPulses).toHaveClass('bg-[#c8ff31]', 'text-black', 'font-bold');
     expect(screen.queryByText('Your Pulse uses the signal saved on your profile.')).not.toBeInTheDocument();
     rerender(<MapPingSheet open onOpenChange={vi.fn()} status={{ ...availableStatus,
       bonusCredits: 0, allowance: { ...availableStatus.allowance, remaining: 1 },

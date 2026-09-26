@@ -106,6 +106,10 @@ async function chooseVibe(group: 'Style' | 'Energy' | 'Scenes' | 'Archetypes' | 
   fireEvent.click(screen.getByRole('button', { name: 'Vibes' }));
 }
 
+function chooseCrowd(value: string) {
+  fireEvent.click(screen.getByRole('button', { name: value }));
+}
+
 function renderConductOnboarding(onComplete = vi.fn()) {
   const OnboardingWithConduct = ProfileOnboarding as ComponentType<{
     onComplete: () => void;
@@ -136,7 +140,7 @@ async function fillProfileRites() {
   await chooseMultiSelect('Sexuality', 'queer');
   fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
-  await chooseMultiSelect('Crowds', 'Dyke');
+  chooseCrowd('Dyke');
   fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
   await chooseVibe('Scenes', 'Goth');
@@ -166,9 +170,28 @@ async function skipTwoFactorAndEnter() {
 }
 
 describe('ProfileOnboarding', () => {
+  it('keeps the signed code of conduct full-size and scrollable from the top', () => {
+    const view = render(
+      <MemoryRouter>
+        <ProfileOnboarding
+          onComplete={vi.fn()}
+          constrainedViewport
+          signedCodeOfConductAt="2026-09-23T21:35:27.000Z"
+        />
+      </MemoryRouter>,
+    );
+
+    expect(view.container.firstElementChild).toHaveClass('justify-start');
+    expect(view.container.firstElementChild).not.toHaveClass('justify-center');
+    expect(screen.getByRole('checkbox', {
+      name: /i have read and agree to the cruush code of conduct/i,
+    })).toBeChecked();
+  });
+
   it('completes the current rites in preview mode without saving account data', async () => {
     const onComplete = vi.fn();
     render(<MemoryRouter><ProfileOnboarding onComplete={onComplete} needsCodeOfConduct codeOfConductVersion="2026-07-07" previewMode /></MemoryRouter>);
+    expect(screen.queryByText('JPEG, PNG, HEIC/HEIF, AVIF, WebP, TIFF, DNG, BMP or still GIF.')).not.toBeInTheDocument();
     await fillProfileRites();
     fireEvent.change(screen.getByLabelText('Friend invite code'), { target: { value: 'abcdefghijklmnop' } });
     await reachFinalOath();
@@ -276,7 +299,7 @@ describe('ProfileOnboarding', () => {
     expect(screen.getByText(/Choosing crowds here does not turn it on/i)).toHaveTextContent(
       'Think of crowds like gay or dyke bars: shared social spaces, not identity labels. Pick up to 3. Find Crowd Mode in Map Controls > Visibility. Turn it on to be seen only by people in your selected crowds. Choosing crowds here does not turn it on.',
     );
-    await chooseMultiSelect('Crowds', 'Gay');
+    chooseCrowd('Gay');
     fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
     expect(screen.queryByText('declare your hunger')).not.toBeInTheDocument();
@@ -315,7 +338,7 @@ describe('ProfileOnboarding', () => {
     await chooseMultiSelect('Sexuality', 'queer');
     fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
-    await chooseMultiSelect('Crowds', 'T4T');
+    chooseCrowd('T4T');
     fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
     // The vibes step states its own limit: "Select up to 3" became "Pick up to
@@ -351,15 +374,13 @@ describe('ProfileOnboarding', () => {
     await chooseMultiSelect('Sexuality', 'queer');
     fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
-    fireEvent.click(screen.getByRole('button', { name: 'Crowds' }));
-    expect(screen.queryByRole('option', { name: 'T4T' })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Crowds' }));
+    expect(screen.getByRole('group', { name: 'Crowds' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'T4T' })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /back/i }));
     fireEvent.click(screen.getByRole('checkbox', { name: /^I am trans/ }));
     fireEvent.click(screen.getByRole('button', { name: /next/i }));
-    fireEvent.click(screen.getByRole('button', { name: 'Crowds' }));
-    expect(await screen.findByRole('option', { name: 'T4T' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'T4T' })).toBeInTheDocument();
   });
 
   it('saves the profile, accepts the conduct version, then completes onboarding', async () => {

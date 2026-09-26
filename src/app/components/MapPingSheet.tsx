@@ -546,7 +546,7 @@ export default function MapPingSheet({
             {onGetPulses ? (
               <button
                 type="button"
-                className="shrink-0 rounded-full border border-[#c8ff31]/60 px-2.5 py-1 text-xs font-semibold text-white transition hover:brightness-110"
+                className="shrink-0 rounded-full border border-[#c8ff31] bg-[#c8ff31] px-4 py-2 text-sm font-bold text-black shadow-[0_0_22px_rgba(200,255,49,0.38)] transition hover:brightness-110"
                 onClick={() => {
                   onOpenChange(false);
                   onGetPulses();

@@ -451,6 +451,30 @@ function parseCoordinate(value: number | null | undefined) {
   return Number.isFinite(value) ? value as number : null;
 }
 
+async function ensureMutualConversation(app: FastifyInstance, firstUserId: string, secondUserId: string) {
+  const dmKey = [firstUserId, secondUserId].sort().join(":");
+  const conversationResult = await app.db.query<{ id: string }>(
+    `insert into conversations (kind, dm_key, created_by)
+     values ('dm', $1, $2)
+     on conflict (dm_key) do update
+     set updated_at = conversations.updated_at
+     returning id::text as id`,
+    [dmKey, firstUserId]
+  );
+  const conversationId = conversationResult.rows[0]?.id;
+
+  if (!conversationId) {
+    throw new ApiError(500, "INTERNAL_ERROR", "Failed to create the mutual conversation.");
+  }
+
+  await app.db.query(
+    `insert into conversation_members (conversation_id, user_id, last_read_at)
+     values ($1, $2, now()), ($1, $3, null)
+     on conflict (conversation_id, user_id) do nothing`,
+    [conversationId, firstUserId, secondUserId]
+  );
+}
+
 async function notifyCruushEvent(app: FastifyInstance, input: {
   userId: string;
   actorUserId: string;
@@ -1529,6 +1553,7 @@ export async function registerCruushRoutes(app: FastifyInstance) {
       });
       const relationship = await getRelationshipPermissions(app, authenticatedUserId, payload.toUserId);
       const createdAt = existingCruush?.payload.createdAt ?? existingMutual.payload.createdAt;
+      await ensureMutualConversation(app, authenticatedUserId, payload.toUserId);
 
       return reply.code(200).send({
         data: {
@@ -1578,6 +1603,7 @@ export async function registerCruushRoutes(app: FastifyInstance) {
 
     if (isMutual) {
       const matchKey = match?.id ?? reciprocalCruush?.id ?? created.id;
+      await ensureMutualConversation(app, authenticatedUserId, payload.toUserId);
       await notifyCruushEvent(app, {
         userId: authenticatedUserId,
         actorUserId: payload.toUserId,

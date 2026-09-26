@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { ApiClientError } from '../lib/apiClient';
-import { ArrowLeft, Check, Copy, Info, Shield, Sparkles } from 'lucide-react';
+import { Check, Copy, Info, Shield, Sparkles } from 'lucide-react';
 import { Button } from './ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 import { Card, CardContent } from './ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
+import AppPageHeader from './AppPageHeader';
 import CruushPlusWord from './CruushPlusWord';
 import { getBillingPlans, type CruushPlusPlan, type CruushPlusPlanId } from '../lib/billingApi';
 import {
@@ -40,7 +41,8 @@ const CHECKOUT_PLUS_FEATURES = CRUUSH_PLUS_FEATURES.map((benefit) =>
     : benefit,
 );
 
-// Even catalogues use two equal columns. Odd catalogues use three equal columns.
+// Keep the mobile catalogue readable in two columns; the final odd benefit
+// spans both columns instead of squeezing the whole list into three.
 const BALANCED_CHECKOUT_PLUS_FEATURES = [
   CHECKOUT_PLUS_FEATURES[0],
   CHECKOUT_PLUS_FEATURES[5],
@@ -587,7 +589,7 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
               </span>
             ) : null}
           </span>
-          <span className="mt-0.5 text-[11px] leading-4 text-muted-foreground">
+          <span className="mt-1 text-sm leading-5 text-muted-foreground">
             {plan.isLifetime
               ? 'Pay once, keep it forever. Plus processing fee'
               : perMonth
@@ -610,7 +612,7 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
                 : formatPrice(plan.amountCents, plan.currency)}
           </span>
           {saving && !soldOut ? (
-            <span className="text-[11px] font-medium leading-4 text-primary">
+            <span className="text-xs font-medium leading-4 text-primary">
               Save {saving}%
             </span>
           ) : null}
@@ -621,18 +623,18 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
 
   return (
     <div className="min-h-screen bg-background pb-24 text-foreground">
-      <header className="sticky top-0 z-10 flex items-center gap-4 border-b border-border bg-card/85 p-4 backdrop-blur">
-        <Button variant="ghost" size="icon" onClick={() => navigate(-1)} aria-label="Back">
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <h1 className="text-xl font-semibold">{isPulse ? 'Get Pulses' : <>Get <CruushPlusWord /></>}</h1>
-      </header>
+      <AppPageHeader
+        title={isPulse ? 'Get Pulses' : <>Get <CruushPlusWord /></>}
+        onBack={() => navigate(-1)}
+        bugButtonTestId="cruush-plus-store-bug-button-slot"
+        titleClassName="font-semibold"
+      />
 
-      <main className="mx-auto flex max-w-3xl flex-col gap-2 px-3 py-1.5">
+      <main className="mx-auto flex max-w-3xl flex-col gap-3 px-3 py-2 sm:px-4">
         {!isPulse ? <Card>
           <Accordion collapsible type="single">
-            <AccordionItem className="border-0" value="benefits">
-              <AccordionTrigger className="px-4 py-3 text-sm hover:no-underline">
+            <AccordionItem value="benefits">
+              <AccordionTrigger className="px-4 py-3 text-base hover:no-underline">
                 <span className="flex items-center gap-2">
                   <Sparkles className="h-4 w-4 shrink-0 text-primary" />
                   <span>What <CruushPlusWord /> unlocks</span>
@@ -640,23 +642,23 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
               </AccordionTrigger>
               <AccordionContent className="pb-0">
                 <CardContent className="p-3">
-                  <p className="mb-2 text-xs text-muted-foreground">
+                  <p className="mb-3 text-sm text-muted-foreground">
                     Viewing the map and messaging stay free for everyone, always.
                   </p>
                   <ul
                     aria-label="cruush+ benefits"
-                    className={`grid gap-1.5 ${BALANCED_CHECKOUT_PLUS_FEATURES.length % 2 === 0 ? 'grid-cols-2' : 'grid-cols-3'}`}
+                    className="grid grid-cols-2 gap-2"
                   >
                     {BALANCED_CHECKOUT_PLUS_FEATURES.map((benefit, index) => (
                       <li
-                        className={`${BALANCED_CHECKOUT_PLUS_FEATURES.length % 2 === 1 && index === BALANCED_CHECKOUT_PLUS_FEATURES.length - 1 ? 'col-start-2' : ''} flex h-full items-start gap-1.5 rounded-xl border border-white/20 p-2 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_10px_30px_rgba(255,0,114,0.18)]`}
+                        className={`${BALANCED_CHECKOUT_PLUS_FEATURES.length % 2 === 1 && index === BALANCED_CHECKOUT_PLUS_FEATURES.length - 1 ? 'col-span-2' : ''} flex h-full items-start gap-2 rounded-xl border border-white/20 p-3 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_10px_30px_rgba(255,0,114,0.18)]`}
                         key={benefit.title}
                         style={{ background: 'var(--cruush-gradient)' }}
                       >
                         <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-white" />
                         <span className="min-w-0">
-                          <span className="block text-[11px] font-semibold leading-4">{benefit.title}</span>
-                          <span className="block text-[10px] leading-4 text-white/85">{benefit.description}</span>
+                          <span className="block text-sm font-semibold leading-5">{benefit.title}</span>
+                          <span className="block text-xs leading-5 text-white/90">{benefit.description}</span>
                         </span>
                       </li>
                     ))}
@@ -689,8 +691,8 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
               </ul>
               {otherPlans.length > 0 ? (
                 <Accordion collapsible type="single">
-                  <AccordionItem className="border-0" value="compare-plans">
-                    <AccordionTrigger className="py-2 text-xs hover:no-underline">
+                  <AccordionItem value="compare-plans">
+                    <AccordionTrigger className="px-3 py-2 text-sm hover:no-underline">
                       Compare plans
                     </AccordionTrigger>
                     <AccordionContent className="pb-0">
@@ -701,7 +703,7 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
                   </AccordionItem>
                 </Accordion>
               ) : null}
-              <p className="mt-2 text-xs leading-4 text-muted-foreground">
+              <p className="mt-3 text-sm leading-5 text-muted-foreground">
                 {isPulse ? 'One payment for permanent Pulse credits. Nothing renews automatically.' : 'One payment for a fixed amount of time. Nothing renews and nothing is billed again.'}
               </p>
             </CardContent>
@@ -738,7 +740,7 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
                       onClick={() => void handleStartPayment(source)}
                     >
                       <span className="block text-sm font-medium">{source.label}</span>
-                      <span className="mt-0.5 block text-[10px] leading-4 text-muted-foreground">
+                      <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">
                         {belowMinimum ? `Minimum ${source.sendingApp === 'cash_app' ? '0.00005' : '0.001'} BTC` : checkingMinimum ? 'Checking minimum' : `${source.asset} · ${source.network}`}
                       </span>
                     </button>
@@ -753,8 +755,8 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
               ) : null}
               {!intent ? (
                 <Accordion collapsible type="single">
-                  <AccordionItem className="border-0" value="payment-instructions">
-                    <AccordionTrigger className="py-2 text-xs hover:no-underline">
+                  <AccordionItem value="payment-instructions">
+                    <AccordionTrigger className="px-3 py-2 text-sm hover:no-underline">
                       How to send this payment
                     </AccordionTrigger>
                     <AccordionContent className="pb-1">
@@ -950,8 +952,8 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
 
         <Card>
           <Accordion collapsible type="single">
-            <AccordionItem className="border-0" value="why-crypto">
-              <AccordionTrigger className="px-4 py-3 text-sm hover:no-underline">
+            <AccordionItem value="why-crypto">
+              <AccordionTrigger className="px-4 py-3 text-base hover:no-underline">
                 <span className="flex items-center gap-2">
                   <Shield className="h-5 w-5 text-primary" />
                   <span>Why cruush takes crypto</span>
@@ -972,14 +974,20 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
                   Each checkout gives you a fresh payment address and clear payment status.
                 </p>
                 <p>cruush never asks for your wallet private key or seed phrase.</p>
+                <a
+                  className="inline-flex font-semibold text-primary underline underline-offset-4"
+                  href="/blog/crypto-first.html"
+                >
+                  Crypto first. On our terms.
+                </a>
               </AccordionContent>
             </AccordionItem>
           </Accordion>
         </Card>
 
         <Card>
-          <CardContent className="space-y-2 p-4 text-xs leading-5 text-muted-foreground">
-            <h2 className="text-sm font-semibold text-foreground">Billing policy</h2>
+          <CardContent className="space-y-2 p-4 text-sm leading-6 text-muted-foreground">
+            <h2 className="text-base font-semibold text-foreground">Billing policy</h2>
             <p>
               One-time purchase. Nothing renews automatically. Purchases are final and non-refundable
               except where applicable law requires a withdrawal, refund, remedy, or forced reversal.

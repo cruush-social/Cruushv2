@@ -2,7 +2,7 @@ import { useTrustRestrictions } from '../lib/trustRestrictions';
 import TrustRestrictionNotice from './TrustRestrictionNotice';
 import { useEffect, useLayoutEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import PhotoUploadSpinner from './PhotoUploadSpinner';
-import { PHOTO_UPLOAD_ACCEPT, PHOTO_UPLOAD_FORMAT_MESSAGE } from '../lib/photoUploadFormats';
+import { PHOTO_UPLOAD_ACCEPT } from '../lib/photoUploadFormats';
 import { CROWDS, ONBOARDING_IDENTITIES, LOOKING_FOR, MAX_PROFILE_SEXUALITIES, POSITIONS, PRONOUNS, ROLES, SEXUALITY, VIBE_GROUPS } from '../lib/profileOptions';
 import { ArrowRight, Check, Clipboard, Gift, Share2, ShieldCheck } from 'lucide-react';
 import { toast } from '../lib/toast';
@@ -372,8 +372,19 @@ export default function ProfileOnboarding({
         content.style.width = `${availableWidth / scale}px`;
       };
       applyScale(1);
+      viewport.style.overflowY = signedCodeOfConductAt ? 'auto' : 'hidden';
+      if (signedCodeOfConductAt) {
+        return;
+      }
       if (content.getBoundingClientRect().height > availableHeight) {
-        let low = 0;
+        const minimumReadableScale = 0.9;
+        const unscaledHeight = content.getBoundingClientRect().height;
+        if (unscaledHeight * minimumReadableScale > availableHeight) {
+          applyScale(minimumReadableScale);
+          viewport.style.overflowY = 'auto';
+          return;
+        }
+        let low = minimumReadableScale;
         let high = 1;
         for (let attempt = 0; attempt < 12; attempt += 1) {
           const scale = (low + high) / 2;
@@ -407,7 +418,7 @@ export default function ProfileOnboarding({
       window.visualViewport?.removeEventListener('resize', scheduleFit);
       window.visualViewport?.removeEventListener('scroll', scheduleFit);
     };
-  }, [currentStep]);
+  }, [currentStep, signedCodeOfConductAt]);
 
   const setProfileField = <K extends keyof OnboardingProfileState>(field: K, value: OnboardingProfileState[K]) => {
     setProfile((prev) => ({ ...prev, [field]: value }));
@@ -787,12 +798,12 @@ export default function ProfileOnboarding({
   return (
     <div
       ref={scrollContainerRef}
-      className={`${constrainedViewport ? 'h-full' : 'h-[100dvh]'} flex max-w-full flex-col items-center justify-center overflow-hidden bg-[#050505] px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-[calc(max(0.75rem,env(safe-area-inset-top))+var(--onboarding-pan-offset,0px))] text-foreground sm:px-4`}
+      className={`${constrainedViewport ? 'h-full' : 'h-[100dvh]'} flex max-w-full flex-col items-center ${signedCodeOfConductAt ? 'justify-start' : 'justify-center'} overflow-hidden bg-[#050505] px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-[calc(max(0.75rem,env(safe-area-inset-top))+var(--onboarding-pan-offset,0px))] text-foreground sm:px-4`}
     >
       <div ref={stepContentRef} className="flex w-full shrink-0 flex-col">
         <header className="mb-4 text-center sm:mb-6">
           <img className="cruush-brand-logo mx-auto mb-2 h-auto w-24" src={cruushLogo} alt="cruush" />
-          <p className="mt-2 text-center text-white/58">the rites</p>
+          <p className="mt-2 text-center text-xl font-semibold text-white/72">the rites</p>
         </header>
         <div className="w-full space-y-5 rounded-lg border border-white/12 bg-black/82 p-4 shadow-[0_28px_90px_rgba(0,0,0,0.52)] backdrop-blur sm:space-y-8 sm:p-6">
         {saveError ? (
@@ -809,7 +820,7 @@ export default function ProfileOnboarding({
           ))}
         </div>
         <div className="space-y-2 text-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
+          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-primary">
             {STEP_COPY[currentStep].rite}
           </p>
           <h2 className="text-2xl font-semibold text-foreground">{STEP_COPY[currentStep].title}</h2>
@@ -823,7 +834,7 @@ export default function ProfileOnboarding({
             case 'name':
               return (
                 <div className="space-y-4">
-                  <label className="text-sm mb-2 block">Display Name</label>
+                  <label className="mb-2 block text-base">Display Name</label>
                   <Input
                     type="text"
                     placeholder="Your name"
@@ -834,8 +845,8 @@ export default function ProfileOnboarding({
                     <p role="alert" className="text-xs text-destructive">Name must be at least 2 characters.</p>
                   ) : null}
                   <div className="space-y-2 rounded-lg border border-white/10 bg-white/[0.04] p-3">
-                    <label className="text-sm block text-white/82" htmlFor="onboarding-profile-photo">Profile photo</label>
-                    <p className="text-xs leading-5 text-white/58">Optional. NSFW is allowed. Your face is optional, but the photo must show you or your gear.</p>
+                    <label className="block text-base text-white/82" htmlFor="onboarding-profile-photo">Profile photo</label>
+                    <p className="text-sm leading-5 text-white/58">Optional. NSFW is allowed. Your face is optional, but the photo must show you or your gear.</p>
                     <Input
                       id="onboarding-profile-photo"
                       aria-label="Profile photo"
@@ -846,7 +857,6 @@ export default function ProfileOnboarding({
                     />
                     {photoUploading ? <PhotoUploadSpinner /> : null}
                     <TrustRestrictionNotice message={trust.message('photo_uploads', 'Photo uploading')} />
-                    <p className="text-xs text-white/58">{PHOTO_UPLOAD_FORMAT_MESSAGE}</p>
                     {photoUploadNotice ? <p className="text-xs text-primary">{photoUploadNotice}</p> : null}
                     {photoUploadError ? <p role="alert" className="text-xs text-destructive">{photoUploadError}</p> : null}
                   </div>
@@ -856,7 +866,7 @@ export default function ProfileOnboarding({
               return (
                 <div className="space-y-4">
                   <div>
-                    <label className="text-sm mb-2 block text-white/82">Gender Identity</label>
+                    <label className="mb-2 block text-base text-white/82">Gender Identity</label>
                     <MultiSelect
                       menuPortal
                       ariaLabel="Gender Identity"
@@ -866,7 +876,7 @@ export default function ProfileOnboarding({
                       value={profile.identities}
                       onChange={(values) => setProfileField('identities', limitToThree(values))}
                     />
-                    <p className="text-xs text-white/58 mt-1">Pick up to 3</p>
+                    <p className="mt-1 text-sm text-white/58">Pick up to 3</p>
                   </div>
                   <label className="flex cursor-pointer items-center gap-3 rounded-md border border-white/12 bg-white/[0.04] p-3 text-sm text-white/82">
                     <input
@@ -877,13 +887,13 @@ export default function ProfileOnboarding({
                     />
                     <span>
                       <span className="block">I am trans</span>
-                      <span className="mt-1 block text-xs leading-5 text-white/58">
+                      <span className="mt-1 block text-sm leading-5 text-white/58">
                         Optional. We ask this to offer you the optional T4T crowd. It does not add a trans label to your profile.
                       </span>
                     </span>
                   </label>
                   <div>
-                    <label className="text-sm mb-2 block text-white/82">Sexuality</label>
+                    <label className="mb-2 block text-base text-white/82">Sexuality</label>
                     <MultiSelect
                       menuPortal
                       ariaLabel="Sexuality"
@@ -892,10 +902,10 @@ export default function ProfileOnboarding({
                       value={profile.sexuality}
                       onChange={(values) => setProfileField('sexuality', limitToThree(values))}
                     />
-                    <p className="text-xs text-white/58 mt-1">Pick up to {MAX_PROFILE_SEXUALITIES}</p>
+                    <p className="mt-1 text-sm text-white/58">Pick up to {MAX_PROFILE_SEXUALITIES}</p>
                   </div>
                   <div>
-                    <label className="text-sm mb-2 block text-white/82">Pronouns</label>
+                    <label className="mb-2 block text-base text-white/82">Pronouns</label>
                     <MultiSelect
                       menuPortal
                       ariaLabel="Pronouns"
@@ -904,29 +914,37 @@ export default function ProfileOnboarding({
                       value={profile.pronouns}
                       onChange={(values) => setProfileField('pronouns', limitToThree(values))}
                     />
-                    <p className="text-xs text-white/58 mt-1">Optional. Pick up to 3</p>
+                    <p className="mt-1 text-sm text-white/58">Optional. Pick up to 3</p>
                   </div>
                 </div>
               );
             case 'crowds':
               return (
                 <div>
-                  <label className="text-sm mb-2 block text-white/82">Crowds</label>
-                  <MultiSelect
-                    menuPortal
-                    ariaLabel="Crowds"
-                    maxSelections={3}
-                    options={availableCrowds}
-                    value={profile.crowds}
-                    onChange={(values) => setProfileField('crowds', limitToThree(values))}
-                  />
-                  <p className="text-xs text-white/58 mt-1">Pick up to 3</p>
+                  <p className="mb-2 text-base text-white/82">Crowds</p>
+                  <div aria-label="Crowds" className="grid grid-cols-2 gap-2 sm:grid-cols-3" role="group">
+                    {availableCrowds.map((crowd, index) => {
+                      const selected = profile.crowds.includes(crowd);
+                      return (
+                        <button
+                          aria-pressed={selected}
+                          className={`${availableCrowds.length % 2 === 1 && index === availableCrowds.length - 1 ? 'col-span-2 sm:col-span-1' : ''} min-h-12 rounded-full border px-4 py-2 text-base ${selected ? 'border-primary bg-primary text-primary-foreground' : 'border-white/14 bg-white/[0.04] text-white'}`}
+                          key={crowd}
+                          onClick={() => setProfileField('crowds', selected ? profile.crowds.filter((item) => item !== crowd) : limitToThree([...profile.crowds, crowd]))}
+                          type="button"
+                        >
+                          {crowd}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="mt-2 text-sm text-white/58">Pick up to 3</p>
                 </div>
               );
             case 'lookingFor':
               return (
                 <div>
-                  <label className="text-sm mb-2 block text-white/82">Looking For</label>
+                  <label className="mb-2 block text-base text-white/82">Looking For</label>
                   <MultiSelect
                     menuPortal
                     ariaLabel="Looking For"
@@ -935,13 +953,13 @@ export default function ProfileOnboarding({
                     value={profile.lookingFor}
                     onChange={(values) => setProfileField('lookingFor', limitToThree(values))}
                   />
-                  <p className="text-xs text-white/58 mt-1">Pick up to 3</p>
+                  <p className="mt-1 text-sm text-white/58">Pick up to 3</p>
                 </div>
               );
             case 'vibes':
               return (
                 <div>
-                  <label className="text-sm mb-2 block text-white/82">Vibes</label>
+                  <label className="mb-2 block text-base text-white/82">Vibes</label>
                   <MultiSelect
                     menuPortal
                     ariaLabel="Vibes"
@@ -950,13 +968,13 @@ export default function ProfileOnboarding({
                     value={profile.vibes}
                     onChange={(values) => setProfileField('vibes', limitToThree(values))}
                   />
-                  <p className="text-xs text-white/58 mt-1">Pick up to 3</p>
+                  <p className="mt-1 text-sm text-white/58">Pick up to 3</p>
                 </div>
               );
             case 'bio':
               return (
                 <div>
-                  <label className="text-sm mb-2 block">Bio</label>
+                  <label className="mb-2 block text-base">Bio</label>
                   <Input
                     type="text"
                     placeholder="A little about you..."
@@ -964,7 +982,7 @@ export default function ProfileOnboarding({
                     onChange={e => setProfileField('bio', e.target.value)}
                   />
                   <div className="mt-4 flex items-baseline justify-between gap-3">
-                    <label className="text-sm">Signal</label>
+                    <label className="text-base">Signal</label>
                     <span className="shrink-0 text-xs text-white/50">{profile.signal.length}/{SIGNAL_MAX_LENGTH}</span>
                   </div>
                   {/* The same badge the map draws, over the same heart, so the
@@ -986,7 +1004,7 @@ export default function ProfileOnboarding({
                       theme="current"
                     />
                   </div>
-                  <p className="mb-2 text-xs text-white/58">Text above your heart pin on hover.</p>
+                  <p className="mb-2 text-sm text-white/58">Text above your heart pin on hover.</p>
                   <Input
                     type="text"
                     maxLength={SIGNAL_MAX_LENGTH}
@@ -999,7 +1017,7 @@ export default function ProfileOnboarding({
               return (
                 <div className="space-y-4">
                   <div>
-                    <label className="text-sm mb-2 block text-white/82">Role</label>
+                    <label className="mb-2 block text-base text-white/82">Role</label>
                     <MultiSelect
                       menuPortal
                       ariaLabel="Role"
@@ -1008,10 +1026,10 @@ export default function ProfileOnboarding({
                       value={profile.role}
                       onChange={(values) => setProfileField('role', values.slice(-1))}
                     />
-                    <p className="mt-1 text-xs text-white/58">Optional. This becomes your left badge.</p>
+                    <p className="mt-1 text-sm text-white/58">Optional. This becomes your left badge.</p>
                   </div>
                   <div>
-                    <label className="text-sm mb-2 block text-white/82">Position</label>
+                    <label className="mb-2 block text-base text-white/82">Position</label>
                     <MultiSelect
                       menuPortal
                       ariaLabel="Position"
@@ -1020,7 +1038,7 @@ export default function ProfileOnboarding({
                       value={profile.position}
                       onChange={(values) => setProfileField('position', values.slice(-1))}
                     />
-                    <p className="mt-1 text-xs text-white/58">Optional. This becomes your right badge.</p>
+                    <p className="mt-1 text-sm text-white/58">Optional. This becomes your right badge.</p>
                   </div>
                 </div>
               );
@@ -1078,7 +1096,7 @@ export default function ProfileOnboarding({
                           value={twoFactorPassword}
                           onChange={(event) => setTwoFactorPassword(event.target.value)}
                         />
-                        <span id="two-factor-password-help" className="block text-xs leading-5 text-white/58">
+                        <span id="two-factor-password-help" className="block text-sm leading-5 text-white/58">
                           Use the same password you use to sign in. This is not a separate 2FA password.
                         </span>
                       </label>
@@ -1117,7 +1135,7 @@ export default function ProfileOnboarding({
                     </form>
                   ) : null}
                   <div className="space-y-2 rounded-lg border border-white/10 bg-white/[0.04] p-3">
-                    <label className="text-sm block text-white/82" htmlFor="onboarding-invite-code">Friend invite code</label>
+                    <label className="block text-base text-white/82" htmlFor="onboarding-invite-code">Friend invite code</label>
                     <Input
                       id="onboarding-invite-code"
                       autoCapitalize="none"
@@ -1130,7 +1148,7 @@ export default function ProfileOnboarding({
                         setInviteCodeError(null);
                       }}
                     />
-                    <p className="text-xs leading-5 text-white/58">
+                    <p className="text-sm leading-5 text-white/58">
                       If a friend invited you, paste their invite link or code here. You must enable 2FA before they can redeem their benefit.
                     </p>
                     {inviteCodeAttached ? <p className="text-xs text-primary">Invite code attached.</p> : null}
@@ -1164,7 +1182,7 @@ export default function ProfileOnboarding({
 
                   {!rewardSummaryLoading && affiliateLink ? (
                     <div className="space-y-3">
-                      <label className="text-sm mb-2 block text-white/82">Affiliate link</label>
+                      <label className="mb-2 block text-base text-white/82">Affiliate link</label>
                       <Input aria-label="Affiliate link" value={affiliateLink} readOnly />
                       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                         {canUseNativeShare ? (
