@@ -204,7 +204,10 @@ const migrationFiles = [
   "183_archive_meat_rock_central_park_sublocation.sql",
   "184_merge_port_authority_bus_terminal_stops.sql",
   "185_reduce_spots_for_women_audience_launch.sql",
-  "186_nsfw_photo_audience.sql"
+  "186_nsfw_photo_audience.sql",
+  "187_subscription_expiry_reminders.sql",
+  "188_billing_support_categories.sql",
+  "189_subscription_expiry_email_delivery.sql"
 ];
 const rewardSafetyPreflightFiles = [
   "079_daily_check_in_rewards.sql",

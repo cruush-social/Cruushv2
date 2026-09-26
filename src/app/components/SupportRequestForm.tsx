@@ -13,6 +13,10 @@ const SUPPORT_CATEGORIES: Array<{ value: SupportRequestCategory; label: string }
   { value: 'bug', label: 'Bug report' },
   { value: 'comment', label: 'Comment' },
   { value: 'policy', label: 'Policy or reviewer question' },
+  { value: 'billing_payment', label: 'Payment issue' },
+  { value: 'billing_subscription', label: 'Subscription or renewal' },
+  { value: 'billing_pulse', label: 'Pulse purchase issue' },
+  { value: 'billing_refund', label: 'Refund request' },
 ];
 
 type SupportRequestFormProps = {
@@ -23,6 +27,7 @@ type SupportRequestFormProps = {
   requireContactEmail?: boolean;
   signedIn?: boolean;
   source: SupportRequestSource;
+  initialCategory?: SupportRequestCategory;
 };
 
 function getCurrentPageUrl() {
@@ -41,9 +46,10 @@ export default function SupportRequestForm({
   requireContactEmail = false,
   signedIn = false,
   source,
+  initialCategory = 'question',
 }: SupportRequestFormProps) {
   const idPrefix = useId();
-  const [category, setCategory] = useState<SupportRequestCategory>('question');
+  const [category, setCategory] = useState<SupportRequestCategory>(initialCategory);
   const [contactEmail, setContactEmail] = useState('');
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
@@ -56,6 +62,10 @@ export default function SupportRequestForm({
   const [hasRedactions, setHasRedactions] = useState(false);
   const [isRedacting, setIsRedacting] = useState(false);
   const idCanvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  useEffect(() => {
+    setCategory(initialCategory);
+  }, [initialCategory]);
 
   useEffect(() => {
     if (!idPreviewUrl || !appealMode) {

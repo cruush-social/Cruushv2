@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  buildSubscriptionExpiryEmail,
+  sendBitcoinMonitoringCapacityAlertEmail,
   sendPasswordResetEmail,
+  sendSubscriptionExpiryEmail,
   sendSupportRequestInboxEmail,
   sendUserReportInboxEmail,
   sendTrustSafetyAlertEmail,
@@ -44,6 +47,24 @@ afterEach(() => {
 });
 
 describe("mailer", () => {
+  it("sends Bitcoin monitoring capacity alerts to the owner email", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await sendBitcoinMonitoringCapacityAlertEmail({
+      activeAddresses: 40,
+      config,
+      level: "warning",
+      logger
+    });
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.to).toEqual(["julienlenazny@gmail.com"]);
+    expect(body.subject).toBe("[WARNING] cruush Bitcoin monitoring capacity is near its limit");
+    expect(body.text).toContain("Active checkout addresses: 40");
+    expect(body.html).not.toContain("RESEND_API_KEY");
+  });
+
   it("sends verification emails with the current Resend template", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true
@@ -256,4 +277,25 @@ describe("every Resend send carries something to render", () => {
       expect(body.from).toBeTruthy();
     });
   }
+});
+
+it("sends the subscription expiry date and renewal link with a stable provider idempotency key", async () => {
+  const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ id: "email_accepted_1" }) });
+  vi.stubGlobal("fetch", fetchMock);
+  const payload = buildSubscriptionExpiryEmail({
+    body: "Your cruush+ subscription expires on Sep 23, 2026, 4:00 PM UTC.",
+    email: "member@example.invalid", from: config.MAIL_FROM, title: "cruush+ expires soon"
+  });
+  const input = { config, logger, payload, idempotencyKey: "subscription-expiry/test" };
+  expect(await sendSubscriptionExpiryEmail(input)).toEqual({ accepted: true, providerMessageId: "email_accepted_1" });
+  const request = fetchMock.mock.calls[0][1];
+  expect(request.headers["Idempotency-Key"]).toBe(input.idempotencyKey);
+  expect(JSON.parse(request.body)).toMatchObject({
+    from: config.MAIL_FROM,
+    subject: payload.subject,
+    template: { id: "subscription-expiry", variables: { RENEW_URL: "https://cruush.app/store" } }
+  });
+  fetchMock.mockClear();
+  expect(await sendSubscriptionExpiryEmail({ ...input, config: { ...config, RESEND_API_KEY: "" } })).toEqual({ accepted: false, providerMessageId: null });
+  expect(fetchMock).not.toHaveBeenCalled();
 });

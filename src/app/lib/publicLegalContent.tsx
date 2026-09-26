@@ -7,7 +7,7 @@ export type PolicySection = {
 
 export const legalUpdated = "July 10, 2026";
 export const privacyUpdated = "July 21, 2026";
-export const billingUpdated = "September 2, 2026";
+export const billingUpdated = "September 20, 2026";
 export const legalContact = "hello@cruush.app";
 export const legalEntity = "cruush technologies LLC";
 
@@ -521,10 +521,21 @@ export const statement2257Sections: PolicySection[] = [
 
 export const billingSections: PolicySection[] = [
   {
+    title: "Paying with Bitcoin",
+    body: [
+      "cruush accepts Bitcoin for cruush+ and Pulse packs. Choose Cash App, PayPal, Venmo, or a compatible Bitcoin wallet at checkout, then scan the QR code or copy the payment address and exact Bitcoin amount.",
+      "Cash App, PayPal, and Venmo require an eligible, crypto-enabled account with external Bitcoin transfers available. Each app has sending minimums and fees. Checkout shows which purchases meet the selected app's minimum; smaller purchases may require another Bitcoin wallet.",
+      <>
+        Open <a href="/store">cruush+ checkout</a> or <a href="/store/pulse">Pulse checkout</a>.
+        View your purchases in <a href="/settings/orders">Order history</a>.
+      </>
+    ]
+  },
+  {
     title: "One-time purchases",
     body: [
       "Every cruush+ and Pulse pack checkout currently offered by cruush is a one-time purchase. Nothing renews automatically, and cruush does not bill the purchase again.",
-      "The exact total price, cruush+ access period, or Pulse count is shown before an order starts."
+      "The purchase price and cruush+ access period or Pulse count are shown before an order starts. The order locks the Bitcoin amount, including cruush’s processing fee, and displays the total before you send payment."
     ]
   },
   {
@@ -537,7 +548,7 @@ export const billingSections: PolicySection[] = [
   {
     title: "Crypto order window",
     body: [
-      "Starting a crypto payment creates one order with a unique payment address, exact asset, exact network, exact amount, and expiration time. The checkout displays the remaining time.",
+      "Starting a Bitcoin payment creates one order with a unique Bitcoin address, exact amount, and a 24-hour payment window. Checkout displays the QR code and remaining time. Use the Bitcoin network shown in checkout.",
       "Only a matching transfer that arrives on-chain by the order deadline can count toward that order. Do not send to an expired order address. If you already sent before the deadline and the checkout says the payment is confirming, do not send again.",
       "Before sending, you may cancel an order or cancel it to choose another payment method. Cancellation closes that order but preserves its record, and the address is never reused. Do not cancel if you have already sent payment."
     ]
@@ -552,8 +563,18 @@ export const billingSections: PolicySection[] = [
   {
     title: "When your purchase is delivered",
     body: [
-      "cruush+ access or purchased Pulse credits are added only after cruush independently confirms the matching blockchain transfer. A submitted transaction or copied address is not proof of payment.",
+      "cruush+ access or purchased Pulse credits are added after the matching Bitcoin transfer reaches six network confirmations. Confirmation time varies, and checkout updates the payment status. A submitted transaction or copied address is not proof of payment.",
       "cruush+ access lasts for the fixed period shown at checkout. Purchased Pulse credits do not expire. Nothing renews automatically."
+    ]
+  },
+  {
+    title: "Subscription expiry and renewal",
+    body: [
+      "cruush sends cruush+ expiry reminders 3 days and 1 day before your access ends, by email and in-app notification. Push reminders are also available when push notifications are enabled, subject to your quiet hours. Email reminders use your verified account email.",
+      <>
+        Renew through <a href="/store">cruush+ checkout</a>. Renewal requires a new one-time payment;
+        receiving a reminder does not renew or charge your account.
+      </>
     ]
   },
   {
@@ -573,7 +594,7 @@ export const billingSections: PolicySection[] = [
     body: [
       "A late, incomplete, underpaid, wrong-asset, wrong-network, or otherwise unmatched transfer does not automatically activate cruush+ or add Pulse credits. Available blockchain evidence may be retained for support, fraud prevention, accounting, disputes, and legally required handling.",
       <>
-        Contact <a href={`mailto:${legalContact}`}>{legalContact}</a> with the order details
+        Report a <a href="/support?billing=payment">payment issue</a> with the order details
         and transaction hash. Never send cruush your wallet recovery words, private key, or seed phrase.
       </>
     ]
@@ -582,7 +603,11 @@ export const billingSections: PolicySection[] = [
     title: "Billing support",
     body: [
       <>
-        Billing questions can be sent to <a href={`mailto:${legalContact}`}>{legalContact}</a>.
+        Contact Support about a <a href="/support?billing=payment">payment issue</a>,{' '}
+        <a href="/support?billing=subscription">subscription or renewal</a>,{' '}
+        <a href="/support?billing=pulse">Pulse purchase issue</a>, or{' '}
+        <a href="/support?refund=1">refund request</a>. You can also email{' '}
+        <a href={`mailto:${legalContact}`}>{legalContact}</a>.
       </>
     ]
   }

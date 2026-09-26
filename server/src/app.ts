@@ -116,7 +116,12 @@ export function buildServer(config: AppConfig, deps: BuildServerDeps = {}) {
     // Request logging is reproduced by the hooks below so that the container
     // healthcheck can be excluded from it.
     disableRequestLogging: true,
-    trustProxy: (config.TRUST_PROXY_HOPS ?? 0) > 0 ? config.TRUST_PROXY_HOPS : false
+    // Trust only loopback/private reverse proxies. Numeric hop-count trust can
+    // accept spoofed X-Forwarded-* values when the request path has fewer
+    // proxies than expected.
+    trustProxy: (config.TRUST_PROXY_HOPS ?? 0) > 0
+      ? "loopback, linklocal, uniquelocal"
+      : false
   });
 
   // The container healthcheck polls /health every 15s. At two log lines per

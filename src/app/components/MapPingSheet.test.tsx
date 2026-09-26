@@ -113,7 +113,7 @@ describe('MapPingSheet', () => {
 
     expect(await screen.findByRole('dialog')).toBeInTheDocument();
     expect(screen.getByText('At the park')).toBeInTheDocument();
-    expect(screen.getByText('2 of 3 Pulses available right now.')).toBeInTheDocument();
+    expect(screen.getByText('2 Pulses left')).toBeInTheDocument();
     // The radius is a slider now, so the range is read off its ends.
     const radiusSlider = screen.getByRole('slider', { name: 'Pulse radius' });
     expect(radiusSlider).toHaveAttribute('aria-valuemin', '0');
@@ -126,6 +126,23 @@ describe('MapPingSheet', () => {
     expect(screen.getByTestId('map-ping-sheet')).toHaveClass('overflow-hidden');
     expect(screen.getByTestId('map-ping-sheet-resize')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Send Pulse' }).closest('[data-slot="sheet-footer"]')).toHaveClass('shrink-0');
+  });
+
+  it('shows the total including saved Pulses beside Get Pulses even without a signal', async () => {
+    const { rerender } = render(
+      <MapPingSheet open onOpenChange={vi.fn()} status={{ ...availableStatus,
+        bonusCredits: 7, allowance: { ...availableStatus.allowance, limit: 10, remaining: 9 },
+      }} loading={false} hasMapLocation signal="" onRefresh={vi.fn().mockResolvedValue(undefined)}
+        onSend={vi.fn()} onGetPulses={vi.fn()} />,
+    );
+    const count = await screen.findByText('9 Pulses left');
+    expect(count.parentElement).toContainElement(screen.getByRole('button', { name: 'Get Pulses' }));
+    expect(screen.queryByText('Your Pulse uses the signal saved on your profile.')).not.toBeInTheDocument();
+    rerender(<MapPingSheet open onOpenChange={vi.fn()} status={{ ...availableStatus,
+      bonusCredits: 0, allowance: { ...availableStatus.allowance, remaining: 1 },
+    }} loading={false} hasMapLocation signal="" onRefresh={vi.fn().mockResolvedValue(undefined)}
+      onSend={vi.fn()} onGetPulses={vi.fn()} />);
+    expect(screen.getByText('1 Pulse left')).toBeInTheDocument();
   });
 
   it('moves and resizes as a stable desktop window', async () => {
@@ -162,7 +179,8 @@ describe('MapPingSheet', () => {
     Object.defineProperty(resizeHandle, 'setPointerCapture', { configurable: true, value: vi.fn() });
     Object.defineProperty(resizeHandle, 'hasPointerCapture', { configurable: true, value: vi.fn().mockReturnValue(false) });
     const startingWidth = Number.parseFloat(sheet.style.width);
-    const startingHeight = Number.parseFloat(sheet.style.height);
+    expect(sheet.style.height).toBe('auto');
+    const startingHeight = JSON.parse(window.localStorage.getItem('cruush.pulse.desktopGeometry')!).height;
     dispatchPointer(resizeHandle, 'pointerdown', { clientX: 600, clientY: 600, pointerId: 2 });
     dispatchPointer(resizeHandle, 'pointermove', { clientX: 640, clientY: 560, pointerId: 2 });
     dispatchPointer(resizeHandle, 'pointerup', { clientX: 640, clientY: 560, pointerId: 2 });

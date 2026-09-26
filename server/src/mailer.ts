@@ -1,6 +1,7 @@
 import type { FastifyBaseLogger } from "fastify";
 import { ApiError } from "./errors.js";
 import type { AppConfig } from "./config.js";
+import { OWNER_FULL_ACCESS_EMAIL } from "./owner-access.js";
 
 type VerificationEmailInput = {
   config: AppConfig;
@@ -45,6 +46,15 @@ export type TrustSafetyAlertIncident = {
 type TrustSafetyAlertEmailInput = {
   config: AppConfig;
   incident: TrustSafetyAlertIncident;
+  logger: FastifyBaseLogger;
+};
+
+export type BitcoinMonitoringCapacityLevel = "warning" | "critical";
+
+type BitcoinMonitoringCapacityAlertEmailInput = {
+  activeAddresses: number;
+  config: AppConfig;
+  level: BitcoinMonitoringCapacityLevel;
   logger: FastifyBaseLogger;
 };
 
@@ -297,7 +307,7 @@ function buildAccountEmailHtml(input: {
                       </tbody>
                     </table>
 
-                    <table
+                    ${footnote ? `<table
                       align="center"
                       border="0"
                       cellpadding="0"
@@ -320,7 +330,7 @@ function buildAccountEmailHtml(input: {
                           </td>
                         </tr>
                       </tbody>
-                    </table>
+                    </table>` : ""}
 
                     <p
                       style="margin:0 0 20px;padding:0;color:#ffffff;font-family:Georgia,'Times New Roman',Times,serif;font-size:15px;line-height:1.55;text-align:center;"
@@ -385,6 +395,7 @@ async function sendResendEmail(input: {
   replyTo?: string | null;
   subject: string;
   failureMessage: string;
+  idempotencyKey?: string;
 } & ResendEmailContent) {
   const { attachments, config, email, failureMessage, from, logger, replyTo, subject } = input;
   const content = input.template
@@ -393,9 +404,11 @@ async function sendResendEmail(input: {
 
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
+    ...(input.idempotencyKey ? { signal: AbortSignal.timeout(15_000) } : {}),
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${config.RESEND_API_KEY}`
+      Authorization: `Bearer ${config.RESEND_API_KEY}`,
+      ...(input.idempotencyKey ? { "Idempotency-Key": input.idempotencyKey } : {})
     },
     body: JSON.stringify({
       from: from ?? config.MAIL_FROM,
@@ -412,6 +425,17 @@ async function sendResendEmail(input: {
     logger.error({ email, statusCode: response.status }, failureMessage);
     throw new ApiError(502, "INTERNAL_ERROR", "Failed to send email.");
   }
+
+  let providerMessageId: string | null = null;
+  if (typeof response.json === "function") {
+    try {
+      const body = await response.json() as { id?: unknown };
+      providerMessageId = typeof body.id === "string" ? body.id : null;
+    } catch {
+      // A successful provider response without readable JSON is still accepted.
+    }
+  }
+  return { providerMessageId };
 }
 
 export async function sendEventPassEmail(input: EventPassEmailInput): Promise<VerificationDeliveryResult> {
@@ -754,6 +778,42 @@ export async function sendTrustSafetyAlertEmail(input: TrustSafetyAlertEmailInpu
   });
 }
 
+export async function sendBitcoinMonitoringCapacityAlertEmail(input: BitcoinMonitoringCapacityAlertEmailInput) {
+  const { activeAddresses, config, level, logger } = input;
+  if (!config.RESEND_API_KEY || !config.MAIL_FROM) {
+    logger.info({ activeAddresses, level }, "bitcoin monitoring capacity email skipped, mail is not configured");
+    return;
+  }
+
+  const critical = level === "critical";
+  const threshold = critical ? 50 : 40;
+  const subject = critical
+    ? "[CRITICAL] cruush Bitcoin monitoring capacity reached"
+    : "[WARNING] cruush Bitcoin monitoring capacity is near its limit";
+  const summary = critical
+    ? "The active checkout-address warning line has been reached. Scale the Bitcoin monitoring source before opening more simultaneous checkouts."
+    : "The active checkout-address warning line has been reached. Plan the next Bitcoin monitoring source before opening more simultaneous checkouts.";
+  const text = [
+    summary,
+    "",
+    `Active checkout addresses: ${activeAddresses}`,
+    `Alert threshold: ${threshold}`,
+    "",
+    "The public Mempool WebSocket remains the current low-cost monitoring source. Esplora remains the independent settlement verifier."
+  ].join("\n");
+  const html = `<p>${escapeHtml(summary)}</p><p><strong>Active checkout addresses:</strong> ${activeAddresses}<br><strong>Alert threshold:</strong> ${threshold}</p><p>The public Mempool WebSocket remains the current low-cost monitoring source. Esplora remains the independent settlement verifier.</p>`;
+
+  await sendResendEmail({
+    config,
+    email: OWNER_FULL_ACCESS_EMAIL,
+    logger,
+    subject,
+    html,
+    text,
+    failureMessage: "bitcoin monitoring capacity email delivery failed"
+  });
+}
+
 type AgeSuspensionAppealEmailInput = {
   appealUrl: string;
   config: AppConfig;
@@ -1032,4 +1092,63 @@ export async function sendUserReportInboxEmail(input: UserReportInboxEmailInput)
     text,
     failureMessage: "reports inbox email delivery failed"
   });
+}
+
+export const SUBSCRIPTION_EXPIRY_EMAIL_TEMPLATE_ID = "subscription-expiry";
+export const SUBSCRIPTION_EXPIRY_RENEWAL_URL = "https://cruush.app/store";
+
+export type SubscriptionExpiryEmailPayload = {
+  email: string;
+  from: string;
+  subject: string;
+  templateId: string;
+  variables: {
+    BODY: string;
+    RENEW_URL: string;
+    TITLE: string;
+  };
+};
+
+export function buildSubscriptionExpiryEmail(input: {
+  body: string;
+  email: string;
+  from: string;
+  title: string;
+}): SubscriptionExpiryEmailPayload {
+  return {
+    email: input.email,
+    from: input.from,
+    subject: input.title,
+    templateId: SUBSCRIPTION_EXPIRY_EMAIL_TEMPLATE_ID,
+    variables: {
+      BODY: input.body,
+      RENEW_URL: SUBSCRIPTION_EXPIRY_RENEWAL_URL,
+      TITLE: input.title
+    }
+  };
+}
+
+export async function sendSubscriptionExpiryEmail(input: {
+  config: AppConfig;
+  idempotencyKey: string;
+  logger: FastifyBaseLogger;
+  payload: SubscriptionExpiryEmailPayload;
+}) {
+  if (!input.config.RESEND_API_KEY || !input.config.MAIL_FROM) {
+    return { accepted: false, providerMessageId: null };
+  }
+  const delivery = await sendResendEmail({
+    config: input.config,
+    email: input.payload.email,
+    from: input.payload.from,
+    idempotencyKey: input.idempotencyKey,
+    logger: input.logger,
+    subject: input.payload.subject,
+    template: {
+      id: input.payload.templateId,
+      variables: input.payload.variables
+    },
+    failureMessage: "Subscription reminder email failed."
+  });
+  return { accepted: true, providerMessageId: delivery.providerMessageId };
 }

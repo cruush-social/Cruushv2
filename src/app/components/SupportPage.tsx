@@ -4,6 +4,7 @@ import { Button } from './ui/button';
 import PublicPolicyLinks from './PublicPolicyLinks';
 import SupportRequestForm from './SupportRequestForm';
 import BugButtonSlot from './BugButtonSlot';
+import type { SupportRequestCategory } from '../lib/supportApi';
 import { useBackOrFallback } from '../lib/useBackOrFallback';
 
 type SupportPageProps = {
@@ -15,7 +16,18 @@ type SupportPageProps = {
 export default function SupportPage({ appealOnly = false, publicAccess = false, signedIn = false }: SupportPageProps = {}) {
   const location = useLocation();
   const goBack = useBackOrFallback('/');
-  const appealValue = new URLSearchParams(location.search).get('appeal');
+  const searchParams = new URLSearchParams(location.search);
+  const appealValue = searchParams.get('appeal');
+  const billingCategories: Record<string, SupportRequestCategory> = {
+    payment: 'billing_payment',
+    subscription: 'billing_subscription',
+    pulse: 'billing_pulse',
+    refund: 'billing_refund',
+  };
+  const billingValue = searchParams.get('billing') ?? '';
+  const initialCategory = searchParams.get('refund') === '1'
+    ? 'billing_refund'
+    : Object.hasOwn(billingCategories, billingValue) ? billingCategories[billingValue] : 'question';
   const ageAppealMode = appealOnly || appealValue === '1' || appealValue === 'age';
   const generalAppealMode = appealValue === 'general';
   const appealMode = ageAppealMode || generalAppealMode;
@@ -39,6 +51,7 @@ export default function SupportPage({ appealOnly = false, publicAccess = false, 
       <main className="w-full p-6">
         <div className="mx-auto max-w-2xl space-y-4">
           <SupportRequestForm
+            initialCategory={initialCategory}
             appealMode={ageAppealMode}
             generalAppealMode={generalAppealMode}
             requireContactEmail={appealMode || publicAccess}

@@ -158,7 +158,9 @@ export function startCryptoWatcher(
 ): CryptoWatcherHandle | null {
   const sources = options.sources ?? createChainSources(app.config);
 
-  const bitcoinSource = options.bitcoinSource ?? (options.sources === undefined && isCryptoPaymentRailReady(app.config, "btc_bitcoin") ? createBitcoinSource(app.config.CRYPTO_PROCESSOR_BITCOIN_ESPLORA_URL ?? "") : null);
+  const bitcoinSource = options.bitcoinSource ?? (options.sources === undefined && isCryptoPaymentRailReady(app.config, "btc_bitcoin")
+    ? createBitcoinSource(app.config.CRYPTO_PROCESSOR_BITCOIN_ESPLORA_URL ?? "")
+    : null);
 
   if (sources.length === 0 && !bitcoinSource) {
     const status = describeWatcherStatus(app.config);
@@ -166,10 +168,11 @@ export function startCryptoWatcher(
     return null;
   }
 
-  let running = false;
   let stopped = false;
+  let rerunRequested = false;
+  let activePass: Promise<WatcherPassResult[]> | null = null;
 
-  async function runOnce() {
+  async function executePass() {
     const results: WatcherPassResult[] = [];
 
     for (const source of sources) {
@@ -197,20 +200,29 @@ export function startCryptoWatcher(
     return results;
   }
 
+  function runOnce(): Promise<WatcherPassResult[]> {
+    if (stopped) return Promise.resolve([]);
+    if (activePass) {
+      rerunRequested = true;
+      return activePass;
+    }
+    activePass = executePass().finally(() => {
+      activePass = null;
+      if (rerunRequested && !stopped) {
+        rerunRequested = false;
+        void runOnce();
+      }
+    });
+    return activePass;
+  }
+
   const intervalMs = (app.config.CRYPTO_PROCESSOR_WATCHER_INTERVAL_SECONDS ?? 60) * 1000;
   let timer: NodeJS.Timeout | null = null;
 
   if (options.schedule !== false) {
     timer = setInterval(() => {
       // Skip rather than queue: a slow pass must not pile up behind itself.
-      if (running || stopped) {
-        return;
-      }
-
-      running = true;
-      void runOnce().finally(() => {
-        running = false;
-      });
+      if (!activePass && !stopped) void runOnce();
     }, intervalMs);
 
     // Never hold the process open for a poller.
@@ -228,6 +240,7 @@ export function startCryptoWatcher(
         clearInterval(timer);
         timer = null;
       }
+      bitcoinSource?.stop?.();
     },
     runOnce
   };

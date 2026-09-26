@@ -516,6 +516,7 @@ function assertIdempotentReservationMatches(
     amountUsdCents: number;
     walletXpubFingerprint: string;
     rail: CryptoPaymentRailId;
+    sendingApp: CryptoSendingApp | null;
   }
 ) {
   const rail = cryptoRail(input.rail);
@@ -525,7 +526,8 @@ function assertIdempotentReservationMatches(
     Number(row.amount_usd_cents) !== input.amountUsdCents ||
     row.asset !== rail.asset ||
     row.network !== rail.network ||
-    row.wallet_xpub_fingerprint !== input.walletXpubFingerprint
+    row.wallet_xpub_fingerprint !== input.walletXpubFingerprint ||
+    cryptoSendingAppFromMetadata(row.metadata) !== input.sendingApp
   ) {
     throw new ApiError(
       409,
@@ -878,7 +880,8 @@ export async function createInHouseCryptoPaymentIntent(
       productType,
       amountUsdCents: input.amountUsdCents,
       walletXpubFingerprint,
-      rail
+      rail,
+      sendingApp: cryptoSendingAppFromMetadata(input.metadata)
     });
 
     if (reusedReservation && await terminalizeUnpaidCryptoIntentAfterLifetimeAccess(client, reserved)) {
@@ -901,6 +904,14 @@ export async function createInHouseCryptoPaymentIntent(
     const collectionFee = bitcoinQuote?.collectionFee ?? await quoteCollectionFee(config, cryptoRail(rail), paymentAddress,
       deriveCryptoReceivingAddress(wallet.receiveChainXpub, 0));
     const quotedAmountAtomic = bitcoinQuote?.quotedAmountAtomic ?? quoteUsdCentsAsStablecoinAtomic(input.amountUsdCents + collectionFee.feeUsdCents);
+    const sendingApp = cryptoSendingAppFromMetadata(input.metadata);
+    if (rail === "btc_bitcoin" && sendingApp && sendingApp !== "wallet") {
+      const minimum = sendingApp === "cash_app" ? 5000n : 100000n;
+      if (BigInt(quotedAmountAtomic) < minimum) {
+        const label = sendingApp === "cash_app" ? "Cash App" : sendingApp === "paypal" ? "PayPal" : "Venmo";
+        throw new ApiError(400, "VALIDATION_ERROR", `${label}: this order is below its ${sendingApp === "cash_app" ? "0.00005" : "0.001"} BTC sending minimum. Choose another method before buying.`);
+      }
+    }
     const watchStartBlock = input.watchStartBlock ?? 0n;
     if (watchStartBlock < 0n || watchStartBlock > 9_223_372_036_854_775_807n) {
       throw new Error("Crypto payment intent has an invalid watch-start block.");

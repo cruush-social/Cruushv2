@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
+import { ApiClientError } from '../lib/apiClient';
 import { ArrowLeft, Check, Copy, Info, Shield, Sparkles } from 'lucide-react';
 import { Button } from './ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
@@ -28,6 +29,7 @@ import {
   CRYPTO_SENDING_APP_LABELS,
   CryptoPaymentMethodInstructions,
   cryptoPaymentSourceForIntent,
+  type CryptoPaymentSource,
 } from './CryptoPaymentMethods';
 
 type StorePlan = Omit<CruushPlusPlan, 'id' | 'interval'> & { id: string; interval: CruushPlusPlan['interval'] | 'pack' };
@@ -150,6 +152,12 @@ function formatPaymentTimeRemaining(expiresAt: string, nowMs: number) {
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 }
 
+const BITCOIN_APP_LINKS = {
+  cash_app: 'https://cash.app/launch/',
+  paypal: 'https://www.paypal.com/myaccount/crypto/BTC',
+  venmo: 'https://venmo.com/about/crypto',
+} as const;
+
 export default function CruushPlusStore({ product = 'cruush_plus' }: { product?: 'cruush_plus' | 'ping_pack' }) {
   const isPulse = product === 'ping_pack';
   const statusCopy = isPulse ? { ...PAYMENT_STATUS_COPY, paid: 'Payment confirmed. Your Pulses are available.', failed: 'Payment was not confirmed. No Pulses were added.' } : PAYMENT_STATUS_COPY;
@@ -161,7 +169,10 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [intent, setIntent] = useState<CryptoPaymentIntent | null>(null);
   const [selectedSourceId, setSelectedSourceId] = useState<string>(CRYPTO_PAYMENT_SOURCES[0].id);
+  const [hasChosenSource, setHasChosenSource] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [amountCopied, setAmountCopied] = useState(false);
+  const [retryAt, setRetryAt] = useState(0);
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState(false);
   const [cancelling, setCancelling] = useState(false);
@@ -171,6 +182,7 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
   const [statusError, setStatusError] = useState<string | null>(null);
   const [clockMs, setClockMs] = useState(() => Date.now());
   const paymentAttemptRef = useRef<{ planId: string; sourceId: string; idempotencyKey: string } | null>(null);
+  const startingRef = useRef(false);
   const pollStartedRef = useRef<{ intentId: string; startedAt: number } | null>(null);
   const cancelledIntentIdRef = useRef<string | null>(null);
 
@@ -194,6 +206,7 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
         setBitcoinEligibility(bitcoinSending);
         if (currentIntent && isOpenCryptoPayment(currentIntent.status)) {
           setIntent(currentIntent);
+          setHasChosenSource(true);
           setSelectedPlanId(currentIntent.planId);
           const intentSource = cryptoPaymentSourceForIntent(currentIntent);
           if (intentSource) {
@@ -251,13 +264,13 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
   );
 
   useEffect(() => {
-    if (!intent?.expiresAt || !isOpenCryptoPayment(intent.status) || paymentWindowClosed) {
+    if (retryAt <= Date.now() && (!intent?.expiresAt || !isOpenCryptoPayment(intent.status) || paymentWindowClosed)) {
       return;
     }
 
     const timer = window.setInterval(() => setClockMs(Date.now()), 1000);
     return () => window.clearInterval(timer);
-  }, [intent?.expiresAt, intent?.status, paymentWindowClosed]);
+  }, [intent?.expiresAt, intent?.status, paymentWindowClosed, retryAt]);
 
   useEffect(() => {
     if (!locallyExpired) {
@@ -325,24 +338,9 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
   );
   const selectedRail: CryptoPaymentRailId = selectedPaymentSource.rail;
 
-  // What the selected app can actually send. The server evaluates every
-  // catalogue item against the live BTC quote and each app's sending minimum,
-  // so an item only disappears while an app that cannot send it is selected.
-  // A wallet has no sending minimum. An id the server did not evaluate stays
-  // listed, and a filter that would empty the picker is not applied, because
-  // a member must always be able to reach another method.
-  const listedPlans = useMemo(() => {
-    if (selectedPaymentSource.rail !== 'btc_bitcoin' || selectedPaymentSource.sendingApp === 'wallet' || !bitcoinEligibility) {
-      return plans;
-    }
-
-    const appLabel = CRYPTO_SENDING_APP_LABELS[selectedPaymentSource.sendingApp];
-    const sendable = plans.filter((plan) => {
-      const apps = bitcoinEligibility.products[plan.id];
-      return apps === undefined || apps.includes(appLabel);
-    });
-    return sendable.length > 0 ? sendable : plans;
-  }, [bitcoinEligibility, plans, selectedPaymentSource]);
+  // Keep the product catalogue visible. Sending minimums disable methods for
+  // the chosen product instead of silently changing what the member buys.
+  const listedPlans = plans;
 
   const selectedPlan = useMemo(
     () => plans.find((plan) => plan.id === selectedPlanId) ?? null,
@@ -423,17 +421,31 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
     paymentAttemptRef.current = null;
   }, [checkoutSelectionLocked, listedPlans, selectedPlanId]);
 
-  const handleStartPayment = useCallback(async () => {
+  const handleStartPayment = useCallback(async (source: CryptoPaymentSource) => {
     if (
       !selectedPlan
-      || !selectedRailReady
-      || starting
+      || !readyRailIds.has(source.rail)
+      || startingRef.current
+      || retryAt > Date.now()
       || (paymentOpen && !locallyExpired)
       || paymentPaid
     ) {
       return;
     }
 
+    setSelectedSourceId(source.id);
+    setHasChosenSource(true);
+    setCopied(false);
+    if (source.rail === 'btc_bitcoin' && source.sendingApp !== 'wallet') {
+      const apps = bitcoinEligibility?.products[selectedPlan.id];
+      if (apps && !apps.includes(CRYPTO_SENDING_APP_LABELS[source.sendingApp])) {
+        const minimum = source.sendingApp === 'cash_app' ? '0.00005' : '0.001';
+        setCheckoutNotice(`${source.label}: this order is below its ${minimum} BTC sending minimum. Choose another method before buying.`);
+        return;
+      }
+    }
+
+    startingRef.current = true;
     setStarting(true);
     setError(null);
     setStatusError(null);
@@ -441,33 +453,41 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
     setCopied(false);
 
     try {
-      const attempt = paymentAttemptRef.current?.planId === selectedPlan.id && paymentAttemptRef.current.sourceId === selectedPaymentSource.id
+      const attempt = paymentAttemptRef.current?.planId === selectedPlan.id && paymentAttemptRef.current.sourceId === source.id
         ? paymentAttemptRef.current
         : {
             planId: selectedPlan.id,
-            sourceId: selectedPaymentSource.id,
+            sourceId: source.id,
             idempotencyKey: createIdempotencyKey(),
           };
       paymentAttemptRef.current = attempt;
-      const nextIntent = await (isPulse ? createPulsePaymentIntent({ packId: attempt.planId, idempotencyKey: attempt.idempotencyKey, rail: selectedPaymentSource.rail, sendingApp: selectedPaymentSource.sendingApp }) : createCryptoPaymentIntent({
+      const nextIntent = await (isPulse ? createPulsePaymentIntent({ packId: attempt.planId, idempotencyKey: attempt.idempotencyKey, rail: source.rail, sendingApp: source.sendingApp }) : createCryptoPaymentIntent({
         planId: attempt.planId as CruushPlusPlanId,
         idempotencyKey: attempt.idempotencyKey,
-        rail: selectedPaymentSource.rail,
-        sendingApp: selectedPaymentSource.sendingApp,
+        rail: source.rail,
+        sendingApp: source.sendingApp,
       }));
       if (paymentAttemptRef.current !== attempt) {
         return;
       }
       setIntent(nextIntent);
+      setAmountCopied(false);
+      setRetryAt(0);
       if (!isOpenCryptoPayment(nextIntent.status)) {
         paymentAttemptRef.current = null;
       }
     } catch (startError) {
+      if (startError instanceof ApiClientError && startError.code === 'RATE_LIMITED') {
+        const seconds = (startError.details as { retryAfterSeconds?: number } | null)?.retryAfterSeconds;
+        setRetryAt(Date.now() + (typeof seconds === 'number' && Number.isFinite(seconds) ? Math.max(1, seconds) : 60) * 1000);
+        setClockMs(Date.now());
+      }
       setError(startError instanceof Error ? startError.message : 'Unable to start this payment.');
     } finally {
+      startingRef.current = false;
       setStarting(false);
     }
-  }, [isPulse, locallyExpired, paymentOpen, paymentPaid, selectedPlan, selectedPaymentSource, selectedRailReady, starting]);
+  }, [bitcoinEligibility, isPulse, locallyExpired, paymentOpen, paymentPaid, selectedPlan, readyRailIds, retryAt]);
 
   const handleCancelPayment = useCallback(async () => {
     if (!intent || !cancelAction || cancelling || !['pending', 'awaiting_payment'].includes(intent.status)) {
@@ -512,6 +532,14 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
       setError('Unable to copy the payment address.');
     }
   }, [intent]);
+
+  const handleCopyAmount = async () => {
+    if (!intent?.quotedAmountAtomic) return;
+    try {
+      await navigator.clipboard.writeText(formatUsdcAtomic(intent.quotedAmountAtomic, intent.asset));
+      setAmountCopied(true);
+    } catch { setError('Unable to copy the payment amount.'); }
+  };
 
   const renderPlanButton = (plan: StorePlan, featured = false) => {
     const selected = plan.id === selectedPlanId;
@@ -601,9 +629,45 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
       </header>
 
       <main className="mx-auto flex max-w-3xl flex-col gap-2 px-3 py-1.5">
-        <Button variant="outline" onClick={() => navigate(isPulse ? '/store' : '/store/pulse')}>
-          {isPulse ? 'cruush+ checkout' : 'Pulse checkout'}
-        </Button>
+        {!isPulse ? <Card>
+          <Accordion collapsible type="single">
+            <AccordionItem className="border-0" value="benefits">
+              <AccordionTrigger className="px-4 py-3 text-sm hover:no-underline">
+                <span className="flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 shrink-0 text-primary" />
+                  <span>What <CruushPlusWord /> unlocks</span>
+                </span>
+              </AccordionTrigger>
+              <AccordionContent className="pb-0">
+                <CardContent className="p-3">
+                  <p className="mb-2 text-xs text-muted-foreground">
+                    Viewing the map and messaging stay free for everyone, always.
+                  </p>
+                  <ul
+                    aria-label="cruush+ benefits"
+                    className={`grid gap-1.5 ${BALANCED_CHECKOUT_PLUS_FEATURES.length % 2 === 0 ? 'grid-cols-2' : 'grid-cols-3'}`}
+                  >
+                    {BALANCED_CHECKOUT_PLUS_FEATURES.map((benefit, index) => (
+                      <li
+                        className={`${BALANCED_CHECKOUT_PLUS_FEATURES.length % 2 === 1 && index === BALANCED_CHECKOUT_PLUS_FEATURES.length - 1 ? 'col-start-2' : ''} flex h-full items-start gap-1.5 rounded-xl border border-white/20 p-2 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_10px_30px_rgba(255,0,114,0.18)]`}
+                        key={benefit.title}
+                        style={{ background: 'var(--cruush-gradient)' }}
+                      >
+                        <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-white" />
+                        <span className="min-w-0">
+                          <span className="block text-[11px] font-semibold leading-4">{benefit.title}</span>
+                          <span className="block text-[10px] leading-4 text-white/85">{benefit.description}</span>
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </CardContent>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
+        </Card> : null}
+
+        {isPulse ? <Button variant="outline" onClick={() => navigate('/store')}>cruush+ checkout</Button> : null}
         {error ? (
           <div role="alert" className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
             {error}
@@ -621,7 +685,7 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
             <CardContent className="p-3">
               <p className="mb-2 text-sm font-semibold">{isPulse ? 'Choose your Pulses' : 'Choose your time'}</p>
               <ul aria-label={isPulse ? 'Pulse prices' : 'cruush+ prices'} className="grid gap-2">
-                {selectedPlan ? <li>{renderPlanButton(selectedPlan, true)}</li> : null}
+                {selectedPlan && (checkoutSelectionLocked || listedPlans.some(plan => plan.id === selectedPlan.id)) ? <li>{renderPlanButton(selectedPlan, true)}</li> : null}
               </ul>
               {otherPlans.length > 0 ? (
                 <Accordion collapsible type="single">
@@ -656,7 +720,11 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
               <div className="grid grid-cols-3 gap-2" aria-label="Where you are paying from">
                 {pickerSources.map((source) => {
                   const sourceReady = readyRailIds.has(source.rail);
-                  const sourceSelected = selectedSourceId === source.id
+                  const eligibleApps = bitcoinEligibility?.products[selectedPlan.id];
+                  const checkingMinimum = source.rail === 'btc_bitcoin' && source.sendingApp !== 'wallet' && bitcoinEligibility === null;
+                  const belowMinimum = source.rail === 'btc_bitcoin' && source.sendingApp !== 'wallet'
+                    && Boolean(eligibleApps && !eligibleApps.includes(CRYPTO_SENDING_APP_LABELS[source.sendingApp]));
+                  const sourceSelected = (hasChosenSource || source.rail !== 'btc_bitcoin') && selectedSourceId === source.id
                     && (sourceReady || paymentOpen || paymentPaid);
 
                   return (
@@ -665,23 +733,19 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
                       type="button"
                       aria-label={source.label}
                       aria-pressed={sourceSelected}
-                      disabled={!sourceReady || checkoutSelectionLocked}
+                      disabled={!sourceReady || checkoutSelectionLocked || checkingMinimum || belowMinimum || retryAt > clockMs}
                       className={`rounded-xl border px-2 py-2 text-center disabled:opacity-50 ${sourceSelected ? 'border-primary bg-primary/10' : 'border-border'}`}
-                      onClick={() => {
-                        setSelectedSourceId(source.id);
-                        setIntent(null);
-                        setCopied(false);
-                        paymentAttemptRef.current = null;
-                      }}
+                      onClick={() => void handleStartPayment(source)}
                     >
                       <span className="block text-sm font-medium">{source.label}</span>
                       <span className="mt-0.5 block text-[10px] leading-4 text-muted-foreground">
-                        {source.asset} · {source.network}
+                        {belowMinimum ? `Minimum ${source.sendingApp === 'cash_app' ? '0.00005' : '0.001'} BTC` : checkingMinimum ? 'Checking minimum' : `${source.asset} · ${source.network}`}
                       </span>
                     </button>
                   );
                 })}
               </div>
+              {retryAt > clockMs ? <p role="status" className="text-xs text-muted-foreground">Try again in {Math.ceil((retryAt - clockMs) / 1000)}s</p> : null}
               {selectedPaymentSource.availabilityNote ? (
                 <p className="rounded-lg border border-border bg-muted/40 p-2 text-xs leading-4 text-muted-foreground">
                   {selectedPaymentSource.availabilityNote}
@@ -694,17 +758,17 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
                       How to send this payment
                     </AccordionTrigger>
                     <AccordionContent className="pb-1">
-                      <CryptoPaymentMethodInstructions rail={selectedRail} />
+                      <CryptoPaymentMethodInstructions rail={selectedRail} sendingApp={selectedPaymentSource.sendingApp} />
                     </AccordionContent>
                   </AccordionItem>
                 </Accordion>
               ) : null}
               {/* Same gradient as the app's other primary actions. */}
-              <Button
+              {starting || intent ? <Button
                 className="h-12 w-full rounded-full text-base font-semibold text-white disabled:opacity-50"
                 type="button"
                 disabled={starting || !selectedRailReady || (paymentOpen && !locallyExpired) || paymentPaid}
-                onClick={() => void handleStartPayment()}
+                onClick={() => void handleStartPayment(selectedPaymentSource)}
                 style={{ background: 'var(--cruush-logo)' }}
               >
                 {starting
@@ -716,7 +780,7 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
                     : locallyExpired
                       ? 'Start a fresh payment'
                     : `Get ${termLabel(selectedPlan).toLowerCase()} for ${formatPrice(selectedPlan.amountCents, selectedPlan.currency)}`}
-              </Button>
+              </Button> : null}
 
               {!visibleProcessorReady ? (
                 <p className="rounded-lg border border-border bg-muted/40 p-2 text-xs leading-4 text-muted-foreground">
@@ -730,13 +794,21 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
                   <p className="text-sm font-medium">
                     {locallyExpired ? statusCopy.expired : statusCopy[intent.status]}
                   </p>
-                  {Number.isInteger(intent.confirmations) && Number.isInteger(intent.confirmationTarget) && intent.confirmationTarget! > 0 ? (
+                  {intent.asset !== 'BTC' && Number.isInteger(intent.confirmations) && Number.isInteger(intent.confirmationTarget) && intent.confirmationTarget! > 0 ? (
                     <p className="text-sm text-muted-foreground">
                       {intent.confirmations}/{intent.confirmationTarget} confirmations
                       {intent.paymentAmountReceived === false && intent.confirmations! > 0 ? ' · Full payment not yet received' : ''}
                     </p>
                   ) : null}
                   {statusError ? <p className="text-xs text-destructive">{statusError}</p> : null}
+                  {intent.asset === 'BTC' && ['awaiting_payment', 'confirming', 'paid'].includes(intent.status) ? (
+                    <ol aria-label="Payment progress" className="space-y-1 text-xs text-muted-foreground">
+                      <li>{intent.status === 'awaiting_payment' ? 'Awaiting payment' : 'Payment detected'}</li>
+                      <li>{(intent.confirmations ?? 0) > 0 ? 'On the Bitcoin blockchain' : intent.status === 'confirming' ? 'Waiting for the first block' : 'Waiting for Bitcoin'}</li>
+                      <li>{Math.min(intent.confirmations ?? 0, 6)}/6 confirmations</li>
+                      <li>{intent.status === 'paid' ? 'Purchase completed' : 'Purchase activates at 6 confirmations'}</li>
+                    </ol>
+                  ) : null}
                   {!paymentWindowClosed && intent.expiresAt && isOpenCryptoPayment(intent.status) ? (
                     <div className="rounded-lg border border-border bg-muted/40 p-3">
                       <p className="text-xs font-semibold uppercase tracking-wide text-foreground">Protected order</p>
@@ -803,12 +875,23 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
                         {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                         {copied ? 'Copied' : 'Copy address'}
                       </Button>
+                      <Button className="w-full" type="button" variant="outline" onClick={() => void handleCopyAmount()}>
+                        {amountCopied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                        {amountCopied ? 'Amount copied' : 'Copy amount'}
+                      </Button>
+                      {intent.paymentUri ? (
+                        <Button className="w-full" variant="outline" asChild>
+                          <a href={selectedPaymentSource.sendingApp === 'wallet' ? intent.paymentUri : BITCOIN_APP_LINKS[selectedPaymentSource.sendingApp]} target={selectedPaymentSource.sendingApp === 'wallet' ? undefined : '_blank'} rel="noopener noreferrer">
+                            {selectedPaymentSource.sendingApp === 'wallet' ? 'Open wallet' : `Open ${selectedPaymentSource.label}`}
+                          </a>
+                        </Button>
+                      ) : null}
                       <p className="text-xs leading-5 text-muted-foreground">
                         Send only {intent.asset} on {CRYPTO_NETWORK_LABELS[intent.network]} to this address. Another asset or network may be lost.
                       </p>
                       <div>
                         <p className="mb-2 text-sm font-semibold">How to send it</p>
-                        <CryptoPaymentMethodInstructions rail={selectedRail} />
+                        <CryptoPaymentMethodInstructions rail={selectedRail} sendingApp={selectedPaymentSource.sendingApp} />
                       </div>
                     </div>
                   ) : null}
@@ -864,38 +947,6 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
           </Card>
         ) : null}
 
-        {/* Same gradient tile treatment as the rewards page: one implementation
-            per surface, so the two pages describing cruush+ do not look like
-            different products. */}
-        {!isPulse ? <Card>
-          <CardContent className="p-3">
-            <p className="mb-1 flex items-center gap-2 text-sm font-semibold">
-              <Sparkles className="h-4 w-4 shrink-0 text-primary" />
-              <span>What <CruushPlusWord /> unlocks</span>
-            </p>
-            <p className="mb-2 text-xs text-muted-foreground">
-              Viewing the map and messaging stay free for everyone, always.
-            </p>
-            <ul
-              aria-label="cruush+ benefits"
-              className={`grid gap-1.5 ${BALANCED_CHECKOUT_PLUS_FEATURES.length % 2 === 0 ? 'grid-cols-2' : 'grid-cols-3'}`}
-            >
-              {BALANCED_CHECKOUT_PLUS_FEATURES.map((benefit, index) => (
-                <li
-                  className={`${BALANCED_CHECKOUT_PLUS_FEATURES.length % 2 === 1 && index === BALANCED_CHECKOUT_PLUS_FEATURES.length - 1 ? 'col-start-2' : ''} flex h-full items-start gap-1.5 rounded-xl border border-white/20 p-2 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_10px_30px_rgba(255,0,114,0.18)]`}
-                  key={benefit.title}
-                  style={{ background: 'var(--cruush-gradient)' }}
-                >
-                  <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-white" />
-                  <span className="min-w-0">
-                    <span className="block text-[11px] font-semibold leading-4">{benefit.title}</span>
-                    <span className="block text-[10px] leading-4 text-white/85">{benefit.description}</span>
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card> : null}
 
         <Card>
           <Accordion collapsible type="single">
@@ -912,7 +963,9 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
                   queer community.
                 </p>
                 <p>
-                  Cash App pays with USDC on Arbitrum. PayPal pays with PYUSD on Arbitrum.
+                  {selectedRail === 'btc_bitcoin'
+                    ? 'Pay with Bitcoin from Cash App, PayPal, Venmo or a compatible wallet. '
+                    : selectedRailReady ? 'Cash App pays with USDC on Arbitrum. PayPal pays with PYUSD on Arbitrum. ' : ''}
                   {isPulse ? 'You pay once for the Pulse pack you choose.' : 'You pay once for the cruush+ time you choose.'} Nothing renews automatically.
                 </p>
                 <p>

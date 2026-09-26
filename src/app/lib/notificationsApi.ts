@@ -3,7 +3,7 @@ import { requestApi } from './apiClient';
 export type NotificationRecord = {
   id: string;
   userId: string;
-  type: 'incoming_cruush' | 'mutual_cruush' | 'direct_message' | 'group_message' | 'group_membership' | 'nearby_activity' | 'reward' | 'announcement' | 'nearby_user' | 'pulse' | 'place_checkin_expired';
+  type: 'incoming_cruush' | 'mutual_cruush' | 'direct_message' | 'group_message' | 'group_membership' | 'nearby_activity' | 'reward' | 'announcement' | 'nearby_user' | 'pulse' | 'place_checkin_expired' | 'subscription_expiring';
   title: string;
   body: string;
   linkUrl: string;

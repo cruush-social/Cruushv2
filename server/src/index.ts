@@ -45,8 +45,41 @@ import { startMapPingCleanupScheduler } from "./map-ping-cleanup.js";
 import { startPlaceCheckinExpiryScheduler } from "./place-checkin-expiry.js";
 import { syncAllVerifiedMembersToResendAudience } from "./resend-audience.js";
 import { startCryptoWatcher } from "./crypto-watcher-runtime.js";
+import { createBitcoinSource } from "./bitcoin.js";
+import { createMempoolBitcoinSource, type MempoolBitcoinSource } from "./bitcoin-mempool-source.js";
+import { isCryptoPaymentRailReady } from "./crypto-payments.js";
+import { sendBitcoinMonitoringCapacityAlertEmail } from "./mailer.js";
+
+import { startSubscriptionExpiryScheduler } from "./subscription-expiry.js";
 
 const config = loadConfig();
+let cryptoWatcherHandle: ReturnType<typeof startCryptoWatcher> = null;
+const mempoolBitcoinSource: MempoolBitcoinSource | null =
+  config.CRYPTO_PROCESSOR_ENABLED === true &&
+  config.CRYPTO_PROCESSOR_WATCHER_ENABLED === true &&
+  isCryptoPaymentRailReady(config, "btc_bitcoin")
+    ? createMempoolBitcoinSource({
+        verifier: createBitcoinSource(config.CRYPTO_PROCESSOR_BITCOIN_ESPLORA_URL ?? ""),
+        onStatus: status => {
+          if (status.type === "capacity") {
+            if (status.level === "critical") console.warn(`[bitcoin-mempool] CRITICAL: ${status.activeAddresses} active checkout addresses; scale the monitoring source now.`);
+            else if (status.level === "warning") console.warn(`[bitcoin-mempool] WARNING: ${status.activeAddresses} active checkout addresses; plan the next monitoring source.`);
+            else console.info(`[bitcoin-mempool] active checkout addresses back below the warning threshold (${status.activeAddresses}).`);
+            if (status.level !== "normal") {
+              void sendBitcoinMonitoringCapacityAlertEmail({
+                activeAddresses: status.activeAddresses,
+                config,
+                level: status.level,
+                logger: app.log
+              }).catch(error => {
+                console.warn("[bitcoin-mempool] capacity alert email failed", error instanceof Error ? error.message : "unknown error");
+              });
+            }
+          } else if (status.type === "socket-error") console.warn("[bitcoin-mempool] WebSocket error; monitoring will retry.");
+          else console.warn("[bitcoin-mempool] WebSocket disconnected; monitoring will reconnect.");
+        }
+      })
+    : null;
 const app = buildServer(config);
 let stopReferralScheduler: (() => void) | null = null;
 let stopMessageExpiryScheduler: (() => void) | null = null;
@@ -56,7 +89,10 @@ let stopMapPingCleanupScheduler: (() => void) | null = null;
 let stopCryptoWatcher: (() => void) | null = null;
 let stopPlaceCheckinExpiryScheduler: (() => void) | null = null;
 
+let stopSubscriptionExpiryScheduler: (() => void) | null = null;
+
 const shutdown = async () => {
+  stopSubscriptionExpiryScheduler?.();
   stopReferralScheduler?.();
   stopMessageExpiryScheduler?.();
   stopAccountDeletionMediaCleanupScheduler?.();
@@ -87,8 +123,12 @@ stopPendingPhotoModerationRetryScheduler = startPendingPhotoModerationRetrySched
 stopMapPingCleanupScheduler = startMapPingCleanupScheduler(app);
 // Returns null and logs why unless the processor, the watcher, and a chain
 // endpoint are all explicitly configured.
-stopCryptoWatcher = startCryptoWatcher(app)?.stop ?? null;
+cryptoWatcherHandle = startCryptoWatcher(app, mempoolBitcoinSource ? { bitcoinSource: mempoolBitcoinSource } : {});
+stopCryptoWatcher = cryptoWatcherHandle?.stop ?? null;
+// Prime the active-address subscription immediately after watcher startup.
+if (mempoolBitcoinSource) void cryptoWatcherHandle?.runOnce();
 stopPlaceCheckinExpiryScheduler = startPlaceCheckinExpiryScheduler(app);
+stopSubscriptionExpiryScheduler = startSubscriptionExpiryScheduler(app);
 // Side Quest nudges are off for now at Julien's request: no prompt, and no
 // notification standing in for one. The sweep is left in place, so turning
 // them back on is this one line.

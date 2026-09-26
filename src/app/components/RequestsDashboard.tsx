@@ -35,6 +35,10 @@ const categoryLabels: Record<SupportRequestAdminRecord['category'], string> = {
   question: 'Question',
   policy: 'Policy',
   suspension_appeal: 'Suspension appeal',
+  billing_payment: 'Payment issue',
+  billing_subscription: 'Subscription or renewal',
+  billing_pulse: 'Pulse purchase issue',
+  billing_refund: 'Refund request',
 };
 
 const sourceLabels: Record<SupportRequestSource, string> = {

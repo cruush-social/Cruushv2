@@ -262,4 +262,35 @@ describe("starting the watcher", () => {
     const handle = startCryptoWatcher(app, { sources: [source], schedule: false })!;
     expect(() => handle.stop()).not.toThrow();
   });
+
+  it("coalesces a webhook wake during an active pass into one non-overlapping rerun", async () => {
+    const app = stubApp();
+    let releaseFirst!: () => void;
+    let active = 0;
+    let maximumActive = 0;
+    const source = {
+      chainId: 42161,
+      getChainId: vi.fn().mockResolvedValue(42161),
+      getBlockNumber: vi.fn(async () => {
+        active++;
+        maximumActive = Math.max(maximumActive, active);
+        if (source.getBlockNumber.mock.calls.length === 1) await new Promise<void>(resolve => { releaseFirst = resolve; });
+        active--;
+        return 100n;
+      }),
+      getBlockTimestamp: vi.fn().mockResolvedValue(new Date("2026-09-01T00:00:00.000Z")),
+      getLogs: vi.fn().mockResolvedValue([])
+    };
+    const handle = startCryptoWatcher(app, { sources: [source], schedule: false })!;
+
+    const first = handle.runOnce();
+    const wakeDuringPass = handle.runOnce();
+    await vi.waitFor(() => expect(source.getBlockNumber).toHaveBeenCalledTimes(1));
+    releaseFirst();
+    await Promise.all([first, wakeDuringPass]);
+    await vi.waitFor(() => expect(source.getBlockNumber).toHaveBeenCalledTimes(2));
+
+    expect(maximumActive).toBe(1);
+    handle.stop();
+  });
 });

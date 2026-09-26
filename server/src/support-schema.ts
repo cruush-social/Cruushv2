@@ -14,7 +14,11 @@ export const supportRequestCategorySchema = z.enum([
   "bug",
   "comment",
   "question",
-  "policy"
+  "policy",
+  "billing_payment",
+  "billing_subscription",
+  "billing_pulse",
+  "billing_refund"
 ]);
 
 export const supportRequestSourceSchema = z.enum([

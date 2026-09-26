@@ -226,6 +226,28 @@ describe("support routes", () => {
     });
   }, 10000);
 
+  it.each(["billing_payment", "billing_subscription", "billing_pulse", "billing_refund"])(
+    "accepts and stores the %s support category",
+    async (category) => {
+      const app = buildSupportApp();
+      query.mockResolvedValueOnce({ rows: [{
+        id: "billing-support-1", status: "open", ai_triage_status: "pending",
+        created_at: "2026-09-20T12:00:00.000Z"
+      }] });
+      const response = await app.inject({
+        method: "POST", url: "/api/support-requests",
+        payload: {
+          category, subject: "Billing request", message: "Please check this purchase for me.",
+          contactEmail: "member@example.com", source: "settings"
+        }
+      });
+      await app.close();
+      expect(response.statusCode).toBe(201);
+      expect(query.mock.calls[0]?.[0]).toContain("insert into support_requests");
+      expect(query.mock.calls[0]?.[1]?.[2]).toBe(category);
+    }
+  );
+
   it("requires authentication before accepting a survey response", async () => {
     const app = buildSupportApp();
 

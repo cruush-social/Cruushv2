@@ -279,7 +279,7 @@ export default function GhostModeSettings() {
               <CruushIcon name="ghost" variant={privacySettings.ghostModeEnabled ? 'colored' : 'white'} className="mt-1 h-5 w-5 opacity-80" />
               <div>
                 <p>Ghost Mode</p>
-                <p className="text-sm text-muted-foreground">You stay visible. What moves is a decoy pin, which hops around inside the radius you choose, while you still see your own real position. Who can find, message, or get your precise location is set by Visibility Controls, not by this.</p>
+                <p className="text-sm text-muted-foreground">You stay visible. What moves is a decoy pin, which hops around inside the radius you choose, while you still see your own real position.</p>
                 {privacySettings.baseMode === 'GHOST' && privacySettings.ghostRotationExpiresAtMs ? (
                   <p className="mt-1 text-xs text-muted-foreground">
                     Location rotates in {formatCountdown(privacySettings.ghostRotationExpiresAtMs - nowMs)}
@@ -436,7 +436,7 @@ export default function GhostModeSettings() {
             <div>
               <p>Map presence</p>
               <p className="text-sm text-muted-foreground">
-                How long your heart pin keeps showing after your last check-in. Set it on the map presence page.
+                How long your heart pin keeps showing after your last check-in.
               </p>
             </div>
             <ChevronRight className="h-5 w-5 shrink-0 text-white/60" />

@@ -64,7 +64,7 @@ export function quoteUsdCentsAsBitcoinAtomic(cents: number, btcUsdCents: number)
   return ((BigInt(cents) * SATOSHIS_PER_BITCOIN + BigInt(btcUsdCents) - 1n) / BigInt(btcUsdCents)).toString();
 }
 
-export function createBitcoinSource(endpoint: string, fetcher: typeof fetch = fetch) {
+function createSingleBitcoinSource(endpoint: string, fetcher: typeof fetch) {
   const base = new URL(endpoint);
   if (base.protocol !== 'https:' && !(base.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(base.hostname))) {
     throw new Error('Bitcoin source requires HTTPS or a local HTTP endpoint.');
@@ -127,12 +127,125 @@ export function createBitcoinSource(endpoint: string, fetcher: typeof fetch = fe
     }
   };
 }
-export type BitcoinSource = ReturnType<typeof createBitcoinSource>;
+// Share short-lived reads across checkout requests and the watcher. Block-height
+// lookups and transaction history remain uncached so reorg checks stay fresh.
+const sharedSources = new WeakMap<typeof fetch, Map<string, ReturnType<typeof resilientBitcoinSource>>>();
+function resilientBitcoinSource(endpoint: string, fetcher: typeof fetch) {
+  const primary = endpoint.replace(/\/$/, '');
+  const publicPeers = ['https://blockstream.info/api', 'https://mempool.space/api'];
+  // Only the two known public mainnet APIs are cross-checked. A custom/private
+  // endpoint never sends addresses to another provider without configuration.
+  const endpoints = publicPeers.includes(primary) ? [primary, ...publicPeers.filter(url => url !== primary)] : [primary];
+  const providers = endpoints.map(url => ({ source: createSingleBitcoinSource(url, fetcher), retryAt: 0 }));
+  function unavailable(lastError?: unknown, message = 'Bitcoin network data is temporarily unavailable.') {
+    const activeRetries = providers.map(provider => provider.retryAt).filter(retryAt => retryAt > Date.now());
+    const retryAfterSeconds = activeRetries.length
+      ? Math.max(1, Math.ceil((Math.min(...activeRetries) - Date.now()) / 1000))
+      : 1;
+    return new ApiError(502, 'CRYPTO_CHAIN_SOURCE_UNAVAILABLE',
+      lastError instanceof ApiError ? lastError.message : message,
+      { retryAfterSeconds });
+  }
+  async function readAll<T>(operation: (source: ReturnType<typeof createSingleBitcoinSource>) => Promise<T>): Promise<T[]> {
+    let lastError: unknown;
+    const reads = providers.map(async provider => {
+      if (provider.retryAt > Date.now()) throw unavailable(lastError);
+      try {
+        const value = await operation(provider.source);
+        provider.retryAt = 0;
+        return value;
+      } catch (error) {
+        provider.retryAt = Date.now() + 30_000;
+        lastError = error;
+        throw error;
+      }
+    });
+    try { return await Promise.all(reads); }
+    catch (error) { throw unavailable(error ?? lastError); }
+  }
+  async function agreed<T>(operation: (source: ReturnType<typeof createSingleBitcoinSource>) => Promise<T>, equal: (left: T, right: T) => boolean = (left, right) => JSON.stringify(left) === JSON.stringify(right)): Promise<T> {
+    const values = await readAll(operation);
+    if (values.some(value => !equal(values[0]!, value))) throw unavailable(undefined, 'Independent Bitcoin sources did not agree.');
+    return values[0]!;
+  }
+  function cached<T>(operation: () => Promise<T>, ttl: number) {
+    let pending: Promise<T> | undefined;
+    let value: T;
+    let expires = 0;
+    return () => {
+      if (expires > Date.now()) return Promise.resolve(value);
+      if (pending) return pending;
+      pending = operation().then(result => { value = result; expires = Date.now() + ttl; return result; }).finally(() => { pending = undefined; });
+      return pending;
+    };
+  }
+  // Every provider validates mainnet genesis, block identity and age. Public
+  // providers must independently agree before their result can drive payment.
+  const head = cached(async () => {
+    const heads = await readAll(source => source.head());
+    if (heads.length === 1) return heads[0]!;
+    const heights = heads.map(value => value.height);
+    const low = Math.min(...heights);
+    const high = Math.max(...heights);
+    if (high - low > 2) throw unavailable(undefined, 'Independent Bitcoin sources did not agree.');
+    if (low === high) {
+      if (heads.some(value => value.hash !== heads[0]!.hash)) throw unavailable(undefined, 'Independent Bitcoin sources did not agree.');
+      return heads[0]!;
+    }
+    const hash = await agreed(source => source.blockHash(low));
+    return { height: low, hash };
+  }, 10_000);
+  return {
+    head,
+    blockHash: (height: number) => agreed(source => source.blockHash(height)),
+    feeRate: cached(async () => {
+      const rates = await readAll(source => source.feeRate());
+      const low = Math.min(...rates);
+      const high = Math.max(...rates);
+      if (rates.length > 1 && high / low > 4) throw unavailable(undefined, 'Independent Bitcoin fee sources did not agree.');
+      return high;
+    }, 30_000),
+    transactions: async (address: string, origin: number) => {
+      const histories = await readAll(source => source.transactions(address, origin));
+      if (histories.length === 1) return histories[0]!;
+      const peers = histories.slice(1).map(history => new Map(history.map(tx => [tx.txid, tx])));
+      const agreedTransactions: BitcoinTransaction[] = [];
+      for (const transaction of histories[0]!) {
+        const matches = peers.map(peer => peer.get(transaction.txid));
+        if (matches.some(match => match && JSON.stringify(match) !== JSON.stringify(transaction))) {
+          throw unavailable(undefined, 'Independent Bitcoin sources did not agree.');
+        }
+        if (matches.every(match => match !== undefined)) agreedTransactions.push(transaction);
+      }
+      return agreedTransactions;
+    },
+  };
+}
+export interface BitcoinSource {
+  head(): Promise<BitcoinHead>;
+  blockHash(height: number): Promise<string>;
+  feeRate(): Promise<number>;
+  transactions(address: string, origin: number): Promise<BitcoinTransaction[]>;
+  readonly historyMode?: "complete" | "triggered";
+  hasPendingTransactions?(address: string): boolean;
+  verifyTransactions?(address: string, origin: number): Promise<BitcoinTransaction[]>;
+  syncAddresses?(addresses: string[]): Promise<void>;
+  stop?(): void;
+}
+
+export function createBitcoinSource(endpoint: string, fetcher: typeof fetch = fetch): BitcoinSource {
+  let sources = sharedSources.get(fetcher);
+  if (!sources) { sources = new Map(); sharedSources.set(fetcher, sources); }
+  const key = endpoint.replace(/\/$/, '');
+  let source = sources.get(key);
+  if (!source) { source = resilientBitcoinSource(endpoint, fetcher); sources.set(key, source); }
+  return source;
+}
 
 export async function quoteBitcoinOrder(config: AppConfig, amountUsdCents: number, fetcher: typeof fetch = fetch) {
   const source = createBitcoinSource(config.CRYPTO_PROCESSOR_BITCOIN_ESPLORA_URL ?? '', fetcher);
   await source.head();
-  const rate = await source.feeRate();
+  const rate = Math.max(1, await source.feeRate());
   let btcUsdCents: number;
   try {
     const response = await fetcher('https://api.coinbase.com/v2/prices/BTC-USD/spot', { signal: AbortSignal.timeout(10_000), redirect: 'error' });

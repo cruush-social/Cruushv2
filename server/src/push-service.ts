@@ -62,6 +62,22 @@ let configuredVapidKey = "";
 const MINUTES_PER_DAY = 1440;
 const QUIET_HOURS_DEFAULT_END_MINUTE = 360;
 
+export function normalizePushNotificationLink(linkUrl: string | null | undefined) {
+  const value = linkUrl?.trim() ?? "";
+  if (
+    !value ||
+    !value.startsWith("/") ||
+    value.startsWith("//") ||
+    value.includes("\\") ||
+    /[\u0000-\u001f\u007f]/.test(value) ||
+    /%(?:0[0-9a-f]|1[0-9a-f]|7f)/i.test(value)
+  ) return "/notifications";
+  const destination = new URL(value, "https://cruush.app");
+  if (destination.origin !== "https://cruush.app") return "/notifications";
+  const path = destination.pathname === "/changelog" ? "/settings/changelog" : destination.pathname;
+  return `${path}${destination.search}${destination.hash}`;
+}
+
 function clampMinuteOfDay(value: unknown, fallback: number) {
   const minute = Math.trunc(Number(value));
 
@@ -159,6 +175,10 @@ function isPreferenceEnabledForType(preferences: NotificationPreferences, type: 
 
   if (type === "nearby_activity" || type === "place_checkin_expired") {
     return preferences.nearbyEnabled;
+  }
+
+  if (type === "subscription_expiring") {
+    return true;
   }
 
   if (type === "reward") {
@@ -445,13 +465,15 @@ export async function sendPushForNotification(app: PushApp, notification: AppNot
      order by updated_at desc`,
     [notification.userId]
   );
-  const copy = genericPushCopy(notification.type);
+  const copy = notification.type === "subscription_expiring"
+    ? { title: notification.title, body: notification.body }
+    : genericPushCopy(notification.type);
   const payload = JSON.stringify({
     title: copy.title,
     body: copy.body,
     sound: "heartbeat",
     soundEnabled: preferences.soundEnabled,
-    url: notification.linkUrl || "/notifications",
+    url: normalizePushNotificationLink(notification.linkUrl),
     notificationId: notification.id
   });
   let sent = 0;
@@ -464,7 +486,7 @@ export async function sendPushForNotification(app: PushApp, notification: AppNot
           p256dh: subscription.p256dh,
           auth: subscription.auth
         }
-      }, payload);
+      }, payload, notification.type === "subscription_expiring" ? { timeout: 15_000 } : undefined);
       sent += 1;
       await markPushSuccess(app, subscription.id);
     } catch (error) {

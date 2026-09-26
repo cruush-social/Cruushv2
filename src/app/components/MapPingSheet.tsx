@@ -2,7 +2,6 @@ import { useTrustRestrictions } from '../lib/trustRestrictions';
 import TrustRestrictionNotice from './TrustRestrictionNotice';
 import {
   useEffect,
-  useMemo,
   useRef,
   useState,
   type CSSProperties,
@@ -150,19 +149,6 @@ function readPulseDesktopGeometry(): PulseDesktopGeometry | null {
   }
 }
 
-function formatTime(value: string) {
-  const timestamp = Date.parse(value);
-
-  if (!Number.isFinite(timestamp)) {
-    return 'soon';
-  }
-
-  return new Intl.DateTimeFormat(undefined, {
-    hour: 'numeric',
-    minute: '2-digit',
-  }).format(timestamp);
-}
-
 function formatCountdown(targetTimestamp: number, currentTimestamp: number) {
   const totalSeconds = Math.max(0, Math.ceil((targetTimestamp - currentTimestamp) / 1000));
   const hours = Math.floor(totalSeconds / 3600);
@@ -211,6 +197,7 @@ export default function MapPingSheet({
   const [savingSignal, setSavingSignal] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
+  const [desktopHeightResized, setDesktopHeightResized] = useState(false);
   const [desktopGeometry, setDesktopGeometry] = useState<PulseDesktopGeometry>(() => {
     const stored = readPulseDesktopGeometry();
     return stored ? clampPulseDesktopGeometry(stored) : defaultPulseDesktopGeometry();
@@ -253,24 +240,11 @@ export default function MapPingSheet({
   // map, so it stays shut while Dark Room is on.
   const sendDisabled = trust.restricted('map_pings') || loading || sending || !status || !hasMapLocation ||
     !normalizedSignal || status.allowance.remaining === 0 || cooldownActive || lurkerActive;
-  const statusText = useMemo(() => {
-    if (activePing && status?.activePing) {
-      const remaining = status.allowance.remaining;
-      return remaining != null && remaining > 0
-        ? `Pulse active until ${formatTime(status.activePing.expiresAt)}. ${remaining} of ${status.allowance.limit} still available.`
-        : `Your Pulse is active until ${formatTime(status.activePing.expiresAt)}.`;
-    }
-
-    if (cooldownActive && status?.allowance.nextEligibleAt) {
-      return `Your next Pulse is ready at ${formatTime(status.allowance.nextEligibleAt)}.`;
-    }
-
-    if (status) {
-      return `${status.allowance.remaining} of ${status.allowance.limit} Pulses available right now.`;
-    }
-
-    return 'Checking your Pulse allowance...';
-  }, [activePing, cooldownActive, status]);
+  const statusText = !status
+    ? 'Checking your Pulse allowance...'
+    : status.allowance.unlimited || status.allowance.remaining === null
+      ? 'Unlimited Pulses'
+      : `${status.allowance.remaining} ${status.allowance.remaining === 1 ? 'Pulse' : 'Pulses'} left`;
 
   useEffect(() => {
     if (!open || nextEligibleTimestamp === null || !Number.isFinite(nextEligibleTimestamp)) {
@@ -328,12 +302,21 @@ export default function MapPingSheet({
     event.preventDefault();
     event.currentTarget.setPointerCapture(event.pointerId);
 
+    const renderedHeight = event.currentTarget.closest('[data-testid="map-ping-sheet"]')?.getBoundingClientRect().height;
+    const desktopStart = !desktopHeightResized && renderedHeight
+      ? { ...desktopGeometry, height: renderedHeight }
+      : desktopGeometry;
+    if (mode === 'resize') {
+      setDesktopHeightResized(true);
+      setDesktopGeometry(desktopStart);
+    }
+
     dragStateRef.current = {
       pointerId: event.pointerId,
       mode: mode === 'resize' ? 'desktop-resize' : 'desktop-move',
       originX: event.clientX,
       originY: event.clientY,
-      desktopStart: desktopGeometry,
+      desktopStart,
     };
   };
 
@@ -401,9 +384,9 @@ export default function MapPingSheet({
     }
     : {
       bottom: 'auto',
-      height: `${desktopGeometry.height}px`,
+      height: desktopHeightResized ? `${desktopGeometry.height}px` : 'auto',
       left: `${desktopGeometry.x}px`,
-      maxHeight: 'none',
+      maxHeight: desktopHeightResized ? 'none' : `${Math.max(1, window.innerHeight - desktopGeometry.y - PULSE_DESKTOP_BOTTOM_CLEARANCE)}px`,
       right: 'auto',
       top: `${desktopGeometry.y}px`,
       transform: 'none',
@@ -558,13 +541,7 @@ export default function MapPingSheet({
           {/* How many are left and when the next one lands, on one line. */}
           <div className="flex items-center justify-between gap-3 text-sm">
             <p aria-live="polite" className="min-w-0 text-white/65">
-              {lurkerActive
-                ? 'Turn off Dark Room to send a Pulse.'
-                : !normalizedSignal
-                ? 'Your Pulse uses the signal saved on your profile.'
-                : hasMapLocation
-                  ? statusText
-                  : 'Share your map location before sending a Pulse.'}
+              {statusText}
             </p>
             {onGetPulses ? (
               <button
@@ -603,7 +580,7 @@ export default function MapPingSheet({
           ) : null}
         </div>
 
-        <SheetFooter className="shrink-0 bg-background/96 pb-[env(safe-area-inset-bottom)] pt-2">
+        <SheetFooter className={`shrink-0 bg-background/96 pb-[env(safe-area-inset-bottom)] pt-2 ${isMobile ? 'mt-0' : ''}`}>
           <TrustRestrictionNotice message={trust.message('map_pings', 'Pulse')} />
           <Button
             type="button"

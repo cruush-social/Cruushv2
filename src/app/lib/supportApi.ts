@@ -1,6 +1,6 @@
 import { requestApi } from './apiClient';
 
-export type SupportRequestCategory = 'bug' | 'comment' | 'question' | 'policy';
+export type SupportRequestCategory = 'bug' | 'comment' | 'question' | 'policy' | 'billing_payment' | 'billing_subscription' | 'billing_pulse' | 'billing_refund';
 export type SupportRequestAdminCategory = SupportRequestCategory | 'suspension_appeal';
 export type SupportRequestSource = 'auth' | 'settings' | 'policy' | 'survey' | 'unknown';
 

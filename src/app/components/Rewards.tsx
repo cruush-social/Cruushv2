@@ -281,7 +281,6 @@ export default function Rewards() {
       </header>
 
       <main className="mx-auto max-w-2xl space-y-5 p-4">
-        <Button variant="outline" onClick={() => navigate('/store/pulse')}>Pulse checkout</Button>
         <Card className="gap-0">
           <Accordion
             collapsible
@@ -318,6 +317,11 @@ export default function Rewards() {
             </AccordionItem>
           </Accordion>
         </Card>
+        <Button
+          className="h-12 w-full rounded-full text-base font-semibold text-white disabled:opacity-50"
+          style={{ background: 'var(--cruush-logo)' }}
+          onClick={() => navigate('/store')}
+        >Get <CruushPlusWord /></Button>
 
         {!loading && summary ? (
           <Card>

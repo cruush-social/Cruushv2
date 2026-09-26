@@ -1,7 +1,7 @@
 import { cryptoFundingEstimates } from './crypto-funding-estimate.js';
 import { HDKey } from '@scure/bip32';
-import { describe, expect, it } from 'vitest';
-import { deriveBitcoinReceivingAddress, bitcoinAddressScript, quoteUsdCentsAsBitcoinAtomic, formatBitcoinAtomic, createBitcoinSource } from './bitcoin.js';
+import { describe, expect, it, vi } from 'vitest';
+import { deriveBitcoinReceivingAddress, bitcoinAddressScript, quoteUsdCentsAsBitcoinAtomic, formatBitcoinAtomic, createBitcoinSource, quoteBitcoinOrder } from './bitcoin.js';
 import { bitcoinOutputsForOrder } from './bitcoin-watcher.js';
 import { confirmationProgress } from './crypto-payment-progress.js';
 // BIP84 public test vector seed, never a funded wallet.
@@ -55,4 +55,133 @@ it('narrows Bitcoin guidance to the app the order was started from', () => {
   expect(cryptoFundingEstimates({ ...order, sendingApp: null }).map(row => row.app)).toEqual(['Cash App', 'PayPal', 'Venmo']);
   // A stablecoin rail belongs to one app whatever was recorded.
   expect(cryptoFundingEstimates({ rail: 'pyusd_arbitrum', sendingApp: 'paypal', amountUsdCents: 11999, gasFeeUsdCents: 1, quotedAmountAtomic: '120000000' }).map(row => row.app)).toEqual(['PayPal']);
+});
+
+it('requires both public explorers and shares fresh agreed reads across checkout calls', async () => {
+  const calls: string[] = [];
+  const hash = 'a'.repeat(64);
+  const fetcher: typeof fetch = async input => {
+    const url = String(input); calls.push(url);
+    const path = url.replace(/^https:\/\/(?:blockstream\.info|mempool\.space)\/api\//, '');
+    if (path === 'block-height/0') return new Response('000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f');
+    if (path === 'blocks/tip/height') return new Response('900000');
+    if (path === 'block-height/900000') return new Response(hash);
+    if (path === `block/${hash}`) return Response.json({ id: hash, height: 900000, timestamp: Math.floor(Date.now()/1000) });
+    if (path === 'fee-estimates') return Response.json({ '1': 2 });
+    throw new Error('Unexpected request');
+  };
+  const one = createBitcoinSource('https://blockstream.info/api', fetcher);
+  const two = createBitcoinSource('https://blockstream.info/api', fetcher);
+  expect(await Promise.all([one.head(), two.head()])).toEqual([{ height: 900000, hash }, { height: 900000, hash }]);
+  expect(calls).toHaveLength(8);
+  expect(await one.feeRate()).toBe(2);
+  expect(await two.feeRate()).toBe(2);
+  expect(calls).toHaveLength(10);
+  // Reorg validation must read again, even at the cached head's height.
+  await one.blockHash(900000);
+  await two.blockHash(900000);
+  expect(calls).toHaveLength(14);
+});
+
+it('rejects a fabricated public-explorer head instead of trusting the first responder', async () => {
+  const honestHash = 'a'.repeat(64);
+  const fabricatedHash = 'b'.repeat(64);
+  const fetcher: typeof fetch = async input => {
+    const url = String(input);
+    const fabricated = url.startsWith('https://blockstream.info/');
+    const path = url.replace(/^https:\/\/(?:blockstream\.info|mempool\.space)\/api\//, '');
+    if (path === 'block-height/0') return new Response('000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f');
+    if (path === 'blocks/tip/height') return new Response('900000');
+    if (path === 'block-height/900000') return new Response(fabricated ? fabricatedHash : honestHash);
+    if (path === `block/${fabricatedHash}`) return Response.json({ id: fabricatedHash, height: 900000, timestamp: Math.floor(Date.now() / 1000) });
+    if (path === `block/${honestHash}`) return Response.json({ id: honestHash, height: 900000, timestamp: Math.floor(Date.now() / 1000) });
+    throw new Error(`Unexpected request: ${url}`);
+  };
+  const source = createBitcoinSource('https://blockstream.info/api', fetcher);
+  await expect(source.head()).rejects.toThrow(/agree|unavailable/i);
+});
+
+it('does not expose a payment reported by only one public explorer', async () => {
+  const hash = 'a'.repeat(64);
+  const transaction = { txid: 'b'.repeat(64), vout: [{ scriptpubkey: bitcoinAddressScript(address), value: 18990 }], status: { confirmed: true, block_height: 899995, block_time: Math.floor(Date.now() / 1000), block_hash: hash } };
+  const fetcher: typeof fetch = async input => {
+    const url = String(input);
+    if (url.includes(`/address/${address}/txs`)) return Response.json(url.startsWith('https://blockstream.info/') ? [transaction] : []);
+    throw new Error(`Unexpected request: ${url}`);
+  };
+  const source = createBitcoinSource('https://blockstream.info/api', fetcher);
+  expect(await source.transactions(address, 899000)).toEqual([]);
+});
+
+it('backs off when both public explorers fail and never invents a chain head', async () => {
+  let calls = 0;
+  const source = createBitcoinSource('https://blockstream.info/api', async () => { calls++; return new Response('', { status: 429 }); });
+  await expect(source.head()).rejects.toThrow('Bitcoin network data');
+  await expect(source.head()).rejects.toThrow('Bitcoin network data');
+  expect(calls).toBe(2);
+});
+
+it('never sends a custom provider request to a public fallback', async () => {
+  const urls: string[] = [];
+  const source = createBitcoinSource('https://private.example/api', async input => { urls.push(String(input)); return new Response('', { status: 503 }); });
+  await expect(source.head()).rejects.toThrow();
+  expect(urls).toEqual(['https://private.example/api/block-height/0']);
+});
+
+
+it('returns a bounded provider retry interval and retries after its cooldown', async () => {
+  vi.useFakeTimers();
+  let healthy = false;
+  const hash = 'a'.repeat(64);
+  const fetcher = vi.fn(async (input: RequestInfo | URL) => {
+    if (!healthy) return new Response('', { status: 429 });
+    const url = String(input);
+    if (url.endsWith('/block-height/0')) return new Response('000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f');
+    if (url.endsWith('/blocks/tip/height')) return new Response('900000');
+    if (url.endsWith('/block-height/900000')) return new Response(hash);
+    if (url.endsWith(`/block/${hash}`)) return Response.json({id: hash, height: 900000, timestamp: Math.floor(Date.now()/1000)});
+    throw new Error('Unexpected request');
+  });
+  try {
+    const source = createBitcoinSource('https://blockstream.info/api', fetcher);
+    await expect(source.head()).rejects.toMatchObject({code:'CRYPTO_CHAIN_SOURCE_UNAVAILABLE', details:{retryAfterSeconds:30}});
+    await vi.advanceTimersByTimeAsync(5000);
+    await expect(source.head()).rejects.toMatchObject({details:{retryAfterSeconds:25}});
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    healthy = true;
+    await vi.advanceTimersByTimeAsync(25000);
+    expect(await source.head()).toEqual({height:900000,hash});
+  } finally { vi.useRealTimers(); }
+});
+
+
+it('expires shared head and fee caches at 10 and 30 seconds and preserves the one-sat fee floor', async () => {
+  vi.useFakeTimers();
+  const hash = 'a'.repeat(64);
+  const paths: string[] = [];
+  const fetcher: typeof fetch = async input => {
+    const url = String(input); paths.push(url);
+    if (url.endsWith('/block-height/0')) return new Response('000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f');
+    if (url.endsWith('/blocks/tip/height')) return new Response('900000');
+    if (url.endsWith('/block-height/900000')) return new Response(hash);
+    if (url.endsWith(`/block/${hash}`)) return Response.json({id:hash,height:900000,timestamp:Math.floor(Date.now()/1000)});
+    if (url.endsWith('/fee-estimates')) return Response.json({'1':0.2});
+    if (url.includes('api.coinbase.com')) return Response.json({data:{base:'BTC',currency:'USD',amount:'80000.00'}});
+    throw new Error('Unexpected request');
+  };
+  try {
+    const source = createBitcoinSource('https://blockstream.info/api',fetcher);
+    await source.head(); await source.feeRate();
+    await vi.advanceTimersByTimeAsync(9999);
+    await source.head(); await source.feeRate();
+    expect(paths.filter(url=>url.endsWith('/blocks/tip/height'))).toHaveLength(2);
+    await vi.advanceTimersByTimeAsync(1); await source.head();
+    expect(paths.filter(url=>url.endsWith('/blocks/tip/height'))).toHaveLength(4);
+    await vi.advanceTimersByTimeAsync(19999); await source.feeRate();
+    expect(paths.filter(url=>url.endsWith('/fee-estimates'))).toHaveLength(2);
+    await vi.advanceTimersByTimeAsync(1); await source.feeRate();
+    expect(paths.filter(url=>url.endsWith('/fee-estimates'))).toHaveLength(4);
+    const quote = await quoteBitcoinOrder({CRYPTO_PROCESSOR_BITCOIN_ESPLORA_URL:'https://blockstream.info/api'} as never,299,fetcher);
+    expect(quote).toMatchObject({quotedAmountAtomic:'3888',collectionFee:{feeRateSatPerVbyte:1,estimatedFeeAtomic:'150',feeUsdCents:12,btcUsdCents:8000000}});
+  } finally { vi.useRealTimers(); }
 });

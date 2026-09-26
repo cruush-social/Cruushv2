@@ -123,8 +123,19 @@ export const CRYPTO_NETWORK_LABELS: Record<CryptoPaymentNetwork, string> = {
   ethereum: 'Ethereum',
 };
 
-export function CryptoPaymentMethodInstructions({ rail }: { rail: CryptoPaymentRailId }) {
-  const guides = PAYMENT_METHOD_GUIDES[rail] ?? [];
+export const BITCOIN_SENDING_HELP = {
+  cash_app: 'https://cash.app/help/us/en-us/3106-bitcoin-withdrawals',
+  paypal: 'https://www.paypal.com/us/cshelp/article/how-do-i-transfer-my-crypto-help822',
+  venmo: 'https://help.venmo.com/cs/articles/crypto-transfers-vhel232',
+} as const;
+
+export function CryptoPaymentMethodInstructions({ rail, sendingApp }: { rail: CryptoPaymentRailId; sendingApp?: CryptoSendingApp }) {
+  const guides = rail === 'btc_bitcoin' && sendingApp === 'wallet'
+    ? [{ title: 'A crypto wallet', steps: [
+        'Open your wallet and choose Send Bitcoin.',
+        ...(PAYMENT_METHOD_GUIDES.btc_bitcoin?.[0]?.steps ?? []).slice(1).filter(step => !step.startsWith('Cash App requires') && !step.startsWith('PayPal and Venmo require')),
+      ] }]
+    : PAYMENT_METHOD_GUIDES[rail] ?? [];
 
   return (
     <div className="space-y-3">
@@ -134,6 +145,11 @@ export function CryptoPaymentMethodInstructions({ rail }: { rail: CryptoPaymentR
           <ol className="mt-2 list-decimal space-y-1 pl-5 text-xs leading-5 text-muted-foreground">
             {guide.steps.map((step) => <li key={step}>{step}</li>)}
           </ol>
+          {rail === 'btc_bitcoin' && sendingApp && sendingApp !== 'wallet' ? (
+            <a className="mt-2 inline-block text-xs text-primary underline" href={BITCOIN_SENDING_HELP[sendingApp]} target="_blank" rel="noopener noreferrer">
+              {CRYPTO_SENDING_APP_LABELS[sendingApp]} Bitcoin sending instructions
+            </a>
+          ) : null}
         </section>
       ))}
     </div>

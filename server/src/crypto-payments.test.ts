@@ -6,6 +6,7 @@ vi.mock("./crypto-collection-fee.js", () => ({
   })
 }));
 import { describe, expect, it, vi } from "vitest";
+import * as bitcoin from "./bitcoin.js";
 import {
   assertCryptoPaymentStatusTransition,
   buildCryptoPaymentUri,
@@ -536,6 +537,39 @@ describe("crypto payment core", () => {
     })).rejects.toMatchObject({ statusCode: 409, code: "VALIDATION_ERROR" });
     expect(query.mock.calls.some(([sql]) => String(sql).includes("insert into crypto_payment_intents"))).toBe(false);
   });
+
+  it("rejects the same idempotency key reused for another sending app", async () => {
+    const query = vi.fn(async (sql: string) => {
+      if (sql.includes("pg_advisory_xact_lock") || sql.includes("set status = 'expired'")) return { rows: [] };
+      if (sql.includes("idempotency_key = $2")) return { rows: [paymentRow({ metadata: { sendingApp: "cash_app" } })] };
+      throw new Error(`Unexpected query: ${sql}`);
+    });
+    await expect(createInHouseCryptoPaymentIntent(transactionDb(query), cryptoConfig(), {
+      userId: "00000000-0000-4000-8000-000000000001", planId: "plus_monthly", amountUsdCents: 1899,
+      idempotencyKey: "checkout-1", metadata: { sendingApp: "paypal" }
+    })).rejects.toMatchObject({ statusCode: 409 });
+  });
+
+  it.each([['cash_app', '4999'], ['paypal', '99999'], ['venmo', '99999']] as const)(
+    "rejects a fresh %s Bitcoin order below its minimum before publishing an address", async (sendingApp, quote) => {
+      const quoteSpy = vi.spyOn(bitcoin, 'quoteBitcoinOrder').mockResolvedValue({
+        quotedAmountAtomic: quote,
+        collectionFee: { version: 2, feeUsdCents: 1, estimatedFeeAtomic: '1', feeRateSatPerVbyte: 1, estimatedVbytes: 150, btcUsdCents: 8000000, sampledAt: new Date().toISOString() }
+      });
+      const row = paymentRow({ asset: 'BTC', network: 'bitcoin', metadata: { sendingApp } });
+      const query = newIntentQuery(row);
+      try {
+        await expect(createInHouseCryptoPaymentIntent(transactionDb(query), cryptoConfig({
+          CRYPTO_PROCESSOR_BITCOIN_WALLET_XPUB: receiveChainXpub,
+          CRYPTO_PROCESSOR_BITCOIN_ESPLORA_URL: 'https://example.invalid/api'
+        }), {
+          userId: row.user_id, planId: row.plan_id, amountUsdCents: 1899,
+          idempotencyKey: 'checkout-1', rail: 'btc_bitcoin', metadata: { sendingApp }
+        })).rejects.toThrow(/sending minimum/);
+        expect(query.mock.calls.some(([sql]) => sql.includes('insert into crypto_payment_watch_positions') || sql.includes('set payment_address = $2'))).toBe(false);
+      } finally { quoteSpy.mockRestore(); }
+    }
+  );
 
   it("deduplicates chain events at the database boundary", async () => {
     const query = vi.fn().mockResolvedValue({ rows: [{ id: "event-1" }] });

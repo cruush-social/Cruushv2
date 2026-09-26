@@ -56,6 +56,27 @@ describe('SupportPage', () => {
     expect(await screen.findByText('Support request sent')).toBeInTheDocument();
   });
 
+  it.each([
+    ['?billing=payment', 'billing_payment'],
+    ['?billing=subscription', 'billing_subscription'],
+    ['?billing=pulse', 'billing_pulse'],
+    ['?refund=1', 'billing_refund'],
+    ['?billing=refund', 'billing_refund'],
+    ['?billing=unknown', 'question'],
+    ['?billing=__proto__', 'question'],
+  ])('submits the billing category selected by %s', async (search, category) => {
+    render(<MemoryRouter initialEntries={[`/support${search}`]}><SupportPage /></MemoryRouter>);
+    expect(screen.getByLabelText('Support type')).toHaveValue(category);
+    for (const name of ['Payment issue', 'Subscription or renewal', 'Pulse purchase issue', 'Refund request']) {
+      expect(screen.getByRole('option', { name })).toBeInTheDocument();
+    }
+    fireEvent.change(screen.getByLabelText('Support subject'), { target: { value: 'Billing request' } });
+    fireEvent.change(screen.getByLabelText('Support message'), { target: { value: 'Please check this purchase for me.' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Send to support' }));
+    await screen.findByText('Support request sent');
+    expect(JSON.parse(vi.mocked(fetch).mock.calls[0][1]!.body as string).category).toBe(category);
+  });
+
   it('shows the private age suspension evidence workflow without authentication', async () => {
     window.history.pushState({}, '', '/support?appeal=1');
 

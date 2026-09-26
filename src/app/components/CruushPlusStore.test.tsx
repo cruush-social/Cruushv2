@@ -179,6 +179,8 @@ function renderStore() {
 // so tests that are not about it keep the whole catalogue listed.
 beforeEach(() => {
   vi.mocked(getBitcoinSendingEligibility).mockResolvedValue({ rail: 'btc_bitcoin', products: {} });
+  vi.mocked(createCryptoPaymentIntent).mockReset().mockRejectedValue(new Error('No order in this test.'));
+  vi.mocked(createPulsePaymentIntent).mockReset().mockRejectedValue(new Error('No order in this test.'));
 });
 
 describe('CruushPlusStore', () => {
@@ -212,7 +214,7 @@ describe('CruushPlusStore', () => {
       renderStore();
 
       expect(
-        await screen.findByRole('button', { name: /get 1 year for \$99\.99/i }),
+        await screen.findByText('$99.99 + processing fee'),
       ).toBeInTheDocument();
       expect(screen.getByText('Recommended')).toBeInTheDocument();
     });
@@ -272,7 +274,7 @@ describe('CruushPlusStore', () => {
 
       // The sold-out founder plan must not become the default selection.
       expect(
-        await screen.findByRole('button', { name: /get 1 year for \$119\.99/i }),
+        await screen.findByText('$119.99 + processing fee'),
       ).toBeInTheDocument();
       fireEvent.click(screen.getByRole('button', { name: /compare plans/i }));
       expect(screen.getByText('Sold out')).toBeInTheDocument();
@@ -289,7 +291,8 @@ describe('CruushPlusStore', () => {
     renderStore();
 
     expect(await screen.findByText('$18.99/month')).toBeInTheDocument();
-    expect(screen.getByText('Who has a cruush on you')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /what cruush\+ unlocks/i }));
+    expect(await screen.findByText('Who has a cruush on you')).toBeInTheDocument();
     expect(screen.getByText('See your full incoming cruush and profile-view lists.')).toBeInTheDocument();
     expect(screen.getByText('More Pulses')).toBeInTheDocument();
     expect(screen.getByText('Send up to 5 Pulses per day.')).toBeInTheDocument();
@@ -327,7 +330,7 @@ describe('CruushPlusStore', () => {
     expect(screen.queryByText(/licensed processor/i)).not.toBeInTheDocument();
   });
 
-  it('puts the ready checkout before the benefits and legal sections', async () => {
+  it('puts the closed benefits accordion above checkout and legal sections', async () => {
     vi.mocked(getBillingPlans).mockResolvedValue({
       processor: 'fake',
       testCheckout: true,
@@ -345,17 +348,23 @@ describe('CruushPlusStore', () => {
 
     const main = (await screen.findByText('Choose your time')).closest('main');
     expect(main).not.toBeNull();
-    expect(main?.children).toHaveLength(6);
+    expect(main?.children).toHaveLength(5);
+    const benefitsToggle = screen.getByRole('button', { name: /what cruush\+ unlocks/i });
+    expect(main?.children[0]).toContainElement(benefitsToggle);
+    expect(benefitsToggle).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('list', { name: 'cruush+ benefits' })).not.toBeInTheDocument();
     expect(main?.children[1]).toHaveTextContent('Choose your time');
     expect(main?.children[1]).toHaveTextContent('Recommended');
     expect(main?.children[2]).toHaveTextContent('What are you paying from?');
     expect(main?.children[2]).toContainElement(screen.getByRole('button', { name: 'Cash App' }));
     expect(main?.children[2]).toContainElement(screen.getByRole('button', { name: 'PayPal' }));
     expect(main?.children[2]).toContainElement(screen.getByRole('button', { name: 'A crypto wallet' }));
-    expect(main?.children[2]).toContainElement(screen.getByRole('button', { name: /get 1 year for \$99\.99/i }));
-    expect(main?.children[3]).toContainElement(screen.getByRole('list', { name: 'cruush+ benefits' }));
-    expect(main?.children[4]).toContainElement(screen.getByRole('button', { name: /why cruush takes crypto/i }));
-    expect(main?.children[5]).toContainElement(screen.getByRole('link', { name: /read the billing policy/i }));
+    expect(screen.queryByRole('button', { name: /get 1 year for/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Pulse checkout' })).not.toBeInTheDocument();
+    fireEvent.click(benefitsToggle);
+    expect(main?.children[0]).toContainElement(await screen.findByRole('list', { name: 'cruush+ benefits' }));
+    expect(main?.children[3]).toContainElement(screen.getByRole('button', { name: /why cruush takes crypto/i }));
+    expect(main?.children[4]).toContainElement(screen.getByRole('link', { name: /read the billing policy/i }));
   });
 
   it('never starts a payment while the processor is not ready', async () => {
@@ -363,15 +372,13 @@ describe('CruushPlusStore', () => {
 
     renderStore();
 
-    const payButton = await screen.findByRole('button', { name: /get 1 month for \$18\.99/i });
-    expect(payButton).toBeDisabled();
+    await screen.findByText(/crypto payment is not available yet/i);
     // A source whose rail is not ready is not offered, so nothing is listed.
     for (const sourceLabel of ['Cash App', 'PayPal', 'Venmo', 'A crypto wallet', 'Bitcoin']) {
       expect(screen.queryByRole('button', { name: sourceLabel })).not.toBeInTheDocument();
     }
     expect(screen.getByText(/crypto payment is not available yet/i)).toBeInTheDocument();
 
-    fireEvent.click(payButton);
     expect(createCryptoPaymentIntent).not.toHaveBeenCalled();
   });
 
@@ -404,8 +411,6 @@ describe('CruushPlusStore', () => {
       expect(await screen.findByText(instruction)).toBeInTheDocument();
     }
 
-    fireEvent.click(screen.getByRole('button', { name: /get 1 month for \$18\.99/i }));
-
     await waitFor(() => {
       expect(createCryptoPaymentIntent).toHaveBeenCalledWith({
         planId: 'plus_monthly',
@@ -433,7 +438,7 @@ describe('CruushPlusStore', () => {
 
     renderStore();
 
-    const payButton = await screen.findByRole('button', { name: /get 1 month for \$18\.99/i });
+    const payButton = await screen.findByRole('button', { name: 'Venmo' });
     await waitFor(() => expect(payButton).toBeEnabled());
     expect(screen.getByRole('button', { name: 'Venmo' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.queryByRole('button', { name: 'Cash App' })).not.toBeInTheDocument();
@@ -468,7 +473,7 @@ describe('CruushPlusStore', () => {
 
     renderStore();
 
-    fireEvent.click(await screen.findByRole('button', { name: /get 1 month for \$18\.99/i }));
+    fireEvent.click(await screen.findByRole('button', { name: 'A crypto wallet' }));
 
     await waitFor(() => {
       expect(createCryptoPaymentIntent).toHaveBeenCalledWith(
@@ -576,8 +581,6 @@ describe('CruushPlusStore', () => {
     );
     expect(screen.queryByText(openIntent.paymentAddress)).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'PayPal' })).toBeEnabled();
-    fireEvent.click(screen.getByRole('button', { name: 'PayPal' }));
-    expect(screen.getByRole('button', { name: 'PayPal' })).toHaveAttribute('aria-pressed', 'true');
     const replacement = {
       ...openIntent,
       id: '00000000-0000-4000-8000-000000000012',
@@ -589,7 +592,7 @@ describe('CruushPlusStore', () => {
       expiresAt: '2099-09-02T12:01:00.000Z',
     };
     vi.mocked(createCryptoPaymentIntent).mockResolvedValue(replacement);
-    fireEvent.click(screen.getByRole('button', { name: /get 1 month for/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'PayPal' }));
     expect(await screen.findByText(replacement.paymentAddress)).toBeInTheDocument();
     expect(createCryptoPaymentIntent).toHaveBeenCalledWith({
       planId: 'plus_monthly', rail: 'pyusd_arbitrum', sendingApp: 'paypal', idempotencyKey: expect.any(String),
@@ -716,7 +719,7 @@ describe('CruushPlusStore', () => {
     });
 
     renderStore();
-    fireEvent.click(await screen.findByRole('button', { name: /get 1 month for \$18\.99/i }));
+    fireEvent.click(await screen.findByRole('button', { name: 'A crypto wallet' }));
 
     expect(await screen.findByText(/this payment window expired/i)).toBeInTheDocument();
     expect(screen.queryByText('0x73659c60270d326c06Ac204F1A9C63f889a3D14B')).not.toBeInTheDocument();
@@ -766,7 +769,7 @@ describe('CruushPlusStore', () => {
     }));
 
     renderStore();
-    fireEvent.click(await screen.findByRole('button', { name: /get 1 month for \$18\.99/i }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Cash App' }));
 
     expect(await screen.findByRole('button', { name: 'Starting…' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Cash App' })).toBeDisabled();
@@ -799,7 +802,7 @@ describe('CruushPlusStore', () => {
     });
 
     renderStore();
-    fireEvent.click(await screen.findByRole('button', { name: /get 1 month for \$18\.99/i }));
+    fireEvent.click(await screen.findByRole('button', { name: 'A crypto wallet' }));
 
     expect(await screen.findByText(/payment confirmed/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'cruush+ active' })).toBeDisabled();
@@ -829,7 +832,7 @@ describe('CruushPlusStore', () => {
 
     renderStore();
 
-    fireEvent.click(await screen.findByRole('button', { name: /get 1 month for \$18\.99/i }));
+    fireEvent.click(await screen.findByRole('button', { name: 'A crypto wallet' }));
 
     const qrImage = await screen.findByAltText(/USDC payment address QR code/i);
     expect(qrImage).toHaveAttribute('src', 'data:image/png;base64,fake');
@@ -843,9 +846,9 @@ describe('CruushPlusStore', () => {
 
     renderStore();
 
-    fireEvent.click(await screen.findByRole('button', { name: /get 1 month for \$18\.99/i }));
+    fireEvent.click(await screen.findByRole('button', { name: 'A crypto wallet' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Connection interrupted.');
-    fireEvent.click(screen.getByRole('button', { name: /get 1 month for \$18\.99/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'A crypto wallet' }));
 
     await waitFor(() => expect(createCryptoPaymentIntent).toHaveBeenCalledTimes(2));
     expect(vi.mocked(createCryptoPaymentIntent).mock.calls[0]?.[0].idempotencyKey).toBe(
@@ -876,7 +879,7 @@ describe('Pulse checkout shares the live processor', () => {
     vi.mocked(getCryptoProcessorStatus).mockResolvedValue({ ready: true, asset: 'USDC', network: 'arbitrum', confirmationTarget: 1, rails: [{ id: 'usdc_arbitrum', asset: 'USDC', network: 'arbitrum', chainId: 42161, tokenAddress: '', ready: true }] });
     vi.mocked(createPulsePaymentIntent).mockResolvedValue({ id: 'pulse-order', userId: 'member', planId: 'ping_3', productType: 'ping_pack', asset: 'USDC', network: 'arbitrum', rail: 'usdc_arbitrum', chainId: 42161, tokenAddress: '', amountUsdCents: 299, quotedAmountAtomic: '2990000', paymentAddress: '0x123', paymentUri: null, qrCodeDataUrl: null, status: 'paid', expiresAt: null, createdAt: null, updatedAt: null, paidAt: null });
     render(<MemoryRouter><CruushPlusStore product="ping_pack" /></MemoryRouter>);
-    fireEvent.click(await screen.findByRole('button', { name: 'Get 3 pulses for $2.99' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Cash App' }));
     await waitFor(() => expect(createPulsePaymentIntent).toHaveBeenCalledWith(expect.objectContaining({ packId: 'ping_3', rail: 'usdc_arbitrum', sendingApp: 'cash_app' })));
     expect(await screen.findByText('Payment confirmed. Your Pulses are available.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'cruush+ checkout' })).toBeInTheDocument();
@@ -959,14 +962,17 @@ describe('Bitcoin through Cash App, PayPal, Venmo or a wallet', () => {
     expect(buttons.map((button) => button.getAttribute('aria-label'))).toEqual(['Cash App', 'PayPal', 'Venmo', 'A crypto wallet']);
     expect(within(picker).getAllByText('BTC · Bitcoin')).toHaveLength(4);
     expect(within(picker).queryByText(/USDC|PYUSD/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /why cruush takes crypto/i }));
+    expect(await screen.findByText(/Pay with Bitcoin from Cash App/)).toBeInTheDocument();
+    expect(screen.queryByText(/Cash App pays with USDC/)).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Bitcoin' })).not.toBeInTheDocument();
     expect(screen.queryByText(/Send Bitcoin with Cash App, PayPal or Venmo/i)).not.toBeInTheDocument();
     for (const button of buttons) {
       expect(button).toBeEnabled();
     }
-    // The first offered source is selected and the checkout is live.
-    expect(screen.getByRole('button', { name: 'Cash App' })).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByRole('button', { name: /get 1 year for \$99\.99/i })).toBeEnabled();
+    // No app minimum applies until the member chooses an app.
+    expect(screen.getByRole('button', { name: 'Cash App' })).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByText('$99.99 + processing fee')).toBeInTheDocument();
   });
 
   it('sends the chosen app with the Bitcoin rail so the order records it', async () => {
@@ -978,7 +984,7 @@ describe('Bitcoin through Cash App, PayPal, Venmo or a wallet', () => {
     expect(screen.getByRole('button', { name: 'Venmo' })).toHaveAttribute('aria-pressed', 'true');
     fireEvent.click(screen.getByRole('button', { name: /how to send this payment/i }));
     expect(await screen.findByText('Cash App, PayPal or Venmo')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /get 1 year for \$99\.99/i }));
+
 
     await waitFor(() => expect(createCryptoPaymentIntent).toHaveBeenCalledWith({
       planId: 'founder_annual',
@@ -988,36 +994,27 @@ describe('Bitcoin through Cash App, PayPal, Venmo or a wallet', () => {
     }));
   });
 
-  it('lists for Cash App only what Cash App can send, and moves the selection onto it', async () => {
+  it('keeps cheaper plans visible and disables Cash App below its minimum', async () => {
     vi.mocked(getBitcoinSendingEligibility).mockResolvedValue(perAppEligibility);
     renderStore();
-
-    fireEvent.click(await screen.findByRole('button', { name: 'Cash App' }));
-    fireEvent.click(screen.getByRole('button', { name: /Compare plans/i }));
-
-    const otherPrices = await screen.findByRole('list', { name: 'Other cruush+ prices' });
-    await waitFor(() => expect(within(otherPrices).queryByText('7 days')).not.toBeInTheDocument());
-    expect(within(otherPrices).getByText('1 month')).toBeInTheDocument();
-    expect(within(otherPrices).getByText('6 months')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /^Get 7 days for/ })).not.toBeInTheDocument();
+    fireEvent.click(await screen.findByRole('button', { name: /Compare plans/i }));
+    fireEvent.click(within(screen.getByRole('list', { name: 'Other cruush+ prices' })).getByText('7 days'));
+    expect(screen.getByRole('button', { name: 'Cash App' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'A crypto wallet' })).toBeEnabled();
+    expect(screen.getByText('Minimum 0.00005 BTC')).toBeInTheDocument();
+    expect(createCryptoPaymentIntent).not.toHaveBeenCalled();
   });
 
-  it('lists for PayPal only the items at or above its 0.001 BTC minimum', async () => {
+  it('greys PayPal and Venmo for a small purchase without changing the product', async () => {
     vi.mocked(getBitcoinSendingEligibility).mockResolvedValue(perAppEligibility);
     renderStore();
-
-    fireEvent.click(await screen.findByRole('button', { name: 'PayPal' }));
-    expect(screen.getByRole('button', { name: 'PayPal' })).toHaveAttribute('aria-pressed', 'true');
-    fireEvent.click(screen.getByRole('button', { name: /Compare plans/i }));
-
-    const otherPrices = await screen.findByRole('list', { name: 'Other cruush+ prices' });
-    await waitFor(() => expect(within(otherPrices).queryByText('1 month')).not.toBeInTheDocument());
-    expect(within(otherPrices).queryByText('7 days')).not.toBeInTheDocument();
-    expect(within(otherPrices).queryByText('6 months')).not.toBeInTheDocument();
-    // Founder annual stays selected; the other annual plan is the only other item.
-    expect(within(otherPrices).getAllByRole('listitem')).toHaveLength(1);
-    expect(within(otherPrices).getByText('1 year')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /get 1 year for \$99\.99/i })).toBeEnabled();
+    fireEvent.click(await screen.findByRole('button', { name: /Compare plans/i }));
+    fireEvent.click(within(screen.getByRole('list', { name: 'Other cruush+ prices' })).getByText('1 month'));
+    expect(screen.getByRole('button', { name: 'PayPal' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Venmo' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Cash App' })).toBeEnabled();
+    expect(screen.getByText('$18.99 + processing fee')).toBeInTheDocument();
+    expect(createCryptoPaymentIntent).not.toHaveBeenCalled();
   });
 
   it('lists everything for a wallet, which has no app minimum', async () => {
@@ -1057,48 +1054,53 @@ describe('Bitcoin through Cash App, PayPal, Venmo or a wallet', () => {
     expect(within(otherPrices).getByText('7 days')).toBeInTheDocument();
   });
 
-  it('hides 3 Pulses for Cash App and sends the app with the Pulse order', async () => {
+  it('disables Cash App for 3 Pulses and enables it when 10 Pulses are selected', async () => {
     vi.mocked(getPulsePacks).mockResolvedValue({ packs: pulsePacks });
     vi.mocked(getCurrentPulsePaymentIntent).mockResolvedValue(null);
-    vi.mocked(getBitcoinSendingEligibility).mockResolvedValue({
-      rail: 'btc_bitcoin',
-      products: { ping_3: [], ping_10: ['Cash App'], ping_25: ['Cash App'] },
-    });
+    vi.mocked(getBitcoinSendingEligibility).mockResolvedValue({ rail: 'btc_bitcoin', products: { ping_3: [], ping_10: ['Cash App'], ping_25: ['Cash App'] } });
     vi.mocked(createPulsePaymentIntent).mockRejectedValue(new Error('Stop after request mapping.'));
     render(<MemoryRouter><CruushPlusStore product="ping_pack" /></MemoryRouter>);
-
-    // Cash App is the first offered source, so the selection moves off 3 Pulses on load.
-    expect(await screen.findByRole('button', { name: 'Get 10 pulses for $7.99' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Cash App' })).toHaveAttribute('aria-pressed', 'true');
+    expect(await screen.findByRole('button', { name: 'Cash App' })).toBeDisabled();
     fireEvent.click(screen.getByRole('button', { name: /Compare plans/i }));
-    const otherPrices = await screen.findByRole('list', { name: 'Other Pulse prices' });
-    expect(within(otherPrices).queryByText('3 Pulses')).not.toBeInTheDocument();
-    expect(within(otherPrices).getByText('25 Pulses')).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Get 10 pulses for $7.99' }));
-    await waitFor(() => expect(createPulsePaymentIntent).toHaveBeenCalledWith({
-      packId: 'ping_10',
-      idempotencyKey: expect.any(String),
-      rail: 'btc_bitcoin',
-      sendingApp: 'cash_app',
-    }));
+    fireEvent.click(within(screen.getByRole('list', { name: 'Other Pulse prices' })).getByText('10 Pulses'));
+    expect(screen.getByRole('button', { name: 'Cash App' })).toBeEnabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Cash App' }));
+    await waitFor(() => expect(createPulsePaymentIntent).toHaveBeenCalledWith(expect.objectContaining({ packId: 'ping_10', sendingApp: 'cash_app' })));
   });
 
-  it('lists for PayPal only the Pulse packs PayPal can send', async () => {
+  it('enables PayPal only after a qualifying Pulse pack is selected', async () => {
     vi.mocked(getPulsePacks).mockResolvedValue({ packs: pulsePacks });
     vi.mocked(getCurrentPulsePaymentIntent).mockResolvedValue(null);
-    vi.mocked(getBitcoinSendingEligibility).mockResolvedValue({
-      rail: 'btc_bitcoin',
-      products: { ping_3: [], ping_10: ['Cash App'], ping_25: ['Cash App', 'PayPal', 'Venmo'] },
-    });
+    vi.mocked(getBitcoinSendingEligibility).mockResolvedValue({ rail: 'btc_bitcoin', products: { ping_3: [], ping_10: ['Cash App'], ping_25: ['Cash App', 'PayPal', 'Venmo'] } });
     render(<MemoryRouter><CruushPlusStore product="ping_pack" /></MemoryRouter>);
+    expect(await screen.findByRole('button', { name: 'PayPal' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: /Compare plans/i }));
+    fireEvent.click(within(screen.getByRole('list', { name: 'Other Pulse prices' })).getByText('25 Pulses'));
+    expect(screen.getByRole('button', { name: 'PayPal' })).toBeEnabled();
+    expect(createPulsePaymentIntent).not.toHaveBeenCalled();
+  });
 
-    fireEvent.click(await screen.findByRole('button', { name: 'PayPal' }));
+  it('keeps the wallet usable when no app can send the smallest Pulse pack', async () => {
+    vi.mocked(getPulsePacks).mockResolvedValue({ packs: pulsePacks });
+    vi.mocked(getCurrentPulsePaymentIntent).mockResolvedValue(null);
+    vi.mocked(getBitcoinSendingEligibility).mockResolvedValue({ rail: 'btc_bitcoin', products: { ping_3: [], ping_10: ['Cash App'], ping_25: ['Cash App'] } });
+    render(<MemoryRouter><CruushPlusStore product="ping_pack" /></MemoryRouter>);
+    expect(await screen.findByRole('button', { name: 'PayPal' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Cash App' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'A crypto wallet' }));
+    await waitFor(() => expect(createPulsePaymentIntent).toHaveBeenCalledWith(expect.objectContaining({ packId: 'ping_3', sendingApp: 'wallet' })));
+  });
 
-    expect(await screen.findByRole('button', { name: 'Get 25 pulses for $14.99' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Compare plans/i })).not.toBeInTheDocument();
-    expect(screen.queryByText('3 Pulses')).not.toBeInTheDocument();
-    expect(screen.queryByText('10 Pulses')).not.toBeInTheDocument();
+  it('starts just one order when the app button is tapped twice rapidly', async () => {
+    vi.mocked(getBitcoinSendingEligibility).mockResolvedValue({ rail: 'btc_bitcoin', products: {} });
+    let rejectOrder: (error: Error) => void = () => {};
+    vi.mocked(createCryptoPaymentIntent).mockImplementation(() => new Promise((_resolve, reject) => { rejectOrder = reject; }));
+    renderStore();
+    const button = await screen.findByRole('button', { name: 'Cash App' });
+    fireEvent.click(button);
+    fireEvent.click(button);
+    expect(createCryptoPaymentIntent).toHaveBeenCalledTimes(1);
+    await act(async () => rejectOrder(new Error('Preview ended.')));
   });
 
   it('restores an open PayPal Bitcoin order onto the PayPal source', async () => {
