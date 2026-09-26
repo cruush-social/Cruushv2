@@ -49,7 +49,7 @@ function parseArgs(argv) {
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 function git(args, options = {}) {
-  return execFileSync('git', args, { cwd: ROOT, encoding: 'utf8', ...options }).trim();
+  return execFileSync('git', args, { cwd: ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, ...options }).trim();
 }
 
 function run(command, args, label) {
