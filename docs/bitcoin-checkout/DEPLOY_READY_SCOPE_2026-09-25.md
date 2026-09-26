@@ -20,9 +20,9 @@ The event trigger is the public Mempool WebSocket. Existing Esplora sources rema
 
 ## Full release boundary
 
-The release candidate starts from the previously reviewed processor integration through `06bbfef4ebbbd6f063279ddcfc4b8110310e94a5`, adds the scoped September 25 Mempool/readiness commit `b69b268`, and integrates current `origin/main` at `82613aa7c86cdb967e4abe4707b9b5e1b9a7c2d0`. The integrated base is merge commit `b0cc280a48ccdb865d5e721d9c3cb12b8f8930d7`; the tested processor release source including the allocator cutover and whitespace-only diff cleanup is `c91c087aee482f2faf42fc2e284d0a380342a680`. The separately authorized public changelog and announcement-email draft begin at commit `5f32723e5336c4d7f2f2beec2e4cb271844432ab`; the expanded v1.8 changelog, email and restored Bitcoin-only crypto article are commit `a310c3bd623bd2a8d81a23000f4c5d8cb00b35d8`.
+The release candidate starts from the previously reviewed processor integration through `06bbfef4ebbbd6f063279ddcfc4b8110310e94a5`, adds the scoped September 25 Mempool/readiness commit `b69b268`, and integrates current `origin/main` at `82613aa7c86cdb967e4abe4707b9b5e1b9a7c2d0`. The integrated base is merge commit `b0cc280a48ccdb865d5e721d9c3cb12b8f8930d7`; the tested processor release source including the allocator cutover and whitespace-only diff cleanup is `c91c087aee482f2faf42fc2e284d0a380342a680`. The separately authorized public changelog and announcement-email draft begin at commit `5f32723e5336c4d7f2f2beec2e4cb271844432ab`; the expanded v1.8 changelog, email and restored Bitcoin-only crypto article are commit `a310c3bd623bd2a8d81a23000f4c5d8cb00b35d8`. The release wrapper buffer repair required to scan this candidate is commit `c006b8f442653683f63ab71a45cdc176aa4d856c`.
 
-The complete candidate contains 148 changed paths relative to current `origin/main`. The authoritative exact list is:
+The complete candidate contains 149 changed paths relative to current `origin/main`. The authoritative exact list is:
 
 ```bash
 git diff --name-only origin/main...HEAD
@@ -95,6 +95,10 @@ Release communications:
 Release record:
 
 - `docs/bitcoin-checkout/DEPLOY_READY_SCOPE_2026-09-25.md`
+
+Release mechanics:
+
+- `scripts/ship.mjs`
 
 ## Explicit exclusions
 
