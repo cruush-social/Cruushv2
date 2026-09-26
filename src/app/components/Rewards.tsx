@@ -326,6 +326,54 @@ export default function Rewards() {
         {!loading && summary ? (
           <Card>
             <CardHeader>
+              <CardTitle>Invite people you trust</CardTitle>
+              <CardDescription>
+                You receive {summary.rules.referralRewardDays} <CruushPlusWord /> days once they verify 2FA.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex gap-2">
+                <Input aria-label="Referral link" value={summary.referrals.link} readOnly />
+                <Button
+                  variant="outline"
+                  size="icon"
+                  aria-label="Copy referral link"
+                  onClick={() => void copy(summary.referrals.link, 'Referral link')}
+                >
+                  <Clipboard className="h-4 w-4" />
+                </Button>
+                {'share' in navigator ? (
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    aria-label="Share referral link"
+                    onClick={() => void navigator.share({
+                      title: 'Join me on cruush',
+                      text: 'Join me on cruush.',
+                      url: summary.referrals.link,
+                    })}
+                  >
+                    <Share2 className="h-4 w-4" />
+                  </Button>
+                ) : null}
+              </div>
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div className="rounded-lg bg-muted/40 p-3">
+                  <p className="text-muted-foreground">Pending</p>
+                  <p className="mt-1 text-lg font-semibold">{summary.referrals.pending}</p>
+                </div>
+                <div className="rounded-lg bg-muted/40 p-3">
+                  <p className="text-muted-foreground">Successful</p>
+                  <p className="mt-1 text-lg font-semibold">{summary.referrals.qualified}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ) : null}
+
+        {!loading && summary ? (
+          <Card>
+            <CardHeader>
               <CardTitle><CruushPlusWord /> time capsule</CardTitle>
             </CardHeader>
             <CardContent className="grid grid-cols-2 gap-3 text-sm">
@@ -391,52 +439,6 @@ export default function Rewards() {
                   Check in once a day. Every 7 consecutive check-in days earns 1 day of cruush+.
                   Multiple visits on the same day count once. Miss a day and your streak restarts.
                 </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Invite people you trust</CardTitle>
-                <CardDescription>
-                  You receive {summary.rules.referralRewardDays} <CruushPlusWord /> days once they verify 2FA.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex gap-2">
-                  <Input aria-label="Referral link" value={summary.referrals.link} readOnly />
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    aria-label="Copy referral link"
-                    onClick={() => void copy(summary.referrals.link, 'Referral link')}
-                  >
-                    <Clipboard className="h-4 w-4" />
-                  </Button>
-                  {'share' in navigator ? (
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      aria-label="Share referral link"
-                      onClick={() => void navigator.share({
-                        title: 'Join me on cruush',
-                        text: 'Join me on cruush.',
-                        url: summary.referrals.link,
-                      })}
-                    >
-                      <Share2 className="h-4 w-4" />
-                    </Button>
-                  ) : null}
-                </div>
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div className="rounded-lg bg-muted/40 p-3">
-                    <p className="text-muted-foreground">Pending</p>
-                    <p className="mt-1 text-lg font-semibold">{summary.referrals.pending}</p>
-                  </div>
-                  <div className="rounded-lg bg-muted/40 p-3">
-                    <p className="text-muted-foreground">Successful</p>
-                    <p className="mt-1 text-lg font-semibold">{summary.referrals.qualified}</p>
-                  </div>
-                </div>
               </CardContent>
             </Card>
 

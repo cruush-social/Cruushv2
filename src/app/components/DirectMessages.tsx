@@ -13,6 +13,7 @@ import { Input } from './ui/input';
 import { Tabs, TabsList, TabsTrigger } from './ui/tabs';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
+import { Card } from './ui/card';
 import MapFiltersSurface, { DEFAULT_FILTER_STATE, type FilterState } from './MapFiltersSurface';
 import {
   createGroupConversation,
@@ -1115,17 +1116,17 @@ export default function DirectMessages({
           })}
 
           {!loading && error ? (
-            <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-8 text-center">
+            <Card className="gap-0 border-destructive/30 bg-destructive/10 p-8 text-center" data-testid="messages-error-card">
               <CruushIcon name="messages" className="mx-auto mb-4 size-14 opacity-55" />
               <p className="text-destructive">{error}</p>
               <Button className="mt-4" variant="outline" onClick={() => void fetchConversations()}>
                 Try again
               </Button>
-            </div>
+            </Card>
           ) : null}
 
           {!loading && !error && filteredConversations.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-white/10 bg-card/60 p-12 text-center">
+            <Card className="gap-0 border-white/10 bg-card/70 p-12 text-center shadow-[0_12px_32px_rgba(0,0,0,0.24)]" data-testid="messages-empty-card">
               <CruushIcon name="messages" className="mx-auto mb-4 size-14 opacity-55" />
               {conversations.length === 0 ? (
                 <>
@@ -1140,7 +1141,7 @@ export default function DirectMessages({
                   </p>
                 </>
               )}
-            </div>
+            </Card>
           ) : null}
         </div>
       </div>

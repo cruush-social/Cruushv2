@@ -2898,7 +2898,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
             onPointerEnter={() => setMapControlsHovered(true)}
             onPointerLeave={() => setMapControlsHovered(false)}
           >
-            <CruushPlusButton onClick={() => navigate('/rewards')} />
+            <CruushPlusButton compact onClick={() => navigate('/rewards')} />
           </div> : null}
           <MapTopBar
             setMapControlsHovered={setMapControlsHovered}
@@ -2921,7 +2921,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
               // stays draggable; every control in it opts back in. The slot had
               // not, so the bug button it holds looked tappable and was not:
               // the map canvas took every tap.
-              className="pointer-events-auto h-12 w-12 shrink-0 sm:h-10 sm:w-10 lg:h-11 lg:w-11"
+              className="pointer-events-auto h-11 w-11 shrink-0 [&_svg]:!h-9 [&_svg]:!w-9"
               data-bug-button-size="large"
               data-map-control-hit-layer="true"
               data-testid="map-bug-button-slot"

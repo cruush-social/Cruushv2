@@ -123,6 +123,9 @@ describe('DirectMessages', () => {
     );
 
     expect(await screen.findByText('No messages yet.')).toBeInTheDocument();
+    expect(screen.getByTestId('messages-empty-card')).toHaveAttribute('data-slot', 'card');
+    expect(screen.getByTestId('messages-empty-card')).toHaveClass('bg-card/70');
+    expect(screen.getByTestId('messages-empty-card')).not.toHaveClass('border-dashed');
     expect(screen.queryByText('Preview mode')).not.toBeInTheDocument();
     expect(screen.queryByText('Alex')).not.toBeInTheDocument();
   });
@@ -137,6 +140,8 @@ describe('DirectMessages', () => {
     );
 
     await waitFor(() => expect(screen.getByText('Messages unavailable')).toBeInTheDocument());
+    expect(screen.getByTestId('messages-error-card')).toHaveAttribute('data-slot', 'card');
+    expect(screen.getByTestId('messages-error-card')).toHaveClass('bg-destructive/10');
     expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
     expect(screen.queryByText('Preview mode')).not.toBeInTheDocument();
   });

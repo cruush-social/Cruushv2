@@ -1204,7 +1204,7 @@ describe('MapHome', () => {
       expect(screen.getByRole('button', { name: 'cruush+ rewards' })).toBeInTheDocument();
       expect(screen.getByTestId('outside-service-area-map-filter')).toHaveClass('grayscale', 'brightness-[0.68]');
       expect(screen.getByTestId('outside-service-area-map-overlay')).toBeInTheDocument();
-      expect(screen.getByTestId('map-top-actions')).toHaveAttribute('data-capsule-width', '128');
+      expect(screen.getByTestId('map-top-actions')).toHaveAttribute('data-capsule-width', '108');
       expect(screen.queryByTestId('map-plus-stack')).not.toBeInTheDocument();
       expect(screen.queryByTestId('map-bug-button-slot')).not.toBeInTheDocument();
       await waitFor(() => expect(query).toHaveBeenCalled());
@@ -2022,15 +2022,15 @@ describe('MapHome', () => {
     expect(screen.getByTestId('map-top-chrome')).toHaveClass('pointer-events-none', 'z-[1000]');
     // The bar carries icons only. cruush+ and the bug control are their own
     // corner controls beside it rather than members of it.
-    // One fixed composition scaled as a whole, so its size and spacing no
-    // longer change per breakpoint.
+    // Every header control uses one 44px frame; the capsule only supplies the
+    // shared background and spacing around those controls.
     expect(topActions).toHaveClass(
       'pointer-events-auto',
       'justify-center',
-      'h-[70px]',
-      'w-[298px]',
+      'h-[60px]',
+      'w-[252px]',
       'gap-1',
-      'px-2.5',
+      'px-2',
       'py-2',
     );
     expect(topActions).not.toHaveClass('max-[430px]:px-0.5', 'sm:gap-1', 'sm:px-2.5');
@@ -2043,9 +2043,7 @@ describe('MapHome', () => {
       notificationButton,
       settingsButton,
     ]) {
-      // One fixed composition scaled as a whole, so every mark is the same size
-      // at every width.
-      expect(button).toHaveClass('size-[3.25rem]');
+      expect(button).toHaveClass('size-11');
       expect(button).not.toHaveClass('max-[360px]:size-10', 'sm:size-12');
     }
     expect(topActions).not.toHaveClass('sm:max-w-[34rem]');
@@ -2057,9 +2055,7 @@ describe('MapHome', () => {
     expect(topActions.parentElement?.parentElement).not.toHaveClass('mx-auto', 'max-w-[42rem]');
     expect(topActions).not.toHaveClass('mt-11');
     expect(plusStack).toHaveClass('relative', 'shrink-0');
-    // The slot now holds the corner open at the button's own size at every
-    // width, so the bar never runs underneath the bug control.
-    expect(bugButtonSlot).toHaveClass('h-12', 'w-12', 'sm:h-10', 'sm:w-10', 'lg:h-11', 'lg:w-11');
+    expect(bugButtonSlot).toHaveClass('h-11', 'w-11', '[&_svg]:!h-9', '[&_svg]:!w-9');
     expect(plusStack).toContainElement(cruushPlusButton);
     expect(plusStack).not.toContainElement(pingButton);
     expect(topActions).not.toContainElement(cruushPlusButton);
@@ -2090,34 +2086,21 @@ describe('MapHome', () => {
     expect(pingButton).not.toHaveClass('absolute', 'mt-2');
     // Desktop controls sit 8px below the bug button; mobile offsets are unchanged.
     expect(rightActions).toHaveClass('right-3', 'top-[4.625rem]', 'sm:right-4', 'sm:top-[5.375rem]', 'lg:right-3', 'lg:top-16');
-    // The capsule keeps its own measured sizes per width rather than the
-    // rounded utility steps it started from.
     expect(cruushPlusButton).toHaveClass(
       'cruush-plus-shimmer-button',
       'cruush-logo-font',
       'normal-case',
       'tracking-normal',
-      'h-[3.315rem]',
-      'px-[0.82875rem]',
-      'text-[1.105rem]',
-      'max-[360px]:h-[3.03875rem]',
-      'max-[360px]:px-[0.414375rem]',
-      'max-[360px]:text-[0.82875rem]',
-      'sm:h-[3.5rem]',
-      'sm:px-[1.225rem]',
-      'sm:text-[1.575rem]',
-      'lg:h-[3.85rem]',
-      'lg:px-[1.4rem]',
-      'lg:text-[1.75rem]',
+      'h-11',
+      'px-2',
+      'text-sm',
     );
     expect(screen.queryByRole('button', { name: 'Safety Center' })).not.toBeInTheDocument();
-    // Every glyph sits in the same 11-unit box inside the scaled bar, so none
-    // of them carries per-breakpoint sizes any more.
-    expect(luckyIcon).toHaveClass('h-11', 'w-11', 'scale-[1.28]', 'object-contain');
+    expect(luckyIcon).toHaveClass('h-9', 'w-9', 'object-contain');
     expect(luckyIcon).not.toHaveClass('max-[360px]:h-9', 'lg:h-11');
-    expect(ghostModeIcon).toHaveClass('h-11', 'w-11', 'object-contain');
+    expect(ghostModeIcon).toHaveClass('h-9', 'w-9', 'object-contain');
     expect(ghostModeIcon).not.toHaveClass('max-[360px]:h-9', 'lg:h-11');
-    expect(dlModeIcon).toHaveClass('!h-11', '!w-11', 'scale-[1.18]');
+    expect(dlModeIcon).toHaveClass('!h-9', '!w-9');
     expect(dlModeIcon).not.toHaveClass('max-[360px]:!h-9', 'lg:!h-11');
     expect(settingsButton.nextElementSibling).toBe(notificationButton);
     expect(topActions.lastElementChild).toBe(notificationButton);
@@ -2134,8 +2117,8 @@ describe('MapHome', () => {
       expect(button).not.toHaveClass('hover:bg-white/10');
     }
     expect(dlModeButton).not.toHaveClass('bg-white/[0.07]');
-    expect(notificationIcon).toHaveClass('h-11', 'w-11', 'scale-[1.28]', 'object-contain');
-    expect(settingsIcon).toHaveClass('h-11', 'w-11', 'object-contain');
+    expect(notificationIcon).toHaveClass('h-9', 'w-9', 'object-contain');
+    expect(settingsIcon).toHaveClass('h-9', 'w-9', 'object-contain');
     expect(settingsIcon).not.toHaveClass('max-[360px]:h-9', 'lg:h-11');
     expect(dlModeIcon).toHaveAttribute('data-source', 'Julien supplied balaclava halo DL Mode icon');
     expect(dlModeIcon).toHaveAttribute('data-tone', 'gradient');
@@ -2753,9 +2736,8 @@ describe('MapHome', () => {
     );
 
     const darkRoomMark = (await screen.findByRole('button', { name: 'Ghost Mode Settings' })).querySelector('svg');
-    // b904fc0 made the top bar one fixed 298x70 composition that is scaled as a
-    // whole, so every glyph in it is a flat h-11/w-11 with no breakpoint steps.
-    expect(darkRoomMark).toHaveClass('!h-11', '!w-11');
+    // Every top-bar glyph uses the same 36px icon box inside a 44px control.
+    expect(darkRoomMark).toHaveClass('!h-9', '!w-9');
     expect(darkRoomMark).not.toHaveClass('!h-10');
     expect(darkRoomMark).not.toHaveClass('!w-10');
     expect(darkRoomMark).not.toHaveClass('max-[360px]:!h-9');

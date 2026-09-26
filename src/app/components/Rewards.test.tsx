@@ -147,6 +147,13 @@ describe('Rewards', () => {
     );
     expect(screen.queryByText(/days old/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/complete their profile/i)).not.toBeInTheDocument();
+
+    const mainChildren = Array.from(screen.getByRole('main').children);
+    const getCruushPlus = screen.getByRole('button', { name: 'Get cruush+' });
+    const referralCard = screen.getByRole('heading', { name: 'Invite people you trust' }).closest('[data-slot="card"]');
+    const timeCapsuleCard = screen.getByRole('heading', { name: /time capsule/i }).closest('[data-slot="card"]');
+    expect(mainChildren.indexOf(referralCard as Element)).toBe(mainChildren.indexOf(getCruushPlus) + 1);
+    expect(mainChildren.indexOf(referralCard as Element)).toBeLessThan(mainChildren.indexOf(timeCapsuleCard as Element));
   });
 
   it('explains every user-accessible cruush+ feature', async () => {

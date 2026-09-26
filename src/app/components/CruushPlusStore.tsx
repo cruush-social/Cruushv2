@@ -776,7 +776,7 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
               {!intent ? (
                 <Accordion collapsible type="single">
                   <AccordionItem value="payment-instructions">
-                    <AccordionTrigger className="px-3 py-2 text-sm hover:no-underline">
+                    <AccordionTrigger className="px-3 py-2 text-base hover:no-underline">
                       How to send this payment
                     </AccordionTrigger>
                     <AccordionContent className="pb-1">
