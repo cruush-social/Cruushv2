@@ -178,6 +178,23 @@ describe('Settings', () => {
     );
   });
 
+  it('keeps the icon attribution list collapsed below map attribution', async () => {
+    render(
+      <MemoryRouter>
+        <Settings />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText('Map attribution')).toBeInTheDocument();
+    const trigger = screen.getByRole('button', { name: 'Icon attribution' });
+    expect(trigger).toHaveAttribute('data-state', 'closed');
+
+    fireEvent.click(trigger);
+
+    expect(trigger).toHaveAttribute('data-state', 'open');
+    expect(screen.getByRole('link', { name: /Ace spectrum diamond/ })).toBeVisible();
+  });
+
   it('returns directly to the main map from the Settings header', async () => {
     render(
       <MemoryRouter initialEntries={['/map', '/settings']} initialIndex={1}>

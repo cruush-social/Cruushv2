@@ -28,6 +28,7 @@ import { Label } from './ui/label';
 import { Switch } from './ui/switch';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
 import { CruushIcon, type CruushIconName, type CruushIconVariant } from './CruushIconImage';
+import { ICON_ATTRIBUTIONS } from '../lib/iconAttributions';
 import DlModeMark from './DlModeMark';
 import PublicPolicyLinks from './PublicPolicyLinks';
 import { changeEmail, changePassword, deleteAccount, getAuthSession, sendVerificationEmail, signOut } from '../lib/authApi';
@@ -747,6 +748,32 @@ export default function Settings({ embedded = false, onBack, onClose, onOpenMile
               </a>
             </div>
           </div>
+        </div>
+
+        <div className="rounded-2xl border border-border bg-card">
+          <Accordion type="single" collapsible>
+            <AccordionItem value="icon-attribution">
+              <AccordionTrigger className="min-h-14 w-full px-4 py-3 text-sm font-medium hover:no-underline">
+                Icon attribution
+              </AccordionTrigger>
+              <AccordionContent className="px-4 pb-4 pt-0">
+                <ul className="grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
+                  {ICON_ATTRIBUTIONS.map((attribution) => (
+                    <li key={`${attribution.label}-${attribution.source}`}>
+                      <a
+                        className="underline underline-offset-4 hover:text-foreground"
+                        href={attribution.source}
+                        rel="noreferrer"
+                        target="_blank"
+                      >
+                        {attribution.label}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
         </div>
 
         <div className="space-y-4">
