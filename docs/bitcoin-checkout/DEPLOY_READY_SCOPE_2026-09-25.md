@@ -20,9 +20,9 @@ The event trigger is the public Mempool WebSocket. Existing Esplora sources rema
 
 ## Full release boundary
 
-The release candidate starts from the previously reviewed processor integration through `06bbfef4ebbbd6f063279ddcfc4b8110310e94a5`, adds the scoped September 25 Mempool/readiness commit `b69b268`, and integrates current `origin/main` at `82613aa7c86cdb967e4abe4707b9b5e1b9a7c2d0`. The integrated base is merge commit `b0cc280a48ccdb865d5e721d9c3cb12b8f8930d7`; the tested release source including the allocator cutover and whitespace-only diff cleanup is `c91c087aee482f2faf42fc2e284d0a380342a680`.
+The release candidate starts from the previously reviewed processor integration through `06bbfef4ebbbd6f063279ddcfc4b8110310e94a5`, adds the scoped September 25 Mempool/readiness commit `b69b268`, and integrates current `origin/main` at `82613aa7c86cdb967e4abe4707b9b5e1b9a7c2d0`. The integrated base is merge commit `b0cc280a48ccdb865d5e721d9c3cb12b8f8930d7`; the tested processor release source including the allocator cutover and whitespace-only diff cleanup is `c91c087aee482f2faf42fc2e284d0a380342a680`. The separately authorized public changelog and announcement-email draft are commit `5f32723e5336c4d7f2f2beec2e4cb271844432ab`.
 
-The complete candidate contains 140 changed paths relative to current `origin/main`. The authoritative exact list is:
+The complete candidate contains 144 changed paths relative to current `origin/main`. The authoritative exact list is:
 
 ```bash
 git diff --name-only origin/main...HEAD
@@ -81,6 +81,13 @@ Frontend:
 - `src/app/lib/supportApi.ts`
 - `src/styles/theme.css`
 
+Release communications:
+
+- `docs/changelog.md`
+- `docs/previews/cruush-1.8-bitcoin-update-email.html`
+- `src/app/components/Changelog.tsx`
+- `src/app/components/Changelog.test.tsx`
+
 Release record:
 
 - `docs/bitcoin-checkout/DEPLOY_READY_SCOPE_2026-09-25.md`
@@ -92,7 +99,8 @@ Release record:
 - Signer or forwarding changes and any funds movement.
 - Production environment mutation, database migration execution, push, merge or deployment.
 - Unrelated map, profile, onboarding, moderation, accessibility or general UI work.
-- The public crypto blog post and release-announcement email. They remain separate publication/copy actions.
+- The public crypto blog post remains excluded.
+- The v1.8 release-announcement email draft and public changelog copy were added only after Julien's separate 25 September authorization. They are not sent, published, pushed, or deployed by this candidate work.
 
 ## Configuration boundary
 
@@ -114,8 +122,10 @@ Migration `190_crypto_payment_allocator_history_floor.sql` completes the cutover
 - Wallet/operator-tool suite: 56 passed.
 - Server TypeScript build: passed.
 - Frontend production build: passed; the whitespace-only cleanup produced the identical Order History JavaScript artifact hash.
+- Public changelog component: 2 tests passed after adding v1.8.
+- Public changelog and announcement email: rendered locally at desktop and mobile widths with no horizontal overflow; the existing changelog layout and styles were unchanged.
 - Wallet TypeScript build: passed.
 - Product-name casing, conflict-marker scan and `git diff --check`: passed.
 - Production dependency audit: zero known vulnerabilities after updating Fastify, Sharp and their vulnerable transitive URI parser; the server image already uses the required Node 22 runtime.
 
-The skipped PostgreSQL cases retain the earlier disposable-database and real-payment acceptance evidence. This candidate is deploy-ready. It has not been pushed, merged to `main`, deployed, used to mutate production configuration, or used to send funds or announcement email. No browser or native-app UI was opened or controlled during this readiness pass.
+The skipped PostgreSQL cases retain the earlier disposable-database and real-payment acceptance evidence. This candidate is deploy-ready. It has not been pushed, merged to `main`, deployed, used to mutate production configuration, or used to send funds or announcement email. No production browser or native-app UI was opened or controlled. A local development preview was used only to verify the authorized changelog and email at desktop and mobile widths.
