@@ -127,7 +127,7 @@ function expirySection(dialog: HTMLElement) {
 function setExpiry(composer: HTMLElement, label: string) {
   const slider = within(composer).getByTestId('feed-expiry-slider').querySelector('[role="slider"]') as HTMLElement;
   slider.focus();
-  const order = ['30m', '1h', '3h', '6h', '24h', '7d', 'Never'];
+  const order = ['30m', '1h', '3h', '6h', '12h', '24h', '2d', '3d', '5d', '7d', 'Never'];
   const target = order.indexOf(label);
   const current = order.indexOf(within(composer).getByTestId('feed-expiry-value').textContent ?? 'Never');
   const key = target > current ? 'ArrowRight' : 'ArrowLeft';
@@ -258,6 +258,19 @@ describe('LocalFeed', () => {
     expect(input.parentElement).not.toHaveClass('hidden');
     expect(input).toHaveValue('Keep this draft');
     expect(createFeedPost).not.toHaveBeenCalled();
+  });
+
+  it('keeps Feed photo upload while removing its camera icon and format helper line', async () => {
+    getFeedPosts.mockResolvedValue([]);
+    render(<MemoryRouter><LocalFeed /></MemoryRouter>);
+    await screen.findByTestId('local-feed-composer-open');
+    openComposer();
+
+    const photoButton = await screen.findByRole('button', { name: 'Add Feed photo' });
+    expect(photoButton).toHaveTextContent('Photo 0/3');
+    expect(photoButton.querySelector('img')).toBeNull();
+    expect(screen.queryByText(/JPEG, PNG, HEIC\/HEIF, AVIF, WebP, TIFF, DNG, BMP or still GIF/i)).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Choose Feed photo')).toHaveAttribute('type', 'file');
   });
 
   it('keeps the feed settings menu scrollable and tappable on mobile', async () => {

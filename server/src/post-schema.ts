@@ -2,7 +2,7 @@ import { z } from "zod";
 import { multilineTextSchema } from "./input-schema.js";
 import { normalizeCrowdOption } from "./profile-sensitive.js";
 
-export const postExpirySchema = z.enum(["30m", "1h", "3h", "6h", "24h", "7d", "never"]);
+export const postExpirySchema = z.enum(["30m", "1h", "3h", "6h", "12h", "24h", "2d", "3d", "5d", "7d", "never"]);
 export const feedPostAudienceSchema = z.enum(["public", "mutuals", "crowd"]);
 export const feedLocationPinVisibilitySchema = z.enum(["off", "mutuals", "same_crowd", "public"]);
 export const feedWindowSchema = z.enum(["1h", "3h", "6h", "24h", "7d"]);

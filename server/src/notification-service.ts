@@ -10,6 +10,7 @@ export type AppNotificationType =
   | "group_message"
   | "group_membership"
   | "nearby_activity"
+  | "nearby_feed_post"
   | "reward"
   | "announcement"
   | "nearby_user"

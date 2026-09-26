@@ -212,7 +212,9 @@ const migrationFiles = [
   "191_email_preferences_and_weekly_order_reports.sql",
   "192_place_checkin_visibility.sql",
   "193_pulse_pack_prices.sql",
-  "194_site_reminders.sql"
+  "194_site_reminders.sql",
+  "195_feed_post_expiry_intervals.sql",
+  "196_nearby_feed_post_notifications.sql"
 ];
 const rewardSafetyPreflightFiles = [
   "079_daily_check_in_rewards.sql",

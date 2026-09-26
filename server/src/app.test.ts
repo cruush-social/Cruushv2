@@ -33,8 +33,16 @@ const { notifyNearbyUsersForLocationUpdate } = vi.hoisted(() => ({
   notifyNearbyUsersForLocationUpdate: vi.fn()
 }));
 
+const { notifyNearbyUsersForFeedPost } = vi.hoisted(() => ({
+  notifyNearbyUsersForFeedPost: vi.fn()
+}));
+
 vi.mock("./nearby-notifications.js", () => ({
   notifyNearbyUsersForLocationUpdate
+}));
+
+vi.mock("./feed-post-notifications.js", () => ({
+  notifyNearbyUsersForFeedPost
 }));
 
 const query = vi.fn();
@@ -470,6 +478,10 @@ beforeEach(() => {
   query.mockReset().mockResolvedValue({ rows: [] });
   notifyNearbyUsersForLocationUpdate.mockReset().mockResolvedValue({
     attempted: false,
+    sent: 0
+  });
+  notifyNearbyUsersForFeedPost.mockReset().mockResolvedValue({
+    attempted: true,
     sent: 0
   });
   end.mockClear();
@@ -11391,7 +11403,7 @@ describe("server", () => {
     expect(query).toHaveBeenCalledTimes(1);
   });
 
-  it("creates feed posts with seven-day and never expiry options", async () => {
+  it("creates feed posts with exact sub-seven-day, seven-day and never expiry options", async () => {
     query
       .mockResolvedValueOnce({
         rows: [{
@@ -11465,11 +11477,27 @@ describe("server", () => {
     expect(sevenDayResponse.statusCode).toBe(201);
     expect(neverResponse.statusCode).toBe(201);
     expect(query.mock.calls[2]?.[0]).toContain("when $2 = '7d' then interval '7 days'");
+    expect(query.mock.calls[2]?.[0]).toContain("when $2 = '30m' then interval '30 minutes'");
+    expect(query.mock.calls[2]?.[0]).toContain("when $2 = '3h' then interval '3 hours'");
+    expect(query.mock.calls[2]?.[0]).toContain("when $2 = '12h' then interval '12 hours'");
+    expect(query.mock.calls[2]?.[0]).toContain("when $2 = '2d' then interval '2 days'");
+    expect(query.mock.calls[2]?.[0]).toContain("when $2 = '3d' then interval '3 days'");
+    expect(query.mock.calls[2]?.[0]).toContain("when $2 = '5d' then interval '5 days'");
     expect(query.mock.calls[7]?.[0]).toContain("when $2 = 'never' then 'infinity'::timestamptz");
     expect(query.mock.calls[2]?.[1]?.[1]).toBe("7d");
     expect(query.mock.calls[7]?.[1]?.[1]).toBe("never");
     expect(sevenDayResponse.json().data.expiresAt).toBe("2026-05-05T12:00:00.000Z");
     expect(neverResponse.json().data.expiresAt).toBeNull();
+    expect(notifyNearbyUsersForFeedPost).toHaveBeenNthCalledWith(1, expect.anything(), {
+      postId: "post-seven-days",
+      authorUserId: userId,
+      audience: "public"
+    });
+    expect(notifyNearbyUsersForFeedPost).toHaveBeenNthCalledWith(2, expect.anything(), {
+      postId: "post-never",
+      authorUserId: userId,
+      audience: "public"
+    });
   });
 
   it.each([

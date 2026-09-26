@@ -3,7 +3,7 @@ import type { CruushBadge } from './billingApi';
 import type { SideBadges } from './profileApi';
 import type { DlModePhotoRelationship } from './dlMode';
 
-export type FeedPostExpiry = '30m' | '1h' | '3h' | '6h' | '24h' | '7d' | 'never';
+export type FeedPostExpiry = '30m' | '1h' | '3h' | '6h' | '12h' | '24h' | '2d' | '3d' | '5d' | '7d' | 'never';
 export type FeedPostWindow = '1h' | '3h' | '6h' | '24h' | '7d';
 export type FeedLocationPinVisibility = 'off' | 'mutuals' | 'same_crowd' | 'public';
 export type FeedPostAudience = 'public' | 'mutuals' | 'crowd';

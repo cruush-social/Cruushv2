@@ -26,12 +26,13 @@ import { canStartDirectMessage } from "../cruush-match-settings.js";
 import { handleFeedPhotoUpload } from "../feed-photo-upload.js";
 import { removeOwnedNonPublicMediaAsset } from "../media-assets.js";
 import { notTombstonedSql } from "../profile-tombstone.js";
+import { notifyNearbyUsersForFeedPost } from "../feed-post-notifications.js";
 
 type PostRow = {
   id: string;
   user_id: string;
   content: string;
-  expires_in: "30m" | "1h" | "3h" | "6h" | "24h" | "7d" | "never";
+  expires_in: "30m" | "1h" | "3h" | "6h" | "12h" | "24h" | "2d" | "3d" | "5d" | "7d" | "never";
   expires_at: string | Date;
   created_at: string | Date;
   content_ciphertext?: string | null;
@@ -922,8 +923,15 @@ export async function registerPostRoutes(app: FastifyInstance) {
            case
              when $2 = 'never' then 'infinity'::timestamptz
              else now() + case
+               when $2 = '30m' then interval '30 minutes'
                when $2 = '1h' then interval '1 hour'
+               when $2 = '3h' then interval '3 hours'
                when $2 = '6h' then interval '6 hours'
+               when $2 = '12h' then interval '12 hours'
+               when $2 = '24h' then interval '24 hours'
+               when $2 = '2d' then interval '2 days'
+               when $2 = '3d' then interval '3 days'
+               when $2 = '5d' then interval '5 days'
                when $2 = '7d' then interval '7 days'
                else interval '24 hours'
              end
@@ -1141,6 +1149,14 @@ export async function registerPostRoutes(app: FastifyInstance) {
       userId,
       activityType: "post",
       sourceEventId: row.id
+    });
+
+    void notifyNearbyUsersForFeedPost(app, {
+      postId: row.id,
+      authorUserId: userId,
+      audience: row.audience ?? payload.audience
+    }).catch(error => {
+      request.log.warn({ err: error, postId: row.id }, "nearby Feed notification dispatch failed");
     });
 
     return reply.code(201).send({

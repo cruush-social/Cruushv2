@@ -106,7 +106,7 @@ type StoredPing = {
 function senderProfile(
   rules: ProfileVisibilityRules = publicRules,
   signal = "Coffee now",
-  feedExpiry: "1h" | "6h" | "24h" | "7d" | "never" = "never"
+  feedExpiry: "30m" | "1h" | "3h" | "6h" | "12h" | "24h" | "2d" | "3d" | "5d" | "7d" | "never" = "never"
 ) {
   return {
     signal,

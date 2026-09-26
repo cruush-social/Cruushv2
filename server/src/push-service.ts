@@ -179,7 +179,7 @@ function isPreferenceEnabledForType(preferences: NotificationPreferences, type: 
     return false;
   }
 
-  if (type === "nearby_activity" || type === "place_checkin_expired") {
+  if (type === "nearby_activity" || type === "nearby_feed_post" || type === "place_checkin_expired") {
     return preferences.nearbyEnabled;
   }
 
@@ -243,6 +243,13 @@ function genericPushCopy(type: AppNotificationType) {
     return {
       title: "Someone nearby",
       body: "Someone within your radar may be in your area."
+    };
+  }
+
+  if (type === "nearby_feed_post") {
+    return {
+      title: "New Feed post nearby",
+      body: "Open Feed to see what’s happening in your area."
     };
   }
 

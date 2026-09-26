@@ -64,11 +64,13 @@ describe("createPostPayloadSchema", () => {
     ]);
   });
 
-  it("allows seven-day and never feed expiry values", () => {
-    expect(createPostPayloadSchema.parse({
-      content: "Seven days",
-      expiresIn: "7d"
-    }).expiresIn).toBe("7d");
+  it("allows every ordered Feed expiry value", () => {
+    for (const expiresIn of ["30m", "1h", "3h", "6h", "12h", "24h", "2d", "3d", "5d", "7d", "never"] as const) {
+      expect(createPostPayloadSchema.parse({
+        content: `Expires in ${expiresIn}`,
+        expiresIn
+      }).expiresIn).toBe(expiresIn);
+    }
 
     expect(createPostPayloadSchema.parse({
       content: "No expiry",

@@ -3,7 +3,7 @@ import TrustRestrictionNotice from './TrustRestrictionNotice';
 import PhotoUploadSpinner from './PhotoUploadSpinner';
 import MultiSelect from './MultiSelect';
 import { useCallback, useEffect, useId, useRef, useState, type ChangeEvent, type KeyboardEvent } from 'react';
-import { PHOTO_UPLOAD_ACCEPT, PHOTO_UPLOAD_FORMAT_MESSAGE, PHOTO_UPLOAD_EXTENSION_TYPES } from '../lib/photoUploadFormats';
+import { PHOTO_UPLOAD_ACCEPT, PHOTO_UPLOAD_EXTENSION_TYPES } from '../lib/photoUploadFormats';
 import { useLocation, useNavigate } from 'react-router';
 import { formatDistanceLabel, useDistancePreferences } from '../lib/distancePreferences';
 import { ArrowLeft, Clock, Hash, SlidersHorizontal, Trash2, X } from 'lucide-react';
@@ -112,7 +112,11 @@ const FEED_EXPIRY_OPTIONS: Array<{ value: FeedPostExpiry; label: string }> = [
   { value: '1h', label: '1h' },
   { value: '3h', label: '3h' },
   { value: '6h', label: '6h' },
+  { value: '12h', label: '12h' },
   { value: '24h', label: '24h' },
+  { value: '2d', label: '2d' },
+  { value: '3d', label: '3d' },
+  { value: '5d', label: '5d' },
   { value: '7d', label: '7d' },
   { value: 'never', label: 'Never' },
 ];
@@ -1221,11 +1225,10 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
                 type="button"
                 variant="outline"
               >
-                {uploadingFeedPhoto ? <PhotoUploadSpinner className="mr-2 h-4 w-4" /> : <CruushIcon name="camera" className="mr-2 h-4 w-4" />}
+                {uploadingFeedPhoto ? <PhotoUploadSpinner className="mr-2 h-4 w-4" /> : null}
                 {`Photo${hasCruushPlus === true ? ` ${stagedPhotos.length}/3` : ' +'}`}
               </Button>
               <TrustRestrictionNotice message={!trust.restricted('feed_posting') ? trust.message('photo_uploads', 'Photo uploading') : null} />
-              <p className="mt-1 text-xs text-muted-foreground">{PHOTO_UPLOAD_FORMAT_MESSAGE}</p>
             </div>
             <Button
               className={trust.restricted('feed_posting') ? 'grayscale' : undefined}

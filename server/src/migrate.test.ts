@@ -420,6 +420,17 @@ describe("migration runner", () => {
     }
   });
 
+  it("adds the expanded Feed timers and nearby Feed notification type", async () => {
+    const migrateSource = await readFile(path.join(currentDir, "migrate.ts"), "utf8");
+    const expirySql = await readFile(path.join(serverRoot, "sql", "195_feed_post_expiry_intervals.sql"), "utf8");
+    const notificationSql = await readFile(path.join(serverRoot, "sql", "196_nearby_feed_post_notifications.sql"), "utf8");
+
+    expect(migrateSource).toMatch(/"194_site_reminders\.sql",\s*"195_feed_post_expiry_intervals\.sql",\s*"196_nearby_feed_post_notifications\.sql"/);
+    expect(expirySql).toContain("'12h', '24h', '2d', '3d', '5d', '7d'");
+    expect(expirySql).toContain("user_privacy_settings_feed_post_expiry_default_check");
+    expect(notificationSql).toContain("'nearby_feed_post'");
+  });
+
   it("keeps the pre-079 reward guard fail-closed on the final check-in rule", async () => {
     const migrateSource = await readFile(path.join(currentDir, "migrate.ts"), "utf8");
     const rewardGuardSql = await readFile(path.join(serverRoot, "sql", "078_activity_reward_earned_guard.sql"), "utf8");

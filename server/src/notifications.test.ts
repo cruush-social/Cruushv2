@@ -350,6 +350,64 @@ describe("notification service", () => {
     expect(JSON.stringify(pushPayload)).not.toContain("Alex");
   });
 
+  it("uses generic Feed copy for nearby post pushes", async () => {
+    query
+      .mockResolvedValueOnce({
+        rows: [notificationRow({
+          type: "nearby_feed_post",
+          title: "New Feed post nearby",
+          body: "Open Feed to see what’s happening in your area.",
+          link_url: "/feed?view=nearby#latest"
+        })]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          push_enabled: true,
+          cruush_enabled: true,
+          messages_enabled: true,
+          groups_enabled: true,
+          nearby_enabled: true,
+          rewards_enabled: true,
+          sound_enabled: true
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "push-sub-1",
+          endpoint: "https://push.example/sub",
+          p256dh: "p256dh-key",
+          auth: "auth-key"
+        }]
+      })
+      .mockResolvedValueOnce({ rows: [] });
+    sendNotification.mockResolvedValueOnce(undefined);
+
+    await createAppNotificationAndPush({
+      config: {
+        ...baseConfig,
+        WEB_PUSH_ENABLED: true,
+        WEB_PUSH_VAPID_PUBLIC_KEY: "public-key",
+        WEB_PUSH_VAPID_PRIVATE_KEY: "private-key"
+      },
+      db: { query, end },
+      log: { warn: vi.fn(), error: vi.fn(), info: vi.fn() }
+    } as never, {
+      userId: recipientUserId,
+      type: "nearby_feed_post",
+      title: "Alex posted nearby",
+      body: "Sensitive post text",
+      linkUrl: "/feed?view=nearby#latest",
+      dedupeKey: `nearby-feed-post:${notificationId}:${recipientUserId}`
+    });
+
+    const pushPayload = JSON.parse(sendNotification.mock.calls[0]?.[1] as string);
+    expect(pushPayload.title).toBe("New Feed post nearby");
+    expect(pushPayload.body).toBe("Open Feed to see what’s happening in your area.");
+    expect(pushPayload.url).toBe("/feed?view=nearby#latest");
+    expect(JSON.stringify(pushPayload)).not.toContain("Alex");
+    expect(JSON.stringify(pushPayload)).not.toContain("Sensitive post text");
+  });
+
   it("uses generic reward copy instead of labeling reward pushes as messages", async () => {
     query
       .mockResolvedValueOnce({
@@ -409,6 +467,7 @@ describe("notification service", () => {
 
   it.each([
     ["nearby_activity", "nearby_enabled"],
+    ["nearby_feed_post", "nearby_enabled"],
     ["reward", "rewards_enabled"]
   ] as const)("does not query push subscriptions when %s alerts are disabled", async (type, disabledColumn) => {
     query

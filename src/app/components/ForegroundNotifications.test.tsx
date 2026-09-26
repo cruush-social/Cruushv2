@@ -40,6 +40,8 @@ describe('ForegroundNotifications behavior', () => {
   it('honors nearby and reward preferences', () => {
     expect(isNotificationTypeEnabled(preferences, 'nearby_activity')).toBe(true);
     expect(isNotificationTypeEnabled({ ...preferences, nearbyEnabled: false }, 'nearby_activity')).toBe(false);
+    expect(isNotificationTypeEnabled(preferences, 'nearby_feed_post')).toBe(true);
+    expect(isNotificationTypeEnabled({ ...preferences, nearbyEnabled: false }, 'nearby_feed_post')).toBe(false);
     expect(isNotificationTypeEnabled(preferences, 'reward')).toBe(true);
     expect(isNotificationTypeEnabled({ ...preferences, rewardsEnabled: false }, 'reward')).toBe(false);
   });
