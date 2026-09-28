@@ -3,7 +3,7 @@ alter table app_notifications add constraint app_notifications_type_check check 
   'incoming_cruush', 'mutual_cruush', 'direct_message', 'group_message',
   'group_membership', 'nearby_activity', 'reward', 'announcement',
   'nearby_user', 'pulse', 'place_checkin_expired', 'subscription_expiring'
-));
+)) not valid;
 create table if not exists subscription_expiry_reminders (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references app_users(id) on delete cascade,

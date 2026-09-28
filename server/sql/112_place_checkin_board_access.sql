@@ -23,4 +23,4 @@ alter table app_notifications
     'nearby_user',
     'pulse',
     'place_checkin_expired'
-  ));
+  )) not valid;

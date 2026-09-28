@@ -7,4 +7,4 @@ alter table app_notifications add constraint app_notifications_type_check check 
   'group_membership', 'nearby_activity', 'reward', 'announcement',
   'nearby_user', 'pulse', 'place_checkin_expired', 'subscription_expiring',
   'site_reminder'
-));
+)) not valid;

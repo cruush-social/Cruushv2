@@ -12,7 +12,7 @@ alter table app_notifications
     'nearby_activity',
     'reward',
     'announcement'
-  ));
+  )) not valid;
 
 alter table moderation_access_events
   drop constraint if exists moderation_access_events_access_type_check;

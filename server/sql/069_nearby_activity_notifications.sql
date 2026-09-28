@@ -12,4 +12,4 @@ alter table app_notifications
     'nearby_activity',
     'reward',
     'announcement'
-  ));
+  )) not valid;

@@ -20,7 +20,7 @@ alter table app_notifications
     'announcement',
     'nearby_user',
     'pulse'
-  ));
+  )) not valid;
 
 alter table notification_preferences
   add column if not exists pulse_enabled boolean not null default true;

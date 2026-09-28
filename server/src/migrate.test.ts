@@ -406,18 +406,28 @@ describe("migration runner", () => {
     expect(preferencesSql).toContain("add column if not exists rewards_enabled boolean not null default true");
   });
 
-  it("keeps historical notification constraints compatible with announcements", async () => {
+  it("keeps superseded notification constraints replay-safe until the final validated constraint", async () => {
     for (const file of [
       "042_rewards_and_two_factor.sql",
-      "069_nearby_activity_notifications.sql"
+      "069_nearby_activity_notifications.sql",
+      "089_site_wide_announcements.sql",
+      "100_pulse_notifications.sql",
+      "112_place_checkin_board_access.sql",
+      "187_subscription_expiry_reminders.sql",
+      "194_site_reminders.sql"
     ]) {
       const sql = await readFile(path.join(serverRoot, "sql", file), "utf8");
       const typeConstraint = sql.match(
-        /add constraint app_notifications_type_check[\s\S]*?\)\);/i
+        /add constraint app_notifications_type_check[\s\S]*?\)\) not valid;/i
       )?.[0];
 
       expect(typeConstraint).toContain("'announcement'");
+      expect(typeConstraint).toMatch(/not valid;$/i);
     }
+
+    const finalSql = await readFile(path.join(serverRoot, "sql", "196_nearby_feed_post_notifications.sql"), "utf8");
+    expect(finalSql).toContain("'nearby_feed_post'");
+    expect(finalSql).not.toMatch(/app_notifications_type_check[\s\S]*?not valid/i);
   });
 
   it("adds the expanded Feed timers and nearby Feed notification type", async () => {

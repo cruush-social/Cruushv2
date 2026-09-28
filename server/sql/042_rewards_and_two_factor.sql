@@ -22,7 +22,7 @@ alter table app_notifications
     'nearby_activity',
     'reward',
     'announcement'
-  ));
+  )) not valid;
 
 create table if not exists reward_settings (
   key text primary key,
