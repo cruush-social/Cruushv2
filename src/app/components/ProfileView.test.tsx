@@ -303,6 +303,28 @@ describe('ProfileView', () => {
     expect(vibe).toHaveClass('text-sm', 'px-2', 'py-1', 'truncate');
   });
 
+  it('uses the mobile-readable text floor throughout the full profile', async () => {
+    getProfileById.mockResolvedValue(createProfileFixture({ zodiac: [] }));
+
+    render(
+      <MemoryRouter initialEntries={['/profile/user-1']}>
+        <Routes>
+          <Route path="/profile/:userId" element={<ProfileView />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await screen.findByText('they/them');
+    expect(screen.getByRole('tablist')).toHaveClass('text-base');
+    expect(screen.getByRole('tab', { name: 'Basics' })).toHaveClass('text-base');
+
+    const identities = screen.getByRole('heading', { name: 'Gender Identity' }).closest('section');
+    expect(identities).not.toBeNull();
+    expect(within(identities as HTMLElement).getByText('Non-binary')).toHaveClass('text-base');
+    expect(screen.getByText('Nothing listed yet.')).toHaveClass('text-base');
+    expect(screen.getByText('Ethnicity')).toHaveClass('text-base');
+  });
+
   it('shows a large DL Mode icon and label on a masked full-profile photo', async () => {
     window.localStorage.setItem('cruush:dl-mode-enabled', 'true');
     getProfileById.mockResolvedValue(createProfileFixture({

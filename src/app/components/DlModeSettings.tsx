@@ -88,7 +88,7 @@ export default function DlModeSettings() {
   ];
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-background pb-20">
+    <div className="h-[100dvh] overflow-hidden bg-background" data-testid="dl-mode-settings-root">
       {/* Desktop popup layout keeps its original header; full-screen matches Ghost Mode. */}
       {desktopPopupLayout ? (
         <header className="sticky top-0 z-10 border-b border-border bg-card/80 px-3 py-3 backdrop-blur-sm sm:p-4">
@@ -97,7 +97,6 @@ export default function DlModeSettings() {
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div className="flex min-w-0 items-center gap-3">
-              <DlModeMark active={enabled} className="h-7 w-7 shrink-0" />
               <h2 className="truncate text-xl">DL Mode</h2>
             </div>
             <BugButtonSlot testId="dl-mode-settings-bug-button-slot" />
@@ -110,7 +109,6 @@ export default function DlModeSettings() {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="flex min-w-0 items-center gap-3">
-            <DlModeMark active={enabled} className="h-7 w-7 shrink-0" />
             <h2 className="truncate text-xl">DL Mode</h2>
           </div>
           <BugButtonSlot testId="dl-mode-settings-bug-button-slot" />

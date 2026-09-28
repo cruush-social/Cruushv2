@@ -186,6 +186,24 @@ describe('PlaceDetail request isolation', () => {
     expect(screen.getByRole('tab', { name: 'Pink Book' }).closest('[data-slot="tabs"]')).toHaveClass('order-7');
   });
 
+  it('uses the mobile text floor throughout the Spot details block', async () => {
+    getPlace.mockResolvedValue({
+      ...makePlace('spot-a', 'Spot A'),
+      vibes: ['cruisy'],
+      amenities: ['drinks'],
+      accessInstructions: 'Use the side entrance.',
+    });
+    getPlaceBoard.mockResolvedValue([]);
+
+    render(placeDetail('spot-a'));
+
+    expect((await screen.findByText('Spot A address')).parentElement).toHaveClass('text-base');
+    expect(screen.getByText('Cruisy')).toHaveClass('text-base');
+    expect(screen.getByText('Drinks')).toHaveClass('text-base');
+    expect(screen.getByRole('button', { name: 'Add spot details' })).toHaveClass('text-base');
+    expect(screen.getByText('Access')).toHaveClass('text-base');
+  });
+
   it('does not append an old Spot board page after switching Spots', async () => {
     const oldNextPage = deferred<PlaceBoardMessage[]>();
     const firstPage = Array.from({ length: 30 }, (_, index) => makeBoardMessage(`a-${index}`, `Spot A post ${index}`));

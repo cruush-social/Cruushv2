@@ -298,12 +298,14 @@ describe('ProfileOnboarding', () => {
     expect(screen.getByText('find your crowd')).toBeInTheDocument();
     expect(screen.queryByText('Choose your crowds.')).not.toBeInTheDocument();
     expect(screen.queryByText(/Choosing crowds here does not turn it on/i)).not.toBeInTheDocument();
-    expect(screen.queryByText('Pick up to 3')).not.toBeInTheDocument();
+    expect(screen.getByText('Crowds are shared social spaces, like gay or dyke bars, not identity labels. Choose 1 to 3. Change who can see you in Map Controls > Visibility.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /next rite/i })).toBeDisabled();
     chooseCrowd('Gay');
     fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
     expect(screen.queryByText('declare your hunger')).not.toBeInTheDocument();
     expect(screen.getByText('reveal your aura')).toBeInTheDocument();
+    expect(screen.getByText('Optional. Pick up to 3.')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Vibes' }));
     expect(await screen.findByRole('tablist', { name: 'Vibes categories' })).toBeInTheDocument();
     expect(screen.getByRole('group', { name: 'Style' })).toBeInTheDocument();
@@ -344,7 +346,7 @@ describe('ProfileOnboarding', () => {
     // The step description no longer repeats the field-level selection limit.
     expect(screen.getByText('reveal your aura')).toBeInTheDocument();
     expect(screen.queryByText('Set the signal around you.')).not.toBeInTheDocument();
-    expect(screen.getByText('Pick up to 3')).toBeInTheDocument();
+    expect(screen.getByText('Optional. Pick up to 3.')).toBeInTheDocument();
     await chooseVibe('Style', 'Alt');
     await chooseVibe('Style', 'Artsy');
     await chooseVibe('Energy', 'Chill');
@@ -606,7 +608,7 @@ describe('ProfileOnboarding', () => {
     expect(screen.getByPlaceholderText('Your name')).toHaveValue('River');
   });
 
-  it('requires only name, gender and sexuality as profile information', async () => {
+  it('requires name, gender, sexuality and Crowd while leaving Vibes optional', async () => {
     const onComplete = vi.fn();
     render(<MemoryRouter><ProfileOnboarding onComplete={onComplete} previewMode needsCodeOfConduct /></MemoryRouter>);
     const next = () => screen.getByRole('button', { name: /next rite/i });
@@ -621,9 +623,12 @@ describe('ProfileOnboarding', () => {
     expect(screen.queryByText('Optional · select up to 3')).not.toBeInTheDocument();
     expect(next()).not.toBeDisabled();
     fireEvent.click(next()); // Pronouns and trans checkbox remain empty.
+    expect(next()).toBeDisabled();
+    chooseCrowd('Gay');
     expect(next()).not.toBeDisabled();
-    fireEvent.click(next()); // No Crowds.
+    fireEvent.click(next());
     expect(screen.getByText('reveal your aura')).toBeInTheDocument();
+    expect(screen.getByText('Optional. Pick up to 3.')).toBeInTheDocument();
     fireEvent.click(next()); // No Vibes.
     expect(screen.getByText('leave your confession')).toBeInTheDocument();
     fireEvent.click(next()); // No Bio or Signal.
@@ -678,6 +683,30 @@ describe('ProfileOnboarding', () => {
     second.unmount();
     writeOnboardingDraft({ step: 6, profile: { ...profile, crowds: [], is_trans: false } });
     render(<MemoryRouter><ProfileOnboarding onComplete={vi.fn()} /></MemoryRouter>);
-    expect(screen.getByText('protect your key')).toBeInTheDocument();
+    expect(screen.getByText('find your crowd')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /next rite/i })).toBeDisabled();
+  });
+
+  it('previews selected Role and Position with the shared badge rendering', async () => {
+    writeOnboardingDraft({
+      step: 5,
+      profile: {
+        name: 'River',
+        identities: ['nonbinary'],
+        sexuality: ['queer'],
+        crowds: ['Dyke'],
+        role: [],
+        position: [],
+      },
+    });
+
+    render(<MemoryRouter><ProfileOnboarding onComplete={vi.fn()} /></MemoryRouter>);
+
+    expect(screen.getByText('name your role')).toBeInTheDocument();
+    expect(screen.queryByTestId('activity-side-badges')).not.toBeInTheDocument();
+    await chooseMultiSelect('Role', 'service sub');
+    expect(screen.getByRole('img', { name: 'left badge: service sub' })).toBeInTheDocument();
+    await chooseMultiSelect('Position', 'versatile');
+    expect(screen.getByRole('img', { name: 'right badge: versatile' })).toBeInTheDocument();
   });
 });

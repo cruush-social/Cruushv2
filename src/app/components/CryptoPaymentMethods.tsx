@@ -140,7 +140,7 @@ export function CryptoPaymentMethodInstructions({ rail, sendingApp }: { rail: Cr
   return (
     <div className="space-y-3">
       {guides.map((guide) => (
-        <section className="rounded-lg border border-border bg-muted/30 p-3" key={guide.title}>
+        <section className="border-t border-border px-0 py-3 first:border-t-0" key={guide.title}>
           <h3 className="text-base font-semibold">{guide.title}</h3>
           <ol className="mt-2 list-decimal space-y-1 pl-5 text-base leading-6 text-muted-foreground">
             {guide.steps.map((step) => <li key={step}>{step}</li>)}

@@ -405,6 +405,44 @@ describe('CruushPlusStore', () => {
     expect(main?.children[4]).toContainElement(screen.getByRole('link', { name: /read the billing policy/i }));
   });
 
+  it('keeps Store sections as the only capsule shells', async () => {
+    vi.mocked(getBillingPlans).mockResolvedValue({
+      processor: 'fake',
+      testCheckout: true,
+      testWarning: 'TEST CHECKOUT - no real payment will be collected.',
+      currency: 'USD',
+      plans: conversionPlans,
+    });
+    vi.mocked(getCryptoProcessorStatus).mockResolvedValue(processorStatus([
+      'usdc_arbitrum',
+      'pyusd_arbitrum',
+      'usdc_base',
+    ]));
+
+    renderStore();
+
+    const planButton = (await screen.findByText('$99.99 + processing fee')).closest('button');
+    expect(planButton).toHaveClass('border-x-0', 'border-y');
+    expect(planButton).not.toHaveClass('rounded-xl');
+
+    const compareItem = screen.getByRole('button', { name: /Compare plans/i }).closest('[data-slot="accordion-item"]');
+    expect(compareItem).toHaveClass('rounded-none', 'border-x-0', 'border-b-0');
+    expect(compareItem).not.toHaveClass('rounded-full');
+
+    const availabilityNote = screen.getByText(/Cash App stablecoin transfers are not available to New York residents/i);
+    expect(availabilityNote).not.toHaveClass('rounded-lg', 'border', 'bg-muted/40');
+
+    const paymentGuideItem = screen.getByRole('button', { name: /How to send this payment/i }).closest('[data-slot="accordion-item"]');
+    expect(paymentGuideItem).toHaveClass('rounded-none', 'border-x-0', 'border-b-0');
+    expect(screen.getByRole('button', { name: 'Cash App' })).not.toHaveClass('rounded-xl');
+
+    fireEvent.click(screen.getByRole('button', { name: /what cruush\+ unlocks/i }));
+    const benefits = await screen.findByRole('list', { name: 'cruush+ benefits' });
+    for (const benefit of within(benefits).getAllByRole('listitem')) {
+      expect(benefit).not.toHaveClass('rounded-xl', 'border');
+    }
+  });
+
   it('never starts a payment while the processor is not ready', async () => {
     vi.mocked(getCryptoProcessorStatus).mockResolvedValue(processorStatus());
 

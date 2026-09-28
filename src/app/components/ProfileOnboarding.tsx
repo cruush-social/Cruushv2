@@ -36,6 +36,7 @@ import { persistCurrentUser } from '../lib/sessionUser';
 import CruushPlusWord from './CruushPlusWord';
 import MultiSelect from './MultiSelect';
 import LoadingCardSkeletons from './LoadingCardSkeletons';
+import SideBadgePair from './SideBadgePair';
 import cruushLogo from '../assets/brand/cruush-logo.svg';
 import LaunchLoginMapTeaser from './LaunchLoginMapTeaser';
 import './ProfileOnboarding.css';
@@ -210,6 +211,7 @@ export default function ProfileOnboarding({
     const saved = restoredDraft.profile;
     if (!(typeof saved.name === 'string' && saved.name.trim().length > 1)) return 0;
     if (savedStep > 1 && (!saved.identities?.length || !saved.sexuality?.length)) return 1;
+    if (savedStep > 2 && !saved.crowds?.length) return 2;
     return savedStep;
   });
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -477,7 +479,7 @@ export default function ProfileOnboarding({
       case 'identities':
         return profile.identities.length > 0 && profile.sexuality.length > 0;
       case 'crowds':
-        return true;
+        return profile.crowds.length > 0;
       case 'lookingFor':
         return profile.lookingFor.length > 0;
       case 'vibes':
@@ -883,6 +885,9 @@ export default function ProfileOnboarding({
               return (
                 <div>
                   <p className="mb-2 text-base text-white/82">Crowds</p>
+                  <p className="mb-3 text-base leading-6 text-white/72">
+                    Crowds are shared social spaces, like gay or dyke bars, not identity labels. Choose 1 to 3. Change who can see you in Map Controls &gt; Visibility.
+                  </p>
                   <div aria-label="Crowds" className="grid grid-cols-2 gap-2 sm:grid-cols-3" role="group">
                     {availableCrowds.map((crowd, index) => {
                       const selected = profile.crowds.includes(crowd);
@@ -899,7 +904,6 @@ export default function ProfileOnboarding({
                       );
                     })}
                   </div>
-                  {availableCrowds.length > 3 ? <p className="mt-2 text-sm text-white/58">Pick up to 3</p> : null}
                 </div>
               );
             case 'lookingFor':
@@ -929,7 +933,7 @@ export default function ProfileOnboarding({
                     value={profile.vibes}
                     onChange={(values) => setProfileField('vibes', limitToThree(values))}
                   />
-                  <p className="mt-1 text-sm text-white/58">Pick up to 3</p>
+                  <p className="mt-1 text-base text-white/58">Optional. Pick up to 3.</p>
                 </div>
               );
             case 'bio':
@@ -1001,6 +1005,15 @@ export default function ProfileOnboarding({
                     />
                     <p className="mt-1 text-sm text-white/58">Optional. This becomes your right badge.</p>
                   </div>
+                  {profile.role[0] || profile.position[0] ? (
+                    <SideBadgePair
+                      badges={{
+                        left: profile.role[0] ? { badge_id: profile.role[0], frame: 'circle', intent: 'none' } : null,
+                        right: profile.position[0] ? { badge_id: profile.position[0], frame: 'circle', intent: 'none' } : null,
+                      }}
+                      tone="current"
+                    />
+                  ) : null}
                 </div>
               );
             case 'oath':

@@ -65,4 +65,8 @@ describe('privacyApi', () => {
     expect(typeof privacyApi.getMyGhostPulseSettings).toBe('function');
     expect(typeof privacyApi.saveMyGhostPulseSettings).toBe('function');
   });
+
+  it('offers 50 miles as the maximum Ghost radius', () => {
+    expect(privacyApi.GHOST_RADIUS_OPTIONS.at(-1)).toEqual({ label: '50 mi', meters: 80467 });
+  });
 });

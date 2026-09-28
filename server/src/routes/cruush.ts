@@ -488,7 +488,7 @@ async function notifyCruushEvent(app: FastifyInstance, input: {
       type: input.type,
       title: input.type === "mutual_cruush" ? "It's mutual" : "You got a cruush",
       body: "Open cruush to check it.",
-      linkUrl: "/cruush",
+      linkUrl: `/profile/${encodeURIComponent(input.actorUserId)}`,
       dedupeKey: input.dedupeKey
     });
   } catch (error) {

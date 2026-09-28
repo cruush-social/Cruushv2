@@ -14,6 +14,8 @@ import {
   distanceMiles,
   formatDistanceLabel,
   resolveSharedDistanceLabelMode,
+  radiusLabelForMeters,
+  radiusMetersForLabel,
   GHOST_MIN_OFFSET_RATIO,
   GHOST_ROTATION_MINUTES,
   getGhostRotationState,
@@ -29,6 +31,12 @@ import {
   saveVisibilityPolicy,
   storeLocationEnvelope
 } from "./location-privacy.js";
+
+it("supports a 50-mile Ghost radius without changing the default", () => {
+  expect(radiusMetersForLabel("50 mi")).toBe(80467);
+  expect(radiusLabelForMeters(80467)).toBe("50 mi");
+  expect(radiusMetersForLabel(undefined)).toBe(1609);
+});
 
 it('distance labels are reciprocal and fail closed without both precise preferences', () => {
   const original = normalizeVisibilityPolicy(config, 'distance-owner', {

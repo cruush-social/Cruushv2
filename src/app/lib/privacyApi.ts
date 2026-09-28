@@ -56,6 +56,7 @@ export const GHOST_RADIUS_OPTIONS = [
   { label: '1 mi', meters: 1609 },
   { label: '3 mi', meters: 4828 },
   { label: '5 mi', meters: 8047 },
+  { label: '50 mi', meters: 80467 },
 ] as const;
 
 export const GHOST_ROTATION_OPTIONS = [

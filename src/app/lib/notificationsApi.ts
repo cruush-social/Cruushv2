@@ -97,7 +97,10 @@ export function resolveNotificationNavigationPath(
   }
 
   const actorUserId = notification.actorUserId?.trim() ?? '';
-  if (actorUserId && (notification.type === 'incoming_cruush' || !notification.linkUrl || notification.linkUrl === '/map')) {
+  if (actorUserId && (notification.type === 'incoming_cruush' || notification.type === 'mutual_cruush')) {
+    return `/profile/${encodeURIComponent(actorUserId)}`;
+  }
+  if (actorUserId && (!notification.linkUrl || notification.linkUrl === '/map')) {
     return `/map?focusUserId=${encodeURIComponent(actorUserId)}`;
   }
 

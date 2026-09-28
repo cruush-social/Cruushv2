@@ -838,11 +838,11 @@ export function ProfileDetailsTabs({
   profileView: ProfileViewModel;
   compact?: boolean;
 }) {
-  const tabTriggerClassName = compact ? 'min-h-9' : 'min-h-11';
+  const tabTriggerClassName = compact ? 'min-h-9' : 'min-h-11 text-base';
 
   return (
     <Tabs value={activeTab} onValueChange={onActiveTabChange} className="w-full">
-      <TabsList className={`grid h-auto w-full grid-cols-3 rounded-full border border-white/10 bg-background/92 p-1 backdrop-blur-md ${compact ? 'text-xs' : ''}`}>
+      <TabsList className={`grid h-auto w-full grid-cols-3 rounded-full border border-white/10 bg-background/92 p-1 backdrop-blur-md ${compact ? 'text-xs' : 'text-base'}`}>
         <TabsTrigger value="basics" className={tabTriggerClassName} onClick={() => onActiveTabChange('basics')}>Basics</TabsTrigger>
         <TabsTrigger value="intimacy" className={tabTriggerClassName} onClick={() => onActiveTabChange('intimacy')}>Intimacy</TabsTrigger>
         <TabsTrigger value="health" className={tabTriggerClassName} onClick={() => onActiveTabChange('health')}>Health</TabsTrigger>
@@ -880,7 +880,7 @@ export function ProfileDetailsTabs({
         </Section>
 
         <Section title="Stats" compact={compact}>
-          <div className="grid grid-cols-2 gap-3 text-sm">
+          <div className={`grid grid-cols-2 gap-3 ${compact ? 'text-sm' : 'text-base'}`}>
             <DetailItem label="Ethnicity" value={profileView.ethnicity} compact={compact} />
             <DetailItem label="Body" value={profileView.bodyType} compact={compact} />
             <DetailItem label="Height" value={profileView.height} compact={compact} />
@@ -914,7 +914,7 @@ export function ProfileDetailsTabs({
           <Section title="Looking For" compact={compact}>
             <BadgeList items={profileView.lookingFor} compact={compact} />
             {profileView.timing ? (
-              <div className="mt-2 text-sm text-muted-foreground">
+              <div className={`mt-2 text-muted-foreground ${compact ? 'text-sm' : 'text-base'}`}>
                 Availability: <span className="text-foreground">{profileView.timing}</span>
               </div>
             ) : null}
@@ -979,7 +979,7 @@ function BadgeList({
   compact?: boolean;
 }) {
   if (!items.length) {
-    return <p className="text-sm text-muted-foreground">Nothing listed yet.</p>;
+    return <p className={`${compact ? 'text-sm' : 'text-base'} text-muted-foreground`}>Nothing listed yet.</p>;
   }
 
   return (
@@ -987,7 +987,7 @@ function BadgeList({
       {items.map((item) => (
                 <span
                   key={item}
-                  className={`rounded-full border ${compact ? 'px-2.5 py-1 text-xs' : 'px-3 py-1 text-sm'}`}
+                  className={`rounded-full border ${compact ? 'px-2.5 py-1 text-xs' : 'px-3 py-1 text-base'}`}
                   style={variant === 'gradient'
             ? {
                 borderColor: 'transparent',
@@ -1015,7 +1015,7 @@ function DetailItem({
 }) {
   return (
     <div className={`rounded-xl border border-border bg-background/50 ${compact ? 'p-2.5' : 'p-3'}`}>
-      <div className="text-xs uppercase tracking-[0.14em] text-muted-foreground">{label}</div>
+      <div className={`${compact ? 'text-xs' : 'text-base'} uppercase tracking-[0.14em] text-muted-foreground`}>{label}</div>
       <div className="mt-1 min-h-[1.25rem] text-foreground">{value || emptyFallback}</div>
     </div>
   );

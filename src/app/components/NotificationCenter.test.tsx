@@ -124,6 +124,38 @@ describe('NotificationCenter', () => {
     await waitFor(() => expect(markAllNotificationsRead).toHaveBeenCalled());
   });
 
+  it('opens the other member profile from a mutual cruush notification', async () => {
+    getNotifications.mockResolvedValue({
+      notifications: [{
+        id: 'notification-mutual',
+        userId: 'user-1',
+        type: 'mutual_cruush',
+        title: "It's mutual",
+        body: 'Open cruush to check it.',
+        linkUrl: '/cruush',
+        actorUserId: 'user-2',
+        conversationId: null,
+        metadata: {},
+        readAt: null,
+        createdAt: '2026-09-27T00:00:00.000Z',
+      }],
+      nextCursor: null,
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/notifications']}>
+        <Routes>
+          <Route path="/notifications" element={<NotificationCenter />} />
+          <Route path="*" element={<LocationProbe />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: "It's mutual" }));
+    await waitFor(() => expect(markNotificationRead).toHaveBeenCalledWith('notification-mutual'));
+    expect(await screen.findByTestId('location-probe')).toHaveTextContent('/profile/user-2');
+  });
+
   it('opens an existing nearby notification on an anonymous area, never its source pin', async () => {
     const sourceUserId = '00000000-0000-4000-8000-000000000002';
     getNotifications.mockResolvedValue({

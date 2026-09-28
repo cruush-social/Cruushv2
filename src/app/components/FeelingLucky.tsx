@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { ArrowLeft, RefreshCw } from 'lucide-react';
 import { Button } from './ui/button';
-import { CruushIcon } from './CruushIconImage';
 import CruiseCarouselSlot from './CruiseCarouselSlot';
 import LoadingCardSkeletons from './LoadingCardSkeletons';
 import ProfileCard from './ProfileCard';
@@ -136,7 +135,6 @@ export default function FeelingLucky() {
           <ArrowLeft className="w-5 h-5" />
         </Button>
         <div className="flex items-center gap-2">
-          <CruushIcon name="lucky" className="h-5 w-5" variant="colored" />
           <h1 className="text-xl">Cruise Carousel</h1>
         </div>
       

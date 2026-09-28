@@ -91,6 +91,26 @@ header:has([data-cruush-bug-slot]) div:has(> :is(h1, h2, h3)) {
   min-width: 0;
 }
 
+/* The Messages title is the canonical app-header heading. Keep only the
+   heading typography shared here; each screen retains its existing header
+   geometry, controls, surface, and responsive layout. */
+header :is(h1, h2)[class] {
+  min-width: 0;
+  overflow: hidden;
+  color: #fff;
+  font-size: var(--text-2xl);
+  font-weight: var(--font-weight-medium);
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (min-width: 640px) {
+  header :is(h1, h2)[class] {
+    font-size: var(--text-3xl);
+  }
+}
+
 [data-slot="sheet-content"]:has([data-cruush-bug-slot]) > button:last-child {
   top: 28px;
 }

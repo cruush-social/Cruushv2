@@ -12581,6 +12581,7 @@ describe("server", () => {
     expect(query.mock.calls[0]?.[0]).toContain("encrypted_relationship_records");
     expect(query.mock.calls[2]?.[0]).toContain("insert into encrypted_relationship_records");
     expect(query.mock.calls[4]?.[0]).toContain("insert into app_notifications");
+    expect(query.mock.calls[4]?.[1]?.[4]).toBe(`/profile/${userId}`);
     expect(JSON.stringify(query.mock.calls[2]?.[1])).not.toContain("Jordan");
     expect(JSON.stringify(query.mock.calls[2]?.[1])).not.toContain("53fd68d7-24fc-4cff-8cd7-a97ec0cadf97");
     expect(response.json()).toEqual({
@@ -12850,6 +12851,11 @@ describe("server", () => {
     expect(query.mock.calls[9]?.[0]).toContain("encrypted_relationship_tokens");
     expect(query.mock.calls[12]?.[0]).toContain("insert into conversations");
     expect(query.mock.calls[13]?.[0]).toContain("insert into conversation_members");
+    const notificationWrites = query.mock.calls.filter(([sql]) => String(sql).includes("insert into app_notifications"));
+    expect(notificationWrites.map(([, params]) => params?.[4])).toEqual([
+      "/profile/53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+      `/profile/${userId}`
+    ]);
     expect(response.json()).toEqual({
       data: {
         id: "cruush-4",

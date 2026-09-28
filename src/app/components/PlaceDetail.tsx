@@ -418,22 +418,22 @@ export default function PlaceDetail({ embedded = false, onBack, onClose, placeId
         <div className={`relative ${embedded ? 'order-1' : 'order-3'}`}>
           <h1 className={`text-3xl ${embedded ? 'pr-10' : ''}`}>{place.name}</h1>
           <PlaceTransitDetails details={place.transitDetails} />
-          <div className="mt-2 flex items-start gap-2 text-sm text-muted-foreground">
+          <div className="mt-2 flex items-start gap-2 text-base text-muted-foreground">
             <p className="min-w-0 flex-1"><MapPin className="mr-1 inline h-4 w-4" />{place.address || `${place.latitude.toFixed(5)}, ${place.longitude.toFixed(5)}`}</p>
             <button type="button" aria-label="Send spot in cruush" title="Send in cruush" className="shrink-0 rounded-md p-1 text-white/55 transition hover:bg-white/10 hover:text-white" onClick={() => setShareOpen(true)}><Share2 className="h-4 w-4" /></button>
             <button type="button" aria-label="Copy spot address" title="Copy address" className="shrink-0 rounded-md p-1 text-white/55 transition hover:bg-white/10 hover:text-white" onClick={() => void handleCopyAddress()}><Copy className="h-4 w-4" /></button>
           </div>
-          {place.vibes?.length ? <div className="mt-3 flex flex-wrap gap-2">{place.vibes.slice(0, 2).map((vibe) => <span key={vibe} className="rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-xs text-white">{PLACE_VIBE_LABELS[vibe]}</span>)}</div> : null}
-          {place.amenities?.length ? <div className="mt-2 flex flex-wrap gap-2">{place.amenities.map((amenity) => <span key={amenity} className="rounded-full border border-white/10 px-3 py-1 text-xs text-white/70">{PLACE_AMENITY_LABELS[amenity]}</span>)}</div> : null}
+          {place.vibes?.length ? <div className="mt-3 flex flex-wrap gap-2">{place.vibes.slice(0, 2).map((vibe) => <span key={vibe} className="rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-base text-white">{PLACE_VIBE_LABELS[vibe]}</span>)}</div> : null}
+          {place.amenities?.length ? <div className="mt-2 flex flex-wrap gap-2">{place.amenities.map((amenity) => <span key={amenity} className="rounded-full border border-white/10 px-3 py-1 text-base text-white/70">{PLACE_AMENITY_LABELS[amenity]}</span>)}</div> : null}
           <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
-            <button type="button" className="inline-flex items-center text-xs text-white/50 hover:text-white" onClick={() => setDetailsOpen(true)}>Add spot details</button>
-            <button type="button" className="inline-flex items-center text-xs text-white/50 hover:text-white" onClick={() => embedded ? setReportTarget({ targetType: 'place', targetId: place.id, targetLabel: place.name }) : navigate('/report', { state: { targetType: 'place', placeId: place.id, targetLabel: place.name } })}><Flag className="mr-1 h-3.5 w-3.5" />Report incorrect or unsafe spot</button>
+            <button type="button" className="inline-flex items-center text-base text-white/50 hover:text-white" onClick={() => setDetailsOpen(true)}>Add spot details</button>
+            <button type="button" className="inline-flex items-center text-base text-white/50 hover:text-white" onClick={() => embedded ? setReportTarget({ targetType: 'place', targetId: place.id, targetLabel: place.name }) : navigate('/report', { state: { targetType: 'place', placeId: place.id, targetLabel: place.name } })}><Flag className="mr-1 h-3.5 w-3.5" />Report incorrect or unsafe spot</button>
           </div>
         </div>
 
         {place.description || place.accessInstructions ? <div className="order-4 -mt-1 space-y-3 text-muted-foreground">
           {place.description ? <p>{place.description}</p> : null}
-          {place.accessInstructions ? <div><p className="text-xs uppercase tracking-[0.14em] text-white/55">Access</p><p className="mt-1">{place.accessInstructions}</p></div> : null}
+          {place.accessInstructions ? <div><p className="text-base uppercase tracking-[0.14em] text-white/55">Access</p><p className="mt-1">{place.accessInstructions}</p></div> : null}
         </div> : null}
 
         <div className="order-5 grid grid-cols-2 gap-3 sm:gap-4">

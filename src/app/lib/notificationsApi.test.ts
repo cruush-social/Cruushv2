@@ -126,7 +126,13 @@ describe('notificationsApi', () => {
       linkUrl: '/map',
       actorUserId: sourceUserId,
       metadata: {},
-    })).toBe(`/map?focusUserId=${sourceUserId}`);
+    })).toBe(`/profile/${sourceUserId}`);
+    expect(resolveNotificationNavigationPath({
+      type: 'mutual_cruush',
+      linkUrl: '/cruush',
+      actorUserId: sourceUserId,
+      metadata: {},
+    })).toBe(`/profile/${sourceUserId}`);
     expect(resolveNotificationNavigationPath({
       type: 'direct_message',
       linkUrl: '/chat/conversation-1',

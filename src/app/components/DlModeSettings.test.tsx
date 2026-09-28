@@ -46,6 +46,8 @@ describe('DlModeSettings', () => {
     );
     expect(screen.getByRole('heading', { name: 'DL Mode' }).closest('header'))
       .toHaveClass('px-3', 'py-3', 'sm:p-4');
+    expect(screen.getByTestId('dl-mode-settings-root')).toHaveClass('h-[100dvh]', 'overflow-hidden');
+    expect(screen.getByTestId('dl-mode-settings-root')).not.toHaveClass('pb-20');
   });
 
   it('keeps outgoing explicit-image options disabled when the saved privacy policy cannot load', async () => {

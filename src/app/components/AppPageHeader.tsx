@@ -38,7 +38,7 @@ export default function AppPageHeader({
           <ArrowLeft className="h-5 w-5" />
         </Button>
       ) : null}
-      <h1 className={`min-w-0 flex-1 truncate text-xl text-white ${titleClassName}`}>{title}</h1>
+      <h1 className={`min-w-0 flex-1 truncate text-2xl leading-none text-white sm:text-3xl ${titleClassName}`}>{title}</h1>
       {actions}
       <BugButtonSlot testId={bugButtonTestId} />
     </header>

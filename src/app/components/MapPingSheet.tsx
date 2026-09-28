@@ -397,7 +397,7 @@ export default function MapPingSheet({
       <SheetContent
         side="bottom"
         overlayClassName="!z-[1600]"
-        className={`!z-[1601] flex flex-col overflow-hidden rounded-2xl border border-white/10 bg-background/96 pb-3 backdrop-blur-xl sm:max-w-lg lg:max-w-none ${isMobile ? 'gap-2' : ''}`}
+        className={`!z-[1601] flex flex-col overflow-hidden rounded-2xl border border-white/25 bg-black/48 pb-3 backdrop-blur-xl backdrop-saturate-150 sm:max-w-lg lg:max-w-none ${isMobile ? 'gap-2' : ''}`}
         data-testid="map-ping-sheet"
         data-window-mode={isMobile ? 'mobile-sheet' : 'desktop-window'}
         style={sheetStyle}

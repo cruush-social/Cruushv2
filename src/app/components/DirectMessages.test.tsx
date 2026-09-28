@@ -126,6 +126,8 @@ describe('DirectMessages', () => {
     expect(screen.getByTestId('messages-empty-card')).toHaveAttribute('data-slot', 'card');
     expect(screen.getByTestId('messages-empty-card')).toHaveClass('bg-card/70');
     expect(screen.getByTestId('messages-empty-card')).not.toHaveClass('border-dashed');
+    expect(screen.getByTestId('direct-messages-root')).toHaveClass('h-[100dvh]', 'overflow-hidden');
+    expect(screen.getByTestId('direct-messages-root')).not.toHaveClass('pb-[calc(7rem+env(safe-area-inset-bottom))]');
     expect(screen.queryByText('Preview mode')).not.toBeInTheDocument();
     expect(screen.queryByText('Alex')).not.toBeInTheDocument();
   });
@@ -554,6 +556,9 @@ describe('DirectMessages', () => {
     expect(await screen.findByText('Alex')).toBeInTheDocument();
     expect(screen.getByText('River')).toBeInTheDocument();
     expect(screen.getByText('Sort people by')).toBeInTheDocument();
+    const sortPicker = screen.getByRole('button', { name: /Sort people by Recently online/ });
+    expect(sortPicker).toHaveAttribute('data-slot', 'accordion-trigger');
+    fireEvent.click(sortPicker);
     expect(screen.queryByText('Choose the order people appear in.')).not.toBeInTheDocument();
     expect(screen.queryByText('Most recent first')).not.toBeInTheDocument();
     expect(screen.queryByText('Closest first')).not.toBeInTheDocument();

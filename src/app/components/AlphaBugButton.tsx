@@ -11,7 +11,6 @@ import { Input } from './ui/input';
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -402,9 +401,6 @@ export default function AlphaBugButton({
       <DialogContent floating data-testid="alpha-bug-dialog" overlayClassName="alpha-bug-overlay !z-[1602]" className="!z-[1603] max-w-md content-start rounded-lg border-white/10 bg-background p-4 sm:p-6">
         <DialogHeader>
           <DialogTitle>Report alpha bug</DialogTitle>
-          <DialogDescription>
-            Describe what broke and how support can reproduce it.
-          </DialogDescription>
         </DialogHeader>
         <div className="rounded-md border border-white/10 bg-white/[0.035] px-3 py-2 text-xs text-muted-foreground">
           Reporting from <span className="font-semibold text-foreground">{pageUrl}</span>

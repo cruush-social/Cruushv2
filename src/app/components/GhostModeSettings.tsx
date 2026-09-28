@@ -255,11 +255,6 @@ export default function GhostModeSettings() {
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div className="flex min-w-0 items-center gap-3">
-          {privacySettings.baseMode === 'STEALTH' ? (
-            <DarkRoomMark active className="h-7 w-7 shrink-0 text-white" />
-          ) : (
-            <CruushIcon name="ghost" variant={privacySettings.ghostModeEnabled ? 'colored' : 'white'} className="h-7 w-7 shrink-0" />
-          )}
           <h2 className="truncate text-xl">Ghost Mode</h2>
         </div>
       

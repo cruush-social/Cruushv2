@@ -93,7 +93,7 @@ describe('AlphaBugButton', () => {
       pageUrl: '/map?layer=nearby',
     })));
     expect(await screen.findByText('Bug report sent')).toBeInTheDocument();
-    expect(screen.getByText('Describe what broke and how support can reproduce it.')).toBeInTheDocument();
+    expect(screen.queryByText('Describe what broke and how support can reproduce it.')).not.toBeInTheDocument();
     expect(screen.queryByText(/attaches a screenshot/i)).not.toBeInTheDocument();
   });
 

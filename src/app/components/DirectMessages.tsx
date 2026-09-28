@@ -14,6 +14,7 @@ import { Tabs, TabsList, TabsTrigger } from './ui/tabs';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
 import MapFiltersSurface, { DEFAULT_FILTER_STATE, type FilterState } from './MapFiltersSurface';
 import {
   createGroupConversation,
@@ -637,8 +638,10 @@ export default function DirectMessages({
     );
   }
 
+  const emptyInbox = !loading && !error && conversations.length === 0;
+
   return (
-    <div className={embedded ? 'relative min-h-full bg-[#050505] pb-6 text-white' : 'relative min-h-screen bg-[#050505] pb-[calc(7rem+env(safe-area-inset-bottom))] text-white'}>
+    <div data-testid="direct-messages-root" className={embedded ? 'relative min-h-full bg-[#050505] pb-6 text-white' : `relative bg-[#050505] text-white ${emptyInbox ? 'h-[100dvh] overflow-hidden' : 'min-h-screen pb-[calc(7rem+env(safe-area-inset-bottom))]'}`}>
       <header data-testid="direct-messages-header" className="sticky top-0 z-20 border-b border-white/10 bg-black/88 pb-4 pt-4 shadow-[0_20px_55px_rgba(0,0,0,0.34)] backdrop-blur-xl">
         <div data-testid="direct-messages-header-content" className="mx-auto max-w-2xl space-y-4 px-4">
           <div data-testid="direct-messages-header-row" className="flex items-center gap-2">
@@ -1336,37 +1339,38 @@ function DirectUserOverlay({
               Seeking filters
             </Button>
 
-            <section className="mt-3 border-t border-white/10 pt-3" aria-labelledby="message-picker-sort-title">
-              <div className="px-1">
-                <p id="message-picker-sort-title" className="text-xs font-medium uppercase tracking-[0.14em] text-white/70">Sort people by</p>
-              </div>
-              <div
-                className="mt-2 grid grid-cols-2 gap-2 rounded-2xl border border-white/10 bg-background/55 p-1"
-                role="group"
-                aria-labelledby="message-picker-sort-title"
-              >
-                {([
-                  ['lastOnline', 'Recently online', Clock3],
-                  ['distance', 'Distance', MapPin],
-                ] as const).map(([value, label, Icon]) => (
-                  <Button
-                    key={value}
-                    type="button"
-                    size="sm"
-                    variant={sortMode === value ? 'default' : 'ghost'}
-                    aria-label={`Sort by ${label}`}
-                    aria-pressed={sortMode === value}
-                    className="min-h-12 min-w-0 flex-col gap-0.5 rounded-xl px-2 py-1.5 text-xs"
-                    onClick={() => setSortMode(value)}
-                  >
-                    <span className="flex items-center gap-1.5">
-                      <Icon className="size-3.5" />
-                      {label}
-                    </span>
-                  </Button>
-                ))}
-              </div>
-            </section>
+            <Accordion className="mt-3 border-t border-white/10 pt-3" collapsible type="single">
+              <AccordionItem className="rounded-2xl border border-white/10 bg-background/55 px-3" value="message-sort">
+                <AccordionTrigger className="min-h-12 w-full py-2 text-base text-white hover:no-underline">
+                  <span className="flex min-w-0 flex-col">
+                    <span>Sort people by</span>
+                    <span className="text-sm font-normal text-white/62">{sortMode === 'distance' ? 'Distance' : 'Recently online'}</span>
+                  </span>
+                </AccordionTrigger>
+                <AccordionContent className="grid grid-cols-2 gap-2 pb-3">
+                  {([
+                    ['lastOnline', 'Recently online', Clock3],
+                    ['distance', 'Distance', MapPin],
+                  ] as const).map(([value, label, Icon]) => (
+                    <Button
+                      key={value}
+                      type="button"
+                      size="sm"
+                      variant={sortMode === value ? 'default' : 'ghost'}
+                      aria-label={`Sort by ${label}`}
+                      aria-pressed={sortMode === value}
+                      className="min-h-12 min-w-0 flex-col gap-0.5 rounded-xl px-2 py-1.5 text-base"
+                      onClick={() => setSortMode(value)}
+                    >
+                      <span className="flex items-center gap-1.5">
+                        <Icon className="size-3.5" />
+                        {label}
+                      </span>
+                    </Button>
+                  ))}
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
           </div>
         ) : null}
 
