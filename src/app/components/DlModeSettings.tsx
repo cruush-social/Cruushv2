@@ -88,7 +88,7 @@ export default function DlModeSettings() {
   ];
 
   return (
-    <div className="h-[100dvh] overflow-hidden bg-background" data-testid="dl-mode-settings-root">
+    <div className="h-full overflow-hidden bg-background" data-testid="dl-mode-settings-root">
       {/* Desktop popup layout keeps its original header; full-screen matches Ghost Mode. */}
       {desktopPopupLayout ? (
         <header className="sticky top-0 z-10 border-b border-border bg-card/80 px-3 py-3 backdrop-blur-sm sm:p-4">

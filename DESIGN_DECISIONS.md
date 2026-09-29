@@ -40,6 +40,7 @@ The notched cruush logo is rejected for every app use, including installed home-
 - Feed reactions and replies are not part of 1.6. Do not build either.
 - GitHub issue #135 is not a 1.6 release item. Do not invent or change checkbox visuals for it.
 - The Spot board is called the Pink Book. Its section sits below source attribution. Check-in includes an optional Pink Book post. An active check-in is required to read other members' posts, but authors can always view and delete their own posts after checkout.
+- The map saves the master “Show Spots on the map” choice so whether Spots appear survives a map remount or reload. When no saved choice exists, Spots remain visible by default; individual Spot category settings and all unrelated map controls remain unchanged. Source: issue #419, Julien, September 29, 2026: “Map dont saving settings i.e. spots appearing or not”.
 - Badge categories must be explicit on mobile, never discoverable only by horizontal scrolling. Preserve every deliberately selected custom, Hanky, role, position, and Pride badge glyph. Saved side badges sit beneath the heart photo on Feed, Messages, and Cruushes.
 - Profile Tags are a separate field directly below Bio. They are moderated with the rest of the profile, display directly below About, and match the shared Seeking and Visibility text search with or without a leading `#`.
 - Basic members can save up to 3 profile tags. cruush+ members can save up to 10. Basic Feed posts are text-only; cruush+ Feed posts can attach up to 3 photo hearts.

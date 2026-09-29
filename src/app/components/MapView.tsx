@@ -1540,8 +1540,16 @@ function GhostRotationPulse({ marker, children }: { marker: MapMarker; children:
 }
 
 
+function withMapPhotoRetry(url: string) {
+  const hashIndex = url.indexOf('#');
+  const base = hashIndex === -1 ? url : url.slice(0, hashIndex);
+  const hash = hashIndex === -1 ? '' : url.slice(hashIndex);
+  return `${base}${base.includes('?') ? '&' : '?'}cruushPhotoRetry=1${hash}`;
+}
+
 function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUser: boolean }) {
   const [failedPhoto, setFailedPhoto] = useState<string | null>(null);
+  const [retryingPhoto, setRetryingPhoto] = useState<string | null>(null);
   const dlModeActive = useDlMode();
 
   const isOwnStealthMarker = isCurrentUser && marker.ownerStealthActive === true;
@@ -1555,7 +1563,9 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
     isMutualCruush: marker.relationship?.kind === 'mutual_cruush',
     sharesCrowd: marker.photoRelationship?.sharesCrowd ?? marker.hasSharedCrowd === true,
   })
-    ? resolveMediaUrl(marker.photo)
+    ? retryingPhoto === marker.photo
+      ? withMapPhotoRetry(resolveMediaUrl(marker.photo))
+      : resolveMediaUrl(marker.photo)
     : null;
   const resolvedPhoto = !isOwnStealthMarker ? visiblePhoto : null;
   const darkRoomPhoto = isOwnStealthMarker ? visiblePhoto : null;
@@ -1608,6 +1618,14 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
   const ghostDecoyFadeStyle = isOwnGhostMarker
     ? ownerGhostDecoyFadeStyle(marker, isCurrentUser)
     : undefined;
+  const handlePhotoError = () => {
+    const photo = marker.photo ?? null;
+    if (photo && retryingPhoto !== photo) {
+      setRetryingPhoto(photo);
+      return;
+    }
+    setFailedPhoto(photo);
+  };
 
   return (
     <svg
@@ -1709,7 +1727,7 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
               data-testid={`marker-dark-room-photo-${marker.id}`}
               height="64"
               href={darkRoomPhoto}
-              onError={() => setFailedPhoto(marker.photo ?? null)}
+              onError={handlePhotoError}
               preserveAspectRatio="xMidYMid slice"
               width="64"
             />
@@ -1723,7 +1741,7 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
             data-testid={`marker-photo-fill-${marker.id}`}
             height="64"
             href={resolvedPhoto}
-            onError={() => setFailedPhoto(marker.photo ?? null)}
+            onError={handlePhotoError}
             preserveAspectRatio="xMidYMid slice"
             style={isOwnGhostMarker ? ({ '--cruush-ghost-photo-opacity': 0.62 } as CSSProperties) : undefined}
             width="64"

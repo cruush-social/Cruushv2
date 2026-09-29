@@ -144,4 +144,21 @@ describe('notificationsApi', () => {
       metadata: {},
     })).toBe('/notifications');
   });
+
+  it('opens personal Pulse notifications in the Pulse sheet without focusing or zooming to the sender', () => {
+    const sourceUserId = '00000000-0000-4000-8000-000000000002';
+
+    expect(resolveNotificationNavigationPath({
+      type: 'pulse',
+      linkUrl: '/map',
+      actorUserId: sourceUserId,
+      metadata: { pingId: 'ping-1' },
+    })).toBe('/map?pulse=open');
+    expect(resolveNotificationNavigationPath({
+      type: 'pulse',
+      linkUrl: '/chat/group-1',
+      actorUserId: sourceUserId,
+      metadata: { groupPulseId: 'group-pulse-1', conversationKind: 'group' },
+    })).toBe('/chat/group-1');
+  });
 });

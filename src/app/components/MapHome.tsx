@@ -948,9 +948,15 @@ export default function MapHome(_props: MapHomeProps = {}) {
     radiusMiles: number;
   }>({ query: '', excludedFacilityTypes: [...DEFAULT_EXCLUDED_PLACE_FACILITY_TYPES], tags: [], vibes: [], amenities: [], radiusMiles: 100 });
   const [places, setPlaces] = useState<PlaceRecord[]>([]);
-  // Every map visit starts with Spots on. Hiding them is session-only so a
-  // stale preference cannot make the default layer silently disappear.
-  const [spotsVisible, setSpotsVisible] = useState(true);
+  // Spot visibility is a map setting, so preserve the member's choice across
+  // map remounts and reloads. An unset or inaccessible preference stays on.
+  const [spotsVisible, setSpotsVisible] = useState(() => {
+    try {
+      return window.localStorage.getItem('cruush:map-spots-hidden') !== 'true';
+    } catch {
+      return true;
+    }
+  });
   const [selectedPlace, setSelectedPlace] = useState<PlaceRecord | null>(null);
   // Keeps the map where the Spot left it after the Spot sheet closes, instead
   // of snapping back to the viewer's own location.
@@ -986,7 +992,8 @@ export default function MapHome(_props: MapHomeProps = {}) {
   const [notificationUnreadCount, setNotificationUnreadCount] = useState(0);
   const [mapPingStatus, setMapPingStatus] = useState<MapPingStatus | null>(null);
   const [mapPingStatusLoading, setMapPingStatusLoading] = useState(true);
-  const [mapPingSheetOpen, setMapPingSheetOpen] = useState(false);
+  const openPulseFromNotification = searchParams.get('pulse') === 'open';
+  const [mapPingSheetOpen, setMapPingSheetOpen] = useState(openPulseFromNotification);
   const [mapPingClock, setMapPingClock] = useState(() => Date.now());
   const [activeEvents, setActiveEvents] = useState<LaunchEvent[]>([]);
   const [selectedEventSlug, setSelectedEventSlug] = useState<string | null>(null);
@@ -998,6 +1005,12 @@ export default function MapHome(_props: MapHomeProps = {}) {
   const [emailingEventPass, setEmailingEventPass] = useState(false);
   const [joiningEventChat, setJoiningEventChat] = useState(false);
   const dlModeActive = useDlMode();
+
+  useEffect(() => {
+    if (openPulseFromNotification) {
+      setMapPingSheetOpen(true);
+    }
+  }, [openPulseFromNotification]);
 
   useEffect(() => {
     if (!outsideServiceArea || !currentProfile?.id) return;
@@ -3416,6 +3429,11 @@ export default function MapHome(_props: MapHomeProps = {}) {
           spotsVisible={spotsVisible}
           onSpotsVisibleChange={(visible) => {
             setSpotsVisible(visible);
+            try {
+              window.localStorage.setItem('cruush:map-spots-hidden', visible ? 'false' : 'true');
+            } catch {
+              // The switch still works for this visit when storage is unavailable.
+            }
           }}
           onSelect={(place) => {
             openSpot(place);

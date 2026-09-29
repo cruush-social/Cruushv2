@@ -1250,6 +1250,21 @@ describe('MapHome', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
+  it('opens the Pulse sheet from a Pulse notification link without focusing or zooming to a member', async () => {
+    useIsMobile.mockReturnValue(true);
+
+    render(
+      <MemoryRouter initialEntries={['/map?pulse=open']}>
+        <Routes>
+          <Route path="/map" element={<MapHome />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByRole('dialog')).toHaveAttribute('data-testid', 'map-ping-sheet');
+    expect(mapControls.setZoom).not.toHaveBeenCalled();
+  });
+
   it('merges only caller-authorized active Pings into nearby and own heart markers', async () => {
     useIsMobile.mockReturnValue(false);
     const expiresAt = new Date(Date.now() + 60_000).toISOString();
@@ -3778,12 +3793,13 @@ describe('MapHome', () => {
     expect(allSpots.closest('div')).toHaveClass('w-fit', 'rounded-full');
     fireEvent.click(allSpots);
     expect(allSpots).not.toBeChecked();
+    expect(window.localStorage.getItem('cruush:map-spots-hidden')).toBe('true');
     fireEvent.click(allSpots);
     expect(allSpots).toBeChecked();
-    expect(window.localStorage.getItem('cruush:map-spots-hidden')).toBeNull();
+    expect(window.localStorage.getItem('cruush:map-spots-hidden')).toBe('false');
   });
 
-  it('starts each map visit with Spots visible despite a stale hidden preference', async () => {
+  it('restores the saved hidden Spot preference on a later map visit', async () => {
     window.localStorage.setItem('cruush:map-spots-hidden', 'true');
     useIsMobile.mockReturnValue(false);
     getNearbyUsers.mockResolvedValue([]);
@@ -3805,7 +3821,7 @@ describe('MapHome', () => {
     );
 
     await waitFor(() => expect(getPlaces).toHaveBeenCalled());
-    expect(await screen.findByTestId('marker-place-place-1')).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByTestId('marker-place-place-1')).not.toBeInTheDocument());
     expect(getPlaces).toHaveBeenNthCalledWith(1, expect.objectContaining({
       excludedFacilityTypes: ['bus_stop'],
     }));

@@ -528,7 +528,7 @@ export default function PlaceDetail({ embedded = false, onBack, onClose, placeId
                 <AccordionTrigger>{place.viewerCheckin ? 'Post to Pink Book' : 'Check in'}</AccordionTrigger>
                 <AccordionContent className="pb-0">
             {place.viewerCheckin ? (
-              <div className="rounded-lg border border-border bg-card p-3">
+              <div className="p-3">
                 <textarea disabled={trust.restricted('pink_book')} aria-label="Write a Pink Book post" className="min-h-20 w-full resize-none bg-transparent text-sm text-white outline-none disabled:opacity-50" placeholder="Write a Pink Book post" value={message} onChange={(event) => setMessage(event.target.value)} maxLength={1000} />
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <p className="text-xs text-white/55">Checked in until {new Date(place.viewerCheckin.expiresAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</p>
@@ -539,7 +539,7 @@ export default function PlaceDetail({ embedded = false, onBack, onClose, placeId
                 </div>
               </div>
             ) : (
-              <div className="rounded-lg border border-border bg-card p-3">
+              <div className="p-3">
                 <p className="mb-3 text-sm text-white/70">Check in to read other members' Pink Book posts. Your posts stay until you delete them.</p>
                 <textarea disabled={trust.restricted('pink_book')} aria-label="Pink Book post for check-in" className="mb-4 min-h-20 w-full resize-none rounded-md border border-white/10 bg-black/30 p-3 text-sm text-white outline-none focus:border-primary/45 disabled:opacity-50" placeholder="Write a Pink Book post (optional)" value={message} onChange={(event) => setMessage(event.target.value)} maxLength={1000} />
                 <fieldset className="mb-4 space-y-2">

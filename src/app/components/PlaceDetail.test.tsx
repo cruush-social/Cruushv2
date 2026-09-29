@@ -204,6 +204,34 @@ describe('PlaceDetail request isolation', () => {
     expect(screen.getByText('Access')).toHaveClass('text-base');
   });
 
+  it('keeps check-in content inside the established accordion without a nested capsule', async () => {
+    getPlace.mockResolvedValue(makePlace('spot-a', 'Spot A'));
+    getPlaceBoard.mockResolvedValue([]);
+
+    const firstView = render(placeDetail('spot-a'));
+    fireEvent.click(await screen.findByRole('button', { name: 'Check in' }));
+    const checkinContent = screen.getByRole('textbox', { name: 'Pink Book post for check-in' }).parentElement;
+    expect(checkinContent).toHaveClass('p-3');
+    expect(checkinContent).not.toHaveClass('rounded-lg', 'border', 'border-border', 'bg-card');
+    firstView.unmount();
+
+    getPlace.mockResolvedValue({
+      ...makePlace('spot-a', 'Spot A'),
+      viewerCheckin: {
+        placeId: 'spot-a',
+        visible: false,
+        visibility: 'hidden',
+        expiresAt: '2026-08-31T19:00:00.000Z',
+      },
+    });
+
+    render(placeDetail('spot-a'));
+    fireEvent.click(await screen.findByRole('button', { name: 'Post to Pink Book' }));
+    const checkedInContent = screen.getByRole('textbox', { name: 'Write a Pink Book post' }).parentElement;
+    expect(checkedInContent).toHaveClass('p-3');
+    expect(checkedInContent).not.toHaveClass('rounded-lg', 'border', 'border-border', 'bg-card');
+  });
+
   it('does not append an old Spot board page after switching Spots', async () => {
     const oldNextPage = deferred<PlaceBoardMessage[]>();
     const firstPage = Array.from({ length: 30 }, (_, index) => makeBoardMessage(`a-${index}`, `Spot A post ${index}`));

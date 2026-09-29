@@ -79,7 +79,7 @@ describe('AlphaBugButton', () => {
     expect(dialog).toHaveClass('content-start', 'p-4', 'sm:p-6');
     expect(screen.getByRole('button', { name: 'Close' })).toHaveClass('left-1');
     expect(document.querySelector('[data-slot="dialog-overlay"]')).toHaveClass('alpha-bug-overlay', '!z-[1602]');
-    expect(screen.getByText('/map?layer=nearby')).toBeInTheDocument();
+    expect(screen.queryByText('/map?layer=nearby')).not.toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('What broke?'), {
       target: { value: 'Map pins disappeared after I changed filters.' },
     });
@@ -97,13 +97,19 @@ describe('AlphaBugButton', () => {
     expect(screen.queryByText(/attaches a screenshot/i)).not.toBeInTheDocument();
   });
 
-  it('uses the router page even when the browser location has not caught up', () => {
+  it('submits the router page without displaying it when the browser location has not caught up', async () => {
     window.history.replaceState({}, '', '/');
     renderAlphaBugButton(true, '/privacy/dl-mode?from=settings');
 
     fireEvent.click(screen.getByRole('button', { name: 'Report alpha bug' }));
-
-    expect(screen.getByText('/privacy/dl-mode?from=settings')).toBeInTheDocument();
+    expect(screen.queryByText('/privacy/dl-mode?from=settings')).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('What broke?'), {
+      target: { value: 'The privacy setting did not save after I returned.' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Send bug report' }));
+    await waitFor(() => expect(createSupportRequest).toHaveBeenCalledWith(expect.objectContaining({
+      pageUrl: '/privacy/dl-mode?from=settings',
+    })));
   });
 
   it('submits without requesting screen sharing', async () => {
@@ -168,6 +174,9 @@ describe('AlphaBugButton', () => {
     renderAlphaBugButton(true, '/map?layer=nearby');
 
     fireEvent.click(screen.getByRole('button', { name: 'Report alpha bug' }));
+    expect(await screen.findByText('Device:')).toBeInTheDocument();
+    expect(screen.getByText('Pixel 9 Android 16')).toBeInTheDocument();
+    expect(screen.queryByText('/map?layer=nearby')).not.toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('What broke?'), {
       target: { value: 'The profile preview is too narrow at this window size.' },
     });

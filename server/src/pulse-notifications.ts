@@ -397,7 +397,7 @@ export async function notifyPulseRecipients(
       type: "pulse",
       title: `${sender.name} is out`,
       body: "Open the map to see where.",
-      linkUrl: "/map",
+      linkUrl: "/map?pulse=open",
       dedupeKey: `pulse:${input.pingId}:${recipientUserId}`,
       metadata: { pingId: input.pingId }
     }).catch(() => null);

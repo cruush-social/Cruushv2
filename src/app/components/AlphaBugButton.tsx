@@ -402,12 +402,11 @@ export default function AlphaBugButton({
         <DialogHeader>
           <DialogTitle>Report alpha bug</DialogTitle>
         </DialogHeader>
-        <div className="rounded-md border border-white/10 bg-white/[0.035] px-3 py-2 text-xs text-muted-foreground">
-          Reporting from <span className="font-semibold text-foreground">{pageUrl}</span>
-          {deviceSummary ? (
-            <> on <span className="font-semibold text-foreground">{deviceSummary}</span></>
-          ) : null}
-        </div>
+        {deviceSummary ? (
+          <div className="rounded-md border border-white/10 bg-white/[0.035] px-3 py-2 text-xs text-muted-foreground">
+            Device: <span className="font-semibold text-foreground">{deviceSummary}</span>
+          </div>
+        ) : null}
 
         {status === 'success' ? (
           <div className="rounded-md border border-primary/25 bg-primary/10 p-4 text-sm">

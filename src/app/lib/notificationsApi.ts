@@ -96,6 +96,13 @@ export function resolveNotificationNavigationPath(
       : '/map?layer=nearby';
   }
 
+  const isPersonalPulse = notification.type === 'pulse'
+    && notification.metadata?.conversationKind !== 'group'
+    && (typeof notification.metadata?.pingId === 'string' || safeLink === '/map');
+  if (isPersonalPulse) {
+    return '/map?pulse=open';
+  }
+
   const actorUserId = notification.actorUserId?.trim() ?? '';
   if (actorUserId && (notification.type === 'incoming_cruush' || notification.type === 'mutual_cruush')) {
     return `/profile/${encodeURIComponent(actorUserId)}`;
