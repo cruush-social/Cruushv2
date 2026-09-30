@@ -2656,7 +2656,11 @@ export default function MapHome(_props: MapHomeProps = {}) {
     }));
 
     const placeMarkers: MapMarker[] = (spotsVisible ? places : [])
-      .filter((place) => isCoordinateInViewport(place.latitude, place.longitude, mapViewport))
+      // Once the initial camera fit is settled, keep the fetched neighbors just
+      // beyond the canvas in the cluster input. Clipping the input to the exact
+      // viewport made a small pan rebuild nearby Spot groups around a different
+      // edge set, so count markers jumped even though those Spots had not moved.
+      .filter((place) => !fitToMapMarkers || isCoordinateInViewport(place.latitude, place.longitude, mapViewport))
       .map((place) => ({
       id: `place-${place.id}`,
       kind: 'place',
@@ -2911,7 +2915,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
             onPointerEnter={() => setMapControlsHovered(true)}
             onPointerLeave={() => setMapControlsHovered(false)}
           >
-            <CruushPlusButton compact onClick={() => navigate('/rewards')} />
+            <CruushPlusButton onClick={() => navigate('/rewards')} />
           </div> : null}
           <MapTopBar
             setMapControlsHovered={setMapControlsHovered}
@@ -2934,7 +2938,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
               // stays draggable; every control in it opts back in. The slot had
               // not, so the bug button it holds looked tappable and was not:
               // the map canvas took every tap.
-              className="pointer-events-auto h-11 w-11 shrink-0 [&_svg]:!h-9 [&_svg]:!w-9"
+              className="pointer-events-auto h-12 w-12 shrink-0 sm:h-10 sm:w-10 lg:h-11 lg:w-11"
               data-bug-button-size="large"
               data-map-control-hit-layer="true"
               data-testid="map-bug-button-slot"

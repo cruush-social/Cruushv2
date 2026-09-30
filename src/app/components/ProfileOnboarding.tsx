@@ -749,6 +749,9 @@ export default function ProfileOnboarding({
     }
   };
   const isFinalStep = step === steps.length - 1;
+  const nextRiteLabel = currentStep === 'bio' && !profile.bio.trim() && !profile.signal.trim()
+    ? 'Skip for now'
+    : 'Next rite';
   const availableCrowds = profile.is_trans === true ? CROWDS : CROWDS.filter((crowd) => crowd !== 'T4T');
 
   const setTransStatus = (isTrans: boolean) => {
@@ -939,15 +942,20 @@ export default function ProfileOnboarding({
             case 'bio':
               return (
                 <div>
-                  <label className="mb-2 block text-base">Bio</label>
+                  <label className="mb-2 block text-base" htmlFor="onboarding-bio">
+                    Bio <span className="text-white/50">(optional)</span>
+                  </label>
                   <Input
+                    id="onboarding-bio"
                     type="text"
                     placeholder="A little about you..."
                     value={profile.bio}
                     onChange={e => setProfileField('bio', e.target.value)}
                   />
                   <div className="mt-4 flex items-baseline justify-between gap-3">
-                    <label className="text-base">Signal</label>
+                    <label className="text-base" htmlFor="onboarding-signal">
+                      Signal <span className="text-white/50">(optional)</span>
+                    </label>
                     <span className="shrink-0 text-xs text-white/50">{profile.signal.length}/{SIGNAL_MAX_LENGTH}</span>
                   </div>
                   {/* The same badge the map draws, over the same heart, so the
@@ -971,8 +979,10 @@ export default function ProfileOnboarding({
                   </div>
                   <p className="mb-2 text-sm text-white/58">Text above your heart pin on hover.</p>
                   <Input
+                    id="onboarding-signal"
                     type="text"
                     maxLength={SIGNAL_MAX_LENGTH}
+                    placeholder="A few words on your pin"
                     value={profile.signal}
                     onChange={e => setProfileField('signal', e.target.value)}
                   />
@@ -1207,7 +1217,7 @@ export default function ProfileOnboarding({
             </div>
           ) : step < steps.length - 1 ? (
             <Button className="onboarding-primary-action" onClick={() => void handleNextRite()} disabled={!canProceed() || inviteCodeSaving} style={{ background: 'var(--cruush-logo)' }}>
-              {inviteCodeSaving ? 'Checking code...' : 'Next rite'} {!inviteCodeSaving ? <ArrowRight className="ml-2 w-4 h-4" /> : null}
+              {inviteCodeSaving ? 'Checking code...' : nextRiteLabel} {!inviteCodeSaving ? <ArrowRight className="ml-2 w-4 h-4" /> : null}
             </Button>
           ) : (
             <div className="flex flex-wrap justify-end gap-2">
