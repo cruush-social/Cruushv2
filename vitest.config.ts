@@ -25,6 +25,8 @@ export default defineConfig({
       '**/dist/**',
       'e2e/**',
       'server/**',
+      // Tool packages carry their own dependencies and Vitest configuration.
+      'tools/**',
       // Agent worktrees hold whole checkouts of this repo. Collected, every
       // suite runs once per worktree, and a CLI path argument is a substring
       // filter, so naming one file runs every copy of it.

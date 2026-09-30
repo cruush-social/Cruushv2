@@ -18,7 +18,7 @@ const IMPLEMENTATION_MARKERS = [
   {
     title: 'More Pulses',
     file: 'server/src/map-pings.ts',
-    marker: 'const limit = entitlement.cruushPlus ? MAP_PING_PLUS_DAILY_LIMIT : MAP_PING_BASIC_DAILY_LIMIT;',
+    marker: 'entitlement.cruushPlus ? MAP_PING_PLUS_DAILY_LIMIT : MAP_PING_BASIC_DAILY_LIMIT;',
   },
   {
     title: 'Mile High Club',

@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import ProfileOnboarding from './ProfileOnboarding';
 import { readOnboardingDraft, writeOnboardingDraft } from '../lib/onboardingDraft';
+import { SIGNAL_MAX_LENGTH } from '../lib/profileLimits';
 
 const { acceptCodeOfConduct, attachReferralCode, getAuthSession, persistCurrentUser, saveMyProfile, uploadProfilePhoto } = vi.hoisted(() => ({
   acceptCodeOfConduct: vi.fn(),
@@ -631,7 +632,16 @@ describe('ProfileOnboarding', () => {
     expect(screen.getByText('Optional. Pick up to 3.')).toBeInTheDocument();
     fireEvent.click(next()); // No Vibes.
     expect(screen.getByText('leave your confession')).toBeInTheDocument();
-    fireEvent.click(next()); // No Bio or Signal.
+    const bio = screen.getByRole('textbox', { name: 'Bio (optional)' });
+    const signal = screen.getByRole('textbox', { name: 'Signal (optional)' });
+    expect(bio).toHaveAttribute('placeholder', 'A little about you...');
+    expect(signal).toHaveAttribute('placeholder', 'A few words on your pin');
+    expect(signal).toHaveAttribute('maxlength', String(SIGNAL_MAX_LENGTH));
+    expect(screen.getByRole('button', { name: /skip for now/i })).toBeEnabled();
+    fireEvent.change(signal, { target: { value: 'Out tonight' } });
+    expect(next()).toBeEnabled();
+    fireEvent.change(signal, { target: { value: '' } });
+    fireEvent.click(screen.getByRole('button', { name: /skip for now/i })); // No Bio or Signal.
     expect(screen.getByText('name your role')).toBeInTheDocument();
     expect(screen.getByText('Optional. This becomes your left badge.')).toBeInTheDocument();
     fireEvent.click(next()); // No Role or Position.
