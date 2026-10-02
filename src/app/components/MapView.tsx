@@ -1828,7 +1828,7 @@ function PeopleClusterMarker({ marker }: { marker: MapMarker }) {
 
   return (
     <span
-      className="cruush-logo-font flex h-16 min-w-16 items-center justify-center rounded-full border border-[3.2px] border-[#FF0072]/70 bg-black/86 px-4 text-2xl font-normal leading-none tracking-normal text-white shadow-[0_0_46px_rgba(255,0,114,0.72)] backdrop-blur-md"
+      className="cruush-logo-font flex h-16 min-w-16 items-center justify-center rounded-full border border-[3.2px] border-[#FF0072]/70 bg-black/86 px-4 text-2xl font-normal leading-none tracking-normal text-white backdrop-blur-md"
       data-testid={`people-cluster-marker-${marker.cluster?.id ?? marker.id}`}
     >
       {count > 999 ? '999+' : count}

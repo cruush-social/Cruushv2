@@ -81,6 +81,7 @@ import {
 } from '../lib/mapMarkers';
 import { getPlaces, type PlaceRecord } from '../lib/placesApi';
 import { DEFAULT_EXCLUDED_PLACE_FACILITY_TYPES, PLACE_FACILITY_LABELS, type PlaceAmenity, type PlaceFacilityType, type PlaceTag, type PlaceVibe } from '../lib/places';
+import { getMyMapSpotsVisibility, saveMyMapSpotsVisibility } from '../lib/privacyApi';
 import {
   addDesktopPageLayoutChangedListener,
   getDesktopPageLayout,
@@ -957,6 +958,34 @@ export default function MapHome(_props: MapHomeProps = {}) {
       return true;
     }
   });
+  const spotsVisibilityInteractionRef = useRef(false);
+  useEffect(() => {
+    let cancelled = false;
+    void getMyMapSpotsVisibility().then((settings) => {
+      if (cancelled || spotsVisibilityInteractionRef.current) return;
+      if (settings.saved) {
+        setSpotsVisible(settings.visible);
+        return;
+      }
+
+      // Preserve the preference from clients that predate account-backed map
+      // settings, then save it where storage-restricted browsers can read it.
+      let legacyHidden: string | null = null;
+      try {
+        legacyHidden = window.localStorage.getItem('cruush:map-spots-hidden');
+      } catch {
+        // A server-backed choice still works when a browser blocks storage.
+      }
+      const visible = legacyHidden !== 'true';
+      setSpotsVisible(visible);
+      if (legacyHidden != null) {
+        void saveMyMapSpotsVisibility(visible).catch(() => undefined);
+      }
+    }).catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const [selectedPlace, setSelectedPlace] = useState<PlaceRecord | null>(null);
   // Keeps the map where the Spot left it after the Spot sheet closes, instead
   // of snapping back to the viewer's own location.
@@ -3432,12 +3461,14 @@ export default function MapHome(_props: MapHomeProps = {}) {
           onMapFiltersChange={setSpotMapFilters}
           spotsVisible={spotsVisible}
           onSpotsVisibleChange={(visible) => {
+            spotsVisibilityInteractionRef.current = true;
             setSpotsVisible(visible);
             try {
               window.localStorage.setItem('cruush:map-spots-hidden', visible ? 'false' : 'true');
             } catch {
               // The switch still works for this visit when storage is unavailable.
             }
+            void saveMyMapSpotsVisibility(visible).catch(() => undefined);
           }}
           onSelect={(place) => {
             openSpot(place);

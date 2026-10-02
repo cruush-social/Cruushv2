@@ -95,6 +95,11 @@ export const MAP_PRESENCE_OPTIONS = [
   { label: '7d', hours: 168 },
 ] as const;
 
+export type MapSpotsVisibilitySettings = {
+  visible: boolean;
+  saved: boolean;
+};
+
 export function getMyMapPresenceSettings() {
   return requestApi<MapPresenceSettings>('/api/privacy/map-presence');
 }
@@ -103,6 +108,17 @@ export function saveMyMapPresenceSettings(hours: number) {
   return requestApi<MapPresenceSettings>('/api/privacy/map-presence', {
     method: 'PUT',
     body: JSON.stringify({ hours }),
+  });
+}
+
+export function getMyMapSpotsVisibility() {
+  return requestApi<MapSpotsVisibilitySettings>('/api/privacy/map-spots');
+}
+
+export function saveMyMapSpotsVisibility(visible: boolean) {
+  return requestApi<MapSpotsVisibilitySettings>('/api/privacy/map-spots', {
+    method: 'PUT',
+    body: JSON.stringify({ visible }),
   });
 }
 
