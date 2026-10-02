@@ -153,4 +153,46 @@ describe("map presence routes", () => {
 
     await app.close();
   });
+
+  it("defaults map Spot visibility to shown until a member saves a choice", async () => {
+    const { app } = buildTestApp(vi.fn().mockResolvedValue({ rows: [] }));
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/privacy/map-spots",
+      headers: { "x-user-id": userId }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ data: { visible: true, saved: false } });
+    await app.close();
+  });
+
+  it("returns and saves the member's map Spot visibility choice", async () => {
+    const query = vi.fn()
+      .mockResolvedValueOnce({ rows: [{ map_spots_visible: false }] })
+      .mockResolvedValueOnce({ rows: [{ map_spots_visible: false }] });
+    const { app } = buildTestApp(query);
+
+    const loaded = await app.inject({
+      method: "GET",
+      url: "/api/privacy/map-spots",
+      headers: { "x-user-id": userId }
+    });
+    expect(loaded.json()).toEqual({ data: { visible: false, saved: true } });
+
+    const saved = await app.inject({
+      method: "PUT",
+      url: "/api/privacy/map-spots",
+      headers: { "x-user-id": userId },
+      payload: { visible: false }
+    });
+    expect(saved.statusCode).toBe(200);
+    expect(saved.json()).toEqual({ data: { visible: false, saved: true } });
+    expect(query).toHaveBeenLastCalledWith(
+      expect.stringContaining("insert into user_privacy_settings (user_id, map_spots_visible)"),
+      [userId, false]
+    );
+    await app.close();
+  });
 });

@@ -75,6 +75,11 @@ const { getMyTravelPin } = vi.hoisted(() => ({
   getMyTravelPin: vi.fn(),
 }));
 
+const { getMyMapSpotsVisibility, saveMyMapSpotsVisibility } = vi.hoisted(() => ({
+  getMyMapSpotsVisibility: vi.fn(),
+  saveMyMapSpotsVisibility: vi.fn(),
+}));
+
 const { syncMyLocation } = vi.hoisted(() => ({
   syncMyLocation: vi.fn(),
 }));
@@ -198,6 +203,8 @@ vi.mock('../lib/privacyApi', async () => {
     ...actual,
     getMyPrivacySettings,
     getMyTravelPin,
+    getMyMapSpotsVisibility,
+    saveMyMapSpotsVisibility,
   };
 });
 
@@ -672,6 +679,10 @@ describe('MapHome', () => {
     createReport.mockReset();
     decryptDisplayLocationToken.mockReset();
     getMyPrivacySettings.mockReset();
+    getMyMapSpotsVisibility.mockReset();
+    saveMyMapSpotsVisibility.mockReset();
+    getMyMapSpotsVisibility.mockResolvedValue({ visible: true, saved: false });
+    saveMyMapSpotsVisibility.mockResolvedValue({ visible: true, saved: true });
     syncMyLocation.mockReset();
     getMyTravelPin.mockReset();
     getMyTravelPin.mockResolvedValue({ pin: null });
@@ -3850,9 +3861,25 @@ describe('MapHome', () => {
     fireEvent.click(allSpots);
     expect(allSpots).not.toBeChecked();
     expect(window.localStorage.getItem('cruush:map-spots-hidden')).toBe('true');
+    expect(saveMyMapSpotsVisibility).toHaveBeenLastCalledWith(false);
     fireEvent.click(allSpots);
     expect(allSpots).toBeChecked();
     expect(window.localStorage.getItem('cruush:map-spots-hidden')).toBe('false');
+    expect(saveMyMapSpotsVisibility).toHaveBeenLastCalledWith(true);
+  });
+
+  it('restores the account-backed Spot visibility preference when browser storage is unavailable', async () => {
+    getMyMapSpotsVisibility.mockResolvedValue({ visible: false, saved: true });
+    useIsMobile.mockReturnValue(false);
+    getNearbyUsers.mockResolvedValue([]);
+
+    render(<MemoryRouter initialEntries={['/map']}><MapHome /></MemoryRouter>);
+
+    await openMapControls();
+    fireEvent.click(await screen.findByTestId('map-places-button'));
+    const allSpots = await screen.findByRole('switch', { name: 'Show Spots on the map' });
+    await waitFor(() => expect(allSpots).not.toBeChecked());
+    expect(getMyMapSpotsVisibility).toHaveBeenCalledTimes(1);
   });
 
   it('restores the saved hidden Spot preference on a later map visit', async () => {

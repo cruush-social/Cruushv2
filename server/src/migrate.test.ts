@@ -441,6 +441,15 @@ describe("migration runner", () => {
     expect(notificationSql).toContain("'nearby_feed_post'");
   });
 
+  it("adds a nullable account-backed map Spot visibility preference", async () => {
+    const migrateSource = await readFile(path.join(currentDir, "migrate.ts"), "utf8");
+    const preferenceSql = await readFile(path.join(serverRoot, "sql", "197_map_spots_visibility.sql"), "utf8");
+
+    expect(migrateSource).toMatch(/"196_nearby_feed_post_notifications\.sql",\s*"197_map_spots_visibility\.sql"/);
+    expect(preferenceSql).toContain("add column if not exists map_spots_visible boolean");
+    expect(preferenceSql).not.toContain("default");
+  });
+
   it("keeps the pre-079 reward guard fail-closed on the final check-in rule", async () => {
     const migrateSource = await readFile(path.join(currentDir, "migrate.ts"), "utf8");
     const rewardGuardSql = await readFile(path.join(serverRoot, "sql", "078_activity_reward_earned_guard.sql"), "utf8");

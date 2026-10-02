@@ -77,6 +77,10 @@ const mapPresencePayloadSchema = z.object({
   hours: z.coerce.number().int().min(MIN_MAP_PRESENCE_HOURS).max(MAX_MAP_PRESENCE_HOURS)
 }).strict();
 
+const mapSpotsVisibilityPayloadSchema = z.object({
+  visible: z.boolean()
+}).strict();
+
 const ghostPulsePayloadSchema = z.object({
   enabled: z.boolean()
 }).strict();
@@ -483,6 +487,45 @@ export async function registerPrivacyRoutes(app: FastifyInstance) {
         hours: normalizeMapPresenceHours(result.rows[0]?.map_presence_hours ?? payload.hours),
         minHours: MIN_MAP_PRESENCE_HOURS,
         maxHours: MAX_MAP_PRESENCE_HOURS
+      }
+    });
+  });
+
+  app.get("/api/privacy/map-spots", async (request, reply) => {
+    const userId = await getAuthenticatedUserId(request);
+    const result = await app.db.query<{ map_spots_visible: boolean | null }>(
+      `select map_spots_visible
+       from user_privacy_settings
+       where user_id = $1`,
+      [userId]
+    );
+    const saved = result.rows[0]?.map_spots_visible;
+
+    return reply.send({
+      data: {
+        visible: saved ?? true,
+        saved: saved != null
+      }
+    });
+  });
+
+  app.put("/api/privacy/map-spots", async (request, reply) => {
+    const userId = await getActiveAccountUserId(request);
+    const payload = mapSpotsVisibilityPayloadSchema.parse(request.body);
+    const result = await app.db.query<{ map_spots_visible: boolean }>(
+      `insert into user_privacy_settings (user_id, map_spots_visible)
+       values ($1, $2)
+       on conflict (user_id) do update
+       set map_spots_visible = excluded.map_spots_visible,
+           updated_at = now()
+       returning map_spots_visible`,
+      [userId, payload.visible]
+    );
+
+    return reply.send({
+      data: {
+        visible: result.rows[0]?.map_spots_visible ?? payload.visible,
+        saved: true
       }
     });
   });
