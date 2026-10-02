@@ -276,3 +276,21 @@ Julien: “Program cruush to send periodic notifications for engagement througho
 ## Mobile text floor, September 26, 2026
 
 On mobile, text that would otherwise render smaller than the 16px alpha-report text uses 16px as its minimum readable size. This does not resize headings or icons, does not change desktop typography, and does not replace the optional larger-text setting. Source: Julien, “Pls just make fonts that are smaller than the one i wrote this in, big as this size.”
+
+## Basic activity history and Feed loading, October 2, 2026
+
+Julien: “changes to basic: Basic members see only the newest incoming cruush and newest profile view. Older items stay locked; clearing one does not expose the backlog.” Basic activity access is anchored to the newest historical item in each of those two categories. Clearing that item does not promote or unlock an older active item; a genuinely newer item may become the next unlocked item. cruush+ access is unchanged.
+
+Julien: “Feed should let me load more feed posts upon scrolling, up to 100 for now, the more i scroll, the more load.” Feed appends additional pages through its existing bottom-scroll behavior and stops when 100 posts are loaded in the client.
+
+## Data-sale promise, October 2, 2026
+
+Julien: “we will never sell your data.” Show this exact promise in the existing signup-agreement capsule immediately before account submission and in the Privacy Policy. The Privacy Policy visibly states when it was last updated.
+
+## Legal data-use promise, October 2, 2026
+
+Julien: “we will never sell user data nor use it to train ai.” State this exact promise in the Terms of Service and Privacy Policy. Each updated legal page visibly states when it was last updated.
+
+## Message-recipient distance labels, October 2, 2026
+
+Julien: “we dont want it to like show distance labels tho you know.” New-message and new-group recipient cards do not display distance labels. Their existing Distance sort continues to use privacy-safe distance data internally.

@@ -18,6 +18,10 @@ const { getMyProfile } = vi.hoisted(() => ({
   getMyProfile: vi.fn(),
 }));
 
+const { decryptDisplayLocationToken } = vi.hoisted(() => ({
+  decryptDisplayLocationToken: vi.fn(),
+}));
+
 const { openConversationOrInbox } = vi.hoisted(() => ({
   openConversationOrInbox: vi.fn(),
 }));
@@ -60,6 +64,11 @@ vi.mock('../lib/profileApi', async () => {
   };
 });
 
+vi.mock('../lib/displayLocationTokens', async () => {
+  const actual = await vi.importActual<typeof import('../lib/displayLocationTokens')>('../lib/displayLocationTokens');
+  return { ...actual, decryptDisplayLocationToken };
+});
+
 vi.mock('../lib/openConversation', () => ({
   openConversationOrInbox,
 }));
@@ -72,6 +81,7 @@ describe('DirectMessages', () => {
     getMyCruushActivity.mockReset();
     getNearbyUsers.mockReset();
     getMyProfile.mockReset();
+    decryptDisplayLocationToken.mockReset();
     getMyProfile.mockResolvedValue({ location: null });
     openConversationOrInbox.mockReset();
   });
@@ -555,6 +565,8 @@ describe('DirectMessages', () => {
 
     expect(await screen.findByText('Alex')).toBeInTheDocument();
     expect(screen.getByText('River')).toBeInTheDocument();
+    expect(screen.queryByText('0.2 mi')).not.toBeInTheDocument();
+    expect(screen.queryByText('5 mi')).not.toBeInTheDocument();
     expect(screen.getByText('Sort people by')).toBeInTheDocument();
     const sortPicker = screen.getByRole('button', { name: /Sort people by Recently online/ });
     expect(sortPicker).toHaveAttribute('data-slot', 'accordion-trigger');
@@ -597,6 +609,92 @@ describe('DirectMessages', () => {
       expect(sortedBlake.compareDocumentPosition(sortedGhosted) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
       expect(sortedGhosted.compareDocumentPosition(sortedAlex) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
       expect(sortedBlake.compareDocumentPosition(sortedAlex) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+  });
+
+  it('uses the current display-location token so Distance differs from Recently online for a new message', async () => {
+    getConversations.mockResolvedValue([]);
+    const selfLocationToken = { tokenId: 'self-location-token' };
+    getMyProfile.mockResolvedValue({
+      location: {
+        display_location_token: selfLocationToken,
+        location_updated_at: '2026-04-28T12:00:00.000Z',
+      },
+    });
+    decryptDisplayLocationToken.mockResolvedValue({ latitude: 40.75, longitude: -73.98 });
+    getMyCruushActivity.mockResolvedValue({ mutual: [] });
+    getNearbyUsers.mockResolvedValue([
+      {
+        id: 'recent-far', name: 'Recent far', display_name: 'Recent far', age: 30, pronouns: 'they/them',
+        lat: 40.80, lng: -73.98, lastActive: 'now', distance: 'Nearby', lookingFor: [], vibes: [], position: [], role: [], hostingTravel: [], photo: null,
+      },
+      {
+        id: 'older-close', name: 'Older close', display_name: 'Older close', age: 30, pronouns: 'they/them',
+        lat: 40.751, lng: -73.98, lastActive: '2h ago', distance: 'Nearby', lookingFor: [], vibes: [], position: [], role: [], hostingTravel: [], photo: null,
+      },
+    ]);
+
+    render(<MemoryRouter><DirectMessages /></MemoryRouter>);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'New message' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Start chat with someone/ }));
+    await screen.findByText('Recent far');
+    expect(decryptDisplayLocationToken).toHaveBeenCalledWith(selfLocationToken);
+    expect(getNearbyUsers).toHaveBeenCalledWith({ lat: 40.75, lng: -73.98 }, expect.any(Object), { limit: 500 });
+
+    const recentFar = screen.getByText('Recent far');
+    const olderClose = screen.getByText('Older close');
+    expect(recentFar.compareDocumentPosition(olderClose) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: /Sort people by Recently online/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sort by Distance' }));
+
+    await waitFor(() => {
+      expect(olderClose.compareDocumentPosition(recentFar) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+  });
+
+  it('uses safe mutual coordinates when sorting new-group members by Distance', async () => {
+    getConversations.mockResolvedValue([]);
+    const selfLocationToken = { tokenId: 'self-location-token' };
+    getMyProfile.mockResolvedValue({
+      location: {
+        display_location_token: selfLocationToken,
+        location_updated_at: '2026-04-28T12:00:00.000Z',
+      },
+    });
+    decryptDisplayLocationToken.mockResolvedValue({ latitude: 40.75, longitude: -73.98 });
+    getMyCruushActivity.mockResolvedValue({
+      mutual: [
+        {
+          id: 'recent-far', matchId: 'match-recent-far', createdAt: '2026-04-28T12:00:00.000Z', locked: false,
+          user: { id: 'recent-far', name: 'Recent far', pronouns: 'they/them', photo: null },
+          mutualCrowds: [], vibes: [], distance: 'Nearby', lastActive: 'now', canMessage: true, canRevealPreciseLocation: false,
+          coordinates: { lat: 40.80, lng: -73.98, precision: 'fuzzy' },
+        },
+        {
+          id: 'older-close', matchId: 'match-older-close', createdAt: '2026-04-28T11:00:00.000Z', locked: false,
+          user: { id: 'older-close', name: 'Older close', pronouns: 'they/them', photo: null },
+          mutualCrowds: [], vibes: [], distance: 'Nearby', lastActive: '2h ago', canMessage: true, canRevealPreciseLocation: false,
+          coordinates: { lat: 40.751, lng: -73.98, precision: 'fuzzy' },
+        },
+      ],
+    });
+
+    render(<MemoryRouter><DirectMessages /></MemoryRouter>);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'New message' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Create group message/ }));
+    await screen.findByText('Recent far');
+    expect(screen.queryByText('Nearby')).not.toBeInTheDocument();
+    const recentFar = screen.getByText('Recent far');
+    const olderClose = screen.getByText('Older close');
+    expect(recentFar.compareDocumentPosition(olderClose) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sort cruushes by Distance' }));
+
+    await waitFor(() => {
+      expect(olderClose.compareDocumentPosition(recentFar) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
   });
 });

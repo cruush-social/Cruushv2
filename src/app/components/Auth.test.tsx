@@ -145,6 +145,13 @@ describe('Auth', () => {
     expect(authCss).not.toContain('launch-login-auth-rain-pane');
   });
 
+  it('keeps diagonal stripes out of the landing background at every breakpoint', () => {
+    const shellBackgrounds = authCss.match(/\.launch-login-auth-shell::before \{[\s\S]*?\n  \}/g) ?? [];
+
+    expect(shellBackgrounds).toHaveLength(2);
+    expect(shellBackgrounds.join('\n')).not.toContain('repeating-linear-gradient');
+  });
+
   it('shows a resend verification action after an unverified login attempt', async () => {
     const { container } = render(<Auth onAuth={vi.fn()} />);
 
@@ -445,10 +452,13 @@ describe('Auth', () => {
     const terms = screen.getByLabelText('Agree to Terms of Service');
     const privacy = screen.getByLabelText('Agree to Privacy Policy');
     const updates = screen.getByLabelText('Send me cruush product updates');
+    const dataSalePromise = screen.getByText('We will never sell your data.');
 
     expect(confirmPassword.compareDocumentPosition(agreements) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(terms.compareDocumentPosition(privacy) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(privacy.compareDocumentPosition(updates) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(updates.compareDocumentPosition(dataSalePromise) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(agreements.compareDocumentPosition(screen.getByRole('button', { name: 'Create Account' })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(terms).toBeRequired();
     expect(privacy).toBeRequired();
     expect(updates).not.toBeRequired();

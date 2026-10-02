@@ -9,7 +9,7 @@ import ResetPassword from './components/ResetPassword';
 import AppErrorBoundary from './components/AppErrorBoundary';
 import AppViewport from './components/AppViewport';
 import BottomNav from './components/BottomNav';
-import GoogleAnalyticsPageTracker from './components/GoogleAnalyticsPageTracker';
+import PostHogPageTracker from './components/PostHogPageTracker';
 import { Toaster } from './components/ui/sonner';
 import { loadCurrentSession } from './lib/sessionUser';
 import { canUseDeveloperMapToolsEmail } from './lib/developerMapTools';
@@ -429,7 +429,7 @@ export default function App({
   if (tokenLinkType === 'verify-email') {
     return (
       <BrowserRouter key="root-verification-router">
-        <GoogleAnalyticsPageTracker />
+        <PostHogPageTracker />
         <Routes>
           <Route path="*" element={<VerifyEmail />} />
         </Routes>
@@ -444,7 +444,7 @@ export default function App({
   if (tokenLinkType === 'confirm-email') {
     return (
       <BrowserRouter key="root-confirm-email-router">
-        <GoogleAnalyticsPageTracker />
+        <PostHogPageTracker />
         <Routes>
           <Route path="*" element={<ConfirmEmailChange />} />
         </Routes>
@@ -459,7 +459,7 @@ export default function App({
   if (tokenLinkType === 'reset-password') {
     return (
       <BrowserRouter key="root-reset-router">
-        <GoogleAnalyticsPageTracker />
+        <PostHogPageTracker />
         <Routes>
           <Route path="*" element={<ResetPassword />} />
         </Routes>
@@ -474,7 +474,7 @@ export default function App({
   if (authStatus === 'signed_out') {
     return (
       <BrowserRouter key="public-router">
-        <GoogleAnalyticsPageTracker />
+        <PostHogPageTracker />
         <Suspense fallback={<RouteLoading />}>
           <Routes>
             <Route path="/verify-email" element={<VerifyEmail />} />
@@ -492,7 +492,7 @@ export default function App({
   if (!session?.user.emailVerifiedAt) {
     return (
       <BrowserRouter key="verification-router">
-        <GoogleAnalyticsPageTracker />
+        <PostHogPageTracker />
         <Suspense fallback={<RouteLoading />}>
           <Routes>
             <Route path="/verify-email" element={<VerifyEmail />} />
@@ -519,7 +519,7 @@ export default function App({
   if (session?.needsAgeVerification) {
     return (
       <BrowserRouter key="age-verification-router">
-        <GoogleAnalyticsPageTracker />
+        <PostHogPageTracker />
         <Suspense fallback={<RouteLoading />}>
           <Routes>
             <Route path="/verify-email" element={<VerifyEmail />} />
@@ -559,7 +559,7 @@ export default function App({
 
     return (
       <BrowserRouter key="onboarding-router">
-        <GoogleAnalyticsPageTracker />
+        <PostHogPageTracker />
         <Suspense fallback={<RouteLoading />}>
           <Routes>
             <Route path="/verify-email" element={<VerifyEmail />} />
@@ -590,7 +590,7 @@ export default function App({
   if (session?.needsCodeOfConduct) {
     return (
       <BrowserRouter key="code-of-conduct-router">
-        <GoogleAnalyticsPageTracker />
+        <PostHogPageTracker />
         <Suspense fallback={<RouteLoading />}>
           <Routes>
             <Route path="/verify-email" element={<VerifyEmail />} />
@@ -628,7 +628,7 @@ export default function App({
   return (
     <MemoryRouter key="app-router" initialEntries={getInitialAppEntries()}>
       <CanonicalAppAddressBar />
-      <GoogleAnalyticsPageTracker />
+      <PostHogPageTracker />
       <AppErrorBoundary>
         <AppViewport>
           <MapServiceAreaProvider>

@@ -172,7 +172,6 @@ Index keys and signing/hash keys are outside this fallback mechanism.
 | `WEB_PUSH_VAPID_PRIVATE_KEY` | server | yes | `server/src/config.ts` |  |
 | `WEB_PUSH_VAPID_PUBLIC_KEY` | server | yes | `server/src/config.ts` |  |
 | `VITE_API_BASE_URL` | client | no | `src/app/lib/apiClient.ts` | build-time, ships to the browser |
-| `VITE_GOOGLE_ANALYTICS_ID` | client | no | `src/app/lib/googleAnalytics.ts` | build-time, ships to the browser |
 | `VITE_MAP_ATTRIBUTION` | client | no | `src/app/components/MapView.tsx` | build-time, ships to the browser |
 | `VITE_MAP_GLYPHS_URL` | client | no | `src/app/components/MapView.tsx` | build-time, ships to the browser |
 | `VITE_MAP_STYLE_URL` | client | no | `src/app/components/MapView.tsx` | build-time, ships to the browser |

@@ -21,3 +21,10 @@ it('keeps cruushes only beneath the icon on non-heart covers', () => {
   render(<DlModePhotoPlaceholder />);
   expect(screen.getByTestId('dl-mode-photo-placeholder').querySelector('text')).toHaveTextContent('cruushes only');
 });
+
+it('can split cruushes only across two lines for Recently Active previews', () => {
+  render(<DlModePhotoPlaceholder splitCruushesOnly />);
+  const cover = screen.getByTestId('dl-mode-photo-placeholder');
+  expect(cover).toHaveAttribute('aria-label', 'cruushes only');
+  expect([...cover.querySelectorAll('tspan')].map((line) => line.textContent)).toEqual(['cruushes', 'only']);
+});

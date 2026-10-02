@@ -2,7 +2,17 @@ import DlModeMark from './DlModeMark';
 import { getNsfwPhotoRestrictionLabel, type NsfwPhotoRestriction } from '../lib/dlMode';
 
 /** One scalable cover for censored photos, including compact heart thumbnails. */
-export default function DlModePhotoPlaceholder({ className = 'w-20', showLabel = true, restriction }: { className?: string; showLabel?: boolean; restriction?: NsfwPhotoRestriction }) {
+export default function DlModePhotoPlaceholder({
+  className = 'w-20',
+  showLabel = true,
+  splitCruushesOnly = false,
+  restriction,
+}: {
+  className?: string;
+  showLabel?: boolean;
+  splitCruushesOnly?: boolean;
+  restriction?: NsfwPhotoRestriction;
+}) {
   const label = getNsfwPhotoRestrictionLabel(restriction) ?? 'cruushes only';
   return (
     <svg
@@ -16,7 +26,16 @@ export default function DlModePhotoPlaceholder({ className = 'w-20', showLabel =
       <foreignObject x="20" y="0" width="40" height="52">
         <DlModeMark active={false} className="h-full w-full" />
       </foreignObject>
-      {showLabel ? <text x="40" y="68" textAnchor="middle" fill="currentColor" fontSize="10" fontWeight="500">{label}</text> : null}
+      {showLabel ? (
+        <text x="40" y="68" textAnchor="middle" fill="currentColor" fontSize="10" fontWeight="500">
+          {splitCruushesOnly && label === 'cruushes only' ? (
+            <>
+              <tspan x="40" y="62">cruushes</tspan>
+              <tspan x="40" y="73">only</tspan>
+            </>
+          ) : label}
+        </text>
+      ) : null}
     </svg>
   );
 }

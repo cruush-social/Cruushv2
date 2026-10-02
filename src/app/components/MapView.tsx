@@ -1249,7 +1249,7 @@ function MarkerSideBadge({
         glyphClassName="cruush-ghost-rotation-badge-symbol h-full w-full"
         contentClassName={`flex h-full w-full items-center justify-center text-white ${isCurrentUser && marker.displayMode === 'GHOST' ? 'overflow-hidden rounded-full' : ''}`}
       />
-      <BadgeHoverLabel align={side === 'left' ? 'start' : 'end'} revealed={revealed}>{hoverLabel}</BadgeHoverLabel>
+      <BadgeHoverLabel align={side === 'left' ? 'start' : 'end'} compactHorizontalPadding revealed={revealed}>{hoverLabel}</BadgeHoverLabel>
     </span>
   );
 }
@@ -2020,7 +2020,7 @@ export function MapMarkerPin({ marker, previewed = false }: { marker: MapMarker;
       style={awaitingGhostPosition ? { visibility: 'hidden', pointerEvents: 'none' } : undefined}
     >
       <span
-        className={`cruush-ghost-rotation-unit-material relative flex h-20 w-[103px] origin-bottom items-center justify-center transition-transform duration-150 group-hover:scale-[1.38] group-focus-within:scale-[1.38] ${previewed ? 'scale-[1.38]' : ''} ${pingActive && !travellerActive ? 'cruush-map-ping-heart' : ''}`}
+        className={`cruush-ghost-rotation-unit-material relative flex h-20 w-[103px] origin-bottom items-center justify-center transition-transform duration-150 ${previewed ? 'scale-[1.38]' : ''} ${pingActive && !travellerActive ? 'cruush-map-ping-heart' : ''}`}
         data-testid={`marker-heart-layer-${marker.id}`}
       >
         <GhostRotationPulse marker={marker}>
@@ -2032,7 +2032,7 @@ export function MapMarkerPin({ marker, previewed = false }: { marker: MapMarker;
             </span>
             {(signalPreview || isOwnerGhostDecoy) && !exitActive ? (
               <span
-                className={`absolute left-1/2 top-0 z-30 flex w-max max-w-[16rem] -translate-x-1/2 -translate-y-full flex-col items-center gap-1 transition-opacity duration-150 ${pingActive || previewed ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'}`}
+                className={`absolute left-1/2 top-0 z-30 flex w-max max-w-[16rem] -translate-x-1/2 -translate-y-full flex-col items-center gap-1 transition-opacity duration-150 ${pingActive || previewed ? 'opacity-100' : 'opacity-0'}`}
                 data-signal-position="v2-frame-top"
                 data-testid={`marker-signal-stack-${marker.id}`}
               >

@@ -1,15 +1,12 @@
 import { useEffect } from 'react';
 import { useLocation } from 'react-router';
-import { trackPageView } from '../lib/googleAnalytics';
 import { trackPostHogPageView } from '../lib/posthog';
 
-export default function GoogleAnalyticsPageTracker() {
+export default function PostHogPageTracker() {
   const location = useLocation();
 
   useEffect(() => {
-    const path = `${location.pathname}${location.search}`;
-    trackPageView(path);
-    trackPostHogPageView(path);
+    trackPostHogPageView(`${location.pathname}${location.search}`);
   }, [location.pathname, location.search]);
 
   return null;

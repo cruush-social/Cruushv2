@@ -18,4 +18,14 @@ describe('BadgeHoverLabel', () => {
     }
     expect(screen.getByText('Right badge')).toHaveClass('[@media(hover:hover)]:right-auto');
   });
+
+  it('can reduce only horizontal padding for map labels', () => {
+    render(<>
+      <BadgeHoverLabel>Shared label</BadgeHoverLabel>
+      <BadgeHoverLabel compactHorizontalPadding>Map label</BadgeHoverLabel>
+    </>);
+
+    expect(screen.getByText('Shared label')).toHaveClass('px-2', 'py-1');
+    expect(screen.getByText('Map label')).toHaveClass('px-1', 'py-1');
+  });
 });

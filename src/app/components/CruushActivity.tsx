@@ -33,11 +33,10 @@ import ProfileActionTrio from './ProfileActionTrio';
 import UserActivityCapsule from './UserActivityCapsule';
 import LoadingCardSkeletons from './LoadingCardSkeletons';
 import CruushMatchSettings from './CruushMatchSettings';
+import AppPageHeader from './AppPageHeader';
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from './ui/dialog';
@@ -914,11 +913,19 @@ export default function CruushActivity({
                       <CruushIcon name="settings" className="h-5 w-5" />
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="scrollbar-hide max-h-[calc(100dvh-2rem)] max-w-md overflow-y-auto overscroll-contain rounded-lg border-white/10 bg-background pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
-                    <DialogHeader>
-                      <DialogTitle>Message permissions</DialogTitle>
-                      <DialogDescription>Choose who can start a chat with you.</DialogDescription>
-                    </DialogHeader>
+                  <DialogContent
+                    aria-describedby={undefined}
+                    showCloseButton={false}
+                    className="scrollbar-hide max-h-[calc(100dvh-2rem)] max-w-md overflow-y-auto overscroll-contain rounded-lg border-white/10 bg-background pb-[calc(1.5rem+env(safe-area-inset-bottom))]"
+                  >
+                    <DialogTitle className="sr-only">Message permissions</DialogTitle>
+                    <AppPageHeader
+                      title="Message permissions"
+                      onClose={() => setMatchSettingsOpen(false)}
+                      closeLabel="Close Message permissions"
+                      bugButtonTestId="message-permissions-bug-button-slot"
+                      className="-mx-6 -mt-6"
+                    />
                     <CruushMatchSettings embedded />
                   </DialogContent>
                 </Dialog>}

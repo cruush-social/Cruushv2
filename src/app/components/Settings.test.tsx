@@ -178,7 +178,7 @@ describe('Settings', () => {
     );
   });
 
-  it('keeps the icon attribution list collapsed below map attribution', async () => {
+  it('keeps map and icon attribution in one capsule with the icon list collapsed', async () => {
     render(
       <MemoryRouter>
         <Settings />
@@ -187,6 +187,9 @@ describe('Settings', () => {
 
     expect(await screen.findByText('Map attribution')).toBeInTheDocument();
     const trigger = screen.getByRole('button', { name: 'Icon attribution' });
+    const attributionCard = screen.getByTestId('attribution-card');
+    expect(attributionCard).toContainElement(screen.getByText('Open map data'));
+    expect(attributionCard).toContainElement(trigger);
     expect(trigger).toHaveAttribute('data-state', 'closed');
 
     fireEvent.click(trigger);

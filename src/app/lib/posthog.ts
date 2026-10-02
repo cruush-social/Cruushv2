@@ -1,5 +1,5 @@
 import posthog from 'posthog-js';
-import { getSanitizedAnalyticsPath } from './googleAnalytics';
+import { getSanitizedAnalyticsPath } from './analyticsPath';
 
 const DEFAULT_POSTHOG_HOST = 'https://us.i.posthog.com';
 

@@ -157,7 +157,7 @@ The team is clearly aware of this class of bug: `routes/moderation-media.ts:32` 
 - Confirm nginx `access_log` does not record query strings for these paths.
 - Rotate/invalidate outstanding reset tokens and purge retained logs once fixed.
 
-**Credit where due:** the *client-side* equivalent is handled correctly. `getSanitizedAnalyticsPath()` (`src/app/lib/googleAnalytics.ts:74`) applies a query-parameter **allowlist** and normalizes dynamic path segments before anything reaches PostHog or GA, so tokens landing in the browser URL are not forwarded to third parties. That is a control most teams miss.
+**Credit where due:** the *client-side* equivalent is handled correctly. `getSanitizedAnalyticsPath()` (`src/app/lib/analyticsPath.ts`) applies a query-parameter **allowlist** and normalizes dynamic path segments before anything reaches PostHog, so tokens landing in the browser URL are not forwarded to third parties. That is a control most teams miss.
 
 ---
 

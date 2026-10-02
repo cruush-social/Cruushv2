@@ -90,9 +90,10 @@ function withSlashBreaks(children: React.ReactNode) {
   ));
 }
 
-export function BadgeHoverLabel({ children, revealed = false, align = 'center' }: {
+export function BadgeHoverLabel({ children, revealed = false, align = 'center', compactHorizontalPadding = false }: {
   children: React.ReactNode;
   revealed?: boolean;
+  compactHorizontalPadding?: boolean;
   /**
    * Touch-side anchoring; desktop hover always centers beneath the badge.
    */
@@ -114,7 +115,7 @@ export function BadgeHoverLabel({ children, revealed = false, align = 'center' }
   return (
     <span
       aria-hidden="true"
-      className={`pointer-events-none absolute top-full z-50 mt-1.5 w-max max-w-[min(13rem,calc(100vw-2rem))] break-normal whitespace-normal rounded-xl border border-white/20 bg-black/95 px-2 py-1 text-center text-[0.7rem] font-semibold leading-tight text-white opacity-0 shadow-lg transition-opacity group-active/badge:opacity-100 group-focus-within/badge:opacity-100 group-hover/badge:opacity-100 ${anchor} ${revealedWidth} ${revealed ? '[@media(hover:none)]:opacity-100' : ''}`}
+      className={`pointer-events-none absolute top-full z-50 mt-1.5 w-max max-w-[min(13rem,calc(100vw-2rem))] break-normal whitespace-normal rounded-xl border border-white/20 bg-black/95 ${compactHorizontalPadding ? 'px-1' : 'px-2'} py-1 text-center text-[0.7rem] font-semibold leading-tight text-white opacity-0 shadow-lg transition-opacity group-active/badge:opacity-100 group-focus-within/badge:opacity-100 group-hover/badge:opacity-100 ${anchor} ${revealedWidth} ${revealed ? '[@media(hover:none)]:opacity-100' : ''}`}
     >
       {withSlashBreaks(children)}
     </span>

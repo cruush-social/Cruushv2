@@ -155,7 +155,10 @@ describe('NotificationSettings', () => {
     expect(getNotificationPreferences).toHaveBeenCalledTimes(2);
   });
 
-  it('leaves installing cruush to its own settings row', async () => {
+  it('offers the existing install action in the Home Screen section', async () => {
+    const listener = vi.fn();
+    window.addEventListener('cruush:install-requested', listener);
+
     render(
       <MemoryRouter>
         <NotificationSettings />
@@ -163,6 +166,10 @@ describe('NotificationSettings', () => {
     );
 
     expect(await screen.findByText('Home Screen app')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Install cruush' })).not.toBeInTheDocument();
+    expect(screen.getByText('Add cruush to your Home Screen.')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Install cruush' }));
+    expect(listener).toHaveBeenCalledTimes(1);
+
+    window.removeEventListener('cruush:install-requested', listener);
   });
 });

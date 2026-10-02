@@ -890,7 +890,7 @@ function RecentlyActivePhoto({
       data-testid={`recently-active-fallback-${user.id}`}
       style={{ background: getProfileGradientCss(user.id) }}
     >
-      {photoMasked ? <DlModePhotoPlaceholder className="w-14" restriction={getNsfwPhotoRestriction(user.photoExplicit, user.photoRelationship)} /> : <CruushIconImage src={cruushIconWhite} className="h-10 w-10 opacity-75" />}
+      {photoMasked ? <DlModePhotoPlaceholder className="w-14" splitCruushesOnly restriction={getNsfwPhotoRestriction(user.photoExplicit, user.photoRelationship)} /> : <CruushIconImage src={cruushIconWhite} className="h-10 w-10 opacity-75" />}
     </div>
   );
 }
@@ -3351,7 +3351,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
             <div
               className={`mx-auto ${
                 isRecentlyActiveOpen
-                  ? `${isMobile ? 'w-fit max-w-full' : 'w-fit max-w-[35.75rem]'} rounded-2xl border border-white/10 bg-background/68 p-3 shadow-[0_20px_60px_rgba(0,0,0,0.42)] backdrop-blur-md`
+                  ? `${isMobile ? 'w-fit max-w-full' : 'w-fit max-w-[35.75rem]'} rounded-2xl border border-white/10 bg-[color:var(--cruush-black-glass)] p-3 shadow-[0_20px_60px_rgba(0,0,0,0.42)] backdrop-blur-[var(--cruush-black-glass-blur)]`
                   : 'max-w-max p-0'
               } pointer-events-auto`}
               data-testid="recently-active-panel"
@@ -3363,7 +3363,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
                   aria-expanded={isRecentlyActiveOpen}
                   aria-label={isRecentlyActiveOpen ? 'Hide recently active bar' : 'Show recently active bar'}
                   className={`h-9 rounded-full border border-white/10 px-5 text-[11px] uppercase tracking-[0.18em] text-white shadow-[0_10px_24px_rgba(0,0,0,0.32)] backdrop-blur-md transition hover:border-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/65 ${
-                    isRecentlyActiveOpen ? '' : 'bg-background/68'
+                    isRecentlyActiveOpen ? '' : 'bg-[color:var(--cruush-black-glass)] backdrop-blur-[var(--cruush-black-glass-blur)]'
                   }`}
                   onClick={() => setIsRecentlyActiveOpen((open) => !open)}
                   style={isRecentlyActiveOpen ? { background: 'var(--cruush-gradient)' } : undefined}
