@@ -252,11 +252,7 @@ describe('MapView', () => {
     expect(screen.queryByTestId('marker-current-fallback-user-1')).not.toBeInTheDocument();
     expect(screen.getByTestId('marker-heart-me')).toHaveClass('h-20', 'w-20');
     expect(screen.getByTestId('marker-heart-layer-me')).toHaveClass('w-[103px]');
-    expect(screen.getByTestId('marker-heart-layer-user-1')).toHaveClass(
-      'origin-bottom',
-      'group-hover:scale-[1.38]',
-      'group-focus-within:scale-[1.38]',
-    );
+    expect(screen.getByTestId('marker-heart-layer-user-1')).toHaveClass('origin-bottom');
     expect(screen.getByTestId('marker-pin-unit-user-1')).toHaveClass('origin-bottom', 'scale-100');
     expect(MAP_PIN_UNIT_SCALE).toBe(1);
     // Tall enough to hold the ghost exit animation without clipping it.
@@ -1348,6 +1344,43 @@ describe('MapView', () => {
     expect(screen.getByTestId('marker-signal-stack-user-hover')).toHaveClass('opacity-0');
   });
 
+  it('shows only the most recently hovered pin unit', async () => {
+    render(
+      <MapView
+        onPinClick={vi.fn()}
+        markers={[
+          {
+            id: 'user-first-hover',
+            displayName: 'Noor',
+            approximateLatitude: 40.72,
+            approximateLongitude: -74.01,
+            signal: 'First signal',
+          },
+          {
+            id: 'user-latest-hover',
+            displayName: 'Ira',
+            approximateLatitude: 40.75,
+            approximateLongitude: -74.04,
+            signal: 'Latest signal',
+          },
+        ]}
+      />
+    );
+
+    const firstPin = await screen.findByRole('button', { name: 'Open Noor on map' });
+    const latestPin = screen.getByRole('button', { name: 'Open Ira on map' });
+
+    fireEvent.pointerEnter(firstPin, { pointerType: 'mouse' });
+    expect(screen.getByTestId('marker-heart-layer-user-first-hover')).toHaveClass('scale-[1.38]');
+    expect(screen.getByTestId('marker-signal-stack-user-first-hover')).toHaveClass('opacity-100');
+
+    fireEvent.pointerEnter(latestPin, { pointerType: 'mouse' });
+    expect(screen.getByTestId('marker-heart-layer-user-first-hover')).not.toHaveClass('scale-[1.38]');
+    expect(screen.getByTestId('marker-signal-stack-user-first-hover')).toHaveClass('opacity-0');
+    expect(screen.getByTestId('marker-heart-layer-user-latest-hover')).toHaveClass('scale-[1.38]');
+    expect(screen.getByTestId('marker-signal-stack-user-latest-hover')).toHaveClass('opacity-100');
+  });
+
   it('opens the profile on a short touch tap without leaving the pin previewed', async () => {
     const onPinClick = vi.fn();
 
@@ -1519,7 +1552,7 @@ describe('MapView', () => {
     expect(signalStack).toHaveAttribute('data-signal-position', 'v2-frame-top');
     expect(signalStack).toHaveClass('left-1/2', 'top-0', '-translate-x-1/2', '-translate-y-full');
     expect(heartLayer).toContainElement(signalStack);
-    expect(signalStack).toHaveClass('opacity-0', 'group-hover:opacity-100', 'group-focus-within:opacity-100');
+    expect(signalStack).toHaveClass('opacity-0');
   });
 
   it('keeps the signal visible and pulses the unchanged heart unit during an active Ping', async () => {
@@ -1561,7 +1594,7 @@ describe('MapView', () => {
     expect(heart).toHaveClass('z-10');
     expect(heart).not.toHaveClass('cruush-map-ping-heart');
     expect(heartLayer).toHaveClass('cruush-map-ping-heart');
-    expect(heartLayer).toHaveClass('group-hover:scale-[1.38]', 'group-focus-within:scale-[1.38]');
+    expect(heartLayer).not.toHaveClass('group-hover:scale-[1.38]', 'group-focus-within:scale-[1.38]');
     expect(pinUnit).toHaveClass('scale-100');
     expect(heart.querySelector('path[stroke="#C8FF31"]')).not.toBeNull();
     expect(signalBadge.getAttribute('style')).toContain('#C8FF31');

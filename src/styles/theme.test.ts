@@ -22,6 +22,14 @@ describe('global text selection policy', () => {
   });
 });
 
+describe('shared app header typography', () => {
+  it('uses the responsive line-height tokens so serif descenders are not clipped', () => {
+    expect(themeCss).toContain('line-height: var(--text-2xl--line-height);');
+    expect(themeCss).toContain('line-height: var(--text-3xl--line-height);');
+    expect(themeCss).toContain('transform: translateY(-2px);');
+  });
+});
+
 describe('cruush+ map button sheen', () => {
   it('keeps the v2 sweep and reduced-motion fallback available', () => {
     expect(themeCss).toContain('.cruush-plus-shimmer-button::before');

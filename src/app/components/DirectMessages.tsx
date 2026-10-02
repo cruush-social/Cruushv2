@@ -26,7 +26,8 @@ import {
 import { getMutualCruushMap, getMyCruushActivity, revokeMutualCruush, revokeSentCruush, sendCruush, type MutualCruushActivityItem } from '../lib/cruushApi';
 import { getNearbyUsers, type DiscoveryUser } from '../lib/usersApi';
 import { getMyBillingStatus } from '../lib/billingApi';
-import { getMyProfile } from '../lib/profileApi';
+import { getMyProfile, type ProfileRecord } from '../lib/profileApi';
+import { decryptDisplayLocationToken } from '../lib/displayLocationTokens';
 import { openConversationOrInbox } from '../lib/openConversation';
 import ProfileActionTrio from './ProfileActionTrio';
 import UserActivityCapsule from './UserActivityCapsule';
@@ -35,7 +36,6 @@ import CruushMatchSettings from './CruushMatchSettings';
 import AppPageHeader from './AppPageHeader';
 import { shouldMaskPhoto, useDlMode } from '../lib/dlMode';
 import { registerBugButtonSlot } from '../lib/bugButtonSlot';
-import { formatDistanceLabel, useDistancePreferences } from '../lib/distancePreferences';
 import { resolveUserBorderTone } from '../lib/userBorderTone';
 import {
   handleCruushSendSuccess,
@@ -130,6 +130,12 @@ function getConversationHeartTheme(conversation: ConversationThread) {
 }
 
 type DirectSortMode = 'distance' | 'lastOnline';
+type ViewerCoordinates = { lat: number; lng: number };
+type DistanceSortable = {
+  distance: string;
+  lat?: number | null;
+  lng?: number | null;
+};
 
 const DIRECT_MESSAGE_DISCOVERY_LIMIT = 500;
 
@@ -164,7 +170,7 @@ function seekingSortScore(user: DiscoveryUser) {
   );
 }
 
-function displayCoordinateMiles(user: DiscoveryUser, viewer: { lat: number; lng: number } | null) {
+function displayCoordinateMiles(user: DistanceSortable, viewer: ViewerCoordinates | null) {
   // Only the display coordinates the app already shows for this person, so an
   // approximate sharer never becomes more precise than their own setting.
   if (!viewer || typeof user.lat !== 'number' || typeof user.lng !== 'number') {
@@ -181,7 +187,7 @@ function displayCoordinateMiles(user: DiscoveryUser, viewer: { lat: number; lng:
   return 2 * earthRadiusMiles * Math.asin(Math.min(1, Math.sqrt(haversine)));
 }
 
-function comparePrivacySafeDistance(a: DiscoveryUser, b: DiscoveryUser, viewer: { lat: number; lng: number } | null = null) {
+function comparePrivacySafeDistance(a: DistanceSortable, b: DistanceSortable, viewer: ViewerCoordinates | null = null) {
   const aLabelled = parseDistanceMiles(a.distance);
   const bLabelled = parseDistanceMiles(b.distance);
   // Approximate labels read the same for everyone. When neither row carries a
@@ -195,16 +201,38 @@ function comparePrivacySafeDistance(a: DiscoveryUser, b: DiscoveryUser, viewer: 
   return aDistance - bDistance;
 }
 
-function compareRecentActivity(a: DiscoveryUser, b: DiscoveryUser, viewer: { lat: number; lng: number } | null = null) {
+function compareRecentActivity(a: DiscoveryUser, b: DiscoveryUser, viewer: ViewerCoordinates | null = null) {
   return parseLastActiveRank(a.lastActive) - parseLastActiveRank(b.lastActive)
     || seekingSortScore(b) - seekingSortScore(a)
     || comparePrivacySafeDistance(a, b, viewer)
     || a.name.localeCompare(b.name);
 }
 
-function compareDistance(a: DiscoveryUser, b: DiscoveryUser, viewer: { lat: number; lng: number } | null = null) {
+function compareDistance(a: DiscoveryUser, b: DiscoveryUser, viewer: ViewerCoordinates | null = null) {
   return comparePrivacySafeDistance(a, b, viewer)
     || compareRecentActivity(a, b, viewer);
+}
+
+async function resolveViewerCoordinates(profile: ProfileRecord | null): Promise<ViewerCoordinates | null> {
+  const location = profile?.location;
+  const lat = location?.fuzzy_lat ?? location?.lat;
+  const lng = location?.fuzzy_lng ?? location?.lng;
+  if (typeof lat === 'number' && typeof lng === 'number') {
+    return { lat, lng };
+  }
+
+  if (!location?.display_location_token) {
+    return null;
+  }
+
+  try {
+    const displayPayload = await decryptDisplayLocationToken(location.display_location_token);
+    return Number.isFinite(displayPayload.latitude) && Number.isFinite(displayPayload.longitude)
+      ? { lat: displayPayload.latitude, lng: displayPayload.longitude }
+      : null;
+  } catch {
+    return null;
+  }
 }
 
 function describeDiscoveryUser(user: DiscoveryUser) {
@@ -277,13 +305,12 @@ export default function DirectMessages({
   const [directError, setDirectError] = useState<string | null>(null);
   const [directLoading, setDirectLoading] = useState(false);
   const [directHasCruushPlus, setDirectHasCruushPlus] = useState(false);
-  const [viewerCoordinates, setViewerCoordinates] = useState<{ lat: number; lng: number } | null>(null);
+  const [viewerCoordinates, setViewerCoordinates] = useState<ViewerCoordinates | null>(null);
   const [groupCreating, setGroupCreating] = useState(false);
   const [deletingConversationId, setDeletingConversationId] = useState<string | null>(null);
   const [changingCruushUserId, setChangingCruushUserId] = useState<string | null>(null);
   const deferredSearchQuery = useDeferredValue(searchQuery);
   const dlModeActive = useDlMode();
-  const distancePreferences = useDistancePreferences();
 
   useEffect(() => {
     void fetchConversations();
@@ -373,19 +400,22 @@ export default function DirectMessages({
 
     return [...filtered].sort((a, b) => {
       if (groupSortMode === 'distance') {
-        const aDistance = parseDistanceMiles(a.distance);
-        const bDistance = parseDistanceMiles(b.distance);
-        if (aDistance !== null || bDistance !== null) {
-          if (aDistance === null) return 1;
-          if (bDistance === null) return -1;
-          if (aDistance !== bDistance) return aDistance - bDistance;
-        }
+        const distanceOrder = comparePrivacySafeDistance({
+          distance: a.distance,
+          lat: a.coordinates?.lat,
+          lng: a.coordinates?.lng,
+        }, {
+          distance: b.distance,
+          lat: b.coordinates?.lat,
+          lng: b.coordinates?.lng,
+        }, viewerCoordinates);
+        if (distanceOrder !== 0) return distanceOrder;
       }
 
       return parseLastActiveRank(a.lastActive) - parseLastActiveRank(b.lastActive)
         || a.user.name.localeCompare(b.user.name);
     });
-  }, [groupSearchQuery, groupSortMode, mutualOptions]);
+  }, [groupSearchQuery, groupSortMode, mutualOptions, viewerCoordinates]);
 
   const loadMessageableMutuals = async ({
     setComposerError,
@@ -398,7 +428,11 @@ export default function DirectMessages({
     setComposerLoading(true);
 
     try {
-      const activity = await getMyCruushActivity();
+      const [activity, profile] = await Promise.all([
+        getMyCruushActivity(),
+        getMyProfile().catch(() => null),
+      ]);
+      setViewerCoordinates(await resolveViewerCoordinates(profile));
       setMutualOptions((activity.mutual ?? []).filter((item) => item.canMessage !== false));
     } catch (error) {
       console.error('Error loading mutuals:', error);
@@ -429,18 +463,8 @@ export default function DirectMessages({
         getMyCruushActivity().catch(() => ({ mutual: [] })),
         getMyBillingStatus().catch(() => null),
       ]);
-      const savedLocation = profile?.location;
-      const coordinates = savedLocation
-        ? {
-            lat: savedLocation.fuzzy_lat ?? savedLocation.lat,
-            lng: savedLocation.fuzzy_lng ?? savedLocation.lng,
-          }
-        : null;
-      setViewerCoordinates(
-        typeof coordinates?.lat === 'number' && typeof coordinates?.lng === 'number'
-          ? { lat: coordinates.lat, lng: coordinates.lng }
-          : null,
-      );
+      const coordinates = await resolveViewerCoordinates(profile);
+      setViewerCoordinates(coordinates);
       const messageableMutuals = (activity.mutual ?? []).filter((item) => item.canMessage !== false);
       setMutualOptions(messageableMutuals);
       setDirectHasCruushPlus(billing?.cruushPlus === true);
@@ -449,7 +473,7 @@ export default function DirectMessages({
         // Message seeking filters rank the inclusive authorized set locally.
         // They must never remove every otherwise-messageable profile at the API boundary.
         const nearbyUsers = await getNearbyUsers(
-          typeof coordinates?.lat === 'number' && typeof coordinates?.lng === 'number' ? coordinates : null,
+          coordinates,
           filters,
           { limit: DIRECT_MESSAGE_DISCOVERY_LIMIT },
         );
@@ -910,7 +934,6 @@ export default function DirectMessages({
                     metadata={(
                       <span className="flex min-w-0 flex-col gap-0.5 text-left text-xs leading-snug text-white/62">
                         <span className="truncate">{item.lastActive}</span>
-                        <span className="truncate">{formatDistanceLabel(item.distance, distancePreferences.mode) ?? item.distance}</span>
                       </span>
                     )}
                     mutual
@@ -1242,7 +1265,6 @@ function DirectUserOverlay({
   // The compose page lists everyone you may message. Mutuals has its own
   // surface, so there is nothing here to switch between.
   const activeComposerTab = 'public' as const;
-  const distancePreferences = useDistancePreferences();
   const [sortMode, setSortMode] = useState<DirectSortMode>('lastOnline');
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTER_STATE);
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -1435,7 +1457,6 @@ function DirectUserOverlay({
                 metadata={(
                   <button type="button" className="flex min-w-0 flex-col gap-0.5 text-left text-xs leading-snug text-white/62" onClick={() => onOpenProfile(user.id)}>
                     {describeDiscoveryUser(user) ? <span className="truncate">{describeDiscoveryUser(user)}</span> : null}
-                    <span className="truncate">{formatDistanceLabel(user.distance, distancePreferences.mode)}</span>
                   </button>
                 )}
                 actions={<ProfileActionTrio
@@ -1483,7 +1504,6 @@ function DirectUserOverlay({
                 metadata={(
                   <button type="button" className="flex min-w-0 flex-col gap-0.5 text-left text-xs leading-snug text-white/62" onClick={() => onOpenProfile(item.user.id)}>
                     <span className="truncate">{item.lastActive}</span>
-                    <span className="truncate">{formatDistanceLabel(item.distance, distancePreferences.mode)}</span>
                   </button>
                 )}
                 actions={<ProfileActionTrio

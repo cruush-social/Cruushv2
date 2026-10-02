@@ -2,7 +2,7 @@ import { useTrustRestrictions } from '../lib/trustRestrictions';
 import TrustRestrictionNotice from './TrustRestrictionNotice';
 import PhotoUploadSpinner from './PhotoUploadSpinner';
 import MultiSelect from './MultiSelect';
-import { useCallback, useEffect, useId, useRef, useState, type ChangeEvent, type KeyboardEvent } from 'react';
+import { useCallback, useEffect, useId, useRef, useState, type ChangeEvent, type KeyboardEvent, type UIEvent } from 'react';
 import { PHOTO_UPLOAD_ACCEPT, PHOTO_UPLOAD_EXTENSION_TYPES } from '../lib/photoUploadFormats';
 import { useLocation, useNavigate } from 'react-router';
 import { formatDistanceLabel, useDistancePreferences } from '../lib/distancePreferences';
@@ -121,6 +121,7 @@ const FEED_EXPIRY_OPTIONS: Array<{ value: FeedPostExpiry; label: string }> = [
   { value: 'never', label: 'Never' },
 ];
 const FEED_PAGE_SIZE = 30;
+const FEED_MAX_LOADED_POSTS = 100;
 // The open beta covers fifty miles around NYC, so the feed reaches that far.
 const DEFAULT_FEED_RADIUS_MILES = 50;
 const DEFAULT_FEED_SEEKING_FILTERS: FilterState = {
@@ -175,6 +176,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
   const composerPanelId = useId();
   const composerOpenButtonRef = useRef<HTMLButtonElement | null>(null);
   const [posts, setPosts] = useState<FeedPost[]>([]);
+  const postsRef = useRef<FeedPost[]>([]);
   const [expiresIn, setExpiresIn] = useState<FeedPostExpiry>('never');
   const [postAudience, setPostAudience] = useState<FeedPostAudience>('public');
   const [hasCruushPlus, setHasCruushPlus] = useState<boolean | null>(null);
@@ -210,6 +212,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
   const dlModeActive = useDlMode();
   const dlModeException = getDlModeShowOnlyException();
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
+  const loadingMoreRequestRef = useRef(false);
   const composerInputRef = useRef<HTMLTextAreaElement | null>(null);
   const feedPhotoInputRef = useRef<HTMLInputElement | null>(null);
   const hasCruushPlusRef = useRef<boolean | null>(null);
@@ -260,6 +263,14 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
     seekingFilters?: FilterState;
   } = {}) => {
     const append = options.append === true;
+    const remainingPostCapacity = FEED_MAX_LOADED_POSTS - postsRef.current.length;
+    if (append && remainingPostCapacity <= 0) {
+      setHasMorePosts(false);
+      return;
+    }
+    const requestLimit = append
+      ? Math.min(FEED_PAGE_SIZE, remainingPostCapacity)
+      : FEED_PAGE_SIZE;
     const nextCoordinates = options.coordinates === undefined ? feedCoordinates : options.coordinates;
     const nextWindow = options.within ?? feedWindow;
     const nextSeekingFilters = options.seekingFilters ?? feedSeekingFilters;
@@ -270,6 +281,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
     );
 
     if (append) {
+      loadingMoreRequestRef.current = true;
       setLoadingMore(true);
     } else {
       setLoading(true);
@@ -281,32 +293,33 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
         before: options.before ?? undefined,
         coordinates: nextCoordinates,
         distanceMiles: nextDistanceMiles,
-        limit: FEED_PAGE_SIZE,
+        limit: requestLimit,
         within: nextWindow,
         seeking: nextSeekingFilters,
       });
 
-      setPosts((currentPosts) => {
-        if (!append) {
-          return nextPosts;
-        }
-
-        const knownPostIds = new Set(currentPosts.map((post) => post.id));
-        return [
-          ...currentPosts,
-          ...nextPosts.filter((post) => !knownPostIds.has(post.id)),
-        ];
-      });
-      setHasMorePosts(nextPosts.length >= FEED_PAGE_SIZE);
+      const currentPosts = append ? postsRef.current : [];
+      const knownPostIds = new Set(currentPosts.map((post) => post.id));
+      const mergedPosts = [
+        ...currentPosts,
+        ...nextPosts.filter((post) => !knownPostIds.has(post.id)),
+      ].slice(0, FEED_MAX_LOADED_POSTS);
+      postsRef.current = mergedPosts;
+      setPosts(mergedPosts);
+      setHasMorePosts(
+        mergedPosts.length < FEED_MAX_LOADED_POSTS && nextPosts.length >= requestLimit,
+      );
     } catch (error) {
       console.error('Error fetching posts:', error);
       setError(error instanceof Error ? error.message : 'Failed to load the local feed.');
       if (!append) {
+        postsRef.current = [];
         setPosts([]);
         setHasMorePosts(false);
       }
     } finally {
       if (append) {
+        loadingMoreRequestRef.current = false;
         setLoadingMore(false);
       } else {
         setLoading(false);
@@ -438,18 +451,26 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
   }, []);
 
   const loadMorePosts = useCallback(() => {
-    if (loading || loadingMore || !hasMorePosts) {
+    if (loading || loadingMore || loadingMoreRequestRef.current || !hasMorePosts) {
       return;
     }
 
-    const before = posts[posts.length - 1]?.createdAt ?? null;
+    const currentPosts = postsRef.current;
+    const before = currentPosts[currentPosts.length - 1]?.createdAt ?? null;
 
     if (!before) {
       return;
     }
 
     void fetchPosts({ append: true, before });
-  }, [fetchPosts, hasMorePosts, loading, loadingMore, posts]);
+  }, [fetchPosts, hasMorePosts, loading, loadingMore]);
+
+  const handlePostsScroll = useCallback((event: UIEvent<HTMLDivElement>) => {
+    const { clientHeight, scrollHeight, scrollTop } = event.currentTarget;
+    if (scrollHeight - scrollTop - clientHeight <= 280) {
+      loadMorePosts();
+    }
+  }, [loadMorePosts]);
 
   useEffect(() => {
     const node = loadMoreRef.current;
@@ -494,7 +515,11 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
       setPostAudience('public');
       setExpiresIn('never');
       setSelectedCrowdTargets([]);
-      setPosts((prev) => [createdPost, ...prev]);
+      setPosts((prev) => {
+        const nextPosts = [createdPost, ...prev].slice(0, FEED_MAX_LOADED_POSTS);
+        postsRef.current = nextPosts;
+        return nextPosts;
+      });
     } catch (error) {
       console.error('Error posting:', error);
       setError(error instanceof Error ? error.message : 'Failed to create post.');
@@ -616,7 +641,11 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
 
     try {
       await deleteFeedPost(postId);
-      setPosts((prev) => prev.filter((post) => post.id !== postId));
+      setPosts((prev) => {
+        const nextPosts = prev.filter((post) => post.id !== postId);
+        postsRef.current = nextPosts;
+        return nextPosts;
+      });
     } catch (error) {
       console.error('Error deleting post:', error);
       setError(error instanceof Error ? error.message : 'Failed to delete post.');
@@ -1250,6 +1279,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
         <div
           className="scrollbar-hide mt-4 min-h-0 flex-1 overflow-y-auto overscroll-contain pb-4"
           data-testid="local-feed-posts-scroll"
+          onScroll={handlePostsScroll}
           style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}
         >
           {loading ? (

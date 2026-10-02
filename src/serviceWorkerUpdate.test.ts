@@ -59,4 +59,9 @@ describe('service worker update delivery', () => {
     expect(nginxConfig).toContain('Cache-Control "no-store, no-cache, must-revalidate, max-age=0" always;');
     expect(nginxConfig).toContain('Pragma "no-cache" always;');
   });
+
+  it('uses the current cruush app icon for phone notifications', () => {
+    expect(serviceWorkerSource.match(/\/icons\/cruush-192\.png/g)).toHaveLength(2);
+    expect(serviceWorkerSource).not.toContain('notification-feed.png');
+  });
 });

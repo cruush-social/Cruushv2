@@ -340,8 +340,17 @@ export default function NotificationSettings() {
               <p className="mt-1 text-sm text-muted-foreground">
                 {installed
                   ? 'cruush is already running as a Home Screen app.'
-                  : 'Install cruush from its own row on the settings page.'}
+                  : 'Add cruush to your Home Screen.'}
               </p>
+              {!installed ? (
+                <Button
+                  type="button"
+                  className="mt-3 rounded-full"
+                  onClick={() => window.dispatchEvent(new Event('cruush:install-requested'))}
+                >
+                  Install cruush
+                </Button>
+              ) : null}
             </div>
           </div>
         </section>

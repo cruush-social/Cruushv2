@@ -433,18 +433,30 @@ function activityProfileVibes(profile: ActivityProfileRow | null | undefined) {
   ]);
 }
 
-function lockable<T extends { locked?: boolean; user?: unknown }>(
+function lockable<T extends { id: string; locked?: boolean; user?: unknown }>(
   rows: T[],
   isCruushPlus: boolean,
-  freeVisibleCount = 1
+  basicVisibleRecordId: string | null
 ) {
   if (isCruushPlus) {
     return rows.map((row) => ({ ...row, locked: false }));
   }
 
-  return rows.map((row, index) => index < freeVisibleCount
+  return rows.map((row) => row.id === basicVisibleRecordId
     ? { ...row, locked: false }
     : { ...row, locked: true, user: null });
+}
+
+function newestRelationshipRecordId(records: EncryptedRelationshipRecord[]) {
+  return records.reduce<EncryptedRelationshipRecord | null>((newest, record) => {
+    if (!newest) {
+      return record;
+    }
+
+    return new Date(record.payload.createdAt).getTime() > new Date(newest.payload.createdAt).getTime()
+      ? record
+      : newest;
+  }, null)?.id ?? null;
 }
 
 function parseCoordinate(value: number | null | undefined) {
@@ -1124,34 +1136,60 @@ function mapMutualCruushRow(
   };
 }
 
-async function loadCruushActivityRecords(app: FastifyInstance, userId: string) {
-  const [incomingRecords, sentRecords, viewRecords] = await Promise.all([
+async function loadCruushActivityRecords(
+  app: FastifyInstance,
+  userId: string,
+  options: { includeBasicHistory?: boolean } = {}
+) {
+  const [
+    incomingRecords,
+    dismissedIncomingRecords,
+    activeSentRecords,
+    dismissedSentRecords,
+    viewRecords,
+    removedViewRecords
+  ] = await Promise.all([
     listEncryptedRelationshipRecordsByTarget(app, {
       targetUserId: userId,
       type: "cruush"
     }),
+    options.includeBasicHistory
+      ? listEncryptedRelationshipRecordsByTarget(app, {
+          targetUserId: userId,
+          type: "cruush",
+          status: "dismissed"
+        })
+      : Promise.resolve([]),
     listEncryptedRelationshipRecordsByActor(app, {
       actorUserId: userId,
       type: "cruush"
-    }).then(async (activeRecords) => {
-      // A recipient dismissing an incoming cruush must not edit the sender's
-      // history, so the Sent list carries dismissed records too.
-      const dismissedRecords = await listEncryptedRelationshipRecordsByActor(app, {
-        actorUserId: userId,
-        type: "cruush",
-        status: "dismissed"
-      });
-      return [...activeRecords, ...dismissedRecords];
+    }),
+    // A recipient dismissing an incoming cruush must not edit the sender's
+    // history, so the Sent list carries dismissed records too.
+    listEncryptedRelationshipRecordsByActor(app, {
+      actorUserId: userId,
+      type: "cruush",
+      status: "dismissed"
     }),
     listEncryptedRelationshipRecordsByTarget(app, {
       targetUserId: userId,
       type: "profile_view"
-    })
+    }),
+    options.includeBasicHistory
+      ? listEncryptedRelationshipRecordsByTarget(app, {
+          targetUserId: userId,
+          type: "profile_view",
+          status: "removed"
+        })
+      : Promise.resolve([])
   ]);
   const blockedUserIds = await loadBlockedRelationshipUserIds(app, userId);
   const visibleIncomingRecords = incomingRecords.filter((record) => !blockedUserIds.has(record.payload.actorUserId));
+  const visibleDismissedIncomingRecords = dismissedIncomingRecords.filter((record) => !blockedUserIds.has(record.payload.actorUserId));
+  const sentRecords = [...activeSentRecords, ...dismissedSentRecords];
   const visibleSentRecords = sentRecords.filter((record) => !blockedUserIds.has(record.payload.targetUserId));
   const visibleViewRecords = viewRecords.filter((record) => !blockedUserIds.has(record.payload.actorUserId));
+  const visibleRemovedViewRecords = removedViewRecords.filter((record) => !blockedUserIds.has(record.payload.actorUserId));
   const profileIds = [
     ...visibleIncomingRecords.map((record) => record.payload.actorUserId),
     ...visibleSentRecords.map((record) => record.payload.targetUserId),
@@ -1163,6 +1201,14 @@ async function loadCruushActivityRecords(app: FastifyInstance, userId: string) {
     incomingRecords: visibleIncomingRecords,
     sentRecords: visibleSentRecords,
     viewRecords: visibleViewRecords,
+    basicVisibleIncomingRecordId: newestRelationshipRecordId([
+      ...visibleIncomingRecords,
+      ...visibleDismissedIncomingRecords
+    ]),
+    basicVisibleViewRecordId: newestRelationshipRecordId([
+      ...visibleViewRecords,
+      ...visibleRemovedViewRecords
+    ]),
     profilesById
   };
 }
@@ -1315,8 +1361,15 @@ export async function registerCruushRoutes(app: FastifyInstance) {
       ? getRowCoordinates(currentProfile, false)
       : null;
 
-    const [{ incomingRecords, sentRecords, viewRecords, profilesById }, mutualRows] = await Promise.all([
-      loadCruushActivityRecords(app, authenticatedUserId),
+    const [{
+      incomingRecords,
+      sentRecords,
+      viewRecords,
+      basicVisibleIncomingRecordId,
+      basicVisibleViewRecordId,
+      profilesById
+    }, mutualRows] = await Promise.all([
+      loadCruushActivityRecords(app, authenticatedUserId, { includeBasicHistory: !isCruushPlus }),
       loadMutualCruushRows(app, authenticatedUserId)
     ]);
     const [incomingRows, sentRows] = await Promise.all([
@@ -1324,7 +1377,7 @@ export async function registerCruushRoutes(app: FastifyInstance) {
       mapSentCruushRecords(app, authenticatedUserId, sentRecords, profilesById)
     ]);
     const viewRows = mapProfileViewRecords(viewRecords, profilesById);
-    const incoming = lockable(incomingRows, isCruushPlus);
+    const incoming = lockable(incomingRows, isCruushPlus, basicVisibleIncomingRecordId);
     const sent = sentRows;
     const mutual = await Promise.all(mutualRows.map(async (row) => mapMutualCruushRow(app, row, {
       currentCoordinates,
@@ -1332,7 +1385,7 @@ export async function registerCruushRoutes(app: FastifyInstance) {
       viewerGhostMode: viewerPrivacy.ghostModeEnabled,
       distanceLabelMode: await getSharedDistanceLabelMode(app, authenticatedUserId, row.other_user_id)
     })));
-    const views = lockable(viewRows, isCruushPlus);
+    const views = lockable(viewRows, isCruushPlus, basicVisibleViewRecordId);
     const photoRelationships = await loadPhotoViewerRelationships(app, authenticatedUserId,
       [...incoming, ...sent, ...mutual, ...views].flatMap((item) => item.user ? [item.user.id] : []));
     const withPhotoRelationship = <T extends { user: { id: string } | null }>(item: T) => ({

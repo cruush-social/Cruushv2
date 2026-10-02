@@ -182,6 +182,58 @@ describe('LocalFeed', () => {
     });
   });
 
+  it('loads more posts while scrolling and stops at 100 loaded posts', async () => {
+    let nextPostIndex = 0;
+    getFeedPosts.mockImplementation(async ({ limit = 30 }) => {
+      const posts = Array.from({ length: limit }, (_, offset) => {
+        const index = nextPostIndex + offset + 1;
+        return {
+          id: `scroll-post-${index}`,
+          content: `scroll post ${index}`,
+          expiresIn: 'never' as const,
+          expiresAt: null,
+          createdAt: new Date(Date.UTC(2026, 3, 28, 12, 0, 0) - index * 60_000).toISOString(),
+          distance: 'Nearby',
+          user: {
+            id: `scroll-user-${index}`,
+            name: `person ${index}`,
+            pronouns: 'they/them',
+            photo: null,
+            photoExplicit: false,
+          },
+        };
+      });
+      nextPostIndex += posts.length;
+      return posts;
+    });
+
+    render(<MemoryRouter><LocalFeed /></MemoryRouter>);
+
+    const scrollArea = await screen.findByTestId('local-feed-posts-scroll');
+    await waitFor(() => expect(getFeedPosts).toHaveBeenCalledTimes(1));
+    expect(getFeedPosts).toHaveBeenLastCalledWith(expect.objectContaining({ before: undefined, limit: 30 }));
+
+    Object.defineProperties(scrollArea, {
+      clientHeight: { configurable: true, value: 400 },
+      scrollHeight: { configurable: true, value: 1000 },
+      scrollTop: { configurable: true, value: 590 },
+    });
+
+    for (const expectedCalls of [2, 3, 4]) {
+      fireEvent.scroll(scrollArea);
+      await waitFor(() => expect(getFeedPosts).toHaveBeenCalledTimes(expectedCalls));
+      await waitFor(() => expect(screen.queryByText('Loading more posts...')).not.toBeInTheDocument());
+    }
+
+    expect(getFeedPosts.mock.calls.map(([options]) => options.limit)).toEqual([30, 30, 30, 10]);
+    expect(screen.getByText('scroll post 100')).toBeInTheDocument();
+    expect(screen.getAllByTestId(/^feed-post-scroll-post-/)).toHaveLength(100);
+
+    fireEvent.scroll(scrollArea);
+    await act(async () => Promise.resolve());
+    expect(getFeedPosts).toHaveBeenCalledTimes(4);
+  });
+
   it('keeps the feed top visible below mobile webview chrome', async () => {
     getFeedPosts.mockResolvedValue([]);
 

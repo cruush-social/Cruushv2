@@ -512,6 +512,7 @@ function appNotificationRow(overrides: Record<string, unknown> = {}) {
 async function encryptedRelationshipRecordRow(input: {
   id: string;
   type: Parameters<typeof buildEncryptedRelationshipPayload>[0]["type"];
+  status?: Parameters<typeof buildEncryptedRelationshipPayload>[0]["status"];
   actorUserId: string;
   targetUserId: string;
   createdAt?: string;
@@ -546,6 +547,7 @@ async function encryptedRelationshipRecordRow(input: {
     db: recordDb
   }, buildEncryptedRelationshipPayload({
     type: input.type,
+    status: input.status,
     actorUserId: input.actorUserId,
     targetUserId: input.targetUserId,
     createdAt: input.createdAt ?? "2026-04-28T12:00:00.000Z",
@@ -12090,8 +12092,8 @@ describe("server", () => {
       if (text.includes("record_lookup_index")) {
         recordReads += 1;
         if (recordReads === 1) return { rows: [incomingOne, incomingTwo] };
-        if (recordReads === 2) return { rows: [sentOne] };
-        if (recordReads === 3) return { rows: [viewOne, viewTwo] };
+        if (recordReads === 3) return { rows: [sentOne] };
+        if (recordReads === 5) return { rows: [viewOne, viewTwo] };
       }
 
       return { rows: [] };
@@ -12197,6 +12199,91 @@ describe("server", () => {
         }]
       }
     });
+  });
+
+  it("does not expose Basic activity backlog after the newest item is cleared", async () => {
+    const olderIncoming = await encryptedRelationshipRecordRow({
+      id: "incoming-older",
+      type: "cruush",
+      actorUserId: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+      targetUserId: userId,
+      createdAt: "2026-04-28T11:00:00.000Z"
+    });
+    const clearedIncoming = await encryptedRelationshipRecordRow({
+      id: "incoming-cleared",
+      type: "cruush",
+      status: "dismissed",
+      actorUserId: "8f707f0b-81aa-470d-b0e1-321d493d04d2",
+      targetUserId: userId,
+      createdAt: "2026-04-28T12:00:00.000Z"
+    });
+    const olderView = await encryptedRelationshipRecordRow({
+      id: "view-older",
+      type: "profile_view",
+      actorUserId: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+      targetUserId: userId,
+      createdAt: "2026-04-28T11:10:00.000Z",
+      dedupeBucket: "2026-04-28T11:00:00.000Z"
+    });
+    const clearedView = await encryptedRelationshipRecordRow({
+      id: "view-cleared",
+      type: "profile_view",
+      status: "removed",
+      actorUserId: "8f707f0b-81aa-470d-b0e1-321d493d04d2",
+      targetUserId: userId,
+      createdAt: "2026-04-28T12:10:00.000Z",
+      dedupeBucket: "2026-04-28T12:00:00.000Z"
+    });
+
+    let recordReads = 0;
+    query.mockImplementation(async (sql: unknown) => {
+      const text = String(sql);
+
+      if (text.includes("from profiles")) {
+        return {
+          rows: [{
+            id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+            display_name: "Alex",
+            pronouns: ["they/them"],
+            photos: [],
+            vibes: [],
+            scenes: [],
+            archetypes: [],
+            ghost_mode_enabled: false
+          }]
+        };
+      }
+
+      if (text.includes("record_lookup_index")) {
+        recordReads += 1;
+        if (recordReads === 1) return { rows: [olderIncoming] };
+        if (recordReads === 2) return { rows: [clearedIncoming] };
+        if (recordReads === 5) return { rows: [olderView] };
+        if (recordReads === 6) return { rows: [clearedView] };
+      }
+
+      return { rows: [] };
+    });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/cruush/me",
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data.counts).toEqual(expect.objectContaining({
+      incoming: 1,
+      views: 1
+    }));
+    expect(response.json().data.incoming).toEqual([
+      expect.objectContaining({ id: "incoming-older", locked: true, user: null })
+    ]);
+    expect(response.json().data.views).toEqual([
+      expect.objectContaining({ id: "view-older", locked: true, user: null })
+    ]);
   });
 
   it("returns tokenized mutual map pins when saved Stealth outlives cruush+", async () => {

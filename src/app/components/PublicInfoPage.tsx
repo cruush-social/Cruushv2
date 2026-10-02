@@ -3,6 +3,7 @@ import { Button } from './ui/button';
 import { useBackOrFallback } from '../lib/useBackOrFallback';
 import SupportRequestForm from './SupportRequestForm';
 import BugButtonSlot from './BugButtonSlot';
+import AppPageHeader from './AppPageHeader';
 import {
   billingSections,
   billingUpdated,
@@ -12,6 +13,7 @@ import {
   safetySections,
   statement2257Sections,
   takedownSections,
+  termsUpdated,
   termsSections,
   traffickingSections,
   type PolicySection,
@@ -154,7 +156,7 @@ const pageContent: Record<PublicInfoPageId, PublicInfoPageContent> = {
   terms: {
     eyebrow: 'Legal',
     title: 'terms of service',
-    updated: legalUpdated,
+    updated: termsUpdated,
     sections: termsSections,
   },
   privacy: {
@@ -218,17 +220,25 @@ export default function PublicInfoPage({ page, signedIn = false }: PublicInfoPag
 
   return (
     <div className="min-h-screen bg-background pb-20 text-foreground">
-      <header className="sticky top-0 z-10 flex items-center gap-4 border-b border-border bg-card/80 p-4 backdrop-blur-sm">
-        <Button variant="ghost" size="icon" onClick={goBack} aria-label="Back">
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <div>
-          <p className="text-[0.65rem] font-semibold uppercase tracking-[0.25em] text-primary">{content.eyebrow}</p>
-          <h1 className="text-xl">{content.title}</h1>
-        </div>
-      
-        <BugButtonSlot testId="public-info-page-bug-button-slot" />
-      </header>
+      {page === 'security' ? (
+        <AppPageHeader
+          title={content.title}
+          onBack={goBack}
+          bugButtonTestId="public-info-page-bug-button-slot"
+        />
+      ) : (
+        <header className="sticky top-0 z-10 flex items-center gap-4 border-b border-border bg-card/80 p-4 backdrop-blur-sm">
+          <Button variant="ghost" size="icon" onClick={goBack} aria-label="Back">
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div>
+            <p className="text-[0.65rem] font-semibold uppercase tracking-[0.25em] text-primary">{content.eyebrow}</p>
+            <h1 className="text-xl">{content.title}</h1>
+          </div>
+
+          <BugButtonSlot testId="public-info-page-bug-button-slot" />
+        </header>
+      )}
 
       <main className="mx-auto max-w-3xl space-y-5 p-6">
         {content.updated ? (

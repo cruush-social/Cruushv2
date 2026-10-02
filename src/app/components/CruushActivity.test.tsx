@@ -353,6 +353,24 @@ describe('CruushActivity', () => {
     expect(screen.getByRole('button', { name: 'Back' })).toBeInTheDocument();
   });
 
+  it('uses the one-line app header without a Message permissions tagline', async () => {
+    render(
+      <MemoryRouter>
+        <CruushActivity />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText('luna')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Open Message permissions' }));
+
+    const dialog = screen.getByRole('dialog', { name: 'Message permissions' });
+    expect(within(dialog).getByText('Message permissions', { selector: 'h1' })).toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: 'Close Message permissions' })).toBeInTheDocument();
+    expect(within(dialog).getByTestId('message-permissions-bug-button-slot')).toBeInTheDocument();
+    expect(within(dialog).queryByText('Choose who can start a chat with you.')).not.toBeInTheDocument();
+    expect(await within(dialog).findByRole('switch', { name: 'Toggle precise location for cruushes' })).toBeEnabled();
+  });
+
   it('unsends a pending cruush from the sent activity list', async () => {
     getMyCruushActivity
       .mockResolvedValueOnce(activityFixture)

@@ -6,7 +6,8 @@ export type PolicySection = {
 };
 
 export const legalUpdated = "July 10, 2026";
-export const privacyUpdated = "July 21, 2026";
+export const termsUpdated = "October 2, 2026";
+export const privacyUpdated = "October 2, 2026";
 export const billingUpdated = "September 20, 2026";
 export const legalContact = "hello@cruush.app";
 export const legalEntity = "cruush technologies LLC";
@@ -122,6 +123,7 @@ export const termsSections: PolicySection[] = [
         notices, account notices, policy updates, verification
         messages, and support replies.
       </>,
+      "We will never sell user data nor use it to train AI.",
       "Marketing messages may be sent only where permitted by law and can be unsubscribed from where an unsubscribe option is provided."
     ]
   },
@@ -220,7 +222,7 @@ export const privacySections: PolicySection[] = [
     title: "How we use information",
     body: [
       "We use information to operate cruush, manage the waitlist, provide accounts, show nearby users, support cruushes, process subscriptions, send service, launch, event, and ticket communications when you opt in, provide support, enforce our policies, investigate reports, prevent abuse, improve the product, comply with law, and protect users and the service.",
-      "We do not sell your personal information."
+      "We will never sell user data nor use it to train AI."
     ]
   },
   {
@@ -234,7 +236,7 @@ export const privacySections: PolicySection[] = [
   {
     title: "Service providers",
     body: [
-      "We use service providers for database hosting, email delivery, analytics, security, abuse prevention, automated content moderation, payment processing, hosting, file handling, SMS delivery if enabled, and customer support. Current providers include Stream for automated moderation when enabled, Resend for email, Cloudflare Turnstile for abuse prevention, Google Analytics for aggregate traffic analysis, and database infrastructure for waitlist and app records.",
+      "We use service providers for database hosting, email delivery, analytics, security, abuse prevention, automated content moderation, payment processing, hosting, file handling, SMS delivery if enabled, and customer support. Current providers include Stream for automated moderation when enabled, Resend for email, Cloudflare Turnstile for abuse prevention, PostHog for aggregate traffic analysis, and database infrastructure for waitlist and app records.",
       "A moderation provider may process or retain submitted images, derived moderation results, or limited technical metadata under its own contract, security controls, and retention practices. cruush limits what it sends but cannot promise that every provider performs zero-retention processing.",
       "Payment processors, app stores, event-ticketing providers, and other third parties may process information under their own terms and privacy practices when you use those services."
     ]

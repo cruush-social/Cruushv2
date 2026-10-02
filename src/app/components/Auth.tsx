@@ -700,6 +700,7 @@ export default function Auth({ onAuth }: AuthProps) {
                 />
                 <span>Send me cruush product updates by email. Optional.</span>
               </label>
+              <p>We will never sell your data.</p>
             </fieldset>
           ) : null}
 
