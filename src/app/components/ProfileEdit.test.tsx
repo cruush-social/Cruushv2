@@ -806,6 +806,7 @@ describe('ProfileEdit', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'Scenes' }));
     const scenesGroup = screen.getByRole('group', { name: 'Scenes' });
     expect(within(scenesGroup).queryByRole('option', { name: 'Bear' })).not.toBeInTheDocument();
+    expect(within(scenesGroup).queryByRole('option', { name: 'Party' })).not.toBeInTheDocument();
     for (const scene of ['Jock', 'Circuit', 'Club Kid', 'Camping', 'Cosplay', 'Country', 'Festival', 'Rubber', 'Leather', 'Burner', 'Sober', 'Stoner']) {
       expect(within(scenesGroup).getByRole('option', { name: scene })).toBeInTheDocument();
     }

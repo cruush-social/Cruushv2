@@ -3268,10 +3268,10 @@ function MapView({
   }, []);
 
   return (
-    <div ref={surfaceRef} className="relative h-full min-h-[400px] w-full overflow-hidden bg-background" data-map-gesture-surface style={{ touchAction: 'pan-x pan-y' }}>
+    <div ref={surfaceRef} className="relative h-full w-full overflow-hidden bg-background" data-map-gesture-surface style={{ touchAction: 'pan-x pan-y' }}>
       <div
         ref={containerRef}
-        className="cruush-map h-full min-h-[400px] w-full overflow-hidden bg-background"
+        className="cruush-map h-full w-full overflow-hidden bg-background"
         data-testid="maplibre-map"
       />
       {mapLoadStatus === 'loading' ? (

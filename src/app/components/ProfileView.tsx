@@ -63,6 +63,65 @@ const PROFILE_VIEW_GALLERY_FRAME_STYLE = {
   width: 'min(100%, 30rem)',
 } as const;
 
+type ProfileSafetyDialogStyle = CSSProperties & {
+  '--profile-safety-dialog-height': string;
+  '--profile-safety-dialog-left': string;
+  '--profile-safety-dialog-top': string;
+  '--profile-safety-dialog-width': string;
+};
+
+function readProfileSafetyDialogStyle(): ProfileSafetyDialogStyle | undefined {
+  const viewport = window.visualViewport;
+
+  if (!viewport) {
+    return undefined;
+  }
+
+  const left = Math.max(0, viewport.offsetLeft);
+  const top = Math.max(0, viewport.offsetTop);
+  const visibleBottom = top + viewport.height;
+  const bottomNav = document.querySelector<HTMLElement>('[data-testid="bottom-nav-pill"]')?.closest('nav');
+  const bottomNavTop = bottomNav?.getBoundingClientRect().top;
+  const bottom = typeof bottomNavTop === 'number' && bottomNavTop > top && bottomNavTop < visibleBottom
+    ? bottomNavTop
+    : visibleBottom;
+
+  return {
+    '--profile-safety-dialog-height': `${Math.max(0, bottom - top)}px`,
+    '--profile-safety-dialog-left': `${left}px`,
+    '--profile-safety-dialog-top': `${top}px`,
+    '--profile-safety-dialog-width': `${Math.max(0, viewport.width)}px`,
+  };
+}
+
+function useProfileSafetyDialogStyle() {
+  const [style, setStyle] = useState<ProfileSafetyDialogStyle | undefined>(() => (
+    typeof window === 'undefined' ? undefined : readProfileSafetyDialogStyle()
+  ));
+
+  useEffect(() => {
+    const viewport = window.visualViewport;
+
+    if (!viewport) {
+      return undefined;
+    }
+
+    const update = () => setStyle(readProfileSafetyDialogStyle());
+    update();
+    viewport.addEventListener('resize', update);
+    viewport.addEventListener('scroll', update);
+    window.addEventListener('resize', update);
+
+    return () => {
+      viewport.removeEventListener('resize', update);
+      viewport.removeEventListener('scroll', update);
+      window.removeEventListener('resize', update);
+    };
+  }, []);
+
+  return style;
+}
+
 export type ProfileViewModel = {
   id: string;
   name: string;
@@ -232,6 +291,7 @@ export default function ProfileView() {
   const dlModeActive = useDlMode();
   const [expandedPhoto, setExpandedPhoto] = useState<string | null>(null);
   const [pinTokenValid, setPinTokenValid] = useState(false);
+  const profileSafetyDialogStyle = useProfileSafetyDialogStyle();
 
   useEffect(() => {
     if (!expandedPhoto) {
@@ -589,7 +649,9 @@ export default function ProfileView() {
               <>
                 {userId ? (
                   <BlockUserAction
-                    className="h-10 w-10 rounded-full border border-white/12 bg-black/55 text-white backdrop-blur-sm"
+                    className="h-10 w-10 rounded-full border border-white/12 bg-black/55 p-0 text-white backdrop-blur-sm"
+                    dialogClassName="cruush-profile-safety-dialog"
+                    dialogStyle={profileSafetyDialogStyle}
                     displayName={profileView.name}
                     onBlocked={() => {
                       setProfile(null);
@@ -601,6 +663,8 @@ export default function ProfileView() {
                 {userId ? (
                   <ReportAction
                     className="h-10 w-10 rounded-full border border-white/12 bg-black/55 text-white backdrop-blur-sm"
+                    dialogClassName="cruush-profile-safety-dialog"
+                    dialogStyle={profileSafetyDialogStyle}
                     label="Report profile"
                     targetId={userId}
                     targetLabel={profileView.name}

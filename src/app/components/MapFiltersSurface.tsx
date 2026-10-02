@@ -166,8 +166,8 @@ export default function MapFiltersSurface({
       <SheetContent
         closeSide="left"
         side="right"
-        overlayClassName="z-[1090]"
-        className="z-[1100] w-full flex h-full max-h-[100dvh] flex-col gap-0 overflow-hidden border-white/10 bg-background/95 p-0 sm:max-w-xl"
+        overlayClassName="cruush-map-filter-sheet-overlay z-[1090]"
+        className="cruush-map-filter-sheet z-[1100] w-full flex h-full max-h-[100dvh] flex-col gap-0 overflow-hidden border-white/10 bg-background/95 p-0 sm:max-w-xl"
       >
         <SheetHeader className="shrink-0 border-b border-white/10 py-4 pl-14 pr-4">
           <div className="flex min-w-0 items-center gap-3">

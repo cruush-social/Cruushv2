@@ -631,7 +631,9 @@ test('renders a full-width mobile top bar and a centered capped desktop top bar'
   const desktopPage = await desktopContext.newPage();
   try {
     await installAppMocks(desktopPage);
-    await openMap(desktopPage);
+    await desktopPage.goto('/map');
+    await expect(desktopPage.getByTestId('map-home-shell')).toBeVisible();
+    await expect(desktopPage.locator('canvas.maplibregl-canvas')).toBeVisible();
     await expectTopActionSizing(desktopPage, 56, 44, 28, 'desktop-capped');
     await expectSeekingTopSpacing(desktopPage);
   } finally {
@@ -829,6 +831,54 @@ test('selects Seeking and Visibility menu options with real mobile taps', async 
   await expect(page.getByTestId('local-feed-header').getByRole('heading', { name: 'Feed', exact: true })).toBeVisible();
 });
 
+test('keeps the map and Seeking sheet aligned in a short desktop viewport', async ({ browser }) => {
+  const desktopContext = await browser.newContext({
+    baseURL: 'http://127.0.0.1:4173',
+    hasTouch: false,
+    isMobile: false,
+    serviceWorkers: 'block',
+    userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36',
+    viewport: { width: 1440, height: 315 },
+  });
+  const desktopPage = await desktopContext.newPage();
+
+  try {
+    await installAppMocks(desktopPage);
+    await openMap(desktopPage);
+    await desktopPage.getByTestId('map-controls-trigger').click();
+    await expect(desktopPage.getByTestId('map-seeking-button')).toBeVisible();
+    await desktopPage.getByTestId('map-seeking-button').click();
+
+    const sheet = desktopPage.getByRole('dialog', { name: 'Seeking Filter' });
+    await expect(sheet).toBeVisible();
+    await desktopPage.waitForTimeout(550);
+
+    const geometry = await desktopPage.evaluate(() => {
+      const bounds = (selector: string) => {
+        const element = document.querySelector(selector);
+        if (!element) return null;
+        const rect = element.getBoundingClientRect();
+        return { height: rect.height, top: rect.top, bottom: rect.bottom };
+      };
+
+      return {
+        viewportHeight: window.innerHeight,
+        overlay: bounds('[data-slot="sheet-overlay"]'),
+        sheet: bounds('[data-slot="sheet-content"]'),
+        mapSurface: bounds('[data-map-gesture-surface]'),
+        mapCanvas: bounds('canvas.maplibregl-canvas'),
+      };
+    });
+
+    expect(geometry.overlay).toEqual({ height: 315, top: 0, bottom: 315 });
+    expect(geometry.sheet).toEqual({ height: 315, top: 0, bottom: 315 });
+    expect(geometry.mapSurface).toEqual({ height: 315, top: 0, bottom: 315 });
+    expect(geometry.mapCanvas).toEqual({ height: 315, top: 0, bottom: 315 });
+  } finally {
+    await desktopContext.close();
+  }
+});
+
 test('short tap opens the profile and press-and-hold reveals the signal', async ({ page, context }) => {
   const requests = await installAppMocks(page);
   await openMap(page);
@@ -991,4 +1041,50 @@ test('keeps visible controls pointer-reachable across routed user pages', async 
     }
     await expectViewportControlsToReceivePointerInput(page, route);
   }
+});
+
+test('keeps profile Block and Report dialogs inside the Android visual viewport', async ({ context, page }) => {
+  await installAppMocks(page);
+  await page.goto('/profile/nearby-ghost-photo');
+  await expect(page.getByRole('button', { name: 'Block Nearby Photo' })).toBeVisible();
+
+  const cdp = await context.newCDPSession(page);
+  const expectInsideVisualViewport = async (selector: string) => {
+    const readBounds = () => page.locator(selector).evaluate((node) => {
+      const rect = node.getBoundingClientRect();
+      const viewport = window.visualViewport;
+
+      if (!viewport) {
+        return { inside: true };
+      }
+
+      const inside = rect.left >= viewport.offsetLeft
+        && rect.top >= viewport.offsetTop
+        && rect.right <= viewport.offsetLeft + viewport.width
+        && rect.bottom <= viewport.offsetTop + viewport.height;
+      return {
+        inside,
+        dialog: { bottom: rect.bottom, left: rect.left, right: rect.right, top: rect.top },
+        viewport: {
+          bottom: viewport.offsetTop + viewport.height,
+          left: viewport.offsetLeft,
+          right: viewport.offsetLeft + viewport.width,
+          top: viewport.offsetTop,
+        },
+      };
+    });
+    await expect.poll(readBounds).toMatchObject({ inside: true });
+  };
+
+  await page.getByRole('button', { name: 'Block Nearby Photo' }).tap();
+  await expect(page.locator('[data-slot="alert-dialog-content"]')).toBeVisible();
+  await cdp.send('Emulation.setPageScaleFactor', { pageScaleFactor: 1.5 });
+  await expectInsideVisualViewport('[data-slot="alert-dialog-content"]');
+
+  await cdp.send('Emulation.setPageScaleFactor', { pageScaleFactor: 1 });
+  await page.getByRole('button', { name: 'Cancel' }).tap();
+  await page.getByRole('button', { name: 'Report profile' }).tap();
+  await expect(page.locator('[data-slot="dialog-content"]')).toBeVisible();
+  await cdp.send('Emulation.setPageScaleFactor', { pageScaleFactor: 1.5 });
+  await expectInsideVisualViewport('[data-slot="dialog-content"]');
 });

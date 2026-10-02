@@ -1,4 +1,4 @@
-import { useId, useState, type FormEvent } from 'react';
+import { useId, useState, type CSSProperties, type FormEvent } from 'react';
 import { DROPDOWN_TRIGGER_CLASS } from '../lib/controlStyles';
 import { Flag } from 'lucide-react';
 import { toast } from '../lib/toast';
@@ -33,6 +33,7 @@ type ReportActionProps = {
   onRequestReport?: () => void;
   className?: string;
   dialogClassName?: string;
+  dialogStyle?: CSSProperties;
   disabled?: boolean;
   iconOnly?: boolean;
   label?: string;
@@ -49,6 +50,7 @@ export default function ReportAction({
   onRequestReport,
   className,
   dialogClassName,
+  dialogStyle,
   disabled = false,
   iconOnly = true,
   label,
@@ -130,7 +132,7 @@ export default function ReportAction({
         <Flag className="h-4 w-4" />
         {iconOnly ? null : <span>Report</span>}
       </DialogTrigger>
-      <DialogContent className={dialogClassName}>
+      <DialogContent className={dialogClassName} style={dialogStyle}>
         <form className="space-y-5" onSubmit={(event) => void handleSubmit(event)}>
           <DialogHeader>
             <DialogTitle>Report {safeLabel}?</DialogTitle>

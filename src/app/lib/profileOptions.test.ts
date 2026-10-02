@@ -34,6 +34,7 @@ describe('profileOptions', () => {
     expect(optionsFor('Energy')).not.toContain('Raver');
     expect(optionsFor('Scenes')).toContain('Furry');
     expect(optionsFor('Scenes')).toContain('Thespian');
+    expect(optionsFor('Scenes')).not.toContain('Party');
     expect(optionsFor('Scenes')).not.toContain('Wolf');
     expect(optionsFor('Archetypes')).toEqual(
       expect.arrayContaining([

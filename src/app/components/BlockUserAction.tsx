@@ -1,4 +1,4 @@
-import type { MouseEvent } from 'react';
+import type { CSSProperties, MouseEvent } from 'react';
 import { useState } from 'react';
 import { Ban } from 'lucide-react';
 import { toast } from '../lib/toast';
@@ -24,6 +24,8 @@ type BlockUserActionProps = {
   displayName: string;
   onBlocked?: (userId: string) => void;
   className?: string;
+  dialogClassName?: string;
+  dialogStyle?: CSSProperties;
   disabled?: boolean;
   iconOnly?: boolean;
   label?: string;
@@ -36,6 +38,8 @@ export default function BlockUserAction({
   displayName,
   onBlocked,
   className,
+  dialogClassName,
+  dialogStyle,
   disabled = false,
   iconOnly = true,
   label,
@@ -87,7 +91,7 @@ export default function BlockUserAction({
         <Ban className="h-4 w-4" />
         {iconOnly ? null : <span>{blocking ? 'Blocking...' : 'Block'}</span>}
       </AlertDialogTrigger>
-      <AlertDialogContent>
+      <AlertDialogContent className={dialogClassName} style={dialogStyle}>
         <AlertDialogHeader>
           <AlertDialogTitle>Block {safeName}?</AlertDialogTitle>
           <AlertDialogDescription>

@@ -745,7 +745,9 @@ describe('ProfileView', () => {
       </MemoryRouter>
     );
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Block Jordan' }));
+    const blockButton = await screen.findByRole('button', { name: 'Block Jordan' });
+    expect(blockButton).toHaveClass('p-0');
+    fireEvent.click(blockButton);
 
     expect(screen.getByText('Block Jordan?')).toBeInTheDocument();
     expect(screen.getByText(/They will no longer be able to interact with you/)).toBeInTheDocument();

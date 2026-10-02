@@ -144,7 +144,7 @@ header :is(h1, h2)[class] {
 }
 
 /* Mobile and tablet use fullscreen framing, except the content-sized Pulse popup. */
-html[data-cruush-page-framing="fullscreen"] :is([data-slot="dialog-content"], [data-slot="sheet-content"], [data-slot="alert-dialog-content"]):not([data-testid="alpha-bug-dialog"]):not([data-testid="map-ping-sheet"]) {
+html[data-cruush-page-framing="fullscreen"] :is([data-slot="dialog-content"], [data-slot="sheet-content"], [data-slot="alert-dialog-content"]):not([data-testid="alpha-bug-dialog"]):not([data-testid="map-ping-sheet"]):not(.cruush-profile-safety-dialog) {
   position: fixed !important;
   inset: 0 !important;
   width: 100vw !important;
@@ -1943,15 +1943,48 @@ html[data-cruush-page-framing] :is([data-slot="dialog-overlay"], [data-slot="she
   bottom: var(--cruush-nav-clearance, 6rem) !important;
 }
 
-html[data-cruush-page-framing="fullscreen"] :is([data-slot="dialog-content"], [data-slot="sheet-content"], [data-slot="alert-dialog-content"]):not([data-testid="alpha-bug-dialog"]):not([data-testid="map-ping-sheet"]):not([data-slot="sheet-content"].inset-y-0) {
+html[data-cruush-page-framing="fullscreen"] :is([data-slot="dialog-content"], [data-slot="sheet-content"], [data-slot="alert-dialog-content"]):not([data-testid="alpha-bug-dialog"]):not([data-testid="map-ping-sheet"]):not([data-slot="sheet-content"].inset-y-0):not(.cruush-profile-safety-dialog) {
   bottom: var(--cruush-nav-clearance, 6rem) !important;
   height: calc(100dvh - var(--cruush-nav-clearance, 6rem)) !important;
   max-height: calc(100dvh - var(--cruush-nav-clearance, 6rem)) !important;
 }
 
+/* A zoomed Android page has a smaller, movable visual viewport inside the
+   layout viewport. Keep only the profile safety dialogs inside that visible
+   area; their normal unzoomed geometry remains the full area above the nav. */
+html[data-cruush-page-framing="fullscreen"] .cruush-profile-safety-dialog {
+  inset: auto !important;
+  top: var(--profile-safety-dialog-top, 0px) !important;
+  left: var(--profile-safety-dialog-left, 0px) !important;
+  width: var(--profile-safety-dialog-width, 100vw) !important;
+  min-width: 0 !important;
+  max-width: var(--profile-safety-dialog-width, 100vw) !important;
+  height: var(--profile-safety-dialog-height, calc(100dvh - var(--cruush-nav-clearance, 6rem))) !important;
+  min-height: 0 !important;
+  max-height: var(--profile-safety-dialog-height, calc(100dvh - var(--cruush-nav-clearance, 6rem))) !important;
+  margin: 0 !important;
+  transform: none !important;
+  translate: none !important;
+}
+
 html[data-cruush-page-framing="desktop"] [data-slot="sheet-content"].inset-y-0 {
   bottom: var(--cruush-nav-clearance, 6rem) !important;
   max-height: calc(100dvh - var(--cruush-nav-clearance, 6rem)) !important;
+}
+
+/* Map sheets sit over a map route, which has no bottom navigation to clear.
+   Keep their overlay and content aligned to the actual viewport edge. */
+html[data-cruush-page-framing] [data-slot="sheet-overlay"].cruush-map-filter-sheet-overlay,
+html[data-cruush-page-framing] [data-slot="sheet-content"].cruush-map-filter-sheet.inset-y-0 {
+  bottom: 0 !important;
+}
+
+html[data-cruush-page-framing] [data-slot="sheet-content"].cruush-map-filter-sheet.inset-y-0 {
+  max-height: 100dvh !important;
+}
+
+html[data-cruush-page-framing="fullscreen"] [data-slot="sheet-content"].cruush-map-filter-sheet.inset-y-0:not([data-testid="alpha-bug-dialog"]):not([data-testid="map-ping-sheet"]):not(.cruush-profile-safety-dialog) {
+  bottom: 0 !important;
 }
 
 html[data-cruush-page-framing="desktop"] :is([data-slot="dialog-content"], [data-slot="alert-dialog-content"]):not([data-testid="alpha-bug-dialog"]) {
