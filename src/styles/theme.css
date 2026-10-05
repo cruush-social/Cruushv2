@@ -146,7 +146,7 @@ header :is(h1, h2)[class] {
 }
 
 /* Mobile and tablet use fullscreen framing, except the content-sized Pulse popup. */
-html[data-cruush-page-framing="fullscreen"] :is([data-slot="dialog-content"], [data-slot="sheet-content"], [data-slot="alert-dialog-content"]):not([data-testid="alpha-bug-dialog"]):not([data-testid="map-ping-sheet"]):not(.cruush-profile-safety-dialog) {
+html[data-cruush-page-framing="fullscreen"] :is([data-slot="dialog-content"], [data-slot="sheet-content"], [data-slot="alert-dialog-content"]):not([data-testid="alpha-bug-dialog"]):not([data-testid="map-ping-sheet"]):not(.cruush-profile-safety-dialog):not(.cruush-settings-delete-dialog-constrained) {
   position: fixed !important;
   inset: 0 !important;
   width: 100vw !important;
@@ -1945,7 +1945,7 @@ html[data-cruush-page-framing] :is([data-slot="dialog-overlay"], [data-slot="she
   bottom: var(--cruush-nav-clearance, 6rem) !important;
 }
 
-html[data-cruush-page-framing="fullscreen"] :is([data-slot="dialog-content"], [data-slot="sheet-content"], [data-slot="alert-dialog-content"]):not([data-testid="alpha-bug-dialog"]):not([data-testid="map-ping-sheet"]):not([data-slot="sheet-content"].inset-y-0):not(.cruush-profile-safety-dialog) {
+html[data-cruush-page-framing="fullscreen"] :is([data-slot="dialog-content"], [data-slot="sheet-content"], [data-slot="alert-dialog-content"]):not([data-testid="alpha-bug-dialog"]):not([data-testid="map-ping-sheet"]):not([data-slot="sheet-content"].inset-y-0):not(.cruush-profile-safety-dialog):not(.cruush-settings-delete-dialog-constrained) {
   bottom: var(--cruush-nav-clearance, 6rem) !important;
   height: calc(100dvh - var(--cruush-nav-clearance, 6rem)) !important;
   max-height: calc(100dvh - var(--cruush-nav-clearance, 6rem)) !important;
@@ -1967,6 +1967,46 @@ html[data-cruush-page-framing="fullscreen"] .cruush-profile-safety-dialog {
   margin: 0 !important;
   transform: none !important;
   translate: none !important;
+}
+
+/* Keep account-deletion controls inside iPhone Safari's visible viewport while
+   its keyboard is open. The fields may scroll, but the existing action row
+   remains reachable without changing the dialog's controls or copy. */
+html[data-cruush-page-framing="fullscreen"] .cruush-settings-delete-dialog-constrained {
+  inset: auto !important;
+  top: var(--settings-delete-dialog-top, 0px) !important;
+  left: var(--settings-delete-dialog-left, 0px) !important;
+  display: flex !important;
+  width: var(--settings-delete-dialog-width, 100vw) !important;
+  min-width: 0 !important;
+  max-width: var(--settings-delete-dialog-width, 100vw) !important;
+  height: var(--settings-delete-dialog-height, calc(100dvh - var(--cruush-nav-clearance, 6rem))) !important;
+  min-height: 0 !important;
+  max-height: var(--settings-delete-dialog-height, calc(100dvh - var(--cruush-nav-clearance, 6rem))) !important;
+  flex-direction: column;
+  overflow: hidden;
+  margin: 0 !important;
+  transform: none !important;
+  translate: none !important;
+}
+
+html[data-cruush-page-framing="fullscreen"] .cruush-settings-delete-dialog-constrained .cruush-settings-delete-form {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+html[data-cruush-page-framing="fullscreen"] .cruush-settings-delete-dialog-constrained .cruush-settings-delete-fields {
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+html[data-cruush-page-framing="fullscreen"] .cruush-settings-delete-dialog-constrained .cruush-settings-delete-footer {
+  flex-shrink: 0;
 }
 
 html[data-cruush-page-framing="desktop"] [data-slot="sheet-content"].inset-y-0 {

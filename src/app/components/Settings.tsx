@@ -119,6 +119,70 @@ type SettingsProps = {
   onOpenMileHighClub?: () => void;
 };
 
+type DeleteDialogViewportStyle = CSSProperties & {
+  '--settings-delete-dialog-height': string;
+  '--settings-delete-dialog-left': string;
+  '--settings-delete-dialog-top': string;
+  '--settings-delete-dialog-width': string;
+};
+
+function readDeleteDialogViewportStyle(): DeleteDialogViewportStyle | undefined {
+  const viewport = window.visualViewport;
+
+  if (!viewport) {
+    return undefined;
+  }
+
+  const left = Math.max(0, viewport.offsetLeft);
+  const top = Math.max(0, viewport.offsetTop);
+  const visibleBottom = top + viewport.height;
+  const bottomNav = document.querySelector<HTMLElement>('[data-testid="bottom-nav-pill"]')?.closest('nav');
+  const bottomNavTop = bottomNav?.getBoundingClientRect().top;
+  const bottom = typeof bottomNavTop === 'number' && bottomNavTop > top && bottomNavTop < visibleBottom
+    ? bottomNavTop
+    : visibleBottom;
+
+  return {
+    '--settings-delete-dialog-height': `${Math.max(0, bottom - top)}px`,
+    '--settings-delete-dialog-left': `${left}px`,
+    '--settings-delete-dialog-top': `${top}px`,
+    '--settings-delete-dialog-width': `${Math.max(0, viewport.width)}px`,
+  };
+}
+
+function useDeleteDialogViewportStyle(open: boolean) {
+  const [state, setState] = useState<{
+    constrained: boolean;
+    style?: DeleteDialogViewportStyle;
+  }>({ constrained: false });
+
+  useEffect(() => {
+    const viewport = window.visualViewport;
+
+    if (!open || !viewport) {
+      setState({ constrained: false });
+      return undefined;
+    }
+
+    const update = () => setState({
+      constrained: window.innerHeight - viewport.height - viewport.offsetTop >= 120,
+      style: readDeleteDialogViewportStyle(),
+    });
+    update();
+    viewport.addEventListener('resize', update);
+    viewport.addEventListener('scroll', update);
+    window.addEventListener('resize', update);
+
+    return () => {
+      viewport.removeEventListener('resize', update);
+      viewport.removeEventListener('scroll', update);
+      window.removeEventListener('resize', update);
+    };
+  }, [open]);
+
+  return state;
+}
+
 export default function Settings({ embedded = false, onBack, onClose, onOpenMileHighClub }: SettingsProps = {}) {
   const navigate = useNavigate();
   const [showCodeOfConduct, setShowCodeOfConduct] = useState(false);
@@ -144,6 +208,7 @@ export default function Settings({ embedded = false, onBack, onClose, onOpenMile
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const deleteDialogViewport = useDeleteDialogViewportStyle(isDeleteDialogOpen);
   const storedUser = useMemo(() => getStoredCurrentUser(), []);
   const [accessibilityPreferences, setAccessibilityPreferences] = useState(getAccessibilityPreferences);
   const [previewUrl, setPreviewUrlState] = useState(() => getVerificationPreviewUrl());
@@ -978,7 +1043,10 @@ export default function Settings({ embedded = false, onBack, onClose, onOpenMile
           }
         }}
       >
-        <AlertDialogContent>
+        <AlertDialogContent
+          className={`cruush-settings-delete-dialog${deleteDialogViewport.constrained ? ' cruush-settings-delete-dialog-constrained' : ''}`}
+          style={deleteDialogViewport.style}
+        >
           <AlertDialogHeader>
             <AlertDialogTitle>Delete account</AlertDialogTitle>
             <AlertDialogDescription>
@@ -986,38 +1054,40 @@ export default function Settings({ embedded = false, onBack, onClose, onOpenMile
             </AlertDialogDescription>
           </AlertDialogHeader>
 
-          <form className="space-y-4" onSubmit={handleDeleteAccount}>
-            {deleteError ? (
-              <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
-                {deleteError}
+          <form className="cruush-settings-delete-form space-y-4" onSubmit={handleDeleteAccount}>
+            <div className="cruush-settings-delete-fields scrollbar-hide space-y-4">
+              {deleteError ? (
+                <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+                  {deleteError}
+                </div>
+              ) : null}
+
+              <div className="space-y-2">
+                <Label htmlFor="settings-delete-password">Password</Label>
+                <Input
+                  autoComplete="current-password"
+                  disabled={isDeletingAccount}
+                  id="settings-delete-password"
+                  onChange={(event) => setDeletePassword(event.target.value)}
+                  required
+                  type="password"
+                  value={deletePassword}
+                />
               </div>
-            ) : null}
 
-            <div className="space-y-2">
-              <Label htmlFor="settings-delete-password">Password</Label>
-              <Input
-                autoComplete="current-password"
-                disabled={isDeletingAccount}
-                id="settings-delete-password"
-                onChange={(event) => setDeletePassword(event.target.value)}
-                required
-                type="password"
-                value={deletePassword}
-              />
+              <div className="space-y-2">
+                <Label htmlFor="settings-delete-confirmation">Type DELETE</Label>
+                <Input
+                  disabled={isDeletingAccount}
+                  id="settings-delete-confirmation"
+                  onChange={(event) => setDeleteConfirmation(event.target.value)}
+                  required
+                  value={deleteConfirmation}
+                />
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="settings-delete-confirmation">Type DELETE</Label>
-              <Input
-                disabled={isDeletingAccount}
-                id="settings-delete-confirmation"
-                onChange={(event) => setDeleteConfirmation(event.target.value)}
-                required
-                value={deleteConfirmation}
-              />
-            </div>
-
-            <AlertDialogFooter>
+            <AlertDialogFooter className="cruush-settings-delete-footer">
               <AlertDialogCancel disabled={isDeletingAccount} type="button">
                 Cancel
               </AlertDialogCancel>

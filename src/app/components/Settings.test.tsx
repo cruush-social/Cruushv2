@@ -9,6 +9,8 @@ import {
 } from '../lib/accessibilityPreferences';
 import { DESKTOP_PAGE_LAYOUT_STORAGE_KEY } from '../lib/desktopPageLayoutPreferences';
 
+const originalVisualViewport = Object.getOwnPropertyDescriptor(window, 'visualViewport');
+
 const { getMyPrivacySettings, saveMyPrivacySettings } = vi.hoisted(() => ({
   getMyPrivacySettings: vi.fn(),
   saveMyPrivacySettings: vi.fn(),
@@ -157,6 +159,11 @@ describe('Settings', () => {
     document.documentElement.removeAttribute('data-cruush-high-contrast');
     document.documentElement.removeAttribute('data-cruush-larger-text');
     document.documentElement.removeAttribute('data-cruush-reduce-motion');
+    if (originalVisualViewport) {
+      Object.defineProperty(window, 'visualViewport', originalVisualViewport);
+    } else {
+      delete (window as { visualViewport?: VisualViewport }).visualViewport;
+    }
   });
 
   it('does not expose Safety Center or Ghost Mode switches in the general settings menu', async () => {
@@ -484,6 +491,54 @@ describe('Settings', () => {
       confirmation: 'DELETE',
     }));
     expect(clearCurrentUser).toHaveBeenCalled();
+  });
+
+  it('keeps account-deletion actions inside the changing iPhone visual viewport', async () => {
+    const listeners = new Map<string, Set<EventListener>>();
+    const visualViewport = {
+      width: 393,
+      height: 420,
+      offsetLeft: 0,
+      offsetTop: 0,
+      addEventListener: (type: string, listener: EventListener) => {
+        const current = listeners.get(type) ?? new Set<EventListener>();
+        current.add(listener);
+        listeners.set(type, current);
+      },
+      removeEventListener: (type: string, listener: EventListener) => {
+        listeners.get(type)?.delete(listener);
+      },
+    } as unknown as VisualViewport;
+
+    Object.defineProperty(window, 'visualViewport', {
+      configurable: true,
+      value: visualViewport,
+    });
+
+    render(
+      <MemoryRouter>
+        <Settings />
+      </MemoryRouter>
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete account' }));
+    const dialog = await screen.findByRole('alertdialog', { name: 'Delete account' });
+
+    expect(dialog).toHaveClass('cruush-settings-delete-dialog', 'cruush-settings-delete-dialog-constrained');
+    expect(dialog.style.getPropertyValue('--settings-delete-dialog-width')).toBe('393px');
+    expect(dialog.style.getPropertyValue('--settings-delete-dialog-height')).toBe('420px');
+    expect(dialog.querySelector('.cruush-settings-delete-fields')).toBeInTheDocument();
+    expect(dialog.querySelector('.cruush-settings-delete-footer')).toBeInTheDocument();
+
+    Object.assign(visualViewport, { height: 320, offsetTop: 24 });
+    act(() => {
+      listeners.get('resize')?.forEach((listener) => listener(new Event('resize')));
+    });
+
+    await waitFor(() => {
+      expect(dialog.style.getPropertyValue('--settings-delete-dialog-height')).toBe('320px');
+      expect(dialog.style.getPropertyValue('--settings-delete-dialog-top')).toBe('24px');
+    });
   });
 
   it('dispatches an install request from its own settings row', async () => {

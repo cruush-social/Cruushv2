@@ -30,6 +30,26 @@ describe('shared app header typography', () => {
   });
 });
 
+describe('account deletion dialog viewport', () => {
+  it('lets the keyboard-constrained dialog override fullscreen framing', () => {
+    const fullscreenRules = themeCss.match(/html\[data-cruush-page-framing="fullscreen"\][^{]+\{[^}]+\}/g) ?? [];
+    const genericDialogRules = fullscreenRules.filter((rule) => (
+      rule.includes('[data-slot="alert-dialog-content"]')
+      && rule.includes('cruush-profile-safety-dialog')
+    ));
+
+    expect(genericDialogRules.length).toBeGreaterThanOrEqual(2);
+    expect(genericDialogRules.every((rule) => (
+      rule.includes(':not(.cruush-settings-delete-dialog-constrained)')
+    ))).toBe(true);
+    expect(themeCss).toContain(
+      'height: var(--settings-delete-dialog-height, calc(100dvh - var(--cruush-nav-clearance, 6rem))) !important;',
+    );
+    expect(themeCss).toContain('.cruush-settings-delete-dialog-constrained .cruush-settings-delete-fields');
+    expect(themeCss).toContain('.cruush-settings-delete-dialog-constrained .cruush-settings-delete-footer');
+  });
+});
+
 describe('cruush+ map button sheen', () => {
   it('keeps the v2 sweep and reduced-motion fallback available', () => {
     expect(themeCss).toContain('.cruush-plus-shimmer-button::before');
