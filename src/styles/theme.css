@@ -1990,6 +1990,13 @@ html[data-cruush-page-framing="fullscreen"] .cruush-settings-delete-dialog-const
   translate: none !important;
 }
 
+/* Keep this as an explicit zero rather than `none`: the production CSS
+   optimizer folds `none` into transform, allowing Tailwind's translate
+   longhand to move this dialog back off-screen. */
+html[data-cruush-page-framing="fullscreen"] .cruush-settings-delete-dialog {
+  translate: 0 0 !important;
+}
+
 html[data-cruush-page-framing="fullscreen"] .cruush-settings-delete-dialog-constrained .cruush-settings-delete-form {
   display: flex;
   min-height: 0;

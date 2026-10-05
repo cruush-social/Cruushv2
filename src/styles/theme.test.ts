@@ -45,6 +45,7 @@ describe('account deletion dialog viewport', () => {
     expect(themeCss).toContain(
       'height: var(--settings-delete-dialog-height, calc(100dvh - var(--cruush-nav-clearance, 6rem))) !important;',
     );
+    expect(themeCss).toContain('.cruush-settings-delete-dialog {\n  translate: 0 0 !important;');
     expect(themeCss).toContain('.cruush-settings-delete-dialog-constrained .cruush-settings-delete-fields');
     expect(themeCss).toContain('.cruush-settings-delete-dialog-constrained .cruush-settings-delete-footer');
   });
