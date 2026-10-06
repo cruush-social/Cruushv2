@@ -4,6 +4,10 @@ The notched cruush logo is rejected for every app use, including installed home-
 
 # cruush design decisions
 
+- October 5 owner-only Club creation: “make the create club button appear above the option to add mutuals, no other members needed for creation tho.” The Club composer places `Create Club` above the optional initial-cruush picker, and a creator may publish a Club with no other initial members.
+
+- October 5 Club chat identity: “No preview pic for clubs up top just name” and “No club capsule or tag ones please.” Linked Club chat headers show the Club name without a preview image or `CLUB` pill, and the chat surface does not repeat Club tag pills. The member count, header actions, description, messages, notification controls, composer, and bottom navigation remain in place.
+
 - October 1 Clubs direction: “Clubs should be searchable by tags lets just do that for now.” The first Clubs slice began with tag persistence and authenticated tag-based directory search. Julien then authorized the Messages Clubs tab, Club detail, direct-message sharing, and pending join requests below. On October 2, “there's a clubs tab but nothing there, no way to make a club or browse them” corrected the incomplete tab: it must browse published Clubs without requiring a tag first and provide Club creation.
 
 - October 2 Club navigation and previews: “the feel ogthe clubs houild be more like a group even as an admin, i should just go into the club not an admin page even as admin, but there is the admin setting menu.” Joined Clubs open their linked Club chat for every member role, including owner/admin. Club metadata editing and join-request review live in that chat's existing Conversation settings. `My Clubs` previews show the latest posted message when one exists; owner/admin previews also show new join-request counts.

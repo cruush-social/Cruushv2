@@ -34,9 +34,8 @@ const clubMetadataShape = {
 export const createClubPayloadSchema = z.object({
   ...clubMetadataShape,
   visibilityRules: profileVisibilityRulesSchema.optional(),
-  memberIds: z.array(z.uuid()).min(1).max(1000)
+  memberIds: z.array(z.uuid()).max(999)
     .transform((ids) => Array.from(new Set(ids)))
-    .refine((ids) => ids.length > 0, "At least one other member is required.")
 }).strict();
 
 export const updateClubPayloadSchema = z.object(clubMetadataShape).strict();

@@ -74,6 +74,18 @@ describe("encrypted Club directory routes", () => {
     expect(query.mock.calls.slice(1).every((call) => !JSON.stringify(call[1]).includes(memberId))).toBe(true);
   });
 
+  it("creates a Club with only its owner", async () => {
+    query.mockResolvedValueOnce({ rows: [{ id: clubId, conversation_id: conversationId }] }).mockResolvedValue({ rows: [] });
+    const response = await app.inject({ method: "POST", url: "/api/clubs", headers: { "x-user-id": userId }, payload: { title: "Night Garden", summary: "A Club for night people.", tags: ["nightlife"], memberIds: [] } });
+    expect(response.statusCode).toBe(201);
+    expect(response.json().data.memberCount).toBe(1);
+    expect(mocks.getRelationshipPermissions).not.toHaveBeenCalled();
+    expect(mocks.upsertClubEnrollment).toHaveBeenCalledTimes(1);
+    expect(mocks.upsertClubEnrollment).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ userId, role: "owner" }));
+    expect(query.mock.calls.slice(1)).toHaveLength(1);
+    expect(String(query.mock.calls[1]?.[0])).toContain("member_index");
+  });
+
   it("returns detail membership from encrypted records", async () => {
     query.mockResolvedValueOnce({ rows: [rawClub()] });
     mocks.findClubEnrollment.mockResolvedValueOnce(enrollment(userId, "member")).mockResolvedValueOnce(null);

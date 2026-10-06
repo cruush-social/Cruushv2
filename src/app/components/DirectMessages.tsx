@@ -633,7 +633,7 @@ export default function DirectMessages({
   };
 
   const handleCreateClub = async () => {
-    if (!clubName.trim() || !clubSummary.trim() || clubTags.length === 0 || selectedClubMemberIds.length === 0 || clubCreating) return;
+    if (!clubName.trim() || !clubSummary.trim() || clubTags.length === 0 || clubCreating) return;
     setClubCreating(true);
     setClubError(null);
     try {
@@ -1138,6 +1138,16 @@ export default function DirectMessages({
               Visibility Controls
             </Button>
 
+            <TrustRestrictionNotice message={trust.message('group_creation', 'Club creation')} />
+            <Button
+              type="button"
+              className="w-full"
+              disabled={!clubName.trim() || !clubSummary.trim() || clubTags.length === 0 || clubCreating || trust.restricted('group_creation')}
+              onClick={() => void handleCreateClub()}
+            >
+              Create Club
+            </Button>
+
             <div className="space-y-3">
               <p className="text-sm text-muted-foreground">Cruushes</p>
               <div className="relative">
@@ -1200,16 +1210,6 @@ export default function DirectMessages({
                 })}
               </div>
             </div>
-
-            <TrustRestrictionNotice message={trust.message('group_creation', 'Club creation')} />
-            <Button
-              type="button"
-              className="w-full"
-              disabled={!clubName.trim() || !clubSummary.trim() || clubTags.length === 0 || selectedClubMemberIds.length === 0 || clubCreating || trust.restricted('group_creation')}
-              onClick={() => void handleCreateClub()}
-            >
-              Create Club
-            </Button>
           </div>
         </div>
       ) : null}

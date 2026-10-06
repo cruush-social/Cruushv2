@@ -1541,7 +1541,11 @@ describe('PrivateGroupChat', () => {
       </MemoryRouter>,
     );
 
-    expect(await screen.findByText('Club')).toBeInTheDocument();
+    const header = await screen.findByTestId('chat-thread-header');
+    expect(within(header).getByText('Brooklyn techno')).toBeInTheDocument();
+    expect(within(header).queryByText('Club')).not.toBeInTheDocument();
+    expect(within(header).queryByLabelText('Brooklyn techno avatar')).not.toBeInTheDocument();
+    expect(screen.queryByText('#techno')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Share Club' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Edit Club' })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Conversation settings' }));

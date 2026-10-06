@@ -438,9 +438,6 @@ export async function registerClubRoutes(app: FastifyInstance) {
       throw new ApiError(403, "CRUUSH_PLUS_REQUIRED", "cruush+ is required to create a Club.");
     }
     const memberIds = payload.memberIds.filter((memberId) => memberId !== userId);
-    if (memberIds.length === 0) {
-      throw new ApiError(400, "VALIDATION_ERROR", "Choose at least one other cruush.");
-    }
     if (memberIds.length >= MAX_CLUB_MEMBERS) {
       throw new ApiError(400, "VALIDATION_ERROR", `Clubs can have at most ${MAX_CLUB_MEMBERS} members.`);
     }
@@ -464,7 +461,7 @@ export async function registerClubRoutes(app: FastifyInstance) {
          left join user_trust_profiles trust on trust.user_id = u.id
          where u.id = $1
            and (
-             lower(u.email) = $6
+             lower(u.email) = $5
              or (
                coalesce(trust.is_suspended, false) = false
                and coalesce(trust.trust_score, 50) > 20
@@ -485,7 +482,6 @@ export async function registerClubRoutes(app: FastifyInstance) {
          insert into conversations (kind, title, tags, created_by)
          select 'group', $2, $4::text[], id
          from eligible_creator
-         where exists (select 1 from app_users where id = any($5::uuid[]) and id <> $1)
          returning id
        ), inserted_club as (
          insert into clubs (
@@ -494,11 +490,11 @@ export async function registerClubRoutes(app: FastifyInstance) {
            visibility_key_version, visibility_token_key_version
          )
          select $2, $3, true, inserted_conversation.id,
-                coalesce($7, eligible_creator.profile_visibility_ciphertext),
-                coalesce($8, eligible_creator.profile_visibility_nonce),
-                coalesce($9, eligible_creator.profile_visibility_auth_tag),
-                coalesce($10, eligible_creator.profile_visibility_key_version, 'v1'),
-                coalesce($11, eligible_creator.profile_visibility_token_key_version, 'v1')
+                coalesce($6, eligible_creator.profile_visibility_ciphertext),
+                coalesce($7, eligible_creator.profile_visibility_nonce),
+                coalesce($8, eligible_creator.profile_visibility_auth_tag),
+                coalesce($9, eligible_creator.profile_visibility_key_version, 'v1'),
+                coalesce($10, eligible_creator.profile_visibility_token_key_version, 'v1')
          from inserted_conversation cross join eligible_creator
          returning id, conversation_id
        ), inserted_tags as (
@@ -511,7 +507,6 @@ export async function registerClubRoutes(app: FastifyInstance) {
         payload.title,
         payload.summary,
         payload.tags,
-        memberIds,
         OWNER_FULL_ACCESS_EMAIL,
         requestedVisibility?.profile_visibility_ciphertext ?? null,
         requestedVisibility?.profile_visibility_nonce ?? null,

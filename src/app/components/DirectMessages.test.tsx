@@ -106,7 +106,7 @@ describe('DirectMessages', () => {
     createClub.mockReset();
   });
 
-  it('browses Clubs without a tag and creates one with a mutual cruush', async () => {
+  it('browses Clubs without a tag and creates an owner-only Club before choosing cruushes', async () => {
     getConversations.mockResolvedValue([]);
     getMyCruushActivity.mockResolvedValue({
       mutual: [{
@@ -136,7 +136,7 @@ describe('DirectMessages', () => {
       tags: ['techno', 'leather'],
       currentUserRole: 'owner',
       conversationId: '44444444-4444-4444-8444-444444444444',
-      memberCount: 2,
+      memberCount: 1,
       joinRequestStatus: 'member',
     });
     const fetchMock = vi.fn().mockResolvedValue({
@@ -171,15 +171,17 @@ describe('DirectMessages', () => {
       fireEvent.keyDown(screen.getByLabelText('Club tags'), { key: 'Enter' });
       fireEvent.change(screen.getByLabelText('Club tags'), { target: { value: '#Leather' } });
       fireEvent.keyDown(screen.getByLabelText('Club tags'), { key: 'Enter' });
-      fireEvent.click(screen.getByRole('button', { name: 'Add River to Club' }));
       const clubComposer = screen.getByRole('heading', { name: 'New Club' }).closest('.fixed');
-      fireEvent.click(within(clubComposer as HTMLElement).getByRole('button', { name: 'Create Club' }));
+      const createButton = within(clubComposer as HTMLElement).getByRole('button', { name: 'Create Club' });
+      const cruushSearch = within(clubComposer as HTMLElement).getByLabelText('Search cruushes for Club');
+      expect(createButton.compareDocumentPosition(cruushSearch) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      fireEvent.click(createButton);
 
       await waitFor(() => expect(createClub).toHaveBeenCalledWith(expect.objectContaining({
         title: 'Brooklyn techno',
         summary: 'A Club for local dancers.',
         tags: ['techno', 'leather'],
-        memberIds: ['53fd68d7-24fc-4cff-8cd7-a97ec0cadf97'],
+        memberIds: [],
         visibilityRules: expect.any(Object),
       })));
       expect(screen.getByText('Created Club chat')).toBeInTheDocument();

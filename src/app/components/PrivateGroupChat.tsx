@@ -1161,7 +1161,7 @@ export default function PrivateGroupChat({
               <ArrowLeft className="w-5 h-5" />
             </Button>
 
-            {conversation ? (
+            {conversation?.clubId ? null : conversation ? (
               <HeartPhoto
                 className="w-16 shrink-0 sm:w-20"
                 label={`${conversation.user.name} avatar`}
@@ -1186,9 +1186,9 @@ export default function PrivateGroupChat({
                 <>
                   <div className="flex items-center gap-2">
                     <h2 className="min-w-0 flex-1 truncate text-lg">{conversation.user.name}</h2>
-                    {conversation.kind === 'group' ? (
+                    {conversation.kind === 'group' && !conversation.clubId ? (
                       <Badge variant="outline" className="border-border/80 bg-card/60 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-                        {conversation.clubId ? 'Club' : 'Group'}
+                        Group
                       </Badge>
                     ) : null}
 
@@ -1587,13 +1587,15 @@ export default function PrivateGroupChat({
 
         {conversation ? (
           <>
-            <div className="mb-4 flex flex-wrap gap-2">
-              {conversation.tags.map((tag) => (
-                <Badge key={tag} variant="outline" className="border-primary/20 bg-primary/10 text-primary">
-                  {conversation.clubId ? `#${tag}` : tag}
-                </Badge>
-              ))}
-            </div>
+            {!conversation.clubId ? (
+              <div className="mb-4 flex flex-wrap gap-2">
+                {conversation.tags.map((tag) => (
+                  <Badge key={tag} variant="outline" className="border-primary/20 bg-primary/10 text-primary">
+                    {tag}
+                  </Badge>
+                ))}
+              </div>
+            ) : null}
 
             <div className="rounded-3xl border border-border bg-card/70 p-3 text-sm text-muted-foreground">
               Keep specifics here until you both want to move.
