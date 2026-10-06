@@ -22,7 +22,7 @@ describe('Changelog', () => {
     getUserNoticeDismissal.mockResolvedValue({ dismissed: true, dismissedAt: '2026-08-09T12:00:00.000Z' });
   });
 
-  it('shows v1.8 before the preserved earlier history', () => {
+  it('shows v1.9 before the preserved earlier history', () => {
     render(
       <MemoryRouter>
         <Changelog />
@@ -30,6 +30,7 @@ describe('Changelog', () => {
     );
 
     expect(screen.getAllByRole('heading', { level: 3 }).map((heading) => heading.textContent)).toEqual([
+      'cruush v1.9',
       'cruush v1.8',
       'cruush v1.7',
       'cruush v1.6',
@@ -38,6 +39,12 @@ describe('Changelog', () => {
       'cruush v1.2',
       'cruush v1.1',
     ]);
+    const v19Section = screen.getByRole('heading', { level: 3, name: 'cruush v1.9' }).closest('section');
+    expect(v19Section).not.toBeNull();
+    expect(v19Section?.textContent ?? '').toMatch(/Browse persistent Clubs from Messages/i);
+    expect(v19Section?.textContent ?? '').toMatch(/linked chat/i);
+    expect(v19Section?.textContent ?? '').toMatch(/encrypted storage/i);
+    expect(v19Section?.textContent ?? '').toMatch(/111 Kink icons and 333 Vibe icons/i);
     const v18Section = screen.getByRole('heading', { level: 3, name: 'cruush v1.8' }).closest('section');
     expect(v18Section).not.toBeNull();
     expect(v18Section?.textContent ?? '').toMatch(/Pay for cruush\+ or Pulse with Bitcoin/i);

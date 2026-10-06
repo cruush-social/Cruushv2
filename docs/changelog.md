@@ -1,5 +1,14 @@
 # cruush changelog
 
+## Release 1.9 (October 5, 2026)
+
+- Browse persistent Clubs from Messages with separate My Clubs and Browse Clubs views.
+- cruush+ members can create a Club with a mutual cruush, choose its visibility, and add searchable tags.
+- Each Club has a linked chat, member roles, moderation controls, sharing, and join-request review.
+- Club membership records and private application answers now use encrypted storage.
+- The Badge picker adds 111 Kink icons and 333 Vibe icons, searchable by name or category.
+- Side-badge choices and short titles stay with your profile and appear on map hearts.
+
 ## Release 1.8 (September 25, 2026)
 
 - Pay for cruush+ or Pulse with Bitcoin from Cash App, PayPal, Venmo, or another compatible wallet.
