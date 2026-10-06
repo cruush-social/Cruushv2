@@ -9,7 +9,7 @@ the branch name.
 
 | Branch | Worktree path | Last commit | State | Ahead/behind main | Purpose |
 | --- | --- | --- | --- | --- | --- |
-| `fix/bitcoin-checkout-live-posthog-20261005` | `/Volumes/good/cruush-bitcoin-checkout-live-fix-20261005` | `0850253e` (base) | dirty, Codex 01a10f08 | +0/-0 at creation | Add privacy-allowlisted Bitcoin checkout milestone analytics on current main; local only, not deployed. |
+| `fix/bitcoin-checkout-live-posthog-20261005` | `/Volumes/good/cruush-bitcoin-checkout-live-fix-20261005` | `0850253e` (base) | deployed, Codex 01a10f08 | +0/-0 at creation | Privacy-allowlisted Bitcoin checkout milestone analytics deployed through `main`; saved PostHog funnel `uQU2GiFI`. |
 | `codex/fix-issue-293-signup-scroll` | `/Volumes/good/cruush-issue-293-signup-scroll` | 2026-09-21 739a92d3 fix: keep onboarding prompts readable on Safari | clean | +0/-0 | iPhone signup option-menu scrolling fix while preserving fit-to-screen onboarding; Codex; shipping. |
 | `codex/fix-issue-295-onboarding-labels` | `/Volumes/good/cruush-issue-295-onboarding-labels` | 2026-09-21 c86d0ec6 chore: refresh service worker for onboarding fixes | clean | +0/-0 | iPhone onboarding labels fix for GitHub issue #295; Codex; unmerged, shipping. |
 | `fix/onboarding-fit-no-scroll-20260915` | `/Volumes/good/cruush-onboarding-fit-20260915` | `a2d053e` (base) | clean, Claude | +1/-0 at creation | Stop the onboarding step fitter rescaling when the keyboard opens; smaller logo, larger step copy. Unmerged. |
