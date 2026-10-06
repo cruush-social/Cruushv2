@@ -60,6 +60,8 @@ interface MapVisibilitySurfaceProps {
   onClear: () => void;
   onApply: () => void;
   onUpgrade?: () => void;
+  description?: string;
+  searchPlaceholder?: string;
 }
 
 type VisibilityListKey = Exclude<keyof VisibilityControlState, 'searchQuery' | 'ageRange' | 'distance' | 'hasPhoto' | 'mileHighClub' | 'activeCrowdModes' | 'restrictAge' | 'restrictDistance'>;
@@ -166,6 +168,8 @@ export default function MapVisibilitySurface({
   onClear,
   onApply,
   onUpgrade,
+  description = 'Choose who sees you.',
+  searchPlaceholder = 'Hide from matching names, bios, or #tags',
 }: MapVisibilitySurfaceProps) {
   const visibleCrowdModes = availableCrowdModes.length > 0 ? availableCrowdModes : [];
   const [limitNotice, setLimitNotice] = useState<string | null>(null);
@@ -205,7 +209,7 @@ export default function MapVisibilitySurface({
             <SheetTitle className="min-w-0 truncate">Visibility Controls</SheetTitle>
             <BugButtonSlot testId="visibility-bug-button-slot" />
           </div>
-          <SheetDescription>Choose who sees you.</SheetDescription>
+          <SheetDescription>{description}</SheetDescription>
         </SheetHeader>
 
         <div className="scrollbar-hide min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-4 overscroll-contain">
@@ -224,7 +228,7 @@ export default function MapVisibilitySurface({
                 type="search"
                 value={value.searchQuery}
                 onChange={(event) => handleLimitedChange({ ...value, searchQuery: event.target.value })}
-                placeholder="Hide from matching names, bios, or #tags"
+                placeholder={searchPlaceholder}
                 className="h-11 min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-white/42"
               />
             </div>

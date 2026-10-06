@@ -4454,6 +4454,27 @@ describe("server", () => {
     });
   });
 
+  it("caps new group chats at 100 total members", async () => {
+    const memberIds = Array.from({ length: 100 }, (_, index) =>
+      `00000000-0000-4000-8000-${String(index + 1).padStart(12, "0")}`
+    );
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/conversations/groups",
+      headers: { "x-user-id": userId },
+      payload: {
+        title: "Large group",
+        memberIds,
+        disappearingTimer: "24h"
+      }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json().error.message).toBe("Groups can have at most 100 members.");
+    expect(query).not.toHaveBeenCalled();
+  });
+
   it("rejects non-mutual users before creating a group conversation", async () => {
     query
       .mockResolvedValueOnce({ rows: [] })
@@ -4853,6 +4874,7 @@ describe("server", () => {
     expect(query.mock.calls[5]?.[0]).toContain("encrypted_privacy_audit_events");
     expect(query.mock.calls[6]?.[0]).toContain("from user_blocks");
     expect(query.mock.calls[7]?.[0]).toContain("insert into conversation_members");
+    expect(query.mock.calls[7]?.[0]).not.toContain("club_memberships");
     expect(query.mock.calls[7]?.[0]).toContain("'member'");
     expect(query.mock.calls[8]?.[0]).toContain("insert into app_notifications");
     expect(query.mock.calls[8]?.[1]).toEqual([
@@ -4866,6 +4888,43 @@ describe("server", () => {
       `group:member:${conversationId}:${memberId}:${memberId}`,
       { conversationKind: "group" }
     ]);
+  });
+
+  it("does not add a member when a group chat has reached 100 members", async () => {
+    const memberId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+    const matchRecord = await encryptedRelationshipRecordRow({
+      id: "match-add-member-limit",
+      type: "mutual_cruush",
+      actorUserId: userId,
+      targetUserId: memberId
+    });
+    const matchToken = await encryptedMatchTokenRow({
+      relationshipRecordId: "match-add-member-limit",
+      userOneId: userId,
+      userTwoId: memberId
+    });
+
+    query
+      .mockResolvedValueOnce({ rows: [{ role: "admin", closed_at: null }] })
+      .mockResolvedValueOnce({ rows: [matchRecord] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [matchToken] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: null, member_limit_reached: true }] });
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/api/conversations/groups/${conversationId}/members`,
+      headers: { "x-user-id": userId },
+      payload: { userId: memberId }
+    });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json().error.message).toBe("This conversation has reached its member limit.");
+    expect(query.mock.calls[7]?.[0]).toContain("member_count < $3");
+    expect(query.mock.calls[7]?.[1]).toEqual([conversationId, memberId, 100]);
   });
 
   it("rejects non-mutual users before adding them to a group", async () => {
@@ -5851,7 +5910,8 @@ describe("server", () => {
         return {
           rows: [{
             user_id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
-            muted: true,
+            muted: false,
+            notification_level: "all",
             sender_name: "Jordan",
             conversation_title: "Beta crew"
           }]

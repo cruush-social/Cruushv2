@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyRequest } from "fastify";
 import { randomUUID } from "node:crypto";
 import { ApiError } from "./errors.js";
 import { runTransaction, type DbClient } from "./db.js";
+import { createClubEnrollmentUserIndex } from "./encrypted-club-enrollments.js";
 
 /**
  * Posts a photo message that moderation has already approved.
@@ -63,14 +64,14 @@ export type CreatedPhotoMessageRow = {
   attachments?: CreatedPhotoMessageAttachment[] | string | null;
 };
 
-async function assertConversationOpen(db: DbClient, input: PhotoMessageInput) {
-  const result = await db.query<{ closed: boolean }>(
+async function assertConversationOpen(app: FastifyInstance, input: PhotoMessageInput) {
+  const result = await app.db.query<{ closed: boolean }>(
     `select (c.closed_at is not null) as closed
      from conversations c
      join conversation_members cm on cm.conversation_id = c.id
-     where c.id::text = $1 and cm.user_id = $2
+     where c.id::text = $1 and (cm.user_id = $2 or cm.member_index = $3)
      limit 1`,
-    [input.conversationId, input.senderUserId]
+    [input.conversationId, input.senderUserId, app.config ? createClubEnrollmentUserIndex(app.config, input.senderUserId) : ""]
   );
 
   if (!result.rows[0]) {
@@ -139,7 +140,7 @@ export async function sendApprovedPhotoMessage(
   request: FastifyRequest,
   input: PhotoMessageInput
 ) {
-  await assertConversationOpen(app.db, input);
+  await assertConversationOpen(app, input);
   await assertSenderAllowed(app.db, input);
 
   return runTransaction(app.db, async (db) => {
@@ -242,8 +243,8 @@ export async function sendApprovedPhotoMessage(
 
     await db.query("update conversations set updated_at = now() where id = $1::uuid", [input.conversationId]);
     await db.query(
-      "update conversation_members set last_read_at = now() where conversation_id = $1::uuid and user_id = $2",
-      [input.conversationId, input.senderUserId]
+      "update conversation_members set last_read_at = now() where conversation_id = $1::uuid and (user_id = $2 or member_index = $3)",
+      [input.conversationId, input.senderUserId, app.config ? createClubEnrollmentUserIndex(app.config, input.senderUserId) : ""]
     );
 
     request.log.info(

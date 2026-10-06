@@ -26,11 +26,15 @@ function SavedSideBadge({ badge, side, tone }: {
   const label = hanky
     ? formatBadgeLabel(hanky.meaning, badge.intent ?? 'none')
     : formatBadgeLabel(savedBadge.label ?? badge.label, badge.intent ?? 'none');
+  const title = badge.meaning ?? label;
+  const DisplayGlyph = badge.iconPath
+    ? ({ className }: { className?: string }) => <img alt="" className={`${className ?? ''} object-contain brightness-0 invert`} src={badge.iconPath} />
+    : Glyph;
   const borderColor = USER_BORDER_COLORS[tone];
 
   return (
     <span
-      aria-label={`${side} badge: ${label}`}
+      aria-label={`${side} badge: ${title}`}
       className={`group/badge relative inline-flex shrink-0 items-center justify-center text-white ${BADGE_INTERACTION_CLASS}`}
       data-badge-tone={tone}
       data-testid={`activity-${side}-badge`}
@@ -45,14 +49,13 @@ function SavedSideBadge({ badge, side, tone }: {
         frame="circle"
         hankyColor={hanky?.color}
         strokeColor={borderColor}
-
-        glyph={Glyph}
+        glyph={DisplayGlyph}
       />
       {/* On a card the label centres under its own badge, the way the map
           does it. The outer-edge anchor is for the map's paired badges, where
           two labels either side of a heart would otherwise meet in the middle;
           a card has the room. */}
-      <BadgeHoverLabel>{label}</BadgeHoverLabel>
+      <BadgeHoverLabel>{title}</BadgeHoverLabel>
     </span>
   );
 }

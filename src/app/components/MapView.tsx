@@ -1195,7 +1195,11 @@ function MarkerSideBadge({
     ? HANKY_COLORS.find((color) => `hanky ${color.id.replace(/-/g, ' ')}` === badge.badgeId)
     : undefined;
 
-  if (!Glyph && !hanky) {
+  const DisplayGlyph = badge.iconPath
+    ? ({ className }: { className?: string }) => <img alt="" className={`${className ?? ''} object-contain brightness-0 invert`} src={badge.iconPath} />
+    : Glyph;
+
+  if (!DisplayGlyph && !hanky) {
     return null;
   }
 
@@ -1209,12 +1213,13 @@ function MarkerSideBadge({
     : badge.saved
       ? formatBadgeLabel(savedBadge.label ?? badge.label, badge.intent ?? 'none')
       : badge.label;
+  const displayedBadgeLabel = badge.meaning ?? hoverLabel;
 
   return (
     <span
       aria-label={badge.saved
-        ? `${side === 'left' ? 'left' : 'right'} badge: ${hoverLabel}`
-        : `${side === 'left' ? 'role' : 'position'}: ${hoverLabel}`}
+        ? `${side === 'left' ? 'left' : 'right'} badge: ${displayedBadgeLabel}`
+        : `${side === 'left' ? 'role' : 'position'}: ${displayedBadgeLabel}`}
       className={`group/badge absolute flex items-center justify-center ${MAP_SIDE_BADGE_PLACEMENT_CLASS} ${BADGE_INTERACTION_CLASS}`}
       data-badge-tone={marker.activePing
         ? 'pulse'
@@ -1244,12 +1249,11 @@ function MarkerSideBadge({
         gradientStops={badgeGradientStops}
         hankyColor={hanky?.color}
         strokeColor={marker.displayMode === 'GHOST' ? `var(--cruush-ghost-flash-border-color, ${badgeBorderColor})` : badgeBorderColor}
-
-        glyph={Glyph}
+        glyph={DisplayGlyph ?? savedBadge.icon}
         glyphClassName="cruush-ghost-rotation-badge-symbol h-full w-full"
         contentClassName={`flex h-full w-full items-center justify-center text-white ${isCurrentUser && marker.displayMode === 'GHOST' ? 'overflow-hidden rounded-full' : ''}`}
       />
-      <BadgeHoverLabel align={side === 'left' ? 'start' : 'end'} compactHorizontalPadding revealed={revealed}>{hoverLabel}</BadgeHoverLabel>
+      <BadgeHoverLabel align={side === 'left' ? 'start' : 'end'} compactHorizontalPadding revealed={revealed}>{displayedBadgeLabel}</BadgeHoverLabel>
     </span>
   );
 }

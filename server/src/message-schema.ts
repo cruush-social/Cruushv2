@@ -2,7 +2,7 @@ import { z } from "zod";
 import { multilineTextSchema, uuidSchema } from "./input-schema.js";
 
 export const conversationTimerSchema = z.enum(["off", "5m", "1h", "8h", "24h", "3d", "7d", "30d", "90d"]);
-export const MAX_GROUP_CONVERSATION_MEMBERS = 500;
+export const MAX_GROUP_CONVERSATION_MEMBERS = 100;
 
 const booleanishSchema = z.preprocess((value) => {
   if (typeof value === "boolean") {
@@ -43,7 +43,7 @@ export const openDirectConversationPayloadSchema = z.object({
 
 export const createGroupConversationPayloadSchema = z.object({
   title: multilineTextSchema({ min: 1, max: 80 }),
-  memberIds: z.array(uuidSchema).min(1).max(MAX_GROUP_CONVERSATION_MEMBERS - 1),
+  memberIds: z.array(uuidSchema).min(1).max(MAX_GROUP_CONVERSATION_MEMBERS),
   disappearingTimer: conversationTimerSchema.optional().default("off")
 }).strict();
 
@@ -56,6 +56,10 @@ export const updateGroupConversationPayloadSchema = z.object({
 
 export const groupMemberPayloadSchema = z.object({
   userId: uuidSchema
+}).strict();
+
+export const clubMemberRolePayloadSchema = z.object({
+  role: z.enum(["admin", "moderator", "member"])
 }).strict();
 
 export type CreateMessagePayload = z.infer<typeof createMessagePayloadSchema>;

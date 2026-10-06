@@ -9,7 +9,7 @@ import { PHOTO_MAX_COMPRESSED_BYTES, PHOTO_UPLOAD_FORMAT_MESSAGE, PHOTO_UPLOAD_A
 import { SIGNAL_MAX_LENGTH } from '../lib/profileLimits';
 import { lazy, Suspense, useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router';
-import { ArrowLeft, Eye, Hash, RotateCcw, RotateCw, Star, Trash2, Upload, X } from 'lucide-react';
+import { ArrowLeft, Eye, RotateCcw, RotateCw, Star, Trash2, Upload, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { Checkbox } from './ui/checkbox';
 import { Input } from './ui/input';
@@ -21,6 +21,7 @@ import LoadingCardSkeletons from './LoadingCardSkeletons';
 import { getMyBillingStatus } from '../lib/billingApi';
 import MultiSelect from './MultiSelect';
 import SingleSelect from './SingleSelect';
+import TagInput from './TagInput';
 import {
   emptyProfilePayload,
   getMyProfile,
@@ -649,7 +650,6 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
   const [error, setError] = useState<string | null>(null);
   const [photoUploadError, setPhotoUploadError] = useState<string | null>(null);
   const [photoUploadNotice, setPhotoUploadNotice] = useState<string | null>(null);
-  const [profileTagDraft, setProfileTagDraft] = useState('');
   const [profileTagError, setProfileTagError] = useState<string | null>(null);
   const [profilePhotoUploadsAvailable, setProfilePhotoUploadsAvailable] = useState<boolean | null>(null);
   const [activeTab, setActiveTab] = useState(requestedProfileSection === 'kinks' ? 'intimacy' : 'basics');
@@ -834,19 +834,12 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
     setSaving(true);
     setError(null);
     try {
-      const pendingTag = normalizeProfileTag(profileTagDraft);
-      const profileToSave = pendingTag && !findStructuredProfileFieldForTag(pendingTag)
-        ? { ...profile, tags: uniqueValues([...(profile.tags ?? []), pendingTag]) }
-        : profile;
-      const savedProfile = await saveMyProfile(toProfileSavePayload(profileToSave, kinkLimit, profileTagLimit, hobbyLimit));
+      const savedProfile = await saveMyProfile(toProfileSavePayload(profile, kinkLimit, profileTagLimit, hobbyLimit));
       if (profileSaveRequestRef.current !== requestId) {
         return;
       }
 
       applySavedProfile(savedProfile);
-      if (pendingTag && savedProfile.tags?.includes(pendingTag)) {
-        setProfileTagDraft((current) => current === profileTagDraft ? '' : current);
-      }
       if (embedded) {
         return;
       } else {
@@ -1133,20 +1126,6 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
   const profileMenuProps = {
     menuPortal: true,
   };
-  const addProfileTag = () => {
-    const tag = normalizeProfileTag(profileTagDraft);
-    const structuredField = findStructuredProfileFieldForTag(profileTagDraft);
-
-    if (structuredField) {
-      setProfileTagError(`That is already a profile option. Add it under ${structuredField}.`);
-      return;
-    }
-    if (!tag || normalizedProfile.tags.includes(tag) || normalizedProfile.tags.length >= profileTagLimit) return;
-
-    handleChange('tags', [...normalizedProfile.tags, tag]);
-    setProfileTagDraft('');
-    setProfileTagError(null);
-  };
   return (
     <div className={embedded ? 'bg-transparent pb-0' : 'min-h-screen bg-background pb-20'}>
       <header className={`${embedded ? 'top-0 border-white/10 bg-black text-white' : 'top-0 border-border bg-card/80'} sticky z-30 flex items-center justify-between border-b p-4 backdrop-blur-sm`}>
@@ -1341,52 +1320,20 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
             <div className="space-y-2">
               <Label htmlFor="profile-tags">Tags</Label>
               <p className="text-xs text-muted-foreground">Pick up to {profileTagLimit}</p>
-              <div className="flex items-center gap-2 rounded-md border border-white/10 bg-input-background px-3">
-                <Hash aria-hidden="true" className="h-4 w-4 shrink-0 text-white/55" />
-                <input
-                  aria-label="Add profile tag"
-                  className="h-10 min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-white/45"
-                  disabled={normalizedProfile.tags.length >= profileTagLimit}
-                  id="profile-tags"
-                  maxLength={25}
-                  onChange={(event) => {
-                    setProfileTagDraft(event.target.value);
-                    setProfileTagError(null);
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key !== 'Enter') return;
-                    event.preventDefault();
-                    addProfileTag();
-                  }}
-                  placeholder="#tag"
-                  value={profileTagDraft}
-                />
-                <button
-                  className="text-sm font-semibold text-white/72 disabled:opacity-35"
-                  disabled={!normalizeProfileTag(profileTagDraft) || normalizedProfile.tags.includes(normalizeProfileTag(profileTagDraft)) || normalizedProfile.tags.length >= profileTagLimit}
-                  onClick={addProfileTag}
-                  type="button"
-                >
-                  Add
-                </button>
-              </div>
+              <TagInput
+                ariaLabel="Add profile tag"
+                id="profile-tags"
+                maxTags={profileTagLimit}
+                onChange={(tags) => handleChange('tags', tags)}
+                onError={setProfileTagError}
+                tags={normalizedProfile.tags}
+                testId="profile-tags-draft"
+                validate={(tag) => {
+                  const structuredField = findStructuredProfileFieldForTag(tag);
+                  return structuredField ? `That is already a profile option. Add it under ${structuredField}.` : null;
+                }}
+              />
               {profileTagError ? <p className="text-sm text-destructive">{profileTagError}</p> : null}
-              {normalizedProfile.tags.length > 0 ? (
-                <div className="flex flex-wrap gap-2" data-testid="profile-tags-draft">
-                  {normalizedProfile.tags.map((tag) => (
-                    <button
-                      aria-label={`Remove #${tag}`}
-                      className="inline-flex items-center gap-1 rounded-full border border-white/12 bg-black/55 px-2.5 py-1 text-xs text-white/72"
-                      key={tag}
-                      onClick={() => handleChange('tags', normalizedProfile.tags.filter((profileTag) => profileTag !== tag))}
-                      type="button"
-                    >
-                      #{tag}
-                      <X aria-hidden="true" className="h-3 w-3" />
-                    </button>
-                  ))}
-                </div>
-              ) : null}
             </div>
 
             <div className="space-y-2">

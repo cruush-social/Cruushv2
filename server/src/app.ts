@@ -12,6 +12,7 @@ import { registerBlockRoutes } from "./routes/blocks.js";
 import { registerBillingRoutes } from "./routes/billing.js";
 import { registerCruushRoutes } from "./routes/cruush.js";
 import { registerCryptoPaymentRoutes } from "./routes/crypto-payments.js";
+import { registerClubRoutes } from "./routes/clubs.js";
 import { registerEventRoutes } from "./routes/events.js";
 import { ApiError, formatError, toApiError } from "./errors.js";
 import { registerMediaRoutes } from "./routes/media.js";
@@ -294,6 +295,7 @@ export function buildServer(config: AppConfig, deps: BuildServerDeps = {}) {
     createReceiptSource: deps.cryptoReceiptSourceFactory,
     ingestReceipt: deps.cryptoReceiptIngestor
   });
+  void registerClubRoutes(app);
   void registerEventRoutes(app);
   void registerPostRoutes(app);
   void registerPlaceRoutes(app);

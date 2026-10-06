@@ -22,11 +22,13 @@ import { createGroupPulse } from "../map-pings.js";
 import { createAppNotificationAndPush } from "../notification-service.js";
 import {
   conversationTimerSchema,
+  clubMemberRolePayloadSchema,
   createGroupConversationPayloadSchema,
   createMessagePhotoFieldsSchema,
   createMessagePayloadSchema,
   favoriteMessageImageUploadFieldsSchema,
   groupMemberPayloadSchema,
+  MAX_GROUP_CONVERSATION_MEMBERS,
   openDirectConversationPayloadSchema,
   sendFavoriteMessageImagePayloadSchema,
   updateGroupConversationPayloadSchema
@@ -35,6 +37,15 @@ import { approvedContentReviewCte, moderateMessageTextOrAllowByKeyword } from ".
 import { OWNER_FULL_ACCESS_EMAIL, userHasOwnerFullAccess } from "../owner-access.js";
 import { getActiveAccountUserId, getAuthenticatedUserId } from "../request-auth.js";
 import { formatLastActiveFromDate } from "../discovery-users.js";
+import {
+  buildClubEnrollmentPayload,
+  createClubEnrollmentUserIndex,
+  deleteClubEnrollment,
+  findClubEnrollment,
+  listClubMemberships,
+  upsertClubEnrollment,
+  type ClubEnrollmentRole
+} from "../encrypted-club-enrollments.js";
 
 const conversationParamsSchema = z.object({
   conversationId: z.uuid()
@@ -57,6 +68,14 @@ const updateConversationTimerPayloadSchema = z.object({
   disappearingTimer: conversationTimerSchema
 }).strict();
 
+const updateConversationNotificationsPayloadSchema = z.object({
+  notificationLevel: z.enum(["all", "mentions"]).optional(),
+  muteFor: z.enum(["off", "1h", "8h", "24h", "7d"]).optional()
+}).strict().refine(
+  (value) => value.notificationLevel !== undefined || value.muteFor !== undefined,
+  "Choose a notification setting."
+);
+
 const groupMemberParamsSchema = z.object({
   conversationId: z.uuid(),
   targetUserId: z.uuid()
@@ -73,7 +92,7 @@ type ConversationRow = {
   kind: "dm" | "group";
   title: string | null;
   tags: string[] | null;
-  current_user_role?: "owner" | "admin" | "member" | null;
+  current_user_role?: "owner" | "admin" | "moderator" | "member" | null;
   disappearing_timer?: "off" | "1h" | "24h" | "7d" | "30d" | null;
   closed_at?: string | Date | null;
   cleared_at?: string | Date | null;
@@ -86,6 +105,8 @@ type ConversationRow = {
   unread_count: number;
   pinned: boolean;
   muted: boolean;
+  notification_level: "all" | "mentions";
+  muted_until: string | Date | null;
   other_user_id: string | null;
   other_user_name: string | null;
   other_user_pronouns: string[] | null;
@@ -96,10 +117,11 @@ type ConversationRow = {
   other_user_travelling?: boolean;
   other_user_last_active?: string | Date | null;
   member_count: number;
+  club_id?: string | null;
 };
 
 type GroupAccessRow = {
-  role: "owner" | "admin" | "member";
+  role: "owner" | "admin" | "moderator" | "member";
   closed_at: string | Date | null;
 };
 
@@ -155,13 +177,15 @@ type GroupMemberRow = {
   pronouns: string[] | null;
   photo: string | null;
   photo_explicit?: boolean | null;
-  role: "owner" | "admin" | "member";
+  role: "owner" | "admin" | "moderator" | "member";
   joined_at: string | Date;
 };
 
 type ConversationNotificationRecipientRow = {
   user_id: string;
   muted: boolean;
+  notification_level: "all" | "mentions";
+  recipient_name: string | null;
   sender_name: string | null;
   conversation_title: string | null;
 };
@@ -413,10 +437,13 @@ export function mapConversationRow(app: FastifyInstance, row: ConversationRow, o
     unreadCount: row.unread_count ?? 0,
     pinned: row.pinned,
     muted: row.muted,
+    notificationLevel: row.notification_level,
+    ...(row.muted_until ? { mutedUntil: new Date(row.muted_until).toISOString() } : {}),
     mutual: options.mutual ?? false,
     ...(options.canMessage !== undefined ? { canMessage: options.canMessage } : {}),
     membersLabel: isGroup ? `${row.member_count} people` : undefined,
     tags: row.tags ?? [],
+    ...(row.club_id ? { clubId: row.club_id } : {}),
     ...(row.current_user_role ? { currentUserRole: row.current_user_role } : {}),
     ...(row.disappearing_timer ? { disappearingTimer: row.disappearing_timer } : {}),
     ...(row.closed_at !== undefined ? { closed: Boolean(row.closed_at) } : {})
@@ -580,28 +607,85 @@ export async function notifyConversationMessageRecipients(
     senderUserId: string;
     messageId: string;
     conversationKind: "dm" | "group";
+    clubId?: string | null;
     conversationTitle?: string | null;
+    messageContent?: string | null;
   }
 ) {
   try {
-    const recipients = await app.db.query<ConversationNotificationRecipientRow>(
-      `select
+    let recipientRows: ConversationNotificationRecipientRow[];
+    if (input.clubId) {
+      const members = await listClubMemberships({ config: app.config, db: app.db }, input.clubId);
+      const recipients = members.filter((member) => member.payload.userId !== input.senderUserId);
+      const indexes = recipients.map((member) => createClubEnrollmentUserIndex(app.config, member.payload.userId));
+      const settings = indexes.length === 0 ? { rows: [] } : await app.db.query<{
+        member_index: string;
+        muted: boolean;
+        notification_level: "all" | "mentions";
+        sender_name: string | null;
+        conversation_title: string | null;
+      }>(
+        `select cm.member_index,
+           (cm.muted or (cm.muted_until is not null and cm.muted_until > now())) as muted,
+           cm.notification_level,
+           sender_profile.display_name as sender_name,
+           c.title as conversation_title
+         from conversation_members cm
+         join conversations c on c.id = cm.conversation_id
+         left join profiles sender_profile on sender_profile.id = $3
+         where cm.conversation_id::text = $1 and cm.member_index = any($2::text[])`,
+        [input.conversationId, indexes, input.senderUserId]
+      );
+      const settingsByIndex = new Map(settings.rows.map((row) => [row.member_index, row]));
+      const profiles = recipients.length === 0 ? { rows: [] } : await app.db.query<{ user_id: string; recipient_name: string | null }>(
+        "select id::text as user_id, display_name as recipient_name from profiles where id = any($1::uuid[])",
+        [recipients.map((member) => member.payload.userId)]
+      );
+      const names = new Map(profiles.rows.map((row) => [row.user_id, row.recipient_name]));
+      recipientRows = recipients.flatMap((member) => {
+        const settingsRow = settingsByIndex.get(createClubEnrollmentUserIndex(app.config, member.payload.userId));
+        return settingsRow ? [{
+          user_id: member.payload.userId,
+          muted: settingsRow.muted,
+          notification_level: settingsRow.notification_level,
+          recipient_name: names.get(member.payload.userId) ?? null,
+          sender_name: settingsRow.sender_name,
+          conversation_title: settingsRow.conversation_title
+        }] : [];
+      });
+    } else {
+      const recipients = await app.db.query<ConversationNotificationRecipientRow>(
+        `select
          cm.user_id::text as user_id,
-         cm.muted,
+         (cm.muted or (cm.muted_until is not null and cm.muted_until > now())) as muted,
+         cm.notification_level,
+         recipient_profile.display_name as recipient_name,
          sender_profile.display_name as sender_name,
          c.title as conversation_title
        from conversation_members cm
        join conversations c on c.id = cm.conversation_id
        left join profiles sender_profile on sender_profile.id = $2
+       left join profiles recipient_profile on recipient_profile.id = cm.user_id
        where cm.conversation_id::text = $1
          and cm.user_id <> $2`,
-      [input.conversationId, input.senderUserId]
-    );
+        [input.conversationId, input.senderUserId]
+      );
+      recipientRows = recipients.rows;
+    }
 
-    await Promise.all(recipients.rows.map(async (recipient) => {
+    await Promise.all(recipientRows.map(async (recipient) => {
       const senderName = recipient.sender_name?.trim() || "Someone";
       const groupTitle = recipient.conversation_title?.trim() || input.conversationTitle?.trim() || "Group chat";
       const isGroup = input.conversationKind === "group";
+      const messageText = input.messageContent?.toLocaleLowerCase() ?? "";
+      const recipientMention = recipient.recipient_name?.trim().toLocaleLowerCase();
+      const mentioned = messageText.includes("@everyone")
+        || messageText.includes("@all")
+        || Boolean(recipientMention && messageText.includes(`@${recipientMention}`));
+
+      if (recipient.muted || (isGroup && recipient.notification_level === "mentions" && !mentioned)) {
+        return;
+      }
 
       await createAppNotificationAndPush(app, {
         userId: recipient.user_id,
@@ -615,7 +699,7 @@ export async function notifyConversationMessageRecipients(
         metadata: {
           conversationKind: input.conversationKind
         },
-        suppressPush: recipient.muted,
+        suppressPush: false,
         deferPush: true
       });
     }));
@@ -679,7 +763,9 @@ const CONVERSATION_SELECT = `
     last_message.content_key_version as last_message_key_version,
     coalesce(unread_counts.unread_count, 0) as unread_count,
     cm.pinned,
-    cm.muted,
+    (cm.muted or (cm.muted_until is not null and cm.muted_until > now())) as muted,
+    cm.notification_level,
+    cm.muted_until,
     case when c.kind = 'dm' then other_member.user_id::text else null end as other_user_id,
     case
       when c.kind = 'group' then c.title
@@ -713,7 +799,8 @@ const CONVERSATION_SELECT = `
         and media.deleted_at is null
       limit 1
     ), true) else true end as other_user_photo_explicit,
-    member_counts.member_count
+    member_counts.member_count,
+    linked_club.id::text as club_id
   from conversation_members cm
   join conversations c on c.id = cm.conversation_id
   left join lateral (
@@ -751,35 +838,50 @@ const CONVERSATION_SELECT = `
    and c.kind = 'dm'
   left join app_users other_user on other_user.id = other_member.user_id
   left join profiles other_profile on other_profile.id = other_member.user_id
+  left join clubs linked_club on linked_club.conversation_id = c.id
 `;
 
 async function loadConversationForUser(app: FastifyInstance, userId: string, conversationId: string) {
   const result = await app.db.query<ConversationRow>(
     `${CONVERSATION_SELECT}
-     where cm.user_id = $1
-       and c.id::text = $2
+     where cm.user_id = $1 and c.id::text = $3
+        or (cm.member_index = $2 and c.id::text = $3)
      limit 1`,
-    [userId, conversationId]
+    [userId, createClubEnrollmentUserIndex(app.config, userId), conversationId]
   );
-
-  return result.rows[0] ?? null;
+  const conversation = result.rows[0] ?? null;
+  if (!conversation?.club_id) return conversation;
+  const membership = await findClubEnrollment(
+    { config: app.config, db: app.db },
+    { clubId: conversation.club_id, userId, type: "membership" }
+  );
+  if (!membership?.payload.role) return null;
+  return { ...conversation, current_user_role: membership.payload.role };
 }
 
 async function assertGroupAdmin(app: FastifyInstance, userId: string, conversationId: string) {
-  const accessResult = await app.db.query<GroupAccessRow>(
-    `select cm.role, c.closed_at
+  const result = await app.db.query<GroupAccessRow & { club_id: string | null }>(
+    `select cm.role, c.closed_at, linked_club.id::text as club_id
      from conversations c
      join conversation_members cm on cm.conversation_id = c.id
-     where c.id::text = $1
-       and c.kind = 'group'
-       and cm.user_id = $2
+     left join clubs linked_club on linked_club.conversation_id = c.id
+     where c.id::text = $1 and c.kind = 'group'
+       and (cm.user_id = $2 or cm.member_index = $3)
      limit 1`,
-    [conversationId, userId]
+    [conversationId, userId, createClubEnrollmentUserIndex(app.config, userId)]
   );
-  const access = accessResult.rows[0];
+  const access = result.rows[0] ?? null;
 
   if (!access) {
     throw new ApiError(404, "NOT_FOUND", "Group conversation not found.");
+  }
+
+  if (access.club_id) {
+    const membership = await findClubEnrollment(
+      { config: app.config, db: app.db },
+      { clubId: access.club_id, userId, type: "membership" }
+    );
+    access.role = membership?.payload.role ?? access.role;
   }
 
   if (!adminRoles.has(access.role)) {
@@ -793,6 +895,25 @@ async function assertGroupAdmin(app: FastifyInstance, userId: string, conversati
   return access;
 }
 
+async function setClubMemberRole(
+  app: FastifyInstance,
+  clubId: string,
+  targetUserId: string,
+  role: ClubEnrollmentRole
+) {
+  const context = { config: app.config, db: app.db };
+  const membership = await findClubEnrollment(context, { clubId, userId: targetUserId, type: "membership" });
+  if (!membership || membership.payload.role === "owner") return false;
+  await upsertClubEnrollment(context, buildClubEnrollmentPayload({
+    ...membership.payload,
+    type: "membership",
+    status: "active",
+    role,
+    createdAt: membership.payload.createdAt
+  }));
+  return true;
+}
+
 async function assertMutualGroupInvitees(app: FastifyInstance, userId: string, memberIds: string[]) {
   for (const memberId of memberIds) {
     const relationship = await getRelationshipPermissions(app, userId, memberId);
@@ -802,7 +923,21 @@ async function assertMutualGroupInvitees(app: FastifyInstance, userId: string, m
   }
 }
 
-async function assertNoBlockedConversationMembers(app: FastifyInstance, userId: string, conversationId: string) {
+async function assertNoBlockedConversationMembers(app: FastifyInstance, userId: string, conversationId: string, clubId?: string | null) {
+  if (clubId) {
+    const members = await listClubMemberships({ config: app.config, db: app.db }, clubId);
+    const memberIds = members.map((member) => member.payload.userId).filter((id) => id !== userId);
+    if (memberIds.length === 0) return;
+    const blocked = await app.db.query(
+      `select 1 from user_blocks block
+       where (block.blocker_user_id = $1 and block.blocked_user_id = any($2::uuid[]))
+          or (block.blocked_user_id = $1 and block.blocker_user_id = any($2::uuid[]))
+       limit 1`,
+      [userId, memberIds]
+    );
+    if (blocked.rows[0]) throw new ApiError(403, "FORBIDDEN", "You cannot message one or more blocked group members.");
+    return;
+  }
   const result = await app.db.query<{ user_id: string }>(
     `select member.user_id::text as user_id
      from conversation_members member
@@ -938,6 +1073,9 @@ export async function registerMessageRoutes(app: FastifyInstance) {
     const userId = await getActiveAccountUserId(request);
     const payload = createGroupConversationPayloadSchema.parse(request.body);
     const memberIds = [...new Set(payload.memberIds.filter((memberId) => memberId !== userId))];
+    if (memberIds.length >= MAX_GROUP_CONVERSATION_MEMBERS) {
+      throw new ApiError(400, "VALIDATION_ERROR", `Groups can have at most ${MAX_GROUP_CONVERSATION_MEMBERS} members.`);
+    }
     const ownerFullAccess = await userHasOwnerFullAccess(app, userId);
 
     await assertMutualGroupInvitees(app, userId, memberIds);
@@ -1049,23 +1187,80 @@ export async function registerMessageRoutes(app: FastifyInstance) {
     const userId = await getActiveAccountUserId(request);
     const { conversationId } = conversationParamsSchema.parse(request.params);
     const payload = groupMemberPayloadSchema.parse(request.body);
-    await assertGroupAdmin(app, userId, conversationId);
+    const access = await assertGroupAdmin(app, userId, conversationId);
     await assertMutualGroupInvitees(app, userId, [payload.userId]);
 
-    const result = await app.db.query<{ id: string }>(
-      `insert into conversation_members (conversation_id, user_id, role)
-       select c.id, u.id, 'member'
-       from conversations c
-       join app_users u on u.id = $2
-       where c.id::text = $1
-         and c.kind = 'group'
-         and c.closed_at is null
-       on conflict (conversation_id, user_id) do update
-       set role = conversation_members.role
-       returning user_id::text as id`,
-      [conversationId, payload.userId]
+    if (access.club_id) {
+      const context = { config: app.config, db: app.db };
+      const members = await listClubMemberships(context, access.club_id);
+      const existing = members.find((member) => member.payload.userId === payload.userId);
+      if (!existing && members.length >= 1000) {
+        throw new ApiError(409, "VALIDATION_ERROR", "This conversation has reached its member limit.");
+      }
+      if (!existing) {
+        await upsertClubEnrollment(context, buildClubEnrollmentPayload({
+          type: "membership",
+          status: "active",
+          clubId: access.club_id,
+          userId: payload.userId,
+          role: "member"
+        }));
+        await app.db.query(
+          `insert into conversation_members (conversation_id, user_id, member_index, role)
+           values ($1, null, $2, 'member')
+           on conflict (conversation_id, member_index) where member_index is not null do nothing`,
+          [conversationId, createClubEnrollmentUserIndex(app.config, payload.userId)]
+        );
+      }
+      await notifyGroupMembership(app, {
+        conversationId,
+        actorUserId: userId,
+        memberIds: [payload.userId],
+        eventKey: `member:${conversationId}:${payload.userId}`
+      });
+      return reply.code(204).send();
+    }
+
+    const result = await app.db.query<{ id: string | null; member_limit_reached: boolean }>(
+      `with target_membership as (
+         select c.id as conversation_id,
+                u.id as user_id,
+                count(existing_member.user_id)::int as member_count,
+                exists (
+                  select 1 from conversation_members current_member
+                  where current_member.conversation_id = c.id and current_member.user_id = u.id
+                ) as already_member
+         from conversations c
+         join app_users u on u.id = $2
+         left join conversation_members existing_member on existing_member.conversation_id = c.id
+         where c.id::text = $1
+           and c.kind = 'group'
+           and c.closed_at is null
+         group by c.id, u.id
+       ), capacity as (
+         select *,
+           already_member or member_count < $3 as can_add
+         from target_membership
+       ), inserted_conversation_member as (
+         insert into conversation_members (conversation_id, user_id, role)
+         select conversation_id, user_id, 'member' from capacity where can_add
+         on conflict (conversation_id, user_id) do update
+         set role = conversation_members.role
+         returning user_id
+       )
+       select inserted_conversation_member.user_id::text as id, false as member_limit_reached
+       from inserted_conversation_member
+       union all
+       select null::text as id, true as member_limit_reached
+       from capacity
+       where not can_add
+       limit 1`,
+      [conversationId, payload.userId, MAX_GROUP_CONVERSATION_MEMBERS]
     );
 
+    if (result.rows[0]?.member_limit_reached) {
+      throw new ApiError(409, "VALIDATION_ERROR", "This conversation has reached its member limit.");
+    }
     if (!result.rows[0]) {
       throw new ApiError(404, "NOT_FOUND", "User or group not found.");
     }
@@ -1083,14 +1278,39 @@ export async function registerMessageRoutes(app: FastifyInstance) {
   app.delete("/api/conversations/groups/:conversationId/members/:targetUserId", async (request, reply) => {
     const userId = await getActiveAccountUserId(request);
     const { conversationId, targetUserId } = groupMemberParamsSchema.parse(request.params);
-    await assertGroupAdmin(app, userId, conversationId);
+    const access = await assertGroupAdmin(app, userId, conversationId);
+
+    if (access.club_id) {
+      const context = { config: app.config, db: app.db };
+      const membership = await findClubEnrollment(context, { clubId: access.club_id, userId: targetUserId, type: "membership" });
+      if (!membership || membership.payload.role === "owner") {
+        throw new ApiError(400, "VALIDATION_ERROR", "Group owners cannot be removed.");
+      }
+      await runTransaction(app.db, async (db) => {
+        await deleteClubEnrollment({ config: app.config, db }, { clubId: access.club_id!, userId: targetUserId, type: "membership" });
+        await db.query(
+          "delete from conversation_members where conversation_id::text = $1 and member_index = $2",
+          [conversationId, createClubEnrollmentUserIndex(app.config, targetUserId)]
+        );
+      });
+      return reply.code(204).send();
+    }
 
     const result = await app.db.query<{ id: string }>(
-      `delete from conversation_members
-       where conversation_id::text = $1
-         and user_id = $2
-         and role <> 'owner'
-       returning user_id::text as id`,
+      `with target_membership as (
+         select member.conversation_id, member.user_id
+         from conversation_members member
+         where member.conversation_id::text = $1
+           and member.user_id = $2
+           and member.role <> 'owner'
+       ), removed_conversation_member as (
+         delete from conversation_members member
+         using target_membership target
+         where member.conversation_id = target.conversation_id
+           and member.user_id = target.user_id
+         returning member.user_id::text as id
+       )
+       select id from removed_conversation_member`,
       [conversationId, targetUserId]
     );
 
@@ -1105,7 +1325,13 @@ export async function registerMessageRoutes(app: FastifyInstance) {
     const userId = await getActiveAccountUserId(request);
     const { conversationId } = conversationParamsSchema.parse(request.params);
     const payload = groupMemberPayloadSchema.parse(request.body);
-    await assertGroupAdmin(app, userId, conversationId);
+    const access = await assertGroupAdmin(app, userId, conversationId);
+    if (access.club_id) {
+      if (!await setClubMemberRole(app, access.club_id, payload.userId, "admin")) {
+        throw new ApiError(404, "NOT_FOUND", "Group member not found.");
+      }
+      return reply.code(204).send();
+    }
 
     const result = await app.db.query<{ id: string }>(
       `update conversation_members
@@ -1127,7 +1353,17 @@ export async function registerMessageRoutes(app: FastifyInstance) {
   app.delete("/api/conversations/groups/:conversationId/admins/:targetUserId", async (request, reply) => {
     const userId = await getActiveAccountUserId(request);
     const { conversationId, targetUserId } = groupMemberParamsSchema.parse(request.params);
-    await assertGroupAdmin(app, userId, conversationId);
+    const access = await assertGroupAdmin(app, userId, conversationId);
+    if (access.club_id) {
+      const membership = await findClubEnrollment(
+        { config: app.config, db: app.db },
+        { clubId: access.club_id, userId: targetUserId, type: "membership" }
+      );
+      if (membership?.payload.role !== "admin" || !await setClubMemberRole(app, access.club_id, targetUserId, "member")) {
+        throw new ApiError(404, "NOT_FOUND", "Group admin not found.");
+      }
+      return reply.code(204).send();
+    }
 
     const result = await app.db.query<{ id: string }>(
       `update conversation_members
@@ -1141,6 +1377,18 @@ export async function registerMessageRoutes(app: FastifyInstance) {
 
     if (!result.rows[0]) {
       throw new ApiError(404, "NOT_FOUND", "Group admin not found.");
+    }
+
+    return reply.code(204).send();
+  });
+
+  app.patch("/api/conversations/groups/:conversationId/members/:targetUserId/club-role", async (request, reply) => {
+    const userId = await getActiveAccountUserId(request);
+    const { conversationId, targetUserId } = groupMemberParamsSchema.parse(request.params);
+    const { role } = clubMemberRolePayloadSchema.parse(request.body);
+    const access = await assertGroupAdmin(app, userId, conversationId);
+    if (!access.club_id || !await setClubMemberRole(app, access.club_id, targetUserId, role)) {
+      throw new ApiError(404, "NOT_FOUND", "Club member not found.");
     }
 
     return reply.code(204).send();
@@ -1194,6 +1442,50 @@ export async function registerMessageRoutes(app: FastifyInstance) {
     return reply.send({
       data: mapConversationRow(app, updated)
     });
+  });
+
+  app.patch("/api/conversations/:conversationId/notifications", async (request, reply) => {
+    const userId = await getActiveAccountUserId(request);
+    const { conversationId } = conversationParamsSchema.parse(request.params);
+    const payload = updateConversationNotificationsPayloadSchema.parse(request.body);
+    const conversation = await loadConversationForUser(app, userId, conversationId);
+
+    if (!conversation || conversation.kind !== "group") {
+      throw new ApiError(404, "NOT_FOUND", "Group or Club conversation not found.");
+    }
+
+    const result = await app.db.query<{ id: string }>(
+      `update conversation_members
+       set notification_level = coalesce($3, notification_level),
+           muted = case when $4::text is not null then false else muted end,
+           muted_until = case $4::text
+             when 'off' then null
+             when '1h' then now() + interval '1 hour'
+             when '8h' then now() + interval '8 hours'
+             when '24h' then now() + interval '24 hours'
+             when '7d' then now() + interval '7 days'
+             else muted_until
+           end
+       where conversation_id::text = $1
+         and (user_id = $2 or member_index = $5)
+       returning conversation_id::text as id`,
+      [
+        conversationId,
+        userId,
+        payload.notificationLevel ?? null,
+        payload.muteFor ?? null,
+        createClubEnrollmentUserIndex(app.config, userId)
+      ]
+    );
+    const updated = result.rows[0]
+      ? await loadConversationForUser(app, userId, conversationId)
+      : null;
+
+    if (!updated) {
+      throw new ApiError(404, "NOT_FOUND", "Group or Club conversation not found.");
+    }
+
+    return reply.send({ data: mapConversationRow(app, updated) });
   });
 
   app.post("/api/conversations/:conversationId/clear-for-everyone", async (request, reply) => {
@@ -1261,6 +1553,47 @@ export async function registerMessageRoutes(app: FastifyInstance) {
       throw new ApiError(404, "NOT_FOUND", "Group conversation not found.");
     }
 
+    if (conversation.club_id) {
+      const memberships = await listClubMemberships({ config: app.config, db: app.db }, conversation.club_id);
+      const memberIds = memberships.map((membership) => membership.payload.userId);
+      const result = memberIds.length === 0 ? { rows: [] } : await app.db.query<Omit<GroupMemberRow, "role" | "joined_at">>(
+        `select app_user.id::text as id,
+           coalesce(profile.display_name, app_user.display_name, app_user.email) as name,
+           profile.pronouns,
+           profile.photos[1] as photo,
+           coalesce((
+             select media.explicit_classification is distinct from 'non_explicit'
+             from media_objects media
+             where media.owner_user_id = app_user.id
+               and media.public_url = profile.photos[1]
+               and media.surface = 'profile_photo'
+               and media.deleted_at is null
+             limit 1
+           ), true) as photo_explicit
+         from app_users app_user
+         left join profiles profile on profile.id = app_user.id
+         where app_user.id = any($1::uuid[])`,
+        [memberIds]
+      );
+      const profiles = new Map(result.rows.map((row) => [row.id, row]));
+      const photoRelationships = await loadPhotoViewerRelationships(app, userId, memberIds);
+      return reply.send({
+        data: memberships.flatMap((membership) => {
+          const row = profiles.get(membership.payload.userId);
+          return row ? [{
+            id: row.id,
+            name: row.name?.trim() || "cruush user",
+            pronouns: row.pronouns?.join(", ") ?? "",
+            photo: row.photo ?? null,
+            photoExplicit: row.photo_explicit === true,
+            photoRelationship: photoRelationships.get(row.id),
+            role: membership.payload.role ?? "member",
+            joinedAt: membership.payload.createdAt
+          }] : [];
+        })
+      });
+    }
+
     const result = await app.db.query<GroupMemberRow>(
       `select
          member.user_id::text as id,
@@ -1283,7 +1616,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
        left join profiles profile on profile.id = member.user_id
        where member.conversation_id::text = $1
        order by
-         case member.role when 'owner' then 0 when 'admin' then 1 else 2 end,
+         case member.role when 'owner' then 0 when 'admin' then 1 when 'moderator' then 2 else 3 end,
          member.joined_at asc`,
       [conversationId]
     );
@@ -1329,12 +1662,20 @@ export async function registerMessageRoutes(app: FastifyInstance) {
 
     const result = await app.db.query<ConversationRow>(
       `${CONVERSATION_SELECT}
-       where cm.user_id = $1
+       where (cm.user_id = $1 or cm.member_index = $2)
        order by greatest(c.updated_at, coalesce(last_message.created_at, c.updated_at)) desc`,
-      [userId]
+      [userId, createClubEnrollmentUserIndex(app.config, userId)]
     );
+    const authorizedRows = (await Promise.all(result.rows.map(async (row) => {
+      if (!row.club_id) return row;
+      const membership = await findClubEnrollment(
+        { config: app.config, db: app.db },
+        { clubId: row.club_id, userId, type: "membership" }
+      );
+      return membership?.payload.role ? { ...row, current_user_role: membership.payload.role } : null;
+    }))).filter((row): row is ConversationRow => row !== null);
     const relationshipsByConversationId = new Map<string, RelationshipPermissions>();
-    const rows = await filterReadableConversationRows(app, userId, result.rows, relationshipsByConversationId);
+    const rows = await filterReadableConversationRows(app, userId, authorizedRows, relationshipsByConversationId);
 
     return reply.send({
       data: await Promise.all(rows.map((row) => mapReadableConversationRow(
@@ -1695,14 +2036,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
       throw new ApiError(404, "NOT_FOUND", "Favorite image not found.");
     }
 
-    const conversationResult = await app.db.query<ConversationRow>(
-      `${CONVERSATION_SELECT}
-       where cm.user_id = $1
-         and c.id::text = $2
-       limit 1`,
-      [userId, payload.conversationId]
-    );
-    const conversation = conversationResult.rows[0];
+    const conversation = await loadConversationForUser(app, userId, payload.conversationId);
 
     if (!conversation) {
       throw new ApiError(404, "NOT_FOUND", "Conversation not found.");
@@ -1712,7 +2046,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
       await assertCanStartDirectMessage(app, userId, conversation.other_user_id);
     }
     if (conversation.kind === "group") {
-      await assertNoBlockedConversationMembers(app, userId, payload.conversationId);
+      await assertNoBlockedConversationMembers(app, userId, payload.conversationId, conversation.club_id);
     }
 
     if (favorite.explicit) {
@@ -1736,12 +2070,12 @@ export async function registerMessageRoutes(app: FastifyInstance) {
     const disappearingTimer = conversation.disappearing_timer ?? "off";
     const ownerFullAccess = await userHasOwnerFullAccess(app, userId);
     const result = await app.db.query<MessageRow>(
-      `with membership as (
+       `with membership as (
          select c.id
          from conversations c
          join conversation_members cm on cm.conversation_id = c.id
          where c.id::text = $1
-           and cm.user_id = $2
+           and (cm.user_id = $2 or cm.member_index = $11)
            and c.closed_at is null
          limit 1
        ), eligible_sender as (
@@ -1849,7 +2183,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
          set last_read_at = now()
          from inserted
          where cm.conversation_id = inserted.conversation_id
-           and cm.user_id = $2
+           and (cm.user_id = $2 or cm.member_index = $11)
        )
        select
          inserted.id,
@@ -1893,7 +2227,8 @@ export async function registerMessageRoutes(app: FastifyInstance) {
         favoriteId,
         payload.viewOnce,
         disappearingTimer,
-        ownerFullAccess
+        ownerFullAccess,
+        createClubEnrollmentUserIndex(app.config, userId)
       ]
     );
     const created = result.rows[0] ? await refreshCreatedMessageAttachments(app, result.rows[0]) : null;
@@ -1913,6 +2248,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
       senderUserId: userId,
       messageId: created.id,
       conversationKind: conversation.kind,
+      clubId: conversation.club_id,
       conversationTitle: conversation.title
     });
 
@@ -1925,15 +2261,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
     const userId = await getAuthenticatedUserId(request);
     const { conversationId } = conversationParamsSchema.parse(request.params);
 
-    const conversationResult = await app.db.query<ConversationRow>(
-      `${CONVERSATION_SELECT}
-       where cm.user_id = $1
-         and c.id::text = $2
-       limit 1`,
-      [userId, conversationId]
-    );
-
-    const conversation = conversationResult.rows[0];
+    const conversation = await loadConversationForUser(app, userId, conversationId);
 
     if (!conversation) {
       throw new ApiError(404, "NOT_FOUND", "Conversation not found.");
@@ -2015,13 +2343,19 @@ export async function registerMessageRoutes(app: FastifyInstance) {
       [conversationId, userId]
     );
 
-    await app.db.query(
-      `update conversation_members
-       set last_read_at = now()
-       where conversation_id::text = $1
-         and user_id = $2`,
-      [conversationId, userId]
-    );
+    if (conversation.club_id) {
+      await app.db.query(
+        `update conversation_members set last_read_at = now()
+         where conversation_id::text = $1 and member_index = $2`,
+        [conversationId, createClubEnrollmentUserIndex(app.config, userId)]
+      );
+    } else {
+      await app.db.query(
+        `update conversation_members set last_read_at = now()
+         where conversation_id::text = $1 and user_id = $2`,
+        [conversationId, userId]
+      );
+    }
 
     return reply.send({
       data: {
@@ -2042,26 +2376,33 @@ export async function registerMessageRoutes(app: FastifyInstance) {
   app.delete("/api/messages/:messageId", async (request, reply) => {
     const userId = await getActiveAccountUserId(request);
     const { messageId } = messageParamsSchema.parse(request.params);
+    const target = await app.db.query<{ conversation_id: string; user_id: string }>(
+      "select conversation_id::text as conversation_id, user_id::text as user_id from messages where id::text = $1",
+      [messageId]
+    );
+    const targetMessage = target.rows[0];
+    const conversation = targetMessage
+      ? await loadConversationForUser(app, userId, targetMessage.conversation_id)
+      : null;
+    const role = conversation?.current_user_role ?? null;
+    const authorized = Boolean(targetMessage && conversation && (
+      targetMessage.user_id === userId
+      || (conversation.kind === "group" && (role === "owner" || role === "admin" || (conversation.club_id && role === "moderator")))
+    ));
+    if (!authorized) throw new ApiError(404, "NOT_FOUND", "Message not found.");
     const result = await app.db.query<{ conversation_id: string | null; object_key: string | null }>(
       `with target_message as (
          select
            message.id,
            message.conversation_id,
-           message.user_id,
-           conversation.kind,
-           member.role
+           message.user_id
          from messages message
-         join conversations conversation on conversation.id = message.conversation_id
-         join conversation_members member
-           on member.conversation_id = conversation.id
-          and member.user_id = $2
          where message.id::text = $1
          limit 1
        ), authorized as (
          select *
          from target_message
-         where user_id = $2
-            or (kind = 'group' and role in ('owner', 'admin'))
+         where $3::boolean
        ), target_media as (
          select media.id, media.object_key
          from message_media_attachments attachment
@@ -2098,7 +2439,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
        select (select conversation_id::text from removed_message), object_key from removed_variants where object_key is not null
        union all
        select (select conversation_id::text from removed_message), object_key from removed_media where object_key is not null`,
-      [messageId, userId]
+      [messageId, userId, authorized]
     );
 
     if (!result.rows[0]?.conversation_id) {
@@ -2116,12 +2457,13 @@ export async function registerMessageRoutes(app: FastifyInstance) {
        from message_media_attachments attachment
        join media_objects media on media.id = attachment.media_object_id
        join messages message on message.id = attachment.message_id
-       join conversation_members member on member.conversation_id = message.conversation_id and member.user_id = $3
+       join conversation_members member on member.conversation_id = message.conversation_id
+         and (member.user_id = $3 or member.member_index = $4)
        where attachment.message_id = $1 and attachment.media_object_id = $2
          and attachment.view_once = true and media.deleted_at is null
          and media.moderation_status = 'approved'
        limit 1`,
-      [messageId, mediaObjectId, userId]
+      [messageId, mediaObjectId, userId, createClubEnrollmentUserIndex(app.config, userId)]
     );
     const audienceMedia = audienceResult.rows[0];
     if (!audienceMedia || (audienceMedia.explicit_classification !== "non_explicit"
@@ -2149,7 +2491,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
          join conversations conversation on conversation.id = message.conversation_id
          join conversation_members member
            on member.conversation_id = message.conversation_id
-          and member.user_id = $3
+          and (member.user_id = $3 or member.member_index = $4)
          where attachment.message_id = $1
            and attachment.media_object_id = $2
            and attachment.view_once = true
@@ -2175,7 +2517,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
        from target
        join inserted_view on true
        limit 1`,
-      [messageId, mediaObjectId, userId]
+      [messageId, mediaObjectId, userId, createClubEnrollmentUserIndex(app.config, userId)]
     );
     const mediaObject = result.rows[0];
 
@@ -2254,14 +2596,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
 
     const processed = await processUploadedImage(upload.buffer, upload.mimetype);
 
-    const conversationResult = await app.db.query<ConversationRow>(
-      `${CONVERSATION_SELECT}
-       where cm.user_id = $1
-         and c.id::text = $2
-       limit 1`,
-      [userId, payload.conversationId]
-    );
-    const conversation = conversationResult.rows[0];
+    const conversation = await loadConversationForUser(app, userId, payload.conversationId);
 
     if (!conversation) {
       throw new ApiError(404, "NOT_FOUND", "Conversation not found.");
@@ -2271,7 +2606,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
       await assertCanStartDirectMessage(app, userId, conversation.other_user_id);
     }
     if (conversation.kind === "group") {
-      await assertNoBlockedConversationMembers(app, userId, payload.conversationId);
+      await assertNoBlockedConversationMembers(app, userId, payload.conversationId, conversation.club_id);
     }
 
     const moderationSurface = conversation.kind === "group" ? "group_message" : "direct_message";
@@ -2346,6 +2681,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
         senderUserId: userId,
         messageId: created.id,
         conversationKind: conversation.kind,
+        clubId: conversation.club_id,
         conversationTitle: conversation.title
       });
 
@@ -2370,14 +2706,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
     const userId = await getActiveAccountUserId(request);
     const payload = createMessagePayloadSchema.parse(request.body);
 
-    const conversationResult = await app.db.query<ConversationRow>(
-      `${CONVERSATION_SELECT}
-       where cm.user_id = $1
-         and c.id::text = $2
-       limit 1`,
-      [userId, payload.conversationId]
-    );
-    const conversation = conversationResult.rows[0];
+    const conversation = await loadConversationForUser(app, userId, payload.conversationId);
 
     if (!conversation) {
       throw new ApiError(404, "NOT_FOUND", "Conversation not found.");
@@ -2387,7 +2716,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
       await assertCanStartDirectMessage(app, userId, conversation.other_user_id);
     }
     if (conversation.kind === "group") {
-      await assertNoBlockedConversationMembers(app, userId, payload.conversationId);
+      await assertNoBlockedConversationMembers(app, userId, payload.conversationId, conversation.club_id);
     }
 
     const moderationSurface = conversation.kind === "group" ? "group_message" : "direct_message";
@@ -2403,12 +2732,12 @@ export async function registerMessageRoutes(app: FastifyInstance) {
     const ownerFullAccess = await userHasOwnerFullAccess(app, userId);
 
     const result = await app.db.query<MessageRow>(
-      `with membership as (
+       `with membership as (
          select c.id
          from conversations c
          join conversation_members cm on cm.conversation_id = c.id
          where c.id::text = $1
-           and cm.user_id = $2
+           and (cm.user_id = $2 or cm.member_index = $16)
            and c.closed_at is null
          limit 1
        ), eligible_sender as (
@@ -2502,7 +2831,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
          set last_read_at = now()
          from inserted
          where cm.conversation_id = inserted.conversation_id
-           and cm.user_id = $2
+           and (cm.user_id = $2 or cm.member_index = $16)
        )
        select
          id,
@@ -2531,7 +2860,8 @@ export async function registerMessageRoutes(app: FastifyInstance) {
         moderation.flaggedReason ?? null,
         JSON.stringify(moderation.providerResult.raw_result ?? {}),
         disappearingTimer,
-        ownerFullAccess
+        ownerFullAccess,
+        createClubEnrollmentUserIndex(app.config, userId)
       ]
     );
 
@@ -2552,7 +2882,9 @@ export async function registerMessageRoutes(app: FastifyInstance) {
       senderUserId: userId,
       messageId: created.id,
       conversationKind: conversation.kind,
-      conversationTitle: conversation.title
+      clubId: conversation.club_id,
+      conversationTitle: conversation.title,
+      messageContent: payload.content
     });
 
     return reply.code(201).send({

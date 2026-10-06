@@ -99,4 +99,17 @@ describe('messagesApi', () => {
     }));
     expect(URL.createObjectURL).toHaveBeenCalledWith(expect.any(Blob));
   });
+
+  it('encodes and parses a structured Club DM card', () => {
+    const share = {
+      kind: 'club' as const,
+      id: '22222222-2222-4222-8222-222222222222',
+      label: 'Brooklyn techno',
+    };
+
+    const content = messagesApi.createInAppShareMessage(share);
+
+    expect(content).toBe('[[cruush:club:22222222-2222-4222-8222-222222222222]] Brooklyn techno');
+    expect(messagesApi.parseInAppShareMessage(content)).toEqual(share);
+  });
 });

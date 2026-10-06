@@ -4,6 +4,50 @@ The notched cruush logo is rejected for every app use, including installed home-
 
 # cruush design decisions
 
+- October 1 Clubs direction: “Clubs should be searchable by tags lets just do that for now.” The first Clubs slice began with tag persistence and authenticated tag-based directory search. Julien then authorized the Messages Clubs tab, Club detail, direct-message sharing, and pending join requests below. On October 2, “there's a clubs tab but nothing there, no way to make a club or browse them” corrected the incomplete tab: it must browse published Clubs without requiring a tag first and provide Club creation.
+
+- October 2 Club navigation and previews: “the feel ogthe clubs houild be more like a group even as an admin, i should just go into the club not an admin page even as admin, but there is the admin setting menu.” Joined Clubs open their linked Club chat for every member role, including owner/admin. Club metadata editing and join-request review live in that chat's existing Conversation settings. `My Clubs` previews show the latest posted message when one exists; owner/admin previews also show new join-request counts.
+
+- October 2 Club directory views: “there hsoul dbe one tab for clubs imi n and browse clubs around me witih the clubs tagbtoo.” The existing top-level Clubs tab contains separate `My Clubs` and `Browse Clubs` views. Tag search remains in Browse Clubs. Actual nearby-distance filtering is not defined until Clubs store a location and a radius is chosen.
+
+- October 2 Club copy: “no \"mutuals\" always \"cruushes\".” User-facing Club copy says `cruushes`, never `mutuals` or `mutual cruushes`. Relationship checks may remain internal implementation details.
+
+- October 2 Club moderation: “make sure all content in these clubs is also mdoerated.” Club title, short description, tags, text messages, and message media use the existing moderation boundaries before persistence or delivery; rejected Club content is not posted.
+
+- October 2 Club creation entitlement: “mkaing a club should be a premium feature it think yes?” / “let's do that.” Creating a Club requires current cruush+ access. Browsing, joining, sharing, and participating in an existing Club do not require cruush+ unless another existing account or safety restriction applies.
+
+- October 2 Club creation entry point: “remove that button completely, lets jus tmake it an option under the big + button.” Browse Clubs has no standalone Create Club or upgrade button. `Create Club` lives in the existing large Messages `+` menu beside the direct-chat and Group options, and selecting it applies the existing cruush+ gate before opening the Club composer.
+
+- October 2 Club visibility direction: “you can choose to make your club have its own visibility controls too.” Club creation and owner/admin settings will include Club-specific visibility controls. Exact modes and discovery/join semantics remain pending Julien's answer; the current public-at-two-members behavior remains unchanged until then.
+
+- October 2 Club edit control: “btwn i hate the old edit page icon with the cirlce stop using that.” Club administration uses the existing Conversation settings gear/menu, never the old separate circular edit-page icon. This does not replace or restyle the established Conversation settings gear.
+
+- October 2 Club search expansion: “also let me search by whats in their name sand descriptions?” The Club search field matches Club names, short descriptions, and tags. Name and description matching is case-insensitive contained text; tag matching retains normalized tag behavior.
+
+- October 2 Club browse ordering: “you should sort browse clubs by most recently active around me.” Browse Clubs sorts by the newest posted-message activity, with Club creation time as the fallback for Clubs without messages. Geographic proximity remains pending a Club-location and radius decision; the app must not imply distance filtering before both exist.
+
+- October 2 nearby Club discovery: “as well as show ones that are made near me and recently active?” Browse Clubs keeps recent activity ordering and limits nonmember discovery to Club creators within the app's existing 50-mile browse radius when the viewer has a current encrypted location. The calculation stays server-side and returns no creator identity, coordinates, or distance. Joined Clubs remain in `My Clubs` regardless of location; when current location is unavailable, the published activity-sorted directory remains available.
+
+- October 2 universal tag-entry direction: “okay btw for tags, make this universal, lets have you enter tags like instgamra so you type #tag and enter and taht creates a separate tag,” clarified as “every tag editor please.” Every app tag-entry editor uses the same reusable control: type `#tag`, press Enter, and receive a separate removable tag. Tags remain normalized without the leading `#` in storage and render with `#`. Tag search fields and read-only tag displays are not editors.
+
+- October 2 Club member counts: “i should be able to see how many members are in a club too.” Club previews and public Club detail show the aggregate member count. Public member identity remains private; this does not authorize a public roster.
+
+- October 2 Club roles: “promteo and demote dont seem to work - let me do mods and admins,” followed by “yes” to the proposed boundary. A Club moderator can approve/deny join requests and moderate/remove Club messages. A Club admin can also edit Club metadata and manage Club roles. The owner remains the sole owner. Linked chat and Club membership roles must remain synchronized.
+
+- October 2 Club placement: “btw club chats should not apporve in groups,” interpreted in context as “Club chats should not appear in Groups.” Linked Club conversations appear under `Clubs` > `My Clubs`, not in the top-level Groups filter. Ordinary private Groups remain unchanged.
+
+- October 2 Club inbox placement: “club chats should not appear in the ALL tqab.” Linked Club conversations and their pinned previews do not appear in the top-level `All` tab. They remain available from `Clubs` > `My Clubs`, direct Club chat links, and the existing Unread scope. Ordinary direct and private Group conversations remain in All.
+
+- October 2 message-tab unread indicators: “get a little red circle in the corner over each tab if you have unread in each of those tabs.” The All, Unread, Groups, and Clubs tabs show a small red corner dot when their own current scope contains unread messages. The future Groups-to-Parties rename remains deferred.
+
+- October 2 deferred Messages navigation: “Instead of a groups tab, it's gona be a parties tab. group messages will just be in messages. but this is for later lets focu son clubs rn.” In a later Parties slice, the current top-level `Groups` tab becomes `Parties`; ordinary group conversations remain available in the general Messages list. This is recorded direction only and does not authorize Parties or Messages navigation implementation during the current Clubs slice.
+
+- October 1 Club publication threshold: “Yea require one other member.” A Club requires its owner plus one other confirmed mutual cruush before publication, for two confirmed members total. The October 2 Club creator enforces this before making the Club directory-visible.
+
+- October 1 Club sharing direction: “there should be a way to share the club with other members as well,” corrected to “the lcub rather,” “selected members,” “mutual cruushes,” and “md card” (DM card). A member can select one or more mutual cruushes, send each of them the Club as a structured direct-message card, and each recipient can open it and submit one pending join request. On October 2, Club owners/admins gained a pending-request review list; approval activates Club and linked-conversation membership, while denial removes the pending request.
+
+- October 1 Club description: “i guess admin can do a short description of the club too.” Club owners/admins can maintain a short Club description. October 2 adds: “make sur emoderation applies ot the descirption as well as the tags.” Club title, short description, and tags are moderated before creation and owner/admin edits; rejected metadata is not persisted.
+
 - September 25 app chrome: “I prefer close buttons on app on the left hand” and “I thought we made a compontent for headers? They're inconsistent.” App page headers use the shared one-line header component, and Close is the leftmost header/dialog/sheet control. Preserve each screen's existing title, actions, Bug slot and behavior while migrating it. Source: GitHub issues #305 and #312, reported September 25, 2026.
 
 - September 26 mobile follow-up: “I told you no taglines in header.” Headers contain the page or panel title and their controls, not a tagline beneath the title. Source: GitHub issue #318.
@@ -276,7 +320,6 @@ Julien: “Program cruush to send periodic notifications for engagement througho
 ## Mobile text floor, September 26, 2026
 
 On mobile, text that would otherwise render smaller than the 16px alpha-report text uses 16px as its minimum readable size. This does not resize headings or icons, does not change desktop typography, and does not replace the optional larger-text setting. Source: Julien, “Pls just make fonts that are smaller than the one i wrote this in, big as this size.”
-
 ## Basic activity history and Feed loading, October 2, 2026
 
 Julien: “changes to basic: Basic members see only the newest incoming cruush and newest profile view. Older items stay locked; clearing one does not expose the backlog.” Basic activity access is anchored to the newest historical item in each of those two categories. Clearing that item does not promote or unlock an older active item; a genuinely newer item may become the next unlocked item. cruush+ access is unchanged.
@@ -294,3 +337,41 @@ Julien: “we will never sell user data nor use it to train ai.” State this ex
 ## Message-recipient distance labels, October 2, 2026
 
 Julien: “we dont want it to like show distance labels tho you know.” New-message and new-group recipient cards do not display distance labels. Their existing Distance sort continues to use privacy-safe distance data internally.
+
+## 2026-10-02 — Group and Club notification controls
+
+Julien: “also we need this for group chats too: notifications by @me or any notifications, allo wme to disable notificaitons for a tieme too per group/club, let me enter the club by clickin gthe card itself too”
+
+- Every Group and Club has per-member notification controls for all messages, `@me` only, and temporary mute.
+- Clicking the Club card surface opens the Club; nested card controls retain their own actions.
+## 2026-10-02 — Browse Clubs sorting
+
+Julien: “make some clubs for me to test just seed them, under browse clbs, let me sort by recently active and ones near me?”
+
+- Browse Clubs can be sorted by recent activity or proximity to the member.
+## 2026-10-02 — Conversation settings are pages
+
+Julien: “also make dm setting pages their own pages not pop ups over the dms - do this tretment to all dms groups clubs etc and make the use the standardized header style and menu style - dont invite a new style - i lik eth current menu style just make it its own page for dms with the header compotneetn we share”
+
+- DM, Group, and Club settings use dedicated pages with the shared app header.
+- The existing conversation settings menu styling is preserved on those pages.
+
+## 2026-10-02 — Club search placement
+
+The shared Messages header search stays the same across every Messages tab and searches conversations or Clubs the member is already in. `Browse Clubs` has its own `Search Clubs by name, description, or tag` field directly above its sort control, and that field searches Clubs the member has not joined. Source: Julien, October 2, 2026: “the search up top, that should be for stuff were already in: for the clubs, let me clusb im not in in a separate search bar above the sorting optoins.”
+
+## 2026-10-02 — Club enrollment encryption
+
+Club enrollment encryption covers both the member-to-Club membership relationship itself and any private join-request/application answer. The backend may decrypt only after authorization; database storage must not expose either the social-graph edge or the application answer as plaintext. Source: Julien, October 2, 2026: “btw club enrollment should also be an encrypted field,” clarified with “both.”
+
+## 2026-10-02 — Club join-request visibility
+
+Only the Club owner, admins, and moderators can see join requests or join-request counts. Ordinary members and nonmembers cannot. Source: Julien, October 2, 2026: “only admins/mods can see requests to join.”
+
+## 2026-10-02 — Group and Club membership caps
+
+Group chats allow at most 100 total members, including the creator. Clubs allow at most 1,000 total members, including the creator. The limits apply both when the space is created and when members are added or Club join requests are approved. Source: Julien, October 2, 2026: “group chats? 100 members, clubs? up to 1000+ lets make a 1000 cap to start”.
+
+## 2026-10-02 — Club sharing targets
+
+A Club can be shared as an in-app Club card to a selected private DM or Group chat. Sharing does not bypass the Club's visibility or join-request admission controls and does not include private Club-chat content. Source: Julien, October 2, 2026: “add way for user to share club to another dm private or group or otherwise”.

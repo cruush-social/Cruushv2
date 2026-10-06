@@ -6,7 +6,7 @@ import { DROPDOWN_TRIGGER_CLASS } from '../lib/controlStyles';
 import { registerBugButtonSlot } from '../lib/bugButtonSlot';
 import type { CSSProperties, ChangeEvent, RefObject } from 'react';
 import { useLocation, useParams, useNavigate } from 'react-router';
-import { ArrowLeft, Clock3, Eye, Image as ImageIcon, ImagePlus, Timer, Star, Trash2, X } from 'lucide-react';
+import { ArrowLeft, Clock3, Eye, Image as ImageIcon, ImagePlus, Share2, Timer, Star, Trash2, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Checkbox } from './ui/checkbox';
@@ -34,10 +34,14 @@ import {
   removeFavoriteMessageImage,
   promoteGroupAdmin,
   removeGroupMember,
+  setClubMemberRole,
   sendGroupPulse,
   sendFavoriteMessageImage,
   setConversationDisappearingTimer,
+  setConversationNotifications,
   type ChatMessageRecord,
+  type ConversationMuteDuration,
+  type ConversationNotificationLevel,
   type ConversationTimer,
   type ConversationThread,
   type FavoriteMessageImage,
@@ -52,12 +56,26 @@ import {
   viewMessageAttachment,
 } from '../lib/messagesApi';
 import { getMyCruushActivity, type MutualCruushActivityItem } from '../lib/cruushApi';
+import {
+  getClub,
+  getClubJoinRequests,
+  reviewClubJoinRequest,
+  updateClub,
+  updateClubVisibility,
+  type ClubApplicant,
+  type ClubDetailRecord,
+} from '../lib/clubsApi';
 import { ApiClientError, resolveMediaUrl } from '../lib/apiClient';
 import { useDlMode, shouldMaskPhoto, getNsfwPhotoRestriction, getNsfwPhotoRestrictionLabel, type NsfwPhotoRestriction } from '../lib/dlMode';
 import { MESSAGE_PHOTO_UPLOAD_ACCEPT, prepareMessagePhotoForUpload } from '../lib/messagePhotoProcessing';
 import { getProfileGradientCss } from '../lib/profileGradient';
 import DlModePhotoPlaceholder from './DlModePhotoPlaceholder';
 import PulseLedIcon from './PulseLedIcon';
+import TagInput from './TagInput';
+import AppPageHeader from './AppPageHeader';
+import MapVisibilitySurface, { DEFAULT_VISIBILITY_STATE, type VisibilityControlState } from './MapVisibilitySurface';
+import { visibilityRulesToState, visibilityStateToRules } from '../lib/visibilityControls';
+import InAppShareDialog from './InAppShareDialog';
 
 const timerOptions: Array<{ value: ConversationTimer; label: string }> = [
   { value: 'off', label: 'Off' },
@@ -65,6 +83,14 @@ const timerOptions: Array<{ value: ConversationTimer; label: string }> = [
   { value: '24h', label: '24 hours' },
   { value: '7d', label: '7 days' },
   { value: '30d', label: '30 days' },
+];
+
+const notificationMuteOptions: Array<{ value: ConversationMuteDuration; label: string }> = [
+  { value: 'off', label: 'Notifications on' },
+  { value: '1h', label: 'Mute for 1 hour' },
+  { value: '8h', label: 'Mute for 8 hours' },
+  { value: '24h', label: 'Mute for 24 hours' },
+  { value: '7d', label: 'Mute for 7 days' },
 ];
 
 const KEYBOARD_INSET_THRESHOLD_PX = 120;
@@ -265,6 +291,7 @@ export default function PrivateGroupChat({
   const chatId = conversationId ?? params.chatId;
   const navigate = useNavigate();
   const location = useLocation();
+  const settingsOpen = location.pathname.endsWith('/settings');
   const routeBackLabel = !embedded
     && (location.state as { conversationOrigin?: string } | null)?.conversationOrigin === 'profile'
     ? 'Back to profile'
@@ -284,13 +311,21 @@ export default function PrivateGroupChat({
   const [photoUploading, setPhotoUploading] = useState(false);
   const [textMessageSending, setTextMessageSending] = useState(false);
   const [photoViewOnce, setPhotoViewOnce] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [groupMembers, setGroupMembers] = useState<GroupMemberRecord[]>([]);
   const [groupMembersLoading, setGroupMembersLoading] = useState(false);
   const [groupPulseSending, setGroupPulseSending] = useState(false);
   const [groupPulseNotice, setGroupPulseNotice] = useState('');
   const [groupTitleDraft, setGroupTitleDraft] = useState('');
+  const [clubSettings, setClubSettings] = useState<ClubDetailRecord | null>(null);
+  const [clubApplicants, setClubApplicants] = useState<ClubApplicant[]>([]);
+  const [clubTitleDraft, setClubTitleDraft] = useState('');
+  const [clubSummaryDraft, setClubSummaryDraft] = useState('');
+  const [clubTagsDraft, setClubTagsDraft] = useState<string[]>([]);
+  const [clubVisibilityOpen, setClubVisibilityOpen] = useState(false);
+  const [clubShareOpen, setClubShareOpen] = useState(false);
+  const [clubVisibility, setClubVisibility] = useState<VisibilityControlState>(DEFAULT_VISIBILITY_STATE);
+  const [reviewingClubUserId, setReviewingClubUserId] = useState<string | null>(null);
   const [mutualOptions, setMutualOptions] = useState<MutualCruushActivityItem[]>([]);
   const [addMemberId, setAddMemberId] = useState('');
   const [viewedAttachmentUrls, setViewedAttachmentUrls] = useState<Record<string, string>>({});
@@ -454,6 +489,10 @@ export default function PrivateGroupChat({
   }, [conversation?.kind, conversation?.user.name]);
 
   const canManageConversation = conversation?.kind !== 'group' || ['owner', 'admin'].includes(conversation.currentUserRole ?? '');
+  const canReviewClubRequests = Boolean(conversation?.clubId)
+    && ['owner', 'admin', 'moderator'].includes(conversation?.currentUserRole ?? '');
+  const canModerateMessages = canManageConversation
+    || (Boolean(conversation?.clubId) && conversation?.currentUserRole === 'moderator');
   const dmMessagingBlocked = conversation?.kind === 'dm' && (
     conversation.canMessage === false ||
     mutualRequiredConversationId === conversation.id
@@ -483,17 +522,31 @@ export default function PrivateGroupChat({
     }
   };
 
+  const loadClubSettingsData = async (clubId: string) => {
+    try {
+      const item = await getClub(clubId);
+      setClubSettings(item);
+      setClubTitleDraft(item.title);
+      setClubSummaryDraft(item.summary);
+      setClubTagsDraft(item.tags);
+      setClubVisibility(visibilityRulesToState(item.visibilityRules));
+      if (item.currentUserRole === 'owner' || item.currentUserRole === 'admin' || item.currentUserRole === 'moderator') {
+        setClubApplicants(await getClubJoinRequests(clubId));
+      } else {
+        setClubApplicants([]);
+      }
+    } catch (loadError) {
+      console.error('Error loading Club settings:', loadError);
+      setError(loadError instanceof Error ? loadError.message : 'Failed to load Club settings.');
+    }
+  };
+
   const openSettings = () => {
-    if (settingsOpen) {
-      setSettingsOpen(false);
-      return;
-    }
-
-    setSettingsOpen(true);
-
-    if (conversation?.kind === 'group') {
-      void loadGroupSettingsData(conversation.id);
-    }
+    if (!conversation) return;
+    const conversationPath = conversation.kind === 'group'
+      ? `/chat/group/${conversation.id}`
+      : `/chat/${conversation.id}`;
+    navigate(`${conversationPath}/settings`);
   };
 
   useEffect(() => {
@@ -501,10 +554,9 @@ export default function PrivateGroupChat({
       return;
     }
 
-    window.requestAnimationFrame(() => {
-      settingsPanelRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-    });
-  }, [settingsOpen]);
+    if (conversation?.kind === 'group') void loadGroupSettingsData(conversation.id);
+    if (conversation?.clubId && canReviewClubRequests) void loadClubSettingsData(conversation.clubId);
+  }, [settingsOpen, conversation?.id, conversation?.clubId, canReviewClubRequests]);
 
   const loadFavoriteImages = async () => {
     setFavoriteImagesLoading(true);
@@ -635,6 +687,32 @@ export default function PrivateGroupChat({
     }
   };
 
+  const handleNotificationLevelChange = async (notificationLevel: ConversationNotificationLevel) => {
+    if (!conversation || conversation.kind !== 'group') return;
+    setSettingsSaving(true);
+    try {
+      setConversation(await setConversationNotifications(conversation.id, { notificationLevel }));
+      setError(null);
+    } catch (notificationError) {
+      setError(notificationError instanceof Error ? notificationError.message : 'Failed to update notifications.');
+    } finally {
+      setSettingsSaving(false);
+    }
+  };
+
+  const handleNotificationMuteChange = async (muteFor: ConversationMuteDuration) => {
+    if (!conversation || conversation.kind !== 'group') return;
+    setSettingsSaving(true);
+    try {
+      setConversation(await setConversationNotifications(conversation.id, { muteFor }));
+      setError(null);
+    } catch (notificationError) {
+      setError(notificationError instanceof Error ? notificationError.message : 'Failed to update notifications.');
+    } finally {
+      setSettingsSaving(false);
+    }
+  };
+
   const handleClearForEveryone = async () => {
     if (!conversation) {
       return;
@@ -724,6 +802,64 @@ export default function PrivateGroupChat({
     }
   };
 
+  const handleSaveClub = async () => {
+    if (!conversation?.clubId || !canManageConversation || settingsSaving) return;
+    if (!clubTitleDraft.trim() || !clubSummaryDraft.trim() || clubTagsDraft.length === 0) return;
+
+    setSettingsSaving(true);
+    try {
+      const updated = await updateClub(conversation.clubId, {
+        title: clubTitleDraft.trim(),
+        summary: clubSummaryDraft.trim(),
+        tags: clubTagsDraft,
+      });
+      setClubSettings(updated);
+      setConversation((current) => current ? {
+        ...current,
+        user: { ...current.user, name: updated.title },
+        tags: updated.tags,
+      } : current);
+      setError(null);
+    } catch (saveError) {
+      console.error('Error saving Club settings:', saveError);
+      setError(saveError instanceof Error ? saveError.message : 'Failed to save Club settings.');
+    } finally {
+      setSettingsSaving(false);
+    }
+  };
+
+  const handleSaveClubVisibility = async () => {
+    if (!conversation?.clubId || !canManageConversation || settingsSaving) return;
+    setSettingsSaving(true);
+    try {
+      const visibilityRules = visibilityStateToRules(clubVisibility);
+      await updateClubVisibility(conversation.clubId, visibilityRules);
+      setClubSettings((current) => current ? { ...current, visibilityRules } : current);
+      setClubVisibilityOpen(false);
+      setError(null);
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : 'Failed to save Club visibility.');
+    } finally {
+      setSettingsSaving(false);
+    }
+  };
+
+  const handleClubRequest = async (applicant: ClubApplicant, decision: 'approve' | 'deny') => {
+    if (!conversation?.clubId || !canReviewClubRequests || reviewingClubUserId) return;
+    setReviewingClubUserId(applicant.userId);
+    try {
+      await reviewClubJoinRequest(conversation.clubId, applicant.userId, decision);
+      setClubApplicants((current) => current.filter((item) => item.userId !== applicant.userId));
+      if (decision === 'approve') await loadGroupSettingsData(conversation.id);
+      setError(null);
+    } catch (reviewError) {
+      console.error('Error reviewing Club request:', reviewError);
+      setError(reviewError instanceof Error ? reviewError.message : 'Failed to review Club request.');
+    } finally {
+      setReviewingClubUserId(null);
+    }
+  };
+
   const handleAddGroupMember = async () => {
     if (!conversation || conversation.kind !== 'group' || !addMemberId || !canManageConversation) {
       return;
@@ -786,6 +922,21 @@ export default function PrivateGroupChat({
     } catch (error) {
       console.error('Error updating group member:', error);
       setError(error instanceof Error ? error.message : 'Failed to update member.');
+    } finally {
+      setSettingsSaving(false);
+    }
+  };
+
+  const handleClubMemberRole = async (member: GroupMemberRecord, role: 'admin' | 'moderator' | 'member') => {
+    if (!conversation?.clubId || !canManageConversation || member.role === 'owner') return;
+    setSettingsSaving(true);
+    try {
+      await setClubMemberRole(conversation.id, member.id, role);
+      await loadGroupSettingsData(conversation.id);
+      setError(null);
+    } catch (roleError) {
+      console.error('Error updating Club role:', roleError);
+      setError(roleError instanceof Error ? roleError.message : 'Failed to update Club role.');
     } finally {
       setSettingsSaving(false);
     }
@@ -990,6 +1141,14 @@ export default function PrivateGroupChat({
 
   return (
     <div data-testid="private-group-chat-screen" className={`relative max-w-full overflow-x-clip bg-background pb-20 ${embedded ? 'min-h-full' : 'min-h-screen'}`}>
+      {settingsOpen ? (
+        <AppPageHeader
+          title={conversation?.clubId ? 'Club settings' : conversation?.kind === 'group' ? 'Group settings' : 'Message settings'}
+          onBack={() => navigate(location.pathname.replace(/\/settings$/, ''))}
+          backLabel="Back to conversation"
+          bugButtonTestId="conversation-settings-bug-button-slot"
+        />
+      ) : (
       <header data-testid="chat-thread-header" className="sticky top-0 z-40 border-b border-border bg-background/88 px-3 py-4 backdrop-blur-md sm:px-4">
         <div className="mx-auto flex w-full max-w-2xl items-center justify-between gap-3 sm:gap-4">
           <div className="flex min-w-0 flex-1 items-center gap-3">
@@ -1029,7 +1188,7 @@ export default function PrivateGroupChat({
                     <h2 className="min-w-0 flex-1 truncate text-lg">{conversation.user.name}</h2>
                     {conversation.kind === 'group' ? (
                       <Badge variant="outline" className="border-border/80 bg-card/60 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-                        Group
+                        {conversation.clubId ? 'Club' : 'Group'}
                       </Badge>
                     ) : null}
 
@@ -1055,6 +1214,17 @@ export default function PrivateGroupChat({
           </div>
 
           <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
+            {conversation?.clubId ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                aria-label="Share Club"
+                onClick={() => setClubShareOpen(true)}
+              >
+                <Share2 className="h-5 w-5" />
+              </Button>
+            ) : null}
             {conversation ? (
               <ReportAction
                 targetType="conversation"
@@ -1085,8 +1255,9 @@ export default function PrivateGroupChat({
           </div>
         </div>
       </header>
+      )}
 
-      <div className="mx-auto flex w-full max-w-2xl flex-col px-4 pb-[calc(17rem+env(safe-area-inset-bottom))] pt-4">
+      <div className={`mx-auto flex w-full max-w-2xl flex-col px-4 pt-4 ${settingsOpen ? 'pb-8' : 'pb-[calc(17rem+env(safe-area-inset-bottom))]'}`}>
         {error ? (
           <div className="mb-4 space-y-3 rounded-2xl border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
             <p>{error}</p>
@@ -1120,6 +1291,44 @@ export default function PrivateGroupChat({
                 </Badge>
               ) : null}
             </div>
+
+            {conversation.kind === 'group' ? (
+              <div className="space-y-3 border-b border-border pb-4">
+                <span className="block text-sm text-muted-foreground">Notifications</span>
+                <Select
+                  value={conversation.notificationLevel ?? 'all'}
+                  disabled={settingsSaving}
+                  onValueChange={(value) => void handleNotificationLevelChange(value as ConversationNotificationLevel)}
+                >
+                  <SelectTrigger aria-label="Group or Club notification level" className="h-11 w-full rounded-2xl border-white/12 bg-card/82 px-4 text-sm text-foreground">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent align="start" className="rounded-2xl border-white/12 bg-card/95 p-1 text-foreground">
+                    <SelectItem value="all">All messages</SelectItem>
+                    <SelectItem value="mentions">@me only</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={conversation.muted ? 'muted' : 'off'}
+                  disabled={settingsSaving}
+                  onValueChange={(value) => value !== 'muted' && void handleNotificationMuteChange(value as ConversationMuteDuration)}
+                >
+                  <SelectTrigger aria-label="Temporarily mute Group or Club" className="h-11 w-full rounded-2xl border-white/12 bg-card/82 px-4 text-sm text-foreground">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent align="start" className="rounded-2xl border-white/12 bg-card/95 p-1 text-foreground">
+                    {conversation.muted ? (
+                      <SelectItem value="muted">
+                        Muted{conversation.mutedUntil ? ` until ${new Date(conversation.mutedUntil).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}` : ''}
+                      </SelectItem>
+                    ) : null}
+                    {notificationMuteOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : null}
 
             <div className="space-y-2">
               <span className="block text-sm text-muted-foreground">Disappearing timer</span>
@@ -1156,7 +1365,7 @@ export default function PrivateGroupChat({
               variant="outline"
               aria-label="Clear chat for everyone"
               className="w-full justify-center border-destructive/30 text-destructive hover:bg-destructive/10"
-              disabled={settingsSaving}
+              disabled={!canManageConversation || settingsSaving}
               onClick={() => void handleClearForEveryone()}
             >
               <Trash2 className="size-4" />
@@ -1188,9 +1397,83 @@ export default function PrivateGroupChat({
 
             {conversation.kind === 'group' ? (
               <div className="space-y-4 border-t border-border pt-4">
+                {conversation.clubId && canManageConversation ? (
+                  <div className="space-y-4 border-b border-border pb-4">
+                    <h4 className="text-sm text-muted-foreground">Club settings</h4>
+                    <label className="block space-y-2">
+                      <span className="text-sm text-muted-foreground">Club name</span>
+                      <Input
+                        aria-label="Club settings name"
+                        maxLength={120}
+                        value={clubTitleDraft}
+                        onChange={(event) => setClubTitleDraft(event.target.value)}
+                      />
+                    </label>
+                    <label className="block space-y-2">
+                      <span className="text-sm text-muted-foreground">Short description</span>
+                      <Textarea
+                        aria-label="Club settings short description"
+                        maxLength={1000}
+                        value={clubSummaryDraft}
+                        onChange={(event) => setClubSummaryDraft(event.target.value)}
+                      />
+                    </label>
+                    <div className="block space-y-2">
+                      <span className="text-sm text-muted-foreground">Tags</span>
+                      <TagInput ariaLabel="Club settings tags" maxTags={10} onChange={setClubTagsDraft} tags={clubTagsDraft} />
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={!clubSettings || !clubTitleDraft.trim() || !clubSummaryDraft.trim() || clubTagsDraft.length === 0 || settingsSaving}
+                      onClick={() => void handleSaveClub()}
+                    >
+                      Save Club
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={!clubSettings || settingsSaving}
+                      onClick={() => setClubVisibilityOpen(true)}
+                    >
+                      Visibility Controls
+                    </Button>
+
+                    <div className="space-y-2">
+                      <h4 className="text-sm text-muted-foreground">Join requests</h4>
+                      {clubApplicants.length === 0 ? (
+                        <p className="rounded-2xl border border-border bg-background/60 p-3 text-sm text-muted-foreground">No pending requests.</p>
+                      ) : clubApplicants.map((applicant) => (
+                        <div key={applicant.userId} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-background/60 p-3">
+                          <p className="min-w-0 truncate">{applicant.name}</p>
+                          <div className="flex shrink-0 gap-2">
+                            <Button disabled={reviewingClubUserId === applicant.userId} onClick={() => void handleClubRequest(applicant, 'approve')} size="sm" type="button">Approve</Button>
+                            <Button disabled={reviewingClubUserId === applicant.userId} onClick={() => void handleClubRequest(applicant, 'deny')} size="sm" type="button" variant="outline">Deny</Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+                {conversation.clubId && conversation.currentUserRole === 'moderator' ? (
+                  <div className="space-y-2 border-b border-border pb-4">
+                    <h4 className="text-sm text-muted-foreground">Join requests</h4>
+                    {clubApplicants.length === 0 ? (
+                      <p className="rounded-2xl border border-border bg-background/60 p-3 text-sm text-muted-foreground">No pending requests.</p>
+                    ) : clubApplicants.map((applicant) => (
+                      <div key={applicant.userId} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-background/60 p-3">
+                        <p className="min-w-0 truncate">{applicant.name}</p>
+                        <div className="flex shrink-0 gap-2">
+                          <Button disabled={reviewingClubUserId === applicant.userId} onClick={() => void handleClubRequest(applicant, 'approve')} size="sm" type="button">Approve</Button>
+                          <Button disabled={reviewingClubUserId === applicant.userId} onClick={() => void handleClubRequest(applicant, 'deny')} size="sm" type="button" variant="outline">Deny</Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
                 {canManageConversation ? (
                   <>
-                    <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+                    {!conversation.clubId ? <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
                       <Input
                         aria-label="Group title"
                         value={groupTitleDraft}
@@ -1204,16 +1487,16 @@ export default function PrivateGroupChat({
                       >
                         Rename
                       </Button>
-                    </div>
+                    </div> : null}
 
                     <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
                       <select
-                        aria-label="Add mutual"
+                        aria-label={conversation.clubId ? 'Add cruush' : 'Add mutual'}
                         value={addMemberId}
                         onChange={(event) => setAddMemberId(event.target.value)}
                         className={DROPDOWN_TRIGGER_CLASS}
                       >
-                        <option value="">Add a mutual</option>
+                        <option value="">{conversation.clubId ? 'Add a cruush' : 'Add a mutual'}</option>
                         {availableAddOptions.map((item) => (
                           <option key={item.user.id} value={item.user.id}>
                             {item.user.name}
@@ -1264,14 +1547,16 @@ export default function PrivateGroupChat({
                       </div>
                       {canManageConversation && member.role !== 'owner' ? (
                         <div className="flex flex-wrap gap-2">
-                          {member.role === 'admin' ? (
-                            <Button type="button" size="sm" variant="outline" disabled={settingsSaving} onClick={() => void handleGroupMemberAction(member, 'demote')}>
-                              Demote
-                            </Button>
+                          {conversation.clubId ? (
+                            <>
+                              {member.role !== 'moderator' ? <Button type="button" size="sm" variant="outline" disabled={settingsSaving} onClick={() => void handleClubMemberRole(member, 'moderator')}>Make moderator</Button> : null}
+                              {member.role !== 'admin' ? <Button type="button" size="sm" variant="outline" disabled={settingsSaving} onClick={() => void handleClubMemberRole(member, 'admin')}>Make admin</Button> : null}
+                              {member.role !== 'member' ? <Button type="button" size="sm" variant="outline" disabled={settingsSaving} onClick={() => void handleClubMemberRole(member, 'member')}>Remove role</Button> : null}
+                            </>
+                          ) : member.role === 'admin' ? (
+                            <Button type="button" size="sm" variant="outline" disabled={settingsSaving} onClick={() => void handleGroupMemberAction(member, 'demote')}>Demote</Button>
                           ) : (
-                            <Button type="button" size="sm" variant="outline" disabled={settingsSaving} onClick={() => void handleGroupMemberAction(member, 'promote')}>
-                              Promote
-                            </Button>
+                            <Button type="button" size="sm" variant="outline" disabled={settingsSaving} onClick={() => void handleGroupMemberAction(member, 'promote')}>Promote</Button>
                           )}
                           <Button type="button" size="sm" variant="outline" disabled={settingsSaving} onClick={() => void handleGroupMemberAction(member, 'remove')}>
                             Remove
@@ -1298,12 +1583,14 @@ export default function PrivateGroupChat({
           </section>
         ) : null}
 
+        <div className={settingsOpen ? 'hidden' : 'contents'}>
+
         {conversation ? (
           <>
             <div className="mb-4 flex flex-wrap gap-2">
               {conversation.tags.map((tag) => (
                 <Badge key={tag} variant="outline" className="border-primary/20 bg-primary/10 text-primary">
-                  {tag}
+                  {conversation.clubId ? `#${tag}` : tag}
                 </Badge>
               ))}
             </div>
@@ -1503,11 +1790,18 @@ export default function PrivateGroupChat({
                   })}
                   {inAppShare ? (
                     <button
+                      aria-label={inAppShare.kind === 'club' ? `Open ${inAppShare.label} Club` : undefined}
                       className="min-w-48 rounded-[22px] border border-white/14 bg-black/38 px-4 py-3 text-left text-white transition hover:border-white/30"
-                      onClick={() => navigate(inAppShare.kind === 'place' ? `/places/${inAppShare.id}` : `/profile/${inAppShare.id}`)}
+                      onClick={() => navigate(inAppShare.kind === 'place'
+                        ? `/places/${inAppShare.id}`
+                        : inAppShare.kind === 'club'
+                          ? `/clubs/${inAppShare.id}`
+                          : `/profile/${inAppShare.id}`)}
                       type="button"
                     >
-                      <span className="block text-[10px] uppercase tracking-[0.16em] text-white/50">{inAppShare.kind === 'place' ? 'Spot' : 'Profile'}</span>
+                      <span className="block text-[10px] uppercase tracking-[0.16em] text-white/50">
+                        {inAppShare.kind === 'place' ? 'Spot' : inAppShare.kind === 'club' ? 'Club' : 'Profile'}
+                      </span>
                       <span className="mt-1 block text-sm">{inAppShare.label}</span>
                     </button>
                   ) : msg.content ? (
@@ -1544,7 +1838,7 @@ export default function PrivateGroupChat({
                       {!isOwn && msg.expiresAt ? ` · ${formatExpirationTime(msg.expiresAt)}` : ''}
                       {isOwn && msg.readAt ? ' · Read' : ''}
                     </span>
-                    {(isOwn || (conversation?.kind === 'group' && canManageConversation)) ? (
+                    {(isOwn || (conversation?.kind === 'group' && canModerateMessages)) ? (
                       <Button
                         type="button"
                         variant="ghost"
@@ -1848,7 +2142,26 @@ export default function PrivateGroupChat({
             </div>
           </div>
         ) : null}
+        </div>
       </div>
+      {conversation?.clubId ? (
+        <InAppShareDialog
+          onOpenChange={setClubShareOpen}
+          open={clubShareOpen}
+          share={{ kind: 'club', id: conversation.clubId, label: conversation.user.name }}
+        />
+      ) : null}
+      <MapVisibilitySurface
+        description="Choose who can discover this Club."
+        searchPlaceholder="Hide this Club from matching names, bios, or #tags"
+        open={clubVisibilityOpen}
+        onOpenChange={setClubVisibilityOpen}
+        value={clubVisibility}
+        hasCruushPlus
+        onChange={setClubVisibility}
+        onClear={() => setClubVisibility(DEFAULT_VISIBILITY_STATE)}
+        onApply={() => void handleSaveClubVisibility()}
+      />
     </div>
   );
 }

@@ -10,6 +10,7 @@ import mapIconWhite from '../assets/ui-icons/map-white.png';
 import seekingIcon from '../assets/ui-icons/seeking-magnifying-glass-8149381.svg';
 import HeartPhoto from './HeartPhoto';
 import { Input } from './ui/input';
+import { Textarea } from './ui/textarea';
 import { Tabs, TabsList, TabsTrigger } from './ui/tabs';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
@@ -28,14 +29,20 @@ import { getNearbyUsers, type DiscoveryUser } from '../lib/usersApi';
 import { getMyBillingStatus } from '../lib/billingApi';
 import { getMyProfile, type ProfileRecord } from '../lib/profileApi';
 import { decryptDisplayLocationToken } from '../lib/displayLocationTokens';
+import MapVisibilitySurface, { DEFAULT_VISIBILITY_STATE, type VisibilityControlState } from './MapVisibilitySurface';
+import { visibilityRulesToState, visibilityStateToRules } from '../lib/visibilityControls';
 import { openConversationOrInbox } from '../lib/openConversation';
 import ProfileActionTrio from './ProfileActionTrio';
 import UserActivityCapsule from './UserActivityCapsule';
+import ClubDirectoryPanel from './ClubDirectoryPanel';
+import TagInput from './TagInput';
+import { createClub } from '../lib/clubsApi';
 import LoadingCardSkeletons from './LoadingCardSkeletons';
 import CruushMatchSettings from './CruushMatchSettings';
 import AppPageHeader from './AppPageHeader';
 import { shouldMaskPhoto, useDlMode } from '../lib/dlMode';
 import { registerBugButtonSlot } from '../lib/bugButtonSlot';
+import { formatDistanceLabel, useDistancePreferences } from '../lib/distancePreferences';
 import { resolveUserBorderTone } from '../lib/userBorderTone';
 import {
   handleCruushSendSuccess,
@@ -106,12 +113,15 @@ function normalizeConversation(raw: any): ConversationThread {
     unreadCount: typeof raw?.unreadCount === 'number' ? raw.unreadCount : raw?.unread ? 1 : 0,
     pinned: typeof raw?.pinned === 'boolean' ? raw.pinned : false,
     muted: typeof raw?.muted === 'boolean' ? raw.muted : false,
+    notificationLevel: raw?.notificationLevel === 'mentions' ? 'mentions' : 'all',
+    mutedUntil: typeof raw?.mutedUntil === 'string' ? raw.mutedUntil : null,
     mutual: typeof raw?.mutual === 'boolean' ? raw.mutual : false,
     membersLabel: raw?.membersLabel ?? undefined,
-    currentUserRole: ['owner', 'admin', 'member'].includes(raw?.currentUserRole) ? raw.currentUserRole : undefined,
+    currentUserRole: ['owner', 'admin', 'moderator', 'member'].includes(raw?.currentUserRole) ? raw.currentUserRole : undefined,
     disappearingTimer: ['off', '5m', '1h', '8h', '24h', '3d', '7d', '30d', '90d'].includes(raw?.disappearingTimer) ? raw.disappearingTimer : undefined,
     closed: typeof raw?.closed === 'boolean' ? raw.closed : undefined,
     tags: Array.isArray(raw?.tags) ? raw.tags : [],
+    clubId: typeof raw?.clubId === 'string' ? raw.clubId : undefined,
   };
 }
 
@@ -286,12 +296,15 @@ export default function DirectMessages({
   const [validPinUserIds, setValidPinUserIds] = useState<Set<string>>(() => new Set());
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState<'all' | 'unread' | 'groups'>('all');
+  const [activeTab, setActiveTab] = useState<'all' | 'unread' | 'groups' | 'clubs'>(() => (
+    searchParams.get('tab') === 'clubs' ? 'clubs' : 'all'
+  ));
   const [error, setError] = useState<string | null>(null);
   const [composeChooserOpen, setComposeChooserOpen] = useState(false);
   const [messageSettingsOpen, setMessageSettingsOpen] = useState(false);
   const [directComposerOpen, setDirectComposerOpen] = useState(false);
   const [groupComposerOpen, setGroupComposerOpen] = useState(false);
+  const [clubComposerOpen, setClubComposerOpen] = useState(false);
   const [groupName, setGroupName] = useState('');
   const [groupTimer, setGroupTimer] = useState<ConversationTimer>('24h');
   const [groupSearchQuery, setGroupSearchQuery] = useState('');
@@ -307,14 +320,41 @@ export default function DirectMessages({
   const [directHasCruushPlus, setDirectHasCruushPlus] = useState(false);
   const [viewerCoordinates, setViewerCoordinates] = useState<ViewerCoordinates | null>(null);
   const [groupCreating, setGroupCreating] = useState(false);
+  const [clubName, setClubName] = useState('');
+  const [clubSummary, setClubSummary] = useState('');
+  const [clubTags, setClubTags] = useState<string[]>([]);
+  const [clubSearchQuery, setClubSearchQuery] = useState('');
+  const [selectedClubMemberIds, setSelectedClubMemberIds] = useState<string[]>([]);
+  const [clubError, setClubError] = useState<string | null>(null);
+  const [clubLoading, setClubLoading] = useState(false);
+  const [clubCreating, setClubCreating] = useState(false);
+  const [clubVisibilityOpen, setClubVisibilityOpen] = useState(false);
+  const [clubVisibility, setClubVisibility] = useState<VisibilityControlState>(DEFAULT_VISIBILITY_STATE);
+  const [clubHasCruushPlus, setClubHasCruushPlus] = useState(false);
   const [deletingConversationId, setDeletingConversationId] = useState<string | null>(null);
   const [changingCruushUserId, setChangingCruushUserId] = useState<string | null>(null);
   const deferredSearchQuery = useDeferredValue(searchQuery);
   const dlModeActive = useDlMode();
+  const distancePreferences = useDistancePreferences();
 
   useEffect(() => {
     void fetchConversations();
   }, []);
+
+  useEffect(() => {
+    if (activeTab !== 'clubs') return;
+
+    let active = true;
+    void getMyBillingStatus()
+      .then((billing) => {
+        if (active) setClubHasCruushPlus(billing.cruushPlus === true);
+      })
+      .catch(() => {
+        if (active) setClubHasCruushPlus(false);
+      });
+
+    return () => { active = false; };
+  }, [activeTab]);
 
   const fetchConversations = async () => {
     setLoading(true);
@@ -368,7 +408,11 @@ export default function DirectMessages({
       return false;
     }
 
-    if (activeTab === 'groups' && conversation.kind !== 'group') {
+    if (activeTab === 'groups' && (conversation.kind !== 'group' || conversation.clubId)) {
+      return false;
+    }
+
+    if (activeTab === 'all' && conversation.clubId) {
       return false;
     }
 
@@ -383,8 +427,21 @@ export default function DirectMessages({
     );
   });
 
-  const pinnedConversations = conversations.filter((conversation) => conversation.pinned).slice(0, 4);
+  const pinnedConversations = conversations.filter((conversation) => (
+    conversation.pinned
+    && !(activeTab === 'all' && conversation.clubId)
+    && !(activeTab === 'groups' && (conversation.kind !== 'group' || conversation.clubId))
+  )).slice(0, 4);
   const unreadCount = conversations.reduce((sum, conversation) => sum + conversation.unreadCount, 0);
+  const allUnreadCount = conversations
+    .filter((conversation) => !conversation.clubId)
+    .reduce((sum, conversation) => sum + conversation.unreadCount, 0);
+  const groupUnreadCount = conversations
+    .filter((conversation) => conversation.kind === 'group' && !conversation.clubId)
+    .reduce((sum, conversation) => sum + conversation.unreadCount, 0);
+  const clubUnreadCount = conversations
+    .filter((conversation) => Boolean(conversation.clubId))
+    .reduce((sum, conversation) => sum + conversation.unreadCount, 0);
   const activeNowCount = conversations.filter((conversation) => formatRelativeTime(conversation.updatedAt).includes('m')).length;
   const groupMutuals = useMemo(() => {
     const groupQuery = groupSearchQuery.trim().toLowerCase();
@@ -416,6 +473,16 @@ export default function DirectMessages({
         || a.user.name.localeCompare(b.user.name);
     });
   }, [groupSearchQuery, groupSortMode, mutualOptions, viewerCoordinates]);
+  const clubMutuals = useMemo(() => {
+    const clubQuery = clubSearchQuery.trim().toLowerCase();
+    if (!clubQuery) return mutualOptions;
+    return mutualOptions.filter((item) => [
+      item.user.name,
+      item.user.pronouns,
+      ...item.vibes,
+      ...item.mutualCrowds,
+    ].some((value) => value.toLowerCase().includes(clubQuery)));
+  }, [clubSearchQuery, mutualOptions]);
 
   const loadMessageableMutuals = async ({
     setComposerError,
@@ -451,6 +518,23 @@ export default function DirectMessages({
       setComposerError: setGroupError,
       setComposerLoading: setGroupLoading,
     });
+  };
+
+  const openClubComposer = async () => {
+    if (!clubHasCruushPlus) {
+      navigate('/rewards');
+      return;
+    }
+    setClubComposerOpen(true);
+    await Promise.all([
+      loadMessageableMutuals({
+        setComposerError: setClubError,
+        setComposerLoading: setClubLoading,
+      }),
+      getMyProfile()
+        .then((profile) => setClubVisibility(visibilityRulesToState(profile.visibility_rules)))
+        .catch(() => setClubVisibility(DEFAULT_VISIBILITY_STATE)),
+    ]);
   };
 
   const loadDirectMessageOptions = async (filters: FilterState = DEFAULT_FILTER_STATE) => {
@@ -516,7 +600,7 @@ export default function DirectMessages({
     setSelectedMemberIds((prev) => (
       prev.includes(userId)
         ? prev.filter((id) => id !== userId)
-        : [...prev, userId]
+        : prev.length < 99 ? [...prev, userId] : prev
     ));
   };
 
@@ -528,6 +612,45 @@ export default function DirectMessages({
     setGroupSortMode('lastOnline');
     setSelectedMemberIds([]);
     setGroupError(null);
+  };
+
+  const resetClubComposer = () => {
+    setClubComposerOpen(false);
+    setClubName('');
+    setClubSummary('');
+    setClubTags([]);
+    setClubSearchQuery('');
+    setSelectedClubMemberIds([]);
+    setClubVisibilityOpen(false);
+    setClubVisibility(DEFAULT_VISIBILITY_STATE);
+    setClubError(null);
+  };
+
+  const toggleSelectedClubMember = (userId: string) => {
+    setSelectedClubMemberIds((current) => current.includes(userId)
+      ? current.filter((id) => id !== userId)
+      : current.length < 999 ? [...current, userId] : current);
+  };
+
+  const handleCreateClub = async () => {
+    if (!clubName.trim() || !clubSummary.trim() || clubTags.length === 0 || selectedClubMemberIds.length === 0 || clubCreating) return;
+    setClubCreating(true);
+    setClubError(null);
+    try {
+      const created = await createClub({
+        title: clubName.trim(),
+        summary: clubSummary.trim(),
+        tags: clubTags,
+        memberIds: selectedClubMemberIds,
+        visibilityRules: visibilityStateToRules(clubVisibility),
+      });
+      resetClubComposer();
+      openConversation(created.conversationId);
+    } catch (createError) {
+      setClubError(createError instanceof Error ? createError.message : 'Club could not be created.');
+    } finally {
+      setClubCreating(false);
+    }
   };
 
   const resetDirectComposer = () => {
@@ -755,11 +878,24 @@ export default function DirectMessages({
             />
           </div>
 
-          <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'all' | 'unread' | 'groups')}>
-            <TabsList className="grid h-auto w-full grid-cols-3 rounded-lg border border-white/10 bg-background/25 p-1 shadow-[0_20px_55px_rgba(0,0,0,0.32)] backdrop-blur-xl">
-              <TabsTrigger value="all" className="h-10 rounded-md text-sm text-white/72">All</TabsTrigger>
-              <TabsTrigger value="unread" className="h-10 rounded-md text-sm text-white/72">Unread</TabsTrigger>
-              <TabsTrigger value="groups" className="h-10 rounded-md text-sm text-white/72">Groups</TabsTrigger>
+          <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'all' | 'unread' | 'groups' | 'clubs')}>
+            <TabsList className="grid h-auto w-full grid-cols-4 rounded-lg border border-white/10 bg-background/25 p-1 shadow-[0_20px_55px_rgba(0,0,0,0.32)] backdrop-blur-xl">
+              <TabsTrigger value="all" className="relative h-10 rounded-md text-sm text-white/72">
+                All
+                {allUnreadCount > 0 ? <span aria-hidden="true" className="absolute right-2 top-1.5 size-2 rounded-full bg-red-500" data-testid="all-unread-dot" /> : null}
+              </TabsTrigger>
+              <TabsTrigger value="unread" className="relative h-10 rounded-md text-sm text-white/72">
+                Unread
+                {unreadCount > 0 ? <span aria-hidden="true" className="absolute right-2 top-1.5 size-2 rounded-full bg-red-500" data-testid="unread-unread-dot" /> : null}
+              </TabsTrigger>
+              <TabsTrigger value="groups" className="relative h-10 rounded-md text-sm text-white/72" onClick={() => setActiveTab('groups')}>
+                Groups
+                {groupUnreadCount > 0 ? <span aria-hidden="true" className="absolute right-2 top-1.5 size-2 rounded-full bg-red-500" data-testid="groups-unread-dot" /> : null}
+              </TabsTrigger>
+              <TabsTrigger value="clubs" className="relative h-10 rounded-md text-sm text-white/72" onClick={() => setActiveTab('clubs')}>
+                Clubs
+                {clubUnreadCount > 0 ? <span aria-hidden="true" className="absolute right-2 top-1.5 size-2 rounded-full bg-red-500" data-testid="clubs-unread-dot" /> : null}
+              </TabsTrigger>
             </TabsList>
           </Tabs>
         </div>
@@ -771,6 +907,7 @@ export default function DirectMessages({
           onClose={() => setComposeChooserOpen(false)}
           onStartDirect={() => void openDirectComposer()}
           onStartGroup={() => void openGroupComposer()}
+          onStartClub={() => void openClubComposer()}
         />
       ) : null}
 
@@ -959,7 +1096,149 @@ export default function DirectMessages({
         </div>
       ) : null}
 
+      {clubComposerOpen ? (
+        <div
+          className="scrollbar-hide fixed inset-0 z-40 overflow-y-auto overscroll-contain bg-background/95 px-4 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-6 backdrop-blur-md"
+          style={{ WebkitOverflowScrolling: 'touch' }}
+        >
+          <div className="mx-auto max-w-2xl space-y-5">
+            <div className="flex items-center gap-2">
+              <Button type="button" variant="ghost" size="icon" className="shrink-0" aria-label="Back from new Club" onClick={resetClubComposer}>
+                <ChevronLeft className="size-4" />
+              </Button>
+              <h3 className="min-w-0 flex-1 truncate text-xl">New Club</h3>
+              <Button type="button" variant="ghost" size="icon" className="shrink-0" aria-label="Close Club composer" onClick={resetClubComposer}>
+                <X className="size-4" />
+              </Button>
+              <div className="h-9 w-9 shrink-0" data-testid="direct-messages-club-bug-button-slot" ref={registerBugButtonSlot} />
+            </div>
+
+            {clubError ? (
+              <div className="rounded-2xl border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive" role="alert">
+                {clubError}
+              </div>
+            ) : null}
+
+            <label className="block space-y-2">
+              <span className="text-sm text-muted-foreground">Club name</span>
+              <Input aria-label="Club name" maxLength={120} value={clubName} onChange={(event) => setClubName(event.target.value)} />
+            </label>
+
+            <label className="block space-y-2">
+              <span className="text-sm text-muted-foreground">Short description</span>
+              <Textarea aria-label="Short description" maxLength={1000} value={clubSummary} onChange={(event) => setClubSummary(event.target.value)} />
+            </label>
+
+            <div className="block space-y-2">
+              <span className="text-sm text-muted-foreground">Tags</span>
+              <TagInput ariaLabel="Club tags" maxTags={10} onChange={setClubTags} tags={clubTags} />
+            </div>
+
+            <Button type="button" variant="outline" className="w-full" onClick={() => setClubVisibilityOpen(true)}>
+              Visibility Controls
+            </Button>
+
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">Cruushes</p>
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  aria-label="Search cruushes for Club"
+                  className="pl-9"
+                  value={clubSearchQuery}
+                  onChange={(event) => setClubSearchQuery(event.target.value)}
+                  placeholder="Search cruushes"
+                />
+              </div>
+              {clubLoading ? <LoadingCardSkeletons count={3} label="Loading cruushes" /> : null}
+              {!clubLoading && mutualOptions.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-border bg-card/60 p-4 text-sm text-muted-foreground">
+                  No cruushes available.
+                </div>
+              ) : null}
+              {!clubLoading && mutualOptions.length > 0 && clubMutuals.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-border bg-card/60 p-4 text-sm text-muted-foreground">
+                  No cruushes match your search.
+                </div>
+              ) : null}
+              <div className="space-y-2">
+                {clubMutuals.map((item) => {
+                  const selected = selectedClubMemberIds.includes(item.user.id);
+                  return (
+                    <UserActivityCapsule
+                      key={item.user.id}
+                      testId={`club-mutual-${item.user.id}`}
+                      heart={(
+                        <HeartPhoto
+                          borderTone={resolveUserBorderTone({ mileHigh: item.user.travelling, mutual: true })}
+                          className="w-20 shrink-0"
+                          label={`${item.user.name} avatar`}
+                          restriction={getNsfwPhotoRestriction(item.user.photoExplicit, { ...item.user.photoRelationship, isMutualCruush: true, sharesCrowd: (item.mutualCrowds?.length ?? 0) > 0 })}
+                          masked={shouldMaskPhoto(dlModeActive, item.user.photoExplicit, { ...item.user.photoRelationship, isMutualCruush: true, sharesCrowd: (item.mutualCrowds?.length ?? 0) > 0 })}
+                          photo={item.user.photo}
+                          userId={item.user.id}
+                          theme="mutual"
+                          fallback={<div className="text-base text-white/80">{getConversationInitials(item.user.name)}</div>}
+                        />
+                      )}
+                      name={item.user.name}
+                      pronouns={item.user.pronouns || 'Ask me'}
+                      sideBadges={item.user.sideBadges}
+                      sideBadgeTone={resolveUserBorderTone({ mileHigh: item.user.travelling, mutual: true })}
+                      metadata={(
+                        <span className="flex min-w-0 flex-col gap-0.5 text-left text-xs leading-snug text-white/62">
+                          <span className="truncate">{item.lastActive}</span>
+                          <span className="truncate">{formatDistanceLabel(item.distance, distancePreferences.mode) ?? item.distance}</span>
+                        </span>
+                      )}
+                      mutual
+                      onSelect={() => toggleSelectedClubMember(item.user.id)}
+                      selected={selected}
+                      selectLabel={`${selected ? 'Remove' : 'Add'} ${item.user.name} ${selected ? 'from' : 'to'} Club`}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+
+            <TrustRestrictionNotice message={trust.message('group_creation', 'Club creation')} />
+            <Button
+              type="button"
+              className="w-full"
+              disabled={!clubName.trim() || !clubSummary.trim() || clubTags.length === 0 || selectedClubMemberIds.length === 0 || clubCreating || trust.restricted('group_creation')}
+              onClick={() => void handleCreateClub()}
+            >
+              Create Club
+            </Button>
+          </div>
+        </div>
+      ) : null}
+
+      <MapVisibilitySurface
+        description="Choose who can discover this Club."
+        searchPlaceholder="Hide this Club from matching names, bios, or #tags"
+        open={clubVisibilityOpen}
+        onOpenChange={setClubVisibilityOpen}
+        value={clubVisibility}
+        hasCruushPlus={clubHasCruushPlus}
+        onChange={setClubVisibility}
+        onClear={() => setClubVisibility(DEFAULT_VISIBILITY_STATE)}
+        onApply={() => setClubVisibilityOpen(false)}
+      />
+
       <div className="relative mx-auto max-w-2xl px-4 pb-8 pt-4">
+        {activeTab === 'clubs' ? (
+          <ClubDirectoryPanel
+            query={deferredSearchQuery}
+            conversations={conversations}
+            onOpenConversation={openConversation}
+            onClubDeleted={(conversationId) => {
+              if (!conversationId) return;
+              setConversations((current) => current.filter((conversation) => conversation.id !== conversationId));
+            }}
+          />
+        ) : (
+        <>
         <TrustRestrictionNotice message={trust.message('direct_messages', 'Messaging')} />
         {pinnedConversations.length > 0 ? (
           <section className="mb-6">
@@ -1170,6 +1449,8 @@ export default function DirectMessages({
             </Card>
           ) : null}
         </div>
+        </>
+        )}
       </div>
     </div>
   );
@@ -1180,18 +1461,22 @@ function ComposeChoiceOverlay({
   onClose,
   onStartDirect,
   onStartGroup,
+  onStartClub,
 }: {
   embedded: boolean;
   onClose: () => void;
   onStartDirect: () => void;
   onStartGroup: () => void;
+  onStartClub: () => void;
 }) {
   return (
     <div className="fixed inset-0 z-40 bg-background/95 px-4 py-6 backdrop-blur-md">
       <div className="mx-auto max-w-2xl space-y-5">
         <div className={`flex items-center justify-between gap-3 ${embedded ? '' : 'pr-14'}`}>
-          <div>
-            <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">new message</p>
+          <Button type="button" variant="ghost" size="icon" aria-label="Back to Messages" onClick={onClose}>
+            <ArrowLeft className="size-5" />
+          </Button>
+          <div className="min-w-0 flex-1">
             <h3 className="text-2xl">Start a conversation</h3>
           </div>
           <Button type="button" variant="ghost" size="icon" aria-label="Close message options" onClick={onClose}>
@@ -1215,6 +1500,14 @@ function ComposeChoiceOverlay({
           >
             <span className="block">Create group message</span>
             <span className="mt-1 block text-sm text-muted-foreground">Choose cruushes for a group thread.</span>
+          </button>
+          <button
+            type="button"
+            className="w-full rounded-2xl border border-border bg-card/80 p-4 text-left transition-colors hover:bg-accent/60"
+            onClick={onStartClub}
+          >
+            <span className="block">Create Club</span>
+            <span className="mt-1 block text-sm text-muted-foreground">Build a space around what brings you together.</span>
           </button>
         </div>
       </div>

@@ -40,6 +40,10 @@ export type SideBadgeSelection = {
   badge_id: string;
   intent: 'none' | 'give' | 'receive' | 'switch' | 'service' | 'stone';
   frame: string;
+  /** A short, person-written title for this individual side badge. */
+  meaning?: string;
+  /** App-owned artwork chosen from the Kink or Vibe icon pool. */
+  icon_path?: string;
 };
 
 export type SideBadges = {

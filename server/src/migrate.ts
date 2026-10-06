@@ -215,7 +215,13 @@ const migrationFiles = [
   "194_site_reminders.sql",
   "195_feed_post_expiry_intervals.sql",
   "196_nearby_feed_post_notifications.sql",
-  "197_map_spots_visibility.sql"
+  "197_map_spots_visibility.sql",
+  "198_club_tag_search.sql",
+  "199_club_membership_conversations.sql",
+  "200_club_moderator_roles.sql",
+  "201_group_club_notification_controls.sql",
+  "202_club_visibility_controls.sql",
+  "203_encrypted_club_enrollments.sql"
 ];
 const rewardSafetyPreflightFiles = [
   "079_daily_check_in_rewards.sql",

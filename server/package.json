@@ -16,6 +16,7 @@
     "start": "node --enable-source-maps dist/index.js",
     "migrate": "node --enable-source-maps dist/migrate.js",
     "relationships:backfill": "tsx src/backfill-encrypted-relationships.ts",
+    "clubs:backfill-enrollments": "tsx src/backfill-encrypted-club-enrollments.ts",
     "location-privacy:backfill": "tsx src/backfill-encrypted-location-privacy.ts",
     "cleanup:moderation-media-grants": "sh -c 'if [ -f dist/cleanup-moderation-media-grants.js ]; then node --enable-source-maps dist/cleanup-moderation-media-grants.js; else tsx src/cleanup-moderation-media-grants.ts; fi'",
     "cleanup:account-deletion-media": "sh -c 'if [ -f dist/cleanup-account-deletion-media.js ]; then node --enable-source-maps dist/cleanup-account-deletion-media.js; else tsx src/cleanup-account-deletion-media.ts; fi'",

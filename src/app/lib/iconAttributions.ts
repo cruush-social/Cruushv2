@@ -3,6 +3,15 @@ export type IconAttribution = {
   source: string;
 };
 
+type BadgeIconManifest = {
+  icons?: Array<{
+    label?: string;
+    creator?: string;
+    license?: string;
+    source?: string;
+  }>;
+};
+
 export const ICON_ATTRIBUTIONS: IconAttribution[] = [
   { label: 'Ace spectrum diamond: jon trillana / Noun Project', source: 'https://thenounproject.com/icon/diamond-2226685/' },
   { label: 'BDSM: stephanie wauters / Noun Project', source: 'https://thenounproject.com/icon/bdsm-89011/' },
@@ -70,3 +79,44 @@ export const ICON_ATTRIBUTIONS: IconAttribution[] = [
   { label: 'Virgo: monkik / Noun Project', source: 'https://thenounproject.com/icon/virgo-3382302/' },
   { label: 'Virgo: HCP18 / Noun Project', source: 'https://thenounproject.com/icon/virgo-4756907/' },
 ];
+
+function badgeIconAttribution(entry: NonNullable<BadgeIconManifest['icons']>[number]): IconAttribution | null {
+  const source = entry.source?.trim();
+  const label = entry.label?.trim();
+  const creator = entry.creator?.trim();
+
+  if (!source?.startsWith('https://') || !label || !creator) {
+    return null;
+  }
+
+  if (source.includes('flaticon.com')) {
+    return { label: `${label} designed by ${creator} from Flaticon`, source };
+  }
+
+  return { label: `${label} by ${creator} from Noun Project (CC BY 3.0)`, source };
+}
+
+export async function loadBadgeIconAttributions(): Promise<IconAttribution[]> {
+  const manifests = await Promise.all([
+    fetch('/badge-icons/kink-icon-pool-data.json').then((response) => {
+      if (!response.ok) throw new Error('Kink icon attribution manifest could not load.');
+      return response.json() as Promise<BadgeIconManifest>;
+    }),
+    fetch('/badge-icons/vibe-icon-pool-data.json').then((response) => {
+      if (!response.ok) throw new Error('Vibe icon attribution manifest could not load.');
+      return response.json() as Promise<BadgeIconManifest>;
+    }),
+  ]);
+  const bySource = new Map<string, IconAttribution>();
+
+  for (const manifest of manifests) {
+    for (const entry of manifest.icons ?? []) {
+      const attribution = badgeIconAttribution(entry);
+      if (attribution && !bySource.has(attribution.source)) {
+        bySource.set(attribution.source, attribution);
+      }
+    }
+  }
+
+  return [...bySource.values()].sort((a, b) => a.label.localeCompare(b.label));
+}

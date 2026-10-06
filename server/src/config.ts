@@ -176,6 +176,11 @@ const configSchema = z.object({
   RELATIONSHIP_INDEX_KEY: z.string().optional().default(""),
   RELATIONSHIP_ENCRYPTION_KEY_VERSION: z.string().trim().min(1).optional().default("v1"),
   RELATIONSHIP_INDEX_KEY_VERSION: z.string().trim().min(1).optional().default("v1"),
+  CLUB_ENROLLMENT_ENCRYPTION_KEY: z.string().optional().default(""),
+  CLUB_ENROLLMENT_ENCRYPTION_KEY_PREVIOUS: z.string().optional(),
+  CLUB_ENROLLMENT_INDEX_KEY: z.string().optional().default(""),
+  CLUB_ENROLLMENT_ENCRYPTION_KEY_VERSION: z.string().trim().min(1).optional().default("v1"),
+  CLUB_ENROLLMENT_INDEX_KEY_VERSION: z.string().trim().min(1).optional().default("v1"),
   MATCH_TOKEN_ENCRYPTION_KEY: z.string().optional().default(""),
   MATCH_TOKEN_ENCRYPTION_KEY_PREVIOUS: z.string().optional(),
   MATCH_TOKEN_SIGNING_KEY: z.string().optional().default(""),
@@ -711,6 +716,22 @@ const configSchema = z.object({
     });
   }
 
+  if (!config.CLUB_ENROLLMENT_ENCRYPTION_KEY || config.CLUB_ENROLLMENT_ENCRYPTION_KEY.length < 32) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "CLUB_ENROLLMENT_ENCRYPTION_KEY is required in production.",
+      path: ["CLUB_ENROLLMENT_ENCRYPTION_KEY"]
+    });
+  }
+
+  if (!config.CLUB_ENROLLMENT_INDEX_KEY || config.CLUB_ENROLLMENT_INDEX_KEY.length < 32) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "CLUB_ENROLLMENT_INDEX_KEY is required in production.",
+      path: ["CLUB_ENROLLMENT_INDEX_KEY"]
+    });
+  }
+
   if (!config.MATCH_TOKEN_ENCRYPTION_KEY || config.MATCH_TOKEN_ENCRYPTION_KEY.length < 32) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
@@ -876,12 +897,19 @@ type CryptoProcessorConfigKey =
 type TestCheckoutConfigKey =
   | "BILLING_TEST_CHECKOUT_ENABLED";
 
+type ClubEnrollmentConfigKey =
+  | "CLUB_ENROLLMENT_ENCRYPTION_KEY"
+  | "CLUB_ENROLLMENT_ENCRYPTION_KEY_PREVIOUS"
+  | "CLUB_ENROLLMENT_INDEX_KEY"
+  | "CLUB_ENROLLMENT_ENCRYPTION_KEY_VERSION"
+  | "CLUB_ENROLLMENT_INDEX_KEY_VERSION";
+
 export type AppConfig = Omit<
   ParsedAppConfig,
-  GhostModeConfigKey | ModerationConfigKey | WebPushConfigKey | TwoFactorConfigKey | AlphaTestConfigKey | LaunchPartyConfigKey | BetaAccessConfigKey | BugTriageConfigKey | BuildInfoConfigKey | AudienceConfigKey | TestCheckoutConfigKey | CryptoProcessorConfigKey
+  GhostModeConfigKey | ModerationConfigKey | WebPushConfigKey | TwoFactorConfigKey | AlphaTestConfigKey | LaunchPartyConfigKey | BetaAccessConfigKey | BugTriageConfigKey | BuildInfoConfigKey | AudienceConfigKey | TestCheckoutConfigKey | CryptoProcessorConfigKey | ClubEnrollmentConfigKey
 > & Partial<Pick<
   ParsedAppConfig,
-  GhostModeConfigKey | ModerationConfigKey | WebPushConfigKey | TwoFactorConfigKey | AlphaTestConfigKey | LaunchPartyConfigKey | BetaAccessConfigKey | BugTriageConfigKey | BuildInfoConfigKey | AudienceConfigKey | TestCheckoutConfigKey | CryptoProcessorConfigKey
+  GhostModeConfigKey | ModerationConfigKey | WebPushConfigKey | TwoFactorConfigKey | AlphaTestConfigKey | LaunchPartyConfigKey | BetaAccessConfigKey | BugTriageConfigKey | BuildInfoConfigKey | AudienceConfigKey | TestCheckoutConfigKey | CryptoProcessorConfigKey | ClubEnrollmentConfigKey
 >>;
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {

@@ -33,6 +33,14 @@ describe('BadgePickerPreview', () => {
       side_badges: emptySideBadges,
     });
     saveMySideBadges.mockResolvedValue(emptySideBadges);
+    vi.stubGlobal('fetch', vi.fn((url: string) => Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve({
+        icons: url.includes('kink-')
+          ? [{ id: 'kink-1', label: 'Leather boot', iconCategory: 'Clothing', file: 'kink-options-source/assets/boot.png' }]
+          : [{ id: 'vibe-1', label: 'Disco ball', iconCategory: 'Objects', file: 'kink-options-source/assets/disco.png' }],
+      }),
+    })));
   });
 
   it('keeps removed groups and color labels out of the picker', async () => {
@@ -63,5 +71,26 @@ describe('BadgePickerPreview', () => {
       expect(container.querySelector('circle[stroke="currentColor"]')).toBeNull();
       unmount();
     }
+  });
+
+  it('uses the selected Kink pool without requiring profile Kinks and saves a short per-side title', async () => {
+    render(
+      <MemoryRouter>
+        <BadgePickerPreview embedded />
+      </MemoryRouter>
+    );
+
+    await screen.findByText('What this side says');
+    fireEvent.change(screen.getByRole('combobox', { name: 'Badge category' }), { target: { value: 'Kinks' } });
+
+    const search = await screen.findByRole('searchbox', { name: 'Search Kinks icons' });
+    expect(screen.getByText('Leather boot')).toBeInTheDocument();
+    fireEvent.change(search, { target: { value: 'boot' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Leather boot' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Edit badge title' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Badge title' }), { target: { value: 'abcdefghijk' } });
+
+    expect(screen.getByRole('textbox', { name: 'Badge title' })).toHaveValue('abcdefghij');
+    expect(screen.getAllByLabelText('Selected')).toHaveLength(1);
   });
 });

@@ -88,7 +88,7 @@ describe('profileOptions', () => {
     const vibeLabels = VIBE_GROUPS.flatMap((group) => group.options);
     const kinkLabels = KINK_CATALOG.map((option) => option.label);
 
-    expect(vibeLabels).not.toEqual(expect.arrayContaining(['E-Girl', 'E-Boy']));
+    expect(vibeLabels).not.toEqual(expect.arrayContaining(['E-Girl', 'E-Boy', 'Party']));
     expect(kinkLabels).not.toEqual(expect.arrayContaining(['tribadism', 'frottage']));
     expect(kinkLabels).toEqual(expect.arrayContaining(['tribbing', 'frotting']));
   });

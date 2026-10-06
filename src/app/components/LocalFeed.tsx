@@ -2,11 +2,11 @@ import { useTrustRestrictions } from '../lib/trustRestrictions';
 import TrustRestrictionNotice from './TrustRestrictionNotice';
 import PhotoUploadSpinner from './PhotoUploadSpinner';
 import MultiSelect from './MultiSelect';
-import { useCallback, useEffect, useId, useRef, useState, type ChangeEvent, type KeyboardEvent, type UIEvent } from 'react';
+import { useCallback, useEffect, useId, useRef, useState, type ChangeEvent, type UIEvent } from 'react';
 import { PHOTO_UPLOAD_ACCEPT, PHOTO_UPLOAD_EXTENSION_TYPES } from '../lib/photoUploadFormats';
 import { useLocation, useNavigate } from 'react-router';
 import { formatDistanceLabel, useDistancePreferences } from '../lib/distancePreferences';
-import { ArrowLeft, Clock, Hash, SlidersHorizontal, Trash2, X } from 'lucide-react';
+import { ArrowLeft, Clock, SlidersHorizontal, Trash2, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { Accordion, AccordionItem, AccordionTrigger } from './ui/accordion';
 import CruushPlusCardDialog from './CruushPlusCardDialog';
@@ -33,6 +33,7 @@ import {
 } from './ui/dialog';
 import { Textarea } from './ui/textarea';
 import BugButtonSlot from './BugButtonSlot';
+import TagInput from './TagInput';
 import { useDlMode, shouldMaskPhoto, getDlModeShowOnlyException, getNsfwPhotoRestriction } from '../lib/dlMode';
 import {
   createFeedPost,
@@ -150,15 +151,6 @@ function profileFeedCoordinates(profile: ProfileRecord): FeedCoordinates | null 
     : null;
 }
 
-function normalizeFeedTag(value: string) {
-  return value
-    .trim()
-    .replace(/^#+/, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9_]/g, '')
-    .slice(0, 24);
-}
-
 /** Matches the server ceiling in post-schema.ts. */
 const MAX_FEED_POST_TAGS = 10;
 
@@ -168,7 +160,6 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
   const navigate = useNavigate();
   const location = useLocation();
   const [newPost, setNewPost] = useState('');
-  const [newTag, setNewTag] = useState('');
   const [postTags, setPostTags] = useState<string[]>([]);
   // The composer stays a single row until it is opened. Expanded it takes a
   // third of a phone screen, which pushed the first post below the fold.
@@ -213,6 +204,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
   const dlModeException = getDlModeShowOnlyException();
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const loadingMoreRequestRef = useRef(false);
+  const postsScrollRef = useRef<HTMLDivElement | null>(null);
   const composerInputRef = useRef<HTMLTextAreaElement | null>(null);
   const feedPhotoInputRef = useRef<HTMLInputElement | null>(null);
   const hasCruushPlusRef = useRef<boolean | null>(null);
@@ -483,7 +475,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
       if (entries.some((entry) => entry.isIntersecting)) {
         loadMorePosts();
       }
-    }, { rootMargin: '280px' });
+    }, { root: postsScrollRef.current, rootMargin: '280px' });
 
     observer.observe(node);
 
@@ -506,10 +498,9 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
         audience: postAudience,
         crowdTargets: postAudience === 'crowd' ? selectedCrowdTargets : [],
         photoMediaIds: stagedPhotos.map((photo) => photo.id),
-        tags: [...new Set([...postTags, normalizeFeedTag(newTag)].filter(Boolean))],
+        tags: postTags,
       });
       setNewPost('');
-      setNewTag('');
       setPostTags([]);
       setStagedPhotos([]);
       setPostAudience('public');
@@ -526,33 +517,6 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
     } finally {
       setPosting(false);
     }
-  };
-
-  const addPostTag = () => {
-    const tag = normalizeFeedTag(newTag);
-    if (!tag || postTags.includes(tag)) {
-      setNewTag('');
-      return;
-    }
-    if (!hasCruushPlus) {
-      setError('Tagging a Feed post is part of cruush+.');
-      return;
-    }
-    if (postTags.length >= MAX_FEED_POST_TAGS) {
-      setError('Feed posts can include up to ten tags.');
-      return;
-    }
-    setPostTags((currentTags) => [...currentTags, tag]);
-    setNewTag('');
-    setError(null);
-  };
-
-  const handleTagKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key !== 'Enter' && event.key !== ',') {
-      return;
-    }
-    event.preventDefault();
-    addPostTag();
   };
 
   const handleFeedPhotoSelection = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -1077,27 +1041,19 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
             className="bg-input-background mb-2 min-h-16"
           />
           <div className="mb-2 space-y-2">
-            <div className="flex items-center gap-2 rounded-md border border-white/10 bg-input-background px-3">
-              <Hash aria-hidden="true" className="h-4 w-4 shrink-0 text-white/55" />
-              <input
-                aria-label="Add Feed tag"
-                className="h-10 min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-white/45"
-                disabled={trust.restricted('feed_posting') || !hasCruushPlus || postTags.length >= MAX_FEED_POST_TAGS}
-                maxLength={25}
-                onChange={(event) => setNewTag(event.target.value)}
-                onKeyDown={handleTagKeyDown}
-                placeholder={hasCruushPlus ? '#tag' : 'Tags are part of cruush+'}
-                value={newTag}
-              />
-              <button
-                className="text-sm font-semibold text-white/72 disabled:opacity-35"
-                disabled={trust.restricted('feed_posting') || !hasCruushPlus || !normalizeFeedTag(newTag) || postTags.length >= MAX_FEED_POST_TAGS}
-                onClick={addPostTag}
-                type="button"
-              >
-                Add
-              </button>
-            </div>
+            <TagInput
+              ariaLabel="Add Feed tag"
+              disabled={trust.restricted('feed_posting') || !hasCruushPlus}
+              maxTags={MAX_FEED_POST_TAGS}
+              onChange={setPostTags}
+              onError={setError}
+              placeholder={hasCruushPlus ? '#tag' : 'Tags are part of cruush+'}
+              tags={postTags}
+              testId="feed-post-tags-draft"
+            />
+            {hasCruushPlus ? (
+              <p className="text-xs text-white/58">Up to {MAX_FEED_POST_TAGS} tags.</p>
+            ) : null}
             {/* Expiry belongs to the post being written, not to a setting
                 applied to everything. Every composer starts at Never. */}
             <section className="rounded-lg border border-white/10 bg-black/42 p-2">
@@ -1184,25 +1140,6 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
                 </div>
               ) : null}
             </section>
-            {hasCruushPlus ? (
-              <p className="text-xs text-white/58">Up to {MAX_FEED_POST_TAGS} tags.</p>
-            ) : null}
-            {postTags.length > 0 ? (
-              <div className="flex flex-wrap gap-2" data-testid="feed-post-tags-draft">
-                {postTags.map((tag) => (
-                  <button
-                    aria-label={`Remove #${tag}`}
-                    className="inline-flex items-center gap-1 rounded-full border border-white/12 bg-black/55 px-2.5 py-1 text-xs text-white/72"
-                    key={tag}
-                    onClick={() => setPostTags((currentTags) => currentTags.filter((currentTag) => currentTag !== tag))}
-                    type="button"
-                  >
-                    #{tag}
-                    <X aria-hidden="true" className="h-3 w-3" />
-                  </button>
-                ))}
-              </div>
-            ) : null}
           </div>
           {stagedPhotos.length > 0 ? (
             <div className="mb-2 space-y-2 rounded-xl border border-white/10 bg-black/45 p-2" data-testid="feed-photo-staging">
@@ -1277,6 +1214,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
         </div>
 
         <div
+          ref={postsScrollRef}
           className="scrollbar-hide mt-4 min-h-0 flex-1 overflow-y-auto overscroll-contain pb-4"
           data-testid="local-feed-posts-scroll"
           onScroll={handlePostsScroll}

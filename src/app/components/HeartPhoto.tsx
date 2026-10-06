@@ -15,6 +15,7 @@ interface HeartPhotoProps {
   staticMileHigh?: boolean;
   className?: string;
   fallback?: ReactNode;
+  hideDefaultMark?: boolean;
   label: string;
   masked: boolean;
   restriction?: NsfwPhotoRestriction;
@@ -30,6 +31,7 @@ export default function HeartPhoto({
   staticMileHigh = false,
   className = '',
   fallback = null,
+  hideDefaultMark = false,
   label,
   masked: dlMasked,
   restriction,
@@ -113,7 +115,7 @@ export default function HeartPhoto({
             <foreignObject x="22" y="19" width="20" height="26">
               <DlModePhotoPlaceholder className="h-full w-full" showLabel={false} restriction={restriction} />
             </foreignObject>
-          ) : (
+          ) : hideDefaultMark ? null : (
             <image
               href={cruushMarkWhite}
               width="26"

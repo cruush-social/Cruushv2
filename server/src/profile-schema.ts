@@ -247,6 +247,8 @@ export const profileKinkInterestSchema = z.object({
 const sideBadgeSelectionSchema = z.object({
   badge_id: singleLineTextSchema({ min: 1, max: 120 }),
   intent: z.enum(["none", "give", "receive", "switch", "service", "stone"]),
+  meaning: singleLineTextSchema({ min: 1, max: 10 }).optional(),
+  icon_path: z.string().regex(/^\/badge-icons\/[a-zA-Z0-9._/-]+$/).max(300).optional(),
   frame: z.enum([
     "plain", "circle", "diamond", "heart", "square", "female", "male", "transgender", "nonbinary",
     "agender", "neutrois", "androgyne", "demigirl", "demiboy", "intergender",

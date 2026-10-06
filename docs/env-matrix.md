@@ -146,6 +146,11 @@ Index keys and signing/hash keys are outside this fallback mechanism.
 | `RELATIONSHIP_ENCRYPTION_KEY_VERSION` | server | yes | `server/src/config.ts` |  |
 | `RELATIONSHIP_INDEX_KEY` | server | yes | `server/src/config.ts` |  |
 | `RELATIONSHIP_INDEX_KEY_VERSION` | server | yes | `server/src/config.ts` |  |
+| `CLUB_ENROLLMENT_ENCRYPTION_KEY` | server | yes | `server/src/config.ts` | Dedicated server-only Club membership and join-request encryption secret. |
+| `CLUB_ENROLLMENT_ENCRYPTION_KEY_PREVIOUS` | server | yes | `server/src/config.ts` | Optional previous secret during key rotation. |
+| `CLUB_ENROLLMENT_INDEX_KEY` | server | yes | `server/src/config.ts` | Dedicated server-only HMAC secret for opaque Club enrollment indexes. |
+| `CLUB_ENROLLMENT_ENCRYPTION_KEY_VERSION` | server | yes | `server/src/config.ts` |  |
+| `CLUB_ENROLLMENT_INDEX_KEY_VERSION` | server | yes | `server/src/config.ts` |  |
 | `RESEND_API_KEY` | server | yes | `server/src/check-rekognition-health.ts`, `server/src/config.ts` |  |
 | `SESSION_SECRET` | server | yes | `server/src/urgent-release-real-postgres.test.ts`, `server/src/config.ts` |  |
 | `SEVERE_ACCESS_BAN_HMAC_KEY` | server | yes | `server/src/config.ts` |  |

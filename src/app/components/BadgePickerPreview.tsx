@@ -75,6 +75,7 @@ import {
   Bed,
   Bookmark,
   Cable,
+  Check,
   Droplets,
   Dumbbell,
   Footprints,
@@ -181,6 +182,18 @@ export type BadgeOption = {
   group: string;
   category?: string;
   hanky?: HankyColor;
+  imageSrc?: string;
+};
+
+type BadgePoolGroup = 'Kinks' | 'Vibes';
+
+type BadgePoolManifest = {
+  icons: Array<{
+    id: string;
+    label: string;
+    iconCategory: string;
+    file: string;
+  }>;
 };
 
 export const HANKY_GROUP = 'Hanky code';
@@ -389,20 +402,27 @@ export function buildProfileBadgeOptions(group: ProfileBadgeGroup, values: strin
   });
 }
 
-function groupProfileBadgeOptions(group: ProfileBadgeGroup, options: BadgeOption[]) {
-  const catalogCategories = PROFILE_BADGE_GROUPS[group].map((category) => ({
-    label: category.label,
-    options: options.filter((option) => option.category === category.label),
-  }));
-  const catalogLabels = new Set(catalogCategories.map((category) => category.label));
-  const additionalCategories = [...new Set(
-    options.map((option) => option.category).filter((category): category is string => Boolean(category) && !catalogLabels.has(category!)),
-  )].map((category) => ({
-    label: category,
-    options: options.filter((option) => option.category === category),
-  }));
+function badgeTitle(option: BadgeOption, intent: BadgeIntent, meaning?: string) {
+  return meaning?.trim()
+    || (option.hanky
+      ? formatBadgeLabel(option.hanky.meaning, intent)
+      : formatBadgeLabel(option.label, intent));
+}
 
-  return [...catalogCategories, ...additionalCategories].filter((category) => category.options.length > 0);
+function optionalBadgeTitle(value: string) {
+  const trimmed = value.trim();
+  return trimmed || undefined;
+}
+
+function buildPoolBadgeOptions(group: BadgePoolGroup, manifest: BadgePoolManifest): BadgeOption[] {
+  return manifest.icons.map((entry) => ({
+    id: `${group.toLowerCase()}-icon-${entry.id}`,
+    label: entry.label,
+    category: entry.iconCategory,
+    group,
+    imageSrc: `/badge-icons/${entry.file}`,
+    icon: ({ className }) => <img alt="" className={`${className ?? ''} object-contain brightness-0 invert`} src={`/badge-icons/${entry.file}`} />,
+  }));
 }
 
 // Hanky code: the side says your role, the badge says the act. Left is what you
@@ -501,6 +521,9 @@ export default function BadgePickerPreview({
   const [startedFromProfile, setStartedFromProfile] = useState(false);
   const [leftIntent, setLeftIntent] = useState<BadgeIntent>('none');
   const [rightIntent, setRightIntent] = useState<BadgeIntent>('none');
+  const [leftTitle, setLeftTitle] = useState('');
+  const [rightTitle, setRightTitle] = useState('');
+  const [editingTitle, setEditingTitle] = useState(false);
   const [leftFrame, setLeftFrame] = useState<BadgeFrameId>('circle');
   const [rightFrame, setRightFrame] = useState<BadgeFrameId>('circle');
   const [darkRoomEnabled, setDarkRoomEnabled] = useState(false);
@@ -514,6 +537,7 @@ export default function BadgePickerPreview({
     side_badges?: SideBadges;
   } | null>(onboardingProfile ?? null);
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [badgePoolOptions, setBadgePoolOptions] = useState<Record<BadgePoolGroup, BadgeOption[]>>({ Kinks: [], Vibes: [] });
   const hasChangedBadgeRef = useRef(false);
   const sideBadgesRef = useRef<SideBadges>(emptySideBadges);
   const saveVersionRef = useRef(0);
@@ -531,13 +555,79 @@ export default function BadgePickerPreview({
   const allBadgeOptions = [
     ...BADGE_OPTIONS,
     ...profileBadgeOptions.filter((option) => !BADGE_OPTIONS.some((existing) => existing.id === option.id)),
+    ...badgePoolOptions.Kinks,
+    ...badgePoolOptions.Vibes,
   ];
-  const optionsForActiveGroup = activeGroup === 'Vibes' || activeGroup === 'Kinks'
-    ? profileBadgeOptions.filter((option) => option.group === activeGroup)
+  const [activePoolCategory, setActivePoolCategory] = useState('All');
+  const [poolSearch, setPoolSearch] = useState('');
+  const activePoolGroup = activeGroup === 'Kinks' || activeGroup === 'Vibes' ? activeGroup : null;
+  const activePoolOptions = activePoolGroup ? badgePoolOptions[activePoolGroup] : [];
+  const poolCategories = [...new Set(activePoolOptions.map((option) => option.category ?? 'Other'))];
+  const optionsForActiveGroup = activePoolGroup
+    ? activePoolOptions
     : BADGE_OPTIONS.filter((option) => option.group === activeGroup);
-  const activeProfileCategories = activeGroup === 'Vibes' || activeGroup === 'Kinks'
-    ? groupProfileBadgeOptions(activeGroup, optionsForActiveGroup)
-    : [];
+  const visiblePoolOptions = activePoolOptions.filter((option) => {
+    const inCategory = activePoolCategory === 'All' || option.category === activePoolCategory;
+    const search = poolSearch.trim().toLowerCase();
+    const matchesSearch = !search || [option.label, option.category].some((value) => value?.toLowerCase().includes(search));
+    return inCategory && matchesSearch;
+  });
+
+  useEffect(() => {
+    let isMounted = true;
+
+    void Promise.all([
+      fetch('/badge-icons/kink-icon-pool-data.json').then((response) => response.ok ? response.json() as Promise<BadgePoolManifest> : Promise.reject()),
+      fetch('/badge-icons/vibe-icon-pool-data.json').then((response) => response.ok ? response.json() as Promise<BadgePoolManifest> : Promise.reject()),
+    ])
+      .then(([kinks, vibes]) => {
+        if (isMounted) {
+          setBadgePoolOptions({
+            Kinks: buildPoolBadgeOptions('Kinks', kinks),
+            Vibes: buildPoolBadgeOptions('Vibes', vibes),
+          });
+        }
+      })
+      .catch(() => undefined);
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!profile || hasChangedBadgeRef.current) {
+      return;
+    }
+
+    const findOption = (value: string | undefined) => {
+      const normalized = value?.trim().toLowerCase();
+      return normalized
+        ? allBadgeOptions.find((option) => option.id.toLowerCase() === normalized || option.label.toLowerCase() === normalized)
+        : undefined;
+    };
+    const savedSideBadges = profile.side_badges ?? emptySideBadges;
+    const leftSaved = savedSideBadges.left;
+    const rightSaved = savedSideBadges.right;
+
+    if (leftSaved) {
+      const option = findOption(leftSaved.badge_id);
+      if (option) {
+        setLeftBadge(option.id);
+        setLeftIntent(leftSaved.intent);
+        setLeftTitle(leftSaved.meaning ?? '');
+      }
+    }
+
+    if (rightSaved) {
+      const option = findOption(rightSaved.badge_id);
+      if (option) {
+        setRightBadge(option.id);
+        setRightIntent(rightSaved.intent);
+        setRightTitle(rightSaved.meaning ?? '');
+      }
+    }
+  }, [badgePoolOptions, profile]);
 
   useEffect(() => {
     let isMounted = true;
@@ -598,11 +688,13 @@ export default function BadgePickerPreview({
 
           if (leftSaved) {
             setLeftIntent(leftSaved.intent);
+            setLeftTitle(leftSaved.meaning ?? '');
             setLeftFrame(badgeFrameId(leftSaved.frame, Boolean(role?.hanky)));
           }
 
           if (rightSaved) {
             setRightIntent(rightSaved.intent);
+            setRightTitle(rightSaved.meaning ?? '');
             setRightFrame(badgeFrameId(rightSaved.frame, Boolean(position?.hanky)));
           }
 
@@ -649,6 +741,7 @@ export default function BadgePickerPreview({
   const showingHankyCode = activeGroup === HANKY_GROUP;
   const activeOption = activeSide === 'left' ? leftOption : rightOption;
   const activeFrame = activeSide === 'left' ? leftFrame : rightFrame;
+  const activeTitle = activeSide === 'left' ? leftTitle : rightTitle;
   const persistSideSelection = (side: 'left' | 'right', selection: SideBadgeSelection | null) => {
     const nextSideBadges: SideBadges = {
       ...sideBadgesRef.current,
@@ -675,6 +768,8 @@ export default function BadgePickerPreview({
       badge_id: id,
       intent: activeSide === 'left' ? leftIntent : rightIntent,
       frame: activeFrame,
+      meaning: optionalBadgeTitle(activeTitle),
+      icon_path: allBadgeOptions.find((option) => option.id === id)?.imageSrc,
     });
   };
   const chooseIntent = (intent: BadgeIntent) => {
@@ -682,10 +777,31 @@ export default function BadgePickerPreview({
     hasChangedBadgeRef.current = true;
     onDirtyChange?.(true);
     (activeSide === 'left' ? setLeftIntent : setRightIntent)(intent);
-    persistSideSelection(activeSide, { badge_id: badgeId, intent, frame: activeFrame });
+    persistSideSelection(activeSide, {
+      badge_id: badgeId,
+      intent,
+      frame: activeFrame,
+      meaning: optionalBadgeTitle(activeTitle),
+      icon_path: activeOption.imageSrc,
+    });
   };
   const chooseGroup = (group: string) => {
     setActiveGroup(group);
+    setActivePoolCategory('All');
+    setPoolSearch('');
+  };
+  const changeTitle = (value: string) => {
+    const title = value.slice(0, 10);
+    hasChangedBadgeRef.current = true;
+    onDirtyChange?.(true);
+    (activeSide === 'left' ? setLeftTitle : setRightTitle)(title);
+    persistSideSelection(activeSide, {
+      badge_id: chosen[activeSide],
+      intent: activeSide === 'left' ? leftIntent : rightIntent,
+      frame: activeFrame,
+      meaning: optionalBadgeTitle(title),
+      icon_path: activeOption.imageSrc,
+    });
   };
   const confirmPendingSave = async () => {
     if (!hasChangedBadgeRef.current) {
@@ -753,13 +869,6 @@ export default function BadgePickerPreview({
     onSaveReady(confirmPendingSave);
     return () => onSaveReady(null);
   });
-  const editProfileGroup = (group: ProfileBadgeGroup) => {
-    void leaveEditor(() => {
-      navigate('/profile/edit', {
-        state: { profileSection: group === 'Vibes' ? 'vibes' : 'kinks' },
-      });
-    });
-  };
   const closeEditor = () => {
     void leaveEditor(() => {
       if (embedded) {
@@ -884,22 +993,14 @@ export default function BadgePickerPreview({
               <BadgeChip
                 frame={leftFrame}
                 option={leftOption}
-                meaning={leftOption.id === 'none'
-                  ? undefined
-                  : leftOption.hanky
-                    ? formatBadgeLabel(leftOption.hanky.meaning, leftIntent)
-                    : formatBadgeLabel(leftOption.label, leftIntent)}
+                meaning={leftOption.id === 'none' ? undefined : badgeTitle(leftOption, leftIntent, leftTitle)}
                 side="left"
                 darkRoom={darkRoomEnabled}
               />
               <BadgeChip
                 frame={rightFrame}
                 option={rightOption}
-                meaning={rightOption.id === 'none'
-                  ? undefined
-                  : rightOption.hanky
-                    ? formatBadgeLabel(rightOption.hanky.meaning, rightIntent)
-                    : formatBadgeLabel(rightOption.label, rightIntent)}
+                meaning={rightOption.id === 'none' ? undefined : badgeTitle(rightOption, rightIntent, rightTitle)}
                 side="right"
                 darkRoom={darkRoomEnabled}
               />
@@ -910,6 +1011,7 @@ export default function BadgePickerPreview({
             {SIDES.map((side) => {
               const option = side.id === 'left' ? leftOption : rightOption;
               const intent = side.id === 'left' ? leftIntent : rightIntent;
+              const title = side.id === 'left' ? leftTitle : rightTitle;
               const active = activeSide === side.id;
 
               return (
@@ -923,15 +1025,14 @@ export default function BadgePickerPreview({
                   onClick={() => setActiveSide(side.id)}
                   type="button"
                 >
-                  <span className="block text-[0.7rem] uppercase tracking-[0.12em] text-white/48">
+                  <span className="flex items-center gap-1 text-[0.7rem] uppercase tracking-[0.12em] text-white/48">
                     {side.hint}
+                    {active ? <Check aria-label="Selected" className="h-3.5 w-3.5 text-[#6f9aff]" strokeWidth={2.4} /> : null}
                   </span>
                   <span className="mt-0.5 block break-words text-sm leading-tight">
                     {option.id === 'none'
                       ? 'Empty'
-                      : option.hanky
-                        ? formatBadgeLabel(option.hanky.meaning, intent)
-                        : formatBadgeLabel(option.label, intent)}
+                      : badgeTitle(option, intent, title)}
                   </span>
                 </button>
               );
@@ -1001,6 +1102,27 @@ export default function BadgePickerPreview({
               );
             })}
           </div>
+          <button
+            aria-expanded={editingTitle}
+            className="text-xs text-white/60 underline underline-offset-4 transition hover:text-white"
+            onClick={() => setEditingTitle((editing) => !editing)}
+            type="button"
+          >
+            Edit badge title
+          </button>
+          {editingTitle ? (
+            <div>
+              <label className="sr-only" htmlFor="badge-title">Badge title</label>
+              <input
+                className="mt-1 h-10 w-full rounded-full border border-white/12 bg-black/55 px-4 text-sm text-white outline-none focus:border-[#004BFF]"
+                id="badge-title"
+                maxLength={10}
+                onChange={(event) => changeTitle(event.target.value)}
+                placeholder="Badge title"
+                value={activeTitle}
+              />
+            </div>
+          ) : null}
         </div>
 
         <div className="mt-6">
@@ -1018,25 +1140,34 @@ export default function BadgePickerPreview({
           </select>
         </div>
 
-        {activeGroup === 'Vibes' || activeGroup === 'Kinks' ? (
-          <div className="mt-3 space-y-4">
-            {!onboardingProfile ? <button
-              className="w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-left text-sm text-white/76 transition hover:bg-white/[0.06]"
-              onClick={() => editProfileGroup(activeGroup)}
-              type="button"
-            >
-              Edit profile {activeGroup.toLowerCase()}
-            </button> : null}
-            {activeProfileCategories.length > 0 ? activeProfileCategories.map((category) => (
-              <section className="space-y-2" key={category.label}>
-                <h2 className="text-xs uppercase tracking-[0.14em] text-white/48">{category.label}</h2>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                  {category.options.map(renderOptionCard)}
-                </div>
-              </section>
-            )) : (
+        {activePoolGroup ? (
+          <div className="mt-3 space-y-3">
+            <div className="grid grid-cols-2 gap-2">
+              <input
+                aria-label={`Search ${activePoolGroup} icons`}
+                className="h-11 min-w-0 rounded-full border border-white/12 bg-black/55 px-4 text-sm text-white outline-none focus:border-[#004BFF]"
+                onChange={(event) => setPoolSearch(event.target.value)}
+                placeholder="Search icons"
+                type="search"
+                value={poolSearch}
+              />
+              <select
+                aria-label={`${activePoolGroup} icon category`}
+                className="h-11 min-w-0 rounded-full border border-white/12 bg-black/55 px-4 text-sm text-white outline-none focus:border-[#004BFF]"
+                onChange={(event) => setActivePoolCategory(event.target.value)}
+                value={activePoolCategory}
+              >
+                <option value="All">All categories</option>
+                {poolCategories.map((category) => <option key={category} value={category}>{category}</option>)}
+              </select>
+            </div>
+            {visiblePoolOptions.length > 0 ? (
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {visiblePoolOptions.map(renderOptionCard)}
+              </div>
+            ) : (
               <p className="rounded-xl border border-white/10 bg-black/40 px-4 py-4 text-sm text-white/60">
-                Choose profile {activeGroup.toLowerCase()} to use them as badges.
+                No {activePoolGroup} icons match that search.
               </p>
             )}
           </div>

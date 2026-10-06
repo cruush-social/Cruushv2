@@ -8,6 +8,8 @@ export type MapMarkerBadge = {
   badgeId?: string;
   frame?: string;
   intent?: SideBadgeSelection['intent'];
+  meaning?: SideBadgeSelection['meaning'];
+  iconPath?: SideBadgeSelection['icon_path'];
   saved?: boolean;
 };
 
@@ -219,6 +221,8 @@ export function createSavedMapMarkerBadge(
     badgeId,
     frame: selection.frame,
     intent: selection.intent,
+    meaning: selection.meaning,
+    iconPath: selection.icon_path,
     saved: true,
   } satisfies MapMarkerBadge;
 }

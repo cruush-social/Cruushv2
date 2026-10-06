@@ -28,7 +28,7 @@ import { Label } from './ui/label';
 import { Switch } from './ui/switch';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
 import { CruushIcon, type CruushIconName, type CruushIconVariant } from './CruushIconImage';
-import { ICON_ATTRIBUTIONS } from '../lib/iconAttributions';
+import { ICON_ATTRIBUTIONS, loadBadgeIconAttributions } from '../lib/iconAttributions';
 import DlModeMark from './DlModeMark';
 import PublicPolicyLinks from './PublicPolicyLinks';
 import { changeEmail, changePassword, deleteAccount, getAuthSession, sendVerificationEmail, signOut } from '../lib/authApi';
@@ -217,6 +217,20 @@ export default function Settings({ embedded = false, onBack, onClose, onOpenMile
   const isEmailVerified = Boolean(storedUser?.email_verified_at);
   const moderatorRole = storedUser?.moderator_role ?? null;
   const [onboardingTestEnabled, setOnboardingTestEnabled] = useState(false);
+  const [iconAttributions, setIconAttributions] = useState(ICON_ATTRIBUTIONS);
+
+  useEffect(() => {
+    let cancelled = false;
+    void loadBadgeIconAttributions()
+      .then((badgeAttributions) => {
+        if (cancelled) return;
+        const merged = new Map(ICON_ATTRIBUTIONS.map((attribution) => [attribution.source, attribution]));
+        for (const attribution of badgeAttributions) merged.set(attribution.source, attribution);
+        setIconAttributions([...merged.values()]);
+      })
+      .catch(() => undefined);
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     if (moderatorRole !== 'admin') return;
@@ -818,7 +832,7 @@ export default function Settings({ embedded = false, onBack, onClose, onOpenMile
                 </AccordionTrigger>
                 <AccordionContent className="pb-1 pt-0">
                   <ul className="grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
-                    {ICON_ATTRIBUTIONS.map((attribution) => (
+                    {iconAttributions.map((attribution) => (
                       <li key={`${attribution.label}-${attribution.source}`}>
                         <a
                           className="underline underline-offset-4 hover:text-foreground"

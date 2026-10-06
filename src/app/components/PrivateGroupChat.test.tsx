@@ -18,7 +18,9 @@ const {
   getGroupMembers,
   removeFavoriteMessageImage,
   sendFavoriteMessageImage,
+  setClubMemberRole,
   setConversationDisappearingTimer,
+  setConversationNotifications,
   uploadFavoriteMessageImage,
   viewMessageAttachment,
 } = vi.hoisted(() => ({
@@ -32,7 +34,9 @@ const {
   getGroupMembers: vi.fn(),
   removeFavoriteMessageImage: vi.fn(),
   sendFavoriteMessageImage: vi.fn(),
+  setClubMemberRole: vi.fn(),
   setConversationDisappearingTimer: vi.fn(),
+  setConversationNotifications: vi.fn(),
   uploadFavoriteMessageImage: vi.fn(),
   viewMessageAttachment: vi.fn(),
 }));
@@ -43,6 +47,13 @@ const { blockUser } = vi.hoisted(() => ({
 
 const { createReport } = vi.hoisted(() => ({
   createReport: vi.fn(),
+}));
+
+const { getClub, getClubJoinRequests, reviewClubJoinRequest, updateClub } = vi.hoisted(() => ({
+  getClub: vi.fn(),
+  getClubJoinRequests: vi.fn(),
+  reviewClubJoinRequest: vi.fn(),
+  updateClub: vi.fn(),
 }));
 
 const { toastSuccess, toastError } = vi.hoisted(() => ({
@@ -75,7 +86,9 @@ vi.mock('../lib/messagesApi', async () => {
     getGroupMembers,
     removeFavoriteMessageImage,
     sendFavoriteMessageImage,
+    setClubMemberRole,
     setConversationDisappearingTimer,
+    setConversationNotifications,
     uploadFavoriteMessageImage,
     viewMessageAttachment,
   };
@@ -89,6 +102,14 @@ vi.mock('../lib/reportApi', async () => {
   const actual = await vi.importActual<typeof import('../lib/reportApi')>('../lib/reportApi');
   return { ...actual, createReport };
 });
+
+vi.mock('../lib/clubsApi', async () => ({
+  ...(await vi.importActual<typeof import('../lib/clubsApi')>('../lib/clubsApi')),
+  getClub,
+  getClubJoinRequests,
+  reviewClubJoinRequest,
+  updateClub,
+}));
 
 function LocationProbe() {
   const location = useLocation();
@@ -172,11 +193,17 @@ describe('PrivateGroupChat', () => {
     getGroupMembers.mockReset();
     removeFavoriteMessageImage.mockReset();
     sendFavoriteMessageImage.mockReset();
+    setClubMemberRole.mockReset();
     setConversationDisappearingTimer.mockReset();
+    setConversationNotifications.mockReset();
     uploadFavoriteMessageImage.mockReset();
     viewMessageAttachment.mockReset();
     blockUser.mockReset();
     createReport.mockReset();
+    getClub.mockReset();
+    getClubJoinRequests.mockReset().mockResolvedValue([]);
+    reviewClubJoinRequest.mockReset();
+    updateClub.mockReset();
     toastSuccess.mockReset();
     toastError.mockReset();
     getCurrentUserId.mockResolvedValue('user-1');
@@ -267,6 +294,42 @@ describe('PrivateGroupChat', () => {
     expect(screen.queryByText('Preview thread')).not.toBeInTheDocument();
     expect(screen.queryByText('hosting for another hour if you still want to swing by')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Open River profile' })).not.toBeInTheDocument();
+  });
+
+  it('renders a Club DM card that opens the Club detail route', async () => {
+    const clubId = '22222222-2222-4222-8222-222222222222';
+    getConversationMessages.mockResolvedValue({
+      conversation: {
+        id: '7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2',
+        kind: 'dm',
+        user: { id: 'user-2', name: 'River', pronouns: 'they/them', photo: null },
+        distance: 'Nearby',
+        updatedAt: '2026-10-01T12:00:00.000Z',
+        lastMessage: 'Brooklyn techno',
+        unreadCount: 0,
+        pinned: false,
+        mutual: true,
+        tags: [],
+      },
+      messages: [{
+        id: 'club-share-message',
+        userId: 'user-2',
+        content: `[[cruush:club:${clubId}]] Brooklyn techno`,
+        timestamp: '2026-10-01T12:00:00.000Z',
+      }],
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/chat/7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2']}>
+        <Routes>
+          <Route path="/chat/:chatId" element={<PrivateGroupChat />} />
+          <Route path="/clubs/:clubId" element={<LocationProbe />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Open Brooklyn techno Club' }));
+    expect(screen.getByTestId('location-probe')).toHaveTextContent(`/clubs/${clubId}`);
   });
 
   it('labels and returns to the profile that opened a full-screen conversation', async () => {
@@ -709,6 +772,7 @@ describe('PrivateGroupChat', () => {
       <MemoryRouter initialEntries={['/chat/7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2']}>
         <Routes>
           <Route path="/chat/:chatId" element={<><PrivateGroupChat /><LocationProbe /></>} />
+          <Route path="/chat/:chatId/settings" element={<><PrivateGroupChat /><LocationProbe /></>} />
           <Route path="/messages" element={<LocationProbe />} />
         </Routes>
       </MemoryRouter>,
@@ -1410,6 +1474,211 @@ describe('PrivateGroupChat', () => {
     expect(screen.getByTestId('location-probe')).toHaveTextContent('/profile/user-2');
   });
 
+  it('keeps Club administration inside the existing Conversation settings menu', async () => {
+    const conversationId = '44444444-4444-4444-8444-444444444444';
+    const clubId = '22222222-2222-4222-8222-222222222222';
+    getConversationMessages.mockResolvedValue({
+      conversation: {
+        id: conversationId,
+        kind: 'group',
+        clubId,
+        user: { id: conversationId, name: 'Brooklyn techno', pronouns: '', photo: null },
+        distance: 'Nearby',
+        updatedAt: '2026-10-02T12:00:00.000Z',
+        lastMessage: 'Meet at 10',
+        unreadCount: 0,
+        pinned: false,
+        tags: ['techno'],
+        membersLabel: '2 people',
+        currentUserRole: 'owner',
+        disappearingTimer: '24h',
+      },
+      messages: [],
+    });
+    getClub.mockResolvedValue({
+      id: clubId,
+      title: 'Brooklyn techno',
+      summary: 'A Club for local dancers.',
+      tags: ['techno'],
+      currentUserRole: 'owner',
+      conversationId,
+      joinRequestStatus: 'member',
+      memberCount: 2,
+    });
+    getClubJoinRequests.mockResolvedValue([{
+      userId: '33333333-3333-4333-8333-333333333333',
+      name: 'River',
+      photo: null,
+      requestedAt: '2026-10-02T12:01:00.000Z',
+    }]);
+    getGroupMembers.mockResolvedValue([{
+      id: '33333333-3333-4333-8333-333333333333',
+      name: 'River',
+      pronouns: 'they/them',
+      photo: null,
+      role: 'member',
+      joinedAt: '2026-10-02T12:00:00.000Z',
+    }]);
+    updateClub.mockResolvedValue({
+      id: clubId,
+      title: 'Brooklyn techno',
+      summary: 'Updated description.',
+      tags: ['techno'],
+      currentUserRole: 'owner',
+      conversationId,
+      joinRequestStatus: 'member',
+      memberCount: 2,
+    });
+    reviewClubJoinRequest.mockResolvedValue({ decision: 'approve' });
+    setClubMemberRole.mockResolvedValue(undefined);
+
+    render(
+      <MemoryRouter initialEntries={[`/chat/${conversationId}`]}>
+        <Routes>
+          <Route path="/chat/:chatId" element={<PrivateGroupChat />} />
+          <Route path="/chat/group/:chatId/settings" element={<PrivateGroupChat />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText('Club')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Share Club' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Edit Club' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Conversation settings' }));
+    fireEvent.change(await screen.findByLabelText('Club settings short description'), { target: { value: 'Updated description.' } });
+    expect(screen.getByRole('button', { name: 'Visibility Controls' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Save Club' }));
+    await waitFor(() => expect(updateClub).toHaveBeenCalledWith(clubId, {
+      title: 'Brooklyn techno',
+      summary: 'Updated description.',
+      tags: ['techno'],
+    }));
+    fireEvent.click(screen.getByRole('button', { name: 'Approve' }));
+    await waitFor(() => expect(reviewClubJoinRequest).toHaveBeenCalledWith(
+      clubId,
+      '33333333-3333-4333-8333-333333333333',
+      'approve',
+    ));
+    fireEvent.click(screen.getByRole('button', { name: 'Make moderator' }));
+    await waitFor(() => expect(setClubMemberRole).toHaveBeenCalledWith(
+      conversationId,
+      '33333333-3333-4333-8333-333333333333',
+      'moderator',
+    ));
+  });
+
+  it('lets Club moderators review requests without exposing admin settings', async () => {
+    const conversationId = '44444444-4444-4444-8444-444444444444';
+    const clubId = '22222222-2222-4222-8222-222222222222';
+    getConversationMessages.mockResolvedValue({
+      conversation: {
+        id: conversationId,
+        kind: 'group',
+        clubId,
+        user: { id: conversationId, name: 'Brooklyn techno', pronouns: '', photo: null },
+        distance: 'Nearby',
+        updatedAt: '2026-10-02T12:00:00.000Z',
+        lastMessage: 'Meet at 10',
+        unreadCount: 0,
+        pinned: false,
+        tags: ['techno'],
+        membersLabel: '2 people',
+        currentUserRole: 'moderator',
+        disappearingTimer: '24h',
+      },
+      messages: [{
+        id: '55555555-5555-4555-8555-555555555555',
+        userId: '33333333-3333-4333-8333-333333333333',
+        content: 'Meet at 10',
+        timestamp: '2026-10-02T12:00:00.000Z',
+      }],
+    });
+    getClub.mockResolvedValue({
+      id: clubId,
+      title: 'Brooklyn techno',
+      summary: 'A Club for local dancers.',
+      tags: ['techno'],
+      currentUserRole: 'moderator',
+      conversationId,
+      joinRequestStatus: 'member',
+      memberCount: 2,
+    });
+    getClubJoinRequests.mockResolvedValue([{
+      userId: '33333333-3333-4333-8333-333333333333',
+      name: 'River',
+      photo: null,
+      requestedAt: '2026-10-02T12:01:00.000Z',
+    }]);
+    reviewClubJoinRequest.mockResolvedValue({ decision: 'approve' });
+
+    render(
+      <MemoryRouter initialEntries={[`/chat/${conversationId}`]}>
+        <Routes>
+          <Route path="/chat/:chatId" element={<PrivateGroupChat />} />
+          <Route path="/chat/group/:chatId/settings" element={<PrivateGroupChat />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByRole('button', { name: 'Delete message' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Conversation settings' }));
+    expect(await screen.findByRole('button', { name: 'Approve' })).toBeInTheDocument();
+    expect(screen.queryByLabelText('Club settings short description')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Clear chat for everyone' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Approve' }));
+    await waitFor(() => expect(reviewClubJoinRequest).toHaveBeenCalledWith(
+      clubId,
+      '33333333-3333-4333-8333-333333333333',
+      'approve',
+    ));
+  });
+
+  it('lets each Club member choose @me notifications and a temporary mute', async () => {
+    const conversationId = '44444444-4444-4444-8444-444444444444';
+    const conversation = {
+      id: conversationId,
+      kind: 'group' as const,
+      clubId: '22222222-2222-4222-8222-222222222222',
+      user: { id: conversationId, name: 'Brooklyn techno', pronouns: '', photo: null },
+      distance: 'Nearby',
+      updatedAt: '2026-10-02T12:00:00.000Z',
+      lastMessage: 'Meet at 10',
+      unreadCount: 0,
+      pinned: false,
+      tags: ['techno'],
+      membersLabel: '2 people',
+      currentUserRole: 'member' as const,
+      disappearingTimer: '24h' as const,
+      notificationLevel: 'all' as const,
+      muted: false,
+      mutedUntil: null,
+    };
+    getConversationMessages.mockResolvedValue({ conversation, messages: [] });
+    setConversationNotifications
+      .mockResolvedValueOnce({ ...conversation, notificationLevel: 'mentions' })
+      .mockResolvedValueOnce({ ...conversation, notificationLevel: 'mentions', muted: true, mutedUntil: '2026-10-02T20:00:00.000Z' });
+
+    render(
+      <MemoryRouter initialEntries={[`/chat/${conversationId}`]}>
+        <Routes>
+          <Route path="/chat/:chatId" element={<PrivateGroupChat />} />
+          <Route path="/chat/group/:chatId/settings" element={<PrivateGroupChat />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Conversation settings' }));
+    expect(screen.queryByText('Join requests')).not.toBeInTheDocument();
+    expect(getClubJoinRequests).not.toHaveBeenCalled();
+    fireEvent.click(await screen.findByLabelText('Group or Club notification level'));
+    fireEvent.click(await screen.findByRole('option', { name: '@me only' }));
+    await waitFor(() => expect(setConversationNotifications).toHaveBeenCalledWith(conversationId, { notificationLevel: 'mentions' }));
+
+    fireEvent.click(screen.getByLabelText('Temporarily mute Group or Club'));
+    fireEvent.click(await screen.findByRole('option', { name: 'Mute for 8 hours' }));
+    await waitFor(() => expect(setConversationNotifications).toHaveBeenCalledWith(conversationId, { muteFor: '8h' }));
+  });
+
   it('lets group admins change timers and clear history from conversation settings', async () => {
     const conversationId = '7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2';
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
@@ -1483,6 +1752,7 @@ describe('PrivateGroupChat', () => {
       <MemoryRouter initialEntries={[`/chat/${conversationId}`]}>
         <Routes>
           <Route path="/chat/:chatId" element={<PrivateGroupChat />} />
+          <Route path="/chat/group/:chatId/settings" element={<PrivateGroupChat />} />
         </Routes>
       </MemoryRouter>,
     );
@@ -1538,6 +1808,7 @@ describe('PrivateGroupChat', () => {
       <MemoryRouter initialEntries={[`/chat/${conversationId}`]}>
         <Routes>
           <Route path="/chat/:chatId" element={<><PrivateGroupChat /><LocationProbe /></>} />
+          <Route path="/chat/:chatId/settings" element={<><PrivateGroupChat /><LocationProbe /></>} />
           <Route path="/messages" element={<LocationProbe />} />
         </Routes>
       </MemoryRouter>,

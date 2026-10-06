@@ -580,6 +580,63 @@ describe('App', () => {
     expect(window.location.pathname).toBe('/');
   });
 
+  it('renders a signed-in Club detail link with share and join-request actions', async () => {
+    const clubId = '22222222-2222-4222-8222-222222222222';
+    loadCurrentSession.mockResolvedValue({
+      user: {
+        id: 'user-1',
+        email: 'test@example.com',
+        displayName: 'Test User',
+        emailVerifiedAt: '2026-04-28T12:00:00.000Z',
+        createdAt: '2026-04-28T12:00:00.000Z',
+      },
+      profile: { displayName: 'Test User', yearOfBirth: 1998 },
+      needsOnboarding: false,
+      ...acceptedConductSession,
+    });
+    window.history.replaceState({}, '', `/clubs/${clubId}`);
+    const fetchMock = vi.fn().mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === `/api/clubs/${clubId}` && (!init?.method || init.method === 'GET')) {
+        return {
+          ok: true,
+          status: 200,
+          headers: new Headers({ 'content-type': 'application/json' }),
+          text: async () => JSON.stringify({
+            data: {
+              id: clubId,
+              title: 'Brooklyn techno',
+              summary: 'A Club for local dancers.',
+              tags: ['leather', 'techno'],
+              joinRequestStatus: 'none',
+            },
+          }),
+        };
+      }
+      if (url === `/api/clubs/${clubId}/join-requests` && init?.method === 'POST') {
+        return {
+          ok: true,
+          status: 201,
+          headers: new Headers({ 'content-type': 'application/json' }),
+          text: async () => JSON.stringify({ data: { joinRequestStatus: 'pending' } }),
+        };
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    try {
+      render(<App />);
+
+      expect(await screen.findByRole('heading', { name: 'Brooklyn techno' }, { timeout: 10_000 })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Share Club' })).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'Request to join' }));
+      expect(await screen.findByRole('button', { name: 'Request sent' })).toBeDisabled();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it('keeps the alpha bug button on token-link routes for active alpha testers', async () => {
     loadCurrentSession.mockResolvedValue({
       user: {

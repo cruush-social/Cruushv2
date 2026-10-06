@@ -22,8 +22,16 @@ const { decryptDisplayLocationToken } = vi.hoisted(() => ({
   decryptDisplayLocationToken: vi.fn(),
 }));
 
+const { getMyBillingStatus } = vi.hoisted(() => ({
+  getMyBillingStatus: vi.fn(),
+}));
+
 const { openConversationOrInbox } = vi.hoisted(() => ({
   openConversationOrInbox: vi.fn(),
+}));
+
+const { createClub } = vi.hoisted(() => ({
+  createClub: vi.fn(),
 }));
 
 vi.mock('../lib/messagesApi', async () => {
@@ -69,8 +77,18 @@ vi.mock('../lib/displayLocationTokens', async () => {
   return { ...actual, decryptDisplayLocationToken };
 });
 
+vi.mock('../lib/billingApi', async () => ({
+  ...(await vi.importActual<typeof import('../lib/billingApi')>('../lib/billingApi')),
+  getMyBillingStatus,
+}));
+
 vi.mock('../lib/openConversation', () => ({
   openConversationOrInbox,
+}));
+
+vi.mock('../lib/clubsApi', async () => ({
+  ...(await vi.importActual<typeof import('../lib/clubsApi')>('../lib/clubsApi')),
+  createClub,
 }));
 
 describe('DirectMessages', () => {
@@ -83,7 +101,91 @@ describe('DirectMessages', () => {
     getMyProfile.mockReset();
     decryptDisplayLocationToken.mockReset();
     getMyProfile.mockResolvedValue({ location: null });
+    getMyBillingStatus.mockReset().mockResolvedValue({ cruushPlus: true });
     openConversationOrInbox.mockReset();
+    createClub.mockReset();
+  });
+
+  it('browses Clubs without a tag and creates one with a mutual cruush', async () => {
+    getConversations.mockResolvedValue([]);
+    getMyCruushActivity.mockResolvedValue({
+      mutual: [{
+        id: 'mutual-row-1',
+        matchId: 'match-1',
+        createdAt: '2026-04-29T12:00:00.000Z',
+        locked: false,
+        user: {
+          id: '53fd68d7-24fc-4cff-8cd7-a97ec0cadf97',
+          name: 'River',
+          pronouns: 'they/them',
+          photo: null,
+        },
+        mutualCrowds: [],
+        vibes: [],
+        distance: 'Nearby',
+        lastActive: 'now',
+        canMessage: true,
+        canRevealPreciseLocation: false,
+        coordinates: null,
+      }],
+    });
+    createClub.mockResolvedValue({
+      id: '22222222-2222-4222-8222-222222222222',
+      title: 'Brooklyn techno',
+      summary: 'A Club for local dancers.',
+      tags: ['techno', 'leather'],
+      currentUserRole: 'owner',
+      conversationId: '44444444-4444-4444-8444-444444444444',
+      memberCount: 2,
+      joinRequestStatus: 'member',
+    });
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers({ 'content-type': 'application/json' }),
+      text: vi.fn().mockResolvedValue(JSON.stringify({ data: [] })),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    try {
+      render(
+        <MemoryRouter initialEntries={['/messages']}>
+          <Routes>
+            <Route path="/messages" element={<DirectMessages />} />
+            <Route path="/chat/:conversationId" element={<div>Created Club chat</div>} />
+          </Routes>
+        </MemoryRouter>,
+      );
+
+      fireEvent.click(await screen.findByRole('tab', { name: 'Clubs' }));
+      fireEvent.click(await screen.findByRole('tab', { name: 'Browse Clubs' }));
+      expect(screen.queryByRole('heading', { name: 'Browse Clubs' })).not.toBeInTheDocument();
+      expect(fetchMock).toHaveBeenCalledWith('/api/clubs', expect.objectContaining({ credentials: 'include' }));
+      fireEvent.click(screen.getByRole('button', { name: 'New message' }));
+      fireEvent.click(screen.getByRole('button', { name: /^Create Club/ }));
+
+      expect(await screen.findByRole('heading', { name: 'New Club' })).toBeInTheDocument();
+      fireEvent.change(screen.getByLabelText('Club name'), { target: { value: 'Brooklyn techno' } });
+      fireEvent.change(screen.getByLabelText('Short description'), { target: { value: 'A Club for local dancers.' } });
+      fireEvent.change(screen.getByLabelText('Club tags'), { target: { value: '#Techno' } });
+      fireEvent.keyDown(screen.getByLabelText('Club tags'), { key: 'Enter' });
+      fireEvent.change(screen.getByLabelText('Club tags'), { target: { value: '#Leather' } });
+      fireEvent.keyDown(screen.getByLabelText('Club tags'), { key: 'Enter' });
+      fireEvent.click(screen.getByRole('button', { name: 'Add River to Club' }));
+      const clubComposer = screen.getByRole('heading', { name: 'New Club' }).closest('.fixed');
+      fireEvent.click(within(clubComposer as HTMLElement).getByRole('button', { name: 'Create Club' }));
+
+      await waitFor(() => expect(createClub).toHaveBeenCalledWith(expect.objectContaining({
+        title: 'Brooklyn techno',
+        summary: 'A Club for local dancers.',
+        tags: ['techno', 'leather'],
+        memberIds: ['53fd68d7-24fc-4cff-8cd7-a97ec0cadf97'],
+        visibilityRules: expect.any(Object),
+      })));
+      expect(screen.getByText('Created Club chat')).toBeInTheDocument();
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it('keeps full-width message controls clear of the fixed bug reporter', async () => {
@@ -140,6 +242,230 @@ describe('DirectMessages', () => {
     expect(screen.getByTestId('direct-messages-root')).not.toHaveClass('pb-[calc(7rem+env(safe-area-inset-bottom))]');
     expect(screen.queryByText('Preview mode')).not.toBeInTheDocument();
     expect(screen.queryByText('Alex')).not.toBeInTheDocument();
+  });
+
+  it('searches Clubs by tag from the Clubs tab and opens a result', async () => {
+    getConversations.mockResolvedValue([]);
+    getMyCruushActivity.mockResolvedValue({ mutual: [], sent: [] });
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers({ 'content-type': 'application/json' }),
+      text: vi.fn().mockResolvedValue(JSON.stringify({
+        data: [{
+          id: '22222222-2222-4222-8222-222222222222',
+          title: 'Brooklyn techno',
+          summary: 'A Club for local dancers.',
+          tags: ['leather', 'techno'],
+          currentUserRole: null,
+          conversationId: null,
+          pendingJoinRequestCount: 0,
+          memberCount: 8,
+          lastActiveAt: '2026-10-02T12:00:00.000Z',
+        }],
+      })),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    try {
+      render(
+        <MemoryRouter initialEntries={['/messages']}>
+          <Routes>
+            <Route path="/messages" element={<DirectMessages />} />
+            <Route path="/clubs/:clubId" element={<div>Club detail route</div>} />
+          </Routes>
+        </MemoryRouter>,
+      );
+
+      fireEvent.click(await screen.findByRole('tab', { name: 'Clubs' }));
+      fireEvent.click(await screen.findByRole('tab', { name: 'Browse Clubs' }));
+      const search = screen.getByPlaceholderText('Search Clubs by name, description, or tag');
+      fireEvent.change(search, { target: { value: 'techno' } });
+
+      expect(await screen.findByText('Brooklyn techno')).toBeInTheDocument();
+      expect(fetchMock).toHaveBeenCalledWith('/api/clubs?sort=recent&q=techno&tags=techno', expect.objectContaining({ credentials: 'include' }));
+      const openButton = screen.getAllByRole('button', { name: 'Open Brooklyn techno Club' })
+        .find((button) => button.classList.contains('size-10')) as HTMLElement;
+      expect(openButton).toHaveStyle({ background: 'var(--cruush-gradient)' });
+      expect(openButton).toHaveClass('size-10', 'rounded-full');
+      expect(openButton).not.toHaveTextContent('Open');
+      fireEvent.click(screen.getByTestId('club-directory-card'));
+      expect(screen.getByText('Club detail route')).toBeInTheDocument();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('shows joined Club message and request previews and opens its chat directly', async () => {
+    getConversations.mockResolvedValue([{
+      id: '44444444-4444-4444-8444-444444444444',
+      kind: 'group',
+      clubId: '22222222-2222-4222-8222-222222222222',
+      user: { id: '44444444-4444-4444-8444-444444444444', name: 'Brooklyn techno', pronouns: '', photo: null },
+      distance: 'Nearby',
+      updatedAt: '2026-10-02T12:00:00.000Z',
+      lastMessage: 'Meet at 10 tonight',
+      unreadCount: 0,
+      pinned: false,
+      currentUserRole: 'owner',
+      tags: ['techno'],
+    }]);
+    getMyCruushActivity.mockResolvedValue({ mutual: [], sent: [] });
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers({ 'content-type': 'application/json' }),
+      text: vi.fn().mockResolvedValue(JSON.stringify({
+        data: [{
+          id: '22222222-2222-4222-8222-222222222222',
+          title: 'Brooklyn techno',
+          summary: 'A Club for local dancers.',
+          tags: ['techno'],
+          currentUserRole: 'owner',
+          conversationId: '44444444-4444-4444-8444-444444444444',
+          pendingJoinRequestCount: 2,
+          memberCount: 8,
+          lastActiveAt: '2026-10-02T12:00:00.000Z',
+        }],
+      })),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    try {
+      render(
+        <MemoryRouter initialEntries={['/messages']}>
+          <Routes>
+            <Route path="/messages" element={<DirectMessages />} />
+            <Route path="/chat/:conversationId" element={<div>Joined Club chat</div>} />
+          </Routes>
+        </MemoryRouter>,
+      );
+
+      fireEvent.click(await screen.findByRole('tab', { name: 'Clubs' }));
+      expect(await screen.findByRole('tab', { name: 'My Clubs' })).toHaveAttribute('data-state', 'active');
+      expect(screen.queryByRole('heading', { name: 'My Clubs' })).not.toBeInTheDocument();
+      expect(screen.getByText('Meet at 10 tonight')).toBeInTheDocument();
+      expect(screen.getByText('2 new requests')).toBeInTheDocument();
+      expect(screen.getAllByText('8 members')).toHaveLength(1);
+      fireEvent.click(screen.getByTestId('club-directory-card'));
+      expect(screen.getByText('Joined Club chat')).toBeInTheDocument();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('keeps Club conversations out of the Groups tab', async () => {
+    getConversations.mockResolvedValue([{
+      id: 'group-1',
+      kind: 'group',
+      user: { id: 'group-1', name: 'Weekend crew', pronouns: '', photo: null },
+      distance: 'Nearby',
+      updatedAt: '2026-10-02T12:00:00.000Z',
+      lastMessage: 'See you Saturday',
+      unreadCount: 0,
+      pinned: false,
+      currentUserRole: 'member',
+      tags: [],
+    }, {
+      id: '44444444-4444-4444-8444-444444444444',
+      kind: 'group',
+      clubId: '22222222-2222-4222-8222-222222222222',
+      user: { id: '44444444-4444-4444-8444-444444444444', name: 'Brooklyn techno', pronouns: '', photo: null },
+      distance: 'Nearby',
+      updatedAt: '2026-10-02T12:01:00.000Z',
+      lastMessage: 'Meet at 10',
+      unreadCount: 0,
+      pinned: true,
+      currentUserRole: 'member',
+      tags: ['techno'],
+    }]);
+
+    render(
+      <MemoryRouter initialEntries={['/messages']}>
+        <Routes><Route path="/messages" element={<DirectMessages />} /></Routes>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText('Weekend crew')).toBeInTheDocument();
+    expect(screen.queryByText('Brooklyn techno')).not.toBeInTheDocument();
+    fireEvent.click(await screen.findByRole('tab', { name: 'Groups' }));
+    expect(screen.queryByText('Brooklyn techno')).not.toBeInTheDocument();
+  });
+
+  it('shows unread dots for each message scope', async () => {
+    getConversations.mockResolvedValue([{
+      id: 'dm-1',
+      kind: 'dm',
+      user: { id: 'user-2', name: 'River', pronouns: '', photo: null },
+      distance: 'Nearby',
+      updatedAt: '2026-10-02T12:00:00.000Z',
+      lastMessage: 'hey',
+      unreadCount: 1,
+      pinned: false,
+      tags: [],
+    }, {
+      id: 'group-1',
+      kind: 'group',
+      user: { id: 'group-1', name: 'Weekend crew', pronouns: '', photo: null },
+      distance: 'Nearby',
+      updatedAt: '2026-10-02T12:01:00.000Z',
+      lastMessage: 'Saturday',
+      unreadCount: 2,
+      pinned: false,
+      currentUserRole: 'member',
+      tags: [],
+    }, {
+      id: 'club-chat-1',
+      kind: 'group',
+      clubId: '22222222-2222-4222-8222-222222222222',
+      user: { id: 'club-chat-1', name: 'Brooklyn techno', pronouns: '', photo: null },
+      distance: 'Nearby',
+      updatedAt: '2026-10-02T12:02:00.000Z',
+      lastMessage: 'Tonight',
+      unreadCount: 3,
+      pinned: false,
+      currentUserRole: 'member',
+      tags: ['techno'],
+    }]);
+
+    render(<MemoryRouter><DirectMessages /></MemoryRouter>);
+
+    expect(await screen.findByTestId('all-unread-dot')).toBeInTheDocument();
+    expect(screen.getByTestId('unread-unread-dot')).toBeInTheDocument();
+    expect(screen.getByTestId('groups-unread-dot')).toBeInTheDocument();
+    expect(screen.getByTestId('clubs-unread-dot')).toBeInTheDocument();
+  });
+
+  it('keeps Club creation behind cruush+', async () => {
+    getConversations.mockResolvedValue([]);
+    getMyBillingStatus.mockResolvedValue({ cruushPlus: false });
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers({ 'content-type': 'application/json' }),
+      text: vi.fn().mockResolvedValue(JSON.stringify({ data: [] })),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    try {
+      render(
+        <MemoryRouter initialEntries={['/messages']}>
+          <Routes>
+            <Route path="/messages" element={<DirectMessages />} />
+            <Route path="/rewards" element={<div>cruush+ rewards</div>} />
+          </Routes>
+        </MemoryRouter>,
+      );
+
+      fireEvent.click(await screen.findByRole('tab', { name: 'Clubs' }));
+      fireEvent.click(await screen.findByRole('tab', { name: 'Browse Clubs' }));
+      expect(screen.queryByRole('button', { name: 'Create Club' })).not.toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'New message' }));
+      fireEvent.click(screen.getByRole('button', { name: /^Create Club/ }));
+      expect(screen.getByText('cruush+ rewards')).toBeInTheDocument();
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it('shows a real error state when conversations fail to load', async () => {

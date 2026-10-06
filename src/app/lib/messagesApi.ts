@@ -5,6 +5,8 @@ import type { MapPingStatus } from './mapPingsApi';
 import type { DlModePhotoRelationship } from './dlMode';
 
 export type ConversationTimer = 'off' | '1h' | '24h' | '7d' | '30d';
+export type ConversationNotificationLevel = 'all' | 'mentions';
+export type ConversationMuteDuration = 'off' | '1h' | '8h' | '24h' | '7d';
 
 export type ConversationThread = {
   id: string;
@@ -27,13 +29,16 @@ export type ConversationThread = {
   unreadCount: number;
   pinned: boolean;
   muted?: boolean;
+  notificationLevel?: ConversationNotificationLevel;
+  mutedUntil?: string | null;
   mutual?: boolean;
   canMessage?: boolean;
   membersLabel?: string;
-  currentUserRole?: 'owner' | 'admin' | 'member';
+  currentUserRole?: 'owner' | 'admin' | 'moderator' | 'member';
   disappearingTimer?: ConversationTimer;
   closed?: boolean;
   tags: string[];
+  clubId?: string;
 };
 
 export type ChatMessageRecord = {
@@ -104,7 +109,7 @@ export type GroupMemberRecord = {
   photo: string | null;
   photoExplicit?: boolean;
   photoRelationship?: DlModePhotoRelationship;
-  role: 'owner' | 'admin' | 'member';
+  role: 'owner' | 'admin' | 'moderator' | 'member';
   joinedAt: string;
 };
 
@@ -114,12 +119,12 @@ export type ConversationMessagesPayload = {
 };
 
 export type InAppShare = {
-  kind: 'place' | 'profile';
+  kind: 'place' | 'profile' | 'club';
   id: string;
   label: string;
 };
 
-const IN_APP_SHARE_PATTERN = /^\[\[cruush:(place|profile):([0-9a-f-]{36})\]\]\s+(.+)$/i;
+const IN_APP_SHARE_PATTERN = /^\[\[cruush:(place|profile|club):([0-9a-f-]{36})\]\]\s+(.+)$/i;
 
 export function createInAppShareMessage(share: InAppShare) {
   return `[[cruush:${share.kind}:${share.id}]] ${share.label.trim()}`;
@@ -194,6 +199,13 @@ export function demoteGroupAdmin(conversationId: string, userId: string) {
   });
 }
 
+export function setClubMemberRole(conversationId: string, userId: string, role: 'admin' | 'moderator' | 'member') {
+  return requestApi<void>(`/api/conversations/groups/${conversationId}/members/${userId}/club-role`, {
+    method: 'PATCH',
+    body: JSON.stringify({ role }),
+  });
+}
+
 export function closeGroupConversation(conversationId: string) {
   return requestApi<void>(`/api/conversations/groups/${conversationId}/close`, {
     method: 'POST',
@@ -214,6 +226,16 @@ export function setConversationDisappearingTimer(conversationId: string, disappe
   return requestApi<ConversationThread>(`/api/conversations/${conversationId}/disappearing-timer`, {
     method: 'PATCH',
     body: JSON.stringify({ disappearingTimer }),
+  });
+}
+
+export function setConversationNotifications(
+  conversationId: string,
+  input: { notificationLevel?: ConversationNotificationLevel; muteFor?: ConversationMuteDuration },
+) {
+  return requestApi<ConversationThread>(`/api/conversations/${conversationId}/notifications`, {
+    method: 'PATCH',
+    body: JSON.stringify(input),
   });
 }
 

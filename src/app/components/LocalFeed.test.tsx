@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import LocalFeed from './LocalFeed';
 import { HEART_PIN_THEMES } from '../lib/heartPin';
 import type { FeedSettings } from '../lib/postApi';
@@ -234,6 +234,10 @@ describe('LocalFeed', () => {
     expect(getFeedPosts).toHaveBeenCalledTimes(4);
   });
 
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it('keeps the feed top visible below mobile webview chrome', async () => {
     getFeedPosts.mockResolvedValue([]);
 
@@ -276,6 +280,43 @@ describe('LocalFeed', () => {
     const postsScroll = screen.getByTestId('local-feed-posts-scroll');
     expect(postsScroll.style.touchAction).toBe('pan-y');
     expect(postsScroll.style.getPropertyValue('-webkit-overflow-scrolling')).toBe('touch');
+  });
+
+  it('observes the older-post sentinel within the Feed scroll panel', async () => {
+    const observe = vi.fn();
+    const disconnect = vi.fn();
+    const observerCalls: IntersectionObserverInit[] = [];
+    class MockIntersectionObserver {
+      constructor(_callback: IntersectionObserverCallback, options?: IntersectionObserverInit) {
+        observerCalls.push(options ?? {});
+      }
+
+      observe = observe;
+      disconnect = disconnect;
+      unobserve = vi.fn();
+      takeRecords = vi.fn(() => []);
+    }
+    vi.stubGlobal('IntersectionObserver', MockIntersectionObserver);
+    getFeedPosts.mockResolvedValue(Array.from({ length: 30 }, (_, index) => ({
+      id: `post-${index}`,
+      content: `post ${index}`,
+      expiresIn: 'never',
+      expiresAt: null,
+      createdAt: new Date(2026, 3, 28, 12, 0, 0 - index).toISOString(),
+      distance: 'Nearby',
+      user: { id: `user-${index}`, name: `User ${index}`, pronouns: '', photo: null },
+    })));
+
+    render(<MemoryRouter><LocalFeed /></MemoryRouter>);
+
+    const postsScroll = await screen.findByTestId('local-feed-posts-scroll');
+    await waitFor(() => expect(observerCalls).toHaveLength(1));
+    expect(observerCalls[0]).toEqual({
+      root: postsScroll,
+      rootMargin: '280px',
+    });
+    expect(observe).toHaveBeenCalledWith(document.querySelector('[aria-live="polite"]'));
+    expect(disconnect).not.toHaveBeenCalled();
   });
 
   it('focuses the composer when onboarding sends the user to write a post', async () => {
@@ -741,6 +782,26 @@ describe('LocalFeed', () => {
       photoMediaIds: [],
       tags: [],
     }));
+  });
+
+  it('keeps Feed tag help and saved tags directly below the tag field', async () => {
+    getFeedPosts.mockResolvedValue([]);
+
+    render(<MemoryRouter><LocalFeed /></MemoryRouter>);
+    const composer = await screen.findByTestId('local-feed-composer');
+    openComposer();
+
+    const tagField = await within(composer).findByRole('textbox', { name: 'Add Feed tag' });
+    fireEvent.change(tagField, { target: { value: '#updates' } });
+    fireEvent.keyDown(tagField, { key: 'Enter' });
+
+    const savedTag = within(composer).getByRole('button', { name: 'Remove #updates' });
+    const tagHelp = within(composer).getByText('Up to 10 tags.');
+    const expiry = within(composer).getByText('This post expires');
+
+    expect(tagField.compareDocumentPosition(savedTag) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(savedTag.compareDocumentPosition(tagHelp) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(tagHelp.compareDocumentPosition(expiry) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it('opens the cruush+ card for a free custom timer or specific Crowd', async () => {

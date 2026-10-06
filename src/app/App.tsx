@@ -34,6 +34,7 @@ const ProfileOnboarding = lazyRoute(() => import('./components/ProfileOnboarding
 const AgeVerification = lazyRoute(() => import('./components/AgeVerification'));
 const FiltersPanel = lazyRoute(() => import('./components/FiltersPanel'));
 const GroupDetail = lazyRoute(() => import('./components/GroupDetail'));
+const ClubDetail = lazyRoute(() => import('./components/ClubDetail'));
 const EventPassGuide = lazyRoute(() => import('./components/EventPassGuide'));
 const PlaceDetail = lazyRoute(() => import('./components/PlaceDetail'));
 const PrivateGroupChat = lazyRoute(() => import('./components/PrivateGroupChat'));
@@ -649,10 +650,13 @@ export default function App({
               {renderPublicRoutes(false, true)}
               <Route path="/survey" element={<Survey />} />
               <Route path="/groups/:groupId" element={<GroupDetail />} />
+              <Route path="/clubs/:clubId" element={<ClubDetail />} />
               <Route path="/events/:eventId/pass-guide" element={<EventPassGuide />} />
               <Route path="/places/:placeId" element={<PlaceDetail />} />
               <Route path="/chat/:chatId" element={<PrivateGroupChat />} />
+              <Route path="/chat/:chatId/settings" element={<PrivateGroupChat />} />
               <Route path="/chat/group/:chatId" element={<PrivateGroupChat />} />
+              <Route path="/chat/group/:chatId/settings" element={<PrivateGroupChat />} />
               <Route path="/messages" element={<DirectMessages />} />
               <Route path="/notifications" element={<NotificationCenter />} />
               <Route path="/report" element={<ReportPage />} />
