@@ -18,9 +18,14 @@ describe('PostHog analytics', () => {
 
   it('does nothing when the public project key is absent', async () => {
     vi.stubEnv('VITE_POSTHOG_KEY', '');
-    const { trackPostHogPageView } = await import('./posthog');
+    const { trackBitcoinCheckoutMilestone, trackPostHogPageView } = await import('./posthog');
 
     expect(trackPostHogPageView('/map')).toBe(false);
+    expect(trackBitcoinCheckoutMilestone('bitcoin order created', {
+      productType: 'cruush_plus',
+      productId: 'plus_annual',
+      sendingApp: 'cash_app',
+    })).toBe(false);
     expect(init).not.toHaveBeenCalled();
   });
 
@@ -46,5 +51,22 @@ describe('PostHog analytics', () => {
         $pathname: '/profile/:userId?mode=preview',
         $title: 'Profile',
       }, { send_instantly: true });
+  });
+
+  it('captures Bitcoin checkout milestones with only aggregate allowlisted properties', async () => {
+    vi.stubEnv('VITE_POSTHOG_KEY', 'phc_test');
+    const { trackBitcoinCheckoutMilestone } = await import('./posthog');
+
+    expect(trackBitcoinCheckoutMilestone('bitcoin order created', {
+      productType: 'cruush_plus',
+      productId: 'founder_annual',
+      sendingApp: 'venmo',
+    })).toBe(true);
+
+    expect(capture).toHaveBeenCalledWith('bitcoin order created', {
+      product_type: 'cruush_plus',
+      product_id: 'founder_annual',
+      sending_app: 'venmo',
+    }, { send_instantly: true });
   });
 });

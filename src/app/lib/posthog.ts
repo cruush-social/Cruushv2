@@ -1,10 +1,22 @@
 import posthog from 'posthog-js';
 import { getSanitizedAnalyticsPath } from './analyticsPath';
+import type { CryptoSendingApp } from './cryptoCheckoutApi';
 
 const DEFAULT_POSTHOG_HOST = 'https://us.i.posthog.com';
 
 let initialized = false;
 let pendingPageView: { path: string; title: string } | null = null;
+
+export type BitcoinCheckoutMilestone =
+  | 'bitcoin payment method selected'
+  | 'bitcoin order created'
+  | 'bitcoin payment confirmed';
+
+type BitcoinCheckoutMilestoneDetails = {
+  productType: 'cruush_plus' | 'ping_pack';
+  productId: string;
+  sendingApp: CryptoSendingApp;
+};
 
 function getPostHogKey() {
   return import.meta.env.VITE_POSTHOG_KEY?.trim() ?? '';
@@ -68,6 +80,25 @@ export function trackPostHogPageView(
   }
 
   capturePostHogPageView(path, title);
+  return true;
+}
+
+export function trackBitcoinCheckoutMilestone(
+  event: BitcoinCheckoutMilestone,
+  details: BitcoinCheckoutMilestoneDetails,
+) {
+  if (!initializePostHog()) {
+    return false;
+  }
+
+  // Keep payment analytics deliberately aggregate-only. In particular, never
+  // pass an intent ID, wallet address, transaction ID, amount, URL, or error.
+  posthog.capture(event, {
+    product_type: details.productType,
+    product_id: details.productId,
+    sending_app: details.sendingApp,
+  }, { send_instantly: true });
+
   return true;
 }
 

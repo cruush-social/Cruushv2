@@ -32,6 +32,10 @@ vi.mock('../lib/cryptoCheckoutApi', async () => {
   };
 });
 
+vi.mock('../lib/posthog', () => ({
+  trackBitcoinCheckoutMilestone: vi.fn(),
+}));
+
 const { getBillingPlans } = await import('../lib/billingApi');
 const {
   getPulsePacks, createPulsePaymentIntent, getCurrentPulsePaymentIntent,
@@ -44,6 +48,7 @@ const {
 } = await import(
   '../lib/cryptoCheckoutApi'
 );
+const { trackBitcoinCheckoutMilestone } = await import('../lib/posthog');
 
 const plans = [
   {
@@ -1076,6 +1081,63 @@ describe('Bitcoin through Cash App, PayPal, Venmo or a wallet', () => {
       rail: 'btc_bitcoin',
       sendingApp: 'venmo',
     }));
+    expect(trackBitcoinCheckoutMilestone).toHaveBeenCalledWith('bitcoin payment method selected', {
+      productType: 'cruush_plus',
+      productId: 'founder_annual',
+      sendingApp: 'venmo',
+    });
+    expect(trackBitcoinCheckoutMilestone).not.toHaveBeenCalledWith(
+      'bitcoin order created',
+      expect.anything(),
+    );
+  });
+
+  it('tracks order creation and confirmation without payment identifiers', async () => {
+    vi.mocked(getBitcoinSendingEligibility).mockResolvedValue({ rail: 'btc_bitcoin', products: {} });
+    vi.mocked(createCryptoPaymentIntent).mockResolvedValue({
+      id: '00000000-0000-4000-8000-000000000099',
+      userId: '00000000-0000-4000-8000-000000000001',
+      planId: 'founder_annual',
+      productType: 'cruush_plus',
+      asset: 'BTC',
+      network: 'bitcoin',
+      rail: 'btc_bitcoin',
+      sendingApp: 'paypal',
+      chainId: 0,
+      tokenAddress: '',
+      amountUsdCents: 9999,
+      quotedAmountAtomic: '150000',
+      paymentAddress: 'bc1qnever-send-this-to-analytics',
+      paymentUri: null,
+      qrCodeDataUrl: null,
+      status: 'paid',
+      expiresAt: '2099-09-01T12:30:00.000Z',
+      createdAt: '2099-09-01T12:00:00.000Z',
+      updatedAt: '2099-09-01T12:01:00.000Z',
+      paidAt: '2099-09-01T12:01:00.000Z',
+    });
+    renderStore();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'PayPal' }));
+
+    await waitFor(() => expect(trackBitcoinCheckoutMilestone).toHaveBeenCalledTimes(3));
+    expect(vi.mocked(trackBitcoinCheckoutMilestone).mock.calls).toEqual([
+      ['bitcoin payment method selected', {
+        productType: 'cruush_plus',
+        productId: 'founder_annual',
+        sendingApp: 'paypal',
+      }],
+      ['bitcoin order created', {
+        productType: 'cruush_plus',
+        productId: 'founder_annual',
+        sendingApp: 'paypal',
+      }],
+      ['bitcoin payment confirmed', {
+        productType: 'cruush_plus',
+        productId: 'founder_annual',
+        sendingApp: 'paypal',
+      }],
+    ]);
   });
 
   it('keeps cheaper plans visible and disables Cash App below its minimum', async () => {

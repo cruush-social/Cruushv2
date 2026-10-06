@@ -24,6 +24,7 @@ import {
   type CryptoProcessorStatus,
 } from '../lib/cryptoCheckoutApi';
 import { CRUUSH_PLUS_FEATURES } from '../lib/cruushPlusFeatures';
+import { trackBitcoinCheckoutMilestone } from '../lib/posthog';
 import {
   CRYPTO_NETWORK_LABELS,
   CRYPTO_PAYMENT_SOURCES,
@@ -187,6 +188,7 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
   const startingRef = useRef(false);
   const pollStartedRef = useRef<{ intentId: string; startedAt: number } | null>(null);
   const cancelledIntentIdRef = useRef<string | null>(null);
+  const confirmedBitcoinIntentIdsRef = useRef(new Set<string>());
 
   useEffect(() => {
     let active = true;
@@ -301,6 +303,25 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
 
     paymentAttemptRef.current = null;
   }, [locallyExpired]);
+
+  useEffect(() => {
+    if (
+      !intent
+      || intent.rail !== 'btc_bitcoin'
+      || intent.status !== 'paid'
+      || !intent.sendingApp
+      || confirmedBitcoinIntentIdsRef.current.has(intent.id)
+    ) {
+      return;
+    }
+
+    confirmedBitcoinIntentIdsRef.current.add(intent.id);
+    trackBitcoinCheckoutMilestone('bitcoin payment confirmed', {
+      productType: intent.productType,
+      productId: intent.planId,
+      sendingApp: intent.sendingApp,
+    });
+  }, [intent?.id, intent?.planId, intent?.productType, intent?.rail, intent?.sendingApp, intent?.status]);
 
   // The browser polls for display only. A payment is never treated as settled from this side.
   // Polling stops at the server deadline and never runs forever in a stale tab.
@@ -467,6 +488,14 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
       }
     }
 
+    if (source.rail === 'btc_bitcoin') {
+      trackBitcoinCheckoutMilestone('bitcoin payment method selected', {
+        productType: product,
+        productId: selectedPlan.id,
+        sendingApp: source.sendingApp,
+      });
+    }
+
     startingRef.current = true;
     setStarting(true);
     setError(null);
@@ -492,6 +521,13 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
       if (paymentAttemptRef.current !== attempt) {
         return;
       }
+      if (nextIntent.rail === 'btc_bitcoin' && nextIntent.sendingApp) {
+        trackBitcoinCheckoutMilestone('bitcoin order created', {
+          productType: nextIntent.productType,
+          productId: nextIntent.planId,
+          sendingApp: nextIntent.sendingApp,
+        });
+      }
       setIntent(nextIntent);
       setAmountCopied(false);
       setRetryAt(0);
@@ -509,7 +545,7 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
       startingRef.current = false;
       setStarting(false);
     }
-  }, [bitcoinEligibility, isPulse, locallyExpired, paymentOpen, paymentPaid, selectedPlan, readyRailIds, retryAt]);
+  }, [bitcoinEligibility, isPulse, locallyExpired, paymentOpen, paymentPaid, product, selectedPlan, readyRailIds, retryAt]);
 
   const handleCancelPayment = useCallback(async () => {
     if (!intent || !cancelAction || cancelling || !['pending', 'awaiting_payment'].includes(intent.status)) {
