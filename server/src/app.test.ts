@@ -5135,6 +5135,45 @@ describe("server", () => {
     });
   });
 
+  it("deletes the current user's message with a contiguous SQL parameter list", async () => {
+    const messageId = "91ef049e-2b1d-45e5-948e-ec955f93eb44";
+
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          conversation_id: conversationId,
+          user_id: userId
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: conversationId,
+          kind: "dm",
+          club_id: null
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          conversation_id: conversationId,
+          object_key: null
+        }]
+      });
+
+    const response = await app.inject({
+      method: "DELETE",
+      url: `/api/messages/${messageId}`,
+      headers: {
+        "x-user-id": userId
+      }
+    });
+    const deleteCall = query.mock.calls[2];
+
+    expect(response.statusCode).toBe(204);
+    expect(deleteCall?.[0]).toContain("where $2::boolean");
+    expect(deleteCall?.[0]).not.toContain("$3::boolean");
+    expect(deleteCall?.[1]).toEqual([messageId, true]);
+  });
+
   it("returns a conversation and its messages from GET /api/messages/:conversationId", async () => {
     const matchRecord = await encryptedRelationshipRecordRow({
       id: "match-message-load",

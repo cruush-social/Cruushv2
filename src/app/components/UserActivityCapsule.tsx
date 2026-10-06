@@ -25,6 +25,8 @@ export type UserActivityCapsuleProps = {
   /** Vibe capsules, shown above the card body on every surface. */
   vibes?: string[];
   vibeTone?: 'current' | 'mutual' | 'nearby';
+  /** Keep whole vibe pills visible by moving them onto additional rows. */
+  wrapVibes?: boolean;
   content?: ReactNode;
   cornerAction?: ReactNode;
   /** A single control pinned to the card's own top-right corner, separate from `actions`. */
@@ -53,6 +55,7 @@ export default function UserActivityCapsule({
   sideBadgeTone = mutual ? 'mutual' : 'nearby',
   vibes,
   vibeTone = 'nearby',
+  wrapVibes = false,
   content,
   cornerAction,
   cornerBadge,
@@ -102,10 +105,10 @@ export default function UserActivityCapsule({
 
   const vibeRow = (vibes?.length ?? 0) > 0 ? (
     /* Above the card's grid, not inside it, so the heart, name and actions
-       keep the layout they already had. Full width for the tags, one line
-       always: each tag keeps its own width so the ones that show stay
-       readable, and the row clips at the card edge rather than wrapping. */
-    <div className="flex min-w-0 flex-nowrap items-center gap-1.5 overflow-hidden" data-testid="activity-vibes">
+       keep the layout they already had. Each tag keeps its own width. Feed
+       opts into wrapping so every pill stays whole; other surfaces retain
+       their existing single clipped row. */
+    <div className={`flex min-w-0 items-center gap-1.5 ${wrapVibes ? 'flex-wrap overflow-visible' : 'flex-nowrap overflow-hidden'}`} data-testid="activity-vibes">
       {vibes?.slice(0, 3).map((vibe) => (
         <span
           className="max-w-full flex-shrink-0 truncate rounded-full border px-2 py-0.5 text-[11px] uppercase leading-tight tracking-[0.08em]"

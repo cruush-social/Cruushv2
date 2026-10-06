@@ -2402,7 +2402,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
        ), authorized as (
          select *
          from target_message
-         where $3::boolean
+         where $2::boolean
        ), target_media as (
          select media.id, media.object_key
          from message_media_attachments attachment
@@ -2439,7 +2439,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
        select (select conversation_id::text from removed_message), object_key from removed_variants where object_key is not null
        union all
        select (select conversation_id::text from removed_message), object_key from removed_media where object_key is not null`,
-      [messageId, userId, authorized]
+      [messageId, authorized]
     );
 
     if (!result.rows[0]?.conversation_id) {

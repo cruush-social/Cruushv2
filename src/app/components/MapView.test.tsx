@@ -1344,6 +1344,35 @@ describe('MapView', () => {
     expect(screen.getByTestId('marker-signal-stack-user-hover')).toHaveClass('opacity-0');
   });
 
+  it('raises a hovered pin unit even when it has no signal text', async () => {
+    render(
+      <MapView
+        onPinClick={vi.fn()}
+        markers={[
+          {
+            id: 'user-hover-no-signal',
+            displayName: 'Noor',
+            approximateLatitude: 40.72,
+            approximateLongitude: -74.01,
+            lastActiveLabel: '8m ago',
+          },
+        ]}
+      />
+    );
+
+    const markerButton = await screen.findByRole('button', { name: 'Open Noor on map' });
+    markerInstances[0].element.style.zIndex = '37';
+
+    fireEvent.pointerEnter(markerButton, { pointerType: 'mouse' });
+
+    expect(markerInstances[0].element.style.zIndex).toBe('110');
+    expect(screen.getByTestId('marker-heart-layer-user-hover-no-signal')).toHaveClass('scale-[1.38]');
+
+    fireEvent.pointerLeave(markerButton, { pointerType: 'mouse' });
+
+    expect(markerInstances[0].element.style.zIndex).toBe('37');
+  });
+
   it('shows only the most recently hovered pin unit', async () => {
     render(
       <MapView

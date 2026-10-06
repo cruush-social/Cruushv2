@@ -17,14 +17,21 @@ it('omits the label only from heart previews while retaining the white transluce
   expect(document.querySelector('image[href="/explicit.jpg"]')).toBeNull();
 });
 
-it('keeps cruushes only beneath the icon on non-heart covers', () => {
+it('keeps DL MODE ON beneath the icon when the viewer setting masks the photo', () => {
   render(<DlModePhotoPlaceholder />);
-  expect(screen.getByTestId('dl-mode-photo-placeholder').querySelector('text')).toHaveTextContent('cruushes only');
+  expect(screen.getByTestId('dl-mode-photo-placeholder').querySelector('text')).toHaveTextContent('DL MODE ON');
 });
 
-it('can split cruushes only across two lines for Recently Active previews', () => {
+it('keeps the DL Mode label intact in compact Recently Active previews', () => {
   render(<DlModePhotoPlaceholder splitCruushesOnly />);
   const cover = screen.getByTestId('dl-mode-photo-placeholder');
-  expect(cover).toHaveAttribute('aria-label', 'cruushes only');
-  expect([...cover.querySelectorAll('tspan')].map((line) => line.textContent)).toEqual(['cruushes', 'only']);
+  expect(cover).toHaveAttribute('aria-label', 'DL MODE ON');
+  expect(cover.querySelectorAll('tspan')).toHaveLength(0);
+  expect(cover.querySelector('text')).toHaveTextContent('DL MODE ON');
+});
+
+it('keeps an owner restriction label distinct from the viewer DL Mode label', () => {
+  render(<DlModePhotoPlaceholder restriction="mutual_cruushes" />);
+  expect(screen.getByTestId('dl-mode-photo-placeholder')).toHaveAttribute('aria-label', 'MUTUAL CRUUSHES ONLY');
+  expect(screen.getByTestId('dl-mode-photo-placeholder').querySelector('text')).toHaveTextContent('MUTUAL CRUUSHES ONLY');
 });

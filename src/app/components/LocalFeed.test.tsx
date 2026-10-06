@@ -696,6 +696,8 @@ describe('LocalFeed', () => {
     expect(screen.getByTestId('feed-post-author-post-other')).not.toHaveClass('max-w-[32%]');
     expect(screen.getByTestId('feed-post-meta-post-other')).toHaveClass('flex', 'h-11', 'flex-col');
     expect(screen.getByText('he/him')).toBeInTheDocument();
+    expect(screen.getByTestId('activity-vibes')).toHaveClass('flex-wrap', 'overflow-visible');
+    expect(screen.getByText('Service')).toHaveClass('flex-shrink-0', 'truncate');
 
     // Report sits on the action row between the date and the other buttons.
     // Blocking is not offered per post: it lives on the profile.

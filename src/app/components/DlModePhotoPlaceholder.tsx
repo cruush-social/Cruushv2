@@ -13,7 +13,7 @@ export default function DlModePhotoPlaceholder({
   splitCruushesOnly?: boolean;
   restriction?: NsfwPhotoRestriction;
 }) {
-  const label = getNsfwPhotoRestrictionLabel(restriction) ?? 'cruushes only';
+  const label = getNsfwPhotoRestrictionLabel(restriction) ?? 'DL MODE ON';
   return (
     <svg
       aria-label={label}

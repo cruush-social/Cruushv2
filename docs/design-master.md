@@ -753,6 +753,8 @@ These are not preferences. Breaking one is a bug.
 
 When an owner's explicit-photo sharing policy excludes the viewer, show the existing translucent white DL icon and replace the non-heart cover's “DL MODE ON” line with exactly “MUTUAL CRUUSHES ONLY” or “MUTUAL CROWDS ONLY”, according to the actual server-enforced restriction. A viewer's DL setting or show-only exception cannot bypass that owner policy. Preserve the icon, photo geometry, non-explicit photos and independent authorization rules. Whether the previously icon-only heart covers also gain this text is pending the owner's clarification; no extra heart text is approved yet. Source: task01a09549, September12 latest “if you encounter a picture” request.
 
+On October 6, 2026, Julien clarified: “DL mode censoring should change its preview text if we become mutuals and then i could see them with dl mode off” and “i still see inconsitent dl cruushes only text dude.” When mutual status removes an owner's mutual-only restriction, an explicit photo that remains masked by the viewer's enabled DL Mode uses the established `DL MODE ON` label. Turning DL Mode off reveals that unrestricted photo. Owner-enforced audience labels and rules remain unchanged.
+
 
 ## Shared black glass, September 12, 2026
 

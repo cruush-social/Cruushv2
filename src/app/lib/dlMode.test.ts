@@ -17,6 +17,7 @@ describe('shouldMaskPhoto', () => {
     expect(shouldMaskPhoto(false, false)).toBe(false);
     expect(shouldMaskPhoto(false, undefined)).toBe(false);
     expect(shouldMaskPhoto(false, null)).toBe(false);
+    expect(shouldMaskPhoto(false, true, { isMutualCruush: true })).toBe(false);
   });
 
   it('defaults to masking every explicit photo until a show-only exception is selected', () => {

@@ -2099,8 +2099,6 @@ function createMarkerElement(
   element.dataset.mapMarkerKind = marker.kind ?? 'person';
   element.dataset.activePing = marker.activePing ? 'true' : 'false';
   const root = createRoot(element);
-  const hasSignalPreview = Boolean(truncateMarkerPreview(marker.signal))
-    || (isCurrentUser && marker.displayMode === 'GHOST');
   const supportsHoldPreview = marker.kind == null || marker.kind === 'person' || marker.kind === 'place' || isSpiderfyCluster(marker);
   let previewed = false;
   let restingZIndex: string | null = null;
@@ -2126,14 +2124,12 @@ function createMarkerElement(
 
     previewed = nextPreviewed;
     element.dataset.markerPreviewed = nextPreviewed ? 'true' : 'false';
-    if (hasSignalPreview) {
-      if (nextPreviewed) {
-        restingZIndex = element.style.zIndex;
-        element.style.zIndex = String(SIGNAL_PREVIEW_MARKER_Z_INDEX);
-      } else if (restingZIndex != null) {
-        element.style.zIndex = restingZIndex;
-        restingZIndex = null;
-      }
+    if (nextPreviewed) {
+      restingZIndex = element.style.zIndex;
+      element.style.zIndex = String(SIGNAL_PREVIEW_MARKER_Z_INDEX);
+    } else if (restingZIndex != null) {
+      element.style.zIndex = restingZIndex;
+      restingZIndex = null;
     }
     if (element instanceof HTMLButtonElement && supportsHoldPreview) {
       element.setAttribute('aria-pressed', nextPreviewed ? 'true' : 'false');
