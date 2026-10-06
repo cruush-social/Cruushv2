@@ -213,6 +213,16 @@ describe("migration runner", () => {
     );
   });
 
+  it("registers the CLUBS20 redemption ledger and Club Side Quest catalog extension last", async () => {
+    const migrateSource = await readFile(path.join(currentDir, "migrate.ts"), "utf8");
+    const sql = await readFile(path.join(serverRoot, "sql", "204_clubs20_coupon_and_club_side_quests.sql"), "utf8");
+
+    expect(migrateSource).toMatch(/"203_encrypted_club_enrollments\.sql",\s*"204_clubs20_coupon_and_club_side_quests\.sql"/);
+    expect(sql).toContain("create table if not exists checkout_coupon_redemptions");
+    expect(sql).toContain("primary key (user_id, coupon_code)");
+    expect(sql).toContain("'join_club', 'send_club_message'");
+  });
+
   it("deduplicates active survey responses before installing replay-safe uniqueness guards", async () => {
     const migrateSource = await readFile(path.join(currentDir, "migrate.ts"), "utf8");
     const surveySql = await readFile(path.join(serverRoot, "sql", "109_survey_response_uniqueness.sql"), "utf8");

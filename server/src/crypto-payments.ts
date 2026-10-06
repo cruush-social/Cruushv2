@@ -20,6 +20,12 @@ import {
   quoteUsdCentsAsStablecoinAtomic
 } from "./crypto-wallet.js";
 import { getPingPack, PING_PACKS } from "./ping-packs.js";
+import {
+  applyCheckoutCoupon,
+  getCheckoutCoupon,
+  reserveCheckoutCoupon,
+  type CheckoutDiscount
+} from "./checkout-coupons.js";
 
 /**
  * The receiving rails. Every value here is fixed server-side; a client may name
@@ -264,6 +270,7 @@ export type CryptoPaymentIntent = {
   amountUsdCents: number;
   gasFeeUsdCents: number;
   totalUsdCents: number;
+  discount: CheckoutDiscount | null;
   fundingEstimates?: ReturnType<typeof cryptoFundingEstimates>;
   quotedAmountAtomic: string | null;
   paymentAddress: string | null;
@@ -314,6 +321,20 @@ export function cryptoSendingAppFromMetadata(metadata: Record<string, unknown> |
   return isCryptoSendingApp(value) ? value : null;
 }
 
+function checkoutDiscountFromMetadata(metadata: Record<string, unknown> | null | undefined): CheckoutDiscount | null {
+  const value = metadata?.discount;
+  if (!value || typeof value !== "object") return null;
+  const discount = value as Partial<CheckoutDiscount>;
+  if (
+    discount.code !== "CLUBS20"
+    || discount.percentOff !== 20
+    || !Number.isSafeInteger(discount.originalAmountUsdCents)
+    || !Number.isSafeInteger(discount.discountAmountUsdCents)
+    || !Number.isSafeInteger(discount.amountUsdCents)
+  ) return null;
+  return discount as CheckoutDiscount;
+}
+
 export function mapCryptoPaymentIntent(row: CryptoPaymentIntentRow): CryptoPaymentIntent {
   const sendingApp = cryptoSendingAppFromMetadata(row.metadata);
   return {
@@ -330,6 +351,7 @@ export function mapCryptoPaymentIntent(row: CryptoPaymentIntentRow): CryptoPayme
     amountUsdCents: Number(row.amount_usd_cents),
     gasFeeUsdCents: Number((row.metadata?.collectionFee as {feeUsdCents?:number} | undefined)?.feeUsdCents ?? 0),
     totalUsdCents: Number(row.amount_usd_cents) + Number((row.metadata?.collectionFee as {feeUsdCents?:number} | undefined)?.feeUsdCents ?? 0),
+    discount: checkoutDiscountFromMetadata(row.metadata),
     fundingEstimates: cryptoFundingEstimates({ rail: railFor(row.asset, row.network), sendingApp, amountUsdCents: Number(row.amount_usd_cents), gasFeeUsdCents: Number((row.metadata?.collectionFee as { feeUsdCents?: number } | undefined)?.feeUsdCents ?? 0), quotedAmountAtomic: row.quoted_amount_atomic ?? null }),
     quotedAmountAtomic: row.quoted_amount_atomic ?? null,
     paymentAddress: row.payment_address ?? null,
@@ -517,6 +539,7 @@ function assertIdempotentReservationMatches(
     walletXpubFingerprint: string;
     rail: CryptoPaymentRailId;
     sendingApp: CryptoSendingApp | null;
+    couponCode: string | null;
   }
 ) {
   const rail = cryptoRail(input.rail);
@@ -527,7 +550,8 @@ function assertIdempotentReservationMatches(
     row.asset !== rail.asset ||
     row.network !== rail.network ||
     row.wallet_xpub_fingerprint !== input.walletXpubFingerprint ||
-    cryptoSendingAppFromMetadata(row.metadata) !== input.sendingApp
+    cryptoSendingAppFromMetadata(row.metadata) !== input.sendingApp ||
+    (checkoutDiscountFromMetadata(row.metadata)?.code ?? null) !== input.couponCode
   ) {
     throw new ApiError(
       409,
@@ -632,6 +656,7 @@ async function loadCompatibleOpenCryptoPaymentIntent(
     walletXpubFingerprint: string;
     rail: CryptoPaymentRailId;
     sendingApp: CryptoSendingApp | null;
+    couponCode: string | null;
   }
 ) {
   const rail = cryptoRail(input.rail);
@@ -649,6 +674,7 @@ async function loadCompatibleOpenCryptoPaymentIntent(
        and asset = $6
        and network = $7
        and coalesce(metadata->>'sendingApp', '') = $8
+       and coalesce(metadata->'discount'->>'code', '') = $9
        and (
          status = 'confirming'
          or (
@@ -667,7 +693,8 @@ async function loadCompatibleOpenCryptoPaymentIntent(
       input.walletXpubFingerprint,
       rail.asset,
       rail.network,
-      input.sendingApp ?? ""
+      input.sendingApp ?? "",
+      input.couponCode ?? ""
     ]
   );
 
@@ -807,6 +834,7 @@ export async function createInHouseCryptoPaymentIntent(
     productType?: CryptoPaymentProductType;
     amountUsdCents: number;
     idempotencyKey: string;
+    couponCode?: string;
     metadata?: Record<string, unknown>;
     rail?: CryptoPaymentRailId;
     watchStartBlock?: bigint;
@@ -824,8 +852,12 @@ export async function createInHouseCryptoPaymentIntent(
     ? getPingPack(input.planId)
     : null;
   const amountCents = cruushPlusPlan?.amountCents ?? pingPack?.amountCents;
+  const coupon = input.couponCode ? getCheckoutCoupon(input.couponCode) : null;
+  const expectedAmountCents = amountCents && coupon
+    ? applyCheckoutCoupon(amountCents, coupon).amountUsdCents
+    : amountCents;
 
-  if (amountCents !== input.amountUsdCents) {
+  if (expectedAmountCents !== input.amountUsdCents) {
     throw new ApiError(
       400,
       "VALIDATION_ERROR",
@@ -851,7 +883,8 @@ export async function createInHouseCryptoPaymentIntent(
         productType,
         walletXpubFingerprint,
         rail,
-        sendingApp: cryptoSendingAppFromMetadata(input.metadata)
+        sendingApp: cryptoSendingAppFromMetadata(input.metadata),
+        couponCode: coupon?.code ?? null
       });
     }
 
@@ -875,13 +908,18 @@ export async function createInHouseCryptoPaymentIntent(
       });
     }
 
+    if (coupon) {
+      await reserveCheckoutCoupon(client, input.userId, coupon.code, reserved.id);
+    }
+
     assertIdempotentReservationMatches(reserved, {
       planId: input.planId,
       productType,
       amountUsdCents: input.amountUsdCents,
       walletXpubFingerprint,
       rail,
-      sendingApp: cryptoSendingAppFromMetadata(input.metadata)
+      sendingApp: cryptoSendingAppFromMetadata(input.metadata),
+      couponCode: coupon?.code ?? null
     });
 
     if (reusedReservation && await terminalizeUnpaidCryptoIntentAfterLifetimeAccess(client, reserved)) {

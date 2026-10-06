@@ -22,6 +22,7 @@ import {
 import { getActiveAccountUserId, getAuthenticatedUserId } from "../request-auth.js";
 import { getModeratorUser } from "../moderator-auth.js";
 import { getPingPack } from "../ping-packs.js";
+import { applyCheckoutCoupon, getCheckoutCoupon, validateCheckoutCoupon } from "../checkout-coupons.js";
 import {
   findCryptoPaymentsByAddress,
   findCryptoPaymentsByIntentId,
@@ -46,14 +47,20 @@ const paymentIntentPayloadSchema = z.object({
   planId: z.string().min(1),
   idempotencyKey: z.string().trim().min(8).max(128),
   rail: z.enum(["usdc_arbitrum", "pyusd_arbitrum", "pyusd_ethereum", "usdc_base", "usdc_base_sepolia", "btc_bitcoin"]).default("usdc_arbitrum"),
-  sendingApp: sendingAppSchema
+  sendingApp: sendingAppSchema,
+  couponCode: z.string().trim().min(1).max(32).optional()
 }).strict();
 
 const pingPackIntentPayloadSchema = z.object({
   packId: z.enum(["ping_3", "ping_10", "ping_25"]),
   idempotencyKey: z.string().trim().min(8).max(128),
   rail: z.enum(["usdc_arbitrum", "pyusd_arbitrum", "pyusd_ethereum", "usdc_base", "usdc_base_sepolia", "btc_bitcoin"]).default("usdc_arbitrum"),
-  sendingApp: sendingAppSchema
+  sendingApp: sendingAppSchema,
+  couponCode: z.string().trim().min(1).max(32).optional()
+}).strict();
+
+const checkoutCouponPayloadSchema = z.object({
+  code: z.string().trim().min(1).max(32)
 }).strict();
 
 const paymentIntentParamsSchema = z.object({
@@ -187,6 +194,12 @@ export async function registerCryptoPaymentRoutes(
     });
   });
 
+  app.post("/api/crypto/checkout-coupons/validate", async (request, reply) => {
+    const userId = await getActiveAccountUserId(request);
+    const payload = checkoutCouponPayloadSchema.parse(request.body);
+    return reply.send({ data: await validateCheckoutCoupon(app.db, userId, payload.code) });
+  });
+
   app.post("/api/crypto/payment-intents", async (request, reply) => {
     const userId = await getActiveAccountUserId(request);
     await app.rateLimiter.assert({
@@ -198,6 +211,9 @@ export async function registerCryptoPaymentRoutes(
 
     // The plan price is always derived on the server. A client-supplied amount is never trusted.
     const plan = getCruushPlusPlan(payload.planId);
+    const discount = payload.couponCode
+      ? applyCheckoutCoupon(plan.amountCents, getCheckoutCoupon(payload.couponCode))
+      : null;
     const rail = payload.rail as CryptoPaymentRailId;
     assertRailAllowed(app, rail);
     const readRailHead = deps.readRailHead ?? readVerifiedCryptoPaymentRailHead;
@@ -210,12 +226,13 @@ export async function registerCryptoPaymentRoutes(
     const intent = await createInHouseCryptoPaymentIntent(app.db, app.config, {
       userId,
       planId: plan.id,
-      amountUsdCents: plan.amountCents,
+      amountUsdCents: discount?.amountUsdCents ?? plan.amountCents,
       idempotencyKey: payload.idempotencyKey,
+      couponCode: discount?.code,
       rail,
       watchStartBlock,
       watchStartBlocksByChain,
-      metadata: { source: "store", ...(payload.sendingApp ? { sendingApp: payload.sendingApp } : {}) }
+      metadata: { source: "store", ...(discount ? { discount } : {}), ...(payload.sendingApp ? { sendingApp: payload.sendingApp } : {}) }
     });
 
     return reply.code(201).send({ data: await withCryptoPaymentDisplay(await withCryptoPaymentProgress(app.db, app.config, intent)) });
@@ -230,6 +247,9 @@ export async function registerCryptoPaymentRoutes(
     });
     const payload = pingPackIntentPayloadSchema.parse(request.body);
     const pack = getPingPack(payload.packId);
+    const discount = payload.couponCode
+      ? applyCheckoutCoupon(pack.amountCents, getCheckoutCoupon(payload.couponCode))
+      : null;
     const rail = payload.rail as CryptoPaymentRailId;
     assertRailAllowed(app, rail);
     const readRailHead = deps.readRailHead ?? readVerifiedCryptoPaymentRailHead;
@@ -243,12 +263,13 @@ export async function registerCryptoPaymentRoutes(
       userId,
       planId: pack.id,
       productType: "ping_pack",
-      amountUsdCents: pack.amountCents,
+      amountUsdCents: discount?.amountUsdCents ?? pack.amountCents,
       idempotencyKey: payload.idempotencyKey,
+      couponCode: discount?.code,
       rail,
       watchStartBlock,
       watchStartBlocksByChain,
-      metadata: { source: "ping_pack_store", pingCount: pack.pingCount, ...(payload.sendingApp ? { sendingApp: payload.sendingApp } : {}) }
+      metadata: { source: "ping_pack_store", pingCount: pack.pingCount, ...(discount ? { discount } : {}), ...(payload.sendingApp ? { sendingApp: payload.sendingApp } : {}) }
     });
 
     return reply.code(201).send({ data: await withCryptoPaymentDisplay(await withCryptoPaymentProgress(app.db, app.config, intent)) });

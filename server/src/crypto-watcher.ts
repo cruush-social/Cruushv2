@@ -48,6 +48,7 @@ import {
 } from "./crypto-settlement-policy.js";
 import { ApiError } from "./errors.js";
 import { getPingPack, grantPingPackPurchase } from "./ping-packs.js";
+import { redeemCheckoutCouponForIntent } from "./checkout-coupons.js";
 
 // A single pass never reads more than this many blocks, so a watcher that has
 // fallen far behind catches up in bounded steps instead of one enormous query
@@ -711,6 +712,10 @@ export async function settleIntentInTransaction(
 
   if (claimed.rows.length === 0) {
     return { settled: false, granted: false, note: settlementNote };
+  }
+
+  if ((current.metadata?.discount as { code?: unknown } | undefined)?.code === "CLUBS20") {
+    await redeemCheckoutCouponForIntent(tx, current.id);
   }
 
   if (entitlementAlreadyActive) {

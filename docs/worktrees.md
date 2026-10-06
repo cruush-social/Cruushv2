@@ -9,6 +9,7 @@ the branch name.
 
 | Branch | Worktree path | Last commit | State | Ahead/behind main | Purpose |
 | --- | --- | --- | --- | --- | --- |
+| `feat/clubs20-checkout-20261005` | `/Volumes/good/cruush-clubs20-checkout-20261005` | `e05e3f9` | clean, Codex | +0/-1 vs local main | Added the `CLUBS20` 20% checkout coupon and Club-related Side Quests; merged into `main` for production deployment. |
 | `fix/bitcoin-checkout-live-posthog-20261005` | `/Volumes/good/cruush-bitcoin-checkout-live-fix-20261005` | `0850253e` (base) | deployed, Codex 01a10f08 | +0/-0 at creation | Privacy-allowlisted Bitcoin checkout milestone analytics deployed through `main`; saved PostHog funnel `uQU2GiFI`. |
 | `codex/fix-issue-293-signup-scroll` | `/Volumes/good/cruush-issue-293-signup-scroll` | 2026-09-21 739a92d3 fix: keep onboarding prompts readable on Safari | clean | +0/-0 | iPhone signup option-menu scrolling fix while preserving fit-to-screen onboarding; Codex; shipping. |
 | `codex/fix-issue-295-onboarding-labels` | `/Volumes/good/cruush-issue-295-onboarding-labels` | 2026-09-21 c86d0ec6 chore: refresh service worker for onboarding fixes | clean | +0/-0 | iPhone onboarding labels fix for GitHub issue #295; Codex; unmerged, shipping. |
