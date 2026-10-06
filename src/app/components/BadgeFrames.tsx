@@ -236,10 +236,10 @@ export function BadgeFrame({
   const maskId = `badge-frame-hanky-mask-${useId().replace(/:/g, '')}`;
   const resolvedStroke = gradientStops ? `url(#${gradientId})` : strokeColor ?? 'currentColor';
   const hankyDetailColor = hankyColor?.toUpperCase() === '#1A1A1E' ? '#FFFFFF' : '#05050A';
-  // Flag artwork fills the badge right up to the inner edge of the usual
-  // border. It sits in its own layer underneath the frame, so the border
-  // paints over its edge at full width, exactly as it does over an icon.
-  const glyphFillInsetPercent = ((CENTRE - (BADGE_RADIUS - STROKE / 2)) / 64) * 100;
+  // Flag artwork uses the same filled-circle radius as an ordinary badge. It
+  // continues underneath the usual border so that border rasterizes at the
+  // same width instead of meeting a separately clipped layer at its inner edge.
+  const glyphFillInsetPercent = ((CENTRE - BADGE_RADIUS) / 64) * 100;
 
   return (
     <span className={`relative inline-flex items-center justify-center ${className ?? ''}`}>

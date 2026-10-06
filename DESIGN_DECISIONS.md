@@ -4,7 +4,7 @@ The notched cruush logo is rejected for every app use, including installed home-
 
 # cruush design decisions
 
-- October 6 map zoom persistence: “make map zoom go to last used zoom as opposed to zooming out on every load.” The map restores the last user-set zoom across reloads and browser restarts while preserving the existing center, gestures, controls, markers, clustering, and other map behavior.
+- October 6 map camera persistence: “make map zoom go to last used zoom as opposed to zooming out on every load,” followed by “make it load to the last used zoom, the first time shoudl be on the user pin zoom, the center pin button should be on the aactual user not their decoy oto btw.” The map restores the last user-viewed camera when returning to it. With no saved camera, it opens on the actual user pin at the established user-pin zoom. The center-pin button always targets the actual user, never the Ghost decoy. Ghost radius/leash rendering does not move the camera; existing gestures, controls, markers, clustering, and other map behavior remain unchanged.
 
 - October 5 release email style: “use the more recent glass email template,” “you didnt use the glass style,” and “remove the privacy capsule from email.” The v1.9 email uses the newest existing glass template and omits the standalone privacy capsule.
 
@@ -173,7 +173,7 @@ Use the exact Cheating icon 27256 by Luis Prado from https://thenounproject.com/
 
 ## Pride flag badges keep the usual border, September 20, 2026
 
-Pride flag artwork fills the badge inside the usual badge border. The badge keeps its normal size and its normal border, the same border every other badge has, in the same colour as the member's heart. The flag runs under the border's inner edge so there is no gap, ring or underlay between artwork and border. Source: Julien, September 20, 2026: "I want the pride flags to fill the usual border for the badges, without changing the badge size or changing the badge border." This supersedes the September 10 rule below, which removed the border for flags.
+Pride flag artwork fills the badge inside the usual badge border. The badge keeps its normal size and its normal border, the same border every other badge has, in the same colour as the member's heart. The flag runs under the full border so there is no gap, ring or underlay between artwork and border. Sources: Julien, September 20, 2026: "I want the pride flags to fill the usual border for the badges, without changing the badge size or changing the badge border." Julien, October 6, 2026: "also at some point you changed the size for the pride flag badges and their badge border width to be different from the rest of them again" This supersedes the September 10 rule below, which removed the border for flags.
 
 ## Flag badge fill, September 10, 2026
 
