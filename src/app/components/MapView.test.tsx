@@ -572,6 +572,22 @@ describe('MapView', () => {
     }));
   });
 
+  it('keeps the restored zoom when the initial user center arrives', async () => {
+    render(
+      <MapView
+        onPinClick={vi.fn()}
+        focusCoordinates={{ approximateLatitude: 40.73, approximateLongitude: -73.99 }}
+        initialZoom={16.25}
+        preserveInitialZoomOnFocus
+        markers={[]}
+      />,
+    );
+
+    await waitFor(() => expect(MockMap.calls).toHaveLength(1));
+    expect(MockMap.calls[0]).toEqual(expect.objectContaining({ zoom: 16.25 }));
+    await waitFor(() => expect(mapInstances[0].setZoom).toHaveBeenCalledWith(16.25));
+  });
+
   it('fits the discovery marker set when requested', async () => {
     render(
       <MapView

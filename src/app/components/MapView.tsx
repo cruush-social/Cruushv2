@@ -132,6 +132,8 @@ interface MapViewProps {
     radiusMiles: number;
   } | null;
   initialViewport?: InitialViewport;
+  initialZoom?: number;
+  preserveInitialZoomOnFocus?: boolean;
   radiusCircle?: RadiusCircle | null;
   browseArea?: BrowseArea | null;
   ghostLeash?: GhostLeash | null;
@@ -2398,6 +2400,8 @@ function MapView({
   focusCoordinates,
   focusArea,
   initialViewport,
+  initialZoom,
+  preserveInitialZoomOnFocus = false,
   radiusCircle,
   browseArea,
   ghostLeash,
@@ -2413,6 +2417,7 @@ function MapView({
   const mapLibreRef = useRef<MapLibreExport | null>(null);
   const appliedAreaRef = useRef<{ map: MapLibreMap; key: string } | null>(null);
   const initialViewportRef = useRef(initialViewport);
+  const initialZoomRef = useRef(initialZoom);
   const browseAreaRef = useRef(browseArea);
   const autoFitFocusKeyRef = useRef<string | null>(null);
   const hasAppliedAutoFitRef = useRef(false);
@@ -2548,7 +2553,7 @@ function MapView({
           center: initialViewportRef.current
             ? [initialViewportRef.current.center.approximateLongitude, initialViewportRef.current.center.approximateLatitude]
             : DEFAULT_CENTER,
-          zoom: initialViewportRef.current?.zoom ?? DEFAULT_ZOOM,
+          zoom: initialViewportRef.current?.zoom ?? initialZoomRef.current ?? DEFAULT_ZOOM,
           minZoom: mapServiceMinZoomForViewport(
             containerRef.current.clientWidth,
             containerRef.current.clientHeight,
@@ -2824,9 +2829,11 @@ function MapView({
     }
 
     map.setCenter([focusLongitude, focusLatitude]);
-    map.setZoom(FOCUSED_ZOOM);
+    map.setZoom(preserveInitialZoomOnFocus
+      ? initialZoomRef.current ?? FOCUSED_ZOOM
+      : FOCUSED_ZOOM);
     directFocusRef.current = { map, key: focusKey };
-  }, [fitToMarkers, focusLatitude, focusLongitude, focusArea, mapInstance, mapLoadStatus, viewportMarkerSignature]);
+  }, [fitToMarkers, focusLatitude, focusLongitude, focusArea, mapInstance, mapLoadStatus, preserveInitialZoomOnFocus, viewportMarkerSignature]);
 
   useEffect(() => {
     const map = mapInstance ?? mapRef.current;

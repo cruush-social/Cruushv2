@@ -250,6 +250,7 @@ const CROWD_NOTICE_LABELS: Record<string, string> = {
   T4T: 'T4T',
 };
 const MAP_VIEWPORT_RESTORE_STORAGE_KEY = 'cruush:map-viewport-restore';
+export const MAP_LAST_ZOOM_STORAGE_KEY = 'cruush:map-last-zoom';
 const MAP_PING_STATUS_REFRESH_INTERVAL_MS = 20_000;
 const MAP_PING_IDEMPOTENCY_RETRY_WINDOW_MS = 10 * 60 * 1000;
 type MobileVisualViewportBounds = {
@@ -744,6 +745,15 @@ export function readStoredMapViewport() {
   return parsedViewport;
 }
 
+export function readStoredMapZoom() {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  const zoom = Number(window.localStorage.getItem(MAP_LAST_ZOOM_STORAGE_KEY));
+  return Number.isFinite(zoom) && zoom > 0 ? zoom : null;
+}
+
 export function storeMapViewportForRestore(map: CruushMapInstance | null, travelPinKey: string | null = null) {
   if (typeof window === 'undefined' || !map) {
     return;
@@ -769,6 +779,7 @@ export function storeMapViewportForRestore(map: CruushMapInstance | null, travel
       travelPinKey,
     } satisfies StoredMapViewport),
   );
+  window.localStorage.setItem(MAP_LAST_ZOOM_STORAGE_KEY, String(zoom));
 }
 
 function toRadians(degrees: number) {
@@ -924,6 +935,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
     approximateLongitude: number;
   } | null>(null);
   const [restoredMapViewport] = useState<StoredMapViewport | null>(() => readStoredMapViewport());
+  const [restoredMapZoom] = useState<number | null>(() => readStoredMapZoom());
   const travelPinKeyRef = useRef<string | null>(null);
   const travelPinLoadedRef = useRef(false);
   // Until the member's travel pin has loaded, keep whatever pin the saved
@@ -3023,6 +3035,10 @@ export default function MapHome(_props: MapHomeProps = {}) {
               },
               zoom: restoredMapViewport.zoom,
             } : undefined}
+            initialZoom={restoredMapViewport?.zoom ?? restoredMapZoom ?? undefined}
+            preserveInitialZoomOnFocus={Boolean(
+              !restoredMapViewport && restoredMapZoom != null && !focusUserId && !travelMapLocation,
+            )}
             denseVenue={denseVenue}
             radiusCircle={privacySettings.ghostModeEnabled && currentUserMapLocation
               ? {
