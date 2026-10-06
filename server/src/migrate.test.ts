@@ -223,6 +223,18 @@ describe("migration runner", () => {
     expect(sql).toContain("'join_club', 'send_club_message'");
   });
 
+  it("skips the historical replay after verifying the deployed migration-203 schema", async () => {
+    const migrateSource = await readFile(path.join(currentDir, "migrate.ts"), "utf8");
+
+    expect(migrateSource).toContain('const productionBaselineFile = "203_encrypted_club_enrollments.sql"');
+    expect(migrateSource).toContain("to_regclass('public.encrypted_club_enrollments')");
+    expect(migrateSource).toContain("to_regclass('public.idx_encrypted_club_enrollments_user')");
+    expect(migrateSource).toContain("column_name = 'member_index'");
+    expect(migrateSource).toContain("migrationFiles.slice(productionBaselineIndex + 1)");
+    expect(migrateSource).toContain(": migrationFiles;");
+    expect(migrateSource).toContain("for (const file of pendingMigrationFiles)");
+  });
+
   it("deduplicates active survey responses before installing replay-safe uniqueness guards", async () => {
     const migrateSource = await readFile(path.join(currentDir, "migrate.ts"), "utf8");
     const surveySql = await readFile(path.join(serverRoot, "sql", "109_survey_response_uniqueness.sql"), "utf8");
@@ -517,7 +529,7 @@ describe("migration runner", () => {
   it("runs reward safety migrations before normal replay on existing databases", async () => {
     const migrateSource = await readFile(path.join(currentDir, "migrate.ts"), "utf8");
     const preflightStart = migrateSource.indexOf("for (const file of rewardSafetyPreflightFiles)");
-    const normalStart = migrateSource.indexOf("for (const file of migrationFiles)");
+    const normalStart = migrateSource.indexOf("for (const file of pendingMigrationFiles)");
 
     expect(migrateSource).toMatch(
       /const rewardSafetyPreflightFiles = \[\s*"079_daily_check_in_rewards\.sql",\s*"080_reward_invariants\.sql"\s*\] as const;/

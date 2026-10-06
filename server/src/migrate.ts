@@ -228,6 +228,7 @@ const rewardSafetyPreflightFiles = [
   "079_daily_check_in_rewards.sql",
   "080_reward_invariants.sql"
 ] as const;
+const productionBaselineFile = "203_encrypted_club_enrollments.sql";
 
 const databaseUrl = process.env.DATABASE_URL;
 
@@ -258,6 +259,37 @@ async function runMigration(file: string, phase = "migration") {
 }
 
 try {
+  const productionBaselineSchema = await pool.query<{
+    encrypted_club_enrollments: boolean;
+    encrypted_club_enrollments_user_index: boolean;
+    conversation_member_index: boolean;
+  }>(
+    `select
+       to_regclass('public.encrypted_club_enrollments') is not null as encrypted_club_enrollments,
+       to_regclass('public.idx_encrypted_club_enrollments_user') is not null as encrypted_club_enrollments_user_index,
+       exists (
+         select 1
+         from information_schema.columns
+         where table_schema = 'public'
+           and table_name = 'conversation_members'
+           and column_name = 'member_index'
+       ) as conversation_member_index`
+  );
+  const baselineSchema = productionBaselineSchema.rows[0];
+  const hasProductionBaseline = Boolean(
+    baselineSchema?.encrypted_club_enrollments &&
+      baselineSchema.encrypted_club_enrollments_user_index &&
+      baselineSchema.conversation_member_index
+  );
+  const productionBaselineIndex = migrationFiles.indexOf(productionBaselineFile);
+  const pendingMigrationFiles = hasProductionBaseline
+    ? migrationFiles.slice(productionBaselineIndex + 1)
+    : migrationFiles;
+
+  if (hasProductionBaseline) {
+    console.log(`Detected schema through ${productionBaselineFile}; running newer migrations only.`);
+  }
+
   const rewardSchema = await pool.query<{
     reward_settings: boolean;
     daily_activity_credits: boolean;
@@ -280,7 +312,7 @@ try {
     }
   }
 
-  for (const file of migrationFiles) {
+  for (const file of pendingMigrationFiles) {
     await runMigration(file);
   }
 
