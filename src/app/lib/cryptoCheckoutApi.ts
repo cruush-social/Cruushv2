@@ -6,6 +6,12 @@ export type CryptoPaymentRailId = 'usdc_arbitrum' | 'pyusd_arbitrum' | 'pyusd_et
 export type CryptoSendingApp = 'cash_app' | 'paypal' | 'venmo' | 'wallet';
 export type CryptoPaymentAsset = 'USDC' | 'PYUSD' | 'BTC';
 export type CryptoPaymentNetwork = 'arbitrum' | 'base' | 'ethereum' | 'bitcoin';
+export type CheckoutCoupon = { code: 'CLUBS20'; percentOff: 20 };
+export type CheckoutDiscount = CheckoutCoupon & {
+  originalAmountUsdCents: number;
+  discountAmountUsdCents: number;
+  amountUsdCents: number;
+};
 
 export type CryptoProcessorStatus = {
   ready: boolean;
@@ -46,6 +52,7 @@ export type CryptoPaymentIntent = {
   amountUsdCents: number;
   gasFeeUsdCents?: number;
   totalUsdCents?: number;
+  discount?: CheckoutDiscount | null;
   fundingEstimates?: Array<{ app: string; minimumSendAtomic?: string; meetsSendingMinimum?: boolean; allowanceUsdCents: number; availableUsdCents: number; availableAtomic: string; estimated: true }>;
   quotedAmountAtomic: string | null;
   paymentAddress: string | null;
@@ -86,11 +93,19 @@ export async function getBitcoinSendingEligibility() {
   return requestApi<BitcoinSendingEligibility>('/api/crypto/bitcoin-sending-eligibility');
 }
 
+export function validateCheckoutCoupon(code: string) {
+  return requestApi<CheckoutCoupon>('/api/crypto/checkout-coupons/validate', {
+    method: 'POST',
+    body: JSON.stringify({ code }),
+  });
+}
+
 export async function createCryptoPaymentIntent(input: {
   planId: CruushPlusPlanId;
   idempotencyKey: string;
   rail?: CryptoPaymentRailId;
   sendingApp?: CryptoSendingApp;
+  couponCode?: string;
 }) {
   return requestApi<CryptoPaymentIntent>('/api/crypto/payment-intents', {
     method: 'POST',
@@ -116,7 +131,7 @@ export type PulsePack = { id: 'ping_3' | 'ping_10' | 'ping_25'; name: string; de
 export function getPulsePacks() {
   return requestApi<{ packs: PulsePack[] }>('/api/billing/ping-packs');
 }
-export function createPulsePaymentIntent(input: { packId: string; idempotencyKey: string; rail: CryptoPaymentRailId; sendingApp?: CryptoSendingApp }) {
+export function createPulsePaymentIntent(input: { packId: string; idempotencyKey: string; rail: CryptoPaymentRailId; sendingApp?: CryptoSendingApp; couponCode?: string }) {
   return requestApi<CryptoPaymentIntent>('/api/crypto/ping-pack-intents', { method: 'POST', body: JSON.stringify(input) });
 }
 export function getCurrentPulsePaymentIntent() {

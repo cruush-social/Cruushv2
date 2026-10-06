@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router';
 import { ApiClientError } from '../lib/apiClient';
 import { Check, Copy, Info, Shield, Sparkles } from 'lucide-react';
 import { Button } from './ui/button';
+import { Input } from './ui/input';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 import { Card, CardContent } from './ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
@@ -18,6 +19,8 @@ import {
   getCryptoPaymentIntent,
   getCryptoProcessorStatus,
   isOpenCryptoPayment,
+  validateCheckoutCoupon,
+  type CheckoutCoupon,
   type BitcoinSendingEligibility,
   type CryptoPaymentIntent,
   type CryptoPaymentRailId,
@@ -181,10 +184,14 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
   const [cancelling, setCancelling] = useState(false);
   const [cancelAction, setCancelAction] = useState<'change' | 'cancel' | null>(null);
   const [checkoutNotice, setCheckoutNotice] = useState<string | null>(null);
+  const [couponCode, setCouponCode] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState<CheckoutCoupon | null>(null);
+  const [couponApplying, setCouponApplying] = useState(false);
+  const [couponError, setCouponError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
   const [clockMs, setClockMs] = useState(() => Date.now());
-  const paymentAttemptRef = useRef<{ planId: string; sourceId: string; idempotencyKey: string } | null>(null);
+  const paymentAttemptRef = useRef<{ planId: string; sourceId: string; couponCode: string | null; idempotencyKey: string } | null>(null);
   const startingRef = useRef(false);
   const pollStartedRef = useRef<{ intentId: string; startedAt: number } | null>(null);
   const cancelledIntentIdRef = useRef<string | null>(null);
@@ -265,6 +272,10 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
         const intentSource = cryptoPaymentSourceForIntent(currentIntent);
         if (intentSource) {
           setSelectedSourceId(intentSource.id);
+        }
+        if (currentIntent.discount) {
+          setCouponCode(currentIntent.discount.code);
+          setAppliedCoupon({ code: currentIntent.discount.code, percentOff: currentIntent.discount.percentOff });
         }
       }
     });
@@ -390,6 +401,12 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
     [plans, selectedPlanId],
   );
 
+  const discountedAmountCents = useCallback((amountCents: number) => (
+    appliedCoupon
+      ? Math.max(1, Math.round(amountCents * (100 - appliedCoupon.percentOff) / 100))
+      : amountCents
+  ), [appliedCoupon]);
+
   const recommendedPlanId = useMemo(() => {
     const available = plans.filter((plan) => plan.supplyRemaining !== 0);
     return available.find((plan) => plan.id === 'founder_annual')?.id
@@ -417,6 +434,23 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
   const paymentOpen = intent ? isOpenCryptoPayment(intent.status) : false;
   const paymentPaid = intent?.status === 'paid';
   const checkoutSelectionLocked = starting || (paymentOpen && !locallyExpired) || paymentPaid;
+  const handleApplyCoupon = useCallback(async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!couponCode.trim() || checkoutSelectionLocked || couponApplying) return;
+    setCouponApplying(true);
+    setCouponError(null);
+    try {
+      const coupon = await validateCheckoutCoupon(couponCode);
+      setCouponCode(coupon.code);
+      setAppliedCoupon(coupon);
+      paymentAttemptRef.current = null;
+    } catch (couponApplyError) {
+      setAppliedCoupon(null);
+      setCouponError(couponApplyError instanceof Error ? couponApplyError.message : 'That coupon code is not valid.');
+    } finally {
+      setCouponApplying(false);
+    }
+  }, [checkoutSelectionLocked, couponApplying, couponCode]);
   // A source whose rail is not ready is not offered at all. The one exception
   // is the source an open or paid order was started from, which stays shown
   // so the checkout keeps presenting the order's own method.
@@ -504,19 +538,24 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
     setCopied(false);
 
     try {
-      const attempt = paymentAttemptRef.current?.planId === selectedPlan.id && paymentAttemptRef.current.sourceId === source.id
+      const activeCouponCode = appliedCoupon?.code ?? null;
+      const attempt = paymentAttemptRef.current?.planId === selectedPlan.id
+        && paymentAttemptRef.current.sourceId === source.id
+        && paymentAttemptRef.current.couponCode === activeCouponCode
         ? paymentAttemptRef.current
         : {
             planId: selectedPlan.id,
             sourceId: source.id,
+            couponCode: activeCouponCode,
             idempotencyKey: createIdempotencyKey(),
           };
       paymentAttemptRef.current = attempt;
-      const nextIntent = await (isPulse ? createPulsePaymentIntent({ packId: attempt.planId, idempotencyKey: attempt.idempotencyKey, rail: source.rail, sendingApp: source.sendingApp }) : createCryptoPaymentIntent({
+      const nextIntent = await (isPulse ? createPulsePaymentIntent({ packId: attempt.planId, idempotencyKey: attempt.idempotencyKey, rail: source.rail, sendingApp: source.sendingApp, ...(attempt.couponCode ? { couponCode: attempt.couponCode } : {}) }) : createCryptoPaymentIntent({
         planId: attempt.planId as CruushPlusPlanId,
         idempotencyKey: attempt.idempotencyKey,
         rail: source.rail,
         sendingApp: source.sendingApp,
+        ...(attempt.couponCode ? { couponCode: attempt.couponCode } : {}),
       }));
       if (paymentAttemptRef.current !== attempt) {
         return;
@@ -545,7 +584,7 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
       startingRef.current = false;
       setStarting(false);
     }
-  }, [bitcoinEligibility, isPulse, locallyExpired, paymentOpen, paymentPaid, product, selectedPlan, readyRailIds, retryAt]);
+  }, [appliedCoupon, bitcoinEligibility, isPulse, locallyExpired, paymentOpen, paymentPaid, product, selectedPlan, readyRailIds, retryAt]);
 
   const handleCancelPayment = useCallback(async () => {
     if (!intent || !cancelAction || cancelling || !['pending', 'awaiting_payment'].includes(intent.status)) {
@@ -604,6 +643,8 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
     const recommended = plan.id === recommendedPlanId;
     const soldOut = plan.supplyRemaining === 0;
     const perMonth = monthlyEquivalentCents(plan);
+    const discountedPlanAmount = discountedAmountCents(plan.amountCents);
+    const discountedPerMonth = perMonth ? discountedAmountCents(perMonth) : null;
     const saving = savingsPercent(plan, monthlyReferenceCents);
     const scarce = plan.supplyRemaining !== null && plan.supplyRemaining > 0;
 
@@ -663,9 +704,11 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
           <span className={featured ? 'text-lg font-semibold' : 'text-base font-semibold'}>
             {soldOut
               ? 'Sold out'
-              : perMonth
-                ? `${formatPrice(perMonth, plan.currency)}/month`
-                : formatPrice(plan.amountCents, plan.currency)}
+              : appliedCoupon
+                ? <><span className="mr-1 text-muted-foreground line-through">{perMonth ? `${formatPrice(perMonth, plan.currency)}/month` : formatPrice(plan.amountCents, plan.currency)}</span>{discountedPerMonth ? `${formatPrice(discountedPerMonth, plan.currency)}/month` : formatPrice(discountedPlanAmount, plan.currency)}</>
+                : perMonth
+                  ? `${formatPrice(perMonth, plan.currency)}/month`
+                  : formatPrice(plan.amountCents, plan.currency)}
           </span>
           {saving && !soldOut ? (
             <span className="text-sm font-medium leading-5 text-primary sm:text-xs sm:leading-4">
@@ -762,6 +805,34 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
               <p className="mt-3 text-sm leading-5 text-muted-foreground">
                 {isPulse ? 'One payment for permanent Pulse credits. Nothing renews automatically.' : 'One payment for a fixed amount of time. Nothing renews and nothing is billed again.'}
               </p>
+              <form className="mt-3 border-t border-border pt-3" onSubmit={handleApplyCoupon}>
+                <p className="mb-2 text-sm font-semibold">Coupon code</p>
+                <div className="flex gap-2">
+                  <Input
+                    aria-label="Coupon code"
+                    autoCapitalize="characters"
+                    autoComplete="off"
+                    disabled={checkoutSelectionLocked || couponApplying}
+                    placeholder="Enter code"
+                    value={couponCode}
+                    onChange={(event) => {
+                      setCouponCode(event.target.value);
+                      setAppliedCoupon(null);
+                      setCouponError(null);
+                      paymentAttemptRef.current = null;
+                    }}
+                  />
+                  <Button type="submit" variant="outline" disabled={checkoutSelectionLocked || couponApplying || !couponCode.trim()}>
+                    {couponApplying ? 'Applying…' : 'Apply'}
+                  </Button>
+                </div>
+                {appliedCoupon && selectedPlan ? (
+                  <p className="mt-2 text-sm text-primary" role="status">
+                    {appliedCoupon.code} applied. 20% off. {formatPrice(selectedPlan.amountCents, selectedPlan.currency)} becomes {formatPrice(discountedAmountCents(selectedPlan.amountCents), selectedPlan.currency)}.
+                  </p>
+                ) : null}
+                {couponError ? <p className="mt-2 text-sm text-destructive" role="alert">{couponError}</p> : null}
+              </form>
             </CardContent>
           </Card>
         ) : null}
@@ -837,7 +908,7 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
                     ? 'Payment started'
                     : locallyExpired
                       ? 'Start a fresh payment'
-                    : `Get ${termLabel(selectedPlan).toLowerCase()} for ${formatPrice(selectedPlan.amountCents, selectedPlan.currency)}`}
+                    : `Get ${termLabel(selectedPlan).toLowerCase()} for ${formatPrice(discountedAmountCents(selectedPlan.amountCents), selectedPlan.currency)}`}
               </Button> : null}
 
               {!visibleProcessorReady ? (

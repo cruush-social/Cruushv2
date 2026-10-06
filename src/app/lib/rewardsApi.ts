@@ -66,7 +66,7 @@ export type DailyRewardCheckIn = {
   grants: RewardGrant[];
 };
 
-export type SideQuestKey = 'complete_tutorial' | 'upload_first_photo' | 'complete_profile' | 'upload_four_photos' | 'view_profile' | 'send_cruush' | 'send_ping' | 'first_mutual_cruush' | 'send_message' | 'send_three_messages' | 'post_feed' | 'post_three_feed' | 'check_in_spot' | 'post_spot_board' | 'rate_spot' | 'save_visibility_set';
+export type SideQuestKey = 'complete_tutorial' | 'upload_first_photo' | 'complete_profile' | 'upload_four_photos' | 'view_profile' | 'send_cruush' | 'send_ping' | 'first_mutual_cruush' | 'send_message' | 'send_three_messages' | 'post_feed' | 'post_three_feed' | 'check_in_spot' | 'post_spot_board' | 'rate_spot' | 'save_visibility_set' | 'join_club' | 'send_club_message';
 
 export type SideQuestSummary = {
   pingCredits: number;

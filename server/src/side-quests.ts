@@ -5,6 +5,7 @@ import {
   listEncryptedRelationshipRecordsByParticipant
 } from "./encrypted-relationships.js";
 import { ApiError } from "./errors.js";
+import { listUserClubMemberships } from "./encrypted-club-enrollments.js";
 import { loadRewardConfig } from "./reward-config.js";
 import {
   calendarDateInTimeZone,
@@ -28,7 +29,9 @@ export const SIDE_QUEST_KEYS = [
   "check_in_spot",
   "post_spot_board",
   "rate_spot",
-  "save_visibility_set"
+  "save_visibility_set",
+  "join_club",
+  "send_club_message"
 ] as const;
 
 export type SideQuestKey = typeof SIDE_QUEST_KEYS[number];
@@ -62,7 +65,9 @@ const QUESTS: QuestDefinition[] = [
   { key: "check_in_spot", title: "Check in at a Spot", rewardKind: "ping", rewardAmount: 1 },
   { key: "post_spot_board", title: "Post in the Pink Book", rewardKind: "cruush_plus_day", rewardAmount: 1 },
   { key: "rate_spot", title: "Rate your first Spot", rewardKind: "cruush_plus_day", rewardAmount: 1 },
-  { key: "save_visibility_set", title: "Save a Visibility set", rewardKind: "ping", rewardAmount: 2 }
+  { key: "save_visibility_set", title: "Save a Visibility set", rewardKind: "ping", rewardAmount: 2 },
+  { key: "join_club", title: "Join a Club", rewardKind: "ping", rewardAmount: 1 },
+  { key: "send_club_message", title: "Send your first Club message", rewardKind: "ping", rewardAmount: 1 }
 ];
 
 type CompletionRow = Record<SideQuestKey, boolean> & { timezone: string | null };
@@ -109,7 +114,13 @@ async function loadCompletions(
        exists (select 1 from place_checkin_events e where e.user_id = $1) as check_in_spot,
        exists (select 1 from place_board_messages b where b.user_id = $1) as post_spot_board,
        exists (select 1 from place_ratings rating where rating.user_id = $1) as rate_spot,
-       exists (select 1 from profile_visibility_sets visibility where visibility.user_id = $1) as save_visibility_set
+       exists (select 1 from profile_visibility_sets visibility where visibility.user_id = $1) as save_visibility_set,
+       false as join_club,
+       exists (
+         select 1 from messages message
+         join clubs club on club.conversation_id = message.conversation_id
+         where message.user_id = $1
+       ) as send_club_message
      from app_users u where u.id = $1`,
     [userId]
   )).rows[0];
@@ -156,6 +167,16 @@ async function loadCompletions(
       row.view_profile ||= encryptedProfileViews.length > 0;
       row.send_cruush ||= activeCruushes.length > 0 || removedCruushes.length > 0;
       row.first_mutual_cruush ||= activeMutuals.length > 0 || removedMutuals.length > 0;
+    } catch (error) {
+      if (!(typeof error === "object" && error !== null && "code" in error && String((error as { code?: string }).code) === "42P01")) {
+        throw error;
+      }
+    }
+  }
+
+  if (!row.join_club) {
+    try {
+      row.join_club = (await listUserClubMemberships({ config: app.config, db: app.db }, userId)).length > 0;
     } catch (error) {
       if (!(typeof error === "object" && error !== null && "code" in error && String((error as { code?: string }).code) === "42P01")) {
         throw error;

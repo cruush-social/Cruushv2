@@ -21,8 +21,10 @@ claimed once. Claiming scratches off a reward card.
 | `post_spot_board` | Post on a Spot board | 1 day of cruush+ |
 | `rate_spot` | Rate your first Spot | 1 Pulse |
 | `save_visibility_set` | Save a Visibility set | 2 Pulses |
+| `join_club` | Join a Club | 1 Pulse |
+| `send_club_message` | Send your first Club message | 1 Pulse |
 
-16 quests in total: 18 Pulses and 4 days of cruush+ if every one is claimed.
+18 quests in total: 20 Pulses and 4 days of cruush+ if every one is claimed.
 
 Claiming is rate limited: one claim per day, and cruush+ day rewards are also
 capped per week (`cruushPlusWeeklyLimit`, currently 2).

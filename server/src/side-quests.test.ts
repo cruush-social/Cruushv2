@@ -47,6 +47,9 @@ describe("initial Side Quests", () => {
     for (const key of ['send_three_messages', 'post_three_feed']) {
       expect(quests.find(quest => quest.key === key)).toMatchObject({ rewardKind: 'ping', rewardAmount: 2 });
     }
+    for (const key of ['join_club', 'send_club_message']) {
+      expect(quests.find(quest => quest.key === key)).toMatchObject({ rewardKind: 'ping', rewardAmount: 1 });
+    }
   });
 
   it("no longer lists the tutorial quest now that the tutorial is gone", async () => {

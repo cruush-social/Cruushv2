@@ -375,3 +375,10 @@ Group chats allow at most 100 total members, including the creator. Clubs allow 
 ## 2026-10-02 — Club sharing targets
 
 A Club can be shared as an in-app Club card to a selected private DM or Group chat. Sharing does not bypass the Club's visibility or join-request admission controls and does not include private Club-chat content. Source: Julien, October 2, 2026: “add way for user to share club to another dm private or group or otherwise”.
+
+## 2026-10-05 — CLUBS20 checkout coupon and Club Side Quests
+
+Julien: “lets add a coupon code for this new update lets do 20% off”, “and also lets add a checkout code thing for thecheckout”, “clubs20”, and “lets add sidequests for clubs too”.
+
+- Checkout accepts the campaign code `CLUBS20` for 20% off cruush+ and Pulse purchases. It can be used once per account after a paid order, with no expiration or global redemption cap.
+- The Club Side Quests are `Join a Club` and `Send your first Club message`. Each awards 1 Pulse through the existing Side Quest claim system.

@@ -348,6 +348,39 @@ describe("settling one intent", () => {
     expect(grantedCalls.some(([sql]) => /entitlement_granted_at = now\(\)/.test(sql as string))).toBe(true);
   });
 
+  it("marks CLUBS20 redeemed in the same settlement transaction", async () => {
+    const { db, calls } = stubDb([
+      [/from crypto_payment_intents[\s\S]*for update/, [{
+        id: intentId,
+        user_id: userId,
+        plan_id: "plus_monthly",
+        amount_usd_cents: 1519,
+        status: "awaiting_payment",
+        payment_address: paymentAddress,
+        quoted_amount_atomic: "15190000",
+        asset: "USDC",
+        network: "base",
+        watch_start_block: "900",
+        expires_at: "2026-09-01T00:30:00.000Z",
+        entitlement_granted_at: null,
+        metadata: { discount: { code: "CLUBS20", percentOff: 20 } }
+      }]],
+      [/coalesce\(sum\(amount_atomic/, [{ total: "15190000" }]],
+      [/set status = 'paid'/, [{ id: intentId }]]
+    ]);
+
+    const result = await settleIntent(
+      { db },
+      watchableIntent({ quotedAmountAtomic: "15190000" }),
+      DEFAULT_CRYPTO_SETTLEMENT_POLICY
+    );
+
+    expect(result).toMatchObject({ settled: true, granted: true });
+    expect(calls.some(({ sql, values }) => (
+      /update checkout_coupon_redemptions/.test(sql) && values[0] === intentId
+    ))).toBe(true);
+  });
+
   it("grants a paid Ping pack once instead of cruush+ time", async () => {
     const { db, calls } = stubDb([
       [/from crypto_payment_intents[\s\S]*for update/, [{

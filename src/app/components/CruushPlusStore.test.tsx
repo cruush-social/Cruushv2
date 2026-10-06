@@ -25,6 +25,7 @@ vi.mock('../lib/cryptoCheckoutApi', async () => {
     getCurrentPulsePaymentIntent: vi.fn(),
     getBitcoinSendingEligibility: vi.fn(),
     getCryptoProcessorStatus: vi.fn(),
+    validateCheckoutCoupon: vi.fn(),
     getCurrentCryptoPaymentIntent: vi.fn(),
     createCryptoPaymentIntent: vi.fn(),
     cancelCryptoPaymentIntent: vi.fn(),
@@ -45,6 +46,7 @@ const {
   getCryptoPaymentIntent,
   getCryptoProcessorStatus,
   getCurrentCryptoPaymentIntent,
+  validateCheckoutCoupon,
 } = await import(
   '../lib/cryptoCheckoutApi'
 );
@@ -186,6 +188,7 @@ beforeEach(() => {
   vi.mocked(getBitcoinSendingEligibility).mockResolvedValue({ rail: 'btc_bitcoin', products: {} });
   vi.mocked(createCryptoPaymentIntent).mockReset().mockRejectedValue(new Error('No order in this test.'));
   vi.mocked(createPulsePaymentIntent).mockReset().mockRejectedValue(new Error('No order in this test.'));
+  vi.mocked(validateCheckoutCoupon).mockReset();
 });
 
 describe('CruushPlusStore', () => {
@@ -210,6 +213,25 @@ describe('CruushPlusStore', () => {
 
     expect(await screen.findByText('$18.99/month')).toBeInTheDocument();
     expect(screen.queryByText('Loading plans…')).not.toBeInTheDocument();
+  });
+
+  it('applies CLUBS20 and sends the normalized code with the discounted checkout', async () => {
+    vi.mocked(getCryptoProcessorStatus).mockResolvedValue(processorStatus(['usdc_arbitrum']));
+    vi.mocked(validateCheckoutCoupon).mockResolvedValue({ code: 'CLUBS20', percentOff: 20 });
+    vi.mocked(createCryptoPaymentIntent).mockRejectedValue(new Error('Stop after request mapping.'));
+
+    renderStore();
+    const couponInput = await screen.findByLabelText('Coupon code');
+    fireEvent.change(couponInput, { target: { value: 'clubs20' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+
+    expect(await screen.findByText(/CLUBS20 applied\. 20% off\./)).toHaveTextContent('$18.99 becomes $15.19');
+    fireEvent.click(screen.getByRole('button', { name: 'Cash App' }));
+
+    await waitFor(() => expect(createCryptoPaymentIntent).toHaveBeenCalledWith(expect.objectContaining({
+      planId: 'plus_monthly',
+      couponCode: 'CLUBS20',
+    })));
   });
 
   it('states that Lifetime includes unlimited Pulses', async () => {
