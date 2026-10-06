@@ -4,6 +4,8 @@ The notched cruush logo is rejected for every app use, including installed home-
 
 # cruush design decisions
 
+- October 5 release email style: “use the more recent glass email template,” “you didnt use the glass style,” and “remove the privacy capsule from email.” The v1.9 email uses the newest existing glass template and omits the standalone privacy capsule.
+
 - October 5 owner-only Club creation: “make the create club button appear above the option to add mutuals, no other members needed for creation tho.” The Club composer places `Create Club` above the optional initial-cruush picker, and a creator may publish a Club with no other initial members.
 
 - October 5 Club chat identity: “No preview pic for clubs up top just name” and “No club capsule or tag ones please.” Linked Club chat headers show the Club name without a preview image or `CLUB` pill, and the chat surface does not repeat Club tag pills. The member count, header actions, description, messages, notification controls, composer, and bottom navigation remain in place.
