@@ -9,7 +9,7 @@
  * private window or a full quota costs the restore and nothing else.
  */
 const ONBOARDING_DRAFT_KEY = 'cruush:onboarding-draft';
-const ONBOARDING_DRAFT_VERSION = 4;
+const ONBOARDING_DRAFT_VERSION = 5;
 
 export type OnboardingDraft<TProfile> = { step: number; profile: Partial<TProfile> };
 
@@ -38,9 +38,17 @@ export function readOnboardingDraft<TProfile>(): OnboardingDraft<TProfile> | nul
       : previousStep - 1;
     // Version 4 removes badge selection at index 6. Resume 2FA for that
     // removed step and keep later drafts on their corresponding rite.
-    const step = (parsed.version != null && parsed.version >= 4) || combinedGenderStep <= 6
+    const badgeStepRemoved = (parsed.version != null && parsed.version >= 4) || combinedGenderStep <= 6
       ? combinedGenderStep
       : combinedGenderStep - 1;
+    // Version 5 removes Bio/Signal at index 4 and Role/Position at index 5.
+    // Either removed rite and the old 2FA index continue at 2FA; later rites
+    // retain their meaning after shifting back by two positions.
+    const step = (parsed.version != null && parsed.version >= 5) || badgeStepRemoved <= 4
+      ? badgeStepRemoved
+      : badgeStepRemoved <= 6
+        ? 4
+        : badgeStepRemoved - 2;
     return { step, profile: parsed.profile };
   } catch {
     return null;

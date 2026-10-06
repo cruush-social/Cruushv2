@@ -3,7 +3,7 @@ import TrustRestrictionNotice from './TrustRestrictionNotice';
 import { useEffect, useLayoutEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import PhotoUploadSpinner from './PhotoUploadSpinner';
 import { PHOTO_UPLOAD_ACCEPT } from '../lib/photoUploadFormats';
-import { CROWDS, ONBOARDING_IDENTITIES, LOOKING_FOR, MAX_PROFILE_SEXUALITIES, POSITIONS, PRONOUNS, ROLES, SEXUALITY, VIBE_GROUPS } from '../lib/profileOptions';
+import { CROWDS, ONBOARDING_IDENTITIES, LOOKING_FOR, MAX_PROFILE_SEXUALITIES, PRONOUNS, SEXUALITY, VIBE_GROUPS } from '../lib/profileOptions';
 import { ArrowRight, Check, Clipboard, Gift, Share2, ShieldCheck } from 'lucide-react';
 import { toast } from '../lib/toast';
 import { enablePushNotifications } from '../lib/pushNotifications';
@@ -14,8 +14,6 @@ import CodeOfConduct from './CodeOfConduct';
 import { emptyProfilePayload, emptySideBadges, saveMyProfile, toDefaultKinkInterest, type ProfilePayload, type SideBadges, uploadProfilePhoto } from '../lib/profileApi';
 import { ApiClientError } from '../lib/apiClient';
 import HeartPhoto from './HeartPhoto';
-import SignalBadge from './SignalBadge';
-import { HEART_PIN_THEMES } from '../lib/heartPin';
 import {
   getPhotoUploadRejectedMessage,
   ProfilePhotoCropper,
@@ -36,7 +34,6 @@ import { persistCurrentUser } from '../lib/sessionUser';
 import CruushPlusWord from './CruushPlusWord';
 import MultiSelect from './MultiSelect';
 import LoadingCardSkeletons from './LoadingCardSkeletons';
-import SideBadgePair from './SideBadgePair';
 import cruushLogo from '../assets/brand/cruush-logo.svg';
 import LaunchLoginMapTeaser from './LaunchLoginMapTeaser';
 import './ProfileOnboarding.css';
@@ -57,8 +54,6 @@ type OnboardingStep =
   | 'crowds'
   | 'lookingFor'
   | 'vibes'
-  | 'bio'
-  | 'rolePosition'
   | 'oath'
   | 'twoFactor'
   | 'affiliateShare';
@@ -68,8 +63,6 @@ const PROFILE_STEPS: OnboardingStep[] = [
   'identities',
   'crowds',
   'vibes',
-  'bio',
-  'rolePosition',
 ];
 
 const STEP_COPY: Record<OnboardingStep, { rite: string }> = {
@@ -78,8 +71,6 @@ const STEP_COPY: Record<OnboardingStep, { rite: string }> = {
   crowds: { rite: 'find your crowd' },
   lookingFor: { rite: 'declare your hunger' },
   vibes: { rite: 'reveal your aura' },
-  bio: { rite: 'leave your confession' },
-  rolePosition: { rite: 'name your role' },
   oath: { rite: 'take the oath' },
   twoFactor: { rite: 'protect your key' },
   affiliateShare: { rite: 'summon your circle' },
@@ -484,10 +475,6 @@ export default function ProfileOnboarding({
         return profile.lookingFor.length > 0;
       case 'vibes':
         return true;
-      case 'bio':
-        return true;
-      case 'rolePosition':
-        return true;
       case 'oath':
         return oathAccepted;
       case 'twoFactor':
@@ -749,9 +736,7 @@ export default function ProfileOnboarding({
     }
   };
   const isFinalStep = step === steps.length - 1;
-  const nextRiteLabel = currentStep === 'bio' && !profile.bio.trim() && !profile.signal.trim()
-    ? 'Skip for now'
-    : 'Next rite';
+  const nextRiteLabel = 'Next rite';
   const availableCrowds = profile.is_trans === true ? CROWDS : CROWDS.filter((crowd) => crowd !== 'T4T');
 
   const setTransStatus = (isTrans: boolean) => {
@@ -937,93 +922,6 @@ export default function ProfileOnboarding({
                     onChange={(values) => setProfileField('vibes', limitToThree(values))}
                   />
                   <p className="mt-1 text-base text-white/58">Optional. Pick up to 3.</p>
-                </div>
-              );
-            case 'bio':
-              return (
-                <div>
-                  <label className="mb-2 block text-base" htmlFor="onboarding-bio">
-                    Bio <span className="text-white/50">(optional)</span>
-                  </label>
-                  <Input
-                    id="onboarding-bio"
-                    type="text"
-                    placeholder="A little about you..."
-                    value={profile.bio}
-                    onChange={e => setProfileField('bio', e.target.value)}
-                  />
-                  <div className="mt-4 flex items-baseline justify-between gap-3">
-                    <label className="text-base" htmlFor="onboarding-signal">
-                      Signal <span className="text-white/50">(optional)</span>
-                    </label>
-                    <span className="shrink-0 text-xs text-white/50">{profile.signal.length}/{SIGNAL_MAX_LENGTH}</span>
-                  </div>
-                  {/* The same badge the map draws, over the same heart, so the
-                      words are read at the size they will actually be read at.
-                      The explanatory line under the field was wrapping off the
-                      bottom on a narrow phone; the example says it instead. */}
-                  <div className="mb-3 mt-2 flex w-full min-w-0 flex-col items-center gap-1 overflow-hidden rounded-2xl border border-white/10 bg-black/35 px-3 py-4">
-                    <SignalBadge
-                      borderColor={HEART_PIN_THEMES.current.border}
-                      className="max-w-full"
-                    >
-                      {profile.signal.trim() || 'A few words on your pin'}
-                    </SignalBadge>
-                    <HeartPhoto
-                      className="w-16"
-                      label="Your heart pin"
-                      masked={false}
-                      photo={profile.photos[0] ?? null}
-                      theme="current"
-                    />
-                  </div>
-                  <p className="mb-2 text-sm text-white/58">Text above your heart pin on hover.</p>
-                  <Input
-                    id="onboarding-signal"
-                    type="text"
-                    maxLength={SIGNAL_MAX_LENGTH}
-                    placeholder="A few words on your pin"
-                    value={profile.signal}
-                    onChange={e => setProfileField('signal', e.target.value)}
-                  />
-                </div>
-              );
-            case 'rolePosition':
-              return (
-                <div className="space-y-4">
-                  <div>
-                    <label className="mb-2 block text-base text-white/82">Role</label>
-                    <MultiSelect
-                      menuPortal
-                      ariaLabel="Role"
-                      maxSelections={1}
-                      options={ROLES}
-                      value={profile.role}
-                      onChange={(values) => setProfileField('role', values.slice(-1))}
-                    />
-                    <p className="mt-1 text-sm text-white/58">Optional. This becomes your left badge.</p>
-                  </div>
-                  <div>
-                    <label className="mb-2 block text-base text-white/82">Position</label>
-                    <MultiSelect
-                      menuPortal
-                      ariaLabel="Position"
-                      maxSelections={1}
-                      options={POSITIONS}
-                      value={profile.position}
-                      onChange={(values) => setProfileField('position', values.slice(-1))}
-                    />
-                    <p className="mt-1 text-sm text-white/58">Optional. This becomes your right badge.</p>
-                  </div>
-                  {profile.role[0] || profile.position[0] ? (
-                    <SideBadgePair
-                      badges={{
-                        left: profile.role[0] ? { badge_id: profile.role[0], frame: 'circle', intent: 'none' } : null,
-                        right: profile.position[0] ? { badge_id: profile.position[0], frame: 'circle', intent: 'none' } : null,
-                      }}
-                      tone="current"
-                    />
-                  ) : null}
                 </div>
               );
             case 'oath':

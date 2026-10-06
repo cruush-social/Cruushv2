@@ -402,6 +402,11 @@ export function buildProfileBadgeOptions(group: ProfileBadgeGroup, values: strin
   });
 }
 
+const CLASSIC_VIBE_BADGE_OPTIONS = buildProfileBadgeOptions(
+  'Vibes',
+  VIBE_GROUPS.flatMap((category) => category.options),
+);
+
 function badgeTitle(option: BadgeOption, intent: BadgeIntent, meaning?: string) {
   return meaning?.trim()
     || (option.hanky
@@ -552,16 +557,25 @@ export default function BadgePickerPreview({
     ...buildProfileBadgeOptions('Vibes', profile?.vibes ?? []),
     ...buildProfileBadgeOptions('Kinks', profile?.kinks ?? []),
   ];
-  const allBadgeOptions = [
+  const baseBadgeOptions = [
     ...BADGE_OPTIONS,
-    ...profileBadgeOptions.filter((option) => !BADGE_OPTIONS.some((existing) => existing.id === option.id)),
+    ...CLASSIC_VIBE_BADGE_OPTIONS.filter((option) => !BADGE_OPTIONS.some((existing) => existing.id === option.id)),
+  ];
+  const allBadgeOptions = [
+    ...baseBadgeOptions,
+    ...profileBadgeOptions.filter((option) => !baseBadgeOptions.some((existing) => existing.id === option.id)),
     ...badgePoolOptions.Kinks,
     ...badgePoolOptions.Vibes,
   ];
   const [activePoolCategory, setActivePoolCategory] = useState('All');
   const [poolSearch, setPoolSearch] = useState('');
   const activePoolGroup = activeGroup === 'Kinks' || activeGroup === 'Vibes' ? activeGroup : null;
-  const activePoolOptions = activePoolGroup ? badgePoolOptions[activePoolGroup] : [];
+  const activePoolOptions = activePoolGroup
+    ? [
+        ...(activePoolGroup === 'Vibes' ? CLASSIC_VIBE_BADGE_OPTIONS : []),
+        ...badgePoolOptions[activePoolGroup],
+      ]
+    : [];
   const poolCategories = [...new Set(activePoolOptions.map((option) => option.category ?? 'Other'))];
   const optionsForActiveGroup = activePoolGroup
     ? activePoolOptions

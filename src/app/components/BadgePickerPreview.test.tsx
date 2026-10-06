@@ -93,4 +93,23 @@ describe('BadgePickerPreview', () => {
     expect(screen.getByRole('textbox', { name: 'Badge title' })).toHaveValue('abcdefghij');
     expect(screen.getAllByLabelText('Selected')).toHaveLength(1);
   });
+
+  it('keeps the classic Vibe icons alongside the new Vibe pool', async () => {
+    render(
+      <MemoryRouter>
+        <BadgePickerPreview embedded />
+      </MemoryRouter>
+    );
+
+    await screen.findByText('What this side says');
+    fireEvent.change(screen.getByRole('combobox', { name: 'Badge category' }), { target: { value: 'Vibes' } });
+
+    expect(await screen.findByRole('button', { name: 'Disco ball' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Raver' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Doll' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Bimbo' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Leather boot' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Raver' }).querySelector('svg')).not.toBeNull();
+    expect(screen.getByRole('button', { name: 'Doll' }).querySelector('span[style*="mask-image"]')).not.toBeNull();
+  });
 });

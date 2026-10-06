@@ -4,7 +4,7 @@ import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import ProfileOnboarding from './ProfileOnboarding';
 import { readOnboardingDraft, writeOnboardingDraft } from '../lib/onboardingDraft';
-import { SIGNAL_MAX_LENGTH } from '../lib/profileLimits';
+import { CODE_OF_CONDUCT_ITEMS } from '../lib/codeOfConduct';
 
 const { acceptCodeOfConduct, attachReferralCode, getAuthSession, persistCurrentUser, saveMyProfile, uploadProfilePhoto } = vi.hoisted(() => ({
   acceptCodeOfConduct: vi.fn(),
@@ -147,14 +147,20 @@ async function fillProfileRites() {
   await chooseVibe('Scenes', 'Goth');
   fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
-  fireEvent.change(screen.getByPlaceholderText('A little about you...'), { target: { value: 'Velvet trouble.' } });
-  fireEvent.click(screen.getByRole('button', { name: /next/i }));
-
-  expect(screen.getByText('name your role')).toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button', { name: /next/i }));
   expect(screen.getByText('protect your key')).toBeInTheDocument();
+  expect(screen.queryByText('leave your confession')).not.toBeInTheDocument();
+  expect(screen.queryByText('name your role')).not.toBeInTheDocument();
   expect(screen.queryByText('dress your heart')).not.toBeInTheDocument();
   expect(screen.queryByLabelText('Badge category')).not.toBeInTheDocument();
+}
+
+function acceptEveryConductRule() {
+  for (const item of CODE_OF_CONDUCT_ITEMS) {
+    fireEvent.click(screen.getByRole('checkbox', { name: item }));
+  }
+  fireEvent.click(screen.getByRole('checkbox', {
+    name: /i have read and agree to the cruush code of conduct/i,
+  }));
 }
 
 async function reachFinalOath() {
@@ -196,7 +202,7 @@ describe('ProfileOnboarding', () => {
     await fillProfileRites();
     fireEvent.change(screen.getByLabelText('Friend invite code'), { target: { value: 'abcdefghijklmnop' } });
     await reachFinalOath();
-    fireEvent.click(screen.getByRole('checkbox', { name: /i have read and agree to the cruush code of conduct/i }));
+    acceptEveryConductRule();
     fireEvent.click(screen.getByRole('button', { name: /enter cruush/i }));
     await waitFor(() => expect(onComplete).toHaveBeenCalledTimes(1));
     expect(saveMyProfile).not.toHaveBeenCalled();
@@ -260,7 +266,7 @@ describe('ProfileOnboarding', () => {
   });
   });
 
-  it('blocks completion on the oath step until the code of conduct is checked', async () => {
+  it('blocks completion until every code of conduct item and the final agreement are checked', async () => {
     renderConductOnboarding();
 
     await fillProfileRites();
@@ -275,6 +281,13 @@ describe('ProfileOnboarding', () => {
     fireEvent.click(screen.getByRole('checkbox', {
       name: /i have read and agree to the cruush code of conduct/i,
     }));
+    expect(enterButton).toBeDisabled();
+
+    for (const item of CODE_OF_CONDUCT_ITEMS.slice(0, -1)) {
+      fireEvent.click(screen.getByRole('checkbox', { name: item }));
+      expect(enterButton).toBeDisabled();
+    }
+    fireEvent.click(screen.getByRole('checkbox', { name: CODE_OF_CONDUCT_ITEMS.at(-1)! }));
 
     expect(enterButton).not.toBeDisabled();
   });
@@ -317,7 +330,9 @@ describe('ProfileOnboarding', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Vibes' }));
     fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
-    expect(screen.getByText('leave your confession')).toBeInTheDocument();
+    expect(screen.getByText('protect your key')).toBeInTheDocument();
+    expect(screen.queryByText('leave your confession')).not.toBeInTheDocument();
+    expect(screen.queryByText('name your role')).not.toBeInTheDocument();
   });
 
   it('offers trans man and trans woman while saving up to three gender identities', async () => {
@@ -354,9 +369,7 @@ describe('ProfileOnboarding', () => {
     await chooseVibe('Scenes', 'Goth');
     fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
-    fireEvent.change(screen.getByPlaceholderText('A little about you...'), { target: { value: 'Velvet trouble.' } });
-    fireEvent.click(screen.getByRole('button', { name: /next/i }));
-    fireEvent.click(screen.getByRole('button', { name: /next/i }));
+    expect(screen.getByText('protect your key')).toBeInTheDocument();
     await skipTwoFactorAndEnter();
 
     await waitFor(() => expect(saveMyProfile).toHaveBeenCalledWith(expect.objectContaining({
@@ -391,9 +404,7 @@ describe('ProfileOnboarding', () => {
 
     await fillProfileRites();
     await reachFinalOath();
-    fireEvent.click(screen.getByRole('checkbox', {
-      name: /i have read and agree to the cruush code of conduct/i,
-    }));
+    acceptEveryConductRule();
     fireEvent.click(screen.getByRole('button', { name: /enter cruush/i }));
 
     await waitFor(() => expect(onComplete).toHaveBeenCalledTimes(1));
@@ -406,7 +417,7 @@ describe('ProfileOnboarding', () => {
       looking_for: [],
       crowds: ['Dyke'],
       vibes: ['Goth'],
-      bio: 'Velvet trouble.',
+      bio: '',
       pronouns: ['they/them'],
       year_of_birth: null,
       identities: ['nonbinary'],
@@ -631,25 +642,15 @@ describe('ProfileOnboarding', () => {
     expect(screen.getByText('reveal your aura')).toBeInTheDocument();
     expect(screen.getByText('Optional. Pick up to 3.')).toBeInTheDocument();
     fireEvent.click(next()); // No Vibes.
-    expect(screen.getByText('leave your confession')).toBeInTheDocument();
-    const bio = screen.getByRole('textbox', { name: 'Bio (optional)' });
-    const signal = screen.getByRole('textbox', { name: 'Signal (optional)' });
-    expect(bio).toHaveAttribute('placeholder', 'A little about you...');
-    expect(signal).toHaveAttribute('placeholder', 'A few words on your pin');
-    expect(signal).toHaveAttribute('maxlength', String(SIGNAL_MAX_LENGTH));
-    expect(screen.getByRole('button', { name: /skip for now/i })).toBeEnabled();
-    fireEvent.change(signal, { target: { value: 'Out tonight' } });
-    expect(next()).toBeEnabled();
-    fireEvent.change(signal, { target: { value: '' } });
-    fireEvent.click(screen.getByRole('button', { name: /skip for now/i })); // No Bio or Signal.
-    expect(screen.getByText('name your role')).toBeInTheDocument();
-    expect(screen.getByText('Optional. This becomes your left badge.')).toBeInTheDocument();
-    fireEvent.click(next()); // No Role or Position.
     expect(screen.getByText('protect your key')).toBeInTheDocument();
+    expect(screen.queryByRole('textbox', { name: 'Bio (optional)' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('textbox', { name: 'Signal (optional)' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Role' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Position' })).not.toBeInTheDocument();
     await reachFinalOath(); // Skip 2FA without an invite code.
     const enter = screen.getByRole('button', { name: /enter cruush/i });
     expect(enter).toBeDisabled();
-    fireEvent.click(screen.getByRole('checkbox', { name: /i have read and agree to the cruush code of conduct/i }));
+    acceptEveryConductRule();
     fireEvent.click(enter);
     await waitFor(() => expect(onComplete).toHaveBeenCalledTimes(1));
     expect(saveMyProfile).not.toHaveBeenCalled();
@@ -672,14 +673,16 @@ describe('ProfileOnboarding', () => {
       [1, 1, 1], // Removed Pronouns resumes the combined Gender step.
       [2, 1, 1],
       [2, 2, 1],
-      [1, 8, 6], // Old badge selection resumes 2FA after all migrations.
-      [2, 8, 6], // Existing 2FA drafts stay on 2FA.
-      [3, 5, 5], // Role/Position stays in place.
-      [3, 6, 6], // Removed badge selection resumes 2FA.
-      [3, 7, 6], // 2FA stays on 2FA.
-      [3, 8, 7], // Affiliate share stays on affiliate share.
-      [3, 9, 8], // The final oath is not skipped.
-      [4, 7, 7], // Current drafts are not migrated again.
+      [1, 8, 4], // Old badge selection resumes 2FA after all migrations.
+      [2, 8, 4], // Existing 2FA drafts stay on 2FA.
+      [3, 5, 4], // Removed Role/Position resumes 2FA.
+      [3, 6, 4], // Removed badge selection resumes 2FA.
+      [3, 7, 4], // 2FA stays on 2FA.
+      [3, 8, 5], // Affiliate share stays on affiliate share.
+      [3, 9, 6], // The final oath is not skipped.
+      [4, 7, 5], // Affiliate share shifts after both removed profile rites.
+      [5, 5, 5], // Current affiliate drafts are not migrated again.
+      [5, 6, 6], // Current oath drafts are not migrated again.
     ]) {
       window.localStorage.setItem('cruush:onboarding-draft', JSON.stringify({ version, step: savedStep, profile }));
       expect(readOnboardingDraft()).toEqual({ step: expectedStep, profile });
@@ -697,26 +700,4 @@ describe('ProfileOnboarding', () => {
     expect(screen.getByRole('button', { name: /next rite/i })).toBeDisabled();
   });
 
-  it('previews selected Role and Position with the shared badge rendering', async () => {
-    writeOnboardingDraft({
-      step: 5,
-      profile: {
-        name: 'River',
-        identities: ['nonbinary'],
-        sexuality: ['queer'],
-        crowds: ['Dyke'],
-        role: [],
-        position: [],
-      },
-    });
-
-    render(<MemoryRouter><ProfileOnboarding onComplete={vi.fn()} /></MemoryRouter>);
-
-    expect(screen.getByText('name your role')).toBeInTheDocument();
-    expect(screen.queryByTestId('activity-side-badges')).not.toBeInTheDocument();
-    await chooseMultiSelect('Role', 'service sub');
-    expect(screen.getByRole('img', { name: 'left badge: service sub' })).toBeInTheDocument();
-    await chooseMultiSelect('Position', 'versatile');
-    expect(screen.getByRole('img', { name: 'right badge: versatile' })).toBeInTheDocument();
-  });
 });
