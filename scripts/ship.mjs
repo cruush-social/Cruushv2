@@ -85,11 +85,14 @@ function loadCoolifyEnv() {
   return null;
 }
 
-async function coolify(pathname) {
+async function coolify(pathname, options = {}) {
   const base = process.env.COOLIFY_API_BASE_URL;
   const token = process.env.COOLIFY_API_TOKEN;
   if (!base || !token) return null;
-  const response = await fetch(`${base}${pathname}`, { headers: { Authorization: `Bearer ${token}` } });
+  const response = await fetch(`${base}${pathname}`, {
+    ...options,
+    headers: { Authorization: `Bearer ${token}`, ...(options.headers ?? {}) },
+  });
   if (!response.ok) throw new Error(`Coolify ${pathname} returned ${response.status}`);
   return response.json();
 }
@@ -289,7 +292,7 @@ async function main() {
         console.log(`Deploy ${label}: skipped (could not resolve the Coolify app UUID).`);
         continue;
       }
-      const triggered = await coolify(`/deploy?uuid=${encodeURIComponent(uuid)}`);
+      const triggered = await coolify(`/deploy?uuid=${encodeURIComponent(uuid)}`, { method: 'POST' });
       console.log(`Deploy ${label}: triggered (${JSON.stringify(triggered?.deployments ?? triggered)})`);
     }
   } else {
