@@ -270,7 +270,7 @@ vi.mock('./MapView', async () => {
       fitToMarkers,
       focusCoordinates,
       initialZoom,
-      preserveInitialZoomOnFocus,
+      preserveInitialZoomOnLoad,
       radiusCircle,
       ghostLeash,
       demoRadiusCircles = [],
@@ -282,7 +282,7 @@ vi.mock('./MapView', async () => {
       fitToMarkers?: boolean;
       focusCoordinates?: { approximateLatitude: number; approximateLongitude: number } | null;
       initialZoom?: number;
-      preserveInitialZoomOnFocus?: boolean;
+      preserveInitialZoomOnLoad?: boolean;
       radiusCircle?: {
         center: { approximateLatitude: number; approximateLongitude: number };
         radiusMeters: number;
@@ -311,7 +311,7 @@ vi.mock('./MapView', async () => {
             data-lng={focusCoordinates ? String(focusCoordinates.approximateLongitude) : ''}
             data-fit-to-markers={String(Boolean(fitToMarkers))}
             data-initial-zoom={initialZoom == null ? '' : String(initialZoom)}
-            data-preserve-initial-zoom={String(Boolean(preserveInitialZoomOnFocus))}
+            data-preserve-initial-zoom={String(Boolean(preserveInitialZoomOnLoad))}
             data-radius-circle={radiusCircle ? String(radiusCircle.radiusMeters) : ''}
             data-radius-lat={radiusCircle ? String(radiusCircle.center.approximateLatitude) : ''}
             data-radius-lng={radiusCircle ? String(radiusCircle.center.approximateLongitude) : ''}

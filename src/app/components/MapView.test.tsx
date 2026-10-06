@@ -45,6 +45,8 @@ const { MockMap, MockMarker, mapInstances, markerInstances } = vi.hoisted(() => 
     setMaxBounds = vi.fn();
     getZoom = vi.fn(() => 12);
     fitBounds = vi.fn();
+    cameraForBounds?: ReturnType<typeof vi.fn>;
+    easeTo?: ReturnType<typeof vi.fn>;
     sources = new Map<string, any>();
     layers = new Map<string, any>();
     addSource = vi.fn((id: string, source: any) => {
@@ -578,7 +580,7 @@ describe('MapView', () => {
         onPinClick={vi.fn()}
         focusCoordinates={{ approximateLatitude: 40.73, approximateLongitude: -73.99 }}
         initialZoom={16.25}
-        preserveInitialZoomOnFocus
+        preserveInitialZoomOnLoad
         markers={[]}
       />,
     );
@@ -586,6 +588,35 @@ describe('MapView', () => {
     await waitFor(() => expect(MockMap.calls).toHaveLength(1));
     expect(MockMap.calls[0]).toEqual(expect.objectContaining({ zoom: 16.25 }));
     await waitFor(() => expect(mapInstances[0].setZoom).toHaveBeenCalledWith(16.25));
+  });
+
+  it('keeps the restored zoom when Ghost Mode frames its leash on load', async () => {
+    render(
+      <MapView
+        onPinClick={vi.fn()}
+        initialZoom={16.25}
+        preserveInitialZoomOnLoad
+        markers={[]}
+        ghostLeash={{
+          from: { approximateLatitude: 40.714, approximateLongitude: -74.004 },
+          to: { approximateLatitude: 40.72, approximateLongitude: -74.001 },
+        }}
+      />,
+    );
+
+    await waitFor(() => expect(mapInstances[0]).toBeDefined());
+    mapInstances[0].cameraForBounds = vi.fn(() => ({ center: [-74.0025, 40.717], zoom: 12 }));
+    mapInstances[0].easeTo = vi.fn();
+    act(() => {
+      mapInstances[0].trigger('load');
+    });
+
+    await waitFor(() => expect(mapInstances[0].easeTo).toHaveBeenCalledWith({
+      center: [-74.0025, 40.717],
+      zoom: 16.25,
+      duration: 500,
+    }));
+    expect(mapInstances[0].fitBounds).not.toHaveBeenCalled();
   });
 
   it('fits the discovery marker set when requested', async () => {

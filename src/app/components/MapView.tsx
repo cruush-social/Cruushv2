@@ -133,7 +133,7 @@ interface MapViewProps {
   } | null;
   initialViewport?: InitialViewport;
   initialZoom?: number;
-  preserveInitialZoomOnFocus?: boolean;
+  preserveInitialZoomOnLoad?: boolean;
   radiusCircle?: RadiusCircle | null;
   browseArea?: BrowseArea | null;
   ghostLeash?: GhostLeash | null;
@@ -2401,7 +2401,7 @@ function MapView({
   focusArea,
   initialViewport,
   initialZoom,
-  preserveInitialZoomOnFocus = false,
+  preserveInitialZoomOnLoad = false,
   radiusCircle,
   browseArea,
   ghostLeash,
@@ -2829,11 +2829,11 @@ function MapView({
     }
 
     map.setCenter([focusLongitude, focusLatitude]);
-    map.setZoom(preserveInitialZoomOnFocus
+    map.setZoom(preserveInitialZoomOnLoad
       ? initialZoomRef.current ?? FOCUSED_ZOOM
       : FOCUSED_ZOOM);
     directFocusRef.current = { map, key: focusKey };
-  }, [fitToMarkers, focusLatitude, focusLongitude, focusArea, mapInstance, mapLoadStatus, preserveInitialZoomOnFocus, viewportMarkerSignature]);
+  }, [fitToMarkers, focusLatitude, focusLongitude, focusArea, mapInstance, mapLoadStatus, preserveInitialZoomOnLoad, viewportMarkerSignature]);
 
   useEffect(() => {
     const map = mapInstance ?? mapRef.current;
@@ -2937,23 +2937,38 @@ function MapView({
 
     if (ghostLeashFocusKeyRef.current !== ghostLeashFocusKey) {
       ghostLeashFocusKeyRef.current = ghostLeashFocusKey;
-      map.fitBounds(
+      const bounds: [[number, number], [number, number]] = [
         [
-          [
-            Math.min(ghostLeash.from.approximateLongitude, ghostLeash.to.approximateLongitude),
-            Math.min(ghostLeash.from.approximateLatitude, ghostLeash.to.approximateLatitude),
-          ],
-          [
-            Math.max(ghostLeash.from.approximateLongitude, ghostLeash.to.approximateLongitude),
-            Math.max(ghostLeash.from.approximateLatitude, ghostLeash.to.approximateLatitude),
-          ],
+          Math.min(ghostLeash.from.approximateLongitude, ghostLeash.to.approximateLongitude),
+          Math.min(ghostLeash.from.approximateLatitude, ghostLeash.to.approximateLatitude),
         ],
-        {
-          padding: ghostLeashCameraPadding(map.getContainer().clientWidth),
-          maxZoom: FOCUSED_ZOOM,
-          duration: 500,
-        },
-      );
+        [
+          Math.max(ghostLeash.from.approximateLongitude, ghostLeash.to.approximateLongitude),
+          Math.max(ghostLeash.from.approximateLatitude, ghostLeash.to.approximateLatitude),
+        ],
+      ];
+      const cameraOptions = {
+        padding: ghostLeashCameraPadding(map.getContainer().clientWidth),
+        maxZoom: FOCUSED_ZOOM,
+      };
+
+      if (
+        preserveInitialZoomOnLoad
+        && initialZoomRef.current != null
+        && typeof map.cameraForBounds === 'function'
+        && typeof map.easeTo === 'function'
+      ) {
+        const camera = map.cameraForBounds(bounds, cameraOptions);
+        if (camera) {
+          map.easeTo({
+            ...camera,
+            zoom: initialZoomRef.current,
+            duration: 500,
+          });
+        }
+      } else {
+        map.fitBounds(bounds, { ...cameraOptions, duration: 500 });
+      }
     }
     const existingSource = getSource(sourceId) as GeoJSONSource | undefined;
 
@@ -2983,7 +2998,7 @@ function MapView({
       },
     });
     moveMapServiceOutsideMaskToTop(map);
-  }, [ghostLeash, mapInstance, mapLoadStatus, renderedMarkerSignature]);
+  }, [ghostLeash, mapInstance, mapLoadStatus, preserveInitialZoomOnLoad, renderedMarkerSignature]);
 
   useEffect(() => {
     const map = mapInstance ?? mapRef.current;

@@ -3036,8 +3036,8 @@ export default function MapHome(_props: MapHomeProps = {}) {
               zoom: restoredMapViewport.zoom,
             } : undefined}
             initialZoom={restoredMapViewport?.zoom ?? restoredMapZoom ?? undefined}
-            preserveInitialZoomOnFocus={Boolean(
-              !restoredMapViewport && restoredMapZoom != null && !focusUserId && !travelMapLocation,
+            preserveInitialZoomOnLoad={Boolean(
+              restoredMapZoom != null && !focusUserId && !travelMapLocation,
             )}
             denseVenue={denseVenue}
             radiusCircle={privacySettings.ghostModeEnabled && currentUserMapLocation
