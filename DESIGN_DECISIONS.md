@@ -4,6 +4,8 @@ The notched cruush logo is rejected for every app use, including installed home-
 
 # cruush design decisions
 
+- October 6 map zoom persistence: “make map zoom go to last used zoom as opposed to zooming out on every load.” The map restores the last user-set zoom across reloads and browser restarts while preserving the existing center, gestures, controls, markers, clustering, and other map behavior.
+
 - October 5 release email style: “use the more recent glass email template,” “you didnt use the glass style,” and “remove the privacy capsule from email.” The v1.9 email uses the newest existing glass template and omits the standalone privacy capsule.
 
 - October 5 owner-only Club creation: “make the create club button appear above the option to add mutuals, no other members needed for creation tho.” The Club composer places `Create Club` above the optional initial-cruush picker, and a creator may publish a Club with no other initial members.
