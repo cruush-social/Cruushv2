@@ -338,9 +338,14 @@ async function main() {
 
       for (const pagePath of args.paths) {
         const url = new URL(pagePath, args.url).toString();
-        const loaded = session.once('Page.loadEventFired');
+        // Attach the timeout handler immediately. On a slow navigation,
+        // Page.navigate can remain pending past the load-event timeout; waiting
+        // to add .catch() until after navigation then becomes an unhandled
+        // rejection and aborts the release gate before the existing SPA-ready
+        // probe gets its chance to verify the rendered page.
+        const loaded = session.once('Page.loadEventFired').catch(() => null);
         await session.send('Page.navigate', { url });
-        await loaded.catch(() => { /* SPA routes can resolve before the event lands */ });
+        await loaded;
 
         // Wait for the app to actually be on screen rather than sleeping a
         // fixed time and hoping. The first viewport runs on a cold browser and
