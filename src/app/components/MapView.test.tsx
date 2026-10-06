@@ -17,7 +17,6 @@ import MapView, {
   createCruushVectorStyle,
   createMapMarkerBadge,
   getMapStyle,
-  ghostLeashCameraPadding,
   separateOverlappingMarkers,
 } from './MapView';
 import {
@@ -590,12 +589,14 @@ describe('MapView', () => {
     await waitFor(() => expect(mapInstances[0].setZoom).toHaveBeenCalledWith(16.25));
   });
 
-  it('keeps the restored zoom when Ghost Mode frames its leash on load', async () => {
+  it('keeps the restored camera when the Ghost Mode leash appears', async () => {
     render(
       <MapView
         onPinClick={vi.fn()}
-        initialZoom={16.25}
-        preserveInitialZoomOnLoad
+        initialViewport={{
+          center: { approximateLatitude: 40.71, approximateLongitude: -74.02 },
+          zoom: 16.25,
+        }}
         markers={[]}
         ghostLeash={{
           from: { approximateLatitude: 40.714, approximateLongitude: -74.004 },
@@ -611,11 +612,33 @@ describe('MapView', () => {
       mapInstances[0].trigger('load');
     });
 
-    await waitFor(() => expect(mapInstances[0].easeTo).toHaveBeenCalledWith({
-      center: [-74.0025, 40.717],
-      zoom: 16.25,
-      duration: 500,
-    }));
+    await waitFor(() => expect(mapInstances[0].getSource).toHaveBeenCalledWith('owner-ghost-leash'));
+    expect(mapInstances[0].fitBounds).not.toHaveBeenCalled();
+    expect(mapInstances[0].easeTo).not.toHaveBeenCalled();
+    expect(mapInstances[0].setCenter).not.toHaveBeenCalled();
+    expect(mapInstances[0].setZoom).not.toHaveBeenCalled();
+  });
+
+  it('centers the first map load on the real user while the Ghost Mode leash appears', async () => {
+    render(
+      <MapView
+        onPinClick={vi.fn()}
+        focusCoordinates={{ approximateLatitude: 40.714, approximateLongitude: -74.004 }}
+        markers={[]}
+        ghostLeash={{
+          from: { approximateLatitude: 40.714, approximateLongitude: -74.004 },
+          to: { approximateLatitude: 40.72, approximateLongitude: -74.001 },
+        }}
+      />,
+    );
+
+    await waitFor(() => expect(mapInstances[0]).toBeDefined());
+    act(() => {
+      mapInstances[0].trigger('load');
+    });
+
+    await waitFor(() => expect(mapInstances[0].setCenter).toHaveBeenCalledWith([-74.004, 40.714]));
+    expect(mapInstances[0].setZoom).toHaveBeenCalledWith(14);
     expect(mapInstances[0].fitBounds).not.toHaveBeenCalled();
   });
 
@@ -1034,7 +1057,7 @@ describe('MapView', () => {
     expect(screen.getByTestId('marker-ghost-pulse-ghost-replacement')).toHaveAttribute('data-ghost-rotation-exit', 'false');
   });
 
-  it('draws the owner Ghost Mode radius around true location and a leash to the decoy', async () => {
+  it('draws the owner Ghost Mode radius and leash without moving the camera', async () => {
     render(
       <MapView
         onPinClick={vi.fn()}
@@ -1111,19 +1134,7 @@ describe('MapView', () => {
         'line-dasharray': [2, 1.5],
       }),
     }));
-    expect(mapInstances[0].fitBounds).toHaveBeenCalledWith(
-      [[-74.004, 40.714], [-74.001, 40.72]],
-      {
-        padding: { top: 180, right: 220, bottom: 190, left: 88 },
-        maxZoom: 14,
-        duration: 500,
-      },
-    );
-  });
-
-  it('reserves wider right-side map chrome space on narrow screens', () => {
-    expect(ghostLeashCameraPadding(412)).toEqual({ top: 180, right: 220, bottom: 190, left: 88 });
-    expect(ghostLeashCameraPadding(1280)).toEqual({ top: 120, right: 160, bottom: 140, left: 120 });
+    expect(mapInstances[0].fitBounds).not.toHaveBeenCalled();
   });
 
   it('renders photo markers with current and nearby styling', async () => {
