@@ -989,12 +989,9 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
                   ) : null}
                   {statusError ? <p className="text-sm text-destructive sm:text-xs">{statusError}</p> : null}
                   {intent.asset === 'BTC' && ['awaiting_payment', 'confirming', 'paid'].includes(intent.status) ? (
-                    <ol aria-label="Payment progress" className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm leading-5 text-muted-foreground sm:text-xs">
-                      <li>{intent.status === 'awaiting_payment' ? 'Awaiting payment' : 'Payment detected'}</li>
-                      <li>{(intent.confirmations ?? 0) > 0 ? 'On the Bitcoin blockchain' : intent.status === 'confirming' ? 'Waiting for the first block' : 'Waiting for Bitcoin'}</li>
-                      <li>{Math.min(intent.confirmations ?? 0, 6)}/6 confirmations</li>
-                      <li>{intent.status === 'paid' ? 'Purchase completed' : 'Purchase activates at 6 confirmations'}</li>
-                    </ol>
+                    <p aria-label="Payment progress" className="text-sm text-muted-foreground sm:text-xs">
+                      {Math.min(intent.confirmations ?? 0, 6)}/6 confirmations
+                    </p>
                   ) : null}
                   {!paymentWindowClosed && intent.expiresAt && isOpenCryptoPayment(intent.status) ? (
                     <p className="text-sm font-semibold">
