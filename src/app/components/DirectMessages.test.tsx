@@ -356,6 +356,47 @@ describe('DirectMessages', () => {
     }
   });
 
+  it('keeps an owned Club visible in Browse Clubs', async () => {
+    getConversations.mockResolvedValue([]);
+    getMyCruushActivity.mockResolvedValue({ mutual: [], sent: [] });
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers({ 'content-type': 'application/json' }),
+      text: vi.fn().mockResolvedValue(JSON.stringify({
+        data: [{
+          id: '22222222-2222-4222-8222-222222222222',
+          title: 'Kink NYC',
+          summary: 'For kinky queers in NYC',
+          tags: ['kink', 'nyc'],
+          currentUserRole: 'owner',
+          conversationId: '44444444-4444-4444-8444-444444444444',
+          pendingJoinRequestCount: 0,
+          memberCount: 1,
+          lastActiveAt: '2026-10-07T03:14:16.217Z',
+        }],
+      })),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    try {
+      render(
+        <MemoryRouter initialEntries={['/messages']}>
+          <Routes>
+            <Route path="/messages" element={<DirectMessages />} />
+          </Routes>
+        </MemoryRouter>,
+      );
+
+      fireEvent.click(await screen.findByRole('tab', { name: 'Clubs' }));
+      fireEvent.click(await screen.findByRole('tab', { name: 'Browse Clubs' }));
+
+      expect(await screen.findByText('Kink NYC')).toBeInTheDocument();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it('keeps Club conversations out of the Groups tab', async () => {
     getConversations.mockResolvedValue([{
       id: 'group-1',
