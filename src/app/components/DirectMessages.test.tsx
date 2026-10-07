@@ -168,8 +168,8 @@ describe('DirectMessages', () => {
 
       expect(await screen.findByRole('heading', { name: 'New Club' })).toBeInTheDocument();
       const clubProfileCard = screen.getByTestId('club-mutual-53fd68d7-24fc-4cff-8cd7-a97ec0cadf97');
-      expect(within(clubProfileCard).getByTestId('profile-card')).toHaveClass('max-w-sm', 'rounded-2xl');
-      expect(within(clubProfileCard).getByRole('button', { name: 'Add River to Club' })).toHaveAttribute('aria-pressed', 'false');
+      expect(clubProfileCard).toHaveClass('bg-black/72', 'hover:bg-black/86', 'min-h-[7.5rem]', 'content-center');
+      expect(clubProfileCard).toHaveAttribute('aria-pressed', 'false');
       expect(within(clubProfileCard).getByText('founder')).toBeInTheDocument();
       expect(within(clubProfileCard).getByText('Night owl')).toBeInTheDocument();
       fireEvent.change(screen.getByLabelText('Club name'), { target: { value: 'Brooklyn techno' } });
@@ -708,8 +708,8 @@ describe('DirectMessages', () => {
     expect(await screen.findByText('River')).toBeInTheDocument();
 
     const groupProfileCard = screen.getByTestId('group-mutual-53fd68d7-24fc-4cff-8cd7-a97ec0cadf97');
-    expect(within(groupProfileCard).getByTestId('profile-card')).toHaveClass('max-w-sm', 'rounded-2xl');
-    expect(within(groupProfileCard).getByRole('button', { name: 'Add River to group' })).toHaveAttribute('aria-pressed', 'false');
+    expect(groupProfileCard).toHaveClass('bg-black/72', 'hover:bg-black/86', 'min-h-[7.5rem]', 'content-center');
+    expect(groupProfileCard).toHaveAttribute('aria-pressed', 'false');
     expect(within(groupProfileCard).getByText('founder')).toBeInTheDocument();
     expect(within(groupProfileCard).getByText('Night owl')).toBeInTheDocument();
 
@@ -797,7 +797,7 @@ describe('DirectMessages', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'New message' }));
     fireEvent.click(screen.getByRole('button', { name: /^Start chat with someone/ }));
     const directProfileCard = await screen.findByTestId('message-mutual-discovery-53fd68d7-24fc-4cff-8cd7-a97ec0cadf97');
-    expect(within(directProfileCard).getByTestId('profile-card')).toHaveClass('max-w-sm', 'rounded-2xl');
+    expect(directProfileCard).toHaveClass('bg-black/72', 'hover:bg-black/86', 'min-h-[7.5rem]', 'content-center');
     expect(within(directProfileCard).getByText('founder')).toBeInTheDocument();
     expect(within(directProfileCard).getByText('Night owl')).toBeInTheDocument();
     fireEvent.click(await screen.findByRole('button', { name: 'Message River' }));
@@ -953,8 +953,8 @@ describe('DirectMessages', () => {
       );
     });
 
-    expect(await screen.findByText('Alex, 31')).toBeInTheDocument();
-    expect(screen.getByText('River, 29')).toBeInTheDocument();
+    expect(await screen.findByText('Alex')).toBeInTheDocument();
+    expect(screen.getByText('River')).toBeInTheDocument();
     expect(screen.queryByText('0.2 mi')).not.toBeInTheDocument();
     expect(screen.queryByText('5 mi')).not.toBeInTheDocument();
     expect(screen.getByText('Sort people by')).toBeInTheDocument();
@@ -975,10 +975,10 @@ describe('DirectMessages', () => {
     fireEvent.click(await screen.findByRole('option', { name: 'right now' }));
     fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
 
-    expect(screen.queryByText('River, 29')).not.toBeInTheDocument();
-    const alex = screen.getByText('Alex, 31');
-    const ghosted = screen.getByText('Ghosted, 30');
-    const blake = screen.getByText('Blake, 27');
+    expect(screen.queryByText('River')).not.toBeInTheDocument();
+    const alex = screen.getByText('Alex');
+    const ghosted = screen.getByText('Ghosted');
+    const blake = screen.getByText('Blake');
     expect(alex.compareDocumentPosition(ghosted) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(ghosted.compareDocumentPosition(blake) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(alex.compareDocumentPosition(blake) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -988,9 +988,9 @@ describe('DirectMessages', () => {
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Sort by Recently online' })).toHaveAttribute('aria-pressed', 'false');
       expect(screen.getByRole('button', { name: 'Sort by Distance' })).toHaveAttribute('aria-pressed', 'true');
-      const sortedBlake = screen.getByText('Blake, 27');
-      const sortedAlex = screen.getByText('Alex, 31');
-      const sortedGhosted = screen.getByText('Ghosted, 30');
+      const sortedBlake = screen.getByText('Blake');
+      const sortedAlex = screen.getByText('Alex');
+      const sortedGhosted = screen.getByText('Ghosted');
       // ee9d870: a row with no numeric label now falls back to its own display
       // coordinates independently, instead of only when the row it is compared
       // against is also unlabelled. Ghosted reads "Nearby", and its displayed
@@ -1028,13 +1028,13 @@ describe('DirectMessages', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'New message' }));
     fireEvent.click(screen.getByRole('button', { name: /^Start chat with someone/ }));
-    await screen.findByText('Recent far, 30');
-    expect(within(screen.getByTestId('message-discovery-recent-far')).getByTestId('profile-card')).toHaveClass('max-w-sm', 'rounded-2xl');
+    await screen.findByText('Recent far');
+    expect(screen.getByTestId('message-discovery-recent-far')).toHaveClass('bg-black/72', 'hover:bg-black/86', 'min-h-[7.5rem]', 'content-center');
     expect(decryptDisplayLocationToken).toHaveBeenCalledWith(selfLocationToken);
     expect(getNearbyUsers).toHaveBeenCalledWith({ lat: 40.75, lng: -73.98 }, expect.any(Object), { limit: 500 });
 
-    const recentFar = screen.getByText('Recent far, 30');
-    const olderClose = screen.getByText('Older close, 30');
+    const recentFar = screen.getByText('Recent far');
+    const olderClose = screen.getByText('Older close');
     expect(recentFar.compareDocumentPosition(olderClose) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: /Sort people by Recently online/ }));
@@ -1077,7 +1077,7 @@ describe('DirectMessages', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'New message' }));
     fireEvent.click(screen.getByRole('button', { name: /^Create group message/ }));
     await screen.findByText('Recent far');
-    expect(screen.getAllByText('Nearby')).toHaveLength(2);
+    expect(screen.queryByText('Nearby')).not.toBeInTheDocument();
     const recentFar = screen.getByText('Recent far');
     const olderClose = screen.getByText('Older close');
     expect(recentFar.compareDocumentPosition(olderClose) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();

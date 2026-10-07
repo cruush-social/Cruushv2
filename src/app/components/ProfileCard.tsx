@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Eye, RefreshCw, X } from 'lucide-react';
 import { Button } from './ui/button';
@@ -37,13 +37,6 @@ interface ProfileCardProps {
   fillAvailableHeight?: boolean;
   presentation?: 'standard' | 'carousel';
   onBrowseAgain?: () => void;
-  showCloseButton?: boolean;
-  actions?: ReactNode;
-  selection?: {
-    selected: boolean;
-    label: string;
-    onToggle: () => void;
-  };
 }
 
 function getCarouselPhotos(user: any) {
@@ -76,9 +69,6 @@ export default function ProfileCard({
   fillAvailableHeight = false,
   presentation = 'standard',
   onBrowseAgain,
-  showCloseButton = true,
-  actions,
-  selection,
 }: ProfileCardProps) {
   const navigate = useNavigate();
   const distancePreferences = useDistancePreferences();
@@ -363,7 +353,7 @@ export default function ProfileCard({
           >
             <div className="min-w-0">
               <h3 className="flex min-w-0 items-center overflow-visible pb-1 text-3xl leading-tight sm:text-4xl" style={carouselTextOutlineStyle}>
-                <span className="min-w-0 truncate">{user.name}{user.age != null ? `, ${user.age}` : ''}</span>
+                <span className="min-w-0 truncate">{user.name}, {user.age}</span>
                 {user.travelling === true ? (
                   <img
                     alt="Mile High Club"
@@ -487,7 +477,7 @@ export default function ProfileCard({
   }
 
   const cardClassName = placement === 'inline'
-    ? `relative bg-card rounded-2xl border border-border overflow-hidden shadow-2xl max-w-sm w-full mx-auto ${fillAvailableHeight ? 'flex min-h-0 flex-1 flex-col' : compact ? '' : 'overflow-y-auto'} ${selection?.selected ? 'ring-2 ring-primary' : ''}`
+    ? `bg-card rounded-2xl border border-border overflow-hidden shadow-2xl max-w-sm w-full mx-auto ${fillAvailableHeight ? 'flex min-h-0 flex-1 flex-col' : compact ? '' : 'overflow-y-auto'}`
     : 'bg-card rounded-2xl border border-border overflow-hidden overflow-y-auto shadow-2xl max-w-sm w-full mx-auto fixed left-1/2 -translate-x-1/2 bottom-24 z-30';
 
   return (
@@ -514,18 +504,16 @@ export default function ProfileCard({
           </div>
         )}
 
-        {showCloseButton && !selection ? (
-          <button
-            onClick={onClose}
-            className="absolute top-4 right-4 w-8 h-8 bg-black/50 backdrop-blur-sm rounded-full flex items-center justify-center"
-          >
-            <X className="w-5 h-5 text-white" />
-          </button>
-        ) : null}
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 w-8 h-8 bg-black/50 backdrop-blur-sm rounded-full flex items-center justify-center"
+        >
+          <X className="w-5 h-5 text-white" />
+        </button>
 
         <div className={mediaCaptionClassName}>
           <h3 className={`flex min-w-0 items-center ${titleClassName}`}>
-            <span className="min-w-0 truncate">{user.name}{user.age != null ? `, ${user.age}` : ''}</span>
+            <span className="min-w-0 truncate">{user.name}, {user.age}</span>
             {user.travelling === true ? (
               <img
                 alt="Mile High Club"
@@ -584,7 +572,7 @@ export default function ProfileCard({
           </div>
         ) : null}
 
-        {!selection && actions === undefined ? <div className="flex gap-2 pt-2">
+        <div className="flex gap-2 pt-2">
           <Button
             className={`${actionButtonClassName} rounded-xl border ${hasRevocableCruush
               ? 'border-transparent text-white hover:brightness-125'
@@ -617,26 +605,12 @@ export default function ProfileCard({
             <CruushIcon name="send" className="mr-2 h-4 w-4" variant="white" />
             {!canMessage ? 'cruushes only' : openingMessage ? 'Opening...' : 'Message'}
           </Button>
-        </div> : null}
+        </div>
 
-        {!selection && actions !== undefined ? <div className="pt-2">{actions}</div> : null}
-
-        {!selection ? (
-          <Button onClick={onViewProfile} className={compact ? 'h-10 w-full' : 'w-full'} variant="secondary">
-            View Full Profile
-          </Button>
-        ) : null}
+        <Button onClick={onViewProfile} className={compact ? 'h-10 w-full' : 'w-full'} variant="secondary">
+          View Full Profile
+        </Button>
       </div>
-
-      {selection ? (
-        <button
-          type="button"
-          aria-label={selection.label}
-          aria-pressed={selection.selected}
-          className="absolute inset-0 z-20 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-          onClick={selection.onToggle}
-        />
-      ) : null}
     </div>
   );
 }

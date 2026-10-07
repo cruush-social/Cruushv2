@@ -33,7 +33,7 @@ import MapVisibilitySurface, { DEFAULT_VISIBILITY_STATE, type VisibilityControlS
 import { visibilityRulesToState, visibilityStateToRules } from '../lib/visibilityControls';
 import { openConversationOrInbox } from '../lib/openConversation';
 import ProfileActionTrio from './ProfileActionTrio';
-import ProfileCard from './ProfileCard';
+import CruushesProfileCard from './CruushesProfileCard';
 import UserActivityCapsule from './UserActivityCapsule';
 import ClubDirectoryPanel from './ClubDirectoryPanel';
 import TagInput from './TagInput';
@@ -43,6 +43,7 @@ import CruushMatchSettings from './CruushMatchSettings';
 import AppPageHeader from './AppPageHeader';
 import { shouldMaskPhoto, useDlMode } from '../lib/dlMode';
 import { registerBugButtonSlot } from '../lib/bugButtonSlot';
+import { formatDistanceLabel, useDistancePreferences } from '../lib/distancePreferences';
 import { resolveUserBorderTone } from '../lib/userBorderTone';
 import { buildCruushPlusStorePath } from '../lib/cruushPlusConversion';
 import { trackCruushPlusConversion } from '../lib/posthog';
@@ -247,6 +248,13 @@ async function resolveViewerCoordinates(profile: ProfileRecord | null): Promise<
   }
 }
 
+function describeDiscoveryUser(user: DiscoveryUser) {
+  return [user.age ? String(user.age) : '', ...(user.presentation ?? []), ...(user.identities ?? [])]
+    .filter(Boolean)
+    .slice(0, 5)
+    .join(' · ');
+}
+
 function matchesMessageFilterBasics(user: DiscoveryUser, filters: FilterState) {
   const distanceMiles = parseDistanceMiles(user.distance);
   if (distanceMiles !== null && distanceMiles > filters.distance) {
@@ -330,6 +338,7 @@ export default function DirectMessages({
   const [changingCruushUserId, setChangingCruushUserId] = useState<string | null>(null);
   const deferredSearchQuery = useDeferredValue(searchQuery);
   const dlModeActive = useDlMode();
+  const distancePreferences = useDistancePreferences();
 
   useEffect(() => {
     void fetchConversations();
@@ -1047,27 +1056,21 @@ export default function DirectMessages({
                 {groupMutuals.map((item) => {
                   const selected = selectedMemberIds.includes(item.user.id);
                   return (
-                    <div key={item.user.id} data-testid={`group-mutual-${item.user.id}`}>
-                      <ProfileCard
-                        density="compact"
-                        placement="inline"
-                        showCloseButton={false}
-                        user={{
-                          ...item.user,
-                          distance: item.distance,
-                          lastActive: item.lastActive,
-                          vibes: item.user.vibes ?? item.vibes,
-                          relationship: { mutualCruush: true, canMessage: item.canMessage },
-                        }}
-                        onClose={resetGroupComposer}
-                        onViewProfile={() => navigate(`/profile/${item.user.id}`)}
-                        selection={{
-                          selected,
-                          onToggle: () => toggleSelectedMember(item.user.id),
-                          label: `${selected ? 'Remove' : 'Add'} ${item.user.name} ${selected ? 'from' : 'to'} group`,
-                        }}
-                      />
-                    </div>
+                    <CruushesProfileCard
+                      key={item.user.id}
+                      testId={`group-mutual-${item.user.id}`}
+                      user={{ ...item.user, vibes: item.user.vibes ?? item.vibes }}
+                      metadata={(
+                        <span className="flex min-w-0 flex-col gap-0.5 text-left text-xs leading-snug text-white/62">
+                          <span className="truncate">{item.lastActive}</span>
+                        </span>
+                      )}
+                      mutual
+                      sharesCrowd={(item.mutualCrowds?.length ?? 0) > 0}
+                      onSelect={() => toggleSelectedMember(item.user.id)}
+                      selected={selected}
+                      selectLabel={`${selected ? 'Remove' : 'Add'} ${item.user.name} ${selected ? 'from' : 'to'} group`}
+                    />
                 )})}
               </div>
             </div>
@@ -1166,27 +1169,22 @@ export default function DirectMessages({
                 {clubMutuals.map((item) => {
                   const selected = selectedClubMemberIds.includes(item.user.id);
                   return (
-                    <div key={item.user.id} data-testid={`club-mutual-${item.user.id}`}>
-                      <ProfileCard
-                        density="compact"
-                        placement="inline"
-                        showCloseButton={false}
-                        user={{
-                          ...item.user,
-                          distance: item.distance,
-                          lastActive: item.lastActive,
-                          vibes: item.user.vibes ?? item.vibes,
-                          relationship: { mutualCruush: true, canMessage: item.canMessage },
-                        }}
-                        onClose={resetClubComposer}
-                        onViewProfile={() => navigate(`/profile/${item.user.id}`)}
-                        selection={{
-                          selected,
-                          onToggle: () => toggleSelectedClubMember(item.user.id),
-                          label: `${selected ? 'Remove' : 'Add'} ${item.user.name} ${selected ? 'from' : 'to'} Club`,
-                        }}
-                      />
-                    </div>
+                    <CruushesProfileCard
+                      key={item.user.id}
+                      testId={`club-mutual-${item.user.id}`}
+                      user={{ ...item.user, vibes: item.user.vibes ?? item.vibes }}
+                      metadata={(
+                        <span className="flex min-w-0 flex-col gap-0.5 text-left text-xs leading-snug text-white/62">
+                          <span className="truncate">{item.lastActive}</span>
+                          <span className="truncate">{formatDistanceLabel(item.distance, distancePreferences.mode) ?? item.distance}</span>
+                        </span>
+                      )}
+                      mutual
+                      sharesCrowd={(item.mutualCrowds?.length ?? 0) > 0}
+                      onSelect={() => toggleSelectedClubMember(item.user.id)}
+                      selected={selected}
+                      selectLabel={`${selected ? 'Remove' : 'Add'} ${item.user.name} ${selected ? 'from' : 'to'} Club`}
+                    />
                   );
                 })}
               </div>
@@ -1695,15 +1693,17 @@ function DirectUserOverlay({
             const requested = requestedCruushIds.includes(user.id);
             const canMessageNow = user.relationship?.canMessage === true;
             return (
-              <div key={user.id} data-testid={`message-discovery-${user.id}`}>
-                <ProfileCard
-                  density="compact"
-                  placement="inline"
-                  showCloseButton={false}
-                  user={user}
-                  onClose={onClose}
-                  onViewProfile={() => onOpenProfile(user.id)}
-                  actions={<ProfileActionTrio
+              <CruushesProfileCard
+                key={user.id}
+                testId={`message-discovery-${user.id}`}
+                user={user}
+                onOpenProfile={() => onOpenProfile(user.id)}
+                metadata={(
+                  <button type="button" className="flex min-w-0 flex-col gap-0.5 text-left text-xs leading-snug text-white/62" onClick={() => onOpenProfile(user.id)}>
+                    {describeDiscoveryUser(user) ? <span className="truncate">{describeDiscoveryUser(user)}</span> : null}
+                  </button>
+                )}
+                actions={<ProfileActionTrio
                     className={messageCardActionClassName}
                     size="sm"
                     userName={user.name}
@@ -1714,29 +1714,26 @@ function DirectUserOverlay({
                     canCenterPin={false}
                     onCenterPin={() => onOpenMap(user.id, false)}
                   />}
-                />
-              </div>
+                mutual={user.relationship?.mutualCruush === true}
+                sharesCrowd={user.hasSharedCrowd === true || user.relationshipContext === 'MUTUAL_CROWD'}
+              />
             );
           }) : mutuals.map((item) => {
             const canCenterPin = item.canRevealPreciseLocation === true
               && item.coordinates?.precision === 'precise'
               && (item.displayExpiresAtMs == null || item.displayExpiresAtMs > Date.now());
             return (
-              <div key={item.user.id} data-testid={`message-mutual-discovery-${item.user.id}`}>
-                <ProfileCard
-                  density="compact"
-                  placement="inline"
-                  showCloseButton={false}
-                  user={{
-                    ...item.user,
-                    distance: item.distance,
-                    lastActive: item.lastActive,
-                    vibes: item.user.vibes ?? item.vibes,
-                    relationship: { mutualCruush: true, canMessage: item.canMessage },
-                  }}
-                  onClose={onClose}
-                  onViewProfile={() => onOpenProfile(item.user.id)}
-                  actions={<ProfileActionTrio
+              <CruushesProfileCard
+                key={item.user.id}
+                testId={`message-mutual-discovery-${item.user.id}`}
+                user={{ ...item.user, vibes: item.user.vibes ?? item.vibes }}
+                onOpenProfile={() => onOpenProfile(item.user.id)}
+                metadata={(
+                  <button type="button" className="flex min-w-0 flex-col gap-0.5 text-left text-xs leading-snug text-white/62" onClick={() => onOpenProfile(item.user.id)}>
+                    <span className="truncate">{item.lastActive}</span>
+                  </button>
+                )}
+                actions={<ProfileActionTrio
                     className={messageCardActionClassName}
                     size="sm"
                     userName={item.user.name}
@@ -1748,8 +1745,9 @@ function DirectUserOverlay({
                     canCenterPin={canCenterPin}
                     onCenterPin={() => onOpenMap(item.user.id, true)}
                   />}
-                />
-              </div>
+                mutual
+                sharesCrowd={(item.mutualCrowds?.length ?? 0) > 0}
+              />
             );
           })}
         </div>
