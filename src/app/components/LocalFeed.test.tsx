@@ -261,7 +261,7 @@ describe('LocalFeed', () => {
       'top-0',
       'z-40',
       'shrink-0',
-      'pt-[calc(0.75rem+env(safe-area-inset-top))]',
+      'py-4',
     );
     expect(screen.getByTestId('local-feed-content')).toHaveClass(
       'min-h-0',

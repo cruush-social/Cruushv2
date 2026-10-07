@@ -6,7 +6,7 @@ import { useCallback, useEffect, useId, useRef, useState, type ChangeEvent, type
 import { PHOTO_UPLOAD_ACCEPT, PHOTO_UPLOAD_EXTENSION_TYPES } from '../lib/photoUploadFormats';
 import { useLocation, useNavigate } from 'react-router';
 import { formatDistanceLabel, useDistancePreferences } from '../lib/distancePreferences';
-import { ArrowLeft, Clock, SlidersHorizontal, Trash2, X } from 'lucide-react';
+import { Clock, SlidersHorizontal, Trash2, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { Accordion, AccordionItem, AccordionTrigger } from './ui/accordion';
 import CruushPlusCardDialog from './CruushPlusCardDialog';
@@ -32,7 +32,7 @@ import {
   DialogTrigger,
 } from './ui/dialog';
 import { Textarea } from './ui/textarea';
-import BugButtonSlot from './BugButtonSlot';
+import AppPageHeader from './AppPageHeader';
 import TagInput from './TagInput';
 import { useDlMode, shouldMaskPhoto, getDlModeShowOnlyException, getNsfwPhotoRestriction } from '../lib/dlMode';
 import { buildCruushPlusStorePath } from '../lib/cruushPlusConversion';
@@ -733,18 +733,11 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
         : 'fixed inset-x-0 top-0 bottom-[var(--cruush-nav-clearance,6rem)] flex w-full max-w-full flex-col overflow-x-clip overflow-y-hidden bg-[#050505] pt-[env(safe-area-inset-top)] text-foreground'}
       data-testid="local-feed-screen"
     >
-      <header
-        className="sticky top-0 z-40 flex shrink-0 items-center gap-2 border-b border-white/10 bg-black/88 pb-3 pl-4 pr-4 pt-[calc(0.75rem+env(safe-area-inset-top))] shadow-[0_20px_55px_rgba(0,0,0,0.34)] backdrop-blur-xl"
-        data-testid="local-feed-header"
-      >
-        <Button
-          type="button"
-          size="icon"
-          variant="secondary"
-          className="rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10"
-          aria-label="Back"
-          title="Back"
-          onClick={() => {
+      <AppPageHeader
+        className="z-40"
+        testId="local-feed-header"
+        title={embedded && settingsOpen ? 'Feed settings' : 'Feed'}
+        onBack={() => {
             if (embedded && settingsOpen) {
               setSettingsOpen(false);
               return;
@@ -755,14 +748,10 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
             }
             navigate(-1);
           }}
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-        <div className="min-w-0 flex-1">
-          <h2 className="truncate text-2xl text-white sm:text-3xl">{embedded && settingsOpen ? 'Feed settings' : 'Feed'}</h2>
-        </div>
-        <div className="ml-auto flex shrink-0 items-center gap-1">
-        {!(embedded && settingsOpen) ? <>
+        onClose={embedded ? onClose : undefined}
+        closeLabel="Close Feed"
+        bugButtonTestId="local-feed-bug-button-slot"
+        actions={!(embedded && settingsOpen) ? <>
         <Button
           variant="ghost"
           size="icon"
@@ -894,14 +883,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
           </DialogContent>
         </Dialog>}
         </> : null}
-        <BugButtonSlot testId="local-feed-bug-button-slot" />
-        {embedded && onClose ? (
-          <Button type="button" variant="secondary" size="icon" className="rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10" aria-label="Close Feed" onClick={onClose}>
-            <X className="h-4 w-4" />
-          </Button>
-        ) : null}
-        </div>
-      </header>
+      />
 
       {embedded && settingsOpen ? (
         <div className="scrollbar-hide min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-4" data-testid="embedded-feed-settings">

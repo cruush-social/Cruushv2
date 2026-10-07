@@ -787,24 +787,17 @@ export default function DirectMessages({
 
   return (
     <div data-testid="direct-messages-root" className={embedded ? 'relative min-h-full bg-[#050505] pb-6 text-white' : `relative bg-[#050505] text-white ${emptyInbox ? 'h-[100dvh] overflow-hidden' : 'min-h-screen pb-[calc(7rem+env(safe-area-inset-bottom))]'}`}>
-      <header data-testid="direct-messages-header" className="sticky top-0 z-20 border-b border-white/10 bg-black/88 pb-4 pt-4 shadow-[0_20px_55px_rgba(0,0,0,0.34)] backdrop-blur-xl">
-        <div data-testid="direct-messages-header-content" className="mx-auto max-w-2xl space-y-4 px-4">
-          <div data-testid="direct-messages-header-row" className="flex items-center gap-2">
-            <Button
-              type="button"
-              size="icon"
-              variant="secondary"
-              className="rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10"
-              aria-label="Back"
-              title="Back"
-              onClick={() => embedded && onClose ? onClose() : navigate(-1)}
-            >
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-            <div className="min-w-0 flex-1">
-              <h1 className="text-2xl leading-none text-white sm:text-3xl">Messages</h1>
-            </div>
-            <div className="ml-auto flex shrink-0 items-center gap-1">
+      <AppPageHeader
+        testId="direct-messages-header"
+        contentTestId="direct-messages-header-content"
+        rowTestId="direct-messages-header-row"
+        title="Messages"
+        onBack={() => embedded && onClose ? onClose() : navigate(-1)}
+        onClose={embedded ? onClose : undefined}
+        closeLabel="Close Messages"
+        bugButtonTestId="direct-messages-bug-button-slot"
+        actions={(
+          <>
               <Button
                 type="button"
                 size="icon"
@@ -840,16 +833,9 @@ export default function DirectMessages({
                   <CruushIcon name="settings" className="h-5 w-5" />
                 </Button>
               )}
-              {/* Docked here on every layout; Close stays last. */}
-              <div className="h-11 w-11 shrink-0" data-testid="direct-messages-bug-button-slot" ref={registerBugButtonSlot} />
-              {embedded && onClose ? (
-                <Button type="button" size="icon" variant="secondary" className="h-11 w-11 rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10" aria-label="Close Messages" onClick={onClose}>
-                  <X className="h-4 w-4" />
-                </Button>
-              ) : null}
-
-            </div>
-          </div>
+          </>
+        )}
+      >
 
           <div className="grid grid-cols-3 gap-2">
             <div className="min-w-0 rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1.5 text-center">
@@ -896,8 +882,7 @@ export default function DirectMessages({
               </TabsTrigger>
             </TabsList>
           </Tabs>
-        </div>
-      </header>
+      </AppPageHeader>
 
       {composeChooserOpen ? (
         <ComposeChoiceOverlay

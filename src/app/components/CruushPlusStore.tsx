@@ -168,9 +168,11 @@ function formatUsdcAtomic(value: string | null, asset?: string) {
 
 function formatPaymentTimeRemaining(expiresAt: string, nowMs: number) {
   const remainingSeconds = Math.max(0, Math.ceil((Date.parse(expiresAt) - nowMs) / 1000));
-  const minutes = Math.floor(remainingSeconds / 60);
+  const hours = Math.floor(remainingSeconds / 3600);
+  const minutes = Math.floor((remainingSeconds % 3600) / 60);
   const seconds = remainingSeconds % 60;
-  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  const clock = `${minutes.toString().padStart(hours > 0 ? 2 : 1, '0')}:${seconds.toString().padStart(2, '0')}`;
+  return hours > 0 ? `${hours}:${clock}` : clock;
 }
 
 const BITCOIN_APP_LINKS = {
@@ -985,7 +987,7 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
                   ) : null}
                   {statusError ? <p className="text-sm text-destructive sm:text-xs">{statusError}</p> : null}
                   {intent.asset === 'BTC' && ['awaiting_payment', 'confirming', 'paid'].includes(intent.status) ? (
-                    <ol aria-label="Payment progress" className="space-y-1 text-sm text-muted-foreground sm:text-xs">
+                    <ol aria-label="Payment progress" className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm leading-5 text-muted-foreground sm:text-xs">
                       <li>{intent.status === 'awaiting_payment' ? 'Awaiting payment' : 'Payment detected'}</li>
                       <li>{(intent.confirmations ?? 0) > 0 ? 'On the Bitcoin blockchain' : intent.status === 'confirming' ? 'Waiting for the first block' : 'Waiting for Bitcoin'}</li>
                       <li>{Math.min(intent.confirmations ?? 0, 6)}/6 confirmations</li>
@@ -993,36 +995,18 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
                     </ol>
                   ) : null}
                   {!paymentWindowClosed && intent.expiresAt && isOpenCryptoPayment(intent.status) ? (
-                    <div className="rounded-lg border border-border bg-muted/40 p-3">
-                      <p className="text-sm font-semibold uppercase tracking-wide text-foreground sm:text-xs">Protected order</p>
-                      <p className="mt-1 text-sm font-semibold">
-                        Order timer: {formatPaymentTimeRemaining(intent.expiresAt, clockMs)}
-                      </p>
-                      <p className="mt-1 text-sm leading-5 text-muted-foreground sm:text-xs">
-                        This address is unique to your order. Send the exact amount in {intent.asset} on{' '}
-                        {CRYPTO_NETWORK_LABELS[intent.network]} and allow time for it to arrive on-chain before the timer reaches 0. Network confirmation can finish afterward.
-                      </p>
-                    </div>
+                    <p className="text-sm font-semibold">
+                      Order timer: {formatPaymentTimeRemaining(intent.expiresAt, clockMs)}
+                    </p>
                   ) : null}
                   {intent.paymentAddress && intent.quotedAmountAtomic && isOpenCryptoPayment(intent.status) && !paymentWindowClosed ? (
                     <div className="space-y-3">
                       <div>
-                        {intent.fundingEstimates?.length ? (
-                          <div className="mb-3 space-y-1 text-sm text-muted-foreground sm:text-xs">
-                            {intent.fundingEstimates.map(estimate => (
-                              <p key={estimate.app}>
-                                {estimate.meetsSendingMinimum === false ? (
-                                  <>{estimate.app}: this order is below its {formatUsdcAtomic(estimate.minimumSendAtomic!, intent.asset)} {intent.asset} sending minimum. Choose another method before buying.</>
-                                ) : intent.rail === 'usdc_arbitrum' ? (
-                                  <>Cash App: have about {formatPrice(estimate.availableUsdCents)} available, including a {formatPrice(estimate.allowanceUsdCents)} sending-fee allowance. Cash App converts your dollar payment to USDC.</>
-                                ) : (
-                                  <>{estimate.app}: have about {formatUsdcAtomic(estimate.availableAtomic, intent.asset)} {intent.asset} available ({formatPrice(estimate.availableUsdCents)}), including a {formatPrice(estimate.allowanceUsdCents)} sending-fee allowance. Buy only what you still need.</>
-                                )}
-                              </p>
-                            ))}
-                            <p>Send only the exact amount below. Your app charges its sending fee separately; unused crypto stays in your balance. Fees can change, so check the app’s final total.</p>
-                          </div>
-                        ) : null}
+                        {intent.fundingEstimates?.filter((estimate) => estimate.meetsSendingMinimum === false).map((estimate) => (
+                          <p key={estimate.app} className="mb-3 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+                            {estimate.app}: this order is below its {formatUsdcAtomic(estimate.minimumSendAtomic!, intent.asset)} {intent.asset} sending minimum. Choose another method before buying.
+                          </p>
+                        ))}
                         {(intent.gasFeeUsdCents ?? 0) > 0 ? (
                           <p className="flex items-center gap-1 text-sm text-muted-foreground sm:text-xs">
                             cruush processing fee: {formatPrice(intent.gasFeeUsdCents!, 'USD')} (included)
@@ -1072,16 +1056,49 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
                       <p className="text-sm leading-5 text-muted-foreground sm:text-xs">
                         Send only {intent.asset} on {CRYPTO_NETWORK_LABELS[intent.network]} to this address. Another asset or network may be lost.
                       </p>
-                      <div>
-                        <p className="mb-2 text-sm font-semibold">How to send it</p>
-                        <CryptoPaymentMethodInstructions rail={selectedRail} sendingApp={selectedPaymentSource.sendingApp} />
-                      </div>
-                    </div>
-                  ) : null}
-                  {!locallyExpired ? (
-                    <p className="text-sm leading-5 text-muted-foreground sm:text-xs">
+                      <Accordion className="space-y-2" collapsible type="single">
+                        <AccordionItem value="order-payment-instructions">
+                          <AccordionTrigger className="w-full px-4 py-2 text-sm font-semibold hover:no-underline">
+                            How to send it
+                          </AccordionTrigger>
+                          <AccordionContent className="pb-1">
+                            {intent.fundingEstimates?.length ? (
+                          <div className="space-y-1 px-4 pb-3 text-sm text-muted-foreground sm:text-xs">
+                            {intent.fundingEstimates.map(estimate => (
+                              <p key={estimate.app}>
+                                {estimate.meetsSendingMinimum === false ? (
+                                  <>{estimate.app}: this order is below its {formatUsdcAtomic(estimate.minimumSendAtomic!, intent.asset)} {intent.asset} sending minimum. Choose another method before buying.</>
+                                ) : intent.rail === 'usdc_arbitrum' ? (
+                                  <>Cash App: have about {formatPrice(estimate.availableUsdCents)} available, including a {formatPrice(estimate.allowanceUsdCents)} sending-fee allowance. Cash App converts your dollar payment to USDC.</>
+                                ) : (
+                                  <>{estimate.app}: have about {formatUsdcAtomic(estimate.availableAtomic, intent.asset)} {intent.asset} available ({formatPrice(estimate.availableUsdCents)}), including a {formatPrice(estimate.allowanceUsdCents)} sending-fee allowance. Buy only what you still need.</>
+                                )}
+                              </p>
+                            ))}
+                            <p>Send only the exact amount below. Your app charges its sending fee separately; unused crypto stays in your balance. Fees can change, so check the app’s final total.</p>
+                          </div>
+                            ) : null}
+                            <CryptoPaymentMethodInstructions rail={selectedRail} sendingApp={selectedPaymentSource.sendingApp} />
+                          </AccordionContent>
+                        </AccordionItem>
+                        <AccordionItem value="order-protection">
+                          <AccordionTrigger className="w-full px-4 py-2 text-sm font-semibold hover:no-underline">
+                            Protected order
+                          </AccordionTrigger>
+                          <AccordionContent className="px-4 pb-3">
+                            <p className="text-sm leading-5 text-muted-foreground sm:text-xs">
+                              This address is unique to your order. Send the exact amount in {intent.asset} on{' '}
+                              {CRYPTO_NETWORK_LABELS[intent.network]} and allow time for it to arrive on-chain before the timer reaches 0. Network confirmation can finish afterward.
+                            </p>
+                            {!locallyExpired ? (
+                    <p className="mt-2 text-sm leading-5 text-muted-foreground sm:text-xs">
                       Checkout updates when your payment is detected and confirmed. {isPulse ? 'Your Pulses are added' : 'Your time is added'} after confirmation. Leaving this page does not cancel your order; return here to check its status.
                     </p>
+                            ) : null}
+                          </AccordionContent>
+                        </AccordionItem>
+                      </Accordion>
+                    </div>
                   ) : null}
                   {paymentOpen && !locallyExpired && intent.status !== 'confirming' ? (
                     cancelAction ? (

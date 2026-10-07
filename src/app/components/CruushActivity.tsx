@@ -2,7 +2,6 @@ import { getNsfwPhotoRestriction } from '../lib/dlMode';
 import { useEffect, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import {
-  ArrowLeft,
   Lock,
   Plus,
   Trash2,
@@ -40,7 +39,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from './ui/dialog';
-import { registerBugButtonSlot } from '../lib/bugButtonSlot';
 import { resolveUserBorderTone } from '../lib/userBorderTone';
 import { buildCruushPlusStorePath, type CruushPlusConversionSurface } from '../lib/cruushPlusConversion';
 import { trackCruushPlusConversion } from '../lib/posthog';
@@ -852,32 +850,16 @@ export default function CruushActivity({
   return (
     <div className={embedded ? 'min-h-full bg-[#050505] pb-6' : 'min-h-screen bg-[#050505] pb-[calc(7rem+env(safe-area-inset-bottom))]'}>
       <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as ActivityTab)}>
-        <header data-testid="cruush-activity-header" className="sticky top-0 z-20 border-b border-white/10 bg-black/88 pb-4 pt-4 shadow-[0_20px_55px_rgba(0,0,0,0.34)] backdrop-blur-xl">
-          <div
-            data-testid="cruush-activity-header-content"
-            className={embedded
-              ? 'mx-auto w-full space-y-4 px-4'
-              : 'mx-auto w-full max-w-2xl space-y-4 px-4'}
-          >
-            <div className="flex min-w-0 items-center gap-2">
-              <div className="flex shrink-0 items-center justify-start">
-                <Button
-                  type="button"
-                  size="icon"
-                  variant="secondary"
-                  className="rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10"
-                  aria-label="Back"
-                  title="Back"
-                  onClick={() => embedded && onClose ? onClose() : navigate(-1)}
-                >
-                  <ArrowLeft className="h-4 w-4" />
-                </Button>
-              </div>
-              <div className="min-w-0 flex-1">
-                <h1 className="truncate text-2xl text-white sm:text-3xl">Cruushes</h1>
-              </div>
-              <div className="ml-auto flex shrink-0 items-center justify-end gap-1">
-                {embedded && onOpenSettings ? (
+        <AppPageHeader
+          testId="cruush-activity-header"
+          contentTestId="cruush-activity-header-content"
+          contentClassName={embedded ? 'max-w-none' : ''}
+          title="Cruushes"
+          onBack={() => embedded && onClose ? onClose() : navigate(-1)}
+          onClose={embedded ? onClose : undefined}
+          closeLabel="Close Cruushes"
+          bugButtonTestId="cruush-activity-bug-button-slot"
+          actions={embedded && onOpenSettings ? (
                   <Button
                     type="button"
                     variant="secondary"
@@ -916,18 +898,8 @@ export default function CruushActivity({
                     <CruushMatchSettings embedded />
                   </DialogContent>
                 </Dialog>}
-                {/* Docked here on every layout; Close stays last. */}
-                <div className="h-11 w-11 shrink-0" data-testid="cruush-activity-bug-button-slot" ref={registerBugButtonSlot} />
-                {embedded && onClose ? (
-                  <Button type="button" variant="secondary" size="icon" className="rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10" aria-label="Close Cruushes" onClick={onClose}>
-                    <X className="h-4 w-4" />
-                  </Button>
-                ) : null}
-
-              </div>
-            </div>
-
-            <div
+        >
+          <div
               className="mx-auto flex w-full max-w-[38rem] flex-col items-center space-y-3 text-center"
               data-testid="cruush-stats-tabs"
             >
@@ -949,9 +921,8 @@ export default function CruushActivity({
                 <ActivityTabButton value="mutual" label="mutual" />
                 <ActivityTabButton value="views" label="views" />
               </TabsList>
-            </div>
           </div>
-        </header>
+        </AppPageHeader>
 
         {composeChooserOpen ? (
           <ComposeChoiceOverlay
