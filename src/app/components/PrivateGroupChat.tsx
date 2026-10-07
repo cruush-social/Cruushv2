@@ -1489,14 +1489,14 @@ export default function PrivateGroupChat({
                       </Button>
                     </div> : null}
 
-                    <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+                    {!conversation.clubId ? <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
                       <select
-                        aria-label={conversation.clubId ? 'Add cruush' : 'Add mutual'}
+                        aria-label="Add mutual"
                         value={addMemberId}
                         onChange={(event) => setAddMemberId(event.target.value)}
                         className={DROPDOWN_TRIGGER_CLASS}
                       >
-                        <option value="">{conversation.clubId ? 'Add a cruush' : 'Add a mutual'}</option>
+                        <option value="">Add a mutual</option>
                         {availableAddOptions.map((item) => (
                           <option key={item.user.id} value={item.user.id}>
                             {item.user.name}
@@ -1511,7 +1511,7 @@ export default function PrivateGroupChat({
                       >
                         Add
                       </Button>
-                    </div>
+                    </div> : null}
 
                     <div className="rounded-2xl border border-[#c8ff31]/35 bg-black/45 p-3">
                       <Button

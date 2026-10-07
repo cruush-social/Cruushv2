@@ -1940,6 +1940,14 @@ html[data-cruush-alpha-bug-corner='top-right'] [data-testid='accessibility-quick
   }
 }
 
+/* The page scroll area already ends above the bottom nav. A page that also
+   reserved nav space and a full screen of height left a blank band under its
+   last item, so inside that area a page keeps only a small end gap. */
+.cruush-app-page-content > .min-h-screen {
+  min-height: 100%;
+  padding-bottom: 1rem;
+}
+
 /* Navigation keeps its own measured space; full-screen content ends above it. */
 html[data-cruush-page-framing] :is([data-slot="dialog-overlay"], [data-slot="sheet-overlay"], [data-slot="alert-dialog-overlay"]):not(.alpha-bug-overlay) {
   bottom: var(--cruush-nav-clearance, 6rem) !important;

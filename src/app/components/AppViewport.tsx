@@ -49,7 +49,7 @@ export default function AppViewport({ children }: { children: ReactNode }) {
   return (
     // A pinch belongs to the map when it starts on the map; elsewhere the page itself never zooms.
     <div data-testid="app-viewport" className="fixed inset-0 overflow-hidden bg-background text-foreground" style={{ touchAction: 'pan-x pan-y' }}>
-      <div ref={content} data-testid="app-page-content" className="scrollbar-hide absolute inset-0 overflow-y-auto overscroll-contain" style={{ bottom: onMap ? 0 : 'var(--cruush-nav-clearance, 6rem)' }}>
+      <div ref={content} data-testid="app-page-content" className={`scrollbar-hide absolute inset-0 overflow-y-auto overscroll-contain${onMap ? '' : ' cruush-app-page-content'}`} style={{ bottom: onMap ? 0 : 'var(--cruush-nav-clearance, 6rem)' }}>
         {children}
       </div>
     </div>

@@ -2822,9 +2822,14 @@ function MapView({
     }
 
     map.setCenter([focusLongitude, focusLatitude]);
-    map.setZoom(preserveInitialZoomOnLoad
-      ? initialZoomRef.current ?? FOCUSED_ZOOM
-      : FOCUSED_ZOOM);
+    // A later location update on the same map only recentres. Reapplying the
+    // zoom the map opened at would undo whatever the member zoomed to since.
+    const refocusingSameMap = preserveInitialZoomOnLoad && directFocusRef.current?.map === map;
+    if (!refocusingSameMap) {
+      map.setZoom(preserveInitialZoomOnLoad
+        ? initialZoomRef.current ?? FOCUSED_ZOOM
+        : FOCUSED_ZOOM);
+    }
     directFocusRef.current = { map, key: focusKey };
   }, [fitToMarkers, focusLatitude, focusLongitude, focusArea, mapInstance, mapLoadStatus, preserveInitialZoomOnLoad, viewportMarkerSignature]);
 

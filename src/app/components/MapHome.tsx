@@ -3105,7 +3105,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
 
         {outsideBrowseArea ? (
           <div
-            className="pointer-events-auto absolute left-1/2 top-[8.75rem] z-20 -translate-x-1/2"
+            className="pointer-events-auto absolute left-1/2 top-[8.75rem] z-[120] -translate-x-1/2"
             data-testid="mile-high-club-browse-limit"
           >
             <MileHighClubBrowseLimit

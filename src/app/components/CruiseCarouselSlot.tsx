@@ -13,6 +13,7 @@ import { formatDistanceWithAway, useDistancePreferences } from '../lib/distanceP
 import { resolveVibeTone, vibeCapsuleStyle } from '../lib/vibeTone';
 import { ACCESSIBILITY_PREFERENCES_CHANGED_EVENT, shouldReduceMotion } from '../lib/accessibilityPreferences';
 import { trackCruushPlusConversion } from '../lib/posthog';
+import { getProfileGradientCss } from '../lib/profileGradient';
 
 export type CruiseCarouselSlotMode = 'profile' | 'locked' | 'empty';
 export type CruiseCarouselSlotVariant = 'panel' | 'page';
@@ -276,7 +277,7 @@ function CarouselTile({ item, featured, itemIndex, spinning, activePhotoIndex, o
             src={photo}
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center text-2xl sm:text-4xl font-bold text-white" style={{ background: 'var(--cruush-gradient)' }}>
+          <div className="flex h-full w-full items-center justify-center text-2xl sm:text-4xl font-bold text-white" style={{ background: getProfileGradientCss(item.user.id) }}>
             {photoUrl && shouldMaskPhoto(dlModeActive, item.user.photoExplicit, { ...item.user.photoRelationship, isMutualCruush: item.user.relationship?.mutualCruush === true, sharesCrowd: item.user.photoRelationship?.sharesCrowd ?? item.user.hasSharedCrowd === true }) ? <DlModePhotoPlaceholder className={featured ? 'w-28' : 'w-14'} restriction={getNsfwPhotoRestriction(item.user.photoExplicit, item.user.photoRelationship)} /> : initial}
           </div>
         )}

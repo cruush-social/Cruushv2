@@ -31,7 +31,7 @@ import { CruushIcon, type CruushIconName, type CruushIconVariant } from './Cruus
 import { ICON_ATTRIBUTIONS, loadBadgeIconAttributions } from '../lib/iconAttributions';
 import DlModeMark from './DlModeMark';
 import PublicPolicyLinks from './PublicPolicyLinks';
-import { changeEmail, changePassword, deleteAccount, getAuthSession, sendVerificationEmail, signOut } from '../lib/authApi';
+import { changePassword, deleteAccount, getAuthSession, sendVerificationEmail, signOut } from '../lib/authApi';
 import { canTestOnboarding } from '../lib/adminOnboarding';
 import SupportRequestForm from './SupportRequestForm';
 import AppPageHeader from './AppPageHeader';
@@ -197,12 +197,6 @@ export default function Settings({ embedded = false, onBack, onClose, onOpenMile
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [passwordNotice, setPasswordNotice] = useState<string | null>(null);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
-  const [isEmailDialogOpen, setIsEmailDialogOpen] = useState(false);
-  const [emailPassword, setEmailPassword] = useState('');
-  const [newEmail, setNewEmail] = useState('');
-  const [emailError, setEmailError] = useState<string | null>(null);
-  const [emailNotice, setEmailNotice] = useState<string | null>(null);
-  const [isChangingEmail, setIsChangingEmail] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [deletePassword, setDeletePassword] = useState('');
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
@@ -277,30 +271,6 @@ export default function Settings({ embedded = false, onBack, onClose, onOpenMile
     setConfirmNewPassword('');
     setPasswordError(null);
     setPasswordNotice(null);
-  };
-
-  const resetEmailDialog = () => {
-    setEmailPassword('');
-    setNewEmail('');
-    setEmailError(null);
-    setEmailNotice(null);
-  };
-
-  const handleChangeEmail = async (event: FormEvent) => {
-    event.preventDefault();
-    setEmailError(null);
-    setEmailNotice(null);
-    setIsChangingEmail(true);
-
-    try {
-      const result = await changeEmail({ currentPassword: emailPassword, newEmail });
-      setEmailPassword('');
-      setEmailNotice(`Confirm the link sent to ${result.pendingEmail}. Your address changes when you open it.`);
-    } catch (error) {
-      setEmailError(error instanceof Error ? error.message : 'Failed to change email.');
-    } finally {
-      setIsChangingEmail(false);
-    }
   };
 
   const resetDeleteDialog = () => {
@@ -397,7 +367,7 @@ export default function Settings({ embedded = false, onBack, onClose, onOpenMile
           action: () => navigate('/rewards'),
         },
         { icon: History, label: 'Order history', action: () => navigate('/settings/orders') },
-        { icon: Mail, label: 'Change email', action: () => setIsEmailDialogOpen(true) },
+        { icon: Mail, label: 'Change email', action: () => navigate('/settings/email') },
         { icon: KeyRound, label: 'Change password', action: () => setIsPasswordDialogOpen(true) },
         {
           icon: ShieldCheck,
@@ -562,11 +532,11 @@ export default function Settings({ embedded = false, onBack, onClose, onOpenMile
               )}
               <div className="flex-1 space-y-1">
                 <p>{isEmailVerified ? 'Email verified' : 'Email verification pending'}</p>
-                <p className="text-sm text-muted-foreground">
-                  {isEmailVerified
-                    ? 'Your account is verified.'
-                    : 'We send verification after onboarding. You can resend the link from here.'}
-                </p>
+                {!isEmailVerified ? (
+                  <p className="text-sm text-muted-foreground">
+                    We send verification after onboarding. You can resend the link from here.
+                  </p>
+                ) : null}
               </div>
             </div>
 
@@ -979,69 +949,6 @@ export default function Settings({ embedded = false, onBack, onClose, onOpenMile
             <DialogFooter>
               <Button disabled={isChangingPassword} type="submit">
                 {isChangingPassword ? 'Saving...' : 'Save password'}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog
-        open={isEmailDialogOpen}
-        onOpenChange={(open) => {
-          setIsEmailDialogOpen(open);
-          if (!open) {
-            resetEmailDialog();
-          }
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Change email</DialogTitle>
-            <DialogDescription>Your address changes only after you confirm the link sent to the new one.</DialogDescription>
-          </DialogHeader>
-
-          <form className="space-y-4" onSubmit={handleChangeEmail}>
-            {emailError ? (
-              <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
-                {emailError}
-              </div>
-            ) : null}
-
-            {emailNotice ? (
-              <div className="rounded-md border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-300">
-                {emailNotice}
-              </div>
-            ) : null}
-
-            <div className="space-y-2">
-              <Label htmlFor="settings-new-email">New email</Label>
-              <Input
-                autoComplete="email"
-                disabled={isChangingEmail}
-                id="settings-new-email"
-                onChange={(event) => setNewEmail(event.target.value)}
-                required
-                type="email"
-                value={newEmail}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="settings-email-password">Current password</Label>
-              <Input
-                autoComplete="current-password"
-                disabled={isChangingEmail}
-                id="settings-email-password"
-                onChange={(event) => setEmailPassword(event.target.value)}
-                required
-                type="password"
-                value={emailPassword}
-              />
-            </div>
-
-            <DialogFooter>
-              <Button disabled={isChangingEmail} type="submit">
-                {isChangingEmail ? 'Sending...' : 'Send confirmation'}
               </Button>
             </DialogFooter>
           </form>

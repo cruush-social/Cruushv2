@@ -643,6 +643,39 @@ Tradeoff:
 - Show last-active context prominently on map surfaces.
 - Do not put profile encryption keys or other backend secrets in frontend code.
 
+## Current style: Feed posts and Cruushes (October 7, 2026)
+
+Julien, October 7, 2026: “new style as in feed post style and cruushes style.” “no fuckihg pink buttons.” “we dont use white buttons anywhere.”
+
+The Feed post card and the Cruushes page are the reference for how a screen looks. Copy their real code when building or restyling a screen. Where an older section of this document or an existing screen disagrees with them, they win.
+
+Reference code:
+- Page and header: `src/app/components/CruushActivity.tsx` (the `cruush-activity-header` block) and the Feed header in `src/app/components/LocalFeed.tsx`.
+- Card: `src/app/components/UserActivityCapsule.tsx`, the shell both Feed posts and Cruushes rows use.
+- Filled action button: the Feed `Post` button in `LocalFeed.tsx` and the cruush+ button in `CruushActivity.tsx`.
+
+What that style is:
+- Page background `#050505`.
+- Header: `border-b border-white/10 bg-black/88` with backdrop blur, one row. The back control is a round bordered icon button (`rounded-full border border-white/10 bg-background/55`). The title sits beside it, left aligned, `text-2xl` white. Header actions are the same round bordered icon buttons.
+- Card: `border border-white/10 bg-card/70`, large radius (`rounded-2xl` or the capsule radius), soft drop shadow `0_12px_32px_rgba(0,0,0,0.24)`.
+- Filled action button: `background: var(--cruush-gradient)` with white text. Quiet or already-done states use `--cruush-gradient-soft-28`. Secondary actions are bordered dark buttons.
+
+Old style, not a reference:
+- A flat pink button (`Button` default variant, `bg-primary`) or a white button.
+- Settings pages built from plain `Card` blocks with the square ghost back arrow, such as the current Two-factor authentication and Notification settings pages.
+- A form opened as a pop-up with an X and a centred title where the rest of the flow is pages.
+
+Do not restyle an old-style screen unless Julien names it. Use this section when he does, and for anything new.
+
+### Shared tab bars (October 7, 2026)
+
+Julien: “Ths tabs of the checkout arent the same bro make ais stop that shit.”
+
+- Pages joined by one tab bar are one surface. They use the same header component (`AppPageHeader`) and the same content frame classes, and render the same tab component as the first item in that frame.
+- The tab bar must have the same position, inset and width on every page it links. Check it by switching tabs at phone width: nothing in the header or tab bar moves.
+- Never hand-build a header or content frame for a page that joins an existing tab bar. Copy the frame of the page it is tabbed with.
+- Current case: cruush+ Checkout (`CruushPlusStore.tsx`) and Rewards (`Rewards.tsx`) through `CruushPlusSectionTabs.tsx`.
+
 ## Component Language (2026-08-21)
 
 These are the decisions taken while shipping the 1.5 fixes. Follow them instead of inventing a new treatment per surface.

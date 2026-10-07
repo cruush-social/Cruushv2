@@ -110,6 +110,10 @@ These are not suggestions you interpret. Run them.
   No ad-hoc pixel values in components. "Same padding as X" means "same token as X."
 - **E4.** Settings icons use the same glyph in the same position on every page.
 - **E5.** No tan or beige frost anywhere. White, or the bottom-nav color.
+- **E6.** The style reference is the Feed post card and the Cruushes page (Julien, 2026-10-07:
+  "new style as in feed post style and cruushes style"). Filled buttons use the cruush
+  gradient, never flat pink or white. Older settings-style pages are not a reference. See
+  "Current style: Feed posts and Cruushes" in `docs/design-master.md`.
 - **E6.** When given a reference implementation (CodePen, gist, repo), port the actual
   code — same filter primitives, same constants, same layer order — into an isolated
   component first, verify it renders identically side by side, then adapt it to app colors

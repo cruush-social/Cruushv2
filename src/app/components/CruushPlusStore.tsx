@@ -32,6 +32,7 @@ import { trackCruushPlusConversion } from '../lib/posthog';
 import { readCruushPlusConversionContext, type CruushPlusConversionBenefit } from '../lib/cruushPlusConversion';
 import CruushPlusBenefitsAccordion from './CruushPlusBenefitsAccordion';
 import CruushPlusSectionTabs from './CruushPlusSectionTabs';
+import CruushPlusTimeLeft from './CruushPlusTimeLeft';
 import {
   CRYPTO_NETWORK_LABELS,
   CRYPTO_PAYMENT_SOURCES,
@@ -198,6 +199,7 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
   const [copied, setCopied] = useState(false);
   const [amountCopied, setAmountCopied] = useState(false);
   const [retryAt, setRetryAt] = useState(0);
+  const [startPaymentError, setStartPaymentError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState(false);
   const [cancelling, setCancelling] = useState(false);
@@ -600,6 +602,7 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
     });
     setStarting(true);
     setError(null);
+    setStartPaymentError(null);
     setStatusError(null);
     setCheckoutNotice(null);
     setCopied(false);
@@ -652,7 +655,9 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
         setRetryAt(Date.now() + (typeof seconds === 'number' && Number.isFinite(seconds) ? Math.max(1, seconds) : 60) * 1000);
         setClockMs(Date.now());
       }
-      setError(startError instanceof Error ? startError.message : 'Unable to start this payment.');
+      // Shown under the payment buttons the member just tapped. At the top of
+      // the page it was off screen, so a refused order looked like nothing happened.
+      setStartPaymentError(startError instanceof Error ? startError.message : 'Unable to start this payment.');
     } finally {
       startingRef.current = false;
       setStarting(false);
@@ -808,6 +813,7 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
       />
 
       <main className="mx-auto flex max-w-3xl flex-col gap-3 px-3 py-2 sm:px-4">
+        {!isPulse ? <CruushPlusTimeLeft /> : null}
         {!isPulse ? <CruushPlusSectionTabs active="checkout" /> : null}
         {!isPulse ? <CruushPlusBenefitsAccordion features={contextualPlusFeatures} /> : null}
 
@@ -917,6 +923,11 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
                   );
                 })}
               </div>
+              {startPaymentError ? (
+                <div role="alert" className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
+                  {startPaymentError}
+                </div>
+              ) : null}
               {retryAt > clockMs ? <p role="status" className="text-sm text-muted-foreground sm:text-xs">Try again in {Math.ceil((retryAt - clockMs) / 1000)}s</p> : null}
               {selectedPaymentSource.availabilityNote ? (
                 <p className="px-0 py-1 text-sm leading-5 text-muted-foreground sm:text-xs sm:leading-4">

@@ -466,7 +466,9 @@ export default function ProfileView() {
 
   const isAlreadyMutual = cruushBecameMutual || profileView?.relationship?.mutual_cruush === true;
   const hasSentCruush = !isAlreadyMutual && (cruushed || profileView?.relationship?.outgoing_cruush === true);
-  const canMessage = profileView?.relationship?.can_message !== false;
+  // A mutual can always message, the rule the server applies too, so a
+  // relationship payload fetched before the match never blocks it.
+  const canMessage = isAlreadyMutual || profileView?.relationship?.can_message !== false;
   const hasRevocableCruush = isAlreadyMutual || hasSentCruush;
   const canCenterPin = profileView?.relationship?.can_reveal_precise_location === true;
   const targetInDarkRoom = profileView?.relationship?.location_mode === 'STEALTH';
@@ -547,7 +549,7 @@ export default function ProfileView() {
       return;
     }
 
-    if (profileView?.relationship && !profileView.relationship.can_message) {
+    if (!isAlreadyMutual && profileView?.relationship && !profileView.relationship.can_message) {
       notifyMutualCruushRequired();
       return;
     }

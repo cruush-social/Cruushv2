@@ -89,7 +89,7 @@ export default function ProfileCard({
   const isAlreadyMutual = !mutualRevoked && (cruushBecameMutual || user.relationship?.mutualCruush === true);
   const hasSentCruush = !isAlreadyMutual && !outgoingRevoked && (cruushed || user.relationship?.outgoingCruush === true);
   const hasRevocableCruush = isAlreadyMutual || hasSentCruush;
-  const canMessage = !mutualRevoked && user.relationship?.canMessage !== false;
+  const canMessage = !mutualRevoked && (isAlreadyMutual || user.relationship?.canMessage !== false);
   const cruushDisabled = sendingCruush || revokingCruush;
   const maskPhoto = shouldMaskPhoto(dlModeActive, user.photoExplicit, {
     ...(user.photoRelationship ?? user.photo_relationship),

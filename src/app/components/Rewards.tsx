@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router';
 import {
-  ArrowLeft,
   Clipboard,
   Gift,
   Share2,
@@ -14,7 +13,7 @@ import CruushPlusWord from './CruushPlusWord';
 import LoadingCardSkeletons from './LoadingCardSkeletons';
 import { Input } from './ui/input';
 import { Progress } from './ui/progress';
-import BugButtonSlot from './BugButtonSlot';
+import AppPageHeader from './AppPageHeader';
 import {
   getRewardSummary,
   getSideQuests,
@@ -239,20 +238,16 @@ export default function Rewards() {
 
   return (
     <div className="min-h-screen bg-background pb-24">
-      <header className="sticky top-0 z-10 border-b border-border bg-card/90 px-4 py-4 backdrop-blur">
-        <div className="mx-auto flex max-w-2xl items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)} aria-label="Back">
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div>
-            <h1 className="text-xl font-semibold">Rewards & <CruushPlusWord /></h1>
-          </div>
-        
-          <BugButtonSlot testId="rewards-bug-button-slot" />
-        </div>
-      </header>
+      <AppPageHeader
+        title={<>Rewards & <CruushPlusWord /></>}
+        onBack={() => navigate(-1)}
+        bugButtonTestId="rewards-bug-button-slot"
+        titleClassName="font-semibold"
+      />
 
-      <main className="mx-auto max-w-2xl space-y-5 p-4">
+      {/* Same header and frame as the checkout, so the shared tab bar does not
+          move when a member switches between the two. */}
+      <main className="mx-auto flex max-w-3xl flex-col gap-5 px-3 py-2 sm:px-4">
         <CruushPlusSectionTabs active="rewards" />
         <CruushPlusBenefitsAccordion features={CRUUSH_PLUS_FEATURES} />
         <Button

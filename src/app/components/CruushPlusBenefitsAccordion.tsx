@@ -5,29 +5,6 @@ import { Card } from './ui/card';
 import CruushPlusWord from './CruushPlusWord';
 import { CRUUSH_PLUS_FEATURES } from '../lib/cruushPlusFeatures';
 
-const BENEFITS_OPEN_STORAGE_KEY = 'cruush:rewards:benefits-open';
-
-function readBenefitsOpenPreference() {
-  if (typeof window === 'undefined') {
-    return false;
-  }
-
-  try {
-    const storedPreference = window.localStorage.getItem(BENEFITS_OPEN_STORAGE_KEY);
-    return storedPreference === 'true';
-  } catch {
-    return false;
-  }
-}
-
-function saveBenefitsOpenPreference(open: boolean) {
-  try {
-    window.localStorage.setItem(BENEFITS_OPEN_STORAGE_KEY, String(open));
-  } catch {
-    // Some privacy modes block local storage. The accordion still works for this visit.
-  }
-}
-
 type CruushPlusBenefit = { readonly title: string; readonly description: string };
 
 export default function CruushPlusBenefitsAccordion({
@@ -35,12 +12,12 @@ export default function CruushPlusBenefitsAccordion({
 }: {
   features?: readonly CruushPlusBenefit[];
 }) {
-  const [benefitsOpen, setBenefitsOpen] = useState(readBenefitsOpenPreference);
+  // Always starts closed. It used to reopen itself from a saved preference,
+  // which pushed the checkout down the page on every later visit.
+  const [benefitsOpen, setBenefitsOpen] = useState(false);
 
   const handleBenefitsOpenChange = (value: string) => {
-    const open = value === 'benefits';
-    setBenefitsOpen(open);
-    saveBenefitsOpenPreference(open);
+    setBenefitsOpen(value === 'benefits');
   };
 
   return (

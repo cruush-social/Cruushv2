@@ -236,6 +236,20 @@ describe('CruushPlusStore', () => {
     })));
   });
 
+  it('shows a refused order under the payment buttons', async () => {
+    vi.mocked(getCryptoProcessorStatus).mockResolvedValue(processorStatus(['usdc_arbitrum']));
+    vi.mocked(createCryptoPaymentIntent).mockRejectedValue(new Error('Lifetime cruush+ is already active.'));
+
+    renderStore();
+    fireEvent.click(await screen.findByRole('button', { name: 'Cash App' }));
+
+    const refusal = await screen.findByText('Lifetime cruush+ is already active.');
+    const paymentButtons = screen.getByLabelText('Where you are paying from');
+    expect(refusal.closest('[role="alert"]')).not.toBeNull();
+    expect(paymentButtons.compareDocumentPosition(refusal) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(paymentButtons.parentElement).toContainElement(refusal);
+  });
+
   it('states that Lifetime includes unlimited Pulses', async () => {
     vi.mocked(getCryptoProcessorStatus).mockResolvedValue(processorStatus());
     vi.mocked(getBillingPlans).mockResolvedValue({
