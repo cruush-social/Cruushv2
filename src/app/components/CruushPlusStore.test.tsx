@@ -316,7 +316,24 @@ describe('CruushPlusStore', () => {
       expect(screen.queryByText('Save 0%')).not.toBeInTheDocument();
     });
 
-    it('shows real scarcity on a limited plan', async () => {
+    it('labels a 1000-count plan as limited without changing other remaining counts', async () => {
+      vi.mocked(getBillingPlans).mockResolvedValue({
+        processor: 'fake',
+        testCheckout: true,
+        testWarning: 'TEST CHECKOUT - no real payment will be collected.',
+        currency: 'USD',
+        plans: conversionPlans.map((plan) =>
+          plan.id === 'founder_annual' ? { ...plan, supplyRemaining: 1000 } : plan,
+        ),
+      });
+
+      renderStore();
+
+      expect(await screen.findByText(/LIMITED/)).toBeInTheDocument();
+      expect(screen.queryByText(/1000 left/)).not.toBeInTheDocument();
+    });
+
+    it('keeps non-1000 remaining counts unchanged', async () => {
       renderStore();
 
       expect(await screen.findByText(/742 left/)).toBeInTheDocument();

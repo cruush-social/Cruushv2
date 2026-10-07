@@ -695,7 +695,7 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
             {scarce ? (
               <span className="text-primary">
                 {plan.isLifetime || perMonth ? ' · ' : ''}
-                {plan.supplyRemaining} left
+                {plan.supplyRemaining === 1000 ? 'LIMITED' : `${plan.supplyRemaining} left`}
               </span>
             ) : null}
           </span>
