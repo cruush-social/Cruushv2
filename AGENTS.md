@@ -58,6 +58,6 @@ the applicable source. Current explicit user instructions override older decisio
 
 ## Mistakes
 
-- 2026-10-07: Replaced chooser rows with an invented `CruushProfileCard` wrapper instead of the existing shared `ProfileCard`; removed the wrapper, restored Cruushes unchanged, and reused `ProfileCard` directly in all three choosers.
+- 2026-10-07: Misread “Cruushes page” as the full profile-detail `ProfileCard` after an earlier wrapper attempt; restored that component and extracted the exact compact Cruushes-page heart row into one `CruushesProfileCard` used by unlocked Cruushes rows and all three choosers.
 - 2026-10-07: Misidentified a stale fake billing scaffold as the current cruush+ processor; switched to current `origin/main` and reused the real in-house Bitcoin Store and processor.
 - 2026-10-07: Logged a local development admin password while preparing browser verification; rotated it in a private worktree-local environment file, reseeded the local-only admin, and kept production and the shared environment unchanged.
