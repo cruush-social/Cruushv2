@@ -171,8 +171,10 @@ function formatPaymentTimeRemaining(expiresAt: string, nowMs: number) {
   const hours = Math.floor(remainingSeconds / 3600);
   const minutes = Math.floor((remainingSeconds % 3600) / 60);
   const seconds = remainingSeconds % 60;
-  const clock = `${minutes.toString().padStart(hours > 0 ? 2 : 1, '0')}:${seconds.toString().padStart(2, '0')}`;
-  return hours > 0 ? `${hours}:${clock}` : clock;
+  // Past an hour, "21:20:50" reads like a clock time, so say it in words.
+  return hours > 0
+    ? `${hours}h ${minutes}m left`
+    : `${minutes}:${seconds.toString().padStart(2, '0')}`;
 }
 
 const BITCOIN_APP_LINKS = {
