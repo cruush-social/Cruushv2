@@ -33,6 +33,7 @@ import MapVisibilitySurface, { DEFAULT_VISIBILITY_STATE, type VisibilityControlS
 import { visibilityRulesToState, visibilityStateToRules } from '../lib/visibilityControls';
 import { openConversationOrInbox } from '../lib/openConversation';
 import ProfileActionTrio from './ProfileActionTrio';
+import ProfileCard from './ProfileCard';
 import UserActivityCapsule from './UserActivityCapsule';
 import ClubDirectoryPanel from './ClubDirectoryPanel';
 import TagInput from './TagInput';
@@ -42,7 +43,6 @@ import CruushMatchSettings from './CruushMatchSettings';
 import AppPageHeader from './AppPageHeader';
 import { shouldMaskPhoto, useDlMode } from '../lib/dlMode';
 import { registerBugButtonSlot } from '../lib/bugButtonSlot';
-import { formatDistanceLabel, useDistancePreferences } from '../lib/distancePreferences';
 import { resolveUserBorderTone } from '../lib/userBorderTone';
 import { buildCruushPlusStorePath } from '../lib/cruushPlusConversion';
 import { trackCruushPlusConversion } from '../lib/posthog';
@@ -247,13 +247,6 @@ async function resolveViewerCoordinates(profile: ProfileRecord | null): Promise<
   }
 }
 
-function describeDiscoveryUser(user: DiscoveryUser) {
-  return [user.age ? String(user.age) : '', ...(user.presentation ?? []), ...(user.identities ?? [])]
-    .filter(Boolean)
-    .slice(0, 5)
-    .join(' · ');
-}
-
 function matchesMessageFilterBasics(user: DiscoveryUser, filters: FilterState) {
   const distanceMiles = parseDistanceMiles(user.distance);
   if (distanceMiles !== null && distanceMiles > filters.distance) {
@@ -337,7 +330,6 @@ export default function DirectMessages({
   const [changingCruushUserId, setChangingCruushUserId] = useState<string | null>(null);
   const deferredSearchQuery = useDeferredValue(searchQuery);
   const dlModeActive = useDlMode();
-  const distancePreferences = useDistancePreferences();
 
   useEffect(() => {
     void fetchConversations();
@@ -1055,36 +1047,27 @@ export default function DirectMessages({
                 {groupMutuals.map((item) => {
                   const selected = selectedMemberIds.includes(item.user.id);
                   return (
-                  <UserActivityCapsule
-                    key={item.user.id}
-                    testId={`group-mutual-${item.user.id}`}
-                    heart={(
-                      <HeartPhoto
-                        borderTone={resolveUserBorderTone({ mileHigh: item.user.travelling, mutual: true })}
-                        className="w-20 shrink-0"
-                        label={`${item.user.name} avatar`}
-                        restriction={getNsfwPhotoRestriction(item.user.photoExplicit, { ...item.user.photoRelationship, isMutualCruush: true, sharesCrowd: (item.mutualCrowds?.length ?? 0) > 0 })}
-                        masked={shouldMaskPhoto(dlModeActive, item.user.photoExplicit, { ...item.user.photoRelationship, isMutualCruush: true, sharesCrowd: (item.mutualCrowds?.length ?? 0) > 0 })}
-                        photo={item.user.photo}
-                        userId={item.user.id}
-                        theme="mutual"
-                        fallback={<div className="text-base text-white/80">{getConversationInitials(item.user.name)}</div>}
+                    <div key={item.user.id} data-testid={`group-mutual-${item.user.id}`}>
+                      <ProfileCard
+                        density="compact"
+                        placement="inline"
+                        showCloseButton={false}
+                        user={{
+                          ...item.user,
+                          distance: item.distance,
+                          lastActive: item.lastActive,
+                          vibes: item.user.vibes ?? item.vibes,
+                          relationship: { mutualCruush: true, canMessage: item.canMessage },
+                        }}
+                        onClose={resetGroupComposer}
+                        onViewProfile={() => navigate(`/profile/${item.user.id}`)}
+                        selection={{
+                          selected,
+                          onToggle: () => toggleSelectedMember(item.user.id),
+                          label: `${selected ? 'Remove' : 'Add'} ${item.user.name} ${selected ? 'from' : 'to'} group`,
+                        }}
                       />
-                    )}
-                    name={item.user.name}
-                    pronouns={item.user.pronouns || 'Ask me'}
-                    sideBadges={item.user.sideBadges}
-                    sideBadgeTone={resolveUserBorderTone({ mileHigh: item.user.travelling, mutual: true })}
-                    metadata={(
-                      <span className="flex min-w-0 flex-col gap-0.5 text-left text-xs leading-snug text-white/62">
-                        <span className="truncate">{item.lastActive}</span>
-                      </span>
-                    )}
-                    mutual
-                    onSelect={() => toggleSelectedMember(item.user.id)}
-                    selected={selected}
-                    selectLabel={`${selected ? 'Remove' : 'Add'} ${item.user.name} ${selected ? 'from' : 'to'} group`}
-                  />
+                    </div>
                 )})}
               </div>
             </div>
@@ -1183,37 +1166,27 @@ export default function DirectMessages({
                 {clubMutuals.map((item) => {
                   const selected = selectedClubMemberIds.includes(item.user.id);
                   return (
-                    <UserActivityCapsule
-                      key={item.user.id}
-                      testId={`club-mutual-${item.user.id}`}
-                      heart={(
-                        <HeartPhoto
-                          borderTone={resolveUserBorderTone({ mileHigh: item.user.travelling, mutual: true })}
-                          className="w-20 shrink-0"
-                          label={`${item.user.name} avatar`}
-                          restriction={getNsfwPhotoRestriction(item.user.photoExplicit, { ...item.user.photoRelationship, isMutualCruush: true, sharesCrowd: (item.mutualCrowds?.length ?? 0) > 0 })}
-                          masked={shouldMaskPhoto(dlModeActive, item.user.photoExplicit, { ...item.user.photoRelationship, isMutualCruush: true, sharesCrowd: (item.mutualCrowds?.length ?? 0) > 0 })}
-                          photo={item.user.photo}
-                          userId={item.user.id}
-                          theme="mutual"
-                          fallback={<div className="text-base text-white/80">{getConversationInitials(item.user.name)}</div>}
-                        />
-                      )}
-                      name={item.user.name}
-                      pronouns={item.user.pronouns || 'Ask me'}
-                      sideBadges={item.user.sideBadges}
-                      sideBadgeTone={resolveUserBorderTone({ mileHigh: item.user.travelling, mutual: true })}
-                      metadata={(
-                        <span className="flex min-w-0 flex-col gap-0.5 text-left text-xs leading-snug text-white/62">
-                          <span className="truncate">{item.lastActive}</span>
-                          <span className="truncate">{formatDistanceLabel(item.distance, distancePreferences.mode) ?? item.distance}</span>
-                        </span>
-                      )}
-                      mutual
-                      onSelect={() => toggleSelectedClubMember(item.user.id)}
-                      selected={selected}
-                      selectLabel={`${selected ? 'Remove' : 'Add'} ${item.user.name} ${selected ? 'from' : 'to'} Club`}
-                    />
+                    <div key={item.user.id} data-testid={`club-mutual-${item.user.id}`}>
+                      <ProfileCard
+                        density="compact"
+                        placement="inline"
+                        showCloseButton={false}
+                        user={{
+                          ...item.user,
+                          distance: item.distance,
+                          lastActive: item.lastActive,
+                          vibes: item.user.vibes ?? item.vibes,
+                          relationship: { mutualCruush: true, canMessage: item.canMessage },
+                        }}
+                        onClose={resetClubComposer}
+                        onViewProfile={() => navigate(`/profile/${item.user.id}`)}
+                        selection={{
+                          selected,
+                          onToggle: () => toggleSelectedClubMember(item.user.id),
+                          label: `${selected ? 'Remove' : 'Add'} ${item.user.name} ${selected ? 'from' : 'to'} Club`,
+                        }}
+                      />
+                    </div>
                   );
                 })}
               </div>
@@ -1562,7 +1535,6 @@ function DirectUserOverlay({
   onOpenMap: (userId: string, mutual: boolean) => void;
   onOpenProfile: (userId: string) => void;
 }) {
-  const dlModeActive = useDlMode();
   // The compose page lists everyone you may message. Mutuals has its own
   // surface, so there is nothing here to switch between.
   const activeComposerTab = 'public' as const;
@@ -1723,104 +1695,61 @@ function DirectUserOverlay({
             const requested = requestedCruushIds.includes(user.id);
             const canMessageNow = user.relationship?.canMessage === true;
             return (
-              <UserActivityCapsule
-                key={user.id}
-                className="border-border bg-card/70 hover:bg-accent/60"
-                testId={`message-discovery-${user.id}`}
-                heart={(
-                  <HeartPhoto
-                    borderTone={resolveUserBorderTone({
-                      activePing: Boolean(user.activePing),
-                      current: user.isCurrentUser,
-                      mileHigh: user.travelling,
-                      mutual: user.relationship?.mutualCruush,
-                    })}
-                    className="w-20"
-                    label={`${user.name} avatar`}
-                    restriction={getNsfwPhotoRestriction(user.photoExplicit, { ...user.photoRelationship, isMutualCruush: user.relationship?.mutualCruush, sharesCrowd: user.photoRelationship?.sharesCrowd ?? (user.hasSharedCrowd === true || user.relationshipContext === 'MUTUAL_CROWD') })}
-                    masked={shouldMaskPhoto(dlModeActive, user.photoExplicit, { ...user.photoRelationship, isMutualCruush: user.relationship?.mutualCruush, sharesCrowd: user.photoRelationship?.sharesCrowd ?? (user.hasSharedCrowd === true || user.relationshipContext === 'MUTUAL_CROWD') })}
-                    photo={user.photo}
-                    userId={user.id}
-                    onClick={() => onOpenProfile(user.id)}
-                    fallback={<div className="text-base text-white/80">{getConversationInitials(user.name)}</div>}
-                  />
-                )}
-                name={user.name}
-                pronouns={user.pronouns || 'Ask me'}
-                sideBadges={user.sideBadges}
-                sideBadgeTone={resolveUserBorderTone({
-                  activePing: Boolean(user.activePing),
-                  current: user.isCurrentUser,
-                  mileHigh: user.travelling,
-                  mutual: user.relationship?.mutualCruush,
-                })}
-                onOpenIdentity={() => onOpenProfile(user.id)}
-                metadata={(
-                  <button type="button" className="flex min-w-0 flex-col gap-0.5 text-left text-xs leading-snug text-white/62" onClick={() => onOpenProfile(user.id)}>
-                    {describeDiscoveryUser(user) ? <span className="truncate">{describeDiscoveryUser(user)}</span> : null}
-                  </button>
-                )}
-                actions={<ProfileActionTrio
-                  className={messageCardActionClassName}
-                  size="sm"
-                  userName={user.name}
-                  cruushState={requestingUserId === user.id ? 'sending' : requested ? 'sent' : 'available'}
-                  onCruush={() => { void togglePublicCruush(user); }}
-                  canMessage={canMessageNow}
-                  onMessage={() => onMessage(user.id)}
-                  canCenterPin={false}
-                  onCenterPin={() => onOpenMap(user.id, false)}
-                />}
-                mutual={user.relationship?.mutualCruush === true}
-              />
+              <div key={user.id} data-testid={`message-discovery-${user.id}`}>
+                <ProfileCard
+                  density="compact"
+                  placement="inline"
+                  showCloseButton={false}
+                  user={user}
+                  onClose={onClose}
+                  onViewProfile={() => onOpenProfile(user.id)}
+                  actions={<ProfileActionTrio
+                    className={messageCardActionClassName}
+                    size="sm"
+                    userName={user.name}
+                    cruushState={requestingUserId === user.id ? 'sending' : requested ? 'sent' : 'available'}
+                    onCruush={() => { void togglePublicCruush(user); }}
+                    canMessage={canMessageNow}
+                    onMessage={() => onMessage(user.id)}
+                    canCenterPin={false}
+                    onCenterPin={() => onOpenMap(user.id, false)}
+                  />}
+                />
+              </div>
             );
           }) : mutuals.map((item) => {
             const canCenterPin = item.canRevealPreciseLocation === true
               && item.coordinates?.precision === 'precise'
               && (item.displayExpiresAtMs == null || item.displayExpiresAtMs > Date.now());
             return (
-              <UserActivityCapsule
-                key={item.user.id}
-                className="border-[#8B5CF6]/35 bg-card/70 hover:bg-accent/60"
-                testId={`message-mutual-discovery-${item.user.id}`}
-                heart={(
-                  <HeartPhoto
-                    borderTone={resolveUserBorderTone({ mileHigh: item.user.travelling, mutual: true })}
-                    className="w-20"
-                    label={`${item.user.name} avatar`}
-                    restriction={getNsfwPhotoRestriction(item.user.photoExplicit, { ...item.user.photoRelationship, isMutualCruush: true, sharesCrowd: (item.mutualCrowds?.length ?? 0) > 0 })}
-                    masked={shouldMaskPhoto(dlModeActive, item.user.photoExplicit, { ...item.user.photoRelationship, isMutualCruush: true, sharesCrowd: (item.mutualCrowds?.length ?? 0) > 0 })}
-                    photo={item.user.photo}
-                    theme="mutual"
-                    userId={item.user.id}
-                    onClick={() => onOpenProfile(item.user.id)}
-                    fallback={<div className="text-base text-white/80">{getConversationInitials(item.user.name)}</div>}
-                  />
-                )}
-                name={item.user.name}
-                pronouns={item.user.pronouns || 'Ask me'}
-                sideBadges={item.user.sideBadges}
-                sideBadgeTone={resolveUserBorderTone({ mileHigh: item.user.travelling, mutual: true })}
-                onOpenIdentity={() => onOpenProfile(item.user.id)}
-                metadata={(
-                  <button type="button" className="flex min-w-0 flex-col gap-0.5 text-left text-xs leading-snug text-white/62" onClick={() => onOpenProfile(item.user.id)}>
-                    <span className="truncate">{item.lastActive}</span>
-                  </button>
-                )}
-                actions={<ProfileActionTrio
-                  className={messageCardActionClassName}
-                  size="sm"
-                  userName={item.user.name}
-                  cruushState={requestingUserId === item.user.id ? 'sending' : 'mutual'}
-                  cruushTone="dark"
-                  onCruush={() => void removeMutual(item)}
-                  canMessage={item.canMessage !== false}
-                  onMessage={() => onMessage(item.user.id)}
-                  canCenterPin={canCenterPin}
-                  onCenterPin={() => onOpenMap(item.user.id, true)}
-                />}
-                mutual
-              />
+              <div key={item.user.id} data-testid={`message-mutual-discovery-${item.user.id}`}>
+                <ProfileCard
+                  density="compact"
+                  placement="inline"
+                  showCloseButton={false}
+                  user={{
+                    ...item.user,
+                    distance: item.distance,
+                    lastActive: item.lastActive,
+                    vibes: item.user.vibes ?? item.vibes,
+                    relationship: { mutualCruush: true, canMessage: item.canMessage },
+                  }}
+                  onClose={onClose}
+                  onViewProfile={() => onOpenProfile(item.user.id)}
+                  actions={<ProfileActionTrio
+                    className={messageCardActionClassName}
+                    size="sm"
+                    userName={item.user.name}
+                    cruushState={requestingUserId === item.user.id ? 'sending' : 'mutual'}
+                    cruushTone="dark"
+                    onCruush={() => void removeMutual(item)}
+                    canMessage={item.canMessage !== false}
+                    onMessage={() => onMessage(item.user.id)}
+                    canCenterPin={canCenterPin}
+                    onCenterPin={() => onOpenMap(item.user.id, true)}
+                  />}
+                />
+              </div>
             );
           })}
         </div>

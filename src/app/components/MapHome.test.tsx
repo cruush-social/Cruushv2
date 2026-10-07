@@ -2028,7 +2028,7 @@ describe('MapHome', () => {
     expect(screen.getByText('notifications | hour 23')).toBeInTheDocument();
   });
 
-  it('hides recently active while launch event details are open', async () => {
+  it('keeps recently active visible while launch event details are open', async () => {
     useIsMobile.mockReturnValue(false);
     getActiveEvents.mockResolvedValue([launchEvent]);
 
@@ -2046,7 +2046,7 @@ describe('MapHome', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Pin The Chocolate Factory' }));
 
     expect(await screen.findByText('The Chocolate Factory')).toBeInTheDocument();
-    expect(screen.queryByTestId('recently-active-panel')).not.toBeInTheDocument();
+    expect(screen.getByTestId('recently-active-panel')).toBeInTheDocument();
   });
 
   it('does not show raw server errors from launch event actions', async () => {
@@ -2641,7 +2641,7 @@ describe('MapHome', () => {
     expect(screen.getByTestId('desktop-dock-left-resize-top')).toBeInTheDocument();
     expect(screen.getByRole('complementary').querySelector('.profile-card-scroll')).toBeInTheDocument();
     expect(screen.getByRole('complementary').querySelector('.scrollbar-hide')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('recently-active-panel')).not.toBeInTheDocument();
+    expect(screen.getByTestId('recently-active-panel')).toBeInTheDocument();
     expect(await screen.findByRole('tab', { name: 'Basics' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('tab', { name: 'Intimacy' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Health' })).toBeInTheDocument();
