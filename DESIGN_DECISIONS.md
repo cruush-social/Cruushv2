@@ -4,6 +4,10 @@ The notched cruush logo is rejected for every app use, including installed home-
 
 # cruush design decisions
 
+- October 7 checkout presentation correction: “I thought we came up with a good looking checkout? This is a regression.” Checkout plan and payment-method controls retain the previously approved rounded bordered card treatment, and an active payment remains in its contained rounded bordered panel. Preserve current payment behavior, data, navigation, header, and two-column payment-method arrangement.
+
+- October 7 New Club navigation correction: “I told hi that behavior is a BUG TO FIX.” Selecting `Create Club` from the existing large Messages `+` menu opens the existing New Club composer. It does not redirect to checkout. The existing server-side cruush+ requirement for completing Club creation remains unchanged.
+
 - October 7 shared tab bars: “Ths tabs of the checkout arent the same bro make ais stop that shit.” The cruush+ Checkout and Rewards pages share one tab bar (`CruushPlusSectionTabs`), and it sat at a different height, inset and width on each page because the two pages had different headers and content frames. Pages that share a tab bar use the same header component (`AppPageHeader`) and the same content frame, so the tab bar is in the same place and the same size on every one of them. Do not hand-build a header or frame for a page that joins an existing tab bar; copy the frame of the page it is tabbed with. Members with a dated cruush+ term see a countdown of their remaining time at the top of the cruush+ checkout (“Put a count down up top checkout for cruush+ users”).
 
 - October 7 Club menu button style: “you make these menus iwth old style pink buttons, make them gradients like the new style and change stuff to make you stop applying the old styel,” clarified with “i meant in the club shit.” Primary and selected buttons in Club menus use the existing `--cruush-gradient`. The old solid or translucent pink button fill is not used for Club menu buttons. Preserve each Club menu's established geometry, copy, icons, controls, behavior, and non-button styling. This does not restyle non-Club surfaces.
@@ -29,7 +33,7 @@ The notched cruush logo is rejected for every app use, including installed home-
 
 - October 2 Club creation entitlement: “mkaing a club should be a premium feature it think yes?” / “let's do that.” Creating a Club requires current cruush+ access. Browsing, joining, sharing, and participating in an existing Club do not require cruush+ unless another existing account or safety restriction applies.
 
-- October 2 Club creation entry point: “remove that button completely, lets jus tmake it an option under the big + button.” Browse Clubs has no standalone Create Club or upgrade button. `Create Club` lives in the existing large Messages `+` menu beside the direct-chat and Group options, and selecting it applies the existing cruush+ gate before opening the Club composer.
+- October 2 Club creation entry point: “remove that button completely, lets jus tmake it an option under the big + button.” Browse Clubs has no standalone Create Club or upgrade button. `Create Club` lives in the existing large Messages `+` menu beside the direct-chat and Group options. The October 7 navigation correction supersedes the former redirect at this entry point.
 
 - October 2 Club visibility direction: “you can choose to make your club have its own visibility controls too.” Club creation and owner/admin settings will include Club-specific visibility controls. Exact modes and discovery/join semantics remain pending Julien's answer; the current public-at-two-members behavior remains unchanged until then.
 

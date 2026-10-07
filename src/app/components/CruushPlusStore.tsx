@@ -746,8 +746,8 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
           setCopied(false);
           paymentAttemptRef.current = null;
         }}
-        className={`flex w-full items-center justify-between gap-3 border-x-0 border-y text-left transition ${
-          featured ? 'border-primary px-1 py-3 shadow-lg' : 'border-border px-1 py-2.5'
+        className={`flex w-full items-center justify-between gap-3 rounded-xl border text-left transition ${
+          featured ? 'border-primary px-3 py-3 shadow-lg' : 'border-border px-3 py-2.5'
         } ${selected ? 'bg-primary/10' : 'bg-card'} ${soldOut || checkoutSelectionLocked ? 'opacity-50' : ''}`}
       >
         <span className="flex min-w-0 flex-col">
@@ -839,7 +839,7 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
               </ul>
               {otherPlans.length > 0 ? (
                 <Accordion className="mt-2" collapsible type="single">
-                  <AccordionItem className="rounded-none border-x-0 border-b-0 border-t" value="compare-plans">
+                  <AccordionItem className="border-0" value="compare-plans">
                     <AccordionTrigger className="px-3 py-2 text-sm hover:no-underline">
                       Compare plans
                     </AccordionTrigger>
@@ -891,7 +891,7 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
             <CardContent className="space-y-2 p-3">
               <p className="text-sm font-semibold">What are you paying from?</p>
               {checkoutNotice ? (
-                <p role="status" className="px-0 py-1 text-sm leading-5 text-muted-foreground sm:text-xs sm:leading-4">
+                <p role="status" className="rounded-lg border border-border bg-muted/40 p-2 text-sm leading-5 text-muted-foreground sm:text-xs sm:leading-4">
                   {checkoutNotice}
                 </p>
               ) : null}
@@ -912,7 +912,7 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
                       aria-label={source.label}
                       aria-pressed={sourceSelected}
                       disabled={!sourceReady || checkoutSelectionLocked || checkingMinimum || belowMinimum || retryAt > clockMs}
-                      className={`${pickerSources.length % 2 === 1 && index === pickerSources.length - 1 ? 'col-span-2' : ''} border-x-0 border-y px-2 py-2 text-center disabled:opacity-50 ${sourceSelected ? 'border-primary bg-primary/10' : 'border-border'}`}
+                      className={`${pickerSources.length % 2 === 1 && index === pickerSources.length - 1 ? 'col-span-2' : ''} rounded-xl border px-2 py-2 text-center disabled:opacity-50 ${sourceSelected ? 'border-primary bg-primary/10' : 'border-border'}`}
                       onClick={() => void handleStartPayment(source)}
                     >
                       <span className="block text-sm font-medium">{source.label}</span>
@@ -930,13 +930,13 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
               ) : null}
               {retryAt > clockMs ? <p role="status" className="text-sm text-muted-foreground sm:text-xs">Try again in {Math.ceil((retryAt - clockMs) / 1000)}s</p> : null}
               {selectedPaymentSource.availabilityNote ? (
-                <p className="px-0 py-1 text-sm leading-5 text-muted-foreground sm:text-xs sm:leading-4">
+                <p className="rounded-lg border border-border bg-muted/40 p-2 text-sm leading-5 text-muted-foreground sm:text-xs sm:leading-4">
                   {selectedPaymentSource.availabilityNote}
                 </p>
               ) : null}
               {!intent ? (
                 <Accordion collapsible type="single">
-                  <AccordionItem className="rounded-none border-x-0 border-b-0 border-t" value="payment-instructions">
+                  <AccordionItem className="border-0" value="payment-instructions">
                     <AccordionTrigger className="px-3 py-2 text-base hover:no-underline">
                       How to send this payment
                     </AccordionTrigger>
@@ -966,14 +966,14 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
               </Button> : null}
 
               {!visibleProcessorReady ? (
-                <p className="px-0 py-1 text-sm leading-5 text-muted-foreground sm:text-xs sm:leading-4">
+                <p className="rounded-lg border border-border bg-muted/40 p-2 text-sm leading-5 text-muted-foreground sm:text-xs sm:leading-4">
                   Crypto payment is not available yet. You can still earn cruush+ time through
                   check-ins and referrals.
                 </p>
               ) : null}
 
               {intent ? (
-                <div aria-live="polite" className="space-y-3 py-2">
+                <div aria-live="polite" className="space-y-3 rounded-lg border border-border p-4">
                   <p className="text-sm font-medium">
                     {locallyExpired ? statusCopy.expired : statusCopy[intent.status]}
                   </p>

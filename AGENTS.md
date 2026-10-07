@@ -58,6 +58,7 @@ the applicable source. Current explicit user instructions override older decisio
 
 ## Mistakes
 
+- 2026-10-07: Misread “Make a new club page directs to checkout” as a requested redirect instead of a report that the redirect was the bug; removed the redirect so New Club opens the existing composer.
 - 2026-10-07: Misread “Cruushes page” as the full profile-detail `ProfileCard` after an earlier wrapper attempt; restored that component and extracted the exact compact Cruushes-page heart row into one `CruushesProfileCard` used by unlocked Cruushes rows and all three choosers.
 - 2026-10-07: Misidentified a stale fake billing scaffold as the current cruush+ processor; switched to current `origin/main` and reused the real in-house Bitcoin Store and processor.
 - 2026-10-07: Logged a local development admin password while preparing browser verification; rotated it in a private worktree-local environment file, reseeded the local-only admin, and kept production and the shared environment unchanged.

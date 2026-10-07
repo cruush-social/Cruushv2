@@ -46,7 +46,6 @@ import { registerBugButtonSlot } from '../lib/bugButtonSlot';
 import { formatDistanceLabel, useDistancePreferences } from '../lib/distancePreferences';
 import { resolveUserBorderTone } from '../lib/userBorderTone';
 import { buildCruushPlusStorePath } from '../lib/cruushPlusConversion';
-import { trackCruushPlusConversion } from '../lib/posthog';
 import {
   handleCruushSendSuccess,
   handleMutualCruushRevokeSuccess,
@@ -524,26 +523,6 @@ export default function DirectMessages({
   };
 
   const openClubComposer = async () => {
-    // The cruush+ flag is only loaded on the Clubs tab, and the + menu offers
-    // Create Club from every tab. Ask before sending a paying member to checkout.
-    let hasCruushPlus = clubHasCruushPlus;
-    if (!hasCruushPlus) {
-      try {
-        hasCruushPlus = (await getMyBillingStatus()).cruushPlus === true;
-        setClubHasCruushPlus(hasCruushPlus);
-      } catch {
-        hasCruushPlus = false;
-      }
-    }
-
-    if (!hasCruushPlus) {
-      trackCruushPlusConversion('cruush_plus_upgrade_clicked', {
-        surface: 'club_creation',
-        benefit: 'club_creation',
-      });
-      navigate(buildCruushPlusStorePath('club_creation', 'club_creation'));
-      return;
-    }
     setClubComposerOpen(true);
     await Promise.all([
       loadMessageableMutuals({
