@@ -502,6 +502,7 @@ Feed requirements:
 
 - Short local posts
 - Expiration countdowns
+- A post set to `Never` remains eligible for the Feed regardless of its creation date. Do not apply a separate seven-day cutoff. Julien: “I never said i wanted a 7 day expiry windows” (2026-10-07).
 - Composer
 - Distance context
 - Moderation states

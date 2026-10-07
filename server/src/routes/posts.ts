@@ -603,13 +603,13 @@ export async function registerPostRoutes(app: FastifyInstance) {
       "p.expires_at > now()",
       "coalesce(author.account_status, 'active') <> 'deleted'",
       notTombstonedSql("pr"),
-      `p.created_at >= now() - case
+      `(p.expires_in = 'never' or p.created_at >= now() - case
         when $2 = '1h' then interval '1 hour'
         when $2 = '3h' then interval '3 hours'
         when $2 = '6h' then interval '6 hours'
         when $2 = '7d' then interval '7 days'
         else interval '24 hours'
-      end`,
+      end)`,
       `(
         $3::double precision is null
         or $4::double precision is null
