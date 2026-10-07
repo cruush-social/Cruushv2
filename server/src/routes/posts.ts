@@ -686,22 +686,41 @@ export async function registerPostRoutes(app: FastifyInstance) {
     values.push(query.limit);
     const limitPlaceholder = `$${values.length}`;
 
-    const result = await app.db.query<PostRow>(
-      `select ${POST_COLUMNS}
+    const feedQuery = `select ${POST_COLUMNS}
        from posts p
        join app_users author on author.id = p.user_id
        join profiles pr on pr.id = p.user_id
        left join user_privacy_settings pin_settings on pin_settings.user_id = p.user_id
        where ${where.join("\n         and ")}
        order by p.created_at desc
-       limit ${limitPlaceholder}`,
-      values
-    );
+       limit ${limitPlaceholder}`;
+    const visibleRows: PostRow[] = [];
+    let scanBefore = query.before ?? null;
 
-    const audienceVisibility = await Promise.all(
-      result.rows.map(async (row) => ({ row, visible: await canViewPostAudience(app, userId, row) }))
-    );
-    const visibleRows = audienceVisibility.filter(({ visible }) => visible).map(({ row }) => row);
+    while (visibleRows.length < query.limit) {
+      const scanValues = [...values];
+      scanValues[5] = scanBefore;
+      const result = await app.db.query<PostRow>(feedQuery, scanValues);
+
+      if (result.rows.length === 0) {
+        break;
+      }
+
+      const audienceVisibility = await Promise.all(
+        result.rows.map(async (row) => ({ row, visible: await canViewPostAudience(app, userId, row) }))
+      );
+      visibleRows.push(...audienceVisibility.filter(({ visible }) => visible).map(({ row }) => row));
+
+      if (result.rows.length < query.limit) {
+        break;
+      }
+
+      const nextScanBefore = new Date(result.rows[result.rows.length - 1].created_at).toISOString();
+      if (nextScanBefore === scanBefore) {
+        break;
+      }
+      scanBefore = nextScanBefore;
+    }
 
     const pageRows = visibleRows.slice(0, query.limit);
     const photoRelationships = await loadPhotoViewerRelationships(app, userId, pageRows.map((row) => row.user_id));

@@ -11045,6 +11045,97 @@ describe("server", () => {
     });
   });
 
+  it("continues scanning older Feed rows when a full page is hidden by audience privacy", async () => {
+    const hiddenRows = [
+      {
+        id: "hidden-post-1",
+        user_id: "00000000-0000-4000-8000-000000000011",
+        content: "Mutuals only",
+        expires_in: "never",
+        expires_at: "2026-10-08T12:00:00.000Z",
+        created_at: "2026-10-06T12:00:00.000Z",
+        audience: "mutuals",
+        display_name: "Hidden one",
+        pronouns: [],
+        photos: []
+      },
+      {
+        id: "hidden-post-2",
+        user_id: "00000000-0000-4000-8000-000000000012",
+        content: "Also mutuals only",
+        expires_in: "never",
+        expires_at: "2026-10-08T12:00:00.000Z",
+        created_at: "2026-10-06T11:00:00.000Z",
+        audience: "mutuals",
+        display_name: "Hidden two",
+        pronouns: [],
+        photos: []
+      }
+    ];
+    const visibleRows = [
+      {
+        id: "visible-post-1",
+        user_id: userId,
+        content: "Older visible post",
+        expires_in: "never",
+        expires_at: "2026-10-08T12:00:00.000Z",
+        created_at: "2026-10-06T10:00:00.000Z",
+        audience: "public",
+        display_name: "Cruusher",
+        pronouns: ["they/them"],
+        photos: []
+      },
+      {
+        id: "visible-post-2",
+        user_id: userId,
+        content: "Oldest visible post",
+        expires_in: "never",
+        expires_at: "2026-10-08T12:00:00.000Z",
+        created_at: "2026-10-06T09:00:00.000Z",
+        audience: "public",
+        display_name: "Cruusher",
+        pronouns: ["they/them"],
+        photos: []
+      }
+    ];
+    const feedQueryParams: unknown[][] = [];
+
+    query.mockImplementation(async (sql: string, params: unknown[] = []) => {
+      if (sql.includes("from app_sessions s")) {
+        return {
+          rows: [{
+            user_id: userId,
+            age_verified_at: "2026-04-28T12:00:00.000Z"
+          }]
+        };
+      }
+
+      if (sql.includes("from posts p")) {
+        feedQueryParams.push(params);
+        return { rows: params[5] == null ? hiddenRows : visibleRows };
+      }
+
+      return { rows: [] };
+    });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/posts?limit=2",
+      cookies: {
+        cruush_session: "test-session-token"
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data.map((post: { id: string }) => post.id)).toEqual([
+      "visible-post-1",
+      "visible-post-2"
+    ]);
+    expect(feedQueryParams).toHaveLength(2);
+    expect(feedQueryParams[0]?.[5]).toBeNull();
+    expect(feedQueryParams[1]?.[5]).toBe("2026-10-06T11:00:00.000Z");
+  });
+
   it("returns Ping feed posts through normal feed privacy without exposing their internal Ping link", async () => {
     query
       .mockResolvedValueOnce({
