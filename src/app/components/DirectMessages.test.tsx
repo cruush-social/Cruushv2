@@ -512,10 +512,30 @@ describe('DirectMessages', () => {
       expect(screen.queryByRole('button', { name: 'Create Club' })).not.toBeInTheDocument();
       fireEvent.click(screen.getByRole('button', { name: 'New message' }));
       fireEvent.click(screen.getByRole('button', { name: /^Create Club/ }));
-      expect(screen.getByText('cruush+ checkout')).toBeInTheDocument();
+      expect(await screen.findByText('cruush+ checkout')).toBeInTheDocument();
     } finally {
       vi.unstubAllGlobals();
     }
+  });
+
+  it('opens the Club composer for a cruush+ member from any Messages tab', async () => {
+    getConversations.mockResolvedValue([]);
+    getMyBillingStatus.mockResolvedValue({ cruushPlus: true });
+
+    render(
+      <MemoryRouter initialEntries={['/messages']}>
+        <Routes>
+          <Route path="/messages" element={<DirectMessages />} />
+          <Route path="/store" element={<div>cruush+ checkout</div>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'New message' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Create Club/ }));
+
+    await waitFor(() => expect(getMyBillingStatus).toHaveBeenCalled());
+    await waitFor(() => expect(screen.queryByText('cruush+ checkout')).not.toBeInTheDocument());
   });
 
   it('shows a real error state when conversations fail to load', async () => {

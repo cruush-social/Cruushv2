@@ -515,7 +515,19 @@ export default function DirectMessages({
   };
 
   const openClubComposer = async () => {
-    if (!clubHasCruushPlus) {
+    // The cruush+ flag is only loaded on the Clubs tab, and the + menu offers
+    // Create Club from every tab. Ask before sending a paying member to checkout.
+    let hasCruushPlus = clubHasCruushPlus;
+    if (!hasCruushPlus) {
+      try {
+        hasCruushPlus = (await getMyBillingStatus()).cruushPlus === true;
+        setClubHasCruushPlus(hasCruushPlus);
+      } catch {
+        hasCruushPlus = false;
+      }
+    }
+
+    if (!hasCruushPlus) {
       trackCruushPlusConversion('cruush_plus_upgrade_clicked', {
         surface: 'club_creation',
         benefit: 'club_creation',
