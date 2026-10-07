@@ -75,8 +75,7 @@ export default function ClubDirectoryPanel({
       .map((conversation) => [conversation.id, conversation]),
   ), [conversations]);
   const myClubs = clubs.filter((club) => Boolean(club.conversationId));
-  const browsableClubs = clubs.filter((club) => !club.conversationId);
-  const visibleClubs = view === 'mine' ? myClubs : browsableClubs;
+  const visibleClubs = view === 'mine' ? myClubs : clubs;
 
   const openClub = (club: ClubDirectoryRecord) => {
     if (club.conversationId) {
