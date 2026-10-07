@@ -1447,7 +1447,7 @@ export default function PrivateGroupChat({
                         <div key={applicant.userId} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-background/60 p-3">
                           <p className="min-w-0 truncate">{applicant.name}</p>
                           <div className="flex shrink-0 gap-2">
-                            <Button disabled={reviewingClubUserId === applicant.userId} onClick={() => void handleClubRequest(applicant, 'approve')} size="sm" type="button">Approve</Button>
+                            <Button disabled={reviewingClubUserId === applicant.userId} onClick={() => void handleClubRequest(applicant, 'approve')} size="sm" style={{ background: 'var(--cruush-gradient)' }} type="button">Approve</Button>
                             <Button disabled={reviewingClubUserId === applicant.userId} onClick={() => void handleClubRequest(applicant, 'deny')} size="sm" type="button" variant="outline">Deny</Button>
                           </div>
                         </div>
@@ -1464,7 +1464,7 @@ export default function PrivateGroupChat({
                       <div key={applicant.userId} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-background/60 p-3">
                         <p className="min-w-0 truncate">{applicant.name}</p>
                         <div className="flex shrink-0 gap-2">
-                          <Button disabled={reviewingClubUserId === applicant.userId} onClick={() => void handleClubRequest(applicant, 'approve')} size="sm" type="button">Approve</Button>
+                          <Button disabled={reviewingClubUserId === applicant.userId} onClick={() => void handleClubRequest(applicant, 'approve')} size="sm" style={{ background: 'var(--cruush-gradient)' }} type="button">Approve</Button>
                           <Button disabled={reviewingClubUserId === applicant.userId} onClick={() => void handleClubRequest(applicant, 'deny')} size="sm" type="button" variant="outline">Deny</Button>
                         </div>
                       </div>

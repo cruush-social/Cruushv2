@@ -1144,6 +1144,7 @@ export default function DirectMessages({
               className="w-full"
               disabled={!clubName.trim() || !clubSummary.trim() || clubTags.length === 0 || clubCreating || trust.restricted('group_creation')}
               onClick={() => void handleCreateClub()}
+              style={{ background: 'var(--cruush-gradient)' }}
             >
               Create Club
             </Button>

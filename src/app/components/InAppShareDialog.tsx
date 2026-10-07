@@ -150,9 +150,10 @@ export default function InAppShareDialog({ open, onOpenChange, share }: InAppSha
               </div>
             ) : null}
             <button
-              className="h-11 w-full rounded-lg bg-primary px-4 text-sm font-medium text-white disabled:opacity-50"
+              className="h-11 w-full rounded-lg px-4 text-sm font-medium text-white disabled:opacity-50"
               disabled={selectedUserIds.length === 0 || sendingId === 'club'}
               onClick={() => void sendClub()}
+              style={{ background: 'var(--cruush-gradient)' }}
               type="button"
             >
               Send Club

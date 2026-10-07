@@ -4,6 +4,8 @@ The notched cruush logo is rejected for every app use, including installed home-
 
 # cruush design decisions
 
+- October 7 Club menu button style: “you make these menus iwth old style pink buttons, make them gradients like the new style and change stuff to make you stop applying the old styel,” clarified with “i meant in the club shit.” Primary and selected buttons in Club menus use the existing `--cruush-gradient`. The old solid or translucent pink button fill is not used for Club menu buttons. Preserve each Club menu's established geometry, copy, icons, controls, behavior, and non-button styling. This does not restyle non-Club surfaces.
+
 - October 6 map camera persistence: “make map zoom go to last used zoom as opposed to zooming out on every load,” followed by “make it load to the last used zoom, the first time shoudl be on the user pin zoom, the center pin button should be on the aactual user not their decoy oto btw.” The map restores the last user-viewed camera when returning to it. With no saved camera, it opens on the actual user pin at the established user-pin zoom. The center-pin button always targets the actual user, never the Ghost decoy. Ghost radius/leash rendering does not move the camera; existing gestures, controls, markers, clustering, and other map behavior remain unchanged.
 
 - October 5 release email style: “use the more recent glass email template,” “you didnt use the glass style,” and “remove the privacy capsule from email.” The v1.9 email uses the newest existing glass template and omits the standalone privacy capsule.

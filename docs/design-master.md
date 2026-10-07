@@ -56,6 +56,7 @@ Do not replace this with generic copy such as `{displayName} liked you`, `Someon
 - Core colors: #FF0072, #6F00FF, #3826FF, #004BFF, #1181FF, #03ECFC
 - Logo gradient: linear-gradient(90deg, #FF0072 6.08%, #6F00FF 53.27%, #004BFF 100%)
 - Button gradient: linear-gradient(90deg, #FF0072 6.08%, #6F00FF 43.11%, #3826FF 58.46%, #004BFF 73.81%, #1181FF 100%);
+- Primary and selected buttons in Club menus use `--cruush-gradient`; the old solid or translucent pink button fill must not be applied to Club menu buttons. This rule is Club-specific and does not restyle non-Club surfaces. Julien: “you make these menus iwth old style pink buttons, make them gradients like the new style and change stuff to make you stop applying the old styel,” clarified with “i meant in the club shit” (October 7, 2026).
 - All gradient accents across the app should reuse the same pink-to-violet-to-blue progression as the logo mock, without extra glow.
 - The cyan accent is `#03ECFC`; use it where older green/emerald success or launch accents need to feel on-brand.
 - No glow rule: do not use halo effects, neon shadows, drop-shadow glows, blurred light blooms, or radial glow overlays. Use flat colors, solid surfaces, borders, and approved gradients instead.
