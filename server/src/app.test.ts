@@ -11022,6 +11022,7 @@ describe("server", () => {
     expect(query.mock.calls[1]?.[0]).toContain("join profiles pr on pr.id = p.user_id");
     expect(query.mock.calls[1]?.[0]).toContain("lower(trim(coalesce(pr.display_name, ''))) <> 'user deleted profile'");
     expect(query.mock.calls[1]?.[0]).toContain("p.map_ping_id");
+    expect(query.mock.calls[1]?.[0]).toContain("p.expires_in = 'never' or p.created_at >= now()");
     expect(response.json()).toEqual({
       data: [{
         id: "post-1",
