@@ -9,6 +9,7 @@ the branch name.
 
 | Branch | Worktree path | Last commit | State | Ahead/behind main | Purpose |
 | --- | --- | --- | --- | --- | --- |
+| `fix/message-picker-profile-cards-20261007` | `/Volumes/good/cruush-message-picker-profile-cards-20261007` | `8308f15` (base) | release candidate, Codex 01a1174e | +0/-0 at creation | Reuse the existing shared `ProfileCard` in the direct-message, Group, and Club member choosers; keep Recently Active visible with map popups. |
 | `fix/club-menu-gradients-20261007` | `/Volumes/good/cruush-club-menu-gradients-20261007` | 2026-10-07 edd8c95 fix: label 1000 checkout inventory as limited | dirty (6 files) | +7/-0 | Replace old solid-pink primary actions in Club menus with the current cruush gradient; local UI review in progress, uncommitted. |
 | `feat/cruush-plus-conversion-20261007` | `/Volumes/good/cruush-plus-conversion-20261007` | `bdff0cd` (base) | active, Codex 01a1174e | +1/-0 after rebase; +0/-0 at creation | Improve cruush+ paid conversion by routing purchase-intent gates to the existing `/store`, adding privacy-safe funnel analytics, and preparing a mobile-map experiment; processor and prices unchanged. |
 | `feat/clubs20-checkout-20261005` | `/Volumes/good/cruush-clubs20-checkout-20261005` | `e05e3f9` | clean, Codex | +0/-1 vs local main | Added the `CLUBS20` 20% checkout coupon and Club-related Side Quests; merged into `main` for production deployment. |

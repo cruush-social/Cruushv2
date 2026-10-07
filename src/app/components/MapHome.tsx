@@ -3398,7 +3398,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
           mapInstance={mapInstance}
         />
 
-        {displayedUsers.length > 0 && !selectedEvent && !selectedPlace && !sidePanelView && !selectedUser && (
+        {displayedUsers.length > 0 && !sidePanelView && (
           <div
             className={`pointer-events-none absolute ${
               isMobile

@@ -143,6 +143,38 @@ describe('ProfileCard', () => {
     expect(screen.getByRole('button', { name: 'View Full Profile' })).toHaveClass('h-10');
   });
 
+  it('keeps the shared compact card selectable without rendering profile actions', () => {
+    const onToggle = vi.fn();
+
+    render(
+      <MemoryRouter>
+        <ProfileCard
+          density="compact"
+          placement="inline"
+          user={{
+            id: 'user-1',
+            name: 'Jordan',
+            pronouns: 'they/them',
+            distance: 'Nearby',
+            vibes: ['Goth'],
+            photo: null,
+          }}
+          onClose={vi.fn()}
+          onViewProfile={vi.fn()}
+          selection={{ selected: true, label: 'Remove Jordan from group', onToggle }}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByTestId('profile-card')).toHaveClass('ring-2', 'ring-primary');
+    const selectionButton = screen.getByRole('button', { name: 'Remove Jordan from group' });
+    expect(selectionButton).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.queryByRole('button', { name: 'View Full Profile' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'send cruush' })).not.toBeInTheDocument();
+    fireEvent.click(selectionButton);
+    expect(onToggle).toHaveBeenCalledTimes(1);
+  });
+
   it('fills the carousel result and switches its full 4:5 photo from heart-shaped gallery controls', async () => {
     const onBrowseAgain = vi.fn();
     const onViewProfile = vi.fn();
