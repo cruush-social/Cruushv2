@@ -3,9 +3,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const init = vi.fn();
 const capture = vi.fn();
 const optIn = vi.fn();
+const getFeatureFlag = vi.fn();
+const onFeatureFlags = vi.fn();
 
 vi.mock('posthog-js', () => ({
-  default: { init, capture, opt_in_capturing: optIn },
+  default: { init, capture, opt_in_capturing: optIn, getFeatureFlag, onFeatureFlags },
 }));
 
 describe('PostHog analytics', () => {
@@ -14,6 +16,8 @@ describe('PostHog analytics', () => {
     init.mockReset();
     capture.mockReset();
     optIn.mockReset();
+    getFeatureFlag.mockReset();
+    onFeatureFlags.mockReset();
   });
 
   it('does nothing when the public project key is absent', async () => {
@@ -67,6 +71,29 @@ describe('PostHog analytics', () => {
       product_type: 'cruush_plus',
       product_id: 'founder_annual',
       sending_app: 'venmo',
+    }, { send_instantly: true });
+  });
+
+  it('captures cruush+ conversion events with only aggregate allowlisted properties', async () => {
+    vi.stubEnv('VITE_POSTHOG_KEY', 'phc_test');
+    const { trackCruushPlusConversion } = await import('./posthog');
+
+    expect(trackCruushPlusConversion('cruush_plus_order_created', {
+      surface: 'map_filters',
+      benefit: 'seeking_visibility',
+      productType: 'cruush_plus',
+      productId: 'founder_annual',
+      sendingApp: 'venmo',
+      experimentVariant: 'store',
+    })).toBe(true);
+
+    expect(capture).toHaveBeenCalledWith('cruush_plus_order_created', {
+      surface: 'map_filters',
+      benefit: 'seeking_visibility',
+      product_type: 'cruush_plus',
+      product_id: 'founder_annual',
+      sending_app: 'venmo',
+      experiment_variant: 'store',
     }, { send_instantly: true });
   });
 });

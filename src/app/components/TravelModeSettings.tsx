@@ -24,6 +24,7 @@ import { CRUUSH_PLUS_CHANGED_EVENT, getMyBillingStatus } from '../lib/billingApi
 import 'maplibre-gl/dist/maplibre-gl.css';
 import mileHighClubWhite from '../assets/ui-icons/mile-high-club-white.svg';
 import { HEART_PIN_PATH, HEART_PIN_THEMES } from '../lib/heartPin';
+import { buildCruushPlusStorePath } from '../lib/cruushPlusConversion';
 
 /** What Mile High Club does and does not allow, stated before it is turned on. */
 const TRAVEL_MODE_TERMS = [
@@ -559,7 +560,9 @@ function TravelModeSection({ onTravelPinChange }: { onTravelPinChange?: (pin: Tr
     <CruushPlusCardDialog
       open={plusCardOpen}
       onOpenChange={setPlusCardOpen}
-      onUpgrade={() => navigate('/rewards')}
+      onUpgrade={() => navigate(buildCruushPlusStorePath('mile_high_club', 'mile_high_club'))}
+      surface="mile_high_club"
+      benefit="mile_high_club"
       title="Mile High Club"
       description="Drop a pin where you are visiting and cruise from there with cruush+."
     />

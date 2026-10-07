@@ -12,6 +12,7 @@ import { PROFILE_OVERLAY_TEXT_STYLE } from './ProfileView';
 import { formatDistanceWithAway, useDistancePreferences } from '../lib/distancePreferences';
 import { resolveVibeTone, vibeCapsuleStyle } from '../lib/vibeTone';
 import { ACCESSIBILITY_PREFERENCES_CHANGED_EVENT, shouldReduceMotion } from '../lib/accessibilityPreferences';
+import { trackCruushPlusConversion } from '../lib/posthog';
 
 export type CruiseCarouselSlotMode = 'profile' | 'locked' | 'empty';
 export type CruiseCarouselSlotVariant = 'panel' | 'page';
@@ -388,6 +389,14 @@ export default function CruiseCarouselSlot({
   onUpgrade,
   browseDurationMs = DEFAULT_BROWSE_DURATION_MS,
 }: CruiseCarouselSlotProps) {
+  useEffect(() => {
+    if (mode === 'locked') {
+      trackCruushPlusConversion('cruush_plus_paywall_viewed', {
+        surface: 'cruise_carousel',
+        benefit: 'cruise_carousel',
+      });
+    }
+  }, [mode]);
   const prefersReducedMotion = usePrefersReducedMotion();
   const [settled, setSettled] = useState(false);
   const [cycleStep, setCycleStep] = useState(0);
@@ -524,7 +533,13 @@ export default function CruiseCarouselSlot({
                 title="Get cruush+"
                 className="cruush-action-sheen size-12 shrink-0 rounded-full border-0 text-white disabled:opacity-100"
                 style={{ background: 'var(--cruush-gradient)' }}
-                onClick={onUpgrade}
+                onClick={() => {
+                  trackCruushPlusConversion('cruush_plus_upgrade_clicked', {
+                    surface: 'cruise_carousel',
+                    benefit: 'cruise_carousel',
+                  });
+                  onUpgrade?.();
+                }}
               >
                 <Lock className="h-5 w-5" />
               </Button>

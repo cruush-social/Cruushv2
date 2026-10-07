@@ -44,6 +44,8 @@ import { shouldMaskPhoto, useDlMode } from '../lib/dlMode';
 import { registerBugButtonSlot } from '../lib/bugButtonSlot';
 import { formatDistanceLabel, useDistancePreferences } from '../lib/distancePreferences';
 import { resolveUserBorderTone } from '../lib/userBorderTone';
+import { buildCruushPlusStorePath } from '../lib/cruushPlusConversion';
+import { trackCruushPlusConversion } from '../lib/posthog';
 import {
   handleCruushSendSuccess,
   handleMutualCruushRevokeSuccess,
@@ -522,7 +524,11 @@ export default function DirectMessages({
 
   const openClubComposer = async () => {
     if (!clubHasCruushPlus) {
-      navigate('/rewards');
+      trackCruushPlusConversion('cruush_plus_upgrade_clicked', {
+        surface: 'club_creation',
+        benefit: 'club_creation',
+      });
+      navigate(buildCruushPlusStorePath('club_creation', 'club_creation'));
       return;
     }
     setClubComposerOpen(true);
@@ -937,7 +943,8 @@ export default function DirectMessages({
           onClose={resetDirectComposer}
           onBack={returnToMessageOptions}
           onApplyFilters={loadDirectMessageOptions}
-          onUpgrade={() => navigate('/rewards')}
+          onUpgrade={() => navigate(buildCruushPlusStorePath('message_filters', 'seeking_visibility'))}
+          conversionSurface="message_filters"
           onMessage={handleStartDirectChat}
           onOpenMap={(userId, mutual) => navigate(
             mutual

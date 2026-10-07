@@ -94,6 +94,8 @@ import DlModePhotoPlaceholder from './DlModePhotoPlaceholder';
 import OutsideServiceAreaCard from './OutsideServiceAreaCard';
 import { useMapServiceArea } from './MapServiceAreaContext';
 import { claimWelcomeDay, getWelcomeDayStatus, type WelcomeDayStatus } from '../lib/rewardsApi';
+import { buildCruushPlusStorePath, useCruushPlusMobileMapStoreVariant } from '../lib/cruushPlusConversion';
+import { trackCruushPlusConversion } from '../lib/posthog';
 
 const DISCOVERY_MAP_LIMIT = 500;
 const DISCOVERY_BROWSE_RADIUS_MILES = 50;
@@ -913,6 +915,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
   const [searchParams] = useSearchParams();
   const routeState = location.state as MapRouteState;
   const isMobile = useIsMobile();
+  const mobileMapStoreVariant = useCruushPlusMobileMapStoreVariant();
   const [desktopPageLayout, setDesktopPageLayout] = useState(getDesktopPageLayout);
   const canChoosePopupLayout = useCanChoosePopupLayout();
   const usesFullPageProfile = !canChoosePopupLayout || desktopPageLayout === 'fullscreen';
@@ -2956,7 +2959,17 @@ export default function MapHome(_props: MapHomeProps = {}) {
             onPointerEnter={() => setMapControlsHovered(true)}
             onPointerLeave={() => setMapControlsHovered(false)}
           >
-            <CruushPlusButton onClick={() => navigate('/rewards')} />
+            <CruushPlusButton onClick={() => {
+              const experimentVariant = isMobile ? mobileMapStoreVariant : undefined;
+              trackCruushPlusConversion('cruush_plus_upgrade_clicked', {
+                surface: 'map_top',
+                benefit: 'overview',
+                experimentVariant,
+              });
+              navigate(isMobile && mobileMapStoreVariant === 'store'
+                ? buildCruushPlusStorePath('map_top', 'overview', 'store')
+                : '/rewards');
+            }} />
           </div> : null}
           <MapTopBar
             setMapControlsHovered={setMapControlsHovered}
@@ -3079,7 +3092,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
             claimingWelcomeDay={claimingWelcomeDay}
             welcomeDayError={welcomeDayError}
             onClaimWelcomeDay={handleWelcomeDayClaim}
-            onOpenCruushPlus={() => navigate('/rewards')}
+            onOpenCruushPlus={() => navigate(buildCruushPlusStorePath('mile_high_club', 'mile_high_club'))}
             hasCruushPlus={hasCruushPlus}
           />
         ) : null}
@@ -3128,7 +3141,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
                 }
               : undefined}
             onRetry={handleFeelingLucky}
-            onUpgrade={() => navigate('/rewards')}
+            onUpgrade={() => navigate(buildCruushPlusStorePath('cruise_carousel', 'cruise_carousel'))}
           />
         ) : null}
 
@@ -3506,7 +3519,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
             navigate(enabled ? '/map?mode=mutuals' : '/map');
           }}
           hasCruushPlus={hasCruushPlus}
-          onUpgrade={() => navigate('/rewards')}
+          onUpgrade={() => navigate(buildCruushPlusStorePath('map_filters', 'seeking_visibility'))}
           onClear={() => {
             navigate(`${location.pathname}${location.search}`, {
               replace: true,
@@ -3536,7 +3549,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
           onChange={handleVisibilityChange}
           onClear={handleClearVisibility}
           onApply={handleApplyVisibility}
-          onUpgrade={() => navigate('/rewards')}
+          onUpgrade={() => navigate(buildCruushPlusStorePath('map_visibility', 'seeking_visibility'))}
         />
 
         <MapPingSheet
@@ -3557,7 +3570,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
           onRefresh={refreshMapPingStatus}
           onSend={handleSendMapPing}
           hasCruushPlus={hasCruushPlus}
-          onUpgrade={() => navigate('/rewards')}
+          onUpgrade={() => navigate(buildCruushPlusStorePath('map_pulse', 'more_pulses'))}
           onGetPulses={() => navigate('/store/pulse')}
         />
 

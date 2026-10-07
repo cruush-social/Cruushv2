@@ -688,7 +688,7 @@ export default function App({
               <Route path="/requests" element={<RequestsDashboard />} />
               <Route path="/store" element={<CruushPlusStore key="plus" />} />
               <Route path="/store/pulse" element={<CruushPlusStore key="pulse" product="ping_pack" />} />
-              <Route path="/upgrade" element={<Navigate to="/rewards" replace />} />
+              <Route path="/upgrade" element={<Navigate to="/store?surface=settings&benefit=overview" replace />} />
               <Route path="/rewards" element={<Rewards />} />
               <Route path="/checkout/success" element={<CruushPlusSuccess />} />
               <Route path="/checkout/:sessionId" element={<Navigate to="/rewards" replace />} />

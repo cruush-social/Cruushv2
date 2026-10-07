@@ -160,8 +160,12 @@ describe('Rewards', () => {
     renderRewards();
     await screen.findByText('6-day streak');
 
-    const benefitsToggle = screen.getByRole('button', { name: 'Hide cruush+ benefits' });
-    expect(benefitsToggle).toHaveAttribute('aria-expanded', 'true');
+    const benefitsToggle = screen.getByRole('button', { name: 'Show cruush+ benefits' });
+    expect(benefitsToggle).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('list', { name: 'cruush+ features' })).not.toBeInTheDocument();
+
+    fireEvent.click(benefitsToggle);
+    expect(window.localStorage.getItem('cruush:rewards:benefits-open')).toBe('true');
     const featureList = screen.getByRole('list', { name: 'cruush+ features' });
     expect(within(featureList).getAllByRole('listitem')).toHaveLength(CRUUSH_PLUS_FEATURES.length);
     for (const feature of CRUUSH_PLUS_FEATURES) {
@@ -181,7 +185,7 @@ describe('Rewards', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Rewards are temporarily unavailable.');
     expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Hide cruush+ benefits' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Show cruush+ benefits' })).toBeInTheDocument();
   });
 
   it('copies the referral link only after the backend summary confirms it', async () => {

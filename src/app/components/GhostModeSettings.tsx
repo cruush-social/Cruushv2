@@ -37,6 +37,8 @@ import {
   type CrowdPrecisionPolicy,
   type PrivacySettings,
 } from '../lib/privacyApi';
+import { buildCruushPlusStorePath } from '../lib/cruushPlusConversion';
+import { trackCruushPlusConversion } from '../lib/posthog';
 
 function formatCountdown(remainingMs: number) {
   const totalSeconds = Math.max(0, Math.ceil(remainingMs / 1_000));
@@ -325,7 +327,13 @@ export default function GhostModeSettings() {
                   variant="outline"
                   className="shrink-0"
                   aria-label="Unlock Dark Room with cruush+"
-                  onClick={() => navigate('/rewards')}
+                  onClick={() => {
+                    trackCruushPlusConversion('cruush_plus_upgrade_clicked', {
+                      surface: 'dark_room',
+                      benefit: 'dark_room',
+                    });
+                    navigate(buildCruushPlusStorePath('dark_room', 'dark_room'));
+                  }}
                 >
                   <CruushPlusWord />
                 </Button>

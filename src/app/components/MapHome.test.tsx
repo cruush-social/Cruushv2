@@ -2379,6 +2379,7 @@ describe('MapHome', () => {
         <Routes>
           <Route path="/map" element={<><MapHome /><LocationProbe /></>} />
           <Route path="/rewards" element={<LocationProbe />} />
+          <Route path="/store" element={<LocationProbe />} />
         </Routes>
       </MemoryRouter>
     );
@@ -2394,7 +2395,7 @@ describe('MapHome', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Get cruush+' }));
 
-    expect(screen.getByTestId('location-probe')).toHaveTextContent('/rewards');
+    expect(screen.getByTestId('location-probe')).toHaveTextContent('/store');
   });
 
   it('lets free users open seeking and visibility controls from the map', async () => {

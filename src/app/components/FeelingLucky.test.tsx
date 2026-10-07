@@ -44,6 +44,7 @@ function renderLucky() {
       <Routes>
         <Route path="/lucky" element={<><FeelingLucky /><LocationProbe /></>} />
         <Route path="/rewards" element={<LocationProbe />} />
+        <Route path="/store" element={<LocationProbe />} />
         <Route path="/profile/:userId" element={<LocationProbe />} />
       </Routes>
     </MemoryRouter>,
@@ -90,7 +91,7 @@ describe('FeelingLucky', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Get cruush+' }));
 
-    expect(screen.getByTestId('location-probe')).toHaveTextContent('/rewards');
+    expect(screen.getByTestId('location-probe')).toHaveTextContent('/store');
   });
 
   it('fetches nearby profiles for cruush+ users and lands on a profile', async () => {

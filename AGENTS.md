@@ -55,3 +55,8 @@ On every project request, read `docs/CRUUSH-RULES.md`, `HANDOFF.md`,
 `DESIGN_DECISIONS.md`, and `docs/design-master.md` in this checkout.
 For backend or infrastructure work, consult `docs/master-architecture.md` and
 the applicable source. Current explicit user instructions override older decisions.
+
+## Mistakes
+
+- 2026-10-07: Misidentified a stale fake billing scaffold as the current cruush+ processor; switched to current `origin/main` and reused the real in-house Bitcoin Store and processor.
+- 2026-10-07: Logged a local development admin password while preparing browser verification; rotated it in a private worktree-local environment file, reseeded the local-only admin, and kept production and the shared environment unchanged.

@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import MultiSelect, { type MultiSelectOptionGroup } from './MultiSelect';
 import SingleSelect from './SingleSelect';
 import CruushPlusGateNotice from './CruushPlusGateNotice';
+import type { CruushPlusConversionSurface } from '../lib/cruushPlusConversion';
 import { Search } from 'lucide-react';
 import {
   AVAILABILITY,
@@ -98,6 +99,7 @@ interface MapFiltersSurfaceProps {
   onMutualCruushesOnlyChange?: (enabled: boolean) => void;
   hasCruushPlus?: boolean;
   onUpgrade?: () => void;
+  conversionSurface?: CruushPlusConversionSurface;
   searchPlaceholder?: string;
 }
 
@@ -158,6 +160,7 @@ export default function MapFiltersSurface({
   onMutualCruushesOnlyChange,
   hasCruushPlus = false,
   onUpgrade,
+  conversionSurface = 'map_filters',
   searchPlaceholder = 'Search names, bios, or #tags',
 }: MapFiltersSurfaceProps) {
   const [activeTab, setActiveTab] = useState('basics');
@@ -182,6 +185,8 @@ export default function MapFiltersSurface({
             <div className="mb-5">
               <CruushPlusGateNotice
                 description="Basic includes up to 3 seeking filter categories."
+                surface={conversionSurface}
+                benefit="seeking_visibility"
                 onUpgrade={onUpgrade}
               />
             </div>

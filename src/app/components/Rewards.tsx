@@ -5,13 +5,11 @@ import {
   Clipboard,
   Gift,
   Share2,
-  Sparkles,
   Zap,
 } from 'lucide-react';
 import { toast } from '../lib/toast';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
 import CruushPlusWord from './CruushPlusWord';
 import LoadingCardSkeletons from './LoadingCardSkeletons';
 import { Input } from './ui/input';
@@ -31,29 +29,10 @@ import {
 import { CRUUSH_PLUS_CHANGED_EVENT } from '../lib/billingApi';
 import { CRUUSH_PLUS_FEATURES } from '../lib/cruushPlusFeatures';
 import { showEarnedCruushPlusCard, showEarnedPingsCard } from '../lib/earnedCruushPlusCard';
-
-const BENEFITS_OPEN_STORAGE_KEY = 'cruush:rewards:benefits-open';
-
-function readBenefitsOpenPreference() {
-  if (typeof window === 'undefined') {
-    return true;
-  }
-
-  try {
-    const storedPreference = window.localStorage.getItem(BENEFITS_OPEN_STORAGE_KEY);
-    return storedPreference === null ? true : storedPreference === 'true';
-  } catch {
-    return true;
-  }
-}
-
-function saveBenefitsOpenPreference(open: boolean) {
-  try {
-    window.localStorage.setItem(BENEFITS_OPEN_STORAGE_KEY, String(open));
-  } catch {
-    // Some privacy modes block local storage. The accordion still works for this visit.
-  }
-}
+import { buildCruushPlusStorePath } from '../lib/cruushPlusConversion';
+import { trackCruushPlusConversion } from '../lib/posthog';
+import CruushPlusBenefitsAccordion from './CruushPlusBenefitsAccordion';
+import CruushPlusSectionTabs from './CruushPlusSectionTabs';
 
 function sourceLabel(source: RewardSummary['recentGrants'][number]['source']) {
   switch (source) {
@@ -91,7 +70,6 @@ export default function Rewards() {
   const [loading, setLoading] = useState(true);
   const [promoSaving, setPromoSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [benefitsOpen, setBenefitsOpen] = useState(readBenefitsOpenPreference);
   const mountedRef = useRef(true);
   const questRequestRef = useRef(0);
   const questReadPendingRef = useRef(false);
@@ -200,12 +178,6 @@ export default function Rewards() {
     }
   };
 
-  const handleBenefitsOpenChange = (value: string) => {
-    const open = value === 'benefits';
-    setBenefitsOpen(open);
-    saveBenefitsOpenPreference(open);
-  };
-
   const handleClaimSideQuest = async (questKey: SideQuestKey) => {
     if (claimPendingRef.current) return;
     claimPendingRef.current = true;
@@ -281,46 +253,18 @@ export default function Rewards() {
       </header>
 
       <main className="mx-auto max-w-2xl space-y-5 p-4">
-        <Card className="gap-0">
-          <Accordion
-            collapsible
-            type="single"
-            value={benefitsOpen ? 'benefits' : ''}
-            onValueChange={handleBenefitsOpenChange}
-          >
-            <AccordionItem className="border-0" value="benefits">
-              <AccordionTrigger
-                aria-label={benefitsOpen ? 'Hide cruush+ benefits' : 'Show cruush+ benefits'}
-                className="px-6 py-5 text-base hover:no-underline"
-              >
-                <span className="flex items-center gap-2">
-                  <Sparkles className="h-5 w-5 text-primary" />
-                  <span>What <CruushPlusWord /> unlocks</span>
-                </span>
-              </AccordionTrigger>
-              <AccordionContent className="px-6 pb-6">
-                <ul aria-label="cruush+ features" className="grid gap-3 sm:grid-cols-2">
-                  {CRUUSH_PLUS_FEATURES.map((feature) => (
-                    <li
-                      className="rounded-xl border border-white/20 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_10px_30px_rgba(255,0,114,0.18)]"
-                      key={feature.title}
-                      style={{
-                        background: 'var(--cruush-gradient)',
-                      }}
-                    >
-                      <p className="font-semibold text-white">{feature.title}</p>
-                      <p className="mt-1 text-sm leading-5 text-white/85">{feature.description}</p>
-                    </li>
-                  ))}
-                </ul>
-              </AccordionContent>
-            </AccordionItem>
-          </Accordion>
-        </Card>
+        <CruushPlusSectionTabs active="rewards" />
+        <CruushPlusBenefitsAccordion features={CRUUSH_PLUS_FEATURES} />
         <Button
           className="h-12 w-full rounded-full text-base font-semibold text-white disabled:opacity-50"
           style={{ background: 'var(--cruush-logo)' }}
-          onClick={() => navigate('/store')}
+          onClick={() => {
+            trackCruushPlusConversion('cruush_plus_upgrade_clicked', {
+              surface: 'rewards',
+              benefit: 'overview',
+            });
+            navigate(buildCruushPlusStorePath('rewards', 'overview'));
+          }}
         >Get <CruushPlusWord /></Button>
 
         {!loading && summary ? (

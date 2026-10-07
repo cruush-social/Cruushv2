@@ -495,7 +495,7 @@ describe('DirectMessages', () => {
         <MemoryRouter initialEntries={['/messages']}>
           <Routes>
             <Route path="/messages" element={<DirectMessages />} />
-            <Route path="/rewards" element={<div>cruush+ rewards</div>} />
+            <Route path="/store" element={<div>cruush+ checkout</div>} />
           </Routes>
         </MemoryRouter>,
       );
@@ -505,7 +505,7 @@ describe('DirectMessages', () => {
       expect(screen.queryByRole('button', { name: 'Create Club' })).not.toBeInTheDocument();
       fireEvent.click(screen.getByRole('button', { name: 'New message' }));
       fireEvent.click(screen.getByRole('button', { name: /^Create Club/ }));
-      expect(screen.getByText('cruush+ rewards')).toBeInTheDocument();
+      expect(screen.getByText('cruush+ checkout')).toBeInTheDocument();
     } finally {
       vi.unstubAllGlobals();
     }

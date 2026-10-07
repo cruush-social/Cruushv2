@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router';
+import { useLocation, useNavigate } from 'react-router';
 import { ApiClientError } from '../lib/apiClient';
-import { Check, Copy, Info, Shield, Sparkles } from 'lucide-react';
+import { Check, Copy, Info, Shield } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
@@ -28,6 +28,10 @@ import {
 } from '../lib/cryptoCheckoutApi';
 import { CRUUSH_PLUS_FEATURES } from '../lib/cruushPlusFeatures';
 import { trackBitcoinCheckoutMilestone } from '../lib/posthog';
+import { trackCruushPlusConversion } from '../lib/posthog';
+import { readCruushPlusConversionContext, type CruushPlusConversionBenefit } from '../lib/cruushPlusConversion';
+import CruushPlusBenefitsAccordion from './CruushPlusBenefitsAccordion';
+import CruushPlusSectionTabs from './CruushPlusSectionTabs';
 import {
   CRYPTO_NETWORK_LABELS,
   CRYPTO_PAYMENT_SOURCES,
@@ -56,6 +60,16 @@ const BALANCED_CHECKOUT_PLUS_FEATURES = [
   CHECKOUT_PLUS_FEATURES[4],
   CHECKOUT_PLUS_FEATURES[6],
 ] as const;
+
+const BENEFIT_TITLE_BY_CONTEXT: Partial<Record<CruushPlusConversionBenefit, string>> = {
+  full_activity: 'Who has a cruush on you',
+  more_pulses: 'More Pulses',
+  mile_high_club: 'Mile High Club',
+  feed_plus: 'Feed+',
+  cruise_carousel: 'Cruise Carousel',
+  seeking_visibility: 'All seeking and visibility controls',
+  dark_room: 'Dark Room',
+};
 
 const PAYMENT_STATUS_COPY: Record<CryptoPaymentIntent['status'], string> = {
   pending: 'Setting up your payment.',
@@ -169,6 +183,11 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
   const statusCopy = isPulse ? { ...PAYMENT_STATUS_COPY, paid: 'Payment confirmed. Your Pulses are available.', failed: 'Payment was not confirmed. No Pulses were added.' } : PAYMENT_STATUS_COPY;
   const [gasFeeHelpOpen, setGasFeeHelpOpen] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+  const conversionContext = useMemo(
+    () => readCruushPlusConversionContext(location.search),
+    [location.search],
+  );
   const [plans, setPlans] = useState<StorePlan[]>([]);
   const [processor, setProcessor] = useState<CryptoProcessorStatus | null>(null);
   const [bitcoinEligibility, setBitcoinEligibility] = useState<BitcoinSendingEligibility | null>(null);
@@ -196,6 +215,34 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
   const pollStartedRef = useRef<{ intentId: string; startedAt: number } | null>(null);
   const cancelledIntentIdRef = useRef<string | null>(null);
   const confirmedBitcoinIntentIdsRef = useRef(new Set<string>());
+  const completedIntentIdsRef = useRef(new Set<string>());
+  const trackedStoreContextRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const contextKey = `${product}:${conversionContext.surface ?? 'direct'}:${conversionContext.benefit ?? 'overview'}:${conversionContext.experimentVariant ?? 'none'}`;
+    if (trackedStoreContextRef.current === contextKey) {
+      return;
+    }
+    trackedStoreContextRef.current = contextKey;
+    trackCruushPlusConversion('cruush_plus_store_viewed', {
+      ...conversionContext,
+      productType: product,
+    });
+  }, [conversionContext, product]);
+
+  useEffect(() => {
+    if (!intent || intent.status !== 'paid' || completedIntentIdsRef.current.has(intent.id)) {
+      return;
+    }
+
+    completedIntentIdsRef.current.add(intent.id);
+    trackCruushPlusConversion('cruush_plus_purchase_completed', {
+      ...conversionContext,
+      productType: intent.productType,
+      productId: intent.planId,
+      sendingApp: intent.sendingApp ?? undefined,
+    });
+  }, [conversionContext, intent]);
 
   useEffect(() => {
     let active = true;
@@ -421,6 +468,20 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
     [listedPlans, selectedPlanId],
   );
 
+  const contextualPlusFeatures = useMemo(() => {
+    const preferredTitle = conversionContext.benefit
+      ? BENEFIT_TITLE_BY_CONTEXT[conversionContext.benefit]
+      : undefined;
+    if (!preferredTitle) {
+      return BALANCED_CHECKOUT_PLUS_FEATURES;
+    }
+
+    const preferred = BALANCED_CHECKOUT_PLUS_FEATURES.find((benefit) => benefit.title === preferredTitle);
+    return preferred
+      ? [preferred, ...BALANCED_CHECKOUT_PLUS_FEATURES.filter((benefit) => benefit !== preferred)]
+      : BALANCED_CHECKOUT_PLUS_FEATURES;
+  }, [conversionContext.benefit]);
+
   const readyRailIds = useMemo(
     () => new Set(processor?.rails.filter((rail) => rail.ready).map((rail) => rail.id) ?? []),
     [processor],
@@ -531,6 +592,12 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
     }
 
     startingRef.current = true;
+    trackCruushPlusConversion('cruush_plus_checkout_started', {
+      ...conversionContext,
+      productType: product,
+      productId: selectedPlan.id,
+      sendingApp: source.sendingApp,
+    });
     setStarting(true);
     setError(null);
     setStatusError(null);
@@ -567,6 +634,12 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
           sendingApp: nextIntent.sendingApp,
         });
       }
+      trackCruushPlusConversion('cruush_plus_order_created', {
+        ...conversionContext,
+        productType: nextIntent.productType,
+        productId: nextIntent.planId,
+        sendingApp: nextIntent.sendingApp ?? undefined,
+      });
       setIntent(nextIntent);
       setAmountCopied(false);
       setRetryAt(0);
@@ -584,7 +657,7 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
       startingRef.current = false;
       setStarting(false);
     }
-  }, [appliedCoupon, bitcoinEligibility, isPulse, locallyExpired, paymentOpen, paymentPaid, product, selectedPlan, readyRailIds, retryAt]);
+  }, [appliedCoupon, bitcoinEligibility, conversionContext, isPulse, locallyExpired, paymentOpen, paymentPaid, product, selectedPlan, readyRailIds, retryAt]);
 
   const handleCancelPayment = useCallback(async () => {
     if (!intent || !cancelAction || cancelling || !['pending', 'awaiting_payment'].includes(intent.status)) {
@@ -659,6 +732,11 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
           }
 
           setSelectedPlanId(plan.id);
+          trackCruushPlusConversion('cruush_plus_plan_selected', {
+            ...conversionContext,
+            productType: product,
+            productId: plan.id,
+          });
           setIntent(null);
           setCopied(false);
           paymentAttemptRef.current = null;
@@ -730,43 +808,8 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
       />
 
       <main className="mx-auto flex max-w-3xl flex-col gap-3 px-3 py-2 sm:px-4">
-        {!isPulse ? <Card>
-          <Accordion collapsible type="single">
-            <AccordionItem className="border-0" value="benefits">
-              <AccordionTrigger className="px-4 py-3 text-base hover:no-underline">
-                <span className="flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 shrink-0 text-primary" />
-                  <span>What <CruushPlusWord /> unlocks</span>
-                </span>
-              </AccordionTrigger>
-              <AccordionContent className="pb-0">
-                <CardContent className="p-3">
-                  <p className="mb-3 text-sm text-muted-foreground">
-                    Viewing the map and messaging stay free for everyone, always.
-                  </p>
-                  <ul
-                    aria-label="cruush+ benefits"
-                    className="grid grid-cols-2 gap-2"
-                  >
-                    {BALANCED_CHECKOUT_PLUS_FEATURES.map((benefit, index) => (
-                      <li
-                        className={`${BALANCED_CHECKOUT_PLUS_FEATURES.length % 2 === 1 && index === BALANCED_CHECKOUT_PLUS_FEATURES.length - 1 ? 'col-span-2' : ''} flex h-full items-start gap-2 p-3 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_10px_30px_rgba(255,0,114,0.18)]`}
-                        key={benefit.title}
-                        style={{ background: 'var(--cruush-gradient)' }}
-                      >
-                        <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-white" />
-                        <span className="min-w-0">
-                          <span className="block text-sm font-semibold leading-5">{benefit.title}</span>
-                          <span className="block text-sm leading-5 text-white/90 sm:text-xs">{benefit.description}</span>
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </CardContent>
-              </AccordionContent>
-            </AccordionItem>
-          </Accordion>
-        </Card> : null}
+        {!isPulse ? <CruushPlusSectionTabs active="checkout" /> : null}
+        {!isPulse ? <CruushPlusBenefitsAccordion features={contextualPlusFeatures} /> : null}
 
         {isPulse ? <Button variant="outline" onClick={() => navigate('/store')}>cruush+ checkout</Button> : null}
         {error ? (

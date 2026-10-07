@@ -35,6 +35,7 @@ vi.mock('../lib/cryptoCheckoutApi', async () => {
 
 vi.mock('../lib/posthog', () => ({
   trackBitcoinCheckoutMilestone: vi.fn(),
+  trackCruushPlusConversion: vi.fn(),
 }));
 
 const { getBillingPlans } = await import('../lib/billingApi');
@@ -193,6 +194,7 @@ beforeEach(() => {
 
 describe('CruushPlusStore', () => {
   beforeEach(() => {
+    window.localStorage.clear();
     vi.clearAllMocks();
     vi.mocked(getBitcoinSendingEligibility).mockResolvedValue({ rail: 'btc_bitcoin', products: {} });
     vi.mocked(getCurrentCryptoPaymentIntent).mockResolvedValue(null);
@@ -371,7 +373,7 @@ describe('CruushPlusStore', () => {
     renderStore();
 
     expect(await screen.findByText('$18.99/month')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /what cruush\+ unlocks/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Show cruush+ benefits' }));
     expect(await screen.findByText('Who has a cruush on you')).toBeInTheDocument();
     expect(screen.getByText('See your full incoming cruush and profile-view lists.')).toBeInTheDocument();
     expect(screen.getByText('More Pulses')).toBeInTheDocument();
@@ -386,11 +388,11 @@ describe('CruushPlusStore', () => {
     expect(screen.getByText('Use all seeking filters, combine more visibility controls, save visibility sets, add up to 10 searchable profile tags, and add as many profile kinks as fit you. Basic includes 3 tags and 3 kinks.')).toBeInTheDocument();
     expect(screen.getByText('Dark Room')).toBeInTheDocument();
     expect(screen.getByText('Browse the map without appearing on it.')).toBeInTheDocument();
-    const benefits = screen.getByRole('list', { name: 'cruush+ benefits' });
+    const benefits = screen.getByRole('list', { name: 'cruush+ features' });
     const benefitCards = within(benefits).getAllByRole('listitem');
-    expect(benefits).toHaveClass('grid-cols-2');
+    expect(benefits).toHaveClass('sm:grid-cols-2');
     expect(benefitCards).toHaveLength(7);
-    expect(benefitCards[6]).toHaveClass('col-span-2');
+    expect(benefitCards[0]).toHaveClass('rounded-xl', 'border');
     expect(screen.queryByText('Post to the local feed')).not.toBeInTheDocument();
     expect(screen.queryByText('Cruise nearby profiles')).not.toBeInTheDocument();
     expect(screen.queryByText('Stealth Mode')).not.toBeInTheDocument();
@@ -410,7 +412,7 @@ describe('CruushPlusStore', () => {
     expect(screen.queryByText(/licensed processor/i)).not.toBeInTheDocument();
   });
 
-  it('puts the closed benefits accordion above checkout and legal sections', async () => {
+  it('puts the Rewards-style benefits accordion below Checkout-first tabs and above checkout', async () => {
     vi.mocked(getBillingPlans).mockResolvedValue({
       processor: 'fake',
       testCheckout: true,
@@ -428,28 +430,31 @@ describe('CruushPlusStore', () => {
 
     const main = (await screen.findByText('Choose your time')).closest('main');
     expect(main).not.toBeNull();
-    expect(main?.children).toHaveLength(5);
-    const benefitsToggle = screen.getByRole('button', { name: /what cruush\+ unlocks/i });
-    expect(main?.children[0]).toContainElement(benefitsToggle);
+    expect(main?.children).toHaveLength(6);
+    expect(main?.children[0]).toContainElement(screen.getByRole('tab', { name: 'Checkout' }));
+    expect(screen.getByRole('tab', { name: 'Checkout' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tab', { name: 'Rewards' })).toHaveAttribute('aria-selected', 'false');
+    const benefitsToggle = screen.getByRole('button', { name: 'Show cruush+ benefits' });
+    expect(main?.children[1]).toContainElement(benefitsToggle);
     expect(benefitsToggle.closest('[data-slot="accordion-item"]')).toHaveClass('border-0');
     expect(benefitsToggle).toHaveAttribute('aria-expanded', 'false');
-    expect(screen.queryByRole('list', { name: 'cruush+ benefits' })).not.toBeInTheDocument();
-    expect(main?.children[1]).toHaveTextContent('Choose your time');
-    expect(main?.children[1]).toHaveTextContent('Recommended');
+    expect(screen.queryByRole('list', { name: 'cruush+ features' })).not.toBeInTheDocument();
+    fireEvent.click(benefitsToggle);
+    expect(main?.children[1]).toContainElement(screen.getByRole('list', { name: 'cruush+ features' }));
+    expect(main?.children[2]).toHaveTextContent('Choose your time');
+    expect(main?.children[2]).toHaveTextContent('Recommended');
     expect(screen.getByRole('button', { name: /Compare plans/i }).closest('[data-slot="accordion"]')).toHaveClass('mt-2');
-    expect(main?.children[2]).toHaveTextContent('What are you paying from?');
-    expect(main?.children[2]).toContainElement(screen.getByRole('button', { name: 'Cash App' }));
-    expect(main?.children[2]).toContainElement(screen.getByRole('button', { name: 'PayPal' }));
-    expect(main?.children[2]).toContainElement(screen.getByRole('button', { name: 'A crypto wallet' }));
+    expect(main?.children[3]).toHaveTextContent('What are you paying from?');
+    expect(main?.children[3]).toContainElement(screen.getByRole('button', { name: 'Cash App' }));
+    expect(main?.children[3]).toContainElement(screen.getByRole('button', { name: 'PayPal' }));
+    expect(main?.children[3]).toContainElement(screen.getByRole('button', { name: 'A crypto wallet' }));
     expect(screen.queryByRole('button', { name: /get 1 year for/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Pulse checkout' })).not.toBeInTheDocument();
-    fireEvent.click(benefitsToggle);
-    expect(main?.children[0]).toContainElement(await screen.findByRole('list', { name: 'cruush+ benefits' }));
-    expect(main?.children[3]).toContainElement(screen.getByRole('button', { name: /why cruush takes crypto/i }));
-    expect(main?.children[4]).toContainElement(screen.getByRole('link', { name: /read the billing policy/i }));
+    expect(main?.children[4]).toContainElement(screen.getByRole('button', { name: /why cruush takes crypto/i }));
+    expect(main?.children[5]).toContainElement(screen.getByRole('link', { name: /read the billing policy/i }));
   });
 
-  it('keeps Store sections as the only capsule shells', async () => {
+  it('reuses the Rewards benefit card treatment without changing checkout controls', async () => {
     vi.mocked(getBillingPlans).mockResolvedValue({
       processor: 'fake',
       testCheckout: true,
@@ -480,10 +485,10 @@ describe('CruushPlusStore', () => {
     expect(paymentGuideItem).toHaveClass('rounded-none', 'border-x-0', 'border-b-0');
     expect(screen.getByRole('button', { name: 'Cash App' })).not.toHaveClass('rounded-xl');
 
-    fireEvent.click(screen.getByRole('button', { name: /what cruush\+ unlocks/i }));
-    const benefits = await screen.findByRole('list', { name: 'cruush+ benefits' });
+    fireEvent.click(screen.getByRole('button', { name: 'Show cruush+ benefits' }));
+    const benefits = await screen.findByRole('list', { name: 'cruush+ features' });
     for (const benefit of within(benefits).getAllByRole('listitem')) {
-      expect(benefit).not.toHaveClass('rounded-xl', 'border');
+      expect(benefit).toHaveClass('rounded-xl', 'border');
     }
   });
 

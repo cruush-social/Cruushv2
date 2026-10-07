@@ -344,6 +344,7 @@ describe('GhostModeSettings', () => {
         <Routes>
           <Route path="/privacy/ghost-mode" element={<GhostModeSettings />} />
           <Route path="/rewards" element={<LocationProbe />} />
+          <Route path="/store" element={<LocationProbe />} />
         </Routes>
       </MemoryRouter>
     );
@@ -358,7 +359,7 @@ describe('GhostModeSettings', () => {
     expect(screen.queryByRole('switch', { name: 'Toggle Dark Room' })).not.toBeInTheDocument();
     expect(screen.getByText('Browse the map without appearing on it.')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Unlock Dark Room with cruush+' }));
-    expect(screen.getByTestId('location-probe')).toHaveTextContent('/rewards');
+    expect(screen.getByTestId('location-probe')).toHaveTextContent('/store');
   });
 
   it('lets cruush+ members enable Dark Room without changing precise sharing', async () => {

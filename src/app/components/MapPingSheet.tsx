@@ -568,6 +568,8 @@ export default function MapPingSheet({
           {!hasCruushPlus && status?.allowance.remaining === 0 && onUpgrade ? (
             <CruushPlusGateNotice
               description="Basic includes 1 Pulse every 24 hours."
+              surface="map_pulse"
+              benefit="more_pulses"
               onUpgrade={onUpgrade}
             />
           ) : null}

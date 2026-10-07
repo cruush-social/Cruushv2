@@ -10,6 +10,7 @@ import { getMyBillingStatus } from '../lib/billingApi';
 import { decryptDisplayLocationToken } from '../lib/displayLocationTokens';
 import { getMyProfile, type ProfileRecord } from '../lib/profileApi';
 import { getNearbyUsers, type DiscoveryUser } from '../lib/usersApi';
+import { buildCruushPlusStorePath } from '../lib/cruushPlusConversion';
 
 type LuckyStatus = 'checking' | 'browsing' | 'profile' | 'locked' | 'empty' | 'error';
 
@@ -152,7 +153,7 @@ export default function FeelingLucky() {
             mode="locked"
             candidateUsers={candidateUsers}
             variant="page"
-            onUpgrade={() => navigate('/rewards')}
+            onUpgrade={() => navigate(buildCruushPlusStorePath('cruise_carousel', 'cruise_carousel'))}
           />
         ) : null}
 

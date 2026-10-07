@@ -35,6 +35,7 @@ import { Textarea } from './ui/textarea';
 import BugButtonSlot from './BugButtonSlot';
 import TagInput from './TagInput';
 import { useDlMode, shouldMaskPhoto, getDlModeShowOnlyException, getNsfwPhotoRestriction } from '../lib/dlMode';
+import { buildCruushPlusStorePath } from '../lib/cruushPlusConversion';
 import {
   createFeedPost,
   deleteStagedFeedPhoto,
@@ -1419,6 +1420,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
       onClear={() => setFeedSeekingDraft(DEFAULT_FEED_SEEKING_FILTERS)}
       onOpenChange={setSeekingOpen}
       onUpgrade={() => setPlusCardOpen(true)}
+      conversionSurface="feed_plus"
       open={seekingOpen}
       searchPlaceholder="Search #tags"
       title="Feed Filter"
@@ -1446,7 +1448,9 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
     <CruushPlusCardDialog
       open={plusCardOpen}
       onOpenChange={setPlusCardOpen}
-      onUpgrade={() => navigate('/rewards')}
+      onUpgrade={() => navigate(buildCruushPlusStorePath('feed_plus', 'feed_plus'))}
+      surface="feed_plus"
+      benefit="feed_plus"
       title="cruush+"
       description="Add up to three photos, post to a specific Crowd, and choose when your post expires."
     />

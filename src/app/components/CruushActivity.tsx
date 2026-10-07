@@ -42,6 +42,8 @@ import {
 } from './ui/dialog';
 import { registerBugButtonSlot } from '../lib/bugButtonSlot';
 import { resolveUserBorderTone } from '../lib/userBorderTone';
+import { buildCruushPlusStorePath, type CruushPlusConversionSurface } from '../lib/cruushPlusConversion';
+import { trackCruushPlusConversion } from '../lib/posthog';
 
 type ActivityTab = 'incoming' | 'sent' | 'mutual' | 'views';
 type CruushActionState = 'available' | 'sending' | 'sent' | 'mutual';
@@ -191,11 +193,22 @@ function UpgradeBanner({
   count,
   label,
   onUpgrade,
+  surface,
 }: {
   count: number;
   label: string;
   onUpgrade: () => void;
+  surface: CruushPlusConversionSurface;
 }) {
+  useEffect(() => {
+    if (count > 0) {
+      trackCruushPlusConversion('cruush_plus_paywall_viewed', {
+        surface,
+        benefit: 'full_activity',
+      });
+    }
+  }, [count, surface]);
+
   if (count <= 0) {
     return null;
   }
@@ -219,7 +232,13 @@ function UpgradeBanner({
           type="button"
           className="h-10 shrink-0 rounded-lg px-4 text-white"
           style={{ background: 'var(--cruush-gradient)' }}
-          onClick={onUpgrade}
+          onClick={() => {
+            trackCruushPlusConversion('cruush_plus_upgrade_clicked', {
+              surface,
+              benefit: 'full_activity',
+            });
+            onUpgrade();
+          }}
         >
           <CruushPlusWord />
         </Button>
@@ -1000,7 +1019,7 @@ export default function CruushActivity({
               {!loading && activity ? (
                 <>
                   <TabsContent value="incoming" className="mt-0 space-y-4">
-                    <UpgradeBanner count={lockedIncomingCount} label="have a cruush on you" onUpgrade={() => navigate('/rewards')} />
+                    <UpgradeBanner count={lockedIncomingCount} label="have a cruush on you" surface="activity_incoming" onUpgrade={() => navigate(buildCruushPlusStorePath('activity_incoming', 'full_activity'))} />
                     <ActivitySurface empty={activity.incoming.length === 0} emptyText="No incoming cruushes yet.">
                       {activity.incoming.map((item) => (
                         <IncomingRow
@@ -1058,7 +1077,7 @@ export default function CruushActivity({
                   </TabsContent>
 
                   <TabsContent value="views" className="mt-0 space-y-4">
-                    <UpgradeBanner count={lockedViewsCount} label="viewed your profile" onUpgrade={() => navigate('/rewards')} />
+                    <UpgradeBanner count={lockedViewsCount} label="viewed your profile" surface="activity_views" onUpgrade={() => navigate(buildCruushPlusStorePath('activity_views', 'full_activity'))} />
                     <ActivitySurface empty={activity.views.length === 0} emptyText="No profile views yet.">
                       {activity.views.map((item) => (
                         <ViewRow

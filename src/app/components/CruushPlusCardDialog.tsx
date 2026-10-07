@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Button } from './ui/button';
 import {
   Dialog,
@@ -8,6 +9,8 @@ import {
   DialogTitle,
 } from './ui/dialog';
 import CruushPlusWord from './CruushPlusWord';
+import type { CruushPlusConversionBenefit, CruushPlusConversionSurface } from '../lib/cruushPlusConversion';
+import { trackCruushPlusConversion } from '../lib/posthog';
 import './CruushPlusCardDialog.css';
 
 type CruushPlusCardDialogProps = {
@@ -16,6 +19,8 @@ type CruushPlusCardDialogProps = {
   title: string;
   description: string;
   onUpgrade: () => void;
+  surface?: CruushPlusConversionSurface;
+  benefit?: CruushPlusConversionBenefit;
 };
 
 export default function CruushPlusCardDialog({
@@ -24,7 +29,15 @@ export default function CruushPlusCardDialog({
   title,
   description,
   onUpgrade,
+  surface,
+  benefit,
 }: CruushPlusCardDialogProps) {
+  useEffect(() => {
+    if (open && surface && benefit) {
+      trackCruushPlusConversion('cruush_plus_paywall_viewed', { surface, benefit });
+    }
+  }, [benefit, open, surface]);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="cruush-plus-card-dialog z-[100] max-w-sm rounded-lg">
@@ -52,6 +65,9 @@ export default function CruushPlusCardDialog({
             type="button"
             className="text-white"
             onClick={() => {
+              if (surface && benefit) {
+                trackCruushPlusConversion('cruush_plus_upgrade_clicked', { surface, benefit });
+              }
               onOpenChange(false);
               onUpgrade();
             }}

@@ -237,6 +237,8 @@ export default function MapVisibilitySurface({
           {!hasCruushPlus && onUpgrade ? (
             <CruushPlusGateNotice
               description="Basic includes up to 3 hidden filters."
+              surface="map_visibility"
+              benefit="seeking_visibility"
               onUpgrade={onUpgrade}
             />
           ) : null}
