@@ -453,3 +453,7 @@ Julien: “lets add a coupon code for this new update lets do 20% off”, “and
 ## First-entry install and push prompt layout, October 8, 2026
 
 Julien: “you keep making pop ups that appear off screen, ew dont want that, and you tend to add like 100px+ of padding for no reason to them” and “we need pop ups when you first enter the app to enable push notifications and to install cruush”. The first-entry install and push prompts must remain fully inside the actual visible viewport and safe areas. They use compact internal spacing, with no arbitrary 100px+ padding or empty reserved band, and they never stack on top of each other. This records the requested behavior and layout limits; exact copy, sequence, and repeat policy remain subject to the approved implementation plan.
+
+## Service-worker release bump on every deploy, October 8, 2026
+
+Julien: “bump the service worker with deploys always why not?” Every cruush production deploy increments the synchronized service-worker release marker in `public/sw.js`, `public/service-worker-recovery.js`, `src/main.tsx`, `index.html`, and `src/serviceWorkerUpdate.test.ts` so installed clients are explicitly moved to the deployed release.
