@@ -2,6 +2,24 @@
 
 :root {
   --font-size: 16px;
+  /* The former Larger text scale is now the normal app scale. */
+  --text-xs: 0.9375rem;
+  --text-xs--line-height: 1.25rem;
+  --text-sm: 1.09375rem;
+  --text-sm--line-height: 1.5625rem;
+  --text-base: 1.25rem;
+  --text-base--line-height: 1.875rem;
+  --text-lg: 1.40625rem;
+  --text-lg--line-height: 2.1875rem;
+  --text-xl: 1.5625rem;
+  --text-xl--line-height: 2.1875rem;
+  --text-2xl: 1.875rem;
+  --text-2xl--line-height: 2.5rem;
+  --text-3xl: 2.34375rem;
+  --text-3xl--line-height: 2.8125rem;
+  --text-4xl: 2.8125rem;
+  --text-4xl--line-height: 3.125rem;
+  --text-5xl: 3.75rem;
   --cruush-profile-heart-size: 80px;
 
   /* cruush brand colors */
@@ -168,8 +186,14 @@ html[data-cruush-page-framing] #root {
   overflow: hidden;
 }
 
+body {
+  font-size: var(--text-base);
+  line-height: var(--text-base--line-height);
+}
+
 html[data-cruush-larger-text] {
-  --font-size: 16px;
+  /* One additional 25% step above the new normal scale. */
+  --font-size: 20px;
   --text-xs: 0.9375rem;
   --text-xs--line-height: 1.25rem;
   --text-sm: 1.09375rem;
@@ -194,48 +218,48 @@ html[data-cruush-larger-text] body {
   line-height: var(--text-base--line-height);
 }
 
-html[data-cruush-larger-text] :where([class~="text-[8px]"]) {
-  font-size: 10px !important;
+:where([class~="text-[8px]"]) {
+  font-size: 0.625rem !important;
 }
 
-html[data-cruush-larger-text] :where([class~="text-[9px]"]) {
-  font-size: 11.25px !important;
+:where([class~="text-[9px]"]) {
+  font-size: 0.703125rem !important;
 }
 
-html[data-cruush-larger-text] :where([class~="text-[10px]"]) {
-  font-size: 12.5px !important;
+:where([class~="text-[10px]"]) {
+  font-size: 0.78125rem !important;
 }
 
-html[data-cruush-larger-text] :where([class~="text-[11px]"]) {
-  font-size: 13.75px !important;
+:where([class~="text-[11px]"]) {
+  font-size: 0.859375rem !important;
 }
 
-html[data-cruush-larger-text] :where([class~="text-[0.62rem]"]) {
+:where([class~="text-[0.62rem]"]) {
   font-size: 0.775rem !important;
 }
 
-html[data-cruush-larger-text] :where([class~="text-[0.65rem]"]) {
+:where([class~="text-[0.65rem]"]) {
   font-size: 0.8125rem !important;
 }
 
-html[data-cruush-larger-text] :where([class~="text-[0.68rem]"]) {
+:where([class~="text-[0.68rem]"]) {
   font-size: 0.85rem !important;
 }
 
-html[data-cruush-larger-text] :where([class~="text-[0.7rem]"]) {
+:where([class~="text-[0.7rem]"]) {
   font-size: 0.875rem !important;
 }
 
-html[data-cruush-larger-text] :where([class~="text-[0.72rem]"]) {
+:where([class~="text-[0.72rem]"]) {
   font-size: 0.9rem !important;
 }
 
-html[data-cruush-larger-text] :where([class~="text-[0.8rem]"]) {
+:where([class~="text-[0.8rem]"]) {
   font-size: 1rem !important;
 }
 
-html[data-cruush-larger-text] :where([class~="text-[21px]"]) {
-  font-size: 26.25px !important;
+:where([class~="text-[21px]"]) {
+  font-size: 1.640625rem !important;
 }
 
 @media (max-width: 640px) {

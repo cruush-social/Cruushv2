@@ -154,6 +154,7 @@ describe('FeelingLucky', () => {
     expect(screen.getByTestId('profile-card')).not.toHaveClass('overflow-y-auto');
     expect(screen.getByTestId('profile-card-media')).toHaveClass('absolute', 'inset-0');
     expect(screen.getByTestId('carousel-profile-glass')).not.toHaveClass('bg-black/60', 'backdrop-blur-xl');
+    expect(screen.queryByRole('button', { name: 'Close profile preview' })).not.toBeInTheDocument();
     expect(screen.getByTestId('carousel-profile-actions')).toContainElement(screen.getByRole('button', { name: 'send cruush' }));
     const secondPhotoHeart = await screen.findByRole('button', { name: 'Show profile photo 2' });
     fireEvent.click(secondPhotoHeart);

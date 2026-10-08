@@ -48,7 +48,7 @@ export default function ProfileActionTrio({
 }: ProfileActionTrioProps) {
   const sizeClass = SIZE_CLASSES[size];
   const cruushLabel = cruushState === 'mutual'
-    ? cruushDisabled ? `Mutual with ${userName}` : `Remove mutual with ${userName}`
+    ? cruushDisabled ? `Mutual with ${userName}` : `Uncruush ${userName}`
     : cruushState === 'sent'
       ? `Unsend cruush to ${userName}`
       : cruushState === 'sending'

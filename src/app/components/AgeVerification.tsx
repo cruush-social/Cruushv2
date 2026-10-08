@@ -1,6 +1,8 @@
 import { useState, type FormEvent } from 'react';
 import { verifyAge, type AuthSessionPayload } from '../lib/authApi';
+import { displayBirthdateFromIso, formatMobileBirthdate } from '../lib/birthdateInput';
 import { Button } from './ui/button';
+import { useIsMobile } from './ui/use-mobile';
 
 interface AgeVerificationProps {
   onVerified: (session: AuthSessionPayload) => void;
@@ -8,8 +10,10 @@ interface AgeVerificationProps {
 
 export default function AgeVerification({ onVerified }: AgeVerificationProps) {
   const [dateOfBirth, setDateOfBirth] = useState('');
+  const [mobileDateOfBirth, setMobileDateOfBirth] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const usesMobileBirthdateInput = useIsMobile(641);
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -36,10 +40,24 @@ export default function AgeVerification({ onVerified }: AgeVerificationProps) {
           <label htmlFor="age-verification-date">Date of birth</label>
           <input
             id="age-verification-date"
-            type="date"
+            type={usesMobileBirthdateInput ? 'text' : 'date'}
+            inputMode={usesMobileBirthdateInput ? 'numeric' : undefined}
             autoComplete="bday"
-            value={dateOfBirth}
-            onChange={(event) => setDateOfBirth(event.target.value)}
+            enterKeyHint={usesMobileBirthdateInput ? 'done' : undefined}
+            maxLength={usesMobileBirthdateInput ? 10 : undefined}
+            placeholder={usesMobileBirthdateInput ? 'MM/DD/YYYY' : undefined}
+            value={usesMobileBirthdateInput ? mobileDateOfBirth : dateOfBirth}
+            onChange={(event) => {
+              if (usesMobileBirthdateInput) {
+                const formatted = formatMobileBirthdate(event.target.value);
+                setMobileDateOfBirth(formatted.displayValue);
+                setDateOfBirth(formatted.isoValue);
+                return;
+              }
+
+              setDateOfBirth(event.target.value);
+              setMobileDateOfBirth(displayBirthdateFromIso(event.target.value));
+            }}
             required
             disabled={saving}
             className="h-11 w-full rounded-md border border-input bg-input-background px-3 text-foreground"

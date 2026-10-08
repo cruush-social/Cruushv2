@@ -300,7 +300,7 @@ describe('ProfileView', () => {
     );
 
     const vibe = await screen.findByText('A deliberately lengthy nightlife vibe');
-    expect(vibe).toHaveClass('text-xs', 'px-1.5', 'py-0.5', 'truncate');
+    expect(vibe).toHaveClass('text-[11px]', 'px-2', 'py-0.5', 'truncate');
   });
 
   it('uses the mobile-readable text floor throughout the full profile', async () => {
@@ -575,7 +575,7 @@ describe('ProfileView', () => {
     await waitFor(() => expect(sendCruush).toHaveBeenCalledWith('user-1', expect.objectContaining({
       name: 'Jordan',
     })));
-    await waitFor(() => expect(screen.getByRole('button', { name: 'remove mutual' })).toBeEnabled());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'uncruush' })).toBeEnabled());
     await waitFor(() => expect(getProfileById).toHaveBeenCalledTimes(2));
 
     expect(eventListener).toHaveBeenCalledWith(expect.objectContaining({
@@ -694,16 +694,16 @@ describe('ProfileView', () => {
 
     expect(await screen.findByTestId('profile-hero-media')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Share profile' })).not.toBeInTheDocument();
-    const cruushButton = screen.getByRole('button', { name: 'remove mutual' });
+    const cruushButton = screen.getByRole('button', { name: 'uncruush' });
 
     expect(cruushButton).toBeEnabled();
-    expect(cruushButton).toHaveTextContent('remove mutual');
+    expect(cruushButton).toHaveTextContent('uncruush');
 
     fireEvent.click(cruushButton);
 
     await waitFor(() => expect(revokeMutualCruush).toHaveBeenCalledWith('user-1'));
     expect(sendCruush).not.toHaveBeenCalled();
-    expect(toastSuccess).toHaveBeenCalledWith('Removed mutual with Jordan.');
+    expect(toastSuccess).toHaveBeenCalledWith('Uncruushed Jordan.');
     await waitFor(() => expect(screen.getByRole('button', { name: 'send cruush' })).toBeEnabled());
   });
 
@@ -727,7 +727,7 @@ describe('ProfileView', () => {
     );
 
     expect(await screen.findByTestId('profile-hero-media')).toBeInTheDocument();
-    const cruushButton = screen.getByRole('button', { name: 'remove mutual' });
+    const cruushButton = screen.getByRole('button', { name: 'uncruush' });
 
     expect(cruushButton).toBeEnabled();
 

@@ -64,9 +64,9 @@ describe('ProfileCard', () => {
       </MemoryRouter>
     );
 
-    const cruushButton = screen.getByRole('button', { name: 'Remove mutual' });
+    const cruushButton = screen.getByRole('button', { name: 'Uncruush' });
     expect(cruushButton).not.toBeDisabled();
-    expect(cruushButton).toHaveTextContent('remove');
+    expect(cruushButton).toHaveTextContent('uncruush');
 
     fireEvent.click(cruushButton);
     await waitFor(() => expect(revokeMutualCruush).toHaveBeenCalledWith('user-1'));

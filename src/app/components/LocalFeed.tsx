@@ -1037,6 +1037,35 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
             {hasCruushPlus ? (
               <p className="text-xs text-white/58">Up to {MAX_FEED_POST_TAGS} tags.</p>
             ) : null}
+            <div>
+              <input
+                accept={PHOTO_UPLOAD_ACCEPT}
+                disabled={trust.restricted('feed_posting') || trust.restricted('photo_uploads')}
+                aria-label="Choose Feed photo"
+                className="sr-only"
+                onChange={handleFeedPhotoSelection}
+                ref={feedPhotoInputRef}
+                type="file"
+              />
+              <Button
+                aria-label={hasCruushPlus === true ? 'Add Feed photo' : 'Feed photos require cruush+'}
+                className="border-transparent text-white"
+                disabled={uploadingFeedPhoto || stagedPhotos.length >= 3 || trust.restricted('feed_posting') || trust.restricted('photo_uploads')}
+                onClick={() => {
+                  if (hasCruushPlus !== true) {
+                    setPlusCardOpen(true);
+                    return;
+                  }
+                  feedPhotoInputRef.current?.click();
+                }}
+                style={{ background: 'var(--cruush-gradient)' }}
+                type="button"
+              >
+                {uploadingFeedPhoto ? <PhotoUploadSpinner className="mr-2 h-4 w-4" /> : null}
+                {`Photo${hasCruushPlus === true ? ` ${stagedPhotos.length}/3` : ' +'}`}
+              </Button>
+              <TrustRestrictionNotice message={!trust.restricted('feed_posting') ? trust.message('photo_uploads', 'Photo uploading') : null} />
+            </div>
             {/* Expiry belongs to the post being written, not to a setting
                 applied to everything. Every composer starts at Never. */}
             <section className="rounded-lg border border-white/10 bg-black/42 p-2">
@@ -1150,35 +1179,7 @@ export default function LocalFeed({ embedded = false, onClose }: { embedded?: bo
           ) : null}
           {/* Expiry and crowd targeting live in the feed settings menu now, so
               the composer is the textarea and the Post button. */}
-          <div className="sticky bottom-0 flex items-center justify-between gap-2 bg-black/82 pt-2">
-            <div>
-              <input
-                accept={PHOTO_UPLOAD_ACCEPT}
-                disabled={trust.restricted('feed_posting') || trust.restricted('photo_uploads')}
-                aria-label="Choose Feed photo"
-                className="sr-only"
-                onChange={handleFeedPhotoSelection}
-                ref={feedPhotoInputRef}
-                type="file"
-              />
-              <Button
-                aria-label={hasCruushPlus === true ? 'Add Feed photo' : 'Feed photos require cruush+'}
-                disabled={uploadingFeedPhoto || stagedPhotos.length >= 3 || trust.restricted('feed_posting') || trust.restricted('photo_uploads')}
-                onClick={() => {
-                  if (hasCruushPlus !== true) {
-                    setPlusCardOpen(true);
-                    return;
-                  }
-                  feedPhotoInputRef.current?.click();
-                }}
-                type="button"
-                variant="outline"
-              >
-                {uploadingFeedPhoto ? <PhotoUploadSpinner className="mr-2 h-4 w-4" /> : null}
-                {`Photo${hasCruushPlus === true ? ` ${stagedPhotos.length}/3` : ' +'}`}
-              </Button>
-              <TrustRestrictionNotice message={!trust.restricted('feed_posting') ? trust.message('photo_uploads', 'Photo uploading') : null} />
-            </div>
+          <div className="sticky bottom-0 flex items-center justify-end gap-2 bg-black/82 pt-2">
             <Button
               className={trust.restricted('feed_posting') ? 'grayscale' : undefined}
               onClick={handlePost}

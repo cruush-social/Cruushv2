@@ -1571,7 +1571,7 @@ function DirectUserOverlay({
       handleMutualCruushRevokeSuccess(item.user.id, item.user.name);
     } catch (error) {
       notifyMutualCruushRevokeError(error);
-      setRequestError(error instanceof Error ? error.message : 'Failed to remove mutual.');
+      setRequestError(error instanceof Error ? error.message : 'Failed to uncruush.');
     } finally {
       setRequestingUserId(null);
     }

@@ -30,7 +30,7 @@ import { resolveUserBorderTone } from '../lib/userBorderTone';
 
 interface ProfileCardProps {
   user: any;
-  onClose: () => void;
+  onClose?: () => void;
   onViewProfile: () => void;
   placement?: 'overlay' | 'inline';
   density?: 'regular' | 'compact';
@@ -301,16 +301,18 @@ export default function ProfileCard({
 
         <div className="pointer-events-none absolute inset-0 z-10 bg-gradient-to-t from-black via-transparent to-black/20" />
 
-        <div className="absolute inset-x-0 top-0 z-20 flex items-start justify-end gap-3 p-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-black/55 text-white/90 backdrop-blur-xl transition hover:bg-black/70 hover:text-white"
-            aria-label="Close profile preview"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
+        {onClose ? (
+          <div className="absolute inset-x-0 top-0 z-20 flex items-start justify-end gap-3 p-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-black/55 text-white/90 backdrop-blur-xl transition hover:bg-black/70 hover:text-white"
+              aria-label="Close profile preview"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+        ) : null}
 
         {previewCarouselPhotos.length > 0 ? (
           <div
@@ -422,10 +424,10 @@ export default function ProfileCard({
                   void (hasRevocableCruush ? handleRevokeCruush() : handleCruush());
                 }}
                 disabled={cruushDisabled}
-                aria-label={revokingCruush ? (isAlreadyMutual ? 'removing mutual' : 'unsending cruush') : isAlreadyMutual ? 'remove mutual' : hasSentCruush ? 'unsend cruush' : sendingCruush ? 'sending cruush' : 'send cruush'}
+                aria-label={revokingCruush ? (isAlreadyMutual ? 'uncruushing' : 'unsending cruush') : isAlreadyMutual ? 'uncruush' : hasSentCruush ? 'unsend cruush' : sendingCruush ? 'sending cruush' : 'send cruush'}
               >
                 <CruushIcon name="mutual" className={`mr-2 h-4 w-4 ${cruushDisabled ? 'opacity-45 grayscale' : ''}`} variant="white" />
-                {revokingCruush ? (isAlreadyMutual ? 'removing...' : 'unsending...') : isAlreadyMutual ? 'remove mutual' : hasSentCruush ? 'unsend' : sendingCruush ? 'sending...' : 'cruush'}
+                {revokingCruush ? (isAlreadyMutual ? 'uncruushing...' : 'unsending...') : isAlreadyMutual ? 'uncruush' : hasSentCruush ? 'unsend' : sendingCruush ? 'sending...' : 'cruush'}
               </Button>
               <Button
                 type="button"
@@ -583,7 +585,7 @@ export default function ProfileCard({
               void (hasRevocableCruush ? handleRevokeCruush() : handleCruush());
             }}
             disabled={cruushDisabled}
-            aria-label={revokingCruush ? (isAlreadyMutual ? 'Removing mutual' : 'Unsending cruush') : isAlreadyMutual ? 'Remove mutual' : hasSentCruush ? 'Unsend cruush' : sendingCruush ? 'sending cruush' : 'send cruush'}
+            aria-label={revokingCruush ? (isAlreadyMutual ? 'Uncruushing' : 'Unsending cruush') : isAlreadyMutual ? 'Uncruush' : hasSentCruush ? 'Unsend cruush' : sendingCruush ? 'sending cruush' : 'send cruush'}
             style={{
               background: cruushDisabled
                 ? undefined
@@ -593,7 +595,7 @@ export default function ProfileCard({
             }}
           >
             <CruushIcon name="mutual" className={`mr-2 h-4 w-4 ${cruushDisabled ? 'opacity-45 grayscale' : ''}`} variant="white" />
-            {revokingCruush ? (isAlreadyMutual ? 'removing...' : 'unsending...') : isAlreadyMutual ? 'remove' : hasSentCruush ? 'unsend' : sendingCruush ? 'sending...' : 'cruush'}
+            {revokingCruush ? (isAlreadyMutual ? 'uncruushing...' : 'unsending...') : isAlreadyMutual ? 'uncruush' : hasSentCruush ? 'unsend' : sendingCruush ? 'sending...' : 'cruush'}
           </Button>
           <Button
             className={`${actionButtonClassName} rounded-xl border border-[#6F00FF]/55 bg-[var(--cruush-gradient-soft-18)] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] hover:bg-[var(--cruush-gradient-soft-28)]`}

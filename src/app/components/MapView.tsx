@@ -165,7 +165,7 @@ export const CRUUSH_MAP_THEME_LAYER_IDS = [
   'place-labels',
 ] as const;
 const MAP_ERROR_MESSAGE = 'Map tiles could not load. Check the map style or tile URL configuration.';
-const MAP_RENDER_READY_TIMEOUT_MS = 1200;
+const MAP_READY_TIMEOUT_MS = 15000;
 const MOBILE_MARKER_LONG_PRESS_MS = 300;
 const MOBILE_MARKER_LONG_PRESS_MOVE_TOLERANCE_PX = 10;
 // Spot pins answer a press sooner and forgive more finger drift, so their
@@ -175,7 +175,7 @@ const PLACE_MARKER_LONG_PRESS_MOVE_TOLERANCE_PX = 16;
 const MAP_LABEL_FONT_FAMILY = 'Cormorant Garamond';
 const MAP_LABEL_FONT_REGULAR = ['Cormorant Garamond'];
 const MAP_LABEL_FONT_BOLD = ['Cormorant Garamond Bold', 'Cormorant Garamond'];
-export const MAP_TILE_LABEL_SCALE = 1.25;
+export const MAP_TILE_LABEL_SCALE = 1.5625;
 const MAP_ACCESSIBILITY_TEXT_SCALE = 1.25;
 export const MAP_PIN_UNIT_SCALE = 1;
 const MARKER_INTERACTION_SUPPRESS_MS = 350;
@@ -1822,7 +1822,7 @@ function VenueClusterMarker({ marker }: { marker: MapMarker }) {
       className="relative flex h-12 w-12 rotate-45 items-center justify-center rounded-[0.7rem] border-2 border-[#55C8FF] bg-black/94 text-white backdrop-blur-md"
       data-testid={`venue-cluster-marker-${marker.cluster?.id ?? marker.id}`}
     >
-      <span className="cruush-logo-font flex -rotate-45 items-center text-xl font-normal leading-none tracking-normal">
+      <span className="cruush-logo-font flex -rotate-45 items-center text-2xl font-normal leading-none tracking-normal">
         {count > 999 ? '999+' : count}
       </span>
     </span>
@@ -1888,7 +1888,7 @@ function PlaceMarker({ marker, previewed = false }: { marker: MapMarker; preview
       data-testid={`place-marker-${marker.place?.id ?? marker.id}`}
     >
       <span
-        className={`pointer-events-none absolute bottom-[calc(100%+0.75rem)] left-1/2 z-20 w-max max-w-[15rem] -translate-x-1/2 transition-opacity duration-150 ${previewed ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100'}`}
+        className={`pointer-events-none absolute bottom-[calc(100%+2rem)] left-1/2 z-20 w-max max-w-[15rem] -translate-x-1/2 transition-opacity duration-150 ${previewed ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100'}`}
       >
         <SignalBadge
           borderColor="#55C8FF"
@@ -2538,8 +2538,7 @@ function MapView({
         }
 
         let didLoad = false;
-        let failedBeforeLoad = false;
-        let renderReadyTimeout: ReturnType<typeof window.setTimeout> | null = null;
+        let readyTimeout: ReturnType<typeof window.setTimeout> | null = null;
         const map = new maplibregl.Map({
           container: containerRef.current,
           style,
@@ -2563,13 +2562,13 @@ function MapView({
         setCurrentZoom(map.getZoom());
         setMapInstance(map);
 
-        const clearRenderReadyTimeout = () => {
-          if (renderReadyTimeout == null) {
+        const clearReadyTimeout = () => {
+          if (readyTimeout == null) {
             return;
           }
 
-          window.clearTimeout(renderReadyTimeout);
-          renderReadyTimeout = null;
+          window.clearTimeout(readyTimeout);
+          readyTimeout = null;
         };
 
         const markMapReady = () => {
@@ -2578,26 +2577,9 @@ function MapView({
           }
 
           didLoad = true;
-          failedBeforeLoad = false;
-          clearRenderReadyTimeout();
+          clearReadyTimeout();
           setMapLoadStatus('ready');
           setMapError(null);
-        };
-
-        const scheduleRenderedReady = () => {
-          if (didLoad || failedBeforeLoad || renderReadyTimeout != null) {
-            return;
-          }
-
-          renderReadyTimeout = window.setTimeout(() => {
-            renderReadyTimeout = null;
-
-            if (!isMounted || mapRef.current !== map || didLoad) {
-              return;
-            }
-
-            markMapReady();
-          }, MAP_RENDER_READY_TIMEOUT_MS);
         };
 
         const handleMapStyleLoad = () => {
@@ -2613,6 +2595,17 @@ function MapView({
           handleMapStyleLoad();
           markMapReady();
         };
+
+        readyTimeout = window.setTimeout(() => {
+          readyTimeout = null;
+
+          if (!isMounted || mapRef.current !== map || didLoad) {
+            return;
+          }
+
+          setMapLoadStatus('error');
+          setMapError(MAP_ERROR_MESSAGE);
+        }, MAP_READY_TIMEOUT_MS);
 
         map.on('click', (event) => {
           const markerInteractionWasRecent = Date.now() - lastMarkerInteractionAtRef.current < MARKER_INTERACTION_SUPPRESS_MS;
@@ -2634,7 +2627,6 @@ function MapView({
         map.on('style.load', handleMapStyleLoad);
         map.on('load', handleMapLoad);
         map.on('idle', markMapReady);
-        map.on('render', scheduleRenderedReady);
         map.on('error', (event) => {
           if (!isMounted || mapRef.current !== map) {
             return;
@@ -2645,8 +2637,7 @@ function MapView({
             return;
           }
 
-          failedBeforeLoad = true;
-          clearRenderReadyTimeout();
+          clearReadyTimeout();
           setMapLoadStatus('error');
           setMapError(MAP_ERROR_MESSAGE);
         });

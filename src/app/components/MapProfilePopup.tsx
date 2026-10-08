@@ -418,7 +418,7 @@ export default function MapProfilePopup({
                   ? 'rgba(255,255,255,0.16)'
                   : 'var(--cruush-gradient)',
               }}
-              aria-label={isDemo ? 'Demo profile' : revokingCruush ? (isAlreadyMutual ? 'Removing mutual' : 'Unsending cruush') : isAlreadyMutual ? 'Remove mutual' : hasSentCruush ? 'Unsend cruush' : sendingCruush ? 'sending cruush' : 'send cruush'}
+              aria-label={isDemo ? 'Demo profile' : revokingCruush ? (isAlreadyMutual ? 'Uncruushing' : 'Unsending cruush') : isAlreadyMutual ? `Uncruush ${displayName}` : hasSentCruush ? 'Unsend cruush' : sendingCruush ? 'sending cruush' : 'send cruush'}
             >
               <CruushIcon name="mutual" className={`h-6 w-6 ${cruushDisabled ? 'opacity-45 grayscale' : ''}`} variant="white" />
             </Button>

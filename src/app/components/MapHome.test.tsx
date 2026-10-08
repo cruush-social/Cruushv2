@@ -3673,7 +3673,7 @@ describe('MapHome', () => {
 
     expect(screen.getByTestId('marker-user-1')).toHaveAttribute('data-relationship', 'mutual_cruush');
     expect(screen.getByTestId('marker-user-1')).toHaveAttribute('data-can-message', 'true');
-    const mutualButton = screen.getByRole('button', { name: 'Remove mutual' });
+    const mutualButton = screen.getByRole('button', { name: 'Uncruush Jordan' });
     expect(mutualButton).toBeEnabled();
 
     fireEvent.click(mutualButton);

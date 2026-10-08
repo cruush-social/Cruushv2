@@ -109,7 +109,7 @@ function CruushActionButton({
     available: `Send cruush to ${userName}`,
     sending: `Sending cruush to ${userName}`,
     sent: revocable ? `Unsend cruush to ${userName}` : `cruush sent to ${userName}`,
-    mutual: revocable ? `Remove mutual with ${userName}` : `Mutual with ${userName}`,
+    mutual: revocable ? `Uncruush ${userName}` : `Mutual with ${userName}`,
   };
   const disabled = state === 'sending' || (!revocable && state !== 'available');
 
@@ -728,7 +728,7 @@ export default function CruushActivity({
     } catch (revokeError) {
       console.error('Error removing mutual:', revokeError);
       notifyMutualCruushRevokeError(revokeError);
-      setError(revokeError instanceof Error ? revokeError.message : 'Failed to remove mutual.');
+      setError(revokeError instanceof Error ? revokeError.message : 'Failed to uncruush.');
     } finally {
       setPendingRevokeUserIds((current) => {
         const next = new Set(current);

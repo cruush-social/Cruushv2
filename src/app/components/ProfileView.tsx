@@ -724,7 +724,7 @@ export default function ProfileView() {
             <div className="mt-2 flex flex-wrap gap-1.5" data-testid="profile-overlay-vibes">
               {profileView.vibes.slice(0, 3).map((vibe) => (
                 <span
-                  className="max-w-full min-w-0 truncate rounded-full border px-1.5 py-0.5 text-xs uppercase leading-tight tracking-[0.08em]"
+                  className="max-w-full min-w-0 truncate rounded-full border px-2 py-0.5 text-[11px] uppercase leading-tight tracking-[0.08em]"
                   key={vibe}
                   style={vibeCapsuleStyle(resolveVibeTone({
                     mutual: profileView.relationship?.mutual_cruush,
@@ -750,7 +750,7 @@ export default function ProfileView() {
                   void (hasRevocableCruush ? handleRevokeCruush() : handleCruush());
                 }}
                 disabled={cruushDisabled}
-                aria-label={revokingCruush ? (isAlreadyMutual ? 'removing mutual' : 'unsending cruush') : isAlreadyMutual ? 'remove mutual' : hasSentCruush ? 'unsend cruush' : sendingCruush ? 'sending cruush' : 'send cruush'}
+                aria-label={revokingCruush ? (isAlreadyMutual ? 'uncruushing' : 'unsending cruush') : isAlreadyMutual ? 'uncruush' : hasSentCruush ? 'unsend cruush' : sendingCruush ? 'sending cruush' : 'send cruush'}
                 style={{
                   background: cruushDisabled
                     ? '#151021'
@@ -760,7 +760,7 @@ export default function ProfileView() {
                 }}
               >
                 <CruushIcon name="mutual" className={`mr-2 h-4 w-4 ${cruushDisabled ? 'opacity-45 grayscale' : ''}`} variant="white" />
-                {revokingCruush ? (isAlreadyMutual ? 'removing...' : 'unsending...') : isAlreadyMutual ? 'remove mutual' : hasSentCruush ? 'unsend' : sendingCruush ? 'sending...' : 'cruush'}
+                {revokingCruush ? (isAlreadyMutual ? 'uncruushing...' : 'unsending...') : isAlreadyMutual ? 'uncruush' : hasSentCruush ? 'unsend' : sendingCruush ? 'sending...' : 'cruush'}
               </Button>
               {!isOwnProfile ? (
                 <Button
@@ -914,21 +914,23 @@ export function ProfileDetailsTabs({
           </Section>
         ) : null}
 
-        <Section title="Gender Identity" compact={compact}>
-          <BadgeList items={profileIdentityItems(profileView)} compact={compact} />
-        </Section>
+        <div className="grid grid-cols-2 gap-3">
+          <Section title="Gender Identity" compact={compact}>
+            <BadgeList items={profileIdentityItems(profileView)} compact={compact} />
+          </Section>
 
-        <Section title="Presentation" compact={compact}>
-          <BadgeList items={profileView.presentation} compact={compact} />
-        </Section>
+          <Section title="Presentation" compact={compact}>
+            <BadgeList items={profileView.presentation} compact={compact} />
+          </Section>
 
-        <Section title="Sexuality" compact={compact}>
-          <BadgeList items={profileView.sexuality} compact={compact} />
-        </Section>
+          <Section title="Sexuality" compact={compact}>
+            <BadgeList items={profileView.sexuality} compact={compact} />
+          </Section>
 
-        <Section title="Zodiac" compact={compact}>
-          <BadgeList items={profileView.zodiac} compact={compact} />
-        </Section>
+          <Section title="Zodiac" compact={compact}>
+            <BadgeList items={profileView.zodiac} compact={compact} />
+          </Section>
+        </div>
 
         <Section title="Stats" compact={compact}>
           <div className={`grid grid-cols-2 gap-3 ${compact ? 'text-sm' : 'text-base'}`}>

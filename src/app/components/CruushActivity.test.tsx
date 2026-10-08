@@ -464,7 +464,7 @@ describe('CruushActivity', () => {
     );
 
     expect(await screen.findByText('luna')).toBeInTheDocument();
-    const mutualButton = screen.getByRole('button', { name: 'Remove mutual with luna' });
+    const mutualButton = screen.getByRole('button', { name: 'Uncruush luna' });
     expect(mutualButton).toBeEnabled();
     expect(mutualButton).toHaveAttribute('data-cruush-state', 'mutual');
     expect(mutualButton).toHaveStyle({ background: 'var(--cruush-gradient-soft-28)' });

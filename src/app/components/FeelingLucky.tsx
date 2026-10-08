@@ -172,7 +172,6 @@ export default function FeelingLucky() {
               presentation="carousel"
               user={targetUser}
               onBrowseAgain={handleBrowseAgain}
-              onClose={() => navigate(-1)}
               onViewProfile={() => navigate(`/profile/${targetUser.id}`)}
             />
           </div>

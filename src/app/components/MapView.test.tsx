@@ -1757,11 +1757,14 @@ describe('MapView', () => {
     expect(screen.getByText(/Loading NYC map/i)).toBeInTheDocument();
 
     act(() => {
-      vi.advanceTimersByTime(4500);
+      mapInstances[0].trigger('render');
+      vi.advanceTimersByTime(14_999);
     });
 
     expect(MockMap.calls).toHaveLength(1);
     expect(mapInstances[0].remove).not.toHaveBeenCalled();
+    expect(screen.getByText(/Loading NYC map/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Map tiles could not load/i)).not.toBeInTheDocument();
     expect(MockMap.calls[0]).toEqual(expect.objectContaining({
       style: expect.objectContaining({
         sources: expect.objectContaining({
@@ -1774,10 +1777,17 @@ describe('MapView', () => {
     }));
 
     act(() => {
+      vi.advanceTimersByTime(1);
+    });
+
+    expect(screen.getByText(/Map tiles could not load/i)).toBeInTheDocument();
+
+    act(() => {
       mapInstances[0].trigger('load');
     });
 
     expect(screen.queryByText(/Loading NYC map/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Map tiles could not load/i)).not.toBeInTheDocument();
   });
 
   it('does not hide a vector tile failure merely because an empty canvas rendered', async () => {
@@ -2341,12 +2351,12 @@ describe('MapView', () => {
     expect(layerById.get('prominent-road-labels')?.layout['text-transform']).toBeUndefined();
     expect(layerById.get('place-labels')?.layout['text-transform']).toBeUndefined();
     expect(layerById.get('place-labels')?.layout['text-letter-spacing']).toBe(0.035);
-    expect(MAP_TILE_LABEL_SCALE).toBe(1.25);
-    expect(layerById.get('minor-road-labels')?.layout['text-size']).toEqual(['interpolate', ['linear'], ['zoom'], 12, 11.25, 16, 15]);
-    expect(layerById.get('secondary-road-labels')?.layout['text-size']).toEqual(['interpolate', ['linear'], ['zoom'], 12, 13.75, 16, 17.5]);
-    expect(layerById.get('primary-road-labels')?.layout['text-size']).toEqual(['interpolate', ['linear'], ['zoom'], 10, 15, 16, 18.75]);
-    expect(layerById.get('prominent-road-labels')?.layout['text-size']).toEqual(['interpolate', ['linear'], ['zoom'], 9, 16.25, 16, 20]);
-    expect(layerById.get('place-labels')?.layout['text-size']).toEqual(['interpolate', ['linear'], ['zoom'], 8, 16.25, 12, 21.25]);
+    expect(MAP_TILE_LABEL_SCALE).toBe(1.5625);
+    expect(layerById.get('minor-road-labels')?.layout['text-size']).toEqual(['interpolate', ['linear'], ['zoom'], 12, 14.0625, 16, 18.75]);
+    expect(layerById.get('secondary-road-labels')?.layout['text-size']).toEqual(['interpolate', ['linear'], ['zoom'], 12, 17.1875, 16, 21.875]);
+    expect(layerById.get('primary-road-labels')?.layout['text-size']).toEqual(['interpolate', ['linear'], ['zoom'], 10, 18.75, 16, 23.4375]);
+    expect(layerById.get('prominent-road-labels')?.layout['text-size']).toEqual(['interpolate', ['linear'], ['zoom'], 9, 20.3125, 16, 25]);
+    expect(layerById.get('place-labels')?.layout['text-size']).toEqual(['interpolate', ['linear'], ['zoom'], 8, 20.3125, 12, 26.5625]);
   });
 
   it('creates valid MapLibre style JSON for the default vector map', () => {

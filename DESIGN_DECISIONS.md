@@ -350,7 +350,7 @@ On mobile, text that would otherwise render smaller than the 16px alpha-report t
 
 ## Mobile signup birthdate entry, October 8, 2026
 
-The signup birthdate field opens the numeric keyboard on mobile and accepts `MM/DD/YYYY`; desktop keeps the native date picker. The submitted value, age rules, and separate age-confirmation screen are unchanged. Mobile signup form body text follows the existing 16px mobile text floor. Sources: Julien, “Cant enter birthdate on mobile”, clarified with “On sign up” and “No keyboard pops up for BD on mobile”, followed by “Then make mobile text bigger.”
+The signup birthdate field and any required legacy age-confirmation field open the numeric keyboard on mobile and accept `MM/DD/YYYY`; desktop keeps the native date picker. A birthdate validated during current signup completes age verification, so it is not requested again. Server-side age rules are unchanged. Mobile signup form body text follows the existing 16px mobile text floor. Sources: Julien, “Cant enter birthdate on mobile”, clarified with “On sign up” and “No keyboard pops up for BD on mobile”, followed by “Then make mobile text bigger”; October 8 follow-up: “I already put my birth date on sign up? Keyboard doesnt rise up.”
 
 ## Smaller profile-overlay vibe tags, October 8, 2026
 
@@ -363,6 +363,30 @@ The loaded profile uses the old photo-overlay controls without a black page-head
 ## Spot marker hover zoom, October 8, 2026
 
 Individual Spot markers zoom on hover using the same scale and timing as person-pin units. Their resting geometry, artwork, title preview, check-in count, position, click behavior, and clustering remain unchanged. Source: Julien, “Spots should zoom on hover like units.”
+
+## Profile Vibe size, Carousel close control, and uncruush wording, October 8, 2026
+
+Full-profile photo-overlay Vibe capsules use the Cruise Carousel capsule sizing (`text-[11px] px-2 py-0.5`). The Cruise Carousel result card has no photo-overlay X; members leave through the page back control or continue with its existing actions. A mutual-revoke action is labeled `uncruush`, never `remove mutual`. Source: Julien, “Make vibe capsules this sixe on profiles, remove carosel x button, should bd uncruush instead of remove mutual.”
+
+## Feed photo-upload placement, October 8, 2026
+
+The Feed composer photo-upload control is a cruush-gradient button directly below the tags area. Source: Julien, “Put feed photo uploads as a gradient button just under tags.”
+
+## Default and accessible text scale, October 8, 2026
+
+The app's normal text scale uses the former Larger text sizes. The accessibility Larger text option remains a distinct mode and increases that new default by another 25%. Profile photo-overlay pronouns, location, and last-active text follow the shared scale. Source: Julien, “Make this text on profiles bigger, in genersl make larger text the defsult app sizes, make tbe accessible option even bigger.”
+
+## Spot hover-title clearance, October 8, 2026
+
+An individual Spot's hover/focus title floats fully above its zoomed diamond and never overlaps the diamond. Source: Julien, “Spot title should float above diamond not overlap on hoover.”
+
+## Map cluster count typography, October 8, 2026
+
+Spot-cluster and people-cluster counts use the same text size. Their distinct diamond and circular marker treatments remain unchanged. Source: Julien, “People have larger font for cluster - equalize them spots and people clusters.”
+
+## Profile Basics identity grid, October 8, 2026
+
+Gender Identity, Presentation, Sexuality, and Zodiac appear as a two-column by two-row grid in the profile Basics tab. Their existing card and capsule treatments remain unchanged. Source: Julien, “Put these in a 2 x 2 grid?”
 ## Basic activity history and Feed loading, October 2, 2026
 
 Julien: “changes to basic: Basic members see only the newest incoming cruush and newest profile view. Older items stay locked; clearing one does not expose the backlog.” Basic activity access is anchored to the newest historical item in each of those two categories. Clearing that item does not promote or unlock an older active item; a genuinely newer item may become the next unlocked item. cruush+ access is unchanged.

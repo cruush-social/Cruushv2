@@ -25,11 +25,11 @@ export function handleMutualCruushRevokeSuccess(targetUserId: string, displayNam
     revoked: true,
   });
 
-  toast.success(`Removed mutual with ${displayName}.`);
+  toast.success(`Uncruushed ${displayName}.`);
 }
 
 export function notifyMutualCruushRevokeError(error: unknown) {
-  toast.error(error instanceof Error ? error.message : 'Failed to remove mutual.');
+  toast.error(error instanceof Error ? error.message : 'Failed to uncruush.');
 }
 
 export function handleSentCruushRevokeSuccess(targetUserId: string, displayName: string) {
