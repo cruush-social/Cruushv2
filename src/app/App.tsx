@@ -43,6 +43,7 @@ const NotificationCenter = lazyRoute(() => import('./components/NotificationCent
 const NotificationSettings = lazyRoute(() => import('./components/NotificationSettings'));
 const ForegroundNotifications = lazyRoute(() => import('./components/ForegroundNotifications'));
 const MobileInstallPrompt = lazyRoute(() => import('./components/MobileInstallPrompt'));
+const PushPermissionPrompt = lazyRoute(() => import('./components/PushPermissionPrompt'));
 const PulseGesturePrompt = lazyRoute(() => import('./components/PulseGesturePrompt'));
 const ReportPage = lazyRoute(() => import('./components/ReportPage'));
 const ModeratorReview = lazyRoute(() => import('./components/ModeratorReview'));
@@ -694,7 +695,8 @@ export default function App({
               <Route path="/checkout/:sessionId" element={<Navigate to="/rewards" replace />} />
               <Route path="*" element={<Navigate to="/map" replace />} />
             </Routes>
-            <MobileInstallPrompt />
+            <MobileInstallPrompt userId={session.user.id} />
+            <PushPermissionPrompt userId={session.user.id} />
             <DlModeDefaultNotice />
             <PulseGesturePrompt pending={showPulseGestureIntro} userId={session.user.id} />
             <ForegroundNotifications showLatestRewardOnFirstPoll={showOnboardingReward} />

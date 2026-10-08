@@ -110,7 +110,11 @@ vi.mock('./components/OnboardingPreview', () => ({
 }));
 
 vi.mock('./components/MobileInstallPrompt', () => ({
-  default: () => null
+  default: ({ userId }: { userId: string }) => <div data-testid="mock-mobile-install-prompt">{userId}</div>
+}));
+
+vi.mock('./components/PushPermissionPrompt', () => ({
+  default: ({ userId }: { userId: string }) => <div data-testid="mock-push-permission-prompt">{userId}</div>
 }));
 
 vi.mock('./components/FiltersPanel', () => ({
@@ -362,6 +366,8 @@ describe('App', () => {
     render(<App />);
 
     expect(await screen.findByRole('button', { name: 'Mock Auth' })).toBeInTheDocument();
+    expect(screen.queryByTestId('mock-mobile-install-prompt')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('mock-push-permission-prompt')).not.toBeInTheDocument();
     expect(routeModuleLoads).not.toEqual(expect.arrayContaining([
       'MapHome',
       'LocalFeed',
@@ -455,6 +461,8 @@ describe('App', () => {
 
     expect(await screen.findByText('Mock Map')).toBeInTheDocument();
     expect(screen.getByRole('navigation', { name: 'Bottom Navigation' })).toBeInTheDocument();
+    expect(screen.getByTestId('mock-mobile-install-prompt')).toHaveTextContent('user-1');
+    expect(screen.getByTestId('mock-push-permission-prompt')).toHaveTextContent('user-1');
   });
 
   it('records one daily reward check-in after a verified session loads', async () => {

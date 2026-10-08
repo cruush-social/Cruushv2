@@ -22,6 +22,7 @@ const { completeTwoFactorSetup, getRewardSummary, startTwoFactorSetup } = vi.hoi
 }));
 
 const toastSuccess = vi.hoisted(() => vi.fn());
+const enablePushNotifications = vi.hoisted(() => vi.fn());
 
 vi.mock('../lib/authApi', () => ({
   acceptCodeOfConduct,
@@ -51,6 +52,10 @@ vi.mock('../lib/rewardsApi', () => ({
   completeTwoFactorSetup,
   getRewardSummary,
   startTwoFactorSetup,
+}));
+
+vi.mock('../lib/pushNotifications', () => ({
+  enablePushNotifications,
 }));
 
 vi.mock('sonner', () => ({
@@ -227,6 +232,7 @@ describe('ProfileOnboarding', () => {
     getAuthSession.mockReset();
     completeTwoFactorSetup.mockReset();
     getRewardSummary.mockReset();
+    enablePushNotifications.mockReset();
     persistCurrentUser.mockReset();
     saveMyProfile.mockReset();
     startTwoFactorSetup.mockReset();
@@ -438,6 +444,7 @@ describe('ProfileOnboarding', () => {
       substance_boundaries: [],
     }));
     expect(acceptCodeOfConduct).toHaveBeenCalledWith('2026-07-07');
+    expect(enablePushNotifications).not.toHaveBeenCalled();
     expect(saveMyProfile.mock.invocationCallOrder[0]).toBeLessThan(acceptCodeOfConduct.mock.invocationCallOrder[0]);
   });
 

@@ -9,6 +9,7 @@ the branch name.
 
 | Branch | Worktree path | Last commit | State | Ahead/behind main | Purpose |
 | --- | --- | --- | --- | --- | --- |
+| `plan/first-entry-prompts-20261008` | `/Volumes/good/cruush-first-entry-prompts-plan-20261008` | `2bbe72f` (base) | implementation complete, uncommitted, Codex | see working tree | Compact sequential first-entry prompts for installing cruush and enabling push notifications; verified locally, not committed, pushed, merged, or deployed. |
 | `fix/bitcoin-minimum-network-20261008` | `/Volumes/good/cruush-bitcoin-minimum-network-20261008` | `afdf7c2` (base) | active, Codex | +0/-0 at creation | Stop a failed Bitcoin minimum sample from leaving checkout stuck on “Checking minimum”; preserve pricing, minimum enforcement, payment behavior, and presentation. |
 | `fix/message-picker-profile-cards-20261007` | `/Volumes/good/cruush-message-picker-profile-cards-20261007` | `8308f15` (base) | release candidate, Codex 01a1174e | +0/-0 at creation | Share the compact Cruushes-page card and canonical Cruushes page header across their named app surfaces; keep Recently Active visible with map popups. |
 | `fix/club-menu-gradients-20261007` | `/Volumes/good/cruush-club-menu-gradients-20261007` | 2026-10-07 edd8c95 fix: label 1000 checkout inventory as limited | dirty (6 files) | +7/-0 | Replace old solid-pink primary actions in Club menus with the current cruush gradient; local UI review in progress, uncommitted. |

@@ -449,3 +449,7 @@ Julien: “lets add a coupon code for this new update lets do 20% off”, “and
 
 - Checkout accepts the campaign code `CLUBS20` for 20% off cruush+ and Pulse purchases. It can be used once per account after a paid order, with no expiration or global redemption cap.
 - The Club Side Quests are `Join a Club` and `Send your first Club message`. Each awards 1 Pulse through the existing Side Quest claim system.
+
+## First-entry install and push prompt layout, October 8, 2026
+
+Julien: “you keep making pop ups that appear off screen, ew dont want that, and you tend to add like 100px+ of padding for no reason to them” and “we need pop ups when you first enter the app to enable push notifications and to install cruush”. The first-entry install and push prompts must remain fully inside the actual visible viewport and safe areas. They use compact internal spacing, with no arbitrary 100px+ padding or empty reserved band, and they never stack on top of each other. This records the requested behavior and layout limits; exact copy, sequence, and repeat policy remain subject to the approved implementation plan.

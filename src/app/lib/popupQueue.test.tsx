@@ -49,6 +49,28 @@ describe('useExclusivePopup', () => {
     expect(screen.getByTestId('first-feed-post')).toBeInTheDocument();
   });
 
+  it('shows install before push and hands the slot to push', () => {
+    const view = render(
+      <>
+        <Prompt id="mobile-install" wants />
+        <Prompt id="push-permission" wants />
+      </>,
+    );
+
+    expect(screen.getByTestId('mobile-install')).toBeInTheDocument();
+    expect(screen.queryByTestId('push-permission')).not.toBeInTheDocument();
+
+    view.rerender(
+      <>
+        <Prompt id="mobile-install" wants={false} />
+        <Prompt id="push-permission" wants />
+      </>,
+    );
+
+    expect(screen.queryByTestId('mobile-install')).not.toBeInTheDocument();
+    expect(screen.getByTestId('push-permission')).toBeInTheDocument();
+  });
+
   it('keeps the map tutorial and a dialog prompt from running together', () => {
     // The tutorial portals above the dialogs rather than being one, so while a
     // dialog was open its buttons sat inside that dialog's outside-click layer

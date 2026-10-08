@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
+import { Download } from 'lucide-react';
 import { useExclusivePopup } from '../lib/popupQueue';
-import { Download, X } from 'lucide-react';
 import { Button } from './ui/button';
+import FirstEntryPromptSurface from './FirstEntryPromptSurface';
 import {
   captureInstallPrompt,
   clearInstallPrompt,
@@ -9,14 +10,17 @@ import {
   INSTALL_PROMPT_AVAILABLE_EVENT,
   type BeforeInstallPromptEvent,
 } from '../lib/installPrompt';
-import { enablePushNotifications } from '../lib/pushNotifications';
 
-const INSTALL_PROMPT_DISMISSED_KEY = 'cruush-install-prompt-dismissed';
+const INSTALL_PROMPT_VERSION = 'v1';
 const INSTALL_REQUESTED_EVENT = 'cruush:install-requested';
 
+export function installPromptHandledKey(userId: string) {
+  return `cruush:first-entry-install:${INSTALL_PROMPT_VERSION}:${userId}`;
+}
+
 function isStandaloneDisplay() {
-  return window.matchMedia?.('(display-mode: standalone)').matches ||
-    (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
+  return window.matchMedia?.('(display-mode: standalone)').matches
+    || (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
 }
 
 function isMobileBrowser() {
@@ -27,21 +31,27 @@ function isIosBrowser() {
   return /iphone|ipad|ipod/i.test(window.navigator.userAgent);
 }
 
-export default function MobileInstallPrompt() {
+function wasHandled(userId: string) {
+  return window.localStorage.getItem(installPromptHandledKey(userId)) === 'true';
+}
+
+function wantsAutomaticPrompt(userId: string, installEvent: BeforeInstallPromptEvent | null) {
+  if (!isMobileBrowser() || isStandaloneDisplay() || wasHandled(userId)) {
+    return false;
+  }
+
+  return Boolean(installEvent) || isIosBrowser();
+}
+
+export default function MobileInstallPrompt({ userId }: { userId: string }) {
   const [installEvent, setInstallEvent] = useState<BeforeInstallPromptEvent | null>(() => getInstallPrompt());
-  const [visible, setVisible] = useState(false);
+  const [visible, setVisible] = useState(() => wantsAutomaticPrompt(userId, getInstallPrompt()));
+  const [showManualInstructions, setShowManualInstructions] = useState(
+    () => wantsAutomaticPrompt(userId, getInstallPrompt()) && isIosBrowser() && !getInstallPrompt(),
+  );
   const showing = useExclusivePopup('mobile-install', visible);
-  const [showManualInstructions, setShowManualInstructions] = useState(false);
-  const manualInstallOnly = showManualInstructions && !installEvent;
 
   useEffect(() => {
-    if (typeof window === 'undefined') {
-      return undefined;
-    }
-
-    const dismissed = window.localStorage.getItem(INSTALL_PROMPT_DISMISSED_KEY) === 'true';
-    const canPrompt = isMobileBrowser() && !isStandaloneDisplay() && !dismissed;
-
     const showAvailableInstallPrompt = () => {
       const promptEvent = getInstallPrompt();
       if (!promptEvent) {
@@ -49,7 +59,7 @@ export default function MobileInstallPrompt() {
       }
 
       setInstallEvent(promptEvent);
-      if (canPrompt) {
+      if (wantsAutomaticPrompt(userId, promptEvent)) {
         setShowManualInstructions(false);
         setVisible(true);
       }
@@ -66,37 +76,29 @@ export default function MobileInstallPrompt() {
       setVisible(true);
     };
 
+    const handleInstalled = () => {
+      window.localStorage.setItem(installPromptHandledKey(userId), 'true');
+      clearInstallPrompt();
+      setInstallEvent(null);
+      setVisible(false);
+    };
+
     window.addEventListener('beforeinstallprompt', captureInstallPrompt);
     window.addEventListener(INSTALL_PROMPT_AVAILABLE_EVENT, showAvailableInstallPrompt);
     window.addEventListener(INSTALL_REQUESTED_EVENT, handleInstallRequested);
-
-    // main.tsx normally captures this before the component exists. This also keeps
-    // the component independently testable and safe on routes that load it directly.
+    window.addEventListener('appinstalled', handleInstalled);
     showAvailableInstallPrompt();
-
-    if (canPrompt && isIosBrowser()) {
-      const timer = window.setTimeout(() => {
-        setShowManualInstructions(true);
-        setVisible(true);
-      }, 1200);
-
-      return () => {
-        window.clearTimeout(timer);
-        window.removeEventListener('beforeinstallprompt', captureInstallPrompt);
-        window.removeEventListener(INSTALL_PROMPT_AVAILABLE_EVENT, showAvailableInstallPrompt);
-        window.removeEventListener(INSTALL_REQUESTED_EVENT, handleInstallRequested);
-      };
-    }
 
     return () => {
       window.removeEventListener('beforeinstallprompt', captureInstallPrompt);
       window.removeEventListener(INSTALL_PROMPT_AVAILABLE_EVENT, showAvailableInstallPrompt);
       window.removeEventListener(INSTALL_REQUESTED_EVENT, handleInstallRequested);
+      window.removeEventListener('appinstalled', handleInstalled);
     };
-  }, []);
+  }, [userId]);
 
-  const dismiss = () => {
-    window.localStorage.setItem(INSTALL_PROMPT_DISMISSED_KEY, 'true');
+  const markHandledAndClose = () => {
+    window.localStorage.setItem(installPromptHandledKey(userId), 'true');
     setVisible(false);
   };
 
@@ -109,74 +111,59 @@ export default function MobileInstallPrompt() {
 
     try {
       await installEvent.prompt();
-      const choice = await installEvent.userChoice.catch(() => null);
-      if (choice?.outcome === 'accepted') {
-        void enablePushNotifications().catch(() => undefined);
-      }
+      await installEvent.userChoice.catch(() => null);
     } finally {
+      window.localStorage.setItem(installPromptHandledKey(userId), 'true');
       clearInstallPrompt();
       setInstallEvent(null);
       setVisible(false);
     }
   };
 
-  // Last in the shared post-onboarding slot: installing can wait until the
-  // notices that change how the app behaves have been read.
-  if (!showing) {
-    return null;
-  }
+  const manualInstallOnly = showManualInstructions && !installEvent;
+  const description = manualInstallOnly
+    ? isIosBrowser()
+      ? 'Use Safari Share, then Add to Home Screen.'
+      : 'Use your browser menu, then choose Install or Add to Home Screen.'
+    : 'Add cruush to your Home Screen.';
 
   return (
-    <div
-      className="fixed bottom-24 left-4 right-[4.5rem] z-[90] mx-auto max-w-md rounded-lg border border-border bg-card p-4 text-card-foreground shadow-[0_20px_60px_rgba(0,0,0,0.45)] sm:right-4"
-      data-tutorial-target={manualInstallOnly ? 'install' : undefined}
-      data-testid="mobile-install-prompt"
-    >
-      <div className="flex items-start gap-3">
+    <FirstEntryPromptSurface
+      open={showing}
+      onDismiss={markHandledAndClose}
+      testId="mobile-install-prompt"
+      title="Install cruush"
+      description={description}
+      icon={(
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
           <Download className="h-5 w-5" />
         </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-3">
-            <p className="text-base text-white">
-              {manualInstallOnly ? 'Add cruush to Home Screen' : 'Install cruush'}
-            </p>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={dismiss}
-              aria-label="Dismiss install prompt"
-              className="-mr-2 -mt-2 h-8 w-8 rounded-full"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {showManualInstructions
-              ? isIosBrowser()
-                ? 'Use Safari share, then Add to Home Screen.'
-                : 'Use your browser menu, then choose Install or Add to Home Screen.'
-              : 'Open cruush from your Home Screen for a full-screen mobile app feel.'}
-          </p>
-          <div className="mt-3 flex gap-2">
-            {manualInstallOnly ? (
-              <Button type="button" onClick={dismiss} className="rounded-full">
-                Got it
-              </Button>
-            ) : (
-              <>
-                <Button type="button" onClick={() => void install()} className="rounded-full" data-tutorial-target="install">
-                  Install cruush
-                </Button>
-                <Button type="button" variant="outline" onClick={dismiss} className="rounded-full">
-                  Not now
-                </Button>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
+      )}
+      primary={manualInstallOnly ? (
+        <Button
+          type="button"
+          onClick={markHandledAndClose}
+          className="min-h-11 rounded-full text-white"
+          style={{ background: 'var(--cruush-gradient)' }}
+        >
+          Got it
+        </Button>
+      ) : (
+        <Button
+          type="button"
+          onClick={() => void install()}
+          className="min-h-11 rounded-full text-white"
+          data-tutorial-target="install"
+          style={{ background: 'var(--cruush-gradient)' }}
+        >
+          Install cruush
+        </Button>
+      )}
+      secondary={(
+        <Button type="button" variant="outline" onClick={markHandledAndClose} className="min-h-11 rounded-full">
+          Not now
+        </Button>
+      )}
+    />
   );
 }
