@@ -13183,6 +13183,7 @@ describe("server", () => {
       .mockResolvedValueOnce({ rows: [matchToken] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
+      .mockRejectedValueOnce(Object.assign(new Error("missing dm_key conflict constraint"), { code: "42P10" }))
       .mockResolvedValueOnce({ rows: [{ id: "conversation-existing" }] })
       .mockResolvedValueOnce({ rows: [] });
 
@@ -13206,11 +13207,13 @@ describe("server", () => {
     // The ninth read is the precise-location revocation lookup the default
     // mutual-cruush grant requires. The only writes ensure the existing match
     // has a direct conversation; no relationship token is reissued.
-    expect(query).toHaveBeenCalledTimes(11);
+    expect(query).toHaveBeenCalledTimes(12);
     expect(query.mock.calls[0]?.[0]).toContain("encrypted_relationship_records");
     expect(query.mock.calls[7]?.[0]).toContain("encrypted_privacy_audit_events");
     expect(query.mock.calls[9]?.[0]).toContain("insert into conversations");
-    expect(query.mock.calls[10]?.[0]).toContain("insert into conversation_members");
+    expect(query.mock.calls[10]?.[0]).toContain("with existing as");
+    expect(query.mock.calls[10]?.[0]).not.toContain("on conflict");
+    expect(query.mock.calls[11]?.[0]).toContain("insert into conversation_members");
     expect(query.mock.calls.map((call) => call[0]).join("\n")).not.toContain("insert into encrypted_relationship_tokens");
     expect(response.json()).toEqual({
       data: {

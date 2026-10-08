@@ -300,7 +300,7 @@ describe('ProfileView', () => {
     );
 
     const vibe = await screen.findByText('A deliberately lengthy nightlife vibe');
-    expect(vibe).toHaveClass('text-sm', 'px-2', 'py-1', 'truncate');
+    expect(vibe).toHaveClass('text-xs', 'px-1.5', 'py-0.5', 'truncate');
   });
 
   it('uses the mobile-readable text floor throughout the full profile', async () => {

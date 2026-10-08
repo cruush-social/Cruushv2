@@ -465,14 +465,47 @@ function parseCoordinate(value: number | null | undefined) {
 
 async function ensureMutualConversation(app: FastifyInstance, firstUserId: string, secondUserId: string) {
   const dmKey = [firstUserId, secondUserId].sort().join(":");
-  const conversationResult = await app.db.query<{ id: string }>(
-    `insert into conversations (kind, dm_key, created_by)
-     values ('dm', $1, $2)
-     on conflict (dm_key) do update
-     set updated_at = conversations.updated_at
-     returning id::text as id`,
-    [dmKey, firstUserId]
-  );
+  let conversationResult: { rows: Array<{ id: string }> };
+
+  try {
+    conversationResult = await app.db.query<{ id: string }>(
+      `insert into conversations (kind, dm_key, created_by)
+       values ('dm', $1, $2)
+       on conflict (dm_key) do update
+       set updated_at = conversations.updated_at
+       returning id::text as id`,
+      [dmKey, firstUserId]
+    );
+  } catch (error) {
+    const code = typeof error === "object" && error !== null && "code" in error
+      ? String((error as { code?: string }).code)
+      : "";
+
+    if (code !== "42P10") {
+      throw error;
+    }
+
+    app.log.warn({ err: error }, "direct conversation conflict constraint unavailable");
+    conversationResult = await app.db.query<{ id: string }>(
+      `with existing as (
+         select id::text as id
+         from conversations
+         where dm_key = $1
+         order by created_at asc
+         limit 1
+       ), inserted as (
+         insert into conversations (kind, dm_key, created_by)
+         select 'dm', $1, $2
+         where not exists (select 1 from existing)
+         returning id::text as id
+       )
+       select id from existing
+       union all
+       select id from inserted
+       limit 1`,
+      [dmKey, firstUserId]
+    );
+  }
   const conversationId = conversationResult.rows[0]?.id;
 
   if (!conversationId) {

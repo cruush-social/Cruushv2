@@ -351,6 +351,10 @@ On mobile, text that would otherwise render smaller than the 16px alpha-report t
 ## Mobile signup birthdate entry, October 8, 2026
 
 The signup birthdate field opens the numeric keyboard on mobile and accepts `MM/DD/YYYY`; desktop keeps the native date picker. The submitted value, age rules, and separate age-confirmation screen are unchanged. Mobile signup form body text follows the existing 16px mobile text floor. Sources: Julien, “Cant enter birthdate on mobile”, clarified with “On sign up” and “No keyboard pops up for BD on mobile”, followed by “Then make mobile text bigger.”
+
+## Smaller profile-overlay vibe tags, October 8, 2026
+
+Profile photo-overlay vibe tags use the smaller capsule sizing while preserving their wording, uppercase treatment, gradient, radius, order, and wrapping position. Source: Julien, “resize vibe tags smaller.”
 ## Basic activity history and Feed loading, October 2, 2026
 
 Julien: “changes to basic: Basic members see only the newest incoming cruush and newest profile view. Older items stay locked; clearing one does not expose the backlog.” Basic activity access is anchored to the newest historical item in each of those two categories. Clearing that item does not promote or unlock an older active item; a genuinely newer item may become the next unlocked item. cruush+ access is unchanged.
