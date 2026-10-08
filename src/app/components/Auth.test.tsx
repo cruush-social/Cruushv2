@@ -12,12 +12,13 @@ function acceptSignupPolicies() {
   fireEvent.click(screen.getByLabelText('Agree to Privacy Policy'));
 }
 
-const { signIn, resendVerificationEmail, signUp, requestPasswordReset, getAppMeta } = vi.hoisted(() => ({
+const { signIn, resendVerificationEmail, signUp, requestPasswordReset, getAppMeta, useIsMobile } = vi.hoisted(() => ({
   signIn: vi.fn(),
   resendVerificationEmail: vi.fn(),
   signUp: vi.fn(),
   requestPasswordReset: vi.fn(),
   getAppMeta: vi.fn(),
+  useIsMobile: vi.fn(),
 }));
 
 vi.mock('../lib/authApi', () => ({
@@ -29,6 +30,10 @@ vi.mock('../lib/authApi', () => ({
 
 vi.mock('../lib/metaApi', () => ({
   getAppMeta,
+}));
+
+vi.mock('./ui/use-mobile', () => ({
+  useIsMobile,
 }));
 
 vi.mock('./Turnstile', () => ({
@@ -57,6 +62,8 @@ describe('Auth', () => {
     signUp.mockReset();
     requestPasswordReset.mockReset();
     getAppMeta.mockReset();
+    useIsMobile.mockReset();
+    useIsMobile.mockReturnValue(false);
     getAppMeta.mockResolvedValue({
       service: 'cruush-server',
       auth: 'session-cookie',
@@ -80,6 +87,7 @@ describe('Auth', () => {
   });
 
   afterEach(() => {
+    vi.restoreAllMocks();
     vi.unstubAllGlobals();
   });
 
@@ -269,6 +277,37 @@ describe('Auth', () => {
 
     expect(signUpPassword).toHaveAttribute('type', 'text');
     expect(confirmPassword).toHaveAttribute('type', 'text');
+  });
+
+  it('accepts a mobile signup birthdate from the numeric keyboard and submits ISO format', async () => {
+    useIsMobile.mockReturnValue(true);
+    signUp.mockResolvedValue({
+      alreadyVerified: false,
+      expiresAt: '2026-07-28T12:00:00.000Z',
+      previewUrl: null,
+    });
+
+    render(<Auth onAuth={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: "Don't have an account? Sign up" }));
+
+    const birthdate = screen.getByLabelText('Date of birth');
+    expect(birthdate).toHaveAttribute('type', 'text');
+    expect(birthdate).toHaveAttribute('inputmode', 'numeric');
+    expect(birthdate).toHaveAttribute('placeholder', 'MM/DD/YYYY');
+
+    fireEvent.change(birthdate, { target: { value: '01021994' } });
+    expect(birthdate).toHaveValue('01/02/1994');
+
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'river@example.com' } });
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password-123' } });
+    fireEvent.change(screen.getByLabelText('Confirm Password'), { target: { value: 'password-123' } });
+    acceptSignupPolicies();
+    await screen.findByText('Mock Turnstile');
+    fireEvent.click(screen.getByRole('button', { name: 'Create Account' }));
+
+    await waitFor(() => expect(signUp).toHaveBeenCalledWith(expect.objectContaining({
+      dateOfBirth: '1994-01-02',
+    })));
   });
 
   it('keeps the password reset link directly under the account switch', () => {

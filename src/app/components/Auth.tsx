@@ -12,6 +12,7 @@ import { persistSessionUser, setVerificationPreviewUrl } from '../lib/sessionUse
 import { CruushIcon } from './CruushIconImage';
 import PublicPolicyLinks from './PublicPolicyLinks';
 import Turnstile, { getTurnstileSiteKey } from './Turnstile';
+import { useIsMobile } from './ui/use-mobile';
 import cruushLogo from '../assets/brand/cruush-logo.svg';
 
 import './Auth.css';
@@ -30,11 +31,43 @@ const FALLBACK_BETA_ACCESS = {
   enabled: true,
 } satisfies NonNullable<AppMetaPayload['betaAccess']>;
 
+function formatMobileBirthdate(value: string) {
+  const digits = value.replace(/\D/g, '').slice(0, 8);
+  const displayValue = [digits.slice(0, 2), digits.slice(2, 4), digits.slice(4, 8)]
+    .filter(Boolean)
+    .join('/');
+
+  if (digits.length !== 8) {
+    return { displayValue, isoValue: '' };
+  }
+
+  const month = Number(digits.slice(0, 2));
+  const day = Number(digits.slice(2, 4));
+  const year = Number(digits.slice(4, 8));
+  const date = new Date(Date.UTC(year, month - 1, day));
+  const isValid = date.getUTCFullYear() === year
+    && date.getUTCMonth() === month - 1
+    && date.getUTCDate() === day;
+
+  return {
+    displayValue,
+    isoValue: isValid
+      ? `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+      : '',
+  };
+}
+
+function displayBirthdateFromIso(value: string) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  return match ? `${match[2]}/${match[3]}/${match[1]}` : '';
+}
+
 export default function Auth({ onAuth }: AuthProps) {
   const [mode, setMode] = useState<'signin' | 'signup' | 'forgot'>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState('');
+  const [mobileDateOfBirth, setMobileDateOfBirth] = useState('');
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
   const [productUpdatesOptIn, setProductUpdatesOptIn] = useState(false);
@@ -75,6 +108,7 @@ export default function Auth({ onAuth }: AuthProps) {
   const [verificationDeliveryFailed, setVerificationDeliveryFailed] = useState(false);
   const [suspendedAppealUrl, setSuspendedAppealUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const usesMobileBirthdateInput = useIsMobile(641);
   const isSignUp = mode === 'signup';
   const isForgotPassword = mode === 'forgot';
   const turnstileSiteKey = getTurnstileSiteKey();
@@ -228,6 +262,7 @@ export default function Auth({ onAuth }: AuthProps) {
         }
         setConfirmPassword('');
         setDateOfBirth('');
+        setMobileDateOfBirth('');
         setTermsAccepted(false);
         setPrivacyAccepted(false);
         setProductUpdatesOptIn(false);
@@ -306,6 +341,7 @@ export default function Auth({ onAuth }: AuthProps) {
     setVerificationRetryAvailable(false);
     setConfirmPassword('');
     setDateOfBirth('');
+    setMobileDateOfBirth('');
     setTermsAccepted(false);
     setPrivacyAccepted(false);
     setProductUpdatesOptIn(false);
@@ -327,6 +363,7 @@ export default function Auth({ onAuth }: AuthProps) {
     setPassword('');
     setConfirmPassword('');
     setDateOfBirth('');
+    setMobileDateOfBirth('');
     setTermsAccepted(false);
     setPrivacyAccepted(false);
     setProductUpdatesOptIn(false);
@@ -440,7 +477,7 @@ export default function Auth({ onAuth }: AuthProps) {
               Log out
             </button>
           </section>
-        ) : <form onSubmit={handleSubmit} className="launch-login-auth-form" autoComplete="on">
+        ) : <form onSubmit={handleSubmit} className={`launch-login-auth-form${isSignUp ? ' launch-login-auth-form--signup' : ''}`} autoComplete="on">
           <div className="launch-login-auth-human-check" aria-hidden="true">
             <label htmlFor="launch-login-auth-middle-name">Leave blank</label>
             <input
@@ -559,13 +596,27 @@ export default function Auth({ onAuth }: AuthProps) {
 
           {isSignUp ? (
             <div className="space-y-1.5">
-              <label htmlFor="dateOfBirth" className="block px-1 text-xs font-medium text-white/72">Date of birth</label>
+              <label htmlFor="dateOfBirth" className="launch-login-auth-birthdate-label block px-1 text-xs font-medium text-white/72">Date of birth</label>
               <input
                 id="dateOfBirth"
-                type="date"
+                type={usesMobileBirthdateInput ? 'text' : 'date'}
+                inputMode={usesMobileBirthdateInput ? 'numeric' : undefined}
                 autoComplete="bday"
-                value={dateOfBirth}
-                onChange={(event) => setDateOfBirth(event.target.value)}
+                enterKeyHint={usesMobileBirthdateInput ? 'next' : undefined}
+                maxLength={usesMobileBirthdateInput ? 10 : undefined}
+                placeholder={usesMobileBirthdateInput ? 'MM/DD/YYYY' : undefined}
+                value={usesMobileBirthdateInput ? mobileDateOfBirth : dateOfBirth}
+                onChange={(event) => {
+                  if (usesMobileBirthdateInput) {
+                    const formatted = formatMobileBirthdate(event.target.value);
+                    setMobileDateOfBirth(formatted.displayValue);
+                    setDateOfBirth(formatted.isoValue);
+                    return;
+                  }
+
+                  setDateOfBirth(event.target.value);
+                  setMobileDateOfBirth(displayBirthdateFromIso(event.target.value));
+                }}
                 className="launch-login-auth-input w-full h-10 px-4 bg-black/45 border border-white/10 text-white placeholder:text-white/28 shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_12px_34px_rgba(0,0,0,0.22)] backdrop-blur-sm focus:outline-none focus:border-[#ff0072]/50 transition-colors rounded-sm"
                 required
                 disabled={isLoading}

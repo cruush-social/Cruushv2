@@ -958,6 +958,18 @@
 
   .launch-login-auth-form { --cruush-auth-input-scale: 0.78; }
 
+  .launch-login-auth-form--signup {
+    --cruush-auth-input-scale: 1;
+  }
+
+  .launch-login-auth-form--signup .launch-login-auth-birthdate-label,
+  .launch-login-auth-form--signup .launch-login-auth-consents,
+  .launch-login-auth-form--signup .launch-login-auth-input,
+  .launch-login-auth-form--signup .launch-login-auth-submit,
+  .launch-login-auth-form--signup .launch-login-auth-secondary {
+    font-size: 16px;
+  }
+
   .launch-login-auth-input {
     min-height: 2.18rem;
     height: 2.18rem;
