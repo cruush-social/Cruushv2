@@ -64,7 +64,7 @@ const activityFixture = {
     expiresAt: null,
   },
   counts: {
-    incoming: 2,
+    incoming: 1,
     sent: 1,
     mutual: 1,
     views: 2,
@@ -85,12 +85,6 @@ const activityFixture = {
         right: { badge_id: 'top', frame: 'circle', intent: 'receive' },
       },
     },
-  }, {
-    id: 'incoming-locked',
-    createdAt: '2026-04-29T10:00:00.000Z',
-    mutual: false,
-    locked: true,
-    user: null,
   }],
   sent: [{
     id: 'sent-1',
@@ -241,7 +235,7 @@ describe('CruushActivity', () => {
     expect(getMyCruushActivity).toHaveBeenCalledTimes(1);
   });
 
-  it('renders locked free rows, mutual actions, and list-only cruushes', async () => {
+  it('renders incoming cruushes, mutual actions, and list-only cruushes for basic users', async () => {
     const { container } = render(
       <MemoryRouter initialEntries={['/cruush']}>
         <Routes>
@@ -277,10 +271,8 @@ describe('CruushActivity', () => {
     expect(screen.getByRole('tab', { name: 'mutual' })).toHaveTextContent(/^mutual$/);
     expect(screen.getByRole('tab', { name: 'views' })).toHaveClass('min-w-0');
     expect(screen.getByRole('tab', { name: 'views' })).toHaveTextContent(/^views$/);
-    expect(screen.getByText('Someone new')).toBeInTheDocument();
-    expect(screen.getByText('Upgrade to view')).toBeInTheDocument();
+    expect(screen.queryByText('Upgrade to view')).not.toBeInTheDocument();
     expectHeartPreviewSize('luna preview');
-    expectHeartPreviewSize('Locked incoming cruush');
 
     expect(screen.getByTestId('activity-side-badges')).toBeInTheDocument();
     expect(screen.getByRole('img', { name: /left badge:.*dominant/i })).toBeInTheDocument();

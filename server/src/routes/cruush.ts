@@ -1410,7 +1410,7 @@ export async function registerCruushRoutes(app: FastifyInstance) {
       mapSentCruushRecords(app, authenticatedUserId, sentRecords, profilesById)
     ]);
     const viewRows = mapProfileViewRecords(viewRecords, profilesById);
-    const incoming = lockable(incomingRows, isCruushPlus, basicVisibleIncomingRecordId);
+    const incoming = incomingRows.map((row) => ({ ...row, locked: false }));
     const sent = sentRows;
     const mutual = await Promise.all(mutualRows.map(async (row) => mapMutualCruushRow(app, row, {
       currentCoordinates,
