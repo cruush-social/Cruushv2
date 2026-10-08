@@ -236,20 +236,6 @@ describe('CruushPlusStore', () => {
     })));
   });
 
-  it('shows a refused order under the payment buttons', async () => {
-    vi.mocked(getCryptoProcessorStatus).mockResolvedValue(processorStatus(['usdc_arbitrum']));
-    vi.mocked(createCryptoPaymentIntent).mockRejectedValue(new Error('Lifetime cruush+ is already active.'));
-
-    renderStore();
-    fireEvent.click(await screen.findByRole('button', { name: 'Cash App' }));
-
-    const refusal = await screen.findByText('Lifetime cruush+ is already active.');
-    const paymentButtons = screen.getByLabelText('Where you are paying from');
-    expect(refusal.closest('[role="alert"]')).not.toBeNull();
-    expect(paymentButtons.compareDocumentPosition(refusal) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(paymentButtons.parentElement).toContainElement(refusal);
-  });
-
   it('states that Lifetime includes unlimited Pulses', async () => {
     vi.mocked(getCryptoProcessorStatus).mockResolvedValue(processorStatus());
     vi.mocked(getBillingPlans).mockResolvedValue({
@@ -468,7 +454,7 @@ describe('CruushPlusStore', () => {
     expect(main?.children[5]).toContainElement(screen.getByRole('link', { name: /read the billing policy/i }));
   });
 
-  it('keeps the approved rounded checkout controls and Rewards benefit cards', async () => {
+  it('reuses the Rewards benefit card treatment without changing checkout controls', async () => {
     vi.mocked(getBillingPlans).mockResolvedValue({
       processor: 'fake',
       testCheckout: true,
@@ -485,18 +471,19 @@ describe('CruushPlusStore', () => {
     renderStore();
 
     const planButton = (await screen.findByText('$99.99 + processing fee')).closest('button');
-    expect(planButton).toHaveClass('rounded-xl', 'border');
-    expect(planButton).not.toHaveClass('border-x-0');
+    expect(planButton).toHaveClass('border-x-0', 'border-y');
+    expect(planButton).not.toHaveClass('rounded-xl');
 
     const compareItem = screen.getByRole('button', { name: /Compare plans/i }).closest('[data-slot="accordion-item"]');
-    expect(compareItem).toHaveClass('border-0');
+    expect(compareItem).toHaveClass('rounded-none', 'border-x-0', 'border-b-0');
+    expect(compareItem).not.toHaveClass('rounded-full');
 
     const availabilityNote = screen.getByText(/Cash App stablecoin transfers are not available to New York residents/i);
-    expect(availabilityNote).toHaveClass('rounded-lg', 'border', 'bg-muted/40');
+    expect(availabilityNote).not.toHaveClass('rounded-lg', 'border', 'bg-muted/40');
 
     const paymentGuideItem = screen.getByRole('button', { name: /How to send this payment/i }).closest('[data-slot="accordion-item"]');
-    expect(paymentGuideItem).toHaveClass('border-0');
-    expect(screen.getByRole('button', { name: 'Cash App' })).toHaveClass('rounded-xl', 'border');
+    expect(paymentGuideItem).toHaveClass('rounded-none', 'border-x-0', 'border-b-0');
+    expect(screen.getByRole('button', { name: 'Cash App' })).not.toHaveClass('rounded-xl');
 
     fireEvent.click(screen.getByRole('button', { name: 'Show cruush+ benefits' }));
     const benefits = await screen.findByRole('list', { name: 'cruush+ features' });
@@ -623,8 +610,7 @@ describe('CruushPlusStore', () => {
       );
     });
 
-    const paymentStatus = await screen.findByText(/waiting for your payment to arrive/i);
-    expect(paymentStatus.parentElement).toHaveClass('rounded-lg', 'border', 'p-4');
+    expect(await screen.findByText(/waiting for your payment to arrive/i)).toBeInTheDocument();
     expect(screen.getByText('18.99 USDC')).toBeInTheDocument();
     expect(screen.getByText('0x73659c60270d326c06Ac204F1A9C63f889a3D14B')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Payment started' })).toBeDisabled();

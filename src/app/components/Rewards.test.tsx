@@ -165,6 +165,7 @@ describe('Rewards', () => {
     expect(screen.queryByRole('list', { name: 'cruush+ features' })).not.toBeInTheDocument();
 
     fireEvent.click(benefitsToggle);
+    expect(window.localStorage.getItem('cruush:rewards:benefits-open')).toBe('true');
     const featureList = screen.getByRole('list', { name: 'cruush+ features' });
     expect(within(featureList).getAllByRole('listitem')).toHaveLength(CRUUSH_PLUS_FEATURES.length);
     for (const feature of CRUUSH_PLUS_FEATURES) {
@@ -174,6 +175,7 @@ describe('Rewards', () => {
     expect(within(featureList).queryByText(/\bPing\b|Voyeur|Create posts on the local feed/i)).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Hide cruush+ benefits' }));
+    expect(window.localStorage.getItem('cruush:rewards:benefits-open')).toBe('false');
     expect(screen.queryByRole('list', { name: 'cruush+ features' })).not.toBeInTheDocument();
   });
 

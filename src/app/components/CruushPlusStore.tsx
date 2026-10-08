@@ -32,7 +32,6 @@ import { trackCruushPlusConversion } from '../lib/posthog';
 import { readCruushPlusConversionContext, type CruushPlusConversionBenefit } from '../lib/cruushPlusConversion';
 import CruushPlusBenefitsAccordion from './CruushPlusBenefitsAccordion';
 import CruushPlusSectionTabs from './CruushPlusSectionTabs';
-import CruushPlusTimeLeft from './CruushPlusTimeLeft';
 import {
   CRYPTO_NETWORK_LABELS,
   CRYPTO_PAYMENT_SOURCES,
@@ -168,13 +167,9 @@ function formatUsdcAtomic(value: string | null, asset?: string) {
 
 function formatPaymentTimeRemaining(expiresAt: string, nowMs: number) {
   const remainingSeconds = Math.max(0, Math.ceil((Date.parse(expiresAt) - nowMs) / 1000));
-  const hours = Math.floor(remainingSeconds / 3600);
-  const minutes = Math.floor((remainingSeconds % 3600) / 60);
+  const minutes = Math.floor(remainingSeconds / 60);
   const seconds = remainingSeconds % 60;
-  // Past an hour, "21:20:50" reads like a clock time, so say it in words.
-  return hours > 0
-    ? `${hours}h ${minutes}m left`
-    : `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 }
 
 const BITCOIN_APP_LINKS = {
@@ -203,7 +198,6 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
   const [copied, setCopied] = useState(false);
   const [amountCopied, setAmountCopied] = useState(false);
   const [retryAt, setRetryAt] = useState(0);
-  const [startPaymentError, setStartPaymentError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState(false);
   const [cancelling, setCancelling] = useState(false);
@@ -606,7 +600,6 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
     });
     setStarting(true);
     setError(null);
-    setStartPaymentError(null);
     setStatusError(null);
     setCheckoutNotice(null);
     setCopied(false);
@@ -659,9 +652,7 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
         setRetryAt(Date.now() + (typeof seconds === 'number' && Number.isFinite(seconds) ? Math.max(1, seconds) : 60) * 1000);
         setClockMs(Date.now());
       }
-      // Shown under the payment buttons the member just tapped. At the top of
-      // the page it was off screen, so a refused order looked like nothing happened.
-      setStartPaymentError(startError instanceof Error ? startError.message : 'Unable to start this payment.');
+      setError(startError instanceof Error ? startError.message : 'Unable to start this payment.');
     } finally {
       startingRef.current = false;
       setStarting(false);
@@ -750,8 +741,8 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
           setCopied(false);
           paymentAttemptRef.current = null;
         }}
-        className={`flex w-full items-center justify-between gap-3 rounded-xl border text-left transition ${
-          featured ? 'border-primary px-3 py-3 shadow-lg' : 'border-border px-3 py-2.5'
+        className={`flex w-full items-center justify-between gap-3 border-x-0 border-y text-left transition ${
+          featured ? 'border-primary px-1 py-3 shadow-lg' : 'border-border px-1 py-2.5'
         } ${selected ? 'bg-primary/10' : 'bg-card'} ${soldOut || checkoutSelectionLocked ? 'opacity-50' : ''}`}
       >
         <span className="flex min-w-0 flex-col">
@@ -817,7 +808,6 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
       />
 
       <main className="mx-auto flex max-w-3xl flex-col gap-3 px-3 py-2 sm:px-4">
-        {!isPulse ? <CruushPlusTimeLeft /> : null}
         {!isPulse ? <CruushPlusSectionTabs active="checkout" /> : null}
         {!isPulse ? <CruushPlusBenefitsAccordion features={contextualPlusFeatures} /> : null}
 
@@ -843,7 +833,7 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
               </ul>
               {otherPlans.length > 0 ? (
                 <Accordion className="mt-2" collapsible type="single">
-                  <AccordionItem className="border-0" value="compare-plans">
+                  <AccordionItem className="rounded-none border-x-0 border-b-0 border-t" value="compare-plans">
                     <AccordionTrigger className="px-3 py-2 text-sm hover:no-underline">
                       Compare plans
                     </AccordionTrigger>
@@ -895,7 +885,7 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
             <CardContent className="space-y-2 p-3">
               <p className="text-sm font-semibold">What are you paying from?</p>
               {checkoutNotice ? (
-                <p role="status" className="rounded-lg border border-border bg-muted/40 p-2 text-sm leading-5 text-muted-foreground sm:text-xs sm:leading-4">
+                <p role="status" className="px-0 py-1 text-sm leading-5 text-muted-foreground sm:text-xs sm:leading-4">
                   {checkoutNotice}
                 </p>
               ) : null}
@@ -916,7 +906,7 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
                       aria-label={source.label}
                       aria-pressed={sourceSelected}
                       disabled={!sourceReady || checkoutSelectionLocked || checkingMinimum || belowMinimum || retryAt > clockMs}
-                      className={`${pickerSources.length % 2 === 1 && index === pickerSources.length - 1 ? 'col-span-2' : ''} rounded-xl border px-2 py-2 text-center disabled:opacity-50 ${sourceSelected ? 'border-primary bg-primary/10' : 'border-border'}`}
+                      className={`${pickerSources.length % 2 === 1 && index === pickerSources.length - 1 ? 'col-span-2' : ''} border-x-0 border-y px-2 py-2 text-center disabled:opacity-50 ${sourceSelected ? 'border-primary bg-primary/10' : 'border-border'}`}
                       onClick={() => void handleStartPayment(source)}
                     >
                       <span className="block text-sm font-medium">{source.label}</span>
@@ -927,20 +917,15 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
                   );
                 })}
               </div>
-              {startPaymentError ? (
-                <div role="alert" className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
-                  {startPaymentError}
-                </div>
-              ) : null}
               {retryAt > clockMs ? <p role="status" className="text-sm text-muted-foreground sm:text-xs">Try again in {Math.ceil((retryAt - clockMs) / 1000)}s</p> : null}
               {selectedPaymentSource.availabilityNote ? (
-                <p className="rounded-lg border border-border bg-muted/40 p-2 text-sm leading-5 text-muted-foreground sm:text-xs sm:leading-4">
+                <p className="px-0 py-1 text-sm leading-5 text-muted-foreground sm:text-xs sm:leading-4">
                   {selectedPaymentSource.availabilityNote}
                 </p>
               ) : null}
               {!intent ? (
                 <Accordion collapsible type="single">
-                  <AccordionItem className="border-0" value="payment-instructions">
+                  <AccordionItem className="rounded-none border-x-0 border-b-0 border-t" value="payment-instructions">
                     <AccordionTrigger className="px-3 py-2 text-base hover:no-underline">
                       How to send this payment
                     </AccordionTrigger>
@@ -970,14 +955,14 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
               </Button> : null}
 
               {!visibleProcessorReady ? (
-                <p className="rounded-lg border border-border bg-muted/40 p-2 text-sm leading-5 text-muted-foreground sm:text-xs sm:leading-4">
+                <p className="px-0 py-1 text-sm leading-5 text-muted-foreground sm:text-xs sm:leading-4">
                   Crypto payment is not available yet. You can still earn cruush+ time through
                   check-ins and referrals.
                 </p>
               ) : null}
 
               {intent ? (
-                <div aria-live="polite" className="space-y-3 rounded-lg border border-border p-4">
+                <div aria-live="polite" className="space-y-3 py-2">
                   <p className="text-sm font-medium">
                     {locallyExpired ? statusCopy.expired : statusCopy[intent.status]}
                   </p>
@@ -989,23 +974,44 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
                   ) : null}
                   {statusError ? <p className="text-sm text-destructive sm:text-xs">{statusError}</p> : null}
                   {intent.asset === 'BTC' && ['awaiting_payment', 'confirming', 'paid'].includes(intent.status) ? (
-                    <p aria-label="Payment progress" className="text-sm text-muted-foreground sm:text-xs">
-                      {Math.min(intent.confirmations ?? 0, 6)}/6 confirmations
-                    </p>
+                    <ol aria-label="Payment progress" className="space-y-1 text-sm text-muted-foreground sm:text-xs">
+                      <li>{intent.status === 'awaiting_payment' ? 'Awaiting payment' : 'Payment detected'}</li>
+                      <li>{(intent.confirmations ?? 0) > 0 ? 'On the Bitcoin blockchain' : intent.status === 'confirming' ? 'Waiting for the first block' : 'Waiting for Bitcoin'}</li>
+                      <li>{Math.min(intent.confirmations ?? 0, 6)}/6 confirmations</li>
+                      <li>{intent.status === 'paid' ? 'Purchase completed' : 'Purchase activates at 6 confirmations'}</li>
+                    </ol>
                   ) : null}
                   {!paymentWindowClosed && intent.expiresAt && isOpenCryptoPayment(intent.status) ? (
-                    <p className="text-sm font-semibold">
-                      Order timer: {formatPaymentTimeRemaining(intent.expiresAt, clockMs)}
-                    </p>
+                    <div className="rounded-lg border border-border bg-muted/40 p-3">
+                      <p className="text-sm font-semibold uppercase tracking-wide text-foreground sm:text-xs">Protected order</p>
+                      <p className="mt-1 text-sm font-semibold">
+                        Order timer: {formatPaymentTimeRemaining(intent.expiresAt, clockMs)}
+                      </p>
+                      <p className="mt-1 text-sm leading-5 text-muted-foreground sm:text-xs">
+                        This address is unique to your order. Send the exact amount in {intent.asset} on{' '}
+                        {CRYPTO_NETWORK_LABELS[intent.network]} and allow time for it to arrive on-chain before the timer reaches 0. Network confirmation can finish afterward.
+                      </p>
+                    </div>
                   ) : null}
                   {intent.paymentAddress && intent.quotedAmountAtomic && isOpenCryptoPayment(intent.status) && !paymentWindowClosed ? (
                     <div className="space-y-3">
                       <div>
-                        {intent.fundingEstimates?.filter((estimate) => estimate.meetsSendingMinimum === false).map((estimate) => (
-                          <p key={estimate.app} className="mb-3 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
-                            {estimate.app}: this order is below its {formatUsdcAtomic(estimate.minimumSendAtomic!, intent.asset)} {intent.asset} sending minimum. Choose another method before buying.
-                          </p>
-                        ))}
+                        {intent.fundingEstimates?.length ? (
+                          <div className="mb-3 space-y-1 text-sm text-muted-foreground sm:text-xs">
+                            {intent.fundingEstimates.map(estimate => (
+                              <p key={estimate.app}>
+                                {estimate.meetsSendingMinimum === false ? (
+                                  <>{estimate.app}: this order is below its {formatUsdcAtomic(estimate.minimumSendAtomic!, intent.asset)} {intent.asset} sending minimum. Choose another method before buying.</>
+                                ) : intent.rail === 'usdc_arbitrum' ? (
+                                  <>Cash App: have about {formatPrice(estimate.availableUsdCents)} available, including a {formatPrice(estimate.allowanceUsdCents)} sending-fee allowance. Cash App converts your dollar payment to USDC.</>
+                                ) : (
+                                  <>{estimate.app}: have about {formatUsdcAtomic(estimate.availableAtomic, intent.asset)} {intent.asset} available ({formatPrice(estimate.availableUsdCents)}), including a {formatPrice(estimate.allowanceUsdCents)} sending-fee allowance. Buy only what you still need.</>
+                                )}
+                              </p>
+                            ))}
+                            <p>Send only the exact amount below. Your app charges its sending fee separately; unused crypto stays in your balance. Fees can change, so check the app’s final total.</p>
+                          </div>
+                        ) : null}
                         {(intent.gasFeeUsdCents ?? 0) > 0 ? (
                           <p className="flex items-center gap-1 text-sm text-muted-foreground sm:text-xs">
                             cruush processing fee: {formatPrice(intent.gasFeeUsdCents!, 'USD')} (included)
@@ -1055,49 +1061,16 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
                       <p className="text-sm leading-5 text-muted-foreground sm:text-xs">
                         Send only {intent.asset} on {CRYPTO_NETWORK_LABELS[intent.network]} to this address. Another asset or network may be lost.
                       </p>
-                      <Accordion className="space-y-2" collapsible type="single">
-                        <AccordionItem value="order-payment-instructions">
-                          <AccordionTrigger className="w-full px-4 py-2 text-sm font-semibold hover:no-underline">
-                            How to send it
-                          </AccordionTrigger>
-                          <AccordionContent className="pb-1">
-                            {intent.fundingEstimates?.length ? (
-                          <div className="space-y-1 px-4 pb-3 text-sm text-muted-foreground sm:text-xs">
-                            {intent.fundingEstimates.map(estimate => (
-                              <p key={estimate.app}>
-                                {estimate.meetsSendingMinimum === false ? (
-                                  <>{estimate.app}: this order is below its {formatUsdcAtomic(estimate.minimumSendAtomic!, intent.asset)} {intent.asset} sending minimum. Choose another method before buying.</>
-                                ) : intent.rail === 'usdc_arbitrum' ? (
-                                  <>Cash App: have about {formatPrice(estimate.availableUsdCents)} available, including a {formatPrice(estimate.allowanceUsdCents)} sending-fee allowance. Cash App converts your dollar payment to USDC.</>
-                                ) : (
-                                  <>{estimate.app}: have about {formatUsdcAtomic(estimate.availableAtomic, intent.asset)} {intent.asset} available ({formatPrice(estimate.availableUsdCents)}), including a {formatPrice(estimate.allowanceUsdCents)} sending-fee allowance. Buy only what you still need.</>
-                                )}
-                              </p>
-                            ))}
-                            <p>Send only the exact amount below. Your app charges its sending fee separately; unused crypto stays in your balance. Fees can change, so check the app’s final total.</p>
-                          </div>
-                            ) : null}
-                            <CryptoPaymentMethodInstructions rail={selectedRail} sendingApp={selectedPaymentSource.sendingApp} />
-                          </AccordionContent>
-                        </AccordionItem>
-                        <AccordionItem value="order-protection">
-                          <AccordionTrigger className="w-full px-4 py-2 text-sm font-semibold hover:no-underline">
-                            Protected order
-                          </AccordionTrigger>
-                          <AccordionContent className="px-4 pb-3">
-                            <p className="text-sm leading-5 text-muted-foreground sm:text-xs">
-                              This address is unique to your order. Send the exact amount in {intent.asset} on{' '}
-                              {CRYPTO_NETWORK_LABELS[intent.network]} and allow time for it to arrive on-chain before the timer reaches 0. Network confirmation can finish afterward.
-                            </p>
-                            {!locallyExpired ? (
-                    <p className="mt-2 text-sm leading-5 text-muted-foreground sm:text-xs">
+                      <div>
+                        <p className="mb-2 text-sm font-semibold">How to send it</p>
+                        <CryptoPaymentMethodInstructions rail={selectedRail} sendingApp={selectedPaymentSource.sendingApp} />
+                      </div>
+                    </div>
+                  ) : null}
+                  {!locallyExpired ? (
+                    <p className="text-sm leading-5 text-muted-foreground sm:text-xs">
                       Checkout updates when your payment is detected and confirmed. {isPulse ? 'Your Pulses are added' : 'Your time is added'} after confirmation. Leaving this page does not cancel your order; return here to check its status.
                     </p>
-                            ) : null}
-                          </AccordionContent>
-                        </AccordionItem>
-                      </Accordion>
-                    </div>
                   ) : null}
                   {paymentOpen && !locallyExpired && intent.status !== 'confirming' ? (
                     cancelAction ? (

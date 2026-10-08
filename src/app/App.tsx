@@ -73,7 +73,6 @@ const EarnedCruushPlusCards = lazyRoute(() => import('./components/EarnedCruushP
 const CruushPlusSuccess = lazyRoute(() => import('./components/CruushPlusSuccess'));
 const AlphaBugButton = lazyRoute(() => import('./components/AlphaBugButton'));
 const TwoFactorSettings = lazyRoute(() => import('./components/TwoFactorSettings'));
-const ChangeEmailSettings = lazyRoute(() => import('./components/ChangeEmailSettings'));
 const PublicInfoPage = lazyRoute(() => import('./components/PublicInfoPage'));
 const Changelog = lazyRoute(() => import('./components/Changelog'));
 const Survey = lazyRoute(() => import('./components/Survey'));
@@ -672,7 +671,6 @@ export default function App({
               <Route path="/settings/blocked-users" element={<BlockedUsersPage />} />
               <Route path="/settings/notifications" element={<NotificationSettings />} />
               <Route path="/settings/2fa" element={<TwoFactorSettings />} />
-              <Route path="/settings/email" element={<ChangeEmailSettings />} />
               <Route path="/settings/onboarding-test" element={canTestOnboarding(session.user)
                 ? <AdminOnboardingReplay onStart={startOnboardingReplay} />
                 : <Navigate to="/settings" replace />} />
