@@ -190,7 +190,7 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
   );
   const [plans, setPlans] = useState<StorePlan[]>([]);
   const [processor, setProcessor] = useState<CryptoProcessorStatus | null>(null);
-  const [bitcoinEligibility, setBitcoinEligibility] = useState<BitcoinSendingEligibility | null>(null);
+  const [bitcoinEligibility, setBitcoinEligibility] = useState<BitcoinSendingEligibility | null | undefined>(undefined);
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [intent, setIntent] = useState<CryptoPaymentIntent | null>(null);
   const [selectedSourceId, setSelectedSourceId] = useState<string>(CRYPTO_PAYMENT_SOURCES[0].id);
@@ -893,7 +893,7 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
                 {pickerSources.map((source, index) => {
                   const sourceReady = readyRailIds.has(source.rail);
                   const eligibleApps = bitcoinEligibility?.products[selectedPlan.id];
-                  const checkingMinimum = source.rail === 'btc_bitcoin' && source.sendingApp !== 'wallet' && bitcoinEligibility === null;
+                  const checkingMinimum = source.rail === 'btc_bitcoin' && source.sendingApp !== 'wallet' && bitcoinEligibility === undefined;
                   const belowMinimum = source.rail === 'btc_bitcoin' && source.sendingApp !== 'wallet'
                     && Boolean(eligibleApps && !eligibleApps.includes(CRYPTO_SENDING_APP_LABELS[source.sendingApp]));
                   const sourceSelected = (hasChosenSource || source.rail !== 'btc_bitcoin') && selectedSourceId === source.id

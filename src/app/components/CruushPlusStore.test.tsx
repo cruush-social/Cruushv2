@@ -1233,11 +1233,15 @@ describe('Bitcoin through Cash App, PayPal, Venmo or a wallet', () => {
     expect(within(otherPrices).getByText('7 days')).toBeInTheDocument();
   });
 
-  it('leaves the catalogue alone when the sample is unavailable', async () => {
+  it('exits Checking minimum when the Bitcoin network sample is unavailable', async () => {
     vi.mocked(getBitcoinSendingEligibility).mockRejectedValue(new Error('chain source unavailable'));
     renderStore();
 
-    fireEvent.click(await screen.findByRole('button', { name: 'PayPal' }));
+    const paypal = await screen.findByRole('button', { name: 'PayPal' });
+    await waitFor(() => expect(paypal).toBeEnabled());
+    expect(within(paypal).getByText('BTC · Bitcoin')).toBeInTheDocument();
+    expect(screen.queryByText('Checking minimum')).not.toBeInTheDocument();
+    fireEvent.click(paypal);
     fireEvent.click(screen.getByRole('button', { name: /Compare plans/i }));
 
     const otherPrices = await screen.findByRole('list', { name: 'Other cruush+ prices' });

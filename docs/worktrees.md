@@ -9,6 +9,7 @@ the branch name.
 
 | Branch | Worktree path | Last commit | State | Ahead/behind main | Purpose |
 | --- | --- | --- | --- | --- | --- |
+| `fix/bitcoin-minimum-network-20261008` | `/Volumes/good/cruush-bitcoin-minimum-network-20261008` | `afdf7c2` (base) | active, Codex | +0/-0 at creation | Stop a failed Bitcoin minimum sample from leaving checkout stuck on “Checking minimum”; preserve pricing, minimum enforcement, payment behavior, and presentation. |
 | `fix/message-picker-profile-cards-20261007` | `/Volumes/good/cruush-message-picker-profile-cards-20261007` | `8308f15` (base) | release candidate, Codex 01a1174e | +0/-0 at creation | Share the compact Cruushes-page card and canonical Cruushes page header across their named app surfaces; keep Recently Active visible with map popups. |
 | `fix/club-menu-gradients-20261007` | `/Volumes/good/cruush-club-menu-gradients-20261007` | 2026-10-07 edd8c95 fix: label 1000 checkout inventory as limited | dirty (6 files) | +7/-0 | Replace old solid-pink primary actions in Club menus with the current cruush gradient; local UI review in progress, uncommitted. |
 | `feat/cruush-plus-conversion-20261007` | `/Volumes/good/cruush-plus-conversion-20261007` | `bdff0cd` (base) | active, Codex 01a1174e | +1/-0 after rebase; +0/-0 at creation | Improve cruush+ paid conversion by routing purchase-intent gates to the existing `/store`, adding privacy-safe funnel analytics, and preparing a mobile-map experiment; processor and prices unchanged. |
