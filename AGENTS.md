@@ -57,7 +57,7 @@ For backend or infrastructure work, consult `docs/master-architecture.md` and
 the applicable source. Current explicit user instructions override older decisions.
 
 ## Mistakes
-- 2026-10-08: Pinned Coolify to an unverified completed SHA, causing two frontend deployment failures; cancelled the invalid queued API deployment, read the actual full commit with `git rev-parse HEAD`, repinned both apps, and verified the matching production SHA.
+- 2026-10-08: Expanded a short Git commit ID by guessing its remaining characters when pinning Coolify, causing one frontend deployment to fail and one invalid API deployment to queue; canceled the invalid job, derived the full SHA from `git rev-parse`, corrected both pins, and verified both production services on the exact remote SHA.
 - 2026-10-07: Wrote uppercase cruush in a design-decision quote despite the lowercase product rule; normalized it before shipping.
 - 2026-10-07: Started a LAN dev server for phone review whose separate local auth state rejected the expected admin login; stopped both added servers and returned phone verification to the real deployed site.
 
