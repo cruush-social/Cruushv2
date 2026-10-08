@@ -222,7 +222,8 @@ const migrationFiles = [
   "201_group_club_notification_controls.sql",
   "202_club_visibility_controls.sql",
   "203_encrypted_club_enrollments.sql",
-  "204_clubs20_coupon_and_club_side_quests.sql"
+  "204_clubs20_coupon_and_club_side_quests.sql",
+  "205_survey_gift_promo_code.sql"
 ];
 const rewardSafetyPreflightFiles = [
   "079_daily_check_in_rewards.sql",

@@ -223,6 +223,16 @@ describe("migration runner", () => {
     expect(sql).toContain("'join_club', 'send_club_message'");
   });
 
+  it("registers the one-day survey gift promo code after the current schema", async () => {
+    const migrateSource = await readFile(path.join(currentDir, "migrate.ts"), "utf8");
+    const giftSql = await readFile(path.join(serverRoot, "sql", "205_survey_gift_promo_code.sql"), "utf8");
+
+    expect(migrateSource).toMatch(/"204_clubs20_coupon_and_club_side_quests\.sql",\s*"205_survey_gift_promo_code\.sql"/);
+    expect(giftSql).toContain("'SURVEYGIFT'");
+    expect(giftSql).toContain("grant_days, max_redemptions, active");
+    expect(giftSql).toContain("upper(code) = 'SURVEYGIFT'");
+  });
+
   it("skips the historical replay after verifying the deployed migration-203 schema", async () => {
     const migrateSource = await readFile(path.join(currentDir, "migrate.ts"), "utf8");
 
