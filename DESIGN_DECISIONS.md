@@ -359,6 +359,10 @@ Profile photo-overlay vibe tags use the smaller capsule sizing while preserving 
 ## Profile photo chrome, October 8, 2026
 
 The loaded profile uses the old photo-overlay controls without a black page-header bar. Source: Julien, “I preferred the old profile style withoit the black header.”
+
+## Spot marker hover zoom, October 8, 2026
+
+Individual Spot markers zoom on hover using the same scale and timing as person-pin units. Their resting geometry, artwork, title preview, check-in count, position, click behavior, and clustering remain unchanged. Source: Julien, “Spots should zoom on hover like units.”
 ## Basic activity history and Feed loading, October 2, 2026
 
 Julien: “changes to basic: Basic members see only the newest incoming cruush and newest profile view. Older items stay locked; clearing one does not expose the backlog.” Basic activity access is anchored to the newest historical item in each of those two categories. Clearing that item does not promote or unlock an older active item; a genuinely newer item may become the next unlocked item. cruush+ access is unchanged.

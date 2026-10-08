@@ -1898,7 +1898,7 @@ function PlaceMarker({ marker, previewed = false }: { marker: MapMarker; preview
           {marker.displayName}
         </SignalBadge>
       </span>
-      <span className={`relative flex h-12 w-12 rotate-45 items-center justify-center rounded-[0.7rem] border-2 border-[#55C8FF] bg-black/94 text-white backdrop-blur-md`}>
+      <span className={`relative flex h-12 w-12 origin-center rotate-45 items-center justify-center rounded-[0.7rem] border-2 border-[#55C8FF] bg-black/94 text-white backdrop-blur-md transition-transform duration-150 ${previewed ? 'scale-[1.38]' : ''}`}>
         <span className="flex h-8 w-8 -rotate-45 items-center justify-center">
           {config.special === 'beach' ? <img src={beachUmbrellaIcon} alt="" className="h-7 w-7 brightness-0 invert" /> : null}
           {config.special === 'stairs' ? <span aria-hidden="true" className="relative block h-6 w-6"><i className="absolute bottom-1 left-0 h-[3px] w-2.5 rounded-full bg-white" /><i className="absolute bottom-2.5 left-[7px] h-[3px] w-2.5 rounded-full bg-white" /><i className="absolute bottom-4 left-3.5 h-[3px] w-2.5 rounded-full bg-white" /></span> : null}
