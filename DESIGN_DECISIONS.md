@@ -355,6 +355,10 @@ The signup birthdate field opens the numeric keyboard on mobile and accepts `MM/
 ## Smaller profile-overlay vibe tags, October 8, 2026
 
 Profile photo-overlay vibe tags use the smaller capsule sizing while preserving their wording, uppercase treatment, gradient, radius, order, and wrapping position. Source: Julien, “resize vibe tags smaller.”
+
+## Profile photo chrome, October 8, 2026
+
+The loaded profile uses the old photo-overlay controls without a black page-header bar. Source: Julien, “I preferred the old profile style withoit the black header.”
 ## Basic activity history and Feed loading, October 2, 2026
 
 Julien: “changes to basic: Basic members see only the newest incoming cruush and newest profile view. Older items stay locked; clearing one does not expose the backlog.” Basic activity access is anchored to the newest historical item in each of those two categories. Clearing that item does not promote or unlock an older active item; a genuinely newer item may become the next unlocked item. cruush+ access is unchanged.

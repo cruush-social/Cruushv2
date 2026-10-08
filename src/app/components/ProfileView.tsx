@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { resolveMediaUrl } from '../lib/apiClient';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { notifyProfileUnavailable } from '../lib/profileUnavailable';
-import { Share2, X } from 'lucide-react';
+import { ArrowLeft, Share2, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import BlockUserAction from './BlockUserAction';
@@ -35,6 +35,7 @@ import partyHatIcon from '../assets/ui-icons/party-hat.svg';
 import mileHighClubWhite from '../assets/ui-icons/mile-high-club-white.svg';
 import InAppShareDialog from './InAppShareDialog';
 import AppPageHeader from './AppPageHeader';
+import BugButtonSlot from './BugButtonSlot';
 
 type ProfileLocationState = {
   distance?: string;
@@ -596,16 +597,28 @@ export default function ProfileView() {
 
   return (
     <div className="min-h-screen bg-background pb-20" style={PROFILE_VIEW_STYLE}>
-      <AppPageHeader
-        title="Profile"
-        onBack={() => navigate(-1)}
-        backTestId="profile-back"
-        bugButtonTestId="profile-view-bug-button-slot"
-        actions={(
-          <>
+      <div
+        data-testid="profile-gallery-frame"
+        className="relative mx-auto max-w-2xl"
+        style={PROFILE_VIEW_GALLERY_FRAME_STYLE}
+      >
+        <div className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-start justify-between p-3 pr-3 lg:pr-[calc(4.25rem+env(safe-area-inset-right))]">
+          <div className="pointer-events-auto flex min-w-0 items-center gap-2">
+            <button
+              aria-label="Back"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/12 bg-black/55 text-white backdrop-blur-sm"
+              data-testid="profile-back"
+              onClick={() => navigate(-1)}
+              type="button"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </button>
+          </div>
+
+          <div className="pointer-events-auto flex items-center gap-2">
             <Button
               aria-label="Send profile in cruush"
-              className="border border-white/12 bg-black/55 text-white backdrop-blur-sm"
+              className="h-10 w-10 rounded-full border border-white/12 bg-black/55 text-white backdrop-blur-sm"
               onClick={() => setShareOpen(true)}
               size="icon"
               type="button"
@@ -615,7 +628,7 @@ export default function ProfileView() {
             </Button>
             {isOwnProfile ? (
               <Button
-                className="h-9 border border-white/12 bg-black/55 px-3 text-white backdrop-blur-sm"
+                className="h-10 rounded-full border border-white/12 bg-black/55 px-4 text-white backdrop-blur-sm"
                 onClick={() => navigate('/profile/edit')}
                 variant="ghost"
               >
@@ -625,7 +638,7 @@ export default function ProfileView() {
               <>
                 {userId ? (
                   <BlockUserAction
-                    className="size-9 border border-white/12 bg-black/55 p-0 text-white backdrop-blur-sm"
+                    className="h-10 w-10 rounded-full border border-white/12 bg-black/55 p-0 text-white backdrop-blur-sm"
                     dialogClassName="cruush-profile-safety-dialog"
                     dialogStyle={profileSafetyDialogStyle}
                     displayName={profileView.name}
@@ -638,7 +651,7 @@ export default function ProfileView() {
                 ) : null}
                 {userId ? (
                   <ReportAction
-                    className="size-9 border border-white/12 bg-black/55 text-white backdrop-blur-sm"
+                    className="h-10 w-10 rounded-full border border-white/12 bg-black/55 text-white backdrop-blur-sm"
                     dialogClassName="cruush-profile-safety-dialog"
                     dialogStyle={profileSafetyDialogStyle}
                     label="Report profile"
@@ -649,14 +662,10 @@ export default function ProfileView() {
                 ) : null}
               </>
             )}
-          </>
-        )}
-      />
-      <div
-        data-testid="profile-gallery-frame"
-        className="relative mx-auto max-w-2xl"
-        style={PROFILE_VIEW_GALLERY_FRAME_STYLE}
-      >
+            <BugButtonSlot className="ml-0" testId="profile-view-bug-button-slot" />
+          </div>
+        </div>
+
         <ProfilePhotoGallery
           borderTone={resolveUserBorderTone({ current: isOwnProfile, mileHigh: profileView.travelling, mutual: heartTheme === 'mutual' })}
           fitViewport
