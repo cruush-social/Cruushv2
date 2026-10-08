@@ -12,7 +12,8 @@ import { getActiveAccountUserId, getAuthenticatedUserId } from "../request-auth.
 import { PING_PACKS } from "../ping-packs.js";
 
 const checkoutSessionPayloadSchema = z.object({
-  planId: z.string().min(1)
+  planId: z.string().min(1),
+  couponCode: z.string().trim().min(1).max(120).optional()
 }).strict();
 
 const checkoutSessionParamsSchema = z.object({
@@ -58,7 +59,7 @@ export async function registerBillingRoutes(app: FastifyInstance) {
     const payload = checkoutSessionPayloadSchema.parse(request.body);
 
     return reply.code(201).send({
-      data: await createFakeCheckoutSession(app, userId, payload.planId)
+      data: await createFakeCheckoutSession(app, userId, payload.planId, payload.couponCode)
     });
   });
 

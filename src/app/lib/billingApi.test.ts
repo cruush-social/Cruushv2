@@ -50,4 +50,14 @@ describe('billingApi', () => {
       credentials: 'include',
     }));
   });
+
+  it('passes an optional coupon code to checkout creation', async () => {
+    await createCheckoutSession('plus_monthly', ' new50 ');
+
+    expect(fetch).toHaveBeenCalledWith('/api/billing/checkout-sessions', expect.objectContaining({
+      method: 'POST',
+      body: JSON.stringify({ planId: 'plus_monthly', couponCode: 'new50' }),
+      credentials: 'include',
+    }));
+  });
 });

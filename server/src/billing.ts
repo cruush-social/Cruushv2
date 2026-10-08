@@ -55,6 +55,9 @@ export type BillingCheckoutSessionRow = {
   status: "pending" | "completed" | "cancelled" | "failed";
   test_mode: boolean;
   amount_cents: number;
+  original_amount_cents?: number;
+  discount_cents?: number;
+  coupon_code?: string | null;
   currency: string;
   created_at?: string | Date | null;
   expires_at?: string | Date | null;
@@ -451,6 +454,9 @@ export function mapCheckoutSession(row: BillingCheckoutSessionRow) {
     status: row.status,
     testMode: row.test_mode,
     amountCents: row.amount_cents,
+    originalAmountCents: row.original_amount_cents ?? row.amount_cents,
+    discountCents: row.discount_cents ?? 0,
+    couponCode: row.coupon_code ?? null,
     currency: row.currency,
     createdAt: toIsoDate(row.created_at),
     expiresAt: toIsoDate(row.expires_at),
@@ -465,25 +471,124 @@ function assertTestCheckoutAllowed(app: FastifyInstance) {
   }
 }
 
-export async function createFakeCheckoutSession(app: FastifyInstance, userId: string, planId: string) {
+type CouponRow = {
+  id: string;
+  code: string;
+  percent_off: number;
+  new_member_only: boolean;
+};
+
+type CouponUserRow = {
+  created_at: string | Date;
+};
+
+function discountedAmountCents(amountCents: number, percentOff: number) {
+  return Math.max(1, Math.round(amountCents * (100 - percentOff) / 100));
+}
+
+export async function createFakeCheckoutSession(
+  app: FastifyInstance,
+  userId: string,
+  planId: string,
+  couponCode?: string
+) {
   assertTestCheckoutAllowed(app);
 
   const plan = getCruushPlusPlan(planId);
-  const row = (await app.db.query<BillingCheckoutSessionRow>(
-    `insert into billing_checkout_sessions (
-       user_id,
-       plan_id,
-       processor,
-       status,
-       test_mode,
-       amount_cents,
-       currency,
-       expires_at
-     )
-     values ($1, $2, 'fake', 'pending', true, $3, $4, now() + interval '30 minutes')
-     returning id, user_id, plan_id, processor, status, test_mode, amount_cents, currency, created_at, expires_at, completed_at`,
-    [userId, plan.id, plan.amountCents, plan.currency]
-  )).rows[0];
+  const normalizedCouponCode = couponCode?.trim().toUpperCase() || null;
+
+  const createSession = async (db: DbClient) => {
+    let amountCents = plan.amountCents;
+    let discountCents = 0;
+    let coupon: CouponRow | null = null;
+
+    if (normalizedCouponCode) {
+      coupon = (await db.query<CouponRow>(
+        `select id::text, code, percent_off, new_member_only
+         from billing_coupon_codes
+         where upper(code) = $1
+           and active = true
+           and starts_at <= now()
+           and (expires_at is null or expires_at > now())
+         limit 1
+         for update`,
+        [normalizedCouponCode]
+      )).rows[0] ?? null;
+
+      if (!coupon) {
+        throw new ApiError(404, "NOT_FOUND", "Coupon is invalid or expired.");
+      }
+
+      if (coupon.new_member_only) {
+        const user = (await db.query<CouponUserRow>(
+          `select created_at
+           from app_users
+           where id = $1
+           for update`,
+          [userId]
+        )).rows[0];
+
+        if (!user || new Date(user.created_at).getTime() <= Date.now() - 24 * 60 * 60 * 1000) {
+          throw new ApiError(409, "VALIDATION_ERROR", "This coupon is only available during your first 24 hours.");
+        }
+      }
+
+      const priorRedemption = (await db.query<{ id: string }>(
+        `select id::text
+         from billing_coupon_redemptions
+         where coupon_id = $1 and user_id = $2
+         limit 1
+         for update`,
+        [coupon.id, userId]
+      )).rows[0];
+
+      if (priorRedemption) {
+        throw new ApiError(409, "VALIDATION_ERROR", "This coupon has already been redeemed.");
+      }
+
+      amountCents = discountedAmountCents(plan.amountCents, Number(coupon.percent_off));
+      discountCents = plan.amountCents - amountCents;
+    }
+
+    const row = (await db.query<BillingCheckoutSessionRow>(
+      `insert into billing_checkout_sessions (
+         user_id,
+         plan_id,
+         processor,
+         status,
+         test_mode,
+         amount_cents,
+         original_amount_cents,
+         discount_cents,
+         coupon_code,
+         currency,
+         expires_at
+       )
+       values ($1, $2, 'fake', 'pending', true, $3, $4, $5, $6, $7, now() + interval '30 minutes')
+       returning id, user_id, plan_id, processor, status, test_mode, amount_cents,
+         original_amount_cents, discount_cents, coupon_code, currency, created_at,
+         expires_at, completed_at`,
+      [userId, plan.id, amountCents, plan.amountCents, discountCents, coupon?.code ?? null, plan.currency]
+    )).rows[0];
+
+    if (!row) {
+      throw new ApiError(500, "INTERNAL_ERROR", "Unable to create checkout session.");
+    }
+
+    if (coupon) {
+      await db.query(
+        `insert into billing_coupon_redemptions (coupon_id, user_id, checkout_session_id)
+         values ($1, $2, $3)`,
+        [coupon.id, userId, row.id]
+      );
+    }
+
+    return row;
+  };
+
+  const row = normalizedCouponCode
+    ? await runTransaction(app.db, createSession)
+    : await createSession(app.db);
 
   if (!row) {
     throw new ApiError(500, "INTERNAL_ERROR", "Unable to create checkout session.");
@@ -494,7 +599,9 @@ export async function createFakeCheckoutSession(app: FastifyInstance, userId: st
 
 export async function loadCheckoutSession(app: FastifyInstance, userId: string, sessionId: string) {
   const row = (await app.db.query<BillingCheckoutSessionRow>(
-    `select id, user_id, plan_id, processor, status, test_mode, amount_cents, currency, created_at, expires_at, completed_at
+    `select id, user_id, plan_id, processor, status, test_mode, amount_cents,
+       original_amount_cents, discount_cents, coupon_code, currency, created_at,
+       expires_at, completed_at
      from billing_checkout_sessions
      where id = $1
        and user_id = $2

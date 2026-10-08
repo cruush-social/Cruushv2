@@ -55,6 +55,9 @@ export type CheckoutSession = {
   status: 'pending' | 'completed' | 'cancelled' | 'failed';
   testMode: boolean;
   amountCents: number;
+  originalAmountCents: number;
+  discountCents: number;
+  couponCode: string | null;
   currency: string;
   createdAt: string | null;
   expiresAt: string | null;
@@ -77,10 +80,10 @@ export async function getMyBillingStatus() {
   return requestApi<BillingStatus>('/api/billing/me');
 }
 
-export async function createCheckoutSession(planId: CruushPlusPlanId) {
+export async function createCheckoutSession(planId: CruushPlusPlanId, couponCode?: string) {
   return requestApi<CheckoutSession>('/api/billing/checkout-sessions', {
     method: 'POST',
-    body: JSON.stringify({ planId }),
+    body: JSON.stringify({ planId, ...(couponCode?.trim() ? { couponCode: couponCode.trim() } : {}) }),
   });
 }
 
