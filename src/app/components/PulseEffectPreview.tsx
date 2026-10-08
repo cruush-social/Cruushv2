@@ -1,7 +1,6 @@
-import { ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import HeartPhoto from './HeartPhoto';
-import BugButtonSlot from './BugButtonSlot';
+import AppPageHeader from './AppPageHeader';
 import { HEART_PIN_PATH } from '../lib/heartPin';
 
 /**
@@ -307,19 +306,11 @@ export default function PulseEffectPreview() {
 
   return (
     <div className="min-h-screen bg-background pb-24 text-white">
-      <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-white/10 bg-background/95 px-4 py-3 backdrop-blur-md">
-        <button
-          aria-label="Back"
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/12 bg-black/55"
-          onClick={() => navigate(-1)}
-          type="button"
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </button>
-        <h1 className="min-w-0 flex-1 truncate text-lg">Pulse effects</h1>
-      
-        <BugButtonSlot testId="pulse-effect-preview-bug-button-slot" />
-      </header>
+      <AppPageHeader
+        title="Pulse effects"
+        onBack={() => navigate(-1)}
+        bugButtonTestId="pulse-effect-preview-bug-button-slot"
+      />
 
       <main className="mx-auto w-full max-w-2xl space-y-4 px-4 py-4">
         <p className="text-sm text-white/62">

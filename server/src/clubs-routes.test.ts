@@ -6,11 +6,11 @@ import type { DbClient } from "./db.js";
 import { createMemoryRateLimiter } from "./rate-limit.js";
 
 const mocks = vi.hoisted(() => ({
-  getCruushEntitlement: vi.fn(), getRelationshipPermissions: vi.fn(), loadLocationEnvelopes: vi.fn(), moderateTextOrReject: vi.fn(),
+  getRelationshipPermissions: vi.fn(), loadLocationEnvelopes: vi.fn(), moderateTextOrReject: vi.fn(),
   findClubEnrollment: vi.fn(), listClubMemberships: vi.fn(), listClubJoinRequests: vi.fn(), listUserClubMemberships: vi.fn(),
   upsertClubEnrollment: vi.fn(), deleteClubEnrollment: vi.fn(), deleteClubEnrollmentsForClub: vi.fn()
 }));
-vi.mock("./match-relationships.js", async () => ({ ...(await vi.importActual<typeof import("./match-relationships.js")>("./match-relationships.js")), getCruushEntitlement: mocks.getCruushEntitlement, getRelationshipPermissions: mocks.getRelationshipPermissions }));
+vi.mock("./match-relationships.js", async () => ({ ...(await vi.importActual<typeof import("./match-relationships.js")>("./match-relationships.js")), getRelationshipPermissions: mocks.getRelationshipPermissions }));
 vi.mock("./moderation-service.js", async () => ({ ...(await vi.importActual<typeof import("./moderation-service.js")>("./moderation-service.js")), moderateTextOrReject: mocks.moderateTextOrReject }));
 vi.mock("./location-privacy.js", async () => ({ ...(await vi.importActual<typeof import("./location-privacy.js")>("./location-privacy.js")), loadLocationEnvelopes: mocks.loadLocationEnvelopes }));
 vi.mock("./encrypted-club-enrollments.js", async () => ({
@@ -46,7 +46,6 @@ function rawClub() {
 describe("encrypted Club directory routes", () => {
   beforeEach(() => {
     query.mockReset(); Object.values(mocks).forEach((mock) => mock.mockReset());
-    mocks.getCruushEntitlement.mockResolvedValue({ cruushPlus: true, expiresAt: null, ownerFullAccess: false });
     mocks.getRelationshipPermissions.mockResolvedValue({ canMessage: true, isMutualCruush: true });
     mocks.loadLocationEnvelopes.mockResolvedValue(new Map()); mocks.moderateTextOrReject.mockResolvedValue({ decision: { decision: "allow" } });
     mocks.findClubEnrollment.mockResolvedValue(null); mocks.listClubMemberships.mockResolvedValue([enrollment(memberId, "owner")]);
@@ -84,6 +83,13 @@ describe("encrypted Club directory routes", () => {
     expect(mocks.upsertClubEnrollment).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ userId, role: "owner" }));
     expect(query.mock.calls.slice(1)).toHaveLength(1);
     expect(String(query.mock.calls[1]?.[0])).toContain("member_index");
+  });
+
+  it("lets a basic member create a Club", async () => {
+    query.mockResolvedValueOnce({ rows: [{ id: clubId, conversation_id: conversationId }] }).mockResolvedValue({ rows: [] });
+    const response = await app.inject({ method: "POST", url: "/api/clubs", headers: { "x-user-id": userId }, payload: { title: "Free Club", summary: "A Club anyone can start.", tags: ["community"], memberIds: [] } });
+    expect(response.statusCode).toBe(201);
+    expect(response.json().data).toMatchObject({ title: "Free Club", currentUserRole: "owner" });
   });
 
   it("returns detail membership from encrypted records", async () => {

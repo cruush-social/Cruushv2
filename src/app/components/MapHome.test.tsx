@@ -2340,7 +2340,7 @@ describe('MapHome', () => {
     expect(screen.getByTestId('location-probe')).toHaveTextContent('/lucky');
   });
 
-  it('opens rewards from the top cruush+ button', async () => {
+  it('opens checkout from the top cruush+ button', async () => {
     useIsMobile.mockReturnValue(false);
     getMyBillingStatus.mockResolvedValue({
       cruushPlus: true,
@@ -2354,14 +2354,14 @@ describe('MapHome', () => {
       <MemoryRouter initialEntries={['/map']}>
         <Routes>
           <Route path="/map" element={<><MapHome /><LocationProbe /></>} />
-          <Route path="/rewards" element={<LocationProbe />} />
+          <Route path="/store" element={<LocationProbe />} />
         </Routes>
       </MemoryRouter>
     );
 
     fireEvent.click(await screen.findByRole('button', { name: 'cruush+ rewards' }));
 
-    expect(screen.getByTestId('location-probe')).toHaveTextContent('/rewards');
+    expect(screen.getByTestId('location-probe')).toHaveTextContent('/store');
   });
 
   it('shows the locked cruise carousel side panel for free desktop users', async () => {
@@ -3905,7 +3905,7 @@ describe('MapHome', () => {
     expect(getMyMapSpotsVisibility).toHaveBeenCalledTimes(1);
   });
 
-  it('restores the saved hidden Spot preference on a later map visit', async () => {
+  it('keeps Spots on by default when only stale browser storage says hidden', async () => {
     window.localStorage.setItem('cruush:map-spots-hidden', 'true');
     useIsMobile.mockReturnValue(false);
     getNearbyUsers.mockResolvedValue([]);
@@ -3927,10 +3927,11 @@ describe('MapHome', () => {
     );
 
     await waitFor(() => expect(getPlaces).toHaveBeenCalled());
-    await waitFor(() => expect(screen.queryByTestId('marker-place-place-1')).not.toBeInTheDocument());
+    expect(await screen.findByTestId('marker-place-place-1')).toBeInTheDocument();
     expect(getPlaces).toHaveBeenNthCalledWith(1, expect.objectContaining({
       excludedFacilityTypes: ['bus_stop'],
     }));
+    expect(saveMyMapSpotsVisibility).not.toHaveBeenCalled();
 
     window.localStorage.removeItem('cruush:map-spots-hidden');
   });

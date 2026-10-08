@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import {
-  ArrowLeft,
   Bell,
   CheckCircle2,
   ChevronLeft,
@@ -65,7 +64,7 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import LoadingCardSkeletons from './LoadingCardSkeletons';
-import BugButtonSlot from './BugButtonSlot';
+import AppPageHeader from './AppPageHeader';
 
 type AccessState = 'checking' | 'ready' | 'denied' | 'error';
 type ModeratorView = 'queue' | 'users' | 'notifications' | 'system-errors' | 'email';
@@ -771,16 +770,13 @@ export default function ModeratorReview() {
 
   return (
     <div className="min-h-screen bg-background pb-24">
-      <header className="sticky top-0 z-20 border-b border-border bg-background/95 px-4 py-3 backdrop-blur-sm">
-        <div className="mx-auto flex max-w-7xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-          <div className="flex min-w-0 items-center gap-3">
-            <Button variant="ghost" size="icon" aria-label="Return to settings" onClick={() => navigate('/settings')}>
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <div>
-              <h1 className="text-xl">Moderation dashboard</h1>
-            </div>
-          </div>
+      <AppPageHeader
+        title="Moderation dashboard"
+        onBack={() => navigate('/settings')}
+        backLabel="Return to settings"
+        bugButtonTestId="moderator-review-bug-button-slot"
+        contentClassName="!max-w-7xl"
+      >
           <div className="flex min-w-0 items-center gap-2">
             <div className="flex min-w-0 flex-1 overflow-x-auto rounded-md border border-border p-0.5" role="tablist" aria-label="Moderation views">
               <Button
@@ -857,10 +853,7 @@ export default function ModeratorReview() {
               {refreshing || usersLoading || notificationsLoading || systemErrorsLoading || supportLoading || betaCityLoading ? 'Refreshing...' : 'Refresh'}
             </Button>
           </div>
-        
-          <BugButtonSlot testId="moderator-review-bug-button-slot" />
-        </div>
-      </header>
+      </AppPageHeader>
 
       {view === 'system-errors' ? (
         <main className="mx-auto max-w-7xl px-4 py-6">

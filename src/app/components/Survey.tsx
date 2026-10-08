@@ -1,9 +1,9 @@
 import { FormEvent, useRef, useState } from 'react';
-import { ArrowLeft, Star } from 'lucide-react';
+import { Star } from 'lucide-react';
 import { Button } from './ui/button';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
-import BugButtonSlot from './BugButtonSlot';
+import AppPageHeader from './AppPageHeader';
 import { createSupportRequest } from '../lib/supportApi';
 import { useBackOrFallback } from '../lib/useBackOrFallback';
 
@@ -70,14 +70,11 @@ export default function Survey() {
 
   return (
     <div className="min-h-screen bg-background pb-20">
-      <header className="sticky top-0 z-10 flex items-center gap-4 border-b border-border bg-card/80 p-4 backdrop-blur-sm">
-        <Button variant="ghost" size="icon" onClick={goBack} aria-label="Back">
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <h1 className="text-xl">Tell us what you think</h1>
-      
-        <BugButtonSlot testId="survey-bug-button-slot" />
-      </header>
+      <AppPageHeader
+        title="Tell us what you think"
+        onBack={goBack}
+        bugButtonTestId="survey-bug-button-slot"
+      />
       <main className="mx-auto max-w-2xl space-y-6 p-6">
         <p className="text-muted-foreground">
           Help us improve cruush. Your feedback is sent directly to {SURVEY_RECIPIENT}.

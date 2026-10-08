@@ -1,11 +1,9 @@
 import { ghostSettingsBodyClassName, ghostSettingsCardClassName, ghostSettingsChoiceClassName, ghostSettingsSelectedChoiceClassName, ghostSettingsIdleChoiceClassName } from './ghostSettingsStyles';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { ArrowLeft } from 'lucide-react';
-import { Button } from './ui/button';
 import { Switch } from './ui/switch';
 import DlModeMark from './DlModeMark';
-import BugButtonSlot from './BugButtonSlot';
+import AppPageHeader from './AppPageHeader';
 import {
   addDlModeChangedListener,
   getDlModeShowOnlyException,
@@ -89,31 +87,13 @@ export default function DlModeSettings() {
 
   return (
     <div className="h-full overflow-hidden bg-background" data-testid="dl-mode-settings-root">
-      {/* Desktop popup layout keeps its original header; full-screen matches Ghost Mode. */}
-      {desktopPopupLayout ? (
-        <header className="sticky top-0 z-10 border-b border-border bg-card/80 px-3 py-3 backdrop-blur-sm sm:p-4">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <div className="flex min-w-0 items-center gap-3">
-              <h2 className="truncate text-xl">DL Mode</h2>
-            </div>
-            <BugButtonSlot testId="dl-mode-settings-bug-button-slot" />
-          </div>
-          <p className="mt-1.5 text-sm text-muted-foreground">Explicit photo controls.</p>
-        </header>
-      ) : (
-        <header className="sticky top-0 z-10 flex items-center gap-2 border-b border-border bg-card/80 px-3 py-3 backdrop-blur-sm sm:gap-4 sm:p-4">
-          <Button className="shrink-0" variant="ghost" size="icon" onClick={() => navigate(-1)}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div className="flex min-w-0 items-center gap-3">
-            <h2 className="truncate text-xl">DL Mode</h2>
-          </div>
-          <BugButtonSlot testId="dl-mode-settings-bug-button-slot" />
-        </header>
-      )}
+      <AppPageHeader
+        title="DL Mode"
+        onBack={() => navigate(-1)}
+        bugButtonTestId="dl-mode-settings-bug-button-slot"
+      >
+        {desktopPopupLayout ? <p className="text-sm text-muted-foreground">Explicit photo controls.</p> : null}
+      </AppPageHeader>
 
       <div className={`${ghostSettingsBodyClassName} min-w-0 !space-y-4 !px-3 !py-4 sm:!space-y-6 sm:!p-6`} data-testid="dl-mode-mobile-body">
         <div className={`${ghostSettingsCardClassName} min-w-0 !p-3 sm:!p-4`}>

@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { ArrowLeft, RefreshCw } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 import { Button } from './ui/button';
 import CruiseCarouselSlot from './CruiseCarouselSlot';
 import LoadingCardSkeletons from './LoadingCardSkeletons';
 import ProfileCard from './ProfileCard';
-import BugButtonSlot from './BugButtonSlot';
+import AppPageHeader from './AppPageHeader';
 import { getMyBillingStatus } from '../lib/billingApi';
 import { decryptDisplayLocationToken } from '../lib/displayLocationTokens';
 import { getMyProfile, type ProfileRecord } from '../lib/profileApi';
@@ -131,16 +131,11 @@ export default function FeelingLucky() {
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[#050505] text-foreground">
-      <header className="sticky top-0 z-10 flex items-center gap-4 border-b border-white/10 bg-black/88 p-4 backdrop-blur-sm">
-        <Button variant="ghost" size="icon" onClick={() => navigate(-1)} aria-label="Back">
-          <ArrowLeft className="w-5 h-5" />
-        </Button>
-        <div className="flex items-center gap-2">
-          <h1 className="text-xl">Cruise Carousel</h1>
-        </div>
-      
-        <BugButtonSlot testId="feeling-lucky-bug-button-slot" />
-      </header>
+      <AppPageHeader
+        title="Cruise Carousel"
+        onBack={() => navigate(-1)}
+        bugButtonTestId="feeling-lucky-bug-button-slot"
+      />
 
       <main className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col gap-2 px-2 pt-0 sm:px-4 sm:pt-2">
         {status === 'checking' ? (

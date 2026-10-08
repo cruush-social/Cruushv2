@@ -667,6 +667,10 @@ Old style, not a reference:
 
 Do not restyle an old-style screen unless Julien names it. Use this section when he does, and for anything new.
 
+### Club creation access (October 7, 2026)
+
+Julien: “actually like anyone create a club.” Any member may create a Club. Club creation does not require cruush+ and does not redirect to checkout. Existing trust restrictions, moderation, membership limits, visibility rules, and all other Club behavior remain unchanged.
+
 ### Shared tab bars (October 7, 2026)
 
 Julien: “Ths tabs of the checkout arent the same bro make ais stop that shit.”

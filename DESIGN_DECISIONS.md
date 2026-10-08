@@ -4,6 +4,12 @@ The notched cruush logo is rejected for every app use, including installed home-
 
 # cruush design decisions
 
+- October 7 cruush+ entry point: “cruush+ ahould load on check out.” The main cruush+ button opens the cruush+ Checkout page, not Rewards. Rewards remains available through the shared Checkout/Rewards tabs. Pricing, plans, payment state, and Pulse checkout remain unchanged.
+
+- October 7 Spot body typography: “Increase text size for this”, “Bigger”, and “Im talking about body not hesding.” In the shown Pink Book body, explanatory/input/source text uses the 18px type step, while form labels, option chips, expiration text, and visibility controls use the 16px type step. The Bar page header and body headings remain unchanged, as do surrounding presentation and check-in behavior.
+
+- October 7 Club creation access correction: “actually like anyone create a club.” Any member may create a Club. Club creation does not require cruush+ and does not redirect to checkout. Existing trust restrictions, moderation, membership limits, visibility rules, and all other Club behavior remain unchanged. This supersedes the October 2 Club creation entitlement decision and the October 7 note that retained its server-side cruush+ requirement.
+
 - October 7 checkout presentation correction: “I thought we came up with a good looking checkout? This is a regression.” Checkout plan and payment-method controls retain the previously approved rounded bordered card treatment, and an active payment remains in its contained rounded bordered panel. Preserve current payment behavior, data, navigation, header, and two-column payment-method arrangement.
 
 - October 7 New Club navigation correction: “I told hi that behavior is a BUG TO FIX.” Selecting `Create Club` from the existing large Messages `+` menu opens the existing New Club composer. It does not redirect to checkout. The existing server-side cruush+ requirement for completing Club creation remains unchanged.
@@ -101,7 +107,7 @@ The notched cruush logo is rejected for every app use, including installed home-
 - Feed reactions and replies are not part of 1.6. Do not build either.
 - GitHub issue #135 is not a 1.6 release item. Do not invent or change checkbox visuals for it.
 - The Spot board is called the Pink Book. Its section sits below source attribution. Check-in includes an optional Pink Book post. An active check-in is required to read other members' posts, but authors can always view and delete their own posts after checkout.
-- The map saves the master “Show Spots on the map” choice so whether Spots appear survives a map remount or reload. When no saved choice exists, Spots remain visible by default; individual Spot category settings and all unrelated map controls remain unchanged. Source: issue #419, Julien, September 29, 2026: “Map dont saving settings i.e. spots appearing or not”.
+- The map saves the master “Show Spots on the map” choice so whether Spots appear survives a map remount or reload. When no saved account choice exists, Spots remain visible by default and a stale browser-only hidden value cannot override that default; individual Spot category settings and all unrelated map controls remain unchanged. Sources: issue #419, Julien, September 29, 2026: “Map dont saving settings i.e. spots appearing or not”; Julien, October 7, 2026: “Spots on by default”.
 - Badge categories must be explicit on mobile, never discoverable only by horizontal scrolling. Preserve every deliberately selected custom, Hanky, role, position, and Pride badge glyph. Saved side badges sit beneath the heart photo on Feed, Messages, and Cruushes.
 - Profile Tags are a separate field directly below Bio. They are moderated with the rest of the profile, display directly below About, and match the shared Seeking and Visibility text search with or without a leading `#`.
 - Basic members can save up to 3 profile tags. cruush+ members can save up to 10. Basic Feed posts are text-only; cruush+ Feed posts can attach up to 3 photo hearts.

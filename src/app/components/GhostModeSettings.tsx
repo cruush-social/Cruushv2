@@ -1,7 +1,7 @@
 import { ghostSettingsBodyClassName, ghostSettingsCardClassName, ghostSettingsChoiceClassName, ghostSettingsSelectedChoiceClassName, ghostSettingsIdleChoiceClassName } from './ghostSettingsStyles';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { ArrowLeft, ChevronRight } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import { Button } from './ui/button';
 import {
   AlertDialog,
@@ -19,7 +19,7 @@ import { Switch } from './ui/switch';
 import { CruushIcon } from './CruushIconImage';
 import CruushPlusWord from './CruushPlusWord';
 import DarkRoomMark from './DarkRoomMark';
-import BugButtonSlot from './BugButtonSlot';
+import AppPageHeader from './AppPageHeader';
 import { CRUUSH_PLUS_CHANGED_EVENT, getMyBillingStatus } from '../lib/billingApi';
 import { DEBUG_CRUUSH_PLUS_EVENT } from '../lib/debugApi';
 import {
@@ -252,16 +252,11 @@ export default function GhostModeSettings() {
 
   return (
     <div className="min-h-screen bg-background pb-20">
-      <header className="sticky top-0 z-10 flex items-center gap-4 border-b border-border bg-card/80 p-4 backdrop-blur-sm">
-        <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <div className="flex min-w-0 items-center gap-3">
-          <h2 className="truncate text-xl">Ghost Mode</h2>
-        </div>
-      
-        <BugButtonSlot testId="ghost-mode-settings-bug-button-slot" />
-      </header>
+      <AppPageHeader
+        title="Ghost Mode"
+        onBack={() => navigate(-1)}
+        bugButtonTestId="ghost-mode-settings-bug-button-slot"
+      />
 
       <div className={ghostSettingsBodyClassName}>
         <div className={ghostSettingsCardClassName}>

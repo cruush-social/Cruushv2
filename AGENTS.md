@@ -57,6 +57,7 @@ For backend or infrastructure work, consult `docs/master-architecture.md` and
 the applicable source. Current explicit user instructions override older decisions.
 
 ## Mistakes
+- 2026-10-07: Wrote uppercase cruush in a design-decision quote despite the lowercase product rule; normalized it before shipping.
 - 2026-10-07: Started a LAN dev server for phone review whose separate local auth state rejected the expected admin login; stopped both added servers and returned phone verification to the real deployed site.
 
 - 2026-10-07: Misread “Make a new club page directs to checkout” as a requested redirect instead of a report that the redirect was the bug; removed the redirect so New Club opens the existing composer.

@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
-import { ArrowLeft, RotateCcw } from 'lucide-react';
+import { RotateCcw } from 'lucide-react';
 import { Button } from './ui/button';
 import ProfileOnboarding from './ProfileOnboarding';
-import BugButtonSlot from './BugButtonSlot';
+import AppPageHeader from './AppPageHeader';
 import { previewableNotices, resetPreviewableNotices } from '../lib/onboardingPreview';
 import { getStoredUserId } from '../lib/sessionUser';
 
@@ -62,17 +62,13 @@ export default function OnboardingPreview() {
 
   return (
     <div className="min-h-screen bg-background pb-20">
-      <header className="sticky top-0 z-10 flex items-center gap-4 border-b border-border bg-card/80 p-4 backdrop-blur-sm">
-        <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <div>
-          <h2 className="text-xl">Onboarding preview</h2>
-          <p className="text-xs text-muted-foreground">Dev-only harness for onboarding and explainer dialogs</p>
-        </div>
-      
-        <BugButtonSlot testId="onboarding-preview-bug-button-slot" />
-      </header>
+      <AppPageHeader
+        title="Onboarding preview"
+        onBack={() => navigate(-1)}
+        bugButtonTestId="onboarding-preview-bug-button-slot"
+      >
+        <p className="text-xs text-muted-foreground">Dev-only harness for onboarding and explainer dialogs</p>
+      </AppPageHeader>
 
       <div className="mx-auto max-w-2xl space-y-6 p-6">
         {status ? (

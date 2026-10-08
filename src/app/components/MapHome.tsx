@@ -94,7 +94,7 @@ import DlModePhotoPlaceholder from './DlModePhotoPlaceholder';
 import OutsideServiceAreaCard from './OutsideServiceAreaCard';
 import { useMapServiceArea } from './MapServiceAreaContext';
 import { claimWelcomeDay, getWelcomeDayStatus, type WelcomeDayStatus } from '../lib/rewardsApi';
-import { buildCruushPlusStorePath, useCruushPlusMobileMapStoreVariant } from '../lib/cruushPlusConversion';
+import { buildCruushPlusStorePath } from '../lib/cruushPlusConversion';
 import { trackCruushPlusConversion } from '../lib/posthog';
 
 const DISCOVERY_MAP_LIMIT = 500;
@@ -915,7 +915,6 @@ export default function MapHome(_props: MapHomeProps = {}) {
   const [searchParams] = useSearchParams();
   const routeState = location.state as MapRouteState;
   const isMobile = useIsMobile();
-  const mobileMapStoreVariant = useCruushPlusMobileMapStoreVariant();
   const [desktopPageLayout, setDesktopPageLayout] = useState(getDesktopPageLayout);
   const canChoosePopupLayout = useCanChoosePopupLayout();
   const usesFullPageProfile = !canChoosePopupLayout || desktopPageLayout === 'fullscreen';
@@ -964,15 +963,9 @@ export default function MapHome(_props: MapHomeProps = {}) {
     radiusMiles: number;
   }>({ query: '', excludedFacilityTypes: [...DEFAULT_EXCLUDED_PLACE_FACILITY_TYPES], tags: [], vibes: [], amenities: [], radiusMiles: 100 });
   const [places, setPlaces] = useState<PlaceRecord[]>([]);
-  // Spot visibility is a map setting, so preserve the member's choice across
-  // map remounts and reloads. An unset or inaccessible preference stays on.
-  const [spotsVisible, setSpotsVisible] = useState(() => {
-    try {
-      return window.localStorage.getItem('cruush:map-spots-hidden') !== 'true';
-    } catch {
-      return true;
-    }
-  });
+  // Spots start on. An explicit account-backed choice can override that default
+  // after it loads, but stale browser-only settings cannot turn them off.
+  const [spotsVisible, setSpotsVisible] = useState(true);
   const spotsVisibilityInteractionRef = useRef(false);
   useEffect(() => {
     let cancelled = false;
@@ -982,20 +975,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
         setSpotsVisible(settings.visible);
         return;
       }
-
-      // Preserve the preference from clients that predate account-backed map
-      // settings, then save it where storage-restricted browsers can read it.
-      let legacyHidden: string | null = null;
-      try {
-        legacyHidden = window.localStorage.getItem('cruush:map-spots-hidden');
-      } catch {
-        // A server-backed choice still works when a browser blocks storage.
-      }
-      const visible = legacyHidden !== 'true';
-      setSpotsVisible(visible);
-      if (legacyHidden != null) {
-        void saveMyMapSpotsVisibility(visible).catch(() => undefined);
-      }
+      setSpotsVisible(true);
     }).catch(() => undefined);
     return () => {
       cancelled = true;
@@ -2960,15 +2940,11 @@ export default function MapHome(_props: MapHomeProps = {}) {
             onPointerLeave={() => setMapControlsHovered(false)}
           >
             <CruushPlusButton onClick={() => {
-              const experimentVariant = isMobile ? mobileMapStoreVariant : undefined;
               trackCruushPlusConversion('cruush_plus_upgrade_clicked', {
                 surface: 'map_top',
                 benefit: 'overview',
-                experimentVariant,
               });
-              navigate(isMobile && mobileMapStoreVariant === 'store'
-                ? buildCruushPlusStorePath('map_top', 'overview', 'store')
-                : '/rewards');
+              navigate(buildCruushPlusStorePath('map_top', 'overview', 'store'));
             }} />
           </div> : null}
           <MapTopBar

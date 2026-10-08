@@ -3,10 +3,9 @@ import TrustRestrictionNotice from './TrustRestrictionNotice';
 import PhotoUploadSpinner from './PhotoUploadSpinner';
 import { useEffect, useId, useRef, useState } from 'react';
 import { DROPDOWN_TRIGGER_CLASS } from '../lib/controlStyles';
-import { registerBugButtonSlot } from '../lib/bugButtonSlot';
 import type { CSSProperties, ChangeEvent, RefObject } from 'react';
 import { useLocation, useParams, useNavigate } from 'react-router';
-import { ArrowLeft, Clock3, Eye, Image as ImageIcon, ImagePlus, Share2, Timer, Star, Trash2, X } from 'lucide-react';
+import { Clock3, Eye, Image as ImageIcon, ImagePlus, Share2, Timer, Star, Trash2, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Checkbox } from './ui/checkbox';
@@ -1149,21 +1148,18 @@ export default function PrivateGroupChat({
           bugButtonTestId="conversation-settings-bug-button-slot"
         />
       ) : (
-      <header data-testid="chat-thread-header" className="sticky top-0 z-40 border-b border-border bg-background/88 px-3 py-4 backdrop-blur-md sm:px-4">
-        <div className="mx-auto flex w-full max-w-2xl items-center justify-between gap-3 sm:gap-4">
-          <div className="flex min-w-0 flex-1 items-center gap-3">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => embedded ? (onBack ?? onClose)?.() : navigate(-1)}
-              aria-label={routeBackLabel}
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
-
-            {conversation?.clubId ? null : conversation ? (
+      <AppPageHeader
+        title={conversation?.user.name ?? (loading ? 'Loading chat...' : 'Conversation unavailable')}
+        onBack={() => embedded ? (onBack ?? onClose)?.() : navigate(-1)}
+        backLabel={routeBackLabel}
+        onClose={embedded ? onClose : undefined}
+        closeLabel="Close messages"
+        bugButtonTestId="chat-bug-button-slot"
+        testId="chat-thread-header"
+        className="z-40"
+        leading={conversation?.clubId ? null : conversation ? (
               <HeartPhoto
-                className="w-16 shrink-0 sm:w-20"
+                className="w-12 shrink-0"
                 label={`${conversation.user.name} avatar`}
                 restriction={getNsfwPhotoRestriction(conversation.user.photoExplicit, { ...conversation.user.photoRelationship, isMutualCruush: conversation.mutual === true })}
                 masked={shouldMaskPhoto(dlModeActive, conversation.user.photoExplicit, { ...conversation.user.photoRelationship, isMutualCruush: conversation.mutual === true })}
@@ -1175,45 +1171,30 @@ export default function PrivateGroupChat({
                   conversation.kind === 'group'
                     ? <CruushIcon name="profile" className="size-5 opacity-80" />
                     : <div className="text-sm text-white/80">{getConversationInitials(conversation.user.name)}</div>
-                }
+                  }
               />
             ) : (
               <div className="h-12 w-12 shrink-0 rounded-full bg-card" />
             )}
-
-            <div className="min-w-0">
-              {conversation ? (
-                <>
-                  <div className="flex items-center gap-2">
-                    <h2 className="min-w-0 flex-1 truncate text-lg">{conversation.user.name}</h2>
-                    {conversation.kind === 'group' && !conversation.clubId ? (
+        subtitle={conversation ? (
+          <div className="mt-1 flex min-w-0 flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            {conversation.kind === 'group' && !conversation.clubId ? (
                       <Badge variant="outline" className="border-border/80 bg-card/60 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
                         Group
                       </Badge>
-                    ) : null}
-
-                  </div>
-                  <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                    {conversation.user.pronouns ? <span>{conversation.user.pronouns}</span> : null}
-                    {conversation.membersLabel ? <span>{conversation.membersLabel}</span> : null}
-                    {conversation.kind === 'dm' ? (
-                      <span className="inline-flex items-center gap-1">
-                        <Clock3 className="size-3 opacity-70" />
-                        {conversation.user.lastActive ?? 'Active recently'}
-                      </span>
-                    ) : null}
-                  </div>
-                </>
-              ) : (
-                <>
-                  <h2 className="truncate text-lg">{loading ? 'Loading chat...' : 'Conversation unavailable'}</h2>
-                  <p className="mt-1 text-xs text-muted-foreground">Messages</p>
-                </>
-              )}
-            </div>
+            ) : null}
+            {conversation.user.pronouns ? <span>{conversation.user.pronouns}</span> : null}
+            {conversation.membersLabel ? <span>{conversation.membersLabel}</span> : null}
+            {conversation.kind === 'dm' ? (
+              <span className="inline-flex items-center gap-1">
+                <Clock3 className="size-3 opacity-70" />
+                {conversation.user.lastActive ?? 'Active recently'}
+              </span>
+            ) : null}
           </div>
-
-          <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
+        ) : <p className="mt-1 text-xs text-muted-foreground">Messages</p>}
+        actions={(
+          <>
             {conversation?.clubId ? (
               <Button
                 type="button"
@@ -1245,16 +1226,9 @@ export default function PrivateGroupChat({
             >
               <CruushIcon name="settings" className="h-5 w-5" />
             </Button>
-            {/* Back, settings, report and the bug button share one line. */}
-            <div className="h-9 w-9 shrink-0" data-testid="chat-bug-button-slot" ref={registerBugButtonSlot} />
-            {embedded ? (
-              <Button type="button" variant="ghost" size="icon" aria-label="Close messages" onClick={onClose}>
-                <X className="h-5 w-5" />
-              </Button>
-            ) : null}
-          </div>
-        </div>
-      </header>
+          </>
+        )}
+      />
       )}
 
       <div className={`mx-auto flex w-full max-w-2xl flex-col px-4 pt-4 ${settingsOpen ? 'pb-8' : 'pb-[calc(17rem+env(safe-area-inset-bottom))]'}`}>

@@ -69,7 +69,6 @@ import {
 import { BratGlyph, CheatingGlyph, ExhibitionismGlyph, FilmingGlyph, LatexMaskGlyph, PacifierGlyph } from './RequestedRasterGlyphs';
 import {
   Activity,
-  ArrowLeft,
   Axe,
   BadgeCheck,
   Bed,
@@ -130,7 +129,6 @@ import {
   UsersRound,
   Wand2,
   Wind,
-  X,
   type LucideIcon,
 } from 'lucide-react';
 import { useNavigate } from 'react-router';
@@ -158,7 +156,7 @@ import { useIsMobile } from './ui/use-mobile';
 import { KINK_GROUPS, VIBE_GROUPS } from '../lib/profileOptions';
 import { Button } from './ui/button';
 import { profileBadgeCategory, profileBadgeGlyph, type ProfileBadgeGroup } from './ProfileBadgeGlyphs';
-import BugButtonSlot from './BugButtonSlot';
+import AppPageHeader from './AppPageHeader';
 import {
   BadgeUnit,
   BADGE_INTERACTION_CLASS,
@@ -951,17 +949,14 @@ export default function BadgePickerPreview({
         data-state={!isMobile ? 'open' : undefined}
         role={!isMobile && !containedEmbedded ? 'dialog' : undefined}
       >
-      {!embedded ? <header className="sticky top-0 z-20 flex items-center gap-2 border-b border-white/10 bg-background/95 px-4 py-3 backdrop-blur-md">
-        <button
-          aria-label="Back"
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/12 bg-black/55"
-          onClick={closeEditor}
-          type="button"
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </button>
-        <h1 className="min-w-0 truncate text-lg">Badges</h1>
-        <div className="ml-auto flex items-center gap-2">
+      {!embedded ? <AppPageHeader
+        title="Badges"
+        onBack={closeEditor}
+        onClose={closeEditor}
+        closeLabel="Close Badges"
+        bugButtonTestId="badge-picker-preview-bug-button-slot"
+        actions={(
+          <>
           <span
             aria-live="polite"
             className={`text-[0.68rem] uppercase tracking-[0.12em] ${saveState === 'error' ? 'text-red-400' : 'text-white/45'}`}
@@ -977,18 +972,9 @@ export default function BadgePickerPreview({
           >
             Save
           </Button>
-          <button
-            aria-label="Close Badges"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/12 bg-black/55 text-white transition hover:bg-white/[0.08]"
-            onClick={closeEditor}
-            type="button"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-      
-        <BugButtonSlot testId="badge-picker-preview-bug-button-slot" />
-      </header> : null}
+          </>
+        )}
+      /> : null}
 
       <main className={`mx-auto flex w-full max-w-2xl flex-1 flex-col px-4 ${containedEmbedded ? 'min-h-0 pb-8 pt-0' : !containedEmbedded && isMobile ? 'pb-[calc(7rem+env(safe-area-inset-bottom))] pt-6' : 'pb-8 pt-6'}`}>
         {/* You are the thing being dressed, so you sit in the middle. Tap a side

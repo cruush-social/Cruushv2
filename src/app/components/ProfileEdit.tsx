@@ -3,13 +3,12 @@ import TrustRestrictionNotice from './TrustRestrictionNotice';
 import type { ChangeEvent, PointerEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { DROPDOWN_TRIGGER_CLASS } from '../lib/controlStyles';
-import { registerBugButtonSlot } from '../lib/bugButtonSlot';
 import PhotoUploadSpinner from './PhotoUploadSpinner';
 import { PHOTO_MAX_COMPRESSED_BYTES, PHOTO_UPLOAD_FORMAT_MESSAGE, PHOTO_UPLOAD_ACCEPT, PHOTO_UPLOAD_EXTENSION_TYPES } from '../lib/photoUploadFormats';
 import { SIGNAL_MAX_LENGTH } from '../lib/profileLimits';
 import { lazy, Suspense, useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router';
-import { ArrowLeft, Eye, RotateCcw, RotateCw, Star, Trash2, Upload, X } from 'lucide-react';
+import { Eye, RotateCcw, RotateCw, Star, Trash2, Upload } from 'lucide-react';
 import { Button } from './ui/button';
 import { Checkbox } from './ui/checkbox';
 import { Input } from './ui/input';
@@ -43,6 +42,7 @@ import { addDlModeChangedListener, isDlModeEnabled, shouldMaskPhoto } from '../l
 import DlModePhotoPlaceholder from './DlModePhotoPlaceholder';
 import { getProfileGradientCss } from '../lib/profileGradient';
 import { saveDistancePreferences, useDistancePreferences } from '../lib/distancePreferences';
+import AppPageHeader from './AppPageHeader';
 import {
   AVAILABILITY,
   BODY_TYPES,
@@ -1128,14 +1128,14 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
   };
   return (
     <div className={embedded ? 'bg-transparent pb-0' : 'min-h-screen bg-background pb-20'}>
-      <header className={`${embedded ? 'top-0 border-white/10 bg-black text-white' : 'top-0 border-border bg-card/80'} sticky z-30 flex items-center justify-between border-b p-4 backdrop-blur-sm`}>
-        <div className="flex min-w-0 items-center gap-2">
-          <Button variant="ghost" size="icon" onClick={() => void handleCancel()} aria-label={embedded ? 'Back to profile preview' : 'Back'}>
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-          <h2 className="truncate text-xl">Edit Profile</h2>
-        </div>
-        <div className="flex items-center gap-2">
+      <AppPageHeader
+        title="Edit Profile"
+        onBack={() => void handleCancel()}
+        backLabel={embedded ? 'Back to profile preview' : 'Back'}
+        onClose={embedded ? () => void handleCancel() : undefined}
+        closeLabel="Close Edit Profile"
+        bugButtonTestId="profile-edit-bug-button-slot"
+        actions={(
           <Button
             size="sm"
             onClick={handleHeaderSave}
@@ -1146,17 +1146,8 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
           >
             {activeTab === 'badges' && badgeSaveState === 'saving' || activeTab !== 'badges' && saving ? 'Saving...' : 'Save'}
           </Button>
-          {/* The bug button docks into this row like every other header, so
-              it is on this screen whether or not the map is behind it. Close
-              stays the last thing on the right. */}
-          <div className="h-10 w-10 shrink-0" data-testid="profile-edit-bug-button-slot" ref={registerBugButtonSlot} />
-          {embedded ? (
-            <Button variant="ghost" size="icon" onClick={() => void handleCancel()} aria-label="Close Edit Profile">
-              <X className="h-5 w-5" />
-            </Button>
-          ) : null}
-        </div>
-      </header>
+        )}
+      />
 
       <div className={embedded ? 'px-5 py-5' : 'max-w-2xl mx-auto p-6'}>
         {error ? (

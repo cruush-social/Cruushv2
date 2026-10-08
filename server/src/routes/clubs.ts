@@ -22,7 +22,7 @@ import {
 } from "../encrypted-club-enrollments.js";
 import { runTransaction } from "../db.js";
 import { loadLocationEnvelopes, locationPayloadToCoordinates } from "../location-privacy.js";
-import { getCruushEntitlement, getRelationshipPermissions } from "../match-relationships.js";
+import { getRelationshipPermissions } from "../match-relationships.js";
 import { moderateTextOrReject } from "../moderation-service.js";
 import { OWNER_FULL_ACCESS_EMAIL } from "../owner-access.js";
 import { getActiveAccountUserId, getAuthenticatedUserId } from "../request-auth.js";
@@ -433,10 +433,6 @@ export async function registerClubRoutes(app: FastifyInstance) {
   app.post("/api/clubs", async (request, reply) => {
     const userId = await getActiveAccountUserId(request);
     const payload = createClubPayloadSchema.parse(request.body);
-    const entitlement = await getCruushEntitlement(app, userId);
-    if (!entitlement.cruushPlus) {
-      throw new ApiError(403, "CRUUSH_PLUS_REQUIRED", "cruush+ is required to create a Club.");
-    }
     const memberIds = payload.memberIds.filter((memberId) => memberId !== userId);
     if (memberIds.length >= MAX_CLUB_MEMBERS) {
       throw new ApiError(400, "VALIDATION_ERROR", `Clubs can have at most ${MAX_CLUB_MEMBERS} members.`);

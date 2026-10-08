@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
-import { ArrowLeft, AlertTriangle, Clock, Phone } from 'lucide-react';
+import { AlertTriangle, Clock, Phone } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Switch } from './ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { CruushIcon } from './CruushIconImage';
-import BugButtonSlot from './BugButtonSlot';
+import AppPageHeader from './AppPageHeader';
 
 export default function SafetyCenter() {
   const navigate = useNavigate();
@@ -34,16 +34,11 @@ export default function SafetyCenter() {
 
   return (
     <div className="min-h-screen bg-background pb-20">
-      <header className="sticky top-0 bg-card/80 backdrop-blur-sm border-b border-border p-4 flex items-center gap-4 z-10">
-        <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-          <ArrowLeft className="w-5 h-5" />
-        </Button>
-        <div>
-          <h2 className="text-xl">Safety Center</h2>
-        </div>
-      
-        <BugButtonSlot testId="safety-center-bug-button-slot" />
-      </header>
+      <AppPageHeader
+        title="Safety Center"
+        onBack={() => navigate(-1)}
+        bugButtonTestId="safety-center-bug-button-slot"
+      />
 
       <div className="max-w-2xl mx-auto p-6">
         <Tabs defaultValue="panic" className="w-full">

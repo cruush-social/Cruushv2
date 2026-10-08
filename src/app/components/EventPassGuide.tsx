@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
-import { ArrowLeft, ShieldCheck } from 'lucide-react';
+import { ShieldCheck } from 'lucide-react';
 import { getEventPassGuide, type EventPassGuide as EventPassGuidePayload } from '../lib/eventsApi';
 import { CruushIcon } from './CruushIconImage';
 import { Button } from './ui/button';
 import LoadingCardSkeletons from './LoadingCardSkeletons';
-import BugButtonSlot from './BugButtonSlot';
+import AppPageHeader from './AppPageHeader';
 
 function formatGuideTime(value: string) {
   return new Intl.DateTimeFormat(undefined, {
@@ -48,19 +48,13 @@ export default function EventPassGuide() {
 
   return (
     <div className="min-h-screen bg-background pb-24 text-foreground">
-      <header className="sticky top-0 z-10 border-b border-white/10 bg-background/92 px-4 py-4 backdrop-blur-xl">
-        <div className="mx-auto flex w-full max-w-3xl items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)} aria-label="Back">
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div>
-            <h1 className="text-xl text-white">Door pass guide</h1>
-            <p className="text-sm text-white/50">Hourly icon schedule for event staff.</p>
-          </div>
-        
-          <BugButtonSlot testId="event-pass-guide-bug-button-slot" />
-        </div>
-      </header>
+      <AppPageHeader
+        title="Door pass guide"
+        onBack={() => navigate(-1)}
+        bugButtonTestId="event-pass-guide-bug-button-slot"
+      >
+        <p className="text-sm text-white/50">Hourly icon schedule for event staff.</p>
+      </AppPageHeader>
 
       <main className="mx-auto flex w-full max-w-3xl flex-col gap-4 p-4 sm:p-6">
         {error ? (

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { ArrowLeft, Check, Clipboard, KeyRound, RefreshCw, ShieldCheck } from 'lucide-react';
+import { Check, Clipboard, KeyRound, RefreshCw, ShieldCheck } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { toast } from '../lib/toast';
 import {
@@ -15,7 +15,7 @@ import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
 import LoadingCardSkeletons from './LoadingCardSkeletons';
-import BugButtonSlot from './BugButtonSlot';
+import AppPageHeader from './AppPageHeader';
 
 export default function TwoFactorSettings() {
   const navigate = useNavigate();
@@ -156,18 +156,11 @@ export default function TwoFactorSettings() {
 
   return (
     <div className="min-h-screen bg-background pb-24">
-      <header className="sticky top-0 z-10 border-b border-border bg-card/90 px-4 py-4 backdrop-blur">
-        <div className="mx-auto flex max-w-2xl items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)} aria-label="Back">
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div>
-            <h1 className="text-xl font-semibold">Two-factor authentication</h1>
-          </div>
-        
-          <BugButtonSlot testId="two-factor-settings-bug-button-slot" />
-        </div>
-      </header>
+      <AppPageHeader
+        title="Two-factor authentication"
+        onBack={() => navigate(-1)}
+        bugButtonTestId="two-factor-settings-bug-button-slot"
+      />
 
       <main className="mx-auto max-w-2xl space-y-5 p-4">
         {loading ? (

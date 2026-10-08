@@ -963,9 +963,11 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
 
               {intent ? (
                 <div aria-live="polite" className="space-y-3 py-2">
-                  <p className="text-sm font-medium">
-                    {locallyExpired ? statusCopy.expired : statusCopy[intent.status]}
-                  </p>
+                  {!(intent.asset === 'BTC' && ['awaiting_payment', 'confirming', 'paid'].includes(intent.status)) ? (
+                    <p className="text-sm font-medium">
+                      {locallyExpired ? statusCopy.expired : statusCopy[intent.status]}
+                    </p>
+                  ) : null}
                   {intent.asset !== 'BTC' && Number.isInteger(intent.confirmations) && Number.isInteger(intent.confirmationTarget) && intent.confirmationTarget! > 0 ? (
                     <p className="text-sm text-muted-foreground">
                       {intent.confirmations}/{intent.confirmationTarget} confirmations
@@ -975,10 +977,7 @@ export default function CruushPlusStore({ product = 'cruush_plus' }: { product?:
                   {statusError ? <p className="text-sm text-destructive sm:text-xs">{statusError}</p> : null}
                   {intent.asset === 'BTC' && ['awaiting_payment', 'confirming', 'paid'].includes(intent.status) ? (
                     <ol aria-label="Payment progress" className="space-y-1 text-sm text-muted-foreground sm:text-xs">
-                      <li>{intent.status === 'awaiting_payment' ? 'Awaiting payment' : 'Payment detected'}</li>
-                      <li>{(intent.confirmations ?? 0) > 0 ? 'On the Bitcoin blockchain' : intent.status === 'confirming' ? 'Waiting for the first block' : 'Waiting for Bitcoin'}</li>
                       <li>{Math.min(intent.confirmations ?? 0, 6)}/6 confirmations</li>
-                      <li>{intent.status === 'paid' ? 'Purchase completed' : 'Purchase activates at 6 confirmations'}</li>
                     </ol>
                   ) : null}
                   {!paymentWindowClosed && intent.expiresAt && isOpenCryptoPayment(intent.status) ? (

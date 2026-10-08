@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { toast } from '../lib/toast';
 import { getMapPresence, saveMapPresence } from '../lib/privacyApi';
@@ -9,7 +8,7 @@ import { Slider } from './ui/slider';
 import { saveDistancePreferences, useDistancePreferences, type DistanceDisplayMode } from '../lib/distancePreferences';
 import { MAP_PRESENCE_OPTIONS } from '../lib/privacyApi';
 import LoadingCardSkeletons from './LoadingCardSkeletons';
-import BugButtonSlot from './BugButtonSlot';
+import AppPageHeader from './AppPageHeader';
 
 export const DEFAULT_MAP_PRESENCE_HOURS = 168;
 
@@ -89,14 +88,12 @@ export default function MapPresenceSettings() {
 
   return (
     <div className="min-h-screen bg-background pb-24">
-      <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-border bg-background/95 px-4 py-3 backdrop-blur-sm">
-        <Button variant="ghost" size="icon" aria-label="Return to settings" onClick={() => navigate('/settings')}>
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <h1 className="text-xl">Map presence</h1>
-      
-        <BugButtonSlot testId="map-presence-settings-bug-button-slot" />
-      </header>
+      <AppPageHeader
+        title="Map presence"
+        onBack={() => navigate('/settings')}
+        backLabel="Return to settings"
+        bugButtonTestId="map-presence-settings-bug-button-slot"
+      />
 
       <main className="mx-auto max-w-xl space-y-6 px-4 py-6">
         <div className="space-y-2 rounded-lg border border-white/10 bg-white/[0.035] p-3">

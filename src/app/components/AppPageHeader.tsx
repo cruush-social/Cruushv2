@@ -7,8 +7,11 @@ type AppPageHeaderProps = {
   title: ReactNode;
   onBack?: () => void;
   backLabel?: string;
+  backTestId?: string;
   onClose?: () => void;
   closeLabel?: string;
+  leading?: ReactNode;
+  subtitle?: ReactNode;
   actions?: ReactNode;
   bugButtonTestId: string;
   className?: string;
@@ -26,8 +29,11 @@ export default function AppPageHeader({
   title,
   onBack,
   backLabel = 'Back',
+  backTestId,
   onClose,
   closeLabel = 'Close',
+  leading,
+  subtitle,
   actions,
   bugButtonTestId,
   className = '',
@@ -46,12 +52,16 @@ export default function AppPageHeader({
       <div className={`mx-auto w-full max-w-2xl px-4 ${children ? 'space-y-4' : ''} ${contentClassName}`} data-testid={contentTestId}>
         <div className="flex min-w-0 items-center gap-2" data-testid={rowTestId}>
           {onBack ? (
-            <Button variant="secondary" size="icon" onClick={onBack} aria-label={backLabel} className={`shrink-0 ${APP_PAGE_HEADER_BUTTON_CLASS}`}>
+            <Button variant="secondary" size="icon" onClick={onBack} aria-label={backLabel} data-testid={backTestId} className={`shrink-0 ${APP_PAGE_HEADER_BUTTON_CLASS}`}>
               <ArrowLeft className="h-4 w-4" />
             </Button>
           ) : null}
-          <h1 className={`min-w-0 flex-1 truncate text-2xl leading-none text-white sm:text-3xl ${titleClassName}`}>{title}</h1>
-          <div className="ml-auto flex shrink-0 items-center gap-1 [&_[data-slot=button]]:!size-9 [&_[data-slot=button]]:!rounded-full">
+          {leading}
+          <div className="min-w-0 flex-1">
+            <h1 className={`truncate text-2xl leading-none text-white sm:text-3xl ${titleClassName}`}>{title}</h1>
+            {subtitle}
+          </div>
+          <div className="ml-auto flex shrink-0 items-center gap-1 [&_[data-slot=button]]:!rounded-full">
             {actions}
             <BugButtonSlot className="!ml-0 !h-11 !w-11" testId={bugButtonTestId} />
             {onClose ? (

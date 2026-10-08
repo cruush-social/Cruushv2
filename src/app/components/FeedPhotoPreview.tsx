@@ -1,6 +1,6 @@
 import { useState, type ChangeEvent, type ReactNode } from 'react';
 import { PHOTO_UPLOAD_ACCEPT } from '../lib/photoUploadFormats';
-import { ArrowLeft, Flag, Trash2 } from 'lucide-react';
+import { Flag, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import type { FeedPhoto } from '../lib/postApi';
 import type { SideBadges } from '../lib/profileApi';
@@ -11,7 +11,7 @@ import { CruushIcon } from './CruushIconImage';
 import ProfileActionTrio from './ProfileActionTrio';
 import { ProfilePhotoCropper } from './ProfileEdit';
 import UserActivityCapsule from './UserActivityCapsule';
-import BugButtonSlot from './BugButtonSlot';
+import AppPageHeader from './AppPageHeader';
 
 /**
  * A side-by-side of the ways feed photos could read, built out of the same
@@ -263,19 +263,11 @@ export default function FeedPhotoPreview() {
 
   return (
     <div className="min-h-screen bg-background pb-24 text-white">
-      <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-white/10 bg-background/95 px-4 py-3 backdrop-blur-md">
-        <button
-          aria-label="Back"
-          className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-background/55"
-          onClick={() => navigate(-1)}
-          type="button"
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </button>
-        <h1 className="text-lg">Feed posts</h1>
-      
-        <BugButtonSlot testId="feed-photo-preview-bug-button-slot" />
-      </header>
+      <AppPageHeader
+        title="Feed posts"
+        onBack={() => navigate(-1)}
+        bugButtonTestId="feed-photo-preview-bug-button-slot"
+      />
 
       <main className="mx-auto w-full space-y-8 px-4 py-6">
         <p className="text-sm text-white/68">

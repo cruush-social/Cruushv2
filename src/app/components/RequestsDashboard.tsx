@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { ArrowLeft, ChevronLeft, ChevronRight, Clock3, Mail, RefreshCw, Search, Send } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock3, Mail, RefreshCw, Search, Send } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { toast } from '../lib/toast';
 import { ApiClientError, resolveMediaUrl } from '../lib/apiClient';
@@ -14,7 +14,7 @@ import { Button } from './ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Textarea } from './ui/textarea';
 import LoadingCardSkeletons from './LoadingCardSkeletons';
-import BugButtonSlot from './BugButtonSlot';
+import AppPageHeader from './AppPageHeader';
 
 type RequestStatusFilter = 'open' | 'in_progress' | 'closed' | 'dismissed' | 'all';
 type RequestCategoryFilter = 'all' | 'suspension_appeal';
@@ -160,39 +160,37 @@ export default function RequestsDashboard() {
 
   return (
     <div className="min-h-screen bg-background pb-20">
-      <header className="cruush-requests-header sticky top-0 z-10 flex items-center gap-4 border-b border-border bg-card/80 p-4 backdrop-blur-sm">
-        <Button variant="ghost" size="icon" onClick={() => navigate(-1)} aria-label="Back">
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <div className="cruush-requests-title min-w-0">
-          <h2 className="text-xl">Bug reports</h2>
-          <p className="text-sm text-muted-foreground">
-            {page.total} {categoryFilter === 'suspension_appeal' ? 'age suspension appeal' : 'request'}{page.total === 1 ? '' : 's'}
-          </p>
-        </div>
-        <Button
-          className="cruush-requests-refresh ml-auto"
-          variant="outline"
-          onClick={() => {
-            setIsLoading(true);
-            getSupportRequests({ status: filter, category: categoryFilter, limit: PAGE_SIZE, offset })
-              .then((response) => {
-                setRequests(response.requests);
-                setPage(response.page);
-                setError(null);
-              })
-              .catch((fetchError) => {
-                setError(fetchError instanceof Error ? fetchError.message : 'Failed to load bug reports.');
-              })
-              .finally(() => setIsLoading(false));
-          }}
-        >
-          <RefreshCw className="mr-2 h-4 w-4" />
-          Refresh
-        </Button>
-      
-        <BugButtonSlot testId="requests-dashboard-bug-button-slot" />
-      </header>
+      <AppPageHeader
+        title="Bug reports"
+        onBack={() => navigate(-1)}
+        bugButtonTestId="requests-dashboard-bug-button-slot"
+        actions={(
+          <Button
+            className="cruush-requests-refresh"
+            variant="outline"
+            onClick={() => {
+              setIsLoading(true);
+              getSupportRequests({ status: filter, category: categoryFilter, limit: PAGE_SIZE, offset })
+                .then((response) => {
+                  setRequests(response.requests);
+                  setPage(response.page);
+                  setError(null);
+                })
+                .catch((fetchError) => {
+                  setError(fetchError instanceof Error ? fetchError.message : 'Failed to load bug reports.');
+                })
+                .finally(() => setIsLoading(false));
+            }}
+          >
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Refresh
+          </Button>
+        )}
+      >
+        <p className="text-sm text-muted-foreground">
+          {page.total} {categoryFilter === 'suspension_appeal' ? 'age suspension appeal' : 'request'}{page.total === 1 ? '' : 's'}
+        </p>
+      </AppPageHeader>
 
       <div className="mx-auto max-w-5xl p-4">
         <Tabs value={filter} onValueChange={(value) => { setOffset(0); setFilter(value as RequestStatusFilter); }} className="w-full">

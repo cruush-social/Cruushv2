@@ -1,10 +1,10 @@
 import { FormEvent, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router';
-import { ArrowLeft, CheckCircle2, Flag } from 'lucide-react';
+import { CheckCircle2, Flag } from 'lucide-react';
 import { Button } from './ui/button';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
-import BugButtonSlot from './BugButtonSlot';
+import AppPageHeader from './AppPageHeader';
 import {
   createReport,
   REPORT_REASON_OPTIONS,
@@ -137,18 +137,13 @@ export default function ReportPage({ embedded = false, targetOverride, onBack }:
 
   return (
     <div className={embedded ? 'bg-background' : 'min-h-screen bg-background pb-20'}>
-      <header className="sticky top-0 z-10 border-b border-border bg-card/90 p-4 backdrop-blur-sm">
-        <div className="mx-auto flex max-w-2xl items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={goBack} aria-label="Back">
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div>
-            <h2 className="text-xl">Report</h2>
-            <p className="text-xs text-muted-foreground">Send this to automated safety checks</p>
-          </div>
-          <BugButtonSlot testId="report-page-bug-button-slot" />
-        </div>
-      </header>
+      <AppPageHeader
+        title="Report"
+        onBack={goBack}
+        bugButtonTestId="report-page-bug-button-slot"
+      >
+        <p className="text-xs text-muted-foreground">Send this to automated safety checks</p>
+      </AppPageHeader>
 
       <main className="mx-auto max-w-2xl px-4 py-6">
         {status === 'success' ? (

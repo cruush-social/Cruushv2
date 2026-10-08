@@ -1,12 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { ArrowLeft } from 'lucide-react';
 import { toast } from '../lib/toast';
 import { Button } from './ui/button';
 import { CruushIcon } from './CruushIconImage';
 import HeartPhoto from './HeartPhoto';
 import LoadingCardSkeletons from './LoadingCardSkeletons';
-import BugButtonSlot from './BugButtonSlot';
+import AppPageHeader from './AppPageHeader';
 import { getBlockedUsers, unblockUser, type BlockedUser } from '../lib/blockApi';
 import { shouldMaskPhoto, useDlMode } from '../lib/dlMode';
 
@@ -79,16 +78,12 @@ export default function BlockedUsersPage() {
 
   return (
     <div className="min-h-screen bg-background pb-20">
-      <header className="sticky top-0 z-10 flex items-center gap-4 border-b border-border bg-card/80 p-4 backdrop-blur-sm">
-        <Button variant="ghost" size="icon" onClick={() => navigate(-1)} aria-label="Back to settings">
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <div>
-          <h2 className="text-xl">Blocked users</h2>
-        </div>
-      
-        <BugButtonSlot testId="blocked-users-page-bug-button-slot" />
-      </header>
+      <AppPageHeader
+        title="Blocked users"
+        onBack={() => navigate(-1)}
+        backLabel="Back to settings"
+        bugButtonTestId="blocked-users-page-bug-button-slot"
+      />
 
       <main className="mx-auto max-w-2xl space-y-3 p-4">
         {loading ? (

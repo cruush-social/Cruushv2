@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { DROPDOWN_TRIGGER_CLASS } from '../lib/controlStyles';
-import { ArrowLeft, Bell, Download, Smartphone } from 'lucide-react';
+import { Bell, Download, Smartphone } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import {
   getNotificationPreferences,
@@ -11,7 +11,7 @@ import { disablePushNotifications, enablePushNotifications } from '../lib/pushNo
 import { Button } from './ui/button';
 import { Switch } from './ui/switch';
 import LoadingCardSkeletons from './LoadingCardSkeletons';
-import BugButtonSlot from './BugButtonSlot';
+import AppPageHeader from './AppPageHeader';
 
 const MINUTES_PER_DAY = 1440;
 const QUIET_HOURS_STEP_MINUTES = 30;
@@ -189,22 +189,11 @@ export default function NotificationSettings() {
 
   return (
     <div className="min-h-screen bg-background pb-28 text-foreground">
-      <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-border bg-background/88 px-4 py-3 backdrop-blur-md">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => navigate(-1)}
-          aria-label="Back"
-          className="rounded-full"
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <div>
-          <h1 className="text-xl text-white">Notification settings</h1>
-        </div>
-      
-        <BugButtonSlot testId="notification-settings-bug-button-slot" />
-      </header>
+      <AppPageHeader
+        title="Notification settings"
+        onBack={() => navigate(-1)}
+        bugButtonTestId="notification-settings-bug-button-slot"
+      />
 
       <main className="mx-auto flex w-full max-w-2xl flex-col gap-4 px-4 py-5">
         {error ? (

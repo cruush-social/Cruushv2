@@ -1,11 +1,11 @@
 import { useNavigate } from 'react-router';
-import { ArrowLeft, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import { Button } from './ui/button';
 import { Label } from './ui/label';
 import { Slider } from './ui/slider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import MultiSelect from './MultiSelect';
-import BugButtonSlot from './BugButtonSlot';
+import AppPageHeader from './AppPageHeader';
 import {
   AVAILABILITY,
   BODY_TYPES,
@@ -30,18 +30,17 @@ export default function FiltersPanel() {
 
   return (
     <div className="min-h-screen bg-background pb-20">
-      <header className="sticky top-0 bg-card/80 backdrop-blur-sm border-b border-border p-4 flex items-center justify-between z-10">
-        <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-          <ArrowLeft className="w-5 h-5" />
-        </Button>
-        <h2 className="text-xl">Filters</h2>
-        <Button variant="ghost" size="sm">
-          <X className="w-4 h-4 mr-1" />
-          Clear
-        </Button>
-      
-        <BugButtonSlot testId="filters-panel-bug-button-slot" />
-      </header>
+      <AppPageHeader
+        title="Filters"
+        onBack={() => navigate(-1)}
+        bugButtonTestId="filters-panel-bug-button-slot"
+        actions={(
+          <Button variant="ghost" size="sm">
+            <X className="mr-1 h-4 w-4" />
+            Clear
+          </Button>
+        )}
+      />
 
       <div className="max-w-2xl mx-auto p-6">
         <Tabs defaultValue="basics" className="w-full">

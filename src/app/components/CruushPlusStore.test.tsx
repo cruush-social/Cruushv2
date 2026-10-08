@@ -1320,7 +1320,10 @@ describe('Bitcoin through Cash App, PayPal, Venmo or a wallet', () => {
     });
     renderStore();
 
-    expect(await screen.findByText(/waiting for your payment to arrive/i)).toBeInTheDocument();
+    const paymentProgress = await screen.findByRole('list', { name: 'Payment progress' });
+    expect(within(paymentProgress).getAllByRole('listitem')).toHaveLength(1);
+    expect(within(paymentProgress).getByText('0/6 confirmations')).toBeInTheDocument();
+    expect(screen.queryByText(/waiting for your payment to arrive/i)).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'PayPal' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByRole('button', { name: 'Cash App' })).toHaveAttribute('aria-pressed', 'false');
     expect(screen.getByRole('button', { name: 'Venmo' })).toHaveAttribute('aria-pressed', 'false');

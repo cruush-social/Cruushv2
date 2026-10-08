@@ -1,7 +1,5 @@
-import { ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router';
-import { registerBugButtonSlot } from '../lib/bugButtonSlot';
-import { Button } from './ui/button';
+import AppPageHeader from './AppPageHeader';
 
 const changelogReleases = [
   {
@@ -126,20 +124,14 @@ export default function Changelog() {
 
   return (
     <div className="min-h-screen bg-background pb-20 text-white">
-      <header className="sticky top-0 z-10 flex items-center gap-4 border-b border-white/10 bg-background/88 p-4 backdrop-blur-sm">
-        <Button variant="ghost" size="icon" onClick={() => navigate(-1)} aria-label="Back to settings">
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <div>
-          <h2 className="text-xl">Changelog</h2>
-          <p className="text-sm text-white/52">{changelogReleases[0].version}</p>
-        </div>
-        <div
-          className="ml-auto flex items-center"
-          data-testid="changelog-bug-button-slot"
-          ref={registerBugButtonSlot}
-        />
-      </header>
+      <AppPageHeader
+        title="Changelog"
+        onBack={() => navigate(-1)}
+        backLabel="Back to settings"
+        bugButtonTestId="changelog-bug-button-slot"
+      >
+        <p className="text-sm text-white/52">{changelogReleases[0].version}</p>
+      </AppPageHeader>
 
       <main className="mx-auto max-w-2xl space-y-4 p-4">
         {changelogReleases.map((release) => (

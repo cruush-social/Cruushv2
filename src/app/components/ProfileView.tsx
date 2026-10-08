@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { resolveMediaUrl } from '../lib/apiClient';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { notifyProfileUnavailable } from '../lib/profileUnavailable';
-import { ArrowLeft, Share2, X } from 'lucide-react';
+import { Share2, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import BlockUserAction from './BlockUserAction';
@@ -34,7 +34,7 @@ import { resolveUserBorderTone } from '../lib/userBorderTone';
 import partyHatIcon from '../assets/ui-icons/party-hat.svg';
 import mileHighClubWhite from '../assets/ui-icons/mile-high-club-white.svg';
 import InAppShareDialog from './InAppShareDialog';
-import BugButtonSlot from './BugButtonSlot';
+import AppPageHeader from './AppPageHeader';
 
 type ProfileLocationState = {
   distance?: string;
@@ -565,16 +565,11 @@ export default function ProfileView() {
   if (loading) {
     return (
       <div className="min-h-screen bg-background pb-20">
-        <header className="sticky top-0 z-10 border-b border-border bg-card/90 p-4 backdrop-blur-sm">
-          <div className="mx-auto flex max-w-2xl items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={() => navigate(-1)} aria-label="Back">
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
-            <h1 className="text-xl">Profile</h1>
-          
-            <BugButtonSlot testId="profile-view-bug-button-slot" />
-          </div>
-        </header>
+        <AppPageHeader
+          title="Profile"
+          onBack={() => navigate(-1)}
+          bugButtonTestId="profile-view-bug-button-slot"
+        />
         <div className="mx-auto max-w-2xl px-4 py-8">
           <LoadingCardSkeletons count={2} label="Loading profile" />
         </div>
@@ -585,16 +580,11 @@ export default function ProfileView() {
   if (error || !profileView) {
     return (
       <div className="min-h-screen bg-background pb-20">
-        <header className="sticky top-0 z-10 border-b border-border bg-card/90 p-4 backdrop-blur-sm">
-          <div className="mx-auto flex max-w-2xl items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={() => navigate(-1)} aria-label="Back">
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
-            <h1 className="text-xl">Profile</h1>
-          
-            <BugButtonSlot testId="profile-view-bug-button-slot" />
-          </div>
-        </header>
+        <AppPageHeader
+          title="Profile"
+          onBack={() => navigate(-1)}
+          bugButtonTestId="profile-view-bug-button-slot"
+        />
         <div className="mx-auto max-w-2xl px-4 py-8">
           <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
             {error ?? 'Profile unavailable.'}
@@ -606,32 +596,16 @@ export default function ProfileView() {
 
   return (
     <div className="min-h-screen bg-background pb-20" style={PROFILE_VIEW_STYLE}>
-      <div
-        data-testid="profile-gallery-frame"
-        className="relative mx-auto max-w-2xl"
-        style={PROFILE_VIEW_GALLERY_FRAME_STYLE}
-      >
-        {/* The page chrome rides on the photo instead of a bar above it, each
-            control in its own circle so it stays legible over any picture. */}
-        <div className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-start justify-between p-3 pr-3 lg:pr-[calc(4.25rem+env(safe-area-inset-right))]">
-          <div className="pointer-events-auto flex min-w-0 items-center gap-2">
-            <button
-              aria-label="Back"
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/12 bg-black/55 text-white backdrop-blur-sm"
-              data-testid="profile-back"
-              onClick={() => navigate(-1)}
-              type="button"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </button>
-            {/* The name is already on the photo below; a second copy beside
-                the back button only repeated it. */}
-          </div>
-
-          <div className="pointer-events-auto flex items-center gap-2">
+      <AppPageHeader
+        title="Profile"
+        onBack={() => navigate(-1)}
+        backTestId="profile-back"
+        bugButtonTestId="profile-view-bug-button-slot"
+        actions={(
+          <>
             <Button
               aria-label="Send profile in cruush"
-              className="h-10 w-10 rounded-full border border-white/12 bg-black/55 text-white backdrop-blur-sm"
+              className="border border-white/12 bg-black/55 text-white backdrop-blur-sm"
               onClick={() => setShareOpen(true)}
               size="icon"
               type="button"
@@ -641,7 +615,7 @@ export default function ProfileView() {
             </Button>
             {isOwnProfile ? (
               <Button
-                className="h-10 rounded-full border border-white/12 bg-black/55 px-4 text-white backdrop-blur-sm"
+                className="h-9 border border-white/12 bg-black/55 px-3 text-white backdrop-blur-sm"
                 onClick={() => navigate('/profile/edit')}
                 variant="ghost"
               >
@@ -651,7 +625,7 @@ export default function ProfileView() {
               <>
                 {userId ? (
                   <BlockUserAction
-                    className="h-10 w-10 rounded-full border border-white/12 bg-black/55 p-0 text-white backdrop-blur-sm"
+                    className="size-9 border border-white/12 bg-black/55 p-0 text-white backdrop-blur-sm"
                     dialogClassName="cruush-profile-safety-dialog"
                     dialogStyle={profileSafetyDialogStyle}
                     displayName={profileView.name}
@@ -664,7 +638,7 @@ export default function ProfileView() {
                 ) : null}
                 {userId ? (
                   <ReportAction
-                    className="h-10 w-10 rounded-full border border-white/12 bg-black/55 text-white backdrop-blur-sm"
+                    className="size-9 border border-white/12 bg-black/55 text-white backdrop-blur-sm"
                     dialogClassName="cruush-profile-safety-dialog"
                     dialogStyle={profileSafetyDialogStyle}
                     label="Report profile"
@@ -675,12 +649,14 @@ export default function ProfileView() {
                 ) : null}
               </>
             )}
-            {/* The chrome rides on the photo, and the bug button rides with it
-                instead of floating in a corner the row had to leave empty. */}
-            <BugButtonSlot className="ml-0" testId="profile-view-bug-button-slot" />
-          </div>
-        </div>
-
+          </>
+        )}
+      />
+      <div
+        data-testid="profile-gallery-frame"
+        className="relative mx-auto max-w-2xl"
+        style={PROFILE_VIEW_GALLERY_FRAME_STYLE}
+      >
         <ProfilePhotoGallery
           borderTone={resolveUserBorderTone({ current: isOwnProfile, mileHigh: profileView.travelling, mutual: heartTheme === 'mutual' })}
           fitViewport

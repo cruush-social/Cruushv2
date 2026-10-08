@@ -45,7 +45,7 @@ describe('DlModeSettings', () => {
       'sm:!p-6',
     );
     expect(screen.getByRole('heading', { name: 'DL Mode' }).closest('header'))
-      .toHaveClass('px-3', 'py-3', 'sm:p-4');
+      .toHaveClass('border-white/10', 'bg-black/88', 'py-4');
     expect(screen.getByTestId('dl-mode-settings-root')).toHaveClass('h-full', 'overflow-hidden');
     expect(screen.getByTestId('dl-mode-settings-root')).not.toHaveClass('h-[100dvh]');
     expect(screen.getByTestId('dl-mode-settings-root')).not.toHaveClass('pb-20');

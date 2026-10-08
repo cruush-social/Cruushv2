@@ -1,9 +1,7 @@
-import { ArrowLeft } from 'lucide-react';
 import { Link, useLocation } from 'react-router';
-import { Button } from './ui/button';
 import PublicPolicyLinks from './PublicPolicyLinks';
 import SupportRequestForm from './SupportRequestForm';
-import BugButtonSlot from './BugButtonSlot';
+import AppPageHeader from './AppPageHeader';
 import type { SupportRequestCategory } from '../lib/supportApi';
 import { useBackOrFallback } from '../lib/useBackOrFallback';
 
@@ -34,19 +32,12 @@ export default function SupportPage({ appealOnly = false, publicAccess = false, 
 
   return (
     <div className="min-h-screen bg-background pb-20">
-      <header className="sticky top-0 bg-card/80 backdrop-blur-sm border-b border-border p-4 flex items-center gap-4 z-10">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={goBack}
-          aria-label={appealMode || publicAccess ? 'Back to sign in' : 'Back to settings'}
-        >
-          <ArrowLeft className="w-5 h-5" />
-        </Button>
-        <h2 className="text-xl">Support</h2>
-      
-        <BugButtonSlot testId="support-page-bug-button-slot" />
-      </header>
+      <AppPageHeader
+        title="Support"
+        onBack={goBack}
+        backLabel={appealMode || publicAccess ? 'Back to sign in' : 'Back to settings'}
+        bugButtonTestId="support-page-bug-button-slot"
+      />
 
       <main className="w-full p-6">
         <div className="mx-auto max-w-2xl space-y-4">

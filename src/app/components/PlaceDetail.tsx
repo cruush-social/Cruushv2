@@ -3,7 +3,7 @@ import { useTrustRestrictions } from '../lib/trustRestrictions';
 import TrustRestrictionNotice from './TrustRestrictionNotice';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router';
-import { ArrowLeft, Clock, Copy, ExternalLink, Flag, MapPin, Share2, Star, Trash2, Users, X } from 'lucide-react';
+import { ArrowLeft, Clock, Copy, ExternalLink, Flag, MapPin, Share2, Star, Trash2, Users } from 'lucide-react';
 import { Button } from './ui/button';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
 import { Slider } from './ui/slider';
@@ -17,7 +17,7 @@ import UserActivityCapsule from './UserActivityCapsule';
 import LoadingCardSkeletons from './LoadingCardSkeletons';
 import InAppShareDialog from './InAppShareDialog';
 import PlaceTransitDetails from './PlaceTransitDetails';
-import { registerBugButtonSlot } from '../lib/bugButtonSlot';
+import AppPageHeader from './AppPageHeader';
 import { getStoredUserId } from '../lib/sessionUser';
 import { shouldMaskPhoto, useDlMode } from '../lib/dlMode';
 import { resolveUserBorderTone } from '../lib/userBorderTone';
@@ -401,18 +401,13 @@ export default function PlaceDetail({ embedded = false, onBack, onClose, placeId
 
   return (
     <div className={embedded ? 'bg-background' : 'min-h-screen bg-background pb-20'} data-testid="spot-detail">
-      <header className="sticky top-0 z-20 flex min-h-16 items-center gap-3 border-b border-white/10 bg-background/95 px-4 backdrop-blur-md">
-        <button type="button" aria-label="Back" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/12 bg-black/70 text-white" onClick={onBack ?? (() => navigate(-1))}>
-          <ArrowLeft className="h-5 w-5" />
-        </button>
-        <h1 className="min-w-0 truncate text-xl">{PLACE_FACILITY_SINGULAR_LABELS[place.facilityType]}</h1>
-        <div className="ml-auto h-11 w-11 shrink-0" data-testid="spot-detail-bug-button-slot" ref={registerBugButtonSlot} />
-        {onClose ? (
-          <Button type="button" variant="ghost" aria-label={['Close', 'Spot'].join(' ')} onClick={onClose}>
-            <X />
-          </Button>
-        ) : null}
-      </header>
+      <AppPageHeader
+        title={PLACE_FACILITY_SINGULAR_LABELS[place.facilityType]}
+        onBack={onBack ?? (() => navigate(-1))}
+        onClose={onClose}
+        closeLabel="Close Spot"
+        bugButtonTestId="spot-detail-bug-button-slot"
+      />
 
       <div className={`mx-auto flex flex-col gap-4 px-4 py-4 sm:gap-6 sm:p-6 ${embedded ? 'max-w-none' : 'max-w-2xl'}`}>
         <div className={`relative ${embedded ? 'order-1' : 'order-3'}`}>
@@ -510,7 +505,7 @@ export default function PlaceDetail({ embedded = false, onBack, onClose, placeId
           </div>
         </details>
 
-        {place.sourceUrl ? <a className="order-8 inline-flex items-center text-sm text-primary" href={place.sourceUrl} target="_blank" rel="noreferrer">Source{place.sourceAttribution ? `: ${place.sourceAttribution}` : ''}<ExternalLink className="ml-2 h-4 w-4" /></a> : null}
+        {place.sourceUrl ? <a className="order-8 inline-flex items-center text-lg text-primary" href={place.sourceUrl} target="_blank" rel="noreferrer">Source{place.sourceAttribution ? `: ${place.sourceAttribution}` : ''}<ExternalLink className="ml-2 h-4 w-4" /></a> : null}
 
         {status ? <p className="order-9 text-sm text-primary">{status}</p> : null}
         {error ? <p className="order-10 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{error}</p> : null}
@@ -540,10 +535,10 @@ export default function PlaceDetail({ embedded = false, onBack, onClose, placeId
               </div>
             ) : (
               <div className="p-3">
-                <p className="mb-3 text-sm text-white/70">Check in to read other members' Pink Book posts. Your posts stay until you delete them.</p>
-                <textarea disabled={trust.restricted('pink_book')} aria-label="Pink Book post for check-in" className="mb-4 min-h-20 w-full resize-none rounded-md border border-white/10 bg-black/30 p-3 text-sm text-white outline-none focus:border-primary/45 disabled:opacity-50" placeholder="Write a Pink Book post (optional)" value={message} onChange={(event) => setMessage(event.target.value)} maxLength={1000} />
+                <p className="mb-3 text-lg text-white/70">Check in to read other members' Pink Book posts. Your posts stay until you delete them.</p>
+                <textarea disabled={trust.restricted('pink_book')} aria-label="Pink Book post for check-in" className="mb-4 min-h-20 w-full resize-none rounded-md border border-white/10 bg-black/30 p-3 text-lg text-white outline-none focus:border-primary/45 disabled:opacity-50" placeholder="Write a Pink Book post (optional)" value={message} onChange={(event) => setMessage(event.target.value)} maxLength={1000} />
                 <fieldset className="mb-4 space-y-2">
-                  <legend className="text-xs text-white/60">Spot vibes</legend>
+                  <legend className="text-base text-white/60">Spot vibes</legend>
                   <div className="flex flex-wrap gap-2">
                     {PLACE_VIBES.map((vibe) => {
                       const selected = checkinVibes.includes(vibe);
@@ -554,7 +549,7 @@ export default function PlaceDetail({ embedded = false, onBack, onClose, placeId
                           type="button"
                           aria-pressed={selected}
                           disabled={selectionFull}
-                          className={`rounded-full border px-3 py-1 text-xs disabled:opacity-35 ${selected ? 'border-primary bg-primary/20 text-white' : 'border-white/10 text-white/65'}`}
+                          className={`rounded-full border px-3 py-1 text-base disabled:opacity-35 ${selected ? 'border-primary bg-primary/20 text-white' : 'border-white/10 text-white/65'}`}
                           onClick={() => setCheckinVibes((current) => selected ? current.filter((item) => item !== vibe) : [...current, vibe])}
                         >
                           {PLACE_VIBE_LABELS[vibe]}
@@ -564,7 +559,7 @@ export default function PlaceDetail({ embedded = false, onBack, onClose, placeId
                   </div>
                 </fieldset>
                 <fieldset className="mb-4 space-y-2">
-                  <legend className="text-xs text-white/60">Amenities (optional)</legend>
+                  <legend className="text-base text-white/60">Amenities (optional)</legend>
                   <div className="flex flex-wrap gap-2">
                     {PLACE_AMENITIES.map((amenity) => {
                       const selected = checkinAmenities.includes(amenity);
@@ -573,7 +568,7 @@ export default function PlaceDetail({ embedded = false, onBack, onClose, placeId
                           key={amenity}
                           type="button"
                           aria-pressed={selected}
-                          className={`rounded-full border px-3 py-1 text-xs ${selected ? 'border-primary bg-primary/20 text-white' : 'border-white/10 text-white/65'}`}
+                          className={`rounded-full border px-3 py-1 text-base ${selected ? 'border-primary bg-primary/20 text-white' : 'border-white/10 text-white/65'}`}
                           onClick={() => setCheckinAmenities((current) => selected ? current.filter((item) => item !== amenity) : [...current, amenity])}
                         >
                           {PLACE_AMENITY_LABELS[amenity]}
@@ -585,7 +580,7 @@ export default function PlaceDetail({ embedded = false, onBack, onClose, placeId
                 {/* An ordered scale from one hour to a day, so it slides like
                     distance does rather than opening a menu of five items. */}
                 <div className="w-full">
-                  <div className="flex items-center justify-between text-xs text-white/60">
+                  <div className="flex items-center justify-between text-base text-white/60">
                     <span>Check-in expires in</span>
                     <span className="font-semibold text-white" data-testid="checkin-duration-value">
                       {CHECKIN_DURATION_OPTIONS.find((option) => option.value === checkinDurationHours)?.label ?? '1h'}
@@ -607,7 +602,7 @@ export default function PlaceDetail({ embedded = false, onBack, onClose, placeId
                 </div>
                 <div className="flex flex-wrap items-end justify-between gap-3">
                   <fieldset>
-                    <legend className="mb-2 text-xs text-white/60">Who can see this check-in?</legend>
+                    <legend className="mb-2 text-base text-white/60">Who can see this check-in?</legend>
                     <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Check-in visibility">
                       {([
                         ['hidden', 'Hidden'],
@@ -619,7 +614,7 @@ export default function PlaceDetail({ embedded = false, onBack, onClose, placeId
                           type="button"
                           role="radio"
                           aria-checked={checkinVisibility === value}
-                          className={`rounded-full border px-3 py-1.5 text-xs ${checkinVisibility === value ? 'border-primary bg-primary/20 text-white' : 'border-white/10 text-white/65'}`}
+                          className={`rounded-full border px-3 py-1.5 text-base ${checkinVisibility === value ? 'border-primary bg-primary/20 text-white' : 'border-white/10 text-white/65'}`}
                           onClick={() => setCheckinVisibility(value)}
                         >
                           {label}
@@ -627,7 +622,7 @@ export default function PlaceDetail({ embedded = false, onBack, onClose, placeId
                       ))}
                     </div>
                   </fieldset>
-                  <Button size="sm" disabled={checkinVibes.length === 0 || (Boolean(message.trim()) && trust.restricted('pink_book')) || postingCheckin || postingBoard || mutating} onClick={handlePostCheckin}>{postingCheckin ? 'Checking in...' : 'Check in'}</Button>
+                  <Button size="sm" className="text-lg" disabled={checkinVibes.length === 0 || (Boolean(message.trim()) && trust.restricted('pink_book')) || postingCheckin || postingBoard || mutating} onClick={handlePostCheckin}>{postingCheckin ? 'Checking in...' : 'Check in'}</Button>
                 </div>
               </div>
             )}

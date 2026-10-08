@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { ArrowLeft, ShieldCheck } from 'lucide-react';
+import { ShieldCheck } from 'lucide-react';
 import { Button } from './ui/button';
 import { CruushIcon } from './CruushIconImage';
 import LoadingCardSkeletons from './LoadingCardSkeletons';
-import BugButtonSlot from './BugButtonSlot';
+import AppPageHeader from './AppPageHeader';
 import DlModePhotoPlaceholder from './DlModePhotoPlaceholder';
 import { resolveMediaUrl } from '../lib/apiClient';
 import { shouldMaskPhoto, useDlMode, getNsfwPhotoRestriction } from '../lib/dlMode';
@@ -102,14 +102,11 @@ export default function PrivacyAudit() {
 
   return (
     <div className="min-h-screen bg-background pb-20">
-      <header className="sticky top-0 z-10 flex items-center gap-4 border-b border-border bg-card/80 p-4 backdrop-blur-sm">
-        <Button variant="ghost" size="icon" onClick={() => navigate(-1)} aria-label="Back">
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <h2 className="text-xl">Privacy Audit</h2>
-      
-        <BugButtonSlot testId="privacy-audit-bug-button-slot" />
-      </header>
+      <AppPageHeader
+        title="Privacy Audit"
+        onBack={() => navigate(-1)}
+        bugButtonTestId="privacy-audit-bug-button-slot"
+      />
 
       <main className="mx-auto max-w-2xl space-y-5 p-6">
         <div className="rounded-lg border border-white/10 bg-card p-4">
