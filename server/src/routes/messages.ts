@@ -18,6 +18,7 @@ import { photoUploadAvailability } from "../photo-upload-availability.js";
 import { ApiError } from "../errors.js";
 import { assertCanSendNsfwMessagePhoto, assertCanStartDirectMessage, canStartDirectMessage } from "../cruush-match-settings.js";
 import { getRelationshipPermissions, type RelationshipPermissions } from "../match-relationships.js";
+import { hasUserBlockBetween } from "../user-blocks.js";
 import { createGroupPulse } from "../map-pings.js";
 import { createAppNotificationAndPush } from "../notification-service.js";
 import {
@@ -1012,6 +1013,10 @@ export async function registerMessageRoutes(app: FastifyInstance) {
       throw new ApiError(400, "VALIDATION_ERROR", "You cannot create a direct conversation with yourself.");
     }
 
+    if (await hasUserBlockBetween(app, userId, payload.otherUserId)) {
+      throw new ApiError(403, "FORBIDDEN", "You cannot message this user.");
+    }
+
     const existingUser = await app.db.query<ExistingUserRow>(
       `select id::text as id
        from app_users
@@ -1076,7 +1081,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
     await app.db.query(
       `insert into conversation_members (conversation_id, user_id, last_read_at)
        select requested.conversation_id, requested.user_id, requested.last_read_at
-       from (values ($1, $2, now()), ($1, $3, null)) as requested(conversation_id, user_id, last_read_at)
+       from (values ($1::uuid, $2::uuid, now()), ($1::uuid, $3::uuid, null)) as requested(conversation_id, user_id, last_read_at)
        where not exists (
          select 1
          from conversation_members existing
