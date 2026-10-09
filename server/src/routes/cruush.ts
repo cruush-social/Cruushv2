@@ -515,7 +515,7 @@ async function ensureMutualConversation(app: FastifyInstance, firstUserId: strin
   await app.db.query(
     `insert into conversation_members (conversation_id, user_id, last_read_at)
      values ($1, $2, now()), ($1, $3, null)
-     on conflict (conversation_id, user_id) do nothing`,
+     on conflict (conversation_id, user_id) where user_id is not null do nothing`,
     [conversationId, firstUserId, secondUserId]
   );
 }
