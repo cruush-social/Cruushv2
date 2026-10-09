@@ -13,6 +13,7 @@ const {
   getModerationQueue,
   getModerationQueueItem,
   getSupportRequests,
+  getSurveyResponses,
   moderateReport,
   removeReportedContent,
   searchModeratedUsers,
@@ -27,6 +28,7 @@ const {
   getModerationQueue: vi.fn(),
   getModerationQueueItem: vi.fn(),
   getSupportRequests: vi.fn(),
+  getSurveyResponses: vi.fn(),
   moderateReport: vi.fn(),
   removeReportedContent: vi.fn(),
   searchModeratedUsers: vi.fn(),
@@ -51,6 +53,7 @@ vi.mock('../lib/moderationApi', async () => {
     getModerationQueue,
     getModerationQueueItem,
     getSupportRequests,
+    getSurveyResponses,
     moderateReport,
     removeReportedContent,
     searchModeratedUsers,
@@ -262,6 +265,7 @@ async function openReport() {
 describe('ModeratorReview', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    getSurveyResponses.mockResolvedValue({ surveys: [{ id: 'survey-qa', displayName: 'Survey QA', email: null, subject: 'cruush subscription survey response', message: 'What is the biggest reason you have not subscribed?\nThe price', status: 'open', createdAt: '2026-10-08T12:00:00.000Z' }], page: { limit: 25, offset: 0, total: 1, hasMore: false } });
     getModerationQueue.mockResolvedValue(queue());
     getModerationQueueItem.mockImplementation((kind: string) => Promise.resolve(kind === 'report' ? reportDetail : reviewDetail));
     moderateReport.mockResolvedValue({
@@ -311,6 +315,16 @@ describe('ModeratorReview', () => {
       page: { limit: 25, offset: 0, total: 1, hasMore: false },
     });
     updateSupportRequestStatus.mockResolvedValue({ request: { ...supportRequest, status: 'closed' } });
+  });
+
+  it('opens complete subscription survey answers from the new capsule while preserving legacy ratings', async () => {
+    renderReview();
+    fireEvent.click(await screen.findByRole('tab', { name: 'Surveys & support' }));
+    expect(await screen.findByRole('heading', { name: 'Survey ratings' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Open subscription survey responses' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Open survey response from Survey QA' }));
+    expect(screen.getByText(/What is the biggest reason you have not subscribed/)).toHaveTextContent('The price');
+    expect(screen.getByRole('tab', { name: 'Surveys', exact: true })).toHaveAttribute('aria-selected', 'true');
   });
 
   it('contains the mobile moderation header controls without page-level overflow', async () => {

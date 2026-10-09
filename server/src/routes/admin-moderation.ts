@@ -39,6 +39,11 @@ const reportListQuerySchema = z.object({
   offset: z.coerce.number().int().min(0).optional().default(0)
 }).strict();
 
+const surveyListQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).optional().default(25),
+  offset: z.coerce.number().int().min(0).optional().default(0)
+}).strict();
+
 const queueListQuerySchema = z.object({
   source: z.enum(["all", "reports", "automod"]).optional().default("all"),
   state: z.enum(["open", "closed", "all"]).optional().default("open"),
@@ -213,6 +218,17 @@ type QueueRow = {
   normalized_labels: unknown[] | string | null;
   policy_decision: Record<string, unknown> | string | null;
   content_ref: Record<string, unknown> | string | null;
+  total_count: string | number;
+};
+
+type SurveyRow = {
+  id: string;
+  display_name: string | null;
+  email: string | null;
+  subject: string;
+  message: string;
+  status: string;
+  created_at: string | Date;
   total_count: string | number;
 };
 
@@ -474,6 +490,18 @@ function mapQueueRow(row: QueueRow) {
       policyDecision: parseJson(row.policy_decision, {} as Record<string, unknown>),
       contentRef: parseJson(row.content_ref, {} as Record<string, unknown>)
     } : null
+  };
+}
+
+function mapSurveyRow(row: SurveyRow, role: ModeratorRole) {
+  return {
+    id: row.id,
+    displayName: row.display_name?.trim() || "cruush user",
+    email: role === "admin" && row.email ? row.email : null,
+    subject: row.subject,
+    message: row.message,
+    status: row.status,
+    createdAt: new Date(row.created_at).toISOString()
   };
 }
 
@@ -1112,6 +1140,45 @@ export async function registerAdminModerationRoutes(app: FastifyInstance) {
           firstSeenAt: new Date(row.first_seen_at).toISOString(),
           lastSeenAt: new Date(row.last_seen_at).toISOString()
         }))
+      }
+    });
+  });
+
+  app.get("/api/admin/moderation/surveys", async (request, reply) => {
+    const moderator = await getModeratorUser(request);
+    const query = surveyListQuerySchema.parse(request.query);
+    const result = await app.db.query<SurveyRow>(
+      `select
+         support_requests.id::text as id,
+         coalesce(profile.display_name, users.display_name, 'cruush user') as display_name,
+         support_requests.contact_email as email,
+         support_requests.subject,
+         support_requests.message,
+         support_requests.status,
+         support_requests.created_at,
+         count(*) over() as total_count
+       from support_requests
+       left join app_users users on users.id = support_requests.requester_user_id
+       left join profiles profile on profile.id = users.id
+       where support_requests.source = 'survey'
+         and (
+           lower(trim(support_requests.subject)) = 'cruush subscription survey response'
+           or support_requests.message like '%What is the biggest reason you have not subscribed?%'
+         )
+       order by support_requests.created_at desc, support_requests.id desc
+       limit $1 offset $2`,
+      [query.limit, query.offset]
+    );
+    const total = Number(result.rows[0]?.total_count ?? 0);
+    return reply.send({
+      data: {
+        surveys: result.rows.map((row) => mapSurveyRow(row, moderator.role)),
+        page: {
+          limit: query.limit,
+          offset: query.offset,
+          total,
+          hasMore: query.offset + result.rows.length < total
+        }
       }
     });
   });

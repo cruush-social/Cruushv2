@@ -35,7 +35,7 @@ export default function Survey() {
   const [improvement, setImprovement] = useState('');
   const [bugs, setBugs] = useState('');
   const [hesitation, setHesitation] = useState('');
-  const [processor, setProcessor] = useState('');
+  const processor = ratings.processor ?? '';
   const [price, setPrice] = useState('');
   const [sent, setSent] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -82,7 +82,7 @@ export default function Survey() {
     try {
       await createSupportRequest({
         category: 'comment',
-        subject: 'cruush survey response',
+        subject: 'cruush subscription survey response',
         message: body,
         source: 'survey',
         pageUrl: window.location.href,

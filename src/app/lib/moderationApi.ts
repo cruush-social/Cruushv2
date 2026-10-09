@@ -507,6 +507,34 @@ export function updateSupportRequestStatus(requestId: string, status: SupportReq
   });
 }
 
+export type AdminSurveyResponse = {
+  id: string;
+  displayName: string;
+  email: string | null;
+  subject: string;
+  message: string;
+  status: string;
+  createdAt: string;
+};
+
+export type AdminSurveyResponseList = {
+  surveys: AdminSurveyResponse[];
+  page: {
+    limit: number;
+    offset: number;
+    total: number;
+    hasMore: boolean;
+  };
+};
+
+export function getSurveyResponses(options: { limit?: number; offset?: number } = {}) {
+  const searchParams = new URLSearchParams({
+    limit: String(options.limit ?? 25),
+    offset: String(options.offset ?? 0),
+  });
+  return requestApi<AdminSurveyResponseList>(`/api/admin/moderation/surveys?${searchParams.toString()}`);
+}
+
 export function decideContentReview(reviewId: string, payload: {
   action: 'approve' | 'reject';
   reasonCode: string;

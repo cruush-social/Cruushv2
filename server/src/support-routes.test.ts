@@ -248,8 +248,9 @@ describe("support routes", () => {
     }
   );
 
-  it("requires authentication before accepting a survey response", async () => {
+  it("accepts an anonymous survey response without a contact email", async () => {
     const app = buildSupportApp();
+    query.mockResolvedValueOnce({ rows: [{ id: "anonymous-survey", status: "open", ai_triage_status: "pending", created_at: "2026-10-08T12:00:00.000Z" }] });
 
     const response = await app.inject({
       method: "POST",
@@ -264,9 +265,8 @@ describe("support routes", () => {
     });
     await app.close();
 
-    expect(response.statusCode).toBe(401);
-    expect(response.json()).toMatchObject({ error: { code: "AUTH_REQUIRED" } });
-    expect(query).not.toHaveBeenCalled();
+    expect(response.statusCode).toBe(201);
+    expect(query.mock.calls[0]?.[1]?.slice(0, 2)).toEqual([null, null]);
   }, 10000);
 
   it("creates one active survey response for a signed-in member", async () => {
@@ -349,6 +349,8 @@ describe("support routes", () => {
     expect(response.statusCode).toBe(200);
     expect(query).toHaveBeenCalledTimes(4);
     expect(query.mock.calls[3]?.[0]).toContain("status in ('open', 'in_progress')");
+    expect(query.mock.calls[3]?.[0]).toContain("subject = $2");
+    expect(query.mock.calls[3]?.[1]).toEqual([userId, "cruush survey response"]);
     expect(response.json().data.id).toBe("survey-response-1");
   }, 10000);
 

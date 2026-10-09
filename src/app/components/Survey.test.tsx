@@ -72,7 +72,7 @@ describe('Survey', () => {
     await waitFor(() => expect(createSupportRequest).toHaveBeenCalledWith(expect.objectContaining({
       category: 'comment',
       source: 'survey',
-      subject: 'cruush survey response',
+      subject: 'cruush subscription survey response',
     })));
     expect(createSupportRequest.mock.calls[0]?.[0]).not.toHaveProperty('contactEmail');
     expect(await screen.findByText('SURVEYGIFT')).toBeInTheDocument();

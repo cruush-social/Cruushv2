@@ -585,11 +585,9 @@ export async function registerSupportRoutes(app: FastifyInstance) {
     const requesterUserId = await getOptionalAuthenticatedUserId(request);
     const payload = createSupportRequestPayloadSchema.parse(request.body);
 
-    if (!requesterUserId && payload.source === "survey") {
-      throw new ApiError(401, "AUTH_REQUIRED", "Sign in before sending survey feedback.");
-    }
-
-    const resolvedContactEmail = await resolveSupportContactEmail(app, requesterUserId, payload.contactEmail);
+    const resolvedContactEmail = !requesterUserId && payload.source === "survey" && !payload.contactEmail
+      ? null
+      : await resolveSupportContactEmail(app, requesterUserId, payload.contactEmail);
 
     // Admins and moderators file bug reports as part of running the app, so
     // the anti-abuse cap does not apply to them. Everyone else keeps it.
@@ -658,12 +656,13 @@ export async function registerSupportRoutes(app: FastifyInstance) {
         `select id::text as id, status, ai_triage_status, created_at
          from support_requests
          where requester_user_id = $1
+           and subject = $2
            and requester_account_deleted_at is null
            and source = 'survey'
            and status in ('open', 'in_progress')
          order by created_at desc, id desc
          limit 1`,
-        [requesterUserId]
+        [requesterUserId, payload.subject]
       );
       row = existingResult.rows[0];
     }

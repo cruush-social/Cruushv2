@@ -25,6 +25,8 @@ import {
   getModerationQueue,
   getModerationQueueItem,
   getSupportRequests,
+  getSurveyResponses,
+  type AdminSurveyResponse,
   moderateReport,
   removeReportedContent,
   searchModeratedUsers,
@@ -67,7 +69,7 @@ import LoadingCardSkeletons from './LoadingCardSkeletons';
 import AppPageHeader from './AppPageHeader';
 
 type AccessState = 'checking' | 'ready' | 'denied' | 'error';
-type ModeratorView = 'queue' | 'users' | 'notifications' | 'system-errors' | 'email';
+type ModeratorView = 'queue' | 'users' | 'notifications' | 'system-errors' | 'email' | 'surveys';
 type ActionDialogState =
   | { kind: 'report'; status: 'resolved' | 'dismissed' }
   | { kind: 'review'; action: 'approve' | 'reject' }
@@ -369,6 +371,13 @@ export default function ModeratorReview() {
   const [announcementLink, setAnnouncementLink] = useState('');
   const [announcementSending, setAnnouncementSending] = useState(false);
 
+  const [surveys, setSurveys] = useState<AdminSurveyResponse[]>([]);
+  const [surveyOffset, setSurveyOffset] = useState(0);
+  const [surveyPage, setSurveyPage] = useState({ limit: PAGE_SIZE, offset: 0, total: 0, hasMore: false });
+  const [surveysLoading, setSurveysLoading] = useState(false);
+  const [surveysError, setSurveysError] = useState<string | null>(null);
+  const [selectedSurveyId, setSelectedSurveyId] = useState<string | null>(null);
+
   const loadQueue = useCallback(async (mode: 'initial' | 'refresh' = 'initial') => {
     if (mode === 'initial' && accessState !== 'ready') setAccessState('checking');
     if (mode === 'refresh') setRefreshing(true);
@@ -562,6 +571,32 @@ export default function ModeratorReview() {
     void loadBetaCityRequests();
   }, [accessState, loadBetaCityRequests, view]);
 
+  const loadSurveys = useCallback(async () => {
+    setSurveysLoading(true);
+    setSurveysError(null);
+    try {
+      const data = await getSurveyResponses({ limit: PAGE_SIZE, offset: surveyOffset });
+      setSurveys(Array.isArray(data.surveys) ? data.surveys : []);
+      setSurveyPage(data.page);
+      setAccessState('ready');
+    } catch (error) {
+      if (isAccessDenied(error)) {
+        setSurveys([]);
+        setSelectedSurveyId(null);
+        setAccessState('denied');
+      } else {
+        setSurveysError('Unable to load survey responses right now.');
+      }
+    } finally {
+      setSurveysLoading(false);
+    }
+  }, [surveyOffset]);
+
+  useEffect(() => {
+    if ((view !== 'surveys' && view !== 'email') || accessState !== 'ready') return;
+    void loadSurveys();
+  }, [accessState, loadSurveys, view]);
+
   const loadUserDetail = useCallback(async (userId: string) => {
     setUserDetailLoading(true);
     setUserDetailError(null);
@@ -589,6 +624,10 @@ export default function ModeratorReview() {
     setLatestReceipt(null);
     void loadUserDetail(selectedUserId);
   }, [accessState, loadUserDetail, selectedUserId]);
+
+  const surveyPageStart = surveyPage.total === 0 ? 0 : surveyPage.offset + 1;
+  const surveyPageEnd = Math.min(surveyPage.offset + surveys.length, surveyPage.total);
+  const selectedSurvey = surveys.find((survey) => survey.id === selectedSurveyId) ?? null;
 
   const pageStart = page.total === 0 ? 0 : page.offset + 1;
   const pageEnd = Math.min(page.offset + items.length, page.total);
@@ -777,7 +816,7 @@ export default function ModeratorReview() {
         bugButtonTestId="moderator-review-bug-button-slot"
         contentClassName="!max-w-7xl"
       >
-          <div className="flex min-w-0 items-center gap-2">
+          <div className="flex min-w-0 flex-col items-stretch gap-2 sm:flex-row sm:items-center">
             <div className="flex min-w-0 flex-1 overflow-x-auto rounded-md border border-border p-0.5" role="tablist" aria-label="Moderation views">
               <Button
                 className="shrink-0"
@@ -800,6 +839,7 @@ export default function ModeratorReview() {
                 <Users className="h-4 w-4" />
                 Accounts
               </Button>
+              <Button className="shrink-0" role="tab" aria-selected={view === 'surveys'} size="sm" variant={view === 'surveys' ? 'default' : 'ghost'} onClick={() => setView('surveys')}>Surveys</Button>
               <Button
                 className="shrink-0"
                 role="tab"
@@ -835,27 +875,95 @@ export default function ModeratorReview() {
               </Button>
             </div>
             <Button
-              className="shrink-0"
+              className="shrink-0 self-end sm:self-auto"
               variant="outline"
-              disabled={refreshing || usersLoading || notificationsLoading || systemErrorsLoading || supportLoading || betaCityLoading}
+              disabled={refreshing || surveysLoading || usersLoading || notificationsLoading || systemErrorsLoading || supportLoading || betaCityLoading}
               onClick={() => {
                 if (view === 'users') void loadUsers();
+                else if (view === 'surveys') void loadSurveys();
                 else if (view === 'notifications') void loadNotifications();
                 else if (view === 'system-errors') void loadSystemErrors();
                 else if (view === 'email') {
+                  void loadSurveys();
                   void loadSupportRequests();
                   void loadBetaCityRequests();
                 }
                 else void loadQueue('refresh');
               }}
             >
-              <RefreshCw className={refreshing || usersLoading || notificationsLoading || systemErrorsLoading || supportLoading || betaCityLoading ? 'animate-spin' : ''} />
-              {refreshing || usersLoading || notificationsLoading || systemErrorsLoading || supportLoading || betaCityLoading ? 'Refreshing...' : 'Refresh'}
+              <RefreshCw className={refreshing || surveysLoading || usersLoading || notificationsLoading || systemErrorsLoading || supportLoading || betaCityLoading ? 'animate-spin' : ''} />
+              {refreshing || surveysLoading || usersLoading || notificationsLoading || systemErrorsLoading || supportLoading || betaCityLoading ? 'Refreshing...' : 'Refresh'}
             </Button>
           </div>
       </AppPageHeader>
 
-      {view === 'system-errors' ? (
+      {view === 'surveys' ? (
+        <main className="mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:grid-cols-[minmax(0,1fr)_minmax(25rem,1fr)]">
+          <section aria-labelledby="surveys-heading" className="min-w-0">
+            <div className="flex items-end justify-between gap-3 border-b border-border pb-4">
+              <div>
+                <h2 id="surveys-heading" className="text-lg">Subscription survey</h2>
+                <p className="text-sm text-muted-foreground">{surveyPageStart}-{surveyPageEnd} of {surveyPage.total}</p>
+              </div>
+              <div className="flex items-center gap-1">
+                <Button size="icon" variant="outline" aria-label="Previous survey page" disabled={surveyOffset === 0} onClick={() => setSurveyOffset(Math.max(0, surveyOffset - PAGE_SIZE))}>
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <Button size="icon" variant="outline" aria-label="Next survey page" disabled={!surveyPage.hasMore} onClick={() => setSurveyOffset(surveyOffset + PAGE_SIZE)}>
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+
+            {surveysError ? <div className="mt-4 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{surveysError}</div> : null}
+            {surveys.length === 0 && !surveysLoading ? (
+              <div className="py-14 text-center text-sm text-muted-foreground">No survey responses yet.</div>
+            ) : (
+              <div className="divide-y divide-border">
+                {surveys.map((survey) => (
+                  <button
+                    key={survey.id}
+                    type="button"
+                    aria-label={`Open survey response from ${survey.displayName}`}
+                    aria-pressed={selectedSurveyId === survey.id}
+                    className={`flex w-full items-center gap-4 px-2 py-4 text-left transition-colors hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${selectedSurveyId === survey.id ? 'bg-accent/60' : ''}`}
+                    onClick={() => setSelectedSurveyId(survey.id)}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge>Subscription survey</Badge>
+                        <Badge variant={statusVariant(survey.status)}>{formatCode(survey.status)}</Badge>
+                      </div>
+                      <p className="mt-2 truncate font-medium">{survey.displayName}</p>
+                      <p className="mt-1 truncate text-sm text-muted-foreground">{survey.subject}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">{formatDateTime(survey.createdAt)}</p>
+                    </div>
+                    <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  </button>
+                ))}
+              </div>
+            )}
+          </section>
+
+          <section aria-labelledby="survey-detail-heading" className="min-w-0 border-t border-border pt-5 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
+            <h2 id="survey-detail-heading" className="text-lg">Survey response</h2>
+            {!selectedSurvey ? <p className="mt-4 text-sm text-muted-foreground">Select a response to review its answers.</p> : null}
+            {selectedSurvey ? (
+              <div className="mt-4 space-y-5">
+                <div className="space-y-1 border-b border-border pb-4">
+                  <p className="font-medium">{selectedSurvey.displayName}</p>
+                  {selectedSurvey.email ? <p className="text-sm text-muted-foreground">{selectedSurvey.email}</p> : null}
+                  <p className="text-xs text-muted-foreground">{formatDateTime(selectedSurvey.createdAt)}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">{selectedSurvey.subject}</p>
+                  <p className="mt-3 whitespace-pre-wrap rounded-md border border-border bg-card/70 p-4 text-sm">{selectedSurvey.message}</p>
+                </div>
+              </div>
+            ) : null}
+          </section>
+        </main>
+      ) : view === 'system-errors' ? (
         <main className="mx-auto max-w-7xl px-4 py-6">
           <section aria-labelledby="system-errors-heading" className="min-w-0">
             <div className="border-b border-border pb-4">
@@ -1012,6 +1120,12 @@ export default function ModeratorReview() {
                 </select>
               </div>
             </div>
+
+            <button type="button" onClick={() => setView('surveys')} className="mt-5 flex w-full items-center justify-between gap-3 rounded-lg border border-border bg-card p-4 text-left" aria-label="Open subscription survey responses">
+              <span className="font-medium">Subscription survey responses</span>
+              <span className="text-sm text-muted-foreground">{surveysLoading ? '…' : surveysError ? '—' : surveyPage.total}</span>
+              <ChevronRight className="h-4 w-4 shrink-0" />
+            </button>
 
             <div className="mt-5 rounded-lg border border-border bg-card p-4" aria-labelledby="survey-ratings-heading">
               <div className="flex flex-wrap items-baseline justify-between gap-2">

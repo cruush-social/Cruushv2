@@ -8467,6 +8467,29 @@ describe("server", () => {
     });
   });
 
+  it("accepts anonymous survey responses without a reply email", async () => {
+    query.mockResolvedValueOnce({ rows: [{ id: "survey-qa", status: "open", ai_triage_status: "pending", created_at: "2026-10-08T12:00:00.000Z" }] });
+    const response = await app.inject({
+      method: "POST", url: "/api/support-requests",
+      payload: { category: "comment", subject: "cruush subscription survey response", message: "What is the biggest reason you have not subscribed?\nThe price", source: "survey" }
+    });
+    expect(response.statusCode).toBe(201);
+    expect(query.mock.calls[0]?.[1]?.slice(0, 2)).toEqual([null, null]);
+  });
+
+  it("returns complete subscription survey results only to moderators", async () => {
+    query.mockResolvedValueOnce({ rows: [] });
+    const denied = await app.inject({ method: "GET", url: "/api/admin/moderation/surveys", headers: { "x-user-id": userId } });
+    expect(denied.statusCode).toBe(403);
+    query.mockResolvedValueOnce({ rows: [{ role: "moderator" }] }).mockResolvedValueOnce({ rows: [{
+      id: "survey-qa", display_name: "Survey QA", email: "qa@example.test", subject: "cruush subscription survey response", message: "What is the biggest reason you have not subscribed?\nThe price", status: "closed", created_at: "2026-10-08T12:00:00.000Z", total_count: "1"
+    }] });
+    const response = await app.inject({ method: "GET", url: "/api/admin/moderation/surveys", headers: { "x-user-id": userId } });
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data).toMatchObject({ surveys: [{ email: null, status: "closed", message: "What is the biggest reason you have not subscribed?\nThe price" }], page: { total: 1, hasMore: false } });
+    expect(query.mock.calls.at(-1)?.[0]).toContain("cruush subscription survey response");
+  });
+
   it("requires a reply email for signed-out support requests", async () => {
     const response = await app.inject({
       method: "POST",
