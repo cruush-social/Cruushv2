@@ -1028,14 +1028,47 @@ export async function registerMessageRoutes(app: FastifyInstance) {
     }
 
     const dmKey = getDirectMessageKey(userId, payload.otherUserId);
-    const conversationInsertResult = await app.db.query<{ id: string }>(
-      `insert into conversations (kind, dm_key, created_by)
-       values ('dm', $1, $2)
-       on conflict (dm_key) do update
-       set updated_at = conversations.updated_at
-       returning id::text as id`,
-      [dmKey, userId]
-    );
+    let conversationInsertResult: { rows: Array<{ id: string }> };
+
+    try {
+      conversationInsertResult = await app.db.query<{ id: string }>(
+        `insert into conversations (kind, dm_key, created_by)
+         values ('dm', $1, $2)
+         on conflict (dm_key) do update
+         set updated_at = conversations.updated_at
+         returning id::text as id`,
+        [dmKey, userId]
+      );
+    } catch (error) {
+      const code = typeof error === "object" && error !== null && "code" in error
+        ? String((error as { code?: string }).code)
+        : "";
+
+      if (code !== "42P10") {
+        throw error;
+      }
+
+      app.log.warn({ err: error }, "direct conversation conflict constraint unavailable");
+      conversationInsertResult = await app.db.query<{ id: string }>(
+        `with existing as (
+           select id::text as id
+           from conversations
+           where dm_key = $1
+           order by created_at asc
+           limit 1
+         ), inserted as (
+           insert into conversations (kind, dm_key, created_by)
+           select 'dm', $1, $2
+           where not exists (select 1 from existing)
+           returning id::text as id
+         )
+         select id from existing
+         union all
+         select id from inserted
+         limit 1`,
+        [dmKey, userId]
+      );
+    }
 
     const conversationId = conversationInsertResult.rows[0]?.id;
 
